@@ -1,0 +1,45 @@
+html,
+body,
+#app {
+  margin: 0;
+  height: 100%;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+.page-section {
+  max-width: 1200px;
+}
+
+.page-section .title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.page-section .desc {
+  margin: 0 0 16px;
+  color: #606266;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.page-section .slot-body {
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #ebeef5;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.stat-row {
+  margin-bottom: 16px;
+}
