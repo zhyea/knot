@@ -1,65 +1,57 @@
 package com.knot.gateway.controller;
 
 import com.knot.gateway.common.ApiResponse;
+import com.knot.gateway.common.model.PageRequest;
+import com.knot.gateway.common.model.PageResult;
+import com.knot.gateway.converter.BillingConverter;
 import com.knot.gateway.service.BillingService;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/billing")
 public class BillingController {
     private final BillingService billingService;
+    private final BillingConverter billingConverter;
 
-    public BillingController(BillingService billingService) {
+    public BillingController(BillingService billingService, BillingConverter billingConverter) {
         this.billingService = billingService;
+        this.billingConverter = billingConverter;
     }
 
     @GetMapping("/rules")
-    public ApiResponse<List<BillingRule>> listRules() {
-        List<BillingRule> rules = billingService.listRules().stream()
-                .map(d -> new BillingRule(d.code(), d.name(), d.unitPrice(), d.unit()))
-                .toList();
-        return ApiResponse.ok(rules);
+    public ApiResponse<PageResult<BillingRule>> listRules(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        PageResult<BillingService.BillingRuleDto> page = billingService.listRules(PageRequest.of(pageNum, pageSize));
+        return ApiResponse.ok(page.mapList(billingConverter::toRuleVOList));
     }
 
     @PostMapping("/rules")
-    public ApiResponse<BillingRule> createRule(@RequestBody BillingRule request) {
-        BillingService.BillingRuleDto created = billingService.createRule(
-                new BillingService.BillingRuleDto(request.code(), request.name(), request.unitPrice(), request.unit())
-        );
-        return ApiResponse.ok(new BillingRule(created.code(), created.name(), created.unitPrice(), created.unit()));
+    public ApiResponse<BillingRule> createRule(@RequestBody @Valid BillingRule request) {
+        BillingService.BillingRuleDto created = billingService.createRule(billingConverter.toRuleDto(request));
+        return ApiResponse.ok(billingConverter.toRuleVO(created));
     }
 
     @GetMapping("/summary")
     public ApiResponse<BillingSummary> summary() {
-        BillingService.BillingSummaryDto summary = billingService.summary();
-        return ApiResponse.ok(new BillingSummary(summary.requestCount(), summary.tokenUsage(), summary.totalCost()));
+        return ApiResponse.ok(billingConverter.toSummaryVO(billingService.summary()));
     }
 
     @GetMapping("/details")
-    public ApiResponse<List<BillingDetail>> details() {
-        List<BillingDetail> details = billingService.details().stream()
-                .map(d -> new BillingDetail(d.requestId(), d.appId(), d.modelCode(), d.tokenUsage(), d.cost()))
-                .toList();
-        return ApiResponse.ok(details);
+    public ApiResponse<PageResult<BillingDetail>> details(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        PageResult<BillingService.BillingDetailDto> page = billingService.details(PageRequest.of(pageNum, pageSize));
+        return ApiResponse.ok(page.mapList(billingConverter::toDetailVOList));
     }
 
     @PostMapping("/reconciliation")
-    public ApiResponse<ReconciliationResult> reconciliation(@RequestBody ReconciliationRequest request) {
+    public ApiResponse<ReconciliationResult> reconciliation(@RequestBody @Valid ReconciliationRequest request) {
         BillingService.ReconciliationResultDto result = billingService.reconcile(request.providerCode(), request.billDate());
-        return ApiResponse.ok(new ReconciliationResult(
-                result.providerCode(),
-                result.billDate(),
-                result.comparedRows(),
-                result.diffRows(),
-                result.status()
-        ));
+        return ApiResponse.ok(billingConverter.toReconciliationVO(result));
     }
 
     public record BillingRule(String code, String name, BigDecimal unitPrice, String unit) {

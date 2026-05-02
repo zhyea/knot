@@ -1,20 +1,47 @@
 package com.knot.gateway.common;
 
 import com.knot.gateway.common.error.BusinessException;
+import com.knot.gateway.common.error.ErrorCode;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.List;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(BusinessException.class)
-    public ApiResponse<ErrorPayload> handleBusinessException(BusinessException ex) {
-        return ApiResponse.fail(ex.getMessage() + " (" + ex.getCode() + ")");
+    public ResponseEntity<ApiResponse<ErrorPayload>> handleBusinessException(BusinessException ex) {
+        HttpStatus httpStatus = mapToHttpStatus(ex.getCode());
+        return ResponseEntity.status(httpStatus)
+                .body(new ApiResponse<>(false, ex.getMessage(), new ErrorPayload(ex.getCode(), ex.getMessage())));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<ErrorPayload>> handleValidationException(MethodArgumentNotValidException ex) {
+        List<String> errors = ex.getBindingResult().getFieldErrors().stream()
+                .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
+                .toList();
+        String message = String.join("; ", errors);
+        return ResponseEntity.badRequest()
+                .body(new ApiResponse<>(false, message, new ErrorPayload(ErrorCode.VALIDATION_ERROR.code(), message)));
     }
 
     @ExceptionHandler(Exception.class)
-    public ApiResponse<Void> handleException(Exception ex) {
-        return ApiResponse.fail(ex.getMessage());
+    public ResponseEntity<ApiResponse<ErrorPayload>> handleException(Exception ex) {
+        return ResponseEntity.internalServerError()
+                .body(new ApiResponse<>(false, ex.getMessage(), new ErrorPayload("INTERNAL_ERROR", ex.getMessage())));
+    }
+
+    private HttpStatus mapToHttpStatus(String code) {
+        if (code == null) return HttpStatus.INTERNAL_SERVER_ERROR;
+        if (code.endsWith("404")) return HttpStatus.NOT_FOUND;
+        if (code.endsWith("400")) return HttpStatus.BAD_REQUEST;
+        if (code.endsWith("409")) return HttpStatus.CONFLICT;
+        return HttpStatus.INTERNAL_SERVER_ERROR;
     }
 
     public record ErrorPayload(String code, String message) {

@@ -18,7 +18,11 @@ public interface BillingStatsMapper {
     @Select("select coalesce(sum(cost_amount),0) from gateway_requests")
     BigDecimal sumCost();
 
-    @Select("select request_id, app_id, model_id, total_tokens, cost_amount from gateway_requests order by id desc limit 50")
+    @Select("select gr.request_id, a.app_id as app_id, m.model_code as model_code, gr.total_tokens, gr.cost_amount " +
+            "from gateway_requests gr " +
+            "left join apps a on gr.app_id = a.id " +
+            "left join models m on gr.model_id = m.id " +
+            "order by gr.id desc")
     List<BillingDetailEntity> listDetails();
 
     @Select("select count(1) from billing_statements bs join providers p on bs.provider_id=p.id where p.code=#{providerCode}")

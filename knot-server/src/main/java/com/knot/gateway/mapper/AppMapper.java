@@ -19,4 +19,13 @@ public interface AppMapper {
 
     @Update("update apps set name=#{name}, owner_user_id=#{ownerUserId}, status=#{status}, rate_limit_json=#{rateLimitJson}, quota_json=#{quotaJson} where id=#{id}")
     int update(AppEntity entity);
+
+    @Select("select count(1) from gateway_requests where app_id=#{appId}")
+    Long countRequestsByAppId(Long appId);
+
+    @Select("select count(1) from gateway_requests where app_id=#{appId} and status='SUCCESS'")
+    Long countSuccessByAppId(Long appId);
+
+    @Select("select coalesce(sum(total_tokens),0) from gateway_requests where app_id=#{appId}")
+    Long sumTokensByAppId(Long appId);
 }

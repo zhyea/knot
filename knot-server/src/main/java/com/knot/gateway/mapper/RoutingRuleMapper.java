@@ -21,6 +21,6 @@ public interface RoutingRuleMapper {
     @Update("update routing_rules set name=#{name}, strategy_type=#{strategyType}, priority=#{priority}, condition_expr=#{conditionExpr}, target_provider_id=#{targetProviderId}, target_model_id=#{targetModelId}, status=#{status} where id=#{id}")
     int update(RoutingRuleEntity entity);
 
-    @Select("select id, rule_id, from_target, to_target, reason, hit_time from routing_hit_logs order by id desc limit 50")
+    @Select("select id, rule_id, from_target, to_target, reason, hit_time from routing_hit_logs order by id desc")
     List<RoutingHitLogEntity> listHitLogs();
 }

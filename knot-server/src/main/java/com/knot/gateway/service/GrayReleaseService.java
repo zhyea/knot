@@ -1,13 +1,17 @@
 package com.knot.gateway.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import com.knot.gateway.common.error.BusinessException;
 import com.knot.gateway.common.error.ErrorCode;
+import com.knot.gateway.common.model.PageRequest;
+import com.knot.gateway.common.model.PageResult;
+import com.knot.gateway.converter.CommonMappings;
+import com.knot.gateway.converter.GrayReleaseConverter;
 import com.knot.gateway.entity.GrayPlanEntity;
 import com.knot.gateway.mapper.GrayPlanMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -17,13 +21,16 @@ public class GrayReleaseService {
     private static final List<Integer> DEFAULT_STEPS = List.of(10, 30, 50, 100);
 
     private final GrayPlanMapper grayPlanMapper;
-    private final ObjectMapper objectMapper;
+    private final GrayReleaseConverter grayReleaseConverter;
+    private final CommonMappings commonMappings;
 
-    public GrayReleaseService(GrayPlanMapper grayPlanMapper, ObjectMapper objectMapper) {
+    public GrayReleaseService(GrayPlanMapper grayPlanMapper, GrayReleaseConverter grayReleaseConverter, CommonMappings commonMappings) {
         this.grayPlanMapper = grayPlanMapper;
-        this.objectMapper = objectMapper;
+        this.grayReleaseConverter = grayReleaseConverter;
+        this.commonMappings = commonMappings;
     }
 
+    @Transactional
     public GrayPlanDto create(GrayPlanDto request) {
         List<Integer> steps = normalizeSteps(request.steps());
         GrayPlanEntity e = new GrayPlanEntity();
@@ -31,13 +38,14 @@ public class GrayReleaseService {
         e.setTargetType(request.targetType());
         e.setTargetId(request.targetId());
         e.setTrafficPercent(request.trafficPercent() != null ? request.trafficPercent() : 10);
-        e.setStepsJson(writeStepsJson(steps));
+        e.setStepsJson(commonMappings.stepsToJson(steps));
         e.setStartTime(LocalDateTime.now());
         e.setStatus("DRAFT");
         grayPlanMapper.insert(e);
-        return toDto(e, steps);
+        return grayReleaseConverter.toDto(e);
     }
 
+    @Transactional
     public GrayPlanDto publish(Long id) {
         GrayPlanEntity e = grayPlanMapper.getById(id);
         if (e == null) {
@@ -45,9 +53,10 @@ public class GrayReleaseService {
         }
         e.setStatus("RUNNING");
         grayPlanMapper.updateStatus(e);
-        return toDto(grayPlanMapper.getById(id));
+        return grayReleaseConverter.toDto(grayPlanMapper.getById(id));
     }
 
+    @Transactional
     public GrayPlanDto rollback(Long id) {
         GrayPlanEntity e = grayPlanMapper.getById(id);
         if (e == null) {
@@ -55,19 +64,13 @@ public class GrayReleaseService {
         }
         e.setStatus("ROLLED_BACK");
         grayPlanMapper.updateStatus(e);
-        return toDto(grayPlanMapper.getById(id));
+        return grayReleaseConverter.toDto(grayPlanMapper.getById(id));
     }
 
-    public List<GrayPlanDto> list() {
-        return grayPlanMapper.list().stream().map(this::toDto).toList();
-    }
-
-    private GrayPlanDto toDto(GrayPlanEntity e) {
-        return toDto(e, readSteps(e.getStepsJson()));
-    }
-
-    private GrayPlanDto toDto(GrayPlanEntity e, List<Integer> steps) {
-        return new GrayPlanDto(e.getId(), e.getTargetType(), e.getTargetId(), steps, e.getTrafficPercent(), e.getStatus());
+    public PageResult<GrayPlanDto> list(PageRequest pageRequest) {
+        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
+        PageInfo<GrayPlanEntity> pageInfo = new PageInfo<>(grayPlanMapper.list());
+        return PageResult.fromPage(pageInfo, grayReleaseConverter::toDtoList, pageRequest);
     }
 
     private List<Integer> normalizeSteps(List<Integer> steps) {
@@ -75,27 +78,6 @@ public class GrayReleaseService {
             return DEFAULT_STEPS;
         }
         return List.copyOf(steps);
-    }
-
-    private List<Integer> readSteps(String json) {
-        if (json == null || json.isBlank()) {
-            return DEFAULT_STEPS;
-        }
-        try {
-            List<Integer> parsed = objectMapper.readValue(json, new TypeReference<>() {
-            });
-            return parsed == null || parsed.isEmpty() ? DEFAULT_STEPS : List.copyOf(parsed);
-        } catch (JsonProcessingException ex) {
-            return DEFAULT_STEPS;
-        }
-    }
-
-    private String writeStepsJson(List<Integer> steps) {
-        try {
-            return objectMapper.writeValueAsString(steps);
-        } catch (JsonProcessingException ex) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "steps json serialize failed");
-        }
     }
 
     public record GrayPlanDto(Long id, String targetType, Long targetId, List<Integer> steps, Integer trafficPercent,

@@ -1,4 +1,4 @@
-package com.knot.gateway.model;
+package com.knot.gateway.common.model;
 
 import java.time.LocalDateTime;
 

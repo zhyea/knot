@@ -1,77 +1,56 @@
 package com.knot.gateway.controller;
 
 import com.knot.gateway.common.ApiResponse;
-import com.knot.gateway.common.error.BusinessException;
-import com.knot.gateway.common.error.ErrorCode;
+import com.knot.gateway.common.model.PageRequest;
+import com.knot.gateway.common.model.PageResult;
 import com.knot.gateway.common.model.QuotaPolicy;
 import com.knot.gateway.common.model.RateLimitPolicy;
+import com.knot.gateway.converter.ModelConverter;
 import com.knot.gateway.service.ModelService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/models")
 public class ModelController {
     private final ModelService modelService;
+    private final ModelConverter modelConverter;
 
-    private final Map<Long, String> activeVersionStore = new LinkedHashMap<>();
-
-    public ModelController(ModelService modelService) {
+    public ModelController(ModelService modelService, ModelConverter modelConverter) {
         this.modelService = modelService;
+        this.modelConverter = modelConverter;
     }
 
     @GetMapping
-    public ApiResponse<List<ModelItem>> list() {
-        List<ModelItem> result = modelService.list().stream()
-                .map(d -> new ModelItem(d.id(), d.name(), d.providerId(), d.modelType(), d.version(),
-                        d.enabled(), d.rateLimitPolicy(), d.quotaPolicy()))
-                .toList();
-        return ApiResponse.ok(result);
+    public ApiResponse<PageResult<ModelItem>> list(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        PageResult<ModelService.ModelDto> page = modelService.list(PageRequest.of(pageNum, pageSize));
+        return ApiResponse.ok(page.mapList(modelConverter::toVOList));
     }
 
     @PostMapping
-    public ApiResponse<ModelItem> create(@RequestBody ModelItem request) {
-        ModelService.ModelDto created = modelService.create(new ModelService.ModelDto(
-                null, null, request.name(), request.providerId(), request.modelType(), request.version(),
-                request.enabled(), request.rateLimitPolicy(), request.quotaPolicy()
-        ));
-        activeVersionStore.put(created.id(), created.version());
-        return ApiResponse.ok(new ModelItem(created.id(), created.name(), created.providerId(), created.modelType(),
-                created.version(), created.enabled(), created.rateLimitPolicy(), created.quotaPolicy()));
+    public ApiResponse<ModelItem> create(@RequestBody @Valid ModelItem request) {
+        ModelService.ModelDto created = modelService.create(modelConverter.toDto(request));
+        return ApiResponse.ok(modelConverter.toVO(created));
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<ModelItem> update(@PathVariable Long id, @RequestBody ModelItem request) {
-        ModelService.ModelDto updated = modelService.update(id, new ModelService.ModelDto(
-                id, null, request.name(), request.providerId(), request.modelType(), request.version(),
-                request.enabled(), request.rateLimitPolicy(), request.quotaPolicy()
-        ));
-        return ApiResponse.ok(new ModelItem(updated.id(), updated.name(), updated.providerId(), updated.modelType(),
-                updated.version(), updated.enabled(), updated.rateLimitPolicy(), updated.quotaPolicy()));
+    public ApiResponse<ModelItem> update(@PathVariable Long id, @RequestBody @Valid ModelItem request) {
+        ModelService.ModelDto updated = modelService.update(id, modelConverter.toDto(request));
+        return ApiResponse.ok(modelConverter.toVO(updated));
     }
 
     @PostMapping("/{id}/test")
-    public ApiResponse<ModelTestResult> test(@PathVariable Long id, @RequestBody ModelTestRequest request) {
-        ensureModelExists(id);
-        String output = "echo: " + request.prompt();
-        return ApiResponse.ok(new ModelTestResult(output, 120, Math.max(1, request.prompt().length() / 2)));
+    public ApiResponse<ModelTestResult> test(@PathVariable Long id, @RequestBody @Valid ModelTestRequest request) {
+        ModelService.ModelTestResultDto result = modelService.testModel(id, request.prompt());
+        return ApiResponse.ok(new ModelTestResult(result.output(), result.latencyMs(), result.tokenUsage()));
     }
 
     @PostMapping("/{id}/versions/switch")
-    public ApiResponse<ModelVersionSwitchResult> switchVersion(@PathVariable Long id, @RequestBody ModelVersionSwitchRequest request) {
-        ensureModelExists(id);
-        activeVersionStore.put(id, request.targetVersion());
-        return ApiResponse.ok(new ModelVersionSwitchResult(id, request.targetVersion(), "ACTIVE"));
-    }
-
-    private void ensureModelExists(Long id) {
-        boolean exists = modelService.list().stream().anyMatch(item -> item.id().equals(id));
-        if (!exists) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "model not found");
-        }
+    public ApiResponse<ModelVersionSwitchResult> switchVersion(@PathVariable Long id, @RequestBody @Valid ModelVersionSwitchRequest request) {
+        ModelService.ModelVersionSwitchResultDto result = modelService.switchVersion(id, request.targetVersion());
+        return ApiResponse.ok(new ModelVersionSwitchResult(result.modelId(), result.activeVersion(), result.status()));
     }
 
     public record ModelItem(Long id, String name, Long providerId, String modelType, String version, boolean enabled,

@@ -1,7 +1,7 @@
 package com.knot.gateway.controller;
 
+import com.knot.gateway.common.model.HealthResponse;
 import com.knot.gateway.mapper.PingMapper;
-import com.knot.gateway.model.HealthResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;

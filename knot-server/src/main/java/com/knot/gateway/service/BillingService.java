@@ -1,9 +1,16 @@
 package com.knot.gateway.service;
 
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
+import com.knot.gateway.common.model.PageRequest;
+import com.knot.gateway.common.model.PageResult;
+import com.knot.gateway.converter.BillingConverter;
+import com.knot.gateway.entity.BillingDetailEntity;
 import com.knot.gateway.entity.BillingRuleEntity;
 import com.knot.gateway.mapper.BillingRuleMapper;
 import com.knot.gateway.mapper.BillingStatsMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -13,16 +20,21 @@ import java.util.List;
 public class BillingService {
     private final BillingRuleMapper billingRuleMapper;
     private final BillingStatsMapper billingStatsMapper;
+    private final BillingConverter billingConverter;
 
-    public BillingService(BillingRuleMapper billingRuleMapper, BillingStatsMapper billingStatsMapper) {
+    public BillingService(BillingRuleMapper billingRuleMapper, BillingStatsMapper billingStatsMapper, BillingConverter billingConverter) {
         this.billingRuleMapper = billingRuleMapper;
         this.billingStatsMapper = billingStatsMapper;
+        this.billingConverter = billingConverter;
     }
 
-    public List<BillingRuleDto> listRules() {
-        return billingRuleMapper.list().stream().map(this::toDto).toList();
+    public PageResult<BillingRuleDto> listRules(PageRequest pageRequest) {
+        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
+        PageInfo<BillingRuleEntity> pageInfo = new PageInfo<>(billingRuleMapper.list());
+        return PageResult.fromPage(pageInfo, list -> list.stream().map(billingConverter::toRuleDto).toList(), pageRequest);
     }
 
+    @Transactional
     public BillingRuleDto createRule(BillingRuleDto request) {
         BillingRuleEntity e = new BillingRuleEntity();
         e.setCode(request.code());
@@ -33,7 +45,7 @@ public class BillingService {
         e.setStatus("ACTIVE");
         e.setEffectiveFrom(LocalDateTime.now());
         billingRuleMapper.insert(e);
-        return toDto(e);
+        return billingConverter.toRuleDto(e);
     }
 
     public BillingSummaryDto summary() {
@@ -44,11 +56,10 @@ public class BillingService {
         return new BillingSummaryDto(requestCount, tokenUsage, cost);
     }
 
-    public List<BillingDetailDto> details() {
-        return billingStatsMapper.listDetails().stream()
-                .map(d -> new BillingDetailDto(d.getRequestId(), String.valueOf(d.getAppId()),
-                        String.valueOf(d.getModelId()), d.getTotalTokens(), d.getCostAmount()))
-                .toList();
+    public PageResult<BillingDetailDto> details(PageRequest pageRequest) {
+        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
+        PageInfo<BillingDetailEntity> pageInfo = new PageInfo<>(billingStatsMapper.listDetails());
+        return PageResult.fromPage(pageInfo, billingConverter::toDetailDtoList, pageRequest);
     }
 
     public ReconciliationResultDto reconcile(String providerCode, String billDate) {
@@ -60,10 +71,6 @@ public class BillingService {
 
     private long defaultLong(Long value) {
         return value == null ? 0L : value;
-    }
-
-    private BillingRuleDto toDto(BillingRuleEntity e) {
-        return new BillingRuleDto(e.getCode(), e.getName(), e.getUnitPrice(), e.getUnit());
     }
 
     public record BillingRuleDto(String code, String name, BigDecimal unitPrice, String unit) {}

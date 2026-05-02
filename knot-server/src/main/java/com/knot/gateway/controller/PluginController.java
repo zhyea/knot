@@ -1,7 +1,11 @@
 package com.knot.gateway.controller;
 
 import com.knot.gateway.common.ApiResponse;
+import com.knot.gateway.common.model.PageRequest;
+import com.knot.gateway.common.model.PageResult;
+import com.knot.gateway.converter.PluginConverter;
 import com.knot.gateway.service.PluginService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -10,31 +14,31 @@ import java.util.List;
 @RequestMapping("/api/plugins")
 public class PluginController {
     private final PluginService pluginService;
+    private final PluginConverter pluginConverter;
 
-    public PluginController(PluginService pluginService) {
+    public PluginController(PluginService pluginService, PluginConverter pluginConverter) {
         this.pluginService = pluginService;
+        this.pluginConverter = pluginConverter;
     }
 
     @GetMapping
-    public ApiResponse<List<PluginItem>> list() {
-        List<PluginItem> result = pluginService.list().stream()
-                .map(p -> new PluginItem(p.id(), p.code(), p.name(), p.pluginType(), p.version(), p.status()))
-                .toList();
-        return ApiResponse.ok(result);
+    public ApiResponse<PageResult<PluginItem>> list(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        PageResult<PluginService.PluginDto> page = pluginService.list(PageRequest.of(pageNum, pageSize));
+        return ApiResponse.ok(page.mapList(pluginConverter::toVOList));
     }
 
     @PostMapping
-    public ApiResponse<PluginItem> create(@RequestBody PluginItem request) {
-        PluginService.PluginDto created = pluginService.create(
-                new PluginService.PluginDto(null, request.code(), request.name(), request.pluginType(), request.version(), request.status())
-        );
-        return ApiResponse.ok(new PluginItem(created.id(), created.code(), created.name(), created.pluginType(), created.version(), created.status()));
+    public ApiResponse<PluginItem> create(@RequestBody @Valid PluginItem request) {
+        PluginService.PluginDto created = pluginService.create(pluginConverter.toDto(request));
+        return ApiResponse.ok(pluginConverter.toVO(created));
     }
 
     @PutMapping("/{id}/status")
-    public ApiResponse<PluginItem> updateStatus(@PathVariable Long id, @RequestBody PluginStatusRequest request) {
+    public ApiResponse<PluginItem> updateStatus(@PathVariable Long id, @RequestBody @Valid PluginStatusRequest request) {
         PluginService.PluginDto updated = pluginService.updateStatus(id, request.status());
-        return ApiResponse.ok(new PluginItem(updated.id(), updated.code(), updated.name(), updated.pluginType(), updated.version(), updated.status()));
+        return ApiResponse.ok(pluginConverter.toVO(updated));
     }
 
     public record PluginItem(Long id, String code, String name, String pluginType, String version, String status) {

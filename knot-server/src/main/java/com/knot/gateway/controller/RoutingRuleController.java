@@ -1,9 +1,11 @@
 package com.knot.gateway.controller;
 
 import com.knot.gateway.common.ApiResponse;
-import com.knot.gateway.common.error.BusinessException;
-import com.knot.gateway.common.error.ErrorCode;
+import com.knot.gateway.common.model.PageRequest;
+import com.knot.gateway.common.model.PageResult;
+import com.knot.gateway.converter.RoutingRuleConverter;
 import com.knot.gateway.service.RoutingRuleService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,64 +14,45 @@ import java.util.List;
 @RequestMapping("/api/routing-rules")
 public class RoutingRuleController {
     private final RoutingRuleService routingRuleService;
+    private final RoutingRuleConverter routingRuleConverter;
 
-    public RoutingRuleController(RoutingRuleService routingRuleService) {
+    public RoutingRuleController(RoutingRuleService routingRuleService, RoutingRuleConverter routingRuleConverter) {
         this.routingRuleService = routingRuleService;
+        this.routingRuleConverter = routingRuleConverter;
     }
 
     @GetMapping
-    public ApiResponse<List<RoutingRule>> list() {
-        List<RoutingRule> result = routingRuleService.list().stream()
-                .map(d -> new RoutingRule(d.id(), d.name(), d.strategy(), d.conditionExpr(), d.targetProviderId(),
-                        d.targetModelId(), d.priority(), d.enabled()))
-                .toList();
-        return ApiResponse.ok(result);
+    public ApiResponse<PageResult<RoutingRule>> list(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        PageResult<RoutingRuleService.RoutingRuleDto> page = routingRuleService.list(PageRequest.of(pageNum, pageSize));
+        return ApiResponse.ok(page.mapList(routingRuleConverter::toVOList));
     }
 
     @PostMapping
-    public ApiResponse<RoutingRule> create(@RequestBody RoutingRule request) {
-        RoutingRuleService.RoutingRuleDto created = routingRuleService.create(new RoutingRuleService.RoutingRuleDto(
-                null, request.name(), request.strategy(), request.conditionExpr(), request.targetProviderId(),
-                request.targetModelId(), request.priority(), request.enabled()
-        ));
-        return ApiResponse.ok(new RoutingRule(created.id(), created.name(), created.strategy(), created.conditionExpr(),
-                created.targetProviderId(), created.targetModelId(), created.priority(), created.enabled()));
+    public ApiResponse<RoutingRule> create(@RequestBody @Valid RoutingRule request) {
+        RoutingRuleService.RoutingRuleDto created = routingRuleService.create(routingRuleConverter.toDto(request));
+        return ApiResponse.ok(routingRuleConverter.toVO(created));
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<RoutingRule> update(@PathVariable Long id, @RequestBody RoutingRule request) {
-        RoutingRuleService.RoutingRuleDto updated = routingRuleService.update(id, new RoutingRuleService.RoutingRuleDto(
-                id, request.name(), request.strategy(), request.conditionExpr(), request.targetProviderId(),
-                request.targetModelId(), request.priority(), request.enabled()
-        ));
-        return ApiResponse.ok(new RoutingRule(updated.id(), updated.name(), updated.strategy(), updated.conditionExpr(),
-                updated.targetProviderId(), updated.targetModelId(), updated.priority(), updated.enabled()));
+    public ApiResponse<RoutingRule> update(@PathVariable Long id, @RequestBody @Valid RoutingRule request) {
+        RoutingRuleService.RoutingRuleDto updated = routingRuleService.update(id, routingRuleConverter.toDto(request));
+        return ApiResponse.ok(routingRuleConverter.toVO(updated));
     }
 
     @PostMapping("/{id}/test")
-    public ApiResponse<RoutingTestResult> test(@PathVariable Long id, @RequestBody RoutingTestRequest request) {
-        ensureExists(id);
-        RoutingRule rule = routingRuleService.list().stream().filter(item -> item.id().equals(id))
-                .map(d -> new RoutingRule(d.id(), d.name(), d.strategy(), d.conditionExpr(), d.targetProviderId(),
-                        d.targetModelId(), d.priority(), d.enabled()))
-                .findFirst()
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "routing rule not found"));
+    public ApiResponse<RoutingTestResult> test(@PathVariable Long id, @RequestBody @Valid RoutingTestRequest request) {
+        RoutingRuleService.RoutingRuleDto rule = routingRuleService.getById(id);
         return ApiResponse.ok(new RoutingTestResult(rule.id(), rule.targetProviderId(), rule.targetModelId(), "MATCHED"));
     }
 
     @GetMapping("/switch-logs")
-    public ApiResponse<List<RoutingSwitchLog>> switchLogs() {
-        List<RoutingSwitchLog> logs = routingRuleService.listSwitchLogs().stream()
-                .map(l -> new RoutingSwitchLog(l.reason(), l.fromTarget(), l.toTarget()))
-                .toList();
-        return ApiResponse.ok(logs);
-    }
-
-    private void ensureExists(Long id) {
-        boolean exists = routingRuleService.list().stream().anyMatch(item -> item.id().equals(id));
-        if (!exists) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "routing rule not found");
-        }
+    public ApiResponse<PageResult<RoutingSwitchLog>> switchLogs(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        PageResult<RoutingRuleService.RoutingSwitchLogDto> page = routingRuleService.listSwitchLogs(PageRequest.of(pageNum, pageSize));
+        return ApiResponse.ok(page.mapList(routingRuleConverter::toSwitchLogVOList));
     }
 
     public record RoutingRule(Long id, String name, String strategy, String conditionExpr,

@@ -21,7 +21,7 @@ public interface SecurityMapper {
     @Update("update security_policies set config_json=#{configJson}, status=#{status} where policy_code=#{policyCode}")
     int updatePolicy(SecurityPolicyEntity entity);
 
-    @Select("select id, level, title, status from alerts order by id desc limit 50")
+    @Select("select id, level, title, status from alerts order by id desc")
     List<AlertEntity> listAlerts();
 
     @Select("select count(1) from alerts where status='OPEN'")

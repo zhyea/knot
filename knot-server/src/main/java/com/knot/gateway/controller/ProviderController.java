@@ -1,116 +1,79 @@
 package com.knot.gateway.controller;
 
 import com.knot.gateway.common.ApiResponse;
-import com.knot.gateway.common.error.BusinessException;
-import com.knot.gateway.common.error.ErrorCode;
+import com.knot.gateway.common.model.PageRequest;
+import com.knot.gateway.common.model.PageResult;
 import com.knot.gateway.common.model.QuotaPolicy;
 import com.knot.gateway.common.model.RateLimitPolicy;
+import com.knot.gateway.converter.ProviderConverter;
 import com.knot.gateway.service.ProviderService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
 
 @RestController
 @RequestMapping("/api/providers")
 public class ProviderController {
     private final ProviderService providerService;
+    private final ProviderConverter providerConverter;
 
-    private final Map<Long, List<DiscountPolicy>> discountStore = new LinkedHashMap<>();
-    private final AtomicLong discountIdGenerator = new AtomicLong(1);
-
-    public ProviderController(ProviderService providerService) {
+    public ProviderController(ProviderService providerService, ProviderConverter providerConverter) {
         this.providerService = providerService;
+        this.providerConverter = providerConverter;
     }
 
     @GetMapping
-    public ApiResponse<List<ProviderItem>> list() {
-        List<ProviderItem> result = providerService.list().stream()
-                .map(d -> new ProviderItem(d.id(), d.name(), d.type(), d.baseUrl(), d.enabled(), d.rateLimitPolicy(), d.quotaPolicy()))
-                .toList();
-        return ApiResponse.ok(result);
+    public ApiResponse<PageResult<ProviderItem>> list(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        PageResult<ProviderService.ProviderDto> page = providerService.list(PageRequest.of(pageNum, pageSize));
+        return ApiResponse.ok(page.mapList(providerConverter::toVOList));
     }
 
     @PostMapping
-    public ApiResponse<ProviderItem> create(@RequestBody ProviderItem request) {
-        ProviderService.ProviderDto created = providerService.create(
-                new ProviderService.ProviderDto(null, null, request.name(), request.type(), request.baseUrl(),
-                        request.enabled(), request.rateLimitPolicy(), request.quotaPolicy())
-        );
-        return ApiResponse.ok(new ProviderItem(created.id(), created.name(), created.type(), created.baseUrl(),
-                created.enabled(), created.rateLimitPolicy(), created.quotaPolicy()));
+    public ApiResponse<ProviderItem> create(@RequestBody @Valid ProviderItem request) {
+        ProviderService.ProviderDto created = providerService.create(providerConverter.toDto(request));
+        return ApiResponse.ok(providerConverter.toVO(created));
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<ProviderItem> update(@PathVariable Long id, @RequestBody ProviderItem request) {
-        ProviderService.ProviderDto updated = providerService.update(
-                id,
-                new ProviderService.ProviderDto(id, null, request.name(), request.type(), request.baseUrl(),
-                        request.enabled(), request.rateLimitPolicy(), request.quotaPolicy())
-        );
-        return ApiResponse.ok(new ProviderItem(updated.id(), updated.name(), updated.type(), updated.baseUrl(),
-                updated.enabled(), updated.rateLimitPolicy(), updated.quotaPolicy()));
+    public ApiResponse<ProviderItem> update(@PathVariable Long id, @RequestBody @Valid ProviderItem request) {
+        ProviderService.ProviderDto updated = providerService.update(id, providerConverter.toDto(request));
+        return ApiResponse.ok(providerConverter.toVO(updated));
     }
 
     @GetMapping("/{id}/discount-policies")
     public ApiResponse<List<DiscountPolicy>> listDiscountPolicies(@PathVariable Long id) {
-        ensureProviderExists(id);
-        return ApiResponse.ok(discountStore.getOrDefault(id, List.of()));
+        return ApiResponse.ok(providerService.listDiscountPolicies(id).stream()
+                .map(this::toDiscountPolicyVO).toList());
     }
 
     @PostMapping("/{id}/discount-policies")
-    public ApiResponse<DiscountPolicy> createDiscountPolicy(@PathVariable Long id, @RequestBody DiscountPolicy request) {
-        ensureProviderExists(id);
-        DiscountPolicy created = new DiscountPolicy(
-                discountIdGenerator.getAndIncrement(),
-                request.policyName(),
-                request.scopeType(),
-                request.scopeRefId(),
-                request.discountType(),
-                request.discountValue(),
-                request.priority(),
-                request.status()
-        );
-        discountStore.computeIfAbsent(id, key -> new ArrayList<>()).add(created);
-        return ApiResponse.ok(created);
+    public ApiResponse<DiscountPolicy> createDiscountPolicy(@PathVariable Long id, @RequestBody @Valid DiscountPolicy request) {
+        ProviderService.DiscountPolicyDto created = providerService.createDiscountPolicy(id, toDiscountPolicyDto(request));
+        return ApiResponse.ok(toDiscountPolicyVO(created));
     }
 
     @PutMapping("/{id}/discount-policies/{policyId}")
     public ApiResponse<DiscountPolicy> updateDiscountPolicy(
             @PathVariable Long id,
             @PathVariable Long policyId,
-            @RequestBody DiscountPolicy request
-    ) {
-        ensureProviderExists(id);
-        List<DiscountPolicy> policies = discountStore.getOrDefault(id, new ArrayList<>());
-        for (int i = 0; i < policies.size(); i++) {
-            if (policies.get(i).id().equals(policyId)) {
-                DiscountPolicy updated = new DiscountPolicy(
-                        policyId,
-                        request.policyName(),
-                        request.scopeType(),
-                        request.scopeRefId(),
-                        request.discountType(),
-                        request.discountValue(),
-                        request.priority(),
-                        request.status()
-                );
-                policies.set(i, updated);
-                discountStore.put(id, policies);
-                return ApiResponse.ok(updated);
-            }
-        }
-        throw new BusinessException(ErrorCode.NOT_FOUND, "discount policy not found");
+            @RequestBody @Valid DiscountPolicy request) {
+        ProviderService.DiscountPolicyDto updated = providerService.updateDiscountPolicy(id, policyId, toDiscountPolicyDto(request));
+        return ApiResponse.ok(toDiscountPolicyVO(updated));
     }
 
-    private void ensureProviderExists(Long id) {
-        boolean exists = providerService.list().stream().anyMatch(item -> item.id().equals(id));
-        if (!exists) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "provider not found");
-        }
+    private ProviderService.DiscountPolicyDto toDiscountPolicyDto(DiscountPolicy vo) {
+        return new ProviderService.DiscountPolicyDto(
+                null, vo.policyName(), vo.scopeType(), vo.scopeRefId(),
+                vo.discountType(), vo.discountValue(), vo.priority(), vo.status()
+        );
+    }
+
+    private DiscountPolicy toDiscountPolicyVO(ProviderService.DiscountPolicyDto dto) {
+        return new DiscountPolicy(dto.id(), dto.policyName(), dto.scopeType(), dto.scopeRefId(),
+                dto.discountType(), dto.discountValue(), dto.priority(), dto.status());
     }
 
     public record ProviderItem(Long id, String name, String type, String baseUrl, boolean enabled,

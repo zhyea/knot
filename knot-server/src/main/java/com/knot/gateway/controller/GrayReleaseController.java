@@ -1,7 +1,11 @@
 package com.knot.gateway.controller;
 
 import com.knot.gateway.common.ApiResponse;
+import com.knot.gateway.common.model.PageRequest;
+import com.knot.gateway.common.model.PageResult;
+import com.knot.gateway.converter.GrayReleaseConverter;
 import com.knot.gateway.service.GrayReleaseService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -10,41 +14,40 @@ import java.util.List;
 @RequestMapping("/api/release/gray-plans")
 public class GrayReleaseController {
     private final GrayReleaseService grayReleaseService;
+    private final GrayReleaseConverter grayReleaseConverter;
 
-    public GrayReleaseController(GrayReleaseService grayReleaseService) {
+    public GrayReleaseController(GrayReleaseService grayReleaseService, GrayReleaseConverter grayReleaseConverter) {
         this.grayReleaseService = grayReleaseService;
+        this.grayReleaseConverter = grayReleaseConverter;
     }
 
     @PostMapping
-    public ApiResponse<GrayPlan> create(@RequestBody GrayPlanRequest request) {
+    public ApiResponse<GrayPlan> create(@RequestBody @Valid GrayPlanRequest request) {
         GrayReleaseService.GrayPlanDto created = grayReleaseService.create(
                 new GrayReleaseService.GrayPlanDto(null, request.targetType(), request.targetId(), request.steps(),
                         request.trafficPercent(), "DRAFT")
         );
-        return ApiResponse.ok(new GrayPlan(created.id(), created.targetType(), created.targetId(),
-                created.steps(), created.trafficPercent(), created.status()));
+        return ApiResponse.ok(grayReleaseConverter.toVO(created));
     }
 
     @PostMapping("/{id}/publish")
     public ApiResponse<GrayPlan> publish(@PathVariable Long id) {
         GrayReleaseService.GrayPlanDto published = grayReleaseService.publish(id);
-        return ApiResponse.ok(new GrayPlan(published.id(), published.targetType(), published.targetId(),
-                published.steps(), published.trafficPercent(), published.status()));
+        return ApiResponse.ok(grayReleaseConverter.toVO(published));
     }
 
     @PostMapping("/{id}/rollback")
     public ApiResponse<GrayPlan> rollback(@PathVariable Long id) {
         GrayReleaseService.GrayPlanDto rolledBack = grayReleaseService.rollback(id);
-        return ApiResponse.ok(new GrayPlan(rolledBack.id(), rolledBack.targetType(), rolledBack.targetId(),
-                rolledBack.steps(), rolledBack.trafficPercent(), rolledBack.status()));
+        return ApiResponse.ok(grayReleaseConverter.toVO(rolledBack));
     }
 
     @GetMapping
-    public ApiResponse<List<GrayPlan>> list() {
-        List<GrayPlan> plans = grayReleaseService.list().stream()
-                .map(p -> new GrayPlan(p.id(), p.targetType(), p.targetId(), p.steps(), p.trafficPercent(), p.status()))
-                .toList();
-        return ApiResponse.ok(plans);
+    public ApiResponse<PageResult<GrayPlan>> list(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        PageResult<GrayReleaseService.GrayPlanDto> page = grayReleaseService.list(PageRequest.of(pageNum, pageSize));
+        return ApiResponse.ok(page.mapList(grayReleaseConverter::toVOList));
     }
 
     public record GrayPlanRequest(String targetType, Long targetId, List<Integer> steps, Integer trafficPercent) {

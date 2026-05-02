@@ -24,7 +24,7 @@ public interface SystemMapper {
     @Update("update users set status=#{status} where id=#{id}")
     int updateUserStatus(UserEntity entity);
 
-    @Select("select id,module_code,action_code,target_id,result_status from operation_logs order by id desc limit 50")
+    @Select("select id,module_code,action_code,target_id,result_status from operation_logs order by id desc")
     List<OperationLogEntity> listOperationLogs();
 
     @Select("select log_id,before_json,after_json from operation_log_details where log_id=#{logId}")

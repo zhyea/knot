@@ -4,17 +4,17 @@ import java.math.BigDecimal;
 
 public class BillingDetailEntity {
     private String requestId;
-    private Long appId;
-    private Long modelId;
+    private String appId;
+    private String modelCode;
     private Integer totalTokens;
     private BigDecimal costAmount;
 
     public String getRequestId() { return requestId; }
     public void setRequestId(String requestId) { this.requestId = requestId; }
-    public Long getAppId() { return appId; }
-    public void setAppId(Long appId) { this.appId = appId; }
-    public Long getModelId() { return modelId; }
-    public void setModelId(Long modelId) { this.modelId = modelId; }
+    public String getAppId() { return appId; }
+    public void setAppId(String appId) { this.appId = appId; }
+    public String getModelCode() { return modelCode; }
+    public void setModelCode(String modelCode) { this.modelCode = modelCode; }
     public Integer getTotalTokens() { return totalTokens; }
     public void setTotalTokens(Integer totalTokens) { this.totalTokens = totalTokens; }
     public BigDecimal getCostAmount() { return costAmount; }

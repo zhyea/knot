@@ -1,12 +1,17 @@
 package com.knot.gateway.controller;
 
 import com.knot.gateway.common.ApiResponse;
+import com.knot.gateway.common.model.PageRequest;
+import com.knot.gateway.common.model.PageResult;
+import com.knot.gateway.converter.SecurityConverter;
 import com.knot.gateway.service.SecurityService;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -15,43 +20,38 @@ import java.util.List;
 @RequestMapping("/api/security")
 public class SecurityController {
     private final SecurityService securityService;
+    private final SecurityConverter securityConverter;
 
-    public SecurityController(SecurityService securityService) {
+    public SecurityController(SecurityService securityService, SecurityConverter securityConverter) {
         this.securityService = securityService;
+        this.securityConverter = securityConverter;
     }
 
     @GetMapping("/overview")
     public ApiResponse<SecurityOverview> overview() {
-        SecurityService.SecurityOverviewDto overview = securityService.overview();
-        return ApiResponse.ok(new SecurityOverview(
-                overview.authEnabled(),
-                overview.signVerificationEnabled(),
-                overview.blockedIpCount(),
-                overview.alertCount(),
-                overview.cacheHitRate()
-        ));
+        return ApiResponse.ok(securityConverter.toOverviewVO(securityService.overview()));
     }
 
     @PutMapping("/policies")
-    public ApiResponse<SecurityPolicy> updatePolicy(@RequestBody SecurityPolicy request) {
+    public ApiResponse<SecurityPolicy> updatePolicy(@RequestBody @Valid SecurityPolicy request) {
         SecurityService.SecurityPolicyDto updated = securityService.updatePolicy(
-                new SecurityService.SecurityPolicyDto(request.policyCode(), request.configJson(), request.status())
+                securityConverter.toPolicyDto(request)
         );
-        return ApiResponse.ok(new SecurityPolicy(updated.policyCode(), updated.configJson(), updated.status()));
+        return ApiResponse.ok(securityConverter.toPolicyVO(updated));
     }
 
     @GetMapping("/alerts")
-    public ApiResponse<List<AlertItem>> listAlerts() {
-        List<AlertItem> alerts = securityService.listAlerts().stream()
-                .map(a -> new AlertItem(a.alertId(), a.level(), a.title(), a.status()))
-                .toList();
-        return ApiResponse.ok(alerts);
+    public ApiResponse<PageResult<AlertItem>> listAlerts(
+            @RequestParam(defaultValue = "1") Integer pageNum,
+            @RequestParam(defaultValue = "20") Integer pageSize) {
+        PageResult<SecurityService.AlertItemDto> page = securityService.listAlerts(PageRequest.of(pageNum, pageSize));
+        return ApiResponse.ok(page.mapList(securityConverter::toAlertVOList));
     }
 
     @PostMapping("/cache/evict")
-    public ApiResponse<CacheEvictResult> evictCache(@RequestBody CacheEvictRequest request) {
+    public ApiResponse<CacheEvictResult> evictCache(@RequestBody @Valid CacheEvictRequest request) {
         SecurityService.CacheEvictResultDto r = securityService.evictCache(request.cacheKey(), request.cacheType());
-        return ApiResponse.ok(new CacheEvictResult(r.cacheKey(), r.result()));
+        return ApiResponse.ok(securityConverter.toCacheEvictVO(r));
     }
 
     public record SecurityOverview(boolean authEnabled, boolean signVerificationEnabled,
