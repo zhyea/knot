@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.ProviderMapper">
+
+    <select id="list" resultType="org.chobit.knot.gateway.entity.ProviderEntity">
+        select id, code, name, provider_type, base_url, status,
+               cast(rate_limit_json as char) as rate_limit_json,
+               cast(quota_json as char) as quota_json
+        from providers
+        order by id desc
+    </select>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.ProviderEntity">
+        select id, code, name, provider_type, base_url, status,
+               cast(rate_limit_json as char) as rate_limit_json,
+               cast(quota_json as char) as quota_json
+        from providers
+        where id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into providers(code, name, provider_type, base_url, status, rate_limit_json, quota_json)
+        values(#{code}, #{name}, #{providerType}, #{baseUrl}, #{status}, #{rateLimitJson}, #{quotaJson})
+    </insert>
+
+    <update id="update">
+        update providers
+        set name = #{name},
+            provider_type = #{providerType},
+            base_url = #{baseUrl},
+            status = #{status},
+            rate_limit_json = #{rateLimitJson},
+            quota_json = #{quotaJson}
+        where id = #{id}
+    </update>
+
+</mapper>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.BillingStatsMapper">
+
+    <select id="countRequests" resultType="java.lang.Long">
+        select count(1) from gateway_requests
+    </select>
+
+    <select id="sumTokens" resultType="java.lang.Long">
+        select coalesce(sum(total_tokens), 0) from gateway_requests
+    </select>
+
+    <select id="sumCost" resultType="java.math.BigDecimal">
+        select coalesce(sum(cost_amount), 0) from gateway_requests
+    </select>
+
+    <select id="listDetails" resultType="org.chobit.knot.gateway.entity.BillingDetailEntity">
+        select gr.request_id,
+               a.app_id   as app_id,
+               m.model_code as model_code,
+               gr.total_tokens,
+               gr.cost_amount
+        from gateway_requests gr
+        left join apps a on gr.app_id = a.id
+        left join models m on gr.model_id = m.id
+        order by gr.id desc
+    </select>
+
+    <select id="countStatementsByProviderCode" resultType="java.lang.Integer">
+        select count(1)
+        from billing_statements bs
+        join providers p on bs.provider_id = p.id
+        where p.code = #{providerCode}
+    </select>
+
+</mapper>

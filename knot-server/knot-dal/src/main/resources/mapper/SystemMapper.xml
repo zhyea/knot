@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.SystemMapper">
+
+    <select id="listUsers" resultType="org.chobit.knot.gateway.entity.UserEntity">
+        select id, username, real_name, status
+        from users
+        order by id desc
+    </select>
+
+    <select id="getUserById" resultType="org.chobit.knot.gateway.entity.UserEntity">
+        select id, username, real_name, status
+        from users
+        where id = #{id}
+    </select>
+
+    <insert id="insertUser" useGeneratedKeys="true" keyProperty="id">
+        insert into users(username, password_hash, real_name, status)
+        values(#{username}, 'NO_LOGIN', #{realName}, #{status})
+    </insert>
+
+    <update id="updateUserStatus">
+        update users set status = #{status} where id = #{id}
+    </update>
+
+    <select id="listOperationLogs" resultType="org.chobit.knot.gateway.entity.OperationLogEntity">
+        select id, module_code, action_code, target_id, result_status
+        from operation_logs
+        order by id desc
+    </select>
+
+    <select id="getOperationLogDetail" resultType="org.chobit.knot.gateway.entity.OperationLogDetailEntity">
+        select log_id, before_json, after_json
+        from operation_log_details
+        where log_id = #{logId}
+    </select>
+
+    <select id="listNodes" resultType="org.chobit.knot.gateway.entity.GatewayNodeEntity">
+        select id, node_id, host, status
+        from gateway_nodes
+        order by id desc
+    </select>
+
+    <insert id="insertBackupJob" useGeneratedKeys="true" keyProperty="id">
+        insert into backup_jobs(job_code, status, snapshot_ref)
+        values(#{jobCode}, #{status}, #{snapshotRef})
+    </insert>
+
+    <update id="updateBackupJobStatus">
+        update backup_jobs set status = #{status} where job_code = #{jobCode}
+    </update>
+
+</mapper>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.DiscountPolicyMapper">
+
+    <select id="listByProviderId" resultType="org.chobit.knot.gateway.entity.DiscountPolicyEntity">
+        select id, provider_id, policy_name, scope_type, scope_ref_id,
+               discount_type, discount_value, priority, effective_from, effective_to, status, remark
+        from provider_discount_policies
+        where provider_id = #{providerId}
+        order by priority asc, id desc
+    </select>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.DiscountPolicyEntity">
+        select id, provider_id, policy_name, scope_type, scope_ref_id,
+               discount_type, discount_value, priority, effective_from, effective_to, status, remark
+        from provider_discount_policies
+        where id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into provider_discount_policies(provider_id, policy_name, scope_type, scope_ref_id,
+                                                discount_type, discount_value, priority, effective_from, status)
+        values(#{providerId}, #{policyName}, #{scopeType}, #{scopeRefId},
+               #{discountType}, #{discountValue}, #{priority}, #{effectiveFrom}, #{status})
+    </insert>
+
+    <update id="update">
+        update provider_discount_policies
+        set policy_name = #{policyName},
+            scope_type = #{scopeType},
+            scope_ref_id = #{scopeRefId},
+            discount_type = #{discountType},
+            discount_value = #{discountValue},
+            priority = #{priority},
+            status = #{status}
+        where id = #{id}
+    </update>
+
+</mapper>

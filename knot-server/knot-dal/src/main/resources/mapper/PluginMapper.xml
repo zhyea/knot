@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.PluginMapper">
+
+    <select id="list" resultType="org.chobit.knot.gateway.entity.PluginEntity">
+        select id, code, name, plugin_type, version, status
+        from plugins
+        order by id desc
+    </select>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.PluginEntity">
+        select id, code, name, plugin_type, version, status
+        from plugins
+        where id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into plugins(code, name, plugin_type, version, status)
+        values(#{code}, #{name}, #{pluginType}, #{version}, #{status})
+    </insert>
+
+    <update id="updateStatus">
+        update plugins set status = #{status} where id = #{id}
+    </update>
+
+</mapper>

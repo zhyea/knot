@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.BillingRuleMapper">
+
+    <select id="list" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
+        select id, code, name, billing_mode, unit, unit_price, status, effective_from
+        from billing_rules
+        order by id desc
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into billing_rules(code, name, billing_mode, unit, unit_price, status, effective_from)
+        values(#{code}, #{name}, #{billingMode}, #{unit}, #{unitPrice}, #{status}, #{effectiveFrom})
+    </insert>
+
+</mapper>

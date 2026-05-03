@@ -14,3 +14,6 @@ resources/.arch-internal-preview.css
 .arch-internal-preview.css
 */*.idea
 */**target
+*/**/target
+*/*/target
+.vscode

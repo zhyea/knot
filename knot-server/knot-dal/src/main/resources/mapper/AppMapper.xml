@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.AppMapper">
+
+    <select id="list" resultType="org.chobit.knot.gateway.entity.AppEntity">
+        select id, app_id, name, owner_user_id, status,
+               cast(rate_limit_json as char) as rate_limit_json,
+               cast(quota_json as char) as quota_json
+        from apps
+        order by id desc
+    </select>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.AppEntity">
+        select id, app_id, name, owner_user_id, status,
+               cast(rate_limit_json as char) as rate_limit_json,
+               cast(quota_json as char) as quota_json
+        from apps
+        where id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into apps(app_id, name, owner_user_id, status, rate_limit_json, quota_json)
+        values(#{appId}, #{name}, #{ownerUserId}, #{status}, #{rateLimitJson}, #{quotaJson})
+    </insert>
+
+    <update id="update">
+        update apps
+        set name = #{name},
+            owner_user_id = #{ownerUserId},
+            status = #{status},
+            rate_limit_json = #{rateLimitJson},
+            quota_json = #{quotaJson}
+        where id = #{id}
+    </update>
+
+    <select id="countRequestsByAppId" resultType="java.lang.Long">
+        select count(1) from gateway_requests where app_id = #{appId}
+    </select>
+
+    <select id="countSuccessByAppId" resultType="java.lang.Long">
+        select count(1) from gateway_requests where app_id = #{appId} and status = 'SUCCESS'
+    </select>
+
+    <select id="sumTokensByAppId" resultType="java.lang.Long">
+        select coalesce(sum(total_tokens), 0) from gateway_requests where app_id = #{appId}
+    </select>
+
+</mapper>
