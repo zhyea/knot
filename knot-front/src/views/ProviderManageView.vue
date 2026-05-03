@@ -14,7 +14,7 @@
       <el-table-column prop="baseUrl" label="Base URL" min-width="180" show-overflow-tooltip />
       <el-table-column label="启用" width="80">
         <template #default="{ row }">
-          <el-tag :type="row.enabled ? 'success' : 'info'" size="small">{{ row.enabled ? "是" : "否" }}</el-tag>
+          <StatusTag :active="row.enabled" />
         </template>
       </el-table-column>
       <el-table-column label="操作" width="200" fixed="right">
@@ -92,7 +92,8 @@
 import { reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
-import { parseJson } from "../utils/format";
+import StatusTag from "../components/common/StatusTag.vue";
+import { parsePolicies } from "../utils/format";
 import {
   listProviders,
   createProvider,
@@ -133,16 +134,15 @@ const dForm = reactive({
 });
 
 function policyPayload() {
-  const r = parseJson(form.rateLimitJson.trim(), undefined);
-  const q = parseJson(form.quotaJson.trim(), undefined);
+  const { rateLimitPolicy, quotaPolicy } = parsePolicies(form);
   return {
     id: form.id,
     name: form.name,
     type: form.type,
     baseUrl: form.baseUrl,
     enabled: form.enabled,
-    rateLimitPolicy: r === undefined ? null : r,
-    quotaPolicy: q === undefined ? null : q
+    rateLimitPolicy,
+    quotaPolicy
   };
 }
 

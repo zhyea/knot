@@ -1,28 +1,18 @@
 import { createRouter, createWebHistory } from "vue-router";
-import DashboardView from "../views/DashboardView.vue";
-import SystemManageView from "../views/SystemManageView.vue";
-import ProviderManageView from "../views/ProviderManageView.vue";
-import ModelManageView from "../views/ModelManageView.vue";
-import AppManageView from "../views/AppManageView.vue";
-import RouteRuleView from "../views/RouteRuleView.vue";
-import BillingView from "../views/BillingView.vue";
-import SecurityMonitorView from "../views/SecurityMonitorView.vue";
-import PluginManageView from "../views/PluginManageView.vue";
-import NotificationManageView from "../views/NotificationManageView.vue";
-import GrayReleaseView from "../views/GrayReleaseView.vue";
 
 const routes = [
-  { path: "/", name: "dashboard", component: DashboardView },
-  { path: "/system", name: "system", component: SystemManageView },
-  { path: "/providers", name: "providers", component: ProviderManageView },
-  { path: "/models", name: "models", component: ModelManageView },
-  { path: "/apps", name: "apps", component: AppManageView },
-  { path: "/routing", name: "routing", component: RouteRuleView },
-  { path: "/billing", name: "billing", component: BillingView },
-  { path: "/security", name: "security", component: SecurityMonitorView },
-  { path: "/plugins", name: "plugins", component: PluginManageView },
-  { path: "/notifications", name: "notifications", component: NotificationManageView },
-  { path: "/release", name: "release", component: GrayReleaseView }
+  { path: "/", name: "dashboard", component: () => import("@/views/DashboardView.vue") },
+  { path: "/system", name: "system", component: () => import("@/views/SystemManageView.vue") },
+  { path: "/providers", name: "providers", component: () => import("@/views/ProviderManageView.vue") },
+  { path: "/models", name: "models", component: () => import("@/views/ModelManageView.vue") },
+  { path: "/apps", name: "apps", component: () => import("@/views/AppManageView.vue") },
+  { path: "/routing", name: "routing", component: () => import("@/views/RouteRuleView.vue") },
+  { path: "/billing", name: "billing", component: () => import("@/views/BillingView.vue") },
+  { path: "/security", name: "security", component: () => import("@/views/SecurityMonitorView.vue") },
+  { path: "/plugins", name: "plugins", component: () => import("@/views/PluginManageView.vue") },
+  { path: "/notifications", name: "notifications", component: () => import("@/views/NotificationManageView.vue") },
+  { path: "/release", name: "release", component: () => import("@/views/GrayReleaseView.vue") },
+  { path: "/:pathMatch(.*)*", name: "not-found", component: () => import("@/views/NotFoundView.vue") }
 ];
 
 const router = createRouter({

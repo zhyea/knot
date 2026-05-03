@@ -17,7 +17,7 @@
         </el-table>
       </el-tab-pane>
       <el-tab-pane label="成本汇总 / 明细" name="usage">
-        <el-row :gutter="12" class="stat-row">
+        <el-row :gutter="12" class="stat-row" v-loading="sLoading">
           <el-col :xs="24" :sm="8">
             <el-card shadow="hover"><div class="st">总请求</div><div class="sv">{{ summary?.requestCount ?? "—" }}</div></el-card>
           </el-col>
@@ -77,6 +77,7 @@
 import { reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
+import { fmtMoney } from "../utils/format";
 import {
   listBillingRules,
   createBillingRule,
@@ -89,6 +90,7 @@ const tab = ref("rules");
 const rules = ref([]);
 const rLoading = ref(false);
 const summary = ref(null);
+const sLoading = ref(false);
 const details = ref([]);
 const dLoading = ref(false);
 
@@ -100,13 +102,6 @@ const reco = reactive({ providerCode: "default", billDate: "2026-04" });
 const recoLoading = ref(false);
 const recoResult = ref(null);
 
-function fmtMoney(v) {
-  if (v == null || v === "") return "—";
-  const n = Number(v);
-  if (Number.isNaN(n)) return String(v);
-  return n.toFixed(4);
-}
-
 async function loadRules() {
   rLoading.value = true;
   try {
@@ -117,7 +112,12 @@ async function loadRules() {
 }
 
 async function loadSummary() {
-  summary.value = await getBillingSummary();
+  sLoading.value = true;
+  try {
+    summary.value = await getBillingSummary();
+  } finally {
+    sLoading.value = false;
+  }
 }
 
 async function loadDetails() {

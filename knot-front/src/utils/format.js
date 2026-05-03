@@ -28,3 +28,27 @@ export function parseJson(text, fallback = null) {
     return fallback;
   }
 }
+
+/**
+ * 格式化金额，保留 4 位小数
+ */
+export function fmtMoney(v) {
+  if (v == null || v === "") return "—";
+  const n = Number(v);
+  if (Number.isNaN(n)) return String(v);
+  return n.toFixed(4);
+}
+
+/**
+ * 从表单 rateLimitJson / quotaJson 字段解析为 rateLimitPolicy / quotaPolicy
+ * @param {{ rateLimitJson?: string, quotaJson?: string }} form
+ * @returns {{ rateLimitPolicy: object|null, quotaPolicy: object|null }}
+ */
+export function parsePolicies(form) {
+  const r = parseJson((form.rateLimitJson || "").trim(), undefined);
+  const q = parseJson((form.quotaJson || "").trim(), undefined);
+  return {
+    rateLimitPolicy: r === undefined ? null : r,
+    quotaPolicy: q === undefined ? null : q
+  };
+}

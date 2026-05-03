@@ -6,7 +6,7 @@
     <el-tabs v-model="tab">
       <el-tab-pane label="角色（静态）" name="roles">
         <el-button class="mb" @click="loadRoles">刷新</el-button>
-        <el-table :data="roles" size="small" stripe border>
+        <el-table v-loading="rLoading" :data="roles" size="small" stripe border>
           <el-table-column prop="code" label="编码" width="140" />
           <el-table-column prop="name" label="名称" />
         </el-table>
@@ -30,7 +30,7 @@
                 style="width: 100px"
                 @change="(v) => onStatus(row, v)"
               >
-                <el-option label="ACTIVE" value="ACTIVE" />
+                <el-option label="ENABLED" value="ENABLED" />
                 <el-option label="DISABLED" value="DISABLED" />
               </el-select>
             </template>
@@ -52,7 +52,7 @@
       </el-tab-pane>
       <el-tab-pane label="网关节点" name="nodes">
         <el-button class="mb" @click="loadNodes">刷新</el-button>
-        <el-table :data="nodes" stripe border size="small">
+        <el-table v-loading="nLoading" :data="nodes" stripe border size="small">
           <el-table-column prop="nodeId" label="节点" />
           <el-table-column prop="host" label="主机" />
           <el-table-column prop="status" label="状态" width="100" />
@@ -105,15 +105,17 @@ import {
 const tab = ref("users");
 
 const roles = ref([]);
+const rLoading = ref(false);
 const users = ref([]);
 const uLoading = ref(false);
 const logs = ref([]);
 const lLoading = ref(false);
 const nodes = ref([]);
+const nLoading = ref(false);
 
 const userDlg = ref(false);
 const userSaving = ref(false);
-const userForm = reactive({ username: "", realName: "", status: "ACTIVE" });
+const userForm = reactive({ username: "", realName: "", status: "ENABLED" });
 
 const detailDrawer = ref(false);
 const detailText = ref("");
@@ -124,7 +126,12 @@ const restoreId = ref("");
 const bkMsg = ref("");
 
 async function loadRoles() {
-  roles.value = await listSystemRoles();
+  rLoading.value = true;
+  try {
+    roles.value = await listSystemRoles();
+  } finally {
+    rLoading.value = false;
+  }
 }
 
 async function loadUsers() {
@@ -147,13 +154,18 @@ async function loadLogs() {
 }
 
 async function loadNodes() {
-  nodes.value = await listNodes();
+  nLoading.value = true;
+  try {
+    nodes.value = await listNodes();
+  } finally {
+    nLoading.value = false;
+  }
 }
 
 function openUser() {
   userForm.username = "";
   userForm.realName = "";
-  userForm.status = "ACTIVE";
+  userForm.status = "ENABLED";
   userDlg.value = true;
 }
 
@@ -168,7 +180,7 @@ async function submitUser() {
       id: null,
       username: userForm.username.trim(),
       realName: userForm.realName?.trim() || userForm.username.trim(),
-      status: userForm.status || "ACTIVE"
+      status: userForm.status || "ENABLED"
     });
     ElMessage.success("已创建");
     userDlg.value = false;

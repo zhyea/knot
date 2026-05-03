@@ -32,7 +32,7 @@
 
     <el-card class="block" shadow="never">
       <template #header><span class="h">告警列表</span></template>
-      <el-table :data="alerts" size="small" stripe border>
+      <el-table v-loading="aLoading" :data="alerts" size="small" stripe border>
         <el-table-column prop="alertId" label="告警 ID" width="120" />
         <el-table-column prop="level" label="级别" width="80" />
         <el-table-column prop="title" label="标题" min-width="160" />
@@ -95,6 +95,7 @@ const policy = reactive({
 const polSaving = ref(false);
 
 const alerts = ref([]);
+const aLoading = ref(false);
 
 const evict = reactive({ cacheKey: "", cacheType: "" });
 const evictLoading = ref(false);
@@ -110,7 +111,12 @@ async function loadOverview() {
 }
 
 async function loadAlerts() {
-  alerts.value = await listSecurityAlerts();
+  aLoading.value = true;
+  try {
+    alerts.value = await listSecurityAlerts();
+  } finally {
+    aLoading.value = false;
+  }
 }
 
 async function savePolicy() {

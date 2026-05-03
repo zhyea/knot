@@ -14,7 +14,7 @@
       <el-table-column prop="owner" label="负责人" width="100" />
       <el-table-column label="启用" width="80">
         <template #default="{ row }">
-          <el-tag :type="row.enabled ? 'success' : 'info'" size="small">{{ row.enabled ? "是" : "否" }}</el-tag>
+          <StatusTag :active="row.enabled" />
         </template>
       </el-table-column>
       <el-table-column label="操作" width="220" fixed="right">
@@ -49,7 +49,7 @@
       </template>
     </el-dialog>
 
-    <el-drawer v-model="metricsDrawer" title="调用指标（演示）" size="400px">
+    <el-drawer v-model="metricsDrawer" title="调用指标（演示）" size="400px" v-loading="metricsLoading">
       <el-descriptions v-if="metrics" :column="1" border>
         <el-descriptions-item label="总请求">{{ metrics.totalRequests }}</el-descriptions-item>
         <el-descriptions-item label="成功">{{ metrics.successRequests }}</el-descriptions-item>
@@ -64,7 +64,8 @@
 import { reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
-import { parseJson } from "../utils/format";
+import StatusTag from "../components/common/StatusTag.vue";
+import { parseJson, parsePolicies } from "../utils/format";
 import { listApps, createApp, updateApp, updateAppQuota, getAppMetrics } from "../api/apps";
 
 const rows = ref([]);
@@ -87,19 +88,19 @@ const quotaAppId = ref(null);
 const quotaJson = ref("{}");
 
 const metricsDrawer = ref(false);
+const metricsLoading = ref(false);
 const metrics = ref(null);
 
 function buildPayload() {
-  const r = parseJson(form.rateLimitJson.trim(), undefined);
-  const q = parseJson(form.quotaJson.trim(), undefined);
+  const { rateLimitPolicy, quotaPolicy } = parsePolicies(form);
   return {
     id: form.id,
     appId: form.appId,
     name: form.name,
     owner: form.owner,
     enabled: form.enabled,
-    rateLimitPolicy: r === undefined ? null : r,
-    quotaPolicy: q === undefined ? null : q
+    rateLimitPolicy,
+    quotaPolicy
   };
 }
 
@@ -182,8 +183,13 @@ async function submitQuota() {
 }
 
 async function openMetrics(row) {
-  metrics.value = await getAppMetrics(row.id);
-  metricsDrawer.value = true;
+  metricsLoading.value = true;
+  try {
+    metrics.value = await getAppMetrics(row.id);
+    metricsDrawer.value = true;
+  } finally {
+    metricsLoading.value = false;
+  }
 }
 
 load();

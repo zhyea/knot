@@ -50,4 +50,8 @@ export function put(url, data, config) {
   return http.put(url, data, config).then(unwrapData);
 }
 
+export function del(url, config) {
+  return http.delete(url, config).then(unwrapData);
+}
+
 export default http;

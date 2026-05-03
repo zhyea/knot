@@ -19,7 +19,7 @@
           <el-table-column prop="priority" label="优先级" width="80" />
           <el-table-column label="启用" width="80">
             <template #default="{ row }">
-              <el-tag :type="row.enabled ? 'success' : 'info'" size="small">{{ row.enabled ? "是" : "否" }}</el-tag>
+              <StatusTag :active="row.enabled" />
             </template>
           </el-table-column>
           <el-table-column label="操作" width="140" fixed="right">
@@ -79,6 +79,7 @@
 import { reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
+import StatusTag from "../components/common/StatusTag.vue";
 import {
   listRoutingRules,
   createRoutingRule,

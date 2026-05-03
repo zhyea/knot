@@ -1,5 +1,5 @@
-import axios from "axios";
+import { get } from "./http";
 
 export function getHealth() {
-  return axios.get("/api/health").then((res) => res.data);
+  return get("/api/health");
 }
