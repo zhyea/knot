@@ -1,26 +1,16 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.ApiResponse;
-import org.chobit.knot.gateway.model.PageQuery;
-import org.chobit.knot.gateway.model.PageRequest;
-import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.SystemConverter;
 import org.chobit.knot.gateway.dto.system.BackupTaskDto;
 import org.chobit.knot.gateway.dto.system.OperationLogDetailDto;
 import org.chobit.knot.gateway.dto.system.OperationLogDto;
-import org.chobit.knot.gateway.dto.system.UserDto;
+import org.chobit.knot.gateway.model.PageQuery;
+import org.chobit.knot.gateway.model.PageRequest;
+import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.SystemService;
 import org.chobit.knot.gateway.vo.system.*;
-import jakarta.validation.Valid;
-import org.chobit.knot.gateway.vo.system.*;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -48,26 +38,6 @@ public class SystemController {
     @PostMapping("/log-types")
     public ApiResponse<List<String>> logTypes() {
         return ApiResponse.ok(List.of("access", "operation", "error", "system"));
-    }
-
-    @PostMapping("/users")
-    public ApiResponse<PageResult<UserItem>> users(@RequestBody(required = false) PageQuery query) {
-        PageResult<UserDto> page = systemService.listUsers(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
-        return ApiResponse.ok(page.mapList(systemConverter::toUserVOList));
-    }
-
-    @PostMapping("/users")
-    public ApiResponse<UserItem> createUser(@RequestBody @Valid UserItem request) {
-        UserDto created = systemService.createUser(new UserDto(
-                null, request.username(), request.realName(), request.status()
-        ));
-        return ApiResponse.ok(systemConverter.toUserVO(created));
-    }
-
-    @PutMapping("/users/{id}/status")
-    public ApiResponse<UserItem> updateUserStatus(@PathVariable Long id, @RequestBody @Valid UpdateUserStatusRequest request) {
-        UserDto updated = systemService.updateUserStatus(id, request.status());
-        return ApiResponse.ok(systemConverter.toUserVO(updated));
     }
 
     @PostMapping("/logs")

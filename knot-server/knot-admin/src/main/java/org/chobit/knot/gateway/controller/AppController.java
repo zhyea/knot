@@ -25,8 +25,8 @@ public class AppController {
         this.appConverter = appConverter;
     }
 
-    @PostMapping
-    public ApiResponse<PageResult<AppItem>> list(@RequestBody(required = false) PageQuery query) {
+    @PostMapping("/list")
+    public ApiResponse<PageResult<AppItem>> list(@RequestBody PageQuery query) {
         PageResult<AppDto> page = appService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(appConverter::toVOList));
     }

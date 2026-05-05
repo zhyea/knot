@@ -45,7 +45,7 @@ public class GrayReleaseController {
         return ApiResponse.ok(grayReleaseConverter.toVO(rolledBack));
     }
 
-    @PostMapping
+    @PostMapping("/list")
     public ApiResponse<PageResult<GrayPlan>> list(@RequestBody(required = false) PageQuery query) {
         PageResult<GrayPlanDto> page = grayReleaseService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(grayReleaseConverter::toVOList));

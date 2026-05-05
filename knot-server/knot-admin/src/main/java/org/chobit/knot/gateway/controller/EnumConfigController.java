@@ -21,7 +21,7 @@ public class EnumConfigController {
     }
 
     /** 分页查询所有枚举项 */
-    @PostMapping
+    @PostMapping("/list")
     public ApiResponse<PageResult<EnumConfigEntity>> list(@RequestBody(required = false) PageQuery query) {
         PageRequest pr = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
         return ApiResponse.ok(enumConfigService.list(pr, query != null ? query.category() : null));

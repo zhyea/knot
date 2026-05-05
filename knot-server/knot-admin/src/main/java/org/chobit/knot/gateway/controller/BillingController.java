@@ -31,7 +31,7 @@ public class BillingController {
         return ApiResponse.ok(page.mapList(billingConverter::toRuleVOList));
     }
 
-    @PostMapping("/rules")
+    @PostMapping()
     public ApiResponse<BillingRule> createRule(@RequestBody @Valid BillingRule request) {
         BillingRuleDto created = billingService.createRule(billingConverter.toRuleDto(request));
         return ApiResponse.ok(billingConverter.toRuleVO(created));

@@ -26,7 +26,7 @@ public class ProviderController {
         this.providerConverter = providerConverter;
     }
 
-    @PostMapping
+    @PostMapping("/list")
     public ApiResponse<PageResult<ProviderItem>> list(@RequestBody(required = false) PageQuery query) {
         PageResult<ProviderDto> page = providerService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(providerConverter::toVOList));

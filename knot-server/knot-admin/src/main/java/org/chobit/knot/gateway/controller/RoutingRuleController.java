@@ -27,7 +27,7 @@ public class RoutingRuleController {
         this.routingRuleConverter = routingRuleConverter;
     }
 
-    @PostMapping
+    @PostMapping("/list")
     public ApiResponse<PageResult<RoutingRule>> list(@RequestBody(required = false) PageQuery query) {
         PageResult<RoutingRuleDto> page = routingRuleService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(routingRuleConverter::toVOList));

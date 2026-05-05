@@ -24,7 +24,7 @@ public class PluginController {
         this.pluginConverter = pluginConverter;
     }
 
-    @PostMapping
+    @PostMapping("/list")
     public ApiResponse<PageResult<PluginItem>> list(@RequestBody(required = false) PageQuery query) {
         PageResult<PluginDto> page = pluginService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(pluginConverter::toVOList));
