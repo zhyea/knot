@@ -17,6 +17,7 @@ resources/.arch-internal-preview.css
 */**/target
 */*/target
 .vscode
+*/dist
 */node_modules
 */**/node_modules
 */package-lock.json

@@ -1,19 +1,7 @@
-import { postQuery, post, put } from "./http";
+import { postQuery, post } from "./http";
 
 export function listSystemRoles(params) {
   return postQuery("/api/system/roles", params);
-}
-
-export function listUsers(params) {
-  return postQuery("/api/system/users", params);
-}
-
-export function createUser(payload) {
-  return post("/api/system/users", payload);
-}
-
-export function updateUserStatus(id, payload) {
-  return put(`/api/system/users/${id}/status`, payload);
 }
 
 export function listOperationLogs(params) {

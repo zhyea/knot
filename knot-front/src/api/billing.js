@@ -1,7 +1,7 @@
 import { postQuery, post } from "./http";
 
 export function listBillingRules(params) {
-  return postQuery("/api/billing/rules", params);
+  return postQuery("/api/billing/rules/list", params);
 }
 
 export function createBillingRule(payload) {

@@ -1,7 +1,7 @@
 import { postQuery, post, put } from "./http";
 
 export function listRoutingRules(params) {
-  return postQuery("/api/routing-rules", params);
+  return postQuery("/api/routing-rules/list", params);
 }
 
 export function createRoutingRule(payload) {

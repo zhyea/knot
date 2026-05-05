@@ -1,7 +1,7 @@
 import { postQuery, post, put } from "./http";
 
 export function listPlugins(params) {
-  return postQuery("/api/plugins", params);
+  return postQuery("/api/plugins/list", params);
 }
 
 export function createPlugin(payload) {

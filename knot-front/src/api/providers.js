@@ -1,7 +1,7 @@
 import { postQuery, post, put } from "./http";
 
 export function listProviders(params) {
-  return postQuery("/api/providers", params);
+  return postQuery("/api/providers/list", params);
 }
 
 export function createProvider(payload) {

@@ -1,7 +1,7 @@
 import { postQuery, post } from "./http";
 
 export function listGrayPlans(params) {
-  return postQuery("/api/release/gray-plans", params);
+  return postQuery("/api/release/gray-plans/list", params);
 }
 
 export function createGrayPlan(payload) {

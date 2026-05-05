@@ -1,7 +1,7 @@
 import { postQuery, post, put } from "./http";
 
 export function listApps(params) {
-  return postQuery("/api/apps", params);
+  return postQuery("/api/apps/list", params);
 }
 
 export function createApp(payload) {

@@ -1,0 +1,90 @@
+/* ============================================
+   主题色方案 — 通过 CSS 变量覆盖 Element Plus
+   在 <html> 上添加 data-theme="xxx" 切换主题
+   ============================================ */
+
+/* --- 默认蓝 --- */
+[data-theme="blue"] {
+  --el-color-primary: #409EFF;
+  --el-color-primary-light-3: #79BBFF;
+  --el-color-primary-light-5: #A0CFFF;
+  --el-color-primary-light-7: #C6E2FF;
+  --el-color-primary-light-8: #D9ECFF;
+  --el-color-primary-light-9: #ECF5FF;
+  --el-color-primary-dark-2: #337ECC;
+}
+
+/* --- 极客绿 --- */
+[data-theme="green"] {
+  --el-color-primary: #00B42A;
+  --el-color-primary-light-3: #4CC66E;
+  --el-color-primary-light-5: #80D494;
+  --el-color-primary-light-7: #B3E2BD;
+  --el-color-primary-light-8: #CCEBD3;
+  --el-color-primary-light-9: #E6F4E9;
+  --el-color-primary-dark-2: #009A23;
+}
+
+/* --- 活力橙 --- */
+[data-theme="orange"] {
+  --el-color-primary: #FF7D00;
+  --el-color-primary-light-3: #FFA040;
+  --el-color-primary-light-5: #FFBE73;
+  --el-color-primary-light-7: #FFD6A6;
+  --el-color-primary-light-8: #FFE2BF;
+  --el-color-primary-light-9: #FFEDD9;
+  --el-color-primary-dark-2: #CC6400;
+}
+
+/* --- 典雅紫 --- */
+[data-theme="purple"] {
+  --el-color-primary: #722ED1;
+  --el-color-primary-light-3: #9B6DD7;
+  --el-color-primary-light-5: #B59CE3;
+  --el-color-primary-light-7: #CFCAEE;
+  --el-color-primary-light-8: #DDD8F3;
+  --el-color-primary-light-9: #EBE7F8;
+  --el-color-primary-dark-2: #5B25A7;
+}
+
+/* --- 中国红 --- */
+[data-theme="red"] {
+  --el-color-primary: #F53F3F;
+  --el-color-primary-light-3: #F77272;
+  --el-color-primary-light-5: #F99999;
+  --el-color-primary-light-7: #FBC1C1;
+  --el-color-primary-light-8: #FDD4D4;
+  --el-color-primary-light-9: #FEE9E9;
+  --el-color-primary-dark-2: #C43232;
+}
+
+/* 主题切换器样式 */
+.theme-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.theme-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.theme-dot:hover {
+  transform: scale(1.2);
+}
+
+.theme-dot.active {
+  border-color: var(--el-color-primary);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08);
+}
+
+.theme-dot--blue   { background: #409EFF; }
+.theme-dot--green  { background: #00B42A; }
+.theme-dot--orange { background: #FF7D00; }
+.theme-dot--purple { background: #722ED1; }
+.theme-dot--red    { background: #F53F3F; }

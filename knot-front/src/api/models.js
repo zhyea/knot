@@ -1,7 +1,7 @@
 import { postQuery, post, put } from "./http";
 
 export function listModels(params) {
-  return postQuery("/api/models", params);
+  return postQuery("/api/models/list", params);
 }
 
 export function createModel(payload) {
