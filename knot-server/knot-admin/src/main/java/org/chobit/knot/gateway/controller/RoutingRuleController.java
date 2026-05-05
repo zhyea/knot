@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.ApiResponse;
+import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.RoutingRuleConverter;
@@ -26,11 +27,9 @@ public class RoutingRuleController {
         this.routingRuleConverter = routingRuleConverter;
     }
 
-    @GetMapping
-    public ApiResponse<PageResult<RoutingRule>> list(
-            @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
-        PageResult<RoutingRuleDto> page = routingRuleService.list(PageRequest.of(pageNum, pageSize));
+    @PostMapping
+    public ApiResponse<PageResult<RoutingRule>> list(@RequestBody(required = false) PageQuery query) {
+        PageResult<RoutingRuleDto> page = routingRuleService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(routingRuleConverter::toVOList));
     }
 
@@ -52,11 +51,9 @@ public class RoutingRuleController {
         return ApiResponse.ok(new RoutingTestResult(rule.id(), rule.targetProviderId(), rule.targetModelId(), "MATCHED"));
     }
 
-    @GetMapping("/switch-logs")
-    public ApiResponse<PageResult<RoutingSwitchLog>> switchLogs(
-            @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
-        PageResult<RoutingSwitchLogDto> page = routingRuleService.listSwitchLogs(PageRequest.of(pageNum, pageSize));
+    @PostMapping("/switch-logs")
+    public ApiResponse<PageResult<RoutingSwitchLog>> switchLogs(@RequestBody(required = false) PageQuery query) {
+        PageResult<RoutingSwitchLogDto> page = routingRuleService.listSwitchLogs(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(routingRuleConverter::toSwitchLogVOList));
     }
 

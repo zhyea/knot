@@ -1,15 +1,15 @@
-import { get, post, put } from "./http";
+import { postQuery, post, put } from "./http";
 
 export function getSecurityOverview() {
-  return get("/api/security/overview");
+  return postQuery("/api/security/overview");
 }
 
 export function updateSecurityPolicy(payload) {
   return put("/api/security/policies", payload);
 }
 
-export function listSecurityAlerts() {
-  return get("/api/security/alerts");
+export function listSecurityAlerts(params) {
+  return postQuery("/api/security/alerts", params);
 }
 
 export function evictCache(payload) {

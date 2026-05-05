@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.ApiResponse;
+import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.ModelConverter;
@@ -24,11 +25,9 @@ public class ModelController {
         this.modelConverter = modelConverter;
     }
 
-    @GetMapping
-    public ApiResponse<PageResult<ModelItem>> list(
-            @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
-        PageResult<ModelDto> page = modelService.list(PageRequest.of(pageNum, pageSize));
+    @PostMapping
+    public ApiResponse<PageResult<ModelItem>> list(@RequestBody(required = false) PageQuery query) {
+        PageResult<ModelDto> page = modelService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(modelConverter::toVOList));
     }
 

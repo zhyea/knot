@@ -1,7 +1,7 @@
-import { get, post, put } from "./http";
+import { postQuery, post, put } from "./http";
 
-export function listProviders() {
-  return get("/api/providers");
+export function listProviders(params) {
+  return postQuery("/api/providers", params);
 }
 
 export function createProvider(payload) {
@@ -12,8 +12,8 @@ export function updateProvider(id, payload) {
   return put(`/api/providers/${id}`, payload);
 }
 
-export function listDiscountPolicies(providerId) {
-  return get(`/api/providers/${providerId}/discount-policies`);
+export function listDiscountPolicies(providerId, params) {
+  return postQuery(`/api/providers/${providerId}/discount-policies/list`, params);
 }
 
 export function createDiscountPolicy(providerId, payload) {

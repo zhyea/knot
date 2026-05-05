@@ -1,7 +1,7 @@
-import { get, post, put } from "./http";
+import { postQuery, post, put } from "./http";
 
-export function listRoutingRules() {
-  return get("/api/routing-rules");
+export function listRoutingRules(params) {
+  return postQuery("/api/routing-rules", params);
 }
 
 export function createRoutingRule(payload) {
@@ -16,6 +16,6 @@ export function testRoutingRule(id, payload) {
   return post(`/api/routing-rules/${id}/test`, payload);
 }
 
-export function listSwitchLogs() {
-  return get("/api/routing-rules/switch-logs");
+export function listSwitchLogs(params) {
+  return postQuery("/api/routing-rules/switch-logs", params);
 }

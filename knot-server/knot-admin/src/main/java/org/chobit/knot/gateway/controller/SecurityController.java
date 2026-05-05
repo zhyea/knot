@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.ApiResponse;
+import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.SecurityConverter;
@@ -30,7 +31,7 @@ public class SecurityController {
         this.securityConverter = securityConverter;
     }
 
-    @GetMapping("/overview")
+    @PostMapping("/overview")
     public ApiResponse<SecurityOverview> overview() {
         return ApiResponse.ok(securityConverter.toOverviewVO(securityService.overview()));
     }
@@ -43,11 +44,9 @@ public class SecurityController {
         return ApiResponse.ok(securityConverter.toPolicyVO(updated));
     }
 
-    @GetMapping("/alerts")
-    public ApiResponse<PageResult<AlertItem>> listAlerts(
-            @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
-        PageResult<AlertItemDto> page = securityService.listAlerts(PageRequest.of(pageNum, pageSize));
+    @PostMapping("/alerts")
+    public ApiResponse<PageResult<AlertItem>> listAlerts(@RequestBody(required = false) PageQuery query) {
+        PageResult<AlertItemDto> page = securityService.listAlerts(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(securityConverter::toAlertVOList));
     }
 

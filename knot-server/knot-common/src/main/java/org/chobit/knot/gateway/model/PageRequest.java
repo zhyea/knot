@@ -19,4 +19,25 @@ public record PageRequest(
                 pageSize != null ? pageSize : 20
         );
     }
+
+    /**
+     * 从任意包含 pageNum/pageSize 字段的对象构造分页请求
+     */
+    public static PageRequest from(Object body) {
+        if (body instanceof PageRequest pr) return pr;
+        // fallback: 通过反射读取 pageNum / pageSize
+        try {
+            var c = body.getClass();
+            var pnField = c.getDeclaredField("pageNum");
+            var psField = c.getDeclaredField("pageSize");
+            pnField.setAccessible(true);
+            psField.setAccessible(true);
+            return PageRequest.of(
+                    (Integer) pnField.get(body),
+                    (Integer) psField.get(body)
+            );
+        } catch (Exception e) {
+            return new PageRequest(1, 20);
+        }
+    }
 }

@@ -23,6 +23,18 @@
         </template>
       </el-table-column>
     </el-table>
+    <div class="pagination-wrap">
+      <el-pagination
+        background
+        layout="total, sizes, prev, pager, next"
+        :total="total"
+        :page-size="pageSize"
+        :current-page="pageNum"
+        :page-sizes="[10, 20, 50]"
+        @current-change="onPageChange"
+        @size-change="onSizeChange"
+      />
+    </div>
 
     <el-dialog v-model="dlg" title="新建灰度计划" width="520px" destroy-on-close>
       <el-form :model="form" label-width="110px">
@@ -47,10 +59,10 @@
 import { reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
+import { usePageList } from "../composables/usePageList";
 import { listGrayPlans, createGrayPlan, publishGrayPlan, rollbackGrayPlan } from "../api/grayPlans";
 
-const rows = ref([]);
-const loading = ref(false);
+const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } = usePageList(listGrayPlans);
 const dlg = ref(false);
 const saving = ref(false);
 const form = reactive({
@@ -65,15 +77,6 @@ function parseSteps() {
     .split(",")
     .map((s) => parseInt(s.trim(), 10))
     .filter((n) => !Number.isNaN(n));
-}
-
-async function load() {
-  loading.value = true;
-  try {
-    rows.value = await listGrayPlans();
-  } finally {
-    loading.value = false;
-  }
 }
 
 function openCreate() {
@@ -104,7 +107,7 @@ async function submit() {
     });
     ElMessage.success("已创建");
     dlg.value = false;
-    await load();
+    await resetPage();
   } finally {
     saving.value = false;
   }
@@ -114,15 +117,23 @@ async function publish(row) {
   await ElMessageBox.confirm(`确认发布计划 #${row.id}？`, "灰度发布", { type: "warning" });
   await publishGrayPlan(row.id);
   ElMessage.success("已发布");
-  await load();
+  await resetPage();
 }
 
 async function rollback(row) {
   await ElMessageBox.confirm(`确认回滚计划 #${row.id}？`, "回滚", { type: "warning" });
   await rollbackGrayPlan(row.id);
   ElMessage.success("已回滚");
-  await load();
+  await resetPage();
 }
 
 load();
 </script>
+
+<style scoped>
+.pagination-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+</style>

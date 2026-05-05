@@ -1,5 +1,5 @@
-import { get } from "./http";
+import { postQuery } from "./http";
 
 export function getHealth() {
-  return get("/api/health");
+  return postQuery("/api/health");
 }

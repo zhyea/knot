@@ -1,6 +1,7 @@
--- AI 网关数据库初始化脚本（MySQL 8+）
-CREATE DATABASE IF NOT EXISTS knot_ai_gateway DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE knot_ai_gateway;
+-- ============================================================
+-- Knot AI Gateway - Schema Definition
+-- Compatible with Spring Boot spring.sql.init
+-- ============================================================
 
 -- =========================
 -- 系统管理
@@ -389,9 +390,6 @@ CREATE TABLE IF NOT EXISTS gray_plans (
   status VARCHAR(32) NOT NULL DEFAULT 'DRAFT'
 );
 
--- 若库已存在旧版 gray_plans 无 steps_json，可执行：
--- ALTER TABLE gray_plans ADD COLUMN steps_json JSON DEFAULT NULL AFTER traffic_percent;
-
 CREATE TABLE IF NOT EXISTS notification_templates (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) NOT NULL,
@@ -415,19 +413,20 @@ CREATE TABLE IF NOT EXISTS notification_records (
   KEY idx_notification_records_template (template_id)
 );
 
+
 -- =========================
 -- 枚举配置
 -- =========================
 CREATE TABLE IF NOT EXISTS enum_configs (
-  id          BIGINT PRIMARY KEY AUTO_INCREMENT,
-  category    VARCHAR(64)  NOT NULL COMMENT '分类，如 provider_type、model_type',
-  item_code   VARCHAR(64)  NOT NULL COMMENT '枚举编码，如 OPENAI、CHAT',
-  item_label  VARCHAR(128) NOT NULL COMMENT '显示名称，如 OpenAI、对话',
-  sort_order  INT          NOT NULL DEFAULT 0 COMMENT '排序',
-  is_system   TINYINT      NOT NULL DEFAULT 0 COMMENT '1=系统内置不可删改',
-  is_enabled  TINYINT      NOT NULL DEFAULT 1 COMMENT '1=启用 0=禁用',
-  remark      VARCHAR(255) DEFAULT NULL COMMENT '备注',
-  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_enum_category_code (category, item_code)
+    id          BIGINT PRIMARY KEY AUTO_INCREMENT,
+    category    VARCHAR(64)  NOT NULL COMMENT '分类，如 provider_type、model_type',
+    item_code   VARCHAR(64)  NOT NULL COMMENT '枚举编码，如 OPENAI、CHAT',
+    item_label  VARCHAR(128) NOT NULL COMMENT '显示名称，如 OpenAI、对话',
+    sort_order  INT          NOT NULL DEFAULT 0 COMMENT '排序',
+    is_system   TINYINT      NOT NULL DEFAULT 0 COMMENT '1=系统内置不可删改',
+    is_enabled  TINYINT      NOT NULL DEFAULT 1 COMMENT '1=启用 0=禁用',
+    remark      VARCHAR(255) DEFAULT NULL COMMENT '备注',
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_enum_category_code (category, item_code)
 );

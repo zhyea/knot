@@ -1,5 +1,5 @@
-import { get } from "./http";
+import { postQuery } from "./http";
 
-export function listModuleCatalog() {
-  return get("/api/modules");
+export function listModuleCatalog(params) {
+  return postQuery("/api/modules", params);
 }

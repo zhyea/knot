@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.ApiResponse;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -12,7 +12,7 @@ import java.util.Map;
 @RequestMapping("/api/docs")
 public class ApiDocController {
 
-    @GetMapping("/openapi.json")
+    @PostMapping("/openapi.json")
     public Map<String, Object> openApi() {
         return Map.of(
                 "openapi", "3.0.3",
@@ -23,7 +23,7 @@ public class ApiDocController {
         );
     }
 
-    @GetMapping("/changelog")
+    @PostMapping("/changelog")
     public ApiResponse<List<DocChangeLog>> changelog() {
         return ApiResponse.ok(List.of(
                 new DocChangeLog("v1.0.0", "initial gateway scaffold"),

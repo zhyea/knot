@@ -1,7 +1,7 @@
-import { get, post, put } from "./http";
+import { postQuery, post, put } from "./http";
 
-export function listPlugins() {
-  return get("/api/plugins");
+export function listPlugins(params) {
+  return postQuery("/api/plugins", params);
 }
 
 export function createPlugin(payload) {

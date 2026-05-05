@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.ApiResponse;
+import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.BillingConverter;
@@ -24,11 +25,9 @@ public class BillingController {
         this.billingConverter = billingConverter;
     }
 
-    @GetMapping("/rules")
-    public ApiResponse<PageResult<BillingRule>> listRules(
-            @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
-        PageResult<BillingRuleDto> page = billingService.listRules(PageRequest.of(pageNum, pageSize));
+    @PostMapping("/rules")
+    public ApiResponse<PageResult<BillingRule>> listRules(@RequestBody(required = false) PageQuery query) {
+        PageResult<BillingRuleDto> page = billingService.listRules(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(billingConverter::toRuleVOList));
     }
 
@@ -38,16 +37,14 @@ public class BillingController {
         return ApiResponse.ok(billingConverter.toRuleVO(created));
     }
 
-    @GetMapping("/summary")
+    @PostMapping("/summary")
     public ApiResponse<BillingSummary> summary() {
         return ApiResponse.ok(billingConverter.toSummaryVO(billingService.summary()));
     }
 
-    @GetMapping("/details")
-    public ApiResponse<PageResult<BillingDetail>> details(
-            @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
-        PageResult<BillingDetailDto> page = billingService.details(PageRequest.of(pageNum, pageSize));
+    @PostMapping("/details")
+    public ApiResponse<PageResult<BillingDetail>> details(@RequestBody(required = false) PageQuery query) {
+        PageResult<BillingDetailDto> page = billingService.details(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(billingConverter::toDetailVOList));
     }
 

@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.ApiResponse;
+import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.SystemConverter;
@@ -34,7 +35,7 @@ public class SystemController {
         this.systemConverter = systemConverter;
     }
 
-    @GetMapping("/roles")
+    @PostMapping("/roles")
     public ApiResponse<List<RoleItem>> roles() {
         return ApiResponse.ok(List.of(
                 new RoleItem("SUPER_ADMIN", "超级管理员"),
@@ -44,16 +45,14 @@ public class SystemController {
         ));
     }
 
-    @GetMapping("/log-types")
+    @PostMapping("/log-types")
     public ApiResponse<List<String>> logTypes() {
         return ApiResponse.ok(List.of("access", "operation", "error", "system"));
     }
 
-    @GetMapping("/users")
-    public ApiResponse<PageResult<UserItem>> users(
-            @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
-        PageResult<UserDto> page = systemService.listUsers(PageRequest.of(pageNum, pageSize));
+    @PostMapping("/users")
+    public ApiResponse<PageResult<UserItem>> users(@RequestBody(required = false) PageQuery query) {
+        PageResult<UserDto> page = systemService.listUsers(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(systemConverter::toUserVOList));
     }
 
@@ -71,7 +70,7 @@ public class SystemController {
         return ApiResponse.ok(systemConverter.toUserVO(updated));
     }
 
-    @GetMapping("/logs")
+    @PostMapping("/logs")
     public ApiResponse<List<SystemLogItem>> logs() {
         // 返回最近的系统日志，从操作日志中提取
         return ApiResponse.ok(systemService.listOperationLogs(PageRequest.of(1, 10)).list().stream()
@@ -79,21 +78,19 @@ public class SystemController {
                 .toList());
     }
 
-    @GetMapping("/operation-logs")
-    public ApiResponse<PageResult<OperationLogItem>> operationLogs(
-            @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
-        PageResult<OperationLogDto> page = systemService.listOperationLogs(PageRequest.of(pageNum, pageSize));
+    @PostMapping("/operation-logs")
+    public ApiResponse<PageResult<OperationLogItem>> operationLogs(@RequestBody(required = false) PageQuery query) {
+        PageResult<OperationLogDto> page = systemService.listOperationLogs(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(systemConverter::toOperationLogVOList));
     }
 
-    @GetMapping("/operation-logs/{id}")
+    @PostMapping("/operation-logs/{id}")
     public ApiResponse<OperationLogDetail> operationLogDetail(@PathVariable Long id) {
         OperationLogDetailDto detail = systemService.getOperationLogDetail(id);
         return ApiResponse.ok(systemConverter.toOperationLogDetailVO(detail));
     }
 
-    @GetMapping("/nodes")
+    @PostMapping("/nodes")
     public ApiResponse<List<NodeItem>> nodes() {
         return ApiResponse.ok(systemConverter.toNodeVOList(systemService.listNodes()));
     }

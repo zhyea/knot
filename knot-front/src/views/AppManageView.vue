@@ -25,6 +25,18 @@
         </template>
       </el-table-column>
     </el-table>
+    <div class="pagination-wrap">
+      <el-pagination
+        background
+        layout="total, sizes, prev, pager, next"
+        :total="total"
+        :page-size="pageSize"
+        :current-page="pageNum"
+        :page-sizes="[10, 20, 50]"
+        @current-change="onPageChange"
+        @size-change="onSizeChange"
+      />
+    </div>
 
     <el-dialog v-model="dialog.visible" :title="dialog.isEdit ? '编辑应用' : '新建应用'" width="560px" destroy-on-close>
       <el-form :model="form" label-width="100px">
@@ -66,10 +78,10 @@ import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
 import StatusTag from "../components/common/StatusTag.vue";
 import { parseJson, parsePolicies } from "../utils/format";
+import { usePageList } from "../composables/usePageList";
 import { listApps, createApp, updateApp, updateAppQuota, getAppMetrics } from "../api/apps";
 
-const rows = ref([]);
-const loading = ref(false);
+const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } = usePageList(listApps);
 const saving = ref(false);
 const dialog = reactive({ visible: false, isEdit: false });
 const form = reactive({
@@ -102,15 +114,6 @@ function buildPayload() {
     rateLimitPolicy,
     quotaPolicy
   };
-}
-
-async function load() {
-  loading.value = true;
-  try {
-    rows.value = await listApps();
-  } finally {
-    loading.value = false;
-  }
 }
 
 function openCreate() {
@@ -153,7 +156,7 @@ async function submitForm() {
       ElMessage.success("已创建");
     }
     dialog.visible = false;
-    await load();
+    await resetPage();
   } finally {
     saving.value = false;
   }
@@ -176,7 +179,7 @@ async function submitQuota() {
     await updateAppQuota(quotaAppId.value, obj);
     ElMessage.success("已更新配额");
     quotaDlg.value = false;
-    await load();
+    await resetPage();
   } finally {
     quotaSaving.value = false;
   }
@@ -194,3 +197,11 @@ async function openMetrics(row) {
 
 load();
 </script>
+
+<style scoped>
+.pagination-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+</style>

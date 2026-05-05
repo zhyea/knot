@@ -38,8 +38,13 @@ export function unwrapData(response) {
   return body;
 }
 
-export function get(url, config) {
-  return http.get(url, config).then(unwrapData);
+/**
+ * 查询接口统一使用 POST，参数放入请求体
+ * @param {string} url
+ * @param {object} data 请求体参数（原 get 的 params）
+ */
+export function postQuery(url, data, config) {
+  return http.post(url, data, config).then(unwrapData);
 }
 
 export function post(url, data, config) {

@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.ApiResponse;
+import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.GrayReleaseConverter;
@@ -44,11 +45,9 @@ public class GrayReleaseController {
         return ApiResponse.ok(grayReleaseConverter.toVO(rolledBack));
     }
 
-    @GetMapping
-    public ApiResponse<PageResult<GrayPlan>> list(
-            @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
-        PageResult<GrayPlanDto> page = grayReleaseService.list(PageRequest.of(pageNum, pageSize));
+    @PostMapping
+    public ApiResponse<PageResult<GrayPlan>> list(@RequestBody(required = false) PageQuery query) {
+        PageResult<GrayPlanDto> page = grayReleaseService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(grayReleaseConverter::toVOList));
     }
 

@@ -24,6 +24,18 @@
         </template>
       </el-table-column>
     </el-table>
+    <div class="pagination-wrap">
+      <el-pagination
+        background
+        layout="total, sizes, prev, pager, next"
+        :total="total"
+        :page-size="pageSize"
+        :current-page="pageNum"
+        :page-sizes="[10, 20, 50]"
+        @current-change="onPageChange"
+        @size-change="onSizeChange"
+      />
+    </div>
 
     <el-dialog v-model="dialog.visible" :title="dialog.isEdit ? '编辑供应商' : '新建供应商'" width="560px" destroy-on-close>
       <el-form :model="form" label-width="100px">
@@ -31,7 +43,14 @@
           <el-input v-model="form.name" placeholder="供应商名称" />
         </el-form-item>
         <el-form-item label="类型">
-          <el-input v-model="form.type" placeholder="如 OPENAI / CUSTOM" />
+          <el-select v-model="form.type" placeholder="请选择供应商类型" clearable style="width: 100%">
+            <el-option
+              v-for="item in providerTypeOptions"
+              :key="item.itemCode"
+              :label="item.itemLabel"
+              :value="item.itemCode"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="Base URL">
           <el-input v-model="form.baseUrl" placeholder="https://..." />
@@ -39,11 +58,11 @@
         <el-form-item label="启用">
           <el-switch v-model="form.enabled" />
         </el-form-item>
-        <el-form-item label="频控 JSON">
-          <el-input v-model="form.rateLimitJson" type="textarea" :rows="3" placeholder='可选，如 {"rpm":60}' />
+        <el-form-item label="频控策略">
+          <KvEditor v-model="form.rateLimitPolicy" value-mode="number" />
         </el-form-item>
-        <el-form-item label="额度 JSON">
-          <el-input v-model="form.quotaJson" type="textarea" :rows="3" placeholder='可选，如 {"dailyTokens":1000000}' />
+        <el-form-item label="额度策略">
+          <KvEditor v-model="form.quotaPolicy" value-mode="number" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -89,11 +108,13 @@
 </template>
 
 <script setup>
-import { reactive, ref } from "vue";
+import { reactive, ref, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
 import StatusTag from "../components/common/StatusTag.vue";
-import { parsePolicies } from "../utils/format";
+import KvEditor from "../components/common/KvEditor.vue";
+import { usePageList } from "../composables/usePageList";
+import { useEnums } from "../composables/useEnums";
 import {
   listProviders,
   createProvider,
@@ -103,8 +124,8 @@ import {
   updateDiscountPolicy
 } from "../api/providers";
 
-const rows = ref([]);
-const loading = ref(false);
+const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } = usePageList(listProviders);
+const { options: providerTypeOptions, loadOptions: loadProviderTypes } = useEnums("provider_type");
 const saving = ref(false);
 const dialog = reactive({ visible: false, isEdit: false });
 const form = reactive({
@@ -113,8 +134,8 @@ const form = reactive({
   type: "",
   baseUrl: "",
   enabled: true,
-  rateLimitJson: "",
-  quotaJson: ""
+  rateLimitPolicy: {},
+  quotaPolicy: {}
 });
 
 const discountDrawer = ref(false);
@@ -134,36 +155,26 @@ const dForm = reactive({
 });
 
 function policyPayload() {
-  const { rateLimitPolicy, quotaPolicy } = parsePolicies(form);
   return {
     id: form.id,
     name: form.name,
     type: form.type,
     baseUrl: form.baseUrl,
     enabled: form.enabled,
-    rateLimitPolicy,
-    quotaPolicy
+    rateLimitPolicy: Object.keys(form.rateLimitPolicy).length ? form.rateLimitPolicy : null,
+    quotaPolicy: Object.keys(form.quotaPolicy).length ? form.quotaPolicy : null
   };
-}
-
-async function load() {
-  loading.value = true;
-  try {
-    rows.value = await listProviders();
-  } finally {
-    loading.value = false;
-  }
 }
 
 function openCreate() {
   dialog.isEdit = false;
   form.id = null;
   form.name = "";
-  form.type = "CUSTOM";
+  form.type = "";
   form.baseUrl = "";
   form.enabled = true;
-  form.rateLimitJson = "";
-  form.quotaJson = "";
+  form.rateLimitPolicy = {};
+  form.quotaPolicy = {};
   dialog.visible = true;
 }
 
@@ -174,8 +185,8 @@ function openEdit(row) {
   form.type = row.type;
   form.baseUrl = row.baseUrl || "";
   form.enabled = !!row.enabled;
-  form.rateLimitJson = row.rateLimitPolicy ? JSON.stringify(row.rateLimitPolicy, null, 2) : "";
-  form.quotaJson = row.quotaPolicy ? JSON.stringify(row.quotaPolicy, null, 2) : "";
+  form.rateLimitPolicy = row.rateLimitPolicy && typeof row.rateLimitPolicy === "object" ? { ...row.rateLimitPolicy } : {};
+  form.quotaPolicy = row.quotaPolicy && typeof row.quotaPolicy === "object" ? { ...row.quotaPolicy } : {};
   dialog.visible = true;
 }
 
@@ -195,7 +206,7 @@ async function submitForm() {
       ElMessage.success("已创建");
     }
     dialog.visible = false;
-    await load();
+    await resetPage();
   } finally {
     saving.value = false;
   }
@@ -209,7 +220,8 @@ async function openDiscount(row) {
 
 async function loadDiscounts() {
   if (!currentId.value) return;
-  discountRows.value = await listDiscountPolicies(currentId.value);
+  const res = await listDiscountPolicies(currentId.value);
+  discountRows.value = Array.isArray(res) ? res : (res.list || []);
 }
 
 function openDiscountForm(row) {
@@ -261,5 +273,16 @@ async function submitDiscount() {
   }
 }
 
-load();
+onMounted(() => {
+  load();
+  loadProviderTypes();
+});
 </script>
+
+<style scoped>
+.pagination-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+</style>

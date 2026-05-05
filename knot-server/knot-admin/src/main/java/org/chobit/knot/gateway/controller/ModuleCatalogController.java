@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.ApiResponse;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -11,7 +11,7 @@ import java.util.List;
 @RequestMapping("/api/modules")
 public class ModuleCatalogController {
 
-    @GetMapping
+    @PostMapping
     public ApiResponse<List<ModuleInfo>> listModules() {
         return ApiResponse.ok(List.of(
                 new ModuleInfo("system", "系统管理", List.of("用户管理", "角色权限", "组织机构", "系统运维", "日志管理")),

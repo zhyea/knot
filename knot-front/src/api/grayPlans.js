@@ -1,7 +1,7 @@
-import { get, post } from "./http";
+import { postQuery, post } from "./http";
 
-export function listGrayPlans() {
-  return get("/api/release/gray-plans");
+export function listGrayPlans(params) {
+  return postQuery("/api/release/gray-plans", params);
 }
 
 export function createGrayPlan(payload) {

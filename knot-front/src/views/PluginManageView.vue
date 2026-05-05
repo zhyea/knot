@@ -5,9 +5,9 @@
   >
     <div class="toolbar">
       <el-button type="primary" @click="openCreate">新建插件</el-button>
-      <el-button @click="load">刷新</el-button>
+      <el-button @click="pageLoad">刷新</el-button>
     </div>
-    <el-table v-loading="loading" :data="rows" stripe border>
+    <el-table v-loading="loading" :data="pluginRows" stripe border>
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="code" label="编码" width="120" />
       <el-table-column prop="name" label="名称" min-width="120" />
@@ -29,6 +29,18 @@
         </template>
       </el-table-column>
     </el-table>
+    <div class="pagination-wrap">
+      <el-pagination
+        background
+        layout="total, sizes, prev, pager, next"
+        :total="total"
+        :page-size="pageSize"
+        :current-page="pageNum"
+        :page-sizes="[10, 20, 50]"
+        @current-change="onPageChange"
+        @size-change="onSizeChange"
+      />
+    </div>
 
     <el-dialog v-model="dlg" title="新建插件" width="480px" destroy-on-close>
       <el-form :model="form" label-width="100px">
@@ -47,26 +59,22 @@
 </template>
 
 <script setup>
-import { reactive, ref } from "vue";
+import { reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
+import { usePageList } from "../composables/usePageList";
 import { listPlugins, createPlugin, updatePluginStatus } from "../api/plugins";
 
-const rows = ref([]);
-const loading = ref(false);
+const { rows, loading, total, pageNum, pageSize, load: pageLoad, onPageChange, onSizeChange, resetPage } = usePageList(listPlugins);
+const pluginRows = ref([]);
 const dlg = ref(false);
 const saving = ref(false);
 const form = reactive({ code: "", name: "", pluginType: "PRE", version: "0.0.1", status: "DISABLED" });
 
-async function load() {
-  loading.value = true;
-  try {
-    const list = await listPlugins();
-    rows.value = list.map((r) => ({ ...r, _st: null }));
-  } finally {
-    loading.value = false;
-  }
-}
+// 监听 rows 变化，同步到 pluginRows（附加 _st）
+watch(rows, (list) => {
+  pluginRows.value = list.map((r) => ({ ...r, _st: null }));
+}, { immediate: true });
 
 function openCreate() {
   form.code = "";
@@ -94,7 +102,7 @@ async function submit() {
     });
     ElMessage.success("已创建");
     dlg.value = false;
-    await load();
+    await resetPage();
   } finally {
     saving.value = false;
   }
@@ -106,11 +114,19 @@ async function onStatus(row, status) {
     await updatePluginStatus(row.id, { status });
     ElMessage.success("已更新");
     row._st = null;
-    await load();
+    await resetPage();
   } catch {
     row._st = null;
   }
 }
 
-load();
+pageLoad();
 </script>
+
+<style scoped>
+.pagination-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+</style>

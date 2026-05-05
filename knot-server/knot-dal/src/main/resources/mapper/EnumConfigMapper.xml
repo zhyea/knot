@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.EnumConfigMapper">
+
+    <select id="list" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
+        select id, category, item_code, item_label, sort_order, is_system, is_enabled, remark
+        from enum_configs
+        order by category, sort_order, id
+    </select>
+
+    <select id="listByCategoryFilter" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
+        select id, category, item_code, item_label, sort_order, is_system, is_enabled, remark
+        from enum_configs
+        <where>
+            <if test="category != null and category != ''">
+                category = #{category}
+            </if>
+        </where>
+        order by category, sort_order, id
+    </select>
+
+    <select id="listByCategory" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
+        select id, category, item_code, item_label, sort_order, is_system, is_enabled, remark
+        from enum_configs
+        where category = #{category}
+        order by sort_order, id
+    </select>
+
+    <select id="listCategories" resultType="java.lang.String">
+        select distinct category from enum_configs order by category
+    </select>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
+        select id, category, item_code, item_label, sort_order, is_system, is_enabled, remark
+        from enum_configs
+        where id = #{id}
+    </select>
+
+    <select id="getByCategoryAndCode" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
+        select id, category, item_code, item_label, sort_order, is_system, is_enabled, remark
+        from enum_configs
+        where category = #{category} and item_code = #{itemCode}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into enum_configs(category, item_code, item_label, sort_order, is_system, is_enabled, remark)
+        values(#{category}, #{itemCode}, #{itemLabel}, #{sortOrder}, #{isSystem}, #{isEnabled}, #{remark})
+    </insert>
+
+    <update id="update">
+        update enum_configs
+        set item_label = #{itemLabel},
+            sort_order = #{sortOrder},
+            is_enabled = #{isEnabled},
+            remark     = #{remark}
+        where id = #{id} and is_system = 0
+    </update>
+
+    <delete id="delete">
+        delete from enum_configs where id = #{id} and is_system = 0
+    </delete>
+
+</mapper>

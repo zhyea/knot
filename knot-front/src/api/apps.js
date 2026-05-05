@@ -1,7 +1,7 @@
-import { get, post, put } from "./http";
+import { postQuery, post, put } from "./http";
 
-export function listApps() {
-  return get("/api/apps");
+export function listApps(params) {
+  return postQuery("/api/apps", params);
 }
 
 export function createApp(payload) {
@@ -17,5 +17,5 @@ export function updateAppQuota(id, quotaPolicy) {
 }
 
 export function getAppMetrics(id) {
-  return get(`/api/apps/${id}/metrics`);
+  return postQuery(`/api/apps/${id}/metrics`);
 }

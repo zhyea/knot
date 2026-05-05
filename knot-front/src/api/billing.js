@@ -1,7 +1,7 @@
-import { get, post } from "./http";
+import { postQuery, post } from "./http";
 
-export function listBillingRules() {
-  return get("/api/billing/rules");
+export function listBillingRules(params) {
+  return postQuery("/api/billing/rules", params);
 }
 
 export function createBillingRule(payload) {
@@ -9,11 +9,11 @@ export function createBillingRule(payload) {
 }
 
 export function getBillingSummary() {
-  return get("/api/billing/summary");
+  return postQuery("/api/billing/summary");
 }
 
-export function listBillingDetails() {
-  return get("/api/billing/details");
+export function listBillingDetails(params) {
+  return postQuery("/api/billing/details", params);
 }
 
 export function runReconciliation(payload) {

@@ -40,7 +40,7 @@ const loading = ref(true);
 onMounted(async () => {
   loadHealth();
   try {
-    modules.value = await listModuleCatalog();
+    modules.value = (await listModuleCatalog()) || [];
   } catch {
     modules.value = [];
   } finally {

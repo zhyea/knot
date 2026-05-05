@@ -2,7 +2,7 @@ package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.model.HealthResponse;
 import org.chobit.knot.gateway.service.HealthService;
-import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -18,7 +18,7 @@ public class HealthController {
         this.healthService = healthService;
     }
 
-    @GetMapping("/health")
+    @PostMapping("/health")
     public HealthResponse health() {
         return new HealthResponse("ok", LocalDateTime.now(), healthService.dbTimestamp());
     }

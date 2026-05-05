@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.ApiResponse;
+import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.ProviderConverter;
@@ -25,11 +26,9 @@ public class ProviderController {
         this.providerConverter = providerConverter;
     }
 
-    @GetMapping
-    public ApiResponse<PageResult<ProviderItem>> list(
-            @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
-        PageResult<ProviderDto> page = providerService.list(PageRequest.of(pageNum, pageSize));
+    @PostMapping
+    public ApiResponse<PageResult<ProviderItem>> list(@RequestBody(required = false) PageQuery query) {
+        PageResult<ProviderDto> page = providerService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(providerConverter::toVOList));
     }
 
@@ -45,7 +44,7 @@ public class ProviderController {
         return ApiResponse.ok(providerConverter.toVO(updated));
     }
 
-    @GetMapping("/{id}/discount-policies")
+    @PostMapping("/{id}/discount-policies/list")
     public ApiResponse<List<DiscountPolicy>> listDiscountPolicies(@PathVariable Long id) {
         return ApiResponse.ok(providerService.listDiscountPolicies(id).stream()
                 .map(this::toDiscountPolicyVO).toList());

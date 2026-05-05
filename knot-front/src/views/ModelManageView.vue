@@ -26,6 +26,18 @@
         </template>
       </el-table-column>
     </el-table>
+    <div class="pagination-wrap">
+      <el-pagination
+        background
+        layout="total, sizes, prev, pager, next"
+        :total="total"
+        :page-size="pageSize"
+        :current-page="pageNum"
+        :page-sizes="[10, 20, 50]"
+        @current-change="onPageChange"
+        @size-change="onSizeChange"
+      />
+    </div>
 
     <el-dialog v-model="dialog.visible" :title="dialog.isEdit ? '编辑模型' : '新建模型'" width="580px" destroy-on-close>
       <el-form :model="form" label-width="110px">
@@ -81,10 +93,10 @@ import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
 import StatusTag from "../components/common/StatusTag.vue";
 import { parsePolicies } from "../utils/format";
+import { usePageList } from "../composables/usePageList";
 import { listModels, createModel, updateModel, testModel, switchModelVersion } from "../api/models";
 
-const rows = ref([]);
-const loading = ref(false);
+const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } = usePageList(listModels);
 const saving = ref(false);
 const dialog = reactive({ visible: false, isEdit: false });
 const form = reactive({
@@ -123,15 +135,6 @@ function payload() {
     rateLimitPolicy,
     quotaPolicy
   };
-}
-
-async function load() {
-  loading.value = true;
-  try {
-    rows.value = await listModels();
-  } finally {
-    loading.value = false;
-  }
 }
 
 function openCreate() {
@@ -178,7 +181,7 @@ async function submitForm() {
       ElMessage.success("已创建");
     }
     dialog.visible = false;
-    await load();
+    await resetPage();
   } finally {
     saving.value = false;
   }
@@ -219,7 +222,7 @@ async function runSwitch() {
     await switchModelVersion(swId.value, { targetVersion: swVersion.value.trim() });
     ElMessage.success("已切换");
     swDlg.value = false;
-    await load();
+    await resetPage();
   } finally {
     swLoading.value = false;
   }
@@ -229,6 +232,11 @@ load();
 </script>
 
 <style scoped>
+.pagination-wrap {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
 .mt {
   margin-top: 12px;
 }

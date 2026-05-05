@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.ApiResponse;
+import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.NotificationConverter;
@@ -26,11 +27,9 @@ public class NotificationController {
         this.notificationConverter = notificationConverter;
     }
 
-    @GetMapping("/templates")
-    public ApiResponse<PageResult<NotifyTemplate>> templates(
-            @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
-        PageResult<TemplateDto> page = notificationService.listTemplates(PageRequest.of(pageNum, pageSize));
+    @PostMapping("/templates/list")
+    public ApiResponse<PageResult<NotifyTemplate>> templates(@RequestBody(required = false) PageQuery query) {
+        PageResult<TemplateDto> page = notificationService.listTemplates(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(notificationConverter::toTemplateVOList));
     }
 

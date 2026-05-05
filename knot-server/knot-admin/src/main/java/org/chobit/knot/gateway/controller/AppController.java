@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.ApiResponse;
+import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
@@ -24,11 +25,9 @@ public class AppController {
         this.appConverter = appConverter;
     }
 
-    @GetMapping
-    public ApiResponse<PageResult<AppItem>> list(
-            @RequestParam(defaultValue = "1") Integer pageNum,
-            @RequestParam(defaultValue = "20") Integer pageSize) {
-        PageResult<AppDto> page = appService.list(PageRequest.of(pageNum, pageSize));
+    @PostMapping
+    public ApiResponse<PageResult<AppItem>> list(@RequestBody(required = false) PageQuery query) {
+        PageResult<AppDto> page = appService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return ApiResponse.ok(page.mapList(appConverter::toVOList));
     }
 
@@ -53,7 +52,7 @@ public class AppController {
         return ApiResponse.ok(appConverter.toVO(updated));
     }
 
-    @GetMapping("/{id}/metrics")
+    @PostMapping("/{id}/metrics")
     public ApiResponse<AppMetrics> metrics(@PathVariable Long id) {
         appService.getById(id);
         AppMetricsDto dto = appService.getAppMetrics(id);

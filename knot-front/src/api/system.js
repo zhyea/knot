@@ -1,11 +1,11 @@
-import { get, post, put } from "./http";
+import { postQuery, post, put } from "./http";
 
-export function listSystemRoles() {
-  return get("/api/system/roles");
+export function listSystemRoles(params) {
+  return postQuery("/api/system/roles", params);
 }
 
-export function listUsers() {
-  return get("/api/system/users");
+export function listUsers(params) {
+  return postQuery("/api/system/users", params);
 }
 
 export function createUser(payload) {
@@ -16,16 +16,16 @@ export function updateUserStatus(id, payload) {
   return put(`/api/system/users/${id}/status`, payload);
 }
 
-export function listOperationLogs() {
-  return get("/api/system/operation-logs");
+export function listOperationLogs(params) {
+  return postQuery("/api/system/operation-logs", params);
 }
 
 export function getOperationLogDetail(id) {
-  return get(`/api/system/operation-logs/${id}`);
+  return postQuery(`/api/system/operation-logs/${id}`);
 }
 
-export function listNodes() {
-  return get("/api/system/nodes");
+export function listNodes(params) {
+  return postQuery("/api/system/nodes", params);
 }
 
 export function createBackupTask() {

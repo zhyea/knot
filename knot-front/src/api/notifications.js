@@ -1,7 +1,7 @@
-import { get, post } from "./http";
+import { postQuery, post } from "./http";
 
-export function listNotifyTemplates() {
-  return get("/api/notifications/templates");
+export function listNotifyTemplates(params) {
+  return postQuery("/api/notifications/templates/list", params);
 }
 
 export function createNotifyTemplate(payload) {

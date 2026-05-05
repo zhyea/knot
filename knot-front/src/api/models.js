@@ -1,7 +1,7 @@
-import { get, post, put } from "./http";
+import { postQuery, post, put } from "./http";
 
-export function listModels() {
-  return get("/api/models");
+export function listModels(params) {
+  return postQuery("/api/models", params);
 }
 
 export function createModel(payload) {
