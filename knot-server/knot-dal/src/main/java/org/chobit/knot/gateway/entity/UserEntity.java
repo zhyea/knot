@@ -6,6 +6,7 @@ import lombok.Data;
 public class UserEntity {
     private Long id;
     private String username;
+    private String passwordHash;
     private String realName;
     private String status;
 }

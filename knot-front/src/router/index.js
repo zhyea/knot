@@ -1,7 +1,9 @@
 import { createRouter, createWebHistory } from "vue-router";
 import NestedView from "../layouts/NestedView.vue";
+import { useAuth } from "../composables/useAuth";
 
 const routes = [
+  { path: "/login", name: "login", component: () => import("@/views/LoginView.vue") },
   { path: "/", name: "dashboard", component: () => import("@/views/DashboardView.vue") },
 
   // 系统管理
@@ -82,6 +84,30 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes
+});
+
+// 路由守卫
+router.beforeEach((to, from, next) => {
+  const { isLoggedIn } = useAuth();
+  
+  // 白名单：不需要登录的页面
+  const whiteList = ['/login'];
+  
+  if (whiteList.includes(to.path)) {
+    // 如果已登录，访问登录页则跳转到首页
+    if (isLoggedIn.value) {
+      next('/dashboard');
+    } else {
+      next();
+    }
+  } else {
+    // 其他页面需要登录
+    if (isLoggedIn.value) {
+      next();
+    } else {
+      next('/login');
+    }
+  }
 });
 
 export default router;

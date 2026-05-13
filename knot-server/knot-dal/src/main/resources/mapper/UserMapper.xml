@@ -14,6 +14,12 @@
         where id = #{id}
     </select>
 
+    <select id="getUserByUsername" resultType="org.chobit.knot.gateway.entity.UserEntity">
+        select id, username, password_hash, real_name, status
+        from users
+        where username = #{username}
+    </select>
+
     <insert id="insertUser" useGeneratedKeys="true" keyProperty="id">
         insert into users(username, password_hash, real_name, status)
         values(#{username}, 'NO_LOGIN', #{realName}, #{status})

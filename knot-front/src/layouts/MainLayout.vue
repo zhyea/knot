@@ -93,15 +93,28 @@
     <el-container>
       <el-header class="header">
         <span>AI 网关管理后台</span>
-        <div class="theme-switcher">
-          <span class="theme-label">主题</span>
-          <span
-            v-for="t in THEMES"
-            :key="t.key"
-            :class="['theme-dot', 'theme-dot--' + t.key, { active: current === t.key }]"
-            :title="t.label"
-            @click="setTheme(t.key)"
-          />
+        <div class="header-right">
+          <div class="theme-switcher">
+            <span class="theme-label">主题</span>
+            <span
+              v-for="t in THEMES"
+              :key="t.key"
+              :class="['theme-dot', 'theme-dot--' + t.key, { active: current === t.key }]"
+              :title="t.label"
+              @click="setTheme(t.key)"
+            />
+          </div>
+          <el-dropdown @command="handleCommand">
+            <span class="user-info">
+              <el-icon><User /></el-icon>
+              <span>{{ user?.realName || user?.username || '用户' }}</span>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </el-header>
       <el-main class="main">
@@ -113,8 +126,9 @@
 
 <script setup>
 import { computed } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useTheme, THEMES } from "../composables/useTheme";
+import { useAuth } from "../composables/useAuth";
 import {
   Odometer,
   Setting,
@@ -126,11 +140,14 @@ import {
   Lock,
   Operation,
   SetUp,
-  Bell
+  Bell,
+  User
 } from "@element-plus/icons-vue";
 
 const route = useRoute();
+const router = useRouter();
 const { current, setTheme } = useTheme();
+const { user, logout } = useAuth();
 const activePath = computed(() => route.path);
 
 // 自动展开当前路径所属的子菜单
@@ -138,6 +155,13 @@ const openeds = computed(() => {
   const match = route.path.match(/^\/([^/]+)/);
   return match ? [`/${match[1]}`] : [];
 });
+
+async function handleCommand(command) {
+  if (command === 'logout') {
+    await logout();
+    router.push('/login');
+  }
+}
 </script>
 
 <style scoped>
@@ -166,6 +190,21 @@ const openeds = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-weight: 400;
+  font-size: 14px;
 }
 
 .theme-label {

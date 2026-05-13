@@ -1,11 +1,23 @@
 import axios from "axios";
 import { ElMessage } from "element-plus";
+import { useAuth } from "../composables/useAuth";
+import router from "../router";
 
 const http = axios.create({
   baseURL: "",
   timeout: 30000
 });
 
+// 请求拦截器：自动携带 token
+http.interceptors.request.use((config) => {
+  const { token } = useAuth();
+  if (token.value) {
+    config.headers.Authorization = `Bearer ${token.value}`;
+  }
+  return config;
+});
+
+// 响应拦截器：处理 401 和业务错误
 http.interceptors.response.use(
   (response) => {
     const body = response.data;
@@ -16,6 +28,15 @@ http.interceptors.response.use(
     return response;
   },
   (error) => {
+    // 401 未授权，清除 token 并跳转到登录页
+    if (error.response?.status === 401) {
+      const { logout } = useAuth();
+      logout();
+      router.push('/login');
+      ElMessage.error('登录已过期，请重新登录');
+      return Promise.reject(new Error('登录已过期'));
+    }
+    
     const msg =
       error.response?.data?.message ||
       error.response?.data?.error ||
