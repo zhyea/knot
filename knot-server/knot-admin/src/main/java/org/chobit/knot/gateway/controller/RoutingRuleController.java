@@ -1,6 +1,5 @@
 package org.chobit.knot.gateway.controller;
 
-import org.chobit.knot.gateway.ApiResponse;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -28,33 +27,33 @@ public class RoutingRuleController {
     }
 
     @PostMapping("/list")
-    public ApiResponse<PageResult<RoutingRule>> list(@RequestBody(required = false) PageQuery query) {
+    public PageResult<RoutingRule> list(@RequestBody(required = false) PageQuery query) {
         PageResult<RoutingRuleDto> page = routingRuleService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
-        return ApiResponse.ok(page.mapList(routingRuleConverter::toVOList));
+        return page.mapList(routingRuleConverter::toVOList);
     }
 
     @PostMapping
-    public ApiResponse<RoutingRule> create(@RequestBody @Valid RoutingRule request) {
+    public RoutingRule create(@RequestBody @Valid RoutingRule request) {
         RoutingRuleDto created = routingRuleService.create(routingRuleConverter.toDto(request));
-        return ApiResponse.ok(routingRuleConverter.toVO(created));
+        return routingRuleConverter.toVO(created);
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<RoutingRule> update(@PathVariable Long id, @RequestBody @Valid RoutingRule request) {
+    public RoutingRule update(@PathVariable Long id, @RequestBody @Valid RoutingRule request) {
         RoutingRuleDto updated = routingRuleService.update(id, routingRuleConverter.toDto(request));
-        return ApiResponse.ok(routingRuleConverter.toVO(updated));
+        return routingRuleConverter.toVO(updated);
     }
 
     @PostMapping("/{id}/test")
-    public ApiResponse<RoutingTestResult> test(@PathVariable Long id, @RequestBody @Valid RoutingTestRequest request) {
+    public RoutingTestResult test(@PathVariable Long id, @RequestBody @Valid RoutingTestRequest request) {
         RoutingRuleDto rule = routingRuleService.getById(id);
-        return ApiResponse.ok(new RoutingTestResult(rule.id(), rule.targetProviderId(), rule.targetModelId(), "MATCHED"));
+        return new RoutingTestResult(rule.id(), rule.targetProviderId(), rule.targetModelId(), "MATCHED");
     }
 
     @PostMapping("/switch-logs")
-    public ApiResponse<PageResult<RoutingSwitchLog>> switchLogs(@RequestBody(required = false) PageQuery query) {
+    public PageResult<RoutingSwitchLog> switchLogs(@RequestBody(required = false) PageQuery query) {
         PageResult<RoutingSwitchLogDto> page = routingRuleService.listSwitchLogs(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
-        return ApiResponse.ok(page.mapList(routingRuleConverter::toSwitchLogVOList));
+        return page.mapList(routingRuleConverter::toSwitchLogVOList);
     }
 
 }

@@ -1,6 +1,5 @@
 package org.chobit.knot.gateway.controller;
 
-import org.chobit.knot.gateway.ApiResponse;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -32,28 +31,28 @@ public class SecurityController {
     }
 
     @PostMapping("/overview")
-    public ApiResponse<SecurityOverview> overview() {
-        return ApiResponse.ok(securityConverter.toOverviewVO(securityService.overview()));
+    public SecurityOverview overview() {
+        return securityConverter.toOverviewVO(securityService.overview());
     }
 
     @PutMapping("/policies")
-    public ApiResponse<SecurityPolicy> updatePolicy(@RequestBody @Valid SecurityPolicy request) {
+    public SecurityPolicy updatePolicy(@RequestBody @Valid SecurityPolicy request) {
         SecurityPolicyDto updated = securityService.updatePolicy(
                 securityConverter.toPolicyDto(request)
         );
-        return ApiResponse.ok(securityConverter.toPolicyVO(updated));
+        return securityConverter.toPolicyVO(updated);
     }
 
     @PostMapping("/alerts")
-    public ApiResponse<PageResult<AlertItem>> listAlerts(@RequestBody(required = false) PageQuery query) {
+    public PageResult<AlertItem> listAlerts(@RequestBody(required = false) PageQuery query) {
         PageResult<AlertItemDto> page = securityService.listAlerts(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
-        return ApiResponse.ok(page.mapList(securityConverter::toAlertVOList));
+        return page.mapList(securityConverter::toAlertVOList);
     }
 
     @PostMapping("/cache/evict")
-    public ApiResponse<CacheEvictResult> evictCache(@RequestBody @Valid CacheEvictRequest request) {
+    public CacheEvictResult evictCache(@RequestBody @Valid CacheEvictRequest request) {
         CacheEvictResultDto r = securityService.evictCache(request.cacheKey(), request.cacheType());
-        return ApiResponse.ok(securityConverter.toCacheEvictVO(r));
+        return securityConverter.toCacheEvictVO(r);
     }
 
 }

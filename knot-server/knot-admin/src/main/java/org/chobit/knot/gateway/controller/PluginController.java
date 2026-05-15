@@ -1,6 +1,5 @@
 package org.chobit.knot.gateway.controller;
 
-import org.chobit.knot.gateway.ApiResponse;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -25,21 +24,21 @@ public class PluginController {
     }
 
     @PostMapping("/list")
-    public ApiResponse<PageResult<PluginItem>> list(@RequestBody(required = false) PageQuery query) {
+    public PageResult<PluginItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<PluginDto> page = pluginService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
-        return ApiResponse.ok(page.mapList(pluginConverter::toVOList));
+        return page.mapList(pluginConverter::toVOList);
     }
 
     @PostMapping
-    public ApiResponse<PluginItem> create(@RequestBody @Valid PluginItem request) {
+    public PluginItem create(@RequestBody @Valid PluginItem request) {
         PluginDto created = pluginService.create(pluginConverter.toDto(request));
-        return ApiResponse.ok(pluginConverter.toVO(created));
+        return pluginConverter.toVO(created);
     }
 
     @PutMapping("/{id}/status")
-    public ApiResponse<PluginItem> updateStatus(@PathVariable Long id, @RequestBody @Valid PluginStatusRequest request) {
+    public PluginItem updateStatus(@PathVariable Long id, @RequestBody @Valid PluginStatusRequest request) {
         PluginDto updated = pluginService.updateStatus(id, request.status());
-        return ApiResponse.ok(pluginConverter.toVO(updated));
+        return pluginConverter.toVO(updated);
     }
 
 }

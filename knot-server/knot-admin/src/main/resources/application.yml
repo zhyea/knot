@@ -11,10 +11,12 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   sql:
     init:
-      mode: NEVER
+      # 开发可改为 ALWAYS；schema/data 均设计为可重复执行
+      mode: ALWAYS
       schema-locations: classpath:db/schema.sql
       data-locations: classpath:db/data.sql
       encoding: UTF-8
+      continue-on-error: false
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml
@@ -25,6 +27,15 @@ pagehelper:
   reasonable: true
   helper-dialect: mysql
   default-count: true
+
+# 统一 API 返回包装（对齐 zhy-spring-boot-starter 的 rw 配置）
+rw:
+  enabled: true
+  success-code: 0
+  fail-code: 10000
+  # true：全部 RestController 返回值包装为 ApiResponse；false：仅 @ResponseWrapper 标注的类/方法
+  silent-mode: true
+  tags: []
 
 springdoc:
   api-docs:

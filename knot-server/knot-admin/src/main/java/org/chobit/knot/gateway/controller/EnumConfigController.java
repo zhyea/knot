@@ -1,6 +1,5 @@
 package org.chobit.knot.gateway.controller;
 
-import org.chobit.knot.gateway.ApiResponse;
 import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.entity.EnumCategorySummary;
 import org.chobit.knot.gateway.entity.EnumConfigEntity;
@@ -28,33 +27,33 @@ public class EnumConfigController {
 
     /** 分页查询所有枚举项（管理后台全量列表用） */
     @PostMapping("/list")
-    public ApiResponse<PageResult<EnumConfigEntity>> list(@RequestBody(required = false) PageQuery query) {
+    public PageResult<EnumConfigEntity> list(@RequestBody(required = false) PageQuery query) {
         PageRequest pr = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
-        return ApiResponse.ok(enumConfigService.list(pr, query != null ? query.category() : null));
+        return enumConfigService.list(pr, query != null ? query.category() : null);
     }
 
     /** 枚举分类聚合列表（分类管理首页） */
     @PostMapping("/category-summaries")
-    public ApiResponse<List<EnumCategorySummary>> categorySummaries() {
-        return ApiResponse.ok(enumConfigService.listCategorySummaries());
+    public List<EnumCategorySummary> categorySummaries() {
+        return enumConfigService.listCategorySummaries();
     }
 
     /** 按分类查询枚举项 */
     @GetMapping("/items/{category}")
-    public ApiResponse<List<EnumConfigEntity>> listItems(@PathVariable String category) {
-        return ApiResponse.ok(enumConfigService.listByCategory(category));
+    public List<EnumConfigEntity> listItems(@PathVariable String category) {
+        return enumConfigService.listByCategory(category);
     }
 
     /** 某分类下枚举配置相关的操作日志 */
     @GetMapping("/operation-logs/{category}")
-    public ApiResponse<List<OperationLogEntity>> operationLogsByCategory(@PathVariable String category) {
-        return ApiResponse.ok(operationLogService.listForEnumCategory(category));
+    public List<OperationLogEntity> operationLogsByCategory(@PathVariable String category) {
+        return operationLogService.listForEnumCategory(category);
     }
 
     /** 查询所有分类编码 */
     @PostMapping("/categories")
-    public ApiResponse<List<String>> listCategories() {
-        return ApiResponse.ok(enumConfigService.listCategories());
+    public List<String> listCategories() {
+        return enumConfigService.listCategories();
     }
 
     /** 新增枚举项 */
@@ -63,8 +62,8 @@ public class EnumConfigController {
             entityNameAfter = "#result.category + '/' + #result.itemCode",
             description = "'新增枚举值'")
     @PostMapping
-    public ApiResponse<EnumConfigEntity> create(@RequestBody EnumConfigEntity request) {
-        return ApiResponse.ok(enumConfigService.create(request));
+    public EnumConfigEntity create(@RequestBody EnumConfigEntity request) {
+        return enumConfigService.create(request);
     }
 
     /** 修改枚举项 */
@@ -73,8 +72,8 @@ public class EnumConfigController {
             entityNameAfter = "#result.category + '/' + #result.itemCode",
             description = "'更新枚举值'")
     @PutMapping("/{id}")
-    public ApiResponse<EnumConfigEntity> update(@PathVariable Long id, @RequestBody EnumConfigEntity request) {
-        return ApiResponse.ok(enumConfigService.update(id, request));
+    public EnumConfigEntity update(@PathVariable Long id, @RequestBody EnumConfigEntity request) {
+        return enumConfigService.update(id, request);
     }
 
     /** 删除枚举项 */
@@ -83,7 +82,7 @@ public class EnumConfigController {
             entityNameAfter = "#result.category + '/' + #result.itemCode",
             description = "'删除枚举值'")
     @DeleteMapping("/{id}")
-    public ApiResponse<EnumConfigEntity> delete(@PathVariable Long id) {
-        return ApiResponse.ok(enumConfigService.deleteReturning(id));
+    public EnumConfigEntity delete(@PathVariable Long id) {
+        return enumConfigService.deleteReturning(id);
     }
 }

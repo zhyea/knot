@@ -2,58 +2,78 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.gateway.mapper.EnumConfigMapper">
 
+    <sql id="EnumConfigColumns">
+        ec.id,
+        ec.category_id AS categoryId,
+        c.category AS category,
+        ec.item_code AS itemCode,
+        ec.item_label AS itemLabel,
+        ec.sort_order AS sortOrder,
+        c.is_system AS isSystem,
+        ec.is_enabled AS isEnabled,
+        ec.remark
+    </sql>
+
     <select id="list" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
-        select id, category, item_code, item_label, sort_order, is_system, is_enabled, remark
-        from enum_configs
-        order by category, sort_order, id
+        select <include refid="EnumConfigColumns"/>
+        from enum_configs ec
+        inner join enum_categories c on ec.category_id = c.id
+        order by c.category, ec.sort_order, ec.id
     </select>
 
     <select id="listByCategoryFilter" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
-        select id, category, item_code, item_label, sort_order, is_system, is_enabled, remark
-        from enum_configs
+        select <include refid="EnumConfigColumns"/>
+        from enum_configs ec
+        inner join enum_categories c on ec.category_id = c.id
         <where>
             <if test="category != null and category != ''">
-                category = #{category}
+                c.category = #{category}
             </if>
         </where>
-        order by category, sort_order, id
+        order by c.category, ec.sort_order, ec.id
     </select>
 
     <select id="listByCategory" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
-        select id, category, item_code, item_label, sort_order, is_system, is_enabled, remark
-        from enum_configs
-        where category = #{category}
-        order by sort_order, id
+        select <include refid="EnumConfigColumns"/>
+        from enum_configs ec
+        inner join enum_categories c on ec.category_id = c.id
+        where c.category = #{category}
+        order by ec.sort_order, ec.id
     </select>
 
     <select id="listCategories" resultType="java.lang.String">
-        select distinct category from enum_configs order by category
+        select category from enum_categories order by category
     </select>
 
     <select id="listCategorySummaries" resultType="org.chobit.knot.gateway.entity.EnumCategorySummary">
-        select category,
-               COUNT(*) as itemCount,
-               SUM(CASE WHEN is_enabled = 1 THEN 1 ELSE 0 END) as enabledCount
-        from enum_configs
-        group by category
-        order by category
+        select c.category as category,
+               c.category_name as categoryName,
+               c.is_system as isSystem,
+               count(ec.id) as itemCount,
+               coalesce(sum(case when ec.is_enabled = 1 then 1 else 0 end), 0) as enabledCount
+        from enum_categories c
+        left join enum_configs ec on ec.category_id = c.id
+        group by c.id, c.category, c.category_name, c.is_system
+        order by c.category
     </select>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
-        select id, category, item_code, item_label, sort_order, is_system, is_enabled, remark
-        from enum_configs
-        where id = #{id}
+        select <include refid="EnumConfigColumns"/>
+        from enum_configs ec
+        inner join enum_categories c on ec.category_id = c.id
+        where ec.id = #{id}
     </select>
 
     <select id="getByCategoryAndCode" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
-        select id, category, item_code, item_label, sort_order, is_system, is_enabled, remark
-        from enum_configs
-        where category = #{category} and item_code = #{itemCode}
+        select <include refid="EnumConfigColumns"/>
+        from enum_configs ec
+        inner join enum_categories c on ec.category_id = c.id
+        where c.category = #{category} and ec.item_code = #{itemCode}
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into enum_configs(category, item_code, item_label, sort_order, is_system, is_enabled, remark)
-        values(#{category}, #{itemCode}, #{itemLabel}, #{sortOrder}, #{isSystem}, #{isEnabled}, #{remark})
+        insert into enum_configs(category_id, item_code, item_label, sort_order, is_enabled, remark)
+        values(#{categoryId}, #{itemCode}, #{itemLabel}, #{sortOrder}, #{isEnabled}, #{remark})
     </insert>
 
     <update id="update">
@@ -62,11 +82,11 @@
             sort_order = #{sortOrder},
             is_enabled = #{isEnabled},
             remark     = #{remark}
-        where id = #{id} and is_system = 0
+        where id = #{id}
     </update>
 
     <delete id="delete">
-        delete from enum_configs where id = #{id} and is_system = 0
+        delete from enum_configs where id = #{id}
     </delete>
 
 </mapper>

@@ -64,26 +64,26 @@ CREATE TABLE IF NOT EXISTS role_permissions (
 
 CREATE TABLE IF NOT EXISTS operation_logs (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  user_id BIGINT DEFAULT NULL,
-  tenant_id BIGINT DEFAULT NULL,
-  module_code VARCHAR(64) NOT NULL,
-  action_code VARCHAR(64) NOT NULL,
-  target_id VARCHAR(64) DEFAULT NULL,
-  trace_id VARCHAR(64) DEFAULT NULL,
-  request_ip VARCHAR(64) DEFAULT NULL,
-  user_agent VARCHAR(255) DEFAULT NULL,
-  request_path VARCHAR(255) DEFAULT NULL,
-  request_method VARCHAR(16) DEFAULT NULL,
-  result_status VARCHAR(16) NOT NULL DEFAULT 'SUCCESS',
-  error_code VARCHAR(64) DEFAULT NULL,
-  error_msg VARCHAR(255) DEFAULT NULL,
-  duration_ms INT NOT NULL DEFAULT 0,
-  risk_level VARCHAR(16) NOT NULL DEFAULT 'LOW',
-  detail_json JSON DEFAULT NULL,
+  module VARCHAR(64) NOT NULL COMMENT '模块名称，如 user、enum、provider、model等',
+  operation VARCHAR(32) NOT NULL COMMENT '操作类型：CREATE/UPDATE/DELETE/LOGIN/LOGOUT等',
+  entity_type VARCHAR(64) DEFAULT NULL COMMENT '实体类型，如 User、EnumConfig等',
+  entity_id BIGINT DEFAULT NULL COMMENT '实体ID',
+  entity_name VARCHAR(255) DEFAULT NULL COMMENT '实体名称或标识',
+  description VARCHAR(500) DEFAULT NULL COMMENT '操作描述',
+  old_value JSON DEFAULT NULL COMMENT '操作前的值',
+  new_value JSON DEFAULT NULL COMMENT '操作后的值',
+  operator_id BIGINT DEFAULT NULL COMMENT '操作人ID',
+  operator_name VARCHAR(64) DEFAULT NULL COMMENT '操作人姓名',
+  ip_address VARCHAR(64) DEFAULT NULL COMMENT 'IP地址',
+  user_agent VARCHAR(500) DEFAULT NULL COMMENT '浏览器UA',
+  status VARCHAR(32) NOT NULL DEFAULT 'SUCCESS' COMMENT '操作状态：SUCCESS/FAILURE',
+  error_msg VARCHAR(1000) DEFAULT NULL COMMENT '错误信息',
+  execution_time BIGINT DEFAULT NULL COMMENT '耗时(ms)',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_operation_logs_module_time (module_code, created_at),
-  KEY idx_operation_logs_user_time (user_id, created_at),
-  KEY idx_operation_logs_trace_id (trace_id)
+  KEY idx_module (module),
+  KEY idx_operator (operator_id),
+  KEY idx_entity (entity_type, entity_id),
+  KEY idx_created_at (created_at)
 );
 
 CREATE TABLE IF NOT EXISTS operation_log_details (
@@ -424,6 +424,7 @@ CREATE TABLE IF NOT EXISTS enum_categories (
     category    VARCHAR(64)  NOT NULL COMMENT '分类编码，如 provider_type、model_type',
     category_name VARCHAR(128) NOT NULL COMMENT '分类名称，如 供应商类型、模型类型',
     description VARCHAR(255) DEFAULT NULL COMMENT '分类描述',
+    is_system   TINYINT      NOT NULL DEFAULT 0 COMMENT '1=系统内置分类，其下枚举项不可删改',
     is_enabled  TINYINT      NOT NULL DEFAULT 1 COMMENT '1=启用 0=禁用',
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -437,34 +438,9 @@ CREATE TABLE IF NOT EXISTS enum_configs (
     item_code   VARCHAR(64)  NOT NULL COMMENT '枚举编码，如 OPENAI、CHAT',
     item_label  VARCHAR(128) NOT NULL COMMENT '显示名称，如 OpenAI、对话',
     sort_order  INT          NOT NULL DEFAULT 0 COMMENT '排序',
-    is_system   TINYINT      NOT NULL DEFAULT 0 COMMENT '1=系统内置不可删改',
     is_enabled  TINYINT      NOT NULL DEFAULT 1 COMMENT '1=启用 0=禁用',
     remark      VARCHAR(255) DEFAULT NULL COMMENT '备注',
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_enum_category_code (category_id, item_code)
-);
-
--- 通用操作日志表
-CREATE TABLE IF NOT EXISTS operation_logs (
-    id          BIGINT PRIMARY KEY AUTO_INCREMENT,
-    module      VARCHAR(64)  NOT NULL COMMENT '模块名称，如 user、enum、provider、model等',
-    operation   VARCHAR(32)  NOT NULL COMMENT '操作类型：CREATE/UPDATE/DELETE/LOGIN/LOGOUT等',
-    entity_type VARCHAR(64)  DEFAULT NULL COMMENT '实体类型，如 User、EnumConfig等',
-    entity_id   BIGINT       DEFAULT NULL COMMENT '实体ID',
-    entity_name VARCHAR(255) DEFAULT NULL COMMENT '实体名称或标识',
-    description VARCHAR(500) DEFAULT NULL COMMENT '操作描述',
-    old_value   JSON         DEFAULT NULL COMMENT '操作前的值',
-    new_value   JSON         DEFAULT NULL COMMENT '操作后的值',
-    operator_id BIGINT       DEFAULT NULL COMMENT '操作人ID',
-    operator_name VARCHAR(64) DEFAULT NULL COMMENT '操作人姓名',
-    ip_address  VARCHAR(64)  DEFAULT NULL COMMENT 'IP地址',
-    user_agent  VARCHAR(500) DEFAULT NULL COMMENT '浏览器UA',
-    status      VARCHAR(32)  NOT NULL DEFAULT 'SUCCESS' COMMENT '操作状态：SUCCESS/FAILURE',
-    error_msg   VARCHAR(1000) DEFAULT NULL COMMENT '错误信息',
-    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_module (module),
-    INDEX idx_operator (operator_id),
-    INDEX idx_entity (entity_type, entity_id),
-    INDEX idx_created_at (created_at)
 );

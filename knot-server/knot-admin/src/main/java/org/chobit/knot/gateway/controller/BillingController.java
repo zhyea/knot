@@ -1,6 +1,5 @@
 package org.chobit.knot.gateway.controller;
 
-import org.chobit.knot.gateway.ApiResponse;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -26,32 +25,32 @@ public class BillingController {
     }
 
     @PostMapping("/rules")
-    public ApiResponse<PageResult<BillingRule>> listRules(@RequestBody(required = false) PageQuery query) {
+    public PageResult<BillingRule> listRules(@RequestBody(required = false) PageQuery query) {
         PageResult<BillingRuleDto> page = billingService.listRules(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
-        return ApiResponse.ok(page.mapList(billingConverter::toRuleVOList));
+        return page.mapList(billingConverter::toRuleVOList);
     }
 
     @PostMapping()
-    public ApiResponse<BillingRule> createRule(@RequestBody @Valid BillingRule request) {
+    public BillingRule createRule(@RequestBody @Valid BillingRule request) {
         BillingRuleDto created = billingService.createRule(billingConverter.toRuleDto(request));
-        return ApiResponse.ok(billingConverter.toRuleVO(created));
+        return billingConverter.toRuleVO(created);
     }
 
     @PostMapping("/summary")
-    public ApiResponse<BillingSummary> summary() {
-        return ApiResponse.ok(billingConverter.toSummaryVO(billingService.summary()));
+    public BillingSummary summary() {
+        return billingConverter.toSummaryVO(billingService.summary());
     }
 
     @PostMapping("/details")
-    public ApiResponse<PageResult<BillingDetail>> details(@RequestBody(required = false) PageQuery query) {
+    public PageResult<BillingDetail> details(@RequestBody(required = false) PageQuery query) {
         PageResult<BillingDetailDto> page = billingService.details(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
-        return ApiResponse.ok(page.mapList(billingConverter::toDetailVOList));
+        return page.mapList(billingConverter::toDetailVOList);
     }
 
     @PostMapping("/reconciliation")
-    public ApiResponse<ReconciliationResult> reconciliation(@RequestBody @Valid ReconciliationRequest request) {
+    public ReconciliationResult reconciliation(@RequestBody @Valid ReconciliationRequest request) {
         ReconciliationResultDto result = billingService.reconcile(request.providerCode(), request.billDate());
-        return ApiResponse.ok(billingConverter.toReconciliationVO(result));
+        return billingConverter.toReconciliationVO(result);
     }
 
 }

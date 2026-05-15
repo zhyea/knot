@@ -1,13 +1,17 @@
 <template>
   <el-container class="layout">
-    <el-aside width="220px" class="aside">
+    <el-aside :width="asideWidthCss" class="aside" :class="{ 'aside--collapsed': asideCollapsed, 'aside--resizing': asideResizing }">
       <el-container class="aside-shell" direction="vertical">
         <el-header class="aside-header">
-          <span class="aside-logo">Knot AI Gateway</span>
+          <el-tooltip content="Knot AI Gateway" placement="right" :disabled="!asideCollapsed">
+            <span class="aside-logo">{{ asideCollapsed ? "K" : "Knot AI Gateway" }}</span>
+          </el-tooltip>
         </el-header>
         <el-main class="aside-nav">
           <el-menu
               class="aside-menu"
+              :collapse="asideCollapsed"
+              :collapse-transition="true"
               :default-active="activePath"
               :default-openeds="openeds"
               router
@@ -117,7 +121,25 @@
         </el-sub-menu>
           </el-menu>
         </el-main>
+        <el-footer class="aside-footer">
+          <el-tooltip :content="asideCollapsed ? '展开侧栏' : '收起为图标'" placement="right">
+            <el-button
+                type="primary"
+                :icon="asideCollapsed ? Expand : Fold"
+                circle
+                size="small"
+                plain
+                @click="toggleAsideCollapsed"
+            />
+          </el-tooltip>
+        </el-footer>
       </el-container>
+      <div
+          v-show="!asideCollapsed"
+          class="aside-resizer"
+          title="拖动调整侧栏宽度"
+          @mousedown.prevent="onAsideResizeStart"
+      />
     </el-aside>
     <el-container class="layout-right">
       <el-header class="header">
@@ -154,7 +176,7 @@
 </template>
 
 <script setup>
-import {computed} from "vue";
+import {computed, onMounted, ref, watch} from "vue";
 import {useRoute, useRouter} from "vue-router";
 import {useTheme, THEMES} from "../composables/useTheme";
 import {useAuth} from "../composables/useAuth";
@@ -170,14 +192,77 @@ import {
   Operation,
   SetUp,
   Bell,
-  User
+  User,
+  Fold,
+  Expand
 } from "@element-plus/icons-vue";
+
+const LS_ASIDE_WIDTH = "knot.sidebar.widthPx";
+const LS_ASIDE_COLLAPSED = "knot.sidebar.collapsed";
+
+const ASIDE_MIN = 180;
+const ASIDE_MAX = 420;
+const ASIDE_DEFAULT = 220;
+const ASIDE_COLLAPSED_PX = 64;
 
 const route = useRoute();
 const router = useRouter();
 const {current, setTheme} = useTheme();
 const {user, logout} = useAuth();
 const activePath = computed(() => route.path);
+
+const asideCollapsed = ref(false);
+const asideWidth = ref(ASIDE_DEFAULT);
+const asideResizing = ref(false);
+
+const asideWidthCss = computed(() =>
+    asideCollapsed.value ? `${ASIDE_COLLAPSED_PX}px` : `${asideWidth.value}px`
+);
+
+onMounted(() => {
+  const w = parseInt(localStorage.getItem(LS_ASIDE_WIDTH) || "", 10);
+  if (!Number.isNaN(w) && w >= ASIDE_MIN && w <= ASIDE_MAX) {
+    asideWidth.value = w;
+  }
+  asideCollapsed.value = localStorage.getItem(LS_ASIDE_COLLAPSED) === "1";
+});
+
+watch(asideWidth, (v) => {
+  localStorage.setItem(LS_ASIDE_WIDTH, String(v));
+});
+
+watch(asideCollapsed, (v) => {
+  localStorage.setItem(LS_ASIDE_COLLAPSED, v ? "1" : "0");
+});
+
+function toggleAsideCollapsed() {
+  asideCollapsed.value = !asideCollapsed.value;
+}
+
+function onAsideResizeStart(downEvent) {
+  if (asideCollapsed.value) return;
+  asideResizing.value = true;
+  const startX = downEvent.clientX;
+  const startW = asideWidth.value;
+  document.body.style.userSelect = "none";
+  document.body.style.cursor = "col-resize";
+
+  function onMove(ev) {
+    const delta = ev.clientX - startX;
+    asideWidth.value = Math.min(ASIDE_MAX, Math.max(ASIDE_MIN, startW + delta));
+  }
+
+  function onUp() {
+    asideResizing.value = false;
+    document.body.style.userSelect = "";
+    document.body.style.cursor = "";
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+  }
+
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
 
 // 自动展开当前路径所属的子菜单
 const openeds = computed(() => {
@@ -212,12 +297,22 @@ async function handleCommand(command) {
 .aside {
   flex-shrink: 0;
   align-self: stretch;
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
   overflow: hidden;
   background: #fff;
   border-right: 1px solid #ebeef5;
+  transition: width 0.2s ease;
+}
+
+.aside--resizing {
+  transition: none;
+}
+
+.aside--collapsed .aside-logo {
+  font-size: 16px;
 }
 
 /* 侧栏内：品牌区固定 + 菜单区滚动 */
@@ -273,6 +368,31 @@ async function handleCommand(command) {
 
 .aside-menu {
   border-right: none;
+}
+
+.aside-footer {
+  flex-shrink: 0;
+  height: 44px !important;
+  padding: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid #ebeef5;
+  background: #fff;
+}
+
+.aside-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 12;
+}
+
+.aside-resizer:hover {
+  background: var(--el-color-primary-light-8);
 }
 
 .header {

@@ -1,6 +1,5 @@
 package org.chobit.knot.gateway.controller;
 
-import org.chobit.knot.gateway.ApiResponse;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -28,28 +27,28 @@ public class NotificationController {
     }
 
     @PostMapping("/templates/list")
-    public ApiResponse<PageResult<NotifyTemplate>> templates(@RequestBody(required = false) PageQuery query) {
+    public PageResult<NotifyTemplate> templates(@RequestBody(required = false) PageQuery query) {
         PageResult<TemplateDto> page = notificationService.listTemplates(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
-        return ApiResponse.ok(page.mapList(notificationConverter::toTemplateVOList));
+        return page.mapList(notificationConverter::toTemplateVOList);
     }
 
     @PostMapping("/templates")
-    public ApiResponse<NotifyTemplate> createTemplate(@RequestBody @Valid NotifyTemplate request) {
+    public NotifyTemplate createTemplate(@RequestBody @Valid NotifyTemplate request) {
         TemplateDto created = notificationService.createTemplate(
                 notificationConverter.toTemplateDto(request)
         );
-        return ApiResponse.ok(notificationConverter.toTemplateVO(created));
+        return notificationConverter.toTemplateVO(created);
     }
 
     @PostMapping("/send")
-    public ApiResponse<NotifySendResult> send(@RequestBody @Valid NotifySendRequest request) {
+    public NotifySendResult send(@RequestBody @Valid NotifySendRequest request) {
         SendResultDto sent = notificationService.send(request.templateCode(), request.receivers(), request.vars());
-        return ApiResponse.ok(notificationConverter.toSendResultVO(sent));
+        return notificationConverter.toSendResultVO(sent);
     }
 
     @PostMapping("/policies")
-    public ApiResponse<NotifyPolicy> createPolicy(@RequestBody @Valid NotifyPolicy request) {
-        return ApiResponse.ok(request);
+    public NotifyPolicy createPolicy(@RequestBody @Valid NotifyPolicy request) {
+        return request;
     }
 
 }

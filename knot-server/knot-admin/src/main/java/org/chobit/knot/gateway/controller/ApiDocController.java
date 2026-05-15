@@ -1,6 +1,5 @@
 package org.chobit.knot.gateway.controller;
 
-import org.chobit.knot.gateway.ApiResponse;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -24,11 +23,11 @@ public class ApiDocController {
     }
 
     @PostMapping("/changelog")
-    public ApiResponse<List<DocChangeLog>> changelog() {
-        return ApiResponse.ok(List.of(
+    public List<DocChangeLog> changelog() {
+        return List.of(
                 new DocChangeLog("v1.0.0", "initial gateway scaffold"),
                 new DocChangeLog("v1.1.0", "add billing and routing management APIs")
-        ));
+        );
     }
 
     public record DocChangeLog(String version, String change) {

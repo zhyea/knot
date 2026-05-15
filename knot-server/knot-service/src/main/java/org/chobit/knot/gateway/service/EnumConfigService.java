@@ -2,10 +2,12 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.chobit.knot.gateway.entity.EnumCategoryEntity;
 import org.chobit.knot.gateway.entity.EnumCategorySummary;
 import org.chobit.knot.gateway.entity.EnumConfigEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.gateway.mapper.EnumCategoryMapper;
 import org.chobit.knot.gateway.mapper.EnumConfigMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -18,9 +20,11 @@ import java.util.List;
 public class EnumConfigService {
 
     private final EnumConfigMapper enumConfigMapper;
+    private final EnumCategoryMapper enumCategoryMapper;
 
-    public EnumConfigService(EnumConfigMapper enumConfigMapper) {
+    public EnumConfigService(EnumConfigMapper enumConfigMapper, EnumCategoryMapper enumCategoryMapper) {
         this.enumConfigMapper = enumConfigMapper;
+        this.enumCategoryMapper = enumCategoryMapper;
     }
 
     public PageResult<EnumConfigEntity> list(PageRequest pageRequest) {
@@ -57,15 +61,24 @@ public class EnumConfigService {
 
     @Transactional
     public EnumConfigEntity create(EnumConfigEntity request) {
-        // 检查同分类下 code 是否重复
-        EnumConfigEntity existing = enumConfigMapper.getByCategoryAndCode(request.getCategory(), request.getItemCode());
-        if (existing != null) {
-            throw new BusinessException(ErrorCode.CONFLICT, "枚举项 " + request.getCategory() + "/" + request.getItemCode() + " 已存在");
+        if (request.getCategory() == null || request.getCategory().isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "分类编码不能为空");
         }
-        request.setIsSystem(false);
-        if (request.getSortOrder() == null) request.setSortOrder(0);
-        if (request.getIsEnabled() == null) request.setIsEnabled(true);
+        String categoryCode = request.getCategory().trim();
+        EnumConfigEntity existing = enumConfigMapper.getByCategoryAndCode(categoryCode, request.getItemCode());
+        if (existing != null) {
+            throw new BusinessException(ErrorCode.CONFLICT, "枚举项 " + categoryCode + "/" + request.getItemCode() + " 已存在");
+        }
+        Long categoryId = resolveOrCreateCategoryId(categoryCode);
+        request.setCategoryId(categoryId);
+        if (request.getSortOrder() == null) {
+            request.setSortOrder(0);
+        }
+        if (request.getIsEnabled() == null) {
+            request.setIsEnabled(true);
+        }
         enumConfigMapper.insert(request);
+        request.setCategory(categoryCode);
         return request;
     }
 
@@ -73,7 +86,7 @@ public class EnumConfigService {
     public EnumConfigEntity update(Long id, EnumConfigEntity request) {
         EnumConfigEntity existing = getById(id);
         if (existing.getIsSystem()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "系统内置枚举不可修改");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "系统内置分类下的枚举不可修改");
         }
         request.setId(id);
         request.setCategory(existing.getCategory());    // 不允许改 category
@@ -86,9 +99,24 @@ public class EnumConfigService {
     public EnumConfigEntity deleteReturning(Long id) {
         EnumConfigEntity existing = getById(id);
         if (existing.getIsSystem()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "系统内置枚举不可删除");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "系统内置分类下的枚举不可删除");
         }
         enumConfigMapper.delete(id);
         return existing;
+    }
+
+    private Long resolveOrCreateCategoryId(String categoryCode) {
+        Long id = enumCategoryMapper.selectIdByCategory(categoryCode);
+        if (id != null) {
+            return id;
+        }
+        EnumCategoryEntity row = new EnumCategoryEntity();
+        row.setCategory(categoryCode);
+        row.setCategoryName(categoryCode);
+        row.setDescription(null);
+        row.setIsSystem(false);
+        row.setIsEnabled(true);
+        enumCategoryMapper.insert(row);
+        return row.getId();
     }
 }

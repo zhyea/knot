@@ -1,6 +1,5 @@
 package org.chobit.knot.gateway.controller;
 
-import org.chobit.knot.gateway.ApiResponse;
 import org.chobit.knot.gateway.entity.OperationLogEntity;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
@@ -27,54 +26,54 @@ public class OperationLogController {
      * 分页查询操作日志
      */
     @PostMapping("/list")
-    public ApiResponse<List<OperationLogEntity>> list(@RequestBody PageQuery query) {
+    public List<OperationLogEntity> list(@RequestBody PageQuery query) {
         // TODO: 实现分页查询
         List<OperationLogEntity> logs = operationLogService.listByModule(null, null, null, null);
-        return ApiResponse.ok(logs);
+        return logs;
     }
 
     /**
      * 根据ID查询操作日志详情
      */
     @GetMapping("/{id}")
-    public ApiResponse<OperationLogEntity> getById(@PathVariable Long id) {
+    public OperationLogEntity getById(@PathVariable Long id) {
         OperationLogEntity log = operationLogService.getById(id);
-        return ApiResponse.ok(log);
+        return log;
     }
 
     /**
      * 根据模块查询操作日志
      */
     @GetMapping("/module/{module}")
-    public ApiResponse<List<OperationLogEntity>> getByModule(
+    public List<OperationLogEntity> getByModule(
             @PathVariable String module,
             @RequestParam(required = false) String entityType,
             @RequestParam(required = false) Long entityId,
             @RequestParam(required = false) Long operatorId) {
         List<OperationLogEntity> logs = operationLogService.listByModule(module, entityType, entityId, operatorId);
-        return ApiResponse.ok(logs);
+        return logs;
     }
 
     /**
      * 根据操作人查询操作日志
      */
     @GetMapping("/operator/{operatorId}")
-    public ApiResponse<List<OperationLogEntity>> getByOperator(
+    public List<OperationLogEntity> getByOperator(
             @PathVariable Long operatorId,
             @RequestParam(required = false) String module) {
         List<OperationLogEntity> logs = operationLogService.listByModule(module, null, null, operatorId);
-        return ApiResponse.ok(logs);
+        return logs;
     }
 
     /**
      * 根据实体查询操作日志
      */
     @GetMapping("/entity/{entityType}/{entityId}")
-    public ApiResponse<List<OperationLogEntity>> getByEntity(
+    public List<OperationLogEntity> getByEntity(
             @PathVariable String entityType,
             @PathVariable Long entityId,
             @RequestParam(required = false) String module) {
         List<OperationLogEntity> logs = operationLogService.listByModule(module, entityType, entityId, null);
-        return ApiResponse.ok(logs);
+        return logs;
     }
 }

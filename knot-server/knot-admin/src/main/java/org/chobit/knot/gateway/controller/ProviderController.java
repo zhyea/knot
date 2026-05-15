@@ -1,6 +1,5 @@
 package org.chobit.knot.gateway.controller;
 
-import org.chobit.knot.gateway.ApiResponse;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -27,42 +26,42 @@ public class ProviderController {
     }
 
     @PostMapping("/list")
-    public ApiResponse<PageResult<ProviderItem>> list(@RequestBody(required = false) PageQuery query) {
+    public PageResult<ProviderItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<ProviderDto> page = providerService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
-        return ApiResponse.ok(page.mapList(providerConverter::toVOList));
+        return page.mapList(providerConverter::toVOList);
     }
 
     @PostMapping
-    public ApiResponse<ProviderItem> create(@RequestBody @Valid ProviderItem request) {
+    public ProviderItem create(@RequestBody @Valid ProviderItem request) {
         ProviderDto created = providerService.create(providerConverter.toDto(request));
-        return ApiResponse.ok(providerConverter.toVO(created));
+        return providerConverter.toVO(created);
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<ProviderItem> update(@PathVariable Long id, @RequestBody @Valid ProviderItem request) {
+    public ProviderItem update(@PathVariable Long id, @RequestBody @Valid ProviderItem request) {
         ProviderDto updated = providerService.update(id, providerConverter.toDto(request));
-        return ApiResponse.ok(providerConverter.toVO(updated));
+        return providerConverter.toVO(updated);
     }
 
     @PostMapping("/{id}/discount-policies/list")
-    public ApiResponse<List<DiscountPolicy>> listDiscountPolicies(@PathVariable Long id) {
-        return ApiResponse.ok(providerService.listDiscountPolicies(id).stream()
-                .map(this::toDiscountPolicyVO).toList());
+    public List<DiscountPolicy> listDiscountPolicies(@PathVariable Long id) {
+        return providerService.listDiscountPolicies(id).stream()
+                .map(this::toDiscountPolicyVO).toList();
     }
 
     @PostMapping("/{id}/discount-policies")
-    public ApiResponse<DiscountPolicy> createDiscountPolicy(@PathVariable Long id, @RequestBody @Valid DiscountPolicy request) {
+    public DiscountPolicy createDiscountPolicy(@PathVariable Long id, @RequestBody @Valid DiscountPolicy request) {
         DiscountPolicyDto created = providerService.createDiscountPolicy(id, toDiscountPolicyDto(request));
-        return ApiResponse.ok(toDiscountPolicyVO(created));
+        return toDiscountPolicyVO(created);
     }
 
     @PutMapping("/{id}/discount-policies/{policyId}")
-    public ApiResponse<DiscountPolicy> updateDiscountPolicy(
+    public DiscountPolicy updateDiscountPolicy(
             @PathVariable Long id,
             @PathVariable Long policyId,
             @RequestBody @Valid DiscountPolicy request) {
         DiscountPolicyDto updated = providerService.updateDiscountPolicy(id, policyId, toDiscountPolicyDto(request));
-        return ApiResponse.ok(toDiscountPolicyVO(updated));
+        return toDiscountPolicyVO(updated);
     }
 
     private DiscountPolicyDto toDiscountPolicyDto(DiscountPolicy vo) {

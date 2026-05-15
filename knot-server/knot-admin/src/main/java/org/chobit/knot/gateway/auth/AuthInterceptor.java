@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.chobit.knot.gateway.ApiResponse;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.util.Map;

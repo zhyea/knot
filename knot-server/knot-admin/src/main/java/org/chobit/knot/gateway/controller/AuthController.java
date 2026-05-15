@@ -1,7 +1,6 @@
 package org.chobit.knot.gateway.controller;
 
 import jakarta.validation.Valid;
-import org.chobit.knot.gateway.ApiResponse;
 import org.chobit.knot.gateway.dto.auth.LoginRequest;
 import org.chobit.knot.gateway.service.UserService;
 import org.chobit.knot.gateway.vo.auth.LoginResponse;
@@ -21,14 +20,13 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ApiResponse<LoginResponse> login(@RequestBody @Valid LoginRequest request) {
+    public LoginResponse login(@RequestBody @Valid LoginRequest request) {
         LoginResponse response = userService.login(request.username(), request.password());
-        return ApiResponse.ok(response);
+        return response;
     }
 
     @PostMapping("/logout")
-    public ApiResponse<Void> logout() {
+    public void logout() {
         // JWT is stateless, client should discard the token
-        return ApiResponse.ok(null);
     }
 }
