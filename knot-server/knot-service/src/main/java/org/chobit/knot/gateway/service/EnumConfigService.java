@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.chobit.knot.gateway.entity.EnumCategorySummary;
 import org.chobit.knot.gateway.entity.EnumConfigEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
@@ -44,6 +45,10 @@ public class EnumConfigService {
         return enumConfigMapper.listCategories();
     }
 
+    public List<EnumCategorySummary> listCategorySummaries() {
+        return enumConfigMapper.listCategorySummaries();
+    }
+
     public EnumConfigEntity getById(Long id) {
         EnumConfigEntity entity = enumConfigMapper.getById(id);
         if (entity == null) throw new BusinessException(ErrorCode.NOT_FOUND, "enum config not found");
@@ -78,11 +83,12 @@ public class EnumConfigService {
     }
 
     @Transactional
-    public void delete(Long id) {
+    public EnumConfigEntity deleteReturning(Long id) {
         EnumConfigEntity existing = getById(id);
         if (existing.getIsSystem()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "系统内置枚举不可删除");
         }
         enumConfigMapper.delete(id);
+        return existing;
     }
 }

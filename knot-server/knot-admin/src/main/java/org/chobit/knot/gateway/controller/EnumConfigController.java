@@ -1,11 +1,15 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.ApiResponse;
+import org.chobit.knot.gateway.annotation.OperationLog;
+import org.chobit.knot.gateway.entity.EnumCategorySummary;
 import org.chobit.knot.gateway.entity.EnumConfigEntity;
+import org.chobit.knot.gateway.entity.OperationLogEntity;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.EnumConfigService;
+import org.chobit.knot.gateway.service.OperationLogService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,46 +19,71 @@ import java.util.List;
 public class EnumConfigController {
 
     private final EnumConfigService enumConfigService;
+    private final OperationLogService operationLogService;
 
-    public EnumConfigController(EnumConfigService enumConfigService) {
+    public EnumConfigController(EnumConfigService enumConfigService, OperationLogService operationLogService) {
         this.enumConfigService = enumConfigService;
+        this.operationLogService = operationLogService;
     }
 
-    /** 分页查询所有枚举项 */
+    /** 分页查询所有枚举项（管理后台全量列表用） */
     @PostMapping("/list")
     public ApiResponse<PageResult<EnumConfigEntity>> list(@RequestBody(required = false) PageQuery query) {
         PageRequest pr = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
         return ApiResponse.ok(enumConfigService.list(pr, query != null ? query.category() : null));
     }
 
-    /** 按分类查询枚举项（前端下拉框用） */
-    @PostMapping("/{category}")
-    public ApiResponse<List<EnumConfigEntity>> listByCategory(@PathVariable String category) {
+    /** 枚举分类聚合列表（分类管理首页） */
+    @PostMapping("/category-summaries")
+    public ApiResponse<List<EnumCategorySummary>> categorySummaries() {
+        return ApiResponse.ok(enumConfigService.listCategorySummaries());
+    }
+
+    /** 按分类查询枚举项 */
+    @GetMapping("/items/{category}")
+    public ApiResponse<List<EnumConfigEntity>> listItems(@PathVariable String category) {
         return ApiResponse.ok(enumConfigService.listByCategory(category));
     }
 
-    /** 查询所有分类 */
+    /** 某分类下枚举配置相关的操作日志 */
+    @GetMapping("/operation-logs/{category}")
+    public ApiResponse<List<OperationLogEntity>> operationLogsByCategory(@PathVariable String category) {
+        return ApiResponse.ok(operationLogService.listForEnumCategory(category));
+    }
+
+    /** 查询所有分类编码 */
     @PostMapping("/categories")
     public ApiResponse<List<String>> listCategories() {
         return ApiResponse.ok(enumConfigService.listCategories());
     }
 
     /** 新增枚举项 */
+    @OperationLog(module = "enum", operation = "CREATE", entityType = "EnumConfig",
+            entityIdAfter = "#result.id",
+            entityNameAfter = "#result.category + '/' + #result.itemCode",
+            description = "'新增枚举值'")
     @PostMapping
     public ApiResponse<EnumConfigEntity> create(@RequestBody EnumConfigEntity request) {
         return ApiResponse.ok(enumConfigService.create(request));
     }
 
-    /** 修改枚举项（仅 label/sort/enabled/remark） */
+    /** 修改枚举项 */
+    @OperationLog(module = "enum", operation = "UPDATE", entityType = "EnumConfig",
+            entityId = "#id",
+            entityNameAfter = "#result.category + '/' + #result.itemCode",
+            description = "'更新枚举值'")
     @PutMapping("/{id}")
     public ApiResponse<EnumConfigEntity> update(@PathVariable Long id, @RequestBody EnumConfigEntity request) {
         return ApiResponse.ok(enumConfigService.update(id, request));
     }
 
-    /** 删除枚举项（系统内置不可删） */
+    /** 删除枚举项 */
+    @OperationLog(module = "enum", operation = "DELETE", entityType = "EnumConfig",
+            entityId = "#id",
+            entityNameAfter = "#result.category + '/' + #result.itemCode",
+            description = "'删除枚举值'")
     @DeleteMapping("/{id}")
-    public ApiResponse<Void> delete(@PathVariable Long id) {
-        enumConfigService.delete(id);
-        return ApiResponse.ok(null);
+    public ApiResponse<EnumConfigEntity> delete(@PathVariable Long id) {
+        return ApiResponse.ok(enumConfigService.deleteReturning(id));
     }
 }

@@ -30,6 +30,15 @@
         select distinct category from enum_configs order by category
     </select>
 
+    <select id="listCategorySummaries" resultType="org.chobit.knot.gateway.entity.EnumCategorySummary">
+        select category,
+               COUNT(*) as itemCount,
+               SUM(CASE WHEN is_enabled = 1 THEN 1 ELSE 0 END) as enabledCount
+        from enum_configs
+        group by category
+        order by category
+    </select>
+
     <select id="getById" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
         select id, category, item_code, item_label, sort_order, is_system, is_enabled, remark
         from enum_configs

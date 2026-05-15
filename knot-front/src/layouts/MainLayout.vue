@@ -1,12 +1,17 @@
 <template>
   <el-container class="layout">
     <el-aside width="220px" class="aside">
-      <div class="logo">Knot AI Gateway</div>
-      <el-menu
-          :default-active="activePath"
-          :default-openeds="openeds"
-          router
-      >
+      <el-container class="aside-shell" direction="vertical">
+        <el-header class="aside-header">
+          <span class="aside-logo">Knot AI Gateway</span>
+        </el-header>
+        <el-main class="aside-nav">
+          <el-menu
+              class="aside-menu"
+              :default-active="activePath"
+              :default-openeds="openeds"
+              router
+          >
         <el-menu-item index="/">
           <el-icon>
             <Odometer/>
@@ -110,9 +115,11 @@
           <el-menu-item index="/notifications/send">通知发送</el-menu-item>
           <el-menu-item index="/notifications/policy">通知策略</el-menu-item>
         </el-sub-menu>
-      </el-menu>
+          </el-menu>
+        </el-main>
+      </el-container>
     </el-aside>
-    <el-container>
+    <el-container class="layout-right">
       <el-header class="header">
         <span>AI 网关管理后台</span>
         <div class="header-right">
@@ -188,26 +195,91 @@ async function handleCommand(command) {
 
 <style scoped>
 .layout {
-  min-height: 100vh;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  /* 与 Element Plus 顶栏高度一致，左右两侧共用 */
+  --layout-header-height: var(--el-header-height, 60px);
+}
+
+/* 右侧：顶栏 + 主区占满剩余高度，主区单独滚动 */
+.layout-right {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
 }
 
 .aside {
+  flex-shrink: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
   background: #fff;
   border-right: 1px solid #ebeef5;
 }
 
-.logo {
-  height: 56px;
-  line-height: 56px;
-  text-align: center;
+/* 侧栏内：品牌区固定 + 菜单区滚动 */
+.aside-shell {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.aside-header {
+  flex-shrink: 0;
+  height: var(--layout-header-height);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
   font-weight: 600;
   border-bottom: 1px solid #ebeef5;
+  background: #fff;
+}
+
+.aside-logo {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+/* 仅菜单区域滚动；滚动条尽量收窄 */
+.aside-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 !important;
+  scrollbar-width: thin; /* Firefox 可调的最细标准值 */
+  scrollbar-color: var(--el-border-color) transparent;
+}
+
+.aside-nav::-webkit-scrollbar {
+  width: 2px; /* WebKit 可稳定显示的最小宽度 */
+}
+
+.aside-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.aside-nav::-webkit-scrollbar-thumb {
+  background-color: var(--el-border-color);
+  border-radius: 1px;
+}
+
+.aside-menu {
+  border-right: none;
 }
 
 .header {
+  height: var(--layout-header-height);
+  box-sizing: border-box;
   background: #fff;
   border-bottom: 1px solid #ebeef5;
-  line-height: 60px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -217,7 +289,6 @@ async function handleCommand(command) {
 .header-right {
   display: flex;
   align-items: center;
-  gap: 20px;
 }
 
 .user-info {
@@ -238,5 +309,8 @@ async function handleCommand(command) {
 
 .main {
   background: #f5f7fa;
+  padding: 0;
+  overflow: auto;
+  min-height: 0;
 }
 </style>

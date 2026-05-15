@@ -73,6 +73,10 @@ export function unwrapData(response) {
  * @param {string} url
  * @param {object} data 请求体参数（原 get 的 params）
  */
+export function get(url, config) {
+  return http.get(url, config).then(unwrapData);
+}
+
 export function postQuery(url, data, config) {
   return http.post(url, data, config).then(unwrapData);
 }

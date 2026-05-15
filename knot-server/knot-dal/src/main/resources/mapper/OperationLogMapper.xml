@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.OperationLogMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into operation_logs(
+            module, operation, entity_type, entity_id, entity_name,
+            description, old_value, new_value,
+            operator_id, operator_name, ip_address, user_agent,
+            status, error_msg, execution_time
+        ) values(
+            #{module}, #{operation}, #{entityType}, #{entityId}, #{entityName},
+            #{description}, #{oldValue}, #{newValue},
+            #{operatorId}, #{operatorName}, #{ipAddress}, #{userAgent},
+            #{status}, #{errorMsg}, #{executionTime}
+        )
+    </insert>
+
+    <select id="listByModule" resultType="org.chobit.knot.gateway.entity.OperationLogEntity">
+        select id, module, operation, entity_type, entity_id, entity_name,
+               description, old_value, new_value,
+               operator_id, operator_name, ip_address, user_agent,
+               status, error_msg, execution_time, created_at
+        from operation_logs
+        <where>
+            <if test="module != null and module != ''">
+                and module = #{module}
+            </if>
+            <if test="entityType != null and entityType != ''">
+                and entity_type = #{entityType}
+            </if>
+            <if test="entityId != null">
+                and entity_id = #{entityId}
+            </if>
+            <if test="operatorId != null">
+                and operator_id = #{operatorId}
+            </if>
+        </where>
+        order by created_at desc
+    </select>
+
+    <select id="listByModuleAndEntityNamePrefix" resultType="org.chobit.knot.gateway.entity.OperationLogEntity">
+        select id, module, operation, entity_type, entity_id, entity_name,
+               description, old_value, new_value,
+               operator_id, operator_name, ip_address, user_agent,
+               status, error_msg, execution_time, created_at
+        from operation_logs
+        where module = #{module}
+          and (
+            entity_name = #{entityNamePrefix}
+            or entity_name like concat(#{entityNamePrefix}, '/%')
+          )
+        order by created_at desc
+    </select>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.OperationLogEntity">
+        select id, module, operation, entity_type, entity_id, entity_name,
+               description, old_value, new_value,
+               operator_id, operator_name, ip_address, user_agent,
+               status, error_msg, execution_time, created_at
+        from operation_logs
+        where id = #{id}
+    </select>
+
+</mapper>

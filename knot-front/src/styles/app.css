@@ -1,9 +1,22 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 html,
 body,
 #app {
   margin: 0;
   height: 100%;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+/* 让主布局能按视口高度伸缩，避免侧栏菜单把整页撑出纵向滚动条 */
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
 .page-section {

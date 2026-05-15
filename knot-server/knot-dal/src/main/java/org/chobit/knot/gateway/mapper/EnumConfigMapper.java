@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.mapper;
 
+import org.chobit.knot.gateway.entity.EnumCategorySummary;
 import org.chobit.knot.gateway.entity.EnumConfigEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -16,6 +17,8 @@ public interface EnumConfigMapper {
     List<EnumConfigEntity> listByCategory(@Param("category") String category);
 
     List<String> listCategories();
+
+    List<EnumCategorySummary> listCategorySummaries();
 
     EnumConfigEntity getById(Long id);
 
