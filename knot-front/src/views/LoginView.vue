@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="login-container">
     <el-card class="login-card">
       <template #header>
@@ -6,10 +6,10 @@
       </template>
       <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin">
         <el-form-item prop="username">
-          <el-input v-model="form.username" placeholder="用户名" prefix-icon="User" size="large" />
+          <el-input v-model="form.username" placeholder="用户名" :prefix-icon="User" size="large" />
         </el-form-item>
         <el-form-item prop="password">
-          <el-input v-model="form.password" type="password" placeholder="密码" prefix-icon="Lock" size="large" show-password @keyup.enter="handleLogin" />
+          <el-input v-model="form.password" type="password" placeholder="密码" :prefix-icon="Lock" size="large" show-password @keyup.enter="handleLogin" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" size="large" :loading="loading" @click="handleLogin" style="width: 100%">
@@ -25,6 +25,7 @@
 import { ref, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
+import { User, Lock } from '@element-plus/icons-vue';
 import { useAuth } from '../composables/useAuth';
 
 const router = useRouter();
@@ -51,9 +52,11 @@ async function handleLogin() {
   try {
     await login(form.username, form.password);
     ElMessage.success('登录成功');
-    router.push('/dashboard');
+    router.push('/');
   } catch (error) {
-    ElMessage.error(error.message || '登录失败');
+    // 显示后端返回的具体错误信息
+    const message = error.message || '登录失败，请检查用户名和密码';
+    ElMessage.error(message);
   } finally {
     loading.value = false;
   }

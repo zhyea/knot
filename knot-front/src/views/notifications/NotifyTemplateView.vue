@@ -1,5 +1,5 @@
-<template>
-  <PageSection title="通知模板" description="维护通知模板编码、渠道与内容。">
+﻿<template>
+  <PageSection title="通知模板">
     <div class="toolbar">
       <el-button type="primary" @click="openTpl">新建模板</el-button>
       <el-button @click="load">刷新</el-button>

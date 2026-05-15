@@ -1,5 +1,5 @@
-<template>
-  <PageSection title="操作日志" description="查看操作审计日志，点击行查看变更 JSON 详情。">
+﻿<template>
+  <PageSection title="操作日志">
     <div class="toolbar">
       <el-button @click="load">刷新</el-button>
     </div>

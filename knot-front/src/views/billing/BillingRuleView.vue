@@ -1,5 +1,5 @@
-<template>
-  <PageSection title="计费规则" description="维护计费规则编码、名称、单位与单价。">
+﻿<template>
+  <PageSection title="计费规则">
     <div class="toolbar">
       <el-button type="primary" @click="openRule">新建规则</el-button>
       <el-button @click="load">刷新</el-button>

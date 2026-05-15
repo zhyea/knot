@@ -1,5 +1,5 @@
-<template>
-  <PageSection title="缓存管理" description="手动淘汰缓存键（写入 cache_records）。">
+﻿<template>
+  <PageSection title="缓存管理">
     <el-form :inline="true" @submit.prevent="runEvict">
       <el-form-item label="Cache Key"><el-input v-model="evict.cacheKey" placeholder="路由/策略键" clearable /></el-form-item>
       <el-form-item label="类型"><el-input v-model="evict.cacheType" placeholder="默认 GENERIC" clearable /></el-form-item>

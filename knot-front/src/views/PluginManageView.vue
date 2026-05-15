@@ -1,20 +1,20 @@
-<template>
+﻿<template>
   <PageSection
     title="插件管理"
-    description="注册网关插件、维护类型与版本，并切换启用状态。"
+   
   >
     <div class="toolbar">
       <el-button type="primary" @click="openCreate">新建插件</el-button>
       <el-button @click="pageLoad">刷新</el-button>
     </div>
-    <el-table v-loading="loading" :data="pluginRows" stripe border>
-      <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column prop="code" label="编码" width="120" />
-      <el-table-column prop="name" label="名称" min-width="120" />
-      <el-table-column prop="pluginType" label="类型" width="100" />
-      <el-table-column prop="version" label="版本" width="90" />
-      <el-table-column prop="status" label="状态" width="100" />
-      <el-table-column label="操作" width="200" fixed="right">
+    <el-table v-loading="loading" :data="pluginRows" stripe border style="width: 100%">
+      <el-table-column prop="id" label="ID" min-width="5%" align="center" header-align="center" />
+      <el-table-column prop="code" label="编码" min-width="12%" />
+      <el-table-column prop="name" label="名称" min-width="15%" />
+      <el-table-column prop="pluginType" label="类型" min-width="10%" />
+      <el-table-column prop="version" label="版本" min-width="8%" />
+      <el-table-column prop="status" label="状态" min-width="10%" />
+      <el-table-column label="操作" min-width="15%" align="center" header-align="center">
         <template #default="{ row }">
           <el-select
             v-model="row._st"

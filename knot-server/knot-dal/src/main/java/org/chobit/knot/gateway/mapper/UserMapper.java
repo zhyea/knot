@@ -17,4 +17,8 @@ public interface UserMapper {
     int insertUser(UserEntity entity);
 
     int updateUserStatus(UserEntity entity);
+
+    int updateUser(UserEntity entity);
+
+    int updateLastLoginTime(Long id);
 }

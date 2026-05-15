@@ -16,8 +16,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 @Service
 public class UserService {
     private final UserMapper userMapper;
@@ -34,9 +32,15 @@ public class UserService {
         if (user == null) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
-        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+        
+        boolean matches = passwordEncoder.matches(password, user.getPasswordHash());
+        if (!matches) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
+        
+        // 更新最后登录时间
+        userMapper.updateLastLoginTime(user.getId());
+        
         String token = JwtUtil.generateToken(user.getId(), user.getUsername());
         return new LoginResponse(token, user.getId(), user.getUsername(), user.getRealName());
     }
@@ -53,6 +57,12 @@ public class UserService {
         entity.setUsername(request.username());
         entity.setRealName(request.realName());
         entity.setStatus(request.status());
+        // 加密密码
+        if (request.password() != null && !request.password().isEmpty()) {
+            entity.setPasswordHash(passwordEncoder.encode(request.password()));
+        } else {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "密码不能为空");
+        }
         userMapper.insertUser(entity);
         return userConverter.toDto(entity);
     }
@@ -61,8 +71,22 @@ public class UserService {
     public UserDto updateUserStatus(Long id, String status) {
         UserEntity entity = userMapper.getUserById(id);
         if (entity == null) throw new BusinessException(ErrorCode.NOT_FOUND, "user not found");
-        entity.setStatus(status);
+        entity.setStatus(Integer.parseInt(status));
         userMapper.updateUserStatus(entity);
+        return userConverter.toDto(entity);
+    }
+
+    @Transactional
+    public UserDto updateUser(UserDto request) {
+        UserEntity entity = userMapper.getUserById(request.id());
+        if (entity == null) throw new BusinessException(ErrorCode.NOT_FOUND, "user not found");
+        entity.setRealName(request.realName());
+        entity.setStatus(request.status());
+        // 如果提供了密码则更新
+        if (request.password() != null && !request.password().isEmpty()) {
+            entity.setPasswordHash(passwordEncoder.encode(request.password()));
+        }
+        userMapper.updateUser(entity);
         return userConverter.toDto(entity);
     }
 }

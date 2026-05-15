@@ -1,5 +1,5 @@
-<template>
-  <PageSection title="对账管理" description="按供应商维度执行对账（演示逻辑）。">
+﻿<template>
+  <PageSection title="对账管理">
     <el-form :inline="true" :model="reco" class="reco-form">
       <el-form-item label="供应商编码"><el-input v-model="reco.providerCode" placeholder="如 default" /></el-form-item>
       <el-form-item label="账期"><el-input v-model="reco.billDate" placeholder="如 2026-04" /></el-form-item>

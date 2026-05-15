@@ -1,5 +1,5 @@
-<template>
-  <PageSection title="备份还原" description="创建备份任务、发起还原操作。">
+﻿<template>
+  <PageSection title="备份还原">
     <el-space>
       <el-button type="primary" @click="doBackup" :loading="bkLoading">创建备份任务</el-button>
       <el-input v-model="restoreId" placeholder="备份任务 ID 或编码" style="width: 220px" clearable />

@@ -7,7 +7,7 @@ body,
 }
 
 .page-section {
-  max-width: 1200px;
+  width: 100%;
 }
 
 .page-section .title {

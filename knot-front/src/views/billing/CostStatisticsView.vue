@@ -1,5 +1,5 @@
-<template>
-  <PageSection title="成本统计" description="查看网关请求汇总与明细。">
+﻿<template>
+  <PageSection title="成本统计">
     <el-row :gutter="12" class="stat-row" v-loading="sLoading">
       <el-col :xs="24" :sm="8">
         <el-card shadow="hover"><div class="st">总请求</div><div class="sv">{{ summary?.requestCount ?? "—" }}</div></el-card>

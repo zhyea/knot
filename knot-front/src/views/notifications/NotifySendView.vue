@@ -1,5 +1,5 @@
-<template>
-  <PageSection title="通知发送" description="选择模板并发送通知。">
+﻿<template>
+  <PageSection title="通知发送">
     <el-form :model="send" label-width="100px" class="send-form">
       <el-form-item label="模板编码"><el-input v-model="send.templateCode" /></el-form-item>
       <el-form-item label="接收人"><el-input v-model="send.receivers" placeholder="逗号分隔邮箱/手机" /></el-form-item>

@@ -1,5 +1,5 @@
-<template>
-  <PageSection title="通知策略" description="配置通知去重窗口、升级阈值等策略（占位接口）。">
+﻿<template>
+  <PageSection title="通知策略">
     <el-form :model="pol" label-width="120px" class="send-form">
       <el-form-item label="事件类型"><el-input v-model="pol.eventType" /></el-form-item>
       <el-form-item label="去重窗口"><el-input v-model="pol.dedupWindow" /></el-form-item>

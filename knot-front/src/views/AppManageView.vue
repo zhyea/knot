@@ -1,14 +1,14 @@
-<template>
+﻿<template>
   <PageSection
     title="应用管理"
-    description="管理应用标识、负责人用户 ID、启用状态与频控/额度策略；可查看演示调用指标。"
+   
   >
     <div class="toolbar">
       <el-button type="primary" @click="openCreate">新建应用</el-button>
       <el-button @click="load">刷新</el-button>
     </div>
     <el-table v-loading="loading" :data="rows" stripe border>
-      <el-table-column prop="id" label="ID" width="70" />
+      <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
       <el-table-column prop="appId" label="App ID" min-width="120" />
       <el-table-column prop="name" label="名称" min-width="120" />
       <el-table-column prop="owner" label="负责人" width="100" />
@@ -17,7 +17,7 @@
           <StatusTag :active="row.enabled" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column label="操作" width="220" align="center" header-align="center">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button link type="primary" @click="openQuota(row)">改配额</el-button>

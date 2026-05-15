@@ -1,24 +1,24 @@
-<template>
+﻿<template>
   <PageSection
     title="模型管理"
-    description="维护模型与供应商关联、版本、类型及启用状态；支持联调测试与版本切换（演示数据）。"
+   
   >
     <div class="toolbar">
       <el-button type="primary" @click="openCreate">新建模型</el-button>
       <el-button @click="load">刷新</el-button>
     </div>
-    <el-table v-loading="loading" :data="rows" stripe border>
-      <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column prop="name" label="名称" min-width="120" />
-      <el-table-column prop="providerId" label="供应商 ID" width="110" />
-      <el-table-column prop="modelType" label="类型" width="100" />
-      <el-table-column prop="version" label="版本" width="100" />
-      <el-table-column label="启用" width="80">
+    <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
+      <el-table-column prop="id" label="ID" min-width="5%" align="center" header-align="center" />
+      <el-table-column prop="name" label="名称" min-width="15%" />
+      <el-table-column prop="providerId" label="供应商 ID" min-width="10%" />
+      <el-table-column prop="modelType" label="类型" min-width="10%" />
+      <el-table-column prop="version" label="版本" min-width="10%" />
+      <el-table-column label="启用" min-width="8%">
         <template #default="{ row }">
           <StatusTag :active="row.enabled" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="220" fixed="right">
+      <el-table-column label="操作" min-width="20%" align="center" header-align="center">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button link type="primary" @click="openTest(row)">测试</el-button>

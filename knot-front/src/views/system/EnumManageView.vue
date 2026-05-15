@@ -1,5 +1,5 @@
-<template>
-  <PageSection title="枚举管理" description="管理系统中的枚举值，如供应商类型、模型类型等。系统内置项不可修改。">
+﻿<template>
+  <PageSection title="枚举管理">
     <div class="toolbar">
       <el-select v-model="filterCategory" placeholder="按分类筛选" clearable style="width: 200px" @change="onFilter">
         <el-option v-for="c in categories" :key="c" :label="c" :value="c" />
@@ -8,7 +8,7 @@
       <el-button @click="load">刷新</el-button>
     </div>
     <el-table v-loading="loading" :data="rows" stripe border size="small">
-      <el-table-column prop="id" label="ID" width="70" />
+      <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
       <el-table-column prop="category" label="分类" width="150" />
       <el-table-column prop="itemCode" label="编码" width="150" />
       <el-table-column prop="itemLabel" label="显示名" min-width="120" />
@@ -24,7 +24,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip />
-      <el-table-column label="操作" width="140" fixed="right">
+      <el-table-column label="操作" width="140" align="center" header-align="center">
         <template #default="{ row }">
           <el-button link type="primary" :disabled="row.isSystem" @click="openEdit(row)">编辑</el-button>
           <el-button link type="danger" :disabled="row.isSystem" @click="onDelete(row)">删除</el-button>

@@ -1,5 +1,5 @@
-<template>
-  <PageSection title="安全策略" description="查看安全总览、维护策略 JSON 配置。">
+﻿<template>
+  <PageSection title="安全策略">
     <el-row :gutter="12" class="stat-row" v-loading="ovLoading">
       <el-col :xs="24" :sm="6" v-for="c in overviewCards" :key="c.k">
         <el-card shadow="hover">

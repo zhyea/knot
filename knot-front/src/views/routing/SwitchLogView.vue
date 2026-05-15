@@ -1,5 +1,5 @@
-<template>
-  <PageSection title="切换日志" description="查看近期路由切换日志。">
+﻿<template>
+  <PageSection title="切换日志">
     <div class="toolbar">
       <el-button @click="load">刷新</el-button>
     </div>

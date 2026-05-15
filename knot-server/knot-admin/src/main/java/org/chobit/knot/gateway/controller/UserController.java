@@ -32,7 +32,7 @@ public class UserController {
     @PostMapping("/create")
     public ApiResponse<UserItem> create(@RequestBody @Valid UserItem request) {
         UserDto created = userService.createUser(new UserDto(
-                null, request.username(), request.realName(), request.status()
+                null, request.username(), request.password(), request.realName(), request.status(), null, null
         ));
         return ApiResponse.ok(userConverter.toVO(created));
     }
@@ -40,6 +40,14 @@ public class UserController {
     @PutMapping("/{id}/status")
     public ApiResponse<UserItem> updateStatus(@PathVariable Long id, @RequestBody @Valid UpdateUserStatusRequest request) {
         UserDto updated = userService.updateUserStatus(id, request.status());
+        return ApiResponse.ok(userConverter.toVO(updated));
+    }
+
+    @PutMapping("/{id}")
+    public ApiResponse<UserItem> updateUser(@PathVariable Long id, @RequestBody @Valid UserItem request) {
+        UserDto updated = userService.updateUser(new UserDto(
+                id, null, request.password() != null ? request.password() : null, request.realName(), request.status(), null, null
+        ));
         return ApiResponse.ok(userConverter.toVO(updated));
     }
 }

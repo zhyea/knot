@@ -1,5 +1,5 @@
-<template>
-  <PageSection title="角色权限" description="系统角色列表（静态配置示例）。">
+﻿<template>
+  <PageSection title="角色权限">
     <el-button class="mb" @click="load">刷新</el-button>
     <el-table v-loading="loading" :data="rows" size="small" stripe border>
       <el-table-column prop="code" label="编码" width="140" />

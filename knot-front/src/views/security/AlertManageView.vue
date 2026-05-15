@@ -1,5 +1,5 @@
-<template>
-  <PageSection title="告警管理" description="查看安全告警列表。">
+﻿<template>
+  <PageSection title="告警管理">
     <div class="toolbar">
       <el-button @click="load">刷新</el-button>
     </div>

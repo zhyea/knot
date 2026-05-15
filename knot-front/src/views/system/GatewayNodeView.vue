@@ -1,5 +1,5 @@
-<template>
-  <PageSection title="网关节点" description="查看网关节点列表与运行状态。">
+﻿<template>
+  <PageSection title="网关节点">
     <el-button class="mb" @click="load">刷新</el-button>
     <el-table v-loading="loading" :data="rows" stripe border size="small">
       <el-table-column prop="nodeId" label="节点" />

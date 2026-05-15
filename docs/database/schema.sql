@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS users (
   real_name VARCHAR(100) DEFAULT NULL,
   phone VARCHAR(32) DEFAULT NULL,
   email VARCHAR(128) DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  status INT NOT NULL DEFAULT 1,
+  last_login_time DATETIME DEFAULT NULL,
   is_deleted TINYINT NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -418,9 +419,24 @@ CREATE TABLE IF NOT EXISTS notification_records (
 -- =========================
 -- 枚举配置
 -- =========================
+-- 枚举分类表
+CREATE TABLE IF NOT EXISTS enum_categories (
+  id          BIGINT PRIMARY KEY AUTO_INCREMENT,
+  category    VARCHAR(64)  NOT NULL COMMENT '分类编码，如 provider_type、model_type',
+  category_name VARCHAR(128) NOT NULL COMMENT '分类名称，如 供应商类型、模型类型',
+  description VARCHAR(255) DEFAULT NULL COMMENT '分类描述',
+  sort_order  INT          NOT NULL DEFAULT 0 COMMENT '排序',
+  item_count  INT          NOT NULL DEFAULT 0 COMMENT '枚举值数量',
+  is_enabled  TINYINT      NOT NULL DEFAULT 1 COMMENT '1=启用 0=禁用',
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_enum_category (category)
+);
+
+-- 枚举配置表（移除category字段，改为category_id）
 CREATE TABLE IF NOT EXISTS enum_configs (
   id          BIGINT PRIMARY KEY AUTO_INCREMENT,
-  category    VARCHAR(64)  NOT NULL COMMENT '分类，如 provider_type、model_type',
+  category_id BIGINT       NOT NULL COMMENT '分类ID',
   item_code   VARCHAR(64)  NOT NULL COMMENT '枚举编码，如 OPENAI、CHAT',
   item_label  VARCHAR(128) NOT NULL COMMENT '显示名称，如 OpenAI、对话',
   sort_order  INT          NOT NULL DEFAULT 0 COMMENT '排序',
@@ -429,5 +445,18 @@ CREATE TABLE IF NOT EXISTS enum_configs (
   remark      VARCHAR(255) DEFAULT NULL COMMENT '备注',
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_enum_category_code (category, item_code)
+  UNIQUE KEY uk_enum_category_code (category_id, item_code)
+);
+
+-- 枚举操作日志表
+CREATE TABLE IF NOT EXISTS enum_operation_logs (
+  id          BIGINT PRIMARY KEY AUTO_INCREMENT,
+  category_id BIGINT       NOT NULL COMMENT '分类ID',
+  category    VARCHAR(64)  NOT NULL COMMENT '分类编码（冗余）',
+  operation   VARCHAR(32)  NOT NULL COMMENT '操作类型：CREATE/UPDATE/DELETE',
+  item_code   VARCHAR(64)  DEFAULT NULL COMMENT '枚举编码',
+  old_value   JSON         DEFAULT NULL COMMENT '旧值',
+  new_value   JSON         DEFAULT NULL COMMENT '新值',
+  operator    VARCHAR(64)  DEFAULT NULL COMMENT '操作人',
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

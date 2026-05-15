@@ -1,14 +1,14 @@
-<template>
+﻿<template>
   <PageSection
     title="灰度发布"
-    description="创建灰度计划、配置流量阶段与目标对象，支持发布与回滚；步骤 JSON 持久化至后端。"
+   
   >
     <div class="toolbar">
       <el-button type="primary" @click="openCreate">新建计划</el-button>
       <el-button @click="load">刷新</el-button>
     </div>
     <el-table v-loading="loading" :data="rows" stripe border>
-      <el-table-column prop="id" label="ID" width="70" />
+      <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
       <el-table-column prop="targetType" label="目标类型" width="110" />
       <el-table-column prop="targetId" label="目标 ID" width="90" />
       <el-table-column prop="trafficPercent" label="流量%" width="80" />
@@ -16,7 +16,7 @@
         <template #default="{ row }">{{ (row.steps || []).join(" → ") }}</template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="100" />
-      <el-table-column label="操作" width="180" fixed="right">
+      <el-table-column label="操作" width="180" align="center" header-align="center">
         <template #default="{ row }">
           <el-button link type="primary" :disabled="row.status === 'RUNNING' || row.status === 'ROLLED_BACK'" @click="publish(row)">发布</el-button>
           <el-button link type="warning" @click="rollback(row)">回滚</el-button>

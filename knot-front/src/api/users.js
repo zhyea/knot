@@ -11,3 +11,7 @@ export function createUser(payload) {
 export function updateUserStatus(id, payload) {
   return put(`/api/users/${id}/status`, payload);
 }
+
+export function updateUser(id, payload) {
+  return put(`/api/users/${id}`, payload);
+}

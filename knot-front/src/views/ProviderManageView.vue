@@ -1,23 +1,20 @@
-<template>
-  <PageSection
-    title="供应商管理"
-    description="维护供应商接入、基础地址、启用状态与频控/额度策略（JSON）。折扣策略当前为内存示例，重启后清空。"
-  >
+﻿<template>
+  <PageSection title="供应商管理">
     <div class="toolbar">
       <el-button type="primary" @click="openCreate">新建供应商</el-button>
       <el-button @click="load">刷新</el-button>
     </div>
     <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
-      <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column prop="name" label="名称" min-width="120" />
-      <el-table-column prop="type" label="类型" width="100" />
-      <el-table-column prop="baseUrl" label="Base URL" min-width="180" show-overflow-tooltip />
-      <el-table-column label="启用" width="80">
+      <el-table-column prop="id" label="ID" min-width="5%" align="center" header-align="center" />
+      <el-table-column prop="name" label="名称" min-width="15%" />
+      <el-table-column prop="type" label="类型" min-width="10%" />
+      <el-table-column prop="baseUrl" label="Base URL" min-width="30%" show-overflow-tooltip />
+      <el-table-column label="启用" min-width="8%">
         <template #default="{ row }">
           <StatusTag :active="row.enabled" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column label="操作" min-width="15%" align="center" header-align="center">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button link type="primary" @click="openDiscount(row)">折扣策略</el-button>
@@ -76,13 +73,13 @@
         <el-button type="primary" size="small" @click="openDiscountForm()">新增策略</el-button>
         <el-button size="small" @click="loadDiscounts">刷新</el-button>
       </div>
-      <el-table :data="discountRows" size="small" border>
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="policyName" label="策略名" />
-        <el-table-column prop="discountType" label="类型" width="90" />
-        <el-table-column prop="discountValue" label="值" width="70" />
-        <el-table-column prop="status" label="状态" width="80" />
-        <el-table-column label="操作" width="80">
+      <el-table :data="discountRows" size="small" border style="width: 100%">
+        <el-table-column prop="id" label="ID" min-width="5%" align="center" header-align="center" />
+        <el-table-column prop="policyName" label="策略名" min-width="25%" />
+        <el-table-column prop="discountType" label="类型" min-width="12%" />
+        <el-table-column prop="discountValue" label="值" min-width="10%" />
+        <el-table-column prop="status" label="状态" min-width="10%" />
+        <el-table-column label="操作" min-width="10%" align="center" header-align="center">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="openDiscountForm(row)">编辑</el-button>
           </template>

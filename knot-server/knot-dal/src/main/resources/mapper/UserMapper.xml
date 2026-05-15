@@ -3,21 +3,22 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.UserMapper">
 
     <select id="listUsers" resultType="org.chobit.knot.gateway.entity.UserEntity">
-        select id, username, real_name, status
+        select id, username, real_name, status, last_login_time, updated_at
         from users
+        where is_deleted = 0
         order by id desc
     </select>
 
     <select id="getUserById" resultType="org.chobit.knot.gateway.entity.UserEntity">
-        select id, username, real_name, status
+        select id, username, real_name, status, last_login_time, updated_at
         from users
-        where id = #{id}
+        where id = #{id} and is_deleted = 0
     </select>
 
     <select id="getUserByUsername" resultType="org.chobit.knot.gateway.entity.UserEntity">
-        select id, username, password_hash, real_name, status
+        select id, username, password_hash, real_name, status, last_login_time, updated_at
         from users
-        where username = #{username}
+        where username = #{username} and is_deleted = 0
     </select>
 
     <insert id="insertUser" useGeneratedKeys="true" keyProperty="id">
@@ -26,7 +27,19 @@
     </insert>
 
     <update id="updateUserStatus">
-        update users set status = #{status} where id = #{id}
+        update users set status = #{status}, updated_at = NOW() where id = #{id}
+    </update>
+
+    <update id="updateUser">
+        update users set 
+            real_name = #{realName},
+            status = #{status},
+            updated_at = NOW()
+        where id = #{id}
+    </update>
+
+    <update id="updateLastLoginTime">
+        update users set last_login_time = NOW(), updated_at = NOW() where id = #{id}
     </update>
 
 </mapper>

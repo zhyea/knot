@@ -21,8 +21,13 @@ http.interceptors.request.use((config) => {
 http.interceptors.response.use(
   (response) => {
     const body = response.data;
+    // 如果请求配置了 silentError，则不显示错误提示，由调用方处理
+    const silentError = response.config?.silentError;
+    
     if (body && typeof body.success === "boolean" && body.success === false) {
-      ElMessage.error(body.message || "请求失败");
+      if (!silentError) {
+        ElMessage.error(body.message || "请求失败");
+      }
       return Promise.reject(new Error(body.message || "请求失败"));
     }
     return response;
@@ -37,12 +42,16 @@ http.interceptors.response.use(
       return Promise.reject(new Error('登录已过期'));
     }
     
-    const msg =
-      error.response?.data?.message ||
-      error.response?.data?.error ||
-      error.message ||
-      "网络错误";
-    ElMessage.error(msg);
+    // 如果请求配置了 silentError，则不显示错误提示
+    const silentError = error.config?.silentError;
+    if (!silentError) {
+      const msg =
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message ||
+        "网络错误";
+      ElMessage.error(msg);
+    }
     return Promise.reject(error);
   }
 );

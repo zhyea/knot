@@ -3,18 +3,22 @@
     <el-aside width="220px" class="aside">
       <div class="logo">Knot AI Gateway</div>
       <el-menu
-        :default-active="activePath"
-        :default-openeds="openeds"
-        router
+          :default-active="activePath"
+          :default-openeds="openeds"
+          router
       >
         <el-menu-item index="/">
-          <el-icon><Odometer /></el-icon>
+          <el-icon>
+            <Odometer/>
+          </el-icon>
           <span>总览</span>
         </el-menu-item>
 
         <el-sub-menu index="/system">
           <template #title>
-            <el-icon><Setting /></el-icon>
+            <el-icon>
+              <Setting/>
+            </el-icon>
             <span>系统管理</span>
           </template>
           <el-menu-item index="/system/users">用户管理</el-menu-item>
@@ -26,23 +30,31 @@
         </el-sub-menu>
 
         <el-menu-item index="/providers">
-          <el-icon><Connection /></el-icon>
+          <el-icon>
+            <Connection/>
+          </el-icon>
           <span>供应商管理</span>
         </el-menu-item>
 
         <el-menu-item index="/models">
-          <el-icon><Cpu /></el-icon>
+          <el-icon>
+            <Cpu/>
+          </el-icon>
           <span>模型管理</span>
         </el-menu-item>
 
         <el-menu-item index="/apps">
-          <el-icon><Monitor /></el-icon>
+          <el-icon>
+            <Monitor/>
+          </el-icon>
           <span>应用管理</span>
         </el-menu-item>
 
         <el-sub-menu index="/routing">
           <template #title>
-            <el-icon><Guide /></el-icon>
+            <el-icon>
+              <Guide/>
+            </el-icon>
             <span>路由规则</span>
           </template>
           <el-menu-item index="/routing/rules">规则列表</el-menu-item>
@@ -51,7 +63,9 @@
 
         <el-sub-menu index="/billing">
           <template #title>
-            <el-icon><Money /></el-icon>
+            <el-icon>
+              <Money/>
+            </el-icon>
             <span>计费成本</span>
           </template>
           <el-menu-item index="/billing/rules">计费规则</el-menu-item>
@@ -61,7 +75,9 @@
 
         <el-sub-menu index="/security">
           <template #title>
-            <el-icon><Lock /></el-icon>
+            <el-icon>
+              <Lock/>
+            </el-icon>
             <span>安全监控</span>
           </template>
           <el-menu-item index="/security/policy">安全策略</el-menu-item>
@@ -70,18 +86,24 @@
         </el-sub-menu>
 
         <el-menu-item index="/plugins">
-          <el-icon><Operation /></el-icon>
+          <el-icon>
+            <Operation/>
+          </el-icon>
           <span>插件管理</span>
         </el-menu-item>
 
         <el-menu-item index="/release">
-          <el-icon><SetUp /></el-icon>
+          <el-icon>
+            <SetUp/>
+          </el-icon>
           <span>灰度发布</span>
         </el-menu-item>
 
         <el-sub-menu index="/notifications">
           <template #title>
-            <el-icon><Bell /></el-icon>
+            <el-icon>
+              <Bell/>
+            </el-icon>
             <span>通知管理</span>
           </template>
           <el-menu-item index="/notifications/templates">通知模板</el-menu-item>
@@ -97,16 +119,16 @@
           <div class="theme-switcher">
             <span class="theme-label">主题</span>
             <span
-              v-for="t in THEMES"
-              :key="t.key"
-              :class="['theme-dot', 'theme-dot--' + t.key, { active: current === t.key }]"
-              :title="t.label"
-              @click="setTheme(t.key)"
+                v-for="t in THEMES"
+                :key="t.key"
+                :class="['theme-dot', 'theme-dot--' + t.key, { active: current === t.key }]"
+                :title="t.label"
+                @click="setTheme(t.key)"
             />
           </div>
           <el-dropdown @command="handleCommand">
             <span class="user-info">
-              <el-icon><User /></el-icon>
+              <el-icon><User/></el-icon>
               <span>{{ user?.realName || user?.username || '用户' }}</span>
             </span>
             <template #dropdown>
@@ -118,17 +140,17 @@
         </div>
       </el-header>
       <el-main class="main">
-        <router-view />
+        <router-view/>
       </el-main>
     </el-container>
   </el-container>
 </template>
 
 <script setup>
-import { computed } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import { useTheme, THEMES } from "../composables/useTheme";
-import { useAuth } from "../composables/useAuth";
+import {computed} from "vue";
+import {useRoute, useRouter} from "vue-router";
+import {useTheme, THEMES} from "../composables/useTheme";
+import {useAuth} from "../composables/useAuth";
 import {
   Odometer,
   Setting,
@@ -146,8 +168,8 @@ import {
 
 const route = useRoute();
 const router = useRouter();
-const { current, setTheme } = useTheme();
-const { user, logout } = useAuth();
+const {current, setTheme} = useTheme();
+const {user, logout} = useAuth();
 const activePath = computed(() => route.path);
 
 // 自动展开当前路径所属的子菜单

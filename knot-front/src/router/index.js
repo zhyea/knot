@@ -96,7 +96,7 @@ router.beforeEach((to, from, next) => {
   if (whiteList.includes(to.path)) {
     // 如果已登录，访问登录页则跳转到首页
     if (isLoggedIn.value) {
-      next('/dashboard');
+      next('/');
     } else {
       next();
     }

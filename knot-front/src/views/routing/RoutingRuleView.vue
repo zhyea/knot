@@ -1,11 +1,11 @@
-<template>
-  <PageSection title="规则列表" description="配置路由名称、策略、条件表达式、目标供应商/模型与优先级。">
+﻿<template>
+  <PageSection title="规则列表">
     <div class="toolbar">
       <el-button type="primary" @click="openCreate">新建规则</el-button>
       <el-button @click="load">刷新</el-button>
     </div>
     <el-table v-loading="loading" :data="rows" stripe border>
-      <el-table-column prop="id" label="ID" width="70" />
+      <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
       <el-table-column prop="name" label="名称" min-width="120" />
       <el-table-column prop="strategy" label="策略" width="110" />
       <el-table-column prop="conditionExpr" label="条件" min-width="140" show-overflow-tooltip />
@@ -17,7 +17,7 @@
           <StatusTag :active="row.enabled" />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="140" fixed="right">
+      <el-table-column label="操作" width="140" align="center" header-align="center">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button link type="primary" @click="openTest(row)">测试</el-button>

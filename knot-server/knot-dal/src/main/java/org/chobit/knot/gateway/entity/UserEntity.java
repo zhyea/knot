@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.entity;
 
 import lombok.Data;
+import java.time.LocalDateTime;
 
 @Data
 public class UserEntity {
@@ -8,5 +9,7 @@ public class UserEntity {
     private String username;
     private String passwordHash;
     private String realName;
-    private String status;
+    private Integer status;
+    private LocalDateTime lastLoginTime;
+    private LocalDateTime updatedAt;
 }
