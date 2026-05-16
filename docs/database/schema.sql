@@ -130,6 +130,8 @@ CREATE TABLE IF NOT EXISTS providers (
   contact_phone VARCHAR(32) DEFAULT NULL,
   rate_limit_json JSON DEFAULT NULL,
   quota_json JSON DEFAULT NULL,
+  last_operator_id BIGINT DEFAULT NULL COMMENT '最后操作人用户ID',
+  last_operator_name VARCHAR(64) DEFAULT NULL COMMENT '最后操作人用户名',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_providers_code (code)

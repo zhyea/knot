@@ -6,6 +6,18 @@
         select id from enum_categories where category = #{category} limit 1
     </select>
 
+    <select id="selectByCategory" resultType="org.chobit.knot.gateway.entity.EnumCategoryEntity">
+        select id,
+               category,
+               category_name AS categoryName,
+               description,
+               is_system AS isSystem,
+               is_enabled AS isEnabled
+        from enum_categories
+        where category = #{category}
+        limit 1
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into enum_categories(category, category_name, description, is_system, is_enabled)
         values(#{category}, #{categoryName}, #{description}, #{isSystem}, #{isEnabled})

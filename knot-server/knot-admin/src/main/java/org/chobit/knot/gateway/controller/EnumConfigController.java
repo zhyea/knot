@@ -60,7 +60,9 @@ public class EnumConfigController {
     @OperationLog(module = "enum", operation = "CREATE", entityType = "EnumConfig",
             entityIdAfter = "#result.id",
             entityNameAfter = "#result.category + '/' + #result.itemCode",
-            description = "'新增枚举值'")
+            description = "'新增枚举值'",
+            recordNewValue = true,
+            newValueSpel = "#result")
     @PostMapping
     public EnumConfigEntity create(@RequestBody EnumConfigEntity request) {
         return enumConfigService.create(request);
@@ -68,9 +70,13 @@ public class EnumConfigController {
 
     /** 修改枚举项 */
     @OperationLog(module = "enum", operation = "UPDATE", entityType = "EnumConfig",
-            entityId = "#id",
+            entityId = "#p0",
             entityNameAfter = "#result.category + '/' + #result.itemCode",
-            description = "'更新枚举值'")
+            description = "'更新枚举值'",
+            recordOldValue = true,
+            oldValueSpel = "@enumConfigService.getById(#p0)",
+            recordNewValue = true,
+            newValueSpel = "#result")
     @PutMapping("/{id}")
     public EnumConfigEntity update(@PathVariable Long id, @RequestBody EnumConfigEntity request) {
         return enumConfigService.update(id, request);
@@ -78,9 +84,11 @@ public class EnumConfigController {
 
     /** 删除枚举项 */
     @OperationLog(module = "enum", operation = "DELETE", entityType = "EnumConfig",
-            entityId = "#id",
+            entityId = "#p0",
             entityNameAfter = "#result.category + '/' + #result.itemCode",
-            description = "'删除枚举值'")
+            description = "'删除枚举值'",
+            recordOldValue = true,
+            oldValueSpel = "@enumConfigService.getById(#p0)")
     @DeleteMapping("/{id}")
     public EnumConfigEntity delete(@PathVariable Long id) {
         return enumConfigService.deleteReturning(id);

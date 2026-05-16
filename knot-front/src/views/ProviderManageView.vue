@@ -14,6 +14,12 @@
           <StatusTag :active="row.enabled" />
         </template>
       </el-table-column>
+      <el-table-column prop="lastOperatorName" label="最后操作人" min-width="10%" show-overflow-tooltip />
+      <el-table-column label="最后修改时间" min-width="14%" align="center" header-align="center">
+        <template #default="{ row }">
+          {{ formatDateTime(row.lastModifiedAt) }}
+        </template>
+      </el-table-column>
       <el-table-column label="操作" min-width="15%" align="center" header-align="center">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
@@ -274,6 +280,14 @@ onMounted(() => {
   load();
   loadProviderTypes();
 });
+
+function formatDateTime(val) {
+  if (!val) return "-";
+  const d = new Date(val);
+  if (Number.isNaN(d.getTime())) return "-";
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
 </script>
 
 <style scoped>

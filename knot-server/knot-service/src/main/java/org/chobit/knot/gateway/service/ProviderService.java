@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import jakarta.servlet.http.HttpServletRequest;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.model.PageRequest;
@@ -15,6 +16,8 @@ import org.chobit.knot.gateway.mapper.DiscountPolicyMapper;
 import org.chobit.knot.gateway.mapper.ProviderMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -53,8 +56,9 @@ public class ProviderService {
         if (entity.getCode() == null || entity.getCode().isBlank()) {
             entity.setCode("provider_" + System.currentTimeMillis());
         }
+        applyCurrentOperator(entity);
         providerMapper.insert(entity);
-        return providerConverter.toDto(entity);
+        return providerConverter.toDto(providerMapper.getById(entity.getId()));
     }
 
     @Transactional
@@ -66,8 +70,36 @@ public class ProviderService {
         ProviderEntity entity = providerConverter.toEntity(request);
         entity.setId(id);
         entity.setCode(existing.getCode());
+        applyCurrentOperator(entity);
         providerMapper.update(entity);
-        return providerConverter.toDto(entity);
+        return providerConverter.toDto(providerMapper.getById(id));
+    }
+
+    /**
+     * 从当前请求（JWT 拦截器写入的 userId / username）填充供应商最后操作人。
+     */
+    private void applyCurrentOperator(ProviderEntity entity) {
+        try {
+            var attrs = RequestContextHolder.getRequestAttributes();
+            if (!(attrs instanceof ServletRequestAttributes sra)) {
+                return;
+            }
+            HttpServletRequest req = sra.getRequest();
+            Object uid = req.getAttribute("userId");
+            Object uname = req.getAttribute("username");
+            if (uname != null) {
+                entity.setLastOperatorName(uname.toString());
+            }
+            if (uid instanceof Long lid) {
+                entity.setLastOperatorId(lid);
+            } else if (uid != null) {
+                try {
+                    entity.setLastOperatorId(Long.parseLong(uid.toString()));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        } catch (Exception ignored) {
+        }
     }
 
     // ==================== 折扣策略 ====================

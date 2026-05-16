@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.aspect;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.entity.OperationLogEntity;
 import org.chobit.knot.gateway.service.OperationLogService;
@@ -7,6 +9,10 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.context.expression.BeanFactoryResolver;
 import org.springframework.expression.ExpressionParser;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
@@ -23,11 +29,17 @@ import jakarta.servlet.http.HttpServletRequest;
 @Component
 public class OperationLogAspect {
 
+    private static final Logger log = LoggerFactory.getLogger(OperationLogAspect.class);
+
     private final OperationLogService operationLogService;
+    private final ObjectMapper objectMapper;
+    private final BeanFactory beanFactory;
     private final ExpressionParser parser = new SpelExpressionParser();
 
-    public OperationLogAspect(OperationLogService operationLogService) {
+    public OperationLogAspect(OperationLogService operationLogService, ObjectMapper objectMapper, BeanFactory beanFactory) {
         this.operationLogService = operationLogService;
+        this.objectMapper = objectMapper;
+        this.beanFactory = beanFactory;
     }
 
     @Around("@annotation(operationLog)")
@@ -35,6 +47,7 @@ public class OperationLogAspect {
         long startTime = System.currentTimeMillis();
 
         OperationLogEntity logEntity = buildLogEntity(joinPoint, operationLog);
+        captureOldValue(joinPoint, operationLog, logEntity);
 
         try {
             Object result = joinPoint.proceed();
@@ -43,9 +56,7 @@ public class OperationLogAspect {
             logEntity.setStatus("SUCCESS");
             logEntity.setExecutionTime(executionTime);
             applyAfterResult(joinPoint, operationLog, result, logEntity);
-            if (operationLog.recordNewValue() && result != null) {
-                logEntity.setNewValue(result.toString());
-            }
+            captureNewValue(joinPoint, operationLog, result, logEntity);
             asyncSaveLog(logEntity);
             return result;
         } catch (Exception e) {
@@ -56,6 +67,55 @@ public class OperationLogAspect {
             asyncSaveLog(logEntity);
             throw e;
         }
+    }
+
+    private void captureOldValue(ProceedingJoinPoint joinPoint, OperationLog operationLog, OperationLogEntity logEntity) {
+        if (!operationLog.recordOldValue() || operationLog.oldValueSpel().isBlank()) {
+            return;
+        }
+        try {
+            Object oldObj = evaluateExpression(joinPoint, operationLog.oldValueSpel(), null);
+            logEntity.setOldValue(toJson(oldObj));
+        } catch (Exception e) {
+            log.warn("Operation log oldValue SpEL failed: {}", operationLog.oldValueSpel(), e);
+        }
+    }
+
+    private void captureNewValue(ProceedingJoinPoint joinPoint, OperationLog operationLog, Object result, OperationLogEntity logEntity) {
+        if (!operationLog.recordNewValue()) {
+            return;
+        }
+        try {
+            Object newObj;
+            if (!operationLog.newValueSpel().isBlank()) {
+                newObj = evaluateExpression(joinPoint, operationLog.newValueSpel(), result);
+            } else {
+                newObj = result;
+            }
+            logEntity.setNewValue(toJson(newObj));
+        } catch (Exception e) {
+            log.warn("Operation log newValue failed", e);
+        }
+    }
+
+    private String toJson(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof String s) {
+            return s;
+        }
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            log.warn("Operation log JSON serialize failed", e);
+            return String.valueOf(value);
+        }
+    }
+
+    private Object evaluateExpression(ProceedingJoinPoint joinPoint, String expression, Object result) {
+        StandardEvaluationContext context = buildContext(joinPoint, result);
+        return parser.parseExpression(expression).getValue(context);
     }
 
     private void applyAfterResult(ProceedingJoinPoint joinPoint, OperationLog operationLog,
@@ -100,8 +160,14 @@ public class OperationLogAspect {
         String[] parameterNames = signature.getParameterNames();
         Object[] args = joinPoint.getArgs();
         StandardEvaluationContext context = new StandardEvaluationContext();
-        for (int i = 0; i < parameterNames.length; i++) {
-            context.setVariable(parameterNames[i], args[i]);
+        context.setBeanResolver(new BeanFactoryResolver(beanFactory));
+        int n = Math.max(parameterNames != null ? parameterNames.length : 0, args != null ? args.length : 0);
+        for (int i = 0; i < n; i++) {
+            Object arg = args != null && i < args.length ? args[i] : null;
+            context.setVariable("p" + i, arg);
+            if (parameterNames != null && i < parameterNames.length && parameterNames[i] != null) {
+                context.setVariable(parameterNames[i], arg);
+            }
         }
         if (result != null) {
             context.setVariable("result", result);

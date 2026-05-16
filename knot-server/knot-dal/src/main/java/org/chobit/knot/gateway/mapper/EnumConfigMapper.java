@@ -14,7 +14,7 @@ public interface EnumConfigMapper {
 
     List<EnumConfigEntity> listByCategoryFilter(@Param("category") String category);
 
-    List<EnumConfigEntity> listByCategory(@Param("category") String category);
+    List<EnumConfigEntity> listByCategoryId(@Param("categoryId") Long categoryId);
 
     List<String> listCategories();
 

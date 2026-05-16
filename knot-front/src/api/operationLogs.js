@@ -31,6 +31,12 @@ export function getOperationLogsByOperator(operatorId, params) {
 /**
  * 根据实体查询操作日志
  */
-export function getOperationLogsByEntity(entityType, entityId, params) {
-  return get(`/api/operation-logs/entity/${entityType}/${entityId}`, { params });
+export function getOperationLogsByEntity(entityType, entityId, config) {
+  const typeSeg = encodeURIComponent(entityType);
+  return get(`/api/operation-logs/entity/${typeSeg}/${entityId}`, config);
+}
+
+/** 某用户（entity_type=User）在 user 模块下的操作日志 */
+export function listUserOperationLogs(userId) {
+  return getOperationLogsByEntity("User", userId, { params: { module: "user" } });
 }

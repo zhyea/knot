@@ -5,7 +5,8 @@
     <select id="list" resultType="org.chobit.knot.gateway.entity.ProviderEntity">
         select id, code, name, provider_type, base_url, status,
                cast(rate_limit_json as char) as rate_limit_json,
-               cast(quota_json as char) as quota_json
+               cast(quota_json as char) as quota_json,
+               last_operator_id, last_operator_name, updated_at
         from providers
         order by id desc
     </select>
@@ -13,14 +14,17 @@
     <select id="getById" resultType="org.chobit.knot.gateway.entity.ProviderEntity">
         select id, code, name, provider_type, base_url, status,
                cast(rate_limit_json as char) as rate_limit_json,
-               cast(quota_json as char) as quota_json
+               cast(quota_json as char) as quota_json,
+               last_operator_id, last_operator_name, updated_at
         from providers
         where id = #{id}
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into providers(code, name, provider_type, base_url, status, rate_limit_json, quota_json)
-        values(#{code}, #{name}, #{providerType}, #{baseUrl}, #{status}, #{rateLimitJson}, #{quotaJson})
+        insert into providers(code, name, provider_type, base_url, status, rate_limit_json, quota_json,
+                              last_operator_id, last_operator_name)
+        values(#{code}, #{name}, #{providerType}, #{baseUrl}, #{status}, #{rateLimitJson}, #{quotaJson},
+               #{lastOperatorId}, #{lastOperatorName})
     </insert>
 
     <update id="update">
@@ -30,7 +34,9 @@
             base_url = #{baseUrl},
             status = #{status},
             rate_limit_json = #{rateLimitJson},
-            quota_json = #{quotaJson}
+            quota_json = #{quotaJson},
+            last_operator_id = #{lastOperatorId},
+            last_operator_name = #{lastOperatorName}
         where id = #{id}
     </update>
 

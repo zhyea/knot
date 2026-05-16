@@ -53,7 +53,7 @@
     </div>
     <p class="hint">点击行查看详细信息</p>
 
-    <el-drawer v-model="detailDrawer" title="日志详情" size="600px">
+    <el-drawer v-model="detailDrawer" title="日志详情" size="45%">
       <el-descriptions :column="2" border v-if="currentLog">
         <el-descriptions-item label="模块">{{ currentLog.module }}</el-descriptions-item>
         <el-descriptions-item label="操作">{{ currentLog.operation }}</el-descriptions-item>

@@ -16,6 +16,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 @Service
 public class UserService {
     private final UserMapper userMapper;
@@ -49,6 +52,27 @@ public class UserService {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<UserEntity> pageInfo = new PageInfo<>(userMapper.listUsers());
         return PageResult.fromPage(pageInfo, userConverter::toDtoList, pageRequest);
+    }
+
+    /**
+     * 操作审计快照（不含密码），供 {@link org.chobit.knot.gateway.annotation.OperationLog} SpEL 使用。
+     */
+    public Map<String, Object> userAuditSnapshot(Long id) {
+        if (id == null) {
+            return null;
+        }
+        UserEntity entity = userMapper.getUserById(id);
+        if (entity == null) {
+            return null;
+        }
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", entity.getId());
+        m.put("username", entity.getUsername());
+        m.put("realName", entity.getRealName());
+        m.put("status", entity.getStatus());
+        m.put("lastLoginTime", entity.getLastLoginTime());
+        m.put("updatedAt", entity.getUpdatedAt());
+        return m;
     }
 
     @Transactional

@@ -42,7 +42,16 @@ public class EnumConfigService {
     }
 
     public List<EnumConfigEntity> listByCategory(String category) {
-        return enumConfigMapper.listByCategory(category);
+        EnumCategoryEntity cat = enumCategoryMapper.selectByCategory(category);
+        if (cat == null) {
+            return List.of();
+        }
+        List<EnumConfigEntity> items = enumConfigMapper.listByCategoryId(cat.getId());
+        for (EnumConfigEntity item : items) {
+            item.setCategory(cat.getCategory());
+            item.setIsSystem(cat.getIsSystem());
+        }
+        return items;
     }
 
     public List<String> listCategories() {

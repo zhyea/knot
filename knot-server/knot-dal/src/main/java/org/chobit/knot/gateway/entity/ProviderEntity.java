@@ -2,6 +2,8 @@ package org.chobit.knot.gateway.entity;
 
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 public class ProviderEntity {
     private Long id;
@@ -12,4 +14,7 @@ public class ProviderEntity {
     private String status;
     private String rateLimitJson;
     private String quotaJson;
+    private Long lastOperatorId;
+    private String lastOperatorName;
+    private LocalDateTime updatedAt;
 }

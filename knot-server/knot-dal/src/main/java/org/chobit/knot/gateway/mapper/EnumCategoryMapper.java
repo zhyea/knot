@@ -9,5 +9,7 @@ public interface EnumCategoryMapper {
 
     Long selectIdByCategory(@Param("category") String category);
 
+    EnumCategoryEntity selectByCategory(@Param("category") String category);
+
     int insert(EnumCategoryEntity entity);
 }

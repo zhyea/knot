@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <PageSection title="用户管理">
     <div class="toolbar">
       <el-button type="primary" @click="openCreate">新建用户</el-button>
@@ -31,9 +31,10 @@
           {{ formatDateTime(row.updatedAt) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" min-width="8%" align="center" header-align="center">
+      <el-table-column label="操作" min-width="14%" align="center" header-align="center">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
+          <el-button link type="primary" @click="openUserLogs(row)">日志</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -51,6 +52,12 @@
     </div>
 
     <UserFormDrawer v-model="drawerVisible" :user="editingUser" @saved="resetPage" />
+
+    <OperationLogDrawer
+      v-model="logDrawerVisible"
+      :title="logDrawerTitle"
+      :load-logs="loadUserOperationLogs"
+    />
   </PageSection>
 </template>
 
@@ -58,15 +65,34 @@
 import { ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import UserFormDrawer from "../../components/system/UserFormDrawer.vue";
 import { usePageList } from "../../composables/usePageList";
 import { listUsers, updateUserStatus } from "../../api/users";
+import { listUserOperationLogs } from "../../api/operationLogs";
 
 const { rows, loading, total, pageNum, pageSize, load: pageLoad, onPageChange, onSizeChange, resetPage } = usePageList(listUsers);
 const users = ref([]);
 
 const drawerVisible = ref(false);
 const editingUser = ref(null);
+
+const logDrawerVisible = ref(false);
+const logUserId = ref(null);
+const logDrawerTitle = ref("操作日志");
+
+function openUserLogs(row) {
+  logUserId.value = row.id;
+  logDrawerTitle.value = `用户操作日志 — ${row.username || row.id}`;
+  logDrawerVisible.value = true;
+}
+
+function loadUserOperationLogs() {
+  if (logUserId.value == null) {
+    return Promise.resolve([]);
+  }
+  return listUserOperationLogs(logUserId.value);
+}
 
 watch(rows, (list) => {
   users.value = list || [];

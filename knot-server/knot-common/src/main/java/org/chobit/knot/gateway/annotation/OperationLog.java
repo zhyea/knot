@@ -54,12 +54,24 @@ public @interface OperationLog {
     String entityNameAfter() default "";
 
     /**
-     * 是否记录旧值（需要在方法参数中包含 id）
+     * 是否在执行业务方法前记录旧值（需配合 {@link #oldValueSpel()}，在 {@code proceed} 之前求值）
      */
     boolean recordOldValue() default false;
-    
+
     /**
-     * 是否记录新值（记录返回结果）
+     * 求旧值的 SpEL，仅在方法参数等上下文中求值（无 {@code #result}），可引用 Spring Bean，例如
+     * {@code @enumConfigService.getById(#id)}
+     */
+    String oldValueSpel() default "";
+
+    /**
+     * 是否在成功后记录新值（需配合 {@link #newValueSpel()} 或直接序列化 {@code #result}）
      */
     boolean recordNewValue() default false;
+
+    /**
+     * 求新值的 SpEL，在业务方法成功返回后求值，可使用 {@code #result} 与方法参数名。为空时若
+     * {@link #recordNewValue()} 为 true，则序列化方法返回值。
+     */
+    String newValueSpel() default "";
 }

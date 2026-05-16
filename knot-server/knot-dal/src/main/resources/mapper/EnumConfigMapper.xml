@@ -33,11 +33,16 @@
         order by c.category, ec.sort_order, ec.id
     </select>
 
-    <select id="listByCategory" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
-        select <include refid="EnumConfigColumns"/>
+    <select id="listByCategoryId" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
+        select ec.id,
+               ec.category_id AS categoryId,
+               ec.item_code AS itemCode,
+               ec.item_label AS itemLabel,
+               ec.sort_order AS sortOrder,
+               ec.is_enabled AS isEnabled,
+               ec.remark
         from enum_configs ec
-        inner join enum_categories c on ec.category_id = c.id
-        where c.category = #{category}
+        where ec.category_id = #{categoryId}
         order by ec.sort_order, ec.id
     </select>
 

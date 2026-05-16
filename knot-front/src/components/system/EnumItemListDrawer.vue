@@ -16,17 +16,12 @@
       <el-table-column prop="itemCode" label="编码" width="140" show-overflow-tooltip/>
       <el-table-column prop="itemLabel" label="显示名" min-width="120" show-overflow-tooltip/>
       <el-table-column prop="sortOrder" label="排序" width="72" align="center"/>
-      <el-table-column label="系统" width="72" align="center">
-        <template #default="{ row }">
-          <StatusTag :active="row.isSystem"/>
-        </template>
-      </el-table-column>
       <el-table-column label="启用" width="72" align="center">
         <template #default="{ row }">
           <StatusTag :active="row.isEnabled"/>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="120" align="center" fixed="right">
+      <el-table-column label="操作" width="120" align="center">
         <template #default="{ row }">
           <el-button link type="primary" :disabled="row.isSystem" @click="emit('edit', row)">编辑</el-button>
           <el-button link type="danger" :disabled="row.isSystem" @click="onDelete(row)">删除</el-button>

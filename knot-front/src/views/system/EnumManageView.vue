@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <PageSection title="枚举管理">
     <div class="toolbar">
       <el-button type="primary" @click="categoryCreateVisible = true">新增分类首项</el-button>
@@ -14,7 +14,7 @@
       </el-table-column>
       <el-table-column prop="itemCount" label="枚举项数" width="110" align="center" />
       <el-table-column prop="enabledCount" label="已启用" width="100" align="center" />
-      <el-table-column label="操作" width="220" align="center" header-align="center" fixed="right">
+      <el-table-column label="操作" width="220" align="center" header-align="center">
         <template #default="{ row }">
           <el-button link type="primary" @click="openItemsDrawer(row.category)">枚举</el-button>
           <el-button link type="primary" @click="openChangeLog(row.category)">日志</el-button>
@@ -44,22 +44,11 @@
       @saved="onItemFormSaved"
     />
 
-    <el-drawer v-model="logDrawer" :title="`枚举变更日志 — ${logCategory || ''}`" size="640px" destroy-on-close>
-      <el-table v-loading="logsLoading" :data="changeLogs" stripe border size="small" max-height="calc(100vh - 140px)">
-        <el-table-column prop="createdAt" label="时间" width="170" />
-        <el-table-column prop="operation" label="操作" width="90" />
-        <el-table-column prop="entityName" label="对象" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="status" label="结果" width="88">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'SUCCESS' ? 'success' : 'danger'" size="small">
-              {{ row.status === "SUCCESS" ? "成功" : "失败" }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="description" label="说明" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="errorMsg" label="错误" min-width="120" show-overflow-tooltip />
-      </el-table>
-    </el-drawer>
+    <OperationLogDrawer
+      v-model="logDrawer"
+      :title="`枚举变更日志 — ${logCategory || ''}`"
+      :load-logs="loadEnumOperationLogs"
+    />
   </PageSection>
 </template>
 
@@ -70,6 +59,7 @@ import StatusTag from "../../components/common/StatusTag.vue";
 import EnumCategoryCreateDialog from "../../components/system/EnumCategoryCreateDialog.vue";
 import EnumItemListDrawer from "../../components/system/EnumItemListDrawer.vue";
 import EnumItemFormDialog from "../../components/system/EnumItemFormDialog.vue";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import { listEnumCategorySummaries, listEnumOperationLogs } from "../../api/enums";
 
 const loading = ref(false);
@@ -87,8 +77,6 @@ const editingItem = ref(null);
 
 const logDrawer = ref(false);
 const logCategory = ref("");
-const logsLoading = ref(false);
-const changeLogs = ref([]);
 
 async function loadSummaries() {
   loading.value = true;
@@ -124,16 +112,13 @@ async function onItemFormSaved() {
   itemListRef.value?.reload?.();
 }
 
-async function openChangeLog(category) {
+function openChangeLog(category) {
   logCategory.value = category;
   logDrawer.value = true;
-  logsLoading.value = true;
-  try {
-    const data = await listEnumOperationLogs(category);
-    changeLogs.value = Array.isArray(data) ? data : [];
-  } finally {
-    logsLoading.value = false;
-  }
+}
+
+function loadEnumOperationLogs() {
+  return listEnumOperationLogs(logCategory.value);
 }
 
 loadSummaries();
