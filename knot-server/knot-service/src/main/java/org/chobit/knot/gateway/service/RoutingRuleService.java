@@ -15,6 +15,9 @@ import org.chobit.knot.gateway.mapper.RoutingRuleMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 @Service
 public class RoutingRuleService {
     private final RoutingRuleMapper routingRuleMapper;
@@ -37,6 +40,27 @@ public class RoutingRuleService {
         return routingRuleConverter.toDto(entity);
     }
 
+    public Map<String, Object> routingRuleAuditSnapshot(Long id) {
+        if (id == null) {
+            return null;
+        }
+        try {
+            RoutingRuleDto dto = getById(id);
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", dto.id());
+            m.put("name", dto.name());
+            m.put("strategy", dto.strategy());
+            m.put("conditionExpr", dto.conditionExpr());
+            m.put("targetProviderId", dto.targetProviderId());
+            m.put("targetModelId", dto.targetModelId());
+            m.put("priority", dto.priority());
+            m.put("enabled", dto.enabled());
+            return m;
+        } catch (BusinessException e) {
+            return null;
+        }
+    }
+
     @Transactional
     public RoutingRuleDto create(RoutingRuleDto request) {
         RoutingRuleEntity entity = routingRuleConverter.toEntity(request);
@@ -53,7 +77,7 @@ public class RoutingRuleService {
         entity.setId(id);
         entity.setStatus(request.enabled() ? "ENABLED" : "DISABLED");
         routingRuleMapper.update(entity);
-        return routingRuleConverter.toDto(entity);
+        return getById(id);
     }
 
     public PageResult<RoutingSwitchLogDto> listSwitchLogs(PageRequest pageRequest) {

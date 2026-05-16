@@ -1,11 +1,15 @@
-import { postQuery, post } from "./http";
+import { postQuery, post, put } from "./http";
 
 export function listBillingRules(params) {
-  return postQuery("/api/billing/rules/list", params);
+  return postQuery("/api/billing/rules", params);
 }
 
 export function createBillingRule(payload) {
-  return post("/api/billing/rules", payload);
+  return post("/api/billing", payload);
+}
+
+export function updateBillingRule(id, payload) {
+  return put(`/api/billing/rules/${id}`, payload);
 }
 
 export function getBillingSummary() {

@@ -16,9 +16,17 @@
       <el-table-column prop="itemCode" label="编码" width="140" show-overflow-tooltip/>
       <el-table-column prop="itemLabel" label="显示名" min-width="120" show-overflow-tooltip/>
       <el-table-column prop="sortOrder" label="排序" width="72" align="center"/>
-      <el-table-column label="启用" width="72" align="center">
+      <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
-          <StatusTag :active="row.isEnabled"/>
+          <el-switch
+              :model-value="row.isEnabled !== false"
+              :loading="togglingId === row.id"
+              :disabled="row.isSystem"
+              inline-prompt
+              active-text="启用"
+              inactive-text="禁用"
+              @change="(val) => onEnabledChange(row, val)"
+          />
         </template>
       </el-table-column>
       <el-table-column label="操作" width="120" align="center">
@@ -34,8 +42,7 @@
 <script setup>
 import {ref, watch} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";
-import StatusTag from "../common/StatusTag.vue";
-import {listEnumItemsByCategory, deleteEnumConfig} from "../../api/enums";
+import {listEnumItemsByCategory, deleteEnumConfig, updateEnumConfig} from "../../api/enums";
 import {clearEnumCache} from "../../composables/useEnums";
 
 const props = defineProps({
@@ -47,6 +54,7 @@ const emit = defineEmits(["update:modelValue", "create", "edit", "changed"]);
 
 const loading = ref(false);
 const items = ref([]);
+const togglingId = ref(null);
 
 async function load() {
   if (!props.category) return;
@@ -69,6 +77,32 @@ watch(
       if (visible && category) load();
     }
 );
+
+async function onEnabledChange(row, enabled) {
+  if (row.isSystem) return;
+  const prev = row.isEnabled !== false;
+  if (enabled === prev) return;
+
+  togglingId.value = row.id;
+  row.isEnabled = enabled;
+  try {
+    await updateEnumConfig(row.id, {
+      category: row.category,
+      itemCode: row.itemCode,
+      itemLabel: row.itemLabel,
+      sortOrder: row.sortOrder ?? 0,
+      isEnabled: enabled,
+      remark: row.remark ?? ""
+    });
+    ElMessage.success(enabled ? "已启用" : "已禁用");
+    clearEnumCache();
+    emit("changed");
+  } catch {
+    row.isEnabled = prev;
+  } finally {
+    togglingId.value = null;
+  }
+}
 
 async function onDelete(row) {
   await ElMessageBox.confirm(

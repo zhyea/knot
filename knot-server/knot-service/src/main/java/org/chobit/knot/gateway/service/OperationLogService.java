@@ -1,10 +1,10 @@
 package org.chobit.knot.gateway.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.chobit.knot.gateway.entity.OperationLogEntity;
 import org.chobit.knot.gateway.mapper.OperationLogMapper;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
@@ -20,11 +20,9 @@ public class OperationLogService {
     private static final Logger log = LoggerFactory.getLogger(OperationLogService.class);
 
     private final OperationLogMapper operationLogMapper;
-    private final ObjectMapper objectMapper;
 
-    public OperationLogService(OperationLogMapper operationLogMapper, ObjectMapper objectMapper) {
+    public OperationLogService(OperationLogMapper operationLogMapper) {
         this.operationLogMapper = operationLogMapper;
-        this.objectMapper = objectMapper;
     }
 
     /**
@@ -83,13 +81,13 @@ public class OperationLogService {
             return;
         }
         try {
-            JsonNode oldRoot = objectMapper.readTree(oldV);
-            JsonNode newRoot = objectMapper.readTree(newV);
-            if (!oldRoot.isObject() || !newRoot.isObject()) {
+            JsonNode oldRoot = JsonKit.parse(oldV);
+            JsonNode newRoot = JsonKit.parse(newV);
+            if (oldRoot == null || newRoot == null || !oldRoot.isObject() || !newRoot.isObject()) {
                 return;
             }
-            ObjectNode oldOut = objectMapper.createObjectNode();
-            ObjectNode newOut = objectMapper.createObjectNode();
+            ObjectNode oldOut = JsonKit.createObjectNode();
+            ObjectNode newOut = JsonKit.createObjectNode();
             SortedSet<String> keys = new TreeSet<>();
             oldRoot.fieldNames().forEachRemaining(keys::add);
             newRoot.fieldNames().forEachRemaining(keys::add);
@@ -110,8 +108,8 @@ public class OperationLogService {
                 e.setOldValue(null);
                 e.setNewValue(null);
             } else {
-                e.setOldValue(oldOut.isEmpty() ? null : objectMapper.writeValueAsString(oldOut));
-                e.setNewValue(newOut.isEmpty() ? null : objectMapper.writeValueAsString(newOut));
+                e.setOldValue(oldOut.isEmpty() ? null : JsonKit.toJson(oldOut));
+                e.setNewValue(newOut.isEmpty() ? null : JsonKit.toJson(newOut));
             }
         } catch (Exception ex) {
             log.debug("Skip old/new diff trim for operation log: {}", ex.toString());

@@ -20,7 +20,11 @@ public interface BillingConverter {
 
     // ==================== Entity ↔ DTO ====================
 
+    @org.mapstruct.Mapping(source = "status", target = "enabled", qualifiedByName = "billingStatusToEnabled")
     BillingRuleDto toRuleDto(BillingRuleEntity entity);
+
+    @org.mapstruct.Mapping(source = "enabled", target = "status", qualifiedByName = "billingEnabledToStatus")
+    BillingRuleEntity toRuleEntity(BillingRuleDto dto);
 
     @Mapping(source = "totalTokens", target = "tokenUsage")
     @Mapping(source = "costAmount", target = "cost")

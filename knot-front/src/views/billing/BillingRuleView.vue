@@ -5,10 +5,23 @@
       <el-button @click="load">刷新</el-button>
     </div>
     <el-table v-loading="loading" :data="rows" stripe border size="small">
+      <el-table-column prop="id" label="ID" width="70" align="center" />
       <el-table-column prop="code" label="编码" width="120" />
       <el-table-column prop="name" label="名称" min-width="140" />
       <el-table-column prop="unit" label="单位" width="90" />
       <el-table-column prop="unitPrice" label="单价" width="100" />
+      <el-table-column label="启用" width="88" align="center">
+        <template #default="{ row }">
+          <el-switch
+            :model-value="row.enabled !== false"
+            :loading="togglingId === row.id"
+            inline-prompt
+            active-text="启"
+            inactive-text="停"
+            @change="(val) => onEnabledChange(row, val)"
+          />
+        </template>
+      </el-table-column>
     </el-table>
     <div class="pagination-wrap">
       <el-pagination
@@ -29,6 +42,7 @@
         <el-form-item label="名称" required><el-input v-model="ruleForm.name" /></el-form-item>
         <el-form-item label="单位"><el-input v-model="ruleForm.unit" placeholder="1K tokens" /></el-form-item>
         <el-form-item label="单价"><el-input-number v-model="ruleForm.unitPrice" :min="0" :step="0.0001" :precision="6" /></el-form-item>
+        <el-form-item label="启用"><el-switch v-model="ruleForm.enabled" /></el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="ruleDlg = false">取消</el-button>
@@ -43,18 +57,31 @@ import { reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import { usePageList } from "../../composables/usePageList";
-import { listBillingRules, createBillingRule } from "../../api/billing";
+import { useEnabledToggle } from "../../composables/useEnabledToggle";
+import { listBillingRules, createBillingRule, updateBillingRule } from "../../api/billing";
 
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } = usePageList(listBillingRules);
+
+const { togglingId, onEnabledChange } = useEnabledToggle({
+  updateApi: updateBillingRule,
+  buildPayload: (row, enabled) => ({
+    code: row.code,
+    name: row.name,
+    unit: row.unit,
+    unitPrice: row.unitPrice,
+    enabled
+  })
+});
 const ruleDlg = ref(false);
 const saving = ref(false);
-const ruleForm = reactive({ code: "", name: "", unit: "1K tokens", unitPrice: 0.002 });
+const ruleForm = reactive({ code: "", name: "", unit: "1K tokens", unitPrice: 0.002, enabled: true });
 
 function openRule() {
   ruleForm.code = "";
   ruleForm.name = "";
   ruleForm.unit = "1K tokens";
   ruleForm.unitPrice = 0.002;
+  ruleForm.enabled = true;
   ruleDlg.value = true;
 }
 
@@ -69,7 +96,8 @@ async function submitRule() {
       code: ruleForm.code.trim(),
       name: ruleForm.name.trim(),
       unit: ruleForm.unit,
-      unitPrice: ruleForm.unitPrice
+      unitPrice: ruleForm.unitPrice,
+      enabled: ruleForm.enabled
     });
     ElMessage.success("已创建");
     ruleDlg.value = false;

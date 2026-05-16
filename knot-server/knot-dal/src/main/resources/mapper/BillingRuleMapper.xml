@@ -8,9 +8,24 @@
         order by id desc
     </select>
 
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
+        select id, code, name, billing_mode, unit, unit_price, status, effective_from
+        from billing_rules
+        where id = #{id}
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into billing_rules(code, name, billing_mode, unit, unit_price, status, effective_from)
         values(#{code}, #{name}, #{billingMode}, #{unit}, #{unitPrice}, #{status}, #{effectiveFrom})
     </insert>
+
+    <update id="update">
+        update billing_rules
+        set name       = #{name},
+            unit       = #{unit},
+            unit_price = #{unitPrice},
+            status     = #{status}
+        where id = #{id}
+    </update>
 
 </mapper>

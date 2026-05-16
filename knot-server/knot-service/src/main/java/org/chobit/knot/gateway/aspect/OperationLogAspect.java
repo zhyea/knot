@@ -1,10 +1,9 @@
 package org.chobit.knot.gateway.aspect;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.entity.OperationLogEntity;
 import org.chobit.knot.gateway.service.OperationLogService;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -32,13 +31,11 @@ public class OperationLogAspect {
     private static final Logger log = LoggerFactory.getLogger(OperationLogAspect.class);
 
     private final OperationLogService operationLogService;
-    private final ObjectMapper objectMapper;
     private final BeanFactory beanFactory;
     private final ExpressionParser parser = new SpelExpressionParser();
 
-    public OperationLogAspect(OperationLogService operationLogService, ObjectMapper objectMapper, BeanFactory beanFactory) {
+    public OperationLogAspect(OperationLogService operationLogService, BeanFactory beanFactory) {
         this.operationLogService = operationLogService;
-        this.objectMapper = objectMapper;
         this.beanFactory = beanFactory;
     }
 
@@ -105,12 +102,8 @@ public class OperationLogAspect {
         if (value instanceof String s) {
             return s;
         }
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
-            log.warn("Operation log JSON serialize failed", e);
-            return String.valueOf(value);
-        }
+        String json = JsonKit.toJson(value);
+        return json != null ? json : String.valueOf(value);
     }
 
     private Object evaluateExpression(ProceedingJoinPoint joinPoint, String expression, Object result) {

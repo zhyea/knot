@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.controller;
 
+import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -31,12 +32,26 @@ public class ProviderController {
         return page.mapList(providerConverter::toVOList);
     }
 
+    @OperationLog(module = "provider", operation = "CREATE", entityType = "Provider",
+            entityIdAfter = "#result.id()",
+            entityNameAfter = "#result.name()",
+            description = "'新建供应商'",
+            recordNewValue = true,
+            newValueSpel = "@providerService.providerAuditSnapshot(#result.id())")
     @PostMapping
     public ProviderItem create(@RequestBody @Valid ProviderItem request) {
         ProviderDto created = providerService.create(providerConverter.toDto(request));
         return providerConverter.toVO(created);
     }
 
+    @OperationLog(module = "provider", operation = "UPDATE", entityType = "Provider",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'更新供应商'",
+            recordOldValue = true,
+            oldValueSpel = "@providerService.providerAuditSnapshot(#p0)",
+            recordNewValue = true,
+            newValueSpel = "@providerService.providerAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     public ProviderItem update(@PathVariable Long id, @RequestBody @Valid ProviderItem request) {
         ProviderDto updated = providerService.update(id, providerConverter.toDto(request));
@@ -49,12 +64,26 @@ public class ProviderController {
                 .map(this::toDiscountPolicyVO).toList();
     }
 
+    @OperationLog(module = "provider", operation = "CREATE", entityType = "Provider",
+            entityId = "#p0",
+            entityNameAfter = "@providerService.getById(#p0).name()",
+            description = "'新增折扣策略'",
+            recordNewValue = true,
+            newValueSpel = "#result")
     @PostMapping("/{id}/discount-policies")
     public DiscountPolicy createDiscountPolicy(@PathVariable Long id, @RequestBody @Valid DiscountPolicy request) {
         DiscountPolicyDto created = providerService.createDiscountPolicy(id, toDiscountPolicyDto(request));
         return toDiscountPolicyVO(created);
     }
 
+    @OperationLog(module = "provider", operation = "UPDATE", entityType = "Provider",
+            entityId = "#p0",
+            entityNameAfter = "@providerService.getById(#p0).name()",
+            description = "'更新折扣策略'",
+            recordOldValue = true,
+            oldValueSpel = "@providerService.discountPolicyAuditSnapshot(#p1)",
+            recordNewValue = true,
+            newValueSpel = "#result")
     @PutMapping("/{id}/discount-policies/{policyId}")
     public DiscountPolicy updateDiscountPolicy(
             @PathVariable Long id,
@@ -75,5 +104,4 @@ public class ProviderController {
         return new DiscountPolicy(dto.id(), dto.policyName(), dto.scopeType(), dto.scopeRefId(),
                 dto.discountType(), dto.discountValue(), dto.priority(), dto.status());
     }
-
 }

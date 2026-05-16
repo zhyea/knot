@@ -17,6 +17,9 @@ import org.chobit.knot.gateway.mapper.ModelVersionMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 @Service
 public class ModelService {
     private final ModelMapper modelMapper;
@@ -41,6 +44,27 @@ public class ModelService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "model not found");
         }
         return modelConverter.toDto(entity);
+    }
+
+    public Map<String, Object> modelAuditSnapshot(Long id) {
+        if (id == null) {
+            return null;
+        }
+        try {
+            ModelDto dto = getById(id);
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", dto.id());
+            m.put("name", dto.name());
+            m.put("providerId", dto.providerId());
+            m.put("modelType", dto.modelType());
+            m.put("version", dto.version());
+            m.put("enabled", dto.enabled());
+            m.put("rateLimitPolicy", dto.rateLimitPolicy());
+            m.put("quotaPolicy", dto.quotaPolicy());
+            return m;
+        } catch (BusinessException e) {
+            return null;
+        }
     }
 
     @Transactional
@@ -72,7 +96,7 @@ public class ModelService {
         entity.setId(id);
         entity.setModelCode(existing.getModelCode());
         modelMapper.update(entity);
-        return modelConverter.toDto(entity);
+        return getById(id);
     }
 
     // ==================== 模型测试 ====================

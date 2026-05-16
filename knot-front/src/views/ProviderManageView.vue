@@ -1,299 +1,90 @@
 ﻿<template>
   <PageSection title="供应商管理">
-    <div class="toolbar">
-      <el-button type="primary" @click="openCreate">新建供应商</el-button>
-      <el-button @click="load">刷新</el-button>
-    </div>
-    <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
-      <el-table-column prop="id" label="ID" min-width="5%" align="center" header-align="center" />
-      <el-table-column prop="name" label="名称" min-width="15%" />
-      <el-table-column prop="type" label="类型" min-width="10%" />
-      <el-table-column prop="baseUrl" label="Base URL" min-width="30%" show-overflow-tooltip />
-      <el-table-column label="启用" min-width="8%">
-        <template #default="{ row }">
-          <StatusTag :active="row.enabled" />
-        </template>
-      </el-table-column>
-      <el-table-column prop="lastOperatorName" label="最后操作人" min-width="10%" show-overflow-tooltip />
-      <el-table-column label="最后修改时间" min-width="14%" align="center" header-align="center">
-        <template #default="{ row }">
-          {{ formatDateTime(row.lastModifiedAt) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" min-width="15%" align="center" header-align="center">
-        <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="primary" @click="openDiscount(row)">折扣策略</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-    <div class="pagination-wrap">
-      <el-pagination
-        background
-        layout="total, sizes, prev, pager, next"
-        :total="total"
-        :page-size="pageSize"
-        :current-page="pageNum"
-        :page-sizes="[10, 20, 50]"
-        @current-change="onPageChange"
-        @size-change="onSizeChange"
-      />
-    </div>
+    <ProviderListPanel
+      :rows="rows"
+      :loading="loading"
+      :total="total"
+      :page-num="pageNum"
+      :page-size="pageSize"
+      @create="openCreate"
+      @refresh="load"
+      @edit="openEdit"
+      @discount="openDiscount"
+      @log="openChangeLog"
+      @page-change="onPageChange"
+      @size-change="onSizeChange"
+      @changed="load"
+    />
 
-    <el-dialog v-model="dialog.visible" :title="dialog.isEdit ? '编辑供应商' : '新建供应商'" width="560px" destroy-on-close>
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="名称" required>
-          <el-input v-model="form.name" placeholder="供应商名称" />
-        </el-form-item>
-        <el-form-item label="类型">
-          <el-select v-model="form.type" placeholder="请选择供应商类型" clearable style="width: 100%">
-            <el-option
-              v-for="item in providerTypeOptions"
-              :key="item.itemCode"
-              :label="item.itemLabel"
-              :value="item.itemCode"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="Base URL">
-          <el-input v-model="form.baseUrl" placeholder="https://..." />
-        </el-form-item>
-        <el-form-item label="启用">
-          <el-switch v-model="form.enabled" />
-        </el-form-item>
-        <el-form-item label="频控策略">
-          <KvEditor v-model="form.rateLimitPolicy" value-mode="number" />
-        </el-form-item>
-        <el-form-item label="额度策略">
-          <KvEditor v-model="form.quotaPolicy" value-mode="number" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialog.visible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitForm">保存</el-button>
-      </template>
-    </el-dialog>
+    <ProviderFormDialog v-model="formVisible" :provider="editingProvider" @saved="onProviderSaved" />
 
-    <el-drawer v-model="discountDrawer" :title="`折扣策略 — 供应商 #${currentId}`" size="520px" destroy-on-close>
-      <div class="toolbar">
-        <el-button type="primary" size="small" @click="openDiscountForm()">新增策略</el-button>
-        <el-button size="small" @click="loadDiscounts">刷新</el-button>
-      </div>
-      <el-table :data="discountRows" size="small" border style="width: 100%">
-        <el-table-column prop="id" label="ID" min-width="5%" align="center" header-align="center" />
-        <el-table-column prop="policyName" label="策略名" min-width="25%" />
-        <el-table-column prop="discountType" label="类型" min-width="12%" />
-        <el-table-column prop="discountValue" label="值" min-width="10%" />
-        <el-table-column prop="status" label="状态" min-width="10%" />
-        <el-table-column label="操作" min-width="10%" align="center" header-align="center">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openDiscountForm(row)">编辑</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <el-dialog v-model="dForm.visible" :title="dForm.id ? '编辑折扣' : '新增折扣'" width="480px" append-to-body>
-        <el-form :model="dForm" label-width="100px">
-          <el-form-item label="策略名"><el-input v-model="dForm.policyName" /></el-form-item>
-          <el-form-item label="范围类型"><el-input v-model="dForm.scopeType" placeholder="GLOBAL / MODEL" /></el-form-item>
-          <el-form-item label="范围 ID"><el-input-number v-model="dForm.scopeRefId" :min="0" /></el-form-item>
-          <el-form-item label="折扣类型"><el-input v-model="dForm.discountType" placeholder="RATE" /></el-form-item>
-          <el-form-item label="折扣值"><el-input-number v-model="dForm.discountValue" :step="0.01" /></el-form-item>
-          <el-form-item label="优先级"><el-input-number v-model="dForm.priority" :min="0" /></el-form-item>
-          <el-form-item label="状态"><el-input v-model="dForm.status" placeholder="ACTIVE" /></el-form-item>
-        </el-form>
-        <template #footer>
-          <el-button @click="dForm.visible = false">取消</el-button>
-          <el-button type="primary" :loading="dSaving" @click="submitDiscount">保存</el-button>
-        </template>
-      </el-dialog>
-    </el-drawer>
+    <ProviderDiscountDrawer
+      v-model="discountDrawerVisible"
+      :provider-id="discountProviderId"
+      @changed="load"
+    />
+
+    <OperationLogDrawer
+      v-model="logDrawer"
+      :title="`供应商变更日志 — ${logProviderName || ''}`"
+      :load-logs="loadProviderOperationLogs"
+    />
   </PageSection>
 </template>
 
 <script setup>
-import { reactive, ref, onMounted } from "vue";
-import { ElMessage } from "element-plus";
+import { ref, onMounted } from "vue";
 import PageSection from "../components/common/PageSection.vue";
-import StatusTag from "../components/common/StatusTag.vue";
-import KvEditor from "../components/common/KvEditor.vue";
+import OperationLogDrawer from "../components/common/OperationLogDrawer.vue";
+import ProviderListPanel from "../components/provider/ProviderListPanel.vue";
+import ProviderFormDialog from "../components/provider/ProviderFormDialog.vue";
+import ProviderDiscountDrawer from "../components/provider/ProviderDiscountDrawer.vue";
+import { listProviderOperationLogs } from "../api/operationLogs";
 import { usePageList } from "../composables/usePageList";
-import { useEnums } from "../composables/useEnums";
-import {
-  listProviders,
-  createProvider,
-  updateProvider,
-  listDiscountPolicies,
-  createDiscountPolicy,
-  updateDiscountPolicy
-} from "../api/providers";
+import { listProviders } from "../api/providers";
 
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } = usePageList(listProviders);
-const { options: providerTypeOptions, loadOptions: loadProviderTypes } = useEnums("provider_type");
-const saving = ref(false);
-const dialog = reactive({ visible: false, isEdit: false });
-const form = reactive({
-  id: null,
-  name: "",
-  type: "",
-  baseUrl: "",
-  enabled: true,
-  rateLimitPolicy: {},
-  quotaPolicy: {}
-});
+const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange } = usePageList(listProviders);
 
-const discountDrawer = ref(false);
-const currentId = ref(null);
-const discountRows = ref([]);
-const dSaving = ref(false);
-const dForm = reactive({
-  visible: false,
-  id: null,
-  policyName: "",
-  scopeType: "GLOBAL",
-  scopeRefId: 0,
-  discountType: "RATE",
-  discountValue: 0.9,
-  priority: 10,
-  status: "ACTIVE"
-});
+const formVisible = ref(false);
+const editingProvider = ref(null);
 
-function policyPayload() {
-  return {
-    id: form.id,
-    name: form.name,
-    type: form.type,
-    baseUrl: form.baseUrl,
-    enabled: form.enabled,
-    rateLimitPolicy: Object.keys(form.rateLimitPolicy).length ? form.rateLimitPolicy : null,
-    quotaPolicy: Object.keys(form.quotaPolicy).length ? form.quotaPolicy : null
-  };
-}
+const discountDrawerVisible = ref(false);
+const discountProviderId = ref(null);
+
+const logDrawer = ref(false);
+const logProviderId = ref(null);
+const logProviderName = ref("");
 
 function openCreate() {
-  dialog.isEdit = false;
-  form.id = null;
-  form.name = "";
-  form.type = "";
-  form.baseUrl = "";
-  form.enabled = true;
-  form.rateLimitPolicy = {};
-  form.quotaPolicy = {};
-  dialog.visible = true;
+  editingProvider.value = null;
+  formVisible.value = true;
 }
 
 function openEdit(row) {
-  dialog.isEdit = true;
-  form.id = row.id;
-  form.name = row.name;
-  form.type = row.type;
-  form.baseUrl = row.baseUrl || "";
-  form.enabled = !!row.enabled;
-  form.rateLimitPolicy = row.rateLimitPolicy && typeof row.rateLimitPolicy === "object" ? { ...row.rateLimitPolicy } : {};
-  form.quotaPolicy = row.quotaPolicy && typeof row.quotaPolicy === "object" ? { ...row.quotaPolicy } : {};
-  dialog.visible = true;
+  editingProvider.value = row;
+  formVisible.value = true;
 }
 
-async function submitForm() {
-  if (!form.name?.trim()) {
-    ElMessage.warning("请填写名称");
-    return;
-  }
-  saving.value = true;
-  try {
-    const payload = policyPayload();
-    if (dialog.isEdit) {
-      await updateProvider(form.id, payload);
-      ElMessage.success("已保存");
-    } else {
-      await createProvider(payload);
-      ElMessage.success("已创建");
-    }
-    dialog.visible = false;
-    await resetPage();
-  } finally {
-    saving.value = false;
-  }
+function onProviderSaved() {
+  load();
 }
 
-async function openDiscount(row) {
-  currentId.value = row.id;
-  discountDrawer.value = true;
-  await loadDiscounts();
+function openDiscount(row) {
+  discountProviderId.value = row.id;
+  discountDrawerVisible.value = true;
 }
 
-async function loadDiscounts() {
-  if (!currentId.value) return;
-  const res = await listDiscountPolicies(currentId.value);
-  discountRows.value = Array.isArray(res) ? res : (res.list || []);
+function openChangeLog(row) {
+  logProviderId.value = row.id;
+  logProviderName.value = row.name || `#${row.id}`;
+  logDrawer.value = true;
 }
 
-function openDiscountForm(row) {
-  if (row) {
-    dForm.id = row.id;
-    dForm.policyName = row.policyName;
-    dForm.scopeType = row.scopeType;
-    dForm.scopeRefId = row.scopeRefId;
-    dForm.discountType = row.discountType;
-    dForm.discountValue = row.discountValue;
-    dForm.priority = row.priority;
-    dForm.status = row.status;
-  } else {
-    dForm.id = null;
-    dForm.policyName = "";
-    dForm.scopeType = "GLOBAL";
-    dForm.scopeRefId = 0;
-    dForm.discountType = "RATE";
-    dForm.discountValue = 0.95;
-    dForm.priority = 10;
-    dForm.status = "ACTIVE";
-  }
-  dForm.visible = true;
-}
-
-async function submitDiscount() {
-  dSaving.value = true;
-  try {
-    const body = {
-      id: dForm.id,
-      policyName: dForm.policyName,
-      scopeType: dForm.scopeType,
-      scopeRefId: dForm.scopeRefId,
-      discountType: dForm.discountType,
-      discountValue: dForm.discountValue,
-      priority: dForm.priority,
-      status: dForm.status
-    };
-    if (dForm.id) {
-      await updateDiscountPolicy(currentId.value, dForm.id, body);
-    } else {
-      await createDiscountPolicy(currentId.value, body);
-    }
-    ElMessage.success("已保存");
-    dForm.visible = false;
-    await loadDiscounts();
-  } finally {
-    dSaving.value = false;
-  }
+function loadProviderOperationLogs() {
+  return listProviderOperationLogs(logProviderId.value);
 }
 
 onMounted(() => {
   load();
-  loadProviderTypes();
 });
-
-function formatDateTime(val) {
-  if (!val) return "-";
-  const d = new Date(val);
-  if (Number.isNaN(d.getTime())) return "-";
-  const p = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
-}
 </script>
-
-<style scoped>
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-</style>

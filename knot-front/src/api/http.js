@@ -1,6 +1,7 @@
 import axios from "axios";
 import { ElMessage } from "element-plus";
 import { useAuth } from "../composables/useAuth";
+import { touchIdleActivity } from "../composables/idleActivity";
 import router from "../router";
 
 const http = axios.create({
@@ -13,6 +14,9 @@ http.interceptors.request.use((config) => {
   const { token } = useAuth();
   if (token.value) {
     config.headers.Authorization = `Bearer ${token.value}`;
+    if (!config.skipIdleTouch) {
+      touchIdleActivity();
+    }
   }
   return config;
 });

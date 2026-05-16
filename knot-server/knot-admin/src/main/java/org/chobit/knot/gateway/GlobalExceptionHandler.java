@@ -2,6 +2,7 @@ package org.chobit.knot.gateway;
 
 import jakarta.validation.ConstraintViolationException;
 import org.chobit.knot.gateway.error.BusinessException;
+import org.chobit.knot.gateway.error.UnauthorizedException;
 import org.chobit.knot.gateway.rw.RwProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +25,13 @@ public class GlobalExceptionHandler {
 
     public GlobalExceptionHandler(RwProperties rwProperties) {
         this.rwProperties = rwProperties;
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public ApiResponse<Void> handleUnauthorized(UnauthorizedException e) {
+        log.warn("Unauthorized: code={}, message={}", e.getCode(), e.getMessage());
+        return ApiResponse.fail(rwProperties.getFailCode(), e.getMessage());
     }
 
     @ExceptionHandler(BusinessException.class)

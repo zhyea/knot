@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue';
 import { login as apiLogin, logout as apiLogout } from '../api/auth';
+import { clearIdleActivity, touchIdleActivity } from './idleActivity';
 
 const TOKEN_KEY = 'knot_token';
 const USER_KEY = 'knot_user';
@@ -25,6 +26,7 @@ export function useAuth() {
     user.value = null;
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    clearIdleActivity();
   }
 
   async function login(username, password) {
@@ -35,6 +37,7 @@ export function useAuth() {
       username: response.username,
       realName: response.realName,
     });
+    touchIdleActivity();
     return response;
   }
 

@@ -40,3 +40,8 @@ export function getOperationLogsByEntity(entityType, entityId, config) {
 export function listUserOperationLogs(userId) {
   return getOperationLogsByEntity("User", userId, { params: { module: "user" } });
 }
+
+/** 某供应商（entity_type=Provider）在 provider 模块下的操作日志 */
+export function listProviderOperationLogs(providerId) {
+  return getOperationLogsByEntity("Provider", providerId, { params: { module: "provider" } });
+}

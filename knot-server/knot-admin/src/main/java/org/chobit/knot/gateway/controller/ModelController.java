@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.controller;
 
+import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -10,7 +11,6 @@ import org.chobit.knot.gateway.dto.model.ModelVersionSwitchResultDto;
 import org.chobit.knot.gateway.service.ModelService;
 import org.chobit.knot.gateway.vo.model.*;
 import jakarta.validation.Valid;
-import org.chobit.knot.gateway.vo.model.*;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -30,12 +30,26 @@ public class ModelController {
         return page.mapList(modelConverter::toVOList);
     }
 
+    @OperationLog(module = "model", operation = "CREATE", entityType = "Model",
+            entityIdAfter = "#result.id()",
+            entityNameAfter = "#result.name()",
+            description = "'新建模型'",
+            recordNewValue = true,
+            newValueSpel = "@modelService.modelAuditSnapshot(#result.id())")
     @PostMapping
     public ModelItem create(@RequestBody @Valid ModelItem request) {
         ModelDto created = modelService.create(modelConverter.toDto(request));
         return modelConverter.toVO(created);
     }
 
+    @OperationLog(module = "model", operation = "UPDATE", entityType = "Model",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'更新模型'",
+            recordOldValue = true,
+            oldValueSpel = "@modelService.modelAuditSnapshot(#p0)",
+            recordNewValue = true,
+            newValueSpel = "@modelService.modelAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     public ModelItem update(@PathVariable Long id, @RequestBody @Valid ModelItem request) {
         ModelDto updated = modelService.update(id, modelConverter.toDto(request));
@@ -53,5 +67,4 @@ public class ModelController {
         ModelVersionSwitchResultDto result = modelService.switchVersion(id, request.targetVersion());
         return new ModelVersionSwitchResult(result.modelId(), result.activeVersion(), result.status());
     }
-
 }

@@ -13,9 +13,16 @@
       <el-table-column prop="providerId" label="供应商 ID" min-width="10%" />
       <el-table-column prop="modelType" label="类型" min-width="10%" />
       <el-table-column prop="version" label="版本" min-width="10%" />
-      <el-table-column label="启用" min-width="8%">
+      <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
-          <StatusTag :active="row.enabled" />
+          <el-switch
+            :model-value="row.enabled !== false"
+            :loading="togglingId === row.id"
+            inline-prompt
+            active-text="启"
+            inactive-text="停"
+            @change="(val) => onEnabledChange(row, val)"
+          />
         </template>
       </el-table-column>
       <el-table-column label="操作" min-width="20%" align="center" header-align="center">
@@ -91,12 +98,26 @@
 import { reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
-import StatusTag from "../components/common/StatusTag.vue";
 import { parsePolicies } from "../utils/format";
 import { usePageList } from "../composables/usePageList";
+import { useEnabledToggle } from "../composables/useEnabledToggle";
 import { listModels, createModel, updateModel, testModel, switchModelVersion } from "../api/models";
 
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } = usePageList(listModels);
+
+const { togglingId, onEnabledChange } = useEnabledToggle({
+  updateApi: updateModel,
+  buildPayload: (row, enabled) => ({
+    name: row.name,
+    providerId: row.providerId,
+    modelType: row.modelType,
+    version: row.version,
+    enabled,
+    rateLimitPolicy: row.rateLimitPolicy ?? null,
+    quotaPolicy: row.quotaPolicy ?? null
+  })
+});
+
 const saving = ref(false);
 const dialog = reactive({ visible: false, isEdit: false });
 const form = reactive({

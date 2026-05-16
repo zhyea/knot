@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.rw;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.chobit.knot.gateway.ApiResponse;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.MethodParameter;
@@ -28,11 +28,9 @@ public class ApiResponseWrapperAdvice implements ResponseBodyAdvice<Object> {
     private static final Logger log = LoggerFactory.getLogger(ApiResponseWrapperAdvice.class);
 
     private final RwProperties rwProperties;
-    private final ObjectMapper objectMapper;
 
-    public ApiResponseWrapperAdvice(RwProperties rwProperties, ObjectMapper objectMapper) {
+    public ApiResponseWrapperAdvice(RwProperties rwProperties) {
         this.rwProperties = rwProperties;
-        this.objectMapper = objectMapper;
         log.debug("ApiResponseWrapperAdvice enabled, silentMode={}", rwProperties.isSilentMode());
     }
 
@@ -74,12 +72,12 @@ public class ApiResponseWrapperAdvice implements ResponseBodyAdvice<Object> {
         String tagStr = resolveTags(returnType);
         ApiResponse<Object> wrapped = ApiResponse.ok(body, rwProperties.getSuccessCode(), tagStr);
         if (selectedConverterType.equals(StringHttpMessageConverter.class)) {
-            try {
-                return objectMapper.writeValueAsString(wrapped);
-            } catch (Exception e) {
-                log.warn("Failed to serialize ApiResponse as JSON string", e);
+            String json = JsonKit.toJson(wrapped);
+            if (json == null) {
+                log.warn("Failed to serialize ApiResponse as JSON string");
                 return wrapped;
             }
+            return json;
         }
         return wrapped;
     }

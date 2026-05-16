@@ -12,9 +12,16 @@
       <el-table-column prop="targetProviderId" label="供应商" width="90" />
       <el-table-column prop="targetModelId" label="模型" width="80" />
       <el-table-column prop="priority" label="优先级" width="80" />
-      <el-table-column label="启用" width="80">
+      <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
-          <StatusTag :active="row.enabled" />
+          <el-switch
+            :model-value="row.enabled !== false"
+            :loading="togglingId === row.id"
+            inline-prompt
+            active-text="启"
+            inactive-text="停"
+            @change="(val) => onEnabledChange(row, val)"
+          />
         </template>
       </el-table-column>
       <el-table-column label="操作" width="140" align="center" header-align="center">
@@ -74,11 +81,24 @@
 import { reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
-import StatusTag from "../../components/common/StatusTag.vue";
 import { usePageList } from "../../composables/usePageList";
+import { useEnabledToggle } from "../../composables/useEnabledToggle";
 import { listRoutingRules, createRoutingRule, updateRoutingRule, testRoutingRule } from "../../api/routing";
 
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } = usePageList(listRoutingRules);
+
+const { togglingId, onEnabledChange } = useEnabledToggle({
+  updateApi: updateRoutingRule,
+  buildPayload: (row, enabled) => ({
+    name: row.name,
+    strategy: row.strategy,
+    conditionExpr: row.conditionExpr,
+    targetProviderId: row.targetProviderId,
+    targetModelId: row.targetModelId,
+    priority: row.priority,
+    enabled
+  })
+});
 const saving = ref(false);
 const dialog = reactive({ visible: false, isEdit: false });
 const form = reactive({

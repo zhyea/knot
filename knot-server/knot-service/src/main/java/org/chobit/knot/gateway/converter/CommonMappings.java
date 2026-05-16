@@ -1,12 +1,11 @@
 package org.chobit.knot.gateway.converter;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.mapstruct.Named;
 import org.springframework.stereotype.Component;
 
@@ -17,12 +16,6 @@ import java.util.List;
  */
 @Component
 public class CommonMappings {
-
-    private final ObjectMapper objectMapper;
-
-    public CommonMappings(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
 
     // ==================== status ↔ enabled ====================
 
@@ -36,26 +29,35 @@ public class CommonMappings {
         return enabled ? "ENABLED" : "DISABLED";
     }
 
+    @Named("billingStatusToEnabled")
+    public boolean billingStatusToEnabled(String status) {
+        if (status == null) {
+            return false;
+        }
+        return "ACTIVE".equalsIgnoreCase(status) || "ENABLED".equalsIgnoreCase(status);
+    }
+
+    @Named("billingEnabledToStatus")
+    public String billingEnabledToStatus(boolean enabled) {
+        return enabled ? "ACTIVE" : "INACTIVE";
+    }
+
     // ==================== JSON ↔ RateLimitPolicy ====================
 
     @Named("jsonToRateLimit")
     public RateLimitPolicy jsonToRateLimit(String json) {
         if (json == null || json.isBlank()) return null;
-        try {
-            return objectMapper.readValue(json, RateLimitPolicy.class);
-        } catch (JsonProcessingException ex) {
-            return null;
-        }
+        return JsonKit.fromJson(json, RateLimitPolicy.class);
     }
 
     @Named("rateLimitToJson")
     public String rateLimitToJson(RateLimitPolicy policy) {
         if (policy == null) return null;
-        try {
-            return objectMapper.writeValueAsString(policy);
-        } catch (JsonProcessingException ex) {
+        String json = JsonKit.toJson(policy);
+        if (json == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "invalid rate limit policy json");
         }
+        return json;
     }
 
     // ==================== JSON ↔ QuotaPolicy ====================
@@ -63,21 +65,17 @@ public class CommonMappings {
     @Named("jsonToQuota")
     public QuotaPolicy jsonToQuota(String json) {
         if (json == null || json.isBlank()) return null;
-        try {
-            return objectMapper.readValue(json, QuotaPolicy.class);
-        } catch (JsonProcessingException ex) {
-            return null;
-        }
+        return JsonKit.fromJson(json, QuotaPolicy.class);
     }
 
     @Named("quotaToJson")
     public String quotaToJson(QuotaPolicy policy) {
         if (policy == null) return null;
-        try {
-            return objectMapper.writeValueAsString(policy);
-        } catch (JsonProcessingException ex) {
+        String json = JsonKit.toJson(policy);
+        if (json == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "invalid quota policy json");
         }
+        return json;
     }
 
     // ==================== Long id → Alert ID (ALERT- 前缀) ====================
@@ -104,20 +102,16 @@ public class CommonMappings {
     @Named("jsonToSteps")
     public List<Integer> jsonToSteps(String json) {
         if (json == null || json.isBlank()) return List.of(10, 30, 50, 100);
-        try {
-            List<Integer> parsed = objectMapper.readValue(json, new TypeReference<>() {});
-            return (parsed == null || parsed.isEmpty()) ? List.of(10, 30, 50, 100) : List.copyOf(parsed);
-        } catch (JsonProcessingException ex) {
-            return List.of(10, 30, 50, 100);
-        }
+        List<Integer> parsed = JsonKit.fromJson(json, new TypeReference<>() {});
+        return (parsed == null || parsed.isEmpty()) ? List.of(10, 30, 50, 100) : List.copyOf(parsed);
     }
 
     @Named("stepsToJson")
     public String stepsToJson(List<Integer> steps) {
-        try {
-            return objectMapper.writeValueAsString(steps);
-        } catch (JsonProcessingException ex) {
+        String json = JsonKit.toJson(steps);
+        if (json == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "steps json serialize failed");
         }
+        return json;
     }
 }

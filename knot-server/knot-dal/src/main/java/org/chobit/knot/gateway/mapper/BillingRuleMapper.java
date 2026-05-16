@@ -10,5 +10,9 @@ public interface BillingRuleMapper {
 
     List<BillingRuleEntity> list();
 
+    BillingRuleEntity getById(Long id);
+
     int insert(BillingRuleEntity entity);
+
+    int update(BillingRuleEntity entity);
 }

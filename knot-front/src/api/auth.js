@@ -5,5 +5,5 @@ export function login(data) {
 }
 
 export function logout() {
-  return post('/api/auth/logout');
+  return post('/api/auth/logout', null, { skipIdleTouch: true });
 }
