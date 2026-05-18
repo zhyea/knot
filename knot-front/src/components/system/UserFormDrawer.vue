@@ -1,44 +1,46 @@
 <template>
   <el-drawer
-    :model-value="modelValue"
-    :title="isEdit ? '编辑用户' : '新建用户'"
-    size="480px"
-    destroy-on-close
-    @update:model-value="emit('update:modelValue', $event)"
+      :model-value="modelValue"
+      :title="isEdit ? '编辑用户' : '新建用户'"
+      size="40%"
+      destroy-on-close
+      @update:model-value="emit('update:modelValue', $event)"
   >
     <el-form :model="form" label-width="90px">
-      <el-form-item label="用户名">
-        <el-input v-model="form.username" :disabled="isEdit" placeholder="请输入用户名" />
-      </el-form-item>
-      <el-form-item label="姓名">
-        <el-input v-model="form.realName" placeholder="请输入姓名" />
-      </el-form-item>
-      <el-form-item v-if="isEdit" label="密码">
-        <el-input
-          v-model="form.password"
-          type="password"
-          placeholder="留空则不修改密码"
-          show-password
-        />
-      </el-form-item>
-      <el-form-item v-else label="密码" required>
-        <el-input
-          v-model="form.password"
-          type="password"
-          placeholder="请设置密码"
-          show-password
-        />
-      </el-form-item>
-      <el-form-item label="状态">
-        <el-switch
-          v-model="form.status"
-          :active-value="1"
-          :inactive-value="0"
-          active-text="启用"
-          inactive-text="禁用"
-          inline-prompt
-        />
-      </el-form-item>
+      <div class="slot-body">
+        <el-form-item label="用户名">
+          <el-input v-model="form.username" :disabled="isEdit" placeholder="请输入用户名"/>
+        </el-form-item>
+        <el-form-item label="姓名">
+          <el-input v-model="form.realName" placeholder="请输入姓名"/>
+        </el-form-item>
+        <el-form-item v-if="isEdit" label="密码">
+          <el-input
+              v-model="form.password"
+              type="password"
+              placeholder="留空则不修改密码"
+              show-password
+          />
+        </el-form-item>
+        <el-form-item v-else label="密码" required>
+          <el-input
+              v-model="form.password"
+              type="password"
+              placeholder="请设置密码"
+              show-password
+          />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-switch
+              v-model="form.status"
+              :active-value="1"
+              :inactive-value="0"
+              active-text="启用"
+              inactive-text="禁用"
+              inline-prompt
+          />
+        </el-form-item>
+      </div>
     </el-form>
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
@@ -48,14 +50,14 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from "vue";
-import { ElMessage } from "element-plus";
-import { createUser, updateUser } from "../../api/users";
+import {computed, reactive, ref, watch} from "vue";
+import {ElMessage} from "element-plus";
+import {createUser, updateUser} from "../../api/users";
 
 const props = defineProps({
-  modelValue: { type: Boolean, default: false },
+  modelValue: {type: Boolean, default: false},
   /** 传入用户对象表示编辑，null 表示新建 */
-  user: { type: Object, default: null }
+  user: {type: Object, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -88,11 +90,11 @@ function resetForm() {
 }
 
 watch(
-  () => [props.modelValue, props.user],
-  ([visible]) => {
-    if (visible) resetForm();
-  },
-  { immediate: true }
+    () => [props.modelValue, props.user],
+    ([visible]) => {
+      if (visible) resetForm();
+    },
+    {immediate: true}
 );
 
 async function submit() {

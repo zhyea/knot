@@ -29,6 +29,8 @@ export function useAuth() {
     clearIdleActivity();
   }
 
+  const isAdmin = computed(() => (user.value?.roles || []).includes('ADMIN'));
+
   async function login(username, password) {
     const response = await apiLogin({ username, password });
     setToken(response.token);
@@ -36,6 +38,7 @@ export function useAuth() {
       userId: response.userId,
       username: response.username,
       realName: response.realName,
+      roles: response.roles || [],
     });
     touchIdleActivity();
     return response;
@@ -53,6 +56,7 @@ export function useAuth() {
     token,
     user,
     isLoggedIn,
+    isAdmin,
     login,
     logout,
   };

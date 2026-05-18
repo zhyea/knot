@@ -1,35 +1,42 @@
 ﻿<template>
-  <PageSection
-    title="模型管理"
-   
-  >
+  <PageSection title="模型管理">
     <div class="toolbar">
       <el-button type="primary" @click="openCreate">新建模型</el-button>
       <el-button @click="load">刷新</el-button>
     </div>
     <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
-      <el-table-column prop="id" label="ID" min-width="5%" align="center" header-align="center" />
-      <el-table-column prop="name" label="名称" min-width="15%" />
-      <el-table-column prop="providerId" label="供应商 ID" min-width="10%" />
-      <el-table-column prop="modelType" label="类型" min-width="10%" />
-      <el-table-column prop="version" label="版本" min-width="10%" />
+      <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
+      <el-table-column prop="modelCode" label="模型编码" min-width="140" show-overflow-tooltip />
+      <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip />
+      <el-table-column label="供应商" min-width="120" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.providerName || (row.providerId != null ? `#${row.providerId}` : "—") }}
+        </template>
+      </el-table-column>
+      <el-table-column label="类型" min-width="100">
+        <template #default="{ row }">
+          {{ modelTypeLabel(row.modelType) }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="version" label="版本" min-width="110" show-overflow-tooltip />
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch
             :model-value="row.enabled !== false"
             :loading="togglingId === row.id"
             inline-prompt
-            active-text="启"
-            inactive-text="停"
+            active-text="启用"
+            inactive-text="禁用"
             @change="(val) => onEnabledChange(row, val)"
           />
         </template>
       </el-table-column>
-      <el-table-column label="操作" min-width="20%" align="center" header-align="center">
+      <el-table-column label="操作" width="260" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
           <el-button link type="primary" @click="openTest(row)">测试</el-button>
           <el-button link type="primary" @click="openSwitch(row)">切版本</el-button>
+          <el-button link type="primary" @click="openChangeLog(row)">日志</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -46,30 +53,25 @@
       />
     </div>
 
-    <el-dialog v-model="dialog.visible" :title="dialog.isEdit ? '编辑模型' : '新建模型'" width="580px" destroy-on-close>
-      <el-form :model="form" label-width="110px">
-        <el-form-item v-if="!dialog.isEdit" label="模型编码">
-          <el-input v-model="form.modelCode" placeholder="可选，留空自动生成" />
-        </el-form-item>
-        <el-form-item label="名称" required><el-input v-model="form.name" /></el-form-item>
-        <el-form-item label="供应商 ID" required><el-input-number v-model="form.providerId" :min="1" /></el-form-item>
-        <el-form-item label="模型类型"><el-input v-model="form.modelType" placeholder="CHAT / EMBED" /></el-form-item>
-        <el-form-item label="版本"><el-input v-model="form.version" /></el-form-item>
-        <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
-        <el-form-item label="频控 JSON"><el-input v-model="form.rateLimitJson" type="textarea" :rows="3" /></el-form-item>
-        <el-form-item label="额度 JSON"><el-input v-model="form.quotaJson" type="textarea" :rows="3" /></el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dialog.visible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitForm">保存</el-button>
-      </template>
-    </el-dialog>
+    <ModelFormDrawer v-model="formVisible" :model="editingModel" @saved="onFormSaved" />
+
+    <OperationLogDrawer
+      v-model="logDrawer"
+      :title="`模型变更日志 — ${logModelName || ''}`"
+      :load-logs="loadModelOperationLogs"
+    />
 
     <el-dialog v-model="testDlg" title="模型联调测试" width="480px" destroy-on-close>
       <el-form label-width="90px">
-        <el-form-item label="Prompt"><el-input v-model="testForm.prompt" type="textarea" :rows="4" /></el-form-item>
-        <el-form-item label="温度"><el-input-number v-model="testForm.temperature" :step="0.1" :min="0" :max="2" /></el-form-item>
-        <el-form-item label="Max tokens"><el-input-number v-model="testForm.maxTokens" :min="1" /></el-form-item>
+        <el-form-item label="Prompt">
+          <el-input v-model="testForm.prompt" type="textarea" :rows="4" />
+        </el-form-item>
+        <el-form-item label="温度">
+          <el-input-number v-model="testForm.temperature" :step="0.1" :min="0" :max="2" />
+        </el-form-item>
+        <el-form-item label="Max tokens">
+          <el-input-number v-model="testForm.maxTokens" :min="1" />
+        </el-form-item>
       </el-form>
       <el-alert v-if="testResult" type="success" :closable="false" class="mt">
         <template #title>输出（演示）</template>
@@ -84,7 +86,9 @@
 
     <el-dialog v-model="swDlg" title="切换活跃版本" width="400px" destroy-on-close>
       <el-form label-width="100px">
-        <el-form-item label="目标版本"><el-input v-model="swVersion" /></el-form-item>
+        <el-form-item label="目标版本">
+          <el-input v-model="swVersion" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="swDlg = false">取消</el-button>
@@ -95,15 +99,27 @@
 </template>
 
 <script setup>
-import { reactive, ref } from "vue";
+import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
-import { parsePolicies } from "../utils/format";
+import ModelFormDrawer from "../components/model/ModelFormDrawer.vue";
+import OperationLogDrawer from "../components/common/OperationLogDrawer.vue";
+import { listModelOperationLogs } from "../api/operationLogs";
 import { usePageList } from "../composables/usePageList";
 import { useEnabledToggle } from "../composables/useEnabledToggle";
-import { listModels, createModel, updateModel, testModel, switchModelVersion } from "../api/models";
+import { useEnums } from "../composables/useEnums";
+import { listModels, updateModel, testModel, switchModelVersion } from "../api/models";
 
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } = usePageList(listModels);
+const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
+  usePageList(listModels);
+
+const { options: modelTypeOptions, loadOptions: loadModelTypes } = useEnums("model_type");
+
+function modelTypeLabel(code) {
+  if (!code) return "—";
+  const item = modelTypeOptions.value.find((i) => i.itemCode === code);
+  return item?.itemLabel || code;
+}
 
 const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateModel,
@@ -118,19 +134,12 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
   })
 });
 
-const saving = ref(false);
-const dialog = reactive({ visible: false, isEdit: false });
-const form = reactive({
-  id: null,
-  modelCode: "",
-  name: "",
-  providerId: 1,
-  modelType: "CHAT",
-  version: "1.0.0",
-  enabled: true,
-  rateLimitJson: "",
-  quotaJson: ""
-});
+const formVisible = ref(false);
+const editingModel = ref(null);
+
+const logDrawer = ref(false);
+const logModelId = ref(null);
+const logModelName = ref("");
 
 const testDlg = ref(false);
 const testLoading = ref(false);
@@ -143,69 +152,28 @@ const swLoading = ref(false);
 const swId = ref(null);
 const swVersion = ref("");
 
-function payload() {
-  const { rateLimitPolicy, quotaPolicy } = parsePolicies(form);
-  return {
-    id: form.id,
-    modelCode: form.modelCode || null,
-    name: form.name,
-    providerId: form.providerId,
-    modelType: form.modelType,
-    version: form.version,
-    enabled: form.enabled,
-    rateLimitPolicy,
-    quotaPolicy
-  };
-}
-
 function openCreate() {
-  dialog.isEdit = false;
-  form.id = null;
-  form.modelCode = "";
-  form.name = "";
-  form.providerId = 1;
-  form.modelType = "CHAT";
-  form.version = "1.0.0";
-  form.enabled = true;
-  form.rateLimitJson = "";
-  form.quotaJson = "";
-  dialog.visible = true;
+  editingModel.value = null;
+  formVisible.value = true;
 }
 
 function openEdit(row) {
-  dialog.isEdit = true;
-  form.id = row.id;
-  form.modelCode = row.modelCode || "";
-  form.name = row.name;
-  form.providerId = row.providerId;
-  form.modelType = row.modelType;
-  form.version = row.version;
-  form.enabled = !!row.enabled;
-  form.rateLimitJson = row.rateLimitPolicy ? JSON.stringify(row.rateLimitPolicy, null, 2) : "";
-  form.quotaJson = row.quotaPolicy ? JSON.stringify(row.quotaPolicy, null, 2) : "";
-  dialog.visible = true;
+  editingModel.value = row;
+  formVisible.value = true;
 }
 
-async function submitForm() {
-  if (!form.name?.trim()) {
-    ElMessage.warning("请填写名称");
-    return;
-  }
-  saving.value = true;
-  try {
-    const p = payload();
-    if (dialog.isEdit) {
-      await updateModel(form.id, p);
-      ElMessage.success("已保存");
-    } else {
-      await createModel(p);
-      ElMessage.success("已创建");
-    }
-    dialog.visible = false;
-    await resetPage();
-  } finally {
-    saving.value = false;
-  }
+function onFormSaved() {
+  resetPage();
+}
+
+function openChangeLog(row) {
+  logModelId.value = row.id;
+  logModelName.value = row.name || row.modelCode || `#${row.id}`;
+  logDrawer.value = true;
+}
+
+function loadModelOperationLogs() {
+  return listModelOperationLogs(logModelId.value);
 }
 
 function openTest(row) {
@@ -249,18 +217,27 @@ async function runSwitch() {
   }
 }
 
-load();
+onMounted(() => {
+  loadModelTypes();
+  load();
+});
 </script>
 
 <style scoped>
+.toolbar {
+  margin-bottom: 12px;
+}
+
 .pagination-wrap {
   display: flex;
   justify-content: flex-end;
   margin-top: 16px;
 }
+
 .mt {
   margin-top: 12px;
 }
+
 .sub {
   margin-top: 6px;
   font-size: 12px;

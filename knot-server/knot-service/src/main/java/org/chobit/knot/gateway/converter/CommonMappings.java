@@ -9,7 +9,9 @@ import org.chobit.knot.gateway.util.JsonKit;
 import org.mapstruct.Named;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * MapStruct 共享转换方法：status↔enabled、JSON↔Object
@@ -74,6 +76,29 @@ public class CommonMappings {
         String json = JsonKit.toJson(policy);
         if (json == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "invalid quota policy json");
+        }
+        return json;
+    }
+
+    // ==================== JSON ↔ Map (认证配置等) ====================
+
+    @Named("jsonToStringObjectMap")
+    public Map<String, Object> jsonToStringObjectMap(String json) {
+        if (json == null || json.isBlank()) {
+            return new LinkedHashMap<>();
+        }
+        Map<String, Object> parsed = JsonKit.fromJson(json, new TypeReference<>() {});
+        return parsed != null ? new LinkedHashMap<>(parsed) : new LinkedHashMap<>();
+    }
+
+    @Named("stringObjectMapToJson")
+    public String stringObjectMapToJson(Map<String, Object> map) {
+        if (map == null || map.isEmpty()) {
+            return null;
+        }
+        String json = JsonKit.toJson(map);
+        if (json == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "invalid auth config json");
         }
         return json;
     }

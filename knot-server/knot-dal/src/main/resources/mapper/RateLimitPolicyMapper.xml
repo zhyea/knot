@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.RateLimitPolicyMapper">
+
+    <sql id="Columns">
+        id, policy_code, policy_name, per_second, per_minute, time_window, status, remark
+    </sql>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.RateLimitPolicyEntity">
+        select <include refid="Columns"/> from rate_limit_policies where id = #{id}
+    </select>
+
+    <select id="listByIds" resultType="org.chobit.knot.gateway.entity.RateLimitPolicyEntity">
+        select <include refid="Columns"/> from rate_limit_policies
+        where id in
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into rate_limit_policies(policy_code, policy_name, per_second, per_minute, time_window, status, remark)
+        values(#{policyCode}, #{policyName}, #{perSecond}, #{perMinute}, #{timeWindow}, #{status}, #{remark})
+    </insert>
+
+    <update id="update">
+        update rate_limit_policies
+        set policy_name = #{policyName},
+            per_second = #{perSecond},
+            per_minute = #{perMinute},
+            time_window = #{timeWindow},
+            status = #{status},
+            remark = #{remark}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from rate_limit_policies where id = #{id}
+    </delete>
+</mapper>

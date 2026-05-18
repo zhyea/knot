@@ -16,7 +16,7 @@
       @changed="load"
     />
 
-    <ProviderFormDialog v-model="formVisible" :provider="editingProvider" @saved="onProviderSaved" />
+    <ProviderFormDrawer v-model="formVisible" :provider="editingProvider" @saved="onProviderSaved" />
 
     <ProviderDiscountDrawer
       v-model="discountDrawerVisible"
@@ -37,7 +37,7 @@ import { ref, onMounted } from "vue";
 import PageSection from "../components/common/PageSection.vue";
 import OperationLogDrawer from "../components/common/OperationLogDrawer.vue";
 import ProviderListPanel from "../components/provider/ProviderListPanel.vue";
-import ProviderFormDialog from "../components/provider/ProviderFormDialog.vue";
+import ProviderFormDrawer from "../components/provider/ProviderFormDrawer.vue";
 import ProviderDiscountDrawer from "../components/provider/ProviderDiscountDrawer.vue";
 import { listProviderOperationLogs } from "../api/operationLogs";
 import { usePageList } from "../composables/usePageList";

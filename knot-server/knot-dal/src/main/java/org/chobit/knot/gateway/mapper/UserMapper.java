@@ -21,4 +21,6 @@ public interface UserMapper {
     int updateUser(UserEntity entity);
 
     int updateLastLoginTime(Long id);
+
+    List<String> listRoleCodesByUserId(Long userId);
 }

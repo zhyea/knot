@@ -7,9 +7,8 @@ import org.chobit.knot.gateway.util.JsonKit;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.context.expression.BeanFactoryResolver;
 import org.springframework.expression.ExpressionParser;
@@ -24,11 +23,10 @@ import jakarta.servlet.http.HttpServletRequest;
 /**
  * 操作日志切面：拦截 {@link OperationLog} 注解，异步写入 operation_logs。
  */
+@Slf4j
 @Aspect
 @Component
 public class OperationLogAspect {
-
-    private static final Logger log = LoggerFactory.getLogger(OperationLogAspect.class);
 
     private final OperationLogService operationLogService;
     private final BeanFactory beanFactory;

@@ -7,6 +7,7 @@ import io.jsonwebtoken.security.Keys;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.List;
 
 /**
  * JWT 令牌工具类
@@ -19,9 +20,14 @@ public class JwtUtil {
     private static final long EXPIRATION_MS = 24L * 60 * 60 * 1000; // 24h
 
     public static String generateToken(Long userId, String username) {
+        return generateToken(userId, username, List.of());
+    }
+
+    public static String generateToken(Long userId, String username, List<String> roles) {
         return Jwts.builder()
                 .subject(username)
                 .claim("userId", userId)
+                .claim("roles", roles != null ? roles : List.of())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + EXPIRATION_MS))
                 .signWith(KEY)

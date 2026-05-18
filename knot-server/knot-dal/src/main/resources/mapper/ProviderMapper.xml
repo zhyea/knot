@@ -2,35 +2,41 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.gateway.mapper.ProviderMapper">
 
+    <sql id="ProviderColumns">
+        id, code, name, provider_type, base_url, status
+    </sql>
+
     <select id="list" resultType="org.chobit.knot.gateway.entity.ProviderEntity">
-        select id, code, name, provider_type, base_url, status,
-               cast(rate_limit_json as char) as rate_limit_json,
-               cast(quota_json as char) as quota_json
+        select <include refid="ProviderColumns"/>
         from providers
         order by id desc
     </select>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.ProviderEntity">
-        select id, code, name, provider_type, base_url, status,
-               cast(rate_limit_json as char) as rate_limit_json,
-               cast(quota_json as char) as quota_json
+        select <include refid="ProviderColumns"/>
         from providers
         where id = #{id}
     </select>
 
+    <select id="countByCode" resultType="java.lang.Long">
+        select count(1) from providers where code = #{code}
+        <if test="excludeId != null">
+            and id != #{excludeId}
+        </if>
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into providers(code, name, provider_type, base_url, status, rate_limit_json, quota_json)
-        values(#{code}, #{name}, #{providerType}, #{baseUrl}, #{status}, #{rateLimitJson}, #{quotaJson})
+        insert into providers(code, name, provider_type, base_url, status)
+        values(#{code}, #{name}, #{providerType}, #{baseUrl}, #{status})
     </insert>
 
     <update id="update">
         update providers
-        set name = #{name},
+        set code = #{code},
+            name = #{name},
             provider_type = #{providerType},
             base_url = #{baseUrl},
-            status = #{status},
-            rate_limit_json = #{rateLimitJson},
-            quota_json = #{quotaJson}
+            status = #{status}
         where id = #{id}
     </update>
 

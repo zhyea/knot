@@ -14,13 +14,12 @@ public interface ModelConverter {
     // ==================== Entity ↔ DTO ====================
 
     @Mapping(source = "status", target = "enabled", qualifiedByName = "statusToEnabled")
-    @Mapping(source = "rateLimitJson", target = "rateLimitPolicy", qualifiedByName = "jsonToRateLimit")
-    @Mapping(source = "quotaJson", target = "quotaPolicy", qualifiedByName = "jsonToQuota")
+    @Mapping(target = "rateLimitPolicy", ignore = true)
+    @Mapping(target = "quotaPolicy", ignore = true)
     ModelDto toDto(ModelEntity entity);
 
     @Mapping(source = "enabled", target = "status", qualifiedByName = "enabledToStatus")
-    @Mapping(source = "rateLimitPolicy", target = "rateLimitJson", qualifiedByName = "rateLimitToJson")
-    @Mapping(source = "quotaPolicy", target = "quotaJson", qualifiedByName = "quotaToJson")
+    @Mapping(target = "providerName", ignore = true)
     ModelEntity toEntity(ModelDto dto);
 
     List<ModelDto> toDtoList(List<ModelEntity> entities);
@@ -29,7 +28,7 @@ public interface ModelConverter {
 
     ModelItem toVO(ModelDto dto);
 
-    @Mapping(target = "modelCode", ignore = true)
+    @Mapping(target = "providerName", ignore = true)
     ModelDto toDto(ModelItem vo);
 
     List<ModelItem> toVOList(List<ModelDto> dtos);

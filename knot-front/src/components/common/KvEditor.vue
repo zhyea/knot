@@ -11,6 +11,9 @@
         v-model="item.val"
         placeholder="值"
         class="kv-val"
+        :type="valueSecret ? 'password' : 'text'"
+        :show-password="valueSecret && allowReveal"
+        autocomplete="off"
         @change="emitUpdate"
       />
       <el-button
@@ -32,7 +35,11 @@ const props = defineProps({
   /** v-model 绑定的 JSON 对象 */
   modelValue: { type: Object, default: () => ({}) },
   /** 值类型提示，number 时自动将值转为数字 */
-  valueMode: { type: String, default: "string" } // "string" | "number"
+  valueMode: { type: String, default: "string" }, // "string" | "number"
+  /** 值以密码框展示（默认掩码） */
+  valueSecret: { type: Boolean, default: false },
+  /** 是否显示密码框右侧小眼睛（仅管理员应为 true） */
+  allowReveal: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(["update:modelValue"]);

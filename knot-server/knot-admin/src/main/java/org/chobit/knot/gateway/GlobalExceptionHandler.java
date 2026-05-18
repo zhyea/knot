@@ -1,11 +1,10 @@
 package org.chobit.knot.gateway;
 
 import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.UnauthorizedException;
 import org.chobit.knot.gateway.rw.RwProperties;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -16,10 +15,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 /**
  * 全局异常处理器（返回 {@link ApiResponse}，不经 {@link org.chobit.knot.gateway.rw.ApiResponseWrapperAdvice} 二次包装）。
  */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
-    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     private final RwProperties rwProperties;
 

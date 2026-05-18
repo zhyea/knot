@@ -64,16 +64,38 @@ INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
 -- =========================
 
 -- 供应商
-INSERT IGNORE INTO providers (id, code, name, provider_type, base_url, status, rate_limit_json, quota_json) VALUES
-(1, 'openai',       'OpenAI',       'OPENAI',  'https://api.openai.com',       'ENABLED', '{"perSecond":100,"perMinute":5000,"timeWindow":"MINUTE"}', '{"dailyLimit":1000000,"monthlyLimit":30000000,"tokenLimit":500000000,"alertEnabled":true}'),
-(2, 'anthropic',    'Anthropic',    'ANTHROPIC','https://api.anthropic.com',     'ENABLED', '{"perSecond":50,"perMinute":2000,"timeWindow":"MINUTE"}',  '{"dailyLimit":500000,"monthlyLimit":15000000,"tokenLimit":200000000,"alertEnabled":true}'),
-(3, 'deepseek',     'DeepSeek',     'DEEPSEEK','https://api.deepseek.com',      'ENABLED', '{"perSecond":30,"perMinute":1000,"timeWindow":"MINUTE"}',  '{"dailyLimit":200000,"monthlyLimit":6000000,"tokenLimit":100000000,"alertEnabled":false}');
+INSERT IGNORE INTO providers (id, code, name, provider_type, base_url, status) VALUES
+(1, 'openai',       'OpenAI',       'OPENAI',  'https://api.openai.com',       'ENABLED'),
+(2, 'anthropic',    'Anthropic',    'ANTHROPIC','https://api.anthropic.com',     'ENABLED'),
+(3, 'deepseek',     'DeepSeek',     'DEEPSEEK','https://api.deepseek.com',      'ENABLED');
 
--- 供应商凭证
+-- 频控/额度策略（独立表 + 资源绑定）
+INSERT IGNORE INTO rate_limit_policies (id, policy_code, policy_name, per_second, per_minute, time_window, status) VALUES
+(1, 'PROVIDER-1-RL', 'PROVIDER #1 频控', 100, 5000, 'MINUTE', 'ACTIVE'),
+(2, 'PROVIDER-2-RL', 'PROVIDER #2 频控', 50,  2000, 'MINUTE', 'ACTIVE'),
+(3, 'PROVIDER-3-RL', 'PROVIDER #3 频控', 30,  1000, 'MINUTE', 'ACTIVE'),
+(4, 'APP-1-RL',      'APP #1 频控',      10,  600,  'MINUTE', 'ACTIVE'),
+(5, 'APP-2-RL',      'APP #2 频控',      5,   300,  'MINUTE', 'ACTIVE');
+
+INSERT IGNORE INTO quota_policies (id, policy_code, policy_name, daily_limit, monthly_limit, token_limit, alert_enabled, status) VALUES
+(1, 'PROVIDER-1-QT', 'PROVIDER #1 额度', 1000000, 30000000, 500000000, 1, 'ACTIVE'),
+(2, 'PROVIDER-2-QT', 'PROVIDER #2 额度', 500000,  15000000, 200000000, 1, 'ACTIVE'),
+(3, 'PROVIDER-3-QT', 'PROVIDER #3 额度', 200000,  6000000,  100000000, 0, 'ACTIVE'),
+(4, 'APP-1-QT',      'APP #1 额度',      10000,   300000,   5000000,   1, 'ACTIVE'),
+(5, 'APP-2-QT',      'APP #2 额度',      5000,    150000,   2000000,   1, 'ACTIVE');
+
+INSERT IGNORE INTO resource_traffic_policies (id, resource_type, resource_id, rate_limit_policy_id, quota_policy_id) VALUES
+(1, 'PROVIDER', 1, 1, 1),
+(2, 'PROVIDER', 2, 2, 2),
+(3, 'PROVIDER', 3, 3, 3),
+(4, 'APP',      1, 4, 4),
+(5, 'APP',      2, 5, 5);
+
+-- 供应商凭证（encrypted_key 等为 AES-GCM 密文，前缀 ENC:；开发密钥见 application.yml knot.credential.encryption-key）
 INSERT IGNORE INTO provider_credentials (id, provider_id, credential_type, encrypted_key, status) VALUES
-(1, 1, 'API_KEY',    'sk-openai-demo-xxxxx',        'ACTIVE'),
-(2, 2, 'API_KEY',    'sk-ant-api03-demo-xxxxx',     'ACTIVE'),
-(3, 3, 'API_KEY',    'sk-deepseek-demo-xxxxx',      'ACTIVE');
+(1, 1, 'API_KEY', 'ENC:I093hp4rWvI0txMTx5d+MwVbdLU8NQ/9X1J6r33Y3gJwGT2slww78nJbasZjfOfD', 'ACTIVE'),
+(2, 2, 'API_KEY', 'ENC:RnptV2Rw7zw4QCm4qHUba0qKaxKQfsv6l3aymW/XfF3j0Fs/k02352ew7lE/tcRyax5/', 'ACTIVE'),
+(3, 3, 'API_KEY', 'ENC:mFDjmYE5M54d8MWNXUcTQS9Ngk7+dv3YDuH6o0x8hv6rehtmM9I38RJUeGrpc0zF4Tw=', 'ACTIVE');
 
 -- 供应商折扣策略
 INSERT IGNORE INTO provider_discount_policies (id, provider_id, policy_name, scope_type, scope_ref_id, discount_type, discount_value, priority, effective_from, status) VALUES
@@ -82,14 +104,14 @@ INSERT IGNORE INTO provider_discount_policies (id, provider_id, policy_name, sco
 (3, 3, '直减5元',     'GLOBAL',   NULL, 'FIXED',      5.0000, 100, NOW(), 'ACTIVE');
 
 -- 模型
-INSERT IGNORE INTO models (id, provider_id, model_code, name, model_type, version, status, rate_limit_json, quota_json) VALUES
-(1,  1, 'gpt-4o',            'GPT-4o',            'CHAT',   '2024-08-06', 'ENABLED', NULL, NULL),
-(2,  1, 'gpt-4o-mini',       'GPT-4o Mini',       'CHAT',   '2024-07-18', 'ENABLED', NULL, NULL),
-(3,  1, 'text-embedding-3-large','Text Embedding 3 Large','EMBEDDING','2024-01-01','ENABLED', NULL, NULL),
-(4,  2, 'claude-sonnet-4-20250514','Claude Sonnet 4','CHAT', '2025-05-14','ENABLED',  NULL, NULL),
-(5,  2, 'claude-haiku-3-5-20241022','Claude 3.5 Haiku','CHAT','2024-10-22','ENABLED',NULL, NULL),
-(6,  3, 'deepseek-chat',     'DeepSeek Chat',     'CHAT',   '2024-08-01', 'ENABLED', NULL, NULL),
-(7,  3, 'deepseek-reasoner', 'DeepSeek Reasoner', 'CHAT',   '2025-01-20', 'ENABLED', NULL, NULL);
+INSERT IGNORE INTO models (id, provider_id, model_code, name, model_type, version, status) VALUES
+(1,  1, 'gpt-4o',            'GPT-4o',            'CHAT',   '2024-08-06', 'ENABLED'),
+(2,  1, 'gpt-4o-mini',       'GPT-4o Mini',       'CHAT',   '2024-07-18', 'ENABLED'),
+(3,  1, 'text-embedding-3-large','Text Embedding 3 Large','EMBEDDING','2024-01-01','ENABLED'),
+(4,  2, 'claude-sonnet-4-20250514','Claude Sonnet 4','CHAT', '2025-05-14','ENABLED'),
+(5,  2, 'claude-haiku-3-5-20241022','Claude 3.5 Haiku','CHAT','2024-10-22','ENABLED'),
+(6,  3, 'deepseek-chat',     'DeepSeek Chat',     'CHAT',   '2024-08-01', 'ENABLED'),
+(7,  3, 'deepseek-reasoner', 'DeepSeek Reasoner', 'CHAT',   '2025-01-20', 'ENABLED');
 
 -- 模型版本
 INSERT IGNORE INTO model_versions (id, model_id, version, gray_percent, status) VALUES
@@ -105,10 +127,10 @@ INSERT IGNORE INTO model_versions (id, model_id, version, gray_percent, status) 
 -- =========================
 
 -- 应用
-INSERT IGNORE INTO apps (id, app_id, name, owner_user_id, status, rate_limit_json, quota_json) VALUES
-(1, 'app_001', '内部知识库助手',   1, 'ENABLED', '{"perSecond":10,"perMinute":600,"timeWindow":"MINUTE"}',  '{"dailyLimit":10000,"monthlyLimit":300000,"tokenLimit":5000000,"alertEnabled":true}'),
-(2, 'app_002', '客服对话系统',     2, 'ENABLED', '{"perSecond":5,"perMinute":300,"timeWindow":"MINUTE"}',   '{"dailyLimit":5000,"monthlyLimit":150000,"tokenLimit":2000000,"alertEnabled":true}'),
-(3, 'app_003', '代码审查工具',     3, 'ENABLED', NULL, NULL);
+INSERT IGNORE INTO apps (id, app_id, name, owner_user_id, remark, status) VALUES
+(1, 'app_001', '内部知识库助手',   1, '面向内部员工的知识检索与问答', 'ENABLED'),
+(2, 'app_002', '客服对话系统',     2, '对外客服场景的对话接入',       'ENABLED'),
+(3, 'app_003', '代码审查工具',     3, '研发流程中的代码审查辅助',     'ENABLED');
 
 -- 应用凭证
 INSERT IGNORE INTO app_credentials (id, app_id, app_key, app_secret_hash, status) VALUES

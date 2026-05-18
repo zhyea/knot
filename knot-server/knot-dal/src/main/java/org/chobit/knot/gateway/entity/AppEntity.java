@@ -8,7 +8,9 @@ public class AppEntity {
     private String appId;
     private String name;
     private Long ownerUserId;
+    /** 关联 users.real_name，仅查询展示 */
+    private String ownerRealName;
+    private String remark;
+    private Integer isDeleted;
     private String status;
-    private String rateLimitJson;
-    private String quotaJson;
 }

@@ -3,21 +3,18 @@ package org.chobit.knot.gateway.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.chobit.knot.gateway.entity.OperationLogEntity;
+import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.mapper.OperationLogMapper;
 import org.chobit.knot.gateway.util.JsonKit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
-
+@Slf4j
 @Service
 public class OperationLogService {
-
-    private static final Logger log = LoggerFactory.getLogger(OperationLogService.class);
 
     private final OperationLogMapper operationLogMapper;
 

@@ -7,6 +7,8 @@ import org.chobit.knot.gateway.error.UnauthorizedException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
+import java.util.List;
+
 /**
  * JWT 认证拦截器：从请求头提取 token 并校验；失败时抛出 {@link UnauthorizedException} 交由全局异常处理。
  */
@@ -30,6 +32,8 @@ public class AuthInterceptor implements HandlerInterceptor {
             Claims claims = JwtUtil.parseToken(token);
             request.setAttribute("userId", claims.get("userId", Long.class));
             request.setAttribute("username", claims.getSubject());
+            List<String> roles = AuthRoles.fromClaim(claims.get("roles"));
+            request.setAttribute("roles", roles);
             return true;
         } catch (Exception e) {
             throw new UnauthorizedException("token 已过期或无效");

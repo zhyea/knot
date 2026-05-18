@@ -2,7 +2,7 @@
   <el-drawer
     :model-value="modelValue"
     :title="`折扣策略 — 供应商 #${providerId ?? ''}`"
-    size="520px"
+    size="50%"
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
     @closed="onClosed"

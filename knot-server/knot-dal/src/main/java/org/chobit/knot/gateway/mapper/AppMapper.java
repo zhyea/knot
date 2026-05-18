@@ -12,9 +12,19 @@ public interface AppMapper {
 
     AppEntity getById(Long id);
 
+    Long countByAppId(String appId);
+
     int insert(AppEntity entity);
 
     int update(AppEntity entity);
+
+    int softDelete(Long id);
+
+    Long countCredentialsByAppId(Long appId);
+
+    Long countModelPermissionsByAppId(Long appId);
+
+    Long countBillingStatementsByAppId(Long appId);
 
     Long countRequestsByAppId(Long appId);
 

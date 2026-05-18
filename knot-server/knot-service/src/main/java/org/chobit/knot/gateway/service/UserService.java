@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -44,8 +45,9 @@ public class UserService {
         // 更新最后登录时间
         userMapper.updateLastLoginTime(user.getId());
         
-        String token = JwtUtil.generateToken(user.getId(), user.getUsername());
-        return new LoginResponse(token, user.getId(), user.getUsername(), user.getRealName());
+        List<String> roles = userMapper.listRoleCodesByUserId(user.getId());
+        String token = JwtUtil.generateToken(user.getId(), user.getUsername(), roles);
+        return new LoginResponse(token, user.getId(), user.getUsername(), user.getRealName(), roles);
     }
 
     public PageResult<UserDto> listUsers(PageRequest pageRequest) {

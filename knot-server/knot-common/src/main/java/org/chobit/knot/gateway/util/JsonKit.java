@@ -9,8 +9,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 
@@ -20,9 +19,8 @@ import java.io.IOException;
  * 默认使用内置 {@link ObjectMapper}；Spring 容器启动后由 {@code JsonKitConfiguration}
  * 调用 {@link #init(ObjectMapper)}，与 Spring MVC 的 Jackson 配置对齐。
  */
+@Slf4j
 public final class JsonKit {
-
-    private static final Logger log = LoggerFactory.getLogger(JsonKit.class);
 
     private static final ObjectMapper DEFAULT_MAPPER = createDefaultMapper();
 

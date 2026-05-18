@@ -10,9 +10,16 @@ import org.chobit.knot.gateway.converter.ProviderConverter;
 import org.chobit.knot.gateway.dto.provider.DiscountPolicyDto;
 import org.chobit.knot.gateway.dto.provider.ProviderDto;
 import org.chobit.knot.gateway.entity.DiscountPolicyEntity;
+import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.entity.ProviderEntity;
 import org.chobit.knot.gateway.mapper.DiscountPolicyMapper;
+import org.chobit.knot.gateway.mapper.ProviderCredentialMapper;
 import org.chobit.knot.gateway.mapper.ProviderMapper;
+import org.chobit.knot.gateway.auth.CurrentAuth;
+import org.chobit.knot.gateway.constants.TrafficResourceType;
+import org.chobit.knot.gateway.model.QuotaPolicy;
+import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.gateway.util.tools.ProviderCodes;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,31 +28,76 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class ProviderService {
     private final ProviderMapper providerMapper;
+    private final ProviderCredentialMapper providerCredentialMapper;
     private final DiscountPolicyMapper discountPolicyMapper;
     private final ProviderConverter providerConverter;
+    private final ProviderCredentialSupport credentialSupport;
+    private final CurrentAuth currentAuth;
+    private final ResourceTrafficPolicySupport trafficPolicySupport;
 
-    public ProviderService(ProviderMapper providerMapper, DiscountPolicyMapper discountPolicyMapper, ProviderConverter providerConverter) {
+    public ProviderService(ProviderMapper providerMapper,
+                           ProviderCredentialMapper providerCredentialMapper,
+                           DiscountPolicyMapper discountPolicyMapper,
+                           ProviderConverter providerConverter,
+                           ProviderCredentialSupport credentialSupport,
+                           CurrentAuth currentAuth,
+                           ResourceTrafficPolicySupport trafficPolicySupport) {
         this.providerMapper = providerMapper;
+        this.providerCredentialMapper = providerCredentialMapper;
         this.discountPolicyMapper = discountPolicyMapper;
         this.providerConverter = providerConverter;
+        this.credentialSupport = credentialSupport;
+        this.currentAuth = currentAuth;
+        this.trafficPolicySupport = trafficPolicySupport;
     }
 
     public PageResult<ProviderDto> list(PageRequest pageRequest) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<ProviderEntity> pageInfo = new PageInfo<>(providerMapper.list());
-        return PageResult.fromPage(pageInfo, providerConverter::toDtoList, pageRequest);
+        List<ProviderEntity> entities = pageInfo.getList();
+        List<Long> ids = entities.stream().map(ProviderEntity::getId).toList();
+        Map<Long, Map<String, Object>> authMap = credentialSupport.loadAuthConfigBatch(ids);
+        Map<Long, ResourceTrafficPolicySupport.TrafficPolicies> trafficMap =
+                trafficPolicySupport.loadBatch(TrafficResourceType.PROVIDER, ids);
+        List<ProviderDto> dtos = entities.stream()
+                .map(e -> enrich(
+                        providerConverter.toDto(e),
+                        authMap.get(e.getId()),
+                        trafficMap.get(e.getId())))
+                .collect(Collectors.toList());
+        return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
 
     public ProviderDto getById(Long id) {
         ProviderEntity entity = providerMapper.getById(id);
         if (entity == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "provider not found");
+            throw new BusinessException(ErrorCode.NOT_FOUND, "供应商不存在");
         }
-        return providerConverter.toDto(entity);
+        return enrich(entity);
+    }
+
+    public String suggestCode() {
+        for (int i = 0; i < 10; i++) {
+            String code = ProviderCodes.generate();
+            if (isCodeAvailable(code, null)) {
+                return code;
+            }
+        }
+        throw new BusinessException(ErrorCode.CONFLICT, "无法生成可用供应商编码，请手动填写");
+    }
+
+    public boolean isCodeAvailable(String code, Long excludeId) {
+        String normalized = normalizeCode(code);
+        if (normalized.isEmpty()) {
+            return false;
+        }
+        Long count = providerMapper.countByCode(normalized, excludeId);
+        return count == null || count == 0;
     }
 
     /**
@@ -68,6 +120,7 @@ public class ProviderService {
         m.put("type", dto.type());
         m.put("baseUrl", dto.baseUrl());
         m.put("enabled", dto.enabled());
+        m.put("authConfig", credentialSupport.maskAuthConfig(loadRawAuthConfig(id)));
         m.put("rateLimitPolicy", dto.rateLimitPolicy());
         m.put("quotaPolicy", dto.quotaPolicy());
         return m;
@@ -75,25 +128,98 @@ public class ProviderService {
 
     @Transactional
     public ProviderDto create(ProviderDto request) {
+        String code = resolveCodeForSave(request.code(), null);
+        assertCodeAvailable(code, null);
         ProviderEntity entity = providerConverter.toEntity(request);
-        if (entity.getCode() == null || entity.getCode().isBlank()) {
-            entity.setCode("provider_" + System.currentTimeMillis());
-        }
+        entity.setCode(code);
         providerMapper.insert(entity);
-        return providerConverter.toDto(providerMapper.getById(entity.getId()));
+        credentialSupport.saveAuthConfig(entity.getId(), resolveAuthConfigForSave(null, request.authConfig()));
+        trafficPolicySupport.save(TrafficResourceType.PROVIDER, entity.getId(),
+                request.rateLimitPolicy(), request.quotaPolicy());
+        return getById(entity.getId());
     }
 
     @Transactional
     public ProviderDto update(Long id, ProviderDto request) {
         ProviderEntity existing = providerMapper.getById(id);
         if (existing == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "provider not found");
+            throw new BusinessException(ErrorCode.NOT_FOUND, "供应商不存在");
         }
+        String code = resolveCodeForSave(request.code(), existing.getCode());
+        assertCodeAvailable(code, id);
         ProviderEntity entity = providerConverter.toEntity(request);
         entity.setId(id);
-        entity.setCode(existing.getCode());
+        entity.setCode(code);
         providerMapper.update(entity);
-        return providerConverter.toDto(providerMapper.getById(id));
+        credentialSupport.saveAuthConfig(id, resolveAuthConfigForSave(id, request.authConfig()));
+        trafficPolicySupport.save(TrafficResourceType.PROVIDER, id,
+                request.rateLimitPolicy(), request.quotaPolicy());
+        return getById(id);
+    }
+
+    private ProviderDto enrich(ProviderEntity entity) {
+        ProviderCredentialEntity credential = providerCredentialMapper.getActiveByProviderId(entity.getId());
+        ResourceTrafficPolicySupport.TrafficPolicies traffic =
+                trafficPolicySupport.load(TrafficResourceType.PROVIDER, entity.getId());
+        return enrich(
+                providerConverter.toDto(entity),
+                credentialSupport.toAuthConfig(credential),
+                traffic);
+    }
+
+    private ProviderDto enrich(ProviderDto base,
+                               Map<String, Object> authConfig,
+                               ResourceTrafficPolicySupport.TrafficPolicies traffic) {
+        Map<String, Object> auth = authConfig != null ? authConfig : ProviderCredentialSupport.defaultAuthConfig();
+        if (!currentAuth.isAdmin()) {
+            auth = credentialSupport.maskAuthConfig(auth);
+        }
+        RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
+        QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
+        return new ProviderDto(
+                base.id(), base.code(), base.name(), base.type(), base.baseUrl(), base.enabled(),
+                auth, rate, quota
+        );
+    }
+
+    private Map<String, Object> loadRawAuthConfig(Long providerId) {
+        ProviderCredentialEntity credential = providerCredentialMapper.getActiveByProviderId(providerId);
+        return credentialSupport.toAuthConfig(credential);
+    }
+
+    private Map<String, Object> resolveAuthConfigForSave(Long providerId, Map<String, Object> incoming) {
+        if (currentAuth.isAdmin()) {
+            return incoming;
+        }
+        if (providerId == null) {
+            return incoming;
+        }
+        return credentialSupport.mergeAuthConfigForSave(incoming, loadRawAuthConfig(providerId));
+    }
+
+    private static String normalizeCode(String code) {
+        return code != null ? code.trim() : "";
+    }
+
+    private static String resolveCodeForSave(String requested, String fallback) {
+        String code = normalizeCode(requested);
+        if (code.isEmpty()) {
+            code = normalizeCode(fallback);
+        }
+        if (code.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请填写供应商编码");
+        }
+        if (code.length() > ProviderCodes.MAX_LENGTH) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "供应商编码不能超过 " + ProviderCodes.MAX_LENGTH + " 个字符");
+        }
+        return code;
+    }
+
+    private void assertCodeAvailable(String code, Long excludeId) {
+        if (!isCodeAvailable(code, excludeId)) {
+            throw new BusinessException(ErrorCode.CONFLICT, "供应商编码「" + code + "」已存在，请更换后重试");
+        }
     }
 
     // ==================== 折扣策略 ====================
@@ -140,9 +266,6 @@ public class ProviderService {
         return toDiscountPolicyDto(entity);
     }
 
-    /**
-     * 折扣策略审计快照，供操作日志 SpEL 使用。
-     */
     public Map<String, Object> discountPolicyAuditSnapshot(Long policyId) {
         if (policyId == null) {
             return null;

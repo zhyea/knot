@@ -1,4 +1,4 @@
-import { postQuery, post, put } from "./http";
+import { postQuery, post, put, del } from "./http";
 
 export function listApps(params) {
   return postQuery("/api/apps/list", params);
@@ -12,8 +12,8 @@ export function updateApp(id, payload) {
   return put(`/api/apps/${id}`, payload);
 }
 
-export function updateAppQuota(id, quotaPolicy) {
-  return put(`/api/apps/${id}/quota`, quotaPolicy);
+export function deleteApp(id) {
+  return del(`/api/apps/${id}`);
 }
 
 export function getAppMetrics(id) {

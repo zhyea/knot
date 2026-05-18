@@ -1,48 +1,158 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
 <mapper namespace="org.chobit.knot.gateway.mapper.AppMapper">
 
+
+
+    <sql id="AppSelectColumns">
+
+        a.id,
+
+        a.app_id,
+
+        a.name,
+
+        a.owner_user_id,
+
+        a.remark,
+
+        a.is_deleted,
+
+        a.status,
+
+        u.real_name AS owner_real_name
+
+    </sql>
+
+
+
     <select id="list" resultType="org.chobit.knot.gateway.entity.AppEntity">
-        select id, app_id, name, owner_user_id, status,
-               cast(rate_limit_json as char) as rate_limit_json,
-               cast(quota_json as char) as quota_json
-        from apps
-        order by id desc
+
+        select <include refid="AppSelectColumns"/>
+
+        from apps a
+
+        left join users u on a.owner_user_id = u.id and u.is_deleted = 0
+
+        where a.is_deleted = 0
+
+        order by a.id desc
+
     </select>
+
+
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.AppEntity">
-        select id, app_id, name, owner_user_id, status,
-               cast(rate_limit_json as char) as rate_limit_json,
-               cast(quota_json as char) as quota_json
-        from apps
-        where id = #{id}
+
+        select <include refid="AppSelectColumns"/>
+
+        from apps a
+
+        left join users u on a.owner_user_id = u.id and u.is_deleted = 0
+
+        where a.id = #{id} and a.is_deleted = 0
+
     </select>
+
+
+
+    <select id="countByAppId" resultType="java.lang.Long">
+
+        select count(1) from apps where app_id = #{appId}
+
+    </select>
+
+
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into apps(app_id, name, owner_user_id, status, rate_limit_json, quota_json)
-        values(#{appId}, #{name}, #{ownerUserId}, #{status}, #{rateLimitJson}, #{quotaJson})
+
+        insert into apps(app_id, name, owner_user_id, remark, status, is_deleted)
+
+        values(#{appId}, #{name}, #{ownerUserId}, #{remark}, 'ENABLED', 0)
+
     </insert>
 
+
+
     <update id="update">
+
         update apps
+
         set name = #{name},
+
             owner_user_id = #{ownerUserId},
-            status = #{status},
-            rate_limit_json = #{rateLimitJson},
-            quota_json = #{quotaJson}
-        where id = #{id}
+
+            remark = #{remark}
+
+        where id = #{id} and is_deleted = 0
+
     </update>
 
-    <select id="countRequestsByAppId" resultType="java.lang.Long">
-        select count(1) from gateway_requests where app_id = #{appId}
+
+
+    <update id="softDelete">
+
+        update apps
+
+        set is_deleted = 1,
+
+            updated_at = CURRENT_TIMESTAMP
+
+        where id = #{id} and is_deleted = 0
+
+    </update>
+
+
+
+    <select id="countCredentialsByAppId" resultType="java.lang.Long">
+
+        select count(1) from app_credentials where app_id = #{appId}
+
     </select>
+
+
+
+    <select id="countModelPermissionsByAppId" resultType="java.lang.Long">
+
+        select count(1) from app_model_permissions where app_id = #{appId}
+
+    </select>
+
+
+
+    <select id="countBillingStatementsByAppId" resultType="java.lang.Long">
+
+        select count(1) from billing_statements where app_id = #{appId}
+
+    </select>
+
+
+
+    <select id="countRequestsByAppId" resultType="java.lang.Long">
+
+        select count(1) from gateway_requests where app_id = #{appId}
+
+    </select>
+
+
 
     <select id="countSuccessByAppId" resultType="java.lang.Long">
+
         select count(1) from gateway_requests where app_id = #{appId} and status = 'SUCCESS'
+
     </select>
+
+
 
     <select id="sumTokensByAppId" resultType="java.lang.Long">
+
         select coalesce(sum(total_tokens), 0) from gateway_requests where app_id = #{appId}
+
     </select>
 
+
+
 </mapper>
+

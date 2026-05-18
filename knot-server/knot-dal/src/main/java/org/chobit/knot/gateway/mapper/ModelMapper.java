@@ -15,4 +15,7 @@ public interface ModelMapper {
     int insert(ModelEntity entity);
 
     int update(ModelEntity entity);
+
+    Long countByModelCode(@org.apache.ibatis.annotations.Param("modelCode") String modelCode,
+                          @org.apache.ibatis.annotations.Param("excludeId") Long excludeId);
 }

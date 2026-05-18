@@ -2,37 +2,46 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.gateway.mapper.ModelMapper">
 
+    <sql id="ModelSelectColumns">
+        m.id, m.provider_id, m.model_code, m.name, m.model_type, m.version, m.status,
+        p.name AS provider_name
+    </sql>
+
     <select id="list" resultType="org.chobit.knot.gateway.entity.ModelEntity">
-        select id, provider_id, model_code, name, model_type, version, status,
-               cast(rate_limit_json as char) as rate_limit_json,
-               cast(quota_json as char) as quota_json
-        from models
-        order by id desc
+        select <include refid="ModelSelectColumns"/>
+        from models m
+        left join providers p on m.provider_id = p.id
+        order by m.id desc
     </select>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.ModelEntity">
-        select id, provider_id, model_code, name, model_type, version, status,
-               cast(rate_limit_json as char) as rate_limit_json,
-               cast(quota_json as char) as quota_json
-        from models
-        where id = #{id}
+        select <include refid="ModelSelectColumns"/>
+        from models m
+        left join providers p on m.provider_id = p.id
+        where m.id = #{id}
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into models(provider_id, model_code, name, model_type, version, status, rate_limit_json, quota_json)
-        values(#{providerId}, #{modelCode}, #{name}, #{modelType}, #{version}, #{status}, #{rateLimitJson}, #{quotaJson})
+        insert into models(provider_id, model_code, name, model_type, version, status)
+        values(#{providerId}, #{modelCode}, #{name}, #{modelType}, #{version}, #{status})
     </insert>
 
     <update id="update">
         update models
         set provider_id = #{providerId},
+            model_code = #{modelCode},
             name = #{name},
             model_type = #{modelType},
             version = #{version},
-            status = #{status},
-            rate_limit_json = #{rateLimitJson},
-            quota_json = #{quotaJson}
+            status = #{status}
         where id = #{id}
     </update>
+
+    <select id="countByModelCode" resultType="java.lang.Long">
+        select count(1) from models where model_code = #{modelCode}
+        <if test="excludeId != null">
+            and id != #{excludeId}
+        </if>
+    </select>
 
 </mapper>

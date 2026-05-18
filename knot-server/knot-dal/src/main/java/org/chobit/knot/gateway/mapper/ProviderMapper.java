@@ -12,6 +12,9 @@ public interface ProviderMapper {
 
     ProviderEntity getById(Long id);
 
+    Long countByCode(@org.apache.ibatis.annotations.Param("code") String code,
+                     @org.apache.ibatis.annotations.Param("excludeId") Long excludeId);
+
     int insert(ProviderEntity entity);
 
     int update(ProviderEntity entity);

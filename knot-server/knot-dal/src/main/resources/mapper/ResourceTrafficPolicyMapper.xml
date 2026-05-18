@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.ResourceTrafficPolicyMapper">
+
+    <sql id="Columns">
+        id, resource_type, resource_id, rate_limit_policy_id, quota_policy_id
+    </sql>
+
+    <select id="getByResource" resultType="org.chobit.knot.gateway.entity.ResourceTrafficPolicyEntity">
+        select <include refid="Columns"/>
+        from resource_traffic_policies
+        where resource_type = #{resourceType} and resource_id = #{resourceId}
+    </select>
+
+    <select id="listByResources" resultType="org.chobit.knot.gateway.entity.ResourceTrafficPolicyEntity">
+        select <include refid="Columns"/>
+        from resource_traffic_policies
+        where resource_type = #{resourceType}
+        and resource_id in
+        <foreach collection="resourceIds" item="rid" open="(" separator="," close=")">
+            #{rid}
+        </foreach>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into resource_traffic_policies(resource_type, resource_id, rate_limit_policy_id, quota_policy_id)
+        values(#{resourceType}, #{resourceId}, #{rateLimitPolicyId}, #{quotaPolicyId})
+    </insert>
+
+    <update id="update">
+        update resource_traffic_policies
+        set rate_limit_policy_id = #{rateLimitPolicyId},
+            quota_policy_id = #{quotaPolicyId}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from resource_traffic_policies where id = #{id}
+    </delete>
+</mapper>

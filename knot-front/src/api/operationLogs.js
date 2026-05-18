@@ -45,3 +45,13 @@ export function listUserOperationLogs(userId) {
 export function listProviderOperationLogs(providerId) {
   return getOperationLogsByEntity("Provider", providerId, { params: { module: "provider" } });
 }
+
+/** 某模型（entity_type=Model）在 model 模块下的操作日志 */
+export function listModelOperationLogs(modelId) {
+  return getOperationLogsByEntity("Model", modelId, { params: { module: "model" } });
+}
+
+/** 某应用（entity_type=App）在 app 模块下的操作日志 */
+export function listAppOperationLogs(appId) {
+  return getOperationLogsByEntity("App", appId, { params: { module: "app" } });
+}

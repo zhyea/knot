@@ -10,6 +10,4 @@ public class ProviderEntity {
     private String providerType;
     private String baseUrl;
     private String status;
-    private String rateLimitJson;
-    private String quotaJson;
 }

@@ -37,6 +37,11 @@ rw:
   silent-mode: true
   tags: []
 
+# 供应商/应用凭证库内加密密钥（生产请用环境变量 KNOT_CREDENTIAL_ENCRYPTION_KEY 覆盖）
+knot:
+  credential:
+    encryption-key: ${KNOT_CREDENTIAL_ENCRYPTION_KEY:knot-dev-credential-encryption-key}
+
 springdoc:
   api-docs:
     path: /api/docs/openapi.json

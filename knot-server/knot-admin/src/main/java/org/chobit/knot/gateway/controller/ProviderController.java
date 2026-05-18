@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/providers")
@@ -30,6 +31,23 @@ public class ProviderController {
     public PageResult<ProviderItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<ProviderDto> page = providerService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return page.mapList(providerConverter::toVOList);
+    }
+
+    @GetMapping("/suggest-code")
+    public String suggestCode() {
+        return providerService.suggestCode();
+    }
+
+    @GetMapping("/check-code")
+    public Map<String, Boolean> checkCode(
+            @RequestParam String code,
+            @RequestParam(required = false) Long excludeId) {
+        return Map.of("available", providerService.isCodeAvailable(code, excludeId));
+    }
+
+    @GetMapping("/{id}")
+    public ProviderItem get(@PathVariable Long id) {
+        return providerConverter.toVO(providerService.getById(id));
     }
 
     @OperationLog(module = "provider", operation = "CREATE", entityType = "Provider",

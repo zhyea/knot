@@ -117,19 +117,62 @@ CREATE TABLE IF NOT EXISTS backup_jobs (
 );
 
 -- =========================
+-- 频控与额度（独立策略 + 资源绑定）
+-- =========================
+CREATE TABLE IF NOT EXISTS rate_limit_policies (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  policy_code VARCHAR(64) NOT NULL,
+  policy_name VARCHAR(100) NOT NULL,
+  per_second INT NOT NULL DEFAULT 0,
+  per_minute INT NOT NULL DEFAULT 0,
+  time_window VARCHAR(32) NOT NULL DEFAULT 'MINUTE',
+  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  remark VARCHAR(255) DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_rate_limit_policies_code (policy_code)
+);
+
+CREATE TABLE IF NOT EXISTS quota_policies (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  policy_code VARCHAR(64) NOT NULL,
+  policy_name VARCHAR(100) NOT NULL,
+  daily_limit BIGINT NOT NULL DEFAULT 0,
+  monthly_limit BIGINT NOT NULL DEFAULT 0,
+  token_limit BIGINT NOT NULL DEFAULT 0,
+  alert_enabled TINYINT NOT NULL DEFAULT 0,
+  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  remark VARCHAR(255) DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_quota_policies_code (policy_code)
+);
+
+CREATE TABLE IF NOT EXISTS resource_traffic_policies (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  resource_type VARCHAR(32) NOT NULL COMMENT 'APP / MODEL / PROVIDER',
+  resource_id BIGINT NOT NULL,
+  rate_limit_policy_id BIGINT DEFAULT NULL,
+  quota_policy_id BIGINT DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_resource_traffic (resource_type, resource_id),
+  KEY idx_resource_traffic_rate (rate_limit_policy_id),
+  KEY idx_resource_traffic_quota (quota_policy_id)
+);
+
+-- =========================
 -- 供应商与模型
 -- =========================
 CREATE TABLE IF NOT EXISTS providers (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  code VARCHAR(64) NOT NULL,
+  code VARCHAR(32) NOT NULL,
   name VARCHAR(100) NOT NULL,
   provider_type VARCHAR(64) NOT NULL,
   base_url VARCHAR(255) NOT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
   contact_name VARCHAR(100) DEFAULT NULL,
   contact_phone VARCHAR(32) DEFAULT NULL,
-  rate_limit_json JSON DEFAULT NULL,
-  quota_json JSON DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_providers_code (code)
@@ -191,8 +234,6 @@ CREATE TABLE IF NOT EXISTS models (
   status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
   tags_json JSON DEFAULT NULL,
   params_json JSON DEFAULT NULL,
-  rate_limit_json JSON DEFAULT NULL,
-  quota_json JSON DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_models_code (model_code),
@@ -219,11 +260,11 @@ CREATE TABLE IF NOT EXISTS apps (
   name VARCHAR(100) NOT NULL,
   dept_id BIGINT DEFAULT NULL,
   owner_user_id BIGINT DEFAULT NULL,
+  remark VARCHAR(255) DEFAULT NULL COMMENT '备注',
+  is_deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0-否 1-是',
   app_type VARCHAR(32) DEFAULT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
   ip_whitelist_json JSON DEFAULT NULL,
-  rate_limit_json JSON DEFAULT NULL,
-  quota_json JSON DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_apps_app_id (app_id)

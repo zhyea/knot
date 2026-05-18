@@ -1,9 +1,8 @@
 package org.chobit.knot.gateway.rw;
 
+import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.ApiResponse;
 import org.chobit.knot.gateway.util.JsonKit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.core.MethodParameter;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.http.MediaType;
@@ -22,10 +21,9 @@ import java.util.List;
 /**
  * 参考 zhy-spring-boot-starter 的 {@code ResponseWrapperAdvice}：将业务返回值统一包装为 {@link ApiResponse}。
  */
+@Slf4j
 @RestControllerAdvice
 public class ApiResponseWrapperAdvice implements ResponseBodyAdvice<Object> {
-
-    private static final Logger log = LoggerFactory.getLogger(ApiResponseWrapperAdvice.class);
 
     private final RwProperties rwProperties;
 

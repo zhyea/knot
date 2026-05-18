@@ -6,7 +6,8 @@ import org.chobit.knot.gateway.mapper.AppCredentialMapper;
 import org.chobit.knot.gateway.mapper.AppMapper;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
-import org.chobit.knot.gateway.converter.CommonMappings;
+import org.chobit.knot.gateway.constants.TrafficResourceType;
+import org.chobit.knot.gateway.service.ResourceTrafficPolicySupport;
 import org.springframework.stereotype.Service;
 
 /**
@@ -17,14 +18,14 @@ public class RateLimitService {
 
     private final AppCredentialMapper appCredentialMapper;
     private final AppMapper appMapper;
-    private final CommonMappings commonMappings;
+    private final ResourceTrafficPolicySupport trafficPolicySupport;
 
     public RateLimitService(AppCredentialMapper appCredentialMapper,
                             AppMapper appMapper,
-                            CommonMappings commonMappings) {
+                            ResourceTrafficPolicySupport trafficPolicySupport) {
         this.appCredentialMapper = appCredentialMapper;
         this.appMapper = appMapper;
-        this.commonMappings = commonMappings;
+        this.trafficPolicySupport = trafficPolicySupport;
     }
 
     /**
@@ -39,9 +40,15 @@ public class RateLimitService {
         if (app == null || !"ENABLED".equals(app.getStatus())) {
             return null;
         }
-        return new AppContext(app.getId(), app.getAppId(), app.getName(),
-                commonMappings.jsonToRateLimit(app.getRateLimitJson()),
-                commonMappings.jsonToQuota(app.getQuotaJson()));
+        ResourceTrafficPolicySupport.TrafficPolicies traffic =
+                trafficPolicySupport.load(TrafficResourceType.APP, app.getId());
+        return new AppContext(
+                app.getId(),
+                app.getAppId(),
+                app.getName(),
+                traffic != null ? traffic.rateLimitPolicy() : null,
+                traffic != null ? traffic.quotaPolicy() : null
+        );
     }
 
     /**

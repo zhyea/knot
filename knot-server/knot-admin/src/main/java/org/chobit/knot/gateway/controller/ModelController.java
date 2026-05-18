@@ -13,6 +13,8 @@ import org.chobit.knot.gateway.vo.model.*;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/models")
 public class ModelController {
@@ -22,6 +24,18 @@ public class ModelController {
     public ModelController(ModelService modelService, ModelConverter modelConverter) {
         this.modelService = modelService;
         this.modelConverter = modelConverter;
+    }
+
+    @GetMapping("/check-code")
+    public Map<String, Boolean> checkCode(
+            @RequestParam String code,
+            @RequestParam(required = false) Long excludeId) {
+        return Map.of("available", modelService.isModelCodeAvailable(code, excludeId));
+    }
+
+    @GetMapping("/{id}")
+    public ModelItem get(@PathVariable Long id) {
+        return modelConverter.toVO(modelService.getById(id));
     }
 
     @PostMapping("/list")

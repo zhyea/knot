@@ -1,7 +1,21 @@
-import { postQuery, post, put } from "./http";
+import { postQuery, post, put, get } from "./http";
 
 export function listProviders(params) {
   return postQuery("/api/providers/list", params);
+}
+
+export function getProvider(id) {
+  return get(`/api/providers/${id}`);
+}
+
+export function suggestProviderCode() {
+  return get("/api/providers/suggest-code");
+}
+
+export function checkProviderCode(code, excludeId) {
+  return get("/api/providers/check-code", {
+    params: { code, excludeId: excludeId ?? undefined }
+  });
 }
 
 export function createProvider(payload) {

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.QuotaPolicyMapper">
+
+    <sql id="Columns">
+        id, policy_code, policy_name, daily_limit, monthly_limit, token_limit, alert_enabled, status, remark
+    </sql>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.QuotaPolicyEntity">
+        select <include refid="Columns"/> from quota_policies where id = #{id}
+    </select>
+
+    <select id="listByIds" resultType="org.chobit.knot.gateway.entity.QuotaPolicyEntity">
+        select <include refid="Columns"/> from quota_policies
+        where id in
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into quota_policies(policy_code, policy_name, daily_limit, monthly_limit, token_limit, alert_enabled, status, remark)
+        values(#{policyCode}, #{policyName}, #{dailyLimit}, #{monthlyLimit}, #{tokenLimit}, #{alertEnabled}, #{status}, #{remark})
+    </insert>
+
+    <update id="update">
+        update quota_policies
+        set policy_name = #{policyName},
+            daily_limit = #{dailyLimit},
+            monthly_limit = #{monthlyLimit},
+            token_limit = #{tokenLimit},
+            alert_enabled = #{alertEnabled},
+            status = #{status},
+            remark = #{remark}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from quota_policies where id = #{id}
+    </delete>
+</mapper>

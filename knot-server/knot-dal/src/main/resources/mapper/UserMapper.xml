@@ -42,4 +42,11 @@
         update users set last_login_time = NOW(), updated_at = NOW() where id = #{id}
     </update>
 
+    <select id="listRoleCodesByUserId" resultType="java.lang.String">
+        select r.code
+        from user_roles ur
+        inner join roles r on ur.role_id = r.id
+        where ur.user_id = #{userId}
+    </select>
+
 </mapper>

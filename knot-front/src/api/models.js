@@ -1,7 +1,17 @@
-import { postQuery, post, put } from "./http";
+import { postQuery, post, put, get } from "./http";
 
 export function listModels(params) {
   return postQuery("/api/models/list", params);
+}
+
+export function getModel(id) {
+  return get(`/api/models/${id}`);
+}
+
+export function checkModelCode(code, excludeId) {
+  return get("/api/models/check-code", {
+    params: { code, excludeId: excludeId ?? undefined }
+  });
 }
 
 export function createModel(payload) {
