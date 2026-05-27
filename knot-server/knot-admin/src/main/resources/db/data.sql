@@ -251,6 +251,12 @@ INSERT IGNORE INTO gateway_nodes (id, node_id, host, status) VALUES
 INSERT IGNORE INTO backup_jobs (id, job_code, status, snapshot_ref) VALUES
 (1, 'BACKUP-20260501', 'COMPLETED', 'snap-20260501-001');
 
+INSERT IGNORE INTO scheduled_tasks (
+  id, task_code, task_name, handler_code, cron_expression, execution_mode, status, description
+) VALUES
+(1, 'operation-log-retention', '操作日志保留清理', 'OPERATION_LOG_RETENTION', '0 0 3 * * ?', 'SINGLE', 'ENABLED', '操作日志最多保留三个月'),
+(2, 'schedule-run-retention', '定时任务执行记录清理', 'SCHEDULE_RUN_RETENTION', '0 30 3 * * ?', 'SINGLE', 'ENABLED', '定时任务执行记录最多保留一个月');
+
 -- 插件
 INSERT IGNORE INTO plugins (id, code, name, plugin_type, version, status) VALUES
 (1, 'content-filter',  '内容安全过滤',   'FILTER',   '1.0.0', 'ENABLED'),

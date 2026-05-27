@@ -18,7 +18,7 @@
         <template #default="{ row }">
           <RowActions
             :actions="[
-              { key: 'items', label: '枚举项', icon: Tickets },
+              { key: 'items', label: '枚举项', icon: List },
               { key: 'log', label: '日志', icon: Document }
             ]"
             @action="(action) => handleAction(action, row)"
@@ -59,7 +59,7 @@
 
 <script setup>
 import { ref } from "vue";
-import { Document, Tickets } from "@element-plus/icons-vue";
+import {Document, List} from "@element-plus/icons-vue";
 import PageSection from "../../components/common/PageSection.vue";
 import RowActions from "../../components/common/RowActions.vue";
 import StatusTag from "../../components/common/StatusTag.vue";

@@ -136,10 +136,34 @@ public class OperationLogAspect {
 
         HttpServletRequest request = getCurrentRequest();
         if (request != null) {
+            logEntity.setOperatorId(parseLong(request.getAttribute("userId")));
+            logEntity.setOperatorName(parseString(request.getAttribute("username")));
             logEntity.setIpAddress(getClientIp(request));
             logEntity.setUserAgent(request.getHeader("User-Agent"));
         }
         return logEntity;
+    }
+
+    private Long parseLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number n) {
+            return n.longValue();
+        }
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private String parseString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String text = value.toString();
+        return text.isBlank() ? null : text;
     }
 
     private void asyncSaveLog(OperationLogEntity logEntity) {

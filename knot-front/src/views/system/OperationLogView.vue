@@ -30,7 +30,9 @@
       <el-table-column prop="operation" label="操作" width="120" />
       <el-table-column prop="entityType" label="实体类型" width="120" />
       <el-table-column prop="entityName" label="实体名称" min-width="150" />
-      <el-table-column prop="operatorName" label="操作人" width="100" />
+      <el-table-column prop="operatorName" label="操作人" width="100">
+        <template #default="{ row }">{{ row.operatorName || "-" }}</template>
+      </el-table-column>
       <el-table-column prop="ipAddress" label="IP地址" width="140" />
       <el-table-column prop="status" label="状态" width="90">
         <template #default="{ row }">
@@ -63,7 +65,7 @@
         <el-descriptions-item label="实体类型">{{ currentLog.entityType }}</el-descriptions-item>
         <el-descriptions-item label="实体ID">{{ currentLog.entityId }}</el-descriptions-item>
         <el-descriptions-item label="实体名称">{{ currentLog.entityName }}</el-descriptions-item>
-        <el-descriptions-item label="操作人">{{ currentLog.operatorName }}</el-descriptions-item>
+        <el-descriptions-item label="操作人">{{ currentLog.operatorName || "-" }}</el-descriptions-item>
         <el-descriptions-item label="IP地址">{{ currentLog.ipAddress }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="currentLog.status === 'SUCCESS' ? 'success' : 'danger'" size="small">

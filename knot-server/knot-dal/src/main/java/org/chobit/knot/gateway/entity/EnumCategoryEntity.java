@@ -11,4 +11,5 @@ public class EnumCategoryEntity {
     /** 系统内置分类：其下枚举项不可删改 */
     private Boolean isSystem;
     private Boolean isEnabled;
+    private Boolean isDeleted;
 }

@@ -28,5 +28,5 @@ public interface EnumConfigMapper {
 
     int update(EnumConfigEntity entity);
 
-    int delete(Long id);
+    int logicalDelete(Long id);
 }

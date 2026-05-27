@@ -33,8 +33,5 @@ defineProps({
 
 .slot-body {
   margin-top: 16px;
-  background: var(--knot-surface, #fff);
-  border: 1px solid var(--knot-border, #ebeef5);
-  padding: 16px;
 }
 </style>

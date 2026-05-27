@@ -127,6 +127,44 @@ CREATE TABLE IF NOT EXISTS backup_jobs (
   UNIQUE KEY uk_backup_jobs_job_code (job_code)
 );
 
+CREATE TABLE IF NOT EXISTS scheduled_tasks (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  task_code VARCHAR(64) NOT NULL,
+  task_name VARCHAR(128) NOT NULL,
+  handler_code VARCHAR(64) NOT NULL,
+  cron_expression VARCHAR(64) NOT NULL,
+  execution_mode VARCHAR(32) NOT NULL DEFAULT 'SINGLE',
+  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  description VARCHAR(500) DEFAULT NULL,
+  last_fire_at DATETIME DEFAULT NULL,
+  next_fire_at DATETIME DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_scheduled_tasks_code (task_code),
+  KEY idx_scheduled_tasks_status (status),
+  KEY idx_scheduled_tasks_handler (handler_code)
+);
+
+CREATE TABLE IF NOT EXISTS scheduled_task_runs (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  task_id BIGINT NOT NULL,
+  task_code VARCHAR(64) NOT NULL,
+  task_name VARCHAR(128) NOT NULL,
+  execution_mode VARCHAR(32) NOT NULL,
+  node_id VARCHAR(128) NOT NULL,
+  trigger_type VARCHAR(32) NOT NULL,
+  status VARCHAR(32) NOT NULL,
+  start_time DATETIME NOT NULL,
+  end_time DATETIME DEFAULT NULL,
+  duration_ms BIGINT DEFAULT NULL,
+  affected_rows INT NOT NULL DEFAULT 0,
+  error_msg VARCHAR(1000) DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_task_runs_task_time (task_code, start_time),
+  KEY idx_task_runs_status_time (status, start_time),
+  KEY idx_task_runs_created_at (created_at)
+);
+
 -- =========================
 -- 频控与额度（独立策略 + 资源绑定）
 -- =========================
@@ -534,6 +572,7 @@ CREATE TABLE IF NOT EXISTS enum_categories (
   description VARCHAR(255) DEFAULT NULL COMMENT '分类描述',
   is_system   TINYINT      NOT NULL DEFAULT 0 COMMENT '1=系统内置分类，其下枚举项不可删改',
   is_enabled  TINYINT      NOT NULL DEFAULT 1 COMMENT '1=启用 0=禁用',
+  is_deleted  TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除：0=否 1=是',
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_enum_category (category)
@@ -547,6 +586,7 @@ CREATE TABLE IF NOT EXISTS enum_configs (
   item_label  VARCHAR(128) NOT NULL COMMENT '显示名称，如 OpenAI、对话',
   sort_order  INT          NOT NULL DEFAULT 0 COMMENT '排序',
   is_enabled  TINYINT      NOT NULL DEFAULT 1 COMMENT '1=启用 0=禁用',
+  is_deleted  TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除：0=否 1=是',
   remark      VARCHAR(255) DEFAULT NULL COMMENT '备注',
   created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

@@ -24,6 +24,13 @@ body,
     width: 100%;
 }
 
+.slot-body {
+    background: var(--knot-surface, #fff);
+    border: 1px solid var(--knot-border, #dcdfe6);
+    border-radius: 0;
+    padding: 16px;
+}
+
 .toolbar {
     display: flex;
     align-items: center;

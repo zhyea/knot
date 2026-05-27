@@ -14,6 +14,7 @@ const routes = [
       { path: "users", name: "system-users", component: () => import("@/views/system/UserManageView.vue") },
       { path: "roles", name: "system-roles", component: () => import("@/views/system/RoleManageView.vue") },
       { path: "logs", name: "system-logs", component: () => import("@/views/system/OperationLogView.vue") },
+      { path: "scheduled-tasks", name: "system-scheduled-tasks", component: () => import("@/views/system/ScheduledTaskView.vue") },
       { path: "nodes", name: "system-nodes", component: () => import("@/views/system/GatewayNodeView.vue") },
       { path: "enums", name: "system-enums", component: () => import("@/views/system/EnumManageView.vue") },
       { path: "backup", name: "system-backup", component: () => import("@/views/system/BackupView.vue") },

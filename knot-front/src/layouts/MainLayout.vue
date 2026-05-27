@@ -33,6 +33,7 @@
           <el-menu-item index="/system/users">用户管理</el-menu-item>
           <el-menu-item index="/system/roles">角色权限</el-menu-item>
           <el-menu-item index="/system/logs">操作日志</el-menu-item>
+          <el-menu-item index="/system/scheduled-tasks">定时任务</el-menu-item>
           <el-menu-item index="/system/nodes">网关节点</el-menu-item>
           <el-menu-item index="/system/enums">枚举管理</el-menu-item>
           <el-menu-item index="/system/backup">备份还原</el-menu-item>

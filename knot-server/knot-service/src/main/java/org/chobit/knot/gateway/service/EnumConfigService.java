@@ -110,7 +110,7 @@ public class EnumConfigService {
         if (existing.getIsSystem()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "系统内置分类下的枚举不可删除");
         }
-        enumConfigMapper.delete(id);
+        enumConfigMapper.logicalDelete(id);
         return existing;
     }
 
@@ -125,6 +125,7 @@ public class EnumConfigService {
         row.setDescription(null);
         row.setIsSystem(false);
         row.setIsEnabled(true);
+        row.setIsDeleted(false);
         enumCategoryMapper.insert(row);
         return row.getId();
     }

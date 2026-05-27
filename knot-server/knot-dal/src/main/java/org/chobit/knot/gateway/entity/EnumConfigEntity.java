@@ -14,5 +14,6 @@ public class EnumConfigEntity {
     private Integer sortOrder;
     private Boolean isSystem;
     private Boolean isEnabled;
+    private Boolean isDeleted;
     private String remark;
 }

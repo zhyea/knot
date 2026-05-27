@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.ScheduledTaskMapper">
+
+    <select id="listTasks" resultType="org.chobit.knot.gateway.entity.ScheduledTaskEntity">
+        select id, task_code, task_name, handler_code, cron_expression, execution_mode,
+               status, description, last_fire_at, next_fire_at, created_at, updated_at
+        from scheduled_tasks
+        <where>
+            <if test="taskCode != null and taskCode != ''">
+                and task_code = #{taskCode}
+            </if>
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+            <if test="handlerCode != null and handlerCode != ''">
+                and handler_code = #{handlerCode}
+            </if>
+        </where>
+        order by id asc
+    </select>
+
+    <select id="listEnabledTasks" resultType="org.chobit.knot.gateway.entity.ScheduledTaskEntity">
+        select id, task_code, task_name, handler_code, cron_expression, execution_mode,
+               status, description, last_fire_at, next_fire_at, created_at, updated_at
+        from scheduled_tasks
+        where status = 'ENABLED'
+        order by id asc
+    </select>
+
+    <select id="getTaskById" resultType="org.chobit.knot.gateway.entity.ScheduledTaskEntity">
+        select id, task_code, task_name, handler_code, cron_expression, execution_mode,
+               status, description, last_fire_at, next_fire_at, created_at, updated_at
+        from scheduled_tasks
+        where id = #{id}
+    </select>
+
+    <select id="getTaskByCode" resultType="org.chobit.knot.gateway.entity.ScheduledTaskEntity">
+        select id, task_code, task_name, handler_code, cron_expression, execution_mode,
+               status, description, last_fire_at, next_fire_at, created_at, updated_at
+        from scheduled_tasks
+        where task_code = #{taskCode}
+    </select>
+
+    <insert id="insertTask" useGeneratedKeys="true" keyProperty="id">
+        insert into scheduled_tasks(
+            task_code, task_name, handler_code, cron_expression,
+            execution_mode, status, description
+        ) values(
+            #{taskCode}, #{taskName}, #{handlerCode}, #{cronExpression},
+            #{executionMode}, #{status}, #{description}
+        )
+    </insert>
+
+    <update id="updateTask">
+        update scheduled_tasks
+        set task_name = #{taskName},
+            handler_code = #{handlerCode},
+            cron_expression = #{cronExpression},
+            execution_mode = #{executionMode},
+            status = #{status},
+            description = #{description}
+        where id = #{id}
+    </update>
+
+    <update id="updateTaskFireTime">
+        update scheduled_tasks
+        set last_fire_at = #{lastFireAt},
+            next_fire_at = coalesce(#{nextFireAt}, next_fire_at)
+        where id = #{id}
+    </update>
+
+    <update id="updateTaskNextFireTime">
+        update scheduled_tasks
+        set next_fire_at = #{nextFireAt}
+        where id = #{id}
+    </update>
+
+    <insert id="insertRun" useGeneratedKeys="true" keyProperty="id">
+        insert into scheduled_task_runs(
+            task_id, task_code, task_name, execution_mode, node_id, trigger_type,
+            status, start_time, end_time, duration_ms, affected_rows, error_msg
+        ) values(
+            #{taskId}, #{taskCode}, #{taskName}, #{executionMode}, #{nodeId}, #{triggerType},
+            #{status}, #{startTime}, #{endTime}, #{durationMs}, #{affectedRows}, #{errorMsg}
+        )
+    </insert>
+
+    <update id="updateRun">
+        update scheduled_task_runs
+        set status = #{status},
+            end_time = #{endTime},
+            duration_ms = #{durationMs},
+            affected_rows = #{affectedRows},
+            error_msg = #{errorMsg}
+        where id = #{id}
+    </update>
+
+    <select id="listRuns" resultType="org.chobit.knot.gateway.entity.ScheduledTaskRunEntity">
+        select id, task_id, task_code, task_name, execution_mode, node_id, trigger_type,
+               status, start_time, end_time, duration_ms, affected_rows, error_msg, created_at
+        from scheduled_task_runs
+        <where>
+            <if test="taskCode != null and taskCode != ''">
+                and task_code = #{taskCode}
+            </if>
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+            <if test="triggerType != null and triggerType != ''">
+                and trigger_type = #{triggerType}
+            </if>
+        </where>
+        order by start_time desc, id desc
+    </select>
+
+    <delete id="deleteRunsBefore">
+        delete from scheduled_task_runs
+        where created_at &lt; #{beforeTime}
+    </delete>
+
+    <select id="acquireLock" resultType="java.lang.Integer">
+        select GET_LOCK(#{lockName}, 0)
+    </select>
+
+    <select id="releaseLock" resultType="java.lang.Integer">
+        select RELEASE_LOCK(#{lockName})
+    </select>
+</mapper>

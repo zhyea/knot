@@ -7,12 +7,22 @@
     @update:model-value="emit('update:modelValue', $event)"
   >
     <el-table v-loading="loading" :data="logs" stripe border size="small" max-height="calc(100vh - 140px)">
-      <el-table-column label="时间" width="180" align="center" header-align="center">
+      <el-table-column label="时间" width="160" align="center" header-align="center">
         <template #default="{ row }">
           {{ formatLogTime(row.createdAt) }}
         </template>
       </el-table-column>
-      <el-table-column prop="operation" label="操作" width="80" align="center" header-align="center" />
+      <el-table-column prop="operation" label="操作" width="70" align="center" header-align="center" />
+      <el-table-column prop="operatorName" label="操作人" width="110" align="center" header-align="center">
+        <template #default="{ row }">
+          {{ row.operatorName || "-" }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="ipAddress" label="IP" width="130" align="center" header-align="center">
+        <template #default="{ row }">
+          {{ row.ipAddress || "-" }}
+        </template>
+      </el-table-column>
       <el-table-column v-if="showEntityName" prop="entityName" label="对象" min-width="120" show-overflow-tooltip />
       <el-table-column prop="status" label="结果" width="80" align="center" header-align="center">
         <template #default="{ row }">
@@ -37,7 +47,7 @@ const props = defineProps({
   /** 抽屉标题 */
   title: { type: String, default: "操作日志" },
   /** 抽屉宽度，如 `60%`、`640px` */
-  drawerSize: { type: String, default: "60%" },
+  drawerSize: { type: String, default: "70%" },
   /** 打开且需加载时调用，应返回日志数组（或 Promise） */
   loadLogs: { type: Function, required: true },
   /** 是否展示「说明」列（默认不展示） */

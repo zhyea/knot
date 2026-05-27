@@ -4,6 +4,7 @@ import org.chobit.knot.gateway.entity.OperationLogEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Mapper
@@ -23,4 +24,8 @@ public interface OperationLogMapper {
                                                              @Param("entityNamePrefix") String entityNamePrefix);
 
     OperationLogEntity getById(Long id);
+
+    int deleteDetailsByLogCreatedBefore(LocalDateTime beforeTime);
+
+    int deleteByCreatedBefore(LocalDateTime beforeTime);
 }

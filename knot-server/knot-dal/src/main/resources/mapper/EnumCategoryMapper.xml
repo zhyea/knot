@@ -3,7 +3,7 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.EnumCategoryMapper">
 
     <select id="selectIdByCategory" resultType="java.lang.Long">
-        select id from enum_categories where category = #{category} limit 1
+        select id from enum_categories where category = #{category} and is_deleted = 0 limit 1
     </select>
 
     <select id="selectByCategory" resultType="org.chobit.knot.gateway.entity.EnumCategoryEntity">
@@ -12,14 +12,15 @@
                category_name AS categoryName,
                description,
                is_system AS isSystem,
-               is_enabled AS isEnabled
+               is_enabled AS isEnabled,
+               is_deleted AS isDeleted
         from enum_categories
-        where category = #{category}
+        where category = #{category} and is_deleted = 0
         limit 1
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into enum_categories(category, category_name, description, is_system, is_enabled)
-        values(#{category}, #{categoryName}, #{description}, #{isSystem}, #{isEnabled})
+        insert into enum_categories(category, category_name, description, is_system, is_enabled, is_deleted)
+        values(#{category}, #{categoryName}, #{description}, #{isSystem}, #{isEnabled}, 0)
     </insert>
 </mapper>

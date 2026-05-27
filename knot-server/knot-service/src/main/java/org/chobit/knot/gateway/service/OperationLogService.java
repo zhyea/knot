@@ -9,6 +9,7 @@ import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -53,6 +54,11 @@ public class OperationLogService {
             retainOnlyChangedJsonFields(entity);
         }
         return entity;
+    }
+
+    public int deleteBefore(LocalDateTime beforeTime) {
+        operationLogMapper.deleteDetailsByLogCreatedBefore(beforeTime);
+        return operationLogMapper.deleteByCreatedBefore(beforeTime);
     }
 
     /**

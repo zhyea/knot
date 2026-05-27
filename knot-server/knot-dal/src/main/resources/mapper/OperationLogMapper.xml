@@ -62,4 +62,16 @@
         where id = #{id}
     </select>
 
+    <delete id="deleteDetailsByLogCreatedBefore">
+        delete d
+        from operation_log_details d
+        inner join operation_logs l on l.id = d.log_id
+        where l.created_at &lt; #{beforeTime}
+    </delete>
+
+    <delete id="deleteByCreatedBefore">
+        delete from operation_logs
+        where created_at &lt; #{beforeTime}
+    </delete>
+
 </mapper>
