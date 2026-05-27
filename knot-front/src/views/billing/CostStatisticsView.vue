@@ -74,11 +74,6 @@ loadDetails();
 </script>
 
 <style scoped>
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
 .st {
   font-size: 13px;
   color: #909399;

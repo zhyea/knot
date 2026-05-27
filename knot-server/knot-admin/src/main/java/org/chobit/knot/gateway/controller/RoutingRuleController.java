@@ -1,12 +1,12 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.annotation.OperationLog;
-import org.chobit.knot.gateway.model.PageQuery;
-import org.chobit.knot.gateway.model.PageRequest;
-import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.RoutingRuleConverter;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleDto;
 import org.chobit.knot.gateway.dto.routing.RoutingSwitchLogDto;
+import org.chobit.knot.gateway.model.PageQuery;
+import org.chobit.knot.gateway.model.PageRequest;
+import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.RoutingRuleService;
 import org.chobit.knot.gateway.vo.routing.RoutingRule;
 import org.chobit.knot.gateway.vo.routing.RoutingSwitchLog;
@@ -14,6 +14,8 @@ import org.chobit.knot.gateway.vo.routing.RoutingTestRequest;
 import org.chobit.knot.gateway.vo.routing.RoutingTestResult;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/routing-rules")
@@ -30,6 +32,12 @@ public class RoutingRuleController {
     public PageResult<RoutingRule> list(@RequestBody(required = false) PageQuery query) {
         PageResult<RoutingRuleDto> page = routingRuleService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return page.mapList(routingRuleConverter::toVOList);
+    }
+
+    @GetMapping("/check-code")
+    public Map<String, Boolean> checkCode(@RequestParam String code,
+                                          @RequestParam(required = false) Long excludeId) {
+        return Map.of("available", routingRuleService.isRuleCodeAvailable(code, excludeId));
     }
 
     @OperationLog(module = "routing", operation = "CREATE", entityType = "RoutingRule",
@@ -60,8 +68,7 @@ public class RoutingRuleController {
 
     @PostMapping("/{id}/test")
     public RoutingTestResult test(@PathVariable Long id, @RequestBody @Valid RoutingTestRequest request) {
-        RoutingRuleDto rule = routingRuleService.getById(id);
-        return new RoutingTestResult(rule.id(), rule.targetProviderId(), rule.targetModelId(), "MATCHED");
+        return routingRuleService.testInvoke(id, request.secretKey(), request.prompt(), request.model());
     }
 
     @PostMapping("/switch-logs")

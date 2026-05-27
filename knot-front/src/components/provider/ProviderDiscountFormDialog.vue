@@ -12,13 +12,13 @@
         <el-input v-model="form.policyName" />
       </el-form-item>
       <el-form-item label="范围类型">
-        <el-input v-model="form.scopeType" placeholder="GLOBAL / MODEL" />
+        <EnumSelect v-model="form.scopeType" category="scope_type" />
       </el-form-item>
       <el-form-item label="范围 ID">
         <el-input-number v-model="form.scopeRefId" :min="0" style="width: 100%" />
       </el-form-item>
       <el-form-item label="折扣类型">
-        <el-input v-model="form.discountType" placeholder="RATE" />
+        <EnumSelect v-model="form.discountType" category="discount_type" />
       </el-form-item>
       <el-form-item label="折扣值">
         <el-input-number v-model="form.discountValue" :step="0.01" style="width: 100%" />
@@ -27,7 +27,7 @@
         <el-input-number v-model="form.priority" :min="0" style="width: 100%" />
       </el-form-item>
       <el-form-item label="状态">
-        <el-input v-model="form.status" placeholder="ACTIVE" />
+        <EnumSelect v-model="form.status" category="status" :include-codes="['ACTIVE', 'INACTIVE']" />
       </el-form-item>
     </el-form>
     <template #footer>
@@ -40,6 +40,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
+import EnumSelect from "../common/EnumSelect.vue";
 import { createDiscountPolicy, updateDiscountPolicy } from "../../api/providers";
 
 const props = defineProps({
@@ -57,7 +58,7 @@ const form = reactive({
   policyName: "",
   scopeType: "GLOBAL",
   scopeRefId: 0,
-  discountType: "RATE",
+  discountType: "PERCENTAGE",
   discountValue: 0.95,
   priority: 10,
   status: "ACTIVE"
@@ -81,7 +82,7 @@ function resetForm() {
     form.policyName = "";
     form.scopeType = "GLOBAL";
     form.scopeRefId = 0;
-    form.discountType = "RATE";
+    form.discountType = "PERCENTAGE";
     form.discountValue = 0.95;
     form.priority = 10;
     form.status = "ACTIVE";

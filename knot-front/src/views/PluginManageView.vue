@@ -1,8 +1,5 @@
 ﻿<template>
-  <PageSection
-    title="插件管理"
-   
-  >
+  <PageSection title="插件管理">
     <div class="toolbar">
       <el-button type="primary" @click="openCreate">新建插件</el-button>
       <el-button @click="pageLoad">刷新</el-button>
@@ -14,17 +11,22 @@
       <el-table-column prop="pluginType" label="类型" min-width="10%" />
       <el-table-column prop="version" label="版本" min-width="8%" />
       <el-table-column prop="status" label="状态" min-width="10%" />
-      <el-table-column label="操作" min-width="15%" align="center" header-align="center">
+      <el-table-column label="操作" width="150" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <el-select
             v-model="row._st"
             placeholder="切状态"
             size="small"
+            clearable
             style="width: 120px"
             @change="(v) => onStatus(row, v)"
           >
-            <el-option label="ENABLED" value="ENABLED" />
-            <el-option label="DISABLED" value="DISABLED" />
+            <el-option
+              v-for="item in pluginStatusOptions"
+              :key="item.itemCode"
+              :label="item.itemLabel"
+              :value="item.itemCode"
+            />
           </el-select>
         </template>
       </el-table-column>
@@ -46,9 +48,13 @@
       <el-form :model="form" label-width="100px">
         <el-form-item label="编码" required><el-input v-model="form.code" /></el-form-item>
         <el-form-item label="名称" required><el-input v-model="form.name" /></el-form-item>
-        <el-form-item label="类型"><el-input v-model="form.pluginType" placeholder="PRE / POST" /></el-form-item>
+        <el-form-item label="类型">
+          <EnumSelect v-model="form.pluginType" category="plugin_type" />
+        </el-form-item>
         <el-form-item label="版本"><el-input v-model="form.version" /></el-form-item>
-        <el-form-item label="状态"><el-input v-model="form.status" placeholder="DISABLED" /></el-form-item>
+        <el-form-item label="状态">
+          <EnumSelect v-model="form.status" category="status" :include-codes="['ENABLED', 'DISABLED']" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dlg = false">取消</el-button>
@@ -59,11 +65,20 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
+import EnumSelect from "../components/common/EnumSelect.vue";
 import { usePageList } from "../composables/usePageList";
+import { useEnums } from "../composables/useEnums";
 import { listPlugins, createPlugin, updatePluginStatus } from "../api/plugins";
+
+const { options: statusOptions, loadOptions: loadStatusOptions } = useEnums("status");
+const pluginStatusOptions = computed(() =>
+  statusOptions.value.filter((i) => ["ENABLED", "DISABLED"].includes(i.itemCode))
+);
+
+onMounted(() => loadStatusOptions());
 
 const { rows, loading, total, pageNum, pageSize, load: pageLoad, onPageChange, onSizeChange, resetPage } = usePageList(listPlugins);
 const pluginRows = ref([]);
@@ -122,11 +137,3 @@ async function onStatus(row, status) {
 
 pageLoad();
 </script>
-
-<style scoped>
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-</style>

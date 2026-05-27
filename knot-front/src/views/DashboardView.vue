@@ -66,9 +66,9 @@ onMounted(async () => {
 
 .mod-item {
   padding: 12px;
-  border: 1px solid #ebeef5;
-  border-radius: 8px;
-  background: #fafafa;
+  border: 1px solid var(--knot-border, #ebeef5);
+  border-radius: 0;
+  background: var(--knot-surface-soft, #fafafa);
 }
 
 .mod-head {

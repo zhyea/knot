@@ -16,10 +16,15 @@
         <template #default="{ row }">{{ (row.steps || []).join(" → ") }}</template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="100" />
-      <el-table-column label="操作" width="180" align="center" header-align="center">
+      <el-table-column label="操作" width="110" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" :disabled="row.status === 'RUNNING' || row.status === 'ROLLED_BACK'" @click="publish(row)">发布</el-button>
-          <el-button link type="warning" @click="rollback(row)">回滚</el-button>
+          <RowActions
+            :actions="[
+              { key: 'publish', label: '发布', icon: Promotion, disabled: row.status === 'RUNNING' || row.status === 'ROLLED_BACK' },
+              { key: 'rollback', label: '回滚', icon: RefreshLeft, type: 'warning' }
+            ]"
+            @action="(action) => handleAction(action, row)"
+          />
         </template>
       </el-table-column>
     </el-table>
@@ -38,7 +43,9 @@
 
     <el-dialog v-model="dlg" title="新建灰度计划" width="520px" destroy-on-close>
       <el-form :model="form" label-width="110px">
-        <el-form-item label="目标类型" required><el-input v-model="form.targetType" placeholder="MODEL / APP" /></el-form-item>
+        <el-form-item label="目标类型" required>
+          <EnumSelect v-model="form.targetType" category="gray_target_type" />
+        </el-form-item>
         <el-form-item label="目标 ID" required><el-input-number v-model="form.targetId" :min="1" /></el-form-item>
         <el-form-item label="初始流量%">
           <el-input-number v-model="form.trafficPercent" :min="1" :max="100" />
@@ -58,7 +65,10 @@
 <script setup>
 import { reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
+import { Promotion, RefreshLeft } from "@element-plus/icons-vue";
 import PageSection from "../components/common/PageSection.vue";
+import RowActions from "../components/common/RowActions.vue";
+import EnumSelect from "../components/common/EnumSelect.vue";
 import { usePageList } from "../composables/usePageList";
 import { listGrayPlans, createGrayPlan, publishGrayPlan, rollbackGrayPlan } from "../api/grayPlans";
 
@@ -113,6 +123,11 @@ async function submit() {
   }
 }
 
+function handleAction(action, row) {
+  if (action === "publish") publish(row);
+  if (action === "rollback") rollback(row);
+}
+
 async function publish(row) {
   await ElMessageBox.confirm(`确认发布计划 #${row.id}？`, "灰度发布", { type: "warning" });
   await publishGrayPlan(row.id);
@@ -129,11 +144,3 @@ async function rollback(row) {
 
 load();
 </script>
-
-<style scoped>
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-</style>

@@ -16,7 +16,8 @@ const routes = [
       { path: "logs", name: "system-logs", component: () => import("@/views/system/OperationLogView.vue") },
       { path: "nodes", name: "system-nodes", component: () => import("@/views/system/GatewayNodeView.vue") },
       { path: "enums", name: "system-enums", component: () => import("@/views/system/EnumManageView.vue") },
-      { path: "backup", name: "system-backup", component: () => import("@/views/system/BackupView.vue") }
+      { path: "backup", name: "system-backup", component: () => import("@/views/system/BackupView.vue") },
+      { path: "settings", name: "system-settings", component: () => import("@/views/system/UserSettingsView.vue") }
     ]
   },
 
@@ -34,6 +35,7 @@ const routes = [
     path: "/routing",
     component: NestedView,
     children: [
+      { path: "consumers", name: "routing-consumers", component: () => import("@/views/routing/RoutingConsumerView.vue") },
       { path: "rules", name: "routing-rules", component: () => import("@/views/routing/RoutingRuleView.vue") },
       { path: "logs", name: "routing-logs", component: () => import("@/views/routing/SwitchLogView.vue") }
     ]

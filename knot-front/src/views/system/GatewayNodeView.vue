@@ -1,6 +1,8 @@
 ﻿<template>
   <PageSection title="网关节点">
-    <el-button class="mb" @click="load">刷新</el-button>
+    <div class="toolbar">
+      <el-button @click="load">刷新</el-button>
+    </div>
     <el-table v-loading="loading" :data="rows" stripe border size="small">
       <el-table-column prop="nodeId" label="节点" />
       <el-table-column prop="host" label="主机" />
@@ -31,13 +33,3 @@ const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChang
 load();
 </script>
 
-<style scoped>
-.mb {
-  margin-bottom: 10px;
-}
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-</style>

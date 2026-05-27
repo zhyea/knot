@@ -113,6 +113,49 @@ INSERT IGNORE INTO models (id, provider_id, model_code, name, model_type, versio
 (6,  3, 'deepseek-chat',     'DeepSeek Chat',     'CHAT',   '2024-08-01', 'ENABLED'),
 (7,  3, 'deepseek-reasoner', 'DeepSeek Reasoner', 'CHAT',   '2025-01-20', 'ENABLED');
 
+-- 模型 API 协议绑定（usage_extract_json 为 JSONPath 风格路径）
+INSERT IGNORE INTO model_api_bindings (id, model_id, protocol, api_path, usage_extract_json, status, remark) VALUES
+(1, 1, 'OPENAI_CHAT_COMPLETIONS', '/v1/chat/completions',
+ JSON_OBJECT(
+   'usage_path', '$.usage',
+   'total_tokens', '$.usage.total_tokens',
+   'cached_read_tokens', '$.usage.prompt_tokens_details.cached_tokens',
+   'cached_write_tokens', '$.usage.prompt_tokens_details.cache_creation_input_tokens',
+   'output_tokens', '$.usage.completion_tokens',
+   'uncached_tokens', '$.usage.prompt_tokens',
+   'total_input_tokens', '$.usage.input_tokens'
+ ), 'ENABLED', 'GPT-4o Chat Completions'),
+(2, 2, 'OPENAI_CHAT_COMPLETIONS', '/v1/chat/completions',
+ JSON_OBJECT(
+   'usage_path', '$.usage',
+   'total_tokens', '$.usage.total_tokens',
+   'cached_read_tokens', '$.usage.prompt_tokens_details.cached_tokens',
+   'cached_write_tokens', '$.usage.prompt_tokens_details.cache_creation_input_tokens',
+   'output_tokens', '$.usage.completion_tokens',
+   'uncached_tokens', '$.usage.prompt_tokens',
+   'total_input_tokens', '$.usage.input_tokens'
+ ), 'ENABLED', 'GPT-4o Mini Chat Completions'),
+(3, 4, 'ANTHROPIC_MESSAGES', '/v1/messages',
+ JSON_OBJECT(
+   'usage_path', '$.usage',
+   'total_tokens', '$.usage.input_tokens + $.usage.output_tokens',
+   'cached_read_tokens', '$.usage.cache_read_input_tokens',
+   'cached_write_tokens', '$.usage.cache_creation_input_tokens',
+   'output_tokens', '$.usage.output_tokens',
+   'uncached_tokens', '$.usage.input_tokens',
+   'total_input_tokens', '$.usage.input_tokens'
+ ), 'ENABLED', 'Claude Sonnet Messages API'),
+(4, 6, 'OPENAI_CHAT_COMPLETIONS', '/v1/chat/completions',
+ JSON_OBJECT(
+   'usage_path', '$.usage',
+   'total_tokens', '$.usage.total_tokens',
+   'cached_read_tokens', '$.usage.prompt_cache_hit_tokens',
+   'cached_write_tokens', '$.usage.prompt_cache_miss_tokens',
+   'output_tokens', '$.usage.completion_tokens',
+   'uncached_tokens', '$.usage.prompt_tokens',
+   'total_input_tokens', '$.usage.prompt_tokens'
+ ), 'ENABLED', 'DeepSeek Chat（OpenAI 兼容）');
+
 -- 模型版本
 INSERT IGNORE INTO model_versions (id, model_id, version, gray_percent, status) VALUES
 (1, 1, '2024-08-06', 0,   'ACTIVE'),
@@ -148,10 +191,26 @@ INSERT IGNORE INTO app_model_permissions (app_id, model_id) VALUES
 -- 路由规则
 -- =========================
 
-INSERT IGNORE INTO routing_rules (id, name, strategy_type, priority, condition_expr, target_provider_id, target_model_id, status) VALUES
-(1, 'GPT-4o默认路由',   'PRIORITY', 100, 'model_code="gpt-4o"',         1, 1, 'ENABLED'),
-(2, 'Claude默认路由',   'PRIORITY', 100, 'model_code="claude-sonnet-4-20250514"', 2, 4, 'ENABLED'),
-(3, 'DeepSeek低成本路由','PRIORITY', 90,  'model_code="deepseek-chat"',  3, 6, 'ENABLED');
+INSERT IGNORE INTO routing_consumers (id, consumer_code, name, user_id, secret_key, status) VALUES
+(1, 'consumer-internal-kb', '内部知识库助手消费者', 1, 'sk-demo-gpt4o-routing-key-001', 'ENABLED'),
+(2, 'consumer-research',    '模型评测消费者',       1, 'sk-demo-claude-routing-key-002', 'ENABLED'),
+(3, 'consumer-cs',          '客服系统消费者',       2, 'sk-demo-deepseek-routing-key-003', 'ENABLED');
+
+INSERT IGNORE INTO routing_rules (id, rule_code, name, app_scenario, model_types, app_id, user_id, strategy_type, status) VALUES
+(1, 'gpt4o-default',    'GPT-4o默认路由',    '知识库问答', 'CHAT', 1, 1, 'PRIORITY', 'ENABLED'),
+(2, 'claude-default',   'Claude默认路由',    '模型评测',   'CHAT', 1, 1, 'PRIORITY', 'ENABLED'),
+(3, 'deepseek-lowcost', 'DeepSeek低成本路由', '客服对话',   'CHAT', 2, 2, 'PRIORITY', 'ENABLED');
+
+INSERT IGNORE INTO routing_rule_consumers (id, rule_id, consumer_id) VALUES
+(1, 1, 1),
+(2, 2, 2),
+(3, 3, 3);
+
+INSERT IGNORE INTO routing_rule_models (id, rule_id, model_id, priority, is_primary) VALUES
+(1, 1, 1, 100, 1),
+(2, 1, 2, 90,  0),
+(3, 2, 4, 100, 1),
+(4, 3, 6, 100, 1);
 
 -- =========================
 -- 计费规则
@@ -256,8 +315,9 @@ INSERT IGNORE INTO enum_configs (category_id, item_code, item_label, sort_order,
 (8, '1K_TOKENS',  '1K Tokens',  1, 1),
 (8, '1M_TOKENS',  '1M Tokens',  2, 1),
 (8, 'PER_REQUEST','每次请求',    3, 1),
-(9, 'FIXED',    '固定',   1, 1),
-(9, 'WEIGHTED', '加权',   2, 1),
+(9, 'PRIORITY', '优先级',   0, 1),
+(9, 'FIXED',    '固定',     1, 1),
+(9, 'WEIGHTED', '加权',     2, 1),
 (9, 'FAILOVER', '故障转移', 3, 1),
 (10, 'EMAIL',   '邮件',    1, 1),
 (10, 'SMS',     '短信',    2, 1),
@@ -281,4 +341,6 @@ INSERT IGNORE INTO enum_configs (category_id, item_code, item_label, sort_order,
 (15, 'DRAFT',     '草稿',     6, 1),
 (15, 'GENERATED', '已生成',   7, 1),
 (15, 'SUCCESS',   '成功',     8, 1),
-(15, 'FAILED',    '失败',     9, 1);
+(15, 'FAILURE',   '失败',     9, 1),
+(15, 'FAILED',    '失败(旧)', 10, 1),
+(15, 'INACTIVE',  '未激活',   11, 1);

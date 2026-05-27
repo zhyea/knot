@@ -31,10 +31,15 @@
           {{ formatDateTime(row.updatedAt) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" min-width="14%" align="center" header-align="center">
+      <el-table-column label="操作" width="110" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="primary" @click="openUserLogs(row)">日志</el-button>
+          <RowActions
+            :actions="[
+              { key: 'edit', label: '编辑', icon: Edit },
+              { key: 'log', label: '日志', icon: Document }
+            ]"
+            @action="(action) => handleAction(action, row)"
+          />
         </template>
       </el-table-column>
     </el-table>
@@ -64,7 +69,9 @@
 <script setup>
 import { ref, watch } from "vue";
 import { ElMessage } from "element-plus";
+import { Document, Edit } from "@element-plus/icons-vue";
 import PageSection from "../../components/common/PageSection.vue";
+import RowActions from "../../components/common/RowActions.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import UserFormDrawer from "../../components/system/UserFormDrawer.vue";
 import { usePageList } from "../../composables/usePageList";
@@ -120,6 +127,11 @@ function openEdit(row) {
   drawerVisible.value = true;
 }
 
+function handleAction(action, row) {
+  if (action === "edit") openEdit(row);
+  if (action === "log") openUserLogs(row);
+}
+
 async function onStatusChange(row, status) {
   try {
     await updateUserStatus(row.id, { status: status.toString() });
@@ -132,11 +144,3 @@ async function onStatusChange(row, status) {
 
 pageLoad();
 </script>
-
-<style scoped>
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-</style>

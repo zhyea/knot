@@ -3,6 +3,8 @@ package org.chobit.knot.gateway.controller;
 import org.chobit.knot.gateway.service.ProxyService;
 import org.chobit.knot.gateway.service.RateLimitService;
 import org.chobit.knot.gateway.service.RequestLogService;
+import org.chobit.knot.gateway.service.RoutingAuthService;
+import org.chobit.knot.gateway.util.tools.RoutingSecretKeyGenerator;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,18 +18,18 @@ public class GatewayController {
     private final ProxyService proxyService;
     private final RateLimitService rateLimitService;
     private final RequestLogService requestLogService;
+    private final RoutingAuthService routingAuthService;
 
     public GatewayController(ProxyService proxyService,
                              RateLimitService rateLimitService,
-                             RequestLogService requestLogService) {
+                             RequestLogService requestLogService,
+                             RoutingAuthService routingAuthService) {
         this.proxyService = proxyService;
         this.rateLimitService = rateLimitService;
         this.requestLogService = requestLogService;
+        this.routingAuthService = routingAuthService;
     }
 
-    /**
-     * Chat Completions - OpenAI 兼容接口
-     */
     @PostMapping("/chat/completions")
     public ResponseEntity<?> chatCompletions(
             @RequestHeader("Authorization") String authorization,
@@ -35,9 +37,6 @@ public class GatewayController {
         return handleRequest(authorization, requestBody);
     }
 
-    /**
-     * Completions - OpenAI 兼容接口
-     */
     @PostMapping("/completions")
     public ResponseEntity<?> completions(
             @RequestHeader("Authorization") String authorization,
@@ -45,9 +44,6 @@ public class GatewayController {
         return handleRequest(authorization, requestBody);
     }
 
-    /**
-     * Embeddings - OpenAI 兼容接口
-     */
     @PostMapping("/embeddings")
     public ResponseEntity<?> embeddings(
             @RequestHeader("Authorization") String authorization,
@@ -63,26 +59,35 @@ public class GatewayController {
                     .body(Map.of("error", Map.of("message", "Invalid API key", "type", "auth_error")));
         }
 
-        // 1. 鉴权 - 通过 API Key 查找 App
-        RateLimitService.AppContext appContext = rateLimitService.resolveApp(apiKey);
-        if (appContext == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", Map.of("message", "Invalid API key", "type", "auth_error")));
+        RateLimitService.AppContext appContext;
+        if (RoutingSecretKeyGenerator.isRoutingSecretKey(apiKey)) {
+            String requestedModel = requestBody.get("model") == null ? null : String.valueOf(requestBody.get("model"));
+            RoutingAuthService.ResolvedRouting routing = routingAuthService.resolve(apiKey, requestedModel);
+            if (routing == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", Map.of("message", "Invalid routing secret key", "type", "auth_error")));
+            }
+            appContext = routing.appContext();
+            if (requestBody.get("model") == null || String.valueOf(requestBody.get("model")).isBlank()) {
+                requestBody.put("model", routing.primaryModel().modelCode());
+            }
+        } else {
+            appContext = rateLimitService.resolveApp(apiKey);
+            if (appContext == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(Map.of("error", Map.of("message", "Invalid API key", "type", "auth_error")));
+            }
         }
 
-        // 2. 限流与配额校验
         String model = (String) requestBody.get("model");
         if (!rateLimitService.checkRateLimit(appContext, model)) {
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body(Map.of("error", Map.of("message", "Rate limit exceeded", "type", "rate_limit_error")));
         }
 
-        // 3. 转发到 Provider
         ProxyService.ProxyResult result = proxyService.proxy(requestBody, appContext);
 
         long latencyMs = System.currentTimeMillis() - startMs;
-
-        // 4. 记录请求日志
         requestLogService.log(appContext, result, latencyMs);
 
         if (result.errorCode() != null) {

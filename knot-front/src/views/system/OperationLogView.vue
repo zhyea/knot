@@ -9,10 +9,13 @@
           <el-input v-model="queryForm.operation" placeholder="请输入操作" clearable />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="queryForm.status" placeholder="请选择状态" clearable>
-            <el-option label="成功" value="SUCCESS" />
-            <el-option label="失败" value="FAILURE" />
-          </el-select>
+          <EnumSelect
+            v-model="queryForm.status"
+            category="status"
+            :include-codes="['SUCCESS', 'FAILURE']"
+            placeholder="请选择状态"
+            clearable
+          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleQuery">查询</el-button>
@@ -32,7 +35,7 @@
       <el-table-column prop="status" label="状态" width="90">
         <template #default="{ row }">
           <el-tag :type="row.status === 'SUCCESS' ? 'success' : 'danger'" size="small">
-            {{ row.status === 'SUCCESS' ? '成功' : '失败' }}
+            {{ statusLabel(row.status) }}
           </el-tag>
         </template>
       </el-table-column>
@@ -64,7 +67,7 @@
         <el-descriptions-item label="IP地址">{{ currentLog.ipAddress }}</el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="currentLog.status === 'SUCCESS' ? 'success' : 'danger'" size="small">
-            {{ currentLog.status === 'SUCCESS' ? '成功' : '失败' }}
+            {{ statusLabel(currentLog.status) }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="执行时间(ms)">{{ currentLog.executionTime }}</el-descriptions-item>
@@ -87,10 +90,20 @@
 </template>
 
 <script setup>
-import { ref, reactive } from "vue";
+import { ref, reactive, onMounted } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
+import EnumSelect from "../../components/common/EnumSelect.vue";
 import { usePageList } from "../../composables/usePageList";
+import { useEnums, resolveEnumLabel } from "../../composables/useEnums";
 import { listOperationLogs, getOperationLogDetail } from "../../api/operationLogs";
+
+const { options: statusOptions, loadOptions: loadStatusOptions } = useEnums("status");
+
+function statusLabel(code) {
+  return resolveEnumLabel(statusOptions.value, code, code || "—");
+}
+
+onMounted(() => loadStatusOptions());
 
 const queryForm = reactive({
   module: '',
@@ -123,16 +136,8 @@ load();
 </script>
 
 <style scoped>
-.toolbar {
-  margin-bottom: 16px;
-}
 .query-form {
   flex: 1;
-}
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
 }
 .hint {
   font-size: 12px;

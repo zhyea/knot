@@ -7,21 +7,59 @@
       @update:model-value="emit('update:modelValue', $event)"
       @closed="onClosed"
   >
-    <el-form v-loading="detailLoading" :model="form" label-width="100px">
-      <div class="slot-body">
-        <el-form-item label="模型编码" required :error="modelCodeError">
-          <el-input
-              v-model="form.modelCode"
-              placeholder="请输入模型编码"
-              maxlength="128"
-              show-word-limit
-              :disabled="modelCodeChecking"
-              @blur="validateModelCode"
-          />
-        </el-form-item>
-        <el-form-item label="名称" required>
-          <el-input v-model="form.name" placeholder="模型名称"/>
-        </el-form-item>
+    <el-form v-loading="detailLoading" :model="form" label-width="100px" class="model-form">
+      <div class="slot-body model-section">
+        <div class="section-head">
+          <div>
+            <h3>基础信息</h3>
+            <p>维护模型编码、展示名称、类型和版本，模型编码用于路由、计费和上游调用定位。</p>
+          </div>
+          <el-form-item label="启用" class="inline-switch">
+            <el-switch v-model="form.enabled"/>
+          </el-form-item>
+        </div>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="模型编码" required :error="modelCodeError">
+              <el-input
+                  v-model="form.modelCode"
+                  placeholder="请输入模型编码"
+                  maxlength="128"
+                  show-word-limit
+                  :disabled="modelCodeChecking"
+                  @blur="validateModelCode"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="名称" required>
+              <el-input v-model="form.name" placeholder="模型名称"/>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="模型类型" required>
+              <EnumSelect v-model="form.modelType" category="model_type" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="版本">
+              <el-input v-model="form.version" placeholder="如 2024-08-06 或 1.0.0"/>
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </div>
+
+      <div class="space-line"/>
+
+      <div class="slot-body model-section">
+        <div class="section-head">
+          <div>
+            <h3>供应商归属</h3>
+            <p>指定模型所属供应商，用于分组管理、凭证匹配和上游调用。</p>
+          </div>
+        </div>
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="供应商" required>
@@ -40,36 +78,32 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="模型类型" required>
-              <el-select v-model="form.modelType" placeholder="请选择模型类型" style="width: 100%">
-                <el-option
-                    v-for="item in modelTypeOptions"
-                    :key="item.itemCode"
-                    :label="item.itemLabel"
-                    :value="item.itemCode"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
         </el-row>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="版本">
-              <el-input v-model="form.version" placeholder="如 2024-08-06"/>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="启用">
-              <el-switch v-model="form.enabled"/>
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <div v-if="selectedProvider" class="provider-card">
+          <div>
+            <span class="meta-label">供应商编码</span>
+            <strong>{{ selectedProvider.code || "—" }}</strong>
+          </div>
+          <div>
+            <span class="meta-label">供应商名称</span>
+            <strong>{{ selectedProvider.name || "—" }}</strong>
+          </div>
+          <div>
+            <span class="meta-label">供应商类型</span>
+            <strong>{{ selectedProvider.type || "—" }}</strong>
+          </div>
+        </div>
       </div>
 
       <div class="space-line"/>
 
-      <div class="slot-body">
+      <div class="slot-body model-section">
+        <div class="section-head">
+          <div>
+            <h3>策略配置</h3>
+            <p>按需配置模型级频控和额度策略，留空则不在模型维度覆盖。</p>
+          </div>
+        </div>
         <el-form-item label="频控策略">
           <KvEditor v-model="form.rateLimitPolicy" value-mode="number"/>
         </el-form-item>
@@ -89,6 +123,7 @@
 import {computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import KvEditor from "../common/KvEditor.vue";
+import EnumSelect from "../common/EnumSelect.vue";
 import {useEnums} from "../../composables/useEnums";
 import {
   emptyQuotaPolicy,
@@ -131,6 +166,9 @@ const form = reactive({
 });
 
 const isEdit = computed(() => props.model != null);
+const selectedProvider = computed(() =>
+    providerOptions.value.find((item) => item.id === form.providerId)
+);
 
 async function loadProviders() {
   const data = await listProviders({pageNum: 1, pageSize: 500});
@@ -298,3 +336,89 @@ async function submit() {
   }
 }
 </script>
+
+<style scoped>
+.model-form {
+  padding-bottom: 8px;
+}
+
+.model-section {
+  border-color: #e4e7ed;
+  box-shadow: 0 8px 24px rgba(31, 45, 61, 0.04);
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.section-head h3 {
+  margin: 0;
+  color: #303133;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.section-head p {
+  margin: 5px 0 0;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.inline-switch {
+  margin-bottom: 0;
+  flex: 0 0 auto;
+}
+
+.provider-card {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-left: 100px;
+  padding: 12px 14px;
+  border: 1px solid var(--knot-border, #ebeef5);
+  border-radius: 0;
+  background: var(--knot-surface-soft, #f8fafc);
+}
+
+.provider-card > div {
+  min-width: 0;
+}
+
+.provider-card strong {
+  display: block;
+  margin-top: 4px;
+  color: #303133;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta-label {
+  display: block;
+  color: #909399;
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .section-head {
+    display: block;
+  }
+
+  .inline-switch {
+    margin-top: 12px;
+  }
+
+  .provider-card {
+    grid-template-columns: 1fr;
+    margin-left: 0;
+  }
+}
+</style>

@@ -1,6 +1,10 @@
 package org.chobit.knot.gateway.vo.routing;
 
-import java.util.List;
+import jakarta.validation.constraints.NotBlank;
 
-public record RoutingTestRequest(String appId, List<String> tags, String time) {
+public record RoutingTestRequest(
+        @NotBlank String secretKey,
+        String prompt,
+        String model
+) {
 }

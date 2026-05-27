@@ -77,3 +77,16 @@ export function useEnumCategories() {
 export function clearEnumCache() {
   Object.keys(CACHE).forEach((k) => delete CACHE[k]);
 }
+
+/**
+ * 根据 itemCode 解析展示文案
+ * @param {Array} options useEnums 返回的 options.value
+ * @param {string} code
+ * @param {string} [fallback]
+ */
+export function resolveEnumLabel(options, code, fallback = "—") {
+  if (!code) return fallback;
+  const list = Array.isArray(options) ? options : [];
+  const item = list.find((i) => i.itemCode === code);
+  return item?.itemLabel ?? code;
+}

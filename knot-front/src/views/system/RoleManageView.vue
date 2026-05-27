@@ -1,6 +1,8 @@
 ﻿<template>
   <PageSection title="角色权限">
-    <el-button class="mb" @click="load">刷新</el-button>
+    <div class="toolbar">
+      <el-button @click="load">刷新</el-button>
+    </div>
     <el-table v-loading="loading" :data="rows" size="small" stripe border>
       <el-table-column prop="code" label="编码" width="140" />
       <el-table-column prop="name" label="名称" />
@@ -30,13 +32,3 @@ const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChang
 load();
 </script>
 
-<style scoped>
-.mb {
-  margin-bottom: 10px;
-}
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-</style>

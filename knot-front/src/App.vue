@@ -5,9 +5,10 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import MainLayout from './layouts/MainLayout.vue';
+import { loadThemePreference } from './composables/useTheme';
 
 const route = useRoute();
 
@@ -18,5 +19,9 @@ const layout = computed(() => {
     return 'div';
   }
   return MainLayout;
+});
+
+onMounted(() => {
+  loadThemePreference();
 });
 </script>

@@ -8,6 +8,7 @@ public final class TrafficResourceType {
     public static final String APP = "APP";
     public static final String MODEL = "MODEL";
     public static final String PROVIDER = "PROVIDER";
+    public static final String ROUTING_RULE = "ROUTING_RULE";
 
     private TrafficResourceType() {
     }

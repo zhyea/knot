@@ -34,10 +34,3 @@ const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChang
 load();
 </script>
 
-<style scoped>
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-</style>

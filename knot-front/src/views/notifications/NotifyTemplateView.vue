@@ -28,7 +28,9 @@
       <el-form :model="tplForm" label-width="100px">
         <el-form-item label="编码" required><el-input v-model="tplForm.code" /></el-form-item>
         <el-form-item label="名称" required><el-input v-model="tplForm.name" /></el-form-item>
-        <el-form-item label="渠道"><el-input v-model="tplForm.channel" placeholder="EMAIL" /></el-form-item>
+        <el-form-item label="渠道">
+          <EnumSelect v-model="tplForm.channel" category="channel" />
+        </el-form-item>
         <el-form-item label="内容"><el-input v-model="tplForm.content" type="textarea" :rows="5" /></el-form-item>
       </el-form>
       <template #footer>
@@ -43,6 +45,7 @@
 import { reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
+import EnumSelect from "../../components/common/EnumSelect.vue";
 import { usePageList } from "../../composables/usePageList";
 import { listNotifyTemplates, createNotifyTemplate } from "../../api/notifications";
 
@@ -84,10 +87,3 @@ async function submitTpl() {
 load();
 </script>
 
-<style scoped>
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-</style>

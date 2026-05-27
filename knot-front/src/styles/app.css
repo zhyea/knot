@@ -10,6 +10,7 @@ body,
     margin: 0;
     height: 100%;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--knot-bg, #f5f7fa);
 }
 
 /* 让主布局能按视口高度伸缩，避免侧栏菜单把整页撑出纵向滚动条 */
@@ -23,27 +24,6 @@ body,
     width: 100%;
 }
 
-.page-section .title {
-    margin: 0 0 8px;
-    font-size: 18px;
-    font-weight: 600;
-    color: #303133;
-}
-
-.page-section .desc {
-    margin: 0 0 16px;
-    color: #606266;
-    line-height: 1.6;
-    font-size: 14px;
-}
-
-.page-section .slot-body {
-    background: #fff;
-    border-radius: 8px;
-    padding: 16px;
-    border: 1px solid #ebeef5;
-}
-
 .toolbar {
     display: flex;
     align-items: center;
@@ -51,6 +31,34 @@ body,
     margin-bottom: 12px;
     flex-wrap: wrap;
     gap: 8px;
+}
+
+.drawer-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.pagination-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+.el-table {
+    width: 100%;
+}
+
+.el-table th.el-table__cell {
+    background: var(--knot-surface-soft, #f8fafc) !important;
+    color: #606266;
+    font-weight: 600;
+}
+
+.el-table .el-table__fixed-right {
+    box-shadow: -6px 0 12px rgba(31, 45, 61, 0.06);
 }
 
 .stat-row {
@@ -68,4 +76,83 @@ body,
     display: block;
     width: 100%;
     height: 16px;
+}
+
+/* 全局细滚动条（原生 overflow 区域） */
+:root {
+    --knot-scrollbar-size: 4px; /* WebKit 最细可用宽度；Firefox 使用 scrollbar-width: thin */
+    --knot-scrollbar-thumb: rgba(144, 147, 153, 0.45);
+    --knot-scrollbar-thumb-hover: rgba(144, 147, 153, 0.65);
+    --el-border-radius-base: 0;
+    --el-border-radius-small: 0;
+    --el-border-radius-round: 0;
+    --el-border-radius-circle: 0;
+}
+
+.el-card,
+.el-button,
+.el-input__wrapper,
+.el-select__wrapper,
+.el-textarea__inner,
+.el-dialog,
+.el-drawer,
+.el-message,
+.el-notification,
+.el-popover.el-popper,
+.el-popper,
+.el-tag,
+.el-alert,
+.el-table,
+.el-table__inner-wrapper,
+.el-pagination button,
+.el-pagination .el-pager li {
+    border-radius: 0 !important;
+}
+
+*,
+html,
+body {
+    scrollbar-width: thin;
+    scrollbar-color: var(--knot-scrollbar-thumb) transparent;
+}
+
+*::-webkit-scrollbar {
+    width: var(--knot-scrollbar-size);
+    height: var(--knot-scrollbar-size);
+}
+
+*::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+    background-color: var(--knot-scrollbar-thumb);
+    border-radius: calc(var(--knot-scrollbar-size) / 2);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background-color: var(--knot-scrollbar-thumb-hover);
+}
+
+*::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* Element Plus 自定义滚动条 */
+.el-scrollbar__bar.is-vertical {
+    width: var(--knot-scrollbar-size) !important;
+    right: 1px;
+}
+
+.el-scrollbar__bar.is-horizontal {
+    height: var(--knot-scrollbar-size) !important;
+}
+
+.el-scrollbar__thumb {
+    border-radius: calc(var(--knot-scrollbar-size) / 2) !important;
+    opacity: 0.55;
+}
+
+.el-scrollbar__thumb:hover {
+    opacity: 0.85;
 }

@@ -2,31 +2,64 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.gateway.mapper.RoutingRuleMapper">
 
+    <sql id="RuleSelectColumns">
+        r.id, r.rule_code, r.name, r.app_scenario, r.model_types,
+        r.app_id, a.name AS app_name,
+        r.user_id, u.real_name AS user_real_name, u.username AS user_username,
+        r.strategy_type, r.fallback_rule_id, r.status
+    </sql>
+
     <select id="list" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
-        select id, name, strategy_type, priority, condition_expr, target_provider_id, target_model_id, status
-        from routing_rules
-        order by priority asc, id desc
+        select <include refid="RuleSelectColumns"/>
+        from routing_rules r
+        left join apps a on r.app_id = a.id
+        left join users u on r.user_id = u.id and u.is_deleted = 0
+        order by r.id desc
     </select>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
-        select id, name, strategy_type, priority, condition_expr, target_provider_id, target_model_id, status
-        from routing_rules
-        where id = #{id}
+        select <include refid="RuleSelectColumns"/>
+        from routing_rules r
+        left join apps a on r.app_id = a.id
+        left join users u on r.user_id = u.id and u.is_deleted = 0
+        where r.id = #{id}
+    </select>
+
+    <select id="listEnabledByConsumerId" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
+        select <include refid="RuleSelectColumns"/>
+        from routing_rules r
+        inner join routing_rule_consumers rc on r.id = rc.rule_id
+        left join apps a on r.app_id = a.id
+        left join users u on r.user_id = u.id and u.is_deleted = 0
+        where rc.consumer_id = #{consumerId}
+          and r.status = 'ENABLED'
+          and rc.status = 'ENABLED'
+        order by r.id desc
+    </select>
+
+    <select id="countByRuleCode" resultType="java.lang.Long">
+        select count(1) from routing_rules
+        where rule_code = #{ruleCode}
+        <if test="excludeId != null">
+            and id != #{excludeId}
+        </if>
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into routing_rules(name, strategy_type, priority, condition_expr, target_provider_id, target_model_id, status)
-        values(#{name}, #{strategyType}, #{priority}, #{conditionExpr}, #{targetProviderId}, #{targetModelId}, #{status})
+        insert into routing_rules(rule_code, name, app_scenario, model_types, app_id, user_id, strategy_type, fallback_rule_id, status)
+        values(#{ruleCode}, #{name}, #{appScenario}, #{modelTypes}, #{appId}, #{userId}, #{strategyType}, #{fallbackRuleId}, #{status})
     </insert>
 
     <update id="update">
         update routing_rules
-        set name = #{name},
+        set rule_code = #{ruleCode},
+            name = #{name},
+            app_scenario = #{appScenario},
+            model_types = #{modelTypes},
+            app_id = #{appId},
+            user_id = #{userId},
             strategy_type = #{strategyType},
-            priority = #{priority},
-            condition_expr = #{conditionExpr},
-            target_provider_id = #{targetProviderId},
-            target_model_id = #{targetModelId},
+            fallback_rule_id = #{fallbackRuleId},
             status = #{status}
         where id = #{id}
     </update>

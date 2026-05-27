@@ -1,32 +1,48 @@
 import { ref, watch } from "vue";
+import { getMySettings, saveMySettings } from "../api/userSettings";
 
 const STORAGE_KEY = "knot-theme";
+const TOKEN_KEY = "knot_token";
+const THEME_SETTING_KEY = "theme";
 
 /** 所有可用主题 */
 export const THEMES = [
-  { key: "blue", label: "默认蓝" },
-  { key: "green", label: "极客绿" },
-  { key: "orange", label: "活力橙" },
-  { key: "purple", label: "典雅紫" },
-  { key: "red", label: "中国红" }
+  { key: "blue", label: "WordPress 蓝" },
+  { key: "green", label: "WordPress 绿" },
+  { key: "orange", label: "咖啡橙" },
+  { key: "purple", label: "现代紫" },
+  { key: "red", label: "日出红" }
 ];
 
 const current = ref(loadStored());
+let remoteLoaded = false;
+let remoteLoadingPromise = null;
 
 function loadStored() {
   try {
-    return localStorage.getItem(STORAGE_KEY) || "blue";
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return THEMES.some((theme) => theme.key === stored) ? stored : "blue";
   } catch {
     return "blue";
   }
 }
 
 function applyTheme(key) {
-  document.documentElement.setAttribute("data-theme", key);
+  const themeKey = THEMES.some((theme) => theme.key === key) ? key : "blue";
+  document.documentElement.setAttribute("data-theme", themeKey);
+  document.body?.setAttribute("data-theme", themeKey);
   try {
-    localStorage.setItem(STORAGE_KEY, key);
+    localStorage.setItem(STORAGE_KEY, themeKey);
   } catch {
     // ignore
+  }
+}
+
+function hasToken() {
+  try {
+    return !!localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return false;
   }
 }
 
@@ -35,9 +51,50 @@ export function initTheme() {
   applyTheme(current.value);
 }
 
+/** 登录态下从服务端加载主题设置，失败时保留本地主题 */
+export async function loadThemePreference() {
+  if (!hasToken()) {
+    return current.value;
+  }
+  if (remoteLoadingPromise) {
+    return remoteLoadingPromise;
+  }
+  remoteLoadingPromise = doLoadThemePreference();
+  try {
+    return await remoteLoadingPromise;
+  } finally {
+    remoteLoadingPromise = null;
+  }
+}
+
+async function doLoadThemePreference() {
+  try {
+    const settings = await getMySettings({ silentError: true, skipIdleTouch: true });
+    const remoteTheme = settings?.[THEME_SETTING_KEY];
+    remoteLoaded = true;
+    if (THEMES.some((theme) => theme.key === remoteTheme)) {
+      current.value = remoteTheme;
+      applyTheme(remoteTheme);
+    }
+  } catch {
+    // localStorage remains the offline/default preference.
+  }
+  return current.value;
+}
+
 /** 切换主题 */
-export function setTheme(key) {
-  current.value = key;
+export async function setTheme(key) {
+  const themeKey = THEMES.some((theme) => theme.key === key) ? key : "blue";
+  current.value = themeKey;
+  applyTheme(themeKey);
+  if (hasToken()) {
+    try {
+      await saveMySettings({ [THEME_SETTING_KEY]: themeKey }, { silentError: true, skipIdleTouch: true });
+      remoteLoaded = true;
+    } catch {
+      // The local theme has already been applied; retry on the next explicit change.
+    }
+  }
 }
 
 /** 监听变化自动应用 */
@@ -47,5 +104,8 @@ watch(current, (key) => {
 
 /** 当前主题 key（响应式） */
 export function useTheme() {
-  return { current, setTheme };
+  if (!remoteLoaded) {
+    loadThemePreference();
+  }
+  return { current, setTheme, loadThemePreference };
 }

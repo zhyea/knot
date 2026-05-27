@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.ModelApiBindingMapper">
+
+    <sql id="BindingSelectColumns">
+        b.id, b.model_id, b.protocol, b.api_path, b.usage_extract_json,
+        b.status, b.remark,
+        m.model_code, m.name AS model_name, m.provider_id
+    </sql>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.ModelApiBindingEntity">
+        select <include refid="BindingSelectColumns"/>
+        from model_api_bindings b
+        inner join models m on b.model_id = m.id
+        where b.id = #{id}
+    </select>
+
+    <select id="listByModelId" resultType="org.chobit.knot.gateway.entity.ModelApiBindingEntity">
+        select <include refid="BindingSelectColumns"/>
+        from model_api_bindings b
+        inner join models m on b.model_id = m.id
+        where b.model_id = #{modelId}
+        order by b.id asc
+    </select>
+
+    <select id="listByModelIds" resultType="org.chobit.knot.gateway.entity.ModelApiBindingEntity">
+        select <include refid="BindingSelectColumns"/>
+        from model_api_bindings b
+        inner join models m on b.model_id = m.id
+        where b.model_id in
+        <foreach collection="modelIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        order by b.model_id asc, b.id asc
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into model_api_bindings(model_id, protocol, api_path, usage_extract_json, status, remark)
+        values(#{modelId}, #{protocol}, #{apiPath}, #{usageExtractJson}, #{status}, #{remark})
+    </insert>
+
+    <update id="update">
+        update model_api_bindings
+        set protocol = #{protocol},
+            api_path = #{apiPath},
+            usage_extract_json = #{usageExtractJson},
+            status = #{status},
+            remark = #{remark}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from model_api_bindings where id = #{id}
+    </delete>
+
+    <delete id="deleteByModelId">
+        delete from model_api_bindings where model_id = #{modelId}
+    </delete>
+
+</mapper>

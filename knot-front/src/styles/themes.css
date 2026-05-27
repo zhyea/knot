@@ -5,57 +5,77 @@
 
 /* --- 默认蓝 --- */
 [data-theme="blue"] {
-  --el-color-primary: #409EFF;
-  --el-color-primary-light-3: #79BBFF;
-  --el-color-primary-light-5: #A0CFFF;
-  --el-color-primary-light-7: #C6E2FF;
-  --el-color-primary-light-8: #D9ECFF;
-  --el-color-primary-light-9: #ECF5FF;
-  --el-color-primary-dark-2: #337ECC;
+  --el-color-primary: #2271b1;
+  --el-color-primary-light-3: #5b9dd9;
+  --el-color-primary-light-5: #8bbce8;
+  --el-color-primary-light-7: #c5d9ed;
+  --el-color-primary-light-8: #dceaf6;
+  --el-color-primary-light-9: #f0f6fc;
+  --el-color-primary-dark-2: #135e96;
+  --knot-bg: #f0f0f1;
+  --knot-surface: #ffffff;
+  --knot-surface-soft: #f6f7f7;
+  --knot-border: #c3c4c7;
 }
 
 /* --- 极客绿 --- */
 [data-theme="green"] {
-  --el-color-primary: #00B42A;
-  --el-color-primary-light-3: #4CC66E;
-  --el-color-primary-light-5: #80D494;
-  --el-color-primary-light-7: #B3E2BD;
-  --el-color-primary-light-8: #CCEBD3;
-  --el-color-primary-light-9: #E6F4E9;
-  --el-color-primary-dark-2: #009A23;
+  --el-color-primary: #008a20;
+  --el-color-primary-light-3: #43a047;
+  --el-color-primary-light-5: #76b97b;
+  --el-color-primary-light-7: #b8d8ba;
+  --el-color-primary-light-8: #d7ead8;
+  --el-color-primary-light-9: #f0f7f1;
+  --el-color-primary-dark-2: #006b1a;
+  --knot-bg: #f1f3f1;
+  --knot-surface: #ffffff;
+  --knot-surface-soft: #f7f8f7;
+  --knot-border: #c9d5ca;
 }
 
 /* --- 活力橙 --- */
 [data-theme="orange"] {
-  --el-color-primary: #FF7D00;
-  --el-color-primary-light-3: #FFA040;
-  --el-color-primary-light-5: #FFBE73;
-  --el-color-primary-light-7: #FFD6A6;
-  --el-color-primary-light-8: #FFE2BF;
-  --el-color-primary-light-9: #FFEDD9;
-  --el-color-primary-dark-2: #CC6400;
+  --el-color-primary: #b26200;
+  --el-color-primary-light-3: #c8893d;
+  --el-color-primary-light-5: #d9ac73;
+  --el-color-primary-light-7: #ecd3ad;
+  --el-color-primary-light-8: #f4e2c7;
+  --el-color-primary-light-9: #fbf4ea;
+  --el-color-primary-dark-2: #8a4b00;
+  --knot-bg: #f4f1ed;
+  --knot-surface: #ffffff;
+  --knot-surface-soft: #f8f6f2;
+  --knot-border: #d6c7b3;
 }
 
 /* --- 典雅紫 --- */
 [data-theme="purple"] {
-  --el-color-primary: #722ED1;
-  --el-color-primary-light-3: #9B6DD7;
-  --el-color-primary-light-5: #B59CE3;
-  --el-color-primary-light-7: #CFCAEE;
-  --el-color-primary-light-8: #DDD8F3;
-  --el-color-primary-light-9: #EBE7F8;
-  --el-color-primary-dark-2: #5B25A7;
+  --el-color-primary: #826eb4;
+  --el-color-primary-light-3: #a493c9;
+  --el-color-primary-light-5: #bfb3d8;
+  --el-color-primary-light-7: #ddd7eb;
+  --el-color-primary-light-8: #ebe7f3;
+  --el-color-primary-light-9: #f6f4fa;
+  --el-color-primary-dark-2: #665397;
+  --knot-bg: #f2f1f4;
+  --knot-surface: #ffffff;
+  --knot-surface-soft: #f7f6f9;
+  --knot-border: #cbc4d9;
 }
 
 /* --- 中国红 --- */
 [data-theme="red"] {
-  --el-color-primary: #F53F3F;
-  --el-color-primary-light-3: #F77272;
-  --el-color-primary-light-5: #F99999;
-  --el-color-primary-light-7: #FBC1C1;
-  --el-color-primary-light-8: #FDD4D4;
-  --el-color-primary-light-9: #FEE9E9;
-  --el-color-primary-dark-2: #C43232;
+  --el-color-primary: #b32d2e;
+  --el-color-primary-light-3: #cf6b5f;
+  --el-color-primary-light-5: #df968b;
+  --el-color-primary-light-7: #efc7c2;
+  --el-color-primary-light-8: #f6ddd9;
+  --el-color-primary-light-9: #fbf2f0;
+  --el-color-primary-dark-2: #8a2424;
+  --knot-bg: #f4f1f0;
+  --knot-surface: #ffffff;
+  --knot-surface-soft: #f8f6f5;
+  --knot-border: #d9c5c2;
 }
 
 /* 主题切换器样式 */
@@ -83,8 +103,8 @@
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.08);
 }
 
-.theme-dot--blue   { background: #409EFF; }
-.theme-dot--green  { background: #00B42A; }
-.theme-dot--orange { background: #FF7D00; }
-.theme-dot--purple { background: #722ED1; }
-.theme-dot--red    { background: #F53F3F; }
+.theme-dot--blue   { background: #2271b1; }
+.theme-dot--green  { background: #008a20; }
+.theme-dot--orange { background: #b26200; }
+.theme-dot--purple { background: #826eb4; }
+.theme-dot--red    { background: #b32d2e; }

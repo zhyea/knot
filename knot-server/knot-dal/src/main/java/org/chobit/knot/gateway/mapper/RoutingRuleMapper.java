@@ -13,6 +13,11 @@ public interface RoutingRuleMapper {
 
     RoutingRuleEntity getById(Long id);
 
+    List<RoutingRuleEntity> listEnabledByConsumerId(Long consumerId);
+
+    Long countByRuleCode(@org.apache.ibatis.annotations.Param("ruleCode") String ruleCode,
+                         @org.apache.ibatis.annotations.Param("excludeId") Long excludeId);
+
     int insert(RoutingRuleEntity entity);
 
     int update(RoutingRuleEntity entity);

@@ -30,6 +30,17 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE KEY uk_users_username (username)
 );
 
+CREATE TABLE IF NOT EXISTS user_settings (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  user_id BIGINT NOT NULL,
+  setting_key VARCHAR(64) NOT NULL,
+  setting_value TEXT DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_user_settings_user_key (user_id, setting_key),
+  KEY idx_user_settings_user (user_id)
+);
+
 CREATE TABLE IF NOT EXISTS roles (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) NOT NULL,
@@ -251,6 +262,22 @@ CREATE TABLE IF NOT EXISTS model_versions (
   KEY idx_model_versions_model (model_id)
 );
 
+-- 供应商模型与 API 协议绑定（协议 + 消耗取值逻辑）
+CREATE TABLE IF NOT EXISTS model_api_bindings (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  model_id BIGINT NOT NULL COMMENT '模型 ID，关联 models.id',
+  protocol VARCHAR(64) NOT NULL COMMENT 'API 协议：OPENAI_CHAT_COMPLETIONS / OPENAI_COMPLETIONS / OPENAI_RESPONSES / ANTHROPIC_MESSAGES / OTHER',
+  api_path VARCHAR(255) DEFAULT NULL COMMENT '上游 API 路径，为空时使用协议默认路径',
+  usage_extract_json JSON NOT NULL COMMENT '消耗取值逻辑，字段：usage_path, total_tokens, cached_read_tokens, cached_write_tokens, output_tokens, uncached_tokens, total_input_tokens',
+  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  remark VARCHAR(255) DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_model_api_protocol (model_id, protocol),
+  KEY idx_model_api_bindings_model (model_id),
+  KEY idx_model_api_bindings_protocol (protocol)
+);
+
 -- =========================
 -- 应用管理
 -- =========================
@@ -290,19 +317,58 @@ CREATE TABLE IF NOT EXISTS app_model_permissions (
 -- =========================
 -- 路由规则
 -- =========================
+CREATE TABLE IF NOT EXISTS routing_consumers (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  consumer_code VARCHAR(32) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  user_id BIGINT DEFAULT NULL,
+  secret_key VARCHAR(64) NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_routing_consumers_code (consumer_code),
+  UNIQUE KEY uk_routing_consumers_secret (secret_key),
+  KEY idx_routing_consumers_status (status)
+);
+
 CREATE TABLE IF NOT EXISTS routing_rules (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  rule_code VARCHAR(32) NOT NULL,
   name VARCHAR(100) NOT NULL,
+  app_scenario VARCHAR(128) DEFAULT NULL,
+  model_types VARCHAR(255) NOT NULL DEFAULT 'CHAT',
+  app_id BIGINT DEFAULT NULL,
+  user_id BIGINT DEFAULT NULL,
   strategy_type VARCHAR(32) NOT NULL,
-  priority INT NOT NULL DEFAULT 100,
-  condition_expr TEXT NOT NULL,
-  target_provider_id BIGINT DEFAULT NULL,
-  target_model_id BIGINT DEFAULT NULL,
   fallback_rule_id BIGINT DEFAULT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  KEY idx_routing_rules_priority (priority, status)
+  UNIQUE KEY uk_routing_rules_code (rule_code),
+  KEY idx_routing_rules_app (app_id, status)
+);
+
+CREATE TABLE IF NOT EXISTS routing_rule_consumers (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  rule_id BIGINT NOT NULL,
+  consumer_id BIGINT NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_routing_rule_consumer (rule_id, consumer_id),
+  KEY idx_rrc_consumer (consumer_id, status),
+  KEY idx_rrc_rule (rule_id, status)
+);
+
+CREATE TABLE IF NOT EXISTS routing_rule_models (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  rule_id BIGINT NOT NULL,
+  model_id BIGINT NOT NULL,
+  priority INT NOT NULL DEFAULT 100,
+  is_primary TINYINT(1) NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_routing_rule_model (rule_id, model_id),
+  KEY idx_routing_rule_models_rule (rule_id, priority)
 );
 
 CREATE TABLE IF NOT EXISTS routing_hit_logs (

@@ -55,3 +55,8 @@ export function listModelOperationLogs(modelId) {
 export function listAppOperationLogs(appId) {
   return getOperationLogsByEntity("App", appId, { params: { module: "app" } });
 }
+
+/** 某路由规则（entity_type=RoutingRule）在 routing 模块下的操作日志 */
+export function listRoutingRuleOperationLogs(ruleId) {
+  return getOperationLogsByEntity("RoutingRule", ruleId, { params: { module: "routing" } });
+}

@@ -36,6 +36,7 @@
           <el-menu-item index="/system/nodes">网关节点</el-menu-item>
           <el-menu-item index="/system/enums">枚举管理</el-menu-item>
           <el-menu-item index="/system/backup">备份还原</el-menu-item>
+          <el-menu-item index="/system/settings">用户设置</el-menu-item>
         </el-sub-menu>
 
         <el-menu-item index="/providers">
@@ -68,6 +69,7 @@
           </template>
           <el-menu-item index="/routing/rules">规则列表</el-menu-item>
           <el-menu-item index="/routing/logs">切换日志</el-menu-item>
+          <el-menu-item index="/routing/consumers">消费者</el-menu-item>
         </el-sub-menu>
 
         <el-sub-menu index="/billing">
@@ -145,16 +147,6 @@
       <el-header class="header">
         <span>AI 网关管理后台</span>
         <div class="header-right">
-          <div class="theme-switcher">
-            <span class="theme-label">主题</span>
-            <span
-                v-for="t in THEMES"
-                :key="t.key"
-                :class="['theme-dot', 'theme-dot--' + t.key, { active: current === t.key }]"
-                :title="t.label"
-                @click="setTheme(t.key)"
-            />
-          </div>
           <el-dropdown @command="handleCommand">
             <span class="user-info">
               <el-icon><User/></el-icon>
@@ -178,7 +170,6 @@
 <script setup>
 import {computed, onMounted, ref, watch} from "vue";
 import {useRoute, useRouter} from "vue-router";
-import {useTheme, THEMES} from "../composables/useTheme";
 import {useAuth} from "../composables/useAuth";
 import {
   Odometer,
@@ -207,7 +198,6 @@ const ASIDE_COLLAPSED_PX = 64;
 
 const route = useRoute();
 const router = useRouter();
-const {current, setTheme} = useTheme();
 const {user, logout} = useAuth();
 const activePath = computed(() => route.path);
 
@@ -302,8 +292,8 @@ async function handleCommand(command) {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  background: #fff;
-  border-right: 1px solid #ebeef5;
+  background: var(--knot-surface, #fff);
+  border-right: 1px solid var(--knot-border, #ebeef5);
   transition: width 0.2s ease;
 }
 
@@ -331,8 +321,8 @@ async function handleCommand(command) {
   justify-content: center;
   padding: 0 12px;
   font-weight: 600;
-  border-bottom: 1px solid #ebeef5;
-  background: #fff;
+  border-bottom: 1px solid var(--knot-border, #ebeef5);
+  background: var(--knot-surface, #fff);
 }
 
 .aside-logo {
@@ -342,32 +332,21 @@ async function handleCommand(command) {
   font-size: 14px;
 }
 
-/* 仅菜单区域滚动；滚动条尽量收窄 */
+/* 仅菜单区域滚动 */
 .aside-nav {
   flex: 1;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   padding: 0 !important;
-  scrollbar-width: thin; /* Firefox 可调的最细标准值 */
-  scrollbar-color: var(--el-border-color) transparent;
-}
-
-.aside-nav::-webkit-scrollbar {
-  width: 2px; /* WebKit 可稳定显示的最小宽度 */
-}
-
-.aside-nav::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.aside-nav::-webkit-scrollbar-thumb {
-  background-color: var(--el-border-color);
-  border-radius: 1px;
 }
 
 .aside-menu {
   border-right: none;
+  background: var(--knot-surface, #fff);
+  --el-menu-bg-color: var(--knot-surface, #fff);
+  --el-menu-hover-bg-color: var(--el-color-primary-light-9);
+  --el-menu-active-color: var(--el-color-primary);
 }
 
 .aside-footer {
@@ -377,8 +356,8 @@ async function handleCommand(command) {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-top: 1px solid #ebeef5;
-  background: #fff;
+  border-top: 1px solid var(--knot-border, #ebeef5);
+  background: var(--knot-surface, #fff);
 }
 
 .aside-resizer {
@@ -398,8 +377,8 @@ async function handleCommand(command) {
 .header {
   height: var(--layout-header-height);
   box-sizing: border-box;
-  background: #fff;
-  border-bottom: 1px solid #ebeef5;
+  background: var(--knot-surface, #fff);
+  border-bottom: 1px solid var(--knot-border, #ebeef5);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -420,15 +399,8 @@ async function handleCommand(command) {
   font-size: 14px;
 }
 
-.theme-label {
-  font-size: 13px;
-  font-weight: 400;
-  color: #909399;
-  margin-right: 4px;
-}
-
 .main {
-  background: #f5f7fa;
+  background: var(--knot-bg, #f5f7fa);
   padding: 0;
   overflow: auto;
   min-height: 0;

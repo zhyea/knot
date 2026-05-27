@@ -31,12 +31,17 @@
           />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="260" align="center" header-align="center" fixed="right">
+      <el-table-column label="操作" width="150" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="primary" @click="openTest(row)">测试</el-button>
-          <el-button link type="primary" @click="openSwitch(row)">切版本</el-button>
-          <el-button link type="primary" @click="openChangeLog(row)">日志</el-button>
+          <RowActions
+            :actions="[
+              { key: 'edit', label: '编辑', icon: Edit },
+              { key: 'test', label: '测试', icon: VideoPlay },
+              { key: 'switch', label: '切版本', icon: RefreshRight },
+              { key: 'log', label: '日志', icon: Document }
+            ]"
+            @action="(action) => handleAction(action, row)"
+          />
         </template>
       </el-table-column>
     </el-table>
@@ -101,7 +106,9 @@
 <script setup>
 import { ref, reactive, onMounted } from "vue";
 import { ElMessage } from "element-plus";
+import { Document, Edit, RefreshRight, VideoPlay } from "@element-plus/icons-vue";
 import PageSection from "../components/common/PageSection.vue";
+import RowActions from "../components/common/RowActions.vue";
 import ModelFormDrawer from "../components/model/ModelFormDrawer.vue";
 import OperationLogDrawer from "../components/common/OperationLogDrawer.vue";
 import { listModelOperationLogs } from "../api/operationLogs";
@@ -160,6 +167,13 @@ function openCreate() {
 function openEdit(row) {
   editingModel.value = row;
   formVisible.value = true;
+}
+
+function handleAction(action, row) {
+  if (action === "edit") openEdit(row);
+  if (action === "test") openTest(row);
+  if (action === "switch") openSwitch(row);
+  if (action === "log") openChangeLog(row);
 }
 
 function onFormSaved() {
@@ -224,16 +238,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.toolbar {
-  margin-bottom: 12px;
-}
-
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-
 .mt {
   margin-top: 12px;
 }

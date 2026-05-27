@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.RoutingConsumerMapper">
+
+    <sql id="ConsumerSelectColumns">
+        c.id, c.consumer_code, c.name,
+        c.user_id, u.real_name AS user_real_name, u.username AS user_username,
+        c.secret_key, c.status
+    </sql>
+
+    <select id="list" resultType="org.chobit.knot.gateway.entity.RoutingConsumerEntity">
+        select <include refid="ConsumerSelectColumns"/>
+        from routing_consumers c
+        left join users u on c.user_id = u.id and u.is_deleted = 0
+        order by c.id desc
+    </select>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.RoutingConsumerEntity">
+        select <include refid="ConsumerSelectColumns"/>
+        from routing_consumers c
+        left join users u on c.user_id = u.id and u.is_deleted = 0
+        where c.id = #{id}
+    </select>
+
+    <select id="getBySecretKey" resultType="org.chobit.knot.gateway.entity.RoutingConsumerEntity">
+        select <include refid="ConsumerSelectColumns"/>
+        from routing_consumers c
+        left join users u on c.user_id = u.id and u.is_deleted = 0
+        where c.secret_key = #{secretKey}
+    </select>
+
+    <select id="countByConsumerCode" resultType="java.lang.Long">
+        select count(1) from routing_consumers
+        where consumer_code = #{consumerCode}
+        <if test="excludeId != null">
+            and id != #{excludeId}
+        </if>
+    </select>
+
+    <select id="countRulesByConsumerId" resultType="java.lang.Long">
+        select count(1) from routing_rule_consumers
+        where consumer_id = #{consumerId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into routing_consumers(consumer_code, name, user_id, secret_key, status)
+        values(#{consumerCode}, #{name}, #{userId}, #{secretKey}, #{status})
+    </insert>
+
+    <update id="update">
+        update routing_consumers
+        set consumer_code = #{consumerCode},
+            name = #{name},
+            user_id = #{userId},
+            status = #{status}
+        where id = #{id}
+    </update>
+
+    <update id="updateSecretKey">
+        update routing_consumers
+        set secret_key = #{secretKey}
+        where id = #{id}
+    </update>
+
+</mapper>

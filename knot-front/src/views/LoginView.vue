@@ -27,6 +27,7 @@ import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
 import { User, Lock } from '@element-plus/icons-vue';
 import { useAuth } from '../composables/useAuth';
+import { loadThemePreference } from '../composables/useTheme';
 
 const router = useRouter();
 const { login } = useAuth();
@@ -51,6 +52,7 @@ async function handleLogin() {
   loading.value = true;
   try {
     await login(form.username, form.password);
+    await loadThemePreference();
     ElMessage.success('登录成功');
     router.push('/');
   } catch (error) {

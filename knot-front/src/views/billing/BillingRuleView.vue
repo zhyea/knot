@@ -40,7 +40,9 @@
       <el-form :model="ruleForm" label-width="90px">
         <el-form-item label="编码" required><el-input v-model="ruleForm.code" /></el-form-item>
         <el-form-item label="名称" required><el-input v-model="ruleForm.name" /></el-form-item>
-        <el-form-item label="单位"><el-input v-model="ruleForm.unit" placeholder="1K tokens" /></el-form-item>
+        <el-form-item label="单位">
+          <EnumSelect v-model="ruleForm.unit" category="billing_unit" show-code />
+        </el-form-item>
         <el-form-item label="单价"><el-input-number v-model="ruleForm.unitPrice" :min="0" :step="0.0001" :precision="6" /></el-form-item>
         <el-form-item label="启用"><el-switch v-model="ruleForm.enabled" /></el-form-item>
       </el-form>
@@ -56,6 +58,7 @@
 import { reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
+import EnumSelect from "../../components/common/EnumSelect.vue";
 import { usePageList } from "../../composables/usePageList";
 import { useEnabledToggle } from "../../composables/useEnabledToggle";
 import { listBillingRules, createBillingRule, updateBillingRule } from "../../api/billing";
@@ -74,12 +77,12 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
 });
 const ruleDlg = ref(false);
 const saving = ref(false);
-const ruleForm = reactive({ code: "", name: "", unit: "1K tokens", unitPrice: 0.002, enabled: true });
+const ruleForm = reactive({ code: "", name: "", unit: "1K_TOKENS", unitPrice: 0.002, enabled: true });
 
 function openRule() {
   ruleForm.code = "";
   ruleForm.name = "";
-  ruleForm.unit = "1K tokens";
+  ruleForm.unit = "1K_TOKENS";
   ruleForm.unitPrice = 0.002;
   ruleForm.enabled = true;
   ruleDlg.value = true;
@@ -110,10 +113,3 @@ async function submitRule() {
 load();
 </script>
 
-<style scoped>
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-</style>

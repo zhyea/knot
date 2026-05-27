@@ -14,10 +14,15 @@
       </el-table-column>
       <el-table-column prop="itemCount" label="枚举项数" width="110" align="center" />
       <el-table-column prop="enabledCount" label="已启用" width="100" align="center" />
-      <el-table-column label="操作" width="220" align="center" header-align="center">
+      <el-table-column label="操作" width="110" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openItemsDrawer(row.category)">枚举</el-button>
-          <el-button link type="primary" @click="openChangeLog(row.category)">日志</el-button>
+          <RowActions
+            :actions="[
+              { key: 'items', label: '枚举项', icon: Tickets },
+              { key: 'log', label: '日志', icon: Document }
+            ]"
+            @action="(action) => handleAction(action, row)"
+          />
         </template>
       </el-table-column>
     </el-table>
@@ -54,7 +59,9 @@
 
 <script setup>
 import { ref } from "vue";
+import { Document, Tickets } from "@element-plus/icons-vue";
 import PageSection from "../../components/common/PageSection.vue";
+import RowActions from "../../components/common/RowActions.vue";
 import StatusTag from "../../components/common/StatusTag.vue";
 import EnumCategoryCreateDialog from "../../components/system/EnumCategoryCreateDialog.vue";
 import EnumItemListDrawer from "../../components/system/EnumItemListDrawer.vue";
@@ -95,6 +102,11 @@ function openItemsDrawer(category) {
   itemsDrawerVisible.value = true;
 }
 
+function handleAction(action, row) {
+  if (action === "items") openItemsDrawer(row.category);
+  if (action === "log") openChangeLog(row.category);
+}
+
 function openCreateItem() {
   editingItem.value = null;
   itemFormCategory.value = currentCategory.value;
@@ -123,9 +135,3 @@ function loadEnumOperationLogs() {
 
 loadSummaries();
 </script>
-
-<style scoped>
-.toolbar {
-  margin-bottom: 12px;
-}
-</style>

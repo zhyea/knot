@@ -10,12 +10,17 @@
       <el-table-column prop="name" label="名称" min-width="120" />
       <el-table-column prop="ownerName" label="负责人" min-width="100" show-overflow-tooltip />
       <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
-      <el-table-column label="操作" width="240" align="center" header-align="center">
+      <el-table-column label="操作" width="150" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="emit('edit', row)">编辑</el-button>
-          <el-button link type="primary" @click="emit('metrics', row)">指标</el-button>
-          <el-button link type="primary" @click="emit('log', row)">日志</el-button>
-          <el-button link type="danger" @click="onDelete(row)">删除</el-button>
+          <RowActions
+            :actions="[
+              { key: 'edit', label: '编辑', icon: Edit },
+              { key: 'metrics', label: '指标', icon: DataAnalysis },
+              { key: 'log', label: '日志', icon: Document },
+              { key: 'delete', label: '删除', icon: Delete, type: 'danger' }
+            ]"
+            @action="(action) => handleAction(action, row)"
+          />
         </template>
       </el-table-column>
     </el-table>
@@ -36,6 +41,8 @@
 
 <script setup>
 import { ElMessage, ElMessageBox } from "element-plus";
+import { DataAnalysis, Delete, Document, Edit } from "@element-plus/icons-vue";
+import RowActions from "../common/RowActions.vue";
 import { deleteApp } from "../../api/apps";
 
 defineProps({
@@ -48,6 +55,13 @@ defineProps({
 
 const emit = defineEmits(["create", "refresh", "edit", "metrics", "log", "page-change", "size-change", "changed"]);
 
+function handleAction(action, row) {
+  if (action === "edit") emit("edit", row);
+  if (action === "metrics") emit("metrics", row);
+  if (action === "log") emit("log", row);
+  if (action === "delete") onDelete(row);
+}
+
 async function onDelete(row) {
   await ElMessageBox.confirm(`确认删除应用「${row.name}」？`, "删除确认", { type: "warning" });
   await deleteApp(row.id);
@@ -56,13 +70,3 @@ async function onDelete(row) {
 }
 </script>
 
-<style scoped>
-.toolbar {
-  margin-bottom: 12px;
-}
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-</style>

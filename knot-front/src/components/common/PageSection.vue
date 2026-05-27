@@ -18,9 +18,9 @@ defineProps({
 
 <style scoped>
 .page-section {
-  background: #fff;
-  border-radius: 4px;
-  padding: 20px;
+  background: var(--knot-surface, #fff);
+  border-radius: 0;
+  padding: 18px;
   width: 100%;
 }
 
@@ -33,5 +33,8 @@ defineProps({
 
 .slot-body {
   margin-top: 16px;
+  background: var(--knot-surface, #fff);
+  border: 1px solid var(--knot-border, #ebeef5);
+  padding: 16px;
 }
 </style>

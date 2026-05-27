@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.UserSettingMapper">
+
+    <select id="listByUserId" resultType="org.chobit.knot.gateway.entity.UserSettingEntity">
+        select id, user_id, setting_key, setting_value, created_at, updated_at
+        from user_settings
+        where user_id = #{userId}
+        order by setting_key asc
+    </select>
+
+    <select id="getByUserIdAndKey" resultType="org.chobit.knot.gateway.entity.UserSettingEntity">
+        select id, user_id, setting_key, setting_value, created_at, updated_at
+        from user_settings
+        where user_id = #{userId} and setting_key = #{settingKey}
+    </select>
+
+    <insert id="upsert" useGeneratedKeys="true" keyProperty="id">
+        insert into user_settings(user_id, setting_key, setting_value)
+        values(#{userId}, #{settingKey}, #{settingValue})
+        on duplicate key update
+            setting_value = values(setting_value),
+            updated_at = NOW()
+    </insert>
+
+    <delete id="deleteByUserIdAndKey">
+        delete from user_settings
+        where user_id = #{userId} and setting_key = #{settingKey}
+    </delete>
+
+</mapper>

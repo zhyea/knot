@@ -62,7 +62,7 @@ function escapeHtml(text) {
   margin: 0;
   padding: 16px;
   background: #1e1e1e;
-  border-radius: 6px;
+  border-radius: 0;
   overflow: auto;
   max-height: 60vh;
   font-family: Consolas, "Courier New", monospace;

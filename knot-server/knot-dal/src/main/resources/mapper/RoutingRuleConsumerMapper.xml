@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.RoutingRuleConsumerMapper">
+
+    <select id="listByRuleIds" resultType="org.chobit.knot.gateway.entity.RoutingRuleConsumerEntity">
+        select rc.id, rc.rule_id, rc.consumer_id,
+               c.consumer_code, c.name AS consumer_name, c.status
+        from routing_rule_consumers rc
+        left join routing_consumers c on rc.consumer_id = c.id
+        where rc.rule_id in
+        <foreach collection="ruleIds" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        order by rc.rule_id, rc.id
+    </select>
+
+    <delete id="deleteByRuleId">
+        delete from routing_rule_consumers where rule_id = #{ruleId}
+    </delete>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into routing_rule_consumers(rule_id, consumer_id)
+        values(#{ruleId}, #{consumerId})
+    </insert>
+
+</mapper>

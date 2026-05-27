@@ -26,14 +26,7 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="类型">
-              <el-select v-model="form.type" placeholder="请选择供应商类型" clearable style="width: 100%">
-                <el-option
-                    v-for="item in providerTypeOptions"
-                    :key="item.itemCode"
-                    :label="item.itemLabel"
-                    :value="item.itemCode"
-                />
-              </el-select>
+              <EnumSelect v-model="form.type" category="provider_type" clearable />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -79,7 +72,7 @@ import {computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import KvEditor from "../common/KvEditor.vue";
 import {useAuth} from "../../composables/useAuth";
-import {useEnums} from "../../composables/useEnums";
+import EnumSelect from "../common/EnumSelect.vue";
 import {
   createProvider,
   updateProvider,
@@ -96,7 +89,6 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const {isAdmin} = useAuth();
-const {options: providerTypeOptions, loadOptions: loadProviderTypes} = useEnums("provider_type");
 const saving = ref(false);
 const codeChecking = ref(false);
 const codeError = ref("");
@@ -190,7 +182,6 @@ watch(
     ([visible]) => {
       if (visible) {
         resetForm();
-        loadProviderTypes();
       }
     }
 );

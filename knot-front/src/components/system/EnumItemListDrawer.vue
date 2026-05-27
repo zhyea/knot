@@ -29,10 +29,15 @@
           />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="120" align="center">
+      <el-table-column label="操作" width="110" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" :disabled="row.isSystem" @click="emit('edit', row)">编辑</el-button>
-          <el-button link type="danger" :disabled="row.isSystem" @click="onDelete(row)">删除</el-button>
+          <RowActions
+            :actions="[
+              { key: 'edit', label: '编辑', icon: Edit, disabled: row.isSystem },
+              { key: 'delete', label: '删除', icon: Delete, type: 'danger', disabled: row.isSystem }
+            ]"
+            @action="(action) => handleAction(action, row)"
+          />
         </template>
       </el-table-column>
     </el-table>
@@ -42,6 +47,8 @@
 <script setup>
 import {ref, watch} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";
+import {Delete, Edit} from "@element-plus/icons-vue";
+import RowActions from "../common/RowActions.vue";
 import {listEnumItemsByCategory, deleteEnumConfig, updateEnumConfig} from "../../api/enums";
 import {clearEnumCache} from "../../composables/useEnums";
 
@@ -104,6 +111,11 @@ async function onEnabledChange(row, enabled) {
   }
 }
 
+function handleAction(action, row) {
+  if (action === "edit") emit("edit", row);
+  if (action === "delete") onDelete(row);
+}
+
 async function onDelete(row) {
   await ElMessageBox.confirm(
       `确认删除枚举「${row.itemLabel}」(${row.category}/${row.itemCode})？`,
@@ -119,11 +131,3 @@ async function onDelete(row) {
 
 defineExpose({reload: load});
 </script>
-
-<style scoped>
-.drawer-toolbar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-</style>

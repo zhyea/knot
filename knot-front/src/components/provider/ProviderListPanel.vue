@@ -5,7 +5,7 @@
       <el-button @click="emit('refresh')">刷新</el-button>
     </div>
     <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
-      <el-table-column prop="id" label="ID" min-width="5%" align="center" header-align="center"/>
+      <el-table-column prop="id" label="ID" width="70" align="center" header-align="center"/>
       <el-table-column prop="code" label="编码" min-width="10%" show-overflow-tooltip />
       <el-table-column prop="name" label="名称" min-width="15%"/>
       <el-table-column label="类型" min-width="10%" show-overflow-tooltip>
@@ -26,11 +26,16 @@
           />
         </template>
       </el-table-column>
-      <el-table-column label="操作" min-width="18%" align="center" header-align="center">
+      <el-table-column label="操作" width="130" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
-          <el-button link type="primary" @click="emit('edit', row)">编辑</el-button>
-          <el-button link type="primary" @click="emit('discount', row)">折扣策略</el-button>
-          <el-button link type="primary" @click="emit('log', row)">日志</el-button>
+          <RowActions
+            :actions="[
+              { key: 'edit', label: '编辑', icon: Edit },
+              { key: 'discount', label: '折扣策略', icon: Discount },
+              { key: 'log', label: '日志', icon: Document }
+            ]"
+            @action="(action) => handleAction(action, row)"
+          />
         </template>
       </el-table-column>
     </el-table>
@@ -51,6 +56,8 @@
 
 <script setup>
 import { onMounted } from "vue";
+import { Discount, Document, Edit } from "@element-plus/icons-vue";
+import RowActions from "../common/RowActions.vue";
 import { updateProvider } from "../../api/providers";
 import { useEnabledToggle } from "../../composables/useEnabledToggle";
 import { useEnums } from "../../composables/useEnums";
@@ -91,20 +98,14 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
   })
 });
 
+function handleAction(action, row) {
+  if (action === "edit") emit("edit", row);
+  if (action === "discount") emit("discount", row);
+  if (action === "log") emit("log", row);
+}
+
 async function handleEnabledChange(row, enabled) {
   await onEnabledChange(row, enabled);
   emit("changed");
 }
 </script>
-
-<style scoped>
-.toolbar {
-  margin-bottom: 12px;
-}
-
-.pagination-wrap {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
-}
-</style>
