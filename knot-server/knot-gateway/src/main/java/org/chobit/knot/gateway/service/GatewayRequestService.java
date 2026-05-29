@@ -2,7 +2,11 @@ package org.chobit.knot.gateway.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.chobit.knot.gateway.constants.AiPayloadFields;
+import org.chobit.knot.gateway.constants.AuthConstants;
+import org.chobit.knot.gateway.constants.GatewayErrorTypes;
 import org.chobit.knot.gateway.constants.ModelApiProtocol;
+import org.chobit.knot.gateway.constants.ProxyErrorCodes;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.vo.request.GatewayModelRequest;
 import org.springframework.http.HttpStatus;
@@ -50,13 +54,13 @@ public class GatewayRequestService {
                                    ModelApiProtocol protocol) {
         String apiKey = extractApiKey(authorization);
         if (apiKey == null) {
-            return error(HttpStatus.UNAUTHORIZED, "Invalid API key", "auth_error");
+            return error(HttpStatus.UNAUTHORIZED, "Invalid API key", GatewayErrorTypes.AUTH_ERROR);
         }
         if (ruleCode == null || ruleCode.isBlank()) {
-            return error(HttpStatus.BAD_REQUEST, "Rule header is required", "invalid_request_error");
+            return error(HttpStatus.BAD_REQUEST, "Rule header is required", GatewayErrorTypes.INVALID_REQUEST_ERROR);
         }
         if (traceparent == null || traceparent.isBlank()) {
-            return error(HttpStatus.BAD_REQUEST, "traceparent header is required", "invalid_request_error");
+            return error(HttpStatus.BAD_REQUEST, "traceparent header is required", GatewayErrorTypes.INVALID_REQUEST_ERROR);
         }
 
         AuthContext authContext = resolveAuthContext(apiKey, ruleCode);
@@ -66,7 +70,7 @@ public class GatewayRequestService {
 
         ProxyService.ProxyResult result = proxy(authContext, requestBody, protocol, traceparent);
         if (result.errorCode() != null) {
-            return error(HttpStatus.BAD_GATEWAY, result.errorMessage(), "upstream_error");
+            return error(HttpStatus.BAD_GATEWAY, result.errorMessage(), GatewayErrorTypes.UPSTREAM_ERROR);
         }
 
         return new GatewayResponse(HttpStatus.OK, applyUsageAccounting(result, authContext.routing()));
@@ -75,7 +79,7 @@ public class GatewayRequestService {
     private AuthContext resolveAuthContext(String apiKey, String ruleCode) {
         RoutingAuthService.ResolvedRouting routing = routingAuthService.resolveByRule(apiKey, ruleCode);
         if (routing == null) {
-            return AuthContext.error(error(HttpStatus.UNAUTHORIZED, "Invalid API key or routing rule", "auth_error"));
+            return AuthContext.error(error(HttpStatus.UNAUTHORIZED, "Invalid API key or routing rule", GatewayErrorTypes.AUTH_ERROR));
         }
         return AuthContext.success(routing.appContext(), routing);
     }
@@ -94,11 +98,11 @@ public class GatewayRequestService {
                                                        String traceparent) {
         ProxyService.ProxyResult lastResult = null;
         for (RoutingRuleTargetDto candidate : routing.candidateModels()) {
-            requestBody.put("model", candidate.targetCode());
+            requestBody.put(AiPayloadFields.MODEL, candidate.targetCode());
             if (!rateLimitService.checkRateLimit(appContext, candidate.targetCode())
                     || !trafficGuard.check(routing, candidate)) {
                 return new ProxyService.ProxyResult(null, null, candidate.targetId(),
-                        "RATE_LIMIT_EXCEEDED", "Rate limit exceeded");
+                        ProxyErrorCodes.RATE_LIMIT_EXCEEDED, "Rate limit exceeded");
             }
             lastResult = proxyService.proxy(requestBody, appContext, protocol, traceparent);
             if (lastResult.errorCode() == null) {
@@ -108,7 +112,7 @@ public class GatewayRequestService {
         return lastResult != null
                 ? lastResult
                 : new ProxyService.ProxyResult(null, null, null,
-                "NO_ROUTING_TARGET", "No available routing target");
+                ProxyErrorCodes.NO_ROUTING_TARGET, "No available routing target");
     }
 
     @SuppressWarnings("unchecked")
@@ -119,15 +123,15 @@ public class GatewayRequestService {
         try {
             Map<String, Object> body = objectMapper.readValue(result.responseBody(), new TypeReference<>() {
             });
-            Object usageObj = body.get("usage");
+            Object usageObj = body.get(AiPayloadFields.USAGE);
             Map<String, Object> usage = usageObj instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
             Map<String, Object> billing = billingService.calculateUsageDetail(result.modelId(), usage);
             if (!routing.returnUsageDetail()) {
                 return result.responseBody();
             }
             if (billing != null) {
-                body.put("knot_billing", billing);
-                body.put("knot_usage", normalizedUsage(usage, billing));
+                body.put(AiPayloadFields.KNOT_BILLING, billing);
+                body.put(AiPayloadFields.KNOT_USAGE, normalizedUsage(usage, billing));
             }
             return body;
         } catch (Exception ignored) {
@@ -138,7 +142,7 @@ public class GatewayRequestService {
     @SuppressWarnings("unchecked")
     private Map<String, Object> normalizedUsage(Map<String, Object> usage, Map<String, Object> billing) {
         Map<String, Object> normalized = new LinkedHashMap<>();
-        Map<String, Object> billingUsage = billing.get("usage") instanceof Map<?, ?> map
+        Map<String, Object> billingUsage = billing.get(AiPayloadFields.USAGE) instanceof Map<?, ?> map
                 ? (Map<String, Object>) map
                 : Map.of();
         normalized.put("totalTokens", firstLong(billingUsage, "totalTokens") > 0
@@ -153,12 +157,12 @@ public class GatewayRequestService {
     }
 
     private long totalTokens(Map<String, Object> usage) {
-        long total = firstLong(usage, "total_tokens");
+        long total = firstLong(usage, AiPayloadFields.TOTAL_TOKENS);
         if (total > 0) {
             return total;
         }
-        return firstLong(usage, "prompt_tokens", "input_tokens")
-                + firstLong(usage, "completion_tokens", "output_tokens");
+        return firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS)
+                + firstLong(usage, AiPayloadFields.COMPLETION_TOKENS, AiPayloadFields.OUTPUT_TOKENS);
     }
 
     private long firstLong(Map<String, Object> map, String... keys) {
@@ -183,10 +187,10 @@ public class GatewayRequestService {
     }
 
     private String extractApiKey(String authorization) {
-        if (authorization == null || !authorization.startsWith("Bearer ")) {
+        if (authorization == null || !authorization.startsWith(AuthConstants.BEARER_PREFIX)) {
             return null;
         }
-        String key = authorization.substring(7).trim();
+        String key = authorization.substring(AuthConstants.BEARER_PREFIX.length()).trim();
         return key.isEmpty() ? null : key;
     }
 

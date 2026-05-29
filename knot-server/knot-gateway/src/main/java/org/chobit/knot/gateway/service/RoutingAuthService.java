@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.service;
 
+import org.chobit.knot.gateway.constants.EntityStatus;
+import org.chobit.knot.gateway.constants.RouteTargetTypes;
 import org.chobit.knot.gateway.constants.TrafficResourceType;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.entity.AppEntity;
@@ -75,7 +77,7 @@ public class RoutingAuthService {
             return null;
         }
         RoutingConsumerEntity consumer = routingConsumerMapper.getBySecretKey(secretKey.trim());
-        if (consumer == null || !"ENABLED".equals(consumer.getStatus())) {
+        if (consumer == null || !EntityStatus.ENABLED.equals(consumer.getStatus())) {
             return null;
         }
 
@@ -85,7 +87,7 @@ public class RoutingAuthService {
             return null;
         }
         AppEntity app = appMapper.getById(rule.getAppId());
-        if (app == null || !"ENABLED".equals(app.getStatus())) {
+        if (app == null || !EntityStatus.ENABLED.equals(app.getStatus())) {
             return null;
         }
         ResourceTrafficPolicySupport.TrafficPolicies appTraffic =
@@ -116,7 +118,7 @@ public class RoutingAuthService {
             return null;
         }
         RoutingConsumerEntity consumer = routingConsumerMapper.getBySecretKey(secretKey.trim());
-        if (consumer == null || !"ENABLED".equals(consumer.getStatus())) {
+        if (consumer == null || !EntityStatus.ENABLED.equals(consumer.getStatus())) {
             return null;
         }
         RoutingRuleEntity rule = routingRuleMapper.getEnabledByConsumerIdAndRuleCode(consumer.getId(), ruleCode.trim());
@@ -124,7 +126,7 @@ public class RoutingAuthService {
             return null;
         }
         AppEntity app = appMapper.getById(rule.getAppId());
-        if (app == null || !"ENABLED".equals(app.getStatus())) {
+        if (app == null || !EntityStatus.ENABLED.equals(app.getStatus())) {
             return null;
         }
         ResourceTrafficPolicySupport.TrafficPolicies appTraffic =
@@ -261,35 +263,35 @@ public class RoutingAuthService {
     }
 
     private RoutingRuleTargetDto resolveTarget(RoutingRuleTargetDto target) {
-        if ("MODEL".equals(target.targetType())) {
+        if (RouteTargetTypes.MODEL.equals(target.targetType())) {
             ModelEntity model = modelMapper.getById(target.targetId());
-            if (model == null || !"ENABLED".equals(model.getStatus())) {
+            if (model == null || !EntityStatus.ENABLED.equals(model.getStatus())) {
                 return null;
             }
-            return new RoutingRuleTargetDto("MODEL", model.getId(), model.getModelCode(), model.getName(),
+            return new RoutingRuleTargetDto(RouteTargetTypes.MODEL, model.getId(), model.getModelCode(), model.getName(),
                     model.getModelType(), model.getProviderId(), target.priority(), target.primary());
         }
-        if (!"MODEL_POOL".equals(target.targetType())) {
+        if (!RouteTargetTypes.MODEL_POOL.equals(target.targetType())) {
             return null;
         }
         ModelPoolEntity pool = modelPoolMapper.getById(target.targetId());
-        if (pool == null || !"ENABLED".equals(pool.getStatus())) {
+        if (pool == null || !EntityStatus.ENABLED.equals(pool.getStatus())) {
             return null;
         }
         ModelPoolItemEntity item = selectPoolItem(pool);
         if (item == null) {
             return null;
         }
-        return new RoutingRuleTargetDto("MODEL", item.getModelId(), item.getModelCode(), item.getModelName(),
+        return new RoutingRuleTargetDto(RouteTargetTypes.MODEL, item.getModelId(), item.getModelCode(), item.getModelName(),
                 item.getModelType(), item.getProviderId(), target.priority(), target.primary());
     }
 
     private ModelPoolItemEntity selectPoolItem(ModelPoolEntity pool) {
         List<ModelPoolItemEntity> candidates = modelPoolMapper.listItemsByPoolId(pool.getId()).stream()
-                .filter(item -> "ENABLED".equals(item.getStatus()))
+                .filter(item -> EntityStatus.ENABLED.equals(item.getStatus()))
                 .filter(item -> {
                     ModelEntity model = modelMapper.getById(item.getModelId());
-                    return model != null && "ENABLED".equals(model.getStatus());
+                    return model != null && EntityStatus.ENABLED.equals(model.getStatus());
                 })
                 .toList();
         if (candidates.isEmpty()) {

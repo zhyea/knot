@@ -7,6 +7,7 @@ import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.ModelConverter;
+import org.chobit.knot.gateway.constants.EntityStatus;
 import org.chobit.knot.gateway.constants.TrafficResourceType;
 import org.chobit.knot.gateway.dto.model.ModelDto;
 import org.chobit.knot.gateway.dto.model.ModelTestResultDto;
@@ -130,7 +131,7 @@ public class ModelService {
             version.setModelId(entity.getId());
             version.setVersion(entity.getVersion());
             version.setGrayPercent(100);
-            version.setStatus("ACTIVE");
+            version.setStatus(EntityStatus.ACTIVE);
             modelVersionMapper.insert(version);
         }
         return getById(entity.getId());
@@ -168,16 +169,16 @@ public class ModelService {
         getById(id);
         ModelVersionEntity current = modelVersionMapper.getActiveVersion(id);
         if (current != null) {
-            current.setStatus("INACTIVE");
+            current.setStatus(EntityStatus.INACTIVE);
             modelVersionMapper.updateStatus(current);
         }
         ModelVersionEntity newVersion = new ModelVersionEntity();
         newVersion.setModelId(id);
         newVersion.setVersion(targetVersion);
         newVersion.setGrayPercent(100);
-        newVersion.setStatus("ACTIVE");
+        newVersion.setStatus(EntityStatus.ACTIVE);
         modelVersionMapper.insert(newVersion);
-        return new ModelVersionSwitchResultDto(id, targetVersion, "ACTIVE");
+        return new ModelVersionSwitchResultDto(id, targetVersion, EntityStatus.ACTIVE);
     }
 
     private ModelDto enrich(ModelEntity entity) {
@@ -272,7 +273,7 @@ public class ModelService {
         mapping.setProviderId(model.getProviderId());
         mapping.setModelId(modelId);
         mapping.setProviderModelName(modelCode);
-        mapping.setStatus("ENABLED");
+        mapping.setStatus(EntityStatus.ENABLED);
         mapping.setPriority(100);
         logicalModelMapper.insertMapping(mapping);
     }

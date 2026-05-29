@@ -1,6 +1,10 @@
 package org.chobit.knot.gateway.service.upstream;
 
+import org.chobit.knot.gateway.constants.AiPayloadFields;
+import org.chobit.knot.gateway.constants.AuthConstants;
+import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.ModelApiProtocol;
+import org.chobit.knot.gateway.constants.ProviderTypes;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.service.ProviderCredentialSupport;
 import org.springframework.core.annotation.Order;
@@ -16,7 +20,6 @@ import java.util.Map;
 @Order(10)
 public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
 
-    private static final String PROVIDER_TYPE = "ANTHROPIC";
     private static final String DEFAULT_VERSION = "2023-06-01";
 
     private final ProviderCredentialSupport credentialSupport;
@@ -27,7 +30,7 @@ public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
 
     @Override
     public boolean supports(String providerType) {
-        return providerType != null && PROVIDER_TYPE.equals(providerType.trim().toUpperCase());
+        return providerType != null && ProviderTypes.ANTHROPIC.equals(providerType.trim().toUpperCase());
     }
 
     @Override
@@ -62,11 +65,11 @@ public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
 
     @Override
     public void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
-        String apiKey = credentialValue(context.credential(), "apiKey");
+        String apiKey = credentialValue(context.credential(), AuthConstants.API_KEY);
         if (hasText(apiKey)) {
-            requestSpec.header("x-api-key", apiKey);
+            requestSpec.header(GatewayHeaders.X_API_KEY, apiKey);
         }
-        requestSpec.header("anthropic-version", DEFAULT_VERSION);
+        requestSpec.header(GatewayHeaders.ANTHROPIC_VERSION, DEFAULT_VERSION);
     }
 
     private String credentialValue(ProviderCredentialEntity credential, String key) {
@@ -78,64 +81,64 @@ public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
     private Map<String, Object> chatCompletionsToMessages(Map<String, Object> source) {
         Map<String, Object> body = new LinkedHashMap<>(source);
         List<Map<String, Object>> messages = new ArrayList<>();
-        Object sourceMessages = source.get("messages");
+        Object sourceMessages = source.get(AiPayloadFields.MESSAGES);
         if (sourceMessages instanceof List<?> list) {
             for (Object item : list) {
                 if (!(item instanceof Map<?, ?> map)) {
                     continue;
                 }
                 Map<String, Object> message = (Map<String, Object>) map;
-                Object role = message.get("role");
-                if ("system".equals(role)) {
-                    body.putIfAbsent("system", message.get("content"));
+                Object role = message.get(AiPayloadFields.ROLE);
+                if (AiPayloadFields.SYSTEM.equals(role)) {
+                    body.putIfAbsent(AiPayloadFields.SYSTEM, message.get(AiPayloadFields.CONTENT));
                     continue;
                 }
                 messages.add(message);
             }
         }
-        body.put("messages", messages);
-        move(body, "max_completion_tokens", "max_tokens");
-        move(body, "stop", "stop_sequences");
+        body.put(AiPayloadFields.MESSAGES, messages);
+        move(body, AiPayloadFields.MAX_COMPLETION_TOKENS, AiPayloadFields.MAX_TOKENS);
+        move(body, AiPayloadFields.STOP, AiPayloadFields.STOP_SEQUENCES);
         body.remove("n");
         body.remove("presence_penalty");
         body.remove("frequency_penalty");
         body.remove("logit_bias");
         body.remove("response_format");
-        body.putIfAbsent("max_tokens", 1024);
+        body.putIfAbsent(AiPayloadFields.MAX_TOKENS, 1024);
         return body;
     }
 
     private Map<String, Object> responsesToMessages(Map<String, Object> source) {
         Map<String, Object> body = new LinkedHashMap<>(source);
-        Object input = source.get("input");
+        Object input = source.get(AiPayloadFields.INPUT);
         if (input instanceof List<?>) {
-            body.put("messages", input);
+            body.put(AiPayloadFields.MESSAGES, input);
         } else if (input != null) {
-            body.put("messages", List.of(Map.of("role", "user", "content", input)));
+            body.put(AiPayloadFields.MESSAGES, List.of(Map.of(AiPayloadFields.ROLE, AiPayloadFields.USER, AiPayloadFields.CONTENT, input)));
         } else {
-            body.put("messages", List.of());
+            body.put(AiPayloadFields.MESSAGES, List.of());
         }
-        Object instructions = source.get("instructions");
+        Object instructions = source.get(AiPayloadFields.INSTRUCTIONS);
         if (instructions != null) {
-            body.put("system", instructions);
+            body.put(AiPayloadFields.SYSTEM, instructions);
         }
-        move(body, "max_output_tokens", "max_tokens");
-        body.remove("input");
-        body.remove("instructions");
+        move(body, AiPayloadFields.MAX_OUTPUT_TOKENS, AiPayloadFields.MAX_TOKENS);
+        body.remove(AiPayloadFields.INPUT);
+        body.remove(AiPayloadFields.INSTRUCTIONS);
         body.remove("previous_response_id");
         body.remove("text");
         body.remove("reasoning");
         body.remove("store");
-        body.putIfAbsent("max_tokens", 1024);
+        body.putIfAbsent(AiPayloadFields.MAX_TOKENS, 1024);
         return body;
     }
 
     private Map<String, Object> completionsToMessages(Map<String, Object> source) {
         Map<String, Object> body = new LinkedHashMap<>(source);
-        Object prompt = source.get("prompt");
-        body.put("messages", List.of(Map.of("role", "user", "content", prompt == null ? "" : prompt)));
-        move(body, "stop", "stop_sequences");
-        body.remove("prompt");
+        Object prompt = source.get(AiPayloadFields.PROMPT);
+        body.put(AiPayloadFields.MESSAGES, List.of(Map.of(AiPayloadFields.ROLE, AiPayloadFields.USER, AiPayloadFields.CONTENT, prompt == null ? "" : prompt)));
+        move(body, AiPayloadFields.STOP, AiPayloadFields.STOP_SEQUENCES);
+        body.remove(AiPayloadFields.PROMPT);
         body.remove("suffix");
         body.remove("n");
         body.remove("echo");
@@ -143,7 +146,7 @@ public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
         body.remove("presence_penalty");
         body.remove("frequency_penalty");
         body.remove("logit_bias");
-        body.putIfAbsent("max_tokens", 1024);
+        body.putIfAbsent(AiPayloadFields.MAX_TOKENS, 1024);
         return body;
     }
 

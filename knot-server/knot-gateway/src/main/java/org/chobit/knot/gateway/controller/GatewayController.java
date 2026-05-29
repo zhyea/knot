@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.controller;
 
+import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.ModelApiProtocol;
 import org.chobit.knot.gateway.service.GatewayRequestService;
 import org.chobit.knot.gateway.vo.request.AudioSpeechRequest;
@@ -31,117 +32,117 @@ public class GatewayController {
 
     @PostMapping("/chat/completions")
     public ResponseEntity<?> chatCompletions(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader("Rule") String rule,
-            @RequestHeader("traceparent") String traceparent,
+            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader(GatewayHeaders.RULE) String rule,
+            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody ChatCompletionRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocol.CHAT_COMPLETIONS);
     }
 
     @PostMapping("/responses")
     public ResponseEntity<?> responses(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader("Rule") String rule,
-            @RequestHeader("traceparent") String traceparent,
+            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader(GatewayHeaders.RULE) String rule,
+            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody ResponseRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocol.RESPONSES);
     }
 
     @PostMapping("/messages")
     public ResponseEntity<?> messages(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader("Rule") String rule,
-            @RequestHeader("traceparent") String traceparent,
+            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader(GatewayHeaders.RULE) String rule,
+            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody MessageRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocol.MESSAGES);
     }
 
     @PostMapping("/completions")
     public ResponseEntity<?> completions(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader("Rule") String rule,
-            @RequestHeader("traceparent") String traceparent,
+            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader(GatewayHeaders.RULE) String rule,
+            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody CompletionRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocol.COMPLETIONS);
     }
 
     @PostMapping("/embeddings")
     public ResponseEntity<?> embeddings(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader("Rule") String rule,
-            @RequestHeader("traceparent") String traceparent,
+            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader(GatewayHeaders.RULE) String rule,
+            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody EmbeddingRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocol.EMBEDDINGS);
     }
 
     @PostMapping("/images/generations")
     public ResponseEntity<?> imageGenerations(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader("Rule") String rule,
-            @RequestHeader("traceparent") String traceparent,
+            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader(GatewayHeaders.RULE) String rule,
+            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody ImageGenerationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocol.IMAGE_GENERATIONS);
     }
 
     @PostMapping("/images/edits")
     public ResponseEntity<?> imageEdits(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader("Rule") String rule,
-            @RequestHeader("traceparent") String traceparent,
+            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader(GatewayHeaders.RULE) String rule,
+            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody ImageEditRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocol.IMAGE_EDITS);
     }
 
     @PostMapping("/audio/transcriptions")
     public ResponseEntity<?> audioTranscriptions(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader("Rule") String rule,
-            @RequestHeader("traceparent") String traceparent,
+            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader(GatewayHeaders.RULE) String rule,
+            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody AudioTranscriptionRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocol.AUDIO_TRANSCRIPTIONS);
     }
 
     @PostMapping("/audio/translations")
     public ResponseEntity<?> audioTranslations(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader("Rule") String rule,
-            @RequestHeader("traceparent") String traceparent,
+            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader(GatewayHeaders.RULE) String rule,
+            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody AudioTranslationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocol.AUDIO_TRANSLATIONS);
     }
 
     @PostMapping("/audio/speech")
     public ResponseEntity<?> audioSpeech(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader("Rule") String rule,
-            @RequestHeader("traceparent") String traceparent,
+            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader(GatewayHeaders.RULE) String rule,
+            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody AudioSpeechRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocol.AUDIO_SPEECH);
     }
 
     @PostMapping("/videos/generations")
     public ResponseEntity<?> videoGenerations(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader("Rule") String rule,
-            @RequestHeader("traceparent") String traceparent,
+            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader(GatewayHeaders.RULE) String rule,
+            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody VideoGenerationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocol.VIDEO_GENERATIONS);
     }
 
     @PostMapping("/rerank")
     public ResponseEntity<?> rerank(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader("Rule") String rule,
-            @RequestHeader("traceparent") String traceparent,
+            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader(GatewayHeaders.RULE) String rule,
+            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody RerankRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocol.RERANK);
     }
 
     @PostMapping("/moderations")
     public ResponseEntity<?> moderations(
-            @RequestHeader("Authorization") String authorization,
-            @RequestHeader("Rule") String rule,
-            @RequestHeader("traceparent") String traceparent,
+            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader(GatewayHeaders.RULE) String rule,
+            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody ModerationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocol.MODERATIONS);
     }

@@ -16,6 +16,7 @@ import org.chobit.knot.gateway.mapper.DiscountPolicyMapper;
 import org.chobit.knot.gateway.mapper.ProviderCredentialMapper;
 import org.chobit.knot.gateway.mapper.ProviderMapper;
 import org.chobit.knot.gateway.auth.CurrentAuth;
+import org.chobit.knot.gateway.constants.EntityStatus;
 import org.chobit.knot.gateway.constants.TrafficResourceType;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
@@ -252,7 +253,7 @@ public class ProviderService {
         entity.setDiscountValue(BigDecimal.valueOf(request.discountValue()));
         entity.setPriority(request.priority());
         entity.setEffectiveFrom(LocalDateTime.now());
-        entity.setStatus(request.status() != null ? request.status() : "ACTIVE");
+        entity.setStatus(request.status() != null ? request.status() : EntityStatus.ACTIVE);
         discountPolicyMapper.insert(entity);
         return toDiscountPolicyDto(entity);
     }

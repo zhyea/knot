@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.converter;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import org.chobit.knot.gateway.constants.EntityStatus;
 import org.chobit.knot.gateway.dto.model.LogicalModelDto;
 import org.chobit.knot.gateway.dto.model.ProviderModelMappingDto;
 import org.chobit.knot.gateway.entity.LogicalModelEntity;
@@ -53,7 +54,7 @@ public class LogicalModelConverter {
                 toStringList(entity.getSupportedParametersJson()),
                 entity.getVisibility(),
                 entity.getPublishStatus(),
-                "ENABLED".equals(entity.getStatus()),
+                EntityStatus.ENABLED.equals(entity.getStatus()),
                 entity.getSortOrder(),
                 Boolean.TRUE.equals(entity.getFeatured()),
                 entity.getOwnerUserId(),
@@ -102,7 +103,7 @@ public class LogicalModelConverter {
         entity.setSupportedParametersJson(toJson(dto.supportedParameters()));
         entity.setVisibility(defaultString(dto.visibility(), "PUBLIC"));
         entity.setPublishStatus(defaultString(dto.publishStatus(), "DRAFT"));
-        entity.setStatus(dto.enabled() ? "ENABLED" : "DISABLED");
+        entity.setStatus(dto.enabled() ? EntityStatus.ENABLED : EntityStatus.DISABLED);
         entity.setSortOrder(dto.sortOrder() != null ? dto.sortOrder() : 0);
         entity.setFeatured(dto.featured());
         entity.setOwnerUserId(dto.ownerUserId());
@@ -184,7 +185,7 @@ public class LogicalModelConverter {
                 entity.getModelCode(),
                 entity.getModelName(),
                 entity.getProviderModelName(),
-                "ENABLED".equals(entity.getStatus()),
+                EntityStatus.ENABLED.equals(entity.getStatus()),
                 entity.getPriority()
         );
     }
@@ -196,7 +197,7 @@ public class LogicalModelConverter {
         entity.setProviderId(dto.providerId());
         entity.setModelId(dto.modelId());
         entity.setProviderModelName(dto.providerModelName());
-        entity.setStatus(dto.enabled() ? "ENABLED" : "DISABLED");
+        entity.setStatus(dto.enabled() ? EntityStatus.ENABLED : EntityStatus.DISABLED);
         entity.setPriority(dto.priority() != null ? dto.priority() : 100);
         return entity;
     }

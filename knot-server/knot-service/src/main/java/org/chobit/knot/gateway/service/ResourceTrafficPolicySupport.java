@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import org.chobit.knot.gateway.constants.EntityStatus;
 import org.chobit.knot.gateway.entity.QuotaPolicyEntity;
 import org.chobit.knot.gateway.entity.RateLimitPolicyEntity;
 import org.chobit.knot.gateway.entity.ResourceTrafficPolicyEntity;
@@ -149,7 +150,7 @@ public class ResourceTrafficPolicySupport {
         entity.setPolicyCode(policyCode(resourceType, resourceId, "RL"));
         entity.setPolicyName(policyName(resourceType, resourceId, "频控"));
         fillRateLimit(entity, policy);
-        entity.setStatus("ACTIVE");
+        entity.setStatus(EntityStatus.ACTIVE);
         rateLimitPolicyMapper.insert(entity);
         return entity.getId();
     }
@@ -169,7 +170,7 @@ public class ResourceTrafficPolicySupport {
         entity.setPolicyCode(policyCode(resourceType, resourceId, "QT"));
         entity.setPolicyName(policyName(resourceType, resourceId, "额度"));
         fillQuota(entity, policy);
-        entity.setStatus("ACTIVE");
+        entity.setStatus(EntityStatus.ACTIVE);
         quotaPolicyMapper.insert(entity);
         return entity.getId();
     }
@@ -198,7 +199,7 @@ public class ResourceTrafficPolicySupport {
     }
 
     private static RateLimitPolicy toRateLimitModel(RateLimitPolicyEntity entity) {
-        if (entity == null || !"ACTIVE".equals(entity.getStatus())) {
+        if (entity == null || !EntityStatus.ACTIVE.equals(entity.getStatus())) {
             return null;
         }
         return new RateLimitPolicy(
@@ -209,7 +210,7 @@ public class ResourceTrafficPolicySupport {
     }
 
     private static QuotaPolicy toQuotaModel(QuotaPolicyEntity entity) {
-        if (entity == null || !"ACTIVE".equals(entity.getStatus())) {
+        if (entity == null || !EntityStatus.ACTIVE.equals(entity.getStatus())) {
             return null;
         }
         return new QuotaPolicy(

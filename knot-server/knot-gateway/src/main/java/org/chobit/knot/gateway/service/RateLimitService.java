@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import org.chobit.knot.gateway.constants.EntityStatus;
 import org.chobit.knot.gateway.entity.AppEntity;
 import org.chobit.knot.gateway.entity.AppCredentialEntity;
 import org.chobit.knot.gateway.mapper.AppCredentialMapper;
@@ -33,11 +34,11 @@ public class RateLimitService {
      */
     public AppContext resolveApp(String apiKey) {
         AppCredentialEntity credential = appCredentialMapper.getByAppKey(apiKey);
-        if (credential == null || !"ACTIVE".equals(credential.getStatus())) {
+        if (credential == null || !EntityStatus.ACTIVE.equals(credential.getStatus())) {
             return null;
         }
         AppEntity app = appMapper.getById(credential.getAppId());
-        if (app == null || !"ENABLED".equals(app.getStatus())) {
+        if (app == null || !EntityStatus.ENABLED.equals(app.getStatus())) {
             return null;
         }
         ResourceTrafficPolicySupport.TrafficPolicies traffic =

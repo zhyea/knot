@@ -2,6 +2,12 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.chobit.knot.gateway.constants.AiPayloadFields;
+import org.chobit.knot.gateway.constants.BillingItemTypes;
+import org.chobit.knot.gateway.constants.BillingModes;
+import org.chobit.knot.gateway.constants.BillingUnits;
+import org.chobit.knot.gateway.constants.CurrencyCodes;
+import org.chobit.knot.gateway.constants.EntityStatus;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.BillingConverter;
@@ -95,7 +101,7 @@ public class BillingService {
         validateRule(request, null);
         BillingRuleEntity e = new BillingRuleEntity();
         applyRule(e, request);
-        e.setStatus(request.enabled() ? "ACTIVE" : "INACTIVE");
+        e.setStatus(request.enabled() ? EntityStatus.ACTIVE : EntityStatus.INACTIVE);
         billingRuleMapper.insert(e);
         BillingRuleVersionEntity version = createVersion(e.getId(), request, true);
         billingRuleMapper.updateCurrentVersion(e.getId(), version.getId());
@@ -114,7 +120,7 @@ public class BillingService {
         }
         applyRule(existing, request);
         existing.setId(id);
-        existing.setStatus(request.enabled() ? "ACTIVE" : "INACTIVE");
+        existing.setStatus(request.enabled() ? EntityStatus.ACTIVE : EntityStatus.INACTIVE);
         BillingRuleVersionEntity version = createVersion(id, request, request.enabled());
         existing.setCurrentVersionId(version.getId());
         billingRuleMapper.update(existing);
@@ -171,10 +177,10 @@ public class BillingService {
         String itemType = normalizeItemType(rule.getItemType());
         int unitSize = unitSize(rule.getUnit());
         BigDecimal unitPrice = safeMoney(rule.getUnitPrice());
-        if ("TOKEN".equals(mode)) {
-            long inputTokens = firstLong(usage, "prompt_tokens", "input_tokens");
-            long outputTokens = firstLong(usage, "completion_tokens", "output_tokens");
-            long totalTokens = firstLong(usage, "total_tokens");
+        if (BillingModes.TOKEN.equals(mode)) {
+            long inputTokens = firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS);
+            long outputTokens = firstLong(usage, AiPayloadFields.COMPLETION_TOKENS, AiPayloadFields.OUTPUT_TOKENS);
+            long totalTokens = firstLong(usage, AiPayloadFields.TOTAL_TOKENS);
             long cacheReadTokens = nestedLong(usage, "prompt_tokens_details", "cached_tokens")
                     + nestedLong(usage, "input_tokens_details", "cached_tokens");
             BigDecimal inputPrice = jsonDecimal(rule.getConfigJson(), "inputUnitPrice", unitPrice);
@@ -194,14 +200,14 @@ public class BillingService {
             return new BillingAmount(parts, inputCost.add(outputCost).add(cacheReadCost));
         }
         long amount = switch (mode) {
-            case "EMBEDDING" -> firstLong(usage, "prompt_tokens", "input_tokens", "total_tokens");
-            case "REQUEST" -> 1L;
-            case "IMAGE" -> firstLong(usage, "image_count", "images", "n");
-            case "AUDIO" -> firstLong(usage, "duration_seconds", "audio_seconds", "seconds");
-            case "VIDEO" -> firstLong(usage, "duration_seconds", "video_seconds", "seconds");
-            default -> firstLong(usage, "total_tokens", "prompt_tokens", "input_tokens");
+            case BillingModes.EMBEDDING -> firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS, AiPayloadFields.TOTAL_TOKENS);
+            case BillingModes.REQUEST -> 1L;
+            case BillingModes.IMAGE -> firstLong(usage, "image_count", "images", "n");
+            case BillingModes.AUDIO -> firstLong(usage, "duration_seconds", "audio_seconds", "seconds");
+            case BillingModes.VIDEO -> firstLong(usage, "duration_seconds", "video_seconds", "seconds");
+            default -> firstLong(usage, AiPayloadFields.TOTAL_TOKENS, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS);
         };
-        if (amount <= 0 && ("IMAGE".equals(mode) || "REQUEST".equals(mode))) {
+        if (amount <= 0 && (BillingModes.IMAGE.equals(mode) || BillingModes.REQUEST.equals(mode))) {
             amount = 1L;
         }
         Map<String, Object> parts = new LinkedHashMap<>();
@@ -219,7 +225,7 @@ public class BillingService {
         entity.setProviderId(request.providerId());
         entity.setLogicalModelId(request.logicalModelId());
         entity.setRemark(blankToNull(request.remark()));
-        entity.setStatus(request.enabled() ? "ACTIVE" : "INACTIVE");
+        entity.setStatus(request.enabled() ? EntityStatus.ACTIVE : EntityStatus.INACTIVE);
     }
 
     private BillingRuleVersionEntity createVersion(Long ruleId, BillingRuleDto request, boolean active) {
@@ -236,7 +242,7 @@ public class BillingService {
         version.setLadderJson(blankToNull(request.ladderJson()));
         version.setEffectiveFrom(request.effectiveFrom() == null ? LocalDateTime.now() : request.effectiveFrom());
         version.setEffectiveTo(request.effectiveTo());
-        version.setStatus(active ? "ACTIVE" : "DISABLED");
+        version.setStatus(active ? EntityStatus.ACTIVE : EntityStatus.DISABLED);
         version.setChangeReason("rule saved");
         billingRuleMapper.insertVersion(version);
 
@@ -296,32 +302,32 @@ public class BillingService {
     private static String normalizeBillingMode(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase();
         if (normalized.isEmpty()) {
-            return "TOKEN";
+            return BillingModes.TOKEN;
         }
         return normalized;
     }
 
     private static String normalizeCurrency(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase();
-        return normalized.isEmpty() ? "USD" : normalized;
+        return normalized.isEmpty() ? CurrencyCodes.USD : normalized;
     }
 
     private static String normalizeItemType(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase();
-        return normalized.isEmpty() ? "INPUT_TOKEN" : normalized;
+        return normalized.isEmpty() ? BillingItemTypes.INPUT_TOKEN : normalized;
     }
 
     private static String normalizeUnit(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase();
-        return normalized.isEmpty() ? "1K_TOKENS" : normalized;
+        return normalized.isEmpty() ? BillingUnits.ONE_K_TOKENS : normalized;
     }
 
     private static int unitSize(String unit) {
         return switch (normalizeUnit(unit)) {
-            case "1M_TOKENS" -> 1_000_000;
-            case "PER_TOKEN" -> 1;
-            case "PER_MINUTE" -> 60;
-            case "PER_REQUEST", "PER_IMAGE", "PER_SECOND", "CUSTOM" -> 1;
+            case BillingUnits.ONE_M_TOKENS -> 1_000_000;
+            case BillingUnits.PER_TOKEN -> 1;
+            case BillingUnits.PER_MINUTE -> 60;
+            case BillingUnits.PER_REQUEST, BillingUnits.PER_IMAGE, BillingUnits.PER_SECOND, BillingUnits.CUSTOM -> 1;
             default -> 1_000;
         };
     }

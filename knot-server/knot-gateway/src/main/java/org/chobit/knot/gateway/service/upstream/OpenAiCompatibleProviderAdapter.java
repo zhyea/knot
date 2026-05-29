@@ -1,6 +1,10 @@
 package org.chobit.knot.gateway.service.upstream;
 
+import org.chobit.knot.gateway.constants.AiPayloadFields;
+import org.chobit.knot.gateway.constants.AuthConstants;
+import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.ModelApiProtocol;
+import org.chobit.knot.gateway.constants.ProviderTypes;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.service.ProviderCredentialSupport;
 import org.springframework.core.annotation.Order;
@@ -17,7 +21,11 @@ import java.util.Set;
 @Order(100)
 public class OpenAiCompatibleProviderAdapter implements UpstreamProviderAdapter {
 
-    private static final Set<String> PROVIDER_TYPES = Set.of("OPENAI", "DEEPSEEK", "OPENROUTER");
+    private static final Set<String> PROVIDER_TYPES = Set.of(
+            ProviderTypes.OPENAI,
+            ProviderTypes.DEEPSEEK,
+            ProviderTypes.OPENROUTER
+    );
 
     private final ProviderCredentialSupport credentialSupport;
 
@@ -51,9 +59,9 @@ public class OpenAiCompatibleProviderAdapter implements UpstreamProviderAdapter 
 
     @Override
     public void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
-        String apiKey = credentialValue(context.credential(), "apiKey");
+        String apiKey = credentialValue(context.credential(), AuthConstants.API_KEY);
         if (hasText(apiKey)) {
-            requestSpec.header("Authorization", "Bearer " + apiKey);
+            requestSpec.header(GatewayHeaders.AUTHORIZATION, AuthConstants.BEARER_PREFIX + apiKey);
         }
     }
 
@@ -66,11 +74,11 @@ public class OpenAiCompatibleProviderAdapter implements UpstreamProviderAdapter 
     private Map<String, Object> anthropicMessagesToChatCompletions(Map<String, Object> source) {
         Map<String, Object> body = new LinkedHashMap<>(source);
         List<Map<String, Object>> messages = new ArrayList<>();
-        Object system = source.get("system");
+        Object system = source.get(AiPayloadFields.SYSTEM);
         if (system != null) {
-            messages.add(Map.of("role", "system", "content", system));
+            messages.add(Map.of(AiPayloadFields.ROLE, AiPayloadFields.SYSTEM, AiPayloadFields.CONTENT, system));
         }
-        Object sourceMessages = source.get("messages");
+        Object sourceMessages = source.get(AiPayloadFields.MESSAGES);
         if (sourceMessages instanceof List<?> list) {
             for (Object item : list) {
                 if (item instanceof Map<?, ?> map) {
@@ -79,10 +87,10 @@ public class OpenAiCompatibleProviderAdapter implements UpstreamProviderAdapter 
             }
         }
         if (!messages.isEmpty()) {
-            body.put("messages", messages);
+            body.put(AiPayloadFields.MESSAGES, messages);
         }
-        move(body, "stop_sequences", "stop");
-        body.remove("system");
+        move(body, AiPayloadFields.STOP_SEQUENCES, AiPayloadFields.STOP);
+        body.remove(AiPayloadFields.SYSTEM);
         body.remove("top_k");
         return body;
     }

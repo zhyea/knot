@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.service.upstream;
 
+import org.chobit.knot.gateway.constants.GatewayHeaders;
+import org.chobit.knot.gateway.constants.ProxyErrorCodes;
 import org.chobit.knot.gateway.service.ProxyService;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
@@ -17,7 +19,7 @@ public abstract class AbstractApiProtocolHandler implements ModelApiProtocolHand
         String path = adapter.resolvePath(context, defaultPath(context));
         if (path == null || path.isBlank()) {
             return new ProxyService.ProxyResult(null, context.provider().getId(), context.model().getId(),
-                    "API_PROTOCOL_NOT_CONFIGURED", "api protocol is not configured: " + context.protocol().code());
+                    ProxyErrorCodes.API_PROTOCOL_NOT_CONFIGURED, "api protocol is not configured: " + context.protocol().code());
         }
 
         try {
@@ -26,7 +28,7 @@ public abstract class AbstractApiProtocolHandler implements ModelApiProtocolHand
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON);
             if (context.traceparent() != null && !context.traceparent().isBlank()) {
-                spec.header("traceparent", context.traceparent().trim());
+                spec.header(GatewayHeaders.TRACEPARENT, context.traceparent().trim());
             }
             adapter.applyHeaders(spec, context);
             String responseBody = spec.body(adapter.buildRequestBody(context))
@@ -41,7 +43,7 @@ public abstract class AbstractApiProtocolHandler implements ModelApiProtocolHand
             );
         } catch (Exception e) {
             return new ProxyService.ProxyResult(null, context.provider().getId(), context.model().getId(),
-                    "UPSTREAM_ERROR", e.getMessage());
+                    ProxyErrorCodes.UPSTREAM_ERROR, e.getMessage());
         }
     }
 

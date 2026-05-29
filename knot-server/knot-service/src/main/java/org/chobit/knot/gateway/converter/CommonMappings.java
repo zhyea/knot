@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.converter;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import org.chobit.knot.gateway.constants.EntityStatus;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.model.QuotaPolicy;
@@ -23,12 +24,12 @@ public class CommonMappings {
 
     @Named("statusToEnabled")
     public boolean statusToEnabled(String status) {
-        return "ENABLED".equals(status);
+        return EntityStatus.ENABLED.equals(status);
     }
 
     @Named("enabledToStatus")
     public String enabledToStatus(boolean enabled) {
-        return enabled ? "ENABLED" : "DISABLED";
+        return enabled ? EntityStatus.ENABLED : EntityStatus.DISABLED;
     }
 
     @Named("billingStatusToEnabled")
@@ -36,12 +37,12 @@ public class CommonMappings {
         if (status == null) {
             return false;
         }
-        return "ACTIVE".equalsIgnoreCase(status) || "ENABLED".equalsIgnoreCase(status);
+        return EntityStatus.ACTIVE.equalsIgnoreCase(status) || EntityStatus.ENABLED.equalsIgnoreCase(status);
     }
 
     @Named("billingEnabledToStatus")
     public String billingEnabledToStatus(boolean enabled) {
-        return enabled ? "ACTIVE" : "INACTIVE";
+        return enabled ? EntityStatus.ACTIVE : EntityStatus.INACTIVE;
     }
 
     // ==================== JSON ↔ RateLimitPolicy ====================

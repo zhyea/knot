@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.service.schedule;
 
 import lombok.extern.slf4j.Slf4j;
+import org.chobit.knot.gateway.constants.EntityStatus;
 import org.chobit.knot.gateway.entity.ScheduledTaskEntity;
 import org.chobit.knot.gateway.mapper.ScheduledTaskMapper;
 import org.quartz.*;
@@ -34,7 +35,7 @@ public class ScheduledTaskSchedulerService {
     public void reschedule(ScheduledTaskEntity task) {
         try {
             unschedule(task.getTaskCode());
-            if (!"ENABLED".equals(task.getStatus())) {
+            if (!EntityStatus.ENABLED.equals(task.getStatus())) {
                 return;
             }
 
@@ -73,7 +74,7 @@ public class ScheduledTaskSchedulerService {
     public void triggerNow(String taskCode) {
         try {
             ScheduledTaskEntity task = scheduledTaskMapper.getTaskByCode(taskCode);
-            if (task == null || !"ENABLED".equals(task.getStatus())) {
+            if (task == null || !EntityStatus.ENABLED.equals(task.getStatus())) {
                 throw new IllegalArgumentException("Task is not enabled: " + taskCode);
             }
             JobKey jobKey = jobKey(taskCode);

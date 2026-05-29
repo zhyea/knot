@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.chobit.knot.gateway.constants.EntityStatus;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.NotificationConverter;
@@ -38,7 +39,7 @@ public class NotificationService {
         e.setName(request.name());
         e.setChannel(request.channel());
         e.setContentTpl(request.content());
-        e.setStatus("ACTIVE");
+        e.setStatus(EntityStatus.ACTIVE);
         notificationMapper.insertTemplate(e);
         return notificationConverter.toTemplateDto(e);
     }
@@ -54,5 +55,4 @@ public class NotificationService {
         }
         return new SendResultDto("ntf_" + System.currentTimeMillis(), "SENT", receivers.size());
     }
-
 }

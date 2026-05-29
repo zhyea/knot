@@ -1,6 +1,8 @@
 package org.chobit.knot.gateway.service;
 
 import org.chobit.knot.gateway.auth.AuthRoles;
+import org.chobit.knot.gateway.constants.AuthConstants;
+import org.chobit.knot.gateway.constants.EntityStatus;
 import org.chobit.knot.gateway.crypto.CredentialEncryption;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.mapper.ProviderCredentialMapper;
@@ -35,7 +37,7 @@ public class ProviderCredentialSupport {
         }
         Map<String, Object> map = new LinkedHashMap<>();
         if (hasText(credential.getEncryptedKey())) {
-            map.put("apiKey", decryptField(credential.getEncryptedKey()));
+            map.put(AuthConstants.API_KEY, decryptField(credential.getEncryptedKey()));
         }
         if (hasText(credential.getEncryptedSecret())) {
             map.put("apiSecret", decryptField(credential.getEncryptedSecret()));
@@ -66,7 +68,7 @@ public class ProviderCredentialSupport {
             providerCredentialMapper.deactivateByProviderId(providerId);
             return;
         }
-        String apiKey = stringVal(authConfig.get("apiKey"));
+        String apiKey = stringVal(authConfig.get(AuthConstants.API_KEY));
         String apiSecret = firstNonBlank(
                 stringVal(authConfig.get("apiSecret")),
                 stringVal(authConfig.get("secretKey"))
@@ -81,7 +83,7 @@ public class ProviderCredentialSupport {
         if (isNew) {
             entity = new ProviderCredentialEntity();
             entity.setProviderId(providerId);
-            entity.setStatus("ACTIVE");
+            entity.setStatus(EntityStatus.ACTIVE);
         }
         entity.setEncryptedKey(encryptField(apiKey));
         entity.setEncryptedSecret(encryptField(apiSecret));
@@ -145,7 +147,7 @@ public class ProviderCredentialSupport {
 
     public static Map<String, Object> defaultAuthConfig() {
         Map<String, Object> map = new LinkedHashMap<>();
-        map.put("apiKey", "");
+        map.put(AuthConstants.API_KEY, "");
         return map;
     }
 

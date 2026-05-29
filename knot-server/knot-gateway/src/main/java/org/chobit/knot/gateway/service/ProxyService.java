@@ -1,6 +1,9 @@
 package org.chobit.knot.gateway.service;
 
+import org.chobit.knot.gateway.constants.AiPayloadFields;
+import org.chobit.knot.gateway.constants.EntityStatus;
 import org.chobit.knot.gateway.constants.ModelApiProtocol;
+import org.chobit.knot.gateway.constants.ProxyErrorCodes;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
@@ -60,21 +63,23 @@ public class ProxyService {
                              RateLimitService.AppContext appContext,
                              ModelApiProtocol protocol,
                              String traceparent) {
-        String modelCode = requestBody.get("model") == null ? null : String.valueOf(requestBody.get("model"));
+        String modelCode = requestBody.get(AiPayloadFields.MODEL) == null
+                ? null
+                : String.valueOf(requestBody.get(AiPayloadFields.MODEL));
         if (modelCode == null || modelCode.isBlank()) {
-            return new ProxyResult(null, null, null, "MISSING_MODEL", "model is required");
+            return new ProxyResult(null, null, null, ProxyErrorCodes.MISSING_MODEL, "model is required");
         }
 
         ModelEntity model = findModelByCode(modelCode);
         if (model == null) {
-            return new ProxyResult(null, null, null, "MODEL_NOT_FOUND",
+            return new ProxyResult(null, null, null, ProxyErrorCodes.MODEL_NOT_FOUND,
                     "model not found: " + modelCode);
         }
 
         ProviderEntity provider = providerMapper.getById(model.getProviderId());
         if (provider == null) {
             return new ProxyResult(null, null, model.getId(),
-                    "PROVIDER_NOT_FOUND", "provider not found for model: " + modelCode);
+                    ProxyErrorCodes.PROVIDER_NOT_FOUND, "provider not found for model: " + modelCode);
         }
 
         ModelApiProtocol resolvedProtocol = protocol != null ? protocol.canonical() : ModelApiProtocol.CHAT_COMPLETIONS;
@@ -90,7 +95,7 @@ public class ProxyService {
 
     private ModelApiBindingEntity resolveBinding(Long modelId, ModelApiProtocol protocol) {
         return modelApiBindingMapper.listByModelId(modelId).stream()
-                .filter(item -> "ENABLED".equals(item.getStatus()))
+                .filter(item -> EntityStatus.ENABLED.equals(item.getStatus()))
                 .filter(item -> protocol.matches(item.getProtocol()))
                 .findFirst()
                 .orElse(null);

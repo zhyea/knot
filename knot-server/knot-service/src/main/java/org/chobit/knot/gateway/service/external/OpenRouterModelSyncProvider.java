@@ -2,6 +2,8 @@ package org.chobit.knot.gateway.service.external;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.chobit.knot.gateway.constants.EntityStatus;
+import org.chobit.knot.gateway.constants.ModelTypes;
 import org.chobit.knot.gateway.entity.ExternalModelItemEntity;
 import org.chobit.knot.gateway.entity.ExternalModelSourceEntity;
 import org.chobit.knot.gateway.mapper.ExternalModelMapper;
@@ -55,7 +57,7 @@ public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvid
         source.setSourceUrl(SOURCE_URL);
         source.setApiUrl(API_URL);
         source.setSourceType("MODEL_CATALOG");
-        source.setStatus("ENABLED");
+        source.setStatus(EntityStatus.ENABLED);
         return source;
     }
 
@@ -175,16 +177,16 @@ public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvid
     private String modelType(String id, String name, List<String> inputModalities, List<String> outputModalities) {
         String value = (id + " " + name + " " + outputModalities).toLowerCase(Locale.ROOT);
         if (value.contains("embedding")) {
-            return "EMBEDDING";
+            return ModelTypes.EMBEDDING;
         }
         if (outputModalities.contains("image")) {
-            return "IMAGE";
+            return ModelTypes.IMAGE;
         }
         if (outputModalities.contains("audio")) {
-            return "AUDIO";
+            return ModelTypes.AUDIO;
         }
         if (outputModalities.contains("video")) {
-            return "VIDEO";
+            return ModelTypes.VIDEO;
         }
         if (inputModalities.contains("image")) {
             return "MULTIMODAL";

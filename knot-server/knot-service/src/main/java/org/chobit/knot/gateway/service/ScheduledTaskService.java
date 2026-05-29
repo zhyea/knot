@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.chobit.knot.gateway.constants.EntityStatus;
 import org.chobit.knot.gateway.dto.system.ScheduledTaskQuery;
 import org.chobit.knot.gateway.dto.system.ScheduledTaskRequest;
 import org.chobit.knot.gateway.dto.system.ScheduledTaskRunQuery;
@@ -24,7 +25,7 @@ import java.util.stream.Collectors;
 public class ScheduledTaskService {
 
     private static final Set<String> EXECUTION_MODES = Set.of("SINGLE", "BROADCAST");
-    private static final Set<String> STATUSES = Set.of("ENABLED", "DISABLED");
+    private static final Set<String> STATUSES = Set.of(EntityStatus.ENABLED, EntityStatus.DISABLED);
 
     private final ScheduledTaskMapper scheduledTaskMapper;
     private final ScheduledTaskSchedulerService schedulerService;
