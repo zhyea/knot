@@ -1,4 +1,4 @@
-import { del, get, post, postQuery } from "./http";
+import { del, get, post, postQuery, put } from "./http";
 
 export function listLogicalModels(params) {
   return postQuery("/api/logical-models/list", params);

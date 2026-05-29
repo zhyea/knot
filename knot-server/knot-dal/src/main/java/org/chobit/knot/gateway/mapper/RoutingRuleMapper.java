@@ -14,6 +14,9 @@ public interface RoutingRuleMapper {
 
     List<RoutingRuleEntity> listEnabledByConsumerId(Long consumerId);
 
+    RoutingRuleEntity getEnabledByConsumerIdAndRuleCode(@org.apache.ibatis.annotations.Param("consumerId") Long consumerId,
+                                                        @org.apache.ibatis.annotations.Param("ruleCode") String ruleCode);
+
     Long countByRuleCode(@org.apache.ibatis.annotations.Param("ruleCode") String ruleCode,
                          @org.apache.ibatis.annotations.Param("excludeId") Long excludeId);
 

@@ -25,7 +25,7 @@ public interface ExternalModelMapper {
     ExternalModelItemEntity getItemById(Long id);
 
     ExternalModelItemEntity getItemBySourceKey(@Param("sourceCode") String sourceCode,
-                                               @Param("sourceModelId") String sourceModelId);
+                                               @Param("modelId") String modelId);
 
     int insertItem(ExternalModelItemEntity entity);
 

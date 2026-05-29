@@ -9,12 +9,13 @@
         @selection-change="(selection) => emit('selection-change', selection)"
     >
       <el-table-column type="selection" width="48" fixed="left"/>
-      <el-table-column prop="sourceModelName" label="外部模型" min-width="180" show-overflow-tooltip/>
-      <el-table-column prop="sourceProviderName" label="厂商" min-width="120" show-overflow-tooltip/>
-      <el-table-column prop="sourceLlmType" label="类型" min-width="110" show-overflow-tooltip/>
-      <el-table-column prop="sourceContextLength" label="上下文" min-width="100" show-overflow-tooltip/>
-      <el-table-column label="更新时间" min-width="160" show-overflow-tooltip>
-        <template #default="{ row }">{{ formatDateTime(row.sourceLastUpdateTime || row.updatedAt) }}</template>
+      <el-table-column prop="modelName" label="模型名称" min-width="220" show-overflow-tooltip/>
+      <el-table-column prop="modelId" label="模型 ID" min-width="220" show-overflow-tooltip/>
+      <el-table-column prop="providerName" label="供应商" min-width="130" show-overflow-tooltip/>
+      <el-table-column prop="modelType" label="类型" min-width="110" show-overflow-tooltip/>
+      <el-table-column prop="contextLength" label="上下文" min-width="100" show-overflow-tooltip/>
+      <el-table-column label="创建时间" min-width="160" show-overflow-tooltip>
+        <template #default="{ row }">{{ formatDateTime(row.modelCreatedAt || row.updatedAt) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="160" align="center" header-align="center" fixed="right">
         <template #default="{ row }">

@@ -28,6 +28,11 @@ public class LogicalModelConverter {
                 entity.getModelType(),
                 entity.getModelFamily(),
                 entity.getVersion(),
+                entity.getExternalSourceCode(),
+                entity.getExternalModelId(),
+                entity.getCanonicalSlug(),
+                entity.getProviderCode(),
+                entity.getProviderName(),
                 entity.getDisplayName(),
                 entity.getTagline(),
                 entity.getDescription(),
@@ -44,6 +49,8 @@ public class LogicalModelConverter {
                 toMap(entity.getDefaultParamsJson()),
                 toMap(entity.getParamSchemaJson()),
                 toMap(entity.getSafetyPolicyJson()),
+                toMap(entity.getPricingJson()),
+                toStringList(entity.getSupportedParametersJson()),
                 entity.getVisibility(),
                 entity.getPublishStatus(),
                 "ENABLED".equals(entity.getStatus()),
@@ -70,6 +77,11 @@ public class LogicalModelConverter {
         entity.setModelType(dto.modelType());
         entity.setModelFamily(dto.modelFamily());
         entity.setVersion(dto.version());
+        entity.setExternalSourceCode(dto.externalSourceCode());
+        entity.setExternalModelId(dto.externalModelId());
+        entity.setCanonicalSlug(dto.canonicalSlug());
+        entity.setProviderCode(dto.providerCode());
+        entity.setProviderName(dto.providerName());
         entity.setDisplayName(dto.displayName());
         entity.setTagline(dto.tagline());
         entity.setDescription(dto.description());
@@ -86,6 +98,8 @@ public class LogicalModelConverter {
         entity.setDefaultParamsJson(toJson(dto.defaultParams()));
         entity.setParamSchemaJson(toJson(dto.paramSchema()));
         entity.setSafetyPolicyJson(toJson(dto.safetyPolicy()));
+        entity.setPricingJson(toJson(dto.pricing()));
+        entity.setSupportedParametersJson(toJson(dto.supportedParameters()));
         entity.setVisibility(defaultString(dto.visibility(), "PUBLIC"));
         entity.setPublishStatus(defaultString(dto.publishStatus(), "DRAFT"));
         entity.setStatus(dto.enabled() ? "ENABLED" : "DISABLED");
@@ -104,10 +118,11 @@ public class LogicalModelConverter {
     public LogicalModelDto withMappings(LogicalModelDto base, List<ProviderModelMappingDto> mappings) {
         return new LogicalModelDto(
                 base.id(), base.modelCode(), base.modelName(), base.modelType(), base.modelFamily(), base.version(),
+                base.externalSourceCode(), base.externalModelId(), base.canonicalSlug(), base.providerCode(), base.providerName(),
                 base.displayName(), base.tagline(), base.description(), base.logoUrl(), base.coverUrl(),
                 base.tags(), base.useCases(), base.capabilities(), base.contextWindow(), base.maxOutputTokens(),
                 base.inputModalities(), base.outputModalities(), base.languages(),
-                base.defaultParams(), base.paramSchema(), base.safetyPolicy(),
+                base.defaultParams(), base.paramSchema(), base.safetyPolicy(), base.pricing(), base.supportedParameters(),
                 base.visibility(), base.publishStatus(), base.enabled(), base.sortOrder(), base.featured(),
                 base.ownerUserId(), base.ownerTeam(), base.qualityLevel(), base.latencyLevel(), base.costLevel(),
                 base.pricingSummary(), base.remark(), base.createdAt(), base.updatedAt(),
@@ -121,10 +136,11 @@ public class LogicalModelConverter {
         }
         return new LogicalModelItem(
                 dto.id(), dto.modelCode(), dto.modelName(), dto.modelType(), dto.modelFamily(), dto.version(),
+                dto.externalSourceCode(), dto.externalModelId(), dto.canonicalSlug(), dto.providerCode(), dto.providerName(),
                 dto.displayName(), dto.tagline(), dto.description(), dto.logoUrl(), dto.coverUrl(),
                 dto.tags(), dto.useCases(), dto.capabilities(), dto.contextWindow(), dto.maxOutputTokens(),
                 dto.inputModalities(), dto.outputModalities(), dto.languages(),
-                dto.defaultParams(), dto.paramSchema(), dto.safetyPolicy(),
+                dto.defaultParams(), dto.paramSchema(), dto.safetyPolicy(), dto.pricing(), dto.supportedParameters(),
                 dto.visibility(), dto.publishStatus(), dto.enabled(), dto.sortOrder(), dto.featured(),
                 dto.ownerUserId(), dto.ownerTeam(), dto.qualityLevel(), dto.latencyLevel(), dto.costLevel(),
                 dto.pricingSummary(), dto.remark(), dto.createdAt(), dto.updatedAt(),
@@ -135,11 +151,13 @@ public class LogicalModelConverter {
     public LogicalModelDto toDto(LogicalModelItem item) {
         return new LogicalModelDto(
                 item.id(), item.modelCode(), item.modelName(), item.modelType(), item.modelFamily(), item.version(),
+                item.externalSourceCode(), item.externalModelId(), item.canonicalSlug(), item.providerCode(), item.providerName(),
                 item.displayName(), item.tagline(), item.description(), item.logoUrl(), item.coverUrl(),
                 safeList(item.tags()), safeList(item.useCases()), safeMap(item.capabilities()),
                 item.contextWindow(), item.maxOutputTokens(), safeList(item.inputModalities()),
                 safeList(item.outputModalities()), safeList(item.languages()), safeMap(item.defaultParams()),
-                safeMap(item.paramSchema()), safeMap(item.safetyPolicy()), item.visibility(), item.publishStatus(),
+                safeMap(item.paramSchema()), safeMap(item.safetyPolicy()), safeMap(item.pricing()), safeList(item.supportedParameters()),
+                item.visibility(), item.publishStatus(),
                 item.enabled(), item.sortOrder(), item.featured(), item.ownerUserId(), item.ownerTeam(),
                 item.qualityLevel(), item.latencyLevel(), item.costLevel(), item.pricingSummary(), item.remark(),
                 item.createdAt(), item.updatedAt(),

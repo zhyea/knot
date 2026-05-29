@@ -57,6 +57,7 @@ public class RoutingAuthService {
     public record ResolvedRouting(
             Long ruleId,
             String ruleCode,
+            Long consumerId,
             String secretKey,
             boolean returnUsageDetail,
             RateLimitService.AppContext appContext,
@@ -106,7 +107,46 @@ public class RoutingAuthService {
         if (candidates.isEmpty()) {
             return null;
         }
-        return new ResolvedRouting(rule.getId(), rule.getRuleCode(), consumer.getSecretKey(),
+        return new ResolvedRouting(rule.getId(), rule.getRuleCode(), consumer.getId(), consumer.getSecretKey(),
+                Boolean.TRUE.equals(consumer.getReturnUsageDetail()), appContext, candidates.get(0), candidates);
+    }
+
+    public ResolvedRouting resolveByRule(String secretKey, String ruleCode) {
+        if (!RoutingSecretKeyGenerator.isRoutingSecretKey(secretKey) || ruleCode == null || ruleCode.isBlank()) {
+            return null;
+        }
+        RoutingConsumerEntity consumer = routingConsumerMapper.getBySecretKey(secretKey.trim());
+        if (consumer == null || !"ENABLED".equals(consumer.getStatus())) {
+            return null;
+        }
+        RoutingRuleEntity rule = routingRuleMapper.getEnabledByConsumerIdAndRuleCode(consumer.getId(), ruleCode.trim());
+        if (rule == null) {
+            return null;
+        }
+        AppEntity app = appMapper.getById(rule.getAppId());
+        if (app == null || !"ENABLED".equals(app.getStatus())) {
+            return null;
+        }
+        ResourceTrafficPolicySupport.TrafficPolicies appTraffic =
+                trafficPolicySupport.load(TrafficResourceType.APP, app.getId());
+        ResourceTrafficPolicySupport.TrafficPolicies consumerTraffic =
+                trafficPolicySupport.load(TrafficResourceType.ROUTING_CONSUMER, consumer.getId());
+        RateLimitPolicy rate = mergeRateLimit(
+                appTraffic != null ? appTraffic.rateLimitPolicy() : null,
+                consumerTraffic != null ? consumerTraffic.rateLimitPolicy() : null
+        );
+        QuotaPolicy quota = mergeQuota(
+                appTraffic != null ? appTraffic.quotaPolicy() : null,
+                consumerTraffic != null ? consumerTraffic.quotaPolicy() : null
+        );
+        RateLimitService.AppContext appContext = new RateLimitService.AppContext(
+                app.getId(), app.getAppId(), app.getName(), rate, quota
+        );
+        List<RoutingRuleTargetDto> candidates = resolveCandidateModels(rule.getId(), null);
+        if (candidates.isEmpty()) {
+            return null;
+        }
+        return new ResolvedRouting(rule.getId(), rule.getRuleCode(), consumer.getId(), consumer.getSecretKey(),
                 Boolean.TRUE.equals(consumer.getReturnUsageDetail()), appContext, candidates.get(0), candidates);
     }
 

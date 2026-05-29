@@ -65,14 +65,14 @@ public class ExternalModelService {
             return item;
         }
         String rawJson = item.getRawJson();
-        String sourceDescription = item.getSourceDescription();
-        String sourceCapabilitiesJson = item.getSourceCapabilitiesJson();
-        String sourceContextLength = item.getSourceContextLength();
+        String description = item.getDescription();
+        String capabilitiesJson = item.getCapabilitiesJson();
+        Integer contextLength = item.getContextLength();
         ExternalModelItemEntity enriched = provider.enrichDetail(item);
         if (!same(rawJson, enriched.getRawJson())
-                || !same(sourceDescription, enriched.getSourceDescription())
-                || !same(sourceCapabilitiesJson, enriched.getSourceCapabilitiesJson())
-                || !same(sourceContextLength, enriched.getSourceContextLength())) {
+                || !same(description, enriched.getDescription())
+                || !same(capabilitiesJson, enriched.getCapabilitiesJson())
+                || !same(contextLength, enriched.getContextLength())) {
             externalModelMapper.updateItem(enriched);
         }
         return enriched;
@@ -94,38 +94,45 @@ public class ExternalModelService {
         LogicalModelDto created = logicalModelService.create(new LogicalModelDto(
                 null,
                 code,
-                item.getSourceModelName(),
+                item.getModelName(),
                 item.getModelType() != null ? item.getModelType() : "CHAT",
-                item.getNormalizedFamily(),
+                item.getModelFamily(),
                 null,
-                item.getSourceModelName(),
-                firstSentence(item.getSourceDescription()),
-                item.getSourceDescription(),
+                item.getSourceCode(),
+                item.getModelId(),
+                item.getCanonicalSlug(),
+                item.getProviderCode(),
+                item.getProviderName(),
+                item.getModelName(),
+                firstSentence(item.getDescription()),
+                item.getDescription(),
                 null,
                 null,
                 readStringList(item.getTagsJson()),
                 List.of(),
                 readMap(item.getCapabilitiesJson()),
-                item.getContextWindow(),
-                item.getMaxOutputTokens(),
-                List.of("text"),
-                List.of("text"),
-                readStringList(item.getLanguagesJson()),
+                item.getContextLength(),
+                item.getMaxCompletionTokens(),
+                readStringList(item.getInputModalitiesJson()),
+                readStringList(item.getOutputModalitiesJson()),
+                List.of(),
                 new LinkedHashMap<>(),
                 new LinkedHashMap<>(),
                 new LinkedHashMap<>(),
+                readMap(item.getPricingJson()),
+                readStringList(item.getSupportedParametersJson()),
                 "PUBLIC",
                 "DRAFT",
                 false,
                 0,
                 false,
                 null,
-                item.getSourceProviderName(),
+                item.getProviderName(),
                 null,
                 null,
                 null,
-                null,
-                "Imported from " + item.getSourceCode(),
+                pricingSummary(item),
+                "Imported from " + item.getSourceCode() + ": " + item.getModelId(),
                 null,
                 null,
                 List.of()
@@ -178,14 +185,14 @@ public class ExternalModelService {
     }
 
     private String generateModelCode(ExternalModelItemEntity item) {
-        String base = slug(item.getNormalizedName() != null ? item.getNormalizedName() : item.getSourceModelName());
+        String base = slug(item.getNormalizedName() != null ? item.getNormalizedName() : item.getModelName());
         if (base.isBlank()) {
             base = "external-model";
         }
         if (logicalModelService.isModelCodeAvailable(base, null)) {
             return base;
         }
-        String suffix = item.getSourceModelId();
+        String suffix = item.getModelId();
         suffix = suffix != null && suffix.length() > 6 ? suffix.substring(0, 6) : suffix;
         String code = base + "-" + suffix;
         int i = 2;
@@ -220,7 +227,24 @@ public class ExternalModelService {
         return map != null ? map : new LinkedHashMap<>();
     }
 
+    private String pricingSummary(ExternalModelItemEntity item) {
+        Map<String, Object> pricing = readMap(item.getPricingJson());
+        if (pricing.isEmpty()) {
+            return null;
+        }
+        Object prompt = pricing.get("prompt");
+        Object completion = pricing.get("completion");
+        if (prompt == null && completion == null) {
+            return null;
+        }
+        return "prompt=" + (prompt == null ? "-" : prompt) + ", completion=" + (completion == null ? "-" : completion);
+    }
+
     private boolean same(String a, String b) {
+        return a == null ? b == null : a.equals(b);
+    }
+
+    private boolean same(Integer a, Integer b) {
         return a == null ? b == null : a.equals(b);
     }
 }

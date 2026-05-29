@@ -8,12 +8,14 @@
     </sql>
 
     <sql id="ItemColumns">
-        id, source_code, source_model_id, source_model_name,
-        source_provider_code, source_provider_name, source_url,
-        source_llm_type, source_llm_type_code, source_tag_type, source_context_length,
-        source_capabilities_json, source_last_update_time, source_description, raw_json,
-        normalized_name, normalized_family, model_type, tags_json, capabilities_json,
-        context_window, max_output_tokens, languages_json,
+        id, source_code, model_id, canonical_slug, hugging_face_id,
+        model_name, provider_code, provider_name, model_url, details_path,
+        created_timestamp, model_created_at, description, context_length, modality,
+        input_modalities_json, output_modalities_json, tokenizer, instruct_type,
+        pricing_json, top_provider_json, supported_parameters_json, default_parameters_json,
+        supported_voices_json, knowledge_cutoff, expiration_date, raw_json,
+        normalized_name, model_family, model_type, tags_json, capabilities_json,
+        max_completion_tokens,
         logical_model_id, sync_status, sync_hash, last_seen_at,
         created_at, updated_at
     </sql>
@@ -52,7 +54,7 @@
                 and sync_status = #{syncStatus}
             </if>
         </where>
-        order by coalesce(source_last_update_time, updated_at) desc, id desc
+        order by coalesce(model_created_at, updated_at) desc, id desc
     </select>
 
     <select id="getItemById" resultType="org.chobit.knot.gateway.entity.ExternalModelItemEntity">
@@ -65,51 +67,65 @@
         select <include refid="ItemColumns"/>
         from external_model_items
         where source_code = #{sourceCode}
-          and source_model_id = #{sourceModelId}
+          and model_id = #{modelId}
     </select>
 
     <insert id="insertItem" useGeneratedKeys="true" keyProperty="id">
         insert into external_model_items(
-            source_code, source_model_id, source_model_name,
-            source_provider_code, source_provider_name, source_url,
-            source_llm_type, source_llm_type_code, source_tag_type, source_context_length,
-            source_capabilities_json, source_last_update_time, source_description, raw_json,
-            normalized_name, normalized_family, model_type, tags_json, capabilities_json,
-            context_window, max_output_tokens, languages_json,
+            source_code, model_id, canonical_slug, hugging_face_id,
+            model_name, provider_code, provider_name, model_url, details_path,
+            created_timestamp, model_created_at, description, context_length, modality,
+            input_modalities_json, output_modalities_json, tokenizer, instruct_type,
+            pricing_json, top_provider_json, supported_parameters_json, default_parameters_json,
+            supported_voices_json, knowledge_cutoff, expiration_date, raw_json,
+            normalized_name, model_family, model_type, tags_json, capabilities_json,
+            max_completion_tokens,
             logical_model_id, sync_status, sync_hash, last_seen_at
         ) values (
-            #{sourceCode}, #{sourceModelId}, #{sourceModelName},
-            #{sourceProviderCode}, #{sourceProviderName}, #{sourceUrl},
-            #{sourceLlmType}, #{sourceLlmTypeCode}, #{sourceTagType}, #{sourceContextLength},
-            #{sourceCapabilitiesJson}, #{sourceLastUpdateTime}, #{sourceDescription}, #{rawJson},
-            #{normalizedName}, #{normalizedFamily}, #{modelType}, #{tagsJson}, #{capabilitiesJson},
-            #{contextWindow}, #{maxOutputTokens}, #{languagesJson},
+            #{sourceCode}, #{modelId}, #{canonicalSlug}, #{huggingFaceId},
+            #{modelName}, #{providerCode}, #{providerName}, #{modelUrl}, #{detailsPath},
+            #{createdTimestamp}, #{modelCreatedAt}, #{description}, #{contextLength}, #{modality},
+            #{inputModalitiesJson}, #{outputModalitiesJson}, #{tokenizer}, #{instructType},
+            #{pricingJson}, #{topProviderJson}, #{supportedParametersJson}, #{defaultParametersJson},
+            #{supportedVoicesJson}, #{knowledgeCutoff}, #{expirationDate}, #{rawJson},
+            #{normalizedName}, #{modelFamily}, #{modelType}, #{tagsJson}, #{capabilitiesJson},
+            #{maxCompletionTokens},
             #{logicalModelId}, #{syncStatus}, #{syncHash}, #{lastSeenAt}
         )
     </insert>
 
     <update id="updateItem">
         update external_model_items
-        set source_model_name = #{sourceModelName},
-            source_provider_code = #{sourceProviderCode},
-            source_provider_name = #{sourceProviderName},
-            source_url = #{sourceUrl},
-            source_llm_type = #{sourceLlmType},
-            source_llm_type_code = #{sourceLlmTypeCode},
-            source_tag_type = #{sourceTagType},
-            source_context_length = #{sourceContextLength},
-            source_capabilities_json = #{sourceCapabilitiesJson},
-            source_last_update_time = #{sourceLastUpdateTime},
-            source_description = #{sourceDescription},
+        set canonical_slug = #{canonicalSlug},
+            hugging_face_id = #{huggingFaceId},
+            model_name = #{modelName},
+            provider_code = #{providerCode},
+            provider_name = #{providerName},
+            model_url = #{modelUrl},
+            details_path = #{detailsPath},
+            created_timestamp = #{createdTimestamp},
+            model_created_at = #{modelCreatedAt},
+            description = #{description},
+            context_length = #{contextLength},
+            modality = #{modality},
+            input_modalities_json = #{inputModalitiesJson},
+            output_modalities_json = #{outputModalitiesJson},
+            tokenizer = #{tokenizer},
+            instruct_type = #{instructType},
+            pricing_json = #{pricingJson},
+            top_provider_json = #{topProviderJson},
+            supported_parameters_json = #{supportedParametersJson},
+            default_parameters_json = #{defaultParametersJson},
+            supported_voices_json = #{supportedVoicesJson},
+            knowledge_cutoff = #{knowledgeCutoff},
+            expiration_date = #{expirationDate},
             raw_json = #{rawJson},
             normalized_name = #{normalizedName},
-            normalized_family = #{normalizedFamily},
+            model_family = #{modelFamily},
             model_type = #{modelType},
             tags_json = #{tagsJson},
             capabilities_json = #{capabilitiesJson},
-            context_window = #{contextWindow},
-            max_output_tokens = #{maxOutputTokens},
-            languages_json = #{languagesJson},
+            max_completion_tokens = #{maxCompletionTokens},
             sync_status = #{syncStatus},
             sync_hash = #{syncHash},
             last_seen_at = #{lastSeenAt}

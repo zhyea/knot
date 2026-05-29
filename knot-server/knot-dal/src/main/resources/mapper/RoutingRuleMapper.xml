@@ -37,6 +37,19 @@
         order by r.id desc
     </select>
 
+    <select id="getEnabledByConsumerIdAndRuleCode" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
+        select <include refid="RuleSelectColumns"/>
+        from routing_rules r
+        inner join routing_rule_consumers rc on r.id = rc.rule_id
+        left join apps a on r.app_id = a.id
+        left join users u on r.user_id = u.id and u.is_deleted = 0
+        where rc.consumer_id = #{consumerId}
+          and r.rule_code = #{ruleCode}
+          and r.status = 'ENABLED'
+          and rc.status = 'ENABLED'
+        limit 1
+    </select>
+
     <select id="countByRuleCode" resultType="java.lang.Long">
         select count(1) from routing_rules
         where rule_code = #{ruleCode}

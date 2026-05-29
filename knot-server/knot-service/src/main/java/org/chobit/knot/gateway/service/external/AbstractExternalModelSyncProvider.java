@@ -33,7 +33,7 @@ public abstract class AbstractExternalModelSyncProvider implements ExternalModel
                 item.setSyncStatus(STATUS_SYNCED);
                 item.setLastSeenAt(now);
                 ExternalModelItemEntity existing =
-                        externalModelMapper.getItemBySourceKey(item.getSourceCode(), item.getSourceModelId());
+                        externalModelMapper.getItemBySourceKey(item.getSourceCode(), item.getModelId());
                 if (existing == null) {
                     externalModelMapper.insertItem(item);
                     inserted++;

@@ -12,6 +12,11 @@ public class LogicalModelEntity {
     private String modelType;
     private String modelFamily;
     private String version;
+    private String externalSourceCode;
+    private String externalModelId;
+    private String canonicalSlug;
+    private String providerCode;
+    private String providerName;
     private String displayName;
     private String tagline;
     private String description;
@@ -28,6 +33,8 @@ public class LogicalModelEntity {
     private String defaultParamsJson;
     private String paramSchemaJson;
     private String safetyPolicyJson;
+    private String pricingJson;
+    private String supportedParametersJson;
     private String visibility;
     private String publishStatus;
     private String status;

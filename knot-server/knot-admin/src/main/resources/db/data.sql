@@ -124,12 +124,12 @@ INSERT IGNORE INTO provider_model_mappings (
 INSERT IGNORE INTO external_model_sources (
   id, source_code, source_name, source_url, api_url, source_type, status
 ) VALUES
-(1, 'AIBASE', 'AIBase 商用模型', 'https://model.aibase.cn/llm',
- 'https://modelapi.aibase.cn/api/llm/generation/search', 'COMMERCIAL_LLM', 'ENABLED');
+(1, 'OPENROUTER', 'OpenRouter Models', 'https://openrouter.ai/models',
+ 'https://openrouter.ai/api/v1/models', 'MODEL_CATALOG', 'ENABLED');
 
 -- 模型 API 协议绑定（usage_extract_json 为 JSONPath 风格路径）
 INSERT IGNORE INTO model_api_bindings (id, model_id, protocol, api_path, usage_extract_json, status, remark) VALUES
-(1, 1, 'OPENAI_CHAT_COMPLETIONS', '/v1/chat/completions',
+(1, 1, 'CHAT_COMPLETIONS', '/v1/chat/completions',
  JSON_OBJECT(
    'usage_path', '$.usage',
    'total_tokens', '$.usage.total_tokens',
@@ -139,7 +139,7 @@ INSERT IGNORE INTO model_api_bindings (id, model_id, protocol, api_path, usage_e
    'uncached_tokens', '$.usage.prompt_tokens',
    'total_input_tokens', '$.usage.input_tokens'
  ), 'ENABLED', 'GPT-4o Chat Completions'),
-(2, 2, 'OPENAI_CHAT_COMPLETIONS', '/v1/chat/completions',
+(2, 2, 'CHAT_COMPLETIONS', '/v1/chat/completions',
  JSON_OBJECT(
    'usage_path', '$.usage',
    'total_tokens', '$.usage.total_tokens',
@@ -149,7 +149,7 @@ INSERT IGNORE INTO model_api_bindings (id, model_id, protocol, api_path, usage_e
    'uncached_tokens', '$.usage.prompt_tokens',
    'total_input_tokens', '$.usage.input_tokens'
  ), 'ENABLED', 'GPT-4o Mini Chat Completions'),
-(3, 4, 'ANTHROPIC_MESSAGES', '/v1/messages',
+(3, 4, 'MESSAGES', '/v1/messages',
  JSON_OBJECT(
    'usage_path', '$.usage',
    'total_tokens', '$.usage.input_tokens + $.usage.output_tokens',
@@ -159,7 +159,7 @@ INSERT IGNORE INTO model_api_bindings (id, model_id, protocol, api_path, usage_e
    'uncached_tokens', '$.usage.input_tokens',
    'total_input_tokens', '$.usage.input_tokens'
  ), 'ENABLED', 'Claude Sonnet Messages API'),
-(4, 6, 'OPENAI_CHAT_COMPLETIONS', '/v1/chat/completions',
+(4, 6, 'CHAT_COMPLETIONS', '/v1/chat/completions',
  JSON_OBJECT(
    'usage_path', '$.usage',
    'total_tokens', '$.usage.total_tokens',
@@ -277,7 +277,7 @@ INSERT IGNORE INTO scheduled_tasks (
 ) VALUES
 (1, 'operation-log-retention', '操作日志保留清理', 'OPERATION_LOG_RETENTION', '0 0 3 * * ?', 'SINGLE', 'ENABLED', '操作日志最多保留三个月'),
 (2, 'schedule-run-retention', '定时任务执行记录清理', 'SCHEDULE_RUN_RETENTION', '0 30 3 * * ?', 'SINGLE', 'ENABLED', '定时任务执行记录最多保留一个月'),
-(3, 'aibase-commercial-model-sync', 'AIBase 商用模型同步', 'AIBASE_COMMERCIAL_MODEL_SYNC', '0 0 4 * * ?', 'SINGLE', 'DISABLED', '同步 AIBase 商用模型到外部模型库');
+(3, 'openrouter-model-sync', 'OpenRouter 模型同步', 'OPENROUTER_MODEL_SYNC', '0 0 4 * * ?', 'SINGLE', 'DISABLED', '同步 OpenRouter 模型到外部模型库');
 
 -- 插件
 INSERT IGNORE INTO plugins (id, code, name, plugin_type, version, status) VALUES
@@ -310,7 +310,8 @@ INSERT IGNORE INTO enum_categories (id, category, category_name, is_system, is_e
 (17, 'logical_model_publish_status', '统一模型发布状态', 0, 1),
 (18, 'logical_model_quality_level', '统一模型质量等级', 0, 1),
 (19, 'logical_model_latency_level', '统一模型延迟等级', 0, 1),
-(20, 'logical_model_cost_level', '统一模型成本等级', 0, 1);
+(20, 'logical_model_cost_level', '统一模型成本等级', 0, 1),
+(22, 'model_api_protocol', '模型接口类型', 0, 1);
 
 -- 枚举配置（category_id 关联 enum_categories.id；是否系统内置由分类决定）
 INSERT IGNORE INTO enum_categories (id, category, category_name, is_system, is_enabled) VALUES
@@ -342,6 +343,20 @@ INSERT IGNORE INTO enum_configs (category_id, item_code, item_label, sort_order,
 (21, 'TIERED_USAGE',      '阶梯用量', 10, 1),
 (21, 'FREE',              '免费', 11, 1),
 (21, 'CUSTOM',            '自定义', 12, 1),
+(22, 'CHAT_COMPLETIONS',       'Chat Completions', 1, 1),
+(22, 'RESPONSES',              'Responses', 2, 1),
+(22, 'MESSAGES',               'Messages', 3, 1),
+(22, 'COMPLETIONS',            'Completions', 4, 1),
+(22, 'EMBEDDINGS',             'Embeddings', 5, 1),
+(22, 'IMAGE_GENERATIONS',      'Image Generations', 6, 1),
+(22, 'IMAGE_EDITS',            'Image Edits', 7, 1),
+(22, 'AUDIO_TRANSCRIPTIONS',   'Audio Transcriptions', 8, 1),
+(22, 'AUDIO_TRANSLATIONS',     'Audio Translations', 9, 1),
+(22, 'AUDIO_SPEECH',           'Audio Speech', 10, 1),
+(22, 'VIDEO_GENERATIONS',      'Video Generations', 11, 1),
+(22, 'RERANK',                 'Rerank', 12, 1),
+(22, 'MODERATIONS',            'Moderations', 13, 1),
+(22, 'CUSTOM',                 '自定义', 99, 1),
 (1, 'OPENAI',    'OpenAI',     1, 1),
 (1, 'ANTHROPIC', 'Anthropic',  2, 1),
 (1, 'DEEPSEEK',  'DeepSeek',   3, 1),
@@ -349,16 +364,18 @@ INSERT IGNORE INTO enum_configs (category_id, item_code, item_label, sort_order,
 (1, 'MISTRAL',   'Mistral',    5, 1),
 (1, 'CUSTOM',    '自定义',    99, 1),
 (2, 'CHAT',       '对话',     1, 1),
-(2, 'MULTIMODAL', '多模态',   2, 1),
-(2, 'EMBEDDING',  '向量',     3, 1),
-(2, 'RERANK',     '重排',     4, 1),
-(2, 'IMAGE',      '图像',     5, 1),
-(2, 'AUDIO',      '语音',     6, 1),
-(2, 'VIDEO',      '视频',     7, 1),
-(2, 'DOCUMENT',   '文档理解', 8, 1),
-(2, 'OCR',        'OCR',      9, 1),
-(2, 'MODERATION', '安全审核', 10, 1),
-(2, 'UTILITY',    '工具辅助', 11, 1),
+(2, 'TEXT',       '文本',     2, 1),
+(2, 'REASONING',  '推理',     3, 1),
+(2, 'MULTIMODAL', '多模态',   4, 1),
+(2, 'EMBEDDING',  '向量',     5, 1),
+(2, 'RERANK',     '重排',     6, 1),
+(2, 'IMAGE',      '图像',     7, 1),
+(2, 'AUDIO',      '语音',     8, 1),
+(2, 'VIDEO',      '视频',     9, 1),
+(2, 'DOCUMENT',   '文档理解', 10, 1),
+(2, 'OCR',        'OCR',      11, 1),
+(2, 'MODERATION', '安全审核', 12, 1),
+(2, 'UTILITY',    '工具辅助', 13, 1),
 (3, 'WEB',     'Web应用', 1, 1),
 (3, 'MOBILE',  '移动应用', 2, 1),
 (3, 'SERVICE', '微服务',   3, 1),

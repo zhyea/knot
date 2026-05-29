@@ -5,7 +5,7 @@
         <el-option v-for="s in sources" :key="s.sourceCode" :label="s.sourceName" :value="s.sourceCode" />
       </el-select>
       <el-button @click="load">刷新</el-button>
-      <el-button type="primary" :loading="syncing" @click="syncAiBase">同步 AIBase 商用模型</el-button>
+      <el-button type="primary" :loading="syncing" @click="syncOpenRouter">同步 OpenRouter 模型</el-button>
       <el-button type="success" :loading="creatingAll" :disabled="createAllDisabled" @click="createAllVisible">
         一键创建统一模型
       </el-button>
@@ -52,7 +52,7 @@ import {
 
 const { rows, loading, total, pageNum, pageSize, extra, load, onPageChange, onSizeChange, resetPage } =
   usePageList(listExternalModelItems, {
-    extra: { sourceCode: "AIBASE", syncStatus: "" }
+    extra: { sourceCode: "OPENROUTER", syncStatus: "" }
   });
 
 const sources = ref([]);
@@ -68,10 +68,10 @@ async function loadSources() {
   sources.value = await listExternalModelSources();
 }
 
-async function syncAiBase() {
+async function syncOpenRouter() {
   syncing.value = true;
   try {
-    const result = await syncExternalModelSource("AIBASE");
+    const result = await syncExternalModelSource("OPENROUTER");
     ElMessage.success(result?.message || "同步完成");
     await resetPage();
   } finally {
