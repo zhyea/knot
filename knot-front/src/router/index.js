@@ -15,10 +15,9 @@ const routes = [
       { path: "roles", name: "system-roles", component: () => import("@/views/system/RoleManageView.vue") },
       { path: "logs", name: "system-logs", component: () => import("@/views/system/OperationLogView.vue") },
       { path: "scheduled-tasks", name: "system-scheduled-tasks", component: () => import("@/views/system/ScheduledTaskView.vue") },
-      { path: "nodes", name: "system-nodes", component: () => import("@/views/system/GatewayNodeView.vue") },
       { path: "enums", name: "system-enums", component: () => import("@/views/system/EnumManageView.vue") },
-      { path: "backup", name: "system-backup", component: () => import("@/views/system/BackupView.vue") },
-      { path: "settings", name: "system-settings", component: () => import("@/views/system/UserSettingsView.vue") }
+      { path: "settings", name: "system-settings", component: () => import("@/views/system/UserSettingsView.vue") },
+      { path: "plugins", name: "system-plugins", component: () => import("@/views/PluginManageView.vue") }
     ]
   },
 
@@ -26,7 +25,19 @@ const routes = [
   { path: "/providers", name: "providers", component: () => import("@/views/ProviderManageView.vue") },
 
   // 模型管理
-  { path: "/models", name: "models", component: () => import("@/views/ModelManageView.vue") },
+  {
+    path: "/model-management",
+    component: NestedView,
+    children: [
+      { path: "models", name: "model-management-models", component: () => import("@/views/ModelManageView.vue") },
+      { path: "model-pools", name: "model-management-model-pools", component: () => import("@/views/ModelPoolManageView.vue") },
+      { path: "logical-models", name: "model-management-logical-models", component: () => import("@/views/LogicalModelMarketplaceView.vue") },
+      { path: "external-models", name: "model-management-external-models", component: () => import("@/views/ExternalModelManageView.vue") }
+    ]
+  },
+  { path: "/logical-models", redirect: "/model-management/logical-models" },
+  { path: "/models", redirect: "/model-management/models" },
+  { path: "/model-pools", redirect: "/model-management/model-pools" },
 
   // 应用管理
   { path: "/apps", name: "apps", component: () => import("@/views/AppManageView.vue") },
@@ -37,8 +48,7 @@ const routes = [
     component: NestedView,
     children: [
       { path: "consumers", name: "routing-consumers", component: () => import("@/views/routing/RoutingConsumerView.vue") },
-      { path: "rules", name: "routing-rules", component: () => import("@/views/routing/RoutingRuleView.vue") },
-      { path: "logs", name: "routing-logs", component: () => import("@/views/routing/SwitchLogView.vue") }
+      { path: "rules", name: "routing-rules", component: () => import("@/views/routing/RoutingRuleView.vue") }
     ]
   },
 
@@ -48,7 +58,6 @@ const routes = [
     component: NestedView,
     children: [
       { path: "rules", name: "billing-rules", component: () => import("@/views/billing/BillingRuleView.vue") },
-      { path: "statistics", name: "billing-statistics", component: () => import("@/views/billing/CostStatisticsView.vue") },
       { path: "reconciliation", name: "billing-reconciliation", component: () => import("@/views/billing/ReconciliationView.vue") }
     ]
   },
@@ -65,10 +74,7 @@ const routes = [
   },
 
   // 插件管理
-  { path: "/plugins", name: "plugins", component: () => import("@/views/PluginManageView.vue") },
-
-  // 灰度发布
-  { path: "/release", name: "release", component: () => import("@/views/GrayReleaseView.vue") },
+  { path: "/plugins", redirect: "/system/plugins" },
 
   // 通知管理
   {

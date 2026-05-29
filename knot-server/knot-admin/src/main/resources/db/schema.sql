@@ -6,16 +6,6 @@
 -- =========================
 -- 系统管理
 -- =========================
-CREATE TABLE IF NOT EXISTS departments (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  parent_id BIGINT DEFAULT NULL,
-  name VARCHAR(100) NOT NULL,
-  code VARCHAR(64) DEFAULT NULL,
-  is_deleted TINYINT NOT NULL DEFAULT 0,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
 CREATE TABLE IF NOT EXISTS users (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   username VARCHAR(64) NOT NULL,
@@ -52,25 +42,10 @@ CREATE TABLE IF NOT EXISTS roles (
   UNIQUE KEY uk_roles_code (code)
 );
 
-CREATE TABLE IF NOT EXISTS permissions (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  code VARCHAR(128) NOT NULL,
-  name VARCHAR(100) NOT NULL,
-  module_code VARCHAR(64) NOT NULL,
-  action_code VARCHAR(64) NOT NULL,
-  UNIQUE KEY uk_permissions_code (code)
-);
-
 CREATE TABLE IF NOT EXISTS user_roles (
   user_id BIGINT NOT NULL,
   role_id BIGINT NOT NULL,
   PRIMARY KEY (user_id, role_id)
-);
-
-CREATE TABLE IF NOT EXISTS role_permissions (
-  role_id BIGINT NOT NULL,
-  permission_id BIGINT NOT NULL,
-  PRIMARY KEY (role_id, permission_id)
 );
 
 CREATE TABLE IF NOT EXISTS operation_logs (
@@ -106,26 +81,6 @@ CREATE TABLE IF NOT EXISTS operation_log_details (
   after_json JSON DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_operation_log_details_log (log_id)
-);
-
-CREATE TABLE IF NOT EXISTS gateway_nodes (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  node_id VARCHAR(64) NOT NULL,
-  host VARCHAR(128) NOT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ONLINE',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_gateway_nodes_node_id (node_id)
-);
-
-CREATE TABLE IF NOT EXISTS backup_jobs (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  job_code VARCHAR(64) NOT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'RUNNING',
-  snapshot_ref VARCHAR(128) DEFAULT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_backup_jobs_job_code (job_code)
 );
 
 CREATE TABLE IF NOT EXISTS scheduled_tasks (
@@ -261,19 +216,6 @@ CREATE TABLE IF NOT EXISTS provider_discount_policies (
   KEY idx_provider_discount_scope (scope_type, scope_ref_id, status)
 );
 
-CREATE TABLE IF NOT EXISTS provider_discount_snapshots (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  request_id VARCHAR(64) NOT NULL,
-  provider_id BIGINT NOT NULL,
-  policy_id BIGINT NOT NULL,
-  original_amount DECIMAL(18,6) NOT NULL,
-  discount_amount DECIMAL(18,6) NOT NULL,
-  final_amount DECIMAL(18,6) NOT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_provider_discount_snapshots_req (request_id),
-  KEY idx_provider_discount_snapshots_provider_time (provider_id, created_at)
-);
-
 CREATE TABLE IF NOT EXISTS models (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   provider_id BIGINT NOT NULL,
@@ -281,13 +223,151 @@ CREATE TABLE IF NOT EXISTS models (
   name VARCHAR(100) NOT NULL,
   model_type VARCHAR(64) NOT NULL,
   version VARCHAR(64) NOT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  billing_rule_id BIGINT DEFAULT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'DISABLED',
   tags_json JSON DEFAULT NULL,
   params_json JSON DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_models_code (model_code),
   KEY idx_models_provider (provider_id)
+);
+
+CREATE TABLE IF NOT EXISTS model_pools (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  pool_code VARCHAR(64) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  model_type VARCHAR(64) NOT NULL,
+  selection_strategy VARCHAR(32) NOT NULL DEFAULT 'WEIGHTED',
+  status VARCHAR(32) NOT NULL DEFAULT 'DISABLED',
+  remark VARCHAR(255) DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_model_pools_code (pool_code),
+  KEY idx_model_pools_type_status (model_type, status)
+);
+
+CREATE TABLE IF NOT EXISTS model_pool_items (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  pool_id BIGINT NOT NULL,
+  model_id BIGINT NOT NULL,
+  weight INT NOT NULL DEFAULT 100,
+  priority INT NOT NULL DEFAULT 100,
+  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_model_pool_item (pool_id, model_id),
+  KEY idx_model_pool_items_pool (pool_id, status, priority),
+  KEY idx_model_pool_items_model (model_id)
+);
+
+CREATE TABLE IF NOT EXISTS logical_models (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  model_code VARCHAR(128) NOT NULL,
+  model_name VARCHAR(128) NOT NULL,
+  model_type VARCHAR(64) NOT NULL,
+  model_family VARCHAR(64) DEFAULT NULL,
+  version VARCHAR(64) DEFAULT NULL,
+  display_name VARCHAR(128) DEFAULT NULL,
+  tagline VARCHAR(255) DEFAULT NULL,
+  description TEXT DEFAULT NULL,
+  logo_url VARCHAR(512) DEFAULT NULL,
+  cover_url VARCHAR(512) DEFAULT NULL,
+  tags_json JSON DEFAULT NULL,
+  use_cases_json JSON DEFAULT NULL,
+  capabilities_json JSON DEFAULT NULL,
+  context_window INT DEFAULT NULL,
+  max_output_tokens INT DEFAULT NULL,
+  input_modalities_json JSON DEFAULT NULL,
+  output_modalities_json JSON DEFAULT NULL,
+  languages_json JSON DEFAULT NULL,
+  default_params_json JSON DEFAULT NULL,
+  param_schema_json JSON DEFAULT NULL,
+  safety_policy_json JSON DEFAULT NULL,
+  visibility VARCHAR(32) NOT NULL DEFAULT 'PUBLIC',
+  publish_status VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
+  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  sort_order INT NOT NULL DEFAULT 0,
+  featured TINYINT NOT NULL DEFAULT 0,
+  owner_user_id BIGINT DEFAULT NULL,
+  owner_team VARCHAR(128) DEFAULT NULL,
+  quality_level VARCHAR(32) DEFAULT NULL,
+  latency_level VARCHAR(32) DEFAULT NULL,
+  cost_level VARCHAR(32) DEFAULT NULL,
+  pricing_summary VARCHAR(255) DEFAULT NULL,
+  remark VARCHAR(255) DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_logical_models_code (model_code),
+  KEY idx_logical_models_type_status (model_type, publish_status, status),
+  KEY idx_logical_models_sort (featured, sort_order)
+);
+
+CREATE TABLE IF NOT EXISTS provider_model_mappings (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  logical_model_id BIGINT NOT NULL,
+  provider_id BIGINT NOT NULL,
+  model_id BIGINT NOT NULL,
+  provider_model_name VARCHAR(128) NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  priority INT NOT NULL DEFAULT 100,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_provider_model_mapping_model (model_id),
+  KEY idx_logical_provider_model (logical_model_id, provider_id, model_id),
+  KEY idx_logical_model (logical_model_id, status),
+  KEY idx_provider_model (provider_id, model_id, status)
+);
+
+CREATE TABLE IF NOT EXISTS external_model_sources (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  source_code VARCHAR(64) NOT NULL,
+  source_name VARCHAR(128) NOT NULL,
+  source_url VARCHAR(512) NOT NULL,
+  api_url VARCHAR(512) NOT NULL,
+  source_type VARCHAR(32) NOT NULL DEFAULT 'COMMERCIAL_LLM',
+  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  last_sync_at DATETIME DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_external_model_sources_code (source_code)
+);
+
+CREATE TABLE IF NOT EXISTS external_model_items (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  source_code VARCHAR(64) NOT NULL,
+  source_model_id VARCHAR(128) NOT NULL,
+  source_model_name VARCHAR(256) NOT NULL,
+  source_provider_code VARCHAR(128) DEFAULT NULL,
+  source_provider_name VARCHAR(128) DEFAULT NULL,
+  source_url VARCHAR(512) DEFAULT NULL,
+  source_llm_type VARCHAR(128) DEFAULT NULL,
+  source_llm_type_code VARCHAR(128) DEFAULT NULL,
+  source_tag_type VARCHAR(128) DEFAULT NULL,
+  source_context_length VARCHAR(128) DEFAULT NULL,
+  source_capabilities_json JSON DEFAULT NULL,
+  source_last_update_time DATETIME DEFAULT NULL,
+  source_description TEXT DEFAULT NULL,
+  raw_json JSON DEFAULT NULL,
+  normalized_name VARCHAR(256) DEFAULT NULL,
+  normalized_family VARCHAR(128) DEFAULT NULL,
+  model_type VARCHAR(64) DEFAULT NULL,
+  tags_json JSON DEFAULT NULL,
+  capabilities_json JSON DEFAULT NULL,
+  context_window INT DEFAULT NULL,
+  max_output_tokens INT DEFAULT NULL,
+  languages_json JSON DEFAULT NULL,
+  logical_model_id BIGINT DEFAULT NULL,
+  sync_status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+  sync_hash VARCHAR(64) DEFAULT NULL,
+  last_seen_at DATETIME DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_external_model_item (source_code, source_model_id),
+  KEY idx_external_model_logical_model (logical_model_id),
+  KEY idx_external_model_provider (source_provider_code),
+  KEY idx_external_model_update_time (source_last_update_time),
+  KEY idx_external_model_sync_status (sync_status)
 );
 
 CREATE TABLE IF NOT EXISTS model_versions (
@@ -362,6 +442,7 @@ CREATE TABLE IF NOT EXISTS routing_consumers (
   name VARCHAR(100) NOT NULL,
   user_id BIGINT DEFAULT NULL,
   secret_key VARCHAR(64) NOT NULL,
+  return_usage_detail TINYINT(1) NOT NULL DEFAULT 0,
   status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -378,7 +459,6 @@ CREATE TABLE IF NOT EXISTS routing_rules (
   model_types VARCHAR(255) NOT NULL DEFAULT 'CHAT',
   app_id BIGINT DEFAULT NULL,
   user_id BIGINT DEFAULT NULL,
-  strategy_type VARCHAR(32) NOT NULL,
   fallback_rule_id BIGINT DEFAULT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -399,26 +479,16 @@ CREATE TABLE IF NOT EXISTS routing_rule_consumers (
   KEY idx_rrc_rule (rule_id, status)
 );
 
-CREATE TABLE IF NOT EXISTS routing_rule_models (
+CREATE TABLE IF NOT EXISTS routing_rule_targets (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   rule_id BIGINT NOT NULL,
-  model_id BIGINT NOT NULL,
+  target_type VARCHAR(32) NOT NULL,
+  target_id BIGINT NOT NULL,
   priority INT NOT NULL DEFAULT 100,
   is_primary TINYINT(1) NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_routing_rule_model (rule_id, model_id),
-  KEY idx_routing_rule_models_rule (rule_id, priority)
-);
-
-CREATE TABLE IF NOT EXISTS routing_hit_logs (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  request_id VARCHAR(64) NOT NULL,
-  rule_id BIGINT NOT NULL,
-  from_target VARCHAR(128) DEFAULT NULL,
-  to_target VARCHAR(128) DEFAULT NULL,
-  reason VARCHAR(255) DEFAULT NULL,
-  hit_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_routing_hit_rule_time (rule_id, hit_time)
+  UNIQUE KEY uk_routing_rule_target (rule_id, target_type, target_id),
+  KEY idx_routing_rule_targets_rule (rule_id, priority)
 );
 
 -- =========================
@@ -428,49 +498,46 @@ CREATE TABLE IF NOT EXISTS billing_rules (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) NOT NULL,
   name VARCHAR(100) NOT NULL,
+  provider_id BIGINT DEFAULT NULL,
+  logical_model_id BIGINT DEFAULT NULL,
+  current_version_id BIGINT DEFAULT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  is_deleted TINYINT NOT NULL DEFAULT 0,
+  remark VARCHAR(255) DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_billing_rules_code (code),
+  KEY idx_billing_rules_match (provider_id, logical_model_id, status, is_deleted)
+);
+
+CREATE TABLE IF NOT EXISTS billing_rule_versions (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  rule_id BIGINT NOT NULL,
+  version_no INT NOT NULL,
+  version_name VARCHAR(64) NOT NULL,
   billing_mode VARCHAR(32) NOT NULL,
-  unit VARCHAR(32) NOT NULL,
-  unit_price DECIMAL(18,6) NOT NULL,
+  currency VARCHAR(16) NOT NULL DEFAULT 'USD',
+  config_json JSON DEFAULT NULL,
   ladder_json JSON DEFAULT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
   effective_from DATETIME NOT NULL,
   effective_to DATETIME DEFAULT NULL,
-  UNIQUE KEY uk_billing_rules_code (code)
-);
-
-CREATE TABLE IF NOT EXISTS gateway_requests (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  request_id VARCHAR(64) NOT NULL,
-  app_id BIGINT NOT NULL,
-  provider_id BIGINT NOT NULL,
-  model_id BIGINT NOT NULL,
-  billing_rule_id BIGINT DEFAULT NULL,
-  status VARCHAR(32) NOT NULL,
-  latency_ms INT NOT NULL DEFAULT 0,
-  input_tokens INT NOT NULL DEFAULT 0,
-  output_tokens INT NOT NULL DEFAULT 0,
-  total_tokens INT NOT NULL DEFAULT 0,
-  cost_amount DECIMAL(18,6) NOT NULL DEFAULT 0,
-  error_code VARCHAR(64) DEFAULT NULL,
-  request_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_gateway_requests_app_time (app_id, request_time),
-  KEY idx_gateway_requests_provider_time (provider_id, request_time),
-  UNIQUE KEY uk_gateway_requests_reqid (request_id)
-);
-
-CREATE TABLE IF NOT EXISTS billing_statements (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  statement_no VARCHAR(64) NOT NULL,
-  statement_type VARCHAR(32) NOT NULL,
-  biz_date DATE NOT NULL,
-  app_id BIGINT DEFAULT NULL,
-  provider_id BIGINT DEFAULT NULL,
-  total_cost DECIMAL(18,6) NOT NULL DEFAULT 0,
-  total_requests BIGINT NOT NULL DEFAULT 0,
-  total_tokens BIGINT NOT NULL DEFAULT 0,
-  status VARCHAR(32) NOT NULL DEFAULT 'GENERATED',
+  change_reason VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_billing_statements_no (statement_no)
+  UNIQUE KEY uk_billing_rule_version (rule_id, version_no),
+  KEY idx_billing_rule_versions_active (rule_id, status, effective_from, effective_to)
+);
+
+CREATE TABLE IF NOT EXISTS billing_rule_version_items (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  version_id BIGINT NOT NULL,
+  item_type VARCHAR(64) NOT NULL,
+  unit VARCHAR(32) NOT NULL,
+  unit_size INT NOT NULL DEFAULT 1000,
+  unit_price DECIMAL(18,6) NOT NULL,
+  metadata_json JSON DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_billing_rule_version_items_version (version_id)
 );
 
 -- =========================
@@ -522,18 +589,6 @@ CREATE TABLE IF NOT EXISTS plugins (
   config_json JSON DEFAULT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'DISABLED',
   UNIQUE KEY uk_plugins_code (code)
-);
-
-CREATE TABLE IF NOT EXISTS gray_plans (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  plan_name VARCHAR(100) NOT NULL,
-  target_type VARCHAR(32) NOT NULL,
-  target_id BIGINT NOT NULL,
-  traffic_percent INT NOT NULL,
-  steps_json JSON DEFAULT NULL,
-  start_time DATETIME NOT NULL,
-  end_time DATETIME DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'DRAFT'
 );
 
 CREATE TABLE IF NOT EXISTS notification_templates (

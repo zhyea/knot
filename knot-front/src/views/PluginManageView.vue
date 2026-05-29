@@ -1,127 +1,52 @@
-﻿<template>
+<template>
   <PageSection title="插件管理">
-    <div class="toolbar">
-      <el-button type="primary" @click="openCreate">新建插件</el-button>
-      <el-button @click="pageLoad">刷新</el-button>
-    </div>
-    <el-table v-loading="loading" :data="pluginRows" stripe border style="width: 100%">
-      <el-table-column prop="id" label="ID" min-width="5%" align="center" header-align="center" />
-      <el-table-column prop="code" label="编码" min-width="12%" />
-      <el-table-column prop="name" label="名称" min-width="15%" />
-      <el-table-column prop="pluginType" label="类型" min-width="10%" />
-      <el-table-column prop="version" label="版本" min-width="8%" />
-      <el-table-column prop="status" label="状态" min-width="10%" />
-      <el-table-column label="操作" width="150" align="center" header-align="center" fixed="right">
-        <template #default="{ row }">
-          <el-select
-            v-model="row._st"
-            placeholder="切状态"
-            size="small"
-            clearable
-            style="width: 120px"
-            @change="(v) => onStatus(row, v)"
-          >
-            <el-option
-              v-for="item in pluginStatusOptions"
-              :key="item.itemCode"
-              :label="item.itemLabel"
-              :value="item.itemCode"
-            />
-          </el-select>
-        </template>
-      </el-table-column>
-    </el-table>
-    <div class="pagination-wrap">
-      <el-pagination
-        background
-        layout="total, sizes, prev, pager, next"
-        :total="total"
-        :page-size="pageSize"
-        :current-page="pageNum"
-        :page-sizes="[10, 20, 50]"
-        @current-change="onPageChange"
-        @size-change="onSizeChange"
-      />
-    </div>
+    <PluginListPanel
+      :rows="pluginRows"
+      :status-options="pluginStatusOptions"
+      :loading="loading"
+      :total="total"
+      :page-num="pageNum"
+      :page-size="pageSize"
+      @create="dlg = true"
+      @refresh="pageLoad"
+      @status-change="onStatus"
+      @page-change="onPageChange"
+      @size-change="onSizeChange"
+    />
 
-    <el-dialog v-model="dlg" title="新建插件" width="480px" destroy-on-close>
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="编码" required><el-input v-model="form.code" /></el-form-item>
-        <el-form-item label="名称" required><el-input v-model="form.name" /></el-form-item>
-        <el-form-item label="类型">
-          <EnumSelect v-model="form.pluginType" category="plugin_type" />
-        </el-form-item>
-        <el-form-item label="版本"><el-input v-model="form.version" /></el-form-item>
-        <el-form-item label="状态">
-          <EnumSelect v-model="form.status" category="status" :include-codes="['ENABLED', 'DISABLED']" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="dlg = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submit">创建</el-button>
-      </template>
-    </el-dialog>
+    <PluginFormDialog v-model="dlg" @saved="resetPage" />
   </PageSection>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
-import EnumSelect from "../components/common/EnumSelect.vue";
-import { usePageList } from "../composables/usePageList";
+import PluginFormDialog from "../components/plugin/PluginFormDialog.vue";
+import PluginListPanel from "../components/plugin/PluginListPanel.vue";
 import { useEnums } from "../composables/useEnums";
-import { listPlugins, createPlugin, updatePluginStatus } from "../api/plugins";
+import { usePageList } from "../composables/usePageList";
+import { listPlugins, updatePluginStatus } from "../api/plugins";
 
 const { options: statusOptions, loadOptions: loadStatusOptions } = useEnums("status");
 const pluginStatusOptions = computed(() =>
-  statusOptions.value.filter((i) => ["ENABLED", "DISABLED"].includes(i.itemCode))
+  statusOptions.value.filter((item) => ["ENABLED", "DISABLED"].includes(item.itemCode))
 );
 
 onMounted(() => loadStatusOptions());
 
-const { rows, loading, total, pageNum, pageSize, load: pageLoad, onPageChange, onSizeChange, resetPage } = usePageList(listPlugins);
+const { rows, loading, total, pageNum, pageSize, load: pageLoad, onPageChange, onSizeChange, resetPage } =
+  usePageList(listPlugins);
 const pluginRows = ref([]);
 const dlg = ref(false);
-const saving = ref(false);
-const form = reactive({ code: "", name: "", pluginType: "PRE", version: "0.0.1", status: "DISABLED" });
 
-// 监听 rows 变化，同步到 pluginRows（附加 _st）
-watch(rows, (list) => {
-  pluginRows.value = list.map((r) => ({ ...r, _st: null }));
-}, { immediate: true });
-
-function openCreate() {
-  form.code = "";
-  form.name = "";
-  form.pluginType = "PRE";
-  form.version = "0.0.1";
-  form.status = "DISABLED";
-  dlg.value = true;
-}
-
-async function submit() {
-  if (!form.code?.trim() || !form.name?.trim()) {
-    ElMessage.warning("请填写编码与名称");
-    return;
-  }
-  saving.value = true;
-  try {
-    await createPlugin({
-      id: null,
-      code: form.code.trim(),
-      name: form.name.trim(),
-      pluginType: form.pluginType,
-      version: form.version,
-      status: form.status
-    });
-    ElMessage.success("已创建");
-    dlg.value = false;
-    await resetPage();
-  } finally {
-    saving.value = false;
-  }
-}
+watch(
+  rows,
+  (list) => {
+    pluginRows.value = list.map((row) => ({ ...row, _st: null }));
+  },
+  { immediate: true }
+);
 
 async function onStatus(row, status) {
   if (!status) return;

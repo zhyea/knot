@@ -12,5 +12,7 @@ public class ModelEntity {
     private String name;
     private String modelType;
     private String version;
+    private Long billingRuleId;
+    private String billingRuleName;
     private String status;
 }

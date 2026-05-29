@@ -5,21 +5,23 @@ import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.constants.TrafficResourceType;
 import org.chobit.knot.gateway.converter.RoutingRuleConverter;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleDto;
-import org.chobit.knot.gateway.dto.routing.RoutingRuleModelDto;
-import org.chobit.knot.gateway.dto.routing.RoutingSwitchLogDto;
+import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.entity.AppEntity;
+import org.chobit.knot.gateway.entity.ModelEntity;
+import org.chobit.knot.gateway.entity.ModelPoolEntity;
 import org.chobit.knot.gateway.entity.RoutingConsumerEntity;
-import org.chobit.knot.gateway.entity.RoutingHitLogEntity;
 import org.chobit.knot.gateway.entity.RoutingRuleConsumerEntity;
 import org.chobit.knot.gateway.entity.RoutingRuleEntity;
-import org.chobit.knot.gateway.entity.RoutingRuleModelEntity;
+import org.chobit.knot.gateway.entity.RoutingRuleTargetEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.AppMapper;
+import org.chobit.knot.gateway.mapper.ModelMapper;
+import org.chobit.knot.gateway.mapper.ModelPoolMapper;
 import org.chobit.knot.gateway.mapper.RoutingConsumerMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleConsumerMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleMapper;
-import org.chobit.knot.gateway.mapper.RoutingRuleModelMapper;
+import org.chobit.knot.gateway.mapper.RoutingRuleTargetMapper;
 import org.chobit.knot.gateway.config.GatewayRuntimeProperties;
 import org.chobit.knot.gateway.mapper.UserMapper;
 import org.chobit.knot.gateway.model.PageRequest;
@@ -48,9 +50,11 @@ public class RoutingRuleService {
     private static final int RULE_CODE_MAX_LEN = 32;
 
     private final RoutingRuleMapper routingRuleMapper;
-    private final RoutingRuleModelMapper routingRuleModelMapper;
+    private final RoutingRuleTargetMapper routingRuleTargetMapper;
     private final RoutingRuleConsumerMapper routingRuleConsumerMapper;
     private final RoutingConsumerMapper routingConsumerMapper;
+    private final ModelMapper modelMapper;
+    private final ModelPoolMapper modelPoolMapper;
     private final AppMapper appMapper;
     private final UserMapper userMapper;
     private final RoutingRuleConverter routingRuleConverter;
@@ -59,18 +63,22 @@ public class RoutingRuleService {
     private final RestClient restClient;
 
     public RoutingRuleService(RoutingRuleMapper routingRuleMapper,
-                              RoutingRuleModelMapper routingRuleModelMapper,
+                              RoutingRuleTargetMapper routingRuleTargetMapper,
                               RoutingRuleConsumerMapper routingRuleConsumerMapper,
                               RoutingConsumerMapper routingConsumerMapper,
+                              ModelMapper modelMapper,
+                              ModelPoolMapper modelPoolMapper,
                               AppMapper appMapper,
                               UserMapper userMapper,
                               RoutingRuleConverter routingRuleConverter,
                               ResourceTrafficPolicySupport trafficPolicySupport,
                               GatewayRuntimeProperties gatewayRuntimeProperties) {
         this.routingRuleMapper = routingRuleMapper;
-        this.routingRuleModelMapper = routingRuleModelMapper;
+        this.routingRuleTargetMapper = routingRuleTargetMapper;
         this.routingRuleConsumerMapper = routingRuleConsumerMapper;
         this.routingConsumerMapper = routingConsumerMapper;
+        this.modelMapper = modelMapper;
+        this.modelPoolMapper = modelPoolMapper;
         this.appMapper = appMapper;
         this.userMapper = userMapper;
         this.routingRuleConverter = routingRuleConverter;
@@ -121,9 +129,8 @@ public class RoutingRuleService {
             m.put("appName", dto.appName());
             m.put("userId", dto.userId());
             m.put("userName", dto.userName());
-            m.put("strategy", dto.strategy());
             m.put("enabled", dto.enabled());
-            m.put("models", dto.models());
+            m.put("targets", dto.targets());
             m.put("rateLimitPolicy", dto.rateLimitPolicy());
             m.put("quotaPolicy", dto.quotaPolicy());
             return m;
@@ -140,7 +147,7 @@ public class RoutingRuleService {
         entity.setStatus(normalized.enabled() ? "ENABLED" : "DISABLED");
         routingRuleMapper.insert(entity);
         saveConsumers(entity.getId(), normalized.consumerIds());
-        saveModels(entity.getId(), normalized.models());
+        saveTargets(entity.getId(), normalized.targets());
         trafficPolicySupport.save(TrafficResourceType.ROUTING_RULE, entity.getId(),
                 normalized.rateLimitPolicy(), normalized.quotaPolicy());
         return getById(entity.getId());
@@ -157,21 +164,15 @@ public class RoutingRuleService {
         entity.setStatus(request.enabled() ? "ENABLED" : "DISABLED");
         routingRuleMapper.update(entity);
         saveConsumers(id, request.consumerIds());
-        saveModels(id, request.models());
+        saveTargets(id, request.targets());
         trafficPolicySupport.save(TrafficResourceType.ROUTING_RULE, id,
                 request.rateLimitPolicy(), request.quotaPolicy());
         return getById(id);
     }
 
-    public PageResult<RoutingSwitchLogDto> listSwitchLogs(PageRequest pageRequest) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<RoutingHitLogEntity> pageInfo = new PageInfo<>(routingRuleMapper.listHitLogs());
-        return PageResult.fromPage(pageInfo, routingRuleConverter::toSwitchLogDtoList, pageRequest);
-    }
-
-    public RoutingRuleModelDto getPrimaryModel(Long ruleId) {
-        return getById(ruleId).models().stream()
-                .filter(RoutingRuleModelDto::primary)
+    public RoutingRuleTargetDto getPrimaryTarget(Long ruleId) {
+        return getById(ruleId).targets().stream()
+                .filter(RoutingRuleTargetDto::primary)
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "路由规则未配置主模型"));
     }
@@ -185,8 +186,8 @@ public class RoutingRuleService {
         if (!rule.enabled()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "路由规则未启用");
         }
-        RoutingRuleModelDto primary = getPrimaryModel(ruleId);
-        String model = (modelCode != null && !modelCode.isBlank()) ? modelCode.trim() : primary.modelCode();
+        RoutingRuleTargetDto primary = getPrimaryTarget(ruleId);
+        String model = (modelCode != null && !modelCode.isBlank()) ? modelCode.trim() : primary.targetCode();
         String userPrompt = (prompt != null && !prompt.isBlank()) ? prompt.trim() : "你好，这是一条路由规则测试消息";
 
         Map<String, Object> body = new LinkedHashMap<>();
@@ -207,7 +208,7 @@ public class RoutingRuleService {
             return new RoutingTestResult(
                     rule.id(),
                     primary.providerId(),
-                    primary.modelId(),
+                    primary.targetId(),
                     model,
                     "SUCCESS",
                     curl,
@@ -219,7 +220,7 @@ public class RoutingRuleService {
             return new RoutingTestResult(
                     rule.id(),
                     primary.providerId(),
-                    primary.modelId(),
+                    primary.targetId(),
                     model,
                     "FAILED",
                     curl,
@@ -231,7 +232,7 @@ public class RoutingRuleService {
             return new RoutingTestResult(
                     rule.id(),
                     primary.providerId(),
-                    primary.modelId(),
+                    primary.targetId(),
                     model,
                     "FAILED",
                     curl,
@@ -264,7 +265,7 @@ public class RoutingRuleService {
             return List.of();
         }
         List<Long> ruleIds = entities.stream().map(RoutingRuleEntity::getId).toList();
-        Map<Long, List<RoutingRuleModelDto>> modelsByRule = loadModelsByRuleIds(ruleIds);
+        Map<Long, List<RoutingRuleTargetDto>> targetsByRule = loadTargetsByRuleIds(ruleIds);
         Map<Long, List<RoutingRuleConsumerEntity>> consumersByRule = loadConsumersByRuleIds(ruleIds);
         Map<Long, ResourceTrafficPolicySupport.TrafficPolicies> traffic =
                 trafficPolicySupport.loadBatch(TrafficResourceType.ROUTING_RULE, ruleIds);
@@ -274,7 +275,7 @@ public class RoutingRuleService {
             result.add(toDto(
                     entity,
                     consumersByRule.getOrDefault(entity.getId(), List.of()),
-                    modelsByRule.getOrDefault(entity.getId(), List.of()),
+                    targetsByRule.getOrDefault(entity.getId(), List.of()),
                     tp
             ));
         }
@@ -282,21 +283,21 @@ public class RoutingRuleService {
     }
 
     private RoutingRuleDto enrich(RoutingRuleEntity entity) {
-        Map<Long, List<RoutingRuleModelDto>> modelsByRule =
-                loadModelsByRuleIds(List.of(entity.getId()));
+        Map<Long, List<RoutingRuleTargetDto>> targetsByRule =
+                loadTargetsByRuleIds(List.of(entity.getId()));
         Map<Long, List<RoutingRuleConsumerEntity>> consumersByRule =
                 loadConsumersByRuleIds(List.of(entity.getId()));
         ResourceTrafficPolicySupport.TrafficPolicies traffic =
                 trafficPolicySupport.load(TrafficResourceType.ROUTING_RULE, entity.getId());
         return toDto(entity,
                 consumersByRule.getOrDefault(entity.getId(), List.of()),
-                modelsByRule.getOrDefault(entity.getId(), List.of()),
+                targetsByRule.getOrDefault(entity.getId(), List.of()),
                 traffic);
     }
 
     private RoutingRuleDto toDto(RoutingRuleEntity entity,
                                  List<RoutingRuleConsumerEntity> consumers,
-                                 List<RoutingRuleModelDto> models,
+                                 List<RoutingRuleTargetDto> targets,
                                  ResourceTrafficPolicySupport.TrafficPolicies traffic) {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
         QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
@@ -317,9 +318,8 @@ public class RoutingRuleService {
                 entity.getAppName(),
                 entity.getUserId(),
                 resolveUserName(entity),
-                entity.getStrategyType(),
                 "ENABLED".equals(entity.getStatus()),
-                models,
+                targets,
                 rate,
                 quota
         );
@@ -336,40 +336,43 @@ public class RoutingRuleService {
         return result;
     }
 
-    private Map<Long, List<RoutingRuleModelDto>> loadModelsByRuleIds(List<Long> ruleIds) {
+    private Map<Long, List<RoutingRuleTargetDto>> loadTargetsByRuleIds(List<Long> ruleIds) {
         if (ruleIds == null || ruleIds.isEmpty()) {
             return Map.of();
         }
-        Map<Long, List<RoutingRuleModelDto>> result = new HashMap<>();
-        for (RoutingRuleModelEntity entity : routingRuleModelMapper.listByRuleIds(ruleIds)) {
-            result.computeIfAbsent(entity.getRuleId(), k -> new ArrayList<>()).add(toModelDto(entity));
+        Map<Long, List<RoutingRuleTargetDto>> result = new HashMap<>();
+        for (RoutingRuleTargetEntity entity : routingRuleTargetMapper.listByRuleIds(ruleIds)) {
+            result.computeIfAbsent(entity.getRuleId(), k -> new ArrayList<>()).add(toTargetDto(entity));
         }
         return result;
     }
 
-    private RoutingRuleModelDto toModelDto(RoutingRuleModelEntity entity) {
-        return new RoutingRuleModelDto(
-                entity.getModelId(),
-                entity.getModelCode(),
-                entity.getModelName(),
+    private RoutingRuleTargetDto toTargetDto(RoutingRuleTargetEntity entity) {
+        return new RoutingRuleTargetDto(
+                entity.getTargetType(),
+                entity.getTargetId(),
+                entity.getTargetCode(),
+                entity.getTargetName(),
+                entity.getModelType(),
                 entity.getProviderId(),
                 entity.getPriority() != null ? entity.getPriority() : 100,
                 Boolean.TRUE.equals(entity.getPrimary())
         );
     }
 
-    private void saveModels(Long ruleId, List<RoutingRuleModelDto> models) {
-        routingRuleModelMapper.deleteByRuleId(ruleId);
-        if (models == null) {
+    private void saveTargets(Long ruleId, List<RoutingRuleTargetDto> targets) {
+        routingRuleTargetMapper.deleteByRuleId(ruleId);
+        if (targets == null) {
             return;
         }
-        for (RoutingRuleModelDto model : models) {
-            RoutingRuleModelEntity entity = new RoutingRuleModelEntity();
+        for (RoutingRuleTargetDto target : targets) {
+            RoutingRuleTargetEntity entity = new RoutingRuleTargetEntity();
             entity.setRuleId(ruleId);
-            entity.setModelId(model.modelId());
-            entity.setPriority(model.priority());
-            entity.setPrimary(model.primary());
-            routingRuleModelMapper.insert(entity);
+            entity.setTargetType(normalizeTargetType(target.targetType()));
+            entity.setTargetId(target.targetId());
+            entity.setPriority(target.priority());
+            entity.setPrimary(target.primary());
+            routingRuleTargetMapper.insert(entity);
         }
     }
 
@@ -403,9 +406,8 @@ public class RoutingRuleService {
                 request.appName(),
                 request.userId(),
                 request.userName(),
-                request.strategy(),
                 request.enabled(),
-                request.models(),
+                request.targets(),
                 request.rateLimitPolicy(),
                 request.quotaPolicy()
         );
@@ -456,7 +458,9 @@ public class RoutingRuleService {
         }
         if (request.enabled()) {
             validateEnabledRule(request);
-            validateModels(request.models());
+            validateTargets(request.targets(), true, normalizeModelTypes(request.modelTypes()));
+        } else if (request.targets() != null && !request.targets().isEmpty()) {
+            validateTargets(request.targets(), false, normalizeModelTypes(request.modelTypes()));
         }
     }
 
@@ -470,23 +474,66 @@ public class RoutingRuleService {
         if (normalizeModelTypes(request.modelTypes()).isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "启用规则前请选择模型类型");
         }
-        if (request.models() == null || request.models().isEmpty()) {
+        if (request.targets() == null || request.targets().isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "启用规则前请至少绑定一个模型");
         }
     }
 
-    private void validateModels(List<RoutingRuleModelDto> models) {
-        if (models == null || models.isEmpty()) {
+    private void validateTargets(List<RoutingRuleTargetDto> targets, boolean enabledRule, List<String> modelTypes) {
+        if (targets == null || targets.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请至少绑定一个模型");
         }
-        long primaryCount = models.stream().filter(RoutingRuleModelDto::primary).count();
+        long primaryCount = targets.stream().filter(RoutingRuleTargetDto::primary).count();
         if (primaryCount != 1) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请指定且仅指定一个主模型");
         }
-        long distinctModels = models.stream().map(RoutingRuleModelDto::modelId).distinct().count();
-        if (distinctModels != models.size()) {
+        long distinctTargets = targets.stream()
+                .map(target -> normalizeTargetType(target.targetType()) + ":" + target.targetId())
+                .distinct()
+                .count();
+        if (distinctTargets != targets.size()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "模型绑定不能重复");
         }
+        for (RoutingRuleTargetDto target : targets) {
+            validateTarget(target, enabledRule, modelTypes);
+        }
+    }
+
+    private void validateTarget(RoutingRuleTargetDto target, boolean enabledRule, List<String> modelTypes) {
+        String targetType = normalizeTargetType(target.targetType());
+        if (target.targetId() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "please select routing target");
+        }
+        if ("MODEL".equals(targetType)) {
+            ModelEntity model = modelMapper.getById(target.targetId());
+            if (model == null) {
+                throw new BusinessException(ErrorCode.NOT_FOUND, "model not found");
+            }
+            if (modelTypes != null && !modelTypes.isEmpty() && !modelTypes.contains(model.getModelType())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target model type is not allowed by rule");
+            }
+            if (enabledRule && !"ENABLED".equals(model.getStatus())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target model is disabled");
+            }
+            return;
+        }
+        if ("MODEL_POOL".equals(targetType)) {
+            ModelPoolEntity pool = modelPoolMapper.getById(target.targetId());
+            if (pool == null) {
+                throw new BusinessException(ErrorCode.NOT_FOUND, "model pool not found");
+            }
+            if (modelTypes != null && !modelTypes.isEmpty() && !modelTypes.contains(pool.getModelType())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target model pool type is not allowed by rule");
+            }
+            if (enabledRule && !"ENABLED".equals(pool.getStatus())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target model pool is disabled");
+            }
+            if (enabledRule && modelPoolMapper.listItemsByPoolId(pool.getId()).stream().noneMatch(item -> "ENABLED".equals(item.getStatus()))) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target model pool has no enabled model");
+            }
+            return;
+        }
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR, "invalid routing target type");
     }
 
     private RoutingRuleEntity toEntity(RoutingRuleDto request) {
@@ -497,7 +544,6 @@ public class RoutingRuleService {
         entity.setModelTypes(String.join(",", normalizeModelTypes(request.modelTypes())));
         entity.setAppId(request.appId());
         entity.setUserId(request.userId());
-        entity.setStrategyType(request.strategy());
         return entity;
     }
 
@@ -550,6 +596,11 @@ public class RoutingRuleService {
     private static String normalizeNullable(String value) {
         String normalized = value == null ? "" : value.trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private static String normalizeTargetType(String value) {
+        String normalized = value == null ? "" : value.trim().toUpperCase();
+        return normalized.isEmpty() ? "MODEL" : normalized;
     }
 
     private static List<String> parseModelTypes(String value) {

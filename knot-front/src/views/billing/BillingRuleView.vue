@@ -1,115 +1,103 @@
-﻿<template>
+<template>
   <PageSection title="计费规则">
-    <div class="toolbar">
-      <el-button type="primary" @click="openRule">新建规则</el-button>
-      <el-button @click="load">刷新</el-button>
-    </div>
-    <el-table v-loading="loading" :data="rows" stripe border size="small">
-      <el-table-column prop="id" label="ID" width="70" align="center" />
-      <el-table-column prop="code" label="编码" width="120" />
-      <el-table-column prop="name" label="名称" min-width="140" />
-      <el-table-column prop="unit" label="单位" width="90" />
-      <el-table-column prop="unitPrice" label="单价" width="100" />
-      <el-table-column label="启用" width="88" align="center">
-        <template #default="{ row }">
-          <el-switch
-            :model-value="row.enabled !== false"
-            :loading="togglingId === row.id"
-            inline-prompt
-            active-text="启"
-            inactive-text="停"
-            @change="(val) => onEnabledChange(row, val)"
-          />
-        </template>
-      </el-table-column>
-    </el-table>
-    <div class="pagination-wrap">
-      <el-pagination
-        background
-        layout="total, sizes, prev, pager, next"
-        :total="total"
-        :page-size="pageSize"
-        :current-page="pageNum"
-        :page-sizes="[10, 20, 50]"
-        @current-change="onPageChange"
-        @size-change="onSizeChange"
-      />
-    </div>
+    <BillingRuleListPanel
+      :rows="rows"
+      :loading="loading"
+      :total="total"
+      :page-num="pageNum"
+      :page-size="pageSize"
+      :toggling-id="togglingId"
+      @create="openCreate"
+      @edit="openEdit"
+      @log="openChangeLog"
+      @delete="handleDelete"
+      @refresh="load"
+      @enabled-change="handleEnabledChange"
+      @page-change="onPageChange"
+      @size-change="onSizeChange"
+    />
 
-    <el-dialog v-model="ruleDlg" title="新建计费规则" width="480px" destroy-on-close>
-      <el-form :model="ruleForm" label-width="90px">
-        <el-form-item label="编码" required><el-input v-model="ruleForm.code" /></el-form-item>
-        <el-form-item label="名称" required><el-input v-model="ruleForm.name" /></el-form-item>
-        <el-form-item label="单位">
-          <EnumSelect v-model="ruleForm.unit" category="billing_unit" show-code />
-        </el-form-item>
-        <el-form-item label="单价"><el-input-number v-model="ruleForm.unitPrice" :min="0" :step="0.0001" :precision="6" /></el-form-item>
-        <el-form-item label="启用"><el-switch v-model="ruleForm.enabled" /></el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="ruleDlg = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitRule">创建</el-button>
-      </template>
-    </el-dialog>
+    <BillingRuleFormDialog v-model="ruleDlg" :rule="currentRule" @saved="resetPage" />
+
+    <OperationLogDrawer
+      v-model="logDrawer"
+      :title="`计费规则变更日志 — ${logRuleName || ''}`"
+      :load-logs="loadBillingRuleOperationLogs"
+    />
   </PageSection>
 </template>
 
 <script setup>
-import { reactive, ref } from "vue";
+import { ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
-import EnumSelect from "../../components/common/EnumSelect.vue";
-import { usePageList } from "../../composables/usePageList";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
+import BillingRuleFormDialog from "../../components/billing/BillingRuleFormDialog.vue";
+import BillingRuleListPanel from "../../components/billing/BillingRuleListPanel.vue";
 import { useEnabledToggle } from "../../composables/useEnabledToggle";
-import { listBillingRules, createBillingRule, updateBillingRule } from "../../api/billing";
+import { usePageList } from "../../composables/usePageList";
+import { deleteBillingRule, listBillingRules, updateBillingRule } from "../../api/billing";
+import { listBillingRuleOperationLogs } from "../../api/operationLogs";
 
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } = usePageList(listBillingRules);
+const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
+  usePageList(listBillingRules);
 
 const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateBillingRule,
   buildPayload: (row, enabled) => ({
     code: row.code,
     name: row.name,
+    providerId: row.providerId ?? null,
+    logicalModelId: row.logicalModelId ?? null,
+    versionName: row.versionName ?? null,
+    billingMode: row.billingMode,
+    currency: row.currency,
+    itemType: row.itemType,
     unit: row.unit,
     unitPrice: row.unitPrice,
-    enabled
+    configJson: row.configJson ?? null,
+    ladderJson: row.ladderJson ?? null,
+    enabled,
+    remark: row.remark ?? null
   })
 });
-const ruleDlg = ref(false);
-const saving = ref(false);
-const ruleForm = reactive({ code: "", name: "", unit: "1K_TOKENS", unitPrice: 0.002, enabled: true });
 
-function openRule() {
-  ruleForm.code = "";
-  ruleForm.name = "";
-  ruleForm.unit = "1K_TOKENS";
-  ruleForm.unitPrice = 0.002;
-  ruleForm.enabled = true;
+const ruleDlg = ref(false);
+const currentRule = ref(null);
+const logDrawer = ref(false);
+const logRuleId = ref(null);
+const logRuleName = ref("");
+
+function openCreate() {
+  currentRule.value = null;
   ruleDlg.value = true;
 }
 
-async function submitRule() {
-  if (!ruleForm.code?.trim() || !ruleForm.name?.trim()) {
-    ElMessage.warning("请填写编码与名称");
-    return;
-  }
-  saving.value = true;
-  try {
-    await createBillingRule({
-      code: ruleForm.code.trim(),
-      name: ruleForm.name.trim(),
-      unit: ruleForm.unit,
-      unitPrice: ruleForm.unitPrice,
-      enabled: ruleForm.enabled
-    });
-    ElMessage.success("已创建");
-    ruleDlg.value = false;
-    await resetPage();
-  } finally {
-    saving.value = false;
-  }
+function openEdit(row) {
+  currentRule.value = row;
+  ruleDlg.value = true;
+}
+
+function openChangeLog(row) {
+  logRuleId.value = row.id;
+  logRuleName.value = row.name || `#${row.id}`;
+  logDrawer.value = true;
+}
+
+function loadBillingRuleOperationLogs() {
+  return listBillingRuleOperationLogs(logRuleId.value);
+}
+
+async function handleEnabledChange(row, enabled) {
+  await onEnabledChange(row, enabled);
+  await load();
+}
+
+async function handleDelete(row) {
+  await deleteBillingRule(row.id);
+  ElMessage.success("已删除");
+  await load();
 }
 
 load();
 </script>
-

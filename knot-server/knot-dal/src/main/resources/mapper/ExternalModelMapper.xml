@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.ExternalModelMapper">
+
+    <sql id="SourceColumns">
+        id, source_code, source_name, source_url, api_url, source_type, status,
+        last_sync_at, created_at, updated_at
+    </sql>
+
+    <sql id="ItemColumns">
+        id, source_code, source_model_id, source_model_name,
+        source_provider_code, source_provider_name, source_url,
+        source_llm_type, source_llm_type_code, source_tag_type, source_context_length,
+        source_capabilities_json, source_last_update_time, source_description, raw_json,
+        normalized_name, normalized_family, model_type, tags_json, capabilities_json,
+        context_window, max_output_tokens, languages_json,
+        logical_model_id, sync_status, sync_hash, last_seen_at,
+        created_at, updated_at
+    </sql>
+
+    <select id="listSources" resultType="org.chobit.knot.gateway.entity.ExternalModelSourceEntity">
+        select <include refid="SourceColumns"/>
+        from external_model_sources
+        order by id asc
+    </select>
+
+    <select id="getSourceByCode" resultType="org.chobit.knot.gateway.entity.ExternalModelSourceEntity">
+        select <include refid="SourceColumns"/>
+        from external_model_sources
+        where source_code = #{sourceCode}
+    </select>
+
+    <insert id="insertSource" useGeneratedKeys="true" keyProperty="id">
+        insert into external_model_sources(source_code, source_name, source_url, api_url, source_type, status)
+        values(#{sourceCode}, #{sourceName}, #{sourceUrl}, #{apiUrl}, #{sourceType}, #{status})
+    </insert>
+
+    <update id="updateSourceLastSyncAt">
+        update external_model_sources
+        set last_sync_at = #{lastSyncAt}
+        where source_code = #{sourceCode}
+    </update>
+
+    <select id="listItems" resultType="org.chobit.knot.gateway.entity.ExternalModelItemEntity">
+        select <include refid="ItemColumns"/>
+        from external_model_items
+        <where>
+            <if test="sourceCode != null and sourceCode != ''">
+                and source_code = #{sourceCode}
+            </if>
+            <if test="syncStatus != null and syncStatus != ''">
+                and sync_status = #{syncStatus}
+            </if>
+        </where>
+        order by coalesce(source_last_update_time, updated_at) desc, id desc
+    </select>
+
+    <select id="getItemById" resultType="org.chobit.knot.gateway.entity.ExternalModelItemEntity">
+        select <include refid="ItemColumns"/>
+        from external_model_items
+        where id = #{id}
+    </select>
+
+    <select id="getItemBySourceKey" resultType="org.chobit.knot.gateway.entity.ExternalModelItemEntity">
+        select <include refid="ItemColumns"/>
+        from external_model_items
+        where source_code = #{sourceCode}
+          and source_model_id = #{sourceModelId}
+    </select>
+
+    <insert id="insertItem" useGeneratedKeys="true" keyProperty="id">
+        insert into external_model_items(
+            source_code, source_model_id, source_model_name,
+            source_provider_code, source_provider_name, source_url,
+            source_llm_type, source_llm_type_code, source_tag_type, source_context_length,
+            source_capabilities_json, source_last_update_time, source_description, raw_json,
+            normalized_name, normalized_family, model_type, tags_json, capabilities_json,
+            context_window, max_output_tokens, languages_json,
+            logical_model_id, sync_status, sync_hash, last_seen_at
+        ) values (
+            #{sourceCode}, #{sourceModelId}, #{sourceModelName},
+            #{sourceProviderCode}, #{sourceProviderName}, #{sourceUrl},
+            #{sourceLlmType}, #{sourceLlmTypeCode}, #{sourceTagType}, #{sourceContextLength},
+            #{sourceCapabilitiesJson}, #{sourceLastUpdateTime}, #{sourceDescription}, #{rawJson},
+            #{normalizedName}, #{normalizedFamily}, #{modelType}, #{tagsJson}, #{capabilitiesJson},
+            #{contextWindow}, #{maxOutputTokens}, #{languagesJson},
+            #{logicalModelId}, #{syncStatus}, #{syncHash}, #{lastSeenAt}
+        )
+    </insert>
+
+    <update id="updateItem">
+        update external_model_items
+        set source_model_name = #{sourceModelName},
+            source_provider_code = #{sourceProviderCode},
+            source_provider_name = #{sourceProviderName},
+            source_url = #{sourceUrl},
+            source_llm_type = #{sourceLlmType},
+            source_llm_type_code = #{sourceLlmTypeCode},
+            source_tag_type = #{sourceTagType},
+            source_context_length = #{sourceContextLength},
+            source_capabilities_json = #{sourceCapabilitiesJson},
+            source_last_update_time = #{sourceLastUpdateTime},
+            source_description = #{sourceDescription},
+            raw_json = #{rawJson},
+            normalized_name = #{normalizedName},
+            normalized_family = #{normalizedFamily},
+            model_type = #{modelType},
+            tags_json = #{tagsJson},
+            capabilities_json = #{capabilitiesJson},
+            context_window = #{contextWindow},
+            max_output_tokens = #{maxOutputTokens},
+            languages_json = #{languagesJson},
+            sync_status = #{syncStatus},
+            sync_hash = #{syncHash},
+            last_seen_at = #{lastSeenAt}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteItem">
+        delete from external_model_items
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteItems">
+        delete from external_model_items
+        where id in
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <update id="updateItemLogicalModel">
+        update external_model_items
+        set logical_model_id = #{logicalModelId}
+        where id = #{id}
+    </update>
+
+    <update id="clearLogicalModelMatch">
+        update external_model_items
+        set logical_model_id = null
+        where logical_model_id = #{logicalModelId}
+    </update>
+</mapper>

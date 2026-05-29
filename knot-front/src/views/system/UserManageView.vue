@@ -1,60 +1,18 @@
 <template>
   <PageSection title="用户管理">
-    <div class="toolbar">
-      <el-button type="primary" @click="openCreate">新建用户</el-button>
-      <el-button @click="pageLoad">刷新</el-button>
-    </div>
-    <el-table v-loading="loading" :data="users" stripe border>
-      <el-table-column prop="id" label="ID" min-width="5%" align="center" header-align="center" />
-      <el-table-column prop="username" label="用户名" min-width="12%" />
-      <el-table-column prop="realName" label="姓名" min-width="10%" />
-      <el-table-column label="状态" min-width="12%">
-        <template #default="{ row }">
-          <el-switch
-            v-model="row.status"
-            :active-value="1"
-            :inactive-value="0"
-            active-text="启用"
-            inactive-text="禁用"
-            inline-prompt
-            @change="(val) => onStatusChange(row, val)"
-          />
-        </template>
-      </el-table-column>
-      <el-table-column prop="lastLoginTime" label="上次登录时间" min-width="18%">
-        <template #default="{ row }">
-          {{ formatDateTime(row.lastLoginTime) }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="updatedAt" label="更新时间" min-width="18%">
-        <template #default="{ row }">
-          {{ formatDateTime(row.updatedAt) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="110" align="center" header-align="center" fixed="right">
-        <template #default="{ row }">
-          <RowActions
-            :actions="[
-              { key: 'edit', label: '编辑', icon: Edit },
-              { key: 'log', label: '日志', icon: Document }
-            ]"
-            @action="(action) => handleAction(action, row)"
-          />
-        </template>
-      </el-table-column>
-    </el-table>
-    <div class="pagination-wrap">
-      <el-pagination
-        background
-        layout="total, sizes, prev, pager, next"
-        :total="total"
-        :page-size="pageSize"
-        :current-page="pageNum"
-        :page-sizes="[10, 20, 50]"
-        @current-change="onPageChange"
-        @size-change="onSizeChange"
-      />
-    </div>
+    <UserListPanel
+      :users="users"
+      :loading="loading"
+      :total="total"
+      :page-num="pageNum"
+      :page-size="pageSize"
+      @create="openCreate"
+      @refresh="pageLoad"
+      @status-change="onStatusChange"
+      @action="handleAction"
+      @page-change="onPageChange"
+      @size-change="onSizeChange"
+    />
 
     <UserFormDrawer v-model="drawerVisible" :user="editingUser" @saved="resetPage" />
 
@@ -69,11 +27,10 @@
 <script setup>
 import { ref, watch } from "vue";
 import { ElMessage } from "element-plus";
-import { Document, Edit } from "@element-plus/icons-vue";
 import PageSection from "../../components/common/PageSection.vue";
-import RowActions from "../../components/common/RowActions.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import UserFormDrawer from "../../components/system/UserFormDrawer.vue";
+import UserListPanel from "../../components/system/UserListPanel.vue";
 import { usePageList } from "../../composables/usePageList";
 import { listUsers, updateUserStatus } from "../../api/users";
 import { listUserOperationLogs } from "../../api/operationLogs";
@@ -104,18 +61,6 @@ function loadUserOperationLogs() {
 watch(rows, (list) => {
   users.value = list || [];
 }, { immediate: true });
-
-function formatDateTime(dateTime) {
-  if (!dateTime) return "-";
-  return new Date(dateTime).toLocaleString("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  });
-}
 
 function openCreate() {
   editingUser.value = null;

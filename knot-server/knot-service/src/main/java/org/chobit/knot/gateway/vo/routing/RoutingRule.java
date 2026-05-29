@@ -20,9 +20,8 @@ public record RoutingRule(
         String appName,
         Long userId,
         String userName,
-        @NotBlank String strategy,
         boolean enabled,
-        @Valid List<RoutingRuleModelItem> models,
+        @Valid List<RoutingRuleTargetItem> targets,
         RateLimitPolicy rateLimitPolicy,
         QuotaPolicy quotaPolicy
 ) {

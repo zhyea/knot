@@ -1,12 +1,9 @@
 package org.chobit.knot.gateway.converter;
 
 import org.chobit.knot.gateway.dto.routing.RoutingRuleDto;
-import org.chobit.knot.gateway.dto.routing.RoutingRuleModelDto;
-import org.chobit.knot.gateway.dto.routing.RoutingSwitchLogDto;
-import org.chobit.knot.gateway.entity.RoutingHitLogEntity;
+import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.vo.routing.RoutingRule;
-import org.chobit.knot.gateway.vo.routing.RoutingRuleModelItem;
-import org.chobit.knot.gateway.vo.routing.RoutingSwitchLog;
+import org.chobit.knot.gateway.vo.routing.RoutingRuleTargetItem;
 import org.mapstruct.Mapper;
 
 import java.util.List;
@@ -20,19 +17,12 @@ public interface RoutingRuleConverter {
 
     List<RoutingRule> toVOList(List<RoutingRuleDto> dtos);
 
-    RoutingRuleModelItem toModelVO(RoutingRuleModelDto dto);
+    RoutingRuleTargetItem toTargetVO(RoutingRuleTargetDto dto);
 
-    List<RoutingRuleModelItem> toModelVOList(List<RoutingRuleModelDto> dtos);
+    List<RoutingRuleTargetItem> toTargetVOList(List<RoutingRuleTargetDto> dtos);
 
-    RoutingRuleModelDto toModelDto(RoutingRuleModelItem item);
+    RoutingRuleTargetDto toTargetDto(RoutingRuleTargetItem item);
 
-    List<RoutingRuleModelDto> toModelDtoList(List<RoutingRuleModelItem> items);
+    List<RoutingRuleTargetDto> toTargetDtoList(List<RoutingRuleTargetItem> items);
 
-    RoutingSwitchLogDto toSwitchLogDto(RoutingHitLogEntity entity);
-
-    List<RoutingSwitchLogDto> toSwitchLogDtoList(List<RoutingHitLogEntity> entities);
-
-    RoutingSwitchLog toSwitchLogVO(RoutingSwitchLogDto dto);
-
-    List<RoutingSwitchLog> toSwitchLogVOList(List<RoutingSwitchLogDto> dtos);
 }

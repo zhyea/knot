@@ -18,11 +18,6 @@ public interface SystemConverter {
     @Mapping(source = "logId", target = "id")
     OperationLogDetailDto toOperationLogDetailDto(OperationLogDetailEntity entity);
 
-    NodeDto toNodeDto(GatewayNodeEntity entity);
-
-    @Mapping(source = "jobCode", target = "taskId")
-    BackupTaskDto toBackupTaskDto(BackupJobEntity entity);
-
     List<OperationLogDto> toOperationLogDtoList(List<OperationLogEntity> entities);
 
     // ==================== DTO ↔ VO ====================
@@ -31,11 +26,6 @@ public interface SystemConverter {
 
     OperationLogDetail toOperationLogDetailVO(OperationLogDetailDto dto);
 
-    NodeItem toNodeVO(NodeDto dto);
-
-    BackupTaskResult toBackupTaskVO(BackupTaskDto dto);
-
     List<OperationLogItem> toOperationLogVOList(List<OperationLogDto> dtos);
 
-    List<NodeItem> toNodeVOList(List<NodeDto> dtos);
 }

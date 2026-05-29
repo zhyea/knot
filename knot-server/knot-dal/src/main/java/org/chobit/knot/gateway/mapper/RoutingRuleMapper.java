@@ -1,6 +1,5 @@
 package org.chobit.knot.gateway.mapper;
 
-import org.chobit.knot.gateway.entity.RoutingHitLogEntity;
 import org.chobit.knot.gateway.entity.RoutingRuleEntity;
 import org.apache.ibatis.annotations.Mapper;
 
@@ -21,6 +20,4 @@ public interface RoutingRuleMapper {
     int insert(RoutingRuleEntity entity);
 
     int update(RoutingRuleEntity entity);
-
-    List<RoutingHitLogEntity> listHitLogs();
 }

@@ -23,7 +23,7 @@
       :rule-id="testRuleId"
       :rule-name="testRuleName"
       :secret-key="testSecretKey"
-      :models="testModels"
+      :targets="testTargets"
     />
 
     <OperationLogDrawer
@@ -55,7 +55,7 @@ const testVisible = ref(false);
 const testRuleId = ref(null);
 const testRuleName = ref("");
 const testSecretKey = ref("");
-const testModels = ref([]);
+const testTargets = ref([]);
 
 const logDrawer = ref(false);
 const logRuleId = ref(null);
@@ -79,7 +79,7 @@ async function openTest(row) {
   testRuleId.value = row.id;
   testRuleName.value = row.name || row.ruleCode || "";
   testSecretKey.value = await loadConsumerSecretKey(row.consumerIds);
-  testModels.value = Array.isArray(row.models) ? row.models : [];
+  testTargets.value = Array.isArray(row.targets) ? row.targets : [];
   testVisible.value = true;
 }
 

@@ -13,10 +13,10 @@ export function buildRoutingRulePayload(row, enabled) {
     consumerIds: Array.isArray(row.consumerIds) ? row.consumerIds : [],
     appId: row.appId,
     userId: row.userId ?? null,
-    strategy: row.strategy,
     enabled,
-    models: (row.models || []).map((m) => ({
-      modelId: m.modelId,
+    targets: (row.targets || []).map((m) => ({
+      targetType: m.targetType || "MODEL",
+      targetId: m.targetId,
       priority: m.priority ?? 100,
       primary: !!m.primary
     })),

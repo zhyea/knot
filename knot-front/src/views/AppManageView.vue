@@ -9,7 +9,6 @@
       @create="openCreate"
       @refresh="load"
       @edit="openEdit"
-      @metrics="openMetrics"
       @log="openChangeLog"
       @page-change="onPageChange"
       @size-change="onSizeChange"
@@ -17,12 +16,6 @@
     />
 
     <AppFormDrawer v-model="formVisible" :app="editingApp" @saved="onAppSaved" />
-
-    <AppMetricsDrawer
-      v-model="metricsVisible"
-      :app-id="metricsAppId"
-      :app-name="metricsAppName"
-    />
 
     <OperationLogDrawer
       v-model="logDrawer"
@@ -38,7 +31,6 @@ import PageSection from "../components/common/PageSection.vue";
 import OperationLogDrawer from "../components/common/OperationLogDrawer.vue";
 import AppListPanel from "../components/app/AppListPanel.vue";
 import AppFormDrawer from "../components/app/AppFormDrawer.vue";
-import AppMetricsDrawer from "../components/app/AppMetricsDrawer.vue";
 import { listAppOperationLogs } from "../api/operationLogs";
 import { usePageList } from "../composables/usePageList";
 import { listApps } from "../api/apps";
@@ -48,10 +40,6 @@ const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChang
 
 const formVisible = ref(false);
 const editingApp = ref(null);
-
-const metricsVisible = ref(false);
-const metricsAppId = ref(null);
-const metricsAppName = ref("");
 
 const logDrawer = ref(false);
 const logAppId = ref(null);
@@ -69,12 +57,6 @@ function openEdit(row) {
 
 function onAppSaved() {
   resetPage();
-}
-
-function openMetrics(row) {
-  metricsAppId.value = row.id;
-  metricsAppName.value = row.name || row.appId || "";
-  metricsVisible.value = true;
 }
 
 function openChangeLog(row) {

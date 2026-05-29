@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.chobit.knot.gateway.constants.TrafficResourceType;
 import org.chobit.knot.gateway.dto.routing.RoutingConsumerDto;
 import org.chobit.knot.gateway.entity.RoutingConsumerEntity;
 import org.chobit.knot.gateway.error.BusinessException;
@@ -26,18 +27,32 @@ public class RoutingConsumerService {
 
     private final RoutingConsumerMapper routingConsumerMapper;
     private final UserMapper userMapper;
+    private final ResourceTrafficPolicySupport trafficPolicySupport;
 
     public RoutingConsumerService(RoutingConsumerMapper routingConsumerMapper,
-                                  UserMapper userMapper) {
+                                  UserMapper userMapper,
+                                  ResourceTrafficPolicySupport trafficPolicySupport) {
         this.routingConsumerMapper = routingConsumerMapper;
         this.userMapper = userMapper;
+        this.trafficPolicySupport = trafficPolicySupport;
     }
 
     public PageResult<RoutingConsumerDto> list(PageRequest pageRequest) {
+        return list(pageRequest, null);
+    }
+
+    public PageResult<RoutingConsumerDto> list(PageRequest pageRequest, String keyword) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<RoutingConsumerEntity> pageInfo = new PageInfo<>(routingConsumerMapper.list());
-        List<RoutingConsumerDto> dtos = pageInfo.getList().stream().map(this::toDto).toList();
+        PageInfo<RoutingConsumerEntity> pageInfo = new PageInfo<>(routingConsumerMapper.list(normalizeKeyword(keyword)));
+        List<RoutingConsumerDto> dtos = pageInfo.getList().stream().map(entity ->
+                toDto(entity, trafficPolicySupport.load(TrafficResourceType.ROUTING_CONSUMER, entity.getId()))
+        ).toList();
         return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+    }
+
+    private static String normalizeKeyword(String keyword) {
+        String value = keyword != null ? keyword.trim() : "";
+        return value.isEmpty() ? null : value;
     }
 
     public RoutingConsumerDto getById(Long id) {
@@ -45,7 +60,7 @@ public class RoutingConsumerService {
         if (entity == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "消费者不存在");
         }
-        return toDto(entity);
+        return toDto(entity, trafficPolicySupport.load(TrafficResourceType.ROUTING_CONSUMER, entity.getId()));
     }
 
     public boolean isConsumerCodeAvailable(String consumerCode, Long excludeId) {
@@ -70,8 +85,11 @@ public class RoutingConsumerService {
             m.put("userId", dto.userId());
             m.put("userName", dto.userName());
             m.put("secretKey", maskSecretKey(dto.secretKey()));
+            m.put("returnUsageDetail", dto.returnUsageDetail());
             m.put("enabled", dto.enabled());
             m.put("ruleCount", dto.ruleCount());
+            m.put("rateLimitPolicy", dto.rateLimitPolicy());
+            m.put("quotaPolicy", dto.quotaPolicy());
             return m;
         } catch (BusinessException e) {
             return null;
@@ -86,6 +104,8 @@ public class RoutingConsumerService {
         entity.setSecretKey(generateUniqueSecretKey());
         entity.setStatus(normalized.enabled() ? "ENABLED" : "DISABLED");
         routingConsumerMapper.insert(entity);
+        trafficPolicySupport.save(TrafficResourceType.ROUTING_CONSUMER, entity.getId(),
+                normalized.rateLimitPolicy(), normalized.quotaPolicy());
         return getById(entity.getId());
     }
 
@@ -99,6 +119,8 @@ public class RoutingConsumerService {
         entity.setId(id);
         entity.setStatus(request.enabled() ? "ENABLED" : "DISABLED");
         routingConsumerMapper.update(entity);
+        trafficPolicySupport.save(TrafficResourceType.ROUTING_CONSUMER, id,
+                request.rateLimitPolicy(), request.quotaPolicy());
         return getById(id);
     }
 
@@ -124,8 +146,11 @@ public class RoutingConsumerService {
                 request.userId(),
                 request.userName(),
                 request.secretKey(),
+                request.returnUsageDetail(),
                 request.enabled(),
-                request.ruleCount()
+                request.ruleCount(),
+                request.rateLimitPolicy(),
+                request.quotaPolicy()
         );
     }
 
@@ -150,7 +175,7 @@ public class RoutingConsumerService {
         }
     }
 
-    private RoutingConsumerDto toDto(RoutingConsumerEntity entity) {
+    private RoutingConsumerDto toDto(RoutingConsumerEntity entity, ResourceTrafficPolicySupport.TrafficPolicies traffic) {
         Long ruleCount = routingConsumerMapper.countRulesByConsumerId(entity.getId());
         return new RoutingConsumerDto(
                 entity.getId(),
@@ -159,8 +184,11 @@ public class RoutingConsumerService {
                 entity.getUserId(),
                 resolveUserName(entity),
                 entity.getSecretKey(),
+                Boolean.TRUE.equals(entity.getReturnUsageDetail()),
                 "ENABLED".equals(entity.getStatus()),
-                ruleCount != null ? ruleCount : 0L
+                ruleCount != null ? ruleCount : 0L,
+                traffic != null ? traffic.rateLimitPolicy() : null,
+                traffic != null ? traffic.quotaPolicy() : null
         );
     }
 
@@ -169,6 +197,7 @@ public class RoutingConsumerService {
         entity.setConsumerCode(normalizeConsumerCode(request.consumerCode()));
         entity.setName(request.name() != null ? request.name().trim() : "");
         entity.setUserId(request.userId());
+        entity.setReturnUsageDetail(request.returnUsageDetail());
         return entity;
     }
 

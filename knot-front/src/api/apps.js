@@ -16,6 +16,3 @@ export function deleteApp(id) {
   return del(`/api/apps/${id}`);
 }
 
-export function getAppMetrics(id) {
-  return postQuery(`/api/apps/${id}/metrics`);
-}

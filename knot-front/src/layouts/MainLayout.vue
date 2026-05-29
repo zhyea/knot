@@ -34,10 +34,9 @@
           <el-menu-item index="/system/roles">角色权限</el-menu-item>
           <el-menu-item index="/system/logs">操作日志</el-menu-item>
           <el-menu-item index="/system/scheduled-tasks">定时任务</el-menu-item>
-          <el-menu-item index="/system/nodes">网关节点</el-menu-item>
           <el-menu-item index="/system/enums">枚举管理</el-menu-item>
-          <el-menu-item index="/system/backup">备份还原</el-menu-item>
           <el-menu-item index="/system/settings">用户设置</el-menu-item>
+          <el-menu-item index="/system/plugins">插件管理</el-menu-item>
         </el-sub-menu>
 
         <el-menu-item index="/providers">
@@ -47,11 +46,31 @@
           <span>供应商管理</span>
         </el-menu-item>
 
-        <el-menu-item index="/models">
+        <el-sub-menu index="/model-management">
+          <template #title>
+            <el-icon>
+              <Cpu/>
+            </el-icon>
+            <span>模型管理</span>
+          </template>
+          <el-menu-item index="/model-management/models">供应商模型</el-menu-item>
+          <el-menu-item index="/model-management/model-pools">模型池</el-menu-item>
+          <el-menu-item index="/model-management/logical-models">模型广场</el-menu-item>
+          <el-menu-item index="/model-management/external-models">外部模型</el-menu-item>
+        </el-sub-menu>
+
+        <el-menu-item v-if="false" index="/models">
           <el-icon>
             <Cpu/>
           </el-icon>
           <span>模型管理</span>
+        </el-menu-item>
+
+        <el-menu-item v-if="false" index="/logical-models">
+          <el-icon>
+            <Cpu/>
+          </el-icon>
+          <span>模型广场</span>
         </el-menu-item>
 
         <el-menu-item index="/apps">
@@ -69,7 +88,6 @@
             <span>路由规则</span>
           </template>
           <el-menu-item index="/routing/rules">规则列表</el-menu-item>
-          <el-menu-item index="/routing/logs">切换日志</el-menu-item>
           <el-menu-item index="/routing/consumers">消费者</el-menu-item>
         </el-sub-menu>
 
@@ -81,7 +99,6 @@
             <span>计费成本</span>
           </template>
           <el-menu-item index="/billing/rules">计费规则</el-menu-item>
-          <el-menu-item index="/billing/statistics">成本统计</el-menu-item>
           <el-menu-item index="/billing/reconciliation">对账管理</el-menu-item>
         </el-sub-menu>
 
@@ -97,20 +114,6 @@
           <el-menu-item index="/security/cache">缓存管理</el-menu-item>
         </el-sub-menu>
 
-        <el-menu-item index="/plugins">
-          <el-icon>
-            <Operation/>
-          </el-icon>
-          <span>插件管理</span>
-        </el-menu-item>
-
-        <el-menu-item index="/release">
-          <el-icon>
-            <SetUp/>
-          </el-icon>
-          <span>灰度发布</span>
-        </el-menu-item>
-
         <el-sub-menu index="/notifications">
           <template #title>
             <el-icon>
@@ -124,7 +127,7 @@
         </el-sub-menu>
           </el-menu>
         </el-main>
-        <el-footer class="aside-footer">
+        <el-footer v-if="false" class="aside-footer">
           <el-tooltip :content="asideCollapsed ? '展开侧栏' : '收起为图标'" placement="right">
             <el-button
                 type="primary"
@@ -146,7 +149,19 @@
     </el-aside>
     <el-container class="layout-right">
       <el-header class="header">
+        <div class="header-title">
+          <el-tooltip :content="asideCollapsed ? '展开侧栏' : '收起为图标'" placement="bottom">
+            <el-button
+                type="primary"
+                :icon="asideCollapsed ? Expand : Fold"
+                class="header-collapse"
+                size="small"
+                plain
+                @click="toggleAsideCollapsed"
+            />
+          </el-tooltip>
         <span>AI 网关管理后台</span>
+        </div>
         <div class="header-right">
           <el-dropdown @command="handleCommand">
             <span class="user-info">
@@ -181,8 +196,6 @@ import {
   Guide,
   Money,
   Lock,
-  Operation,
-  SetUp,
   Bell,
   User,
   Fold,
@@ -384,6 +397,17 @@ async function handleCommand(command) {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.header-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.header-collapse {
+  flex: 0 0 auto;
 }
 
 .header-right {

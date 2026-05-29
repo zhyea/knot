@@ -57,8 +57,12 @@ public class ProviderService {
     }
 
     public PageResult<ProviderDto> list(PageRequest pageRequest) {
+        return list(pageRequest, null);
+    }
+
+    public PageResult<ProviderDto> list(PageRequest pageRequest, String keyword) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<ProviderEntity> pageInfo = new PageInfo<>(providerMapper.list());
+        PageInfo<ProviderEntity> pageInfo = new PageInfo<>(providerMapper.list(normalizeKeyword(keyword)));
         List<ProviderEntity> entities = pageInfo.getList();
         List<Long> ids = entities.stream().map(ProviderEntity::getId).toList();
         Map<Long, Map<String, Object>> authMap = credentialSupport.loadAuthConfigBatch(ids);
@@ -199,6 +203,11 @@ public class ProviderService {
 
     private static String normalizeCode(String code) {
         return code != null ? code.trim() : "";
+    }
+
+    private static String normalizeKeyword(String keyword) {
+        String value = keyword != null ? keyword.trim() : "";
+        return value.isEmpty() ? null : value;
     }
 
     private static String resolveCodeForSave(String requested, String fallback) {

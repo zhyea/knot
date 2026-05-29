@@ -7,12 +7,6 @@
 -- 系统管理
 -- =========================
 
--- 部门
-INSERT IGNORE INTO departments (id, parent_id, name, code) VALUES
-(1, NULL, '技术部', 'TECH'),
-(2, NULL, '产品部', 'PRODUCT'),
-(3, 1, 'AI平台组', 'AI_PLATFORM');
-
 -- 用户 (password_hash = BCrypt('admin123'))
 INSERT IGNORE INTO users (id, username, password_hash, real_name, status) VALUES
 (1, 'admin', '$2a$10$HUYfxtiEgiRARR/fG46hEeAvcfcQ2WXMPh2NxPw5zkc06fDKeWkxi', '系统管理员', 1),
@@ -25,39 +19,11 @@ INSERT IGNORE INTO roles (id, code, name, description) VALUES
 (2, 'OPERATOR', '运维人员', '负责网关运维监控'),
 (3, 'DEVELOPER', '开发人员', '应用接入开发者');
 
--- 权限
-INSERT IGNORE INTO permissions (id, code, name, module_code, action_code) VALUES
-(1,  'PROVIDER_VIEW',   '查看供应商',   'PROVIDER', 'VIEW'),
-(2,  'PROVIDER_EDIT',   '编辑供应商',   'PROVIDER', 'EDIT'),
-(3,  'MODEL_VIEW',      '查看模型',     'MODEL',    'VIEW'),
-(4,  'MODEL_EDIT',      '编辑模型',     'MODEL',    'EDIT'),
-(5,  'APP_VIEW',        '查看应用',     'APP',      'VIEW'),
-(6,  'APP_EDIT',        '编辑应用',     'APP',      'EDIT'),
-(7,  'ROUTE_VIEW',      '查看路由规则', 'ROUTE',    'VIEW'),
-(8,  'ROUTE_EDIT',      '编辑路由规则', 'ROUTE',    'EDIT'),
-(9,  'BILLING_VIEW',    '查看计费',     'BILLING',  'VIEW'),
-(10, 'SECURITY_VIEW',   '查看安全监控', 'SECURITY', 'VIEW'),
-(11, 'SECURITY_EDIT',   '编辑安全策略', 'SECURITY', 'EDIT'),
-(12, 'PLUGIN_VIEW',     '查看插件',     'PLUGIN',   'VIEW'),
-(13, 'PLUGIN_EDIT',     '编辑插件',     'PLUGIN',   'EDIT'),
-(14, 'GRAY_VIEW',       '查看灰度发布', 'GRAY',     'VIEW'),
-(15, 'GRAY_EDIT',       '编辑灰度发布', 'GRAY',     'EDIT'),
-(16, 'SYSTEM_VIEW',     '查看系统管理', 'SYSTEM',   'VIEW'),
-(17, 'SYSTEM_EDIT',     '编辑系统管理', 'SYSTEM',   'EDIT'),
-(18, 'NOTIFICATION_VIEW','查看通知',    'NOTIFICATION','VIEW'),
-(19, 'NOTIFICATION_EDIT','编辑通知',    'NOTIFICATION','EDIT');
-
 -- 用户-角色
 INSERT IGNORE INTO user_roles (user_id, role_id) VALUES
 (1, 1),
 (2, 2),
 (3, 3);
-
--- 角色-权限
-INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES
-(1,1),(1,2),(1,3),(1,4),(1,5),(1,6),(1,7),(1,8),(1,9),(1,10),(1,11),(1,12),(1,13),(1,14),(1,15),(1,16),(1,17),(1,18),(1,19),
-(2,1),(2,3),(2,5),(2,7),(2,9),(2,10),(2,12),(2,14),(2,16),
-(3,1),(3,3),(3,5),(3,7),(3,9);
 
 -- =========================
 -- 供应商与模型
@@ -112,6 +78,54 @@ INSERT IGNORE INTO models (id, provider_id, model_code, name, model_type, versio
 (5,  2, 'claude-haiku-3-5-20241022','Claude 3.5 Haiku','CHAT','2024-10-22','ENABLED'),
 (6,  3, 'deepseek-chat',     'DeepSeek Chat',     'CHAT',   '2024-08-01', 'ENABLED'),
 (7,  3, 'deepseek-reasoner', 'DeepSeek Reasoner', 'CHAT',   '2025-01-20', 'ENABLED');
+
+INSERT IGNORE INTO model_pools (id, pool_code, name, model_type, selection_strategy, status, remark) VALUES
+(1, 'chat-premium-pool', 'Premium Chat Pool', 'CHAT', 'WEIGHTED', 'ENABLED', 'Premium chat routing pool'),
+(2, 'chat-economy-pool', 'Economy Chat Pool', 'CHAT', 'WEIGHTED', 'ENABLED', 'Economy chat routing pool');
+
+INSERT IGNORE INTO model_pool_items (id, pool_id, model_id, weight, priority, status) VALUES
+(1, 1, 1, 70, 10, 'ENABLED'),
+(2, 1, 4, 30, 20, 'ENABLED'),
+(3, 2, 2, 60, 10, 'ENABLED'),
+(4, 2, 6, 40, 20, 'ENABLED');
+
+INSERT IGNORE INTO logical_models (
+  id, model_code, model_name, model_type, model_family, version, display_name, tagline, description,
+  tags_json, use_cases_json, capabilities_json, context_window, max_output_tokens,
+  input_modalities_json, output_modalities_json, languages_json,
+  visibility, publish_status, status, sort_order, featured,
+  quality_level, latency_level, cost_level, pricing_summary
+) VALUES
+(1, 'knot-chat-premium', 'Knot Chat Premium', 'CHAT', 'omni', '1.0',
+ 'Knot Chat Premium', 'High quality chat model for complex tasks',
+ 'A logical chat model that routes to premium provider models by policy.',
+ JSON_ARRAY('chat', 'reasoning', 'premium'),
+ JSON_ARRAY('knowledge assistant', 'research', 'complex analysis'),
+ JSON_OBJECT('toolCalling', true, 'vision', true, 'reasoning', true),
+ 200000, 8192, JSON_ARRAY('text', 'image'), JSON_ARRAY('text'), JSON_ARRAY('zh-CN', 'en-US'),
+ 'PUBLIC', 'PUBLISHED', 'ENABLED', 10, 1, 'HIGH', 'MEDIUM', 'HIGH', 'Premium provider route'),
+(2, 'knot-chat-economy', 'Knot Chat Economy', 'CHAT', 'general', '1.0',
+ 'Knot Chat Economy', 'Cost effective chat model for daily workloads',
+ 'A logical chat model that routes to economical provider models.',
+ JSON_ARRAY('chat', 'economy'),
+ JSON_ARRAY('customer service', 'daily assistant'),
+ JSON_OBJECT('toolCalling', false, 'vision', false, 'reasoning', false),
+ 128000, 4096, JSON_ARRAY('text'), JSON_ARRAY('text'), JSON_ARRAY('zh-CN', 'en-US'),
+ 'PUBLIC', 'PUBLISHED', 'ENABLED', 20, 0, 'MEDIUM', 'LOW', 'LOW', 'Economy provider route');
+
+INSERT IGNORE INTO provider_model_mappings (
+  id, logical_model_id, provider_id, model_id, provider_model_name, status, priority
+) VALUES
+(1, 1, 1, 1, 'gpt-4o', 'ENABLED', 10),
+(2, 1, 2, 4, 'claude-sonnet-4-20250514', 'ENABLED', 20),
+(3, 2, 1, 2, 'gpt-4o-mini', 'ENABLED', 10),
+(4, 2, 3, 6, 'deepseek-chat', 'ENABLED', 20);
+
+INSERT IGNORE INTO external_model_sources (
+  id, source_code, source_name, source_url, api_url, source_type, status
+) VALUES
+(1, 'AIBASE', 'AIBase 商用模型', 'https://model.aibase.cn/llm',
+ 'https://modelapi.aibase.cn/api/llm/generation/search', 'COMMERCIAL_LLM', 'ENABLED');
 
 -- 模型 API 协议绑定（usage_extract_json 为 JSONPath 风格路径）
 INSERT IGNORE INTO model_api_bindings (id, model_id, protocol, api_path, usage_extract_json, status, remark) VALUES
@@ -191,37 +205,51 @@ INSERT IGNORE INTO app_model_permissions (app_id, model_id) VALUES
 -- 路由规则
 -- =========================
 
-INSERT IGNORE INTO routing_consumers (id, consumer_code, name, user_id, secret_key, status) VALUES
-(1, 'consumer-internal-kb', '内部知识库助手消费者', 1, 'sk-demo-gpt4o-routing-key-001', 'ENABLED'),
-(2, 'consumer-research',    '模型评测消费者',       1, 'sk-demo-claude-routing-key-002', 'ENABLED'),
-(3, 'consumer-cs',          '客服系统消费者',       2, 'sk-demo-deepseek-routing-key-003', 'ENABLED');
+INSERT IGNORE INTO routing_consumers (id, consumer_code, name, user_id, secret_key, return_usage_detail, status) VALUES
+(1, 'consumer-internal-kb', '内部知识库助手消费者', 1, 'sk-demo-gpt4o-routing-key-001', 0, 'ENABLED'),
+(2, 'consumer-research',    '模型评测消费者',       1, 'sk-demo-claude-routing-key-002', 0, 'ENABLED'),
+(3, 'consumer-cs',          '客服系统消费者',       2, 'sk-demo-deepseek-routing-key-003', 0, 'ENABLED');
 
-INSERT IGNORE INTO routing_rules (id, rule_code, name, app_scenario, model_types, app_id, user_id, strategy_type, status) VALUES
-(1, 'gpt4o-default',    'GPT-4o默认路由',    '知识库问答', 'CHAT', 1, 1, 'PRIORITY', 'ENABLED'),
-(2, 'claude-default',   'Claude默认路由',    '模型评测',   'CHAT', 1, 1, 'PRIORITY', 'ENABLED'),
-(3, 'deepseek-lowcost', 'DeepSeek低成本路由', '客服对话',   'CHAT', 2, 2, 'PRIORITY', 'ENABLED');
+INSERT IGNORE INTO routing_rules (id, rule_code, name, app_scenario, model_types, app_id, user_id, status) VALUES
+(1, 'gpt4o-default',    'GPT-4o默认路由',    '知识库问答', 'CHAT', 1, 1, 'ENABLED'),
+(2, 'claude-default',   'Claude默认路由',    '模型评测',   'CHAT', 1, 1, 'ENABLED'),
+(3, 'deepseek-lowcost', 'DeepSeek低成本路由', '客服对话',   'CHAT', 2, 2, 'ENABLED');
 
 INSERT IGNORE INTO routing_rule_consumers (id, rule_id, consumer_id) VALUES
 (1, 1, 1),
 (2, 2, 2),
 (3, 3, 3);
 
-INSERT IGNORE INTO routing_rule_models (id, rule_id, model_id, priority, is_primary) VALUES
-(1, 1, 1, 100, 1),
-(2, 1, 2, 90,  0),
-(3, 2, 4, 100, 1),
-(4, 3, 6, 100, 1);
+INSERT IGNORE INTO routing_rule_targets (id, rule_id, target_type, target_id, priority, is_primary) VALUES
+(1, 1, 'MODEL_POOL', 1, 100, 1),
+(2, 1, 'MODEL',      2, 90,  0),
+(3, 2, 'MODEL',      4, 100, 1),
+(4, 3, 'MODEL_POOL', 2, 100, 1);
 
 -- =========================
 -- 计费规则
 -- =========================
 
-INSERT IGNORE INTO billing_rules (id, code, name, billing_mode, unit, unit_price, effective_from) VALUES
-(1, 'TOKEN_GPT4O',      'GPT-4o Token计费',       'TOKEN',   '1K_TOKENS', 0.005000, NOW()),
-(2, 'TOKEN_GPT4O_MINI', 'GPT-4o Mini Token计费',  'TOKEN',   '1K_TOKENS', 0.000150, NOW()),
-(3, 'TOKEN_CLAUDE_S4',  'Claude Sonnet 4 Token计费','TOKEN',  '1K_TOKENS', 0.003000, NOW()),
-(4, 'TOKEN_DEEPSEEK',   'DeepSeek Chat Token计费','TOKEN',   '1K_TOKENS', 0.000140, NOW()),
-(5, 'EMBEDDING',        'Embedding 计费',          'TOKEN',   '1K_TOKENS', 0.000130, NOW());
+INSERT IGNORE INTO billing_rules (id, code, name, provider_id, logical_model_id, current_version_id, status) VALUES
+(1, 'TOKEN_GPT4O',      'GPT-4o Token计费',        1, 1, 1, 'ACTIVE'),
+(2, 'TOKEN_GPT4O_MINI', 'GPT-4o Mini Token计费',   1, 2, 2, 'ACTIVE'),
+(3, 'TOKEN_CLAUDE_S4',  'Claude Sonnet 4 Token计费',2, 3, 3, 'ACTIVE'),
+(4, 'TOKEN_DEEPSEEK',   'DeepSeek Chat Token计费', 3, 4, 4, 'ACTIVE'),
+(5, 'EMBEDDING',        'Embedding 计费',          NULL, NULL, 5, 'ACTIVE');
+
+INSERT IGNORE INTO billing_rule_versions (id, rule_id, version_no, version_name, billing_mode, currency, status, effective_from) VALUES
+(1, 1, 1, 'v1', 'TOKEN', 'USD', 'ACTIVE', NOW()),
+(2, 2, 1, 'v1', 'TOKEN', 'USD', 'ACTIVE', NOW()),
+(3, 3, 1, 'v1', 'TOKEN', 'USD', 'ACTIVE', NOW()),
+(4, 4, 1, 'v1', 'TOKEN', 'USD', 'ACTIVE', NOW()),
+(5, 5, 1, 'v1', 'EMBEDDING', 'USD', 'ACTIVE', NOW());
+
+INSERT IGNORE INTO billing_rule_version_items (id, version_id, item_type, unit, unit_size, unit_price) VALUES
+(1, 1, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.005000),
+(2, 2, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.000150),
+(3, 3, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.003000),
+(4, 4, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.000140),
+(5, 5, 'EMBEDDING_TOKEN', '1K_TOKENS', 1000, 0.000130);
 
 -- =========================
 -- 安全与监控
@@ -243,29 +271,19 @@ INSERT IGNORE INTO alerts (id, alert_type, level, title, status) VALUES
 -- =========================
 
 -- 网关节点
-INSERT IGNORE INTO gateway_nodes (id, node_id, host, status) VALUES
-(1, 'node-01', '10.0.1.10:9090', 'ONLINE'),
-(2, 'node-02', '10.0.1.11:9090', 'ONLINE');
-
 -- 备份任务
-INSERT IGNORE INTO backup_jobs (id, job_code, status, snapshot_ref) VALUES
-(1, 'BACKUP-20260501', 'COMPLETED', 'snap-20260501-001');
-
 INSERT IGNORE INTO scheduled_tasks (
   id, task_code, task_name, handler_code, cron_expression, execution_mode, status, description
 ) VALUES
 (1, 'operation-log-retention', '操作日志保留清理', 'OPERATION_LOG_RETENTION', '0 0 3 * * ?', 'SINGLE', 'ENABLED', '操作日志最多保留三个月'),
-(2, 'schedule-run-retention', '定时任务执行记录清理', 'SCHEDULE_RUN_RETENTION', '0 30 3 * * ?', 'SINGLE', 'ENABLED', '定时任务执行记录最多保留一个月');
+(2, 'schedule-run-retention', '定时任务执行记录清理', 'SCHEDULE_RUN_RETENTION', '0 30 3 * * ?', 'SINGLE', 'ENABLED', '定时任务执行记录最多保留一个月'),
+(3, 'aibase-commercial-model-sync', 'AIBase 商用模型同步', 'AIBASE_COMMERCIAL_MODEL_SYNC', '0 0 4 * * ?', 'SINGLE', 'DISABLED', '同步 AIBase 商用模型到外部模型库');
 
 -- 插件
 INSERT IGNORE INTO plugins (id, code, name, plugin_type, version, status) VALUES
 (1, 'content-filter',  '内容安全过滤',   'FILTER',   '1.0.0', 'ENABLED'),
 (2, 'audit-logger',    '审计日志插件',   'LOGGER',   '1.0.0', 'ENABLED'),
 (3, 'token-counter',   'Token计数插件',  'COUNTER',  '1.0.0', 'DISABLED');
-
--- 灰度计划
-INSERT IGNORE INTO gray_plans (id, plan_name, target_type, target_id, traffic_percent, steps_json, start_time, status) VALUES
-(1, 'GPT-4o v2灰度','MODEL', 1, 10, '[10,30,50,100]', NOW(), 'DRAFT');
 
 -- 通知模板
 INSERT IGNORE INTO notification_templates (id, code, name, channel, title_tpl, content_tpl, status) VALUES
@@ -283,26 +301,64 @@ INSERT IGNORE INTO enum_categories (id, category, category_name, is_system, is_e
 (6, 'discount_type', '折扣类型', 0, 1),
 (7, 'billing_mode', '计费模式', 0, 1),
 (8, 'billing_unit', '计费单位', 0, 1),
-(9, 'strategy_type', '路由策略', 0, 1),
 (10, 'channel', '通知渠道', 0, 1),
 (11, 'plugin_type', '插件类型', 0, 1),
-(12, 'gray_target_type', '灰度目标类型', 0, 1),
 (13, 'alert_level', '告警级别', 1, 1),
 (14, 'risk_level', '风险级别', 1, 1),
-(15, 'status', '通用状态', 1, 1);
+(15, 'status', '通用状态', 1, 1),
+(16, 'logical_model_visibility', '统一模型可见性', 0, 1),
+(17, 'logical_model_publish_status', '统一模型发布状态', 0, 1),
+(18, 'logical_model_quality_level', '统一模型质量等级', 0, 1),
+(19, 'logical_model_latency_level', '统一模型延迟等级', 0, 1),
+(20, 'logical_model_cost_level', '统一模型成本等级', 0, 1);
 
 -- 枚举配置（category_id 关联 enum_categories.id；是否系统内置由分类决定）
+INSERT IGNORE INTO enum_categories (id, category, category_name, is_system, is_enabled) VALUES
+(9, 'billing_currency', '计费币种', 0, 1),
+(21, 'billing_item_type', '计费价格项', 0, 1);
+
 INSERT IGNORE INTO enum_configs (category_id, item_code, item_label, sort_order, is_enabled) VALUES
+(7, 'TOKEN',          'Token', 1, 1),
+(7, 'REQUEST',        '请求', 2, 1),
+(7, 'IMAGE',          '图片', 3, 1),
+(7, 'AUDIO',          '音频', 4, 1),
+(7, 'VIDEO',          '视频', 5, 1),
+(7, 'EMBEDDING',      'Embedding', 6, 1),
+(7, 'TIERED',         '阶梯', 7, 1),
+(7, 'FREE',           '免费', 8, 1),
+(7, 'CUSTOM',         '自定义', 9, 1),
+(8, 'PER_TOKEN',      '单 Token', 3, 1),
+(9, 'USD',            'USD', 1, 1),
+(9, 'CNY',            'CNY', 2, 1),
+(21, 'INPUT_TOKEN',       '输入 Token', 1, 1),
+(21, 'OUTPUT_TOKEN',      '输出 Token', 2, 1),
+(21, 'CACHE_READ_TOKEN',  '缓存读取 Token', 3, 1),
+(21, 'CACHE_WRITE_TOKEN', '缓存写入 Token', 4, 1),
+(21, 'REQUEST',           '请求', 5, 1),
+(21, 'IMAGE',             '图片', 6, 1),
+(21, 'AUDIO_MINUTE',      '音频分钟', 7, 1),
+(21, 'VIDEO_SECOND',      '视频秒数', 8, 1),
+(21, 'EMBEDDING_TOKEN',   'Embedding Token', 9, 1),
+(21, 'TIERED_USAGE',      '阶梯用量', 10, 1),
+(21, 'FREE',              '免费', 11, 1),
+(21, 'CUSTOM',            '自定义', 12, 1),
 (1, 'OPENAI',    'OpenAI',     1, 1),
 (1, 'ANTHROPIC', 'Anthropic',  2, 1),
 (1, 'DEEPSEEK',  'DeepSeek',   3, 1),
 (1, 'GOOGLE',    'Google',     4, 1),
 (1, 'MISTRAL',   'Mistral',    5, 1),
 (1, 'CUSTOM',    '自定义',    99, 1),
-(2, 'CHAT',      '对话',   1, 1),
-(2, 'EMBEDDING', '向量',   2, 1),
-(2, 'IMAGE',     '图像',   3, 1),
-(2, 'AUDIO',     '语音',   4, 1),
+(2, 'CHAT',       '对话',     1, 1),
+(2, 'MULTIMODAL', '多模态',   2, 1),
+(2, 'EMBEDDING',  '向量',     3, 1),
+(2, 'RERANK',     '重排',     4, 1),
+(2, 'IMAGE',      '图像',     5, 1),
+(2, 'AUDIO',      '语音',     6, 1),
+(2, 'VIDEO',      '视频',     7, 1),
+(2, 'DOCUMENT',   '文档理解', 8, 1),
+(2, 'OCR',        'OCR',      9, 1),
+(2, 'MODERATION', '安全审核', 10, 1),
+(2, 'UTILITY',    '工具辅助', 11, 1),
 (3, 'WEB',     'Web应用', 1, 1),
 (3, 'MOBILE',  '移动应用', 2, 1),
 (3, 'SERVICE', '微服务',   3, 1),
@@ -315,23 +371,17 @@ INSERT IGNORE INTO enum_configs (category_id, item_code, item_label, sort_order,
 (5, 'APP',    '按应用', 3, 1),
 (6, 'PERCENTAGE', '百分比折扣', 1, 1),
 (6, 'FIXED',      '固定金额',   2, 1),
-(7, 'TOKEN_BASED',    '按Token计费', 1, 1),
-(7, 'REQUEST_BASED',  '按请求计费',   2, 1),
-(7, 'SUBSCRIPTION',   '订阅制',      3, 1),
 (8, '1K_TOKENS',  '1K Tokens',  1, 1),
 (8, '1M_TOKENS',  '1M Tokens',  2, 1),
 (8, 'PER_REQUEST','每次请求',    3, 1),
-(9, 'PRIORITY', '优先级',   0, 1),
-(9, 'FIXED',    '固定',     1, 1),
-(9, 'WEIGHTED', '加权',     2, 1),
-(9, 'FAILOVER', '故障转移', 3, 1),
+(8, 'PER_IMAGE',  '每张图片',    4, 1),
+(8, 'PER_MINUTE', '每分钟',      5, 1),
+(8, 'PER_SECOND', '每秒',        6, 1),
 (10, 'EMAIL',   '邮件',    1, 1),
 (10, 'SMS',     '短信',    2, 1),
 (10, 'WEBHOOK', 'Webhook', 3, 1),
 (11, 'PRE',  '前置',  1, 1),
 (11, 'POST', '后置',  2, 1),
-(12, 'MODEL', '模型', 1, 1),
-(12, 'APP',   '应用', 2, 1),
 (13, 'CRITICAL', '严重', 1, 1),
 (13, 'HIGH',     '高',   2, 1),
 (13, 'MEDIUM',   '中',   3, 1),
@@ -349,4 +399,19 @@ INSERT IGNORE INTO enum_configs (category_id, item_code, item_label, sort_order,
 (15, 'SUCCESS',   '成功',     8, 1),
 (15, 'FAILURE',   '失败',     9, 1),
 (15, 'FAILED',    '失败(旧)', 10, 1),
-(15, 'INACTIVE',  '未激活',   11, 1);
+(15, 'INACTIVE',  '未激活',   11, 1),
+(16, 'PUBLIC',    '公开',     1, 1),
+(16, 'INTERNAL',  '内部',     2, 1),
+(16, 'PRIVATE',   '私有',     3, 1),
+(17, 'DRAFT',     '草稿',     1, 1),
+(17, 'PUBLISHED', '已发布',   2, 1),
+(17, 'ARCHIVED',  '已下架',   3, 1),
+(18, 'HIGH',      '高',       1, 1),
+(18, 'MEDIUM',    '中',       2, 1),
+(18, 'LOW',       '低',       3, 1),
+(19, 'LOW',       '低',       1, 1),
+(19, 'MEDIUM',    '中',       2, 1),
+(19, 'HIGH',      '高',       3, 1),
+(20, 'LOW',       '低',       1, 1),
+(20, 'MEDIUM',    '中',       2, 1),
+(20, 'HIGH',      '高',       3, 1);

@@ -15,7 +15,6 @@ public class RoutingRuleEntity {
     /** 关联 users，仅查询展示 */
     private String userRealName;
     private String userUsername;
-    private String strategyType;
     private Long fallbackRuleId;
     private String status;
 }

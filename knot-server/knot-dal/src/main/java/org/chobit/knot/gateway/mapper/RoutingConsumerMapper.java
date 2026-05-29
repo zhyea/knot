@@ -9,7 +9,7 @@ import java.util.List;
 @Mapper
 public interface RoutingConsumerMapper {
 
-    List<RoutingConsumerEntity> list();
+    List<RoutingConsumerEntity> list(@Param("keyword") String keyword);
 
     RoutingConsumerEntity getById(Long id);
 

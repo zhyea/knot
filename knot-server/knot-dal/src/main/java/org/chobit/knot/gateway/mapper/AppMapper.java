@@ -2,13 +2,14 @@ package org.chobit.knot.gateway.mapper;
 
 import org.chobit.knot.gateway.entity.AppEntity;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
 @Mapper
 public interface AppMapper {
 
-    List<AppEntity> list();
+    List<AppEntity> list(@Param("keyword") String keyword);
 
     AppEntity getById(Long id);
 
@@ -23,12 +24,4 @@ public interface AppMapper {
     Long countCredentialsByAppId(Long appId);
 
     Long countModelPermissionsByAppId(Long appId);
-
-    Long countBillingStatementsByAppId(Long appId);
-
-    Long countRequestsByAppId(Long appId);
-
-    Long countSuccessByAppId(Long appId);
-
-    Long sumTokensByAppId(Long appId);
 }

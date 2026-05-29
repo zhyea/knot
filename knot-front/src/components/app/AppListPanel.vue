@@ -15,7 +15,6 @@
           <RowActions
             :actions="[
               { key: 'edit', label: '编辑', icon: Edit },
-              { key: 'metrics', label: '指标', icon: DataAnalysis },
               { key: 'log', label: '日志', icon: Document },
               { key: 'delete', label: '删除', icon: Delete, type: 'danger' }
             ]"
@@ -41,7 +40,7 @@
 
 <script setup>
 import { ElMessage, ElMessageBox } from "element-plus";
-import { DataAnalysis, Delete, Document, Edit } from "@element-plus/icons-vue";
+import { Delete, Document, Edit } from "@element-plus/icons-vue";
 import RowActions from "../common/RowActions.vue";
 import { deleteApp } from "../../api/apps";
 
@@ -53,11 +52,10 @@ defineProps({
   pageSize: { type: Number, default: 20 }
 });
 
-const emit = defineEmits(["create", "refresh", "edit", "metrics", "log", "page-change", "size-change", "changed"]);
+const emit = defineEmits(["create", "refresh", "edit", "log", "page-change", "size-change", "changed"]);
 
 function handleAction(action, row) {
   if (action === "edit") emit("edit", row);
-  if (action === "metrics") emit("metrics", row);
   if (action === "log") emit("log", row);
   if (action === "delete") onDelete(row);
 }

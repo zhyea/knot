@@ -1,7 +1,6 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.converter.SystemConverter;
-import org.chobit.knot.gateway.dto.system.BackupTaskDto;
 import org.chobit.knot.gateway.dto.system.OperationLogDetailDto;
 import org.chobit.knot.gateway.dto.system.OperationLogDto;
 import org.chobit.knot.gateway.model.PageQuery;
@@ -57,23 +56,6 @@ public class SystemController {
     public OperationLogDetail operationLogDetail(@PathVariable Long id) {
         OperationLogDetailDto detail = systemService.getOperationLogDetail(id);
         return systemConverter.toOperationLogDetailVO(detail);
-    }
-
-    @PostMapping("/nodes")
-    public List<NodeItem> nodes() {
-        return systemConverter.toNodeVOList(systemService.listNodes());
-    }
-
-    @PostMapping("/backups")
-    public BackupTaskResult createBackupTask() {
-        BackupTaskDto task = systemService.createBackupTask();
-        return systemConverter.toBackupTaskVO(task);
-    }
-
-    @PostMapping("/backups/{id}/restore")
-    public BackupTaskResult restoreBackup(@PathVariable String id) {
-        BackupTaskDto task = systemService.restoreBackup(id);
-        return systemConverter.toBackupTaskVO(task);
     }
 
 }

@@ -44,6 +44,3 @@ export function testRoutingRule(id, payload) {
   return post(`/api/routing-rules/${id}/test`, payload);
 }
 
-export function listSwitchLogs(params) {
-  return postQuery("/api/routing-rules/switch-logs", params);
-}

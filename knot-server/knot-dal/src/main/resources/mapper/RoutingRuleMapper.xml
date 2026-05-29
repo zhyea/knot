@@ -6,7 +6,7 @@
         r.id, r.rule_code, r.name, r.app_scenario, r.model_types,
         r.app_id, a.name AS app_name,
         r.user_id, u.real_name AS user_real_name, u.username AS user_username,
-        r.strategy_type, r.fallback_rule_id, r.status
+        r.fallback_rule_id, r.status
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
@@ -46,8 +46,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into routing_rules(rule_code, name, app_scenario, model_types, app_id, user_id, strategy_type, fallback_rule_id, status)
-        values(#{ruleCode}, #{name}, #{appScenario}, #{modelTypes}, #{appId}, #{userId}, #{strategyType}, #{fallbackRuleId}, #{status})
+        insert into routing_rules(rule_code, name, app_scenario, model_types, app_id, user_id, fallback_rule_id, status)
+        values(#{ruleCode}, #{name}, #{appScenario}, #{modelTypes}, #{appId}, #{userId}, #{fallbackRuleId}, #{status})
     </insert>
 
     <update id="update">
@@ -58,16 +58,9 @@
             model_types = #{modelTypes},
             app_id = #{appId},
             user_id = #{userId},
-            strategy_type = #{strategyType},
             fallback_rule_id = #{fallbackRuleId},
             status = #{status}
         where id = #{id}
     </update>
-
-    <select id="listHitLogs" resultType="org.chobit.knot.gateway.entity.RoutingHitLogEntity">
-        select id, rule_id, from_target, to_target, reason, hit_time
-        from routing_hit_logs
-        order by id desc
-    </select>
 
 </mapper>

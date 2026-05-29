@@ -6,10 +6,8 @@ import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.AppConverter;
 import org.chobit.knot.gateway.dto.app.AppDto;
-import org.chobit.knot.gateway.dto.app.AppMetricsDto;
 import org.chobit.knot.gateway.service.AppService;
 import org.chobit.knot.gateway.vo.app.AppItem;
-import org.chobit.knot.gateway.vo.app.AppMetrics;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,7 +24,10 @@ public class AppController {
 
     @PostMapping("/list")
     public PageResult<AppItem> list(@RequestBody PageQuery query) {
-        PageResult<AppDto> page = appService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
+        PageResult<AppDto> page = appService.list(
+                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                query == null ? null : query.keyword()
+        );
         return page.mapList(appConverter::toVOList);
     }
 
@@ -67,10 +68,4 @@ public class AppController {
         appService.delete(id);
     }
 
-    @PostMapping("/{id}/metrics")
-    public AppMetrics metrics(@PathVariable Long id) {
-        appService.getById(id);
-        AppMetricsDto dto = appService.getAppMetrics(id);
-        return new AppMetrics(dto.appInternalId(), dto.totalRequests(), dto.successRequests(), dto.failedRequests(), dto.tokenUsage());
-    }
 }

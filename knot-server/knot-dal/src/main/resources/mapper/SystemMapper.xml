@@ -14,19 +14,4 @@
         where log_id = #{logId}
     </select>
 
-    <select id="listNodes" resultType="org.chobit.knot.gateway.entity.GatewayNodeEntity">
-        select id, node_id, host, status
-        from gateway_nodes
-        order by id desc
-    </select>
-
-    <insert id="insertBackupJob" useGeneratedKeys="true" keyProperty="id">
-        insert into backup_jobs(job_code, status, snapshot_ref)
-        values(#{jobCode}, #{status}, #{snapshotRef})
-    </insert>
-
-    <update id="updateBackupJobStatus">
-        update backup_jobs set status = #{status} where job_code = #{jobCode}
-    </update>
-
 </mapper>

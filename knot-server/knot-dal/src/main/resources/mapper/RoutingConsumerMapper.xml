@@ -5,13 +5,23 @@
     <sql id="ConsumerSelectColumns">
         c.id, c.consumer_code, c.name,
         c.user_id, u.real_name AS user_real_name, u.username AS user_username,
-        c.secret_key, c.status
+        c.secret_key, c.return_usage_detail, c.status
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.RoutingConsumerEntity">
         select <include refid="ConsumerSelectColumns"/>
         from routing_consumers c
         left join users u on c.user_id = u.id and u.is_deleted = 0
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    c.consumer_code like concat('%', #{keyword}, '%')
+                    or c.name like concat('%', #{keyword}, '%')
+                    or u.real_name like concat('%', #{keyword}, '%')
+                    or u.username like concat('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
         order by c.id desc
     </select>
 
@@ -43,8 +53,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into routing_consumers(consumer_code, name, user_id, secret_key, status)
-        values(#{consumerCode}, #{name}, #{userId}, #{secretKey}, #{status})
+        insert into routing_consumers(consumer_code, name, user_id, secret_key, return_usage_detail, status)
+        values(#{consumerCode}, #{name}, #{userId}, #{secretKey}, #{returnUsageDetail}, #{status})
     </insert>
 
     <update id="update">
@@ -52,6 +62,7 @@
         set consumer_code = #{consumerCode},
             name = #{name},
             user_id = #{userId},
+            return_usage_detail = #{returnUsageDetail},
             status = #{status}
         where id = #{id}
     </update>

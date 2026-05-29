@@ -29,7 +29,10 @@ public class ProviderController {
 
     @PostMapping("/list")
     public PageResult<ProviderItem> list(@RequestBody(required = false) PageQuery query) {
-        PageResult<ProviderDto> page = providerService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
+        PageResult<ProviderDto> page = providerService.list(
+                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                query == null ? null : query.keyword()
+        );
         return page.mapList(providerConverter::toVOList);
     }
 

@@ -60,38 +60,33 @@
         <div class="section-head">
           <div>
             <h3>路由配置</h3>
-            <p>指定当前规则关联的应用、用户和路由策略。</p>
+            <p>指定当前规则关联的应用、用户和模型类型。</p>
           </div>
         </div>
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="绑定应用" required>
-              <el-select v-model="form.appId" placeholder="请选择应用" filterable style="width: 100%">
-                <el-option v-for="app in appOptions" :key="app.id" :label="app.name" :value="app.id"/>
-              </el-select>
+              <RemoteEntitySelect
+                  v-model="form.appId"
+                  :load-function="loadAppOptions"
+                  :label-function="appLabel"
+                  :selected-options="selectedAppOptions"
+                  placeholder="请选择应用"
+                  style="width: 100%"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="用户">
-              <el-select
+              <RemoteEntitySelect
                   v-model="form.userId"
+                  :load-function="loadUserOptions"
+                  :label-function="userLabel"
+                  :selected-options="selectedUserOptions"
                   placeholder="请选择用户"
                   clearable
-                  filterable
                   style="width: 100%"
-              >
-                <el-option
-                    v-for="user in userOptions"
-                    :key="user.id"
-                    :label="userLabel(user)"
-                    :value="user.id"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="策略类型">
-              <EnumSelect v-model="form.strategy" category="strategy_type" show-code/>
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -116,23 +111,18 @@
           </div>
         </div>
         <el-form-item label="绑定消费者" required class="bind-block-item consumer-bind-item">
-          <el-select
+          <RemoteEntitySelect
               v-model="form.consumerIds"
+              :load-function="loadConsumerOptions"
+              :label-function="consumerLabel"
+              :selected-options="selectedConsumers"
               placeholder="请选择消费者，可多选"
               multiple
-              filterable
               collapse-tags
               collapse-tags-tooltip
               style="width: 100%"
               @change="onConsumersChange"
-          >
-            <el-option
-                v-for="consumer in consumerOptions"
-                :key="consumer.id"
-                :label="consumerLabel(consumer)"
-                :value="consumer.id"
-            />
-          </el-select>
+          />
         </el-form-item>
         <div v-if="selectedConsumers.length" class="bind-list consumer-bind-list">
           <div class="bind-list__row bind-list__header consumer-bind-list__row">
@@ -161,52 +151,62 @@
       <div class="slot-body rule-section">
         <div class="section-head">
           <div>
-            <h3>绑定模型</h3>
-            <p>配置候选模型和优先级，并指定唯一主模型。</p>
+            <h3>绑定路由目标</h3>
+            <p>路由目标可以是供应商模型或模型池，模型池会按自身策略解析为最终模型。</p>
           </div>
         </div>
-        <el-form-item label="绑定模型" required class="bind-block-item model-bind-item">
-          <el-select
-              v-model="selectedModelIds"
-              placeholder="请选择模型，可多选"
-              multiple
-              filterable
+        <el-form-item label="目标类型" class="bind-block-item model-bind-item">
+          <el-radio-group v-model="targetType">
+            <el-radio-button value="MODEL">模型</el-radio-button>
+            <el-radio-button value="MODEL_POOL">模型池</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="绑定目标" required class="bind-block-item model-bind-item">
+          <RemoteEntitySelect
+              :key="targetType"
+              v-model="selectedTargetIds"
+              :load-function="loadTargetOptions"
+              :label-function="targetLabel"
+              :selected-options="selectedTargetOptions"
+              :extra-params="{ modelTypes: form.modelTypes }"
+              placeholder="请选择路由目标，可多选"
+              :multiple="true"
               collapse-tags
               collapse-tags-tooltip
               style="width: 100%"
-              @change="onSelectedModelsChange"
-          >
-            <el-option
-                v-for="m in filteredModelOptions"
-                :key="m.id"
-                :label="`${m.name}（${m.modelCode}）`"
-                :value="m.id"
-            />
-          </el-select>
+              @change="onSelectedTargetsChange"
+          />
         </el-form-item>
-        <div v-if="form.models.length" class="bind-list model-bind-list">
+        <div v-if="form.targets.length" class="bind-list model-bind-list">
           <div class="bind-list__row bind-list__header model-bind-list__row">
-            <span>模型编码</span>
-            <span>模型名称</span>
+            <span>目标类型</span>
+            <span>目标编码</span>
+            <span>目标名称</span>
             <span>优先级</span>
-            <span>主模型</span>
+            <span>主目标</span>
             <span>操作</span>
           </div>
           <div
-              v-for="row in boundModelRows"
-              :key="row.modelId"
+              v-for="row in boundTargetRows"
+              :key="targetKey(row)"
               class="bind-list__row model-bind-list__row"
           >
-            <span class="bind-list__text">{{ row.modelCode || "—" }}</span>
-            <span class="bind-list__text">{{ row.name || "—" }}</span>
+            <span>{{ targetTypeLabel(row.targetType) }}</span>
+            <span class="bind-list__text">{{ row.targetCode || "—" }}</span>
+            <span class="bind-list__text">{{ row.targetName || "—" }}</span>
             <span>
-              <el-input-number v-model="row.priority" :min="0" :max="9999" />
+              <el-input-number
+                  v-model="row.priority"
+                  :min="0"
+                  :max="9999"
+                  :disabled="primaryTargetKey === targetKey(row)"
+              />
             </span>
             <span>
-              <el-radio v-model="primaryModelId" :value="row.modelId" label="" />
+              <el-radio v-model="primaryTargetKey" :value="targetKey(row)" label="" />
             </span>
             <span>
-              <el-button link type="danger" @click="removeModel(row.modelId)">
+              <el-button link type="danger" @click="removeTarget(row)">
                 <el-icon><Delete /></el-icon>
               </el-button>
             </span>
@@ -244,6 +244,7 @@ import {ElMessage} from "element-plus";
 import {Delete} from "@element-plus/icons-vue";
 import KvEditor from "../common/KvEditor.vue";
 import EnumSelect from "../common/EnumSelect.vue";
+import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import {
   emptyQuotaPolicy,
   emptyRateLimitPolicy,
@@ -256,6 +257,7 @@ import {createRoutingRule, updateRoutingRule, checkRoutingRuleCode, listRoutingC
 import {generateRoutingRuleCode} from "../../utils/routingRule";
 import {listApps} from "../../api/apps";
 import {listModels} from "../../api/models";
+import {listModelPools} from "../../api/modelPools";
 import {listUsers} from "../../api/users";
 
 const props = defineProps({
@@ -270,10 +272,12 @@ const isEdit = computed(() => props.rule != null);
 const appOptions = ref([]);
 const userOptions = ref([]);
 const modelOptions = ref([]);
+const modelPoolOptions = ref([]);
 const consumerOptions = ref([]);
 const saving = ref(false);
 const ruleCodeError = ref("");
-const primaryModelId = ref(null);
+const primaryTargetKey = ref(null);
+const targetType = ref("MODEL");
 
 const form = reactive({
   id: null,
@@ -284,32 +288,57 @@ const form = reactive({
   appId: null,
   userId: null,
   modelTypes: ["CHAT"],
-  strategy: "PRIORITY",
   enabled: true,
-  models: [],
+  targets: [],
   rateLimitPolicy: emptyRateLimitPolicy(),
   quotaPolicy: emptyQuotaPolicy()
 });
 
 const selectedConsumers = computed(() =>
-    consumerOptions.value.filter((item) => form.consumerIds.includes(item.id))
+    form.consumerIds.map((id, index) => {
+      const consumer = consumerOptions.value.find((item) => item.id === id);
+      return consumer || { id, name: props.rule?.consumerNames?.[index] };
+    })
 );
-const filteredModelOptions = computed(() => {
-  const selectedTypes = new Set((form.modelTypes?.length ? form.modelTypes : ["CHAT"]));
-  return modelOptions.value.filter((item) => selectedTypes.has(item.modelType));
+const selectedTargetIds = computed({
+  get: () => form.targets.filter((item) => item.targetType === targetType.value).map((item) => item.targetId),
+  set: (ids) => onSelectedTargetsChange(ids)
 });
-const selectedModelIds = computed({
-  get: () => form.models.map((item) => item.modelId).filter((id) => id != null),
-  set: (ids) => onSelectedModelsChange(ids)
-});
-const boundModelRows = computed(() =>
-    form.models.map((item) => {
-      const model = modelOptions.value.find((m) => m.id === item.modelId);
-      item.modelCode = model?.modelCode;
-      item.name = model?.name;
+const boundTargetRows = computed(() =>
+    form.targets.map((item) => {
+      const source = findTargetOption(item.targetType, item.targetId);
+      item.id = item.targetId;
+      item.targetCode = targetOptionCode(item.targetType, source) || item.targetCode;
+      item.targetName = targetOptionName(item.targetType, source) || item.targetName;
+      item.modelType = source?.modelType || item.modelType;
+      item.providerId = source?.providerId || item.providerId;
       return item;
     })
 );
+const selectedTargetOptions = computed(() =>
+    form.targets
+        .filter((item) => item.targetType === targetType.value)
+        .map((item) => findTargetOption(item.targetType, item.targetId) || {
+          id: item.targetId,
+          modelCode: item.targetCode,
+          poolCode: item.targetCode,
+          name: item.targetName
+        })
+);
+const selectedAppOptions = computed(() => {
+  if (!form.appId) return [];
+  const app = appOptions.value.find((item) => item.id === form.appId);
+  return app ? [app] : [{ id: form.appId, name: props.rule?.appName }];
+});
+const selectedUserOptions = computed(() => {
+  if (!form.userId) return [];
+  const user = userOptions.value.find((item) => item.id === form.userId);
+  return user ? [user] : [{ id: form.userId, realName: props.rule?.userName }];
+});
+
+function appLabel(app) {
+  return app.name || app.appId || `#${app.id}`;
+}
 
 function userLabel(user) {
   const name = user.realName?.trim() || user.username;
@@ -317,7 +346,89 @@ function userLabel(user) {
 }
 
 function consumerLabel(consumer) {
-  return consumer.name || consumer.consumerCode;
+  return consumer.name || consumer.consumerCode || `#${consumer.id}`;
+}
+
+function modelLabel(model) {
+  return model.modelCode ? `${model.name || model.modelCode}（${model.modelCode}）` : `#${model.id}`;
+}
+
+function targetLabel(target) {
+  const code = targetOptionCode(targetType.value, target);
+  const name = targetOptionName(targetType.value, target);
+  return code ? `${name || code}（${code}）` : `#${target.id}`;
+}
+
+function mergeOptions(targetRef, list) {
+  const map = new Map(targetRef.value.map((item) => [item.id, item]));
+  for (const item of list) {
+    if (item?.id != null) {
+      map.set(item.id, item);
+    }
+  }
+  targetRef.value = Array.from(map.values());
+}
+
+async function loadAppOptions(params) {
+  const res = await listApps(params);
+  const list = Array.isArray(res?.list) ? res.list : [];
+  mergeOptions(appOptions, list);
+  return res;
+}
+
+async function loadUserOptions(params) {
+  const res = await listUsers(params);
+  const list = Array.isArray(res?.list) ? res.list : Array.isArray(res) ? res : [];
+  mergeOptions(userOptions, list);
+  return res;
+}
+
+async function loadConsumerOptions(params) {
+  const res = await listRoutingConsumers(params);
+  const list = Array.isArray(res?.list) ? res.list : [];
+  mergeOptions(consumerOptions, list);
+  return res;
+}
+
+async function loadModelOptions(params) {
+  const res = await listModels(params);
+  const list = Array.isArray(res?.list) ? res.list : [];
+  mergeOptions(modelOptions, list);
+  return res;
+}
+
+async function loadModelPoolOptions(params) {
+  const res = await listModelPools(params);
+  const list = Array.isArray(res?.list) ? res.list : [];
+  mergeOptions(modelPoolOptions, list);
+  return res;
+}
+
+async function loadTargetOptions(params) {
+  return targetType.value === "MODEL_POOL" ? loadModelPoolOptions(params) : loadModelOptions(params);
+}
+
+function findTargetOption(type, id) {
+  const options = type === "MODEL_POOL" ? modelPoolOptions.value : modelOptions.value;
+  return options.find((item) => item.id === id);
+}
+
+function targetOptionCode(type, option) {
+  if (!option) return "";
+  return type === "MODEL_POOL" ? option.poolCode : option.modelCode;
+}
+
+function targetOptionName(type, option) {
+  if (!option) return "";
+  return option.name || option.modelName || option.poolCode || option.modelCode;
+}
+
+function targetKey(row) {
+  return `${row.targetType}:${row.targetId}`;
+}
+
+function targetTypeLabel(type) {
+  return type === "MODEL_POOL" ? "模型池" : "模型";
 }
 
 function parseAppScenarioTags(value) {
@@ -336,19 +447,22 @@ function buildAppScenarioValue() {
 }
 
 async function loadOptions() {
-  const [appsRes, usersRes, modelsRes, consumersRes] = await Promise.all([
-    listApps({pageNum: 1, pageSize: 500}),
-    listUsers({pageNum: 1, pageSize: 500}),
-    listModels({pageNum: 1, pageSize: 500}),
-    listRoutingConsumers({pageNum: 1, pageSize: 500})
+  const [appsRes, usersRes, modelsRes, poolsRes, consumersRes] = await Promise.all([
+    loadAppOptions({pageNum: 1, pageSize: 10}),
+    loadUserOptions({pageNum: 1, pageSize: 10}),
+    loadModelOptions({pageNum: 1, pageSize: 10, modelTypes: form.modelTypes}),
+    loadModelPoolOptions({pageNum: 1, pageSize: 10, modelTypes: form.modelTypes}),
+    loadConsumerOptions({pageNum: 1, pageSize: 10})
   ]);
   appOptions.value = Array.isArray(appsRes?.list) ? appsRes.list : [];
   userOptions.value = Array.isArray(usersRes?.list) ? usersRes.list : Array.isArray(usersRes) ? usersRes : [];
   modelOptions.value = Array.isArray(modelsRes?.list) ? modelsRes.list : [];
+  modelPoolOptions.value = Array.isArray(poolsRes?.list) ? poolsRes.list : [];
   consumerOptions.value = Array.isArray(consumersRes?.list) ? consumersRes.list : [];
 }
 
 function resetForm() {
+  targetType.value = "MODEL";
   if (props.rule) {
     const row = props.rule;
     form.id = row.id;
@@ -359,16 +473,20 @@ function resetForm() {
     form.appId = row.appId ?? null;
     form.userId = row.userId ?? null;
     form.modelTypes = Array.isArray(row.modelTypes) && row.modelTypes.length ? [...row.modelTypes] : ["CHAT"];
-    form.strategy = row.strategy || "PRIORITY";
     form.enabled = row.enabled !== false;
     form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
     form.quotaPolicy = normalizeQuotaPolicy(row.quotaPolicy);
-    form.models = (row.models || []).map((m) => ({
-      modelId: m.modelId,
+    form.targets = (row.targets || []).map((m) => ({
+      targetType: m.targetType || "MODEL",
+      targetId: m.targetId,
+      targetCode: m.targetCode,
+      targetName: m.targetName || m.name,
+      modelType: m.modelType,
+      providerId: m.providerId,
       priority: m.priority ?? 100,
       primary: !!m.primary
     }));
-    primaryModelId.value = form.models.find((m) => m.primary)?.modelId ?? form.models[0]?.modelId ?? null;
+    primaryTargetKey.value = form.targets.find((m) => m.primary) ? targetKey(form.targets.find((m) => m.primary)) : (form.targets[0] ? targetKey(form.targets[0]) : null);
   } else {
     form.id = null;
     form.ruleCode = generateRoutingRuleCode();
@@ -378,12 +496,11 @@ function resetForm() {
     form.appId = null;
     form.userId = null;
     form.modelTypes = ["CHAT"];
-    form.strategy = "PRIORITY";
     form.enabled = false;
-    form.models = [];
+    form.targets = [];
     form.rateLimitPolicy = emptyRateLimitPolicy();
     form.quotaPolicy = emptyQuotaPolicy();
-    primaryModelId.value = null;
+    primaryTargetKey.value = null;
   }
   ruleCodeError.value = "";
 }
@@ -410,17 +527,19 @@ watch(
 watch(
     () => [...(form.modelTypes || [])],
     () => {
-      const allowedModelIds = new Set(filteredModelOptions.value.map((item) => item.id));
+      const allowedTypes = new Set(form.modelTypes || []);
       let changed = false;
-      form.models = form.models.map((item) => {
-        if (item.modelId && !allowedModelIds.has(item.modelId)) {
+      form.targets = form.targets.map((item) => {
+        const option = findTargetOption(item.targetType, item.targetId);
+        const modelType = option?.modelType || item.modelType;
+        if (modelType && allowedTypes.size && !allowedTypes.has(modelType)) {
           changed = true;
           return null;
         }
         return item;
       }).filter(Boolean);
       if (changed) {
-        primaryModelId.value = form.models[0]?.modelId ?? null;
+        primaryTargetKey.value = form.targets[0] ? targetKey(form.targets[0]) : null;
       }
     }
 );
@@ -436,17 +555,35 @@ function onConsumersChange(consumerIds) {
   }
 }
 
-function onSelectedModelsChange(modelIds) {
-  const nextIds = Array.isArray(modelIds) ? modelIds : [];
-  const existingById = new Map(form.models.map((item) => [item.modelId, item]));
-  form.models = nextIds.map((modelId) => existingById.get(modelId) || {modelId, priority: 100, primary: false});
-  if (!nextIds.includes(primaryModelId.value)) {
-    primaryModelId.value = nextIds[0] ?? null;
+function onSelectedTargetsChange(targetIds) {
+  const nextIds = Array.isArray(targetIds) ? targetIds : [];
+  const existingByKey = new Map(form.targets.map((item) => [targetKey(item), item]));
+  const otherTargets = form.targets.filter((item) => item.targetType !== targetType.value);
+  const currentTargets = nextIds.map((targetId) => {
+    const key = `${targetType.value}:${targetId}`;
+    const source = findTargetOption(targetType.value, targetId);
+    return existingByKey.get(key) || {
+      targetType: targetType.value,
+      targetId,
+      targetCode: targetOptionCode(targetType.value, source),
+      targetName: targetOptionName(targetType.value, source),
+      modelType: source?.modelType,
+      providerId: source?.providerId,
+      priority: 100,
+      primary: false
+    };
+  });
+  form.targets = [...otherTargets, ...currentTargets];
+  if (!form.targets.some((item) => targetKey(item) === primaryTargetKey.value)) {
+    primaryTargetKey.value = form.targets[0] ? targetKey(form.targets[0]) : null;
   }
 }
 
-function removeModel(modelId) {
-  onSelectedModelsChange(form.models.map((item) => item.modelId).filter((id) => id !== modelId));
+function removeTarget(row) {
+  form.targets = form.targets.filter((item) => targetKey(item) !== targetKey(row));
+  if (primaryTargetKey.value === targetKey(row)) {
+    primaryTargetKey.value = form.targets[0] ? targetKey(form.targets[0]) : null;
+  }
 }
 
 async function validateRuleCode() {
@@ -469,10 +606,11 @@ async function validateRuleCode() {
 }
 
 function buildSubmitPayload() {
-  const models = form.models.map((m, idx) => ({
-    modelId: m.modelId,
+  const targets = form.targets.map((m) => ({
+    targetType: m.targetType,
+    targetId: m.targetId,
     priority: m.priority ?? 100,
-    primary: m.modelId === primaryModelId.value
+    primary: targetKey(m) === primaryTargetKey.value
   }));
   const rateLimitPolicy = isEmptyRateLimitPolicy(form.rateLimitPolicy)
       ? null
@@ -486,9 +624,8 @@ function buildSubmitPayload() {
     appId: form.appId,
     userId: form.userId,
     modelTypes: form.modelTypes?.length ? [...form.modelTypes] : ["CHAT"],
-    strategy: form.strategy,
     enabled: form.enabled,
-    models,
+    targets,
     rateLimitPolicy,
     quotaPolicy
   };
@@ -515,17 +652,17 @@ async function submit() {
       ElMessage.warning("启用规则前请选择模型类型");
       return;
     }
-    if (!form.models.length || form.models.some((m) => !m.modelId)) {
-      ElMessage.warning("启用规则前请完整配置绑定模型");
+    if (!form.targets.length || form.targets.some((m) => !m.targetId)) {
+      ElMessage.warning("启用规则前请完整配置路由目标");
       return;
     }
-    const modelIds = form.models.map((m) => m.modelId);
-    if (new Set(modelIds).size !== modelIds.length) {
-      ElMessage.warning("模型绑定不能重复");
+    const targetKeys = form.targets.map((m) => targetKey(m));
+    if (new Set(targetKeys).size !== targetKeys.length) {
+      ElMessage.warning("路由目标不能重复");
       return;
     }
-    if (!primaryModelId.value) {
-      ElMessage.warning("启用规则前请指定主模型");
+    if (!primaryTargetKey.value) {
+      ElMessage.warning("启用规则前请指定主目标");
       return;
     }
   }
@@ -658,7 +795,7 @@ async function submit() {
 }
 
 .model-bind-list__row {
-  grid-template-columns: minmax(150px, 1fr) minmax(180px, 1.2fr) 160px 80px 70px;
+  grid-template-columns: 100px minmax(150px, 1fr) minmax(180px, 1.2fr) 160px 80px 70px;
 }
 
 .model-bind-list__row > span:nth-child(4),

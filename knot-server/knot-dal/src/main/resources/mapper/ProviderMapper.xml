@@ -9,6 +9,15 @@
     <select id="list" resultType="org.chobit.knot.gateway.entity.ProviderEntity">
         select <include refid="ProviderColumns"/>
         from providers
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    code like concat('%', #{keyword}, '%')
+                    or name like concat('%', #{keyword}, '%')
+                    or provider_type like concat('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
         order by id desc
     </select>
 

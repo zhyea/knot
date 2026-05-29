@@ -2,30 +2,165 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.gateway.mapper.BillingRuleMapper">
 
+    <sql id="RuleColumns">
+        br.id, br.code, br.name, br.provider_id, p.name as provider_name,
+        br.logical_model_id, lm.model_name as logical_model_name,
+        br.current_version_id, br.remark, br.status, br.is_deleted,
+        bv.version_no, bv.version_name, bv.billing_mode, bv.currency, bv.config_json, bv.ladder_json,
+        bv.effective_from, bv.effective_to,
+        bvi.item_type, bvi.unit, bvi.unit_price
+    </sql>
+
+    <sql id="ActiveRuleColumns">
+        br.id, br.code, br.name, br.provider_id, p.name as provider_name,
+        br.logical_model_id, lm.model_name as logical_model_name,
+        bv.id as current_version_id, br.remark, br.status, br.is_deleted,
+        bv.version_no, bv.version_name, bv.billing_mode, bv.currency, bv.config_json, bv.ladder_json,
+        bv.effective_from, bv.effective_to,
+        bvi.item_type, bvi.unit, bvi.unit_price
+    </sql>
+
     <select id="list" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
-        select id, code, name, billing_mode, unit, unit_price, status, effective_from
-        from billing_rules
-        order by id desc
+        select <include refid="RuleColumns"/>
+        from billing_rules br
+        left join providers p on br.provider_id = p.id
+        left join logical_models lm on br.logical_model_id = lm.id
+        left join billing_rule_versions bv on br.current_version_id = bv.id
+        left join billing_rule_version_items bvi on bv.id = bvi.version_id
+        <where>
+            br.is_deleted = 0
+            <if test="keyword != null and keyword != ''">
+                and (
+                    br.code like concat('%', #{keyword}, '%')
+                    or br.name like concat('%', #{keyword}, '%')
+                    or p.name like concat('%', #{keyword}, '%')
+                    or lm.model_name like concat('%', #{keyword}, '%')
+                    or lm.model_code like concat('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="providerId != null">
+                and (br.provider_id = #{providerId} or br.provider_id is null)
+            </if>
+            <if test="logicalModelId != null">
+                and (br.logical_model_id = #{logicalModelId} or br.logical_model_id is null)
+            </if>
+        </where>
+        order by br.id desc
     </select>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
-        select id, code, name, billing_mode, unit, unit_price, status, effective_from
+        select <include refid="RuleColumns"/>
+        from billing_rules br
+        left join providers p on br.provider_id = p.id
+        left join logical_models lm on br.logical_model_id = lm.id
+        left join billing_rule_versions bv on br.current_version_id = bv.id
+        left join billing_rule_version_items bvi on bv.id = bvi.version_id
+        where br.id = #{id} and br.is_deleted = 0
+    </select>
+
+    <select id="countByCode" resultType="java.lang.Long">
+        select count(1)
         from billing_rules
-        where id = #{id}
+        where code = #{code}
+        <if test="excludeId != null">
+            and id != #{excludeId}
+        </if>
+    </select>
+
+    <select id="countBoundModels" resultType="java.lang.Long">
+        select count(1)
+        from models
+        where billing_rule_id = #{id}
+    </select>
+
+    <select id="getActiveByRuleId" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
+        select <include refid="ActiveRuleColumns"/>
+        from billing_rules br
+        inner join billing_rule_versions bv on br.id = bv.rule_id
+        left join providers p on br.provider_id = p.id
+        left join logical_models lm on br.logical_model_id = lm.id
+        left join billing_rule_version_items bvi on bv.id = bvi.version_id
+        where br.id = #{ruleId}
+          and br.status = 'ACTIVE'
+          and br.is_deleted = 0
+          and bv.status = 'ACTIVE'
+          and bv.effective_from &lt;= #{effectiveAt}
+          and (bv.effective_to is null or bv.effective_to &gt; #{effectiveAt})
+        order by bv.effective_from desc, bv.version_no desc, bv.id desc
+        limit 1
+    </select>
+
+    <select id="listActiveCandidates" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
+        select <include refid="ActiveRuleColumns"/>
+        from billing_rules br
+        inner join billing_rule_versions bv on br.id = bv.rule_id
+        left join providers p on br.provider_id = p.id
+        left join logical_models lm on br.logical_model_id = lm.id
+        left join billing_rule_version_items bvi on bv.id = bvi.version_id
+        where br.status = 'ACTIVE'
+          and br.is_deleted = 0
+          and bv.status = 'ACTIVE'
+          and bv.effective_from &lt;= #{effectiveAt}
+          and (bv.effective_to is null or bv.effective_to &gt; #{effectiveAt})
+          and (
+            (br.provider_id = #{providerId} and br.logical_model_id = (
+                select pm.logical_model_id from provider_model_mappings pm where pm.model_id = #{modelId} limit 1
+            ))
+            or (br.provider_id = #{providerId} and br.logical_model_id is null)
+            or (br.provider_id is null and br.logical_model_id is null)
+          )
+        order by
+          case
+            when br.provider_id = #{providerId} and br.logical_model_id is not null then 1
+            when br.provider_id = #{providerId} and br.logical_model_id is null then 2
+            else 3
+          end,
+          bv.effective_from desc, bv.version_no desc, br.id desc
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into billing_rules(code, name, billing_mode, unit, unit_price, status, effective_from)
-        values(#{code}, #{name}, #{billingMode}, #{unit}, #{unitPrice}, #{status}, #{effectiveFrom})
+        insert into billing_rules(code, name, provider_id, logical_model_id, current_version_id, status, remark, is_deleted)
+        values(#{code}, #{name}, #{providerId}, #{logicalModelId}, #{currentVersionId}, #{status}, #{remark}, 0)
     </insert>
 
     <update id="update">
         update billing_rules
-        set name       = #{name},
-            unit       = #{unit},
-            unit_price = #{unitPrice},
-            status     = #{status}
+        set name = #{name},
+            provider_id = #{providerId},
+            logical_model_id = #{logicalModelId},
+            current_version_id = #{currentVersionId},
+            status = #{status},
+            remark = #{remark}
         where id = #{id}
     </update>
+
+    <update id="softDelete">
+        update billing_rules
+        set is_deleted = 1,
+            status = 'DELETED'
+        where id = #{id}
+    </update>
+
+    <update id="updateCurrentVersion">
+        update billing_rules set current_version_id = #{currentVersionId} where id = #{id}
+    </update>
+
+    <select id="maxVersionNo" resultType="java.lang.Integer">
+        select max(version_no) from billing_rule_versions where rule_id = #{ruleId}
+    </select>
+
+    <insert id="insertVersion" useGeneratedKeys="true" keyProperty="id">
+        insert into billing_rule_versions(rule_id, version_no, version_name, billing_mode, currency,
+                                          config_json, ladder_json, status,
+                                          effective_from, effective_to, change_reason)
+        values(#{ruleId}, #{versionNo}, #{versionName}, #{billingMode}, #{currency},
+               #{configJson}, #{ladderJson}, #{status},
+               #{effectiveFrom}, #{effectiveTo}, #{changeReason})
+    </insert>
+
+    <insert id="insertVersionItem" useGeneratedKeys="true" keyProperty="id">
+        insert into billing_rule_version_items(version_id, item_type, unit, unit_size, unit_price, metadata_json)
+        values(#{versionId}, #{itemType}, #{unit}, #{unitSize}, #{unitPrice}, #{metadataJson})
+    </insert>
 
 </mapper>

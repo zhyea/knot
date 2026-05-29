@@ -3,13 +3,11 @@ package org.chobit.knot.gateway.controller;
 import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.converter.RoutingRuleConverter;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleDto;
-import org.chobit.knot.gateway.dto.routing.RoutingSwitchLogDto;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.RoutingRuleService;
 import org.chobit.knot.gateway.vo.routing.RoutingRule;
-import org.chobit.knot.gateway.vo.routing.RoutingSwitchLog;
 import org.chobit.knot.gateway.vo.routing.RoutingTestRequest;
 import org.chobit.knot.gateway.vo.routing.RoutingTestResult;
 import jakarta.validation.Valid;
@@ -71,9 +69,4 @@ public class RoutingRuleController {
         return routingRuleService.testInvoke(id, request.secretKey(), request.prompt(), request.model());
     }
 
-    @PostMapping("/switch-logs")
-    public PageResult<RoutingSwitchLog> switchLogs(@RequestBody(required = false) PageQuery query) {
-        PageResult<RoutingSwitchLogDto> page = routingRuleService.listSwitchLogs(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
-        return page.mapList(routingRuleConverter::toSwitchLogVOList);
-    }
 }

@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.LogicalModelMapper">
+
+    <sql id="LogicalModelColumns">
+        id, model_code, model_name, model_type, model_family, version,
+        display_name, tagline, description, logo_url, cover_url,
+        tags_json, use_cases_json, capabilities_json,
+        context_window, max_output_tokens,
+        input_modalities_json, output_modalities_json, languages_json,
+        default_params_json, param_schema_json, safety_policy_json,
+        visibility, publish_status, status, sort_order, featured,
+        owner_user_id, owner_team,
+        quality_level, latency_level, cost_level, pricing_summary,
+        remark, created_at, updated_at
+    </sql>
+
+    <sql id="MappingColumns">
+        pm.id, pm.logical_model_id, lm.model_code AS logical_model_code, lm.model_name AS logical_model_name,
+        pm.provider_id, p.name AS provider_name,
+        pm.model_id, m.model_code, m.name AS model_name,
+        pm.provider_model_name, pm.status, pm.priority, pm.created_at, pm.updated_at
+    </sql>
+
+    <select id="list" resultType="org.chobit.knot.gateway.entity.LogicalModelEntity">
+        select <include refid="LogicalModelColumns"/>
+        from logical_models
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    model_code like concat('%', #{keyword}, '%')
+                    or model_name like concat('%', #{keyword}, '%')
+                    or display_name like concat('%', #{keyword}, '%')
+                    or model_family like concat('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
+        order by featured desc, sort_order asc, id desc
+    </select>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.LogicalModelEntity">
+        select <include refid="LogicalModelColumns"/>
+        from logical_models
+        where id = #{id}
+    </select>
+
+    <select id="getByCode" resultType="org.chobit.knot.gateway.entity.LogicalModelEntity">
+        select <include refid="LogicalModelColumns"/>
+        from logical_models
+        where model_code = #{modelCode}
+    </select>
+
+    <select id="countByModelCode" resultType="java.lang.Long">
+        select count(1)
+        from logical_models
+        where model_code = #{modelCode}
+        <if test="excludeId != null">
+            and id != #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into logical_models(
+            model_code, model_name, model_type, model_family, version,
+            display_name, tagline, description, logo_url, cover_url,
+            tags_json, use_cases_json, capabilities_json,
+            context_window, max_output_tokens,
+            input_modalities_json, output_modalities_json, languages_json,
+            default_params_json, param_schema_json, safety_policy_json,
+            visibility, publish_status, status, sort_order, featured,
+            owner_user_id, owner_team,
+            quality_level, latency_level, cost_level, pricing_summary,
+            remark
+        ) values (
+            #{modelCode}, #{modelName}, #{modelType}, #{modelFamily}, #{version},
+            #{displayName}, #{tagline}, #{description}, #{logoUrl}, #{coverUrl},
+            #{tagsJson}, #{useCasesJson}, #{capabilitiesJson},
+            #{contextWindow}, #{maxOutputTokens},
+            #{inputModalitiesJson}, #{outputModalitiesJson}, #{languagesJson},
+            #{defaultParamsJson}, #{paramSchemaJson}, #{safetyPolicyJson},
+            #{visibility}, #{publishStatus}, #{status}, #{sortOrder}, #{featured},
+            #{ownerUserId}, #{ownerTeam},
+            #{qualityLevel}, #{latencyLevel}, #{costLevel}, #{pricingSummary},
+            #{remark}
+        )
+    </insert>
+
+    <update id="update">
+        update logical_models
+        set model_code = #{modelCode},
+            model_name = #{modelName},
+            model_type = #{modelType},
+            model_family = #{modelFamily},
+            version = #{version},
+            display_name = #{displayName},
+            tagline = #{tagline},
+            description = #{description},
+            logo_url = #{logoUrl},
+            cover_url = #{coverUrl},
+            tags_json = #{tagsJson},
+            use_cases_json = #{useCasesJson},
+            capabilities_json = #{capabilitiesJson},
+            context_window = #{contextWindow},
+            max_output_tokens = #{maxOutputTokens},
+            input_modalities_json = #{inputModalitiesJson},
+            output_modalities_json = #{outputModalitiesJson},
+            languages_json = #{languagesJson},
+            default_params_json = #{defaultParamsJson},
+            param_schema_json = #{paramSchemaJson},
+            safety_policy_json = #{safetyPolicyJson},
+            visibility = #{visibility},
+            publish_status = #{publishStatus},
+            status = #{status},
+            sort_order = #{sortOrder},
+            featured = #{featured},
+            owner_user_id = #{ownerUserId},
+            owner_team = #{ownerTeam},
+            quality_level = #{qualityLevel},
+            latency_level = #{latencyLevel},
+            cost_level = #{costLevel},
+            pricing_summary = #{pricingSummary},
+            remark = #{remark}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from logical_models
+        where id = #{id}
+    </delete>
+
+    <select id="listMappings" resultType="org.chobit.knot.gateway.entity.ProviderModelMappingEntity">
+        select <include refid="MappingColumns"/>
+        from provider_model_mappings pm
+        left join logical_models lm on pm.logical_model_id = lm.id
+        left join providers p on pm.provider_id = p.id
+        left join models m on pm.model_id = m.id
+        where pm.logical_model_id = #{logicalModelId}
+        order by pm.priority asc, pm.id asc
+    </select>
+
+    <select id="listMappingsByModelId" resultType="org.chobit.knot.gateway.entity.ProviderModelMappingEntity">
+        select <include refid="MappingColumns"/>
+        from provider_model_mappings pm
+        left join logical_models lm on pm.logical_model_id = lm.id
+        left join providers p on pm.provider_id = p.id
+        left join models m on pm.model_id = m.id
+        where pm.model_id = #{modelId}
+        order by pm.priority asc, pm.id asc
+    </select>
+
+    <select id="getMappingById" resultType="org.chobit.knot.gateway.entity.ProviderModelMappingEntity">
+        select <include refid="MappingColumns"/>
+        from provider_model_mappings pm
+        left join logical_models lm on pm.logical_model_id = lm.id
+        left join providers p on pm.provider_id = p.id
+        left join models m on pm.model_id = m.id
+        where pm.id = #{id}
+    </select>
+
+    <insert id="insertMapping" useGeneratedKeys="true" keyProperty="id">
+        insert into provider_model_mappings(
+            logical_model_id, provider_id, model_id, provider_model_name, status, priority
+        ) values (
+            #{logicalModelId}, #{providerId}, #{modelId}, #{providerModelName}, #{status}, #{priority}
+        )
+    </insert>
+
+    <update id="updateMapping">
+        update provider_model_mappings
+        set provider_id = #{providerId},
+            model_id = #{modelId},
+            provider_model_name = #{providerModelName},
+            status = #{status},
+            priority = #{priority}
+        where id = #{id}
+          and logical_model_id = #{logicalModelId}
+    </update>
+
+    <delete id="deleteMappingsByLogicalModelId">
+        delete from provider_model_mappings
+        where logical_model_id = #{logicalModelId}
+    </delete>
+
+    <delete id="deleteMappingsByModelId">
+        delete from provider_model_mappings
+        where model_id = #{modelId}
+    </delete>
+
+    <delete id="deleteMapping">
+        delete from provider_model_mappings
+        where id = #{mappingId}
+          and logical_model_id = #{logicalModelId}
+    </delete>
+
+</mapper>

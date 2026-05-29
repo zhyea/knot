@@ -37,6 +37,13 @@
         left join users u on a.owner_user_id = u.id and u.is_deleted = 0
 
         where a.is_deleted = 0
+        <if test="keyword != null and keyword != ''">
+            and (
+                a.app_id like concat('%', #{keyword}, '%')
+                or a.name like concat('%', #{keyword}, '%')
+                or u.real_name like concat('%', #{keyword}, '%')
+            )
+        </if>
 
         order by a.id desc
 
@@ -117,38 +124,6 @@
     <select id="countModelPermissionsByAppId" resultType="java.lang.Long">
 
         select count(1) from app_model_permissions where app_id = #{appId}
-
-    </select>
-
-
-
-    <select id="countBillingStatementsByAppId" resultType="java.lang.Long">
-
-        select count(1) from billing_statements where app_id = #{appId}
-
-    </select>
-
-
-
-    <select id="countRequestsByAppId" resultType="java.lang.Long">
-
-        select count(1) from gateway_requests where app_id = #{appId}
-
-    </select>
-
-
-
-    <select id="countSuccessByAppId" resultType="java.lang.Long">
-
-        select count(1) from gateway_requests where app_id = #{appId} and status = 'SUCCESS'
-
-    </select>
-
-
-
-    <select id="sumTokensByAppId" resultType="java.lang.Long">
-
-        select coalesce(sum(total_tokens), 0) from gateway_requests where app_id = #{appId}
 
     </select>
 

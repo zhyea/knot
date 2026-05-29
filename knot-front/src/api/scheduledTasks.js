@@ -19,7 +19,3 @@ export function triggerScheduledTask(id) {
 export function listScheduledTaskRuns(params) {
   return postQuery("/api/system/scheduled-tasks/runs", params);
 }
-
-export function listScheduledTaskHandlers() {
-  return postQuery("/api/system/scheduled-tasks/handlers");
-}

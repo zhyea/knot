@@ -11,5 +11,8 @@ public class RoutingConsumerEntity {
     private String userRealName;
     private String userUsername;
     private String secretKey;
+    private Boolean returnUsageDetail;
+    private Long rateLimitPolicyId;
+    private Long quotaPolicyId;
     private String status;
 }

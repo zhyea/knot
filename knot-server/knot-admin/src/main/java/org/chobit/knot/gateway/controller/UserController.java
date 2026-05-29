@@ -25,7 +25,10 @@ public class UserController {
 
     @PostMapping
     public PageResult<UserItem> list(@RequestBody(required = false) PageQuery query) {
-        PageResult<UserDto> page = userService.listUsers(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
+        PageResult<UserDto> page = userService.listUsers(
+                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                query == null ? null : query.keyword()
+        );
         return page.mapList(userConverter::toVOList);
     }
 

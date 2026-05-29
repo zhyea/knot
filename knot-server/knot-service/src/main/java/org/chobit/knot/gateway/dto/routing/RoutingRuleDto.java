@@ -17,9 +17,8 @@ public record RoutingRuleDto(
         String appName,
         Long userId,
         String userName,
-        String strategy,
         boolean enabled,
-        List<RoutingRuleModelDto> models,
+        List<RoutingRuleTargetDto> targets,
         RateLimitPolicy rateLimitPolicy,
         QuotaPolicy quotaPolicy
 ) {

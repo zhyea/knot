@@ -40,7 +40,11 @@ public class ModelController {
 
     @PostMapping("/list")
     public PageResult<ModelItem> list(@RequestBody(required = false) PageQuery query) {
-        PageResult<ModelDto> page = modelService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
+        PageResult<ModelDto> page = modelService.list(
+                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                query == null ? null : query.keyword(),
+                query == null ? null : query.modelTypes()
+        );
         return page.mapList(modelConverter::toVOList);
     }
 

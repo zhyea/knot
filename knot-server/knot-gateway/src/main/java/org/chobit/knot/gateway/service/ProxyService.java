@@ -38,20 +38,20 @@ public class ProxyService {
     public ProxyResult proxy(Map<String, Object> requestBody, RateLimitService.AppContext appContext) {
         String modelCode = (String) requestBody.get("model");
         if (modelCode == null || modelCode.isBlank()) {
-            return new ProxyResult(null, null, null, null, null, "MISSING_MODEL", "model is required");
+            return new ProxyResult(null, null, null, "MISSING_MODEL", "model is required");
         }
 
         // 查找 Model 配置
         ModelEntity model = findModelByCode(modelCode);
         if (model == null) {
-            return new ProxyResult(null, null, null, null, null, "MODEL_NOT_FOUND",
+            return new ProxyResult(null, null, null, "MODEL_NOT_FOUND",
                     "model not found: " + modelCode);
         }
 
         // 查找 Provider 配置
         ProviderEntity provider = providerMapper.getById(model.getProviderId());
         if (provider == null) {
-            return new ProxyResult(null, null, model.getId(), model.getProviderId(), null,
+            return new ProxyResult(null, null, model.getId(),
                     "PROVIDER_NOT_FOUND", "provider not found for model: " + modelCode);
         }
 
@@ -66,18 +66,16 @@ public class ProxyService {
                     .retrieve()
                     .body(String.class);
 
-            return new ProxyResult(responseBody, provider.getId(), model.getId(),
-                    provider.getId(), null, null, null);
+            return new ProxyResult(responseBody, provider.getId(), model.getId(), null, null);
         } catch (Exception e) {
-            return new ProxyResult(null, provider.getId(), model.getId(),
-                    provider.getId(), null, "UPSTREAM_ERROR", e.getMessage());
+            return new ProxyResult(null, provider.getId(), model.getId(), "UPSTREAM_ERROR", e.getMessage());
         }
     }
 
     private ModelEntity findModelByCode(String modelCode) {
         // 遍历所有 model 查找匹配的 modelCode
         // TODO: 后续可在 Mapper 中增加 getByModelCode 方法优化
-        return modelMapper.list().stream()
+        return modelMapper.list(null, null).stream()
                 .filter(m -> modelCode.equals(m.getModelCode()))
                 .findFirst()
                 .orElse(null);
@@ -87,7 +85,6 @@ public class ProxyService {
      * 代理转发结果
      */
     public record ProxyResult(String responseBody, Long providerId, Long modelId,
-                              Long appId, Long billingRuleId,
                               String errorCode, String errorMessage) {
     }
 }

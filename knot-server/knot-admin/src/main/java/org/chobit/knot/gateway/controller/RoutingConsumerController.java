@@ -25,7 +25,10 @@ public class RoutingConsumerController {
     @PostMapping("/list")
     public PageResult<RoutingConsumer> list(@RequestBody(required = false) PageQuery query) {
         PageResult<RoutingConsumerDto> page =
-                routingConsumerService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
+                routingConsumerService.list(
+                        query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                        query == null ? null : query.keyword()
+                );
         return page.map(this::toVO);
     }
 
@@ -73,14 +76,16 @@ public class RoutingConsumerController {
     private RoutingConsumer toVO(RoutingConsumerDto dto) {
         return new RoutingConsumer(
                 dto.id(), dto.consumerCode(), dto.name(), dto.userId(), dto.userName(),
-                dto.secretKey(), dto.enabled(), dto.ruleCount()
+                dto.secretKey(), dto.returnUsageDetail(), dto.enabled(), dto.ruleCount(),
+                dto.rateLimitPolicy(), dto.quotaPolicy()
         );
     }
 
     private RoutingConsumerDto toDto(RoutingConsumer vo) {
         return new RoutingConsumerDto(
                 vo.id(), vo.consumerCode(), vo.name(), vo.userId(), vo.userName(),
-                vo.secretKey(), vo.enabled(), vo.ruleCount()
+                vo.secretKey(), vo.returnUsageDetail(), vo.enabled(), vo.ruleCount(),
+                vo.rateLimitPolicy(), vo.quotaPolicy()
         );
     }
 }

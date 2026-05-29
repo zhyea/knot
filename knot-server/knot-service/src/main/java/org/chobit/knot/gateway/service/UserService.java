@@ -51,9 +51,18 @@ public class UserService {
     }
 
     public PageResult<UserDto> listUsers(PageRequest pageRequest) {
+        return listUsers(pageRequest, null);
+    }
+
+    public PageResult<UserDto> listUsers(PageRequest pageRequest, String keyword) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<UserEntity> pageInfo = new PageInfo<>(userMapper.listUsers());
+        PageInfo<UserEntity> pageInfo = new PageInfo<>(userMapper.listUsers(normalizeKeyword(keyword)));
         return PageResult.fromPage(pageInfo, userConverter::toDtoList, pageRequest);
+    }
+
+    private static String normalizeKeyword(String keyword) {
+        String value = keyword != null ? keyword.trim() : "";
+        return value.isEmpty() ? null : value;
     }
 
     /**

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.ModelPoolMapper">
+
+    <sql id="PoolSelectColumns">
+        id, pool_code, name, model_type, selection_strategy, status, remark
+    </sql>
+
+    <select id="list" resultType="org.chobit.knot.gateway.entity.ModelPoolEntity">
+        select <include refid="PoolSelectColumns"/>
+        from model_pools
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    pool_code like concat('%', #{keyword}, '%')
+                    or name like concat('%', #{keyword}, '%')
+                    or remark like concat('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="modelTypes != null and modelTypes.size() > 0">
+                and model_type in
+                <foreach collection="modelTypes" item="type" open="(" separator="," close=")">
+                    #{type}
+                </foreach>
+            </if>
+        </where>
+        order by id desc
+    </select>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.ModelPoolEntity">
+        select <include refid="PoolSelectColumns"/>
+        from model_pools
+        where id = #{id}
+    </select>
+
+    <select id="getByCode" resultType="org.chobit.knot.gateway.entity.ModelPoolEntity">
+        select <include refid="PoolSelectColumns"/>
+        from model_pools
+        where pool_code = #{poolCode}
+    </select>
+
+    <select id="countByPoolCode" resultType="java.lang.Long">
+        select count(1) from model_pools where pool_code = #{poolCode}
+        <if test="excludeId != null">
+            and id != #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into model_pools(pool_code, name, model_type, selection_strategy, status, remark)
+        values(#{poolCode}, #{name}, #{modelType}, #{selectionStrategy}, #{status}, #{remark})
+    </insert>
+
+    <update id="update">
+        update model_pools
+        set pool_code = #{poolCode},
+            name = #{name},
+            model_type = #{modelType},
+            selection_strategy = #{selectionStrategy},
+            status = #{status},
+            remark = #{remark}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from model_pools where id = #{id}
+    </delete>
+
+    <select id="listItemsByPoolId" resultType="org.chobit.knot.gateway.entity.ModelPoolItemEntity">
+        select mpi.id,
+               mpi.pool_id,
+               mpi.model_id,
+               mpi.weight,
+               mpi.priority,
+               mpi.status,
+               m.model_code,
+               m.name as model_name,
+               m.model_type,
+               m.provider_id,
+               p.name as provider_name
+        from model_pool_items mpi
+        inner join models m on mpi.model_id = m.id
+        left join providers p on m.provider_id = p.id
+        where mpi.pool_id = #{poolId}
+        order by mpi.priority asc, mpi.id asc
+    </select>
+
+    <delete id="deleteItemsByPoolId">
+        delete from model_pool_items where pool_id = #{poolId}
+    </delete>
+
+    <insert id="insertItem" useGeneratedKeys="true" keyProperty="id">
+        insert into model_pool_items(pool_id, model_id, weight, priority, status)
+        values(#{poolId}, #{modelId}, #{weight}, #{priority}, #{status})
+    </insert>
+
+</mapper>

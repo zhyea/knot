@@ -60,3 +60,7 @@ export function listAppOperationLogs(appId) {
 export function listRoutingRuleOperationLogs(ruleId) {
   return getOperationLogsByEntity("RoutingRule", ruleId, { params: { module: "routing" } });
 }
+
+export function listBillingRuleOperationLogs(ruleId) {
+  return getOperationLogsByEntity("BillingRule", ruleId, { params: { module: "billing" } });
+}

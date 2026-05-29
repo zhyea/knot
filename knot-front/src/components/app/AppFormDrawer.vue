@@ -20,20 +20,15 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="负责人">
-              <el-select
+              <RemoteEntitySelect
                   v-model="form.ownerUserId"
+                  :load-function="listUsers"
+                  :label-function="userLabel"
+                  :selected-options="selectedOwnerOptions"
                   placeholder="请选择负责人"
                   clearable
-                  filterable
                   style="width: 100%"
-              >
-                <el-option
-                    v-for="user in userOptions"
-                    :key="user.id"
-                    :label="userLabel(user)"
-                    :value="user.id"
-                />
-              </el-select>
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -64,6 +59,7 @@
 import {computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import KvEditor from "../common/KvEditor.vue";
+import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import {
   emptyQuotaPolicy,
   emptyRateLimitPolicy,
@@ -96,6 +92,11 @@ const form = reactive({
 });
 
 const isEdit = computed(() => props.app != null);
+const selectedOwnerOptions = computed(() => {
+  if (!form.ownerUserId) return [];
+  const user = userOptions.value.find((item) => item.id === form.ownerUserId);
+  return user ? [user] : [{ id: form.ownerUserId, realName: props.app?.ownerName }];
+});
 
 function userLabel(user) {
   const name = user.realName?.trim() || user.username;
@@ -103,7 +104,7 @@ function userLabel(user) {
 }
 
 async function loadUsers() {
-  const data = await listUsers({pageNum: 1, pageSize: 500});
+  const data = await listUsers({pageNum: 1, pageSize: 10});
   userOptions.value = Array.isArray(data?.list) ? data.list : Array.isArray(data) ? data : [];
 }
 

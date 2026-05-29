@@ -3,14 +3,30 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.ModelMapper">
 
     <sql id="ModelSelectColumns">
-        m.id, m.provider_id, m.model_code, m.name, m.model_type, m.version, m.status,
-        p.name AS provider_name
+        m.id, m.provider_id, m.model_code, m.name, m.model_type, m.version, m.billing_rule_id, m.status,
+        p.name AS provider_name, br.name AS billing_rule_name
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.ModelEntity">
         select <include refid="ModelSelectColumns"/>
         from models m
         left join providers p on m.provider_id = p.id
+        left join billing_rules br on m.billing_rule_id = br.id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    m.model_code like concat('%', #{keyword}, '%')
+                    or m.name like concat('%', #{keyword}, '%')
+                    or p.name like concat('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="modelTypes != null and modelTypes.size() > 0">
+                and m.model_type in
+                <foreach collection="modelTypes" item="type" open="(" separator="," close=")">
+                    #{type}
+                </foreach>
+            </if>
+        </where>
         order by m.id desc
     </select>
 
@@ -18,12 +34,13 @@
         select <include refid="ModelSelectColumns"/>
         from models m
         left join providers p on m.provider_id = p.id
+        left join billing_rules br on m.billing_rule_id = br.id
         where m.id = #{id}
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into models(provider_id, model_code, name, model_type, version, status)
-        values(#{providerId}, #{modelCode}, #{name}, #{modelType}, #{version}, #{status})
+        insert into models(provider_id, model_code, name, model_type, version, billing_rule_id, status)
+        values(#{providerId}, #{modelCode}, #{name}, #{modelType}, #{version}, #{billingRuleId}, #{status})
     </insert>
 
     <update id="update">
@@ -33,6 +50,7 @@
             name = #{name},
             model_type = #{modelType},
             version = #{version},
+            billing_rule_id = #{billingRuleId},
             status = #{status}
         where id = #{id}
     </update>

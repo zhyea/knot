@@ -2,6 +2,8 @@ package org.chobit.knot.gateway.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+import java.util.List;
+
 /**
  * 通用 POST 分页查询请求体
  * <p>
@@ -12,7 +14,11 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public record PageQuery(
         Integer pageNum,
         Integer pageSize,
-        String category
+        String category,
+        String keyword,
+        List<String> modelTypes,
+        Long providerId,
+        Long logicalModelId
 ) {
     public PageRequest toPageRequest() {
         return PageRequest.of(pageNum, pageSize);

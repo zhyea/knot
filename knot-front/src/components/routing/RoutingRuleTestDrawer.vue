@@ -26,9 +26,9 @@
         >
           <el-option
             v-for="m in modelOptions"
-            :key="m.modelId"
+            :key="`${m.targetType}:${m.targetId}`"
             :label="modelLabel(m)"
-            :value="m.modelCode"
+            :value="m.targetCode"
           />
         </el-select>
       </el-form-item>
@@ -94,7 +94,7 @@ const props = defineProps({
   ruleId: { type: Number, default: null },
   ruleName: { type: String, default: "" },
   secretKey: { type: String, default: "" },
-  models: { type: Array, default: () => [] }
+  targets: { type: Array, default: () => [] }
 });
 
 const emit = defineEmits(["update:modelValue"]);
@@ -114,8 +114,8 @@ const drawerTitle = computed(() => {
 });
 
 const modelOptions = computed(() => {
-  const list = Array.isArray(props.models) ? props.models : [];
-  return list.filter((m) => m.modelCode);
+  const list = Array.isArray(props.targets) ? props.targets : [];
+  return list.filter((m) => m.targetCode);
 });
 
 const resolvedModel = computed(() => {
@@ -123,7 +123,7 @@ const resolvedModel = computed(() => {
     return testForm.model.trim();
   }
   const primary = modelOptions.value.find((m) => m.primary) || modelOptions.value[0];
-  return primary?.modelCode || "model-name";
+  return primary?.targetCode || "model-name";
 });
 
 const curlPreview = computed(() => buildCurlCommand());
@@ -148,14 +148,15 @@ watch(
       testForm.secretKey = props.secretKey || "";
       testForm.prompt = "你好，这是一条路由规则测试消息";
       const primary = modelOptions.value.find((m) => m.primary) || modelOptions.value[0];
-      testForm.model = primary?.modelCode || "";
+      testForm.model = primary?.targetCode || "";
     }
   }
 );
 
 function modelLabel(m) {
-  const name = m.modelName || m.modelCode || `#${m.modelId}`;
-  return m.primary ? `${name}（主）` : name;
+  const type = m.targetType === "MODEL_POOL" ? "模型池" : "模型";
+  const name = m.targetName || m.targetCode || `#${m.targetId}`;
+  return m.primary ? `${type}：${name}（主）` : `${type}：${name}`;
 }
 
 function onClosed() {

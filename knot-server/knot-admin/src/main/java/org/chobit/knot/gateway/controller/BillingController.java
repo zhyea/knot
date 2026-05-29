@@ -5,7 +5,6 @@ import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.BillingConverter;
-import org.chobit.knot.gateway.dto.billing.BillingDetailDto;
 import org.chobit.knot.gateway.dto.billing.BillingRuleDto;
 import org.chobit.knot.gateway.dto.billing.ReconciliationResultDto;
 import org.chobit.knot.gateway.service.BillingService;
@@ -26,7 +25,12 @@ public class BillingController {
 
     @PostMapping("/rules")
     public PageResult<BillingRule> listRules(@RequestBody(required = false) PageQuery query) {
-        PageResult<BillingRuleDto> page = billingService.listRules(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
+        PageResult<BillingRuleDto> page = billingService.listRules(
+                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                query == null ? null : query.keyword(),
+                query == null ? null : query.providerId(),
+                query == null ? null : query.logicalModelId()
+        );
         return page.mapList(billingConverter::toRuleVOList);
     }
 
@@ -56,15 +60,14 @@ public class BillingController {
         return billingConverter.toRuleVO(updated);
     }
 
-    @PostMapping("/summary")
-    public BillingSummary summary() {
-        return billingConverter.toSummaryVO(billingService.summary());
-    }
-
-    @PostMapping("/details")
-    public PageResult<BillingDetail> details(@RequestBody(required = false) PageQuery query) {
-        PageResult<BillingDetailDto> page = billingService.details(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
-        return page.mapList(billingConverter::toDetailVOList);
+    @OperationLog(module = "billing", operation = "DELETE", entityType = "BillingRule",
+            entityId = "#p0",
+            description = "'删除计费规则'",
+            recordOldValue = true,
+            oldValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)")
+    @DeleteMapping("/rules/{id}")
+    public void deleteRule(@PathVariable Long id) {
+        billingService.deleteRule(id);
     }
 
     @PostMapping("/reconciliation")

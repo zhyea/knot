@@ -2,6 +2,8 @@ package org.chobit.knot.gateway.vo.routing;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.chobit.knot.gateway.model.QuotaPolicy;
+import org.chobit.knot.gateway.model.RateLimitPolicy;
 
 public record RoutingConsumer(
         Long id,
@@ -10,7 +12,10 @@ public record RoutingConsumer(
         Long userId,
         String userName,
         String secretKey,
+        boolean returnUsageDetail,
         boolean enabled,
-        Long ruleCount
+        Long ruleCount,
+        RateLimitPolicy rateLimitPolicy,
+        QuotaPolicy quotaPolicy
 ) {
 }

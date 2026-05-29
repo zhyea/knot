@@ -2,13 +2,14 @@ package org.chobit.knot.gateway.mapper;
 
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
 @Mapper
 public interface ModelMapper {
 
-    List<ModelEntity> list();
+    List<ModelEntity> list(@Param("keyword") String keyword, @Param("modelTypes") List<String> modelTypes);
 
     ModelEntity getById(Long id);
 
@@ -16,6 +17,6 @@ public interface ModelMapper {
 
     int update(ModelEntity entity);
 
-    Long countByModelCode(@org.apache.ibatis.annotations.Param("modelCode") String modelCode,
-                          @org.apache.ibatis.annotations.Param("excludeId") Long excludeId);
+    Long countByModelCode(@Param("modelCode") String modelCode,
+                          @Param("excludeId") Long excludeId);
 }

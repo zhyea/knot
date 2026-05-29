@@ -1,163 +1,56 @@
-﻿<template>
-  <PageSection title="模型管理">
-    <div class="toolbar">
-      <el-button type="primary" @click="openCreate">新建模型</el-button>
-      <el-button @click="load">刷新</el-button>
-    </div>
-    <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
-      <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
-      <el-table-column prop="modelCode" label="模型编码" min-width="140" show-overflow-tooltip />
-      <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip />
-      <el-table-column label="供应商" min-width="120" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ row.providerName || (row.providerId != null ? `#${row.providerId}` : "—") }}
-        </template>
-      </el-table-column>
-      <el-table-column label="类型" min-width="100">
-        <template #default="{ row }">
-          {{ modelTypeLabel(row.modelType) }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="version" label="版本" min-width="110" show-overflow-tooltip />
-      <el-table-column label="启用" width="88" align="center">
-        <template #default="{ row }">
-          <el-switch
-            :model-value="row.enabled !== false"
-            :loading="togglingId === row.id"
-            inline-prompt
-            active-text="启用"
-            inactive-text="禁用"
-            @change="(val) => onEnabledChange(row, val)"
-          />
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="150" align="center" header-align="center" fixed="right">
-        <template #default="{ row }">
-          <RowActions
-            :actions="[
-              { key: 'edit', label: '编辑', icon: Edit },
-              { key: 'test', label: '测试', icon: VideoPlay },
-              { key: 'switch', label: '切版本', icon: RefreshRight },
-              { key: 'log', label: '日志', icon: Document }
-            ]"
-            @action="(action) => handleAction(action, row)"
-          />
-        </template>
-      </el-table-column>
-    </el-table>
-    <div class="pagination-wrap">
-      <el-pagination
-        background
-        layout="total, sizes, prev, pager, next"
-        :total="total"
-        :page-size="pageSize"
-        :current-page="pageNum"
-        :page-sizes="[10, 20, 50]"
-        @current-change="onPageChange"
-        @size-change="onSizeChange"
-      />
-    </div>
+<template>
+  <PageSection title="供应商模型">
+    <ModelListPanel
+      :rows="rows"
+      :loading="loading"
+      :total="total"
+      :page-num="pageNum"
+      :page-size="pageSize"
+      @create="openCreate"
+      @refresh="load"
+      @edit="openEdit"
+      @test="openTest"
+      @switch="openSwitch"
+      @log="openChangeLog"
+      @page-change="onPageChange"
+      @size-change="onSizeChange"
+      @changed="load"
+    />
 
-    <ModelFormDrawer v-model="formVisible" :model="editingModel" @saved="onFormSaved" />
-
+    <ModelFormDrawer v-model="formVisible" :model="editingModel" @saved="resetPage" />
+    <ModelTestDialog v-model="testDlg" :model-id="testingModelId" />
+    <ModelVersionSwitchDialog v-model="switchDlg" :model="switchingModel" @switched="resetPage" />
     <OperationLogDrawer
       v-model="logDrawer"
       :title="`模型变更日志 — ${logModelName || ''}`"
       :load-logs="loadModelOperationLogs"
     />
-
-    <el-dialog v-model="testDlg" title="模型联调测试" width="480px" destroy-on-close>
-      <el-form label-width="90px">
-        <el-form-item label="Prompt">
-          <el-input v-model="testForm.prompt" type="textarea" :rows="4" />
-        </el-form-item>
-        <el-form-item label="温度">
-          <el-input-number v-model="testForm.temperature" :step="0.1" :min="0" :max="2" />
-        </el-form-item>
-        <el-form-item label="Max tokens">
-          <el-input-number v-model="testForm.maxTokens" :min="1" />
-        </el-form-item>
-      </el-form>
-      <el-alert v-if="testResult" type="success" :closable="false" class="mt">
-        <template #title>输出（演示）</template>
-        <div>{{ testResult.output }}</div>
-        <div class="sub">延迟 {{ testResult.latencyMs }} ms · token {{ testResult.tokenUsage }}</div>
-      </el-alert>
-      <template #footer>
-        <el-button @click="testDlg = false">关闭</el-button>
-        <el-button type="primary" :loading="testLoading" @click="runTest">发送</el-button>
-      </template>
-    </el-dialog>
-
-    <el-dialog v-model="swDlg" title="切换活跃版本" width="400px" destroy-on-close>
-      <el-form label-width="100px">
-        <el-form-item label="目标版本">
-          <el-input v-model="swVersion" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="swDlg = false">取消</el-button>
-        <el-button type="primary" :loading="swLoading" @click="runSwitch">确定</el-button>
-      </template>
-    </el-dialog>
   </PageSection>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from "vue";
-import { ElMessage } from "element-plus";
-import { Document, Edit, RefreshRight, VideoPlay } from "@element-plus/icons-vue";
+import { onMounted, ref } from "vue";
 import PageSection from "../components/common/PageSection.vue";
-import RowActions from "../components/common/RowActions.vue";
-import ModelFormDrawer from "../components/model/ModelFormDrawer.vue";
 import OperationLogDrawer from "../components/common/OperationLogDrawer.vue";
+import ModelFormDrawer from "../components/model/ModelFormDrawer.vue";
+import ModelListPanel from "../components/model/ModelListPanel.vue";
+import ModelTestDialog from "../components/model/ModelTestDialog.vue";
+import ModelVersionSwitchDialog from "../components/model/ModelVersionSwitchDialog.vue";
+import { listModels } from "../api/models";
 import { listModelOperationLogs } from "../api/operationLogs";
 import { usePageList } from "../composables/usePageList";
-import { useEnabledToggle } from "../composables/useEnabledToggle";
-import { useEnums } from "../composables/useEnums";
-import { listModels, updateModel, testModel, switchModelVersion } from "../api/models";
 
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(listModels);
-
-const { options: modelTypeOptions, loadOptions: loadModelTypes } = useEnums("model_type");
-
-function modelTypeLabel(code) {
-  if (!code) return "—";
-  const item = modelTypeOptions.value.find((i) => i.itemCode === code);
-  return item?.itemLabel || code;
-}
-
-const { togglingId, onEnabledChange } = useEnabledToggle({
-  updateApi: updateModel,
-  buildPayload: (row, enabled) => ({
-    name: row.name,
-    providerId: row.providerId,
-    modelType: row.modelType,
-    version: row.version,
-    enabled,
-    rateLimitPolicy: row.rateLimitPolicy ?? null,
-    quotaPolicy: row.quotaPolicy ?? null
-  })
-});
+const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } = usePageList(listModels);
 
 const formVisible = ref(false);
 const editingModel = ref(null);
-
+const testDlg = ref(false);
+const testingModelId = ref(null);
+const switchDlg = ref(false);
+const switchingModel = ref(null);
 const logDrawer = ref(false);
 const logModelId = ref(null);
 const logModelName = ref("");
-
-const testDlg = ref(false);
-const testLoading = ref(false);
-const testId = ref(null);
-const testForm = reactive({ prompt: "hello", temperature: 0.7, maxTokens: 256 });
-const testResult = ref(null);
-
-const swDlg = ref(false);
-const swLoading = ref(false);
-const swId = ref(null);
-const swVersion = ref("");
 
 function openCreate() {
   editingModel.value = null;
@@ -169,15 +62,14 @@ function openEdit(row) {
   formVisible.value = true;
 }
 
-function handleAction(action, row) {
-  if (action === "edit") openEdit(row);
-  if (action === "test") openTest(row);
-  if (action === "switch") openSwitch(row);
-  if (action === "log") openChangeLog(row);
+function openTest(row) {
+  testingModelId.value = row.id;
+  testDlg.value = true;
 }
 
-function onFormSaved() {
-  resetPage();
+function openSwitch(row) {
+  switchingModel.value = row;
+  switchDlg.value = true;
 }
 
 function openChangeLog(row) {
@@ -190,61 +82,7 @@ function loadModelOperationLogs() {
   return listModelOperationLogs(logModelId.value);
 }
 
-function openTest(row) {
-  testId.value = row.id;
-  testResult.value = null;
-  testDlg.value = true;
-}
-
-async function runTest() {
-  testLoading.value = true;
-  try {
-    testResult.value = await testModel(testId.value, {
-      prompt: testForm.prompt,
-      temperature: testForm.temperature,
-      maxTokens: testForm.maxTokens
-    });
-  } finally {
-    testLoading.value = false;
-  }
-}
-
-function openSwitch(row) {
-  swId.value = row.id;
-  swVersion.value = row.version || "";
-  swDlg.value = true;
-}
-
-async function runSwitch() {
-  if (!swVersion.value?.trim()) {
-    ElMessage.warning("请填写版本号");
-    return;
-  }
-  swLoading.value = true;
-  try {
-    await switchModelVersion(swId.value, { targetVersion: swVersion.value.trim() });
-    ElMessage.success("已切换");
-    swDlg.value = false;
-    await resetPage();
-  } finally {
-    swLoading.value = false;
-  }
-}
-
 onMounted(() => {
-  loadModelTypes();
   load();
 });
 </script>
-
-<style scoped>
-.mt {
-  margin-top: 12px;
-}
-
-.sub {
-  margin-top: 6px;
-  font-size: 12px;
-  color: #606266;
-}
-</style>
