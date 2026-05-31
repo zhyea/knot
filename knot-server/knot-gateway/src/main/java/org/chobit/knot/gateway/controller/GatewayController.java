@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.model.GatewayResponse;
-import org.chobit.knot.gateway.service.GatewayRequestService;
+import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
 import org.chobit.knot.gateway.vo.request.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,16 +14,16 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class GatewayController {
 
-    private final GatewayRequestService gatewayRequestService;
+    private final GatewayRequestHandler requestHandler;
 
     /**
      * Executes the public operation. Executes the public operation.
      */
     @PostMapping("/chat/completions")
     public ResponseEntity<?> chatCompletions(
-            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(GatewayHeaders.RULE) String rule,
-            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.AUTHORIZATION, required = true) String authorization,
+            @RequestHeader(value = GatewayHeaders.RULE, required = true) String rule,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = true) String traceparent,
             @RequestBody ChatCompletionRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.CHAT_COMPLETIONS);
     }
@@ -33,9 +33,9 @@ public class GatewayController {
      */
     @PostMapping("/responses")
     public ResponseEntity<?> responses(
-            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(GatewayHeaders.RULE) String rule,
-            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.AUTHORIZATION, required = true) String authorization,
+            @RequestHeader(value = GatewayHeaders.RULE, required = true) String rule,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = true) String traceparent,
             @RequestBody ResponseRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.RESPONSES);
     }
@@ -45,9 +45,9 @@ public class GatewayController {
      */
     @PostMapping("/messages")
     public ResponseEntity<?> messages(
-            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(GatewayHeaders.RULE) String rule,
-            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.AUTHORIZATION, required = true) String authorization,
+            @RequestHeader(value = GatewayHeaders.RULE, required = true) String rule,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = true) String traceparent,
             @RequestBody MessageRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.MESSAGES);
     }
@@ -57,9 +57,9 @@ public class GatewayController {
      */
     @PostMapping("/completions")
     public ResponseEntity<?> completions(
-            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(GatewayHeaders.RULE) String rule,
-            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.AUTHORIZATION, required = true) String authorization,
+            @RequestHeader(value = GatewayHeaders.RULE, required = true) String rule,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = true) String traceparent,
             @RequestBody CompletionRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.COMPLETIONS);
     }
@@ -69,9 +69,9 @@ public class GatewayController {
      */
     @PostMapping("/embeddings")
     public ResponseEntity<?> embeddings(
-            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(GatewayHeaders.RULE) String rule,
-            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.AUTHORIZATION, required = true) String authorization,
+            @RequestHeader(value = GatewayHeaders.RULE, required = true) String rule,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = true) String traceparent,
             @RequestBody EmbeddingRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.EMBEDDINGS);
     }
@@ -81,9 +81,9 @@ public class GatewayController {
      */
     @PostMapping("/images/generations")
     public ResponseEntity<?> imageGenerations(
-            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(GatewayHeaders.RULE) String rule,
-            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.AUTHORIZATION, required = true) String authorization,
+            @RequestHeader(value = GatewayHeaders.RULE, required = true) String rule,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = true) String traceparent,
             @RequestBody ImageGenerationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.IMAGE_GENERATIONS);
     }
@@ -93,9 +93,9 @@ public class GatewayController {
      */
     @PostMapping("/images/edits")
     public ResponseEntity<?> imageEdits(
-            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(GatewayHeaders.RULE) String rule,
-            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.AUTHORIZATION, required = true) String authorization,
+            @RequestHeader(value = GatewayHeaders.RULE, required = true) String rule,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = true) String traceparent,
             @RequestBody ImageEditRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.IMAGE_EDITS);
     }
@@ -105,9 +105,9 @@ public class GatewayController {
      */
     @PostMapping("/audio/transcriptions")
     public ResponseEntity<?> audioTranscriptions(
-            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(GatewayHeaders.RULE) String rule,
-            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.AUTHORIZATION, required = true) String authorization,
+            @RequestHeader(value = GatewayHeaders.RULE, required = true) String rule,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = true) String traceparent,
             @RequestBody AudioTranscriptionRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS);
     }
@@ -117,9 +117,9 @@ public class GatewayController {
      */
     @PostMapping("/audio/translations")
     public ResponseEntity<?> audioTranslations(
-            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(GatewayHeaders.RULE) String rule,
-            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.AUTHORIZATION, required = true) String authorization,
+            @RequestHeader(value = GatewayHeaders.RULE, required = true) String rule,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = true) String traceparent,
             @RequestBody AudioTranslationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.AUDIO_TRANSLATIONS);
     }
@@ -129,9 +129,9 @@ public class GatewayController {
      */
     @PostMapping("/audio/speech")
     public ResponseEntity<?> audioSpeech(
-            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(GatewayHeaders.RULE) String rule,
-            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.AUTHORIZATION, required = true) String authorization,
+            @RequestHeader(value = GatewayHeaders.RULE, required = true) String rule,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = true) String traceparent,
             @RequestBody AudioSpeechRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.AUDIO_SPEECH);
     }
@@ -141,9 +141,9 @@ public class GatewayController {
      */
     @PostMapping("/videos/generations")
     public ResponseEntity<?> videoGenerations(
-            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(GatewayHeaders.RULE) String rule,
-            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.AUTHORIZATION, required = true) String authorization,
+            @RequestHeader(value = GatewayHeaders.RULE, required = true) String rule,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = true) String traceparent,
             @RequestBody VideoGenerationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.VIDEO_GENERATIONS);
     }
@@ -153,9 +153,9 @@ public class GatewayController {
      */
     @PostMapping("/rerank")
     public ResponseEntity<?> rerank(
-            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(GatewayHeaders.RULE) String rule,
-            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.AUTHORIZATION, required = true) String authorization,
+            @RequestHeader(value = GatewayHeaders.RULE, required = true) String rule,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = true) String traceparent,
             @RequestBody RerankRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.RERANK);
     }
@@ -165,9 +165,9 @@ public class GatewayController {
      */
     @PostMapping("/moderations")
     public ResponseEntity<?> moderations(
-            @RequestHeader(GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(GatewayHeaders.RULE) String rule,
-            @RequestHeader(GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.AUTHORIZATION, required = true) String authorization,
+            @RequestHeader(value = GatewayHeaders.RULE, required = true) String rule,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = true) String traceparent,
             @RequestBody ModerationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.MODERATIONS);
     }
@@ -178,7 +178,7 @@ public class GatewayController {
                                             GatewayModelRequest request,
                                             ModelApiProtocolEnum protocol) {
         GatewayResponse response =
-                gatewayRequestService.handle(authorization, rule, traceparent, request, protocol);
+                requestHandler.handle(authorization, rule, traceparent, request, protocol);
         return ResponseEntity.status(response.status()).body(response.body());
     }
 }

@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.service.upstream;
+package org.chobit.knot.gateway.upstream;
 
 import org.springframework.web.client.RestClient;
 

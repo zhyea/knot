@@ -32,7 +32,7 @@ import org.chobit.knot.gateway.mapper.RoutingConsumerMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleTargetMapper;
 import org.chobit.knot.gateway.model.TrafficPolicies;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -40,8 +40,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
-@Component
-public class GatewayDataCache {
+@Service
+public class GatewayDataService {
 
     private static final Duration EXPIRE_AFTER_WRITE = Duration.ofMinutes(5);
     private static final Duration REFRESH_AFTER_WRITE = Duration.ofMinutes(3);
@@ -65,20 +65,20 @@ public class GatewayDataCache {
     /**
      * Constructs a new instance.
      */
-    public GatewayDataCache(AppCredentialMapper appCredentialMapper,
-                            AppMapper appMapper,
-                            RoutingConsumerMapper routingConsumerMapper,
-                            RoutingRuleMapper routingRuleMapper,
-                            RoutingRuleTargetMapper routingRuleTargetMapper,
-                            ModelMapper modelMapper,
-                            ModelPoolMapper modelPoolMapper,
-                            ProviderMapper providerMapper,
-                            ProviderCredentialMapper providerCredentialMapper,
-                            ModelApiBindingMapper modelApiBindingMapper,
-                            ResourceTrafficPolicyMapper resourceTrafficPolicyMapper,
-                            RateLimitPolicyMapper rateLimitPolicyMapper,
-                            QuotaPolicyMapper quotaPolicyMapper,
-                            BillingRuleMapper billingRuleMapper) {
+    public GatewayDataService(AppCredentialMapper appCredentialMapper,
+                              AppMapper appMapper,
+                              RoutingConsumerMapper routingConsumerMapper,
+                              RoutingRuleMapper routingRuleMapper,
+                              RoutingRuleTargetMapper routingRuleTargetMapper,
+                              ModelMapper modelMapper,
+                              ModelPoolMapper modelPoolMapper,
+                              ProviderMapper providerMapper,
+                              ProviderCredentialMapper providerCredentialMapper,
+                              ModelApiBindingMapper modelApiBindingMapper,
+                              ResourceTrafficPolicyMapper resourceTrafficPolicyMapper,
+                              RateLimitPolicyMapper rateLimitPolicyMapper,
+                              QuotaPolicyMapper quotaPolicyMapper,
+                              BillingRuleMapper billingRuleMapper) {
         this.appCredentialByKeyCache = optionalCache(appCredentialMapper::getByAppKey);
         this.appByIdCache = optionalCache(appMapper::getById);
         this.consumerBySecretKeyCache = optionalCache(routingConsumerMapper::getBySecretKey);

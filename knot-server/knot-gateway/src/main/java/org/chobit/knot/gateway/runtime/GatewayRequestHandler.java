@@ -1,37 +1,38 @@
-package org.chobit.knot.gateway.service;
+package org.chobit.knot.gateway.runtime;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.gateway.billing.GatewayBillingCalculator;
+import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.model.*;
+import org.chobit.knot.gateway.routing.RoutingResolver;
+import org.chobit.knot.gateway.traffic.GatewayTrafficGuard;
+import org.chobit.knot.gateway.traffic.GatewayTrafficGuard.TrafficCheckContext;
+import org.chobit.knot.gateway.upstream.UpstreamProxyClient;
 import org.chobit.knot.gateway.util.JsonKit;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
-@Service
-public class GatewayRequestService extends AbstractGatewayRequestTemplate {
+@Component
+public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
-    private final ProxyService proxyService;
-    private final RateLimitService rateLimitService;
-    private final RoutingAuthService routingAuthService;
-    private final GatewayBillingService billingService;
+    private final UpstreamProxyClient proxyService;
+    private final RoutingResolver routingAuthService;
+    private final GatewayBillingCalculator billingService;
     private final GatewayTrafficGuard trafficGuard;
 
     /**
      * Constructs a new instance.
      */
-    public GatewayRequestService(ProxyService proxyService,
-                                 RateLimitService rateLimitService,
-                                 RoutingAuthService routingAuthService,
-                                 GatewayBillingService billingService,
+    public GatewayRequestHandler(UpstreamProxyClient proxyService,
+                                 RoutingResolver routingAuthService,
+                                 GatewayBillingCalculator billingService,
                                  GatewayTrafficGuard trafficGuard) {
         this.proxyService = proxyService;
-        this.rateLimitService = rateLimitService;
         this.routingAuthService = routingAuthService;
         this.billingService = billingService;
         this.trafficGuard = trafficGuard;
@@ -41,7 +42,7 @@ public class GatewayRequestService extends AbstractGatewayRequestTemplate {
     protected ResolvedRouting resolveRouting(GatewayRequestContext context) {
         ResolvedRouting routing = routingAuthService.resolveByRule(context.apiKey(), context.ruleCode());
         if (routing == null) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "Invalid API key or routing rule");
+            throw new GatewayAuthException("Invalid API key or routing rule");
         }
         return routing;
     }
@@ -53,19 +54,25 @@ public class GatewayRequestService extends AbstractGatewayRequestTemplate {
 
     private ProxyResult proxyWithFailover(GatewayRequestContext context, GatewayExchange exchange) {
         ResolvedRouting routing = context.routing();
-        AppContext appContext = routing.appContext();
         ModelApiProtocolEnum protocol = context.protocol();
         String traceparent = context.traceparent();
 
         Map<String, Object> requestBody = exchange.requestBody();
+        if (!trafficGuard.checkRouting(routing)) {
+            return new ProxyResult(null, null, null,
+                    ProxyErrorCodeEnum.RATE_LIMIT_EXCEEDED.code(), "Routing traffic policy rejected");
+        }
+
+        TrafficCheckContext trafficContext = trafficGuard.newContext();
         ProxyResult lastResult = null;
         for (RoutingRuleTargetDto candidate : routing.candidateModels()) {
-            requestBody.put(AiPayloadFields.MODEL, candidate.targetCode());
-            if (isTargetBlocked(routing, appContext, candidate)) {
-                return new ProxyResult(null, null, candidate.targetId(),
-                        ProxyErrorCodeEnum.RATE_LIMIT_EXCEEDED.code(), "Rate limit exceeded");
+            if (isTargetBlocked(candidate, trafficContext)) {
+                lastResult = new ProxyResult(null, candidate.providerId(), candidate.targetId(),
+                        ProxyErrorCodeEnum.RATE_LIMIT_EXCEEDED.code(), "Target traffic policy rejected");
+                continue;
             }
-            lastResult = proxyService.proxy(requestBody, appContext, protocol, traceparent);
+            requestBody.put(AiPayloadFields.MODEL, candidate.targetCode());
+            lastResult = proxyService.proxy(requestBody, routing.appContext(), protocol, traceparent);
             if (lastResult.errorCode() == null) {
                 return lastResult;
             }
@@ -76,18 +83,12 @@ public class GatewayRequestService extends AbstractGatewayRequestTemplate {
                 ProxyErrorCodeEnum.NO_ROUTING_TARGET.code(), "No available routing target");
     }
 
-    private boolean isTargetBlocked(ResolvedRouting routing,
-                                    AppContext appContext,
-                                    RoutingRuleTargetDto candidate) {
-        return isRateLimited(appContext, candidate) || !isTargetAllowed(routing, candidate);
+    private boolean isTargetBlocked(RoutingRuleTargetDto candidate, TrafficCheckContext trafficContext) {
+        return !isTargetAllowed(candidate, trafficContext);
     }
 
-    private boolean isRateLimited(AppContext appContext, RoutingRuleTargetDto candidate) {
-        return !rateLimitService.checkRateLimit(appContext, candidate.targetCode());
-    }
-
-    private boolean isTargetAllowed(ResolvedRouting routing, RoutingRuleTargetDto candidate) {
-        return trafficGuard.check(routing, candidate);
+    private boolean isTargetAllowed(RoutingRuleTargetDto candidate, TrafficCheckContext trafficContext) {
+        return trafficGuard.checkTarget(candidate, trafficContext);
     }
 
     @SuppressWarnings("unchecked")

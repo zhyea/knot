@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.service;
+package org.chobit.knot.gateway.routing;
 
 import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
@@ -11,20 +11,15 @@ import org.chobit.knot.gateway.entity.ModelPoolEntity;
 import org.chobit.knot.gateway.entity.ModelPoolItemEntity;
 import org.chobit.knot.gateway.entity.RoutingConsumerEntity;
 import org.chobit.knot.gateway.entity.RoutingRuleEntity;
-import org.chobit.knot.gateway.mapper.AppMapper;
-import org.chobit.knot.gateway.mapper.ModelMapper;
-import org.chobit.knot.gateway.mapper.ModelPoolMapper;
-import org.chobit.knot.gateway.mapper.RoutingConsumerMapper;
-import org.chobit.knot.gateway.mapper.RoutingRuleMapper;
-import org.chobit.knot.gateway.mapper.RoutingRuleTargetMapper;
 import org.chobit.knot.gateway.model.AppContext;
 import org.chobit.knot.gateway.model.GatewayRoutingInfo;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.service.GatewayDataService;
 import org.chobit.knot.gateway.util.tools.RoutingSecretKeyGenerator;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -33,17 +28,11 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 娑堣垂鑰?API Key 閴存潈锛歴k- 鍓嶇紑瀵嗛挜缁戝畾娑堣垂鑰咃紝娑堣垂鑰呭啀鍏宠仈澶氫釜璺敱瑙勫垯銆? */
-@Service
+@Component
 @RequiredArgsConstructor
-public class RoutingAuthService {
+public class RoutingResolver {
 
-    private final RoutingRuleMapper routingRuleMapper;
-    private final RoutingRuleTargetMapper routingRuleTargetMapper;
-    private final RoutingConsumerMapper routingConsumerMapper;
-    private final ModelMapper modelMapper;
-    private final ModelPoolMapper modelPoolMapper;
-    private final AppMapper appMapper;
-    private final ResourceTrafficPolicySupport trafficPolicySupport;
+    private final GatewayDataService dataService;
 
     /**
      * Resolves the requested value from current context and configuration. Executes the public operation.
@@ -59,7 +48,7 @@ public class RoutingAuthService {
         if (!RoutingSecretKeyGenerator.isRoutingSecretKey(secretKey)) {
             return null;
         }
-        RoutingConsumerEntity consumer = routingConsumerMapper.getBySecretKey(secretKey.trim());
+        RoutingConsumerEntity consumer = dataService.getConsumerBySecretKey(secretKey.trim());
         if (consumer == null || !EntityStatusEnum.ENABLED.code().equals(consumer.getStatus())) {
             return null;
         }
@@ -69,14 +58,14 @@ public class RoutingAuthService {
         if (rule == null) {
             return null;
         }
-        AppEntity app = appMapper.getById(rule.getAppId());
+        AppEntity app = dataService.getAppById(rule.getAppId());
         if (app == null || !EntityStatusEnum.ENABLED.code().equals(app.getStatus())) {
             return null;
         }
         TrafficPolicies appTraffic =
-                trafficPolicySupport.load(TrafficResourceTypeEnum.APP.code(), app.getId());
+                dataService.loadTrafficPolicies(TrafficResourceTypeEnum.APP.code(), app.getId());
         TrafficPolicies consumerTraffic =
-                trafficPolicySupport.load(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), consumer.getId());
+                dataService.loadTrafficPolicies(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), consumer.getId());
         RateLimitPolicy rate = mergeRateLimit(
                 appTraffic != null ? appTraffic.rateLimitPolicy() : null,
                 consumerTraffic != null ? consumerTraffic.rateLimitPolicy() : null
@@ -104,22 +93,22 @@ public class RoutingAuthService {
         if (!RoutingSecretKeyGenerator.isRoutingSecretKey(secretKey) || ruleCode == null || ruleCode.isBlank()) {
             return null;
         }
-        RoutingConsumerEntity consumer = routingConsumerMapper.getBySecretKey(secretKey.trim());
+        RoutingConsumerEntity consumer = dataService.getConsumerBySecretKey(secretKey.trim());
         if (consumer == null || !EntityStatusEnum.ENABLED.code().equals(consumer.getStatus())) {
             return null;
         }
-        RoutingRuleEntity rule = routingRuleMapper.getEnabledByConsumerIdAndRuleCode(consumer.getId(), ruleCode.trim());
+        RoutingRuleEntity rule = dataService.getEnabledRuleByConsumerAndCode(consumer.getId(), ruleCode.trim());
         if (rule == null) {
             return null;
         }
-        AppEntity app = appMapper.getById(rule.getAppId());
+        AppEntity app = dataService.getAppById(rule.getAppId());
         if (app == null || !EntityStatusEnum.ENABLED.code().equals(app.getStatus())) {
             return null;
         }
         TrafficPolicies appTraffic =
-                trafficPolicySupport.load(TrafficResourceTypeEnum.APP.code(), app.getId());
+                dataService.loadTrafficPolicies(TrafficResourceTypeEnum.APP.code(), app.getId());
         TrafficPolicies consumerTraffic =
-                trafficPolicySupport.load(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), consumer.getId());
+                dataService.loadTrafficPolicies(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), consumer.getId());
         RateLimitPolicy rate = mergeRateLimit(
                 appTraffic != null ? appTraffic.rateLimitPolicy() : null,
                 consumerTraffic != null ? consumerTraffic.rateLimitPolicy() : null
@@ -170,7 +159,7 @@ public class RoutingAuthService {
     }
 
     private RuleSelection findRule(Long consumerId, String requestedModel) {
-        List<RoutingRuleEntity> rules = routingRuleMapper.listEnabledByConsumerId(consumerId);
+        List<RoutingRuleEntity> rules = dataService.listEnabledRulesByConsumerId(consumerId);
         if (rules == null || rules.isEmpty()) {
             return null;
         }
@@ -262,7 +251,7 @@ public class RoutingAuthService {
     }
 
     private List<RoutingRuleTargetDto> listTargets(Long ruleId) {
-        return routingRuleTargetMapper.listByRuleId(ruleId).stream()
+        return dataService.listTargetsByRuleId(ruleId).stream()
                 .map(entity -> new RoutingRuleTargetDto(
                         entity.getTargetType(),
                         entity.getTargetId(),
@@ -278,7 +267,7 @@ public class RoutingAuthService {
 
     private RoutingRuleTargetDto resolveTarget(RoutingRuleTargetDto target) {
         if (RouteTargetTypeEnum.MODEL.code().equals(target.targetType())) {
-            ModelEntity model = modelMapper.getById(target.targetId());
+            ModelEntity model = dataService.getModelById(target.targetId());
             if (model == null || !EntityStatusEnum.ENABLED.code().equals(model.getStatus())) {
                 return null;
             }
@@ -288,7 +277,7 @@ public class RoutingAuthService {
         if (!RouteTargetTypeEnum.MODEL_POOL.code().equals(target.targetType())) {
             return null;
         }
-        ModelPoolEntity pool = modelPoolMapper.getById(target.targetId());
+        ModelPoolEntity pool = dataService.getModelPoolById(target.targetId());
         if (pool == null || !EntityStatusEnum.ENABLED.code().equals(pool.getStatus())) {
             return null;
         }
@@ -301,10 +290,10 @@ public class RoutingAuthService {
     }
 
     private ModelPoolItemEntity selectPoolItem(ModelPoolEntity pool) {
-        List<ModelPoolItemEntity> candidates = modelPoolMapper.listItemsByPoolId(pool.getId()).stream()
+        List<ModelPoolItemEntity> candidates = dataService.listModelPoolItemsByPoolId(pool.getId()).stream()
                 .filter(item -> EntityStatusEnum.ENABLED.code().equals(item.getStatus()))
                 .filter(item -> {
-                    ModelEntity model = modelMapper.getById(item.getModelId());
+                    ModelEntity model = dataService.getModelById(item.getModelId());
                     return model != null && EntityStatusEnum.ENABLED.code().equals(model.getStatus());
                 })
                 .toList();

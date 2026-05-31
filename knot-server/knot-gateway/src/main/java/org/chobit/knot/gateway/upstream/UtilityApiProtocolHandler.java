@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.service.upstream;
+package org.chobit.knot.gateway.upstream;
 
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.springframework.core.annotation.Order;

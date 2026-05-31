@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.service;
+package org.chobit.knot.gateway.billing;
 
 import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
@@ -7,16 +7,17 @@ import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.model.BillingDetail;
 import org.chobit.knot.gateway.model.BillingUsage;
-import org.springframework.stereotype.Service;
+import org.chobit.knot.gateway.service.GatewayDataService;
+import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
-@Service
+@Component
 @RequiredArgsConstructor
-public class GatewayBillingService {
+public class GatewayBillingCalculator {
 
-    private final GatewayDataCache dataCache;
+    private final GatewayDataService dataService;
 
     /**
      * Executes the public operation. Executes the public operation.
@@ -25,11 +26,11 @@ public class GatewayBillingService {
         if (modelId == null) {
             return null;
         }
-        ModelEntity model = dataCache.getModelById(modelId);
+        ModelEntity model = dataService.getModelById(modelId);
         if (model == null || model.getBillingRuleId() == null) {
             return null;
         }
-        BillingRuleEntity rule = dataCache.getActiveBillingRuleById(model.getBillingRuleId());
+        BillingRuleEntity rule = dataService.getActiveBillingRuleById(model.getBillingRuleId());
         if (rule == null) {
             return null;
         }

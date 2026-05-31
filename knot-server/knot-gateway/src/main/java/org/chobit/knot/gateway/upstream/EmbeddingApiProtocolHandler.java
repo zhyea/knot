@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.service.upstream;
+package org.chobit.knot.gateway.upstream;
 
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.springframework.core.annotation.Order;
@@ -6,13 +6,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 @Component
-@Order(1000)
-public class GenericApiProtocolHandler extends AbstractApiProtocolHandler {
+@Order(20)
+public class EmbeddingApiProtocolHandler extends AbstractApiProtocolHandler {
 
     /**
      * Constructs a new instance.
      */
-    public GenericApiProtocolHandler(RestClient restClient) {
+    public EmbeddingApiProtocolHandler(RestClient restClient) {
         super(restClient);
     }
 
@@ -21,6 +21,6 @@ public class GenericApiProtocolHandler extends AbstractApiProtocolHandler {
      */
     @Override
     public boolean supports(ModelApiProtocolEnum protocol) {
-        return true;
+        return protocol != null && ModelApiProtocolEnum.EMBEDDINGS == protocol.canonical();
     }
 }

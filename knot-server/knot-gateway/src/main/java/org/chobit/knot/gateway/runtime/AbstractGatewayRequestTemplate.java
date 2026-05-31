@@ -1,8 +1,12 @@
-package org.chobit.knot.gateway.service;
+package org.chobit.knot.gateway.runtime;
 
 import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.enums.GatewayErrorTypeEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
+import org.chobit.knot.gateway.exception.GatewayAuthException;
+import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
+import org.chobit.knot.gateway.model.GatewayErrorResponse;
 import org.chobit.knot.gateway.model.GatewayResponse;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.model.ResolvedRouting;
@@ -28,14 +32,8 @@ public abstract class AbstractGatewayRequestTemplate {
                                         String traceparent,
                                         GatewayModelRequest request,
                                         ModelApiProtocolEnum protocol) {
-        // Validate required headers before routing.
-        GatewayResponse validation = validateRequestHeaders(authorization, ruleCode, traceparent);
-        if (validation != null) {
-            return validation;
-        }
-
         // Build request context once so later stages can reuse resolved metadata.
-        String apiKey = extractApiKey(authorization);
+        String apiKey = validateRequestHeaders(authorization, ruleCode, traceparent);
         GatewayRequestContext context = new GatewayRequestContext(authorization, apiKey, ruleCode, traceparent, protocol);
         ResolvedRouting routingInfo = resolveRouting(context);
         context.routing(routingInfo);
@@ -47,6 +45,9 @@ public abstract class AbstractGatewayRequestTemplate {
 
         exchange.proxyResult(result);
         if (result.errorCode() != null) {
+            if (ProxyErrorCodeEnum.RATE_LIMIT_EXCEEDED.code().equals(result.errorCode())) {
+                return error(HttpStatus.TOO_MANY_REQUESTS, result.errorMessage(), GatewayErrorTypeEnum.RATE_LIMIT_ERROR.code());
+            }
             return error(HttpStatus.BAD_GATEWAY, result.errorMessage(), GatewayErrorTypeEnum.UPSTREAM_ERROR.code());
         }
         return new GatewayResponse(HttpStatus.OK, applyUsageAccounting(context, exchange));
@@ -60,20 +61,24 @@ public abstract class AbstractGatewayRequestTemplate {
     protected abstract Object applyUsageAccounting(GatewayRequestContext context, GatewayExchange exchange);
 
     protected GatewayResponse error(HttpStatus status, String message, String type) {
-        return new GatewayResponse(status, Map.of("error", Map.of("message", message, "type", type)));
+        return new GatewayResponse(status, GatewayErrorResponse.of(message, type));
     }
 
-    private GatewayResponse validateRequestHeaders(String authorization, String ruleCode, String traceparent) {
-        if (extractApiKey(authorization) == null) {
-            return error(HttpStatus.UNAUTHORIZED, "Invalid API key", GatewayErrorTypeEnum.AUTH_ERROR.code());
+    /**
+     * Validates header values after Spring MVC has checked required header presence.
+     */
+    private String validateRequestHeaders(String authorization, String ruleCode, String traceparent) {
+        String apiKey = extractApiKey(authorization);
+        if (apiKey == null) {
+            throw new GatewayAuthException("Invalid API key");
         }
-        if (ruleCode == null || ruleCode.isBlank()) {
-            return error(HttpStatus.BAD_REQUEST, "Rule header is required", GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code());
+        if (isBlank(ruleCode)) {
+            throw new GatewayInvalidRequestException("Rule header must not be blank");
         }
-        if (traceparent == null || traceparent.isBlank()) {
-            return error(HttpStatus.BAD_REQUEST, "traceparent header is required", GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code());
+        if (isBlank(traceparent)) {
+            throw new GatewayInvalidRequestException("traceparent header must not be blank");
         }
-        return null;
+        return apiKey;
     }
 
     private String extractApiKey(String authorization) {
@@ -82,5 +87,9 @@ public abstract class AbstractGatewayRequestTemplate {
         }
         String key = authorization.substring(AuthConstants.BEARER_PREFIX.length()).trim();
         return key.isEmpty() ? null : key;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 }

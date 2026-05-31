@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.service.upstream;
+package org.chobit.knot.gateway.upstream;
 
 import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
