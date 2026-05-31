@@ -25,16 +25,25 @@ public class SecurityController {
     private final SecurityService securityService;
     private final SecurityConverter securityConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public SecurityController(SecurityService securityService, SecurityConverter securityConverter) {
         this.securityService = securityService;
         this.securityConverter = securityConverter;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @PostMapping("/overview")
     public SecurityOverview overview() {
         return securityConverter.toOverviewVO(securityService.overview());
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @PutMapping("/policies")
     public SecurityPolicy updatePolicy(@RequestBody @Valid SecurityPolicy request) {
         SecurityPolicyDto updated = securityService.updatePolicy(
@@ -43,12 +52,18 @@ public class SecurityController {
         return securityConverter.toPolicyVO(updated);
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     @PostMapping("/alerts")
     public PageResult<AlertItem> listAlerts(@RequestBody(required = false) PageQuery query) {
         PageResult<AlertItemDto> page = securityService.listAlerts(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return page.mapList(securityConverter::toAlertVOList);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @PostMapping("/cache/evict")
     public CacheEvictResult evictCache(@RequestBody @Valid CacheEvictRequest request) {
         CacheEvictResultDto r = securityService.evictCache(request.cacheKey(), request.cacheType());

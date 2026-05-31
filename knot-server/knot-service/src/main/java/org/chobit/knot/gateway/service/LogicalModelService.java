@@ -29,6 +29,9 @@ public class LogicalModelService {
     private final ExternalModelMapper externalModelMapper;
     private final LogicalModelConverter logicalModelConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public LogicalModelService(LogicalModelMapper logicalModelMapper,
                                ModelMapper modelMapper,
                                ExternalModelMapper externalModelMapper,
@@ -39,10 +42,16 @@ public class LogicalModelService {
         this.logicalModelConverter = logicalModelConverter;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<LogicalModelDto> list(PageRequest pageRequest) {
         return list(pageRequest, null);
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<LogicalModelDto> list(PageRequest pageRequest, String keyword) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<LogicalModelEntity> pageInfo = new PageInfo<>(logicalModelMapper.list(normalizeKeyword(keyword)));
@@ -57,6 +66,9 @@ public class LogicalModelService {
         return value.isEmpty() ? null : value;
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     public LogicalModelDto getById(Long id) {
         LogicalModelEntity entity = logicalModelMapper.getById(id);
         if (entity == null) {
@@ -66,6 +78,9 @@ public class LogicalModelService {
         return logicalModelConverter.withMappings(base, listMappings(id));
     }
 
+    /**
+     * Returns whether the current condition is satisfied. Executes the public operation.
+     */
     public boolean isModelCodeAvailable(String modelCode, Long excludeId) {
         String code = normalizeCode(modelCode);
         if (code.isEmpty()) {
@@ -75,6 +90,9 @@ public class LogicalModelService {
         return count == null || count == 0;
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public LogicalModelDto create(LogicalModelDto request) {
         String code = requireCode(request.modelCode());
@@ -87,6 +105,9 @@ public class LogicalModelService {
         return getById(entity.getId());
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public LogicalModelDto update(Long id, LogicalModelDto request) {
         LogicalModelEntity existing = logicalModelMapper.getById(id);
@@ -104,6 +125,9 @@ public class LogicalModelService {
         return getById(id);
     }
 
+    /**
+     * Deletes the target resource. Executes the public operation.
+     */
     @Transactional
     public void delete(Long id) {
         ensureLogicalModel(id);
@@ -115,6 +139,9 @@ public class LogicalModelService {
         }
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public Map<String, Object> logicalModelAuditSnapshot(Long id) {
         if (id == null) {
             return null;
@@ -136,6 +163,9 @@ public class LogicalModelService {
         }
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public List<ProviderModelMappingDto> listMappings(Long logicalModelId) {
         ensureLogicalModel(logicalModelId);
         return logicalModelMapper.listMappings(logicalModelId).stream()
@@ -143,6 +173,9 @@ public class LogicalModelService {
                 .toList();
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public List<ProviderModelMappingDto> listMappingsByProviderModel(Long modelId) {
         ensureProviderModel(modelId);
         return logicalModelMapper.listMappingsByModelId(modelId).stream()
@@ -150,6 +183,9 @@ public class LogicalModelService {
                 .toList();
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public ProviderModelMappingDto createMapping(Long logicalModelId, ProviderModelMappingDto request) {
         ensureLogicalModel(logicalModelId);
@@ -160,6 +196,9 @@ public class LogicalModelService {
         return logicalModelConverter.toMappingDto(logicalModelMapper.getMappingById(entity.getId()));
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public ProviderModelMappingDto updateMapping(Long logicalModelId, Long mappingId, ProviderModelMappingDto request) {
         ensureLogicalModel(logicalModelId);
@@ -175,6 +214,9 @@ public class LogicalModelService {
         return logicalModelConverter.toMappingDto(logicalModelMapper.getMappingById(mappingId));
     }
 
+    /**
+     * Deletes the target resource. Executes the public operation.
+     */
     @Transactional
     public void deleteMapping(Long logicalModelId, Long mappingId) {
         int affected = logicalModelMapper.deleteMapping(logicalModelId, mappingId);

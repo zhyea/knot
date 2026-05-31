@@ -3,7 +3,10 @@ package org.chobit.knot.gateway.util.tools;
 import java.util.UUID;
 
 /**
- * 路由规则 API Key 生成器，格式：sk-{uuid 去横线}
+ * Executes the public operation. Executes the public operation.
+ */
+/**
+ * 璺敱瑙勫垯 API Key 鐢熸垚鍣紝鏍煎紡锛歴k-{uuid 鍘绘í绾縸
  */
 public final class RoutingSecretKeyGenerator {
 
@@ -12,10 +15,16 @@ public final class RoutingSecretKeyGenerator {
     private RoutingSecretKeyGenerator() {
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public static String generate() {
         return PREFIX + UUID.randomUUID().toString().replace("-", "");
     }
 
+    /**
+     * Returns whether the current condition is satisfied. Executes the public operation.
+     */
     public static boolean isRoutingSecretKey(String key) {
         return key != null && key.startsWith(PREFIX) && key.length() > PREFIX.length();
     }

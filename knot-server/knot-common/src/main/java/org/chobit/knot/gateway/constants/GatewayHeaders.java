@@ -1,5 +1,8 @@
 package org.chobit.knot.gateway.constants;
 
+/**
+ * Executes the public operation. Executes the public operation.
+ */
 public final class GatewayHeaders {
 
     public static final String AUTHORIZATION = "Authorization";

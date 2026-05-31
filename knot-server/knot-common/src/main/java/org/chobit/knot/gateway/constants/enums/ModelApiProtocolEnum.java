@@ -1,11 +1,11 @@
-package org.chobit.knot.gateway.constants;
+package org.chobit.knot.gateway.constants.enums;
 
 import java.util.Arrays;
 
 /**
  * Gateway model API protocol definitions.
  */
-public enum ModelApiProtocol {
+public enum ModelApiProtocolEnum {
 
     CHAT_COMPLETIONS("CHAT_COMPLETIONS", "/v1/chat/completions", true),
     RESPONSES("RESPONSES", "/v1/responses", true),
@@ -32,41 +32,59 @@ public enum ModelApiProtocol {
     private final String code;
     private final String defaultPath;
     private final boolean streamSupported;
-    private final ModelApiProtocol canonical;
+    private final ModelApiProtocolEnum canonical;
 
-    ModelApiProtocol(String code, String defaultPath, boolean streamSupported) {
+    ModelApiProtocolEnum(String code, String defaultPath, boolean streamSupported) {
         this(code, defaultPath, streamSupported, null);
     }
 
-    ModelApiProtocol(String code, String defaultPath, boolean streamSupported, ModelApiProtocol canonical) {
+    ModelApiProtocolEnum(String code, String defaultPath, boolean streamSupported, ModelApiProtocolEnum canonical) {
         this.code = code;
         this.defaultPath = defaultPath;
         this.streamSupported = streamSupported;
         this.canonical = canonical == null ? this : canonical;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public String code() {
         return code;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public String defaultPath() {
         return defaultPath;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public boolean streamSupported() {
         return streamSupported;
     }
 
-    public ModelApiProtocol canonical() {
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
+    public ModelApiProtocolEnum canonical() {
         return canonical;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public boolean matches(String protocolCode) {
-        ModelApiProtocol protocol = fromCode(protocolCode);
+        ModelApiProtocolEnum protocol = fromCode(protocolCode);
         return protocol != null && protocol.canonical() == canonical();
     }
 
-    public static ModelApiProtocol fromCode(String code) {
+    /**
+     * Builds the target value from the source input. Executes the public operation.
+     */
+    public static ModelApiProtocolEnum fromCode(String code) {
         if (code == null || code.isBlank()) {
             return null;
         }

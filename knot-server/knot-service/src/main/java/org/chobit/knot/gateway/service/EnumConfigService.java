@@ -22,15 +22,24 @@ public class EnumConfigService {
     private final EnumConfigMapper enumConfigMapper;
     private final EnumCategoryMapper enumCategoryMapper;
 
+    /**
+     * Constructs a new instance.
+     */
     public EnumConfigService(EnumConfigMapper enumConfigMapper, EnumCategoryMapper enumCategoryMapper) {
         this.enumConfigMapper = enumConfigMapper;
         this.enumCategoryMapper = enumCategoryMapper;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<EnumConfigEntity> list(PageRequest pageRequest) {
         return list(pageRequest, null);
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<EnumConfigEntity> list(PageRequest pageRequest, String category) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<EnumConfigEntity> pageInfo = new PageInfo<>(
@@ -41,6 +50,9 @@ public class EnumConfigService {
         return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public List<EnumConfigEntity> listByCategory(String category) {
         EnumCategoryEntity cat = enumCategoryMapper.selectByCategory(category);
         if (cat == null) {
@@ -54,20 +66,34 @@ public class EnumConfigService {
         return items;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public List<String> listCategories() {
         return enumConfigMapper.listCategories();
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public List<EnumCategorySummary> listCategorySummaries() {
         return enumConfigMapper.listCategorySummaries();
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     public EnumConfigEntity getById(Long id) {
         EnumConfigEntity entity = enumConfigMapper.getById(id);
-        if (entity == null) throw new BusinessException(ErrorCode.NOT_FOUND, "enum config not found");
+        if (entity == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "enum config not found");
+        }
         return entity;
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public EnumConfigEntity create(EnumConfigEntity request) {
         if (request.getCategory() == null || request.getCategory().isBlank()) {
@@ -91,6 +117,9 @@ public class EnumConfigService {
         return request;
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public EnumConfigEntity update(Long id, EnumConfigEntity request) {
         EnumConfigEntity existing = getById(id);
@@ -98,12 +127,15 @@ public class EnumConfigService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "系统内置分类下的枚举不可修改");
         }
         request.setId(id);
-        request.setCategory(existing.getCategory());    // 不允许改 category
-        request.setItemCode(existing.getItemCode());     // 不允许改 code
+        request.setCategory(existing.getCategory());
+        request.setItemCode(existing.getItemCode());
         enumConfigMapper.update(request);
         return getById(id);
     }
 
+    /**
+     * Deletes the target resource. Executes the public operation.
+     */
     @Transactional
     public EnumConfigEntity deleteReturning(Long id) {
         EnumConfigEntity existing = getById(id);

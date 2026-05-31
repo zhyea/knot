@@ -18,11 +18,17 @@ public class UserController {
     private final UserService userService;
     private final UserConverter userConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public UserController(UserService userService, UserConverter userConverter) {
         this.userService = userService;
         this.userConverter = userConverter;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     @PostMapping
     public PageResult<UserItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<UserDto> page = userService.listUsers(
@@ -32,13 +38,19 @@ public class UserController {
         return page.mapList(userConverter::toVOList);
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @OperationLog(module = "user", operation = "CREATE", entityType = "User",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.username()",
-            description = "'创建用户'",
+            description = "'鍒涘缓鐢ㄦ埛'",
             recordNewValue = true,
             newValueSpel = "@userService.userAuditSnapshot(#result.id())")
     @PostMapping("/create")
+    /**
+     * Creates a new resource.
+     */
     public UserItem create(@RequestBody @Valid UserItem request) {
         UserDto created = userService.createUser(new UserDto(
                 null, request.username(), request.password(), request.realName(), request.status(), null, null
@@ -46,29 +58,41 @@ public class UserController {
         return userConverter.toVO(created);
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @OperationLog(module = "user", operation = "UPDATE", entityType = "User",
             entityId = "#p0",
             entityNameAfter = "#result.username()",
-            description = "'更新用户状态'",
+            description = "'鏇存柊鐢ㄦ埛鐘舵€?",
             recordOldValue = true,
             oldValueSpel = "@userService.userAuditSnapshot(#p0)",
             recordNewValue = true,
             newValueSpel = "@userService.userAuditSnapshot(#p0)")
     @PutMapping("/{id}/status")
+    /**
+     * Updates the target resource.
+     */
     public UserItem updateStatus(@PathVariable Long id, @RequestBody @Valid UpdateUserStatusRequest request) {
         UserDto updated = userService.updateUserStatus(id, request.status());
         return userConverter.toVO(updated);
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @OperationLog(module = "user", operation = "UPDATE", entityType = "User",
             entityId = "#p0",
             entityNameAfter = "#result.username()",
-            description = "'更新用户'",
+            description = "'鏇存柊鐢ㄦ埛'",
             recordOldValue = true,
             oldValueSpel = "@userService.userAuditSnapshot(#p0)",
             recordNewValue = true,
             newValueSpel = "@userService.userAuditSnapshot(#p0)")
     @PutMapping("/{id}")
+    /**
+     * Updates the target resource.
+     */
     public UserItem updateUser(@PathVariable Long id, @RequestBody @Valid UserItem request) {
         UserDto updated = userService.updateUser(new UserDto(
                 id, null, request.password() != null ? request.password() : null, request.realName(), request.status(), null, null

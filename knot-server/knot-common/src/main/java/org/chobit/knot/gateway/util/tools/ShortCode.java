@@ -4,7 +4,10 @@ import java.text.DecimalFormat;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 短码生成，参考 <a href="https://github.com/zhyea/zhy-commons/blob/main/common-utils/src/main/java/org/chobit/commons/tools/ShortCode.java">zhy-commons ShortCode</a>。
+ * Executes the public operation. Executes the public operation.
+ */
+/**
+ * 鐭爜鐢熸垚锛屽弬鑰?<a href="https://github.com/zhyea/zhy-commons/blob/main/common-utils/src/main/java/org/chobit/commons/tools/ShortCode.java">zhy-commons ShortCode</a>銆?
  */
 public final class ShortCode {
 
@@ -12,6 +15,9 @@ public final class ShortCode {
     private static final DecimalFormat FORMAT = new DecimalFormat("00");
     private static final int MAX_PAD_SIZE = 100;
 
+    /**
+     * Executes the public operation.
+     */
     public static synchronized String genUpper() {
         long v = longValue();
         return Base36.encode(v);

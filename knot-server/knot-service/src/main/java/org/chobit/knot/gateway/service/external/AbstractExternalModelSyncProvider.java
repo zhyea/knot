@@ -8,6 +8,9 @@ import org.chobit.knot.gateway.mapper.ExternalModelMapper;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Executes the public operation. Executes the public operation.
+ */
 public abstract class AbstractExternalModelSyncProvider implements ExternalModelSyncProvider {
 
     protected static final String STATUS_SYNCED = "SYNCED";
@@ -18,6 +21,9 @@ public abstract class AbstractExternalModelSyncProvider implements ExternalModel
         this.externalModelMapper = externalModelMapper;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Override
     public ExternalModelSyncResult sync() {
         ExternalModelSourceEntity source = ensureSource();

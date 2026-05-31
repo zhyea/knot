@@ -19,12 +19,18 @@ public class OperationLogService {
 
     private final OperationLogMapper operationLogMapper;
 
+    /**
+     * Constructs a new instance.
+     */
     public OperationLogService(OperationLogMapper operationLogMapper) {
         this.operationLogMapper = operationLogMapper;
     }
 
     /**
-     * 异步保存日志（不阻塞主流程）
+     * Executes the public operation. Executes the public operation.
+     */
+    /**
+     * 寮傛淇濆瓨鏃ュ織锛堜笉闃诲涓绘祦绋嬶級
      */
     @Async
     public void saveAsync(OperationLogEntity entity) {
@@ -36,18 +42,26 @@ public class OperationLogService {
     }
 
     /**
-     * 同步保存日志（用于测试或特殊场景）
+     * Executes the public operation. Executes the public operation.
      */
+    /**
+     * 鍚屾淇濆瓨鏃ュ織锛堢敤浜庢祴璇曟垨鐗规畩鍦烘櫙锛?     */
     public void save(OperationLogEntity entity) {
         operationLogMapper.insert(entity);
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public List<OperationLogEntity> listByModule(String module, String entityType, Long entityId, Long operatorId) {
         List<OperationLogEntity> list = operationLogMapper.listByModule(module, entityType, entityId, operatorId);
         list.forEach(this::retainOnlyChangedJsonFields);
         return list;
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     public OperationLogEntity getById(Long id) {
         OperationLogEntity entity = operationLogMapper.getById(id);
         if (entity != null) {
@@ -56,14 +70,19 @@ public class OperationLogService {
         return entity;
     }
 
+    /**
+     * Deletes the target resource. Executes the public operation.
+     */
     public int deleteBefore(LocalDateTime beforeTime) {
         operationLogMapper.deleteDetailsByLogCreatedBefore(beforeTime);
         return operationLogMapper.deleteByCreatedBefore(beforeTime);
     }
 
     /**
-     * 某枚举分类下的配置变更操作日志（module=enum，entity_name 为分类或 分类/编码）
+     * Lists matching results. Executes the public operation.
      */
+    /**
+     * 鏌愭灇涓惧垎绫讳笅鐨勯厤缃彉鏇存搷浣滄棩蹇楋紙module=enum锛宔ntity_name 涓哄垎绫绘垨 鍒嗙被/缂栫爜锛?     */
     public List<OperationLogEntity> listForEnumCategory(String category) {
         if (category == null || category.isBlank()) {
             return List.of();
@@ -74,9 +93,7 @@ public class OperationLogService {
     }
 
     /**
-     * 若 old_value、new_value 均为 JSON 对象，则仅保留二者中值不一致的字段（便于列表展示）。
-     * 仅一方有值或非对象结构时不做裁剪。
-     */
+     * 鑻?old_value銆乶ew_value 鍧囦负 JSON 瀵硅薄锛屽垯浠呬繚鐣欎簩鑰呬腑鍊间笉涓€鑷寸殑瀛楁锛堜究浜庡垪琛ㄥ睍绀猴級銆?     * 浠呬竴鏂规湁鍊兼垨闈炲璞＄粨鏋勬椂涓嶅仛瑁佸壀銆?     */
     private void retainOnlyChangedJsonFields(OperationLogEntity e) {
         String oldV = e.getOldValue();
         String newV = e.getNewValue();

@@ -18,23 +18,35 @@ public class PluginService {
     private final PluginMapper pluginMapper;
     private final PluginConverter pluginConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public PluginService(PluginMapper pluginMapper, PluginConverter pluginConverter) {
         this.pluginMapper = pluginMapper;
         this.pluginConverter = pluginConverter;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<PluginDto> list(PageRequest pageRequest) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<PluginEntity> pageInfo = new PageInfo<>(pluginMapper.list());
         return PageResult.fromPage(pageInfo, pluginConverter::toDtoList, pageRequest);
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     public PluginDto getById(Long id) {
         PluginEntity entity = pluginMapper.getById(id);
         if (entity == null) throw new BusinessException(ErrorCode.NOT_FOUND, "plugin not found");
         return pluginConverter.toDto(entity);
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public PluginDto create(PluginDto request) {
         PluginEntity e = new PluginEntity();
@@ -47,6 +59,9 @@ public class PluginService {
         return pluginConverter.toDto(e);
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public PluginDto updateStatus(Long id, String status) {
         getById(id); // ensure exists

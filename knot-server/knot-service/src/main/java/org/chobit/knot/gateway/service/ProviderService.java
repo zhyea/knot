@@ -16,10 +16,11 @@ import org.chobit.knot.gateway.mapper.DiscountPolicyMapper;
 import org.chobit.knot.gateway.mapper.ProviderCredentialMapper;
 import org.chobit.knot.gateway.mapper.ProviderMapper;
 import org.chobit.knot.gateway.auth.CurrentAuth;
-import org.chobit.knot.gateway.constants.EntityStatus;
-import org.chobit.knot.gateway.constants.TrafficResourceType;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.util.tools.ProviderCodes;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,9 @@ public class ProviderService {
     private final CurrentAuth currentAuth;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
 
+    /**
+     * Constructs a new instance.
+     */
     public ProviderService(ProviderMapper providerMapper,
                            ProviderCredentialMapper providerCredentialMapper,
                            DiscountPolicyMapper discountPolicyMapper,
@@ -57,18 +61,24 @@ public class ProviderService {
         this.trafficPolicySupport = trafficPolicySupport;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<ProviderDto> list(PageRequest pageRequest) {
         return list(pageRequest, null);
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<ProviderDto> list(PageRequest pageRequest, String keyword) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<ProviderEntity> pageInfo = new PageInfo<>(providerMapper.list(normalizeKeyword(keyword)));
         List<ProviderEntity> entities = pageInfo.getList();
         List<Long> ids = entities.stream().map(ProviderEntity::getId).toList();
         Map<Long, Map<String, Object>> authMap = credentialSupport.loadAuthConfigBatch(ids);
-        Map<Long, ResourceTrafficPolicySupport.TrafficPolicies> trafficMap =
-                trafficPolicySupport.loadBatch(TrafficResourceType.PROVIDER, ids);
+        Map<Long, TrafficPolicies> trafficMap =
+                trafficPolicySupport.loadBatch(TrafficResourceTypeEnum.PROVIDER.code(), ids);
         List<ProviderDto> dtos = entities.stream()
                 .map(e -> enrich(
                         providerConverter.toDto(e),
@@ -78,6 +88,9 @@ public class ProviderService {
         return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     public ProviderDto getById(Long id) {
         ProviderEntity entity = providerMapper.getById(id);
         if (entity == null) {
@@ -86,6 +99,9 @@ public class ProviderService {
         return enrich(entity);
     }
 
+    /**
+     * Returns a suggested value. Executes the public operation.
+     */
     public String suggestCode() {
         for (int i = 0; i < 10; i++) {
             String code = ProviderCodes.generate();
@@ -96,6 +112,9 @@ public class ProviderService {
         throw new BusinessException(ErrorCode.CONFLICT, "无法生成可用供应商编码，请手动填写");
     }
 
+    /**
+     * Returns whether the current condition is satisfied. Executes the public operation.
+     */
     public boolean isCodeAvailable(String code, Long excludeId) {
         String normalized = normalizeCode(code);
         if (normalized.isEmpty()) {
@@ -106,7 +125,7 @@ public class ProviderService {
     }
 
     /**
-     * 操作审计快照，供 {@link org.chobit.knot.gateway.annotation.OperationLog} SpEL 使用。
+     * Returns the audit snapshot used by operation logging.
      */
     public Map<String, Object> providerAuditSnapshot(Long id) {
         if (id == null) {
@@ -131,6 +150,9 @@ public class ProviderService {
         return m;
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public ProviderDto create(ProviderDto request) {
         String code = resolveCodeForSave(request.code(), null);
@@ -139,11 +161,14 @@ public class ProviderService {
         entity.setCode(code);
         providerMapper.insert(entity);
         credentialSupport.saveAuthConfig(entity.getId(), resolveAuthConfigForSave(null, request.authConfig()));
-        trafficPolicySupport.save(TrafficResourceType.PROVIDER, entity.getId(),
+        trafficPolicySupport.save(TrafficResourceTypeEnum.PROVIDER.code(), entity.getId(),
                 request.rateLimitPolicy(), request.quotaPolicy());
         return getById(entity.getId());
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public ProviderDto update(Long id, ProviderDto request) {
         ProviderEntity existing = providerMapper.getById(id);
@@ -157,15 +182,15 @@ public class ProviderService {
         entity.setCode(code);
         providerMapper.update(entity);
         credentialSupport.saveAuthConfig(id, resolveAuthConfigForSave(id, request.authConfig()));
-        trafficPolicySupport.save(TrafficResourceType.PROVIDER, id,
+        trafficPolicySupport.save(TrafficResourceTypeEnum.PROVIDER.code(), id,
                 request.rateLimitPolicy(), request.quotaPolicy());
         return getById(id);
     }
 
     private ProviderDto enrich(ProviderEntity entity) {
         ProviderCredentialEntity credential = providerCredentialMapper.getActiveByProviderId(entity.getId());
-        ResourceTrafficPolicySupport.TrafficPolicies traffic =
-                trafficPolicySupport.load(TrafficResourceType.PROVIDER, entity.getId());
+        TrafficPolicies traffic =
+                trafficPolicySupport.load(TrafficResourceTypeEnum.PROVIDER.code(), entity.getId());
         return enrich(
                 providerConverter.toDto(entity),
                 credentialSupport.toAuthConfig(credential),
@@ -174,7 +199,7 @@ public class ProviderService {
 
     private ProviderDto enrich(ProviderDto base,
                                Map<String, Object> authConfig,
-                               ResourceTrafficPolicySupport.TrafficPolicies traffic) {
+                               TrafficPolicies traffic) {
         Map<String, Object> auth = authConfig != null ? authConfig : ProviderCredentialSupport.defaultAuthConfig();
         if (!currentAuth.isAdmin()) {
             auth = credentialSupport.maskAuthConfig(auth);
@@ -234,6 +259,9 @@ public class ProviderService {
 
     // ==================== 折扣策略 ====================
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public List<DiscountPolicyDto> listDiscountPolicies(Long providerId) {
         getById(providerId);
         return discountPolicyMapper.listByProviderId(providerId).stream()
@@ -241,6 +269,9 @@ public class ProviderService {
                 .toList();
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public DiscountPolicyDto createDiscountPolicy(Long providerId, DiscountPolicyDto request) {
         getById(providerId);
@@ -253,11 +284,14 @@ public class ProviderService {
         entity.setDiscountValue(BigDecimal.valueOf(request.discountValue()));
         entity.setPriority(request.priority());
         entity.setEffectiveFrom(LocalDateTime.now());
-        entity.setStatus(request.status() != null ? request.status() : EntityStatus.ACTIVE);
+        entity.setStatus(request.status() != null ? request.status() : EntityStatusEnum.ACTIVE.code());
         discountPolicyMapper.insert(entity);
         return toDiscountPolicyDto(entity);
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public DiscountPolicyDto updateDiscountPolicy(Long providerId, Long policyId, DiscountPolicyDto request) {
         getById(providerId);
@@ -276,6 +310,9 @@ public class ProviderService {
         return toDiscountPolicyDto(entity);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public Map<String, Object> discountPolicyAuditSnapshot(Long policyId) {
         if (policyId == null) {
             return null;

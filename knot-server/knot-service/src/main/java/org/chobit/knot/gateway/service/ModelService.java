@@ -7,8 +7,8 @@ import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.ModelConverter;
-import org.chobit.knot.gateway.constants.EntityStatus;
-import org.chobit.knot.gateway.constants.TrafficResourceType;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.dto.model.ModelDto;
 import org.chobit.knot.gateway.dto.model.ModelTestResultDto;
 import org.chobit.knot.gateway.dto.model.ModelVersionSwitchResultDto;
@@ -22,6 +22,7 @@ import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.mapper.ModelVersionMapper;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +40,9 @@ public class ModelService {
     private final ModelConverter modelConverter;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
 
+    /**
+     * Constructs a new instance.
+     */
     public ModelService(ModelMapper modelMapper,
                         ModelVersionMapper modelVersionMapper,
                         LogicalModelMapper logicalModelMapper,
@@ -53,27 +57,39 @@ public class ModelService {
         this.trafficPolicySupport = trafficPolicySupport;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<ModelDto> list(PageRequest pageRequest) {
         return list(pageRequest, null);
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<ModelDto> list(PageRequest pageRequest, String keyword) {
         return list(pageRequest, keyword, null);
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<ModelDto> list(PageRequest pageRequest, String keyword, List<String> modelTypes) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<ModelEntity> pageInfo = new PageInfo<>(modelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes)));
         List<ModelEntity> entities = pageInfo.getList();
         List<Long> ids = entities.stream().map(ModelEntity::getId).toList();
-        Map<Long, ResourceTrafficPolicySupport.TrafficPolicies> trafficMap =
-                trafficPolicySupport.loadBatch(TrafficResourceType.MODEL, ids);
+        Map<Long, TrafficPolicies> trafficMap =
+                trafficPolicySupport.loadBatch(TrafficResourceTypeEnum.MODEL.code(), ids);
         List<ModelDto> dtos = entities.stream()
                 .map(e -> enrich(modelConverter.toDto(e), trafficMap.get(e.getId())))
                 .collect(Collectors.toList());
         return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     public ModelDto getById(Long id) {
         ModelEntity entity = modelMapper.getById(id);
         if (entity == null) {
@@ -82,6 +98,9 @@ public class ModelService {
         return enrich(entity);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public Map<String, Object> modelAuditSnapshot(Long id) {
         if (id == null) {
             return null;
@@ -106,6 +125,9 @@ public class ModelService {
         }
     }
 
+    /**
+     * Returns whether the current condition is satisfied. Executes the public operation.
+     */
     public boolean isModelCodeAvailable(String modelCode, Long excludeId) {
         String code = modelCode != null ? modelCode.trim() : "";
         if (code.isEmpty()) {
@@ -115,6 +137,9 @@ public class ModelService {
         return count == null || count == 0;
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public ModelDto create(ModelDto request) {
         String modelCode = normalizeModelCode(request.modelCode());
@@ -123,7 +148,7 @@ public class ModelService {
         ModelEntity entity = modelConverter.toEntity(request);
         entity.setModelCode(modelCode);
         modelMapper.insert(entity);
-        trafficPolicySupport.save(TrafficResourceType.MODEL, entity.getId(),
+        trafficPolicySupport.save(TrafficResourceTypeEnum.MODEL.code(), entity.getId(),
                 request.rateLimitPolicy(), request.quotaPolicy());
         saveLogicalModelMapping(entity.getId(), request.logicalModelId(), modelCode);
         if (entity.getVersion() != null) {
@@ -131,12 +156,15 @@ public class ModelService {
             version.setModelId(entity.getId());
             version.setVersion(entity.getVersion());
             version.setGrayPercent(100);
-            version.setStatus(EntityStatus.ACTIVE);
+            version.setStatus(EntityStatusEnum.ACTIVE.code());
             modelVersionMapper.insert(version);
         }
         return getById(entity.getId());
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public ModelDto update(Long id, ModelDto request) {
         ModelEntity existing = modelMapper.getById(id);
@@ -150,12 +178,15 @@ public class ModelService {
         entity.setId(id);
         entity.setModelCode(modelCode);
         modelMapper.update(entity);
-        trafficPolicySupport.save(TrafficResourceType.MODEL, id,
+        trafficPolicySupport.save(TrafficResourceTypeEnum.MODEL.code(), id,
                 request.rateLimitPolicy(), request.quotaPolicy());
         saveLogicalModelMapping(id, request.logicalModelId(), modelCode);
         return getById(id);
     }
 
+    /**
+     * Executes a test operation and returns the result. Executes the public operation.
+     */
     public ModelTestResultDto testModel(Long id, String prompt) {
         ModelDto model = getById(id);
         String output = "[test] " + model.name() + ": " + prompt;
@@ -164,26 +195,29 @@ public class ModelService {
         return new ModelTestResultDto(output, latencyMs, tokenUsage);
     }
 
+    /**
+     * Switches to the requested target state. Executes the public operation.
+     */
     @Transactional
     public ModelVersionSwitchResultDto switchVersion(Long id, String targetVersion) {
         getById(id);
         ModelVersionEntity current = modelVersionMapper.getActiveVersion(id);
         if (current != null) {
-            current.setStatus(EntityStatus.INACTIVE);
+            current.setStatus(EntityStatusEnum.INACTIVE.code());
             modelVersionMapper.updateStatus(current);
         }
         ModelVersionEntity newVersion = new ModelVersionEntity();
         newVersion.setModelId(id);
         newVersion.setVersion(targetVersion);
         newVersion.setGrayPercent(100);
-        newVersion.setStatus(EntityStatus.ACTIVE);
+        newVersion.setStatus(EntityStatusEnum.ACTIVE.code());
         modelVersionMapper.insert(newVersion);
-        return new ModelVersionSwitchResultDto(id, targetVersion, EntityStatus.ACTIVE);
+        return new ModelVersionSwitchResultDto(id, targetVersion, EntityStatusEnum.ACTIVE.code());
     }
 
     private ModelDto enrich(ModelEntity entity) {
-        ResourceTrafficPolicySupport.TrafficPolicies traffic =
-                trafficPolicySupport.load(TrafficResourceType.MODEL, entity.getId());
+        TrafficPolicies traffic =
+                trafficPolicySupport.load(TrafficResourceTypeEnum.MODEL.code(), entity.getId());
         return enrich(modelConverter.toDto(entity), traffic);
     }
 
@@ -219,7 +253,7 @@ public class ModelService {
         return result.isEmpty() ? null : result;
     }
 
-    private ModelDto enrich(ModelDto base, ResourceTrafficPolicySupport.TrafficPolicies traffic) {
+    private ModelDto enrich(ModelDto base, TrafficPolicies traffic) {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
         QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
         return new ModelDto(
@@ -229,13 +263,13 @@ public class ModelService {
     }
 
     private void validateModelRequest(ModelDto request) {
-        requireText(request.name(), "璇峰～鍐欏悕绉?");
+        requireText(request.name(), "请填写名称");
         if (request.providerId() == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "璇烽€夋嫨渚涘簲鍟?");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择供应商");
         }
-        requireText(request.modelType(), "璇烽€夋嫨妯″瀷绫诲瀷");
+        requireText(request.modelType(), "请选择模型类型");
         if (request.logicalModelId() == null || logicalModelMapper.getById(request.logicalModelId()) == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "璇烽€夋嫨缁熶竴妯″瀷");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择统一模型");
         }
         if (request.billingRuleId() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "billing rule is required");
@@ -247,9 +281,9 @@ public class ModelService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "billing rule does not match provider or logical model");
         }
         if (request.enabled()) {
-            requireText(request.modelCode(), "璇峰～鍐欐ā鍨嬬紪鐮?");
-            requireText(request.name(), "璇峰～鍐欏悕绉?");
-            requireText(request.modelType(), "璇烽€夋嫨妯″瀷绫诲瀷");
+            requireText(request.modelCode(), "请填写模型编码");
+            requireText(request.name(), "请填写名称");
+            requireText(request.modelType(), "请选择模型类型");
         }
     }
 
@@ -273,7 +307,7 @@ public class ModelService {
         mapping.setProviderId(model.getProviderId());
         mapping.setModelId(modelId);
         mapping.setProviderModelName(modelCode);
-        mapping.setStatus(EntityStatus.ENABLED);
+        mapping.setStatus(EntityStatusEnum.ENABLED.code());
         mapping.setPriority(100);
         logicalModelMapper.insertMapping(mapping);
     }

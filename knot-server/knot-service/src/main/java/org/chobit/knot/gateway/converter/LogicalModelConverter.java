@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.converter;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.chobit.knot.gateway.constants.EntityStatus;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.dto.model.LogicalModelDto;
 import org.chobit.knot.gateway.dto.model.ProviderModelMappingDto;
 import org.chobit.knot.gateway.entity.LogicalModelEntity;
@@ -18,6 +18,9 @@ import java.util.Map;
 @Component
 public class LogicalModelConverter {
 
+    /**
+     * Converts the source value to the target representation. Executes the public operation.
+     */
     public LogicalModelDto toDto(LogicalModelEntity entity) {
         if (entity == null) {
             return null;
@@ -54,7 +57,7 @@ public class LogicalModelConverter {
                 toStringList(entity.getSupportedParametersJson()),
                 entity.getVisibility(),
                 entity.getPublishStatus(),
-                EntityStatus.ENABLED.equals(entity.getStatus()),
+                EntityStatusEnum.ENABLED.code().equals(entity.getStatus()),
                 entity.getSortOrder(),
                 Boolean.TRUE.equals(entity.getFeatured()),
                 entity.getOwnerUserId(),
@@ -70,6 +73,9 @@ public class LogicalModelConverter {
         );
     }
 
+    /**
+     * Converts the source value to the target representation. Executes the public operation.
+     */
     public LogicalModelEntity toEntity(LogicalModelDto dto) {
         LogicalModelEntity entity = new LogicalModelEntity();
         entity.setId(dto.id());
@@ -103,7 +109,7 @@ public class LogicalModelConverter {
         entity.setSupportedParametersJson(toJson(dto.supportedParameters()));
         entity.setVisibility(defaultString(dto.visibility(), "PUBLIC"));
         entity.setPublishStatus(defaultString(dto.publishStatus(), "DRAFT"));
-        entity.setStatus(dto.enabled() ? EntityStatus.ENABLED : EntityStatus.DISABLED);
+        entity.setStatus(dto.enabled() ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
         entity.setSortOrder(dto.sortOrder() != null ? dto.sortOrder() : 0);
         entity.setFeatured(dto.featured());
         entity.setOwnerUserId(dto.ownerUserId());
@@ -116,6 +122,9 @@ public class LogicalModelConverter {
         return entity;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public LogicalModelDto withMappings(LogicalModelDto base, List<ProviderModelMappingDto> mappings) {
         return new LogicalModelDto(
                 base.id(), base.modelCode(), base.modelName(), base.modelType(), base.modelFamily(), base.version(),
@@ -131,6 +140,9 @@ public class LogicalModelConverter {
         );
     }
 
+    /**
+     * Converts the source value to the target representation. Executes the public operation.
+     */
     public LogicalModelItem toVO(LogicalModelDto dto) {
         if (dto == null) {
             return null;
@@ -149,6 +161,9 @@ public class LogicalModelConverter {
         );
     }
 
+    /**
+     * Converts the source value to the target representation. Executes the public operation.
+     */
     public LogicalModelDto toDto(LogicalModelItem item) {
         return new LogicalModelDto(
                 item.id(), item.modelCode(), item.modelName(), item.modelType(), item.modelFamily(), item.version(),
@@ -166,10 +181,16 @@ public class LogicalModelConverter {
         );
     }
 
+    /**
+     * Converts the source value to the target representation. Executes the public operation.
+     */
     public List<LogicalModelItem> toVOList(List<LogicalModelDto> list) {
         return list.stream().map(this::toVO).toList();
     }
 
+    /**
+     * Converts the source value to the target representation. Executes the public operation.
+     */
     public ProviderModelMappingDto toMappingDto(ProviderModelMappingEntity entity) {
         if (entity == null) {
             return null;
@@ -185,11 +206,14 @@ public class LogicalModelConverter {
                 entity.getModelCode(),
                 entity.getModelName(),
                 entity.getProviderModelName(),
-                EntityStatus.ENABLED.equals(entity.getStatus()),
+                EntityStatusEnum.ENABLED.code().equals(entity.getStatus()),
                 entity.getPriority()
         );
     }
 
+    /**
+     * Converts the source value to the target representation. Executes the public operation.
+     */
     public ProviderModelMappingEntity toMappingEntity(ProviderModelMappingDto dto) {
         ProviderModelMappingEntity entity = new ProviderModelMappingEntity();
         entity.setId(dto.id());
@@ -197,11 +221,14 @@ public class LogicalModelConverter {
         entity.setProviderId(dto.providerId());
         entity.setModelId(dto.modelId());
         entity.setProviderModelName(dto.providerModelName());
-        entity.setStatus(dto.enabled() ? EntityStatus.ENABLED : EntityStatus.DISABLED);
+        entity.setStatus(dto.enabled() ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
         entity.setPriority(dto.priority() != null ? dto.priority() : 100);
         return entity;
     }
 
+    /**
+     * Converts the source value to the target representation. Executes the public operation.
+     */
     public ProviderModelMappingItem toMappingVO(ProviderModelMappingDto dto) {
         if (dto == null) {
             return null;
@@ -214,6 +241,9 @@ public class LogicalModelConverter {
         );
     }
 
+    /**
+     * Converts the source value to the target representation. Executes the public operation.
+     */
     public ProviderModelMappingDto toMappingDto(ProviderModelMappingItem item) {
         return new ProviderModelMappingDto(
                 item.id(), item.logicalModelId(), item.logicalModelCode(), item.logicalModelName(),

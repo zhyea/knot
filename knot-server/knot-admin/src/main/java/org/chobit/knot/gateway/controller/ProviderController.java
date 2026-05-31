@@ -22,11 +22,17 @@ public class ProviderController {
     private final ProviderService providerService;
     private final ProviderConverter providerConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public ProviderController(ProviderService providerService, ProviderConverter providerConverter) {
         this.providerService = providerService;
         this.providerConverter = providerConverter;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     @PostMapping("/list")
     public PageResult<ProviderItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<ProviderDto> page = providerService.list(
@@ -36,11 +42,17 @@ public class ProviderController {
         return page.mapList(providerConverter::toVOList);
     }
 
+    /**
+     * Returns a suggested value. Executes the public operation.
+     */
     @GetMapping("/suggest-code")
     public String suggestCode() {
         return providerService.suggestCode();
     }
 
+    /**
+     * Checks whether the requested condition is satisfied. Executes the public operation.
+     */
     @GetMapping("/check-code")
     public Map<String, Boolean> checkCode(
             @RequestParam String code,
@@ -48,59 +60,86 @@ public class ProviderController {
         return Map.of("available", providerService.isCodeAvailable(code, excludeId));
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     @GetMapping("/{id}")
     public ProviderItem get(@PathVariable Long id) {
         return providerConverter.toVO(providerService.getById(id));
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @OperationLog(module = "provider", operation = "CREATE", entityType = "Provider",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
-            description = "'新建供应商'",
+            description = "'鏂板缓渚涘簲鍟?",
             recordNewValue = true,
             newValueSpel = "@providerService.providerAuditSnapshot(#result.id())")
     @PostMapping
+    /**
+     * Creates a new resource.
+     */
     public ProviderItem create(@RequestBody @Valid ProviderItem request) {
         ProviderDto created = providerService.create(providerConverter.toDto(request));
         return providerConverter.toVO(created);
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @OperationLog(module = "provider", operation = "UPDATE", entityType = "Provider",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'更新供应商'",
+            description = "'鏇存柊渚涘簲鍟?",
             recordOldValue = true,
             oldValueSpel = "@providerService.providerAuditSnapshot(#p0)",
             recordNewValue = true,
             newValueSpel = "@providerService.providerAuditSnapshot(#p0)")
     @PutMapping("/{id}")
+    /**
+     * Updates the target resource.
+     */
     public ProviderItem update(@PathVariable Long id, @RequestBody @Valid ProviderItem request) {
         ProviderDto updated = providerService.update(id, providerConverter.toDto(request));
         return providerConverter.toVO(updated);
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     @PostMapping("/{id}/discount-policies/list")
     public List<DiscountPolicy> listDiscountPolicies(@PathVariable Long id) {
         return providerService.listDiscountPolicies(id).stream()
                 .map(this::toDiscountPolicyVO).toList();
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @OperationLog(module = "provider", operation = "CREATE", entityType = "Provider",
             entityId = "#p0",
             entityNameAfter = "@providerService.getById(#p0).name()",
-            description = "'新增折扣策略'",
+            description = "'鏂板鎶樻墸绛栫暐'",
             recordNewValue = true,
             newValueSpel = "#result")
     @PostMapping("/{id}/discount-policies")
+    /**
+     * Creates a new resource.
+     */
     public DiscountPolicy createDiscountPolicy(@PathVariable Long id, @RequestBody @Valid DiscountPolicy request) {
         DiscountPolicyDto created = providerService.createDiscountPolicy(id, toDiscountPolicyDto(request));
         return toDiscountPolicyVO(created);
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @OperationLog(module = "provider", operation = "UPDATE", entityType = "Provider",
             entityId = "#p0",
             entityNameAfter = "@providerService.getById(#p0).name()",
-            description = "'更新折扣策略'",
+            description = "'鏇存柊鎶樻墸绛栫暐'",
             recordOldValue = true,
             oldValueSpel = "@providerService.discountPolicyAuditSnapshot(#p1)",
             recordNewValue = true,

@@ -1,20 +1,21 @@
 package org.chobit.knot.gateway.service.upstream;
 
-import org.chobit.knot.gateway.constants.ModelApiProtocol;
+import lombok.RequiredArgsConstructor;
+import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
+@RequiredArgsConstructor
 public class ModelApiProtocolHandlerRegistry {
 
     private final List<ModelApiProtocolHandler> handlers;
 
-    public ModelApiProtocolHandlerRegistry(List<ModelApiProtocolHandler> handlers) {
-        this.handlers = handlers;
-    }
-
-    public ModelApiProtocolHandler resolve(ModelApiProtocol protocol) {
+    /**
+     * Resolves the requested value from current context and configuration. Executes the public operation.
+     */
+    public ModelApiProtocolHandler resolve(ModelApiProtocolEnum protocol) {
         return handlers.stream()
                 .filter(handler -> handler.supports(protocol))
                 .findFirst()

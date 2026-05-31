@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * 启动时将库内历史明文凭证加密为 {@code ENC:} 格式（幂等，已加密则跳过）。
+ * 鍚姩鏃跺皢搴撳唴鍘嗗彶鏄庢枃鍑瘉鍔犲瘑涓?{@code ENC:} 鏍煎紡锛堝箓绛夛紝宸插姞瀵嗗垯璺宠繃锛夈€?
  */
 @Component
 @Order(100)
@@ -25,12 +25,18 @@ public class ProviderCredentialEncryptionMigrator implements ApplicationRunner {
     private final ProviderCredentialMapper providerCredentialMapper;
     private final CredentialEncryption credentialEncryption;
 
+    /**
+     * Constructs a new instance.
+     */
     public ProviderCredentialEncryptionMigrator(ProviderCredentialMapper providerCredentialMapper,
                                                 CredentialEncryption credentialEncryption) {
         this.providerCredentialMapper = providerCredentialMapper;
         this.credentialEncryption = credentialEncryption;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Override
     public void run(ApplicationArguments args) {
         List<ProviderCredentialEntity> credentials = providerCredentialMapper.listActiveAll();

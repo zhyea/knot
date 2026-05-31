@@ -1,21 +1,20 @@
 package org.chobit.knot.gateway.service.upstream;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
+@RequiredArgsConstructor
 public class UpstreamProviderAdapterRegistry {
 
     private final List<UpstreamProviderAdapter> adapters;
     private final OpenAiCompatibleProviderAdapter fallbackAdapter;
 
-    public UpstreamProviderAdapterRegistry(List<UpstreamProviderAdapter> adapters,
-                                           OpenAiCompatibleProviderAdapter fallbackAdapter) {
-        this.adapters = adapters;
-        this.fallbackAdapter = fallbackAdapter;
-    }
-
+    /**
+     * Resolves the requested value from current context and configuration. Executes the public operation.
+     */
     public UpstreamProviderAdapter resolve(String providerType) {
         return adapters.stream()
                 .filter(adapter -> adapter.supports(providerType))

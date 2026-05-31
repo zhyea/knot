@@ -1,10 +1,11 @@
 package org.chobit.knot.gateway.service.upstream;
 
+import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
-import org.chobit.knot.gateway.constants.ModelApiProtocol;
-import org.chobit.knot.gateway.constants.ProviderTypes;
+import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.constants.enums.ProviderTypeEnum;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.service.ProviderCredentialSupport;
 import org.springframework.core.annotation.Order;
@@ -18,51 +19,60 @@ import java.util.Map;
 
 @Component
 @Order(10)
+@RequiredArgsConstructor
 public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
 
     private static final String DEFAULT_VERSION = "2023-06-01";
 
     private final ProviderCredentialSupport credentialSupport;
 
-    public AnthropicProviderAdapter(ProviderCredentialSupport credentialSupport) {
-        this.credentialSupport = credentialSupport;
-    }
-
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Override
     public boolean supports(String providerType) {
-        return providerType != null && ProviderTypes.ANTHROPIC.equals(providerType.trim().toUpperCase());
+        return providerType != null && ProviderTypeEnum.ANTHROPIC.code().equals(providerType.trim().toUpperCase());
     }
 
+    /**
+     * Resolves the requested value from current context and configuration. Executes the public operation.
+     */
     @Override
     public String resolvePath(UpstreamRequestContext context, String defaultPath) {
         if (context.binding() != null && hasText(context.binding().getApiPath())) {
             return context.binding().getApiPath().trim();
         }
-        ModelApiProtocol protocol = context.protocol().canonical();
-        if (ModelApiProtocol.CHAT_COMPLETIONS == protocol
-                || ModelApiProtocol.RESPONSES == protocol
-                || ModelApiProtocol.COMPLETIONS == protocol
-                || ModelApiProtocol.MESSAGES == protocol) {
-            return ModelApiProtocol.MESSAGES.defaultPath();
+        ModelApiProtocolEnum protocol = context.protocol().canonical();
+        if (ModelApiProtocolEnum.CHAT_COMPLETIONS == protocol
+                || ModelApiProtocolEnum.RESPONSES == protocol
+                || ModelApiProtocolEnum.COMPLETIONS == protocol
+                || ModelApiProtocolEnum.MESSAGES == protocol) {
+            return ModelApiProtocolEnum.MESSAGES.defaultPath();
         }
         return UpstreamProviderAdapter.super.resolvePath(context, defaultPath);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Override
     public Map<String, Object> buildRequestBody(UpstreamRequestContext context) {
-        ModelApiProtocol protocol = context.protocol().canonical();
-        if (ModelApiProtocol.CHAT_COMPLETIONS == protocol) {
+        ModelApiProtocolEnum protocol = context.protocol().canonical();
+        if (ModelApiProtocolEnum.CHAT_COMPLETIONS == protocol) {
             return chatCompletionsToMessages(context.requestBody());
         }
-        if (ModelApiProtocol.RESPONSES == protocol) {
+        if (ModelApiProtocolEnum.RESPONSES == protocol) {
             return responsesToMessages(context.requestBody());
         }
-        if (ModelApiProtocol.COMPLETIONS == protocol) {
+        if (ModelApiProtocolEnum.COMPLETIONS == protocol) {
             return completionsToMessages(context.requestBody());
         }
         return context.requestBody();
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Override
     public void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
         String apiKey = credentialValue(context.credential(), AuthConstants.API_KEY);

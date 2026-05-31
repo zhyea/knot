@@ -10,10 +10,16 @@ import java.util.List;
 @Component
 public class CurrentAuth {
 
+    /**
+     * Returns whether the current condition is satisfied. Executes the public operation.
+     */
     public boolean isAdmin() {
         return AuthRoles.isAdmin(currentRoles());
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @SuppressWarnings("unchecked")
     public List<String> currentRoles() {
         ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();

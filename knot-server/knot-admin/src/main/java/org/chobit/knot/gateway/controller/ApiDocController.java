@@ -11,6 +11,9 @@ import java.util.Map;
 @RequestMapping("/api/docs")
 public class ApiDocController {
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @PostMapping("/openapi.json")
     public Map<String, Object> openApi() {
         return Map.of(
@@ -22,6 +25,9 @@ public class ApiDocController {
         );
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @PostMapping("/changelog")
     public List<DocChangeLog> changelog() {
         return List.of(

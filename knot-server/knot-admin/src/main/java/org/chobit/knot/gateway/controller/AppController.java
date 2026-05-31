@@ -17,11 +17,17 @@ public class AppController {
     private final AppService appService;
     private final AppConverter appConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public AppController(AppService appService, AppConverter appConverter) {
         this.appService = appService;
         this.appConverter = appConverter;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     @PostMapping("/list")
     public PageResult<AppItem> list(@RequestBody PageQuery query) {
         PageResult<AppDto> page = appService.list(
@@ -31,39 +37,57 @@ public class AppController {
         return page.mapList(appConverter::toVOList);
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @OperationLog(module = "app", operation = "CREATE", entityType = "App",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
-            description = "'新建应用'",
+            description = "'鏂板缓搴旂敤'",
             recordNewValue = true,
             newValueSpel = "@appService.appAuditSnapshot(#result.id())")
     @PostMapping
+    /**
+     * Creates a new resource.
+     */
     public AppItem create(@RequestBody @Valid AppItem request) {
         AppDto created = appService.create(appConverter.toDto(request));
         return appConverter.toVO(created);
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @OperationLog(module = "app", operation = "UPDATE", entityType = "App",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'更新应用'",
+            description = "'鏇存柊搴旂敤'",
             recordOldValue = true,
             oldValueSpel = "@appService.appAuditSnapshot(#p0)",
             recordNewValue = true,
             newValueSpel = "@appService.appAuditSnapshot(#p0)")
     @PutMapping("/{id}")
+    /**
+     * Updates the target resource.
+     */
     public AppItem update(@PathVariable Long id, @RequestBody @Valid AppItem request) {
         AppDto updated = appService.update(id, appConverter.toDto(request));
         return appConverter.toVO(updated);
     }
 
+    /**
+     * Deletes the target resource. Executes the public operation.
+     */
     @OperationLog(module = "app", operation = "DELETE", entityType = "App",
             entityId = "#p0",
             entityName = "@appService.appAuditSnapshot(#p0)?.get('name')",
-            description = "'删除应用'",
+            description = "'鍒犻櫎搴旂敤'",
             recordOldValue = true,
             oldValueSpel = "@appService.appAuditSnapshot(#p0)")
     @DeleteMapping("/{id}")
+    /**
+     * Deletes the target resource.
+     */
     public void delete(@PathVariable Long id) {
         appService.delete(id);
     }

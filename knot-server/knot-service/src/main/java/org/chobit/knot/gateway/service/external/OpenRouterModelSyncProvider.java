@@ -2,8 +2,8 @@ package org.chobit.knot.gateway.service.external;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.chobit.knot.gateway.constants.EntityStatus;
-import org.chobit.knot.gateway.constants.ModelTypes;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.entity.ExternalModelItemEntity;
 import org.chobit.knot.gateway.entity.ExternalModelSourceEntity;
 import org.chobit.knot.gateway.mapper.ExternalModelMapper;
@@ -31,6 +31,9 @@ import java.util.Set;
 @Component
 public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvider {
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public static final String CODE = "OPENROUTER";
     private static final String SOURCE_URL = "https://openrouter.ai/models";
     private static final String API_URL = "https://openrouter.ai/api/v1/models";
@@ -40,10 +43,16 @@ public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvid
             .build();
     private final ObjectMapper mapper = JsonKit.mapper();
 
+    /**
+     * Constructs a new instance.
+     */
     public OpenRouterModelSyncProvider(ExternalModelMapper externalModelMapper) {
         super(externalModelMapper);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Override
     public String sourceCode() {
         return CODE;
@@ -57,7 +66,7 @@ public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvid
         source.setSourceUrl(SOURCE_URL);
         source.setApiUrl(API_URL);
         source.setSourceType("MODEL_CATALOG");
-        source.setStatus(EntityStatus.ENABLED);
+        source.setStatus(EntityStatusEnum.ENABLED.code());
         return source;
     }
 
@@ -177,16 +186,16 @@ public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvid
     private String modelType(String id, String name, List<String> inputModalities, List<String> outputModalities) {
         String value = (id + " " + name + " " + outputModalities).toLowerCase(Locale.ROOT);
         if (value.contains("embedding")) {
-            return ModelTypes.EMBEDDING;
+            return ModelTypeEnum.EMBEDDING.code();
         }
         if (outputModalities.contains("image")) {
-            return ModelTypes.IMAGE;
+            return ModelTypeEnum.IMAGE.code();
         }
         if (outputModalities.contains("audio")) {
-            return ModelTypes.AUDIO;
+            return ModelTypeEnum.AUDIO.code();
         }
         if (outputModalities.contains("video")) {
-            return ModelTypes.VIDEO;
+            return ModelTypeEnum.VIDEO.code();
         }
         if (inputModalities.contains("image")) {
             return "MULTIMODAL";

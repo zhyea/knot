@@ -1,11 +1,14 @@
 package org.chobit.knot.gateway.service.upstream;
 
 import org.chobit.knot.gateway.constants.GatewayHeaders;
-import org.chobit.knot.gateway.constants.ProxyErrorCodes;
-import org.chobit.knot.gateway.service.ProxyService;
+import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
+import org.chobit.knot.gateway.model.ProxyResult;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 
+/**
+ * Executes the public operation. Executes the public operation.
+ */
 public abstract class AbstractApiProtocolHandler implements ModelApiProtocolHandler {
 
     private final RestClient restClient;
@@ -14,12 +17,15 @@ public abstract class AbstractApiProtocolHandler implements ModelApiProtocolHand
         this.restClient = restClient;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Override
-    public ProxyService.ProxyResult execute(UpstreamRequestContext context, UpstreamProviderAdapter adapter) {
+    public ProxyResult execute(UpstreamRequestContext context, UpstreamProviderAdapter adapter) {
         String path = adapter.resolvePath(context, defaultPath(context));
         if (path == null || path.isBlank()) {
-            return new ProxyService.ProxyResult(null, context.provider().getId(), context.model().getId(),
-                    ProxyErrorCodes.API_PROTOCOL_NOT_CONFIGURED, "api protocol is not configured: " + context.protocol().code());
+            return new ProxyResult(null, context.provider().getId(), context.model().getId(),
+                    ProxyErrorCodeEnum.API_PROTOCOL_NOT_CONFIGURED.code(), "api protocol is not configured: " + context.protocol().code());
         }
 
         try {
@@ -34,7 +40,7 @@ public abstract class AbstractApiProtocolHandler implements ModelApiProtocolHand
             String responseBody = spec.body(adapter.buildRequestBody(context))
                     .retrieve()
                     .body(String.class);
-            return new ProxyService.ProxyResult(
+            return new ProxyResult(
                     adapter.handleResponse(responseBody, context),
                     context.provider().getId(),
                     context.model().getId(),
@@ -42,8 +48,8 @@ public abstract class AbstractApiProtocolHandler implements ModelApiProtocolHand
                     null
             );
         } catch (Exception e) {
-            return new ProxyService.ProxyResult(null, context.provider().getId(), context.model().getId(),
-                    ProxyErrorCodes.UPSTREAM_ERROR, e.getMessage());
+            return new ProxyResult(null, context.provider().getId(), context.model().getId(),
+                    ProxyErrorCodeEnum.UPSTREAM_ERROR.code(), e.getMessage());
         }
     }
 

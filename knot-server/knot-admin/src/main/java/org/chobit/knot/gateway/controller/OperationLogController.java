@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * 操作日志控制器
+ * 鎿嶄綔鏃ュ織鎺у埗鍣?
  */
 @RestController
 @RequestMapping("/api/operation-logs")
@@ -18,22 +18,31 @@ public class OperationLogController {
 
     private final OperationLogService operationLogService;
 
+    /**
+     * Constructs a new instance.
+     */
     public OperationLogController(OperationLogService operationLogService) {
         this.operationLogService = operationLogService;
     }
 
     /**
-     * 分页查询操作日志
+     * Lists matching results. Executes the public operation.
+     */
+    /**
+     * 鍒嗛〉鏌ヨ鎿嶄綔鏃ュ織
      */
     @PostMapping("/list")
     public List<OperationLogEntity> list(@RequestBody PageQuery query) {
-        // TODO: 实现分页查询
+        // TODO: 瀹炵幇鍒嗛〉鏌ヨ
         List<OperationLogEntity> logs = operationLogService.listByModule(null, null, null, null);
         return logs;
     }
 
     /**
-     * 根据ID查询操作日志详情
+     * Returns the requested value. Executes the public operation.
+     */
+    /**
+     * 鏍规嵁ID鏌ヨ鎿嶄綔鏃ュ織璇︽儏
      */
     @GetMapping("/{id}")
     public OperationLogEntity getById(@PathVariable Long id) {
@@ -42,7 +51,10 @@ public class OperationLogController {
     }
 
     /**
-     * 根据模块查询操作日志
+     * Returns the requested value. Executes the public operation.
+     */
+    /**
+     * 鏍规嵁妯″潡鏌ヨ鎿嶄綔鏃ュ織
      */
     @GetMapping("/module/{module}")
     public List<OperationLogEntity> getByModule(
@@ -55,7 +67,10 @@ public class OperationLogController {
     }
 
     /**
-     * 根据操作人查询操作日志
+     * Returns the requested value. Executes the public operation.
+     */
+    /**
+     * 鏍规嵁鎿嶄綔浜烘煡璇㈡搷浣滄棩蹇?
      */
     @GetMapping("/operator/{operatorId}")
     public List<OperationLogEntity> getByOperator(
@@ -66,7 +81,10 @@ public class OperationLogController {
     }
 
     /**
-     * 根据实体查询操作日志
+     * Returns the requested value. Executes the public operation.
+     */
+    /**
+     * 鏍规嵁瀹炰綋鏌ヨ鎿嶄綔鏃ュ織
      */
     @GetMapping("/entity/{entityType}/{entityId}")
     public List<OperationLogEntity> getByEntity(

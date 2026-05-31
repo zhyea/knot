@@ -14,10 +14,16 @@ public class UserSettingService {
 
     private final UserSettingMapper userSettingMapper;
 
+    /**
+     * Constructs a new instance.
+     */
     public UserSettingService(UserSettingMapper userSettingMapper) {
         this.userSettingMapper = userSettingMapper;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public Map<String, String> listSettings(Long userId) {
         List<UserSettingEntity> entities = userSettingMapper.listByUserId(userId);
         Map<String, String> result = new LinkedHashMap<>();
@@ -27,6 +33,9 @@ public class UserSettingService {
         return result;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Transactional
     public Map<String, String> saveSettings(Long userId, Map<String, String> settings) {
         if (settings == null || settings.isEmpty()) {
@@ -38,6 +47,9 @@ public class UserSettingService {
         return listSettings(userId);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Transactional
     public void saveSetting(Long userId, String key, String value) {
         UserSettingEntity entity = new UserSettingEntity();

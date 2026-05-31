@@ -18,11 +18,17 @@ public class SystemController {
     private final SystemService systemService;
     private final SystemConverter systemConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public SystemController(SystemService systemService, SystemConverter systemConverter) {
         this.systemService = systemService;
         this.systemConverter = systemConverter;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @PostMapping("/roles")
     public List<RoleItem> roles() {
         return List.of(
@@ -33,25 +39,37 @@ public class SystemController {
         );
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @PostMapping("/log-types")
     public List<String> logTypes() {
         return List.of("access", "operation", "error", "system");
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @PostMapping("/logs")
     public List<SystemLogItem> logs() {
-        // 返回最近的系统日志，从操作日志中提取
+        // 杩斿洖鏈€杩戠殑绯荤粺鏃ュ織锛屼粠鎿嶄綔鏃ュ織涓彁鍙?
         return systemService.listOperationLogs(PageRequest.of(1, 10)).list().stream()
                 .map(dto -> new SystemLogItem(dto.moduleCode(), "INFO", dto.actionCode()))
                 .toList();
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @PostMapping("/operation-logs")
     public PageResult<OperationLogItem> operationLogs(@RequestBody(required = false) PageQuery query) {
         PageResult<OperationLogDto> page = systemService.listOperationLogs(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return page.mapList(systemConverter::toOperationLogVOList);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @PostMapping("/operation-logs/{id}")
     public OperationLogDetail operationLogDetail(@PathVariable Long id) {
         OperationLogDetailDto detail = systemService.getOperationLogDetail(id);

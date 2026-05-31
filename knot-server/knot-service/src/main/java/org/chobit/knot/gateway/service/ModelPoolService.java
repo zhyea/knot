@@ -26,6 +26,9 @@ public class ModelPoolService {
     private final ModelMapper modelMapper;
     private final ModelPoolConverter modelPoolConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public ModelPoolService(ModelPoolMapper modelPoolMapper,
                             ModelMapper modelMapper,
                             ModelPoolConverter modelPoolConverter) {
@@ -34,6 +37,9 @@ public class ModelPoolService {
         this.modelPoolConverter = modelPoolConverter;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<ModelPoolDto> list(PageRequest pageRequest, String keyword, List<String> modelTypes) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<ModelPoolEntity> pageInfo =
@@ -44,6 +50,9 @@ public class ModelPoolService {
         return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     public ModelPoolDto getById(Long id) {
         ModelPoolEntity entity = modelPoolMapper.getById(id);
         if (entity == null) {
@@ -52,6 +61,9 @@ public class ModelPoolService {
         return enrich(modelPoolConverter.toDto(entity));
     }
 
+    /**
+     * Returns whether the current condition is satisfied. Executes the public operation.
+     */
     public boolean isPoolCodeAvailable(String poolCode, Long excludeId) {
         String code = normalizePoolCode(poolCode);
         if (code.isEmpty()) {
@@ -61,6 +73,9 @@ public class ModelPoolService {
         return count == null || count == 0;
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public ModelPoolDto create(ModelPoolDto request) {
         validateForSave(request, null);
@@ -70,6 +85,9 @@ public class ModelPoolService {
         return getById(entity.getId());
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public ModelPoolDto update(Long id, ModelPoolDto request) {
         if (modelPoolMapper.getById(id) == null) {
@@ -83,6 +101,9 @@ public class ModelPoolService {
         return getById(id);
     }
 
+    /**
+     * Deletes the target resource. Executes the public operation.
+     */
     @Transactional
     public void delete(Long id) {
         if (modelPoolMapper.getById(id) == null) {

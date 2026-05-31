@@ -2,7 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.chobit.knot.gateway.constants.TrafficResourceType;
+import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.converter.AppConverter;
 import org.chobit.knot.gateway.dto.app.AppDto;
 import org.chobit.knot.gateway.entity.AppEntity;
@@ -13,6 +13,7 @@ import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,9 @@ public class AppService {
     private final AppConverter appConverter;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
 
+    /**
+     * Constructs a new instance.
+     */
     public AppService(AppMapper appMapper,
                       AppConverter appConverter,
                       ResourceTrafficPolicySupport trafficPolicySupport) {
@@ -36,10 +40,16 @@ public class AppService {
         this.trafficPolicySupport = trafficPolicySupport;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<AppDto> list(PageRequest pageRequest) {
         return list(pageRequest, null);
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<AppDto> list(PageRequest pageRequest, String keyword) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<AppEntity> pageInfo = new PageInfo<>(appMapper.list(normalizeKeyword(keyword)));
@@ -49,6 +59,9 @@ public class AppService {
         return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     public AppDto getById(Long id) {
         AppEntity entity = appMapper.getById(id);
         if (entity == null) {
@@ -57,6 +70,9 @@ public class AppService {
         return enrich(appConverter.toDto(entity), entity.getId());
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public AppDto create(AppDto request) {
         String appId = request.appId() != null ? request.appId().trim() : "";
@@ -69,11 +85,14 @@ public class AppService {
         AppEntity entity = appConverter.toEntity(request);
         entity.setAppId(appId);
         appMapper.insert(entity);
-        trafficPolicySupport.save(TrafficResourceType.APP, entity.getId(),
+        trafficPolicySupport.save(TrafficResourceTypeEnum.APP.code(), entity.getId(),
                 request.rateLimitPolicy(), request.quotaPolicy());
         return getById(entity.getId());
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public AppDto update(Long id, AppDto request) {
         AppEntity existing = appMapper.getById(id);
@@ -84,11 +103,14 @@ public class AppService {
         entity.setId(id);
         entity.setAppId(existing.getAppId());
         appMapper.update(entity);
-        trafficPolicySupport.save(TrafficResourceType.APP, id,
+        trafficPolicySupport.save(TrafficResourceTypeEnum.APP.code(), id,
                 request.rateLimitPolicy(), request.quotaPolicy());
         return getById(id);
     }
 
+    /**
+     * Deletes the target resource. Executes the public operation.
+     */
     @Transactional
     public void delete(Long id) {
         AppEntity existing = appMapper.getById(id);
@@ -125,6 +147,9 @@ public class AppService {
         return value.isEmpty() ? null : value;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public Map<String, Object> appAuditSnapshot(Long id) {
         if (id == null) {
             return null;
@@ -147,8 +172,8 @@ public class AppService {
     }
 
     private AppDto enrich(AppDto base, Long appId) {
-        ResourceTrafficPolicySupport.TrafficPolicies traffic =
-                trafficPolicySupport.load(TrafficResourceType.APP, appId);
+        TrafficPolicies traffic =
+                trafficPolicySupport.load(TrafficResourceTypeEnum.APP.code(), appId);
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
         QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
         return new AppDto(

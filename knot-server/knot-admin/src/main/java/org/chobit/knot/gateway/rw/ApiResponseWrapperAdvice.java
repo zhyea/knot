@@ -19,7 +19,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 import java.util.List;
 
 /**
- * 参考 zhy-spring-boot-starter 的 {@code ResponseWrapperAdvice}：将业务返回值统一包装为 {@link ApiResponse}。
+ * 鍙傝€?zhy-spring-boot-starter 鐨?{@code ResponseWrapperAdvice}锛氬皢涓氬姟杩斿洖鍊肩粺涓€鍖呰涓?{@link ApiResponse}銆?
  */
 @Slf4j
 @RestControllerAdvice
@@ -27,11 +27,17 @@ public class ApiResponseWrapperAdvice implements ResponseBodyAdvice<Object> {
 
     private final RwProperties rwProperties;
 
+    /**
+     * Constructs a new instance.
+     */
     public ApiResponseWrapperAdvice(RwProperties rwProperties) {
         this.rwProperties = rwProperties;
         log.debug("ApiResponseWrapperAdvice enabled, silentMode={}", rwProperties.isSilentMode());
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Override
     public boolean supports(MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
         if (!rwProperties.isEnabled()) {
@@ -56,6 +62,9 @@ public class ApiResponseWrapperAdvice implements ResponseBodyAdvice<Object> {
         return isApiController && effectiveWrapper;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Override
     public Object beforeBodyWrite(
             @Nullable Object body,

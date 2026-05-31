@@ -26,34 +26,45 @@ public class UserService {
     private final UserConverter userConverter;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
+    /**
+     * Constructs a new instance.
+     */
     public UserService(UserMapper userMapper, UserConverter userConverter) {
         this.userMapper = userMapper;
         this.userConverter = userConverter;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public LoginResponse login(String username, String password) {
         UserEntity user = userMapper.getUserByUsername(username);
         if (user == null) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "鐢ㄦ埛鍚嶆垨瀵嗙爜閿欒");
         }
         
         boolean matches = passwordEncoder.matches(password, user.getPasswordHash());
         if (!matches) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "鐢ㄦ埛鍚嶆垨瀵嗙爜閿欒");
         }
         
-        // 更新最后登录时间
-        userMapper.updateLastLoginTime(user.getId());
+        // 鏇存柊鏈€鍚庣櫥褰曟椂闂?        userMapper.updateLastLoginTime(user.getId());
         
         List<String> roles = userMapper.listRoleCodesByUserId(user.getId());
         String token = JwtUtil.generateToken(user.getId(), user.getUsername(), roles);
         return new LoginResponse(token, user.getId(), user.getUsername(), user.getRealName(), roles);
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<UserDto> listUsers(PageRequest pageRequest) {
         return listUsers(pageRequest, null);
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<UserDto> listUsers(PageRequest pageRequest, String keyword) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<UserEntity> pageInfo = new PageInfo<>(userMapper.listUsers(normalizeKeyword(keyword)));
@@ -66,8 +77,10 @@ public class UserService {
     }
 
     /**
-     * 操作审计快照（不含密码），供 {@link org.chobit.knot.gateway.annotation.OperationLog} SpEL 使用。
+     * Executes the public operation. Executes the public operation.
      */
+    /**
+     * 鎿嶄綔瀹¤蹇収锛堜笉鍚瘑鐮侊級锛屼緵 {@link org.chobit.knot.gateway.annotation.OperationLog} SpEL 浣跨敤銆?     */
     public Map<String, Object> userAuditSnapshot(Long id) {
         if (id == null) {
             return null;
@@ -86,22 +99,28 @@ public class UserService {
         return m;
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public UserDto createUser(UserDto request) {
         UserEntity entity = new UserEntity();
         entity.setUsername(request.username());
         entity.setRealName(request.realName());
         entity.setStatus(request.status());
-        // 加密密码
+        // 鍔犲瘑瀵嗙爜
         if (request.password() != null && !request.password().isEmpty()) {
             entity.setPasswordHash(passwordEncoder.encode(request.password()));
         } else {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "密码不能为空");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "瀵嗙爜涓嶈兘涓虹┖");
         }
         userMapper.insertUser(entity);
         return userConverter.toDto(entity);
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public UserDto updateUserStatus(Long id, String status) {
         UserEntity entity = userMapper.getUserById(id);
@@ -111,13 +130,16 @@ public class UserService {
         return userConverter.toDto(entity);
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public UserDto updateUser(UserDto request) {
         UserEntity entity = userMapper.getUserById(request.id());
         if (entity == null) throw new BusinessException(ErrorCode.NOT_FOUND, "user not found");
         entity.setRealName(request.realName());
         entity.setStatus(request.status());
-        // 如果提供了密码则更新
+        // 濡傛灉鎻愪緵浜嗗瘑鐮佸垯鏇存柊
         if (request.password() != null && !request.password().isEmpty()) {
             entity.setPasswordHash(passwordEncoder.encode(request.password()));
         }

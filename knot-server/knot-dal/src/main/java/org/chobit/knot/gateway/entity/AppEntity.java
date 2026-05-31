@@ -7,6 +7,7 @@ public class AppEntity {
     private Long id;
     private String appId;
     private String name;
+    private Long deptId;
     private Long ownerUserId;
     /** 关联 users.real_name，仅查询展示 */
     private String ownerRealName;

@@ -27,22 +27,34 @@ public class ModelPoolController {
     private final ModelPoolService modelPoolService;
     private final ModelPoolConverter modelPoolConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public ModelPoolController(ModelPoolService modelPoolService, ModelPoolConverter modelPoolConverter) {
         this.modelPoolService = modelPoolService;
         this.modelPoolConverter = modelPoolConverter;
     }
 
+    /**
+     * Checks whether the requested condition is satisfied. Executes the public operation.
+     */
     @GetMapping("/check-code")
     public Map<String, Boolean> checkCode(@RequestParam String code,
                                           @RequestParam(required = false) Long excludeId) {
         return Map.of("available", modelPoolService.isPoolCodeAvailable(code, excludeId));
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     @GetMapping("/{id}")
     public ModelPool get(@PathVariable Long id) {
         return modelPoolConverter.toVO(modelPoolService.getById(id));
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     @PostMapping("/list")
     public PageResult<ModelPool> list(@RequestBody(required = false) PageQuery query) {
         PageResult<ModelPoolDto> page = modelPoolService.list(
@@ -53,16 +65,25 @@ public class ModelPoolController {
         return page.mapList(modelPoolConverter::toVOList);
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @PostMapping
     public ModelPool create(@RequestBody @Valid ModelPool request) {
         return modelPoolConverter.toVO(modelPoolService.create(modelPoolConverter.toDto(request)));
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @PutMapping("/{id}")
     public ModelPool update(@PathVariable Long id, @RequestBody @Valid ModelPool request) {
         return modelPoolConverter.toVO(modelPoolService.update(id, modelPoolConverter.toDto(request)));
     }
 
+    /**
+     * Deletes the target resource. Executes the public operation.
+     */
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         modelPoolService.delete(id);

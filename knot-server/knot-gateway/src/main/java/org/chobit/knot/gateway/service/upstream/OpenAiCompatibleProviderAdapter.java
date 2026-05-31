@@ -1,10 +1,11 @@
 package org.chobit.knot.gateway.service.upstream;
 
+import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
-import org.chobit.knot.gateway.constants.ModelApiProtocol;
-import org.chobit.knot.gateway.constants.ProviderTypes;
+import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.constants.enums.ProviderTypeEnum;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.service.ProviderCredentialSupport;
 import org.springframework.core.annotation.Order;
@@ -19,44 +20,53 @@ import java.util.Set;
 
 @Component
 @Order(100)
+@RequiredArgsConstructor
 public class OpenAiCompatibleProviderAdapter implements UpstreamProviderAdapter {
 
     private static final Set<String> PROVIDER_TYPES = Set.of(
-            ProviderTypes.OPENAI,
-            ProviderTypes.DEEPSEEK,
-            ProviderTypes.OPENROUTER
+            ProviderTypeEnum.OPENAI.code(),
+            ProviderTypeEnum.DEEPSEEK.code(),
+            ProviderTypeEnum.OPENROUTER.code()
     );
 
     private final ProviderCredentialSupport credentialSupport;
 
-    public OpenAiCompatibleProviderAdapter(ProviderCredentialSupport credentialSupport) {
-        this.credentialSupport = credentialSupport;
-    }
-
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Override
     public boolean supports(String providerType) {
         return providerType == null || PROVIDER_TYPES.contains(providerType.trim().toUpperCase());
     }
 
+    /**
+     * Resolves the requested value from current context and configuration. Executes the public operation.
+     */
     @Override
     public String resolvePath(UpstreamRequestContext context, String defaultPath) {
         if (context.binding() != null && hasText(context.binding().getApiPath())) {
             return context.binding().getApiPath().trim();
         }
-        if (ModelApiProtocol.MESSAGES == context.protocol().canonical()) {
-            return ModelApiProtocol.CHAT_COMPLETIONS.defaultPath();
+        if (ModelApiProtocolEnum.MESSAGES == context.protocol().canonical()) {
+            return ModelApiProtocolEnum.CHAT_COMPLETIONS.defaultPath();
         }
         return UpstreamProviderAdapter.super.resolvePath(context, defaultPath);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Override
     public Map<String, Object> buildRequestBody(UpstreamRequestContext context) {
-        if (ModelApiProtocol.MESSAGES == context.protocol().canonical()) {
+        if (ModelApiProtocolEnum.MESSAGES == context.protocol().canonical()) {
             return anthropicMessagesToChatCompletions(context.requestBody());
         }
         return context.requestBody();
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Override
     public void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
         String apiKey = credentialValue(context.credential(), AuthConstants.API_KEY);

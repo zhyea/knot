@@ -10,7 +10,7 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * JWT 令牌工具类
+ * JWT 浠ょ墝宸ュ叿绫?
  */
 public class JwtUtil {
 
@@ -19,10 +19,16 @@ public class JwtUtil {
     );
     private static final long EXPIRATION_MS = 24L * 60 * 60 * 1000; // 24h
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public static String generateToken(Long userId, String username) {
         return generateToken(userId, username, List.of());
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public static String generateToken(Long userId, String username, List<String> roles) {
         return Jwts.builder()
                 .subject(username)
@@ -34,6 +40,9 @@ public class JwtUtil {
                 .compact();
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public static Claims parseToken(String token) {
         return Jwts.parser()
                 .verifyWith(KEY)
@@ -42,6 +51,9 @@ public class JwtUtil {
                 .getPayload();
     }
 
+    /**
+     * Returns whether the current condition is satisfied. Executes the public operation.
+     */
     public static boolean isValid(String token) {
         try {
             parseToken(token);

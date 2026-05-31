@@ -18,10 +18,16 @@ public class RoutingConsumerController {
 
     private final RoutingConsumerService routingConsumerService;
 
+    /**
+     * Constructs a new instance.
+     */
     public RoutingConsumerController(RoutingConsumerService routingConsumerService) {
         this.routingConsumerService = routingConsumerService;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     @PostMapping("/list")
     public PageResult<RoutingConsumer> list(@RequestBody(required = false) PageQuery query) {
         PageResult<RoutingConsumerDto> page =
@@ -32,43 +38,64 @@ public class RoutingConsumerController {
         return page.map(this::toVO);
     }
 
+    /**
+     * Checks whether the requested condition is satisfied. Executes the public operation.
+     */
     @GetMapping("/check-code")
     public Map<String, Boolean> checkCode(@RequestParam String code,
                                           @RequestParam(required = false) Long excludeId) {
         return Map.of("available", routingConsumerService.isConsumerCodeAvailable(code, excludeId));
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @OperationLog(module = "routing", operation = "CREATE", entityType = "RoutingConsumer",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
-            description = "'新建消费者'",
+            description = "'鏂板缓娑堣垂鑰?",
             recordNewValue = true,
             newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#result.id())")
     @PostMapping
+    /**
+     * Creates a new resource.
+     */
     public RoutingConsumer create(@RequestBody @Valid RoutingConsumer request) {
         return toVO(routingConsumerService.create(toDto(request)));
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingConsumer",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'更新消费者'",
+            description = "'鏇存柊娑堣垂鑰?",
             recordOldValue = true,
             oldValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)",
             recordNewValue = true,
             newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)")
     @PutMapping("/{id}")
+    /**
+     * Updates the target resource.
+     */
     public RoutingConsumer update(@PathVariable Long id, @RequestBody @Valid RoutingConsumer request) {
         return toVO(routingConsumerService.update(id, toDto(request)));
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingConsumer",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'重置消费者 API Key'",
+            description = "'閲嶇疆娑堣垂鑰?API Key'",
             recordNewValue = true,
             newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)")
     @PostMapping("/{id}/rotate-secret")
+    /**
+     * Rotates the target secret.
+     */
     public RoutingConsumer rotateSecret(@PathVariable Long id) {
         return toVO(routingConsumerService.rotateSecretKey(id));
     }

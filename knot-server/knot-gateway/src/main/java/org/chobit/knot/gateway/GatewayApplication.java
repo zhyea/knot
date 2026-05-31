@@ -12,10 +12,16 @@ import org.springframework.web.client.RestClient;
 @EnableAsync
 public class GatewayApplication {
 
+    /**
+     * Application entry point.
+     */
     public static void main(String[] args) {
         SpringApplication.run(GatewayApplication.class, args);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Bean
     public RestClient restClient(RestClient.Builder builder) {
         return builder.build();

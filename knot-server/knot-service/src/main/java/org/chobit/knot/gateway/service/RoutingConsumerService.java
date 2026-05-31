@@ -2,7 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.chobit.knot.gateway.constants.TrafficResourceType;
+import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingConsumerDto;
 import org.chobit.knot.gateway.entity.RoutingConsumerEntity;
 import org.chobit.knot.gateway.error.BusinessException;
@@ -11,6 +11,7 @@ import org.chobit.knot.gateway.mapper.RoutingConsumerMapper;
 import org.chobit.knot.gateway.mapper.UserMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.util.tools.RoutingRuleCodeGenerator;
 import org.chobit.knot.gateway.util.tools.RoutingSecretKeyGenerator;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,9 @@ public class RoutingConsumerService {
     private final UserMapper userMapper;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
 
+    /**
+     * Constructs a new instance.
+     */
     public RoutingConsumerService(RoutingConsumerMapper routingConsumerMapper,
                                   UserMapper userMapper,
                                   ResourceTrafficPolicySupport trafficPolicySupport) {
@@ -37,15 +41,21 @@ public class RoutingConsumerService {
         this.trafficPolicySupport = trafficPolicySupport;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<RoutingConsumerDto> list(PageRequest pageRequest) {
         return list(pageRequest, null);
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<RoutingConsumerDto> list(PageRequest pageRequest, String keyword) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<RoutingConsumerEntity> pageInfo = new PageInfo<>(routingConsumerMapper.list(normalizeKeyword(keyword)));
         List<RoutingConsumerDto> dtos = pageInfo.getList().stream().map(entity ->
-                toDto(entity, trafficPolicySupport.load(TrafficResourceType.ROUTING_CONSUMER, entity.getId()))
+                toDto(entity, trafficPolicySupport.load(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), entity.getId()))
         ).toList();
         return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
@@ -55,14 +65,20 @@ public class RoutingConsumerService {
         return value.isEmpty() ? null : value;
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     public RoutingConsumerDto getById(Long id) {
         RoutingConsumerEntity entity = routingConsumerMapper.getById(id);
         if (entity == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "消费者不存在");
         }
-        return toDto(entity, trafficPolicySupport.load(TrafficResourceType.ROUTING_CONSUMER, entity.getId()));
+        return toDto(entity, trafficPolicySupport.load(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), entity.getId()));
     }
 
+    /**
+     * Returns whether the current condition is satisfied. Executes the public operation.
+     */
     public boolean isConsumerCodeAvailable(String consumerCode, Long excludeId) {
         String normalized = normalizeConsumerCode(consumerCode);
         if (normalized.isEmpty()) {
@@ -72,6 +88,9 @@ public class RoutingConsumerService {
         return count == null || count == 0;
     }
 
+    /**
+     * Returns the audit snapshot used by operation logging.
+     */
     public Map<String, Object> consumerAuditSnapshot(Long id) {
         if (id == null) {
             return null;
@@ -96,6 +115,9 @@ public class RoutingConsumerService {
         }
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public RoutingConsumerDto create(RoutingConsumerDto request) {
         RoutingConsumerDto normalized = ensureGeneratedFieldsForCreate(request);
@@ -104,11 +126,14 @@ public class RoutingConsumerService {
         entity.setSecretKey(generateUniqueSecretKey());
         entity.setStatus(normalized.enabled() ? "ENABLED" : "DISABLED");
         routingConsumerMapper.insert(entity);
-        trafficPolicySupport.save(TrafficResourceType.ROUTING_CONSUMER, entity.getId(),
+        trafficPolicySupport.save(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), entity.getId(),
                 normalized.rateLimitPolicy(), normalized.quotaPolicy());
         return getById(entity.getId());
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public RoutingConsumerDto update(Long id, RoutingConsumerDto request) {
         if (routingConsumerMapper.getById(id) == null) {
@@ -119,11 +144,14 @@ public class RoutingConsumerService {
         entity.setId(id);
         entity.setStatus(request.enabled() ? "ENABLED" : "DISABLED");
         routingConsumerMapper.update(entity);
-        trafficPolicySupport.save(TrafficResourceType.ROUTING_CONSUMER, id,
+        trafficPolicySupport.save(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), id,
                 request.rateLimitPolicy(), request.quotaPolicy());
         return getById(id);
     }
 
+    /**
+     * Rotates the consumer API key and returns the latest data.
+     */
     @Transactional
     public RoutingConsumerDto rotateSecretKey(Long id) {
         RoutingConsumerEntity existing = routingConsumerMapper.getById(id);
@@ -175,7 +203,7 @@ public class RoutingConsumerService {
         }
     }
 
-    private RoutingConsumerDto toDto(RoutingConsumerEntity entity, ResourceTrafficPolicySupport.TrafficPolicies traffic) {
+    private RoutingConsumerDto toDto(RoutingConsumerEntity entity, TrafficPolicies traffic) {
         Long ruleCount = routingConsumerMapper.countRulesByConsumerId(entity.getId());
         return new RoutingConsumerDto(
                 entity.getId(),

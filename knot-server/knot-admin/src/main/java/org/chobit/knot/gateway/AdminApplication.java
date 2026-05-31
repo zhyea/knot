@@ -12,6 +12,9 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @MapperScan("org.chobit.knot.gateway.mapper")
 public class AdminApplication {
 
+    /**
+     * Application entry point.
+     */
     public static void main(String[] args) {
         SpringApplication.run(AdminApplication.class, args);
     }

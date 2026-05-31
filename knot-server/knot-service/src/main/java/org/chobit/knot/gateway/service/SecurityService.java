@@ -22,11 +22,17 @@ public class SecurityService {
     private final SecurityMapper securityMapper;
     private final SecurityConverter securityConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public SecurityService(SecurityMapper securityMapper, SecurityConverter securityConverter) {
         this.securityMapper = securityMapper;
         this.securityConverter = securityConverter;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public SecurityOverviewDto overview() {
         Integer alertCount = securityMapper.countOpenAlerts();
         if (alertCount == null) {
@@ -37,6 +43,9 @@ public class SecurityService {
         return new SecurityOverviewDto(true, true, 0, alertCount, cacheHitRate);
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public SecurityPolicyDto updatePolicy(SecurityPolicyDto request) {
         SecurityPolicyEntity entity = new SecurityPolicyEntity();
@@ -50,12 +59,18 @@ public class SecurityService {
         return request;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<AlertItemDto> listAlerts(PageRequest pageRequest) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<AlertEntity> pageInfo = new PageInfo<>(securityMapper.listAlerts());
         return PageResult.fromPage(pageInfo, securityConverter::toAlertItemDtoList, pageRequest);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Transactional
     public CacheEvictResultDto evictCache(String cacheKey, String cacheType) {
         String type = cacheType == null || cacheType.isBlank() ? "GENERIC" : cacheType;

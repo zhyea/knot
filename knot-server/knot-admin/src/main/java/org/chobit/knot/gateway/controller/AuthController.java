@@ -15,16 +15,25 @@ public class AuthController {
 
     private final UserService userService;
 
+    /**
+     * Constructs a new instance.
+     */
     public AuthController(UserService userService) {
         this.userService = userService;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @PostMapping("/login")
     public LoginResponse login(@RequestBody @Valid LoginRequest request) {
         LoginResponse response = userService.login(request.username(), request.password());
         return response;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @PostMapping("/logout")
     public void logout() {
         // JWT is stateless, client should discard the token

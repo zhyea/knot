@@ -3,11 +3,11 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
-import org.chobit.knot.gateway.constants.BillingItemTypes;
-import org.chobit.knot.gateway.constants.BillingModes;
-import org.chobit.knot.gateway.constants.BillingUnits;
-import org.chobit.knot.gateway.constants.CurrencyCodes;
-import org.chobit.knot.gateway.constants.EntityStatus;
+import org.chobit.knot.gateway.constants.enums.BillingItemTypeEnum;
+import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
+import org.chobit.knot.gateway.constants.enums.BillingUnitEnum;
+import org.chobit.knot.gateway.constants.enums.CurrencyCodeEnum;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.BillingConverter;
@@ -36,16 +36,25 @@ public class BillingService {
     private final ModelMapper modelMapper;
     private final BillingConverter billingConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public BillingService(BillingRuleMapper billingRuleMapper, ModelMapper modelMapper, BillingConverter billingConverter) {
         this.billingRuleMapper = billingRuleMapper;
         this.modelMapper = modelMapper;
         this.billingConverter = billingConverter;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<BillingRuleDto> listRules(PageRequest pageRequest) {
         return listRules(pageRequest, null, null, null);
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<BillingRuleDto> listRules(PageRequest pageRequest, String keyword, Long providerId, Long logicalModelId) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<BillingRuleEntity> pageInfo = new PageInfo<>(
@@ -54,6 +63,9 @@ public class BillingService {
         return PageResult.fromPage(pageInfo, list -> list.stream().map(billingConverter::toRuleDto).toList(), pageRequest);
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     public BillingRuleDto getRuleById(Long id) {
         BillingRuleEntity entity = billingRuleMapper.getById(id);
         if (entity == null) {
@@ -62,6 +74,9 @@ public class BillingService {
         return billingConverter.toRuleDto(entity);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public Map<String, Object> billingRuleAuditSnapshot(Long id) {
         if (id == null) {
             return null;
@@ -96,18 +111,24 @@ public class BillingService {
         }
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public BillingRuleDto createRule(BillingRuleDto request) {
         validateRule(request, null);
         BillingRuleEntity e = new BillingRuleEntity();
         applyRule(e, request);
-        e.setStatus(request.enabled() ? EntityStatus.ACTIVE : EntityStatus.INACTIVE);
+        e.setStatus(request.enabled() ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code());
         billingRuleMapper.insert(e);
         BillingRuleVersionEntity version = createVersion(e.getId(), request, true);
         billingRuleMapper.updateCurrentVersion(e.getId(), version.getId());
         return billingConverter.toRuleDto(billingRuleMapper.getById(e.getId()));
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public BillingRuleDto updateRule(Long id, BillingRuleDto request) {
         BillingRuleEntity existing = billingRuleMapper.getById(id);
@@ -120,13 +141,16 @@ public class BillingService {
         }
         applyRule(existing, request);
         existing.setId(id);
-        existing.setStatus(request.enabled() ? EntityStatus.ACTIVE : EntityStatus.INACTIVE);
+        existing.setStatus(request.enabled() ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code());
         BillingRuleVersionEntity version = createVersion(id, request, request.enabled());
         existing.setCurrentVersionId(version.getId());
         billingRuleMapper.update(existing);
         return billingConverter.toRuleDto(billingRuleMapper.getById(id));
     }
 
+    /**
+     * Deletes the target resource. Executes the public operation.
+     */
     @Transactional
     public void deleteRule(Long id) {
         BillingRuleEntity existing = billingRuleMapper.getById(id);
@@ -137,10 +161,16 @@ public class BillingService {
         billingRuleMapper.softDelete(id);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public ReconciliationResultDto reconcile(String providerCode, String billDate) {
         return new ReconciliationResultDto(providerCode, billDate, 0, 0, "DONE");
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public Map<String, Object> calculateUsageDetail(Long modelId, Map<String, Object> usage) {
         if (modelId == null) {
             return null;
@@ -177,7 +207,11 @@ public class BillingService {
         String itemType = normalizeItemType(rule.getItemType());
         int unitSize = unitSize(rule.getUnit());
         BigDecimal unitPrice = safeMoney(rule.getUnitPrice());
-        if (BillingModes.TOKEN.equals(mode)) {
+        BillingModeEnum modeEnum = BillingModeEnum.fromCode(mode);
+        if (modeEnum == null) {
+            modeEnum = BillingModeEnum.CUSTOM;
+        }
+        if (BillingModeEnum.TOKEN == modeEnum) {
             long inputTokens = firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS);
             long outputTokens = firstLong(usage, AiPayloadFields.COMPLETION_TOKENS, AiPayloadFields.OUTPUT_TOKENS);
             long totalTokens = firstLong(usage, AiPayloadFields.TOTAL_TOKENS);
@@ -199,15 +233,15 @@ public class BillingService {
             parts.put("cacheReadCost", cacheReadCost);
             return new BillingAmount(parts, inputCost.add(outputCost).add(cacheReadCost));
         }
-        long amount = switch (mode) {
-            case BillingModes.EMBEDDING -> firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS, AiPayloadFields.TOTAL_TOKENS);
-            case BillingModes.REQUEST -> 1L;
-            case BillingModes.IMAGE -> firstLong(usage, "image_count", "images", "n");
-            case BillingModes.AUDIO -> firstLong(usage, "duration_seconds", "audio_seconds", "seconds");
-            case BillingModes.VIDEO -> firstLong(usage, "duration_seconds", "video_seconds", "seconds");
+        long amount = switch (modeEnum) {
+            case EMBEDDING -> firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS, AiPayloadFields.TOTAL_TOKENS);
+            case REQUEST -> 1L;
+            case IMAGE -> firstLong(usage, "image_count", "images", "n");
+            case AUDIO -> firstLong(usage, "duration_seconds", "audio_seconds", "seconds");
+            case VIDEO -> firstLong(usage, "duration_seconds", "video_seconds", "seconds");
             default -> firstLong(usage, AiPayloadFields.TOTAL_TOKENS, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS);
         };
-        if (amount <= 0 && (BillingModes.IMAGE.equals(mode) || BillingModes.REQUEST.equals(mode))) {
+        if (amount <= 0 && (BillingModeEnum.IMAGE == modeEnum || BillingModeEnum.REQUEST == modeEnum)) {
             amount = 1L;
         }
         Map<String, Object> parts = new LinkedHashMap<>();
@@ -225,7 +259,7 @@ public class BillingService {
         entity.setProviderId(request.providerId());
         entity.setLogicalModelId(request.logicalModelId());
         entity.setRemark(blankToNull(request.remark()));
-        entity.setStatus(request.enabled() ? EntityStatus.ACTIVE : EntityStatus.INACTIVE);
+        entity.setStatus(request.enabled() ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code());
     }
 
     private BillingRuleVersionEntity createVersion(Long ruleId, BillingRuleDto request, boolean active) {
@@ -242,7 +276,7 @@ public class BillingService {
         version.setLadderJson(blankToNull(request.ladderJson()));
         version.setEffectiveFrom(request.effectiveFrom() == null ? LocalDateTime.now() : request.effectiveFrom());
         version.setEffectiveTo(request.effectiveTo());
-        version.setStatus(active ? EntityStatus.ACTIVE : EntityStatus.DISABLED);
+        version.setStatus(active ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.DISABLED.code());
         version.setChangeReason("rule saved");
         billingRuleMapper.insertVersion(version);
 
@@ -302,32 +336,35 @@ public class BillingService {
     private static String normalizeBillingMode(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase();
         if (normalized.isEmpty()) {
-            return BillingModes.TOKEN;
+            return BillingModeEnum.TOKEN.code();
         }
         return normalized;
     }
 
     private static String normalizeCurrency(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase();
-        return normalized.isEmpty() ? CurrencyCodes.USD : normalized;
+        return normalized.isEmpty() ? CurrencyCodeEnum.USD.code() : normalized;
     }
 
     private static String normalizeItemType(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase();
-        return normalized.isEmpty() ? BillingItemTypes.INPUT_TOKEN : normalized;
+        return normalized.isEmpty() ? BillingItemTypeEnum.INPUT_TOKEN.code() : normalized;
     }
 
     private static String normalizeUnit(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase();
-        return normalized.isEmpty() ? BillingUnits.ONE_K_TOKENS : normalized;
+        return normalized.isEmpty() ? BillingUnitEnum.ONE_K_TOKENS.code() : normalized;
     }
 
     private static int unitSize(String unit) {
-        return switch (normalizeUnit(unit)) {
-            case BillingUnits.ONE_M_TOKENS -> 1_000_000;
-            case BillingUnits.PER_TOKEN -> 1;
-            case BillingUnits.PER_MINUTE -> 60;
-            case BillingUnits.PER_REQUEST, BillingUnits.PER_IMAGE, BillingUnits.PER_SECOND, BillingUnits.CUSTOM -> 1;
+        BillingUnitEnum unitEnum = BillingUnitEnum.fromCode(normalizeUnit(unit));
+        if (unitEnum == null) {
+            return 1_000;
+        }
+        return switch (unitEnum) {
+            case ONE_M_TOKENS -> 1_000_000;
+            case PER_TOKEN, PER_REQUEST, PER_IMAGE, PER_SECOND, CUSTOM -> 1;
+            case PER_MINUTE -> 60;
             default -> 1_000;
         };
     }

@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.service;
 
-import org.chobit.knot.gateway.constants.EntityStatus;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.entity.QuotaPolicyEntity;
 import org.chobit.knot.gateway.entity.RateLimitPolicyEntity;
 import org.chobit.knot.gateway.entity.ResourceTrafficPolicyEntity;
@@ -9,6 +9,7 @@ import org.chobit.knot.gateway.mapper.RateLimitPolicyMapper;
 import org.chobit.knot.gateway.mapper.ResourceTrafficPolicyMapper;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
@@ -20,8 +21,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 频控/额度：独立策略表 + {@code resource_traffic_policies} 资源绑定。
- */
+ * 棰戞帶/棰濆害锛氱嫭绔嬬瓥鐣ヨ〃 + {@code resource_traffic_policies} 璧勬簮缁戝畾銆? */
 @Component
 public class ResourceTrafficPolicySupport {
 
@@ -29,6 +29,9 @@ public class ResourceTrafficPolicySupport {
     private final RateLimitPolicyMapper rateLimitPolicyMapper;
     private final QuotaPolicyMapper quotaPolicyMapper;
 
+    /**
+     * Constructs a new instance.
+     */
     public ResourceTrafficPolicySupport(ResourceTrafficPolicyMapper bindingMapper,
                                         RateLimitPolicyMapper rateLimitPolicyMapper,
                                         QuotaPolicyMapper quotaPolicyMapper) {
@@ -37,9 +40,9 @@ public class ResourceTrafficPolicySupport {
         this.quotaPolicyMapper = quotaPolicyMapper;
     }
 
-    public record TrafficPolicies(RateLimitPolicy rateLimitPolicy, QuotaPolicy quotaPolicy) {
-    }
-
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public TrafficPolicies load(String resourceType, Long resourceId) {
         if (resourceId == null) {
             return new TrafficPolicies(null, null);
@@ -48,6 +51,9 @@ public class ResourceTrafficPolicySupport {
         return batch.getOrDefault(resourceId, new TrafficPolicies(null, null));
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public Map<Long, TrafficPolicies> loadBatch(String resourceType, List<Long> resourceIds) {
         if (resourceIds == null || resourceIds.isEmpty()) {
             return Map.of();
@@ -90,6 +96,9 @@ public class ResourceTrafficPolicySupport {
         return result;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public void save(String resourceType, Long resourceId, RateLimitPolicy rateLimit, QuotaPolicy quota) {
         if (resourceId == null) {
             return;
@@ -148,9 +157,9 @@ public class ResourceTrafficPolicySupport {
     private Long insertRateLimit(String resourceType, Long resourceId, RateLimitPolicy policy) {
         RateLimitPolicyEntity entity = new RateLimitPolicyEntity();
         entity.setPolicyCode(policyCode(resourceType, resourceId, "RL"));
-        entity.setPolicyName(policyName(resourceType, resourceId, "频控"));
+        entity.setPolicyName(policyName(resourceType, resourceId, "棰戞帶"));
         fillRateLimit(entity, policy);
-        entity.setStatus(EntityStatus.ACTIVE);
+        entity.setStatus(EntityStatusEnum.ACTIVE.code());
         rateLimitPolicyMapper.insert(entity);
         return entity.getId();
     }
@@ -168,9 +177,9 @@ public class ResourceTrafficPolicySupport {
     private Long insertQuota(String resourceType, Long resourceId, QuotaPolicy policy) {
         QuotaPolicyEntity entity = new QuotaPolicyEntity();
         entity.setPolicyCode(policyCode(resourceType, resourceId, "QT"));
-        entity.setPolicyName(policyName(resourceType, resourceId, "额度"));
+        entity.setPolicyName(policyName(resourceType, resourceId, "棰濆害"));
         fillQuota(entity, policy);
-        entity.setStatus(EntityStatus.ACTIVE);
+        entity.setStatus(EntityStatusEnum.ACTIVE.code());
         quotaPolicyMapper.insert(entity);
         return entity.getId();
     }
@@ -198,8 +207,11 @@ public class ResourceTrafficPolicySupport {
         entity.setAlertEnabled(policy.alertEnabled());
     }
 
-    private static RateLimitPolicy toRateLimitModel(RateLimitPolicyEntity entity) {
-        if (entity == null || !EntityStatus.ACTIVE.equals(entity.getStatus())) {
+    /**
+     * Converts the source value to the target representation. Executes the public operation.
+     */
+    public static RateLimitPolicy toRateLimitModel(RateLimitPolicyEntity entity) {
+        if (entity == null || !EntityStatusEnum.ACTIVE.code().equals(entity.getStatus())) {
             return null;
         }
         return new RateLimitPolicy(
@@ -209,8 +221,11 @@ public class ResourceTrafficPolicySupport {
         );
     }
 
-    private static QuotaPolicy toQuotaModel(QuotaPolicyEntity entity) {
-        if (entity == null || !EntityStatus.ACTIVE.equals(entity.getStatus())) {
+    /**
+     * Converts the source value to the target representation. Executes the public operation.
+     */
+    public static QuotaPolicy toQuotaModel(QuotaPolicyEntity entity) {
+        if (entity == null || !EntityStatusEnum.ACTIVE.code().equals(entity.getStatus())) {
             return null;
         }
         return new QuotaPolicy(

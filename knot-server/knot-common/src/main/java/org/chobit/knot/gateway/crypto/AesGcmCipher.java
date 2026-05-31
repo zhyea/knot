@@ -11,7 +11,10 @@ import java.util.Arrays;
 import java.util.Base64;
 
 /**
- * AES-256-GCM 对称加解密，密文格式：{@code ENC:} + Base64(IV[12] + ciphertext+tag)。
+ * Executes the public operation. Executes the public operation.
+ */
+/**
+ * AES-256-GCM 瀵圭О鍔犺В瀵嗭紝瀵嗘枃鏍煎紡锛歿@code ENC:} + Base64(IV[12] + ciphertext+tag)銆?
  */
 public final class AesGcmCipher {
 
@@ -22,6 +25,9 @@ public final class AesGcmCipher {
 
     private final SecretKey secretKey;
 
+    /**
+     * Constructs a new instance.
+     */
     public AesGcmCipher(byte[] keyBytes) {
         if (keyBytes == null || keyBytes.length != 32) {
             throw new IllegalArgumentException("AES-256 key must be 32 bytes");
@@ -29,6 +35,9 @@ public final class AesGcmCipher {
         this.secretKey = new SecretKeySpec(keyBytes, "AES");
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public static byte[] deriveKey(String passphrase) {
         if (passphrase == null || passphrase.isBlank()) {
             throw new IllegalArgumentException("encryption passphrase must not be blank");
@@ -41,10 +50,16 @@ public final class AesGcmCipher {
         }
     }
 
+    /**
+     * Returns whether the current condition is satisfied. Executes the public operation.
+     */
     public static boolean isEncrypted(String value) {
         return value != null && value.startsWith(PREFIX);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public String encrypt(String plaintext) {
         if (plaintext == null || plaintext.isBlank()) {
             return null;
@@ -68,7 +83,10 @@ public final class AesGcmCipher {
     }
 
     /**
-     * 解密；非 {@link #PREFIX} 格式视为历史明文（兼容迁移）。
+     * Executes the public operation. Executes the public operation.
+     */
+    /**
+     * 瑙ｅ瘑锛涢潪 {@link #PREFIX} 鏍煎紡瑙嗕负鍘嗗彶鏄庢枃锛堝吋瀹硅縼绉伙級銆?
      */
     public String decrypt(String stored) {
         if (stored == null || stored.isBlank()) {

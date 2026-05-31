@@ -8,19 +8,31 @@ import java.time.LocalDateTime;
 @Component
 public class ScheduleRunRetentionHandler implements ScheduledTaskHandler {
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public static final String CODE = "SCHEDULE_RUN_RETENTION";
 
     private final ScheduledTaskMapper scheduledTaskMapper;
 
+    /**
+     * Constructs a new instance.
+     */
     public ScheduleRunRetentionHandler(ScheduledTaskMapper scheduledTaskMapper) {
         this.scheduledTaskMapper = scheduledTaskMapper;
     }
 
+    /**
+     * Handles the incoming request flow. Executes the public operation.
+     */
     @Override
     public String handlerCode() {
         return CODE;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Override
     public ScheduledTaskResult execute() {
         LocalDateTime beforeTime = LocalDateTime.now().minusMonths(1);

@@ -10,7 +10,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import java.util.List;
 
 /**
- * JWT 认证拦截器：从请求头提取 token 并校验；失败时抛出 {@link UnauthorizedException} 交由全局异常处理。
+ * JWT 璁よ瘉鎷︽埅鍣細浠庤姹傚ご鎻愬彇 token 骞舵牎楠岋紱澶辫触鏃舵姏鍑?{@link UnauthorizedException} 浜ょ敱鍏ㄥ眬寮傚父澶勭悊銆?
  */
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
@@ -18,15 +18,18 @@ public class AuthInterceptor implements HandlerInterceptor {
     private static final String HEADER_AUTH = "Authorization";
     private static final String BEARER = "Bearer ";
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String auth = request.getHeader(HEADER_AUTH);
         if (auth == null || !auth.startsWith(BEARER)) {
-            throw new UnauthorizedException("未登录或 token 无效");
+            throw new UnauthorizedException("鏈櫥褰曟垨 token 鏃犳晥");
         }
         String token = auth.substring(BEARER.length()).trim();
         if (token.isEmpty() || !JwtUtil.isValid(token)) {
-            throw new UnauthorizedException("token 已过期或无效");
+            throw new UnauthorizedException("token 宸茶繃鏈熸垨鏃犳晥");
         }
         try {
             Claims claims = JwtUtil.parseToken(token);
@@ -36,7 +39,7 @@ public class AuthInterceptor implements HandlerInterceptor {
             request.setAttribute("roles", roles);
             return true;
         } catch (Exception e) {
-            throw new UnauthorizedException("token 已过期或无效");
+            throw new UnauthorizedException("token 宸茶繃鏈熸垨鏃犳晥");
         }
     }
 }

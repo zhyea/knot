@@ -9,6 +9,9 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties(RwProperties.class)
 public class RwConfiguration {
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Bean
     @ConditionalOnProperty(name = "rw.enabled", havingValue = "true", matchIfMissing = true)
     public ApiResponseWrapperAdvice apiResponseWrapperAdvice(RwProperties rwProperties) {

@@ -18,23 +18,35 @@ public class PluginController {
     private final PluginService pluginService;
     private final PluginConverter pluginConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public PluginController(PluginService pluginService, PluginConverter pluginConverter) {
         this.pluginService = pluginService;
         this.pluginConverter = pluginConverter;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     @PostMapping("/list")
     public PageResult<PluginItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<PluginDto> page = pluginService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
         return page.mapList(pluginConverter::toVOList);
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @PostMapping
     public PluginItem create(@RequestBody @Valid PluginItem request) {
         PluginDto created = pluginService.create(pluginConverter.toDto(request));
         return pluginConverter.toVO(created);
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @PutMapping("/{id}/status")
     public PluginItem updateStatus(@PathVariable Long id, @RequestBody @Valid PluginStatusRequest request) {
         PluginDto updated = pluginService.updateStatus(id, request.status());

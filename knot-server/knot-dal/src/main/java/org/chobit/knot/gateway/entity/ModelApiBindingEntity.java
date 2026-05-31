@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.entity;
 
 import lombok.Data;
+import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 
 @Data
 public class ModelApiBindingEntity {
@@ -11,7 +12,7 @@ public class ModelApiBindingEntity {
     /** 关联 models.name，仅查询展示 */
     private String modelName;
     private Long providerId;
-    /** 协议编码，见 {@link org.chobit.knot.gateway.constants.ModelApiProtocol} */
+    /** 协议编码，见 {@link ModelApiProtocolEnum} */
     private String protocol;
     /** 上游 API 路径，为空时使用协议默认路径 */
     private String apiPath;

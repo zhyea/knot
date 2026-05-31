@@ -18,11 +18,17 @@ public class BillingController {
     private final BillingService billingService;
     private final BillingConverter billingConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public BillingController(BillingService billingService, BillingConverter billingConverter) {
         this.billingService = billingService;
         this.billingConverter = billingConverter;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     @PostMapping("/rules")
     public PageResult<BillingRule> listRules(@RequestBody(required = false) PageQuery query) {
         PageResult<BillingRuleDto> page = billingService.listRules(
@@ -34,42 +40,63 @@ public class BillingController {
         return page.mapList(billingConverter::toRuleVOList);
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @OperationLog(module = "billing", operation = "CREATE", entityType = "BillingRule",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
-            description = "'新建计费规则'",
+            description = "'鏂板缓璁¤垂瑙勫垯'",
             recordNewValue = true,
             newValueSpel = "@billingService.billingRuleAuditSnapshot(#result.id())")
     @PostMapping()
+    /**
+     * Creates a new resource.
+     */
     public BillingRule createRule(@RequestBody @Valid BillingRule request) {
         BillingRuleDto created = billingService.createRule(billingConverter.toRuleDto(request));
         return billingConverter.toRuleVO(created);
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @OperationLog(module = "billing", operation = "UPDATE", entityType = "BillingRule",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'更新计费规则'",
+            description = "'鏇存柊璁¤垂瑙勫垯'",
             recordOldValue = true,
             oldValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)",
             recordNewValue = true,
             newValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)")
     @PutMapping("/rules/{id}")
+    /**
+     * Updates the target resource.
+     */
     public BillingRule updateRule(@PathVariable Long id, @RequestBody @Valid BillingRule request) {
         BillingRuleDto updated = billingService.updateRule(id, billingConverter.toRuleDto(request));
         return billingConverter.toRuleVO(updated);
     }
 
+    /**
+     * Deletes the target resource. Executes the public operation.
+     */
     @OperationLog(module = "billing", operation = "DELETE", entityType = "BillingRule",
             entityId = "#p0",
-            description = "'删除计费规则'",
+            description = "'鍒犻櫎璁¤垂瑙勫垯'",
             recordOldValue = true,
             oldValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)")
     @DeleteMapping("/rules/{id}")
+    /**
+     * Deletes the target resource.
+     */
     public void deleteRule(@PathVariable Long id) {
         billingService.deleteRule(id);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @PostMapping("/reconciliation")
     public ReconciliationResult reconciliation(@RequestBody @Valid ReconciliationRequest request) {
         ReconciliationResultDto result = billingService.reconcile(request.providerCode(), request.billDate());

@@ -2,7 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import org.chobit.knot.gateway.auth.AuthRoles;
 import org.chobit.knot.gateway.constants.AuthConstants;
-import org.chobit.knot.gateway.constants.EntityStatus;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.crypto.CredentialEncryption;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.mapper.ProviderCredentialMapper;
@@ -14,8 +14,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 供应商认证配置：{@code provider_credentials} 与 API 层 KV {@code authConfig} 互转。
- */
+ * 渚涘簲鍟嗚璇侀厤缃細{@code provider_credentials} 涓?API 灞?KV {@code authConfig} 浜掕浆銆? */
 @Component
 public class ProviderCredentialSupport {
 
@@ -25,12 +24,18 @@ public class ProviderCredentialSupport {
     private final ProviderCredentialMapper providerCredentialMapper;
     private final CredentialEncryption credentialEncryption;
 
+    /**
+     * Constructs a new instance.
+     */
     public ProviderCredentialSupport(ProviderCredentialMapper providerCredentialMapper,
                                       CredentialEncryption credentialEncryption) {
         this.providerCredentialMapper = providerCredentialMapper;
         this.credentialEncryption = credentialEncryption;
     }
 
+    /**
+     * Converts the source value to the target representation. Executes the public operation.
+     */
     public Map<String, Object> toAuthConfig(ProviderCredentialEntity credential) {
         if (credential == null) {
             return defaultAuthConfig();
@@ -48,6 +53,9 @@ public class ProviderCredentialSupport {
         return map.isEmpty() ? defaultAuthConfig() : map;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public Map<Long, Map<String, Object>> loadAuthConfigBatch(List<Long> providerIds) {
         if (providerIds == null || providerIds.isEmpty()) {
             return Map.of();
@@ -60,6 +68,9 @@ public class ProviderCredentialSupport {
                 ));
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public void saveAuthConfig(Long providerId, Map<String, Object> authConfig) {
         if (providerId == null) {
             return;
@@ -83,7 +94,7 @@ public class ProviderCredentialSupport {
         if (isNew) {
             entity = new ProviderCredentialEntity();
             entity.setProviderId(providerId);
-            entity.setStatus(EntityStatus.ACTIVE);
+            entity.setStatus(EntityStatusEnum.ACTIVE.code());
         }
         entity.setEncryptedKey(encryptField(apiKey));
         entity.setEncryptedSecret(encryptField(apiSecret));
@@ -97,6 +108,9 @@ public class ProviderCredentialSupport {
         }
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public Map<String, Object> maskAuthConfig(Map<String, Object> authConfig) {
         if (authConfig == null || authConfig.isEmpty()) {
             return defaultAuthConfig();
@@ -110,8 +124,10 @@ public class ProviderCredentialSupport {
     }
 
     /**
-     * 非管理员保存时：掩码占位不覆盖库中已有明文。
+     * Executes the public operation. Executes the public operation.
      */
+    /**
+     * 闈炵鐞嗗憳淇濆瓨鏃讹細鎺╃爜鍗犱綅涓嶈鐩栧簱涓凡鏈夋槑鏂囥€?     */
     public Map<String, Object> mergeAuthConfigForSave(Map<String, Object> incoming, Map<String, Object> existing) {
         if (incoming == null) {
             return null;
@@ -135,6 +151,9 @@ public class ProviderCredentialSupport {
         return merged.isEmpty() && prev.isEmpty() ? null : merged;
     }
 
+    /**
+     * Returns whether the current condition is satisfied. Executes the public operation.
+     */
     public static boolean isMaskedValue(String val) {
         if (!hasText(val)) {
             return false;
@@ -145,6 +164,9 @@ public class ProviderCredentialSupport {
         return val.chars().allMatch(c -> c == '*');
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public static Map<String, Object> defaultAuthConfig() {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put(AuthConstants.API_KEY, "");

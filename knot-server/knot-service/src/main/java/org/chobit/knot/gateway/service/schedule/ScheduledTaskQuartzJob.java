@@ -6,6 +6,9 @@ import org.springframework.scheduling.quartz.QuartzJobBean;
 
 public class ScheduledTaskQuartzJob extends QuartzJobBean {
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public static final String DATA_TASK_CODE = "taskCode";
     public static final String DATA_TRIGGER_TYPE = "triggerType";
     public static final String TRIGGER_SCHEDULE = "SCHEDULE";

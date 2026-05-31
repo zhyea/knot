@@ -1,48 +1,42 @@
 package org.chobit.knot.gateway.service;
 
-import org.chobit.knot.gateway.constants.EntityStatus;
-import org.chobit.knot.gateway.entity.AppEntity;
+import lombok.RequiredArgsConstructor;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.entity.AppCredentialEntity;
+import org.chobit.knot.gateway.entity.AppEntity;
 import org.chobit.knot.gateway.mapper.AppCredentialMapper;
 import org.chobit.knot.gateway.mapper.AppMapper;
-import org.chobit.knot.gateway.model.QuotaPolicy;
-import org.chobit.knot.gateway.model.RateLimitPolicy;
-import org.chobit.knot.gateway.constants.TrafficResourceType;
-import org.chobit.knot.gateway.service.ResourceTrafficPolicySupport;
+import org.chobit.knot.gateway.model.AppContext;
+import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.springframework.stereotype.Service;
 
 /**
- * 限流与配额校验服务
- */
+ * 闄愭祦涓庨厤棰濇牎楠屾湇鍔? */
 @Service
+@RequiredArgsConstructor
 public class RateLimitService {
 
     private final AppCredentialMapper appCredentialMapper;
     private final AppMapper appMapper;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
 
-    public RateLimitService(AppCredentialMapper appCredentialMapper,
-                            AppMapper appMapper,
-                            ResourceTrafficPolicySupport trafficPolicySupport) {
-        this.appCredentialMapper = appCredentialMapper;
-        this.appMapper = appMapper;
-        this.trafficPolicySupport = trafficPolicySupport;
-    }
-
     /**
-     * 通过 API Key 解析 App 上下文
+     * Resolves the requested value from current context and configuration. Executes the public operation.
      */
+    /**
+     * 閫氳繃 API Key 瑙ｆ瀽 App 涓婁笅鏂?     */
     public AppContext resolveApp(String apiKey) {
         AppCredentialEntity credential = appCredentialMapper.getByAppKey(apiKey);
-        if (credential == null || !EntityStatus.ACTIVE.equals(credential.getStatus())) {
+        if (credential == null || !EntityStatusEnum.ACTIVE.code().equals(credential.getStatus())) {
             return null;
         }
         AppEntity app = appMapper.getById(credential.getAppId());
-        if (app == null || !EntityStatus.ENABLED.equals(app.getStatus())) {
+        if (app == null || !EntityStatusEnum.ENABLED.code().equals(app.getStatus())) {
             return null;
         }
-        ResourceTrafficPolicySupport.TrafficPolicies traffic =
-                trafficPolicySupport.load(TrafficResourceType.APP, app.getId());
+        TrafficPolicies traffic =
+                trafficPolicySupport.load(TrafficResourceTypeEnum.APP.code(), app.getId());
         return new AppContext(
                 app.getId(),
                 app.getAppId(),
@@ -53,26 +47,23 @@ public class RateLimitService {
     }
 
     /**
-     * 检查限流与配额
-     * 当前为简化实现：仅检查配置是否存在，后续可接入 Redis 实现实时限流
+     * Checks whether the requested condition is satisfied. Executes the public operation.
+     */
+    /**
+     * 妫€鏌ラ檺娴佷笌閰嶉
+     * 褰撳墠涓虹畝鍖栧疄鐜帮細浠呮鏌ラ厤缃槸鍚﹀瓨鍦紝鍚庣画鍙帴鍏?Redis 瀹炵幇瀹炴椂闄愭祦
      */
     public boolean checkRateLimit(AppContext appContext, String model) {
         if (appContext.rateLimitPolicy() != null) {
-            // TODO: 接入 Redis 实现每秒/每分钟限流
-            // RateLimitPolicy policy = appContext.rateLimitPolicy();
+            // TODO: 鎺ュ叆 Redis 瀹炵幇姣忕/姣忓垎閽熼檺娴?            // RateLimitPolicy policy = appContext.rateLimitPolicy();
         }
         if (appContext.quotaPolicy() != null) {
-            // TODO: 查询当日/当月用量，对比 quota 配置
+            // TODO: 鏌ヨ褰撴棩/褰撴湀鐢ㄩ噺锛屽姣?quota 閰嶇疆
             // QuotaPolicy quota = appContext.quotaPolicy();
         }
         return true;
     }
 
     /**
-     * App 上下文信息
-     */
-    public record AppContext(Long id, String appId, String name,
-                             RateLimitPolicy rateLimitPolicy,
-                             QuotaPolicy quotaPolicy) {
-    }
+     * App 涓婁笅鏂囦俊鎭?     */
 }

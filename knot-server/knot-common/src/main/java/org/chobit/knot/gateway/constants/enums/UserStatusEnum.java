@@ -3,16 +3,14 @@ package org.chobit.knot.gateway.constants.enums;
 import lombok.Getter;
 
 @Getter
-public enum UserStatusEnums {
-
+public enum UserStatusEnum {
 
     ENABLED(1),
     DISABLED(0);
 
-    UserStatusEnums(int value) {
-        this.code = value;
-    }
-
     private final int code;
 
+    UserStatusEnum(int code) {
+        this.code = code;
+    }
 }

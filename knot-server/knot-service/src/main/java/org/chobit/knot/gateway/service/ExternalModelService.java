@@ -32,6 +32,9 @@ public class ExternalModelService {
     private final LogicalModelService logicalModelService;
     private final Map<String, ExternalModelSyncProvider> providers;
 
+    /**
+     * Constructs a new instance.
+     */
     public ExternalModelService(ExternalModelMapper externalModelMapper,
                                 LogicalModelService logicalModelService,
                                 List<ExternalModelSyncProvider> providers) {
@@ -40,10 +43,16 @@ public class ExternalModelService {
         this.providers = providers.stream().collect(Collectors.toMap(ExternalModelSyncProvider::sourceCode, Function.identity()));
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public List<ExternalModelSourceEntity> listSources() {
         return externalModelMapper.listSources();
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<ExternalModelItemEntity> listItems(ExternalModelItemQuery query) {
         PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
@@ -54,6 +63,9 @@ public class ExternalModelService {
         return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     @Transactional
     public ExternalModelItemEntity getItem(Long id) {
         ExternalModelItemEntity item = externalModelMapper.getItemById(id);
@@ -78,6 +90,9 @@ public class ExternalModelService {
         return enriched;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Transactional
     public ExternalModelSyncResult sync(String sourceCode) {
         ExternalModelSyncProvider provider = providers.get(sourceCode);
@@ -87,6 +102,9 @@ public class ExternalModelService {
         return provider.sync();
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public LogicalModelDto createLogicalModel(Long itemId) {
         ExternalModelItemEntity item = getItem(itemId);
@@ -141,6 +159,9 @@ public class ExternalModelService {
         return created;
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public ExternalModelSyncResult createLogicalModels(ExternalModelItemQuery query) {
         List<ExternalModelItemEntity> items = externalModelMapper.listItems(
@@ -168,6 +189,9 @@ public class ExternalModelService {
         );
     }
 
+    /**
+     * Deletes the target resource. Executes the public operation.
+     */
     @Transactional
     public void deleteItem(Long itemId) {
         int affected = externalModelMapper.deleteItem(itemId);
@@ -176,6 +200,9 @@ public class ExternalModelService {
         }
     }
 
+    /**
+     * Deletes the target resource. Executes the public operation.
+     */
     @Transactional
     public int deleteItems(List<Long> itemIds) {
         if (itemIds == null || itemIds.isEmpty()) {

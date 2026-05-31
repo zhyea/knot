@@ -1,17 +1,16 @@
 package org.chobit.knot.gateway.service;
 
+import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
-import org.chobit.knot.gateway.constants.EntityStatus;
-import org.chobit.knot.gateway.constants.ModelApiProtocol;
-import org.chobit.knot.gateway.constants.ProxyErrorCodes;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.entity.ProviderEntity;
-import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
-import org.chobit.knot.gateway.mapper.ModelMapper;
-import org.chobit.knot.gateway.mapper.ProviderCredentialMapper;
-import org.chobit.knot.gateway.mapper.ProviderMapper;
+import org.chobit.knot.gateway.model.AppContext;
+import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.service.upstream.ModelApiProtocolHandler;
 import org.chobit.knot.gateway.service.upstream.ModelApiProtocolHandlerRegistry;
 import org.chobit.knot.gateway.service.upstream.UpstreamProviderAdapter;
@@ -26,65 +25,58 @@ import java.util.Map;
  * to template-method handlers and provider strategy adapters.
  */
 @Service
+@RequiredArgsConstructor
 public class ProxyService {
 
-    private final ProviderMapper providerMapper;
-    private final ModelMapper modelMapper;
-    private final ModelApiBindingMapper modelApiBindingMapper;
-    private final ProviderCredentialMapper providerCredentialMapper;
+    private final GatewayDataCache dataCache;
     private final ModelApiProtocolHandlerRegistry protocolHandlerRegistry;
     private final UpstreamProviderAdapterRegistry providerAdapterRegistry;
 
-    public ProxyService(ProviderMapper providerMapper,
-                        ModelMapper modelMapper,
-                        ModelApiBindingMapper modelApiBindingMapper,
-                        ProviderCredentialMapper providerCredentialMapper,
-                        ModelApiProtocolHandlerRegistry protocolHandlerRegistry,
-                        UpstreamProviderAdapterRegistry providerAdapterRegistry) {
-        this.providerMapper = providerMapper;
-        this.modelMapper = modelMapper;
-        this.modelApiBindingMapper = modelApiBindingMapper;
-        this.providerCredentialMapper = providerCredentialMapper;
-        this.protocolHandlerRegistry = protocolHandlerRegistry;
-        this.providerAdapterRegistry = providerAdapterRegistry;
+    /**
+     * Proxies the request to the upstream provider. Executes the public operation.
+     */
+    public ProxyResult proxy(Map<String, Object> requestBody, AppContext appContext) {
+        return proxy(requestBody, appContext, ModelApiProtocolEnum.CHAT_COMPLETIONS);
     }
 
-    public ProxyResult proxy(Map<String, Object> requestBody, RateLimitService.AppContext appContext) {
-        return proxy(requestBody, appContext, ModelApiProtocol.CHAT_COMPLETIONS);
-    }
-
+    /**
+     * Proxies the request to the upstream provider. Executes the public operation.
+     */
     public ProxyResult proxy(Map<String, Object> requestBody,
-                             RateLimitService.AppContext appContext,
-                             ModelApiProtocol protocol) {
+                             AppContext appContext,
+                             ModelApiProtocolEnum protocol) {
         return proxy(requestBody, appContext, protocol, null);
     }
 
+    /**
+     * Proxies the request to the upstream provider. Executes the public operation.
+     */
     public ProxyResult proxy(Map<String, Object> requestBody,
-                             RateLimitService.AppContext appContext,
-                             ModelApiProtocol protocol,
+                             AppContext appContext,
+                             ModelApiProtocolEnum protocol,
                              String traceparent) {
         String modelCode = requestBody.get(AiPayloadFields.MODEL) == null
                 ? null
                 : String.valueOf(requestBody.get(AiPayloadFields.MODEL));
         if (modelCode == null || modelCode.isBlank()) {
-            return new ProxyResult(null, null, null, ProxyErrorCodes.MISSING_MODEL, "model is required");
+            return new ProxyResult(null, null, null, ProxyErrorCodeEnum.MISSING_MODEL.code(), "model is required");
         }
 
         ModelEntity model = findModelByCode(modelCode);
         if (model == null) {
-            return new ProxyResult(null, null, null, ProxyErrorCodes.MODEL_NOT_FOUND,
+            return new ProxyResult(null, null, null, ProxyErrorCodeEnum.MODEL_NOT_FOUND.code(),
                     "model not found: " + modelCode);
         }
 
-        ProviderEntity provider = providerMapper.getById(model.getProviderId());
+        ProviderEntity provider = dataCache.getProviderById(model.getProviderId());
         if (provider == null) {
             return new ProxyResult(null, null, model.getId(),
-                    ProxyErrorCodes.PROVIDER_NOT_FOUND, "provider not found for model: " + modelCode);
+                    ProxyErrorCodeEnum.PROVIDER_NOT_FOUND.code(), "provider not found for model: " + modelCode);
         }
 
-        ModelApiProtocol resolvedProtocol = protocol != null ? protocol.canonical() : ModelApiProtocol.CHAT_COMPLETIONS;
+        ModelApiProtocolEnum resolvedProtocol = protocol != null ? protocol.canonical() : ModelApiProtocolEnum.CHAT_COMPLETIONS;
         ModelApiBindingEntity binding = resolveBinding(model.getId(), resolvedProtocol);
-        ProviderCredentialEntity credential = providerCredentialMapper.getActiveByProviderId(provider.getId());
+        ProviderCredentialEntity credential = dataCache.getActiveCredentialByProviderId(provider.getId());
         UpstreamRequestContext context = new UpstreamRequestContext(
                 resolvedProtocol, requestBody, model, provider, credential, binding, traceparent
         );
@@ -93,23 +85,15 @@ public class ProxyService {
         return protocolHandler.execute(context, providerAdapter);
     }
 
-    private ModelApiBindingEntity resolveBinding(Long modelId, ModelApiProtocol protocol) {
-        return modelApiBindingMapper.listByModelId(modelId).stream()
-                .filter(item -> EntityStatus.ENABLED.equals(item.getStatus()))
+    private ModelApiBindingEntity resolveBinding(Long modelId, ModelApiProtocolEnum protocol) {
+        return dataCache.listApiBindingsByModelId(modelId).stream()
+                .filter(item -> EntityStatusEnum.ENABLED.code().equals(item.getStatus()))
                 .filter(item -> protocol.matches(item.getProtocol()))
                 .findFirst()
                 .orElse(null);
     }
 
     private ModelEntity findModelByCode(String modelCode) {
-        // TODO: add ModelMapper.getByModelCode when model lookup becomes hot path.
-        return modelMapper.list(null, null).stream()
-                .filter(m -> modelCode.equals(m.getModelCode()))
-                .findFirst()
-                .orElse(null);
-    }
-
-    public record ProxyResult(String responseBody, Long providerId, Long modelId,
-                              String errorCode, String errorMessage) {
+        return dataCache.getModelByCode(modelCode);
     }
 }

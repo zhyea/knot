@@ -14,10 +14,16 @@ public class HealthController {
 
     private final HealthService healthService;
 
+    /**
+     * Constructs a new instance.
+     */
     public HealthController(HealthService healthService) {
         this.healthService = healthService;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @PostMapping("/health")
     public HealthResponse health() {
         return new HealthResponse("ok", LocalDateTime.now(), healthService.dbTimestamp());

@@ -2,7 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.chobit.knot.gateway.constants.EntityStatus;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.dto.system.ScheduledTaskQuery;
 import org.chobit.knot.gateway.dto.system.ScheduledTaskRequest;
 import org.chobit.knot.gateway.dto.system.ScheduledTaskRunQuery;
@@ -25,12 +25,15 @@ import java.util.stream.Collectors;
 public class ScheduledTaskService {
 
     private static final Set<String> EXECUTION_MODES = Set.of("SINGLE", "BROADCAST");
-    private static final Set<String> STATUSES = Set.of(EntityStatus.ENABLED, EntityStatus.DISABLED);
+    private static final Set<String> STATUSES = Set.of(EntityStatusEnum.ENABLED.code(), EntityStatusEnum.DISABLED.code());
 
     private final ScheduledTaskMapper scheduledTaskMapper;
     private final ScheduledTaskSchedulerService schedulerService;
     private final Set<String> handlerCodes;
 
+    /**
+     * Constructs a new instance.
+     */
     public ScheduledTaskService(ScheduledTaskMapper scheduledTaskMapper,
                                 ScheduledTaskSchedulerService schedulerService,
                                 List<ScheduledTaskHandler> handlers) {
@@ -39,6 +42,9 @@ public class ScheduledTaskService {
         this.handlerCodes = handlers.stream().map(ScheduledTaskHandler::handlerCode).collect(Collectors.toSet());
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<ScheduledTaskEntity> listTasks(ScheduledTaskQuery query) {
         PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
@@ -50,6 +56,9 @@ public class ScheduledTaskService {
         return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<ScheduledTaskRunEntity> listRuns(ScheduledTaskRunQuery query) {
         PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
@@ -61,6 +70,9 @@ public class ScheduledTaskService {
         return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public ScheduledTaskEntity create(ScheduledTaskRequest request) {
         ScheduledTaskEntity entity = toEntity(new ScheduledTaskEntity(), request);
@@ -73,6 +85,9 @@ public class ScheduledTaskService {
         return saved;
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public ScheduledTaskEntity update(Long id, ScheduledTaskRequest request) {
         ScheduledTaskEntity existing = scheduledTaskMapper.getTaskById(id);
@@ -87,6 +102,9 @@ public class ScheduledTaskService {
         return saved;
     }
 
+    /**
+     * Triggers the requested operation immediately. Executes the public operation.
+     */
     public void triggerNow(Long id) {
         ScheduledTaskEntity task = scheduledTaskMapper.getTaskById(id);
         if (task == null) {
@@ -95,6 +113,9 @@ public class ScheduledTaskService {
         schedulerService.triggerNow(task.getTaskCode());
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public List<String> listHandlerCodes() {
         return handlerCodes.stream().sorted().toList();
     }

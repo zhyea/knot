@@ -9,6 +9,9 @@ import org.springframework.scheduling.quartz.SpringBeanJobFactory;
 @Configuration
 public class QuartzAutowireConfig {
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Bean
     public SpringBeanJobFactory springBeanJobFactory(AutowireCapableBeanFactory beanFactory) {
         return new SpringBeanJobFactory() {

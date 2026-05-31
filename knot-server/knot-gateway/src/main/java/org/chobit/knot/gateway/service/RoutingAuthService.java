@@ -1,8 +1,9 @@
 package org.chobit.knot.gateway.service;
 
-import org.chobit.knot.gateway.constants.EntityStatus;
-import org.chobit.knot.gateway.constants.RouteTargetTypes;
-import org.chobit.knot.gateway.constants.TrafficResourceType;
+import lombok.RequiredArgsConstructor;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.RouteTargetTypeEnum;
+import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.entity.AppEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
@@ -16,8 +17,12 @@ import org.chobit.knot.gateway.mapper.ModelPoolMapper;
 import org.chobit.knot.gateway.mapper.RoutingConsumerMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleTargetMapper;
+import org.chobit.knot.gateway.model.AppContext;
+import org.chobit.knot.gateway.model.GatewayRoutingInfo;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.gateway.model.ResolvedRouting;
+import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.util.tools.RoutingSecretKeyGenerator;
 import org.springframework.stereotype.Service;
 
@@ -27,9 +32,9 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 消费者 API Key 鉴权：sk- 前缀密钥绑定消费者，消费者再关联多个路由规则。
- */
+ * 娑堣垂鑰?API Key 閴存潈锛歴k- 鍓嶇紑瀵嗛挜缁戝畾娑堣垂鑰咃紝娑堣垂鑰呭啀鍏宠仈澶氫釜璺敱瑙勫垯銆? */
 @Service
+@RequiredArgsConstructor
 public class RoutingAuthService {
 
     private final RoutingRuleMapper routingRuleMapper;
@@ -40,44 +45,22 @@ public class RoutingAuthService {
     private final AppMapper appMapper;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
 
-    public RoutingAuthService(RoutingRuleMapper routingRuleMapper,
-                              RoutingRuleTargetMapper routingRuleTargetMapper,
-                              RoutingConsumerMapper routingConsumerMapper,
-                              ModelMapper modelMapper,
-                              ModelPoolMapper modelPoolMapper,
-                              AppMapper appMapper,
-                              ResourceTrafficPolicySupport trafficPolicySupport) {
-        this.routingRuleMapper = routingRuleMapper;
-        this.routingRuleTargetMapper = routingRuleTargetMapper;
-        this.routingConsumerMapper = routingConsumerMapper;
-        this.modelMapper = modelMapper;
-        this.modelPoolMapper = modelPoolMapper;
-        this.appMapper = appMapper;
-        this.trafficPolicySupport = trafficPolicySupport;
-    }
-
-    public record ResolvedRouting(
-            Long ruleId,
-            String ruleCode,
-            Long consumerId,
-            String secretKey,
-            boolean returnUsageDetail,
-            RateLimitService.AppContext appContext,
-            RoutingRuleTargetDto resolvedModel,
-            List<RoutingRuleTargetDto> candidateModels
-    ) {
-    }
-
+    /**
+     * Resolves the requested value from current context and configuration. Executes the public operation.
+     */
     public ResolvedRouting resolve(String secretKey) {
         return resolve(secretKey, null);
     }
 
+    /**
+     * Resolves the requested value from current context and configuration. Executes the public operation.
+     */
     public ResolvedRouting resolve(String secretKey, String requestedModel) {
         if (!RoutingSecretKeyGenerator.isRoutingSecretKey(secretKey)) {
             return null;
         }
         RoutingConsumerEntity consumer = routingConsumerMapper.getBySecretKey(secretKey.trim());
-        if (consumer == null || !EntityStatus.ENABLED.equals(consumer.getStatus())) {
+        if (consumer == null || !EntityStatusEnum.ENABLED.code().equals(consumer.getStatus())) {
             return null;
         }
 
@@ -87,13 +70,13 @@ public class RoutingAuthService {
             return null;
         }
         AppEntity app = appMapper.getById(rule.getAppId());
-        if (app == null || !EntityStatus.ENABLED.equals(app.getStatus())) {
+        if (app == null || !EntityStatusEnum.ENABLED.code().equals(app.getStatus())) {
             return null;
         }
-        ResourceTrafficPolicySupport.TrafficPolicies appTraffic =
-                trafficPolicySupport.load(TrafficResourceType.APP, app.getId());
-        ResourceTrafficPolicySupport.TrafficPolicies consumerTraffic =
-                trafficPolicySupport.load(TrafficResourceType.ROUTING_CONSUMER, consumer.getId());
+        TrafficPolicies appTraffic =
+                trafficPolicySupport.load(TrafficResourceTypeEnum.APP.code(), app.getId());
+        TrafficPolicies consumerTraffic =
+                trafficPolicySupport.load(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), consumer.getId());
         RateLimitPolicy rate = mergeRateLimit(
                 appTraffic != null ? appTraffic.rateLimitPolicy() : null,
                 consumerTraffic != null ? consumerTraffic.rateLimitPolicy() : null
@@ -102,7 +85,7 @@ public class RoutingAuthService {
                 appTraffic != null ? appTraffic.quotaPolicy() : null,
                 consumerTraffic != null ? consumerTraffic.quotaPolicy() : null
         );
-        RateLimitService.AppContext appContext = new RateLimitService.AppContext(
+        AppContext appContext = new AppContext(
                 app.getId(), app.getAppId(), app.getName(), rate, quota
         );
         List<RoutingRuleTargetDto> candidates = resolveCandidateModels(rule.getId(), selection.target());
@@ -110,15 +93,19 @@ public class RoutingAuthService {
             return null;
         }
         return new ResolvedRouting(rule.getId(), rule.getRuleCode(), consumer.getId(), consumer.getSecretKey(),
-                Boolean.TRUE.equals(consumer.getReturnUsageDetail()), appContext, candidates.get(0), candidates);
+                Boolean.TRUE.equals(consumer.getReturnUsageDetail()), appContext, candidates.get(0), candidates,
+                buildRoutingInfo(rule, consumer, app));
     }
 
+    /**
+     * Resolves the requested value from current context and configuration. Executes the public operation.
+     */
     public ResolvedRouting resolveByRule(String secretKey, String ruleCode) {
         if (!RoutingSecretKeyGenerator.isRoutingSecretKey(secretKey) || ruleCode == null || ruleCode.isBlank()) {
             return null;
         }
         RoutingConsumerEntity consumer = routingConsumerMapper.getBySecretKey(secretKey.trim());
-        if (consumer == null || !EntityStatus.ENABLED.equals(consumer.getStatus())) {
+        if (consumer == null || !EntityStatusEnum.ENABLED.code().equals(consumer.getStatus())) {
             return null;
         }
         RoutingRuleEntity rule = routingRuleMapper.getEnabledByConsumerIdAndRuleCode(consumer.getId(), ruleCode.trim());
@@ -126,13 +113,13 @@ public class RoutingAuthService {
             return null;
         }
         AppEntity app = appMapper.getById(rule.getAppId());
-        if (app == null || !EntityStatus.ENABLED.equals(app.getStatus())) {
+        if (app == null || !EntityStatusEnum.ENABLED.code().equals(app.getStatus())) {
             return null;
         }
-        ResourceTrafficPolicySupport.TrafficPolicies appTraffic =
-                trafficPolicySupport.load(TrafficResourceType.APP, app.getId());
-        ResourceTrafficPolicySupport.TrafficPolicies consumerTraffic =
-                trafficPolicySupport.load(TrafficResourceType.ROUTING_CONSUMER, consumer.getId());
+        TrafficPolicies appTraffic =
+                trafficPolicySupport.load(TrafficResourceTypeEnum.APP.code(), app.getId());
+        TrafficPolicies consumerTraffic =
+                trafficPolicySupport.load(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), consumer.getId());
         RateLimitPolicy rate = mergeRateLimit(
                 appTraffic != null ? appTraffic.rateLimitPolicy() : null,
                 consumerTraffic != null ? consumerTraffic.rateLimitPolicy() : null
@@ -141,7 +128,7 @@ public class RoutingAuthService {
                 appTraffic != null ? appTraffic.quotaPolicy() : null,
                 consumerTraffic != null ? consumerTraffic.quotaPolicy() : null
         );
-        RateLimitService.AppContext appContext = new RateLimitService.AppContext(
+        AppContext appContext = new AppContext(
                 app.getId(), app.getAppId(), app.getName(), rate, quota
         );
         List<RoutingRuleTargetDto> candidates = resolveCandidateModels(rule.getId(), null);
@@ -149,7 +136,34 @@ public class RoutingAuthService {
             return null;
         }
         return new ResolvedRouting(rule.getId(), rule.getRuleCode(), consumer.getId(), consumer.getSecretKey(),
-                Boolean.TRUE.equals(consumer.getReturnUsageDetail()), appContext, candidates.get(0), candidates);
+                Boolean.TRUE.equals(consumer.getReturnUsageDetail()), appContext, candidates.get(0), candidates,
+                buildRoutingInfo(rule, consumer, app));
+    }
+
+    private static GatewayRoutingInfo buildRoutingInfo(RoutingRuleEntity rule,
+                                                       RoutingConsumerEntity consumer,
+                                                       AppEntity app) {
+        return new GatewayRoutingInfo(
+                new GatewayRoutingInfo.RuleInfo(
+                        rule.getId(),
+                        rule.getRuleCode(),
+                        rule.getName(),
+                        rule.getAppScenario(),
+                        rule.getModelTypes()
+                ),
+                new GatewayRoutingInfo.ConsumerInfo(
+                        consumer.getId(),
+                        consumer.getConsumerCode(),
+                        consumer.getName(),
+                        consumer.getSecretKey(),
+                        Boolean.TRUE.equals(consumer.getReturnUsageDetail())
+                ),
+                new GatewayRoutingInfo.AppInfo(app.getId(), app.getAppId(), app.getName()),
+                new GatewayRoutingInfo.UserInfo(rule.getUserId(), rule.getUserUsername(), rule.getUserRealName()),
+                new GatewayRoutingInfo.UserInfo(consumer.getUserId(), consumer.getUserUsername(), consumer.getUserRealName()),
+                new GatewayRoutingInfo.UserInfo(app.getOwnerUserId(), null, app.getOwnerRealName()),
+                new GatewayRoutingInfo.DepartmentInfo(app.getDeptId(), null)
+        );
     }
 
     private record RuleSelection(RoutingRuleEntity rule, RoutingRuleTargetDto target) {
@@ -263,35 +277,35 @@ public class RoutingAuthService {
     }
 
     private RoutingRuleTargetDto resolveTarget(RoutingRuleTargetDto target) {
-        if (RouteTargetTypes.MODEL.equals(target.targetType())) {
+        if (RouteTargetTypeEnum.MODEL.code().equals(target.targetType())) {
             ModelEntity model = modelMapper.getById(target.targetId());
-            if (model == null || !EntityStatus.ENABLED.equals(model.getStatus())) {
+            if (model == null || !EntityStatusEnum.ENABLED.code().equals(model.getStatus())) {
                 return null;
             }
-            return new RoutingRuleTargetDto(RouteTargetTypes.MODEL, model.getId(), model.getModelCode(), model.getName(),
+            return new RoutingRuleTargetDto(RouteTargetTypeEnum.MODEL.code(), model.getId(), model.getModelCode(), model.getName(),
                     model.getModelType(), model.getProviderId(), target.priority(), target.primary());
         }
-        if (!RouteTargetTypes.MODEL_POOL.equals(target.targetType())) {
+        if (!RouteTargetTypeEnum.MODEL_POOL.code().equals(target.targetType())) {
             return null;
         }
         ModelPoolEntity pool = modelPoolMapper.getById(target.targetId());
-        if (pool == null || !EntityStatus.ENABLED.equals(pool.getStatus())) {
+        if (pool == null || !EntityStatusEnum.ENABLED.code().equals(pool.getStatus())) {
             return null;
         }
         ModelPoolItemEntity item = selectPoolItem(pool);
         if (item == null) {
             return null;
         }
-        return new RoutingRuleTargetDto(RouteTargetTypes.MODEL, item.getModelId(), item.getModelCode(), item.getModelName(),
+        return new RoutingRuleTargetDto(RouteTargetTypeEnum.MODEL.code(), item.getModelId(), item.getModelCode(), item.getModelName(),
                 item.getModelType(), item.getProviderId(), target.priority(), target.primary());
     }
 
     private ModelPoolItemEntity selectPoolItem(ModelPoolEntity pool) {
         List<ModelPoolItemEntity> candidates = modelPoolMapper.listItemsByPoolId(pool.getId()).stream()
-                .filter(item -> EntityStatus.ENABLED.equals(item.getStatus()))
+                .filter(item -> EntityStatusEnum.ENABLED.code().equals(item.getStatus()))
                 .filter(item -> {
                     ModelEntity model = modelMapper.getById(item.getModelId());
-                    return model != null && EntityStatus.ENABLED.equals(model.getStatus());
+                    return model != null && EntityStatusEnum.ENABLED.code().equals(model.getStatus());
                 })
                 .toList();
         if (candidates.isEmpty()) {

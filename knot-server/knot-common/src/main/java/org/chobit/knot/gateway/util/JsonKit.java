@@ -12,12 +12,16 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
- * JSON 序列化 / 反序列化工具，统一项目内 Jackson 使用。
+ * Creates a new resource. Executes the public operation.
+ */
+/**
+ * JSON 搴忓垪鍖?/ 鍙嶅簭鍒楀寲宸ュ叿锛岀粺涓€椤圭洰鍐?Jackson 浣跨敤銆?
  * <p>
- * 默认使用内置 {@link ObjectMapper}；Spring 容器启动后由 {@code JsonKitConfiguration}
- * 调用 {@link #init(ObjectMapper)}，与 Spring MVC 的 Jackson 配置对齐。
+ * 榛樿浣跨敤鍐呯疆 {@link ObjectMapper}锛汼pring 瀹瑰櫒鍚姩鍚庣敱 {@code JsonKitConfiguration}
+ * 璋冪敤 {@link #init(ObjectMapper)}锛屼笌 Spring MVC 鐨?Jackson 閰嶇疆瀵归綈銆?
  */
 @Slf4j
 public final class JsonKit {
@@ -32,8 +36,11 @@ public final class JsonKit {
     }
 
     /**
-     * 使用 Spring Boot 自动配置的 {@link ObjectMapper} 初始化（通常仅调用一次）。
-     * 采用 {@link ObjectMapper#copy()}，避免与容器内 Bean 共享可变状态。
+     * Executes the public operation. Executes the public operation.
+     */
+    /**
+     * 浣跨敤 Spring Boot 鑷姩閰嶇疆鐨?{@link ObjectMapper} 鍒濆鍖栵紙閫氬父浠呰皟鐢ㄤ竴娆★級銆?
+     * 閲囩敤 {@link ObjectMapper#copy()}锛岄伩鍏嶄笌瀹瑰櫒鍐?Bean 鍏变韩鍙彉鐘舵€併€?
      */
     public static synchronized void init(ObjectMapper springMapper) {
         if (springMapper == null) {
@@ -44,7 +51,12 @@ public final class JsonKit {
         log.debug("JsonKit initialized from Spring ObjectMapper");
     }
 
-    /** 是否已由 Spring 完成初始化 */
+    /**
+     * Returns whether the current condition is satisfied. Executes the public operation.
+     */
+    /**
+     * 鏄惁宸茬敱 Spring 瀹屾垚鍒濆鍖?
+     */
     public static boolean isInitializedFromSpring() {
         return springInitialized;
     }
@@ -61,11 +73,19 @@ public final class JsonKit {
         return m;
     }
 
-    /** 返回当前 Mapper 的独立副本 */
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
+    /**
+     * 杩斿洖褰撳墠 Mapper 鐨勭嫭绔嬪壇鏈?
+     */
     public static ObjectMapper mapper() {
         return mapper.copy();
     }
 
+    /**
+     * Converts the source value to the target representation. Executes the public operation.
+     */
     public static <T> String toJson(T src) {
         if (src == null) {
             return null;
@@ -78,6 +98,9 @@ public final class JsonKit {
         }
     }
 
+    /**
+     * Builds the target value from the source input. Executes the public operation.
+     */
     public static <T> T fromJson(String json, Class<T> clazz) {
         if (json == null || json.isBlank()) {
             return null;
@@ -90,6 +113,9 @@ public final class JsonKit {
         }
     }
 
+    /**
+     * Builds the target value from the source input. Executes the public operation.
+     */
     public static <T> T fromJson(String json, TypeReference<T> typeRef) {
         if (json == null || json.isBlank()) {
             return null;
@@ -102,6 +128,9 @@ public final class JsonKit {
         }
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public static JsonNode parse(String json) {
         if (json == null || json.isBlank()) {
             return null;
@@ -114,10 +143,24 @@ public final class JsonKit {
         }
     }
 
+    /**
+     * Converts the source value to the target representation. Executes the public operation.
+     */
+    public static Map<String, Object> toMap(Object obj) {
+        return mapper.convertValue(obj, new TypeReference<>() {
+        });
+    }
+
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     public static ObjectNode createObjectNode() {
         return mapper.createObjectNode();
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     public static ArrayNode createArrayNode() {
         return mapper.createArrayNode();
     }

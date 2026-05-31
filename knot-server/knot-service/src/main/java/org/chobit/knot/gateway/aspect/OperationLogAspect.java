@@ -21,8 +21,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
- * 操作日志切面：拦截 {@link OperationLog} 注解，异步写入 operation_logs。
- */
+ * 鎿嶄綔鏃ュ織鍒囬潰锛氭嫤鎴?{@link OperationLog} 娉ㄨВ锛屽紓姝ュ啓鍏?operation_logs銆? */
 @Slf4j
 @Aspect
 @Component
@@ -32,11 +31,17 @@ public class OperationLogAspect {
     private final BeanFactory beanFactory;
     private final ExpressionParser parser = new SpelExpressionParser();
 
+    /**
+     * Constructs a new instance.
+     */
     public OperationLogAspect(OperationLogService operationLogService, BeanFactory beanFactory) {
         this.operationLogService = operationLogService;
         this.beanFactory = beanFactory;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Around("@annotation(operationLog)")
     public Object recordLog(ProceedingJoinPoint joinPoint, OperationLog operationLog) throws Throwable {
         long startTime = System.currentTimeMillis();

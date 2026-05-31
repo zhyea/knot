@@ -17,17 +17,26 @@ public class SystemService {
     private final SystemMapper systemMapper;
     private final SystemConverter systemConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public SystemService(SystemMapper systemMapper, SystemConverter systemConverter) {
         this.systemMapper = systemMapper;
         this.systemConverter = systemConverter;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<OperationLogDto> listOperationLogs(PageRequest pageRequest) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<OperationLogEntity> pageInfo = new PageInfo<>(systemMapper.listOperationLogs());
         return PageResult.fromPage(pageInfo, systemConverter::toOperationLogDtoList, pageRequest);
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     public OperationLogDetailDto getOperationLogDetail(Long id) {
         OperationLogDetailEntity detail = systemMapper.getOperationLogDetail(id);
         if (detail == null) {

@@ -2,7 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.chobit.knot.gateway.constants.EntityStatus;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.NotificationConverter;
@@ -21,17 +21,26 @@ public class NotificationService {
     private final NotificationMapper notificationMapper;
     private final NotificationConverter notificationConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public NotificationService(NotificationMapper notificationMapper, NotificationConverter notificationConverter) {
         this.notificationMapper = notificationMapper;
         this.notificationConverter = notificationConverter;
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<TemplateDto> listTemplates(PageRequest pageRequest) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<NotifyTemplateEntity> pageInfo = new PageInfo<>(notificationMapper.listTemplates());
         return PageResult.fromPage(pageInfo, notificationConverter::toTemplateDtoList, pageRequest);
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public TemplateDto createTemplate(TemplateDto request) {
         NotifyTemplateEntity e = new NotifyTemplateEntity();
@@ -39,11 +48,14 @@ public class NotificationService {
         e.setName(request.name());
         e.setChannel(request.channel());
         e.setContentTpl(request.content());
-        e.setStatus(EntityStatus.ACTIVE);
+        e.setStatus(EntityStatusEnum.ACTIVE.code());
         notificationMapper.insertTemplate(e);
         return notificationConverter.toTemplateDto(e);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Transactional
     public SendResultDto send(String templateCode, List<String> receivers, Map<String, String> vars) {
         NotifyTemplateEntity entity = notificationMapper.getTemplateByCode(templateCode);

@@ -21,11 +21,17 @@ public class ModelController {
     private final ModelService modelService;
     private final ModelConverter modelConverter;
 
+    /**
+     * Constructs a new instance.
+     */
     public ModelController(ModelService modelService, ModelConverter modelConverter) {
         this.modelService = modelService;
         this.modelConverter = modelConverter;
     }
 
+    /**
+     * Checks whether the requested condition is satisfied. Executes the public operation.
+     */
     @GetMapping("/check-code")
     public Map<String, Boolean> checkCode(
             @RequestParam String code,
@@ -33,11 +39,17 @@ public class ModelController {
         return Map.of("available", modelService.isModelCodeAvailable(code, excludeId));
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     @GetMapping("/{id}")
     public ModelItem get(@PathVariable Long id) {
         return modelConverter.toVO(modelService.getById(id));
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     @PostMapping("/list")
     public PageResult<ModelItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<ModelDto> page = modelService.list(
@@ -48,38 +60,56 @@ public class ModelController {
         return page.mapList(modelConverter::toVOList);
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @OperationLog(module = "model", operation = "CREATE", entityType = "Model",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
-            description = "'新建模型'",
+            description = "'鏂板缓妯″瀷'",
             recordNewValue = true,
             newValueSpel = "@modelService.modelAuditSnapshot(#result.id())")
     @PostMapping
+    /**
+     * Creates a new resource.
+     */
     public ModelItem create(@RequestBody @Valid ModelItem request) {
         ModelDto created = modelService.create(modelConverter.toDto(request));
         return modelConverter.toVO(created);
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @OperationLog(module = "model", operation = "UPDATE", entityType = "Model",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'更新模型'",
+            description = "'鏇存柊妯″瀷'",
             recordOldValue = true,
             oldValueSpel = "@modelService.modelAuditSnapshot(#p0)",
             recordNewValue = true,
             newValueSpel = "@modelService.modelAuditSnapshot(#p0)")
     @PutMapping("/{id}")
+    /**
+     * Updates the target resource.
+     */
     public ModelItem update(@PathVariable Long id, @RequestBody @Valid ModelItem request) {
         ModelDto updated = modelService.update(id, modelConverter.toDto(request));
         return modelConverter.toVO(updated);
     }
 
+    /**
+     * Executes a test operation and returns the result. Executes the public operation.
+     */
     @PostMapping("/{id}/test")
     public ModelTestResult test(@PathVariable Long id, @RequestBody @Valid ModelTestRequest request) {
         ModelTestResultDto result = modelService.testModel(id, request.prompt());
         return new ModelTestResult(result.output(), result.latencyMs(), result.tokenUsage());
     }
 
+    /**
+     * Switches to the requested target state. Executes the public operation.
+     */
     @PostMapping("/{id}/versions/switch")
     public ModelVersionSwitchResult switchVersion(@PathVariable Long id, @RequestBody @Valid ModelVersionSwitchRequest request) {
         ModelVersionSwitchResultDto result = modelService.switchVersion(id, request.targetVersion());

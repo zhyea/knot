@@ -2,7 +2,8 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.chobit.knot.gateway.constants.TrafficResourceType;
+import org.chobit.knot.gateway.config.GatewayRuntimeProperties;
+import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.converter.RoutingRuleConverter;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleDto;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
@@ -22,12 +23,12 @@ import org.chobit.knot.gateway.mapper.RoutingConsumerMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleConsumerMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleTargetMapper;
-import org.chobit.knot.gateway.config.GatewayRuntimeProperties;
 import org.chobit.knot.gateway.mapper.UserMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.tools.RoutingRuleCodeGenerator;
 import org.chobit.knot.gateway.vo.routing.RoutingTestResult;
@@ -62,6 +63,9 @@ public class RoutingRuleService {
     private final GatewayRuntimeProperties gatewayRuntimeProperties;
     private final RestClient restClient;
 
+    /**
+     * Constructs a new instance.
+     */
     public RoutingRuleService(RoutingRuleMapper routingRuleMapper,
                               RoutingRuleTargetMapper routingRuleTargetMapper,
                               RoutingRuleConsumerMapper routingRuleConsumerMapper,
@@ -87,6 +91,9 @@ public class RoutingRuleService {
         this.restClient = RestClient.create();
     }
 
+    /**
+     * Lists matching results. Executes the public operation.
+     */
     public PageResult<RoutingRuleDto> list(PageRequest pageRequest) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<RoutingRuleEntity> pageInfo = new PageInfo<>(routingRuleMapper.list());
@@ -94,6 +101,9 @@ public class RoutingRuleService {
         return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
 
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     public RoutingRuleDto getById(Long id) {
         RoutingRuleEntity entity = routingRuleMapper.getById(id);
         if (entity == null) {
@@ -102,6 +112,9 @@ public class RoutingRuleService {
         return enrich(entity);
     }
 
+    /**
+     * Returns whether the current condition is satisfied. Executes the public operation.
+     */
     public boolean isRuleCodeAvailable(String ruleCode, Long excludeId) {
         String normalized = normalizeRuleCode(ruleCode);
         if (normalized.isEmpty()) {
@@ -111,6 +124,9 @@ public class RoutingRuleService {
         return count == null || count == 0;
     }
 
+    /**
+     * Returns the audit snapshot used by operation logging.
+     */
     public Map<String, Object> routingRuleAuditSnapshot(Long id) {
         if (id == null) {
             return null;
@@ -139,6 +155,9 @@ public class RoutingRuleService {
         }
     }
 
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
     @Transactional
     public RoutingRuleDto create(RoutingRuleDto request) {
         RoutingRuleDto normalized = ensureGeneratedFieldsForCreate(request);
@@ -148,11 +167,14 @@ public class RoutingRuleService {
         routingRuleMapper.insert(entity);
         saveConsumers(entity.getId(), normalized.consumerIds());
         saveTargets(entity.getId(), normalized.targets());
-        trafficPolicySupport.save(TrafficResourceType.ROUTING_RULE, entity.getId(),
+        trafficPolicySupport.save(TrafficResourceTypeEnum.ROUTING_RULE.code(), entity.getId(),
                 normalized.rateLimitPolicy(), normalized.quotaPolicy());
         return getById(entity.getId());
     }
 
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
     @Transactional
     public RoutingRuleDto update(Long id, RoutingRuleDto request) {
         if (routingRuleMapper.getById(id) == null) {
@@ -165,11 +187,14 @@ public class RoutingRuleService {
         routingRuleMapper.update(entity);
         saveConsumers(id, request.consumerIds());
         saveTargets(id, request.targets());
-        trafficPolicySupport.save(TrafficResourceType.ROUTING_RULE, id,
+        trafficPolicySupport.save(TrafficResourceTypeEnum.ROUTING_RULE.code(), id,
                 request.rateLimitPolicy(), request.quotaPolicy());
         return getById(id);
     }
 
+    /**
+     * Returns the primary routing target for the given rule.
+     */
     public RoutingRuleTargetDto getPrimaryTarget(Long ruleId) {
         return getById(ruleId).targets().stream()
                 .filter(RoutingRuleTargetDto::primary)
@@ -177,6 +202,9 @@ public class RoutingRuleService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "路由规则未配置主模型"));
     }
 
+    /**
+     * Sends a test request through the gateway and returns the invocation result.
+     */
     public RoutingTestResult testInvoke(Long ruleId, String secretKey, String prompt, String modelCode) {
         RoutingRuleDto rule = getById(ruleId);
         RoutingConsumerEntity consumer = findBoundConsumerBySecretKey(rule.consumerIds(), secretKey);
@@ -267,11 +295,11 @@ public class RoutingRuleService {
         List<Long> ruleIds = entities.stream().map(RoutingRuleEntity::getId).toList();
         Map<Long, List<RoutingRuleTargetDto>> targetsByRule = loadTargetsByRuleIds(ruleIds);
         Map<Long, List<RoutingRuleConsumerEntity>> consumersByRule = loadConsumersByRuleIds(ruleIds);
-        Map<Long, ResourceTrafficPolicySupport.TrafficPolicies> traffic =
-                trafficPolicySupport.loadBatch(TrafficResourceType.ROUTING_RULE, ruleIds);
+        Map<Long, TrafficPolicies> traffic =
+                trafficPolicySupport.loadBatch(TrafficResourceTypeEnum.ROUTING_RULE.code(), ruleIds);
         List<RoutingRuleDto> result = new ArrayList<>();
         for (RoutingRuleEntity entity : entities) {
-            ResourceTrafficPolicySupport.TrafficPolicies tp = traffic.get(entity.getId());
+            TrafficPolicies tp = traffic.get(entity.getId());
             result.add(toDto(
                     entity,
                     consumersByRule.getOrDefault(entity.getId(), List.of()),
@@ -287,8 +315,8 @@ public class RoutingRuleService {
                 loadTargetsByRuleIds(List.of(entity.getId()));
         Map<Long, List<RoutingRuleConsumerEntity>> consumersByRule =
                 loadConsumersByRuleIds(List.of(entity.getId()));
-        ResourceTrafficPolicySupport.TrafficPolicies traffic =
-                trafficPolicySupport.load(TrafficResourceType.ROUTING_RULE, entity.getId());
+        TrafficPolicies traffic =
+                trafficPolicySupport.load(TrafficResourceTypeEnum.ROUTING_RULE.code(), entity.getId());
         return toDto(entity,
                 consumersByRule.getOrDefault(entity.getId(), List.of()),
                 targetsByRule.getOrDefault(entity.getId(), List.of()),
@@ -298,7 +326,7 @@ public class RoutingRuleService {
     private RoutingRuleDto toDto(RoutingRuleEntity entity,
                                  List<RoutingRuleConsumerEntity> consumers,
                                  List<RoutingRuleTargetDto> targets,
-                                 ResourceTrafficPolicySupport.TrafficPolicies traffic) {
+                                 TrafficPolicies traffic) {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
         QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
         List<Long> consumerIds = consumers.stream().map(RoutingRuleConsumerEntity::getConsumerId).toList();
@@ -627,5 +655,4 @@ public class RoutingRuleService {
                 .collect(Collectors.toList());
         return result.isEmpty() ? List.of("CHAT") : result;
     }
-
 }

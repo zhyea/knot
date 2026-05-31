@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.service.schedule;
 
 import lombok.extern.slf4j.Slf4j;
-import org.chobit.knot.gateway.constants.EntityStatus;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.entity.ScheduledTaskEntity;
 import org.chobit.knot.gateway.mapper.ScheduledTaskMapper;
 import org.quartz.*;
@@ -22,20 +22,29 @@ public class ScheduledTaskSchedulerService {
     private final Scheduler scheduler;
     private final ScheduledTaskMapper scheduledTaskMapper;
 
+    /**
+     * Constructs a new instance.
+     */
     public ScheduledTaskSchedulerService(Scheduler scheduler, ScheduledTaskMapper scheduledTaskMapper) {
         this.scheduler = scheduler;
         this.scheduledTaskMapper = scheduledTaskMapper;
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @EventListener(ApplicationReadyEvent.class)
     public void scheduleEnabledTasks() {
         scheduledTaskMapper.listEnabledTasks().forEach(this::reschedule);
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public void reschedule(ScheduledTaskEntity task) {
         try {
             unschedule(task.getTaskCode());
-            if (!EntityStatus.ENABLED.equals(task.getStatus())) {
+            if (!EntityStatusEnum.ENABLED.code().equals(task.getStatus())) {
                 return;
             }
 
@@ -63,6 +72,9 @@ public class ScheduledTaskSchedulerService {
         }
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     public void unschedule(String taskCode) {
         try {
             scheduler.deleteJob(jobKey(taskCode));
@@ -71,10 +83,13 @@ public class ScheduledTaskSchedulerService {
         }
     }
 
+    /**
+     * Triggers the requested operation immediately. Executes the public operation.
+     */
     public void triggerNow(String taskCode) {
         try {
             ScheduledTaskEntity task = scheduledTaskMapper.getTaskByCode(taskCode);
-            if (task == null || !EntityStatus.ENABLED.equals(task.getStatus())) {
+            if (task == null || !EntityStatusEnum.ENABLED.code().equals(task.getStatus())) {
                 throw new IllegalArgumentException("Task is not enabled: " + taskCode);
             }
             JobKey jobKey = jobKey(taskCode);

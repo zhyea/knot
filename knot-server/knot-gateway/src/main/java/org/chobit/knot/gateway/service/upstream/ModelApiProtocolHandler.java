@@ -1,11 +1,11 @@
 package org.chobit.knot.gateway.service.upstream;
 
-import org.chobit.knot.gateway.constants.ModelApiProtocol;
-import org.chobit.knot.gateway.service.ProxyService;
+import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.model.ProxyResult;
 
 public interface ModelApiProtocolHandler {
 
-    boolean supports(ModelApiProtocol protocol);
+    boolean supports(ModelApiProtocolEnum protocol);
 
-    ProxyService.ProxyResult execute(UpstreamRequestContext context, UpstreamProviderAdapter adapter);
+    ProxyResult execute(UpstreamRequestContext context, UpstreamProviderAdapter adapter);
 }

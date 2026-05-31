@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.service.schedule;
 
 import lombok.extern.slf4j.Slf4j;
-import org.chobit.knot.gateway.constants.EntityStatus;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.entity.ScheduledTaskEntity;
 import org.chobit.knot.gateway.entity.ScheduledTaskRunEntity;
 import org.chobit.knot.gateway.mapper.ScheduledTaskMapper;
@@ -29,6 +29,9 @@ public class ScheduledTaskExecutor {
     private final NodeIdentity nodeIdentity;
     private final Map<String, ScheduledTaskHandler> handlers;
 
+    /**
+     * Constructs a new instance.
+     */
     public ScheduledTaskExecutor(ScheduledTaskMapper scheduledTaskMapper,
                                  NodeIdentity nodeIdentity,
                                  List<ScheduledTaskHandler> handlers) {
@@ -37,10 +40,13 @@ public class ScheduledTaskExecutor {
         this.handlers = handlers.stream().collect(Collectors.toMap(ScheduledTaskHandler::handlerCode, Function.identity()));
     }
 
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
     @Transactional
     public void execute(String taskCode, String triggerType, Date nextFireTime) {
         ScheduledTaskEntity task = scheduledTaskMapper.getTaskByCode(taskCode);
-        if (task == null || !EntityStatus.ENABLED.equals(task.getStatus())) {
+        if (task == null || !EntityStatusEnum.ENABLED.code().equals(task.getStatus())) {
             return;
         }
 
