@@ -78,6 +78,66 @@
   --knot-border: #d9c5c2;
 }
 
+/* --- 青釉青 --- */
+[data-theme="teal"] {
+  --el-color-primary: #0f8b8d;
+  --el-color-primary-light-3: #47a7a8;
+  --el-color-primary-light-5: #78bfc0;
+  --el-color-primary-light-7: #b4dcdd;
+  --el-color-primary-light-8: #d4ecec;
+  --el-color-primary-light-9: #eef7f7;
+  --el-color-primary-dark-2: #0b6d6f;
+  --knot-bg: #eef3f3;
+  --knot-surface: #ffffff;
+  --knot-surface-soft: #f5f9f9;
+  --knot-border: #bfd4d4;
+}
+
+/* --- 麦穗金 --- */
+[data-theme="gold"] {
+  --el-color-primary: #a97900;
+  --el-color-primary-light-3: #c1983d;
+  --el-color-primary-light-5: #d3b06f;
+  --el-color-primary-light-7: #e8d1aa;
+  --el-color-primary-light-8: #f1e0c5;
+  --el-color-primary-light-9: #faf5ea;
+  --el-color-primary-dark-2: #845f00;
+  --knot-bg: #f4f1ea;
+  --knot-surface: #ffffff;
+  --knot-surface-soft: #f8f6f1;
+  --knot-border: #d7ccb1;
+}
+
+/* --- 石墨灰 --- */
+[data-theme="slate"] {
+  --el-color-primary: #4f6478;
+  --el-color-primary-light-3: #77899a;
+  --el-color-primary-light-5: #99a8b5;
+  --el-color-primary-light-7: #c4cdd4;
+  --el-color-primary-light-8: #d9dfe4;
+  --el-color-primary-light-9: #eff2f4;
+  --el-color-primary-dark-2: #3d5164;
+  --knot-bg: #f0f2f4;
+  --knot-surface: #ffffff;
+  --knot-surface-soft: #f6f8f9;
+  --knot-border: #c8d0d8;
+}
+
+/* --- 青瓷蓝灰 --- */
+[data-theme="mist"] {
+  --el-color-primary: #6b8798;
+  --el-color-primary-light-3: #8ea5b2;
+  --el-color-primary-light-5: #a9bcc6;
+  --el-color-primary-light-7: #ccd8de;
+  --el-color-primary-light-8: #dde6ea;
+  --el-color-primary-light-9: #f1f5f7;
+  --el-color-primary-dark-2: #567080;
+  --knot-bg: #f1f4f5;
+  --knot-surface: #ffffff;
+  --knot-surface-soft: #f7f9fa;
+  --knot-border: #ccd5da;
+}
+
 /* 主题切换器样式 */
 .theme-switcher {
   display: flex;
@@ -108,3 +168,7 @@
 .theme-dot--orange { background: #b26200; }
 .theme-dot--purple { background: #826eb4; }
 .theme-dot--red    { background: #b32d2e; }
+.theme-dot--teal   { background: #0f8b8d; }
+.theme-dot--gold   { background: #a97900; }
+.theme-dot--slate  { background: #4f6478; }
+.theme-dot--mist   { background: #6b8798; }

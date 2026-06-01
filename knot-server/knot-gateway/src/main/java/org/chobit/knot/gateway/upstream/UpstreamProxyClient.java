@@ -9,14 +9,9 @@ import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.entity.ProviderEntity;
-import org.chobit.knot.gateway.model.AppContext;
+import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.service.GatewayDataService;
-import org.chobit.knot.gateway.upstream.ModelApiProtocolHandler;
-import org.chobit.knot.gateway.upstream.ModelApiProtocolHandlerRegistry;
-import org.chobit.knot.gateway.upstream.UpstreamProviderAdapter;
-import org.chobit.knot.gateway.upstream.UpstreamProviderAdapterRegistry;
-import org.chobit.knot.gateway.upstream.UpstreamRequestContext;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -33,57 +28,62 @@ public class UpstreamProxyClient {
     private final ModelApiProtocolHandlerRegistry protocolHandlerRegistry;
     private final UpstreamProviderAdapterRegistry providerAdapterRegistry;
 
-    /**
-     * Proxies the request to the upstream provider. Executes the public operation.
-     */
-    public ProxyResult proxy(Map<String, Object> requestBody, AppContext appContext) {
-        return proxy(requestBody, appContext, ModelApiProtocolEnum.CHAT_COMPLETIONS);
-    }
 
     /**
      * Proxies the request to the upstream provider. Executes the public operation.
      */
     public ProxyResult proxy(Map<String, Object> requestBody,
-                             AppContext appContext,
-                             ModelApiProtocolEnum protocol) {
-        return proxy(requestBody, appContext, protocol, null);
-    }
-
-    /**
-     * Proxies the request to the upstream provider. Executes the public operation.
-     */
-    public ProxyResult proxy(Map<String, Object> requestBody,
-                             AppContext appContext,
                              ModelApiProtocolEnum protocol,
                              String traceparent) {
+
+        UpstreamRequestContext context = buildRequestContext(requestBody, protocol, traceparent);
+        ModelApiProtocolHandler protocolHandler = protocolHandlerRegistry.resolve(context.protocol());
+        UpstreamProviderAdapter providerAdapter = providerAdapterRegistry.resolve(context.provider().getProviderType());
+        return protocolHandler.execute(context, providerAdapter);
+    }
+
+    private UpstreamRequestContext buildRequestContext(Map<String, Object> requestBody,
+                                                       ModelApiProtocolEnum protocol,
+                                                       String traceparent) {
+        String modelCode = extractModelCode(requestBody);
+        ModelEntity model = resolveModel(modelCode);
+        ProviderEntity provider = resolveProvider(model, modelCode);
+        ModelApiProtocolEnum resolvedProtocol = resolveProtocol(protocol);
+        ModelApiBindingEntity binding = resolveBinding(model.getId(), resolvedProtocol);
+        ProviderCredentialEntity credential = dataService.getActiveCredentialByProviderId(provider.getId());
+        return new UpstreamRequestContext(
+                resolvedProtocol, requestBody, model, provider, credential, binding, traceparent
+        );
+    }
+
+    private String extractModelCode(Map<String, Object> requestBody) {
         String modelCode = requestBody.get(AiPayloadFields.MODEL) == null
                 ? null
                 : String.valueOf(requestBody.get(AiPayloadFields.MODEL));
         if (modelCode == null || modelCode.isBlank()) {
-            return new ProxyResult(null, null, null, ProxyErrorCodeEnum.MISSING_MODEL.code(), "model is required");
+            throw new GatewayUpstreamException("model is required", ProxyErrorCodeEnum.MISSING_MODEL.code());
         }
+        return modelCode;
+    }
 
+    private ModelEntity resolveModel(String modelCode) {
         ModelEntity model = findModelByCode(modelCode);
         if (model == null) {
-            return new ProxyResult(null, null, null, ProxyErrorCodeEnum.MODEL_NOT_FOUND.code(),
-                    "model not found: " + modelCode);
+            throw new GatewayUpstreamException("model not found: " + modelCode, ProxyErrorCodeEnum.MODEL_NOT_FOUND.code());
         }
+        return model;
+    }
 
+    private ProviderEntity resolveProvider(ModelEntity model, String modelCode) {
         ProviderEntity provider = dataService.getProviderById(model.getProviderId());
         if (provider == null) {
-            return new ProxyResult(null, null, model.getId(),
-                    ProxyErrorCodeEnum.PROVIDER_NOT_FOUND.code(), "provider not found for model: " + modelCode);
+            throw new GatewayUpstreamException("provider not found for model: " + modelCode, ProxyErrorCodeEnum.PROVIDER_NOT_FOUND.code());
         }
+        return provider;
+    }
 
-        ModelApiProtocolEnum resolvedProtocol = protocol != null ? protocol.canonical() : ModelApiProtocolEnum.CHAT_COMPLETIONS;
-        ModelApiBindingEntity binding = resolveBinding(model.getId(), resolvedProtocol);
-        ProviderCredentialEntity credential = dataService.getActiveCredentialByProviderId(provider.getId());
-        UpstreamRequestContext context = new UpstreamRequestContext(
-                resolvedProtocol, requestBody, model, provider, credential, binding, traceparent
-        );
-        ModelApiProtocolHandler protocolHandler = protocolHandlerRegistry.resolve(resolvedProtocol);
-        UpstreamProviderAdapter providerAdapter = providerAdapterRegistry.resolve(provider.getProviderType());
-        return protocolHandler.execute(context, providerAdapter);
+    private ModelApiProtocolEnum resolveProtocol(ModelApiProtocolEnum protocol) {
+        return protocol != null ? protocol.canonical() : ModelApiProtocolEnum.CHAT_COMPLETIONS;
     }
 
     private ModelApiBindingEntity resolveBinding(Long modelId, ModelApiProtocolEnum protocol) {

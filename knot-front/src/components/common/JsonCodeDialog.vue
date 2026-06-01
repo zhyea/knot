@@ -7,7 +7,9 @@
     class="json-code-dialog"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <pre class="json-code-block"><code v-html="highlightedJson"></code></pre>
+    <el-scrollbar class="json-code-scrollbar" max-height="60vh">
+      <pre class="json-code-block"><code v-html="highlightedJson"></code></pre>
+    </el-scrollbar>
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">关闭</el-button>
     </template>
@@ -58,13 +60,15 @@ function escapeHtml(text) {
 </script>
 
 <style scoped>
+.json-code-scrollbar {
+  max-height: 60vh;
+}
+
 .json-code-block {
   margin: 0;
   padding: 16px;
   background: #1e1e1e;
   border-radius: 0;
-  overflow: auto;
-  max-height: 60vh;
   font-family: Consolas, "Courier New", monospace;
   font-size: 13px;
   line-height: 1.55;

@@ -72,26 +72,35 @@
             style="width: 100%"
           />
         </el-form-item>
-        <div v-if="selectedLogicalModel" class="bind-list logical-model-bind-list">
-          <div class="bind-list__row bind-list__header logical-model-bind-list__row">
-            <span>统一模型编码</span>
-            <span>统一模型名称</span>
-            <span>模型类型</span>
-            <span>模型族</span>
-            <span>是否启用</span>
-          </div>
-          <div class="bind-list__row logical-model-bind-list__row">
-            <span class="bind-list__text">{{ selectedLogicalModel.modelCode || "—" }}</span>
-            <span class="bind-list__text">{{ logicalModelName(selectedLogicalModel) }}</span>
-            <span class="bind-list__text">{{ selectedLogicalModel.modelType || "—" }}</span>
-            <span class="bind-list__text">{{ selectedLogicalModel.modelFamily || "—" }}</span>
-            <span>
-              <el-tag size="small" :type="selectedLogicalModel.enabled === false ? 'info' : 'success'">
-                {{ selectedLogicalModel.enabled === false ? "停用" : "启用" }}
+        <el-table v-if="selectedLogicalModel" :data="[selectedLogicalModel]" border class="bind-table logical-model-bind-table">
+          <el-table-column prop="modelCode" label="统一模型编码" min-width="150" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="bind-list__text">{{ row.modelCode || "—" }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="统一模型名称" min-width="160" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="bind-list__text">{{ logicalModelName(row) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="modelType" label="模型类型" width="100" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="bind-list__text">{{ row.modelType || "—" }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="modelFamily" label="模型族" width="120" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="bind-list__text">{{ row.modelFamily || "—" }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="是否启用" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
+                {{ row.enabled === false ? "停用" : "启用" }}
               </el-tag>
-            </span>
-          </div>
-        </div>
+            </template>
+          </el-table-column>
+        </el-table>
 
         <div class="bind-subsection">
           <div class="bind-subsection__head">
@@ -110,24 +119,30 @@
               style="width: 100%"
             />
           </el-form-item>
-          <div v-if="selectedBillingRule" class="bind-list billing-rule-bind-list">
-            <div class="bind-list__row bind-list__header billing-rule-bind-list__row">
-              <span>规则编码</span>
-              <span>规则名称</span>
-              <span>版本</span>
-              <span>是否启用</span>
-            </div>
-            <div class="bind-list__row billing-rule-bind-list__row">
-              <span class="bind-list__text">{{ selectedBillingRule.code || "—" }}</span>
-              <span class="bind-list__text">{{ selectedBillingRule.name || "—" }}</span>
-              <span class="bind-list__text">v{{ selectedBillingRule.versionNo || 1 }}</span>
-              <span>
-                <el-tag size="small" :type="selectedBillingRule.enabled === false ? 'info' : 'success'">
-                  {{ selectedBillingRule.enabled === false ? "停用" : "启用" }}
+          <el-table v-if="selectedBillingRule" :data="[selectedBillingRule]" border class="bind-table billing-rule-bind-table">
+            <el-table-column prop="code" label="规则编码" min-width="150" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="bind-list__text">{{ row.code || "—" }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="name" label="规则名称" min-width="180" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="bind-list__text">{{ row.name || "—" }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="版本" width="80" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="bind-list__text">v{{ row.versionNo || 1 }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="是否启用" width="90" align="center">
+              <template #default="{ row }">
+                <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
+                  {{ row.enabled === false ? "停用" : "启用" }}
                 </el-tag>
-              </span>
-            </div>
-          </div>
+              </template>
+            </el-table-column>
+          </el-table>
         </div>
       </div>
 
@@ -150,22 +165,25 @@
             style="width: 100%"
           />
         </el-form-item>
-        <div v-if="selectedProvider" class="bind-list provider-bind-list">
-          <div class="bind-list__row bind-list__header provider-bind-list__row">
-            <span>供应商编码</span>
-            <span>供应商名称</span>
-            <span>是否启用</span>
-          </div>
-          <div class="bind-list__row provider-bind-list__row">
-            <span class="bind-list__text">{{ selectedProvider.code || "—" }}</span>
-            <span class="bind-list__text">{{ selectedProvider.name || "—" }}</span>
-            <span>
-              <el-tag size="small" :type="selectedProvider.enabled === false ? 'info' : 'success'">
-                {{ selectedProvider.enabled === false ? "停用" : "启用" }}
+        <el-table v-if="selectedProvider" :data="[selectedProvider]" border class="bind-table provider-bind-table">
+          <el-table-column prop="code" label="供应商编码" min-width="160" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="bind-list__text">{{ row.code || "—" }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="name" label="供应商名称" min-width="160" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="bind-list__text">{{ row.name || "—" }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="是否启用" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
+                {{ row.enabled === false ? "停用" : "启用" }}
               </el-tag>
-            </span>
-          </div>
-        </div>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
 
       <div class="space-line" />
@@ -550,50 +568,23 @@ async function submit() {
   height: 14px;
 }
 
-.bind-list {
+.bind-table {
   margin-top: 10px;
   width: 100%;
-  border: 1px solid var(--knot-border, #ebeef5);
-  background: var(--knot-surface-soft, #f8fafc);
 }
 
-.bind-list__row {
-  display: grid;
-  align-items: center;
-  min-height: 48px;
-  border-bottom: 1px solid var(--knot-border, #ebeef5);
-  background: var(--knot-surface, #fff);
+.bind-table :deep(.el-table__cell) {
   font-size: 12px;
 }
 
-.bind-list__row:last-child {
-  border-bottom: 0;
-}
-
-.bind-list__header {
-  min-height: 36px;
-  color: #606266;
+.bind-table :deep(th.el-table__cell) {
   font-size: 12px;
   font-weight: 600;
-  background: var(--knot-surface-soft, #f8fafc);
 }
 
-.bind-list__row > span {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  height: 100%;
-  padding: 8px 12px;
-  border-right: 1px solid var(--knot-border, #ebeef5);
-  background: #f3f6fa;
-}
-
-.bind-list__header > span {
-  background: var(--knot-surface-soft, #f8fafc);
-}
-
-.bind-list__row > span:last-child {
-  border-right: 0;
+.bind-table :deep(.cell) {
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
 .bind-list__text {
@@ -628,24 +619,6 @@ async function submit() {
   line-height: 1.5;
 }
 
-.provider-bind-list__row {
-  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) 100px;
-}
-
-.logical-model-bind-list__row {
-  grid-template-columns: minmax(150px, 1fr) minmax(160px, 1fr) 100px 120px 100px;
-}
-
-.billing-rule-bind-list__row {
-  grid-template-columns: minmax(150px, 1fr) minmax(180px, 1fr) 80px 90px;
-}
-
-.provider-bind-list__row > span:nth-child(3),
-.logical-model-bind-list__row > span:nth-child(5),
-.billing-rule-bind-list__row > span:nth-child(4) {
-  justify-content: center;
-}
-
 @media (max-width: 900px) {
   .section-head {
     display: block;
@@ -653,23 +626,6 @@ async function submit() {
 
   .inline-switch {
     margin-top: 12px;
-  }
-
-  .bind-list__header {
-    display: none;
-  }
-
-  .provider-bind-list__row,
-  .logical-model-bind-list__row,
-  .billing-rule-bind-list__row {
-    grid-template-columns: 1fr;
-    row-gap: 8px;
-  }
-
-  .provider-bind-list__row > span:nth-child(3),
-  .logical-model-bind-list__row > span:nth-child(5),
-  .billing-rule-bind-list__row > span:nth-child(4) {
-    justify-content: flex-start;
   }
 }
 </style>

@@ -36,7 +36,7 @@ public class GatewayTrafficGuard {
      * Checks traffic policies that are fixed for a single gateway request.
      */
     public boolean checkRouting(ResolvedRouting routing) {
-        return checkResource(TrafficResourceTypeEnum.APP.code(), routing.appContext().id())
+        return checkResource(TrafficResourceTypeEnum.APP.code(), routing.routingInfo().app().id())
                 && checkResource(TrafficResourceTypeEnum.ROUTING_RULE.code(), routing.ruleId())
                 && checkResource(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), routing.consumerId());
     }

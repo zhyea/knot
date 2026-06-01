@@ -7,6 +7,8 @@ import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.billing.GatewayBillingCalculator;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
+import org.chobit.knot.gateway.exception.GatewayRateLimitException;
+import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.*;
 import org.chobit.knot.gateway.routing.RoutingResolver;
 import org.chobit.knot.gateway.traffic.GatewayTrafficGuard;
@@ -57,39 +59,41 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         ModelApiProtocolEnum protocol = context.protocol();
         String traceparent = context.traceparent();
 
-        Map<String, Object> requestBody = exchange.requestBody();
+        // 检查应用、路由规则和消费者的频控和额度控制
         if (!trafficGuard.checkRouting(routing)) {
-            return new ProxyResult(null, null, null,
-                    ProxyErrorCodeEnum.RATE_LIMIT_EXCEEDED.code(), "Routing traffic policy rejected");
+            throw new GatewayRateLimitException("Routing traffic policy rejected", ProxyErrorCodeEnum.RATE_LIMIT_EXCEEDED.code());
         }
 
+        Map<String, Object> requestBody = exchange.requestBody();
         TrafficCheckContext trafficContext = trafficGuard.newContext();
-        ProxyResult lastResult = null;
+        GatewayUpstreamException lastUpstreamException = new GatewayUpstreamException(
+                "No available routing target",
+                ProxyErrorCodeEnum.NO_ROUTING_TARGET.code()
+        );
+        boolean hasAllowedTarget = false;
         for (RoutingRuleTargetDto candidate : routing.candidateModels()) {
-            if (isTargetBlocked(candidate, trafficContext)) {
-                lastResult = new ProxyResult(null, candidate.providerId(), candidate.targetId(),
-                        ProxyErrorCodeEnum.RATE_LIMIT_EXCEEDED.code(), "Target traffic policy rejected");
+            // 检查目标模型的频控和额度控制
+            if (!trafficGuard.checkTarget(candidate, trafficContext)) {
                 continue;
             }
+            hasAllowedTarget = true;
+
+            // 替换请求体中的模型代码
             requestBody.put(AiPayloadFields.MODEL, candidate.targetCode());
-            lastResult = proxyClient.proxy(requestBody, routing.appContext(), protocol, traceparent);
-            if (lastResult.errorCode() == null) {
-                return lastResult;
+
+            // 调用上游服务
+            try {
+                return proxyClient.proxy(requestBody, protocol, traceparent);
+            } catch (GatewayUpstreamException e) {
+                lastUpstreamException = e;
             }
         }
-        return lastResult != null
-                ? lastResult
-                : new ProxyResult(null, null, null,
-                ProxyErrorCodeEnum.NO_ROUTING_TARGET.code(), "No available routing target");
+        if (!hasAllowedTarget) {
+            throw new GatewayRateLimitException("Target traffic policy rejected", ProxyErrorCodeEnum.RATE_LIMIT_EXCEEDED.code());
+        }
+        throw lastUpstreamException;
     }
 
-    private boolean isTargetBlocked(RoutingRuleTargetDto candidate, TrafficCheckContext trafficContext) {
-        return !isTargetAllowed(candidate, trafficContext);
-    }
-
-    private boolean isTargetAllowed(RoutingRuleTargetDto candidate, TrafficCheckContext trafficContext) {
-        return trafficGuard.checkTarget(candidate, trafficContext);
-    }
 
     @SuppressWarnings("unchecked")
     @Override

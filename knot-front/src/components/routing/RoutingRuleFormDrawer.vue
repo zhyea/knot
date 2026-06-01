@@ -124,26 +124,25 @@
               @change="onConsumersChange"
           />
         </el-form-item>
-        <div v-if="selectedConsumers.length" class="bind-list consumer-bind-list">
-          <div class="bind-list__row bind-list__header consumer-bind-list__row">
-            <span>消费者编码</span>
-            <span>消费者名称</span>
-            <span>是否启用</span>
-          </div>
-          <div
-              v-for="consumer in selectedConsumers"
-              :key="consumer.id"
-              class="bind-list__row consumer-bind-list__row"
-          >
-            <span class="bind-list__text">{{ consumer.consumerCode || "—" }}</span>
-            <span class="bind-list__text">{{ consumer.name || "—" }}</span>
-            <span>
-              <el-tag size="small" :type="consumer.enabled === false ? 'info' : 'success'">
-                {{ consumer.enabled === false ? "停用" : "启用" }}
+        <el-table v-if="selectedConsumers.length" :data="selectedConsumers" border class="bind-table consumer-bind-table">
+          <el-table-column prop="consumerCode" label="消费者编码" min-width="160" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="bind-list__text">{{ row.consumerCode || "—" }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="name" label="消费者名称" min-width="160" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="bind-list__text">{{ row.name || "—" }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="是否启用" width="100" align="center">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
+                {{ row.enabled === false ? "停用" : "启用" }}
               </el-tag>
-            </span>
-          </div>
-        </div>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
 
       <div class="space-line"/>
@@ -177,41 +176,46 @@
               @change="onSelectedTargetsChange"
           />
         </el-form-item>
-        <div v-if="form.targets.length" class="bind-list model-bind-list">
-          <div class="bind-list__row bind-list__header model-bind-list__row">
-            <span>目标类型</span>
-            <span>目标编码</span>
-            <span>目标名称</span>
-            <span>优先级</span>
-            <span>主目标</span>
-            <span>操作</span>
-          </div>
-          <div
-              v-for="row in boundTargetRows"
-              :key="targetKey(row)"
-              class="bind-list__row model-bind-list__row"
-          >
-            <span>{{ targetTypeLabel(row.targetType) }}</span>
-            <span class="bind-list__text">{{ row.targetCode || "—" }}</span>
-            <span class="bind-list__text">{{ row.targetName || "—" }}</span>
-            <span>
+        <el-table v-if="form.targets.length" :data="boundTargetRows" border :row-key="targetKey" class="bind-table model-bind-table">
+          <el-table-column label="目标类型" width="100" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="bind-list__text">{{ targetTypeLabel(row.targetType) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="targetCode" label="目标编码" min-width="150" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="bind-list__text">{{ row.targetCode || "—" }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="targetName" label="目标名称" min-width="180" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="bind-list__text">{{ row.targetName || "—" }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="优先级" width="160" align="center">
+            <template #default="{ row }">
               <el-input-number
-                  v-model="row.priority"
-                  :min="0"
-                  :max="9999"
-                  :disabled="primaryTargetKey === targetKey(row)"
+                v-model="row.priority"
+                :min="0"
+                :max="9999"
+                :disabled="primaryTargetKey === targetKey(row)"
+                class="bind-table-number"
               />
-            </span>
-            <span>
+            </template>
+          </el-table-column>
+          <el-table-column label="主目标" width="80" align="center">
+            <template #default="{ row }">
               <el-radio v-model="primaryTargetKey" :value="targetKey(row)" label="" />
-            </span>
-            <span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="70" align="center">
+            <template #default="{ row }">
               <el-button link type="danger" @click="removeTarget(row)">
                 <el-icon><Delete /></el-icon>
               </el-button>
-            </span>
-          </div>
-        </div>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
 
       <div class="space-line"/>
@@ -736,50 +740,37 @@ async function submit() {
   margin-left: 0 !important;
 }
 
-.bind-list {
+.bind-table {
   margin-top: 10px;
   width: 100%;
-  border: 1px solid var(--knot-border, #ebeef5);
-  background: var(--knot-surface-soft, #f8fafc);
 }
 
-.bind-list__row {
-  display: grid;
-  align-items: center;
-  min-height: 48px;
-  border-bottom: 1px solid var(--knot-border, #ebeef5);
-  background: var(--knot-surface, #fff);
+.bind-table :deep(.el-table__cell) {
   font-size: 12px;
 }
 
-.bind-list__row:last-child {
-  border-bottom: 0;
-}
-
-.bind-list__header {
-  min-height: 36px;
-  color: #606266;
+.bind-table :deep(th.el-table__cell) {
   font-size: 12px;
   font-weight: 600;
-  background: var(--knot-surface-soft, #f8fafc);
 }
 
-.bind-list__row > span {
-  min-width: 0;
-  height: 100%;
-  padding: 8px 12px;
-  border-right: 1px solid var(--knot-border, #ebeef5);
-  background: #f3f6fa;
-  display: flex;
-  align-items: center;
+.bind-table :deep(.cell) {
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
-.bind-list__header > span {
-  background: var(--knot-surface-soft, #f8fafc);
+.bind-table-number {
+  width: 118px;
 }
 
-.bind-list__row > span:last-child {
-  border-right: 0;
+.bind-table-number :deep(.el-input__inner) {
+  font-size: 12px;
+}
+
+.bind-table :deep(.el-input-number),
+.bind-table :deep(.el-radio),
+.bind-table :deep(.el-button) {
+  font-size: 12px;
 }
 
 .bind-list__text {
@@ -790,20 +781,6 @@ async function submit() {
   white-space: nowrap;
 }
 
-.consumer-bind-list__row {
-  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) 100px;
-}
-
-.model-bind-list__row {
-  grid-template-columns: 100px minmax(150px, 1fr) minmax(180px, 1.2fr) 160px 80px 70px;
-}
-
-.model-bind-list__row > span:nth-child(4),
-.model-bind-list__row > span:nth-child(5),
-.consumer-bind-list__row > span:nth-child(3) {
-  justify-content: center;
-}
-
 @media (max-width: 900px) {
   .section-head {
     display: block;
@@ -811,22 +788,6 @@ async function submit() {
 
   .inline-switch {
     margin-top: 12px;
-  }
-
-  .bind-list__header {
-    display: none;
-  }
-
-  .consumer-bind-list__row,
-  .model-bind-list__row {
-    grid-template-columns: 1fr;
-    row-gap: 8px;
-  }
-
-  .model-bind-list__row > span:nth-child(4),
-  .model-bind-list__row > span:nth-child(5),
-  .consumer-bind-list__row > span:nth-child(3) {
-    justify-content: flex-start;
   }
 }
 </style>

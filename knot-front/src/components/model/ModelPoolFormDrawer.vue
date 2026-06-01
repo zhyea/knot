@@ -74,30 +74,51 @@
             style="width: 100%"
           />
         </el-form-item>
-        <div v-if="boundModelRows.length" class="bind-list model-pool-items">
-          <div class="bind-list__row bind-list__header model-pool-items__row">
-            <span>模型编码</span>
-            <span>模型名称</span>
-            <span>供应商</span>
-            <span>权重</span>
-            <span>优先级</span>
-            <span>启用</span>
-            <span>操作</span>
-          </div>
-          <div v-for="row in boundModelRows" :key="row.modelId" class="bind-list__row model-pool-items__row">
-            <span class="bind-list__text">{{ row.modelCode || "—" }}</span>
-            <span class="bind-list__text">{{ row.modelName || row.name || "—" }}</span>
-            <span class="bind-list__text">{{ row.providerName || (row.providerId ? `#${row.providerId}` : "—") }}</span>
-            <span><el-input-number v-model="row.weight" :min="1" :max="10000" /></span>
-            <span><el-input-number v-model="row.priority" :min="0" :max="9999" /></span>
-            <span><el-switch v-model="row.enabled" /></span>
-            <span>
+        <el-table
+          v-if="boundModelRows.length"
+          :data="boundModelRows"
+          border
+          row-key="modelId"
+          class="model-pool-items-table"
+        >
+          <el-table-column prop="modelCode" label="模型编码" min-width="150" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="bind-list__text">{{ row.modelCode || "—" }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="模型名称" min-width="160" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="bind-list__text">{{ row.modelName || row.name || "—" }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="供应商" min-width="120" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span class="bind-list__text">{{ row.providerName || (row.providerId ? `#${row.providerId}` : "—") }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="权重" width="150" align="center">
+            <template #default="{ row }">
+              <el-input-number v-model="row.weight" :min="1" :max="10000" class="table-number-input" />
+            </template>
+          </el-table-column>
+          <el-table-column label="优先级" width="150" align="center">
+            <template #default="{ row }">
+              <el-input-number v-model="row.priority" :min="0" :max="9999" class="table-number-input" />
+            </template>
+          </el-table-column>
+          <el-table-column label="启用" width="90" align="center">
+            <template #default="{ row }">
+              <el-switch v-model="row.enabled" />
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="70" align="center">
+            <template #default="{ row }">
               <el-button link type="danger" @click="removeModel(row.modelId)">
                 <el-icon><Delete /></el-icon>
               </el-button>
-            </span>
-          </div>
-        </div>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
     </el-form>
 
@@ -359,49 +380,37 @@ async function submit() {
   margin-left: 0 !important;
 }
 
-.bind-list {
+.model-pool-items-table {
   margin-top: 10px;
   width: 100%;
-  border: 1px solid var(--knot-border, #ebeef5);
-  background: var(--knot-surface-soft, #f8fafc);
 }
 
-.bind-list__row {
-  display: grid;
-  align-items: center;
-  min-height: 48px;
-  border-bottom: 1px solid var(--knot-border, #ebeef5);
-  background: var(--knot-surface, #fff);
+.model-pool-items-table :deep(.el-table__cell) {
   font-size: 12px;
 }
 
-.bind-list__row:last-child {
-  border-bottom: 0;
-}
-
-.bind-list__header {
-  min-height: 36px;
-  color: #606266;
+.model-pool-items-table :deep(th.el-table__cell) {
+  font-size: 12px;
   font-weight: 600;
-  background: var(--knot-surface-soft, #f8fafc);
 }
 
-.bind-list__row > span {
-  min-width: 0;
-  height: 100%;
-  padding: 8px 12px;
-  border-right: 1px solid var(--knot-border, #ebeef5);
-  background: #f3f6fa;
-  display: flex;
-  align-items: center;
+.model-pool-items-table :deep(.cell) {
+  padding-left: 12px;
+  padding-right: 12px;
 }
 
-.bind-list__header > span {
-  background: var(--knot-surface-soft, #f8fafc);
+.table-number-input {
+  width: 118px;
 }
 
-.bind-list__row > span:last-child {
-  border-right: 0;
+.table-number-input :deep(.el-input__inner) {
+  font-size: 12px;
+}
+
+.model-pool-items-table :deep(.el-input-number),
+.model-pool-items-table :deep(.el-switch),
+.model-pool-items-table :deep(.el-button) {
+  font-size: 12px;
 }
 
 .bind-list__text {
@@ -411,11 +420,4 @@ async function submit() {
   white-space: nowrap;
 }
 
-.model-pool-items__row {
-  grid-template-columns: minmax(150px, 1fr) minmax(160px, 1fr) minmax(120px, 0.8fr) 150px 150px 90px 70px;
-}
-
-.model-pool-items__row > span:nth-child(n + 4) {
-  justify-content: center;
-}
 </style>

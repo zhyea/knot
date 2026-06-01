@@ -2,11 +2,8 @@ package org.chobit.knot.gateway.runtime;
 
 import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
-import org.chobit.knot.gateway.exception.GatewayRateLimitException;
-import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.gateway.util.JsonKit;
@@ -41,14 +38,7 @@ public abstract class AbstractGatewayRequestTemplate {
         GatewayExchange exchange = new GatewayExchange(requestBody);
         ProxyResult result = proxy(context, exchange);
 
-        // 结果封装
         exchange.proxyResult(result);
-        if (result.errorCode() != null) {
-            if (ProxyErrorCodeEnum.RATE_LIMIT_EXCEEDED.code().equals(result.errorCode())) {
-                throw new GatewayRateLimitException(result.errorMessage(), result.errorCode());
-            }
-            throw new GatewayUpstreamException(result.errorMessage(), result.errorCode());
-        }
         return applyUsageAccounting(context, exchange);
     }
 

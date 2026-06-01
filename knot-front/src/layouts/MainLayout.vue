@@ -8,14 +8,15 @@
           </el-tooltip>
         </el-header>
         <el-main class="aside-nav">
-          <el-menu
+          <el-scrollbar class="aside-scrollbar">
+            <el-menu
               class="aside-menu"
               :collapse="asideCollapsed"
               :collapse-transition="true"
               :default-active="activePath"
               :default-openeds="openeds"
               router
-          >
+            >
         <el-menu-item index="/">
           <el-icon>
             <Odometer/>
@@ -125,7 +126,8 @@
           <el-menu-item index="/notifications/send">通知发送</el-menu-item>
           <el-menu-item index="/notifications/policy">通知策略</el-menu-item>
         </el-sub-menu>
-          </el-menu>
+            </el-menu>
+          </el-scrollbar>
         </el-main>
         <el-footer v-if="false" class="aside-footer">
           <el-tooltip :content="asideCollapsed ? '展开侧栏' : '收起为图标'" placement="right">
@@ -177,7 +179,9 @@
         </div>
       </el-header>
       <el-main class="main">
-        <router-view/>
+        <el-scrollbar class="main-scrollbar">
+          <router-view/>
+        </el-scrollbar>
       </el-main>
     </el-container>
   </el-container>
@@ -350,9 +354,19 @@ async function handleCommand(command) {
 .aside-nav {
   flex: 1;
   min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
   padding: 0 !important;
+}
+
+.aside-scrollbar {
+  height: 100%;
+}
+
+.aside-scrollbar :deep(.el-scrollbar__wrap) {
+  overflow-x: hidden;
+}
+
+.aside-scrollbar :deep(.el-scrollbar__view) {
+  min-height: 100%;
 }
 
 .aside-menu {
@@ -427,7 +441,14 @@ async function handleCommand(command) {
 .main {
   background: var(--knot-bg, #f5f7fa);
   padding: 0;
-  overflow: auto;
   min-height: 0;
+}
+
+.main-scrollbar {
+  height: 100%;
+}
+
+.main-scrollbar :deep(.el-scrollbar__view) {
+  min-height: 100%;
 }
 </style>

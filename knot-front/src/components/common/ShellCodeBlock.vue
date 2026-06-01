@@ -1,6 +1,8 @@
 <template>
   <div class="shell-code-wrap">
-    <pre class="shell-code-block"><code v-html="highlighted"></code></pre>
+    <el-scrollbar class="shell-code-scrollbar" max-height="220px">
+      <pre class="shell-code-block"><code v-html="highlighted"></code></pre>
+    </el-scrollbar>
     <el-button
       v-if="copyable"
       class="copy-btn"
@@ -87,14 +89,16 @@ async function copyCode() {
   margin: 0;
   padding: 14px 16px 36px;
   background: #1e1e1e;
-  overflow: auto;
-  max-height: 220px;
   font-family: Consolas, "Courier New", monospace;
   font-size: 12px;
   line-height: 1.55;
   color: #d4d4d4;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+.shell-code-scrollbar {
+  max-height: 220px;
 }
 
 .shell-code-block :deep(.sh-cmd) {

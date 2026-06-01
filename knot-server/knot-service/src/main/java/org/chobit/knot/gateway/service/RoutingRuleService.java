@@ -125,37 +125,6 @@ public class RoutingRuleService {
     }
 
     /**
-     * Returns the audit snapshot used by operation logging.
-     */
-    public Map<String, Object> routingRuleAuditSnapshot(Long id) {
-        if (id == null) {
-            return null;
-        }
-        try {
-            RoutingRuleDto dto = getById(id);
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", dto.id());
-            m.put("ruleCode", dto.ruleCode());
-            m.put("name", dto.name());
-            m.put("appScenario", dto.appScenario());
-            m.put("modelTypes", dto.modelTypes());
-            m.put("consumerIds", dto.consumerIds());
-            m.put("consumerNames", dto.consumerNames());
-            m.put("appId", dto.appId());
-            m.put("appName", dto.appName());
-            m.put("userId", dto.userId());
-            m.put("userName", dto.userName());
-            m.put("enabled", dto.enabled());
-            m.put("targets", dto.targets());
-            m.put("rateLimitPolicy", dto.rateLimitPolicy());
-            m.put("quotaPolicy", dto.quotaPolicy());
-            return m;
-        } catch (BusinessException e) {
-            return null;
-        }
-    }
-
-    /**
      * Creates a new resource. Executes the public operation.
      */
     @Transactional

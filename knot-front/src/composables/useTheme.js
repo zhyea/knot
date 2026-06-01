@@ -7,11 +7,15 @@ const THEME_SETTING_KEY = "theme";
 
 /** 所有可用主题 */
 export const THEMES = [
-  { key: "blue", label: "WordPress 蓝" },
-  { key: "green", label: "WordPress 绿" },
+  { key: "blue", label: "海湾蓝" },
+  { key: "green", label: "松针绿" },
   { key: "orange", label: "咖啡橙" },
-  { key: "purple", label: "现代紫" },
-  { key: "red", label: "日出红" }
+  { key: "purple", label: "雾紫灰" },
+  { key: "red", label: "日出红" },
+  { key: "teal", label: "青釉青" },
+  { key: "gold", label: "麦穗金" },
+  { key: "slate", label: "石墨灰" },
+  { key: "mist", label: "青瓷蓝灰" }
 ];
 
 const current = ref(loadStored());

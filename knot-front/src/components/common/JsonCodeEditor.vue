@@ -3,22 +3,24 @@
     <div v-if="!readonly" class="json-editor__toolbar">
       <el-button size="small" text @click="formatCurrentJson">格式化</el-button>
     </div>
-    <div
-      class="json-editor__body"
-      :class="{ 'json-editor__body--editable': !readonly, 'json-editor__body--readonly': readonly }"
-      :style="bodyStyle"
-    >
-      <pre class="json-editor__highlight" :style="highlightStyle" aria-hidden="true"><code v-html="highlightedJson"></code></pre>
-      <textarea
-        v-if="!readonly"
-        class="json-editor__input"
-        :value="modelValue"
-        spellcheck="false"
-        @input="emit('update:modelValue', $event.target.value)"
-        @keydown="handleKeydown"
-        @scroll="syncScroll"
-      />
-    </div>
+    <el-scrollbar ref="scrollbarRef" class="json-editor__scrollbar" :style="bodyStyle" @scroll="syncWrapScroll">
+      <div
+        class="json-editor__body"
+        :class="{ 'json-editor__body--editable': !readonly, 'json-editor__body--readonly': readonly }"
+      >
+        <pre class="json-editor__highlight" :style="highlightStyle" aria-hidden="true"><code v-html="highlightedJson"></code></pre>
+        <textarea
+          v-if="!readonly"
+          ref="inputRef"
+          class="json-editor__input"
+          :value="modelValue"
+          spellcheck="false"
+          @input="emit('update:modelValue', $event.target.value)"
+          @keydown="handleKeydown"
+          @scroll="syncInputScroll"
+        />
+      </div>
+    </el-scrollbar>
   </div>
 </template>
 
@@ -37,6 +39,9 @@ const emit = defineEmits(["update:modelValue"]);
 
 const scrollTop = ref(0);
 const scrollLeft = ref(0);
+const scrollbarRef = ref(null);
+const inputRef = ref(null);
+let syncSource = null;
 
 const displayText = computed(() => {
   if (props.readonly) {
@@ -85,9 +90,38 @@ function handleKeydown(event) {
   });
 }
 
-function syncScroll(event) {
+function syncInputScroll(event) {
+  if (syncSource === "wrap") {
+    return;
+  }
+  syncSource = "input";
   scrollTop.value = event.target.scrollTop;
   scrollLeft.value = event.target.scrollLeft;
+  scrollbarRef.value?.setScrollTop?.(scrollTop.value);
+  scrollbarRef.value?.setScrollLeft?.(scrollLeft.value);
+  requestAnimationFrame(() => {
+    if (syncSource === "input") {
+      syncSource = null;
+    }
+  });
+}
+
+function syncWrapScroll({ scrollTop: nextTop, scrollLeft: nextLeft }) {
+  if (props.readonly || syncSource === "input") {
+    return;
+  }
+  syncSource = "wrap";
+  scrollTop.value = nextTop;
+  scrollLeft.value = nextLeft;
+  if (inputRef.value) {
+    inputRef.value.scrollTop = nextTop;
+    inputRef.value.scrollLeft = nextLeft;
+  }
+  requestAnimationFrame(() => {
+    if (syncSource === "wrap") {
+      syncSource = null;
+    }
+  });
 }
 
 function formatJsonText(value) {
@@ -144,14 +178,15 @@ function escapeHtml(value) {
 
 .json-editor__body {
   position: relative;
+  min-height: 100%;
 }
 
 .json-editor__body--editable {
   overflow: hidden;
 }
 
-.json-editor__body--readonly {
-  overflow: auto;
+.json-editor__scrollbar {
+  width: 100%;
 }
 
 .json-editor__highlight,
@@ -189,6 +224,12 @@ function escapeHtml(value) {
   background: transparent;
   color: transparent;
   caret-color: #303133;
+  scrollbar-width: none;
+}
+
+.json-editor__input::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .json-editor--readonly .json-editor__highlight {

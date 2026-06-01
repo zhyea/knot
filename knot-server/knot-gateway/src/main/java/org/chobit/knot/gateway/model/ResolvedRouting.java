@@ -9,8 +9,6 @@ public record ResolvedRouting(Long ruleId,
                               Long consumerId,
                               String secretKey,
                               boolean returnUsageDetail,
-                              AppContext appContext,
-                              RoutingRuleTargetDto resolvedModel,
                               List<RoutingRuleTargetDto> candidateModels,
                               GatewayRoutingInfo routingInfo) {
 }

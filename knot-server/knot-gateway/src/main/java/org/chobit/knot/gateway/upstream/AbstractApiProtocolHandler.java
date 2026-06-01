@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.upstream;
 
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
+import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
@@ -24,8 +25,10 @@ public abstract class AbstractApiProtocolHandler implements ModelApiProtocolHand
     public ProxyResult execute(UpstreamRequestContext context, UpstreamProviderAdapter adapter) {
         String path = adapter.resolvePath(context, defaultPath(context));
         if (path == null || path.isBlank()) {
-            return new ProxyResult(null, context.provider().getId(), context.model().getId(),
-                    ProxyErrorCodeEnum.API_PROTOCOL_NOT_CONFIGURED.code(), "api protocol is not configured: " + context.protocol().code());
+            throw new GatewayUpstreamException(
+                    "api protocol is not configured: " + context.protocol().code(),
+                    ProxyErrorCodeEnum.API_PROTOCOL_NOT_CONFIGURED.code()
+            );
         }
 
         try {
@@ -43,13 +46,10 @@ public abstract class AbstractApiProtocolHandler implements ModelApiProtocolHand
             return new ProxyResult(
                     adapter.handleResponse(responseBody, context),
                     context.provider().getId(),
-                    context.model().getId(),
-                    null,
-                    null
+                    context.model().getId()
             );
         } catch (Exception e) {
-            return new ProxyResult(null, context.provider().getId(), context.model().getId(),
-                    ProxyErrorCodeEnum.UPSTREAM_ERROR.code(), e.getMessage());
+            throw new GatewayUpstreamException(e.getMessage(), ProxyErrorCodeEnum.UPSTREAM_ERROR.code());
         }
     }
 
