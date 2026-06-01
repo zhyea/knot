@@ -311,7 +311,8 @@ INSERT IGNORE INTO enum_categories (id, category, category_name, is_system, is_e
 (18, 'logical_model_quality_level', '统一模型质量等级', 0, 1),
 (19, 'logical_model_latency_level', '统一模型延迟等级', 0, 1),
 (20, 'logical_model_cost_level', '统一模型成本等级', 0, 1),
-(22, 'model_api_protocol', '模型接口类型', 0, 1);
+(22, 'model_api_protocol', '模型接口类型', 0, 1),
+(23, 'model_pool_selection_strategy', '模型池选择策略', 1, 1);
 
 -- 枚举配置（category_id 关联 enum_categories.id；是否系统内置由分类决定）
 INSERT IGNORE INTO enum_categories (id, category, category_name, is_system, is_enabled) VALUES
@@ -357,6 +358,9 @@ INSERT IGNORE INTO enum_configs (category_id, item_code, item_label, sort_order,
 (22, 'RERANK',                 'Rerank', 12, 1),
 (22, 'MODERATIONS',            'Moderations', 13, 1),
 (22, 'CUSTOM',                 '自定义', 99, 1),
+(23, 'WEIGHTED',               '权重', 1, 1),
+(23, 'PRIORITY',               '优先级', 2, 1),
+(23, 'RANDOM',                 '随机', 3, 1),
 (1, 'OPENAI',    'OpenAI',     1, 1),
 (1, 'ANTHROPIC', 'Anthropic',  2, 1),
 (1, 'DEEPSEEK',  'DeepSeek',   3, 1),

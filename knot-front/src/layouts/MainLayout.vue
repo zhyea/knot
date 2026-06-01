@@ -54,7 +54,7 @@
             <span>模型管理</span>
           </template>
           <el-menu-item index="/model-management/models">供应商模型</el-menu-item>
-          <el-menu-item index="/model-management/model-pools">模型池</el-menu-item>
+          <el-menu-item index="/model-management/model-pools">供应商模型池</el-menu-item>
           <el-menu-item index="/model-management/logical-models">模型广场</el-menu-item>
           <el-menu-item index="/model-management/external-models">外部模型</el-menu-item>
         </el-sub-menu>

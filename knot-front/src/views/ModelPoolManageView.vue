@@ -1,5 +1,5 @@
 <template>
-  <PageSection title="模型池">
+  <PageSection title="供应商模型池">
     <ModelPoolListPanel
       :rows="rows"
       :loading="loading"

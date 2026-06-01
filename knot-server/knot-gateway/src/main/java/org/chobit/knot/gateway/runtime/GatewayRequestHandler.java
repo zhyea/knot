@@ -20,9 +20,9 @@ import java.util.Map;
 @Component
 public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
-    private final UpstreamProxyClient proxyService;
-    private final RoutingResolver routingAuthService;
-    private final GatewayBillingCalculator billingService;
+    private final UpstreamProxyClient proxyClient;
+    private final RoutingResolver routingResolver;
+    private final GatewayBillingCalculator billingCalculator;
     private final GatewayTrafficGuard trafficGuard;
 
     /**
@@ -32,15 +32,15 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                                  RoutingResolver routingAuthService,
                                  GatewayBillingCalculator billingService,
                                  GatewayTrafficGuard trafficGuard) {
-        this.proxyService = proxyService;
-        this.routingAuthService = routingAuthService;
-        this.billingService = billingService;
+        this.proxyClient = proxyService;
+        this.routingResolver = routingAuthService;
+        this.billingCalculator = billingService;
         this.trafficGuard = trafficGuard;
     }
 
     @Override
     protected ResolvedRouting resolveRouting(GatewayRequestContext context) {
-        ResolvedRouting routing = routingAuthService.resolveByRule(context.apiKey(), context.ruleCode());
+        ResolvedRouting routing = routingResolver.resolveByRule(context.apiKey(), context.ruleCode());
         if (routing == null) {
             throw new GatewayAuthException("Invalid API key or routing rule");
         }
@@ -72,7 +72,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                 continue;
             }
             requestBody.put(AiPayloadFields.MODEL, candidate.targetCode());
-            lastResult = proxyService.proxy(requestBody, routing.appContext(), protocol, traceparent);
+            lastResult = proxyClient.proxy(requestBody, routing.appContext(), protocol, traceparent);
             if (lastResult.errorCode() == null) {
                 return lastResult;
             }
@@ -107,7 +107,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
             });
             Object usageObj = body.get(AiPayloadFields.USAGE);
             BillingUsage usage = usageObj instanceof Map<?, ?> map ? BillingUsage.from((Map<String, Object>) map) : BillingUsage.from(Map.of());
-            BillingDetail billing = billingService.calculateUsageDetail(result.modelId(), usage);
+            BillingDetail billing = billingCalculator.calculateUsageDetail(result.modelId(), usage);
             if (billing != null) {
                 body.put(AiPayloadFields.KNOT_BILLING, billing);
                 body.put(AiPayloadFields.KNOT_USAGE, normalizedUsage(usage, billing));

@@ -43,7 +43,7 @@ import java.util.function.Function;
 @Service
 public class GatewayDataService {
 
-    private static final Duration EXPIRE_AFTER_WRITE = Duration.ofMinutes(5);
+    private static final Duration EXPIRE_AFTER_WRITE = Duration.ofMinutes(10);
     private static final Duration REFRESH_AFTER_WRITE = Duration.ofMinutes(3);
 
     private final LoadingCache<String, Optional<AppCredentialEntity>> appCredentialByKeyCache;

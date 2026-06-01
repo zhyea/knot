@@ -2,8 +2,8 @@ package org.chobit.knot.gateway.routing;
 
 import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.ModelPoolSelectionStrategyEnum;
 import org.chobit.knot.gateway.constants.enums.RouteTargetTypeEnum;
-import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.entity.AppEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
@@ -13,10 +13,7 @@ import org.chobit.knot.gateway.entity.RoutingConsumerEntity;
 import org.chobit.knot.gateway.entity.RoutingRuleEntity;
 import org.chobit.knot.gateway.model.AppContext;
 import org.chobit.knot.gateway.model.GatewayRoutingInfo;
-import org.chobit.knot.gateway.model.QuotaPolicy;
-import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.ResolvedRouting;
-import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.service.GatewayDataService;
 import org.chobit.knot.gateway.util.tools.RoutingSecretKeyGenerator;
 import org.springframework.stereotype.Component;
@@ -27,64 +24,14 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * 娑堣垂鑰?API Key 閴存潈锛歴k- 鍓嶇紑瀵嗛挜缁戝畾娑堣垂鑰咃紝娑堣垂鑰呭啀鍏宠仈澶氫釜璺敱瑙勫垯銆? */
+ * 娑堣垂鑰?API Key 閴存潈锛歴k- 鍓嶇紑瀵嗛挜缁戝畾娑堣垂鑰咃紝娑堣垂鑰呭啀鍏宠仈澶氫釜璺敱瑙勫垯銆?
+ */
 @Component
 @RequiredArgsConstructor
 public class RoutingResolver {
 
     private final GatewayDataService dataService;
 
-    /**
-     * Resolves the requested value from current context and configuration. Executes the public operation.
-     */
-    public ResolvedRouting resolve(String secretKey) {
-        return resolve(secretKey, null);
-    }
-
-    /**
-     * Resolves the requested value from current context and configuration. Executes the public operation.
-     */
-    public ResolvedRouting resolve(String secretKey, String requestedModel) {
-        if (!RoutingSecretKeyGenerator.isRoutingSecretKey(secretKey)) {
-            return null;
-        }
-        RoutingConsumerEntity consumer = dataService.getConsumerBySecretKey(secretKey.trim());
-        if (consumer == null || !EntityStatusEnum.ENABLED.code().equals(consumer.getStatus())) {
-            return null;
-        }
-
-        RuleSelection selection = findRule(consumer.getId(), requestedModel);
-        RoutingRuleEntity rule = selection != null ? selection.rule() : null;
-        if (rule == null) {
-            return null;
-        }
-        AppEntity app = dataService.getAppById(rule.getAppId());
-        if (app == null || !EntityStatusEnum.ENABLED.code().equals(app.getStatus())) {
-            return null;
-        }
-        TrafficPolicies appTraffic =
-                dataService.loadTrafficPolicies(TrafficResourceTypeEnum.APP.code(), app.getId());
-        TrafficPolicies consumerTraffic =
-                dataService.loadTrafficPolicies(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), consumer.getId());
-        RateLimitPolicy rate = mergeRateLimit(
-                appTraffic != null ? appTraffic.rateLimitPolicy() : null,
-                consumerTraffic != null ? consumerTraffic.rateLimitPolicy() : null
-        );
-        QuotaPolicy quota = mergeQuota(
-                appTraffic != null ? appTraffic.quotaPolicy() : null,
-                consumerTraffic != null ? consumerTraffic.quotaPolicy() : null
-        );
-        AppContext appContext = new AppContext(
-                app.getId(), app.getAppId(), app.getName(), rate, quota
-        );
-        List<RoutingRuleTargetDto> candidates = resolveCandidateModels(rule.getId(), selection.target());
-        if (candidates.isEmpty()) {
-            return null;
-        }
-        return new ResolvedRouting(rule.getId(), rule.getRuleCode(), consumer.getId(), consumer.getSecretKey(),
-                Boolean.TRUE.equals(consumer.getReturnUsageDetail()), appContext, candidates.get(0), candidates,
-                buildRoutingInfo(rule, consumer, app));
-    }
 
     /**
      * Resolves the requested value from current context and configuration. Executes the public operation.
@@ -105,27 +52,21 @@ public class RoutingResolver {
         if (app == null || !EntityStatusEnum.ENABLED.code().equals(app.getStatus())) {
             return null;
         }
-        TrafficPolicies appTraffic =
-                dataService.loadTrafficPolicies(TrafficResourceTypeEnum.APP.code(), app.getId());
-        TrafficPolicies consumerTraffic =
-                dataService.loadTrafficPolicies(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), consumer.getId());
-        RateLimitPolicy rate = mergeRateLimit(
-                appTraffic != null ? appTraffic.rateLimitPolicy() : null,
-                consumerTraffic != null ? consumerTraffic.rateLimitPolicy() : null
-        );
-        QuotaPolicy quota = mergeQuota(
-                appTraffic != null ? appTraffic.quotaPolicy() : null,
-                consumerTraffic != null ? consumerTraffic.quotaPolicy() : null
-        );
         AppContext appContext = new AppContext(
-                app.getId(), app.getAppId(), app.getName(), rate, quota
+                app.getId(), app.getAppId(), app.getName()
         );
-        List<RoutingRuleTargetDto> candidates = resolveCandidateModels(rule.getId(), null);
+        List<RoutingRuleTargetDto> candidates = resolveCandidateModels(rule.getId());
         if (candidates.isEmpty()) {
             return null;
         }
-        return new ResolvedRouting(rule.getId(), rule.getRuleCode(), consumer.getId(), consumer.getSecretKey(),
-                Boolean.TRUE.equals(consumer.getReturnUsageDetail()), appContext, candidates.get(0), candidates,
+        return new ResolvedRouting(rule.getId(),
+                rule.getRuleCode(),
+                consumer.getId(),
+                consumer.getSecretKey(),
+                Boolean.TRUE.equals(consumer.getReturnUsageDetail()),
+                appContext,
+                candidates.get(0),
+                candidates,
                 buildRoutingInfo(rule, consumer, app));
     }
 
@@ -155,48 +96,9 @@ public class RoutingResolver {
         );
     }
 
-    private record RuleSelection(RoutingRuleEntity rule, RoutingRuleTargetDto target) {
-    }
 
-    private RuleSelection findRule(Long consumerId, String requestedModel) {
-        List<RoutingRuleEntity> rules = dataService.listEnabledRulesByConsumerId(consumerId);
-        if (rules == null || rules.isEmpty()) {
-            return null;
-        }
-        String modelCode = requestedModel != null ? requestedModel.trim() : "";
-        if (!modelCode.isEmpty()) {
-            for (RoutingRuleEntity rule : rules) {
-                RoutingRuleTargetDto target = findModelByCode(rule.getId(), modelCode);
-                if (target != null) {
-                    return new RuleSelection(rule, target);
-                }
-            }
-            return null;
-        }
-        return new RuleSelection(rules.get(0), null);
-    }
-
-    private RoutingRuleTargetDto findModelByCode(Long ruleId, String modelCode) {
-        List<RoutingRuleTargetDto> targets = listTargets(ruleId);
-        if (targets.isEmpty()) {
-            return null;
-        }
-        for (RoutingRuleTargetDto target : targets) {
-            if (!modelCode.equals(target.targetCode())) {
-                continue;
-            }
-            return target;
-        }
-        return null;
-    }
-
-    private RoutingRuleTargetDto findPrimaryModel(Long ruleId) {
-        List<RoutingRuleTargetDto> candidates = resolveCandidateModels(ruleId, null);
-        return candidates.isEmpty() ? null : candidates.get(0);
-    }
-
-    private List<RoutingRuleTargetDto> resolveCandidateModels(Long ruleId, RoutingRuleTargetDto preferredTarget) {
-        List<RoutingRuleTargetDto> orderedTargets = orderTargets(ruleId, preferredTarget);
+    private List<RoutingRuleTargetDto> resolveCandidateModels(Long ruleId) {
+        List<RoutingRuleTargetDto> orderedTargets = orderTargets(ruleId);
         if (orderedTargets.isEmpty()) {
             return List.of();
         }
@@ -210,29 +112,20 @@ public class RoutingResolver {
         return candidates;
     }
 
-    private List<RoutingRuleTargetDto> orderTargets(Long ruleId, RoutingRuleTargetDto preferredTarget) {
+    private List<RoutingRuleTargetDto> orderTargets(Long ruleId) {
         List<RoutingRuleTargetDto> targets = listTargets(ruleId);
         if (targets.isEmpty()) {
             return List.of();
         }
-        RoutingRuleTargetDto first = null;
-        if (preferredTarget != null) {
-            first = targets.stream()
-                    .filter(target -> sameTarget(target, preferredTarget))
-                    .findFirst()
-                    .orElse(preferredTarget);
-        }
-        if (first == null) {
-            first = targets.stream()
-                    .filter(RoutingRuleTargetDto::primary)
-                    .findFirst()
-                    .orElse(targets.get(0));
-        }
+        final RoutingRuleTargetDto first = targets.stream()
+                .filter(RoutingRuleTargetDto::primary)
+                .findFirst()
+                .orElse(targets.get(0));
+
         List<RoutingRuleTargetDto> ordered = new ArrayList<>();
-        RoutingRuleTargetDto selectedFirst = first;
-        ordered.add(selectedFirst);
+        ordered.add(first);
         targets.stream()
-                .filter(target -> !sameTarget(target, selectedFirst))
+                .filter(target -> !sameTarget(target, first))
                 .sorted(Comparator.comparingInt(RoutingRuleTargetDto::priority).reversed()
                         .thenComparing(RoutingRuleTargetDto::targetId)
                         .thenComparing(RoutingRuleTargetDto::targetType))
@@ -300,11 +193,12 @@ public class RoutingResolver {
         if (candidates.isEmpty()) {
             return null;
         }
-        String strategy = pool.getSelectionStrategy() == null ? "WEIGHTED" : pool.getSelectionStrategy();
-        if ("PRIORITY".equals(strategy)) {
+        ModelPoolSelectionStrategyEnum strategy =
+                ModelPoolSelectionStrategyEnum.fromCodeOrDefault(pool.getSelectionStrategy());
+        if (ModelPoolSelectionStrategyEnum.PRIORITY == strategy) {
             return candidates.get(0);
         }
-        if ("RANDOM".equals(strategy)) {
+        if (ModelPoolSelectionStrategyEnum.RANDOM == strategy) {
             return candidates.get(ThreadLocalRandom.current().nextInt(candidates.size()));
         }
         int total = candidates.stream().mapToInt(item -> Math.max(1, item.getWeight() == null ? 100 : item.getWeight())).sum();
@@ -319,52 +213,4 @@ public class RoutingResolver {
         return candidates.get(0);
     }
 
-    private static RateLimitPolicy mergeRateLimit(RateLimitPolicy app, RateLimitPolicy consumer) {
-        if (app == null) {
-            return consumer;
-        }
-        if (consumer == null) {
-            return app;
-        }
-        return new RateLimitPolicy(
-                stricterPositive(app.perSecond(), consumer.perSecond()),
-                stricterPositive(app.perMinute(), consumer.perMinute()),
-                consumer.timeWindow() != null ? consumer.timeWindow() : app.timeWindow()
-        );
-    }
-
-    private static QuotaPolicy mergeQuota(QuotaPolicy app, QuotaPolicy consumer) {
-        if (app == null) {
-            return consumer;
-        }
-        if (consumer == null) {
-            return app;
-        }
-        return new QuotaPolicy(
-                stricterPositive(app.dailyLimit(), consumer.dailyLimit()),
-                stricterPositive(app.monthlyLimit(), consumer.monthlyLimit()),
-                stricterPositive(app.tokenLimit(), consumer.tokenLimit()),
-                app.alertEnabled() || consumer.alertEnabled()
-        );
-    }
-
-    private static int stricterPositive(int left, int right) {
-        if (left <= 0) {
-            return Math.max(0, right);
-        }
-        if (right <= 0) {
-            return left;
-        }
-        return Math.min(left, right);
-    }
-
-    private static long stricterPositive(long left, long right) {
-        if (left <= 0) {
-            return Math.max(0, right);
-        }
-        if (right <= 0) {
-            return left;
-        }
-        return Math.min(left, right);
-    }
 }

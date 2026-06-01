@@ -4,7 +4,9 @@ import org.chobit.knot.gateway.constants.enums.GatewayErrorTypeEnum;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
+import org.chobit.knot.gateway.exception.GatewayRateLimitException;
 import org.chobit.knot.gateway.exception.GatewayRequestException;
+import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.GatewayErrorResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +70,28 @@ public class GatewayExceptionHandler {
     @ExceptionHandler(GatewayInvalidRequestException.class)
     public GatewayErrorResponse handleGatewayInvalidRequestException(GatewayInvalidRequestException e) {
         log.warn("Gateway request exception: message={}", e.getMessage());
+        return gatewayError(e);
+    }
+
+    /**
+     * Handles gateway rate limit errors.
+     */
+    @ResponseBody
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    @ExceptionHandler(GatewayRateLimitException.class)
+    public GatewayErrorResponse handleGatewayRateLimitException(GatewayRateLimitException e) {
+        log.warn("Gateway rate limit exception: code={}, message={}", e.code(), e.getMessage());
+        return gatewayError(e);
+    }
+
+    /**
+     * Handles upstream gateway errors.
+     */
+    @ResponseBody
+    @ResponseStatus(HttpStatus.BAD_GATEWAY)
+    @ExceptionHandler(GatewayUpstreamException.class)
+    public GatewayErrorResponse handleGatewayUpstreamException(GatewayUpstreamException e) {
+        log.warn("Gateway upstream exception: code={}, message={}", e.code(), e.getMessage());
         return gatewayError(e);
     }
 

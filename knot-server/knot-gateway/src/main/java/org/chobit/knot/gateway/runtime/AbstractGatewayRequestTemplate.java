@@ -1,18 +1,16 @@
 package org.chobit.knot.gateway.runtime;
 
 import org.chobit.knot.gateway.constants.AuthConstants;
-import org.chobit.knot.gateway.constants.enums.GatewayErrorTypeEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
-import org.chobit.knot.gateway.model.GatewayErrorResponse;
-import org.chobit.knot.gateway.model.GatewayResponse;
+import org.chobit.knot.gateway.exception.GatewayRateLimitException;
+import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.request.GatewayModelRequest;
-import org.springframework.http.HttpStatus;
 
 import java.util.Map;
 
@@ -27,11 +25,11 @@ public abstract class AbstractGatewayRequestTemplate {
      * resolve routing,
      * proxy the adapted request upstream, then apply post-response usage accounting.
      */
-    public final GatewayResponse handle(String authorization,
-                                        String ruleCode,
-                                        String traceparent,
-                                        GatewayModelRequest request,
-                                        ModelApiProtocolEnum protocol) {
+    public final Object handle(String authorization,
+                               String ruleCode,
+                               String traceparent,
+                               GatewayModelRequest request,
+                               ModelApiProtocolEnum protocol) {
         // Build request context once so later stages can reuse resolved metadata.
         String apiKey = validateRequestHeaders(authorization, ruleCode, traceparent);
         GatewayRequestContext context = new GatewayRequestContext(authorization, apiKey, ruleCode, traceparent, protocol);
@@ -43,15 +41,17 @@ public abstract class AbstractGatewayRequestTemplate {
         GatewayExchange exchange = new GatewayExchange(requestBody);
         ProxyResult result = proxy(context, exchange);
 
+        // 结果封装
         exchange.proxyResult(result);
         if (result.errorCode() != null) {
             if (ProxyErrorCodeEnum.RATE_LIMIT_EXCEEDED.code().equals(result.errorCode())) {
-                return error(HttpStatus.TOO_MANY_REQUESTS, result.errorMessage(), GatewayErrorTypeEnum.RATE_LIMIT_ERROR.code());
+                throw new GatewayRateLimitException(result.errorMessage(), result.errorCode());
             }
-            return error(HttpStatus.BAD_GATEWAY, result.errorMessage(), GatewayErrorTypeEnum.UPSTREAM_ERROR.code());
+            throw new GatewayUpstreamException(result.errorMessage(), result.errorCode());
         }
-        return new GatewayResponse(HttpStatus.OK, applyUsageAccounting(context, exchange));
+        return applyUsageAccounting(context, exchange);
     }
+
 
 
     protected abstract ResolvedRouting resolveRouting(GatewayRequestContext context);
@@ -59,10 +59,6 @@ public abstract class AbstractGatewayRequestTemplate {
     protected abstract ProxyResult proxy(GatewayRequestContext context, GatewayExchange exchange);
 
     protected abstract Object applyUsageAccounting(GatewayRequestContext context, GatewayExchange exchange);
-
-    protected GatewayResponse error(HttpStatus status, String message, String type) {
-        return new GatewayResponse(status, GatewayErrorResponse.of(message, type));
-    }
 
     /**
      * Validates header values after Spring MVC has checked required header presence.

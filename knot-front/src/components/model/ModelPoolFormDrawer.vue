@@ -2,7 +2,7 @@
   <el-drawer
     :model-value="modelValue"
     :title="isEdit ? '编辑模型池' : '新建模型池'"
-    size="52%"
+    size="60%"
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
     @closed="onClosed"

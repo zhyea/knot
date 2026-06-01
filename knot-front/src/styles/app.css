@@ -29,6 +29,21 @@ body,
     border: 1px solid var(--knot-border, #dcdfe6);
     border-radius: 0;
     padding: 16px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+}
+
+.slot-body > * {
+    min-width: 0;
+}
+
+.el-drawer__body,
+.el-dialog__body,
+.el-form,
+.el-form-item__content {
+    min-width: 0;
 }
 
 .toolbar {
