@@ -12,6 +12,7 @@ const routes = [
     component: NestedView,
     children: [
       { path: "users", name: "system-users", component: () => import("@/views/system/UserManageView.vue") },
+      { path: "departments", name: "system-departments", component: () => import("@/views/system/DepartmentManageView.vue") },
       { path: "roles", name: "system-roles", component: () => import("@/views/system/RoleManageView.vue") },
       { path: "logs", name: "system-logs", component: () => import("@/views/system/OperationLogView.vue") },
       { path: "scheduled-tasks", name: "system-scheduled-tasks", component: () => import("@/views/system/ScheduledTaskView.vue") },

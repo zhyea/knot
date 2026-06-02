@@ -9,6 +9,7 @@ import org.chobit.knot.gateway.entity.AppEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.AppMapper;
+import org.chobit.knot.gateway.mapper.DepartmentMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
@@ -27,6 +28,7 @@ public class AppService {
 
     private final AppMapper appMapper;
     private final AppConverter appConverter;
+    private final DepartmentMapper departmentMapper;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
 
     /**
@@ -34,9 +36,11 @@ public class AppService {
      */
     public AppService(AppMapper appMapper,
                       AppConverter appConverter,
+                      DepartmentMapper departmentMapper,
                       ResourceTrafficPolicySupport trafficPolicySupport) {
         this.appMapper = appMapper;
         this.appConverter = appConverter;
+        this.departmentMapper = departmentMapper;
         this.trafficPolicySupport = trafficPolicySupport;
     }
 
@@ -82,6 +86,7 @@ public class AppService {
         if (countPositive(appMapper.countByAppId(appId))) {
             throw new BusinessException(ErrorCode.CONFLICT, "App ID already exists: " + appId);
         }
+        validateDepartment(request.deptId());
         AppEntity entity = appConverter.toEntity(request);
         entity.setAppId(appId);
         appMapper.insert(entity);
@@ -99,6 +104,7 @@ public class AppService {
         if (existing == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "app not found");
         }
+        validateDepartment(request.deptId());
         AppEntity entity = appConverter.toEntity(request);
         entity.setId(id);
         entity.setAppId(existing.getAppId());
@@ -160,6 +166,8 @@ public class AppService {
             m.put("id", dto.id());
             m.put("appId", dto.appId());
             m.put("name", dto.name());
+            m.put("deptId", dto.deptId());
+            m.put("deptName", dto.deptName());
             m.put("ownerUserId", dto.ownerUserId());
             m.put("ownerName", dto.ownerName());
             m.put("remark", dto.remark());
@@ -177,8 +185,18 @@ public class AppService {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
         QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
         return new AppDto(
-                base.id(), base.appId(), base.name(), base.ownerUserId(), base.ownerName(), base.remark(),
+                base.id(), base.appId(), base.name(), base.deptId(), base.deptName(),
+                base.ownerUserId(), base.ownerName(), base.remark(),
                 rate, quota
         );
+    }
+
+    private void validateDepartment(Long deptId) {
+        if (deptId == null) {
+            return;
+        }
+        if (departmentMapper.getById(deptId) == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "department not found");
+        }
     }
 }

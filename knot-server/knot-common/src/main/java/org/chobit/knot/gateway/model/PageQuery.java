@@ -17,6 +17,7 @@ public record PageQuery(
         String category,
         String keyword,
         List<String> modelTypes,
+        Long parentId,
         Long providerId,
         Long logicalModelId
 ) {

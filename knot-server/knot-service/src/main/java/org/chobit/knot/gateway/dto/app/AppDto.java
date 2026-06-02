@@ -7,6 +7,8 @@ public record AppDto(
         Long id,
         String appId,
         String name,
+        Long deptId,
+        String deptName,
         Long ownerUserId,
         String ownerName,
         String remark,

@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.routing;
 
 import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.constants.enums.RouteTargetTypeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.entity.AppEntity;
@@ -10,6 +11,9 @@ import org.chobit.knot.gateway.entity.ModelPoolEntity;
 import org.chobit.knot.gateway.entity.ModelPoolItemEntity;
 import org.chobit.knot.gateway.entity.RoutingConsumerEntity;
 import org.chobit.knot.gateway.entity.RoutingRuleEntity;
+import org.chobit.knot.gateway.exception.GatewayAuthException;
+import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
+import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.GatewayRoutingInfo;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.gateway.service.GatewayDataService;
@@ -34,24 +38,36 @@ public class RoutingResolver {
      * Resolves the requested value from current context and configuration. Executes the public operation.
      */
     public ResolvedRouting resolveByRule(String secretKey, String ruleCode) {
-        if (!RoutingSecretKeyGenerator.isRoutingSecretKey(secretKey) || ruleCode == null || ruleCode.isBlank()) {
-            return null;
+        if (!RoutingSecretKeyGenerator.isRoutingSecretKey(secretKey)) {
+            throw new GatewayAuthException("Invalid consumer API key");
+        }
+        if (ruleCode == null || ruleCode.isBlank()) {
+            throw new GatewayInvalidRequestException("Rule header must not be blank");
         }
         RoutingConsumerEntity consumer = dataService.getConsumerBySecretKey(secretKey.trim());
-        if (consumer == null || !EntityStatusEnum.ENABLED.code().equals(consumer.getStatus())) {
-            return null;
+        if (consumer == null) {
+            throw new GatewayAuthException("Consumer API key not found");
+        }
+        if (!EntityStatusEnum.ENABLED.code().equals(consumer.getStatus())) {
+            throw new GatewayAuthException("Consumer is disabled");
         }
         RoutingRuleEntity rule = dataService.getEnabledRuleByConsumerAndCode(consumer.getId(), ruleCode.trim());
         if (rule == null) {
-            return null;
+            throw new GatewayAuthException("Routing rule is not available for this consumer");
         }
         AppEntity app = dataService.getAppById(rule.getAppId());
-        if (app == null || !EntityStatusEnum.ENABLED.code().equals(app.getStatus())) {
-            return null;
+        if (app == null) {
+            throw new GatewayAuthException("Bound app not found");
+        }
+        if (!EntityStatusEnum.ENABLED.code().equals(app.getStatus())) {
+            throw new GatewayAuthException("Bound app is disabled");
         }
         List<RoutingRuleTargetDto> candidates = resolveCandidateModels(rule.getId());
         if (candidates.isEmpty()) {
-            return null;
+            throw new GatewayUpstreamException(
+                    "No enabled routing target is available",
+                    ProxyErrorCodeEnum.NO_ROUTING_TARGET.code()
+            );
         }
         GatewayRoutingInfo routingInfo = buildRoutingInfo(rule, consumer, app);
         return new ResolvedRouting(rule.getId(),
@@ -81,7 +97,7 @@ public class RoutingResolver {
                         consumer.getSecretKey(),
                         Boolean.TRUE.equals(consumer.getReturnUsageDetail())
                 ),
-                new GatewayRoutingInfo.AppInfo(app.getId(), app.getAppId(), app.getName()),
+                new GatewayRoutingInfo.AppInfo(app.getId(), app.getAppId(), app.getName(), app.getDeptId()),
                 new GatewayRoutingInfo.UserInfo(rule.getUserId(), rule.getUserUsername(), rule.getUserRealName()),
                 new GatewayRoutingInfo.UserInfo(consumer.getUserId(), consumer.getUserUsername(), consumer.getUserRealName()),
                 new GatewayRoutingInfo.UserInfo(app.getOwnerUserId(), null, app.getOwnerRealName()),

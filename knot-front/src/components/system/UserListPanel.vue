@@ -8,6 +8,9 @@
       <el-table-column prop="id" label="ID" min-width="5%" align="center" header-align="center" />
       <el-table-column prop="username" label="用户名" min-width="12%" />
       <el-table-column prop="realName" label="姓名" min-width="10%" />
+      <el-table-column prop="deptName" label="所属部门" min-width="12%">
+        <template #default="{ row }">{{ row.deptName || "-" }}</template>
+      </el-table-column>
       <el-table-column label="状态" min-width="12%">
         <template #default="{ row }">
           <el-switch

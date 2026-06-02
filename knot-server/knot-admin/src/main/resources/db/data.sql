@@ -8,10 +8,20 @@
 -- =========================
 
 -- 用户 (password_hash = BCrypt('admin123'))
-INSERT IGNORE INTO users (id, username, password_hash, real_name, status) VALUES
-(1, 'admin', '$2a$10$HUYfxtiEgiRARR/fG46hEeAvcfcQ2WXMPh2NxPw5zkc06fDKeWkxi', '系统管理员', 1),
-(2, 'zhangsan', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '张三', 1),
-(3, 'lisi', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '李四', 1);
+INSERT IGNORE INTO users (id, username, password_hash, real_name, dept_id, status) VALUES
+(1, 'admin', '$2a$10$HUYfxtiEgiRARR/fG46hEeAvcfcQ2WXMPh2NxPw5zkc06fDKeWkxi', '系统管理员', 1, 1),
+(2, 'zhangsan', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '张三', 3, 1),
+(3, 'lisi', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '李四', 2, 1);
+
+UPDATE users SET dept_id = 1 WHERE id = 1 AND dept_id IS NULL;
+UPDATE users SET dept_id = 3 WHERE id = 2 AND dept_id IS NULL;
+UPDATE users SET dept_id = 2 WHERE id = 3 AND dept_id IS NULL;
+
+-- 部门
+INSERT IGNORE INTO departments (id, dept_code, dept_name, parent_id, status, sort_order, remark) VALUES
+(1, 'HQ',  '总部',     NULL, 1, 10, '默认管理部门'),
+(2, 'RND', '研发部',   1,    1, 20, '负责模型与平台研发'),
+(3, 'OPS', '运维部',   1,    1, 30, '负责网关运维与监控');
 
 -- 角色
 INSERT IGNORE INTO roles (id, code, name, description) VALUES
@@ -184,10 +194,10 @@ INSERT IGNORE INTO model_versions (id, model_id, version, gray_percent, status) 
 -- =========================
 
 -- 应用
-INSERT IGNORE INTO apps (id, app_id, name, owner_user_id, remark, status) VALUES
-(1, 'app_001', '内部知识库助手',   1, '面向内部员工的知识检索与问答', 'ENABLED'),
-(2, 'app_002', '客服对话系统',     2, '对外客服场景的对话接入',       'ENABLED'),
-(3, 'app_003', '代码审查工具',     3, '研发流程中的代码审查辅助',     'ENABLED');
+INSERT IGNORE INTO apps (id, app_id, name, dept_id, owner_user_id, remark, status) VALUES
+(1, 'app_001', '内部知识库助手',   1, 1, '面向内部员工的知识检索与问答', 'ENABLED'),
+(2, 'app_002', '客服对话系统',     3, 2, '对外客服场景的对话接入',       'ENABLED'),
+(3, 'app_003', '代码审查工具',     2, 3, '研发流程中的代码审查辅助',     'ENABLED');
 
 -- 应用凭证
 INSERT IGNORE INTO app_credentials (id, app_id, app_key, app_secret_hash, status) VALUES
@@ -237,12 +247,12 @@ INSERT IGNORE INTO billing_rules (id, code, name, provider_id, logical_model_id,
 (4, 'TOKEN_DEEPSEEK',   'DeepSeek Chat Token计费', 3, 4, 4, 'ACTIVE'),
 (5, 'EMBEDDING',        'Embedding 计费',          NULL, NULL, 5, 'ACTIVE');
 
-INSERT IGNORE INTO billing_rule_versions (id, rule_id, version_no, version_name, billing_mode, currency, status, effective_from) VALUES
-(1, 1, 1, 'v1', 'TOKEN', 'USD', 'ACTIVE', NOW()),
-(2, 2, 1, 'v1', 'TOKEN', 'USD', 'ACTIVE', NOW()),
-(3, 3, 1, 'v1', 'TOKEN', 'USD', 'ACTIVE', NOW()),
-(4, 4, 1, 'v1', 'TOKEN', 'USD', 'ACTIVE', NOW()),
-(5, 5, 1, 'v1', 'EMBEDDING', 'USD', 'ACTIVE', NOW());
+INSERT IGNORE INTO billing_rule_versions (id, rule_id, version_no, billing_mode, currency, status, effective_from) VALUES
+(1, 1, 1, 'TOKEN', 'USD', 'ACTIVE', NOW()),
+(2, 2, 1, 'TOKEN', 'USD', 'ACTIVE', NOW()),
+(3, 3, 1, 'TOKEN', 'USD', 'ACTIVE', NOW()),
+(4, 4, 1, 'TOKEN', 'USD', 'ACTIVE', NOW()),
+(5, 5, 1, 'EMBEDDING', 'USD', 'ACTIVE', NOW());
 
 INSERT IGNORE INTO billing_rule_version_items (id, version_id, item_type, unit, unit_size, unit_price) VALUES
 (1, 1, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.005000),
@@ -250,6 +260,22 @@ INSERT IGNORE INTO billing_rule_version_items (id, version_id, item_type, unit, 
 (3, 3, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.003000),
 (4, 4, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.000140),
 (5, 5, 'EMBEDDING_TOKEN', '1K_TOKENS', 1000, 0.000130);
+
+UPDATE billing_rule_versions bv
+INNER JOIN billing_rules br ON br.id = bv.rule_id
+INNER JOIN billing_rule_version_items bvi ON bvi.version_id = bv.id
+SET bv.version_code = MD5(JSON_OBJECT(
+  'providerId', br.provider_id,
+  'logicalModelId', br.logical_model_id,
+  'billingMode', bv.billing_mode,
+  'currency', bv.currency,
+  'itemType', bvi.item_type,
+  'unit', bvi.unit,
+  'unitPrice', CAST(bvi.unit_price AS CHAR),
+  'configJson', bv.config_json,
+  'ladderJson', bv.ladder_json
+))
+WHERE bv.version_code IS NULL;
 
 -- =========================
 -- 安全与监控

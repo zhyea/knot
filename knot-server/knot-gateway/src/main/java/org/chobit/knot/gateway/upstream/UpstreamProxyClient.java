@@ -12,6 +12,10 @@ import org.chobit.knot.gateway.entity.ProviderEntity;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.service.GatewayDataService;
+import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutor;
+import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutorRegistry;
+import org.chobit.knot.gateway.upstream.provider.UpstreamProviderAdapter;
+import org.chobit.knot.gateway.upstream.provider.UpstreamProviderAdapterRegistry;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -25,7 +29,7 @@ import java.util.Map;
 public class UpstreamProxyClient {
 
     private final GatewayDataService dataService;
-    private final ModelApiProtocolHandlerRegistry protocolHandlerRegistry;
+    private final UpstreamProtocolExecutorRegistry protocolExecutorRegistry;
     private final UpstreamProviderAdapterRegistry providerAdapterRegistry;
 
 
@@ -37,9 +41,10 @@ public class UpstreamProxyClient {
                              String traceparent) {
 
         UpstreamRequestContext context = buildRequestContext(requestBody, protocol, traceparent);
-        ModelApiProtocolHandler protocolHandler = protocolHandlerRegistry.resolve(context.protocol());
+        UpstreamProtocolExecutor protocolExecutor = protocolExecutorRegistry.resolve(context.protocol());
         UpstreamProviderAdapter providerAdapter = providerAdapterRegistry.resolve(context.provider().getProviderType());
-        return protocolHandler.execute(context, providerAdapter);
+
+        return protocolExecutor.execute(context, providerAdapter);
     }
 
     private UpstreamRequestContext buildRequestContext(Map<String, Object> requestBody,

@@ -1,17 +1,19 @@
 package org.chobit.knot.gateway.entity;
 
 import lombok.Data;
+
 import java.time.LocalDateTime;
 
 @Data
-public class UserEntity {
+public class DepartmentEntity {
     private Long id;
-    private String username;
-    private String passwordHash;
-    private String realName;
-    private Long deptId;
+    private String deptCode;
     private String deptName;
+    private Long parentId;
     private Integer status;
-    private LocalDateTime lastLoginTime;
+    private Integer sortOrder;
+    private String remark;
+    private Integer isDeleted;
+    private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

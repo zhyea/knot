@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
@@ -21,17 +23,26 @@ import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
 public class BillingService {
+    private static final ObjectMapper OBJECT_MAPPER = JsonKit.mapper();
+
     private final BillingRuleMapper billingRuleMapper;
     private final ModelMapper modelMapper;
     private final BillingConverter billingConverter;
@@ -93,7 +104,7 @@ public class BillingService {
             m.put("logicalModelName", dto.logicalModelName());
             m.put("currentVersionId", dto.currentVersionId());
             m.put("versionNo", dto.versionNo());
-            m.put("versionName", dto.versionName());
+            m.put("versionCode", dto.versionCode());
             m.put("billingMode", dto.billingMode());
             m.put("currency", dto.currency());
             m.put("itemType", dto.itemType());
@@ -121,7 +132,7 @@ public class BillingService {
         applyRule(e, request);
         e.setStatus(request.enabled() ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code());
         billingRuleMapper.insert(e);
-        BillingRuleVersionEntity version = createVersion(e.getId(), request, true);
+        BillingRuleVersionEntity version = createVersion(e.getId(), request, true, buildVersionCode(request));
         billingRuleMapper.updateCurrentVersion(e.getId(), version.getId());
         return billingConverter.toRuleDto(billingRuleMapper.getById(e.getId()));
     }
@@ -142,8 +153,16 @@ public class BillingService {
         applyRule(existing, request);
         existing.setId(id);
         existing.setStatus(request.enabled() ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code());
-        BillingRuleVersionEntity version = createVersion(id, request, request.enabled());
-        existing.setCurrentVersionId(version.getId());
+        String versionCode = buildVersionCode(request);
+        if (existing.getCurrentVersionId() == null || !versionCode.equals(existing.getVersionCode())) {
+            BillingRuleVersionEntity version = createVersion(id, request, request.enabled(), versionCode);
+            existing.setCurrentVersionId(version.getId());
+        } else if (existing.getCurrentVersionId() != null) {
+            billingRuleMapper.updateVersionStatus(
+                    existing.getCurrentVersionId(),
+                    request.enabled() ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.DISABLED.code()
+            );
+        }
         billingRuleMapper.update(existing);
         return billingConverter.toRuleDto(billingRuleMapper.getById(id));
     }
@@ -262,14 +281,12 @@ public class BillingService {
         entity.setStatus(request.enabled() ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code());
     }
 
-    private BillingRuleVersionEntity createVersion(Long ruleId, BillingRuleDto request, boolean active) {
+    private BillingRuleVersionEntity createVersion(Long ruleId, BillingRuleDto request, boolean active, String versionCode) {
         Integer maxVersionNo = billingRuleMapper.maxVersionNo(ruleId);
         BillingRuleVersionEntity version = new BillingRuleVersionEntity();
         version.setRuleId(ruleId);
         version.setVersionNo(maxVersionNo == null ? 1 : maxVersionNo + 1);
-        version.setVersionName(blankToNull(request.versionName()) == null
-                ? "v" + version.getVersionNo()
-                : request.versionName().trim());
+        version.setVersionCode(versionCode);
         version.setBillingMode(normalizeBillingMode(request.billingMode()));
         version.setCurrency(normalizeCurrency(request.currency()));
         version.setConfigJson(blankToNull(request.configJson()));
@@ -289,6 +306,24 @@ public class BillingService {
         item.setMetadataJson(null);
         billingRuleMapper.insertVersionItem(item);
         return version;
+    }
+
+    private String buildVersionCode(BillingRuleDto request) {
+        Map<String, Object> versionPayload = new LinkedHashMap<>();
+        versionPayload.put("providerId", request.providerId());
+        versionPayload.put("logicalModelId", request.logicalModelId());
+        versionPayload.put("billingMode", normalizeBillingMode(request.billingMode()));
+        versionPayload.put("currency", normalizeCurrency(request.currency()));
+        versionPayload.put("itemType", normalizeItemType(request.itemType()));
+        versionPayload.put("unit", normalizeUnit(request.unit()));
+        versionPayload.put("unitPrice", normalizeDecimal(request.unitPrice()));
+        versionPayload.put("configJson", normalizeJsonText(request.configJson()));
+        versionPayload.put("ladderJson", normalizeJsonText(request.ladderJson()));
+        try {
+            return md5Hex(OBJECT_MAPPER.writeValueAsString(versionPayload));
+        } catch (JsonProcessingException e) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "failed to build billing version code");
+        }
     }
 
     private void validateRule(BillingRuleDto request, Long excludeId) {
@@ -354,6 +389,73 @@ public class BillingService {
     private static String normalizeUnit(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase();
         return normalized.isEmpty() ? BillingUnitEnum.ONE_K_TOKENS.code() : normalized;
+    }
+
+    private static String normalizeDecimal(BigDecimal value) {
+        if (value == null) {
+            return null;
+        }
+        BigDecimal normalized = value.stripTrailingZeros();
+        if (BigDecimal.ZERO.compareTo(normalized) == 0) {
+            return "0";
+        }
+        return normalized.toPlainString();
+    }
+
+    private static Object normalizeJsonText(String value) {
+        String normalized = blankToNull(value);
+        if (normalized == null) {
+            return null;
+        }
+        try {
+            return canonicalizeJsonValue(OBJECT_MAPPER.readValue(normalized, Object.class));
+        } catch (JsonProcessingException e) {
+            return normalized;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Object canonicalizeJsonValue(Object value) {
+        if (value instanceof Map<?, ?> mapValue) {
+            List<Map.Entry<String, Object>> entries = new ArrayList<>();
+            for (Map.Entry<?, ?> entry : mapValue.entrySet()) {
+                entries.add(Map.entry(String.valueOf(entry.getKey()), canonicalizeJsonValue(entry.getValue())));
+            }
+            entries.sort(Comparator.comparing(Map.Entry::getKey));
+            Map<String, Object> sorted = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> entry : entries) {
+                sorted.put(entry.getKey(), entry.getValue());
+            }
+            return sorted;
+        }
+        if (value instanceof List<?> listValue) {
+            List<Object> normalized = new ArrayList<>(listValue.size());
+            for (Object item : listValue) {
+                normalized.add(canonicalizeJsonValue(item));
+            }
+            return normalized;
+        }
+        if (value instanceof BigDecimal decimalValue) {
+            return normalizeDecimal(decimalValue);
+        }
+        if (value instanceof Number numberValue) {
+            return normalizeDecimal(new BigDecimal(String.valueOf(numberValue)));
+        }
+        return value;
+    }
+
+    private static String md5Hex(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("MD5");
+            byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder builder = new StringBuilder(hash.length * 2);
+            for (byte current : hash) {
+                builder.append(String.format("%02x", current));
+            }
+            return builder.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("MD5 algorithm not available", e);
+        }
     }
 
     private static int unitSize(String unit) {

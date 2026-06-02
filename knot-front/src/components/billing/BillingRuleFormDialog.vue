@@ -52,11 +52,6 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="版本名称">
-              <el-input v-model="form.versionName" placeholder="如 2026-06-price" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
             <el-form-item label="币种">
               <EnumSelect v-model="form.currency" category="billing_currency" />
             </el-form-item>
@@ -187,7 +182,6 @@ const form = reactive({
   name: "",
   providerId: null,
   logicalModelId: null,
-  versionName: "",
   billingMode: "TOKEN",
   currency: "USD",
   itemType: "INPUT_TOKEN",
@@ -242,7 +236,6 @@ function resetForm() {
   form.name = row?.name || "";
   form.providerId = row?.providerId ?? null;
   form.logicalModelId = row?.logicalModelId ?? null;
-  form.versionName = "";
   form.billingMode = normalizeMode(row?.billingMode || "TOKEN");
   form.currency = row?.currency || "USD";
   form.itemType = row?.itemType || defaultsByMode[form.billingMode]?.itemType || "INPUT_TOKEN";
@@ -365,7 +358,6 @@ function buildPayload() {
     name: form.name.trim(),
     providerId: form.providerId,
     logicalModelId: form.logicalModelId,
-    versionName: form.versionName?.trim() || null,
     billingMode: form.billingMode,
     currency: form.currency,
     itemType: form.itemType,

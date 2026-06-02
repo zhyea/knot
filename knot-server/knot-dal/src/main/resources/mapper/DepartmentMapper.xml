@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.DepartmentMapper">
+
+    <sql id="DepartmentSelectColumns">
+        id, dept_code, dept_name, parent_id, status, sort_order, remark, is_deleted, created_at, updated_at
+    </sql>
+
+    <select id="list" resultType="org.chobit.knot.gateway.entity.DepartmentEntity">
+        select <include refid="DepartmentSelectColumns"/>
+        from departments
+        where is_deleted = 0
+        <if test="keyword != null and keyword != ''">
+            and (
+                dept_code like concat('%', #{keyword}, '%')
+                or dept_name like concat('%', #{keyword}, '%')
+            )
+        </if>
+        <if test="parentId != null and parentId == 0">
+            and parent_id is null
+        </if>
+        <if test="parentId != null and parentId != 0">
+            and parent_id = #{parentId}
+        </if>
+        order by sort_order asc, id asc
+    </select>
+
+    <select id="listAll" resultType="org.chobit.knot.gateway.entity.DepartmentEntity">
+        select <include refid="DepartmentSelectColumns"/>
+        from departments
+        where is_deleted = 0
+        order by sort_order asc, id asc
+    </select>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.DepartmentEntity">
+        select <include refid="DepartmentSelectColumns"/>
+        from departments
+        where id = #{id} and is_deleted = 0
+    </select>
+
+    <select id="getByCode" resultType="org.chobit.knot.gateway.entity.DepartmentEntity">
+        select <include refid="DepartmentSelectColumns"/>
+        from departments
+        where dept_code = #{deptCode} and is_deleted = 0
+    </select>
+
+    <select id="countByParentId" resultType="java.lang.Long">
+        select count(1) from departments where parent_id = #{parentId} and is_deleted = 0
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into departments(dept_code, dept_name, parent_id, status, sort_order, remark, is_deleted)
+        values(#{deptCode}, #{deptName}, #{parentId}, #{status}, #{sortOrder}, #{remark}, 0)
+    </insert>
+
+    <update id="update">
+        update departments
+        set dept_name = #{deptName},
+            parent_id = #{parentId},
+            status = #{status},
+            sort_order = #{sortOrder},
+            remark = #{remark},
+            updated_at = current_timestamp
+        where id = #{id} and is_deleted = 0
+    </update>
+
+    <update id="updateStatus">
+        update departments
+        set status = #{status},
+            updated_at = current_timestamp
+        where id = #{id} and is_deleted = 0
+    </update>
+
+    <update id="softDelete">
+        update departments
+        set is_deleted = 1,
+            updated_at = current_timestamp
+        where id = #{id} and is_deleted = 0
+    </update>
+</mapper>

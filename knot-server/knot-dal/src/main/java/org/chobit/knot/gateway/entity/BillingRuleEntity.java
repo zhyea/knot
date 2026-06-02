@@ -21,7 +21,7 @@ public class BillingRuleEntity {
 
     /** Current/active version fields for list and audit display. */
     private Integer versionNo;
-    private String versionName;
+    private String versionCode;
     private String billingMode;
     private String currency;
     private String unit;

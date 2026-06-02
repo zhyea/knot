@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(64) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   real_name VARCHAR(100) DEFAULT NULL,
+  dept_id BIGINT DEFAULT NULL,
   phone VARCHAR(32) DEFAULT NULL,
   email VARCHAR(128) DEFAULT NULL,
   status INT NOT NULL DEFAULT 1,
@@ -19,6 +20,20 @@ CREATE TABLE IF NOT EXISTS users (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_users_username (username)
+);
+
+CREATE TABLE IF NOT EXISTS departments (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  dept_code VARCHAR(64) NOT NULL,
+  dept_name VARCHAR(100) NOT NULL,
+  parent_id BIGINT DEFAULT NULL,
+  status INT NOT NULL DEFAULT 1,
+  sort_order INT NOT NULL DEFAULT 0,
+  remark VARCHAR(255) DEFAULT NULL,
+  is_deleted TINYINT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_departments_code (dept_code)
 );
 
 CREATE TABLE IF NOT EXISTS user_settings (
@@ -532,7 +547,7 @@ CREATE TABLE IF NOT EXISTS billing_rule_versions (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   rule_id BIGINT NOT NULL,
   version_no INT NOT NULL,
-  version_name VARCHAR(64) NOT NULL,
+  version_code VARCHAR(32) DEFAULT NULL,
   billing_mode VARCHAR(32) NOT NULL,
   currency VARCHAR(16) NOT NULL DEFAULT 'USD',
   config_json JSON DEFAULT NULL,
@@ -545,6 +560,9 @@ CREATE TABLE IF NOT EXISTS billing_rule_versions (
   UNIQUE KEY uk_billing_rule_version (rule_id, version_no),
   KEY idx_billing_rule_versions_active (rule_id, status, effective_from, effective_to)
 );
+
+ALTER TABLE billing_rule_versions ADD COLUMN IF NOT EXISTS version_code VARCHAR(32) DEFAULT NULL;
+ALTER TABLE billing_rule_versions DROP COLUMN IF EXISTS version_name;
 
 CREATE TABLE IF NOT EXISTS billing_rule_version_items (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,

@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.upstream;
+package org.chobit.knot.gateway.upstream.provider;
 
 import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
@@ -8,6 +8,7 @@ import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProviderTypeEnum;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.service.ProviderCredentialSupport;
+import org.chobit.knot.gateway.upstream.UpstreamRequestContext;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;

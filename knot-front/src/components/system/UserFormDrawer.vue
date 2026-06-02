@@ -14,6 +14,17 @@
         <el-form-item label="姓名">
           <el-input v-model="form.realName" placeholder="请输入姓名"/>
         </el-form-item>
+        <el-form-item label="所属部门">
+          <RemoteEntitySelect
+              v-model="form.deptId"
+              :load-function="listDepartments"
+              :label-function="departmentLabel"
+              :selected-options="selectedDepartmentOptions"
+              placeholder="请选择部门"
+              clearable
+              style="width: 100%"
+          />
+        </el-form-item>
         <el-form-item v-if="isEdit" label="密码">
           <el-input
               v-model="form.password"
@@ -53,6 +64,8 @@
 import {computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import {createUser, updateUser} from "../../api/users";
+import {listDepartments} from "../../api/departments";
+import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -63,11 +76,13 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const saving = ref(false);
+const departmentOptions = ref([]);
 const form = reactive({
   id: null,
   username: "",
   realName: "",
   password: "",
+  deptId: null,
   status: 1
 });
 
@@ -79,12 +94,14 @@ function resetForm() {
     form.username = props.user.username;
     form.realName = props.user.realName;
     form.password = "";
+    form.deptId = props.user.deptId ?? null;
     form.status = props.user.status;
   } else {
     form.id = null;
     form.username = "";
     form.realName = "";
     form.password = "";
+    form.deptId = null;
     form.status = 1;
   }
 }
@@ -92,10 +109,28 @@ function resetForm() {
 watch(
     () => [props.modelValue, props.user],
     ([visible]) => {
-      if (visible) resetForm();
+      if (visible) {
+        resetForm();
+        loadDepartments();
+      }
     },
     {immediate: true}
 );
+
+const selectedDepartmentOptions = computed(() => {
+  if (!form.deptId) return [];
+  const department = departmentOptions.value.find((item) => item.id === form.deptId);
+  return department ? [department] : [{ id: form.deptId, deptName: props.user?.deptName }];
+});
+
+function departmentLabel(department) {
+  return department.deptCode ? `${department.deptName}（${department.deptCode}）` : (department.deptName || `#${department.id}`);
+}
+
+async function loadDepartments() {
+  const data = await listDepartments({ pageNum: 1, pageSize: 100 });
+  departmentOptions.value = Array.isArray(data?.list) ? data.list : Array.isArray(data) ? data : [];
+}
 
 async function submit() {
   if (!form.username?.trim()) {
@@ -112,6 +147,7 @@ async function submit() {
       id: form.id,
       username: form.username.trim(),
       realName: form.realName?.trim() || form.username.trim(),
+      deptId: form.deptId,
       status: form.status
     };
     if (form.password?.trim()) {

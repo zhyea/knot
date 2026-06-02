@@ -56,6 +56,11 @@ export function listAppOperationLogs(appId) {
   return getOperationLogsByEntity("App", appId, { params: { module: "app" } });
 }
 
+/** 某部门（entity_type=Department）在 department 模块下的操作日志 */
+export function listDepartmentOperationLogs(departmentId) {
+  return getOperationLogsByEntity("Department", departmentId, { params: { module: "department" } });
+}
+
 /** 某路由规则（entity_type=RoutingRule）在 routing 模块下的操作日志 */
 export function listRoutingRuleOperationLogs(ruleId) {
   return getOperationLogsByEntity("RoutingRule", ruleId, { params: { module: "routing" } });

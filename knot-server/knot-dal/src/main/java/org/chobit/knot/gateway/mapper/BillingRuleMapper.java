@@ -42,4 +42,6 @@ public interface BillingRuleMapper {
     int insertVersion(BillingRuleVersionEntity entity);
 
     int insertVersionItem(BillingRuleVersionItemEntity entity);
+
+    int updateVersionStatus(@Param("id") Long id, @Param("status") String status);
 }

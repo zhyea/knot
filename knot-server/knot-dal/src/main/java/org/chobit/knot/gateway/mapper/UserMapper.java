@@ -15,6 +15,8 @@ public interface UserMapper {
 
     UserEntity getUserByUsername(String username);
 
+    Long countByDeptId(Long deptId);
+
     int insertUser(UserEntity entity);
 
     int updateUserStatus(UserEntity entity);

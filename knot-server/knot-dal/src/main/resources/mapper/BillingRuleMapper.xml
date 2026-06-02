@@ -6,7 +6,7 @@
         br.id, br.code, br.name, br.provider_id, p.name as provider_name,
         br.logical_model_id, lm.model_name as logical_model_name,
         br.current_version_id, br.remark, br.status, br.is_deleted,
-        bv.version_no, bv.version_name, bv.billing_mode, bv.currency, bv.config_json, bv.ladder_json,
+        bv.version_no, bv.version_code, bv.billing_mode, bv.currency, bv.config_json, bv.ladder_json,
         bv.effective_from, bv.effective_to,
         bvi.item_type, bvi.unit, bvi.unit_price
     </sql>
@@ -15,7 +15,7 @@
         br.id, br.code, br.name, br.provider_id, p.name as provider_name,
         br.logical_model_id, lm.model_name as logical_model_name,
         bv.id as current_version_id, br.remark, br.status, br.is_deleted,
-        bv.version_no, bv.version_name, bv.billing_mode, bv.currency, bv.config_json, bv.ladder_json,
+        bv.version_no, bv.version_code, bv.billing_mode, bv.currency, bv.config_json, bv.ladder_json,
         bv.effective_from, bv.effective_to,
         bvi.item_type, bvi.unit, bvi.unit_price
     </sql>
@@ -150,10 +150,10 @@
     </select>
 
     <insert id="insertVersion" useGeneratedKeys="true" keyProperty="id">
-        insert into billing_rule_versions(rule_id, version_no, version_name, billing_mode, currency,
+        insert into billing_rule_versions(rule_id, version_no, version_code, billing_mode, currency,
                                           config_json, ladder_json, status,
                                           effective_from, effective_to, change_reason)
-        values(#{ruleId}, #{versionNo}, #{versionName}, #{billingMode}, #{currency},
+        values(#{ruleId}, #{versionNo}, #{versionCode}, #{billingMode}, #{currency},
                #{configJson}, #{ladderJson}, #{status},
                #{effectiveFrom}, #{effectiveTo}, #{changeReason})
     </insert>
@@ -162,5 +162,11 @@
         insert into billing_rule_version_items(version_id, item_type, unit, unit_size, unit_price, metadata_json)
         values(#{versionId}, #{itemType}, #{unit}, #{unitSize}, #{unitPrice}, #{metadataJson})
     </insert>
+
+    <update id="updateVersionStatus">
+        update billing_rule_versions
+        set status = #{status}
+        where id = #{id}
+    </update>
 
 </mapper>

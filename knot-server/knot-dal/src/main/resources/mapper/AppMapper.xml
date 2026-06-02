@@ -16,6 +16,8 @@
 
         a.dept_id,
 
+        d.dept_name,
+
         a.owner_user_id,
 
         a.remark,
@@ -36,6 +38,8 @@
 
         from apps a
 
+        left join departments d on a.dept_id = d.id and d.is_deleted = 0
+
         left join users u on a.owner_user_id = u.id and u.is_deleted = 0
 
         where a.is_deleted = 0
@@ -43,6 +47,7 @@
             and (
                 a.app_id like concat('%', #{keyword}, '%')
                 or a.name like concat('%', #{keyword}, '%')
+                or d.dept_name like concat('%', #{keyword}, '%')
                 or u.real_name like concat('%', #{keyword}, '%')
             )
         </if>
@@ -58,6 +63,8 @@
         select <include refid="AppSelectColumns"/>
 
         from apps a
+
+        left join departments d on a.dept_id = d.id and d.is_deleted = 0
 
         left join users u on a.owner_user_id = u.id and u.is_deleted = 0
 
@@ -77,9 +84,9 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
 
-        insert into apps(app_id, name, owner_user_id, remark, status, is_deleted)
+        insert into apps(app_id, name, dept_id, owner_user_id, remark, status, is_deleted)
 
-        values(#{appId}, #{name}, #{ownerUserId}, #{remark}, 'ENABLED', 0)
+        values(#{appId}, #{name}, #{deptId}, #{ownerUserId}, #{remark}, 'ENABLED', 0)
 
     </insert>
 
@@ -90,6 +97,8 @@
         update apps
 
         set name = #{name},
+
+            dept_id = #{deptId},
 
             owner_user_id = #{ownerUserId},
 
@@ -126,6 +135,14 @@
     <select id="countModelPermissionsByAppId" resultType="java.lang.Long">
 
         select count(1) from app_model_permissions where app_id = #{appId}
+
+    </select>
+
+
+
+    <select id="countByDeptId" resultType="java.lang.Long">
+
+        select count(1) from apps where dept_id = #{deptId} and is_deleted = 0
 
     </select>
 

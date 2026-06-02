@@ -3,33 +3,64 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.UserMapper">
 
     <select id="listUsers" resultType="org.chobit.knot.gateway.entity.UserEntity">
-        select id, username, real_name, status, last_login_time, updated_at
-        from users
-        where is_deleted = 0
+        select u.id,
+               u.username,
+               u.real_name,
+               u.dept_id,
+               d.dept_name,
+               u.status,
+               u.last_login_time,
+               u.updated_at
+        from users u
+        left join departments d on d.id = u.dept_id and d.is_deleted = 0
+        where u.is_deleted = 0
         <if test="keyword != null and keyword != ''">
             and (
-                username like concat('%', #{keyword}, '%')
-                or real_name like concat('%', #{keyword}, '%')
+                u.username like concat('%', #{keyword}, '%')
+                or u.real_name like concat('%', #{keyword}, '%')
             )
         </if>
-        order by id desc
+        order by u.id desc
     </select>
 
     <select id="getUserById" resultType="org.chobit.knot.gateway.entity.UserEntity">
-        select id, username, real_name, status, last_login_time, updated_at
-        from users
-        where id = #{id} and is_deleted = 0
+        select u.id,
+               u.username,
+               u.real_name,
+               u.dept_id,
+               d.dept_name,
+               u.status,
+               u.last_login_time,
+               u.updated_at
+        from users u
+        left join departments d on d.id = u.dept_id and d.is_deleted = 0
+        where u.id = #{id} and u.is_deleted = 0
     </select>
 
     <select id="getUserByUsername" resultType="org.chobit.knot.gateway.entity.UserEntity">
-        select id, username, password_hash, real_name, status, last_login_time, updated_at
+        select u.id,
+               u.username,
+               u.password_hash,
+               u.real_name,
+               u.dept_id,
+               d.dept_name,
+               u.status,
+               u.last_login_time,
+               u.updated_at
+        from users u
+        left join departments d on d.id = u.dept_id and d.is_deleted = 0
+        where u.username = #{username} and u.is_deleted = 0
+    </select>
+
+    <select id="countByDeptId" resultType="java.lang.Long">
+        select count(1)
         from users
-        where username = #{username} and is_deleted = 0
+        where dept_id = #{deptId} and is_deleted = 0
     </select>
 
     <insert id="insertUser" useGeneratedKeys="true" keyProperty="id">
-        insert into users(username, password_hash, real_name, status)
-        values(#{username}, 'NO_LOGIN', #{realName}, #{status})
+        insert into users(username, password_hash, real_name, dept_id, status)
+        values(#{username}, 'NO_LOGIN', #{realName}, #{deptId}, #{status})
     </insert>
 
     <update id="updateUserStatus">
@@ -39,6 +70,7 @@
     <update id="updateUser">
         update users set 
             real_name = #{realName},
+            dept_id = #{deptId},
             status = #{status},
             updated_at = NOW()
         where id = #{id}

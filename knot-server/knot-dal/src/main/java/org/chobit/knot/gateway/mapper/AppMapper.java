@@ -24,4 +24,6 @@ public interface AppMapper {
     Long countCredentialsByAppId(Long appId);
 
     Long countModelPermissionsByAppId(Long appId);
+
+    Long countByDeptId(Long deptId);
 }

@@ -9,7 +9,7 @@ public class BillingRuleVersionEntity {
     private Long id;
     private Long ruleId;
     private Integer versionNo;
-    private String versionName;
+    private String versionCode;
     private String billingMode;
     private String currency;
     private String configJson;

@@ -1,5 +1,6 @@
-package org.chobit.knot.gateway.upstream;
+package org.chobit.knot.gateway.upstream.provider;
 
+import org.chobit.knot.gateway.upstream.UpstreamRequestContext;
 import org.springframework.web.client.RestClient;
 
 import java.util.Map;

@@ -53,7 +53,8 @@ public class UserController {
      */
     public UserItem create(@RequestBody @Valid UserItem request) {
         UserDto created = userService.createUser(new UserDto(
-                null, request.username(), request.password(), request.realName(), request.status(), null, null
+                null, request.username(), request.password(), request.realName(), request.deptId(), null,
+                request.status(), null, null
         ));
         return userConverter.toVO(created);
     }
@@ -95,7 +96,8 @@ public class UserController {
      */
     public UserItem updateUser(@PathVariable Long id, @RequestBody @Valid UserItem request) {
         UserDto updated = userService.updateUser(new UserDto(
-                id, null, request.password() != null ? request.password() : null, request.realName(), request.status(), null, null
+                id, null, request.password() != null ? request.password() : null, request.realName(), request.deptId(), null,
+                request.status(), null, null
         ));
         return userConverter.toVO(updated);
     }

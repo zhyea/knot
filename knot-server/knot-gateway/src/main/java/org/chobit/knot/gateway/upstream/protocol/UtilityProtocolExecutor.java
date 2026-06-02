@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.upstream;
+package org.chobit.knot.gateway.upstream.protocol;
 
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.springframework.core.annotation.Order;
@@ -10,7 +10,7 @@ import java.util.Set;
 
 @Component
 @Order(40)
-public class UtilityApiProtocolHandler extends AbstractApiProtocolHandler {
+public class UtilityProtocolExecutor extends AbstractUpstreamProtocolExecutor {
 
     private static final Set<ModelApiProtocolEnum> PROTOCOLS = EnumSet.of(
             ModelApiProtocolEnum.RERANK,
@@ -20,7 +20,7 @@ public class UtilityApiProtocolHandler extends AbstractApiProtocolHandler {
     /**
      * Constructs a new instance.
      */
-    public UtilityApiProtocolHandler(RestClient restClient) {
+    public UtilityProtocolExecutor(RestClient restClient) {
         super(restClient);
     }
 

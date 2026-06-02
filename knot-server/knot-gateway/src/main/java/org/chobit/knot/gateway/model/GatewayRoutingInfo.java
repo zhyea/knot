@@ -24,7 +24,8 @@ public record GatewayRoutingInfo(RuleInfo rule,
 
     public record AppInfo(Long id,
                           String appId,
-                          String name) {
+                          String name,
+                          Long deptId) {
     }
 
     public record UserInfo(Long id,

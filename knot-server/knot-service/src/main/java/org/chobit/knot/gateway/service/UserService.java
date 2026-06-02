@@ -5,9 +5,11 @@ import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.auth.JwtUtil;
 import org.chobit.knot.gateway.converter.UserConverter;
 import org.chobit.knot.gateway.dto.user.UserDto;
+import org.chobit.knot.gateway.entity.DepartmentEntity;
 import org.chobit.knot.gateway.entity.UserEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.gateway.mapper.DepartmentMapper;
 import org.chobit.knot.gateway.mapper.UserMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -23,14 +25,16 @@ import java.util.Map;
 @Service
 public class UserService {
     private final UserMapper userMapper;
+    private final DepartmentMapper departmentMapper;
     private final UserConverter userConverter;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     /**
      * Constructs a new instance.
      */
-    public UserService(UserMapper userMapper, UserConverter userConverter) {
+    public UserService(UserMapper userMapper, DepartmentMapper departmentMapper, UserConverter userConverter) {
         this.userMapper = userMapper;
+        this.departmentMapper = departmentMapper;
         this.userConverter = userConverter;
     }
 
@@ -93,6 +97,8 @@ public class UserService {
         m.put("id", entity.getId());
         m.put("username", entity.getUsername());
         m.put("realName", entity.getRealName());
+        m.put("deptId", entity.getDeptId());
+        m.put("deptName", entity.getDeptName());
         m.put("status", entity.getStatus());
         m.put("lastLoginTime", entity.getLastLoginTime());
         m.put("updatedAt", entity.getUpdatedAt());
@@ -104,9 +110,12 @@ public class UserService {
      */
     @Transactional
     public UserDto createUser(UserDto request) {
+        DepartmentEntity department = validateDepartment(request.deptId());
         UserEntity entity = new UserEntity();
         entity.setUsername(request.username());
         entity.setRealName(request.realName());
+        entity.setDeptId(department != null ? department.getId() : null);
+        entity.setDeptName(department != null ? department.getDeptName() : null);
         entity.setStatus(request.status());
         // 鍔犲瘑瀵嗙爜
         if (request.password() != null && !request.password().isEmpty()) {
@@ -137,7 +146,10 @@ public class UserService {
     public UserDto updateUser(UserDto request) {
         UserEntity entity = userMapper.getUserById(request.id());
         if (entity == null) throw new BusinessException(ErrorCode.NOT_FOUND, "user not found");
+        DepartmentEntity department = validateDepartment(request.deptId());
         entity.setRealName(request.realName());
+        entity.setDeptId(department != null ? department.getId() : null);
+        entity.setDeptName(department != null ? department.getDeptName() : null);
         entity.setStatus(request.status());
         // 濡傛灉鎻愪緵浜嗗瘑鐮佸垯鏇存柊
         if (request.password() != null && !request.password().isEmpty()) {
@@ -145,5 +157,16 @@ public class UserService {
         }
         userMapper.updateUser(entity);
         return userConverter.toDto(entity);
+    }
+
+    private DepartmentEntity validateDepartment(Long deptId) {
+        if (deptId == null) {
+            return null;
+        }
+        DepartmentEntity department = departmentMapper.getById(deptId);
+        if (department == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "department not found");
+        }
+        return department;
     }
 }

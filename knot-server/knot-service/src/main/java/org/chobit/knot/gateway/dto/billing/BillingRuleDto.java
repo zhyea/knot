@@ -13,7 +13,7 @@ public record BillingRuleDto(
         String logicalModelName,
         Long currentVersionId,
         Integer versionNo,
-        String versionName,
+        String versionCode,
         String billingMode,
         String currency,
         String itemType,

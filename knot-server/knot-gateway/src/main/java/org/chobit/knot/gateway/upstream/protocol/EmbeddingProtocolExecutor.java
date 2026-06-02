@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.upstream;
+package org.chobit.knot.gateway.upstream.protocol;
 
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.springframework.core.annotation.Order;
@@ -7,12 +7,12 @@ import org.springframework.web.client.RestClient;
 
 @Component
 @Order(20)
-public class EmbeddingApiProtocolHandler extends AbstractApiProtocolHandler {
+public class EmbeddingProtocolExecutor extends AbstractUpstreamProtocolExecutor {
 
     /**
      * Constructs a new instance.
      */
-    public EmbeddingApiProtocolHandler(RestClient restClient) {
+    public EmbeddingProtocolExecutor(RestClient restClient) {
         super(restClient);
     }
 

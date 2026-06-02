@@ -49,7 +49,6 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
     name: row.name,
     providerId: row.providerId ?? null,
     logicalModelId: row.logicalModelId ?? null,
-    versionName: row.versionName ?? null,
     billingMode: row.billingMode,
     currency: row.currency,
     itemType: row.itemType,

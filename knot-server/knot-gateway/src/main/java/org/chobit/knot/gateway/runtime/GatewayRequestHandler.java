@@ -6,7 +6,6 @@ import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.billing.GatewayBillingCalculator;
-import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayRateLimitException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.*;
@@ -42,11 +41,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
     @Override
     protected ResolvedRouting resolveRouting(GatewayRequestContext context) {
-        ResolvedRouting routing = routingResolver.resolveByRule(context.apiKey(), context.ruleCode());
-        if (routing == null) {
-            throw new GatewayAuthException("Invalid API key or routing rule");
-        }
-        return routing;
+        return routingResolver.resolveByRule(context.apiKey(), context.ruleCode());
     }
 
     @Override

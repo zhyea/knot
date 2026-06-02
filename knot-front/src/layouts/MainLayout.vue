@@ -1,6 +1,7 @@
 <template>
   <el-container class="layout">
-    <el-aside :width="asideWidthCss" class="aside" :class="{ 'aside--collapsed': asideCollapsed, 'aside--resizing': asideResizing }">
+    <el-aside :width="asideWidthCss" class="aside"
+              :class="{ 'aside--collapsed': asideCollapsed, 'aside--resizing': asideResizing }">
       <el-container class="aside-shell" direction="vertical">
         <el-header class="aside-header">
           <el-tooltip content="Knot AI Gateway" placement="right" :disabled="!asideCollapsed">
@@ -10,122 +11,123 @@
         <el-main class="aside-nav">
           <el-scrollbar class="aside-scrollbar">
             <el-menu
-              class="aside-menu"
-              :collapse="asideCollapsed"
-              :collapse-transition="true"
-              :default-active="activePath"
-              :default-openeds="openeds"
-              router
+                class="aside-menu"
+                :collapse="asideCollapsed"
+                :collapse-transition="true"
+                :default-active="activePath"
+                :default-openeds="openeds"
+                router
             >
-        <el-menu-item index="/">
-          <el-icon>
-            <Odometer/>
-          </el-icon>
-          <span>总览</span>
-        </el-menu-item>
+              <el-menu-item index="/">
+                <el-icon>
+                  <Odometer/>
+                </el-icon>
+                <span>总览</span>
+              </el-menu-item>
 
-        <el-sub-menu index="/system">
-          <template #title>
-            <el-icon>
-              <Setting/>
-            </el-icon>
-            <span>系统管理</span>
-          </template>
-          <el-menu-item index="/system/users">用户管理</el-menu-item>
-          <el-menu-item index="/system/roles">角色权限</el-menu-item>
-          <el-menu-item index="/system/logs">操作日志</el-menu-item>
-          <el-menu-item index="/system/scheduled-tasks">定时任务</el-menu-item>
-          <el-menu-item index="/system/enums">枚举管理</el-menu-item>
-          <el-menu-item index="/system/settings">用户设置</el-menu-item>
-          <el-menu-item index="/system/plugins">插件管理</el-menu-item>
-        </el-sub-menu>
+              <el-sub-menu index="/system">
+                <template #title>
+                  <el-icon>
+                    <Setting/>
+                  </el-icon>
+                  <span>系统管理</span>
+                </template>
+                <el-menu-item index="/system/users">用户管理</el-menu-item>
+                <el-menu-item index="/system/departments">部门管理</el-menu-item>
+                <el-menu-item index="/system/roles">角色权限</el-menu-item>
+                <el-menu-item index="/system/logs">操作日志</el-menu-item>
+                <el-menu-item index="/system/scheduled-tasks">定时任务</el-menu-item>
+                <el-menu-item index="/system/enums">枚举管理</el-menu-item>
+                <el-menu-item index="/system/settings">用户设置</el-menu-item>
+                <el-menu-item index="/system/plugins">插件管理</el-menu-item>
+              </el-sub-menu>
 
-        <el-menu-item index="/providers">
-          <el-icon>
-            <Connection/>
-          </el-icon>
-          <span>供应商管理</span>
-        </el-menu-item>
+              <el-menu-item index="/providers">
+                <el-icon>
+                  <Connection/>
+                </el-icon>
+                <span>供应商管理</span>
+              </el-menu-item>
 
-        <el-sub-menu index="/model-management">
-          <template #title>
-            <el-icon>
-              <Cpu/>
-            </el-icon>
-            <span>模型管理</span>
-          </template>
-          <el-menu-item index="/model-management/models">供应商模型</el-menu-item>
-          <el-menu-item index="/model-management/model-pools">供应商模型池</el-menu-item>
-          <el-menu-item index="/model-management/logical-models">模型广场</el-menu-item>
-          <el-menu-item index="/model-management/external-models">外部模型</el-menu-item>
-        </el-sub-menu>
+              <el-sub-menu index="/model-management">
+                <template #title>
+                  <el-icon>
+                    <Cpu/>
+                  </el-icon>
+                  <span>模型管理</span>
+                </template>
+                <el-menu-item index="/model-management/models">供应商模型</el-menu-item>
+                <el-menu-item index="/model-management/model-pools">供应商模型池</el-menu-item>
+                <el-menu-item index="/model-management/logical-models">模型广场</el-menu-item>
+                <el-menu-item index="/model-management/external-models">外部模型</el-menu-item>
+              </el-sub-menu>
 
-        <el-menu-item v-if="false" index="/models">
-          <el-icon>
-            <Cpu/>
-          </el-icon>
-          <span>模型管理</span>
-        </el-menu-item>
+              <el-menu-item v-if="false" index="/models">
+                <el-icon>
+                  <Cpu/>
+                </el-icon>
+                <span>模型管理</span>
+              </el-menu-item>
 
-        <el-menu-item v-if="false" index="/logical-models">
-          <el-icon>
-            <Cpu/>
-          </el-icon>
-          <span>模型广场</span>
-        </el-menu-item>
+              <el-menu-item v-if="false" index="/logical-models">
+                <el-icon>
+                  <Cpu/>
+                </el-icon>
+                <span>模型广场</span>
+              </el-menu-item>
 
-        <el-menu-item index="/apps">
-          <el-icon>
-            <Monitor/>
-          </el-icon>
-          <span>应用管理</span>
-        </el-menu-item>
+              <el-menu-item index="/apps">
+                <el-icon>
+                  <Monitor/>
+                </el-icon>
+                <span>应用管理</span>
+              </el-menu-item>
 
-        <el-sub-menu index="/routing">
-          <template #title>
-            <el-icon>
-              <Guide/>
-            </el-icon>
-            <span>路由规则</span>
-          </template>
-          <el-menu-item index="/routing/rules">规则列表</el-menu-item>
-          <el-menu-item index="/routing/consumers">消费者</el-menu-item>
-        </el-sub-menu>
+              <el-sub-menu index="/routing">
+                <template #title>
+                  <el-icon>
+                    <Guide/>
+                  </el-icon>
+                  <span>路由规则</span>
+                </template>
+                <el-menu-item index="/routing/rules">规则列表</el-menu-item>
+                <el-menu-item index="/routing/consumers">消费者</el-menu-item>
+              </el-sub-menu>
 
-        <el-sub-menu index="/billing">
-          <template #title>
-            <el-icon>
-              <Money/>
-            </el-icon>
-            <span>计费成本</span>
-          </template>
-          <el-menu-item index="/billing/rules">计费规则</el-menu-item>
-          <el-menu-item index="/billing/reconciliation">对账管理</el-menu-item>
-        </el-sub-menu>
+              <el-sub-menu index="/billing">
+                <template #title>
+                  <el-icon>
+                    <Money/>
+                  </el-icon>
+                  <span>计费成本</span>
+                </template>
+                <el-menu-item index="/billing/rules">计费规则</el-menu-item>
+                <el-menu-item index="/billing/reconciliation">对账管理</el-menu-item>
+              </el-sub-menu>
 
-        <el-sub-menu index="/security">
-          <template #title>
-            <el-icon>
-              <Lock/>
-            </el-icon>
-            <span>安全监控</span>
-          </template>
-          <el-menu-item index="/security/policy">安全策略</el-menu-item>
-          <el-menu-item index="/security/alerts">告警管理</el-menu-item>
-          <el-menu-item index="/security/cache">缓存管理</el-menu-item>
-        </el-sub-menu>
+              <el-sub-menu index="/security">
+                <template #title>
+                  <el-icon>
+                    <Lock/>
+                  </el-icon>
+                  <span>安全监控</span>
+                </template>
+                <el-menu-item index="/security/policy">安全策略</el-menu-item>
+                <el-menu-item index="/security/alerts">告警管理</el-menu-item>
+                <el-menu-item index="/security/cache">缓存管理</el-menu-item>
+              </el-sub-menu>
 
-        <el-sub-menu index="/notifications">
-          <template #title>
-            <el-icon>
-              <Bell/>
-            </el-icon>
-            <span>通知管理</span>
-          </template>
-          <el-menu-item index="/notifications/templates">通知模板</el-menu-item>
-          <el-menu-item index="/notifications/send">通知发送</el-menu-item>
-          <el-menu-item index="/notifications/policy">通知策略</el-menu-item>
-        </el-sub-menu>
+              <el-sub-menu index="/notifications">
+                <template #title>
+                  <el-icon>
+                    <Bell/>
+                  </el-icon>
+                  <span>通知管理</span>
+                </template>
+                <el-menu-item index="/notifications/templates">通知模板</el-menu-item>
+                <el-menu-item index="/notifications/send">通知发送</el-menu-item>
+                <el-menu-item index="/notifications/policy">通知策略</el-menu-item>
+              </el-sub-menu>
             </el-menu>
           </el-scrollbar>
         </el-main>
@@ -162,7 +164,7 @@
                 @click="toggleAsideCollapsed"
             />
           </el-tooltip>
-        <span>AI 网关管理后台</span>
+          <span>AI 网关管理后台</span>
         </div>
         <div class="header-right">
           <el-dropdown @command="handleCommand">

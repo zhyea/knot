@@ -19,6 +19,19 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
+            <el-form-item label="所属部门">
+              <RemoteEntitySelect
+                  v-model="form.deptId"
+                  :load-function="listDepartments"
+                  :label-function="departmentLabel"
+                  :selected-options="selectedDepartmentOptions"
+                  placeholder="请选择部门"
+                  clearable
+                  style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
             <el-form-item label="负责人">
               <RemoteEntitySelect
                   v-model="form.ownerUserId"
@@ -69,6 +82,7 @@ import {
   normalizeRateLimitPolicy
 } from "../../utils/trafficPolicy";
 import {createApp, updateApp} from "../../api/apps";
+import {listDepartments} from "../../api/departments";
 import {listUsers} from "../../api/users";
 
 const props = defineProps({
@@ -79,12 +93,14 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const saving = ref(false);
+const departmentOptions = ref([]);
 const userOptions = ref([]);
 
 const form = reactive({
   id: null,
   appId: "",
   name: "",
+  deptId: null,
   ownerUserId: null,
   remark: "",
   rateLimitPolicy: emptyRateLimitPolicy(),
@@ -92,15 +108,29 @@ const form = reactive({
 });
 
 const isEdit = computed(() => props.app != null);
+const selectedDepartmentOptions = computed(() => {
+  if (!form.deptId) return [];
+  const department = departmentOptions.value.find((item) => item.id === form.deptId);
+  return department ? [department] : [{ id: form.deptId, deptName: props.app?.deptName }];
+});
 const selectedOwnerOptions = computed(() => {
   if (!form.ownerUserId) return [];
   const user = userOptions.value.find((item) => item.id === form.ownerUserId);
   return user ? [user] : [{ id: form.ownerUserId, realName: props.app?.ownerName }];
 });
 
+function departmentLabel(department) {
+  return department.deptCode ? `${department.deptName}（${department.deptCode}）` : (department.deptName || `#${department.id}`);
+}
+
 function userLabel(user) {
   const name = user.realName?.trim() || user.username;
   return name === user.username ? name : `${name}（${user.username}）`;
+}
+
+async function loadDepartments() {
+  const data = await listDepartments({pageNum: 1, pageSize: 20});
+  departmentOptions.value = Array.isArray(data?.list) ? data.list : Array.isArray(data) ? data : [];
 }
 
 async function loadUsers() {
@@ -112,6 +142,7 @@ function fillFormFromRow(row) {
   form.id = row.id;
   form.appId = row.appId || "";
   form.name = row.name || "";
+  form.deptId = row.deptId ?? null;
   form.ownerUserId = row.ownerUserId ?? null;
   form.remark = row.remark ?? "";
   form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
@@ -125,6 +156,7 @@ function resetForm() {
     form.id = null;
     form.appId = "";
     form.name = "";
+    form.deptId = null;
     form.ownerUserId = null;
     form.remark = "";
     form.rateLimitPolicy = emptyRateLimitPolicy();
@@ -137,6 +169,7 @@ watch(
     ([visible]) => {
       if (visible) {
         resetForm();
+        loadDepartments();
         loadUsers();
       }
     }
@@ -156,6 +189,7 @@ function buildPayload() {
   return {
     appId: form.appId,
     name: form.name,
+    deptId: form.deptId,
     ownerUserId: form.ownerUserId,
     remark: form.remark?.trim() || null,
     rateLimitPolicy,

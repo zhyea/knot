@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.upstream;
+package org.chobit.knot.gateway.upstream.provider;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

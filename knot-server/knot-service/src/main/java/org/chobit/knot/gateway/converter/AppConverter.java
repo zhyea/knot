@@ -49,6 +49,7 @@ public interface AppConverter {
 
 
 
+    @Mapping(target = "deptName", ignore = true)
     @Mapping(target = "ownerName", ignore = true)
 
     AppDto toDto(AppItem vo);

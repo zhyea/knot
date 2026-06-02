@@ -1,20 +1,22 @@
-package org.chobit.knot.gateway.upstream;
+package org.chobit.knot.gateway.upstream.protocol;
 
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
+import org.chobit.knot.gateway.upstream.UpstreamRequestContext;
+import org.chobit.knot.gateway.upstream.provider.UpstreamProviderAdapter;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 
 /**
  * Executes the public operation. Executes the public operation.
  */
-public abstract class AbstractApiProtocolHandler implements ModelApiProtocolHandler {
+public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtocolExecutor {
 
     private final RestClient restClient;
 
-    protected AbstractApiProtocolHandler(RestClient restClient) {
+    protected AbstractUpstreamProtocolExecutor(RestClient restClient) {
         this.restClient = restClient;
     }
 
