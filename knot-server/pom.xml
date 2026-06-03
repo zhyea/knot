@@ -28,6 +28,7 @@
 
     <modules>
         <module>knot-common</module>
+        <module>knot-usage</module>
         <module>knot-dal</module>
         <module>knot-service</module>
         <module>knot-admin</module>
@@ -39,6 +40,11 @@
             <dependency>
                 <groupId>org.chobit.knot</groupId>
                 <artifactId>knot-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.chobit.knot</groupId>
+                <artifactId>knot-usage</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

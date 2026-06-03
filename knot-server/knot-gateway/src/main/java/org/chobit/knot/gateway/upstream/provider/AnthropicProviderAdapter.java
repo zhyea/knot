@@ -1,12 +1,14 @@
 package org.chobit.knot.gateway.upstream.provider;
 
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProviderTypeEnum;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
+import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.service.ProviderCredentialSupport;
 import org.chobit.knot.gateway.upstream.UpstreamRequestContext;
 import org.springframework.core.annotation.Order;
@@ -32,7 +34,7 @@ public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
      */
     @Override
     public boolean supports(String providerType) {
-        return providerType != null && ProviderTypeEnum.ANTHROPIC.code().equals(providerType.trim().toUpperCase());
+        return ProviderTypeEnum.ANTHROPIC.code().equals(StringUtils.upperCase(StringUtils.trim(providerType)));
     }
 
     /**
@@ -40,8 +42,8 @@ public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
      */
     @Override
     public String resolvePath(UpstreamRequestContext context, String defaultPath) {
-        if (context.binding() != null && hasText(context.binding().getApiPath())) {
-            return context.binding().getApiPath().trim();
+        if (context.binding() != null && StringUtils.isNotBlank(context.binding().getApiPath())) {
+            return StringUtils.trim(context.binding().getApiPath());
         }
         ModelApiProtocolEnum protocol = context.protocol().canonical();
         if (ModelApiProtocolEnum.CHAT_COMPLETIONS == protocol
@@ -77,15 +79,33 @@ public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
     @Override
     public void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
         String apiKey = credentialValue(context.credential(), AuthConstants.API_KEY);
-        if (hasText(apiKey)) {
+        if (StringUtils.isNotBlank(apiKey)) {
             requestSpec.header(GatewayHeaders.X_API_KEY, apiKey);
         }
         requestSpec.header(GatewayHeaders.ANTHROPIC_VERSION, DEFAULT_VERSION);
     }
 
+    @Override
+    public BillingUsage extractUsageFromBody(Map<String, Object> body) {
+        BillingUsage usage = UpstreamProviderAdapter.super.extractUsageFromBody(body);
+        if (usage.isEmpty()) {
+            return usage;
+        }
+        long inputTokens = usage.inputTokens() + usage.cacheReadTokens() + usage.cacheWriteTokens();
+        long totalTokens = Math.max(usage.totalTokens(), inputTokens + usage.outputTokens());
+        return new BillingUsage(
+                inputTokens,
+                usage.outputTokens(),
+                totalTokens,
+                usage.cacheReadTokens(),
+                usage.cacheWriteTokens(),
+                usage.amount()
+        );
+    }
+
     private String credentialValue(ProviderCredentialEntity credential, String key) {
         Object value = credentialSupport.toAuthConfig(credential).get(key);
-        return value == null ? null : String.valueOf(value).trim();
+        return StringUtils.trimToNull(value == null ? null : String.valueOf(value));
     }
 
     @SuppressWarnings("unchecked")
@@ -166,9 +186,5 @@ public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
             body.put(to, body.get(from));
         }
         body.remove(from);
-    }
-
-    private boolean hasText(String value) {
-        return value != null && !value.isBlank();
     }
 }

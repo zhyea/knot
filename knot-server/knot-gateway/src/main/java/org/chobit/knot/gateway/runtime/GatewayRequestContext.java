@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.Accessors;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.model.GatewayRoutingInfo;
 import org.chobit.knot.gateway.model.ResolvedRouting;
@@ -37,8 +38,9 @@ public class GatewayRequestContext {
      * Executes the public operation. Executes the public operation.
      */
     public void putAttribute(String key, Object value) {
-        if (key != null && !key.isBlank()) {
-            attributes.put(key, value);
+        String normalizedKey = StringUtils.trimToNull(key);
+        if (normalizedKey != null) {
+            attributes.put(normalizedKey, value);
         }
     }
 

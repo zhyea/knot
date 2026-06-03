@@ -25,7 +25,6 @@ public final class AiPayloadFields {
     public static final String INPUT_TOKENS = "input_tokens";
     public static final String COMPLETION_TOKENS = "completion_tokens";
     public static final String OUTPUT_TOKENS = "output_tokens";
-    public static final String KNOT_BILLING = "knot_billing";
     public static final String KNOT_USAGE = "knot_usage";
 
     private AiPayloadFields() {

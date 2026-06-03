@@ -8,6 +8,7 @@ import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.request.GatewayModelRequest;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.Map;
 
@@ -58,24 +59,19 @@ public abstract class AbstractGatewayRequestTemplate {
         if (apiKey == null) {
             throw new GatewayAuthException("Invalid API key");
         }
-        if (isBlank(ruleCode)) {
+        if (StringUtils.isBlank(ruleCode)) {
             throw new GatewayInvalidRequestException("Rule header must not be blank");
         }
-        if (isBlank(traceparent)) {
+        if (StringUtils.isBlank(traceparent)) {
             throw new GatewayInvalidRequestException("traceparent header must not be blank");
         }
         return apiKey;
     }
 
     private String extractApiKey(String authorization) {
-        if (authorization == null || !authorization.startsWith(AuthConstants.BEARER_PREFIX)) {
+        if (!StringUtils.startsWith(authorization, AuthConstants.BEARER_PREFIX)) {
             return null;
         }
-        String key = authorization.substring(AuthConstants.BEARER_PREFIX.length()).trim();
-        return key.isEmpty() ? null : key;
-    }
-
-    private boolean isBlank(String value) {
-        return value == null || value.isBlank();
+        return StringUtils.trimToNull(authorization.substring(AuthConstants.BEARER_PREFIX.length()));
     }
 }

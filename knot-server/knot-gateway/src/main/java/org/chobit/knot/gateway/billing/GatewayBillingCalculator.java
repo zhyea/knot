@@ -1,17 +1,21 @@
 package org.chobit.knot.gateway.billing;
 
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.ObjectUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.BillingUnitEnum;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.model.BillingDetail;
 import org.chobit.knot.gateway.model.BillingUsage;
+import org.chobit.knot.gateway.model.NormalizedUsageDetail;
 import org.chobit.knot.gateway.service.GatewayDataService;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -34,7 +38,7 @@ public class GatewayBillingCalculator {
         if (rule == null) {
             return null;
         }
-        BillingUsage normalizedUsage = usage == null ? new BillingUsage(0L, 0L, 0L, 0L, 0L) : usage;
+        BillingUsage normalizedUsage = usage == null ? BillingUsage.empty() : usage;
         BillingAmount amount = calculateAmount(rule, normalizedUsage);
         BillingUsage detailUsage = new BillingUsage(
                 normalizedUsage.inputTokens(),
@@ -43,6 +47,7 @@ public class GatewayBillingCalculator {
                         ? normalizedUsage.totalTokens()
                         : normalizedUsage.inputTokens() + normalizedUsage.outputTokens(),
                 normalizedUsage.cacheReadTokens(),
+                normalizedUsage.cacheWriteTokens(),
                 amount.amount()
         );
         return new BillingDetail(
@@ -51,6 +56,7 @@ public class GatewayBillingCalculator {
                 rule.getCode(),
                 rule.getName(),
                 rule.getVersionNo(),
+                rule.getVersionCode(),
                 rule.getBillingMode(),
                 rule.getCurrency(),
                 rule.getItemType(),
@@ -58,6 +64,7 @@ public class GatewayBillingCalculator {
                 unitSize(rule.getUnit()),
                 safeMoney(rule.getUnitPrice()),
                 detailUsage,
+                amount.details(),
                 amount.totalCost()
         );
     }
@@ -75,14 +82,24 @@ public class GatewayBillingCalculator {
             long outputTokens = usage.outputTokens();
             long totalTokens = usage.totalTokens();
             long cacheReadTokens = usage.cacheReadTokens();
+            long cacheWriteTokens = usage.cacheWriteTokens();
             BigDecimal inputPrice = jsonDecimal(rule.getConfigJson(), "inputUnitPrice", unitPrice);
             BigDecimal outputPrice = jsonDecimal(rule.getConfigJson(), "outputUnitPrice", unitPrice);
             BigDecimal cacheReadPrice = jsonDecimal(rule.getConfigJson(), "cacheReadUnitPrice", BigDecimal.ZERO);
-            BigDecimal inputCost = cost(inputTokens - cacheReadTokens, inputPrice, unitSize);
+            BigDecimal cacheWritePrice = jsonDecimal(rule.getConfigJson(), "cacheWriteUnitPrice", inputPrice);
+            long uncachedInputTokens = Math.max(0L, inputTokens - cacheReadTokens - cacheWriteTokens);
+            BigDecimal inputCost = cost(uncachedInputTokens, inputPrice, unitSize);
             BigDecimal outputCost = cost(outputTokens, outputPrice, unitSize);
             BigDecimal cacheReadCost = cost(cacheReadTokens, cacheReadPrice, unitSize);
+            BigDecimal cacheWriteCost = cost(cacheWriteTokens, cacheWritePrice, unitSize);
             long billedAmount = totalTokens > 0 ? totalTokens : inputTokens + outputTokens;
-            return new BillingAmount(billedAmount, inputCost.add(outputCost).add(cacheReadCost));
+            List<NormalizedUsageDetail> details = List.of(
+                    detail("uncachedInput", uncachedInputTokens, inputCost, inputPrice, unitSize),
+                    detail("cachedRead", cacheReadTokens, cacheReadCost, cacheReadPrice, unitSize),
+                    detail("cachedWrite", cacheWriteTokens, cacheWriteCost, cacheWritePrice, unitSize),
+                    detail("output", outputTokens, outputCost, outputPrice, unitSize)
+            );
+            return new BillingAmount(billedAmount, inputCost.add(outputCost).add(cacheReadCost).add(cacheWriteCost), details);
         }
 
         long amount = switch (modeEnum) {
@@ -94,20 +111,25 @@ public class GatewayBillingCalculator {
         if (amount <= 0 && (BillingModeEnum.IMAGE == modeEnum || BillingModeEnum.REQUEST == modeEnum)) {
             amount = 1L;
         }
-        return new BillingAmount(amount, cost(amount, unitPrice, unitSize));
+        BigDecimal totalCost = cost(amount, unitPrice, unitSize);
+        return new BillingAmount(
+                amount,
+                totalCost,
+                List.of(detail(normalizeDetailType(rule.getItemType(), modeEnum), amount, totalCost, unitPrice, unitSize))
+        );
     }
 
-    private record BillingAmount(long amount, BigDecimal totalCost) {
+    private record BillingAmount(long amount, BigDecimal totalCost, List<NormalizedUsageDetail> details) {
     }
 
     private static String normalizeBillingMode(String value) {
-        String normalized = value == null ? "" : value.trim().toUpperCase();
-        return normalized.isEmpty() ? BillingModeEnum.TOKEN.code() : normalized;
+        String normalized = StringUtils.upperCase(StringUtils.trim(value));
+        return StringUtils.defaultIfBlank(normalized, BillingModeEnum.TOKEN.code());
     }
 
     private static String normalizeUnit(String value) {
-        String normalized = value == null ? "" : value.trim().toUpperCase();
-        return normalized.isEmpty() ? BillingUnitEnum.ONE_K_TOKENS.code() : normalized;
+        String normalized = StringUtils.upperCase(StringUtils.trim(value));
+        return StringUtils.defaultIfBlank(normalized, BillingUnitEnum.ONE_K_TOKENS.code());
     }
 
     private static int unitSize(String unit) {
@@ -132,8 +154,37 @@ public class GatewayBillingCalculator {
                 .divide(BigDecimal.valueOf(Math.max(1, unitSize)), 8, RoundingMode.HALF_UP);
     }
 
+    private static NormalizedUsageDetail detail(String type,
+                                                long tokens,
+                                                BigDecimal cost,
+                                                BigDecimal unitPrice,
+                                                int unitSize) {
+        return new NormalizedUsageDetail(
+                type,
+                tokens,
+                safeMoney(cost),
+                pricePerMillion(safeMoney(unitPrice), unitSize)
+        );
+    }
+
+    private static BigDecimal pricePerMillion(BigDecimal unitPrice, int unitSize) {
+        if (unitPrice == null || unitPrice.signum() == 0) {
+            return BigDecimal.ZERO.setScale(8, RoundingMode.HALF_UP);
+        }
+        return unitPrice
+                .multiply(BigDecimal.valueOf(1_000_000L))
+                .divide(BigDecimal.valueOf(Math.max(1, unitSize)), 8, RoundingMode.HALF_UP);
+    }
+
+    private static String normalizeDetailType(String itemType, BillingModeEnum mode) {
+        if (StringUtils.isNotBlank(itemType)) {
+            return StringUtils.trim(itemType);
+        }
+        return mode == null ? BillingModeEnum.CUSTOM.code() : mode.code();
+    }
+
     private static BigDecimal safeMoney(BigDecimal value) {
-        return value == null ? BigDecimal.ZERO : value;
+        return ObjectUtils.defaultIfNull(value, BigDecimal.ZERO);
     }
 
     private static long firstAmount(long primary, long fallback) {
@@ -141,7 +192,7 @@ public class GatewayBillingCalculator {
     }
 
     private static BigDecimal jsonDecimal(String json, String key, BigDecimal fallback) {
-        if (json == null || json.isBlank()) {
+        if (StringUtils.isBlank(json)) {
             return fallback;
         }
         String pattern = "\"" + key + "\"";

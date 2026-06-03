@@ -13,6 +13,7 @@ import org.chobit.knot.gateway.vo.model.*;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -37,6 +38,14 @@ public class ModelController {
             @RequestParam String code,
             @RequestParam(required = false) Long excludeId) {
         return Map.of("available", modelService.isModelCodeAvailable(code, excludeId));
+    }
+
+    /**
+     * Lists usage extractors available for model API bindings.
+     */
+    @GetMapping("/usage-extractors")
+    public List<UsageExtractorItem> usageExtractors() {
+        return modelService.listUsageExtractors();
     }
 
     /**

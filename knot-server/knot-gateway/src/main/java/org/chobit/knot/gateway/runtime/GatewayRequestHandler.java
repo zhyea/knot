@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.runtime;
 
-import com.fasterxml.jackson.core.type.TypeReference;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
@@ -16,6 +16,7 @@ import org.chobit.knot.gateway.upstream.UpstreamProxyClient;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Component
@@ -61,8 +62,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
         Map<String, Object> requestBody = exchange.requestBody();
         TrafficCheckContext trafficContext = trafficGuard.newContext();
-        GatewayUpstreamException lastUpstreamException = new GatewayUpstreamException(
-                "No available routing target",
+        GatewayUpstreamException lastUpstreamException = new GatewayUpstreamException("No available routing target",
                 ProxyErrorCodeEnum.NO_ROUTING_TARGET.code()
         );
         boolean hasAllowedTarget = false;
@@ -90,7 +90,6 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     }
 
 
-    @SuppressWarnings("unchecked")
     @Override
     protected Object applyUsageAccounting(GatewayRequestContext context, GatewayExchange exchange) {
         ProxyResult result = exchange.proxyResult();
@@ -101,31 +100,58 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         if (!routing.returnUsageDetail()) {
             return result.responseBody();
         }
-        try {
-            Map<String, Object> body = JsonKit.fromJson(result.responseBody(), new TypeReference<>() {
-            });
-            Object usageObj = body.get(AiPayloadFields.USAGE);
-            BillingUsage usage = usageObj instanceof Map<?, ?> map ? BillingUsage.from((Map<String, Object>) map) : BillingUsage.from(Map.of());
-            BillingDetail billing = billingCalculator.calculateUsageDetail(result.modelId(), usage);
-            if (billing != null) {
-                body.put(AiPayloadFields.KNOT_BILLING, billing);
-                body.put(AiPayloadFields.KNOT_USAGE, normalizedUsage(usage, billing));
-            }
-            return body;
-        } catch (Exception ignored) {
+        BillingDetail billing = billingCalculator.calculateUsageDetail(result.modelId(), result.usage());
+        if (billing == null) {
             return result.responseBody();
         }
+        NormalizedUsage usage = normalizedUsage(result.usage(), billing);
+        if (isEventStream(result.responseBody())) {
+            return appendUsageEvent(result.responseBody(), usage);
+        }
+        Map<String, Object> body = JsonKit.fromJson(result.responseBody(), new com.fasterxml.jackson.core.type.TypeReference<>() {
+        });
+        if (body == null) {
+            return result.responseBody();
+        }
+        body.put(AiPayloadFields.KNOT_USAGE, usage);
+        return body;
     }
 
     private NormalizedUsage normalizedUsage(BillingUsage usage, BillingDetail billing) {
-        long totalTokens = usage.totalTokens() > 0 ? usage.totalTokens() : usage.inputTokens() + usage.outputTokens();
+        BillingUsage safeUsage = usage == null ? BillingUsage.empty() : usage;
+        long totalTokens = safeUsage.totalTokens() > 0 ? safeUsage.totalTokens() : safeUsage.inputTokens() + safeUsage.outputTokens();
         return new NormalizedUsage(
                 totalTokens,
                 billing.totalCost(),
                 billing.currency(),
-                billing.billingRuleId(),
-                billing.billingRuleCode(),
-                billing.versionNo()
+                billingVersion(billing),
+                billing.usageDetails()
         );
+    }
+
+    private String billingVersion(BillingDetail billing) {
+        if (StringUtils.isNotBlank(billing.versionCode())) {
+            return billing.versionCode();
+        }
+        return billing.versionNo() == null ? null : String.valueOf(billing.versionNo());
+    }
+
+    private boolean isEventStream(String value) {
+        return value.lines().anyMatch(line -> StringUtils.startsWith(StringUtils.trim(line), "data:"));
+    }
+
+    private String appendUsageEvent(String responseBody, NormalizedUsage usage) {
+        Map<String, Object> event = new LinkedHashMap<>();
+        event.put(AiPayloadFields.KNOT_USAGE, usage);
+        String usageData = "data: " + JsonKit.toJson(event);
+        String doneMarker = "data: [DONE]";
+        int doneIndex = responseBody.lastIndexOf(doneMarker);
+        if (doneIndex < 0) {
+            return responseBody + System.lineSeparator() + usageData + System.lineSeparator();
+        }
+        return responseBody.substring(0, doneIndex)
+                + usageData
+                + System.lineSeparator()
+                + responseBody.substring(doneIndex);
     }
 }

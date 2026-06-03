@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.upstream;
 
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
@@ -65,10 +66,10 @@ public class UpstreamProxyClient {
         String modelCode = requestBody.get(AiPayloadFields.MODEL) == null
                 ? null
                 : String.valueOf(requestBody.get(AiPayloadFields.MODEL));
-        if (modelCode == null || modelCode.isBlank()) {
+        if (StringUtils.isBlank(modelCode)) {
             throw new GatewayUpstreamException("model is required", ProxyErrorCodeEnum.MISSING_MODEL.code());
         }
-        return modelCode;
+        return StringUtils.trim(modelCode);
     }
 
     private ModelEntity resolveModel(String modelCode) {

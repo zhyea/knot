@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.routing;
 
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.constants.enums.RouteTargetTypeEnum;
@@ -41,17 +42,17 @@ public class RoutingResolver {
         if (!RoutingSecretKeyGenerator.isRoutingSecretKey(secretKey)) {
             throw new GatewayAuthException("Invalid consumer API key");
         }
-        if (ruleCode == null || ruleCode.isBlank()) {
+        if (StringUtils.isBlank(ruleCode)) {
             throw new GatewayInvalidRequestException("Rule header must not be blank");
         }
-        RoutingConsumerEntity consumer = dataService.getConsumerBySecretKey(secretKey.trim());
+        RoutingConsumerEntity consumer = dataService.getConsumerBySecretKey(StringUtils.trim(secretKey));
         if (consumer == null) {
             throw new GatewayAuthException("Consumer API key not found");
         }
         if (!EntityStatusEnum.ENABLED.code().equals(consumer.getStatus())) {
             throw new GatewayAuthException("Consumer is disabled");
         }
-        RoutingRuleEntity rule = dataService.getEnabledRuleByConsumerAndCode(consumer.getId(), ruleCode.trim());
+        RoutingRuleEntity rule = dataService.getEnabledRuleByConsumerAndCode(consumer.getId(), StringUtils.trim(ruleCode));
         if (rule == null) {
             throw new GatewayAuthException("Routing rule is not available for this consumer");
         }

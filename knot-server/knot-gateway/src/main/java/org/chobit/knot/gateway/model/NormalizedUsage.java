@@ -1,11 +1,11 @@
 package org.chobit.knot.gateway.model;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record NormalizedUsage(Long totalTokens,
                               BigDecimal totalCost,
                               String currency,
-                              Long billingRuleId,
-                              String billingRuleCode,
-                              Integer billingVersionNo) {
+                              String billingVersion,
+                              List<NormalizedUsageDetail> detail) {
 }

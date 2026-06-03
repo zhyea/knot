@@ -27,7 +27,8 @@ public class ModelApiBindingEntity {
     /**
      * 消耗取值逻辑 JSON 字符串
      */
-    private String usageExtractJson;
+    private String usageExtractor;
+    private String streamUsageExtractor;
     private String status;
     private String remark;
 }

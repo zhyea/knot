@@ -3,7 +3,7 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.ModelApiBindingMapper">
 
     <sql id="BindingSelectColumns">
-        b.id, b.model_id, b.protocol, b.api_path, b.usage_extract_json,
+        b.id, b.model_id, b.protocol, b.api_path, b.usage_extractor, b.stream_usage_extractor,
         b.status, b.remark,
         m.model_code, m.name AS model_name, m.provider_id
     </sql>
@@ -35,15 +35,16 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into model_api_bindings(model_id, protocol, api_path, usage_extract_json, status, remark)
-        values(#{modelId}, #{protocol}, #{apiPath}, #{usageExtractJson}, #{status}, #{remark})
+        insert into model_api_bindings(model_id, protocol, api_path, usage_extractor, stream_usage_extractor, status, remark)
+        values(#{modelId}, #{protocol}, #{apiPath}, #{usageExtractor}, #{streamUsageExtractor}, #{status}, #{remark})
     </insert>
 
     <update id="update">
         update model_api_bindings
         set protocol = #{protocol},
             api_path = #{apiPath},
-            usage_extract_json = #{usageExtractJson},
+            usage_extractor = #{usageExtractor},
+            stream_usage_extractor = #{streamUsageExtractor},
             status = #{status},
             remark = #{remark}
         where id = #{id}

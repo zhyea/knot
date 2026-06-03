@@ -1,6 +1,12 @@
 package org.chobit.knot.gateway.upstream.provider;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.constants.AiPayloadFields;
+import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.upstream.UpstreamRequestContext;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.web.client.RestClient;
 
 import java.util.Map;
@@ -11,7 +17,7 @@ public interface UpstreamProviderAdapter {
 
     default String resolvePath(UpstreamRequestContext context, String defaultPath) {
         String bindingPath = context.binding() == null ? null : context.binding().getApiPath();
-        return hasText(bindingPath) ? bindingPath.trim() : defaultPath;
+        return StringUtils.defaultIfBlank(StringUtils.trim(bindingPath), defaultPath);
     }
 
     Map<String, Object> buildRequestBody(UpstreamRequestContext context);
@@ -22,7 +28,61 @@ public interface UpstreamProviderAdapter {
         return responseBody;
     }
 
-    private static boolean hasText(String value) {
-        return value != null && !value.isBlank();
+    default BillingUsage extractUsage(String responseBody, UpstreamRequestContext context) {
+        if (StringUtils.isBlank(responseBody)) {
+            return BillingUsage.empty();
+        }
+        if (isEventStream(responseBody)) {
+            return extractEventStreamUsage(responseBody, context);
+        }
+        Map<String, Object> body = readMap(responseBody);
+        if (body == null || body.isEmpty()) {
+            return BillingUsage.empty();
+        }
+        return extractUsageFromBody(body);
     }
+
+    @SuppressWarnings("unchecked")
+    default BillingUsage extractUsageFromBody(Map<String, Object> body) {
+        Object usage = body.get(AiPayloadFields.USAGE);
+        if (usage instanceof Map<?, ?> map) {
+            return BillingUsage.from((Map<String, Object>) map);
+        }
+        return BillingUsage.empty();
+    }
+
+    default BillingUsage extractEventStreamUsage(String responseBody, UpstreamRequestContext context) {
+        BillingUsage usage = BillingUsage.empty();
+        for (String line : responseBody.split("\\R")) {
+            String trimmed = StringUtils.trim(line);
+            if (!StringUtils.startsWith(trimmed, "data:")) {
+                continue;
+            }
+            String data = StringUtils.trim(trimmed.substring("data:".length()));
+            if (StringUtils.isEmpty(data) || "[DONE]".equals(data)) {
+                continue;
+            }
+            Map<String, Object> event = readMap(data);
+            if (event == null || event.isEmpty()) {
+                continue;
+            }
+            usage = usage.mergeMax(extractUsageFromBody(event));
+        }
+        return usage;
+    }
+
+    private static boolean isEventStream(String value) {
+        return value.lines().anyMatch(line -> StringUtils.startsWith(StringUtils.trim(line), "data:"));
+    }
+
+    private static Map<String, Object> readMap(String json) {
+        try {
+            ObjectMapper mapper = JsonKit.mapper();
+            return mapper.readValue(json, new TypeReference<>() {
+            });
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
 }

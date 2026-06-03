@@ -420,7 +420,8 @@ CREATE TABLE IF NOT EXISTS model_api_bindings (
   model_id BIGINT NOT NULL COMMENT '模型 ID，关联 models.id',
   protocol VARCHAR(64) NOT NULL COMMENT 'API 协议：OPENAI_CHAT_COMPLETIONS / OPENAI_COMPLETIONS / OPENAI_RESPONSES / ANTHROPIC_MESSAGES / OTHER',
   api_path VARCHAR(255) DEFAULT NULL COMMENT '上游 API 路径，为空时使用协议默认路径',
-  usage_extract_json JSON NOT NULL COMMENT '消耗取值逻辑，字段：usage_path, total_tokens, cached_read_tokens, cached_write_tokens, output_tokens, uncached_tokens, total_input_tokens',
+  usage_extractor VARCHAR(255) NOT NULL DEFAULT 'DEFAULT' COMMENT '非流式响应 Usage 解析器编码或类名',
+  stream_usage_extractor VARCHAR(255) DEFAULT NULL COMMENT '流式响应 Usage 解析器编码或类名，为空时复用 usage_extractor',
   status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
   remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -561,8 +562,6 @@ CREATE TABLE IF NOT EXISTS billing_rule_versions (
   KEY idx_billing_rule_versions_active (rule_id, status, effective_from, effective_to)
 );
 
-ALTER TABLE billing_rule_versions ADD COLUMN IF NOT EXISTS version_code VARCHAR(32) DEFAULT NULL;
-ALTER TABLE billing_rule_versions DROP COLUMN IF EXISTS version_name;
 
 CREATE TABLE IF NOT EXISTS billing_rule_version_items (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,

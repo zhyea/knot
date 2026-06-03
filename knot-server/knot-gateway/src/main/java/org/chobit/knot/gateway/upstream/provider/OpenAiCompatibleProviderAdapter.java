@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.upstream.provider;
 
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
@@ -37,7 +38,7 @@ public class OpenAiCompatibleProviderAdapter implements UpstreamProviderAdapter 
      */
     @Override
     public boolean supports(String providerType) {
-        return providerType == null || PROVIDER_TYPES.contains(providerType.trim().toUpperCase());
+        return providerType == null || PROVIDER_TYPES.contains(StringUtils.upperCase(StringUtils.trim(providerType)));
     }
 
     /**
@@ -45,8 +46,8 @@ public class OpenAiCompatibleProviderAdapter implements UpstreamProviderAdapter 
      */
     @Override
     public String resolvePath(UpstreamRequestContext context, String defaultPath) {
-        if (context.binding() != null && hasText(context.binding().getApiPath())) {
-            return context.binding().getApiPath().trim();
+        if (context.binding() != null && StringUtils.isNotBlank(context.binding().getApiPath())) {
+            return StringUtils.trim(context.binding().getApiPath());
         }
         if (ModelApiProtocolEnum.MESSAGES == context.protocol().canonical()) {
             return ModelApiProtocolEnum.CHAT_COMPLETIONS.defaultPath();
@@ -71,14 +72,14 @@ public class OpenAiCompatibleProviderAdapter implements UpstreamProviderAdapter 
     @Override
     public void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
         String apiKey = credentialValue(context.credential(), AuthConstants.API_KEY);
-        if (hasText(apiKey)) {
+        if (StringUtils.isNotBlank(apiKey)) {
             requestSpec.header(GatewayHeaders.AUTHORIZATION, AuthConstants.BEARER_PREFIX + apiKey);
         }
     }
 
     private String credentialValue(ProviderCredentialEntity credential, String key) {
         Object value = credentialSupport.toAuthConfig(credential).get(key);
-        return value == null ? null : String.valueOf(value).trim();
+        return StringUtils.trimToNull(value == null ? null : String.valueOf(value));
     }
 
     @SuppressWarnings("unchecked")
@@ -111,9 +112,5 @@ public class OpenAiCompatibleProviderAdapter implements UpstreamProviderAdapter 
             body.put(to, body.get(from));
         }
         body.remove(from);
-    }
-
-    private boolean hasText(String value) {
-        return value != null && !value.isBlank();
     }
 }

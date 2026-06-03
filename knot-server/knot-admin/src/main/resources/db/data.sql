@@ -137,48 +137,12 @@ INSERT IGNORE INTO external_model_sources (
 (1, 'OPENROUTER', 'OpenRouter Models', 'https://openrouter.ai/models',
  'https://openrouter.ai/api/v1/models', 'MODEL_CATALOG', 'ENABLED');
 
--- 模型 API 协议绑定（usage_extract_json 为 JSONPath 风格路径）
-INSERT IGNORE INTO model_api_bindings (id, model_id, protocol, api_path, usage_extract_json, status, remark) VALUES
-(1, 1, 'CHAT_COMPLETIONS', '/v1/chat/completions',
- JSON_OBJECT(
-   'usage_path', '$.usage',
-   'total_tokens', '$.usage.total_tokens',
-   'cached_read_tokens', '$.usage.prompt_tokens_details.cached_tokens',
-   'cached_write_tokens', '$.usage.prompt_tokens_details.cache_creation_input_tokens',
-   'output_tokens', '$.usage.completion_tokens',
-   'uncached_tokens', '$.usage.prompt_tokens',
-   'total_input_tokens', '$.usage.input_tokens'
- ), 'ENABLED', 'GPT-4o Chat Completions'),
-(2, 2, 'CHAT_COMPLETIONS', '/v1/chat/completions',
- JSON_OBJECT(
-   'usage_path', '$.usage',
-   'total_tokens', '$.usage.total_tokens',
-   'cached_read_tokens', '$.usage.prompt_tokens_details.cached_tokens',
-   'cached_write_tokens', '$.usage.prompt_tokens_details.cache_creation_input_tokens',
-   'output_tokens', '$.usage.completion_tokens',
-   'uncached_tokens', '$.usage.prompt_tokens',
-   'total_input_tokens', '$.usage.input_tokens'
- ), 'ENABLED', 'GPT-4o Mini Chat Completions'),
-(3, 4, 'MESSAGES', '/v1/messages',
- JSON_OBJECT(
-   'usage_path', '$.usage',
-   'total_tokens', '$.usage.input_tokens + $.usage.output_tokens',
-   'cached_read_tokens', '$.usage.cache_read_input_tokens',
-   'cached_write_tokens', '$.usage.cache_creation_input_tokens',
-   'output_tokens', '$.usage.output_tokens',
-   'uncached_tokens', '$.usage.input_tokens',
-   'total_input_tokens', '$.usage.input_tokens'
- ), 'ENABLED', 'Claude Sonnet Messages API'),
-(4, 6, 'CHAT_COMPLETIONS', '/v1/chat/completions',
- JSON_OBJECT(
-   'usage_path', '$.usage',
-   'total_tokens', '$.usage.total_tokens',
-   'cached_read_tokens', '$.usage.prompt_cache_hit_tokens',
-   'cached_write_tokens', '$.usage.prompt_cache_miss_tokens',
-   'output_tokens', '$.usage.completion_tokens',
-   'uncached_tokens', '$.usage.prompt_tokens',
-   'total_input_tokens', '$.usage.prompt_tokens'
- ), 'ENABLED', 'DeepSeek Chat（OpenAI 兼容）');
+-- 模型 API 协议绑定（usage_extractor 为 Usage 解析器编码或类名）
+INSERT IGNORE INTO model_api_bindings (id, model_id, protocol, api_path, usage_extractor, status, remark) VALUES
+(1, 1, 'CHAT_COMPLETIONS', '/v1/chat/completions', 'DEFAULT', 'ENABLED', 'GPT-4o Chat Completions'),
+(2, 2, 'CHAT_COMPLETIONS', '/v1/chat/completions', 'DEFAULT', 'ENABLED', 'GPT-4o Mini Chat Completions'),
+(3, 4, 'MESSAGES', '/v1/messages', 'ANTHROPIC', 'ENABLED', 'Claude Sonnet Messages API'),
+(4, 6, 'CHAT_COMPLETIONS', '/v1/chat/completions', 'DEFAULT', 'ENABLED', 'DeepSeek Chat');
 
 -- 模型版本
 INSERT IGNORE INTO model_versions (id, model_id, version, gray_percent, status) VALUES

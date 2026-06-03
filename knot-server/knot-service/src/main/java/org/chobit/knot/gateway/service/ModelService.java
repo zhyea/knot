@@ -10,19 +10,24 @@ import org.chobit.knot.gateway.converter.ModelConverter;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.dto.model.ModelDto;
+import org.chobit.knot.gateway.dto.model.ModelApiBindingDto;
 import org.chobit.knot.gateway.dto.model.ModelTestResultDto;
 import org.chobit.knot.gateway.dto.model.ModelVersionSwitchResultDto;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
+import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ModelVersionEntity;
 import org.chobit.knot.gateway.entity.ProviderModelMappingEntity;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
 import org.chobit.knot.gateway.mapper.LogicalModelMapper;
+import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.mapper.ModelVersionMapper;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.usage.UsageExtractorCatalog;
+import org.chobit.knot.gateway.vo.model.UsageExtractorItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +39,7 @@ import java.util.stream.Collectors;
 @Service
 public class ModelService {
     private final ModelMapper modelMapper;
+    private final ModelApiBindingMapper modelApiBindingMapper;
     private final ModelVersionMapper modelVersionMapper;
     private final LogicalModelMapper logicalModelMapper;
     private final BillingRuleMapper billingRuleMapper;
@@ -44,12 +50,14 @@ public class ModelService {
      * Constructs a new instance.
      */
     public ModelService(ModelMapper modelMapper,
+                        ModelApiBindingMapper modelApiBindingMapper,
                         ModelVersionMapper modelVersionMapper,
                         LogicalModelMapper logicalModelMapper,
                         BillingRuleMapper billingRuleMapper,
                         ModelConverter modelConverter,
                         ResourceTrafficPolicySupport trafficPolicySupport) {
         this.modelMapper = modelMapper;
+        this.modelApiBindingMapper = modelApiBindingMapper;
         this.modelVersionMapper = modelVersionMapper;
         this.logicalModelMapper = logicalModelMapper;
         this.billingRuleMapper = billingRuleMapper;
@@ -81,8 +89,9 @@ public class ModelService {
         List<Long> ids = entities.stream().map(ModelEntity::getId).toList();
         Map<Long, TrafficPolicies> trafficMap =
                 trafficPolicySupport.loadBatch(TrafficResourceTypeEnum.MODEL.code(), ids);
+        Map<Long, List<ModelApiBindingDto>> bindingMap = loadBindingMap(ids);
         List<ModelDto> dtos = entities.stream()
-                .map(e -> enrich(modelConverter.toDto(e), trafficMap.get(e.getId())))
+                .map(e -> enrich(modelConverter.toDto(e), trafficMap.get(e.getId()), bindingMap.get(e.getId())))
                 .collect(Collectors.toList());
         return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
@@ -117,6 +126,7 @@ public class ModelService {
             m.put("logicalModelId", dto.logicalModelId());
             m.put("billingRuleId", dto.billingRuleId());
             m.put("billingRuleName", dto.billingRuleName());
+            m.put("apiBindings", dto.apiBindings());
             m.put("rateLimitPolicy", dto.rateLimitPolicy());
             m.put("quotaPolicy", dto.quotaPolicy());
             return m;
@@ -138,6 +148,20 @@ public class ModelService {
     }
 
     /**
+     * Lists available usage extractors.
+     */
+    public List<UsageExtractorItem> listUsageExtractors() {
+        return UsageExtractorCatalog.definitions().stream()
+                .map(item -> new UsageExtractorItem(
+                        item.code(),
+                        item.label(),
+                        item.className(),
+                        item.streamSupported()
+                ))
+                .toList();
+    }
+
+    /**
      * Creates a new resource. Executes the public operation.
      */
     @Transactional
@@ -151,6 +175,7 @@ public class ModelService {
         trafficPolicySupport.save(TrafficResourceTypeEnum.MODEL.code(), entity.getId(),
                 request.rateLimitPolicy(), request.quotaPolicy());
         saveLogicalModelMapping(entity.getId(), request.logicalModelId(), modelCode);
+        saveApiBindings(entity.getId(), request.apiBindings());
         if (entity.getVersion() != null) {
             ModelVersionEntity version = new ModelVersionEntity();
             version.setModelId(entity.getId());
@@ -181,6 +206,9 @@ public class ModelService {
         trafficPolicySupport.save(TrafficResourceTypeEnum.MODEL.code(), id,
                 request.rateLimitPolicy(), request.quotaPolicy());
         saveLogicalModelMapping(id, request.logicalModelId(), modelCode);
+        if (request.apiBindings() != null) {
+            saveApiBindings(id, request.apiBindings());
+        }
         return getById(id);
     }
 
@@ -218,7 +246,7 @@ public class ModelService {
     private ModelDto enrich(ModelEntity entity) {
         TrafficPolicies traffic =
                 trafficPolicySupport.load(TrafficResourceTypeEnum.MODEL.code(), entity.getId());
-        return enrich(modelConverter.toDto(entity), traffic);
+        return enrich(modelConverter.toDto(entity), traffic, listApiBindings(entity.getId()));
     }
 
     private static String normalizeModelCode(String modelCode) {
@@ -254,11 +282,16 @@ public class ModelService {
     }
 
     private ModelDto enrich(ModelDto base, TrafficPolicies traffic) {
+        return enrich(base, traffic, null);
+    }
+
+    private ModelDto enrich(ModelDto base, TrafficPolicies traffic, List<ModelApiBindingDto> apiBindings) {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
         QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
         return new ModelDto(
                 base.id(), base.modelCode(), base.name(), base.providerId(), base.providerName(), base.modelType(),
-                base.version(), base.enabled(), resolveLogicalModelId(base.id()), base.billingRuleId(), base.billingRuleName(), rate, quota
+                base.version(), base.enabled(), resolveLogicalModelId(base.id()), base.billingRuleId(), base.billingRuleName(), rate, quota,
+                apiBindings == null ? listApiBindings(base.id()) : apiBindings
         );
     }
 
@@ -315,5 +348,71 @@ public class ModelService {
     private Long resolveLogicalModelId(Long modelId) {
         List<ProviderModelMappingEntity> mappings = logicalModelMapper.listMappingsByModelId(modelId);
         return mappings.isEmpty() ? null : mappings.get(0).getLogicalModelId();
+    }
+
+    private Map<Long, List<ModelApiBindingDto>> loadBindingMap(List<Long> modelIds) {
+        if (modelIds == null || modelIds.isEmpty()) {
+            return Map.of();
+        }
+        return modelApiBindingMapper.listByModelIds(modelIds).stream()
+                .map(this::toApiBindingDto)
+                .collect(Collectors.groupingBy(ModelApiBindingDtoWithModelId::modelId,
+                        LinkedHashMap::new,
+                        Collectors.mapping(ModelApiBindingDtoWithModelId::dto, Collectors.toList())));
+    }
+
+    private List<ModelApiBindingDto> listApiBindings(Long modelId) {
+        if (modelId == null) {
+            return List.of();
+        }
+        return modelApiBindingMapper.listByModelId(modelId).stream()
+                .map(this::toApiBindingDto)
+                .map(ModelApiBindingDtoWithModelId::dto)
+                .toList();
+    }
+
+    private ModelApiBindingDtoWithModelId toApiBindingDto(ModelApiBindingEntity entity) {
+        ModelApiBindingDto dto = new ModelApiBindingDto(
+                entity.getId(),
+                entity.getProtocol(),
+                entity.getApiPath(),
+                entity.getUsageExtractor(),
+                entity.getStreamUsageExtractor(),
+                EntityStatusEnum.ENABLED.code().equals(entity.getStatus()),
+                entity.getRemark()
+        );
+        return new ModelApiBindingDtoWithModelId(entity.getModelId(), dto);
+    }
+
+    private void saveApiBindings(Long modelId, List<ModelApiBindingDto> bindings) {
+        modelApiBindingMapper.deleteByModelId(modelId);
+        if (bindings == null || bindings.isEmpty()) {
+            return;
+        }
+        for (ModelApiBindingDto binding : bindings) {
+            String protocol = requireText(binding.protocol(), "please select API protocol");
+            ModelApiBindingEntity entity = new ModelApiBindingEntity();
+            entity.setModelId(modelId);
+            entity.setProtocol(protocol.trim().toUpperCase());
+            entity.setApiPath(blankToNull(binding.apiPath()));
+            entity.setUsageExtractor(blankToDefault(binding.usageExtractor(), "DEFAULT"));
+            entity.setStreamUsageExtractor(blankToNull(binding.streamUsageExtractor()));
+            entity.setStatus(binding.enabled() ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+            entity.setRemark(blankToNull(binding.remark()));
+            modelApiBindingMapper.insert(entity);
+        }
+    }
+
+    private static String blankToNull(String value) {
+        String text = value == null ? "" : value.trim();
+        return text.isEmpty() ? null : text;
+    }
+
+    private static String blankToDefault(String value, String defaultValue) {
+        String text = blankToNull(value);
+        return text == null ? defaultValue : text;
+    }
+
+    private record ModelApiBindingDtoWithModelId(Long modelId, ModelApiBindingDto dto) {
     }
 }
