@@ -14,6 +14,10 @@ export function checkModelCode(code, excludeId) {
   });
 }
 
+export function listUsageExtractors() {
+  return get("/api/models/usage-extractors");
+}
+
 export function createModel(payload) {
   return post("/api/models", payload);
 }

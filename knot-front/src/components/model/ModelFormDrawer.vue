@@ -2,7 +2,7 @@
   <el-drawer
     :model-value="modelValue"
     :title="isEdit ? '编辑供应商模型' : '新建供应商模型'"
-    size="50%"
+    size="62%"
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
     @closed="onClosed"
@@ -19,7 +19,7 @@
           </el-form-item>
         </div>
 
-        <el-row :gutter="16">
+        <el-row :gutter="16" class="form-grid">
           <el-col :span="12">
             <el-form-item label="模型编码" required :error="modelCodeError">
               <el-input
@@ -39,7 +39,7 @@
           </el-col>
         </el-row>
 
-        <el-row :gutter="16">
+        <el-row :gutter="16" class="form-grid">
           <el-col :span="12">
             <el-form-item label="模型类型" required>
               <EnumSelect v-model="form.modelType" category="model_type" />
@@ -58,56 +58,101 @@
       <div class="slot-body model-section">
         <div class="section-head">
           <div>
-            <h3>绑定统一模型</h3>
-            <p>供应商模型必须绑定模型广场中的统一模型，调用方只感知统一模型。</p>
+            <h3>绑定配置</h3>
+            <p>维护统一模型、供应商和计费规则之间的关系；启用前必须配置完整。</p>
           </div>
         </div>
-        <el-form-item label="绑定统一模型" required class="bind-block-item">
-          <RemoteEntitySelect
-            v-model="form.logicalModelId"
-            :load-function="loadLogicalModels"
-            :label-function="logicalModelLabel"
-            :selected-options="selectedLogicalModelOptions"
-            placeholder="请选择统一模型"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-table v-if="selectedLogicalModel" :data="[selectedLogicalModel]" border class="bind-table logical-model-bind-table">
-          <el-table-column prop="modelCode" label="统一模型编码" min-width="150" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span class="bind-list__text">{{ row.modelCode || "—" }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="统一模型名称" min-width="160" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span class="bind-list__text">{{ logicalModelName(row) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="modelType" label="模型类型" width="100" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span class="bind-list__text">{{ row.modelType || "—" }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="modelFamily" label="模型族" width="120" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span class="bind-list__text">{{ row.modelFamily || "—" }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="是否启用" width="100" align="center">
-            <template #default="{ row }">
-              <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
-                {{ row.enabled === false ? "停用" : "启用" }}
-              </el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
 
-        <div class="bind-subsection">
-          <div class="bind-subsection__head">
-            <h3>绑定计费规则</h3>
-            <p>根据当前供应商和统一模型筛选成本规则，供应商模型必须绑定计费规则。</p>
+        <div class="binding-stack">
+          <div class="binding-card">
+            <div class="binding-card__head">
+              <span>统一模型</span>
+              <small>调用方感知的模型名称</small>
+            </div>
+            <el-form-item label="绑定统一模型" required class="bind-block-item">
+              <RemoteEntitySelect
+                v-model="form.logicalModelId"
+                :load-function="loadLogicalModels"
+                :label-function="logicalModelLabel"
+                :selected-options="selectedLogicalModelOptions"
+                placeholder="请选择统一模型"
+                style="width: 100%"
+              />
+            </el-form-item>
+            <el-table v-if="selectedLogicalModel" :data="[selectedLogicalModel]" border class="bind-table logical-model-bind-table">
+              <el-table-column prop="modelCode" label="统一模型编码" min-width="150" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <span class="bind-list__text">{{ row.modelCode || "—" }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="统一模型名称" min-width="160" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <span class="bind-list__text">{{ logicalModelName(row) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="modelType" label="模型类型" width="100" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <span class="bind-list__text">{{ row.modelType || "—" }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="modelFamily" label="模型族" width="120" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <span class="bind-list__text">{{ row.modelFamily || "—" }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="是否启用" width="100" align="center">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
+                    {{ row.enabled === false ? "停用" : "启用" }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
           </div>
-          <el-form-item label="绑定计费规则" required class="bind-block-item">
+
+          <div class="binding-grid">
+            <div class="binding-card">
+              <div class="binding-card__head">
+                <span>供应商</span>
+                <small>凭证和上游地址来源</small>
+              </div>
+              <el-form-item label="绑定供应商" required class="bind-block-item">
+                <RemoteEntitySelect
+                  v-model="form.providerId"
+                  :load-function="loadProviders"
+                  :label-function="providerLabel"
+                  :selected-options="selectedProviderOptions"
+                  placeholder="请选择供应商"
+                  style="width: 100%"
+                />
+              </el-form-item>
+              <el-table v-if="selectedProvider" :data="[selectedProvider]" border class="bind-table provider-bind-table">
+                <el-table-column prop="code" label="供应商编码" min-width="160" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <span class="bind-list__text">{{ row.code || "—" }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="name" label="供应商名称" min-width="160" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <span class="bind-list__text">{{ row.name || "—" }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="是否启用" width="100" align="center">
+                  <template #default="{ row }">
+                    <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
+                      {{ row.enabled === false ? "停用" : "启用" }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+
+            <div class="binding-card">
+              <div class="binding-card__head">
+                <span>计费规则</span>
+                <small>按供应商和统一模型筛选</small>
+              </div>
+              <el-form-item label="绑定计费规则" required class="bind-block-item">
             <RemoteEntitySelect
               v-model="form.billingRuleId"
               :load-function="loadBillingRules"
@@ -118,31 +163,33 @@
               placeholder="请选择计费规则"
               style="width: 100%"
             />
-          </el-form-item>
-          <el-table v-if="selectedBillingRule" :data="[selectedBillingRule]" border class="bind-table billing-rule-bind-table">
-            <el-table-column prop="code" label="规则编码" min-width="150" show-overflow-tooltip>
-              <template #default="{ row }">
-                <span class="bind-list__text">{{ row.code || "—" }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="name" label="规则名称" min-width="180" show-overflow-tooltip>
-              <template #default="{ row }">
-                <span class="bind-list__text">{{ row.name || "—" }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="版本" width="80" show-overflow-tooltip>
-              <template #default="{ row }">
-                <span class="bind-list__text">v{{ row.versionNo || 1 }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="是否启用" width="90" align="center">
-              <template #default="{ row }">
-                <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
-                  {{ row.enabled === false ? "停用" : "启用" }}
-                </el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
+              </el-form-item>
+              <el-table v-if="selectedBillingRule" :data="[selectedBillingRule]" border class="bind-table billing-rule-bind-table">
+                <el-table-column prop="code" label="规则编码" min-width="150" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <span class="bind-list__text">{{ row.code || "—" }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="name" label="规则名称" min-width="180" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <span class="bind-list__text">{{ row.name || "—" }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="版本" width="80" show-overflow-tooltip>
+                  <template #default="{ row }">
+                    <span class="bind-list__text">v{{ row.versionNo || 1 }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="是否启用" width="90" align="center">
+                  <template #default="{ row }">
+                    <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
+                      {{ row.enabled === false ? "停用" : "启用" }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -151,39 +198,77 @@
       <div class="slot-body model-section">
         <div class="section-head">
           <div>
-            <h3>绑定供应商</h3>
-            <p>选择模型所属供应商，用于凭证、协议和调用地址定位。</p>
+            <h3>调用配置</h3>
+            <p>按接口协议维护上游路径，并配置响应中的 Usage 解析器。</p>
+          </div>
+          <el-button size="small" @click="addApiBinding">新增协议</el-button>
+        </div>
+        <div class="api-usage-section">
+          <div v-if="form.apiBindings.length === 0" class="empty-api-binding">
+            暂未配置 API 协议，网关会使用协议默认路径和厂商默认 usage 解析逻辑。
+          </div>
+          <div v-for="(binding, index) in form.apiBindings" :key="binding.uid" class="api-binding-card">
+            <div class="api-binding-card__head">
+              <span>协议 {{ index + 1 }}</span>
+              <el-button text type="danger" @click="removeApiBinding(index)">删除</el-button>
+            </div>
+            <el-row :gutter="12" class="api-binding-card__row">
+              <el-col :span="8">
+                <el-form-item label="接口协议" required>
+                  <EnumSelect v-model="binding.protocol" category="model_api_protocol" show-code />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="上游路径">
+                  <el-input v-model="binding.apiPath" placeholder="为空时使用协议默认路径" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="启用">
+                  <el-switch v-model="binding.enabled" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="12" class="api-binding-card__row">
+              <el-col :span="12">
+                <el-form-item label="Usage解析器">
+                  <el-select
+                    v-model="binding.usageExtractor"
+                    filterable
+                    placeholder="请选择 Usage 解析器"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="item in usageExtractorOptions"
+                      :key="item.code"
+                      :label="usageExtractorLabel(item)"
+                      :value="item.code"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="流式解析器">
+                  <el-select
+                    v-model="binding.streamUsageExtractor"
+                    clearable
+                    filterable
+                    placeholder="留空时复用 Usage解析器"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="item in streamUsageExtractorOptions"
+                      :key="item.code"
+                      :label="usageExtractorLabel(item)"
+                      :value="item.code"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
           </div>
         </div>
-        <el-form-item label="绑定供应商" required class="bind-block-item">
-          <RemoteEntitySelect
-            v-model="form.providerId"
-            :load-function="loadProviders"
-            :label-function="providerLabel"
-            :selected-options="selectedProviderOptions"
-            placeholder="请选择供应商"
-            style="width: 100%"
-          />
-        </el-form-item>
-        <el-table v-if="selectedProvider" :data="[selectedProvider]" border class="bind-table provider-bind-table">
-          <el-table-column prop="code" label="供应商编码" min-width="160" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span class="bind-list__text">{{ row.code || "—" }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="name" label="供应商名称" min-width="160" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span class="bind-list__text">{{ row.name || "—" }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="是否启用" width="100" align="center">
-            <template #default="{ row }">
-              <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
-                {{ row.enabled === false ? "停用" : "启用" }}
-              </el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
       </div>
 
       <div class="space-line" />
@@ -195,12 +280,18 @@
             <p>按需配置模型级频控和额度策略；留空则不在模型维度覆盖。</p>
           </div>
         </div>
-        <el-form-item label="频控策略">
-          <KvEditor v-model="form.rateLimitPolicy" value-mode="number" />
-        </el-form-item>
-        <el-form-item label="额度策略">
-          <KvEditor v-model="form.quotaPolicy" value-mode="number" />
-        </el-form-item>
+        <el-row :gutter="16" class="policy-grid">
+          <el-col :span="12">
+            <el-form-item label="Rate Limit">
+              <KvEditor v-model="form.rateLimitPolicy" value-mode="number" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="额度策略">
+              <KvEditor v-model="form.quotaPolicy" value-mode="number" />
+            </el-form-item>
+          </el-col>
+        </el-row>
       </div>
     </el-form>
 
@@ -226,7 +317,7 @@ import {
   normalizeQuotaPolicy,
   normalizeRateLimitPolicy
 } from "../../utils/trafficPolicy";
-import { checkModelCode, createModel, getModel, updateModel } from "../../api/models";
+import { checkModelCode, createModel, getModel, listUsageExtractors, updateModel } from "../../api/models";
 import { listLogicalModels } from "../../api/logicalModels";
 import { listProviders } from "../../api/providers";
 import { listBillingRules } from "../../api/billing";
@@ -242,6 +333,7 @@ const { options: modelTypeOptions, loadOptions: loadModelTypes } = useEnums("mod
 const providerOptions = ref([]);
 const logicalModelOptions = ref([]);
 const billingRuleOptions = ref([]);
+const usageExtractorOptions = ref([]);
 const saving = ref(false);
 const detailLoading = ref(false);
 const modelCodeChecking = ref(false);
@@ -262,7 +354,8 @@ const form = reactive({
   version: "1.0.0",
   enabled: false,
   rateLimitPolicy: emptyRateLimitPolicy(),
-  quotaPolicy: emptyQuotaPolicy()
+  quotaPolicy: emptyQuotaPolicy(),
+  apiBindings: []
 });
 
 const isEdit = computed(() => props.model != null);
@@ -285,6 +378,9 @@ const billingRuleFilterParams = computed(() => ({
   providerId: form.providerId ?? undefined,
   logicalModelId: form.logicalModelId ?? undefined
 }));
+const streamUsageExtractorOptions = computed(() =>
+  usageExtractorOptions.value.filter((item) => item.streamSupported !== false)
+);
 
 async function loadProviders(params = { pageNum: 1, pageSize: 10 }) {
   const data = await listProviders(params);
@@ -305,6 +401,12 @@ async function loadBillingRules(params = { pageNum: 1, pageSize: 10 }) {
     logicalModelId: params.logicalModelId ?? form.logicalModelId ?? undefined
   });
   mergeOptions(billingRuleOptions, Array.isArray(data?.list) ? data.list : []);
+  return data;
+}
+
+async function loadUsageExtractors() {
+  const data = await listUsageExtractors();
+  usageExtractorOptions.value = Array.isArray(data) ? data : [];
   return data;
 }
 
@@ -334,6 +436,10 @@ function billingRuleLabel(rule) {
   return rule.code ? `${rule.name || rule.code} (${rule.code}, v${rule.versionNo || 1})` : `#${rule.id}`;
 }
 
+function usageExtractorLabel(item) {
+  return item?.label ? `${item.label} (${item.code})` : item?.code || "";
+}
+
 function fillForm(row) {
   form.id = row.id;
   form.modelCode = row.modelCode || "";
@@ -346,6 +452,7 @@ function fillForm(row) {
   form.enabled = row.enabled === true;
   form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
   form.quotaPolicy = normalizeQuotaPolicy(row.quotaPolicy);
+  form.apiBindings = normalizeApiBindings(row.apiBindings);
   if (form.modelCode) {
     modelCodeValidated.value = true;
   }
@@ -405,6 +512,7 @@ async function resetForm() {
       form.enabled = false;
       form.rateLimitPolicy = emptyRateLimitPolicy();
       form.quotaPolicy = emptyQuotaPolicy();
+      form.apiBindings = [];
     }
   } finally {
     resettingForm.value = false;
@@ -415,7 +523,7 @@ watch(
   () => [props.modelValue, props.model],
   async ([visible]) => {
     if (visible) {
-      await Promise.all([loadProviders(), loadLogicalModels(), loadBillingRules(), loadModelTypes()]);
+      await Promise.all([loadProviders(), loadLogicalModels(), loadBillingRules(), loadModelTypes(), loadUsageExtractors()]);
       await resetForm();
     }
   }
@@ -480,6 +588,63 @@ function beforeEnableChange() {
   return true;
 }
 
+function createApiBinding(source = {}) {
+  return {
+    uid: source.uid || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    id: source.id ?? null,
+    protocol: source.protocol || "CHAT_COMPLETIONS",
+    apiPath: source.apiPath || "",
+    usageExtractor: source.usageExtractor || "DEFAULT",
+    streamUsageExtractor: source.streamUsageExtractor || "",
+    enabled: source.enabled !== false,
+    remark: source.remark || ""
+  };
+}
+
+function normalizeApiBindings(list) {
+  return Array.isArray(list) ? list.map((item) => createApiBinding(item)) : [];
+}
+
+function addApiBinding() {
+  form.apiBindings.push(createApiBinding());
+}
+
+function removeApiBinding(index) {
+  form.apiBindings.splice(index, 1);
+}
+
+function validateApiBindings() {
+  const protocols = new Set();
+  for (const binding of form.apiBindings) {
+    if (!binding.protocol) {
+      ElMessage.warning("Please select API protocol");
+      return false;
+    }
+    if (protocols.has(binding.protocol)) {
+      ElMessage.warning("API protocol cannot be duplicated");
+      return false;
+    }
+    protocols.add(binding.protocol);
+    if (!binding.usageExtractor?.trim()) {
+      ElMessage.warning(`Usage extractor is required: ${binding.protocol}`);
+      return false;
+    }
+  }
+  return true;
+}
+
+function buildApiBindingsPayload() {
+  return form.apiBindings.map((binding) => ({
+    id: binding.id,
+    protocol: binding.protocol,
+    apiPath: binding.apiPath?.trim() || null,
+    usageExtractor: binding.usageExtractor?.trim() || "DEFAULT",
+    streamUsageExtractor: binding.streamUsageExtractor?.trim() || null,
+    enabled: binding.enabled,
+    remark: binding.remark?.trim() || null
+  }));
+}
+
 function buildPayload() {
   return {
     modelCode: form.modelCode?.trim(),
@@ -491,7 +656,8 @@ function buildPayload() {
     version: form.version,
     enabled: form.enabled,
     rateLimitPolicy: isEmptyRateLimitPolicy(form.rateLimitPolicy) ? null : normalizeRateLimitPolicy(form.rateLimitPolicy),
-    quotaPolicy: isEmptyQuotaPolicy(form.quotaPolicy) ? null : normalizeQuotaPolicy(form.quotaPolicy)
+    quotaPolicy: isEmptyQuotaPolicy(form.quotaPolicy) ? null : normalizeQuotaPolicy(form.quotaPolicy),
+    apiBindings: buildApiBindingsPayload()
   };
 }
 
@@ -500,6 +666,9 @@ async function submit() {
     return;
   }
   if (!(await validateModelCode())) {
+    return;
+  }
+  if (!validateApiBindings()) {
     return;
   }
   saving.value = true;
@@ -535,6 +704,11 @@ async function submit() {
   box-shadow: 0 8px 24px rgba(31, 45, 61, 0.04);
 }
 
+.form-grid :deep(.el-form-item),
+.policy-grid :deep(.el-form-item) {
+  margin-bottom: 14px;
+}
+
 .section-head {
   display: flex;
   align-items: flex-start;
@@ -568,6 +742,51 @@ async function submit() {
   height: 14px;
 }
 
+.binding-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.binding-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr;
+}
+
+.binding-card,
+.api-binding-card {
+  border: 1px solid var(--knot-border, #e4e7ed);
+  background: var(--knot-panel, #fff);
+  padding: 14px;
+}
+
+.binding-card__head,
+.api-binding-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--knot-border, #ebeef5);
+}
+
+.binding-card__head span,
+.api-binding-card__head span {
+  color: var(--knot-text, #303133);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.binding-card__head small {
+  color: #909399;
+  font-size: 12px;
+}
+
+.bind-block-item {
+  margin-bottom: 10px;
+}
+
 .bind-table {
   margin-top: 10px;
   width: 100%;
@@ -595,28 +814,22 @@ async function submit() {
   white-space: nowrap;
 }
 
-.bind-subsection {
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid var(--knot-border, #ebeef5);
+.api-usage-section {
+  display: grid;
+  gap: 12px;
 }
 
-.bind-subsection__head {
-  margin-bottom: 12px;
+.api-binding-card__row + .api-binding-card__row {
+  margin-top: 4px;
 }
 
-.bind-subsection__head h3 {
-  margin: 0 0 4px;
-  color: var(--knot-text, #303133);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.bind-subsection__head p {
-  margin: 0;
+.empty-api-binding {
+  border: 1px dashed var(--knot-border, #dcdfe6);
+  background: var(--knot-panel-muted, #fafafa);
   color: #909399;
   font-size: 12px;
-  line-height: 1.5;
+  padding: 14px;
+  text-align: center;
 }
 
 @media (max-width: 900px) {
@@ -627,5 +840,6 @@ async function submit() {
   .inline-switch {
     margin-top: 12px;
   }
+
 }
 </style>
