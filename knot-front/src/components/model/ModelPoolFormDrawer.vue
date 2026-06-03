@@ -3,10 +3,12 @@
     :model-value="modelValue"
     :title="isEdit ? '编辑模型池' : '新建模型池'"
     size="60%"
+    class="drawer-with-scrollbar"
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
     @closed="onClosed"
   >
+    <el-scrollbar max-height="calc(100vh - 140px)">
     <el-form :model="form" label-width="100px" class="model-pool-form">
       <div class="slot-body pool-section">
         <div class="section-head">
@@ -121,6 +123,7 @@
         </el-table>
       </div>
     </el-form>
+    </el-scrollbar>
 
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>

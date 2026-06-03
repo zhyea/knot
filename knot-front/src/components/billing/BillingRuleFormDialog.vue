@@ -4,8 +4,10 @@
     :title="isEdit ? '编辑计费规则' : '新建计费规则'"
     direction="rtl"
     size="55%"
+    class="drawer-with-scrollbar"
     destroy-on-close
   >
+    <el-scrollbar max-height="calc(100vh - 140px)">
     <el-form :model="form" label-width="118px" class="billing-rule-form">
       <div class="slot-body form-section">
         <div class="section-head">
@@ -100,6 +102,7 @@
         </el-form-item>
       </div>
     </el-form>
+    </el-scrollbar>
     <template #footer>
       <el-button @click="visible = false">取消</el-button>
       <el-button type="primary" :loading="saving" @click="submit">保存</el-button>

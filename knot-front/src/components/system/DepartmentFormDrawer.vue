@@ -3,6 +3,7 @@
       :model-value="modelValue"
       :title="isEdit ? '编辑部门' : '新建部门'"
       size="40%"
+      class="drawer-with-scrollbar"
       destroy-on-close
       @update:model-value="emit('update:modelValue', $event)"
   >

@@ -1,46 +1,49 @@
 <template>
   <el-drawer
       :model-value="modelValue"
-      :title="`枚举值 — ${category || ''}`"
+      :title="`枚举值 - ${category || ''}`"
       size="50%"
+      class="drawer-with-scrollbar"
       destroy-on-close
       @update:model-value="emit('update:modelValue', $event)"
       @closed="onClosed"
   >
-    <div class="drawer-toolbar">
-      <el-button type="primary" size="small" @click="emit('create')">新增枚举值</el-button>
-      <el-button size="small" @click="load">刷新</el-button>
-    </div>
-    <el-table v-loading="loading" :data="items" stripe border size="small">
-      <el-table-column prop="id" label="ID" width="70" align="center"/>
-      <el-table-column prop="itemCode" label="编码" width="140" show-overflow-tooltip/>
-      <el-table-column prop="itemLabel" label="显示名" min-width="120" show-overflow-tooltip/>
-      <el-table-column prop="sortOrder" label="排序" width="72" align="center"/>
-      <el-table-column label="启用" width="88" align="center">
-        <template #default="{ row }">
-          <el-switch
-              :model-value="row.isEnabled !== false"
-              :loading="togglingId === row.id"
-              :disabled="row.isSystem"
-              inline-prompt
-              active-text="启用"
-              inactive-text="禁用"
-              @change="(val) => onEnabledChange(row, val)"
-          />
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="110" align="center" header-align="center" fixed="right">
-        <template #default="{ row }">
-          <RowActions
-            :actions="[
-              { key: 'edit', label: '编辑', icon: Edit, disabled: row.isSystem },
-              { key: 'delete', label: '删除', icon: Delete, type: 'danger', disabled: row.isSystem }
-            ]"
-            @action="(action) => handleAction(action, row)"
-          />
-        </template>
-      </el-table-column>
-    </el-table>
+    <el-scrollbar max-height="calc(100vh - 140px)">
+      <div class="drawer-toolbar">
+        <el-button type="primary" size="small" @click="emit('create')">新增枚举值</el-button>
+        <el-button size="small" @click="load">刷新</el-button>
+      </div>
+      <el-table v-loading="loading" :data="items" stripe border size="small">
+        <el-table-column prop="id" label="ID" width="70" align="center"/>
+        <el-table-column prop="itemCode" label="编码" width="140" show-overflow-tooltip/>
+        <el-table-column prop="itemLabel" label="显示名" min-width="120" show-overflow-tooltip/>
+        <el-table-column prop="sortOrder" label="排序" width="72" align="center"/>
+        <el-table-column label="启用" width="88" align="center">
+          <template #default="{ row }">
+            <el-switch
+                :model-value="row.isEnabled !== false"
+                :loading="togglingId === row.id"
+                :disabled="row.isSystem"
+                inline-prompt
+                active-text="启用"
+                inactive-text="禁用"
+                @change="(val) => onEnabledChange(row, val)"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="110" align="center" header-align="center" fixed="right">
+          <template #default="{ row }">
+            <RowActions
+              :actions="[
+                { key: 'edit', label: '编辑', icon: Edit, disabled: row.isSystem },
+                { key: 'delete', label: '删除', icon: Delete, type: 'danger', disabled: row.isSystem }
+              ]"
+              @action="(action) => handleAction(action, row)"
+            />
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-scrollbar>
   </el-drawer>
 </template>
 

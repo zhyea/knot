@@ -3,10 +3,12 @@
     :model-value="modelValue"
     :title="drawerTitle"
     size="50%"
+    class="drawer-with-scrollbar"
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
     @closed="onClosed"
   >
+    <el-scrollbar max-height="calc(100vh - 140px)">
     <el-form label-width="96px" class="test-form">
       <el-form-item label="API Key" required>
         <el-input
@@ -75,6 +77,7 @@
       </template>
     </section>
 
+    </el-scrollbar>
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">关闭</el-button>
     </template>

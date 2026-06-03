@@ -3,9 +3,11 @@
     :model-value="modelValue"
     title="外部模型详情"
     size="60%"
+    class="drawer-with-scrollbar"
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <el-scrollbar max-height="calc(100vh - 140px)">
     <el-descriptions v-if="detail" :column="1" border class="external-model-detail">
       <el-descriptions-item label="模型名称">{{ detail.modelName || "—" }}</el-descriptions-item>
       <el-descriptions-item label="模型 ID">{{ detail.modelId || "—" }}</el-descriptions-item>
@@ -24,6 +26,7 @@
     </el-descriptions>
     <div class="raw-title">原始数据</div>
     <JsonCodeEditor :model-value="rawJsonText" readonly min-height="225px" max-height="560px" />
+    </el-scrollbar>
   </el-drawer>
 </template>
 

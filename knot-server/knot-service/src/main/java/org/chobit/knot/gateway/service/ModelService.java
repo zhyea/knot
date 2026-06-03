@@ -14,6 +14,7 @@ import org.chobit.knot.gateway.dto.model.ModelApiBindingDto;
 import org.chobit.knot.gateway.dto.model.ModelTestResultDto;
 import org.chobit.knot.gateway.dto.model.ModelVersionSwitchResultDto;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
+import org.chobit.knot.gateway.entity.LogicalModelEntity;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ModelVersionEntity;
@@ -301,8 +302,15 @@ public class ModelService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择供应商");
         }
         requireText(request.modelType(), "请选择模型类型");
-        if (request.logicalModelId() == null || logicalModelMapper.getById(request.logicalModelId()) == null) {
+        if (request.logicalModelId() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择统一模型");
+        }
+        LogicalModelEntity logicalModel = logicalModelMapper.getById(request.logicalModelId());
+        if (logicalModel == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择统一模型");
+        }
+        if (!EntityStatusEnum.ENABLED.code().equals(logicalModel.getStatus())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "只能绑定已启用的统一模型");
         }
         if (request.billingRuleId() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "billing rule is required");

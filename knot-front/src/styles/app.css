@@ -46,6 +46,23 @@ body,
     min-width: 0;
 }
 
+.drawer-with-scrollbar .el-drawer__body {
+    overflow: hidden;
+    padding: 0;
+}
+
+.drawer-with-scrollbar .el-drawer__body > .el-scrollbar {
+    height: 100%;
+}
+
+.drawer-with-scrollbar .el-drawer__body > .el-scrollbar > .el-scrollbar__wrap > .el-scrollbar__view {
+    padding: 20px;
+}
+
+.drawer-with-scrollbar .el-drawer__body > .el-scrollbar > .el-scrollbar__bar.is-vertical {
+    right: 0;
+}
+
 .toolbar {
     display: flex;
     align-items: center;

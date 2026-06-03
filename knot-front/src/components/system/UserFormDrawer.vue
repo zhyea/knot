@@ -3,9 +3,11 @@
       :model-value="modelValue"
       :title="isEdit ? '编辑用户' : '新建用户'"
       size="40%"
+      class="drawer-with-scrollbar"
       destroy-on-close
       @update:model-value="emit('update:modelValue', $event)"
   >
+    <el-scrollbar max-height="calc(100vh - 140px)">
     <el-form :model="form" label-width="90px">
       <div class="slot-body">
         <el-form-item label="用户名">
@@ -53,6 +55,7 @@
         </el-form-item>
       </div>
     </el-form>
+    </el-scrollbar>
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
       <el-button type="primary" :loading="saving" @click="submit">保存</el-button>

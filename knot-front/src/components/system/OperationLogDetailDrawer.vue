@@ -1,5 +1,6 @@
 <template>
-  <el-drawer v-model="visible" title="日志详情" size="45%">
+  <el-drawer v-model="visible" title="日志详情" size="45%" class="drawer-with-scrollbar">
+    <el-scrollbar max-height="calc(100vh - 140px)">
     <el-descriptions v-if="log" :column="2" border>
       <el-descriptions-item label="模块">{{ log.module }}</el-descriptions-item>
       <el-descriptions-item label="操作">{{ log.operation }}</el-descriptions-item>
@@ -28,6 +29,7 @@
         <el-input :model-value="log.errorMsg" type="textarea" :rows="4" readonly />
       </el-descriptions-item>
     </el-descriptions>
+    </el-scrollbar>
   </el-drawer>
 </template>
 

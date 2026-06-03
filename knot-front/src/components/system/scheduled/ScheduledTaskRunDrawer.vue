@@ -1,10 +1,12 @@
 <template>
-  <el-drawer v-model="visible" :title="title" size="70%">
-    <ScheduledTaskRunPanel
-      v-if="visible"
-      ref="runPanelRef"
-      :fixed-task-code="task?.taskCode"
-    />
+  <el-drawer v-model="visible" :title="title" size="70%" class="drawer-with-scrollbar">
+    <el-scrollbar max-height="calc(100vh - 140px)">
+      <ScheduledTaskRunPanel
+        v-if="visible"
+        ref="runPanelRef"
+        :fixed-task-code="task?.taskCode"
+      />
+    </el-scrollbar>
   </el-drawer>
 </template>
 

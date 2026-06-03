@@ -3,10 +3,12 @@
     :model-value="modelValue"
     :title="isEdit ? '编辑供应商模型' : '新建供应商模型'"
     size="62%"
+    class="drawer-with-scrollbar"
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
     @closed="onClosed"
   >
+    <el-scrollbar max-height="calc(100vh - 140px)">
     <el-form v-loading="detailLoading" :model="form" label-width="110px" class="model-form">
       <div class="slot-body model-section">
         <div class="section-head">
@@ -215,7 +217,12 @@
             <el-row :gutter="12" class="api-binding-card__row">
               <el-col :span="8">
                 <el-form-item label="接口协议" required>
-                  <EnumSelect v-model="binding.protocol" category="model_api_protocol" show-code />
+                  <EnumSelect
+                    v-model="binding.protocol"
+                    category="model_api_protocol"
+                    :include-codes="allowedApiProtocolCodes"
+                    show-code
+                  />
                 </el-form-item>
               </el-col>
               <el-col :span="8">
@@ -294,6 +301,7 @@
         </el-row>
       </div>
     </el-form>
+    </el-scrollbar>
 
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
@@ -342,6 +350,44 @@ const modelCodeValidated = ref(false);
 const resettingForm = ref(false);
 
 const MODEL_CODE_MAX_LEN = 128;
+const FALLBACK_API_PROTOCOL_CODES = ["CUSTOM", "OTHER"];
+const MODEL_TYPE_API_PROTOCOLS = {
+  CHAT: [
+    "CHAT_COMPLETIONS",
+    "RESPONSES",
+    "MESSAGES",
+    "COMPLETIONS",
+    "OPENAI_CHAT_COMPLETIONS",
+    "OPENAI_RESPONSES",
+    "ANTHROPIC_MESSAGES",
+    "OPENAI_COMPLETIONS"
+  ],
+  TEXT: [
+    "CHAT_COMPLETIONS",
+    "RESPONSES",
+    "MESSAGES",
+    "COMPLETIONS",
+    "OPENAI_CHAT_COMPLETIONS",
+    "OPENAI_RESPONSES",
+    "ANTHROPIC_MESSAGES",
+    "OPENAI_COMPLETIONS"
+  ],
+  REASONING: [
+    "CHAT_COMPLETIONS",
+    "RESPONSES",
+    "MESSAGES",
+    "COMPLETIONS",
+    "OPENAI_CHAT_COMPLETIONS",
+    "OPENAI_RESPONSES",
+    "ANTHROPIC_MESSAGES",
+    "OPENAI_COMPLETIONS"
+  ],
+  EMBEDDING: ["EMBEDDINGS"],
+  IMAGE: ["IMAGE_GENERATIONS", "IMAGE_EDITS"],
+  AUDIO: ["AUDIO_TRANSCRIPTIONS", "AUDIO_TRANSLATIONS", "AUDIO_SPEECH"],
+  VIDEO: ["VIDEO_GENERATIONS"],
+  RERANK: ["RERANK"]
+};
 
 const form = reactive({
   id: null,
@@ -381,6 +427,7 @@ const billingRuleFilterParams = computed(() => ({
 const streamUsageExtractorOptions = computed(() =>
   usageExtractorOptions.value.filter((item) => item.streamSupported !== false)
 );
+const allowedApiProtocolCodes = computed(() => allowedProtocolsForModelType(form.modelType));
 
 async function loadProviders(params = { pageNum: 1, pageSize: 10 }) {
   const data = await listProviders(params);
@@ -390,8 +437,10 @@ async function loadProviders(params = { pageNum: 1, pageSize: 10 }) {
 
 async function loadLogicalModels(params = { pageNum: 1, pageSize: 10 }) {
   const data = await listLogicalModels(params);
-  mergeOptions(logicalModelOptions, Array.isArray(data?.list) ? data.list : []);
-  return data;
+  const list = Array.isArray(data?.list) ? data.list.filter(isEnabledLogicalModel) : [];
+  mergeOptions(logicalModelOptions, list);
+  logicalModelOptions.value = logicalModelOptions.value.filter(isEnabledLogicalModel);
+  return { ...(data || {}), list };
 }
 
 async function loadBillingRules(params = { pageNum: 1, pageSize: 10 }) {
@@ -430,6 +479,10 @@ function logicalModelName(model) {
 
 function logicalModelLabel(model) {
   return model.modelCode ? `${logicalModelName(model)} (${model.modelCode})` : logicalModelName(model);
+}
+
+function isEnabledLogicalModel(model) {
+  return model?.enabled !== false;
 }
 
 function billingRuleLabel(rule) {
@@ -479,6 +532,16 @@ watch(
       form.billingRuleId = null;
       billingRuleOptions.value = [];
     }
+  }
+);
+
+watch(
+  () => form.modelType,
+  () => {
+    if (!props.modelValue || resettingForm.value) {
+      return;
+    }
+    normalizeApiBindingProtocols();
   }
 );
 
@@ -578,7 +641,16 @@ function validateRequired(showMessage = true) {
   if (failed && showMessage) {
     ElMessage.warning(failed[1]);
   }
-  return !failed;
+  if (failed) {
+    return false;
+  }
+  if (!selectedLogicalModel.value || !isEnabledLogicalModel(selectedLogicalModel.value)) {
+    if (showMessage) {
+      ElMessage.warning("只能绑定已启用的统一模型");
+    }
+    return false;
+  }
+  return true;
 }
 
 function beforeEnableChange() {
@@ -592,7 +664,7 @@ function createApiBinding(source = {}) {
   return {
     uid: source.uid || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     id: source.id ?? null,
-    protocol: source.protocol || "CHAT_COMPLETIONS",
+    protocol: normalizeProtocolForModelType(source.protocol),
     apiPath: source.apiPath || "",
     usageExtractor: source.usageExtractor || "DEFAULT",
     streamUsageExtractor: source.streamUsageExtractor || "",
@@ -606,7 +678,8 @@ function normalizeApiBindings(list) {
 }
 
 function addApiBinding() {
-  form.apiBindings.push(createApiBinding());
+  const usedProtocols = new Set(form.apiBindings.map((item) => normalizeProtocolCode(item.protocol)).filter(Boolean));
+  form.apiBindings.push(createApiBinding({ protocol: firstAvailableProtocolCode(usedProtocols) }));
 }
 
 function removeApiBinding(index) {
@@ -620,6 +693,10 @@ function validateApiBindings() {
       ElMessage.warning("Please select API protocol");
       return false;
     }
+    if (!isProtocolAllowedForModelType(binding.protocol)) {
+      ElMessage.warning(`API protocol does not match model type: ${binding.protocol}`);
+      return false;
+    }
     if (protocols.has(binding.protocol)) {
       ElMessage.warning("API protocol cannot be duplicated");
       return false;
@@ -631,6 +708,44 @@ function validateApiBindings() {
     }
   }
   return true;
+}
+
+function allowedProtocolsForModelType(modelType) {
+  const type = String(modelType || "CHAT").trim().toUpperCase();
+  const codes = MODEL_TYPE_API_PROTOCOLS[type] || MODEL_TYPE_API_PROTOCOLS.CHAT;
+  return [...codes, ...FALLBACK_API_PROTOCOL_CODES];
+}
+
+function isProtocolAllowedForModelType(protocol) {
+  const code = normalizeProtocolCode(protocol);
+  return Boolean(code) && allowedApiProtocolCodes.value.includes(code);
+}
+
+function firstAllowedProtocolCode() {
+  return allowedApiProtocolCodes.value[0] || "CHAT_COMPLETIONS";
+}
+
+function firstAvailableProtocolCode(usedProtocols = new Set()) {
+  return allowedApiProtocolCodes.value.find((code) => !usedProtocols.has(code)) || firstAllowedProtocolCode();
+}
+
+function normalizeProtocolCode(protocol) {
+  return String(protocol || "").trim().toUpperCase();
+}
+
+function normalizeProtocolForModelType(protocol, usedProtocols = new Set()) {
+  const code = normalizeProtocolCode(protocol);
+  return code && isProtocolAllowedForModelType(code) && !usedProtocols.has(code)
+    ? code
+    : firstAvailableProtocolCode(usedProtocols);
+}
+
+function normalizeApiBindingProtocols() {
+  const usedProtocols = new Set();
+  for (const binding of form.apiBindings) {
+    binding.protocol = normalizeProtocolForModelType(binding.protocol, usedProtocols);
+    usedProtocols.add(binding.protocol);
+  }
 }
 
 function buildApiBindingsPayload() {

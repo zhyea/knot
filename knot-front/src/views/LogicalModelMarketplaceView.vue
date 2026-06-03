@@ -108,7 +108,7 @@ function setupAutoLayout() {
     }
     resizeTimer = setTimeout(() => recalcLayout(false), 120);
   });
-  [getBodyEl(), getToolbarEl(), getPaginationEl()]
+  [getViewportEl(), getToolbarEl(), getPaginationEl()]
     .filter(Boolean)
     .forEach((el) => resizeObserver.observe(el));
 }
@@ -157,8 +157,18 @@ function clamp(value, min, max) {
 }
 
 function getAvailableGridHeight() {
-  const bodyHeight = getBodyEl()?.clientHeight || 0;
-  const reservedHeight = getOuterHeight(getToolbarEl()) + getOuterHeight(getPaginationEl());
+  const viewport = getViewportEl();
+  const body = getBodyEl();
+  if (!viewport || !body) {
+    return 0;
+  }
+  const viewportRect = viewport.getBoundingClientRect();
+  const bodyRect = body.getBoundingClientRect();
+  const bodyHeight = Math.max(0, Math.floor(viewportRect.bottom - bodyRect.top));
+  const reservedHeight =
+    getOuterHeight(getToolbarEl()) +
+    getOuterHeight(getPaginationEl()) +
+    getBodyBottomInset();
   return Math.max(0, Math.floor(bodyHeight - reservedHeight - LAYOUT_SAFETY_GAP));
 }
 
@@ -172,6 +182,25 @@ function getOuterHeight(el) {
 
 function getBodyEl() {
   return marketPanelRef.value?.getBodyEl?.();
+}
+
+function getBodyBottomInset() {
+  const body = getBodyEl();
+  const slotBody = body?.parentElement || null;
+  const pageSection = slotBody?.parentElement || null;
+  return getBoxBottomInset(slotBody) + getBoxBottomInset(pageSection);
+}
+
+function getBoxBottomInset(el) {
+  if (!el) return 0;
+  const style = window.getComputedStyle(el);
+  const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
+  const borderBottom = Number.parseFloat(style.borderBottomWidth) || 0;
+  return paddingBottom + borderBottom;
+}
+
+function getViewportEl() {
+  return getBodyEl()?.closest(".el-scrollbar__wrap") || null;
 }
 
 function getToolbarEl() {
@@ -198,5 +227,6 @@ function getPaginationEl() {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  margin-top: 0;
 }
 </style>

@@ -1,5 +1,12 @@
 <template>
-  <el-drawer :model-value="modelValue" :title="title" size="45%" @update:model-value="emit('update:modelValue', $event)">
+  <el-drawer
+    :model-value="modelValue"
+    :title="title"
+    size="45%"
+    class="drawer-with-scrollbar"
+    @update:model-value="emit('update:modelValue', $event)"
+  >
+    <el-scrollbar max-height="calc(100vh - 140px)">
     <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
       <el-form-item label="任务编码" prop="taskCode">
         <el-input v-model="form.taskCode" placeholder="如 operation-log-retention" :disabled="Boolean(task?.id)" />
@@ -29,6 +36,7 @@
         <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入说明" />
       </el-form-item>
     </el-form>
+    </el-scrollbar>
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
       <el-button type="primary" :loading="saving" @click="save">保存</el-button>
