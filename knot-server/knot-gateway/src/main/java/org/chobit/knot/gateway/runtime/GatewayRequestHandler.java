@@ -78,7 +78,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
             // 调用上游服务
             try {
-                return proxyClient.proxy(requestBody, protocol, traceparent);
+                return proxyClient.proxy(requestBody, candidate, protocol, traceparent);
             } catch (GatewayUpstreamException e) {
                 lastUpstreamException = e;
             }

@@ -16,6 +16,16 @@ public class ImageGenerationRequest extends GatewayModelRequest {
 
     public String style;
 
+    public String background;
+
+    public String moderation;
+
+    @JsonProperty("output_format")
+    public String outputFormat;
+
+    @JsonProperty("output_compression")
+    public Integer outputCompression;
+
     @JsonProperty("response_format")
     public String responseFormat;
 

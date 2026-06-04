@@ -1,11 +1,10 @@
 package org.chobit.knot.gateway.upstream;
 
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
+import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
@@ -38,10 +37,11 @@ public class UpstreamProxyClient {
      * Proxies the request to the upstream provider. Executes the public operation.
      */
     public ProxyResult proxy(Map<String, Object> requestBody,
+                             RoutingRuleTargetDto target,
                              ModelApiProtocolEnum protocol,
                              String traceparent) {
 
-        UpstreamRequestContext context = buildRequestContext(requestBody, protocol, traceparent);
+        UpstreamRequestContext context = buildRequestContext(requestBody, target, protocol, traceparent);
         UpstreamProtocolExecutor protocolExecutor = protocolExecutorRegistry.resolve(context.protocol());
         UpstreamProviderAdapter providerAdapter = providerAdapterRegistry.resolve(context.provider().getProviderType());
 
@@ -49,11 +49,11 @@ public class UpstreamProxyClient {
     }
 
     private UpstreamRequestContext buildRequestContext(Map<String, Object> requestBody,
+                                                       RoutingRuleTargetDto target,
                                                        ModelApiProtocolEnum protocol,
                                                        String traceparent) {
-        String modelCode = extractModelCode(requestBody);
-        ModelEntity model = resolveModel(modelCode);
-        ProviderEntity provider = resolveProvider(model, modelCode);
+        ModelEntity model = resolveModel(target);
+        ProviderEntity provider = resolveProvider(model, target);
         ModelApiProtocolEnum resolvedProtocol = resolveProtocol(protocol);
         ModelApiBindingEntity binding = resolveBinding(model.getId(), resolvedProtocol);
         ProviderCredentialEntity credential = dataService.getActiveCredentialByProviderId(provider.getId());
@@ -62,28 +62,19 @@ public class UpstreamProxyClient {
         );
     }
 
-    private String extractModelCode(Map<String, Object> requestBody) {
-        String modelCode = requestBody.get(AiPayloadFields.MODEL) == null
-                ? null
-                : String.valueOf(requestBody.get(AiPayloadFields.MODEL));
-        if (StringUtils.isBlank(modelCode)) {
-            throw new GatewayUpstreamException("model is required", ProxyErrorCodeEnum.MISSING_MODEL.code());
-        }
-        return StringUtils.trim(modelCode);
-    }
-
-    private ModelEntity resolveModel(String modelCode) {
-        ModelEntity model = findModelByCode(modelCode);
+    private ModelEntity resolveModel(RoutingRuleTargetDto target) {
+        ModelEntity model = target == null ? null : dataService.getModelById(target.targetId());
         if (model == null) {
-            throw new GatewayUpstreamException("model not found: " + modelCode, ProxyErrorCodeEnum.MODEL_NOT_FOUND.code());
+            String targetCode = target == null ? null : target.targetCode();
+            throw new GatewayUpstreamException("model not found: " + targetCode, ProxyErrorCodeEnum.MODEL_NOT_FOUND.code());
         }
         return model;
     }
 
-    private ProviderEntity resolveProvider(ModelEntity model, String modelCode) {
+    private ProviderEntity resolveProvider(ModelEntity model, RoutingRuleTargetDto target) {
         ProviderEntity provider = dataService.getProviderById(model.getProviderId());
         if (provider == null) {
-            throw new GatewayUpstreamException("provider not found for model: " + modelCode, ProxyErrorCodeEnum.PROVIDER_NOT_FOUND.code());
+            throw new GatewayUpstreamException("provider not found for model: " + target.targetCode(), ProxyErrorCodeEnum.PROVIDER_NOT_FOUND.code());
         }
         return provider;
     }
@@ -98,9 +89,5 @@ public class UpstreamProxyClient {
                 .filter(item -> protocol.matches(item.getProtocol()))
                 .findFirst()
                 .orElse(null);
-    }
-
-    private ModelEntity findModelByCode(String modelCode) {
-        return dataService.getModelByCode(modelCode);
     }
 }

@@ -39,10 +39,10 @@ public abstract class AbstractGatewayRequestTemplate {
         GatewayExchange exchange = new GatewayExchange(requestBody);
         ProxyResult result = proxy(context, exchange);
 
+        // Apply usage accounting.
         exchange.proxyResult(result);
         return applyUsageAccounting(context, exchange);
     }
-
 
 
     protected abstract ResolvedRouting resolveRouting(GatewayRequestContext context);

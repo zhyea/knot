@@ -16,6 +16,19 @@ public class ImageEditRequest extends GatewayModelRequest {
 
     public String size;
 
+    public String quality;
+
+    public String background;
+
+    @JsonProperty("input_fidelity")
+    public String inputFidelity;
+
+    @JsonProperty("output_format")
+    public String outputFormat;
+
+    @JsonProperty("output_compression")
+    public Integer outputCompression;
+
     @JsonProperty("response_format")
     public String responseFormat;
 

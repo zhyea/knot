@@ -16,6 +16,7 @@ public class MediaProtocolExecutor extends AbstractUpstreamProtocolExecutor {
     private static final Set<ModelApiProtocolEnum> PROTOCOLS = EnumSet.of(
             ModelApiProtocolEnum.IMAGE_GENERATIONS,
             ModelApiProtocolEnum.IMAGE_EDITS,
+            ModelApiProtocolEnum.IMAGE_VARIATIONS,
             ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS,
             ModelApiProtocolEnum.AUDIO_TRANSLATIONS,
             ModelApiProtocolEnum.AUDIO_SPEECH,

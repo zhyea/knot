@@ -14,6 +14,7 @@ public enum ModelApiProtocolEnum {
     EMBEDDINGS("EMBEDDINGS", "/v1/embeddings", false),
     IMAGE_GENERATIONS("IMAGE_GENERATIONS", "/v1/images/generations", false),
     IMAGE_EDITS("IMAGE_EDITS", "/v1/images/edits", false),
+    IMAGE_VARIATIONS("IMAGE_VARIATIONS", "/v1/images/variations", false),
     AUDIO_TRANSCRIPTIONS("AUDIO_TRANSCRIPTIONS", "/v1/audio/transcriptions", false),
     AUDIO_TRANSLATIONS("AUDIO_TRANSLATIONS", "/v1/audio/translations", false),
     AUDIO_SPEECH("AUDIO_SPEECH", "/v1/audio/speech", true),

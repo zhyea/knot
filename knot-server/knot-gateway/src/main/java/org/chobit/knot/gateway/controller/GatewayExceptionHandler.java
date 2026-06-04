@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
-@ControllerAdvice(assignableTypes = GatewayController.class)
+@ControllerAdvice(assignableTypes = GatewayControllerSupport.class)
 public class GatewayExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GatewayExceptionHandler.class);
