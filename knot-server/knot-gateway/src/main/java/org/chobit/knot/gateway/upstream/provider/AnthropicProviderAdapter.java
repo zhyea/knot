@@ -59,7 +59,7 @@ public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
      * Executes the public operation. Executes the public operation.
      */
     @Override
-    public Map<String, Object> buildRequestBody(UpstreamRequestContext context) {
+    public Object buildRequestBody(UpstreamRequestContext context) {
         ModelApiProtocolEnum protocol = context.protocol().canonical();
         if (ModelApiProtocolEnum.CHAT_COMPLETIONS == protocol) {
             return chatCompletionsToMessages(context.requestBody());

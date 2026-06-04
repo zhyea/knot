@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/v1/audio")
+@RequestMapping("/v1/openai/audio")
 public class GatewayAudioController extends GatewayControllerSupport {
 
     public GatewayAudioController(GatewayRequestHandler requestHandler) {

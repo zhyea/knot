@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.controller;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
-import org.chobit.knot.gateway.vo.request.EmbeddingRequest;
+import org.chobit.knot.gateway.vo.request.MessageRequest;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -11,22 +11,22 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/v1/openai")
-public class GatewayEmbeddingController extends GatewayControllerSupport {
+@RequestMapping("/v1/anthropic")
+public class GatewayAnthropicController extends GatewayControllerSupport {
 
-    public GatewayEmbeddingController(GatewayRequestHandler requestHandler) {
+    public GatewayAnthropicController(GatewayRequestHandler requestHandler) {
         super(requestHandler);
     }
 
     /**
-     * Handles embedding requests.
+     * Handles Anthropic-compatible messages requests.
      */
-    @PostMapping("/embeddings")
-    public Object embeddings(
+    @PostMapping("/messages")
+    public Object messages(
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
             @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
-            @RequestBody EmbeddingRequest requestBody) {
-        return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.EMBEDDINGS);
+            @RequestBody MessageRequest requestBody) {
+        return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.MESSAGES);
     }
 }

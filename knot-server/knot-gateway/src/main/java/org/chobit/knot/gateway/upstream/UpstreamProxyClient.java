@@ -16,6 +16,7 @@ import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutor;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutorRegistry;
 import org.chobit.knot.gateway.upstream.provider.UpstreamProviderAdapter;
 import org.chobit.knot.gateway.upstream.provider.UpstreamProviderAdapterRegistry;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -37,11 +38,12 @@ public class UpstreamProxyClient {
      * Proxies the request to the upstream provider. Executes the public operation.
      */
     public ProxyResult proxy(Map<String, Object> requestBody,
+                             MediaType contentType,
                              RoutingRuleTargetDto target,
                              ModelApiProtocolEnum protocol,
                              String traceparent) {
 
-        UpstreamRequestContext context = buildRequestContext(requestBody, target, protocol, traceparent);
+        UpstreamRequestContext context = buildRequestContext(requestBody, contentType, target, protocol, traceparent);
         UpstreamProtocolExecutor protocolExecutor = protocolExecutorRegistry.resolve(context.protocol());
         UpstreamProviderAdapter providerAdapter = providerAdapterRegistry.resolve(context.provider().getProviderType());
 
@@ -49,6 +51,7 @@ public class UpstreamProxyClient {
     }
 
     private UpstreamRequestContext buildRequestContext(Map<String, Object> requestBody,
+                                                       MediaType contentType,
                                                        RoutingRuleTargetDto target,
                                                        ModelApiProtocolEnum protocol,
                                                        String traceparent) {
@@ -58,7 +61,7 @@ public class UpstreamProxyClient {
         ModelApiBindingEntity binding = resolveBinding(model.getId(), resolvedProtocol);
         ProviderCredentialEntity credential = dataService.getActiveCredentialByProviderId(provider.getId());
         return new UpstreamRequestContext(
-                resolvedProtocol, requestBody, model, provider, credential, binding, traceparent
+                resolvedProtocol, requestBody, contentType, model, provider, credential, binding, traceparent
         );
     }
 

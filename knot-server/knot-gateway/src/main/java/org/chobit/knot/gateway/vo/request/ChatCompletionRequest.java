@@ -11,12 +11,18 @@ public class ChatCompletionRequest extends GatewayModelRequest {
 
     public List<Map<String, Object>> messages;
 
+    public Object audio;
+
     public Double temperature;
 
     @JsonProperty("top_p")
     public Double topP;
 
+    public List<String> modalities;
+
     public Integer n;
+
+    public Object prediction;
 
     public Object stop;
 
@@ -25,6 +31,9 @@ public class ChatCompletionRequest extends GatewayModelRequest {
 
     @JsonProperty("max_completion_tokens")
     public Integer maxCompletionTokens;
+
+    @JsonProperty("reasoning_effort")
+    public String reasoningEffort;
 
     @JsonProperty("presence_penalty")
     public Double presencePenalty;
@@ -40,6 +49,11 @@ public class ChatCompletionRequest extends GatewayModelRequest {
     @JsonProperty("top_logprobs")
     public Integer topLogprobs;
 
+    @JsonProperty("function_call")
+    public Object functionCall;
+
+    public List<Map<String, Object>> functions;
+
     public List<Map<String, Object>> tools;
 
     @JsonProperty("tool_choice")
@@ -50,6 +64,16 @@ public class ChatCompletionRequest extends GatewayModelRequest {
 
     @JsonProperty("response_format")
     public Object responseFormat;
+
+    public Integer seed;
+
+    @JsonProperty("service_tier")
+    public String serviceTier;
+
+    @JsonProperty("stream_options")
+    public Object streamOptions;
+
+    public Boolean store;
 
     public String user;
 

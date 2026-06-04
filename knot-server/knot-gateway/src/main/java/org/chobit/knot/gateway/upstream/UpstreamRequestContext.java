@@ -5,12 +5,14 @@ import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.entity.ProviderEntity;
+import org.springframework.http.MediaType;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
                                      Map<String, Object> requestBody,
+                                     MediaType contentType,
                                      ModelEntity model,
                                      ProviderEntity provider,
                                      ProviderCredentialEntity credential,
@@ -22,6 +24,7 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
      */
     public UpstreamRequestContext(ModelApiProtocolEnum protocol,
                                   Map<String, Object> requestBody,
+                                  MediaType contentType,
                                   ModelEntity model,
                                   ProviderEntity provider,
                                   ProviderCredentialEntity credential,
@@ -29,6 +32,7 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
                                   String traceparent) {
         this.protocol = protocol;
         this.requestBody = new LinkedHashMap<>(requestBody);
+        this.contentType = contentType == null ? MediaType.APPLICATION_JSON : contentType;
         this.model = model;
         this.provider = provider;
         this.credential = credential;

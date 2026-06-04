@@ -192,13 +192,15 @@ public class RoutingRuleService {
         body.put("messages", List.of(Map.of("role", "user", "content", userPrompt)));
 
         String baseUrl = normalizeGatewayBaseUrl();
-        String curl = buildTestCurl(baseUrl, secretKey, body);
+        String curl = buildTestCurl(baseUrl, secretKey, rule.ruleCode(), body);
 
         try {
             String responseBody = restClient.post()
-                    .uri(baseUrl + "/v1/chat/completions")
+                    .uri(baseUrl + "/v1/openai/chat/completions")
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer " + secretKey)
+                    .header("Rule", rule.ruleCode())
+                    .header("traceparent", "00-00000000000000000000000000000001-0000000000000001-01")
                     .body(body)
                     .retrieve()
                     .body(String.class);
@@ -248,11 +250,13 @@ public class RoutingRuleService {
         return base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
     }
 
-    private static String buildTestCurl(String baseUrl, String secretKey, Map<String, Object> body) {
+    private static String buildTestCurl(String baseUrl, String secretKey, String ruleCode, Map<String, Object> body) {
         String json = JsonKit.toJson(body);
         String escapedJson = json == null ? "{}" : json.replace("'", "'\\''");
-        return "curl -X POST '" + baseUrl + "/v1/chat/completions' \\\n"
+        return "curl -X POST '" + baseUrl + "/v1/openai/chat/completions' \\\n"
                 + "  -H 'Authorization: Bearer " + secretKey + "' \\\n"
+                + "  -H 'Rule: " + ruleCode + "' \\\n"
+                + "  -H 'traceparent: 00-00000000000000000000000000000001-0000000000000001-01' \\\n"
                 + "  -H 'Content-Type: application/json' \\\n"
                 + "  -d '" + escapedJson + "'";
     }

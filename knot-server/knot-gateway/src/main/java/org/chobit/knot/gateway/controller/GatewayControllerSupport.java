@@ -4,6 +4,8 @@ import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
 import org.chobit.knot.gateway.vo.request.GatewayModelRequest;
 
+import java.util.Map;
+
 public abstract class GatewayControllerSupport {
 
     private final GatewayRequestHandler requestHandler;
@@ -21,5 +23,16 @@ public abstract class GatewayControllerSupport {
                                    GatewayModelRequest request,
                                    ModelApiProtocolEnum protocol) {
         return requestHandler.handle(authorization, rule, traceparent, request, protocol);
+    }
+
+    /**
+     * Delegates a multipart gateway API request to the shared request template.
+     */
+    protected Object handleMultipartRequest(String authorization,
+                                            String rule,
+                                            String traceparent,
+                                            Map<String, Object> request,
+                                            ModelApiProtocolEnum protocol) {
+        return requestHandler.handleMultipart(authorization, rule, traceparent, request, protocol);
     }
 }

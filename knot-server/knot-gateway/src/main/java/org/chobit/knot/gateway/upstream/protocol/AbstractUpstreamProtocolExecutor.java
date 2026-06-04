@@ -8,8 +8,15 @@ import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.upstream.provider.UpstreamProviderAdapter;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
+import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.Collection;
+import java.util.Map;
 
 /**
  * Executes the public operation. Executes the public operation.
@@ -40,13 +47,13 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
         try {
             RestClient.RequestBodySpec spec = restClient.post()
                     .uri(joinUrl(context.provider().getBaseUrl(), path))
-                    .contentType(MediaType.APPLICATION_JSON)
+                    .contentType(context.contentType())
                     .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM);
             if (StringUtils.isNotBlank(context.traceparent())) {
                 spec.header(GatewayHeaders.TRACEPARENT, StringUtils.trim(context.traceparent()));
             }
             adapter.applyHeaders(spec, context);
-            String responseBody = spec.body(adapter.buildRequestBody(context))
+            String responseBody = spec.body(buildRequestBody(context, adapter))
                     .retrieve()
                     .body(String.class);
             String handledResponseBody = adapter.handleResponse(responseBody, context);
@@ -63,6 +70,50 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
 
     protected String defaultPath(UpstreamRequestContext context) {
         return context.protocol().defaultPath();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object buildRequestBody(UpstreamRequestContext context, UpstreamProviderAdapter adapter) {
+        Object body = adapter.buildRequestBody(context);
+        if (!MediaType.MULTIPART_FORM_DATA.includes(context.contentType()) || !(body instanceof Map<?, ?> map)) {
+            return body;
+        }
+        return toMultipartBody((Map<String, Object>) map);
+    }
+
+    private MultiValueMap<String, Object> toMultipartBody(Map<String, Object> source) {
+        MultiValueMap<String, Object> target = new LinkedMultiValueMap<>();
+        source.forEach((key, value) -> addMultipartPart(target, key, value));
+        return target;
+    }
+
+    private void addMultipartPart(MultiValueMap<String, Object> target, String key, Object value) {
+        if (value == null) {
+            return;
+        }
+        if (value instanceof MultipartFile file) {
+            addMultipartFile(target, key, file);
+            return;
+        }
+        if (value instanceof MultipartFile[] files) {
+            for (MultipartFile file : files) {
+                addMultipartFile(target, key, file);
+            }
+            return;
+        }
+        if (value instanceof Collection<?> collection) {
+            collection.forEach(item -> addMultipartPart(target, key, item));
+            return;
+        }
+        target.add(key, value);
+    }
+
+    private void addMultipartFile(MultiValueMap<String, Object> target, String key, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return;
+        }
+        Resource resource = file.getResource();
+        target.add(key, resource);
     }
 
     private String joinUrl(String baseUrl, String path) {

@@ -20,7 +20,7 @@ public interface UpstreamProviderAdapter {
         return StringUtils.defaultIfBlank(StringUtils.trim(bindingPath), defaultPath);
     }
 
-    Map<String, Object> buildRequestBody(UpstreamRequestContext context);
+    Object buildRequestBody(UpstreamRequestContext context);
 
     void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context);
 

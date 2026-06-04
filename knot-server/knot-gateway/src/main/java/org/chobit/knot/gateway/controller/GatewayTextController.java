@@ -5,7 +5,6 @@ import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
 import org.chobit.knot.gateway.vo.request.ChatCompletionRequest;
 import org.chobit.knot.gateway.vo.request.CompletionRequest;
-import org.chobit.knot.gateway.vo.request.MessageRequest;
 import org.chobit.knot.gateway.vo.request.ResponseRequest;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/v1")
+@RequestMapping("/v1/openai")
 public class GatewayTextController extends GatewayControllerSupport {
 
     public GatewayTextController(GatewayRequestHandler requestHandler) {
@@ -43,18 +42,6 @@ public class GatewayTextController extends GatewayControllerSupport {
             @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody ResponseRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.RESPONSES);
-    }
-
-    /**
-     * Handles Anthropic-compatible messages requests.
-     */
-    @PostMapping("/messages")
-    public Object messages(
-            @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
-            @RequestBody MessageRequest requestBody) {
-        return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.MESSAGES);
     }
 
     /**

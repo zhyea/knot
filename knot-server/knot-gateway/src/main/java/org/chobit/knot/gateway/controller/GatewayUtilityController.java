@@ -34,7 +34,7 @@ public class GatewayUtilityController extends GatewayControllerSupport {
     /**
      * Handles moderation requests.
      */
-    @PostMapping("/moderations")
+    @PostMapping("/openai/moderations")
     public Object moderations(
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,

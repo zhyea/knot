@@ -59,7 +59,7 @@ public class OpenAiCompatibleProviderAdapter implements UpstreamProviderAdapter 
      * Executes the public operation. Executes the public operation.
      */
     @Override
-    public Map<String, Object> buildRequestBody(UpstreamRequestContext context) {
+    public Object buildRequestBody(UpstreamRequestContext context) {
         if (ModelApiProtocolEnum.MESSAGES == context.protocol().canonical()) {
             return anthropicMessagesToChatCompletions(context.requestBody());
         }
