@@ -43,7 +43,8 @@ INSERT IGNORE INTO user_roles (user_id, role_id) VALUES
 INSERT IGNORE INTO providers (id, code, name, provider_type, base_url, status) VALUES
 (1, 'openai',       'OpenAI',       'OPENAI',  'https://api.openai.com',       'ENABLED'),
 (2, 'anthropic',    'Anthropic',    'ANTHROPIC','https://api.anthropic.com',     'ENABLED'),
-(3, 'deepseek',     'DeepSeek',     'DEEPSEEK','https://api.deepseek.com',      'ENABLED');
+(3, 'deepseek',     'DeepSeek',     'DEEPSEEK','https://api.deepseek.com',      'ENABLED'),
+(4, 'qwen',         'Qwen',         'QWEN',    'https://dashscope.aliyuncs.com','ENABLED');
 
 -- 频控/额度策略（独立表 + 资源绑定）
 INSERT IGNORE INTO rate_limit_policies (id, policy_code, policy_name, per_second, per_minute, time_window, status) VALUES
@@ -64,6 +65,7 @@ INSERT IGNORE INTO resource_traffic_policies (id, resource_type, resource_id, ra
 (1, 'PROVIDER', 1, 1, 1),
 (2, 'PROVIDER', 2, 2, 2),
 (3, 'PROVIDER', 3, 3, 3),
+(6, 'PROVIDER', 4, 3, 3),
 (4, 'APP',      1, 4, 4),
 (5, 'APP',      2, 5, 5);
 
@@ -87,7 +89,9 @@ INSERT IGNORE INTO models (id, provider_id, model_code, name, model_type, versio
 (4,  2, 'claude-sonnet-4-20250514','Claude Sonnet 4','CHAT', '2025-05-14','ENABLED'),
 (5,  2, 'claude-haiku-3-5-20241022','Claude 3.5 Haiku','CHAT','2024-10-22','ENABLED'),
 (6,  3, 'deepseek-chat',     'DeepSeek Chat',     'CHAT',   '2024-08-01', 'ENABLED'),
-(7,  3, 'deepseek-reasoner', 'DeepSeek Reasoner', 'CHAT',   '2025-01-20', 'ENABLED');
+(7,  3, 'deepseek-reasoner', 'DeepSeek Reasoner', 'CHAT',   '2025-01-20', 'ENABLED'),
+(8,  4, 'qwen-image',        'Qwen Image',        'IMAGE',  '2025-08-01', 'ENABLED'),
+(9,  4, 'qwen-image-edit',   'Qwen Image Edit',   'IMAGE',  '2025-08-01', 'ENABLED');
 
 INSERT IGNORE INTO model_pools (id, pool_code, name, model_type, selection_strategy, status, remark) VALUES
 (1, 'chat-premium-pool', 'Premium Chat Pool', 'CHAT', 'WEIGHTED', 'ENABLED', 'Premium chat routing pool'),
@@ -142,7 +146,9 @@ INSERT IGNORE INTO model_api_bindings (id, model_id, protocol, api_path, usage_e
 (1, 1, 'CHAT_COMPLETIONS', '/v1/chat/completions', 'DEFAULT', 'ENABLED', 'GPT-4o Chat Completions'),
 (2, 2, 'CHAT_COMPLETIONS', '/v1/chat/completions', 'DEFAULT', 'ENABLED', 'GPT-4o Mini Chat Completions'),
 (3, 4, 'MESSAGES', '/v1/messages', 'ANTHROPIC', 'ENABLED', 'Claude Sonnet Messages API'),
-(4, 6, 'CHAT_COMPLETIONS', '/v1/chat/completions', 'DEFAULT', 'ENABLED', 'DeepSeek Chat');
+(4, 6, 'CHAT_COMPLETIONS', '/v1/chat/completions', 'DEFAULT', 'ENABLED', 'DeepSeek Chat'),
+(5, 8, 'IMAGE_GENERATIONS', '/api/v1/services/aigc/multimodal-generation/generation', 'DEFAULT', 'ENABLED', 'Qwen Image Generation'),
+(6, 9, 'IMAGE_EDITS', '/api/v1/services/aigc/multimodal-generation/generation', 'DEFAULT', 'ENABLED', 'Qwen Image Edit');
 
 -- 模型版本
 INSERT IGNORE INTO model_versions (id, model_id, version, gray_percent, status) VALUES
@@ -355,8 +361,9 @@ INSERT IGNORE INTO enum_configs (category_id, item_code, item_label, sort_order,
 (1, 'OPENAI',    'OpenAI',     1, 1),
 (1, 'ANTHROPIC', 'Anthropic',  2, 1),
 (1, 'DEEPSEEK',  'DeepSeek',   3, 1),
-(1, 'GOOGLE',    'Google',     4, 1),
-(1, 'MISTRAL',   'Mistral',    5, 1),
+(1, 'QWEN',      'Qwen',       4, 1),
+(1, 'GOOGLE',    'Google',     5, 1),
+(1, 'MISTRAL',   'Mistral',    6, 1),
 (1, 'CUSTOM',    '自定义',    99, 1),
 (2, 'CHAT',       '对话',     1, 1),
 (2, 'TEXT',       '文本',     2, 1),

@@ -4,7 +4,8 @@ public enum ProviderTypeEnum {
     OPENAI("OPENAI"),
     ANTHROPIC("ANTHROPIC"),
     DEEPSEEK("DEEPSEEK"),
-    OPENROUTER("OPENROUTER");
+    OPENROUTER("OPENROUTER"),
+    QWEN("QWEN");
 
     private final String code;
 

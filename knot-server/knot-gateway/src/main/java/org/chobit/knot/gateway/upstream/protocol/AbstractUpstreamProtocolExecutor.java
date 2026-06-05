@@ -47,13 +47,13 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
         try {
             RestClient.RequestBodySpec spec = restClient.post()
                     .uri(joinUrl(context.provider().getBaseUrl(), path))
-                    .contentType(context.contentType())
+                    .contentType(adapter.resolveContentType(context))
                     .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM);
             if (StringUtils.isNotBlank(context.traceparent())) {
                 spec.header(GatewayHeaders.TRACEPARENT, StringUtils.trim(context.traceparent()));
             }
             adapter.applyHeaders(spec, context);
-            String responseBody = spec.body(buildRequestBody(context, adapter))
+            String responseBody = spec.body(buildRequestBody(context, adapter, adapter.resolveContentType(context)))
                     .retrieve()
                     .body(String.class);
             String handledResponseBody = adapter.handleResponse(responseBody, context);
@@ -73,9 +73,9 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     }
 
     @SuppressWarnings("unchecked")
-    private Object buildRequestBody(UpstreamRequestContext context, UpstreamProviderAdapter adapter) {
+    private Object buildRequestBody(UpstreamRequestContext context, UpstreamProviderAdapter adapter, MediaType contentType) {
         Object body = adapter.buildRequestBody(context);
-        if (!MediaType.MULTIPART_FORM_DATA.includes(context.contentType()) || !(body instanceof Map<?, ?> map)) {
+        if (!MediaType.MULTIPART_FORM_DATA.includes(contentType) || !(body instanceof Map<?, ?> map)) {
             return body;
         }
         return toMultipartBody((Map<String, Object>) map);

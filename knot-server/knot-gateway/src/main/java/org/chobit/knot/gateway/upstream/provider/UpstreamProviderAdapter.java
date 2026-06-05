@@ -7,6 +7,7 @@ import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.util.JsonKit;
+import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 
 import java.util.Map;
@@ -21,6 +22,10 @@ public interface UpstreamProviderAdapter {
     }
 
     Object buildRequestBody(UpstreamRequestContext context);
+
+    default MediaType resolveContentType(UpstreamRequestContext context) {
+        return context.contentType();
+    }
 
     void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context);
 
