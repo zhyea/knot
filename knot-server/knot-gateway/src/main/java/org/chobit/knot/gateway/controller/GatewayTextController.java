@@ -27,7 +27,7 @@ public class GatewayTextController extends GatewayControllerSupport {
     public Object chatCompletions(
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
             @RequestBody ChatCompletionRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.CHAT_COMPLETIONS);
     }
@@ -39,7 +39,7 @@ public class GatewayTextController extends GatewayControllerSupport {
     public Object responses(
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
             @RequestBody ResponseRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.RESPONSES);
     }
@@ -51,7 +51,7 @@ public class GatewayTextController extends GatewayControllerSupport {
     public Object completions(
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
             @RequestBody CompletionRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.COMPLETIONS);
     }

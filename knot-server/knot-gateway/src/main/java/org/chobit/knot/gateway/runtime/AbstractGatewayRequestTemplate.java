@@ -50,8 +50,9 @@ public abstract class AbstractGatewayRequestTemplate {
                              ModelApiProtocolEnum protocol,
                              MediaType contentType) {
         // Build request context once so later stages can reuse resolved metadata.
-        String apiKey = validateRequestHeaders(authorization, ruleCode, traceparent);
-        GatewayRequestContext context = new GatewayRequestContext(authorization, apiKey, ruleCode, traceparent, protocol);
+        String apiKey = validateRequestHeaders(authorization, ruleCode);
+        GatewayTraceContext traceContext = GatewayTraceContext.currentOrCreate(traceparent);
+        GatewayRequestContext context = new GatewayRequestContext(authorization, apiKey, ruleCode, traceContext, protocol);
         ResolvedRouting routingInfo = resolveRouting(context);
         context.routing(routingInfo);
 
@@ -74,16 +75,13 @@ public abstract class AbstractGatewayRequestTemplate {
     /**
      * Validates header values after Spring MVC has checked required header presence.
      */
-    private String validateRequestHeaders(String authorization, String ruleCode, String traceparent) {
+    private String validateRequestHeaders(String authorization, String ruleCode) {
         String apiKey = extractApiKey(authorization);
         if (apiKey == null) {
             throw new GatewayAuthException("Invalid API key");
         }
         if (StringUtils.isBlank(ruleCode)) {
             throw new GatewayInvalidRequestException("Rule header must not be blank");
-        }
-        if (StringUtils.isBlank(traceparent)) {
-            throw new GatewayInvalidRequestException("traceparent header must not be blank");
         }
         return apiKey;
     }

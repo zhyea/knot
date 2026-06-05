@@ -27,7 +27,7 @@ public class GatewayAudioController extends GatewayControllerSupport {
     public Object transcriptions(
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
             @RequestBody AudioTranscriptionRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS);
     }
@@ -39,7 +39,7 @@ public class GatewayAudioController extends GatewayControllerSupport {
     public Object translations(
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
             @RequestBody AudioTranslationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.AUDIO_TRANSLATIONS);
     }
@@ -51,7 +51,7 @@ public class GatewayAudioController extends GatewayControllerSupport {
     public Object speech(
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
             @RequestBody AudioSpeechRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.AUDIO_SPEECH);
     }

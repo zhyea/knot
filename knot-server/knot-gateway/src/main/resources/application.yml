@@ -14,3 +14,7 @@ mybatis:
   mapper-locations: classpath:mapper/*.xml
   configuration:
     map-underscore-to-camel-case: true
+
+logging:
+  pattern:
+    level: "%5p [traceId:%X{traceId:-} spanId:%X{spanId:-}]"

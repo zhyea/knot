@@ -20,7 +20,7 @@ public class GatewayRequestContext {
     private final String authorization;
     private final String apiKey;
     private final String ruleCode;
-    private final String traceparent;
+    private final GatewayTraceContext traceContext;
     private final ModelApiProtocolEnum protocol;
     private final Map<String, Object> attributes = new LinkedHashMap<>();
 
@@ -32,6 +32,27 @@ public class GatewayRequestContext {
      */
     public GatewayRoutingInfo routingInfo() {
         return routing == null ? null : routing.routingInfo();
+    }
+
+    /**
+     * Returns the normalized traceparent propagated by the gateway.
+     */
+    public String traceparent() {
+        return traceContext.traceparent();
+    }
+
+    /**
+     * Returns the request trace id used in logs and downstream propagation.
+     */
+    public String traceId() {
+        return traceContext.traceId();
+    }
+
+    /**
+     * Returns the gateway span id generated for this request.
+     */
+    public String spanId() {
+        return traceContext.spanId();
     }
 
     /**

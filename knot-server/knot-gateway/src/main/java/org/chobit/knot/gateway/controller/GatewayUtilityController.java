@@ -26,7 +26,7 @@ public class GatewayUtilityController extends GatewayControllerSupport {
     public Object rerank(
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
             @RequestBody RerankRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.RERANK);
     }
@@ -38,7 +38,7 @@ public class GatewayUtilityController extends GatewayControllerSupport {
     public Object moderations(
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
             @RequestBody ModerationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.MODERATIONS);
     }

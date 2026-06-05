@@ -25,7 +25,7 @@ public class GatewayEmbeddingController extends GatewayControllerSupport {
     public Object embeddings(
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
             @RequestBody EmbeddingRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.EMBEDDINGS);
     }

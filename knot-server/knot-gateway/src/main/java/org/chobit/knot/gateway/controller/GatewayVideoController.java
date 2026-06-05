@@ -25,7 +25,7 @@ public class GatewayVideoController extends GatewayControllerSupport {
     public Object generations(
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
             @RequestBody VideoGenerationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.VIDEO_GENERATIONS);
     }
