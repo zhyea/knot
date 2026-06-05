@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 public class UsageExtractorRegistry {
 
     public BillingUsage extract(String responseBody, UpstreamRequestContext context, UpstreamProviderAdapter adapter) {
-        String code = resolveCode(responseBody, context);
+        String code = resolveExtractorCode(responseBody, context);
         UsageExtractor extractor = resolve(code);
         if (extractor != null) {
             return extractor.extract(responseBody);
@@ -27,7 +27,7 @@ public class UsageExtractorRegistry {
         return UsageExtractorCatalog.resolve(code);
     }
 
-    private String resolveCode(String responseBody, UpstreamRequestContext context) {
+    private String resolveExtractorCode(String responseBody, UpstreamRequestContext context) {
         ModelApiBindingEntity binding = context.binding();
         if (binding != null) {
             String streamExtractor = binding.getStreamUsageExtractor();

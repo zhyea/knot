@@ -196,7 +196,7 @@ public class RoutingRuleService {
 
         try {
             String responseBody = restClient.post()
-                    .uri(baseUrl + "/v1/openai/chat/completions")
+                    .uri(baseUrl + "/openai/v1/chat/completions")
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("Authorization", "Bearer " + secretKey)
                     .header("Rule", rule.ruleCode())
@@ -253,7 +253,7 @@ public class RoutingRuleService {
     private static String buildTestCurl(String baseUrl, String secretKey, String ruleCode, Map<String, Object> body) {
         String json = JsonKit.toJson(body);
         String escapedJson = json == null ? "{}" : json.replace("'", "'\\''");
-        return "curl -X POST '" + baseUrl + "/v1/openai/chat/completions' \\\n"
+        return "curl -X POST '" + baseUrl + "/openai/v1/chat/completions' \\\n"
                 + "  -H 'Authorization: Bearer " + secretKey + "' \\\n"
                 + "  -H 'Rule: " + ruleCode + "' \\\n"
                 + "  -H 'traceparent: 00-00000000000000000000000000000001-0000000000000001-01' \\\n"

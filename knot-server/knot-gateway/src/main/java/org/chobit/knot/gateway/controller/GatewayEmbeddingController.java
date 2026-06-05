@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/v1/openai")
+@RequestMapping("/openai/v1")
 public class GatewayEmbeddingController extends GatewayControllerSupport {
 
     public GatewayEmbeddingController(GatewayRequestHandler requestHandler) {

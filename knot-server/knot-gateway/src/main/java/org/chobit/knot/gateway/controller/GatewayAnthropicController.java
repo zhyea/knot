@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/v1/anthropic")
+@RequestMapping("/anthropic/v1")
 public class GatewayAnthropicController extends GatewayControllerSupport {
 
     public GatewayAnthropicController(GatewayRequestHandler requestHandler) {

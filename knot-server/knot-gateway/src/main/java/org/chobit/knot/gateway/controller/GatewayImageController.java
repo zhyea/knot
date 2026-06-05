@@ -19,7 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/v1/openai/images")
+@RequestMapping("/openai/v1/images")
 public class GatewayImageController extends GatewayControllerSupport {
 
     public GatewayImageController(GatewayRequestHandler requestHandler) {

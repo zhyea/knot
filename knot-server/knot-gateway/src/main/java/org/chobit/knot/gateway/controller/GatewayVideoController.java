@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/v1/openai/videos")
+@RequestMapping("/openai/v1/videos")
 public class GatewayVideoController extends GatewayControllerSupport {
 
     public GatewayVideoController(GatewayRequestHandler requestHandler) {
