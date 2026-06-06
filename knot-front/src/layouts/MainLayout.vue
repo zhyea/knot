@@ -144,24 +144,9 @@
         </div>
       </el-header>
 
-      <TagView />
-
       <el-main class="main">
         <el-scrollbar class="main-scrollbar">
-          <router-view v-slot="{ Component, route: currentRoute }">
-            <keep-alive :include="cachedViewNames">
-              <component
-                :is="Component"
-                v-if="shouldCacheView(currentRoute)"
-                :key="resolveViewKey(currentRoute)"
-              />
-            </keep-alive>
-            <component
-              :is="Component"
-              v-if="!shouldCacheView(currentRoute)"
-              :key="resolveViewKey(currentRoute)"
-            />
-          </router-view>
+          <router-view />
         </el-scrollbar>
       </el-main>
     </el-container>
@@ -185,8 +170,6 @@ import {
   Setting,
   User
 } from "@element-plus/icons-vue";
-import TagView from "@/components/layout/TagView.vue";
-import { useTagView } from "@/composables/useTagView";
 import { useAuth } from "../composables/useAuth";
 
 const LS_ASIDE_WIDTH = "knot.sidebar.widthPx";
@@ -200,7 +183,6 @@ const ASIDE_COLLAPSED_PX = 64;
 const route = useRoute();
 const router = useRouter();
 const { user, logout } = useAuth();
-const { cachedViewNames, ensureRouteTag, resolveViewKey, shouldCacheView } = useTagView();
 
 const activePath = computed(() => route.path);
 const asideCollapsed = ref(false);
@@ -215,14 +197,6 @@ const openeds = computed(() => {
   const match = route.path.match(/^\/([^/]+)/);
   return match ? [`/${match[1]}`] : [];
 });
-
-watch(
-  () => route.fullPath,
-  () => {
-    ensureRouteTag(route, router);
-  },
-  { immediate: true }
-);
 
 onMounted(() => {
   const width = parseInt(localStorage.getItem(LS_ASIDE_WIDTH) || "", 10);
