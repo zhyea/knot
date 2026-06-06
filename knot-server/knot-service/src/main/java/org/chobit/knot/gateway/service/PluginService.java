@@ -30,8 +30,15 @@ public class PluginService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<PluginDto> list(PageRequest pageRequest) {
+        return list(pageRequest, null, null);
+    }
+
+    /**
+     * Lists matching results. Executes the public operation.
+     */
+    public PageResult<PluginDto> list(PageRequest pageRequest, String keyword, String status) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<PluginEntity> pageInfo = new PageInfo<>(pluginMapper.list());
+        PageInfo<PluginEntity> pageInfo = new PageInfo<>(pluginMapper.list(normalizeKeyword(keyword), normalizeStatus(status)));
         return PageResult.fromPage(pageInfo, pluginConverter::toDtoList, pageRequest);
     }
 
@@ -70,6 +77,16 @@ public class PluginService {
         e.setStatus(status);
         pluginMapper.updateStatus(e);
         return getById(id);
+    }
+
+    private static String normalizeKeyword(String keyword) {
+        String value = keyword == null ? "" : keyword.trim();
+        return value.isEmpty() ? null : value;
+    }
+
+    private static String normalizeStatus(String status) {
+        String value = status == null ? "" : status.trim();
+        return value.isEmpty() ? null : value;
     }
 
 }

@@ -7,7 +7,6 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.ModelConverter;
 import org.chobit.knot.gateway.dto.model.ModelDto;
 import org.chobit.knot.gateway.dto.model.ModelTestResultDto;
-import org.chobit.knot.gateway.dto.model.ModelVersionSwitchResultDto;
 import org.chobit.knot.gateway.service.ModelService;
 import org.chobit.knot.gateway.vo.model.*;
 import jakarta.validation.Valid;
@@ -116,12 +115,4 @@ public class ModelController {
         return new ModelTestResult(result.output(), result.latencyMs(), result.tokenUsage());
     }
 
-    /**
-     * Switches to the requested target state. Executes the public operation.
-     */
-    @PostMapping("/{id}/versions/switch")
-    public ModelVersionSwitchResult switchVersion(@PathVariable Long id, @RequestBody @Valid ModelVersionSwitchRequest request) {
-        ModelVersionSwitchResultDto result = modelService.switchVersion(id, request.targetVersion());
-        return new ModelVersionSwitchResult(result.modelId(), result.activeVersion(), result.status());
-    }
 }

@@ -10,7 +10,8 @@ import java.util.List;
 @Mapper
 public interface LogicalModelMapper {
 
-    List<LogicalModelEntity> list(@Param("keyword") String keyword);
+    List<LogicalModelEntity> list(@Param("keyword") String keyword,
+                                  @Param("modelTypes") List<String> modelTypes);
 
     LogicalModelEntity getById(Long id);
 

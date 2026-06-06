@@ -29,5 +29,8 @@ public class ImageGenerationRequest extends GatewayModelRequest {
     @JsonProperty("response_format")
     public String responseFormat;
 
+    @JsonProperty("partial_images")
+    public Integer partialImages;
+
     public String user;
 }

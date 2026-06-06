@@ -8,6 +8,7 @@ import org.chobit.knot.gateway.mapper.OperationLogMapper;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -73,6 +74,7 @@ public class OperationLogService {
     /**
      * Deletes the target resource. Executes the public operation.
      */
+    @Transactional
     public int deleteBefore(LocalDateTime beforeTime) {
         operationLogMapper.deleteDetailsByLogCreatedBefore(beforeTime);
         return operationLogMapper.deleteByCreatedBefore(beforeTime);

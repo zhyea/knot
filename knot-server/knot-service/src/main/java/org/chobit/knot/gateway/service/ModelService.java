@@ -12,18 +12,15 @@ import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.dto.model.ModelDto;
 import org.chobit.knot.gateway.dto.model.ModelApiBindingDto;
 import org.chobit.knot.gateway.dto.model.ModelTestResultDto;
-import org.chobit.knot.gateway.dto.model.ModelVersionSwitchResultDto;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.entity.LogicalModelEntity;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
-import org.chobit.knot.gateway.entity.ModelVersionEntity;
 import org.chobit.knot.gateway.entity.ProviderModelMappingEntity;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
 import org.chobit.knot.gateway.mapper.LogicalModelMapper;
 import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
-import org.chobit.knot.gateway.mapper.ModelVersionMapper;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
@@ -41,7 +38,6 @@ import java.util.stream.Collectors;
 public class ModelService {
     private final ModelMapper modelMapper;
     private final ModelApiBindingMapper modelApiBindingMapper;
-    private final ModelVersionMapper modelVersionMapper;
     private final LogicalModelMapper logicalModelMapper;
     private final BillingRuleMapper billingRuleMapper;
     private final ModelConverter modelConverter;
@@ -52,14 +48,12 @@ public class ModelService {
      */
     public ModelService(ModelMapper modelMapper,
                         ModelApiBindingMapper modelApiBindingMapper,
-                        ModelVersionMapper modelVersionMapper,
                         LogicalModelMapper logicalModelMapper,
                         BillingRuleMapper billingRuleMapper,
                         ModelConverter modelConverter,
                         ResourceTrafficPolicySupport trafficPolicySupport) {
         this.modelMapper = modelMapper;
         this.modelApiBindingMapper = modelApiBindingMapper;
-        this.modelVersionMapper = modelVersionMapper;
         this.logicalModelMapper = logicalModelMapper;
         this.billingRuleMapper = billingRuleMapper;
         this.modelConverter = modelConverter;
@@ -109,34 +103,6 @@ public class ModelService {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
-     */
-    public Map<String, Object> modelAuditSnapshot(Long id) {
-        if (id == null) {
-            return null;
-        }
-        try {
-        ModelDto dto = getById(id);
-        Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", dto.id());
-            m.put("name", dto.name());
-            m.put("providerId", dto.providerId());
-            m.put("modelType", dto.modelType());
-            m.put("version", dto.version());
-            m.put("enabled", dto.enabled());
-            m.put("logicalModelId", dto.logicalModelId());
-            m.put("billingRuleId", dto.billingRuleId());
-            m.put("billingRuleName", dto.billingRuleName());
-            m.put("apiBindings", dto.apiBindings());
-            m.put("rateLimitPolicy", dto.rateLimitPolicy());
-            m.put("quotaPolicy", dto.quotaPolicy());
-            return m;
-        } catch (BusinessException e) {
-            return null;
-        }
-    }
-
-    /**
      * Returns whether the current condition is satisfied. Executes the public operation.
      */
     public boolean isModelCodeAvailable(String modelCode, Long excludeId) {
@@ -177,14 +143,6 @@ public class ModelService {
                 request.rateLimitPolicy(), request.quotaPolicy());
         saveLogicalModelMapping(entity.getId(), request.logicalModelId(), modelCode);
         saveApiBindings(entity.getId(), request.apiBindings());
-        if (entity.getVersion() != null) {
-            ModelVersionEntity version = new ModelVersionEntity();
-            version.setModelId(entity.getId());
-            version.setVersion(entity.getVersion());
-            version.setGrayPercent(100);
-            version.setStatus(EntityStatusEnum.ACTIVE.code());
-            modelVersionMapper.insert(version);
-        }
         return getById(entity.getId());
     }
 
@@ -222,26 +180,6 @@ public class ModelService {
         int latencyMs = 100 + (int) (Math.random() * 200);
         int tokenUsage = Math.max(1, prompt.length() / 2);
         return new ModelTestResultDto(output, latencyMs, tokenUsage);
-    }
-
-    /**
-     * Switches to the requested target state. Executes the public operation.
-     */
-    @Transactional
-    public ModelVersionSwitchResultDto switchVersion(Long id, String targetVersion) {
-        getById(id);
-        ModelVersionEntity current = modelVersionMapper.getActiveVersion(id);
-        if (current != null) {
-            current.setStatus(EntityStatusEnum.INACTIVE.code());
-            modelVersionMapper.updateStatus(current);
-        }
-        ModelVersionEntity newVersion = new ModelVersionEntity();
-        newVersion.setModelId(id);
-        newVersion.setVersion(targetVersion);
-        newVersion.setGrayPercent(100);
-        newVersion.setStatus(EntityStatusEnum.ACTIVE.code());
-        modelVersionMapper.insert(newVersion);
-        return new ModelVersionSwitchResultDto(id, targetVersion, EntityStatusEnum.ACTIVE.code());
     }
 
     private ModelDto enrich(ModelEntity entity) {
@@ -282,9 +220,6 @@ public class ModelService {
         return result.isEmpty() ? null : result;
     }
 
-    private ModelDto enrich(ModelDto base, TrafficPolicies traffic) {
-        return enrich(base, traffic, null);
-    }
 
     private ModelDto enrich(ModelDto base, TrafficPolicies traffic, List<ModelApiBindingDto> apiBindings) {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;

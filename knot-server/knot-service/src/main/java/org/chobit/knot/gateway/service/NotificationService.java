@@ -33,8 +33,15 @@ public class NotificationService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<TemplateDto> listTemplates(PageRequest pageRequest) {
+        return listTemplates(pageRequest, null);
+    }
+
+    /**
+     * Lists matching results. Executes the public operation.
+     */
+    public PageResult<TemplateDto> listTemplates(PageRequest pageRequest, String keyword) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<NotifyTemplateEntity> pageInfo = new PageInfo<>(notificationMapper.listTemplates());
+        PageInfo<NotifyTemplateEntity> pageInfo = new PageInfo<>(notificationMapper.listTemplates(normalizeKeyword(keyword)));
         return PageResult.fromPage(pageInfo, notificationConverter::toTemplateDtoList, pageRequest);
     }
 
@@ -66,5 +73,10 @@ public class NotificationService {
             notificationMapper.insertRecord(template.id(), receiver, template.channel(), "SENT");
         }
         return new SendResultDto("ntf_" + System.currentTimeMillis(), "SENT", receivers.size());
+    }
+
+    private static String normalizeKeyword(String keyword) {
+        String value = keyword == null ? "" : keyword.trim();
+        return value.isEmpty() ? null : value;
     }
 }

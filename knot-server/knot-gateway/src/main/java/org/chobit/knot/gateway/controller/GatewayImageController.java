@@ -33,7 +33,7 @@ public class GatewayImageController extends GatewayControllerSupport {
     public Object generations(
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody ImageGenerationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.IMAGE_GENERATIONS);
     }
@@ -45,7 +45,7 @@ public class GatewayImageController extends GatewayControllerSupport {
     public Object edits(
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestPart("image") MultipartFile[] image,
             @RequestPart(value = "mask", required = false) MultipartFile mask,
             @RequestParam("prompt") String prompt,
@@ -55,12 +55,18 @@ public class GatewayImageController extends GatewayControllerSupport {
             @RequestParam(value = "n", required = false) Integer n,
             @RequestParam(value = "output_compression", required = false) Integer outputCompression,
             @RequestParam(value = "output_format", required = false) String outputFormat,
+            @RequestParam(value = "partial_images", required = false) Integer partialImages,
             @RequestParam(value = "quality", required = false) String quality,
             @RequestParam(value = "response_format", required = false) String responseFormat,
             @RequestParam(value = "size", required = false) String size,
+            @RequestParam(value = "stream", required = false) Boolean stream,
             @RequestParam(value = "user", required = false) String user) {
-        return handleMultipartRequest(authorization, rule, traceparent, imageEditBody(image, mask, prompt,
-                background, inputFidelity, model, n, outputCompression, outputFormat, quality, responseFormat, size, user),
+
+        Map<String, Object> body = imageEditBody(image, mask, prompt,
+                background, inputFidelity, model, n, outputCompression, outputFormat, partialImages,
+                quality, responseFormat, size, stream, user);
+
+        return handleMultipartRequest(authorization, rule, traceparent, body,
                 ModelApiProtocolEnum.IMAGE_EDITS);
     }
 
@@ -71,7 +77,7 @@ public class GatewayImageController extends GatewayControllerSupport {
     public Object variations(
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+            @RequestHeader(value = GatewayHeaders.TRACEPARENT) String traceparent,
             @RequestBody ImageVariationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.IMAGE_VARIATIONS);
     }
@@ -85,9 +91,11 @@ public class GatewayImageController extends GatewayControllerSupport {
                                               Integer n,
                                               Integer outputCompression,
                                               String outputFormat,
+                                              Integer partialImages,
                                               String quality,
                                               String responseFormat,
                                               String size,
+                                              Boolean stream,
                                               String user) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("image", image);
@@ -99,9 +107,11 @@ public class GatewayImageController extends GatewayControllerSupport {
         putIfPresent(body, "n", n);
         putIfPresent(body, "output_compression", outputCompression);
         putIfPresent(body, "output_format", outputFormat);
+        putIfPresent(body, "partial_images", partialImages);
         putIfPresent(body, "quality", quality);
         putIfPresent(body, "response_format", responseFormat);
         putIfPresent(body, "size", size);
+        putIfPresent(body, "stream", stream);
         putIfPresent(body, "user", user);
         return body;
     }

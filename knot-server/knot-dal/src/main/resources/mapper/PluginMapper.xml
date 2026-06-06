@@ -5,6 +5,18 @@
     <select id="list" resultType="org.chobit.knot.gateway.entity.PluginEntity">
         select id, code, name, plugin_type, version, status
         from plugins
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    code like concat('%', #{keyword}, '%')
+                    or name like concat('%', #{keyword}, '%')
+                    or plugin_type like concat('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+        </where>
         order by id desc
     </select>
 

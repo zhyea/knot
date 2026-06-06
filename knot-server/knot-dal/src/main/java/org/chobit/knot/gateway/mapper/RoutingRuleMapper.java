@@ -2,13 +2,15 @@ package org.chobit.knot.gateway.mapper;
 
 import org.chobit.knot.gateway.entity.RoutingRuleEntity;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
 @Mapper
 public interface RoutingRuleMapper {
 
-    List<RoutingRuleEntity> list();
+    List<RoutingRuleEntity> list(@Param("keyword") String keyword,
+                                 @Param("modelTypes") List<String> modelTypes);
 
     RoutingRuleEntity getById(Long id);
 

@@ -121,26 +121,26 @@ public class AppService {
     public void delete(Long id) {
         AppEntity existing = appMapper.getById(id);
         if (existing == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "app not found");
+            throw new BusinessException(ErrorCode.NOT_FOUND, "应用不存在");
         }
         assertNotInUse(id);
         int rows = appMapper.softDelete(id);
         if (rows == 0) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "app not found");
+            throw new BusinessException(ErrorCode.NOT_FOUND, "应用不存在或已删除");
         }
     }
 
     private void assertNotInUse(Long appId) {
         List<String> reasons = new ArrayList<>();
         if (countPositive(appMapper.countCredentialsByAppId(appId))) {
-            reasons.add("API credentials configured");
+            reasons.add("已配置 API 凭证");
         }
         if (countPositive(appMapper.countModelPermissionsByAppId(appId))) {
-            reasons.add("model permissions assigned");
+            reasons.add("已分配模型权限");
         }
         if (!reasons.isEmpty()) {
             throw new BusinessException(ErrorCode.CONFLICT,
-                    "app is in use and cannot be deleted: " + String.join(", ", reasons));
+                    "该应用正在被使用，无法删除：" + String.join("，", reasons));
         }
     }
 

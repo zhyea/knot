@@ -16,6 +16,7 @@ public record PageQuery(
         Integer pageSize,
         String category,
         String keyword,
+        String status,
         List<String> modelTypes,
         Long parentId,
         Long providerId,

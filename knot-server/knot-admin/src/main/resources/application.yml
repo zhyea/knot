@@ -6,9 +6,9 @@ spring:
     name: knot-ai-gateway
   datasource:
     url: jdbc:mysql://127.0.0.1:3306/knot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    driver-class-name: com.mysql.cj.jdbc.Driver
     username: admin
     password: admin
-    driver-class-name: com.mysql.cj.jdbc.Driver
   sql:
     init:
       # 开发可改为 ALWAYS；schema/data 均设计为可重复执行

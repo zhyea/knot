@@ -3,11 +3,13 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.config.GatewayRuntimeProperties;
+import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.converter.RoutingRuleConverter;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleDto;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.entity.AppEntity;
+import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ModelPoolEntity;
 import org.chobit.knot.gateway.entity.RoutingConsumerEntity;
@@ -17,6 +19,7 @@ import org.chobit.knot.gateway.entity.RoutingRuleTargetEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.AppMapper;
+import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.mapper.ModelPoolMapper;
 import org.chobit.knot.gateway.mapper.RoutingConsumerMapper;
@@ -33,27 +36,52 @@ import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.tools.RoutingRuleCodeGenerator;
 import org.chobit.knot.gateway.vo.routing.RoutingTestResult;
 import org.springframework.http.MediaType;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.LinkedHashSet;
 import java.util.stream.Collectors;
 
 @Service
 public class RoutingRuleService {
 
     private static final int RULE_CODE_MAX_LEN = 32;
+    private static final String TRACEPARENT = "00-00000000000000000000000000000001-0000000000000001-01";
+    private static final String DEFAULT_TEST_PROMPT = "你好，这是一条路由规则测试消息";
+    private static final Set<ModelApiProtocolEnum> DEBUGGABLE_PROTOCOLS = Set.of(
+            ModelApiProtocolEnum.CHAT_COMPLETIONS,
+            ModelApiProtocolEnum.RESPONSES,
+            ModelApiProtocolEnum.MESSAGES,
+            ModelApiProtocolEnum.COMPLETIONS,
+            ModelApiProtocolEnum.EMBEDDINGS,
+            ModelApiProtocolEnum.IMAGE_GENERATIONS,
+            ModelApiProtocolEnum.IMAGE_EDITS,
+            ModelApiProtocolEnum.IMAGE_VARIATIONS,
+            ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS,
+            ModelApiProtocolEnum.AUDIO_TRANSLATIONS,
+            ModelApiProtocolEnum.AUDIO_SPEECH,
+            ModelApiProtocolEnum.VIDEO_GENERATIONS,
+            ModelApiProtocolEnum.RERANK,
+            ModelApiProtocolEnum.MODERATIONS
+    );
 
     private final RoutingRuleMapper routingRuleMapper;
     private final RoutingRuleTargetMapper routingRuleTargetMapper;
     private final RoutingRuleConsumerMapper routingRuleConsumerMapper;
     private final RoutingConsumerMapper routingConsumerMapper;
+    private final ModelApiBindingMapper modelApiBindingMapper;
     private final ModelMapper modelMapper;
     private final ModelPoolMapper modelPoolMapper;
     private final AppMapper appMapper;
@@ -70,6 +98,7 @@ public class RoutingRuleService {
                               RoutingRuleTargetMapper routingRuleTargetMapper,
                               RoutingRuleConsumerMapper routingRuleConsumerMapper,
                               RoutingConsumerMapper routingConsumerMapper,
+                              ModelApiBindingMapper modelApiBindingMapper,
                               ModelMapper modelMapper,
                               ModelPoolMapper modelPoolMapper,
                               AppMapper appMapper,
@@ -81,6 +110,7 @@ public class RoutingRuleService {
         this.routingRuleTargetMapper = routingRuleTargetMapper;
         this.routingRuleConsumerMapper = routingRuleConsumerMapper;
         this.routingConsumerMapper = routingConsumerMapper;
+        this.modelApiBindingMapper = modelApiBindingMapper;
         this.modelMapper = modelMapper;
         this.modelPoolMapper = modelPoolMapper;
         this.appMapper = appMapper;
@@ -95,8 +125,18 @@ public class RoutingRuleService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<RoutingRuleDto> list(PageRequest pageRequest) {
+        return list(pageRequest, null, null);
+    }
+
+    /**
+     * Lists matching results. Executes the public operation.
+     */
+    public PageResult<RoutingRuleDto> list(PageRequest pageRequest, String keyword, List<String> modelTypes) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<RoutingRuleEntity> pageInfo = new PageInfo<>(routingRuleMapper.list());
+        PageInfo<RoutingRuleEntity> pageInfo = new PageInfo<>(routingRuleMapper.list(
+                normalizeNullable(keyword),
+                normalizeModelTypesForQuery(modelTypes)
+        ));
         List<RoutingRuleDto> dtos = enrichList(pageInfo.getList());
         return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
@@ -174,7 +214,14 @@ public class RoutingRuleService {
     /**
      * Sends a test request through the gateway and returns the invocation result.
      */
-    public RoutingTestResult testInvoke(Long ruleId, String secretKey, String prompt, String modelCode) {
+    public RoutingTestResult testInvoke(Long ruleId,
+                                        String secretKey,
+                                        String prompt,
+                                        String modelCode,
+                                        String protocolCode,
+                                        String targetType,
+                                        Long targetId,
+                                        Map<String, Object> requestBody) {
         RoutingRuleDto rule = getById(ruleId);
         RoutingConsumerEntity consumer = findBoundConsumerBySecretKey(rule.consumerIds(), secretKey);
         if (consumer == null) {
@@ -183,32 +230,24 @@ public class RoutingRuleService {
         if (!rule.enabled()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "路由规则未启用");
         }
-        RoutingRuleTargetDto primary = getPrimaryTarget(ruleId);
-        String model = (modelCode != null && !modelCode.isBlank()) ? modelCode.trim() : primary.targetCode();
-        String userPrompt = (prompt != null && !prompt.isBlank()) ? prompt.trim() : "你好，这是一条路由规则测试消息";
-
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("model", model);
-        body.put("messages", List.of(Map.of("role", "user", "content", userPrompt)));
+        RoutingRuleTargetDto selectedTarget = resolveTestTarget(rule, targetType, targetId);
+        ModelApiProtocolEnum protocol = resolveTestProtocol(protocolCode, selectedTarget);
+        String model = resolveRequestModelCode(modelCode, selectedTarget);
+        String userPrompt = normalizeTestPrompt(prompt);
+        Map<String, Object> body = buildRequestBody(protocol, model, userPrompt, requestBody);
 
         String baseUrl = normalizeGatewayBaseUrl();
-        String curl = buildTestCurl(baseUrl, secretKey, rule.ruleCode(), body);
+        String gatewayPath = buildGatewayTestPath(protocol);
+        String curl = buildTestCurl(baseUrl, gatewayPath, secretKey, rule.ruleCode(), protocol, body);
 
         try {
-            String responseBody = restClient.post()
-                    .uri(baseUrl + "/openai/v1/chat/completions")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .header("Authorization", "Bearer " + secretKey)
-                    .header("Rule", rule.ruleCode())
-                    .header("traceparent", "00-00000000000000000000000000000001-0000000000000001-01")
-                    .body(body)
-                    .retrieve()
-                    .body(String.class);
+            String responseBody = executeGatewayTest(baseUrl, gatewayPath, secretKey, rule.ruleCode(), protocol, body);
             return new RoutingTestResult(
                     rule.id(),
-                    primary.providerId(),
-                    primary.targetId(),
+                    selectedTarget.providerId(),
+                    selectedTarget.targetId(),
                     model,
+                    protocol.code(),
                     "SUCCESS",
                     curl,
                     200,
@@ -218,9 +257,10 @@ public class RoutingRuleService {
         } catch (HttpStatusCodeException ex) {
             return new RoutingTestResult(
                     rule.id(),
-                    primary.providerId(),
-                    primary.targetId(),
+                    selectedTarget.providerId(),
+                    selectedTarget.targetId(),
                     model,
+                    protocol.code(),
                     "FAILED",
                     curl,
                     ex.getStatusCode().value(),
@@ -230,9 +270,10 @@ public class RoutingRuleService {
         } catch (Exception ex) {
             return new RoutingTestResult(
                     rule.id(),
-                    primary.providerId(),
-                    primary.targetId(),
+                    selectedTarget.providerId(),
+                    selectedTarget.targetId(),
                     model,
+                    protocol.code(),
                     "FAILED",
                     curl,
                     null,
@@ -250,15 +291,351 @@ public class RoutingRuleService {
         return base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
     }
 
-    private static String buildTestCurl(String baseUrl, String secretKey, String ruleCode, Map<String, Object> body) {
+    private String executeGatewayTest(String baseUrl,
+                                      String gatewayPath,
+                                      String secretKey,
+                                      String ruleCode,
+                                      ModelApiProtocolEnum protocol,
+                                      Map<String, Object> body) {
+        RestClient.RequestBodySpec request = restClient.post()
+                .uri(baseUrl + gatewayPath)
+                .header("Authorization", "Bearer " + secretKey)
+                .header("Rule", ruleCode)
+                .header("traceparent", TRACEPARENT);
+        if (ModelApiProtocolEnum.IMAGE_EDITS == protocol) {
+            return request.contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(toMultipartBody(body))
+                    .retrieve()
+                    .body(String.class);
+        }
+        return request.contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .body(String.class);
+    }
+
+    private RoutingRuleTargetDto resolveTestTarget(RoutingRuleDto rule, String targetType, Long targetId) {
+        List<RoutingRuleTargetDto> targets = rule.targets() == null ? List.of() : rule.targets();
+        if (targetId != null) {
+            String normalizedType = normalizeTargetType(targetType);
+            return targets.stream()
+                    .filter(target -> targetId.equals(target.targetId()))
+                    .filter(target -> normalizeTargetType(target.targetType()).equals(normalizedType))
+                    .findFirst()
+                    .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR, "调试目标不存在"));
+        }
+        return targets.stream()
+                .filter(RoutingRuleTargetDto::primary)
+                .findFirst()
+                .orElseGet(() -> getPrimaryTarget(rule.id()));
+    }
+
+    private ModelApiProtocolEnum resolveTestProtocol(String protocolCode, RoutingRuleTargetDto target) {
+        ModelApiProtocolEnum protocol = ModelApiProtocolEnum.fromCode(protocolCode);
+        if (protocol == null) {
+            protocol = firstSupportedProtocol(target);
+        } else {
+            protocol = protocol.canonical();
+        }
+        if (protocol == null || !DEBUGGABLE_PROTOCOLS.contains(protocol)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "当前调试暂不支持该接口协议");
+        }
+        Set<ModelApiProtocolEnum> supported = supportedProtocolsForTarget(target);
+        if (!supported.contains(protocol)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "所选目标不支持该接口协议");
+        }
+        return protocol;
+    }
+
+    private ModelApiProtocolEnum firstSupportedProtocol(RoutingRuleTargetDto target) {
+        return supportedProtocolsForTarget(target).stream().findFirst().orElse(ModelApiProtocolEnum.CHAT_COMPLETIONS);
+    }
+
+    private String resolveRequestModelCode(String modelCode, RoutingRuleTargetDto target) {
+        String normalized = modelCode == null ? "" : modelCode.trim();
+        if (!normalized.isEmpty()) {
+            return normalized;
+        }
+        return target.targetCode();
+    }
+
+    private String normalizeTestPrompt(String prompt) {
+        String normalized = prompt == null ? "" : prompt.trim();
+        return normalized.isEmpty() ? DEFAULT_TEST_PROMPT : normalized;
+    }
+
+    private Map<String, Object> buildRequestBody(ModelApiProtocolEnum protocol,
+                                                 String model,
+                                                 String prompt,
+                                                 Map<String, Object> requestBody) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        if (requestBody != null && !requestBody.isEmpty()) {
+            body.putAll(requestBody);
+        } else {
+            body.putAll(defaultRequestBody(protocol, model, prompt));
+        }
+        body.put("model", model);
+        fillDefaultPromptFields(protocol, body, prompt);
+        return body;
+    }
+
+    private Map<String, Object> defaultRequestBody(ModelApiProtocolEnum protocol, String model, String prompt) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("model", model);
+        switch (protocol) {
+            case CHAT_COMPLETIONS -> body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
+            case RESPONSES -> body.put("input", prompt);
+            case MESSAGES -> {
+                body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
+                body.put("max_tokens", 1024);
+            }
+            case COMPLETIONS -> body.put("prompt", prompt);
+            case EMBEDDINGS -> body.put("input", List.of(prompt));
+            case IMAGE_GENERATIONS -> body.put("prompt", prompt);
+            case IMAGE_EDITS -> {
+                body.put("prompt", prompt);
+                body.put("image", "https://example.com/image.png");
+            }
+            case IMAGE_VARIATIONS -> body.put("image", "https://example.com/image.png");
+            case AUDIO_TRANSCRIPTIONS, AUDIO_TRANSLATIONS -> body.put("file", "D:/path/to/audio.mp3");
+            case AUDIO_SPEECH -> {
+                body.put("input", prompt);
+                body.put("voice", "alloy");
+            }
+            case VIDEO_GENERATIONS -> body.put("prompt", prompt);
+            case RERANK -> {
+                body.put("query", prompt);
+                body.put("documents", List.of("文档 1", "文档 2"));
+                body.put("top_n", 2);
+            }
+            case MODERATIONS -> body.put("input", prompt);
+            default -> {
+            }
+        }
+        return body;
+    }
+
+    private void fillDefaultPromptFields(ModelApiProtocolEnum protocol, Map<String, Object> body, String prompt) {
+        switch (protocol) {
+            case CHAT_COMPLETIONS, MESSAGES -> {
+                if (!body.containsKey("messages")) {
+                    body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
+                }
+            }
+            case RESPONSES, EMBEDDINGS, AUDIO_SPEECH, MODERATIONS -> body.putIfAbsent("input", prompt);
+            case COMPLETIONS, IMAGE_GENERATIONS, IMAGE_EDITS, VIDEO_GENERATIONS -> body.putIfAbsent("prompt", prompt);
+            case RERANK -> {
+                body.putIfAbsent("query", prompt);
+                body.putIfAbsent("documents", List.of("文档 1", "文档 2"));
+                body.putIfAbsent("top_n", 2);
+            }
+            default -> {
+            }
+        }
+    }
+
+    private Set<ModelApiProtocolEnum> supportedProtocolsForTarget(RoutingRuleTargetDto target) {
+        String targetType = normalizeTargetType(target.targetType());
+        if ("MODEL".equals(targetType)) {
+            return supportedProtocolsForModel(target.targetId(), target.modelType());
+        }
+        if (!"MODEL_POOL".equals(targetType)) {
+            return Set.of();
+        }
+        List<Long> enabledModelIds = modelPoolMapper.listItemsByPoolId(target.targetId()).stream()
+                .filter(item -> "ENABLED".equals(item.getStatus()))
+                .map(item -> item.getModelId())
+                .distinct()
+                .toList();
+        if (enabledModelIds.isEmpty()) {
+            return fallbackProtocolsForModelType(target.modelType());
+        }
+        Set<ModelApiProtocolEnum> intersection = null;
+        for (Long modelId : enabledModelIds) {
+            Set<ModelApiProtocolEnum> current = supportedProtocolsForModel(modelId, target.modelType());
+            if (intersection == null) {
+                intersection = new LinkedHashSet<>(current);
+            } else {
+                intersection.retainAll(current);
+            }
+        }
+        return intersection == null ? Set.of() : intersection;
+    }
+
+    private Set<ModelApiProtocolEnum> supportedProtocolsForModel(Long modelId, String modelType) {
+        Set<ModelApiProtocolEnum> bindings = modelApiBindingMapper.listByModelId(modelId).stream()
+                .filter(item -> "ENABLED".equals(item.getStatus()))
+                .map(ModelApiBindingEntity::getProtocol)
+                .map(ModelApiProtocolEnum::fromCode)
+                .filter(item -> item != null && item.defaultPath() != null)
+                .map(ModelApiProtocolEnum::canonical)
+                .filter(DEBUGGABLE_PROTOCOLS::contains)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (!bindings.isEmpty()) {
+            return bindings;
+        }
+        return fallbackProtocolsForModelType(modelType);
+    }
+
+    private Set<ModelApiProtocolEnum> fallbackProtocolsForModelType(String modelType) {
+        String normalized = modelType == null ? "" : modelType.trim().toUpperCase();
+        return switch (normalized) {
+            case "EMBEDDING" -> Set.of(ModelApiProtocolEnum.EMBEDDINGS);
+            case "IMAGE" -> Set.of(
+                    ModelApiProtocolEnum.IMAGE_GENERATIONS,
+                    ModelApiProtocolEnum.IMAGE_EDITS,
+                    ModelApiProtocolEnum.IMAGE_VARIATIONS
+            );
+            case "AUDIO" -> Set.of(
+                    ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS,
+                    ModelApiProtocolEnum.AUDIO_TRANSLATIONS,
+                    ModelApiProtocolEnum.AUDIO_SPEECH
+            );
+            case "VIDEO" -> Set.of(ModelApiProtocolEnum.VIDEO_GENERATIONS);
+            case "RERANK" -> Set.of(ModelApiProtocolEnum.RERANK);
+            case "MODERATION" -> Set.of(ModelApiProtocolEnum.MODERATIONS);
+            case "UTILITY" -> Set.of(ModelApiProtocolEnum.RERANK, ModelApiProtocolEnum.MODERATIONS);
+            case "DOCUMENT", "OCR" -> Set.of(
+                    ModelApiProtocolEnum.CHAT_COMPLETIONS,
+                    ModelApiProtocolEnum.RESPONSES,
+                    ModelApiProtocolEnum.MESSAGES
+            );
+            case "MULTIMODAL" -> Set.of(
+                    ModelApiProtocolEnum.CHAT_COMPLETIONS,
+                    ModelApiProtocolEnum.RESPONSES,
+                    ModelApiProtocolEnum.MESSAGES,
+                    ModelApiProtocolEnum.COMPLETIONS,
+                    ModelApiProtocolEnum.IMAGE_GENERATIONS,
+                    ModelApiProtocolEnum.IMAGE_EDITS,
+                    ModelApiProtocolEnum.IMAGE_VARIATIONS,
+                    ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS,
+                    ModelApiProtocolEnum.AUDIO_TRANSLATIONS,
+                    ModelApiProtocolEnum.AUDIO_SPEECH,
+                    ModelApiProtocolEnum.VIDEO_GENERATIONS
+            );
+            case "CHAT", "TEXT", "REASONING" -> Set.of(
+                    ModelApiProtocolEnum.CHAT_COMPLETIONS,
+                    ModelApiProtocolEnum.RESPONSES,
+                    ModelApiProtocolEnum.MESSAGES,
+                    ModelApiProtocolEnum.COMPLETIONS
+            );
+            default -> Set.of(ModelApiProtocolEnum.CHAT_COMPLETIONS);
+        };
+    }
+
+    private String buildGatewayTestPath(ModelApiProtocolEnum protocol) {
+        return switch (protocol) {
+            case CHAT_COMPLETIONS -> "/openai/v1/chat/completions";
+            case RESPONSES -> "/openai/v1/responses";
+            case MESSAGES -> "/anthropic/v1/messages";
+            case COMPLETIONS -> "/openai/v1/completions";
+            case EMBEDDINGS -> "/openai/v1/embeddings";
+            case IMAGE_GENERATIONS -> "/openai/v1/images/generations";
+            case IMAGE_EDITS -> "/openai/v1/images/edits";
+            case IMAGE_VARIATIONS -> "/openai/v1/images/variations";
+            case AUDIO_TRANSCRIPTIONS -> "/openai/v1/audio/transcriptions";
+            case AUDIO_TRANSLATIONS -> "/openai/v1/audio/translations";
+            case AUDIO_SPEECH -> "/openai/v1/audio/speech";
+            case VIDEO_GENERATIONS -> "/openai/v1/videos/generations";
+            case RERANK -> "/v1/rerank";
+            case MODERATIONS -> "/openai/v1/moderations";
+            default -> throw new BusinessException(ErrorCode.VALIDATION_ERROR, "当前调试暂不支持该接口协议");
+        };
+    }
+
+    private static String buildTestCurl(String baseUrl,
+                                        String gatewayPath,
+                                        String secretKey,
+                                        String ruleCode,
+                                        ModelApiProtocolEnum protocol,
+                                        Map<String, Object> body) {
+        if (ModelApiProtocolEnum.IMAGE_EDITS == protocol) {
+            return buildMultipartCurl(baseUrl, gatewayPath, secretKey, ruleCode, body);
+        }
         String json = JsonKit.toJson(body);
         String escapedJson = json == null ? "{}" : json.replace("'", "'\\''");
-        return "curl -X POST '" + baseUrl + "/openai/v1/chat/completions' \\\n"
+        return "curl -X POST '" + baseUrl + gatewayPath + "' \\\n"
                 + "  -H 'Authorization: Bearer " + secretKey + "' \\\n"
                 + "  -H 'Rule: " + ruleCode + "' \\\n"
-                + "  -H 'traceparent: 00-00000000000000000000000000000001-0000000000000001-01' \\\n"
+                + "  -H 'traceparent: " + TRACEPARENT + "' \\\n"
                 + "  -H 'Content-Type: application/json' \\\n"
                 + "  -d '" + escapedJson + "'";
+    }
+
+    private static String buildMultipartCurl(String baseUrl,
+                                             String gatewayPath,
+                                             String secretKey,
+                                             String ruleCode,
+                                             Map<String, Object> body) {
+        StringBuilder curl = new StringBuilder()
+                .append("curl -X POST '").append(baseUrl).append(gatewayPath).append("' \\\n")
+                .append("  -H 'Authorization: Bearer ").append(secretKey).append("' \\\n")
+                .append("  -H 'Rule: ").append(ruleCode).append("' \\\n")
+                .append("  -H 'traceparent: ").append(TRACEPARENT).append("' ");
+        appendMultipartFields(curl, "model", body.get("model"));
+        appendMultipartFields(curl, "prompt", body.get("prompt"));
+        appendMultipartFields(curl, "image", body.get("image"));
+        appendMultipartFields(curl, "mask", body.get("mask"));
+        for (Map.Entry<String, Object> entry : body.entrySet()) {
+            String key = entry.getKey();
+            if (Set.of("model", "prompt", "image", "mask").contains(key)) {
+                continue;
+            }
+            appendMultipartFields(curl, key, entry.getValue());
+        }
+        return curl.toString().trim();
+    }
+
+    private static void appendMultipartFields(StringBuilder curl, String key, Object value) {
+        if (value == null) {
+            return;
+        }
+        if (value instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                appendMultipartFields(curl, key, item);
+            }
+            return;
+        }
+        String text = String.valueOf(value);
+        if (("image".equals(key) || "mask".equals(key)) && new File(text).exists()) {
+            curl.append("\\\n  -F '").append(key).append("=@").append(text.replace("\\", "/")).append("' ");
+            return;
+        }
+        curl.append("\\\n  -F '").append(key).append("=").append(text.replace("'", "'\\''")).append("' ");
+    }
+
+    private MultiValueMap<String, Object> toMultipartBody(Map<String, Object> body) {
+        MultiValueMap<String, Object> parts = new LinkedMultiValueMap<>();
+        for (Map.Entry<String, Object> entry : body.entrySet()) {
+            addMultipartPart(parts, entry.getKey(), entry.getValue());
+        }
+        return parts;
+    }
+
+    private void addMultipartPart(MultiValueMap<String, Object> parts, String key, Object value) {
+        if (value == null) {
+            return;
+        }
+        if (value instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                addMultipartPart(parts, key, item);
+            }
+            return;
+        }
+        if ("image".equals(key) || "mask".equals(key)) {
+            FileSystemResource resource = toFileResource(value, key);
+            parts.add(key, resource);
+            return;
+        }
+        parts.add(key, value);
+    }
+
+    private FileSystemResource toFileResource(Object value, String fieldName) {
+        File file = new File(String.valueOf(value));
+        if (!file.exists() || !file.isFile()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, fieldName + " 需要提供可访问的本地文件路径");
+        }
+        return new FileSystemResource(file);
     }
 
     private List<RoutingRuleDto> enrichList(List<RoutingRuleEntity> entities) {
@@ -627,5 +1004,17 @@ public class RoutingRuleService {
                 .distinct()
                 .collect(Collectors.toList());
         return result.isEmpty() ? List.of("CHAT") : result;
+    }
+
+    private static List<String> normalizeModelTypesForQuery(List<String> modelTypes) {
+        if (modelTypes == null || modelTypes.isEmpty()) {
+            return null;
+        }
+        List<String> result = modelTypes.stream()
+                .map(s -> s == null ? "" : s.trim())
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
+        return result.isEmpty() ? null : result;
     }
 }

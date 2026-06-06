@@ -20,7 +20,9 @@ public interface ExternalModelMapper {
     int updateSourceLastSyncAt(@Param("sourceCode") String sourceCode, @Param("lastSyncAt") LocalDateTime lastSyncAt);
 
     List<ExternalModelItemEntity> listItems(@Param("sourceCode") String sourceCode,
-                                            @Param("syncStatus") String syncStatus);
+                                            @Param("syncStatus") String syncStatus,
+                                            @Param("keyword") String keyword,
+                                            @Param("modelType") String modelType);
 
     ExternalModelItemEntity getItemById(Long id);
 

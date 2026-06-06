@@ -5,6 +5,7 @@ public record RoutingTestResult(
         Long targetProviderId,
         Long targetModelId,
         String modelCode,
+        String protocol,
         String status,
         String curl,
         Integer httpStatus,

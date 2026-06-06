@@ -14,6 +14,25 @@
         from routing_rules r
         left join apps a on r.app_id = a.id
         left join users u on r.user_id = u.id and u.is_deleted = 0
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    r.rule_code like concat('%', #{keyword}, '%')
+                    or r.name like concat('%', #{keyword}, '%')
+                    or r.app_scenario like concat('%', #{keyword}, '%')
+                    or a.name like concat('%', #{keyword}, '%')
+                    or u.real_name like concat('%', #{keyword}, '%')
+                    or u.username like concat('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="modelTypes != null and modelTypes.size() > 0">
+                and (
+                    <foreach collection="modelTypes" item="type" separator=" or ">
+                        find_in_set(#{type}, r.model_types)
+                    </foreach>
+                )
+            </if>
+        </where>
         order by r.id desc
     </select>
 

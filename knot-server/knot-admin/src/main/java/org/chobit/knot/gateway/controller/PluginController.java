@@ -31,7 +31,11 @@ public class PluginController {
      */
     @PostMapping("/list")
     public PageResult<PluginItem> list(@RequestBody(required = false) PageQuery query) {
-        PageResult<PluginDto> page = pluginService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
+        PageResult<PluginDto> page = pluginService.list(
+                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                query == null ? null : query.keyword(),
+                query == null ? null : query.status()
+        );
         return page.mapList(pluginConverter::toVOList);
     }
 

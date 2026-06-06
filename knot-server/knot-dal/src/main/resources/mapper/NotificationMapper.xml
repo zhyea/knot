@@ -5,6 +5,16 @@
     <select id="listTemplates" resultType="org.chobit.knot.gateway.entity.NotifyTemplateEntity">
         select id, code, name, channel, content_tpl, status
         from notification_templates
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    code like concat('%', #{keyword}, '%')
+                    or name like concat('%', #{keyword}, '%')
+                    or channel like concat('%', #{keyword}, '%')
+                    or content_tpl like concat('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
         order by id desc
     </select>
 

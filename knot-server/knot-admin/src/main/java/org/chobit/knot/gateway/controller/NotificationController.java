@@ -34,7 +34,10 @@ public class NotificationController {
      */
     @PostMapping("/templates/list")
     public PageResult<NotifyTemplate> templates(@RequestBody(required = false) PageQuery query) {
-        PageResult<TemplateDto> page = notificationService.listTemplates(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
+        PageResult<TemplateDto> page = notificationService.listTemplates(
+                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                query == null ? null : query.keyword()
+        );
         return page.mapList(notificationConverter::toTemplateVOList);
     }
 

@@ -9,7 +9,7 @@ import java.util.List;
 @Mapper
 public interface NotificationMapper {
 
-    List<NotifyTemplateEntity> listTemplates();
+    List<NotifyTemplateEntity> listTemplates(@Param("keyword") String keyword);
 
     NotifyTemplateEntity getTemplateByCode(String code);
 

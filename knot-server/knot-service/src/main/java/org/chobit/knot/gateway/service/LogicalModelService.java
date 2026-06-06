@@ -53,8 +53,17 @@ public class LogicalModelService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<LogicalModelDto> list(PageRequest pageRequest, String keyword) {
+        return list(pageRequest, keyword, null);
+    }
+
+    /**
+     * Lists matching results. Executes the public operation.
+     */
+    public PageResult<LogicalModelDto> list(PageRequest pageRequest, String keyword, List<String> modelTypes) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<LogicalModelEntity> pageInfo = new PageInfo<>(logicalModelMapper.list(normalizeKeyword(keyword)));
+        PageInfo<LogicalModelEntity> pageInfo = new PageInfo<>(
+                logicalModelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes))
+        );
         List<LogicalModelDto> list = pageInfo.getList().stream()
                 .map(logicalModelConverter::toDto)
                 .toList();
@@ -64,6 +73,18 @@ public class LogicalModelService {
     private static String normalizeKeyword(String keyword) {
         String value = keyword != null ? keyword.trim() : "";
         return value.isEmpty() ? null : value;
+    }
+
+    private static List<String> normalizeModelTypes(List<String> modelTypes) {
+        if (modelTypes == null || modelTypes.isEmpty()) {
+            return null;
+        }
+        List<String> result = modelTypes.stream()
+                .map(item -> item == null ? "" : item.trim())
+                .filter(item -> !item.isEmpty())
+                .distinct()
+                .toList();
+        return result.isEmpty() ? null : result;
     }
 
     /**

@@ -34,7 +34,11 @@ public class RoutingRuleController {
      */
     @PostMapping("/list")
     public PageResult<RoutingRule> list(@RequestBody(required = false) PageQuery query) {
-        PageResult<RoutingRuleDto> page = routingRuleService.list(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
+        PageResult<RoutingRuleDto> page = routingRuleService.list(
+                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                query == null ? null : query.keyword(),
+                query == null ? null : query.modelTypes()
+        );
         return page.mapList(routingRuleConverter::toVOList);
     }
 
@@ -90,7 +94,14 @@ public class RoutingRuleController {
      */
     @PostMapping("/{id}/test")
     public RoutingTestResult test(@PathVariable Long id, @RequestBody @Valid RoutingTestRequest request) {
-        return routingRuleService.testInvoke(id, request.secretKey(), request.prompt(), request.model());
+        return routingRuleService.testInvoke(id,
+                request.secretKey(),
+                request.prompt(),
+                request.model(),
+                request.protocol(),
+                request.targetType(),
+                request.targetId(),
+                request.requestBody());
     }
 
 }

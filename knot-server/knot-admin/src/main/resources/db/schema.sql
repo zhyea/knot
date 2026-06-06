@@ -403,17 +403,6 @@ CREATE TABLE IF NOT EXISTS external_model_items (
   KEY idx_external_model_sync_status (sync_status)
 );
 
-CREATE TABLE IF NOT EXISTS model_versions (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  model_id BIGINT NOT NULL,
-  version VARCHAR(64) NOT NULL,
-  config_json JSON DEFAULT NULL,
-  gray_percent INT DEFAULT 0,
-  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_model_versions_model (model_id)
-);
-
 -- 供应商模型与 API 协议绑定（协议 + 消耗取值逻辑）
 CREATE TABLE IF NOT EXISTS model_api_bindings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,

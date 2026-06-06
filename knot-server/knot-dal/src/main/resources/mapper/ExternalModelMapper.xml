@@ -53,6 +53,17 @@
             <if test="syncStatus != null and syncStatus != ''">
                 and sync_status = #{syncStatus}
             </if>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    model_name like concat('%', #{keyword}, '%')
+                    or model_id like concat('%', #{keyword}, '%')
+                    or provider_name like concat('%', #{keyword}, '%')
+                    or canonical_slug like concat('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="modelType != null and modelType != ''">
+                and model_type = #{modelType}
+            </if>
         </where>
         order by coalesce(model_created_at, updated_at) desc, id desc
     </select>

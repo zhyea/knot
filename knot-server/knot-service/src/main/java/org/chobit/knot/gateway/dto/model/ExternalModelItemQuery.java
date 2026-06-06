@@ -6,7 +6,9 @@ public record ExternalModelItemQuery(
         Integer pageNum,
         Integer pageSize,
         String sourceCode,
-        String syncStatus
+        String syncStatus,
+        String keyword,
+        String modelType
 ) {
     /**
      * Converts the source value to the target representation. Executes the public operation.

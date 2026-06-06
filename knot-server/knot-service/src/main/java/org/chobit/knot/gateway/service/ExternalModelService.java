@@ -58,7 +58,9 @@ public class ExternalModelService {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<ExternalModelItemEntity> pageInfo = new PageInfo<>(externalModelMapper.listItems(
                 query != null ? query.sourceCode() : null,
-                query != null ? query.syncStatus() : null
+                query != null ? query.syncStatus() : null,
+                normalizeKeyword(query != null ? query.keyword() : null),
+                normalizeKeyword(query != null ? query.modelType() : null)
         ));
         return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
@@ -166,7 +168,9 @@ public class ExternalModelService {
     public ExternalModelSyncResult createLogicalModels(ExternalModelItemQuery query) {
         List<ExternalModelItemEntity> items = externalModelMapper.listItems(
                 query != null ? query.sourceCode() : null,
-                query != null ? query.syncStatus() : null
+                query != null ? query.syncStatus() : null,
+                normalizeKeyword(query != null ? query.keyword() : null),
+                normalizeKeyword(query != null ? query.modelType() : null)
         );
         int inserted = 0;
         int skipped = 0;
@@ -273,5 +277,10 @@ public class ExternalModelService {
 
     private boolean same(Integer a, Integer b) {
         return a == null ? b == null : a.equals(b);
+    }
+
+    private static String normalizeKeyword(String value) {
+        String text = value == null ? "" : value.trim();
+        return text.isEmpty() ? null : text;
     }
 }

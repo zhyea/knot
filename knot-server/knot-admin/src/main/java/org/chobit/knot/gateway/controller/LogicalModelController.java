@@ -53,7 +53,8 @@ public class LogicalModelController {
     public PageResult<LogicalModelItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<LogicalModelDto> page = logicalModelService.list(
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
-                query == null ? null : query.keyword()
+                query == null ? null : query.keyword(),
+                query == null ? null : query.modelTypes()
         );
         return page.mapList(logicalModelConverter::toVOList);
     }

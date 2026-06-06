@@ -35,6 +35,12 @@
                     or model_family like concat('%', #{keyword}, '%')
                 )
             </if>
+            <if test="modelTypes != null and modelTypes.size() > 0">
+                and model_type in
+                <foreach collection="modelTypes" item="item" open="(" separator="," close=")">
+                    #{item}
+                </foreach>
+            </if>
         </where>
         order by featured desc, sort_order asc, id desc
     </select>
