@@ -1,9 +1,5 @@
 <template>
   <div>
-    <div class="toolbar">
-      <el-button type="primary" @click="emit('create')">新建模型池</el-button>
-      <el-button @click="emit('refresh')">刷新</el-button>
-    </div>
     <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
       <el-table-column prop="poolCode" label="模型池编码" min-width="150" show-overflow-tooltip />
@@ -42,24 +38,21 @@
         </template>
       </el-table-column>
     </el-table>
-    <div class="pagination-wrap">
-      <el-pagination
-        background
-        layout="total, sizes, prev, pager, next"
-        :total="total"
-        :page-size="pageSize"
-        :current-page="pageNum"
-        :page-sizes="[10, 20, 50]"
-        @current-change="(page) => emit('page-change', page)"
-        @size-change="(size) => emit('size-change', size)"
-      />
-    </div>
+    <ListPagination
+      :total="total"
+      :page-num="pageNum"
+      :page-size="pageSize"
+      @refresh="emit('refresh')"
+      @page-change="(page) => emit('page-change', page)"
+      @size-change="(size) => emit('size-change', size)"
+    />
   </div>
 </template>
 
 <script setup>
 import { onMounted } from "vue";
 import { Delete, Edit } from "@element-plus/icons-vue";
+import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import { updateModelPool } from "../../api/modelPools";
 import { useEnabledToggle } from "../../composables/useEnabledToggle";

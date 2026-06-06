@@ -52,14 +52,11 @@
 
       <div class="space-line" />
 
-      <div class="slot-body">
-        <el-form-item label="频控策略">
-          <KvEditor v-model="form.rateLimitPolicy" value-mode="number"/>
-        </el-form-item>
-        <el-form-item label="额度策略">
-          <KvEditor v-model="form.quotaPolicy" value-mode="number"/>
-        </el-form-item>
-      </div>
+      <TrafficPolicySection
+          class="slot-body"
+          v-model:rate-limit="form.rateLimitPolicy"
+          v-model:quota="form.quotaPolicy"
+      />
     </el-form>
     </el-scrollbar>
     <template #footer>
@@ -74,6 +71,7 @@
 import {computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import KvEditor from "../common/KvEditor.vue";
+import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import {useAuth} from "../../composables/useAuth";
 import EnumSelect from "../common/EnumSelect.vue";
 import {
@@ -97,6 +95,13 @@ const codeChecking = ref(false);
 const codeError = ref("");
 const codeValidated = ref(false);
 const detailLoading = ref(false);
+const DEFAULT_PROVIDER_BASE_URLS = {
+  OPENAI: "https://api.openai.com",
+  ANTHROPIC: "https://api.anthropic.com",
+  DEEPSEEK: "https://api.deepseek.com",
+  QWEN: "https://dashscope.aliyuncs.com",
+  ZHIPU: "https://open.bigmodel.cn/api/paas/v4"
+};
 
 const form = reactive({
   id: null,
@@ -111,6 +116,14 @@ const form = reactive({
 });
 
 const isEdit = computed(() => props.provider != null);
+
+function normalizedProviderType(type) {
+  return String(type || "").trim().toUpperCase();
+}
+
+function defaultBaseUrlForType(type) {
+  return DEFAULT_PROVIDER_BASE_URLS[normalizedProviderType(type)] || "";
+}
 
 function defaultAuthConfig() {
   return {apiKey: ""};
@@ -196,6 +209,19 @@ watch(
       codeValidated.value = false;
       if (codeError.value) {
         codeError.value = "";
+      }
+    }
+);
+
+watch(
+    () => form.type,
+    (type, previousType) => {
+      if (!props.modelValue) return;
+      const nextDefault = defaultBaseUrlForType(type);
+      if (!nextDefault) return;
+      const previousDefault = defaultBaseUrlForType(previousType);
+      if (!form.baseUrl || form.baseUrl === previousDefault) {
+        form.baseUrl = nextDefault;
       }
     }
 );

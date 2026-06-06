@@ -1,5 +1,45 @@
 <template>
   <PageSection class="market-page" title="模型广场">
+    <ListPageHeader ref="headerRef">
+      <template #actions>
+        <div class="market-header-copy">
+          <div class="market-subtitle">统一对外模型入口，供应商真实模型通过映射维护。</div>
+        </div>
+        <div class="market-actions">
+          <el-button @click="load">刷新</el-button>
+          <el-button type="primary" @click="openCreate">新建统一模型</el-button>
+        </div>
+      </template>
+      <template #filters>
+        <div class="list-filter-item list-filter-item--grow">
+          <span class="list-filter-label">关键词</span>
+          <el-input
+            v-model="query.keyword"
+            class="list-filter-control--wide"
+            placeholder="按模型编码、名称、模型族筛选"
+            clearable
+            @keyup.enter="handleQuery"
+          />
+        </div>
+        <div class="list-filter-item">
+          <span class="list-filter-label">模型类型</span>
+          <EnumSelect
+            v-model="query.modelTypes"
+            class="list-filter-control--wide"
+            category="model_type"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
+            clearable
+          />
+        </div>
+        <div class="list-filter-actions">
+          <el-button type="primary" @click="handleQuery">查询</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </div>
+      </template>
+    </ListPageHeader>
+
     <LogicalModelMarketplacePanel
       ref="marketPanelRef"
       :rows="rows"
@@ -9,8 +49,6 @@
       :page-size="pageSize"
       :grid-style="gridStyle"
       :model-type-options="modelTypeOptions"
-      @refresh="load"
-      @create="openCreate"
       @action="handleAction"
       @page-change="onPageChange"
     />
@@ -23,16 +61,24 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
+import ListPageHeader from "../components/common/ListPageHeader.vue";
+import EnumSelect from "../components/common/EnumSelect.vue";
 import LogicalModelFormDrawer from "../components/model/LogicalModelFormDrawer.vue";
 import LogicalModelMarketplacePanel from "../components/model/LogicalModelMarketplacePanel.vue";
 import { deleteLogicalModel, listLogicalModels } from "../api/logicalModels";
 import { useEnums } from "../composables/useEnums";
 import { usePageList } from "../composables/usePageList";
 
+const query = reactive({
+  keyword: "",
+  modelTypes: []
+});
+
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, resetPage } =
-  usePageList(listLogicalModels, { pageSize: 9 });
+  usePageList(listLogicalModels, { pageSize: 9, extra: query });
 
 const { options: modelTypeOptions, loadOptions: loadModelTypes } = useEnums("model_type");
+const headerRef = ref(null);
 const marketPanelRef = ref(null);
 const formVisible = ref(false);
 const editingModel = ref(null);
@@ -82,6 +128,18 @@ async function removeModel(row) {
   await resetPage();
 }
 
+function handleQuery() {
+  loaded = false;
+  return resetPage();
+}
+
+function handleReset() {
+  query.keyword = "";
+  query.modelTypes = [];
+  loaded = false;
+  return resetPage();
+}
+
 onMounted(() => {
   loadModelTypes();
   nextTick(() => {
@@ -108,7 +166,7 @@ function setupAutoLayout() {
     }
     resizeTimer = setTimeout(() => recalcLayout(false), 120);
   });
-  [getViewportEl(), getToolbarEl(), getPaginationEl()]
+  [getViewportEl(), getHeaderEl(), getPaginationEl()]
     .filter(Boolean)
     .forEach((el) => resizeObserver.observe(el));
 }
@@ -166,7 +224,7 @@ function getAvailableGridHeight() {
   const bodyRect = body.getBoundingClientRect();
   const bodyHeight = Math.max(0, Math.floor(viewportRect.bottom - bodyRect.top));
   const reservedHeight =
-    getOuterHeight(getToolbarEl()) +
+    getOuterHeight(getHeaderEl()) +
     getOuterHeight(getPaginationEl()) +
     getBodyBottomInset();
   return Math.max(0, Math.floor(bodyHeight - reservedHeight - LAYOUT_SAFETY_GAP));
@@ -182,6 +240,10 @@ function getOuterHeight(el) {
 
 function getBodyEl() {
   return marketPanelRef.value?.getBodyEl?.();
+}
+
+function getHeaderEl() {
+  return headerRef.value?.getRootEl?.() || null;
 }
 
 function getBodyBottomInset() {
@@ -201,10 +263,6 @@ function getBoxBottomInset(el) {
 
 function getViewportEl() {
   return getBodyEl()?.closest(".el-scrollbar__wrap") || null;
-}
-
-function getToolbarEl() {
-  return marketPanelRef.value?.getToolbarEl?.();
 }
 
 function getPaginationEl() {
@@ -228,5 +286,19 @@ function getPaginationEl() {
   flex-direction: column;
   overflow: hidden;
   margin-top: 0;
+}
+
+.market-header-copy {
+  min-width: 0;
+}
+
+.market-subtitle {
+  color: #606266;
+  font-size: 13px;
+}
+
+.market-actions {
+  display: inline-flex;
+  gap: 10px;
 }
 </style>

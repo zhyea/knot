@@ -1,9 +1,5 @@
 <template>
   <div>
-    <div class="toolbar">
-      <el-button type="primary" @click="emit('create')">新建供应商</el-button>
-      <el-button @click="emit('refresh')">刷新</el-button>
-    </div>
     <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center"/>
       <el-table-column prop="code" label="编码" min-width="10%" show-overflow-tooltip />
@@ -39,24 +35,21 @@
         </template>
       </el-table-column>
     </el-table>
-    <div class="pagination-wrap">
-      <el-pagination
-          background
-          layout="total, sizes, prev, pager, next"
-          :total="total"
-          :page-size="pageSize"
-          :current-page="pageNum"
-          :page-sizes="[10, 20, 50]"
-          @current-change="(p) => emit('page-change', p)"
-          @size-change="(s) => emit('size-change', s)"
-      />
-    </div>
+    <ListPagination
+      :total="total"
+      :page-num="pageNum"
+      :page-size="pageSize"
+      @refresh="emit('refresh')"
+      @page-change="(p) => emit('page-change', p)"
+      @size-change="(s) => emit('size-change', s)"
+    />
   </div>
 </template>
 
 <script setup>
 import { onMounted } from "vue";
 import { Discount, Document, Edit } from "@element-plus/icons-vue";
+import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import { updateProvider } from "../../api/providers";
 import { useEnabledToggle } from "../../composables/useEnabledToggle";

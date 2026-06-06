@@ -40,7 +40,7 @@ export function checkRoutingRuleCode(code, excludeId) {
   });
 }
 
-export function testRoutingRule(id, payload) {
-  return post(`/api/routing-rules/${id}/test`, payload);
+export function testRoutingRule(id, payload, config) {
+  return post(`/api/routing-rules/${id}/test`, payload, config);
 }
 

@@ -54,14 +54,11 @@
 
       <div class="space-line"/>
 
-      <div class="slot-body">
-        <el-form-item label="频控策略">
-          <KvEditor v-model="form.rateLimitPolicy" value-mode="number"/>
-        </el-form-item>
-        <el-form-item label="额度策略">
-          <KvEditor v-model="form.quotaPolicy" value-mode="number"/>
-        </el-form-item>
-      </div>
+      <TrafficPolicySection
+          class="slot-body"
+          v-model:rate-limit="form.rateLimitPolicy"
+          v-model:quota="form.quotaPolicy"
+      />
     </el-form>
     </el-scrollbar>
     <template #footer>
@@ -74,8 +71,8 @@
 <script setup>
 import {computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
-import KvEditor from "../common/KvEditor.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
+import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import {
   emptyQuotaPolicy,
   emptyRateLimitPolicy,

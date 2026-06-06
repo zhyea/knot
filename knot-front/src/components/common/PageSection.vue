@@ -20,7 +20,6 @@ defineProps({
 .page-section {
   background: var(--knot-surface, #fff);
   border-radius: 0;
-  padding: 18px;
   width: 100%;
 }
 
@@ -33,5 +32,6 @@ defineProps({
 
 .slot-body {
   margin-top: 16px;
+  border: none;
 }
 </style>

@@ -280,26 +280,15 @@
 
       <div class="space-line" />
 
-      <div class="slot-body model-section">
-        <div class="section-head">
-          <div>
-            <h3>策略配置</h3>
-            <p>按需配置模型级频控和额度策略；留空则不在模型维度覆盖。</p>
-          </div>
-        </div>
-        <el-row :gutter="16" class="policy-grid">
-          <el-col :span="12">
-            <el-form-item label="Rate Limit">
-              <KvEditor v-model="form.rateLimitPolicy" value-mode="number" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="额度策略">
-              <KvEditor v-model="form.quotaPolicy" value-mode="number" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </div>
+      <TrafficPolicySection
+        class="slot-body model-section"
+        title="策略配置"
+        description="按需配置模型级频控和额度策略；留空则不在模型维度覆盖。"
+        rate-label="Rate Limit"
+        v-model:rate-limit="form.rateLimitPolicy"
+        v-model:quota="form.quotaPolicy"
+        :columns="2"
+      />
     </el-form>
     </el-scrollbar>
 
@@ -313,9 +302,9 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
-import KvEditor from "../common/KvEditor.vue";
 import EnumSelect from "../common/EnumSelect.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
+import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import { useEnums } from "../../composables/useEnums";
 import {
   emptyQuotaPolicy,
@@ -382,11 +371,32 @@ const MODEL_TYPE_API_PROTOCOLS = {
     "ANTHROPIC_MESSAGES",
     "OPENAI_COMPLETIONS"
   ],
+  MULTIMODAL: [
+    "CHAT_COMPLETIONS",
+    "RESPONSES",
+    "MESSAGES",
+    "COMPLETIONS",
+    "OPENAI_CHAT_COMPLETIONS",
+    "OPENAI_RESPONSES",
+    "ANTHROPIC_MESSAGES",
+    "OPENAI_COMPLETIONS",
+    "IMAGE_GENERATIONS",
+    "IMAGE_EDITS",
+    "IMAGE_VARIATIONS",
+    "AUDIO_TRANSCRIPTIONS",
+    "AUDIO_TRANSLATIONS",
+    "AUDIO_SPEECH",
+    "VIDEO_GENERATIONS"
+  ],
   EMBEDDING: ["EMBEDDINGS"],
-  IMAGE: ["IMAGE_GENERATIONS", "IMAGE_EDITS"],
+  IMAGE: ["IMAGE_GENERATIONS", "IMAGE_EDITS", "IMAGE_VARIATIONS"],
   AUDIO: ["AUDIO_TRANSCRIPTIONS", "AUDIO_TRANSLATIONS", "AUDIO_SPEECH"],
   VIDEO: ["VIDEO_GENERATIONS"],
-  RERANK: ["RERANK"]
+  RERANK: ["RERANK"],
+  DOCUMENT: ["CHAT_COMPLETIONS", "RESPONSES", "MESSAGES"],
+  OCR: ["CHAT_COMPLETIONS", "RESPONSES", "MESSAGES"],
+  MODERATION: ["MODERATIONS"],
+  UTILITY: ["RERANK", "MODERATIONS"]
 };
 
 const form = reactive({
@@ -404,7 +414,7 @@ const form = reactive({
   apiBindings: []
 });
 
-const isEdit = computed(() => props.model != null);
+const isEdit = computed(() => props.model?.id != null);
 const selectedProvider = computed(() => providerOptions.value.find((item) => item.id === form.providerId));
 const selectedLogicalModel = computed(() => logicalModelOptions.value.find((item) => item.id === form.logicalModelId));
 const selectedBillingRule = computed(() => billingRuleOptions.value.find((item) => item.id === form.billingRuleId));
@@ -552,7 +562,7 @@ async function resetForm() {
   try {
     if (props.model) {
       fillForm(props.model);
-      if (props.model.id) {
+      if (isEdit.value) {
         detailLoading.value = true;
         try {
           const detail = await getModel(props.model.id);
@@ -819,8 +829,7 @@ async function submit() {
   box-shadow: 0 8px 24px rgba(31, 45, 61, 0.04);
 }
 
-.form-grid :deep(.el-form-item),
-.policy-grid :deep(.el-form-item) {
+.form-grid :deep(.el-form-item) {
   margin-bottom: 14px;
 }
 

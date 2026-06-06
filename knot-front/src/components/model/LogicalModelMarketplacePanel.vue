@@ -1,15 +1,5 @@
 <template>
   <div ref="bodyRef" class="market-body">
-    <div ref="toolbarRef" class="market-toolbar">
-      <div>
-        <div class="page-subtitle">统一对外模型入口，供应商真实模型通过映射维护。</div>
-      </div>
-      <div class="toolbar-actions">
-        <el-button @click="emit('refresh')">刷新</el-button>
-        <el-button type="primary" @click="emit('create')">新建统一模型</el-button>
-      </div>
-    </div>
-
     <div v-loading="loading" class="model-grid" :style="gridStyle">
       <div v-for="row in rows" :key="row.id" class="model-card">
         <div class="corner-ribbon" :class="ribbonClass(row)">{{ ribbonText(row) }}</div>
@@ -39,22 +29,22 @@
       <el-empty v-if="!loading && !rows.length" description="暂无统一模型" />
     </div>
 
-    <div ref="paginationRef" class="pagination-wrap">
-      <el-pagination
-        background
-        layout="total, prev, pager, next"
-        :total="total"
-        :page-size="pageSize"
-        :current-page="pageNum"
-        @current-change="(page) => emit('page-change', page)"
-      />
-    </div>
+    <ListPagination
+      ref="paginationRef"
+      :total="total"
+      :page-num="pageNum"
+      :page-size="pageSize"
+      layout="total, prev, pager, next"
+      @refresh="emit('refresh')"
+      @page-change="(page) => emit('page-change', page)"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref } from "vue";
 import { Delete, Edit } from "@element-plus/icons-vue";
+import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 
 const props = defineProps({
@@ -67,10 +57,9 @@ const props = defineProps({
   modelTypeOptions: { type: Array, default: () => [] }
 });
 
-const emit = defineEmits(["refresh", "create", "action", "page-change"]);
+const emit = defineEmits(["action", "refresh", "page-change"]);
 
 const bodyRef = ref(null);
-const toolbarRef = ref(null);
 const paginationRef = ref(null);
 
 function modelTypeLabel(code) {
@@ -111,8 +100,7 @@ function formatDate(value) {
 
 defineExpose({
   getBodyEl: () => bodyRef.value,
-  getToolbarEl: () => toolbarRef.value,
-  getPaginationEl: () => paginationRef.value
+  getPaginationEl: () => paginationRef.value?.getRootEl?.() || null
 });
 </script>
 
@@ -123,25 +111,6 @@ defineExpose({
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-.market-toolbar {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.page-subtitle {
-  color: #606266;
-  font-size: 13px;
-}
-
-.toolbar-actions {
-  display: inline-flex;
-  gap: 10px;
 }
 
 .model-grid {
@@ -249,10 +218,6 @@ defineExpose({
   flex: 0 0 auto;
 }
 
-.pagination-wrap {
-  flex: 0 0 auto;
-}
-
 .corner-ribbon {
   position: absolute;
   top: 0;
@@ -283,15 +248,6 @@ defineExpose({
 }
 
 @media (max-width: 720px) {
-  .market-toolbar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .toolbar-actions {
-    justify-content: flex-end;
-  }
-
   .card-top {
     padding-right: 56px;
   }

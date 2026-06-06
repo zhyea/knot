@@ -4,6 +4,10 @@ export function listModelPools(params) {
   return postQuery("/api/model-pools/list", params);
 }
 
+export function getModelPool(id) {
+  return get(`/api/model-pools/${id}`);
+}
+
 export function checkModelPoolCode(code, excludeId) {
   return get("/api/model-pools/check-code", {
     params: { code, excludeId: excludeId ?? undefined }

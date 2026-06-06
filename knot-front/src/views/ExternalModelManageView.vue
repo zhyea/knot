@@ -1,20 +1,57 @@
 <template>
   <PageSection title="外部模型">
-    <div class="toolbar">
-      <el-select v-model="extra.sourceCode" placeholder="来源" class="source-select" @change="resetPage">
-        <el-option v-for="s in sources" :key="s.sourceCode" :label="s.sourceName" :value="s.sourceCode" />
-      </el-select>
-      <el-button @click="load">刷新</el-button>
-      <el-button type="primary" :loading="syncing" @click="syncOpenRouter">同步 OpenRouter 模型</el-button>
-      <el-button type="success" :loading="creatingAll" :disabled="createAllDisabled" @click="createAllVisible">
-        一键创建统一模型
-      </el-button>
-      <el-popconfirm title="确认物理删除选中的外部模型？" @confirm="deleteSelected">
-        <template #reference>
-          <el-button type="danger" :disabled="!selectedRows.length">批量删除</el-button>
-        </template>
-      </el-popconfirm>
-    </div>
+    <ListPageHeader>
+      <template #actions>
+        <div class="external-actions">
+          <el-button @click="load">刷新</el-button>
+          <el-button type="primary" :loading="syncing" @click="syncOpenRouter">同步 OpenRouter 模型</el-button>
+          <el-button type="success" :loading="creatingAll" :disabled="createAllDisabled" @click="createAllVisible">
+            一键创建统一模型
+          </el-button>
+          <el-popconfirm title="确认物理删除选中的外部模型？" @confirm="deleteSelected">
+            <template #reference>
+              <el-button type="danger" :disabled="!selectedRows.length">批量删除</el-button>
+            </template>
+          </el-popconfirm>
+        </div>
+      </template>
+      <template #filters>
+        <div class="list-filter-item">
+          <span class="list-filter-label">来源</span>
+          <el-select
+            v-model="query.sourceCode"
+            class="list-filter-control"
+            placeholder="来源"
+            clearable
+          >
+            <el-option v-for="s in sources" :key="s.sourceCode" :label="s.sourceName" :value="s.sourceCode" />
+          </el-select>
+        </div>
+        <div class="list-filter-item">
+          <span class="list-filter-label">模型类型</span>
+          <EnumSelect
+            v-model="query.modelType"
+            class="list-filter-control"
+            category="model_type"
+            clearable
+          />
+        </div>
+        <div class="list-filter-item list-filter-item--grow">
+          <span class="list-filter-label">关键词</span>
+          <el-input
+            v-model="query.keyword"
+            class="list-filter-control--wide"
+            placeholder="按模型名、模型 ID、供应商筛选"
+            clearable
+            @keyup.enter="handleQuery"
+          />
+        </div>
+        <div class="list-filter-actions">
+          <el-button type="primary" @click="handleQuery">查询</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </div>
+      </template>
+    </ListPageHeader>
 
     <ExternalModelListPanel
       :rows="rows"
@@ -33,9 +70,11 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
+import ListPageHeader from "../components/common/ListPageHeader.vue";
+import EnumSelect from "../components/common/EnumSelect.vue";
 import ExternalModelDetailDrawer from "../components/model/ExternalModelDetailDrawer.vue";
 import ExternalModelListPanel from "../components/model/ExternalModelListPanel.vue";
 import { usePageList } from "../composables/usePageList";
@@ -50,10 +89,14 @@ import {
   syncExternalModelSource
 } from "../api/externalModels";
 
-const { rows, loading, total, pageNum, pageSize, extra, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(listExternalModelItems, {
-    extra: { sourceCode: "OPENROUTER", syncStatus: "" }
-  });
+const query = reactive({
+  sourceCode: "OPENROUTER",
+  keyword: "",
+  modelType: ""
+});
+
+const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
+  usePageList(listExternalModelItems, { extra: query });
 
 const sources = ref([]);
 const syncing = ref(false);
@@ -104,8 +147,9 @@ async function createAllVisible() {
   creatingAll.value = true;
   try {
     const result = await createLogicalModelsFromExternalItems({
-      sourceCode: extra.sourceCode || "",
-      syncStatus: extra.syncStatus || ""
+      sourceCode: query.sourceCode || "",
+      keyword: query.keyword || "",
+      modelType: query.modelType || ""
     });
     ElMessage.success(result?.message || `已创建 ${result?.inserted || 0} 个统一模型`);
     await resetPage();
@@ -132,6 +176,17 @@ async function deleteSelected() {
   await resetPage();
 }
 
+function handleQuery() {
+  return resetPage();
+}
+
+function handleReset() {
+  query.sourceCode = "OPENROUTER";
+  query.keyword = "";
+  query.modelType = "";
+  return resetPage();
+}
+
 onMounted(() => {
   loadSources();
   load();
@@ -139,15 +194,9 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.toolbar {
-  display: flex;
-  align-items: center;
+.external-actions {
+  display: inline-flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 14px;
-}
-
-.source-select {
-  width: 180px;
 }
 </style>

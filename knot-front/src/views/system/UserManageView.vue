@@ -1,13 +1,34 @@
 <template>
   <PageSection title="用户管理">
+    <ListPageHeader>
+      <template #actions>
+        <el-button type="primary" @click="openCreate">新建用户</el-button>
+        <el-button @click="pageLoad">刷新</el-button>
+      </template>
+      <template #filters>
+        <div class="list-filter-item list-filter-item--grow">
+          <span class="list-filter-label">关键词</span>
+          <el-input
+            v-model="query.keyword"
+            class="list-filter-control--wide"
+            placeholder="按用户名、姓名、部门筛选"
+            clearable
+            @keyup.enter="handleQuery"
+          />
+        </div>
+        <div class="list-filter-actions">
+          <el-button type="primary" @click="handleQuery">查询</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </div>
+      </template>
+    </ListPageHeader>
+
     <UserListPanel
       :users="users"
       :loading="loading"
       :total="total"
       :page-num="pageNum"
       :page-size="pageSize"
-      @create="openCreate"
-      @refresh="pageLoad"
       @status-change="onStatusChange"
       @action="handleAction"
       @page-change="onPageChange"
@@ -25,9 +46,10 @@
 </template>
 
 <script setup>
-import { ref, watch } from "vue";
+import { reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
+import ListPageHeader from "../../components/common/ListPageHeader.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import UserFormDrawer from "../../components/system/UserFormDrawer.vue";
 import UserListPanel from "../../components/system/UserListPanel.vue";
@@ -35,12 +57,16 @@ import { usePageList } from "../../composables/usePageList";
 import { listUsers, updateUserStatus } from "../../api/users";
 import { listUserOperationLogs } from "../../api/operationLogs";
 
-const { rows, loading, total, pageNum, pageSize, load: pageLoad, onPageChange, onSizeChange, resetPage } = usePageList(listUsers);
+const query = reactive({
+  keyword: ""
+});
+
+const { rows, loading, total, pageNum, pageSize, load: pageLoad, onPageChange, onSizeChange, resetPage } =
+  usePageList(listUsers, { extra: query });
 const users = ref([]);
 
 const drawerVisible = ref(false);
 const editingUser = ref(null);
-
 const logDrawerVisible = ref(false);
 const logUserId = ref(null);
 const logDrawerTitle = ref("操作日志");
@@ -58,9 +84,13 @@ function loadUserOperationLogs() {
   return listUserOperationLogs(logUserId.value);
 }
 
-watch(rows, (list) => {
-  users.value = list || [];
-}, { immediate: true });
+watch(
+  rows,
+  (list) => {
+    users.value = list || [];
+  },
+  { immediate: true }
+);
 
 function openCreate() {
   editingUser.value = null;
@@ -85,6 +115,15 @@ async function onStatusChange(row, status) {
   } catch {
     row.status = status === 1 ? 0 : 1;
   }
+}
+
+function handleQuery() {
+  return resetPage();
+}
+
+function handleReset() {
+  query.keyword = "";
+  return resetPage();
 }
 
 pageLoad();

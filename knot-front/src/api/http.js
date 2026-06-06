@@ -32,7 +32,11 @@ http.interceptors.response.use(
       if (!silentError) {
         ElMessage.error(body.message || "请求失败");
       }
-      return Promise.reject(new Error(body.message || "请求失败"));
+      const businessError = new Error(body.message || "请求失败");
+      businessError.response = response;
+      businessError.config = response.config;
+      businessError.code = body.code;
+      return Promise.reject(businessError);
     }
     return response;
   },

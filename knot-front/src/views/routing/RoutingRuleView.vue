@@ -1,13 +1,46 @@
-﻿<template>
+<template>
   <PageSection title="规则列表">
+    <ListPageHeader>
+      <template #actions>
+        <el-button type="primary" @click="openCreate">新建规则</el-button>
+        <el-button @click="load">刷新</el-button>
+      </template>
+      <template #filters>
+        <div class="list-filter-item list-filter-item--grow">
+          <span class="list-filter-label">关键词</span>
+          <el-input
+            v-model="query.keyword"
+            class="list-filter-control--wide"
+            placeholder="按规则编码、名称、应用、用户筛选"
+            clearable
+            @keyup.enter="handleQuery"
+          />
+        </div>
+        <div class="list-filter-item">
+          <span class="list-filter-label">模型类型</span>
+          <EnumSelect
+            v-model="query.modelTypes"
+            class="list-filter-control--wide"
+            category="model_type"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
+            clearable
+          />
+        </div>
+        <div class="list-filter-actions">
+          <el-button type="primary" @click="handleQuery">查询</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </div>
+      </template>
+    </ListPageHeader>
+
     <RoutingRuleListPanel
       :rows="rows"
       :loading="loading"
       :total="total"
       :page-num="pageNum"
       :page-size="pageSize"
-      @create="openCreate"
-      @refresh="load"
       @edit="openEdit"
       @test="openTest"
       @log="openChangeLog"
@@ -35,8 +68,10 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { reactive, ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
+import ListPageHeader from "../../components/common/ListPageHeader.vue";
+import EnumSelect from "../../components/common/EnumSelect.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import RoutingRuleListPanel from "../../components/routing/RoutingRuleListPanel.vue";
 import RoutingRuleFormDrawer from "../../components/routing/RoutingRuleFormDrawer.vue";
@@ -45,18 +80,21 @@ import { listRoutingRuleOperationLogs } from "../../api/operationLogs";
 import { usePageList } from "../../composables/usePageList";
 import { listRoutingConsumers, listRoutingRules } from "../../api/routing";
 
+const query = reactive({
+  keyword: "",
+  modelTypes: []
+});
+
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(listRoutingRules);
+  usePageList(listRoutingRules, { extra: query });
 
 const formVisible = ref(false);
 const editingRule = ref(null);
-
 const testVisible = ref(false);
 const testRuleId = ref(null);
 const testRuleName = ref("");
 const testSecretKey = ref("");
 const testTargets = ref([]);
-
 const logDrawer = ref(false);
 const logRuleId = ref(null);
 const logRuleName = ref("");
@@ -101,6 +139,16 @@ function openChangeLog(row) {
 
 function loadRoutingRuleOperationLogs() {
   return listRoutingRuleOperationLogs(logRuleId.value);
+}
+
+function handleQuery() {
+  return resetPage();
+}
+
+function handleReset() {
+  query.keyword = "";
+  query.modelTypes = [];
+  return resetPage();
 }
 
 load();

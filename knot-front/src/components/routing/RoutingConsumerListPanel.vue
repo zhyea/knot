@@ -1,10 +1,5 @@
 <template>
   <div>
-    <div class="toolbar">
-      <el-button type="primary" @click="emit('create')">新建消费者</el-button>
-      <el-button @click="emit('refresh')">刷新</el-button>
-    </div>
-
     <el-table v-loading="loading" :data="rows" stripe border>
       <el-table-column prop="id" label="ID" width="70" align="center" />
       <el-table-column prop="consumerCode" label="消费者编码" min-width="160" show-overflow-tooltip />
@@ -51,23 +46,20 @@
       </el-table-column>
     </el-table>
 
-    <div class="pagination-wrap">
-      <el-pagination
-        background
-        layout="total, sizes, prev, pager, next"
-        :total="total"
-        :page-size="pageSize"
-        :current-page="pageNum"
-        :page-sizes="[10, 20, 50]"
-        @current-change="(page) => emit('page-change', page)"
-        @size-change="(size) => emit('size-change', size)"
-      />
-    </div>
+    <ListPagination
+      :total="total"
+      :page-num="pageNum"
+      :page-size="pageSize"
+      @refresh="emit('refresh')"
+      @page-change="(page) => emit('page-change', page)"
+      @size-change="(size) => emit('size-change', size)"
+    />
   </div>
 </template>
 
 <script setup>
 import { CopyDocument, Edit, Key } from "@element-plus/icons-vue";
+import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 
 defineProps({

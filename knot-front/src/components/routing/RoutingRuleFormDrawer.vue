@@ -222,20 +222,13 @@
 
       <div class="space-line"/>
 
-      <div class="slot-body rule-section">
-        <div class="section-head">
-          <div>
-            <h3>策略配置</h3>
-            <p>按需覆盖频控和额度策略，留空时不单独配置。</p>
-          </div>
-        </div>
-        <el-form-item label="频控策略">
-          <KvEditor v-model="form.rateLimitPolicy" value-mode="number"/>
-        </el-form-item>
-        <el-form-item label="额度策略">
-          <KvEditor v-model="form.quotaPolicy" value-mode="number"/>
-        </el-form-item>
-      </div>
+      <TrafficPolicySection
+        class="slot-body rule-section"
+        title="策略配置"
+        description="按需覆盖频控和额度策略，留空时不单独配置。"
+        v-model:rate-limit="form.rateLimitPolicy"
+        v-model:quota="form.quotaPolicy"
+      />
     </el-form>
     </el-scrollbar>
     <template #footer>
@@ -249,9 +242,9 @@
 import {computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import {Delete} from "@element-plus/icons-vue";
-import KvEditor from "../common/KvEditor.vue";
 import EnumSelect from "../common/EnumSelect.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
+import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import {
   emptyQuotaPolicy,
   emptyRateLimitPolicy,
@@ -468,6 +461,16 @@ async function loadOptions() {
   consumerOptions.value = Array.isArray(consumersRes?.list) ? consumersRes.list : [];
 }
 
+async function refreshTargetOptionsByModelTypes() {
+  const query = {pageNum: 1, pageSize: 10, modelTypes: form.modelTypes};
+  const [modelsRes, poolsRes] = await Promise.all([
+    loadModelOptions(query),
+    loadModelPoolOptions(query)
+  ]);
+  modelOptions.value = Array.isArray(modelsRes?.list) ? modelsRes.list : [];
+  modelPoolOptions.value = Array.isArray(poolsRes?.list) ? poolsRes.list : [];
+}
+
 function resetForm() {
   targetType.value = "MODEL";
   if (props.rule) {
@@ -547,6 +550,9 @@ watch(
       }).filter(Boolean);
       if (changed) {
         primaryTargetKey.value = form.targets[0] ? targetKey(form.targets[0]) : null;
+      }
+      if (props.modelValue) {
+        refreshTargetOptionsByModelTypes();
       }
     }
 );

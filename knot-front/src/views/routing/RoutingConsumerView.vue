@@ -1,5 +1,28 @@
 <template>
   <PageSection title="消费者">
+    <ListPageHeader>
+      <template #actions>
+        <el-button type="primary" @click="openCreate">新建消费者</el-button>
+        <el-button @click="load">刷新</el-button>
+      </template>
+      <template #filters>
+        <div class="list-filter-item list-filter-item--grow">
+          <span class="list-filter-label">关键词</span>
+          <el-input
+            v-model="query.keyword"
+            class="list-filter-control--wide"
+            placeholder="按消费者编码、名称、用户筛选"
+            clearable
+            @keyup.enter="handleQuery"
+          />
+        </div>
+        <div class="list-filter-actions">
+          <el-button type="primary" @click="handleQuery">查询</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </div>
+      </template>
+    </ListPageHeader>
+
     <RoutingConsumerListPanel
       :rows="rows"
       :loading="loading"
@@ -7,8 +30,6 @@
       :page-num="pageNum"
       :page-size="pageSize"
       :toggling-id="togglingId"
-      @create="openCreate"
-      @refresh="load"
       @action="handleAction"
       @enabled-change="handleEnabledChange"
       @copy-secret="copySecretKey"
@@ -25,9 +46,10 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
+import ListPageHeader from "../../components/common/ListPageHeader.vue";
 import RoutingConsumerFormDrawer from "../../components/routing/RoutingConsumerFormDrawer.vue";
 import RoutingConsumerListPanel from "../../components/routing/RoutingConsumerListPanel.vue";
 import { usePageList } from "../../composables/usePageList";
@@ -38,8 +60,12 @@ import {
   updateRoutingConsumer
 } from "../../api/routing";
 
+const query = reactive({
+  keyword: ""
+});
+
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(listRoutingConsumers);
+  usePageList(listRoutingConsumers, { extra: query });
 
 const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateRoutingConsumer,
@@ -91,6 +117,15 @@ async function copySecretKey(secretKey) {
   } catch {
     ElMessage.error("复制失败");
   }
+}
+
+function handleQuery() {
+  return resetPage();
+}
+
+function handleReset() {
+  query.keyword = "";
+  return resetPage();
 }
 
 load();

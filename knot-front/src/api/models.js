@@ -29,7 +29,3 @@ export function updateModel(id, payload) {
 export function testModel(id, payload) {
   return post(`/api/models/${id}/test`, payload);
 }
-
-export function switchModelVersion(id, payload) {
-  return post(`/api/models/${id}/versions/switch`, payload);
-}

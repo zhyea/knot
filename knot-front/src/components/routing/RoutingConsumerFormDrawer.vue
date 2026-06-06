@@ -89,20 +89,13 @@
 
       <div class="space-line" />
 
-      <div class="slot-body consumer-section">
-        <div class="section-head">
-          <div>
-            <h3>策略配置</h3>
-            <p>消费者维度的频控和额度限制会与应用策略合并，取更严格的非零限制。</p>
-          </div>
-        </div>
-        <el-form-item label="频控策略">
-          <KvEditor v-model="form.rateLimitPolicy" value-mode="number" />
-        </el-form-item>
-        <el-form-item label="额度策略">
-          <KvEditor v-model="form.quotaPolicy" value-mode="number" />
-        </el-form-item>
-      </div>
+      <TrafficPolicySection
+        class="slot-body consumer-section"
+        title="策略配置"
+        description="消费者维度的频控和额度限制会与应用策略合并，取更严格的非零限制。"
+        v-model:rate-limit="form.rateLimitPolicy"
+        v-model:quota="form.quotaPolicy"
+      />
     </el-form>
     </el-scrollbar>
     <template #footer>
@@ -115,8 +108,8 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
-import KvEditor from "../common/KvEditor.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
+import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import {
   emptyQuotaPolicy,
   emptyRateLimitPolicy,

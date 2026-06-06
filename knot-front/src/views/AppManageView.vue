@@ -1,13 +1,34 @@
-﻿<template>
+<template>
   <PageSection title="应用管理">
+    <ListPageHeader>
+      <template #actions>
+        <el-button type="primary" @click="openCreate">新建应用</el-button>
+        <el-button @click="load">刷新</el-button>
+      </template>
+      <template #filters>
+        <div class="list-filter-item list-filter-item--grow">
+          <span class="list-filter-label">关键词</span>
+          <el-input
+            v-model="query.keyword"
+            class="list-filter-control--wide"
+            placeholder="按 App ID、名称、部门、负责人筛选"
+            clearable
+            @keyup.enter="handleQuery"
+          />
+        </div>
+        <div class="list-filter-actions">
+          <el-button type="primary" @click="handleQuery">查询</el-button>
+          <el-button @click="handleReset">重置</el-button>
+        </div>
+      </template>
+    </ListPageHeader>
+
     <AppListPanel
       :rows="rows"
       :loading="loading"
       :total="total"
       :page-num="pageNum"
       :page-size="pageSize"
-      @create="openCreate"
-      @refresh="load"
       @edit="openEdit"
       @log="openChangeLog"
       @page-change="onPageChange"
@@ -26,8 +47,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { onMounted, reactive, ref } from "vue";
 import PageSection from "../components/common/PageSection.vue";
+import ListPageHeader from "../components/common/ListPageHeader.vue";
 import OperationLogDrawer from "../components/common/OperationLogDrawer.vue";
 import AppListPanel from "../components/app/AppListPanel.vue";
 import AppFormDrawer from "../components/app/AppFormDrawer.vue";
@@ -35,12 +57,15 @@ import { listAppOperationLogs } from "../api/operationLogs";
 import { usePageList } from "../composables/usePageList";
 import { listApps } from "../api/apps";
 
+const query = reactive({
+  keyword: ""
+});
+
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(listApps);
+  usePageList(listApps, { extra: query });
 
 const formVisible = ref(false);
 const editingApp = ref(null);
-
 const logDrawer = ref(false);
 const logAppId = ref(null);
 const logAppName = ref("");
@@ -59,6 +84,15 @@ function onAppSaved() {
   resetPage();
 }
 
+function handleQuery() {
+  return resetPage();
+}
+
+function handleReset() {
+  query.keyword = "";
+  return resetPage();
+}
+
 function openChangeLog(row) {
   logAppId.value = row.id;
   logAppName.value = row.name || row.appId || `#${row.id}`;
@@ -69,7 +103,5 @@ function loadAppOperationLogs() {
   return listAppOperationLogs(logAppId.value);
 }
 
-onMounted(() => {
-  load();
-});
+onMounted(load);
 </script>

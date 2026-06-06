@@ -1,9 +1,5 @@
 <template>
   <div>
-    <div class="toolbar">
-      <el-button type="primary" @click="emit('create')">新建插件</el-button>
-      <el-button @click="emit('refresh')">刷新</el-button>
-    </div>
     <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
       <el-table-column prop="id" label="ID" min-width="5%" align="center" header-align="center" />
       <el-table-column prop="code" label="编码" min-width="12%" />
@@ -31,22 +27,20 @@
         </template>
       </el-table-column>
     </el-table>
-    <div class="pagination-wrap">
-      <el-pagination
-        background
-        layout="total, sizes, prev, pager, next"
-        :total="total"
-        :page-size="pageSize"
-        :current-page="pageNum"
-        :page-sizes="[10, 20, 50]"
-        @current-change="(page) => emit('page-change', page)"
-        @size-change="(size) => emit('size-change', size)"
-      />
-    </div>
+    <ListPagination
+      :total="total"
+      :page-num="pageNum"
+      :page-size="pageSize"
+      @refresh="emit('refresh')"
+      @page-change="(page) => emit('page-change', page)"
+      @size-change="(size) => emit('size-change', size)"
+    />
   </div>
 </template>
 
 <script setup>
+import ListPagination from "../common/ListPagination.vue";
+
 defineProps({
   rows: { type: Array, default: () => [] },
   statusOptions: { type: Array, default: () => [] },

@@ -1,9 +1,5 @@
 <template>
   <div>
-    <div class="toolbar">
-      <el-button type="primary" @click="emit('create')">新建应用</el-button>
-      <el-button @click="emit('refresh')">刷新</el-button>
-    </div>
     <el-table v-loading="loading" :data="rows" stripe border>
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
       <el-table-column prop="appId" label="App ID" min-width="120" />
@@ -24,24 +20,21 @@
         </template>
       </el-table-column>
     </el-table>
-    <div class="pagination-wrap">
-      <el-pagination
-        background
-        layout="total, sizes, prev, pager, next"
-        :total="total"
-        :page-size="pageSize"
-        :current-page="pageNum"
-        :page-sizes="[10, 20, 50]"
-        @current-change="(p) => emit('page-change', p)"
-        @size-change="(s) => emit('size-change', s)"
-      />
-    </div>
+    <ListPagination
+      :total="total"
+      :page-num="pageNum"
+      :page-size="pageSize"
+      @refresh="emit('refresh')"
+      @page-change="(p) => emit('page-change', p)"
+      @size-change="(s) => emit('size-change', s)"
+    />
   </div>
 </template>
 
 <script setup>
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Delete, Document, Edit } from "@element-plus/icons-vue";
+import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import { deleteApp } from "../../api/apps";
 
@@ -53,7 +46,7 @@ defineProps({
   pageSize: { type: Number, default: 20 }
 });
 
-const emit = defineEmits(["create", "refresh", "edit", "log", "page-change", "size-change", "changed"]);
+const emit = defineEmits(["edit", "log", "refresh", "page-change", "size-change", "changed"]);
 
 function handleAction(action, row) {
   if (action === "edit") emit("edit", row);
@@ -62,10 +55,17 @@ function handleAction(action, row) {
 }
 
 async function onDelete(row) {
-  await ElMessageBox.confirm(`确认删除应用「${row.name}」？`, "删除确认", { type: "warning" });
+  await ElMessageBox.confirm(
+    `确认删除应用「${row.name}」？\n删除后应用将不可恢复；如该应用已配置 API 凭证或模型权限，将无法删除。`,
+    "删除应用",
+    {
+      type: "warning",
+      confirmButtonText: "确认删除",
+      cancelButtonText: "取消"
+    }
+  );
   await deleteApp(row.id);
-  ElMessage.success("已删除");
+  ElMessage.success(`应用「${row.name}」已删除`);
   emit("changed");
 }
 </script>
-
