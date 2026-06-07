@@ -62,6 +62,12 @@
         where id = #{id}
     </update>
 
+    <update id="updateStatus">
+        update model_pools
+        set status = #{status}
+        where id = #{id}
+    </update>
+
     <delete id="deleteById">
         delete from model_pools where id = #{id}
     </delete>

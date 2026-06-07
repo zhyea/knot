@@ -95,4 +95,10 @@
         where id = #{id}
     </update>
 
+    <update id="updateStatus">
+        update routing_rules
+        set status = #{status}
+        where id = #{id}
+    </update>
+
 </mapper>

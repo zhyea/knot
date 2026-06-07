@@ -17,6 +17,9 @@ public interface ModelMapper {
 
     int update(ModelEntity entity);
 
+    int updateStatus(@Param("id") Long id,
+                     @Param("status") String status);
+
     Long countByModelCode(@Param("modelCode") String modelCode,
                           @Param("excludeId") Long excludeId);
 }

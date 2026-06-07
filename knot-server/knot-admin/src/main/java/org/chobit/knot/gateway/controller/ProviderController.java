@@ -8,6 +8,7 @@ import org.chobit.knot.gateway.converter.ProviderConverter;
 import org.chobit.knot.gateway.dto.provider.DiscountPolicyDto;
 import org.chobit.knot.gateway.dto.provider.ProviderDto;
 import org.chobit.knot.gateway.service.ProviderService;
+import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.provider.DiscountPolicy;
 import org.chobit.knot.gateway.vo.provider.ProviderItem;
 import jakarta.validation.Valid;
@@ -103,6 +104,23 @@ public class ProviderController {
      */
     public ProviderItem update(@PathVariable Long id, @RequestBody @Valid ProviderItem request) {
         ProviderDto updated = providerService.update(id, providerConverter.toDto(request));
+        return providerConverter.toVO(updated);
+    }
+
+    /**
+     * Updates the target resource status. Executes the public operation.
+     */
+    @OperationLog(module = "provider", operation = "UPDATE", entityType = "Provider",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'鏇存柊渚涘簲鍟嗙姸鎬?,'",
+            recordOldValue = true,
+            oldValueSpel = "@providerService.providerAuditSnapshot(#p0)",
+            recordNewValue = true,
+            newValueSpel = "@providerService.providerAuditSnapshot(#p0)")
+    @PutMapping("/{id}/status")
+    public ProviderItem updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
+        ProviderDto updated = providerService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
         return providerConverter.toVO(updated);
     }
 

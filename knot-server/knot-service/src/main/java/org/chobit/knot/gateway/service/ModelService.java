@@ -172,6 +172,33 @@ public class ModelService {
     }
 
     /**
+     * Updates the model enabled status only.
+     */
+    @Transactional
+    public ModelDto updateStatus(Long id, boolean enabled) {
+        ModelDto existing = getById(id);
+        ModelDto request = new ModelDto(
+                existing.id(),
+                existing.modelCode(),
+                existing.name(),
+                existing.providerId(),
+                existing.providerName(),
+                existing.modelType(),
+                existing.version(),
+                enabled,
+                existing.logicalModelId(),
+                existing.billingRuleId(),
+                existing.billingRuleName(),
+                existing.rateLimitPolicy(),
+                existing.quotaPolicy(),
+                existing.apiBindings()
+        );
+        validateModelRequest(request);
+        modelMapper.updateStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+        return getById(id);
+    }
+
+    /**
      * Executes a test operation and returns the result. Executes the public operation.
      */
     public ModelTestResultDto testModel(Long id, String prompt) {

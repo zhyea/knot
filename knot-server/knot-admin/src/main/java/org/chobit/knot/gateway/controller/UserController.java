@@ -44,13 +44,10 @@ public class UserController {
     @OperationLog(module = "user", operation = "CREATE", entityType = "User",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.username()",
-            description = "'鍒涘缓鐢ㄦ埛'",
+            description = "'创建用户'",
             recordNewValue = true,
             newValueSpel = "@userService.userAuditSnapshot(#result.id())")
     @PostMapping("/create")
-    /**
-     * Creates a new resource.
-     */
     public UserItem create(@RequestBody @Valid UserItem request) {
         UserDto created = userService.createUser(new UserDto(
                 null, request.username(), request.password(), request.realName(), request.deptId(), null,
@@ -65,15 +62,12 @@ public class UserController {
     @OperationLog(module = "user", operation = "UPDATE", entityType = "User",
             entityId = "#p0",
             entityNameAfter = "#result.username()",
-            description = "'鏇存柊鐢ㄦ埛鐘舵€?",
+            description = "'更新用户状态'",
             recordOldValue = true,
             oldValueSpel = "@userService.userAuditSnapshot(#p0)",
             recordNewValue = true,
             newValueSpel = "@userService.userAuditSnapshot(#p0)")
     @PutMapping("/{id}/status")
-    /**
-     * Updates the target resource.
-     */
     public UserItem updateStatus(@PathVariable Long id, @RequestBody @Valid UpdateUserStatusRequest request) {
         UserDto updated = userService.updateUserStatus(id, request.status());
         return userConverter.toVO(updated);
@@ -85,15 +79,12 @@ public class UserController {
     @OperationLog(module = "user", operation = "UPDATE", entityType = "User",
             entityId = "#p0",
             entityNameAfter = "#result.username()",
-            description = "'鏇存柊鐢ㄦ埛'",
+            description = "'更新用户'",
             recordOldValue = true,
             oldValueSpel = "@userService.userAuditSnapshot(#p0)",
             recordNewValue = true,
             newValueSpel = "@userService.userAuditSnapshot(#p0)")
     @PutMapping("/{id}")
-    /**
-     * Updates the target resource.
-     */
     public UserItem updateUser(@PathVariable Long id, @RequestBody @Valid UserItem request) {
         UserDto updated = userService.updateUser(new UserDto(
                 id, null, request.password() != null ? request.password() : null, request.realName(), request.deptId(), null,

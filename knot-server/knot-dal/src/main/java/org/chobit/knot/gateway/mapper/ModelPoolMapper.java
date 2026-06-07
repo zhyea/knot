@@ -22,6 +22,9 @@ public interface ModelPoolMapper {
 
     int update(ModelPoolEntity entity);
 
+    int updateStatus(@Param("id") Long id,
+                     @Param("status") String status);
+
     int deleteById(@Param("id") Long id);
 
     List<ModelPoolItemEntity> listItemsByPoolId(@Param("poolId") Long poolId);

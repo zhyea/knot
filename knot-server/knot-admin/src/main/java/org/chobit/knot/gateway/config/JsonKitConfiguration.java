@@ -5,8 +5,8 @@ import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * 鍚姩鏃跺皢 Spring Boot 鐨?{@link ObjectMapper} 鍚屾鍒?{@link JsonKit}锛?
- * 淇濊瘉宸ュ叿绫诲簭鍒楀寲涓?MVC 璇锋眰/鍝嶅簲浣撲竴鑷淬€?
+ * 启动时将 Spring Boot 的 {@link ObjectMapper} 同步到 {@link JsonKit}，
+ * 保证工具类序列化结果与 MVC 请求/响应保持一致。
  */
 @Configuration(proxyBeanMethods = false)
 public class JsonKitConfiguration {

@@ -67,6 +67,12 @@
         where id = #{id}
     </update>
 
+    <update id="updateStatus">
+        update routing_consumers
+        set status = #{status}
+        where id = #{id}
+    </update>
+
     <update id="updateSecretKey">
         update routing_consumers
         set secret_key = #{secretKey}

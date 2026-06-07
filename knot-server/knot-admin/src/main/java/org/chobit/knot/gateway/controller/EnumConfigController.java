@@ -29,9 +29,8 @@ public class EnumConfigController {
     }
 
     /**
-     * Lists matching results. Executes the public operation.
+     * 分页查询所有枚举项。
      */
-    /** 鍒嗛〉鏌ヨ鎵€鏈夋灇涓鹃」锛堢鐞嗗悗鍙板叏閲忓垪琛ㄧ敤锛?*/
     @PostMapping("/list")
     public PageResult<EnumConfigEntity> list(@RequestBody(required = false) PageQuery query) {
         PageRequest pr = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
@@ -39,93 +38,77 @@ public class EnumConfigController {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * 查询枚举分类聚合列表。
      */
-    /** 鏋氫妇鍒嗙被鑱氬悎鍒楄〃锛堝垎绫荤鐞嗛椤碉級 */
     @PostMapping("/category-summaries")
     public List<EnumCategorySummary> categorySummaries() {
         return enumConfigService.listCategorySummaries();
     }
 
     /**
-     * Lists matching results. Executes the public operation.
+     * 按分类查询枚举项。
      */
-    /** 鎸夊垎绫绘煡璇㈡灇涓鹃」 */
     @GetMapping("/items/{category}")
     public List<EnumConfigEntity> listItems(@PathVariable String category) {
         return enumConfigService.listByCategory(category);
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * 查询某个分类下相关的操作日志。
      */
-    /** 鏌愬垎绫讳笅鏋氫妇閰嶇疆鐩稿叧鐨勬搷浣滄棩蹇?*/
     @GetMapping("/operation-logs/{category}")
     public List<OperationLogEntity> operationLogsByCategory(@PathVariable String category) {
         return operationLogService.listForEnumCategory(category);
     }
 
     /**
-     * Lists matching results. Executes the public operation.
+     * 查询全部分类编码。
      */
-    /** 鏌ヨ鎵€鏈夊垎绫荤紪鐮?*/
     @PostMapping("/categories")
     public List<String> listCategories() {
         return enumConfigService.listCategories();
     }
 
     /**
-     * Creates a new resource. Executes the public operation.
+     * 创建枚举项。
      */
-    /** 鏂板鏋氫妇椤?*/
     @OperationLog(module = "enum", operation = "CREATE", entityType = "EnumConfig",
             entityIdAfter = "#result.id",
             entityNameAfter = "#result.category + '/' + #result.itemCode",
-            description = "'鏂板鏋氫妇鍊?",
+            description = "'创建枚举值'",
             recordNewValue = true,
             newValueSpel = "#result")
     @PostMapping
-    /**
-     * Creates a new resource.
-     */
     public EnumConfigEntity create(@RequestBody EnumConfigEntity request) {
         return enumConfigService.create(request);
     }
 
     /**
-     * Updates the target resource. Executes the public operation.
+     * 更新枚举项。
      */
-    /** 淇敼鏋氫妇椤?*/
     @OperationLog(module = "enum", operation = "UPDATE", entityType = "EnumConfig",
             entityId = "#p0",
             entityNameAfter = "#result.category + '/' + #result.itemCode",
-            description = "'鏇存柊鏋氫妇鍊?",
+            description = "'更新枚举值'",
             recordOldValue = true,
             oldValueSpel = "@enumConfigService.getById(#p0)",
             recordNewValue = true,
             newValueSpel = "#result")
     @PutMapping("/{id}")
-    /**
-     * Updates the target resource.
-     */
     public EnumConfigEntity update(@PathVariable Long id, @RequestBody EnumConfigEntity request) {
         return enumConfigService.update(id, request);
     }
 
     /**
-     * Deletes the target resource. Executes the public operation.
+     * 删除枚举项。
      */
-    /** 鍒犻櫎鏋氫妇椤?*/
     @OperationLog(module = "enum", operation = "DELETE", entityType = "EnumConfig",
             entityId = "#p0",
             entityNameAfter = "#result.category + '/' + #result.itemCode",
-            description = "'鍒犻櫎鏋氫妇鍊?",
+            description = "'删除枚举值'",
             recordOldValue = true,
             oldValueSpel = "@enumConfigService.getById(#p0)")
     @DeleteMapping("/{id}")
-    /**
-     * Deletes the target resource.
-     */
     public EnumConfigEntity delete(@PathVariable Long id) {
         return enumConfigService.deleteReturning(id);
     }

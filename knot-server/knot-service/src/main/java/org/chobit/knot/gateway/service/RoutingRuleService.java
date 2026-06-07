@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.config.GatewayRuntimeProperties;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.converter.RoutingRuleConverter;
@@ -198,6 +199,34 @@ public class RoutingRuleService {
         saveTargets(id, request.targets());
         trafficPolicySupport.save(TrafficResourceTypeEnum.ROUTING_RULE.code(), id,
                 request.rateLimitPolicy(), request.quotaPolicy());
+        return getById(id);
+    }
+
+    /**
+     * Updates the routing rule enabled status only.
+     */
+    @Transactional
+    public RoutingRuleDto updateStatus(Long id, boolean enabled) {
+        RoutingRuleDto existing = getById(id);
+        RoutingRuleDto request = new RoutingRuleDto(
+                existing.id(),
+                existing.ruleCode(),
+                existing.name(),
+                existing.appScenario(),
+                existing.modelTypes(),
+                existing.consumerIds(),
+                existing.consumerNames(),
+                existing.appId(),
+                existing.appName(),
+                existing.userId(),
+                existing.userName(),
+                enabled,
+                existing.targets(),
+                existing.rateLimitPolicy(),
+                existing.quotaPolicy()
+        );
+        validateForSave(request, id);
+        routingRuleMapper.updateStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
         return getById(id);
     }
 

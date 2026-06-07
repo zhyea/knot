@@ -15,32 +15,20 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
- * Creates a new resource. Executes the public operation.
- */
-/**
- * JSON 搴忓垪鍖?/ 鍙嶅簭鍒楀寲宸ュ叿锛岀粺涓€椤圭洰鍐?Jackson 浣跨敤銆?
- * <p>
- * 榛樿浣跨敤鍐呯疆 {@link ObjectMapper}锛汼pring 瀹瑰櫒鍚姩鍚庣敱 {@code JsonKitConfiguration}
- * 璋冪敤 {@link #init(ObjectMapper)}锛屼笌 Spring MVC 鐨?Jackson 閰嶇疆瀵归綈銆?
+ * JSON 序列化与反序列化工具，统一项目内 Jackson 的使用方式。
  */
 @Slf4j
 public final class JsonKit {
 
     private static final ObjectMapper DEFAULT_MAPPER = createDefaultMapper();
-
     private static volatile ObjectMapper mapper = DEFAULT_MAPPER;
-
     private static volatile boolean springInitialized;
 
     private JsonKit() {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
-     */
-    /**
-     * 浣跨敤 Spring Boot 鑷姩閰嶇疆鐨?{@link ObjectMapper} 鍒濆鍖栵紙閫氬父浠呰皟鐢ㄤ竴娆★級銆?
-     * 閲囩敤 {@link ObjectMapper#copy()}锛岄伩鍏嶄笌瀹瑰櫒鍐?Bean 鍏变韩鍙彉鐘舵€併€?
+     * 使用 Spring Boot 的 ObjectMapper 初始化工具类。
      */
     public static synchronized void init(ObjectMapper springMapper) {
         if (springMapper == null) {
@@ -52,10 +40,7 @@ public final class JsonKit {
     }
 
     /**
-     * Returns whether the current condition is satisfied. Executes the public operation.
-     */
-    /**
-     * 鏄惁宸茬敱 Spring 瀹屾垚鍒濆鍖?
+     * Returns whether JsonKit has been initialized from Spring.
      */
     public static boolean isInitializedFromSpring() {
         return springInitialized;
@@ -74,17 +59,14 @@ public final class JsonKit {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
-     */
-    /**
-     * 杩斿洖褰撳墠 Mapper 鐨勭嫭绔嬪壇鏈?
+     * Returns a defensive copy of the current mapper.
      */
     public static ObjectMapper mapper() {
         return mapper.copy();
     }
 
     /**
-     * Converts the source value to the target representation. Executes the public operation.
+     * Serializes an object to JSON.
      */
     public static <T> String toJson(T src) {
         if (src == null) {
@@ -99,7 +81,7 @@ public final class JsonKit {
     }
 
     /**
-     * Builds the target value from the source input. Executes the public operation.
+     * Deserializes JSON to a concrete class.
      */
     public static <T> T fromJson(String json, Class<T> clazz) {
         if (json == null || json.isBlank()) {
@@ -114,7 +96,7 @@ public final class JsonKit {
     }
 
     /**
-     * Builds the target value from the source input. Executes the public operation.
+     * Deserializes JSON using a type reference.
      */
     public static <T> T fromJson(String json, TypeReference<T> typeRef) {
         if (json == null || json.isBlank()) {
@@ -129,7 +111,7 @@ public final class JsonKit {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * Parses JSON to a tree node.
      */
     public static JsonNode parse(String json) {
         if (json == null || json.isBlank()) {
@@ -144,7 +126,7 @@ public final class JsonKit {
     }
 
     /**
-     * Converts the source value to the target representation. Executes the public operation.
+     * Converts an object to a map.
      */
     public static Map<String, Object> toMap(Object obj) {
         return mapper.convertValue(obj, new TypeReference<>() {
@@ -152,14 +134,14 @@ public final class JsonKit {
     }
 
     /**
-     * Creates a new resource. Executes the public operation.
+     * Creates an object node.
      */
     public static ObjectNode createObjectNode() {
         return mapper.createObjectNode();
     }
 
     /**
-     * Creates a new resource. Executes the public operation.
+     * Creates an array node.
      */
     public static ArrayNode createArrayNode() {
         return mapper.createArrayNode();

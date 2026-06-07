@@ -134,6 +134,12 @@
         where id = #{id}
     </update>
 
+    <update id="updateStatus">
+        update billing_rules
+        set status = #{status}
+        where id = #{id}
+    </update>
+
     <update id="softDelete">
         update billing_rules
         set is_deleted = 1,

@@ -44,16 +44,17 @@ public class UserService {
     public LoginResponse login(String username, String password) {
         UserEntity user = userMapper.getUserByUsername(username);
         if (user == null) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "鐢ㄦ埛鍚嶆垨瀵嗙爜閿欒");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
-        
+
         boolean matches = passwordEncoder.matches(password, user.getPasswordHash());
         if (!matches) {
-            throw new BusinessException(ErrorCode.UNAUTHORIZED, "鐢ㄦ埛鍚嶆垨瀵嗙爜閿欒");
+            throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
-        
-        // 鏇存柊鏈€鍚庣櫥褰曟椂闂?        userMapper.updateLastLoginTime(user.getId());
-        
+
+        // 更新最后登录时间
+        userMapper.updateLastLoginTime(user.getId());
+
         List<String> roles = userMapper.listRoleCodesByUserId(user.getId());
         String token = JwtUtil.generateToken(user.getId(), user.getUsername(), roles);
         return new LoginResponse(token, user.getId(), user.getUsername(), user.getRealName(), roles);
@@ -81,10 +82,9 @@ public class UserService {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * 操作审计快照，不包含密码字段，供
+     * {@link org.chobit.knot.gateway.annotation.OperationLog} 的 SpEL 使用。
      */
-    /**
-     * 鎿嶄綔瀹¤蹇収锛堜笉鍚瘑鐮侊級锛屼緵 {@link org.chobit.knot.gateway.annotation.OperationLog} SpEL 浣跨敤銆?     */
     public Map<String, Object> userAuditSnapshot(Long id) {
         if (id == null) {
             return null;
@@ -117,11 +117,11 @@ public class UserService {
         entity.setDeptId(department != null ? department.getId() : null);
         entity.setDeptName(department != null ? department.getDeptName() : null);
         entity.setStatus(request.status());
-        // 鍔犲瘑瀵嗙爜
+        // 加密密码
         if (request.password() != null && !request.password().isEmpty()) {
             entity.setPasswordHash(passwordEncoder.encode(request.password()));
         } else {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "瀵嗙爜涓嶈兘涓虹┖");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "密码不能为空");
         }
         userMapper.insertUser(entity);
         return userConverter.toDto(entity);
@@ -133,7 +133,9 @@ public class UserService {
     @Transactional
     public UserDto updateUserStatus(Long id, String status) {
         UserEntity entity = userMapper.getUserById(id);
-        if (entity == null) throw new BusinessException(ErrorCode.NOT_FOUND, "user not found");
+        if (entity == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "user not found");
+        }
         entity.setStatus(Integer.parseInt(status));
         userMapper.updateUserStatus(entity);
         return userConverter.toDto(entity);
@@ -145,13 +147,15 @@ public class UserService {
     @Transactional
     public UserDto updateUser(UserDto request) {
         UserEntity entity = userMapper.getUserById(request.id());
-        if (entity == null) throw new BusinessException(ErrorCode.NOT_FOUND, "user not found");
+        if (entity == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "user not found");
+        }
         DepartmentEntity department = validateDepartment(request.deptId());
         entity.setRealName(request.realName());
         entity.setDeptId(department != null ? department.getId() : null);
         entity.setDeptName(department != null ? department.getDeptName() : null);
         entity.setStatus(request.status());
-        // 濡傛灉鎻愪緵浜嗗瘑鐮佸垯鏇存柊
+        // 如果提供了密码则一并更新
         if (request.password() != null && !request.password().isEmpty()) {
             entity.setPasswordHash(passwordEncoder.encode(request.password()));
         }

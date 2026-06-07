@@ -1,23 +1,26 @@
 package org.chobit.knot.gateway.model;
 
 /**
- * 鍒嗛〉璇锋眰鍙傛暟
+ * 分页请求参数。
  */
 public record PageRequest(
         int pageNum,
         int pageSize
 ) {
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public PageRequest {
-        if (pageNum <= 0) pageNum = 1;
-        if (pageSize <= 0) pageSize = 20;
-        if (pageSize > 500) pageSize = 500;
+        if (pageNum <= 0) {
+            pageNum = 1;
+        }
+        if (pageSize <= 0) {
+            pageSize = 20;
+        }
+        if (pageSize > 500) {
+            pageSize = 500;
+        }
     }
 
     /**
-     * Creates a new instance.
+     * Creates a page request with fallback defaults.
      */
     public static PageRequest of(Integer pageNum, Integer pageSize) {
         return new PageRequest(
@@ -27,14 +30,12 @@ public record PageRequest(
     }
 
     /**
-     * Builds the target value from the source input. Executes the public operation.
-     */
-    /**
-     * 浠庝换鎰忓寘鍚?pageNum/pageSize 瀛楁鐨勫璞℃瀯閫犲垎椤佃姹?
+     * Builds a page request from an object containing pageNum and pageSize fields.
      */
     public static PageRequest from(Object body) {
-        if (body instanceof PageRequest pr) return pr;
-        // fallback: 閫氳繃鍙嶅皠璇诲彇 pageNum / pageSize
+        if (body instanceof PageRequest pr) {
+            return pr;
+        }
         try {
             var c = body.getClass();
             var pnField = c.getDeclaredField("pageNum");

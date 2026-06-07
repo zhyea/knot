@@ -26,14 +26,13 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * 娑堣垂鑰?API Key 閴存潈锛歴k- 鍓嶇紑瀵嗛挜缁戝畾娑堣垂鑰咃紝娑堣垂鑰呭啀鍏宠仈澶氫釜璺敱瑙勫垯銆?
+ * 根据消费者 API Key 和路由规则编码解析本次网关请求的路由信息。
  */
 @Component
 @RequiredArgsConstructor
 public class RoutingResolver {
 
     private final GatewayDataService dataService;
-
 
     /**
      * Resolves the requested value from current context and configuration. Executes the public operation.
@@ -105,7 +104,6 @@ public class RoutingResolver {
                 new GatewayRoutingInfo.DepartmentInfo(app.getDeptId(), null)
         );
     }
-
 
     private List<RoutingRuleTargetDto> resolveCandidateModels(Long ruleId) {
         List<RoutingRuleTargetDto> orderedTargets = orderTargets(ruleId);
@@ -222,5 +220,4 @@ public class RoutingResolver {
     private int poolItemWeight(ModelPoolItemEntity item) {
         return item.getWeight() != null ? item.getWeight() : 100;
     }
-
 }

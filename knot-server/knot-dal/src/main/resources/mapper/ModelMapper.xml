@@ -55,6 +55,12 @@
         where id = #{id}
     </update>
 
+    <update id="updateStatus">
+        update models
+        set status = #{status}
+        where id = #{id}
+    </update>
+
     <select id="countByModelCode" resultType="java.lang.Long">
         select count(1) from models where model_code = #{modelCode}
         <if test="excludeId != null">

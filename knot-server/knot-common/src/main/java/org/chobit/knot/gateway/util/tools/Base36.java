@@ -1,10 +1,7 @@
 package org.chobit.knot.gateway.util.tools;
 
 /**
- * Executes the public operation. Executes the public operation.
- */
-/**
- * Base36 缂栫爜锛堝ぇ鍐欓殢鏈哄瓧绗︼級锛屽弬鑰?zhy-commons銆?
+ * Base36 编码工具。
  */
 public final class Base36 {
 

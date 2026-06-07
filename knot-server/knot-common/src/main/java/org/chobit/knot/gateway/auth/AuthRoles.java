@@ -4,10 +4,7 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Executes the public operation. Executes the public operation.
- */
-/**
- * 瑙掕壊甯搁噺涓庡垽鏂€?
+ * 角色相关常量与辅助方法。
  */
 public final class AuthRoles {
 
@@ -18,14 +15,14 @@ public final class AuthRoles {
     }
 
     /**
-     * Returns whether the current condition is satisfied. Executes the public operation.
+     * Returns whether the role set contains admin.
      */
     public static boolean isAdmin(Collection<String> roles) {
         return roles != null && roles.contains(ADMIN);
     }
 
     /**
-     * Builds the target value from the source input. Executes the public operation.
+     * Converts the JWT roles claim to a string list.
      */
     @SuppressWarnings("unchecked")
     public static List<String> fromClaim(Object rolesClaim) {

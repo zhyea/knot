@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.converter.ModelPoolConverter;
 import org.chobit.knot.gateway.dto.model.ModelPoolDto;
 import org.chobit.knot.gateway.dto.model.ModelPoolItemDto;
@@ -98,6 +99,27 @@ public class ModelPoolService {
         entity.setId(id);
         modelPoolMapper.update(entity);
         saveItems(id, request.items());
+        return getById(id);
+    }
+
+    /**
+     * Updates the model pool enabled status only.
+     */
+    @Transactional
+    public ModelPoolDto updateStatus(Long id, boolean enabled) {
+        ModelPoolDto existing = getById(id);
+        ModelPoolDto request = new ModelPoolDto(
+                existing.id(),
+                existing.poolCode(),
+                existing.name(),
+                existing.modelType(),
+                existing.selectionStrategy(),
+                enabled,
+                existing.remark(),
+                existing.items()
+        );
+        validateForSave(request, id);
+        modelPoolMapper.updateStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
         return getById(id);
     }
 

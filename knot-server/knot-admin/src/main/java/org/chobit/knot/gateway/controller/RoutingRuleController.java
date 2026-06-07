@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.controller;
 
+import jakarta.validation.Valid;
 import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.converter.RoutingRuleConverter;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleDto;
@@ -7,10 +8,10 @@ import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.RoutingRuleService;
+import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.routing.RoutingRule;
 import org.chobit.knot.gateway.vo.routing.RoutingTestRequest;
 import org.chobit.knot.gateway.vo.routing.RoutingTestResult;
-import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -57,13 +58,10 @@ public class RoutingRuleController {
     @OperationLog(module = "routing", operation = "CREATE", entityType = "RoutingRule",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
-            description = "'鏂板缓璺敱瑙勫垯'",
+            description = "'创建路由规则'",
             recordNewValue = true,
             newValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#result.id())")
     @PostMapping
-    /**
-     * Creates a new resource.
-     */
     public RoutingRule create(@RequestBody @Valid RoutingRule request) {
         RoutingRuleDto created = routingRuleService.create(routingRuleConverter.toDto(request));
         return routingRuleConverter.toVO(created);
@@ -75,17 +73,31 @@ public class RoutingRuleController {
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingRule",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'鏇存柊璺敱瑙勫垯'",
+            description = "'更新路由规则'",
             recordOldValue = true,
             oldValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)",
             recordNewValue = true,
             newValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)")
     @PutMapping("/{id}")
-    /**
-     * Updates the target resource.
-     */
     public RoutingRule update(@PathVariable Long id, @RequestBody @Valid RoutingRule request) {
         RoutingRuleDto updated = routingRuleService.update(id, routingRuleConverter.toDto(request));
+        return routingRuleConverter.toVO(updated);
+    }
+
+    /**
+     * Updates the target resource status. Executes the public operation.
+     */
+    @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingRule",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'鏇存柊璺敱瑙勫垯鐘舵€?,'",
+            recordOldValue = true,
+            oldValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)",
+            recordNewValue = true,
+            newValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)")
+    @PutMapping("/{id}/status")
+    public RoutingRule updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
+        RoutingRuleDto updated = routingRuleService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
         return routingRuleConverter.toVO(updated);
     }
 
@@ -103,5 +115,4 @@ public class RoutingRuleController {
                 request.targetId(),
                 request.requestBody());
     }
-
 }

@@ -14,7 +14,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * 渚涘簲鍟嗚璇侀厤缃細{@code provider_credentials} 涓?API 灞?KV {@code authConfig} 浜掕浆銆? */
+ * 供应商认证配置支持：在 {@code provider_credentials} 表与 API 层 {@code authConfig} 之间转换。
+ */
 @Component
 public class ProviderCredentialSupport {
 
@@ -28,7 +29,7 @@ public class ProviderCredentialSupport {
      * Constructs a new instance.
      */
     public ProviderCredentialSupport(ProviderCredentialMapper providerCredentialMapper,
-                                      CredentialEncryption credentialEncryption) {
+                                     CredentialEncryption credentialEncryption) {
         this.providerCredentialMapper = providerCredentialMapper;
         this.credentialEncryption = credentialEncryption;
     }
@@ -124,10 +125,8 @@ public class ProviderCredentialSupport {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * 合并待保存配置与已存在配置，屏蔽值占位符不会覆盖库中真实值。
      */
-    /**
-     * 闈炵鐞嗗憳淇濆瓨鏃讹細鎺╃爜鍗犱綅涓嶈鐩栧簱涓凡鏈夋槑鏂囥€?     */
     public Map<String, Object> mergeAuthConfigForSave(Map<String, Object> incoming, Map<String, Object> existing) {
         if (incoming == null) {
             return null;
@@ -200,10 +199,6 @@ public class ProviderCredentialSupport {
             return null;
         }
         return credentialEncryption.decrypt(stored);
-    }
-
-    private static String blankToNull(String s) {
-        return hasText(s) ? s : null;
     }
 
     private static String firstNonBlank(String... values) {

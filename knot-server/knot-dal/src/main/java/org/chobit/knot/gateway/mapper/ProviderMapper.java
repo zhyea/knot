@@ -19,4 +19,7 @@ public interface ProviderMapper {
     int insert(ProviderEntity entity);
 
     int update(ProviderEntity entity);
+
+    int updateStatus(@Param("id") Long id,
+                     @Param("status") String status);
 }

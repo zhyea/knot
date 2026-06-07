@@ -1,15 +1,18 @@
 package org.chobit.knot.gateway.controller;
 
+import jakarta.validation.Valid;
 import org.chobit.knot.gateway.annotation.OperationLog;
-import org.chobit.knot.gateway.model.PageQuery;
-import org.chobit.knot.gateway.model.PageRequest;
-import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.BillingConverter;
 import org.chobit.knot.gateway.dto.billing.BillingRuleDto;
 import org.chobit.knot.gateway.dto.billing.ReconciliationResultDto;
+import org.chobit.knot.gateway.model.PageQuery;
+import org.chobit.knot.gateway.model.PageRequest;
+import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.BillingService;
-import org.chobit.knot.gateway.vo.billing.*;
-import jakarta.validation.Valid;
+import org.chobit.knot.gateway.vo.billing.BillingRule;
+import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
+import org.chobit.knot.gateway.vo.billing.ReconciliationRequest;
+import org.chobit.knot.gateway.vo.billing.ReconciliationResult;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -46,13 +49,10 @@ public class BillingController {
     @OperationLog(module = "billing", operation = "CREATE", entityType = "BillingRule",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
-            description = "'鏂板缓璁¤垂瑙勫垯'",
+            description = "'创建计费规则'",
             recordNewValue = true,
             newValueSpel = "@billingService.billingRuleAuditSnapshot(#result.id())")
     @PostMapping()
-    /**
-     * Creates a new resource.
-     */
     public BillingRule createRule(@RequestBody @Valid BillingRule request) {
         BillingRuleDto created = billingService.createRule(billingConverter.toRuleDto(request));
         return billingConverter.toRuleVO(created);
@@ -64,17 +64,31 @@ public class BillingController {
     @OperationLog(module = "billing", operation = "UPDATE", entityType = "BillingRule",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'鏇存柊璁¤垂瑙勫垯'",
+            description = "'更新计费规则'",
             recordOldValue = true,
             oldValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)",
             recordNewValue = true,
             newValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)")
     @PutMapping("/rules/{id}")
-    /**
-     * Updates the target resource.
-     */
     public BillingRule updateRule(@PathVariable Long id, @RequestBody @Valid BillingRule request) {
         BillingRuleDto updated = billingService.updateRule(id, billingConverter.toRuleDto(request));
+        return billingConverter.toRuleVO(updated);
+    }
+
+    /**
+     * Updates the target resource status. Executes the public operation.
+     */
+    @OperationLog(module = "billing", operation = "UPDATE", entityType = "BillingRule",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'鏇存柊璁¤垂瑙勫垯鐘舵€?,'",
+            recordOldValue = true,
+            oldValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)",
+            recordNewValue = true,
+            newValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)")
+    @PutMapping("/rules/{id}/status")
+    public BillingRule updateRuleStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
+        BillingRuleDto updated = billingService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
         return billingConverter.toRuleVO(updated);
     }
 
@@ -83,13 +97,10 @@ public class BillingController {
      */
     @OperationLog(module = "billing", operation = "DELETE", entityType = "BillingRule",
             entityId = "#p0",
-            description = "'鍒犻櫎璁¤垂瑙勫垯'",
+            description = "'删除计费规则'",
             recordOldValue = true,
             oldValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)")
     @DeleteMapping("/rules/{id}")
-    /**
-     * Deletes the target resource.
-     */
     public void deleteRule(@PathVariable Long id) {
         billingService.deleteRule(id);
     }

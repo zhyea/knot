@@ -7,6 +7,7 @@ import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.RoutingConsumerService;
+import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.routing.RoutingConsumer;
 import org.springframework.web.bind.annotation.*;
 
@@ -53,13 +54,10 @@ public class RoutingConsumerController {
     @OperationLog(module = "routing", operation = "CREATE", entityType = "RoutingConsumer",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
-            description = "'鏂板缓娑堣垂鑰?",
+            description = "'创建消费者'",
             recordNewValue = true,
             newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#result.id())")
     @PostMapping
-    /**
-     * Creates a new resource.
-     */
     public RoutingConsumer create(@RequestBody @Valid RoutingConsumer request) {
         return toVO(routingConsumerService.create(toDto(request)));
     }
@@ -70,17 +68,30 @@ public class RoutingConsumerController {
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingConsumer",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'鏇存柊娑堣垂鑰?",
+            description = "'更新消费者'",
             recordOldValue = true,
             oldValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)",
             recordNewValue = true,
             newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)")
     @PutMapping("/{id}")
-    /**
-     * Updates the target resource.
-     */
     public RoutingConsumer update(@PathVariable Long id, @RequestBody @Valid RoutingConsumer request) {
         return toVO(routingConsumerService.update(id, toDto(request)));
+    }
+
+    /**
+     * Updates the target resource status. Executes the public operation.
+     */
+    @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingConsumer",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'鏇存柊娑堣垂鑰呯姸鎬?,'",
+            recordOldValue = true,
+            oldValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)",
+            recordNewValue = true,
+            newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)")
+    @PutMapping("/{id}/status")
+    public RoutingConsumer updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
+        return toVO(routingConsumerService.updateStatus(id, Boolean.TRUE.equals(request.enabled())));
     }
 
     /**
@@ -89,13 +100,10 @@ public class RoutingConsumerController {
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingConsumer",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'閲嶇疆娑堣垂鑰?API Key'",
+            description = "'重置消费者 API Key'",
             recordNewValue = true,
             newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)")
     @PostMapping("/{id}/rotate-secret")
-    /**
-     * Rotates the target secret.
-     */
     public RoutingConsumer rotateSecret(@PathVariable Long id) {
         return toVO(routingConsumerService.rotateSecretKey(id));
     }

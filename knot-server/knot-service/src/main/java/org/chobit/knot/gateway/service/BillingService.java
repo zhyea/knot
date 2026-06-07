@@ -168,6 +168,30 @@ public class BillingService {
     }
 
     /**
+     * Updates the billing rule enabled status only.
+     */
+    @Transactional
+    public BillingRuleDto updateStatus(Long id, boolean enabled) {
+        BillingRuleEntity existing = billingRuleMapper.getById(id);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "billing rule not found");
+        }
+        BillingRuleDto request = billingConverter.toRuleDto(existing);
+        validateRule(request, id);
+        if (!enabled) {
+            assertRuleNotBound(id, "billing rule is bound by provider models, cannot disable");
+        }
+        billingRuleMapper.updateStatus(id, enabled ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code());
+        if (existing.getCurrentVersionId() != null) {
+            billingRuleMapper.updateVersionStatus(
+                    existing.getCurrentVersionId(),
+                    enabled ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.DISABLED.code()
+            );
+        }
+        return billingConverter.toRuleDto(billingRuleMapper.getById(id));
+    }
+
+    /**
      * Deletes the target resource. Executes the public operation.
      */
     @Transactional

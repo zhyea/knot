@@ -25,4 +25,7 @@ public interface RoutingRuleMapper {
     int insert(RoutingRuleEntity entity);
 
     int update(RoutingRuleEntity entity);
+
+    int updateStatus(@Param("id") Long id,
+                     @Param("status") String status);
 }

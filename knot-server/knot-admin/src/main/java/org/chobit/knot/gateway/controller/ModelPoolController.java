@@ -7,6 +7,7 @@ import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.ModelPoolService;
+import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.model.ModelPool;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -79,6 +80,14 @@ public class ModelPoolController {
     @PutMapping("/{id}")
     public ModelPool update(@PathVariable Long id, @RequestBody @Valid ModelPool request) {
         return modelPoolConverter.toVO(modelPoolService.update(id, modelPoolConverter.toDto(request)));
+    }
+
+    /**
+     * Updates the target resource status. Executes the public operation.
+     */
+    @PutMapping("/{id}/status")
+    public ModelPool updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
+        return modelPoolConverter.toVO(modelPoolService.updateStatus(id, Boolean.TRUE.equals(request.enabled())));
     }
 
     /**

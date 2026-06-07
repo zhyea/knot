@@ -8,6 +8,7 @@ import org.chobit.knot.gateway.converter.ModelConverter;
 import org.chobit.knot.gateway.dto.model.ModelDto;
 import org.chobit.knot.gateway.dto.model.ModelTestResultDto;
 import org.chobit.knot.gateway.service.ModelService;
+import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.model.*;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -103,6 +104,23 @@ public class ModelController {
      */
     public ModelItem update(@PathVariable Long id, @RequestBody @Valid ModelItem request) {
         ModelDto updated = modelService.update(id, modelConverter.toDto(request));
+        return modelConverter.toVO(updated);
+    }
+
+    /**
+     * Updates the target resource status. Executes the public operation.
+     */
+    @OperationLog(module = "model", operation = "UPDATE", entityType = "Model",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'鏇存柊妯″瀷鐘舵€?,'",
+            recordOldValue = true,
+            oldValueSpel = "@modelService.modelAuditSnapshot(#p0)",
+            recordNewValue = true,
+            newValueSpel = "@modelService.modelAuditSnapshot(#p0)")
+    @PutMapping("/{id}/status")
+    public ModelItem updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
+        ModelDto updated = modelService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
         return modelConverter.toVO(updated);
     }
 

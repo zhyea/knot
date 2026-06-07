@@ -187,6 +187,19 @@ public class ProviderService {
         return getById(id);
     }
 
+    /**
+     * Updates the provider enabled status only.
+     */
+    @Transactional
+    public ProviderDto updateStatus(Long id, boolean enabled) {
+        ProviderEntity existing = providerMapper.getById(id);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "渚涘簲鍟嗕笉瀛樺湪");
+        }
+        providerMapper.updateStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+        return getById(id);
+    }
+
     private ProviderDto enrich(ProviderEntity entity) {
         ProviderCredentialEntity credential = providerCredentialMapper.getActiveByProviderId(entity.getId());
         TrafficPolicies traffic =

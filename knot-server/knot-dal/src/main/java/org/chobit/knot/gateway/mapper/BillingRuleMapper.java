@@ -33,6 +33,9 @@ public interface BillingRuleMapper {
 
     int update(BillingRuleEntity entity);
 
+    int updateStatus(@Param("id") Long id,
+                     @Param("status") String status);
+
     int softDelete(Long id);
 
     int updateCurrentVersion(@Param("id") Long id, @Param("currentVersionId") Long currentVersionId);

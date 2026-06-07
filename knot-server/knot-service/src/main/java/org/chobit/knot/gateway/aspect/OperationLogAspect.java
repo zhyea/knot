@@ -1,14 +1,15 @@
 package org.chobit.knot.gateway.aspect;
 
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.entity.OperationLogEntity;
 import org.chobit.knot.gateway.service.OperationLogService;
 import org.chobit.knot.gateway.util.JsonKit;
-import org.aspectj.lang.ProceedingJoinPoint;
-import org.aspectj.lang.annotation.Around;
-import org.aspectj.lang.annotation.Aspect;
-import lombok.extern.slf4j.Slf4j;
-import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.context.expression.BeanFactoryResolver;
 import org.springframework.expression.ExpressionParser;
@@ -18,10 +19,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import jakarta.servlet.http.HttpServletRequest;
-
 /**
- * 鎿嶄綔鏃ュ織鍒囬潰锛氭嫤鎴?{@link OperationLog} 娉ㄨВ锛屽紓姝ュ啓鍏?operation_logs銆? */
+ * 操作日志切面：拦截 {@link OperationLog} 注解，并异步写入操作日志表。
+ */
 @Slf4j
 @Aspect
 @Component

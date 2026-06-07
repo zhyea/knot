@@ -49,4 +49,10 @@
         where id = #{id}
     </update>
 
+    <update id="updateStatus">
+        update providers
+        set status = #{status}
+        where id = #{id}
+    </update>
+
 </mapper>

@@ -21,7 +21,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 棰戞帶/棰濆害锛氱嫭绔嬬瓥鐣ヨ〃 + {@code resource_traffic_policies} 璧勬簮缁戝畾銆? */
+ * 频控与额度策略支持：独立策略表加 {@code resource_traffic_policies} 资源绑定。
+ */
 @Component
 public class ResourceTrafficPolicySupport {
 
@@ -157,7 +158,7 @@ public class ResourceTrafficPolicySupport {
     private Long insertRateLimit(String resourceType, Long resourceId, RateLimitPolicy policy) {
         RateLimitPolicyEntity entity = new RateLimitPolicyEntity();
         entity.setPolicyCode(policyCode(resourceType, resourceId, "RL"));
-        entity.setPolicyName(policyName(resourceType, resourceId, "棰戞帶"));
+        entity.setPolicyName(policyName(resourceType, resourceId, "频控"));
         fillRateLimit(entity, policy);
         entity.setStatus(EntityStatusEnum.ACTIVE.code());
         rateLimitPolicyMapper.insert(entity);
@@ -177,7 +178,7 @@ public class ResourceTrafficPolicySupport {
     private Long insertQuota(String resourceType, Long resourceId, QuotaPolicy policy) {
         QuotaPolicyEntity entity = new QuotaPolicyEntity();
         entity.setPolicyCode(policyCode(resourceType, resourceId, "QT"));
-        entity.setPolicyName(policyName(resourceType, resourceId, "棰濆害"));
+        entity.setPolicyName(policyName(resourceType, resourceId, "额度"));
         fillQuota(entity, policy);
         entity.setStatus(EntityStatusEnum.ACTIVE.code());
         quotaPolicyMapper.insert(entity);

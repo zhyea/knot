@@ -3,10 +3,7 @@ package org.chobit.knot.gateway.util.tools;
 import java.util.UUID;
 
 /**
- * Executes the public operation. Executes the public operation.
- */
-/**
- * 璺敱瑙勫垯缂栫爜鐢熸垚鍣紝鏍煎紡锛?2 浣嶅崄鍏繘鍒讹紙UUID 鍘绘í绾匡級
+ * 路由规则编码生成器，默认使用去横线的 UUID。
  */
 public final class RoutingRuleCodeGenerator {
 
@@ -14,7 +11,7 @@ public final class RoutingRuleCodeGenerator {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * Generates a new routing rule code.
      */
     public static String generate() {
         return UUID.randomUUID().toString().replace("-", "");

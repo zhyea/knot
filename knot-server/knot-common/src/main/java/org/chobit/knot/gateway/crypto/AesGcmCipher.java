@@ -11,10 +11,8 @@ import java.util.Arrays;
 import java.util.Base64;
 
 /**
- * Executes the public operation. Executes the public operation.
- */
-/**
- * AES-256-GCM 瀵圭О鍔犺В瀵嗭紝瀵嗘枃鏍煎紡锛歿@code ENC:} + Base64(IV[12] + ciphertext+tag)銆?
+ * AES-256-GCM 对称加解密工具，密文格式为
+ * {@code ENC:} + Base64(IV[12] + ciphertext + tag)。
  */
 public final class AesGcmCipher {
 
@@ -36,7 +34,7 @@ public final class AesGcmCipher {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * Derives a 32-byte AES key from passphrase using SHA-256.
      */
     public static byte[] deriveKey(String passphrase) {
         if (passphrase == null || passphrase.isBlank()) {
@@ -51,14 +49,14 @@ public final class AesGcmCipher {
     }
 
     /**
-     * Returns whether the current condition is satisfied. Executes the public operation.
+     * Returns whether the supplied value is already encrypted.
      */
     public static boolean isEncrypted(String value) {
         return value != null && value.startsWith(PREFIX);
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * Encrypts plaintext.
      */
     public String encrypt(String plaintext) {
         if (plaintext == null || plaintext.isBlank()) {
@@ -83,10 +81,7 @@ public final class AesGcmCipher {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
-     */
-    /**
-     * 瑙ｅ瘑锛涢潪 {@link #PREFIX} 鏍煎紡瑙嗕负鍘嗗彶鏄庢枃锛堝吋瀹硅縼绉伙級銆?
+     * Decrypts stored ciphertext. Non-ENC values are treated as legacy plaintext.
      */
     public String decrypt(String stored) {
         if (stored == null || stored.isBlank()) {

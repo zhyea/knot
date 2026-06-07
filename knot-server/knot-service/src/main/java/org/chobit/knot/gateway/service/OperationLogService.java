@@ -2,8 +2,8 @@ package org.chobit.knot.gateway.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.chobit.knot.gateway.entity.OperationLogEntity;
 import lombok.extern.slf4j.Slf4j;
+import org.chobit.knot.gateway.entity.OperationLogEntity;
 import org.chobit.knot.gateway.mapper.OperationLogMapper;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.scheduling.annotation.Async;
@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
+
 @Slf4j
 @Service
 public class OperationLogService {
@@ -28,10 +29,7 @@ public class OperationLogService {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
-     */
-    /**
-     * 寮傛淇濆瓨鏃ュ織锛堜笉闃诲涓绘祦绋嬶級
+     * 异步保存日志，不阻塞主流程。
      */
     @Async
     public void saveAsync(OperationLogEntity entity) {
@@ -43,10 +41,8 @@ public class OperationLogService {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * 同步保存日志。
      */
-    /**
-     * 鍚屾淇濆瓨鏃ュ織锛堢敤浜庢祴璇曟垨鐗规畩鍦烘櫙锛?     */
     public void save(OperationLogEntity entity) {
         operationLogMapper.insert(entity);
     }
@@ -81,10 +77,8 @@ public class OperationLogService {
     }
 
     /**
-     * Lists matching results. Executes the public operation.
+     * 查询某个枚举分类下相关的操作日志。
      */
-    /**
-     * 鏌愭灇涓惧垎绫讳笅鐨勯厤缃彉鏇存搷浣滄棩蹇楋紙module=enum锛宔ntity_name 涓哄垎绫绘垨 鍒嗙被/缂栫爜锛?     */
     public List<OperationLogEntity> listForEnumCategory(String category) {
         if (category == null || category.isBlank()) {
             return List.of();
@@ -95,7 +89,8 @@ public class OperationLogService {
     }
 
     /**
-     * 鑻?old_value銆乶ew_value 鍧囦负 JSON 瀵硅薄锛屽垯浠呬繚鐣欎簩鑰呬腑鍊间笉涓€鑷寸殑瀛楁锛堜究浜庡垪琛ㄥ睍绀猴級銆?     * 浠呬竴鏂规湁鍊兼垨闈炲璞＄粨鏋勬椂涓嶅仛瑁佸壀銆?     */
+     * 如果 oldValue 和 newValue 都是 JSON 对象，则仅保留发生变化的字段，便于列表展示。
+     */
     private void retainOnlyChangedJsonFields(OperationLogEntity e) {
         String oldV = e.getOldValue();
         String newV = e.getNewValue();

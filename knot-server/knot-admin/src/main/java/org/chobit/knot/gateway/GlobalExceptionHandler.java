@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
- * 鍏ㄥ眬寮傚父澶勭悊鍣紙杩斿洖 {@link ApiResponse}锛屼笉缁?{@link org.chobit.knot.gateway.rw.ApiResponseWrapperAdvice} 浜屾鍖呰锛夈€?
+ * 全局异常处理器，统一返回 {@link ApiResponse}，避免再被
+ * {@link org.chobit.knot.gateway.rw.ApiResponseWrapperAdvice} 二次包装。
  */
 @Slf4j
 @RestControllerAdvice
@@ -56,7 +57,7 @@ public class GlobalExceptionHandler {
         String message = e.getBindingResult().getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .reduce((a, b) -> a + "; " + b)
-                .orElse("鍙傛暟鏍￠獙澶辫触");
+                .orElse("参数校验失败");
         log.warn("Validation failed: {}", message);
         return ApiResponse.fail(rwProperties.getFailCode(), message);
     }
@@ -70,7 +71,7 @@ public class GlobalExceptionHandler {
         String message = e.getFieldErrors().stream()
                 .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
                 .reduce((a, b) -> a + "; " + b)
-                .orElse("鍙傛暟缁戝畾澶辫触");
+                .orElse("参数绑定失败");
         log.warn("Bind failed: {}", message);
         return ApiResponse.fail(rwProperties.getFailCode(), message);
     }
@@ -92,6 +93,6 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleException(Exception e) {
         log.error("Unexpected error", e);
-        return ApiResponse.fail(rwProperties.getFailCode(), "绯荤粺鍐呴儴閿欒: " + e.getMessage());
+        return ApiResponse.fail(rwProperties.getFailCode(), "系统内部错误: " + e.getMessage());
     }
 }

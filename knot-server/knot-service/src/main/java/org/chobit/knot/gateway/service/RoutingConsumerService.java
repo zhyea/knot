@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingConsumerDto;
 import org.chobit.knot.gateway.entity.RoutingConsumerEntity;
@@ -146,6 +147,30 @@ public class RoutingConsumerService {
         routingConsumerMapper.update(entity);
         trafficPolicySupport.save(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), id,
                 request.rateLimitPolicy(), request.quotaPolicy());
+        return getById(id);
+    }
+
+    /**
+     * Updates the routing consumer enabled status only.
+     */
+    @Transactional
+    public RoutingConsumerDto updateStatus(Long id, boolean enabled) {
+        RoutingConsumerDto existing = getById(id);
+        RoutingConsumerDto request = new RoutingConsumerDto(
+                existing.id(),
+                existing.consumerCode(),
+                existing.name(),
+                existing.userId(),
+                existing.userName(),
+                existing.secretKey(),
+                existing.returnUsageDetail(),
+                enabled,
+                existing.ruleCount(),
+                existing.rateLimitPolicy(),
+                existing.quotaPolicy()
+        );
+        validateForSave(request, id);
+        routingConsumerMapper.updateStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
         return getById(id);
     }
 
