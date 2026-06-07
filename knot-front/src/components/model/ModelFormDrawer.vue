@@ -318,6 +318,7 @@ import { checkModelCode, createModel, getModel, listUsageExtractors, updateModel
 import { listLogicalModels } from "../../api/logicalModels";
 import { listProviders } from "../../api/providers";
 import { listBillingRules } from "../../api/billing";
+import { mergeOptionList, normalizeOptionList, resolveSelectedOption } from "../../utils/options";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -418,18 +419,23 @@ const isEdit = computed(() => props.model?.id != null);
 const selectedProvider = computed(() => providerOptions.value.find((item) => item.id === form.providerId));
 const selectedLogicalModel = computed(() => logicalModelOptions.value.find((item) => item.id === form.logicalModelId));
 const selectedBillingRule = computed(() => billingRuleOptions.value.find((item) => item.id === form.billingRuleId));
-const selectedProviderOptions = computed(() => {
-  if (!form.providerId) return [];
-  return selectedProvider.value ? [selectedProvider.value] : [{ id: form.providerId, name: props.model?.providerName }];
-});
-const selectedLogicalModelOptions = computed(() => {
-  if (!form.logicalModelId) return [];
-  return selectedLogicalModel.value ? [selectedLogicalModel.value] : [{ id: form.logicalModelId }];
-});
-const selectedBillingRuleOptions = computed(() => {
-  if (!form.billingRuleId) return [];
-  return selectedBillingRule.value ? [selectedBillingRule.value] : [{ id: form.billingRuleId, name: props.model?.billingRuleName }];
-});
+const selectedProviderOptions = computed(() =>
+  resolveSelectedOption(form.providerId, providerOptions.value, {
+    id: form.providerId,
+    name: props.model?.providerName
+  })
+);
+const selectedLogicalModelOptions = computed(() =>
+  resolveSelectedOption(form.logicalModelId, logicalModelOptions.value, {
+    id: form.logicalModelId
+  })
+);
+const selectedBillingRuleOptions = computed(() =>
+  resolveSelectedOption(form.billingRuleId, billingRuleOptions.value, {
+    id: form.billingRuleId,
+    name: props.model?.billingRuleName
+  })
+);
 const billingRuleFilterParams = computed(() => ({
   providerId: form.providerId ?? undefined,
   logicalModelId: form.logicalModelId ?? undefined
@@ -441,7 +447,7 @@ const allowedApiProtocolCodes = computed(() => allowedProtocolsForModelType(form
 
 async function loadProviders(params = { pageNum: 1, pageSize: 10 }) {
   const data = await listProviders(params);
-  mergeOptions(providerOptions, Array.isArray(data?.list) ? data.list : []);
+  mergeOptions(providerOptions, normalizeOptionList(data));
   return data;
 }
 
@@ -459,7 +465,7 @@ async function loadBillingRules(params = { pageNum: 1, pageSize: 10 }) {
     providerId: params.providerId ?? form.providerId ?? undefined,
     logicalModelId: params.logicalModelId ?? form.logicalModelId ?? undefined
   });
-  mergeOptions(billingRuleOptions, Array.isArray(data?.list) ? data.list : []);
+  mergeOptions(billingRuleOptions, normalizeOptionList(data));
   return data;
 }
 
@@ -470,13 +476,7 @@ async function loadUsageExtractors() {
 }
 
 function mergeOptions(targetRef, list) {
-  const map = new Map(targetRef.value.map((item) => [item.id, item]));
-  for (const item of list) {
-    if (item?.id != null) {
-      map.set(item.id, item);
-    }
-  }
-  targetRef.value = Array.from(map.values());
+  targetRef.value = mergeOptionList(targetRef.value, list);
 }
 
 function providerLabel(provider) {

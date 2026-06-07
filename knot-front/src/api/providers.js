@@ -26,6 +26,10 @@ export function updateProvider(id, payload) {
   return put(`/api/providers/${id}`, payload);
 }
 
+export function updateProviderStatus(id, enabled) {
+  return put(`/api/providers/${id}/status`, { enabled });
+}
+
 export function listDiscountPolicies(providerId, params) {
   return postQuery(`/api/providers/${providerId}/discount-policies/list`, params);
 }

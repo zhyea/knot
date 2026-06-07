@@ -6,13 +6,13 @@
     popper-class="theme-floating-popover"
   >
     <template #reference>
-      <button class="theme-fab" type="button" aria-label="切换页面主题">
+      <button class="theme-fab" type="button" :aria-label="t('theme.pickerAriaLabel')">
         <span :class="['theme-fab__dot', 'theme-dot--' + current]" />
       </button>
     </template>
 
     <div class="theme-panel">
-      <div class="theme-panel__title">页面主题</div>
+      <div class="theme-panel__title">{{ t("theme.pickerTitle") }}</div>
       <button
         v-for="theme in THEMES"
         :key="theme.key"
@@ -21,16 +21,18 @@
         @click="setTheme(theme.key)"
       >
         <span :class="['theme-option__dot', 'theme-dot--' + theme.key]" />
-        <span>{{ theme.label }}</span>
+        <span>{{ t(theme.labelKey) }}</span>
       </button>
     </div>
   </el-popover>
 </template>
 
 <script setup>
-import {THEMES, useTheme} from "../../composables/useTheme";
+import { THEMES, useTheme } from "../../composables/useTheme";
+import { useLocale } from "../../composables/useLocale";
 
-const {current, setTheme} = useTheme();
+const { current, setTheme } = useTheme();
+const { t } = useLocale();
 </script>
 
 <style scoped>

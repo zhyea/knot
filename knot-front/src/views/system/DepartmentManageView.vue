@@ -1,5 +1,5 @@
 <template>
-  <PageSection title="部门管理">
+  <PageSection>
     <div class="department-layout">
       <aside class="department-tree">
         <div class="tree-toolbar">

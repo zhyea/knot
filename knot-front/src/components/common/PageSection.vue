@@ -1,6 +1,6 @@
 <template>
   <div class="page-section">
-    <h2 class="title">{{ title }}</h2>
+    <h2 v-if="title" class="title">{{ title }}</h2>
     <div v-if="$slots.default" class="slot-body">
       <slot />
     </div>
@@ -11,7 +11,7 @@
 defineProps({
   title: {
     type: String,
-    required: true
+    default: ""
   }
 });
 </script>
@@ -31,7 +31,7 @@ defineProps({
 }
 
 .slot-body {
-  margin-top: 16px;
+  margin-top: 0;
   border: none;
 }
 </style>

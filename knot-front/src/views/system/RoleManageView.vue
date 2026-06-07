@@ -1,36 +1,37 @@
 <template>
-  <PageSection title="角色权限">
-    <ListPageHeader>
-      <template #actions>
-        <el-button @click="load">刷新</el-button>
-      </template>
-      <template #filters>
-        <div class="list-filter-item list-filter-item--grow">
-          <span class="list-filter-label">关键词</span>
-          <el-input
-            v-model="keyword"
-            class="list-filter-control--wide"
-            placeholder="按编码、名称筛选"
-            clearable
-          />
+  <PageSection>
+    <div class="list-page-shell">
+      <section class="list-page-block">
+        <div class="list-page-filters">
+          <div class="list-filter-item list-filter-item--grow">
+            <span class="list-filter-label">关键词</span>
+            <el-input
+              v-model="keyword"
+              class="list-filter-control--wide"
+              placeholder="按编码、名称筛选"
+              clearable
+            />
+          </div>
         </div>
-      </template>
-    </ListPageHeader>
+      </section>
 
-    <RoleListPanel
-      :rows="filteredRows"
-      :loading="loading"
-      :total="filteredRows.length"
-      :page-num="1"
-      :page-size="filteredRows.length || pageSize"
-    />
+      <section class="list-page-block list-page-block--content">
+        <RoleListPanel
+          :rows="filteredRows"
+          :loading="loading"
+          :total="filteredRows.length"
+          :page-num="1"
+          :page-size="filteredRows.length || pageSize"
+          :show-refresh="false"
+        />
+      </section>
+    </div>
   </PageSection>
 </template>
 
 <script setup>
 import { computed, ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
-import ListPageHeader from "../../components/common/ListPageHeader.vue";
 import RoleListPanel from "../../components/system/RoleListPanel.vue";
 import { usePageList } from "../../composables/usePageList";
 import { listSystemRoles } from "../../api/system";

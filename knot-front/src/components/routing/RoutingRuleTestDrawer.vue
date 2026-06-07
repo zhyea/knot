@@ -160,6 +160,7 @@ import ShellCodeBlock from "../common/ShellCodeBlock.vue";
 import { getModel } from "../../api/models";
 import { getModelPool } from "../../api/modelPools";
 import { testRoutingRule } from "../../api/routing";
+import { formatJson, formatJsonText, parseJsonResult, stringifyJson } from "../../utils/format";
 
 const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || "http://127.0.0.1:9090";
 const DEFAULT_PROMPT = "你好，这是一条路由规则测试消息";
@@ -317,17 +318,17 @@ const currentTemplateText = computed({
 });
 
 const requestUrl = computed(() => `${normalizeBaseUrl()}${protocolPath(activeProtocol.value)}`);
-const requestHeadersText = computed(() => JSON.stringify({
+const requestHeadersText = computed(() => formatJson({
   Authorization: `Bearer ${testForm.secretKey?.trim() || "sk-your-routing-secret-key"}`,
-  Rule: props.ruleName?.trim() || props.ruleId ? undefined : undefined,
+  Rule: resolveRuleHeaderValue(),
   "Content-Type": "application/json"
-}, null, 2).replace(/\n\s+\"Rule\": undefined,?/g, ""));
+}));
 const parsedTemplateBody = computed(() => safeParseTemplate(currentTemplateText.value));
 const requestBodyText = computed(() => {
   if (parsedTemplateBody.value.error) {
     return currentTemplateText.value || "{}";
   }
-  return JSON.stringify(parsedTemplateBody.value.value || {}, null, 2);
+  return formatJson(parsedTemplateBody.value.value || {});
 });
 const curlPreview = computed(() => buildCurlCommand());
 const displayCurl = computed(() => testResult.value?.curl || curlPreview.value);
@@ -550,7 +551,7 @@ function resetCurrentTemplate() {
 
 function createDefaultTemplate(protocol, model) {
   const body = buildDefaultTemplateObject(protocol, model || "model-name");
-  return JSON.stringify(body, null, 2);
+  return formatJson(body);
 }
 
 function buildDefaultTemplateObject(protocol, model) {
@@ -641,18 +642,11 @@ function syncTemplateModelField(templateKey, model) {
     return;
   }
   const next = { ...parsed.value, model: model || parsed.value.model || "model-name" };
-  templateStore[templateKey] = JSON.stringify(next, null, 2);
+  templateStore[templateKey] = formatJson(next);
 }
 
 function safeParseTemplate(text) {
-  if (!text?.trim()) {
-    return { value: {}, error: null };
-  }
-  try {
-    return { value: JSON.parse(text), error: null };
-  } catch (error) {
-    return { value: null, error };
-  }
+  return parseJsonResult(text, {});
 }
 
 function normalizeBaseUrl() {
@@ -660,14 +654,18 @@ function normalizeBaseUrl() {
   return base.endsWith("/") ? base.slice(0, -1) : base;
 }
 
+function resolveRuleHeaderValue() {
+  return props.ruleName?.trim() || props.ruleId || "your-rule-code";
+}
+
 function buildCurlCommand() {
   const secretKey = testForm.secretKey?.trim() || "sk-your-routing-secret-key";
-  const json = parsedTemplateBody.value.error ? currentTemplateText.value || "{}" : JSON.stringify(parsedTemplateBody.value.value || {});
+  const json = parsedTemplateBody.value.error ? currentTemplateText.value || "{}" : stringifyJson(parsedTemplateBody.value.value || {});
   const escapedJson = json.replace(/'/g, "'\\''");
   return (
     `curl -X POST '${requestUrl.value}' \\\n` +
     `  -H 'Authorization: Bearer ${secretKey}' \\\n` +
-    `  -H 'Rule: ${props.ruleName?.trim() || props.ruleId || "your-rule-code"}' \\\n` +
+    `  -H 'Rule: ${resolveRuleHeaderValue()}' \\\n` +
     `  -H 'Content-Type: application/json' \\\n` +
     `  -d '${escapedJson}'`
   );
@@ -675,11 +673,7 @@ function buildCurlCommand() {
 
 function formatBody(body) {
   if (!body) return "";
-  try {
-    return JSON.stringify(JSON.parse(body), null, 2);
-  } catch {
-    return body;
-  }
+  return formatJsonText(body, 2, body);
 }
 
 async function runTest() {
@@ -810,11 +804,7 @@ function normalizeErrorResult(error) {
 function serializeBody(body) {
   if (body == null || body === "") return "";
   if (typeof body === "string") return body;
-  try {
-    return JSON.stringify(body);
-  } catch {
-    return String(body);
-  }
+  return stringifyJson(body);
 }
 
 function onClosed() {

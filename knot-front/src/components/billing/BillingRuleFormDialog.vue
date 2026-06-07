@@ -8,101 +8,102 @@
     destroy-on-close
   >
     <el-scrollbar max-height="calc(100vh - 140px)">
-    <el-form :model="form" label-width="118px" class="billing-rule-form">
-      <div class="slot-body form-section">
-        <div class="section-head">
-          <h3>基础信息</h3>
-          <el-form-item label="启用" class="inline-switch">
-            <el-switch v-model="form.enabled" />
+      <el-form :model="form" label-width="118px" class="billing-rule-form">
+        <div class="slot-body form-section">
+          <div class="section-head">
+            <h3>基础信息</h3>
+            <el-form-item label="启用" class="inline-switch">
+              <el-switch v-model="form.enabled" />
+            </el-form-item>
+          </div>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="规则编码" required>
+                <el-input v-model="form.code" :disabled="isEdit" placeholder="如 OPENAI_GPT4O" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="规则名称" required>
+                <el-input v-model="form.name" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="供应商">
+                <RemoteEntitySelect
+                  v-model="form.providerId"
+                  :load-function="loadProviders"
+                  :label-function="providerLabel"
+                  :selected-options="selectedProviderOptions"
+                  clearable
+                  placeholder="不选则作为全局规则"
+                  style="width: 100%"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="统一模型">
+                <RemoteEntitySelect
+                  v-model="form.logicalModelId"
+                  :load-function="loadLogicalModels"
+                  :label-function="logicalModelLabel"
+                  :selected-options="selectedLogicalModelOptions"
+                  clearable
+                  placeholder="不选则作为供应商默认规则"
+                  style="width: 100%"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="币种">
+                <EnumSelect v-model="form.currency" category="billing_currency" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </div>
+
+        <div class="space-line" />
+
+        <div class="slot-body form-section">
+          <div class="section-head">
+            <h3>计费策略</h3>
+          </div>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="计费模式">
+                <EnumSelect
+                  v-model="form.billingMode"
+                  category="billing_mode"
+                  :include-codes="billingModeCodes"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col v-if="form.billingMode !== 'FREE'" :span="12">
+              <el-form-item label="计费单位">
+                <EnumSelect
+                  v-model="form.unit"
+                  category="billing_unit"
+                  :include-codes="unitCodes"
+                  show-code
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <component :is="modeComponent" :form="form" />
+        </div>
+
+        <div class="space-line" />
+
+        <div class="slot-body form-section">
+          <div class="section-head">
+            <h3>备注</h3>
+          </div>
+          <el-form-item label-width="0">
+            <el-input v-model="form.remark" type="textarea" :rows="4" maxlength="500" show-word-limit />
           </el-form-item>
         </div>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="规则编码" required>
-              <el-input v-model="form.code" :disabled="isEdit" placeholder="如 OPENAI_GPT4O" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="规则名称" required>
-              <el-input v-model="form.name" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="供应商">
-              <RemoteEntitySelect
-                v-model="form.providerId"
-                :load-function="loadProviders"
-                :label-function="providerLabel"
-                :selected-options="selectedProviderOptions"
-                clearable
-                placeholder="不选则作为全局规则"
-                style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="统一模型">
-              <RemoteEntitySelect
-                v-model="form.logicalModelId"
-                :load-function="loadLogicalModels"
-                :label-function="logicalModelLabel"
-                :selected-options="selectedLogicalModelOptions"
-                clearable
-                placeholder="不选则作为供应商默认规则"
-                style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="币种">
-              <EnumSelect v-model="form.currency" category="billing_currency" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </div>
-
-      <div class="space-line" />
-
-      <div class="slot-body form-section">
-        <div class="section-head">
-          <h3>计费策略</h3>
-        </div>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="计费模式">
-              <EnumSelect
-                v-model="form.billingMode"
-                category="billing_mode"
-                :include-codes="billingModeCodes"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col v-if="form.billingMode !== 'FREE'" :span="12">
-            <el-form-item label="计费单位">
-              <EnumSelect
-                v-model="form.unit"
-                category="billing_unit"
-                :include-codes="unitCodes"
-                show-code
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <component :is="modeComponent" :form="form" />
-      </div>
-
-      <div class="space-line" />
-
-      <div class="slot-body form-section">
-        <div class="section-head">
-          <h3>备注</h3>
-        </div>
-        <el-form-item label-width="0">
-          <el-input v-model="form.remark" type="textarea" :rows="4" maxlength="500" show-word-limit />
-        </el-form-item>
-      </div>
-    </el-form>
+      </el-form>
     </el-scrollbar>
+
     <template #footer>
       <el-button @click="visible = false">取消</el-button>
       <el-button type="primary" :loading="saving" @click="submit">保存</el-button>
@@ -127,6 +128,8 @@ import BillingModeVideoConfig from "./modes/BillingModeVideoConfig.vue";
 import { createBillingRule, updateBillingRule } from "../../api/billing";
 import { listProviders } from "../../api/providers";
 import { listLogicalModels } from "../../api/logicalModels";
+import { isValidJsonText, parseJsonObject, stringifyJson } from "../../utils/format";
+import { mergeOptionList, normalizeOptionList, resolveSelectedOption } from "../../utils/options";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -205,24 +208,27 @@ const form = reactive({
 const isEdit = computed(() => props.rule != null);
 const unitCodes = computed(() => unitsByMode[form.billingMode] || unitsByMode.DEFAULT);
 const modeComponent = computed(() => componentsByMode[form.billingMode] || BillingModeTokenConfig);
-const selectedProviderOptions = computed(() => {
-  const item = providerOptions.value.find((p) => p.id === form.providerId);
-  if (item) return [item];
-  return form.providerId ? [{ id: form.providerId, name: props.rule?.providerName }] : [];
-});
-const selectedLogicalModelOptions = computed(() => {
-  const item = logicalModelOptions.value.find((m) => m.id === form.logicalModelId);
-  if (item) return [item];
-  return form.logicalModelId ? [{ id: form.logicalModelId, modelName: props.rule?.logicalModelName }] : [];
-});
+const selectedProviderOptions = computed(() =>
+  resolveSelectedOption(form.providerId, providerOptions.value, {
+    id: form.providerId,
+    name: props.rule?.providerName
+  })
+);
+const selectedLogicalModelOptions = computed(() =>
+  resolveSelectedOption(form.logicalModelId, logicalModelOptions.value, {
+    id: form.logicalModelId,
+    modelName: props.rule?.logicalModelName
+  })
+);
 
 watch(
   () => [props.modelValue, props.rule],
   async ([value]) => {
-    if (value) {
-      resetForm();
-      await Promise.all([loadProviders(), loadLogicalModels()]);
+    if (!value) {
+      return;
     }
+    resetForm();
+    await Promise.all([loadProviders(), loadLogicalModels()]);
   }
 );
 
@@ -273,20 +279,18 @@ function applyModeDefaults(mode, resetPrice = true) {
 
 async function loadProviders(params = { pageNum: 1, pageSize: 10 }) {
   const res = await listProviders(params);
-  mergeOptions(providerOptions, Array.isArray(res?.list) ? res.list : []);
+  mergeOptions(providerOptions, normalizeOptionList(res));
   return res;
 }
 
 async function loadLogicalModels(params = { pageNum: 1, pageSize: 10 }) {
   const res = await listLogicalModels(params);
-  mergeOptions(logicalModelOptions, Array.isArray(res?.list) ? res.list : []);
+  mergeOptions(logicalModelOptions, normalizeOptionList(res));
   return res;
 }
 
 function mergeOptions(targetRef, list) {
-  const map = new Map(targetRef.value.map((item) => [item.id, item]));
-  list.forEach((item) => item?.id != null && map.set(item.id, item));
-  targetRef.value = Array.from(map.values());
+  targetRef.value = mergeOptionList(targetRef.value, list);
 }
 
 function providerLabel(provider) {
@@ -298,25 +302,12 @@ function logicalModelLabel(model) {
   return model.modelCode ? `${name} (${model.modelCode})` : name;
 }
 
-function parseJsonObject(value) {
-  if (!value) return {};
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
 function validateJson(value, label) {
-  if (!value?.trim()) return true;
-  try {
-    JSON.parse(value);
-    return true;
-  } catch {
+  if (!isValidJsonText(value)) {
     ElMessage.warning(`${label}不是合法 JSON`);
     return false;
   }
+  return true;
 }
 
 function normalizeMode(mode) {
@@ -326,7 +317,7 @@ function normalizeMode(mode) {
 
 function buildConfigJson() {
   if (form.billingMode === "TOKEN") {
-    return JSON.stringify({
+    return stringifyJson({
       inputUnitPrice: form.inputUnitPrice,
       outputUnitPrice: form.outputUnitPrice,
       cacheReadUnitPrice: form.cacheReadUnitPrice,
@@ -334,13 +325,13 @@ function buildConfigJson() {
     });
   }
   if (form.billingMode === "IMAGE") {
-    return JSON.stringify({
+    return stringifyJson({
       imageResolution: form.imageResolution?.trim() || null,
       imageQuality: form.imageQuality?.trim() || null
     });
   }
   if (form.billingMode === "EMBEDDING") {
-    return JSON.stringify({ inputUnitPrice: form.inputUnitPrice });
+    return stringifyJson({ inputUnitPrice: form.inputUnitPrice });
   }
   if (form.billingMode === "CUSTOM") {
     return form.customConfigJson?.trim() || null;

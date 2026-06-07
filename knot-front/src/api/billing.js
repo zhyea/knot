@@ -12,6 +12,10 @@ export function updateBillingRule(id, payload) {
   return put(`/api/billing/rules/${id}`, payload);
 }
 
+export function updateBillingRuleStatus(id, enabled) {
+  return put(`/api/billing/rules/${id}/status`, { enabled });
+}
+
 export function deleteBillingRule(id) {
   return del(`/api/billing/rules/${id}`);
 }

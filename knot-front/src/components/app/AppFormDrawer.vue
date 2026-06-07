@@ -84,6 +84,7 @@ import {
 import {createApp, updateApp} from "../../api/apps";
 import {listDepartments} from "../../api/departments";
 import {listUsers} from "../../api/users";
+import { normalizeOptionList, resolveSelectedOption } from "../../utils/options";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -108,16 +109,18 @@ const form = reactive({
 });
 
 const isEdit = computed(() => props.app != null);
-const selectedDepartmentOptions = computed(() => {
-  if (!form.deptId) return [];
-  const department = departmentOptions.value.find((item) => item.id === form.deptId);
-  return department ? [department] : [{ id: form.deptId, deptName: props.app?.deptName }];
-});
-const selectedOwnerOptions = computed(() => {
-  if (!form.ownerUserId) return [];
-  const user = userOptions.value.find((item) => item.id === form.ownerUserId);
-  return user ? [user] : [{ id: form.ownerUserId, realName: props.app?.ownerName }];
-});
+const selectedDepartmentOptions = computed(() =>
+  resolveSelectedOption(form.deptId, departmentOptions.value, {
+    id: form.deptId,
+    deptName: props.app?.deptName
+  })
+);
+const selectedOwnerOptions = computed(() =>
+  resolveSelectedOption(form.ownerUserId, userOptions.value, {
+    id: form.ownerUserId,
+    realName: props.app?.ownerName
+  })
+);
 
 function departmentLabel(department) {
   return department.deptCode ? `${department.deptName}（${department.deptCode}）` : (department.deptName || `#${department.id}`);
@@ -130,12 +133,12 @@ function userLabel(user) {
 
 async function loadDepartments() {
   const data = await listDepartments({pageNum: 1, pageSize: 20});
-  departmentOptions.value = Array.isArray(data?.list) ? data.list : Array.isArray(data) ? data : [];
+  departmentOptions.value = normalizeOptionList(data);
 }
 
 async function loadUsers() {
   const data = await listUsers({pageNum: 1, pageSize: 10});
-  userOptions.value = Array.isArray(data?.list) ? data.list : Array.isArray(data) ? data : [];
+  userOptions.value = normalizeOptionList(data);
 }
 
 function fillFormFromRow(row) {

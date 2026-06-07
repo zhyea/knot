@@ -58,9 +58,9 @@ import { onMounted } from "vue";
 import { CopyDocument, Document, Edit, VideoPlay } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
-import { updateModel } from "../../api/models";
-import { useEnabledToggle } from "../../composables/useEnabledToggle";
-import { useEnums } from "../../composables/useEnums";
+import { updateModelStatus } from "@/api/models.js";
+import { useEnabledToggle } from "@/composables/useEnabledToggle.js";
+import { useEnums } from "@/composables/useEnums.js";
 
 defineProps({
   rows: { type: Array, default: () => [] },
@@ -76,18 +76,7 @@ const emit = defineEmits(["create", "refresh", "edit", "copy", "test", "log", "p
 const { options: modelTypeOptions, loadOptions: loadModelTypes } = useEnums("model_type");
 
 const { togglingId, onEnabledChange } = useEnabledToggle({
-  updateApi: updateModel,
-  buildPayload: (row, enabled) => ({
-    name: row.name,
-    providerId: row.providerId,
-    logicalModelId: row.logicalModelId,
-    billingRuleId: row.billingRuleId ?? null,
-    modelType: row.modelType,
-    version: row.version,
-    enabled,
-    rateLimitPolicy: row.rateLimitPolicy ?? null,
-    quotaPolicy: row.quotaPolicy ?? null
-  })
+  updateApi: updateModelStatus
 });
 
 function modelTypeLabel(code) {

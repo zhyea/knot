@@ -1,50 +1,57 @@
 <template>
-  <PageSection title="插件管理">
-    <ListPageHeader>
-      <template #actions>
-        <el-button type="primary" @click="dlg = true">新建插件</el-button>
-        <el-button @click="pageLoad">刷新</el-button>
-      </template>
-      <template #filters>
-        <div class="list-filter-item list-filter-item--grow">
-          <span class="list-filter-label">关键词</span>
-          <el-input
-            v-model="query.keyword"
-            class="list-filter-control--wide"
-            placeholder="按编码、名称、类型筛选"
-            clearable
-            @keyup.enter="handleQuery"
-          />
-        </div>
-        <div class="list-filter-item">
-          <span class="list-filter-label">状态</span>
-          <el-select v-model="query.status" class="list-filter-control" clearable placeholder="全部">
-            <el-option
-              v-for="item in pluginStatusOptions"
-              :key="item.itemCode"
-              :label="item.itemLabel"
-              :value="item.itemCode"
+  <PageSection>
+    <div class="list-page-shell">
+      <section class="list-page-block">
+        <div class="list-page-filters">
+          <div class="list-filter-item list-filter-item--grow">
+            <span class="list-filter-label">关键词</span>
+            <el-input
+              v-model="query.keyword"
+              class="list-filter-control--wide"
+              placeholder="按编码、名称、类型筛选"
+              clearable
+              @keyup.enter="handleQuery"
             />
-          </el-select>
+          </div>
+          <div class="list-filter-item">
+            <span class="list-filter-label">状态</span>
+            <el-select v-model="query.status" class="list-filter-control" clearable placeholder="全部">
+              <el-option
+                v-for="item in pluginStatusOptions"
+                :key="item.itemCode"
+                :label="item.itemLabel"
+                :value="item.itemCode"
+              />
+            </el-select>
+          </div>
+          <div class="list-filter-actions">
+            <el-button type="primary" @click="handleQuery">查询</el-button>
+            <el-button @click="handleReset">重置</el-button>
+          </div>
         </div>
-        <div class="list-filter-actions">
-          <el-button type="primary" @click="handleQuery">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </div>
-      </template>
-    </ListPageHeader>
+      </section>
 
-    <PluginListPanel
-      :rows="pluginRows"
-      :status-options="pluginStatusOptions"
-      :loading="loading"
-      :total="total"
-      :page-num="pageNum"
-      :page-size="pageSize"
-      @status-change="onStatus"
-      @page-change="onPageChange"
-      @size-change="onSizeChange"
-    />
+      <section class="list-page-block list-page-block--content">
+        <div class="list-page-toolbar">
+          <div class="list-page-toolbar__actions list-page-toolbar__actions--start">
+            <el-button type="primary" @click="dlg = true">新建插件</el-button>
+          </div>
+        </div>
+
+        <PluginListPanel
+          :rows="pluginRows"
+          :status-options="pluginStatusOptions"
+          :loading="loading"
+          :total="total"
+          :page-num="pageNum"
+          :page-size="pageSize"
+          :show-refresh="false"
+          @status-change="onStatus"
+          @page-change="onPageChange"
+          @size-change="onSizeChange"
+        />
+      </section>
+    </div>
 
     <PluginFormDialog v-model="dlg" @saved="resetPage" />
   </PageSection>
@@ -54,7 +61,6 @@
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
-import ListPageHeader from "../components/common/ListPageHeader.vue";
 import PluginFormDialog from "../components/plugin/PluginFormDialog.vue";
 import PluginListPanel from "../components/plugin/PluginListPanel.vue";
 import { useEnums } from "../composables/useEnums";

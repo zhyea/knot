@@ -1,28 +1,28 @@
 <template>
-  <PageSection title="供应商模型">
+  <PageSection>
     <div class="model-page">
-      <section class="model-block model-block--filters">
+      <section class="list-page-block">
         <div class="model-filters">
           <div class="model-filter-item model-filter-item--type">
             <span class="model-filter-label">模型类型</span>
             <EnumSelect
-                v-model="query.modelTypes"
-                category="model_type"
-                multiple
-                clearable
-                class="model-filter-control"
-                :select-style="{ width: '100%' }"
+              v-model="query.modelTypes"
+              category="model_type"
+              multiple
+              clearable
+              class="model-filter-control"
+              :select-style="{ width: '100%' }"
             />
           </div>
 
           <div class="model-filter-item model-filter-item--keyword">
             <span class="model-filter-label">关键字</span>
             <el-input
-                v-model="query.keyword"
-                class="model-filter-control"
-                placeholder="按模型编码、名称、供应商筛选"
-                clearable
-                @keyup.enter="handleQuery"
+              v-model="query.keyword"
+              class="model-filter-control"
+              placeholder="按模型编码、名称、供应商筛选"
+              clearable
+              @keyup.enter="handleQuery"
             />
           </div>
 
@@ -39,52 +39,52 @@
         </div>
 
         <ModelListPanel
-            :rows="rows"
-            :loading="loading"
-            :total="total"
-            :page-num="pageNum"
-            :page-size="pageSize"
-            :show-refresh="false"
-            @edit="openEdit"
-            @copy="openCopy"
-            @test="openTest"
-            @log="openChangeLog"
-            @page-change="onPageChange"
-            @size-change="onSizeChange"
-            @changed="load"
+          :rows="rows"
+          :loading="loading"
+          :total="total"
+          :page-num="pageNum"
+          :page-size="pageSize"
+          :show-refresh="false"
+          @edit="openEdit"
+          @copy="openCopy"
+          @test="openTest"
+          @log="openChangeLog"
+          @page-change="onPageChange"
+          @size-change="onSizeChange"
+          @changed="load"
         />
       </section>
     </div>
 
-    <ModelFormDrawer v-model="formVisible" :model="editingModel" @saved="resetPage"/>
-    <ModelTestDialog v-model="testDlg" :model-id="testingModelId"/>
+    <ModelFormDrawer v-model="formVisible" :model="editingModel" @saved="resetPage" />
+    <ModelTestDialog v-model="testDlg" :model-id="testingModelId" />
     <OperationLogDrawer
-        v-model="logDrawer"
-        :title="`模型变更日志 - ${logModelName || ''}`"
-        :load-logs="loadModelOperationLogs"
+      v-model="logDrawer"
+      :title="`模型变更日志 - ${logModelName || ''}`"
+      :load-logs="loadModelOperationLogs"
     />
   </PageSection>
 </template>
 
 <script setup>
-import {onMounted, reactive, ref} from "vue";
+import { onMounted, reactive, ref } from "vue";
 import PageSection from "../components/common/PageSection.vue";
 import EnumSelect from "../components/common/EnumSelect.vue";
 import OperationLogDrawer from "../components/common/OperationLogDrawer.vue";
 import ModelFormDrawer from "../components/model/ModelFormDrawer.vue";
 import ModelListPanel from "../components/model/ModelListPanel.vue";
 import ModelTestDialog from "../components/model/ModelTestDialog.vue";
-import {getModel, listModels} from "../api/models";
-import {listModelOperationLogs} from "../api/operationLogs";
-import {usePageList} from "../composables/usePageList";
+import { getModel, listModels } from "../api/models";
+import { listModelOperationLogs } from "../api/operationLogs";
+import { usePageList } from "../composables/usePageList";
 
 const query = reactive({
   keyword: "",
   modelTypes: []
 });
 
-const {rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage} =
-    usePageList(listModels, {extra: query});
+const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
+  usePageList(listModels, { extra: query });
 
 const formVisible = ref(false);
 const editingModel = ref(null);
@@ -133,8 +133,8 @@ function buildModelCopy(source = {}) {
     name: source.name ? `${source.name} Copy` : "",
     enabled: false,
     apiBindings: Array.isArray(source.apiBindings)
-        ? source.apiBindings.map((item) => ({...item, id: null}))
-        : []
+      ? source.apiBindings.map((item) => ({ ...item, id: null }))
+      : []
   };
 }
 

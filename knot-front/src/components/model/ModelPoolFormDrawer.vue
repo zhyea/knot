@@ -140,6 +140,7 @@ import EnumSelect from "../common/EnumSelect.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import { checkModelPoolCode, createModelPool, updateModelPool } from "../../api/modelPools";
 import { listModels } from "../../api/models";
+import { mergeOptionList, normalizeOptionList } from "../../utils/options";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -188,18 +189,12 @@ function modelLabel(model) {
 }
 
 function mergeOptions(list) {
-  const map = new Map(modelOptions.value.map((item) => [item.id, item]));
-  for (const item of list) {
-    if (item?.id != null) {
-      map.set(item.id, item);
-    }
-  }
-  modelOptions.value = Array.from(map.values());
+  modelOptions.value = mergeOptionList(modelOptions.value, list);
 }
 
 async function loadModelOptions(params) {
   const res = await listModels(params);
-  const list = Array.isArray(res?.list) ? res.list : [];
+  const list = normalizeOptionList(res);
   mergeOptions(list);
   return res;
 }

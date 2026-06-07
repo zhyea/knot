@@ -19,51 +19,33 @@
 <script setup>
 import { computed } from "vue";
 import { ElMessage } from "element-plus";
+import { escapeHtml, highlightJsonHtml } from "../../utils/format";
 
 const props = defineProps({
   code: { type: String, default: "" },
   copyable: { type: Boolean, default: true },
-  /** shell | json */
   language: { type: String, default: "shell" }
 });
 
 const highlighted = computed(() => {
   const text = props.code || "";
   if (props.language === "json") {
-    return highlightJson(text);
+    return text ? highlightJsonHtml(text) : '<span class="sh-muted">（暂无内容）</span>';
   }
   return highlightShell(text);
 });
-
-function escapeHtml(text) {
-  return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function highlightJson(text) {
-  if (!text) {
-    return '<span class="sh-muted">（暂无内容）</span>';
-  }
-  return escapeHtml(text)
-    .replace(/"([^"\\]*(?:\\.[^"\\]*)*)"(?=\s*:)/g, '<span class="json-key">"$1"</span>')
-    .replace(/: "([^"\\]*(?:\\.[^"\\]*)*)"/g, ': <span class="json-str">"$1"</span>')
-    .replace(/: (-?\d+(?:\.\d+)?)/g, ': <span class="json-num">$1</span>')
-    .replace(/: (true|false|null)/g, ': <span class="json-lit">$1</span>');
-}
 
 function highlightShell(text) {
   if (!text) {
     return '<span class="sh-muted">（暂无内容）</span>';
   }
-  let s = escapeHtml(text);
-  s = s.replace(/\b(curl)\b/g, '<span class="sh-cmd">$1</span>');
-  s = s.replace(/(-[A-Za-z]+)/g, '<span class="sh-flag">$1</span>');
-  s = s.replace(/(https?:\/\/[^\s'\\]+)/g, '<span class="sh-url">$1</span>');
-  s = s.replace(/('(?:[^'\\]|\\.)*')/g, '<span class="sh-str">$1</span>');
-  s = s.replace(/\\$/gm, '<span class="sh-cont">\\</span>');
-  return s;
+  let html = escapeHtml(text);
+  html = html.replace(/\b(curl)\b/g, '<span class="sh-cmd">$1</span>');
+  html = html.replace(/(-[A-Za-z]+)/g, '<span class="sh-flag">$1</span>');
+  html = html.replace(/(https?:\/\/[^\s'\\]+)/g, '<span class="sh-url">$1</span>');
+  html = html.replace(/('(?:[^'\\]|\\.)*')/g, '<span class="sh-str">$1</span>');
+  html = html.replace(/\\$/gm, '<span class="sh-cont">\\</span>');
+  return html;
 }
 
 async function copyCode() {
@@ -80,25 +62,25 @@ async function copyCode() {
 <style scoped>
 .shell-code-wrap {
   position: relative;
+  border: 1px solid var(--el-border-color-lighter);
   border-radius: 0;
   overflow: hidden;
-  border: 1px solid var(--el-border-color-lighter);
+}
+
+.shell-code-scrollbar {
+  max-height: 220px;
 }
 
 .shell-code-block {
   margin: 0;
   padding: 14px 16px 36px;
   background: #1e1e1e;
+  color: #d4d4d4;
   font-family: Consolas, "Courier New", monospace;
   font-size: 12px;
   line-height: 1.55;
-  color: #d4d4d4;
   white-space: pre-wrap;
   word-break: break-all;
-}
-
-.shell-code-scrollbar {
-  max-height: 220px;
 }
 
 .shell-code-block :deep(.sh-cmd) {
@@ -118,10 +100,7 @@ async function copyCode() {
   color: #4ec9b0;
 }
 
-.shell-code-block :deep(.sh-cont) {
-  color: #808080;
-}
-
+.shell-code-block :deep(.sh-cont),
 .shell-code-block :deep(.sh-muted) {
   color: #808080;
 }
@@ -130,15 +109,16 @@ async function copyCode() {
   color: #9cdcfe;
 }
 
-.shell-code-block :deep(.json-str) {
+.shell-code-block :deep(.json-string) {
   color: #ce9178;
 }
 
-.shell-code-block :deep(.json-num) {
+.shell-code-block :deep(.json-number) {
   color: #b5cea8;
 }
 
-.shell-code-block :deep(.json-lit) {
+.shell-code-block :deep(.json-boolean),
+.shell-code-block :deep(.json-null) {
   color: #569cd6;
 }
 

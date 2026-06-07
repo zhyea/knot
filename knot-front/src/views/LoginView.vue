@@ -1,19 +1,27 @@
-﻿<template>
+<template>
   <div class="login-container">
     <el-card class="login-card">
       <template #header>
-        <h2 class="login-title">Knot AI Gateway</h2>
+        <h2 class="login-title">{{ t("login.title") }}</h2>
       </template>
       <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin">
         <el-form-item prop="username">
-          <el-input v-model="form.username" placeholder="用户名" :prefix-icon="User" size="large" />
+          <el-input v-model="form.username" :placeholder="t('login.username')" :prefix-icon="User" size="large" />
         </el-form-item>
         <el-form-item prop="password">
-          <el-input v-model="form.password" type="password" placeholder="密码" :prefix-icon="Lock" size="large" show-password @keyup.enter="handleLogin" />
+          <el-input
+            v-model="form.password"
+            type="password"
+            :placeholder="t('login.password')"
+            :prefix-icon="Lock"
+            size="large"
+            show-password
+            @keyup.enter="handleLogin"
+          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" size="large" :loading="loading" @click="handleLogin" style="width: 100%">
-            登录
+            {{ t("login.submit") }}
           </el-button>
         </el-form-item>
       </el-form>
@@ -22,43 +30,45 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue';
-import { useRouter } from 'vue-router';
-import { ElMessage } from 'element-plus';
-import { User, Lock } from '@element-plus/icons-vue';
-import { useAuth } from '../composables/useAuth';
-import { loadThemePreference } from '../composables/useTheme';
+import { computed, reactive, ref } from "vue";
+import { useRouter } from "vue-router";
+import { ElMessage } from "element-plus";
+import { Lock, User } from "@element-plus/icons-vue";
+import { useAuth } from "../composables/useAuth";
+import { useLocale } from "../composables/useLocale";
+import { loadThemePreference } from "../composables/useTheme";
 
 const router = useRouter();
 const { login } = useAuth();
+const { loadLocalePreference, t } = useLocale();
 
 const formRef = ref(null);
 const loading = ref(false);
 
 const form = reactive({
-  username: '',
-  password: '',
+  username: "",
+  password: ""
 });
 
-const rules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
-};
+const rules = computed(() => ({
+  username: [{ required: true, message: t("login.usernameRequired"), trigger: "blur" }],
+  password: [{ required: true, message: t("login.passwordRequired"), trigger: "blur" }]
+}));
 
 async function handleLogin() {
   const valid = await formRef.value.validate().catch(() => false);
-  if (!valid) return;
+  if (!valid) {
+    return;
+  }
 
   loading.value = true;
   try {
     await login(form.username, form.password);
-    await loadThemePreference();
-    ElMessage.success('登录成功');
-    router.push('/');
+    await Promise.all([loadThemePreference(), loadLocalePreference()]);
+    ElMessage.success(t("login.success"));
+    router.push("/");
   } catch (error) {
-    // 显示后端返回的具体错误信息
-    const message = error.message || '登录失败，请检查用户名和密码';
-    ElMessage.error(message);
+    ElMessage.error(error.message || t("login.failed"));
   } finally {
     loading.value = false;
   }

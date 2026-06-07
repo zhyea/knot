@@ -23,6 +23,7 @@
 
 <script setup>
 import { computed, ref, watch } from "vue";
+import { normalizeOptionList } from "../../utils/options";
 
 defineOptions({ inheritAttrs: false });
 
@@ -72,7 +73,7 @@ async function loadOptions(keyword = "") {
       keyword: keyword?.trim() || undefined,
       ...props.extraParams
     });
-    const list = Array.isArray(result?.list) ? result.list : Array.isArray(result) ? result : [];
+    const list = normalizeOptionList(result);
     options.value = list.slice(0, 10);
   } finally {
     loading.value = false;

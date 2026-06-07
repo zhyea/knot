@@ -254,11 +254,11 @@ import {
   normalizeRateLimitPolicy
 } from "../../utils/trafficPolicy";
 import {createRoutingRule, updateRoutingRule, checkRoutingRuleCode, listRoutingConsumers} from "../../api/routing";
-import {generateRoutingRuleCode} from "../../utils/routingRule";
 import {listApps} from "../../api/apps";
 import {listModels} from "../../api/models";
 import {listModelPools} from "../../api/modelPools";
 import {listUsers} from "../../api/users";
+import { mergeOptionList, normalizeOptionList, resolveSelectedOption } from "../../utils/options";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -325,16 +325,18 @@ const selectedTargetOptions = computed(() =>
           name: item.targetName
         })
 );
-const selectedAppOptions = computed(() => {
-  if (!form.appId) return [];
-  const app = appOptions.value.find((item) => item.id === form.appId);
-  return app ? [app] : [{ id: form.appId, name: props.rule?.appName }];
-});
-const selectedUserOptions = computed(() => {
-  if (!form.userId) return [];
-  const user = userOptions.value.find((item) => item.id === form.userId);
-  return user ? [user] : [{ id: form.userId, realName: props.rule?.userName }];
-});
+const selectedAppOptions = computed(() =>
+  resolveSelectedOption(form.appId, appOptions.value, {
+    id: form.appId,
+    name: props.rule?.appName
+  })
+);
+const selectedUserOptions = computed(() =>
+  resolveSelectedOption(form.userId, userOptions.value, {
+    id: form.userId,
+    realName: props.rule?.userName
+  })
+);
 
 function appLabel(app) {
   return app.name || app.appId || `#${app.id}`;
@@ -360,46 +362,40 @@ function targetLabel(target) {
 }
 
 function mergeOptions(targetRef, list) {
-  const map = new Map(targetRef.value.map((item) => [item.id, item]));
-  for (const item of list) {
-    if (item?.id != null) {
-      map.set(item.id, item);
-    }
-  }
-  targetRef.value = Array.from(map.values());
+  targetRef.value = mergeOptionList(targetRef.value, list);
 }
 
 async function loadAppOptions(params) {
   const res = await listApps(params);
-  const list = Array.isArray(res?.list) ? res.list : [];
+  const list = normalizeOptionList(res);
   mergeOptions(appOptions, list);
   return res;
 }
 
 async function loadUserOptions(params) {
   const res = await listUsers(params);
-  const list = Array.isArray(res?.list) ? res.list : Array.isArray(res) ? res : [];
+  const list = normalizeOptionList(res);
   mergeOptions(userOptions, list);
   return res;
 }
 
 async function loadConsumerOptions(params) {
   const res = await listRoutingConsumers(params);
-  const list = Array.isArray(res?.list) ? res.list : [];
+  const list = normalizeOptionList(res);
   mergeOptions(consumerOptions, list);
   return res;
 }
 
 async function loadModelOptions(params) {
   const res = await listModels(params);
-  const list = Array.isArray(res?.list) ? res.list : [];
+  const list = normalizeOptionList(res);
   mergeOptions(modelOptions, list);
   return res;
 }
 
 async function loadModelPoolOptions(params) {
   const res = await listModelPools(params);
-  const list = Array.isArray(res?.list) ? res.list : [];
+  const list = normalizeOptionList(res);
   mergeOptions(modelPoolOptions, list);
   return res;
 }
@@ -446,6 +442,10 @@ function buildAppScenarioValue() {
   return tags.length ? tags.join("，") : null;
 }
 
+function normalizeRuleCode(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
 async function loadOptions() {
   const [appsRes, usersRes, modelsRes, poolsRes, consumersRes] = await Promise.all([
     loadAppOptions({pageNum: 1, pageSize: 10}),
@@ -454,11 +454,11 @@ async function loadOptions() {
     loadModelPoolOptions({pageNum: 1, pageSize: 10, modelTypes: form.modelTypes}),
     loadConsumerOptions({pageNum: 1, pageSize: 10})
   ]);
-  appOptions.value = Array.isArray(appsRes?.list) ? appsRes.list : [];
-  userOptions.value = Array.isArray(usersRes?.list) ? usersRes.list : Array.isArray(usersRes) ? usersRes : [];
-  modelOptions.value = Array.isArray(modelsRes?.list) ? modelsRes.list : [];
-  modelPoolOptions.value = Array.isArray(poolsRes?.list) ? poolsRes.list : [];
-  consumerOptions.value = Array.isArray(consumersRes?.list) ? consumersRes.list : [];
+  appOptions.value = normalizeOptionList(appsRes);
+  userOptions.value = normalizeOptionList(usersRes);
+  modelOptions.value = normalizeOptionList(modelsRes);
+  modelPoolOptions.value = normalizeOptionList(poolsRes);
+  consumerOptions.value = normalizeOptionList(consumersRes);
 }
 
 async function refreshTargetOptionsByModelTypes() {
@@ -467,8 +467,8 @@ async function refreshTargetOptionsByModelTypes() {
     loadModelOptions(query),
     loadModelPoolOptions(query)
   ]);
-  modelOptions.value = Array.isArray(modelsRes?.list) ? modelsRes.list : [];
-  modelPoolOptions.value = Array.isArray(poolsRes?.list) ? poolsRes.list : [];
+  modelOptions.value = normalizeOptionList(modelsRes);
+  modelPoolOptions.value = normalizeOptionList(poolsRes);
 }
 
 function resetForm() {
@@ -476,7 +476,7 @@ function resetForm() {
   if (props.rule) {
     const row = props.rule;
     form.id = row.id;
-    form.ruleCode = row.ruleCode || "";
+    form.ruleCode = normalizeRuleCode(row.ruleCode);
     form.name = row.name || "";
     form.appScenarios = parseAppScenarioTags(row.appScenario);
     form.consumerIds = Array.isArray(row.consumerIds) ? [...row.consumerIds] : [];
@@ -499,7 +499,7 @@ function resetForm() {
     primaryTargetKey.value = form.targets.find((m) => m.primary) ? targetKey(form.targets.find((m) => m.primary)) : (form.targets[0] ? targetKey(form.targets[0]) : null);
   } else {
     form.id = null;
-    form.ruleCode = generateRoutingRuleCode();
+    form.ruleCode = "";
     form.name = "";
     form.appScenarios = [];
     form.consumerIds = [];
@@ -528,6 +528,11 @@ watch(
 watch(
     () => form.ruleCode,
     () => {
+      const normalized = normalizeRuleCode(form.ruleCode);
+      if (form.ruleCode !== normalized) {
+        form.ruleCode = normalized;
+        return;
+      }
       if (ruleCodeError.value) {
         ruleCodeError.value = "";
       }
@@ -600,7 +605,8 @@ function removeTarget(row) {
 }
 
 async function validateRuleCode() {
-  const code = form.ruleCode?.trim();
+  const code = normalizeRuleCode(form.ruleCode);
+  form.ruleCode = code;
   if (!code) {
     ruleCodeError.value = "请填写规则编码";
     return false;
@@ -630,7 +636,7 @@ function buildSubmitPayload() {
       : normalizeRateLimitPolicy(form.rateLimitPolicy);
   const quotaPolicy = isEmptyQuotaPolicy(form.quotaPolicy) ? null : normalizeQuotaPolicy(form.quotaPolicy);
   return {
-    ruleCode: form.ruleCode?.trim(),
+    ruleCode: normalizeRuleCode(form.ruleCode),
     name: form.name?.trim(),
     appScenario: buildAppScenarioValue(),
     consumerIds: [...form.consumerIds],

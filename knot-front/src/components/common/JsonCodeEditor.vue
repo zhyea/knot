@@ -27,6 +27,7 @@
 <script setup>
 import { computed, ref } from "vue";
 import { ElMessage } from "element-plus";
+import { formatJsonText, highlightJsonHtml } from "../../utils/format";
 
 const props = defineProps({
   modelValue: { type: String, default: "" },
@@ -50,7 +51,7 @@ const displayText = computed(() => {
   return props.modelValue || "";
 });
 
-const highlightedJson = computed(() => highlightJson(displayText.value));
+const highlightedJson = computed(() => highlightJsonHtml(displayText.value));
 const bodyStyle = computed(() => ({
   minHeight: props.minHeight,
   maxHeight: props.maxHeight
@@ -124,42 +125,6 @@ function syncWrapScroll({ scrollTop: nextTop, scrollLeft: nextLeft }) {
   });
 }
 
-function formatJsonText(value) {
-  if (!value) {
-    return "";
-  }
-  try {
-    const parsed = typeof value === "string" ? JSON.parse(value) : value;
-    return JSON.stringify(parsed, null, "\t");
-  } catch {
-    return String(value);
-  }
-}
-
-function highlightJson(value) {
-  const escaped = escapeHtml(value);
-  return escaped.replace(
-    /("(?:\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g,
-    (match) => {
-      let cls = "json-number";
-      if (match.startsWith("\"")) {
-        cls = match.endsWith(":") ? "json-key" : "json-string";
-      } else if (match === "true" || match === "false") {
-        cls = "json-boolean";
-      } else if (match === "null") {
-        cls = "json-null";
-      }
-      return `<span class="${cls}">${match}</span>`;
-    }
-  );
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
 </script>
 
 <style scoped>

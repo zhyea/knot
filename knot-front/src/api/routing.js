@@ -16,6 +16,10 @@ export function updateRoutingConsumer(id, payload) {
   return put(`/api/routing-consumers/${id}`, payload);
 }
 
+export function updateRoutingConsumerStatus(id, enabled) {
+  return put(`/api/routing-consumers/${id}/status`, { enabled });
+}
+
 export function rotateRoutingConsumerSecret(id) {
   return post(`/api/routing-consumers/${id}/rotate-secret`);
 }
@@ -32,6 +36,10 @@ export function createRoutingRule(payload) {
 
 export function updateRoutingRule(id, payload) {
   return put(`/api/routing-rules/${id}`, payload);
+}
+
+export function updateRoutingRuleStatus(id, enabled) {
+  return put(`/api/routing-rules/${id}/status`, { enabled });
 }
 
 export function checkRoutingRuleCode(code, excludeId) {

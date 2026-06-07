@@ -1,41 +1,48 @@
 <template>
   <PageSection>
-    <ListPageHeader>
-      <template #actions>
-        <el-button type="primary" @click="openCreate">新建供应商</el-button>
-        <el-button @click="load">刷新</el-button>
-      </template>
-      <template #filters>
-        <div class="list-filter-item list-filter-item--grow">
-          <span class="list-filter-label">关键字</span>
-          <el-input
-            v-model="query.keyword"
-            class="list-filter-control--wide"
-            placeholder="按编码、名称、类型筛选"
-            clearable
-            @keyup.enter="handleQuery"
-          />
+    <div class="list-page-shell">
+      <section class="list-page-block">
+        <div class="list-page-filters">
+          <div class="list-filter-item list-filter-item--grow">
+            <span class="list-filter-label">关键词</span>
+            <el-input
+              v-model="query.keyword"
+              class="list-filter-control--wide"
+              placeholder="按编码、名称、类型筛选"
+              clearable
+              @keyup.enter="handleQuery"
+            />
+          </div>
+          <div class="list-filter-actions">
+            <el-button type="primary" @click="handleQuery">查询</el-button>
+            <el-button @click="handleReset">重置</el-button>
+          </div>
         </div>
-        <div class="list-filter-actions">
-          <el-button type="primary" @click="handleQuery">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </div>
-      </template>
-    </ListPageHeader>
+      </section>
 
-    <ProviderListPanel
-      :rows="rows"
-      :loading="loading"
-      :total="total"
-      :page-num="pageNum"
-      :page-size="pageSize"
-      @edit="openEdit"
-      @discount="openDiscount"
-      @log="openChangeLog"
-      @page-change="onPageChange"
-      @size-change="onSizeChange"
-      @changed="load"
-    />
+      <section class="list-page-block list-page-block--content">
+        <div class="list-page-toolbar">
+          <div class="list-page-toolbar__actions list-page-toolbar__actions--start">
+            <el-button type="primary" @click="openCreate">新建供应商</el-button>
+          </div>
+        </div>
+
+        <ProviderListPanel
+          :rows="rows"
+          :loading="loading"
+          :total="total"
+          :page-num="pageNum"
+          :page-size="pageSize"
+          :show-refresh="false"
+          @edit="openEdit"
+          @discount="openDiscount"
+          @log="openChangeLog"
+          @page-change="onPageChange"
+          @size-change="onSizeChange"
+          @changed="load"
+        />
+      </section>
+    </div>
 
     <ProviderFormDrawer
       v-model="formVisible"
@@ -60,7 +67,6 @@
 <script setup>
 import { onMounted, reactive, ref } from "vue";
 import PageSection from "../components/common/PageSection.vue";
-import ListPageHeader from "../components/common/ListPageHeader.vue";
 import OperationLogDrawer from "../components/common/OperationLogDrawer.vue";
 import ProviderListPanel from "../components/provider/ProviderListPanel.vue";
 import ProviderFormDrawer from "../components/provider/ProviderFormDrawer.vue";

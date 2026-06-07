@@ -1,69 +1,86 @@
 <template>
-  <PageSection title="外部模型">
-    <ListPageHeader>
-      <template #actions>
-        <div class="external-actions">
-          <el-button @click="load">刷新</el-button>
-          <el-button type="primary" :loading="syncing" @click="syncOpenRouter">同步 OpenRouter 模型</el-button>
-          <el-button type="success" :loading="creatingAll" :disabled="createAllDisabled" @click="createAllVisible">
-            一键创建统一模型
-          </el-button>
-          <el-popconfirm title="确认物理删除选中的外部模型？" @confirm="deleteSelected">
-            <template #reference>
-              <el-button type="danger" :disabled="!selectedRows.length">批量删除</el-button>
-            </template>
-          </el-popconfirm>
+  <PageSection>
+    <div class="list-page-shell">
+      <section class="list-page-block">
+        <div class="list-page-filters">
+          <div class="list-filter-item external-model-filter-item">
+            <span class="list-filter-label">来源</span>
+            <el-select
+              v-model="query.sourceCode"
+              class="list-filter-control external-model-filter-control"
+              placeholder="来源"
+              clearable
+            >
+              <el-option
+                v-for="source in sources"
+                :key="source.sourceCode"
+                :label="source.sourceName"
+                :value="source.sourceCode"
+              />
+            </el-select>
+          </div>
+          <div class="list-filter-item external-model-filter-item external-model-filter-item--type">
+            <span class="list-filter-label">模型类型</span>
+            <EnumSelect
+              v-model="query.modelType"
+              class="list-filter-control external-model-filter-control external-model-filter-control--type"
+              category="model_type"
+              clearable
+            />
+          </div>
+          <div class="list-filter-item list-filter-item--grow">
+            <span class="list-filter-label">关键词</span>
+            <el-input
+              v-model="query.keyword"
+              class="list-filter-control--wide"
+              placeholder="按模型名、模型 ID、供应商筛选"
+              clearable
+              @keyup.enter="handleQuery"
+            />
+          </div>
+          <div class="list-filter-actions">
+            <el-button type="primary" @click="handleQuery">查询</el-button>
+            <el-button @click="handleReset">重置</el-button>
+          </div>
         </div>
-      </template>
-      <template #filters>
-        <div class="list-filter-item">
-          <span class="list-filter-label">来源</span>
-          <el-select
-            v-model="query.sourceCode"
-            class="list-filter-control"
-            placeholder="来源"
-            clearable
-          >
-            <el-option v-for="s in sources" :key="s.sourceCode" :label="s.sourceName" :value="s.sourceCode" />
-          </el-select>
-        </div>
-        <div class="list-filter-item">
-          <span class="list-filter-label">模型类型</span>
-          <EnumSelect
-            v-model="query.modelType"
-            class="list-filter-control"
-            category="model_type"
-            clearable
-          />
-        </div>
-        <div class="list-filter-item list-filter-item--grow">
-          <span class="list-filter-label">关键词</span>
-          <el-input
-            v-model="query.keyword"
-            class="list-filter-control--wide"
-            placeholder="按模型名、模型 ID、供应商筛选"
-            clearable
-            @keyup.enter="handleQuery"
-          />
-        </div>
-        <div class="list-filter-actions">
-          <el-button type="primary" @click="handleQuery">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </div>
-      </template>
-    </ListPageHeader>
+      </section>
 
-    <ExternalModelListPanel
-      :rows="rows"
-      :loading="loading"
-      :total="total"
-      :page-num="pageNum"
-      :page-size="pageSize"
-      @selection-change="handleSelectionChange"
-      @action="handleAction"
-      @page-change="onPageChange"
-      @size-change="onSizeChange"
-    />
+      <section class="list-page-block list-page-block--content">
+        <div class="list-page-toolbar">
+          <div class="list-page-toolbar__actions list-page-toolbar__actions--start">
+            <el-button type="primary" :loading="syncing" @click="syncOpenRouter">
+              同步 OpenRouter 模型
+            </el-button>
+            <el-button
+              type="success"
+              :loading="creatingAll"
+              :disabled="createAllDisabled"
+              @click="createAllVisible"
+            >
+              一键创建统一模型
+            </el-button>
+            <el-popconfirm title="确认物理删除选中的外部模型？" @confirm="deleteSelected">
+              <template #reference>
+                <el-button type="danger" :disabled="!selectedRows.length">批量删除</el-button>
+              </template>
+            </el-popconfirm>
+          </div>
+        </div>
+
+        <ExternalModelListPanel
+          :rows="rows"
+          :loading="loading"
+          :total="total"
+          :page-num="pageNum"
+          :page-size="pageSize"
+          :show-refresh="false"
+          @selection-change="handleSelectionChange"
+          @action="handleAction"
+          @page-change="onPageChange"
+          @size-change="onSizeChange"
+        />
+      </section>
+    </div>
 
     <ExternalModelDetailDrawer v-model="detailVisible" :detail="detail" />
   </PageSection>
@@ -73,7 +90,6 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
-import ListPageHeader from "../components/common/ListPageHeader.vue";
 import EnumSelect from "../components/common/EnumSelect.vue";
 import ExternalModelDetailDrawer from "../components/model/ExternalModelDetailDrawer.vue";
 import ExternalModelListPanel from "../components/model/ExternalModelListPanel.vue";
@@ -194,9 +210,31 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.external-actions {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 10px;
+.external-model-filter-item {
+  min-width: 220px;
+}
+
+.external-model-filter-item--type {
+  min-width: 252px;
+}
+
+.external-model-filter-control {
+  width: 190px;
+}
+
+.external-model-filter-control--type {
+  width: 220px;
+}
+
+@media (max-width: 768px) {
+  .external-model-filter-item,
+  .external-model-filter-item--type {
+    min-width: 0;
+  }
+
+  .external-model-filter-control,
+  .external-model-filter-control--type {
+    width: 100%;
+  }
 }
 </style>

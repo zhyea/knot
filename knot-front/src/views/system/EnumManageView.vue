@@ -1,12 +1,20 @@
 <template>
-  <PageSection title="枚举管理">
-    <EnumCategoryListPanel
-      :summaries="summaries"
-      :loading="loading"
-      @create-category="categoryCreateVisible = true"
-      @refresh="loadSummaries"
-      @action="handleAction"
-    />
+  <PageSection>
+    <div class="list-page-shell">
+      <section class="list-page-block list-page-block--content">
+        <div class="list-page-toolbar">
+          <div class="list-page-toolbar__actions list-page-toolbar__actions--start">
+            <el-button type="primary" @click="categoryCreateVisible = true">新增分类</el-button>
+          </div>
+        </div>
+
+        <EnumCategoryListPanel
+          :summaries="summaries"
+          :loading="loading"
+          @action="handleAction"
+        />
+      </section>
+    </div>
 
     <EnumCategoryCreateDialog v-model="categoryCreateVisible" @saved="loadSummaries" />
 
@@ -28,7 +36,7 @@
 
     <OperationLogDrawer
       v-model="logDrawer"
-      :title="`枚举变更日志 — ${logCategory || ''}`"
+      :title="`枚举变更日志 - ${logCategory || ''}`"
       :load-logs="loadEnumOperationLogs"
     />
   </PageSection>
@@ -48,7 +56,6 @@ const loading = ref(false);
 const summaries = ref([]);
 
 const categoryCreateVisible = ref(false);
-
 const itemsDrawerVisible = ref(false);
 const currentCategory = ref("");
 const itemListRef = ref(null);

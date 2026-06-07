@@ -7,14 +7,16 @@
           <div class="model-main">
             <div class="model-name">{{ row.displayName || row.modelName }}</div>
             <div class="tag-list">
-              <el-tag v-for="tag in displayTags(row)" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
+              <el-tag v-for="tag in displayTags(row)" :key="tag" size="small" effect="plain">
+                {{ tag }}
+              </el-tag>
             </div>
           </div>
         </div>
         <p class="tagline">{{ row.tagline || row.description || "暂无介绍" }}</p>
         <div class="card-footer">
           <div class="footer-meta">
-            <strong>{{ row.ownerTeam || row.modelFamily || "—" }}</strong>
+            <strong>{{ row.ownerTeam || row.modelFamily || "-" }}</strong>
             <span>更新时间：{{ formatDate(row.updatedAt) }}</span>
           </div>
           <RowActions
@@ -34,6 +36,7 @@
       :total="total"
       :page-num="pageNum"
       :page-size="pageSize"
+      :show-refresh="showRefresh"
       layout="total, prev, pager, next"
       @refresh="emit('refresh')"
       @page-change="(page) => emit('page-change', page)"
@@ -54,7 +57,9 @@ const props = defineProps({
   pageNum: { type: Number, default: 1 },
   pageSize: { type: Number, default: 9 },
   gridStyle: { type: Object, default: () => ({}) },
-  modelTypeOptions: { type: Array, default: () => [] }
+  compactLevel: { type: Number, default: 0 },
+  modelTypeOptions: { type: Array, default: () => [] },
+  showRefresh: { type: Boolean, default: true }
 });
 
 const emit = defineEmits(["action", "refresh", "page-change"]);
@@ -63,18 +68,18 @@ const bodyRef = ref(null);
 const paginationRef = ref(null);
 
 function modelTypeLabel(code) {
-  if (!code) return "—";
-  const item = props.modelTypeOptions.find((i) => i.itemCode === code);
+  if (!code) return "-";
+  const item = props.modelTypeOptions.find((option) => option.itemCode === code);
   return item?.itemLabel || code;
 }
 
 function displayTags(row) {
   const tags = Array.isArray(row.tags) ? row.tags.filter(isMeaningfulTag) : [];
   const type = modelTypeLabel(row.modelType);
-  if (type && type !== "—") {
+  if (type && type !== "-") {
     tags.unshift(type);
   }
-  return tags.slice(0, 3);
+  return tags.slice(0, props.compactLevel >= 2 ? 2 : 3);
 }
 
 function isMeaningfulTag(tag) {
@@ -94,7 +99,7 @@ function ribbonClass(row) {
 }
 
 function formatDate(value) {
-  if (!value) return "—";
+  if (!value) return "-";
   return String(value).slice(0, 10);
 }
 
@@ -128,8 +133,8 @@ defineExpose({
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 18px 18px 16px;
+  gap: var(--market-card-gap, 12px);
+  padding: var(--market-card-padding, 16px);
   overflow: hidden;
   border: 1px solid var(--knot-border, #e4e7ed);
   background: var(--knot-surface, #fff);
@@ -149,9 +154,10 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
+  gap: var(--market-footer-gap, 12px);
   margin-top: auto;
-  padding-top: 18px;
+  min-height: 36px;
+  padding-top: var(--market-footer-padding-top, 14px);
   border-top: 1px solid var(--knot-border, #ebeef5);
 }
 
@@ -160,7 +166,7 @@ defineExpose({
 }
 
 .model-name {
-  font-size: 16px;
+  font-size: var(--market-title-size, 16px);
   line-height: 1.4;
   font-weight: 600;
   color: var(--knot-text, #303133);
@@ -168,10 +174,10 @@ defineExpose({
 
 .tagline {
   margin: 0;
-  min-height: 44px;
+  min-height: var(--market-tagline-min-height, 40px);
   color: #606266;
-  font-size: 13px;
-  line-height: 1.6;
+  font-size: var(--market-tagline-font-size, 13px);
+  line-height: var(--market-tagline-line-height, 1.5);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -182,7 +188,7 @@ defineExpose({
   display: flex;
   flex-wrap: wrap;
   margin-top: 12px;
-  gap: 6px;
+  gap: var(--market-tag-gap, 6px);
 }
 
 .tag-list :deep(.el-tag) {
@@ -191,7 +197,7 @@ defineExpose({
   border-color: #a9c0ff;
   background: #f7faff;
   color: #3d70ff;
-  font-size: 12px;
+  font-size: var(--market-tag-font-size, 12px);
   line-height: 20px;
 }
 
@@ -201,9 +207,9 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--market-footer-gap, 12px);
   color: var(--knot-text, #303133);
-  font-size: 13px;
+  font-size: var(--market-footer-font-size, 12px);
 }
 
 .footer-meta strong {

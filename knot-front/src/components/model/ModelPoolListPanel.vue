@@ -21,7 +21,7 @@
             inline-prompt
             active-text="启用"
             inactive-text="禁用"
-            @change="(val) => handleEnabledChange(row, val)"
+            @change="(value) => handleEnabledChange(row, value)"
           />
         </template>
       </el-table-column>
@@ -38,10 +38,12 @@
         </template>
       </el-table-column>
     </el-table>
+
     <ListPagination
       :total="total"
       :page-num="pageNum"
       :page-size="pageSize"
+      :show-refresh="showRefresh"
       @refresh="emit('refresh')"
       @page-change="(page) => emit('page-change', page)"
       @size-change="(size) => emit('size-change', size)"
@@ -54,7 +56,7 @@ import { onMounted } from "vue";
 import { Delete, Edit } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
-import { updateModelPool } from "../../api/modelPools";
+import { updateModelPoolStatus } from "../../api/modelPools";
 import { useEnabledToggle } from "../../composables/useEnabledToggle";
 import { resolveEnumLabel, useEnums } from "../../composables/useEnums";
 
@@ -63,32 +65,36 @@ defineProps({
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
-  pageSize: { type: Number, default: 20 }
+  pageSize: { type: Number, default: 20 },
+  showRefresh: { type: Boolean, default: true }
 });
 
-const emit = defineEmits(["create", "refresh", "edit", "delete", "page-change", "size-change", "changed"]);
+const emit = defineEmits([
+  "create",
+  "refresh",
+  "edit",
+  "delete",
+  "page-change",
+  "size-change",
+  "changed"
+]);
 
 const { options: modelTypeOptions, loadOptions: loadModelTypes } = useEnums("model_type");
 const { togglingId, onEnabledChange } = useEnabledToggle({
-  updateApi: updateModelPool,
-  buildPayload: (row, enabled) => ({
-    poolCode: row.poolCode,
-    name: row.name,
-    modelType: row.modelType,
-    selectionStrategy: row.selectionStrategy || "WEIGHTED",
-    enabled,
-    remark: row.remark ?? null,
-    items: row.items || []
-  })
+  updateApi: updateModelPoolStatus
 });
 
 function modelTypeLabel(code) {
-  return resolveEnumLabel(modelTypeOptions.value, code, code || "—");
+  return resolveEnumLabel(modelTypeOptions.value, code, code || "-");
 }
 
 function strategyLabel(code) {
-  const map = { WEIGHTED: "权重", PRIORITY: "优先级", RANDOM: "随机" };
-  return map[code] || code || "—";
+  const map = {
+    WEIGHTED: "权重",
+    PRIORITY: "优先级",
+    RANDOM: "随机"
+  };
+  return map[code] || code || "-";
 }
 
 async function handleEnabledChange(row, enabled) {

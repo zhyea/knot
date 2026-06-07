@@ -1,53 +1,60 @@
 <template>
-  <PageSection title="规则列表">
-    <ListPageHeader>
-      <template #actions>
-        <el-button type="primary" @click="openCreate">新建规则</el-button>
-        <el-button @click="load">刷新</el-button>
-      </template>
-      <template #filters>
-        <div class="list-filter-item list-filter-item--grow">
-          <span class="list-filter-label">关键词</span>
-          <el-input
-            v-model="query.keyword"
-            class="list-filter-control--wide"
-            placeholder="按规则编码、名称、应用、用户筛选"
-            clearable
-            @keyup.enter="handleQuery"
-          />
+  <PageSection>
+    <div class="list-page-shell">
+      <section class="list-page-block">
+        <div class="list-page-filters">
+          <div class="list-filter-item list-filter-item--grow">
+            <span class="list-filter-label">关键词</span>
+            <el-input
+              v-model="query.keyword"
+              class="list-filter-control--wide"
+              placeholder="按规则编码、名称、应用、用户筛选"
+              clearable
+              @keyup.enter="handleQuery"
+            />
+          </div>
+          <div class="list-filter-item">
+            <span class="list-filter-label">模型类型</span>
+            <EnumSelect
+              v-model="query.modelTypes"
+              class="list-filter-control--wide"
+              category="model_type"
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
+              clearable
+            />
+          </div>
+          <div class="list-filter-actions">
+            <el-button type="primary" @click="handleQuery">查询</el-button>
+            <el-button @click="handleReset">重置</el-button>
+          </div>
         </div>
-        <div class="list-filter-item">
-          <span class="list-filter-label">模型类型</span>
-          <EnumSelect
-            v-model="query.modelTypes"
-            class="list-filter-control--wide"
-            category="model_type"
-            multiple
-            collapse-tags
-            collapse-tags-tooltip
-            clearable
-          />
-        </div>
-        <div class="list-filter-actions">
-          <el-button type="primary" @click="handleQuery">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </div>
-      </template>
-    </ListPageHeader>
+      </section>
 
-    <RoutingRuleListPanel
-      :rows="rows"
-      :loading="loading"
-      :total="total"
-      :page-num="pageNum"
-      :page-size="pageSize"
-      @edit="openEdit"
-      @test="openTest"
-      @log="openChangeLog"
-      @page-change="onPageChange"
-      @size-change="onSizeChange"
-      @changed="load"
-    />
+      <section class="list-page-block list-page-block--content">
+        <div class="list-page-toolbar">
+          <div class="list-page-toolbar__actions list-page-toolbar__actions--start">
+            <el-button type="primary" @click="openCreate">新建规则</el-button>
+          </div>
+        </div>
+
+        <RoutingRuleListPanel
+          :rows="rows"
+          :loading="loading"
+          :total="total"
+          :page-num="pageNum"
+          :page-size="pageSize"
+          :show-refresh="false"
+          @edit="openEdit"
+          @test="openTest"
+          @log="openChangeLog"
+          @page-change="onPageChange"
+          @size-change="onSizeChange"
+          @changed="load"
+        />
+      </section>
+    </div>
 
     <RoutingRuleFormDrawer v-model="formVisible" :rule="editingRule" @saved="onRuleSaved" />
 
@@ -61,7 +68,7 @@
 
     <OperationLogDrawer
       v-model="logDrawer"
-      :title="`路由规则变更日志 — ${logRuleName || ''}`"
+      :title="`路由规则变更日志 - ${logRuleName || ''}`"
       :load-logs="loadRoutingRuleOperationLogs"
     />
   </PageSection>
@@ -70,7 +77,6 @@
 <script setup>
 import { reactive, ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
-import ListPageHeader from "../../components/common/ListPageHeader.vue";
 import EnumSelect from "../../components/common/EnumSelect.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import RoutingRuleListPanel from "../../components/routing/RoutingRuleListPanel.vue";
@@ -79,6 +85,7 @@ import RoutingRuleTestDrawer from "../../components/routing/RoutingRuleTestDrawe
 import { listRoutingRuleOperationLogs } from "../../api/operationLogs";
 import { usePageList } from "../../composables/usePageList";
 import { listRoutingConsumers, listRoutingRules } from "../../api/routing";
+import { normalizeOptionList } from "../../utils/options";
 
 const query = reactive({
   keyword: "",
@@ -127,7 +134,7 @@ async function loadConsumerSecretKey(consumerIds) {
     return "";
   }
   const res = await listRoutingConsumers({ pageNum: 1, pageSize: 500 });
-  const consumers = Array.isArray(res?.list) ? res.list : [];
+  const consumers = normalizeOptionList(res);
   return consumers.find((item) => ids.includes(item.id))?.secretKey || "";
 }
 

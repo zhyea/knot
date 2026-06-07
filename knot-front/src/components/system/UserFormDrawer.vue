@@ -69,6 +69,7 @@ import {ElMessage} from "element-plus";
 import {createUser, updateUser} from "../../api/users";
 import {listDepartments} from "../../api/departments";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
+import { normalizeOptionList, resolveSelectedOption } from "../../utils/options";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -120,11 +121,12 @@ watch(
     {immediate: true}
 );
 
-const selectedDepartmentOptions = computed(() => {
-  if (!form.deptId) return [];
-  const department = departmentOptions.value.find((item) => item.id === form.deptId);
-  return department ? [department] : [{ id: form.deptId, deptName: props.user?.deptName }];
-});
+const selectedDepartmentOptions = computed(() =>
+  resolveSelectedOption(form.deptId, departmentOptions.value, {
+    id: form.deptId,
+    deptName: props.user?.deptName
+  })
+);
 
 function departmentLabel(department) {
   return department.deptCode ? `${department.deptName}（${department.deptCode}）` : (department.deptName || `#${department.id}`);
@@ -132,7 +134,7 @@ function departmentLabel(department) {
 
 async function loadDepartments() {
   const data = await listDepartments({ pageNum: 1, pageSize: 100 });
-  departmentOptions.value = Array.isArray(data?.list) ? data.list : Array.isArray(data) ? data : [];
+  departmentOptions.value = normalizeOptionList(data);
 }
 
 async function submit() {

@@ -1,35 +1,42 @@
-import { ref, computed } from 'vue';
-import { login as apiLogin, logout as apiLogout } from '../api/auth';
-import { clearIdleActivity, touchIdleActivity } from './idleActivity';
+import { ref, computed } from "vue";
+import { login as apiLogin, logout as apiLogout } from "../api/auth";
+import { clearIdleActivity, touchIdleActivity } from "./idleActivity";
+import {
+  getStorageItem,
+  getStorageJson,
+  removeStorageItem,
+  setStorageItem,
+  setStorageJson
+} from "../utils/storage";
 
-const TOKEN_KEY = 'knot_token';
-const USER_KEY = 'knot_user';
+const TOKEN_KEY = "knot_token";
+const USER_KEY = "knot_user";
 
-const token = ref(localStorage.getItem(TOKEN_KEY));
-const user = ref(JSON.parse(localStorage.getItem(USER_KEY) || 'null'));
+const token = ref(getStorageItem(TOKEN_KEY));
+const user = ref(getStorageJson(USER_KEY));
 
 export function useAuth() {
   const isLoggedIn = computed(() => !!token.value);
 
   function setToken(newToken) {
     token.value = newToken;
-    localStorage.setItem(TOKEN_KEY, newToken);
+    setStorageItem(TOKEN_KEY, newToken);
   }
 
   function setUser(newUser) {
     user.value = newUser;
-    localStorage.setItem(USER_KEY, JSON.stringify(newUser));
+    setStorageJson(USER_KEY, newUser);
   }
 
   function clearAuth() {
     token.value = null;
     user.value = null;
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    removeStorageItem(TOKEN_KEY);
+    removeStorageItem(USER_KEY);
     clearIdleActivity();
   }
 
-  const isAdmin = computed(() => (user.value?.roles || []).includes('ADMIN'));
+  const isAdmin = computed(() => (user.value?.roles || []).includes("ADMIN"));
 
   async function login(username, password) {
     const response = await apiLogin({ username, password });
@@ -38,7 +45,7 @@ export function useAuth() {
       userId: response.userId,
       username: response.username,
       realName: response.realName,
-      roles: response.roles || [],
+      roles: response.roles || []
     });
     touchIdleActivity();
     return response;
@@ -58,6 +65,6 @@ export function useAuth() {
     isLoggedIn,
     isAdmin,
     login,
-    logout,
+    logout
   };
 }

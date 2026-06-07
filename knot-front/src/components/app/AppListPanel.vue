@@ -20,13 +20,15 @@
         </template>
       </el-table-column>
     </el-table>
+
     <ListPagination
       :total="total"
       :page-num="pageNum"
       :page-size="pageSize"
+      :show-refresh="showRefresh"
       @refresh="emit('refresh')"
-      @page-change="(p) => emit('page-change', p)"
-      @size-change="(s) => emit('size-change', s)"
+      @page-change="(page) => emit('page-change', page)"
+      @size-change="(size) => emit('size-change', size)"
     />
   </div>
 </template>
@@ -43,7 +45,8 @@ defineProps({
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
-  pageSize: { type: Number, default: 20 }
+  pageSize: { type: Number, default: 20 },
+  showRefresh: { type: Boolean, default: true }
 });
 
 const emit = defineEmits(["edit", "log", "refresh", "page-change", "size-change", "changed"]);
@@ -56,7 +59,7 @@ function handleAction(action, row) {
 
 async function onDelete(row) {
   await ElMessageBox.confirm(
-    `确认删除应用「${row.name}」？\n删除后应用将不可恢复；如该应用已配置 API 凭证或模型权限，将无法删除。`,
+    `确认删除应用“${row.name}”？\n删除后应用不可恢复；如该应用已配置 API 凭证或模型权限，将无法删除。`,
     "删除应用",
     {
       type: "warning",
@@ -65,7 +68,7 @@ async function onDelete(row) {
     }
   );
   await deleteApp(row.id);
-  ElMessage.success(`应用「${row.name}」已删除`);
+  ElMessage.success(`应用“${row.name}”已删除`);
   emit("changed");
 }
 </script>

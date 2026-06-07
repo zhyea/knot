@@ -7,8 +7,8 @@
     >
       <el-container class="aside-shell" direction="vertical">
         <el-header class="aside-header">
-          <el-tooltip content="Knot AI Gateway" placement="right" :disabled="!asideCollapsed">
-            <span class="aside-logo">{{ asideCollapsed ? "K" : "Knot AI Gateway" }}</span>
+          <el-tooltip :content="t('app.brand')" placement="right" :disabled="!asideCollapsed">
+            <span class="aside-logo">{{ asideCollapsed ? "K" : t("app.brand") }}</span>
           </el-tooltip>
         </el-header>
 
@@ -24,81 +24,81 @@
             >
               <el-menu-item index="/">
                 <el-icon><Odometer /></el-icon>
-                <span>总览</span>
+                <span>{{ t("menu.dashboard") }}</span>
               </el-menu-item>
 
               <el-sub-menu index="/system">
                 <template #title>
                   <el-icon><Setting /></el-icon>
-                  <span>系统管理</span>
+                  <span>{{ t("menu.system") }}</span>
                 </template>
-                <el-menu-item index="/system/users">用户管理</el-menu-item>
-                <el-menu-item index="/system/departments">部门管理</el-menu-item>
-                <el-menu-item index="/system/roles">角色权限</el-menu-item>
-                <el-menu-item index="/system/logs">操作日志</el-menu-item>
-                <el-menu-item index="/system/scheduled-tasks">定时任务</el-menu-item>
-                <el-menu-item index="/system/enums">枚举管理</el-menu-item>
-                <el-menu-item index="/system/settings">用户设置</el-menu-item>
-                <el-menu-item index="/system/plugins">插件管理</el-menu-item>
+                <el-menu-item index="/system/users">{{ t("menu.users") }}</el-menu-item>
+                <el-menu-item index="/system/departments">{{ t("menu.departments") }}</el-menu-item>
+                <el-menu-item index="/system/roles">{{ t("menu.roles") }}</el-menu-item>
+                <el-menu-item index="/system/logs">{{ t("menu.logs") }}</el-menu-item>
+                <el-menu-item index="/system/scheduled-tasks">{{ t("menu.scheduledTasks") }}</el-menu-item>
+                <el-menu-item index="/system/enums">{{ t("menu.enums") }}</el-menu-item>
+                <el-menu-item index="/system/settings">{{ t("menu.settings") }}</el-menu-item>
+                <el-menu-item index="/system/plugins">{{ t("menu.plugins") }}</el-menu-item>
               </el-sub-menu>
 
               <el-menu-item index="/providers">
                 <el-icon><Connection /></el-icon>
-                <span>供应商管理</span>
+                <span>{{ t("menu.providers") }}</span>
               </el-menu-item>
 
               <el-sub-menu index="/model-management">
                 <template #title>
                   <el-icon><Cpu /></el-icon>
-                  <span>模型管理</span>
+                  <span>{{ t("menu.modelManagement") }}</span>
                 </template>
-                <el-menu-item index="/model-management/models">供应商模型</el-menu-item>
-                <el-menu-item index="/model-management/model-pools">模型池</el-menu-item>
-                <el-menu-item index="/model-management/logical-models">模型广场</el-menu-item>
-                <el-menu-item index="/model-management/external-models">外部模型</el-menu-item>
+                <el-menu-item index="/model-management/models">{{ t("menu.models") }}</el-menu-item>
+                <el-menu-item index="/model-management/model-pools">{{ t("menu.modelPools") }}</el-menu-item>
+                <el-menu-item index="/model-management/logical-models">{{ t("menu.logicalModels") }}</el-menu-item>
+                <el-menu-item index="/model-management/external-models">{{ t("menu.externalModels") }}</el-menu-item>
               </el-sub-menu>
 
               <el-menu-item index="/apps">
                 <el-icon><Monitor /></el-icon>
-                <span>应用管理</span>
+                <span>{{ t("menu.apps") }}</span>
               </el-menu-item>
 
               <el-sub-menu index="/routing">
                 <template #title>
                   <el-icon><Guide /></el-icon>
-                  <span>路由规则</span>
+                  <span>{{ t("menu.routing") }}</span>
                 </template>
-                <el-menu-item index="/routing/rules">规则列表</el-menu-item>
-                <el-menu-item index="/routing/consumers">消费者</el-menu-item>
+                <el-menu-item index="/routing/rules">{{ t("menu.routingRules") }}</el-menu-item>
+                <el-menu-item index="/routing/consumers">{{ t("menu.routingConsumers") }}</el-menu-item>
               </el-sub-menu>
 
               <el-sub-menu index="/billing">
                 <template #title>
                   <el-icon><Money /></el-icon>
-                  <span>计费成本</span>
+                  <span>{{ t("menu.billing") }}</span>
                 </template>
-                <el-menu-item index="/billing/rules">计费规则</el-menu-item>
-                <el-menu-item index="/billing/reconciliation">对账管理</el-menu-item>
+                <el-menu-item index="/billing/rules">{{ t("menu.billingRules") }}</el-menu-item>
+                <el-menu-item index="/billing/reconciliation">{{ t("menu.reconciliation") }}</el-menu-item>
               </el-sub-menu>
 
               <el-sub-menu index="/security">
                 <template #title>
                   <el-icon><Lock /></el-icon>
-                  <span>安全监控</span>
+                  <span>{{ t("menu.security") }}</span>
                 </template>
-                <el-menu-item index="/security/policy">安全策略</el-menu-item>
-                <el-menu-item index="/security/alerts">告警管理</el-menu-item>
-                <el-menu-item index="/security/cache">缓存管理</el-menu-item>
+                <el-menu-item index="/security/policy">{{ t("menu.securityPolicy") }}</el-menu-item>
+                <el-menu-item index="/security/alerts">{{ t("menu.securityAlerts") }}</el-menu-item>
+                <el-menu-item index="/security/cache">{{ t("menu.securityCache") }}</el-menu-item>
               </el-sub-menu>
 
               <el-sub-menu index="/notifications">
                 <template #title>
                   <el-icon><Bell /></el-icon>
-                  <span>通知管理</span>
+                  <span>{{ t("menu.notifications") }}</span>
                 </template>
-                <el-menu-item index="/notifications/templates">通知模板</el-menu-item>
-                <el-menu-item index="/notifications/send">通知发送</el-menu-item>
-                <el-menu-item index="/notifications/policy">通知策略</el-menu-item>
+                <el-menu-item index="/notifications/templates">{{ t("menu.notifyTemplates") }}</el-menu-item>
+                <el-menu-item index="/notifications/send">{{ t("menu.notifySend") }}</el-menu-item>
+                <el-menu-item index="/notifications/policy">{{ t("menu.notifyPolicy") }}</el-menu-item>
               </el-sub-menu>
             </el-menu>
           </el-scrollbar>
@@ -108,7 +108,7 @@
       <div
         v-show="!asideCollapsed"
         class="aside-resizer"
-        title="拖动调整侧栏宽度"
+        :title="t('header.resizeSidebar')"
         @mousedown.prevent="onAsideResizeStart"
       />
     </el-aside>
@@ -116,7 +116,7 @@
     <el-container class="layout-right">
       <el-header class="header">
         <div class="header-title">
-          <el-tooltip :content="asideCollapsed ? '展开侧栏' : '收起侧栏'" placement="bottom">
+          <el-tooltip :content="asideCollapsed ? t('header.expandSidebar') : t('header.collapseSidebar')" placement="bottom">
             <el-button
               type="primary"
               :icon="asideCollapsed ? Expand : Fold"
@@ -126,18 +126,18 @@
               @click="toggleAsideCollapsed"
             />
           </el-tooltip>
-          <span>AI 网关管理后台</span>
+          <span>{{ pageTitle }}</span>
         </div>
 
         <div class="header-right">
           <el-dropdown @command="handleCommand">
             <span class="user-info">
               <el-icon><User /></el-icon>
-              <span>{{ user?.realName || user?.username || "用户" }}</span>
+              <span>{{ user?.realName || user?.username || t("common.user") }}</span>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+                <el-dropdown-item command="logout">{{ t("common.logout") }}</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -154,7 +154,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   Bell,
@@ -171,10 +171,12 @@ import {
   User
 } from "@element-plus/icons-vue";
 import { useAuth } from "../composables/useAuth";
+import { useLocale } from "../composables/useLocale";
+import { getStorageItem, setStorageItem } from "../utils/storage";
+import { ref } from "vue";
 
 const LS_ASIDE_WIDTH = "knot.sidebar.widthPx";
 const LS_ASIDE_COLLAPSED = "knot.sidebar.collapsed";
-
 const ASIDE_MIN = 180;
 const ASIDE_MAX = 420;
 const ASIDE_DEFAULT = 220;
@@ -183,11 +185,20 @@ const ASIDE_COLLAPSED_PX = 64;
 const route = useRoute();
 const router = useRouter();
 const { user, logout } = useAuth();
+const { t } = useLocale();
 
 const activePath = computed(() => route.path);
+const pageTitle = computed(() => {
+  if (route.meta?.titleKey) {
+    return t(route.meta.titleKey);
+  }
+  return route.meta?.title || t("app.title");
+});
 const asideCollapsed = ref(false);
 const asideWidth = ref(ASIDE_DEFAULT);
 const asideResizing = ref(false);
+let asideMoveHandler = null;
+let asideUpHandler = null;
 
 const asideWidthCss = computed(() =>
   asideCollapsed.value ? `${ASIDE_COLLAPSED_PX}px` : `${asideWidth.value}px`
@@ -198,20 +209,42 @@ const openeds = computed(() => {
   return match ? [`/${match[1]}`] : [];
 });
 
+function clearResizeListeners() {
+  if (asideMoveHandler) {
+    document.removeEventListener("mousemove", asideMoveHandler);
+    asideMoveHandler = null;
+  }
+  if (asideUpHandler) {
+    document.removeEventListener("mouseup", asideUpHandler);
+    asideUpHandler = null;
+  }
+}
+
+function resetResizeState() {
+  asideResizing.value = false;
+  document.body.style.userSelect = "";
+  document.body.style.cursor = "";
+  clearResizeListeners();
+}
+
 onMounted(() => {
-  const width = parseInt(localStorage.getItem(LS_ASIDE_WIDTH) || "", 10);
+  const width = parseInt(getStorageItem(LS_ASIDE_WIDTH) || "", 10);
   if (!Number.isNaN(width) && width >= ASIDE_MIN && width <= ASIDE_MAX) {
     asideWidth.value = width;
   }
-  asideCollapsed.value = localStorage.getItem(LS_ASIDE_COLLAPSED) === "1";
+  asideCollapsed.value = getStorageItem(LS_ASIDE_COLLAPSED) === "1";
 });
 
 watch(asideWidth, (value) => {
-  localStorage.setItem(LS_ASIDE_WIDTH, String(value));
+  setStorageItem(LS_ASIDE_WIDTH, String(value));
 });
 
 watch(asideCollapsed, (value) => {
-  localStorage.setItem(LS_ASIDE_COLLAPSED, value ? "1" : "0");
+  setStorageItem(LS_ASIDE_COLLAPSED, value ? "1" : "0");
+});
+
+onBeforeUnmount(() => {
+  resetResizeState();
 });
 
 function toggleAsideCollapsed() {
@@ -229,21 +262,19 @@ function onAsideResizeStart(downEvent) {
   document.body.style.userSelect = "none";
   document.body.style.cursor = "col-resize";
 
-  function onMove(moveEvent) {
+  clearResizeListeners();
+
+  asideMoveHandler = (moveEvent) => {
     const delta = moveEvent.clientX - startX;
     asideWidth.value = Math.min(ASIDE_MAX, Math.max(ASIDE_MIN, startWidth + delta));
-  }
+  };
 
-  function onUp() {
-    asideResizing.value = false;
-    document.body.style.userSelect = "";
-    document.body.style.cursor = "";
-    document.removeEventListener("mousemove", onMove);
-    document.removeEventListener("mouseup", onUp);
-  }
+  asideUpHandler = () => {
+    resetResizeState();
+  };
 
-  document.addEventListener("mousemove", onMove);
-  document.addEventListener("mouseup", onUp);
+  document.addEventListener("mousemove", asideMoveHandler);
+  document.addEventListener("mouseup", asideUpHandler);
 }
 
 async function handleCommand(command) {
@@ -362,7 +393,6 @@ async function handleCommand(command) {
   box-sizing: border-box;
   background: var(--knot-surface, #fff);
   border-bottom: 1px solid var(--knot-border, #ebeef5);
-  font-weight: 600;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -373,6 +403,9 @@ async function handleCommand(command) {
   align-items: center;
   gap: 10px;
   min-width: 0;
+  font-weight: 400;
+  font-size: 15px;
+  color: #303133;
 }
 
 .header-collapse {

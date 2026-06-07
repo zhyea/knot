@@ -4,10 +4,12 @@
       <el-table-column prop="code" label="编码" width="140" />
       <el-table-column prop="name" label="名称" />
     </el-table>
+
     <ListPagination
       :total="total"
       :page-num="pageNum"
       :page-size="pageSize"
+      :show-refresh="showRefresh"
       @refresh="emit('refresh')"
       @page-change="(page) => emit('page-change', page)"
       @size-change="(size) => emit('size-change', size)"
@@ -23,7 +25,8 @@ defineProps({
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
-  pageSize: { type: Number, default: 20 }
+  pageSize: { type: Number, default: 20 },
+  showRefresh: { type: Boolean, default: true }
 });
 
 const emit = defineEmits(["refresh", "page-change", "size-change"]);

@@ -1,41 +1,48 @@
 <template>
-  <PageSection title="消费者">
-    <ListPageHeader>
-      <template #actions>
-        <el-button type="primary" @click="openCreate">新建消费者</el-button>
-        <el-button @click="load">刷新</el-button>
-      </template>
-      <template #filters>
-        <div class="list-filter-item list-filter-item--grow">
-          <span class="list-filter-label">关键词</span>
-          <el-input
-            v-model="query.keyword"
-            class="list-filter-control--wide"
-            placeholder="按消费者编码、名称、用户筛选"
-            clearable
-            @keyup.enter="handleQuery"
-          />
+  <PageSection>
+    <div class="list-page-shell">
+      <section class="list-page-block">
+        <div class="list-page-filters">
+          <div class="list-filter-item list-filter-item--grow">
+            <span class="list-filter-label">关键词</span>
+            <el-input
+              v-model="query.keyword"
+              class="list-filter-control--wide"
+              placeholder="按消费者编码、名称、用户筛选"
+              clearable
+              @keyup.enter="handleQuery"
+            />
+          </div>
+          <div class="list-filter-actions">
+            <el-button type="primary" @click="handleQuery">查询</el-button>
+            <el-button @click="handleReset">重置</el-button>
+          </div>
         </div>
-        <div class="list-filter-actions">
-          <el-button type="primary" @click="handleQuery">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </div>
-      </template>
-    </ListPageHeader>
+      </section>
 
-    <RoutingConsumerListPanel
-      :rows="rows"
-      :loading="loading"
-      :total="total"
-      :page-num="pageNum"
-      :page-size="pageSize"
-      :toggling-id="togglingId"
-      @action="handleAction"
-      @enabled-change="handleEnabledChange"
-      @copy-secret="copySecretKey"
-      @page-change="onPageChange"
-      @size-change="onSizeChange"
-    />
+      <section class="list-page-block list-page-block--content">
+        <div class="list-page-toolbar">
+          <div class="list-page-toolbar__actions list-page-toolbar__actions--start">
+            <el-button type="primary" @click="openCreate">新建消费者</el-button>
+          </div>
+        </div>
+
+        <RoutingConsumerListPanel
+          :rows="rows"
+          :loading="loading"
+          :total="total"
+          :page-num="pageNum"
+          :page-size="pageSize"
+          :toggling-id="togglingId"
+          :show-refresh="false"
+          @action="handleAction"
+          @enabled-change="handleEnabledChange"
+          @copy-secret="copySecretKey"
+          @page-change="onPageChange"
+          @size-change="onSizeChange"
+        />
+      </section>
+    </div>
 
     <RoutingConsumerFormDrawer
       v-model="drawerVisible"
@@ -49,7 +56,6 @@
 import { reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
-import ListPageHeader from "../../components/common/ListPageHeader.vue";
 import RoutingConsumerFormDrawer from "../../components/routing/RoutingConsumerFormDrawer.vue";
 import RoutingConsumerListPanel from "../../components/routing/RoutingConsumerListPanel.vue";
 import { usePageList } from "../../composables/usePageList";
@@ -57,7 +63,7 @@ import { useEnabledToggle } from "../../composables/useEnabledToggle";
 import {
   listRoutingConsumers,
   rotateRoutingConsumerSecret,
-  updateRoutingConsumer
+  updateRoutingConsumerStatus
 } from "../../api/routing";
 
 const query = reactive({
@@ -68,16 +74,7 @@ const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChang
   usePageList(listRoutingConsumers, { extra: query });
 
 const { togglingId, onEnabledChange } = useEnabledToggle({
-  updateApi: updateRoutingConsumer,
-  buildPayload: (row, enabled) => ({
-    consumerCode: row.consumerCode,
-    name: row.name,
-    userId: row.userId ?? null,
-    returnUsageDetail: row.returnUsageDetail === true,
-    enabled,
-    rateLimitPolicy: row.rateLimitPolicy ?? null,
-    quotaPolicy: row.quotaPolicy ?? null
-  })
+  updateApi: updateRoutingConsumerStatus
 });
 
 const drawerVisible = ref(false);

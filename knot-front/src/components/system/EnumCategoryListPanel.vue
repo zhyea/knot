@@ -1,9 +1,5 @@
 <template>
   <div>
-    <div class="toolbar">
-      <el-button type="primary" @click="emit('create-category')">新增分类首项</el-button>
-      <el-button @click="emit('refresh')">刷新</el-button>
-    </div>
     <el-table v-loading="loading" :data="summaries" stripe border size="small">
       <el-table-column prop="category" label="分类编码" min-width="140" show-overflow-tooltip />
       <el-table-column prop="categoryName" label="分类名称" min-width="120" show-overflow-tooltip />
@@ -26,9 +22,10 @@
         </template>
       </el-table-column>
     </el-table>
+
     <el-empty
       v-if="!loading && summaries.length === 0"
-      description="暂无枚举分类。请执行库表初始化（enum_categories / enum_configs）或点击「新增分类首项」创建。"
+      description="暂无枚举分类。请初始化 enum_categories / enum_configs，或点击“新增分类”创建。"
     />
   </div>
 </template>
@@ -43,5 +40,5 @@ defineProps({
   loading: { type: Boolean, default: false }
 });
 
-const emit = defineEmits(["create-category", "refresh", "action"]);
+const emit = defineEmits(["action"]);
 </script>

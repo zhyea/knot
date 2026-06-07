@@ -29,7 +29,7 @@
             inline-prompt
             active-text="启用"
             inactive-text="禁用"
-            @change="(val) => emit('enabled-change', row, val)"
+            @change="(value) => emit('enabled-change', row, value)"
           />
         </template>
       </el-table-column>
@@ -50,6 +50,7 @@
       :total="total"
       :page-num="pageNum"
       :page-size="pageSize"
+      :show-refresh="showRefresh"
       @refresh="emit('refresh')"
       @page-change="(page) => emit('page-change', page)"
       @size-change="(size) => emit('size-change', size)"
@@ -68,7 +69,8 @@ defineProps({
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
   pageSize: { type: Number, default: 20 },
-  togglingId: { type: [Number, String], default: null }
+  togglingId: { type: [Number, String], default: null },
+  showRefresh: { type: Boolean, default: true }
 });
 
 const emit = defineEmits([

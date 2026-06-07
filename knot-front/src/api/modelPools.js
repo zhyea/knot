@@ -22,6 +22,10 @@ export function updateModelPool(id, payload) {
   return put(`/api/model-pools/${id}`, payload);
 }
 
+export function updateModelPoolStatus(id, enabled) {
+  return put(`/api/model-pools/${id}/status`, { enabled });
+}
+
 export function deleteModelPool(id) {
   return del(`/api/model-pools/${id}`);
 }

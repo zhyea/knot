@@ -26,6 +26,10 @@ export function updateModel(id, payload) {
   return put(`/api/models/${id}`, payload);
 }
 
+export function updateModelStatus(id, enabled) {
+  return put(`/api/models/${id}/status`, { enabled });
+}
+
 export function testModel(id, payload) {
   return post(`/api/models/${id}/test`, payload);
 }

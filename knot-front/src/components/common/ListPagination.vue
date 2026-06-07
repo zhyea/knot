@@ -1,5 +1,5 @@
 <template>
-  <div ref="rootRef" class="list-pagination">
+  <div class="list-pagination" :class="{ 'list-pagination--right': !showRefresh }">
     <el-button v-if="showRefresh" @click="emit('refresh')">刷新</el-button>
     <el-pagination
       background
@@ -15,8 +15,6 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
-
 defineProps({
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
@@ -27,11 +25,6 @@ defineProps({
 });
 
 const emit = defineEmits(["refresh", "page-change", "size-change"]);
-const rootRef = ref(null);
-
-defineExpose({
-  getRootEl: () => rootRef.value
-});
 </script>
 
 <style scoped>
@@ -41,6 +34,10 @@ defineExpose({
   justify-content: space-between;
   gap: 12px;
   margin-top: 16px;
+}
+
+.list-pagination--right {
+  justify-content: flex-end;
 }
 
 @media (max-width: 768px) {

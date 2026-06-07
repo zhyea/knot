@@ -1,30 +1,60 @@
 <template>
-  <PageSection title="用户设置">
-    <div class="settings-layout">
-      <section class="settings-card">
-        <div class="settings-card__header">
-          <div>
-            <h3>页面主题</h3>
-            <p>主题会保存到当前登录用户，下次登录后自动恢复。</p>
-          </div>
-          <el-tag effect="plain">当前：{{ currentThemeLabel }}</el-tag>
-        </div>
+  <PageSection>
+    <div class="list-page-shell">
+      <section class="list-page-block list-page-block--content">
+        <div class="settings-layout">
+          <section class="settings-card">
+            <div class="settings-card__header">
+              <div>
+                <h3>{{ t("settings.languageTitle") }}</h3>
+                <p>{{ t("settings.languageDescription") }}</p>
+              </div>
+              <el-tag effect="plain">{{ t("common.current") }}: {{ currentLocaleLabel }}</el-tag>
+            </div>
 
-        <div class="theme-grid">
-          <button
-            v-for="theme in THEMES"
-            :key="theme.key"
-            :class="['theme-choice', { active: current === theme.key }]"
-            type="button"
-            :disabled="saving"
-            @click="chooseTheme(theme.key)"
-          >
-            <span :class="['theme-choice__dot', 'theme-dot--' + theme.key]" />
-            <span class="theme-choice__label">{{ theme.label }}</span>
-            <el-icon v-if="current === theme.key" class="theme-choice__check">
-              <Check />
-            </el-icon>
-          </button>
+            <div class="settings-grid">
+              <button
+                v-for="locale in locales"
+                :key="locale.code"
+                :class="['settings-choice', { active: locale.code === currentLocale }]"
+                type="button"
+                :disabled="savingLocale"
+                @click="chooseLocale(locale.code)"
+              >
+                <span class="settings-choice__label">{{ t(locale.labelKey) }}</span>
+                <el-icon v-if="locale.code === currentLocale" class="settings-choice__check">
+                  <Check />
+                </el-icon>
+              </button>
+            </div>
+          </section>
+
+          <section class="settings-card">
+            <div class="settings-card__header">
+              <div>
+                <h3>{{ t("settings.themeTitle") }}</h3>
+                <p>{{ t("settings.themeDescription") }}</p>
+              </div>
+              <el-tag effect="plain">{{ t("common.current") }}: {{ currentThemeLabel }}</el-tag>
+            </div>
+
+            <div class="settings-grid">
+              <button
+                v-for="theme in THEMES"
+                :key="theme.key"
+                :class="['settings-choice', { active: currentTheme === theme.key }]"
+                type="button"
+                :disabled="savingTheme"
+                @click="chooseTheme(theme.key)"
+              >
+                <span :class="['settings-choice__dot', 'theme-dot--' + theme.key]" />
+                <span class="settings-choice__label">{{ t(theme.labelKey) }}</span>
+                <el-icon v-if="currentTheme === theme.key" class="settings-choice__check">
+                  <Check />
+                </el-icon>
+              </button>
+            </div>
+          </section>
         </div>
       </section>
     </div>
@@ -35,31 +65,51 @@
 import { computed, ref } from "vue";
 import { Check } from "@element-plus/icons-vue";
 import PageSection from "../../components/common/PageSection.vue";
+import { LOCALES, useLocale } from "../../composables/useLocale";
 import { THEMES, useTheme } from "../../composables/useTheme";
 
-const { current, setTheme } = useTheme();
-const saving = ref(false);
+const { current: localeCurrent, setLocale, t } = useLocale();
+const { current: themeCurrent, setTheme } = useTheme();
 
-const currentThemeLabel = computed(() => {
-  return THEMES.find((theme) => theme.key === current.value)?.label || "默认";
-});
+const savingLocale = ref(false);
+const savingTheme = ref(false);
+const locales = LOCALES;
 
-async function chooseTheme(key) {
-  if (key === current.value || saving.value) {
+const currentLocale = computed(() => localeCurrent.value);
+const currentTheme = computed(() => themeCurrent.value);
+const currentLocaleLabel = computed(() => t(`locale.${currentLocale.value}`));
+const currentThemeLabel = computed(() => t(THEMES.find((theme) => theme.key === currentTheme.value)?.labelKey || "theme.blue"));
+
+async function chooseLocale(code) {
+  if (code === currentLocale.value || savingLocale.value) {
     return;
   }
-  saving.value = true;
+  savingLocale.value = true;
+  try {
+    await setLocale(code);
+  } finally {
+    savingLocale.value = false;
+  }
+}
+
+async function chooseTheme(key) {
+  if (key === currentTheme.value || savingTheme.value) {
+    return;
+  }
+  savingTheme.value = true;
   try {
     await setTheme(key);
   } finally {
-    saving.value = false;
+    savingTheme.value = false;
   }
 }
 </script>
 
 <style scoped>
 .settings-layout {
-  max-width: 760px;
+  display: grid;
+  gap: 16px;
+  max-width: 880px;
 }
 
 .settings-card {
@@ -89,21 +139,20 @@ async function chooseTheme(key) {
   font-size: 13px;
 }
 
-.theme-grid {
+.settings-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px;
 }
 
-.theme-choice {
+.settings-choice {
   position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 44px;
+  min-height: 44px;
   padding: 0 12px;
   border: 1px solid var(--knot-border, #dcdfe6);
-  border-radius: 0;
   color: #606266;
   background: var(--knot-surface, #fff);
   cursor: pointer;
@@ -111,31 +160,31 @@ async function chooseTheme(key) {
   transition: border-color 0.16s ease, color 0.16s ease, background 0.16s ease;
 }
 
-.theme-choice:hover,
-.theme-choice.active {
+.settings-choice:hover,
+.settings-choice.active {
   color: var(--el-color-primary);
   border-color: var(--el-color-primary);
   background: var(--el-color-primary-light-9);
 }
 
-.theme-choice:disabled {
+.settings-choice:disabled {
   cursor: not-allowed;
   opacity: 0.72;
 }
 
-.theme-choice__dot {
+.settings-choice__dot {
   width: 16px;
   height: 16px;
   border-radius: 50%;
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.65);
 }
 
-.theme-choice__label {
+.settings-choice__label {
   flex: 1;
   font-size: 14px;
 }
 
-.theme-choice__check {
+.settings-choice__check {
   color: var(--el-color-primary);
 }
 </style>

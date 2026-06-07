@@ -125,6 +125,7 @@ import {
   updateRoutingConsumer
 } from "../../api/routing";
 import { generateRoutingRuleCode } from "../../utils/routingRule";
+import { normalizeOptionList, resolveSelectedOption } from "../../utils/options";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -153,11 +154,12 @@ const form = reactive({
   quotaPolicy: emptyQuotaPolicy()
 });
 
-const selectedUserOptions = computed(() => {
-  if (!form.userId) return [];
-  const user = userOptions.value.find((item) => item.id === form.userId);
-  return user ? [user] : [{ id: form.userId, realName: props.consumer?.userName }];
-});
+const selectedUserOptions = computed(() =>
+  resolveSelectedOption(form.userId, userOptions.value, {
+    id: form.userId,
+    realName: props.consumer?.userName
+  })
+);
 
 watch(
   () => props.modelValue,
@@ -185,7 +187,7 @@ function userLabel(user) {
 
 async function loadOptions() {
   const usersRes = await listUsers({ pageNum: 1, pageSize: 10 });
-  userOptions.value = Array.isArray(usersRes?.list) ? usersRes.list : Array.isArray(usersRes) ? usersRes : [];
+  userOptions.value = normalizeOptionList(usersRes);
 }
 
 function resetForm(row = null) {

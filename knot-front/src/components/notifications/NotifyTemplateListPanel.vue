@@ -7,10 +7,12 @@
       <el-table-column prop="channel" label="渠道" width="90" />
       <el-table-column prop="content" label="内容模板" min-width="160" show-overflow-tooltip />
     </el-table>
+
     <ListPagination
       :total="total"
       :page-num="pageNum"
       :page-size="pageSize"
+      :show-refresh="showRefresh"
       @refresh="emit('refresh')"
       @page-change="(page) => emit('page-change', page)"
       @size-change="(size) => emit('size-change', size)"
@@ -26,7 +28,8 @@ defineProps({
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
-  pageSize: { type: Number, default: 20 }
+  pageSize: { type: Number, default: 20 },
+  showRefresh: { type: Boolean, default: true }
 });
 
 const emit = defineEmits(["create", "refresh", "page-change", "size-change"]);
