@@ -35,6 +35,77 @@ INSERT IGNORE INTO user_roles (user_id, role_id) VALUES
 (2, 2),
 (3, 3);
 
+INSERT IGNORE INTO sys_modules (id, module_code, module_name, icon, sort_order, status) VALUES
+(1, 'system', '系统管理', 'Setting', 10, 'ENABLED'),
+(2, 'model', '模型管理', 'Box', 20, 'ENABLED'),
+(3, 'routing', '路由管理', 'Share', 30, 'ENABLED'),
+(4, 'billing', '计费管理', 'Coin', 40, 'ENABLED');
+
+INSERT IGNORE INTO sys_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
+(1, 1, NULL, 'system.users', '用户管理', '/system/users', 'system/UserManageView', 'User', 10, 'ENABLED'),
+(2, 1, NULL, 'system.departments', '部门管理', '/system/departments', 'system/DepartmentManageView', 'OfficeBuilding', 20, 'ENABLED'),
+(3, 1, NULL, 'system.roles', '角色权限', '/system/roles', 'system/RoleManageView', 'Lock', 30, 'ENABLED'),
+(4, 1, NULL, 'system.logs', '操作日志', '/system/logs', 'system/OperationLogView', 'Document', 40, 'ENABLED'),
+(5, 1, NULL, 'system.settings', '用户设置', '/system/settings', 'system/UserSettingsView', 'Tools', 50, 'ENABLED');
+
+INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
+(1, 'system:user:page', '用户管理页面访问', 'PAGE', 1, 1, 'ENABLED', 1, NULL),
+(2, 'system:user:view', '查看用户', 'API', 1, 1, 'ENABLED', 1, NULL),
+(3, 'system:user:create', '创建用户', 'API', 1, 1, 'ENABLED', 1, NULL),
+(4, 'system:user:update', '更新用户', 'API', 1, 1, 'ENABLED', 1, NULL),
+(5, 'system:user:enable', '更新用户状态', 'API', 1, 1, 'ENABLED', 1, NULL),
+(6, 'system:department:page', '部门管理页面访问', 'PAGE', 1, 2, 'ENABLED', 1, NULL),
+(7, 'system:department:view', '查看部门', 'API', 1, 2, 'ENABLED', 1, NULL),
+(8, 'system:department:create', '创建部门', 'API', 1, 2, 'ENABLED', 1, NULL),
+(9, 'system:department:update', '更新部门', 'API', 1, 2, 'ENABLED', 1, NULL),
+(10, 'system:department:enable', '更新部门状态', 'API', 1, 2, 'ENABLED', 1, NULL),
+(11, 'system:department:delete', '删除部门', 'API', 1, 2, 'ENABLED', 1, NULL),
+(12, 'system:role:page', '角色权限页面访问', 'PAGE', 1, 3, 'ENABLED', 1, NULL),
+(13, 'system:role:view', '查看角色', 'API', 1, 3, 'ENABLED', 1, NULL),
+(14, 'system:log:page', '操作日志页面访问', 'PAGE', 1, 4, 'ENABLED', 1, NULL),
+(15, 'system:log:view', '查看操作日志', 'API', 1, 4, 'ENABLED', 1, NULL),
+(16, 'system:settings:page', '用户设置页面访问', 'PAGE', 1, 5, 'ENABLED', 1, NULL),
+(17, 'system:settings:update', '更新用户设置', 'API', 1, 5, 'ENABLED', 1, NULL);
+
+INSERT IGNORE INTO sys_role_permissions (role_id, permission_id)
+SELECT 1, id FROM sys_permissions;
+
+INSERT IGNORE INTO sys_role_permissions (role_id, permission_id) VALUES
+(2, 1),(2, 2),(2, 6),(2, 7),(2, 14),(2, 15),(2, 16),(2, 17),
+(3, 14),(3, 15),(3, 16),(3, 17);
+
+INSERT IGNORE INTO sys_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, handler_method, status) VALUES
+(1, 2, 'POST', '/api/users', 'UserController', 'list', 'ENABLED'),
+(2, 3, 'POST', '/api/users/create', 'UserController', 'create', 'ENABLED'),
+(3, 5, 'PUT', '/api/users/{id}/status', 'UserController', 'updateStatus', 'ENABLED'),
+(4, 4, 'PUT', '/api/users/{id}', 'UserController', 'updateUser', 'ENABLED'),
+(5, 7, 'POST', '/api/system/departments/list', 'DepartmentController', 'list', 'ENABLED'),
+(6, 7, 'GET', '/api/system/departments/tree', 'DepartmentController', 'tree', 'ENABLED'),
+(7, 8, 'POST', '/api/system/departments', 'DepartmentController', 'create', 'ENABLED'),
+(8, 9, 'PUT', '/api/system/departments/{id}', 'DepartmentController', 'update', 'ENABLED'),
+(9, 10, 'PUT', '/api/system/departments/{id}/status', 'DepartmentController', 'updateStatus', 'ENABLED'),
+(10, 11, 'DELETE', '/api/system/departments/{id}', 'DepartmentController', 'delete', 'ENABLED'),
+(11, 13, 'POST', '/api/system/roles', 'SystemController', 'roles', 'ENABLED'),
+(12, 15, 'POST', '/api/system/operation-logs', 'SystemController', 'operationLogs', 'ENABLED'),
+(13, 15, 'POST', '/api/system/operation-logs/{id}', 'SystemController', 'operationLogDetail', 'ENABLED');
+
+INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
+(18, 'system:settings:view', 'View current user settings and authz', 'API', 1, 5, 'ENABLED', 1, NULL);
+
+INSERT IGNORE INTO sys_role_permissions (role_id, permission_id) VALUES
+(2, 18),
+(3, 18);
+
+INSERT IGNORE INTO sys_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, handler_method, status) VALUES
+(14, 18, 'GET', '/api/user-settings/me', 'UserSettingController', 'listMySettings', 'ENABLED'),
+(15, 17, 'PUT', '/api/user-settings/me', 'UserSettingController', 'saveMySettings', 'ENABLED'),
+(16, 18, 'GET', '/api/me/authorizations', 'CurrentUserController', 'authorizations', 'ENABLED'),
+(17, 15, 'POST', '/api/operation-logs/list', 'OperationLogController', 'list', 'ENABLED'),
+(18, 15, 'GET', '/api/operation-logs/{id}', 'OperationLogController', 'getById', 'ENABLED'),
+(19, 15, 'GET', '/api/operation-logs/module/{module}', 'OperationLogController', 'getByModule', 'ENABLED'),
+(20, 15, 'GET', '/api/operation-logs/operator/{operatorId}', 'OperationLogController', 'getByOperator', 'ENABLED'),
+(21, 15, 'GET', '/api/operation-logs/entity/{entityType}/{entityId}', 'OperationLogController', 'getByEntity', 'ENABLED');
+
 -- =========================
 -- 供应商与模型
 -- =========================
@@ -273,30 +344,30 @@ INSERT IGNORE INTO scheduled_tasks (
 INSERT IGNORE INTO plugin_packages (
   id, plugin_code, plugin_name, version, source_type, entrypoint, manifest_json, status
 ) VALUES
-(1, 'builtin-gateway-audit', '????????????', '1.0.0', 'BUILTIN', 'org.chobit.knot.gateway.plugin.builtin.GatewayRequestLoggingPlugin',
+(1, 'builtin-gateway-audit', '网关请求响应审计插件', '1.0.0', 'BUILTIN', 'org.chobit.knot.gateway.plugin.builtin.GatewayRequestLoggingPlugin',
  JSON_OBJECT('pluginId', 'builtin-gateway-audit', 'extensionPoint', 'GATEWAY_EXCHANGE'), 'ACTIVE'),
-(2, 'builtin-provider-audit', '??????????????', '1.0.0', 'BUILTIN', 'org.chobit.knot.gateway.plugin.builtin.UpstreamRequestLoggingPlugin',
+(2, 'builtin-provider-audit', '上游请求响应审计插件', '1.0.0', 'BUILTIN', 'org.chobit.knot.gateway.plugin.builtin.UpstreamRequestLoggingPlugin',
  JSON_OBJECT('pluginId', 'builtin-provider-audit', 'extensionPoint', 'UPSTREAM_EXCHANGE'), 'ACTIVE');
 
 INSERT IGNORE INTO plugin_capabilities (
   id, package_id, capability_code, capability_name, extension_point, stage_code, order_hint, status
 ) VALUES
-(1, 1, 'gateway-request-response-log', '?????????', 'GATEWAY_EXCHANGE', 'GATEWAY_REQUEST', 100, 'ACTIVE'),
-(2, 1, 'gateway-request-response-log', '?????????', 'GATEWAY_EXCHANGE', 'GATEWAY_RESPONSE', 100, 'ACTIVE'),
-(3, 1, 'gateway-request-response-log', '?????????', 'GATEWAY_EXCHANGE', 'GATEWAY_ERROR', 100, 'ACTIVE'),
-(4, 2, 'provider-request-response-log', '???????????', 'UPSTREAM_EXCHANGE', 'UPSTREAM_REQUEST', 100, 'ACTIVE'),
-(5, 2, 'provider-request-response-log', '???????????', 'UPSTREAM_EXCHANGE', 'UPSTREAM_RESPONSE', 100, 'ACTIVE'),
-(6, 2, 'provider-request-response-log', '???????????', 'UPSTREAM_EXCHANGE', 'UPSTREAM_ERROR', 100, 'ACTIVE');
+(1, 1, 'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_REQUEST', 100, 'ACTIVE'),
+(2, 1, 'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_RESPONSE', 100, 'ACTIVE'),
+(3, 1, 'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_ERROR', 100, 'ACTIVE'),
+(4, 2, 'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_REQUEST', 100, 'ACTIVE'),
+(5, 2, 'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_RESPONSE', 100, 'ACTIVE'),
+(6, 2, 'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_ERROR', 100, 'ACTIVE');
 
 INSERT IGNORE INTO plugin_instances (
   id, package_id, capability_id, instance_code, instance_name, config_json, status, fail_mode, timeout_ms, concurrency_limit
 ) VALUES
-(1, 1, 1, 'gateway-request-log', '????????????', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
-(2, 1, 2, 'gateway-response-log', '????????????', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
-(3, 1, 3, 'gateway-error-log', '????????????', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
-(4, 2, 4, 'provider-request-log', '??????????????', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
-(5, 2, 5, 'provider-response-log', '??????????????', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
-(6, 2, 6, 'provider-error-log', '??????????????', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0);
+(1, 1, 1, 'gateway-request-log', '网关请求日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
+(2, 1, 2, 'gateway-response-log', '网关响应日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
+(3, 1, 3, 'gateway-error-log', '网关异常日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
+(4, 2, 4, 'provider-request-log', '上游请求日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
+(5, 2, 5, 'provider-response-log', '上游响应日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
+(6, 2, 6, 'provider-error-log', '上游异常日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0);
 
 INSERT IGNORE INTO plugin_bindings (
   id, instance_id, scope_type, scope_ref_id, stage_code, order_no, status, binding_config_json
@@ -335,12 +406,12 @@ INSERT IGNORE INTO enum_categories (id, category, category_name, is_system, is_e
 (7, 'billing_mode', '计费模式', 0, 1),
 (8, 'billing_unit', '计费单位', 0, 1),
 (10, 'channel', '通知渠道', 0, 1),
-(11, 'plugin_source_type', '?????????', 0, 1),
-(12, 'plugin_scope_type', '???????????, 0, 1),
-(24, 'plugin_extension_point', '????????, 0, 1),
-(25, 'plugin_stage_code', '?????????', 0, 1),
-(26, 'plugin_fail_mode', '?????????', 0, 1),
-(27, 'plugin_result_status', '?????????', 0, 1),
+(11, 'plugin_source_type', '插件来源类型', 0, 1),
+(12, 'plugin_scope_type', '插件作用范围', 0, 1),
+(24, 'plugin_extension_point', '插件扩展点', 0, 1),
+(25, 'plugin_stage_code', '插件执行阶段', 0, 1),
+(26, 'plugin_fail_mode', '插件失败策略', 0, 1),
+(27, 'plugin_result_status', '插件结果状态', 0, 1),
 (13, 'alert_level', '告警级别', 1, 1),
 (14, 'risk_level', '风险级别', 1, 1),
 (15, 'status', '通用状态', 1, 1),
@@ -442,30 +513,30 @@ INSERT IGNORE INTO enum_configs (category_id, item_code, item_label, sort_order,
 (10, 'EMAIL',   '邮件',    1, 1),
 (10, 'SMS',     '短信',    2, 1),
 (10, 'WEBHOOK', 'Webhook', 3, 1),
-(11, 'BUILTIN', '???', 1, 1),
-(11, 'LOCAL_JAR', '??? JAR', 2, 1),
-(11, 'REMOTE_REGISTRY', '??????', 3, 1),
-(12, 'GLOBAL', '???', 1, 1),
-(12, 'APP', '???', 2, 1),
-(12, 'RULE', '??????', 3, 1),
-(12, 'PROVIDER', '?????, 4, 1),
-(12, 'MODEL', '???', 5, 1),
-(12, 'POOL', '?????, 6, 1),
-(24, 'GATEWAY_EXCHANGE', '????????????', 1, 1),
-(24, 'UPSTREAM_EXCHANGE', '??????????????, 2, 1),
-(25, 'GATEWAY_REQUEST', '??????', 1, 1),
-(25, 'GATEWAY_RESPONSE', '??????', 2, 1),
-(25, 'GATEWAY_ERROR', '??????', 3, 1),
-(25, 'UPSTREAM_REQUEST', '????????, 4, 1),
-(25, 'UPSTREAM_RESPONSE', '????????, 5, 1),
-(25, 'UPSTREAM_ERROR', '????????, 6, 1),
-(26, 'FAIL_OPEN', '??????', 1, 1),
-(26, 'FAIL_CLOSE', '??????', 2, 1),
-(27, 'SUCCESS', '???', 1, 1),
-(27, 'SKIPPED', '???', 2, 1),
-(27, 'FAILED', '???', 3, 1),
-(27, 'TIMEOUT', '???', 4, 1),
-(27, 'OPEN_CIRCUIT', '???', 5, 1),
+(11, 'BUILTIN', '内置', 1, 1),
+(11, 'LOCAL_JAR', '本地 JAR', 2, 1),
+(11, 'REMOTE_REGISTRY', '远程仓库', 3, 1),
+(12, 'GLOBAL', '全局', 1, 1),
+(12, 'APP', '应用', 2, 1),
+(12, 'RULE', '路由规则', 3, 1),
+(12, 'PROVIDER', '供应商', 4, 1),
+(12, 'MODEL', '模型', 5, 1),
+(12, 'POOL', '模型池', 6, 1),
+(24, 'GATEWAY_EXCHANGE', '网关请求处理链路', 1, 1),
+(24, 'UPSTREAM_EXCHANGE', '上游请求处理链路', 2, 1),
+(25, 'GATEWAY_REQUEST', '网关请求阶段', 1, 1),
+(25, 'GATEWAY_RESPONSE', '网关响应阶段', 2, 1),
+(25, 'GATEWAY_ERROR', '网关异常阶段', 3, 1),
+(25, 'UPSTREAM_REQUEST', '上游请求阶段', 4, 1),
+(25, 'UPSTREAM_RESPONSE', '上游响应阶段', 5, 1),
+(25, 'UPSTREAM_ERROR', '上游异常阶段', 6, 1),
+(26, 'FAIL_OPEN', '失败放行', 1, 1),
+(26, 'FAIL_CLOSE', '失败阻断', 2, 1),
+(27, 'SUCCESS', '成功', 1, 1),
+(27, 'SKIPPED', '跳过', 2, 1),
+(27, 'FAILED', '失败', 3, 1),
+(27, 'TIMEOUT', '超时', 4, 1),
+(27, 'OPEN_CIRCUIT', '熔断', 5, 1),
 (13, 'CRITICAL', '严重', 1, 1),
 (13, 'HIGH',     '高',   2, 1),
 (13, 'MEDIUM',   '中',   3, 1),

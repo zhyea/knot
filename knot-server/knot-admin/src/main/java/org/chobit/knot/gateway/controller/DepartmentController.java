@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import jakarta.validation.Valid;
+import org.chobit.knot.gateway.annotation.AuthCheck;
 import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.converter.DepartmentConverter;
 import org.chobit.knot.gateway.dto.system.DepartmentDto;
@@ -19,6 +20,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/system/departments")
+@AuthCheck
 public class DepartmentController {
 
     private final DepartmentService departmentService;

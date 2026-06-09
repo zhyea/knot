@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import jakarta.validation.Valid;
+import org.chobit.knot.gateway.annotation.AuthCheck;
 import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.converter.UserConverter;
 import org.chobit.knot.gateway.dto.user.UserDto;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/users")
+@AuthCheck
 public class UserController {
     private final UserService userService;
     private final UserConverter userConverter;

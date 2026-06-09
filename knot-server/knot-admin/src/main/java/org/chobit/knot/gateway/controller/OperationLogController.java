@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.controller;
 
+import org.chobit.knot.gateway.annotation.AuthCheck;
 import org.chobit.knot.gateway.entity.OperationLogEntity;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.service.OperationLogService;
@@ -12,6 +13,7 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/operation-logs")
+@AuthCheck
 public class OperationLogController {
 
     private final OperationLogService operationLogService;

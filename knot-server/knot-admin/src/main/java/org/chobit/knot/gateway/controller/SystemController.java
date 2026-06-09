@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.controller;
 
+import org.chobit.knot.gateway.annotation.AuthCheck;
 import org.chobit.knot.gateway.converter.SystemConverter;
 import org.chobit.knot.gateway.dto.system.OperationLogDetailDto;
 import org.chobit.knot.gateway.dto.system.OperationLogDto;
@@ -29,6 +30,7 @@ public class SystemController {
     /**
      * Executes the public operation. Executes the public operation.
      */
+    @AuthCheck
     @PostMapping("/roles")
     public List<RoleItem> roles() {
         return List.of(
@@ -61,6 +63,7 @@ public class SystemController {
     /**
      * Executes the public operation. Executes the public operation.
      */
+    @AuthCheck
     @PostMapping("/operation-logs")
     public PageResult<OperationLogItem> operationLogs(@RequestBody(required = false) PageQuery query) {
         PageResult<OperationLogDto> page = systemService.listOperationLogs(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
@@ -70,6 +73,7 @@ public class SystemController {
     /**
      * Executes the public operation. Executes the public operation.
      */
+    @AuthCheck
     @PostMapping("/operation-logs/{id}")
     public OperationLogDetail operationLogDetail(@PathVariable Long id) {
         OperationLogDetailDto detail = systemService.getOperationLogDetail(id);

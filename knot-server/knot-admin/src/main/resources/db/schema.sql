@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
   phone VARCHAR(32) DEFAULT NULL,
   email VARCHAR(128) DEFAULT NULL,
   status INT NOT NULL DEFAULT 1,
+  authz_version INT NOT NULL DEFAULT 0,
   last_login_time DATETIME DEFAULT NULL,
   is_deleted TINYINT NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -61,6 +62,73 @@ CREATE TABLE IF NOT EXISTS user_roles (
   user_id BIGINT NOT NULL,
   role_id BIGINT NOT NULL,
   PRIMARY KEY (user_id, role_id)
+);
+
+CREATE TABLE IF NOT EXISTS sys_modules (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  module_code VARCHAR(64) NOT NULL,
+  module_name VARCHAR(100) NOT NULL,
+  icon VARCHAR(64) DEFAULT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_sys_modules_code (module_code)
+);
+
+CREATE TABLE IF NOT EXISTS sys_menus (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  module_id BIGINT NOT NULL,
+  parent_id BIGINT DEFAULT NULL,
+  menu_code VARCHAR(64) NOT NULL,
+  menu_name VARCHAR(100) NOT NULL,
+  route_path VARCHAR(255) DEFAULT NULL,
+  component_key VARCHAR(128) DEFAULT NULL,
+  icon VARCHAR(64) DEFAULT NULL,
+  sort_order INT NOT NULL DEFAULT 0,
+  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_sys_menus_code (menu_code),
+  KEY idx_sys_menus_module_parent (module_id, parent_id, sort_order)
+);
+
+CREATE TABLE IF NOT EXISTS sys_permissions (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  permission_code VARCHAR(128) NOT NULL,
+  permission_name VARCHAR(128) NOT NULL,
+  permission_type VARCHAR(32) NOT NULL,
+  module_id BIGINT NOT NULL,
+  menu_id BIGINT DEFAULT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  built_in TINYINT NOT NULL DEFAULT 1,
+  remark VARCHAR(255) DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_sys_permissions_code (permission_code),
+  KEY idx_sys_permissions_module_type (module_id, permission_type, status),
+  KEY idx_sys_permissions_menu (menu_id)
+);
+
+CREATE TABLE IF NOT EXISTS sys_role_permissions (
+  role_id BIGINT NOT NULL,
+  permission_id BIGINT NOT NULL,
+  PRIMARY KEY (role_id, permission_id),
+  KEY idx_sys_role_permissions_permission (permission_id)
+);
+
+CREATE TABLE IF NOT EXISTS sys_api_permission_bindings (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  permission_id BIGINT NOT NULL,
+  http_method VARCHAR(16) NOT NULL,
+  path_pattern VARCHAR(255) NOT NULL,
+  controller_class VARCHAR(255) DEFAULT NULL,
+  handler_method VARCHAR(128) DEFAULT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_sys_api_permission_binding (http_method, path_pattern),
+  KEY idx_sys_api_permission_permission (permission_id)
 );
 
 CREATE TABLE IF NOT EXISTS operation_logs (
