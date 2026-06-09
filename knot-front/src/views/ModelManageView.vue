@@ -47,7 +47,6 @@
           :show-refresh="false"
           @edit="openEdit"
           @copy="openCopy"
-          @test="openTest"
           @log="openChangeLog"
           @page-change="onPageChange"
           @size-change="onSizeChange"
@@ -57,7 +56,6 @@
     </div>
 
     <ModelFormDrawer v-model="formVisible" :model="editingModel" @saved="resetPage" />
-    <ModelTestDialog v-model="testDlg" :model-id="testingModelId" />
     <OperationLogDrawer
       v-model="logDrawer"
       :title="`模型变更日志 - ${logModelName || ''}`"
@@ -73,7 +71,6 @@ import EnumSelect from "../components/common/EnumSelect.vue";
 import OperationLogDrawer from "../components/common/OperationLogDrawer.vue";
 import ModelFormDrawer from "../components/model/ModelFormDrawer.vue";
 import ModelListPanel from "../components/model/ModelListPanel.vue";
-import ModelTestDialog from "../components/model/ModelTestDialog.vue";
 import { getModel, listModels } from "../api/models";
 import { listModelOperationLogs } from "../api/operationLogs";
 import { usePageList } from "../composables/usePageList";
@@ -88,8 +85,6 @@ const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChang
 
 const formVisible = ref(false);
 const editingModel = ref(null);
-const testDlg = ref(false);
-const testingModelId = ref(null);
 const logDrawer = ref(false);
 const logModelId = ref(null);
 const logModelName = ref("");
@@ -108,11 +103,6 @@ async function openCopy(row) {
   const detail = row?.id ? await getModel(row.id) : row;
   editingModel.value = buildModelCopy(detail || row);
   formVisible.value = true;
-}
-
-function openTest(row) {
-  testingModelId.value = row.id;
-  testDlg.value = true;
 }
 
 function openChangeLog(row) {

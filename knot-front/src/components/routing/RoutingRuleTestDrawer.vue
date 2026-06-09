@@ -121,7 +121,7 @@
 
           <el-skeleton v-if="loading" :rows="5" animated />
           <template v-else-if="testResult">
-            <el-tabs v-model="responseTab" class="debug-tabs">
+            <el-tabs v-model="responseTab" class="debug-tabs debug-tabs--response">
               <el-tab-pane label="概览" name="summary">
                 <div v-if="summaryItems.length" class="result-meta">
                   <div v-for="item in summaryItems" :key="item.label" class="result-meta__item" :class="item.className">
@@ -131,9 +131,10 @@
                 </div>
                 <el-empty v-else description="无额外结果信息" :image-size="64" />
               </el-tab-pane>
-              <el-tab-pane label="Body" name="body">
+              <el-tab-pane label="Body" name="body" class="response-body-pane">
                 <ShellCodeBlock
                   v-if="resultBodyText"
+                  class="response-body-code"
                   :code="resultBodyText"
                   language="json"
                   :copyable="true"
@@ -973,6 +974,8 @@ function onClosed() {
 
 .debug-panel--response {
   min-height: 520px;
+  display: flex;
+  flex-direction: column;
 }
 
 .debug-tabs :deep(.el-tabs__header) {
@@ -985,6 +988,45 @@ function onClosed() {
 
 .debug-tabs :deep(.el-tabs__content) {
   min-height: 360px;
+}
+
+.debug-tabs--response {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.debug-tabs--response :deep(.el-tabs__content) {
+  flex: 1;
+  min-height: 0;
+}
+
+.debug-tabs--response :deep(.el-tab-pane) {
+  height: 100%;
+}
+
+.response-body-pane {
+  height: 100%;
+}
+
+.response-body-code {
+  height: 100%;
+}
+
+.response-body-code :deep(.shell-code-wrap) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.response-body-code :deep(.shell-code-scrollbar) {
+  flex: 1;
+  max-height: none;
+}
+
+.response-body-code :deep(.el-scrollbar__wrap) {
+  max-height: none;
 }
 
 .result-meta {

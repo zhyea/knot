@@ -169,7 +169,7 @@
               :load-function="loadTargetOptions"
               :label-function="targetLabel"
               :selected-options="selectedTargetOptions"
-              :extra-params="{ modelTypes: form.modelTypes }"
+              :extra-params="targetExtraParams"
               placeholder="请选择路由目标，可多选"
               :multiple="true"
               collapse-tags
@@ -337,6 +337,9 @@ const selectedUserOptions = computed(() =>
     realName: props.rule?.userName
   })
 );
+const targetExtraParams = computed(() => ({
+  modelTypes: Array.isArray(form.modelTypes) && form.modelTypes.length ? [...form.modelTypes] : undefined
+}));
 
 function appLabel(app) {
   return app.name || app.appId || `#${app.id}`;
@@ -447,28 +450,14 @@ function normalizeRuleCode(value) {
 }
 
 async function loadOptions() {
-  const [appsRes, usersRes, modelsRes, poolsRes, consumersRes] = await Promise.all([
+  const [appsRes, usersRes, consumersRes] = await Promise.all([
     loadAppOptions({pageNum: 1, pageSize: 10}),
     loadUserOptions({pageNum: 1, pageSize: 10}),
-    loadModelOptions({pageNum: 1, pageSize: 10, modelTypes: form.modelTypes}),
-    loadModelPoolOptions({pageNum: 1, pageSize: 10, modelTypes: form.modelTypes}),
     loadConsumerOptions({pageNum: 1, pageSize: 10})
   ]);
   appOptions.value = normalizeOptionList(appsRes);
   userOptions.value = normalizeOptionList(usersRes);
-  modelOptions.value = normalizeOptionList(modelsRes);
-  modelPoolOptions.value = normalizeOptionList(poolsRes);
   consumerOptions.value = normalizeOptionList(consumersRes);
-}
-
-async function refreshTargetOptionsByModelTypes() {
-  const query = {pageNum: 1, pageSize: 10, modelTypes: form.modelTypes};
-  const [modelsRes, poolsRes] = await Promise.all([
-    loadModelOptions(query),
-    loadModelPoolOptions(query)
-  ]);
-  modelOptions.value = normalizeOptionList(modelsRes);
-  modelPoolOptions.value = normalizeOptionList(poolsRes);
 }
 
 function resetForm() {
@@ -557,7 +546,8 @@ watch(
         primaryTargetKey.value = form.targets[0] ? targetKey(form.targets[0]) : null;
       }
       if (props.modelValue) {
-        refreshTargetOptionsByModelTypes();
+        modelOptions.value = [];
+        modelPoolOptions.value = [];
       }
     }
 );
@@ -577,6 +567,7 @@ function onSelectedTargetsChange(targetIds) {
   const nextIds = Array.isArray(targetIds) ? targetIds : [];
   const existingByKey = new Map(form.targets.map((item) => [targetKey(item), item]));
   const otherTargets = form.targets.filter((item) => item.targetType !== targetType.value);
+  const previousPrimaryKey = primaryTargetKey.value;
   const currentTargets = nextIds.map((targetId) => {
     const key = `${targetType.value}:${targetId}`;
     const source = findTargetOption(targetType.value, targetId);
@@ -592,8 +583,14 @@ function onSelectedTargetsChange(targetIds) {
     };
   });
   form.targets = [...otherTargets, ...currentTargets];
-  if (!form.targets.some((item) => targetKey(item) === primaryTargetKey.value)) {
-    primaryTargetKey.value = form.targets[0] ? targetKey(form.targets[0]) : null;
+  if (!previousPrimaryKey && currentTargets.length) {
+    primaryTargetKey.value = targetKey(currentTargets[0]);
+    return;
+  }
+  if (!form.targets.some((item) => targetKey(item) === previousPrimaryKey)) {
+    primaryTargetKey.value = currentTargets[0]
+      ? targetKey(currentTargets[0])
+      : (form.targets[0] ? targetKey(form.targets[0]) : null);
   }
 }
 
@@ -602,6 +599,16 @@ function removeTarget(row) {
   if (primaryTargetKey.value === targetKey(row)) {
     primaryTargetKey.value = form.targets[0] ? targetKey(form.targets[0]) : null;
   }
+}
+
+function resolvePrimaryTargetKey() {
+  if (!form.targets.length) {
+    return null;
+  }
+  if (primaryTargetKey.value && form.targets.some((item) => targetKey(item) === primaryTargetKey.value)) {
+    return primaryTargetKey.value;
+  }
+  return targetKey(form.targets[0]);
 }
 
 async function validateRuleCode() {
@@ -625,11 +632,13 @@ async function validateRuleCode() {
 }
 
 function buildSubmitPayload() {
+  const primaryKey = resolvePrimaryTargetKey();
+  primaryTargetKey.value = primaryKey;
   const targets = form.targets.map((m) => ({
     targetType: m.targetType,
     targetId: m.targetId,
     priority: m.priority ?? 100,
-    primary: targetKey(m) === primaryTargetKey.value
+    primary: targetKey(m) === primaryKey
   }));
   const rateLimitPolicy = isEmptyRateLimitPolicy(form.rateLimitPolicy)
       ? null
@@ -680,7 +689,7 @@ async function submit() {
       ElMessage.warning("路由目标不能重复");
       return;
     }
-    if (!primaryTargetKey.value) {
+    if (!resolvePrimaryTargetKey()) {
       ElMessage.warning("启用规则前请指定主目标");
       return;
     }

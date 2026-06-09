@@ -22,7 +22,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { normalizeOptionList } from "../../utils/options";
 
 defineOptions({ inheritAttrs: false });
@@ -41,6 +41,8 @@ const emit = defineEmits(["update:modelValue", "change"]);
 
 const loading = ref(false);
 const options = ref([]);
+const dropdownVisible = ref(false);
+const extraParamsSignature = computed(() => JSON.stringify(props.extraParams ?? {}));
 let searchTimer = null;
 
 const mergedOptions = computed(() => {
@@ -58,11 +60,12 @@ const mergedOptions = computed(() => {
   return Array.from(map.values());
 });
 
-watch(
-  () => props.extraParams,
-  () => loadOptions(""),
-  { deep: true }
-);
+watch(extraParamsSignature, () => {
+  options.value = [];
+  if (dropdownVisible.value) {
+    loadOptions("");
+  }
+});
 
 async function loadOptions(keyword = "") {
   loading.value = true;
@@ -96,10 +99,16 @@ function onChange(value) {
 }
 
 function onVisibleChange(visible) {
+  dropdownVisible.value = visible;
   if (visible && options.value.length === 0) {
     loadOptions("");
   }
 }
 
-loadOptions("");
+onBeforeUnmount(() => {
+  if (searchTimer) {
+    clearTimeout(searchTimer);
+    searchTimer = null;
+  }
+});
 </script>

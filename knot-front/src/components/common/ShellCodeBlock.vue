@@ -73,7 +73,8 @@ async function copyCode() {
 
 .shell-code-block {
   margin: 0;
-  padding: 14px 16px 36px;
+  padding: 14px 16px;
+  padding-right: 72px;
   background: #1e1e1e;
   color: #d4d4d4;
   font-family: Consolas, "Courier New", monospace;
@@ -125,6 +126,7 @@ async function copyCode() {
 .copy-btn {
   position: absolute;
   right: 8px;
-  bottom: 6px;
+  top: 6px;
+  background: rgb(30 30 30 / 88%);
 }
 </style>

@@ -33,7 +33,6 @@
             :actions="[
               { key: 'edit', label: '编辑', icon: Edit },
               { key: 'copy', label: '复制', icon: CopyDocument },
-              { key: 'test', label: '测试', icon: VideoPlay },
               { key: 'log', label: '日志', icon: Document }
             ]"
             @action="(action) => handleAction(action, row)"
@@ -55,7 +54,7 @@
 
 <script setup>
 import { onMounted } from "vue";
-import { CopyDocument, Document, Edit, VideoPlay } from "@element-plus/icons-vue";
+import { CopyDocument, Document, Edit } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import { updateModelStatus } from "@/api/models.js";
@@ -71,7 +70,7 @@ defineProps({
   showRefresh: { type: Boolean, default: true }
 });
 
-const emit = defineEmits(["create", "refresh", "edit", "copy", "test", "log", "page-change", "size-change", "changed"]);
+const emit = defineEmits(["create", "refresh", "edit", "copy", "log", "page-change", "size-change", "changed"]);
 
 const { options: modelTypeOptions, loadOptions: loadModelTypes } = useEnums("model_type");
 
