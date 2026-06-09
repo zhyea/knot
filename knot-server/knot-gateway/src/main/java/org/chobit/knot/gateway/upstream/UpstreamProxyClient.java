@@ -11,6 +11,11 @@ import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.entity.ProviderEntity;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
+import org.chobit.knot.gateway.plugin.PluginDispatcher;
+import org.chobit.knot.gateway.plugin.PluginExtensionPoint;
+import org.chobit.knot.gateway.plugin.PluginStageCode;
+import org.chobit.knot.gateway.plugin.upstream.UpstreamPluginContext;
+import org.chobit.knot.gateway.runtime.GatewayTraceContext;
 import org.chobit.knot.gateway.service.GatewayDataService;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutor;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutorRegistry;
@@ -19,6 +24,7 @@ import org.chobit.knot.gateway.upstream.provider.UpstreamProviderAdapterRegistry
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -32,6 +38,7 @@ public class UpstreamProxyClient {
     private final GatewayDataService dataService;
     private final UpstreamProtocolExecutorRegistry protocolExecutorRegistry;
     private final UpstreamProviderAdapterRegistry providerAdapterRegistry;
+    private final PluginDispatcher pluginDispatcher;
 
 
     /**
@@ -44,10 +51,53 @@ public class UpstreamProxyClient {
                              String traceparent) {
 
         UpstreamRequestContext context = buildRequestContext(requestBody, contentType, target, protocol, traceparent);
+        return proxy(context);
+    }
+
+    /**
+     * Proxies the request directly against the specified provider model.
+     */
+    public ProxyResult proxyModel(Map<String, Object> requestBody,
+                                  MediaType contentType,
+                                  Long modelId,
+                                  ModelApiProtocolEnum protocol,
+                                  String traceparent) {
+        return proxy(buildModelRequestContext(requestBody, contentType, modelId, protocol, traceparent));
+    }
+
+    /**
+     * Builds upstream request context for direct model debugging.
+     */
+    public UpstreamRequestContext buildModelRequestContext(Map<String, Object> requestBody,
+                                                           MediaType contentType,
+                                                           Long modelId,
+                                                           ModelApiProtocolEnum protocol,
+                                                           String traceparent) {
+        ModelEntity model = resolveModel(modelId);
+        ProviderEntity provider = resolveProvider(model, model.getModelCode());
+        ModelApiProtocolEnum resolvedProtocol = resolveProtocol(protocol);
+        ModelApiBindingEntity binding = resolveBinding(model.getId(), resolvedProtocol);
+        ProviderCredentialEntity credential = dataService.getActiveCredentialByProviderId(provider.getId());
+        return new UpstreamRequestContext(
+                resolvedProtocol, requestBody, contentType, model, provider, credential, binding, traceparent, currentTraceId()
+        );
+    }
+
+    /**
+     * Proxies a prepared upstream request context.
+     */
+    public ProxyResult proxy(UpstreamRequestContext context) {
         UpstreamProtocolExecutor protocolExecutor = protocolExecutorRegistry.resolve(context.protocol());
         UpstreamProviderAdapter providerAdapter = providerAdapterRegistry.resolve(context.provider().getProviderType());
-
-        return protocolExecutor.execute(context, providerAdapter);
+        dispatchPlugin(context, PluginStageCode.UPSTREAM_REQUEST, null, null);
+        try {
+            ProxyResult result = protocolExecutor.execute(context, providerAdapter);
+            dispatchPlugin(context, PluginStageCode.UPSTREAM_RESPONSE, result, null);
+            return result;
+        } catch (RuntimeException ex) {
+            dispatchPlugin(context, PluginStageCode.UPSTREAM_ERROR, null, ex);
+            throw ex;
+        }
     }
 
     private UpstreamRequestContext buildRequestContext(Map<String, Object> requestBody,
@@ -56,28 +106,35 @@ public class UpstreamProxyClient {
                                                        ModelApiProtocolEnum protocol,
                                                        String traceparent) {
         ModelEntity model = resolveModel(target);
-        ProviderEntity provider = resolveProvider(model, target);
+        ProviderEntity provider = resolveProvider(model, target == null ? null : target.targetCode());
         ModelApiProtocolEnum resolvedProtocol = resolveProtocol(protocol);
         ModelApiBindingEntity binding = resolveBinding(model.getId(), resolvedProtocol);
         ProviderCredentialEntity credential = dataService.getActiveCredentialByProviderId(provider.getId());
         return new UpstreamRequestContext(
-                resolvedProtocol, requestBody, contentType, model, provider, credential, binding, traceparent
+                resolvedProtocol, requestBody, contentType, model, provider, credential, binding, traceparent, currentTraceId()
         );
     }
 
     private ModelEntity resolveModel(RoutingRuleTargetDto target) {
-        ModelEntity model = target == null ? null : dataService.getModelById(target.targetId());
+        return resolveModel(target == null ? null : target.targetId(), target == null ? null : target.targetCode());
+    }
+
+    private ModelEntity resolveModel(Long modelId) {
+        return resolveModel(modelId, null);
+    }
+
+    private ModelEntity resolveModel(Long modelId, String modelCode) {
+        ModelEntity model = modelId == null ? null : dataService.getModelById(modelId);
         if (model == null) {
-            String targetCode = target == null ? null : target.targetCode();
-            throw new GatewayUpstreamException("model not found: " + targetCode, ProxyErrorCodeEnum.MODEL_NOT_FOUND.code());
+            throw new GatewayUpstreamException("model not found: " + modelCode, ProxyErrorCodeEnum.MODEL_NOT_FOUND.code());
         }
         return model;
     }
 
-    private ProviderEntity resolveProvider(ModelEntity model, RoutingRuleTargetDto target) {
+    private ProviderEntity resolveProvider(ModelEntity model, String modelCode) {
         ProviderEntity provider = dataService.getProviderById(model.getProviderId());
         if (provider == null) {
-            throw new GatewayUpstreamException("provider not found for model: " + target.targetCode(), ProxyErrorCodeEnum.PROVIDER_NOT_FOUND.code());
+            throw new GatewayUpstreamException("provider not found for model: " + modelCode, ProxyErrorCodeEnum.PROVIDER_NOT_FOUND.code());
         }
         return provider;
     }
@@ -92,5 +149,47 @@ public class UpstreamProxyClient {
                 .filter(item -> protocol.matches(item.getProtocol()))
                 .findFirst()
                 .orElse(null);
+    }
+
+    private void dispatchPlugin(UpstreamRequestContext context,
+                                PluginStageCode stageCode,
+                                ProxyResult result,
+                                Throwable error) {
+        pluginDispatcher.dispatch(
+                PluginExtensionPoint.UPSTREAM_EXCHANGE,
+                stageCode,
+                new UpstreamPluginContext(
+                        context.traceId(),
+                        context.traceparent(),
+                        stageCode,
+                        context.provider() == null ? null : context.provider().getId(),
+                        context.provider() == null ? null : context.provider().getCode(),
+                        context.model() == null ? null : context.model().getId(),
+                        context.model() == null ? null : context.model().getModelCode(),
+                        context.protocol() == null ? null : context.protocol().code(),
+                        context.binding() == null ? null : context.binding().getProtocol(),
+                        context.requestBody(),
+                        context.contentType(),
+                        responseSnapshot(result),
+                        error
+                )
+        );
+    }
+
+    private Map<String, Object> responseSnapshot(ProxyResult result) {
+        if (result == null) {
+            return null;
+        }
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("providerId", result.providerId());
+        snapshot.put("modelId", result.modelId());
+        snapshot.put("responseBody", result.responseBody());
+        snapshot.put("usage", result.usage());
+        return snapshot;
+    }
+
+    private String currentTraceId() {
+        GatewayTraceContext current = GatewayTraceContext.currentOrCreate(null);
+        return current == null ? null : current.traceId();
     }
 }

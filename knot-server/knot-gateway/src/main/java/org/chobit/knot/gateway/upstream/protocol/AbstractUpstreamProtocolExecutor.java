@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Collection;
@@ -62,6 +63,13 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                     context.provider().getId(),
                     context.model().getId(),
                     usageExtractorRegistry.extract(handledResponseBody, context, adapter)
+            );
+        } catch (RestClientResponseException e) {
+            throw new GatewayUpstreamException(
+                    e.getMessage(),
+                    ProxyErrorCodeEnum.UPSTREAM_ERROR.code(),
+                    e.getStatusCode().value(),
+                    e.getResponseBodyAsString()
             );
         } catch (Exception e) {
             throw new GatewayUpstreamException(e.getMessage(), ProxyErrorCodeEnum.UPSTREAM_ERROR.code());

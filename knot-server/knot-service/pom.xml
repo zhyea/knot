@@ -21,6 +21,10 @@
         </dependency>
         <dependency>
             <groupId>org.chobit.knot</groupId>
+            <artifactId>knot-plugin</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.chobit.knot</groupId>
             <artifactId>knot-usage</artifactId>
         </dependency>
         <dependency>

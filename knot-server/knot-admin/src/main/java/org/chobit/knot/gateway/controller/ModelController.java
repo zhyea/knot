@@ -6,7 +6,6 @@ import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.ModelConverter;
 import org.chobit.knot.gateway.dto.model.ModelDto;
-import org.chobit.knot.gateway.dto.model.ModelTestResultDto;
 import org.chobit.knot.gateway.service.ModelService;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.model.*;
@@ -123,14 +122,4 @@ public class ModelController {
         ModelDto updated = modelService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
         return modelConverter.toVO(updated);
     }
-
-    /**
-     * Executes a test operation and returns the result. Executes the public operation.
-     */
-    @PostMapping("/{id}/test")
-    public ModelTestResult test(@PathVariable Long id, @RequestBody @Valid ModelTestRequest request) {
-        ModelTestResultDto result = modelService.testModel(id, request.prompt());
-        return new ModelTestResult(result.output(), result.latencyMs(), result.tokenUsage());
-    }
-
 }

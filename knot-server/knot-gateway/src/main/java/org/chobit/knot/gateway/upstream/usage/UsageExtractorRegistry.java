@@ -14,6 +14,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class UsageExtractorRegistry {
 
+    private final UsageExtractorCatalog usageExtractorCatalog;
+
+    public UsageExtractorRegistry(UsageExtractorCatalog usageExtractorCatalog) {
+        this.usageExtractorCatalog = usageExtractorCatalog;
+    }
+
     public BillingUsage extract(String responseBody, UpstreamRequestContext context, UpstreamProviderAdapter adapter) {
         String code = resolveExtractorCode(responseBody, context);
         UsageExtractor extractor = resolve(code);
@@ -24,7 +30,7 @@ public class UsageExtractorRegistry {
     }
 
     private UsageExtractor resolve(String code) {
-        return UsageExtractorCatalog.resolve(code);
+        return usageExtractorCatalog.resolve(code);
     }
 
     private String resolveExtractorCode(String responseBody, UpstreamRequestContext context) {
@@ -42,7 +48,7 @@ public class UsageExtractorRegistry {
                 && ProviderTypeEnum.ANTHROPIC.code().equals(StringUtils.upperCase(context.provider().getProviderType()))) {
             return AnthropicUsageExtractor.CODE;
         }
-        return UsageExtractorCatalog.defaultExtractor().code();
+        return usageExtractorCatalog.defaultExtractor().code();
     }
 
     private boolean isEventStream(String value) {

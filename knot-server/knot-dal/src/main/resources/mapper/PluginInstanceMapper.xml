@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.PluginInstanceMapper">
+
+    <select id="list" resultType="org.chobit.knot.gateway.entity.PluginInstanceEntity">
+        select
+            pi.id,
+            pi.instance_code as code,
+            pi.instance_name as name,
+            pp.plugin_code as package_code,
+            pp.plugin_name as package_name,
+            pc.capability_code,
+            pc.extension_point,
+            pc.stage_code,
+            pp.version,
+            pi.status,
+            pi.fail_mode,
+            pi.timeout_ms,
+            pi.config_json
+        from plugin_instances pi
+        inner join plugin_packages pp on pp.id = pi.package_id
+        inner join plugin_capabilities pc on pc.id = pi.capability_id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    pi.instance_code like concat('%', #{keyword}, '%')
+                    or pi.instance_name like concat('%', #{keyword}, '%')
+                    or pp.plugin_code like concat('%', #{keyword}, '%')
+                    or pc.capability_code like concat('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="status != null and status != ''">
+                and pi.status = #{status}
+            </if>
+        </where>
+        order by pi.id desc
+    </select>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.PluginInstanceEntity">
+        select
+            pi.id,
+            pi.instance_code as code,
+            pi.instance_name as name,
+            pp.plugin_code as package_code,
+            pp.plugin_name as package_name,
+            pc.capability_code,
+            pc.extension_point,
+            pc.stage_code,
+            pp.version,
+            pi.status,
+            pi.fail_mode,
+            pi.timeout_ms,
+            pi.config_json
+        from plugin_instances pi
+        inner join plugin_packages pp on pp.id = pi.package_id
+        inner join plugin_capabilities pc on pc.id = pi.capability_id
+        where pi.id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into plugin_instances(
+            package_id,
+            capability_id,
+            instance_code,
+            instance_name,
+            config_json,
+            status,
+            fail_mode,
+            timeout_ms,
+            concurrency_limit
+        ) values(
+            (select id from plugin_packages where plugin_code = #{packageCode} limit 1),
+            (select pc.id
+             from plugin_capabilities pc
+             inner join plugin_packages pp on pp.id = pc.package_id
+             where pp.plugin_code = #{packageCode}
+               and pc.capability_code = #{capabilityCode}
+             limit 1),
+            #{code},
+            #{name},
+            #{configJson},
+            #{status},
+            #{failMode},
+            #{timeoutMs},
+            0
+        )
+    </insert>
+
+    <update id="updateStatus">
+        update plugin_instances
+        set status = #{status}
+        where id = #{id}
+    </update>
+
+    <select id="listActiveBindings" resultType="org.chobit.knot.gateway.entity.PluginBindingEntity">
+        select
+            pb.id,
+            pb.instance_id,
+            pi.instance_code,
+            pi.instance_name,
+            pp.plugin_code as package_code,
+            pp.plugin_name as package_name,
+            pc.capability_code,
+            pc.extension_point,
+            pb.stage_code,
+            pb.scope_type,
+            pb.scope_ref_id,
+            pb.order_no,
+            pb.status,
+            coalesce(pb.binding_config_json, pi.config_json) as config_json,
+            pi.fail_mode,
+            pi.timeout_ms
+        from plugin_bindings pb
+        inner join plugin_instances pi on pi.id = pb.instance_id
+        inner join plugin_packages pp on pp.id = pi.package_id
+        inner join plugin_capabilities pc on pc.id = pi.capability_id
+        where pb.status = 'ACTIVE'
+          and pi.status = 'ACTIVE'
+          and pp.status = 'ACTIVE'
+          and pc.status = 'ACTIVE'
+          and pc.extension_point = #{extensionPoint}
+          and pb.stage_code = #{stageCode}
+        order by pb.order_no asc, pb.id asc
+    </select>
+
+</mapper>

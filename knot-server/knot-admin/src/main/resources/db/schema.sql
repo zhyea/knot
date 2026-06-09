@@ -604,15 +604,103 @@ CREATE TABLE IF NOT EXISTS cache_records (
 -- =========================
 -- 可选扩展
 -- =========================
-CREATE TABLE IF NOT EXISTS plugins (
+CREATE TABLE IF NOT EXISTS plugin_packages (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  code VARCHAR(64) NOT NULL,
-  name VARCHAR(100) NOT NULL,
-  plugin_type VARCHAR(32) NOT NULL,
+  plugin_code VARCHAR(64) NOT NULL,
+  plugin_name VARCHAR(100) NOT NULL,
   version VARCHAR(32) NOT NULL,
+  source_type VARCHAR(32) NOT NULL DEFAULT 'BUILTIN',
+  artifact_path VARCHAR(255) DEFAULT NULL,
+  manifest_json JSON DEFAULT NULL,
+  entrypoint VARCHAR(255) DEFAULT NULL,
+  checksum VARCHAR(128) DEFAULT NULL,
+  signature VARCHAR(255) DEFAULT NULL,
+  compatibility_json JSON DEFAULT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_plugin_packages_code (plugin_code)
+);
+
+CREATE TABLE IF NOT EXISTS plugin_capabilities (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  package_id BIGINT NOT NULL,
+  capability_code VARCHAR(64) NOT NULL,
+  capability_name VARCHAR(100) NOT NULL,
+  extension_point VARCHAR(64) NOT NULL,
+  stage_code VARCHAR(64) NOT NULL,
+  order_hint INT NOT NULL DEFAULT 100,
+  config_schema_json JSON DEFAULT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_plugin_capabilities_code (package_id, capability_code, stage_code),
+  KEY idx_plugin_capabilities_extension_stage (extension_point, stage_code, status)
+);
+
+CREATE TABLE IF NOT EXISTS plugin_instances (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  package_id BIGINT NOT NULL,
+  capability_id BIGINT NOT NULL,
+  instance_code VARCHAR(64) NOT NULL,
+  instance_name VARCHAR(100) NOT NULL,
   config_json JSON DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'DISABLED',
-  UNIQUE KEY uk_plugins_code (code)
+  status VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
+  fail_mode VARCHAR(32) NOT NULL DEFAULT 'FAIL_OPEN',
+  timeout_ms INT NOT NULL DEFAULT 3000,
+  concurrency_limit INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_plugin_instances_code (instance_code),
+  KEY idx_plugin_instances_package_status (package_id, status),
+  KEY idx_plugin_instances_capability_status (capability_id, status)
+);
+
+CREATE TABLE IF NOT EXISTS plugin_bindings (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  instance_id BIGINT NOT NULL,
+  scope_type VARCHAR(32) NOT NULL DEFAULT 'GLOBAL',
+  scope_ref_id BIGINT DEFAULT NULL,
+  stage_code VARCHAR(64) NOT NULL,
+  order_no INT NOT NULL DEFAULT 100,
+  match_expression VARCHAR(255) DEFAULT NULL,
+  gray_config_json JSON DEFAULT NULL,
+  binding_config_json JSON DEFAULT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_plugin_bindings_scope (instance_id, scope_type, scope_ref_id, stage_code),
+  KEY idx_plugin_bindings_stage (stage_code, status, order_no),
+  KEY idx_plugin_bindings_scope_status (scope_type, scope_ref_id, status)
+);
+
+CREATE TABLE IF NOT EXISTS plugin_execution_logs (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  trace_id VARCHAR(64) NOT NULL,
+  instance_id BIGINT NOT NULL,
+  stage_code VARCHAR(64) NOT NULL,
+  scope_type VARCHAR(32) DEFAULT NULL,
+  scope_ref_id BIGINT DEFAULT NULL,
+  result_status VARCHAR(32) NOT NULL,
+  duration_ms BIGINT DEFAULT NULL,
+  error_code VARCHAR(64) DEFAULT NULL,
+  error_message VARCHAR(500) DEFAULT NULL,
+  snapshot_json JSON DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_plugin_execution_logs_trace (trace_id),
+  KEY idx_plugin_execution_logs_instance_time (instance_id, created_at)
+);
+
+CREATE TABLE IF NOT EXISTS plugin_config_versions (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  instance_id BIGINT NOT NULL,
+  version_no INT NOT NULL,
+  version_code VARCHAR(64) NOT NULL,
+  config_json JSON DEFAULT NULL,
+  operator_id BIGINT DEFAULT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_plugin_config_versions (instance_id, version_no),
+  KEY idx_plugin_config_versions_code (instance_id, version_code)
 );
 
 CREATE TABLE IF NOT EXISTS notification_templates (

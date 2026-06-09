@@ -270,10 +270,53 @@ INSERT IGNORE INTO scheduled_tasks (
 (3, 'openrouter-model-sync', 'OpenRouter 模型同步', 'OPENROUTER_MODEL_SYNC', '0 0 4 * * ?', 'SINGLE', 'DISABLED', '同步 OpenRouter 模型到外部模型库');
 
 -- 插件
-INSERT IGNORE INTO plugins (id, code, name, plugin_type, version, status) VALUES
-(1, 'content-filter',  '内容安全过滤',   'FILTER',   '1.0.0', 'ENABLED'),
-(2, 'audit-logger',    '审计日志插件',   'LOGGER',   '1.0.0', 'ENABLED'),
-(3, 'token-counter',   'Token计数插件',  'COUNTER',  '1.0.0', 'DISABLED');
+INSERT IGNORE INTO plugin_packages (
+  id, plugin_code, plugin_name, version, source_type, entrypoint, manifest_json, status
+) VALUES
+(1, 'builtin-gateway-audit', '????????????', '1.0.0', 'BUILTIN', 'org.chobit.knot.gateway.plugin.builtin.GatewayRequestLoggingPlugin',
+ JSON_OBJECT('pluginId', 'builtin-gateway-audit', 'extensionPoint', 'GATEWAY_EXCHANGE'), 'ACTIVE'),
+(2, 'builtin-provider-audit', '??????????????', '1.0.0', 'BUILTIN', 'org.chobit.knot.gateway.plugin.builtin.UpstreamRequestLoggingPlugin',
+ JSON_OBJECT('pluginId', 'builtin-provider-audit', 'extensionPoint', 'UPSTREAM_EXCHANGE'), 'ACTIVE');
+
+INSERT IGNORE INTO plugin_capabilities (
+  id, package_id, capability_code, capability_name, extension_point, stage_code, order_hint, status
+) VALUES
+(1, 1, 'gateway-request-response-log', '?????????', 'GATEWAY_EXCHANGE', 'GATEWAY_REQUEST', 100, 'ACTIVE'),
+(2, 1, 'gateway-request-response-log', '?????????', 'GATEWAY_EXCHANGE', 'GATEWAY_RESPONSE', 100, 'ACTIVE'),
+(3, 1, 'gateway-request-response-log', '?????????', 'GATEWAY_EXCHANGE', 'GATEWAY_ERROR', 100, 'ACTIVE'),
+(4, 2, 'provider-request-response-log', '???????????', 'UPSTREAM_EXCHANGE', 'UPSTREAM_REQUEST', 100, 'ACTIVE'),
+(5, 2, 'provider-request-response-log', '???????????', 'UPSTREAM_EXCHANGE', 'UPSTREAM_RESPONSE', 100, 'ACTIVE'),
+(6, 2, 'provider-request-response-log', '???????????', 'UPSTREAM_EXCHANGE', 'UPSTREAM_ERROR', 100, 'ACTIVE');
+
+INSERT IGNORE INTO plugin_instances (
+  id, package_id, capability_id, instance_code, instance_name, config_json, status, fail_mode, timeout_ms, concurrency_limit
+) VALUES
+(1, 1, 1, 'gateway-request-log', '????????????', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
+(2, 1, 2, 'gateway-response-log', '????????????', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
+(3, 1, 3, 'gateway-error-log', '????????????', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
+(4, 2, 4, 'provider-request-log', '??????????????', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
+(5, 2, 5, 'provider-response-log', '??????????????', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
+(6, 2, 6, 'provider-error-log', '??????????????', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0);
+
+INSERT IGNORE INTO plugin_bindings (
+  id, instance_id, scope_type, scope_ref_id, stage_code, order_no, status, binding_config_json
+) VALUES
+(1, 1, 'GLOBAL', NULL, 'GATEWAY_REQUEST', 100, 'ACTIVE', JSON_OBJECT('maskApiKey', true)),
+(2, 2, 'GLOBAL', NULL, 'GATEWAY_RESPONSE', 100, 'ACTIVE', JSON_OBJECT()),
+(3, 3, 'GLOBAL', NULL, 'GATEWAY_ERROR', 100, 'ACTIVE', JSON_OBJECT()),
+(4, 4, 'GLOBAL', NULL, 'UPSTREAM_REQUEST', 100, 'ACTIVE', JSON_OBJECT()),
+(5, 5, 'GLOBAL', NULL, 'UPSTREAM_RESPONSE', 100, 'ACTIVE', JSON_OBJECT()),
+(6, 6, 'GLOBAL', NULL, 'UPSTREAM_ERROR', 100, 'ACTIVE', JSON_OBJECT());
+
+INSERT IGNORE INTO plugin_config_versions (
+  id, instance_id, version_no, version_code, config_json, operator_id
+) VALUES
+(1, 1, 1, MD5('gateway-request-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
+(2, 2, 1, MD5('gateway-response-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
+(3, 3, 1, MD5('gateway-error-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
+(4, 4, 1, MD5('provider-request-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
+(5, 5, 1, MD5('provider-response-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
+(6, 6, 1, MD5('provider-error-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1);
 
 -- 通知模板
 INSERT IGNORE INTO notification_templates (id, code, name, channel, title_tpl, content_tpl, status) VALUES
@@ -292,7 +335,12 @@ INSERT IGNORE INTO enum_categories (id, category, category_name, is_system, is_e
 (7, 'billing_mode', '计费模式', 0, 1),
 (8, 'billing_unit', '计费单位', 0, 1),
 (10, 'channel', '通知渠道', 0, 1),
-(11, 'plugin_type', '插件类型', 0, 1),
+(11, 'plugin_source_type', '?????????', 0, 1),
+(12, 'plugin_scope_type', '???????????, 0, 1),
+(24, 'plugin_extension_point', '????????, 0, 1),
+(25, 'plugin_stage_code', '?????????', 0, 1),
+(26, 'plugin_fail_mode', '?????????', 0, 1),
+(27, 'plugin_result_status', '?????????', 0, 1),
 (13, 'alert_level', '告警级别', 1, 1),
 (14, 'risk_level', '风险级别', 1, 1),
 (15, 'status', '通用状态', 1, 1),
@@ -394,8 +442,30 @@ INSERT IGNORE INTO enum_configs (category_id, item_code, item_label, sort_order,
 (10, 'EMAIL',   '邮件',    1, 1),
 (10, 'SMS',     '短信',    2, 1),
 (10, 'WEBHOOK', 'Webhook', 3, 1),
-(11, 'PRE',  '前置',  1, 1),
-(11, 'POST', '后置',  2, 1),
+(11, 'BUILTIN', '???', 1, 1),
+(11, 'LOCAL_JAR', '??? JAR', 2, 1),
+(11, 'REMOTE_REGISTRY', '??????', 3, 1),
+(12, 'GLOBAL', '???', 1, 1),
+(12, 'APP', '???', 2, 1),
+(12, 'RULE', '??????', 3, 1),
+(12, 'PROVIDER', '?????, 4, 1),
+(12, 'MODEL', '???', 5, 1),
+(12, 'POOL', '?????, 6, 1),
+(24, 'GATEWAY_EXCHANGE', '????????????', 1, 1),
+(24, 'UPSTREAM_EXCHANGE', '??????????????, 2, 1),
+(25, 'GATEWAY_REQUEST', '??????', 1, 1),
+(25, 'GATEWAY_RESPONSE', '??????', 2, 1),
+(25, 'GATEWAY_ERROR', '??????', 3, 1),
+(25, 'UPSTREAM_REQUEST', '????????, 4, 1),
+(25, 'UPSTREAM_RESPONSE', '????????, 5, 1),
+(25, 'UPSTREAM_ERROR', '????????, 6, 1),
+(26, 'FAIL_OPEN', '??????', 1, 1),
+(26, 'FAIL_CLOSE', '??????', 2, 1),
+(27, 'SUCCESS', '???', 1, 1),
+(27, 'SKIPPED', '???', 2, 1),
+(27, 'FAILED', '???', 3, 1),
+(27, 'TIMEOUT', '???', 4, 1),
+(27, 'OPEN_CIRCUIT', '???', 5, 1),
 (13, 'CRITICAL', '严重', 1, 1),
 (13, 'HIGH',     '高',   2, 1),
 (13, 'MEDIUM',   '中',   3, 1),

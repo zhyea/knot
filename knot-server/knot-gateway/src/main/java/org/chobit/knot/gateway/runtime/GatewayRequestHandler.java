@@ -9,6 +9,7 @@ import org.chobit.knot.gateway.billing.GatewayBillingCalculator;
 import org.chobit.knot.gateway.exception.GatewayRateLimitException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.*;
+import org.chobit.knot.gateway.plugin.PluginDispatcher;
 import org.chobit.knot.gateway.routing.RoutingResolver;
 import org.chobit.knot.gateway.traffic.GatewayTrafficGuard;
 import org.chobit.knot.gateway.traffic.GatewayTrafficGuard.TrafficCheckContext;
@@ -33,7 +34,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     public GatewayRequestHandler(UpstreamProxyClient proxyService,
                                  RoutingResolver routingAuthService,
                                  GatewayBillingCalculator billingService,
-                                 GatewayTrafficGuard trafficGuard) {
+                                 GatewayTrafficGuard trafficGuard,
+                                 PluginDispatcher pluginDispatcher) {
+        super(pluginDispatcher);
         this.proxyClient = proxyService;
         this.routingResolver = routingAuthService;
         this.billingCalculator = billingService;

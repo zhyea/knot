@@ -2,8 +2,6 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.ModelConverter;
@@ -11,7 +9,8 @@ import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.dto.model.ModelDto;
 import org.chobit.knot.gateway.dto.model.ModelApiBindingDto;
-import org.chobit.knot.gateway.dto.model.ModelTestResultDto;
+import org.chobit.knot.gateway.error.BusinessException;
+import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.entity.LogicalModelEntity;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
@@ -42,6 +41,7 @@ public class ModelService {
     private final BillingRuleMapper billingRuleMapper;
     private final ModelConverter modelConverter;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
+    private final UsageExtractorCatalog usageExtractorCatalog;
 
     /**
      * Constructs a new instance.
@@ -51,13 +51,15 @@ public class ModelService {
                         LogicalModelMapper logicalModelMapper,
                         BillingRuleMapper billingRuleMapper,
                         ModelConverter modelConverter,
-                        ResourceTrafficPolicySupport trafficPolicySupport) {
+                        ResourceTrafficPolicySupport trafficPolicySupport,
+                        UsageExtractorCatalog usageExtractorCatalog) {
         this.modelMapper = modelMapper;
         this.modelApiBindingMapper = modelApiBindingMapper;
         this.logicalModelMapper = logicalModelMapper;
         this.billingRuleMapper = billingRuleMapper;
         this.modelConverter = modelConverter;
         this.trafficPolicySupport = trafficPolicySupport;
+        this.usageExtractorCatalog = usageExtractorCatalog;
     }
 
     /**
@@ -118,7 +120,7 @@ public class ModelService {
      * Lists available usage extractors.
      */
     public List<UsageExtractorItem> listUsageExtractors() {
-        return UsageExtractorCatalog.definitions().stream()
+        return usageExtractorCatalog.definitions().stream()
                 .map(item -> new UsageExtractorItem(
                         item.code(),
                         item.label(),
@@ -196,17 +198,6 @@ public class ModelService {
         validateModelRequest(request);
         modelMapper.updateStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
         return getById(id);
-    }
-
-    /**
-     * Executes a test operation and returns the result. Executes the public operation.
-     */
-    public ModelTestResultDto testModel(Long id, String prompt) {
-        ModelDto model = getById(id);
-        String output = "[test] " + model.name() + ": " + prompt;
-        int latencyMs = 100 + (int) (Math.random() * 200);
-        int tokenUsage = Math.max(1, prompt.length() / 2);
-        return new ModelTestResultDto(output, latencyMs, tokenUsage);
     }
 
     private ModelDto enrich(ModelEntity entity) {

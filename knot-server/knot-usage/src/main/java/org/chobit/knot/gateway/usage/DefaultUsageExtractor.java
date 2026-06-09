@@ -2,9 +2,11 @@ package org.chobit.knot.gateway.usage;
 
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.model.BillingUsage;
+import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
+@Component
 public class DefaultUsageExtractor implements UsageExtractor {
 
     public static final String CODE = "DEFAULT";

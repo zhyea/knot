@@ -1,9 +1,11 @@
 package org.chobit.knot.gateway.usage;
 
 import org.chobit.knot.gateway.model.BillingUsage;
+import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
+@Component
 public class AnthropicUsageExtractor extends DefaultUsageExtractor {
 
     public static final String CODE = "ANTHROPIC";

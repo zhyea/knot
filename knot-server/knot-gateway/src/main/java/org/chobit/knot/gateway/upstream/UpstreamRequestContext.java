@@ -17,7 +17,8 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
                                      ProviderEntity provider,
                                      ProviderCredentialEntity credential,
                                      ModelApiBindingEntity binding,
-                                     String traceparent) {
+                                     String traceparent,
+                                     String traceId) {
 
     /**
      * Constructs a new instance.
@@ -29,7 +30,8 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
                                   ProviderEntity provider,
                                   ProviderCredentialEntity credential,
                                   ModelApiBindingEntity binding,
-                                  String traceparent) {
+                                  String traceparent,
+                                  String traceId) {
         this.protocol = protocol;
         this.requestBody = new LinkedHashMap<>(requestBody);
         this.contentType = contentType == null ? MediaType.APPLICATION_JSON : contentType;
@@ -38,5 +40,6 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
         this.credential = credential;
         this.binding = binding;
         this.traceparent = traceparent;
+        this.traceId = traceId;
     }
 }

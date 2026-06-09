@@ -41,6 +41,12 @@ rw:
 knot:
   gateway:
     base-url: http://127.0.0.1:9090
+  plugin:
+    sink:
+      kafka:
+        enabled: false
+        topic-prefix: knot.plugin
+        bootstrap-servers: ${KNOT_PLUGIN_KAFKA_BOOTSTRAP_SERVERS:}
   credential:
     encryption-key: ${KNOT_CREDENTIAL_ENCRYPTION_KEY:knot-dev-credential-encryption-key}
 

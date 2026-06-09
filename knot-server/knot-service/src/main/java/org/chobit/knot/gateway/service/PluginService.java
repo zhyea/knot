@@ -8,20 +8,24 @@ import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.PluginConverter;
 import org.chobit.knot.gateway.dto.plugin.PluginDto;
-import org.chobit.knot.gateway.entity.PluginEntity;
-import org.chobit.knot.gateway.mapper.PluginMapper;
+import org.chobit.knot.gateway.entity.PluginBindingEntity;
+import org.chobit.knot.gateway.entity.PluginInstanceEntity;
+import org.chobit.knot.gateway.mapper.PluginInstanceMapper;
+import org.chobit.knot.gateway.plugin.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
-public class PluginService {
-    private final PluginMapper pluginMapper;
+public class PluginService implements PluginBindingProvider {
+    private final PluginInstanceMapper pluginMapper;
     private final PluginConverter pluginConverter;
 
     /**
      * Constructs a new instance.
      */
-    public PluginService(PluginMapper pluginMapper, PluginConverter pluginConverter) {
+    public PluginService(PluginInstanceMapper pluginMapper, PluginConverter pluginConverter) {
         this.pluginMapper = pluginMapper;
         this.pluginConverter = pluginConverter;
     }
@@ -38,7 +42,7 @@ public class PluginService {
      */
     public PageResult<PluginDto> list(PageRequest pageRequest, String keyword, String status) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<PluginEntity> pageInfo = new PageInfo<>(pluginMapper.list(normalizeKeyword(keyword), normalizeStatus(status)));
+        PageInfo<PluginInstanceEntity> pageInfo = new PageInfo<>(pluginMapper.list(normalizeKeyword(keyword), normalizeStatus(status)));
         return PageResult.fromPage(pageInfo, pluginConverter::toDtoList, pageRequest);
     }
 
@@ -46,7 +50,7 @@ public class PluginService {
      * Returns the requested value. Executes the public operation.
      */
     public PluginDto getById(Long id) {
-        PluginEntity entity = pluginMapper.getById(id);
+        PluginInstanceEntity entity = pluginMapper.getById(id);
         if (entity == null) throw new BusinessException(ErrorCode.NOT_FOUND, "plugin not found");
         return pluginConverter.toDto(entity);
     }
@@ -56,14 +60,17 @@ public class PluginService {
      */
     @Transactional
     public PluginDto create(PluginDto request) {
-        PluginEntity e = new PluginEntity();
+        PluginInstanceEntity e = new PluginInstanceEntity();
         e.setCode(request.code());
         e.setName(request.name());
-        e.setPluginType(request.pluginType());
-        e.setVersion(request.version());
+        e.setPackageCode(request.packageCode());
+        e.setCapabilityCode(request.capabilityCode());
         e.setStatus(request.status());
+        e.setFailMode(request.failMode());
+        e.setTimeoutMs(request.timeoutMs());
+        e.setConfigJson(request.configJson());
         pluginMapper.insert(e);
-        return pluginConverter.toDto(e);
+        return getById(e.getId());
     }
 
     /**
@@ -72,11 +79,35 @@ public class PluginService {
     @Transactional
     public PluginDto updateStatus(Long id, String status) {
         getById(id); // ensure exists
-        PluginEntity e = new PluginEntity();
-        e.setId(id);
-        e.setStatus(status);
-        pluginMapper.updateStatus(e);
+        pluginMapper.updateStatus(id, status);
         return getById(id);
+    }
+
+    @Override
+    public List<PluginBindingView> listBindings(PluginExtensionPoint extensionPoint, PluginStageCode stageCode) {
+        return pluginMapper.listActiveBindings(extensionPoint.name(), stageCode.code()).stream()
+                .map(this::toBindingView)
+                .toList();
+    }
+
+    private PluginBindingView toBindingView(PluginBindingEntity entity) {
+        return new PluginBindingView(
+                entity.getId(),
+                entity.getInstanceId(),
+                entity.getInstanceCode(),
+                entity.getInstanceName(),
+                entity.getPackageCode(),
+                entity.getPackageName(),
+                entity.getCapabilityCode(),
+                PluginExtensionPoint.valueOf(entity.getExtensionPoint()),
+                PluginStageCode.fromCode(entity.getStageCode()),
+                PluginScopeType.valueOf(entity.getScopeType()),
+                entity.getScopeRefId(),
+                entity.getOrderNo(),
+                entity.getConfigJson(),
+                entity.getFailMode(),
+                entity.getTimeoutMs()
+        );
     }
 
     private static String normalizeKeyword(String keyword) {
