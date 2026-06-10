@@ -1,13 +1,12 @@
-import { ref, reactive } from "vue";
+import { reactive, ref } from "vue";
 
 /**
  * 通用分页列表 composable
  *
- * @param {(params: object) => Promise<{list: Array, total: number, pageNum: number, pageSize: number}>} apiFn
- *   接收 { pageNum, pageSize, ...extra } 返回 PageResult 的 API 函数
+ * @param {(params: object) => Promise<{list: Array, total: number}>} apiFn
  * @param {object} [defaults]
- * @param {number} [defaults.pageSize=20]  默认每页条数
- * @param {object} [defaults.extra]        额外查询参数（reactive，修改后调用 load 即可生效）
+ * @param {number} [defaults.pageSize=20]
+ * @param {object} [defaults.extra]
  */
 export function usePageList(apiFn, defaults = {}) {
   const rows = ref([]);
@@ -20,37 +19,36 @@ export function usePageList(apiFn, defaults = {}) {
   async function load() {
     loading.value = true;
     try {
-      const res = await apiFn({
+      const result = await apiFn({
         pageNum: pageNum.value,
         pageSize: pageSize.value,
         ...extra
       });
-      // 兼容 PageResult 和普通数组两种返回
-      if (Array.isArray(res)) {
-        rows.value = res;
-        total.value = res.length;
+      if (Array.isArray(result)) {
+        rows.value = result;
+        total.value = result.length;
       } else {
-        rows.value = res.list || [];
-        total.value = res.total || 0;
+        rows.value = result.list || [];
+        total.value = result.total || 0;
       }
+      return result;
     } finally {
       loading.value = false;
     }
   }
 
-  function onPageChange(page) {
+  async function onPageChange(page) {
     pageNum.value = page;
-    load();
+    return load();
   }
 
-  function onSizeChange(size) {
+  async function onSizeChange(size) {
     pageSize.value = size;
     pageNum.value = 1;
-    load();
+    return load();
   }
 
-  /** 重置到第一页并刷新 */
-  function resetPage() {
+  async function resetPage() {
     pageNum.value = 1;
     return load();
   }

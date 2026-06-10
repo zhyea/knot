@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.error;
 
-/** 鏈櫥褰曟垨 token 鏃犳晥鏃舵姏鍑猴紝鍏ㄥ眬寮傚父澶勭悊鍣ㄥ簲杩斿洖 HTTP 401銆?*/
+/** 未登录或 token 无效时抛出，统一由全局异常处理器返回 HTTP 401。 */
 public class UnauthorizedException extends BusinessException {
 
     /**

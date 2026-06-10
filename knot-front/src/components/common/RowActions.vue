@@ -20,6 +20,7 @@
           </span>
         </template>
       </el-popconfirm>
+
       <el-tooltip v-else :content="action.label" placement="top">
         <el-button
           link
@@ -43,7 +44,9 @@ const props = defineProps({
 
 const emit = defineEmits(["action"]);
 
-const visibleActions = computed(() => props.actions.filter((action) => action && action.hidden !== true));
+const visibleActions = computed(() =>
+  props.actions.filter((action) => action && action.hidden !== true)
+);
 
 function confirmTitle(action) {
   return typeof action.confirm === "string" ? action.confirm : `确认${action.label}？`;

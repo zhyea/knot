@@ -7,9 +7,9 @@ public class AdminApiPermissionBindingEntity {
     private Long id;
     private Long permissionId;
     private String permissionCode;
+    private String permissionName;
     private String httpMethod;
     private String pathPattern;
     private String controllerClass;
-    private String handlerMethod;
     private String status;
 }

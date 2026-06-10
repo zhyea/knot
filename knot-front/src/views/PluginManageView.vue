@@ -40,8 +40,8 @@
 
         <PluginListPanel
           :rows="pluginRows"
-          :status-options="pluginStatusOptions"
           :loading="loading"
+          :status-updating-id="statusUpdatingId"
           :total="total"
           :page-num="pageNum"
           :page-size="pageSize"
@@ -82,24 +82,35 @@ const { rows, loading, total, pageNum, pageSize, load: pageLoad, onPageChange, o
 
 const pluginRows = ref([]);
 const dlg = ref(false);
+const statusUpdatingId = ref(null);
 
 watch(
   rows,
   (list) => {
-    pluginRows.value = list.map((row) => ({ ...row, _st: null }));
+    pluginRows.value = list.map((row) => ({ ...row }));
   },
   { immediate: true }
 );
 
-async function onStatus(row, status) {
-  if (!status) return;
+async function onStatus(row, enabled) {
+  if (!row?.id) {
+    return;
+  }
+  const previousStatus = row.status;
+  const nextStatus = enabled ? "ENABLED" : "DISABLED";
+  if (previousStatus === nextStatus) {
+    return;
+  }
+  statusUpdatingId.value = row.id;
+  row.status = nextStatus;
   try {
-    await updatePluginStatus(row.id, { status });
+    await updatePluginStatus(row.id, { status: nextStatus });
     ElMessage.success("已更新");
-    row._st = null;
     await resetPage();
   } catch {
-    row._st = null;
+    row.status = previousStatus;
+  } finally {
+    statusUpdatingId.value = null;
   }
 }
 

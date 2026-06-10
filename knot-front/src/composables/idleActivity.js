@@ -1,6 +1,6 @@
 import { getStorageItem, removeStorageItem, setStorageItem } from "../utils/storage";
 
-/** 鏃犲悗绔姹傝秴杩囪鏃堕暱鍒欒嚜鍔ㄩ€€鍑猴紙姣锛?*/
+// 无后端请求超过该时长则自动退出，单位：毫秒
 export const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 
 const LAST_ACTIVITY_KEY = "knot_last_activity";
@@ -11,8 +11,8 @@ export function touchIdleActivity() {
 
 export function getLastIdleActivityAt() {
   const raw = getStorageItem(LAST_ACTIVITY_KEY);
-  const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? n : 0;
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
 export function clearIdleActivity() {
@@ -21,6 +21,8 @@ export function clearIdleActivity() {
 
 export function isIdleTimedOut(now = Date.now()) {
   const last = getLastIdleActivityAt();
-  if (!last) return false;
+  if (!last) {
+    return false;
+  }
   return now - last >= IDLE_TIMEOUT_MS;
 }

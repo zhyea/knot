@@ -1,15 +1,16 @@
 package org.chobit.knot.gateway.controller;
 
+import jakarta.validation.Valid;
 import org.chobit.knot.gateway.annotation.OperationLog;
+import org.chobit.knot.gateway.converter.ModelConverter;
+import org.chobit.knot.gateway.dto.model.ModelDto;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
-import org.chobit.knot.gateway.converter.ModelConverter;
-import org.chobit.knot.gateway.dto.model.ModelDto;
 import org.chobit.knot.gateway.service.ModelService;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
-import org.chobit.knot.gateway.vo.model.*;
-import jakarta.validation.Valid;
+import org.chobit.knot.gateway.vo.model.ModelItem;
+import org.chobit.knot.gateway.vo.model.UsageExtractorItem;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,7 +31,7 @@ public class ModelController {
     }
 
     /**
-     * Checks whether the requested condition is satisfied. Executes the public operation.
+     * Checks whether the model code is available.
      */
     @GetMapping("/check-code")
     public Map<String, Boolean> checkCode(
@@ -48,7 +49,7 @@ public class ModelController {
     }
 
     /**
-     * Returns the requested value. Executes the public operation.
+     * Returns the model detail.
      */
     @GetMapping("/{id}")
     public ModelItem get(@PathVariable Long id) {
@@ -56,7 +57,7 @@ public class ModelController {
     }
 
     /**
-     * Lists matching results. Executes the public operation.
+     * Lists models with pagination.
      */
     @PostMapping("/list")
     public PageResult<ModelItem> list(@RequestBody(required = false) PageQuery query) {
@@ -69,50 +70,44 @@ public class ModelController {
     }
 
     /**
-     * Creates a new resource. Executes the public operation.
+     * Creates a model.
      */
     @OperationLog(module = "model", operation = "CREATE", entityType = "Model",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
-            description = "'鏂板缓妯″瀷'",
+            description = "'创建模型'",
             recordNewValue = true,
             newValueSpel = "@modelService.modelAuditSnapshot(#result.id())")
     @PostMapping
-    /**
-     * Creates a new resource.
-     */
     public ModelItem create(@RequestBody @Valid ModelItem request) {
         ModelDto created = modelService.create(modelConverter.toDto(request));
         return modelConverter.toVO(created);
     }
 
     /**
-     * Updates the target resource. Executes the public operation.
+     * Updates a model.
      */
     @OperationLog(module = "model", operation = "UPDATE", entityType = "Model",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'鏇存柊妯″瀷'",
+            description = "'更新模型'",
             recordOldValue = true,
             oldValueSpel = "@modelService.modelAuditSnapshot(#p0)",
             recordNewValue = true,
             newValueSpel = "@modelService.modelAuditSnapshot(#p0)")
     @PutMapping("/{id}")
-    /**
-     * Updates the target resource.
-     */
     public ModelItem update(@PathVariable Long id, @RequestBody @Valid ModelItem request) {
         ModelDto updated = modelService.update(id, modelConverter.toDto(request));
         return modelConverter.toVO(updated);
     }
 
     /**
-     * Updates the target resource status. Executes the public operation.
+     * Updates the model enabled status.
      */
     @OperationLog(module = "model", operation = "UPDATE", entityType = "Model",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'鏇存柊妯″瀷鐘舵€?,'",
+            description = "'更新模型状态'",
             recordOldValue = true,
             oldValueSpel = "@modelService.modelAuditSnapshot(#p0)",
             recordNewValue = true,

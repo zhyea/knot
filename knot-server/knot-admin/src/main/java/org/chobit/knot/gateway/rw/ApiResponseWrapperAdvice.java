@@ -19,7 +19,8 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice;
 import java.util.List;
 
 /**
- * 鍙傝€?zhy-spring-boot-starter 鐨?{@code ResponseWrapperAdvice}锛氬皢涓氬姟杩斿洖鍊肩粺涓€鍖呰涓?{@link ApiResponse}銆?
+ * 参考 zhy-spring-boot-starter 的 ResponseWrapperAdvice，
+ * 将业务返回值统一包装为 {@link ApiResponse}。
  */
 @Slf4j
 @RestControllerAdvice
@@ -36,7 +37,7 @@ public class ApiResponseWrapperAdvice implements ResponseBodyAdvice<Object> {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * Determines whether the current response should be wrapped.
      */
     @Override
     public boolean supports(MethodParameter returnType, Class<? extends HttpMessageConverter<?>> converterType) {
@@ -63,7 +64,7 @@ public class ApiResponseWrapperAdvice implements ResponseBodyAdvice<Object> {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * Wraps the response body as {@link ApiResponse} when required.
      */
     @Override
     public Object beforeBodyWrite(

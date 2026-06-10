@@ -6,19 +6,20 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class CredentialProperties {
 
     /**
-     * 鍑瘉鍔犲瘑鍙ｄ护锛堢粡 SHA-256 娲剧敓涓?AES-256 瀵嗛挜锛夈€傜敓浜х幆澧冭閫氳繃鐜鍙橀噺瑕嗙洊銆?
+     * 凭证加密口令，经 SHA-256 派生为 AES-256 密钥。
+     * 生产环境应通过环境变量或外部配置覆盖。
      */
     private String encryptionKey = "knot-dev-credential-encryption-key";
 
     /**
-     * Returns the requested value. Executes the public operation.
+     * Returns the configured encryption key.
      */
     public String getEncryptionKey() {
         return encryptionKey;
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * Updates the configured encryption key.
      */
     public void setEncryptionKey(String encryptionKey) {
         this.encryptionKey = encryptionKey;

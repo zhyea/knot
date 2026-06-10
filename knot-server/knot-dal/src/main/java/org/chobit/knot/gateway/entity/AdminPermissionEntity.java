@@ -9,7 +9,11 @@ public class AdminPermissionEntity {
     private String permissionName;
     private String permissionType;
     private Long moduleId;
+    private String moduleCode;
+    private String moduleName;
     private Long menuId;
+    private String menuCode;
+    private String menuName;
     private String status;
     private Integer builtIn;
     private String remark;

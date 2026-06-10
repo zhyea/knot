@@ -44,9 +44,14 @@ INSERT IGNORE INTO sys_modules (id, module_code, module_name, icon, sort_order, 
 INSERT IGNORE INTO sys_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
 (1, 1, NULL, 'system.users', '用户管理', '/system/users', 'system/UserManageView', 'User', 10, 'ENABLED'),
 (2, 1, NULL, 'system.departments', '部门管理', '/system/departments', 'system/DepartmentManageView', 'OfficeBuilding', 20, 'ENABLED'),
-(3, 1, NULL, 'system.roles', '角色权限', '/system/roles', 'system/RoleManageView', 'Lock', 30, 'ENABLED'),
+(3, 1, NULL, 'system.role-authorizations', '角色授权', '/system/role-authorizations', 'system/RoleAuthorizationManageView', 'Lock', 30, 'ENABLED'),
 (4, 1, NULL, 'system.logs', '操作日志', '/system/logs', 'system/OperationLogView', 'Document', 40, 'ENABLED'),
-(5, 1, NULL, 'system.settings', '用户设置', '/system/settings', 'system/UserSettingsView', 'Tools', 50, 'ENABLED');
+(5, 1, NULL, 'system.settings', '用户设置', '/system/settings', 'system/UserSettingsView', 'Tools', 50, 'ENABLED'),
+(14, 1, NULL, 'system.scheduled-tasks', '定时任务', '/system/scheduled-tasks', 'system/ScheduledTaskView', 'Timer', 60, 'ENABLED'),
+(15, 1, NULL, 'system.enums', '枚举管理', '/system/enums', 'system/EnumManageView', 'List', 70, 'ENABLED'),
+(16, 1, NULL, 'system.plugins', '插件管理', '/system/plugins', 'PluginManageView', 'Connection', 80, 'ENABLED'),
+(17, 1, NULL, 'system.apps', '应用管理', '/apps', 'AppManageView', 'Grid', 90, 'ENABLED'),
+(18, 1, NULL, 'system.authorization-resources', '授权资源', '/system/authorization-resources', 'system/AuthorizationResourceManageView', 'Lock', 35, 'ENABLED');
 
 INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
 (1, 'system:user:page', '用户管理页面访问', 'PAGE', 1, 1, 'ENABLED', 1, NULL),
@@ -60,12 +65,41 @@ INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permis
 (9, 'system:department:update', '更新部门', 'API', 1, 2, 'ENABLED', 1, NULL),
 (10, 'system:department:enable', '更新部门状态', 'API', 1, 2, 'ENABLED', 1, NULL),
 (11, 'system:department:delete', '删除部门', 'API', 1, 2, 'ENABLED', 1, NULL),
-(12, 'system:role:page', '角色权限页面访问', 'PAGE', 1, 3, 'ENABLED', 1, NULL),
+(12, 'system:role-authorization:page', '角色授权页面访问', 'PAGE', 1, 3, 'ENABLED', 1, NULL),
 (13, 'system:role:view', '查看角色', 'API', 1, 3, 'ENABLED', 1, NULL),
 (14, 'system:log:page', '操作日志页面访问', 'PAGE', 1, 4, 'ENABLED', 1, NULL),
 (15, 'system:log:view', '查看操作日志', 'API', 1, 4, 'ENABLED', 1, NULL),
 (16, 'system:settings:page', '用户设置页面访问', 'PAGE', 1, 5, 'ENABLED', 1, NULL),
-(17, 'system:settings:update', '更新用户设置', 'API', 1, 5, 'ENABLED', 1, NULL);
+(17, 'system:settings:update', '更新用户设置', 'API', 1, 5, 'ENABLED', 1, NULL),
+(27, 'system:scheduled-task:page', '定时任务页面访问', 'PAGE', 1, 14, 'ENABLED', 1, NULL),
+(28, 'system:scheduled-task:view', '查看定时任务', 'API', 1, 14, 'ENABLED', 1, NULL),
+(29, 'system:enum:page', '枚举管理页面访问', 'PAGE', 1, 15, 'ENABLED', 1, NULL),
+(30, 'system:enum:view', '查看枚举管理', 'API', 1, 15, 'ENABLED', 1, NULL),
+(31, 'system:plugin:page', '插件管理页面访问', 'PAGE', 1, 16, 'ENABLED', 1, NULL),
+(32, 'system:plugin:view', '查看插件管理', 'API', 1, 16, 'ENABLED', 1, NULL),
+(33, 'system:app:page', '应用管理页面访问', 'PAGE', 1, 17, 'ENABLED', 1, NULL),
+(34, 'system:app:view', '查看应用管理', 'API', 1, 17, 'ENABLED', 1, NULL),
+(35, 'system:authz:role:create', '创建授权角色', 'API', 1, 3, 'ENABLED', 1, NULL),
+(36, 'system:authz:role:update', '更新授权角色', 'API', 1, 3, 'ENABLED', 1, NULL),
+(37, 'system:authz:role:delete', '删除授权角色', 'API', 1, 3, 'ENABLED', 1, NULL),
+(38, 'system:authz:role:grant', '维护角色授权', 'API', 1, 3, 'ENABLED', 1, NULL),
+(39, 'system:authz:module:view', '查看授权模块', 'API', 1, 18, 'ENABLED', 1, NULL),
+(40, 'system:authz:module:create', '创建授权模块', 'API', 1, 18, 'ENABLED', 1, NULL),
+(41, 'system:authz:module:update', '更新授权模块', 'API', 1, 18, 'ENABLED', 1, NULL),
+(42, 'system:authz:module:delete', '删除授权模块', 'API', 1, 18, 'ENABLED', 1, NULL),
+(43, 'system:authz:menu:view', '查看授权菜单', 'API', 1, 18, 'ENABLED', 1, NULL),
+(44, 'system:authz:menu:create', '创建授权菜单', 'API', 1, 18, 'ENABLED', 1, NULL),
+(45, 'system:authz:menu:update', '更新授权菜单', 'API', 1, 18, 'ENABLED', 1, NULL),
+(46, 'system:authz:menu:delete', '删除授权菜单', 'API', 1, 18, 'ENABLED', 1, NULL),
+(47, 'system:authz:permission:view', '查看授权权限', 'API', 1, 18, 'ENABLED', 1, NULL),
+(48, 'system:authz:permission:create', '创建授权权限', 'API', 1, 18, 'ENABLED', 1, NULL),
+(49, 'system:authz:permission:update', '更新授权权限', 'API', 1, 18, 'ENABLED', 1, NULL),
+(50, 'system:authz:permission:delete', '删除授权权限', 'API', 1, 18, 'ENABLED', 1, NULL),
+(51, 'system:authz:api-binding:view', '查看 API 权限绑定', 'API', 1, 18, 'ENABLED', 1, NULL),
+(52, 'system:authz:api-binding:create', '创建 API 权限绑定', 'API', 1, 18, 'ENABLED', 1, NULL),
+(53, 'system:authz:api-binding:update', '更新 API 权限绑定', 'API', 1, 18, 'ENABLED', 1, NULL),
+(54, 'system:authz:api-binding:delete', '删除 API 权限绑定', 'API', 1, 18, 'ENABLED', 1, NULL),
+(55, 'system:authorization-resource:page', '授权资源页面访问', 'PAGE', 1, 18, 'ENABLED', 1, NULL);
 
 INSERT IGNORE INTO sys_role_permissions (role_id, permission_id)
 SELECT 1, id FROM sys_permissions;
@@ -74,37 +108,128 @@ INSERT IGNORE INTO sys_role_permissions (role_id, permission_id) VALUES
 (2, 1),(2, 2),(2, 6),(2, 7),(2, 14),(2, 15),(2, 16),(2, 17),
 (3, 14),(3, 15),(3, 16),(3, 17);
 
-INSERT IGNORE INTO sys_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, handler_method, status) VALUES
-(1, 2, 'POST', '/api/users', 'UserController', 'list', 'ENABLED'),
-(2, 3, 'POST', '/api/users/create', 'UserController', 'create', 'ENABLED'),
-(3, 5, 'PUT', '/api/users/{id}/status', 'UserController', 'updateStatus', 'ENABLED'),
-(4, 4, 'PUT', '/api/users/{id}', 'UserController', 'updateUser', 'ENABLED'),
-(5, 7, 'POST', '/api/system/departments/list', 'DepartmentController', 'list', 'ENABLED'),
-(6, 7, 'GET', '/api/system/departments/tree', 'DepartmentController', 'tree', 'ENABLED'),
-(7, 8, 'POST', '/api/system/departments', 'DepartmentController', 'create', 'ENABLED'),
-(8, 9, 'PUT', '/api/system/departments/{id}', 'DepartmentController', 'update', 'ENABLED'),
-(9, 10, 'PUT', '/api/system/departments/{id}/status', 'DepartmentController', 'updateStatus', 'ENABLED'),
-(10, 11, 'DELETE', '/api/system/departments/{id}', 'DepartmentController', 'delete', 'ENABLED'),
-(11, 13, 'POST', '/api/system/roles', 'SystemController', 'roles', 'ENABLED'),
-(12, 15, 'POST', '/api/system/operation-logs', 'SystemController', 'operationLogs', 'ENABLED'),
-(13, 15, 'POST', '/api/system/operation-logs/{id}', 'SystemController', 'operationLogDetail', 'ENABLED');
+INSERT IGNORE INTO sys_role_permissions (role_id, permission_id) VALUES
+(2, 27),(2, 28),(2, 29),(2, 30),(2, 31),(2, 32),(2, 33),(2, 34),
+(2, 35),(2, 36),(2, 37),(2, 38),(2, 39),(2, 40),(2, 41),(2, 42),
+(2, 43),(2, 44),(2, 45),(2, 46),(2, 47),(2, 48),(2, 49),(2, 50),
+(2, 51),(2, 52),(2, 53),(2, 54),(2, 55);
+
+INSERT IGNORE INTO sys_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
+(1, 2, 'POST', '/api/users', 'UserController', 'ENABLED'),
+(2, 3, 'POST', '/api/users/create', 'UserController', 'ENABLED'),
+(3, 5, 'PUT', '/api/users/{id}/status', 'UserController', 'ENABLED'),
+(4, 4, 'PUT', '/api/users/{id}', 'UserController', 'ENABLED'),
+(5, 7, 'POST', '/api/system/departments/list', 'DepartmentController', 'ENABLED'),
+(6, 7, 'GET', '/api/system/departments/tree', 'DepartmentController', 'ENABLED'),
+(7, 8, 'POST', '/api/system/departments', 'DepartmentController', 'ENABLED'),
+(8, 9, 'PUT', '/api/system/departments/{id}', 'DepartmentController', 'ENABLED'),
+(9, 10, 'PUT', '/api/system/departments/{id}/status', 'DepartmentController', 'ENABLED'),
+(10, 11, 'DELETE', '/api/system/departments/{id}', 'DepartmentController', 'ENABLED'),
+(11, 13, 'POST', '/api/system/roles', 'SystemController', 'ENABLED'),
+(12, 15, 'POST', '/api/system/operation-logs', 'SystemController', 'ENABLED'),
+(13, 15, 'POST', '/api/system/operation-logs/{id}', 'SystemController', 'ENABLED');
 
 INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
-(18, 'system:settings:view', 'View current user settings and authz', 'API', 1, 5, 'ENABLED', 1, NULL);
+(18, 'system:settings:view', '查看当前用户设置与授权信息', 'API', 1, 5, 'ENABLED', 1, NULL);
 
 INSERT IGNORE INTO sys_role_permissions (role_id, permission_id) VALUES
 (2, 18),
 (3, 18);
 
-INSERT IGNORE INTO sys_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, handler_method, status) VALUES
-(14, 18, 'GET', '/api/user-settings/me', 'UserSettingController', 'listMySettings', 'ENABLED'),
-(15, 17, 'PUT', '/api/user-settings/me', 'UserSettingController', 'saveMySettings', 'ENABLED'),
-(16, 18, 'GET', '/api/me/authorizations', 'CurrentUserController', 'authorizations', 'ENABLED'),
-(17, 15, 'POST', '/api/operation-logs/list', 'OperationLogController', 'list', 'ENABLED'),
-(18, 15, 'GET', '/api/operation-logs/{id}', 'OperationLogController', 'getById', 'ENABLED'),
-(19, 15, 'GET', '/api/operation-logs/module/{module}', 'OperationLogController', 'getByModule', 'ENABLED'),
-(20, 15, 'GET', '/api/operation-logs/operator/{operatorId}', 'OperationLogController', 'getByOperator', 'ENABLED'),
-(21, 15, 'GET', '/api/operation-logs/entity/{entityType}/{entityId}', 'OperationLogController', 'getByEntity', 'ENABLED');
+INSERT IGNORE INTO sys_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
+(14, 18, 'GET', '/api/user-settings/me', 'UserSettingController', 'ENABLED'),
+(15, 17, 'PUT', '/api/user-settings/me', 'UserSettingController', 'ENABLED'),
+(16, 18, 'GET', '/api/me/authorizations', 'CurrentUserController', 'ENABLED'),
+(17, 15, 'POST', '/api/operation-logs/list', 'OperationLogController', 'ENABLED'),
+(18, 15, 'GET', '/api/operation-logs/{id}', 'OperationLogController', 'ENABLED'),
+(19, 15, 'GET', '/api/operation-logs/module/{module}', 'OperationLogController', 'ENABLED'),
+(20, 15, 'GET', '/api/operation-logs/operator/{operatorId}', 'OperationLogController', 'ENABLED'),
+(21, 15, 'GET', '/api/operation-logs/entity/{entityType}/{entityId}', 'OperationLogController', 'ENABLED'),
+(22, 28, 'POST', '/api/system/scheduled-tasks/list', 'ScheduledTaskController', 'ENABLED'),
+(23, 30, 'GET', '/api/enums/summaries', 'EnumController', 'ENABLED'),
+(24, 30, 'GET', '/api/enums/{category}/items', 'EnumController', 'ENABLED'),
+(25, 32, 'POST', '/api/plugins/list', 'PluginController', 'ENABLED'),
+(26, 34, 'POST', '/api/apps/list', 'AppController', 'ENABLED'),
+(27, 13, 'POST', '/api/system/authorizations/roles/list', 'AuthorizationRoleController', 'ENABLED'),
+(28, 13, 'GET', '/api/system/authorizations/roles/{roleId}/snapshot', 'AuthorizationRoleController', 'ENABLED'),
+(29, 35, 'POST', '/api/system/authorizations/roles', 'AuthorizationRoleController', 'ENABLED'),
+(30, 36, 'PUT', '/api/system/authorizations/roles/{id}', 'AuthorizationRoleController', 'ENABLED'),
+(31, 37, 'DELETE', '/api/system/authorizations/roles/{id}', 'AuthorizationRoleController', 'ENABLED'),
+(32, 38, 'PUT', '/api/system/authorizations/roles/{roleId}/permissions', 'AuthorizationRoleController', 'ENABLED'),
+(33, 39, 'GET', '/api/system/authorizations/modules', 'AuthorizationModuleController', 'ENABLED'),
+(34, 40, 'POST', '/api/system/authorizations/modules', 'AuthorizationModuleController', 'ENABLED'),
+(35, 41, 'PUT', '/api/system/authorizations/modules/{id}', 'AuthorizationModuleController', 'ENABLED'),
+(36, 42, 'DELETE', '/api/system/authorizations/modules/{id}', 'AuthorizationModuleController', 'ENABLED'),
+(37, 43, 'GET', '/api/system/authorizations/menus', 'AuthorizationMenuController', 'ENABLED'),
+(38, 44, 'POST', '/api/system/authorizations/menus', 'AuthorizationMenuController', 'ENABLED'),
+(39, 45, 'PUT', '/api/system/authorizations/menus/{id}', 'AuthorizationMenuController', 'ENABLED'),
+(40, 46, 'DELETE', '/api/system/authorizations/menus/{id}', 'AuthorizationMenuController', 'ENABLED'),
+(41, 47, 'GET', '/api/system/authorizations/permissions', 'AuthorizationPermissionController', 'ENABLED'),
+(42, 48, 'POST', '/api/system/authorizations/permissions', 'AuthorizationPermissionController', 'ENABLED'),
+(43, 49, 'PUT', '/api/system/authorizations/permissions/{id}', 'AuthorizationPermissionController', 'ENABLED'),
+(44, 50, 'DELETE', '/api/system/authorizations/permissions/{id}', 'AuthorizationPermissionController', 'ENABLED'),
+(45, 51, 'GET', '/api/system/authorizations/api-bindings', 'AuthorizationApiBindingController', 'ENABLED'),
+(46, 52, 'POST', '/api/system/authorizations/api-bindings', 'AuthorizationApiBindingController', 'ENABLED'),
+(47, 53, 'PUT', '/api/system/authorizations/api-bindings/{id}', 'AuthorizationApiBindingController', 'ENABLED'),
+(48, 54, 'DELETE', '/api/system/authorizations/api-bindings/{id}', 'AuthorizationApiBindingController', 'ENABLED'),
+(49, 41, 'PUT', '/api/system/authorizations/modules/{id}/status', 'AuthorizationModuleController', 'ENABLED'),
+(50, 45, 'PUT', '/api/system/authorizations/menus/{id}/status', 'AuthorizationMenuController', 'ENABLED'),
+(51, 49, 'PUT', '/api/system/authorizations/permissions/{id}/status', 'AuthorizationPermissionController', 'ENABLED'),
+(52, 53, 'PUT', '/api/system/authorizations/api-bindings/{id}/status', 'AuthorizationApiBindingController', 'ENABLED');
+
+UPDATE sys_menus
+SET menu_code = 'system.role-authorizations',
+    menu_name = '角色授权',
+    route_path = '/system/role-authorizations',
+    component_key = 'system/RoleAuthorizationManageView',
+    sort_order = 30,
+    updated_at = NOW()
+WHERE id = 3;
+
+INSERT IGNORE INTO sys_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status)
+VALUES (18, 1, NULL, 'system.authorization-resources', '授权资源', '/system/authorization-resources', 'system/AuthorizationResourceManageView', 'Lock', 35, 'ENABLED');
+
+UPDATE sys_permissions
+SET permission_code = 'system:role-authorization:page',
+    permission_name = '角色授权页面访问',
+    menu_id = 3
+WHERE id = 12;
+
+INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark)
+VALUES (55, 'system:authorization-resource:page', '授权资源页面访问', 'PAGE', 1, 18, 'ENABLED', 1, NULL);
+
+UPDATE sys_permissions
+SET menu_id = 18
+WHERE id IN (39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54);
+
+INSERT IGNORE INTO sys_role_permissions (role_id, permission_id)
+SELECT role_id, 55
+FROM sys_role_permissions
+WHERE permission_id = 12;
+
+INSERT IGNORE INTO sys_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
+(6, 2, NULL, 'model.providers', '供应商管理', '/providers', 'ProviderManageView', 'Connection', 10, 'ENABLED'),
+(7, 2, NULL, 'model.models', '供应商模型', '/model-management/models', 'ModelManageView', 'Cpu', 20, 'ENABLED'),
+(8, 2, NULL, 'model.model-pools', '模型池', '/model-management/model-pools', 'ModelPoolManageView', 'Cpu', 30, 'ENABLED'),
+(9, 2, NULL, 'model.logical-models', '模型广场', '/model-management/logical-models', 'LogicalModelMarketplaceView', 'Cpu', 40, 'ENABLED'),
+(10, 2, NULL, 'model.external-models', '外部模型', '/model-management/external-models', 'ExternalModelManageView', 'Cpu', 50, 'ENABLED'),
+(11, 3, NULL, 'routing.rules', '路由规则', '/routing/rules', 'routing/RoutingRuleView', 'Share', 10, 'ENABLED'),
+(12, 3, NULL, 'routing.consumers', '消费者', '/routing/consumers', 'routing/RoutingConsumerView', 'Share', 20, 'ENABLED'),
+(13, 4, NULL, 'billing.rules', '计费规则', '/billing/rules', 'billing/BillingRuleView', 'Coin', 10, 'ENABLED');
+
+INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
+(19, 'model:provider:page', '供应商管理页面访问', 'PAGE', 2, 6, 'ENABLED', 1, NULL),
+(20, 'model:model:page', '供应商模型页面访问', 'PAGE', 2, 7, 'ENABLED', 1, NULL),
+(21, 'model:model-pool:page', '模型池页面访问', 'PAGE', 2, 8, 'ENABLED', 1, NULL),
+(22, 'model:logical-model:page', '模型广场页面访问', 'PAGE', 2, 9, 'ENABLED', 1, NULL),
+(23, 'model:external-model:page', '外部模型页面访问', 'PAGE', 2, 10, 'ENABLED', 1, NULL),
+(24, 'routing:rule:page', '路由规则页面访问', 'PAGE', 3, 11, 'ENABLED', 1, NULL),
+(25, 'routing:consumer:page', '消费者页面访问', 'PAGE', 3, 12, 'ENABLED', 1, NULL),
+(26, 'billing:rule:page', '计费规则页面访问', 'PAGE', 4, 13, 'ENABLED', 1, NULL);
+
+INSERT IGNORE INTO sys_role_permissions (role_id, permission_id) VALUES
+(2, 19),(2, 20),(2, 21),(2, 22),(2, 23),(2, 24),(2, 25),(2, 26),
+(3, 19),(3, 20),(3, 21),(3, 22),(3, 23),(3, 24),(3, 25),(3, 26);
 
 -- =========================
 -- 供应商与模型

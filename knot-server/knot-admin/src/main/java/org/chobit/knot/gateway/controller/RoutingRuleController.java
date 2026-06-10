@@ -31,7 +31,7 @@ public class RoutingRuleController {
     }
 
     /**
-     * Lists matching results. Executes the public operation.
+     * Lists routing rules with pagination.
      */
     @PostMapping("/list")
     public PageResult<RoutingRule> list(@RequestBody(required = false) PageQuery query) {
@@ -44,7 +44,7 @@ public class RoutingRuleController {
     }
 
     /**
-     * Checks whether the requested condition is satisfied. Executes the public operation.
+     * Checks whether the rule code is available.
      */
     @GetMapping("/check-code")
     public Map<String, Boolean> checkCode(@RequestParam String code,
@@ -53,7 +53,7 @@ public class RoutingRuleController {
     }
 
     /**
-     * Creates a new resource. Executes the public operation.
+     * Creates a routing rule.
      */
     @OperationLog(module = "routing", operation = "CREATE", entityType = "RoutingRule",
             entityIdAfter = "#result.id()",
@@ -68,7 +68,7 @@ public class RoutingRuleController {
     }
 
     /**
-     * Updates the target resource. Executes the public operation.
+     * Updates a routing rule.
      */
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingRule",
             entityId = "#p0",
@@ -85,12 +85,12 @@ public class RoutingRuleController {
     }
 
     /**
-     * Updates the target resource status. Executes the public operation.
+     * Updates the routing rule enabled status.
      */
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingRule",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'鏇存柊璺敱瑙勫垯鐘舵€?,'",
+            description = "'更新路由规则状态'",
             recordOldValue = true,
             oldValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)",
             recordNewValue = true,
@@ -102,7 +102,7 @@ public class RoutingRuleController {
     }
 
     /**
-     * Executes a test operation and returns the result. Executes the public operation.
+     * Executes routing rule test.
      */
     @PostMapping("/{id}/test")
     public RoutingTestResult test(@PathVariable Long id, @RequestBody @Valid RoutingTestRequest request) {

@@ -27,79 +27,23 @@
                 <span>{{ t("menu.dashboard") }}</span>
               </el-menu-item>
 
-              <el-sub-menu index="/system">
-                <template #title>
-                  <el-icon><Setting /></el-icon>
-                  <span>{{ t("menu.system") }}</span>
-                </template>
-                <el-menu-item index="/system/users">{{ t("menu.users") }}</el-menu-item>
-                <el-menu-item index="/system/departments">{{ t("menu.departments") }}</el-menu-item>
-                <el-menu-item index="/system/roles">{{ t("menu.roles") }}</el-menu-item>
-                <el-menu-item index="/system/logs">{{ t("menu.logs") }}</el-menu-item>
-                <el-menu-item index="/system/scheduled-tasks">{{ t("menu.scheduledTasks") }}</el-menu-item>
-                <el-menu-item index="/system/enums">{{ t("menu.enums") }}</el-menu-item>
-                <el-menu-item index="/system/settings">{{ t("menu.settings") }}</el-menu-item>
-                <el-menu-item index="/system/plugins">{{ t("menu.plugins") }}</el-menu-item>
-              </el-sub-menu>
-
-              <el-menu-item index="/providers">
-                <el-icon><Connection /></el-icon>
-                <span>{{ t("menu.providers") }}</span>
-              </el-menu-item>
-
-              <el-sub-menu index="/model-management">
-                <template #title>
-                  <el-icon><Cpu /></el-icon>
-                  <span>{{ t("menu.modelManagement") }}</span>
-                </template>
-                <el-menu-item index="/model-management/models">{{ t("menu.models") }}</el-menu-item>
-                <el-menu-item index="/model-management/model-pools">{{ t("menu.modelPools") }}</el-menu-item>
-                <el-menu-item index="/model-management/logical-models">{{ t("menu.logicalModels") }}</el-menu-item>
-                <el-menu-item index="/model-management/external-models">{{ t("menu.externalModels") }}</el-menu-item>
-              </el-sub-menu>
-
-              <el-menu-item index="/apps">
-                <el-icon><Monitor /></el-icon>
-                <span>{{ t("menu.apps") }}</span>
-              </el-menu-item>
-
-              <el-sub-menu index="/routing">
-                <template #title>
-                  <el-icon><Guide /></el-icon>
-                  <span>{{ t("menu.routing") }}</span>
-                </template>
-                <el-menu-item index="/routing/rules">{{ t("menu.routingRules") }}</el-menu-item>
-                <el-menu-item index="/routing/consumers">{{ t("menu.routingConsumers") }}</el-menu-item>
-              </el-sub-menu>
-
-              <el-sub-menu index="/billing">
-                <template #title>
-                  <el-icon><Money /></el-icon>
-                  <span>{{ t("menu.billing") }}</span>
-                </template>
-                <el-menu-item index="/billing/rules">{{ t("menu.billingRules") }}</el-menu-item>
-                <el-menu-item index="/billing/reconciliation">{{ t("menu.reconciliation") }}</el-menu-item>
-              </el-sub-menu>
-
-              <el-sub-menu index="/security">
-                <template #title>
-                  <el-icon><Lock /></el-icon>
-                  <span>{{ t("menu.security") }}</span>
-                </template>
-                <el-menu-item index="/security/policy">{{ t("menu.securityPolicy") }}</el-menu-item>
-                <el-menu-item index="/security/alerts">{{ t("menu.securityAlerts") }}</el-menu-item>
-                <el-menu-item index="/security/cache">{{ t("menu.securityCache") }}</el-menu-item>
-              </el-sub-menu>
-
-              <el-sub-menu index="/notifications">
-                <template #title>
-                  <el-icon><Bell /></el-icon>
-                  <span>{{ t("menu.notifications") }}</span>
-                </template>
-                <el-menu-item index="/notifications/templates">{{ t("menu.notifyTemplates") }}</el-menu-item>
-                <el-menu-item index="/notifications/send">{{ t("menu.notifySend") }}</el-menu-item>
-                <el-menu-item index="/notifications/policy">{{ t("menu.notifyPolicy") }}</el-menu-item>
-              </el-sub-menu>
+              <template v-for="module in dynamicModules" :key="module.moduleCode">
+                <el-menu-item v-if="module.menus.length === 1" :index="module.menus[0].routePath">
+                  <el-icon><component :is="resolveMenuIcon(module.icon)" /></el-icon>
+                  <span>{{ module.moduleName }}</span>
+                </el-menu-item>
+                <el-sub-menu v-else :index="moduleKey(module)">
+                  <template #title>
+                    <el-icon><component :is="resolveMenuIcon(module.icon)" /></el-icon>
+                    <span>{{ module.moduleName }}</span>
+                  </template>
+                  <DynamicMenuNode
+                    v-for="menu in module.menus"
+                    :key="menu.menuCode"
+                    :menu="menu"
+                  />
+                </el-sub-menu>
+              </template>
             </el-menu>
           </el-scrollbar>
         </el-main>
@@ -167,13 +111,17 @@ import {
   Money,
   Monitor,
   Odometer,
+  OfficeBuilding,
   Setting,
+  Share,
+  Tools,
   User
 } from "@element-plus/icons-vue";
 import { useAuth } from "../composables/useAuth";
 import { useLocale } from "../composables/useLocale";
 import { getStorageItem, setStorageItem } from "../utils/storage";
 import { ref } from "vue";
+import DynamicMenuNode from "../components/layout/DynamicMenuNode.vue";
 
 const LS_ASIDE_WIDTH = "knot.sidebar.widthPx";
 const LS_ASIDE_COLLAPSED = "knot.sidebar.collapsed";
@@ -184,8 +132,27 @@ const ASIDE_COLLAPSED_PX = 64;
 
 const route = useRoute();
 const router = useRouter();
-const { user, logout } = useAuth();
+const { user, modules, logout, loadAuthorizations } = useAuth();
 const { t } = useLocale();
+
+const iconMap = {
+  Bell,
+  Box: Cpu,
+  Coin: Money,
+  Connection,
+  Cpu,
+  Document: Bell,
+  Guide,
+  Lock,
+  Money,
+  Monitor,
+  OfficeBuilding,
+  Odometer,
+  Setting,
+  Share,
+  Tools,
+  User
+};
 
 const activePath = computed(() => route.path);
 const pageTitle = computed(() => {
@@ -208,6 +175,10 @@ const openeds = computed(() => {
   const match = route.path.match(/^\/([^/]+)/);
   return match ? [`/${match[1]}`] : [];
 });
+
+const dynamicModules = computed(() =>
+  (modules.value || []).filter((module) => Array.isArray(module.menus) && module.menus.length > 0)
+);
 
 function clearResizeListeners() {
   if (asideMoveHandler) {
@@ -233,6 +204,9 @@ onMounted(() => {
     asideWidth.value = width;
   }
   asideCollapsed.value = getStorageItem(LS_ASIDE_COLLAPSED) === "1";
+  if (user.value?.userId) {
+    loadAuthorizations().catch(() => undefined);
+  }
 });
 
 watch(asideWidth, (value) => {
@@ -249,6 +223,15 @@ onBeforeUnmount(() => {
 
 function toggleAsideCollapsed() {
   asideCollapsed.value = !asideCollapsed.value;
+}
+
+function moduleKey(module) {
+  const firstRoute = module.menus?.[0]?.routePath;
+  return firstRoute || `/${module.moduleCode}`;
+}
+
+function resolveMenuIcon(iconName) {
+  return iconMap[iconName] || Setting;
 }
 
 function onAsideResizeStart(downEvent) {

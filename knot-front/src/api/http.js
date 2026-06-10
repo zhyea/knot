@@ -25,9 +25,8 @@ http.interceptors.request.use((config) => {
 http.interceptors.response.use(
   (response) => {
     const body = response.data;
-    // 如果请求配置了 silentError，则不显示错误提示，由调用方处理
     const silentError = response.config?.silentError;
-    
+
     if (body && typeof body.success === "boolean" && body.success === false) {
       if (!silentError) {
         ElMessage.error(body.message || "请求失败");
@@ -41,16 +40,18 @@ http.interceptors.response.use(
     return response;
   },
   (error) => {
-    // 401 未授权，清除 token 并跳转到登录页
-    if (error.response?.status === 401) {
+    const requestUrl = error.config?.url || "";
+    const isLoginRequest = requestUrl.includes("/api/auth/login");
+
+    // 401 未授权时，清理 token 并跳转到登录页
+    if (error.response?.status === 401 && !isLoginRequest) {
       const { logout } = useAuth();
       logout();
-      router.push('/login');
-      ElMessage.error('登录已过期，请重新登录');
-      return Promise.reject(new Error('登录已过期'));
+      router.push("/login");
+      ElMessage.error("登录已过期，请重新登录");
+      return Promise.reject(new Error("登录已过期"));
     }
-    
-    // 如果请求配置了 silentError，则不显示错误提示
+
     const silentError = error.config?.silentError;
     if (!silentError) {
       const msg =
@@ -65,8 +66,8 @@ http.interceptors.response.use(
 );
 
 /**
- * 解包 Spring `ApiResponse`：`{ success, message, data }` → `data`
- * 非 ApiResponse 的响应原样返回 data 字段或整个 body
+ * 解包 Spring `ApiResponse`：`{ success, message, data }` -> `data`
+ * 非 `ApiResponse` 的响应则原样返回 `body`
  */
 export function unwrapData(response) {
   const body = response.data;
@@ -76,11 +77,6 @@ export function unwrapData(response) {
   return body;
 }
 
-/**
- * 查询接口统一使用 POST，参数放入请求体
- * @param {string} url
- * @param {object} data 请求体参数（原 get 的 params）
- */
 export function get(url, config) {
   return http.get(url, config).then(unwrapData);
 }

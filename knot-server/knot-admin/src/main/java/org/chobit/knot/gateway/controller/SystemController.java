@@ -8,7 +8,10 @@ import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.SystemService;
-import org.chobit.knot.gateway.vo.system.*;
+import org.chobit.knot.gateway.vo.system.OperationLogDetail;
+import org.chobit.knot.gateway.vo.system.OperationLogItem;
+import org.chobit.knot.gateway.vo.system.RoleItem;
+import org.chobit.knot.gateway.vo.system.SystemLogItem;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -28,7 +31,7 @@ public class SystemController {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * Returns static role options.
      */
     @AuthCheck
     @PostMapping("/roles")
@@ -42,7 +45,7 @@ public class SystemController {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * Returns system log type options.
      */
     @PostMapping("/log-types")
     public List<String> logTypes() {
@@ -50,28 +53,29 @@ public class SystemController {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * Returns recent system logs assembled from operation logs.
      */
     @PostMapping("/logs")
     public List<SystemLogItem> logs() {
-        // 杩斿洖鏈€杩戠殑绯荤粺鏃ュ織锛屼粠鎿嶄綔鏃ュ織涓彁鍙?
         return systemService.listOperationLogs(PageRequest.of(1, 10)).list().stream()
                 .map(dto -> new SystemLogItem(dto.moduleCode(), "INFO", dto.actionCode()))
                 .toList();
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * Lists operation logs with pagination.
      */
     @AuthCheck
     @PostMapping("/operation-logs")
     public PageResult<OperationLogItem> operationLogs(@RequestBody(required = false) PageQuery query) {
-        PageResult<OperationLogDto> page = systemService.listOperationLogs(query == null ? PageRequest.of(1, 20) : query.toPageRequest());
+        PageResult<OperationLogDto> page = systemService.listOperationLogs(
+                query == null ? PageRequest.of(1, 20) : query.toPageRequest()
+        );
         return page.mapList(systemConverter::toOperationLogVOList);
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * Returns operation log detail.
      */
     @AuthCheck
     @PostMapping("/operation-logs/{id}")
@@ -79,5 +83,4 @@ public class SystemController {
         OperationLogDetailDto detail = systemService.getOperationLogDetail(id);
         return systemConverter.toOperationLogDetailVO(detail);
     }
-
 }

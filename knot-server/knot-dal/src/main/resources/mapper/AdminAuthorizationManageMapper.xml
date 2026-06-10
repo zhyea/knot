@@ -1,0 +1,439 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.AdminAuthorizationManageMapper">
+
+    <select id="listRoles" resultType="org.chobit.knot.gateway.entity.AdminRoleEntity">
+        select id, code, name, description
+        from roles
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (
+                    code like concat('%', #{keyword}, '%')
+                    or name like concat('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
+        order by id asc
+    </select>
+
+    <select id="getRoleById" resultType="org.chobit.knot.gateway.entity.AdminRoleEntity">
+        select id, code, name, description
+        from roles
+        where id = #{id}
+    </select>
+
+    <select id="countRoleByCode" resultType="java.lang.Long">
+        select count(1)
+        from roles
+        where code = #{code}
+        <if test="excludeId != null">
+            and id != #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insertRole" useGeneratedKeys="true" keyProperty="id">
+        insert into roles(code, name, description, created_at, updated_at)
+        values(#{code}, #{name}, #{description}, now(), now())
+    </insert>
+
+    <update id="updateRole">
+        update roles
+        set code = #{code},
+            name = #{name},
+            description = #{description},
+            updated_at = now()
+        where id = #{id}
+    </update>
+
+    <delete id="deleteRole">
+        delete from roles where id = #{id}
+    </delete>
+
+    <select id="countUserRoles" resultType="java.lang.Long">
+        select count(1) from user_roles where role_id = #{roleId}
+    </select>
+
+    <select id="listRolePermissionIds" resultType="java.lang.Long">
+        select permission_id
+        from sys_role_permissions
+        where role_id = #{roleId}
+        order by permission_id asc
+    </select>
+
+    <delete id="deleteRolePermissions">
+        delete from sys_role_permissions where role_id = #{roleId}
+    </delete>
+
+    <insert id="insertRolePermissions">
+        insert into sys_role_permissions(role_id, permission_id)
+        values
+        <foreach collection="permissionIds" item="permissionId" separator=",">
+            (#{roleId}, #{permissionId})
+        </foreach>
+    </insert>
+
+    <select id="listModules" resultType="org.chobit.knot.gateway.entity.AdminModuleEntity">
+        select id, module_code, module_name, icon, sort_order, status
+        from sys_modules
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (
+                    module_code like concat('%', #{keyword}, '%')
+                    or module_name like concat('%', #{keyword}, '%')
+                )
+            </if>
+        </where>
+        order by sort_order asc, id asc
+    </select>
+
+    <select id="getModuleById" resultType="org.chobit.knot.gateway.entity.AdminModuleEntity">
+        select id, module_code, module_name, icon, sort_order, status
+        from sys_modules
+        where id = #{id}
+    </select>
+
+    <select id="countModuleByCode" resultType="java.lang.Long">
+        select count(1)
+        from sys_modules
+        where module_code = #{moduleCode}
+        <if test="excludeId != null">
+            and id != #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insertModule" useGeneratedKeys="true" keyProperty="id">
+        insert into sys_modules(module_code, module_name, icon, sort_order, status, created_at, updated_at)
+        values(#{moduleCode}, #{moduleName}, #{icon}, #{sortOrder}, #{status}, now(), now())
+    </insert>
+
+    <update id="updateModule">
+        update sys_modules
+        set module_code = #{moduleCode},
+            module_name = #{moduleName},
+            icon = #{icon},
+            sort_order = #{sortOrder},
+            status = #{status},
+            updated_at = now()
+        where id = #{id}
+    </update>
+
+    <update id="updateModuleStatus">
+        update sys_modules
+        set status = #{status},
+            updated_at = now()
+        where id = #{id}
+    </update>
+
+    <delete id="deleteModule">
+        delete from sys_modules where id = #{id}
+    </delete>
+
+    <select id="countMenusByModuleId" resultType="java.lang.Long">
+        select count(1) from sys_menus where module_id = #{moduleId}
+    </select>
+
+    <select id="countPermissionsByModuleId" resultType="java.lang.Long">
+        select count(1) from sys_permissions where module_id = #{moduleId}
+    </select>
+
+    <select id="listMenus" resultType="org.chobit.knot.gateway.entity.AdminMenuEntity">
+        select m.id,
+               m.module_id,
+               sm.module_code,
+               sm.module_name,
+               sm.icon as module_icon,
+               sm.sort_order as module_sort_order,
+               m.parent_id,
+               m.menu_code,
+               m.menu_name,
+               m.route_path,
+               m.component_key,
+               m.icon,
+               m.sort_order,
+               m.status
+        from sys_menus m
+        inner join sys_modules sm on sm.id = m.module_id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (
+                    m.menu_code like concat('%', #{keyword}, '%')
+                    or m.menu_name like concat('%', #{keyword}, '%')
+                    or m.route_path like concat('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="moduleId != null">
+                and m.module_id = #{moduleId}
+            </if>
+            <if test="parentId != null">
+                and m.parent_id = #{parentId}
+            </if>
+        </where>
+        order by sm.sort_order asc, sm.id asc, m.sort_order asc, m.id asc
+    </select>
+
+    <select id="getMenuById" resultType="org.chobit.knot.gateway.entity.AdminMenuEntity">
+        select m.id,
+               m.module_id,
+               sm.module_code,
+               sm.module_name,
+               sm.icon as module_icon,
+               sm.sort_order as module_sort_order,
+               m.parent_id,
+               m.menu_code,
+               m.menu_name,
+               m.route_path,
+               m.component_key,
+               m.icon,
+               m.sort_order,
+               m.status
+        from sys_menus m
+        inner join sys_modules sm on sm.id = m.module_id
+        where m.id = #{id}
+    </select>
+
+    <select id="countMenuByCode" resultType="java.lang.Long">
+        select count(1)
+        from sys_menus
+        where menu_code = #{menuCode}
+        <if test="excludeId != null">
+            and id != #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insertMenu" useGeneratedKeys="true" keyProperty="id">
+        insert into sys_menus(
+            module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status, created_at, updated_at
+        )
+        values(
+            #{moduleId}, #{parentId}, #{menuCode}, #{menuName}, #{routePath}, #{componentKey}, #{icon}, #{sortOrder}, #{status}, now(), now()
+        )
+    </insert>
+
+    <update id="updateMenu">
+        update sys_menus
+        set module_id = #{moduleId},
+            parent_id = #{parentId},
+            menu_code = #{menuCode},
+            menu_name = #{menuName},
+            route_path = #{routePath},
+            component_key = #{componentKey},
+            icon = #{icon},
+            sort_order = #{sortOrder},
+            status = #{status},
+            updated_at = now()
+        where id = #{id}
+    </update>
+
+    <update id="updateMenuStatus">
+        update sys_menus
+        set status = #{status},
+            updated_at = now()
+        where id = #{id}
+    </update>
+
+    <delete id="deleteMenu">
+        delete from sys_menus where id = #{id}
+    </delete>
+
+    <select id="countChildMenus" resultType="java.lang.Long">
+        select count(1) from sys_menus where parent_id = #{parentId}
+    </select>
+
+    <select id="countPermissionsByMenuId" resultType="java.lang.Long">
+        select count(1) from sys_permissions where menu_id = #{menuId}
+    </select>
+
+    <select id="listPermissions" resultType="org.chobit.knot.gateway.entity.AdminPermissionEntity">
+        select p.id,
+               p.permission_code,
+               p.permission_name,
+               p.permission_type,
+               p.module_id,
+               sm.module_code,
+               sm.module_name,
+               p.menu_id,
+               m.menu_code,
+               m.menu_name,
+               p.status,
+               p.built_in,
+               p.remark
+        from sys_permissions p
+        inner join sys_modules sm on sm.id = p.module_id
+        left join sys_menus m on m.id = p.menu_id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (
+                    p.permission_code like concat('%', #{keyword}, '%')
+                    or p.permission_name like concat('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="moduleId != null">
+                and p.module_id = #{moduleId}
+            </if>
+            <if test="menuId != null">
+                and p.menu_id = #{menuId}
+            </if>
+            <if test="permissionType != null and permissionType != ''">
+                and p.permission_type = #{permissionType}
+            </if>
+        </where>
+        order by sm.sort_order asc, p.permission_type asc, p.id asc
+    </select>
+
+    <select id="getPermissionById" resultType="org.chobit.knot.gateway.entity.AdminPermissionEntity">
+        select p.id,
+               p.permission_code,
+               p.permission_name,
+               p.permission_type,
+               p.module_id,
+               sm.module_code,
+               sm.module_name,
+               p.menu_id,
+               m.menu_code,
+               m.menu_name,
+               p.status,
+               p.built_in,
+               p.remark
+        from sys_permissions p
+        inner join sys_modules sm on sm.id = p.module_id
+        left join sys_menus m on m.id = p.menu_id
+        where p.id = #{id}
+    </select>
+
+    <select id="countPermissionByCode" resultType="java.lang.Long">
+        select count(1)
+        from sys_permissions
+        where permission_code = #{permissionCode}
+        <if test="excludeId != null">
+            and id != #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insertPermission" useGeneratedKeys="true" keyProperty="id">
+        insert into sys_permissions(
+            permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark, created_at, updated_at
+        )
+        values(
+            #{permissionCode}, #{permissionName}, #{permissionType}, #{moduleId}, #{menuId}, #{status}, #{builtIn}, #{remark}, now(), now()
+        )
+    </insert>
+
+    <update id="updatePermission">
+        update sys_permissions
+        set permission_code = #{permissionCode},
+            permission_name = #{permissionName},
+            permission_type = #{permissionType},
+            module_id = #{moduleId},
+            menu_id = #{menuId},
+            status = #{status},
+            built_in = #{builtIn},
+            remark = #{remark},
+            updated_at = now()
+        where id = #{id}
+    </update>
+
+    <update id="updatePermissionStatus">
+        update sys_permissions
+        set status = #{status},
+            updated_at = now()
+        where id = #{id}
+    </update>
+
+    <delete id="deletePermission">
+        delete from sys_permissions where id = #{id}
+    </delete>
+
+    <select id="countRolePermissionUsage" resultType="java.lang.Long">
+        select count(1) from sys_role_permissions where permission_id = #{permissionId}
+    </select>
+
+    <select id="countApiBindingUsage" resultType="java.lang.Long">
+        select count(1) from sys_api_permission_bindings where permission_id = #{permissionId}
+    </select>
+
+    <select id="listApiPermissionBindings" resultType="org.chobit.knot.gateway.entity.AdminApiPermissionBindingEntity">
+        select b.id,
+               b.permission_id,
+               p.permission_code,
+               p.permission_name,
+               b.http_method,
+               b.path_pattern,
+               b.controller_class,
+               b.status
+        from sys_api_permission_bindings b
+        inner join sys_permissions p on p.id = b.permission_id
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (
+                    p.permission_code like concat('%', #{keyword}, '%')
+                    or p.permission_name like concat('%', #{keyword}, '%')
+                    or b.path_pattern like concat('%', #{keyword}, '%')
+                    or b.controller_class like concat('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="httpMethod != null and httpMethod != ''">
+                and b.http_method = #{httpMethod}
+            </if>
+            <if test="permissionId != null">
+                and b.permission_id = #{permissionId}
+            </if>
+        </where>
+        order by b.id asc
+    </select>
+
+    <select id="getApiPermissionBindingById" resultType="org.chobit.knot.gateway.entity.AdminApiPermissionBindingEntity">
+        select b.id,
+               b.permission_id,
+               p.permission_code,
+               p.permission_name,
+               b.http_method,
+               b.path_pattern,
+               b.controller_class,
+               b.status
+        from sys_api_permission_bindings b
+        inner join sys_permissions p on p.id = b.permission_id
+        where b.id = #{id}
+    </select>
+
+    <select id="countApiPermissionBinding" resultType="java.lang.Long">
+        select count(1)
+        from sys_api_permission_bindings
+        where http_method = #{httpMethod}
+          and path_pattern = #{pathPattern}
+        <if test="excludeId != null">
+            and id != #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insertApiPermissionBinding" useGeneratedKeys="true" keyProperty="id">
+        insert into sys_api_permission_bindings(
+            permission_id, http_method, path_pattern, controller_class, status, created_at, updated_at
+        )
+        values(
+            #{permissionId}, #{httpMethod}, #{pathPattern}, #{controllerClass}, #{status}, now(), now()
+        )
+    </insert>
+
+    <update id="updateApiPermissionBinding">
+        update sys_api_permission_bindings
+        set permission_id = #{permissionId},
+            http_method = #{httpMethod},
+            path_pattern = #{pathPattern},
+            controller_class = #{controllerClass},
+            status = #{status},
+            updated_at = now()
+        where id = #{id}
+    </update>
+
+    <update id="updateApiPermissionBindingStatus">
+        update sys_api_permission_bindings
+        set status = #{status},
+            updated_at = now()
+        where id = #{id}
+    </update>
+
+    <delete id="deleteApiPermissionBinding">
+        delete from sys_api_permission_bindings where id = #{id}
+    </delete>
+
+</mapper>

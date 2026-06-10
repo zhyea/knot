@@ -15,12 +15,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * MapStruct 鍏变韩杞崲鏂规硶锛歴tatus鈫攅nabled銆丣SON鈫擮bject
+ * Shared MapStruct mapping helpers for status flags and JSON-backed fields.
  */
 @Component
 public class CommonMappings {
 
-    // ==================== status 鈫?enabled ====================
+    // ==================== status <-> enabled ====================
 
     /**
      * Executes the public operation. Executes the public operation.
@@ -57,7 +57,7 @@ public class CommonMappings {
         return enabled ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code();
     }
 
-    // ==================== JSON 鈫?RateLimitPolicy ====================
+    // ==================== JSON <-> RateLimitPolicy ====================
 
     /**
      * Executes the public operation. Executes the public operation.
@@ -81,7 +81,7 @@ public class CommonMappings {
         return json;
     }
 
-    // ==================== JSON 鈫?QuotaPolicy ====================
+    // ==================== JSON <-> QuotaPolicy ====================
 
     /**
      * Executes the public operation. Executes the public operation.
@@ -105,7 +105,7 @@ public class CommonMappings {
         return json;
     }
 
-    // ==================== JSON 鈫?Map (璁よ瘉閰嶇疆绛? ====================
+    // ==================== JSON <-> Map (auth config) ====================
 
     /**
      * Executes the public operation. Executes the public operation.
@@ -134,7 +134,7 @@ public class CommonMappings {
         return json;
     }
 
-    // ==================== Long id 鈫?Alert ID (ALERT- 鍓嶇紑) ====================
+    // ==================== Long id <-> Alert ID (ALERT- prefix) ====================
 
     /**
      * Executes the public operation. Executes the public operation.
@@ -144,7 +144,7 @@ public class CommonMappings {
         return id == null ? "ALERT-0" : "ALERT-" + id;
     }
 
-    // ==================== String 鈫?Long (owner 瀛楁) ====================
+    // ==================== String <-> Long (owner field) ====================
 
     /**
      * Executes the public operation. Executes the public operation.
@@ -159,7 +159,7 @@ public class CommonMappings {
         }
     }
 
-    // ==================== JSON 鈫?List<Integer> (steps) ====================
+    // ==================== JSON <-> List<Integer> (steps) ====================
 
     /**
      * Executes the public operation. Executes the public operation.

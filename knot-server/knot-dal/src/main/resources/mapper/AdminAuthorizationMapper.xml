@@ -19,7 +19,6 @@
                b.http_method,
                b.path_pattern,
                b.controller_class,
-               b.handler_method,
                b.status
         from sys_api_permission_bindings b
         inner join sys_permissions p on p.id = b.permission_id
@@ -55,7 +54,7 @@
           and p.status = 'ENABLED'
           and m.status = 'ENABLED'
           and sm.status = 'ENABLED'
-        order by sm.sort_order asc, sm.id asc, m.sort_order asc, m.id asc
+        order by sm.sort_order asc, m.sort_order asc, m.id asc
     </select>
 
 </mapper>

@@ -1,51 +1,70 @@
 <template>
   <PageSection>
-    <div class="list-page-shell">
-      <section class="list-page-block">
-        <div class="list-page-filters">
-          <div class="list-filter-item list-filter-item--grow">
-            <span class="list-filter-label">关键词</span>
-            <el-input
-              v-model="keyword"
-              class="list-filter-control--wide"
-              placeholder="按编码、名称筛选"
-              clearable
-            />
-          </div>
-        </div>
-      </section>
-
-      <section class="list-page-block list-page-block--content">
-        <RoleListPanel
-          :rows="filteredRows"
-          :loading="loading"
-          :total="filteredRows.length"
-          :page-num="1"
-          :page-size="filteredRows.length || pageSize"
-          :show-refresh="false"
+    <div class="auth-manage">
+      <section class="list-page-block auth-manage__switcher">
+        <el-segmented
+          v-model="state.activeSection.value"
+          :options="sectionOptions"
+          block
         />
       </section>
+
+      <RoleAuthorizationView
+        v-if="state.activeSection.value === 'roles'"
+        :state="state"
+      />
+      <AuthorizationResourceView
+        v-else
+        :state="state"
+      />
     </div>
+
+    <AuthorizationRoleFormDialog
+      v-model="state.roleDialogVisible.value"
+      :role="state.editingRole.value"
+      @saved="state.onRoleSaved"
+    />
+
+    <AuthorizationEntityFormDialog
+      v-model="state.resourceDialogVisible.value"
+      :title="state.resourceDialogTitle.value"
+      :form="state.resourceDialogForm.value"
+      :fields="state.resourceDialogFields.value"
+      :submitter="state.resourceDialogSubmitter.value"
+      @saved="state.onResourceSaved"
+    />
   </PageSection>
 </template>
 
 <script setup>
-import { computed, ref } from "vue";
+import { onMounted } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
-import RoleListPanel from "../../components/system/RoleListPanel.vue";
-import { usePageList } from "../../composables/usePageList";
-import { listSystemRoles } from "../../api/system";
+import AuthorizationEntityFormDialog from "../../components/system/auth/AuthorizationEntityFormDialog.vue";
+import AuthorizationRoleFormDialog from "../../components/system/auth/AuthorizationRoleFormDialog.vue";
+import { useAuthorizationManagement } from "../../composables/useAuthorizationManagement";
+import AuthorizationResourceView from "./auth/AuthorizationResourceView.vue";
+import RoleAuthorizationView from "./auth/RoleAuthorizationView.vue";
 
-const keyword = ref("");
-const { rows, loading, pageSize, load } = usePageList(listSystemRoles);
+const state = useAuthorizationManagement();
 
-const filteredRows = computed(() => {
-  const value = keyword.value.trim().toLowerCase();
-  if (!value) return rows.value;
-  return rows.value.filter((row) =>
-    [row.code, row.name].some((item) => String(item || "").toLowerCase().includes(value))
-  );
+const sectionOptions = [
+  { label: "角色授权", value: "roles" },
+  { label: "授权资源", value: "resources" }
+];
+
+onMounted(() => {
+  state.initializePage();
 });
-
-load();
 </script>
+
+<style scoped>
+.auth-manage {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-manage__switcher {
+  padding: 0;
+}
+</style>

@@ -21,7 +21,9 @@ const routes = [
     children: [
       { path: "users", name: "system-users", component: () => import("@/views/system/UserManageView.vue"), meta: { titleKey: "route.systemUsers" } },
       { path: "departments", name: "system-departments", component: () => import("@/views/system/DepartmentManageView.vue"), meta: { titleKey: "route.systemDepartments" } },
-      { path: "roles", name: "system-roles", component: () => import("@/views/system/RoleManageView.vue"), meta: { titleKey: "route.systemRoles" } },
+      { path: "roles", redirect: { name: "system-role-authorizations" } },
+      { path: "role-authorizations", name: "system-role-authorizations", component: () => import("@/views/system/RoleAuthorizationManageView.vue"), meta: { titleKey: "route.systemRoleAuthorizations" } },
+      { path: "authorization-resources", name: "system-authorization-resources", component: () => import("@/views/system/AuthorizationResourceManageView.vue"), meta: { titleKey: "route.systemAuthorizationResources" } },
       { path: "logs", name: "system-logs", component: () => import("@/views/system/OperationLogView.vue"), meta: { titleKey: "route.systemLogs" } },
       { path: "scheduled-tasks", name: "system-scheduled-tasks", component: () => import("@/views/system/ScheduledTaskView.vue"), meta: { titleKey: "route.systemScheduledTasks" } },
       { path: "enums", name: "system-enums", component: () => import("@/views/system/EnumManageView.vue"), meta: { titleKey: "route.systemEnums" } },

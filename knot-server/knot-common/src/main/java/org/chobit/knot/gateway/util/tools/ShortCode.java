@@ -4,10 +4,10 @@ import java.text.DecimalFormat;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Executes the public operation. Executes the public operation.
- */
-/**
- * 鐭爜鐢熸垚锛屽弬鑰?<a href="https://github.com/zhyea/zhy-commons/blob/main/common-utils/src/main/java/org/chobit/commons/tools/ShortCode.java">zhy-commons ShortCode</a>銆?
+ * 短码生成工具，参考
+ * <a href="https://github.com/zhyea/zhy-commons/blob/main/common-utils/src/main/java/org/chobit/commons/tools/ShortCode.java">
+ *     zhy-commons ShortCode
+ * </a>
  */
 public final class ShortCode {
 
@@ -16,11 +16,11 @@ public final class ShortCode {
     private static final int MAX_PAD_SIZE = 100;
 
     /**
-     * Executes the public operation.
+     * Generates an uppercase short code.
      */
     public static synchronized String genUpper() {
-        long v = longValue();
-        return Base36.encode(v);
+        long value = longValue();
+        return Base36.encode(value);
     }
 
     private static long longValue() {
