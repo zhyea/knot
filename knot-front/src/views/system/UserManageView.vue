@@ -59,6 +59,7 @@ import PageSection from "../../components/common/PageSection.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import UserFormDrawer from "../../components/system/UserFormDrawer.vue";
 import UserListPanel from "../../components/system/UserListPanel.vue";
+import { useAutoQuery } from "../../composables/useAutoQuery";
 import { usePageList } from "../../composables/usePageList";
 import { listUsers, updateUserStatus } from "../../api/users";
 import { listUserOperationLogs } from "../../api/operationLogs";
@@ -69,6 +70,7 @@ const query = reactive({
 
 const { rows, loading, total, pageNum, pageSize, load: pageLoad, onPageChange, onSizeChange, resetPage } =
   usePageList(listUsers, { extra: query });
+const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
 const users = ref([]);
 
 const drawerVisible = ref(false);
@@ -124,12 +126,14 @@ async function onStatusChange(row, status) {
 }
 
 function handleQuery() {
-  return resetPage();
+  return pauseAutoQuery(() => resetPage());
 }
 
 function handleReset() {
-  query.keyword = "";
-  return resetPage();
+  return pauseAutoQuery(() => {
+    query.keyword = "";
+    return resetPage();
+  });
 }
 
 pageLoad();

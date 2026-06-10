@@ -58,6 +58,7 @@ import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import RoutingConsumerFormDrawer from "../../components/routing/RoutingConsumerFormDrawer.vue";
 import RoutingConsumerListPanel from "../../components/routing/RoutingConsumerListPanel.vue";
+import { useAutoQuery } from "../../composables/useAutoQuery";
 import { usePageList } from "../../composables/usePageList";
 import { useEnabledToggle } from "../../composables/useEnabledToggle";
 import {
@@ -72,6 +73,7 @@ const query = reactive({
 
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
   usePageList(listRoutingConsumers, { extra: query });
+const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
 
 const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateRoutingConsumerStatus
@@ -117,12 +119,14 @@ async function copySecretKey(secretKey) {
 }
 
 function handleQuery() {
-  return resetPage();
+  return pauseAutoQuery(() => resetPage());
 }
 
 function handleReset() {
-  query.keyword = "";
-  return resetPage();
+  return pauseAutoQuery(() => {
+    query.keyword = "";
+    return resetPage();
+  });
 }
 
 load();

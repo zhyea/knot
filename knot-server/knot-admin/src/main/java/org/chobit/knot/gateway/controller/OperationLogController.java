@@ -1,8 +1,10 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.annotation.AuthCheck;
+import org.chobit.knot.gateway.dto.system.OperationLogListResult;
+import org.chobit.knot.gateway.dto.system.OperationLogQuery;
 import org.chobit.knot.gateway.entity.OperationLogEntity;
-import org.chobit.knot.gateway.model.PageQuery;
+import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.service.OperationLogService;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,9 +31,20 @@ public class OperationLogController {
      * 分页查询操作日志。
      */
     @PostMapping("/list")
-    public List<OperationLogEntity> list(@RequestBody PageQuery query) {
-        // TODO: 实现分页查询
-        return operationLogService.listByModule(null, null, null, null);
+    public OperationLogListResult list(@RequestBody(required = false) OperationLogQuery query) {
+        OperationLogQuery request = query == null ? new OperationLogQuery(1, 20, null, null, null) : query;
+        var page = operationLogService.list(
+                request.toPageRequest(),
+                request.module(),
+                request.operation(),
+                request.status()
+        );
+        return OperationLogListResult.of(
+                page,
+                operationLogService.listModules(),
+                operationLogService.listOperations(),
+                operationLogService.listStatuses()
+        );
     }
 
     /**

@@ -63,6 +63,7 @@ import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
 import PluginFormDialog from "../components/plugin/PluginFormDialog.vue";
 import PluginListPanel from "../components/plugin/PluginListPanel.vue";
+import { useAutoQuery } from "../composables/useAutoQuery";
 import { useEnums } from "../composables/useEnums";
 import { usePageList } from "../composables/usePageList";
 import { listPlugins, updatePluginStatus } from "../api/plugins";
@@ -79,6 +80,7 @@ const query = reactive({
 
 const { rows, loading, total, pageNum, pageSize, load: pageLoad, onPageChange, onSizeChange, resetPage } =
   usePageList(listPlugins, { extra: query });
+const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
 
 const pluginRows = ref([]);
 const dlg = ref(false);
@@ -115,13 +117,15 @@ async function onStatus(row, enabled) {
 }
 
 function handleQuery() {
-  return resetPage();
+  return pauseAutoQuery(() => resetPage());
 }
 
 function handleReset() {
-  query.keyword = "";
-  query.status = "";
-  return resetPage();
+  return pauseAutoQuery(() => {
+    query.keyword = "";
+    query.status = "";
+    return resetPage();
+  });
 }
 
 onMounted(() => {

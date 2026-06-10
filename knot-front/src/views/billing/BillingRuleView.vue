@@ -87,6 +87,7 @@ import RemoteEntitySelect from "../../components/common/RemoteEntitySelect.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import BillingRuleFormDialog from "../../components/billing/BillingRuleFormDialog.vue";
 import BillingRuleListPanel from "../../components/billing/BillingRuleListPanel.vue";
+import { useAutoQuery } from "../../composables/useAutoQuery";
 import { useEnabledToggle } from "../../composables/useEnabledToggle";
 import { usePageList } from "../../composables/usePageList";
 import { deleteBillingRule, listBillingRules, updateBillingRuleStatus } from "../../api/billing";
@@ -102,6 +103,7 @@ const query = ref({
 
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
   usePageList(listBillingRules, { extra: query.value });
+const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
 
 const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateBillingRuleStatus
@@ -169,14 +171,16 @@ async function handleDelete(row) {
 }
 
 function handleQuery() {
-  return resetPage();
+  return pauseAutoQuery(() => resetPage());
 }
 
 function handleReset() {
-  query.value.keyword = "";
-  query.value.providerId = null;
-  query.value.logicalModelId = null;
-  return resetPage();
+  return pauseAutoQuery(() => {
+    query.value.keyword = "";
+    query.value.providerId = null;
+    query.value.logicalModelId = null;
+    return resetPage();
+  });
 }
 
 load();

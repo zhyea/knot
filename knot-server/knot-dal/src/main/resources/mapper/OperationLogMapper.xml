@@ -39,6 +39,42 @@
         order by created_at desc
     </select>
 
+    <select id="list" resultType="org.chobit.knot.gateway.entity.OperationLogEntity">
+        select id, module, operation, entity_type, entity_id, entity_name,
+               description, old_value, new_value,
+               operator_id, operator_name, ip_address, user_agent,
+               status, error_msg, execution_time, created_at
+        from operation_logs
+        <where>
+            <if test="module != null and module != ''">
+                and module = #{module}
+            </if>
+            <if test="operation != null and operation != ''">
+                and operation = #{operation}
+            </if>
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+        </where>
+        order by created_at desc
+    </select>
+
+    <select id="listDistinctModules" resultType="java.lang.String">
+        select distinct module
+        from operation_logs
+        where module is not null
+          and module != ''
+        order by module asc
+    </select>
+
+    <select id="listDistinctOperations" resultType="java.lang.String">
+        select distinct operation
+        from operation_logs
+        where operation is not null
+          and operation != ''
+        order by operation asc
+    </select>
+
     <select id="listByModuleAndEntityNamePrefix" resultType="org.chobit.knot.gateway.entity.OperationLogEntity">
         select id, module, operation, entity_type, entity_id, entity_name,
                description, old_value, new_value,

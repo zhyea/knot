@@ -71,6 +71,7 @@ import EnumSelect from "../components/common/EnumSelect.vue";
 import OperationLogDrawer from "../components/common/OperationLogDrawer.vue";
 import ModelFormDrawer from "../components/model/ModelFormDrawer.vue";
 import ModelListPanel from "../components/model/ModelListPanel.vue";
+import { useAutoQuery } from "../composables/useAutoQuery";
 import { getModel, listModels } from "../api/models";
 import { listModelOperationLogs } from "../api/operationLogs";
 import { usePageList } from "../composables/usePageList";
@@ -82,6 +83,7 @@ const query = reactive({
 
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
   usePageList(listModels, { extra: query });
+const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
 
 const formVisible = ref(false);
 const editingModel = ref(null);
@@ -134,13 +136,15 @@ function copyModelCode(modelCode) {
 }
 
 function handleQuery() {
-  return resetPage();
+  return pauseAutoQuery(() => resetPage());
 }
 
 function handleReset() {
-  query.keyword = "";
-  query.modelTypes = [];
-  return resetPage();
+  return pauseAutoQuery(() => {
+    query.keyword = "";
+    query.modelTypes = [];
+    return resetPage();
+  });
 }
 
 onMounted(load);

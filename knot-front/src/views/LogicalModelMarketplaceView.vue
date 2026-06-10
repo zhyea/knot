@@ -73,6 +73,7 @@ import EnumSelect from "../components/common/EnumSelect.vue";
 import LogicalModelFormDrawer from "../components/model/LogicalModelFormDrawer.vue";
 import LogicalModelMarketplacePanel from "../components/model/LogicalModelMarketplacePanel.vue";
 import { deleteLogicalModel, listLogicalModels } from "../api/logicalModels";
+import { useAutoQuery } from "../composables/useAutoQuery";
 import { useEnums } from "../composables/useEnums";
 import { usePageList } from "../composables/usePageList";
 
@@ -83,6 +84,7 @@ const query = reactive({
 
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, resetPage } =
   usePageList(listLogicalModels, { pageSize: 9, extra: query });
+const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
 
 const { options: modelTypeOptions, loadOptions: loadModelTypes } = useEnums("model_type");
 const headerRef = ref(null);
@@ -156,15 +158,19 @@ async function removeModel(row) {
 }
 
 function handleQuery() {
-  loaded = false;
-  return resetPage();
+  return pauseAutoQuery(() => {
+    loaded = false;
+    return resetPage();
+  });
 }
 
 function handleReset() {
-  query.keyword = "";
-  query.modelTypes = [];
-  loaded = false;
-  return resetPage();
+  return pauseAutoQuery(() => {
+    query.keyword = "";
+    query.modelTypes = [];
+    loaded = false;
+    return resetPage();
+  });
 }
 
 onMounted(() => {

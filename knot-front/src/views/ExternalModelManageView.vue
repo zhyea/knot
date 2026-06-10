@@ -93,6 +93,7 @@ import PageSection from "../components/common/PageSection.vue";
 import EnumSelect from "../components/common/EnumSelect.vue";
 import ExternalModelDetailDrawer from "../components/model/ExternalModelDetailDrawer.vue";
 import ExternalModelListPanel from "../components/model/ExternalModelListPanel.vue";
+import { useAutoQuery } from "../composables/useAutoQuery";
 import { usePageList } from "../composables/usePageList";
 import {
   createLogicalModelFromExternalItem,
@@ -113,6 +114,7 @@ const query = reactive({
 
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
   usePageList(listExternalModelItems, { extra: query });
+const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
 
 const sources = ref([]);
 const syncing = ref(false);
@@ -193,14 +195,16 @@ async function deleteSelected() {
 }
 
 function handleQuery() {
-  return resetPage();
+  return pauseAutoQuery(() => resetPage());
 }
 
 function handleReset() {
-  query.sourceCode = "OPENROUTER";
-  query.keyword = "";
-  query.modelType = "";
-  return resetPage();
+  return pauseAutoQuery(() => {
+    query.sourceCode = "OPENROUTER";
+    query.keyword = "";
+    query.modelType = "";
+    return resetPage();
+  });
 }
 
 onMounted(() => {

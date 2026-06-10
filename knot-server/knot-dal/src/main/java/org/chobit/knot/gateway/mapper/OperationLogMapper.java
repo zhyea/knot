@@ -17,6 +17,14 @@ public interface OperationLogMapper {
                                           @Param("entityId") Long entityId,
                                           @Param("operatorId") Long operatorId);
 
+    List<OperationLogEntity> list(@Param("module") String module,
+                                  @Param("operation") String operation,
+                                  @Param("status") String status);
+
+    List<String> listDistinctModules();
+
+    List<String> listDistinctOperations();
+
     /**
      * 枚举分类相关操作日志：entity_name 为「分类」或「分类/编码」
      */

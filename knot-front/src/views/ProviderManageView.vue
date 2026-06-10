@@ -72,6 +72,7 @@ import ProviderListPanel from "../components/provider/ProviderListPanel.vue";
 import ProviderFormDrawer from "../components/provider/ProviderFormDrawer.vue";
 import ProviderDiscountDrawer from "../components/provider/ProviderDiscountDrawer.vue";
 import { listProviderOperationLogs } from "../api/operationLogs";
+import { useAutoQuery } from "../composables/useAutoQuery";
 import { usePageList } from "../composables/usePageList";
 import { listProviders } from "../api/providers";
 
@@ -81,6 +82,7 @@ const query = reactive({
 
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
   usePageList(listProviders, { extra: query });
+const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
 
 const formVisible = ref(false);
 const editingProvider = ref(null);
@@ -120,12 +122,14 @@ function loadProviderOperationLogs() {
 }
 
 function handleQuery() {
-  return resetPage();
+  return pauseAutoQuery(() => resetPage());
 }
 
 function handleReset() {
-  query.keyword = "";
-  return resetPage();
+  return pauseAutoQuery(() => {
+    query.keyword = "";
+    return resetPage();
+  });
 }
 
 onMounted(load);

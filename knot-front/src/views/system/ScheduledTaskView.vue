@@ -68,6 +68,7 @@ import ScheduledTaskConfigPanel from "../../components/system/scheduled/Schedule
 import ScheduledTaskFormDrawer from "../../components/system/scheduled/ScheduledTaskFormDrawer.vue";
 import ScheduledTaskRunDrawer from "../../components/system/scheduled/ScheduledTaskRunDrawer.vue";
 import { listScheduledTasks } from "../../api/scheduledTasks";
+import { useAutoQuery } from "../../composables/useAutoQuery";
 import { usePageList } from "../../composables/usePageList";
 
 const query = reactive({
@@ -77,6 +78,7 @@ const query = reactive({
 
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
   usePageList(listScheduledTasks, { extra: query });
+const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
 
 const taskDrawer = ref(false);
 const runDrawer = ref(false);
@@ -89,13 +91,15 @@ function openTaskDrawer(task) {
 }
 
 function handleQuery() {
-  return resetPage();
+  return pauseAutoQuery(() => resetPage());
 }
 
 function handleReset() {
-  query.taskCode = "";
-  query.status = "";
-  return resetPage();
+  return pauseAutoQuery(() => {
+    query.taskCode = "";
+    query.status = "";
+    return resetPage();
+  });
 }
 
 function onTaskSaved() {

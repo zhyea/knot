@@ -66,6 +66,7 @@ import PageSection from "../components/common/PageSection.vue";
 import EnumSelect from "../components/common/EnumSelect.vue";
 import ModelPoolListPanel from "../components/model/ModelPoolListPanel.vue";
 import ModelPoolFormDrawer from "../components/model/ModelPoolFormDrawer.vue";
+import { useAutoQuery } from "../composables/useAutoQuery";
 import { deleteModelPool, listModelPools } from "../api/modelPools";
 import { usePageList } from "../composables/usePageList";
 
@@ -76,6 +77,7 @@ const query = reactive({
 
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
   usePageList(listModelPools, { extra: query });
+const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
 
 const formVisible = ref(false);
 const editingPool = ref(null);
@@ -100,13 +102,15 @@ async function remove(row) {
 }
 
 function handleQuery() {
-  return resetPage();
+  return pauseAutoQuery(() => resetPage());
 }
 
 function handleReset() {
-  query.keyword = "";
-  query.modelTypes = [];
-  return resetPage();
+  return pauseAutoQuery(() => {
+    query.keyword = "";
+    query.modelTypes = [];
+    return resetPage();
+  });
 }
 
 onMounted(load);

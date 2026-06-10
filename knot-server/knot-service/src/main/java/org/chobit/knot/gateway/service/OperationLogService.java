@@ -1,9 +1,13 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.entity.OperationLogEntity;
+import org.chobit.knot.gateway.model.PageRequest;
+import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.mapper.OperationLogMapper;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.scheduling.annotation.Async;
@@ -11,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -54,6 +59,30 @@ public class OperationLogService {
         List<OperationLogEntity> list = operationLogMapper.listByModule(module, entityType, entityId, operatorId);
         list.forEach(this::retainOnlyChangedJsonFields);
         return list;
+    }
+
+    public PageResult<OperationLogEntity> list(PageRequest pageRequest, String module, String operation, String status) {
+        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
+        PageInfo<OperationLogEntity> pageInfo = new PageInfo<>(operationLogMapper.list(
+                normalizeValue(module),
+                normalizeValue(operation),
+                normalizeValue(status)
+        ));
+        List<OperationLogEntity> list = new ArrayList<>(pageInfo.getList());
+        list.forEach(this::retainOnlyChangedJsonFields);
+        return PageResult.of(list, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+    }
+
+    public List<String> listModules() {
+        return operationLogMapper.listDistinctModules();
+    }
+
+    public List<String> listOperations() {
+        return operationLogMapper.listDistinctOperations();
+    }
+
+    public List<String> listStatuses() {
+        return List.of("SUCCESS", "FAILURE");
     }
 
     /**
@@ -131,5 +160,13 @@ public class OperationLogService {
         } catch (Exception ex) {
             log.debug("Skip old/new diff trim for operation log: {}", ex.toString());
         }
+    }
+
+    private String normalizeValue(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 }

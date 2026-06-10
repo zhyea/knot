@@ -83,6 +83,7 @@ import RoutingRuleListPanel from "../../components/routing/RoutingRuleListPanel.
 import RoutingRuleFormDrawer from "../../components/routing/RoutingRuleFormDrawer.vue";
 import RoutingRuleTestDrawer from "../../components/routing/RoutingRuleTestDrawer.vue";
 import { listRoutingRuleOperationLogs } from "../../api/operationLogs";
+import { useAutoQuery } from "../../composables/useAutoQuery";
 import { usePageList } from "../../composables/usePageList";
 import { listRoutingConsumers, listRoutingRules } from "../../api/routing";
 import { normalizeOptionList } from "../../utils/options";
@@ -94,6 +95,7 @@ const query = reactive({
 
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
   usePageList(listRoutingRules, { extra: query });
+const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
 
 const formVisible = ref(false);
 const editingRule = ref(null);
@@ -149,13 +151,15 @@ function loadRoutingRuleOperationLogs() {
 }
 
 function handleQuery() {
-  return resetPage();
+  return pauseAutoQuery(() => resetPage());
 }
 
 function handleReset() {
-  query.keyword = "";
-  query.modelTypes = [];
-  return resetPage();
+  return pauseAutoQuery(() => {
+    query.keyword = "";
+    query.modelTypes = [];
+    return resetPage();
+  });
 }
 
 load();

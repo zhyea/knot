@@ -15,7 +15,7 @@
             @create="state.openModuleCreate"
             @action="state.handleModuleAction"
             @filter-change="state.updateModuleFilter"
-            @query="state.loadModules"
+            @query="state.handleModuleQuery"
             @reset-filters="state.resetModuleFilters"
           >
             <template #statusSwitch="{ row }">
@@ -44,7 +44,7 @@
             @create="state.openMenuCreate"
             @action="state.handleMenuAction"
             @filter-change="state.updateMenuFilter"
-            @query="state.loadMenus"
+            @query="state.handleMenuQuery"
             @reset-filters="state.resetMenuFilters"
           >
             <template #parentLabel="{ row }">
@@ -77,7 +77,7 @@
             @create="state.openPermissionCreate"
             @action="state.handlePermissionAction"
             @filter-change="state.updatePermissionFilter"
-            @query="state.loadPermissions"
+            @query="state.handlePermissionQuery"
             @reset-filters="state.resetPermissionFilters"
           >
             <template #statusSwitch="{ row }">
@@ -106,7 +106,7 @@
             @create="state.openApiBindingCreate"
             @action="state.handleApiBindingAction"
             @filter-change="state.updateApiBindingFilter"
-            @query="state.loadApiBindings"
+            @query="state.handleApiBindingQuery"
             @reset-filters="state.resetApiBindingFilters"
           >
             <template #statusSwitch="{ row }">

@@ -3,36 +3,56 @@
     <div class="list-page-shell">
       <section class="list-page-block">
         <div class="list-page-filters">
-          <div class="list-filter-item">
+          <div class="list-filter-item operation-log-filter-item">
             <span class="list-filter-label">模块</span>
-            <el-input
+            <el-select
               v-model="queryForm.module"
               class="list-filter-control"
-              placeholder="请输入模块"
+              placeholder="请选择模块"
               clearable
-              @keyup.enter="handleQuery"
-            />
+              filterable
+            >
+              <el-option
+                v-for="item in moduleOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
           </div>
-          <div class="list-filter-item">
+          <div class="list-filter-item operation-log-filter-item">
             <span class="list-filter-label">操作</span>
-            <el-input
+            <el-select
               v-model="queryForm.operation"
               class="list-filter-control"
-              placeholder="请输入操作"
+              placeholder="请选择操作"
               clearable
-              @keyup.enter="handleQuery"
-            />
+              filterable
+            >
+              <el-option
+                v-for="item in operationOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
           </div>
-          <div class="list-filter-item">
+          <div class="list-filter-item operation-log-filter-item">
             <span class="list-filter-label">状态</span>
-            <EnumSelect
+            <el-select
               v-model="queryForm.status"
-              category="status"
-              :include-codes="['SUCCESS', 'FAILURE']"
               class="list-filter-control"
               placeholder="请选择状态"
               clearable
-            />
+              filterable
+            >
+              <el-option
+                v-for="item in logStatusOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
           </div>
           <div class="list-filter-actions">
             <el-button type="primary" @click="handleQuery">查询</el-button>
@@ -66,22 +86,16 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
-import EnumSelect from "../../components/common/EnumSelect.vue";
 import OperationLogDetailDrawer from "../../components/system/OperationLogDetailDrawer.vue";
 import OperationLogListPanel from "../../components/system/OperationLogListPanel.vue";
+import { useAutoQuery } from "../../composables/useAutoQuery";
 import { usePageList } from "../../composables/usePageList";
 import { resolveEnumLabel, useEnums } from "../../composables/useEnums";
 import { getOperationLogDetail, listOperationLogs } from "../../api/operationLogs";
 
 const { options: statusOptions, loadOptions: loadStatusOptions } = useEnums("status");
-
-function statusLabel(code) {
-  return resolveEnumLabel(statusOptions.value, code, code || "-");
-}
-
-onMounted(() => loadStatusOptions());
 
 const queryForm = reactive({
   module: "",
@@ -89,21 +103,59 @@ const queryForm = reactive({
   status: ""
 });
 
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(listOperationLogs, { extra: queryForm });
+const moduleLabelMap = {
+  system: "系统管理",
+  model: "模型管理",
+  routing: "路由管理",
+  billing: "计费管理",
+  app: "应用管理",
+  user: "用户管理",
+  department: "部门管理",
+  enum: "枚举管理",
+  provider: "供应商管理",
+  "logical-model": "模型广场"
+};
 
+const moduleOptions = ref([]);
+const operationOptions = ref([]);
+const rawStatusOptions = ref([]);
 const detailDrawer = ref(false);
 const currentLog = ref(null);
 
+const logStatusOptions = computed(() =>
+  rawStatusOptions.value.map((value) => ({
+    label: statusLabel(value),
+    value
+  }))
+);
+
+function statusLabel(code) {
+  return resolveEnumLabel(statusOptions.value, code, code || "-");
+}
+
+async function fetchOperationLogs(params) {
+  const result = await listOperationLogs(params);
+  moduleOptions.value = normalizeOptions(result?.moduleOptions, resolveModuleLabel);
+  operationOptions.value = normalizeOptions(result?.operationOptions);
+  rawStatusOptions.value = normalizeValues(result?.statusOptions);
+  return result;
+}
+
+const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
+  usePageList(fetchOperationLogs, { extra: queryForm });
+const { pauseAutoQuery } = useAutoQuery(queryForm, handleQuery);
+
 function handleQuery() {
-  return resetPage();
+  return pauseAutoQuery(() => resetPage());
 }
 
 function handleReset() {
-  queryForm.module = "";
-  queryForm.operation = "";
-  queryForm.status = "";
-  return resetPage();
+  return pauseAutoQuery(() => {
+    queryForm.module = "";
+    queryForm.operation = "";
+    queryForm.status = "";
+    return resetPage();
+  });
 }
 
 async function onLogRow(row) {
@@ -111,5 +163,50 @@ async function onLogRow(row) {
   detailDrawer.value = true;
 }
 
-load();
+function normalizeOptions(values, labelResolver = null) {
+  return normalizeValues(values).map((value) => ({
+    label: labelResolver ? labelResolver(value) : value,
+    value
+  }));
+}
+
+function resolveModuleLabel(value) {
+  return moduleLabelMap[value] || value;
+}
+
+function normalizeValues(values) {
+  return Array.isArray(values)
+    ? values.filter((item) => item != null && `${item}`.trim() !== "").map((item) => `${item}`)
+    : [];
+}
+
+onMounted(() => {
+  loadStatusOptions();
+  load();
+});
 </script>
+
+<style scoped>
+.operation-log-filter-item {
+  flex: 0 0 260px;
+  min-width: 260px;
+}
+
+.operation-log-filter-item :deep(.el-select) {
+  width: 100%;
+}
+
+@media (max-width: 1200px) {
+  .operation-log-filter-item {
+    flex: 1 1 220px;
+    min-width: 220px;
+  }
+}
+
+@media (max-width: 768px) {
+  .operation-log-filter-item {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+}
+</style>

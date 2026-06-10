@@ -1,5 +1,6 @@
 import { computed, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
+import { useAutoQuery } from "./useAutoQuery";
 import { usePageList } from "./usePageList";
 import {
   createAuthorizationApiBinding,
@@ -52,6 +53,8 @@ export function useAuthorizationManagement() {
   const menuLoading = ref(false);
   const permissionLoading = ref(false);
   const apiBindingLoading = ref(false);
+  const moduleCatalogLoading = ref(false);
+  const menuCatalogLoading = ref(false);
   const moduleStatusUpdatingId = ref(null);
   const menuStatusUpdatingId = ref(null);
   const permissionStatusUpdatingId = ref(null);
@@ -59,6 +62,8 @@ export function useAuthorizationManagement() {
 
   const modules = ref([]);
   const menus = ref([]);
+  const moduleCatalog = ref([]);
+  const menuCatalog = ref([]);
   const permissionCatalog = ref([]);
   const permissions = ref([]);
   const apiBindings = ref([]);
@@ -80,12 +85,17 @@ export function useAuthorizationManagement() {
     onSizeChange,
     resetPage
   } = usePageList(listAuthorizationRoles);
+  const { pauseAutoQuery: pauseRoleAutoQuery } = useAutoQuery(roleKeyword, handleRoleQuery, { deep: false });
+  const { pauseAutoQuery: pauseModuleAutoQuery } = useAutoQuery(moduleQuery, loadModules);
+  const { pauseAutoQuery: pauseMenuAutoQuery } = useAutoQuery(menuQuery, loadMenus);
+  const { pauseAutoQuery: pausePermissionAutoQuery } = useAutoQuery(permissionQuery, loadPermissions);
+  const { pauseAutoQuery: pauseApiBindingAutoQuery } = useAutoQuery(apiBindingQuery, loadApiBindings);
 
   const moduleOptions = computed(() =>
-    modules.value.map((item) => ({ label: item.moduleName, value: item.id }))
+    moduleCatalog.value.map((item) => ({ label: item.moduleName, value: item.id }))
   );
 
-  const menuTreeOptions = computed(() => buildMenuTreeOptions(menus.value));
+  const menuTreeOptions = computed(() => buildMenuTreeOptions(menuCatalog.value));
 
   const menuOptions = computed(() => flattenTreeOptions(menuTreeOptions.value));
 
@@ -267,6 +277,8 @@ export function useAuthorizationManagement() {
   async function initializePage() {
     await Promise.all([
       load(),
+      loadModuleCatalog(),
+      loadMenuCatalog(),
       loadModules(),
       loadMenus(),
       loadPermissionCatalog(),
@@ -279,6 +291,8 @@ export function useAuthorizationManagement() {
   async function initializeRoleSection() {
     await Promise.all([
       load(),
+      loadModuleCatalog(),
+      loadMenuCatalog(),
       loadModules(),
       loadMenus(),
       loadPermissionCatalog()
@@ -288,6 +302,8 @@ export function useAuthorizationManagement() {
 
   async function initializeResourceSection() {
     await Promise.all([
+      loadModuleCatalog(),
+      loadMenuCatalog(),
       loadModules(),
       loadMenus(),
       loadPermissionCatalog(),
@@ -297,16 +313,20 @@ export function useAuthorizationManagement() {
   }
 
   async function handleRoleQuery() {
-    extra.keyword = roleKeyword.value.trim() || undefined;
-    await resetPage();
-    await selectFirstRole();
+    await pauseRoleAutoQuery(async () => {
+      extra.keyword = roleKeyword.value.trim() || undefined;
+      await resetPage();
+      await selectFirstRole();
+    });
   }
 
   async function resetRoleQuery() {
-    roleKeyword.value = "";
-    extra.keyword = undefined;
-    await resetPage();
-    await selectFirstRole();
+    await pauseRoleAutoQuery(async () => {
+      roleKeyword.value = "";
+      extra.keyword = undefined;
+      await resetPage();
+      await selectFirstRole();
+    });
   }
 
   async function handleRolePageChange(page) {
@@ -429,12 +449,30 @@ export function useAuthorizationManagement() {
     }
   }
 
+  async function loadModuleCatalog() {
+    moduleCatalogLoading.value = true;
+    try {
+      moduleCatalog.value = await listAuthorizationModules({});
+    } finally {
+      moduleCatalogLoading.value = false;
+    }
+  }
+
   async function loadMenus() {
     menuLoading.value = true;
     try {
       menus.value = await listAuthorizationMenus(cleanQuery(menuQuery));
     } finally {
       menuLoading.value = false;
+    }
+  }
+
+  async function loadMenuCatalog() {
+    menuCatalogLoading.value = true;
+    try {
+      menuCatalog.value = await listAuthorizationMenus({});
+    } finally {
+      menuCatalogLoading.value = false;
     }
   }
 
@@ -461,6 +499,22 @@ export function useAuthorizationManagement() {
     }
   }
 
+  function handleModuleQuery() {
+    return pauseModuleAutoQuery(() => loadModules());
+  }
+
+  function handleMenuQuery() {
+    return pauseMenuAutoQuery(() => loadMenus());
+  }
+
+  function handlePermissionQuery() {
+    return pausePermissionAutoQuery(() => loadPermissions());
+  }
+
+  function handleApiBindingQuery() {
+    return pauseApiBindingAutoQuery(() => loadApiBindings());
+  }
+
   function updateModuleFilter(key, value) {
     moduleQuery[key] = value || "";
   }
@@ -478,29 +532,37 @@ export function useAuthorizationManagement() {
   }
 
   async function resetModuleFilters() {
-    moduleQuery.keyword = "";
-    await loadModules();
+    await pauseModuleAutoQuery(async () => {
+      moduleQuery.keyword = "";
+      await loadModules();
+    });
   }
 
   async function resetMenuFilters() {
-    menuQuery.keyword = "";
-    menuQuery.moduleId = null;
-    await loadMenus();
+    await pauseMenuAutoQuery(async () => {
+      menuQuery.keyword = "";
+      menuQuery.moduleId = null;
+      await loadMenus();
+    });
   }
 
   async function resetPermissionFilters() {
-    permissionQuery.keyword = "";
-    permissionQuery.moduleId = null;
-    permissionQuery.menuId = null;
-    permissionQuery.permissionType = "";
-    await loadPermissions();
+    await pausePermissionAutoQuery(async () => {
+      permissionQuery.keyword = "";
+      permissionQuery.moduleId = null;
+      permissionQuery.menuId = null;
+      permissionQuery.permissionType = "";
+      await loadPermissions();
+    });
   }
 
   async function resetApiBindingFilters() {
-    apiBindingQuery.keyword = "";
-    apiBindingQuery.httpMethod = "";
-    apiBindingQuery.permissionId = null;
-    await loadApiBindings();
+    await pauseApiBindingAutoQuery(async () => {
+      apiBindingQuery.keyword = "";
+      apiBindingQuery.httpMethod = "";
+      apiBindingQuery.permissionId = null;
+      await loadApiBindings();
+    });
   }
 
   function openModuleCreate() {
@@ -535,7 +597,7 @@ export function useAuthorizationManagement() {
     if (action === "delete") {
       deleteAuthorizationModule(row.id).then(async () => {
         ElMessage.success("删除成功");
-        await loadModules();
+        await Promise.all([loadModules(), loadModuleCatalog()]);
       });
     }
   }
@@ -565,7 +627,7 @@ export function useAuthorizationManagement() {
       resourceDialogForm.value = row;
       resourceDialogFields.value = [
         { key: "moduleId", label: "所属模块", required: true, type: "select", options: moduleOptions.value },
-        { key: "parentId", label: "上级菜单", type: "tree-select", options: buildMenuTreeOptions(menus.value, row.id) },
+        { key: "parentId", label: "上级菜单", type: "tree-select", options: buildMenuTreeOptions(menuCatalog.value, row.id) },
         { key: "menuCode", label: "菜单编码", required: true },
         { key: "menuName", label: "菜单名称", required: true },
         { key: "routePath", label: "路由路径" },
@@ -581,7 +643,7 @@ export function useAuthorizationManagement() {
     if (action === "delete") {
       deleteAuthorizationMenu(row.id).then(async () => {
         ElMessage.success("删除成功");
-        await Promise.all([loadMenus(), loadPermissions(), loadPermissionCatalog()]);
+        await Promise.all([loadMenus(), loadMenuCatalog(), loadPermissions(), loadPermissionCatalog()]);
       });
     }
   }
@@ -704,11 +766,11 @@ export function useAuthorizationManagement() {
 
   async function onResourceSaved() {
     if (resourceType.value === "module") {
-      await loadModules();
+      await Promise.all([loadModules(), loadModuleCatalog()]);
       return;
     }
     if (resourceType.value === "menu") {
-      await Promise.all([loadMenus(), loadPermissions(), loadPermissionCatalog()]);
+      await Promise.all([loadMenus(), loadMenuCatalog(), loadPermissions(), loadPermissionCatalog()]);
       return;
     }
     if (resourceType.value === "permission") {
@@ -727,7 +789,7 @@ export function useAuthorizationManagement() {
     if (!menuId) {
       return "";
     }
-    return menus.value.find((item) => item.id === menuId)?.menuName || "";
+    return menuCatalog.value.find((item) => item.id === menuId)?.menuName || "";
   }
 
   function beforePermissionDelete(row) {
@@ -919,6 +981,10 @@ export function useAuthorizationManagement() {
     loadMenus,
     loadPermissions,
     loadApiBindings,
+    handleModuleQuery,
+    handleMenuQuery,
+    handlePermissionQuery,
+    handleApiBindingQuery,
     handleRoleQuery,
     resetRoleQuery,
     handleRolePageChange,
