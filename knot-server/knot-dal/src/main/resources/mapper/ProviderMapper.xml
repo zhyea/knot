@@ -3,7 +3,7 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.ProviderMapper">
 
     <sql id="ProviderColumns">
-        id, code, name, provider_type, base_url, status
+        id, code, name, provider_type, status
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.ProviderEntity">
@@ -35,8 +35,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into providers(code, name, provider_type, base_url, status)
-        values(#{code}, #{name}, #{providerType}, #{baseUrl}, #{status})
+        insert into providers(code, name, provider_type, status)
+        values(#{code}, #{name}, #{providerType}, #{status})
     </insert>
 
     <update id="update">
@@ -44,7 +44,6 @@
         set code = #{code},
             name = #{name},
             provider_type = #{providerType},
-            base_url = #{baseUrl},
             status = #{status}
         where id = #{id}
     </update>

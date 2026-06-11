@@ -1,13 +1,13 @@
 package org.chobit.knot.gateway.upstream;
 
 import lombok.RequiredArgsConstructor;
+import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
-import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.entity.ProviderEntity;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
@@ -17,10 +17,10 @@ import org.chobit.knot.gateway.plugin.PluginStageCode;
 import org.chobit.knot.gateway.plugin.upstream.UpstreamPluginContext;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
 import org.chobit.knot.gateway.service.GatewayDataService;
+import org.chobit.knot.gateway.service.ProviderCredentialSupport;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutor;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutorRegistry;
-import org.chobit.knot.gateway.upstream.provider.UpstreamProviderAdapter;
-import org.chobit.knot.gateway.upstream.provider.UpstreamProviderAdapterRegistry;
+import org.chobit.knot.gateway.upstream.request.UpstreamRequestAdapterRegistry;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
@@ -37,7 +37,8 @@ public class UpstreamProxyClient {
 
     private final GatewayDataService dataService;
     private final UpstreamProtocolExecutorRegistry protocolExecutorRegistry;
-    private final UpstreamProviderAdapterRegistry providerAdapterRegistry;
+    private final UpstreamRequestAdapterRegistry requestAdapterRegistry;
+    private final ProviderCredentialSupport providerCredentialSupport;
     private final PluginDispatcher pluginDispatcher;
 
 
@@ -77,9 +78,16 @@ public class UpstreamProxyClient {
         ProviderEntity provider = resolveProvider(model, model.getModelCode());
         ModelApiProtocolEnum resolvedProtocol = resolveProtocol(protocol);
         ModelApiBindingEntity binding = resolveBinding(model.getId(), resolvedProtocol);
-        ProviderCredentialEntity credential = dataService.getActiveCredentialByProviderId(provider.getId());
         return new UpstreamRequestContext(
-                resolvedProtocol, requestBody, contentType, model, provider, credential, binding, traceparent, currentTraceId()
+                resolvedProtocol,
+                requestBody,
+                contentType,
+                model,
+                provider,
+                providerCredentialSupport.toAuthConfig(dataService.getActiveCredentialByProviderId(provider.getId())),
+                binding,
+                traceparent,
+                currentTraceId()
         );
     }
 
@@ -88,10 +96,13 @@ public class UpstreamProxyClient {
      */
     public ProxyResult proxy(UpstreamRequestContext context) {
         UpstreamProtocolExecutor protocolExecutor = protocolExecutorRegistry.resolve(context.protocol());
-        UpstreamProviderAdapter providerAdapter = providerAdapterRegistry.resolve(context.provider().getProviderType());
+        var requestAdapter = requestAdapterRegistry.resolve(
+                context.requestAdapter(),
+                context.provider() == null ? null : context.provider().getProviderType()
+        );
         dispatchPlugin(context, PluginStageCode.UPSTREAM_REQUEST, null, null);
         try {
-            ProxyResult result = protocolExecutor.execute(context, providerAdapter);
+            ProxyResult result = protocolExecutor.execute(context, requestAdapter);
             dispatchPlugin(context, PluginStageCode.UPSTREAM_RESPONSE, result, null);
             return result;
         } catch (RuntimeException ex) {
@@ -109,9 +120,16 @@ public class UpstreamProxyClient {
         ProviderEntity provider = resolveProvider(model, target == null ? null : target.targetCode());
         ModelApiProtocolEnum resolvedProtocol = resolveProtocol(protocol);
         ModelApiBindingEntity binding = resolveBinding(model.getId(), resolvedProtocol);
-        ProviderCredentialEntity credential = dataService.getActiveCredentialByProviderId(provider.getId());
         return new UpstreamRequestContext(
-                resolvedProtocol, requestBody, contentType, model, provider, credential, binding, traceparent, currentTraceId()
+                resolvedProtocol,
+                requestBody,
+                contentType,
+                model,
+                provider,
+                providerCredentialSupport.toAuthConfig(dataService.getActiveCredentialByProviderId(provider.getId())),
+                binding,
+                traceparent,
+                currentTraceId()
         );
     }
 

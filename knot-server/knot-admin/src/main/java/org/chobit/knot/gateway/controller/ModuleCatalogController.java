@@ -17,7 +17,7 @@ public class ModuleCatalogController {
     public List<ModuleInfo> listModules() {
         return List.of(
                 new ModuleInfo("system", "系统管理", List.of("用户管理", "部门管理", "角色权限", "系统运维", "日志管理")),
-                new ModuleInfo("providers", "供应商管理", List.of("供应商认证", "监控", "频控", "配额")),
+                new ModuleInfo("providers", "供应商", List.of("供应商认证", "监控", "频控", "配额")),
                 new ModuleInfo("models", "模型管理", List.of("模型配置", "版本管理", "测试调试", "频控配额")),
                 new ModuleInfo("apps", "应用管理", List.of("应用认证", "授权", "配额", "调用监控")),
                 new ModuleInfo("routing", "模型路由规则", List.of("消费者管理", "固定路由", "权重路由", "故障转移", "成本优先")),

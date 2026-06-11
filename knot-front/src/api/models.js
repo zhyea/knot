@@ -18,6 +18,10 @@ export function listUsageExtractors() {
   return get("/api/models/usage-extractors");
 }
 
+export function listRequestAdapters() {
+  return get("/api/models/request-adapters");
+}
+
 export function createModel(payload) {
   return post("/api/models", payload);
 }

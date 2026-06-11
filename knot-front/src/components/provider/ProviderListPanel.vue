@@ -9,7 +9,6 @@
           {{ typeLabel(row.type) }}
         </template>
       </el-table-column>
-      <el-table-column prop="baseUrl" label="Base URL" min-width="28%" show-overflow-tooltip />
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch

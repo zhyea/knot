@@ -142,7 +142,6 @@ public class ProviderService {
         m.put("code", dto.code());
         m.put("name", dto.name());
         m.put("type", dto.type());
-        m.put("baseUrl", dto.baseUrl());
         m.put("enabled", dto.enabled());
         m.put("authConfig", credentialSupport.maskAuthConfig(loadRawAuthConfig(id)));
         m.put("rateLimitPolicy", dto.rateLimitPolicy());
@@ -220,7 +219,7 @@ public class ProviderService {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
         QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
         return new ProviderDto(
-                base.id(), base.code(), base.name(), base.type(), base.baseUrl(), base.enabled(),
+                base.id(), base.code(), base.name(), base.type(), base.enabled(),
                 auth, rate, quota
         );
     }

@@ -41,8 +41,8 @@ const routes = [
     path: "/model-management",
     component: NestedView,
     children: [
-      { path: "models", name: "model-management-models", component: () => import("@/views/ModelManageView.vue"), meta: { titleKey: "route.modelManagementModels" } },
       { path: "model-pools", name: "model-management-model-pools", component: () => import("@/views/ModelPoolManageView.vue"), meta: { titleKey: "route.modelManagementModelPools" } },
+      { path: "models", name: "model-management-models", component: () => import("@/views/ModelManageView.vue"), meta: { titleKey: "route.modelManagementModels" } },
       { path: "logical-models", name: "model-management-logical-models", component: () => import("@/views/LogicalModelMarketplaceView.vue"), meta: { titleKey: "route.modelManagementLogicalModels" } },
       { path: "external-models", name: "model-management-external-models", component: () => import("@/views/ExternalModelManageView.vue"), meta: { titleKey: "route.modelManagementExternalModels" } }
     ]

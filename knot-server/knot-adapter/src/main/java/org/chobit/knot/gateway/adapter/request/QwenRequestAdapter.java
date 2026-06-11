@@ -1,18 +1,16 @@
-package org.chobit.knot.gateway.upstream.provider;
+package org.chobit.knot.gateway.adapter.request;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.AuthConfigSupport;
+import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProviderTypeEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
-import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
-import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.BillingUsage;
-import org.chobit.knot.gateway.service.ProviderCredentialSupport;
-import org.chobit.knot.gateway.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
@@ -30,7 +28,9 @@ import java.util.Map;
 
 @Component
 @Order(20)
-public class QwenProviderAdapter implements UpstreamProviderAdapter {
+public class QwenRequestAdapter implements UpstreamRequestAdapter {
+
+    public static final String CODE = "QWEN";
 
     private static final String API_PATH = "/api/v1/services/aigc/multimodal-generation/generation";
     private static final String IMAGE = "image";
@@ -39,23 +39,21 @@ public class QwenProviderAdapter implements UpstreamProviderAdapter {
     private static final String B64_JSON = "b64_json";
     private static final String URL = "url";
 
-    private final ProviderCredentialSupport credentialSupport;
-
-    public QwenProviderAdapter(ProviderCredentialSupport credentialSupport) {
-        this.credentialSupport = credentialSupport;
+    @Override
+    public String code() {
+        return CODE;
     }
 
-    /**
-     * Returns whether the adapter supports the supplied provider type.
-     */
+    @Override
+    public String label() {
+        return "Qwen";
+    }
+
     @Override
     public boolean supports(String providerType) {
         return ProviderTypeEnum.QWEN.code().equals(StringUtils.upperCase(StringUtils.trim(providerType)));
     }
 
-    /**
-     * Resolves the upstream DashScope multimodal generation endpoint.
-     */
     @Override
     public String resolvePath(UpstreamRequestContext context, String defaultPath) {
         if (context.binding() != null && StringUtils.isNotBlank(context.binding().getApiPath())) {
@@ -64,17 +62,11 @@ public class QwenProviderAdapter implements UpstreamProviderAdapter {
         return API_PATH;
     }
 
-    /**
-     * Qwen image APIs use JSON even when the gateway accepts OpenAI-compatible multipart edits.
-     */
     @Override
     public MediaType resolveContentType(UpstreamRequestContext context) {
         return MediaType.APPLICATION_JSON;
     }
 
-    /**
-     * Builds the DashScope Qwen image request body.
-     */
     @Override
     public Object buildRequestBody(UpstreamRequestContext context) {
         ModelApiProtocolEnum protocol = context.protocol().canonical();
@@ -87,20 +79,14 @@ public class QwenProviderAdapter implements UpstreamProviderAdapter {
         return context.requestBody();
     }
 
-    /**
-     * Applies DashScope authentication headers.
-     */
     @Override
     public void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
-        String apiKey = credentialValue(context.credential(), AuthConstants.API_KEY);
+        String apiKey = AuthConfigSupport.apiKey(context.authConfig());
         if (StringUtils.isNotBlank(apiKey)) {
             requestSpec.header(GatewayHeaders.AUTHORIZATION, AuthConstants.BEARER_PREFIX + apiKey);
         }
     }
 
-    /**
-     * Converts DashScope image results to an OpenAI-compatible image response.
-     */
     @Override
     public String handleResponse(String responseBody, UpstreamRequestContext context) {
         Map<String, Object> body = JsonKit.fromJson(responseBody, new TypeReference<>() {
@@ -124,7 +110,7 @@ public class QwenProviderAdapter implements UpstreamProviderAdapter {
 
     @Override
     public BillingUsage extractUsageFromBody(Map<String, Object> body) {
-        BillingUsage usage = UpstreamProviderAdapter.super.extractUsageFromBody(body);
+        BillingUsage usage = UpstreamRequestAdapter.super.extractUsageFromBody(body);
         if (!usage.isEmpty()) {
             return usage;
         }
@@ -191,10 +177,10 @@ public class QwenProviderAdapter implements UpstreamProviderAdapter {
         addImageValues(result, source.get(IMAGE_URL));
         addImageValues(result, source.get(IMAGE_URLS));
         if (result.isEmpty()) {
-            throw new GatewayUpstreamException("image is required for Qwen image edit", ProxyErrorCodeEnum.UPSTREAM_ERROR.code());
+            throw new IllegalArgumentException("image is required for Qwen image edit");
         }
         if (result.size() > 3) {
-            throw new GatewayUpstreamException("Qwen image edit supports at most 3 images", ProxyErrorCodeEnum.UPSTREAM_ERROR.code());
+            throw new IllegalArgumentException("Qwen image edit supports at most 3 images");
         }
         return result;
     }
@@ -233,13 +219,13 @@ public class QwenProviderAdapter implements UpstreamProviderAdapter {
 
     private String toDataUrl(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new GatewayUpstreamException("image file must not be empty", ProxyErrorCodeEnum.UPSTREAM_ERROR.code());
+            throw new IllegalArgumentException("image file must not be empty");
         }
         try {
             String contentType = StringUtils.defaultIfBlank(file.getContentType(), MediaType.APPLICATION_OCTET_STREAM_VALUE);
             return "data:" + contentType + ";base64," + Base64.getEncoder().encodeToString(file.getBytes());
         } catch (IOException e) {
-            throw new GatewayUpstreamException("read image file failed: " + e.getMessage(), ProxyErrorCodeEnum.UPSTREAM_ERROR.code());
+            throw new IllegalArgumentException("read image file failed: " + e.getMessage(), e);
         }
     }
 
@@ -328,13 +314,8 @@ public class QwenProviderAdapter implements UpstreamProviderAdapter {
     private String requiredText(Object value, String message) {
         String text = StringUtils.trimToNull(value == null ? null : String.valueOf(value));
         if (text == null) {
-            throw new GatewayUpstreamException(message, ProxyErrorCodeEnum.UPSTREAM_ERROR.code());
+            throw new IllegalArgumentException(message);
         }
         return text;
-    }
-
-    private String credentialValue(ProviderCredentialEntity credential, String key) {
-        Object value = credentialSupport.toAuthConfig(credential).get(key);
-        return StringUtils.trimToNull(value == null ? null : String.valueOf(value));
     }
 }

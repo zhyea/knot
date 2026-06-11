@@ -37,9 +37,6 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="Base URL">
-          <el-input v-model="form.baseUrl" placeholder="https://..."/>
-        </el-form-item>
         <el-form-item label="认证凭证">
           <KvEditor
               v-model="form.authConfig"
@@ -95,20 +92,11 @@ const codeChecking = ref(false);
 const codeError = ref("");
 const codeValidated = ref(false);
 const detailLoading = ref(false);
-const DEFAULT_PROVIDER_BASE_URLS = {
-  OPENAI: "https://api.openai.com",
-  ANTHROPIC: "https://api.anthropic.com",
-  DEEPSEEK: "https://api.deepseek.com",
-  QWEN: "https://dashscope.aliyuncs.com",
-  ZHIPU: "https://open.bigmodel.cn/api/paas/v4"
-};
-
 const form = reactive({
   id: null,
   code: "",
   name: "",
   type: "",
-  baseUrl: "",
   enabled: true,
   authConfig: {apiKey: ""},
   rateLimitPolicy: {},
@@ -116,14 +104,6 @@ const form = reactive({
 });
 
 const isEdit = computed(() => props.provider != null);
-
-function normalizedProviderType(type) {
-  return String(type || "").trim().toUpperCase();
-}
-
-function defaultBaseUrlForType(type) {
-  return DEFAULT_PROVIDER_BASE_URLS[normalizedProviderType(type)] || "";
-}
 
 function defaultAuthConfig() {
   return {apiKey: ""};
@@ -152,7 +132,6 @@ function fillFormFromRow(row) {
   form.code = row.code || "";
   form.name = row.name;
   form.type = row.type;
-  form.baseUrl = row.baseUrl || "";
   form.enabled = !!row.enabled;
   form.authConfig = normalizeAuthConfig(row.authConfig);
   form.rateLimitPolicy =
@@ -184,7 +163,6 @@ async function resetForm() {
     form.id = null;
     form.name = "";
     form.type = "";
-    form.baseUrl = "";
     form.enabled = true;
     form.authConfig = defaultAuthConfig();
     form.rateLimitPolicy = {};
@@ -209,19 +187,6 @@ watch(
       codeValidated.value = false;
       if (codeError.value) {
         codeError.value = "";
-      }
-    }
-);
-
-watch(
-    () => form.type,
-    (type, previousType) => {
-      if (!props.modelValue) return;
-      const nextDefault = defaultBaseUrlForType(type);
-      if (!nextDefault) return;
-      const previousDefault = defaultBaseUrlForType(previousType);
-      if (!form.baseUrl || form.baseUrl === previousDefault) {
-        form.baseUrl = nextDefault;
       }
     }
 );
@@ -272,7 +237,6 @@ function buildPayload() {
     code: form.code?.trim(),
     name: form.name,
     type: form.type,
-    baseUrl: form.baseUrl,
     enabled: form.enabled,
     authConfig: Object.keys(authConfig).length ? authConfig : null,
     rateLimitPolicy: Object.keys(form.rateLimitPolicy).length ? form.rateLimitPolicy : null,

@@ -1,16 +1,14 @@
-package org.chobit.knot.gateway.upstream.provider;
+package org.chobit.knot.gateway.adapter.request;
 
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.AuthConfigSupport;
+import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProviderTypeEnum;
-import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.model.BillingUsage;
-import org.chobit.knot.gateway.service.ProviderCredentialSupport;
-import org.chobit.knot.gateway.upstream.UpstreamRequestContext;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -22,8 +20,9 @@ import java.util.Map;
 
 @Component
 @Order(20)
-@RequiredArgsConstructor
-public class ZhipuProviderAdapter implements UpstreamProviderAdapter {
+public class ZhipuRequestAdapter implements UpstreamRequestAdapter {
+
+    public static final String CODE = "ZHIPU";
 
     private static final String ROOT_PATH = "/api/paas/v4";
     private static final String CHAT_COMPLETIONS_PATH = ROOT_PATH + "/chat/completions";
@@ -33,7 +32,15 @@ public class ZhipuProviderAdapter implements UpstreamProviderAdapter {
     private static final String WATERMARK_ENABLED = "watermark_enabled";
     private static final String USER_ID = "user_id";
 
-    private final ProviderCredentialSupport credentialSupport;
+    @Override
+    public String code() {
+        return CODE;
+    }
+
+    @Override
+    public String label() {
+        return "Zhipu";
+    }
 
     @Override
     public boolean supports(String providerType) {
@@ -55,7 +62,7 @@ public class ZhipuProviderAdapter implements UpstreamProviderAdapter {
         if (ModelApiProtocolEnum.IMAGE_GENERATIONS == protocol) {
             return providerPath(context, IMAGE_GENERATIONS_PATH, SHORT_IMAGE_GENERATIONS_PATH);
         }
-        return UpstreamProviderAdapter.super.resolvePath(context, defaultPath);
+        return UpstreamRequestAdapter.super.resolvePath(context, defaultPath);
     }
 
     @Override
@@ -78,7 +85,7 @@ public class ZhipuProviderAdapter implements UpstreamProviderAdapter {
 
     @Override
     public void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
-        String apiKey = credentialValue(context.credential(), AuthConstants.API_KEY);
+        String apiKey = AuthConfigSupport.apiKey(context.authConfig());
         if (StringUtils.isNotBlank(apiKey)) {
             requestSpec.header(GatewayHeaders.AUTHORIZATION, AuthConstants.BEARER_PREFIX + apiKey);
         }
@@ -86,7 +93,7 @@ public class ZhipuProviderAdapter implements UpstreamProviderAdapter {
 
     @Override
     public BillingUsage extractUsageFromBody(Map<String, Object> body) {
-        BillingUsage usage = UpstreamProviderAdapter.super.extractUsageFromBody(body);
+        BillingUsage usage = UpstreamRequestAdapter.super.extractUsageFromBody(body);
         if (!usage.isEmpty()) {
             return usage;
         }
@@ -95,13 +102,8 @@ public class ZhipuProviderAdapter implements UpstreamProviderAdapter {
         return amount > 0 ? new BillingUsage(0L, 0L, 0L, 0L, 0L, amount) : BillingUsage.empty();
     }
 
-    private String credentialValue(ProviderCredentialEntity credential, String key) {
-        Object value = credentialSupport.toAuthConfig(credential).get(key);
-        return StringUtils.trimToNull(value == null ? null : String.valueOf(value));
-    }
-
     private String providerPath(UpstreamRequestContext context, String fullPath, String shortPath) {
-        String baseUrl = context.provider() == null ? null : context.provider().getBaseUrl();
+        String baseUrl = context.baseUrl();
         return StringUtils.contains(StringUtils.trimToEmpty(baseUrl), ROOT_PATH) ? shortPath : fullPath;
     }
 

@@ -208,9 +208,9 @@ FROM sys_role_permissions
 WHERE permission_id = 12;
 
 INSERT IGNORE INTO sys_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
-(6, 2, NULL, 'model.providers', '供应商管理', '/providers', 'ProviderManageView', 'Connection', 10, 'ENABLED'),
+(6, 2, NULL, 'model.providers', '供应商', '/providers', 'ProviderManageView', 'Connection', 30, 'ENABLED'),
 (7, 2, NULL, 'model.models', '供应商模型', '/model-management/models', 'ModelManageView', 'Cpu', 20, 'ENABLED'),
-(8, 2, NULL, 'model.model-pools', '模型池', '/model-management/model-pools', 'ModelPoolManageView', 'Cpu', 30, 'ENABLED'),
+(8, 2, NULL, 'model.model-pools', '模型池', '/model-management/model-pools', 'ModelPoolManageView', 'Cpu', 10, 'ENABLED'),
 (9, 2, NULL, 'model.logical-models', '模型广场', '/model-management/logical-models', 'LogicalModelMarketplaceView', 'Cpu', 40, 'ENABLED'),
 (10, 2, NULL, 'model.external-models', '外部模型', '/model-management/external-models', 'ExternalModelManageView', 'Cpu', 50, 'ENABLED'),
 (11, 3, NULL, 'routing.rules', '路由规则', '/routing/rules', 'routing/RoutingRuleView', 'Share', 10, 'ENABLED'),
@@ -218,7 +218,7 @@ INSERT IGNORE INTO sys_menus (id, module_id, parent_id, menu_code, menu_name, ro
 (13, 4, NULL, 'billing.rules', '计费规则', '/billing/rules', 'billing/BillingRuleView', 'Coin', 10, 'ENABLED');
 
 INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
-(19, 'model:provider:page', '供应商管理页面访问', 'PAGE', 2, 6, 'ENABLED', 1, NULL),
+(19, 'model:provider:page', '供应商页面访问', 'PAGE', 2, 6, 'ENABLED', 1, NULL),
 (20, 'model:model:page', '供应商模型页面访问', 'PAGE', 2, 7, 'ENABLED', 1, NULL),
 (21, 'model:model-pool:page', '模型池页面访问', 'PAGE', 2, 8, 'ENABLED', 1, NULL),
 (22, 'model:logical-model:page', '模型广场页面访问', 'PAGE', 2, 9, 'ENABLED', 1, NULL),
@@ -236,11 +236,11 @@ INSERT IGNORE INTO sys_role_permissions (role_id, permission_id) VALUES
 -- =========================
 
 -- 供应商
-INSERT IGNORE INTO providers (id, code, name, provider_type, base_url, status) VALUES
-(1, 'openai',       'OpenAI',       'OPENAI',  'https://api.openai.com',       'ENABLED'),
-(2, 'anthropic',    'Anthropic',    'ANTHROPIC','https://api.anthropic.com',     'ENABLED'),
-(3, 'deepseek',     'DeepSeek',     'DEEPSEEK','https://api.deepseek.com',      'ENABLED'),
-(4, 'qwen',         'Qwen',         'QWEN',    'https://dashscope.aliyuncs.com','ENABLED');
+INSERT IGNORE INTO providers (id, code, name, provider_type, status) VALUES
+(1, 'openai',       'OpenAI',       'OPENAI',   'ENABLED'),
+(2, 'anthropic',    'Anthropic',    'ANTHROPIC','ENABLED'),
+(3, 'deepseek',     'DeepSeek',     'DEEPSEEK', 'ENABLED'),
+(4, 'qwen',         'Qwen',         'QWEN',     'ENABLED');
 
 -- 频控/额度策略（独立表 + 资源绑定）
 INSERT IGNORE INTO rate_limit_policies (id, policy_code, policy_name, per_second, per_minute, time_window, status) VALUES
@@ -339,15 +339,15 @@ INSERT IGNORE INTO external_model_sources (
  'https://openrouter.ai/api/v1/models', 'MODEL_CATALOG', 'ENABLED');
 
 -- 模型 API 协议绑定（usage_extractor 为 Usage 解析器编码或类名）
-INSERT IGNORE INTO model_api_bindings (id, model_id, protocol, api_path, usage_extractor, status, remark) VALUES
-(1, 1, 'CHAT_COMPLETIONS', '/v1/chat/completions', 'DEFAULT', 'ENABLED', 'GPT-4o Chat Completions'),
-(2, 2, 'CHAT_COMPLETIONS', '/v1/chat/completions', 'DEFAULT', 'ENABLED', 'GPT-4o Mini Chat Completions'),
-(3, 4, 'MESSAGES', '/v1/messages', 'ANTHROPIC', 'ENABLED', 'Claude Sonnet Messages API'),
-(4, 6, 'CHAT_COMPLETIONS', '/v1/chat/completions', 'DEFAULT', 'ENABLED', 'DeepSeek Chat'),
-(5, 8, 'IMAGE_GENERATIONS', '/api/v1/services/aigc/multimodal-generation/generation', 'DEFAULT', 'ENABLED', 'Qwen Image Generation'),
-(6, 9, 'IMAGE_EDITS', '/api/v1/services/aigc/multimodal-generation/generation', 'DEFAULT', 'ENABLED', 'Qwen Image Edit'),
-(7, 10, 'IMAGE_GENERATIONS', '/v1/images/generations', 'DEFAULT', 'ENABLED', 'OpenAI Image Generation'),
-(8, 10, 'IMAGE_EDITS', '/v1/images/edits', 'DEFAULT', 'ENABLED', 'OpenAI Image Edit');
+INSERT IGNORE INTO model_api_bindings (id, model_id, protocol, base_url, api_path, request_adapter, usage_extractor, status, remark) VALUES
+(1, 1, 'CHAT_COMPLETIONS', 'https://api.openai.com', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT', 'ENABLED', 'GPT-4o Chat Completions'),
+(2, 2, 'CHAT_COMPLETIONS', 'https://api.openai.com', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT', 'ENABLED', 'GPT-4o Mini Chat Completions'),
+(3, 4, 'MESSAGES', 'https://api.anthropic.com', '/v1/messages', 'ANTHROPIC', 'ANTHROPIC', 'ENABLED', 'Claude Sonnet Messages API'),
+(4, 6, 'CHAT_COMPLETIONS', 'https://api.deepseek.com', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT', 'ENABLED', 'DeepSeek Chat'),
+(5, 8, 'IMAGE_GENERATIONS', 'https://dashscope.aliyuncs.com', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'DEFAULT', 'ENABLED', 'Qwen Image Generation'),
+(6, 9, 'IMAGE_EDITS', 'https://dashscope.aliyuncs.com', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'DEFAULT', 'ENABLED', 'Qwen Image Edit'),
+(7, 10, 'IMAGE_GENERATIONS', 'https://api.openai.com', '/v1/images/generations', 'OPENAI_COMPATIBLE', 'DEFAULT', 'ENABLED', 'OpenAI Image Generation'),
+(8, 10, 'IMAGE_EDITS', 'https://api.openai.com', '/v1/images/edits', 'OPENAI_COMPATIBLE', 'DEFAULT', 'ENABLED', 'OpenAI Image Edit');
 
 -- =========================
 -- 应用管理

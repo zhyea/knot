@@ -1,11 +1,11 @@
 package org.chobit.knot.gateway.upstream.usage;
 
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
+import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.enums.ProviderTypeEnum;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.model.BillingUsage;
-import org.chobit.knot.gateway.upstream.UpstreamRequestContext;
-import org.chobit.knot.gateway.upstream.provider.UpstreamProviderAdapter;
 import org.chobit.knot.gateway.usage.AnthropicUsageExtractor;
 import org.chobit.knot.gateway.usage.UsageExtractor;
 import org.chobit.knot.gateway.usage.UsageExtractorCatalog;
@@ -20,7 +20,7 @@ public class UsageExtractorRegistry {
         this.usageExtractorCatalog = usageExtractorCatalog;
     }
 
-    public BillingUsage extract(String responseBody, UpstreamRequestContext context, UpstreamProviderAdapter adapter) {
+    public BillingUsage extract(String responseBody, UpstreamRequestContext context, UpstreamRequestAdapter adapter) {
         String code = resolveExtractorCode(responseBody, context);
         UsageExtractor extractor = resolve(code);
         if (extractor != null) {

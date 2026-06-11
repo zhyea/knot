@@ -1,18 +1,22 @@
-package org.chobit.knot.gateway.upstream.provider;
+package org.chobit.knot.gateway.adapter.request;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.model.BillingUsage;
-import org.chobit.knot.gateway.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 
 import java.util.Map;
 
-public interface UpstreamProviderAdapter {
+public interface UpstreamRequestAdapter {
+
+    String code();
+
+    String label();
 
     boolean supports(String providerType);
 
@@ -89,5 +93,4 @@ public interface UpstreamProviderAdapter {
             return null;
         }
     }
-
 }

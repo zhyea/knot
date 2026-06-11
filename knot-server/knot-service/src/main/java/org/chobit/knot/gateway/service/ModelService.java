@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.chobit.knot.gateway.adapter.request.RequestAdapterCatalog;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.ModelConverter;
@@ -25,6 +26,7 @@ import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.usage.UsageExtractorCatalog;
 import org.chobit.knot.gateway.vo.model.UsageExtractorItem;
+import org.chobit.knot.gateway.vo.model.RequestAdapterItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +44,7 @@ public class ModelService {
     private final ModelConverter modelConverter;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
     private final UsageExtractorCatalog usageExtractorCatalog;
+    private final RequestAdapterCatalog requestAdapterCatalog;
 
     /**
      * Constructs a new instance.
@@ -52,7 +55,8 @@ public class ModelService {
                         BillingRuleMapper billingRuleMapper,
                         ModelConverter modelConverter,
                         ResourceTrafficPolicySupport trafficPolicySupport,
-                        UsageExtractorCatalog usageExtractorCatalog) {
+                        UsageExtractorCatalog usageExtractorCatalog,
+                        RequestAdapterCatalog requestAdapterCatalog) {
         this.modelMapper = modelMapper;
         this.modelApiBindingMapper = modelApiBindingMapper;
         this.logicalModelMapper = logicalModelMapper;
@@ -60,6 +64,7 @@ public class ModelService {
         this.modelConverter = modelConverter;
         this.trafficPolicySupport = trafficPolicySupport;
         this.usageExtractorCatalog = usageExtractorCatalog;
+        this.requestAdapterCatalog = requestAdapterCatalog;
     }
 
     /**
@@ -126,6 +131,19 @@ public class ModelService {
                         item.label(),
                         item.className(),
                         item.streamSupported()
+                ))
+                .toList();
+    }
+
+    /**
+     * Lists available upstream request adapters.
+     */
+    public List<RequestAdapterItem> listRequestAdapters() {
+        return requestAdapterCatalog.definitions().stream()
+                .map(item -> new RequestAdapterItem(
+                        item.code(),
+                        item.label(),
+                        item.className()
                 ))
                 .toList();
     }
@@ -336,7 +354,9 @@ public class ModelService {
         ModelApiBindingDto dto = new ModelApiBindingDto(
                 entity.getId(),
                 entity.getProtocol(),
+                entity.getBaseUrl(),
                 entity.getApiPath(),
+                entity.getRequestAdapter(),
                 entity.getUsageExtractor(),
                 entity.getStreamUsageExtractor(),
                 EntityStatusEnum.ENABLED.code().equals(entity.getStatus()),
@@ -355,7 +375,9 @@ public class ModelService {
             ModelApiBindingEntity entity = new ModelApiBindingEntity();
             entity.setModelId(modelId);
             entity.setProtocol(protocol.trim().toUpperCase());
+            entity.setBaseUrl(blankToNull(binding.baseUrl()));
             entity.setApiPath(blankToNull(binding.apiPath()));
+            entity.setRequestAdapter(blankToNull(binding.requestAdapter()));
             entity.setUsageExtractor(blankToDefault(binding.usageExtractor(), "DEFAULT"));
             entity.setStreamUsageExtractor(blankToNull(binding.streamUsageExtractor()));
             entity.setStatus(binding.enabled() ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());

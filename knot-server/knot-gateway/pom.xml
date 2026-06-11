@@ -25,7 +25,7 @@
         </dependency>
         <dependency>
             <groupId>org.chobit.knot</groupId>
-            <artifactId>knot-usage</artifactId>
+            <artifactId>knot-adapter</artifactId>
         </dependency>
         <dependency>
             <groupId>org.projectlombok</groupId>

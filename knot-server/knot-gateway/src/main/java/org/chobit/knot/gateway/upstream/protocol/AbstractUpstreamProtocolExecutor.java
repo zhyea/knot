@@ -1,12 +1,12 @@
 package org.chobit.knot.gateway.upstream.protocol;
 
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
+import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
-import org.chobit.knot.gateway.upstream.UpstreamRequestContext;
-import org.chobit.knot.gateway.upstream.provider.UpstreamProviderAdapter;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -36,7 +36,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
      * Executes the public operation. Executes the public operation.
      */
     @Override
-    public ProxyResult execute(UpstreamRequestContext context, UpstreamProviderAdapter adapter) {
+    public ProxyResult execute(UpstreamRequestContext context, UpstreamRequestAdapter adapter) {
         String path = adapter.resolvePath(context, defaultPath(context));
         if (StringUtils.isBlank(path)) {
             throw new GatewayUpstreamException(
@@ -47,7 +47,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
 
         try {
             RestClient.RequestBodySpec spec = restClient.post()
-                    .uri(joinUrl(context.provider().getBaseUrl(), path))
+                    .uri(joinUrl(context.baseUrl(), path))
                     .contentType(adapter.resolveContentType(context))
                     .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM);
             if (StringUtils.isNotBlank(context.traceparent())) {
@@ -81,7 +81,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     }
 
     @SuppressWarnings("unchecked")
-    private Object buildRequestBody(UpstreamRequestContext context, UpstreamProviderAdapter adapter, MediaType contentType) {
+    private Object buildRequestBody(UpstreamRequestContext context, UpstreamRequestAdapter adapter, MediaType contentType) {
         Object body = adapter.buildRequestBody(context);
         if (!MediaType.MULTIPART_FORM_DATA.includes(contentType) || !(body instanceof Map<?, ?> map)) {
             return body;

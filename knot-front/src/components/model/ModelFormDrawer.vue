@@ -201,13 +201,13 @@
         <div class="section-head">
           <div>
             <h3>调用配置</h3>
-            <p>按接口协议维护上游路径，并配置响应中的 Usage 解析器。</p>
+            <p>按接口协议维护上游请求地址，并配置响应中的 Usage 解析器。</p>
           </div>
           <el-button size="small" @click="addApiBinding">新增协议</el-button>
         </div>
         <div class="api-usage-section">
           <div v-if="form.apiBindings.length === 0" class="empty-api-binding">
-            暂未配置 API 协议，网关会使用协议默认路径和厂商默认 usage 解析逻辑。
+            暂未配置 API 协议，网关会使用协议默认路径和厂商默认 Usage 解析逻辑。
           </div>
           <div v-for="(binding, index) in form.apiBindings" :key="binding.uid" class="api-binding-card">
             <div class="api-binding-card__head">
@@ -239,6 +239,32 @@
 
             <el-row :gutter="12" class="api-binding-card__row">
               <el-col :span="12">
+                <el-form-item label="请求 URL" required>
+                  <el-input v-model="binding.baseUrl" placeholder="https://..." />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="请求适配器">
+                  <el-select
+                    v-model="binding.requestAdapter"
+                    clearable
+                    filterable
+                    placeholder="留空时按供应商类型自动匹配"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="item in requestAdapterOptions"
+                      :key="item.code"
+                      :label="requestAdapterLabel(item)"
+                      :value="item.code"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="12" class="api-binding-card__row">
+              <el-col :span="12">
                 <el-form-item label="Usage解析器">
                   <el-select
                     v-model="binding.usageExtractor"
@@ -261,7 +287,7 @@
                     v-model="binding.streamUsageExtractor"
                     clearable
                     filterable
-                    placeholder="留空时复用 Usage解析器"
+                    placeholder="留空时复用 Usage 解析器"
                     style="width: 100%"
                   >
                     <el-option
@@ -314,7 +340,7 @@ import {
   normalizeQuotaPolicy,
   normalizeRateLimitPolicy
 } from "../../utils/trafficPolicy";
-import { checkModelCode, createModel, getModel, listUsageExtractors, updateModel } from "../../api/models";
+import { checkModelCode, createModel, getModel, listRequestAdapters, listUsageExtractors, updateModel } from "../../api/models";
 import { listLogicalModels } from "../../api/logicalModels";
 import { listProviders } from "../../api/providers";
 import { listBillingRules } from "../../api/billing";
@@ -332,6 +358,7 @@ const providerOptions = ref([]);
 const logicalModelOptions = ref([]);
 const billingRuleOptions = ref([]);
 const usageExtractorOptions = ref([]);
+const requestAdapterOptions = ref([]);
 const saving = ref(false);
 const detailLoading = ref(false);
 const modelCodeChecking = ref(false);
@@ -475,6 +502,12 @@ async function loadUsageExtractors() {
   return data;
 }
 
+async function loadRequestAdapters() {
+  const data = await listRequestAdapters();
+  requestAdapterOptions.value = Array.isArray(data) ? data : [];
+  return data;
+}
+
 function mergeOptions(targetRef, list) {
   targetRef.value = mergeOptionList(targetRef.value, list);
 }
@@ -500,6 +533,10 @@ function billingRuleLabel(rule) {
 }
 
 function usageExtractorLabel(item) {
+  return item?.label ? `${item.label} (${item.code})` : item?.code || "";
+}
+
+function requestAdapterLabel(item) {
   return item?.label ? `${item.label} (${item.code})` : item?.code || "";
 }
 
@@ -596,7 +633,14 @@ watch(
   () => [props.modelValue, props.model],
   async ([visible]) => {
     if (visible) {
-      await Promise.all([loadProviders(), loadLogicalModels(), loadBillingRules(), loadModelTypes(), loadUsageExtractors()]);
+      await Promise.all([
+        loadProviders(),
+        loadLogicalModels(),
+        loadBillingRules(),
+        loadModelTypes(),
+        loadUsageExtractors(),
+        loadRequestAdapters()
+      ]);
       await resetForm();
     }
   }
@@ -675,7 +719,9 @@ function createApiBinding(source = {}) {
     uid: source.uid || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     id: source.id ?? null,
     protocol: normalizeProtocolForModelType(source.protocol),
+    baseUrl: source.baseUrl || "",
     apiPath: source.apiPath || "",
+    requestAdapter: source.requestAdapter || "",
     usageExtractor: source.usageExtractor || "DEFAULT",
     streamUsageExtractor: source.streamUsageExtractor || "",
     enabled: source.enabled !== false,
@@ -700,20 +746,24 @@ function validateApiBindings() {
   const protocols = new Set();
   for (const binding of form.apiBindings) {
     if (!binding.protocol) {
-      ElMessage.warning("Please select API protocol");
+      ElMessage.warning("请选择接口协议");
       return false;
     }
     if (!isProtocolAllowedForModelType(binding.protocol)) {
-      ElMessage.warning(`API protocol does not match model type: ${binding.protocol}`);
+      ElMessage.warning(`接口协议与模型类型不匹配：${binding.protocol}`);
       return false;
     }
     if (protocols.has(binding.protocol)) {
-      ElMessage.warning("API protocol cannot be duplicated");
+      ElMessage.warning("接口协议不能重复");
       return false;
     }
     protocols.add(binding.protocol);
+    if (!binding.baseUrl?.trim()) {
+      ElMessage.warning(`请求 URL 必填：${binding.protocol}`);
+      return false;
+    }
     if (!binding.usageExtractor?.trim()) {
-      ElMessage.warning(`Usage extractor is required: ${binding.protocol}`);
+      ElMessage.warning(`Usage 解析器必填：${binding.protocol}`);
       return false;
     }
   }
@@ -762,7 +812,9 @@ function buildApiBindingsPayload() {
   return form.apiBindings.map((binding) => ({
     id: binding.id,
     protocol: binding.protocol,
+    baseUrl: binding.baseUrl?.trim() || null,
     apiPath: binding.apiPath?.trim() || null,
+    requestAdapter: binding.requestAdapter?.trim() || null,
     usageExtractor: binding.usageExtractor?.trim() || "DEFAULT",
     streamUsageExtractor: binding.streamUsageExtractor?.trim() || null,
     enabled: binding.enabled,

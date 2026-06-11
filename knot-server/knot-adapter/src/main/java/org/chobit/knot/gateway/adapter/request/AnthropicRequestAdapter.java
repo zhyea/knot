@@ -1,16 +1,13 @@
-package org.chobit.knot.gateway.upstream.provider;
+package org.chobit.knot.gateway.adapter.request;
 
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.AuthConfigSupport;
+import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
-import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProviderTypeEnum;
-import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.model.BillingUsage;
-import org.chobit.knot.gateway.service.ProviderCredentialSupport;
-import org.chobit.knot.gateway.upstream.UpstreamRequestContext;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -22,24 +19,26 @@ import java.util.Map;
 
 @Component
 @Order(10)
-@RequiredArgsConstructor
-public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
+public class AnthropicRequestAdapter implements UpstreamRequestAdapter {
 
+    public static final String CODE = "ANTHROPIC";
     private static final String DEFAULT_VERSION = "2023-06-01";
 
-    private final ProviderCredentialSupport credentialSupport;
+    @Override
+    public String code() {
+        return CODE;
+    }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
+    @Override
+    public String label() {
+        return "Anthropic";
+    }
+
     @Override
     public boolean supports(String providerType) {
         return ProviderTypeEnum.ANTHROPIC.code().equals(StringUtils.upperCase(StringUtils.trim(providerType)));
     }
 
-    /**
-     * Resolves the requested value from current context and configuration. Executes the public operation.
-     */
     @Override
     public String resolvePath(UpstreamRequestContext context, String defaultPath) {
         if (context.binding() != null && StringUtils.isNotBlank(context.binding().getApiPath())) {
@@ -52,12 +51,9 @@ public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
                 || ModelApiProtocolEnum.MESSAGES == protocol) {
             return ModelApiProtocolEnum.MESSAGES.defaultPath();
         }
-        return UpstreamProviderAdapter.super.resolvePath(context, defaultPath);
+        return UpstreamRequestAdapter.super.resolvePath(context, defaultPath);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public Object buildRequestBody(UpstreamRequestContext context) {
         ModelApiProtocolEnum protocol = context.protocol().canonical();
@@ -73,12 +69,9 @@ public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
         return context.requestBody();
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
-        String apiKey = credentialValue(context.credential(), AuthConstants.API_KEY);
+        String apiKey = AuthConfigSupport.apiKey(context.authConfig());
         if (StringUtils.isNotBlank(apiKey)) {
             requestSpec.header(GatewayHeaders.X_API_KEY, apiKey);
         }
@@ -87,7 +80,7 @@ public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
 
     @Override
     public BillingUsage extractUsageFromBody(Map<String, Object> body) {
-        BillingUsage usage = UpstreamProviderAdapter.super.extractUsageFromBody(body);
+        BillingUsage usage = UpstreamRequestAdapter.super.extractUsageFromBody(body);
         if (usage.isEmpty()) {
             return usage;
         }
@@ -101,11 +94,6 @@ public class AnthropicProviderAdapter implements UpstreamProviderAdapter {
                 usage.cacheWriteTokens(),
                 usage.amount()
         );
-    }
-
-    private String credentialValue(ProviderCredentialEntity credential, String key) {
-        Object value = credentialSupport.toAuthConfig(credential).get(key);
-        return StringUtils.trimToNull(value == null ? null : String.valueOf(value));
     }
 
     @SuppressWarnings("unchecked")

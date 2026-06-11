@@ -1,15 +1,14 @@
-package org.chobit.knot.gateway.upstream.provider;
+package org.chobit.knot.gateway.adapter.request;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.AuthConfigSupport;
+import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProviderTypeEnum;
-import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
-import org.chobit.knot.gateway.service.ProviderCredentialSupport;
-import org.chobit.knot.gateway.upstream.UpstreamRequestContext;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -23,7 +22,9 @@ import java.util.Set;
 @Component
 @Order(100)
 @RequiredArgsConstructor
-public class OpenAiCompatibleProviderAdapter implements UpstreamProviderAdapter {
+public class OpenAiCompatibleRequestAdapter implements UpstreamRequestAdapter {
+
+    public static final String CODE = "OPENAI_COMPATIBLE";
 
     private static final Set<String> PROVIDER_TYPES = Set.of(
             ProviderTypeEnum.OPENAI.code(),
@@ -31,19 +32,21 @@ public class OpenAiCompatibleProviderAdapter implements UpstreamProviderAdapter 
             ProviderTypeEnum.OPENROUTER.code()
     );
 
-    private final ProviderCredentialSupport credentialSupport;
+    @Override
+    public String code() {
+        return CODE;
+    }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
+    @Override
+    public String label() {
+        return "OpenAI Compatible";
+    }
+
     @Override
     public boolean supports(String providerType) {
         return providerType == null || PROVIDER_TYPES.contains(StringUtils.upperCase(StringUtils.trim(providerType)));
     }
 
-    /**
-     * Resolves the requested value from current context and configuration. Executes the public operation.
-     */
     @Override
     public String resolvePath(UpstreamRequestContext context, String defaultPath) {
         if (context.binding() != null && StringUtils.isNotBlank(context.binding().getApiPath())) {
@@ -52,12 +55,9 @@ public class OpenAiCompatibleProviderAdapter implements UpstreamProviderAdapter 
         if (ModelApiProtocolEnum.MESSAGES == context.protocol().canonical()) {
             return ModelApiProtocolEnum.CHAT_COMPLETIONS.defaultPath();
         }
-        return UpstreamProviderAdapter.super.resolvePath(context, defaultPath);
+        return UpstreamRequestAdapter.super.resolvePath(context, defaultPath);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public Object buildRequestBody(UpstreamRequestContext context) {
         if (ModelApiProtocolEnum.MESSAGES == context.protocol().canonical()) {
@@ -66,20 +66,12 @@ public class OpenAiCompatibleProviderAdapter implements UpstreamProviderAdapter 
         return context.requestBody();
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
-        String apiKey = credentialValue(context.credential(), AuthConstants.API_KEY);
+        String apiKey = AuthConfigSupport.apiKey(context.authConfig());
         if (StringUtils.isNotBlank(apiKey)) {
             requestSpec.header(GatewayHeaders.AUTHORIZATION, AuthConstants.BEARER_PREFIX + apiKey);
         }
-    }
-
-    private String credentialValue(ProviderCredentialEntity credential, String key) {
-        Object value = credentialSupport.toAuthConfig(credential).get(key);
-        return StringUtils.trimToNull(value == null ? null : String.valueOf(value));
     }
 
     @SuppressWarnings("unchecked")

@@ -32,7 +32,7 @@
     <modules>
         <module>knot-common</module>
         <module>knot-plugin</module>
-        <module>knot-usage</module>
+        <module>knot-adapter</module>
         <module>knot-dal</module>
         <module>knot-service</module>
         <module>knot-admin</module>
@@ -53,7 +53,7 @@
             </dependency>
             <dependency>
                 <groupId>org.chobit.knot</groupId>
-                <artifactId>knot-usage</artifactId>
+                <artifactId>knot-adapter</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

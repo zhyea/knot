@@ -8,6 +8,5 @@ public class ProviderEntity {
     private String code;
     private String name;
     private String providerType;
-    private String baseUrl;
     private String status;
 }
