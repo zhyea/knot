@@ -50,6 +50,7 @@ export const messages = {
     },
     route: {
       login: "登录",
+      forcePasswordChange: "修改密码",
       dashboard: "总览",
       systemUsers: "用户管理",
       systemDepartments: "部门管理",
@@ -90,9 +91,24 @@ export const messages = {
       password: "密码",
       submit: "登录",
       success: "登录成功",
+      forcePasswordChangeRequired: "当前账号使用默认密码，请先修改密码后再登录。",
       usernameRequired: "请输入用户名",
       passwordRequired: "请输入密码",
       failed: "登录失败，请检查用户名和密码"
+    },
+    forcePasswordChange: {
+      title: "修改默认密码",
+      description: "用户 {username} 当前仍在使用默认密码，请先完成密码修改。",
+      newPassword: "请输入新密码",
+      confirmPassword: "请再次输入新密码",
+      submit: "提交修改",
+      backToLogin: "返回登录",
+      newPasswordRequired: "请输入新密码",
+      confirmPasswordRequired: "请再次输入新密码",
+      passwordLength: "密码长度不能少于 8 位",
+      passwordMismatch: "两次输入的密码不一致",
+      success: "密码修改成功，请重新登录",
+      failed: "密码修改失败，请稍后重试"
     },
     notFound: {
       description: "页面不存在",
@@ -173,6 +189,7 @@ export const messages = {
     },
     route: {
       login: "登入",
+      forcePasswordChange: "修改密碼",
       dashboard: "總覽",
       systemUsers: "使用者管理",
       systemDepartments: "部門管理",
@@ -213,9 +230,24 @@ export const messages = {
       password: "密碼",
       submit: "登入",
       success: "登入成功",
+      forcePasswordChangeRequired: "目前帳號仍在使用預設密碼，請先修改密碼後再登入。",
       usernameRequired: "請輸入使用者名稱",
       passwordRequired: "請輸入密碼",
       failed: "登入失敗，請檢查使用者名稱和密碼"
+    },
+    forcePasswordChange: {
+      title: "修改預設密碼",
+      description: "使用者 {username} 目前仍在使用預設密碼，請先完成密碼修改。",
+      newPassword: "請輸入新密碼",
+      confirmPassword: "請再次輸入新密碼",
+      submit: "提交修改",
+      backToLogin: "返回登入",
+      newPasswordRequired: "請輸入新密碼",
+      confirmPasswordRequired: "請再次輸入新密碼",
+      passwordLength: "密碼長度不能少於 8 碼",
+      passwordMismatch: "兩次輸入的密碼不一致",
+      success: "密碼修改成功，請重新登入",
+      failed: "密碼修改失敗，請稍後再試"
     },
     notFound: {
       description: "頁面不存在",
@@ -296,6 +328,7 @@ export const messages = {
     },
     route: {
       login: "Login",
+      forcePasswordChange: "Change Password",
       dashboard: "Dashboard",
       systemUsers: "Users",
       systemDepartments: "Departments",
@@ -336,9 +369,24 @@ export const messages = {
       password: "Password",
       submit: "Login",
       success: "Login successful",
+      forcePasswordChangeRequired: "This account is using the default password. Please change it before signing in.",
       usernameRequired: "Please enter your username",
       passwordRequired: "Please enter your password",
       failed: "Login failed. Please check your username and password."
+    },
+    forcePasswordChange: {
+      title: "Change Default Password",
+      description: "User {username} is still using the default password. Please update it before continuing.",
+      newPassword: "Enter a new password",
+      confirmPassword: "Confirm the new password",
+      submit: "Update Password",
+      backToLogin: "Back to Login",
+      newPasswordRequired: "Please enter a new password",
+      confirmPasswordRequired: "Please confirm the new password",
+      passwordLength: "Password must be at least 8 characters",
+      passwordMismatch: "The two passwords do not match",
+      success: "Password updated. Please sign in again.",
+      failed: "Failed to update the password. Please try again later."
     },
     notFound: {
       description: "The page you requested does not exist.",
@@ -419,6 +467,7 @@ export const messages = {
     },
     route: {
       login: "Connexion",
+      forcePasswordChange: "Modifier le mot de passe",
       dashboard: "Vue d'ensemble",
       systemUsers: "Utilisateurs",
       systemDepartments: "Départements",
@@ -459,9 +508,24 @@ export const messages = {
       password: "Mot de passe",
       submit: "Connexion",
       success: "Connexion réussie",
+      forcePasswordChangeRequired: "Ce compte utilise encore le mot de passe par défaut. Veuillez le modifier avant de vous connecter.",
       usernameRequired: "Veuillez saisir le nom d'utilisateur",
       passwordRequired: "Veuillez saisir le mot de passe",
       failed: "Échec de la connexion. Vérifiez le nom d'utilisateur et le mot de passe."
+    },
+    forcePasswordChange: {
+      title: "Modifier le mot de passe par défaut",
+      description: "L'utilisateur {username} utilise encore le mot de passe par défaut. Veuillez le modifier avant de continuer.",
+      newPassword: "Saisissez un nouveau mot de passe",
+      confirmPassword: "Confirmez le nouveau mot de passe",
+      submit: "Mettre à jour le mot de passe",
+      backToLogin: "Retour à la connexion",
+      newPasswordRequired: "Veuillez saisir un nouveau mot de passe",
+      confirmPasswordRequired: "Veuillez confirmer le nouveau mot de passe",
+      passwordLength: "Le mot de passe doit contenir au moins 8 caractères",
+      passwordMismatch: "Les deux mots de passe ne correspondent pas",
+      success: "Mot de passe modifié. Veuillez vous reconnecter.",
+      failed: "Échec de la modification du mot de passe. Veuillez réessayer plus tard."
     },
     notFound: {
       description: "La page demandée n'existe pas.",

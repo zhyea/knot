@@ -27,6 +27,19 @@
               style="width: 100%"
             />
           </el-form-item>
+          <el-form-item label="绑定角色">
+            <RemoteEntitySelect
+              v-model="form.roleIds"
+              :load-function="loadRoles"
+              :label-function="roleLabel"
+              :selected-options="selectedRoleOptions"
+              multiple
+              collapse-tags
+              collapse-tags-tooltip
+              placeholder="请选择角色"
+              style="width: 100%"
+            />
+          </el-form-item>
           <el-form-item v-if="!isEdit" label="密码" required>
             <el-input
               v-model="form.password"
@@ -59,7 +72,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
-import { createUser, updateUser } from "../../api/users";
+import { createUser, listUserRoleOptions, updateUser } from "../../api/users";
 import { listDepartments } from "../../api/departments";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import { normalizeOptionList, resolveSelectedOption } from "../../utils/options";
@@ -73,12 +86,14 @@ const emit = defineEmits(["update:modelValue", "saved"]);
 
 const saving = ref(false);
 const departmentOptions = ref([]);
+const roleOptions = ref([]);
 const form = reactive({
   id: null,
   username: "",
   realName: "",
   password: "",
   deptId: null,
+  roleIds: [],
   status: 1
 });
 
@@ -91,6 +106,7 @@ function resetForm() {
     form.realName = props.user.realName || "";
     form.password = "";
     form.deptId = props.user.deptId ?? null;
+    form.roleIds = Array.isArray(props.user.roleIds) ? [...props.user.roleIds] : [];
     form.status = props.user.status ?? 1;
     return;
   }
@@ -99,6 +115,7 @@ function resetForm() {
   form.realName = "";
   form.password = "";
   form.deptId = null;
+  form.roleIds = [];
   form.status = 1;
 }
 
@@ -108,6 +125,7 @@ watch(
     if (visible) {
       resetForm();
       loadDepartments();
+      loadRoles();
     }
   },
   { immediate: true }
@@ -120,15 +138,44 @@ const selectedDepartmentOptions = computed(() =>
   })
 );
 
+const selectedRoleOptions = computed(() => {
+  const roleIds = Array.isArray(form.roleIds) ? form.roleIds : [];
+  const roleNameMap = new Map();
+  (props.user?.roleIds || []).forEach((roleId, index) => {
+    roleNameMap.set(roleId, props.user?.roleNames?.[index]);
+  });
+  return roleIds.map((roleId) => {
+    const selected = roleOptions.value.find((item) => item?.id === roleId);
+    if (selected) {
+      return selected;
+    }
+    return {
+      id: roleId,
+      name: roleNameMap.get(roleId) || `#${roleId}`,
+      code: ""
+    };
+  });
+});
+
 function departmentLabel(department) {
   return department.deptCode
     ? `${department.deptName} (${department.deptCode})`
     : department.deptName || `#${department.id}`;
 }
 
+function roleLabel(role) {
+  return role.code ? `${role.name} (${role.code})` : role.name || `#${role.id}`;
+}
+
 async function loadDepartments() {
   const data = await listDepartments({ pageNum: 1, pageSize: 100 });
   departmentOptions.value = normalizeOptionList(data);
+}
+
+async function loadRoles(params = {}) {
+  const data = await listUserRoleOptions(params);
+  roleOptions.value = normalizeOptionList(data);
+  return data;
 }
 
 async function submit() {
@@ -147,6 +194,7 @@ async function submit() {
       username: form.username.trim(),
       realName: form.realName?.trim() || form.username.trim(),
       deptId: form.deptId,
+      roleIds: Array.isArray(form.roleIds) ? [...form.roleIds] : [],
       status: form.status
     };
     if (!isEdit.value) {

@@ -63,7 +63,12 @@ async function handleLogin() {
 
   loading.value = true;
   try {
-    await login(form.username, form.password);
+    const response = await login(form.username, form.password);
+    if (response.forcePasswordChange) {
+      ElMessage.warning(t("login.forcePasswordChangeRequired"));
+      router.push("/force-password-change");
+      return;
+    }
     await Promise.all([loadThemePreference(), loadLocalePreference()]);
     ElMessage.success(t("login.success"));
     router.push("/");

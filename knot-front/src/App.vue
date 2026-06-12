@@ -16,7 +16,8 @@ import { loadThemePreference } from "./composables/useTheme";
 const route = useRoute();
 const { elementLocale, loadLocalePreference, t } = useLocale();
 
-const layout = computed(() => (route.path === "/login" ? "div" : MainLayout));
+const noLayoutPaths = ["/login", "/force-password-change"];
+const layout = computed(() => (noLayoutPaths.includes(route.path) ? "div" : MainLayout));
 
 const pageTitle = computed(() => {
   if (route.meta?.titleKey) {

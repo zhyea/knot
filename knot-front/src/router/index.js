@@ -10,6 +10,12 @@ const routes = [
     meta: { titleKey: "route.login" }
   },
   {
+    path: "/force-password-change",
+    name: "force-password-change",
+    component: () => import("@/views/ForcePasswordChangeView.vue"),
+    meta: { titleKey: "route.forcePasswordChange" }
+  },
+  {
     path: "/",
     name: "dashboard",
     component: () => import("@/views/DashboardView.vue"),
@@ -101,8 +107,17 @@ const router = createRouter({
 });
 
 router.beforeEach((to, from, next) => {
-  const { isLoggedIn } = useAuth();
-  const whiteList = ["/login"];
+  const { isLoggedIn, needsPasswordChange } = useAuth();
+  const whiteList = ["/login", "/force-password-change"];
+
+  if (needsPasswordChange.value) {
+    if (to.path === "/force-password-change") {
+      next();
+    } else {
+      next("/force-password-change");
+    }
+    return;
+  }
 
   if (whiteList.includes(to.path)) {
     if (isLoggedIn.value) {

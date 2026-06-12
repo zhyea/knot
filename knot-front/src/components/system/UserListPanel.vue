@@ -4,6 +4,11 @@
       <el-table-column prop="id" label="ID" min-width="5%" align="center" header-align="center" />
       <el-table-column prop="username" label="用户名" min-width="12%" />
       <el-table-column prop="realName" label="姓名" min-width="10%" />
+      <el-table-column prop="roleNames" label="角色" min-width="16%">
+        <template #default="{ row }">
+          {{ formatRoleNames(row.roleNames) }}
+        </template>
+      </el-table-column>
       <el-table-column prop="deptName" label="所属部门" min-width="12%">
         <template #default="{ row }">{{ row.deptName || "-" }}</template>
       </el-table-column>
@@ -80,5 +85,12 @@ function formatDateTime(dateTime) {
     minute: "2-digit",
     second: "2-digit"
   });
+}
+
+function formatRoleNames(roleNames) {
+  if (!Array.isArray(roleNames) || roleNames.length === 0) {
+    return "-";
+  }
+  return roleNames.join("、");
 }
 </script>

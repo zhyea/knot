@@ -9,10 +9,6 @@ import org.springframework.web.servlet.HandlerInterceptor;
 
 import java.util.List;
 
-/**
- * JWT 认证拦截器：从请求头中提取 token 并校验，失败时抛出
- * {@link UnauthorizedException} 交由全局异常处理。
- */
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
 
@@ -20,7 +16,7 @@ public class AuthInterceptor implements HandlerInterceptor {
     private static final String BEARER = "Bearer ";
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * Validates the access token carried in the request header.
      */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
@@ -29,11 +25,11 @@ public class AuthInterceptor implements HandlerInterceptor {
             throw new UnauthorizedException("未登录或 token 无效");
         }
         String token = auth.substring(BEARER.length()).trim();
-        if (token.isEmpty() || !JwtUtil.isValid(token)) {
-            throw new UnauthorizedException("token 已过期或无效");
+        if (token.isEmpty()) {
+            throw new UnauthorizedException("未登录或 token 无效");
         }
         try {
-            Claims claims = JwtUtil.parseToken(token);
+            Claims claims = JwtUtil.parseAccessToken(token);
             request.setAttribute("userId", claims.get("userId", Long.class));
             request.setAttribute("username", claims.getSubject());
             List<String> roles = AuthRoles.fromClaim(claims.get("roles"));

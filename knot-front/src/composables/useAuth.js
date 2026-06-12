@@ -1,5 +1,5 @@
-import { ref, computed } from "vue";
-import { login as apiLogin, logout as apiLogout } from "../api/auth";
+import { computed, ref } from "vue";
+import { forcePasswordChange as apiForcePasswordChange, login as apiLogin, logout as apiLogout } from "../api/auth";
 import { getMyAuthorizations } from "../api/authorizations";
 import { clearIdleActivity, touchIdleActivity } from "./idleActivity";
 import {
@@ -13,13 +13,18 @@ import {
 const TOKEN_KEY = "knot_token";
 const USER_KEY = "knot_user";
 const AUTHZ_KEY = "knot_authorizations";
+const FORCE_PASSWORD_CHANGE_KEY = "knot_force_password_change";
 
 const token = ref(getStorageItem(TOKEN_KEY));
 const user = ref(getStorageJson(USER_KEY));
 const authorizations = ref(getStorageJson(AUTHZ_KEY, { permissions: [], modules: [] }));
+const forcePasswordChangeState = ref(
+  getStorageJson(FORCE_PASSWORD_CHANGE_KEY, { username: "", passwordChangeToken: "", realName: "" })
+);
 
 export function useAuth() {
   const isLoggedIn = computed(() => !!token.value);
+  const needsPasswordChange = computed(() => !!forcePasswordChangeState.value?.passwordChangeToken);
   const permissions = computed(() => authorizations.value?.permissions || []);
   const modules = computed(() => authorizations.value?.modules || []);
 
@@ -39,6 +44,16 @@ export function useAuth() {
     setStorageJson(AUTHZ_KEY, value);
   }
 
+  function setForcePasswordChangeState(newValue) {
+    const value = newValue || { username: "", passwordChangeToken: "", realName: "" };
+    forcePasswordChangeState.value = value;
+    if (value.passwordChangeToken) {
+      setStorageJson(FORCE_PASSWORD_CHANGE_KEY, value);
+      return;
+    }
+    removeStorageItem(FORCE_PASSWORD_CHANGE_KEY);
+  }
+
   function clearAuth() {
     token.value = null;
     user.value = null;
@@ -47,6 +62,15 @@ export function useAuth() {
     removeStorageItem(USER_KEY);
     removeStorageItem(AUTHZ_KEY);
     clearIdleActivity();
+  }
+
+  function clearForcePasswordChangeState() {
+    setForcePasswordChangeState(null);
+  }
+
+  function clearAllAuthState() {
+    clearAuth();
+    clearForcePasswordChangeState();
   }
 
   const isAdmin = computed(() => (user.value?.roles || []).includes("ADMIN"));
@@ -72,7 +96,16 @@ export function useAuth() {
   }
 
   async function login(username, password) {
+    clearAllAuthState();
     const response = await apiLogin({ username, password });
+    if (response.forcePasswordChange) {
+      setForcePasswordChangeState({
+        username: response.username,
+        realName: response.realName,
+        passwordChangeToken: response.passwordChangeToken
+      });
+      return response;
+    }
     setToken(response.token);
     setUser({
       userId: response.userId,
@@ -85,11 +118,22 @@ export function useAuth() {
     return response;
   }
 
+  async function submitForcedPasswordChange(newPassword) {
+    const passwordChangeToken = forcePasswordChangeState.value?.passwordChangeToken;
+    if (!passwordChangeToken) {
+      throw new Error("改密会话已失效，请重新登录");
+    }
+    await apiForcePasswordChange({ passwordChangeToken, newPassword });
+    clearAllAuthState();
+  }
+
   async function logout() {
     try {
-      await apiLogout();
+      if (token.value) {
+        await apiLogout();
+      }
     } finally {
-      clearAuth();
+      clearAllAuthState();
     }
   }
 
@@ -102,8 +146,12 @@ export function useAuth() {
     isLoggedIn,
     isAdmin,
     hasPermission,
+    needsPasswordChange,
+    forcePasswordChangeState,
     loadAuthorizations,
     login,
-    logout
+    logout,
+    submitForcedPasswordChange,
+    clearAllAuthState
   };
 }

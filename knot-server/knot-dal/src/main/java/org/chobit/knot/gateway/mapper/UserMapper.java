@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface UserMapper {
@@ -28,4 +29,12 @@ public interface UserMapper {
     int updateLastLoginTime(Long id);
 
     List<String> listRoleCodesByUserId(Long userId);
+
+    List<Map<String, Object>> listRoleNamesByUserIds(@Param("userIds") List<Long> userIds);
+
+    List<Long> listRoleIdsByUserId(@Param("userId") Long userId);
+
+    int deleteUserRoles(@Param("userId") Long userId);
+
+    int insertUserRoles(@Param("userId") Long userId, @Param("roleIds") List<Long> roleIds);
 }

@@ -94,4 +94,36 @@
         where ur.user_id = #{userId}
     </select>
 
+    <select id="listRoleNamesByUserIds" resultType="java.util.HashMap">
+        select ur.user_id as userId,
+               r.name as roleName
+        from user_roles ur
+        inner join roles r on ur.role_id = r.id
+        where ur.user_id in
+        <foreach collection="userIds" item="userId" open="(" separator="," close=")">
+            #{userId}
+        </foreach>
+        order by ur.user_id asc, r.id asc
+    </select>
+
+    <select id="listRoleIdsByUserId" resultType="java.lang.Long">
+        select role_id
+        from user_roles
+        where user_id = #{userId}
+        order by role_id asc
+    </select>
+
+    <delete id="deleteUserRoles">
+        delete from user_roles
+        where user_id = #{userId}
+    </delete>
+
+    <insert id="insertUserRoles">
+        insert into user_roles(user_id, role_id)
+        values
+        <foreach collection="roleIds" item="roleId" separator=",">
+            (#{userId}, #{roleId})
+        </foreach>
+    </insert>
+
 </mapper>
