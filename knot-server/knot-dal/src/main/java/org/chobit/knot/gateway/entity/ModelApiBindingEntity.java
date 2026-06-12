@@ -20,7 +20,6 @@ public class ModelApiBindingEntity {
      * 协议编码，见 {@link ModelApiProtocolEnum}
      */
     private String protocol;
-    private String baseUrl;
     /**
      * 上游 API 路径，为空时使用协议默认路径
      */

@@ -32,21 +32,17 @@ const routes = [
     ]
   },
   {
-    path: "/providers",
-    name: "providers",
-    component: () => import("@/views/ProviderManageView.vue"),
-    meta: { titleKey: "route.providers" }
-  },
-  {
     path: "/model-management",
     component: NestedView,
     children: [
       { path: "model-pools", name: "model-management-model-pools", component: () => import("@/views/ModelPoolManageView.vue"), meta: { titleKey: "route.modelManagementModelPools" } },
       { path: "models", name: "model-management-models", component: () => import("@/views/ModelManageView.vue"), meta: { titleKey: "route.modelManagementModels" } },
+      { path: "providers", name: "model-management-providers", component: () => import("@/views/ProviderManageView.vue"), meta: { titleKey: "route.providers" } },
       { path: "logical-models", name: "model-management-logical-models", component: () => import("@/views/LogicalModelMarketplaceView.vue"), meta: { titleKey: "route.modelManagementLogicalModels" } },
       { path: "external-models", name: "model-management-external-models", component: () => import("@/views/ExternalModelManageView.vue"), meta: { titleKey: "route.modelManagementExternalModels" } }
     ]
   },
+  { path: "/providers", redirect: "/model-management/providers" },
   { path: "/logical-models", redirect: "/model-management/logical-models" },
   { path: "/models", redirect: "/model-management/models" },
   { path: "/model-pools", redirect: "/model-management/model-pools" },

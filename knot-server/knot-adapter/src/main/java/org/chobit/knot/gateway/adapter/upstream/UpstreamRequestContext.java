@@ -40,7 +40,7 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
     }
 
     public String baseUrl() {
-        return binding == null ? null : binding.getBaseUrl();
+        return model == null ? null : model.getBaseUrl();
     }
 
     public String requestAdapter() {

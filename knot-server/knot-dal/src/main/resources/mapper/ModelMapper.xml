@@ -3,7 +3,7 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.ModelMapper">
 
     <sql id="ModelSelectColumns">
-        m.id, m.provider_id, m.model_code, m.name, m.model_type, m.version, m.billing_rule_id, m.status,
+        m.id, m.provider_id, m.model_code, m.name, m.model_type, m.version, m.base_url, m.billing_rule_id, m.status,
         p.name AS provider_name, br.name AS billing_rule_name
     </sql>
 
@@ -39,8 +39,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into models(provider_id, model_code, name, model_type, version, billing_rule_id, status)
-        values(#{providerId}, #{modelCode}, #{name}, #{modelType}, #{version}, #{billingRuleId}, #{status})
+        insert into models(provider_id, model_code, name, model_type, version, base_url, billing_rule_id, status)
+        values(#{providerId}, #{modelCode}, #{name}, #{modelType}, #{version}, #{baseUrl}, #{billingRuleId}, #{status})
     </insert>
 
     <update id="update">
@@ -50,6 +50,7 @@
             name = #{name},
             model_type = #{modelType},
             version = #{version},
+            base_url = #{baseUrl},
             billing_rule_id = #{billingRuleId},
             status = #{status}
         where id = #{id}

@@ -23,6 +23,8 @@ public interface UserMapper {
 
     int updateUser(UserEntity entity);
 
+    int updateUserPassword(@Param("id") Long id, @Param("passwordHash") String passwordHash);
+
     int updateLastLoginTime(Long id);
 
     List<String> listRoleCodesByUserId(Long userId);

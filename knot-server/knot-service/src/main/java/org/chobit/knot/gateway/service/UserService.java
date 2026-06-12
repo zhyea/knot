@@ -24,6 +24,8 @@ import java.util.Map;
 
 @Service
 public class UserService {
+    private static final String DEFAULT_RESET_PASSWORD = "12345678";
+
     private final UserMapper userMapper;
     private final DepartmentMapper departmentMapper;
     private final UserConverter userConverter;
@@ -39,7 +41,7 @@ public class UserService {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * Authenticates the user and returns a login response.
      */
     public LoginResponse login(String username, String password) {
         UserEntity user = userMapper.getUserByUsername(username);
@@ -52,7 +54,6 @@ public class UserService {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
 
-        // 更新最后登录时间
         userMapper.updateLastLoginTime(user.getId());
 
         List<String> roles = userMapper.listRoleCodesByUserId(user.getId());
@@ -82,8 +83,7 @@ public class UserService {
     }
 
     /**
-     * 操作审计快照，不包含密码字段，供
-     * {@link org.chobit.knot.gateway.annotation.OperationLog} 的 SpEL 使用。
+     * Returns a user snapshot for operation log auditing.
      */
     public Map<String, Object> userAuditSnapshot(Long id) {
         if (id == null) {
@@ -93,16 +93,16 @@ public class UserService {
         if (entity == null) {
             return null;
         }
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("id", entity.getId());
-        m.put("username", entity.getUsername());
-        m.put("realName", entity.getRealName());
-        m.put("deptId", entity.getDeptId());
-        m.put("deptName", entity.getDeptName());
-        m.put("status", entity.getStatus());
-        m.put("lastLoginTime", entity.getLastLoginTime());
-        m.put("updatedAt", entity.getUpdatedAt());
-        return m;
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("id", entity.getId());
+        snapshot.put("username", entity.getUsername());
+        snapshot.put("realName", entity.getRealName());
+        snapshot.put("deptId", entity.getDeptId());
+        snapshot.put("deptName", entity.getDeptName());
+        snapshot.put("status", entity.getStatus());
+        snapshot.put("lastLoginTime", entity.getLastLoginTime());
+        snapshot.put("updatedAt", entity.getUpdatedAt());
+        return snapshot;
     }
 
     /**
@@ -111,18 +111,18 @@ public class UserService {
     @Transactional
     public UserDto createUser(UserDto request) {
         DepartmentEntity department = validateDepartment(request.deptId());
+        String password = request.password() == null ? "" : request.password().trim();
+        if (password.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "密码不能为空");
+        }
+
         UserEntity entity = new UserEntity();
         entity.setUsername(request.username());
         entity.setRealName(request.realName());
         entity.setDeptId(department != null ? department.getId() : null);
         entity.setDeptName(department != null ? department.getDeptName() : null);
         entity.setStatus(request.status());
-        // 加密密码
-        if (request.password() != null && !request.password().isEmpty()) {
-            entity.setPasswordHash(passwordEncoder.encode(request.password()));
-        } else {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "密码不能为空");
-        }
+        entity.setPasswordHash(passwordEncoder.encode(password));
         userMapper.insertUser(entity);
         return userConverter.toDto(entity);
     }
@@ -134,7 +134,7 @@ public class UserService {
     public UserDto updateUserStatus(Long id, String status) {
         UserEntity entity = userMapper.getUserById(id);
         if (entity == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "user not found");
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
         entity.setStatus(Integer.parseInt(status));
         userMapper.updateUserStatus(entity);
@@ -148,19 +148,28 @@ public class UserService {
     public UserDto updateUser(UserDto request) {
         UserEntity entity = userMapper.getUserById(request.id());
         if (entity == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "user not found");
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
         DepartmentEntity department = validateDepartment(request.deptId());
         entity.setRealName(request.realName());
         entity.setDeptId(department != null ? department.getId() : null);
         entity.setDeptName(department != null ? department.getDeptName() : null);
         entity.setStatus(request.status());
-        // 如果提供了密码则一并更新
-        if (request.password() != null && !request.password().isEmpty()) {
-            entity.setPasswordHash(passwordEncoder.encode(request.password()));
-        }
         userMapper.updateUser(entity);
         return userConverter.toDto(entity);
+    }
+
+    /**
+     * Resets the target user's password to the default value.
+     */
+    @Transactional
+    public UserDto resetPassword(Long id) {
+        UserEntity entity = userMapper.getUserById(id);
+        if (entity == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
+        }
+        userMapper.updateUserPassword(id, passwordEncoder.encode(DEFAULT_RESET_PASSWORD));
+        return userConverter.toDto(userMapper.getUserById(id));
     }
 
     private DepartmentEntity validateDepartment(Long deptId) {
@@ -169,7 +178,7 @@ public class UserService {
         }
         DepartmentEntity department = departmentMapper.getById(deptId);
         if (department == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "department not found");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "部门不存在");
         }
         return department;
     }

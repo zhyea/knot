@@ -60,7 +60,7 @@
 
     <insert id="insertUser" useGeneratedKeys="true" keyProperty="id">
         insert into users(username, password_hash, real_name, dept_id, status)
-        values(#{username}, 'NO_LOGIN', #{realName}, #{deptId}, #{status})
+        values(#{username}, #{passwordHash}, #{realName}, #{deptId}, #{status})
     </insert>
 
     <update id="updateUserStatus">
@@ -72,6 +72,13 @@
             real_name = #{realName},
             dept_id = #{deptId},
             status = #{status},
+            updated_at = NOW()
+        where id = #{id}
+    </update>
+
+    <update id="updateUserPassword">
+        update users
+        set password_hash = #{passwordHash},
             updated_at = NOW()
         where id = #{id}
     </update>

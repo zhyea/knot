@@ -269,7 +269,7 @@ const fallbackModuleNameMap = {
   user: "用户管理",
   department: "部门管理",
   enum: "枚举管理",
-  provider: "供应商管理",
+  provider: "供应商",
   "logical-model": "模型广场"
 };
 
@@ -304,7 +304,7 @@ const metrics = computed(() => {
       label: "供应商",
       value: statTotals.providers,
       moduleKey: "provider",
-      route: "/providers",
+      route: "/model-management/providers",
       tone: "teal",
       icon: Connection
     },

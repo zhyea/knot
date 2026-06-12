@@ -52,8 +52,15 @@ public class UserController {
     @PostMapping("/create")
     public UserItem create(@RequestBody @Valid UserItem request) {
         UserDto created = userService.createUser(new UserDto(
-                null, request.username(), request.password(), request.realName(), request.deptId(), null,
-                request.status(), null, null
+                null,
+                request.username(),
+                request.password(),
+                request.realName(),
+                request.deptId(),
+                null,
+                request.status(),
+                null,
+                null
         ));
         return userConverter.toVO(created);
     }
@@ -89,9 +96,33 @@ public class UserController {
     @PutMapping("/{id}")
     public UserItem updateUser(@PathVariable Long id, @RequestBody @Valid UserItem request) {
         UserDto updated = userService.updateUser(new UserDto(
-                id, null, request.password() != null ? request.password() : null, request.realName(), request.deptId(), null,
-                request.status(), null, null
+                id,
+                null,
+                null,
+                request.realName(),
+                request.deptId(),
+                null,
+                request.status(),
+                null,
+                null
         ));
+        return userConverter.toVO(updated);
+    }
+
+    /**
+     * Resets the target user's password to the default value.
+     */
+    @OperationLog(module = "user", operation = "UPDATE", entityType = "User",
+            entityId = "#p0",
+            entityNameAfter = "#result.username()",
+            description = "'重置用户密码'",
+            recordOldValue = true,
+            oldValueSpel = "@userService.userAuditSnapshot(#p0)",
+            recordNewValue = true,
+            newValueSpel = "@userService.userAuditSnapshot(#p0)")
+    @PutMapping("/{id}/reset-password")
+    public UserItem resetPassword(@PathVariable Long id) {
+        UserDto updated = userService.resetPassword(id);
         return userConverter.toVO(updated);
     }
 }

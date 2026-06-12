@@ -176,9 +176,37 @@ const openeds = computed(() => {
   return match ? [`/${match[1]}`] : [];
 });
 
+const modelMenuOrder = {
+  "model.model-pools": 10,
+  "model.models": 20,
+  "model.providers": 30
+};
+
 const dynamicModules = computed(() =>
-  (modules.value || []).filter((module) => Array.isArray(module.menus) && module.menus.length > 0)
+  (modules.value || [])
+    .filter((module) => Array.isArray(module.menus) && module.menus.length > 0)
+    .map((module) => ({
+      ...module,
+      menus: sortMenus(module)
+    }))
 );
+
+function sortMenus(module) {
+  const menus = Array.isArray(module?.menus) ? [...module.menus] : [];
+  if (module?.moduleCode !== "model") {
+    return menus;
+  }
+  return menus.sort((left, right) => compareModelMenus(left, right));
+}
+
+function compareModelMenus(left, right) {
+  const leftOrder = modelMenuOrder[left?.menuCode] ?? left?.sortOrder ?? Number.MAX_SAFE_INTEGER;
+  const rightOrder = modelMenuOrder[right?.menuCode] ?? right?.sortOrder ?? Number.MAX_SAFE_INTEGER;
+  if (leftOrder !== rightOrder) {
+    return leftOrder - rightOrder;
+  }
+  return `${left?.menuName || ""}`.localeCompare(`${right?.menuName || ""}`, "zh-Hans-CN");
+}
 
 function clearResizeListeners() {
   if (asideMoveHandler) {

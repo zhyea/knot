@@ -3,30 +3,30 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.adapter.request.RequestAdapterCatalog;
-import org.chobit.knot.gateway.model.PageRequest;
-import org.chobit.knot.gateway.model.PageResult;
-import org.chobit.knot.gateway.converter.ModelConverter;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
-import org.chobit.knot.gateway.dto.model.ModelDto;
+import org.chobit.knot.gateway.converter.ModelConverter;
 import org.chobit.knot.gateway.dto.model.ModelApiBindingDto;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.gateway.dto.model.ModelDto;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.entity.LogicalModelEntity;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ProviderModelMappingEntity;
+import org.chobit.knot.gateway.error.BusinessException;
+import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
 import org.chobit.knot.gateway.mapper.LogicalModelMapper;
 import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
+import org.chobit.knot.gateway.model.PageRequest;
+import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.usage.UsageExtractorCatalog;
-import org.chobit.knot.gateway.vo.model.UsageExtractorItem;
 import org.chobit.knot.gateway.vo.model.RequestAdapterItem;
+import org.chobit.knot.gateway.vo.model.UsageExtractorItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -86,14 +86,16 @@ public class ModelService {
      */
     public PageResult<ModelDto> list(PageRequest pageRequest, String keyword, List<String> modelTypes) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<ModelEntity> pageInfo = new PageInfo<>(modelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes)));
+        PageInfo<ModelEntity> pageInfo = new PageInfo<>(
+                modelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes))
+        );
         List<ModelEntity> entities = pageInfo.getList();
         List<Long> ids = entities.stream().map(ModelEntity::getId).toList();
         Map<Long, TrafficPolicies> trafficMap =
                 trafficPolicySupport.loadBatch(TrafficResourceTypeEnum.MODEL.code(), ids);
         Map<Long, List<ModelApiBindingDto>> bindingMap = loadBindingMap(ids);
         List<ModelDto> dtos = entities.stream()
-                .map(e -> enrich(modelConverter.toDto(e), trafficMap.get(e.getId()), bindingMap.get(e.getId())))
+                .map(entity -> enrich(modelConverter.toDto(entity), trafficMap.get(entity.getId()), bindingMap.get(entity.getId())))
                 .collect(Collectors.toList());
         return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
@@ -104,7 +106,7 @@ public class ModelService {
     public ModelDto getById(Long id) {
         ModelEntity entity = modelMapper.getById(id);
         if (entity == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "model not found");
+            throw new BusinessException(ErrorCode.NOT_FOUND, "供应商模型不存在");
         }
         return enrich(entity);
     }
@@ -159,8 +161,12 @@ public class ModelService {
         ModelEntity entity = modelConverter.toEntity(request);
         entity.setModelCode(modelCode);
         modelMapper.insert(entity);
-        trafficPolicySupport.save(TrafficResourceTypeEnum.MODEL.code(), entity.getId(),
-                request.rateLimitPolicy(), request.quotaPolicy());
+        trafficPolicySupport.save(
+                TrafficResourceTypeEnum.MODEL.code(),
+                entity.getId(),
+                request.rateLimitPolicy(),
+                request.quotaPolicy()
+        );
         saveLogicalModelMapping(entity.getId(), request.logicalModelId(), modelCode);
         saveApiBindings(entity.getId(), request.apiBindings());
         return getById(entity.getId());
@@ -182,8 +188,12 @@ public class ModelService {
         entity.setId(id);
         entity.setModelCode(modelCode);
         modelMapper.update(entity);
-        trafficPolicySupport.save(TrafficResourceTypeEnum.MODEL.code(), id,
-                request.rateLimitPolicy(), request.quotaPolicy());
+        trafficPolicySupport.save(
+                TrafficResourceTypeEnum.MODEL.code(),
+                id,
+                request.rateLimitPolicy(),
+                request.quotaPolicy()
+        );
         saveLogicalModelMapping(id, request.logicalModelId(), modelCode);
         if (request.apiBindings() != null) {
             saveApiBindings(id, request.apiBindings());
@@ -205,6 +215,7 @@ public class ModelService {
                 existing.providerName(),
                 existing.modelType(),
                 existing.version(),
+                existing.baseUrl(),
                 enabled,
                 existing.logicalModelId(),
                 existing.billingRuleId(),
@@ -219,8 +230,7 @@ public class ModelService {
     }
 
     private ModelDto enrich(ModelEntity entity) {
-        TrafficPolicies traffic =
-                trafficPolicySupport.load(TrafficResourceTypeEnum.MODEL.code(), entity.getId());
+        TrafficPolicies traffic = trafficPolicySupport.load(TrafficResourceTypeEnum.MODEL.code(), entity.getId());
         return enrich(modelConverter.toDto(entity), traffic, listApiBindings(entity.getId()));
     }
 
@@ -234,8 +244,7 @@ public class ModelService {
 
     private void assertModelCodeAvailable(String modelCode, Long excludeId) {
         if (!isModelCodeAvailable(modelCode, excludeId)) {
-            throw new BusinessException(ErrorCode.CONFLICT,
-                    "模型编码「" + modelCode + "」已存在，请更换后重试");
+            throw new BusinessException(ErrorCode.CONFLICT, "模型编码“" + modelCode + "”已存在，请更换后重试");
         }
     }
 
@@ -256,13 +265,24 @@ public class ModelService {
         return result.isEmpty() ? null : result;
     }
 
-
     private ModelDto enrich(ModelDto base, TrafficPolicies traffic, List<ModelApiBindingDto> apiBindings) {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
         QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
         return new ModelDto(
-                base.id(), base.modelCode(), base.name(), base.providerId(), base.providerName(), base.modelType(),
-                base.version(), base.enabled(), resolveLogicalModelId(base.id()), base.billingRuleId(), base.billingRuleName(), rate, quota,
+                base.id(),
+                base.modelCode(),
+                base.name(),
+                base.providerId(),
+                base.providerName(),
+                base.modelType(),
+                base.version(),
+                base.baseUrl(),
+                base.enabled(),
+                resolveLogicalModelId(base.id()),
+                base.billingRuleId(),
+                base.billingRuleName(),
+                rate,
+                quota,
                 apiBindings == null ? listApiBindings(base.id()) : apiBindings
         );
     }
@@ -283,19 +303,23 @@ public class ModelService {
         if (!EntityStatusEnum.ENABLED.code().equals(logicalModel.getStatus())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "只能绑定已启用的统一模型");
         }
+        String baseUrl = blankToNull(request.baseUrl());
         if (request.billingRuleId() == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "billing rule is required");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择计费规则");
         }
         BillingRuleEntity billingRule = billingRuleMapper.getById(request.billingRuleId());
         if (billingRule == null
                 || !matchesNullableScope(billingRule.getProviderId(), request.providerId())
                 || !matchesNullableScope(billingRule.getLogicalModelId(), request.logicalModelId())) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "billing rule does not match provider or logical model");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "计费规则与供应商或统一模型不匹配");
         }
         if (request.enabled()) {
             requireText(request.modelCode(), "请填写模型编码");
             requireText(request.name(), "请填写名称");
             requireText(request.modelType(), "请选择模型类型");
+            if (baseUrl == null) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请填写 Base URL");
+            }
         }
     }
 
@@ -335,9 +359,11 @@ public class ModelService {
         }
         return modelApiBindingMapper.listByModelIds(modelIds).stream()
                 .map(this::toApiBindingDto)
-                .collect(Collectors.groupingBy(ModelApiBindingDtoWithModelId::modelId,
+                .collect(Collectors.groupingBy(
+                        ModelApiBindingDtoWithModelId::modelId,
                         LinkedHashMap::new,
-                        Collectors.mapping(ModelApiBindingDtoWithModelId::dto, Collectors.toList())));
+                        Collectors.mapping(ModelApiBindingDtoWithModelId::dto, Collectors.toList())
+                ));
     }
 
     private List<ModelApiBindingDto> listApiBindings(Long modelId) {
@@ -354,7 +380,6 @@ public class ModelService {
         ModelApiBindingDto dto = new ModelApiBindingDto(
                 entity.getId(),
                 entity.getProtocol(),
-                entity.getBaseUrl(),
                 entity.getApiPath(),
                 entity.getRequestAdapter(),
                 entity.getUsageExtractor(),
@@ -371,11 +396,10 @@ public class ModelService {
             return;
         }
         for (ModelApiBindingDto binding : bindings) {
-            String protocol = requireText(binding.protocol(), "please select API protocol");
+            String protocol = requireText(binding.protocol(), "请选择接口协议");
             ModelApiBindingEntity entity = new ModelApiBindingEntity();
             entity.setModelId(modelId);
             entity.setProtocol(protocol.trim().toUpperCase());
-            entity.setBaseUrl(blankToNull(binding.baseUrl()));
             entity.setApiPath(blankToNull(binding.apiPath()));
             entity.setRequestAdapter(blankToNull(binding.requestAdapter()));
             entity.setUsageExtractor(blankToDefault(binding.usageExtractor(), "DEFAULT"));

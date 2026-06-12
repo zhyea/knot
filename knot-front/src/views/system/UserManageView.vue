@@ -4,7 +4,7 @@
       <section class="list-page-block">
         <div class="list-page-filters">
           <div class="list-filter-item list-filter-item--grow">
-            <span class="list-filter-label">关键词</span>
+            <span class="list-filter-label">关键字</span>
             <el-input
               v-model="query.keyword"
               class="list-filter-control--wide"
@@ -61,7 +61,7 @@ import UserFormDrawer from "../../components/system/UserFormDrawer.vue";
 import UserListPanel from "../../components/system/UserListPanel.vue";
 import { useAutoQuery } from "../../composables/useAutoQuery";
 import { usePageList } from "../../composables/usePageList";
-import { listUsers, updateUserStatus } from "../../api/users";
+import { listUsers, resetUserPassword, updateUserStatus } from "../../api/users";
 import { listUserOperationLogs } from "../../api/operationLogs";
 
 const query = reactive({
@@ -110,9 +110,21 @@ function openEdit(row) {
   drawerVisible.value = true;
 }
 
-function handleAction(action, row) {
-  if (action === "edit") openEdit(row);
-  if (action === "log") openUserLogs(row);
+async function handleResetPassword(row) {
+  await resetUserPassword(row.id);
+  ElMessage.success(`已将用户 ${row.username} 的密码重置为 12345678`);
+}
+
+async function handleAction(action, row) {
+  if (action === "edit") {
+    openEdit(row);
+  }
+  if (action === "log") {
+    openUserLogs(row);
+  }
+  if (action === "reset-password") {
+    await handleResetPassword(row);
+  }
 }
 
 async function onStatusChange(row, status) {
