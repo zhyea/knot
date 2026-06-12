@@ -5,11 +5,9 @@ import org.chobit.knot.gateway.annotation.AuthCheck;
 import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.converter.UserConverter;
 import org.chobit.knot.gateway.dto.user.UserDto;
-import org.chobit.knot.gateway.entity.AdminRoleEntity;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
-import org.chobit.knot.gateway.service.AuthorizationRoleService;
 import org.chobit.knot.gateway.service.UserService;
 import org.chobit.knot.gateway.vo.user.UpdateUserStatusRequest;
 import org.chobit.knot.gateway.vo.user.UserItem;
@@ -22,17 +20,14 @@ import java.util.List;
 @AuthCheck
 public class UserController {
     private final UserService userService;
-    private final AuthorizationRoleService roleService;
     private final UserConverter userConverter;
 
     /**
      * Constructs a new instance.
      */
     public UserController(UserService userService,
-                          AuthorizationRoleService roleService,
                           UserConverter userConverter) {
         this.userService = userService;
-        this.roleService = roleService;
         this.userConverter = userConverter;
     }
 
@@ -46,15 +41,6 @@ public class UserController {
                 query == null ? null : query.keyword()
         );
         return page.mapList(userConverter::toVOList);
-    }
-
-    /**
-     * Lists role options for user binding.
-     */
-    @PostMapping("/role-options")
-    public PageResult<AdminRoleEntity> listRoleOptions(@RequestBody(required = false) PageQuery query) {
-        PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
-        return roleService.listRoles(pageRequest, query == null ? null : query.keyword());
     }
 
     /**

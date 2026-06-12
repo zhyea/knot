@@ -4,10 +4,6 @@ export function listUsers(params) {
   return postQuery("/api/users", params);
 }
 
-export function listUserRoleOptions(params) {
-  return postQuery("/api/users/role-options", params);
-}
-
 export function createUser(payload) {
   return post("/api/users/create", payload);
 }

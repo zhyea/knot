@@ -72,7 +72,8 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
-import { createUser, listUserRoleOptions, updateUser } from "../../api/users";
+import { createUser, updateUser } from "../../api/users";
+import { listAuthorizationRoles } from "../../api/authorizations/roles";
 import { listDepartments } from "../../api/departments";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import { normalizeOptionList, resolveSelectedOption } from "../../utils/options";
@@ -173,7 +174,7 @@ async function loadDepartments() {
 }
 
 async function loadRoles(params = {}) {
-  const data = await listUserRoleOptions(params);
+  const data = await listAuthorizationRoles(params);
   roleOptions.value = normalizeOptionList(data);
   return data;
 }
