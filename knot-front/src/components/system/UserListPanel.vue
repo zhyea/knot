@@ -26,11 +26,12 @@
       <el-table-column prop="updatedAt" label="更新时间" min-width="18%">
         <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="110" align="center" header-align="center" fixed="right">
+      <el-table-column label="操作" width="150" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <RowActions
             :actions="[
               { key: 'edit', label: '编辑', icon: Edit },
+              { key: 'reset-password', label: '重置密码', icon: Key, confirm: '确认将该用户密码重置为 12345678 吗？' },
               { key: 'log', label: '日志', icon: Document }
             ]"
             @action="(action) => emit('action', action, row)"
@@ -52,7 +53,7 @@
 </template>
 
 <script setup>
-import { Document, Edit } from "@element-plus/icons-vue";
+import { Document, Edit, Key } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 
@@ -68,7 +69,9 @@ defineProps({
 const emit = defineEmits(["create", "refresh", "status-change", "action", "page-change", "size-change"]);
 
 function formatDateTime(dateTime) {
-  if (!dateTime) return "-";
+  if (!dateTime) {
+    return "-";
+  }
   return new Date(dateTime).toLocaleString("zh-CN", {
     year: "numeric",
     month: "2-digit",

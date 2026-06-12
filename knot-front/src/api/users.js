@@ -15,3 +15,7 @@ export function updateUserStatus(id, payload) {
 export function updateUser(id, payload) {
   return put(`/api/users/${id}`, payload);
 }
+
+export function resetUserPassword(id) {
+  return put(`/api/users/${id}/reset-password`);
+}
