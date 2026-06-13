@@ -5,7 +5,6 @@ import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
-import org.chobit.knot.gateway.billing.GatewayBillingCalculator;
 import org.chobit.knot.gateway.exception.GatewayRateLimitException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.*;
@@ -25,7 +24,6 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
     private final UpstreamProxyClient proxyClient;
     private final RoutingResolver routingResolver;
-    private final GatewayBillingCalculator billingCalculator;
     private final GatewayTrafficGuard trafficGuard;
 
     /**
@@ -33,13 +31,11 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
      */
     public GatewayRequestHandler(UpstreamProxyClient proxyService,
                                  RoutingResolver routingAuthService,
-                                 GatewayBillingCalculator billingService,
                                  GatewayTrafficGuard trafficGuard,
                                  PluginDispatcher pluginDispatcher) {
         super(pluginDispatcher);
         this.proxyClient = proxyService;
         this.routingResolver = routingAuthService;
-        this.billingCalculator = billingService;
         this.trafficGuard = trafficGuard;
     }
 
@@ -103,11 +99,10 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         if (!routing.returnUsageDetail()) {
             return result.responseBody();
         }
-        BillingDetail billing = billingCalculator.calculateUsageDetail(result.modelId(), result.usage());
-        if (billing == null) {
+        NormalizedUsage usage = result.usage();
+        if (usage == null) {
             return result.responseBody();
         }
-        NormalizedUsage usage = normalizedUsage(result.usage(), billing);
         if (isEventStream(result.responseBody())) {
             return appendUsageEvent(result.responseBody(), usage);
         }
@@ -118,25 +113,6 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         }
         body.put(AiPayloadFields.KNOT_USAGE, usage);
         return body;
-    }
-
-    private NormalizedUsage normalizedUsage(BillingUsage usage, BillingDetail billing) {
-        BillingUsage safeUsage = usage == null ? BillingUsage.empty() : usage;
-        long totalTokens = safeUsage.totalTokens() > 0 ? safeUsage.totalTokens() : safeUsage.inputTokens() + safeUsage.outputTokens();
-        return new NormalizedUsage(
-                totalTokens,
-                billing.totalCost(),
-                billing.currency(),
-                billingVersion(billing),
-                billing.usageDetails()
-        );
-    }
-
-    private String billingVersion(BillingDetail billing) {
-        if (StringUtils.isNotBlank(billing.versionCode())) {
-            return billing.versionCode();
-        }
-        return billing.versionNo() == null ? null : String.valueOf(billing.versionNo());
     }
 
     private boolean isEventStream(String value) {

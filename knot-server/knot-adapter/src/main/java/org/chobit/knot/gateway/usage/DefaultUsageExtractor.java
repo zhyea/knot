@@ -23,7 +23,7 @@ public class DefaultUsageExtractor implements UsageExtractor {
 
     @Override
     @SuppressWarnings("unchecked")
-    public BillingUsage extract(Map<String, Object> body) {
+    public BillingUsage extractUsage(Map<String, Object> body) {
         Object usage = body.get(AiPayloadFields.USAGE);
         if (usage instanceof Map<?, ?> map) {
             return BillingUsage.from((Map<String, Object>) map);

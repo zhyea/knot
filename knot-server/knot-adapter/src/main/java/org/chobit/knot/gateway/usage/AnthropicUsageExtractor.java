@@ -21,8 +21,8 @@ public class AnthropicUsageExtractor extends DefaultUsageExtractor {
     }
 
     @Override
-    public BillingUsage extract(Map<String, Object> body) {
-        BillingUsage usage = super.extract(body);
+    public BillingUsage extractUsage(Map<String, Object> body) {
+        BillingUsage usage = super.extractUsage(body);
         if (usage.isEmpty()) {
             return usage;
         }

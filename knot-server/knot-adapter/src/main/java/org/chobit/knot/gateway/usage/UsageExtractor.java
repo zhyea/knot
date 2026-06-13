@@ -3,7 +3,9 @@ package org.chobit.knot.gateway.usage;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.model.BillingUsage;
+import org.chobit.knot.gateway.model.NormalizedUsage;
 import org.chobit.knot.gateway.util.JsonKit;
 
 import java.util.Map;
@@ -18,20 +20,28 @@ public interface UsageExtractor {
         return true;
     }
 
-    BillingUsage extract(Map<String, Object> body);
+    BillingUsage extractUsage(Map<String, Object> body);
 
-    default BillingUsage extract(String responseBody) {
-        if (StringUtils.isBlank(responseBody)) {
-            return BillingUsage.empty();
-        }
-        if (isEventStream(responseBody)) {
-            return extractEventStream(responseBody);
-        }
-        Map<String, Object> body = readMap(responseBody);
-        return body == null || body.isEmpty() ? BillingUsage.empty() : extract(body);
+    default NormalizedUsage extract(Map<String, Object> body, BillingRuleEntity billingRule) {
+        return UsageNormalizationSupport.normalize(extractUsage(body), billingRule);
     }
 
-    default BillingUsage extractEventStream(String responseBody) {
+    default NormalizedUsage extract(String responseBody, BillingRuleEntity billingRule) {
+        if (StringUtils.isBlank(responseBody)) {
+            return null;
+        }
+        if (isEventStream(responseBody)) {
+            return extractEventStream(responseBody, billingRule);
+        }
+        Map<String, Object> body = readMap(responseBody);
+        return body == null || body.isEmpty() ? null : extract(body, billingRule);
+    }
+
+    default NormalizedUsage extractEventStream(String responseBody, BillingRuleEntity billingRule) {
+        return UsageNormalizationSupport.normalize(extractEventStreamUsage(responseBody), billingRule);
+    }
+
+    default BillingUsage extractEventStreamUsage(String responseBody) {
         BillingUsage usage = BillingUsage.empty();
         for (String line : responseBody.split("\\R")) {
             String trimmed = StringUtils.trim(line);
@@ -46,7 +56,7 @@ public interface UsageExtractor {
             if (event == null || event.isEmpty()) {
                 continue;
             }
-            usage = usage.mergeMax(extract(event));
+            usage = usage.mergeMax(extractUsage(event));
         }
         return usage;
     }
