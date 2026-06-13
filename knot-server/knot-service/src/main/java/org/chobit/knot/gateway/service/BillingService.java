@@ -23,6 +23,7 @@ import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
+import org.chobit.knot.gateway.util.MapNumberUtils;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -255,11 +256,11 @@ public class BillingService {
             modeEnum = BillingModeEnum.CUSTOM;
         }
         if (BillingModeEnum.TOKEN == modeEnum) {
-            long inputTokens = firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS);
-            long outputTokens = firstLong(usage, AiPayloadFields.COMPLETION_TOKENS, AiPayloadFields.OUTPUT_TOKENS);
-            long totalTokens = firstLong(usage, AiPayloadFields.TOTAL_TOKENS);
-            long cacheReadTokens = nestedLong(usage, "prompt_tokens_details", "cached_tokens")
-                    + nestedLong(usage, "input_tokens_details", "cached_tokens");
+            long inputTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS);
+            long outputTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.COMPLETION_TOKENS, AiPayloadFields.OUTPUT_TOKENS);
+            long totalTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.TOTAL_TOKENS);
+            long cacheReadTokens = MapNumberUtils.nestedLong(usage, "prompt_tokens_details", "cached_tokens")
+                    + MapNumberUtils.nestedLong(usage, "input_tokens_details", "cached_tokens");
             BigDecimal inputPrice = jsonDecimal(rule.getConfigJson(), "inputUnitPrice", unitPrice);
             BigDecimal outputPrice = jsonDecimal(rule.getConfigJson(), "outputUnitPrice", unitPrice);
             BigDecimal cacheReadPrice = jsonDecimal(rule.getConfigJson(), "cacheReadUnitPrice", BigDecimal.ZERO);
@@ -277,12 +278,12 @@ public class BillingService {
             return new BillingAmount(parts, inputCost.add(outputCost).add(cacheReadCost));
         }
         long amount = switch (modeEnum) {
-            case EMBEDDING -> firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS, AiPayloadFields.TOTAL_TOKENS);
+            case EMBEDDING -> MapNumberUtils.firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS, AiPayloadFields.TOTAL_TOKENS);
             case REQUEST -> 1L;
-            case IMAGE -> firstLong(usage, "image_count", "images", "n");
-            case AUDIO -> firstLong(usage, "duration_seconds", "audio_seconds", "seconds");
-            case VIDEO -> firstLong(usage, "duration_seconds", "video_seconds", "seconds");
-            default -> firstLong(usage, AiPayloadFields.TOTAL_TOKENS, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS);
+            case IMAGE -> MapNumberUtils.firstLong(usage, "image_count", "images", "n");
+            case AUDIO -> MapNumberUtils.firstLong(usage, "duration_seconds", "audio_seconds", "seconds");
+            case VIDEO -> MapNumberUtils.firstLong(usage, "duration_seconds", "video_seconds", "seconds");
+            default -> MapNumberUtils.firstLong(usage, AiPayloadFields.TOTAL_TOKENS, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS);
         };
         if (amount <= 0 && (BillingModeEnum.IMAGE == modeEnum || BillingModeEnum.REQUEST == modeEnum)) {
             amount = 1L;
@@ -506,42 +507,6 @@ public class BillingService {
 
     private static BigDecimal safeMoney(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
-    }
-
-    private static long firstLong(Map<String, Object> map, String... keys) {
-        for (String key : keys) {
-            Object value = map.get(key);
-            Long parsed = longValue(value);
-            if (parsed != null && parsed > 0) {
-                return parsed;
-            }
-        }
-        return 0L;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static long nestedLong(Map<String, Object> map, String objectKey, String valueKey) {
-        Object nested = map.get(objectKey);
-        if (!(nested instanceof Map<?, ?> nestedMap)) {
-            return 0L;
-        }
-        Object value = ((Map<String, Object>) nestedMap).get(valueKey);
-        Long parsed = longValue(value);
-        return parsed == null ? 0L : parsed;
-    }
-
-    private static Long longValue(Object value) {
-        if (value instanceof Number number) {
-            return number.longValue();
-        }
-        if (value instanceof String text && !text.isBlank()) {
-            try {
-                return Long.parseLong(text.trim());
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
-        }
-        return null;
     }
 
     private static BigDecimal jsonDecimal(String json, String key, BigDecimal fallback) {

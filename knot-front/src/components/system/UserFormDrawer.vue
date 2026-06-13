@@ -11,10 +11,10 @@
       <el-form :model="form" label-width="90px">
         <div class="slot-body">
           <el-form-item label="用户名">
-            <el-input v-model="form.username" :disabled="isEdit" placeholder="请输入用户名" />
+            <el-input v-model="form.username" :disabled="isEdit" placeholder="请输入用户名"/>
           </el-form-item>
           <el-form-item label="姓名">
-            <el-input v-model="form.realName" placeholder="请输入姓名" />
+            <el-input v-model="form.realName" placeholder="请输入姓名"/>
           </el-form-item>
           <el-form-item label="所属部门">
             <RemoteEntitySelect
@@ -34,8 +34,6 @@
               :label-function="roleLabel"
               :selected-options="selectedRoleOptions"
               multiple
-              collapse-tags
-              collapse-tags-tooltip
               placeholder="请选择角色"
               style="width: 100%"
             />
@@ -70,17 +68,17 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref, watch } from "vue";
-import { ElMessage } from "element-plus";
-import { createUser, updateUser } from "../../api/users";
-import { listAuthorizationRoles } from "../../api/authorizations/roles";
-import { listDepartments } from "../../api/departments";
+import {computed, reactive, ref, watch} from "vue";
+import {ElMessage} from "element-plus";
+import {createUser, updateUser} from "../../api/users";
+import {listAuthorizationRoles} from "../../api/authorizations/roles";
+import {listDepartments} from "../../api/departments";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
-import { normalizeOptionList, resolveSelectedOption } from "../../utils/options";
+import {normalizeOptionList, resolveSelectedOption} from "../../utils/options";
 
 const props = defineProps({
-  modelValue: { type: Boolean, default: false },
-  user: { type: Object, default: null }
+  modelValue: {type: Boolean, default: false},
+  user: {type: Object, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -129,7 +127,7 @@ watch(
       loadRoles();
     }
   },
-  { immediate: true }
+  {immediate: true}
 );
 
 const selectedDepartmentOptions = computed(() =>
@@ -169,7 +167,7 @@ function roleLabel(role) {
 }
 
 async function loadDepartments() {
-  const data = await listDepartments({ pageNum: 1, pageSize: 100 });
+  const data = await listDepartments({pageNum: 1, pageSize: 100});
   departmentOptions.value = normalizeOptionList(data);
 }
 
