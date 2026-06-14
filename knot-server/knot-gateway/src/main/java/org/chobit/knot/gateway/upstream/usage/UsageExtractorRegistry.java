@@ -3,15 +3,18 @@ package org.chobit.knot.gateway.upstream.usage;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
+import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProviderTypeEnum;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.model.NormalizedUsage;
 import org.chobit.knot.gateway.service.GatewayDataService;
 import org.chobit.knot.gateway.usage.AnthropicUsageExtractor;
+import org.chobit.knot.gateway.usage.ImageUsageExtractor;
 import org.chobit.knot.gateway.usage.UsageExtractor;
 import org.chobit.knot.gateway.usage.UsageExtractorCatalog;
 import org.chobit.knot.gateway.usage.UsageNormalizationSupport;
+import org.chobit.knot.gateway.usage.VideoUsageExtractor;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -30,9 +33,22 @@ public class UsageExtractorRegistry {
         String code = resolveExtractorCode(responseBody, context);
         UsageExtractor extractor = resolve(code);
         if (extractor != null) {
-            return extractor.extract(responseBody, billingRule);
+            var extracted = extractor.extractUsageBody(responseBody);
+            if (!extracted.isEmpty()) {
+                return UsageNormalizationSupport.normalize(
+                        extracted,
+                        billingRule,
+                        context == null ? null : context.requestBody(),
+                        extractor.calculator()
+                );
+            }
         }
-        return UsageNormalizationSupport.normalize(adapter.extractUsage(responseBody, context), billingRule);
+        return UsageNormalizationSupport.normalize(
+                adapter.extractUsage(responseBody, context),
+                billingRule,
+                context == null ? null : context.requestBody(),
+                fallbackCalculator(context)
+        );
     }
 
     private UsageExtractor resolve(String code) {
@@ -54,6 +70,17 @@ public class UsageExtractorRegistry {
                 && ProviderTypeEnum.ANTHROPIC.code().equals(StringUtils.upperCase(context.provider().getProviderType()))) {
             return AnthropicUsageExtractor.CODE;
         }
+        if (context.protocol() != null) {
+            ModelApiProtocolEnum protocol = context.protocol().canonical();
+            if (protocol == ModelApiProtocolEnum.IMAGE_GENERATIONS
+                    || protocol == ModelApiProtocolEnum.IMAGE_EDITS
+                    || protocol == ModelApiProtocolEnum.IMAGE_VARIATIONS) {
+                return ImageUsageExtractor.CODE;
+            }
+            if (protocol == ModelApiProtocolEnum.VIDEO_GENERATIONS) {
+                return VideoUsageExtractor.CODE;
+            }
+        }
         return usageExtractorCatalog.defaultExtractor().code();
     }
 
@@ -66,5 +93,21 @@ public class UsageExtractorRegistry {
             return null;
         }
         return dataService.getActiveBillingRuleById(context.model().getBillingRuleId());
+    }
+
+    private org.chobit.knot.gateway.usage.calculator.BillingModeCalculator fallbackCalculator(UpstreamRequestContext context) {
+        if (context == null || context.protocol() == null) {
+            return usageExtractorCatalog.defaultExtractor().calculator();
+        }
+        ModelApiProtocolEnum protocol = context.protocol().canonical();
+        if (protocol == ModelApiProtocolEnum.IMAGE_GENERATIONS
+                || protocol == ModelApiProtocolEnum.IMAGE_EDITS
+                || protocol == ModelApiProtocolEnum.IMAGE_VARIATIONS) {
+            return usageExtractorCatalog.resolve(ImageUsageExtractor.CODE).calculator();
+        }
+        if (protocol == ModelApiProtocolEnum.VIDEO_GENERATIONS) {
+            return usageExtractorCatalog.resolve(VideoUsageExtractor.CODE).calculator();
+        }
+        return usageExtractorCatalog.defaultExtractor().calculator();
     }
 }

@@ -197,6 +197,8 @@ const form = reactive({
   outputUnitPrice: 0.002,
   cacheReadUnitPrice: 0,
   cacheWriteUnitPrice: 0,
+  videoPrice720p: null,
+  videoPrice1080p: null,
   imageResolution: "",
   imageQuality: "",
   ladderJson: "",
@@ -254,6 +256,8 @@ function resetForm() {
   form.outputUnitPrice = Number(config.outputUnitPrice ?? row?.unitPrice ?? 0.002);
   form.cacheReadUnitPrice = Number(config.cacheReadUnitPrice ?? 0);
   form.cacheWriteUnitPrice = Number(config.cacheWriteUnitPrice ?? 0);
+  form.videoPrice720p = config.resolutionPrices?.["720P"] != null ? Number(config.resolutionPrices["720P"]) : null;
+  form.videoPrice1080p = config.resolutionPrices?.["1080P"] != null ? Number(config.resolutionPrices["1080P"]) : null;
   form.imageResolution = config.imageResolution || "";
   form.imageQuality = config.imageQuality || "";
   form.ladderJson = row?.ladderJson || "";
@@ -329,6 +333,16 @@ function buildConfigJson() {
       imageResolution: form.imageResolution?.trim() || null,
       imageQuality: form.imageQuality?.trim() || null
     });
+  }
+  if (form.billingMode === "VIDEO") {
+    const resolutionPrices = {};
+    if (form.videoPrice720p != null && form.videoPrice720p !== "") {
+      resolutionPrices["720P"] = form.videoPrice720p;
+    }
+    if (form.videoPrice1080p != null && form.videoPrice1080p !== "") {
+      resolutionPrices["1080P"] = form.videoPrice1080p;
+    }
+    return Object.keys(resolutionPrices).length ? stringifyJson({ resolutionPrices }) : null;
   }
   if (form.billingMode === "EMBEDDING") {
     return stringifyJson({ inputUnitPrice: form.inputUnitPrice });

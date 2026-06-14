@@ -1,6 +1,9 @@
 package org.chobit.knot.gateway.usage;
 
 import org.chobit.knot.gateway.model.BillingUsage;
+import org.chobit.knot.gateway.usage.calculator.BillingModeCalculator;
+import org.chobit.knot.gateway.usage.calculator.SimpleBillingModeCalculator;
+import org.chobit.knot.gateway.usage.calculator.TokenBillingModeCalculator;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -9,6 +12,12 @@ import java.util.Map;
 public class AnthropicUsageExtractor extends DefaultUsageExtractor {
 
     public static final String CODE = "ANTHROPIC";
+    private final TokenBillingModeCalculator calculator;
+
+    public AnthropicUsageExtractor(TokenBillingModeCalculator calculator, SimpleBillingModeCalculator defaultCalculator) {
+        super(defaultCalculator);
+        this.calculator = calculator;
+    }
 
     @Override
     public String code() {
@@ -18,6 +27,11 @@ public class AnthropicUsageExtractor extends DefaultUsageExtractor {
     @Override
     public String label() {
         return "Anthropic Usage Extractor";
+    }
+
+    @Override
+    public BillingModeCalculator calculator() {
+        return calculator;
     }
 
     @Override
