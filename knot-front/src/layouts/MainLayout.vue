@@ -8,7 +8,14 @@
       <el-container class="aside-shell" direction="vertical">
         <el-header class="aside-header">
           <el-tooltip :content="t('app.brand')" placement="right" :disabled="!asideCollapsed">
-            <span class="aside-logo">{{ asideCollapsed ? "K" : t("app.brand") }}</span>
+            <div class="aside-brand" :class="{ 'aside-brand--collapsed': asideCollapsed }">
+              <img
+                src="/favicon.png"
+                :alt="t('app.brand')"
+                class="aside-logo"
+              />
+              <span v-if="!asideCollapsed" class="aside-brand__text">Knot Gateway</span>
+            </div>
           </el-tooltip>
         </el-header>
 
@@ -329,10 +336,6 @@ async function handleCommand(command) {
   transition: none;
 }
 
-.aside--collapsed .aside-logo {
-  font-size: 16px;
-}
-
 .aside-shell {
   flex: 1;
   min-height: 0;
@@ -345,18 +348,39 @@ async function handleCommand(command) {
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   padding: 0 12px;
   font-weight: 600;
   border-bottom: 1px solid var(--knot-border, #ebeef5);
   background: var(--knot-surface, #fff);
 }
 
+.aside-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.aside-brand--collapsed {
+  width: 100%;
+  justify-content: center;
+}
+
 .aside-logo {
+  display: block;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.aside-brand__text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 14px;
+  line-height: 20px;
+  color: #1f2937;
 }
 
 .aside-nav {

@@ -2,7 +2,9 @@
   <div class="login-container">
     <el-card class="login-card">
       <template #header>
-        <h2 class="login-title">{{ t("login.title") }}</h2>
+        <div class="login-brand">
+          <img src="/logo.png" alt="Knot AI Gateway" class="login-brand__logo" /> Knot AI Gateway
+        </div>
       </template>
       <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin">
         <el-form-item prop="username">
@@ -93,9 +95,17 @@ async function handleLogin() {
   width: 400px;
 }
 
-.login-title {
-  text-align: center;
-  margin: 0;
-  color: #333;
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.login-brand__logo {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
 }
 </style>
