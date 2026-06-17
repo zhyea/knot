@@ -3,7 +3,7 @@
     <el-card class="login-card">
       <template #header>
         <div class="login-brand">
-          <img src="/logo.png" alt="Knot AI Gateway" class="login-brand__logo" /> Knot AI Gateway
+          <img src="/login-logo.png" alt="Knot AI Gateway" class="login-brand__logo" />
         </div>
       </template>
       <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin">
