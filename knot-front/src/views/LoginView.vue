@@ -3,12 +3,12 @@
     <el-card class="login-card">
       <template #header>
         <div class="login-brand">
-          <img src="/login-logo.png" alt="Knot AI Gateway" class="login-brand__logo" />
+          <img src="/login-logo.png" alt="Knot AI Gateway" class="login-brand__logo"/>
         </div>
       </template>
       <el-form :model="form" :rules="rules" ref="formRef" @submit.prevent="handleLogin">
         <el-form-item prop="username">
-          <el-input v-model="form.username" :placeholder="t('login.username')" :prefix-icon="User" size="large" />
+          <el-input v-model="form.username" :placeholder="t('login.username')" :prefix-icon="User" size="large"/>
         </el-form-item>
         <el-form-item prop="password">
           <el-input
@@ -32,17 +32,17 @@
 </template>
 
 <script setup>
-import { computed, reactive, ref } from "vue";
-import { useRouter } from "vue-router";
-import { ElMessage } from "element-plus";
-import { Lock, User } from "@element-plus/icons-vue";
-import { useAuth } from "../composables/useAuth";
-import { useLocale } from "../composables/useLocale";
-import { loadThemePreference } from "../composables/useTheme";
+import {computed, reactive, ref} from "vue";
+import {useRouter} from "vue-router";
+import {ElMessage} from "element-plus";
+import {Lock, User} from "@element-plus/icons-vue";
+import {useAuth} from "../composables/useAuth";
+import {useLocale} from "../composables/useLocale";
+import {loadThemePreference} from "../composables/useTheme";
 
 const router = useRouter();
-const { login } = useAuth();
-const { loadLocalePreference, t } = useLocale();
+const {login} = useAuth();
+const {loadLocalePreference, t} = useLocale();
 
 const formRef = ref(null);
 const loading = ref(false);
@@ -53,8 +53,8 @@ const form = reactive({
 });
 
 const rules = computed(() => ({
-  username: [{ required: true, message: t("login.usernameRequired"), trigger: "blur" }],
-  password: [{ required: true, message: t("login.passwordRequired"), trigger: "blur" }]
+  username: [{required: true, message: t("login.usernameRequired"), trigger: "blur"}],
+  password: [{required: true, message: t("login.passwordRequired"), trigger: "blur"}]
 }));
 
 async function handleLogin() {
