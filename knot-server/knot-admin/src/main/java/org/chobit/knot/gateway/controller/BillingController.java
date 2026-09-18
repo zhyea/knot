@@ -81,7 +81,7 @@ public class BillingController {
     @OperationLog(module = "billing", operation = "UPDATE", entityType = "BillingRule",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'鏇存柊璁¤垂瑙勫垯鐘舵€?,'",
+            description = "'更新计费规则状态'",
             recordOldValue = true,
             oldValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)",
             recordNewValue = true,

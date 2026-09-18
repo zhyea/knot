@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: knot-gateway
+  mvc:
+    async:
+      # 流式转发走 Servlet 异步写，超时过小会直接掐断长流（容器默认仅 30s）
+      request-timeout: 600s
   datasource:
     url: jdbc:mysql://127.0.0.1:3306/knot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -28,3 +32,17 @@ knot:
         enabled: false
         topic-prefix: knot.plugin
         bootstrap-servers: ${KNOT_PLUGIN_KAFKA_BOOTSTRAP_SERVERS:}
+  gateway:
+    upstream:
+      # 上游 HTTP 客户端：Apache HttpClient 5 连接池 + 有界超时
+      connect-timeout: 5s
+      connection-request-timeout: 5s
+      # Socket 读超时 = 相邻两个数据包之间的最大静默时间，不是整个响应的总时长
+      read-timeout: 120s
+      time-to-live: 5m
+      validate-after-inactivity: 10s
+      max-total-connections: 200
+      max-connections-per-route: 50
+      streaming-enabled: true
+      stream-buffer-size: 8192
+      content-compression-enabled: false

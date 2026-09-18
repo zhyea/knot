@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.upstream.protocol;
 
+import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
+import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.springframework.core.annotation.Order;
@@ -23,8 +25,10 @@ public class TextGenerationProtocolExecutor extends AbstractUpstreamProtocolExec
     /**
      * Constructs a new instance.
      */
-    public TextGenerationProtocolExecutor(RestClient restClient, UsageExtractorRegistry usageExtractorRegistry) {
-        super(restClient, usageExtractorRegistry);
+    public TextGenerationProtocolExecutor(RestClient restClient,
+                                          UsageExtractorRegistry usageExtractorRegistry,
+                                          GatewayUpstreamClientProperties clientProperties) {
+        super(restClient, usageExtractorRegistry, clientProperties);
     }
 
     /**
@@ -33,5 +37,13 @@ public class TextGenerationProtocolExecutor extends AbstractUpstreamProtocolExec
     @Override
     public boolean supports(ModelApiProtocolEnum protocol) {
         return protocol != null && PROTOCOLS.contains(protocol.canonical());
+    }
+
+    /**
+     * 文本生成协议存在长耗时的 SSE 响应，必须边收边发。
+     */
+    @Override
+    protected boolean supportsStreaming(UpstreamRequestContext context) {
+        return true;
     }
 }

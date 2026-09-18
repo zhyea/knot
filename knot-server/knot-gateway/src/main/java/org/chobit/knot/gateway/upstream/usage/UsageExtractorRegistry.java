@@ -7,6 +7,7 @@ import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProviderTypeEnum;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
+import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.model.NormalizedUsage;
 import org.chobit.knot.gateway.service.GatewayDataService;
 import org.chobit.knot.gateway.usage.AnthropicUsageExtractor;
@@ -16,6 +17,8 @@ import org.chobit.knot.gateway.usage.UsageExtractorCatalog;
 import org.chobit.knot.gateway.usage.UsageNormalizationSupport;
 import org.chobit.knot.gateway.usage.VideoUsageExtractor;
 import org.springframework.stereotype.Component;
+
+import java.util.Map;
 
 @Component
 public class UsageExtractorRegistry {
@@ -29,37 +32,57 @@ public class UsageExtractorRegistry {
     }
 
     public NormalizedUsage extract(String responseBody, UpstreamRequestContext context, UpstreamRequestAdapter adapter) {
+        return extract(responseBody, isEventStream(responseBody), context, adapter);
+    }
+
+    /**
+     * 流式转发场景：对单个 SSE {@code data:} 事件提取用量。
+     *
+     * <p>与整包提取走同一套提取器与归一化逻辑，由调用方对多个事件的结果取最大值合并。</p>
+     */
+    public NormalizedUsage extractEvent(String eventData, UpstreamRequestContext context, UpstreamRequestAdapter adapter) {
+        return extract(eventData, true, context, adapter);
+    }
+
+    private NormalizedUsage extract(String body,
+                                    boolean eventStream,
+                                    UpstreamRequestContext context,
+                                    UpstreamRequestAdapter adapter) {
         BillingRuleEntity billingRule = resolveBillingRule(context);
-        String code = resolveExtractorCode(responseBody, context);
+        String code = resolveExtractorCode(eventStream, context);
         UsageExtractor extractor = resolve(code);
         if (extractor != null) {
-            var extracted = extractor.extractUsageBody(responseBody);
+            BillingUsage extracted = extractor.extractUsageBody(body);
             if (!extracted.isEmpty()) {
                 return UsageNormalizationSupport.normalize(
                         extracted,
                         billingRule,
-                        context == null ? null : context.requestBody(),
+                        requestBody(context),
                         extractor.calculator()
                 );
             }
         }
         return UsageNormalizationSupport.normalize(
-                adapter.extractUsage(responseBody, context),
+                adapter.extractUsage(body, context),
                 billingRule,
-                context == null ? null : context.requestBody(),
+                requestBody(context),
                 fallbackCalculator(context)
         );
+    }
+
+    private Map<String, Object> requestBody(UpstreamRequestContext context) {
+        return context == null ? null : context.requestBody();
     }
 
     private UsageExtractor resolve(String code) {
         return usageExtractorCatalog.resolve(code);
     }
 
-    private String resolveExtractorCode(String responseBody, UpstreamRequestContext context) {
+    private String resolveExtractorCode(boolean eventStream, UpstreamRequestContext context) {
         ModelApiBindingEntity binding = context.binding();
         if (binding != null) {
             String streamExtractor = binding.getStreamUsageExtractor();
-            if (isEventStream(responseBody) && StringUtils.isNotBlank(streamExtractor)) {
+            if (eventStream && StringUtils.isNotBlank(streamExtractor)) {
                 return streamExtractor;
             }
             if (StringUtils.isNotBlank(binding.getUsageExtractor())) {

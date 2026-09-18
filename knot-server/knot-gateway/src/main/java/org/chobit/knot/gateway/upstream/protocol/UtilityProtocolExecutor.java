@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.upstream.protocol;
 
+import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.springframework.core.annotation.Order;
@@ -21,8 +22,10 @@ public class UtilityProtocolExecutor extends AbstractUpstreamProtocolExecutor {
     /**
      * Constructs a new instance.
      */
-    public UtilityProtocolExecutor(RestClient restClient, UsageExtractorRegistry usageExtractorRegistry) {
-        super(restClient, usageExtractorRegistry);
+    public UtilityProtocolExecutor(RestClient restClient,
+                                   UsageExtractorRegistry usageExtractorRegistry,
+                                   GatewayUpstreamClientProperties clientProperties) {
+        super(restClient, usageExtractorRegistry, clientProperties);
     }
 
     /**

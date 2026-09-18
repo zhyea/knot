@@ -1,6 +1,8 @@
 package org.chobit.knot.gateway.runtime;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
@@ -13,9 +15,18 @@ import org.chobit.knot.gateway.routing.RoutingResolver;
 import org.chobit.knot.gateway.traffic.GatewayTrafficGuard;
 import org.chobit.knot.gateway.traffic.GatewayTrafficGuard.TrafficCheckContext;
 import org.chobit.knot.gateway.upstream.UpstreamProxyClient;
+import org.chobit.knot.gateway.upstream.stream.ProxyStreamingBody;
+import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
+import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.chobit.knot.gateway.util.JsonKit;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -25,6 +36,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     private final UpstreamProxyClient proxyClient;
     private final RoutingResolver routingResolver;
     private final GatewayTrafficGuard trafficGuard;
+    private final UsageExtractorRegistry usageExtractorRegistry;
+    private final GatewayUpstreamClientProperties clientProperties;
 
     /**
      * Constructs a new instance.
@@ -32,11 +45,15 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     public GatewayRequestHandler(UpstreamProxyClient proxyService,
                                  RoutingResolver routingAuthService,
                                  GatewayTrafficGuard trafficGuard,
-                                 PluginDispatcher pluginDispatcher) {
+                                 PluginDispatcher pluginDispatcher,
+                                 UsageExtractorRegistry usageExtractorRegistry,
+                                 GatewayUpstreamClientProperties clientProperties) {
         super(pluginDispatcher);
         this.proxyClient = proxyService;
         this.routingResolver = routingAuthService;
         this.trafficGuard = trafficGuard;
+        this.usageExtractorRegistry = usageExtractorRegistry;
+        this.clientProperties = clientProperties;
     }
 
     @Override
@@ -93,8 +110,14 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     protected Object applyUsageAccounting(GatewayRequestContext context, GatewayExchange exchange) {
         ProxyResult result = exchange.proxyResult();
         ResolvedRouting routing = context.routing();
-        if (routing == null || result == null || result.responseBody() == null) {
-            return result == null ? null : result.responseBody();
+        if (result == null) {
+            return null;
+        }
+        if (result.streamResponse() != null) {
+            return streamResponse(result, routing);
+        }
+        if (routing == null || result.responseBody() == null) {
+            return result.responseBody();
         }
         if (!routing.returnUsageDetail()) {
             return result.responseBody();
@@ -113,6 +136,36 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         }
         body.put(AiPayloadFields.KNOT_USAGE, usage);
         return body;
+    }
+
+    /**
+     * 流式转发：先把响应头写好，再把响应体交给 Spring 异步写回。
+     *
+     * <p>这里必须返回裸的 {@link ProxyStreamingBody}：控制器方法声明的返回类型是 {@code Object}，
+     * Spring 依据返回值的运行时类型选择处理器，一旦用 {@code ResponseEntity} 包装就会退化成
+     * 消息转换器查找，反而写不出去。</p>
+     */
+    private Object streamResponse(ProxyResult result, ResolvedRouting routing) {
+        UpstreamStreamResponse stream = result.streamResponse();
+        prepareStreamingHeaders(stream.contentType());
+        boolean appendUsage = routing != null && routing.returnUsageDetail();
+        return new ProxyStreamingBody(stream, usageExtractorRegistry, appendUsage, clientProperties.getStreamBufferSize());
+    }
+
+    private void prepareStreamingHeaders(MediaType contentType) {
+        RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
+        if (!(attributes instanceof ServletRequestAttributes servletAttributes)) {
+            return;
+        }
+        HttpServletResponse response = servletAttributes.getResponse();
+        if (response == null) {
+            return;
+        }
+        response.setContentType(contentType == null ? MediaType.TEXT_EVENT_STREAM_VALUE : contentType.toString());
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-cache");
+        // 经过 Nginx 等反向代理时不要缓冲 SSE
+        response.setHeader("X-Accel-Buffering", "no");
     }
 
     private boolean isEventStream(String value) {

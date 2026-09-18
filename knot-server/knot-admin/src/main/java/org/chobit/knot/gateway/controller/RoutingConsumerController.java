@@ -84,7 +84,7 @@ public class RoutingConsumerController {
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingConsumer",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'鏇存柊娑堣垂鑰呯姸鎬?,'",
+            description = "'更新消费者状态'",
             recordOldValue = true,
             oldValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)",
             recordNewValue = true,

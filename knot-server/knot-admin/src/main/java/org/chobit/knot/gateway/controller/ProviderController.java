@@ -75,7 +75,7 @@ public class ProviderController {
     @OperationLog(module = "provider", operation = "CREATE", entityType = "Provider",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
-            description = "'鏂板缓渚涘簲鍟?",
+            description = "'新建供应商'",
             recordNewValue = true,
             newValueSpel = "@providerService.providerAuditSnapshot(#result.id())")
     @PostMapping
@@ -93,7 +93,7 @@ public class ProviderController {
     @OperationLog(module = "provider", operation = "UPDATE", entityType = "Provider",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'鏇存柊渚涘簲鍟?",
+            description = "'更新供应商'",
             recordOldValue = true,
             oldValueSpel = "@providerService.providerAuditSnapshot(#p0)",
             recordNewValue = true,
@@ -113,7 +113,7 @@ public class ProviderController {
     @OperationLog(module = "provider", operation = "UPDATE", entityType = "Provider",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'鏇存柊渚涘簲鍟嗙姸鎬?,'",
+            description = "'更新供应商状态'",
             recordOldValue = true,
             oldValueSpel = "@providerService.providerAuditSnapshot(#p0)",
             recordNewValue = true,
@@ -139,7 +139,7 @@ public class ProviderController {
     @OperationLog(module = "provider", operation = "CREATE", entityType = "Provider",
             entityId = "#p0",
             entityNameAfter = "@providerService.getById(#p0).name()",
-            description = "'鏂板鎶樻墸绛栫暐'",
+            description = "'新增折扣策略'",
             recordNewValue = true,
             newValueSpel = "#result")
     @PostMapping("/{id}/discount-policies")
@@ -157,7 +157,7 @@ public class ProviderController {
     @OperationLog(module = "provider", operation = "UPDATE", entityType = "Provider",
             entityId = "#p0",
             entityNameAfter = "@providerService.getById(#p0).name()",
-            description = "'鏇存柊鎶樻墸绛栫暐'",
+            description = "'更新折扣策略'",
             recordOldValue = true,
             oldValueSpel = "@providerService.discountPolicyAuditSnapshot(#p1)",
             recordNewValue = true,

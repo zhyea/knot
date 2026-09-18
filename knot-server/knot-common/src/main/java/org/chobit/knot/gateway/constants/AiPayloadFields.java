@@ -26,6 +26,7 @@ public final class AiPayloadFields {
     public static final String COMPLETION_TOKENS = "completion_tokens";
     public static final String OUTPUT_TOKENS = "output_tokens";
     public static final String KNOT_USAGE = "knot_usage";
+    public static final String STREAM = "stream";
 
     private AiPayloadFields() {
     }
