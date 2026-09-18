@@ -36,10 +36,13 @@ INSERT IGNORE INTO user_roles (user_id, role_id) VALUES
 (3, 3);
 
 INSERT IGNORE INTO sys_modules (id, module_code, module_name, icon, sort_order, status) VALUES
-(1, 'system', '系统管理', 'Setting', 10, 'ENABLED'),
+(1, 'system', '系统管理', 'Setting', 90, 'ENABLED'),
 (2, 'model', '模型管理', 'Box', 20, 'ENABLED'),
 (3, 'routing', '路由管理', 'Share', 30, 'ENABLED'),
 (4, 'billing', '计费管理', 'Coin', 40, 'ENABLED');
+
+-- 系统管理固定排在侧边栏末尾。INSERT IGNORE 不会更新已存在的行，故追加 UPDATE 保证存量库生效。
+UPDATE sys_modules SET sort_order = 90 WHERE module_code = 'system';
 
 INSERT IGNORE INTO sys_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
 (1, 1, NULL, 'system.users', '用户管理', '/system/users', 'system/UserManageView', 'User', 10, 'ENABLED'),
@@ -211,17 +214,21 @@ INSERT IGNORE INTO sys_menus (id, module_id, parent_id, menu_code, menu_name, ro
 (6, 2, NULL, 'model.providers', '供应商', '/providers', 'ProviderManageView', 'Connection', 30, 'ENABLED'),
 (7, 2, NULL, 'model.models', '供应商模型', '/model-management/models', 'ModelManageView', 'Cpu', 20, 'ENABLED'),
 (8, 2, NULL, 'model.model-pools', '模型池', '/model-management/model-pools', 'ModelPoolManageView', 'Cpu', 10, 'ENABLED'),
-(9, 2, NULL, 'model.logical-models', '模型广场', '/model-management/logical-models', 'LogicalModelMarketplaceView', 'Cpu', 40, 'ENABLED'),
+(9, 2, NULL, 'model.logical-models', '统一模型', '/model-management/logical-models', 'LogicalModelMarketplaceView', 'Cpu', 40, 'ENABLED'),
 (10, 2, NULL, 'model.external-models', '外部模型', '/model-management/external-models', 'ExternalModelManageView', 'Cpu', 50, 'ENABLED'),
 (11, 3, NULL, 'routing.rules', '路由规则', '/routing/rules', 'routing/RoutingRuleView', 'Share', 10, 'ENABLED'),
 (12, 3, NULL, 'routing.consumers', '消费者', '/routing/consumers', 'routing/RoutingConsumerView', 'Share', 20, 'ENABLED'),
 (13, 4, NULL, 'billing.rules', '计费规则', '/billing/rules', 'billing/BillingRuleView', 'Coin', 10, 'ENABLED');
 
+-- “模型广场”更名为“统一模型”。同理追加 UPDATE 保证存量库生效。
+UPDATE sys_menus SET menu_name = '统一模型' WHERE menu_code = 'model.logical-models';
+UPDATE sys_permissions SET permission_name = '统一模型页面访问' WHERE permission_code = 'model:logical-model:page';
+
 INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
 (19, 'model:provider:page', '供应商页面访问', 'PAGE', 2, 6, 'ENABLED', 1, NULL),
 (20, 'model:model:page', '供应商模型页面访问', 'PAGE', 2, 7, 'ENABLED', 1, NULL),
 (21, 'model:model-pool:page', '模型池页面访问', 'PAGE', 2, 8, 'ENABLED', 1, NULL),
-(22, 'model:logical-model:page', '模型广场页面访问', 'PAGE', 2, 9, 'ENABLED', 1, NULL),
+(22, 'model:logical-model:page', '统一模型页面访问', 'PAGE', 2, 9, 'ENABLED', 1, NULL),
 (23, 'model:external-model:page', '外部模型页面访问', 'PAGE', 2, 10, 'ENABLED', 1, NULL),
 (24, 'routing:rule:page', '路由规则页面访问', 'PAGE', 3, 11, 'ENABLED', 1, NULL),
 (25, 'routing:consumer:page', '消费者页面访问', 'PAGE', 3, 12, 'ENABLED', 1, NULL),

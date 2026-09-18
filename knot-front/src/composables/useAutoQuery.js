@@ -48,7 +48,11 @@ export function useAutoQuery(source, query, options = {}) {
 
   watch(watchSource, schedule, {
     deep,
-    flush: "post"
+    flush: "post",
+    // 必须立即执行一次：watch 不带 immediate 时首次回调就是用户的第一次真实修改，
+    // 会被 schedule() 的 initialized 守卫吞掉，导致“改了筛选条件列表不刷新”。
+    // 带上 immediate 后，这一次消耗在初始化上，用户改动才真正触发查询。
+    immediate: true
   });
 
   onScopeDispose(clearTimer);

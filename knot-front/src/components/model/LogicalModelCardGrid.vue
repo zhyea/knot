@@ -1,51 +1,53 @@
 <template>
-  <div ref="bodyRef" class="market-body">
-    <div v-loading="loading" class="model-grid" :style="gridStyle">
-      <div v-for="row in rows" :key="row.id" class="model-card">
-        <div class="corner-ribbon" :class="ribbonClass(row)">{{ ribbonText(row) }}</div>
-        <div class="card-top">
-          <div class="model-main">
-            <div class="model-name">{{ row.displayName || row.modelName }}</div>
-            <div class="tag-list">
-              <el-tag v-for="tag in displayTags(row)" :key="tag" size="small" effect="plain">
-                {{ tag }}
-              </el-tag>
+  <div>
+    <div v-loading="loading" class="market-body">
+      <div v-if="rows.length" class="model-grid">
+        <div v-for="row in rows" :key="row.id" class="model-card">
+          <div class="corner-ribbon" :class="ribbonClass(row)">{{ statusText(row) }}</div>
+          <div class="card-top">
+            <div class="model-main">
+              <div class="model-name">{{ row.displayName || row.modelName || "-" }}</div>
+              <div class="model-code">{{ row.modelCode || "-" }}</div>
             </div>
           </div>
-        </div>
-        <p class="tagline">{{ row.tagline || row.description || "暂无介绍" }}</p>
-        <div class="card-footer">
-          <div class="footer-meta">
-            <strong>{{ row.ownerTeam || row.modelFamily || "-" }}</strong>
-            <span>更新时间：{{ formatDate(row.updatedAt) }}</span>
+          <div v-if="displayTags(row).length" class="tag-list">
+            <el-tag v-for="tag in displayTags(row)" :key="tag" size="small" effect="plain">
+              {{ tag }}
+            </el-tag>
           </div>
-          <RowActions
-            :actions="[
-              { key: 'edit', label: '编辑', icon: Edit },
-              { key: 'delete', label: '删除', icon: Delete, type: 'danger', confirm: '确认删除该统一模型？' }
-            ]"
-            @action="(action) => emit('action', action, row)"
-          />
+          <p class="tagline">{{ row.tagline || row.description || "暂无介绍" }}</p>
+          <div class="card-footer">
+            <div class="footer-meta">
+              <strong>{{ row.ownerTeam || row.modelFamily || "-" }}</strong>
+              <span>更新时间：{{ formatDate(row.updatedAt) }}</span>
+            </div>
+            <RowActions
+              :actions="[
+                { key: 'edit', label: '编辑', icon: Edit },
+                { key: 'delete', label: '删除', icon: Delete, type: 'danger', confirm: '确认删除该统一模型？' }
+              ]"
+              @action="(action) => emit('action', action, row)"
+            />
+          </div>
         </div>
       </div>
-      <el-empty v-if="!loading && !rows.length" description="暂无统一模型" />
+      <el-empty v-else-if="!loading" description="暂无统一模型" />
     </div>
 
     <ListPagination
-      ref="paginationRef"
       :total="total"
       :page-num="pageNum"
       :page-size="pageSize"
+      :page-sizes="pageSizes"
       :show-refresh="showRefresh"
-      layout="total, prev, pager, next"
       @refresh="emit('refresh')"
       @page-change="(page) => emit('page-change', page)"
+      @size-change="(size) => emit('size-change', size)"
     />
   </div>
 </template>
 
 <script setup>
-import { ref } from "vue";
 import { Delete, Edit } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
@@ -55,22 +57,22 @@ const props = defineProps({
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
-  pageSize: { type: Number, default: 9 },
-  gridStyle: { type: Object, default: () => ({}) },
-  compactLevel: { type: Number, default: 0 },
+  pageSize: { type: Number, default: 12 },
+  pageSizes: { type: Array, default: () => [12, 24, 48] },
   modelTypeOptions: { type: Array, default: () => [] },
   showRefresh: { type: Boolean, default: true }
 });
 
-const emit = defineEmits(["action", "refresh", "page-change"]);
-
-const bodyRef = ref(null);
-const paginationRef = ref(null);
+const emit = defineEmits(["action", "refresh", "page-change", "size-change"]);
 
 function modelTypeLabel(code) {
   if (!code) return "-";
   const item = props.modelTypeOptions.find((option) => option.itemCode === code);
   return item?.itemLabel || code;
+}
+
+function isMeaningfulTag(tag) {
+  return typeof tag === "string" && tag.trim() && !/^\d+$/.test(tag.trim());
 }
 
 function displayTags(row) {
@@ -79,14 +81,10 @@ function displayTags(row) {
   if (type && type !== "-") {
     tags.unshift(type);
   }
-  return tags.slice(0, props.compactLevel >= 2 ? 2 : 3);
+  return tags.slice(0, 3);
 }
 
-function isMeaningfulTag(tag) {
-  return typeof tag === "string" && tag.trim() && !/^\d+$/.test(tag.trim());
-}
-
-function ribbonText(row) {
+function statusText(row) {
   if (row.featured) return "推荐";
   if (row.publishStatus === "PUBLISHED") return "已发布";
   return row.enabled ? "可用" : "草稿";
@@ -102,45 +100,29 @@ function formatDate(value) {
   if (!value) return "-";
   return String(value).slice(0, 10);
 }
-
-defineExpose({
-  getBodyEl: () => bodyRef.value,
-  getPaginationEl: () => paginationRef.value?.getRootEl?.() || null
-});
 </script>
 
 <style scoped>
 .market-body {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  min-height: 220px;
 }
 
 .model-grid {
-  flex: 0 0 var(--market-grid-height);
-  height: var(--market-grid-height);
-  min-height: 0;
   display: grid;
-  grid-template-columns: repeat(var(--market-columns), minmax(0, 1fr));
-  grid-auto-rows: var(--market-card-height);
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 18px 22px;
-  overflow: hidden;
 }
 
 .model-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--market-card-gap, 12px);
-  padding: var(--market-card-padding, 16px);
+  gap: 12px;
+  padding: 16px;
   overflow: hidden;
   border: 1px solid var(--knot-border, #e4e7ed);
   background: var(--knot-surface, #fff);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
-  min-height: 0;
-  height: 100%;
 }
 
 .card-top {
@@ -150,34 +132,34 @@ defineExpose({
   padding-right: 72px;
 }
 
-.card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--market-footer-gap, 12px);
-  margin-top: auto;
-  min-height: 36px;
-  padding-top: var(--market-footer-padding-top, 14px);
-  border-top: 1px solid var(--knot-border, #ebeef5);
-}
-
 .model-main {
   min-width: 0;
 }
 
 .model-name {
-  font-size: var(--market-title-size, 16px);
+  font-size: 16px;
   line-height: 1.4;
   font-weight: 600;
   color: var(--knot-text, #303133);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-code {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #909399;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tagline {
   margin: 0;
-  min-height: var(--market-tagline-min-height, 40px);
   color: #606266;
-  font-size: var(--market-tagline-font-size, 13px);
-  line-height: var(--market-tagline-line-height, 1.5);
+  font-size: 13px;
+  line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -187,8 +169,7 @@ defineExpose({
 .tag-list {
   display: flex;
   flex-wrap: wrap;
-  margin-top: 12px;
-  gap: var(--market-tag-gap, 6px);
+  gap: 6px;
 }
 
 .tag-list :deep(.el-tag) {
@@ -197,8 +178,19 @@ defineExpose({
   border-color: #a9c0ff;
   background: #f7faff;
   color: #3d70ff;
-  font-size: var(--market-tag-font-size, 12px);
+  font-size: 12px;
   line-height: 20px;
+}
+
+.card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  min-height: 36px;
+  padding-top: 14px;
+  border-top: 1px solid var(--knot-border, #ebeef5);
 }
 
 .footer-meta {
@@ -207,9 +199,9 @@ defineExpose({
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--market-footer-gap, 12px);
+  gap: 12px;
   color: var(--knot-text, #303133);
-  font-size: var(--market-footer-font-size, 12px);
+  font-size: 12px;
 }
 
 .footer-meta strong {
@@ -251,18 +243,5 @@ defineExpose({
 .corner-ribbon--draft {
   background: #f4f4f5;
   color: #909399;
-}
-
-@media (max-width: 720px) {
-  .card-top {
-    padding-right: 56px;
-  }
-
-  .footer-meta {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 6px;
-    font-size: 15px;
-  }
 }
 </style>

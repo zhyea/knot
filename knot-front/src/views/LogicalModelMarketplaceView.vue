@@ -1,7 +1,7 @@
 <template>
-  <PageSection class="market-page">
-    <div class="list-page-shell list-page-shell--fill market-shell">
-      <section ref="headerRef" class="list-page-block">
+  <PageSection>
+    <div class="list-page-shell">
+      <section class="list-page-block">
         <div class="list-page-filters">
           <div class="list-filter-item list-filter-item--grow">
             <span class="list-filter-label">关键词</span>
@@ -32,31 +32,51 @@
         </div>
       </section>
 
-      <section class="list-page-block list-page-block--content list-page-block--fill">
+      <section class="list-page-block">
         <div class="list-page-toolbar">
           <div class="list-page-toolbar__actions list-page-toolbar__actions--start">
             <el-button type="primary" @click="openCreate">新建统一模型</el-button>
           </div>
-          <div class="list-page-toolbar__meta">
+          <div class="list-page-toolbar__meta market-toolbar__meta">
             <div class="list-page-toolbar__title">
               统一对外模型入口，供应商真实模型通过映射维护。
             </div>
+            <el-segmented
+              v-model="viewMode"
+              :options="viewModeOptions"
+              size="small"
+              @change="onViewModeChange"
+            />
           </div>
         </div>
 
-        <LogicalModelMarketplacePanel
-          ref="marketPanelRef"
+        <LogicalModelTable
+          v-if="viewMode === 'list'"
           :rows="rows"
           :loading="loading"
           :total="total"
           :page-num="pageNum"
           :page-size="pageSize"
-          :grid-style="gridStyle"
-          :compact-level="compactLevel"
+          :page-sizes="viewPageSizes"
           :model-type-options="modelTypeOptions"
           :show-refresh="false"
           @action="handleAction"
           @page-change="onPageChange"
+          @size-change="onSizeChange"
+        />
+        <LogicalModelCardGrid
+          v-else
+          :rows="rows"
+          :loading="loading"
+          :total="total"
+          :page-num="pageNum"
+          :page-size="pageSize"
+          :page-sizes="viewPageSizes"
+          :model-type-options="modelTypeOptions"
+          :show-refresh="false"
+          @action="handleAction"
+          @page-change="onPageChange"
+          @size-change="onSizeChange"
         />
       </section>
     </div>
@@ -66,75 +86,64 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../components/common/PageSection.vue";
 import EnumSelect from "../components/common/EnumSelect.vue";
 import LogicalModelFormDrawer from "../components/model/LogicalModelFormDrawer.vue";
-import LogicalModelMarketplacePanel from "../components/model/LogicalModelMarketplacePanel.vue";
+import LogicalModelTable from "../components/model/LogicalModelTable.vue";
+import LogicalModelCardGrid from "../components/model/LogicalModelCardGrid.vue";
 import { deleteLogicalModel, listLogicalModels } from "../api/logicalModels";
 import { useAutoQuery } from "../composables/useAutoQuery";
 import { useEnums } from "../composables/useEnums";
 import { usePageList } from "../composables/usePageList";
+import { getStorageItem, getStorageJson, setStorageItem, setStorageJson } from "../utils/storage";
+
+const VIEW_MODE_KEY = "knot.logical-model.view-mode";
+const VIEW_PAGE_SIZE_KEY = "knot.logical-model.view-page-size";
+const DEFAULT_VIEW_PAGE_SIZE = { card: 12, list: 20 };
+const VIEW_PAGE_SIZES = { card: [12, 24, 48], list: [10, 20, 50] };
+
+const viewModeOptions = [
+  { label: "卡片", value: "card" },
+  { label: "列表", value: "list" }
+];
+
+function readViewMode() {
+  const saved = getStorageItem(VIEW_MODE_KEY);
+  return saved === "card" || saved === "list" ? saved : "list";
+}
+
+function readViewPageSize() {
+  const saved = getStorageJson(VIEW_PAGE_SIZE_KEY, null) || {};
+  const result = { ...DEFAULT_VIEW_PAGE_SIZE };
+  ["card", "list"].forEach((mode) => {
+    const size = Number(saved[mode]);
+    if (Number.isInteger(size) && size > 0) {
+      result[mode] = size;
+    }
+  });
+  return result;
+}
 
 const query = reactive({
   keyword: "",
   modelTypes: []
 });
 
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, resetPage } =
-  usePageList(listLogicalModels, { pageSize: 9, extra: query });
+const viewMode = ref(readViewMode());
+const viewPageSize = reactive(readViewPageSize());
+const viewPageSizes = computed(() => VIEW_PAGE_SIZES[viewMode.value] || VIEW_PAGE_SIZES.list);
+
+const { rows, loading, total, pageNum, pageSize, load, onPageChange, resetPage } = usePageList(
+  listLogicalModels,
+  { pageSize: viewPageSize[viewMode.value], extra: query }
+);
 const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
 
 const { options: modelTypeOptions, loadOptions: loadModelTypes } = useEnums("model_type");
-const headerRef = ref(null);
-const marketPanelRef = ref(null);
 const formVisible = ref(false);
 const editingModel = ref(null);
-const layout = reactive({
-  columns: 3,
-  rows: 3,
-  gridHeight: 0,
-  cardHeight: 210
-});
-
-const GAP_X = 22;
-const GAP_Y = 18;
-const MIN_CARD_WIDTH = 325;
-const MIN_CARD_HEIGHT = 188;
-const MAX_COLUMNS = 5;
-const MAX_ROWS = 5;
-const LAYOUT_SAFETY_GAP = 2;
-let resizeObserver;
-let resizeTimer;
-let loaded = false;
-
-const gridStyle = computed(() => {
-  const density = resolveDensity(layout.columns);
-  return {
-    "--market-columns": layout.columns,
-    "--market-rows": layout.rows,
-    "--market-grid-height": layout.gridHeight ? `${layout.gridHeight}px` : "auto",
-    "--market-card-height": `${layout.cardHeight}px`,
-    "--market-card-padding": `${density.cardPadding}px`,
-    "--market-card-gap": `${density.cardGap}px`,
-    "--market-title-size": `${density.titleSize}px`,
-    "--market-tagline-min-height": `${density.taglineMinHeight}px`,
-    "--market-tagline-font-size": `${density.taglineFontSize}px`,
-    "--market-tagline-line-height": density.taglineLineHeight,
-    "--market-footer-gap": `${density.footerGap}px`,
-    "--market-footer-font-size": `${density.footerFontSize}px`,
-    "--market-footer-padding-top": `${density.footerPaddingTop}px`,
-    "--market-tag-gap": `${density.tagGap}px`,
-    "--market-tag-font-size": `${density.tagFontSize}px`
-  };
-});
-
-const compactLevel = computed(() => {
-  if (layout.columns >= 5) return 2;
-  if (layout.columns >= 4) return 1;
-  return 0;
-});
 
 function openCreate() {
   editingModel.value = null;
@@ -158,222 +167,55 @@ async function removeModel(row) {
 }
 
 function handleQuery() {
-  return pauseAutoQuery(() => {
-    loaded = false;
-    return resetPage();
-  });
+  return pauseAutoQuery(resetPage);
 }
 
 function handleReset() {
   return pauseAutoQuery(() => {
     query.keyword = "";
     query.modelTypes = [];
-    loaded = false;
     return resetPage();
   });
 }
 
-onMounted(() => {
-  loadModelTypes();
-  nextTick(() => {
-    setupAutoLayout();
-    recalcLayout(true);
-  });
-});
-
-onBeforeUnmount(() => {
-  resizeObserver?.disconnect();
-  if (resizeTimer) {
-    clearTimeout(resizeTimer);
-  }
-});
-
-function setupAutoLayout() {
-  if (typeof ResizeObserver === "undefined") {
-    loadOnce();
-    return;
-  }
-  resizeObserver = new ResizeObserver(() => {
-    if (resizeTimer) {
-      clearTimeout(resizeTimer);
-    }
-    resizeTimer = setTimeout(() => recalcLayout(false), 120);
-  });
-  [getViewportEl(), getHeaderEl(), getPaginationEl()]
-    .filter(Boolean)
-    .forEach((el) => resizeObserver.observe(el));
-}
-
-function recalcLayout(forceLoad) {
-  const body = getBodyEl();
-  if (!body) {
-    loadOnce();
-    return;
-  }
-
-  const width = body.clientWidth;
-  const height = getAvailableGridHeight();
-  if (width <= 0 || height <= 0) {
-    loadOnce();
-    return;
-  }
-
-  const columns = clamp(Math.floor((width + GAP_X) / (MIN_CARD_WIDTH + GAP_X)), 1, MAX_COLUMNS);
-  const rowCount = clamp(Math.floor((height + GAP_Y) / (MIN_CARD_HEIGHT + GAP_Y)), 1, MAX_ROWS);
-  const cardHeight = Math.floor((height - GAP_Y * (rowCount - 1)) / rowCount);
-  const nextPageSize = columns * rowCount;
-  const changed = nextPageSize !== pageSize.value;
-
-  layout.columns = columns;
-  layout.rows = rowCount;
-  layout.gridHeight = height;
-  layout.cardHeight = cardHeight;
-
-  if (changed) {
-    pageSize.value = nextPageSize;
-    pageNum.value = 1;
-    loadOnce();
-  } else if (forceLoad || !loaded) {
-    loadOnce();
-  }
-}
-
-function loadOnce() {
-  loaded = true;
+// 分页条：按当前视图分别记住每页条数，卡片视图默认 12 条、列表视图默认 20 条
+function onSizeChange(size) {
+  viewPageSize[viewMode.value] = size;
+  setStorageJson(VIEW_PAGE_SIZE_KEY, { ...viewPageSize });
+  pageSize.value = size;
+  pageNum.value = 1;
   return load();
 }
 
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
+function onViewModeChange(mode) {
+  const next = mode === "card" ? "card" : "list";
+  viewMode.value = next;
+  setStorageItem(VIEW_MODE_KEY, next);
+  pageSize.value = viewPageSize[next];
+  return resetPage();
 }
 
-function resolveDensity(columns) {
-  if (columns >= 5) {
-    return {
-      cardPadding: 13,
-      cardGap: 10,
-      titleSize: 14,
-      taglineMinHeight: 34,
-      taglineFontSize: 12,
-      taglineLineHeight: 1.45,
-      footerGap: 8,
-      footerFontSize: 11,
-      footerPaddingTop: 12,
-      tagGap: 5,
-      tagFontSize: 11
-    };
-  }
-  if (columns >= 4) {
-    return {
-      cardPadding: 14,
-      cardGap: 11,
-      titleSize: 15,
-      taglineMinHeight: 36,
-      taglineFontSize: 12,
-      taglineLineHeight: 1.5,
-      footerGap: 10,
-      footerFontSize: 12,
-      footerPaddingTop: 13,
-      tagGap: 6,
-      tagFontSize: 11
-    };
-  }
-  return {
-    cardPadding: 16,
-    cardGap: 12,
-    titleSize: 16,
-    taglineMinHeight: 40,
-    taglineFontSize: 13,
-    taglineLineHeight: 1.5,
-    footerGap: 12,
-    footerFontSize: 12,
-    footerPaddingTop: 14,
-    tagGap: 6,
-    tagFontSize: 12
-  };
-}
-
-function getAvailableGridHeight() {
-  const viewport = getViewportEl();
-  const body = getBodyEl();
-  if (!viewport || !body) {
-    return 0;
-  }
-  const viewportRect = viewport.getBoundingClientRect();
-  const bodyRect = body.getBoundingClientRect();
-  const bodyHeight = Math.max(0, Math.floor(viewportRect.bottom - bodyRect.top));
-  const reservedHeight =
-    getOuterHeight(getHeaderEl()) +
-    getOuterHeight(getToolbarEl()) +
-    getOuterHeight(getPaginationEl()) +
-    getBodyBottomInset();
-  return Math.max(0, Math.floor(bodyHeight - reservedHeight - LAYOUT_SAFETY_GAP));
-}
-
-function getOuterHeight(el) {
-  if (!el) return 0;
-  const style = window.getComputedStyle(el);
-  const marginTop = Number.parseFloat(style.marginTop) || 0;
-  const marginBottom = Number.parseFloat(style.marginBottom) || 0;
-  return el.offsetHeight + marginTop + marginBottom;
-}
-
-function getBodyEl() {
-  return marketPanelRef.value?.getBodyEl?.();
-}
-
-function getHeaderEl() {
-  return headerRef.value;
-}
-
-function getToolbarEl() {
-  return getBodyEl()?.closest(".list-page-block")?.querySelector(".list-page-toolbar") || null;
-}
-
-function getBodyBottomInset() {
-  const body = getBodyEl();
-  const slotBody = body?.closest(".slot-body") || null;
-  const contentBlock = body?.closest(".list-page-block") || null;
-  return getBoxBottomInset(contentBlock) + getBoxBottomInset(slotBody);
-}
-
-function getBoxBottomInset(el) {
-  if (!el) return 0;
-  const style = window.getComputedStyle(el);
-  const paddingBottom = Number.parseFloat(style.paddingBottom) || 0;
-  const borderBottom = Number.parseFloat(style.borderBottomWidth) || 0;
-  return paddingBottom + borderBottom;
-}
-
-function getViewportEl() {
-  return getBodyEl()?.closest(".el-scrollbar__wrap") || null;
-}
-
-function getPaginationEl() {
-  return marketPanelRef.value?.getPaginationEl?.();
-}
+onMounted(() => {
+  loadModelTypes();
+  load();
+});
 </script>
 
 <style scoped>
-.market-page {
-  height: 100%;
-}
-
-.market-page :deep(.slot-body) {
-  height: 100%;
-  min-height: 0;
-}
-
-.market-shell {
-  height: 100%;
-}
-
 .market-filter-item--type {
   min-width: 292px;
 }
 
 .market-filter-control--type {
   width: 260px;
+}
+
+.market-toolbar__meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
 }
 
 @media (max-width: 768px) {
@@ -383,6 +225,11 @@ function getPaginationEl() {
 
   .market-filter-control--type {
     width: 100%;
+  }
+
+  .market-toolbar__meta {
+    width: 100%;
+    justify-content: space-between;
   }
 }
 </style>

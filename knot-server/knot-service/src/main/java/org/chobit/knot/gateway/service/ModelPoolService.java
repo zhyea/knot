@@ -18,7 +18,9 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class ModelPoolService {
@@ -133,6 +135,30 @@ public class ModelPoolService {
         }
         modelPoolMapper.deleteItemsByPoolId(id);
         modelPoolMapper.deleteById(id);
+    }
+
+    /**
+     * Builds the audit snapshot recorded by {@code @OperationLog}.
+     * Returns null when the pool no longer exists, which is expected after a delete.
+     */
+    public Map<String, Object> modelPoolAuditSnapshot(Long id) {
+        if (id == null) {
+            return null;
+        }
+        try {
+            ModelPoolDto dto = getById(id);
+            Map<String, Object> snapshot = new LinkedHashMap<>();
+            snapshot.put("id", dto.id());
+            snapshot.put("poolCode", dto.poolCode());
+            snapshot.put("name", dto.name());
+            snapshot.put("modelType", dto.modelType());
+            snapshot.put("selectionStrategy", dto.selectionStrategy());
+            snapshot.put("enabled", dto.enabled());
+            snapshot.put("itemCount", dto.items() == null ? 0 : dto.items().size());
+            return snapshot;
+        } catch (BusinessException e) {
+            return null;
+        }
     }
 
     private ModelPoolDto enrich(ModelPoolDto dto) {

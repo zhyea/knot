@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import jakarta.validation.Valid;
+import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.converter.ModelPoolConverter;
 import org.chobit.knot.gateway.dto.model.ModelPoolDto;
 import org.chobit.knot.gateway.model.PageQuery;
@@ -69,6 +70,12 @@ public class ModelPoolController {
     /**
      * Creates a new resource. Executes the public operation.
      */
+    @OperationLog(module = "model-pool", operation = "CREATE", entityType = "ModelPool",
+            entityIdAfter = "#result.id()",
+            entityNameAfter = "#result.name()",
+            description = "'新建模型池'",
+            recordNewValue = true,
+            newValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#result.id())")
     @PostMapping
     public ModelPool create(@RequestBody @Valid ModelPool request) {
         return modelPoolConverter.toVO(modelPoolService.create(modelPoolConverter.toDto(request)));
@@ -77,6 +84,14 @@ public class ModelPoolController {
     /**
      * Updates the target resource. Executes the public operation.
      */
+    @OperationLog(module = "model-pool", operation = "UPDATE", entityType = "ModelPool",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'更新模型池'",
+            recordOldValue = true,
+            oldValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)",
+            recordNewValue = true,
+            newValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     public ModelPool update(@PathVariable Long id, @RequestBody @Valid ModelPool request) {
         return modelPoolConverter.toVO(modelPoolService.update(id, modelPoolConverter.toDto(request)));
@@ -85,6 +100,14 @@ public class ModelPoolController {
     /**
      * Updates the target resource status. Executes the public operation.
      */
+    @OperationLog(module = "model-pool", operation = "UPDATE", entityType = "ModelPool",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'更新模型池状态'",
+            recordOldValue = true,
+            oldValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)",
+            recordNewValue = true,
+            newValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)")
     @PutMapping("/{id}/status")
     public ModelPool updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
         return modelPoolConverter.toVO(modelPoolService.updateStatus(id, Boolean.TRUE.equals(request.enabled())));
@@ -93,6 +116,11 @@ public class ModelPoolController {
     /**
      * Deletes the target resource. Executes the public operation.
      */
+    @OperationLog(module = "model-pool", operation = "DELETE", entityType = "ModelPool",
+            entityId = "#p0",
+            description = "'删除模型池'",
+            recordOldValue = true,
+            oldValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)")
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         modelPoolService.delete(id);

@@ -65,7 +65,7 @@ public class LogicalModelController {
     @OperationLog(module = "logical-model", operation = "CREATE", entityType = "LogicalModel",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.modelName()",
-            description = "'create logical model'",
+            description = "'新建统一模型'",
             recordNewValue = true,
             newValueSpel = "@logicalModelService.logicalModelAuditSnapshot(#result.id())")
     @PostMapping
@@ -82,7 +82,7 @@ public class LogicalModelController {
     @OperationLog(module = "logical-model", operation = "UPDATE", entityType = "LogicalModel",
             entityId = "#p0",
             entityNameAfter = "#result.modelName()",
-            description = "'update logical model'",
+            description = "'更新统一模型'",
             recordOldValue = true,
             oldValueSpel = "@logicalModelService.logicalModelAuditSnapshot(#p0)",
             recordNewValue = true,
@@ -100,7 +100,7 @@ public class LogicalModelController {
      */
     @OperationLog(module = "logical-model", operation = "DELETE", entityType = "LogicalModel",
             entityId = "#p0",
-            description = "'delete logical model'",
+            description = "'删除统一模型'",
             recordOldValue = true,
             oldValueSpel = "@logicalModelService.logicalModelAuditSnapshot(#p0)")
     @DeleteMapping("/{id}")

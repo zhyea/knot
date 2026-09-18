@@ -1,0 +1,263 @@
+# knot 项目 BUG 清单
+
+- **日期**：2026-09-16
+- **方法**：三路并行静态排查（网关运行时 / 数据层与并发 / 前端运行时）+ 关键条目逐条复核
+- **标记说明**：`✅已复核` = 审计者亲自读源码/建表脚本交叉验证确认；`待确认` = 静态分析高度可疑但未经二次交叉验证
+- **共 30 条**：致命 1 · 高 11 · 中 12 · 低 6
+
+---
+
+## P0 — 必现故障（不改则功能完全不可用）
+
+### BUG-01 ✅已复核 系统日志接口 100% 报 500
+**位置**：`knot-server/knot-dal/src/main/resources/mapper/SystemMapper.xml:5-9`
+
+```xml
+select id, module_code, action_code, target_id, result_status
+from operation_logs order by id desc
+```
+
+**证据**（`schema.sql:133-155` 真实列）：`operation_logs` 实际列为 `module / operation / entity_type / entity_id / entity_name / description / old_value / new_value / operator_id / operator_name / ip_address / user_agent / status / error_msg / execution_time / created_at`。
+
+**查询的 4 个列全部不存在**：
+
+| 查询的列 | 实际列 |
+|---|---|
+| `module_code` | `module` |
+| `action_code` | `operation` |
+| `target_id` | `entity_id` |
+| `result_status` | `status` |
+
+**调用链确认非死代码**：`SystemController.java:60`（`/log-types`）与 `:71`（`/logs`）→ `SystemService.java:33` → 本查询。
+**后果**：MySQL `ERROR 1054 Unknown column`，两个接口**永久 500**，系统日志页完全不可用。
+**附带**：`SystemService.java:33` 未传分页上限，全表扫描。
+
+**全量校验结论**：用脚本对 51 张表 + 114 条**单表** select 做列名一致性扫描，**仅此一处不匹配**，其余 113 条与 JOIN 查询均正确。属孤例而非系统性问题。
+
+**修复**：改用 `OperationLogMapper.list`（`OperationLogMapper.xml:42-60`，列正确且支持 module/operation/status 过滤 + 分页）。
+
+---
+
+## P1 — 致命 / 资损
+
+### BUG-02 ✅已复核 上游 HTTP 客户端零超时，可致网关雪崩
+**位置**：`knot-gateway/.../GatewayApplication.java:26-27` 仅 `builder.build()`；`knot-gateway/src/main/resources/application.yml` 全文 30 行**无任何** `spring.http.client.*` / requestFactory 配置；`knot-gateway/pom.xml` 未引入 `httpclient5`。
+**触发**：任一上游 connect 半开或 read 不返回。
+**后果**：`AbstractUpstreamProtocolExecutor.java:59` 的 `.body(String.class)` 无限期阻塞在业务线程上，连接池逐步占满 → **网关整体不可用**；且异常不产生，**故障转移永不触发**。
+**修复**：显式配置 connect 3s / read 60s（SSE 单独放宽），引入 httpclient5 并配连接池上限。
+
+### BUG-03 ✅已复核 配额策略完全未实现，恒放行
+**位置**：`knot-gateway/.../traffic/GatewayTrafficGuard.java:78-84`
+
+```java
+private boolean checkQuota(String resourceType, Long resourceId, TrafficPolicies policies) {
+    if (policies == null || policies.quotaPolicy() == null) { return true; }
+    // Usage counters can be plugged in here.
+    return true;                       // ← 永远放行
+}
+```
+
+**后果**：管理端可配置配额，但运行时**零约束**，超额调用不受限 → 资损。UI 无任何提示，用户会误以为已生效。（注：`checkRateLimit:69-74` 限流是**真实生效**的，只有配额没实现。）
+**修复**：接入用量计数器；或在管理端标注"暂未生效"并禁用该配置项。
+
+### BUG-04 ✅已复核 无计费规则时静默免费放行
+**位置**：`knot-adapter/.../usage/UsageNormalizationSupport.java:23` `if (usage == null || usage.isEmpty() || rule == null) return null;`
+**链路**：下游 `GatewayRequestHandler.java:102-105` `if (usage == null) return result.responseBody();` —— 正常返回业务响应。
+**触发**：`ModelEntity.billingRuleId` 为空，或规则未到生效期/已过期导致 `getActiveByRuleId` 返回 null。
+**后果**：请求成功、响应正常，但**计费链路无任何记录且无告警** → 静默资损。
+**修复**：区分「显式无需计费」与「配置缺失」，后者打 WARN 并提供 `knot.billing.strict` 开关拒绝请求。
+
+### BUG-05 ✅已复核 手写 JSON 扫描器遇科学计数法把单价放大 10 万倍
+**位置**：`knot-adapter/.../usage/calculator/AbstractBillingModeCalculator.java:80-109`
+
+```java
+while (end < json.length() && "-0123456789.".indexOf(json.charAt(end)) >= 0) { end++; }
+```
+
+**触发**：`configJson` 中单价为 `1e-5`（科学计数法）。字符集不含 `e`，扫描在 `1` 处停止 → 解析出 **`1`**（正确值 0.00001）。
+**后果**：**单价放大 100,000 倍**，且 `catch (NumberFormatException)` 静默回落 fallback，无日志。
+**其他缺陷**：`"+2"` 的 `+` 不在字符集内 → 静默回落；`indexOf("\""+key+"\"")` 取首次出现，若前面字符串值内含同名文本会命中错误位置。
+**修复**：改用 Jackson `JsonKit.parse(configJson).path(key).decimalValue()`，删除手写扫描。
+
+### BUG-06 ✅已复核 缓存全链路零失效入口（含吊销 Key 后仍可用）
+**位置**：`knot-gateway/.../service/GatewayDataService.java:46-47`（`expireAfterWrite 10min` + `refreshAfterWrite 3min`）
+**证据**：全仓 grep `invalidate|cleanUp|CacheEvict`，命中项**全部**属于 `SecurityService.evictCache` —— 而该方法（`SecurityService.java:75-79`）只 INSERT 一行 `cache_records`，**不清除任何缓存**。故 `GatewayDataService` 的 Caffeine 缓存**没有任何失效入口**。
+**后果**：
+
+| 场景 | 后果 |
+|---|---|
+| 禁用/删除消费者 Key | **已吊销 Key 最长可继续使用约 3 分钟**（安全事件 + 资损） |
+| 先访问后启用规则 | 空值被负缓存，启用后仍 401 约 3 分钟 |
+| 计费调价 | 最长 3 分钟按**旧价**计费 |
+| `builder()` 未配 executor | 阻塞 JDBC reload 跑在 `ForkJoinPool.commonPool()`，DB 抖动时污染全局公共池；且无 `maximumSize` |
+
+**修复**：暴露 `invalidateXxx` 供管理端写库后调用（或 MQ 广播）；负缓存 TTL 缩到 5-10s；配专用 executor 与 maximumSize；吊销 Key 走强一致路径。
+
+### BUG-07 待确认 用量计算异常会把成功请求判为失败 → 故障转移重复调用 → 重复计费
+**位置**：`AbstractUpstreamProtocolExecutor.java:65`（用量提取在 `:48` 的 try 块**内部**）→ `:74-76` `catch (Exception e) { throw new GatewayUpstreamException(...) }` → `GatewayRequestHandler.java:79-83` 捕获后 `continue` 下一候选。
+**触发**：上游已 200 且已计费，但用量解析/计费计算抛异常（如 `UsageNormalizationSupport.java:33` 的 `IllegalStateException`）。
+**后果**：同一次用户请求在上游产生 **N 次真实计费**（N = 候选数）。
+**修复**：把用量提取移出 try，或单独 catch 后降级为 `usage = null` + 告警，**不得**改变成功语义。
+
+### BUG-08 待确认 故障转移对已计费请求重复发起（重复扣费）
+**位置**：`GatewayRequestHandler.java:68-84`，每次候选都重新取凭证并真实发请求。
+**触发**：上游已处理并计费，但响应超时 / 5xx / 网络闪断。
+**后果**：一次请求多次计费；无幂等键、无重试预算、无"仅连接建立前失败才重试"的判定。
+**修复**：对 5xx/超时默认不重试或限制 `maxFailover=1`；计费记录按 `traceId + ruleId` 去重。
+
+### BUG-09 待确认 TTS 二进制响应被当 String 读取，音频损坏
+**位置**：`AbstractUpstreamProtocolExecutor.java:57-59` `.body(String.class)`；`MediaProtocolExecutor.java:22` 覆盖 `AUDIO_SPEECH`。
+**后果**：二进制经平台默认字符集解码再 UTF-8 回写 → **音频彻底损坏**；`contentType` 仍透传 `application/json`。
+**修复**：媒体协议走 `byte[]`/`Resource`，保留原始 Content-Type。
+
+### BUG-10 待确认 SSE 流式被全量缓冲，Content-Type 错误
+**位置**：同上 `body(String.class)` + Controller 无 `produces`（`GatewayTextController.java:26-33`）。
+**后果**：首 token 延迟 = 整段生成完成时间（表现为"卡死数十秒后一次性吐出"）；响应头 `application/json` 导致标准 OpenAI SDK 的 SSE 解析器报错；大响应全量驻留堆 → OOM 风险。
+**修复**：stream 场景改 `ResponseEntity<Flux<DataBuffer>>`，Controller 声明 `produces = TEXT_EVENT_STREAM_VALUE`。
+
+### BUG-11 待确认 缓存时间维度错误：计费规则版本切换延迟 3 分钟
+**位置**：`GatewayDataService.java:62, 96-97, 198-200`，缓存键**只有 ruleId**，值却依赖 `LocalDateTime.now()`。
+**后果**：版本到达 `effective_from` 或越过后，网关最长 3 分钟仍用**旧版本/已过期版本**计费；停用操作同样延迟。
+**修复**：缓存键加入时间桶，或缓存版本列表由调用侧按 `now()` 选版本。
+
+### BUG-12 待确认 分布式锁在事务提交前释放
+**位置**：`knot-service/.../schedule/ScheduledTaskExecutor.java:46-69`，`:46` `@Transactional`，`:64-68` `finally { releaseLock(...) }`。
+**后果**：Spring 在方法**返回后**才 commit，而 `RELEASE_LOCK` 在方法内 finally 先执行 → 存在"锁已释放、数据未提交"窗口，节点 B 抢锁后重复执行。对 `OPERATION_LOG_RETENTION` 是两个大 DELETE 重叠（死锁风险），对 `OPENROUTER_MODEL_SYNC` 是重复拉取撞唯一键后被静默吞掉。
+**修复**：`afterCommit` 回调里释放锁，或去掉 `@Transactional` 让各 DB 操作独立提交。
+
+---
+
+## P2 — 数据一致性与并发
+
+### BUG-13 ✅已复核 软删除 + 唯一索引：枚举项删除后无法重建
+**位置**：`EnumConfigService.java:97-118`（create 判重）、`:139-147`（deleteReturning 只置 `is_deleted=1`）、`EnumConfigMapper.xml:84`（判重过滤 `is_deleted = 0`）、`schema.sql:827` `UNIQUE KEY uk_enum_category_code (category_id, item_code)` —— **唯一键不含 is_deleted**。
+**后果**：判重通过（软删行查不到）→ insert 撞唯一键 → `DuplicateKeyException` → 500，该编码**永久废掉**且无恢复入口。
+**修复**：唯一键改 `(category_id, item_code, is_deleted)` 并把软删标记改成删除时间戳；或 create 时命中软删行则复活（`on duplicate key update is_deleted=0`）。
+
+### BUG-14 ✅已复核 折扣策略更新未给 status 兜底 → NOT NULL 列写入 NULL
+**位置**：`ProviderService.java:320` `entity.setStatus(request.status());`
+**对比**：同文件 `createDiscountPolicy:299` 有 `request.status() != null ? ... : ACTIVE` 兜底。
+**后果**：只改折扣值不带 status 时 → `ERROR 1048 Column 'status' cannot be null`。
+**修复**：`entity.setStatus(request.status() != null ? request.status() : entity.getStatus())`。
+
+### BUG-15 待确认 事务内做远程 HTTP + 逐行批量写（长事务）
+**位置**：`ExternalModelService.java:98-105` `@Transactional` → `AbstractExternalModelSyncProvider.java:30` → `OpenRouterModelSyncProvider.java:83` 同步阻塞 HTTP（超时 30s）→ 对 300+ 条模型逐行 DML。
+**后果**：DB 连接与行锁在整段 HTTP 往返 + 300 次 DML 期间被占用，叠加 BUG-12 的 GET_LOCK，可拖垮整个连接池并扩散到前台请求；`:57-59` 吞异常后事务照常提交 → 部分成功的脏目录数据。
+**修复**：HTTP 拉取移出事务，落库批量化；catch 至少 `log.warn`。
+
+### BUG-16 待确认 创建用户未做用户名唯一性预检
+**位置**：`UserService.java:192-213`，无 `countByUsername`，直接 insert。
+**后果**：撞 `uk_users_username` → `DuplicateKeyException` → 500，而非友好的 `CONFLICT` 提示。项目其他实体验证（`assertCodeAvailable` 等）都有预检，**唯独此处缺失**。
+**修复**：加预检；全局异常处理器补 `DuplicateKeyException` → CONFLICT 兜底。
+
+### BUG-17 待确认 删除角色未清理 `sys_role_permissions`
+**位置**：`AuthorizationRoleService.java:76-85`，`AdminAuthorizationManageMapper.xml:63-65` 的 `deleteRolePermissions` **存在但删除流程从未调用**（只在 `saveRolePermissions:93` 用）。
+**后果**：孤儿行持续增长；`countRolePermissionUsage:346-348` 会误判"权限已绑定角色"，把本可删除的权限**永久锁死**。
+
+### BUG-18 待确认 删除模型池未检查/清理路由规则引用
+**位置**：`ModelPoolService.java:129-136`，只删 `model_pools` 与 `model_pool_items`。
+**后果**：`routing_rule_targets` 留下悬空引用 → `RoutingResolver.resolveTargetCandidates:186-189` 中 `pool == null` 静默返回空候选，表现为"规则无可用目标"且**故障原因不可见**；`resource_traffic_policies` 亦未清理。
+**对比**：`BillingService.deleteRule:204`、`AppService.delete:126`、`AuthorizationMenuService.deleteMenu:75-82` 都有引用检查，此处缺失。
+
+### BUG-19 待确认 `authz_version` 乐观锁字段定义但完全未用
+**位置**：`schema.sql:18` `users.authz_version INT NOT NULL DEFAULT 0`，全仓 Java/XML **0 处引用**。
+**后果**：`UserService.saveUserRoles:271-276` 是"先删后插"的无保护覆盖 —— 两个管理员同时改同一用户角色时后提交者**静默覆盖**前者。
+**同源**：`BillingService.java:310-313` 的 `version_no = max + 1` 是 check-then-act，并发更新撞 `uk_billing_rule_version`。
+
+### BUG-20 待确认 Quartz 调度在事务内注册
+**位置**：`ScheduledTaskService.java:84, 101`，`@Transactional` 方法内调 `schedulerService.reschedule(saved)`。
+**后果**：Quartz 不参与 JDBC 事务，回滚后留下"库里没有、调度器里有"或反之的不一致任务。
+**修复**：改到 `TransactionSynchronization.afterCommit`。
+
+### BUG-21 待确认 异常吞掉 cause，错误码被抹平
+**位置**：`AbstractUpstreamProtocolExecutor.java:74-76` `throw new GatewayUpstreamException(e.getMessage(), UPSTREAM_ERROR.code())`。
+**后果**：原始栈完全丢失；`e.getMessage()` 可能为 null；配置错误/序列化错误被错误映射成上游 502 → **线上几乎无法定位**。
+**修复**：增加 `Throwable cause` 构造；按异常类型区分错误码。
+
+### BUG-22 待确认 凭证解密等异常不触发故障转移，直接 500
+**位置**：`UpstreamProxyClient.java:114-134` → `ProviderCredentialSupport.java:197-202` → `AesGcmCipher.java:104` 抛 `IllegalStateException`（非 `GatewayUpstreamException`）；`GatewayRequestHandler.java:79-83` 只 catch 后者。
+**后果**：单个供应商凭证配置错误 ⇒ **整条路由规则 500**，即使候选列表里还有健康模型也不切换。
+
+### BUG-23 待确认 限流计数器永不清理 + 全局 synchronized + 固定窗口突刺
+**位置**：`GatewayTrafficGuard.java:26`（`ConcurrentHashMap` 无 TTL，只增不减）、`:110`（`synchronized` 方法）、`:96`（固定窗口）。
+**后果**：内存单调增长；同 key 高 QPS 下所有线程串行；窗口切换瞬间可放行 **2×limit** 突刺。
+**修复**：Caffeine 带 TTL 容器 + `LongAdder` 或滑动窗口/令牌桶。
+
+### BUG-24 待确认 模型池"权重"只是排序，不是负载均衡
+**位置**：`RoutingResolver.java:200-202` 按 priority/weight 排序，`GatewayRequestHandler.java:68-84` 顺序遍历、成功即 return。
+**后果**：**池中第 1 个模型承担 100% 流量**，其余只在它故障时启用；`ModelPoolSelectionStrategyEnum` 存在但未在此链路使用。
+**修复**：改为按 weight 加权随机 / 平滑加权轮询。
+
+---
+
+## P3 — 前端运行时
+
+### BUG-25 ✅已复核 首次修改筛选条件不触发查询
+**位置**：`knot-front/src/composables/useAutoQuery.js:8, 22-35, 49-52`
+
+```js
+let initialized = false;
+function schedule() {
+  if (!initialized) { initialized = true; return; }   // 第一次被吞
+  ...
+}
+watch(watchSource, schedule, { deep, flush: "post" });  // 没有 immediate: true
+```
+
+**复现**：模型管理页改一次「模型类型」；或外部模型页改一次「来源」。
+**后果**：watch 无 `immediate`，第一次回调恰好是用户的第一次真实修改，却被 `initialized` 守卫吞掉 → **改了筛选条件列表毫无反应**，用户以为页面卡死。
+**修复**：watch 加 `immediate: true` 保留守卫，或直接删掉 `initialized` 三段逻辑。
+
+### BUG-26 ✅已复核 「复制模型」静默清空计费规则
+**位置**：`ModelFormDrawer.vue:590-601`（watcher）、`:613-649`（resetForm）
+**根因**：copy 场景 `isEdit=false` → `resetForm()` **全程无 await**，同步走完，`finally` 里 `resettingForm=false` 立即复位；而 `[form.providerId, form.logicalModelId]` 的 watcher（默认 flush: pre）在此之后才执行，守卫已失效 → 判定为变更 → `form.billingRuleId = null; billingRuleOptions.value = []`。
+**后果**：复制出的模型丢失源模型已配的计费规则且无提示，保存时提交 `billingRuleId: null`。
+**修复**：`finally { await nextTick(); resettingForm.value = false; }`。
+
+### BUG-27 待确认 删除最后一项后停留在空页码
+**位置**：`usePageList.js:19-38`（从不校正 `pageNum`）；同类：`AppListPanel.vue:72`、`ProviderListPanel.vue:99`、`ModelPoolListPanel.vue:102`、`RoutingRuleListPanel.vue:109`、`DepartmentManageView.vue:161-166`
+**后果**：删掉末页唯一一条后表格空白但分页器仍停在第 5 页。
+**修复**：删除成功后改调 `resetPage()`，或在 `load()` 末尾兜底校正。
+
+### BUG-28 待确认 编辑保存 / 状态开关会把分页弹回第 1 页
+**位置**：`UserManageView.vue:45`（`@saved="resetPage"`）、`:130-138`；`ModelManageView.vue:58`；`AppManageView.vue:91-93`
+**后果**：第 3 页编辑保存后跳回第 1 页，看不到刚改的那行，易误判"没改成功"。
+**修复**：仅**新建**用 `resetPage()`，编辑保存/状态切换用 `load()` 保持当前页（`ModelManageView.vue:53` 是正确写法）。
+
+### BUG-29 待确认 远程搜索下拉响应乱序覆盖
+**位置**：`RemoteEntitySelect.vue:86-91`，只有 250ms 防抖，**无请求序号也无 AbortController**。
+**后果**：快打时先发后到的响应覆盖后发先到的结果 → 选项与输入内容不匹配，可能选中看不见的项。
+**修复**：加 `let seq = 0; const current = ++seq; ... if (current !== seq) return;`
+
+### BUG-30 待确认 其余前端缺陷
+| 位置 | 问题 |
+|---|---|
+| `usePageList.js:19-38` | 无请求序号；异常时 `rows` 不清空（旧数据留在屏幕）；`result.list` 在 result 为 null 时抛 TypeError |
+| `ModelPoolFormDrawer.vue:173-185`、`RoutingRuleFormDrawer.vue:307-317` | 在 computed 里回写 `form.items` / `form.targets`，既 track 又 trigger 同一数据，可能触发 `Maximum recursive updates exceeded`；且回写值未提交 |
+| `ProviderFormDrawer.vue:162-171` | 新建时未重置 `form.code`，闪现上一个供应商编码，若建议值未返回就失焦会对**旧编码**做唯一性校验 |
+| `ScheduledTaskFormDrawer.vue:85` | `await formRef.value?.validate();` 无 try/catch（对比 `LoginView.vue:61` 正确写法）；且 `formRef` 为 undefined 时 `?.` 返回 undefined，校验被**整体跳过** |
+| `useHealthStatus.js:16-18` | `data.status` 缺可选链，返回体为空时抛错，被 catch 后误报「后端不可达」 |
+| `UserFormDrawer.vue:143-145` | 角色回退名遍历 `props.user.roleIds` 而非 `form.roleIds`，新勾选角色会显示 `#${roleId}` |
+
+---
+
+## 已核实为**误报**的传闻（避免重复投入）
+
+以下 4 条经源码验证**不成立**，特此记录以免后续重复排查：
+
+1. ❌ `knot-gateway/.../upstream/UpstreamRequestContext.java:36` 的 NPE —— 该类是**死代码**（全仓 0 引用）；实际使用的 `knot-adapter` 版 `:32` 已判空，且上游 `GatewayExchange.java:32` 也判空。
+2. ❌ 计费除零 —— `AbstractBillingModeCalculator.java:43,65` 均为 `Math.max(1, unitSize)`，`:38` 有前置早退。
+3. ❌ API Key 空值绕过 —— `AbstractGatewayRequestTemplate.java:106` 要求 `Bearer ` 前缀 + `:109` `trimToNull`，另有 `RoutingSecretKeyGenerator.java:26` 要求 `sk-` 前缀。
+4. ❌ failover 死循环 / 全失败仍返回成功 —— `GatewayRequestHandler.java:68` 遍历不可变有限列表，`:85-88` 明确区分 429 与抛异常。
+
+---
+
+## 修复优先级建议
+
+| 批次 | 条目 | 理由 |
+|---|---|---|
+| **立即** | BUG-01 | 改 4 个列名即修复，系统日志页从完全不可用变为可用 |
+| **第一周** | BUG-02, 03, 04, 05, 06 | 网关稳定性 + 资损，其中 02 是唯一的可用性致命项 |
+| **第二周** | BUG-07, 08, 12, 13, 14 | 重复计费与数据一致性，越晚修脏数据越多 |
+| **第三周** | BUG-09, 10, 11, 15~24 | 功能完整性与并发正确性 |
+| **第四周** | BUG-25~30 | 前端体验，用户可感知但不致命 |

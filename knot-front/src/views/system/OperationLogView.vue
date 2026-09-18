@@ -113,7 +113,8 @@ const moduleLabelMap = {
   department: "部门管理",
   enum: "枚举管理",
   provider: "供应商",
-  "logical-model": "模型广场"
+  "logical-model": "统一模型",
+  "model-pool": "模型池"
 };
 
 const moduleOptions = ref([]);

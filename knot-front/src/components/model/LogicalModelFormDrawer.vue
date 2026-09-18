@@ -60,7 +60,7 @@
         </el-row>
 
         <el-form-item label="展示名称">
-          <el-input v-model="form.displayName" placeholder="模型广场展示名称" />
+          <el-input v-model="form.displayName" placeholder="统一模型展示名称" />
         </el-form-item>
         <el-form-item label="一句话介绍">
           <el-input v-model="form.tagline" maxlength="255" show-word-limit />
@@ -76,7 +76,7 @@
         <div class="section-head">
           <div>
             <h3>广场展示</h3>
-            <p>用于模型广场检索、推荐和用户选型。</p>
+            <p>用于统一模型检索、推荐和用户选型。</p>
           </div>
         </div>
         <el-row :gutter="16">
