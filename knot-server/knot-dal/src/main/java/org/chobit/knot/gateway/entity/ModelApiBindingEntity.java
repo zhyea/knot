@@ -8,11 +8,11 @@ public class ModelApiBindingEntity {
     private Long id;
     private Long modelId;
     /**
-     * 关联 models.model_code，仅查询展示
+     * 关联 kb_models.model_code，仅查询展示
      */
     private String modelCode;
     /**
-     * 关联 models.name，仅查询展示
+     * 关联 kb_models.name，仅查询展示
      */
     private String modelName;
     private Long providerId;

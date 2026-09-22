@@ -12,7 +12,7 @@ public class RoutingRuleEntity {
     private Long appId;
     private String appName;
     private Long userId;
-    /** 关联 users，仅查询展示 */
+    /** 关联 ks_users，仅查询展示 */
     private String userRealName;
     private String userUsername;
     private Long fallbackRuleId;

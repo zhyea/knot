@@ -36,11 +36,11 @@
 
         select <include refid="AppSelectColumns"/>
 
-        from apps a
+        from kb_apps a
 
-        left join departments d on a.dept_id = d.id and d.is_deleted = 0
+        left join ks_departments d on a.dept_id = d.id and d.is_deleted = 0
 
-        left join users u on a.owner_user_id = u.id and u.is_deleted = 0
+        left join ks_users u on a.owner_user_id = u.id and u.is_deleted = 0
 
         where a.is_deleted = 0
         <if test="keyword != null and keyword != ''">
@@ -62,11 +62,11 @@
 
         select <include refid="AppSelectColumns"/>
 
-        from apps a
+        from kb_apps a
 
-        left join departments d on a.dept_id = d.id and d.is_deleted = 0
+        left join ks_departments d on a.dept_id = d.id and d.is_deleted = 0
 
-        left join users u on a.owner_user_id = u.id and u.is_deleted = 0
+        left join ks_users u on a.owner_user_id = u.id and u.is_deleted = 0
 
         where a.id = #{id} and a.is_deleted = 0
 
@@ -76,7 +76,7 @@
 
     <select id="countByAppId" resultType="java.lang.Long">
 
-        select count(1) from apps where app_id = #{appId}
+        select count(1) from kb_apps where app_id = #{appId}
 
     </select>
 
@@ -84,7 +84,7 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
 
-        insert into apps(app_id, name, dept_id, owner_user_id, remark, status, is_deleted)
+        insert into kb_apps(app_id, name, dept_id, owner_user_id, remark, status, is_deleted)
 
         values(#{appId}, #{name}, #{deptId}, #{ownerUserId}, #{remark}, 'ENABLED', 0)
 
@@ -94,7 +94,7 @@
 
     <update id="update">
 
-        update apps
+        update kb_apps
 
         set name = #{name},
 
@@ -112,7 +112,7 @@
 
     <update id="softDelete">
 
-        update apps
+        update kb_apps
 
         set is_deleted = 1,
 
@@ -126,7 +126,7 @@
 
     <select id="countCredentialsByAppId" resultType="java.lang.Long">
 
-        select count(1) from app_credentials where app_id = #{appId}
+        select count(1) from kb_app_credentials where app_id = #{appId}
 
     </select>
 
@@ -134,7 +134,7 @@
 
     <select id="countModelPermissionsByAppId" resultType="java.lang.Long">
 
-        select count(1) from app_model_permissions where app_id = #{appId}
+        select count(1) from kb_app_model_permissions where app_id = #{appId}
 
     </select>
 
@@ -142,7 +142,7 @@
 
     <select id="countByDeptId" resultType="java.lang.Long">
 
-        select count(1) from apps where dept_id = #{deptId} and is_deleted = 0
+        select count(1) from kb_apps where dept_id = #{deptId} and is_deleted = 0
 
     </select>
 

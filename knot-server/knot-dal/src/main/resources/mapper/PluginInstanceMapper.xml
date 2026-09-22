@@ -17,9 +17,9 @@
             pi.fail_mode,
             pi.timeout_ms,
             pi.config_json
-        from plugin_instances pi
-        inner join plugin_packages pp on pp.id = pi.package_id
-        inner join plugin_capabilities pc on pc.id = pi.capability_id
+        from kb_plugin_instances pi
+        inner join kb_plugin_packages pp on pp.id = pi.package_id
+        inner join kb_plugin_capabilities pc on pc.id = pi.capability_id
         <where>
             <if test="keyword != null and keyword != ''">
                 and (
@@ -51,14 +51,14 @@
             pi.fail_mode,
             pi.timeout_ms,
             pi.config_json
-        from plugin_instances pi
-        inner join plugin_packages pp on pp.id = pi.package_id
-        inner join plugin_capabilities pc on pc.id = pi.capability_id
+        from kb_plugin_instances pi
+        inner join kb_plugin_packages pp on pp.id = pi.package_id
+        inner join kb_plugin_capabilities pc on pc.id = pi.capability_id
         where pi.id = #{id}
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into plugin_instances(
+        insert into kb_plugin_instances(
             package_id,
             capability_id,
             instance_code,
@@ -69,10 +69,10 @@
             timeout_ms,
             concurrency_limit
         ) values(
-            (select id from plugin_packages where plugin_code = #{packageCode} limit 1),
+            (select id from kb_plugin_packages where plugin_code = #{packageCode} limit 1),
             (select pc.id
-             from plugin_capabilities pc
-             inner join plugin_packages pp on pp.id = pc.package_id
+             from kb_plugin_capabilities pc
+             inner join kb_plugin_packages pp on pp.id = pc.package_id
              where pp.plugin_code = #{packageCode}
                and pc.capability_code = #{capabilityCode}
              limit 1),
@@ -87,7 +87,7 @@
     </insert>
 
     <update id="updateStatus">
-        update plugin_instances
+        update kb_plugin_instances
         set status = #{status}
         where id = #{id}
     </update>
@@ -110,10 +110,10 @@
             coalesce(pb.binding_config_json, pi.config_json) as config_json,
             pi.fail_mode,
             pi.timeout_ms
-        from plugin_bindings pb
-        inner join plugin_instances pi on pi.id = pb.instance_id
-        inner join plugin_packages pp on pp.id = pi.package_id
-        inner join plugin_capabilities pc on pc.id = pi.capability_id
+        from kb_plugin_bindings pb
+        inner join kb_plugin_instances pi on pi.id = pb.instance_id
+        inner join kb_plugin_packages pp on pp.id = pi.package_id
+        inner join kb_plugin_capabilities pc on pc.id = pi.capability_id
         where pb.status = 'ACTIVE'
           and pi.status = 'ACTIVE'
           and pp.status = 'ACTIVE'

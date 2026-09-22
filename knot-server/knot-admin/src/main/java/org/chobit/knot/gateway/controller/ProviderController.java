@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/providers")
+@RequestMapping("/api/provider-accounts")
 public class ProviderController {
     private final ProviderService providerService;
     private final ProviderConverter providerConverter;
@@ -72,10 +72,10 @@ public class ProviderController {
     /**
      * Creates a new resource. Executes the public operation.
      */
-    @OperationLog(module = "provider", operation = "CREATE", entityType = "Provider",
+    @OperationLog(module = "provider-account", operation = "CREATE", entityType = "ProviderAccount",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
-            description = "'新建供应商'",
+            description = "'新建供应商账户'",
             recordNewValue = true,
             newValueSpel = "@providerService.providerAuditSnapshot(#result.id())")
     @PostMapping
@@ -90,10 +90,10 @@ public class ProviderController {
     /**
      * Updates the target resource. Executes the public operation.
      */
-    @OperationLog(module = "provider", operation = "UPDATE", entityType = "Provider",
+    @OperationLog(module = "provider-account", operation = "UPDATE", entityType = "ProviderAccount",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'更新供应商'",
+            description = "'更新供应商账户'",
             recordOldValue = true,
             oldValueSpel = "@providerService.providerAuditSnapshot(#p0)",
             recordNewValue = true,
@@ -110,10 +110,10 @@ public class ProviderController {
     /**
      * Updates the target resource status. Executes the public operation.
      */
-    @OperationLog(module = "provider", operation = "UPDATE", entityType = "Provider",
+    @OperationLog(module = "provider-account", operation = "UPDATE", entityType = "ProviderAccount",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
-            description = "'更新供应商状态'",
+            description = "'更新供应商账户状态'",
             recordOldValue = true,
             oldValueSpel = "@providerService.providerAuditSnapshot(#p0)",
             recordNewValue = true,
@@ -136,7 +136,7 @@ public class ProviderController {
     /**
      * Creates a new resource. Executes the public operation.
      */
-    @OperationLog(module = "provider", operation = "CREATE", entityType = "Provider",
+    @OperationLog(module = "provider-account", operation = "CREATE", entityType = "ProviderAccount",
             entityId = "#p0",
             entityNameAfter = "@providerService.getById(#p0).name()",
             description = "'新增折扣策略'",
@@ -154,7 +154,7 @@ public class ProviderController {
     /**
      * Updates the target resource. Executes the public operation.
      */
-    @OperationLog(module = "provider", operation = "UPDATE", entityType = "Provider",
+    @OperationLog(module = "provider-account", operation = "UPDATE", entityType = "ProviderAccount",
             entityId = "#p0",
             entityNameAfter = "@providerService.getById(#p0).name()",
             description = "'更新折扣策略'",

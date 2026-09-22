@@ -11,8 +11,8 @@
                u.status,
                u.last_login_time,
                u.updated_at
-        from users u
-        left join departments d on d.id = u.dept_id and d.is_deleted = 0
+        from ks_users u
+        left join ks_departments d on d.id = u.dept_id and d.is_deleted = 0
         where u.is_deleted = 0
         <if test="keyword != null and keyword != ''">
             and (
@@ -32,8 +32,8 @@
                u.status,
                u.last_login_time,
                u.updated_at
-        from users u
-        left join departments d on d.id = u.dept_id and d.is_deleted = 0
+        from ks_users u
+        left join ks_departments d on d.id = u.dept_id and d.is_deleted = 0
         where u.id = #{id} and u.is_deleted = 0
     </select>
 
@@ -47,28 +47,28 @@
                u.status,
                u.last_login_time,
                u.updated_at
-        from users u
-        left join departments d on d.id = u.dept_id and d.is_deleted = 0
+        from ks_users u
+        left join ks_departments d on d.id = u.dept_id and d.is_deleted = 0
         where u.username = #{username} and u.is_deleted = 0
     </select>
 
     <select id="countByDeptId" resultType="java.lang.Long">
         select count(1)
-        from users
+        from ks_users
         where dept_id = #{deptId} and is_deleted = 0
     </select>
 
     <insert id="insertUser" useGeneratedKeys="true" keyProperty="id">
-        insert into users(username, password_hash, real_name, dept_id, status)
+        insert into ks_users(username, password_hash, real_name, dept_id, status)
         values(#{username}, #{passwordHash}, #{realName}, #{deptId}, #{status})
     </insert>
 
     <update id="updateUserStatus">
-        update users set status = #{status}, updated_at = NOW() where id = #{id}
+        update ks_users set status = #{status}, updated_at = NOW() where id = #{id}
     </update>
 
     <update id="updateUser">
-        update users set 
+        update ks_users set 
             real_name = #{realName},
             dept_id = #{deptId},
             status = #{status},
@@ -77,28 +77,28 @@
     </update>
 
     <update id="updateUserPassword">
-        update users
+        update ks_users
         set password_hash = #{passwordHash},
             updated_at = NOW()
         where id = #{id}
     </update>
 
     <update id="updateLastLoginTime">
-        update users set last_login_time = NOW(), updated_at = NOW() where id = #{id}
+        update ks_users set last_login_time = NOW(), updated_at = NOW() where id = #{id}
     </update>
 
     <select id="listRoleCodesByUserId" resultType="java.lang.String">
         select r.code
-        from user_roles ur
-        inner join roles r on ur.role_id = r.id
+        from ks_user_roles ur
+        inner join ks_roles r on ur.role_id = r.id
         where ur.user_id = #{userId}
     </select>
 
     <select id="listRoleNamesByUserIds" resultType="java.util.HashMap">
         select ur.user_id as userId,
                r.name as roleName
-        from user_roles ur
-        inner join roles r on ur.role_id = r.id
+        from ks_user_roles ur
+        inner join ks_roles r on ur.role_id = r.id
         where ur.user_id in
         <foreach collection="userIds" item="userId" open="(" separator="," close=")">
             #{userId}
@@ -108,18 +108,18 @@
 
     <select id="listRoleIdsByUserId" resultType="java.lang.Long">
         select role_id
-        from user_roles
+        from ks_user_roles
         where user_id = #{userId}
         order by role_id asc
     </select>
 
     <delete id="deleteUserRoles">
-        delete from user_roles
+        delete from ks_user_roles
         where user_id = #{userId}
     </delete>
 
     <insert id="insertUserRoles">
-        insert into user_roles(user_id, role_id)
+        insert into ks_user_roles(user_id, role_id)
         values
         <foreach collection="roleIds" item="roleId" separator=",">
             (#{userId}, #{roleId})

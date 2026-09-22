@@ -4,13 +4,13 @@
 
     <select id="listOperationLogs" resultType="org.chobit.knot.gateway.entity.OperationLogEntity">
         select id, module_code, action_code, target_id, result_status
-        from operation_logs
+        from ks_operation_logs
         order by id desc
     </select>
 
     <select id="getOperationLogDetail" resultType="org.chobit.knot.gateway.entity.OperationLogDetailEntity">
         select log_id, before_json, after_json
-        from operation_log_details
+        from ks_operation_log_details
         where log_id = #{logId}
     </select>
 

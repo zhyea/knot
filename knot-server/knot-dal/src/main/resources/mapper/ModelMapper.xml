@@ -3,15 +3,15 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.ModelMapper">
 
     <sql id="ModelSelectColumns">
-        m.id, m.provider_id, m.model_code, m.name, m.model_type, m.version, m.base_url, m.billing_rule_id, m.status,
+        m.id, m.provider_account_id AS provider_id, m.model_code, m.name, m.model_type, m.version, m.base_url, m.billing_rule_id, m.status,
         p.name AS provider_name, br.name AS billing_rule_name
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.ModelEntity">
         select <include refid="ModelSelectColumns"/>
-        from models m
-        left join providers p on m.provider_id = p.id
-        left join billing_rules br on m.billing_rule_id = br.id
+        from kb_models m
+        left join kb_provider_accounts p on m.provider_account_id = p.id
+        left join kb_billing_rules br on m.billing_rule_id = br.id
         <where>
             <if test="keyword != null and keyword != ''">
                 and (
@@ -32,20 +32,20 @@
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.ModelEntity">
         select <include refid="ModelSelectColumns"/>
-        from models m
-        left join providers p on m.provider_id = p.id
-        left join billing_rules br on m.billing_rule_id = br.id
+        from kb_models m
+        left join kb_provider_accounts p on m.provider_account_id = p.id
+        left join kb_billing_rules br on m.billing_rule_id = br.id
         where m.id = #{id}
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into models(provider_id, model_code, name, model_type, version, base_url, billing_rule_id, status)
+        insert into kb_models(provider_account_id, model_code, name, model_type, version, base_url, billing_rule_id, status)
         values(#{providerId}, #{modelCode}, #{name}, #{modelType}, #{version}, #{baseUrl}, #{billingRuleId}, #{status})
     </insert>
 
     <update id="update">
-        update models
-        set provider_id = #{providerId},
+        update kb_models
+        set provider_account_id = #{providerId},
             model_code = #{modelCode},
             name = #{name},
             model_type = #{modelType},
@@ -57,13 +57,13 @@
     </update>
 
     <update id="updateStatus">
-        update models
+        update kb_models
         set status = #{status}
         where id = #{id}
     </update>
 
     <select id="countByModelCode" resultType="java.lang.Long">
-        select count(1) from models where model_code = #{modelCode}
+        select count(1) from kb_models where model_code = #{modelCode}
         <if test="excludeId != null">
             and id != #{excludeId}
         </if>

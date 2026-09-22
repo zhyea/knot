@@ -5,7 +5,7 @@
     <select id="listTasks" resultType="org.chobit.knot.gateway.entity.ScheduledTaskEntity">
         select id, task_code, task_name, handler_code, cron_expression, execution_mode,
                status, description, last_fire_at, next_fire_at, created_at, updated_at
-        from scheduled_tasks
+        from ks_scheduled_tasks
         <where>
             <if test="taskCode != null and taskCode != ''">
                 and task_code = #{taskCode}
@@ -23,7 +23,7 @@
     <select id="listEnabledTasks" resultType="org.chobit.knot.gateway.entity.ScheduledTaskEntity">
         select id, task_code, task_name, handler_code, cron_expression, execution_mode,
                status, description, last_fire_at, next_fire_at, created_at, updated_at
-        from scheduled_tasks
+        from ks_scheduled_tasks
         where status = 'ENABLED'
         order by id asc
     </select>
@@ -31,19 +31,19 @@
     <select id="getTaskById" resultType="org.chobit.knot.gateway.entity.ScheduledTaskEntity">
         select id, task_code, task_name, handler_code, cron_expression, execution_mode,
                status, description, last_fire_at, next_fire_at, created_at, updated_at
-        from scheduled_tasks
+        from ks_scheduled_tasks
         where id = #{id}
     </select>
 
     <select id="getTaskByCode" resultType="org.chobit.knot.gateway.entity.ScheduledTaskEntity">
         select id, task_code, task_name, handler_code, cron_expression, execution_mode,
                status, description, last_fire_at, next_fire_at, created_at, updated_at
-        from scheduled_tasks
+        from ks_scheduled_tasks
         where task_code = #{taskCode}
     </select>
 
     <insert id="insertTask" useGeneratedKeys="true" keyProperty="id">
-        insert into scheduled_tasks(
+        insert into ks_scheduled_tasks(
             task_code, task_name, handler_code, cron_expression,
             execution_mode, status, description
         ) values(
@@ -53,7 +53,7 @@
     </insert>
 
     <update id="updateTask">
-        update scheduled_tasks
+        update ks_scheduled_tasks
         set task_name = #{taskName},
             handler_code = #{handlerCode},
             cron_expression = #{cronExpression},
@@ -64,20 +64,20 @@
     </update>
 
     <update id="updateTaskFireTime">
-        update scheduled_tasks
+        update ks_scheduled_tasks
         set last_fire_at = #{lastFireAt},
             next_fire_at = coalesce(#{nextFireAt}, next_fire_at)
         where id = #{id}
     </update>
 
     <update id="updateTaskNextFireTime">
-        update scheduled_tasks
+        update ks_scheduled_tasks
         set next_fire_at = #{nextFireAt}
         where id = #{id}
     </update>
 
     <insert id="insertRun" useGeneratedKeys="true" keyProperty="id">
-        insert into scheduled_task_runs(
+        insert into ks_scheduled_task_runs(
             task_id, task_code, task_name, execution_mode, node_id, trigger_type,
             status, start_time, end_time, duration_ms, affected_rows, error_msg
         ) values(
@@ -87,7 +87,7 @@
     </insert>
 
     <update id="updateRun">
-        update scheduled_task_runs
+        update ks_scheduled_task_runs
         set status = #{status},
             end_time = #{endTime},
             duration_ms = #{durationMs},
@@ -99,7 +99,7 @@
     <select id="listRuns" resultType="org.chobit.knot.gateway.entity.ScheduledTaskRunEntity">
         select id, task_id, task_code, task_name, execution_mode, node_id, trigger_type,
                status, start_time, end_time, duration_ms, affected_rows, error_msg, created_at
-        from scheduled_task_runs
+        from ks_scheduled_task_runs
         <where>
             <if test="taskCode != null and taskCode != ''">
                 and task_code = #{taskCode}
@@ -115,7 +115,7 @@
     </select>
 
     <delete id="deleteRunsBefore">
-        delete from scheduled_task_runs
+        delete from ks_scheduled_task_runs
         where created_at &lt; #{beforeTime}
     </delete>
 

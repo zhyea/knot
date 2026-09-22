@@ -3,7 +3,7 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.OperationLogMapper">
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into operation_logs(
+        insert into ks_operation_logs(
             module, operation, entity_type, entity_id, entity_name,
             description, old_value, new_value,
             operator_id, operator_name, ip_address, user_agent,
@@ -21,7 +21,7 @@
                description, old_value, new_value,
                operator_id, operator_name, ip_address, user_agent,
                status, error_msg, execution_time, created_at
-        from operation_logs
+        from ks_operation_logs
         <where>
             <if test="module != null and module != ''">
                 and module = #{module}
@@ -44,7 +44,7 @@
                description, old_value, new_value,
                operator_id, operator_name, ip_address, user_agent,
                status, error_msg, execution_time, created_at
-        from operation_logs
+        from ks_operation_logs
         <where>
             <if test="module != null and module != ''">
                 and module = #{module}
@@ -61,7 +61,7 @@
 
     <select id="listDistinctModules" resultType="java.lang.String">
         select distinct module
-        from operation_logs
+        from ks_operation_logs
         where module is not null
           and module != ''
         order by module asc
@@ -69,7 +69,7 @@
 
     <select id="listDistinctOperations" resultType="java.lang.String">
         select distinct operation
-        from operation_logs
+        from ks_operation_logs
         where operation is not null
           and operation != ''
         order by operation asc
@@ -80,7 +80,7 @@
                description, old_value, new_value,
                operator_id, operator_name, ip_address, user_agent,
                status, error_msg, execution_time, created_at
-        from operation_logs
+        from ks_operation_logs
         where module = #{module}
           and (
             entity_name = #{entityNamePrefix}
@@ -94,19 +94,19 @@
                description, old_value, new_value,
                operator_id, operator_name, ip_address, user_agent,
                status, error_msg, execution_time, created_at
-        from operation_logs
+        from ks_operation_logs
         where id = #{id}
     </select>
 
     <delete id="deleteDetailsByLogCreatedBefore">
         delete d
-        from operation_log_details d
-        inner join operation_logs l on l.id = d.log_id
+        from ks_operation_log_details d
+        inner join ks_operation_logs l on l.id = d.log_id
         where l.created_at &lt; #{beforeTime}
     </delete>
 
     <delete id="deleteByCreatedBefore">
-        delete from operation_logs
+        delete from ks_operation_logs
         where created_at &lt; #{beforeTime}
     </delete>
 

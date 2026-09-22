@@ -4,7 +4,7 @@
 
     <select id="listRoles" resultType="org.chobit.knot.gateway.entity.AdminRoleEntity">
         select id, code, name, description
-        from roles
+        from ks_roles
         <where>
             <if test="keyword != null and keyword != ''">
                 (
@@ -18,13 +18,13 @@
 
     <select id="getRoleById" resultType="org.chobit.knot.gateway.entity.AdminRoleEntity">
         select id, code, name, description
-        from roles
+        from ks_roles
         where id = #{id}
     </select>
 
     <select id="countRoleByCode" resultType="java.lang.Long">
         select count(1)
-        from roles
+        from ks_roles
         where code = #{code}
         <if test="excludeId != null">
             and id != #{excludeId}
@@ -32,12 +32,12 @@
     </select>
 
     <insert id="insertRole" useGeneratedKeys="true" keyProperty="id">
-        insert into roles(code, name, description, created_at, updated_at)
+        insert into ks_roles(code, name, description, created_at, updated_at)
         values(#{code}, #{name}, #{description}, now(), now())
     </insert>
 
     <update id="updateRole">
-        update roles
+        update ks_roles
         set code = #{code},
             name = #{name},
             description = #{description},
@@ -46,26 +46,26 @@
     </update>
 
     <delete id="deleteRole">
-        delete from roles where id = #{id}
+        delete from ks_roles where id = #{id}
     </delete>
 
     <select id="countUserRoles" resultType="java.lang.Long">
-        select count(1) from user_roles where role_id = #{roleId}
+        select count(1) from ks_user_roles where role_id = #{roleId}
     </select>
 
     <select id="listRolePermissionIds" resultType="java.lang.Long">
         select permission_id
-        from sys_role_permissions
+        from ks_role_permissions
         where role_id = #{roleId}
         order by permission_id asc
     </select>
 
     <delete id="deleteRolePermissions">
-        delete from sys_role_permissions where role_id = #{roleId}
+        delete from ks_role_permissions where role_id = #{roleId}
     </delete>
 
     <insert id="insertRolePermissions">
-        insert into sys_role_permissions(role_id, permission_id)
+        insert into ks_role_permissions(role_id, permission_id)
         values
         <foreach collection="permissionIds" item="permissionId" separator=",">
             (#{roleId}, #{permissionId})
@@ -74,7 +74,7 @@
 
     <select id="listModules" resultType="org.chobit.knot.gateway.entity.AdminModuleEntity">
         select id, module_code, module_name, icon, sort_order, status
-        from sys_modules
+        from ks_modules
         <where>
             <if test="keyword != null and keyword != ''">
                 (
@@ -88,13 +88,13 @@
 
     <select id="getModuleById" resultType="org.chobit.knot.gateway.entity.AdminModuleEntity">
         select id, module_code, module_name, icon, sort_order, status
-        from sys_modules
+        from ks_modules
         where id = #{id}
     </select>
 
     <select id="countModuleByCode" resultType="java.lang.Long">
         select count(1)
-        from sys_modules
+        from ks_modules
         where module_code = #{moduleCode}
         <if test="excludeId != null">
             and id != #{excludeId}
@@ -102,12 +102,12 @@
     </select>
 
     <insert id="insertModule" useGeneratedKeys="true" keyProperty="id">
-        insert into sys_modules(module_code, module_name, icon, sort_order, status, created_at, updated_at)
+        insert into ks_modules(module_code, module_name, icon, sort_order, status, created_at, updated_at)
         values(#{moduleCode}, #{moduleName}, #{icon}, #{sortOrder}, #{status}, now(), now())
     </insert>
 
     <update id="updateModule">
-        update sys_modules
+        update ks_modules
         set module_code = #{moduleCode},
             module_name = #{moduleName},
             icon = #{icon},
@@ -118,22 +118,22 @@
     </update>
 
     <update id="updateModuleStatus">
-        update sys_modules
+        update ks_modules
         set status = #{status},
             updated_at = now()
         where id = #{id}
     </update>
 
     <delete id="deleteModule">
-        delete from sys_modules where id = #{id}
+        delete from ks_modules where id = #{id}
     </delete>
 
     <select id="countMenusByModuleId" resultType="java.lang.Long">
-        select count(1) from sys_menus where module_id = #{moduleId}
+        select count(1) from ks_menus where module_id = #{moduleId}
     </select>
 
     <select id="countPermissionsByModuleId" resultType="java.lang.Long">
-        select count(1) from sys_permissions where module_id = #{moduleId}
+        select count(1) from ks_permissions where module_id = #{moduleId}
     </select>
 
     <select id="listMenus" resultType="org.chobit.knot.gateway.entity.AdminMenuEntity">
@@ -151,8 +151,8 @@
                m.icon,
                m.sort_order,
                m.status
-        from sys_menus m
-        inner join sys_modules sm on sm.id = m.module_id
+        from ks_menus m
+        inner join ks_modules sm on sm.id = m.module_id
         <where>
             <if test="keyword != null and keyword != ''">
                 (
@@ -186,14 +186,14 @@
                m.icon,
                m.sort_order,
                m.status
-        from sys_menus m
-        inner join sys_modules sm on sm.id = m.module_id
+        from ks_menus m
+        inner join ks_modules sm on sm.id = m.module_id
         where m.id = #{id}
     </select>
 
     <select id="countMenuByCode" resultType="java.lang.Long">
         select count(1)
-        from sys_menus
+        from ks_menus
         where menu_code = #{menuCode}
         <if test="excludeId != null">
             and id != #{excludeId}
@@ -201,7 +201,7 @@
     </select>
 
     <insert id="insertMenu" useGeneratedKeys="true" keyProperty="id">
-        insert into sys_menus(
+        insert into ks_menus(
             module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status, created_at, updated_at
         )
         values(
@@ -210,7 +210,7 @@
     </insert>
 
     <update id="updateMenu">
-        update sys_menus
+        update ks_menus
         set module_id = #{moduleId},
             parent_id = #{parentId},
             menu_code = #{menuCode},
@@ -225,22 +225,22 @@
     </update>
 
     <update id="updateMenuStatus">
-        update sys_menus
+        update ks_menus
         set status = #{status},
             updated_at = now()
         where id = #{id}
     </update>
 
     <delete id="deleteMenu">
-        delete from sys_menus where id = #{id}
+        delete from ks_menus where id = #{id}
     </delete>
 
     <select id="countChildMenus" resultType="java.lang.Long">
-        select count(1) from sys_menus where parent_id = #{parentId}
+        select count(1) from ks_menus where parent_id = #{parentId}
     </select>
 
     <select id="countPermissionsByMenuId" resultType="java.lang.Long">
-        select count(1) from sys_permissions where menu_id = #{menuId}
+        select count(1) from ks_permissions where menu_id = #{menuId}
     </select>
 
     <select id="listPermissions" resultType="org.chobit.knot.gateway.entity.AdminPermissionEntity">
@@ -257,9 +257,9 @@
                p.status,
                p.built_in,
                p.remark
-        from sys_permissions p
-        inner join sys_modules sm on sm.id = p.module_id
-        left join sys_menus m on m.id = p.menu_id
+        from ks_permissions p
+        inner join ks_modules sm on sm.id = p.module_id
+        left join ks_menus m on m.id = p.menu_id
         <where>
             <if test="keyword != null and keyword != ''">
                 (
@@ -294,15 +294,15 @@
                p.status,
                p.built_in,
                p.remark
-        from sys_permissions p
-        inner join sys_modules sm on sm.id = p.module_id
-        left join sys_menus m on m.id = p.menu_id
+        from ks_permissions p
+        inner join ks_modules sm on sm.id = p.module_id
+        left join ks_menus m on m.id = p.menu_id
         where p.id = #{id}
     </select>
 
     <select id="countPermissionByCode" resultType="java.lang.Long">
         select count(1)
-        from sys_permissions
+        from ks_permissions
         where permission_code = #{permissionCode}
         <if test="excludeId != null">
             and id != #{excludeId}
@@ -310,7 +310,7 @@
     </select>
 
     <insert id="insertPermission" useGeneratedKeys="true" keyProperty="id">
-        insert into sys_permissions(
+        insert into ks_permissions(
             permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark, created_at, updated_at
         )
         values(
@@ -319,7 +319,7 @@
     </insert>
 
     <update id="updatePermission">
-        update sys_permissions
+        update ks_permissions
         set permission_code = #{permissionCode},
             permission_name = #{permissionName},
             permission_type = #{permissionType},
@@ -333,22 +333,22 @@
     </update>
 
     <update id="updatePermissionStatus">
-        update sys_permissions
+        update ks_permissions
         set status = #{status},
             updated_at = now()
         where id = #{id}
     </update>
 
     <delete id="deletePermission">
-        delete from sys_permissions where id = #{id}
+        delete from ks_permissions where id = #{id}
     </delete>
 
     <select id="countRolePermissionUsage" resultType="java.lang.Long">
-        select count(1) from sys_role_permissions where permission_id = #{permissionId}
+        select count(1) from ks_role_permissions where permission_id = #{permissionId}
     </select>
 
     <select id="countApiBindingUsage" resultType="java.lang.Long">
-        select count(1) from sys_api_permission_bindings where permission_id = #{permissionId}
+        select count(1) from ks_api_permission_bindings where permission_id = #{permissionId}
     </select>
 
     <select id="listApiPermissionBindings" resultType="org.chobit.knot.gateway.entity.AdminApiPermissionBindingEntity">
@@ -360,8 +360,8 @@
                b.path_pattern,
                b.controller_class,
                b.status
-        from sys_api_permission_bindings b
-        inner join sys_permissions p on p.id = b.permission_id
+        from ks_api_permission_bindings b
+        inner join ks_permissions p on p.id = b.permission_id
         <where>
             <if test="keyword != null and keyword != ''">
                 (
@@ -390,14 +390,14 @@
                b.path_pattern,
                b.controller_class,
                b.status
-        from sys_api_permission_bindings b
-        inner join sys_permissions p on p.id = b.permission_id
+        from ks_api_permission_bindings b
+        inner join ks_permissions p on p.id = b.permission_id
         where b.id = #{id}
     </select>
 
     <select id="countApiPermissionBinding" resultType="java.lang.Long">
         select count(1)
-        from sys_api_permission_bindings
+        from ks_api_permission_bindings
         where http_method = #{httpMethod}
           and path_pattern = #{pathPattern}
         <if test="excludeId != null">
@@ -406,7 +406,7 @@
     </select>
 
     <insert id="insertApiPermissionBinding" useGeneratedKeys="true" keyProperty="id">
-        insert into sys_api_permission_bindings(
+        insert into ks_api_permission_bindings(
             permission_id, http_method, path_pattern, controller_class, status, created_at, updated_at
         )
         values(
@@ -415,7 +415,7 @@
     </insert>
 
     <update id="updateApiPermissionBinding">
-        update sys_api_permission_bindings
+        update ks_api_permission_bindings
         set permission_id = #{permissionId},
             http_method = #{httpMethod},
             path_pattern = #{pathPattern},
@@ -426,14 +426,14 @@
     </update>
 
     <update id="updateApiPermissionBindingStatus">
-        update sys_api_permission_bindings
+        update ks_api_permission_bindings
         set status = #{status},
             updated_at = now()
         where id = #{id}
     </update>
 
     <delete id="deleteApiPermissionBinding">
-        delete from sys_api_permission_bindings where id = #{id}
+        delete from ks_api_permission_bindings where id = #{id}
     </delete>
 
 </mapper>

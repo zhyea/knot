@@ -15,6 +15,7 @@ import org.chobit.knot.gateway.entity.ProviderEntity;
 import org.chobit.knot.gateway.mapper.DiscountPolicyMapper;
 import org.chobit.knot.gateway.mapper.ProviderCredentialMapper;
 import org.chobit.knot.gateway.mapper.ProviderMapper;
+import org.chobit.knot.gateway.mapper.ProviderProfileMapper;
 import org.chobit.knot.gateway.auth.CurrentAuth;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
 @Service
 public class ProviderService {
     private final ProviderMapper providerMapper;
+    private final ProviderProfileMapper providerProfileMapper;
     private final ProviderCredentialMapper providerCredentialMapper;
     private final DiscountPolicyMapper discountPolicyMapper;
     private final ProviderConverter providerConverter;
@@ -46,6 +48,7 @@ public class ProviderService {
      * Constructs a new instance.
      */
     public ProviderService(ProviderMapper providerMapper,
+                           ProviderProfileMapper providerProfileMapper,
                            ProviderCredentialMapper providerCredentialMapper,
                            DiscountPolicyMapper discountPolicyMapper,
                            ProviderConverter providerConverter,
@@ -53,6 +56,7 @@ public class ProviderService {
                            CurrentAuth currentAuth,
                            ResourceTrafficPolicySupport trafficPolicySupport) {
         this.providerMapper = providerMapper;
+        this.providerProfileMapper = providerProfileMapper;
         this.providerCredentialMapper = providerCredentialMapper;
         this.discountPolicyMapper = discountPolicyMapper;
         this.providerConverter = providerConverter;
@@ -154,6 +158,7 @@ public class ProviderService {
      */
     @Transactional
     public ProviderDto create(ProviderDto request) {
+        assertProviderProfileExists(request.providerId());
         String code = resolveCodeForSave(request.code(), null);
         assertCodeAvailable(code, null);
         ProviderEntity entity = providerConverter.toEntity(request);
@@ -174,6 +179,7 @@ public class ProviderService {
         if (existing == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "供应商不存在");
         }
+        assertProviderProfileExists(request.providerId());
         String code = resolveCodeForSave(request.code(), existing.getCode());
         assertCodeAvailable(code, id);
         ProviderEntity entity = providerConverter.toEntity(request);
@@ -219,7 +225,8 @@ public class ProviderService {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
         QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
         return new ProviderDto(
-                base.id(), base.code(), base.name(), base.type(), base.enabled(),
+                base.id(), base.providerId(), base.providerName(),
+                base.code(), base.name(), base.type(), base.enabled(),
                 auth, rate, quota
         );
     }
@@ -266,6 +273,12 @@ public class ProviderService {
     private void assertCodeAvailable(String code, Long excludeId) {
         if (!isCodeAvailable(code, excludeId)) {
             throw new BusinessException(ErrorCode.CONFLICT, "供应商编码「" + code + "」已存在，请更换后重试");
+        }
+    }
+
+    private void assertProviderProfileExists(Long providerId) {
+        if (providerId == null || providerProfileMapper.getById(providerId) == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "供应商不存在");
         }
     }
 

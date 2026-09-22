@@ -6,7 +6,7 @@
 -- =========================
 -- 系统管理
 -- =========================
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE IF NOT EXISTS ks_users (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   username VARCHAR(64) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE KEY uk_users_username (username)
 );
 
-CREATE TABLE IF NOT EXISTS departments (
+CREATE TABLE IF NOT EXISTS ks_departments (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   dept_code VARCHAR(64) NOT NULL,
   dept_name VARCHAR(100) NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS departments (
   UNIQUE KEY uk_departments_code (dept_code)
 );
 
-CREATE TABLE IF NOT EXISTS user_settings (
+CREATE TABLE IF NOT EXISTS ks_user_settings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   user_id BIGINT NOT NULL,
   setting_key VARCHAR(64) NOT NULL,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
   KEY idx_user_settings_user (user_id)
 );
 
-CREATE TABLE IF NOT EXISTS roles (
+CREATE TABLE IF NOT EXISTS ks_roles (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) NOT NULL,
   name VARCHAR(100) NOT NULL,
@@ -58,13 +58,13 @@ CREATE TABLE IF NOT EXISTS roles (
   UNIQUE KEY uk_roles_code (code)
 );
 
-CREATE TABLE IF NOT EXISTS user_roles (
+CREATE TABLE IF NOT EXISTS ks_user_roles (
   user_id BIGINT NOT NULL,
   role_id BIGINT NOT NULL,
   PRIMARY KEY (user_id, role_id)
 );
 
-CREATE TABLE IF NOT EXISTS sys_modules (
+CREATE TABLE IF NOT EXISTS ks_modules (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   module_code VARCHAR(64) NOT NULL,
   module_name VARCHAR(100) NOT NULL,
@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS sys_modules (
   UNIQUE KEY uk_sys_modules_code (module_code)
 );
 
-CREATE TABLE IF NOT EXISTS sys_menus (
+CREATE TABLE IF NOT EXISTS ks_menus (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   module_id BIGINT NOT NULL,
   parent_id BIGINT DEFAULT NULL,
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS sys_menus (
   KEY idx_sys_menus_module_parent (module_id, parent_id, sort_order)
 );
 
-CREATE TABLE IF NOT EXISTS sys_permissions (
+CREATE TABLE IF NOT EXISTS ks_permissions (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   permission_code VARCHAR(128) NOT NULL,
   permission_name VARCHAR(128) NOT NULL,
@@ -110,14 +110,14 @@ CREATE TABLE IF NOT EXISTS sys_permissions (
   KEY idx_sys_permissions_menu (menu_id)
 );
 
-CREATE TABLE IF NOT EXISTS sys_role_permissions (
+CREATE TABLE IF NOT EXISTS ks_role_permissions (
   role_id BIGINT NOT NULL,
   permission_id BIGINT NOT NULL,
   PRIMARY KEY (role_id, permission_id),
   KEY idx_sys_role_permissions_permission (permission_id)
 );
 
-CREATE TABLE IF NOT EXISTS sys_api_permission_bindings (
+CREATE TABLE IF NOT EXISTS ks_api_permission_bindings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   permission_id BIGINT NOT NULL,
   http_method VARCHAR(16) NOT NULL,
@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS sys_api_permission_bindings (
   KEY idx_sys_api_permission_permission (permission_id)
 );
 
-CREATE TABLE IF NOT EXISTS operation_logs (
+CREATE TABLE IF NOT EXISTS ks_operation_logs (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   module VARCHAR(64) NOT NULL COMMENT '模块名称，如 user、enum、provider、model等',
   operation VARCHAR(32) NOT NULL COMMENT '操作类型：CREATE/UPDATE/DELETE/LOGIN/LOGOUT等',
@@ -154,7 +154,7 @@ CREATE TABLE IF NOT EXISTS operation_logs (
   KEY idx_created_at (created_at)
 );
 
-CREATE TABLE IF NOT EXISTS operation_log_details (
+CREATE TABLE IF NOT EXISTS ks_operation_log_details (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   log_id BIGINT NOT NULL,
   request_json JSON DEFAULT NULL,
@@ -165,7 +165,7 @@ CREATE TABLE IF NOT EXISTS operation_log_details (
   KEY idx_operation_log_details_log (log_id)
 );
 
-CREATE TABLE IF NOT EXISTS scheduled_tasks (
+CREATE TABLE IF NOT EXISTS ks_scheduled_tasks (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   task_code VARCHAR(64) NOT NULL,
   task_name VARCHAR(128) NOT NULL,
@@ -183,7 +183,7 @@ CREATE TABLE IF NOT EXISTS scheduled_tasks (
   KEY idx_scheduled_tasks_handler (handler_code)
 );
 
-CREATE TABLE IF NOT EXISTS scheduled_task_runs (
+CREATE TABLE IF NOT EXISTS ks_scheduled_task_runs (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   task_id BIGINT NOT NULL,
   task_code VARCHAR(64) NOT NULL,
@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS scheduled_task_runs (
 -- =========================
 -- 频控与额度（独立策略 + 资源绑定）
 -- =========================
-CREATE TABLE IF NOT EXISTS rate_limit_policies (
+CREATE TABLE IF NOT EXISTS kb_rate_limit_policies (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   policy_code VARCHAR(64) NOT NULL,
   policy_name VARCHAR(100) NOT NULL,
@@ -220,7 +220,7 @@ CREATE TABLE IF NOT EXISTS rate_limit_policies (
   UNIQUE KEY uk_rate_limit_policies_code (policy_code)
 );
 
-CREATE TABLE IF NOT EXISTS quota_policies (
+CREATE TABLE IF NOT EXISTS kb_quota_policies (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   policy_code VARCHAR(64) NOT NULL,
   policy_name VARCHAR(100) NOT NULL,
@@ -235,7 +235,7 @@ CREATE TABLE IF NOT EXISTS quota_policies (
   UNIQUE KEY uk_quota_policies_code (policy_code)
 );
 
-CREATE TABLE IF NOT EXISTS resource_traffic_policies (
+CREATE TABLE IF NOT EXISTS kb_resource_traffic_policies (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   resource_type VARCHAR(32) NOT NULL COMMENT 'APP / MODEL / PROVIDER',
   resource_id BIGINT NOT NULL,
@@ -251,8 +251,19 @@ CREATE TABLE IF NOT EXISTS resource_traffic_policies (
 -- =========================
 -- 供应商与模型
 -- =========================
-CREATE TABLE IF NOT EXISTS providers (
+CREATE TABLE IF NOT EXISTS kb_providers (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  code VARCHAR(32) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  tag VARCHAR(255) NOT NULL COMMENT '供应商分类，可多选，多个用英文逗号分隔，如 原厂,代理',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_providers_code (code)
+);
+
+CREATE TABLE IF NOT EXISTS kb_provider_accounts (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  provider_id BIGINT NOT NULL COMMENT '所属供应商主数据 ID',
   code VARCHAR(32) NOT NULL,
   name VARCHAR(100) NOT NULL,
   provider_type VARCHAR(64) NOT NULL,
@@ -261,12 +272,13 @@ CREATE TABLE IF NOT EXISTS providers (
   contact_phone VARCHAR(32) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_providers_code (code)
+  UNIQUE KEY uk_provider_accounts_code (code),
+  KEY idx_provider_accounts_provider (provider_id)
 );
 
-CREATE TABLE IF NOT EXISTS provider_credentials (
+CREATE TABLE IF NOT EXISTS kb_provider_credentials (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  provider_id BIGINT NOT NULL,
+  provider_account_id BIGINT NOT NULL,
   credential_type VARCHAR(32) NOT NULL,
   encrypted_key TEXT DEFAULT NULL,
   encrypted_secret TEXT DEFAULT NULL,
@@ -275,12 +287,12 @@ CREATE TABLE IF NOT EXISTS provider_credentials (
   status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  KEY idx_provider_credentials_provider (provider_id)
+  KEY idx_provider_credentials_account (provider_account_id)
 );
 
-CREATE TABLE IF NOT EXISTS provider_discount_policies (
+CREATE TABLE IF NOT EXISTS kb_provider_discount_policies (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  provider_id BIGINT NOT NULL,
+  provider_account_id BIGINT NOT NULL,
   policy_name VARCHAR(100) NOT NULL,
   scope_type VARCHAR(32) NOT NULL,
   scope_ref_id BIGINT DEFAULT NULL,
@@ -293,13 +305,13 @@ CREATE TABLE IF NOT EXISTS provider_discount_policies (
   remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  KEY idx_provider_discount_provider_time (provider_id, effective_from, effective_to),
+  KEY idx_provider_discount_account_time (provider_account_id, effective_from, effective_to),
   KEY idx_provider_discount_scope (scope_type, scope_ref_id, status)
 );
 
-CREATE TABLE IF NOT EXISTS models (
+CREATE TABLE IF NOT EXISTS kb_models (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  provider_id BIGINT NOT NULL,
+  provider_account_id BIGINT NOT NULL,
   model_code VARCHAR(128) NOT NULL,
   name VARCHAR(100) NOT NULL,
   model_type VARCHAR(64) NOT NULL,
@@ -312,10 +324,10 @@ CREATE TABLE IF NOT EXISTS models (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_models_code (model_code),
-  KEY idx_models_provider (provider_id)
+  KEY idx_models_provider_account (provider_account_id)
 );
 
-CREATE TABLE IF NOT EXISTS model_pools (
+CREATE TABLE IF NOT EXISTS kb_model_pools (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   pool_code VARCHAR(64) NOT NULL,
   name VARCHAR(100) NOT NULL,
@@ -329,7 +341,7 @@ CREATE TABLE IF NOT EXISTS model_pools (
   KEY idx_model_pools_type_status (model_type, status)
 );
 
-CREATE TABLE IF NOT EXISTS model_pool_items (
+CREATE TABLE IF NOT EXISTS kb_model_pool_items (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   pool_id BIGINT NOT NULL,
   model_id BIGINT NOT NULL,
@@ -343,7 +355,7 @@ CREATE TABLE IF NOT EXISTS model_pool_items (
   KEY idx_model_pool_items_model (model_id)
 );
 
-CREATE TABLE IF NOT EXISTS logical_models (
+CREATE TABLE IF NOT EXISTS kb_logical_models (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   model_code VARCHAR(128) NOT NULL,
   model_name VARCHAR(128) NOT NULL,
@@ -393,10 +405,10 @@ CREATE TABLE IF NOT EXISTS logical_models (
   KEY idx_logical_models_sort (featured, sort_order)
 );
 
-CREATE TABLE IF NOT EXISTS provider_model_mappings (
+CREATE TABLE IF NOT EXISTS kb_provider_model_mappings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   logical_model_id BIGINT NOT NULL,
-  provider_id BIGINT NOT NULL,
+  provider_account_id BIGINT NOT NULL,
   model_id BIGINT NOT NULL,
   provider_model_name VARCHAR(128) NOT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
@@ -404,12 +416,12 @@ CREATE TABLE IF NOT EXISTS provider_model_mappings (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_provider_model_mapping_model (model_id),
-  KEY idx_logical_provider_model (logical_model_id, provider_id, model_id),
+  KEY idx_logical_provider_model (logical_model_id, provider_account_id, model_id),
   KEY idx_logical_model (logical_model_id, status),
-  KEY idx_provider_model (provider_id, model_id, status)
+  KEY idx_provider_account_model (provider_account_id, model_id, status)
 );
 
-CREATE TABLE IF NOT EXISTS external_model_sources (
+CREATE TABLE IF NOT EXISTS kx_model_sources (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   source_code VARCHAR(64) NOT NULL,
   source_name VARCHAR(128) NOT NULL,
@@ -423,7 +435,7 @@ CREATE TABLE IF NOT EXISTS external_model_sources (
   UNIQUE KEY uk_external_model_sources_code (source_code)
 );
 
-CREATE TABLE IF NOT EXISTS external_model_items (
+CREATE TABLE IF NOT EXISTS kx_model_items (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   source_code VARCHAR(64) NOT NULL,
   model_id VARCHAR(160) NOT NULL,
@@ -471,9 +483,9 @@ CREATE TABLE IF NOT EXISTS external_model_items (
 );
 
 -- 供应商模型与 API 协议绑定（协议 + 消耗取值逻辑）
-CREATE TABLE IF NOT EXISTS model_api_bindings (
+CREATE TABLE IF NOT EXISTS kb_model_api_bindings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  model_id BIGINT NOT NULL COMMENT '模型 ID，关联 models.id',
+  model_id BIGINT NOT NULL COMMENT '模型 ID，关联 kb_models.id',
   protocol VARCHAR(64) NOT NULL COMMENT 'API 协议：OPENAI_CHAT_COMPLETIONS / OPENAI_COMPLETIONS / OPENAI_RESPONSES / ANTHROPIC_MESSAGES / OTHER',
   api_path VARCHAR(255) DEFAULT NULL COMMENT '上游 API 路径，为空时使用协议默认路径',
   request_adapter VARCHAR(255) DEFAULT NULL COMMENT '上游请求适配器编码或类名',
@@ -491,7 +503,7 @@ CREATE TABLE IF NOT EXISTS model_api_bindings (
 -- =========================
 -- 应用管理
 -- =========================
-CREATE TABLE IF NOT EXISTS apps (
+CREATE TABLE IF NOT EXISTS kb_apps (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   app_id VARCHAR(64) NOT NULL,
   name VARCHAR(100) NOT NULL,
@@ -507,7 +519,7 @@ CREATE TABLE IF NOT EXISTS apps (
   UNIQUE KEY uk_apps_app_id (app_id)
 );
 
-CREATE TABLE IF NOT EXISTS app_credentials (
+CREATE TABLE IF NOT EXISTS kb_app_credentials (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   app_id BIGINT NOT NULL,
   app_key VARCHAR(128) NOT NULL,
@@ -518,7 +530,7 @@ CREATE TABLE IF NOT EXISTS app_credentials (
   KEY idx_app_credentials_app (app_id)
 );
 
-CREATE TABLE IF NOT EXISTS app_model_permissions (
+CREATE TABLE IF NOT EXISTS kb_app_model_permissions (
   app_id BIGINT NOT NULL,
   model_id BIGINT NOT NULL,
   PRIMARY KEY (app_id, model_id)
@@ -527,7 +539,7 @@ CREATE TABLE IF NOT EXISTS app_model_permissions (
 -- =========================
 -- 路由规则
 -- =========================
-CREATE TABLE IF NOT EXISTS routing_consumers (
+CREATE TABLE IF NOT EXISTS kb_routing_consumers (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   consumer_code VARCHAR(32) NOT NULL,
   name VARCHAR(100) NOT NULL,
@@ -542,7 +554,7 @@ CREATE TABLE IF NOT EXISTS routing_consumers (
   KEY idx_routing_consumers_status (status)
 );
 
-CREATE TABLE IF NOT EXISTS routing_rules (
+CREATE TABLE IF NOT EXISTS kb_routing_rules (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   rule_code VARCHAR(32) NOT NULL,
   name VARCHAR(100) NOT NULL,
@@ -558,7 +570,7 @@ CREATE TABLE IF NOT EXISTS routing_rules (
   KEY idx_routing_rules_app (app_id, status)
 );
 
-CREATE TABLE IF NOT EXISTS routing_rule_consumers (
+CREATE TABLE IF NOT EXISTS kb_routing_rule_consumers (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   rule_id BIGINT NOT NULL,
   consumer_id BIGINT NOT NULL,
@@ -570,7 +582,7 @@ CREATE TABLE IF NOT EXISTS routing_rule_consumers (
   KEY idx_rrc_rule (rule_id, status)
 );
 
-CREATE TABLE IF NOT EXISTS routing_rule_targets (
+CREATE TABLE IF NOT EXISTS kb_routing_rule_targets (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   rule_id BIGINT NOT NULL,
   target_type VARCHAR(32) NOT NULL,
@@ -585,11 +597,11 @@ CREATE TABLE IF NOT EXISTS routing_rule_targets (
 -- =========================
 -- 计费与调用明细
 -- =========================
-CREATE TABLE IF NOT EXISTS billing_rules (
+CREATE TABLE IF NOT EXISTS kb_billing_rules (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) NOT NULL,
   name VARCHAR(100) NOT NULL,
-  provider_id BIGINT DEFAULT NULL,
+  provider_account_id BIGINT DEFAULT NULL,
   logical_model_id BIGINT DEFAULT NULL,
   current_version_id BIGINT DEFAULT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
@@ -598,10 +610,10 @@ CREATE TABLE IF NOT EXISTS billing_rules (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_billing_rules_code (code),
-  KEY idx_billing_rules_match (provider_id, logical_model_id, status, is_deleted)
+  KEY idx_billing_rules_match (provider_account_id, logical_model_id, status, is_deleted)
 );
 
-CREATE TABLE IF NOT EXISTS billing_rule_versions (
+CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   rule_id BIGINT NOT NULL,
   version_no INT NOT NULL,
@@ -620,7 +632,7 @@ CREATE TABLE IF NOT EXISTS billing_rule_versions (
 );
 
 
-CREATE TABLE IF NOT EXISTS billing_rule_version_items (
+CREATE TABLE IF NOT EXISTS kb_billing_rule_version_items (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   version_id BIGINT NOT NULL,
   item_type VARCHAR(64) NOT NULL,
@@ -635,7 +647,7 @@ CREATE TABLE IF NOT EXISTS billing_rule_version_items (
 -- =========================
 -- 安全与监控
 -- =========================
-CREATE TABLE IF NOT EXISTS security_policies (
+CREATE TABLE IF NOT EXISTS kb_security_policies (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   policy_type VARCHAR(32) NOT NULL,
   policy_code VARCHAR(64) NOT NULL,
@@ -645,7 +657,7 @@ CREATE TABLE IF NOT EXISTS security_policies (
   UNIQUE KEY uk_security_policies_code (policy_code)
 );
 
-CREATE TABLE IF NOT EXISTS alerts (
+CREATE TABLE IF NOT EXISTS ks_alerts (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   alert_type VARCHAR(32) NOT NULL,
   level VARCHAR(16) NOT NULL,
@@ -659,7 +671,7 @@ CREATE TABLE IF NOT EXISTS alerts (
   KEY idx_alerts_level_status_time (level, status, created_at)
 );
 
-CREATE TABLE IF NOT EXISTS cache_records (
+CREATE TABLE IF NOT EXISTS ks_cache_records (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   cache_key VARCHAR(255) NOT NULL,
   cache_type VARCHAR(64) NOT NULL,
@@ -672,7 +684,7 @@ CREATE TABLE IF NOT EXISTS cache_records (
 -- =========================
 -- 可选扩展
 -- =========================
-CREATE TABLE IF NOT EXISTS plugin_packages (
+CREATE TABLE IF NOT EXISTS kb_plugin_packages (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   plugin_code VARCHAR(64) NOT NULL,
   plugin_name VARCHAR(100) NOT NULL,
@@ -690,7 +702,7 @@ CREATE TABLE IF NOT EXISTS plugin_packages (
   UNIQUE KEY uk_plugin_packages_code (plugin_code)
 );
 
-CREATE TABLE IF NOT EXISTS plugin_capabilities (
+CREATE TABLE IF NOT EXISTS kb_plugin_capabilities (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   package_id BIGINT NOT NULL,
   capability_code VARCHAR(64) NOT NULL,
@@ -706,7 +718,7 @@ CREATE TABLE IF NOT EXISTS plugin_capabilities (
   KEY idx_plugin_capabilities_extension_stage (extension_point, stage_code, status)
 );
 
-CREATE TABLE IF NOT EXISTS plugin_instances (
+CREATE TABLE IF NOT EXISTS kb_plugin_instances (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   package_id BIGINT NOT NULL,
   capability_id BIGINT NOT NULL,
@@ -724,7 +736,7 @@ CREATE TABLE IF NOT EXISTS plugin_instances (
   KEY idx_plugin_instances_capability_status (capability_id, status)
 );
 
-CREATE TABLE IF NOT EXISTS plugin_bindings (
+CREATE TABLE IF NOT EXISTS kb_plugin_bindings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   instance_id BIGINT NOT NULL,
   scope_type VARCHAR(32) NOT NULL DEFAULT 'GLOBAL',
@@ -742,7 +754,7 @@ CREATE TABLE IF NOT EXISTS plugin_bindings (
   KEY idx_plugin_bindings_scope_status (scope_type, scope_ref_id, status)
 );
 
-CREATE TABLE IF NOT EXISTS plugin_execution_logs (
+CREATE TABLE IF NOT EXISTS kr_plugin_execution_logs (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   trace_id VARCHAR(64) NOT NULL,
   instance_id BIGINT NOT NULL,
@@ -759,7 +771,7 @@ CREATE TABLE IF NOT EXISTS plugin_execution_logs (
   KEY idx_plugin_execution_logs_instance_time (instance_id, created_at)
 );
 
-CREATE TABLE IF NOT EXISTS plugin_config_versions (
+CREATE TABLE IF NOT EXISTS kb_plugin_config_versions (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   instance_id BIGINT NOT NULL,
   version_no INT NOT NULL,
@@ -771,7 +783,7 @@ CREATE TABLE IF NOT EXISTS plugin_config_versions (
   KEY idx_plugin_config_versions_code (instance_id, version_code)
 );
 
-CREATE TABLE IF NOT EXISTS notification_templates (
+CREATE TABLE IF NOT EXISTS kb_notification_templates (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) NOT NULL,
   name VARCHAR(100) NOT NULL,
@@ -782,7 +794,7 @@ CREATE TABLE IF NOT EXISTS notification_templates (
   UNIQUE KEY uk_notification_templates_code (code)
 );
 
-CREATE TABLE IF NOT EXISTS notification_records (
+CREATE TABLE IF NOT EXISTS kb_notification_records (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   template_id BIGINT NOT NULL,
   receiver VARCHAR(255) NOT NULL,
@@ -799,7 +811,7 @@ CREATE TABLE IF NOT EXISTS notification_records (
 -- 枚举配置
 -- =========================
 -- 枚举分类表
-CREATE TABLE IF NOT EXISTS enum_categories (
+CREATE TABLE IF NOT EXISTS ks_enum_categories (
     id          BIGINT PRIMARY KEY AUTO_INCREMENT,
     category    VARCHAR(64)  NOT NULL COMMENT '分类编码，如 provider_type、model_type',
     category_name VARCHAR(128) NOT NULL COMMENT '分类名称，如 供应商类型、模型类型',
@@ -813,7 +825,7 @@ CREATE TABLE IF NOT EXISTS enum_categories (
 );
 
 -- 枚举配置表（移除category字段，改为category_id）
-CREATE TABLE IF NOT EXISTS enum_configs (
+CREATE TABLE IF NOT EXISTS ks_enum_configs (
     id          BIGINT PRIMARY KEY AUTO_INCREMENT,
     category_id BIGINT       NOT NULL COMMENT '分类ID',
     item_code   VARCHAR(64)  NOT NULL COMMENT '枚举编码，如 OPENAI、CHAT',

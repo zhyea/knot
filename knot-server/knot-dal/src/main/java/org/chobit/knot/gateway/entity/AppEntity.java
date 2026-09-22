@@ -9,12 +9,12 @@ public class AppEntity {
     private String name;
     private Long deptId;
     /**
-     * 关联 departments.dept_name，仅查询展示
+     * 关联 ks_departments.dept_name，仅查询展示
      */
     private String deptName;
     private Long ownerUserId;
     /**
-     * 关联 users.real_name，仅查询展示
+     * 关联 ks_users.real_name，仅查询展示
      */
     private String ownerRealName;
     private String remark;

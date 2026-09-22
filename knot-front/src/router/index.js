@@ -43,12 +43,16 @@ const routes = [
     children: [
       { path: "model-pools", name: "model-management-model-pools", component: () => import("@/views/ModelPoolManageView.vue"), meta: { titleKey: "route.modelManagementModelPools" } },
       { path: "models", name: "model-management-models", component: () => import("@/views/ModelManageView.vue"), meta: { titleKey: "route.modelManagementModels" } },
-      { path: "providers", name: "model-management-providers", component: () => import("@/views/ProviderManageView.vue"), meta: { titleKey: "route.providers" } },
+      { path: "provider-accounts", name: "model-management-provider-accounts", component: () => import("@/views/ProviderManageView.vue"), meta: { titleKey: "route.providerAccounts" } },
+      { path: "providers", redirect: { name: "model-management-provider-accounts" } },
+      { path: "provider-profiles", name: "model-management-provider-profiles", component: () => import("@/views/ProviderProfileManageView.vue"), meta: { titleKey: "route.providerProfiles" } },
       { path: "logical-models", name: "model-management-logical-models", component: () => import("@/views/LogicalModelMarketplaceView.vue"), meta: { titleKey: "route.modelManagementLogicalModels" } },
       { path: "external-models", name: "model-management-external-models", component: () => import("@/views/ExternalModelManageView.vue"), meta: { titleKey: "route.modelManagementExternalModels" } }
     ]
   },
-  { path: "/providers", redirect: "/model-management/providers" },
+  { path: "/providers", redirect: "/model-management/provider-accounts" },
+  { path: "/provider-accounts", redirect: "/model-management/provider-accounts" },
+  { path: "/provider-profiles", redirect: "/model-management/provider-profiles" },
   { path: "/logical-models", redirect: "/model-management/logical-models" },
   { path: "/models", redirect: "/model-management/models" },
   { path: "/model-pools", redirect: "/model-management/model-pools" },

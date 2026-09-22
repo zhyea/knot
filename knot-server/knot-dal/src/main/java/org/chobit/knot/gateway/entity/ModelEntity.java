@@ -6,7 +6,7 @@ import lombok.Data;
 public class ModelEntity {
     private Long id;
     private Long providerId;
-    /** 关联 providers.name，仅查询展示 */
+    /** 关联 kb_providers.name，仅查询展示 */
     private String providerName;
     private String modelCode;
     private String name;

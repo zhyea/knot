@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.ProviderProfileMapper">
+
+    <sql id="ProviderProfileColumns">
+        id, code, name, tag, created_at, updated_at
+    </sql>
+
+    <select id="list" resultType="org.chobit.knot.gateway.entity.ProviderProfileEntity">
+        select <include refid="ProviderProfileColumns"/>
+        from kb_providers
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (code like concat('%', #{keyword}, '%') or name like concat('%', #{keyword}, '%'))
+            </if>
+            <!-- tag 为可多选的逗号分隔串（如 "原厂,代理"），用 LIKE 做包含匹配 -->
+            <if test="tag != null and tag != ''">
+                and (tag = #{tag} or tag like concat(#{tag}, ',%') or tag like concat('%,', #{tag}, ',%') or tag like concat('%,', #{tag}))
+            </if>
+        </where>
+        order by id desc
+    </select>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.ProviderProfileEntity">
+        select <include refid="ProviderProfileColumns"/>
+        from kb_providers
+        where id = #{id}
+    </select>
+
+    <select id="countByCode" resultType="java.lang.Long">
+        select count(1)
+        from kb_providers
+        where code = #{code}
+        <if test="excludeId != null">
+            and id != #{excludeId}
+        </if>
+    </select>
+
+    <select id="countAccountsByProviderId" resultType="java.lang.Long">
+        select count(1) from kb_provider_accounts where provider_id = #{providerId}
+    </select>
+
+    <select id="countCredentialsByProviderId" resultType="java.lang.Long">
+        select count(1) from kb_provider_credentials where provider_account_id = #{providerId}
+    </select>
+
+    <select id="countDiscountPoliciesByProviderId" resultType="java.lang.Long">
+        select count(1) from kb_provider_discount_policies where provider_account_id = #{providerId}
+    </select>
+
+    <select id="countModelsByProviderId" resultType="java.lang.Long">
+        select count(1) from kb_models where provider_account_id = #{providerId}
+    </select>
+
+    <select id="countMappingsByProviderId" resultType="java.lang.Long">
+        select count(1) from kb_provider_model_mappings where provider_account_id = #{providerId}
+    </select>
+
+    <select id="countBillingRulesByProviderId" resultType="java.lang.Long">
+        select count(1) from kb_billing_rules where provider_account_id = #{providerId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into kb_providers(code, name, tag)
+        values(#{code}, #{name}, #{tag})
+    </insert>
+
+    <update id="update">
+        update kb_providers
+        set code = #{code}, name = #{name}, tag = #{tag}
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from kb_providers where id = #{id}
+    </delete>
+</mapper>

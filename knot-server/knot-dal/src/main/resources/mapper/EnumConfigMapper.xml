@@ -17,16 +17,16 @@
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
         select <include refid="EnumConfigColumns"/>
-        from enum_configs ec
-        inner join enum_categories c on ec.category_id = c.id
+        from ks_enum_configs ec
+        inner join ks_enum_categories c on ec.category_id = c.id
         where ec.is_deleted = 0 and c.is_deleted = 0
         order by c.category, ec.sort_order, ec.id
     </select>
 
     <select id="listByCategoryFilter" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
         select <include refid="EnumConfigColumns"/>
-        from enum_configs ec
-        inner join enum_categories c on ec.category_id = c.id
+        from ks_enum_configs ec
+        inner join ks_enum_categories c on ec.category_id = c.id
         <where>
             ec.is_deleted = 0
             and c.is_deleted = 0
@@ -46,13 +46,13 @@
                ec.is_enabled AS isEnabled,
                ec.is_deleted AS isDeleted,
                ec.remark
-        from enum_configs ec
+        from ks_enum_configs ec
         where ec.category_id = #{categoryId} and ec.is_deleted = 0
         order by ec.sort_order, ec.id
     </select>
 
     <select id="listCategories" resultType="java.lang.String">
-        select category from enum_categories where is_deleted = 0 order by category
+        select category from ks_enum_categories where is_deleted = 0 order by category
     </select>
 
     <select id="listCategorySummaries" resultType="org.chobit.knot.gateway.entity.EnumCategorySummary">
@@ -61,8 +61,8 @@
                c.is_system as isSystem,
                count(ec.id) as itemCount,
                coalesce(sum(case when ec.is_enabled = 1 then 1 else 0 end), 0) as enabledCount
-        from enum_categories c
-        left join enum_configs ec on ec.category_id = c.id and ec.is_deleted = 0
+        from ks_enum_categories c
+        left join ks_enum_configs ec on ec.category_id = c.id and ec.is_deleted = 0
         where c.is_deleted = 0
         group by c.id, c.category, c.category_name, c.is_system
         order by c.category
@@ -70,15 +70,15 @@
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
         select <include refid="EnumConfigColumns"/>
-        from enum_configs ec
-        inner join enum_categories c on ec.category_id = c.id
+        from ks_enum_configs ec
+        inner join ks_enum_categories c on ec.category_id = c.id
         where ec.id = #{id} and ec.is_deleted = 0 and c.is_deleted = 0
     </select>
 
     <select id="getByCategoryAndCode" resultType="org.chobit.knot.gateway.entity.EnumConfigEntity">
         select <include refid="EnumConfigColumns"/>
-        from enum_configs ec
-        inner join enum_categories c on ec.category_id = c.id
+        from ks_enum_configs ec
+        inner join ks_enum_categories c on ec.category_id = c.id
         where c.category = #{category}
           and ec.item_code = #{itemCode}
           and ec.is_deleted = 0
@@ -86,12 +86,12 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into enum_configs(category_id, item_code, item_label, sort_order, is_enabled, remark)
+        insert into ks_enum_configs(category_id, item_code, item_label, sort_order, is_enabled, remark)
         values(#{categoryId}, #{itemCode}, #{itemLabel}, #{sortOrder}, #{isEnabled}, #{remark})
     </insert>
 
     <update id="update">
-        update enum_configs
+        update ks_enum_configs
         set item_label = #{itemLabel},
             sort_order = #{sortOrder},
             is_enabled = #{isEnabled},
@@ -100,7 +100,7 @@
     </update>
 
     <update id="logicalDelete">
-        update enum_configs
+        update ks_enum_configs
         set is_deleted = 1,
             updated_at = NOW()
         where id = #{id} and is_deleted = 0

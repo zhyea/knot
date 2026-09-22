@@ -5,7 +5,8 @@ import org.chobit.knot.gateway.model.RateLimitPolicy;
 
 import java.util.Map;
 
-public record ProviderDto(Long id, String code, String name, String type, boolean enabled,
+public record ProviderDto(Long id, Long providerId, String providerName,
+                          String code, String name, String type, boolean enabled,
                           Map<String, Object> authConfig,
                           RateLimitPolicy rateLimitPolicy, QuotaPolicy quotaPolicy) {
 }

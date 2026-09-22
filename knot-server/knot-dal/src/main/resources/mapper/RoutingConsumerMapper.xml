@@ -10,8 +10,8 @@
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.RoutingConsumerEntity">
         select <include refid="ConsumerSelectColumns"/>
-        from routing_consumers c
-        left join users u on c.user_id = u.id and u.is_deleted = 0
+        from kb_routing_consumers c
+        left join ks_users u on c.user_id = u.id and u.is_deleted = 0
         <where>
             <if test="keyword != null and keyword != ''">
                 and (
@@ -27,20 +27,20 @@
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.RoutingConsumerEntity">
         select <include refid="ConsumerSelectColumns"/>
-        from routing_consumers c
-        left join users u on c.user_id = u.id and u.is_deleted = 0
+        from kb_routing_consumers c
+        left join ks_users u on c.user_id = u.id and u.is_deleted = 0
         where c.id = #{id}
     </select>
 
     <select id="getBySecretKey" resultType="org.chobit.knot.gateway.entity.RoutingConsumerEntity">
         select <include refid="ConsumerSelectColumns"/>
-        from routing_consumers c
-        left join users u on c.user_id = u.id and u.is_deleted = 0
+        from kb_routing_consumers c
+        left join ks_users u on c.user_id = u.id and u.is_deleted = 0
         where c.secret_key = #{secretKey}
     </select>
 
     <select id="countByConsumerCode" resultType="java.lang.Long">
-        select count(1) from routing_consumers
+        select count(1) from kb_routing_consumers
         where consumer_code = #{consumerCode}
         <if test="excludeId != null">
             and id != #{excludeId}
@@ -48,17 +48,17 @@
     </select>
 
     <select id="countRulesByConsumerId" resultType="java.lang.Long">
-        select count(1) from routing_rule_consumers
+        select count(1) from kb_routing_rule_consumers
         where consumer_id = #{consumerId}
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into routing_consumers(consumer_code, name, user_id, secret_key, return_usage_detail, status)
+        insert into kb_routing_consumers(consumer_code, name, user_id, secret_key, return_usage_detail, status)
         values(#{consumerCode}, #{name}, #{userId}, #{secretKey}, #{returnUsageDetail}, #{status})
     </insert>
 
     <update id="update">
-        update routing_consumers
+        update kb_routing_consumers
         set consumer_code = #{consumerCode},
             name = #{name},
             user_id = #{userId},
@@ -68,13 +68,13 @@
     </update>
 
     <update id="updateStatus">
-        update routing_consumers
+        update kb_routing_consumers
         set status = #{status}
         where id = #{id}
     </update>
 
     <update id="updateSecretKey">
-        update routing_consumers
+        update kb_routing_consumers
         set secret_key = #{secretKey}
         where id = #{id}
     </update>

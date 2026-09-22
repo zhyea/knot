@@ -4,7 +4,7 @@
 
     <select id="listTemplates" resultType="org.chobit.knot.gateway.entity.NotifyTemplateEntity">
         select id, code, name, channel, content_tpl, status
-        from notification_templates
+        from kb_notification_templates
         <where>
             <if test="keyword != null and keyword != ''">
                 and (
@@ -20,17 +20,17 @@
 
     <select id="getTemplateByCode" resultType="org.chobit.knot.gateway.entity.NotifyTemplateEntity">
         select id, code, name, channel, content_tpl, status
-        from notification_templates
+        from kb_notification_templates
         where code = #{code}
     </select>
 
     <insert id="insertTemplate" useGeneratedKeys="true" keyProperty="id">
-        insert into notification_templates(code, name, channel, title_tpl, content_tpl, status)
+        insert into kb_notification_templates(code, name, channel, title_tpl, content_tpl, status)
         values(#{code}, #{name}, #{channel}, #{name}, #{contentTpl}, #{status})
     </insert>
 
     <insert id="insertRecord">
-        insert into notification_records(template_id, receiver, channel, send_status, created_at)
+        insert into kb_notification_records(template_id, receiver, channel, send_status, created_at)
         values(#{templateId}, #{receiver}, #{channel}, #{sendStatus}, now())
     </insert>
 

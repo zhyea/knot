@@ -3,45 +3,50 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.ProviderMapper">
 
     <sql id="ProviderColumns">
-        id, code, name, provider_type, status
+        pa.id, pa.provider_id, p.name AS provider_name,
+        pa.code, pa.name, pa.provider_type, pa.status
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.ProviderEntity">
         select <include refid="ProviderColumns"/>
-        from providers
+        from kb_provider_accounts pa
+        inner join kb_providers p on pa.provider_id = p.id
         <where>
             <if test="keyword != null and keyword != ''">
                 and (
-                    code like concat('%', #{keyword}, '%')
-                    or name like concat('%', #{keyword}, '%')
-                    or provider_type like concat('%', #{keyword}, '%')
+                    pa.code like concat('%', #{keyword}, '%')
+                    or pa.name like concat('%', #{keyword}, '%')
+                    or p.name like concat('%', #{keyword}, '%')
+                    or pa.provider_type like concat('%', #{keyword}, '%')
                 )
             </if>
         </where>
-        order by id desc
+        order by pa.id desc
     </select>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.ProviderEntity">
         select <include refid="ProviderColumns"/>
-        from providers
-        where id = #{id}
+        from kb_provider_accounts pa
+        inner join kb_providers p on pa.provider_id = p.id
+        where pa.id = #{id}
     </select>
 
     <select id="countByCode" resultType="java.lang.Long">
-        select count(1) from providers where code = #{code}
+        select count(1) from kb_provider_accounts where code = #{code}
         <if test="excludeId != null">
             and id != #{excludeId}
         </if>
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into providers(code, name, provider_type, status)
-        values(#{code}, #{name}, #{providerType}, #{status})
+        insert into kb_provider_accounts(provider_id, code, name, provider_type, status)
+        values(#{providerId}, #{code}, #{name}, #{providerType}, #{status})
     </insert>
 
     <update id="update">
-        update providers
-        set code = #{code},
+        update kb_provider_accounts
+        set provider_id = #{providerId},
+            code = #{code},
             name = #{name},
             provider_type = #{providerType},
             status = #{status}
@@ -49,7 +54,7 @@
     </update>
 
     <update id="updateStatus">
-        update providers
+        update kb_provider_accounts
         set status = #{status}
         where id = #{id}
     </update>

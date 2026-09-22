@@ -7,11 +7,11 @@
     </sql>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.RateLimitPolicyEntity">
-        select <include refid="Columns"/> from rate_limit_policies where id = #{id}
+        select <include refid="Columns"/> from kb_rate_limit_policies where id = #{id}
     </select>
 
     <select id="listByIds" resultType="org.chobit.knot.gateway.entity.RateLimitPolicyEntity">
-        select <include refid="Columns"/> from rate_limit_policies
+        select <include refid="Columns"/> from kb_rate_limit_policies
         where id in
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
@@ -19,12 +19,12 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into rate_limit_policies(policy_code, policy_name, per_second, per_minute, time_window, status, remark)
+        insert into kb_rate_limit_policies(policy_code, policy_name, per_second, per_minute, time_window, status, remark)
         values(#{policyCode}, #{policyName}, #{perSecond}, #{perMinute}, #{timeWindow}, #{status}, #{remark})
     </insert>
 
     <update id="update">
-        update rate_limit_policies
+        update kb_rate_limit_policies
         set policy_name = #{policyName},
             per_second = #{perSecond},
             per_minute = #{perMinute},
@@ -35,6 +35,6 @@
     </update>
 
     <delete id="deleteById">
-        delete from rate_limit_policies where id = #{id}
+        delete from kb_rate_limit_policies where id = #{id}
     </delete>
 </mapper>

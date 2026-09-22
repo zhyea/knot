@@ -4,19 +4,19 @@
 
     <select id="listByUserId" resultType="org.chobit.knot.gateway.entity.UserSettingEntity">
         select id, user_id, setting_key, setting_value, created_at, updated_at
-        from user_settings
+        from ks_user_settings
         where user_id = #{userId}
         order by setting_key asc
     </select>
 
     <select id="getByUserIdAndKey" resultType="org.chobit.knot.gateway.entity.UserSettingEntity">
         select id, user_id, setting_key, setting_value, created_at, updated_at
-        from user_settings
+        from ks_user_settings
         where user_id = #{userId} and setting_key = #{settingKey}
     </select>
 
     <insert id="upsert" useGeneratedKeys="true" keyProperty="id">
-        insert into user_settings(user_id, setting_key, setting_value)
+        insert into ks_user_settings(user_id, setting_key, setting_value)
         values(#{userId}, #{settingKey}, #{settingValue})
         on duplicate key update
             setting_value = values(setting_value),
@@ -24,7 +24,7 @@
     </insert>
 
     <delete id="deleteByUserIdAndKey">
-        delete from user_settings
+        delete from ks_user_settings
         where user_id = #{userId} and setting_key = #{settingKey}
     </delete>
 

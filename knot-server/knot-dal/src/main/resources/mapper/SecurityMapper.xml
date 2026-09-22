@@ -4,17 +4,17 @@
 
     <select id="listPolicies" resultType="org.chobit.knot.gateway.entity.SecurityPolicyEntity">
         select id, policy_code, cast(config_json as char) as config_json, status
-        from security_policies
+        from kb_security_policies
         order by id desc
     </select>
 
     <insert id="insertPolicy">
-        insert into security_policies(policy_type, policy_code, config_json, status)
+        insert into kb_security_policies(policy_type, policy_code, config_json, status)
         values('DEFAULT', #{policyCode}, #{configJson}, #{status})
     </insert>
 
     <update id="updatePolicy">
-        update security_policies
+        update kb_security_policies
         set config_json = #{configJson},
             status = #{status}
         where policy_code = #{policyCode}
@@ -22,23 +22,23 @@
 
     <select id="listAlerts" resultType="org.chobit.knot.gateway.entity.AlertEntity">
         select id, level, title, status
-        from alerts
+        from ks_alerts
         order by id desc
     </select>
 
     <select id="countOpenAlerts" resultType="java.lang.Integer">
-        select count(1) from alerts where status = 'OPEN'
+        select count(1) from ks_alerts where status = 'OPEN'
     </select>
 
     <insert id="upsertCacheEvict">
-        insert into cache_records(cache_key, cache_type, status)
+        insert into ks_cache_records(cache_key, cache_type, status)
         values(#{cacheKey}, #{cacheType}, 'EVICTED')
         on duplicate key update status = 'EVICTED', updated_at = CURRENT_TIMESTAMP
     </insert>
 
     <select id="cacheActiveRatioPercent" resultType="java.lang.Double">
         select round(100.0 * sum(case when status = 'ACTIVE' then 1 else 0 end) / nullif(count(*), 0), 2)
-        from cache_records
+        from ks_cache_records
     </select>
 
 </mapper>

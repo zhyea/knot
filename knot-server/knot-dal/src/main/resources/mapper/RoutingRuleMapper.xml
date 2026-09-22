@@ -11,9 +11,9 @@
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
         select <include refid="RuleSelectColumns"/>
-        from routing_rules r
-        left join apps a on r.app_id = a.id
-        left join users u on r.user_id = u.id and u.is_deleted = 0
+        from kb_routing_rules r
+        left join kb_apps a on r.app_id = a.id
+        left join ks_users u on r.user_id = u.id and u.is_deleted = 0
         <where>
             <if test="keyword != null and keyword != ''">
                 and (
@@ -38,18 +38,18 @@
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
         select <include refid="RuleSelectColumns"/>
-        from routing_rules r
-        left join apps a on r.app_id = a.id
-        left join users u on r.user_id = u.id and u.is_deleted = 0
+        from kb_routing_rules r
+        left join kb_apps a on r.app_id = a.id
+        left join ks_users u on r.user_id = u.id and u.is_deleted = 0
         where r.id = #{id}
     </select>
 
     <select id="listEnabledByConsumerId" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
         select <include refid="RuleSelectColumns"/>
-        from routing_rules r
-        inner join routing_rule_consumers rc on r.id = rc.rule_id
-        left join apps a on r.app_id = a.id
-        left join users u on r.user_id = u.id and u.is_deleted = 0
+        from kb_routing_rules r
+        inner join kb_routing_rule_consumers rc on r.id = rc.rule_id
+        left join kb_apps a on r.app_id = a.id
+        left join ks_users u on r.user_id = u.id and u.is_deleted = 0
         where rc.consumer_id = #{consumerId}
           and r.status = 'ENABLED'
           and rc.status = 'ENABLED'
@@ -58,10 +58,10 @@
 
     <select id="getEnabledByConsumerIdAndRuleCode" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
         select <include refid="RuleSelectColumns"/>
-        from routing_rules r
-        inner join routing_rule_consumers rc on r.id = rc.rule_id
-        left join apps a on r.app_id = a.id
-        left join users u on r.user_id = u.id and u.is_deleted = 0
+        from kb_routing_rules r
+        inner join kb_routing_rule_consumers rc on r.id = rc.rule_id
+        left join kb_apps a on r.app_id = a.id
+        left join ks_users u on r.user_id = u.id and u.is_deleted = 0
         where rc.consumer_id = #{consumerId}
           and r.rule_code = #{ruleCode}
           and r.status = 'ENABLED'
@@ -70,7 +70,7 @@
     </select>
 
     <select id="countByRuleCode" resultType="java.lang.Long">
-        select count(1) from routing_rules
+        select count(1) from kb_routing_rules
         where rule_code = #{ruleCode}
         <if test="excludeId != null">
             and id != #{excludeId}
@@ -78,12 +78,12 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into routing_rules(rule_code, name, app_scenario, model_types, app_id, user_id, fallback_rule_id, status)
+        insert into kb_routing_rules(rule_code, name, app_scenario, model_types, app_id, user_id, fallback_rule_id, status)
         values(#{ruleCode}, #{name}, #{appScenario}, #{modelTypes}, #{appId}, #{userId}, #{fallbackRuleId}, #{status})
     </insert>
 
     <update id="update">
-        update routing_rules
+        update kb_routing_rules
         set rule_code = #{ruleCode},
             name = #{name},
             app_scenario = #{appScenario},
@@ -96,7 +96,7 @@
     </update>
 
     <update id="updateStatus">
-        update routing_rules
+        update kb_routing_rules
         set status = #{status}
         where id = #{id}
     </update>

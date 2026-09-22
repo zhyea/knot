@@ -1,0 +1,55 @@
+﻿# 格式: 旧表名,新表名,域前缀,说明
+# 生成物: 2026-09-21-rename-prefix.sql / -rollback.sql
+# 权威 schema: knot-server/knot-admin/src/main/resources/db/schema.sql
+users,ks_users,ks,平台用户
+departments,ks_departments,ks,组织架构
+user_settings,ks_user_settings,ks,用户个性化配置
+roles,ks_roles,ks,角色
+user_roles,ks_user_roles,ks,用户-角色关联
+sys_modules,ks_modules,ks,功能模块（去掉冗余 sys_）
+sys_menus,ks_menus,ks,菜单
+sys_permissions,ks_permissions,ks,权限点
+sys_role_permissions,ks_role_permissions,ks,角色-权限关联
+sys_api_permission_bindings,ks_api_permission_bindings,ks,接口-权限绑定
+operation_logs,ks_operation_logs,ks,审计操作日志主表
+operation_log_details,ks_operation_log_details,ks,审计日志明细（请求/响应快照）
+scheduled_tasks,ks_scheduled_tasks,ks,定时任务定义
+scheduled_task_runs,ks_scheduled_task_runs,ks,任务执行记录
+enum_categories,ks_enum_categories,ks,字典分类
+enum_configs,ks_enum_configs,ks,字典项
+providers,kb_providers,kb,供应商品牌主数据
+provider_accounts,kb_provider_accounts,kb,供应商账户
+provider_credentials,kb_provider_credentials,kb,账户凭证/密钥
+provider_discount_policies,kb_provider_discount_policies,kb,供应商折扣策略
+models,kb_models,kb,上游物理模型（可调用实例）
+model_pools,kb_model_pools,kb,模型池
+model_pool_items,kb_model_pool_items,kb,模型池成员
+logical_models,kb_logical_models,kb,逻辑模型（对外暴露）
+provider_model_mappings,kb_provider_model_mappings,kb,逻辑模型-物理模型映射
+model_api_bindings,kb_model_api_bindings,kb,模型-上游协议绑定
+apps,kb_apps,kb,接入应用
+app_credentials,kb_app_credentials,kb,应用密钥
+app_model_permissions,kb_app_model_permissions,kb,应用-模型授权
+routing_consumers,kb_routing_consumers,kb,路由消费方
+routing_rules,kb_routing_rules,kb,路由规则
+routing_rule_consumers,kb_routing_rule_consumers,kb,规则-消费方关联
+routing_rule_targets,kb_routing_rule_targets,kb,规则-目标关联
+rate_limit_policies,kb_rate_limit_policies,kb,限流策略
+quota_policies,kb_quota_policies,kb,配额策略
+resource_traffic_policies,kb_resource_traffic_policies,kb,资源-策略绑定
+billing_rules,kb_billing_rules,kb,计费规则
+billing_rule_versions,kb_billing_rule_versions,kb,计费规则版本
+billing_rule_version_items,kb_billing_rule_version_items,kb,计费版本计价项
+security_policies,kb_security_policies,kb,安全策略
+plugin_packages,kb_plugin_packages,kb,插件包
+plugin_capabilities,kb_plugin_capabilities,kb,插件能力
+plugin_instances,kb_plugin_instances,kb,插件实例
+plugin_bindings,kb_plugin_bindings,kb,插件绑定
+plugin_config_versions,kb_plugin_config_versions,kb,插件配置版本
+notification_templates,kb_notification_templates,kb,通知模板
+notification_records,kb_notification_records,kb,通知发送记录
+alerts,ks_alerts,ks,告警（平台级监控，归系统域）
+cache_records,ks_cache_records,ks,缓存登记（平台基础设施，归系统域）
+plugin_execution_logs,kr_plugin_execution_logs,kr,插件执行流水（高频只增，唯一 kr 表）
+external_model_sources,kx_model_sources,kx,外部模型源
+external_model_items,kx_model_items,kx,外部模型条目快照

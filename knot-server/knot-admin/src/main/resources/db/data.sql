@@ -8,43 +8,43 @@
 -- =========================
 
 -- 用户 (password_hash = BCrypt('admin123'))
-INSERT IGNORE INTO users (id, username, password_hash, real_name, dept_id, status) VALUES
+INSERT IGNORE INTO ks_users (id, username, password_hash, real_name, dept_id, status) VALUES
 (1, 'admin', '$2a$10$HUYfxtiEgiRARR/fG46hEeAvcfcQ2WXMPh2NxPw5zkc06fDKeWkxi', '系统管理员', 1, 1),
 (2, 'zhangsan', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '张三', 3, 1),
 (3, 'lisi', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '李四', 2, 1);
 
-UPDATE users SET dept_id = 1 WHERE id = 1 AND dept_id IS NULL;
-UPDATE users SET dept_id = 3 WHERE id = 2 AND dept_id IS NULL;
-UPDATE users SET dept_id = 2 WHERE id = 3 AND dept_id IS NULL;
+UPDATE ks_users SET dept_id = 1 WHERE id = 1 AND dept_id IS NULL;
+UPDATE ks_users SET dept_id = 3 WHERE id = 2 AND dept_id IS NULL;
+UPDATE ks_users SET dept_id = 2 WHERE id = 3 AND dept_id IS NULL;
 
 -- 部门
-INSERT IGNORE INTO departments (id, dept_code, dept_name, parent_id, status, sort_order, remark) VALUES
+INSERT IGNORE INTO ks_departments (id, dept_code, dept_name, parent_id, status, sort_order, remark) VALUES
 (1, 'HQ',  '总部',     NULL, 1, 10, '默认管理部门'),
 (2, 'RND', '研发部',   1,    1, 20, '负责模型与平台研发'),
 (3, 'OPS', '运维部',   1,    1, 30, '负责网关运维与监控');
 
 -- 角色
-INSERT IGNORE INTO roles (id, code, name, description) VALUES
+INSERT IGNORE INTO ks_roles (id, code, name, description) VALUES
 (1, 'ADMIN', '管理员', '系统管理员，拥有全部权限'),
 (2, 'OPERATOR', '运维人员', '负责网关运维监控'),
 (3, 'DEVELOPER', '开发人员', '应用接入开发者');
 
 -- 用户-角色
-INSERT IGNORE INTO user_roles (user_id, role_id) VALUES
+INSERT IGNORE INTO ks_user_roles (user_id, role_id) VALUES
 (1, 1),
 (2, 2),
 (3, 3);
 
-INSERT IGNORE INTO sys_modules (id, module_code, module_name, icon, sort_order, status) VALUES
+INSERT IGNORE INTO ks_modules (id, module_code, module_name, icon, sort_order, status) VALUES
 (1, 'system', '系统管理', 'Setting', 90, 'ENABLED'),
 (2, 'model', '模型管理', 'Box', 20, 'ENABLED'),
 (3, 'routing', '路由管理', 'Share', 30, 'ENABLED'),
 (4, 'billing', '计费管理', 'Coin', 40, 'ENABLED');
 
 -- 系统管理固定排在侧边栏末尾。INSERT IGNORE 不会更新已存在的行，故追加 UPDATE 保证存量库生效。
-UPDATE sys_modules SET sort_order = 90 WHERE module_code = 'system';
+UPDATE ks_modules SET sort_order = 90 WHERE module_code = 'system';
 
-INSERT IGNORE INTO sys_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
+INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
 (1, 1, NULL, 'system.users', '用户管理', '/system/users', 'system/UserManageView', 'User', 10, 'ENABLED'),
 (2, 1, NULL, 'system.departments', '部门管理', '/system/departments', 'system/DepartmentManageView', 'OfficeBuilding', 20, 'ENABLED'),
 (3, 1, NULL, 'system.role-authorizations', '角色授权', '/system/role-authorizations', 'system/RoleAuthorizationManageView', 'Lock', 30, 'ENABLED'),
@@ -56,7 +56,7 @@ INSERT IGNORE INTO sys_menus (id, module_id, parent_id, menu_code, menu_name, ro
 (17, 1, NULL, 'system.apps', '应用管理', '/apps', 'AppManageView', 'Grid', 90, 'ENABLED'),
 (18, 1, NULL, 'system.authorization-resources', '授权资源', '/system/authorization-resources', 'system/AuthorizationResourceManageView', 'Lock', 35, 'ENABLED');
 
-INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
+INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
 (1, 'system:user:page', '用户管理页面访问', 'PAGE', 1, 1, 'ENABLED', 1, NULL),
 (2, 'system:user:view', '查看用户', 'API', 1, 1, 'ENABLED', 1, NULL),
 (3, 'system:user:create', '创建用户', 'API', 1, 1, 'ENABLED', 1, NULL),
@@ -104,20 +104,20 @@ INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permis
 (54, 'system:authz:api-binding:delete', '删除 API 权限绑定', 'API', 1, 18, 'ENABLED', 1, NULL),
 (55, 'system:authorization-resource:page', '授权资源页面访问', 'PAGE', 1, 18, 'ENABLED', 1, NULL);
 
-INSERT IGNORE INTO sys_role_permissions (role_id, permission_id)
-SELECT 1, id FROM sys_permissions;
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id)
+SELECT 1, id FROM ks_permissions;
 
-INSERT IGNORE INTO sys_role_permissions (role_id, permission_id) VALUES
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (2, 1),(2, 2),(2, 6),(2, 7),(2, 14),(2, 15),(2, 16),(2, 17),
 (3, 14),(3, 15),(3, 16),(3, 17);
 
-INSERT IGNORE INTO sys_role_permissions (role_id, permission_id) VALUES
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (2, 27),(2, 28),(2, 29),(2, 30),(2, 31),(2, 32),(2, 33),(2, 34),
 (2, 35),(2, 36),(2, 37),(2, 38),(2, 39),(2, 40),(2, 41),(2, 42),
 (2, 43),(2, 44),(2, 45),(2, 46),(2, 47),(2, 48),(2, 49),(2, 50),
 (2, 51),(2, 52),(2, 53),(2, 54),(2, 55);
 
-INSERT IGNORE INTO sys_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
+INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
 (1, 2, 'POST', '/api/users', 'UserController', 'ENABLED'),
 (2, 3, 'POST', '/api/users/create', 'UserController', 'ENABLED'),
 (3, 5, 'PUT', '/api/users/{id}/status', 'UserController', 'ENABLED'),
@@ -132,14 +132,14 @@ INSERT IGNORE INTO sys_api_permission_bindings (id, permission_id, http_method, 
 (12, 15, 'POST', '/api/system/operation-logs', 'SystemController', 'ENABLED'),
 (13, 15, 'POST', '/api/system/operation-logs/{id}', 'SystemController', 'ENABLED');
 
-INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
+INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
 (18, 'system:settings:view', '查看当前用户设置与授权信息', 'API', 1, 5, 'ENABLED', 1, NULL);
 
-INSERT IGNORE INTO sys_role_permissions (role_id, permission_id) VALUES
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (2, 18),
 (3, 18);
 
-INSERT IGNORE INTO sys_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
+INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
 (14, 18, 'GET', '/api/user-settings/me', 'UserSettingController', 'ENABLED'),
 (15, 17, 'PUT', '/api/user-settings/me', 'UserSettingController', 'ENABLED'),
 (16, 18, 'GET', '/api/me/authorizations', 'CurrentUserController', 'ENABLED'),
@@ -180,7 +180,7 @@ INSERT IGNORE INTO sys_api_permission_bindings (id, permission_id, http_method, 
 (51, 49, 'PUT', '/api/system/authorizations/permissions/{id}/status', 'AuthorizationPermissionController', 'ENABLED'),
 (52, 53, 'PUT', '/api/system/authorizations/api-bindings/{id}/status', 'AuthorizationApiBindingController', 'ENABLED');
 
-UPDATE sys_menus
+UPDATE ks_menus
 SET menu_code = 'system.role-authorizations',
     menu_name = '角色授权',
     route_path = '/system/role-authorizations',
@@ -189,28 +189,28 @@ SET menu_code = 'system.role-authorizations',
     updated_at = NOW()
 WHERE id = 3;
 
-INSERT IGNORE INTO sys_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status)
+INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status)
 VALUES (18, 1, NULL, 'system.authorization-resources', '授权资源', '/system/authorization-resources', 'system/AuthorizationResourceManageView', 'Lock', 35, 'ENABLED');
 
-UPDATE sys_permissions
+UPDATE ks_permissions
 SET permission_code = 'system:role-authorization:page',
     permission_name = '角色授权页面访问',
     menu_id = 3
 WHERE id = 12;
 
-INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark)
+INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark)
 VALUES (55, 'system:authorization-resource:page', '授权资源页面访问', 'PAGE', 1, 18, 'ENABLED', 1, NULL);
 
-UPDATE sys_permissions
+UPDATE ks_permissions
 SET menu_id = 18
 WHERE id IN (39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54);
 
-INSERT IGNORE INTO sys_role_permissions (role_id, permission_id)
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id)
 SELECT role_id, 55
-FROM sys_role_permissions
+FROM ks_role_permissions
 WHERE permission_id = 12;
 
-INSERT IGNORE INTO sys_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
+INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
 (6, 2, NULL, 'model.providers', '供应商', '/providers', 'ProviderManageView', 'Connection', 30, 'ENABLED'),
 (7, 2, NULL, 'model.models', '供应商模型', '/model-management/models', 'ModelManageView', 'Cpu', 20, 'ENABLED'),
 (8, 2, NULL, 'model.model-pools', '模型池', '/model-management/model-pools', 'ModelPoolManageView', 'Cpu', 10, 'ENABLED'),
@@ -221,10 +221,10 @@ INSERT IGNORE INTO sys_menus (id, module_id, parent_id, menu_code, menu_name, ro
 (13, 4, NULL, 'billing.rules', '计费规则', '/billing/rules', 'billing/BillingRuleView', 'Coin', 10, 'ENABLED');
 
 -- “模型广场”更名为“统一模型”。同理追加 UPDATE 保证存量库生效。
-UPDATE sys_menus SET menu_name = '统一模型' WHERE menu_code = 'model.logical-models';
-UPDATE sys_permissions SET permission_name = '统一模型页面访问' WHERE permission_code = 'model:logical-model:page';
+UPDATE ks_menus SET menu_name = '统一模型' WHERE menu_code = 'model.logical-models';
+UPDATE ks_permissions SET permission_name = '统一模型页面访问' WHERE permission_code = 'model:logical-model:page';
 
-INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
+INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
 (19, 'model:provider:page', '供应商页面访问', 'PAGE', 2, 6, 'ENABLED', 1, NULL),
 (20, 'model:model:page', '供应商模型页面访问', 'PAGE', 2, 7, 'ENABLED', 1, NULL),
 (21, 'model:model-pool:page', '模型池页面访问', 'PAGE', 2, 8, 'ENABLED', 1, NULL),
@@ -234,7 +234,7 @@ INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permis
 (25, 'routing:consumer:page', '消费者页面访问', 'PAGE', 3, 12, 'ENABLED', 1, NULL),
 (26, 'billing:rule:page', '计费规则页面访问', 'PAGE', 4, 13, 'ENABLED', 1, NULL);
 
-INSERT IGNORE INTO sys_role_permissions (role_id, permission_id) VALUES
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (2, 19),(2, 20),(2, 21),(2, 22),(2, 23),(2, 24),(2, 25),(2, 26),
 (3, 19),(3, 20),(3, 21),(3, 22),(3, 23),(3, 24),(3, 25),(3, 26);
 
@@ -243,28 +243,38 @@ INSERT IGNORE INTO sys_role_permissions (role_id, permission_id) VALUES
 -- =========================
 
 -- 供应商
-INSERT IGNORE INTO providers (id, code, name, provider_type, status) VALUES
-(1, 'openai',       'OpenAI',       'OPENAI',   'ENABLED'),
-(2, 'anthropic',    'Anthropic',    'ANTHROPIC','ENABLED'),
-(3, 'deepseek',     'DeepSeek',     'DEEPSEEK', 'ENABLED'),
-(4, 'qwen',         'Qwen',         'QWEN',     'ENABLED');
+-- 供应商信息 = 供应商类型的主数据（供应商账户的 provider_type 取值来源）
+-- tag 语义为供应商分类：原厂 / 云厂商 / 代理
+INSERT IGNORE INTO kb_providers (id, code, name, tag) VALUES
+(1, 'openai',       'OpenAI',       '原厂'),
+(2, 'anthropic',    'Anthropic',    '原厂'),
+(3, 'deepseek',     'DeepSeek',     '原厂'),
+(4, 'qwen',         'Qwen',         '原厂'),
+(5, 'zhipu',        'Zhipu',        '原厂'),
+(6, 'openrouter',   'OpenRouter',   '云厂商');
+
+INSERT IGNORE INTO kb_provider_accounts (id, provider_id, code, name, provider_type, status) VALUES
+(1, 1, 'openai-default',    'OpenAI Default',    'OPENAI',    'ENABLED'),
+(2, 2, 'anthropic-default', 'Anthropic Default', 'ANTHROPIC', 'ENABLED'),
+(3, 3, 'deepseek-default',  'DeepSeek Default',  'DEEPSEEK',  'ENABLED'),
+(4, 4, 'qwen-default',      'Qwen Default',      'QWEN',      'ENABLED');
 
 -- 频控/额度策略（独立表 + 资源绑定）
-INSERT IGNORE INTO rate_limit_policies (id, policy_code, policy_name, per_second, per_minute, time_window, status) VALUES
+INSERT IGNORE INTO kb_rate_limit_policies (id, policy_code, policy_name, per_second, per_minute, time_window, status) VALUES
 (1, 'PROVIDER-1-RL', 'PROVIDER #1 频控', 100, 5000, 'MINUTE', 'ACTIVE'),
 (2, 'PROVIDER-2-RL', 'PROVIDER #2 频控', 50,  2000, 'MINUTE', 'ACTIVE'),
 (3, 'PROVIDER-3-RL', 'PROVIDER #3 频控', 30,  1000, 'MINUTE', 'ACTIVE'),
 (4, 'APP-1-RL',      'APP #1 频控',      10,  600,  'MINUTE', 'ACTIVE'),
 (5, 'APP-2-RL',      'APP #2 频控',      5,   300,  'MINUTE', 'ACTIVE');
 
-INSERT IGNORE INTO quota_policies (id, policy_code, policy_name, daily_limit, monthly_limit, token_limit, alert_enabled, status) VALUES
+INSERT IGNORE INTO kb_quota_policies (id, policy_code, policy_name, daily_limit, monthly_limit, token_limit, alert_enabled, status) VALUES
 (1, 'PROVIDER-1-QT', 'PROVIDER #1 额度', 1000000, 30000000, 500000000, 1, 'ACTIVE'),
 (2, 'PROVIDER-2-QT', 'PROVIDER #2 额度', 500000,  15000000, 200000000, 1, 'ACTIVE'),
 (3, 'PROVIDER-3-QT', 'PROVIDER #3 额度', 200000,  6000000,  100000000, 0, 'ACTIVE'),
 (4, 'APP-1-QT',      'APP #1 额度',      10000,   300000,   5000000,   1, 'ACTIVE'),
 (5, 'APP-2-QT',      'APP #2 额度',      5000,    150000,   2000000,   1, 'ACTIVE');
 
-INSERT IGNORE INTO resource_traffic_policies (id, resource_type, resource_id, rate_limit_policy_id, quota_policy_id) VALUES
+INSERT IGNORE INTO kb_resource_traffic_policies (id, resource_type, resource_id, rate_limit_policy_id, quota_policy_id) VALUES
 (1, 'PROVIDER', 1, 1, 1),
 (2, 'PROVIDER', 2, 2, 2),
 (3, 'PROVIDER', 3, 3, 3),
@@ -273,19 +283,19 @@ INSERT IGNORE INTO resource_traffic_policies (id, resource_type, resource_id, ra
 (5, 'APP',      2, 5, 5);
 
 -- 供应商凭证（encrypted_key 等为 AES-GCM 密文，前缀 ENC:；开发密钥见 application.yml knot.credential.encryption-key）
-INSERT IGNORE INTO provider_credentials (id, provider_id, credential_type, encrypted_key, status) VALUES
+INSERT IGNORE INTO kb_provider_credentials (id, provider_account_id, credential_type, encrypted_key, status) VALUES
 (1, 1, 'API_KEY', 'ENC:I093hp4rWvI0txMTx5d+MwVbdLU8NQ/9X1J6r33Y3gJwGT2slww78nJbasZjfOfD', 'ACTIVE'),
 (2, 2, 'API_KEY', 'ENC:RnptV2Rw7zw4QCm4qHUba0qKaxKQfsv6l3aymW/XfF3j0Fs/k02352ew7lE/tcRyax5/', 'ACTIVE'),
 (3, 3, 'API_KEY', 'ENC:mFDjmYE5M54d8MWNXUcTQS9Ngk7+dv3YDuH6o0x8hv6rehtmM9I38RJUeGrpc0zF4Tw=', 'ACTIVE');
 
 -- 供应商折扣策略
-INSERT IGNORE INTO provider_discount_policies (id, provider_id, policy_name, scope_type, scope_ref_id, discount_type, discount_value, priority, effective_from, status) VALUES
+INSERT IGNORE INTO kb_provider_discount_policies (id, provider_account_id, policy_name, scope_type, scope_ref_id, discount_type, discount_value, priority, effective_from, status) VALUES
 (1, 1, '新用户9折',   'GLOBAL',   NULL, 'PERCENTAGE', 0.9000, 100, NOW(), 'ACTIVE'),
 (2, 2, '企业客户8折', 'GLOBAL',   NULL, 'PERCENTAGE', 0.8000, 90,  NOW(), 'ACTIVE'),
 (3, 3, '直减5元',     'GLOBAL',   NULL, 'FIXED',      5.0000, 100, NOW(), 'ACTIVE');
 
 -- 模型
-INSERT IGNORE INTO models (id, provider_id, model_code, name, model_type, version, base_url, status) VALUES
+INSERT IGNORE INTO kb_models (id, provider_account_id, model_code, name, model_type, version, base_url, status) VALUES
 (1,  1, 'gpt-4o',            'GPT-4o',            'CHAT',   '2024-08-06', 'https://api.openai.com', 'ENABLED'),
 (2,  1, 'gpt-4o-mini',       'GPT-4o Mini',       'CHAT',   '2024-07-18', 'https://api.openai.com', 'ENABLED'),
 (3,  1, 'text-embedding-3-large','Text Embedding 3 Large','EMBEDDING','2024-01-01','https://api.openai.com','ENABLED'),
@@ -297,17 +307,17 @@ INSERT IGNORE INTO models (id, provider_id, model_code, name, model_type, versio
 (9,  4, 'qwen-image-edit',   'Qwen Image Edit',   'IMAGE',  '2025-08-01', 'https://dashscope.aliyuncs.com', 'ENABLED'),
 (10, 1, 'gpt-image-1',       'GPT Image 1',       'IMAGE',  '2025-04-01', 'https://api.openai.com', 'ENABLED');
 
-INSERT IGNORE INTO model_pools (id, pool_code, name, model_type, selection_strategy, status, remark) VALUES
+INSERT IGNORE INTO kb_model_pools (id, pool_code, name, model_type, selection_strategy, status, remark) VALUES
 (1, 'chat-premium-pool', 'Premium Chat Pool', 'CHAT', 'WEIGHTED', 'ENABLED', 'Premium chat routing pool'),
 (2, 'chat-economy-pool', 'Economy Chat Pool', 'CHAT', 'WEIGHTED', 'ENABLED', 'Economy chat routing pool');
 
-INSERT IGNORE INTO model_pool_items (id, pool_id, model_id, weight, priority, status) VALUES
+INSERT IGNORE INTO kb_model_pool_items (id, pool_id, model_id, weight, priority, status) VALUES
 (1, 1, 1, 70, 10, 'ENABLED'),
 (2, 1, 4, 30, 20, 'ENABLED'),
 (3, 2, 2, 60, 10, 'ENABLED'),
 (4, 2, 6, 40, 20, 'ENABLED');
 
-INSERT IGNORE INTO logical_models (
+INSERT IGNORE INTO kb_logical_models (
   id, model_code, model_name, model_type, model_family, version, display_name, tagline, description,
   tags_json, use_cases_json, capabilities_json, context_window, max_output_tokens,
   input_modalities_json, output_modalities_json, languages_json,
@@ -331,22 +341,22 @@ INSERT IGNORE INTO logical_models (
  128000, 4096, JSON_ARRAY('text'), JSON_ARRAY('text'), JSON_ARRAY('zh-CN', 'en-US'),
  'PUBLIC', 'PUBLISHED', 'ENABLED', 20, 0, 'MEDIUM', 'LOW', 'LOW', 'Economy provider route');
 
-INSERT IGNORE INTO provider_model_mappings (
-  id, logical_model_id, provider_id, model_id, provider_model_name, status, priority
+INSERT IGNORE INTO kb_provider_model_mappings (
+  id, logical_model_id, provider_account_id, model_id, provider_model_name, status, priority
 ) VALUES
 (1, 1, 1, 1, 'gpt-4o', 'ENABLED', 10),
 (2, 1, 2, 4, 'claude-sonnet-4-20250514', 'ENABLED', 20),
 (3, 2, 1, 2, 'gpt-4o-mini', 'ENABLED', 10),
 (4, 2, 3, 6, 'deepseek-chat', 'ENABLED', 20);
 
-INSERT IGNORE INTO external_model_sources (
+INSERT IGNORE INTO kx_model_sources (
   id, source_code, source_name, source_url, api_url, source_type, status
 ) VALUES
 (1, 'OPENROUTER', 'OpenRouter Models', 'https://openrouter.ai/models',
  'https://openrouter.ai/api/v1/models', 'MODEL_CATALOG', 'ENABLED');
 
 -- 模型 API 协议绑定（usage_extractor 为 Usage 解析器编码或类名）
-INSERT IGNORE INTO model_api_bindings (id, model_id, protocol, api_path, request_adapter, usage_extractor, status, remark) VALUES
+INSERT IGNORE INTO kb_model_api_bindings (id, model_id, protocol, api_path, request_adapter, usage_extractor, status, remark) VALUES
 (1, 1, 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT', 'ENABLED', 'GPT-4o Chat Completions'),
 (2, 2, 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT', 'ENABLED', 'GPT-4o Mini Chat Completions'),
 (3, 4, 'MESSAGES', '/v1/messages', 'ANTHROPIC', 'ANTHROPIC', 'ENABLED', 'Claude Sonnet Messages API'),
@@ -361,19 +371,19 @@ INSERT IGNORE INTO model_api_bindings (id, model_id, protocol, api_path, request
 -- =========================
 
 -- 应用
-INSERT IGNORE INTO apps (id, app_id, name, dept_id, owner_user_id, remark, status) VALUES
+INSERT IGNORE INTO kb_apps (id, app_id, name, dept_id, owner_user_id, remark, status) VALUES
 (1, 'app_001', '内部知识库助手',   1, 1, '面向内部员工的知识检索与问答', 'ENABLED'),
 (2, 'app_002', '客服对话系统',     3, 2, '对外客服场景的对话接入',       'ENABLED'),
 (3, 'app_003', '代码审查工具',     2, 3, '研发流程中的代码审查辅助',     'ENABLED');
 
 -- 应用凭证
-INSERT IGNORE INTO app_credentials (id, app_id, app_key, app_secret_hash, status) VALUES
+INSERT IGNORE INTO kb_app_credentials (id, app_id, app_key, app_secret_hash, status) VALUES
 (1, 1, 'knot_pk_001', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ACTIVE'),
 (2, 2, 'knot_pk_002', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ACTIVE'),
 (3, 3, 'knot_pk_003', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ACTIVE');
 
 -- 应用-模型权限
-INSERT IGNORE INTO app_model_permissions (app_id, model_id) VALUES
+INSERT IGNORE INTO kb_app_model_permissions (app_id, model_id) VALUES
 (1,1),(1,2),(1,4),(1,6),(1,10),
 (2,1),(2,2),(2,4),(2,5),(2,10),
 (3,1),(3,2),(3,6),(3,7),(3,10);
@@ -382,22 +392,22 @@ INSERT IGNORE INTO app_model_permissions (app_id, model_id) VALUES
 -- 路由规则
 -- =========================
 
-INSERT IGNORE INTO routing_consumers (id, consumer_code, name, user_id, secret_key, return_usage_detail, status) VALUES
+INSERT IGNORE INTO kb_routing_consumers (id, consumer_code, name, user_id, secret_key, return_usage_detail, status) VALUES
 (1, 'consumer-internal-kb', '内部知识库助手消费者', 1, 'sk-demo-gpt4o-routing-key-001', 0, 'ENABLED'),
 (2, 'consumer-research',    '模型评测消费者',       1, 'sk-demo-claude-routing-key-002', 0, 'ENABLED'),
 (3, 'consumer-cs',          '客服系统消费者',       2, 'sk-demo-deepseek-routing-key-003', 0, 'ENABLED');
 
-INSERT IGNORE INTO routing_rules (id, rule_code, name, app_scenario, model_types, app_id, user_id, status) VALUES
+INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, model_types, app_id, user_id, status) VALUES
 (1, 'gpt4o-default',    'GPT-4o默认路由',    '知识库问答', 'CHAT', 1, 1, 'ENABLED'),
 (2, 'claude-default',   'Claude默认路由',    '模型评测',   'CHAT', 1, 1, 'ENABLED'),
 (3, 'deepseek-lowcost', 'DeepSeek低成本路由', '客服对话',   'CHAT', 2, 2, 'ENABLED');
 
-INSERT IGNORE INTO routing_rule_consumers (id, rule_id, consumer_id) VALUES
+INSERT IGNORE INTO kb_routing_rule_consumers (id, rule_id, consumer_id) VALUES
 (1, 1, 1),
 (2, 2, 2),
 (3, 3, 3);
 
-INSERT IGNORE INTO routing_rule_targets (id, rule_id, target_type, target_id, priority, is_primary) VALUES
+INSERT IGNORE INTO kb_routing_rule_targets (id, rule_id, target_type, target_id, priority, is_primary) VALUES
 (1, 1, 'MODEL_POOL', 1, 100, 1),
 (2, 1, 'MODEL',      2, 90,  0),
 (3, 2, 'MODEL',      4, 100, 1),
@@ -407,32 +417,32 @@ INSERT IGNORE INTO routing_rule_targets (id, rule_id, target_type, target_id, pr
 -- 计费规则
 -- =========================
 
-INSERT IGNORE INTO billing_rules (id, code, name, provider_id, logical_model_id, current_version_id, status) VALUES
+INSERT IGNORE INTO kb_billing_rules (id, code, name, provider_account_id, logical_model_id, current_version_id, status) VALUES
 (1, 'TOKEN_GPT4O',      'GPT-4o Token计费',        1, 1, 1, 'ACTIVE'),
 (2, 'TOKEN_GPT4O_MINI', 'GPT-4o Mini Token计费',   1, 2, 2, 'ACTIVE'),
 (3, 'TOKEN_CLAUDE_S4',  'Claude Sonnet 4 Token计费',2, 3, 3, 'ACTIVE'),
 (4, 'TOKEN_DEEPSEEK',   'DeepSeek Chat Token计费', 3, 4, 4, 'ACTIVE'),
 (5, 'EMBEDDING',        'Embedding 计费',          NULL, NULL, 5, 'ACTIVE');
 
-INSERT IGNORE INTO billing_rule_versions (id, rule_id, version_no, billing_mode, currency, status, effective_from) VALUES
+INSERT IGNORE INTO kb_billing_rule_versions (id, rule_id, version_no, billing_mode, currency, status, effective_from) VALUES
 (1, 1, 1, 'TOKEN', 'USD', 'ACTIVE', NOW()),
 (2, 2, 1, 'TOKEN', 'USD', 'ACTIVE', NOW()),
 (3, 3, 1, 'TOKEN', 'USD', 'ACTIVE', NOW()),
 (4, 4, 1, 'TOKEN', 'USD', 'ACTIVE', NOW()),
 (5, 5, 1, 'EMBEDDING', 'USD', 'ACTIVE', NOW());
 
-INSERT IGNORE INTO billing_rule_version_items (id, version_id, item_type, unit, unit_size, unit_price) VALUES
+INSERT IGNORE INTO kb_billing_rule_version_items (id, version_id, item_type, unit, unit_size, unit_price) VALUES
 (1, 1, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.005000),
 (2, 2, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.000150),
 (3, 3, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.003000),
 (4, 4, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.000140),
 (5, 5, 'EMBEDDING_TOKEN', '1K_TOKENS', 1000, 0.000130);
 
-UPDATE billing_rule_versions bv
-INNER JOIN billing_rules br ON br.id = bv.rule_id
-INNER JOIN billing_rule_version_items bvi ON bvi.version_id = bv.id
+UPDATE kb_billing_rule_versions bv
+INNER JOIN kb_billing_rules br ON br.id = bv.rule_id
+INNER JOIN kb_billing_rule_version_items bvi ON bvi.version_id = bv.id
 SET bv.version_code = MD5(JSON_OBJECT(
-  'providerId', br.provider_id,
+  'providerId', br.provider_account_id,
   'logicalModelId', br.logical_model_id,
   'billingMode', bv.billing_mode,
   'currency', bv.currency,
@@ -448,13 +458,13 @@ WHERE bv.version_code IS NULL;
 -- 安全与监控
 -- =========================
 
-INSERT IGNORE INTO security_policies (id, policy_type, policy_code, config_json, status) VALUES
+INSERT IGNORE INTO kb_security_policies (id, policy_type, policy_code, config_json, status) VALUES
 (1, 'RATE_LIMIT', 'GLOBAL_RATE_LIMIT',   '{"maxRps":1000,"maxRpm":60000}',       'ENABLED'),
 (2, 'IP_FILTER',  'GLOBAL_IP_WHITELIST', '{"mode":"whitelist","ips":["10.0.0.0/8","172.16.0.0/12","192.168.0.0/16"]}', 'ENABLED'),
 (3, 'CONTENT',    'CONTENT_FILTER',      '{"enabled":true,"categories":["violence","hate"]}', 'ENABLED');
 
 -- 告警
-INSERT IGNORE INTO alerts (id, alert_type, level, title, status) VALUES
+INSERT IGNORE INTO ks_alerts (id, alert_type, level, title, status) VALUES
 (1, 'QUOTA',  'WARN',  'OpenAI日配额已达80%',    'OPEN'),
 (2, 'ERROR',  'ERROR', 'DeepSeek连续5分钟超时率>5%', 'OPEN'),
 (3, 'AUTH',   'INFO',  'app_002凭证即将过期',    'RESOLVED');
@@ -465,7 +475,7 @@ INSERT IGNORE INTO alerts (id, alert_type, level, title, status) VALUES
 
 -- 网关节点
 -- 备份任务
-INSERT IGNORE INTO scheduled_tasks (
+INSERT IGNORE INTO ks_scheduled_tasks (
   id, task_code, task_name, handler_code, cron_expression, execution_mode, status, description
 ) VALUES
 (1, 'operation-log-retention', '操作日志保留清理', 'OPERATION_LOG_RETENTION', '0 0 3 * * ?', 'SINGLE', 'ENABLED', '操作日志最多保留三个月'),
@@ -473,7 +483,7 @@ INSERT IGNORE INTO scheduled_tasks (
 (3, 'openrouter-model-sync', 'OpenRouter 模型同步', 'OPENROUTER_MODEL_SYNC', '0 0 4 * * ?', 'SINGLE', 'DISABLED', '同步 OpenRouter 模型到外部模型库');
 
 -- 插件
-INSERT IGNORE INTO plugin_packages (
+INSERT IGNORE INTO kb_plugin_packages (
   id, plugin_code, plugin_name, version, source_type, entrypoint, manifest_json, status
 ) VALUES
 (1, 'builtin-gateway-audit', '网关请求响应审计插件', '1.0.0', 'BUILTIN', 'org.chobit.knot.gateway.plugin.builtin.GatewayRequestLoggingPlugin',
@@ -481,7 +491,7 @@ INSERT IGNORE INTO plugin_packages (
 (2, 'builtin-provider-audit', '上游请求响应审计插件', '1.0.0', 'BUILTIN', 'org.chobit.knot.gateway.plugin.builtin.UpstreamRequestLoggingPlugin',
  JSON_OBJECT('pluginId', 'builtin-provider-audit', 'extensionPoint', 'UPSTREAM_EXCHANGE'), 'ACTIVE');
 
-INSERT IGNORE INTO plugin_capabilities (
+INSERT IGNORE INTO kb_plugin_capabilities (
   id, package_id, capability_code, capability_name, extension_point, stage_code, order_hint, status
 ) VALUES
 (1, 1, 'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_REQUEST', 100, 'ACTIVE'),
@@ -491,7 +501,7 @@ INSERT IGNORE INTO plugin_capabilities (
 (5, 2, 'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_RESPONSE', 100, 'ACTIVE'),
 (6, 2, 'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_ERROR', 100, 'ACTIVE');
 
-INSERT IGNORE INTO plugin_instances (
+INSERT IGNORE INTO kb_plugin_instances (
   id, package_id, capability_id, instance_code, instance_name, config_json, status, fail_mode, timeout_ms, concurrency_limit
 ) VALUES
 (1, 1, 1, 'gateway-request-log', '网关请求日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
@@ -501,7 +511,7 @@ INSERT IGNORE INTO plugin_instances (
 (5, 2, 5, 'provider-response-log', '上游响应日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
 (6, 2, 6, 'provider-error-log', '上游异常日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0);
 
-INSERT IGNORE INTO plugin_bindings (
+INSERT IGNORE INTO kb_plugin_bindings (
   id, instance_id, scope_type, scope_ref_id, stage_code, order_no, status, binding_config_json
 ) VALUES
 (1, 1, 'GLOBAL', NULL, 'GATEWAY_REQUEST', 100, 'ACTIVE', JSON_OBJECT('maskApiKey', true)),
@@ -511,7 +521,7 @@ INSERT IGNORE INTO plugin_bindings (
 (5, 5, 'GLOBAL', NULL, 'UPSTREAM_RESPONSE', 100, 'ACTIVE', JSON_OBJECT()),
 (6, 6, 'GLOBAL', NULL, 'UPSTREAM_ERROR', 100, 'ACTIVE', JSON_OBJECT());
 
-INSERT IGNORE INTO plugin_config_versions (
+INSERT IGNORE INTO kb_plugin_config_versions (
   id, instance_id, version_no, version_code, config_json, operator_id
 ) VALUES
 (1, 1, 1, MD5('gateway-request-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
@@ -522,13 +532,13 @@ INSERT IGNORE INTO plugin_config_versions (
 (6, 6, 1, MD5('provider-error-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1);
 
 -- 通知模板
-INSERT IGNORE INTO notification_templates (id, code, name, channel, title_tpl, content_tpl, status) VALUES
+INSERT IGNORE INTO kb_notification_templates (id, code, name, channel, title_tpl, content_tpl, status) VALUES
 (1, 'QUOTA_ALERT',    '配额告警',   'EMAIL', '配额告警: {{appName}}',   '应用 {{appName}} 的配额已使用 {{percent}}%，请及时处理。', 'ACTIVE'),
 (2, 'ERROR_ALERT',    '异常告警',   'EMAIL', '异常告警: {{providerName}}','供应商 {{providerName}} 错误率超过阈值，当前 {{errorRate}}%。', 'ACTIVE'),
 (3, 'CREDENTIAL_EXPIRE','凭证过期提醒','EMAIL','凭证即将过期: {{providerName}}','供应商 {{providerName}} 的 API Key 将在 {{expireDate}} 过期。', 'ACTIVE');
 
--- 枚举分类（与 enum_configs.category_id 对应；is_system=1 表示系统内置分类）
-INSERT IGNORE INTO enum_categories (id, category, category_name, is_system, is_enabled) VALUES
+-- 枚举分类（与 ks_enum_configs.category_id 对应；is_system=1 表示系统内置分类）
+INSERT IGNORE INTO ks_enum_categories (id, category, category_name, is_system, is_enabled) VALUES
 (1, 'provider_type', '供应商类型', 0, 1),
 (2, 'model_type', '模型类型', 0, 1),
 (3, 'app_type', '应用类型', 0, 1),
@@ -555,12 +565,12 @@ INSERT IGNORE INTO enum_categories (id, category, category_name, is_system, is_e
 (22, 'model_api_protocol', '模型接口类型', 0, 1),
 (23, 'model_pool_selection_strategy', '模型池选择策略', 1, 1);
 
--- 枚举配置（category_id 关联 enum_categories.id；是否系统内置由分类决定）
-INSERT IGNORE INTO enum_categories (id, category, category_name, is_system, is_enabled) VALUES
+-- 枚举配置（category_id 关联 ks_enum_categories.id；是否系统内置由分类决定）
+INSERT IGNORE INTO ks_enum_categories (id, category, category_name, is_system, is_enabled) VALUES
 (9, 'billing_currency', '计费币种', 0, 1),
 (21, 'billing_item_type', '计费价格项', 0, 1);
 
-INSERT IGNORE INTO enum_configs (category_id, item_code, item_label, sort_order, is_enabled) VALUES
+INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_order, is_enabled) VALUES
 (7, 'TOKEN',          'Token', 1, 1),
 (7, 'REQUEST',        '请求', 2, 1),
 (7, 'IMAGE',          '图片', 3, 1),
@@ -703,32 +713,84 @@ INSERT IGNORE INTO enum_configs (category_id, item_code, item_label, sort_order,
 (20, 'MEDIUM',    '中',       2, 1),
 (20, 'HIGH',      '高',       3, 1);
 
-UPDATE sys_menus
+UPDATE ks_menus
 SET menu_name = '供应商',
     route_path = '/model-management/providers',
     sort_order = 30,
     updated_at = NOW()
 WHERE id = 6;
 
-UPDATE sys_menus
+UPDATE ks_menus
 SET sort_order = 20,
     updated_at = NOW()
 WHERE id = 7;
 
-UPDATE sys_menus
+UPDATE ks_menus
 SET sort_order = 10,
     updated_at = NOW()
 WHERE id = 8;
 
-UPDATE sys_permissions
+UPDATE ks_permissions
 SET permission_name = '供应商页面访问'
 WHERE id = 19;
 
-INSERT IGNORE INTO sys_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
+INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
 (56, 'system:user:reset-password', '重置用户密码', 'API', 1, 1, 'ENABLED', 1, NULL);
 
-INSERT IGNORE INTO sys_role_permissions (role_id, permission_id) VALUES
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (1, 56);
 
-INSERT IGNORE INTO sys_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
+INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
 (53, 56, 'PUT', '/api/users/{id}/reset-password', 'UserController', 'ENABLED');
+
+-- =========================
+-- 供应商账户 / 供应商信息 拆分为两个子菜单（幂等）
+-- =========================
+-- 原「供应商」菜单承载的是 kb_provider_accounts（账户），更名为「供应商账户」并对齐路由
+UPDATE ks_menus
+SET menu_name = '供应商账户',
+    route_path = '/model-management/provider-accounts',
+    updated_at = NOW()
+WHERE menu_code = 'model.providers';
+
+UPDATE ks_permissions
+SET permission_name = '供应商账户页面访问'
+WHERE id = 19;
+
+-- 新增「供应商信息」菜单：对应 kb_providers（品牌主数据）/api/provider-profiles
+INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
+(19, 2, NULL, 'model.provider-profiles', '供应商信息', '/model-management/provider-profiles', 'ProviderProfileManageView', 'Connection', 60, 'ENABLED');
+
+INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
+(57, 'model:provider-profile:page', '供应商信息页面访问', 'PAGE', 2, 19, 'ENABLED', 1, NULL);
+
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
+(1, 57), (2, 57), (3, 57);
+
+-- 「供应商信息」排在「外部模型」（sort_order=50）之下
+UPDATE ks_menus
+SET sort_order = 60,
+    updated_at = NOW()
+WHERE menu_code = 'model.provider-profiles';
+
+-- =========================
+-- 供应商类型改由 kb_providers（供应商信息）维护，停用枚举分类 provider_type
+-- =========================
+-- 存量库修正：tag 原先误存为 OPENAI/ANTHROPIC 等协议码，回归「原厂/云厂商/代理」语义
+UPDATE kb_providers SET tag = '原厂' WHERE code IN ('openai', 'anthropic', 'deepseek', 'qwen', 'zhipu');
+UPDATE kb_providers SET tag = '云厂商' WHERE code = 'openrouter';
+
+-- 枚举分类 provider_type 停用（逻辑删除，保留历史数据）
+UPDATE ks_enum_categories
+SET is_enabled = 0,
+    is_deleted = 1
+WHERE category = 'provider_type';
+
+UPDATE ks_enum_configs ec
+JOIN ks_enum_categories c ON ec.category_id = c.id
+SET ec.is_enabled = 0,
+    ec.is_deleted = 1
+WHERE c.category = 'provider_type';
+
+-- 供应商分类支持多选：tag 由 VARCHAR(32) 扩容为 VARCHAR(255)（逗号分隔）
+ALTER TABLE kb_providers MODIFY COLUMN tag VARCHAR(255) NOT NULL COMMENT '供应商分类，可多选，多个用英文逗号分隔，如 原厂,代理';

@@ -1,43 +1,51 @@
 import { postQuery, post, put, get } from "./http";
 
-export function listProviders(params) {
-  return postQuery("/api/providers/list", params);
+export function listProviderAccounts(params) {
+  return postQuery("/api/provider-accounts/list", params);
 }
 
-export function getProvider(id) {
-  return get(`/api/providers/${id}`);
+export function getProviderAccount(id) {
+  return get(`/api/provider-accounts/${id}`);
 }
 
-export function suggestProviderCode() {
-  return get("/api/providers/suggest-code");
+export function suggestProviderAccountCode() {
+  return get("/api/provider-accounts/suggest-code");
 }
 
-export function checkProviderCode(code, excludeId) {
-  return get("/api/providers/check-code", {
+export function checkProviderAccountCode(code, excludeId) {
+  return get("/api/provider-accounts/check-code", {
     params: { code, excludeId: excludeId ?? undefined }
   });
 }
 
-export function createProvider(payload) {
-  return post("/api/providers", payload);
+export function createProviderAccount(payload) {
+  return post("/api/provider-accounts", payload);
 }
 
-export function updateProvider(id, payload) {
-  return put(`/api/providers/${id}`, payload);
+export function updateProviderAccount(id, payload) {
+  return put(`/api/provider-accounts/${id}`, payload);
 }
 
-export function updateProviderStatus(id, enabled) {
-  return put(`/api/providers/${id}/status`, { enabled });
+export function updateProviderAccountStatus(id, enabled) {
+  return put(`/api/provider-accounts/${id}/status`, { enabled });
 }
 
-export function listDiscountPolicies(providerId, params) {
-  return postQuery(`/api/providers/${providerId}/discount-policies/list`, params);
+export const listProviders = listProviderAccounts;
+export const getProvider = getProviderAccount;
+export const suggestProviderCode = suggestProviderAccountCode;
+export const checkProviderCode = checkProviderAccountCode;
+export const createProvider = createProviderAccount;
+export const updateProvider = updateProviderAccount;
+export const updateProviderStatus = updateProviderAccountStatus;
+
+export function listDiscountPolicies(providerAccountId, params) {
+  return postQuery(`/api/provider-accounts/${providerAccountId}/discount-policies/list`, params);
 }
 
-export function createDiscountPolicy(providerId, payload) {
-  return post(`/api/providers/${providerId}/discount-policies`, payload);
+export function createDiscountPolicy(providerAccountId, payload) {
+  return post(`/api/provider-accounts/${providerAccountId}/discount-policies`, payload);
 }
 
-export function updateDiscountPolicy(providerId, policyId, payload) {
-  return put(`/api/providers/${providerId}/discount-policies/${policyId}`, payload);
+export function updateDiscountPolicy(providerAccountId, policyId, payload) {
+  return put(`/api/provider-accounts/${providerAccountId}/discount-policies/${policyId}`, payload);
 }

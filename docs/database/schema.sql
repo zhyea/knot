@@ -1,3 +1,8 @@
+-- ⚠️ 历史存档（2026-09-21 标注）：本文件已过期，勿引用、勿执行。
+-- 差异：库名为 knot_ai_gateway、缺 departments / sys_* 系列、含已废弃 plugins 表。
+-- 权威 schema：knot-server/knot-admin/src/main/resources/db/schema.sql
+--              （52 张表；2026-09-21 起统一 ks_ / kb_ / kr_ / kx_ 域前缀）
+-- ============================================================
 -- AI 网关数据库初始化脚本（MySQL 8+）
 CREATE DATABASE IF NOT EXISTS knot_ai_gateway DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE knot_ai_gateway;

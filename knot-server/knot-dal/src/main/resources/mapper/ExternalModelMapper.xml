@@ -22,30 +22,30 @@
 
     <select id="listSources" resultType="org.chobit.knot.gateway.entity.ExternalModelSourceEntity">
         select <include refid="SourceColumns"/>
-        from external_model_sources
+        from kx_model_sources
         order by id asc
     </select>
 
     <select id="getSourceByCode" resultType="org.chobit.knot.gateway.entity.ExternalModelSourceEntity">
         select <include refid="SourceColumns"/>
-        from external_model_sources
+        from kx_model_sources
         where source_code = #{sourceCode}
     </select>
 
     <insert id="insertSource" useGeneratedKeys="true" keyProperty="id">
-        insert into external_model_sources(source_code, source_name, source_url, api_url, source_type, status)
+        insert into kx_model_sources(source_code, source_name, source_url, api_url, source_type, status)
         values(#{sourceCode}, #{sourceName}, #{sourceUrl}, #{apiUrl}, #{sourceType}, #{status})
     </insert>
 
     <update id="updateSourceLastSyncAt">
-        update external_model_sources
+        update kx_model_sources
         set last_sync_at = #{lastSyncAt}
         where source_code = #{sourceCode}
     </update>
 
     <select id="listItems" resultType="org.chobit.knot.gateway.entity.ExternalModelItemEntity">
         select <include refid="ItemColumns"/>
-        from external_model_items
+        from kx_model_items
         <where>
             <if test="sourceCode != null and sourceCode != ''">
                 and source_code = #{sourceCode}
@@ -70,19 +70,19 @@
 
     <select id="getItemById" resultType="org.chobit.knot.gateway.entity.ExternalModelItemEntity">
         select <include refid="ItemColumns"/>
-        from external_model_items
+        from kx_model_items
         where id = #{id}
     </select>
 
     <select id="getItemBySourceKey" resultType="org.chobit.knot.gateway.entity.ExternalModelItemEntity">
         select <include refid="ItemColumns"/>
-        from external_model_items
+        from kx_model_items
         where source_code = #{sourceCode}
           and model_id = #{modelId}
     </select>
 
     <insert id="insertItem" useGeneratedKeys="true" keyProperty="id">
-        insert into external_model_items(
+        insert into kx_model_items(
             source_code, model_id, canonical_slug, hugging_face_id,
             model_name, provider_code, provider_name, model_url, details_path,
             created_timestamp, model_created_at, description, context_length, modality,
@@ -106,7 +106,7 @@
     </insert>
 
     <update id="updateItem">
-        update external_model_items
+        update kx_model_items
         set canonical_slug = #{canonicalSlug},
             hugging_face_id = #{huggingFaceId},
             model_name = #{modelName},
@@ -144,12 +144,12 @@
     </update>
 
     <delete id="deleteItem">
-        delete from external_model_items
+        delete from kx_model_items
         where id = #{id}
     </delete>
 
     <delete id="deleteItems">
-        delete from external_model_items
+        delete from kx_model_items
         where id in
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
@@ -157,13 +157,13 @@
     </delete>
 
     <update id="updateItemLogicalModel">
-        update external_model_items
+        update kx_model_items
         set logical_model_id = #{logicalModelId}
         where id = #{id}
     </update>
 
     <update id="clearLogicalModelMatch">
-        update external_model_items
+        update kx_model_items
         set logical_model_id = null
         where logical_model_id = #{logicalModelId}
     </update>
