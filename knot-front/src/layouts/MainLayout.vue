@@ -22,6 +22,7 @@
         <el-main class="aside-nav">
           <el-scrollbar class="aside-scrollbar">
             <el-menu
+              ref="menuRef"
               class="aside-menu"
               :collapse="asideCollapsed"
               :collapse-transition="true"
@@ -39,7 +40,7 @@
                   <el-icon><component :is="resolveMenuIcon(module.icon)" /></el-icon>
                   <span>{{ module.moduleName }}</span>
                 </el-menu-item>
-                <el-sub-menu v-else :index="moduleKey(module)">
+                <el-sub-menu v-else :index="moduleMenuKey(module)">
                   <template #title>
                     <el-icon><component :is="resolveMenuIcon(module.icon)" /></el-icon>
                     <span>{{ module.moduleName }}</span>
@@ -105,7 +106,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   Bell,
@@ -127,7 +128,6 @@ import {
 import { useAuth } from "../composables/useAuth";
 import { useLocale } from "../composables/useLocale";
 import { getStorageItem, setStorageItem } from "../utils/storage";
-import { ref } from "vue";
 import DynamicMenuNode from "../components/layout/DynamicMenuNode.vue";
 
 const LS_ASIDE_WIDTH = "knot.sidebar.widthPx";
@@ -162,6 +162,7 @@ const iconMap = {
 };
 
 const activePath = computed(() => route.path);
+const menuRef = ref(null);
 const pageTitle = computed(() => {
   if (route.meta?.titleKey) {
     return t(route.meta.titleKey);
@@ -178,11 +179,6 @@ const asideWidthCss = computed(() =>
   asideCollapsed.value ? `${ASIDE_COLLAPSED_PX}px` : `${asideWidth.value}px`
 );
 
-const openeds = computed(() => {
-  const match = route.path.match(/^\/([^/]+)/);
-  return match ? [`/${match[1]}`] : [];
-});
-
 const modelMenuOrder = {
   "model.model-pools": 10,
   "model.models": 20,
@@ -197,6 +193,18 @@ const dynamicModules = computed(() =>
       menus: sortMenus(module)
     }))
 );
+
+const activeModule = computed(() => {
+  const currentTopLevel = topLevelPath(route.path);
+  return (
+    dynamicModules.value.find((module) => moduleHasTopLevelRoute(module, currentTopLevel)) ||
+    null
+  );
+});
+
+const activeModuleKey = computed(() => (activeModule.value ? moduleMenuKey(activeModule.value) : ""));
+
+const openeds = computed(() => (activeModuleKey.value ? [activeModuleKey.value] : []));
 
 function sortMenus(module) {
   const menus = Array.isArray(module?.menus) ? [...module.menus] : [];
@@ -250,7 +258,12 @@ watch(asideWidth, (value) => {
 
 watch(asideCollapsed, (value) => {
   setStorageItem(LS_ASIDE_COLLAPSED, value ? "1" : "0");
+  if (!value) {
+    openActiveModule();
+  }
 });
+
+watch(activeModuleKey, openActiveModule);
 
 onBeforeUnmount(() => {
   resetResizeState();
@@ -260,9 +273,34 @@ function toggleAsideCollapsed() {
   asideCollapsed.value = !asideCollapsed.value;
 }
 
-function moduleKey(module) {
-  const firstRoute = module.menus?.[0]?.routePath;
-  return firstRoute || `/${module.moduleCode}`;
+function moduleMenuKey(module) {
+  return `module-${module.moduleCode}`;
+}
+
+function topLevelPath(path) {
+  const [segment] = path.split("/").filter(Boolean);
+  return segment ? `/${segment}` : "";
+}
+
+function moduleHasTopLevelRoute(module, currentTopLevel) {
+  if (!currentTopLevel) {
+    return false;
+  }
+
+  const hasRoute = (menu) =>
+    topLevelPath(menu?.routePath || "") === currentTopLevel ||
+    (menu?.children || []).some(hasRoute);
+
+  return (module?.menus || []).some(hasRoute);
+}
+
+async function openActiveModule() {
+  if (!activeModuleKey.value) {
+    return;
+  }
+
+  await nextTick();
+  menuRef.value?.open(activeModuleKey.value);
 }
 
 function resolveMenuIcon(iconName) {
