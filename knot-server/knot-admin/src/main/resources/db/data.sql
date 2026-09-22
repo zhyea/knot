@@ -257,11 +257,11 @@ INSERT IGNORE INTO kb_providers (id, code, name, tag) VALUES
 (5, 'zhipu',        'Zhipu',        '原厂'),
 (6, 'openrouter',   'OpenRouter',   '云厂商');
 
-INSERT IGNORE INTO kb_provider_accounts (id, provider_id, code, name, status) VALUES
-(1, 1, 'openai-default',    'OpenAI Default',    'ENABLED'),
-(2, 2, 'anthropic-default', 'Anthropic Default', 'ENABLED'),
-(3, 3, 'deepseek-default',  'DeepSeek Default', 'ENABLED'),
-(4, 4, 'qwen-default',      'Qwen Default',      'ENABLED');
+INSERT IGNORE INTO kb_provider_accounts (id, provider_id, code, status) VALUES
+(1, 1, 'openai-default',    'ENABLED'),
+(2, 2, 'anthropic-default', 'ENABLED'),
+(3, 3, 'deepseek-default',  'ENABLED'),
+(4, 4, 'qwen-default',      'ENABLED');
 
 -- 频控/额度策略（独立表 + 资源绑定）
 INSERT IGNORE INTO kb_rate_limit_policies (id, policy_code, policy_name, per_second, per_minute, time_window, status) VALUES

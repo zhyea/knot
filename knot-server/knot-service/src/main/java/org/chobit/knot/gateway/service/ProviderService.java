@@ -145,7 +145,6 @@ public class ProviderService {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", dto.id());
         m.put("code", dto.code());
-        m.put("name", dto.name());
         m.put("type", dto.type());
         m.put("baseUrl", dto.baseUrl());
         m.put("enabled", dto.enabled());
@@ -233,7 +232,7 @@ public class ProviderService {
         QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
         return new ProviderAccountDto(
                 base.id(), base.providerId(), base.providerName(),
-                base.code(), base.name(), base.type(), base.baseUrl(), base.enabled(),
+                base.code(), base.type(), base.baseUrl(), base.enabled(),
                 base.createdAt(), base.updatedAt(),
                 credentialSupport.credentialType(credential),
                 auth, rate, quota

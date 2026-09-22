@@ -74,7 +74,7 @@ public class ProviderController {
      */
     @OperationLog(module = "provider-account", operation = "CREATE", entityType = "ProviderAccount",
             entityIdAfter = "#result.id()",
-            entityNameAfter = "#result.name()",
+            entityNameAfter = "#result.code()",
             description = "'新建供应商账户'",
             newValueSpel = "@providerService.providerAuditSnapshot(#result.id())")
     @PostMapping
@@ -91,7 +91,7 @@ public class ProviderController {
      */
     @OperationLog(module = "provider-account", operation = "UPDATE", entityType = "ProviderAccount",
             entityId = "#p0",
-            entityNameAfter = "#result.name()",
+            entityNameAfter = "#result.code()",
             description = "'更新供应商账户'",
             oldValueSpel = "@providerService.providerAuditSnapshot(#p0)",
             newValueSpel = "@providerService.providerAuditSnapshot(#p0)")
@@ -109,7 +109,7 @@ public class ProviderController {
      */
     @OperationLog(module = "provider-account", operation = "UPDATE", entityType = "ProviderAccount",
             entityId = "#p0",
-            entityNameAfter = "#result.name()",
+            entityNameAfter = "#result.code()",
             description = "'更新供应商账户状态'",
             oldValueSpel = "@providerService.providerAuditSnapshot(#p0)",
             newValueSpel = "@providerService.providerAuditSnapshot(#p0)")
@@ -133,7 +133,7 @@ public class ProviderController {
      */
     @OperationLog(module = "provider-account", operation = "CREATE", entityType = "ProviderAccount",
             entityId = "#p0",
-            entityNameAfter = "@providerService.getById(#p0).name()",
+            entityNameAfter = "@providerService.getById(#p0).code()",
             description = "'新增折扣策略'",
             newValueSpel = "#result")
     @PostMapping("/{id}/discount-policies")
@@ -150,7 +150,7 @@ public class ProviderController {
      */
     @OperationLog(module = "provider-account", operation = "UPDATE", entityType = "ProviderAccount",
             entityId = "#p0",
-            entityNameAfter = "@providerService.getById(#p0).name()",
+            entityNameAfter = "@providerService.getById(#p0).code()",
             description = "'更新折扣策略'",
             oldValueSpel = "@providerService.discountPolicyAuditSnapshot(#p1)",
             newValueSpel = "#result")

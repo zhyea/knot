@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 public record ProviderAccountDto(Long id, Long providerId, String providerName,
-                                 String code, String name, String type, String baseUrl, boolean enabled,
+                                 String code, String type, String baseUrl, boolean enabled,
                                  LocalDateTime createdAt, LocalDateTime updatedAt,
                                  String credentialType,
                                  Map<String, Object> authConfig,
