@@ -11,7 +11,6 @@ import org.chobit.knot.gateway.vo.model.LogicalModelItem;
 import org.chobit.knot.gateway.vo.model.ProviderModelMappingItem;
 import org.springframework.stereotype.Component;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -32,36 +31,21 @@ public class LogicalModelConverter {
                 entity.getModelType(),
                 entity.getModelFamily(),
                 entity.getVersion(),
-                entity.getExternalSourceCode(),
-                entity.getExternalModelId(),
-                entity.getCanonicalSlug(),
-                entity.getProviderCode(),
-                entity.getProviderName(),
                 entity.getDisplayName(),
                 entity.getTagline(),
                 entity.getDescription(),
-                entity.getLogoUrl(),
-                entity.getCoverUrl(),
                 toStringList(entity.getTagsJson()),
                 toStringList(entity.getUseCasesJson()),
-                toMap(entity.getCapabilitiesJson()),
                 entity.getContextWindow(),
                 entity.getMaxOutputTokens(),
                 toStringList(entity.getInputModalitiesJson()),
                 toStringList(entity.getOutputModalitiesJson()),
                 toStringList(entity.getLanguagesJson()),
-                toMap(entity.getDefaultParamsJson()),
-                toMap(entity.getParamSchemaJson()),
-                toMap(entity.getSafetyPolicyJson()),
-                toMap(entity.getPricingJson()),
-                toStringList(entity.getSupportedParametersJson()),
                 entity.getVisibility(),
                 entity.getPublishStatus(),
                 EntityStatusEnum.ENABLED.code().equals(entity.getStatus()),
                 entity.getSortOrder(),
                 Boolean.TRUE.equals(entity.getFeatured()),
-                entity.getOwnerUserId(),
-                entity.getOwnerTeam(),
                 entity.getQualityLevel(),
                 entity.getLatencyLevel(),
                 entity.getCostLevel(),
@@ -84,36 +68,21 @@ public class LogicalModelConverter {
         entity.setModelType(dto.modelType());
         entity.setModelFamily(dto.modelFamily());
         entity.setVersion(dto.version());
-        entity.setExternalSourceCode(dto.externalSourceCode());
-        entity.setExternalModelId(dto.externalModelId());
-        entity.setCanonicalSlug(dto.canonicalSlug());
-        entity.setProviderCode(dto.providerCode());
-        entity.setProviderName(dto.providerName());
         entity.setDisplayName(dto.displayName());
         entity.setTagline(dto.tagline());
         entity.setDescription(dto.description());
-        entity.setLogoUrl(dto.logoUrl());
-        entity.setCoverUrl(dto.coverUrl());
         entity.setTagsJson(toJson(dto.tags()));
         entity.setUseCasesJson(toJson(dto.useCases()));
-        entity.setCapabilitiesJson(toJson(dto.capabilities()));
         entity.setContextWindow(dto.contextWindow());
         entity.setMaxOutputTokens(dto.maxOutputTokens());
         entity.setInputModalitiesJson(toJson(dto.inputModalities()));
         entity.setOutputModalitiesJson(toJson(dto.outputModalities()));
         entity.setLanguagesJson(toJson(dto.languages()));
-        entity.setDefaultParamsJson(toJson(dto.defaultParams()));
-        entity.setParamSchemaJson(toJson(dto.paramSchema()));
-        entity.setSafetyPolicyJson(toJson(dto.safetyPolicy()));
-        entity.setPricingJson(toJson(dto.pricing()));
-        entity.setSupportedParametersJson(toJson(dto.supportedParameters()));
         entity.setVisibility(defaultString(dto.visibility(), "PUBLIC"));
         entity.setPublishStatus(defaultString(dto.publishStatus(), "DRAFT"));
         entity.setStatus(dto.enabled() ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
         entity.setSortOrder(dto.sortOrder() != null ? dto.sortOrder() : 0);
         entity.setFeatured(dto.featured());
-        entity.setOwnerUserId(dto.ownerUserId());
-        entity.setOwnerTeam(dto.ownerTeam());
         entity.setQualityLevel(dto.qualityLevel());
         entity.setLatencyLevel(dto.latencyLevel());
         entity.setCostLevel(dto.costLevel());
@@ -128,13 +97,11 @@ public class LogicalModelConverter {
     public LogicalModelDto withMappings(LogicalModelDto base, List<ProviderModelMappingDto> mappings) {
         return new LogicalModelDto(
                 base.id(), base.modelCode(), base.modelName(), base.modelType(), base.modelFamily(), base.version(),
-                base.externalSourceCode(), base.externalModelId(), base.canonicalSlug(), base.providerCode(), base.providerName(),
-                base.displayName(), base.tagline(), base.description(), base.logoUrl(), base.coverUrl(),
-                base.tags(), base.useCases(), base.capabilities(), base.contextWindow(), base.maxOutputTokens(),
+                base.displayName(), base.tagline(), base.description(),
+                base.tags(), base.useCases(), base.contextWindow(), base.maxOutputTokens(),
                 base.inputModalities(), base.outputModalities(), base.languages(),
-                base.defaultParams(), base.paramSchema(), base.safetyPolicy(), base.pricing(), base.supportedParameters(),
                 base.visibility(), base.publishStatus(), base.enabled(), base.sortOrder(), base.featured(),
-                base.ownerUserId(), base.ownerTeam(), base.qualityLevel(), base.latencyLevel(), base.costLevel(),
+                base.qualityLevel(), base.latencyLevel(), base.costLevel(),
                 base.pricingSummary(), base.remark(), base.createdAt(), base.updatedAt(),
                 mappings != null ? mappings : List.of()
         );
@@ -149,13 +116,11 @@ public class LogicalModelConverter {
         }
         return new LogicalModelItem(
                 dto.id(), dto.modelCode(), dto.modelName(), dto.modelType(), dto.modelFamily(), dto.version(),
-                dto.externalSourceCode(), dto.externalModelId(), dto.canonicalSlug(), dto.providerCode(), dto.providerName(),
-                dto.displayName(), dto.tagline(), dto.description(), dto.logoUrl(), dto.coverUrl(),
-                dto.tags(), dto.useCases(), dto.capabilities(), dto.contextWindow(), dto.maxOutputTokens(),
+                dto.displayName(), dto.tagline(), dto.description(),
+                dto.tags(), dto.useCases(), dto.contextWindow(), dto.maxOutputTokens(),
                 dto.inputModalities(), dto.outputModalities(), dto.languages(),
-                dto.defaultParams(), dto.paramSchema(), dto.safetyPolicy(), dto.pricing(), dto.supportedParameters(),
                 dto.visibility(), dto.publishStatus(), dto.enabled(), dto.sortOrder(), dto.featured(),
-                dto.ownerUserId(), dto.ownerTeam(), dto.qualityLevel(), dto.latencyLevel(), dto.costLevel(),
+                dto.qualityLevel(), dto.latencyLevel(), dto.costLevel(),
                 dto.pricingSummary(), dto.remark(), dto.createdAt(), dto.updatedAt(),
                 dto.mappings() == null ? List.of() : dto.mappings().stream().map(this::toMappingVO).toList()
         );
@@ -167,14 +132,12 @@ public class LogicalModelConverter {
     public LogicalModelDto toDto(LogicalModelItem item) {
         return new LogicalModelDto(
                 item.id(), item.modelCode(), item.modelName(), item.modelType(), item.modelFamily(), item.version(),
-                item.externalSourceCode(), item.externalModelId(), item.canonicalSlug(), item.providerCode(), item.providerName(),
-                item.displayName(), item.tagline(), item.description(), item.logoUrl(), item.coverUrl(),
-                safeList(item.tags()), safeList(item.useCases()), safeMap(item.capabilities()),
+                item.displayName(), item.tagline(), item.description(),
+                safeList(item.tags()), safeList(item.useCases()),
                 item.contextWindow(), item.maxOutputTokens(), safeList(item.inputModalities()),
-                safeList(item.outputModalities()), safeList(item.languages()), safeMap(item.defaultParams()),
-                safeMap(item.paramSchema()), safeMap(item.safetyPolicy()), safeMap(item.pricing()), safeList(item.supportedParameters()),
+                safeList(item.outputModalities()), safeList(item.languages()),
                 item.visibility(), item.publishStatus(),
-                item.enabled(), item.sortOrder(), item.featured(), item.ownerUserId(), item.ownerTeam(),
+                item.enabled(), item.sortOrder(), item.featured(),
                 item.qualityLevel(), item.latencyLevel(), item.costLevel(), item.pricingSummary(), item.remark(),
                 item.createdAt(), item.updatedAt(),
                 item.mappings() == null ? List.of() : item.mappings().stream().map(this::toMappingDto).toList()
@@ -258,11 +221,6 @@ public class LogicalModelConverter {
         return parsed != null ? parsed : List.of();
     }
 
-    private static Map<String, Object> toMap(String json) {
-        Map<String, Object> parsed = JsonKit.fromJson(json, new TypeReference<>() {});
-        return parsed != null ? new LinkedHashMap<>(parsed) : new LinkedHashMap<>();
-    }
-
     private static String toJson(Object value) {
         if (value == null) {
             return null;
@@ -284,7 +242,4 @@ public class LogicalModelConverter {
         return list != null ? list : List.of();
     }
 
-    private static Map<String, Object> safeMap(Map<String, Object> map) {
-        return map != null ? map : new LinkedHashMap<>();
-    }
 }

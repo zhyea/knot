@@ -30,16 +30,15 @@
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="供应商类型">
+            <el-form-item label="供应商" required>
               <el-select
-                  v-model="form.type"
-                  placeholder="请选择供应商类型"
-                  clearable
+                  v-model="form.providerId"
+                  placeholder="请选择供应商"
                   filterable
                   style="width: 100%"
               >
                 <el-option
-                    v-for="option in typeOptions"
+                    v-for="option in providerOptions"
                     :key="option.value"
                     :label="option.label"
                     :value="option.value"
@@ -116,7 +115,7 @@ import {ElMessage} from "element-plus";
 import KvEditor from "../common/KvEditor.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import {useAuth} from "../../composables/useAuth.js";
-import {useProviderTypeOptions} from "../../composables/useProviderTypeOptions.js";
+import {listProviderProfiles} from "../../api/providerProfiles.js";
 import {
   createProvider,
   updateProvider,
@@ -133,7 +132,7 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const {isAdmin} = useAuth();
-const {options: typeOptions} = useProviderTypeOptions();
+const providerOptions = ref([]);
 const saving = ref(false);
 const codeChecking = ref(false);
 const codeError = ref("");
@@ -144,7 +143,6 @@ const form = reactive({
   providerId: null,
   code: "",
   name: "",
-  type: "",
   baseUrl: "",
   enabled: true,
   credentialType: "api-key",
@@ -253,7 +251,6 @@ function fillFormFromRow(row) {
   form.providerId = row.providerId;
   form.code = row.code || "";
   form.name = row.name;
-  form.type = row.type;
   form.baseUrl = row.baseUrl || "";
   form.enabled = !!row.enabled;
   form.credentialType = normalizeCredentialType(row.credentialType);
@@ -288,7 +285,6 @@ async function resetForm() {
     form.id = null;
     form.providerId = null;
     form.name = "";
-    form.type = "";
     form.baseUrl = "";
     form.enabled = true;
     form.credentialType = "api-key";
@@ -300,6 +296,19 @@ async function resetForm() {
   }
 }
 
+async function loadProviderOptions() {
+  try {
+    const result = await listProviderProfiles({pageNum: 1, pageSize: 500});
+    const list = Array.isArray(result) ? result : result?.list || [];
+    providerOptions.value = list.map((item) => ({
+      value: item.id,
+      label: `${item.name || item.code}（${item.code}）`
+    }));
+  } catch {
+    providerOptions.value = [];
+  }
+}
+
 watch(
     () => [props.modelValue, props.provider],
     ([visible]) => {
@@ -308,6 +317,8 @@ watch(
       }
     }
 );
+
+loadProviderOptions();
 
 watch(
     () => form.code,
@@ -369,7 +380,6 @@ function buildPayload() {
     providerId: form.providerId,
     code: form.code?.trim(),
     name: form.name,
-    type: form.type,
     baseUrl: form.baseUrl?.trim() || null,
     enabled: form.enabled,
     credentialType: form.credentialType,

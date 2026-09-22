@@ -3,8 +3,8 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.ProviderAccountMapper">
 
     <sql id="ProviderColumns">
-        pa.id, pa.provider_id, p.name AS provider_name,
-        pa.code, pa.name, pa.provider_type, pa.base_url, pa.status,
+        pa.id, pa.provider_id, p.name AS provider_name, p.code AS provider_code,
+        pa.code, pa.name, pa.base_url, pa.status,
         pa.created_at, pa.updated_at
     </sql>
 
@@ -18,7 +18,7 @@
                     pa.code like concat('%', #{keyword}, '%')
                     or pa.name like concat('%', #{keyword}, '%')
                     or p.name like concat('%', #{keyword}, '%')
-                    or pa.provider_type like concat('%', #{keyword}, '%')
+                    or p.code like concat('%', #{keyword}, '%')
                 )
             </if>
         </where>
@@ -40,8 +40,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_provider_accounts(provider_id, code, name, provider_type, base_url, status)
-        values(#{providerId}, #{code}, #{name}, #{providerType}, #{baseUrl}, #{status})
+        insert into kb_provider_accounts(provider_id, code, name, base_url, status)
+        values(#{providerId}, #{code}, #{name}, #{baseUrl}, #{status})
     </insert>
 
     <update id="update">
@@ -49,7 +49,6 @@
         set provider_id = #{providerId},
             code = #{code},
             name = #{name},
-            provider_type = #{providerType},
             base_url = #{baseUrl},
             status = #{status}
         where id = #{id}

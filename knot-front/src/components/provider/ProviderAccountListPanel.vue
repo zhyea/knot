@@ -4,11 +4,7 @@
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center"/>
       <el-table-column prop="code" label="编码" min-width="10%" show-overflow-tooltip/>
       <el-table-column prop="name" label="名称" min-width="15%"/>
-      <el-table-column label="类型" min-width="10%" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ typeLabel(row.type) }}
-        </template>
-      </el-table-column>
+      <el-table-column prop="providerName" label="供应商" min-width="15%" show-overflow-tooltip/>
       <el-table-column prop="baseUrl" label="Base URL" min-width="18%" show-overflow-tooltip/>
       <el-table-column label="创建时间" min-width="165" show-overflow-tooltip>
         <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
@@ -60,7 +56,6 @@ import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {updateProviderStatus} from "@/api/providers.js";
 import {useEnabledToggle} from "@/composables/useEnabledToggle.js";
-import {useProviderTypeOptions} from "@/composables/useProviderTypeOptions.js";
 import {formatDateTime} from "@/utils/format.js";
 
 defineProps({
@@ -83,15 +78,9 @@ const emit = defineEmits([
   "changed"
 ]);
 
-const {labelOf: providerTypeLabel} = useProviderTypeOptions();
-
 const {togglingId, onEnabledChange} = useEnabledToggle({
   updateApi: updateProviderStatus
 });
-
-function typeLabel(code) {
-  return providerTypeLabel(code);
-}
 
 function handleAction(action, row) {
   if (action === "edit") emit("edit", row);

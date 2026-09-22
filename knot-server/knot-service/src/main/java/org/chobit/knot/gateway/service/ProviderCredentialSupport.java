@@ -50,17 +50,7 @@ public class ProviderCredentialSupport {
                 return new LinkedHashMap<>(config);
             }
         }
-        Map<String, Object> map = new LinkedHashMap<>();
-        if (hasText(credential.getEncryptedKey())) {
-            map.put(AuthConstants.API_KEY, decryptField(credential.getEncryptedKey()));
-        }
-        if (hasText(credential.getEncryptedSecret())) {
-            map.put("apiSecret", decryptField(credential.getEncryptedSecret()));
-        }
-        if (hasText(credential.getTokenValue())) {
-            map.put("token", decryptField(credential.getTokenValue()));
-        }
-        return map.isEmpty() ? defaultAuthConfig() : map;
+        return defaultAuthConfig();
     }
 
     /**
@@ -112,16 +102,6 @@ public class ProviderCredentialSupport {
             providerCredentialMapper.deactivateByProviderId(providerId);
             return;
         }
-        String apiKey = stringVal(authConfig.get(AuthConstants.API_KEY));
-        String apiSecret = firstNonBlank(
-                stringVal(authConfig.get("apiSecret")),
-                stringVal(authConfig.get("secretKey"))
-        );
-        String token = firstNonBlank(
-                stringVal(authConfig.get("token")),
-                stringVal(authConfig.get("accessToken"))
-        );
-
         ProviderCredentialEntity entity = providerCredentialMapper.getActiveByProviderId(providerId);
         boolean isNew = entity == null;
         if (isNew) {
@@ -129,9 +109,6 @@ public class ProviderCredentialSupport {
             entity.setProviderId(providerId);
             entity.setStatus(EntityStatusEnum.ACTIVE.code());
         }
-        entity.setEncryptedKey(encryptField(apiKey));
-        entity.setEncryptedSecret(encryptField(apiSecret));
-        entity.setTokenValue(encryptField(token));
         entity.setEncryptedConfig(encryptConfig(authConfig));
         entity.setCredentialType(ProviderCredentialTypeEnum.fromCode(credentialType).code());
 
@@ -220,20 +197,6 @@ public class ProviderCredentialSupport {
         return s != null && !s.isBlank();
     }
 
-    private String encryptField(String plain) {
-        if (!hasText(plain)) {
-            return null;
-        }
-        return credentialEncryption.encrypt(plain);
-    }
-
-    private String decryptField(String stored) {
-        if (!hasText(stored)) {
-            return null;
-        }
-        return credentialEncryption.decrypt(stored);
-    }
-
     private String encryptConfig(Map<String, Object> authConfig) {
         String json = JsonKit.toJson(authConfig);
         if (!hasText(json)) {
@@ -242,12 +205,4 @@ public class ProviderCredentialSupport {
         return credentialEncryption.encrypt(json);
     }
 
-    private static String firstNonBlank(String... values) {
-        for (String v : values) {
-            if (hasText(v)) {
-                return v;
-            }
-        }
-        return null;
-    }
 }

@@ -247,7 +247,7 @@ INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 -- =========================
 
 -- 供应商
--- 供应商信息 = 供应商类型的主数据（供应商账户的 provider_type 取值来源）
+-- 供应商信息 = 供应商类型的主数据（供应商账户通过 provider_id 关联）
 -- tag 语义为供应商分类：原厂 / 云厂商 / 代理
 INSERT IGNORE INTO kb_providers (id, code, name, tag) VALUES
 (1, 'openai',       'OpenAI',       '原厂'),
@@ -257,11 +257,11 @@ INSERT IGNORE INTO kb_providers (id, code, name, tag) VALUES
 (5, 'zhipu',        'Zhipu',        '原厂'),
 (6, 'openrouter',   'OpenRouter',   '云厂商');
 
-INSERT IGNORE INTO kb_provider_accounts (id, provider_id, code, name, provider_type, status) VALUES
-(1, 1, 'openai-default',    'OpenAI Default',    'OPENAI',    'ENABLED'),
-(2, 2, 'anthropic-default', 'Anthropic Default', 'ANTHROPIC', 'ENABLED'),
-(3, 3, 'deepseek-default',  'DeepSeek Default',  'DEEPSEEK',  'ENABLED'),
-(4, 4, 'qwen-default',      'Qwen Default',      'QWEN',      'ENABLED');
+INSERT IGNORE INTO kb_provider_accounts (id, provider_id, code, name, status) VALUES
+(1, 1, 'openai-default',    'OpenAI Default',    'ENABLED'),
+(2, 2, 'anthropic-default', 'Anthropic Default', 'ENABLED'),
+(3, 3, 'deepseek-default',  'DeepSeek Default', 'ENABLED'),
+(4, 4, 'qwen-default',      'Qwen Default',      'ENABLED');
 
 -- 频控/额度策略（独立表 + 资源绑定）
 INSERT IGNORE INTO kb_rate_limit_policies (id, policy_code, policy_name, per_second, per_minute, time_window, status) VALUES
@@ -286,11 +286,11 @@ INSERT IGNORE INTO kb_resource_traffic_policies (id, resource_type, resource_id,
 (4, 'APP',      1, 4, 4),
 (5, 'APP',      2, 5, 5);
 
--- 供应商凭证（encrypted_key 等为 AES-GCM 密文，前缀 ENC:；开发密钥见 application.yml knot.credential.encryption-key）
-INSERT IGNORE INTO kb_provider_credentials (id, provider_account_id, credential_type, encrypted_key, status) VALUES
-(1, 1, 'API_KEY', 'ENC:I093hp4rWvI0txMTx5d+MwVbdLU8NQ/9X1J6r33Y3gJwGT2slww78nJbasZjfOfD', 'ACTIVE'),
-(2, 2, 'API_KEY', 'ENC:RnptV2Rw7zw4QCm4qHUba0qKaxKQfsv6l3aymW/XfF3j0Fs/k02352ew7lE/tcRyax5/', 'ACTIVE'),
-(3, 3, 'API_KEY', 'ENC:mFDjmYE5M54d8MWNXUcTQS9Ngk7+dv3YDuH6o0x8hv6rehtmM9I38RJUeGrpc0zF4Tw=', 'ACTIVE');
+-- 供应商凭证（认证配置整体以 AES-GCM 密文保存；前缀 ENC:）
+INSERT IGNORE INTO kb_provider_credentials (id, provider_account_id, credential_type, encrypted_config, status) VALUES
+(1, 1, 'api-key', 'ENC:I093hp4rWvI0txMTx5d+MwVbdLU8NQ/9X1J6r33Y3gJwGT2slww78nJbasZjfOfD', 'ACTIVE'),
+(2, 2, 'api-key', 'ENC:RnptV2Rw7zw4QCm4qHUba0qKaxKQfsv6l3aymW/XfF3j0Fs/k02352ew7lE/tcRyax5/', 'ACTIVE'),
+(3, 3, 'api-key', 'ENC:mFDjmYE5M54d8MWNXUcTQS9Ngk7+dv3YDuH6o0x8hv6rehtmM9I38RJUeGrpc0zF4Tw=', 'ACTIVE');
 
 -- 供应商折扣策略
 INSERT IGNORE INTO kb_provider_discount_policies (id, provider_account_id, policy_name, scope_type, scope_ref_id, discount_type, discount_value, priority, effective_from, status) VALUES

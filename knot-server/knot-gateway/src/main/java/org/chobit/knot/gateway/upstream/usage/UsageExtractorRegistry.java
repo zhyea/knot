@@ -90,7 +90,7 @@ public class UsageExtractorRegistry {
             }
         }
         if (context.provider() != null
-                && ProviderTypeEnum.ANTHROPIC.code().equals(StringUtils.upperCase(context.provider().getProviderType()))) {
+                && ProviderTypeEnum.ANTHROPIC.code().equals(StringUtils.upperCase(context.provider().getProviderCode()))) {
             return AnthropicUsageExtractor.CODE;
         }
         if (context.protocol() != null) {

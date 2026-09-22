@@ -14,7 +14,7 @@ import java.util.List;
         unmappedSourcePolicy = ReportingPolicy.IGNORE)
 public interface ProviderConverter {
 
-    @Mapping(source = "providerType", target = "type")
+    @Mapping(source = "providerCode", target = "type")
     @Mapping(source = "status", target = "enabled", qualifiedByName = "statusToEnabled")
     @Mapping(target = "rateLimitPolicy", ignore = true)
     @Mapping(target = "quotaPolicy", ignore = true)
@@ -22,8 +22,8 @@ public interface ProviderConverter {
     @Mapping(target = "authConfig", ignore = true)
     ProviderAccountDto toDto(ProviderAccountEntity entity);
 
-    @Mapping(source = "type", target = "providerType")
     @Mapping(source = "enabled", target = "status", qualifiedByName = "enabledToStatus")
+    @Mapping(target = "providerCode", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     ProviderAccountEntity toEntity(ProviderAccountDto dto);

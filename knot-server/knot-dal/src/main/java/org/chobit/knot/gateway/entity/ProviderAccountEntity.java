@@ -11,7 +11,7 @@ public class ProviderAccountEntity {
     private String providerName;
     private String code;
     private String name;
-    private String providerType;
+    private String providerCode;
     private String baseUrl;
     private String status;
     private LocalDateTime createdAt;

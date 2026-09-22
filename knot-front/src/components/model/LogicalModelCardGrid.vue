@@ -18,7 +18,7 @@
           <p class="tagline">{{ row.tagline || row.description || "暂无介绍" }}</p>
           <div class="card-footer">
             <div class="footer-meta">
-              <strong>{{ row.ownerTeam || row.modelFamily || "-" }}</strong>
+              <strong>{{ row.modelFamily || "-" }}</strong>
               <span>更新时间：{{ formatDate(row.updatedAt) }}</span>
             </div>
             <RowActions

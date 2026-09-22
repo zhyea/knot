@@ -8,7 +8,7 @@
             <el-input
               v-model="query.keyword"
               class="list-filter-control--wide"
-              placeholder="按编码、名称、类型筛选"
+              placeholder="按编码、名称、供应商筛选"
               clearable
               @keyup.enter="handleQuery"
             />
@@ -134,4 +134,3 @@ function handleReset() {
 
 onMounted(load);
 </script>
-
