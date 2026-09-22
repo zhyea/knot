@@ -48,13 +48,12 @@
 </template>
 
 <script setup>
-import { onMounted } from "vue";
 import { Discount, Document, Edit } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import { updateProviderStatus } from "../../api/providers";
 import { useEnabledToggle } from "../../composables/useEnabledToggle";
-import { useEnums } from "../../composables/useEnums";
+import { useProviderTypeOptions } from "../../composables/useProviderTypeOptions";
 
 defineProps({
   rows: { type: Array, default: () => [] },
@@ -76,16 +75,14 @@ const emit = defineEmits([
   "changed"
 ]);
 
-const { options: providerTypeOptions, loadOptions: loadProviderTypes } = useEnums("provider_type");
+const { labelOf: providerTypeLabel } = useProviderTypeOptions();
 
 const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateProviderStatus
 });
 
 function typeLabel(code) {
-  if (!code) return "-";
-  const item = providerTypeOptions.value.find((option) => option.itemCode === code);
-  return item?.itemLabel || code;
+  return providerTypeLabel(code);
 }
 
 function handleAction(action, row) {
@@ -98,6 +95,4 @@ async function handleEnabledChange(row, enabled) {
   await onEnabledChange(row, enabled);
   emit("changed");
 }
-
-onMounted(loadProviderTypes);
 </script>

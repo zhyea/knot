@@ -41,6 +41,11 @@ export function listUserOperationLogs(userId) {
   return getOperationLogsByEntity("User", userId, { params: { module: "user" } });
 }
 
+/** 某供应商信息（entity_type=ProviderProfile）在 provider-profile 模块下的操作日志 */
+export function listProviderProfileOperationLogs(id) {
+  return getOperationLogsByEntity("ProviderProfile", id, { params: { module: "provider-profile" } });
+}
+
 /** 某供应商（entity_type=Provider）在 provider 模块下的操作日志 */
 export function listProviderOperationLogs(providerId) {
   return getOperationLogsByEntity("Provider", providerId, { params: { module: "provider" } });

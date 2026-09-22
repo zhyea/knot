@@ -27,8 +27,21 @@
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="类型">
-              <EnumSelect v-model="form.type" category="provider_type" clearable />
+            <el-form-item label="供应商类型">
+              <el-select
+                  v-model="form.type"
+                  placeholder="请选择供应商类型"
+                  clearable
+                  filterable
+                  style="width: 100%"
+              >
+                <el-option
+                    v-for="option in typeOptions"
+                    :key="option.value"
+                    :label="option.label"
+                    :value="option.value"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -70,7 +83,7 @@ import {ElMessage} from "element-plus";
 import KvEditor from "../common/KvEditor.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import {useAuth} from "../../composables/useAuth";
-import EnumSelect from "../common/EnumSelect.vue";
+import {useProviderTypeOptions} from "../../composables/useProviderTypeOptions";
 import {
   createProvider,
   updateProvider,
@@ -87,6 +100,7 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const {isAdmin} = useAuth();
+const {options: typeOptions} = useProviderTypeOptions();
 const saving = ref(false);
 const codeChecking = ref(false);
 const codeError = ref("");
