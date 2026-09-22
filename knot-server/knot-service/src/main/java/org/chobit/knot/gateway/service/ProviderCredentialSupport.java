@@ -1,11 +1,14 @@
 package org.chobit.knot.gateway.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.chobit.knot.gateway.auth.AuthRoles;
 import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
 import org.chobit.knot.gateway.crypto.CredentialEncryption;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.mapper.ProviderCredentialMapper;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -18,9 +21,6 @@ import java.util.stream.Collectors;
  */
 @Component
 public class ProviderCredentialSupport {
-
-    private static final String TYPE_API_KEY = "API_KEY";
-    private static final String TYPE_TOKEN = "TOKEN";
 
     private final ProviderCredentialMapper providerCredentialMapper;
     private final CredentialEncryption credentialEncryption;
@@ -40,6 +40,15 @@ public class ProviderCredentialSupport {
     public Map<String, Object> toAuthConfig(ProviderCredentialEntity credential) {
         if (credential == null) {
             return defaultAuthConfig();
+        }
+        if (hasText(credential.getEncryptedConfig())) {
+            Map<String, Object> config = JsonKit.fromJson(
+                    credentialEncryption.decrypt(credential.getEncryptedConfig()),
+                    new TypeReference<>() {
+                    });
+            if (config != null && !config.isEmpty()) {
+                return new LinkedHashMap<>(config);
+            }
         }
         Map<String, Object> map = new LinkedHashMap<>();
         if (hasText(credential.getEncryptedKey())) {
@@ -69,10 +78,33 @@ public class ProviderCredentialSupport {
                 ));
     }
 
+    public Map<Long, ProviderCredentialEntity> loadCredentialBatch(List<Long> providerIds) {
+        if (providerIds == null || providerIds.isEmpty()) {
+            return Map.of();
+        }
+        return providerCredentialMapper.listActiveByProviderIds(providerIds).stream()
+                .collect(Collectors.toMap(
+                        ProviderCredentialEntity::getProviderId,
+                        item -> item,
+                        (a, b) -> a
+                ));
+    }
+
+    public String credentialType(ProviderCredentialEntity credential) {
+        if (credential == null) {
+            return ProviderCredentialTypeEnum.API_KEY.code();
+        }
+        try {
+            return ProviderCredentialTypeEnum.fromCode(credential.getCredentialType()).code();
+        } catch (IllegalArgumentException ex) {
+            return ProviderCredentialTypeEnum.CUSTOM.code();
+        }
+    }
+
     /**
      * Executes the public operation. Executes the public operation.
      */
-    public void saveAuthConfig(Long providerId, Map<String, Object> authConfig) {
+    public void saveAuthConfig(Long providerId, String credentialType, Map<String, Object> authConfig) {
         if (providerId == null) {
             return;
         }
@@ -100,7 +132,8 @@ public class ProviderCredentialSupport {
         entity.setEncryptedKey(encryptField(apiKey));
         entity.setEncryptedSecret(encryptField(apiSecret));
         entity.setTokenValue(encryptField(token));
-        entity.setCredentialType(hasText(token) && !hasText(apiKey) ? TYPE_TOKEN : TYPE_API_KEY);
+        entity.setEncryptedConfig(encryptConfig(authConfig));
+        entity.setCredentialType(ProviderCredentialTypeEnum.fromCode(credentialType).code());
 
         if (isNew) {
             providerCredentialMapper.insert(entity);
@@ -199,6 +232,14 @@ public class ProviderCredentialSupport {
             return null;
         }
         return credentialEncryption.decrypt(stored);
+    }
+
+    private String encryptConfig(Map<String, Object> authConfig) {
+        String json = JsonKit.toJson(authConfig);
+        if (!hasText(json)) {
+            return null;
+        }
+        return credentialEncryption.encrypt(json);
     }
 
     private static String firstNonBlank(String... values) {

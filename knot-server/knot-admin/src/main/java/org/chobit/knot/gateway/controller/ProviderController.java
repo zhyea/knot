@@ -1,16 +1,16 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.annotation.OperationLog;
+import org.chobit.knot.gateway.dto.provider.ProviderAccountDto;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.ProviderConverter;
 import org.chobit.knot.gateway.dto.provider.DiscountPolicyDto;
-import org.chobit.knot.gateway.dto.provider.ProviderDto;
 import org.chobit.knot.gateway.service.ProviderService;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.provider.DiscountPolicy;
-import org.chobit.knot.gateway.vo.provider.ProviderItem;
+import org.chobit.knot.gateway.vo.provider.ProviderAccountItem;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,8 +35,8 @@ public class ProviderController {
      * Lists matching results. Executes the public operation.
      */
     @PostMapping("/list")
-    public PageResult<ProviderItem> list(@RequestBody(required = false) PageQuery query) {
-        PageResult<ProviderDto> page = providerService.list(
+    public PageResult<ProviderAccountItem> list(@RequestBody(required = false) PageQuery query) {
+        PageResult<ProviderAccountDto> page = providerService.list(
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
                 query == null ? null : query.keyword()
         );
@@ -65,7 +65,7 @@ public class ProviderController {
      * Returns the requested value. Executes the public operation.
      */
     @GetMapping("/{id}")
-    public ProviderItem get(@PathVariable Long id) {
+    public ProviderAccountItem get(@PathVariable Long id) {
         return providerConverter.toVO(providerService.getById(id));
     }
 
@@ -81,8 +81,8 @@ public class ProviderController {
     /**
      * Creates a new resource.
      */
-    public ProviderItem create(@RequestBody @Valid ProviderItem request) {
-        ProviderDto created = providerService.create(providerConverter.toDto(request));
+    public ProviderAccountItem create(@RequestBody @Valid ProviderAccountItem request) {
+        ProviderAccountDto created = providerService.create(providerConverter.toDto(request));
         return providerConverter.toVO(created);
     }
 
@@ -99,8 +99,8 @@ public class ProviderController {
     /**
      * Updates the target resource.
      */
-    public ProviderItem update(@PathVariable Long id, @RequestBody @Valid ProviderItem request) {
-        ProviderDto updated = providerService.update(id, providerConverter.toDto(request));
+    public ProviderAccountItem update(@PathVariable Long id, @RequestBody @Valid ProviderAccountItem request) {
+        ProviderAccountDto updated = providerService.update(id, providerConverter.toDto(request));
         return providerConverter.toVO(updated);
     }
 
@@ -114,8 +114,8 @@ public class ProviderController {
             oldValueSpel = "@providerService.providerAuditSnapshot(#p0)",
             newValueSpel = "@providerService.providerAuditSnapshot(#p0)")
     @PutMapping("/{id}/status")
-    public ProviderItem updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
-        ProviderDto updated = providerService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
+    public ProviderAccountItem updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
+        ProviderAccountDto updated = providerService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
         return providerConverter.toVO(updated);
     }
 

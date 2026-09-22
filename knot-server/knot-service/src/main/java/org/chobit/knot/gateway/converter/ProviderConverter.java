@@ -1,8 +1,8 @@
 package org.chobit.knot.gateway.converter;
 
-import org.chobit.knot.gateway.dto.provider.ProviderDto;
-import org.chobit.knot.gateway.entity.ProviderEntity;
-import org.chobit.knot.gateway.vo.provider.ProviderItem;
+import org.chobit.knot.gateway.dto.provider.ProviderAccountDto;
+import org.chobit.knot.gateway.entity.ProviderAccountEntity;
+import org.chobit.knot.gateway.vo.provider.ProviderAccountItem;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;
@@ -18,18 +18,21 @@ public interface ProviderConverter {
     @Mapping(source = "status", target = "enabled", qualifiedByName = "statusToEnabled")
     @Mapping(target = "rateLimitPolicy", ignore = true)
     @Mapping(target = "quotaPolicy", ignore = true)
+    @Mapping(target = "credentialType", ignore = true)
     @Mapping(target = "authConfig", ignore = true)
-    ProviderDto toDto(ProviderEntity entity);
+    ProviderAccountDto toDto(ProviderAccountEntity entity);
 
     @Mapping(source = "type", target = "providerType")
     @Mapping(source = "enabled", target = "status", qualifiedByName = "enabledToStatus")
-    ProviderEntity toEntity(ProviderDto dto);
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    ProviderAccountEntity toEntity(ProviderAccountDto dto);
 
-    List<ProviderDto> toDtoList(List<ProviderEntity> entities);
+    List<ProviderAccountDto> toDtoList(List<ProviderAccountEntity> entities);
 
-    ProviderItem toVO(ProviderDto dto);
+    ProviderAccountItem toVO(ProviderAccountDto dto);
 
-    ProviderDto toDto(ProviderItem vo);
+    ProviderAccountDto toDto(ProviderAccountItem vo);
 
-    List<ProviderItem> toVOList(List<ProviderDto> dtos);
+    List<ProviderAccountItem> toVOList(List<ProviderAccountDto> dtos);
 }

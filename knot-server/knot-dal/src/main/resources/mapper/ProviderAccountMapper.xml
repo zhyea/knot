@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.mapper.ProviderMapper">
+<mapper namespace="org.chobit.knot.gateway.mapper.ProviderAccountMapper">
 
     <sql id="ProviderColumns">
         pa.id, pa.provider_id, p.name AS provider_name,
-        pa.code, pa.name, pa.provider_type, pa.status
+        pa.code, pa.name, pa.provider_type, pa.base_url, pa.status,
+        pa.created_at, pa.updated_at
     </sql>
 
-    <select id="list" resultType="org.chobit.knot.gateway.entity.ProviderEntity">
+    <select id="list" resultType="org.chobit.knot.gateway.entity.ProviderAccountEntity">
         select <include refid="ProviderColumns"/>
         from kb_provider_accounts pa
         inner join kb_providers p on pa.provider_id = p.id
@@ -24,7 +25,7 @@
         order by pa.id desc
     </select>
 
-    <select id="getById" resultType="org.chobit.knot.gateway.entity.ProviderEntity">
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.ProviderAccountEntity">
         select <include refid="ProviderColumns"/>
         from kb_provider_accounts pa
         inner join kb_providers p on pa.provider_id = p.id
@@ -39,8 +40,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_provider_accounts(provider_id, code, name, provider_type, status)
-        values(#{providerId}, #{code}, #{name}, #{providerType}, #{status})
+        insert into kb_provider_accounts(provider_id, code, name, provider_type, base_url, status)
+        values(#{providerId}, #{code}, #{name}, #{providerType}, #{baseUrl}, #{status})
     </insert>
 
     <update id="update">
@@ -49,6 +50,7 @@
             code = #{code},
             name = #{name},
             provider_type = #{providerType},
+            base_url = #{baseUrl},
             status = #{status}
         where id = #{id}
     </update>

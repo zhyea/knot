@@ -2,21 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
-import org.chobit.knot.gateway.entity.AppCredentialEntity;
-import org.chobit.knot.gateway.entity.AppEntity;
-import org.chobit.knot.gateway.entity.BillingRuleEntity;
-import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
-import org.chobit.knot.gateway.entity.ModelEntity;
-import org.chobit.knot.gateway.entity.ModelPoolEntity;
-import org.chobit.knot.gateway.entity.ModelPoolItemEntity;
-import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
-import org.chobit.knot.gateway.entity.ProviderEntity;
-import org.chobit.knot.gateway.entity.QuotaPolicyEntity;
-import org.chobit.knot.gateway.entity.RateLimitPolicyEntity;
-import org.chobit.knot.gateway.entity.ResourceTrafficPolicyEntity;
-import org.chobit.knot.gateway.entity.RoutingConsumerEntity;
-import org.chobit.knot.gateway.entity.RoutingRuleEntity;
-import org.chobit.knot.gateway.entity.RoutingRuleTargetEntity;
+import org.chobit.knot.gateway.entity.*;
 import org.chobit.knot.gateway.mapper.AppCredentialMapper;
 import org.chobit.knot.gateway.mapper.AppMapper;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
@@ -24,7 +10,7 @@ import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.mapper.ModelPoolMapper;
 import org.chobit.knot.gateway.mapper.ProviderCredentialMapper;
-import org.chobit.knot.gateway.mapper.ProviderMapper;
+import org.chobit.knot.gateway.mapper.ProviderAccountMapper;
 import org.chobit.knot.gateway.mapper.QuotaPolicyMapper;
 import org.chobit.knot.gateway.mapper.RateLimitPolicyMapper;
 import org.chobit.knot.gateway.mapper.ResourceTrafficPolicyMapper;
@@ -55,7 +41,7 @@ public class GatewayDataService {
     private final LoadingCache<Long, Optional<ModelEntity>> modelByIdCache;
     private final LoadingCache<Long, Optional<ModelPoolEntity>> modelPoolByIdCache;
     private final LoadingCache<Long, List<ModelPoolItemEntity>> modelPoolItemsByPoolIdCache;
-    private final LoadingCache<Long, Optional<ProviderEntity>> providerByIdCache;
+    private final LoadingCache<Long, Optional<ProviderAccountEntity>> providerByIdCache;
     private final LoadingCache<Long, Optional<ProviderCredentialEntity>> activeCredentialByProviderIdCache;
     private final LoadingCache<Long, List<ModelApiBindingEntity>> apiBindingsByModelIdCache;
     private final LoadingCache<ResourceKey, Optional<TrafficPolicies>> trafficPoliciesCache;
@@ -71,7 +57,7 @@ public class GatewayDataService {
                               RoutingRuleTargetMapper routingRuleTargetMapper,
                               ModelMapper modelMapper,
                               ModelPoolMapper modelPoolMapper,
-                              ProviderMapper providerMapper,
+                              ProviderAccountMapper providerAccountMapper,
                               ProviderCredentialMapper providerCredentialMapper,
                               ModelApiBindingMapper modelApiBindingMapper,
                               ResourceTrafficPolicyMapper resourceTrafficPolicyMapper,
@@ -88,7 +74,7 @@ public class GatewayDataService {
         this.modelByIdCache = optionalCache(modelMapper::getById);
         this.modelPoolByIdCache = optionalCache(modelPoolMapper::getById);
         this.modelPoolItemsByPoolIdCache = listCache(modelPoolMapper::listItemsByPoolId);
-        this.providerByIdCache = optionalCache(providerMapper::getById);
+        this.providerByIdCache = optionalCache(providerAccountMapper::getById);
         this.activeCredentialByProviderIdCache = optionalCache(providerCredentialMapper::getActiveByProviderId);
         this.apiBindingsByModelIdCache = listCache(modelApiBindingMapper::listByModelId);
         this.trafficPoliciesCache = optionalCache(key ->
@@ -163,7 +149,7 @@ public class GatewayDataService {
     /**
      * Returns the requested value. Executes the public operation.
      */
-    public ProviderEntity getProviderById(Long id) {
+    public ProviderAccountEntity getProviderById(Long id) {
         return providerByIdCache.get(id).orElse(null);
     }
 

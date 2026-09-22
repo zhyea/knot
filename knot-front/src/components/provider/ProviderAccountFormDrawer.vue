@@ -1,7 +1,7 @@
 <template>
   <el-drawer
       :model-value="modelValue"
-      :title="isEdit ? '编辑供应商' : '新建供应商'"
+      :title="isEdit ? '编辑供应商账户' : '新建供应商账户'"
       size="50%"
       class="drawer-with-scrollbar"
       destroy-on-close
@@ -10,7 +10,7 @@
   >
 
     <el-scrollbar max-height="calc(100vh - 140px)">
-    <el-form :model="form" label-width="100px">
+    <el-form v-loading="detailLoading" :model="form" label-width="110px">
       <div class="slot-body">
         <el-form-item label="编码" required :error="codeError">
           <el-input
@@ -24,6 +24,9 @@
         </el-form-item>
         <el-form-item label="名称" required>
           <el-input v-model="form.name" placeholder="供应商名称"/>
+        </el-form-item>
+        <el-form-item label="Base URL">
+          <el-input v-model="form.baseUrl" placeholder="https://api.example.com"/>
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
@@ -50,9 +53,39 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="认证凭证">
+        <el-form-item label="认证类型" required>
+          <el-select
+              v-model="form.credentialType"
+              placeholder="请选择认证类型"
+              style="width: 100%"
+              @change="handleCredentialTypeChange"
+          >
+            <el-option
+                v-for="option in credentialTypeOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item
+            v-for="field in requiredCredentialFields"
+            :key="field"
+            :label="credentialFieldLabels[field] || field"
+            required
+        >
+          <el-input
+              v-model="form.authConfig[field]"
+              :type="credentialFieldType(field)"
+              :rows="field === 'account_json' ? 5 : undefined"
+              :show-password="isSecretCredentialField(field) && field !== 'account_json' && isAdmin"
+              autocomplete="off"
+              :placeholder="`请输入 ${credentialFieldLabels[field] || field}`"
+          />
+        </el-form-item>
+        <el-form-item label="自定义认证信息">
           <KvEditor
-              v-model="form.authConfig"
+              v-model="customAuthConfig"
               class="auth-kv-editor"
               value-secret
               :allow-reveal="isAdmin"
@@ -112,13 +145,45 @@ const form = reactive({
   code: "",
   name: "",
   type: "",
+  baseUrl: "",
   enabled: true,
+  credentialType: "api-key",
   authConfig: {apiKey: ""},
   rateLimitPolicy: {},
   quotaPolicy: {}
 });
 
 const isEdit = computed(() => props.provider != null);
+
+const credentialTypeOptions = [
+  {value: "api-key", label: "api-key（ApiKey）"},
+  {value: "aws-auth", label: "aws-auth（AWS 认证）"},
+  {value: "gemini-auth", label: "gemini-auth（gemini 认证）"},
+  {value: "ak-sk", label: "ak-sk（AK&SK）"},
+  {value: "custom", label: "custom（自定义）"}
+];
+
+const credentialFields = {
+  "api-key": ["apiKey"],
+  "aws-auth": ["accessKey", "secretKey", "region"],
+  "gemini-auth": ["project_id", "region", "account_json"],
+  "ak-sk": ["accessKey", "secretKey"],
+  custom: []
+};
+
+const credentialFieldLabels = {
+  apiKey: "apiKey",
+  accessKey: "accessKey",
+  secretKey: "secretKey",
+  region: "region",
+  project_id: "project_id",
+  account_json: "account_json"
+};
+
+const requiredCredentialFields = computed(
+    () => credentialFields[form.credentialType] || []
+);
+const customAuthConfig = ref({});
 
 function defaultAuthConfig() {
   return {apiKey: ""};
@@ -129,6 +194,47 @@ function normalizeAuthConfig(raw) {
     return {...raw};
   }
   return defaultAuthConfig();
+}
+
+function normalizeCredentialType(value) {
+  if (credentialTypeOptions.some((option) => option.value === value)) {
+    return value;
+  }
+  if (value === "API_KEY") return "api-key";
+  if (value === "TOKEN") return "custom";
+  return "api-key";
+}
+
+function syncCredentialParts() {
+  const required = new Set(requiredCredentialFields.value);
+  const custom = {};
+  Object.entries(form.authConfig || {}).forEach(([key, value]) => {
+    if (!required.has(key)) {
+      custom[key] = value;
+    }
+  });
+  customAuthConfig.value = custom;
+}
+
+function handleCredentialTypeChange() {
+  const config = {...(form.authConfig || {})};
+  requiredCredentialFields.value.forEach((field) => {
+    if (!(field in config)) {
+      config[field] = "";
+    }
+  });
+  form.authConfig = config;
+  syncCredentialParts();
+}
+
+function isSecretCredentialField(field) {
+  return ["apiKey", "accessKey", "secretKey", "account_json"].includes(field);
+}
+
+function credentialFieldType(field) {
+  return field === "account_json"
+      ? "textarea"
+      : isSecretCredentialField(field) ? "password" : "text";
 }
 
 async function loadSuggestedCode() {
@@ -148,8 +254,11 @@ function fillFormFromRow(row) {
   form.code = row.code || "";
   form.name = row.name;
   form.type = row.type;
+  form.baseUrl = row.baseUrl || "";
   form.enabled = !!row.enabled;
+  form.credentialType = normalizeCredentialType(row.credentialType);
   form.authConfig = normalizeAuthConfig(row.authConfig);
+  handleCredentialTypeChange();
   form.rateLimitPolicy =
       row.rateLimitPolicy && typeof row.rateLimitPolicy === "object" ? {...row.rateLimitPolicy} : {};
   form.quotaPolicy = row.quotaPolicy && typeof row.quotaPolicy === "object" ? {...row.quotaPolicy} : {};
@@ -180,8 +289,11 @@ async function resetForm() {
     form.providerId = null;
     form.name = "";
     form.type = "";
+    form.baseUrl = "";
     form.enabled = true;
+    form.credentialType = "api-key";
     form.authConfig = defaultAuthConfig();
+    syncCredentialParts();
     form.rateLimitPolicy = {};
     form.quotaPolicy = {};
     loadSuggestedCode();
@@ -246,16 +358,21 @@ async function validateCode() {
 }
 
 function buildPayload() {
-  const authConfig = {...form.authConfig};
+  const authConfig = {...customAuthConfig.value};
+  requiredCredentialFields.value.forEach((field) => {
+    authConfig[field] = form.authConfig[field] ?? "";
+  });
   Object.keys(authConfig).forEach((k) => {
-    if (!k?.trim()) delete authConfig[k];
+    if (!k?.trim() || !String(authConfig[k] ?? "").trim()) delete authConfig[k];
   });
   return {
     providerId: form.providerId,
     code: form.code?.trim(),
     name: form.name,
     type: form.type,
+    baseUrl: form.baseUrl?.trim() || null,
     enabled: form.enabled,
+    credentialType: form.credentialType,
     authConfig: Object.keys(authConfig).length ? authConfig : null,
     rateLimitPolicy: Object.keys(form.rateLimitPolicy).length ? form.rateLimitPolicy : null,
     quotaPolicy: Object.keys(form.quotaPolicy).length ? form.quotaPolicy : null
@@ -266,6 +383,12 @@ async function submit() {
   if (!form.name?.trim()) {
     ElMessage.warning("请填写名称");
     return;
+  }
+  for (const field of requiredCredentialFields.value) {
+    if (!String(form.authConfig[field] ?? "").trim()) {
+      ElMessage.warning(`请填写 ${credentialFieldLabels[field] || field}`);
+      return;
+    }
   }
   if (!(await validateCode())) {
     return;

@@ -1,24 +1,24 @@
 package org.chobit.knot.gateway.mapper;
 
-import org.chobit.knot.gateway.entity.ProviderEntity;
+import org.chobit.knot.gateway.entity.ProviderAccountEntity;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
 @Mapper
-public interface ProviderMapper {
+public interface ProviderAccountMapper {
 
-    List<ProviderEntity> list(@Param("keyword") String keyword);
+    List<ProviderAccountEntity> list(@Param("keyword") String keyword);
 
-    ProviderEntity getById(Long id);
+    ProviderAccountEntity getById(Long id);
 
     Long countByCode(@Param("code") String code,
                      @Param("excludeId") Long excludeId);
 
-    int insert(ProviderEntity entity);
+    int insert(ProviderAccountEntity entity);
 
-    int update(ProviderEntity entity);
+    int update(ProviderAccountEntity entity);
 
     int updateStatus(@Param("id") Long id,
                      @Param("status") String status);

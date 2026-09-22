@@ -9,6 +9,13 @@
           {{ typeLabel(row.type) }}
         </template>
       </el-table-column>
+      <el-table-column prop="baseUrl" label="Base URL" min-width="18%" show-overflow-tooltip/>
+      <el-table-column label="创建时间" min-width="165" show-overflow-tooltip>
+        <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+      </el-table-column>
+      <el-table-column label="更新时间" min-width="165" show-overflow-tooltip>
+        <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+      </el-table-column>
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch
@@ -54,6 +61,7 @@ import RowActions from "../common/RowActions.vue";
 import {updateProviderStatus} from "@/api/providers.js";
 import {useEnabledToggle} from "@/composables/useEnabledToggle.js";
 import {useProviderTypeOptions} from "@/composables/useProviderTypeOptions.js";
+import {formatDateTime} from "@/utils/format.js";
 
 defineProps({
   rows: {type: Array, default: () => []},

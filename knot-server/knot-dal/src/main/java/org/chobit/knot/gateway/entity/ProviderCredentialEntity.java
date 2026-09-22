@@ -19,6 +19,8 @@ public class ProviderCredentialEntity {
 
     private String tokenValue;
 
+    private String encryptedConfig;
+
     private LocalDateTime expireAt;
 
     private String status;
