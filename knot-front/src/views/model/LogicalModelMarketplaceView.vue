@@ -88,16 +88,16 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
-import PageSection from "../components/common/PageSection.vue";
-import EnumSelect from "../components/common/EnumSelect.vue";
-import LogicalModelFormDrawer from "../components/model/LogicalModelFormDrawer.vue";
-import LogicalModelTable from "../components/model/LogicalModelTable.vue";
-import LogicalModelCardGrid from "../components/model/LogicalModelCardGrid.vue";
-import { deleteLogicalModel, listLogicalModels } from "../api/logicalModels";
-import { useAutoQuery } from "../composables/useAutoQuery";
-import { useEnums } from "../composables/useEnums";
-import { usePageList } from "../composables/usePageList";
-import { getStorageItem, getStorageJson, setStorageItem, setStorageJson } from "../utils/storage";
+import PageSection from "../../components/common/PageSection.vue";
+import EnumSelect from "../../components/common/EnumSelect.vue";
+import LogicalModelFormDrawer from "../../components/model/LogicalModelFormDrawer.vue";
+import LogicalModelTable from "../../components/model/LogicalModelTable.vue";
+import LogicalModelCardGrid from "../../components/model/LogicalModelCardGrid.vue";
+import { deleteLogicalModel, listLogicalModels } from "../../api/logicalModels";
+import { useAutoQuery } from "../../composables/useAutoQuery";
+import { useEnums } from "../../composables/useEnums";
+import { usePageList } from "../../composables/usePageList";
+import { getStorageItem, getStorageJson, setStorageItem, setStorageJson } from "../../utils/storage";
 
 const VIEW_MODE_KEY = "knot.logical-model.view-mode";
 const VIEW_PAGE_SIZE_KEY = "knot.logical-model.view-page-size";

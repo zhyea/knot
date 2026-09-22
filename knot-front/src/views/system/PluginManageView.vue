@@ -60,13 +60,13 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
-import PageSection from "../components/common/PageSection.vue";
-import PluginFormDialog from "../components/plugin/PluginFormDialog.vue";
-import PluginListPanel from "../components/plugin/PluginListPanel.vue";
-import { useAutoQuery } from "../composables/useAutoQuery";
-import { useEnums } from "../composables/useEnums";
-import { usePageList } from "../composables/usePageList";
-import { listPlugins, updatePluginStatus } from "../api/plugins";
+import PageSection from "../../components/common/PageSection.vue";
+import PluginFormDialog from "../../components/plugin/PluginFormDialog.vue";
+import PluginListPanel from "../../components/plugin/PluginListPanel.vue";
+import { useAutoQuery } from "../../composables/useAutoQuery";
+import { useEnums } from "../../composables/useEnums";
+import { usePageList } from "../../composables/usePageList";
+import { listPlugins, updatePluginStatus } from "../../api/plugins";
 
 const { options: statusOptions, loadOptions: loadStatusOptions } = useEnums("status");
 const pluginStatusOptions = computed(() =>

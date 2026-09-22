@@ -43,7 +43,7 @@
 import { ref, watch } from "vue";
 import { Edit } from "@element-plus/icons-vue";
 import RowActions from "../common/RowActions.vue";
-import { listDiscountPolicies } from "../../api/providers";
+import { listDiscountPolicies } from "../../api/providers.js";
 import ProviderDiscountFormDialog from "./ProviderDiscountFormDialog.vue";
 
 const props = defineProps({

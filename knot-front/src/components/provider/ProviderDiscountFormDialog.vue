@@ -41,7 +41,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import EnumSelect from "../common/EnumSelect.vue";
-import { createDiscountPolicy, updateDiscountPolicy } from "../../api/providers";
+import { createDiscountPolicy, updateDiscountPolicy } from "../../api/providers.js";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

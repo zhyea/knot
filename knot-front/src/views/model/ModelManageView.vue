@@ -66,15 +66,15 @@
 
 <script setup>
 import { onMounted, reactive, ref } from "vue";
-import PageSection from "../components/common/PageSection.vue";
-import EnumSelect from "../components/common/EnumSelect.vue";
-import OperationLogDrawer from "../components/common/OperationLogDrawer.vue";
-import ModelFormDrawer from "../components/model/ModelFormDrawer.vue";
-import ModelListPanel from "../components/model/ModelListPanel.vue";
-import { useAutoQuery } from "../composables/useAutoQuery";
-import { getModel, listModels } from "../api/models";
-import { listModelOperationLogs } from "../api/operationLogs";
-import { usePageList } from "../composables/usePageList";
+import PageSection from "../../components/common/PageSection.vue";
+import EnumSelect from "../../components/common/EnumSelect.vue";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
+import ModelFormDrawer from "../../components/model/ModelFormDrawer.vue";
+import ModelListPanel from "../../components/model/ModelListPanel.vue";
+import { useAutoQuery } from "../../composables/useAutoQuery";
+import { getModel, listModels } from "../../api/models";
+import { listModelOperationLogs } from "../../api/operationLogs";
+import { usePageList } from "../../composables/usePageList";
 
 const query = reactive({
   keyword: "",

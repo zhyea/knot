@@ -1,9 +1,9 @@
 <template>
   <div>
     <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
-      <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
-      <el-table-column prop="code" label="编码" min-width="10%" show-overflow-tooltip />
-      <el-table-column prop="name" label="名称" min-width="15%" />
+      <el-table-column prop="id" label="ID" width="70" align="center" header-align="center"/>
+      <el-table-column prop="code" label="编码" min-width="10%" show-overflow-tooltip/>
+      <el-table-column prop="name" label="名称" min-width="15%"/>
       <el-table-column label="类型" min-width="10%" show-overflow-tooltip>
         <template #default="{ row }">
           {{ typeLabel(row.type) }}
@@ -48,20 +48,20 @@
 </template>
 
 <script setup>
-import { Discount, Document, Edit } from "@element-plus/icons-vue";
+import {Discount, Document, Edit} from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
-import { updateProviderStatus } from "../../api/providers";
-import { useEnabledToggle } from "../../composables/useEnabledToggle";
-import { useProviderTypeOptions } from "../../composables/useProviderTypeOptions";
+import {updateProviderStatus} from "@/api/providers.js";
+import {useEnabledToggle} from "@/composables/useEnabledToggle.js";
+import {useProviderTypeOptions} from "@/composables/useProviderTypeOptions.js";
 
 defineProps({
-  rows: { type: Array, default: () => [] },
-  loading: { type: Boolean, default: false },
-  total: { type: Number, default: 0 },
-  pageNum: { type: Number, default: 1 },
-  pageSize: { type: Number, default: 20 },
-  showRefresh: { type: Boolean, default: true }
+  rows: {type: Array, default: () => []},
+  loading: {type: Boolean, default: false},
+  total: {type: Number, default: 0},
+  pageNum: {type: Number, default: 1},
+  pageSize: {type: Number, default: 20},
+  showRefresh: {type: Boolean, default: true}
 });
 
 const emit = defineEmits([
@@ -75,9 +75,9 @@ const emit = defineEmits([
   "changed"
 ]);
 
-const { labelOf: providerTypeLabel } = useProviderTypeOptions();
+const {labelOf: providerTypeLabel} = useProviderTypeOptions();
 
-const { togglingId, onEnabledChange } = useEnabledToggle({
+const {togglingId, onEnabledChange} = useEnabledToggle({
   updateApi: updateProviderStatus
 });
 

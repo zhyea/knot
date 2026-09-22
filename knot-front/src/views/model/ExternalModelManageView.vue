@@ -89,12 +89,12 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
-import PageSection from "../components/common/PageSection.vue";
-import EnumSelect from "../components/common/EnumSelect.vue";
-import ExternalModelDetailDrawer from "../components/model/ExternalModelDetailDrawer.vue";
-import ExternalModelListPanel from "../components/model/ExternalModelListPanel.vue";
-import { useAutoQuery } from "../composables/useAutoQuery";
-import { usePageList } from "../composables/usePageList";
+import PageSection from "../../components/common/PageSection.vue";
+import EnumSelect from "../../components/common/EnumSelect.vue";
+import ExternalModelDetailDrawer from "../../components/model/ExternalModelDetailDrawer.vue";
+import ExternalModelListPanel from "../../components/model/ExternalModelListPanel.vue";
+import { useAutoQuery } from "../../composables/useAutoQuery";
+import { usePageList } from "../../composables/usePageList";
 import {
   createLogicalModelFromExternalItem,
   createLogicalModelsFromExternalItems,
@@ -104,7 +104,7 @@ import {
   listExternalModelItems,
   listExternalModelSources,
   syncExternalModelSource
-} from "../api/externalModels";
+} from "../../api/externalModels";
 
 const query = reactive({
   sourceCode: "OPENROUTER",

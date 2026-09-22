@@ -34,20 +34,20 @@ const routes = [
       { path: "scheduled-tasks", name: "system-scheduled-tasks", component: () => import("@/views/system/ScheduledTaskView.vue"), meta: { titleKey: "route.systemScheduledTasks" } },
       { path: "enums", name: "system-enums", component: () => import("@/views/system/EnumManageView.vue"), meta: { titleKey: "route.systemEnums" } },
       { path: "settings", name: "system-settings", component: () => import("@/views/system/UserSettingsView.vue"), meta: { titleKey: "route.systemSettings" } },
-      { path: "plugins", name: "system-plugins", component: () => import("@/views/PluginManageView.vue"), meta: { titleKey: "route.systemPlugins" } }
+      { path: "plugins", name: "system-plugins", component: () => import("@/views/system/PluginManageView.vue"), meta: { titleKey: "route.systemPlugins" } }
     ]
   },
   {
     path: "/model-management",
     component: NestedView,
     children: [
-      { path: "model-pools", name: "model-management-model-pools", component: () => import("@/views/ModelPoolManageView.vue"), meta: { titleKey: "route.modelManagementModelPools" } },
-      { path: "models", name: "model-management-models", component: () => import("@/views/ModelManageView.vue"), meta: { titleKey: "route.modelManagementModels" } },
-      { path: "provider-accounts", name: "model-management-provider-accounts", component: () => import("@/views/ProviderManageView.vue"), meta: { titleKey: "route.providerAccounts" } },
+      { path: "model-pools", name: "model-management-model-pools", component: () => import("@/views/model/ModelPoolManageView.vue"), meta: { titleKey: "route.modelManagementModelPools" } },
+      { path: "models", name: "model-management-models", component: () => import("@/views/model/ModelManageView.vue"), meta: { titleKey: "route.modelManagementModels" } },
+      { path: "provider-accounts", name: "model-management-provider-accounts", component: () => import("@/views/model/ProviderManageView.vue"), meta: { titleKey: "route.providerAccounts" } },
       { path: "providers", redirect: { name: "model-management-provider-accounts" } },
-      { path: "provider-profiles", name: "model-management-provider-profiles", component: () => import("@/views/ProviderProfileManageView.vue"), meta: { titleKey: "route.providerProfiles" } },
-      { path: "logical-models", name: "model-management-logical-models", component: () => import("@/views/LogicalModelMarketplaceView.vue"), meta: { titleKey: "route.modelManagementLogicalModels" } },
-      { path: "external-models", name: "model-management-external-models", component: () => import("@/views/ExternalModelManageView.vue"), meta: { titleKey: "route.modelManagementExternalModels" } }
+      { path: "provider-profiles", name: "model-management-provider-profiles", component: () => import("@/views/model/ProviderProfileManageView.vue"), meta: { titleKey: "route.providerProfiles" } },
+      { path: "logical-models", name: "model-management-logical-models", component: () => import("@/views/model/LogicalModelMarketplaceView.vue"), meta: { titleKey: "route.modelManagementLogicalModels" } },
+      { path: "external-models", name: "model-management-external-models", component: () => import("@/views/model/ExternalModelManageView.vue"), meta: { titleKey: "route.modelManagementExternalModels" } }
     ]
   },
   { path: "/providers", redirect: "/model-management/provider-accounts" },
@@ -59,7 +59,7 @@ const routes = [
   {
     path: "/apps",
     name: "apps",
-    component: () => import("@/views/AppManageView.vue"),
+    component: () => import("@/views/application/AppManageView.vue"),
     meta: { titleKey: "route.apps" }
   },
   {

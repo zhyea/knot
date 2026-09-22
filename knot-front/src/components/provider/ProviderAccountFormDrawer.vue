@@ -82,15 +82,15 @@ import {computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import KvEditor from "../common/KvEditor.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
-import {useAuth} from "../../composables/useAuth";
-import {useProviderTypeOptions} from "../../composables/useProviderTypeOptions";
+import {useAuth} from "../../composables/useAuth.js";
+import {useProviderTypeOptions} from "../../composables/useProviderTypeOptions.js";
 import {
   createProvider,
   updateProvider,
   getProvider,
   suggestProviderCode,
   checkProviderCode
-} from "../../api/providers";
+} from "../../api/providers.js";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},

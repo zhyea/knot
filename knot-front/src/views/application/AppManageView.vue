@@ -8,7 +8,7 @@
             <el-input
               v-model="query.keyword"
               class="list-filter-control--wide"
-              placeholder="按编码、名称、类型筛选"
+              placeholder="按 App ID、名称、部门、负责人筛选"
               clearable
               @keyup.enter="handleQuery"
             />
@@ -23,11 +23,11 @@
       <section class="list-page-block list-page-block--content">
         <div class="list-page-toolbar">
           <div class="list-page-toolbar__actions list-page-toolbar__actions--start">
-            <el-button type="primary" @click="openCreate">新建供应商</el-button>
+            <el-button type="primary" @click="openCreate">新建应用</el-button>
           </div>
         </div>
 
-        <ProviderListPanel
+        <AppListPanel
           :rows="rows"
           :loading="loading"
           :total="total"
@@ -35,7 +35,6 @@
           :page-size="pageSize"
           :show-refresh="false"
           @edit="openEdit"
-          @discount="openDiscount"
           @log="openChangeLog"
           @page-change="onPageChange"
           @size-change="onSizeChange"
@@ -44,81 +43,53 @@
       </section>
     </div>
 
-    <ProviderFormDrawer
-      v-model="formVisible"
-      :provider="editingProvider"
-      @saved="onProviderSaved"
-    />
-
-    <ProviderDiscountDrawer
-      v-model="discountDrawerVisible"
-      :provider-id="discountProviderId"
-      @changed="load"
-    />
+    <AppFormDrawer v-model="formVisible" :app="editingApp" @saved="onAppSaved" />
 
     <OperationLogDrawer
       v-model="logDrawer"
-      :title="`供应商变更日志 - ${logProviderName || ''}`"
-      :load-logs="loadProviderOperationLogs"
+      :title="`应用变更日志 - ${logAppName || ''}`"
+      :load-logs="loadAppOperationLogs"
     />
   </PageSection>
 </template>
 
 <script setup>
 import { onMounted, reactive, ref } from "vue";
-import PageSection from "../components/common/PageSection.vue";
-import OperationLogDrawer from "../components/common/OperationLogDrawer.vue";
-import ProviderListPanel from "../components/provider/ProviderListPanel.vue";
-import ProviderFormDrawer from "../components/provider/ProviderFormDrawer.vue";
-import ProviderDiscountDrawer from "../components/provider/ProviderDiscountDrawer.vue";
-import { listProviderOperationLogs } from "../api/operationLogs";
-import { useAutoQuery } from "../composables/useAutoQuery";
-import { usePageList } from "../composables/usePageList";
-import { listProviders } from "../api/providers";
+import PageSection from "../../components/common/PageSection.vue";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
+import AppListPanel from "../../components/app/AppListPanel.vue";
+import AppFormDrawer from "../../components/app/AppFormDrawer.vue";
+import { listAppOperationLogs } from "../../api/operationLogs";
+import { useAutoQuery } from "../../composables/useAutoQuery";
+import { usePageList } from "../../composables/usePageList";
+import { listApps } from "../../api/apps";
 
 const query = reactive({
   keyword: ""
 });
 
 const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(listProviders, { extra: query });
+  usePageList(listApps, { extra: query });
 const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
 
 const formVisible = ref(false);
-const editingProvider = ref(null);
-const discountDrawerVisible = ref(false);
-const discountProviderId = ref(null);
+const editingApp = ref(null);
 const logDrawer = ref(false);
-const logProviderId = ref(null);
-const logProviderName = ref("");
+const logAppId = ref(null);
+const logAppName = ref("");
 
 function openCreate() {
-  editingProvider.value = null;
+  editingApp.value = null;
   formVisible.value = true;
 }
 
 function openEdit(row) {
-  editingProvider.value = row;
+  editingApp.value = row;
   formVisible.value = true;
 }
 
-function onProviderSaved() {
-  load();
-}
-
-function openDiscount(row) {
-  discountProviderId.value = row.id;
-  discountDrawerVisible.value = true;
-}
-
-function openChangeLog(row) {
-  logProviderId.value = row.id;
-  logProviderName.value = row.name || `#${row.id}`;
-  logDrawer.value = true;
-}
-
-function loadProviderOperationLogs() {
-  return listProviderOperationLogs(logProviderId.value);
+function onAppSaved() {
+  resetPage();
 }
 
 function handleQuery() {
@@ -130,6 +101,16 @@ function handleReset() {
     query.keyword = "";
     return resetPage();
   });
+}
+
+function openChangeLog(row) {
+  logAppId.value = row.id;
+  logAppName.value = row.name || row.appId || `#${row.id}`;
+  logDrawer.value = true;
+}
+
+function loadAppOperationLogs() {
+  return listAppOperationLogs(logAppId.value);
 }
 
 onMounted(load);

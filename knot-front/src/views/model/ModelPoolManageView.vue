@@ -62,13 +62,13 @@
 <script setup>
 import { onMounted, reactive, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
-import PageSection from "../components/common/PageSection.vue";
-import EnumSelect from "../components/common/EnumSelect.vue";
-import ModelPoolListPanel from "../components/model/ModelPoolListPanel.vue";
-import ModelPoolFormDrawer from "../components/model/ModelPoolFormDrawer.vue";
-import { useAutoQuery } from "../composables/useAutoQuery";
-import { deleteModelPool, listModelPools } from "../api/modelPools";
-import { usePageList } from "../composables/usePageList";
+import PageSection from "../../components/common/PageSection.vue";
+import EnumSelect from "../../components/common/EnumSelect.vue";
+import ModelPoolListPanel from "../../components/model/ModelPoolListPanel.vue";
+import ModelPoolFormDrawer from "../../components/model/ModelPoolFormDrawer.vue";
+import { useAutoQuery } from "../../composables/useAutoQuery";
+import { deleteModelPool, listModelPools } from "../../api/modelPools";
+import { usePageList } from "../../composables/usePageList";
 
 const query = reactive({
   keyword: "",
