@@ -3,6 +3,7 @@ package org.chobit.knot.gateway;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.error.BusinessException;
+import org.chobit.knot.gateway.error.ForbiddenException;
 import org.chobit.knot.gateway.error.UnauthorizedException;
 import org.chobit.knot.gateway.rw.RwProperties;
 import org.springframework.http.HttpStatus;
@@ -36,6 +37,16 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ApiResponse<Void> handleUnauthorized(UnauthorizedException e) {
         log.warn("Unauthorized: code={}, message={}", e.getCode(), e.getMessage());
+        return ApiResponse.fail(rwProperties.getFailCode(), e.getMessage());
+    }
+
+    /**
+     * 已登录但无权限：返回 403，不能返回 401 —— 前端会把 401 当作「登录已过期」并强制登出。
+     */
+    @ExceptionHandler(ForbiddenException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiResponse<Void> handleForbidden(ForbiddenException e) {
+        log.warn("Forbidden: code={}, message={}", e.getCode(), e.getMessage());
         return ApiResponse.fail(rwProperties.getFailCode(), e.getMessage());
     }
 

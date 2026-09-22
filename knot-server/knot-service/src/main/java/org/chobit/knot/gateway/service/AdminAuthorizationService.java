@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.service;
 import org.chobit.knot.gateway.entity.AdminApiPermissionBindingEntity;
 import org.chobit.knot.gateway.entity.AdminMenuEntity;
 import org.chobit.knot.gateway.entity.UserEntity;
+import org.chobit.knot.gateway.error.ForbiddenException;
 import org.chobit.knot.gateway.error.UnauthorizedException;
 import org.chobit.knot.gateway.mapper.AdminAuthorizationMapper;
 import org.chobit.knot.gateway.mapper.UserMapper;
@@ -41,10 +42,10 @@ public class AdminAuthorizationService {
         }
         AdminApiPermissionBindingEntity binding = adminAuthorizationMapper.getApiPermissionBinding(httpMethod, pathPattern);
         if (binding == null || binding.getPermissionCode() == null || binding.getPermissionCode().isBlank()) {
-            throw new UnauthorizedException("接口未配置访问权限: " + httpMethod + " " + pathPattern);
+            throw new ForbiddenException("接口未配置访问权限: " + httpMethod + " " + pathPattern);
         }
         if (!listPermissionCodes(userId).contains(binding.getPermissionCode())) {
-            throw new UnauthorizedException("当前用户无权访问该接口: " + httpMethod + " " + pathPattern);
+            throw new ForbiddenException("当前用户无权访问该接口: " + httpMethod + " " + pathPattern);
         }
     }
 

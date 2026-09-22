@@ -4,7 +4,8 @@ public enum ErrorCode {
     NOT_FOUND("GW-SYSTEM-404", "resource not found"),
     VALIDATION_ERROR("GW-SYSTEM-400", "validation failed"),
     CONFLICT("GW-SYSTEM-409", "resource conflict"),
-    UNAUTHORIZED("GW-SYSTEM-401", "unauthorized");
+    UNAUTHORIZED("GW-SYSTEM-401", "unauthorized"),
+    FORBIDDEN("GW-SYSTEM-403", "forbidden");
 
     private final String code;
     private final String message;

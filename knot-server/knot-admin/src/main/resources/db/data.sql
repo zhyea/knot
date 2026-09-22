@@ -104,8 +104,10 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 (54, 'system:authz:api-binding:delete', '删除 API 权限绑定', 'API', 1, 18, 'ENABLED', 1, NULL),
 (55, 'system:authorization-resource:page', '授权资源页面访问', 'PAGE', 1, 18, 'ENABLED', 1, NULL);
 
-INSERT IGNORE INTO ks_role_permissions (role_id, permission_id)
-SELECT 1, id FROM ks_permissions;
+-- ⚠ ADMIN 角色的全量授权统一放在本文件**末尾**（见文件最后一段）。
+-- 原实现是「在此处对当时已存在的权限做一次快照」，导致本语句之后新增的权限
+-- （如 id=18 的 system:settings:view、id=19~26 的模块 PAGE 权限）永远不会授予 ADMIN，
+-- 全新初始化的库会因此缺少接口级权限、登录后立刻被 401 拒绝。新增权限时无需再单独补授 ADMIN。
 
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (2, 1),(2, 2),(2, 6),(2, 7),(2, 14),(2, 15),(2, 16),(2, 17),
@@ -205,6 +207,8 @@ UPDATE ks_permissions
 SET menu_id = 18
 WHERE id IN (39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54);
 
+-- 存量库修补：把「授权资源页面访问」补给已持有「角色授权页面访问」(id=12) 的角色。
+-- 注意：ADMIN 的 55 由文件末尾的权威授权块保证，不依赖本句。
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id)
 SELECT role_id, 55
 FROM ks_role_permissions
@@ -794,3 +798,19 @@ WHERE c.category = 'provider_type';
 
 -- 供应商分类支持多选：tag 由 VARCHAR(32) 扩容为 VARCHAR(255)（逗号分隔）
 ALTER TABLE kb_providers MODIFY COLUMN tag VARCHAR(255) NOT NULL COMMENT '供应商分类，可多选，多个用英文逗号分隔，如 原厂,代理';
+
+-- ============================================================
+-- ★ 权威授权块（必须保持在文件最后）
+-- ============================================================
+-- ADMIN 角色拥有全部权限。此处按 role.code 关联、按权限全量授予，
+-- 因此**新增权限时不需要再单独给 ADMIN 补授**。
+-- 历史教训：该授予原先写在中段（对当时已有权限做一次性快照），
+-- 导致之后新增的权限（id=18 system:settings:view、id=19~26 模块 PAGE 权限）
+-- 永远不会授予 ADMIN —— 全新初始化的库 ADMIN 只有 48/57 个权限，
+-- 调用被 @AuthCheck 保护的接口会被拒（登录后立刻被踢回登录页）。
+-- 维护规则：任何权限/菜单的新增都写在上面，本块永远留在文件末尾。
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM ks_roles r
+         CROSS JOIN ks_permissions p
+WHERE r.code = 'ADMIN';
