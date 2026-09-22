@@ -44,7 +44,6 @@ public class ProviderProfileController {
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
             description = "'新建供应商信息'",
-            recordNewValue = true,
             newValueSpel = "@providerProfileService.providerProfileAuditSnapshot(#result.id())")
     @PostMapping
     public ProviderProfileItem create(@RequestBody @Valid ProviderProfileItem request) {
@@ -55,7 +54,7 @@ public class ProviderProfileController {
             entityId = "#p0",
             entityNameAfter = "#result.name()",
             description = "'更新供应商信息'",
-            recordNewValue = true,
+                oldValueSpel = "@providerProfileService.providerProfileAuditSnapshot(#p0)",
             newValueSpel = "@providerProfileService.providerProfileAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     public ProviderProfileItem update(@PathVariable Long id,
@@ -67,7 +66,6 @@ public class ProviderProfileController {
             entityId = "#p0",
             entityName = "@providerProfileService.providerProfileAuditSnapshot(#p0)?.get('name')",
             description = "'删除供应商信息'",
-            recordOldValue = true,
             oldValueSpel = "@providerProfileService.providerProfileAuditSnapshot(#p0)")
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {

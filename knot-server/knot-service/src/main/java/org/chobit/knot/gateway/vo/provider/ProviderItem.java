@@ -6,8 +6,9 @@ import jakarta.validation.constraints.NotNull;
 
 import java.util.Map;
 
-public record ProviderItem(Long id, @NotNull Long providerId, String providerName,
+public record ProviderItem(Long id, Long providerId, String providerName,
                            String code, String name, String type, boolean enabled,
                            Map<String, Object> authConfig,
                            RateLimitPolicy rateLimitPolicy, QuotaPolicy quotaPolicy) {
 }
+

@@ -85,7 +85,6 @@ public class ModelController {
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
             description = "'创建模型'",
-            recordNewValue = true,
             newValueSpel = "@modelService.modelAuditSnapshot(#result.id())")
     @PostMapping
     public ModelItem create(@RequestBody @Valid ModelItem request) {
@@ -100,9 +99,7 @@ public class ModelController {
             entityId = "#p0",
             entityNameAfter = "#result.name()",
             description = "'更新模型'",
-            recordOldValue = true,
             oldValueSpel = "@modelService.modelAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@modelService.modelAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     public ModelItem update(@PathVariable Long id, @RequestBody @Valid ModelItem request) {
@@ -117,9 +114,7 @@ public class ModelController {
             entityId = "#p0",
             entityNameAfter = "#result.name()",
             description = "'更新模型状态'",
-            recordOldValue = true,
             oldValueSpel = "@modelService.modelAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@modelService.modelAuditSnapshot(#p0)")
     @PutMapping("/{id}/status")
     public ModelItem updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {

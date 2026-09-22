@@ -44,7 +44,6 @@ public class AppController {
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
             description = "'创建应用'",
-            recordNewValue = true,
             newValueSpel = "@appService.appAuditSnapshot(#result.id())")
     @PostMapping
     public AppItem create(@RequestBody @Valid AppItem request) {
@@ -59,9 +58,7 @@ public class AppController {
             entityId = "#p0",
             entityNameAfter = "#result.name()",
             description = "'更新应用'",
-            recordOldValue = true,
             oldValueSpel = "@appService.appAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@appService.appAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     public AppItem update(@PathVariable Long id, @RequestBody @Valid AppItem request) {
@@ -76,7 +73,6 @@ public class AppController {
             entityId = "#p0",
             entityName = "@appService.appAuditSnapshot(#p0)?.get('name')",
             description = "'删除应用'",
-            recordOldValue = true,
             oldValueSpel = "@appService.appAuditSnapshot(#p0)")
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {

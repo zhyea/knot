@@ -76,7 +76,6 @@ public class ProviderController {
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
             description = "'新建供应商账户'",
-            recordNewValue = true,
             newValueSpel = "@providerService.providerAuditSnapshot(#result.id())")
     @PostMapping
     /**
@@ -94,9 +93,7 @@ public class ProviderController {
             entityId = "#p0",
             entityNameAfter = "#result.name()",
             description = "'更新供应商账户'",
-            recordOldValue = true,
             oldValueSpel = "@providerService.providerAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@providerService.providerAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     /**
@@ -114,9 +111,7 @@ public class ProviderController {
             entityId = "#p0",
             entityNameAfter = "#result.name()",
             description = "'更新供应商账户状态'",
-            recordOldValue = true,
             oldValueSpel = "@providerService.providerAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@providerService.providerAuditSnapshot(#p0)")
     @PutMapping("/{id}/status")
     public ProviderItem updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
@@ -140,7 +135,6 @@ public class ProviderController {
             entityId = "#p0",
             entityNameAfter = "@providerService.getById(#p0).name()",
             description = "'新增折扣策略'",
-            recordNewValue = true,
             newValueSpel = "#result")
     @PostMapping("/{id}/discount-policies")
     /**
@@ -158,9 +152,7 @@ public class ProviderController {
             entityId = "#p0",
             entityNameAfter = "@providerService.getById(#p0).name()",
             description = "'更新折扣策略'",
-            recordOldValue = true,
             oldValueSpel = "@providerService.discountPolicyAuditSnapshot(#p1)",
-            recordNewValue = true,
             newValueSpel = "#result")
     @PutMapping("/{id}/discount-policies/{policyId}")
     public DiscountPolicy updateDiscountPolicy(

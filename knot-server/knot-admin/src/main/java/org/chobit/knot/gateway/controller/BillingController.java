@@ -50,7 +50,6 @@ public class BillingController {
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
             description = "'创建计费规则'",
-            recordNewValue = true,
             newValueSpel = "@billingService.billingRuleAuditSnapshot(#result.id())")
     @PostMapping()
     public BillingRule createRule(@RequestBody @Valid BillingRule request) {
@@ -65,9 +64,7 @@ public class BillingController {
             entityId = "#p0",
             entityNameAfter = "#result.name()",
             description = "'更新计费规则'",
-            recordOldValue = true,
             oldValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)")
     @PutMapping("/rules/{id}")
     public BillingRule updateRule(@PathVariable Long id, @RequestBody @Valid BillingRule request) {
@@ -82,9 +79,7 @@ public class BillingController {
             entityId = "#p0",
             entityNameAfter = "#result.name()",
             description = "'更新计费规则状态'",
-            recordOldValue = true,
             oldValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)")
     @PutMapping("/rules/{id}/status")
     public BillingRule updateRuleStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
@@ -98,7 +93,6 @@ public class BillingController {
     @OperationLog(module = "billing", operation = "DELETE", entityType = "BillingRule",
             entityId = "#p0",
             description = "'删除计费规则'",
-            recordOldValue = true,
             oldValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)")
     @DeleteMapping("/rules/{id}")
     public void deleteRule(@PathVariable Long id) {

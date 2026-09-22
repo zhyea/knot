@@ -50,7 +50,6 @@ public class DepartmentController {
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.deptName()",
             description = "'创建部门'",
-            recordNewValue = true,
             newValueSpel = "@departmentService.departmentAuditSnapshot(#result.id())")
     @PostMapping
     public DepartmentItem create(@RequestBody @Valid DepartmentItem request) {
@@ -62,9 +61,7 @@ public class DepartmentController {
             entityId = "#p0",
             entityNameAfter = "#result.deptName()",
             description = "'更新部门'",
-            recordOldValue = true,
             oldValueSpel = "@departmentService.departmentAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@departmentService.departmentAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     public DepartmentItem update(@PathVariable Long id, @RequestBody @Valid DepartmentItem request) {
@@ -76,9 +73,7 @@ public class DepartmentController {
             entityId = "#p0",
             entityNameAfter = "#result.deptName()",
             description = "'更新部门状态'",
-            recordOldValue = true,
             oldValueSpel = "@departmentService.departmentAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@departmentService.departmentAuditSnapshot(#p0)")
     @PutMapping("/{id}/status")
     public DepartmentItem updateStatus(@PathVariable Long id, @RequestBody @Valid UpdateDepartmentStatusRequest request) {
@@ -90,7 +85,6 @@ public class DepartmentController {
             entityId = "#p0",
             entityName = "@departmentService.departmentAuditSnapshot(#p0)['deptName']",
             description = "'删除部门'",
-            recordOldValue = true,
             oldValueSpel = "@departmentService.departmentAuditSnapshot(#p0)")
     @DeleteMapping("/{id}")
     public DepartmentItem delete(@PathVariable Long id) {

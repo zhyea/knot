@@ -76,7 +76,6 @@ public class EnumConfigController {
             entityIdAfter = "#result.id",
             entityNameAfter = "#result.category + '/' + #result.itemCode",
             description = "'创建枚举值'",
-            recordNewValue = true,
             newValueSpel = "#result")
     @PostMapping
     public EnumConfigEntity create(@RequestBody EnumConfigEntity request) {
@@ -90,9 +89,7 @@ public class EnumConfigController {
             entityId = "#p0",
             entityNameAfter = "#result.category + '/' + #result.itemCode",
             description = "'更新枚举值'",
-            recordOldValue = true,
             oldValueSpel = "@enumConfigService.getById(#p0)",
-            recordNewValue = true,
             newValueSpel = "#result")
     @PutMapping("/{id}")
     public EnumConfigEntity update(@PathVariable Long id, @RequestBody EnumConfigEntity request) {
@@ -106,7 +103,6 @@ public class EnumConfigController {
             entityId = "#p0",
             entityNameAfter = "#result.category + '/' + #result.itemCode",
             description = "'删除枚举值'",
-            recordOldValue = true,
             oldValueSpel = "@enumConfigService.getById(#p0)")
     @DeleteMapping("/{id}")
     public EnumConfigEntity delete(@PathVariable Long id) {

@@ -74,7 +74,6 @@ public class ModelPoolController {
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
             description = "'新建模型池'",
-            recordNewValue = true,
             newValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#result.id())")
     @PostMapping
     public ModelPool create(@RequestBody @Valid ModelPool request) {
@@ -88,9 +87,7 @@ public class ModelPoolController {
             entityId = "#p0",
             entityNameAfter = "#result.name()",
             description = "'更新模型池'",
-            recordOldValue = true,
             oldValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     public ModelPool update(@PathVariable Long id, @RequestBody @Valid ModelPool request) {
@@ -104,9 +101,7 @@ public class ModelPoolController {
             entityId = "#p0",
             entityNameAfter = "#result.name()",
             description = "'更新模型池状态'",
-            recordOldValue = true,
             oldValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)")
     @PutMapping("/{id}/status")
     public ModelPool updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
@@ -119,7 +114,6 @@ public class ModelPoolController {
     @OperationLog(module = "model-pool", operation = "DELETE", entityType = "ModelPool",
             entityId = "#p0",
             description = "'删除模型池'",
-            recordOldValue = true,
             oldValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)")
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {

@@ -56,7 +56,7 @@ public @interface OperationLog {
     /**
      * 是否在执行业务方法前记录旧值（需配合 {@link #oldValueSpel()}，在 {@code proceed} 之前求值）
      */
-    boolean recordOldValue() default false;
+    boolean recordOldValue() default true;
 
     /**
      * 求旧值的 SpEL，仅在方法参数等上下文中求值（无 {@code #result}），可引用 Spring Bean，例如
@@ -67,7 +67,7 @@ public @interface OperationLog {
     /**
      * 是否在成功后记录新值（需配合 {@link #newValueSpel()} 或直接序列化 {@code #result}）
      */
-    boolean recordNewValue() default false;
+    boolean recordNewValue() default true;
 
     /**
      * 求新值的 SpEL，在业务方法成功返回后求值，可使用 {@code #result} 与方法参数名。为空时若

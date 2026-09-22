@@ -50,7 +50,6 @@ public class UserController {
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.username()",
             description = "'创建用户'",
-            recordNewValue = true,
             newValueSpel = "@userService.userAuditSnapshot(#result.id())")
     @PostMapping("/create")
     public UserItem create(@RequestBody @Valid UserItem request) {
@@ -77,9 +76,7 @@ public class UserController {
             entityId = "#p0",
             entityNameAfter = "#result.username()",
             description = "'更新用户状态'",
-            recordOldValue = true,
             oldValueSpel = "@userService.userAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@userService.userAuditSnapshot(#p0)")
     @PutMapping("/{id}/status")
     public UserItem updateStatus(@PathVariable Long id, @RequestBody @Valid UpdateUserStatusRequest request) {
@@ -94,9 +91,7 @@ public class UserController {
             entityId = "#p0",
             entityNameAfter = "#result.username()",
             description = "'更新用户'",
-            recordOldValue = true,
             oldValueSpel = "@userService.userAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@userService.userAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     public UserItem updateUser(@PathVariable Long id, @RequestBody @Valid UserItem request) {
@@ -123,9 +118,7 @@ public class UserController {
             entityId = "#p0",
             entityNameAfter = "#result.username()",
             description = "'重置用户密码'",
-            recordOldValue = true,
             oldValueSpel = "@userService.userAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@userService.userAuditSnapshot(#p0)")
     @PutMapping("/{id}/reset-password")
     public UserItem resetPassword(@PathVariable Long id) {

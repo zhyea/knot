@@ -55,7 +55,6 @@ public class RoutingConsumerController {
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
             description = "'创建消费者'",
-            recordNewValue = true,
             newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#result.id())")
     @PostMapping
     public RoutingConsumer create(@RequestBody @Valid RoutingConsumer request) {
@@ -69,9 +68,7 @@ public class RoutingConsumerController {
             entityId = "#p0",
             entityNameAfter = "#result.name()",
             description = "'更新消费者'",
-            recordOldValue = true,
             oldValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     public RoutingConsumer update(@PathVariable Long id, @RequestBody @Valid RoutingConsumer request) {
@@ -85,9 +82,7 @@ public class RoutingConsumerController {
             entityId = "#p0",
             entityNameAfter = "#result.name()",
             description = "'更新消费者状态'",
-            recordOldValue = true,
             oldValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)")
     @PutMapping("/{id}/status")
     public RoutingConsumer updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
@@ -101,7 +96,6 @@ public class RoutingConsumerController {
             entityId = "#p0",
             entityNameAfter = "#result.name()",
             description = "'重置消费者 API Key'",
-            recordNewValue = true,
             newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)")
     @PostMapping("/{id}/rotate-secret")
     public RoutingConsumer rotateSecret(@PathVariable Long id) {

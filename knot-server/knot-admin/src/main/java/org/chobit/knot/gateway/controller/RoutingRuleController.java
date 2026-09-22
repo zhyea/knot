@@ -59,7 +59,6 @@ public class RoutingRuleController {
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
             description = "'创建路由规则'",
-            recordNewValue = true,
             newValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#result.id())")
     @PostMapping
     public RoutingRule create(@RequestBody @Valid RoutingRule request) {
@@ -74,9 +73,7 @@ public class RoutingRuleController {
             entityId = "#p0",
             entityNameAfter = "#result.name()",
             description = "'更新路由规则'",
-            recordOldValue = true,
             oldValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     public RoutingRule update(@PathVariable Long id, @RequestBody @Valid RoutingRule request) {
@@ -91,9 +88,7 @@ public class RoutingRuleController {
             entityId = "#p0",
             entityNameAfter = "#result.name()",
             description = "'更新路由规则状态'",
-            recordOldValue = true,
             oldValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)",
-            recordNewValue = true,
             newValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)")
     @PutMapping("/{id}/status")
     public RoutingRule updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {

@@ -108,6 +108,7 @@ const codeValidated = ref(false);
 const detailLoading = ref(false);
 const form = reactive({
   id: null,
+  providerId: null,
   code: "",
   name: "",
   type: "",
@@ -143,6 +144,7 @@ async function loadSuggestedCode() {
 
 function fillFormFromRow(row) {
   form.id = row.id;
+  form.providerId = row.providerId;
   form.code = row.code || "";
   form.name = row.name;
   form.type = row.type;
@@ -175,6 +177,7 @@ async function resetForm() {
     }
   } else {
     form.id = null;
+    form.providerId = null;
     form.name = "";
     form.type = "";
     form.enabled = true;
@@ -248,6 +251,7 @@ function buildPayload() {
     if (!k?.trim()) delete authConfig[k];
   });
   return {
+    providerId: form.providerId,
     code: form.code?.trim(),
     name: form.name,
     type: form.type,
