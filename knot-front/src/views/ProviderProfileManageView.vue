@@ -58,6 +58,11 @@
                 {{ formatTime(row.createdAt) }}
               </template>
             </el-table-column>
+            <el-table-column label="更新时间" min-width="18%">
+              <template #default="{ row }">
+                {{ formatTime(row.updatedAt) }}
+              </template>
+            </el-table-column>
             <el-table-column label="操作" width="170" align="center" header-align="center" fixed="right">
               <template #default="{ row }">
                 <RowActions
