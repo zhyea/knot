@@ -323,7 +323,7 @@ INSERT IGNORE INTO kb_model_pool_items (id, pool_id, model_id, weight, priority,
 
 INSERT IGNORE INTO kb_logical_models (
   id, model_code, model_name, model_type, model_family, version, display_name, tagline, description,
-  tags_json, use_cases_json, capabilities_json, context_window, max_output_tokens,
+  tags_json, use_cases_json, context_window, max_output_tokens,
   input_modalities_json, output_modalities_json, languages_json,
   visibility, publish_status, status, sort_order, featured,
   quality_level, latency_level, cost_level, pricing_summary
@@ -333,7 +333,6 @@ INSERT IGNORE INTO kb_logical_models (
  'A logical chat model that routes to premium provider models by policy.',
  JSON_ARRAY('chat', 'reasoning', 'premium'),
  JSON_ARRAY('knowledge assistant', 'research', 'complex analysis'),
- JSON_OBJECT('toolCalling', true, 'vision', true, 'reasoning', true),
  200000, 8192, JSON_ARRAY('text', 'image'), JSON_ARRAY('text'), JSON_ARRAY('zh-CN', 'en-US'),
  'PUBLIC', 'PUBLISHED', 'ENABLED', 10, 1, 'HIGH', 'MEDIUM', 'HIGH', 'Premium provider route'),
 (2, 'knot-chat-economy', 'Knot Chat Economy', 'CHAT', 'general', '1.0',
@@ -341,7 +340,6 @@ INSERT IGNORE INTO kb_logical_models (
  'A logical chat model that routes to economical provider models.',
  JSON_ARRAY('chat', 'economy'),
  JSON_ARRAY('customer service', 'daily assistant'),
- JSON_OBJECT('toolCalling', false, 'vision', false, 'reasoning', false),
  128000, 4096, JSON_ARRAY('text'), JSON_ARRAY('text'), JSON_ARRAY('zh-CN', 'en-US'),
  'PUBLIC', 'PUBLISHED', 'ENABLED', 20, 0, 'MEDIUM', 'LOW', 'LOW', 'Economy provider route');
 
