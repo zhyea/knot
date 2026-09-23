@@ -23,7 +23,8 @@
     <select id="list" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
         select <include refid="RuleColumns"/>
         from kb_billing_rules br
-        left join kb_provider_accounts p on br.provider_account_id = p.id
+        left join kb_provider_accounts pa on br.provider_account_id = pa.id
+        left join kb_providers p on pa.provider_id = p.id
         left join kb_logical_models lm on br.logical_model_id = lm.id
         left join kb_billing_rule_versions bv on br.current_version_id = bv.id
         left join kb_billing_rule_version_items bvi on bv.id = bvi.version_id
@@ -51,7 +52,8 @@
     <select id="getById" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
         select <include refid="RuleColumns"/>
         from kb_billing_rules br
-        left join kb_provider_accounts p on br.provider_account_id = p.id
+        left join kb_provider_accounts pa on br.provider_account_id = pa.id
+        left join kb_providers p on pa.provider_id = p.id
         left join kb_logical_models lm on br.logical_model_id = lm.id
         left join kb_billing_rule_versions bv on br.current_version_id = bv.id
         left join kb_billing_rule_version_items bvi on bv.id = bvi.version_id
@@ -77,7 +79,8 @@
         select <include refid="ActiveRuleColumns"/>
         from kb_billing_rules br
         inner join kb_billing_rule_versions bv on br.id = bv.rule_id
-        left join kb_provider_accounts p on br.provider_account_id = p.id
+        left join kb_provider_accounts pa on br.provider_account_id = pa.id
+        left join kb_providers p on pa.provider_id = p.id
         left join kb_logical_models lm on br.logical_model_id = lm.id
         left join kb_billing_rule_version_items bvi on bv.id = bvi.version_id
         where br.id = #{ruleId}
@@ -94,7 +97,8 @@
         select <include refid="ActiveRuleColumns"/>
         from kb_billing_rules br
         inner join kb_billing_rule_versions bv on br.id = bv.rule_id
-        left join kb_provider_accounts p on br.provider_account_id = p.id
+        left join kb_provider_accounts pa on br.provider_account_id = pa.id
+        left join kb_providers p on pa.provider_id = p.id
         left join kb_logical_models lm on br.logical_model_id = lm.id
         left join kb_billing_rule_version_items bvi on bv.id = bvi.version_id
         where br.status = 'ACTIVE'

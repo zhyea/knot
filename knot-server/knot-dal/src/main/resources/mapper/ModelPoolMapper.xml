@@ -86,7 +86,8 @@
                p.name as provider_name
         from kb_model_pool_items mpi
         inner join kb_models m on mpi.model_id = m.id
-        left join kb_provider_accounts p on m.provider_account_id = p.id
+        left join kb_provider_accounts pa on m.provider_account_id = pa.id
+        left join kb_providers p on pa.provider_id = p.id
         where mpi.pool_id = #{poolId}
         order by mpi.priority asc, mpi.id asc
     </select>

@@ -10,7 +10,8 @@
     <select id="list" resultType="org.chobit.knot.gateway.entity.ModelEntity">
         select <include refid="ModelSelectColumns"/>
         from kb_models m
-        left join kb_provider_accounts p on m.provider_account_id = p.id
+        left join kb_provider_accounts pa on m.provider_account_id = pa.id
+        left join kb_providers p on pa.provider_id = p.id
         left join kb_billing_rules br on m.billing_rule_id = br.id
         <where>
             <if test="keyword != null and keyword != ''">
@@ -33,7 +34,8 @@
     <select id="getById" resultType="org.chobit.knot.gateway.entity.ModelEntity">
         select <include refid="ModelSelectColumns"/>
         from kb_models m
-        left join kb_provider_accounts p on m.provider_account_id = p.id
+        left join kb_provider_accounts pa on m.provider_account_id = pa.id
+        left join kb_providers p on pa.provider_id = p.id
         left join kb_billing_rules br on m.billing_rule_id = br.id
         where m.id = #{id}
     </select>
