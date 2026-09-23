@@ -5,8 +5,8 @@ export function listEnumConfigs(params) {
 }
 
 /** 枚举分类聚合（首页列表） */
-export function listEnumCategorySummaries() {
-  return postQuery("/api/system/enums/category-summaries", {});
+export function listEnumCategorySummaries(params) {
+  return postQuery("/api/system/enums/category-summaries", params || {});
 }
 
 /** 某分类下全部枚举项 */

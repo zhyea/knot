@@ -1,23 +1,12 @@
 <template>
   <div class="list-page-shell">
-    <section class="list-page-block">
-      <div class="list-page-filters">
-        <div class="list-filter-item list-filter-item--grow">
-          <span class="list-filter-label">关键字</span>
-          <el-input
-            v-model="state.roleKeyword.value"
-            class="list-filter-control--wide"
-            placeholder="按角色编码、名称筛选"
-            clearable
-            @keyup.enter="state.handleRoleQuery"
-          />
-        </div>
-        <div class="list-filter-actions">
-          <el-button type="primary" @click="state.handleRoleQuery">查询</el-button>
-          <el-button @click="state.resetRoleQuery">重置</el-button>
-        </div>
-      </div>
-    </section>
+    <FilterBar @query="state.handleRoleQuery" @reset="state.resetRoleQuery">
+      <KeywordInput
+        v-model="state.roleKeyword.value"
+        placeholder="按角色编码、名称筛选"
+        @query="state.handleRoleQuery"
+      />
+    </FilterBar>
 
     <section class="list-page-block list-page-block--content">
       <AuthorizationRolePanel
@@ -38,6 +27,8 @@
 </template>
 
 <script setup>
+import FilterBar from "../../../components/common/FilterBar.vue";
+import KeywordInput from "../../../components/common/KeywordInput.vue";
 import AuthorizationRolePanel from "../../../components/system/auth/AuthorizationRolePanel.vue";
 
 defineProps({

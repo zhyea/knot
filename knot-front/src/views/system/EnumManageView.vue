@@ -1,6 +1,14 @@
 <template>
   <PageSection>
     <div class="list-page-shell">
+      <FilterBar @query="handleQuery" @reset="handleReset">
+        <KeywordInput
+          v-model="query.keyword"
+          placeholder="按分类编码、名称筛选"
+          @query="handleQuery"
+        />
+      </FilterBar>
+
       <section class="list-page-block list-page-block--content">
         <div class="list-page-toolbar">
           <div class="list-page-toolbar__actions list-page-toolbar__actions--start">
@@ -45,17 +53,27 @@
 <script setup>
 import { ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
+import FilterBar from "../../components/common/FilterBar.vue";
+import KeywordInput from "../../components/common/KeywordInput.vue";
 import EnumCategoryCreateDialog from "../../components/system/EnumCategoryCreateDialog.vue";
 import EnumCategoryListPanel from "../../components/system/EnumCategoryListPanel.vue";
 import EnumItemListDrawer from "../../components/system/EnumItemListDrawer.vue";
 import EnumItemFormDialog from "../../components/system/EnumItemFormDialog.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import { listEnumCategorySummaries, listEnumOperationLogs } from "../../api/enums";
+import { useListQuery } from "../../composables/useListQuery";
 
-const loading = ref(false);
-const summaries = ref([]);
+const {
+  query,
+  rows: summaries,
+  loading,
+  load: loadSummaries,
+  handleQuery,
+  handleReset
+} = useListQuery({ apiFn: listEnumCategorySummaries, fields: { keyword: "" } });
 
-const categoryCreateVisible = ref(false);
+loadSummaries();
+
 const itemsDrawerVisible = ref(false);
 const currentCategory = ref("");
 const itemListRef = ref(null);
@@ -66,18 +84,6 @@ const editingItem = ref(null);
 
 const logDrawer = ref(false);
 const logCategory = ref("");
-
-async function loadSummaries() {
-  loading.value = true;
-  try {
-    const data = await listEnumCategorySummaries();
-    summaries.value = Array.isArray(data) ? data : [];
-  } catch {
-    summaries.value = [];
-  } finally {
-    loading.value = false;
-  }
-}
 
 function openItemsDrawer(category) {
   currentCategory.value = category;
@@ -114,6 +120,4 @@ function openChangeLog(category) {
 function loadEnumOperationLogs() {
   return listEnumOperationLogs(logCategory.value);
 }
-
-loadSummaries();
 </script>

@@ -12,8 +12,15 @@
       <div class="drawer-toolbar">
         <el-button type="primary" size="small" @click="emit('create')">新增枚举值</el-button>
         <el-button size="small" @click="load">刷新</el-button>
+        <el-input
+          v-model="keyword"
+          class="enum-item-search"
+          size="small"
+          placeholder="按编码、显示名筛选"
+          clearable
+        />
       </div>
-      <el-table v-loading="loading" :data="items" stripe border size="small">
+      <el-table v-loading="loading" :data="filteredItems" stripe border size="small">
         <el-table-column prop="id" label="ID" width="70" align="center"/>
         <el-table-column prop="itemCode" label="编码" width="140" show-overflow-tooltip/>
         <el-table-column prop="itemLabel" label="显示名" min-width="120" show-overflow-tooltip/>
@@ -48,7 +55,7 @@
 </template>
 
 <script setup>
-import {ref, watch} from "vue";
+import {computed, ref, watch} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";
 import {Delete, Edit} from "@element-plus/icons-vue";
 import RowActions from "../common/RowActions.vue";
@@ -65,6 +72,17 @@ const emit = defineEmits(["update:modelValue", "create", "edit", "changed"]);
 const loading = ref(false);
 const items = ref([]);
 const togglingId = ref(null);
+const keyword = ref("");
+
+const filteredItems = computed(() => {
+  const value = keyword.value.trim().toLowerCase();
+  if (!value) {
+    return items.value;
+  }
+  return items.value.filter((row) =>
+    [row.itemCode, row.itemLabel].some((item) => String(item || "").toLowerCase().includes(value))
+  );
+});
 
 async function load() {
   if (!props.category) return;
@@ -79,6 +97,7 @@ async function load() {
 
 function onClosed() {
   items.value = [];
+  keyword.value = "";
 }
 
 watch(
@@ -134,3 +153,10 @@ async function onDelete(row) {
 
 defineExpose({reload: load});
 </script>
+
+<style scoped>
+.enum-item-search {
+  width: 220px;
+  margin-left: auto;
+}
+</style>

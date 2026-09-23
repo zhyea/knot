@@ -28,6 +28,14 @@
       </aside>
 
       <section class="department-content">
+        <FilterBar class="department-filters" @query="handleQuery" @reset="handleReset">
+          <KeywordInput
+            v-model="query.keyword"
+            placeholder="按部门编码、名称筛选"
+            @query="handleQuery"
+          />
+        </FilterBar>
+
         <DepartmentListPanel
           :rows="rows"
           :loading="loading"
@@ -67,15 +75,29 @@
 import { computed, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
+import FilterBar from "../../components/common/FilterBar.vue";
+import KeywordInput from "../../components/common/KeywordInput.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import DepartmentFormDrawer from "../../components/system/DepartmentFormDrawer.vue";
 import DepartmentListPanel from "../../components/system/DepartmentListPanel.vue";
-import { usePageList } from "../../composables/usePageList";
+import { useListQuery } from "../../composables/useListQuery";
 import { deleteDepartment, getDepartmentTree, listDepartments, updateDepartmentStatus } from "../../api/departments";
 import { listDepartmentOperationLogs } from "../../api/operationLogs";
 
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage, extra } =
-  usePageList(listDepartments, { extra: { parentId: 0 } });
+const {
+  query,
+  rows,
+  loading,
+  total,
+  pageNum,
+  pageSize,
+  load,
+  onPageChange,
+  onSizeChange,
+  resetPage,
+  handleQuery,
+  handleReset
+} = useListQuery({ apiFn: listDepartments, fields: { keyword: "", parentId: 0 } });
 
 const drawerVisible = ref(false);
 const editingDepartment = ref(null);
@@ -173,7 +195,7 @@ function filterTreeNode(keyword, data) {
 
 function onTreeNodeClick(data) {
   selectedNode.value = data;
-  extra.parentId = data.id;
+  query.parentId = data.id;
   resetPage();
 }
 
@@ -275,5 +297,9 @@ refreshAll();
 
 .department-content {
   padding: 16px;
+}
+
+.department-filters {
+  margin-bottom: 16px;
 }
 </style>
