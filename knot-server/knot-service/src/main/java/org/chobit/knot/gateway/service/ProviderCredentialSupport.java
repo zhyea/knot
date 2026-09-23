@@ -12,9 +12,7 @@ import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * 供应商认证配置支持：在 {@code provider_credentials} 表与 API 层 {@code authConfig} 之间转换。
@@ -51,33 +49,6 @@ public class ProviderCredentialSupport {
             }
         }
         return defaultAuthConfig();
-    }
-
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
-    public Map<Long, Map<String, Object>> loadAuthConfigBatch(List<Long> providerIds) {
-        if (providerIds == null || providerIds.isEmpty()) {
-            return Map.of();
-        }
-        return providerCredentialMapper.listActiveByProviderIds(providerIds).stream()
-                .collect(Collectors.toMap(
-                        ProviderCredentialEntity::getProviderId,
-                        this::toAuthConfig,
-                        (a, b) -> a
-                ));
-    }
-
-    public Map<Long, ProviderCredentialEntity> loadCredentialBatch(List<Long> providerIds) {
-        if (providerIds == null || providerIds.isEmpty()) {
-            return Map.of();
-        }
-        return providerCredentialMapper.listActiveByProviderIds(providerIds).stream()
-                .collect(Collectors.toMap(
-                        ProviderCredentialEntity::getProviderId,
-                        item -> item,
-                        (a, b) -> a
-                ));
     }
 
     public String credentialType(ProviderCredentialEntity credential) {

@@ -11,8 +11,6 @@ public interface ProviderCredentialMapper {
 
     ProviderCredentialEntity getActiveByProviderId(@Param("providerId") Long providerId);
 
-    List<ProviderCredentialEntity> listActiveByProviderIds(@Param("providerIds") List<Long> providerIds);
-
     List<ProviderCredentialEntity> listActiveAll();
 
     int insert(ProviderCredentialEntity entity);

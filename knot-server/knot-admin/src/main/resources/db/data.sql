@@ -287,10 +287,14 @@ INSERT IGNORE INTO kb_resource_traffic_policies (id, resource_type, resource_id,
 (5, 'APP',      2, 5, 5);
 
 -- 供应商凭证（认证配置整体以 AES-GCM 密文保存；前缀 ENC:）
+-- 密文解密后必须是 JSON 对象形态（如 {"apiKey":"sk-..."}），与 ProviderCredentialSupport.saveAuthConfig
+-- 的写入契约一致；旧版种子密文存的是裸密钥字符串，会导致 JsonKit.fromJson 解析失败并静默降级为空 apiKey。
+-- 注意：密文由 KNOT_CREDENTIAL_ENCRYPTION_KEY 派生密钥加密，更换密钥后必须重新生成（见
+-- docs/database/migration/2026-09-23-fix-provider-credential-config-format.sql 的生成说明）。
 INSERT IGNORE INTO kb_provider_credentials (id, provider_account_id, credential_type, encrypted_config, status) VALUES
-(1, 1, 'api-key', 'ENC:I093hp4rWvI0txMTx5d+MwVbdLU8NQ/9X1J6r33Y3gJwGT2slww78nJbasZjfOfD', 'ACTIVE'),
-(2, 2, 'api-key', 'ENC:RnptV2Rw7zw4QCm4qHUba0qKaxKQfsv6l3aymW/XfF3j0Fs/k02352ew7lE/tcRyax5/', 'ACTIVE'),
-(3, 3, 'api-key', 'ENC:mFDjmYE5M54d8MWNXUcTQS9Ngk7+dv3YDuH6o0x8hv6rehtmM9I38RJUeGrpc0zF4Tw=', 'ACTIVE');
+(1, 1, 'api-key', 'ENC:Gxdt09+Mk+BnH3+meLh03rvVO/lr/5vjxcjK0RNW0PgB0X/vYX0QzaixD9xPh/gKVYTC/0JSNl4lU7zy+g==', 'ACTIVE'),
+(2, 2, 'api-key', 'ENC:v3v8kgxDLYoAKyNICNxGKU655xOH3Sd1k2qtSS+bgYcvtq/fXGyufZ1gA+Qr2LMBT1eRTJ6teFCPY5r/OvTjqw==', 'ACTIVE'),
+(3, 3, 'api-key', 'ENC:pnMjBuMkVI19v432F8xRJ1U976XGPXwM19DakGTc8GoKMEvIy/6QcOMUbwwsRbXMJ4kqXsY+X+sKrnBuuijw', 'ACTIVE');
 
 -- 供应商折扣策略
 INSERT IGNORE INTO kb_provider_discount_policies (id, provider_account_id, policy_name, scope_type, scope_ref_id, discount_type, discount_value, priority, effective_from, status) VALUES

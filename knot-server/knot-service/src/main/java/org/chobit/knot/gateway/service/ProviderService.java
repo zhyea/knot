@@ -76,19 +76,15 @@ public class ProviderService {
     /**
      * Lists matching results. Executes the public operation.
      */
+    /**
+     * 列表只返回列表页展示所需的字段：不读取凭据、不加载频控与额度策略。
+     * 认证配置与策略统一由 {@link #getById(Long)} 提供。
+     */
     public PageResult<ProviderAccountDto> list(PageRequest pageRequest, String keyword) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<ProviderAccountEntity> pageInfo = new PageInfo<>(providerAccountMapper.list(normalizeKeyword(keyword)));
-        List<ProviderAccountEntity> entities = pageInfo.getList();
-        List<Long> ids = entities.stream().map(ProviderAccountEntity::getId).toList();
-        Map<Long, ProviderCredentialEntity> credentialMap = credentialSupport.loadCredentialBatch(ids);
-        Map<Long, TrafficPolicies> trafficMap =
-                trafficPolicySupport.loadBatch(TrafficResourceTypeEnum.PROVIDER.code(), ids);
-        List<ProviderAccountDto> dtos = entities.stream()
-                .map(e -> enrich(
-                        providerConverter.toDto(e),
-                        credentialMap.get(e.getId()),
-                        trafficMap.get(e.getId())))
+        List<ProviderAccountDto> dtos = pageInfo.getList().stream()
+                .map(providerConverter::toDto)
                 .collect(Collectors.toList());
         return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }

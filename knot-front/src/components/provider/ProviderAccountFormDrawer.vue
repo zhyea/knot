@@ -123,7 +123,8 @@ import {
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  provider: {type: Object, default: null}
+  // 只接收被编辑账户的 id：列表接口不再返回认证配置与策略，整表数据一律按 id 拉详情获取
+  providerId: {type: Number, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -147,7 +148,7 @@ const form = reactive({
   quotaPolicy: {}
 });
 
-const isEdit = computed(() => props.provider != null);
+const isEdit = computed(() => props.providerId != null);
 
 const credentialTypeOptions = [
   {value: "api-key", label: "api-key（ApiKey）"},
@@ -266,34 +267,42 @@ function fillFormFromRow(row) {
   }
 }
 
+function clearForm() {
+  form.id = null;
+  form.providerId = null;
+  form.code = "";
+  form.baseUrl = "";
+  form.enabled = true;
+  form.credentialType = "api-key";
+  form.authConfig = defaultAuthConfig();
+  syncCredentialParts();
+  form.rateLimitPolicy = {};
+  form.quotaPolicy = {};
+}
+
 async function resetForm() {
   codeError.value = "";
   codeValidated.value = false;
-  if (props.provider) {
-    const row = props.provider;
-    fillFormFromRow(row);
-    if (row.id) {
-      detailLoading.value = true;
-      try {
-        const detail = await getProvider(row.id);
-        if (detail) {
-          fillFormFromRow(detail);
-        }
-      } finally {
-        detailLoading.value = false;
-      }
-    }
-  } else {
-    form.id = null;
-    form.providerId = null;
-    form.baseUrl = "";
-    form.enabled = true;
-    form.credentialType = "api-key";
-    form.authConfig = defaultAuthConfig();
-    syncCredentialParts();
-    form.rateLimitPolicy = {};
-    form.quotaPolicy = {};
+  clearForm();
+  if (!props.providerId) {
     loadSuggestedCode();
+    return;
+  }
+  detailLoading.value = true;
+  try {
+    const detail = await getProvider(props.providerId);
+    if (detail) {
+      fillFormFromRow(detail);
+    } else {
+      ElMessage.error("未找到该供应商账户");
+      emit("update:modelValue", false);
+    }
+  } catch {
+    // 详情拿不到就关掉抽屉：留着空表单可能被误保存，覆盖掉真实配置
+    ElMessage.error("加载供应商账户详情失败，请重试");
+    emit("update:modelValue", false);
+  } finally {
+    detailLoading.value = false;
   }
 }
 
@@ -311,7 +320,7 @@ async function loadProviderOptions() {
 }
 
 watch(
-    () => [props.modelValue, props.provider],
+    () => [props.modelValue, props.providerId],
     ([visible]) => {
       if (visible) {
         resetForm();

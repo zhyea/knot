@@ -35,7 +35,7 @@
 
     <ProviderAccountFormDrawer
       v-model="formVisible"
-      :provider="editingProvider"
+      :provider-id="editingProviderId"
       @saved="onProviderSaved"
     />
 
@@ -82,7 +82,7 @@ const {
 } = useListQuery({ apiFn: listProviders, fields: { keyword: "" } });
 
 const formVisible = ref(false);
-const editingProvider = ref(null);
+const editingProviderId = ref(null);
 const discountDrawerVisible = ref(false);
 const discountProviderId = ref(null);
 const logDrawer = ref(false);
@@ -90,12 +90,12 @@ const logProviderId = ref(null);
 const logProviderName = ref("");
 
 function openCreate() {
-  editingProvider.value = null;
+  editingProviderId.value = null;
   formVisible.value = true;
 }
 
 function openEdit(row) {
-  editingProvider.value = row;
+  editingProviderId.value = row.id;
   formVisible.value = true;
 }
 
@@ -110,7 +110,7 @@ function openDiscount(row) {
 
 function openChangeLog(row) {
   logProviderId.value = row.id;
-  logProviderName.value = row.name || `#${row.id}`;
+  logProviderName.value = row.code || `#${row.id}`;
   logDrawer.value = true;
 }
 

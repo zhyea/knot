@@ -10,6 +10,7 @@ import org.chobit.knot.gateway.dto.provider.DiscountPolicyDto;
 import org.chobit.knot.gateway.service.ProviderService;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.provider.DiscountPolicy;
+import org.chobit.knot.gateway.vo.provider.ProviderAccountDetail;
 import org.chobit.knot.gateway.vo.provider.ProviderAccountItem;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
@@ -65,8 +66,8 @@ public class ProviderController {
      * Returns the requested value. Executes the public operation.
      */
     @GetMapping("/{id}")
-    public ProviderAccountItem get(@PathVariable Long id) {
-        return providerConverter.toVO(providerService.getById(id));
+    public ProviderAccountDetail get(@PathVariable Long id) {
+        return providerConverter.toDetail(providerService.getById(id));
     }
 
     /**
@@ -81,9 +82,9 @@ public class ProviderController {
     /**
      * Creates a new resource.
      */
-    public ProviderAccountItem create(@RequestBody @Valid ProviderAccountItem request) {
+    public ProviderAccountDetail create(@RequestBody @Valid ProviderAccountDetail request) {
         ProviderAccountDto created = providerService.create(providerConverter.toDto(request));
-        return providerConverter.toVO(created);
+        return providerConverter.toDetail(created);
     }
 
     /**
@@ -99,9 +100,9 @@ public class ProviderController {
     /**
      * Updates the target resource.
      */
-    public ProviderAccountItem update(@PathVariable Long id, @RequestBody @Valid ProviderAccountItem request) {
+    public ProviderAccountDetail update(@PathVariable Long id, @RequestBody @Valid ProviderAccountDetail request) {
         ProviderAccountDto updated = providerService.update(id, providerConverter.toDto(request));
-        return providerConverter.toVO(updated);
+        return providerConverter.toDetail(updated);
     }
 
     /**
@@ -114,9 +115,9 @@ public class ProviderController {
             oldValueSpel = "@providerService.providerAuditSnapshot(#p0)",
             newValueSpel = "@providerService.providerAuditSnapshot(#p0)")
     @PutMapping("/{id}/status")
-    public ProviderAccountItem updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
+    public ProviderAccountDetail updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
         ProviderAccountDto updated = providerService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
-        return providerConverter.toVO(updated);
+        return providerConverter.toDetail(updated);
     }
 
     /**

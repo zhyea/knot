@@ -90,7 +90,7 @@ public final class JsonKit {
         try {
             return mapper.readValue(json, clazz);
         } catch (Exception e) {
-            log.error("Deserialize json to {} failed, json: {}", clazz.getSimpleName(), json, e);
+            log.error("Deserialize json to {} failed, payload: {}", clazz.getSimpleName(), digestForLog(json), e);
             return null;
         }
     }
@@ -105,7 +105,7 @@ public final class JsonKit {
         try {
             return mapper.readValue(json, typeRef);
         } catch (Exception e) {
-            log.error("Deserialize json failed, json: {}", json, e);
+            log.error("Deserialize json failed, payload: {}", digestForLog(json), e);
             return null;
         }
     }
@@ -120,9 +120,41 @@ public final class JsonKit {
         try {
             return mapper.readTree(json);
         } catch (IOException e) {
-            log.error("Parse json tree failed, json: {}", json, e);
+            log.error("Parse json tree failed, payload: {}", digestForLog(json), e);
             return null;
         }
+    }
+
+    /**
+     * 构造用于日志的 payload 摘要。
+     *
+     * <p>这里刻意<b>不输出原文的任何片段</b>：传入的 json 可能是解密后的供应商凭据、
+     * 用户请求体或上游响应体，一旦落盘即等于泄漏。
+     * 2026-09-23 供应商凭据解析失败时，明文 apiKey 就是以这种方式被写进日志文件的。
+     *
+     * <p>摘要只保留定位解析失败所需的最小信息：总长度与首个非空白字符。
+     * 首字符足以区分「JSON 对象 / 数组 / 裸 token」三类最常见故障；
+     * 定位具体偏移由 Jackson 异常自身携带的 line/column 提供。
+     *
+     * @param json 待解析的原始文本，允许为 null
+     * @return 形如 len=36, first={ 或 len=22, first=s 的摘要，绝不包含原文片段
+     */
+    static String digestForLog(String json) {
+        if (json == null) {
+            return "null";
+        }
+        String trimmed = json.trim();
+        if (trimmed.isEmpty()) {
+            return "blank(len=" + json.length() + ")";
+        }
+        return "len=" + json.length() + ", first=" + describeChar(trimmed.charAt(0));
+    }
+
+    private static String describeChar(char c) {
+        if (c >= 0x20 && c < 0x7F) {
+            return String.valueOf(c);
+        }
+        return String.format("\\u%04x", (int) c);
     }
 
     /**
