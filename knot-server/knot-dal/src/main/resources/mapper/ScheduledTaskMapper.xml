@@ -7,8 +7,13 @@
                status, description, last_fire_at, next_fire_at, created_at, updated_at
         from ks_scheduled_tasks
         <where>
-            <if test="taskCode != null and taskCode != ''">
-                and task_code = #{taskCode}
+            <if test="keyword != null and keyword != ''">
+                and (
+                    task_code like concat('%', #{keyword}, '%')
+                    or task_name like concat('%', #{keyword}, '%')
+                    or handler_code like concat('%', #{keyword}, '%')
+                    or description like concat('%', #{keyword}, '%')
+                )
             </if>
             <if test="status != null and status != ''">
                 and status = #{status}

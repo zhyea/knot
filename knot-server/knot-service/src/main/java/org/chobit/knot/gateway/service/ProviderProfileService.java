@@ -28,11 +28,19 @@ public class ProviderProfileService {
 
     public PageResult<ProviderProfileItem> list(String keyword, String tag, PageRequest pageRequest) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        List<ProviderProfileItem> rows = providerProfileMapper.list(keyword, tag).stream()
+        List<ProviderProfileItem> rows = providerProfileMapper.list(normalizeKeyword(keyword), normalizeKeyword(tag)).stream()
                 .map(this::toItem)
                 .toList();
         PageInfo<ProviderProfileItem> page = new PageInfo<>(rows);
         return PageResult.of(page.getList(), page.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null) {
+            return null;
+        }
+        String normalized = keyword.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     public ProviderProfileItem getById(Long id) {

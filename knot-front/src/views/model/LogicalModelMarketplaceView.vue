@@ -1,36 +1,23 @@
 <template>
   <PageSection>
     <div class="list-page-shell">
-      <section class="list-page-block">
-        <div class="list-page-filters">
-          <div class="list-filter-item list-filter-item--grow">
-            <span class="list-filter-label">关键词</span>
-            <el-input
-              v-model="query.keyword"
-              class="list-filter-control--wide"
-              placeholder="按模型编码、名称、模型族筛选"
-              clearable
-              @keyup.enter="handleQuery"
-            />
-          </div>
-          <div class="list-filter-item market-filter-item market-filter-item--type">
-            <span class="list-filter-label">模型类型</span>
-            <EnumSelect
-              v-model="query.modelTypes"
-              class="list-filter-control--wide market-filter-control--type"
-              category="model_type"
-              multiple
-              collapse-tags
-              collapse-tags-tooltip
-              clearable
-            />
-          </div>
-          <div class="list-filter-actions">
-            <el-button type="primary" @click="handleQuery">查询</el-button>
-            <el-button @click="handleReset">重置</el-button>
-          </div>
-        </div>
-      </section>
+      <FilterBar @query="handleQuery" @reset="handleReset">
+        <KeywordInput
+          v-model="query.keyword"
+          placeholder="按模型编码、名称、模型族筛选"
+          @query="handleQuery"
+        />
+        <FilterField label="模型类型" :width="260">
+          <EnumSelect
+            v-model="query.modelTypes"
+            category="model_type"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
+            clearable
+          />
+        </FilterField>
+      </FilterBar>
 
       <section class="list-page-block">
         <div class="list-page-toolbar">
@@ -89,14 +76,16 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
+import FilterBar from "../../components/common/FilterBar.vue";
+import FilterField from "../../components/common/FilterField.vue";
+import KeywordInput from "../../components/common/KeywordInput.vue";
+import { useListQuery } from "../../composables/useListQuery";
 import EnumSelect from "../../components/common/EnumSelect.vue";
 import LogicalModelFormDrawer from "../../components/model/LogicalModelFormDrawer.vue";
 import LogicalModelTable from "../../components/model/LogicalModelTable.vue";
 import LogicalModelCardGrid from "../../components/model/LogicalModelCardGrid.vue";
 import { deleteLogicalModel, listLogicalModels } from "../../api/logicalModels";
-import { useAutoQuery } from "../../composables/useAutoQuery";
 import { useEnums } from "../../composables/useEnums";
-import { usePageList } from "../../composables/usePageList";
 import { getStorageItem, getStorageJson, setStorageItem, setStorageJson } from "../../utils/storage";
 
 const VIEW_MODE_KEY = "knot.logical-model.view-mode";
@@ -126,20 +115,27 @@ function readViewPageSize() {
   return result;
 }
 
-const query = reactive({
-  keyword: "",
-  modelTypes: []
-});
-
 const viewMode = ref(readViewMode());
 const viewPageSize = reactive(readViewPageSize());
 const viewPageSizes = computed(() => VIEW_PAGE_SIZES[viewMode.value] || VIEW_PAGE_SIZES.list);
 
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, resetPage } = usePageList(
-  listLogicalModels,
-  { pageSize: viewPageSize[viewMode.value], extra: query }
-);
-const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
+const {
+  query,
+  rows,
+  loading,
+  total,
+  pageNum,
+  pageSize,
+  load,
+  onPageChange,
+  resetPage,
+  handleQuery,
+  handleReset
+} = useListQuery({
+  apiFn: listLogicalModels,
+  fields: { keyword: "", modelTypes: [] },
+  pageSize: viewPageSize[viewMode.value]
+});
 
 const { options: modelTypeOptions, loadOptions: loadModelTypes } = useEnums("model_type");
 const formVisible = ref(false);
@@ -166,17 +162,6 @@ async function removeModel(row) {
   await resetPage();
 }
 
-function handleQuery() {
-  return pauseAutoQuery(resetPage);
-}
-
-function handleReset() {
-  return pauseAutoQuery(() => {
-    query.keyword = "";
-    query.modelTypes = [];
-    return resetPage();
-  });
-}
 
 // 分页条：按当前视图分别记住每页条数，卡片视图默认 12 条、列表视图默认 20 条
 function onSizeChange(size) {
@@ -202,14 +187,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.market-filter-item--type {
-  min-width: 292px;
-}
-
-.market-filter-control--type {
-  width: 260px;
-}
-
 .market-toolbar__meta {
   display: flex;
   align-items: center;
@@ -219,14 +196,6 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
-  .market-filter-item--type {
-    min-width: 0;
-  }
-
-  .market-filter-control--type {
-    width: 100%;
-  }
-
   .market-toolbar__meta {
     width: 100%;
     justify-content: space-between;

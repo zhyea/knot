@@ -1,24 +1,13 @@
 <template>
   <PageSection>
     <div class="list-page-shell">
-      <section class="list-page-block">
-        <div class="list-page-filters">
-          <div class="list-filter-item list-filter-item--grow">
-            <span class="list-filter-label">关键词</span>
-            <el-input
-              v-model="query.keyword"
-              class="list-filter-control--wide"
-              placeholder="按编码、名称、供应商筛选"
-              clearable
-              @keyup.enter="handleQuery"
-            />
-          </div>
-          <div class="list-filter-actions">
-            <el-button type="primary" @click="handleQuery">查询</el-button>
-            <el-button @click="handleReset">重置</el-button>
-          </div>
-        </div>
-      </section>
+      <FilterBar @query="handleQuery" @reset="handleReset">
+        <KeywordInput
+          v-model="query.keyword"
+          placeholder="按编码、名称、供应商筛选"
+          @query="handleQuery"
+        />
+      </FilterBar>
 
       <section class="list-page-block list-page-block--content">
         <div class="list-page-toolbar">
@@ -65,24 +54,32 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { onMounted, ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
+import FilterBar from "../../components/common/FilterBar.vue";
+import KeywordInput from "../../components/common/KeywordInput.vue";
+import { useListQuery } from "../../composables/useListQuery";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import ProviderAccountListPanel from "../../components/provider/ProviderAccountListPanel.vue";
 import ProviderAccountFormDrawer from "../../components/provider/ProviderAccountFormDrawer.vue";
 import ProviderDiscountDrawer from "../../components/provider/ProviderDiscountDrawer.vue";
 import { listProviderOperationLogs } from "../../api/operationLogs";
-import { useAutoQuery } from "../../composables/useAutoQuery";
-import { usePageList } from "../../composables/usePageList";
 import { listProviders } from "../../api/providers";
 
-const query = reactive({
-  keyword: ""
-});
-
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(listProviders, { extra: query });
-const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
+const {
+  query,
+  rows,
+  loading,
+  total,
+  pageNum,
+  pageSize,
+  load,
+  onPageChange,
+  onSizeChange,
+  resetPage,
+  handleQuery,
+  handleReset
+} = useListQuery({ apiFn: listProviders, fields: { keyword: "" } });
 
 const formVisible = ref(false);
 const editingProvider = ref(null);
@@ -121,16 +118,6 @@ function loadProviderOperationLogs() {
   return listProviderOperationLogs(logProviderId.value);
 }
 
-function handleQuery() {
-  return pauseAutoQuery(() => resetPage());
-}
-
-function handleReset() {
-  return pauseAutoQuery(() => {
-    query.keyword = "";
-    return resetPage();
-  });
-}
 
 onMounted(load);
 </script>

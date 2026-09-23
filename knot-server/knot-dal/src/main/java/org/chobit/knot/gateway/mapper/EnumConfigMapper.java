@@ -18,7 +18,7 @@ public interface EnumConfigMapper {
 
     List<String> listCategories();
 
-    List<EnumCategorySummary> listCategorySummaries();
+    List<EnumCategorySummary> listCategorySummaries(@Param("keyword") String keyword);
 
     EnumConfigEntity getById(Long id);
 

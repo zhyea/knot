@@ -11,7 +11,7 @@ import java.util.List;
 @Mapper
 public interface ScheduledTaskMapper {
 
-    List<ScheduledTaskEntity> listTasks(@Param("taskCode") String taskCode,
+    List<ScheduledTaskEntity> listTasks(@Param("keyword") String keyword,
                                         @Param("status") String status,
                                         @Param("handlerCode") String handlerCode);
 

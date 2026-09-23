@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.annotation.OperationLog;
+import org.chobit.knot.gateway.dto.system.EnumCategoryQuery;
 import org.chobit.knot.gateway.entity.EnumCategorySummary;
 import org.chobit.knot.gateway.entity.EnumConfigEntity;
 import org.chobit.knot.gateway.entity.OperationLogEntity;
@@ -41,8 +42,8 @@ public class EnumConfigController {
      * 查询枚举分类聚合列表。
      */
     @PostMapping("/category-summaries")
-    public List<EnumCategorySummary> categorySummaries() {
-        return enumConfigService.listCategorySummaries();
+    public List<EnumCategorySummary> categorySummaries(@RequestBody(required = false) EnumCategoryQuery query) {
+        return enumConfigService.listCategorySummaries(query != null ? query.keyword() : null);
     }
 
     /**

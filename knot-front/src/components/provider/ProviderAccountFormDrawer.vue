@@ -22,9 +22,6 @@
               @blur="validateCode"
           />
         </el-form-item>
-        <el-form-item label="名称" required>
-          <el-input v-model="form.name" placeholder="供应商名称"/>
-        </el-form-item>
         <el-form-item label="Base URL">
           <el-input v-model="form.baseUrl" placeholder="https://api.example.com"/>
         </el-form-item>
@@ -82,7 +79,7 @@
               :placeholder="`请输入 ${credentialFieldLabels[field] || field}`"
           />
         </el-form-item>
-        <el-form-item label="自定义认证信息">
+        <el-form-item>
           <KvEditor
               v-model="customAuthConfig"
               class="auth-kv-editor"
@@ -142,7 +139,6 @@ const form = reactive({
   id: null,
   providerId: null,
   code: "",
-  name: "",
   baseUrl: "",
   enabled: true,
   credentialType: "api-key",
@@ -215,14 +211,20 @@ function syncCredentialParts() {
 }
 
 function handleCredentialTypeChange() {
-  const config = {...(form.authConfig || {})};
-  requiredCredentialFields.value.forEach((field) => {
-    if (!(field in config)) {
-      config[field] = "";
+  const required = requiredCredentialFields.value;
+  const requiredSet = new Set(required);
+  const config = {};
+  // 新类型的必填字段：保留已填值（重叠字段如 accessKey/secretKey 不丢）
+  required.forEach((field) => {
+    config[field] = form.authConfig?.[field] ?? customAuthConfig.value[field] ?? "";
+  });
+  // 仅保留用户在自定义编辑器里显式添加的键，旧类型残留字段一律丢弃
+  Object.entries(customAuthConfig.value).forEach(([key, value]) => {
+    if (!requiredSet.has(key)) {
+      config[key] = value;
     }
   });
   form.authConfig = config;
-  syncCredentialParts();
 }
 
 function isSecretCredentialField(field) {
@@ -250,12 +252,12 @@ function fillFormFromRow(row) {
   form.id = row.id;
   form.providerId = row.providerId;
   form.code = row.code || "";
-  form.name = row.name;
   form.baseUrl = row.baseUrl || "";
   form.enabled = !!row.enabled;
   form.credentialType = normalizeCredentialType(row.credentialType);
   form.authConfig = normalizeAuthConfig(row.authConfig);
-  handleCredentialTypeChange();
+  // 初次加载：把存量 authConfig 里不属于当前类型的键拆到自定义编辑器，一次性完成
+  syncCredentialParts();
   form.rateLimitPolicy =
       row.rateLimitPolicy && typeof row.rateLimitPolicy === "object" ? {...row.rateLimitPolicy} : {};
   form.quotaPolicy = row.quotaPolicy && typeof row.quotaPolicy === "object" ? {...row.quotaPolicy} : {};
@@ -284,7 +286,6 @@ async function resetForm() {
   } else {
     form.id = null;
     form.providerId = null;
-    form.name = "";
     form.baseUrl = "";
     form.enabled = true;
     form.credentialType = "api-key";
@@ -379,7 +380,6 @@ function buildPayload() {
   return {
     providerId: form.providerId,
     code: form.code?.trim(),
-    name: form.name,
     baseUrl: form.baseUrl?.trim() || null,
     enabled: form.enabled,
     credentialType: form.credentialType,
@@ -390,10 +390,6 @@ function buildPayload() {
 }
 
 async function submit() {
-  if (!form.name?.trim()) {
-    ElMessage.warning("请填写名称");
-    return;
-  }
   for (const field of requiredCredentialFields.value) {
     if (!String(form.authConfig[field] ?? "").trim()) {
       ElMessage.warning(`请填写 ${credentialFieldLabels[field] || field}`);

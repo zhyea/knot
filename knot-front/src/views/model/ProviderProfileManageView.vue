@@ -1,30 +1,18 @@
 <template>
   <PageSection>
     <div class="list-page-shell">
-      <section class="list-page-block">
-        <div class="list-page-filters">
-          <div class="list-filter-item list-filter-item--grow">
-            <span class="list-filter-label">关键词</span>
-            <el-input
-              v-model="query.keyword"
-              class="list-filter-control--wide"
-              placeholder="按编码、名称筛选"
-              clearable
-              @keyup.enter="handleQuery"
-            />
-          </div>
-          <div class="list-filter-item">
-            <span class="list-filter-label">分类</span>
-            <el-select v-model="query.category" class="list-filter-control" clearable placeholder="全部">
-              <el-option v-for="item in tagPreset" :key="item" :label="item" :value="item" />
-            </el-select>
-          </div>
-          <div class="list-filter-actions">
-            <el-button type="primary" @click="handleQuery">查询</el-button>
-            <el-button @click="handleReset">重置</el-button>
-          </div>
-        </div>
-      </section>
+      <FilterBar @query="handleQuery" @reset="handleReset">
+        <KeywordInput
+          v-model="query.keyword"
+          placeholder="按编码、名称筛选"
+          @query="handleQuery"
+        />
+        <FilterField label="标签" :width="180">
+          <el-select v-model="query.tag" clearable placeholder="全部">
+            <el-option v-for="item in tagPreset" :key="item" :label="item" :value="item" />
+          </el-select>
+        </FilterField>
+      </FilterBar>
 
       <section class="list-page-block list-page-block--content">
         <div class="list-page-toolbar">
@@ -61,27 +49,35 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { onMounted, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
+import FilterBar from "../../components/common/FilterBar.vue";
+import FilterField from "../../components/common/FilterField.vue";
+import KeywordInput from "../../components/common/KeywordInput.vue";
+import { useListQuery } from "../../composables/useListQuery";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import ProviderProfileListPanel from "../../components/provider/ProviderProfileListPanel.vue";
 import ProviderProfileFormDrawer from "../../components/provider/ProviderProfileFormDrawer.vue";
 import { deleteProviderProfile, listProviderProfiles } from "../../api/providerProfiles";
 import { listProviderProfileOperationLogs } from "../../api/operationLogs";
-import { useAutoQuery } from "../../composables/useAutoQuery";
-import { usePageList } from "../../composables/usePageList";
 
 const tagPreset = ["原厂", "云厂商", "代理"];
 
-const query = reactive({
-  keyword: "",
-  category: ""
-});
-
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(listProviderProfiles, { extra: query });
-const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
+const {
+  query,
+  rows,
+  loading,
+  total,
+  pageNum,
+  pageSize,
+  load,
+  onPageChange,
+  onSizeChange,
+  resetPage,
+  handleQuery,
+  handleReset
+} = useListQuery({ apiFn: listProviderProfiles, fields: { keyword: "", tag: "" } });
 
 const formVisible = ref(false);
 const editing = ref(null);
@@ -126,17 +122,6 @@ function onRowAction(key, row) {
   }
 }
 
-function handleQuery() {
-  return pauseAutoQuery(() => resetPage());
-}
-
-function handleReset() {
-  return pauseAutoQuery(() => {
-    query.keyword = "";
-    query.category = "";
-    return resetPage();
-  });
-}
 
 onMounted(load);
 </script>

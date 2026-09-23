@@ -1,48 +1,33 @@
 <template>
   <PageSection>
     <div class="list-page-shell">
-      <section class="list-page-block">
-        <div class="list-page-filters">
-          <div class="list-filter-item list-filter-item--grow">
-            <span class="list-filter-label">关键词</span>
-            <el-input
-              v-model="query.keyword"
-              class="list-filter-control--wide"
-              placeholder="按编码、名称、供应商、统一模型筛选"
-              clearable
-              @keyup.enter="handleQuery"
-            />
-          </div>
-          <div class="list-filter-item">
-            <span class="list-filter-label">供应商</span>
-            <RemoteEntitySelect
-              v-model="query.providerId"
-              class="list-filter-control--wide"
-              :load-function="listProviders"
-              :label-function="providerLabel"
-              :selected-options="selectedProviderOptions"
-              clearable
-              placeholder="全部供应商"
-            />
-          </div>
-          <div class="list-filter-item">
-            <span class="list-filter-label">统一模型</span>
-            <RemoteEntitySelect
-              v-model="query.logicalModelId"
-              class="list-filter-control--wide"
-              :load-function="listLogicalModels"
-              :label-function="logicalModelLabel"
-              :selected-options="selectedLogicalModelOptions"
-              clearable
-              placeholder="全部统一模型"
-            />
-          </div>
-          <div class="list-filter-actions">
-            <el-button type="primary" @click="handleQuery">查询</el-button>
-            <el-button @click="handleReset">重置</el-button>
-          </div>
-        </div>
-      </section>
+      <FilterBar @query="handleQuery" @reset="handleReset">
+        <KeywordInput
+          v-model="query.keyword"
+          placeholder="按编码、名称、供应商、统一模型筛选"
+          @query="handleQuery"
+        />
+        <FilterField label="供应商" :width="220">
+          <RemoteEntitySelect
+            v-model="query.providerId"
+            :load-function="listProviders"
+            :label-function="providerLabel"
+            :selected-options="selectedProviderOptions"
+            clearable
+            placeholder="全部供应商"
+          />
+        </FilterField>
+        <FilterField label="统一模型" :width="220">
+          <RemoteEntitySelect
+            v-model="query.logicalModelId"
+            :load-function="listLogicalModels"
+            :label-function="logicalModelLabel"
+            :selected-options="selectedLogicalModelOptions"
+            clearable
+            placeholder="全部统一模型"
+          />
+        </FilterField>
+      </FilterBar>
 
       <section class="list-page-block list-page-block--content">
         <div class="list-page-toolbar">
@@ -83,27 +68,34 @@
 import { computed, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
+import FilterBar from "../../components/common/FilterBar.vue";
+import FilterField from "../../components/common/FilterField.vue";
+import KeywordInput from "../../components/common/KeywordInput.vue";
 import RemoteEntitySelect from "../../components/common/RemoteEntitySelect.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import BillingRuleFormDialog from "../../components/billing/BillingRuleFormDialog.vue";
 import BillingRuleListPanel from "../../components/billing/BillingRuleListPanel.vue";
-import { useAutoQuery } from "../../composables/useAutoQuery";
 import { useEnabledToggle } from "../../composables/useEnabledToggle";
-import { usePageList } from "../../composables/usePageList";
+import { useListQuery } from "../../composables/useListQuery";
 import { deleteBillingRule, listBillingRules, updateBillingRuleStatus } from "../../api/billing";
 import { listBillingRuleOperationLogs } from "../../api/operationLogs";
 import { listProviders } from "../../api/providers";
 import { listLogicalModels } from "../../api/logicalModels";
 
-const query = ref({
-  keyword: "",
-  providerId: null,
-  logicalModelId: null
-});
-
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(listBillingRules, { extra: query.value });
-const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
+const {
+  query,
+  rows,
+  loading,
+  total,
+  pageNum,
+  pageSize,
+  load,
+  onPageChange,
+  onSizeChange,
+  resetPage,
+  handleQuery,
+  handleReset
+} = useListQuery({ apiFn: listBillingRules, fields: { keyword: "", providerId: null, logicalModelId: null } });
 
 const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateBillingRuleStatus
@@ -117,13 +109,13 @@ const logRuleName = ref("");
 
 const selectedProviderOptions = computed(() =>
   rows.value
-    .filter((row) => row.providerId === query.value.providerId && row.providerId != null)
+    .filter((row) => row.providerId === query.providerId && row.providerId != null)
     .map((row) => ({ id: row.providerId, name: row.providerName }))
 );
 
 const selectedLogicalModelOptions = computed(() =>
   rows.value
-    .filter((row) => row.logicalModelId === query.value.logicalModelId && row.logicalModelId != null)
+    .filter((row) => row.logicalModelId === query.logicalModelId && row.logicalModelId != null)
     .map((row) => ({
       id: row.logicalModelId,
       modelName: row.logicalModelName,
@@ -170,18 +162,6 @@ async function handleDelete(row) {
   await load();
 }
 
-function handleQuery() {
-  return pauseAutoQuery(() => resetPage());
-}
-
-function handleReset() {
-  return pauseAutoQuery(() => {
-    query.value.keyword = "";
-    query.value.providerId = null;
-    query.value.logicalModelId = null;
-    return resetPage();
-  });
-}
 
 load();
 </script>

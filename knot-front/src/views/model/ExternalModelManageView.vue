@@ -1,49 +1,34 @@
 <template>
   <PageSection>
     <div class="list-page-shell">
-      <section class="list-page-block">
-        <div class="list-page-filters">
-          <div class="list-filter-item external-model-filter-item">
-            <span class="list-filter-label">来源</span>
-            <el-select
-              v-model="query.sourceCode"
-              class="list-filter-control external-model-filter-control"
-              placeholder="来源"
-              clearable
-            >
-              <el-option
-                v-for="source in sources"
-                :key="source.sourceCode"
-                :label="source.sourceName"
-                :value="source.sourceCode"
-              />
-            </el-select>
-          </div>
-          <div class="list-filter-item external-model-filter-item external-model-filter-item--type">
-            <span class="list-filter-label">模型类型</span>
-            <EnumSelect
-              v-model="query.modelType"
-              class="list-filter-control external-model-filter-control external-model-filter-control--type"
-              category="model_type"
-              clearable
+      <FilterBar @query="handleQuery" @reset="handleReset">
+        <KeywordInput
+          v-model="query.keyword"
+          placeholder="按模型名、模型 ID、供应商筛选"
+          @query="handleQuery"
+        />
+        <FilterField label="来源" :width="180">
+          <el-select
+            v-model="query.sourceCode"
+            placeholder="来源"
+            clearable
+          >
+            <el-option
+              v-for="source in sources"
+              :key="source.sourceCode"
+              :label="source.sourceName"
+              :value="source.sourceCode"
             />
-          </div>
-          <div class="list-filter-item list-filter-item--grow">
-            <span class="list-filter-label">关键词</span>
-            <el-input
-              v-model="query.keyword"
-              class="list-filter-control--wide"
-              placeholder="按模型名、模型 ID、供应商筛选"
-              clearable
-              @keyup.enter="handleQuery"
-            />
-          </div>
-          <div class="list-filter-actions">
-            <el-button type="primary" @click="handleQuery">查询</el-button>
-            <el-button @click="handleReset">重置</el-button>
-          </div>
-        </div>
-      </section>
+          </el-select>
+        </FilterField>
+        <FilterField label="模型类型" :width="260">
+          <EnumSelect
+            v-model="query.modelType"
+            category="model_type"
+            clearable
+          />
+        </FilterField>
+      </FilterBar>
 
       <section class="list-page-block list-page-block--content">
         <div class="list-page-toolbar">
@@ -87,14 +72,16 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
+import FilterBar from "../../components/common/FilterBar.vue";
+import FilterField from "../../components/common/FilterField.vue";
+import KeywordInput from "../../components/common/KeywordInput.vue";
+import { useListQuery } from "../../composables/useListQuery";
 import EnumSelect from "../../components/common/EnumSelect.vue";
 import ExternalModelDetailDrawer from "../../components/model/ExternalModelDetailDrawer.vue";
 import ExternalModelListPanel from "../../components/model/ExternalModelListPanel.vue";
-import { useAutoQuery } from "../../composables/useAutoQuery";
-import { usePageList } from "../../composables/usePageList";
 import {
   createLogicalModelFromExternalItem,
   createLogicalModelsFromExternalItems,
@@ -106,15 +93,20 @@ import {
   syncExternalModelSource
 } from "../../api/externalModels";
 
-const query = reactive({
-  sourceCode: "OPENROUTER",
-  keyword: "",
-  modelType: ""
-});
-
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(listExternalModelItems, { extra: query });
-const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
+const {
+  query,
+  rows,
+  loading,
+  total,
+  pageNum,
+  pageSize,
+  load,
+  onPageChange,
+  onSizeChange,
+  resetPage,
+  handleQuery,
+  handleReset
+} = useListQuery({ apiFn: listExternalModelItems, fields: { sourceCode: "OPENROUTER", keyword: "", modelType: "" } });
 
 const sources = ref([]);
 const syncing = ref(false);
@@ -194,51 +186,9 @@ async function deleteSelected() {
   await resetPage();
 }
 
-function handleQuery() {
-  return pauseAutoQuery(() => resetPage());
-}
-
-function handleReset() {
-  return pauseAutoQuery(() => {
-    query.sourceCode = "OPENROUTER";
-    query.keyword = "";
-    query.modelType = "";
-    return resetPage();
-  });
-}
 
 onMounted(() => {
   loadSources();
   load();
 });
 </script>
-
-<style scoped>
-.external-model-filter-item {
-  min-width: 220px;
-}
-
-.external-model-filter-item--type {
-  min-width: 252px;
-}
-
-.external-model-filter-control {
-  width: 190px;
-}
-
-.external-model-filter-control--type {
-  width: 220px;
-}
-
-@media (max-width: 768px) {
-  .external-model-filter-item,
-  .external-model-filter-item--type {
-    min-width: 0;
-  }
-
-  .external-model-filter-control,
-  .external-model-filter-control--type {
-    width: 100%;
-  }
-}
-</style>

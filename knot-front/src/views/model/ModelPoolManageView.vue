@@ -1,36 +1,23 @@
 <template>
   <PageSection>
     <div class="list-page-shell">
-      <section class="list-page-block">
-        <div class="list-page-filters">
-          <div class="list-filter-item list-filter-item--grow">
-            <span class="list-filter-label">关键词</span>
-            <el-input
-              v-model="query.keyword"
-              class="list-filter-control--wide"
-              placeholder="按模型池编码、名称筛选"
-              clearable
-              @keyup.enter="handleQuery"
-            />
-          </div>
-          <div class="list-filter-item">
-            <span class="list-filter-label">模型类型</span>
-            <EnumSelect
-              v-model="query.modelTypes"
-              class="list-filter-control--wide"
-              category="model_type"
-              multiple
-              collapse-tags
-              collapse-tags-tooltip
-              clearable
-            />
-          </div>
-          <div class="list-filter-actions">
-            <el-button type="primary" @click="handleQuery">查询</el-button>
-            <el-button @click="handleReset">重置</el-button>
-          </div>
-        </div>
-      </section>
+      <FilterBar @query="handleQuery" @reset="handleReset">
+        <KeywordInput
+          v-model="query.keyword"
+          placeholder="按模型池编码、名称筛选"
+          @query="handleQuery"
+        />
+        <FilterField label="模型类型" :width="260">
+          <EnumSelect
+            v-model="query.modelTypes"
+            category="model_type"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
+            clearable
+          />
+        </FilterField>
+      </FilterBar>
 
       <section class="list-page-block list-page-block--content">
         <div class="list-page-toolbar">
@@ -60,24 +47,32 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
+import FilterBar from "../../components/common/FilterBar.vue";
+import FilterField from "../../components/common/FilterField.vue";
+import KeywordInput from "../../components/common/KeywordInput.vue";
+import { useListQuery } from "../../composables/useListQuery";
 import EnumSelect from "../../components/common/EnumSelect.vue";
 import ModelPoolListPanel from "../../components/model/ModelPoolListPanel.vue";
 import ModelPoolFormDrawer from "../../components/model/ModelPoolFormDrawer.vue";
-import { useAutoQuery } from "../../composables/useAutoQuery";
 import { deleteModelPool, listModelPools } from "../../api/modelPools";
-import { usePageList } from "../../composables/usePageList";
 
-const query = reactive({
-  keyword: "",
-  modelTypes: []
-});
-
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(listModelPools, { extra: query });
-const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
+const {
+  query,
+  rows,
+  loading,
+  total,
+  pageNum,
+  pageSize,
+  load,
+  onPageChange,
+  onSizeChange,
+  resetPage,
+  handleQuery,
+  handleReset
+} = useListQuery({ apiFn: listModelPools, fields: { keyword: "", modelTypes: [] } });
 
 const formVisible = ref(false);
 const editingPool = ref(null);
@@ -101,17 +96,6 @@ async function remove(row) {
   resetPage();
 }
 
-function handleQuery() {
-  return pauseAutoQuery(() => resetPage());
-}
-
-function handleReset() {
-  return pauseAutoQuery(() => {
-    query.keyword = "";
-    query.modelTypes = [];
-    return resetPage();
-  });
-}
 
 onMounted(load);
 </script>

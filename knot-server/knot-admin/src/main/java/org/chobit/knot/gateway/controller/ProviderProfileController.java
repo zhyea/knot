@@ -24,9 +24,9 @@ public class ProviderProfileController {
     @PostMapping("/list")
     public PageResult<ProviderProfileItem> list(@RequestBody(required = false) PageQuery query) {
         PageQuery actual = query == null
-                ? new PageQuery(null, null, null, null, null, null, null, null, null)
+                ? new PageQuery(null, null, null, null, null, null, null, null, null, null)
                 : query;
-        return providerProfileService.list(actual.keyword(), actual.category(), actual.toPageRequest());
+        return providerProfileService.list(actual.keyword(), actual.tag(), actual.toPageRequest());
     }
 
     @GetMapping("/{id}")

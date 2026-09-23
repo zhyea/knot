@@ -5,7 +5,7 @@ import org.chobit.knot.gateway.model.PageRequest;
 public record ScheduledTaskQuery(
         Integer pageNum,
         Integer pageSize,
-        String taskCode,
+        String keyword,
         String status,
         String handlerCode
 ) {

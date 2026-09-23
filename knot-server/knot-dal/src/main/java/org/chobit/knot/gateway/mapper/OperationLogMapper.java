@@ -19,7 +19,8 @@ public interface OperationLogMapper {
 
     List<OperationLogEntity> list(@Param("module") String module,
                                   @Param("operation") String operation,
-                                  @Param("status") String status);
+                                  @Param("status") String status,
+                                  @Param("keyword") String keyword);
 
     List<String> listDistinctModules();
 

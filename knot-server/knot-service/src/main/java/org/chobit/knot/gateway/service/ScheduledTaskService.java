@@ -49,11 +49,19 @@ public class ScheduledTaskService {
         PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<ScheduledTaskEntity> pageInfo = new PageInfo<>(scheduledTaskMapper.listTasks(
-                query != null ? query.taskCode() : null,
+                query != null ? normalizeKeyword(query.keyword()) : null,
                 query != null ? query.status() : null,
                 query != null ? query.handlerCode() : null
         ));
         return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null) {
+            return null;
+        }
+        String normalized = keyword.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     /**

@@ -61,12 +61,14 @@ public class OperationLogService {
         return list;
     }
 
-    public PageResult<OperationLogEntity> list(PageRequest pageRequest, String module, String operation, String status) {
+    public PageResult<OperationLogEntity> list(PageRequest pageRequest, String module, String operation, String status,
+                                               String keyword) {
         PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
         PageInfo<OperationLogEntity> pageInfo = new PageInfo<>(operationLogMapper.list(
                 normalizeValue(module),
                 normalizeValue(operation),
-                normalizeValue(status)
+                normalizeValue(status),
+                normalizeValue(keyword)
         ));
         List<OperationLogEntity> list = new ArrayList<>(pageInfo.getList());
         list.forEach(this::retainOnlyChangedJsonFields);

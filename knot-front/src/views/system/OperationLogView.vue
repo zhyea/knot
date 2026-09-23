@@ -1,65 +1,58 @@
 <template>
   <PageSection>
     <div class="list-page-shell">
-      <section class="list-page-block">
-        <div class="list-page-filters">
-          <div class="list-filter-item operation-log-filter-item">
-            <span class="list-filter-label">模块</span>
-            <el-select
-              v-model="queryForm.module"
-              class="list-filter-control"
-              placeholder="请选择模块"
-              clearable
-              filterable
-            >
-              <el-option
-                v-for="item in moduleOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </el-select>
-          </div>
-          <div class="list-filter-item operation-log-filter-item">
-            <span class="list-filter-label">操作</span>
-            <el-select
-              v-model="queryForm.operation"
-              class="list-filter-control"
-              placeholder="请选择操作"
-              clearable
-              filterable
-            >
-              <el-option
-                v-for="item in operationOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </el-select>
-          </div>
-          <div class="list-filter-item operation-log-filter-item">
-            <span class="list-filter-label">状态</span>
-            <el-select
-              v-model="queryForm.status"
-              class="list-filter-control"
-              placeholder="请选择状态"
-              clearable
-              filterable
-            >
-              <el-option
-                v-for="item in logStatusOptions"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </el-select>
-          </div>
-          <div class="list-filter-actions">
-            <el-button type="primary" @click="handleQuery">查询</el-button>
-            <el-button @click="handleReset">重置</el-button>
-          </div>
-        </div>
-      </section>
+      <FilterBar @query="handleQuery" @reset="handleReset">
+        <KeywordInput
+          v-model="query.keyword"
+          placeholder="按模块、操作、对象、操作人筛选"
+          @query="handleQuery"
+        />
+        <FilterField label="模块" :width="180">
+          <el-select
+            v-model="query.module"
+            placeholder="请选择模块"
+            clearable
+            filterable
+          >
+            <el-option
+              v-for="item in moduleOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </FilterField>
+        <FilterField label="操作" :width="180">
+          <el-select
+            v-model="query.operation"
+            placeholder="请选择操作"
+            clearable
+            filterable
+          >
+            <el-option
+              v-for="item in operationOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </FilterField>
+        <FilterField label="状态" :width="180">
+          <el-select
+            v-model="query.status"
+            placeholder="请选择状态"
+            clearable
+            filterable
+          >
+            <el-option
+              v-for="item in logStatusOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </FilterField>
+      </FilterBar>
 
       <section class="list-page-block list-page-block--content">
         <OperationLogListPanel
@@ -86,22 +79,18 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
+import FilterBar from "../../components/common/FilterBar.vue";
+import FilterField from "../../components/common/FilterField.vue";
+import KeywordInput from "../../components/common/KeywordInput.vue";
 import OperationLogDetailDrawer from "../../components/system/OperationLogDetailDrawer.vue";
 import OperationLogListPanel from "../../components/system/OperationLogListPanel.vue";
-import { useAutoQuery } from "../../composables/useAutoQuery";
-import { usePageList } from "../../composables/usePageList";
+import { useListQuery } from "../../composables/useListQuery";
 import { resolveEnumLabel, useEnums } from "../../composables/useEnums";
 import { getOperationLogDetail, listOperationLogs } from "../../api/operationLogs";
 
 const { options: statusOptions, loadOptions: loadStatusOptions } = useEnums("status");
-
-const queryForm = reactive({
-  module: "",
-  operation: "",
-  status: ""
-});
 
 const moduleLabelMap = {
   system: "系统管理",
@@ -142,22 +131,22 @@ async function fetchOperationLogs(params) {
   return result;
 }
 
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(fetchOperationLogs, { extra: queryForm });
-const { pauseAutoQuery } = useAutoQuery(queryForm, handleQuery);
-
-function handleQuery() {
-  return pauseAutoQuery(() => resetPage());
-}
-
-function handleReset() {
-  return pauseAutoQuery(() => {
-    queryForm.module = "";
-    queryForm.operation = "";
-    queryForm.status = "";
-    return resetPage();
-  });
-}
+const {
+  query,
+  rows,
+  loading,
+  total,
+  pageNum,
+  pageSize,
+  load,
+  onPageChange,
+  onSizeChange,
+  handleQuery,
+  handleReset
+} = useListQuery({
+  apiFn: fetchOperationLogs,
+  fields: { keyword: "", module: "", operation: "", status: "" }
+});
 
 async function onLogRow(row) {
   currentLog.value = await getOperationLogDetail(row.id);
@@ -186,28 +175,3 @@ onMounted(() => {
   load();
 });
 </script>
-
-<style scoped>
-.operation-log-filter-item {
-  flex: 0 0 260px;
-  min-width: 260px;
-}
-
-.operation-log-filter-item :deep(.el-select) {
-  width: 100%;
-}
-
-@media (max-width: 1200px) {
-  .operation-log-filter-item {
-    flex: 1 1 220px;
-    min-width: 220px;
-  }
-}
-
-@media (max-width: 768px) {
-  .operation-log-filter-item {
-    flex: 1 1 100%;
-    min-width: 0;
-  }
-}
-</style>

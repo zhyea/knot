@@ -1,35 +1,23 @@
 <template>
   <PageSection>
     <div class="list-page-shell">
-      <section class="list-page-block">
-        <div class="list-page-filters">
-          <div class="list-filter-item list-filter-item--grow">
-            <span class="list-filter-label">关键词</span>
-            <el-input
-              v-model="query.keyword"
-              class="list-filter-control--wide"
-              placeholder="按编码、名称、类型筛选"
-              clearable
-              @keyup.enter="handleQuery"
+      <FilterBar @query="handleQuery" @reset="handleReset">
+        <KeywordInput
+          v-model="query.keyword"
+          placeholder="按编码、名称、类型筛选"
+          @query="handleQuery"
+        />
+        <FilterField label="状态" :width="180">
+          <el-select v-model="query.status" clearable placeholder="全部">
+            <el-option
+            v-for="item in pluginStatusOptions"
+            :key="item.itemCode"
+            :label="item.itemLabel"
+            :value="item.itemCode"
             />
-          </div>
-          <div class="list-filter-item">
-            <span class="list-filter-label">状态</span>
-            <el-select v-model="query.status" class="list-filter-control" clearable placeholder="全部">
-              <el-option
-                v-for="item in pluginStatusOptions"
-                :key="item.itemCode"
-                :label="item.itemLabel"
-                :value="item.itemCode"
-              />
-            </el-select>
-          </div>
-          <div class="list-filter-actions">
-            <el-button type="primary" @click="handleQuery">查询</el-button>
-            <el-button @click="handleReset">重置</el-button>
-          </div>
-        </div>
-      </section>
+          </el-select>
+        </FilterField>
+      </FilterBar>
 
       <section class="list-page-block list-page-block--content">
         <div class="list-page-toolbar">
@@ -58,14 +46,16 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
+import FilterBar from "../../components/common/FilterBar.vue";
+import FilterField from "../../components/common/FilterField.vue";
+import KeywordInput from "../../components/common/KeywordInput.vue";
+import { useListQuery } from "../../composables/useListQuery";
 import PluginFormDialog from "../../components/plugin/PluginFormDialog.vue";
 import PluginListPanel from "../../components/plugin/PluginListPanel.vue";
-import { useAutoQuery } from "../../composables/useAutoQuery";
 import { useEnums } from "../../composables/useEnums";
-import { usePageList } from "../../composables/usePageList";
 import { listPlugins, updatePluginStatus } from "../../api/plugins";
 
 const { options: statusOptions, loadOptions: loadStatusOptions } = useEnums("status");
@@ -73,14 +63,20 @@ const pluginStatusOptions = computed(() =>
   statusOptions.value.filter((item) => ["ENABLED", "DISABLED"].includes(item.itemCode))
 );
 
-const query = reactive({
-  keyword: "",
-  status: ""
-});
-
-const { rows, loading, total, pageNum, pageSize, load: pageLoad, onPageChange, onSizeChange, resetPage } =
-  usePageList(listPlugins, { extra: query });
-const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
+const {
+  query,
+  rows,
+  loading,
+  total,
+  pageNum,
+  pageSize,
+  load: pageLoad,
+  onPageChange,
+  onSizeChange,
+  resetPage,
+  handleQuery,
+  handleReset
+} = useListQuery({ apiFn: listPlugins, fields: { keyword: "", status: "" } });
 
 const pluginRows = ref([]);
 const dlg = ref(false);
@@ -116,17 +112,6 @@ async function onStatus(row, enabled) {
   }
 }
 
-function handleQuery() {
-  return pauseAutoQuery(() => resetPage());
-}
-
-function handleReset() {
-  return pauseAutoQuery(() => {
-    query.keyword = "";
-    query.status = "";
-    return resetPage();
-  });
-}
 
 onMounted(() => {
   loadStatusOptions();

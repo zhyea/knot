@@ -1,36 +1,23 @@
 <template>
   <PageSection>
     <div class="list-page-shell">
-      <section class="list-page-block">
-        <div class="list-page-filters">
-          <div class="list-filter-item list-filter-item--grow">
-            <span class="list-filter-label">关键词</span>
-            <el-input
-              v-model="query.keyword"
-              class="list-filter-control--wide"
-              placeholder="按规则编码、名称、应用、用户筛选"
-              clearable
-              @keyup.enter="handleQuery"
-            />
-          </div>
-          <div class="list-filter-item">
-            <span class="list-filter-label">模型类型</span>
-            <EnumSelect
-              v-model="query.modelTypes"
-              class="list-filter-control--wide"
-              category="model_type"
-              multiple
-              collapse-tags
-              collapse-tags-tooltip
-              clearable
-            />
-          </div>
-          <div class="list-filter-actions">
-            <el-button type="primary" @click="handleQuery">查询</el-button>
-            <el-button @click="handleReset">重置</el-button>
-          </div>
-        </div>
-      </section>
+      <FilterBar @query="handleQuery" @reset="handleReset">
+        <KeywordInput
+          v-model="query.keyword"
+          placeholder="按规则编码、名称、应用、用户筛选"
+          @query="handleQuery"
+        />
+        <FilterField label="模型类型" :width="260">
+          <EnumSelect
+            v-model="query.modelTypes"
+            category="model_type"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
+            clearable
+          />
+        </FilterField>
+      </FilterBar>
 
       <section class="list-page-block list-page-block--content">
         <div class="list-page-toolbar">
@@ -75,27 +62,35 @@
 </template>
 
 <script setup>
-import { reactive, ref } from "vue";
+import { ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
+import FilterBar from "../../components/common/FilterBar.vue";
+import FilterField from "../../components/common/FilterField.vue";
+import KeywordInput from "../../components/common/KeywordInput.vue";
+import { useListQuery } from "../../composables/useListQuery";
 import EnumSelect from "../../components/common/EnumSelect.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import RoutingRuleListPanel from "../../components/routing/RoutingRuleListPanel.vue";
 import RoutingRuleFormDrawer from "../../components/routing/RoutingRuleFormDrawer.vue";
 import RoutingRuleTestDrawer from "../../components/routing/RoutingRuleTestDrawer.vue";
 import { listRoutingRuleOperationLogs } from "../../api/operationLogs";
-import { useAutoQuery } from "../../composables/useAutoQuery";
-import { usePageList } from "../../composables/usePageList";
 import { listRoutingConsumers, listRoutingRules } from "../../api/routing";
 import { normalizeOptionList } from "../../utils/options";
 
-const query = reactive({
-  keyword: "",
-  modelTypes: []
-});
-
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(listRoutingRules, { extra: query });
-const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
+const {
+  query,
+  rows,
+  loading,
+  total,
+  pageNum,
+  pageSize,
+  load,
+  onPageChange,
+  onSizeChange,
+  resetPage,
+  handleQuery,
+  handleReset
+} = useListQuery({ apiFn: listRoutingRules, fields: { keyword: "", modelTypes: [] } });
 
 const formVisible = ref(false);
 const editingRule = ref(null);
@@ -150,17 +145,6 @@ function loadRoutingRuleOperationLogs() {
   return listRoutingRuleOperationLogs(logRuleId.value);
 }
 
-function handleQuery() {
-  return pauseAutoQuery(() => resetPage());
-}
-
-function handleReset() {
-  return pauseAutoQuery(() => {
-    query.keyword = "";
-    query.modelTypes = [];
-    return resetPage();
-  });
-}
 
 load();
 </script>

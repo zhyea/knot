@@ -7,7 +7,8 @@ public record OperationLogQuery(
         Integer pageSize,
         String module,
         String operation,
-        String status
+        String status,
+        String keyword
 ) {
     public PageRequest toPageRequest() {
         return PageRequest.of(pageNum, pageSize);

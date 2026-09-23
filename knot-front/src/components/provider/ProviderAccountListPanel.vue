@@ -3,7 +3,6 @@
     <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center"/>
       <el-table-column prop="code" label="编码" min-width="10%" show-overflow-tooltip/>
-      <el-table-column prop="name" label="名称" min-width="15%"/>
       <el-table-column prop="providerName" label="供应商" min-width="15%" show-overflow-tooltip/>
       <el-table-column prop="baseUrl" label="Base URL" min-width="18%" show-overflow-tooltip/>
       <el-table-column label="创建时间" min-width="165" show-overflow-tooltip>

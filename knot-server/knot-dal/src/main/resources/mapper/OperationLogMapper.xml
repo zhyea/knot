@@ -55,6 +55,16 @@
             <if test="status != null and status != ''">
                 and status = #{status}
             </if>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    module like concat('%', #{keyword}, '%')
+                    or operation like concat('%', #{keyword}, '%')
+                    or entity_type like concat('%', #{keyword}, '%')
+                    or entity_name like concat('%', #{keyword}, '%')
+                    or operator_name like concat('%', #{keyword}, '%')
+                    or description like concat('%', #{keyword}, '%')
+                )
+            </if>
         </where>
         order by created_at desc
     </select>

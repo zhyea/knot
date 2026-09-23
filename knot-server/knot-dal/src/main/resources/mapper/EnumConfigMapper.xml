@@ -64,6 +64,12 @@
         from ks_enum_categories c
         left join ks_enum_configs ec on ec.category_id = c.id and ec.is_deleted = 0
         where c.is_deleted = 0
+        <if test="keyword != null and keyword != ''">
+            and (
+                c.category like concat('%', #{keyword}, '%')
+                or c.category_name like concat('%', #{keyword}, '%')
+            )
+        </if>
         group by c.id, c.category, c.category_name, c.is_system
         order by c.category
     </select>

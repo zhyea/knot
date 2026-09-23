@@ -1,31 +1,19 @@
 <template>
   <PageSection>
     <div class="list-page-shell">
-      <section class="list-page-block">
-        <div class="list-page-filters">
-          <div class="list-filter-item">
-            <span class="list-filter-label">任务编码</span>
-            <el-input
-              v-model="query.taskCode"
-              class="list-filter-control--wide"
-              placeholder="请输入任务编码"
-              clearable
-              @keyup.enter="handleQuery"
-            />
-          </div>
-          <div class="list-filter-item">
-            <span class="list-filter-label">状态</span>
-            <el-select v-model="query.status" class="list-filter-control" placeholder="请选择状态" clearable>
-              <el-option label="启用" value="ENABLED" />
-              <el-option label="禁用" value="DISABLED" />
-            </el-select>
-          </div>
-          <div class="list-filter-actions">
-            <el-button type="primary" @click="handleQuery">查询</el-button>
-            <el-button @click="handleReset">重置</el-button>
-          </div>
-        </div>
-      </section>
+      <FilterBar @query="handleQuery" @reset="handleReset">
+        <KeywordInput
+          v-model="query.keyword"
+          placeholder="按任务编码、名称、处理器筛选"
+          @query="handleQuery"
+        />
+        <FilterField label="状态" :width="180">
+          <el-select v-model="query.status" placeholder="请选择状态" clearable>
+            <el-option label="启用" value="ENABLED" />
+            <el-option label="禁用" value="DISABLED" />
+          </el-select>
+        </FilterField>
+      </FilterBar>
 
       <section class="list-page-block list-page-block--content">
         <div class="list-page-toolbar">
@@ -61,24 +49,32 @@
 </template>
 
 <script setup>
-import { reactive, ref } from "vue";
+import { ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
+import FilterBar from "../../components/common/FilterBar.vue";
+import FilterField from "../../components/common/FilterField.vue";
+import KeywordInput from "../../components/common/KeywordInput.vue";
 import ScheduledTaskConfigPanel from "../../components/system/scheduled/ScheduledTaskConfigPanel.vue";
 import ScheduledTaskFormDrawer from "../../components/system/scheduled/ScheduledTaskFormDrawer.vue";
 import ScheduledTaskRunDrawer from "../../components/system/scheduled/ScheduledTaskRunDrawer.vue";
 import { listScheduledTasks } from "../../api/scheduledTasks";
-import { useAutoQuery } from "../../composables/useAutoQuery";
-import { usePageList } from "../../composables/usePageList";
+import { useListQuery } from "../../composables/useListQuery";
 
-const query = reactive({
-  taskCode: "",
-  status: ""
-});
-
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(listScheduledTasks, { extra: query });
-const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
+const {
+  query,
+  rows,
+  loading,
+  total,
+  pageNum,
+  pageSize,
+  load,
+  onPageChange,
+  onSizeChange,
+  resetPage,
+  handleQuery,
+  handleReset
+} = useListQuery({ apiFn: listScheduledTasks, fields: { keyword: "", status: "" } });
 
 const taskDrawer = ref(false);
 const runDrawer = ref(false);
@@ -88,18 +84,6 @@ const runTask = ref(null);
 function openTaskDrawer(task) {
   editingTask.value = task || null;
   taskDrawer.value = true;
-}
-
-function handleQuery() {
-  return pauseAutoQuery(() => resetPage());
-}
-
-function handleReset() {
-  return pauseAutoQuery(() => {
-    query.taskCode = "";
-    query.status = "";
-    return resetPage();
-  });
 }
 
 function onTaskSaved() {

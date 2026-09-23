@@ -1,24 +1,13 @@
 <template>
   <PageSection>
     <div class="list-page-shell">
-      <section class="list-page-block">
-        <div class="list-page-filters">
-          <div class="list-filter-item list-filter-item--grow">
-            <span class="list-filter-label">关键字</span>
-            <el-input
-              v-model="query.keyword"
-              class="list-filter-control--wide"
-              placeholder="按用户名、姓名、部门筛选"
-              clearable
-              @keyup.enter="handleQuery"
-            />
-          </div>
-          <div class="list-filter-actions">
-            <el-button type="primary" @click="handleQuery">查询</el-button>
-            <el-button @click="handleReset">重置</el-button>
-          </div>
-        </div>
-      </section>
+      <FilterBar @query="handleQuery" @reset="handleReset">
+        <KeywordInput
+          v-model="query.keyword"
+          placeholder="按用户名、姓名、部门筛选"
+          @query="handleQuery"
+        />
+      </FilterBar>
 
       <section class="list-page-block list-page-block--content">
         <div class="list-page-toolbar">
@@ -56,21 +45,29 @@
 import { reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
+import FilterBar from "../../components/common/FilterBar.vue";
+import KeywordInput from "../../components/common/KeywordInput.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import UserFormDrawer from "../../components/system/UserFormDrawer.vue";
 import UserListPanel from "../../components/system/UserListPanel.vue";
-import { useAutoQuery } from "../../composables/useAutoQuery";
-import { usePageList } from "../../composables/usePageList";
+import { useListQuery } from "../../composables/useListQuery";
 import { listUsers, resetUserPassword, updateUserStatus } from "../../api/users";
 import { listUserOperationLogs } from "../../api/operationLogs";
 
-const query = reactive({
-  keyword: ""
-});
-
-const { rows, loading, total, pageNum, pageSize, load: pageLoad, onPageChange, onSizeChange, resetPage } =
-  usePageList(listUsers, { extra: query });
-const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
+const {
+  query,
+  rows,
+  loading,
+  total,
+  pageNum,
+  pageSize,
+  load: pageLoad,
+  onPageChange,
+  onSizeChange,
+  resetPage,
+  handleQuery,
+  handleReset
+} = useListQuery({ apiFn: listUsers, fields: { keyword: "" } });
 const users = ref([]);
 
 const drawerVisible = ref(false);
@@ -135,17 +132,6 @@ async function onStatusChange(row, status) {
   } catch {
     row.status = status === 1 ? 0 : 1;
   }
-}
-
-function handleQuery() {
-  return pauseAutoQuery(() => resetPage());
-}
-
-function handleReset() {
-  return pauseAutoQuery(() => {
-    query.keyword = "";
-    return resetPage();
-  });
 }
 
 pageLoad();

@@ -76,8 +76,16 @@ public class EnumConfigService {
     /**
      * Lists matching results. Executes the public operation.
      */
-    public List<EnumCategorySummary> listCategorySummaries() {
-        return enumConfigMapper.listCategorySummaries();
+    public List<EnumCategorySummary> listCategorySummaries(String keyword) {
+        return enumConfigMapper.listCategorySummaries(normalizeKeyword(keyword));
+    }
+
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null) {
+            return null;
+        }
+        String normalized = keyword.trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     /**

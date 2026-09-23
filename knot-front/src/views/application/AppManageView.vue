@@ -1,24 +1,13 @@
 <template>
   <PageSection>
     <div class="list-page-shell">
-      <section class="list-page-block">
-        <div class="list-page-filters">
-          <div class="list-filter-item list-filter-item--grow">
-            <span class="list-filter-label">关键词</span>
-            <el-input
-              v-model="query.keyword"
-              class="list-filter-control--wide"
-              placeholder="按 App ID、名称、部门、负责人筛选"
-              clearable
-              @keyup.enter="handleQuery"
-            />
-          </div>
-          <div class="list-filter-actions">
-            <el-button type="primary" @click="handleQuery">查询</el-button>
-            <el-button @click="handleReset">重置</el-button>
-          </div>
-        </div>
-      </section>
+      <FilterBar @query="handleQuery" @reset="handleReset">
+        <KeywordInput
+          v-model="query.keyword"
+          placeholder="按 App ID、名称、部门、负责人筛选"
+          @query="handleQuery"
+        />
+      </FilterBar>
 
       <section class="list-page-block list-page-block--content">
         <div class="list-page-toolbar">
@@ -54,23 +43,31 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { onMounted, ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
+import FilterBar from "../../components/common/FilterBar.vue";
+import KeywordInput from "../../components/common/KeywordInput.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import AppListPanel from "../../components/app/AppListPanel.vue";
 import AppFormDrawer from "../../components/app/AppFormDrawer.vue";
 import { listAppOperationLogs } from "../../api/operationLogs";
-import { useAutoQuery } from "../../composables/useAutoQuery";
-import { usePageList } from "../../composables/usePageList";
+import { useListQuery } from "../../composables/useListQuery";
 import { listApps } from "../../api/apps";
 
-const query = reactive({
-  keyword: ""
-});
-
-const { rows, loading, total, pageNum, pageSize, load, onPageChange, onSizeChange, resetPage } =
-  usePageList(listApps, { extra: query });
-const { pauseAutoQuery } = useAutoQuery(query, handleQuery);
+const {
+  query,
+  rows,
+  loading,
+  total,
+  pageNum,
+  pageSize,
+  load,
+  onPageChange,
+  onSizeChange,
+  resetPage,
+  handleQuery,
+  handleReset
+} = useListQuery({ apiFn: listApps, fields: { keyword: "" } });
 
 const formVisible = ref(false);
 const editingApp = ref(null);
@@ -90,17 +87,6 @@ function openEdit(row) {
 
 function onAppSaved() {
   resetPage();
-}
-
-function handleQuery() {
-  return pauseAutoQuery(() => resetPage());
-}
-
-function handleReset() {
-  return pauseAutoQuery(() => {
-    query.keyword = "";
-    return resetPage();
-  });
 }
 
 function openChangeLog(row) {
