@@ -19,8 +19,10 @@
       </FilterBar>
 
       <section class="list-page-block list-page-block--content">
-        <div class="model-toolbar">
-          <el-button type="primary" @click="openCreate">新增模型</el-button>
+        <div class="list-page-toolbar">
+          <div class="list-page-toolbar__actions list-page-toolbar__actions--start">
+            <el-button type="primary" @click="openCreate">新增模型</el-button>
+          </div>
         </div>
 
         <ModelListPanel
