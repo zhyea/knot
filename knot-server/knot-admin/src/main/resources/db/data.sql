@@ -670,3 +670,14 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (1, 57), (2, 57), (3, 57);
+
+-- ============================================================
+-- 权威授权块（必须保持在文件最后）
+-- ============================================================
+-- ADMIN 角色拥有全部权限。按角色编码关联并全量授予，保证新增权限在
+-- 应用重启执行 data.sql 后也会同步到 ADMIN，不会因中段快照而漏授权。
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM ks_roles r
+         CROSS JOIN ks_permissions p
+WHERE r.code = 'ADMIN';

@@ -150,12 +150,13 @@ const form = reactive({
 
 const isEdit = computed(() => props.providerId != null);
 
+// label 与后端 ProviderCredentialTypeEnum.label() 保持一致，下拉只展示 label，不拼接 code
 const credentialTypeOptions = [
-  {value: "api-key", label: "api-key（ApiKey）"},
-  {value: "aws-auth", label: "aws-auth（AWS 认证）"},
-  {value: "gemini-auth", label: "gemini-auth（gemini 认证）"},
-  {value: "ak-sk", label: "ak-sk（AK&SK）"},
-  {value: "custom", label: "custom（自定义）"}
+  {value: "api-key", label: "ApiKey"},
+  {value: "aws-auth", label: "AWS 认证"},
+  {value: "gemini-auth", label: "gemini 认证"},
+  {value: "ak-sk", label: "AK&SK"},
+  {value: "custom", label: "自定义"}
 ];
 
 const credentialFields = {
