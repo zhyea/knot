@@ -326,26 +326,26 @@ INSERT IGNORE INTO kb_model_pool_items (id, pool_id, model_id, weight, priority,
 (4, 2, 6, 40, 20, 'ENABLED');
 
 INSERT IGNORE INTO kb_logical_models (
-  id, model_code, model_name, model_type, model_family, version, display_name, tagline, description,
+  id, model_code, model_name, model_type, model_family, display_name, tagline, description,
   tags_json, use_cases_json, context_window, max_output_tokens,
   input_modalities_json, output_modalities_json, languages_json,
   visibility, publish_status, status, sort_order, featured,
-  quality_level, latency_level, cost_level, pricing_summary
+  remark
 ) VALUES
-(1, 'knot-chat-premium', 'Knot Chat Premium', 'CHAT', 'omni', '1.0',
+(1, 'knot-chat-premium', 'Knot Chat Premium', 'CHAT', 'omni',
  'Knot Chat Premium', 'High quality chat model for complex tasks',
  'A logical chat model that routes to premium provider models by policy.',
  JSON_ARRAY('chat', 'reasoning', 'premium'),
  JSON_ARRAY('knowledge assistant', 'research', 'complex analysis'),
  200000, 8192, JSON_ARRAY('text', 'image'), JSON_ARRAY('text'), JSON_ARRAY('zh-CN', 'en-US'),
- 'PUBLIC', 'PUBLISHED', 'ENABLED', 10, 1, 'HIGH', 'MEDIUM', 'HIGH', 'Premium provider route'),
-(2, 'knot-chat-economy', 'Knot Chat Economy', 'CHAT', 'general', '1.0',
+  'PUBLIC', 'PUBLISHED', 'ENABLED', 10, 1, 'Premium provider route'),
+(2, 'knot-chat-economy', 'Knot Chat Economy', 'CHAT', 'general',
  'Knot Chat Economy', 'Cost effective chat model for daily workloads',
  'A logical chat model that routes to economical provider models.',
  JSON_ARRAY('chat', 'economy'),
  JSON_ARRAY('customer service', 'daily assistant'),
  128000, 4096, JSON_ARRAY('text'), JSON_ARRAY('text'), JSON_ARRAY('zh-CN', 'en-US'),
- 'PUBLIC', 'PUBLISHED', 'ENABLED', 20, 0, 'MEDIUM', 'LOW', 'LOW', 'Economy provider route');
+  'PUBLIC', 'PUBLISHED', 'ENABLED', 20, 0, 'Economy provider route');
 
 INSERT IGNORE INTO kb_provider_model_mappings (
   id, logical_model_id, provider_account_id, model_id, provider_model_name, status, priority
@@ -565,9 +565,6 @@ INSERT IGNORE INTO ks_enum_categories (id, category, category_name, is_system, i
 (15, 'status', '通用状态', 1, 1),
 (16, 'logical_model_visibility', '统一模型可见性', 0, 1),
 (17, 'logical_model_publish_status', '统一模型发布状态', 0, 1),
-(18, 'logical_model_quality_level', '统一模型质量等级', 0, 1),
-(19, 'logical_model_latency_level', '统一模型延迟等级', 0, 1),
-(20, 'logical_model_cost_level', '统一模型成本等级', 0, 1),
 (22, 'model_api_protocol', '模型接口类型', 0, 1),
 (23, 'model_pool_selection_strategy', '模型池选择策略', 1, 1);
 
@@ -708,16 +705,7 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 (16, 'PRIVATE',   '私有',     3, 1),
 (17, 'DRAFT',     '草稿',     1, 1),
 (17, 'PUBLISHED', '已发布',   2, 1),
-(17, 'ARCHIVED',  '已下架',   3, 1),
-(18, 'HIGH',      '高',       1, 1),
-(18, 'MEDIUM',    '中',       2, 1),
-(18, 'LOW',       '低',       3, 1),
-(19, 'LOW',       '低',       1, 1),
-(19, 'MEDIUM',    '中',       2, 1),
-(19, 'HIGH',      '高',       3, 1),
-(20, 'LOW',       '低',       1, 1),
-(20, 'MEDIUM',    '中',       2, 1),
-(20, 'HIGH',      '高',       3, 1);
+(17, 'ARCHIVED',  '已下架',   3, 1);
 
 UPDATE ks_menus
 SET menu_name = '供应商',

@@ -3,13 +3,12 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.LogicalModelMapper">
 
     <sql id="LogicalModelColumns">
-        id, model_code, model_name, model_type, model_family, version,
+        id, model_code, model_name, model_type, model_family,
         display_name, tagline, description,
         tags_json, use_cases_json,
         context_window, max_output_tokens,
         input_modalities_json, output_modalities_json, languages_json,
         visibility, publish_status, status, sort_order, featured,
-        quality_level, latency_level, cost_level, pricing_summary,
         remark, created_at, updated_at
     </sql>
 
@@ -65,22 +64,20 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into kb_logical_models(
-            model_code, model_name, model_type, model_family, version,
+            model_code, model_name, model_type, model_family,
             display_name, tagline, description,
             tags_json, use_cases_json,
             context_window, max_output_tokens,
             input_modalities_json, output_modalities_json, languages_json,
             visibility, publish_status, status, sort_order, featured,
-            quality_level, latency_level, cost_level, pricing_summary,
             remark
         ) values (
-            #{modelCode}, #{modelName}, #{modelType}, #{modelFamily}, #{version},
+            #{modelCode}, #{modelName}, #{modelType}, #{modelFamily},
             #{displayName}, #{tagline}, #{description},
             #{tagsJson}, #{useCasesJson},
             #{contextWindow}, #{maxOutputTokens},
             #{inputModalitiesJson}, #{outputModalitiesJson}, #{languagesJson},
             #{visibility}, #{publishStatus}, #{status}, #{sortOrder}, #{featured},
-            #{qualityLevel}, #{latencyLevel}, #{costLevel}, #{pricingSummary},
             #{remark}
         )
     </insert>
@@ -91,7 +88,6 @@
             model_name = #{modelName},
             model_type = #{modelType},
             model_family = #{modelFamily},
-            version = #{version},
             display_name = #{displayName},
             tagline = #{tagline},
             description = #{description},
@@ -107,10 +103,6 @@
             status = #{status},
             sort_order = #{sortOrder},
             featured = #{featured},
-            quality_level = #{qualityLevel},
-            latency_level = #{latencyLevel},
-            cost_level = #{costLevel},
-            pricing_summary = #{pricingSummary},
             remark = #{remark}
         where id = #{id}
     </update>

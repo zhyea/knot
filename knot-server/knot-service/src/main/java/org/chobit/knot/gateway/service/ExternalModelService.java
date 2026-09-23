@@ -18,7 +18,6 @@ import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -117,7 +116,6 @@ public class ExternalModelService {
                 item.getModelName(),
                 item.getModelType() != null ? item.getModelType() : "CHAT",
                 item.getModelFamily(),
-                null,
                 item.getModelName(),
                 firstSentence(item.getDescription()),
                 item.getDescription(),
@@ -133,10 +131,6 @@ public class ExternalModelService {
                 false,
                 0,
                 false,
-                null,
-                null,
-                null,
-                pricingSummary(item),
                 "Imported from " + item.getSourceCode() + ": " + item.getModelId(),
                 null,
                 null,
@@ -236,24 +230,6 @@ public class ExternalModelService {
     private List<String> readStringList(String json) {
         List<String> list = JsonKit.fromJson(json, new TypeReference<>() {});
         return list != null ? list : List.of();
-    }
-
-    private Map<String, Object> readMap(String json) {
-        Map<String, Object> map = JsonKit.fromJson(json, new TypeReference<>() {});
-        return map != null ? map : new LinkedHashMap<>();
-    }
-
-    private String pricingSummary(ExternalModelItemEntity item) {
-        Map<String, Object> pricing = readMap(item.getPricingJson());
-        if (pricing.isEmpty()) {
-            return null;
-        }
-        Object prompt = pricing.get("prompt");
-        Object completion = pricing.get("completion");
-        if (prompt == null && completion == null) {
-            return null;
-        }
-        return "prompt=" + (prompt == null ? "-" : prompt) + ", completion=" + (completion == null ? "-" : completion);
     }
 
     private boolean same(String a, String b) {

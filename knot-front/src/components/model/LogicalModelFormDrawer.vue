@@ -42,29 +42,30 @@
         </el-row>
 
         <el-row :gutter="16">
-          <el-col :span="8">
+          <el-col :span="12">
             <el-form-item label="模型类型" required>
               <EnumSelect v-model="form.modelType" category="model_type" />
             </el-form-item>
           </el-col>
-          <el-col :span="8">
+          <el-col :span="12">
             <el-form-item label="模型族">
               <el-input v-model="form.modelFamily" placeholder="如 omni/general" />
             </el-form-item>
           </el-col>
-          <el-col :span="8">
-            <el-form-item label="版本">
-              <el-input v-model="form.version" placeholder="如 1.0" />
+        </el-row>
+
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="展示名称">
+              <el-input v-model="form.displayName" placeholder="统一模型展示名称" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="一句话介绍">
+              <el-input v-model="form.tagline" maxlength="255" show-word-limit />
             </el-form-item>
           </el-col>
         </el-row>
-
-        <el-form-item label="展示名称">
-          <el-input v-model="form.displayName" placeholder="统一模型展示名称" />
-        </el-form-item>
-        <el-form-item label="一句话介绍">
-          <el-input v-model="form.tagline" maxlength="255" show-word-limit />
-        </el-form-item>
         <el-form-item label="模型说明">
           <el-input v-model="form.description" type="textarea" :rows="3" />
         </el-form-item>
@@ -102,12 +103,18 @@
               <EnumSelect v-model="form.publishStatus" category="logical_model_publish_status" />
             </el-form-item>
           </el-col>
-          <el-col :span="4">
+          <el-col :span="6">
             <el-form-item label="排序">
-              <el-input-number v-model="form.sortOrder" :min="0" :controls="false" style="width: 100%" />
+              <el-input-number
+                v-model="form.sortOrder"
+                :min="0"
+                :step="1"
+                controls-position="right"
+                class="number-field"
+              />
             </el-form-item>
           </el-col>
-          <el-col :span="4">
+          <el-col :span="6">
             <el-form-item label="推荐">
               <el-switch v-model="form.featured" />
             </el-form-item>
@@ -121,18 +128,30 @@
         <div class="section-head">
           <div>
             <h3>能力与约束</h3>
-            <p>描述统一模型的窗口、模态、语言和质量成本摘要。</p>
+            <p>描述统一模型的输入输出限制、模态和语言能力。</p>
           </div>
         </div>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="上下文窗口">
-              <el-input-number v-model="form.contextWindow" :min="0" :controls="false" style="width: 100%" />
+            <el-form-item label="最大输入">
+              <el-input-number
+                v-model="form.contextWindow"
+                :min="0"
+                :step="1"
+                controls-position="right"
+                class="number-field"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="最大输出">
-              <el-input-number v-model="form.maxOutputTokens" :min="0" :controls="false" style="width: 100%" />
+              <el-input-number
+                v-model="form.maxOutputTokens"
+                :min="0"
+                :step="1"
+                controls-position="right"
+                class="number-field"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -153,26 +172,6 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="16">
-          <el-col :span="8">
-            <el-form-item label="质量">
-              <EnumSelect v-model="form.qualityLevel" category="logical_model_quality_level" clearable />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="延迟">
-              <EnumSelect v-model="form.latencyLevel" category="logical_model_latency_level" clearable />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="成本">
-              <EnumSelect v-model="form.costLevel" category="logical_model_cost_level" clearable />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="价格摘要">
-          <el-input v-model="form.pricingSummary" maxlength="255" show-word-limit />
-        </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="form.remark" type="textarea" :rows="2" />
         </el-form-item>
@@ -219,7 +218,6 @@ function defaultForm() {
     modelName: "",
     modelType: "CHAT",
     modelFamily: "",
-    version: "1.0",
     displayName: "",
     tagline: "",
     description: "",
@@ -235,10 +233,6 @@ function defaultForm() {
     enabled: true,
     sortOrder: 0,
     featured: false,
-    qualityLevel: "",
-    latencyLevel: "",
-    costLevel: "",
-    pricingSummary: "",
     remark: ""
   };
 }
@@ -307,11 +301,7 @@ function buildPayload() {
     modelCode: form.modelCode?.trim(),
     modelName: form.modelName?.trim(),
     displayName: form.displayName?.trim() || form.modelName?.trim(),
-    modelFamily: form.modelFamily?.trim() || null,
-    version: form.version?.trim() || null,
-    qualityLevel: form.qualityLevel || null,
-    latencyLevel: form.latencyLevel || null,
-    costLevel: form.costLevel || null
+    modelFamily: form.modelFamily?.trim() || null
   };
 }
 
@@ -386,5 +376,17 @@ async function submit() {
 .inline-switch {
   margin-bottom: 0;
   flex: 0 0 auto;
+}
+
+.number-field {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .logical-model-form :deep(.el-col) {
+    width: 100%;
+    max-width: 100%;
+    flex: 0 0 100%;
+  }
 }
 </style>

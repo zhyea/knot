@@ -11,7 +11,6 @@ public class LogicalModelEntity {
     private String modelName;
     private String modelType;
     private String modelFamily;
-    private String version;
     private String displayName;
     private String tagline;
     private String description;
@@ -27,10 +26,6 @@ public class LogicalModelEntity {
     private String status;
     private Integer sortOrder;
     private Boolean featured;
-    private String qualityLevel;
-    private String latencyLevel;
-    private String costLevel;
-    private String pricingSummary;
     private String remark;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
