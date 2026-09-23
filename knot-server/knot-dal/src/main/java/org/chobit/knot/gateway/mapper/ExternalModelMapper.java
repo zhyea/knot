@@ -22,7 +22,8 @@ public interface ExternalModelMapper {
     List<ExternalModelItemEntity> listItems(@Param("sourceCode") String sourceCode,
                                             @Param("syncStatus") String syncStatus,
                                             @Param("keyword") String keyword,
-                                            @Param("modelType") String modelType);
+                                            @Param("modelType") String modelType,
+                                            @Param("ids") List<Long> ids);
 
     ExternalModelItemEntity getItemById(Long id);
 

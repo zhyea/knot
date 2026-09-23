@@ -59,7 +59,8 @@ public class ExternalModelService {
                 query != null ? query.sourceCode() : null,
                 query != null ? query.syncStatus() : null,
                 normalizeKeyword(query != null ? query.keyword() : null),
-                normalizeKeyword(query != null ? query.modelType() : null)
+                normalizeKeyword(query != null ? query.modelType() : null),
+                query != null ? query.ids() : null
         ));
         return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
     }
@@ -145,11 +146,18 @@ public class ExternalModelService {
      */
     @Transactional
     public ExternalModelSyncResult createLogicalModels(ExternalModelItemQuery query) {
+        List<Long> ids = query == null || query.ids() == null
+                ? List.of()
+                : query.ids().stream().filter(id -> id != null).distinct().toList();
+        if (ids.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "external model item ids are required");
+        }
         List<ExternalModelItemEntity> items = externalModelMapper.listItems(
-                query != null ? query.sourceCode() : null,
-                query != null ? query.syncStatus() : null,
-                normalizeKeyword(query != null ? query.keyword() : null),
-                normalizeKeyword(query != null ? query.modelType() : null)
+                null,
+                null,
+                null,
+                null,
+                ids
         );
         int inserted = 0;
         int skipped = 0;

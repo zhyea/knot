@@ -8,6 +8,7 @@ import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.LogicalModelService;
+import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.model.LogicalModelItem;
 import org.springframework.web.bind.annotation.*;
 
@@ -90,6 +91,22 @@ public class LogicalModelController {
      */
     public LogicalModelItem update(@PathVariable Long id, @RequestBody @Valid LogicalModelItem request) {
         return logicalModelConverter.toVO(logicalModelService.update(id, logicalModelConverter.toDto(request)));
+    }
+
+    /**
+     * Updates the logical model enabled status.
+     */
+    @OperationLog(module = "logical-model", operation = "UPDATE", entityType = "LogicalModel",
+            entityId = "#p0",
+            description = "'更新统一模型状态'",
+            oldValueSpel = "@logicalModelService.logicalModelAuditSnapshot(#p0)",
+            newValueSpel = "@logicalModelService.logicalModelAuditSnapshot(#p0)")
+    @PutMapping("/{id}/status")
+    public LogicalModelItem updateStatus(@PathVariable Long id,
+                                         @RequestBody @Valid EnabledStatusRequest request) {
+        return logicalModelConverter.toVO(
+                logicalModelService.updateStatus(id, Boolean.TRUE.equals(request.enabled()))
+        );
     }
 
     /**

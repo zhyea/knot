@@ -22,6 +22,10 @@ export function updateLogicalModel(id, payload) {
   return put(`/api/logical-models/${id}`, payload);
 }
 
+export function updateLogicalModelStatus(id, enabled) {
+  return put(`/api/logical-models/${id}/status`, { enabled });
+}
+
 export function deleteLogicalModel(id) {
   return del(`/api/logical-models/${id}`);
 }

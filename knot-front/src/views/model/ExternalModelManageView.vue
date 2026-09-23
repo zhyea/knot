@@ -115,7 +115,7 @@ const detailVisible = ref(false);
 const detail = ref(null);
 const selectedRows = ref([]);
 
-const createAllDisabled = computed(() => creatingAll.value || total.value <= 0);
+const createAllDisabled = computed(() => creatingAll.value || selectedRows.value.length === 0);
 
 async function loadSources() {
   sources.value = await listExternalModelSources();
@@ -126,6 +126,7 @@ async function syncOpenRouter() {
   try {
     const result = await syncExternalModelSource("OPENROUTER");
     ElMessage.success(result?.message || "同步完成");
+    selectedRows.value = [];
     await resetPage();
   } finally {
     syncing.value = false;
@@ -150,18 +151,23 @@ async function openDetail(row) {
 async function createOne(row) {
   await createLogicalModelFromExternalItem(row.id);
   ElMessage.success("已创建统一模型");
+  selectedRows.value = [];
   await resetPage();
 }
 
 async function createAllVisible() {
+  const ids = selectedRows.value.map((row) => row.id).filter((id) => id != null);
+  if (!ids.length) {
+    ElMessage.warning("请选择要创建统一模型的外部模型");
+    return;
+  }
   creatingAll.value = true;
   try {
     const result = await createLogicalModelsFromExternalItems({
-      sourceCode: query.sourceCode || "",
-      keyword: query.keyword || "",
-      modelType: query.modelType || ""
+      ids
     });
     ElMessage.success(result?.message || `已创建 ${result?.inserted || 0} 个统一模型`);
+    selectedRows.value = [];
     await resetPage();
   } finally {
     creatingAll.value = false;
@@ -171,6 +177,7 @@ async function createAllVisible() {
 async function deleteOne(row) {
   await deleteExternalModelItem(row.id);
   ElMessage.success("已删除外部模型");
+  selectedRows.value = [];
   await resetPage();
 }
 

@@ -48,6 +48,7 @@
           :model-type-options="modelTypeOptions"
           :show-refresh="false"
           @action="handleAction"
+          @changed="resetPage"
           @page-change="onPageChange"
           @size-change="onSizeChange"
         />

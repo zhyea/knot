@@ -21,6 +21,8 @@ public interface LogicalModelMapper {
 
     int update(LogicalModelEntity entity);
 
+    int updateStatus(@Param("id") Long id, @Param("status") String status);
+
     int deleteById(Long id);
 
     Long countByModelCode(@Param("modelCode") String modelCode, @Param("excludeId") Long excludeId);

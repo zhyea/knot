@@ -107,6 +107,12 @@
         where id = #{id}
     </update>
 
+    <update id="updateStatus">
+        update kb_logical_models
+        set status = #{status}
+        where id = #{id}
+    </update>
+
     <delete id="deleteById">
         delete from kb_logical_models
         where id = #{id}

@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.converter.LogicalModelConverter;
 import org.chobit.knot.gateway.dto.model.LogicalModelDto;
 import org.chobit.knot.gateway.dto.model.ProviderModelMappingDto;
@@ -143,6 +144,19 @@ public class LogicalModelService {
         entity.setModelName(requireText(request.modelName(), "model name is required"));
         entity.setModelType(requireText(request.modelType(), "model type is required"));
         logicalModelMapper.update(entity);
+        return getById(id);
+    }
+
+    /**
+     * Updates the logical model enabled status only.
+     */
+    @Transactional
+    public LogicalModelDto updateStatus(Long id, boolean enabled) {
+        ensureLogicalModel(id);
+        logicalModelMapper.updateStatus(
+                id,
+                enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code()
+        );
         return getById(id);
     }
 

@@ -76,57 +76,6 @@
       <div class="slot-body form-section">
         <div class="section-head">
           <div>
-            <h3>广场展示</h3>
-            <p>用于统一模型检索、推荐和用户选型。</p>
-          </div>
-        </div>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="标签">
-              <el-select v-model="form.tags" multiple filterable allow-create default-first-option style="width: 100%" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="应用场景">
-              <el-select v-model="form.useCases" multiple filterable allow-create default-first-option style="width: 100%" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="16">
-          <el-col :span="8">
-            <el-form-item label="可见性">
-              <EnumSelect v-model="form.visibility" category="logical_model_visibility" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="发布状态">
-              <EnumSelect v-model="form.publishStatus" category="logical_model_publish_status" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
-            <el-form-item label="排序">
-              <el-input-number
-                v-model="form.sortOrder"
-                :min="0"
-                :step="1"
-                controls-position="right"
-                class="number-field"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="6">
-            <el-form-item label="推荐">
-              <el-switch v-model="form.featured" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </div>
-
-      <div class="space-line" />
-
-      <div class="slot-body form-section">
-        <div class="section-head">
-          <div>
             <h3>能力与约束</h3>
             <p>描述统一模型的输入输出限制、模态和语言能力。</p>
           </div>
@@ -176,6 +125,61 @@
           <el-input v-model="form.remark" type="textarea" :rows="2" />
         </el-form-item>
       </div>
+
+      <div class="space-line" />
+
+      <el-collapse v-model="squareDisplayActive" class="square-display-collapse">
+        <el-collapse-item name="square-display">
+          <template #title>
+            <div class="collapse-title">
+              <strong>广场展示</strong>
+              <span>用于统一模型检索、推荐和用户选型。</span>
+            </div>
+          </template>
+          <div class="slot-body form-section">
+            <el-row :gutter="16">
+              <el-col :span="12">
+                <el-form-item label="标签">
+                  <el-select v-model="form.tags" multiple filterable allow-create default-first-option style="width: 100%" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="应用场景">
+                  <el-select v-model="form.useCases" multiple filterable allow-create default-first-option style="width: 100%" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+            <el-row :gutter="16">
+              <el-col :span="8">
+                <el-form-item label="可见性">
+                  <EnumSelect v-model="form.visibility" category="logical_model_visibility" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="发布状态">
+                  <EnumSelect v-model="form.publishStatus" category="logical_model_publish_status" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="6">
+                <el-form-item label="排序">
+                  <el-input-number
+                    v-model="form.sortOrder"
+                    :min="0"
+                    :step="1"
+                    controls-position="right"
+                    class="number-field"
+                  />
+                </el-form-item>
+              </el-col>
+              <el-col :span="6">
+                <el-form-item label="推荐">
+                  <el-switch v-model="form.featured" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </div>
+        </el-collapse-item>
+      </el-collapse>
     </el-form>
     </el-scrollbar>
     <template #footer>
@@ -210,6 +214,7 @@ const modelCodeError = ref("");
 const isEdit = computed(() => props.model != null);
 
 const form = reactive(defaultForm());
+const squareDisplayActive = ref([]);
 
 function defaultForm() {
   return {
@@ -250,6 +255,7 @@ watch(
   () => [props.modelValue, props.model],
   async ([visible]) => {
     if (!visible) return;
+    squareDisplayActive.value = [];
     modelCodeError.value = "";
     if (props.model?.id) {
       fillForm(props.model);
@@ -380,6 +386,45 @@ async function submit() {
 
 .number-field {
   width: 100%;
+}
+
+.square-display-collapse {
+  border-top: 0;
+  border-bottom: 0;
+}
+
+.square-display-collapse :deep(.el-collapse-item__header) {
+  height: auto;
+  min-height: 46px;
+  padding: 10px 14px;
+  border: 1px solid var(--knot-border, #e4e7ed);
+  background: var(--knot-surface, #fff);
+}
+
+.square-display-collapse :deep(.el-collapse-item__wrap) {
+  border: 0;
+  background: transparent;
+}
+
+.square-display-collapse :deep(.el-collapse-item__content) {
+  padding: 12px 0 0;
+}
+
+.collapse-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.collapse-title strong {
+  color: #303133;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.collapse-title span {
+  color: #909399;
+  font-size: 12px;
 }
 
 @media (max-width: 900px) {

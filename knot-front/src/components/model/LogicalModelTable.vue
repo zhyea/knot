@@ -20,21 +20,16 @@
         </template>
       </el-table-column>
       <el-table-column prop="modelFamily" label="模型族" min-width="120" show-overflow-tooltip />
-      <el-table-column label="标签" min-width="180">
+      <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
-          <div v-if="displayTags(row).length" class="tag-list">
-            <el-tag v-for="tag in displayTags(row)" :key="tag" size="small" effect="plain">
-              {{ tag }}
-            </el-tag>
-          </div>
-          <span v-else>-</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="状态" width="100">
-        <template #default="{ row }">
-          <el-tag :type="statusTagType(row)" size="small" disable-transitions>
-            {{ statusText(row) }}
-          </el-tag>
+          <el-switch
+            :model-value="row.enabled !== false"
+            :loading="togglingId === row.id"
+            inline-prompt
+            active-text="启用"
+            inactive-text="禁用"
+            @change="(value) => handleEnabledChange(row, value)"
+          />
         </template>
       </el-table-column>
       <el-table-column label="更新时间" width="160" show-overflow-tooltip>
@@ -73,6 +68,8 @@
 import { Delete, Edit } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
+import { updateLogicalModelStatus } from "../../api/logicalModels";
+import { useEnabledToggle } from "../../composables/useEnabledToggle";
 
 const props = defineProps({
   rows: { type: Array, default: () => [] },
@@ -85,7 +82,11 @@ const props = defineProps({
   showRefresh: { type: Boolean, default: true }
 });
 
-const emit = defineEmits(["action", "refresh", "page-change", "size-change"]);
+const emit = defineEmits(["action", "refresh", "page-change", "size-change", "changed"]);
+
+const { togglingId, onEnabledChange } = useEnabledToggle({
+  updateApi: updateLogicalModelStatus
+});
 
 function modelTypeLabel(code) {
   if (!code) return "-";
@@ -93,25 +94,9 @@ function modelTypeLabel(code) {
   return item?.itemLabel || code;
 }
 
-function isMeaningfulTag(tag) {
-  return typeof tag === "string" && tag.trim() && !/^\d+$/.test(tag.trim());
-}
-
-function displayTags(row) {
-  const tags = Array.isArray(row.tags) ? row.tags.filter(isMeaningfulTag) : [];
-  return tags.slice(0, 3);
-}
-
-function statusText(row) {
-  if (row.featured) return "推荐";
-  if (row.publishStatus === "PUBLISHED") return "已发布";
-  return row.enabled ? "可用" : "草稿";
-}
-
-function statusTagType(row) {
-  if (row.featured) return "warning";
-  if (row.publishStatus === "PUBLISHED") return "success";
-  return row.enabled ? "success" : "info";
+async function handleEnabledChange(row, enabled) {
+  await onEnabledChange(row, enabled);
+  emit("changed");
 }
 
 function formatDateTime(value) {
@@ -119,11 +104,3 @@ function formatDateTime(value) {
   return String(value).replace("T", " ").slice(0, 19);
 }
 </script>
-
-<style scoped>
-.tag-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-</style>

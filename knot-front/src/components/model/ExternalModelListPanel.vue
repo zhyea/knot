@@ -6,6 +6,7 @@
       stripe
       border
       style="width: 100%"
+      :row-class-name="rowClassName"
       @selection-change="(selection) => emit('selection-change', selection)"
     >
       <el-table-column type="selection" width="48" fixed="left" />
@@ -15,7 +16,7 @@
       <el-table-column prop="modelType" label="类型" min-width="110" show-overflow-tooltip />
       <el-table-column prop="contextLength" label="上下文" min-width="100" show-overflow-tooltip />
       <el-table-column label="创建时间" min-width="160" show-overflow-tooltip>
-        <template #default="{ row }">{{ formatDateTime(row.modelCreatedAt || row.updatedAt) }}</template>
+        <template #default="{ row }">{{ formatDateTime(row.modelCreatedAt || row.createdAt) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="160" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
@@ -63,4 +64,18 @@ function formatDateTime(value) {
   if (!value) return "-";
   return String(value).replace("T", " ").slice(0, 19);
 }
+
+function rowClassName({ row }) {
+  return row.logicalModelId == null ? "external-model-uncreated-row" : "";
+}
 </script>
+
+<style scoped>
+:deep(.el-table__body tr.external-model-uncreated-row > td.el-table__cell) {
+  background-color: #f0f9eb;
+}
+
+:deep(.el-table__body tr.external-model-uncreated-row:hover > td.el-table__cell) {
+  background-color: #e1f3d8;
+}
+</style>
