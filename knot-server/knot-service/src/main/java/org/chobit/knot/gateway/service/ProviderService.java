@@ -101,6 +101,17 @@ public class ProviderService {
     }
 
     /**
+     * Returns the non-sensitive fields required by account selectors.
+     */
+    public ProviderAccountDto getOptionById(Long id) {
+        ProviderAccountEntity entity = providerAccountMapper.getById(id);
+        if (entity == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "供应商账户不存在");
+        }
+        return providerConverter.toDto(entity);
+    }
+
+    /**
      * Returns a suggested value. Executes the public operation.
      */
     public String suggestCode() {

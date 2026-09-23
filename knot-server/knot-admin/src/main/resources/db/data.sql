@@ -13,9 +13,6 @@ INSERT IGNORE INTO ks_users (id, username, password_hash, real_name, dept_id, st
 (2, 'zhangsan', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '张三', 3, 1),
 (3, 'lisi', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '李四', 2, 1);
 
-UPDATE ks_users SET dept_id = 1 WHERE id = 1 AND dept_id IS NULL;
-UPDATE ks_users SET dept_id = 3 WHERE id = 2 AND dept_id IS NULL;
-UPDATE ks_users SET dept_id = 2 WHERE id = 3 AND dept_id IS NULL;
 
 -- 部门
 INSERT IGNORE INTO ks_departments (id, dept_code, dept_name, parent_id, status, sort_order, remark) VALUES
@@ -41,8 +38,6 @@ INSERT IGNORE INTO ks_modules (id, module_code, module_name, icon, sort_order, s
 (3, 'routing', '路由管理', 'Share', 30, 'ENABLED'),
 (4, 'billing', '计费管理', 'Coin', 40, 'ENABLED');
 
--- 系统管理固定排在侧边栏末尾。INSERT IGNORE 不会更新已存在的行，故追加 UPDATE 保证存量库生效。
-UPDATE ks_modules SET sort_order = 90 WHERE module_code = 'system';
 
 INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
 (1, 1, NULL, 'system.users', '用户管理', '/system/users', 'system/UserManageView', 'User', 10, 'ENABLED'),
@@ -182,30 +177,12 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (51, 49, 'PUT', '/api/system/authorizations/permissions/{id}/status', 'AuthorizationPermissionController', 'ENABLED'),
 (52, 53, 'PUT', '/api/system/authorizations/api-bindings/{id}/status', 'AuthorizationApiBindingController', 'ENABLED');
 
-UPDATE ks_menus
-SET menu_code = 'system.role-authorizations',
-    menu_name = '角色授权',
-    route_path = '/system/role-authorizations',
-    component_key = 'system/RoleAuthorizationManageView',
-    sort_order = 30,
-    updated_at = NOW()
-WHERE id = 3;
 
 INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status)
 VALUES (18, 1, NULL, 'system.authorization-resources', '授权资源', '/system/authorization-resources', 'system/AuthorizationResourceManageView', 'Lock', 35, 'ENABLED');
 
-UPDATE ks_permissions
-SET permission_code = 'system:role-authorization:page',
-    permission_name = '角色授权页面访问',
-    menu_id = 3
-WHERE id = 12;
-
 INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark)
 VALUES (55, 'system:authorization-resource:page', '授权资源页面访问', 'PAGE', 1, 18, 'ENABLED', 1, NULL);
-
-UPDATE ks_permissions
-SET menu_id = 18
-WHERE id IN (39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54);
 
 -- 存量库修补：把「授权资源页面访问」补给已持有「角色授权页面访问」(id=12) 的角色。
 -- 注意：ADMIN 的 55 由文件末尾的权威授权块保证，不依赖本句。
@@ -223,10 +200,6 @@ INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, rou
 (11, 3, NULL, 'routing.rules', '路由规则', '/routing/rules', 'routing/RoutingRuleView', 'Share', 10, 'ENABLED'),
 (12, 3, NULL, 'routing.consumers', '消费者', '/routing/consumers', 'routing/RoutingConsumerView', 'Share', 20, 'ENABLED'),
 (13, 4, NULL, 'billing.rules', '计费规则', '/billing/rules', 'billing/BillingRuleView', 'Coin', 10, 'ENABLED');
-
--- “模型广场”更名为“统一模型”。同理追加 UPDATE 保证存量库生效。
-UPDATE ks_menus SET menu_name = '统一模型' WHERE menu_code = 'model.logical-models';
-UPDATE ks_permissions SET permission_name = '统一模型页面访问' WHERE permission_code = 'model:logical-model:page';
 
 INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
 (19, 'model:provider:page', '供应商页面访问', 'PAGE', 2, 6, 'ENABLED', 1, NULL),
@@ -444,22 +417,6 @@ INSERT IGNORE INTO kb_billing_rule_version_items (id, version_id, item_type, uni
 (4, 4, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.000140),
 (5, 5, 'EMBEDDING_TOKEN', '1K_TOKENS', 1000, 0.000130);
 
-UPDATE kb_billing_rule_versions bv
-INNER JOIN kb_billing_rules br ON br.id = bv.rule_id
-INNER JOIN kb_billing_rule_version_items bvi ON bvi.version_id = bv.id
-SET bv.version_code = MD5(JSON_OBJECT(
-  'providerId', br.provider_account_id,
-  'logicalModelId', br.logical_model_id,
-  'billingMode', bv.billing_mode,
-  'currency', bv.currency,
-  'itemType', bvi.item_type,
-  'unit', bvi.unit,
-  'unitPrice', CAST(bvi.unit_price AS CHAR),
-  'configJson', bv.config_json,
-  'ladderJson', bv.ladder_json
-))
-WHERE bv.version_code IS NULL;
-
 -- =========================
 -- 安全与监控
 -- =========================
@@ -565,7 +522,6 @@ INSERT IGNORE INTO ks_enum_categories (id, category, category_name, is_system, i
 (15, 'status', '通用状态', 1, 1),
 (16, 'logical_model_visibility', '统一模型可见性', 0, 1),
 (17, 'logical_model_publish_status', '统一模型发布状态', 0, 1),
-(22, 'model_api_protocol', '模型接口类型', 0, 1),
 (23, 'model_pool_selection_strategy', '模型池选择策略', 1, 1);
 
 -- 枚举配置（category_id 关联 ks_enum_categories.id；是否系统内置由分类决定）
@@ -598,21 +554,6 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 (21, 'TIERED_USAGE',      '阶梯用量', 10, 1),
 (21, 'FREE',              '免费', 11, 1),
 (21, 'CUSTOM',            '自定义', 12, 1),
-(22, 'CHAT_COMPLETIONS',       'Chat Completions', 1, 1),
-(22, 'RESPONSES',              'Responses', 2, 1),
-(22, 'MESSAGES',               'Messages', 3, 1),
-(22, 'COMPLETIONS',            'Completions', 4, 1),
-(22, 'EMBEDDINGS',             'Embeddings', 5, 1),
-(22, 'IMAGE_GENERATIONS',      'Image Generations', 6, 1),
-(22, 'IMAGE_EDITS',            'Image Edits', 7, 1),
-(22, 'IMAGE_VARIATIONS',       'Image Variations', 8, 1),
-(22, 'AUDIO_TRANSCRIPTIONS',   'Audio Transcriptions', 9, 1),
-(22, 'AUDIO_TRANSLATIONS',     'Audio Translations', 10, 1),
-(22, 'AUDIO_SPEECH',           'Audio Speech', 11, 1),
-(22, 'VIDEO_GENERATIONS',      'Video Generations', 12, 1),
-(22, 'RERANK',                 'Rerank', 13, 1),
-(22, 'MODERATIONS',            'Moderations', 14, 1),
-(22, 'CUSTOM',                 '自定义', 99, 1),
 (23, 'WEIGHTED',               '权重', 1, 1),
 (23, 'PRIORITY',               '优先级', 2, 1),
 (23, 'RANDOM',                 '随机', 3, 1),
@@ -707,27 +648,6 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 (17, 'PUBLISHED', '已发布',   2, 1),
 (17, 'ARCHIVED',  '已下架',   3, 1);
 
-UPDATE ks_menus
-SET menu_name = '供应商',
-    route_path = '/model-management/providers',
-    sort_order = 30,
-    updated_at = NOW()
-WHERE id = 6;
-
-UPDATE ks_menus
-SET sort_order = 20,
-    updated_at = NOW()
-WHERE id = 7;
-
-UPDATE ks_menus
-SET sort_order = 10,
-    updated_at = NOW()
-WHERE id = 8;
-
-UPDATE ks_permissions
-SET permission_name = '供应商页面访问'
-WHERE id = 19;
-
 INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
 (56, 'system:user:reset-password', '重置用户密码', 'API', 1, 1, 'ENABLED', 1, NULL);
 
@@ -740,16 +660,6 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 -- =========================
 -- 供应商账户 / 供应商信息 拆分为两个子菜单（幂等）
 -- =========================
--- 原「供应商」菜单承载的是 kb_provider_accounts（账户），更名为「供应商账户」并对齐路由
-UPDATE ks_menus
-SET menu_name = '供应商账户',
-    route_path = '/model-management/provider-accounts',
-    updated_at = NOW()
-WHERE menu_code = 'model.providers';
-
-UPDATE ks_permissions
-SET permission_name = '供应商账户页面访问'
-WHERE id = 19;
 
 -- 新增「供应商信息」菜单：对应 kb_providers（品牌主数据）/api/provider-profiles
 INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
@@ -760,47 +670,3 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (1, 57), (2, 57), (3, 57);
-
--- 「供应商信息」排在「外部模型」（sort_order=50）之下
-UPDATE ks_menus
-SET sort_order = 60,
-    updated_at = NOW()
-WHERE menu_code = 'model.provider-profiles';
-
--- =========================
--- 供应商类型改由 kb_providers（供应商信息）维护，停用枚举分类 provider_type
--- =========================
--- 存量库修正：tag 原先误存为 OPENAI/ANTHROPIC 等协议码，回归「原厂/云厂商/代理」语义
-UPDATE kb_providers SET tag = '原厂' WHERE code IN ('openai', 'anthropic', 'deepseek', 'qwen', 'zhipu');
-UPDATE kb_providers SET tag = '云厂商' WHERE code = 'openrouter';
-
--- 枚举分类 provider_type 停用（逻辑删除，保留历史数据）
-UPDATE ks_enum_categories
-SET is_enabled = 0,
-    is_deleted = 1
-WHERE category = 'provider_type';
-
-UPDATE ks_enum_configs ec
-JOIN ks_enum_categories c ON ec.category_id = c.id
-SET ec.is_enabled = 0,
-    ec.is_deleted = 1
-WHERE c.category = 'provider_type';
-
--- 供应商分类支持多选：tag 由 VARCHAR(32) 扩容为 VARCHAR(255)（逗号分隔）
-ALTER TABLE kb_providers MODIFY COLUMN tag VARCHAR(255) NOT NULL COMMENT '供应商分类，可多选，多个用英文逗号分隔，如 原厂,代理';
-
--- ============================================================
--- ★ 权威授权块（必须保持在文件最后）
--- ============================================================
--- ADMIN 角色拥有全部权限。此处按 role.code 关联、按权限全量授予，
--- 因此**新增权限时不需要再单独给 ADMIN 补授**。
--- 历史教训：该授予原先写在中段（对当时已有权限做一次性快照），
--- 导致之后新增的权限（id=18 system:settings:view、id=19~26 模块 PAGE 权限）
--- 永远不会授予 ADMIN —— 全新初始化的库 ADMIN 只有 48/57 个权限，
--- 调用被 @AuthCheck 保护的接口会被拒（登录后立刻被踢回登录页）。
--- 维护规则：任何权限/菜单的新增都写在上面，本块永远留在文件末尾。
-INSERT IGNORE INTO ks_role_permissions (role_id, permission_id)
-SELECT r.id, p.id
-FROM ks_roles r
-         CROSS JOIN ks_permissions p
-WHERE r.code = 'ADMIN';

@@ -95,7 +95,10 @@ function onUpdate(value) {
 }
 
 function onChange(value) {
-  emit("change", value);
+  const selected = props.multiple
+    ? mergedOptions.value.filter((item) => Array.isArray(value) && value.includes(item[props.valueKey]))
+    : mergedOptions.value.find((item) => item[props.valueKey] === value) || null;
+  emit("change", value, selected);
 }
 
 function onVisibleChange(visible) {

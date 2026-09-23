@@ -4,6 +4,7 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.adapter.request.RequestAdapterCatalog;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.converter.ModelConverter;
 import org.chobit.knot.gateway.dto.model.ModelApiBindingDto;
@@ -25,11 +26,13 @@ import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.usage.UsageExtractorCatalog;
+import org.chobit.knot.gateway.vo.model.ModelApiProtocolItem;
 import org.chobit.knot.gateway.vo.model.RequestAdapterItem;
 import org.chobit.knot.gateway.vo.model.UsageExtractorItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -146,6 +149,21 @@ public class ModelService {
                         item.code(),
                         item.label(),
                         item.className()
+                ))
+                .toList();
+    }
+
+    /**
+     * Lists model API protocols maintained by {@link ModelApiProtocolEnum}.
+     */
+    public List<ModelApiProtocolItem> listApiProtocols() {
+        return Arrays.stream(ModelApiProtocolEnum.values())
+                .map(protocol -> new ModelApiProtocolItem(
+                        protocol.code(),
+                        protocol.displayName(),
+                        protocol.defaultPath(),
+                        protocol.streamSupported(),
+                        protocol.canonical().code()
                 ))
                 .toList();
     }
@@ -396,10 +414,14 @@ public class ModelService {
             return;
         }
         for (ModelApiBindingDto binding : bindings) {
-            String protocol = requireText(binding.protocol(), "请选择接口协议");
+            String protocolCode = requireText(binding.protocol(), "请选择接口协议").toUpperCase();
+            ModelApiProtocolEnum protocol = ModelApiProtocolEnum.fromCode(protocolCode);
+            if (protocol == null) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不支持的接口协议：" + protocolCode);
+            }
             ModelApiBindingEntity entity = new ModelApiBindingEntity();
             entity.setModelId(modelId);
-            entity.setProtocol(protocol.trim().toUpperCase());
+            entity.setProtocol(protocol.code());
             entity.setApiPath(blankToNull(binding.apiPath()));
             entity.setRequestAdapter(blankToNull(binding.requestAdapter()));
             entity.setUsageExtractor(blankToDefault(binding.usageExtractor(), "DEFAULT"));

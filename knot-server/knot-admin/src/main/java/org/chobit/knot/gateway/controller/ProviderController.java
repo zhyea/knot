@@ -63,6 +63,14 @@ public class ProviderController {
     }
 
     /**
+     * Returns the non-sensitive option data used by account selectors.
+     */
+    @GetMapping("/options/{id}")
+    public ProviderAccountItem getOption(@PathVariable Long id) {
+        return providerConverter.toVO(providerService.getOptionById(id));
+    }
+
+    /**
      * Returns the requested value. Executes the public operation.
      */
     @GetMapping("/{id}")

@@ -55,7 +55,18 @@
           </el-row>
 
           <el-row :gutter="16" class="form-grid">
-            <el-col :span="24">
+            <el-col :span="12">
+              <el-form-item label="供应商账户" required>
+                <ProviderAccountSelect
+                  v-model="form.providerId"
+                  :selected-options="selectedProviderOptions"
+                  placeholder="请选择供应商账户"
+                  style="width: 100%"
+                  @change="onProviderAccountChange"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
               <el-form-item label="Base URL" required>
                 <el-input v-model="form.baseUrl" placeholder="https://api.example.com" />
               </el-form-item>
@@ -69,7 +80,7 @@
           <div class="section-head">
             <div>
               <h3>绑定配置</h3>
-              <p>维护统一模型、供应商和计费规则之间的关系；启用前必须配置完整。</p>
+              <p>维护统一模型和计费规则之间的关系；启用前必须配置完整。</p>
             </div>
           </div>
 
@@ -126,42 +137,6 @@
             </div>
 
             <div class="binding-grid">
-              <div class="binding-card">
-                <div class="binding-card__head">
-                  <span>供应商</span>
-                  <small>模型所属的上游供应商</small>
-                </div>
-                <el-form-item label="绑定供应商" required class="bind-block-item">
-                  <RemoteEntitySelect
-                    v-model="form.providerId"
-                    :load-function="loadProviders"
-                    :label-function="providerLabel"
-                    :selected-options="selectedProviderOptions"
-                    placeholder="请选择供应商"
-                    style="width: 100%"
-                  />
-                </el-form-item>
-                <el-table v-if="selectedProvider" :data="[selectedProvider]" border class="bind-table provider-bind-table">
-                  <el-table-column prop="code" label="供应商编码" min-width="160" show-overflow-tooltip>
-                    <template #default="{ row }">
-                      <span class="bind-list__text">{{ row.code || "-" }}</span>
-                    </template>
-                  </el-table-column>
-                  <el-table-column prop="name" label="供应商名称" min-width="160" show-overflow-tooltip>
-                    <template #default="{ row }">
-                      <span class="bind-list__text">{{ row.name || "-" }}</span>
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="是否启用" width="100" align="center">
-                    <template #default="{ row }">
-                      <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
-                        {{ row.enabled === false ? "停用" : "启用" }}
-                      </el-tag>
-                    </template>
-                  </el-table-column>
-                </el-table>
-              </div>
-
               <div class="binding-card">
                 <div class="binding-card__head">
                   <span>计费规则</span>
@@ -236,12 +211,14 @@
               <el-row :gutter="12" class="api-binding-card__row">
                 <el-col :span="8">
                   <el-form-item label="接口协议" required>
-                    <EnumSelect
-                      v-model="binding.protocol"
-                      category="model_api_protocol"
-                      :include-codes="allowedApiProtocolCodes"
-                      show-code
-                    />
+                    <el-select v-model="binding.protocol" filterable placeholder="请选择接口协议" style="width: 100%">
+                      <el-option
+                        v-for="item in allowedApiProtocolOptions"
+                        :key="item.code"
+                        :label="apiProtocolLabel(item)"
+                        :value="item.code"
+                      />
+                    </el-select>
                   </el-form-item>
                 </el-col>
                 <el-col :span="8">
@@ -345,6 +322,7 @@ import { ElMessage } from "element-plus";
 import EnumSelect from "../common/EnumSelect.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
+import ProviderAccountSelect from "../provider/ProviderAccountSelect.vue";
 import { useEnums } from "../../composables/useEnums";
 import {
   emptyQuotaPolicy,
@@ -354,9 +332,16 @@ import {
   normalizeQuotaPolicy,
   normalizeRateLimitPolicy
 } from "../../utils/trafficPolicy";
-import { checkModelCode, createModel, getModel, listRequestAdapters, listUsageExtractors, updateModel } from "../../api/models";
+import {
+  checkModelCode,
+  createModel,
+  getModel,
+  listModelApiProtocols,
+  listRequestAdapters,
+  listUsageExtractors,
+  updateModel
+} from "../../api/models";
 import { listLogicalModels } from "../../api/logicalModels";
-import { listProviders } from "../../api/providers";
 import { listBillingRules } from "../../api/billing";
 import { mergeOptionList, normalizeOptionList, resolveSelectedOption } from "../../utils/options";
 
@@ -368,9 +353,9 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const { options: modelTypeOptions, loadOptions: loadModelTypes } = useEnums("model_type");
-const providerOptions = ref([]);
 const logicalModelOptions = ref([]);
 const billingRuleOptions = ref([]);
+const apiProtocolOptions = ref([]);
 const usageExtractorOptions = ref([]);
 const requestAdapterOptions = ref([]);
 const saving = ref(false);
@@ -458,13 +443,12 @@ const form = reactive({
 });
 
 const isEdit = computed(() => props.model?.id != null);
-const selectedProvider = computed(() => providerOptions.value.find((item) => item.id === form.providerId));
 const selectedLogicalModel = computed(() => logicalModelOptions.value.find((item) => item.id === form.logicalModelId));
 const selectedBillingRule = computed(() => billingRuleOptions.value.find((item) => item.id === form.billingRuleId));
 const selectedProviderOptions = computed(() =>
-  resolveSelectedOption(form.providerId, providerOptions.value, {
+  resolveSelectedOption(form.providerId, [], {
     id: form.providerId,
-    name: props.model?.providerName
+    providerName: props.model?.providerName
   })
 );
 const selectedLogicalModelOptions = computed(() =>
@@ -486,12 +470,9 @@ const streamUsageExtractorOptions = computed(() =>
   usageExtractorOptions.value.filter((item) => item.streamSupported !== false)
 );
 const allowedApiProtocolCodes = computed(() => allowedProtocolsForModelType(form.modelType));
-
-async function loadProviders(params = { pageNum: 1, pageSize: 10 }) {
-  const data = await listProviders(params);
-  mergeOptions(providerOptions, normalizeOptionList(data));
-  return data;
-}
+const allowedApiProtocolOptions = computed(() =>
+  apiProtocolOptions.value.filter((item) => allowedApiProtocolCodes.value.includes(item.code))
+);
 
 async function loadLogicalModels(params = { pageNum: 1, pageSize: 10 }) {
   const data = await listLogicalModels(params);
@@ -523,12 +504,14 @@ async function loadRequestAdapters() {
   return data;
 }
 
-function mergeOptions(targetRef, list) {
-  targetRef.value = mergeOptionList(targetRef.value, list);
+async function loadApiProtocols() {
+  const data = await listModelApiProtocols();
+  apiProtocolOptions.value = Array.isArray(data) ? data : [];
+  return data;
 }
 
-function providerLabel(provider) {
-  return provider.name || provider.code || `#${provider.id}`;
+function mergeOptions(targetRef, list) {
+  targetRef.value = mergeOptionList(targetRef.value, list);
 }
 
 function logicalModelName(model) {
@@ -553,6 +536,14 @@ function usageExtractorLabel(item) {
 
 function requestAdapterLabel(item) {
   return item?.label ? `${item.label} (${item.code})` : item?.code || "";
+}
+
+function apiProtocolLabel(item) {
+  return item?.name ? `${item.name} (${item.code})` : item?.code || "";
+}
+
+function onProviderAccountChange(account) {
+  form.baseUrl = account?.baseUrl || "";
 }
 
 function fillForm(row) {
@@ -633,7 +624,7 @@ async function resetForm() {
       form.modelCode = "";
       form.name = "";
       form.baseUrl = "";
-      form.providerId = providerOptions.value[0]?.id ?? null;
+      form.providerId = null;
       form.logicalModelId = null;
       form.billingRuleId = null;
       form.modelType = modelTypeOptions.value[0]?.itemCode || "CHAT";
@@ -653,12 +644,12 @@ watch(
   async ([visible]) => {
     if (visible) {
       await Promise.all([
-        loadProviders(),
         loadLogicalModels(),
         loadBillingRules(),
         loadModelTypes(),
         loadUsageExtractors(),
-        loadRequestAdapters()
+        loadRequestAdapters(),
+        loadApiProtocols()
       ]);
       await resetForm();
     }
@@ -706,7 +697,7 @@ function validateRequired(showMessage = true) {
     [form.modelCode?.trim(), "请填写模型编码"],
     [form.name?.trim(), "请填写名称"],
     [form.baseUrl?.trim(), "请填写 Base URL"],
-    [form.providerId, "请选择供应商"],
+    [form.providerId, "请选择供应商账户"],
     [form.modelType?.trim(), "请选择模型类型"],
     [form.logicalModelId, "请选择统一模型"],
     [form.billingRuleId, "请选择计费规则"]

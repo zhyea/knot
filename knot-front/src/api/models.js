@@ -22,6 +22,10 @@ export function listRequestAdapters() {
   return get("/api/models/request-adapters");
 }
 
+export function listModelApiProtocols() {
+  return get("/api/models/api-protocols");
+}
+
 export function createModel(payload) {
   return post("/api/models", payload);
 }
