@@ -2,13 +2,12 @@
   <div>
     <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center"/>
-      <el-table-column prop="code" label="编码" min-width="10%" show-overflow-tooltip/>
-      <el-table-column prop="providerName" label="供应商" min-width="15%" show-overflow-tooltip/>
-      <el-table-column prop="baseUrl" label="Base URL" min-width="18%" show-overflow-tooltip/>
-      <el-table-column label="创建时间" min-width="165" show-overflow-tooltip>
+      <el-table-column prop="code" label="编码" min-width="100" show-overflow-tooltip/>
+      <el-table-column prop="providerName" label="供应商" min-width="100" show-overflow-tooltip/>
+      <el-table-column label="创建时间" min-width="80" align="center" show-overflow-tooltip>
         <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column label="更新时间" min-width="165" show-overflow-tooltip>
+      <el-table-column label="更新时间" min-width="80" align="center" show-overflow-tooltip>
         <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
       </el-table-column>
       <el-table-column label="启用" width="88" align="center">
