@@ -110,6 +110,32 @@ const router = createRouter({
   routes
 });
 
+const CHUNK_RELOAD_KEY = "knot:chunk-reload";
+
+router.onError((error, to) => {
+  const message = error?.message || "";
+  const isChunkLoadError =
+    message.includes("Failed to fetch dynamically imported module") ||
+    message.includes("Importing a module script failed") ||
+    message.includes("error loading dynamically imported module");
+
+  if (!isChunkLoadError) {
+    return;
+  }
+
+  const target = to?.fullPath || "/";
+  if (sessionStorage.getItem(CHUNK_RELOAD_KEY) === target) {
+    return;
+  }
+
+  sessionStorage.setItem(CHUNK_RELOAD_KEY, target);
+  window.location.assign(target);
+});
+
+router.afterEach(() => {
+  sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+});
+
 router.beforeEach((to, from, next) => {
   const { isLoggedIn, needsPasswordChange } = useAuth();
   const whiteList = ["/login", "/force-password-change"];
