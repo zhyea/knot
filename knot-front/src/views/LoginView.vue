@@ -72,8 +72,8 @@ async function handleLogin() {
       return;
     }
     await Promise.all([loadThemePreference(), loadLocalePreference()]);
+    await router.push("/");
     ElMessage.success(t("login.success"));
-    router.push("/");
   } catch (error) {
     ElMessage.error(error.message || t("login.failed"));
   } finally {
