@@ -55,15 +55,14 @@
 </template>
 
 <script setup>
-import { onMounted } from "vue";
 import { Document, Edit, VideoPlay } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import { updateRoutingRuleStatus } from "../../api/routing";
 import { useEnabledToggle } from "../../composables/useEnabledToggle";
-import { resolveEnumLabel, useEnums } from "../../composables/useEnums";
+import { useEnumOptions } from "../../composables/useEnumOptions";
 
-const { options: modelTypeOptions, loadOptions: loadModelTypeOptions } = useEnums("model_type");
+const { labelOf } = useEnumOptions();
 
 defineProps({
   rows: { type: Array, default: () => [] },
@@ -91,7 +90,7 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
 
 function modelTypesLabel(modelTypes) {
   const list = Array.isArray(modelTypes) && modelTypes.length ? modelTypes : ["CHAT"];
-  return list.map((code) => resolveEnumLabel(modelTypeOptions.value, code, code)).join("、");
+  return list.map((code) => labelOf("ModelTypeEnum", code, code)).join("、");
 }
 
 function consumerNamesLabel(consumerNames) {
@@ -108,6 +107,4 @@ async function handleEnabledChange(row, enabled) {
   await onEnabledChange(row, enabled);
   emit("changed");
 }
-
-onMounted(loadModelTypeOptions);
 </script>

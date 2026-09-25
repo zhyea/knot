@@ -44,7 +44,7 @@
           <el-row :gutter="16" class="form-grid">
             <el-col :span="12">
               <el-form-item label="模型类型" required>
-                <EnumSelect v-model="form.modelType" category="model_type" />
+                <EnumControl v-model="form.modelType" enum-name="ModelTypeEnum" />
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -211,14 +211,14 @@
               <el-row :gutter="12" class="api-binding-card__row">
                 <el-col :span="8">
                   <el-form-item label="接口协议" required>
-                    <el-select v-model="binding.protocol" filterable placeholder="请选择接口协议" style="width: 100%">
-                      <el-option
-                        v-for="item in allowedApiProtocolOptions"
-                        :key="item.code"
-                        :label="apiProtocolLabel(item)"
-                        :value="item.code"
-                      />
-                    </el-select>
+                    <EnumControl
+                      v-model="binding.protocol"
+                      enum-name="ModelApiProtocolEnum"
+                      filterable
+                      show-code
+                      placeholder="请选择接口协议"
+                      :include-codes="allowedApiProtocolCodes"
+                    />
                   </el-form-item>
                 </el-col>
                 <el-col :span="8">
@@ -319,11 +319,11 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
-import EnumSelect from "../common/EnumSelect.vue";
+import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import ProviderAccountSelect from "../provider/ProviderAccountSelect.vue";
-import { useEnums } from "../../composables/useEnums";
+import { useModelTypes } from "../../composables/useModelTypes";
 import {
   emptyQuotaPolicy,
   emptyRateLimitPolicy,
@@ -336,7 +336,6 @@ import {
   checkModelCode,
   createModel,
   getModel,
-  listModelApiProtocols,
   listRequestAdapters,
   listUsageExtractors,
   updateModel
@@ -352,10 +351,9 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue", "saved"]);
 
-const { options: modelTypeOptions, loadOptions: loadModelTypes } = useEnums("model_type");
+const { loadOptions: loadModelTypes, protocolsOf, defaultCode } = useModelTypes();
 const logicalModelOptions = ref([]);
 const billingRuleOptions = ref([]);
-const apiProtocolOptions = ref([]);
 const usageExtractorOptions = ref([]);
 const requestAdapterOptions = ref([]);
 const saving = ref(false);
@@ -366,65 +364,6 @@ const modelCodeValidated = ref(false);
 const resettingForm = ref(false);
 
 const MODEL_CODE_MAX_LEN = 128;
-const FALLBACK_API_PROTOCOL_CODES = ["CUSTOM", "OTHER"];
-const MODEL_TYPE_API_PROTOCOLS = {
-  CHAT: [
-    "CHAT_COMPLETIONS",
-    "RESPONSES",
-    "MESSAGES",
-    "COMPLETIONS",
-    "OPENAI_CHAT_COMPLETIONS",
-    "OPENAI_RESPONSES",
-    "ANTHROPIC_MESSAGES",
-    "OPENAI_COMPLETIONS"
-  ],
-  TEXT: [
-    "CHAT_COMPLETIONS",
-    "RESPONSES",
-    "MESSAGES",
-    "COMPLETIONS",
-    "OPENAI_CHAT_COMPLETIONS",
-    "OPENAI_RESPONSES",
-    "ANTHROPIC_MESSAGES",
-    "OPENAI_COMPLETIONS"
-  ],
-  REASONING: [
-    "CHAT_COMPLETIONS",
-    "RESPONSES",
-    "MESSAGES",
-    "COMPLETIONS",
-    "OPENAI_CHAT_COMPLETIONS",
-    "OPENAI_RESPONSES",
-    "ANTHROPIC_MESSAGES",
-    "OPENAI_COMPLETIONS"
-  ],
-  MULTIMODAL: [
-    "CHAT_COMPLETIONS",
-    "RESPONSES",
-    "MESSAGES",
-    "COMPLETIONS",
-    "OPENAI_CHAT_COMPLETIONS",
-    "OPENAI_RESPONSES",
-    "ANTHROPIC_MESSAGES",
-    "OPENAI_COMPLETIONS",
-    "IMAGE_GENERATIONS",
-    "IMAGE_EDITS",
-    "IMAGE_VARIATIONS",
-    "AUDIO_TRANSCRIPTIONS",
-    "AUDIO_TRANSLATIONS",
-    "AUDIO_SPEECH",
-    "VIDEO_GENERATIONS"
-  ],
-  EMBEDDING: ["EMBEDDINGS"],
-  IMAGE: ["IMAGE_GENERATIONS", "IMAGE_EDITS", "IMAGE_VARIATIONS"],
-  AUDIO: ["AUDIO_TRANSCRIPTIONS", "AUDIO_TRANSLATIONS", "AUDIO_SPEECH"],
-  VIDEO: ["VIDEO_GENERATIONS"],
-  RERANK: ["RERANK"],
-  DOCUMENT: ["CHAT_COMPLETIONS", "RESPONSES", "MESSAGES"],
-  OCR: ["CHAT_COMPLETIONS", "RESPONSES", "MESSAGES"],
-  MODERATION: ["MODERATIONS"],
-  UTILITY: ["RERANK", "MODERATIONS"]
-};
 
 const form = reactive({
   id: null,
@@ -470,9 +409,6 @@ const streamUsageExtractorOptions = computed(() =>
   usageExtractorOptions.value.filter((item) => item.streamSupported !== false)
 );
 const allowedApiProtocolCodes = computed(() => allowedProtocolsForModelType(form.modelType));
-const allowedApiProtocolOptions = computed(() =>
-  apiProtocolOptions.value.filter((item) => allowedApiProtocolCodes.value.includes(item.code))
-);
 
 async function loadLogicalModels(params = { pageNum: 1, pageSize: 10 }) {
   const data = await listLogicalModels(params);
@@ -504,12 +440,6 @@ async function loadRequestAdapters() {
   return data;
 }
 
-async function loadApiProtocols() {
-  const data = await listModelApiProtocols();
-  apiProtocolOptions.value = Array.isArray(data) ? data : [];
-  return data;
-}
-
 function mergeOptions(targetRef, list) {
   targetRef.value = mergeOptionList(targetRef.value, list);
 }
@@ -536,10 +466,6 @@ function usageExtractorLabel(item) {
 
 function requestAdapterLabel(item) {
   return item?.label ? `${item.label} (${item.code})` : item?.code || "";
-}
-
-function apiProtocolLabel(item) {
-  return item?.name ? `${item.name} (${item.code})` : item?.code || "";
 }
 
 function onProviderAccountChange(account) {
@@ -627,7 +553,7 @@ async function resetForm() {
       form.providerId = null;
       form.logicalModelId = null;
       form.billingRuleId = null;
-      form.modelType = modelTypeOptions.value[0]?.itemCode || "CHAT";
+      form.modelType = defaultCode.value || "CHAT";
       form.version = "1.0.0";
       form.enabled = false;
       form.rateLimitPolicy = emptyRateLimitPolicy();
@@ -648,8 +574,7 @@ watch(
         loadBillingRules(),
         loadModelTypes(),
         loadUsageExtractors(),
-        loadRequestAdapters(),
-        loadApiProtocols()
+        loadRequestAdapters()
       ]);
       await resetForm();
     }
@@ -777,9 +702,8 @@ function validateApiBindings() {
 }
 
 function allowedProtocolsForModelType(modelType) {
-  const type = String(modelType || "CHAT").trim().toUpperCase();
-  const codes = MODEL_TYPE_API_PROTOCOLS[type] || MODEL_TYPE_API_PROTOCOLS.CHAT;
-  return [...codes, ...FALLBACK_API_PROTOCOL_CODES];
+  // 可选协议完全由后端 /api/models/types 提供，前端不再维护类型到协议的映射
+  return protocolsOf(modelType);
 }
 
 function isProtocolAllowedForModelType(protocol) {

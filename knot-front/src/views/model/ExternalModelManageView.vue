@@ -22,9 +22,9 @@
           </el-select>
         </FilterField>
         <FilterField label="模型类型" :width="260">
-          <EnumSelect
+          <EnumControl
             v-model="query.modelType"
-            category="model_type"
+            enum-name="ModelTypeEnum"
             clearable
           />
         </FilterField>
@@ -79,7 +79,7 @@ import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import { useListQuery } from "../../composables/useListQuery";
-import EnumSelect from "../../components/common/EnumSelect.vue";
+import EnumControl from "../../components/common/EnumControl.vue";
 import ExternalModelDetailDrawer from "../../components/model/ExternalModelDetailDrawer.vue";
 import ExternalModelListPanel from "../../components/model/ExternalModelListPanel.vue";
 import {

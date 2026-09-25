@@ -52,13 +52,12 @@
 </template>
 
 <script setup>
-import { onMounted } from "vue";
 import { Delete, Edit } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import { updateModelPoolStatus } from "../../api/modelPools";
 import { useEnabledToggle } from "../../composables/useEnabledToggle";
-import { resolveEnumLabel, useEnums } from "../../composables/useEnums";
+import { useEnumOptions } from "../../composables/useEnumOptions";
 
 defineProps({
   rows: { type: Array, default: () => [] },
@@ -79,13 +78,13 @@ const emit = defineEmits([
   "changed"
 ]);
 
-const { options: modelTypeOptions, loadOptions: loadModelTypes } = useEnums("model_type");
+const { labelOf } = useEnumOptions();
 const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateModelPoolStatus
 });
 
 function modelTypeLabel(code) {
-  return resolveEnumLabel(modelTypeOptions.value, code, code || "-");
+  return labelOf("ModelTypeEnum", code, code || "-");
 }
 
 function strategyLabel(code) {
@@ -101,6 +100,4 @@ async function handleEnabledChange(row, enabled) {
   await onEnabledChange(row, enabled);
   emit("changed");
 }
-
-onMounted(loadModelTypes);
 </script>

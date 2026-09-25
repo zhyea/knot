@@ -44,7 +44,7 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="模型类型" required>
-              <EnumSelect v-model="form.modelType" category="model_type" />
+              <EnumControl v-model="form.modelType" enum-name="ModelTypeEnum" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -192,6 +192,7 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
+import EnumControl from "../common/EnumControl.vue";
 import EnumSelect from "../common/EnumSelect.vue";
 import {
   checkLogicalModelCode,

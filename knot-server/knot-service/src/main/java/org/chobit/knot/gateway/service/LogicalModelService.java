@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.converter.LogicalModelConverter;
 import org.chobit.knot.gateway.dto.model.LogicalModelDto;
 import org.chobit.knot.gateway.dto.model.ProviderModelMappingDto;
@@ -122,7 +123,7 @@ public class LogicalModelService {
         LogicalModelEntity entity = logicalModelConverter.toEntity(request);
         entity.setModelCode(code);
         entity.setModelName(requireText(request.modelName(), "model name is required"));
-        entity.setModelType(requireText(request.modelType(), "model type is required"));
+        entity.setModelType(ModelTypeEnum.requireCode(request.modelType(), "unsupported model type"));
         logicalModelMapper.insert(entity);
         return getById(entity.getId());
     }
@@ -142,7 +143,7 @@ public class LogicalModelService {
         entity.setId(id);
         entity.setModelCode(code);
         entity.setModelName(requireText(request.modelName(), "model name is required"));
-        entity.setModelType(requireText(request.modelType(), "model type is required"));
+        entity.setModelType(ModelTypeEnum.requireCode(request.modelType(), "unsupported model type"));
         logicalModelMapper.update(entity);
         return getById(id);
     }

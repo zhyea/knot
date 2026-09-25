@@ -8,9 +8,9 @@
           @query="handleQuery"
         />
         <FilterField label="模型类型" :width="260">
-          <EnumSelect
+          <EnumControl
             v-model="query.modelTypes"
-            category="model_type"
+            enum-name="ModelTypeEnum"
             multiple
             collapse-tags
             collapse-tags-tooltip
@@ -81,12 +81,12 @@ import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import { useListQuery } from "../../composables/useListQuery";
-import EnumSelect from "../../components/common/EnumSelect.vue";
+import EnumControl from "../../components/common/EnumControl.vue";
 import LogicalModelFormDrawer from "../../components/model/LogicalModelFormDrawer.vue";
 import LogicalModelTable from "../../components/model/LogicalModelTable.vue";
 import LogicalModelCardGrid from "../../components/model/LogicalModelCardGrid.vue";
 import { deleteLogicalModel, listLogicalModels } from "../../api/logicalModels";
-import { useEnums } from "../../composables/useEnums";
+import { useEnumOptions } from "../../composables/useEnumOptions";
 import { getStorageItem, getStorageJson, setStorageItem, setStorageJson } from "../../utils/storage";
 
 const VIEW_MODE_KEY = "knot.logical-model.view-mode";
@@ -138,7 +138,8 @@ const {
   pageSize: viewPageSize[viewMode.value]
 });
 
-const { options: modelTypeOptions, loadOptions: loadModelTypes } = useEnums("model_type");
+const { optionsOf } = useEnumOptions();
+const modelTypeOptions = computed(() => optionsOf("ModelTypeEnum"));
 const formVisible = ref(false);
 const editingModel = ref(null);
 
@@ -182,7 +183,6 @@ function onViewModeChange(mode) {
 }
 
 onMounted(() => {
-  loadModelTypes();
   load();
 });
 </script>

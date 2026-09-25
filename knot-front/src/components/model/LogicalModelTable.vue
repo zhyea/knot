@@ -90,8 +90,8 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
 
 function modelTypeLabel(code) {
   if (!code) return "-";
-  const item = props.modelTypeOptions.find((option) => option.itemCode === code);
-  return item?.itemLabel || code;
+  const item = props.modelTypeOptions.find((option) => option.value === code);
+  return item?.label || code;
 }
 
 async function handleEnabledChange(row, enabled) {

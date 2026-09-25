@@ -786,8 +786,8 @@ CREATE TABLE IF NOT EXISTS kb_notification_records (
 -- 枚举分类表
 CREATE TABLE IF NOT EXISTS ks_enum_categories (
     id          BIGINT PRIMARY KEY AUTO_INCREMENT,
-    category    VARCHAR(64)  NOT NULL COMMENT '分类编码，如 provider_type、model_type',
-    category_name VARCHAR(128) NOT NULL COMMENT '分类名称，如 供应商类型、模型类型',
+    category    VARCHAR(64)  NOT NULL COMMENT '分类编码，如 provider_type、app_type',
+    category_name VARCHAR(128) NOT NULL COMMENT '分类名称，如 供应商类型、应用类型',
     description VARCHAR(255) DEFAULT NULL COMMENT '分类描述',
     is_system   TINYINT      NOT NULL DEFAULT 0 COMMENT '1=系统内置分类，其下枚举项不可删改',
     is_enabled  TINYINT      NOT NULL DEFAULT 1 COMMENT '1=启用 0=禁用',
@@ -801,8 +801,8 @@ CREATE TABLE IF NOT EXISTS ks_enum_categories (
 CREATE TABLE IF NOT EXISTS ks_enum_configs (
     id          BIGINT PRIMARY KEY AUTO_INCREMENT,
     category_id BIGINT       NOT NULL COMMENT '分类ID',
-    item_code   VARCHAR(64)  NOT NULL COMMENT '枚举编码，如 OPENAI、CHAT',
-    item_label  VARCHAR(128) NOT NULL COMMENT '显示名称，如 OpenAI、对话',
+    item_code   VARCHAR(64)  NOT NULL COMMENT '枚举编码，如 OPENAI、WEB',
+    item_label  VARCHAR(128) NOT NULL COMMENT '显示名称，如 OpenAI、Web应用',
     sort_order  INT          NOT NULL DEFAULT 0 COMMENT '排序',
     is_enabled  TINYINT      NOT NULL DEFAULT 1 COMMENT '1=启用 0=禁用',
     is_deleted  TINYINT      NOT NULL DEFAULT 0 COMMENT '逻辑删除：0=否 1=是',

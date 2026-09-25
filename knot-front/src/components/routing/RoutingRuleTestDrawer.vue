@@ -161,27 +161,15 @@ import ShellCodeBlock from "../common/ShellCodeBlock.vue";
 import { getModel } from "../../api/models";
 import { getModelPool } from "../../api/modelPools";
 import { testRoutingRule } from "../../api/routing";
+import { useModelTypes } from "../../composables/useModelTypes";
+import { useEnumOptions } from "../../composables/useEnumOptions";
 import { formatJson, formatJsonText, parseJsonResult, stringifyJson } from "../../utils/format";
 
 const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || "http://127.0.0.1:9090";
 const DEFAULT_PROMPT = "你好，这是一条路由规则测试消息";
 
-const PROTOCOL_LABELS = {
-  CHAT_COMPLETIONS: "Chat Completions",
-  RESPONSES: "Responses",
-  MESSAGES: "Messages",
-  COMPLETIONS: "Completions",
-  EMBEDDINGS: "Embeddings",
-  IMAGE_GENERATIONS: "Image Generations",
-  IMAGE_EDITS: "Image Edits",
-  IMAGE_VARIATIONS: "Image Variations",
-  AUDIO_TRANSCRIPTIONS: "Audio Transcriptions",
-  AUDIO_TRANSLATIONS: "Audio Translations",
-  AUDIO_SPEECH: "Audio Speech",
-  VIDEO_GENERATIONS: "Video Generations",
-  RERANK: "Rerank",
-  MODERATIONS: "Moderations"
-};
+// 协议名称来自后端 ModelApiProtocolEnum（/api/common/enums），前端不再维护 code->label 映射
+const { labelOf: enumLabelOf } = useEnumOptions();
 
 const PROTOCOL_HINTS = {
   CHAT_COMPLETIONS: "适用于标准对话请求，通常需要 messages。",
@@ -217,33 +205,8 @@ const PROTOCOL_PATHS = {
   MODERATIONS: "/openai/v1/moderations"
 };
 
-const MODEL_TYPE_FALLBACK_PROTOCOLS = {
-  CHAT: ["CHAT_COMPLETIONS", "RESPONSES", "MESSAGES", "COMPLETIONS"],
-  TEXT: ["CHAT_COMPLETIONS", "RESPONSES", "MESSAGES", "COMPLETIONS"],
-  REASONING: ["CHAT_COMPLETIONS", "RESPONSES", "MESSAGES", "COMPLETIONS"],
-  MULTIMODAL: [
-    "CHAT_COMPLETIONS",
-    "RESPONSES",
-    "MESSAGES",
-    "COMPLETIONS",
-    "IMAGE_GENERATIONS",
-    "IMAGE_EDITS",
-    "IMAGE_VARIATIONS",
-    "AUDIO_TRANSCRIPTIONS",
-    "AUDIO_TRANSLATIONS",
-    "AUDIO_SPEECH",
-    "VIDEO_GENERATIONS"
-  ],
-  EMBEDDING: ["EMBEDDINGS"],
-  IMAGE: ["IMAGE_GENERATIONS", "IMAGE_EDITS", "IMAGE_VARIATIONS"],
-  AUDIO: ["AUDIO_TRANSCRIPTIONS", "AUDIO_TRANSLATIONS", "AUDIO_SPEECH"],
-  VIDEO: ["VIDEO_GENERATIONS"],
-  RERANK: ["RERANK"],
-  DOCUMENT: ["CHAT_COMPLETIONS", "RESPONSES", "MESSAGES"],
-  OCR: ["CHAT_COMPLETIONS", "RESPONSES", "MESSAGES"],
-  MODERATION: ["MODERATIONS"],
-  UTILITY: ["RERANK", "MODERATIONS"]
-};
+// 后端模型类型数据不可用时的通用兜底协议（对话类）
+const DEFAULT_FALLBACK_PROTOCOLS = ["CHAT_COMPLETIONS", "RESPONSES", "MESSAGES", "COMPLETIONS"];
 
 const PROTOCOL_CANONICAL_MAP = {
   OPENAI_CHAT_COMPLETIONS: "CHAT_COMPLETIONS",
@@ -261,6 +224,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["update:modelValue"]);
+
+const { loadOptions: loadModelTypes, protocolsOf } = useModelTypes();
 
 const loading = ref(false);
 const protocolLoading = ref(false);
@@ -368,6 +333,7 @@ watch(
     expandedPanels.value = [];
     testForm.secretKey = props.secretKey || "";
     initializeTargetSelection();
+    await loadModelTypes();
     await loadProtocolsForCurrentTarget();
   }
 );
@@ -403,7 +369,8 @@ function targetLabel(target) {
 
 function protocolLabel(protocol) {
   const code = normalizeProtocolCode(protocol);
-  return PROTOCOL_LABELS[code] || code || "-";
+  if (!code) return "-";
+  return enumLabelOf("ModelApiProtocolEnum", code, code);
 }
 
 function protocolPath(protocol) {
@@ -416,8 +383,12 @@ function normalizeProtocolCode(protocol) {
 }
 
 function fallbackProtocolsForModelType(modelType) {
-  const type = String(modelType || "CHAT").trim().toUpperCase();
-  return MODEL_TYPE_FALLBACK_PROTOCOLS[type] || MODEL_TYPE_FALLBACK_PROTOCOLS.CHAT;
+  // 来源为后端 /api/models/types 的 supportedProtocols，这里只做通用清洗：
+  // 归一化为 canonical 协议，并丢弃调试面板无法构造请求（无路径）的协议，如 CUSTOM/OTHER
+  const protocols = protocolsOf(modelType)
+    .map((protocol) => normalizeProtocolCode(protocol))
+    .filter((protocol) => Boolean(PROTOCOL_PATHS[protocol]));
+  return protocols.length ? Array.from(new Set(protocols)) : [...DEFAULT_FALLBACK_PROTOCOLS];
 }
 
 async function onTargetChange() {

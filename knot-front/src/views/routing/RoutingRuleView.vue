@@ -8,9 +8,9 @@
           @query="handleQuery"
         />
         <FilterField label="模型类型" :width="260">
-          <EnumSelect
+          <EnumControl
             v-model="query.modelTypes"
-            category="model_type"
+            enum-name="ModelTypeEnum"
             multiple
             collapse-tags
             collapse-tags-tooltip
@@ -68,7 +68,7 @@ import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import { useListQuery } from "../../composables/useListQuery";
-import EnumSelect from "../../components/common/EnumSelect.vue";
+import EnumControl from "../../components/common/EnumControl.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import RoutingRuleListPanel from "../../components/routing/RoutingRuleListPanel.vue";
 import RoutingRuleFormDrawer from "../../components/routing/RoutingRuleFormDrawer.vue";

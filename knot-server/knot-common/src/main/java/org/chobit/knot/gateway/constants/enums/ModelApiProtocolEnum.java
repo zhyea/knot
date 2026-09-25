@@ -5,7 +5,7 @@ import java.util.Arrays;
 /**
  * Gateway model API protocol definitions.
  */
-public enum ModelApiProtocolEnum {
+public enum ModelApiProtocolEnum implements EnumOption {
 
     CHAT_COMPLETIONS("CHAT_COMPLETIONS", "Chat Completions", "/v1/chat/completions", true),
     RESPONSES("RESPONSES", "Responses", "/v1/responses", true),
@@ -57,6 +57,14 @@ public enum ModelApiProtocolEnum {
     }
 
     public String displayName() {
+        return name;
+    }
+
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
+    @Override
+    public String label() {
         return name;
     }
 

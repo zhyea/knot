@@ -93,9 +93,9 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="模型类型" required>
-              <EnumSelect
+              <EnumControl
                   v-model="form.modelTypes"
-                  category="model_type"
+                  enum-name="ModelTypeEnum"
                   multiple
               />
             </el-form-item>
@@ -242,7 +242,7 @@
 import {computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import {Delete} from "@element-plus/icons-vue";
-import EnumSelect from "../common/EnumSelect.vue";
+import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import {

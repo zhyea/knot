@@ -198,9 +198,9 @@ public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvid
             return ModelTypeEnum.VIDEO.code();
         }
         if (inputModalities.contains("image")) {
-            return "MULTIMODAL";
+            return ModelTypeEnum.MULTIMODAL.code();
         }
-        return "CHAT";
+        return ModelTypeEnum.CHAT.code();
     }
 
     private List<String> tags(ExternalModelItemEntity entity, List<String> inputModalities, List<String> outputModalities) {

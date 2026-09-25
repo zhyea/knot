@@ -33,7 +33,7 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="模型类型" required>
-              <EnumSelect v-model="form.modelType" category="model_type" @change="onModelTypeChange" />
+              <EnumControl v-model="form.modelType" enum-name="ModelTypeEnum" @change="onModelTypeChange" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -136,7 +136,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import { Delete } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
-import EnumSelect from "../common/EnumSelect.vue";
+import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import { checkModelPoolCode, createModelPool, updateModelPool } from "../../api/modelPools";
 import { listModels } from "../../api/models";

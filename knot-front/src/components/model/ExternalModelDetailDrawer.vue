@@ -13,7 +13,7 @@
         <el-descriptions-item label="模型 ID">{{ detail.modelId || "—" }}</el-descriptions-item>
         <el-descriptions-item label="Slug">{{ detail.canonicalSlug || "—" }}</el-descriptions-item>
         <el-descriptions-item label="供应商">{{ detail.providerName || "—" }}</el-descriptions-item>
-        <el-descriptions-item label="类型">{{ detail.modelType || "—" }}</el-descriptions-item>
+        <el-descriptions-item label="类型">{{ modelTypeLabel(detail.modelType) }}</el-descriptions-item>
         <el-descriptions-item label="上下文">{{ detail.contextLength || "—" }}</el-descriptions-item>
         <el-descriptions-item label="输入模态">{{ formatArray(detail.inputModalitiesJson) }}</el-descriptions-item>
         <el-descriptions-item label="输出模态">{{ formatArray(detail.outputModalitiesJson) }}</el-descriptions-item>
@@ -37,6 +37,7 @@
 <script setup>
 import { computed } from "vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
+import { useEnumOptions } from "../../composables/useEnumOptions";
 import { formatDateTime, formatJsonArray, formatJsonText } from "../../utils/format";
 
 const props = defineProps({
@@ -46,7 +47,14 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
+const { labelOf } = useEnumOptions();
+
 const rawJsonText = computed(() => formatJsonText(props.detail?.rawJson, "\t", "—"));
+
+function modelTypeLabel(code) {
+  if (!code) return "—";
+  return labelOf("ModelTypeEnum", code, code);
+}
 
 function formatArray(value) {
   return formatJsonArray(value);

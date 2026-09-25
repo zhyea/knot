@@ -11,6 +11,7 @@ import org.chobit.knot.gateway.service.ModelService;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.model.ModelItem;
 import org.chobit.knot.gateway.vo.model.ModelApiProtocolItem;
+import org.chobit.knot.gateway.vo.model.ModelTypeItem;
 import org.chobit.knot.gateway.vo.model.RequestAdapterItem;
 import org.chobit.knot.gateway.vo.model.UsageExtractorItem;
 import org.springframework.web.bind.annotation.*;
@@ -64,6 +65,14 @@ public class ModelController {
     @GetMapping("/api-protocols")
     public List<ModelApiProtocolItem> apiProtocols() {
         return modelService.listApiProtocols();
+    }
+
+    /**
+     * Lists model types defined in code.
+     */
+    @GetMapping("/types")
+    public List<ModelTypeItem> types() {
+        return modelService.listModelTypes();
     }
 
     /**

@@ -3,9 +3,9 @@
     <div class="model-page">
       <FilterBar @query="handleQuery" @reset="handleReset">
         <FilterField label="模型类型" :width="260">
-          <EnumSelect
+          <EnumControl
             v-model="query.modelTypes"
-            category="model_type"
+            enum-name="ModelTypeEnum"
             multiple
             clearable
             :select-style="{ width: '100%' }"
@@ -54,7 +54,7 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
-import EnumSelect from "../../components/common/EnumSelect.vue";
+import EnumControl from "../../components/common/EnumControl.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";

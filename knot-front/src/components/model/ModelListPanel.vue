@@ -53,13 +53,12 @@
 </template>
 
 <script setup>
-import { onMounted } from "vue";
 import { CopyDocument, Document, Edit } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import { updateModelStatus } from "@/api/models.js";
 import { useEnabledToggle } from "@/composables/useEnabledToggle.js";
-import { useEnums } from "@/composables/useEnums.js";
+import { useEnumOptions } from "@/composables/useEnumOptions.js";
 
 defineProps({
   rows: { type: Array, default: () => [] },
@@ -72,7 +71,7 @@ defineProps({
 
 const emit = defineEmits(["create", "refresh", "edit", "copy", "log", "page-change", "size-change", "changed"]);
 
-const { options: modelTypeOptions, loadOptions: loadModelTypes } = useEnums("model_type");
+const { labelOf } = useEnumOptions();
 
 const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateModelStatus
@@ -80,8 +79,7 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
 
 function modelTypeLabel(code) {
   if (!code) return "-";
-  const item = modelTypeOptions.value.find((i) => i.itemCode === code);
-  return item?.itemLabel || code;
+  return labelOf("ModelTypeEnum", code, code);
 }
 
 function handleAction(action, row) {
@@ -92,8 +90,4 @@ async function handleEnabledChange(row, enabled) {
   await onEnabledChange(row, enabled);
   emit("changed");
 }
-
-onMounted(() => {
-  loadModelTypes();
-});
 </script>

@@ -49,9 +49,10 @@ async function loadOptions(params) {
 }
 
 function providerAccountLabel(account) {
-  const type = account?.type || account?.providerName || "未知类型";
+  // 括号内展示供应商名称（如 OpenAI），与列表"供应商"列口径一致；type 只是品牌 code（小写），不直接展示
+  const vendor = account?.providerName || account?.type || "未知供应商";
   const accountName = account?.code || `#${account?.id}`;
-  return `（${type}）${accountName}`;
+  return `（${vendor}）${accountName}`;
 }
 
 function onChange(value, account) {

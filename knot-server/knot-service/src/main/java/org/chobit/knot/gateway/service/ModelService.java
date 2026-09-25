@@ -5,6 +5,7 @@ import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.adapter.request.RequestAdapterCatalog;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.converter.ModelConverter;
 import org.chobit.knot.gateway.dto.model.ModelApiBindingDto;
@@ -27,6 +28,7 @@ import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.usage.UsageExtractorCatalog;
 import org.chobit.knot.gateway.vo.model.ModelApiProtocolItem;
+import org.chobit.knot.gateway.vo.model.ModelTypeItem;
 import org.chobit.knot.gateway.vo.model.RequestAdapterItem;
 import org.chobit.knot.gateway.vo.model.UsageExtractorItem;
 import org.springframework.stereotype.Service;
@@ -169,15 +171,30 @@ public class ModelService {
     }
 
     /**
+     * Lists model types maintained by {@link ModelTypeEnum}, ordered by sort order.
+     */
+    public List<ModelTypeItem> listModelTypes() {
+        return ModelTypeEnum.sorted().stream()
+                .map(type -> new ModelTypeItem(
+                        type.code(),
+                        type.displayName(),
+                        type.sortOrder(),
+                        type.supportedProtocolCodes()
+                ))
+                .toList();
+    }
+
+    /**
      * Creates a new resource. Executes the public operation.
      */
     @Transactional
     public ModelDto create(ModelDto request) {
         String modelCode = normalizeModelCode(request.modelCode());
         assertModelCodeAvailable(modelCode, null);
-        validateModelRequest(request);
+        String modelType = validateModelRequest(request);
         ModelEntity entity = modelConverter.toEntity(request);
         entity.setModelCode(modelCode);
+        entity.setModelType(modelType);
         modelMapper.insert(entity);
         trafficPolicySupport.save(
                 TrafficResourceTypeEnum.MODEL.code(),
@@ -186,7 +203,7 @@ public class ModelService {
                 request.quotaPolicy()
         );
         saveLogicalModelMapping(entity.getId(), request.logicalModelId(), modelCode);
-        saveApiBindings(entity.getId(), request.apiBindings());
+        saveApiBindings(entity.getId(), request.apiBindings(), modelType);
         return getById(entity.getId());
     }
 
@@ -201,10 +218,11 @@ public class ModelService {
         }
         String modelCode = normalizeModelCode(request.modelCode());
         assertModelCodeAvailable(modelCode, id);
-        validateModelRequest(request);
+        String modelType = validateModelRequest(request);
         ModelEntity entity = modelConverter.toEntity(request);
         entity.setId(id);
         entity.setModelCode(modelCode);
+        entity.setModelType(modelType);
         modelMapper.update(entity);
         trafficPolicySupport.save(
                 TrafficResourceTypeEnum.MODEL.code(),
@@ -214,7 +232,7 @@ public class ModelService {
         );
         saveLogicalModelMapping(id, request.logicalModelId(), modelCode);
         if (request.apiBindings() != null) {
-            saveApiBindings(id, request.apiBindings());
+            saveApiBindings(id, request.apiBindings(), modelType);
         }
         return getById(id);
     }
@@ -305,12 +323,13 @@ public class ModelService {
         );
     }
 
-    private void validateModelRequest(ModelDto request) {
+    private String validateModelRequest(ModelDto request) {
         requireText(request.name(), "请填写名称");
         if (request.providerId() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择供应商");
         }
         requireText(request.modelType(), "请选择模型类型");
+        String modelType = ModelTypeEnum.requireCode(request.modelType(), "不支持的模型类型，请重新选择");
         if (request.logicalModelId() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择统一模型");
         }
@@ -339,6 +358,7 @@ public class ModelService {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请填写 Base URL");
             }
         }
+        return modelType;
     }
 
     private static boolean matchesNullableScope(Long ruleScopeId, Long selectedId) {
@@ -408,16 +428,26 @@ public class ModelService {
         return new ModelApiBindingDtoWithModelId(entity.getModelId(), dto);
     }
 
-    private void saveApiBindings(Long modelId, List<ModelApiBindingDto> bindings) {
+    private void saveApiBindings(Long modelId, List<ModelApiBindingDto> bindings, String modelType) {
         modelApiBindingMapper.deleteByModelId(modelId);
         if (bindings == null || bindings.isEmpty()) {
             return;
+        }
+        ModelTypeEnum type = ModelTypeEnum.fromCodeOrNull(modelType);
+        if (type == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不支持的模型类型，请重新选择");
         }
         for (ModelApiBindingDto binding : bindings) {
             String protocolCode = requireText(binding.protocol(), "请选择接口协议").toUpperCase();
             ModelApiProtocolEnum protocol = ModelApiProtocolEnum.fromCode(protocolCode);
             if (protocol == null) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不支持的接口协议：" + protocolCode);
+            }
+            if (!type.supportsProtocol(protocol.code())) {
+                throw new BusinessException(
+                        ErrorCode.VALIDATION_ERROR,
+                        "模型类型“" + type.displayName() + "”不支持接口协议：" + protocolCode
+                );
             }
             ModelApiBindingEntity entity = new ModelApiBindingEntity();
             entity.setModelId(modelId);

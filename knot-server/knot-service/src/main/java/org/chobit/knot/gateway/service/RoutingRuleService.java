@@ -5,6 +5,7 @@ import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.config.GatewayRuntimeProperties;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.converter.RoutingRuleConverter;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleDto;
@@ -507,49 +508,7 @@ public class RoutingRuleService {
     }
 
     private Set<ModelApiProtocolEnum> fallbackProtocolsForModelType(String modelType) {
-        String normalized = modelType == null ? "" : modelType.trim().toUpperCase();
-        return switch (normalized) {
-            case "EMBEDDING" -> Set.of(ModelApiProtocolEnum.EMBEDDINGS);
-            case "IMAGE" -> Set.of(
-                    ModelApiProtocolEnum.IMAGE_GENERATIONS,
-                    ModelApiProtocolEnum.IMAGE_EDITS,
-                    ModelApiProtocolEnum.IMAGE_VARIATIONS
-            );
-            case "AUDIO" -> Set.of(
-                    ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS,
-                    ModelApiProtocolEnum.AUDIO_TRANSLATIONS,
-                    ModelApiProtocolEnum.AUDIO_SPEECH
-            );
-            case "VIDEO" -> Set.of(ModelApiProtocolEnum.VIDEO_GENERATIONS);
-            case "RERANK" -> Set.of(ModelApiProtocolEnum.RERANK);
-            case "MODERATION" -> Set.of(ModelApiProtocolEnum.MODERATIONS);
-            case "UTILITY" -> Set.of(ModelApiProtocolEnum.RERANK, ModelApiProtocolEnum.MODERATIONS);
-            case "DOCUMENT", "OCR" -> Set.of(
-                    ModelApiProtocolEnum.CHAT_COMPLETIONS,
-                    ModelApiProtocolEnum.RESPONSES,
-                    ModelApiProtocolEnum.MESSAGES
-            );
-            case "MULTIMODAL" -> Set.of(
-                    ModelApiProtocolEnum.CHAT_COMPLETIONS,
-                    ModelApiProtocolEnum.RESPONSES,
-                    ModelApiProtocolEnum.MESSAGES,
-                    ModelApiProtocolEnum.COMPLETIONS,
-                    ModelApiProtocolEnum.IMAGE_GENERATIONS,
-                    ModelApiProtocolEnum.IMAGE_EDITS,
-                    ModelApiProtocolEnum.IMAGE_VARIATIONS,
-                    ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS,
-                    ModelApiProtocolEnum.AUDIO_TRANSLATIONS,
-                    ModelApiProtocolEnum.AUDIO_SPEECH,
-                    ModelApiProtocolEnum.VIDEO_GENERATIONS
-            );
-            case "CHAT", "TEXT", "REASONING" -> Set.of(
-                    ModelApiProtocolEnum.CHAT_COMPLETIONS,
-                    ModelApiProtocolEnum.RESPONSES,
-                    ModelApiProtocolEnum.MESSAGES,
-                    ModelApiProtocolEnum.COMPLETIONS
-            );
-            default -> Set.of(ModelApiProtocolEnum.CHAT_COMPLETIONS);
-        };
+        return ModelTypeEnum.canonicalProtocolsOf(modelType);
     }
 
     private String buildGatewayTestPath(ModelApiProtocolEnum protocol) {
