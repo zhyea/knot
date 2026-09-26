@@ -141,7 +141,7 @@ const selectedDepartmentOptions = computed(() =>
 const selectedRoleOptions = computed(() => {
   const roleIds = Array.isArray(form.roleIds) ? form.roleIds : [];
   const roleNameMap = new Map();
-  (props.user?.roleIds || []).forEach((roleId, index) => {
+  (props.user?.roleIds || []).forEach((roleId: any, index: any) => {
     roleNameMap.set(roleId, props.user?.roleNames?.[index]);
   });
   return roleIds.map((roleId) => {
@@ -157,13 +157,13 @@ const selectedRoleOptions = computed(() => {
   });
 });
 
-function departmentLabel(department) {
+function departmentLabel(department: any) {
   return department.deptCode
     ? `${department.deptName} (${department.deptCode})`
     : department.deptName || `#${department.id}`;
 }
 
-function roleLabel(role) {
+function roleLabel(role: any) {
   return role.code ? `${role.name} (${role.code})` : role.name || `#${role.id}`;
 }
 

@@ -109,3 +109,35 @@ $ npm run build               → EXIT=0，✓ built in 6.67s，dist/assets 88 �
    建议加入 .gitignore（生成物），或显式入库（保证 clone 后类型检查可跑）。
 2. 是否要继续收紧严格度？当前 `noImplicitAny:false` + `strictNullChecks:false`；
    下一步可考虑逐模块打开 `strict`，预计会再暴露一批空值处理问题。
+
+---
+
+## 九、第一批严格度收紧（2026-09-27 追加）
+
+**决策**：robin 要求继续收紧。三档探针实测 766（noImplicitAny）/ 769（strict 全开但 strictNullChecks 关）/
+1074（strictNullChecks 也开），分水岭在 strictNullChecks。robin 选「分两批，本批先上 769」。
+
+**tsconfig 现状**：`"strict": true` + 显式 `"strictNullChecks": false`（注释标明第二批直接删该行）。
+
+**清错过程（769 → 0）**
+
+| 阶段 | 范围 | 手段 |
+|---|---|---|
+| api 层 | 15 文件 92 签名 | 脚本按参数名映射补类型 |
+| composables / utils / routing 组件 | ~180 处 | 逐文件补签名（RoutingRuleFormDrawer 27 处为最大单件） |
+| views + 组件层 | 41 文件 164 处 | 脚本批量补 TS7006（136 处），手工 28 处 |
+
+手工部分要点：TS7023 default 工厂 11 处改 `(): Row[] => []`；TS7053 索引改 `Dict` /
+`Record<"card"|"list", number>`；catch unknown 改 `(error as Error)?.message`；
+`useEnabledToggle` 放宽 `enabled: boolean|string|number` 并内部归一化（el-switch active-value 可为 1/0）；
+`runStatusType` 返回收窄为 el-tag union；`chooseLocale(code: LocaleCode)`。
+脚本副作用两例已修：重复插入 `@/types` import（TS2300）、`AuthorizationRolePanel` 相对层级少一级（TS2307，原本就坏）。
+
+**验证（真实退出码）**
+
+```
+$ npm run type-check   → EXIT=0，0 错误
+$ npm run build        → EXIT=0，✓ built in 8.67s
+```
+
+**遗留**：第二批 strictNullChecks（约 305 处）单独做。

@@ -51,6 +51,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -87,12 +88,12 @@ const editingItem = ref(null);
 const logDrawer = ref(false);
 const logCategory = ref("");
 
-function openItemsDrawer(category) {
+function openItemsDrawer(category: string) {
   currentCategory.value = category;
   itemsDrawerVisible.value = true;
 }
 
-function handleAction(action, row) {
+function handleAction(action: string, row: Row) {
   if (action === "items") openItemsDrawer(row.category);
   if (action === "log") openChangeLog(row.category);
 }
@@ -103,7 +104,7 @@ function openCreateItem() {
   itemFormVisible.value = true;
 }
 
-function openEditItem(row) {
+function openEditItem(row: Row) {
   editingItem.value = row;
   itemFormCategory.value = row.category;
   itemFormVisible.value = true;
@@ -114,7 +115,7 @@ async function onItemFormSaved() {
   itemListRef.value?.reload?.();
 }
 
-function openChangeLog(category) {
+function openChangeLog(category: string) {
   logCategory.value = category;
   logDrawer.value = true;
 }

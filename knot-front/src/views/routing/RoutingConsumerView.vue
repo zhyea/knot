@@ -42,6 +42,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -84,28 +85,28 @@ function openCreate() {
   drawerVisible.value = true;
 }
 
-function openEdit(row) {
+function openEdit(row: Row) {
   editingConsumer.value = row;
   drawerVisible.value = true;
 }
 
-function handleAction(action, row) {
+function handleAction(action: string, row: Row) {
   if (action === "edit") openEdit(row);
   if (action === "rotate") rotateSecret(row);
 }
 
-async function handleEnabledChange(row, enabled) {
+async function handleEnabledChange(row: Row, enabled: string | number | boolean) {
   await onEnabledChange(row, enabled);
   load();
 }
 
-async function rotateSecret(row) {
+async function rotateSecret(row: Row) {
   await rotateRoutingConsumerSecret(row.id);
   ElMessage.success("API Key 已重置");
   load();
 }
 
-async function copySecretKey(secretKey) {
+async function copySecretKey(secretKey: string | null | undefined) {
   if (!secretKey) return;
   try {
     await navigator.clipboard.writeText(secretKey);

@@ -11,7 +11,7 @@ export function runStatusLabel(value: unknown): string {
   return map[String(value)] || String(value || "-");
 }
 
-export function runStatusType(value: unknown): string {
+export function runStatusType(value: unknown): "primary" | "success" | "warning" | "info" | "danger" {
   if (value === "SUCCESS") return "success";
   if (value === "FAILURE") return "danger";
   return "warning";

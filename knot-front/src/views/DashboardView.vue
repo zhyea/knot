@@ -222,7 +222,7 @@ import { listProviders } from "../api/providers";
 import { listRoutingRules } from "../api/routing";
 import { useAuth } from "../composables/useAuth";
 import { formatDateTime } from "../utils/format";
-import type { ListResponse, Row } from "../types";
+import type { Dict, ListResponse, Row } from "../types";
 
 /** 模块目录条目（/api/modules 返回） */
 interface ModuleCatalogItem {
@@ -299,7 +299,7 @@ const fallbackModuleNameMap: Record<string, string> = {
 };
 
 const recentActivityMap = computed(() => {
-  const map = {};
+  const map: Dict = {};
   for (const log of recentLogs.value) {
     const key = log?.module || "";
     if (!key) continue;
@@ -387,9 +387,9 @@ const rankedModules = computed(() =>
 );
 
 const quickLinks = computed(() => {
-  const links = [];
+  const links: Dict[] = [];
 
-  function collectMenus(menus, parentIcon) {
+  function collectMenus(menus: Row[], parentIcon: any) {
     for (const menu of menus || []) {
       const children = Array.isArray(menu.children) ? menu.children : [];
       if (children.length) {
@@ -411,7 +411,7 @@ const quickLinks = computed(() => {
     collectMenus(module.menus, module.icon);
   }
 
-  const unique = [];
+  const unique: Dict[] = [];
   const seen = new Set();
   for (const link of links) {
     if (seen.has(link.path)) {
@@ -429,15 +429,15 @@ const healthStatusClass = computed(() => ({
   "status-hero__value--down": health.status && !["UP", "OK"].includes(`${health.status}`.toUpperCase())
 }));
 
-function resolveIcon(iconName) {
+function resolveIcon(iconName: string) {
   return iconMap[iconName] || Setting;
 }
 
-function resolveModuleName(code) {
+function resolveModuleName(code: string) {
   return moduleNameMap.value[code] || fallbackModuleNameMap[code] || code || "--";
 }
 
-function normalizeTotal(result) {
+function normalizeTotal(result: any) {
   if (Array.isArray(result)) {
     return result.length;
   }
@@ -448,7 +448,7 @@ function normalizeTotal(result) {
   return Array.isArray(result?.list) ? result.list.length : 0;
 }
 
-async function withFallback(factory, fallback) {
+async function withFallback(factory: any, fallback: any) {
   try {
     return await factory();
   } catch {
@@ -456,11 +456,11 @@ async function withFallback(factory, fallback) {
   }
 }
 
-function formatCount(value) {
+function formatCount(value: any) {
   return new Intl.NumberFormat("zh-CN").format(Number(value || 0));
 }
 
-function goToRoute(path) {
+function goToRoute(path: string) {
   if (!path) {
     return;
   }

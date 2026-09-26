@@ -92,12 +92,12 @@ function onTaskSaved() {
   resetPage();
 }
 
-function openRunDrawer(task) {
+function openRunDrawer(task: Row) {
   runTask.value = task;
   runDrawer.value = true;
 }
 
-function onTaskTriggered(task) {
+function onTaskTriggered(task: Row) {
   ElMessage.success("已提交执行");
   load();
   openRunDrawer(task);

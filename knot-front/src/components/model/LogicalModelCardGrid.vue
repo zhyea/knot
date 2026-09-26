@@ -61,7 +61,7 @@ const props = defineProps({
   pageNum: { type: Number, default: 1 },
   pageSize: { type: Number, default: 12 },
   pageSizes: { type: Array as PropType<number[]>, default: (): number[] => [12, 24, 48] },
-  modelTypeOptions: { type: Array as PropType<SelectOption[]>, default: () => [] },
+  modelTypeOptions: { type: Array as PropType<SelectOption[]>, default: (): SelectOption[] => [] },
   showRefresh: { type: Boolean, default: true }
 });
 

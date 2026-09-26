@@ -65,7 +65,7 @@
 import { computed, ref } from "vue";
 import { Check } from "@element-plus/icons-vue";
 import PageSection from "../../components/common/PageSection.vue";
-import { LOCALES, useLocale } from "../../composables/useLocale";
+import { LOCALES, useLocale, type LocaleCode } from "../../composables/useLocale";
 import { THEMES, useTheme } from "../../composables/useTheme";
 
 const { current: localeCurrent, setLocale, t } = useLocale();
@@ -80,7 +80,7 @@ const currentTheme = computed(() => themeCurrent.value);
 const currentLocaleLabel = computed(() => t(`locale.${currentLocale.value}`));
 const currentThemeLabel = computed(() => t(THEMES.find((theme) => theme.key === currentTheme.value)?.labelKey || "theme.blue"));
 
-async function chooseLocale(code) {
+async function chooseLocale(code: LocaleCode) {
   if (code === currentLocale.value || savingLocale.value) {
     return;
   }
@@ -92,7 +92,7 @@ async function chooseLocale(code) {
   }
 }
 
-async function chooseTheme(key) {
+async function chooseTheme(key: string) {
   if (key === currentTheme.value || savingTheme.value) {
     return;
   }

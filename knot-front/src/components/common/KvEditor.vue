@@ -68,7 +68,7 @@ function emitUpdate() {
   const result: Dict = {};
   for (const p of pairs) {
     if (!p.key?.trim()) continue;
-    let val = p.val;
+    let val: string | number = p.val;
     if (props.valueMode === "number" && val !== "" && !isNaN(Number(val))) {
       val = Number(val);
     }

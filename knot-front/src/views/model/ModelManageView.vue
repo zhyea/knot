@@ -52,6 +52,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { onMounted, ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import EnumControl from "../../components/common/EnumControl.vue";
@@ -92,18 +93,18 @@ function openCreate() {
   formVisible.value = true;
 }
 
-function openEdit(row) {
+function openEdit(row: Row) {
   editingModel.value = row;
   formVisible.value = true;
 }
 
-async function openCopy(row) {
+async function openCopy(row: Row) {
   const detail = row?.id ? await getModel(row.id) : row;
   editingModel.value = buildModelCopy(detail || row);
   formVisible.value = true;
 }
 
-function openChangeLog(row) {
+function openChangeLog(row: Row) {
   logModelId.value = row.id;
   logModelName.value = row.name || row.modelCode || `#${row.id}`;
   logDrawer.value = true;
@@ -126,7 +127,7 @@ function buildModelCopy(source: Dict = {}): Dict {
   };
 }
 
-function copyModelCode(modelCode) {
+function copyModelCode(modelCode: string) {
   const code = String(modelCode || "").trim();
   return code ? `${code}-copy` : "";
 }

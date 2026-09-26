@@ -239,7 +239,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, reactive, ref, watch} from "vue";
+import {computed, reactive, ref, watch, type Ref} from "vue";
 import {ElMessage} from "element-plus";
 import {Delete} from "@element-plus/icons-vue";
 import EnumControl from "../common/EnumControl.vue";
@@ -259,6 +259,7 @@ import {listModels} from "../../api/models";
 import {listModelPools} from "../../api/modelPools";
 import {listUsers} from "../../api/users";
 import { mergeOptionList, normalizeOptionList, resolveSelectedOption } from "../../utils/options";
+import type {Dict, Row} from "@/types";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -269,11 +270,11 @@ const emit = defineEmits(["update:modelValue", "saved"]);
 
 const isEdit = computed(() => props.rule != null);
 
-const appOptions = ref([]);
-const userOptions = ref([]);
-const modelOptions = ref([]);
-const modelPoolOptions = ref([]);
-const consumerOptions = ref([]);
+const appOptions = ref<Row[]>([]);
+const userOptions = ref<Row[]>([]);
+const modelOptions = ref<Row[]>([]);
+const modelPoolOptions = ref<Row[]>([]);
+const consumerOptions = ref<Row[]>([]);
 const saving = ref(false);
 const ruleCodeError = ref("");
 const primaryTargetKey = ref(null);
@@ -341,96 +342,96 @@ const targetExtraParams = computed(() => ({
   modelTypes: Array.isArray(form.modelTypes) && form.modelTypes.length ? [...form.modelTypes] : undefined
 }));
 
-function appLabel(app) {
+function appLabel(app: Row): string {
   return app.name || app.appId || `#${app.id}`;
 }
 
-function userLabel(user) {
+function userLabel(user: Row): string {
   const name = user.realName?.trim() || user.username;
   return name === user.username ? name : `${name}（${user.username}）`;
 }
 
-function consumerLabel(consumer) {
+function consumerLabel(consumer: Row): string {
   return consumer.name || consumer.consumerCode || `#${consumer.id}`;
 }
 
-function modelLabel(model) {
+function modelLabel(model: Row): string {
   return model.modelCode ? `${model.name || model.modelCode}（${model.modelCode}）` : `#${model.id}`;
 }
 
-function targetLabel(target) {
+function targetLabel(target: Row): string {
   const code = targetOptionCode(targetType.value, target);
   const name = targetOptionName(targetType.value, target);
   return code ? `${name || code}（${code}）` : `#${target.id}`;
 }
 
-function mergeOptions(targetRef, list) {
+function mergeOptions(targetRef: Ref<Row[]>, list: Row[]) {
   targetRef.value = mergeOptionList(targetRef.value, list);
 }
 
-async function loadAppOptions(params) {
+async function loadAppOptions(params: Dict) {
   const res = await listApps(params);
   const list = normalizeOptionList(res);
   mergeOptions(appOptions, list);
   return res;
 }
 
-async function loadUserOptions(params) {
+async function loadUserOptions(params: Dict) {
   const res = await listUsers(params);
   const list = normalizeOptionList(res);
   mergeOptions(userOptions, list);
   return res;
 }
 
-async function loadConsumerOptions(params) {
+async function loadConsumerOptions(params: Dict) {
   const res = await listRoutingConsumers(params);
   const list = normalizeOptionList(res);
   mergeOptions(consumerOptions, list);
   return res;
 }
 
-async function loadModelOptions(params) {
+async function loadModelOptions(params: Dict) {
   const res = await listModels(params);
   const list = normalizeOptionList(res);
   mergeOptions(modelOptions, list);
   return res;
 }
 
-async function loadModelPoolOptions(params) {
+async function loadModelPoolOptions(params: Dict) {
   const res = await listModelPools(params);
   const list = normalizeOptionList(res);
   mergeOptions(modelPoolOptions, list);
   return res;
 }
 
-async function loadTargetOptions(params) {
+async function loadTargetOptions(params: Dict) {
   return targetType.value === "MODEL_POOL" ? loadModelPoolOptions(params) : loadModelOptions(params);
 }
 
-function findTargetOption(type, id) {
+function findTargetOption(type: string, id: unknown): Row | undefined {
   const options = type === "MODEL_POOL" ? modelPoolOptions.value : modelOptions.value;
   return options.find((item) => item.id === id);
 }
 
-function targetOptionCode(type, option) {
+function targetOptionCode(type: string, option: Row | null | undefined): string {
   if (!option) return "";
   return type === "MODEL_POOL" ? option.poolCode : option.modelCode;
 }
 
-function targetOptionName(type, option) {
+function targetOptionName(type: string, option: Row | null | undefined): string {
   if (!option) return "";
   return option.name || option.modelName || option.poolCode || option.modelCode;
 }
 
-function targetKey(row) {
+function targetKey(row: Row): string {
   return `${row.targetType}:${row.targetId}`;
 }
 
-function targetTypeLabel(type) {
+function targetTypeLabel(type: string): string {
   return type === "MODEL_POOL" ? "模型池" : "模型";
 }
 
-function parseAppScenarioTags(value) {
+function parseAppScenarioTags(value: unknown): string[] {
   if (!value) {
     return [];
   }
@@ -445,7 +446,7 @@ function buildAppScenarioValue() {
   return tags.length ? tags.join("，") : null;
 }
 
-function normalizeRuleCode(value) {
+function normalizeRuleCode(value: unknown): string {
   return String(value || "").trim().toLowerCase();
 }
 
@@ -475,7 +476,7 @@ function resetForm() {
     form.enabled = row.enabled !== false;
     form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
     form.quotaPolicy = normalizeQuotaPolicy(row.quotaPolicy);
-    form.targets = (row.targets || []).map((m) => ({
+    form.targets = (row.targets || []).map((m: Dict) => ({
       targetType: m.targetType || "MODEL",
       targetId: m.targetId,
       targetCode: m.targetCode,
@@ -556,14 +557,14 @@ function onClosed() {
   form.id = null;
 }
 
-function onConsumersChange(consumerIds) {
+function onConsumersChange(consumerIds: Array<string | number>) {
   const consumer = consumerOptions.value.find((item) => consumerIds.includes(item.id));
   if (!form.userId && consumer?.userId) {
     form.userId = consumer.userId;
   }
 }
 
-function onSelectedTargetsChange(targetIds) {
+function onSelectedTargetsChange(targetIds: Array<string | number>) {
   const nextIds = Array.isArray(targetIds) ? targetIds : [];
   const existingByKey = new Map(form.targets.map((item) => [targetKey(item), item]));
   const otherTargets = form.targets.filter((item) => item.targetType !== targetType.value);
@@ -594,7 +595,7 @@ function onSelectedTargetsChange(targetIds) {
   }
 }
 
-function removeTarget(row) {
+function removeTarget(row: Row) {
   form.targets = form.targets.filter((item) => targetKey(item) !== targetKey(row));
   if (primaryTargetKey.value === targetKey(row)) {
     primaryTargetKey.value = form.targets[0] ? targetKey(form.targets[0]) : null;

@@ -61,11 +61,13 @@ import RowActions from "../common/RowActions.vue";
 import { updateRoutingRuleStatus } from "../../api/routing";
 import { useEnabledToggle } from "../../composables/useEnabledToggle";
 import { useEnumOptions } from "../../composables/useEnumOptions";
+import type {PropType} from "vue";
+import type {Row} from "@/types";
 
 const { labelOf } = useEnumOptions();
 
 defineProps({
-  rows: { type: Array, default: () => [] },
+  rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
@@ -88,22 +90,22 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateRoutingRuleStatus
 });
 
-function modelTypesLabel(modelTypes) {
-  const list = Array.isArray(modelTypes) && modelTypes.length ? modelTypes : ["CHAT"];
+function modelTypesLabel(modelTypes: unknown) {
+  const list: string[] = Array.isArray(modelTypes) && modelTypes.length ? modelTypes : ["CHAT"];
   return list.map((code) => labelOf("ModelTypeEnum", code, code)).join("、");
 }
 
-function consumerNamesLabel(consumerNames) {
+function consumerNamesLabel(consumerNames: unknown) {
   return Array.isArray(consumerNames) && consumerNames.length ? consumerNames.join("、") : "-";
 }
 
-function handleAction(action, row) {
+function handleAction(action: string, row: Row) {
   if (action === "edit") emit("edit", row);
   if (action === "test") emit("test", row);
   if (action === "log") emit("log", row);
 }
 
-async function handleEnabledChange(row, enabled) {
+async function handleEnabledChange(row: Row, enabled: string | number | boolean) {
   await onEnabledChange(row, enabled);
   emit("changed");
 }

@@ -72,7 +72,7 @@ const rules = computed(() => ({
   confirmPassword: [
     { required: true, message: t("forcePasswordChange.confirmPasswordRequired"), trigger: "blur" },
     {
-      validator: (_rule, value, callback) => {
+      validator: (_rule: any, value: any, callback: any) => {
         if (value !== form.newPassword) {
           callback(new Error(t("forcePasswordChange.passwordMismatch")));
           return;
@@ -99,7 +99,7 @@ async function handleSubmit() {
     ElMessage.success(t("forcePasswordChange.success"));
     router.push("/login");
   } catch (error) {
-    ElMessage.error(error.message || t("forcePasswordChange.failed"));
+    ElMessage.error((error as Error)?.message || t("forcePasswordChange.failed"));
   } finally {
     loading.value = false;
   }

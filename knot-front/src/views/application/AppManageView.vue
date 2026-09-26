@@ -43,6 +43,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { onMounted, ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -80,7 +81,7 @@ function openCreate() {
   formVisible.value = true;
 }
 
-function openEdit(row) {
+function openEdit(row: Row) {
   editingApp.value = row;
   formVisible.value = true;
 }
@@ -89,7 +90,7 @@ function onAppSaved() {
   resetPage();
 }
 
-function openChangeLog(row) {
+function openChangeLog(row: Row) {
   logAppId.value = row.id;
   logAppName.value = row.name || row.appId || `#${row.id}`;
   logDrawer.value = true;

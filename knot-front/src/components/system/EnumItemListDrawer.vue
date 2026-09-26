@@ -55,6 +55,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import {computed, ref, watch} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";
 import {Delete, Edit} from "@element-plus/icons-vue";
@@ -107,7 +108,7 @@ watch(
     }
 );
 
-async function onEnabledChange(row, enabled) {
+async function onEnabledChange(row: Row, enabled: string | number | boolean) {
   if (row.isSystem) return;
   const prev = row.isEnabled !== false;
   if (enabled === prev) return;
@@ -133,12 +134,12 @@ async function onEnabledChange(row, enabled) {
   }
 }
 
-function handleAction(action, row) {
+function handleAction(action: string, row: Row) {
   if (action === "edit") emit("edit", row);
   if (action === "delete") onDelete(row);
 }
 
-async function onDelete(row) {
+async function onDelete(row: Row) {
   await ElMessageBox.confirm(
       `确认删除枚举「${row.itemLabel}」(${row.category}/${row.itemCode})？`,
       "删除确认",

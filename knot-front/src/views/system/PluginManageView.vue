@@ -46,6 +46,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { computed, onMounted, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -90,7 +91,7 @@ watch(
   { immediate: true }
 );
 
-async function onStatus(row, enabled) {
+async function onStatus(row: Row, enabled: string | number | boolean) {
   if (!row?.id) {
     return;
   }

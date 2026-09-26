@@ -72,6 +72,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { computed, onMounted, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -133,22 +134,22 @@ async function syncOpenRouter() {
   }
 }
 
-async function handleAction(action, row) {
+async function handleAction(action: string, row: Row) {
   if (action === "view") await openDetail(row);
   if (action === "create") await createOne(row);
   if (action === "delete") await deleteOne(row);
 }
 
-function handleSelectionChange(selection) {
+function handleSelectionChange(selection: Row[]) {
   selectedRows.value = selection;
 }
 
-async function openDetail(row) {
+async function openDetail(row: Row) {
   detail.value = await getExternalModelItem(row.id);
   detailVisible.value = true;
 }
 
-async function createOne(row) {
+async function createOne(row: Row) {
   await createLogicalModelFromExternalItem(row.id);
   ElMessage.success("已创建统一模型");
   selectedRows.value = [];
@@ -174,7 +175,7 @@ async function createAllVisible() {
   }
 }
 
-async function deleteOne(row) {
+async function deleteOne(row: Row) {
   await deleteExternalModelItem(row.id);
   ElMessage.success("已删除外部模型");
   selectedRows.value = [];

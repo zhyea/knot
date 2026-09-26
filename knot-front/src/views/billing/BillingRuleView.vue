@@ -65,6 +65,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { computed, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -123,11 +124,11 @@ const selectedLogicalModelOptions = computed(() =>
     }))
 );
 
-function providerLabel(row) {
+function providerLabel(row: Row) {
   return row?.name || row?.code || `#${row?.id ?? ""}`;
 }
 
-function logicalModelLabel(row) {
+function logicalModelLabel(row: Row) {
   return row?.modelName || row?.displayName || row?.modelCode || `#${row?.id ?? ""}`;
 }
 
@@ -136,12 +137,12 @@ function openCreate() {
   ruleDlg.value = true;
 }
 
-function openEdit(row) {
+function openEdit(row: Row) {
   currentRule.value = row;
   ruleDlg.value = true;
 }
 
-function openChangeLog(row) {
+function openChangeLog(row: Row) {
   logRuleId.value = row.id;
   logRuleName.value = row.name || `#${row.id}`;
   logDrawer.value = true;
@@ -151,12 +152,12 @@ function loadBillingRuleOperationLogs() {
   return listBillingRuleOperationLogs(logRuleId.value);
 }
 
-async function handleEnabledChange(row, enabled) {
+async function handleEnabledChange(row: Row, enabled: string | number | boolean) {
   await onEnabledChange(row, enabled);
   await load();
 }
 
-async function handleDelete(row) {
+async function handleDelete(row: Row) {
   await deleteBillingRule(row.id);
   ElMessage.success("已删除");
   await load();

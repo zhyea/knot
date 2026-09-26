@@ -193,7 +193,7 @@ const props = defineProps({
   ruleId: { type: Number, default: null },
   ruleName: { type: String, default: "" },
   secretKey: { type: String, default: "" },
-  targets: { type: Array as PropType<RoutingTarget[]>, default: () => [] }
+  targets: { type: Array as PropType<RoutingTarget[]>, default: (): RoutingTarget[] => [] }
 });
 
 const emit = defineEmits(["update:modelValue"]);
@@ -214,9 +214,9 @@ const requestTab = ref("body");
 const responseTab = ref("summary");
 const expandedPanels = ref([]);
 const testResult = ref(null);
-const targetProtocolMap = reactive({});
-const targetResolvedModelMap = reactive({});
-const templateStore = reactive({});
+const targetProtocolMap = reactive<Dict>({});
+const targetResolvedModelMap = reactive<Dict>({});
+const templateStore = reactive<Dict>({});
 
 const testForm = reactive({
   secretKey: "",
@@ -243,7 +243,7 @@ const targetOptions = computed(() => {
 const activeTarget = computed(() => targetOptions.value.find((item) => item.key === testForm.targetKey) || null);
 const availableProtocols = computed(() => {
   const protocols = targetProtocolMap[testForm.targetKey] || [];
-  return protocols.map((code) => ({ code, label: protocolLabel(code) }));
+  return protocols.map((code: string) => ({ code, label: protocolLabel(code) }));
 });
 const activeProtocol = computed(() => normalizeProtocolCode(testForm.protocol));
 const activeTargetLabel = computed(() => activeTarget.value?.label || "-");
@@ -347,32 +347,32 @@ function targetLabel(target: RoutingTarget): string {
   return target.primary ? `${type}：${name}（主）` : `${type}：${name}`;
 }
 
-function protocolLabel(protocol) {
+function protocolLabel(protocol: unknown): string {
   const code = normalizeProtocolCode(protocol);
   if (!code) return "-";
   return enumLabelOf("ModelApiProtocolEnum", code, code);
 }
 
-function protocolPath(protocol) {
+function protocolPath(protocol: unknown): string {
   // 网关调试路径由后端能力接口下发（与 RoutingRuleService.buildGatewayTestPath 同源）
   return gatewayPathOf(normalizeProtocolCode(protocol)) || "";
 }
 
-function normalizeProtocolCode(protocol) {
+function normalizeProtocolCode(protocol: unknown): string {
   // 别名归一由后端能力接口的 canonicalCode 提供
   return canonicalOf(protocol);
 }
 
 /** 调试面板能否为该协议构造请求（无网关路径的协议如 CUSTOM 排除） */
-function isDebuggableProtocol(protocol) {
+function isDebuggableProtocol(protocol: unknown): boolean {
   return Boolean(gatewayPathOf(protocol));
 }
 
-function fallbackProtocolsForModelType(modelType) {
+function fallbackProtocolsForModelType(modelType: unknown): string[] {
   // 来源为后端 /api/models/types 的 supportedProtocols，这里只做通用清洗：
   // 归一化为 canonical 协议，并丢弃调试面板无法构造请求（无路径）的协议，如 CUSTOM
   const protocols = protocolsOf(modelType)
-    .map((protocol) => normalizeProtocolCode(protocol))
+    .map((protocol: string) => normalizeProtocolCode(protocol))
     .filter(isDebuggableProtocol);
   return protocols.length ? Array.from(new Set(protocols)) : [...DEFAULT_FALLBACK_PROTOCOLS];
 }
@@ -408,14 +408,18 @@ async function loadProtocolsForCurrentTarget() {
   }
 }
 
-async function resolveTargetProtocolDetail(target) {
+async function resolveTargetProtocolDetail(target: RoutingTarget) {
   if (normalizeTargetType(target.targetType) === "MODEL_POOL") {
     return await loadModelPoolProtocols(target);
   }
   return await loadModelProtocols(target.targetId, target.modelType, target.targetCode);
 }
 
-async function loadModelProtocols(modelId, modelType, fallbackModelCode) {
+async function loadModelProtocols(
+  modelId: number | string,
+  modelType: string | undefined,
+  fallbackModelCode: string | undefined
+): Promise<{ protocols: string[]; resolvedModel: string }> {
   try {
     const detail = await getModel(modelId);
     const bindings = Array.isArray(detail?.apiBindings) ? detail.apiBindings : [];
@@ -432,18 +436,18 @@ async function loadModelProtocols(modelId, modelType, fallbackModelCode) {
   }
 }
 
-async function loadModelPoolProtocols(target) {
+async function loadModelPoolProtocols(target: RoutingTarget): Promise<{ protocols: string[]; resolvedModel: string }> {
   try {
     const detail = await getModelPool(target.targetId);
-    const enabledItems = (Array.isArray(detail?.items) ? detail.items : []).filter((item) => item.enabled !== false);
+    const enabledItems: Row[] = (Array.isArray(detail?.items) ? detail.items : []).filter((item: Row) => item.enabled !== false);
     if (!enabledItems.length) {
       return {
         protocols: fallbackProtocolsForModelType(target.modelType),
         resolvedModel: target.targetCode || "model-name"
       };
     }
-    const models = await Promise.all(enabledItems.map((item) => loadModelProtocols(item.modelId, item.modelType, item.modelCode)));
-    const protocolLists = models.map((item) => item.protocols).filter((item) => item.length);
+    const models = await Promise.all(enabledItems.map((item: Row) => loadModelProtocols(item.modelId, item.modelType, item.modelCode)));
+    const protocolLists = models.map((item) => item.protocols).filter((item: string[]) => item.length);
     const protocols = intersectProtocolLists(protocolLists);
     const resolvedModel = selectPoolResolvedModel(enabledItems);
     return {
@@ -458,8 +462,8 @@ async function loadModelPoolProtocols(target) {
   }
 }
 
-function selectPoolResolvedModel(items) {
-  const sorted = [...items].sort((left, right) => {
+function selectPoolResolvedModel(items: Row[]): string {
+  const sorted = [...items].sort((left: Row, right: Row) => {
     const priorityDiff = (right.priority ?? 100) - (left.priority ?? 100);
     if (priorityDiff !== 0) return priorityDiff;
     const weightDiff = (right.weight ?? 100) - (left.weight ?? 100);
@@ -469,15 +473,15 @@ function selectPoolResolvedModel(items) {
   return sorted[0]?.modelCode || "";
 }
 
-function normalizeProtocolsFromBindings(bindings, modelType) {
+function normalizeProtocolsFromBindings(bindings: Row[], modelType: string | undefined): string[] {
   const protocols = bindings
-    .filter((item) => item?.enabled !== false)
-    .map((item) => normalizeProtocolCode(item.protocol))
+    .filter((item: Row) => item?.enabled !== false)
+    .map((item: Row) => normalizeProtocolCode(item.protocol))
     .filter(isDebuggableProtocol);
   return protocols.length ? Array.from(new Set(protocols)) : fallbackProtocolsForModelType(modelType);
 }
 
-function intersectProtocolLists(lists) {
+function intersectProtocolLists(lists: string[][]): string[] {
   if (!lists.length) {
     return [];
   }
@@ -507,14 +511,14 @@ function resetCurrentTemplate() {
   templateStore[activeTemplateKey.value] = createDefaultTemplate(activeProtocol.value, resolvedModel.value);
 }
 
-function createDefaultTemplate(protocol, model) {
+function createDefaultTemplate(protocol: unknown, model: string | undefined): string {
   // 请求体模板由后端能力接口下发（与 RoutingRuleService.defaultRequestBody 同源），这里只做占位符填充
   const template = templateOf(normalizeProtocolCode(protocol));
   const body = template ? hydrateTemplate(template, model || "model-name", DEFAULT_PROMPT) : { model: model || "model-name" };
   return formatJson(body);
 }
 
-function syncTemplateModelField(templateKey, model) {
+function syncTemplateModelField(templateKey: string, model: string | undefined): void {
   const parsed = safeParseTemplate(templateStore[templateKey]);
   if (parsed.error || !parsed.value || typeof parsed.value !== "object" || Array.isArray(parsed.value)) {
     return;
@@ -524,7 +528,7 @@ function syncTemplateModelField(templateKey, model) {
   templateStore[templateKey] = formatJson(next);
 }
 
-function safeParseTemplate(text) {
+function safeParseTemplate(text: unknown) {
   return parseJsonResult(text, {});
 }
 
@@ -621,18 +625,18 @@ async function runTest() {
     responseTab.value = "body";
   } catch (error) {
     responseTab.value = "body";
-    testResult.value = normalizeErrorResult(error);
+    testResult.value = normalizeErrorResult(error as Dict);
   } finally {
     loading.value = false;
   }
 }
 
-function inferPrompt(body, protocol) {
+function inferPrompt(body: unknown, protocol: unknown): string | null {
   // prompt 字段路径由后端能力接口下发，这里做通用路径取值，不再按协议 switch
   return extractPrompt(body, promptFieldOf(normalizeProtocolCode(protocol)));
 }
 
-function normalizeErrorResult(error) {
+function normalizeErrorResult(error: Dict): Dict {
   const data = error?.response?.data;
   if (data && typeof data === "object") {
     if (typeof data.success === "boolean" && data.success === false) {
@@ -664,7 +668,7 @@ function normalizeErrorResult(error) {
   };
 }
 
-function serializeBody(body) {
+function serializeBody(body: unknown): string {
   if (body == null || body === "") return "";
   if (typeof body === "string") return body;
   return stringifyJson(body);

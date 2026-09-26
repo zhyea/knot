@@ -49,6 +49,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { onMounted, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -91,18 +92,18 @@ function openCreate() {
   formVisible.value = true;
 }
 
-function openEdit(row) {
+function openEdit(row: Row) {
   editing.value = row;
   formVisible.value = true;
 }
 
-async function remove(row) {
+async function remove(row: Row) {
   await deleteProviderProfile(row.id);
   ElMessage.success("删除成功");
   await load();
 }
 
-function openLog(row) {
+function openLog(row: Row) {
   logId.value = row.id;
   logName.value = row.name || `#${row.id}`;
   logDrawer.value = true;
@@ -112,7 +113,7 @@ function loadProfileLogs() {
   return listProviderProfileOperationLogs(logId.value);
 }
 
-function onRowAction(key, row) {
+function onRowAction(key: string, row: Row) {
   if (key === "edit") {
     openEdit(row);
   } else if (key === "log") {

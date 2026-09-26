@@ -47,6 +47,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -82,12 +83,12 @@ function openCreate() {
   formVisible.value = true;
 }
 
-function openEdit(row) {
+function openEdit(row: Row) {
   editingPool.value = row;
   formVisible.value = true;
 }
 
-async function remove(row) {
+async function remove(row: Row) {
   await ElMessageBox.confirm(`确认删除模型池“${row.name || row.poolCode}”？`, "删除确认", {
     type: "warning"
   });

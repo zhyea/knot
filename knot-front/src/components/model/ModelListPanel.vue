@@ -53,6 +53,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { CopyDocument, Document, Edit } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
@@ -61,7 +62,7 @@ import { useEnabledToggle } from "@/composables/useEnabledToggle";
 import { useEnumOptions } from "@/composables/useEnumOptions";
 
 defineProps({
-  rows: { type: Array, default: () => [] },
+  rows: { type: Array, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
@@ -77,16 +78,16 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateModelStatus
 });
 
-function modelTypeLabel(code) {
+function modelTypeLabel(code: string) {
   if (!code) return "-";
   return labelOf("ModelTypeEnum", code, code);
 }
 
-function handleAction(action, row) {
-  emit(action, row);
+function handleAction(action: string, row: Row) {
+  emit(action as "create" | "edit" | "copy" | "log", row);
 }
 
-async function handleEnabledChange(row, enabled) {
+async function handleEnabledChange(row: Row, enabled: string | number | boolean) {
   await onEnabledChange(row, enabled);
   emit("changed");
 }

@@ -58,12 +58,13 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { Document, Edit, Key } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 
 defineProps({
-  users: { type: Array, default: () => [] },
+  users: { type: Array, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
@@ -73,7 +74,7 @@ defineProps({
 
 const emit = defineEmits(["create", "refresh", "status-change", "action", "page-change", "size-change"]);
 
-function formatDateTime(dateTime) {
+function formatDateTime(dateTime: any) {
   if (!dateTime) {
     return "-";
   }
@@ -87,7 +88,7 @@ function formatDateTime(dateTime) {
   });
 }
 
-function formatRoleNames(roleNames) {
+function formatRoleNames(roleNames: any) {
   if (!Array.isArray(roleNames) || roleNames.length === 0) {
     return "-";
   }

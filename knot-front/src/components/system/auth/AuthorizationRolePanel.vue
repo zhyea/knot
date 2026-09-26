@@ -48,7 +48,7 @@
 import { Delete, Edit, Lock } from "@element-plus/icons-vue";
 import RowActions from "../../common/RowActions.vue";
 import ListPagination from "../../common/ListPagination.vue";
-import type { Row } from "../../types";
+import type { Row } from "../../../types";
 
 const props = defineProps({
   rows: { type: Array, default: (): Row[] => [] },

@@ -79,6 +79,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Dict, Row} from "@/types";
 import { computed, onMounted, ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -119,11 +120,11 @@ const logStatusOptions = computed(() =>
   }))
 );
 
-function statusLabel(code) {
+function statusLabel(code: string) {
   return resolveEnumLabel(statusOptions.value, code, code || "-");
 }
 
-async function fetchOperationLogs(params) {
+async function fetchOperationLogs(params: Dict) {
   const result = await listOperationLogs(params);
   moduleOptions.value = normalizeOptions(result?.moduleOptions, resolveModuleLabel);
   operationOptions.value = normalizeOptions(result?.operationOptions);
@@ -148,23 +149,23 @@ const {
   fields: { keyword: "", module: "", operation: "", status: "" }
 });
 
-async function onLogRow(row) {
+async function onLogRow(row: Row) {
   currentLog.value = await getOperationLogDetail(row.id);
   detailDrawer.value = true;
 }
 
-function normalizeOptions(values, labelResolver = null) {
+function normalizeOptions(values: any, labelResolver: any = null) {
   return normalizeValues(values).map((value) => ({
     label: labelResolver ? labelResolver(value) : value,
     value
   }));
 }
 
-function resolveModuleLabel(value) {
-  return moduleLabelMap[value] || value;
+function resolveModuleLabel(value: any) {
+  return (moduleLabelMap as Dict)[value] || value;
 }
 
-function normalizeValues(values) {
+function normalizeValues(values: any) {
   return Array.isArray(values)
     ? values.filter((item) => item != null && `${item}`.trim() !== "").map((item) => `${item}`)
     : [];

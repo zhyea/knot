@@ -74,6 +74,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -99,15 +100,15 @@ const viewModeOptions = [
   { label: "列表", value: "list" }
 ];
 
-function readViewMode() {
+function readViewMode(): "card" | "list" {
   const saved = getStorageItem(VIEW_MODE_KEY);
   return saved === "card" || saved === "list" ? saved : "list";
 }
 
-function readViewPageSize() {
+function readViewPageSize(): Record<"card" | "list", number> {
   const saved = getStorageJson(VIEW_PAGE_SIZE_KEY, null) || {};
-  const result = { ...DEFAULT_VIEW_PAGE_SIZE };
-  ["card", "list"].forEach((mode) => {
+  const result: Record<"card" | "list", number> = { ...DEFAULT_VIEW_PAGE_SIZE };
+  (["card", "list"] as const).forEach((mode) => {
     const size = Number(saved[mode]);
     if (Number.isInteger(size) && size > 0) {
       result[mode] = size;
@@ -148,17 +149,17 @@ function openCreate() {
   formVisible.value = true;
 }
 
-function openEdit(row) {
+function openEdit(row: Row) {
   editingModel.value = row;
   formVisible.value = true;
 }
 
-function handleAction(action, row) {
+function handleAction(action: string, row: Row) {
   if (action === "edit") openEdit(row);
   if (action === "delete") removeModel(row);
 }
 
-async function removeModel(row) {
+async function removeModel(row: Row) {
   await deleteLogicalModel(row.id);
   ElMessage.success("已删除统一模型");
   await resetPage();
@@ -166,7 +167,7 @@ async function removeModel(row) {
 
 
 // 分页条：按当前视图分别记住每页条数，卡片视图默认 12 条、列表视图默认 20 条
-function onSizeChange(size) {
+function onSizeChange(size: number) {
   viewPageSize[viewMode.value] = size;
   setStorageJson(VIEW_PAGE_SIZE_KEY, { ...viewPageSize });
   pageSize.value = size;
@@ -174,7 +175,7 @@ function onSizeChange(size) {
   return load();
 }
 
-function onViewModeChange(mode) {
+function onViewModeChange(mode: string) {
   const next = mode === "card" ? "card" : "list";
   viewMode.value = next;
   setStorageItem(VIEW_MODE_KEY, next);

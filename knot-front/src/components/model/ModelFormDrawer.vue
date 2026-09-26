@@ -721,7 +721,7 @@ function allowedProtocolsForModelType(modelType: string): string[] {
   return protocolsOf(modelType);
 }
 
-function isProtocolAllowedForModelType(protocol) {
+function isProtocolAllowedForModelType(protocol: any) {
   const code = normalizeProtocolCode(protocol);
   return Boolean(code) && allowedApiProtocolCodes.value.includes(code);
 }
@@ -734,11 +734,11 @@ function firstAvailableProtocolCode(usedProtocols = new Set()) {
   return allowedApiProtocolCodes.value.find((code) => !usedProtocols.has(code)) || firstAllowedProtocolCode();
 }
 
-function normalizeProtocolCode(protocol) {
+function normalizeProtocolCode(protocol: any) {
   return String(protocol || "").trim().toUpperCase();
 }
 
-function normalizeProtocolForModelType(protocol, usedProtocols = new Set()) {
+function normalizeProtocolForModelType(protocol: any, usedProtocols = new Set()) {
   const code = normalizeProtocolCode(protocol);
   return code && isProtocolAllowedForModelType(code) && !usedProtocols.has(code)
     ? code
@@ -806,7 +806,7 @@ async function submit() {
     emit("update:modelValue", false);
     emit("saved");
   } catch (err) {
-    const msg = err?.message || "";
+    const msg = (err as Error)?.message || "";
     if (msg.includes("模型编码")) {
       modelCodeError.value = msg;
     }

@@ -41,6 +41,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { Edit, Tickets, VideoPlay } from "@element-plus/icons-vue";
 import RowActions from "../../common/RowActions.vue";
 import ListPagination from "../../common/ListPagination.vue";
@@ -48,7 +49,7 @@ import { triggerScheduledTask } from "../../../api/scheduledTasks";
 import { taskModeLabel, taskStatusLabel } from "../../../utils/scheduledTask";
 
 const props = defineProps({
-  rows: { type: Array, default: () => [] },
+  rows: { type: Array, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
@@ -58,7 +59,7 @@ const props = defineProps({
 
 const emit = defineEmits(["edit", "logs", "triggered", "refresh", "page-change", "size-change"]);
 
-function taskActions(row) {
+function taskActions(row: Row) {
   return [
     { key: "edit", label: "编辑", icon: Edit },
     { key: "logs", label: "执行记录", icon: Tickets },
@@ -72,7 +73,7 @@ function taskActions(row) {
   ];
 }
 
-async function handleAction(action, row) {
+async function handleAction(action: string, row: Row) {
   if (action === "edit") {
     emit("edit", row);
     return;

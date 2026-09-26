@@ -23,3 +23,4 @@ resources/.arch-internal-preview.css
 */package-lock.json
 .codex
 .workbuddy
+*.log

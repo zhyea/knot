@@ -54,6 +54,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { onMounted, ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -94,7 +95,7 @@ function openCreate() {
   formVisible.value = true;
 }
 
-function openEdit(row) {
+function openEdit(row: Row) {
   editingProviderId.value = row.id;
   formVisible.value = true;
 }
@@ -103,12 +104,12 @@ function onProviderSaved() {
   load();
 }
 
-function openDiscount(row) {
+function openDiscount(row: Row) {
   discountProviderId.value = row.id;
   discountDrawerVisible.value = true;
 }
 
-function openChangeLog(row) {
+function openChangeLog(row: Row) {
   logProviderId.value = row.id;
   logProviderName.value = row.code || `#${row.id}`;
   logDrawer.value = true;

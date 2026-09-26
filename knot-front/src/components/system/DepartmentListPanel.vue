@@ -58,11 +58,12 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import {Delete, Document, Edit} from "@element-plus/icons-vue";
 import RowActions from "../common/RowActions.vue";
 
 defineProps({
-  rows: {type: Array, default: () => []},
+  rows: {type: Array, default: (): Row[] => []},
   loading: {type: Boolean, default: false},
   total: {type: Number, default: 0},
   pageNum: {type: Number, default: 1},
@@ -73,7 +74,7 @@ defineProps({
 
 const emit = defineEmits(["create", "create-child", "refresh", "status-change", "action", "page-change", "size-change"]);
 
-function formatDateTime(dateTime) {
+function formatDateTime(dateTime: any) {
   if (!dateTime) return "-";
   return new Date(dateTime).toLocaleString("zh-CN", {
     year: "numeric",

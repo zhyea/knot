@@ -126,6 +126,7 @@ import {
 } from "../../api/routing";
 import { generateRoutingRuleCode } from "../../utils/routingRule";
 import { normalizeOptionList, resolveSelectedOption } from "../../utils/options";
+import type {Row} from "@/types";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -180,7 +181,7 @@ watch(
   }
 );
 
-function userLabel(user) {
+function userLabel(user: Row): string {
   const name = user.realName?.trim() || user.username;
   return name === user.username ? name : `${name}（${user.username}）`;
 }
@@ -190,7 +191,7 @@ async function loadOptions() {
   userOptions.value = normalizeOptionList(usersRes);
 }
 
-function resetForm(row = null) {
+function resetForm(row: Row | null = null) {
   form.id = row?.id ?? null;
   form.consumerCode = row?.consumerCode || generateRoutingRuleCode();
   form.name = row?.name || "";
@@ -267,7 +268,7 @@ async function submit() {
   }
 }
 
-async function copySecretKey(secretKey) {
+async function copySecretKey(secretKey: string | null | undefined) {
   if (!secretKey) return;
   try {
     await navigator.clipboard.writeText(secretKey);

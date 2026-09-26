@@ -62,6 +62,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -108,7 +109,7 @@ function openCreate() {
   formVisible.value = true;
 }
 
-function openEdit(row) {
+function openEdit(row: Row) {
   editingRule.value = row;
   formVisible.value = true;
 }
@@ -117,7 +118,7 @@ function onRuleSaved() {
   resetPage();
 }
 
-async function openTest(row) {
+async function openTest(row: Row) {
   testRuleId.value = row.id;
   testRuleName.value = row.name || row.ruleCode || "";
   testSecretKey.value = await loadConsumerSecretKey(row.consumerIds);
@@ -125,7 +126,7 @@ async function openTest(row) {
   testVisible.value = true;
 }
 
-async function loadConsumerSecretKey(consumerIds) {
+async function loadConsumerSecretKey(consumerIds: Array<string | number>) {
   const ids = Array.isArray(consumerIds) ? consumerIds : [];
   if (!ids.length) {
     return "";
@@ -135,7 +136,7 @@ async function loadConsumerSecretKey(consumerIds) {
   return consumers.find((item) => ids.includes(item.id))?.secretKey || "";
 }
 
-function openChangeLog(row) {
+function openChangeLog(row: Row) {
   logRuleId.value = row.id;
   logRuleName.value = row.name || row.ruleCode || `#${row.id}`;
   logDrawer.value = true;

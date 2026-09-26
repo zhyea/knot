@@ -75,7 +75,7 @@ async function handleLogin() {
     await router.push("/");
     ElMessage.success(t("login.success"));
   } catch (error) {
-    ElMessage.error(error.message || t("login.failed"));
+    ElMessage.error((error as Error)?.message || t("login.failed"));
   } finally {
     loading.value = false;
   }

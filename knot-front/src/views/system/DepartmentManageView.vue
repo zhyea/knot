@@ -72,6 +72,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { computed, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -117,7 +118,7 @@ watch(treeKeyword, (value) => {
 
 const flatTreeMap = computed(() => {
   const map = new Map();
-  const walk = (nodes, level = 1) => {
+  const walk = (nodes: any, level = 1) => {
     for (const node of nodes || []) {
       map.set(node.id, { ...node, level });
       walk(node.children, level + 1);
@@ -142,7 +143,7 @@ function openCreateChild() {
   drawerVisible.value = true;
 }
 
-function openEdit(row) {
+function openEdit(row: Row) {
   editingDepartment.value = {
     ...row,
     children: flatTreeMap.value.get(row.id)?.children || []
@@ -151,7 +152,7 @@ function openEdit(row) {
   drawerVisible.value = true;
 }
 
-function openDepartmentLogs(row) {
+function openDepartmentLogs(row: Row) {
   logDepartmentId.value = row.id;
   logDrawerTitle.value = `部门操作日志 — ${row.deptName || row.id}`;
   logDrawerVisible.value = true;
@@ -164,13 +165,13 @@ function loadDepartmentOperationLogs() {
   return listDepartmentOperationLogs(logDepartmentId.value);
 }
 
-function handleAction(action, row) {
+function handleAction(action: string, row: Row) {
   if (action === "edit") openEdit(row);
   if (action === "log") openDepartmentLogs(row);
   if (action === "delete") onDelete(row);
 }
 
-async function onStatusChange(row, status) {
+async function onStatusChange(row: Row, status: string | number | boolean) {
   try {
     await updateDepartmentStatus(row.id, { status });
     ElMessage.success("状态已更新");
@@ -180,35 +181,35 @@ async function onStatusChange(row, status) {
   }
 }
 
-async function onDelete(row) {
+async function onDelete(row: Row) {
   await ElMessageBox.confirm(`确认删除部门「${row.deptName || row.deptCode}」？`, "删除确认", { type: "warning" });
   await deleteDepartment(row.id);
   ElMessage.success("已删除");
   await refreshAll();
 }
 
-function filterTreeNode(keyword, data) {
+function filterTreeNode(keyword: string, data: any) {
   if (!keyword) return true;
   const value = keyword.trim().toLowerCase();
   return `${data.deptName || ""} ${data.deptCode || ""}`.toLowerCase().includes(value);
 }
 
-function onTreeNodeClick(data) {
+function onTreeNodeClick(data: any) {
   selectedNode.value = data;
   query.parentId = data.id;
   resetPage();
 }
 
-function annotateLevels(nodes, level = 1) {
-  return (nodes || []).map((node) => ({
+function annotateLevels(nodes: any, level = 1) {
+  return (nodes || []).map((node: Row) => ({
     ...node,
     level,
     children: annotateLevels(node.children, level + 1)
   }));
 }
 
-function withRowLevels(list) {
-  return (list || []).map((row) => ({
+function withRowLevels(list: any) {
+  return (list || []).map((row: Row) => ({
     ...row,
     level: flatTreeMap.value.get(row.id)?.level || 1
   }));

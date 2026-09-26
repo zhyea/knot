@@ -201,19 +201,19 @@ function countLevel(node: Row): number {
   return level;
 }
 
-function countSubtreeHeight(node) {
+function countSubtreeHeight(node: Row) {
   if (!node) return 1;
   const children = node.children || [];
   if (!children.length) {
     return 1;
   }
-  return 1 + Math.max(...children.map((child) => countSubtreeHeight(child)));
+  return 1 + Math.max(...children.map((child: any) => countSubtreeHeight(child)));
 }
 
-function findNodeById(nodes, id) {
+function findNodeById(nodes: any, id: any): any {
   for (const node of nodes || []) {
     if (node.id === id) return node;
-    const found = findNodeById(node.children, id);
+    const found: any = findNodeById(node.children, id);
     if (found) return found;
   }
   return null;

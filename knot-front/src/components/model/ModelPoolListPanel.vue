@@ -52,6 +52,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { onMounted } from "vue";
 import { Delete, Edit } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
@@ -62,7 +63,7 @@ import { useEnumOptions } from "../../composables/useEnumOptions";
 import { useEnums, resolveEnumLabel } from "../../composables/useEnums";
 
 defineProps({
-  rows: { type: Array, default: () => [] },
+  rows: { type: Array, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
@@ -88,15 +89,15 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
 
 onMounted(loadStrategyOptions);
 
-function modelTypeLabel(code) {
+function modelTypeLabel(code: string) {
   return labelOf("ModelTypeEnum", code, code || "-");
 }
 
-function strategyLabel(code) {
+function strategyLabel(code: string) {
   return resolveEnumLabel(strategyOptions.value, code, code || "-");
 }
 
-async function handleEnabledChange(row, enabled) {
+async function handleEnabledChange(row: Row, enabled: string | number | boolean) {
   await onEnabledChange(row, enabled);
   emit("changed");
 }

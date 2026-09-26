@@ -136,6 +136,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Dict, Row} from "@/types";
 import { computed, reactive, ref, watch } from "vue";
 import { Delete } from "@element-plus/icons-vue";
 import { ElMessage } from "element-plus";
@@ -189,15 +190,15 @@ const boundModelRows = computed(() =>
   })
 );
 
-function modelLabel(model) {
+function modelLabel(model: any) {
   return model.modelCode ? `${model.name || model.modelCode}（${model.modelCode}）` : `#${model.id}`;
 }
 
-function mergeOptions(list) {
+function mergeOptions(list: any) {
   modelOptions.value = mergeOptionList(modelOptions.value, list);
 }
 
-async function loadModelOptions(params) {
+async function loadModelOptions(params: Dict) {
   const res = await listModels(params);
   const list = normalizeOptionList(res);
   mergeOptions(list);
@@ -213,7 +214,7 @@ function resetForm() {
   form.selectionStrategy = row?.selectionStrategy || "WEIGHTED";
   form.enabled = row?.enabled === true;
   form.remark = row?.remark || "";
-  form.items = (row?.items || []).map((item) => ({
+  form.items = (row?.items || []).map((item: Row) => ({
     modelId: item.modelId,
     modelCode: item.modelCode,
     modelName: item.modelName,
@@ -251,7 +252,7 @@ function onModelTypeChange() {
   loadModelOptions({ pageNum: 1, pageSize: 10, modelTypes: form.modelType ? [form.modelType] : [] });
 }
 
-function onSelectedModelsChange(modelIds) {
+function onSelectedModelsChange(modelIds: any) {
   const nextIds = Array.isArray(modelIds) ? modelIds : [];
   const existingById = new Map(form.items.map((item) => [item.modelId, item]));
   form.items = nextIds.map((modelId) => existingById.get(modelId) || {
@@ -262,7 +263,7 @@ function onSelectedModelsChange(modelIds) {
   });
 }
 
-function removeModel(modelId) {
+function removeModel(modelId: any) {
   onSelectedModelsChange(form.items.map((item) => item.modelId).filter((id) => id !== modelId));
 }
 

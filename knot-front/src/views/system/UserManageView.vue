@@ -42,6 +42,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Row} from "@/types";
 import { reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -76,7 +77,7 @@ const logDrawerVisible = ref(false);
 const logUserId = ref(null);
 const logDrawerTitle = ref("操作日志");
 
-function openUserLogs(row) {
+function openUserLogs(row: Row) {
   logUserId.value = row.id;
   logDrawerTitle.value = `用户操作日志 - ${row.username || row.id}`;
   logDrawerVisible.value = true;
@@ -102,17 +103,17 @@ function openCreate() {
   drawerVisible.value = true;
 }
 
-function openEdit(row) {
+function openEdit(row: Row) {
   editingUser.value = row;
   drawerVisible.value = true;
 }
 
-async function handleResetPassword(row) {
+async function handleResetPassword(row: Row) {
   await resetUserPassword(row.id);
   ElMessage.success(`已将用户 ${row.username} 的密码重置为 12345678`);
 }
 
-async function handleAction(action, row) {
+async function handleAction(action: string, row: Row) {
   if (action === "edit") {
     openEdit(row);
   }
@@ -124,7 +125,7 @@ async function handleAction(action, row) {
   }
 }
 
-async function onStatusChange(row, status) {
+async function onStatusChange(row: Row, status: string | number | boolean) {
   try {
     await updateUserStatus(row.id, { status: status.toString() });
     ElMessage.success("状态已更新");

@@ -80,7 +80,7 @@ const props = defineProps({
   pageNum: { type: Number, default: 1 },
   pageSize: { type: Number, default: 20 },
   pageSizes: { type: Array as PropType<number[]>, default: (): number[] => [10, 20, 50] },
-  modelTypeOptions: { type: Array as PropType<SelectOption[]>, default: () => [] },
+  modelTypeOptions: { type: Array as PropType<SelectOption[]>, default: (): SelectOption[] => [] },
   showRefresh: { type: Boolean, default: true }
 });
 
@@ -96,7 +96,7 @@ function modelTypeLabel(code: unknown): string {
   return item?.label || String(code);
 }
 
-async function handleEnabledChange(row: Row, enabled: boolean): Promise<void> {
+async function handleEnabledChange(row: Row, enabled: string | number | boolean): Promise<void> {
   await onEnabledChange(row, enabled);
   emit("changed");
 }
