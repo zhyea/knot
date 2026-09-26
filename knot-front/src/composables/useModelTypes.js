@@ -5,7 +5,7 @@ import { listModelTypes } from "../api/models";
  * 模型类型「协议规则」数据源（GET /api/models/types）
  *
  * 只负责协议相关能力：
- *  - protocolsOf(code)  模型类型 -> 支持的协议 code 列表（含 CUSTOM/OTHER）
+ *  - protocolsOf(code)  模型类型 -> 支持的协议 code 列表（含 CUSTOM）
  *  - defaultCode        后端列表首项，作为新建表单默认值
  *
  * 模型类型的名称与下拉选项统一来自 /api/common/enums（useEnumOptions / EnumControl），

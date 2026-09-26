@@ -350,14 +350,14 @@ function normalizeProtocolCode(protocol) {
   return canonicalOf(protocol);
 }
 
-/** 调试面板能否为该协议构造请求（无网关路径的协议如 CUSTOM/OTHER 排除） */
+/** 调试面板能否为该协议构造请求（无网关路径的协议如 CUSTOM 排除） */
 function isDebuggableProtocol(protocol) {
   return Boolean(gatewayPathOf(protocol));
 }
 
 function fallbackProtocolsForModelType(modelType) {
   // 来源为后端 /api/models/types 的 supportedProtocols，这里只做通用清洗：
-  // 归一化为 canonical 协议，并丢弃调试面板无法构造请求（无路径）的协议，如 CUSTOM/OTHER
+  // 归一化为 canonical 协议，并丢弃调试面板无法构造请求（无路径）的协议，如 CUSTOM
   const protocols = protocolsOf(modelType)
     .map((protocol) => normalizeProtocolCode(protocol))
     .filter(isDebuggableProtocol);

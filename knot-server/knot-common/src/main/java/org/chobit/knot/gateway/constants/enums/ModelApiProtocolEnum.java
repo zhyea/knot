@@ -27,8 +27,7 @@ public enum ModelApiProtocolEnum implements EnumOption {
     OPENAI_CHAT_COMPLETIONS("OPENAI_CHAT_COMPLETIONS", "OpenAI Chat Completions", "/v1/chat/completions", true, CHAT_COMPLETIONS),
     OPENAI_COMPLETIONS("OPENAI_COMPLETIONS", "OpenAI Completions", "/v1/completions", true, COMPLETIONS),
     OPENAI_RESPONSES("OPENAI_RESPONSES", "OpenAI Responses", "/v1/responses", true, RESPONSES),
-    ANTHROPIC_MESSAGES("ANTHROPIC_MESSAGES", "Anthropic Messages", "/v1/messages", true, MESSAGES),
-    OTHER("OTHER", "其他", null, false, CUSTOM);
+    ANTHROPIC_MESSAGES("ANTHROPIC_MESSAGES", "Anthropic Messages", "/v1/messages", true, MESSAGES);
 
     private final String code;
     private final String name;

@@ -45,11 +45,20 @@ INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, rou
 (3, 1, NULL, 'system.role-authorizations', '角色授权', '/system/role-authorizations', 'system/RoleAuthorizationManageView', 'Lock', 30, 'ENABLED'),
 (4, 1, NULL, 'system.logs', '操作日志', '/system/logs', 'system/OperationLogView', 'Document', 40, 'ENABLED'),
 (5, 1, NULL, 'system.settings', '用户设置', '/system/settings', 'system/UserSettingsView', 'Tools', 50, 'ENABLED'),
+(18, 1, NULL, 'system.authorization-resources', '授权资源', '/system/authorization-resources', 'system/AuthorizationResourceManageView', 'Lock', 35, 'ENABLED'),
 (14, 1, NULL, 'system.scheduled-tasks', '定时任务', '/system/scheduled-tasks', 'system/ScheduledTaskView', 'Timer', 60, 'ENABLED'),
 (15, 1, NULL, 'system.enums', '枚举管理', '/system/enums', 'system/EnumManageView', 'List', 70, 'ENABLED'),
 (16, 1, NULL, 'system.plugins', '插件管理', '/system/plugins', 'PluginManageView', 'Connection', 80, 'ENABLED'),
 (17, 1, NULL, 'system.apps', '应用管理', '/apps', 'AppManageView', 'Grid', 90, 'ENABLED'),
-(18, 1, NULL, 'system.authorization-resources', '授权资源', '/system/authorization-resources', 'system/AuthorizationResourceManageView', 'Lock', 35, 'ENABLED');
+(6, 2, NULL, 'model.providers', '供应商账户', '/providers', 'ProviderManageView', 'Connection', 30, 'ENABLED'),
+(7, 2, NULL, 'model.models', '供应商模型', '/model-management/models', 'ModelManageView', 'Cpu', 20, 'ENABLED'),
+(8, 2, NULL, 'model.model-pools', '模型池', '/model-management/model-pools', 'ModelPoolManageView', 'Cpu', 10, 'ENABLED'),
+(9, 2, NULL, 'model.logical-models', '统一模型', '/model-management/logical-models', 'LogicalModelMarketplaceView', 'Cpu', 40, 'ENABLED'),
+(10, 2, NULL, 'model.external-models', '外部模型', '/model-management/external-models', 'ExternalModelManageView', 'Cpu', 50, 'ENABLED'),
+(19, 2, NULL, 'model.provider-profiles', '供应商信息', '/model-management/provider-profiles', 'ProviderProfileManageView', 'Connection', 60, 'ENABLED'),
+(11, 3, NULL, 'routing.rules', '路由规则', '/routing/rules', 'routing/RoutingRuleView', 'Share', 10, 'ENABLED'),
+(12, 3, NULL, 'routing.consumers', '消费者', '/routing/consumers', 'routing/RoutingConsumerView', 'Share', 20, 'ENABLED'),
+(13, 4, NULL, 'billing.rules', '计费规则', '/billing/rules', 'billing/BillingRuleView', 'Coin', 10, 'ENABLED');
 
 INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
 (1, 'system:user:page', '用户管理页面访问', 'PAGE', 1, 1, 'ENABLED', 1, NULL),
@@ -97,12 +106,20 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 (52, 'system:authz:api-binding:create', '创建 API 权限绑定', 'API', 1, 18, 'ENABLED', 1, NULL),
 (53, 'system:authz:api-binding:update', '更新 API 权限绑定', 'API', 1, 18, 'ENABLED', 1, NULL),
 (54, 'system:authz:api-binding:delete', '删除 API 权限绑定', 'API', 1, 18, 'ENABLED', 1, NULL),
-(55, 'system:authorization-resource:page', '授权资源页面访问', 'PAGE', 1, 18, 'ENABLED', 1, NULL);
+(18, 'system:settings:view', '查看当前用户设置与授权信息', 'API', 1, 5, 'ENABLED', 1, NULL),
+(19, 'model:provider:page', '供应商页面访问', 'PAGE', 2, 6, 'ENABLED', 1, NULL),
+(20, 'model:model:page', '供应商模型页面访问', 'PAGE', 2, 7, 'ENABLED', 1, NULL),
+(21, 'model:model-pool:page', '模型池页面访问', 'PAGE', 2, 8, 'ENABLED', 1, NULL),
+(22, 'model:logical-model:page', '统一模型页面访问', 'PAGE', 2, 9, 'ENABLED', 1, NULL),
+(23, 'model:external-model:page', '外部模型页面访问', 'PAGE', 2, 10, 'ENABLED', 1, NULL),
+(24, 'routing:rule:page', '路由规则页面访问', 'PAGE', 3, 11, 'ENABLED', 1, NULL),
+(25, 'routing:consumer:page', '消费者页面访问', 'PAGE', 3, 12, 'ENABLED', 1, NULL),
+(26, 'billing:rule:page', '计费规则页面访问', 'PAGE', 4, 13, 'ENABLED', 1, NULL),
+(55, 'system:authorization-resource:page', '授权资源页面访问', 'PAGE', 1, 18, 'ENABLED', 1, NULL),
+(56, 'system:user:reset-password', '重置用户密码', 'API', 1, 1, 'ENABLED', 1, NULL),
+(57, 'model:provider-profile:page', '供应商信息页面访问', 'PAGE', 2, 19, 'ENABLED', 1, NULL);
 
--- ⚠ ADMIN 角色的全量授权统一放在本文件**末尾**（见文件最后一段）。
--- 原实现是「在此处对当时已存在的权限做一次快照」，导致本语句之后新增的权限
--- （如 id=18 的 system:settings:view、id=19~26 的模块 PAGE 权限）永远不会授予 ADMIN，
--- 全新初始化的库会因此缺少接口级权限、登录后立刻被 401 拒绝。新增权限时无需再单独补授 ADMIN。
+-- ADMIN 角色的全量授权统一放在本文件末尾，避免新增权限遗漏。
 
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (2, 1),(2, 2),(2, 6),(2, 7),(2, 14),(2, 15),(2, 16),(2, 17),
@@ -128,9 +145,6 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (11, 13, 'POST', '/api/system/roles', 'SystemController', 'ENABLED'),
 (12, 15, 'POST', '/api/system/operation-logs', 'SystemController', 'ENABLED'),
 (13, 15, 'POST', '/api/system/operation-logs/{id}', 'SystemController', 'ENABLED');
-
-INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
-(18, 'system:settings:view', '查看当前用户设置与授权信息', 'API', 1, 5, 'ENABLED', 1, NULL);
 
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (2, 18),
@@ -175,15 +189,8 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (49, 41, 'PUT', '/api/system/authorizations/modules/{id}/status', 'AuthorizationModuleController', 'ENABLED'),
 (50, 45, 'PUT', '/api/system/authorizations/menus/{id}/status', 'AuthorizationMenuController', 'ENABLED'),
 (51, 49, 'PUT', '/api/system/authorizations/permissions/{id}/status', 'AuthorizationPermissionController', 'ENABLED'),
-(52, 53, 'PUT', '/api/system/authorizations/api-bindings/{id}/status', 'AuthorizationApiBindingController', 'ENABLED');
-
-
-INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status)
-VALUES (18, 1, NULL, 'system.authorization-resources', '授权资源', '/system/authorization-resources', 'system/AuthorizationResourceManageView', 'Lock', 35, 'ENABLED');
-
-INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark)
-VALUES (55, 'system:authorization-resource:page', '授权资源页面访问', 'PAGE', 1, 18, 'ENABLED', 1, NULL);
-
+(52, 53, 'PUT', '/api/system/authorizations/api-bindings/{id}/status', 'AuthorizationApiBindingController', 'ENABLED'),
+(53, 56, 'PUT', '/api/users/{id}/reset-password', 'UserController', 'ENABLED');
 -- 存量库修补：把「授权资源页面访问」补给已持有「角色授权页面访问」(id=12) 的角色。
 -- 注意：ADMIN 的 55 由文件末尾的权威授权块保证，不依赖本句。
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id)
@@ -191,29 +198,10 @@ SELECT role_id, 55
 FROM ks_role_permissions
 WHERE permission_id = 12;
 
-INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
-(6, 2, NULL, 'model.providers', '供应商', '/providers', 'ProviderManageView', 'Connection', 30, 'ENABLED'),
-(7, 2, NULL, 'model.models', '供应商模型', '/model-management/models', 'ModelManageView', 'Cpu', 20, 'ENABLED'),
-(8, 2, NULL, 'model.model-pools', '模型池', '/model-management/model-pools', 'ModelPoolManageView', 'Cpu', 10, 'ENABLED'),
-(9, 2, NULL, 'model.logical-models', '统一模型', '/model-management/logical-models', 'LogicalModelMarketplaceView', 'Cpu', 40, 'ENABLED'),
-(10, 2, NULL, 'model.external-models', '外部模型', '/model-management/external-models', 'ExternalModelManageView', 'Cpu', 50, 'ENABLED'),
-(11, 3, NULL, 'routing.rules', '路由规则', '/routing/rules', 'routing/RoutingRuleView', 'Share', 10, 'ENABLED'),
-(12, 3, NULL, 'routing.consumers', '消费者', '/routing/consumers', 'routing/RoutingConsumerView', 'Share', 20, 'ENABLED'),
-(13, 4, NULL, 'billing.rules', '计费规则', '/billing/rules', 'billing/BillingRuleView', 'Coin', 10, 'ENABLED');
-
-INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
-(19, 'model:provider:page', '供应商页面访问', 'PAGE', 2, 6, 'ENABLED', 1, NULL),
-(20, 'model:model:page', '供应商模型页面访问', 'PAGE', 2, 7, 'ENABLED', 1, NULL),
-(21, 'model:model-pool:page', '模型池页面访问', 'PAGE', 2, 8, 'ENABLED', 1, NULL),
-(22, 'model:logical-model:page', '统一模型页面访问', 'PAGE', 2, 9, 'ENABLED', 1, NULL),
-(23, 'model:external-model:page', '外部模型页面访问', 'PAGE', 2, 10, 'ENABLED', 1, NULL),
-(24, 'routing:rule:page', '路由规则页面访问', 'PAGE', 3, 11, 'ENABLED', 1, NULL),
-(25, 'routing:consumer:page', '消费者页面访问', 'PAGE', 3, 12, 'ENABLED', 1, NULL),
-(26, 'billing:rule:page', '计费规则页面访问', 'PAGE', 4, 13, 'ENABLED', 1, NULL);
-
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (2, 19),(2, 20),(2, 21),(2, 22),(2, 23),(2, 24),(2, 25),(2, 26),
-(3, 19),(3, 20),(3, 21),(3, 22),(3, 23),(3, 24),(3, 25),(3, 26);
+(3, 19),(3, 20),(3, 21),(3, 22),(3, 23),(3, 24),(3, 25),(3, 26),
+(2, 57),(3, 57);
 
 -- =========================
 -- 供应商与模型
@@ -520,12 +508,11 @@ INSERT IGNORE INTO ks_enum_categories (id, category, category_name, is_system, i
 (15, 'status', '通用状态', 1, 1),
 (16, 'logical_model_visibility', '统一模型可见性', 0, 1),
 (17, 'logical_model_publish_status', '统一模型发布状态', 0, 1),
-(23, 'model_pool_selection_strategy', '模型池选择策略', 1, 1);
-
--- 枚举配置（category_id 关联 ks_enum_categories.id；是否系统内置由分类决定）
-INSERT IGNORE INTO ks_enum_categories (id, category, category_name, is_system, is_enabled) VALUES
+(23, 'model_pool_selection_strategy', '模型池选择策略', 1, 1),
 (9, 'billing_currency', '计费币种', 0, 1),
 (21, 'billing_item_type', '计费价格项', 0, 1);
+
+-- 枚举项（category_id 关联 ks_enum_categories.id）
 
 INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_order, is_enabled) VALUES
 (7, 'TOKEN',          'Token', 1, 1),
@@ -579,12 +566,6 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 (5, 'APP',    '按应用', 3, 1),
 (6, 'PERCENTAGE', '百分比折扣', 1, 1),
 (6, 'FIXED',      '固定金额',   2, 1),
-(8, '1K_TOKENS',  '1K Tokens',  1, 1),
-(8, '1M_TOKENS',  '1M Tokens',  2, 1),
-(8, 'PER_REQUEST','每次请求',    3, 1),
-(8, 'PER_IMAGE',  '每张图片',    4, 1),
-(8, 'PER_MINUTE', '每分钟',      5, 1),
-(8, 'PER_SECOND', '每秒',        6, 1),
 (10, 'EMAIL',   '邮件',    1, 1),
 (10, 'SMS',     '短信',    2, 1),
 (10, 'WEBHOOK', 'Webhook', 3, 1),
@@ -594,7 +575,7 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 (12, 'GLOBAL', '全局', 1, 1),
 (12, 'APP', '应用', 2, 1),
 (12, 'RULE', '路由规则', 3, 1),
-(12, 'PROVIDER', '供应商', 4, 1),
+(12, 'PROVIDER', '供应商账户', 4, 1),
 (12, 'MODEL', '模型', 5, 1),
 (12, 'POOL', '模型池', 6, 1),
 (24, 'GATEWAY_EXCHANGE', '网关请求处理链路', 1, 1),
@@ -636,29 +617,6 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 (17, 'DRAFT',     '草稿',     1, 1),
 (17, 'PUBLISHED', '已发布',   2, 1),
 (17, 'ARCHIVED',  '已下架',   3, 1);
-
-INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
-(56, 'system:user:reset-password', '重置用户密码', 'API', 1, 1, 'ENABLED', 1, NULL);
-
-INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
-(1, 56);
-
-INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
-(53, 56, 'PUT', '/api/users/{id}/reset-password', 'UserController', 'ENABLED');
-
--- =========================
--- 供应商账户 / 供应商信息 拆分为两个子菜单（幂等）
--- =========================
-
--- 新增「供应商信息」菜单：对应 kb_providers（品牌主数据）/api/provider-profiles
-INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
-(19, 2, NULL, 'model.provider-profiles', '供应商信息', '/model-management/provider-profiles', 'ProviderProfileManageView', 'Connection', 60, 'ENABLED');
-
-INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
-(57, 'model:provider-profile:page', '供应商信息页面访问', 'PAGE', 2, 19, 'ENABLED', 1, NULL);
-
-INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
-(1, 57), (2, 57), (3, 57);
 
 -- ============================================================
 -- 权威授权块（必须保持在文件最后）

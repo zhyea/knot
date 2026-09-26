@@ -99,21 +99,21 @@ class ModelTypeEnumTest {
 
     @Test
     void capabilityTypesOnlySupportTheirOwnProtocols() {
-        assertEquals(List.of("EMBEDDINGS", "CUSTOM", "OTHER"), ModelTypeEnum.EMBEDDING.supportedProtocolCodes());
-        assertEquals(List.of("RERANK", "CUSTOM", "OTHER"), ModelTypeEnum.RERANK.supportedProtocolCodes());
+        assertEquals(List.of("EMBEDDINGS", "CUSTOM"), ModelTypeEnum.EMBEDDING.supportedProtocolCodes());
+        assertEquals(List.of("RERANK", "CUSTOM"), ModelTypeEnum.RERANK.supportedProtocolCodes());
         assertEquals(
-                List.of("IMAGE_GENERATIONS", "IMAGE_EDITS", "IMAGE_VARIATIONS", "CUSTOM", "OTHER"),
+                List.of("IMAGE_GENERATIONS", "IMAGE_EDITS", "IMAGE_VARIATIONS", "CUSTOM"),
                 ModelTypeEnum.IMAGE.supportedProtocolCodes()
         );
         assertEquals(
-                List.of("AUDIO_TRANSCRIPTIONS", "AUDIO_TRANSLATIONS", "AUDIO_SPEECH", "CUSTOM", "OTHER"),
+                List.of("AUDIO_TRANSCRIPTIONS", "AUDIO_TRANSLATIONS", "AUDIO_SPEECH", "CUSTOM"),
                 ModelTypeEnum.AUDIO.supportedProtocolCodes()
         );
-        assertEquals(List.of("VIDEO_GENERATIONS", "CUSTOM", "OTHER"), ModelTypeEnum.VIDEO.supportedProtocolCodes());
-        assertEquals(List.of("MODERATIONS", "CUSTOM", "OTHER"), ModelTypeEnum.MODERATION.supportedProtocolCodes());
-        assertEquals(List.of("RERANK", "MODERATIONS", "CUSTOM", "OTHER"), ModelTypeEnum.UTILITY.supportedProtocolCodes());
+        assertEquals(List.of("VIDEO_GENERATIONS", "CUSTOM"), ModelTypeEnum.VIDEO.supportedProtocolCodes());
+        assertEquals(List.of("MODERATIONS", "CUSTOM"), ModelTypeEnum.MODERATION.supportedProtocolCodes());
+        assertEquals(List.of("RERANK", "MODERATIONS", "CUSTOM"), ModelTypeEnum.UTILITY.supportedProtocolCodes());
         assertEquals(
-                List.of("CHAT_COMPLETIONS", "RESPONSES", "MESSAGES", "CUSTOM", "OTHER"),
+                List.of("CHAT_COMPLETIONS", "RESPONSES", "MESSAGES", "CUSTOM"),
                 ModelTypeEnum.DOCUMENT.supportedProtocolCodes()
         );
         assertEquals(ModelTypeEnum.DOCUMENT.supportedProtocolCodes(), ModelTypeEnum.OCR.supportedProtocolCodes());
@@ -124,12 +124,10 @@ class ModelTypeEnumTest {
     }
 
     @Test
-    void customAndOtherAreAvailableForEveryType() {
+    void customIsAvailableForEveryType() {
         for (ModelTypeEnum type : ModelTypeEnum.values()) {
             assertTrue(type.supportsProtocol("CUSTOM"), type.code());
-            assertTrue(type.supportsProtocol("OTHER"), type.code());
             assertTrue(type.supportedProtocolCodes().contains("CUSTOM"), type.code());
-            assertTrue(type.supportedProtocolCodes().contains("OTHER"), type.code());
         }
     }
 

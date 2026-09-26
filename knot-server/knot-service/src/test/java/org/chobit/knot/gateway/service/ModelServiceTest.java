@@ -33,7 +33,7 @@ class ModelServiceTest {
                 .filter(item -> "EMBEDDING".equals(item.code()))
                 .findFirst()
                 .orElseThrow();
-        assertEquals(List.of("EMBEDDINGS", "CUSTOM", "OTHER"), embedding.supportedProtocols());
+        assertEquals(List.of("EMBEDDINGS", "CUSTOM"), embedding.supportedProtocols());
 
         ModelTypeItem multimodal = items.stream()
                 .filter(item -> "MULTIMODAL".equals(item.code()))
@@ -44,7 +44,6 @@ class ModelServiceTest {
 
         items.forEach(item -> {
             assertTrue(item.supportedProtocols().contains("CUSTOM"), item.code());
-            assertTrue(item.supportedProtocols().contains("OTHER"), item.code());
         });
     }
 

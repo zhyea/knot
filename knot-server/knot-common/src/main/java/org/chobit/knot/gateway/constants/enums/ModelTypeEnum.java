@@ -117,7 +117,6 @@ public enum ModelTypeEnum implements EnumOption {
         List<ModelApiProtocolEnum> declared = Arrays.asList(protocols);
         List<ModelApiProtocolEnum> supported = new ArrayList<>(declared);
         supported.add(ModelApiProtocolEnum.CUSTOM);
-        supported.add(ModelApiProtocolEnum.OTHER);
 
         Set<ModelApiProtocolEnum> canonicals = new LinkedHashSet<>();
         declared.forEach(protocol -> canonicals.add(protocol.canonical()));
@@ -157,14 +156,14 @@ public enum ModelTypeEnum implements EnumOption {
     }
 
     /**
-     * Returns protocols allowed by this model type, including the generic CUSTOM/OTHER ones.
+     * Returns protocols allowed by this model type, including the generic CUSTOM protocol.
      */
     public List<ModelApiProtocolEnum> supportedProtocols() {
         return supportedProtocols;
     }
 
     /**
-     * Returns protocol codes allowed by this model type, including the generic CUSTOM/OTHER ones.
+     * Returns protocol codes allowed by this model type, including the generic CUSTOM protocol.
      */
     public List<String> supportedProtocolCodes() {
         return supportedProtocols.stream().map(ModelApiProtocolEnum::code).toList();
