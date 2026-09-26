@@ -222,19 +222,6 @@
                   </el-form-item>
                 </el-col>
                 <el-col :span="8">
-                  <el-form-item label="上游路径">
-                    <el-input v-model="binding.apiPath" placeholder="为空时使用协议默认路径" />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="8">
-                  <el-form-item label="启用">
-                    <el-switch v-model="binding.enabled" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-
-              <el-row :gutter="12" class="api-binding-card__row">
-                <el-col :span="24">
                   <el-form-item label="请求适配器">
                     <el-select
                       v-model="binding.requestAdapter"
@@ -250,6 +237,19 @@
                         :value="item.code"
                       />
                     </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="启用">
+                    <el-switch v-model="binding.enabled" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+
+              <el-row :gutter="12" class="api-binding-card__row">
+                <el-col :span="24">
+                  <el-form-item label="上游路径">
+                    <el-input v-model="binding.apiPath" placeholder="为空时使用协议默认路径" />
                   </el-form-item>
                 </el-col>
               </el-row>
