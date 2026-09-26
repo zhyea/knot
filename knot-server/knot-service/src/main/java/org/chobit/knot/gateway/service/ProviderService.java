@@ -24,11 +24,13 @@ import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.util.tools.ProviderCodes;
+import org.chobit.knot.gateway.vo.provider.CredentialTypeItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -127,6 +129,15 @@ public class ProviderService {
     /**
      * Returns whether the current condition is satisfied. Executes the public operation.
      */
+    /**
+     * Lists credential types supported for provider accounts.
+     */
+    public List<CredentialTypeItem> listCredentialTypes() {
+        return Arrays.stream(ProviderCredentialTypeEnum.values())
+                .map(type -> new CredentialTypeItem(type.code(), type.label(), type.requiredFields()))
+                .toList();
+    }
+
     public boolean isCodeAvailable(String code, Long excludeId) {
         String normalized = normalizeCode(code);
         if (normalized.isEmpty()) {

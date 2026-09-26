@@ -10,6 +10,7 @@ import org.chobit.knot.gateway.dto.provider.DiscountPolicyDto;
 import org.chobit.knot.gateway.service.ProviderService;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.provider.DiscountPolicy;
+import org.chobit.knot.gateway.vo.provider.CredentialTypeItem;
 import org.chobit.knot.gateway.vo.provider.ProviderAccountDetail;
 import org.chobit.knot.gateway.vo.provider.ProviderAccountItem;
 import jakarta.validation.Valid;
@@ -42,6 +43,14 @@ public class ProviderController {
                 query == null ? null : query.keyword()
         );
         return page.mapList(providerConverter::toVOList);
+    }
+
+    /**
+     * Lists credential types supported by provider accounts.
+     */
+    @GetMapping("/credential-types")
+    public List<CredentialTypeItem> credentialTypes() {
+        return providerService.listCredentialTypes();
     }
 
     /**

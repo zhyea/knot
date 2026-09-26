@@ -1,7 +1,12 @@
-import { postQuery, post, put, del } from "./http";
+import { postQuery, post, put, del, get } from "./http";
 
 export function listBillingRules(params) {
   return postQuery("/api/billing/rules", params);
+}
+
+/** 计费模式能力：supportedUnits / defaultUnit / defaultItemType */
+export function listModeCapabilities() {
+  return get("/api/billing/mode-capabilities");
 }
 
 export function createBillingRule(payload) {

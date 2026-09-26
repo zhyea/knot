@@ -23,6 +23,7 @@ import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
+import org.chobit.knot.gateway.vo.billing.BillingModeCapabilityItem;
 import org.chobit.knot.gateway.util.MapNumberUtils;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Service;
@@ -35,6 +36,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -84,6 +86,20 @@ public class BillingService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "billing rule not found");
         }
         return billingConverter.toRuleDto(entity);
+    }
+
+    /**
+     * Lists billing mode capabilities: supported units and default values per mode.
+     */
+    public List<BillingModeCapabilityItem> listModeCapabilities() {
+        return Arrays.stream(BillingModeEnum.values())
+                .map(mode -> new BillingModeCapabilityItem(
+                        mode.code(),
+                        mode.supportedUnitCodes(),
+                        mode.defaultUnit().code(),
+                        mode.defaultItemType()
+                ))
+                .toList();
     }
 
     /**
@@ -365,6 +381,25 @@ public class BillingService {
         BigDecimal unitPrice = request.unitPrice() == null ? BigDecimal.ZERO : request.unitPrice();
         if (unitPrice.signum() < 0) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "unit price cannot be negative");
+        }
+        validateModeAndUnit(request.billingMode(), request.unit());
+    }
+
+    /**
+     * 校验计费模式与计费单位的组合。此前这条规则只存在于前端 unitsByMode，
+     * 后端不校验，移除前端映射后必须由这里兜住，否则会写入「TOKEN + PER_IMAGE」这类组合。
+     */
+    private void validateModeAndUnit(String billingMode, String unit) {
+        BillingModeEnum mode = BillingModeEnum.fromCode(billingMode);
+        if (mode == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "unsupported billing mode: " + billingMode);
+        }
+        if (unit == null || unit.isBlank()) {
+            return;
+        }
+        if (!mode.supportsUnit(unit)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "billing unit " + unit + " is not supported by mode " + mode.code());
         }
     }
 

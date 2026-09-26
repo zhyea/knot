@@ -36,6 +36,7 @@ import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.tools.RoutingRuleCodeGenerator;
+import org.chobit.knot.gateway.vo.routing.ProtocolDebugCapabilityItem;
 import org.chobit.knot.gateway.vo.routing.RoutingTestResult;
 import org.springframework.http.MediaType;
 import org.springframework.core.io.FileSystemResource;
@@ -48,6 +49,7 @@ import org.springframework.web.client.RestClient;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -80,6 +82,30 @@ public class RoutingRuleService {
     );
 
     private final RoutingRuleMapper routingRuleMapper;
+
+    /**
+     * 调试面板的协议说明文案。与能力接口一并下发，前端不再自带 PROTOCOL_HINTS。
+     */
+    private static final Map<ModelApiProtocolEnum, String> PROTOCOL_DEBUG_HINTS = Map.ofEntries(
+            Map.entry(ModelApiProtocolEnum.CHAT_COMPLETIONS, "适用于标准对话请求，通常需要 messages。"),
+            Map.entry(ModelApiProtocolEnum.RESPONSES, "适用于 OpenAI Responses 协议，通常使用 input。"),
+            Map.entry(ModelApiProtocolEnum.MESSAGES, "适用于 Anthropic Messages 协议，通常需要 messages 和 max_tokens。"),
+            Map.entry(ModelApiProtocolEnum.COMPLETIONS, "适用于传统文本补全协议，通常使用 prompt。"),
+            Map.entry(ModelApiProtocolEnum.EMBEDDINGS, "适用于向量化请求，通常使用 input。"),
+            Map.entry(ModelApiProtocolEnum.IMAGE_GENERATIONS, "适用于文生图，通常使用 prompt。"),
+            Map.entry(ModelApiProtocolEnum.IMAGE_EDITS, "适用于图像编辑，通常需要 prompt 和 image。image 可先用 URL、data URL 或占位值维护模板。"),
+            Map.entry(ModelApiProtocolEnum.IMAGE_VARIATIONS, "适用于图像变体生成，通常需要 image。"),
+            Map.entry(ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS, "适用于语音转录，通常需要 file。"),
+            Map.entry(ModelApiProtocolEnum.AUDIO_TRANSLATIONS, "适用于语音翻译，通常需要 file。"),
+            Map.entry(ModelApiProtocolEnum.AUDIO_SPEECH, "适用于语音合成，通常使用 input 和 voice。"),
+            Map.entry(ModelApiProtocolEnum.VIDEO_GENERATIONS, "适用于视频生成，通常使用 prompt。"),
+            Map.entry(ModelApiProtocolEnum.RERANK, "适用于重排序，通常使用 query 和 documents。"),
+            Map.entry(ModelApiProtocolEnum.MODERATIONS, "适用于内容安全审核，通常使用 input。")
+    );
+
+    /** 请求体模板中的占位符，由前端按当前选择填充 */
+    private static final String MODEL_PLACEHOLDER = "{{model}}";
+    private static final String PROMPT_PLACEHOLDER = "{{prompt}}";
     private final RoutingRuleTargetMapper routingRuleTargetMapper;
     private final RoutingRuleConsumerMapper routingRuleConsumerMapper;
     private final RoutingConsumerMapper routingConsumerMapper;
@@ -509,6 +535,38 @@ public class RoutingRuleService {
 
     private Set<ModelApiProtocolEnum> fallbackProtocolsForModelType(String modelType) {
         return ModelTypeEnum.canonicalProtocolsOf(modelType);
+    }
+
+    /**
+     * 调试能力下发：网关路径、说明文案、默认请求体模板（占位符形式）与 prompt 字段路径。
+     * 全部取值复用调试执行链的同一批方法，保证预览与实际执行一致。
+     */
+    public List<ProtocolDebugCapabilityItem> listDebugCapabilities() {
+        return Arrays.stream(ModelApiProtocolEnum.values())
+                .filter(DEBUGGABLE_PROTOCOLS::contains)
+                .map(protocol -> new ProtocolDebugCapabilityItem(
+                        protocol.code(),
+                        protocol.canonical().code(),
+                        buildGatewayTestPath(protocol),
+                        PROTOCOL_DEBUG_HINTS.get(protocol),
+                        defaultRequestBody(protocol, MODEL_PLACEHOLDER, PROMPT_PLACEHOLDER),
+                        promptFieldOf(protocol)
+                ))
+                .toList();
+    }
+
+    /**
+     * 请求体中承载 prompt 的字段路径；无 prompt 语义的协议（语音转录、图像变体）返回 null。
+     * 与 {@link #fillDefaultPromptFields} 的取值口径保持一致。
+     */
+    private String promptFieldOf(ModelApiProtocolEnum protocol) {
+        return switch (protocol) {
+            case CHAT_COMPLETIONS, MESSAGES -> "messages[0].content";
+            case RESPONSES, EMBEDDINGS, AUDIO_SPEECH, MODERATIONS -> "input";
+            case COMPLETIONS, IMAGE_GENERATIONS, IMAGE_EDITS, VIDEO_GENERATIONS -> "prompt";
+            case RERANK -> "query";
+            default -> null;
+        };
     }
 
     private String buildGatewayTestPath(ModelApiProtocolEnum protocol) {

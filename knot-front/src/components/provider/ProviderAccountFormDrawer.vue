@@ -58,16 +58,16 @@
           >
             <el-option
                 v-for="option in credentialTypeOptions"
-                :key="option.value"
+                :key="option.code"
                 :label="option.label"
-                :value="option.value"
+                :value="option.code"
             />
           </el-select>
         </el-form-item>
         <el-form-item
             v-for="field in requiredCredentialFields"
             :key="field"
-            :label="credentialFieldLabels[field] || field"
+            :label="field"
             required
         >
           <el-input
@@ -76,7 +76,7 @@
               :rows="field === 'account_json' ? 5 : undefined"
               :show-password="isSecretCredentialField(field) && field !== 'account_json' && isAdmin"
               autocomplete="off"
-              :placeholder="`请输入 ${credentialFieldLabels[field] || field}`"
+              :placeholder="`请输入 ${field}`"
           />
         </el-form-item>
         <el-form-item>
@@ -118,7 +118,8 @@ import {
   updateProvider,
   getProvider,
   suggestProviderCode,
-  checkProviderCode
+  checkProviderCode,
+  listCredentialTypes
 } from "../../api/providers.js";
 
 const props = defineProps({
@@ -150,35 +151,15 @@ const form = reactive({
 
 const isEdit = computed(() => props.providerId != null);
 
-// label 与后端 ProviderCredentialTypeEnum.label() 保持一致，下拉只展示 label，不拼接 code
-const credentialTypeOptions = [
-  {value: "api-key", label: "ApiKey"},
-  {value: "aws-auth", label: "AWS 认证"},
-  {value: "gemini-auth", label: "gemini 认证"},
-  {value: "ak-sk", label: "AK&SK"},
-  {value: "custom", label: "自定义"}
-];
+// 新建表单的默认认证类型（UI 默认值）；可选项与必填字段由后端 /api/provider-accounts/credential-types 下发
+const DEFAULT_CREDENTIAL_TYPE = "api-key";
 
-const credentialFields = {
-  "api-key": ["apiKey"],
-  "aws-auth": ["accessKey", "secretKey", "region"],
-  "gemini-auth": ["project_id", "region", "account_json"],
-  "ak-sk": ["accessKey", "secretKey"],
-  custom: []
-};
+const credentialTypeOptions = ref([]);
 
-const credentialFieldLabels = {
-  apiKey: "apiKey",
-  accessKey: "accessKey",
-  secretKey: "secretKey",
-  region: "region",
-  project_id: "project_id",
-  account_json: "account_json"
-};
-
-const requiredCredentialFields = computed(
-    () => credentialFields[form.credentialType] || []
-);
+const requiredCredentialFields = computed(() => {
+  const matched = credentialTypeOptions.value.find((option) => option.code === form.credentialType);
+  return matched?.requiredFields || [];
+});
 const customAuthConfig = ref({});
 
 function defaultAuthConfig() {
@@ -192,13 +173,9 @@ function normalizeAuthConfig(raw) {
   return defaultAuthConfig();
 }
 
-function normalizeCredentialType(value) {
-  if (credentialTypeOptions.some((option) => option.value === value)) {
-    return value;
-  }
-  if (value === "API_KEY") return "api-key";
-  if (value === "TOKEN") return "custom";
-  return "api-key";
+async function loadCredentialTypes() {
+  const data = await listCredentialTypes();
+  credentialTypeOptions.value = Array.isArray(data) ? data : [];
 }
 
 function syncCredentialParts() {
@@ -256,7 +233,7 @@ function fillFormFromRow(row) {
   form.code = row.code || "";
   form.baseUrl = row.baseUrl || "";
   form.enabled = !!row.enabled;
-  form.credentialType = normalizeCredentialType(row.credentialType);
+  form.credentialType = row.credentialType || DEFAULT_CREDENTIAL_TYPE;
   form.authConfig = normalizeAuthConfig(row.authConfig);
   // 初次加载：把存量 authConfig 里不属于当前类型的键拆到自定义编辑器，一次性完成
   syncCredentialParts();
@@ -274,7 +251,7 @@ function clearForm() {
   form.code = "";
   form.baseUrl = "";
   form.enabled = true;
-  form.credentialType = "api-key";
+  form.credentialType = DEFAULT_CREDENTIAL_TYPE;
   form.authConfig = defaultAuthConfig();
   syncCredentialParts();
   form.rateLimitPolicy = {};
@@ -330,6 +307,7 @@ watch(
 );
 
 loadProviderOptions();
+loadCredentialTypes();
 
 watch(
     () => form.code,
@@ -402,7 +380,7 @@ function buildPayload() {
 async function submit() {
   for (const field of requiredCredentialFields.value) {
     if (!String(form.authConfig[field] ?? "").trim()) {
-      ElMessage.warning(`请填写 ${credentialFieldLabels[field] || field}`);
+      ElMessage.warning(`请填写 ${field}`);
       return;
     }
   }

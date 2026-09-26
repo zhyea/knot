@@ -1,0 +1,193 @@
+﻿[INFO] Scanning for projects...
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Build Order:
+[INFO] 
+[INFO] knot-server                                                        [pom]
+[INFO] knot-common                                                        [jar]
+[INFO] knot-plugin                                                        [jar]
+[INFO] knot-dal                                                           [jar]
+[INFO] knot-adapter                                                       [jar]
+[INFO] knot-service                                                       [jar]
+[INFO] knot-admin                                                         [jar]
+[INFO] knot-gateway                                                       [jar]
+[INFO] 
+[INFO] --------------------< org.chobit.knot:knot-server >---------------------
+[INFO] Building knot-server 0.0.1-SNAPSHOT                                [1/8]
+[INFO]   from pom.xml
+[INFO] --------------------------------[ pom ]---------------------------------
+[INFO] 
+[INFO] --------------------< org.chobit.knot:knot-common >---------------------
+[INFO] Building knot-common 0.0.1-SNAPSHOT                                [2/8]
+[INFO]   from knot-common\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ knot-common ---
+[INFO] skip non existing resourceDirectory D:\MyDevelop\JDevelop\workspace\knot\knot-server\knot-common\src\main\resources
+[INFO] skip non existing resourceDirectory D:\MyDevelop\JDevelop\workspace\knot\knot-server\knot-common\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ knot-common ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ knot-common ---
+[INFO] skip non existing resourceDirectory D:\MyDevelop\JDevelop\workspace\knot\knot-server\knot-common\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ knot-common ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --------------------< org.chobit.knot:knot-plugin >---------------------
+[INFO] Building knot-plugin 0.0.1-SNAPSHOT                                [3/8]
+[INFO]   from knot-plugin\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ knot-plugin ---
+[INFO] skip non existing resourceDirectory D:\MyDevelop\JDevelop\workspace\knot\knot-server\knot-plugin\src\main\resources
+[INFO] skip non existing resourceDirectory D:\MyDevelop\JDevelop\workspace\knot\knot-server\knot-plugin\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ knot-plugin ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ knot-plugin ---
+[INFO] skip non existing resourceDirectory D:\MyDevelop\JDevelop\workspace\knot\knot-server\knot-plugin\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ knot-plugin ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] ----------------------< org.chobit.knot:knot-dal >----------------------
+[INFO] Building knot-dal 0.0.1-SNAPSHOT                                   [4/8]
+[INFO]   from knot-dal\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ knot-dal ---
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] Copying 33 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ knot-dal ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ knot-dal ---
+[INFO] skip non existing resourceDirectory D:\MyDevelop\JDevelop\workspace\knot\knot-server\knot-dal\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ knot-dal ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --------------------< org.chobit.knot:knot-adapter >--------------------
+[INFO] Building knot-adapter 0.0.1-SNAPSHOT                               [5/8]
+[INFO]   from knot-adapter\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ knot-adapter ---
+[INFO] skip non existing resourceDirectory D:\MyDevelop\JDevelop\workspace\knot\knot-server\knot-adapter\src\main\resources
+[INFO] skip non existing resourceDirectory D:\MyDevelop\JDevelop\workspace\knot\knot-server\knot-adapter\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ knot-adapter ---
+[INFO] Nothing to compile - all classes are up to date.
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ knot-adapter ---
+[INFO] skip non existing resourceDirectory D:\MyDevelop\JDevelop\workspace\knot\knot-server\knot-adapter\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ knot-adapter ---
+[INFO] No sources to compile
+[INFO] 
+[INFO] --------------------< org.chobit.knot:knot-service >--------------------
+[INFO] Building knot-service 0.0.1-SNAPSHOT                               [6/8]
+[INFO]   from knot-service\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ knot-service ---
+[INFO] skip non existing resourceDirectory D:\MyDevelop\JDevelop\workspace\knot\knot-server\knot-service\src\main\resources
+[INFO] skip non existing resourceDirectory D:\MyDevelop\JDevelop\workspace\knot\knot-server\knot-service\src\main\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ knot-service ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 152 source files with javac [debug parameters release 17] to target\classes
+mvn.cmd : WARNING: A terminally deprecated method in sun.misc.Unsafe has been c
+alled
+所在位置 行:446 字符: 1
++ & "D:\MyDevelop\JDevelop\maven\apache-maven-3.9.15\bin\mvn.cmd" -B -f ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (WARNING: A term...has been called 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by lombok.permit.Pe
+rmit
+WARNING: Please consider reporting this to the maintainers of class lombok.perm
+it.Permit
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+[WARNING] /D:/MyDevelop/JDevelop/workspace/knot/knot-server/knot-service/src/main/java/org/chobit/knot/gateway/converter/DepartmentConverter.java:[18,22] Unmapped target property: "isDeleted".
+[WARNING] /D:/MyDevelop/JDevelop/workspace/knot/knot-server/knot-service/src/main/java/org/chobit/knot/gateway/converter/SystemConverter.java:[16,21] Unmapped target properties: "moduleCode, actionCode, targetId, resultStatus".
+[WARNING] /D:/MyDevelop/JDevelop/workspace/knot/knot-server/knot-service/src/main/java/org/chobit/knot/gateway/converter/UserConverter.java:[14,13] Unmapped target property: "password".
+[WARNING] /D:/MyDevelop/JDevelop/workspace/knot/knot-server/knot-service/src/main/java/org/chobit/knot/gateway/converter/BillingConverter.java:[19,23] Unmapped target property: "deleted".
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ knot-service ---
+[INFO] skip non existing resourceDirectory D:\MyDevelop\JDevelop\workspace\knot\knot-server\knot-service\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ knot-service ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 2 source files with javac [debug parameters release 17] to target\test-classes
+[INFO] 
+[INFO] ---------------------< org.chobit.knot:knot-admin >---------------------
+[INFO] Building knot-admin 0.0.1-SNAPSHOT                                 [7/8]
+[INFO]   from knot-admin\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ knot-admin ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 2 resources from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ knot-admin ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 42 source files with javac [debug parameters release 17] to target\classes
+[WARNING] 未知的枚举常量 javax.annotation.meta.When.MAYBE
+  原因: 找不到javax.annotation.meta.When的类文件
+[WARNING] 未知的枚举常量 javax.annotation.meta.When.MAYBE
+  原因: 找不到javax.annotation.meta.When的类文件
+[WARNING] 未知的枚举常量 javax.annotation.meta.When.MAYBE
+  原因: 找不到javax.annotation.meta.When的类文件
+[WARNING] 未知的枚举常量 javax.annotation.meta.When.MAYBE
+  原因: 找不到javax.annotation.meta.When的类文件
+[WARNING] 未知的枚举常量 javax.annotation.meta.When.MAYBE
+  原因: 找不到javax.annotation.meta.When的类文件
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ knot-admin ---
+[INFO] skip non existing resourceDirectory D:\MyDevelop\JDevelop\workspace\knot\knot-server\knot-admin\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ knot-admin ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 6 source files with javac [debug parameters release 17] to target\test-classes
+[INFO] 
+[INFO] --------------------< org.chobit.knot:knot-gateway >--------------------
+[INFO] Building knot-gateway 0.0.1-SNAPSHOT                               [8/8]
+[INFO]   from knot-gateway\pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ knot-gateway ---
+[INFO] Copying 1 resource from src\main\resources to target\classes
+[INFO] Copying 0 resource from src\main\resources to target\classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ knot-gateway ---
+[INFO] Recompiling the module because of changed dependency.
+[INFO] Compiling 59 source files with javac [debug parameters release 17] to target\classes
+[INFO] 
+[INFO] --- resources:3.3.1:testResources (default-testResources) @ knot-gateway ---
+[INFO] skip non existing resourceDirectory D:\MyDevelop\JDevelop\workspace\knot\knot-server\knot-gateway\src\test\resources
+[INFO] 
+[INFO] --- compiler:3.13.0:testCompile (default-testCompile) @ knot-gateway ---
+[INFO] No sources to compile
+[INFO] ------------------------------------------------------------------------
+[INFO] Reactor Summary for knot-server 0.0.1-SNAPSHOT:
+[INFO] 
+[INFO] knot-server ........................................ SUCCESS [  0.002 s]
+[INFO] knot-common ........................................ SUCCESS [  0.757 s]
+[INFO] knot-plugin ........................................ SUCCESS [  0.261 s]
+[INFO] knot-dal ........................................... SUCCESS [  0.615 s]
+[INFO] knot-adapter ....................................... SUCCESS [  0.126 s]
+[INFO] knot-service ....................................... SUCCESS [ 24.447 s]
+[INFO] knot-admin ......................................... SUCCESS [  9.405 s]
+[INFO] knot-gateway ....................................... SUCCESS [  8.794 s]
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  44.860 s
+[INFO] Finished at: 2026-09-26T07:53:38+08:00
+[INFO] ------------------------------------------------------------------------

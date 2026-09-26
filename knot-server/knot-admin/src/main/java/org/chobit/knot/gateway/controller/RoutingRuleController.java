@@ -9,11 +9,13 @@ import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.RoutingRuleService;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
+import org.chobit.knot.gateway.vo.routing.ProtocolDebugCapabilityItem;
 import org.chobit.knot.gateway.vo.routing.RoutingRule;
 import org.chobit.knot.gateway.vo.routing.RoutingTestRequest;
 import org.chobit.knot.gateway.vo.routing.RoutingTestResult;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -28,6 +30,14 @@ public class RoutingRuleController {
     public RoutingRuleController(RoutingRuleService routingRuleService, RoutingRuleConverter routingRuleConverter) {
         this.routingRuleService = routingRuleService;
         this.routingRuleConverter = routingRuleConverter;
+    }
+
+    /**
+     * Lists debug capabilities per protocol: gateway path, hint, request template and prompt field.
+     */
+    @GetMapping("/debug-capabilities")
+    public List<ProtocolDebugCapabilityItem> debugCapabilities() {
+        return routingRuleService.listDebugCapabilities();
     }
 
     /**

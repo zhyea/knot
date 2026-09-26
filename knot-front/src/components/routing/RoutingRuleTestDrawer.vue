@@ -162,6 +162,7 @@ import { getModel } from "../../api/models";
 import { getModelPool } from "../../api/modelPools";
 import { testRoutingRule } from "../../api/routing";
 import { useModelTypes } from "../../composables/useModelTypes";
+import { useDebugCapabilities, hydrateTemplate, extractPrompt } from "../../composables/useDebugCapabilities";
 import { useEnumOptions } from "../../composables/useEnumOptions";
 import { formatJson, formatJsonText, parseJsonResult, stringifyJson } from "../../utils/format";
 
@@ -171,49 +172,8 @@ const DEFAULT_PROMPT = "你好，这是一条路由规则测试消息";
 // 协议名称来自后端 ModelApiProtocolEnum（/api/common/enums），前端不再维护 code->label 映射
 const { labelOf: enumLabelOf } = useEnumOptions();
 
-const PROTOCOL_HINTS = {
-  CHAT_COMPLETIONS: "适用于标准对话请求，通常需要 messages。",
-  RESPONSES: "适用于 OpenAI Responses 协议，通常使用 input。",
-  MESSAGES: "适用于 Anthropic Messages 协议，通常需要 messages 和 max_tokens。",
-  COMPLETIONS: "适用于传统文本补全协议，通常使用 prompt。",
-  EMBEDDINGS: "适用于向量化请求，通常使用 input。",
-  IMAGE_GENERATIONS: "适用于文生图，通常使用 prompt。",
-  IMAGE_EDITS: "适用于图像编辑，通常需要 prompt 和 image。image 可先用 URL、data URL 或占位值维护模板。",
-  IMAGE_VARIATIONS: "适用于图像变体生成，通常需要 image。",
-  AUDIO_TRANSCRIPTIONS: "适用于语音转录，通常需要 file。",
-  AUDIO_TRANSLATIONS: "适用于语音翻译，通常需要 file。",
-  AUDIO_SPEECH: "适用于语音合成，通常使用 input 和 voice。",
-  VIDEO_GENERATIONS: "适用于视频生成，通常使用 prompt。",
-  RERANK: "适用于重排序，通常使用 query 和 documents。",
-  MODERATIONS: "适用于内容安全审核，通常使用 input。"
-};
-
-const PROTOCOL_PATHS = {
-  CHAT_COMPLETIONS: "/openai/v1/chat/completions",
-  RESPONSES: "/openai/v1/responses",
-  MESSAGES: "/anthropic/v1/messages",
-  COMPLETIONS: "/openai/v1/completions",
-  EMBEDDINGS: "/openai/v1/embeddings",
-  IMAGE_GENERATIONS: "/openai/v1/images/generations",
-  IMAGE_EDITS: "/openai/v1/images/edits",
-  IMAGE_VARIATIONS: "/openai/v1/images/variations",
-  AUDIO_TRANSCRIPTIONS: "/openai/v1/audio/transcriptions",
-  AUDIO_TRANSLATIONS: "/openai/v1/audio/translations",
-  AUDIO_SPEECH: "/openai/v1/audio/speech",
-  VIDEO_GENERATIONS: "/openai/v1/videos/generations",
-  RERANK: "/v1/rerank",
-  MODERATIONS: "/openai/v1/moderations"
-};
-
 // 后端模型类型数据不可用时的通用兜底协议（对话类）
 const DEFAULT_FALLBACK_PROTOCOLS = ["CHAT_COMPLETIONS", "RESPONSES", "MESSAGES", "COMPLETIONS"];
-
-const PROTOCOL_CANONICAL_MAP = {
-  OPENAI_CHAT_COMPLETIONS: "CHAT_COMPLETIONS",
-  OPENAI_RESPONSES: "RESPONSES",
-  ANTHROPIC_MESSAGES: "MESSAGES",
-  OPENAI_COMPLETIONS: "COMPLETIONS"
-};
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -226,6 +186,14 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue"]);
 
 const { loadOptions: loadModelTypes, protocolsOf } = useModelTypes();
+const {
+  loadOptions: loadDebugCapabilities,
+  canonicalOf,
+  gatewayPathOf,
+  hintOf,
+  templateOf,
+  promptFieldOf
+} = useDebugCapabilities();
 
 const loading = ref(false);
 const protocolLoading = ref(false);
@@ -268,7 +236,7 @@ const activeProtocol = computed(() => normalizeProtocolCode(testForm.protocol));
 const activeTargetLabel = computed(() => activeTarget.value?.label || "-");
 const activeProtocolLabel = computed(() => protocolLabel(activeProtocol.value));
 const activeTemplateKey = computed(() => `${testForm.targetKey || "default"}::${activeProtocol.value || "default"}`);
-const protocolHint = computed(() => PROTOCOL_HINTS[activeProtocol.value] || "");
+const protocolHint = computed(() => hintOf(activeProtocol.value));
 const resolvedModel = computed(() => {
   const targetKey = testForm.targetKey;
   return targetResolvedModelMap[targetKey] || activeTarget.value?.targetCode || "model-name";
@@ -283,8 +251,7 @@ const currentTemplateText = computed({
   }
 });
 
-const requestUrl = computed(() => `${normalizeBaseUrl()}${protocolPath(activeProtocol.value)}`);
-const requestHeadersText = computed(() => formatJson({
+const requestUrl = computed(() => `${normalizeBaseUrl()}${protocolPath(activeProtocol.value)}`);const requestHeadersText = computed(() => formatJson({
   Authorization: `Bearer ${testForm.secretKey?.trim() || "sk-your-routing-secret-key"}`,
   Rule: resolveRuleHeaderValue(),
   "Content-Type": "application/json"
@@ -333,7 +300,7 @@ watch(
     expandedPanels.value = [];
     testForm.secretKey = props.secretKey || "";
     initializeTargetSelection();
-    await loadModelTypes();
+    await Promise.all([loadModelTypes(), loadDebugCapabilities()]);
     await loadProtocolsForCurrentTarget();
   }
 );
@@ -374,12 +341,18 @@ function protocolLabel(protocol) {
 }
 
 function protocolPath(protocol) {
-  return PROTOCOL_PATHS[normalizeProtocolCode(protocol)] || "/openai/v1/chat/completions";
+  // 网关调试路径由后端能力接口下发（与 RoutingRuleService.buildGatewayTestPath 同源）
+  return gatewayPathOf(normalizeProtocolCode(protocol)) || "";
 }
 
 function normalizeProtocolCode(protocol) {
-  const code = String(protocol || "").trim().toUpperCase();
-  return PROTOCOL_CANONICAL_MAP[code] || code;
+  // 别名归一由后端能力接口的 canonicalCode 提供
+  return canonicalOf(protocol);
+}
+
+/** 调试面板能否为该协议构造请求（无网关路径的协议如 CUSTOM/OTHER 排除） */
+function isDebuggableProtocol(protocol) {
+  return Boolean(gatewayPathOf(protocol));
 }
 
 function fallbackProtocolsForModelType(modelType) {
@@ -387,7 +360,7 @@ function fallbackProtocolsForModelType(modelType) {
   // 归一化为 canonical 协议，并丢弃调试面板无法构造请求（无路径）的协议，如 CUSTOM/OTHER
   const protocols = protocolsOf(modelType)
     .map((protocol) => normalizeProtocolCode(protocol))
-    .filter((protocol) => Boolean(PROTOCOL_PATHS[protocol]));
+    .filter(isDebuggableProtocol);
   return protocols.length ? Array.from(new Set(protocols)) : [...DEFAULT_FALLBACK_PROTOCOLS];
 }
 
@@ -487,7 +460,7 @@ function normalizeProtocolsFromBindings(bindings, modelType) {
   const protocols = bindings
     .filter((item) => item?.enabled !== false)
     .map((item) => normalizeProtocolCode(item.protocol))
-    .filter((item) => Boolean(PROTOCOL_PATHS[item]));
+    .filter(isDebuggableProtocol);
   return protocols.length ? Array.from(new Set(protocols)) : fallbackProtocolsForModelType(modelType);
 }
 
@@ -522,90 +495,10 @@ function resetCurrentTemplate() {
 }
 
 function createDefaultTemplate(protocol, model) {
-  const body = buildDefaultTemplateObject(protocol, model || "model-name");
+  // 请求体模板由后端能力接口下发（与 RoutingRuleService.defaultRequestBody 同源），这里只做占位符填充
+  const template = templateOf(normalizeProtocolCode(protocol));
+  const body = template ? hydrateTemplate(template, model || "model-name", DEFAULT_PROMPT) : { model: model || "model-name" };
   return formatJson(body);
-}
-
-function buildDefaultTemplateObject(protocol, model) {
-  switch (normalizeProtocolCode(protocol)) {
-    case "CHAT_COMPLETIONS":
-      return {
-        model,
-        messages: [{ role: "user", content: DEFAULT_PROMPT }]
-      };
-    case "RESPONSES":
-      return {
-        model,
-        input: DEFAULT_PROMPT
-      };
-    case "MESSAGES":
-      return {
-        model,
-        max_tokens: 1024,
-        messages: [{ role: "user", content: DEFAULT_PROMPT }]
-      };
-    case "COMPLETIONS":
-      return {
-        model,
-        prompt: DEFAULT_PROMPT
-      };
-    case "EMBEDDINGS":
-      return {
-        model,
-        input: [DEFAULT_PROMPT]
-      };
-    case "IMAGE_GENERATIONS":
-      return {
-        model,
-        prompt: DEFAULT_PROMPT
-      };
-    case "IMAGE_EDITS":
-      return {
-        model,
-        prompt: DEFAULT_PROMPT,
-        image: "https://example.com/image.png"
-      };
-    case "IMAGE_VARIATIONS":
-      return {
-        model,
-        image: "https://example.com/image.png"
-      };
-    case "AUDIO_TRANSCRIPTIONS":
-      return {
-        model,
-        file: "D:/path/to/audio.mp3"
-      };
-    case "AUDIO_TRANSLATIONS":
-      return {
-        model,
-        file: "D:/path/to/audio.mp3"
-      };
-    case "AUDIO_SPEECH":
-      return {
-        model,
-        input: DEFAULT_PROMPT,
-        voice: "alloy"
-      };
-    case "VIDEO_GENERATIONS":
-      return {
-        model,
-        prompt: DEFAULT_PROMPT
-      };
-    case "RERANK":
-      return {
-        model,
-        query: DEFAULT_PROMPT,
-        documents: ["文档 1", "文档 2"],
-        top_n: 2
-      };
-    case "MODERATIONS":
-      return {
-        model,
-        input: DEFAULT_PROMPT
-      };
-    default:
-      return { model };
-  }
 }
 
 function syncTemplateModelField(templateKey, model) {
@@ -706,8 +599,7 @@ async function runTest() {
     testResult.value = await testRoutingRule(props.ruleId, {
       secretKey: testForm.secretKey.trim(),
       model: requestBody.model || resolvedModel.value,
-      prompt: inferPrompt(requestBody, activeProtocol.value),
-      protocol: activeProtocol.value,
+      prompt: inferPrompt(requestBody, activeProtocol.value),      protocol: activeProtocol.value,
       targetType: activeTarget.value.targetType,
       targetId: activeTarget.value.targetId,
       requestBody
@@ -722,23 +614,8 @@ async function runTest() {
 }
 
 function inferPrompt(body, protocol) {
-  const code = normalizeProtocolCode(protocol);
-  if (code === "CHAT_COMPLETIONS" || code === "MESSAGES") {
-    const first = Array.isArray(body?.messages) ? body.messages[0] : null;
-    return typeof first?.content === "string" ? first.content : null;
-  }
-  if (code === "RESPONSES" || code === "EMBEDDINGS" || code === "AUDIO_SPEECH") {
-    if (typeof body?.input === "string") return body.input;
-    if (Array.isArray(body?.input) && typeof body.input[0] === "string") return body.input[0];
-    return null;
-  }
-  if (code === "COMPLETIONS" || code === "IMAGE_GENERATIONS" || code === "VIDEO_GENERATIONS") {
-    return typeof body?.prompt === "string" ? body.prompt : null;
-  }
-  if (code === "RERANK") {
-    return typeof body?.query === "string" ? body.query : null;
-  }
-  return null;
+  // prompt 字段路径由后端能力接口下发，这里做通用路径取值，不再按协议 switch
+  return extractPrompt(body, promptFieldOf(normalizeProtocolCode(protocol)));
 }
 
 function normalizeErrorResult(error) {

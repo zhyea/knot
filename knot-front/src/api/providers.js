@@ -16,6 +16,11 @@ export function suggestProviderAccountCode() {
   return get("/api/provider-accounts/suggest-code");
 }
 
+/** 认证类型选项：code / label / requiredFields，由后端 ProviderCredentialTypeEnum 下发 */
+export function listCredentialTypes() {
+  return get("/api/provider-accounts/credential-types");
+}
+
 export function checkProviderAccountCode(code, excludeId) {
   return get("/api/provider-accounts/check-code", {
     params: { code, excludeId: excludeId ?? undefined }

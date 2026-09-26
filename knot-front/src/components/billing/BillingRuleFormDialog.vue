@@ -73,7 +73,6 @@
                 <EnumSelect
                   v-model="form.billingMode"
                   category="billing_mode"
-                  :include-codes="billingModeCodes"
                 />
               </el-form-item>
             </el-col>
@@ -125,7 +124,7 @@ import BillingModeRequestConfig from "./modes/BillingModeRequestConfig.vue";
 import BillingModeTieredConfig from "./modes/BillingModeTieredConfig.vue";
 import BillingModeTokenConfig from "./modes/BillingModeTokenConfig.vue";
 import BillingModeVideoConfig from "./modes/BillingModeVideoConfig.vue";
-import { createBillingRule, updateBillingRule } from "../../api/billing";
+import { createBillingRule, updateBillingRule, listModeCapabilities } from "../../api/billing";
 import { listProviders } from "../../api/providers";
 import { listLogicalModels } from "../../api/logicalModels";
 import { isValidJsonText, parseJsonObject, stringifyJson } from "../../utils/format";
@@ -138,30 +137,8 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue", "saved"]);
 
-const billingModeCodes = ["TOKEN", "REQUEST", "IMAGE", "AUDIO", "VIDEO", "EMBEDDING", "TIERED", "FREE", "CUSTOM"];
-const unitsByMode = {
-  DEFAULT: ["PER_TOKEN", "1K_TOKENS", "1M_TOKENS", "PER_REQUEST", "PER_IMAGE", "PER_MINUTE", "PER_SECOND"],
-  TOKEN: ["PER_TOKEN", "1K_TOKENS", "1M_TOKENS"],
-  REQUEST: ["PER_REQUEST"],
-  IMAGE: ["PER_IMAGE"],
-  AUDIO: ["PER_MINUTE"],
-  VIDEO: ["PER_SECOND"],
-  EMBEDDING: ["PER_TOKEN", "1K_TOKENS", "1M_TOKENS"],
-  TIERED: ["PER_TOKEN", "1K_TOKENS", "1M_TOKENS"],
-  FREE: ["1K_TOKENS"],
-  CUSTOM: ["PER_TOKEN", "1K_TOKENS", "1M_TOKENS", "PER_REQUEST", "PER_IMAGE", "PER_MINUTE", "PER_SECOND"]
-};
-const defaultsByMode = {
-  TOKEN: { itemType: "INPUT_TOKEN", unit: "1K_TOKENS" },
-  REQUEST: { itemType: "REQUEST", unit: "PER_REQUEST" },
-  IMAGE: { itemType: "IMAGE", unit: "PER_IMAGE" },
-  AUDIO: { itemType: "AUDIO_MINUTE", unit: "PER_MINUTE" },
-  VIDEO: { itemType: "VIDEO_SECOND", unit: "PER_SECOND" },
-  EMBEDDING: { itemType: "EMBEDDING_TOKEN", unit: "1K_TOKENS" },
-  TIERED: { itemType: "TIERED_USAGE", unit: "1K_TOKENS" },
-  FREE: { itemType: "FREE", unit: "1K_TOKENS" },
-  CUSTOM: { itemType: "CUSTOM", unit: "1K_TOKENS" }
-};
+// 「模式 -> 可用单位 / 默认单位 / 默认价格项」由后端 BillingModeEnum 经
+// GET /api/billing/mode-capabilities 下发；单位与价格项文案走 DB 枚举，前端不再维护映射表
 const componentsByMode = {
   TOKEN: BillingModeTokenConfig,
   REQUEST: BillingModeRequestConfig,
@@ -182,6 +159,12 @@ const visible = computed({
 const saving = ref(false);
 const providerOptions = ref([]);
 const logicalModelOptions = ref([]);
+const modeCapabilities = ref([]);
+
+const activeModeCapability = computed(() =>
+  modeCapabilities.value.find((item) => item.code === form.billingMode) || null
+);
+const unitCodes = computed(() => activeModeCapability.value?.supportedUnits || []);
 const form = reactive({
   id: null,
   code: "",
@@ -208,7 +191,6 @@ const form = reactive({
 });
 
 const isEdit = computed(() => props.rule != null);
-const unitCodes = computed(() => unitsByMode[form.billingMode] || unitsByMode.DEFAULT);
 const modeComponent = computed(() => componentsByMode[form.billingMode] || BillingModeTokenConfig);
 const selectedProviderOptions = computed(() =>
   resolveSelectedOption(form.providerId, providerOptions.value, {
@@ -230,7 +212,7 @@ watch(
       return;
     }
     resetForm();
-    await Promise.all([loadProviders(), loadLogicalModels()]);
+    await Promise.all([loadProviders(), loadLogicalModels(), loadModeCapabilities()]);
   }
 );
 
@@ -249,8 +231,8 @@ function resetForm() {
   form.logicalModelId = row?.logicalModelId ?? null;
   form.billingMode = normalizeMode(row?.billingMode || "TOKEN");
   form.currency = row?.currency || "USD";
-  form.itemType = row?.itemType || defaultsByMode[form.billingMode]?.itemType || "INPUT_TOKEN";
-  form.unit = row?.unit || defaultsByMode[form.billingMode]?.unit || "1K_TOKENS";
+  form.itemType = row?.itemType || modeDefaults(form.billingMode).itemType;
+  form.unit = row?.unit || modeDefaults(form.billingMode).unit;
   form.unitPrice = Number(row?.unitPrice ?? 0.002);
   form.inputUnitPrice = Number(config.inputUnitPrice ?? row?.unitPrice ?? 0.002);
   form.outputUnitPrice = Number(config.outputUnitPrice ?? row?.unitPrice ?? 0.002);
@@ -267,8 +249,17 @@ function resetForm() {
   applyModeDefaults(form.billingMode, false);
 }
 
+/** 当前模式的默认单位与价格项；能力未加载完成时退回新建表单的初值 */
+function modeDefaults(mode) {
+  const matched = modeCapabilities.value.find((item) => item.code === mode);
+  return {
+    itemType: matched?.defaultItemType || "INPUT_TOKEN",
+    unit: matched?.defaultUnit || "1K_TOKENS"
+  };
+}
+
 function applyModeDefaults(mode, resetPrice = true) {
-  const defaults = defaultsByMode[mode] || defaultsByMode.TOKEN;
+  const defaults = modeDefaults(mode);
   form.itemType = defaults.itemType;
   if (!unitCodes.value.includes(form.unit)) {
     form.unit = defaults.unit;
@@ -279,6 +270,11 @@ function applyModeDefaults(mode, resetPrice = true) {
   if (resetPrice && mode === "EMBEDDING") {
     form.unitPrice = form.inputUnitPrice;
   }
+}
+
+async function loadModeCapabilities() {
+  const data = await listModeCapabilities();
+  modeCapabilities.value = Array.isArray(data) ? data : [];
 }
 
 async function loadProviders(params = { pageNum: 1, pageSize: 10 }) {
@@ -315,8 +311,8 @@ function validateJson(value, label) {
 }
 
 function normalizeMode(mode) {
-  const value = String(mode || "").trim().toUpperCase();
-  return billingModeCodes.includes(value) ? value : "TOKEN";
+  // 取值由 DB 枚举 billing_mode 下拉约束，这里只做格式归一与空值兜底
+  return String(mode || "").trim().toUpperCase() || "TOKEN";
 }
 
 function buildConfigJson() {

@@ -9,11 +9,14 @@ import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.BillingService;
+import org.chobit.knot.gateway.vo.billing.BillingModeCapabilityItem;
 import org.chobit.knot.gateway.vo.billing.BillingRule;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.billing.ReconciliationRequest;
 import org.chobit.knot.gateway.vo.billing.ReconciliationResult;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/billing")
@@ -41,6 +44,14 @@ public class BillingController {
                 query == null ? null : query.logicalModelId()
         );
         return page.mapList(billingConverter::toRuleVOList);
+    }
+
+    /**
+     * Lists billing mode capabilities: supported units and default values per mode.
+     */
+    @GetMapping("/mode-capabilities")
+    public List<BillingModeCapabilityItem> modeCapabilities() {
+        return billingService.listModeCapabilities();
     }
 
     /**

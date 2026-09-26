@@ -52,3 +52,8 @@ export function testRoutingRule(id, payload, config) {
   return post(`/api/routing-rules/${id}/test`, payload, config);
 }
 
+/** 调试协议能力：gatewayPath / hint / defaultRequestBody / promptField */
+export function listDebugCapabilities() {
+  return get("/api/routing-rules/debug-capabilities");
+}
+
