@@ -44,7 +44,7 @@
   </el-drawer>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import CronExpressionInput from "./CronExpressionInput.vue";
 import { createScheduledTask, updateScheduledTask } from "../../../api/scheduledTasks";

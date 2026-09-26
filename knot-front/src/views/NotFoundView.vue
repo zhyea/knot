@@ -6,7 +6,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { useLocale } from "../composables/useLocale";
 
 const { t } = useLocale();

@@ -39,8 +39,9 @@
   </el-drawer>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, watch } from "vue";
+import type { Row } from "../../types";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -61,7 +62,7 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue"]);
 
 const loading = ref(false);
-const logs = ref([]);
+const logs = ref<Row[]>([]);
 
 async function load() {
   loading.value = true;
@@ -88,15 +89,15 @@ watch(
 defineExpose({ reload: load });
 
 /** 展示为 2026-05-15 22:52:52 */
-function formatLogTime(val) {
+function formatLogTime(val: unknown): string {
   if (val == null || val === "") {
     return "-";
   }
-  const d = new Date(val);
+  const d = new Date(val as string | number | Date);
   if (Number.isNaN(d.getTime())) {
     return typeof val === "string" ? val : "-";
   }
-  const p = (n) => String(n).padStart(2, "0");
+  const p = (n: number): string => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 </script>

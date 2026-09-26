@@ -48,7 +48,7 @@
   </PageSection>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -60,6 +60,7 @@ import ScheduledTaskFormDrawer from "../../components/system/scheduled/Scheduled
 import ScheduledTaskRunDrawer from "../../components/system/scheduled/ScheduledTaskRunDrawer.vue";
 import { listScheduledTasks } from "../../api/scheduledTasks";
 import { useListQuery } from "../../composables/useListQuery";
+import type { Row } from "../../types";
 
 const {
   query,
@@ -81,7 +82,7 @@ const runDrawer = ref(false);
 const editingTask = ref(null);
 const runTask = ref(null);
 
-function openTaskDrawer(task) {
+function openTaskDrawer(task: Row | null = null) {
   editingTask.value = task || null;
   taskDrawer.value = true;
 }

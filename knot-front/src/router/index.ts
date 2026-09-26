@@ -1,0 +1,168 @@
+import { createRouter, createWebHistory, type RouteRecordRaw } from "vue-router";
+import NestedView from "../layouts/NestedView.vue";
+import { useAuth } from "../composables/useAuth";
+
+const routes: RouteRecordRaw[] = [
+  {
+    path: "/login",
+    name: "login",
+    component: () => import("@/views/LoginView.vue"),
+    meta: { titleKey: "route.login" }
+  },
+  {
+    path: "/force-password-change",
+    name: "force-password-change",
+    component: () => import("@/views/ForcePasswordChangeView.vue"),
+    meta: { titleKey: "route.forcePasswordChange" }
+  },
+  {
+    path: "/",
+    name: "dashboard",
+    component: () => import("@/views/DashboardView.vue"),
+    meta: { titleKey: "route.dashboard" }
+  },
+  {
+    path: "/system",
+    component: NestedView,
+    children: [
+      { path: "users", name: "system-users", component: () => import("@/views/system/UserManageView.vue"), meta: { titleKey: "route.systemUsers" } },
+      { path: "departments", name: "system-departments", component: () => import("@/views/system/DepartmentManageView.vue"), meta: { titleKey: "route.systemDepartments" } },
+      { path: "roles", redirect: { name: "system-role-authorizations" } },
+      { path: "role-authorizations", name: "system-role-authorizations", component: () => import("@/views/system/RoleAuthorizationManageView.vue"), meta: { titleKey: "route.systemRoleAuthorizations" } },
+      { path: "authorization-resources", name: "system-authorization-resources", component: () => import("@/views/system/AuthorizationResourceManageView.vue"), meta: { titleKey: "route.systemAuthorizationResources" } },
+      { path: "logs", name: "system-logs", component: () => import("@/views/system/OperationLogView.vue"), meta: { titleKey: "route.systemLogs" } },
+      { path: "scheduled-tasks", name: "system-scheduled-tasks", component: () => import("@/views/system/ScheduledTaskView.vue"), meta: { titleKey: "route.systemScheduledTasks" } },
+      { path: "enums", name: "system-enums", component: () => import("@/views/system/EnumManageView.vue"), meta: { titleKey: "route.systemEnums" } },
+      { path: "settings", name: "system-settings", component: () => import("@/views/system/UserSettingsView.vue"), meta: { titleKey: "route.systemSettings" } },
+      { path: "plugins", name: "system-plugins", component: () => import("@/views/system/PluginManageView.vue"), meta: { titleKey: "route.systemPlugins" } }
+    ]
+  },
+  {
+    path: "/model-management",
+    component: NestedView,
+    children: [
+      { path: "model-pools", name: "model-management-model-pools", component: () => import("@/views/model/ModelPoolManageView.vue"), meta: { titleKey: "route.modelManagementModelPools" } },
+      { path: "models", name: "model-management-models", component: () => import("@/views/model/ModelManageView.vue"), meta: { titleKey: "route.modelManagementModels" } },
+      { path: "provider-accounts", name: "model-management-provider-accounts", component: () => import("@/views/model/ProviderManageView.vue"), meta: { titleKey: "route.providerAccounts" } },
+      { path: "providers", redirect: { name: "model-management-provider-accounts" } },
+      { path: "provider-profiles", name: "model-management-provider-profiles", component: () => import("@/views/model/ProviderProfileManageView.vue"), meta: { titleKey: "route.providerProfiles" } },
+      { path: "logical-models", name: "model-management-logical-models", component: () => import("@/views/model/LogicalModelMarketplaceView.vue"), meta: { titleKey: "route.modelManagementLogicalModels" } },
+      { path: "external-models", name: "model-management-external-models", component: () => import("@/views/model/ExternalModelManageView.vue"), meta: { titleKey: "route.modelManagementExternalModels" } }
+    ]
+  },
+  { path: "/providers", redirect: "/model-management/provider-accounts" },
+  { path: "/provider-accounts", redirect: "/model-management/provider-accounts" },
+  { path: "/provider-profiles", redirect: "/model-management/provider-profiles" },
+  { path: "/logical-models", redirect: "/model-management/logical-models" },
+  { path: "/models", redirect: "/model-management/models" },
+  { path: "/model-pools", redirect: "/model-management/model-pools" },
+  {
+    path: "/apps",
+    name: "apps",
+    component: () => import("@/views/application/AppManageView.vue"),
+    meta: { titleKey: "route.apps" }
+  },
+  {
+    path: "/routing",
+    component: NestedView,
+    children: [
+      { path: "consumers", name: "routing-consumers", component: () => import("@/views/routing/RoutingConsumerView.vue"), meta: { titleKey: "route.routingConsumers" } },
+      { path: "rules", name: "routing-rules", component: () => import("@/views/routing/RoutingRuleView.vue"), meta: { titleKey: "route.routingRules" } }
+    ]
+  },
+  {
+    path: "/billing",
+    component: NestedView,
+    children: [
+      { path: "rules", name: "billing-rules", component: () => import("@/views/billing/BillingRuleView.vue"), meta: { titleKey: "route.billingRules" } },
+      { path: "reconciliation", name: "billing-reconciliation", component: () => import("@/views/billing/ReconciliationView.vue"), meta: { titleKey: "route.billingReconciliation" } }
+    ]
+  },
+  {
+    path: "/security",
+    component: NestedView,
+    children: [
+      { path: "policy", name: "security-policy", component: () => import("@/views/security/SecurityPolicyView.vue"), meta: { titleKey: "route.securityPolicy" } },
+      { path: "alerts", name: "security-alerts", component: () => import("@/views/security/AlertManageView.vue"), meta: { titleKey: "route.securityAlerts" } },
+      { path: "cache", name: "security-cache", component: () => import("@/views/security/CacheManageView.vue"), meta: { titleKey: "route.securityCache" } }
+    ]
+  },
+  { path: "/plugins", redirect: "/system/plugins" },
+  {
+    path: "/notifications",
+    component: NestedView,
+    children: [
+      { path: "templates", name: "notifications-templates", component: () => import("@/views/notifications/NotifyTemplateView.vue"), meta: { titleKey: "route.notificationsTemplates" } },
+      { path: "send", name: "notifications-send", component: () => import("@/views/notifications/NotifySendView.vue"), meta: { titleKey: "route.notificationsSend" } },
+      { path: "policy", name: "notifications-policy", component: () => import("@/views/notifications/NotifyPolicyView.vue"), meta: { titleKey: "route.notificationsPolicy" } }
+    ]
+  },
+  {
+    path: "/:pathMatch(.*)*",
+    name: "not-found",
+    component: () => import("@/views/NotFoundView.vue"),
+    meta: { titleKey: "route.notFound" }
+  }
+];
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes
+});
+
+const CHUNK_RELOAD_KEY = "knot:chunk-reload";
+
+router.onError((error, to) => {
+  const message = error?.message || "";
+  const isChunkLoadError =
+    message.includes("Failed to fetch dynamically imported module") ||
+    message.includes("Importing a module script failed") ||
+    message.includes("error loading dynamically imported module");
+
+  if (!isChunkLoadError) {
+    return;
+  }
+
+  const target = to?.fullPath || "/";
+  if (sessionStorage.getItem(CHUNK_RELOAD_KEY) === target) {
+    return;
+  }
+
+  sessionStorage.setItem(CHUNK_RELOAD_KEY, target);
+  window.location.assign(target);
+});
+
+router.afterEach(() => {
+  sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+});
+
+router.beforeEach((to, from, next) => {
+  const { isLoggedIn, needsPasswordChange } = useAuth();
+  const whiteList = ["/login", "/force-password-change"];
+
+  if (needsPasswordChange.value) {
+    if (to.path === "/force-password-change") {
+      next();
+    } else {
+      next("/force-password-change");
+    }
+    return;
+  }
+
+  if (whiteList.includes(to.path)) {
+    if (isLoggedIn.value) {
+      next("/");
+    } else {
+      next();
+    }
+    return;
+  }
+
+  if (isLoggedIn.value) {
+    next();
+  } else {
+    next("/login");
+  }
+});
+
+export default router;

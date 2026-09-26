@@ -40,7 +40,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Edit, Tickets, VideoPlay } from "@element-plus/icons-vue";
 import RowActions from "../../common/RowActions.vue";
 import ListPagination from "../../common/ListPagination.vue";

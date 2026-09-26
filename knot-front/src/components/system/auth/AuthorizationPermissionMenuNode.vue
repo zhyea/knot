@@ -28,10 +28,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import type { PropType } from "vue";
+
 defineProps({
   node: {type: Object, required: true},
-  selectedIds: {type: Array, default: () => []},
+  selectedIds: {type: Array as PropType<unknown[]>, default: (): unknown[] => []},
   level: {type: Number, default: 0}
 });
 

@@ -32,11 +32,12 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import ListPagination from "../common/ListPagination.vue";
+import type { Row } from "../../types";
 
 defineProps({
-  rows: { type: Array, default: () => [] },
+  rows: { type: Array, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   statusUpdatingId: { type: Number, default: null },
   total: { type: Number, default: 0 },

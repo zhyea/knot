@@ -9,7 +9,7 @@
   </FilterField>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import FilterField from "./FilterField.vue";
 
 const value = defineModel({ type: String, default: "" });

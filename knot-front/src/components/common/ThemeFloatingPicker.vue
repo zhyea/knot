@@ -27,7 +27,7 @@
   </el-popover>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { THEMES, useTheme } from "../../composables/useTheme";
 import { useLocale } from "../../composables/useLocale";
 

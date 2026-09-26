@@ -51,7 +51,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted } from "vue";
 import { Delete, Edit } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";

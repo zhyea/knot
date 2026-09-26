@@ -14,12 +14,14 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import type { PropType } from "vue";
+
 defineProps({
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
   pageSize: { type: Number, default: 20 },
-  pageSizes: { type: Array, default: () => [10, 20, 50] },
+  pageSizes: { type: Array as PropType<number[]>, default: () => [10, 20, 50] },
   layout: { type: String, default: "total, sizes, prev, pager, next" },
   showRefresh: { type: Boolean, default: true }
 });

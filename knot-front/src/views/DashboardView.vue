@@ -194,8 +194,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
+import type { Component } from "vue";
 import { useRouter } from "vue-router";
 import {
   Bell,
@@ -221,6 +222,29 @@ import { listProviders } from "../api/providers";
 import { listRoutingRules } from "../api/routing";
 import { useAuth } from "../composables/useAuth";
 import { formatDateTime } from "../utils/format";
+import type { ListResponse, Row } from "../types";
+
+/** 模块目录条目（/api/modules 返回） */
+interface ModuleCatalogItem {
+  code: string;
+  name: string;
+  capabilities?: string[];
+}
+
+/** 授权菜单节点（可递归） */
+interface MenuNode {
+  menuName?: string;
+  routePath?: string;
+  icon?: string;
+  children?: MenuNode[];
+}
+
+/** 快捷入口 */
+interface QuickLink {
+  path: string;
+  label: string;
+  icon: Component;
+}
 
 const router = useRouter();
 const { modules: authorizedModules } = useAuth();
@@ -240,10 +264,10 @@ const statTotals = reactive({
 
 const loading = ref(false);
 const lastUpdatedAt = ref("");
-const moduleCatalog = ref([]);
-const recentLogs = ref([]);
+const moduleCatalog = ref<ModuleCatalogItem[]>([]);
+const recentLogs = ref<Row[]>([]);
 
-const iconMap = {
+const iconMap: Record<string, Component> = {
   Bell,
   Box: Cpu,
   Coin: Money,
@@ -260,7 +284,7 @@ const iconMap = {
   User
 };
 
-const fallbackModuleNameMap = {
+const fallbackModuleNameMap: Record<string, string> = {
   system: "系统管理",
   model: "供应商模型",
   routing: "路由管理",

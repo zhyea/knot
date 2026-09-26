@@ -10,6 +10,6 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 const emit = defineEmits(["query", "reset"]);
 </script>

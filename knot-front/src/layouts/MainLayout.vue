@@ -105,8 +105,9 @@
   </el-container>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import type { Component } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   Bell,
@@ -130,6 +131,24 @@ import { useLocale } from "../composables/useLocale";
 import { getStorageItem, setStorageItem } from "../utils/storage";
 import DynamicMenuNode from "../components/layout/DynamicMenuNode.vue";
 
+/** 后端返回的菜单节点（可递归） */
+interface MenuNode {
+  menuCode?: string;
+  menuName?: string;
+  routePath?: string;
+  icon?: string;
+  sortOrder?: number;
+  children?: MenuNode[];
+}
+
+/** 后端返回的授权模块（下挂若干菜单） */
+interface AuthModule {
+  moduleCode?: string;
+  moduleName?: string;
+  icon?: string;
+  menus?: MenuNode[];
+}
+
 const LS_ASIDE_WIDTH = "knot.sidebar.widthPx";
 const LS_ASIDE_COLLAPSED = "knot.sidebar.collapsed";
 const ASIDE_MIN = 180;
@@ -142,7 +161,7 @@ const router = useRouter();
 const { user, modules, logout, loadAuthorizations } = useAuth();
 const { t } = useLocale();
 
-const iconMap = {
+const iconMap: Record<string, Component> = {
   Bell,
   Box: Cpu,
   Coin: Money,
@@ -172,21 +191,21 @@ const pageTitle = computed(() => {
 const asideCollapsed = ref(false);
 const asideWidth = ref(ASIDE_DEFAULT);
 const asideResizing = ref(false);
-let asideMoveHandler = null;
-let asideUpHandler = null;
+let asideMoveHandler: ((event: MouseEvent) => void) | null = null;
+let asideUpHandler: ((event: MouseEvent) => void) | null = null;
 
 const asideWidthCss = computed(() =>
   asideCollapsed.value ? `${ASIDE_COLLAPSED_PX}px` : `${asideWidth.value}px`
 );
 
-const modelMenuOrder = {
+const modelMenuOrder: Record<string, number> = {
   "model.model-pools": 10,
   "model.models": 20,
   "model.providers": 30
 };
 
 const dynamicModules = computed(() =>
-  (modules.value || [])
+  ((modules.value || []) as AuthModule[])
     .filter((module) => Array.isArray(module.menus) && module.menus.length > 0)
     .map((module) => ({
       ...module,
@@ -197,7 +216,7 @@ const dynamicModules = computed(() =>
 const activeModule = computed(() => {
   const currentTopLevel = topLevelPath(route.path);
   return (
-    dynamicModules.value.find((module) => moduleHasTopLevelRoute(module, currentTopLevel)) ||
+    dynamicModules.value.find((module: AuthModule) => moduleHasTopLevelRoute(module, currentTopLevel)) ||
     null
   );
 });
@@ -206,7 +225,7 @@ const activeModuleKey = computed(() => (activeModule.value ? moduleMenuKey(activ
 
 const openeds = computed(() => (activeModuleKey.value ? [activeModuleKey.value] : []));
 
-function sortMenus(module) {
+function sortMenus(module: AuthModule): MenuNode[] {
   const menus = Array.isArray(module?.menus) ? [...module.menus] : [];
   if (module?.moduleCode !== "model") {
     return menus;
@@ -214,7 +233,7 @@ function sortMenus(module) {
   return menus.sort((left, right) => compareModelMenus(left, right));
 }
 
-function compareModelMenus(left, right) {
+function compareModelMenus(left: MenuNode, right: MenuNode): number {
   const leftOrder = modelMenuOrder[left?.menuCode] ?? left?.sortOrder ?? Number.MAX_SAFE_INTEGER;
   const rightOrder = modelMenuOrder[right?.menuCode] ?? right?.sortOrder ?? Number.MAX_SAFE_INTEGER;
   if (leftOrder !== rightOrder) {
@@ -248,7 +267,7 @@ onMounted(() => {
   }
   asideCollapsed.value = getStorageItem(LS_ASIDE_COLLAPSED) === "1";
   if (user.value?.userId) {
-    loadAuthorizations().catch(() => undefined);
+    loadAuthorizations().catch((): undefined => undefined);
   }
 });
 
@@ -273,21 +292,21 @@ function toggleAsideCollapsed() {
   asideCollapsed.value = !asideCollapsed.value;
 }
 
-function moduleMenuKey(module) {
+function moduleMenuKey(module: AuthModule): string {
   return `module-${module.moduleCode}`;
 }
 
-function topLevelPath(path) {
+function topLevelPath(path: string): string {
   const [segment] = path.split("/").filter(Boolean);
   return segment ? `/${segment}` : "";
 }
 
-function moduleHasTopLevelRoute(module, currentTopLevel) {
+function moduleHasTopLevelRoute(module: AuthModule, currentTopLevel: string): boolean {
   if (!currentTopLevel) {
     return false;
   }
 
-  const hasRoute = (menu) =>
+  const hasRoute = (menu: MenuNode): boolean =>
     topLevelPath(menu?.routePath || "") === currentTopLevel ||
     (menu?.children || []).some(hasRoute);
 
@@ -303,11 +322,11 @@ async function openActiveModule() {
   menuRef.value?.open(activeModuleKey.value);
 }
 
-function resolveMenuIcon(iconName) {
+function resolveMenuIcon(iconName: string): Component {
   return iconMap[iconName] || Setting;
 }
 
-function onAsideResizeStart(downEvent) {
+function onAsideResizeStart(downEvent: MouseEvent): void {
   if (asideCollapsed.value) {
     return;
   }
@@ -320,7 +339,7 @@ function onAsideResizeStart(downEvent) {
 
   clearResizeListeners();
 
-  asideMoveHandler = (moveEvent) => {
+  asideMoveHandler = (moveEvent: MouseEvent) => {
     const delta = moveEvent.clientX - startX;
     asideWidth.value = Math.min(ASIDE_MAX, Math.max(ASIDE_MIN, startWidth + delta));
   };
@@ -333,7 +352,7 @@ function onAsideResizeStart(downEvent) {
   document.addEventListener("mouseup", asideUpHandler);
 }
 
-async function handleCommand(command) {
+async function handleCommand(command: string | number | object): Promise<void> {
   if (command === "logout") {
     await logout();
     router.push("/login");

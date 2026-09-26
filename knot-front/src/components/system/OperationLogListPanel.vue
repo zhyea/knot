@@ -42,7 +42,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import ListPagination from "../common/ListPagination.vue";
 
 defineProps({

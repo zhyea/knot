@@ -37,11 +37,11 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import EnumSelect from "../common/EnumSelect.vue";
-import { createDiscountPolicy, updateDiscountPolicy } from "../../api/providers.js";
+import { createDiscountPolicy, updateDiscountPolicy } from "../../api/providers";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

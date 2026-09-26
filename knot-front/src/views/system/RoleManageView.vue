@@ -36,7 +36,7 @@
   </PageSection>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import AuthorizationEntityFormDialog from "../../components/system/auth/AuthorizationEntityFormDialog.vue";

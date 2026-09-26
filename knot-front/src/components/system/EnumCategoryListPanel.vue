@@ -30,7 +30,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Document, List } from "@element-plus/icons-vue";
 import RowActions from "../common/RowActions.vue";
 import StatusTag from "../common/StatusTag.vue";

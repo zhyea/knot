@@ -316,9 +316,11 @@
   </el-drawer>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
+import type { Ref } from "vue";
 import { ElMessage } from "element-plus";
+import type { Dict, Row } from "@/types";
 import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
@@ -343,6 +345,19 @@ import {
 import { listLogicalModels } from "../../api/logicalModels";
 import { listBillingRules } from "../../api/billing";
 import { mergeOptionList, normalizeOptionList, resolveSelectedOption } from "../../utils/options";
+
+/** 模型 API 绑定行（表单内 uid 用于 :key 稳定渲染） */
+interface ModelApiBinding {
+  uid: string;
+  id: number | null;
+  protocol: string;
+  apiPath: string;
+  requestAdapter: string;
+  usageExtractor: string;
+  streamUsageExtractor: string;
+  enabled: boolean;
+  remark: string;
+}
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -418,7 +433,7 @@ async function loadLogicalModels(params = { pageNum: 1, pageSize: 10 }) {
   return { ...(data || {}), list };
 }
 
-async function loadBillingRules(params = { pageNum: 1, pageSize: 10 }) {
+async function loadBillingRules(params: Dict = { pageNum: 1, pageSize: 10 }) {
   const data = await listBillingRules({
     ...params,
     providerId: params.providerId ?? form.providerId ?? undefined,
@@ -440,39 +455,39 @@ async function loadRequestAdapters() {
   return data;
 }
 
-function mergeOptions(targetRef, list) {
+function mergeOptions(targetRef: Ref<Row[]>, list: Row[]) {
   targetRef.value = mergeOptionList(targetRef.value, list);
 }
 
-function logicalModelName(model) {
+function logicalModelName(model: Row): string {
   return model.displayName || model.modelName || model.modelCode || `#${model.id}`;
 }
 
-function logicalModelLabel(model) {
+function logicalModelLabel(model: Row): string {
   return model.modelCode ? `${logicalModelName(model)} (${model.modelCode})` : logicalModelName(model);
 }
 
-function isEnabledLogicalModel(model) {
+function isEnabledLogicalModel(model: Row): boolean {
   return model?.enabled !== false;
 }
 
-function billingRuleLabel(rule) {
+function billingRuleLabel(rule: Row): string {
   return rule.code ? `${rule.name || rule.code} (${rule.code}, v${rule.versionNo || 1})` : `#${rule.id}`;
 }
 
-function usageExtractorLabel(item) {
+function usageExtractorLabel(item: Row): string {
   return item?.label ? `${item.label} (${item.code})` : item?.code || "";
 }
 
-function requestAdapterLabel(item) {
+function requestAdapterLabel(item: Row): string {
   return item?.label ? `${item.label} (${item.code})` : item?.code || "";
 }
 
-function onProviderAccountChange(account) {
+function onProviderAccountChange(account: Row) {
   form.baseUrl = account?.baseUrl || "";
 }
 
-function fillForm(row) {
+function fillForm(row: Row) {
   form.id = row.id;
   form.modelCode = row.modelCode || "";
   form.name = row.name || "";
@@ -650,7 +665,7 @@ function beforeEnableChange() {
   return true;
 }
 
-function createApiBinding(source = {}) {
+function createApiBinding(source: Dict = {}): ModelApiBinding {
   return {
     uid: source.uid || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     id: source.id ?? null,
@@ -664,7 +679,7 @@ function createApiBinding(source = {}) {
   };
 }
 
-function normalizeApiBindings(list) {
+function normalizeApiBindings(list: unknown): ModelApiBinding[] {
   return Array.isArray(list) ? list.map((item) => createApiBinding(item)) : [];
 }
 
@@ -673,7 +688,7 @@ function addApiBinding() {
   form.apiBindings.push(createApiBinding({ protocol: firstAvailableProtocolCode(usedProtocols) }));
 }
 
-function removeApiBinding(index) {
+function removeApiBinding(index: number) {
   form.apiBindings.splice(index, 1);
 }
 
@@ -701,7 +716,7 @@ function validateApiBindings() {
   return true;
 }
 
-function allowedProtocolsForModelType(modelType) {
+function allowedProtocolsForModelType(modelType: string): string[] {
   // 可选协议完全由后端 /api/models/types 提供，前端不再维护类型到协议的映射
   return protocolsOf(modelType);
 }

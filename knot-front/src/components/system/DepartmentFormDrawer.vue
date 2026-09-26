@@ -82,15 +82,23 @@
   </el-drawer>
 </template>
 
-<script setup>
-import {computed, reactive, ref, watch} from "vue";
+<script setup lang="ts">
+import {computed, reactive, ref, watch, type PropType} from "vue";
 import {ElMessage} from "element-plus";
 import {createDepartment, updateDepartment} from "../../api/departments";
+import type {Row} from "../../types";
+
+/** 上级部门下拉项：label 已拼好层级缩进路径 */
+interface ParentOption {
+  id: number | string | null;
+  label: string;
+  disabled: boolean;
+}
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
   department: {type: Object, default: null},
-  treeOptions: {type: Array, default: () => []},
+  treeOptions: {type: Array as PropType<Row[]>, default: (): Row[] => []},
   defaultParentId: {type: Number, default: null}
 });
 
@@ -109,8 +117,8 @@ const form = reactive({
 });
 
 const parentOptions = computed(() => {
-  const options = [];
-  const walk = (nodes, level = 1, path = []) => {
+  const options: ParentOption[] = [];
+  const walk = (nodes: Row[], level = 1, path: string[] = []): void => {
     for (const node of nodes || []) {
       const currentPath = [...path, node.deptName];
       options.push({
@@ -155,7 +163,7 @@ watch(
     {immediate: true}
 );
 
-function shouldDisableParent(node) {
+function shouldDisableParent(node: Row): boolean {
   if (!props.department) {
     return countLevel(node) >= 3;
   }
@@ -168,17 +176,17 @@ function shouldDisableParent(node) {
   return countLevel(node) + countSubtreeHeight(props.department) > 3;
 }
 
-function containsDepartment(node, targetId) {
+function containsDepartment(node: Row, targetId: number | string | null): boolean {
   if (!node) return false;
   if (node.id === targetId) return true;
-  return (node.children || []).some((child) => containsDepartment(child, targetId));
+  return (node.children || []).some((child: Row) => containsDepartment(child, targetId));
 }
 
-function countLevel(node) {
+function countLevel(node: Row): number {
   let level = 1;
-  let cursor = node;
-  const parentMap = new Map();
-  const build = (nodes, parentId = null) => {
+  let cursor: Row | null = node;
+  const parentMap = new Map<unknown, unknown>();
+  const build = (nodes: Row[], parentId: unknown = null): void => {
     for (const item of nodes || []) {
       parentMap.set(item.id, parentId);
       build(item.children, item.id);

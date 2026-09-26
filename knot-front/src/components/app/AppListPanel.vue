@@ -33,15 +33,16 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ElMessage, ElMessageBox } from "element-plus";
 import { Delete, Document, Edit } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import { deleteApp } from "../../api/apps";
+import type { Row } from "../../types";
 
 defineProps({
-  rows: { type: Array, default: () => [] },
+  rows: { type: Array, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
@@ -51,13 +52,13 @@ defineProps({
 
 const emit = defineEmits(["edit", "log", "refresh", "page-change", "size-change", "changed"]);
 
-function handleAction(action, row) {
+function handleAction(action: string, row: Row): void {
   if (action === "edit") emit("edit", row);
   if (action === "log") emit("log", row);
   if (action === "delete") onDelete(row);
 }
 
-async function onDelete(row) {
+async function onDelete(row: Row): Promise<void> {
   await ElMessageBox.confirm(
     `确认删除应用“${row.name}”？\n删除后应用不可恢复；如该应用已配置 API 凭证或模型权限，将无法删除。`,
     "删除应用",

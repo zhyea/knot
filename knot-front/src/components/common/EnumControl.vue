@@ -24,7 +24,7 @@
   <!-- 单选框组 -->
   <el-radio-group
     v-else-if="display === 'radio'"
-    :model-value="modelValue"
+    :model-value="modelValue as string | number"
     :disabled="disabled"
     @update:model-value="emit('update:modelValue', $event)"
   >
@@ -50,9 +50,10 @@
   </el-checkbox-group>
 </template>
 
-<script setup>
-import { computed } from "vue";
+<script setup lang="ts">
+import { computed, type PropType } from "vue";
 import { useEnumOptions } from "../../composables/useEnumOptions";
+import type { SelectOption } from "@/types";
 
 /**
  * 后端代码枚举的统一控件（数据源 GET /api/common/enums，见 useEnumOptions）。
@@ -64,15 +65,22 @@ import { useEnumOptions } from "../../composables/useEnumOptions";
  * 枚举键目前有 "ModelTypeEnum"、"ModelApiProtocolEnum"；
  * DB 可配置枚举（ks_enum_configs）不归它管，继续用 EnumSelect。
  */
+/** 单选取标量，多选取数组 */
+export type EnumValue = string | number | (string | number)[];
+
 const props = defineProps({
-  modelValue: { type: [String, Number, Array], default: "" },
+  /** 单值：string / number；多选（display="checkbox"）：数组 */
+  modelValue: {
+    type: [String, Number, Array] as PropType<EnumValue>,
+    default: ""
+  },
   /** 代码枚举键，如 ModelTypeEnum */
   enumName: { type: String, required: true },
   /** 展示形态：select | radio | checkbox */
   display: {
     type: String,
     default: "select",
-    validator: (value) => ["select", "radio", "checkbox"].includes(value)
+    validator: (value: unknown) => ["select", "radio", "checkbox"].includes(String(value))
   },
   /** 仅 display="select" 生效：多选 */
   multiple: { type: Boolean, default: false },
@@ -84,7 +92,7 @@ const props = defineProps({
   collapseTagsTooltip: { type: Boolean, default: false },
   selectStyle: { type: [String, Object], default: () => ({ width: "100%" }) },
   /** 仅展示指定 code 列表 */
-  includeCodes: { type: Array, default: null },
+  includeCodes: { type: Array as PropType<string[] | null>, default: null },
   /** 展示时附带编码，如「对话 (CHAT)」 */
   showCode: { type: Boolean, default: false }
 });
@@ -96,7 +104,7 @@ const { optionsOf, loadEnums } = useEnumOptions();
 const filteredOptions = computed(() => optionsOf(props.enumName, props.includeCodes));
 
 /** 复选框组的 v-model 必须是数组；单值时视为单元素数组，保证受控 */
-const checkboxValue = computed(() => {
+const checkboxValue = computed<(string | number)[]>(() => {
   if (Array.isArray(props.modelValue)) {
     return props.modelValue;
   }
@@ -105,7 +113,7 @@ const checkboxValue = computed(() => {
     : [props.modelValue];
 });
 
-function optionLabel(item) {
+function optionLabel(item: SelectOption): string {
   return props.showCode ? `${item.label} (${item.value})` : item.label;
 }
 

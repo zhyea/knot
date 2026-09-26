@@ -57,7 +57,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import {Delete, Document, Edit} from "@element-plus/icons-vue";
 import RowActions from "../common/RowActions.vue";
 

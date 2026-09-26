@@ -67,14 +67,15 @@
   </el-drawer>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import {computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import {createUser, updateUser} from "../../api/users";
 import {listAuthorizationRoles} from "../../api/authorizations/roles";
 import {listDepartments} from "../../api/departments";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
-import {normalizeOptionList, resolveSelectedOption} from "../../utils/options";
+import { normalizeOptionList, resolveSelectedOption } from "../../utils/options";
+import type { Dict } from "@/types";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -188,7 +189,7 @@ async function submit() {
   }
   saving.value = true;
   try {
-    const payload = {
+    const payload: Dict = {
       id: form.id,
       username: form.username.trim(),
       realName: form.realName?.trim() || form.username.trim(),

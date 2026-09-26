@@ -34,7 +34,7 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { createEnumConfig, updateEnumConfig } from "../../api/enums";

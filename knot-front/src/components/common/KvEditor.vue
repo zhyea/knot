@@ -27,9 +27,16 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { reactive, watch } from "vue";
 import { Delete, Plus } from "@element-plus/icons-vue";
+import type { Dict } from "../../types";
+
+/** 一行键值对（键/值在编辑期均为字符串，emit 时再按需转成数字） */
+interface KvPair {
+  key: string;
+  val: string;
+}
 
 const props = defineProps({
   /** v-model 绑定的 JSON 对象 */
@@ -44,10 +51,10 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
-const pairs = reactive([]);
+const pairs = reactive<KvPair[]>([]);
 
 /** 从 Object → pairs 数组 */
-function objectToPairs(obj) {
+function objectToPairs(obj: unknown): void {
   pairs.length = 0;
   if (obj && typeof obj === "object") {
     for (const [k, v] of Object.entries(obj)) {
@@ -58,7 +65,7 @@ function objectToPairs(obj) {
 
 /** 从 pairs 数组 → Object 并 emit */
 function emitUpdate() {
-  const result = {};
+  const result: Dict = {};
   for (const p of pairs) {
     if (!p.key?.trim()) continue;
     let val = p.val;
@@ -74,7 +81,7 @@ function addRow() {
   pairs.push({ key: "", val: "" });
 }
 
-function removeRow(idx) {
+function removeRow(idx: number): void {
   pairs.splice(idx, 1);
   emitUpdate();
 }

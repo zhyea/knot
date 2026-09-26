@@ -126,7 +126,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import AuthorizationResourcePanel from "../../../components/system/auth/AuthorizationResourcePanel.vue";
 
 defineProps({

@@ -110,9 +110,11 @@
   </el-drawer>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
+import type { Component, Ref } from "vue";
 import { ElMessage } from "element-plus";
+import type { Dict, Row } from "@/types";
 import EnumSelect from "../common/EnumSelect.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import BillingModeAudioConfig from "./modes/BillingModeAudioConfig.vue";
@@ -139,7 +141,7 @@ const emit = defineEmits(["update:modelValue", "saved"]);
 
 // 「模式 -> 可用单位 / 默认单位 / 默认价格项」由后端 BillingModeEnum 经
 // GET /api/billing/mode-capabilities 下发；单位与价格项文案走 DB 枚举，前端不再维护映射表
-const componentsByMode = {
+const componentsByMode: Record<string, Component> = {
   TOKEN: BillingModeTokenConfig,
   REQUEST: BillingModeRequestConfig,
   IMAGE: BillingModeImageConfig,
@@ -157,9 +159,9 @@ const visible = computed({
 });
 
 const saving = ref(false);
-const providerOptions = ref([]);
-const logicalModelOptions = ref([]);
-const modeCapabilities = ref([]);
+const providerOptions = ref<Row[]>([]);
+const logicalModelOptions = ref<Row[]>([]);
+const modeCapabilities = ref<Row[]>([]);
 
 const activeModeCapability = computed(() =>
   modeCapabilities.value.find((item) => item.code === form.billingMode) || null
@@ -250,7 +252,7 @@ function resetForm() {
 }
 
 /** 当前模式的默认单位与价格项；能力未加载完成时退回新建表单的初值 */
-function modeDefaults(mode) {
+function modeDefaults(mode: string): { itemType: string; unit: string } {
   const matched = modeCapabilities.value.find((item) => item.code === mode);
   return {
     itemType: matched?.defaultItemType || "INPUT_TOKEN",
@@ -258,7 +260,7 @@ function modeDefaults(mode) {
   };
 }
 
-function applyModeDefaults(mode, resetPrice = true) {
+function applyModeDefaults(mode: string, resetPrice = true) {
   const defaults = modeDefaults(mode);
   form.itemType = defaults.itemType;
   if (!unitCodes.value.includes(form.unit)) {
@@ -289,20 +291,20 @@ async function loadLogicalModels(params = { pageNum: 1, pageSize: 10 }) {
   return res;
 }
 
-function mergeOptions(targetRef, list) {
+function mergeOptions(targetRef: Ref<Row[]>, list: Row[]) {
   targetRef.value = mergeOptionList(targetRef.value, list);
 }
 
-function providerLabel(provider) {
+function providerLabel(provider: Row): string {
   return provider.name || provider.code || `#${provider.id}`;
 }
 
-function logicalModelLabel(model) {
+function logicalModelLabel(model: Row): string {
   const name = model.displayName || model.modelName || model.modelCode || `#${model.id}`;
   return model.modelCode ? `${name} (${model.modelCode})` : name;
 }
 
-function validateJson(value, label) {
+function validateJson(value: unknown, label: string): boolean {
   if (!isValidJsonText(value)) {
     ElMessage.warning(`${label}不是合法 JSON`);
     return false;
@@ -310,7 +312,7 @@ function validateJson(value, label) {
   return true;
 }
 
-function normalizeMode(mode) {
+function normalizeMode(mode: unknown): string {
   // 取值由 DB 枚举 billing_mode 下拉约束，这里只做格式归一与空值兜底
   return String(mode || "").trim().toUpperCase() || "TOKEN";
 }
@@ -331,7 +333,7 @@ function buildConfigJson() {
     });
   }
   if (form.billingMode === "VIDEO") {
-    const resolutionPrices = {};
+    const resolutionPrices: Dict = {};
     if (form.videoPrice720p != null && form.videoPrice720p !== "") {
       resolutionPrices["720P"] = form.videoPrice720p;
     }

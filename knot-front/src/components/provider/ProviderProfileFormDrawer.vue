@@ -31,9 +31,10 @@
   </el-drawer>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { reactive, ref, watch } from "vue";
-import { ElMessage } from "element-plus";
+import { ElMessage, type FormItemRule } from "element-plus";
+import type { Row } from "@/types";
 import {
   checkProviderProfileCode,
   createProviderProfile,
@@ -56,7 +57,7 @@ const rules = {
   code: [
     { required: true, message: "请输入编码", trigger: "blur" },
     {
-      validator: async (rule, value, callback) => {
+      validator: async (rule: FormItemRule, value: string, callback: (error?: string | Error) => void) => {
         if (!value) return callback();
         try {
           const result = await checkProviderProfileCode(value, editing.value?.id);
@@ -70,7 +71,7 @@ const rules = {
   ],
   name: [{ required: true, message: "请输入名称", trigger: "blur" }],
   tags: [{
-    validator: (rule, value, callback) => {
+    validator: (rule: FormItemRule, value: unknown[], callback: (error?: string | Error) => void) => {
       const list = (value || []).map((item) => String(item).trim()).filter(Boolean);
       callback(list.length ? undefined : new Error("请至少选择一个分类"));
     },
@@ -80,8 +81,9 @@ const rules = {
 
 watch(
   () => [props.modelValue, props.providerProfile],
-  ([visible, row]) => {
+  ([visible]) => {
     if (!visible) return;
+    const row = (props.providerProfile || {}) as Row;
     editing.value = row;
     form.code = row?.code || "";
     form.name = row?.name || "";
@@ -90,7 +92,7 @@ watch(
   { immediate: true }
 );
 
-function splitTags(raw) {
+function splitTags(raw: unknown): string[] {
   return raw ? String(raw).split(",").map((item) => item.trim()).filter(Boolean) : [];
 }
 

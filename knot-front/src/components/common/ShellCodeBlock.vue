@@ -16,7 +16,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from "vue";
 import { ElMessage } from "element-plus";
 import { escapeHtml, highlightJsonHtml } from "../../utils/format";
@@ -35,7 +35,7 @@ const highlighted = computed(() => {
   return highlightShell(text);
 });
 
-function highlightShell(text) {
+function highlightShell(text: string): string {
   if (!text) {
     return '<span class="sh-muted">（暂无内容）</span>';
   }

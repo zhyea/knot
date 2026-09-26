@@ -154,8 +154,8 @@
   </el-drawer>
 </template>
 
-<script setup>
-import { computed, reactive, ref, watch } from "vue";
+<script setup lang="ts">
+import { computed, reactive, ref, watch, type PropType } from "vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import ShellCodeBlock from "../common/ShellCodeBlock.vue";
 import { getModel } from "../../api/models";
@@ -165,6 +165,8 @@ import { useModelTypes } from "../../composables/useModelTypes";
 import { useDebugCapabilities, hydrateTemplate, extractPrompt } from "../../composables/useDebugCapabilities";
 import { useEnumOptions } from "../../composables/useEnumOptions";
 import { formatJson, formatJsonText, parseJsonResult, stringifyJson } from "../../utils/format";
+import type { ApiBusinessError } from "../../api/http";
+import type { Dict, Row } from "@/types";
 
 const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || "http://127.0.0.1:9090";
 const DEFAULT_PROMPT = "你好，这是一条路由规则测试消息";
@@ -175,12 +177,23 @@ const { labelOf: enumLabelOf } = useEnumOptions();
 // 后端模型类型数据不可用时的通用兜底协议（对话类）
 const DEFAULT_FALLBACK_PROTOCOLS = ["CHAT_COMPLETIONS", "RESPONSES", "MESSAGES", "COMPLETIONS"];
 
+/** 路由规则的一个下游目标（模型 / 模型池） */
+interface RoutingTarget {
+  targetType?: string;
+  targetId?: number | string | null;
+  targetName?: string;
+  targetCode?: string;
+  primary?: boolean;
+  /** 目标自身的模型类型，协议兜底时使用 */
+  modelType?: string;
+}
+
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   ruleId: { type: Number, default: null },
   ruleName: { type: String, default: "" },
   secretKey: { type: String, default: "" },
-  targets: { type: Array, default: () => [] }
+  targets: { type: Array as PropType<RoutingTarget[]>, default: () => [] }
 });
 
 const emit = defineEmits(["update:modelValue"]);
@@ -320,15 +333,15 @@ function initializeTargetSelection() {
   testForm.targetKey = primary?.key || "";
 }
 
-function targetKeyOf(target) {
+function targetKeyOf(target: RoutingTarget): string {
   return `${normalizeTargetType(target.targetType)}:${target.targetId}`;
 }
 
-function normalizeTargetType(targetType) {
+function normalizeTargetType(targetType: unknown): string {
   return String(targetType || "MODEL").trim().toUpperCase();
 }
 
-function targetLabel(target) {
+function targetLabel(target: RoutingTarget): string {
   const type = normalizeTargetType(target.targetType) === "MODEL_POOL" ? "模型池" : "模型";
   const name = target.targetName || target.targetCode || `#${target.targetId}`;
   return target.primary ? `${type}：${name}（主）` : `${type}：${name}`;
@@ -506,7 +519,8 @@ function syncTemplateModelField(templateKey, model) {
   if (parsed.error || !parsed.value || typeof parsed.value !== "object" || Array.isArray(parsed.value)) {
     return;
   }
-  const next = { ...parsed.value, model: model || parsed.value.model || "model-name" };
+  const source = parsed.value as Dict;
+  const next = { ...source, model: model || source.model || "model-name" };
   templateStore[templateKey] = formatJson(next);
 }
 
@@ -536,9 +550,9 @@ function buildCurlCommand() {
   );
 }
 
-function formatBody(body) {
+function formatBody(body: unknown): string {
   if (!body) return "";
-  return formatJsonText(body, 2, body);
+  return formatJsonText(body, 2, String(body));
 }
 
 async function runTest() {
@@ -595,7 +609,7 @@ async function runTest() {
   loading.value = true;
   testResult.value = null;
   try {
-    const requestBody = parsedTemplateBody.value.value || {};
+    const requestBody = (parsedTemplateBody.value.value || {}) as Dict;
     testResult.value = await testRoutingRule(props.ruleId, {
       secretKey: testForm.secretKey.trim(),
       model: requestBody.model || resolvedModel.value,

@@ -2,7 +2,7 @@
   <el-tag :type="active ? 'success' : 'info'" size="small">{{ active ? "是" : "否" }}</el-tag>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({
   active: {
     type: Boolean,

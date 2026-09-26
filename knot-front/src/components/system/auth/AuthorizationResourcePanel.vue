@@ -74,33 +74,35 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Delete, Edit } from "@element-plus/icons-vue";
+import type { PropType } from "vue";
 import RowActions from "../../common/RowActions.vue";
+import type { Dict, ResourceField, Row, RowAction, TableColumn } from "@/types";
 
 const props = defineProps({
   title: { type: String, required: true },
   createText: { type: String, required: true },
-  rows: { type: Array, default: () => [] },
+  rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
-  columns: { type: Array, default: () => [] },
-  filters: { type: Array, default: () => [] },
-  filterValues: { type: Object, default: () => ({}) },
+  columns: { type: Array as PropType<TableColumn[]>, default: (): TableColumn[] => [] },
+  filters: { type: Array as PropType<ResourceField[]>, default: (): ResourceField[] => [] },
+  filterValues: { type: Object as PropType<Dict>, default: () => ({}) },
   deleteName: { type: String, default: "当前记录" },
-  beforeDelete: { type: Function, default: null }
+  beforeDelete: { type: Function as PropType<(row: Row) => Partial<RowAction> | null>, default: null }
 });
 
 const emit = defineEmits(["create", "action", "filter-change", "query", "reset-filters"]);
 
-function filterItemStyle(filter) {
+function filterItemStyle(filter: ResourceField) {
   return filter?.width ? { flex: `0 0 ${filter.width}`, width: filter.width } : undefined;
 }
 
-function filterControlStyle(filter) {
+function filterControlStyle(filter: ResourceField) {
   return filter?.width ? { width: "100%" } : undefined;
 }
 
-function deleteConfirm(row) {
+function deleteConfirm(row: Row): string {
   const name = row?.name
     || row?.moduleName
     || row?.menuName
@@ -110,8 +112,8 @@ function deleteConfirm(row) {
   return `确认删除 ${name} ?`;
 }
 
-function buildActions(row) {
-  const deleteAction = {
+function buildActions(row: Row): RowAction[] {
+  const deleteAction: RowAction = {
     key: "delete",
     label: "删除",
     icon: Delete,

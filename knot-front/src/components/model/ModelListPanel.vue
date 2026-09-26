@@ -52,13 +52,13 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { CopyDocument, Document, Edit } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
-import { updateModelStatus } from "@/api/models.js";
-import { useEnabledToggle } from "@/composables/useEnabledToggle.js";
-import { useEnumOptions } from "@/composables/useEnumOptions.js";
+import { updateModelStatus } from "@/api/models";
+import { useEnabledToggle } from "@/composables/useEnabledToggle";
+import { useEnumOptions } from "@/composables/useEnumOptions";
 
 defineProps({
   rows: { type: Array, default: () => [] },

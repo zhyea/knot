@@ -68,7 +68,7 @@
   </el-drawer>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import {computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
@@ -85,6 +85,7 @@ import {createApp, updateApp} from "../../api/apps";
 import {listDepartments} from "../../api/departments";
 import {listUsers} from "../../api/users";
 import { normalizeOptionList, resolveSelectedOption } from "../../utils/options";
+import type { Row } from "../../types";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -94,8 +95,8 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const saving = ref(false);
-const departmentOptions = ref([]);
-const userOptions = ref([]);
+const departmentOptions = ref<Row[]>([]);
+const userOptions = ref<Row[]>([]);
 
 const form = reactive({
   id: null,
@@ -122,11 +123,11 @@ const selectedOwnerOptions = computed(() =>
   })
 );
 
-function departmentLabel(department) {
+function departmentLabel(department: Row): string {
   return department.deptCode ? `${department.deptName}（${department.deptCode}）` : (department.deptName || `#${department.id}`);
 }
 
-function userLabel(user) {
+function userLabel(user: Row): string {
   const name = user.realName?.trim() || user.username;
   return name === user.username ? name : `${name}（${user.username}）`;
 }
@@ -141,7 +142,7 @@ async function loadUsers() {
   userOptions.value = normalizeOptionList(data);
 }
 
-function fillFormFromRow(row) {
+function fillFormFromRow(row: Row): void {
   form.id = row.id;
   form.appId = row.appId || "";
   form.name = row.name || "";

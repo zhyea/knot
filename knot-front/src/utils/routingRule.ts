@@ -1,0 +1,28 @@
+import type { Dict } from "../types";
+
+/** 生成路由规则编码（32 位十六进制，与后端 RoutingRuleCodeGenerator 一致） */
+export function generateRoutingRuleCode() {
+  return crypto.randomUUID().replaceAll("-", "");
+}
+
+/** 构建路由规则更新载荷（含启用开关切换） */
+export function buildRoutingRulePayload(row: Dict, enabled: boolean): Dict {
+  return {
+    ruleCode: row.ruleCode,
+    name: row.name,
+    appScenario: row.appScenario ?? null,
+    modelTypes: Array.isArray(row.modelTypes) && row.modelTypes.length ? row.modelTypes : ["CHAT"],
+    consumerIds: Array.isArray(row.consumerIds) ? row.consumerIds : [],
+    appId: row.appId,
+    userId: row.userId ?? null,
+    enabled,
+    targets: (row.targets || []).map((m: Dict) => ({
+      targetType: m.targetType || "MODEL",
+      targetId: m.targetId,
+      priority: m.priority ?? 100,
+      primary: !!m.primary
+    })),
+    rateLimitPolicy: row.rateLimitPolicy ?? null,
+    quotaPolicy: row.quotaPolicy ?? null
+  };
+}

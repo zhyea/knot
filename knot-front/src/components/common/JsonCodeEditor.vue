@@ -34,7 +34,7 @@
           :value="modelValue"
           wrap="off"
           spellcheck="false"
-          @input="emit('update:modelValue', $event.target.value)"
+          @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
           @keydown="handleKeydown"
           @scroll="syncInputScroll"
         />
@@ -43,7 +43,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref } from "vue";
 import { ElMessage } from "element-plus";
 import { escapeHtml, formatJsonText } from "../../utils/format";
@@ -57,11 +57,20 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
+/** el-scrollbar 实例上用到的滚动控制方法 */
+interface ScrollbarExpose {
+  setScrollTop?: (top: number) => void;
+  setScrollLeft?: (left: number) => void;
+}
+
+/** 滚动同步来源，避免两个滚动容器互相触发 */
+type SyncSource = "wrap" | "input" | null;
+
 const scrollTop = ref(0);
 const scrollLeft = ref(0);
-const scrollbarRef = ref(null);
-const inputRef = ref(null);
-let syncSource = null;
+const scrollbarRef = ref<ScrollbarExpose | null>(null);
+const inputRef = ref<HTMLTextAreaElement | null>(null);
+let syncSource: SyncSource = null;
 const JSON_TOKEN_REGEX = /("(?:\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g;
 
 const displayText = computed(() => {
@@ -108,12 +117,12 @@ async function copyCurrentJson() {
   }
 }
 
-function handleKeydown(event) {
+function handleKeydown(event: KeyboardEvent): void {
   if (event.key !== "Tab") {
     return;
   }
   event.preventDefault();
-  const target = event.target;
+  const target = event.target as HTMLTextAreaElement;
   const start = target.selectionStart;
   const end = target.selectionEnd;
   const value = target.value;
@@ -125,13 +134,14 @@ function handleKeydown(event) {
   });
 }
 
-function syncInputScroll(event) {
+function syncInputScroll(event: Event): void {
   if (syncSource === "wrap") {
     return;
   }
   syncSource = "input";
-  scrollTop.value = event.target.scrollTop;
-  scrollLeft.value = event.target.scrollLeft;
+  const target = event.target as HTMLElement;
+  scrollTop.value = target.scrollTop;
+  scrollLeft.value = target.scrollLeft;
   scrollbarRef.value?.setScrollTop?.(scrollTop.value);
   scrollbarRef.value?.setScrollLeft?.(scrollLeft.value);
   requestAnimationFrame(() => {
@@ -141,7 +151,7 @@ function syncInputScroll(event) {
   });
 }
 
-function syncWrapScroll({ scrollTop: nextTop, scrollLeft: nextLeft }) {
+function syncWrapScroll({ scrollTop: nextTop, scrollLeft: nextLeft }: { scrollTop: number; scrollLeft: number }): void {
   if (props.readonly || syncSource === "input") {
     return;
   }
@@ -159,7 +169,7 @@ function syncWrapScroll({ scrollTop: nextTop, scrollLeft: nextLeft }) {
   });
 }
 
-function renderHighlightedJson(text) {
+function renderHighlightedJson(text: unknown): string {
   const source = String(text ?? "");
   let html = "";
   let lastIndex = 0;
@@ -173,7 +183,7 @@ function renderHighlightedJson(text) {
   return html;
 }
 
-function resolveJsonTokenClass(match) {
+function resolveJsonTokenClass(match: string): string {
   if (match.startsWith("\"")) {
     return match.endsWith(":") ? "json-key" : "json-string";
   }
@@ -186,7 +196,7 @@ function resolveJsonTokenClass(match) {
   return "json-number";
 }
 
-function visualizeWhitespaceText(text) {
+function visualizeWhitespaceText(text: unknown): string {
   return Array.from(String(text ?? ""), (char) => {
     if (char === "\t") {
       return '<span class="json-tab-visual">    </span>';

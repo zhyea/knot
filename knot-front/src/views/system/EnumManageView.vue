@@ -50,7 +50,7 @@
   </PageSection>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -77,6 +77,8 @@ loadSummaries();
 const itemsDrawerVisible = ref(false);
 const currentCategory = ref("");
 const itemListRef = ref(null);
+
+const categoryCreateVisible = ref(false);
 
 const itemFormVisible = ref(false);
 const itemFormCategory = ref("");

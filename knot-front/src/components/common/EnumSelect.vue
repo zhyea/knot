@@ -20,9 +20,10 @@
   </el-select>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, onMounted, watch } from "vue";
 import { useEnums } from "../../composables/useEnums";
+import type { Row } from "../../types";
 
 const props = defineProps({
   modelValue: { type: [String, Number, Array], default: "" },
@@ -56,7 +57,7 @@ const filteredOptions = computed(() => {
   return list;
 });
 
-function optionLabel(item) {
+function optionLabel(item: Row): string {
   if (props.showCode) {
     return `${item.itemLabel} (${item.itemCode})`;
   }

@@ -44,13 +44,14 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Delete, Edit, Lock } from "@element-plus/icons-vue";
 import RowActions from "../../common/RowActions.vue";
 import ListPagination from "../../common/ListPagination.vue";
+import type { Row } from "../../types";
 
 const props = defineProps({
-  rows: { type: Array, default: () => [] },
+  rows: { type: Array, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
@@ -60,7 +61,7 @@ const props = defineProps({
 
 const emit = defineEmits(["create", "action", "select", "page-change", "size-change"]);
 
-function onCurrentChange(row) {
+function onCurrentChange(row: Row | null): void {
   emit("select", row || null);
 }
 </script>

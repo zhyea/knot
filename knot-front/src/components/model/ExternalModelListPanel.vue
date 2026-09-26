@@ -46,8 +46,9 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Delete, Plus, View } from "@element-plus/icons-vue";
+import type { Row } from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import { useEnumOptions } from "../../composables/useEnumOptions";
@@ -55,7 +56,7 @@ import { useEnumOptions } from "../../composables/useEnumOptions";
 const { labelOf } = useEnumOptions();
 
 defineProps({
-  rows: { type: Array, default: () => [] },
+  rows: { type: Array, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
@@ -65,17 +66,17 @@ defineProps({
 
 const emit = defineEmits(["selection-change", "action", "refresh", "page-change", "size-change"]);
 
-function modelTypeLabel(code) {
+function modelTypeLabel(code: string): string {
   if (!code) return "-";
   return labelOf("ModelTypeEnum", code, code);
 }
 
-function formatDateTime(value) {
+function formatDateTime(value: unknown): string {
   if (!value) return "-";
   return String(value).replace("T", " ").slice(0, 19);
 }
 
-function rowClassName({ row }) {
+function rowClassName({ row }: { row: Row }): string {
   return row.logicalModelId == null ? "external-model-uncreated-row" : "";
 }
 </script>

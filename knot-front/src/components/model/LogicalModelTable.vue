@@ -64,21 +64,23 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Delete, Edit } from "@element-plus/icons-vue";
+import type { PropType } from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import { updateLogicalModelStatus } from "../../api/logicalModels";
 import { useEnabledToggle } from "../../composables/useEnabledToggle";
+import type { Row, SelectOption } from "@/types";
 
 const props = defineProps({
-  rows: { type: Array, default: () => [] },
+  rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
   pageSize: { type: Number, default: 20 },
-  pageSizes: { type: Array, default: () => [10, 20, 50] },
-  modelTypeOptions: { type: Array, default: () => [] },
+  pageSizes: { type: Array as PropType<number[]>, default: (): number[] => [10, 20, 50] },
+  modelTypeOptions: { type: Array as PropType<SelectOption[]>, default: () => [] },
   showRefresh: { type: Boolean, default: true }
 });
 
@@ -88,18 +90,18 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateLogicalModelStatus
 });
 
-function modelTypeLabel(code) {
+function modelTypeLabel(code: unknown): string {
   if (!code) return "-";
   const item = props.modelTypeOptions.find((option) => option.value === code);
-  return item?.label || code;
+  return item?.label || String(code);
 }
 
-async function handleEnabledChange(row, enabled) {
+async function handleEnabledChange(row: Row, enabled: boolean): Promise<void> {
   await onEnabledChange(row, enabled);
   emit("changed");
 }
 
-function formatDateTime(value) {
+function formatDateTime(value: unknown): string {
   if (!value) return "-";
   return String(value).replace("T", " ").slice(0, 19);
 }

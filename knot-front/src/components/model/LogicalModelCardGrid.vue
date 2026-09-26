@@ -47,36 +47,38 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Delete, Edit } from "@element-plus/icons-vue";
+import type { PropType } from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
+import type { Row, SelectOption } from "@/types";
 
 const props = defineProps({
-  rows: { type: Array, default: () => [] },
+  rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
   pageSize: { type: Number, default: 12 },
-  pageSizes: { type: Array, default: () => [12, 24, 48] },
-  modelTypeOptions: { type: Array, default: () => [] },
+  pageSizes: { type: Array as PropType<number[]>, default: (): number[] => [12, 24, 48] },
+  modelTypeOptions: { type: Array as PropType<SelectOption[]>, default: () => [] },
   showRefresh: { type: Boolean, default: true }
 });
 
 const emit = defineEmits(["action", "refresh", "page-change", "size-change"]);
 
-function modelTypeLabel(code) {
+function modelTypeLabel(code: unknown): string {
   if (!code) return "-";
   const item = props.modelTypeOptions.find((option) => option.value === code);
-  return item?.label || code;
+  return item?.label || String(code);
 }
 
-function isMeaningfulTag(tag) {
-  return typeof tag === "string" && tag.trim() && !/^\d+$/.test(tag.trim());
+function isMeaningfulTag(tag: unknown): boolean {
+  return typeof tag === "string" && !!tag.trim() && !/^\d+$/.test(tag.trim());
 }
 
-function displayTags(row) {
-  const tags = Array.isArray(row.tags) ? row.tags.filter(isMeaningfulTag) : [];
+function displayTags(row: Row): string[] {
+  const tags: string[] = Array.isArray(row.tags) ? row.tags.filter(isMeaningfulTag) : [];
   const type = modelTypeLabel(row.modelType);
   if (type && type !== "-") {
     tags.unshift(type);
@@ -84,19 +86,19 @@ function displayTags(row) {
   return tags.slice(0, 3);
 }
 
-function statusText(row) {
+function statusText(row: Row): string {
   if (row.featured) return "推荐";
   if (row.publishStatus === "PUBLISHED") return "已发布";
   return row.enabled ? "可用" : "草稿";
 }
 
-function ribbonClass(row) {
+function ribbonClass(row: Row): string {
   if (row.featured) return "corner-ribbon--hot";
   if (row.publishStatus === "PUBLISHED") return "corner-ribbon--new";
   return row.enabled ? "corner-ribbon--new" : "corner-ribbon--draft";
 }
 
-function formatDate(value) {
+function formatDate(value: unknown): string {
   if (!value) return "-";
   return String(value).slice(0, 10);
 }

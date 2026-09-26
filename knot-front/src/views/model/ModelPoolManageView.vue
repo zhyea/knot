@@ -46,7 +46,7 @@
   </PageSection>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";

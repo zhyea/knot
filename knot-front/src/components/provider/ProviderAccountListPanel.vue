@@ -18,7 +18,7 @@
             inline-prompt
             active-text="启用"
             inactive-text="禁用"
-            @change="(value) => handleEnabledChange(row, value)"
+            @change="(value) => handleEnabledChange(row, value as boolean)"
           />
         </template>
       </el-table-column>
@@ -48,16 +48,18 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import {Discount, Document, Edit} from "@element-plus/icons-vue";
+import type {PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
-import {updateProviderStatus} from "@/api/providers.js";
-import {useEnabledToggle} from "@/composables/useEnabledToggle.js";
-import {formatDateTime} from "@/utils/format.js";
+import {updateProviderStatus} from "@/api/providers";
+import {useEnabledToggle} from "@/composables/useEnabledToggle";
+import {formatDateTime} from "@/utils/format";
+import type {Row} from "@/types";
 
 defineProps({
-  rows: {type: Array, default: () => []},
+  rows: {type: Array as PropType<Row[]>, default: (): Row[] => []},
   loading: {type: Boolean, default: false},
   total: {type: Number, default: 0},
   pageNum: {type: Number, default: 1},
@@ -80,13 +82,13 @@ const {togglingId, onEnabledChange} = useEnabledToggle({
   updateApi: updateProviderStatus
 });
 
-function handleAction(action, row) {
+function handleAction(action: string, row: Row): void {
   if (action === "edit") emit("edit", row);
   if (action === "discount") emit("discount", row);
   if (action === "log") emit("log", row);
 }
 
-async function handleEnabledChange(row, enabled) {
+async function handleEnabledChange(row: Row, enabled: boolean): Promise<void> {
   await onEnabledChange(row, enabled);
   emit("changed");
 }

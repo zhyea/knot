@@ -34,7 +34,7 @@
   </el-drawer>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from "vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import { useEnumOptions } from "../../composables/useEnumOptions";
@@ -51,12 +51,12 @@ const { labelOf } = useEnumOptions();
 
 const rawJsonText = computed(() => formatJsonText(props.detail?.rawJson, "\t", "—"));
 
-function modelTypeLabel(code) {
+function modelTypeLabel(code: string): string {
   if (!code) return "—";
   return labelOf("ModelTypeEnum", code, code);
 }
 
-function formatArray(value) {
+function formatArray(value: unknown): string {
   return formatJsonArray(value);
 }
 </script>

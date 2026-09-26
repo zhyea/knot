@@ -61,15 +61,16 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted } from "vue";
 import { Delete, Document, Edit } from "@element-plus/icons-vue";
+import type { Row } from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import { useEnums } from "../../composables/useEnums";
 
 defineProps({
-  rows: { type: Array, default: () => [] },
+  rows: { type: Array, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
@@ -90,7 +91,7 @@ const emit = defineEmits([
 ]);
 const { options: billingModeOptions, loadOptions: loadBillingModes } = useEnums("billing_mode");
 
-function billingModeLabel(code) {
+function billingModeLabel(code: unknown): string {
   if (!code) return "-";
   const item = billingModeOptions.value.find((option) => option.itemCode === code);
   return item?.itemLabel || code;

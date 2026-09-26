@@ -1,0 +1,45 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "jsx": "preserve",
+    "useDefineForClassFields": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowJs": false,
+    "checkJs": false,
+
+    // 收紧进度（2026-09-27）：
+    // 第一批 —— strict 全开，仅 strictNullChecks 暂关（其 305 处需逐个判断语义，单独做第二批）。
+    // 第二批开 strictNullChecks 时，直接删掉下面这一行。
+    "strict": true,
+    "strictNullChecks": false,
+
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": false,
+    "noFallthroughCasesInSwitch": false,
+    "forceConsistentCasingInFileNames": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+    "types": ["node"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.vue",
+    "vite.config.ts",
+    "components.d.ts",
+    "auto-imports.d.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

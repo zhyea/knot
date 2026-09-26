@@ -8,7 +8,7 @@
   </el-row>
 </template>
 
-<script setup>
+<script setup lang="ts">
 defineProps({
   form: { type: Object, required: true }
 });

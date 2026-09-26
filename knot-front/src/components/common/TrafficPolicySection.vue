@@ -32,7 +32,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, useSlots } from "vue";
 import KvEditor from "./KvEditor.vue";
 

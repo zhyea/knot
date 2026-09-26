@@ -10,21 +10,22 @@
   />
 </template>
 
-<script setup>
-import { computed, ref, watch } from "vue";
+<script setup lang="ts">
+import { computed, ref, watch, type PropType } from "vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import { getProviderAccountOption, listProviderAccounts } from "../../api/providers";
 import { mergeOptionList, normalizeOptionList } from "../../utils/options";
+import type { Dict, Row } from "@/types";
 
 defineOptions({ inheritAttrs: false });
 
 const props = defineProps({
   modelValue: { type: [String, Number], default: null },
-  selectedOptions: { type: Array, default: () => [] }
+  selectedOptions: { type: Array as PropType<Row[]>, default: (): Row[] => [] }
 });
 
 const emit = defineEmits(["update:modelValue", "change"]);
-const options = ref([]);
+const options = ref<Row[]>([]);
 
 const mergedSelectedOptions = computed(() => mergeOptionList(props.selectedOptions, options.value));
 
@@ -42,20 +43,20 @@ watch(
   { immediate: true }
 );
 
-async function loadOptions(params) {
+async function loadOptions(params: Dict): Promise<unknown> {
   const data = await listProviderAccounts(params);
   options.value = mergeOptionList(options.value, normalizeOptionList(data));
   return data;
 }
 
-function providerAccountLabel(account) {
+function providerAccountLabel(account: Row): string {
   // 括号内展示供应商名称（如 OpenAI），与列表"供应商"列口径一致；type 只是品牌 code（小写），不直接展示
   const vendor = account?.providerName || account?.type || "未知供应商";
   const accountName = account?.code || `#${account?.id}`;
   return `（${vendor}）${accountName}`;
 }
 
-function onChange(value, account) {
+function onChange(value: unknown, account: Row | null): void {
   emit("change", account || null, value);
 }
 </script>

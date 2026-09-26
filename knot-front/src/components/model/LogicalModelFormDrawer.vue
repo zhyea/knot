@@ -189,9 +189,10 @@
   </el-drawer>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
+import type { Row } from "@/types";
 import EnumControl from "../common/EnumControl.vue";
 import EnumSelect from "../common/EnumSelect.vue";
 import {
@@ -215,9 +216,34 @@ const modelCodeError = ref("");
 const isEdit = computed(() => props.model != null);
 
 const form = reactive(defaultForm());
-const squareDisplayActive = ref([]);
+const squareDisplayActive = ref<string[]>([]);
 
-function defaultForm() {
+/** 统一模型表单结构（`defaultForm()` 的返回形态） */
+interface LogicalModelForm {
+  id: number | string | null;
+  modelCode: string;
+  modelName: string;
+  modelType: string;
+  modelFamily: string;
+  displayName: string;
+  tagline: string;
+  description: string;
+  tags: string[];
+  useCases: string[];
+  contextWindow: number | null;
+  maxOutputTokens: number | null;
+  inputModalities: string[];
+  outputModalities: string[];
+  languages: string[];
+  visibility: string;
+  publishStatus: string;
+  enabled: boolean;
+  sortOrder: number;
+  featured: boolean;
+  remark: string;
+}
+
+function defaultForm(): LogicalModelForm {
   return {
     id: null,
     modelCode: "",
@@ -243,7 +269,7 @@ function defaultForm() {
   };
 }
 
-function fillForm(row) {
+function fillForm(row: Row | null) {
   Object.assign(form, defaultForm(), row || {});
   form.tags = Array.isArray(row?.tags) ? row.tags : [];
   form.useCases = Array.isArray(row?.useCases) ? row.useCases : [];

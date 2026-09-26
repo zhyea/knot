@@ -49,15 +49,17 @@
   </section>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import AuthorizationPermissionMenuNode from "./AuthorizationPermissionMenuNode.vue";
+import type { PropType } from "vue";
+import type { Dict, Row } from "@/types";
 
 const props = defineProps({
-  role: {type: Object, default: null},
-  groups: {type: Array, default: () => []},
-  selectedIds: {type: Array, default: () => []},
-  keyword: {type: String, default: ""},
-  saving: {type: Boolean, default: false}
+  role: { type: Object as PropType<Dict>, default: null },
+  groups: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
+  selectedIds: { type: Array as PropType<unknown[]>, default: (): unknown[] => [] },
+  keyword: { type: String, default: "" },
+  saving: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(["save", "toggle", "keyword-change"]);

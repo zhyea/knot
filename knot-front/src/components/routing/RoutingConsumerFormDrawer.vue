@@ -105,7 +105,7 @@
   </el-drawer>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";

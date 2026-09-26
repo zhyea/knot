@@ -6,11 +6,18 @@
   </el-descriptions>
 </template>
 
-<script setup>
+<script setup lang="ts">
+import type { PropType } from "vue";
+
+interface InfoItem {
+  label: string;
+  value: unknown;
+}
+
 defineProps({
   items: {
-    type: Array,
-    default: () => []
+    type: Array as PropType<InfoItem[]>,
+    default: (): InfoItem[] => []
   }
 });
 </script>

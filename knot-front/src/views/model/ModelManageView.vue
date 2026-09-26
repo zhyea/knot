@@ -51,7 +51,7 @@
   </PageSection>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { onMounted, ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import EnumControl from "../../components/common/EnumControl.vue";
@@ -64,6 +64,7 @@ import ModelListPanel from "../../components/model/ModelListPanel.vue";
 import { getModel, listModels } from "../../api/models";
 import { listModelOperationLogs } from "../../api/operationLogs";
 import { useListQuery } from "../../composables/useListQuery";
+import type { Dict } from "../../types";
 
 const {
   query,
@@ -112,7 +113,7 @@ function loadModelOperationLogs() {
   return listModelOperationLogs(logModelId.value);
 }
 
-function buildModelCopy(source = {}) {
+function buildModelCopy(source: Dict = {}): Dict {
   return {
     ...source,
     id: null,

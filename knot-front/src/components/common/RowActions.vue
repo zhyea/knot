@@ -35,11 +35,12 @@
   </div>
 </template>
 
-<script setup>
-import { computed } from "vue";
+<script setup lang="ts">
+import { computed, type PropType } from "vue";
+import type { RowAction } from "@/types";
 
 const props = defineProps({
-  actions: { type: Array, default: () => [] }
+  actions: { type: Array as PropType<RowAction[]>, default: (): RowAction[] => [] }
 });
 
 const emit = defineEmits(["action"]);
@@ -48,7 +49,7 @@ const visibleActions = computed(() =>
   props.actions.filter((action) => action && action.hidden !== true)
 );
 
-function confirmTitle(action) {
+function confirmTitle(action: RowAction): string {
   return typeof action.confirm === "string" ? action.confirm : `确认${action.label}？`;
 }
 </script>

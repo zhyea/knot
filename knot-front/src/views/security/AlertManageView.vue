@@ -23,7 +23,7 @@
   </PageSection>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import PageSection from "../../components/common/PageSection.vue";
@@ -63,6 +63,11 @@ watch(keyword, (value) => {
 
 function handleReset() {
   keyword.value = "";
+}
+
+// FilterBar 的「查询」：告警是全量下发 + 前端关键字过滤，查询即重新拉一次全量
+function handleQuery() {
+  return load();
 }
 
 load();

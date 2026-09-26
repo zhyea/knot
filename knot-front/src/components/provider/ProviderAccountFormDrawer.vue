@@ -106,13 +106,13 @@
   </el-drawer>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import {computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import KvEditor from "../common/KvEditor.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
-import {useAuth} from "../../composables/useAuth.js";
-import {listProviderProfiles} from "../../api/providerProfiles.js";
+import {useAuth} from "../../composables/useAuth";
+import {listProviderProfiles} from "../../api/providerProfiles";
 import {
   createProvider,
   updateProvider,
@@ -120,7 +120,15 @@ import {
   suggestProviderCode,
   checkProviderCode,
   listCredentialTypes
-} from "../../api/providers.js";
+} from "../../api/providers";
+import type { Dict, Row, SelectOption } from "@/types";
+
+/** 认证类型选项：code / label / requiredFields，由后端 ProviderCredentialTypeEnum 下发 */
+interface CredentialTypeOption {
+  code: string;
+  label: string;
+  requiredFields?: string[];
+}
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -131,20 +139,20 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const {isAdmin} = useAuth();
-const providerOptions = ref([]);
+const providerOptions = ref<SelectOption[]>([]);
 const saving = ref(false);
 const codeChecking = ref(false);
 const codeError = ref("");
 const codeValidated = ref(false);
 const detailLoading = ref(false);
-const form = reactive({
+const form = reactive<Dict>({
   id: null,
   providerId: null,
   code: "",
   baseUrl: "",
   enabled: true,
   credentialType: "api-key",
-  authConfig: {apiKey: ""},
+  authConfig: { apiKey: "" },
   rateLimitPolicy: {},
   quotaPolicy: {}
 });
@@ -154,21 +162,21 @@ const isEdit = computed(() => props.providerId != null);
 // 新建表单的默认认证类型（UI 默认值）；可选项与必填字段由后端 /api/provider-accounts/credential-types 下发
 const DEFAULT_CREDENTIAL_TYPE = "api-key";
 
-const credentialTypeOptions = ref([]);
+const credentialTypeOptions = ref<CredentialTypeOption[]>([]);
 
-const requiredCredentialFields = computed(() => {
+const requiredCredentialFields = computed<string[]>(() => {
   const matched = credentialTypeOptions.value.find((option) => option.code === form.credentialType);
   return matched?.requiredFields || [];
 });
-const customAuthConfig = ref({});
+const customAuthConfig = ref<Dict>({});
 
-function defaultAuthConfig() {
+function defaultAuthConfig(): Dict {
   return {apiKey: ""};
 }
 
-function normalizeAuthConfig(raw) {
+function normalizeAuthConfig(raw: unknown): Dict {
   if (raw && typeof raw === "object" && Object.keys(raw).length > 0) {
-    return {...raw};
+    return {...(raw as Dict)};
   }
   return defaultAuthConfig();
 }
@@ -180,7 +188,7 @@ async function loadCredentialTypes() {
 
 function syncCredentialParts() {
   const required = new Set(requiredCredentialFields.value);
-  const custom = {};
+  const custom: Dict = {};
   Object.entries(form.authConfig || {}).forEach(([key, value]) => {
     if (!required.has(key)) {
       custom[key] = value;
@@ -192,7 +200,7 @@ function syncCredentialParts() {
 function handleCredentialTypeChange() {
   const required = requiredCredentialFields.value;
   const requiredSet = new Set(required);
-  const config = {};
+  const config: Dict = {};
   // 新类型的必填字段：保留已填值（重叠字段如 accessKey/secretKey 不丢）
   required.forEach((field) => {
     config[field] = form.authConfig?.[field] ?? customAuthConfig.value[field] ?? "";
@@ -206,11 +214,11 @@ function handleCredentialTypeChange() {
   form.authConfig = config;
 }
 
-function isSecretCredentialField(field) {
+function isSecretCredentialField(field: string): boolean {
   return ["apiKey", "accessKey", "secretKey", "account_json"].includes(field);
 }
 
-function credentialFieldType(field) {
+function credentialFieldType(field: string): string {
   return field === "account_json"
       ? "textarea"
       : isSecretCredentialField(field) ? "password" : "text";
@@ -227,7 +235,7 @@ async function loadSuggestedCode() {
   }
 }
 
-function fillFormFromRow(row) {
+function fillFormFromRow(row: Row) {
   form.id = row.id;
   form.providerId = row.providerId;
   form.code = row.code || "";
@@ -287,7 +295,7 @@ async function resetForm() {
 async function loadProviderOptions() {
   try {
     const result = await listProviderProfiles({pageNum: 1, pageSize: 500});
-    const list = Array.isArray(result) ? result : result?.list || [];
+    const list: Row[] = Array.isArray(result) ? result : result?.list || [];
     providerOptions.value = list.map((item) => ({
       value: item.id,
       label: `${item.name || item.code}（${item.code}）`
@@ -357,8 +365,8 @@ async function validateCode() {
   }
 }
 
-function buildPayload() {
-  const authConfig = {...customAuthConfig.value};
+function buildPayload(): Dict {
+  const authConfig: Dict = {...customAuthConfig.value};
   requiredCredentialFields.value.forEach((field) => {
     authConfig[field] = form.authConfig[field] ?? "";
   });

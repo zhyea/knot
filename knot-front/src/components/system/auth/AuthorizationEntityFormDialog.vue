@@ -77,22 +77,23 @@
   </el-dialog>
 </template>
 
-<script setup>
-import {reactive, ref, watch} from "vue";
-import {ElMessage} from "element-plus";
+<script setup lang="ts">
+import { reactive, ref, watch, type PropType } from "vue";
+import { ElMessage } from "element-plus";
+import type { Dict, ResourceField, ResourceSubmitter } from "@/types";
 
 const props = defineProps({
-  modelValue: {type: Boolean, default: false},
-  title: {type: String, default: ""},
-  form: {type: Object, default: () => ({})},
-  fields: {type: Array, default: () => []},
-  submitter: {type: Function, required: true}
+  modelValue: { type: Boolean, default: false },
+  title: { type: String, default: "" },
+  form: { type: Object as PropType<Dict>, default: () => ({}) },
+  fields: { type: Array as PropType<ResourceField[]>, default: (): ResourceField[] => [] },
+  submitter: { type: Function as PropType<ResourceSubmitter>, required: true }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const saving = ref(false);
-const localForm = reactive({});
+const localForm = reactive<Dict>({});
 const defaultTreeProps = {
   label: "label",
   value: "value",
@@ -141,7 +142,7 @@ async function submit() {
   }
   saving.value = true;
   try {
-    const payload = {};
+    const payload: Dict = {};
     for (const field of props.fields) {
       const value = localForm[field.key];
       payload[field.key] = typeof value === "string" ? value.trim() : value;

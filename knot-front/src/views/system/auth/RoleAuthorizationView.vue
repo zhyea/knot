@@ -26,7 +26,7 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import FilterBar from "../../../components/common/FilterBar.vue";
 import KeywordInput from "../../../components/common/KeywordInput.vue";
 import AuthorizationRolePanel from "../../../components/system/auth/AuthorizationRolePanel.vue";

@@ -45,13 +45,15 @@
   </div>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { Delete, Document, Edit } from "@element-plus/icons-vue";
+import type { PropType } from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
+import type { Row } from "@/types";
 
 defineProps({
-  rows: { type: Array, default: () => [] },
+  rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
   loading: Boolean,
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
@@ -60,12 +62,12 @@ defineProps({
 
 defineEmits(["action", "page-change", "size-change"]);
 
-function splitTags(raw) {
+function splitTags(raw: unknown): string[] {
   if (!raw) return [];
   return String(raw).split(",").map((item) => item.trim()).filter(Boolean);
 }
 
-function formatTime(value) {
+function formatTime(value: unknown): string {
   return value ? String(value).replace("T", " ") : "-";
 }
 </script>

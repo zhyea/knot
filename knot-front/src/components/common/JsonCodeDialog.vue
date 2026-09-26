@@ -19,7 +19,7 @@
   </el-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { computed } from "vue";
 import JsonCodeEditor from "./JsonCodeEditor.vue";
 import { formatJsonText } from "../../utils/format";
