@@ -22,7 +22,12 @@
         v-for="metric in metrics"
         :key="metric.key"
         class="metric-card"
-        :class="`metric-card--${metric.tone}`"
+        :class="{
+          'metric-card--teal': metric.tone === 'teal',
+          'metric-card--green': metric.tone === 'green',
+          'metric-card--orange': metric.tone === 'orange',
+          'metric-card--blue': metric.tone === 'blue'
+        }"
         @click="goToRoute(metric.route)"
       >
         <div class="metric-card__meta">
@@ -65,7 +70,12 @@
               <div class="overview-row__track">
                 <span
                   class="overview-row__fill"
-                  :class="`overview-row__fill--${metric.tone}`"
+                  :class="{
+                    'overview-row__fill--teal': metric.tone === 'teal',
+                    'overview-row__fill--green': metric.tone === 'green',
+                    'overview-row__fill--orange': metric.tone === 'orange',
+                    'overview-row__fill--blue': metric.tone === 'blue'
+                  }"
                   :style="{ width: `${metric.ratio}%` }"
                 />
               </div>
@@ -111,7 +121,13 @@
 
           <div class="status-hero">
             <span class="status-hero__label">服务状态</span>
-            <span class="status-hero__value" :class="healthStatusClass">
+            <span
+              class="status-hero__value"
+              :class="{
+                'status-hero__value--up': isHealthUp,
+                'status-hero__value--down': isHealthDown
+              }"
+            >
               {{ health.status || "--" }}
             </span>
           </div>
@@ -424,10 +440,11 @@ const quickLinks = computed(() => {
   return unique.slice(0, 6);
 });
 
-const healthStatusClass = computed(() => ({
-  "status-hero__value--up": ["UP", "OK"].includes(`${health.status}`.toUpperCase()),
-  "status-hero__value--down": health.status && !["UP", "OK"].includes(`${health.status}`.toUpperCase())
-}));
+const isHealthUp = computed(() =>
+  ["UP", "OK"].includes(`${health.status}`.toUpperCase())
+);
+
+const isHealthDown = computed(() => !!health.status && !isHealthUp.value);
 
 function resolveIcon(iconName: string) {
   return iconMap[iconName] || Setting;
