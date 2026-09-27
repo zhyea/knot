@@ -16,6 +16,7 @@ import org.chobit.knot.gateway.mapper.UserMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.vo.auth.LoginResponse;
+import org.chobit.knot.gateway.vo.user.ResetPasswordResult;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,14 +25,20 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.security.SecureRandom;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class UserService {
-    private static final String DEFAULT_RESET_PASSWORD = "12345678";
     private static final int STATUS_ENABLED = 1;
+
+    /** 一次性口令字符集：去掉 0/O/1/l/I 等易混淆字符。 */
+    private static final char[] PASSWORD_CHARS =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789".toCharArray();
+    private static final int ONE_TIME_PASSWORD_LENGTH = 12;
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final UserMapper userMapper;
     private final DepartmentMapper departmentMapper;
@@ -68,15 +75,6 @@ public class UserService {
         }
 
         userMapper.updateLastLoginTime(user.getId());
-        if (passwordEncoder.matches(DEFAULT_RESET_PASSWORD, user.getPasswordHash())) {
-            String passwordChangeToken = JwtUtil.generatePasswordChangeToken(user.getId(), user.getUsername());
-            return LoginResponse.forcePasswordChange(
-                    user.getId(),
-                    user.getUsername(),
-                    user.getRealName(),
-                    passwordChangeToken
-            );
-        }
 
         List<String> roles = userMapper.listRoleCodesByUserId(user.getId());
         String token = JwtUtil.generateToken(user.getId(), user.getUsername(), roles);
@@ -92,10 +90,6 @@ public class UserService {
         if (password.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "新密码不能为空");
         }
-        if (DEFAULT_RESET_PASSWORD.equals(password)) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "新密码不能与默认密码相同");
-        }
-
         Long userId;
         try {
             userId = JwtUtil.parsePasswordChangeToken(passwordChangeToken).get("userId", Long.class);
@@ -245,16 +239,25 @@ public class UserService {
     }
 
     /**
-     * Resets the target user's password to the default value.
+     * Resets the target user's password to a random one-time value.
      */
     @Transactional
-    public UserDto resetPassword(Long id) {
+    public ResetPasswordResult resetPassword(Long id) {
         UserEntity entity = userMapper.getUserById(id);
         if (entity == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
-        userMapper.updateUserPassword(id, passwordEncoder.encode(DEFAULT_RESET_PASSWORD));
-        return loadUserDto(id);
+        String oneTimePassword = generateOneTimePassword();
+        userMapper.updateUserPassword(id, passwordEncoder.encode(oneTimePassword));
+        return new ResetPasswordResult(entity.getId(), entity.getUsername(), oneTimePassword);
+    }
+
+    private static String generateOneTimePassword() {
+        StringBuilder builder = new StringBuilder(ONE_TIME_PASSWORD_LENGTH);
+        for (int i = 0; i < ONE_TIME_PASSWORD_LENGTH; i++) {
+            builder.append(PASSWORD_CHARS[RANDOM.nextInt(PASSWORD_CHARS.length)]);
+        }
+        return builder.toString();
     }
 
     private UserDto loadUserDto(Long id) {

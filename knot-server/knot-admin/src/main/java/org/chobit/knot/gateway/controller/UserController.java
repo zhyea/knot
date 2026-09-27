@@ -9,6 +9,7 @@ import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.UserService;
+import org.chobit.knot.gateway.vo.user.ResetPasswordResult;
 import org.chobit.knot.gateway.vo.user.UpdateUserStatusRequest;
 import org.chobit.knot.gateway.vo.user.UserItem;
 import org.springframework.web.bind.annotation.*;
@@ -112,7 +113,7 @@ public class UserController {
     }
 
     /**
-     * Resets the target user's password to the default value.
+     * Resets the target user's password to a random one-time value.
      */
     @OperationLog(module = "user", operation = "UPDATE", entityType = "User",
             entityId = "#p0",
@@ -121,8 +122,7 @@ public class UserController {
             oldValueSpel = "@userService.userAuditSnapshot(#p0)",
             newValueSpel = "@userService.userAuditSnapshot(#p0)")
     @PutMapping("/{id}/reset-password")
-    public UserItem resetPassword(@PathVariable Long id) {
-        UserDto updated = userService.resetPassword(id);
-        return userConverter.toVO(updated);
+    public ResetPasswordResult resetPassword(@PathVariable Long id) {
+        return userService.resetPassword(id);
     }
 }

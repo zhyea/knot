@@ -36,7 +36,7 @@
           <RowActions
             :actions="[
               { key: 'edit', label: '编辑', icon: Edit },
-              { key: 'reset-password', label: '重置密码', icon: Key, confirm: '确认将该用户密码重置为 12345678 吗？' },
+              { key: 'reset-password', label: '重置密码', icon: Key, confirm: '确认将该用户密码重置为一次性随机密码吗？' },
               { key: 'log', label: '日志', icon: Document }
             ]"
             @action="(action) => emit('action', action, row)"

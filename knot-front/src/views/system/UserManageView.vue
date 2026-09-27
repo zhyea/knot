@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import type {Dict, Row} from "@/types";
 import {ref, watch} from "vue";
-import {ElMessage} from "element-plus";
+import {ElMessage, ElMessageBox} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
@@ -109,8 +109,13 @@ function openEdit(row: Row) {
 }
 
 async function handleResetPassword(row: Row) {
-  await resetUserPassword(row.id);
-  ElMessage.success(`已将用户 ${row.username} 的密码重置为 12345678`);
+  const result = await resetUserPassword(row.id);
+  await ElMessageBox.alert(
+    `用户 ${row.username} 的临时密码：${result.oneTimePassword}\n` +
+    "请立即转交用户，并提示其登录后修改密码。该密码只在本次展示一次。",
+    "密码已重置",
+    { confirmButtonText: "我已保存", type: "warning" }
+  );
 }
 
 async function handleAction(action: string, row: Row) {

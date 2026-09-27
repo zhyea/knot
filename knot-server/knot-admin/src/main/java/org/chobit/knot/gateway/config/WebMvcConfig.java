@@ -43,7 +43,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/health",
                         // 「加载自身权限」的接口只做认证、不做接口级授权：
                         // 否则用户一旦缺少其绑定权限，就永远拿不到自己的权限列表（自锁死）。
-                        "/api/me/authorizations"
+                        "/api/me/authorizations",
+                        // 代码枚举字典：全站通用、无业务敏感性，任何已登录用户都需要。
+                        "/api/common/enums"
                 );
     }
 }

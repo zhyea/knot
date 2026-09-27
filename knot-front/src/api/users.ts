@@ -17,6 +17,12 @@ export function updateUser(id: number | string, payload: Dict) {
   return put(`/api/users/${id}`, payload);
 }
 
+export interface ResetPasswordResult {
+  id: number;
+  username: string;
+  oneTimePassword: string;
+}
+
 export function resetUserPassword(id: number | string) {
-  return put(`/api/users/${id}/reset-password`);
+  return put<ResetPasswordResult>(`/api/users/${id}/reset-password`);
 }

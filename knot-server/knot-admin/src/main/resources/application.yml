@@ -7,12 +7,13 @@ spring:
   datasource:
     url: jdbc:mysql://127.0.0.1:3306/knot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: root
-    password: 814849905
+    # 账号口令一律支持外部注入；默认值为本机开发库，生产部署必须覆盖
+    username: ${KNOT_DB_USERNAME:root}
+    password: ${KNOT_DB_PASSWORD:814849905}
   sql:
     init:
-      # 开发可改为 ALWAYS；schema/data 均设计为可重复执行
-      mode: ALWAYS
+      # 生产部署应设 KNOT_SQL_INIT_MODE=NEVER，避免每次启动重复执行 schema/data
+      mode: ${KNOT_SQL_INIT_MODE:ALWAYS}
       schema-locations: classpath:db/schema.sql
       data-locations: classpath:db/data.sql
       encoding: UTF-8
@@ -37,7 +38,8 @@ rw:
   silent-mode: true
   tags: []
 
-# 供应商/应用凭证库内加密密钥（生产请用环境变量 KNOT_CREDENTIAL_ENCRYPTION_KEY 覆盖）
+# 供应商/应用凭证库内加密密钥（生产必须用环境变量 KNOT_CREDENTIAL_ENCRYPTION_KEY 覆盖，
+# 否则启动日志会打印开发默认值告警）
 knot:
   gateway:
     base-url: http://127.0.0.1:9090
