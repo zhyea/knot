@@ -23,11 +23,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import {onMounted} from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import AuthorizationRoleGrantDrawer from "../../components/system/auth/AuthorizationRoleGrantDrawer.vue";
 import AuthorizationRoleFormDialog from "../../components/system/auth/AuthorizationRoleFormDialog.vue";
-import { useAuthorizationManagement } from "../../composables/useAuthorizationManagement";
+import {useAuthorizationManagement} from "@/composables/useAuthorizationManagement";
 import RoleAuthorizationView from "./auth/RoleAuthorizationView.vue";
 
 const state = useAuthorizationManagement();

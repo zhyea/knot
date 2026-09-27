@@ -38,11 +38,11 @@
 </template>
 
 <script setup lang="ts">
-import type { Dict } from "@/types";
-import { type PropType,  computed, reactive, ref, watch } from "vue";
-import { ElMessage } from "element-plus";
+import type {Dict} from "@/types";
+import {type PropType,  computed, reactive, ref, watch} from "vue";
+import {ElMessage} from "element-plus";
 import EnumSelect from "../common/EnumSelect.vue";
-import { createDiscountPolicy, updateDiscountPolicy } from "../../api/providers";
+import {createDiscountPolicy, updateDiscountPolicy} from "@/api/providers";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

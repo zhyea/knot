@@ -53,14 +53,14 @@
 
 <script setup lang="ts">
 import type {Row} from "@/types";
-import { onMounted } from "vue";
-import { Delete, Edit } from "@element-plus/icons-vue";
+import {onMounted} from "vue";
+import {Delete, Edit} from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
-import { updateModelPoolStatus } from "../../api/modelPools";
-import { useEnabledToggle } from "../../composables/useEnabledToggle";
-import { useEnumOptions } from "../../composables/useEnumOptions";
-import { useEnums, resolveEnumLabel } from "../../composables/useEnums";
+import {updateModelPoolStatus} from "@/api/modelPools";
+import {useEnabledToggle} from "@/composables/useEnabledToggle";
+import {useEnumOptions} from "@/composables/useEnumOptions";
+import {useEnums, resolveEnumLabel} from "@/composables/useEnums";
 
 defineProps({
   rows: { type: Array, default: (): Row[] => [] },

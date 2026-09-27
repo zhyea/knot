@@ -1,4 +1,4 @@
-import type { Dict, Row } from "../types";
+import type {Dict, Row} from "@/types";
 
 export function mergeOptionList(
   existingList: Row[],

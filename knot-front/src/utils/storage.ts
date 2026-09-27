@@ -1,4 +1,4 @@
-import { parseJson, stringifyJson } from "./format";
+import {parseJson, stringifyJson} from "./format";
 
 export function getStorageItem(key: string): string | null {
   try {

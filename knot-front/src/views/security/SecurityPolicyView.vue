@@ -32,11 +32,11 @@
 
 <script setup lang="ts">
 import type {Dict} from "@/types";
-import { computed, reactive, ref } from "vue";
-import { ElMessage } from "element-plus";
+import {computed, reactive, ref} from "vue";
+import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import EnumSelect from "../../components/common/EnumSelect.vue";
-import { getSecurityOverview, updateSecurityPolicy } from "../../api/security";
+import {getSecurityOverview, updateSecurityPolicy} from "@/api/security";
 
 const ov = ref<Dict | null>(null);
 const ovLoading = ref(false);

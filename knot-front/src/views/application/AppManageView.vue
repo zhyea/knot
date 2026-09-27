@@ -44,16 +44,16 @@
 
 <script setup lang="ts">
 import type {Dict, Row} from "@/types";
-import { onMounted, ref } from "vue";
+import {onMounted, ref} from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import AppListPanel from "../../components/app/AppListPanel.vue";
 import AppFormDrawer from "../../components/app/AppFormDrawer.vue";
-import { listAppOperationLogs } from "../../api/operationLogs";
-import { useListQuery } from "../../composables/useListQuery";
-import { listApps } from "../../api/apps";
+import {listAppOperationLogs} from "@/api/operationLogs";
+import {useListQuery} from "@/composables/useListQuery";
+import {listApps} from "@/api/apps";
 
 const {
   query,

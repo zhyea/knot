@@ -190,8 +190,8 @@
 </template>
 
 <script setup lang="ts">
-import { type PropType,  computed, reactive, ref, watch } from "vue";
-import { ElMessage } from "element-plus";
+import {type PropType,  computed, reactive, ref, watch} from "vue";
+import {ElMessage} from "element-plus";
 import type {Dict, Row} from "@/types";
 import EnumControl from "../common/EnumControl.vue";
 import EnumSelect from "../common/EnumSelect.vue";
@@ -200,7 +200,7 @@ import {
   createLogicalModel,
   getLogicalModel,
   updateLogicalModel
-} from "../../api/logicalModels";
+} from "@/api/logicalModels";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

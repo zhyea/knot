@@ -40,10 +40,10 @@
 </template>
 
 <script setup lang="ts">
-import { type PropType,  ref, watch } from "vue";
-import { Edit } from "@element-plus/icons-vue";
+import {type PropType,  ref, watch} from "vue";
+import {Edit} from "@element-plus/icons-vue";
 import RowActions from "../common/RowActions.vue";
-import { listDiscountPolicies } from "../../api/providers";
+import {listDiscountPolicies} from "@/api/providers";
 import ProviderDiscountFormDialog from "./ProviderDiscountFormDialog.vue";
 import type {Dict, Row} from "@/types";
 

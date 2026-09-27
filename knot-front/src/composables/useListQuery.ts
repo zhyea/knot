@@ -1,6 +1,6 @@
-import { onScopeDispose, reactive, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
-import type { Dict, ListResponse, QueryFn } from "../types";
+import {onScopeDispose, reactive, ref, watch} from "vue";
+import {useRoute, useRouter} from "vue-router";
+import type {Dict, ListResponse, QueryFn} from "@/types";
 
 export interface UseListQueryOptions {
   /** 列表接口 */

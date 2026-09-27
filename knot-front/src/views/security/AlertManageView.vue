@@ -24,14 +24,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import {computed, ref, watch} from "vue";
+import {useRoute, useRouter} from "vue-router";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import AlertListPanel from "../../components/security/AlertListPanel.vue";
-import { usePageList } from "../../composables/usePageList";
-import { listSecurityAlerts } from "../../api/security";
+import {usePageList} from "@/composables/usePageList";
+import {listSecurityAlerts} from "@/api/security";
 
 const route = useRoute();
 const router = useRouter();

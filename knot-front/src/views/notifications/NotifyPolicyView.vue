@@ -10,10 +10,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from "vue";
-import { ElMessage } from "element-plus";
+import {reactive, ref} from "vue";
+import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
-import { createNotifyPolicy } from "../../api/notifications";
+import {createNotifyPolicy} from "@/api/notifications";
 
 const pol = reactive({ eventType: "ALERT", dedupWindow: "5m", escalateAfter: "30m" });
 const polLoading = ref(false);

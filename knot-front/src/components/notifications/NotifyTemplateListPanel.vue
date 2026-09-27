@@ -22,7 +22,7 @@
 
 <script setup lang="ts">
 import ListPagination from "../common/ListPagination.vue";
-import type { Row } from "../../types";
+import type {Row} from "@/types";
 
 defineProps({
   rows: { type: Array, default: (): Row[] => [] },

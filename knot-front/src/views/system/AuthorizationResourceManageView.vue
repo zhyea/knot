@@ -14,10 +14,10 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import {onMounted} from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import AuthorizationEntityFormDialog from "../../components/system/auth/AuthorizationEntityFormDialog.vue";
-import { useAuthorizationManagement } from "../../composables/useAuthorizationManagement";
+import {useAuthorizationManagement} from "@/composables/useAuthorizationManagement";
 import AuthorizationResourceView from "./auth/AuthorizationResourceView.vue";
 
 const state = useAuthorizationManagement();

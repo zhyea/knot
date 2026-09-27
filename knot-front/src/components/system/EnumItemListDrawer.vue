@@ -60,8 +60,8 @@ import {computed, ref, watch} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";
 import {Delete, Edit} from "@element-plus/icons-vue";
 import RowActions from "../common/RowActions.vue";
-import {listEnumItemsByCategory, deleteEnumConfig, updateEnumConfig} from "../../api/enums";
-import {clearEnumCache} from "../../composables/useEnums";
+import {listEnumItemsByCategory, deleteEnumConfig, updateEnumConfig} from "@/api/enums";
+import {clearEnumCache} from "@/composables/useEnums";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},

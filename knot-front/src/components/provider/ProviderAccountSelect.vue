@@ -11,11 +11,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, type PropType } from "vue";
+import {computed, ref, watch, type PropType} from "vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
-import { getProviderAccountOption, listProviderAccounts } from "../../api/providers";
-import { mergeOptionList, normalizeOptionList } from "../../utils/options";
-import type { Dict, Row } from "@/types";
+import {getProviderAccountOption, listProviderAccounts} from "@/api/providers";
+import {mergeOptionList, normalizeOptionList} from "@/utils/options";
+import type {Dict, Row} from "@/types";
 
 defineOptions({ inheritAttrs: false });
 

@@ -46,11 +46,11 @@
 </template>
 
 <script setup lang="ts">
-import { Delete, Document, Edit } from "@element-plus/icons-vue";
-import type { PropType } from "vue";
+import {Delete, Document, Edit} from "@element-plus/icons-vue";
+import type {PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
-import type { Row } from "@/types";
+import type {Row} from "@/types";
 
 defineProps({
   rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },

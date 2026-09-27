@@ -4,7 +4,7 @@
  * 只放「跨模块复用」的形态约定；单个组件私有的类型就近写在组件里，不往这里堆。
  */
 
-import type { Component } from "vue";
+import type {Component} from "vue";
 
 /** 后端列表接口统一返回结构：`{ list, total }` */
 export interface PageResult<T = any> {

@@ -11,8 +11,8 @@
 </template>
 
 <script setup lang="ts">
-import type { Dict } from "@/types";
-import { type PropType,  computed, ref } from "vue";
+import type {Dict} from "@/types";
+import {type PropType,  computed, ref} from "vue";
 import ScheduledTaskRunPanel from "./ScheduledTaskRunPanel.vue";
 
 const props = defineProps({

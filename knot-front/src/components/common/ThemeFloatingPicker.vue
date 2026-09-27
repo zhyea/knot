@@ -28,8 +28,8 @@
 </template>
 
 <script setup lang="ts">
-import { THEMES, useTheme } from "../../composables/useTheme";
-import { useLocale } from "../../composables/useLocale";
+import {THEMES, useTheme} from "@/composables/useTheme";
+import {useLocale} from "@/composables/useLocale";
 
 const { current, setTheme } = useTheme();
 const { t } = useLocale();

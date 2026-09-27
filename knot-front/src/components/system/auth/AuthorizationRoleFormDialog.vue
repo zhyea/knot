@@ -25,13 +25,13 @@
 </template>
 
 <script setup lang="ts">
-import type { Dict } from "@/types";
-import { type PropType,  computed, reactive, ref, watch } from "vue";
-import { ElMessage } from "element-plus";
+import type {Dict} from "@/types";
+import {type PropType,  computed, reactive, ref, watch} from "vue";
+import {ElMessage} from "element-plus";
 import {
   createAuthorizationRole,
   updateAuthorizationRole
-} from "../../../api/authorizations";
+} from "@/api/authorizations";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

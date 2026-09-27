@@ -25,10 +25,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
-import { ElMessage } from "element-plus";
+import {computed, reactive, ref, watch} from "vue";
+import {ElMessage} from "element-plus";
 import EnumSelect from "../common/EnumSelect.vue";
-import { createPlugin } from "../../api/plugins";
+import {createPlugin} from "@/api/plugins";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false }

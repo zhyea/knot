@@ -35,11 +35,11 @@
 </template>
 
 <script setup lang="ts">
-import type { Dict } from "@/types";
-import { type PropType,  computed, reactive, ref, watch } from "vue";
-import { ElMessage } from "element-plus";
-import { createEnumConfig, updateEnumConfig } from "../../api/enums";
-import { clearEnumCache } from "../../composables/useEnums";
+import type {Dict} from "@/types";
+import {type PropType,  computed, reactive, ref, watch} from "vue";
+import {ElMessage} from "element-plus";
+import {createEnumConfig, updateEnumConfig} from "@/api/enums";
+import {clearEnumCache} from "@/composables/useEnums";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

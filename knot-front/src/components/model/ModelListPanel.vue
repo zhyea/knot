@@ -54,12 +54,12 @@
 
 <script setup lang="ts">
 import type {Row} from "@/types";
-import { CopyDocument, Document, Edit } from "@element-plus/icons-vue";
+import {CopyDocument, Document, Edit} from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
-import { updateModelStatus } from "@/api/models";
-import { useEnabledToggle } from "@/composables/useEnabledToggle";
-import { useEnumOptions } from "@/composables/useEnumOptions";
+import {updateModelStatus} from "@/api/models";
+import {useEnabledToggle} from "@/composables/useEnabledToggle";
+import {useEnumOptions} from "@/composables/useEnumOptions";
 
 defineProps({
   rows: { type: Array, default: (): Row[] => [] },

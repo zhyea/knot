@@ -78,9 +78,9 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch, type PropType } from "vue";
-import { ElMessage } from "element-plus";
-import type { Dict, ResourceField, ResourceSubmitter } from "@/types";
+import {reactive, ref, watch, type PropType} from "vue";
+import {ElMessage} from "element-plus";
+import type {Dict, ResourceField, ResourceSubmitter} from "@/types";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

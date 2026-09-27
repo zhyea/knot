@@ -1,4 +1,4 @@
-import type { Dict } from "../types";
+import type {Dict} from "@/types";
 
 /** 生成路由规则编码（32 位十六进制，与后端 RoutingRuleCodeGenerator 一致） */
 export function generateRoutingRuleCode() {

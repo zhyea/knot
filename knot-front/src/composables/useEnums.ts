@@ -1,6 +1,6 @@
-import { ref, readonly } from "vue";
-import type { Dict, Row } from "../types";
-import { listEnumsByCategory, listEnumCategories } from "../api/enums";
+import {ref, readonly} from "vue";
+import type {Dict, Row} from "@/types";
+import {listEnumsByCategory, listEnumCategories} from "@/api/enums";
 
 /**
  * 枚举数据缓存 composable
@@ -34,7 +34,7 @@ export function useEnums(category: string, enabledOnly = true) {
         return;
       }
       const data = await listEnumsByCategory(category);
-      CACHE[category] = { data, ts: Date.now() };
+      CACHE[category] = {data, ts: Date.now()};
       options.value = filter(data, enabledOnly);
     } finally {
       loading.value = false;
@@ -51,7 +51,7 @@ export function useEnums(category: string, enabledOnly = true) {
     delete CACHE[category];
   }
 
-  return { options, loading, loadOptions, invalidate };
+  return {options, loading, loadOptions, invalidate};
 }
 
 /**
@@ -71,7 +71,7 @@ export function useEnumCategories() {
     }
   }
 
-  return { categories, loading, loadCategories };
+  return {categories, loading, loadCategories};
 }
 
 /** 清除全部枚举缓存 */

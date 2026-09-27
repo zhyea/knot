@@ -45,10 +45,10 @@
 </template>
 
 <script setup lang="ts">
-import type { Dict } from "@/types";
-import { type PropType,  computed, reactive, ref, watch } from "vue";
+import type {Dict} from "@/types";
+import {type PropType,  computed, reactive, ref, watch} from "vue";
 import CronExpressionInput from "./CronExpressionInput.vue";
-import { createScheduledTask, updateScheduledTask } from "../../../api/scheduledTasks";
+import {createScheduledTask, updateScheduledTask} from "@/api/scheduledTasks";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

@@ -1,6 +1,6 @@
-import { ref } from "vue";
-import type { Row } from "../types";
-import { ElMessage } from "element-plus";
+import {ref} from "vue";
+import type {Row} from "@/types";
+import {ElMessage} from "element-plus";
 
 /**
  * 列表行启用开关：调用独立状态接口并支持失败回滚。

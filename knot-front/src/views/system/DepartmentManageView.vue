@@ -73,17 +73,17 @@
 
 <script setup lang="ts">
 import type {Dict, Row} from "@/types";
-import { computed, ref, watch } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
+import {computed, ref, watch} from "vue";
+import {ElMessage, ElMessageBox} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import DepartmentFormDrawer from "../../components/system/DepartmentFormDrawer.vue";
 import DepartmentListPanel from "../../components/system/DepartmentListPanel.vue";
-import { useListQuery } from "../../composables/useListQuery";
-import { deleteDepartment, getDepartmentTree, listDepartments, updateDepartmentStatus } from "../../api/departments";
-import { listDepartmentOperationLogs } from "../../api/operationLogs";
+import {useListQuery} from "@/composables/useListQuery";
+import {deleteDepartment, getDepartmentTree, listDepartments, updateDepartmentStatus} from "@/api/departments";
+import {listDepartmentOperationLogs} from "@/api/operationLogs";
 
 const {
   query,

@@ -1,6 +1,6 @@
-import { computed, ref } from "vue";
-import type { Dict, Row } from "../types";
-import { listDebugCapabilities } from "../api/routing";
+import {computed, ref} from "vue";
+import type {Dict, Row} from "@/types";
+import {listDebugCapabilities} from "@/api/routing";
 
 /**
  * 路由调试协议能力数据源（GET /api/routing-rules/debug-capabilities）

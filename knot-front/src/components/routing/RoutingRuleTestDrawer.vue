@@ -94,13 +94,13 @@
             <el-collapse-item title="请求预览" name="preview">
               <el-tabs v-model="requestTab" class="debug-tabs">
                 <el-tab-pane label="Headers" name="headers">
-                  <ShellCodeBlock :code="requestHeadersText" language="json" :copyable="true" />
+                  <ShellCodeBlock :code="requestHeadersText" language="json" :copyable="true"/>
                 </el-tab-pane>
                 <el-tab-pane label="Body" name="body">
-                  <ShellCodeBlock :code="requestBodyText" language="json" :copyable="true" />
+                  <ShellCodeBlock :code="requestBodyText" language="json" :copyable="true"/>
                 </el-tab-pane>
                 <el-tab-pane label="curl" name="curl">
-                  <ShellCodeBlock :code="displayCurl" language="bash" :copyable="true" />
+                  <ShellCodeBlock :code="displayCurl" language="bash" :copyable="true"/>
                 </el-tab-pane>
               </el-tabs>
             </el-collapse-item>
@@ -119,7 +119,7 @@
             </el-tag>
           </div>
 
-          <el-skeleton v-if="loading" :rows="5" animated />
+          <el-skeleton v-if="loading" :rows="5" animated/>
           <template v-else-if="testResult">
             <el-tabs v-model="responseTab" class="debug-tabs debug-tabs--response">
               <el-tab-pane label="概览" name="summary">
@@ -129,7 +129,7 @@
                     <span class="result-meta__value">{{ item.value }}</span>
                   </div>
                 </div>
-                <el-empty v-else description="无额外结果信息" :image-size="64" />
+                <el-empty v-else description="无额外结果信息" :image-size="64"/>
               </el-tab-pane>
               <el-tab-pane label="Body" name="body" class="response-body-pane">
                 <ShellCodeBlock
@@ -139,11 +139,11 @@
                   language="json"
                   :copyable="true"
                 />
-                <el-empty v-else description="无响应内容" :image-size="64" />
+                <el-empty v-else description="无响应内容" :image-size="64"/>
               </el-tab-pane>
             </el-tabs>
           </template>
-          <el-empty v-else description="执行请求后在这里查看响应结果" :image-size="72" />
+          <el-empty v-else description="执行请求后在这里查看响应结果" :image-size="72"/>
         </section>
       </div>
     </el-scrollbar>
@@ -155,24 +155,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch, type PropType } from "vue";
+import {computed, reactive, ref, watch, type PropType} from "vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import ShellCodeBlock from "../common/ShellCodeBlock.vue";
-import { getModel } from "../../api/models";
-import { getModelPool } from "../../api/modelPools";
-import { testRoutingRule } from "../../api/routing";
-import { useModelTypes } from "../../composables/useModelTypes";
-import { useDebugCapabilities, hydrateTemplate, extractPrompt } from "../../composables/useDebugCapabilities";
-import { useEnumOptions } from "../../composables/useEnumOptions";
-import { formatJson, formatJsonText, parseJsonResult, stringifyJson } from "../../utils/format";
-import type { ApiBusinessError } from "../../api/http";
-import type { Dict, Row } from "@/types";
+import {getModel} from "@/api/models";
+import {getModelPool} from "@/api/modelPools";
+import {testRoutingRule} from "@/api/routing";
+import {useModelTypes} from "@/composables/useModelTypes";
+import {useDebugCapabilities, hydrateTemplate, extractPrompt} from "@/composables/useDebugCapabilities";
+import {useEnumOptions} from "@/composables/useEnumOptions";
+import {formatJson, formatJsonText, parseJsonResult, stringifyJson} from "@/utils/format";
+import type {ApiBusinessError} from "@/api/http";
+import type {Dict, Row} from "@/types";
 
 const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || "http://127.0.0.1:9090";
 const DEFAULT_PROMPT = "你好，这是一条路由规则测试消息";
 
 // 协议名称来自后端 ModelApiProtocolEnum（/api/common/enums），前端不再维护 code->label 映射
-const { labelOf: enumLabelOf } = useEnumOptions();
+const {labelOf: enumLabelOf} = useEnumOptions();
 
 // 后端模型类型数据不可用时的通用兜底协议（对话类）
 const DEFAULT_FALLBACK_PROTOCOLS = ["CHAT_COMPLETIONS", "RESPONSES", "MESSAGES", "COMPLETIONS"];
@@ -189,16 +189,16 @@ interface RoutingTarget {
 }
 
 const props = defineProps({
-  modelValue: { type: Boolean, default: false },
-  ruleId: { type: Number as PropType<number | null>, default: null },
-  ruleName: { type: String, default: "" },
-  secretKey: { type: String, default: "" },
-  targets: { type: Array as PropType<RoutingTarget[]>, default: (): RoutingTarget[] => [] }
+  modelValue: {type: Boolean, default: false},
+  ruleId: {type: Number as PropType<number | null>, default: null},
+  ruleName: {type: String, default: ""},
+  secretKey: {type: String, default: ""},
+  targets: {type: Array as PropType<RoutingTarget[]>, default: (): RoutingTarget[] => []}
 });
 
 const emit = defineEmits(["update:modelValue"]);
 
-const { loadOptions: loadModelTypes, protocolsOf } = useModelTypes();
+const {loadOptions: loadModelTypes, protocolsOf} = useModelTypes();
 const {
   loadOptions: loadDebugCapabilities,
   canonicalOf,
@@ -213,6 +213,7 @@ const protocolLoading = ref(false);
 const requestTab = ref("body");
 const responseTab = ref("summary");
 const expandedPanels = ref<string[]>([]);
+
 interface RoutingTestResult {
   curl?: string;
   status: string;
@@ -253,7 +254,7 @@ const targetOptions = computed(() => {
 const activeTarget = computed(() => targetOptions.value.find((item) => item.key === testForm.targetKey) || null);
 const availableProtocols = computed(() => {
   const protocols = targetProtocolMap[testForm.targetKey] || [];
-  return protocols.map((code: string) => ({ code, label: protocolLabel(code) }));
+  return protocols.map((code: string) => ({code, label: protocolLabel(code)}));
 });
 const activeProtocol = computed(() => normalizeProtocolCode(testForm.protocol));
 const activeTargetLabel = computed(() => activeTarget.value?.label || "-");
@@ -274,7 +275,8 @@ const currentTemplateText = computed({
   }
 });
 
-const requestUrl = computed(() => `${normalizeBaseUrl()}${protocolPath(activeProtocol.value)}`);const requestHeadersText = computed(() => formatJson({
+const requestUrl = computed(() => `${normalizeBaseUrl()}${protocolPath(activeProtocol.value)}`);
+const requestHeadersText = computed(() => formatJson({
   Authorization: `Bearer ${testForm.secretKey?.trim() || "sk-your-routing-secret-key"}`,
   Rule: resolveRuleHeaderValue(),
   "Content-Type": "application/json"
@@ -300,13 +302,13 @@ const summaryItems = computed(() => {
   }
   const items = [];
   if (testResult.value.protocol) {
-    items.push({ label: "接口协议", value: protocolLabel(testResult.value.protocol) });
+    items.push({label: "接口协议", value: protocolLabel(testResult.value.protocol)});
   }
   if (testResult.value.modelCode) {
-    items.push({ label: "命中模型", value: testResult.value.modelCode });
+    items.push({label: "命中模型", value: testResult.value.modelCode});
   }
   if (testResult.value.errorMessage) {
-    items.push({ label: "错误信息", value: testResult.value.errorMessage, className: "result-meta__item--error" });
+    items.push({label: "错误信息", value: testResult.value.errorMessage, className: "result-meta__item--error"});
   }
   return items;
 });
@@ -524,7 +526,7 @@ function resetCurrentTemplate() {
 function createDefaultTemplate(protocol: unknown, model: string | undefined): string {
   // 请求体模板由后端能力接口下发（与 RoutingRuleService.defaultRequestBody 同源），这里只做占位符填充
   const template = templateOf(normalizeProtocolCode(protocol));
-  const body = template ? hydrateTemplate(template, model || "model-name", DEFAULT_PROMPT) : { model: model || "model-name" };
+  const body = template ? hydrateTemplate(template, model || "model-name", DEFAULT_PROMPT) : {model: model || "model-name"};
   return formatJson(body);
 }
 
@@ -534,7 +536,7 @@ function syncTemplateModelField(templateKey: string, model: string | undefined):
     return;
   }
   const source = parsed.value as Dict;
-  const next = { ...source, model: model || source.model || "model-name" };
+  const next = {...source, model: model || source.model || "model-name"};
   templateStore[templateKey] = formatJson(next);
 }
 
@@ -627,11 +629,11 @@ async function runTest() {
     testResult.value = await testRoutingRule(props.ruleId, {
       secretKey: testForm.secretKey.trim(),
       model: requestBody.model || resolvedModel.value,
-      prompt: inferPrompt(requestBody, activeProtocol.value),      protocol: activeProtocol.value,
+      prompt: inferPrompt(requestBody, activeProtocol.value), protocol: activeProtocol.value,
       targetType: activeTarget.value.targetType,
       targetId: activeTarget.value.targetId,
       requestBody
-    }, { silentError: true });
+    }, {silentError: true});
     responseTab.value = "body";
   } catch (error) {
     responseTab.value = "body";

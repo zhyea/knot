@@ -80,16 +80,16 @@
 
 <script setup lang="ts">
 import type {Dict, Row} from "@/types";
-import { computed, onMounted, ref } from "vue";
+import {computed, onMounted, ref} from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import OperationLogDetailDrawer from "../../components/system/OperationLogDetailDrawer.vue";
 import OperationLogListPanel from "../../components/system/OperationLogListPanel.vue";
-import { useListQuery } from "../../composables/useListQuery";
-import { resolveEnumLabel, useEnums } from "../../composables/useEnums";
-import { getOperationLogDetail, listOperationLogs } from "../../api/operationLogs";
+import {useListQuery} from "@/composables/useListQuery";
+import {resolveEnumLabel, useEnums} from "@/composables/useEnums";
+import {getOperationLogDetail, listOperationLogs} from "@/api/operationLogs";
 
 const { options: statusOptions, loadOptions: loadStatusOptions } = useEnums("status");
 

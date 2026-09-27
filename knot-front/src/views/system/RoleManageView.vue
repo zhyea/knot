@@ -37,11 +37,11 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from "vue";
+import {onMounted} from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import AuthorizationEntityFormDialog from "../../components/system/auth/AuthorizationEntityFormDialog.vue";
 import AuthorizationRoleFormDialog from "../../components/system/auth/AuthorizationRoleFormDialog.vue";
-import { useAuthorizationManagement } from "../../composables/useAuthorizationManagement";
+import {useAuthorizationManagement} from "@/composables/useAuthorizationManagement";
 import AuthorizationResourceView from "./auth/AuthorizationResourceView.vue";
 import RoleAuthorizationView from "./auth/RoleAuthorizationView.vue";
 

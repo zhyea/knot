@@ -239,7 +239,7 @@
 </template>
 
 <script setup lang="ts">
-import { type PropType, computed, reactive, ref, watch, type Ref} from "vue";
+import {type PropType, computed, reactive, ref, watch, type Ref} from "vue";
 import {ElMessage} from "element-plus";
 import {Delete} from "@element-plus/icons-vue";
 import EnumControl from "../common/EnumControl.vue";
@@ -252,13 +252,13 @@ import {
   isEmptyRateLimitPolicy,
   normalizeQuotaPolicy,
   normalizeRateLimitPolicy
-} from "../../utils/trafficPolicy";
-import {createRoutingRule, updateRoutingRule, checkRoutingRuleCode, listRoutingConsumers} from "../../api/routing";
-import {listApps} from "../../api/apps";
-import {listModels} from "../../api/models";
-import {listModelPools} from "../../api/modelPools";
-import {listUsers} from "../../api/users";
-import { mergeOptionList, normalizeOptionList, resolveSelectedOption } from "../../utils/options";
+} from "@/utils/trafficPolicy";
+import {createRoutingRule, updateRoutingRule, checkRoutingRuleCode, listRoutingConsumers} from "@/api/routing";
+import {listApps} from "@/api/apps";
+import {listModels} from "@/api/models";
+import {listModelPools} from "@/api/modelPools";
+import {listUsers} from "@/api/users";
+import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 
 const props = defineProps({

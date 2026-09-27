@@ -106,8 +106,8 @@
 </template>
 
 <script setup lang="ts">
-import { type PropType,  computed, reactive, ref, watch } from "vue";
-import { ElMessage } from "element-plus";
+import {type PropType,  computed, reactive, ref, watch} from "vue";
+import {ElMessage} from "element-plus";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import {
@@ -117,15 +117,15 @@ import {
   isEmptyRateLimitPolicy,
   normalizeQuotaPolicy,
   normalizeRateLimitPolicy
-} from "../../utils/trafficPolicy";
-import { listUsers } from "../../api/users";
+} from "@/utils/trafficPolicy";
+import {listUsers} from "@/api/users";
 import {
   checkRoutingConsumerCode,
   createRoutingConsumer,
   updateRoutingConsumer
-} from "../../api/routing";
-import { generateRoutingRuleCode } from "../../utils/routingRule";
-import { normalizeOptionList, resolveSelectedOption } from "../../utils/options";
+} from "@/api/routing";
+import {generateRoutingRuleCode} from "@/utils/routingRule";
+import {normalizeOptionList, resolveSelectedOption} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 
 const props = defineProps({

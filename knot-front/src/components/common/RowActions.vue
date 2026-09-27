@@ -36,8 +36,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, type PropType } from "vue";
-import type { RowAction } from "@/types";
+import {computed, type PropType} from "vue";
+import type {RowAction} from "@/types";
 
 const props = defineProps({
   actions: { type: Array as PropType<RowAction[]>, default: (): RowAction[] => [] }

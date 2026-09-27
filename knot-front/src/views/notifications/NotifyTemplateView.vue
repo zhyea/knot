@@ -34,14 +34,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import {ref} from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
-import { useListQuery } from "../../composables/useListQuery";
+import {useListQuery} from "@/composables/useListQuery";
 import NotifyTemplateFormDialog from "../../components/notifications/NotifyTemplateFormDialog.vue";
 import NotifyTemplateListPanel from "../../components/notifications/NotifyTemplateListPanel.vue";
-import { listNotifyTemplates } from "../../api/notifications";
+import {listNotifyTemplates} from "@/api/notifications";
 
 const {
   query,

@@ -52,7 +52,7 @@
 
 <script setup lang="ts">
 import type {Dict, Row} from "@/types";
-import { ref } from "vue";
+import {ref} from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
@@ -61,8 +61,8 @@ import EnumCategoryListPanel from "../../components/system/EnumCategoryListPanel
 import EnumItemListDrawer from "../../components/system/EnumItemListDrawer.vue";
 import EnumItemFormDialog from "../../components/system/EnumItemFormDialog.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
-import { listEnumCategorySummaries, listEnumOperationLogs } from "../../api/enums";
-import { useListQuery } from "../../composables/useListQuery";
+import {listEnumCategorySummaries, listEnumOperationLogs} from "@/api/enums";
+import {useListQuery} from "@/composables/useListQuery";
 
 const {
   query,

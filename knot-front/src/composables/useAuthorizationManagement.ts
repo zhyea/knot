@@ -1,8 +1,8 @@
-import { computed, reactive, ref, type Ref } from "vue";
-import { ElMessage } from "element-plus";
-import type { Dict, ResourceField, ResourceSubmitter, Row, RowAction, SelectOptionLike } from "../types";
-import { useAutoQuery } from "./useAutoQuery";
-import { usePageList } from "./usePageList";
+import {computed, reactive, ref, type Ref} from "vue";
+import {ElMessage} from "element-plus";
+import type {Dict, ResourceField, ResourceSubmitter, Row, RowAction, SelectOptionLike} from "@/types";
+import {useAutoQuery} from "./useAutoQuery";
+import {usePageList} from "./usePageList";
 import {
   createAuthorizationApiBinding,
   createAuthorizationMenu,
@@ -28,7 +28,7 @@ import {
   updateAuthorizationModuleStatus,
   updateAuthorizationPermission,
   updateAuthorizationPermissionStatus
-} from "../api/authorizations";
+} from "@/api/authorizations";
 
 /** 权限分组树里的菜单节点 */
 interface PermissionMenuNode {

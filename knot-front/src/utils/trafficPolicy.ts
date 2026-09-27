@@ -1,6 +1,6 @@
 /** 频控/额度策略表单默认值与规范化（与后端 RateLimitPolicy / QuotaPolicy 字段对齐） */
 
-import type { Dict } from "../types";
+import type {Dict} from "@/types";
 
 export interface RateLimitPolicy {
   perSecond: number;

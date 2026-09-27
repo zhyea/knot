@@ -49,8 +49,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import { ElMessage } from "element-plus";
+import {ref} from "vue";
+import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
@@ -58,9 +58,9 @@ import KeywordInput from "../../components/common/KeywordInput.vue";
 import ScheduledTaskConfigPanel from "../../components/system/scheduled/ScheduledTaskConfigPanel.vue";
 import ScheduledTaskFormDrawer from "../../components/system/scheduled/ScheduledTaskFormDrawer.vue";
 import ScheduledTaskRunDrawer from "../../components/system/scheduled/ScheduledTaskRunDrawer.vue";
-import { listScheduledTasks } from "../../api/scheduledTasks";
-import { useListQuery } from "../../composables/useListQuery";
-import type {Dict, Row} from "../../types";
+import {listScheduledTasks} from "@/api/scheduledTasks";
+import {useListQuery} from "@/composables/useListQuery";
+import type {Dict, Row} from "@/types";
 
 const {
   query,

@@ -66,8 +66,8 @@
 
 <script setup lang="ts">
 import type {Dict, Row} from "@/types";
-import { computed, ref } from "vue";
-import { ElMessage } from "element-plus";
+import {computed, ref} from "vue";
+import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
@@ -76,12 +76,12 @@ import RemoteEntitySelect from "../../components/common/RemoteEntitySelect.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import BillingRuleFormDialog from "../../components/billing/BillingRuleFormDialog.vue";
 import BillingRuleListPanel from "../../components/billing/BillingRuleListPanel.vue";
-import { useEnabledToggle } from "../../composables/useEnabledToggle";
-import { useListQuery } from "../../composables/useListQuery";
-import { deleteBillingRule, listBillingRules, updateBillingRuleStatus } from "../../api/billing";
-import { listBillingRuleOperationLogs } from "../../api/operationLogs";
-import { listProviders } from "../../api/providers";
-import { listLogicalModels } from "../../api/logicalModels";
+import {useEnabledToggle} from "@/composables/useEnabledToggle";
+import {useListQuery} from "@/composables/useListQuery";
+import {deleteBillingRule, listBillingRules, updateBillingRuleStatus} from "@/api/billing";
+import {listBillingRuleOperationLogs} from "@/api/operationLogs";
+import {listProviders} from "@/api/providers";
+import {listLogicalModels} from "@/api/logicalModels";
 
 const {
   query,

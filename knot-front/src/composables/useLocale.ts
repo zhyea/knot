@@ -1,11 +1,11 @@
-import { computed, ref, type ComputedRef, type Ref } from "vue";
+import {computed, ref, type ComputedRef, type Ref} from "vue";
 import zhCn from "element-plus/es/locale/lang/zh-cn";
 import zhTw from "element-plus/es/locale/lang/zh-tw";
 import en from "element-plus/es/locale/lang/en";
 import fr from "element-plus/es/locale/lang/fr";
-import { getMySettings, saveMySettings } from "../api/userSettings";
-import { DEFAULT_LOCALE, messages } from "../i18n/messages";
-import { getStorageItem, hasStorageItem, setStorageItem } from "../utils/storage";
+import {getMySettings, saveMySettings} from "@/api/userSettings";
+import {DEFAULT_LOCALE, messages} from "@/i18n/messages";
+import {getStorageItem, hasStorageItem, setStorageItem} from "@/utils/storage";
 
 export type LocaleCode = keyof typeof messages;
 
@@ -29,10 +29,10 @@ const elementLocales = {
 };
 
 export const LOCALES: LocaleOption[] = [
-  { code: "zh-CN", labelKey: "locale.zh-CN" },
-  { code: "zh-TW", labelKey: "locale.zh-TW" },
-  { code: "en-US", labelKey: "locale.en-US" },
-  { code: "fr-FR", labelKey: "locale.fr-FR" }
+  {code: "zh-CN", labelKey: "locale.zh-CN"},
+  {code: "zh-TW", labelKey: "locale.zh-TW"},
+  {code: "en-US", labelKey: "locale.en-US"},
+  {code: "fr-FR", labelKey: "locale.fr-FR"}
 ];
 
 const current: Ref<LocaleCode> = ref(loadStored()) as Ref<LocaleCode>;
@@ -98,7 +98,7 @@ export async function loadLocalePreference() {
 
 async function doLoadLocalePreference(): Promise<LocaleCode> {
   try {
-    const settings = await getMySettings({ silentError: true, skipIdleTouch: true });
+    const settings = await getMySettings({silentError: true, skipIdleTouch: true});
     const remoteLocale = settings?.[LOCALE_SETTING_KEY];
     remoteLoaded = true;
     if (messages[remoteLocale as LocaleCode]) {
@@ -115,7 +115,7 @@ export async function setLocale(locale: LocaleCode): Promise<void> {
   applyLocale(nextLocale);
   if (hasToken()) {
     try {
-      await saveMySettings({ [LOCALE_SETTING_KEY]: nextLocale }, { silentError: true, skipIdleTouch: true });
+      await saveMySettings({[LOCALE_SETTING_KEY]: nextLocale}, {silentError: true, skipIdleTouch: true});
       remoteLoaded = true;
     } catch {
       // Keep local preference if remote saving fails.

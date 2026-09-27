@@ -50,18 +50,18 @@
 
 <script setup lang="ts">
 import type {Dict, Row} from "@/types";
-import { onMounted, ref } from "vue";
-import { ElMessage } from "element-plus";
+import {onMounted, ref} from "vue";
+import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
-import { useListQuery } from "../../composables/useListQuery";
+import {useListQuery} from "@/composables/useListQuery";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import ProviderProfileListPanel from "../../components/provider/ProviderProfileListPanel.vue";
 import ProviderProfileFormDrawer from "../../components/provider/ProviderProfileFormDrawer.vue";
-import { deleteProviderProfile, listProviderProfiles } from "../../api/providerProfiles";
-import { listProviderProfileOperationLogs } from "../../api/operationLogs";
+import {deleteProviderProfile, listProviderProfiles} from "@/api/providerProfiles";
+import {listProviderProfileOperationLogs} from "@/api/operationLogs";
 
 const tagPreset = ["原厂", "云厂商", "代理"];
 

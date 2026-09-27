@@ -43,20 +43,20 @@
 
 <script setup lang="ts">
 import type {Dict, Row} from "@/types";
-import { ref } from "vue";
-import { ElMessage } from "element-plus";
+import {ref} from "vue";
+import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import RoutingConsumerFormDrawer from "../../components/routing/RoutingConsumerFormDrawer.vue";
 import RoutingConsumerListPanel from "../../components/routing/RoutingConsumerListPanel.vue";
-import { useEnabledToggle } from "../../composables/useEnabledToggle";
-import { useListQuery } from "../../composables/useListQuery";
+import {useEnabledToggle} from "@/composables/useEnabledToggle";
+import {useListQuery} from "@/composables/useListQuery";
 import {
   listRoutingConsumers,
   rotateRoutingConsumerSecret,
   updateRoutingConsumerStatus
-} from "../../api/routing";
+} from "@/api/routing";
 
 const {
   query,

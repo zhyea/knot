@@ -59,9 +59,9 @@
 </template>
 
 <script setup lang="ts">
-import type { PropType } from "vue";
+import type {PropType} from "vue";
 import type {Row} from "@/types";
-import { CopyDocument, Edit, Key } from "@element-plus/icons-vue";
+import {CopyDocument, Edit, Key} from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 

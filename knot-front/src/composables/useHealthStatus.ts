@@ -1,7 +1,7 @@
-import { reactive } from "vue";
-import { ElMessage } from "element-plus";
-import { getHealth } from "../api/health";
-import { formatDateTime } from "../utils/format";
+import {reactive} from "vue";
+import {ElMessage} from "element-plus";
+import {getHealth} from "@/api/health";
+import {formatDateTime} from "@/utils/format";
 
 export function useHealthStatus() {
   const health = reactive({

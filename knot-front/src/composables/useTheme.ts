@@ -1,6 +1,6 @@
-import { ref, watch } from "vue";
-import { getMySettings, saveMySettings } from "../api/userSettings";
-import { getStorageItem, hasStorageItem, setStorageItem } from "../utils/storage";
+import {ref, watch} from "vue";
+import {getMySettings, saveMySettings} from "@/api/userSettings";
+import {getStorageItem, hasStorageItem, setStorageItem} from "@/utils/storage";
 
 const STORAGE_KEY = "knot-theme";
 const TOKEN_KEY = "knot_token";

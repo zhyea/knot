@@ -1,6 +1,6 @@
-import { ElMessage } from "element-plus";
+import {ElMessage} from "element-plus";
 import router from "../router";
-import { useAuth } from "./useAuth";
+import {useAuth} from "./useAuth";
 import {
   clearIdleActivity,
   getLastIdleActivityAt,

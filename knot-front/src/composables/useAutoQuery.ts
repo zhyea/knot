@@ -1,4 +1,4 @@
-import { isRef, onScopeDispose, watch, type WatchSource } from "vue";
+import {isRef, onScopeDispose, watch, type WatchSource} from "vue";
 
 export interface UseAutoQueryOptions {
   /** 输入防抖（ms） */

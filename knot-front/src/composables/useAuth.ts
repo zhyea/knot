@@ -1,15 +1,15 @@
-import { computed, ref } from "vue";
-import type { Dict, Row } from "../types";
-import { forcePasswordChange as apiForcePasswordChange, login as apiLogin, logout as apiLogout } from "../api/auth";
-import { getMyAuthorizations } from "../api/authorizations";
-import { clearIdleActivity, touchIdleActivity } from "./idleActivity";
+import {computed, ref} from "vue";
+import type {Dict, Row} from "@/types";
+import {forcePasswordChange as apiForcePasswordChange, login as apiLogin, logout as apiLogout} from "@/api/auth";
+import {getMyAuthorizations} from "@/api/authorizations";
+import {clearIdleActivity, touchIdleActivity} from "./idleActivity";
 import {
   getStorageItem,
   getStorageJson,
   removeStorageItem,
   setStorageItem,
   setStorageJson
-} from "../utils/storage";
+} from "@/utils/storage";
 
 const TOKEN_KEY = "knot_token";
 const USER_KEY = "knot_user";

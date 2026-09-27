@@ -1,6 +1,6 @@
-import { computed, ref } from "vue";
-import { listCommonEnums } from "../api/enums";
-import type { Dict, SelectOption } from "../types";
+import {computed, ref} from "vue";
+import {listCommonEnums} from "@/api/enums";
+import type {Dict, SelectOption} from "@/types";
 
 /**
  * 代码枚举统一数据源（GET /api/common/enums）

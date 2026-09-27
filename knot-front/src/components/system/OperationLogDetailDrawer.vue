@@ -34,8 +34,8 @@
 </template>
 
 <script setup lang="ts">
-import type { Dict } from "@/types";
-import { type PropType,  computed } from "vue";
+import type {Dict} from "@/types";
+import {type PropType,  computed} from "vue";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

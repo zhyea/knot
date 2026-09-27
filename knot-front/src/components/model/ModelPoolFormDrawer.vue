@@ -136,17 +136,17 @@
 </template>
 
 <script setup lang="ts">
-import type { PropType } from "vue";
+import type {PropType} from "vue";
 import type {Dict, Row} from "@/types";
-import { computed, reactive, ref, watch } from "vue";
-import { Delete } from "@element-plus/icons-vue";
-import { ElMessage } from "element-plus";
+import {computed, reactive, ref, watch} from "vue";
+import {Delete} from "@element-plus/icons-vue";
+import {ElMessage} from "element-plus";
 import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
-import { checkModelPoolCode, createModelPool, updateModelPool } from "../../api/modelPools";
-import { listModels } from "../../api/models";
-import { useEnums } from "../../composables/useEnums";
-import { mergeOptionList, normalizeOptionList } from "../../utils/options";
+import {checkModelPoolCode, createModelPool, updateModelPool} from "@/api/modelPools";
+import {listModels} from "@/api/models";
+import {useEnums} from "@/composables/useEnums";
+import {mergeOptionList, normalizeOptionList} from "@/utils/options";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },

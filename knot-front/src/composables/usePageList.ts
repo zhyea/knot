@@ -1,5 +1,5 @@
-import { reactive, ref, type Ref } from "vue";
-import type { Dict, ListResponse, QueryFn } from "../types";
+import {reactive, ref, type Ref} from "vue";
+import type {Dict, ListResponse, QueryFn} from "@/types";
 
 export interface UsePageListDefaults {
   pageSize?: number;

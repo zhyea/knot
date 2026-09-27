@@ -106,9 +106,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import type { Component } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from "vue";
+import type {Component} from "vue";
+import {useRoute, useRouter} from "vue-router";
 import {
   Bell,
   Connection,
@@ -126,9 +126,9 @@ import {
   Tools,
   User
 } from "@element-plus/icons-vue";
-import { useAuth } from "../composables/useAuth";
-import { useLocale } from "../composables/useLocale";
-import { getStorageItem, setStorageItem } from "../utils/storage";
+import {useAuth} from "@/composables/useAuth";
+import {useLocale} from "@/composables/useLocale";
+import {getStorageItem, setStorageItem} from "@/utils/storage";
 import DynamicMenuNode from "../components/layout/DynamicMenuNode.vue";
 
 /** 后端返回的菜单节点（可递归） */

@@ -32,14 +32,14 @@
 </template>
 
 <script setup lang="ts">
-import type { FormInstance } from "element-plus";
+import type {FormInstance} from "element-plus";
 import {computed, reactive, ref} from "vue";
 import {useRouter} from "vue-router";
 import {ElMessage} from "element-plus";
 import {Lock, User} from "@element-plus/icons-vue";
-import {useAuth} from "../composables/useAuth";
-import {useLocale} from "../composables/useLocale";
-import {loadThemePreference} from "../composables/useTheme";
+import {useAuth} from "@/composables/useAuth";
+import {useLocale} from "@/composables/useLocale";
+import {loadThemePreference} from "@/composables/useTheme";
 
 const router = useRouter();
 const {login} = useAuth();

@@ -26,7 +26,7 @@
 
 <script setup lang="ts">
 import AuthorizationPermissionGrantPanel from "./AuthorizationPermissionGrantPanel.vue";
-import type { PropType } from "vue";
+import type {PropType} from "vue";
 import type {Dict, Row} from "@/types";
 
 defineProps({

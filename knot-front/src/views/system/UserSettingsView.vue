@@ -62,11 +62,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { Check } from "@element-plus/icons-vue";
+import {computed, ref} from "vue";
+import {Check} from "@element-plus/icons-vue";
 import PageSection from "../../components/common/PageSection.vue";
-import { LOCALES, useLocale, type LocaleCode } from "../../composables/useLocale";
-import { THEMES, useTheme } from "../../composables/useTheme";
+import {LOCALES, useLocale, type LocaleCode} from "@/composables/useLocale";
+import {THEMES, useTheme} from "@/composables/useTheme";
 
 const { current: localeCurrent, setLocale, t } = useLocale();
 const { current: themeCurrent, setTheme } = useTheme();

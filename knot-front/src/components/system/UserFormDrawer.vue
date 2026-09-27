@@ -68,13 +68,13 @@
 </template>
 
 <script setup lang="ts">
-import { type PropType, computed, reactive, ref, watch} from "vue";
+import {type PropType, computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
-import {createUser, updateUser} from "../../api/users";
-import {listAuthorizationRoles} from "../../api/authorizations/roles";
-import {listDepartments} from "../../api/departments";
+import {createUser, updateUser} from "@/api/users";
+import {listAuthorizationRoles} from "@/api/authorizations/roles";
+import {listDepartments} from "@/api/departments";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
-import { normalizeOptionList, resolveSelectedOption } from "../../utils/options";
+import {normalizeOptionList, resolveSelectedOption} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 
 const props = defineProps({

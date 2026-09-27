@@ -1,4 +1,4 @@
-import { getStorageItem, removeStorageItem, setStorageItem } from "../utils/storage";
+import {getStorageItem, removeStorageItem, setStorageItem} from "@/utils/storage";
 
 // 无后端请求超过该时长则自动退出，单位：毫秒
 export const IDLE_TIMEOUT_MS = 30 * 60 * 1000;

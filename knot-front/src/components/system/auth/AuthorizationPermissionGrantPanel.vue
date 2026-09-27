@@ -51,8 +51,8 @@
 
 <script setup lang="ts">
 import AuthorizationPermissionMenuNode from "./AuthorizationPermissionMenuNode.vue";
-import type { PropType } from "vue";
-import type { Dict, Row } from "@/types";
+import type {PropType} from "vue";
+import type {Dict, Row} from "@/types";
 
 const props = defineProps({
   role: { type: Object as PropType<Dict | null>, default: null },

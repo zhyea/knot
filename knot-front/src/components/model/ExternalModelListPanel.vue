@@ -47,11 +47,11 @@
 </template>
 
 <script setup lang="ts">
-import { Delete, Plus, View } from "@element-plus/icons-vue";
-import type { Row } from "@/types";
+import {Delete, Plus, View} from "@element-plus/icons-vue";
+import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
-import { useEnumOptions } from "../../composables/useEnumOptions";
+import {useEnumOptions} from "@/composables/useEnumOptions";
 
 const { labelOf } = useEnumOptions();
 

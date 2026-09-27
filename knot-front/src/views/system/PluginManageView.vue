@@ -47,17 +47,17 @@
 
 <script setup lang="ts">
 import type {Row} from "@/types";
-import { computed, onMounted, ref, watch } from "vue";
-import { ElMessage } from "element-plus";
+import {computed, onMounted, ref, watch} from "vue";
+import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
-import { useListQuery } from "../../composables/useListQuery";
+import {useListQuery} from "@/composables/useListQuery";
 import PluginFormDialog from "../../components/plugin/PluginFormDialog.vue";
 import PluginListPanel from "../../components/plugin/PluginListPanel.vue";
-import { useEnums } from "../../composables/useEnums";
-import { listPlugins, updatePluginStatus } from "../../api/plugins";
+import {useEnums} from "@/composables/useEnums";
+import {listPlugins, updatePluginStatus} from "@/api/plugins";
 
 const { options: statusOptions, loadOptions: loadStatusOptions } = useEnums("status");
 const pluginStatusOptions = computed(() =>

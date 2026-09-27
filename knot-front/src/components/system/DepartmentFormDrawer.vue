@@ -83,10 +83,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch, type PropType} from "vue";
+import {computed, reactive, ref, watch, type PropType} from "vue";
 import {ElMessage} from "element-plus";
-import {createDepartment, updateDepartment} from "../../api/departments";
-import type {Dict, Row} from "../../types";
+import {createDepartment, updateDepartment} from "@/api/departments";
+import type {Dict, Row} from "@/types";
 
 /** 上级部门下拉项：label 已拼好层级缩进路径 */
 interface ParentOption {

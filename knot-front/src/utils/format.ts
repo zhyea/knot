@@ -1,4 +1,4 @@
-import type { Dict } from "../types";
+import type {Dict} from "@/types";
 
 /**
  * Compatible with Jackson LocalDateTime arrays like `[y,m,d,h,mi,s,nano]`.

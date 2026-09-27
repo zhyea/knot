@@ -75,20 +75,20 @@
 
 <script setup lang="ts">
 import type {Dict, Row} from "@/types";
-import { computed, onMounted, reactive, ref } from "vue";
-import { ElMessage } from "element-plus";
+import {computed, onMounted, reactive, ref} from "vue";
+import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
-import { useListQuery } from "../../composables/useListQuery";
+import {useListQuery} from "@/composables/useListQuery";
 import EnumControl from "../../components/common/EnumControl.vue";
 import LogicalModelFormDrawer from "../../components/model/LogicalModelFormDrawer.vue";
 import LogicalModelTable from "../../components/model/LogicalModelTable.vue";
 import LogicalModelCardGrid from "../../components/model/LogicalModelCardGrid.vue";
-import { deleteLogicalModel, listLogicalModels } from "../../api/logicalModels";
-import { useEnumOptions } from "../../composables/useEnumOptions";
-import { getStorageItem, getStorageJson, setStorageItem, setStorageJson } from "../../utils/storage";
+import {deleteLogicalModel, listLogicalModels} from "@/api/logicalModels";
+import {useEnumOptions} from "@/composables/useEnumOptions";
+import {getStorageItem, getStorageJson, setStorageItem, setStorageJson} from "@/utils/storage";
 
 const VIEW_MODE_KEY = "knot.logical-model.view-mode";
 const VIEW_PAGE_SIZE_KEY = "knot.logical-model.view-page-size";

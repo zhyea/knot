@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import type {Row} from "@/types";
-import { onMounted, ref } from "vue";
+import {onMounted, ref} from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import EnumControl from "../../components/common/EnumControl.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -62,10 +62,10 @@ import KeywordInput from "../../components/common/KeywordInput.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import ModelFormDrawer from "../../components/model/ModelFormDrawer.vue";
 import ModelListPanel from "../../components/model/ModelListPanel.vue";
-import { getModel, listModels } from "../../api/models";
-import { listModelOperationLogs } from "../../api/operationLogs";
-import { useListQuery } from "../../composables/useListQuery";
-import type { Dict } from "../../types";
+import {getModel, listModels} from "@/api/models";
+import {listModelOperationLogs} from "@/api/operationLogs";
+import {useListQuery} from "@/composables/useListQuery";
+import type {Dict} from "@/types";
 
 const {
   query,

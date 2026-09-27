@@ -42,11 +42,11 @@
 
 <script setup lang="ts">
 import type {Row} from "@/types";
-import { Edit, Tickets, VideoPlay } from "@element-plus/icons-vue";
+import {Edit, Tickets, VideoPlay} from "@element-plus/icons-vue";
 import RowActions from "../../common/RowActions.vue";
 import ListPagination from "../../common/ListPagination.vue";
-import { triggerScheduledTask } from "../../../api/scheduledTasks";
-import { taskModeLabel, taskStatusLabel } from "../../../utils/scheduledTask";
+import {triggerScheduledTask} from "@/api/scheduledTasks";
+import {taskModeLabel, taskStatusLabel} from "@/utils/scheduledTask";
 
 const props = defineProps({
   rows: { type: Array, default: (): Row[] => [] },

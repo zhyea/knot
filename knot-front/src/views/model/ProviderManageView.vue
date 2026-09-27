@@ -55,17 +55,17 @@
 
 <script setup lang="ts">
 import type {Row} from "@/types";
-import { onMounted, ref } from "vue";
+import {onMounted, ref} from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
-import { useListQuery } from "../../composables/useListQuery";
+import {useListQuery} from "@/composables/useListQuery";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import ProviderAccountListPanel from "../../components/provider/ProviderAccountListPanel.vue";
 import ProviderAccountFormDrawer from "../../components/provider/ProviderAccountFormDrawer.vue";
 import ProviderDiscountDrawer from "../../components/provider/ProviderDiscountDrawer.vue";
-import { listProviderOperationLogs } from "../../api/operationLogs";
-import { listProviders } from "../../api/providers";
+import {listProviderOperationLogs} from "@/api/operationLogs";
+import {listProviders} from "@/api/providers";
 
 const {
   query,

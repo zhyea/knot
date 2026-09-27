@@ -55,12 +55,12 @@
 </template>
 
 <script setup lang="ts">
-import { Document, Edit, VideoPlay } from "@element-plus/icons-vue";
+import {Document, Edit, VideoPlay} from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
-import { updateRoutingRuleStatus } from "../../api/routing";
-import { useEnabledToggle } from "../../composables/useEnabledToggle";
-import { useEnumOptions } from "../../composables/useEnumOptions";
+import {updateRoutingRuleStatus} from "@/api/routing";
+import {useEnabledToggle} from "@/composables/useEnabledToggle";
+import {useEnumOptions} from "@/composables/useEnumOptions";
 import type {PropType} from "vue";
 import type {Row} from "@/types";
 

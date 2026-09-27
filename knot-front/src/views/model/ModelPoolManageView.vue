@@ -48,17 +48,17 @@
 
 <script setup lang="ts">
 import type {Dict, Row} from "@/types";
-import { onMounted, ref } from "vue";
-import { ElMessage, ElMessageBox } from "element-plus";
+import {onMounted, ref} from "vue";
+import {ElMessage, ElMessageBox} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
-import { useListQuery } from "../../composables/useListQuery";
+import {useListQuery} from "@/composables/useListQuery";
 import EnumControl from "../../components/common/EnumControl.vue";
 import ModelPoolListPanel from "../../components/model/ModelPoolListPanel.vue";
 import ModelPoolFormDrawer from "../../components/model/ModelPoolFormDrawer.vue";
-import { deleteModelPool, listModelPools } from "../../api/modelPools";
+import {deleteModelPool, listModelPools} from "@/api/modelPools";
 
 const {
   query,

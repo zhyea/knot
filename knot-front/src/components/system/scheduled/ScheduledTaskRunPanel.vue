@@ -55,10 +55,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from "vue";
-import { usePageList } from "../../../composables/usePageList";
-import { listScheduledTaskRuns } from "../../../api/scheduledTasks";
-import { runStatusLabel, runStatusType, taskModeLabel } from "../../../utils/scheduledTask";
+import {reactive} from "vue";
+import {usePageList} from "@/composables/usePageList";
+import {listScheduledTaskRuns} from "@/api/scheduledTasks";
+import {runStatusLabel, runStatusType, taskModeLabel} from "@/utils/scheduledTask";
 
 const props = defineProps({
   fixedTaskCode: { type: String, default: "" }

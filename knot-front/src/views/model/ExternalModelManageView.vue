@@ -73,13 +73,13 @@
 
 <script setup lang="ts">
 import type {Dict, Row} from "@/types";
-import { computed, onMounted, ref } from "vue";
-import { ElMessage } from "element-plus";
+import {computed, onMounted, ref} from "vue";
+import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
-import { useListQuery } from "../../composables/useListQuery";
+import {useListQuery} from "@/composables/useListQuery";
 import EnumControl from "../../components/common/EnumControl.vue";
 import ExternalModelDetailDrawer from "../../components/model/ExternalModelDetailDrawer.vue";
 import ExternalModelListPanel from "../../components/model/ExternalModelListPanel.vue";
@@ -92,7 +92,7 @@ import {
   listExternalModelItems,
   listExternalModelSources,
   syncExternalModelSource
-} from "../../api/externalModels";
+} from "@/api/externalModels";
 
 const {
   query,

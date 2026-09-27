@@ -58,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import type { PropType } from "vue";
+import type {PropType} from "vue";
 import type {Dict, Row} from "@/types";
 import {Delete, Document, Edit} from "@element-plus/icons-vue";
 import RowActions from "../common/RowActions.vue";

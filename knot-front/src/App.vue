@@ -7,11 +7,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, watch } from "vue";
-import { useRoute } from "vue-router";
+import {computed, onMounted, watch} from "vue";
+import {useRoute} from "vue-router";
 import MainLayout from "./layouts/MainLayout.vue";
-import { useLocale } from "./composables/useLocale";
-import { loadThemePreference } from "./composables/useTheme";
+import {useLocale} from "./composables/useLocale";
+import {loadThemePreference} from "./composables/useTheme";
 
 const route = useRoute();
 const { elementLocale, loadLocalePreference, t } = useLocale();

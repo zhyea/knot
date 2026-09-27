@@ -75,10 +75,10 @@
 </template>
 
 <script setup lang="ts">
-import { Delete, Edit } from "@element-plus/icons-vue";
-import type { PropType } from "vue";
+import {Delete, Edit} from "@element-plus/icons-vue";
+import type {PropType} from "vue";
 import RowActions from "../../common/RowActions.vue";
-import type { Dict, ResourceField, Row, RowAction, TableColumn } from "@/types";
+import type {Dict, ResourceField, Row, RowAction, TableColumn} from "@/types";
 
 const props = defineProps({
   title: { type: String, required: true },

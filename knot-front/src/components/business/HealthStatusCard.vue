@@ -11,7 +11,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import {computed} from "vue";
 import InfoDescriptions from "../common/InfoDescriptions.vue";
 
 const props = defineProps({

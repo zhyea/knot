@@ -1,6 +1,6 @@
-import { computed, ref } from "vue";
-import type { Dict, Row } from "../types";
-import { listModelTypes } from "../api/models";
+import {computed, ref} from "vue";
+import type {Dict, Row} from "@/types";
+import {listModelTypes} from "@/api/models";
 
 /**
  * 模型类型「协议规则」数据源（GET /api/models/types）
@@ -82,5 +82,5 @@ export function useModelTypes() {
   /** 后端列表首项，作为新建表单的默认值 */
   const defaultCode = computed(() => defaultTypeCode);
 
-  return { loading, loadOptions, protocolsOf, defaultCode };
+  return {loading, loadOptions, protocolsOf, defaultCode};
 }

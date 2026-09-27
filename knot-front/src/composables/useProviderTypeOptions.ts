@@ -1,6 +1,6 @@
-import { onMounted, ref } from "vue";
-import type { Dict, Row, SelectOption } from "../types";
-import { listProviderProfiles } from "../api/providerProfiles";
+import {onMounted, ref} from "vue";
+import type {Dict, Row, SelectOption} from "@/types";
+import {listProviderProfiles} from "@/api/providerProfiles";
 
 /**
  * 供应商类型下拉：来源 = 供应商信息表（kb_providers），不再走枚举分类 provider_type。

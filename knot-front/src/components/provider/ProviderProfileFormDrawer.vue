@@ -32,16 +32,16 @@
 </template>
 
 <script setup lang="ts">
-import type { PropType } from "vue";
-import type { FormInstance } from "element-plus";
-import { reactive, ref, watch } from "vue";
-import { ElMessage, type FormItemRule } from "element-plus";
+import type {PropType} from "vue";
+import type {FormInstance} from "element-plus";
+import {reactive, ref, watch} from "vue";
+import {ElMessage, type FormItemRule} from "element-plus";
 import type {Dict, Row} from "@/types";
 import {
   checkProviderProfileCode,
   createProviderProfile,
   updateProviderProfile
-} from "../../api/providerProfiles";
+} from "@/api/providerProfiles";
 
 const props = defineProps({
   modelValue: Boolean,

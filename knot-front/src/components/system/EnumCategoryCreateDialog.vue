@@ -34,10 +34,10 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, watch } from "vue";
-import { ElMessage } from "element-plus";
-import { createEnumConfig } from "../../api/enums";
-import { clearEnumCache } from "../../composables/useEnums";
+import {reactive, ref, watch} from "vue";
+import {ElMessage} from "element-plus";
+import {createEnumConfig} from "@/api/enums";
+import {clearEnumCache} from "@/composables/useEnums";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false }

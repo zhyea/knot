@@ -15,10 +15,10 @@
 
 <script setup lang="ts">
 import type {Dict} from "@/types";
-import { reactive, ref } from "vue";
-import { ElMessage } from "element-plus";
+import {reactive, ref} from "vue";
+import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
-import { sendNotification } from "../../api/notifications";
+import {sendNotification} from "@/api/notifications";
 
 const send = reactive({ templateCode: "welcome", receivers: "ops@example.com" });
 const sendLoading = ref(false);

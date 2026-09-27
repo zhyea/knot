@@ -195,9 +195,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
-import type { Component } from "vue";
-import { useRouter } from "vue-router";
+import {computed, onMounted, reactive, ref} from "vue";
+import type {Component} from "vue";
+import {useRouter} from "vue-router";
 import {
   Bell,
   Connection,
@@ -213,16 +213,16 @@ import {
   Tools,
   User
 } from "@element-plus/icons-vue";
-import { listApps } from "../api/apps";
-import { getHealth } from "../api/health";
-import { listLogicalModels } from "../api/logicalModels";
-import { listModuleCatalog } from "../api/modules";
-import { listOperationLogs } from "../api/operationLogs";
-import { listProviders } from "../api/providers";
-import { listRoutingRules } from "../api/routing";
-import { useAuth } from "../composables/useAuth";
-import { formatDateTime } from "../utils/format";
-import type { Dict, ListResponse, Row } from "../types";
+import {listApps} from "@/api/apps";
+import {getHealth} from "@/api/health";
+import {listLogicalModels} from "@/api/logicalModels";
+import {listModuleCatalog} from "@/api/modules";
+import {listOperationLogs} from "@/api/operationLogs";
+import {listProviders} from "@/api/providers";
+import {listRoutingRules} from "@/api/routing";
+import {useAuth} from "@/composables/useAuth";
+import {formatDateTime} from "@/utils/format";
+import type {Dict, ListResponse, Row} from "@/types";
 
 /** 模块目录条目（/api/modules 返回） */
 interface ModuleCatalogItem {
