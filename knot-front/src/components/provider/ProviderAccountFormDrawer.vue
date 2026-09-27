@@ -1,102 +1,102 @@
 <template>
   <el-drawer
-      :model-value="modelValue"
-      :title="isEdit ? '编辑供应商账户' : '新建供应商账户'"
-      size="50%"
-      class="drawer-with-scrollbar"
-      destroy-on-close
-      @update:model-value="emit('update:modelValue', $event)"
-      @closed="onClosed"
+    :model-value="modelValue"
+    :title="isEdit ? '编辑供应商账户' : '新建供应商账户'"
+    size="50%"
+    class="drawer-with-scrollbar"
+    destroy-on-close
+    @update:model-value="emit('update:modelValue', $event)"
+    @closed="onClosed"
   >
 
     <el-scrollbar max-height="calc(100vh - 140px)">
-    <el-form v-loading="detailLoading" :model="form" label-width="110px">
-      <div class="slot-body">
-        <el-form-item label="编码" required :error="codeError">
-          <el-input
+      <el-form v-loading="detailLoading" :model="form" label-width="110px">
+        <div class="slot-body">
+          <el-form-item label="编码" required :error="codeError">
+            <el-input
               v-model="form.code"
               placeholder="最长 32 位"
               maxlength="32"
               show-word-limit
               :disabled="codeChecking"
               @blur="validateCode"
-          />
-        </el-form-item>
-        <el-form-item label="Base URL">
-          <el-input v-model="form.baseUrl" placeholder="https://api.example.com"/>
-        </el-form-item>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="供应商" required>
-              <el-select
+            />
+          </el-form-item>
+          <el-form-item label="Base URL">
+            <el-input v-model="form.baseUrl" placeholder="https://api.example.com"/>
+          </el-form-item>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="供应商" required>
+                <el-select
                   v-model="form.providerId"
                   placeholder="请选择供应商"
                   filterable
                   style="width: 100%"
-              >
-                <el-option
+                >
+                  <el-option
                     v-for="option in providerOptions"
                     :key="option.value"
                     :label="option.label"
                     :value="option.value"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="启用">
-              <el-switch v-model="form.enabled"/>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="认证类型" required>
-          <el-select
+                  />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="启用">
+                <el-switch v-model="form.enabled"/>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-form-item label="认证类型" required>
+            <el-select
               v-model="form.credentialType"
               placeholder="请选择认证类型"
               style="width: 100%"
               @change="handleCredentialTypeChange"
-          >
-            <el-option
+            >
+              <el-option
                 v-for="option in credentialTypeOptions"
                 :key="option.code"
                 :label="option.label"
                 :value="option.code"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item
             v-for="field in requiredCredentialFields"
             :key="field"
             :label="field"
             required
-        >
-          <el-input
+          >
+            <el-input
               v-model="form.authConfig[field]"
               :type="credentialFieldType(field)"
               :rows="field === 'account_json' ? 5 : undefined"
               :show-password="isSecretCredentialField(field) && field !== 'account_json' && isAdmin"
               autocomplete="off"
               :placeholder="`请输入 ${field}`"
-          />
-        </el-form-item>
-        <el-form-item>
-          <KvEditor
+            />
+          </el-form-item>
+          <el-form-item>
+            <KvEditor
               v-model="customAuthConfig"
               class="auth-kv-editor"
               value-secret
               :allow-reveal="isAdmin"
-          />
-        </el-form-item>
-      </div>
+            />
+          </el-form-item>
+        </div>
 
-      <div class="space-line" />
+        <div class="space-line"/>
 
-      <TrafficPolicySection
+        <TrafficPolicySection
           class="slot-body"
           v-model:rate-limit="form.rateLimitPolicy"
           v-model:quota="form.quotaPolicy"
-      />
-    </el-form>
+        />
+      </el-form>
     </el-scrollbar>
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
@@ -107,12 +107,12 @@
 </template>
 
 <script setup lang="ts">
-import {computed, reactive, ref, watch} from "vue";
+import {type PropType, computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import KvEditor from "../common/KvEditor.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
-import {useAuth} from "../../composables/useAuth";
-import {listProviderProfiles} from "../../api/providerProfiles";
+import {useAuth} from "@/composables/useAuth";
+import {listProviderProfiles} from "@/api/providerProfiles";
 import {
   createProvider,
   updateProvider,
@@ -120,8 +120,8 @@ import {
   suggestProviderCode,
   checkProviderCode,
   listCredentialTypes
-} from "../../api/providers";
-import type { Dict, Row, SelectOption } from "@/types";
+} from "@/api/providers";
+import type {Dict, Row, SelectOption} from "@/types";
 
 /** 认证类型选项：code / label / requiredFields，由后端 ProviderCredentialTypeEnum 下发 */
 interface CredentialTypeOption {
@@ -133,7 +133,7 @@ interface CredentialTypeOption {
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
   // 只接收被编辑账户的 id：列表接口不再返回认证配置与策略，整表数据一律按 id 拉详情获取
-  providerId: {type: Number, default: null}
+  providerId: {type: Number as PropType<number | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -152,7 +152,7 @@ const form = reactive<Dict>({
   baseUrl: "",
   enabled: true,
   credentialType: "api-key",
-  authConfig: { apiKey: "" },
+  authConfig: {apiKey: ""},
   rateLimitPolicy: {},
   quotaPolicy: {}
 });
@@ -220,8 +220,8 @@ function isSecretCredentialField(field: string): boolean {
 
 function credentialFieldType(field: string): string {
   return field === "account_json"
-      ? "textarea"
-      : isSecretCredentialField(field) ? "password" : "text";
+    ? "textarea"
+    : isSecretCredentialField(field) ? "password" : "text";
 }
 
 async function loadSuggestedCode() {
@@ -246,7 +246,7 @@ function fillFormFromRow(row: Row) {
   // 初次加载：把存量 authConfig 里不属于当前类型的键拆到自定义编辑器，一次性完成
   syncCredentialParts();
   form.rateLimitPolicy =
-      row.rateLimitPolicy && typeof row.rateLimitPolicy === "object" ? {...row.rateLimitPolicy} : {};
+    row.rateLimitPolicy && typeof row.rateLimitPolicy === "object" ? {...row.rateLimitPolicy} : {};
   form.quotaPolicy = row.quotaPolicy && typeof row.quotaPolicy === "object" ? {...row.quotaPolicy} : {};
   if (form.code) {
     codeValidated.value = true;
@@ -271,7 +271,7 @@ async function resetForm() {
   codeValidated.value = false;
   clearForm();
   if (!props.providerId) {
-    loadSuggestedCode();
+    await loadSuggestedCode();
     return;
   }
   detailLoading.value = true;
@@ -306,26 +306,26 @@ async function loadProviderOptions() {
 }
 
 watch(
-    () => [props.modelValue, props.providerId],
-    ([visible]) => {
-      if (visible) {
-        resetForm();
-      }
+  () => [props.modelValue, props.providerId],
+  ([visible]) => {
+    if (visible) {
+      resetForm();
     }
+  }
 );
 
 loadProviderOptions();
 loadCredentialTypes();
 
 watch(
-    () => form.code,
-    () => {
-      if (!props.modelValue) return;
-      codeValidated.value = false;
-      if (codeError.value) {
-        codeError.value = "";
-      }
+  () => form.code,
+  () => {
+    if (!props.modelValue) return;
+    codeValidated.value = false;
+    if (codeError.value) {
+      codeError.value = "";
     }
+  }
 );
 
 function onClosed() {

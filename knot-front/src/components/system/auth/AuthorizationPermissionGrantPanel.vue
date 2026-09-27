@@ -55,7 +55,7 @@ import type { PropType } from "vue";
 import type { Dict, Row } from "@/types";
 
 const props = defineProps({
-  role: { type: Object as PropType<Dict>, default: null },
+  role: { type: Object as PropType<Dict | null>, default: null },
   groups: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
   selectedIds: { type: Array as PropType<unknown[]>, default: (): unknown[] => [] },
   keyword: { type: String, default: "" },

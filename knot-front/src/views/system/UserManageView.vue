@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import type {Row} from "@/types";
+import type {Dict, Row} from "@/types";
 import { reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -69,12 +69,12 @@ const {
   handleQuery,
   handleReset
 } = useListQuery({ apiFn: listUsers, fields: { keyword: "" } });
-const users = ref([]);
+const users = ref<Row[]>([]);
 
 const drawerVisible = ref(false);
-const editingUser = ref(null);
+const editingUser = ref<Dict | null>(null);
 const logDrawerVisible = ref(false);
-const logUserId = ref(null);
+const logUserId = ref<number | string | null>(null);
 const logDrawerTitle = ref("操作日志");
 
 function openUserLogs(row: Row) {

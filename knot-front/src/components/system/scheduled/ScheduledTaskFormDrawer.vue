@@ -45,13 +45,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import type { Dict } from "@/types";
+import { type PropType,  computed, reactive, ref, watch } from "vue";
 import CronExpressionInput from "./CronExpressionInput.vue";
 import { createScheduledTask, updateScheduledTask } from "../../../api/scheduledTasks";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  task: { type: Object, default: null }
+  task: { type: Object as PropType<Dict | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);

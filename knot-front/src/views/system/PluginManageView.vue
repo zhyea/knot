@@ -79,9 +79,9 @@ const {
   handleReset
 } = useListQuery({ apiFn: listPlugins, fields: { keyword: "", status: "" } });
 
-const pluginRows = ref([]);
+const pluginRows = ref<Row[]>([]);
 const dlg = ref(false);
-const statusUpdatingId = ref(null);
+const statusUpdatingId = ref<number | null>(null);
 
 watch(
   rows,

@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import type {Row} from "@/types";
+import type {Dict, Row} from "@/types";
 import { ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -78,7 +78,7 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
 });
 
 const drawerVisible = ref(false);
-const editingConsumer = ref(null);
+const editingConsumer = ref<Dict | null>(null);
 
 function openCreate() {
   editingConsumer.value = null;

@@ -38,16 +38,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import type { Dict } from "@/types";
+import { type PropType,  computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import EnumSelect from "../common/EnumSelect.vue";
 import { createDiscountPolicy, updateDiscountPolicy } from "../../api/providers";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  providerId: { type: Number, default: null },
+  providerId: { type: Number as PropType<number | null>, default: null },
   /** 传入策略行表示编辑，null 表示新增 */
-  policy: { type: Object, default: null }
+  policy: { type: Object as PropType<Dict | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -110,7 +111,7 @@ async function submit() {
       status: form.status
     };
     if (isEdit.value) {
-      await updateDiscountPolicy(props.providerId, form.id, body);
+      await updateDiscountPolicy(props.providerId, form.id!, body);
     } else {
       await createDiscountPolicy(props.providerId, body);
     }

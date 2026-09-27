@@ -58,7 +58,7 @@ export function useEnums(category: string, enabledOnly = true) {
  * 获取所有分类列表
  */
 export function useEnumCategories() {
-  const categories = ref([]);
+  const categories = ref<Row[]>([]);
   const loading = ref(false);
 
   async function loadCategories() {

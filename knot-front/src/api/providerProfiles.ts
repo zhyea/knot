@@ -9,7 +9,7 @@ export function getProviderProfile(id: number | string) {
   return get(`/api/provider-profiles/${id}`);
 }
 
-export function checkProviderProfileCode(code: string, excludeId: number | string) {
+export function checkProviderProfileCode(code: string, excludeId: number | string | null) {
   return get("/api/provider-profiles/check-code", {
     params: { code, excludeId: excludeId ?? undefined }
   });

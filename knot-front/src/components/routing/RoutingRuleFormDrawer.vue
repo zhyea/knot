@@ -207,7 +207,7 @@
           </el-table-column>
           <el-table-column label="主目标" width="80" align="center">
             <template #default="{ row }">
-              <el-radio v-model="primaryTargetKey" :value="targetKey(row)" label="" />
+              <el-radio v-model="primaryTargetKeyModel" :value="targetKey(row)" label="" />
             </template>
           </el-table-column>
           <el-table-column label="操作" width="70" align="center">
@@ -239,7 +239,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, reactive, ref, watch, type Ref} from "vue";
+import { type PropType, computed, reactive, ref, watch, type Ref} from "vue";
 import {ElMessage} from "element-plus";
 import {Delete} from "@element-plus/icons-vue";
 import EnumControl from "../common/EnumControl.vue";
@@ -263,7 +263,7 @@ import type {Dict, Row} from "@/types";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  rule: {type: Object, default: null}
+  rule: {type: Object as PropType<Dict | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -277,10 +277,42 @@ const modelPoolOptions = ref<Row[]>([]);
 const consumerOptions = ref<Row[]>([]);
 const saving = ref(false);
 const ruleCodeError = ref("");
-const primaryTargetKey = ref(null);
+const primaryTargetKey = ref<string | null>(null);
+/** el-radio 的 v-model 不接受 null：null（未指定主目标）映射为 undefined */
+const primaryTargetKeyModel = computed<string | undefined>({
+  get: () => primaryTargetKey.value ?? undefined,
+  set: (value) => { primaryTargetKey.value = value ?? null; }
+});
 const targetType = ref("MODEL");
 
-const form = reactive({
+interface RuleTargetForm {
+  id?: number | string | null;
+  targetType: string;
+  targetId: number | string | null;
+  targetCode: string | null;
+  targetName: string | null;
+  modelType: string | null;
+  providerId: number | string | null;
+  priority: number;
+  primary: boolean;
+}
+
+interface RuleForm {
+  id: number | string | null;
+  ruleCode: string;
+  name: string;
+  appScenarios: string[];
+  consumerIds: Array<string | number>;
+  appId: number | string | null;
+  userId: number | string | null;
+  modelTypes: string[];
+  enabled: boolean;
+  targets: RuleTargetForm[];
+  rateLimitPolicy: Dict;
+  quotaPolicy: Dict;
+}
+
+const form = reactive<RuleForm>({
   id: null,
   ruleCode: "",
   name: "",
@@ -486,7 +518,8 @@ function resetForm() {
       priority: m.priority ?? 100,
       primary: !!m.primary
     }));
-    primaryTargetKey.value = form.targets.find((m) => m.primary) ? targetKey(form.targets.find((m) => m.primary)) : (form.targets[0] ? targetKey(form.targets[0]) : null);
+    const primaryTarget = form.targets.find((m) => m.primary) || form.targets[0] || null;
+    primaryTargetKey.value = primaryTarget ? targetKey(primaryTarget) : null;
   } else {
     form.id = null;
     form.ruleCode = "";
@@ -542,7 +575,7 @@ watch(
           return null;
         }
         return item;
-      }).filter(Boolean);
+      }).filter((item): item is RuleTargetForm => item != null);
       if (changed) {
         primaryTargetKey.value = form.targets[0] ? targetKey(form.targets[0]) : null;
       }
@@ -564,7 +597,7 @@ function onConsumersChange(consumerIds: Array<string | number>) {
   }
 }
 
-function onSelectedTargetsChange(targetIds: Array<string | number>) {
+function onSelectedTargetsChange(targetIds: Array<string | number | null>) {
   const nextIds = Array.isArray(targetIds) ? targetIds : [];
   const existingByKey = new Map(form.targets.map((item) => [targetKey(item), item]));
   const otherTargets = form.targets.filter((item) => item.targetType !== targetType.value);
@@ -699,7 +732,7 @@ async function submit() {
   try {
     const body = buildSubmitPayload();
     if (isEdit.value) {
-      await updateRoutingRule(form.id, body);
+      await updateRoutingRule(form.id!, body);
       ElMessage.success("已保存");
     } else {
       await createRoutingRule(body);

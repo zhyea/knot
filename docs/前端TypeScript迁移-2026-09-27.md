@@ -141,3 +141,31 @@ $ npm run build        → EXIT=0，✓ built in 8.67s
 ```
 
 **遗留**：第二批 strictNullChecks（约 305 处）单独做。
+
+---
+
+## 十、第二批严格度收紧：strictNullChecks 全开（2026-09-27 追加）
+
+**tsconfig 现状**：`strict: true`，无任何显式覆盖，**两批收紧全部收官**。
+
+**清错过程（322 → 0）**
+
+| 类别 | 数量 | 修法 |
+|---|---|---|
+| TS2339 on never | ~180 | `ref(null)`→`ref<Dict\|null>`（编辑对象 20 个）、`ref([])`→`ref<Row[]>`（15 个）、6 个大 form 补局部 interface、formRef 用 `FormInstance` 等最小结构类型 |
+| TS2322 模板绑定 | ~50 | 28 个子组件 prop `default: null` 补 `as PropType<X \| null>`；父侧 ID ref 收窄 `ref<number\|null>` |
+| TS2345 | ~30 | 4 个 check*Code api excludeId 放宽 `\| null`；isEdit 分支 `form.id!` 9 处；logXxxId.value! 6 处 |
+| 散件 | ~60 | 可选链/`?? undefined`/computed 包装（el-radio v-model null↔undefined）/type guard filter |
+
+**关键坑**
+- Windows 文件 CRLF：多行字符串 replace 静默失败，必须 `\r?\n` 正则或行级处理。
+- 批量插 import 必须先查重（曾致 4 个文件重复导入 PropType）。
+- map 返回 null 后 `.filter(Boolean)` 不收窄 → `.filter((item): item is T => item != null)`。
+- vite emptyOutDir 被沙箱拦截时 build EXIT=1 是环境问题；.NET API 删 dist 后重跑即过。
+
+**验证（真实退出码）**
+
+```
+$ npm run type-check   → EXIT=0，0 错误
+$ npm run build        → EXIT=0，✓ built in 7.29s
+```

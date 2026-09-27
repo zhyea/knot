@@ -16,6 +16,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Dict} from "@/types";
 import { reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -23,7 +24,7 @@ import { runReconciliation } from "../../api/billing";
 
 const reco = reactive({ providerCode: "default", billDate: "2026-04" });
 const loading = ref(false);
-const result = ref(null);
+const result = ref<Dict | null>(null);
 
 async function runReco() {
   loading.value = true;

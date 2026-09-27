@@ -83,9 +83,9 @@ const {
 } = useListQuery({ apiFn: listModels, fields: { keyword: "", modelTypes: [] } });
 
 const formVisible = ref(false);
-const editingModel = ref(null);
+const editingModel = ref<Dict | null>(null);
 const logDrawer = ref(false);
-const logModelId = ref(null);
+const logModelId = ref<number | string | null>(null);
 const logModelName = ref("");
 
 function openCreate() {
@@ -111,7 +111,7 @@ function openChangeLog(row: Row) {
 }
 
 function loadModelOperationLogs() {
-  return listModelOperationLogs(logModelId.value);
+  return listModelOperationLogs(logModelId.value!);
 }
 
 function buildModelCopy(source: Dict = {}): Dict {

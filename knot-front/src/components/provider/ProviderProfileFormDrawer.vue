@@ -32,9 +32,11 @@
 </template>
 
 <script setup lang="ts">
+import type { PropType } from "vue";
+import type { FormInstance } from "element-plus";
 import { reactive, ref, watch } from "vue";
 import { ElMessage, type FormItemRule } from "element-plus";
-import type { Row } from "@/types";
+import type {Dict, Row} from "@/types";
 import {
   checkProviderProfileCode,
   createProviderProfile,
@@ -43,15 +45,15 @@ import {
 
 const props = defineProps({
   modelValue: Boolean,
-  providerProfile: { type: Object, default: null }
+  providerProfile: { type: Object as PropType<Dict | null>, default: null }
 });
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const tagPreset = ["原厂", "云厂商", "代理"];
 const submitting = ref(false);
-const formRef = ref(null);
-const form = reactive({ code: "", name: "", tags: [] });
-const editing = ref(null);
+const formRef = ref<FormInstance | null>(null);
+const form = reactive<{ code: string; name: string; tags: string[] }>({ code: "", name: "", tags: [] });
+const editing = ref<Dict | null>(null);
 
 const rules = {
   code: [

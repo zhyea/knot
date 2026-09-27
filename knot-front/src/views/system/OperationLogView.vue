@@ -107,11 +107,11 @@ const moduleLabelMap = {
   "model-pool": "模型池"
 };
 
-const moduleOptions = ref([]);
-const operationOptions = ref([]);
-const rawStatusOptions = ref([]);
+const moduleOptions = ref<Row[]>([]);
+const operationOptions = ref<Row[]>([]);
+const rawStatusOptions = ref<string[]>([]);
 const detailDrawer = ref(false);
-const currentLog = ref(null);
+const currentLog = ref<Dict | null>(null);
 
 const logStatusOptions = computed(() =>
   rawStatusOptions.value.map((value) => ({

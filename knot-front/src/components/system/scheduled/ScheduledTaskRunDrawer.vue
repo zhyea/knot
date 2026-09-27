@@ -11,12 +11,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import type { Dict } from "@/types";
+import { type PropType,  computed, ref } from "vue";
 import ScheduledTaskRunPanel from "./ScheduledTaskRunPanel.vue";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  task: { type: Object, default: null }
+  task: { type: Object as PropType<Dict | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue"]);

@@ -43,6 +43,7 @@
 </template>
 
 <script setup lang="ts">
+import type { FormInstance } from "element-plus";
 import { computed, reactive, ref } from "vue";
 import { useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
@@ -53,7 +54,7 @@ const router = useRouter();
 const { forcePasswordChangeState, needsPasswordChange, submitForcedPasswordChange, clearAllAuthState } = useAuth();
 const { t } = useLocale();
 
-const formRef = ref(null);
+const formRef = ref<FormInstance | null>(null);
 const loading = ref(false);
 const form = reactive({
   newPassword: "",

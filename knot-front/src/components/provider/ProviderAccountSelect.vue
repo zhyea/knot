@@ -20,7 +20,7 @@ import type { Dict, Row } from "@/types";
 defineOptions({ inheritAttrs: false });
 
 const props = defineProps({
-  modelValue: { type: [String, Number], default: null },
+  modelValue: { type: [String, Number] as PropType<string | number | null>, default: null },
   selectedOptions: { type: Array as PropType<Row[]>, default: (): Row[] => [] }
 });
 

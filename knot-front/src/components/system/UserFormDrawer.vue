@@ -68,26 +68,36 @@
 </template>
 
 <script setup lang="ts">
-import {computed, reactive, ref, watch} from "vue";
+import { type PropType, computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import {createUser, updateUser} from "../../api/users";
 import {listAuthorizationRoles} from "../../api/authorizations/roles";
 import {listDepartments} from "../../api/departments";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import { normalizeOptionList, resolveSelectedOption } from "../../utils/options";
-import type { Dict } from "@/types";
+import type {Dict, Row} from "@/types";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  user: {type: Object, default: null}
+  user: {type: Object as PropType<Dict | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const saving = ref(false);
-const departmentOptions = ref([]);
-const roleOptions = ref([]);
-const form = reactive({
+const departmentOptions = ref<Row[]>([]);
+const roleOptions = ref<Row[]>([]);
+interface UserFormState {
+  id: number | string | null;
+  username: string;
+  realName: string;
+  password: string;
+  deptId: number | string | null;
+  roleIds: number[];
+  status: number;
+}
+
+const form = reactive<UserFormState>({
   id: null,
   username: "",
   realName: "",
@@ -202,7 +212,7 @@ async function submit() {
       await createUser(payload);
       ElMessage.success("已创建");
     } else {
-      await updateUser(form.id, payload);
+      await updateUser(form.id!, payload);
       ElMessage.success("已保存");
     }
     emit("update:modelValue", false);

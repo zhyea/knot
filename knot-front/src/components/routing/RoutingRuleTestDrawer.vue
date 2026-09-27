@@ -190,7 +190,7 @@ interface RoutingTarget {
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  ruleId: { type: Number, default: null },
+  ruleId: { type: Number as PropType<number | null>, default: null },
   ruleName: { type: String, default: "" },
   secretKey: { type: String, default: "" },
   targets: { type: Array as PropType<RoutingTarget[]>, default: (): RoutingTarget[] => [] }
@@ -212,8 +212,18 @@ const loading = ref(false);
 const protocolLoading = ref(false);
 const requestTab = ref("body");
 const responseTab = ref("summary");
-const expandedPanels = ref([]);
-const testResult = ref(null);
+const expandedPanels = ref<string[]>([]);
+interface RoutingTestResult {
+  curl?: string;
+  status: string;
+  httpStatus: number | string | null;
+  modelCode: any;
+  protocol: string | null;
+  errorMessage: string;
+  responseBody: any;
+}
+
+const testResult = ref<RoutingTestResult | null>(null);
 const targetProtocolMap = reactive<Dict>({});
 const targetResolvedModelMap = reactive<Dict>({});
 const templateStore = reactive<Dict>({});
@@ -412,7 +422,7 @@ async function resolveTargetProtocolDetail(target: RoutingTarget) {
   if (normalizeTargetType(target.targetType) === "MODEL_POOL") {
     return await loadModelPoolProtocols(target);
   }
-  return await loadModelProtocols(target.targetId, target.modelType, target.targetCode);
+  return await loadModelProtocols(target.targetId as string | number, target.modelType, target.targetCode);
 }
 
 async function loadModelProtocols(
@@ -438,7 +448,7 @@ async function loadModelProtocols(
 
 async function loadModelPoolProtocols(target: RoutingTarget): Promise<{ protocols: string[]; resolvedModel: string }> {
   try {
-    const detail = await getModelPool(target.targetId);
+    const detail = await getModelPool(target.targetId as string | number);
     const enabledItems: Row[] = (Array.isArray(detail?.items) ? detail.items : []).filter((item: Row) => item.enabled !== false);
     if (!enabledItems.length) {
       return {
@@ -625,7 +635,7 @@ async function runTest() {
     responseTab.value = "body";
   } catch (error) {
     responseTab.value = "body";
-    testResult.value = normalizeErrorResult(error as Dict);
+    testResult.value = normalizeErrorResult(error as Dict) as RoutingTestResult;
   } finally {
     loading.value = false;
   }

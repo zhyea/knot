@@ -26,7 +26,7 @@ export function rotateRoutingConsumerSecret(id: number | string) {
   return post(`/api/routing-consumers/${id}/rotate-secret`);
 }
 
-export function checkRoutingConsumerCode(code: string, excludeId: number | string) {
+export function checkRoutingConsumerCode(code: string, excludeId: number | string | null) {
   return get("/api/routing-consumers/check-code", {
     params: { code, excludeId: excludeId ?? undefined }
   });
@@ -44,7 +44,7 @@ export function updateRoutingRuleStatus(id: number | string, enabled: boolean) {
   return put(`/api/routing-rules/${id}/status`, { enabled });
 }
 
-export function checkRoutingRuleCode(code: string, excludeId: number | string) {
+export function checkRoutingRuleCode(code: string, excludeId: number | string | null) {
   return get("/api/routing-rules/check-code", {
     params: { code, excludeId: excludeId ?? undefined }
   });

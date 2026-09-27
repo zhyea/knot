@@ -72,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import type {Row} from "@/types";
+import type {Dict, Row} from "@/types";
 import { computed, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -101,15 +101,15 @@ const {
 } = useListQuery({ apiFn: listDepartments, fields: { keyword: "", parentId: 0 } });
 
 const drawerVisible = ref(false);
-const editingDepartment = ref(null);
-const defaultParentId = ref(null);
-const treeData = ref([]);
-const treeRef = ref(null);
+const editingDepartment = ref<Dict | null>(null);
+const defaultParentId = ref<number | null>(null);
+const treeData = ref<Row[]>([]);
+const treeRef = ref<{ filter: (value: string) => void } | null>(null);
 const treeKeyword = ref("");
-const selectedNode = ref(null);
+const selectedNode = ref<Dict | null>(null);
 
 const logDrawerVisible = ref(false);
-const logDepartmentId = ref(null);
+const logDepartmentId = ref<number | string | null>(null);
 const logDrawerTitle = ref("操作日志");
 
 watch(treeKeyword, (value) => {

@@ -59,6 +59,7 @@
 </template>
 
 <script setup lang="ts">
+import type { PropType } from "vue";
 import type {Row} from "@/types";
 import { CopyDocument, Edit, Key } from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
@@ -70,7 +71,7 @@ defineProps({
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
   pageSize: { type: Number, default: 20 },
-  togglingId: { type: [Number, String], default: null },
+  togglingId: { type: [Number, String] as PropType<number | string | null>, default: null },
   showRefresh: { type: Boolean, default: true }
 });
 

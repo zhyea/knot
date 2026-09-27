@@ -65,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import type {Row} from "@/types";
+import type {Dict, Row} from "@/types";
 import { computed, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -103,9 +103,9 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
 });
 
 const ruleDlg = ref(false);
-const currentRule = ref(null);
+const currentRule = ref<Dict | null>(null);
 const logDrawer = ref(false);
-const logRuleId = ref(null);
+const logRuleId = ref<number | string | null>(null);
 const logRuleName = ref("");
 
 const selectedProviderOptions = computed(() =>
@@ -149,7 +149,7 @@ function openChangeLog(row: Row) {
 }
 
 function loadBillingRuleOperationLogs() {
-  return listBillingRuleOperationLogs(logRuleId.value);
+  return listBillingRuleOperationLogs(logRuleId.value!);
 }
 
 async function handleEnabledChange(row: Row, enabled: string | number | boolean) {

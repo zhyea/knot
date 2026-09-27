@@ -101,7 +101,7 @@ const emit = defineEmits(["update:modelValue"]);
 
 const { optionsOf, loadEnums } = useEnumOptions();
 
-const filteredOptions = computed(() => optionsOf(props.enumName, props.includeCodes));
+const filteredOptions = computed(() => optionsOf(props.enumName, props.includeCodes ?? undefined));
 
 /** 复选框组的 v-model 必须是数组；单值时视为单元素数组，保证受控 */
 const checkboxValue = computed<(string | number)[]>(() => {

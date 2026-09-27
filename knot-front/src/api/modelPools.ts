@@ -9,7 +9,7 @@ export function getModelPool(id: number | string) {
   return get(`/api/model-pools/${id}`);
 }
 
-export function checkModelPoolCode(code: string, excludeId: number | string) {
+export function checkModelPoolCode(code: string, excludeId: number | string | null) {
   return get("/api/model-pools/check-code", {
     params: { code, excludeId: excludeId ?? undefined }
   });

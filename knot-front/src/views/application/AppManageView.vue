@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import type {Row} from "@/types";
+import type {Dict, Row} from "@/types";
 import { onMounted, ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -71,9 +71,9 @@ const {
 } = useListQuery({ apiFn: listApps, fields: { keyword: "" } });
 
 const formVisible = ref(false);
-const editingApp = ref(null);
+const editingApp = ref<Dict | null>(null);
 const logDrawer = ref(false);
-const logAppId = ref(null);
+const logAppId = ref<number | string | null>(null);
 const logAppName = ref("");
 
 function openCreate() {
@@ -97,7 +97,7 @@ function openChangeLog(row: Row) {
 }
 
 function loadAppOperationLogs() {
-  return listAppOperationLogs(logAppId.value);
+  return listAppOperationLogs(logAppId.value!);
 }
 
 onMounted(load);

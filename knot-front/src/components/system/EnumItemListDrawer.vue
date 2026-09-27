@@ -71,8 +71,8 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "create", "edit", "changed"]);
 
 const loading = ref(false);
-const items = ref([]);
-const togglingId = ref(null);
+const items = ref<Row[]>([]);
+const togglingId = ref<number | string | null>(null);
 const keyword = ref("");
 
 const filteredItems = computed(() => {

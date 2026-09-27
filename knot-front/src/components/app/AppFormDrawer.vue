@@ -69,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, reactive, ref, watch} from "vue";
+import { type PropType, computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
@@ -85,11 +85,11 @@ import {createApp, updateApp} from "../../api/apps";
 import {listDepartments} from "../../api/departments";
 import {listUsers} from "../../api/users";
 import { normalizeOptionList, resolveSelectedOption } from "../../utils/options";
-import type { Row } from "../../types";
+import type {Dict, Row} from "../../types";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  app: {type: Object, default: null}
+  app: {type: Object as PropType<Dict | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -210,7 +210,7 @@ async function submit() {
   try {
     const payload = buildPayload();
     if (isEdit.value) {
-      await updateApp(form.id, payload);
+      await updateApp(form.id!, payload);
       ElMessage.success("已保存");
     } else {
       await createApp(payload);

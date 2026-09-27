@@ -13,7 +13,7 @@
       border
       highlight-current-row
       row-key="id"
-      :current-row-key="selectedRoleId"
+      :current-row-key="selectedRoleId ?? undefined"
       @current-change="onCurrentChange"
     >
       <el-table-column prop="code" label="角色编码" min-width="150" show-overflow-tooltip />
@@ -45,6 +45,7 @@
 </template>
 
 <script setup lang="ts">
+import type { PropType } from "vue";
 import { Delete, Edit, Lock } from "@element-plus/icons-vue";
 import RowActions from "../../common/RowActions.vue";
 import ListPagination from "../../common/ListPagination.vue";
@@ -56,7 +57,7 @@ const props = defineProps({
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
   pageSize: { type: Number, default: 20 },
-  selectedRoleId: { type: Number, default: null }
+  selectedRoleId: { type: Number as PropType<number | null>, default: null }
 });
 
 const emit = defineEmits(["create", "action", "select", "page-change", "size-change"]);

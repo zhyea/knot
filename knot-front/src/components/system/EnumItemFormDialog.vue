@@ -35,7 +35,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import type { Dict } from "@/types";
+import { type PropType,  computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { createEnumConfig, updateEnumConfig } from "../../api/enums";
 import { clearEnumCache } from "../../composables/useEnums";
@@ -45,7 +46,7 @@ const props = defineProps({
   /** 所属分类编码（必填） */
   category: { type: String, default: "" },
   /** 传入枚举项表示编辑，null 表示在该分类下新增 */
-  item: { type: Object, default: null }
+  item: { type: Object as PropType<Dict | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -106,7 +107,7 @@ async function submit() {
       remark: form.remark
     };
     if (isEdit.value) {
-      await updateEnumConfig(form.id, payload);
+      await updateEnumConfig(form.id!, payload);
       ElMessage.success("已保存");
     } else {
       await createEnumConfig(payload);

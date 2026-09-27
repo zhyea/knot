@@ -111,7 +111,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { type PropType,  computed, reactive, ref, watch } from "vue";
 import type { Component, Ref } from "vue";
 import { ElMessage } from "element-plus";
 import type { Dict, Row } from "@/types";
@@ -134,7 +134,7 @@ import { mergeOptionList, normalizeOptionList, resolveSelectedOption } from "../
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  rule: { type: Object, default: null }
+  rule: { type: Object as PropType<Dict | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -167,7 +167,32 @@ const activeModeCapability = computed(() =>
   modeCapabilities.value.find((item) => item.code === form.billingMode) || null
 );
 const unitCodes = computed(() => activeModeCapability.value?.supportedUnits || []);
-const form = reactive({
+interface BillingRuleFormState {
+  id: number | string | null;
+  code: string;
+  name: string;
+  providerId: number | string | null;
+  logicalModelId: number | string | null;
+  billingMode: string;
+  currency: string;
+  itemType: string;
+  unit: string;
+  unitPrice: number;
+  inputUnitPrice: number;
+  outputUnitPrice: number;
+  cacheReadUnitPrice: number;
+  cacheWriteUnitPrice: number;
+  videoPrice720p: number | null;
+  videoPrice1080p: number | null;
+  imageResolution: string;
+  imageQuality: string;
+  ladderJson: string;
+  customConfigJson: string;
+  enabled: boolean;
+  remark: string;
+}
+
+const form = reactive<BillingRuleFormState>({
   id: null,
   code: "",
   name: "",
@@ -334,10 +359,10 @@ function buildConfigJson() {
   }
   if (form.billingMode === "VIDEO") {
     const resolutionPrices: Dict = {};
-    if (form.videoPrice720p != null && form.videoPrice720p !== "") {
+    if (form.videoPrice720p != null) {
       resolutionPrices["720P"] = form.videoPrice720p;
     }
-    if (form.videoPrice1080p != null && form.videoPrice1080p !== "") {
+    if (form.videoPrice1080p != null) {
       resolutionPrices["1080P"] = form.videoPrice1080p;
     }
     return Object.keys(resolutionPrices).length ? stringifyJson({ resolutionPrices }) : null;
@@ -391,7 +416,7 @@ async function submit() {
   try {
     const payload = buildPayload();
     if (isEdit.value) {
-      await updateBillingRule(form.id, payload);
+      await updateBillingRule(form.id!, payload);
     } else {
       await createBillingRule(payload);
     }

@@ -83,11 +83,11 @@ const {
 } = useListQuery({ apiFn: listProviders, fields: { keyword: "" } });
 
 const formVisible = ref(false);
-const editingProviderId = ref(null);
+const editingProviderId = ref<number | null>(null);
 const discountDrawerVisible = ref(false);
-const discountProviderId = ref(null);
+const discountProviderId = ref<number | null>(null);
 const logDrawer = ref(false);
-const logProviderId = ref(null);
+const logProviderId = ref<number | null>(null);
 const logProviderName = ref("");
 
 function openCreate() {
@@ -116,7 +116,7 @@ function openChangeLog(row: Row) {
 }
 
 function loadProviderOperationLogs() {
-  return listProviderOperationLogs(logProviderId.value);
+  return listProviderOperationLogs(logProviderId.value!);
 }
 
 

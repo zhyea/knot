@@ -47,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import type {Row} from "@/types";
+import type {Dict, Row} from "@/types";
 import { onMounted, ref } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -76,7 +76,7 @@ const {
 } = useListQuery({ apiFn: listModelPools, fields: { keyword: "", modelTypes: [] } });
 
 const formVisible = ref(false);
-const editingPool = ref(null);
+const editingPool = ref<Dict | null>(null);
 
 function openCreate() {
   editingPool.value = null;

@@ -24,3 +24,4 @@ resources/.arch-internal-preview.css
 .codex
 .workbuddy
 *.log
+*/*.d.ts

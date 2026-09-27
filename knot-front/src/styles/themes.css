@@ -16,6 +16,11 @@
   --knot-surface: #ffffff;
   --knot-surface-soft: #f6f7f7;
   --knot-border: #c3c4c7;
+  --knot-text: #303133;
+  --knot-text-regular: #606266;
+  --knot-panel: #ffffff;
+  --knot-panel-muted: #fafafa;
+  --knot-fill-light: #f5f7fa;
 }
 
 /* --- 极客绿 --- */
@@ -31,6 +36,11 @@
   --knot-surface: #ffffff;
   --knot-surface-soft: #f7f8f7;
   --knot-border: #c9d5ca;
+  --knot-text: #303133;
+  --knot-text-regular: #606266;
+  --knot-panel: #ffffff;
+  --knot-panel-muted: #fafafa;
+  --knot-fill-light: #f5f7fa;
 }
 
 /* --- 活力橙 --- */
@@ -46,6 +56,11 @@
   --knot-surface: #ffffff;
   --knot-surface-soft: #f8f6f2;
   --knot-border: #d6c7b3;
+  --knot-text: #303133;
+  --knot-text-regular: #606266;
+  --knot-panel: #ffffff;
+  --knot-panel-muted: #fafafa;
+  --knot-fill-light: #f5f7fa;
 }
 
 /* --- 典雅紫 --- */
@@ -61,6 +76,11 @@
   --knot-surface: #ffffff;
   --knot-surface-soft: #f7f6f9;
   --knot-border: #cbc4d9;
+  --knot-text: #303133;
+  --knot-text-regular: #606266;
+  --knot-panel: #ffffff;
+  --knot-panel-muted: #fafafa;
+  --knot-fill-light: #f5f7fa;
 }
 
 /* --- 中国红 --- */
@@ -76,6 +96,11 @@
   --knot-surface: #ffffff;
   --knot-surface-soft: #f8f6f5;
   --knot-border: #d9c5c2;
+  --knot-text: #303133;
+  --knot-text-regular: #606266;
+  --knot-panel: #ffffff;
+  --knot-panel-muted: #fafafa;
+  --knot-fill-light: #f5f7fa;
 }
 
 /* --- 青釉青 --- */
@@ -91,6 +116,11 @@
   --knot-surface: #ffffff;
   --knot-surface-soft: #f5f9f9;
   --knot-border: #bfd4d4;
+  --knot-text: #303133;
+  --knot-text-regular: #606266;
+  --knot-panel: #ffffff;
+  --knot-panel-muted: #fafafa;
+  --knot-fill-light: #f5f7fa;
 }
 
 /* --- 麦穗金 --- */
@@ -106,6 +136,11 @@
   --knot-surface: #ffffff;
   --knot-surface-soft: #f8f6f1;
   --knot-border: #d7ccb1;
+  --knot-text: #303133;
+  --knot-text-regular: #606266;
+  --knot-panel: #ffffff;
+  --knot-panel-muted: #fafafa;
+  --knot-fill-light: #f5f7fa;
 }
 
 /* --- 石墨灰 --- */
@@ -121,6 +156,11 @@
   --knot-surface: #ffffff;
   --knot-surface-soft: #f6f8f9;
   --knot-border: #c8d0d8;
+  --knot-text: #303133;
+  --knot-text-regular: #606266;
+  --knot-panel: #ffffff;
+  --knot-panel-muted: #fafafa;
+  --knot-fill-light: #f5f7fa;
 }
 
 /* --- 青瓷蓝灰 --- */
@@ -136,6 +176,11 @@
   --knot-surface: #ffffff;
   --knot-surface-soft: #f7f9fa;
   --knot-border: #ccd5da;
+  --knot-text: #303133;
+  --knot-text-regular: #606266;
+  --knot-panel: #ffffff;
+  --knot-panel-muted: #fafafa;
+  --knot-fill-light: #f5f7fa;
 }
 
 /* 主题切换器样式 */

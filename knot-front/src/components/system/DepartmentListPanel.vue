@@ -58,7 +58,8 @@
 </template>
 
 <script setup lang="ts">
-import type {Row} from "@/types";
+import type { PropType } from "vue";
+import type {Dict, Row} from "@/types";
 import {Delete, Document, Edit} from "@element-plus/icons-vue";
 import RowActions from "../common/RowActions.vue";
 
@@ -68,7 +69,7 @@ defineProps({
   total: {type: Number, default: 0},
   pageNum: {type: Number, default: 1},
   pageSize: {type: Number, default: 20},
-  selectedNode: {type: Object, default: null},
+  selectedNode: {type: Object as PropType<Dict | null>, default: null},
   createLabel: {type: String, default: "新建部门"}
 });
 

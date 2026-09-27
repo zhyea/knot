@@ -9,7 +9,7 @@ export function getModel(id: number | string) {
   return get(`/api/models/${id}`);
 }
 
-export function checkModelCode(code: string, excludeId: number | string) {
+export function checkModelCode(code: string, excludeId: number | string | null) {
   return get("/api/models/check-code", {
     params: { code, excludeId: excludeId ?? undefined }
   });

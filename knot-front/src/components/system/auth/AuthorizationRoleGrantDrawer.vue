@@ -27,11 +27,11 @@
 <script setup lang="ts">
 import AuthorizationPermissionGrantPanel from "./AuthorizationPermissionGrantPanel.vue";
 import type { PropType } from "vue";
-import type { Row } from "@/types";
+import type {Dict, Row} from "@/types";
 
 defineProps({
   modelValue: {type: Boolean, default: false},
-  role: {type: Object, default: null},
+  role: {type: Object as PropType<Dict | null>, default: null},
   groups: {type: Array as PropType<Row[]>, default: (): Row[] => []},
   selectedIds: {type: Array as PropType<unknown[]>, default: (): unknown[] => []},
   keyword: {type: String, default: ""},

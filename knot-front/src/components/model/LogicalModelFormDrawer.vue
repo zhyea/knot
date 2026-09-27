@@ -190,9 +190,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { type PropType,  computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
-import type { Row } from "@/types";
+import type {Dict, Row} from "@/types";
 import EnumControl from "../common/EnumControl.vue";
 import EnumSelect from "../common/EnumSelect.vue";
 import {
@@ -204,7 +204,7 @@ import {
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  model: { type: Object, default: null }
+  model: { type: Object as PropType<Dict | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -358,7 +358,7 @@ async function submit() {
   try {
     const payload = buildPayload();
     if (isEdit.value) {
-      await updateLogicalModel(form.id, payload);
+      await updateLogicalModel(form.id!, payload);
       ElMessage.success("已保存");
     } else {
       await createLogicalModel(payload);

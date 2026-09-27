@@ -17,7 +17,7 @@
               <p>维护供应商模型编码、名称、类型、版本以及上游基础地址。</p>
             </div>
             <el-form-item label="启用" class="inline-switch">
-              <el-switch v-model="form.enabled" :before-change="beforeEnableChange" />
+              <el-switch v-model="form.enabled" :before-change="beforeEnableChange"/>
             </el-form-item>
           </div>
 
@@ -36,7 +36,7 @@
             </el-col>
             <el-col :span="12">
               <el-form-item label="名称" required>
-                <el-input v-model="form.name" placeholder="请输入模型名称" />
+                <el-input v-model="form.name" placeholder="请输入模型名称"/>
               </el-form-item>
             </el-col>
           </el-row>
@@ -44,12 +44,12 @@
           <el-row :gutter="16" class="form-grid">
             <el-col :span="12">
               <el-form-item label="模型类型" required>
-                <EnumControl v-model="form.modelType" enum-name="ModelTypeEnum" />
+                <EnumControl v-model="form.modelType" enum-name="ModelTypeEnum"/>
               </el-form-item>
             </el-col>
             <el-col :span="12">
               <el-form-item label="版本">
-                <el-input v-model="form.version" placeholder="如 2024-08-06 或 1.0.0" />
+                <el-input v-model="form.version" placeholder="如 2024-08-06 或 1.0.0"/>
               </el-form-item>
             </el-col>
           </el-row>
@@ -68,13 +68,13 @@
             </el-col>
             <el-col :span="12">
               <el-form-item label="Base URL" required>
-                <el-input v-model="form.baseUrl" placeholder="https://api.example.com" />
+                <el-input v-model="form.baseUrl" placeholder="https://api.example.com"/>
               </el-form-item>
             </el-col>
           </el-row>
         </div>
 
-        <div class="space-line" />
+        <div class="space-line"/>
 
         <div class="slot-body model-section">
           <div class="section-head">
@@ -188,7 +188,7 @@
           </div>
         </div>
 
-        <div class="space-line" />
+        <div class="space-line"/>
 
         <div class="slot-body model-section">
           <div class="section-head">
@@ -221,7 +221,7 @@
                     />
                   </el-form-item>
                 </el-col>
-                <el-col :span="8">
+                <el-col :span="10">
                   <el-form-item label="请求适配器">
                     <el-select
                       v-model="binding.requestAdapter"
@@ -239,9 +239,9 @@
                     </el-select>
                   </el-form-item>
                 </el-col>
-                <el-col :span="8">
+                <el-col :span="6">
                   <el-form-item label="启用">
-                    <el-switch v-model="binding.enabled" />
+                    <el-switch v-model="binding.enabled"/>
                   </el-form-item>
                 </el-col>
               </el-row>
@@ -249,7 +249,7 @@
               <el-row :gutter="12" class="api-binding-card__row">
                 <el-col :span="24">
                   <el-form-item label="上游路径">
-                    <el-input v-model="binding.apiPath" placeholder="为空时使用协议默认路径" />
+                    <el-input v-model="binding.apiPath" placeholder="为空时使用协议默认路径"/>
                   </el-form-item>
                 </el-col>
               </el-row>
@@ -295,7 +295,7 @@
           </div>
         </div>
 
-        <div class="space-line" />
+        <div class="space-line"/>
 
         <TrafficPolicySection
           class="slot-body model-section"
@@ -317,15 +317,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
-import type { Ref } from "vue";
-import { ElMessage } from "element-plus";
-import type { Dict, Row } from "@/types";
+import {type PropType, computed, reactive, ref, watch} from "vue";
+import type {Ref} from "vue";
+import {ElMessage} from "element-plus";
+import type {Dict, Row} from "@/types";
 import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import ProviderAccountSelect from "../provider/ProviderAccountSelect.vue";
-import { useModelTypes } from "../../composables/useModelTypes";
+import {useModelTypes} from "@/composables/useModelTypes";
 import {
   emptyQuotaPolicy,
   emptyRateLimitPolicy,
@@ -333,7 +333,7 @@ import {
   isEmptyRateLimitPolicy,
   normalizeQuotaPolicy,
   normalizeRateLimitPolicy
-} from "../../utils/trafficPolicy";
+} from "@/utils/trafficPolicy";
 import {
   checkModelCode,
   createModel,
@@ -341,10 +341,10 @@ import {
   listRequestAdapters,
   listUsageExtractors,
   updateModel
-} from "../../api/models";
-import { listLogicalModels } from "../../api/logicalModels";
-import { listBillingRules } from "../../api/billing";
-import { mergeOptionList, normalizeOptionList, resolveSelectedOption } from "../../utils/options";
+} from "@/api/models";
+import {listLogicalModels} from "@/api/logicalModels";
+import {listBillingRules} from "@/api/billing";
+import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
 
 /** 模型 API 绑定行（表单内 uid 用于 :key 稳定渲染） */
 interface ModelApiBinding {
@@ -360,17 +360,17 @@ interface ModelApiBinding {
 }
 
 const props = defineProps({
-  modelValue: { type: Boolean, default: false },
-  model: { type: Object, default: null }
+  modelValue: {type: Boolean, default: false},
+  model: {type: Object as PropType<Dict | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
 
-const { loadOptions: loadModelTypes, protocolsOf, defaultCode } = useModelTypes();
-const logicalModelOptions = ref([]);
-const billingRuleOptions = ref([]);
-const usageExtractorOptions = ref([]);
-const requestAdapterOptions = ref([]);
+const {loadOptions: loadModelTypes, protocolsOf, defaultCode} = useModelTypes();
+const logicalModelOptions = ref<Row[]>([]);
+const billingRuleOptions = ref<Row[]>([]);
+const usageExtractorOptions = ref<Row[]>([]);
+const requestAdapterOptions = ref<Row[]>([]);
 const saving = ref(false);
 const detailLoading = ref(false);
 const modelCodeChecking = ref(false);
@@ -380,7 +380,23 @@ const resettingForm = ref(false);
 
 const MODEL_CODE_MAX_LEN = 128;
 
-const form = reactive({
+interface ModelFormState {
+  id: number | string | null;
+  modelCode: string;
+  name: string;
+  baseUrl: string;
+  providerId: number | string | null;
+  logicalModelId: number | string | null;
+  billingRuleId: number | string | null;
+  modelType: string;
+  version: string;
+  enabled: boolean;
+  rateLimitPolicy: Dict;
+  quotaPolicy: Dict;
+  apiBindings: ModelApiBinding[];
+}
+
+const form = reactive<ModelFormState>({
   id: null,
   modelCode: "",
   name: "",
@@ -425,15 +441,15 @@ const streamUsageExtractorOptions = computed(() =>
 );
 const allowedApiProtocolCodes = computed(() => allowedProtocolsForModelType(form.modelType));
 
-async function loadLogicalModels(params = { pageNum: 1, pageSize: 10 }) {
+async function loadLogicalModels(params = {pageNum: 1, pageSize: 10}) {
   const data = await listLogicalModels(params);
   const list = Array.isArray(data?.list) ? data.list.filter(isEnabledLogicalModel) : [];
   mergeOptions(logicalModelOptions, list);
   logicalModelOptions.value = logicalModelOptions.value.filter(isEnabledLogicalModel);
-  return { ...(data || {}), list };
+  return {...(data || {}), list};
 }
 
-async function loadBillingRules(params: Dict = { pageNum: 1, pageSize: 10 }) {
+async function loadBillingRules(params: Dict = {pageNum: 1, pageSize: 10}) {
   const data = await listBillingRules({
     ...params,
     providerId: params.providerId ?? form.providerId ?? undefined,
@@ -633,7 +649,7 @@ async function validateModelCode() {
 }
 
 function validateRequired(showMessage = true) {
-  const checks = [
+  const checks: Array<[unknown, string]> = [
     [form.modelCode?.trim(), "请填写模型编码"],
     [form.name?.trim(), "请填写名称"],
     [form.baseUrl?.trim(), "请填写 Base URL"],
@@ -685,7 +701,7 @@ function normalizeApiBindings(list: unknown): ModelApiBinding[] {
 
 function addApiBinding() {
   const usedProtocols = new Set(form.apiBindings.map((item) => normalizeProtocolCode(item.protocol)).filter(Boolean));
-  form.apiBindings.push(createApiBinding({ protocol: firstAvailableProtocolCode(usedProtocols) }));
+  form.apiBindings.push(createApiBinding({protocol: firstAvailableProtocolCode(usedProtocols)}));
 }
 
 function removeApiBinding(index: number) {
@@ -797,7 +813,7 @@ async function submit() {
   try {
     const payload = buildPayload();
     if (isEdit.value) {
-      await updateModel(form.id, payload);
+      await updateModel(form.id!, payload);
       ElMessage.success("已保存");
     } else {
       await createModel(payload);

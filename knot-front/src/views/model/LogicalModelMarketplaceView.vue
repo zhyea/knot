@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import type {Row} from "@/types";
+import type {Dict, Row} from "@/types";
 import { computed, onMounted, reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -106,7 +106,7 @@ function readViewMode(): "card" | "list" {
 }
 
 function readViewPageSize(): Record<"card" | "list", number> {
-  const saved = getStorageJson(VIEW_PAGE_SIZE_KEY, null) || {};
+  const saved: Dict = getStorageJson(VIEW_PAGE_SIZE_KEY, null) || {};
   const result: Record<"card" | "list", number> = { ...DEFAULT_VIEW_PAGE_SIZE };
   (["card", "list"] as const).forEach((mode) => {
     const size = Number(saved[mode]);
@@ -142,7 +142,7 @@ const {
 const { optionsOf } = useEnumOptions();
 const modelTypeOptions = computed(() => optionsOf("ModelTypeEnum"));
 const formVisible = ref(false);
-const editingModel = ref(null);
+const editingModel = ref<Dict | null>(null);
 
 function openCreate() {
   editingModel.value = null;

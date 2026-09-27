@@ -16,10 +16,9 @@
     "checkJs": false,
 
     // 收紧进度（2026-09-27）：
-    // 第一批 —— strict 全开，仅 strictNullChecks 暂关（其 305 处需逐个判断语义，单独做第二批）。
-    // 第二批开 strictNullChecks 时，直接删掉下面这一行。
+    // 第一批 —— strict 全开 + strictNullChecks 暂关，已清零。
+    // 第二批 —— strictNullChecks 已开（2026-09-27），strict 全量生效。
     "strict": true,
-    "strictNullChecks": false,
 
     "noUnusedLocals": false,
     "noUnusedParameters": false,

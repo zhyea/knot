@@ -22,7 +22,7 @@ export function listCredentialTypes() {
   return get("/api/provider-accounts/credential-types");
 }
 
-export function checkProviderAccountCode(code: string, excludeId: number | string) {
+export function checkProviderAccountCode(code: string, excludeId: number | string | null) {
   return get("/api/provider-accounts/check-code", {
     params: { code, excludeId: excludeId ?? undefined }
   });

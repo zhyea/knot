@@ -181,7 +181,7 @@ const iconMap: Record<string, Component> = {
 };
 
 const activePath = computed(() => route.path);
-const menuRef = ref(null);
+const menuRef = ref<{ open: (index: string) => void } | null>(null);
 const pageTitle = computed(() => {
   if (route.meta?.titleKey) {
     return t(route.meta.titleKey);
@@ -234,8 +234,8 @@ function sortMenus(module: AuthModule): MenuNode[] {
 }
 
 function compareModelMenus(left: MenuNode, right: MenuNode): number {
-  const leftOrder = modelMenuOrder[left?.menuCode] ?? left?.sortOrder ?? Number.MAX_SAFE_INTEGER;
-  const rightOrder = modelMenuOrder[right?.menuCode] ?? right?.sortOrder ?? Number.MAX_SAFE_INTEGER;
+  const leftOrder = modelMenuOrder[left?.menuCode ?? ""] ?? left?.sortOrder ?? Number.MAX_SAFE_INTEGER;
+  const rightOrder = modelMenuOrder[right?.menuCode ?? ""] ?? right?.sortOrder ?? Number.MAX_SAFE_INTEGER;
   if (leftOrder !== rightOrder) {
     return leftOrder - rightOrder;
   }
@@ -322,8 +322,8 @@ async function openActiveModule() {
   menuRef.value?.open(activeModuleKey.value);
 }
 
-function resolveMenuIcon(iconName: string): Component {
-  return iconMap[iconName] || Setting;
+function resolveMenuIcon(iconName?: string): Component {
+  return iconMap[iconName ?? ""] || Setting;
 }
 
 function onAsideResizeStart(downEvent: MouseEvent): void {

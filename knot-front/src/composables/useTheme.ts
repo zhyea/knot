@@ -23,7 +23,7 @@ let remoteLoaded = false;
 let remoteLoadingPromise: Promise<string> | null = null;
 
 function loadStored() {
-  const stored = getStorageItem(STORAGE_KEY);
+  const stored = getStorageItem(STORAGE_KEY) || "";
   return THEMES.some((theme) => theme.key === stored) ? stored : "blue";
 }
 

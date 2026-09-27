@@ -29,25 +29,26 @@
         <el-descriptions-item label="描述">{{ detail.description || "—" }}</el-descriptions-item>
       </el-descriptions>
       <div class="raw-title">原始数据</div>
-      <JsonCodeEditor :model-value="rawJsonText" readonly min-height="225px" max-height="560px" />
+      <JsonCodeEditor :model-value="rawJsonText" readonly min-height="225px" max-height="560px"/>
     </el-scrollbar>
   </el-drawer>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import type {Dict} from "@/types";
+import {type PropType, computed} from "vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
-import { useEnumOptions } from "../../composables/useEnumOptions";
-import { formatDateTime, formatJsonArray, formatJsonText } from "../../utils/format";
+import {useEnumOptions} from "@/composables/useEnumOptions";
+import {formatDateTime, formatJsonArray, formatJsonText} from "@/utils/format";
 
 const props = defineProps({
-  modelValue: { type: Boolean, default: false },
-  detail: { type: Object, default: null }
+  modelValue: {type: Boolean, default: false},
+  detail: {type: Object as PropType<Dict | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue"]);
 
-const { labelOf } = useEnumOptions();
+const {labelOf} = useEnumOptions();
 
 const rawJsonText = computed(() => formatJsonText(props.detail?.rawJson, "\t", "—"));
 

@@ -25,7 +25,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import type { Dict } from "@/types";
+import { type PropType,  computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import {
   createAuthorizationRole,
@@ -34,7 +35,7 @@ import {
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  role: { type: Object, default: null }
+  role: { type: Object as PropType<Dict | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -80,7 +81,7 @@ async function submit() {
       description: form.description?.trim() || null
     };
     const saved = isEdit.value
-      ? await updateAuthorizationRole(props.role.id, payload)
+      ? await updateAuthorizationRole(props.role!.id, payload)
       : await createAuthorizationRole(payload);
     ElMessage.success("保存成功");
     emit("update:modelValue", false);

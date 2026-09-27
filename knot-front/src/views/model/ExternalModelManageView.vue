@@ -72,7 +72,7 @@
 </template>
 
 <script setup lang="ts">
-import type {Row} from "@/types";
+import type {Dict, Row} from "@/types";
 import { computed, onMounted, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -109,12 +109,12 @@ const {
   handleReset
 } = useListQuery({ apiFn: listExternalModelItems, fields: { sourceCode: "OPENROUTER", keyword: "", modelType: "" } });
 
-const sources = ref([]);
+const sources = ref<Row[]>([]);
 const syncing = ref(false);
 const creatingAll = ref(false);
 const detailVisible = ref(false);
-const detail = ref(null);
-const selectedRows = ref([]);
+const detail = ref<Dict | null>(null);
+const selectedRows = ref<Row[]>([]);
 
 const createAllDisabled = computed(() => creatingAll.value || selectedRows.value.length === 0);
 

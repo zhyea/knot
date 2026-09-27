@@ -51,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import type {Row} from "@/types";
+import type {Dict, Row} from "@/types";
 import { ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -77,13 +77,13 @@ loadSummaries();
 
 const itemsDrawerVisible = ref(false);
 const currentCategory = ref("");
-const itemListRef = ref(null);
+const itemListRef = ref<{ reload?: () => void } | null>(null);
 
 const categoryCreateVisible = ref(false);
 
 const itemFormVisible = ref(false);
 const itemFormCategory = ref("");
-const editingItem = ref(null);
+const editingItem = ref<Dict | null>(null);
 
 const logDrawer = ref(false);
 const logCategory = ref("");

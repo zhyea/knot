@@ -62,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import type {Row} from "@/types";
+import type {Dict, Row} from "@/types";
 import { ref } from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -94,14 +94,14 @@ const {
 } = useListQuery({ apiFn: listRoutingRules, fields: { keyword: "", modelTypes: [] } });
 
 const formVisible = ref(false);
-const editingRule = ref(null);
+const editingRule = ref<Dict | null>(null);
 const testVisible = ref(false);
-const testRuleId = ref(null);
+const testRuleId = ref<number | null>(null);
 const testRuleName = ref("");
 const testSecretKey = ref("");
-const testTargets = ref([]);
+const testTargets = ref<Row[]>([]);
 const logDrawer = ref(false);
-const logRuleId = ref(null);
+const logRuleId = ref<number | string | null>(null);
 const logRuleName = ref("");
 
 function openCreate() {
@@ -143,7 +143,7 @@ function openChangeLog(row: Row) {
 }
 
 function loadRoutingRuleOperationLogs() {
-  return listRoutingRuleOperationLogs(logRuleId.value);
+  return listRoutingRuleOperationLogs(logRuleId.value!);
 }
 
 

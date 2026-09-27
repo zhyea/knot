@@ -55,14 +55,14 @@ export function useAuthorizationManagement() {
   const activeSection = ref("roles");
   const activeResourceTab = ref("modules");
   const roleKeyword = ref("");
-  const selectedRole = ref(null);
-  const grantedPermissionIds = ref([]);
+  const selectedRole = ref<Row | null>(null);
+  const grantedPermissionIds = ref<number[]>([]);
   const permissionKeyword = ref("");
   const grantSaving = ref(false);
 
   const roleDialogVisible = ref(false);
   const roleGrantDrawerVisible = ref(false);
-  const editingRole = ref(null);
+  const editingRole = ref<Row | null>(null);
 
   const resourceDialogVisible = ref(false);
   const resourceDialogTitle = ref("");
@@ -82,13 +82,13 @@ export function useAuthorizationManagement() {
   const permissionStatusUpdatingId = ref(null);
   const apiBindingStatusUpdatingId = ref(null);
 
-  const modules = ref([]);
-  const menus = ref([]);
-  const moduleCatalog = ref([]);
-  const menuCatalog = ref([]);
-  const permissionCatalog = ref([]);
-  const permissions = ref([]);
-  const apiBindings = ref([]);
+  const modules = ref<Row[]>([]);
+  const menus = ref<Row[]>([]);
+  const moduleCatalog = ref<Row[]>([]);
+  const menuCatalog = ref<Row[]>([]);
+  const permissionCatalog = ref<Row[]>([]);
+  const permissions = ref<Row[]>([]);
+  const apiBindings = ref<Row[]>([]);
 
   const moduleQuery = reactive<Dict>({ keyword: "" });
   const menuQuery = reactive<Dict>({ keyword: "", moduleId: null });
@@ -376,8 +376,9 @@ export function useAuthorizationManagement() {
       grantedPermissionIds.value = [];
       return;
     }
-    const roleId = rows.value.some((item) => item.id === selectedRole.value?.id)
-      ? selectedRole.value.id
+      const currentId = selectedRole.value?.id;
+    const roleId = currentId != null && rows.value.some((item) => item.id === currentId)
+      ? currentId
       : rows.value[0].id;
     await loadRoleSnapshot(roleId);
   }
@@ -920,7 +921,7 @@ export function useAuthorizationManagement() {
 
     itemMap.forEach((item) => {
       if (item.parentId && itemMap.has(item.parentId)) {
-        itemMap.get(item.parentId).children.push(item);
+        itemMap.get(item.parentId)?.children.push(item);
       } else {
         roots.push(item);
       }
@@ -955,7 +956,7 @@ export function useAuthorizationManagement() {
         unassignedPermissions: []
       });
     }
-    return groupMap.get(moduleId);
+    return groupMap.get(moduleId)!;
   }
 
   function sortPermissionMenuNodes(nodes: PermissionMenuNode[]): PermissionMenuNode[] {

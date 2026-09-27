@@ -9,7 +9,7 @@ export function getLogicalModel(id: number | string) {
   return get(`/api/logical-models/${id}`);
 }
 
-export function checkLogicalModelCode(code: string, excludeId: number | string) {
+export function checkLogicalModelCode(code: string, excludeId: number | string | null) {
   return get("/api/logical-models/check-code", {
     params: { code, excludeId: excludeId ?? undefined }
   });

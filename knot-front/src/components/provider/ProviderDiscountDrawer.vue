@@ -40,24 +40,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { type PropType,  ref, watch } from "vue";
 import { Edit } from "@element-plus/icons-vue";
 import RowActions from "../common/RowActions.vue";
 import { listDiscountPolicies } from "../../api/providers";
 import ProviderDiscountFormDialog from "./ProviderDiscountFormDialog.vue";
-import type { Row } from "@/types";
+import type {Dict, Row} from "@/types";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  providerId: { type: Number, default: null }
+  providerId: { type: Number as PropType<number | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue", "changed"]);
 
 const loading = ref(false);
-const rows = ref([]);
+const rows = ref<Row[]>([]);
 const formVisible = ref(false);
-const editingPolicy = ref(null);
+const editingPolicy = ref<Dict | null>(null);
 
 async function load() {
   if (!props.providerId) return;

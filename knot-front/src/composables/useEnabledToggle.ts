@@ -8,7 +8,7 @@ import { ElMessage } from "element-plus";
  * @param {(id: number, enabled: boolean) => Promise<unknown>} options.updateApi
  */
 export function useEnabledToggle({ updateApi }: { updateApi: (id: number | string, enabled: boolean) => Promise<unknown> }) {
-  const togglingId = ref(null);
+  const togglingId = ref<number | string | null>(null);
 
   async function onEnabledChange(row: Row, enabled: boolean | string | number) {
     if (!row?.id) return;

@@ -33,13 +33,14 @@
 </template>
 
 <script setup lang="ts">
+import type { PropType } from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import type { Row } from "../../types";
 
 defineProps({
   rows: { type: Array, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
-  statusUpdatingId: { type: Number, default: null },
+  statusUpdatingId: { type: Number as PropType<number | null>, default: null },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
   pageSize: { type: Number, default: 20 },

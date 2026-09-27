@@ -34,11 +34,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import type { Dict } from "@/types";
+import { type PropType,  computed } from "vue";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  log: { type: Object, default: null },
+  log: { type: Object as PropType<Dict | null>, default: null },
   statusLabel: { type: Function, required: true }
 });
 

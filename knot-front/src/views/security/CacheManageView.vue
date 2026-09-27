@@ -12,6 +12,7 @@
 </template>
 
 <script setup lang="ts">
+import type {Dict} from "@/types";
 import { reactive, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -19,7 +20,7 @@ import { evictCache } from "../../api/security";
 
 const evict = reactive({ cacheKey: "", cacheType: "" });
 const evictLoading = ref(false);
-const evictResult = ref(null);
+const evictResult = ref<Dict | null>(null);
 
 async function runEvict() {
   if (!evict.cacheKey?.trim()) {

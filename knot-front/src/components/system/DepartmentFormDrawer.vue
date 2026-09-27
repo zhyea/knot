@@ -83,30 +83,40 @@
 </template>
 
 <script setup lang="ts">
-import {computed, reactive, ref, watch, type PropType} from "vue";
+import { computed, reactive, ref, watch, type PropType} from "vue";
 import {ElMessage} from "element-plus";
 import {createDepartment, updateDepartment} from "../../api/departments";
-import type {Row} from "../../types";
+import type {Dict, Row} from "../../types";
 
 /** 上级部门下拉项：label 已拼好层级缩进路径 */
 interface ParentOption {
-  id: number | string | null;
+  id: number | string;
   label: string;
   disabled: boolean;
 }
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  department: {type: Object, default: null},
+  department: {type: Object as PropType<Dict | null>, default: null},
   treeOptions: {type: Array as PropType<Row[]>, default: (): Row[] => []},
-  defaultParentId: {type: Number, default: null}
+  defaultParentId: {type: Number as PropType<number | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const isEdit = computed(() => props.department != null);
 const saving = ref(false);
-const form = reactive({
+interface DeptFormState {
+  id: number | string | null;
+  deptCode: string;
+  deptName: string;
+  parentId: number | string | null;
+  sortOrder: number;
+  status: number;
+  remark: string;
+}
+
+const form = reactive<DeptFormState>({
   id: null,
   deptCode: "",
   deptName: "",
@@ -240,7 +250,7 @@ async function submit() {
       remark: form.remark?.trim() || null
     };
     if (isEdit.value) {
-      await updateDepartment(form.id, payload);
+      await updateDepartment(form.id!, payload);
       ElMessage.success("已保存");
     } else {
       await createDepartment(payload);

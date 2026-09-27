@@ -106,7 +106,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { type PropType,  computed, reactive, ref, watch } from "vue";
 import { ElMessage } from "element-plus";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
@@ -126,11 +126,11 @@ import {
 } from "../../api/routing";
 import { generateRoutingRuleCode } from "../../utils/routingRule";
 import { normalizeOptionList, resolveSelectedOption } from "../../utils/options";
-import type {Row} from "@/types";
+import type {Dict, Row} from "@/types";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  consumer: { type: Object, default: null }
+  consumer: { type: Object as PropType<Dict | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -142,7 +142,7 @@ const visible = computed({
 
 const saving = ref(false);
 const consumerCodeError = ref("");
-const userOptions = ref([]);
+const userOptions = ref<Row[]>([]);
 
 const form = reactive({
   id: null,
@@ -255,7 +255,7 @@ async function submit() {
   saving.value = true;
   try {
     if (props.consumer) {
-      await updateRoutingConsumer(form.id, buildPayload());
+      await updateRoutingConsumer(form.id!, buildPayload());
       ElMessage.success("已保存");
     } else {
       await createRoutingConsumer(buildPayload());

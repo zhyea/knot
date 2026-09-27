@@ -49,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import type {Row} from "@/types";
+import type {Dict, Row} from "@/types";
 import { onMounted, ref } from "vue";
 import { ElMessage } from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -81,10 +81,10 @@ const {
 } = useListQuery({ apiFn: listProviderProfiles, fields: { keyword: "", tag: "" } });
 
 const formVisible = ref(false);
-const editing = ref(null);
+const editing = ref<Dict | null>(null);
 
 const logDrawer = ref(false);
-const logId = ref(null);
+const logId = ref<number | string | null>(null);
 const logName = ref("");
 
 function openCreate() {
@@ -110,7 +110,7 @@ function openLog(row: Row) {
 }
 
 function loadProfileLogs() {
-  return listProviderProfileOperationLogs(logId.value);
+  return listProviderProfileOperationLogs(logId.value!);
 }
 
 function onRowAction(key: string, row: Row) {

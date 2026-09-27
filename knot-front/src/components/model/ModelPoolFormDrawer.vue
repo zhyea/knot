@@ -136,6 +136,7 @@
 </template>
 
 <script setup lang="ts">
+import type { PropType } from "vue";
 import type {Dict, Row} from "@/types";
 import { computed, reactive, ref, watch } from "vue";
 import { Delete } from "@element-plus/icons-vue";
@@ -149,7 +150,7 @@ import { mergeOptionList, normalizeOptionList } from "../../utils/options";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  pool: { type: Object, default: null }
+  pool: { type: Object as PropType<Dict | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -157,10 +158,35 @@ const emit = defineEmits(["update:modelValue", "saved"]);
 const isEdit = computed(() => props.pool != null);
 const saving = ref(false);
 const poolCodeError = ref("");
-const modelOptions = ref([]);
+const modelOptions = ref<Row[]>([]);
 const { options: strategyOptions, loadOptions: loadStrategyOptions } = useEnums("model_pool_selection_strategy");
 
-const form = reactive({
+interface PoolItemForm {
+  id?: number | string | null;
+  modelCode?: any;
+  modelName?: any;
+  name?: any;
+  modelType?: any;
+  providerId?: any;
+  providerName?: any;
+  modelId: number | string | null;
+  weight: number;
+  priority: number;
+  enabled: boolean;
+}
+
+interface PoolFormState {
+  id: number | string | null;
+  poolCode: string;
+  name: string;
+  modelType: string;
+  selectionStrategy: string;
+  enabled: boolean;
+  remark: string;
+  items: PoolItemForm[];
+}
+
+const form = reactive<PoolFormState>({
   id: null,
   poolCode: "",
   name: "",
@@ -319,7 +345,7 @@ async function submit() {
   try {
     const body = buildPayload();
     if (isEdit.value) {
-      await updateModelPool(form.id, body);
+      await updateModelPool(form.id!, body);
       ElMessage.success("已保存");
     } else {
       await createModelPool(body);

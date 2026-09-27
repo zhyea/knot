@@ -60,7 +60,7 @@ import ScheduledTaskFormDrawer from "../../components/system/scheduled/Scheduled
 import ScheduledTaskRunDrawer from "../../components/system/scheduled/ScheduledTaskRunDrawer.vue";
 import { listScheduledTasks } from "../../api/scheduledTasks";
 import { useListQuery } from "../../composables/useListQuery";
-import type { Row } from "../../types";
+import type {Dict, Row} from "../../types";
 
 const {
   query,
@@ -79,8 +79,8 @@ const {
 
 const taskDrawer = ref(false);
 const runDrawer = ref(false);
-const editingTask = ref(null);
-const runTask = ref(null);
+const editingTask = ref<Dict | null>(null);
+const runTask = ref<Dict | null>(null);
 
 function openTaskDrawer(task: Row | null = null) {
   editingTask.value = task || null;
