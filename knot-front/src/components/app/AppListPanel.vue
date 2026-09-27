@@ -1,12 +1,12 @@
 <template>
   <div>
     <el-table v-loading="loading" :data="rows" stripe border>
-      <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
-      <el-table-column prop="appId" label="App ID" min-width="120" />
-      <el-table-column prop="name" label="名称" min-width="120" />
-      <el-table-column prop="deptName" label="所属部门" min-width="120" show-overflow-tooltip />
-      <el-table-column prop="ownerName" label="负责人" min-width="100" show-overflow-tooltip />
-      <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
+      <el-table-column prop="id" label="ID" width="70" align="center" header-align="center"/>
+      <el-table-column prop="appId" label="App ID" min-width="120"/>
+      <el-table-column prop="name" label="名称" min-width="120"/>
+      <el-table-column prop="deptName" label="所属部门" min-width="120" show-overflow-tooltip/>
+      <el-table-column prop="ownerName" label="负责人" min-width="100" show-overflow-tooltip/>
+      <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip/>
       <el-table-column label="操作" width="150" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <RowActions
@@ -34,20 +34,20 @@
 </template>
 
 <script setup lang="ts">
-import { ElMessage, ElMessageBox } from "element-plus";
-import { Delete, Document, Edit } from "@element-plus/icons-vue";
+import {ElMessage, ElMessageBox} from "element-plus";
+import {Delete, Document, Edit} from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
-import { deleteApp } from "../../api/apps";
-import type { Row } from "../../types";
+import {deleteApp} from "@/api/apps";
+import type {Row} from "@/types";
 
 defineProps({
-  rows: { type: Array, default: (): Row[] => [] },
-  loading: { type: Boolean, default: false },
-  total: { type: Number, default: 0 },
-  pageNum: { type: Number, default: 1 },
-  pageSize: { type: Number, default: 20 },
-  showRefresh: { type: Boolean, default: true }
+  rows: {type: Array, default: (): Row[] => []},
+  loading: {type: Boolean, default: false},
+  total: {type: Number, default: 0},
+  pageNum: {type: Number, default: 1},
+  pageSize: {type: Number, default: 20},
+  showRefresh: {type: Boolean, default: true}
 });
 
 const emit = defineEmits(["edit", "log", "refresh", "page-change", "size-change", "changed"]);

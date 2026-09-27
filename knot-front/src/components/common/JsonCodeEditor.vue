@@ -26,7 +26,8 @@
         class="json-editor__body"
         :class="{ 'json-editor__body--editable': !readonly, 'json-editor__body--readonly': readonly }"
       >
-        <pre class="json-editor__highlight" :style="highlightStyle" aria-hidden="true"><code v-html="highlightedJson"></code></pre>
+        <pre class="json-editor__highlight" :style="highlightStyle" aria-hidden="true"><code
+          v-html="highlightedJson"></code></pre>
         <textarea
           v-if="!readonly"
           ref="inputRef"
@@ -44,15 +45,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from "vue";
-import { ElMessage } from "element-plus";
-import { escapeHtml, formatJsonText } from "../../utils/format";
+import {computed, ref} from "vue";
+import {ElMessage} from "element-plus";
+import {escapeHtml, formatJsonText} from "@/utils/format";
 
 const props = defineProps({
-  modelValue: { type: String, default: "" },
-  readonly: { type: Boolean, default: false },
-  minHeight: { type: String, default: "180px" },
-  maxHeight: { type: String, default: "420px" }
+  modelValue: {type: String, default: ""},
+  readonly: {type: Boolean, default: false},
+  minHeight: {type: String, default: "180px"},
+  maxHeight: {type: String, default: "420px"}
 });
 
 const emit = defineEmits(["update:modelValue"]);
@@ -151,7 +152,7 @@ function syncInputScroll(event: Event): void {
   });
 }
 
-function syncWrapScroll({ scrollTop: nextTop, scrollLeft: nextLeft }: { scrollTop: number; scrollLeft: number }): void {
+function syncWrapScroll({scrollTop: nextTop, scrollLeft: nextLeft}: { scrollTop: number; scrollLeft: number }): void {
   if (props.readonly || syncSource === "input") {
     return;
   }

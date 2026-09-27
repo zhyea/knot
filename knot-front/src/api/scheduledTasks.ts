@@ -1,5 +1,5 @@
-import { postQuery, post, put } from "./http";
-import type { Dict } from "../types";
+import {postQuery, post, put} from "./http";
+import type {Dict} from "@/types";
 
 export function listScheduledTasks(params: Dict) {
   return postQuery("/api/system/scheduled-tasks/list", params);

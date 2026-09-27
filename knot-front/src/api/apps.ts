@@ -1,5 +1,5 @@
 import { postQuery, post, put, del } from "./http";
-import type { Dict } from "../types";
+import type { Dict } from "@/types";
 
 export function listApps(params: Dict) {
   return postQuery("/api/apps/list", params);

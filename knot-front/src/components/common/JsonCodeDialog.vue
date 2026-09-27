@@ -20,14 +20,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import {computed} from "vue";
 import JsonCodeEditor from "./JsonCodeEditor.vue";
-import { formatJsonText } from "../../utils/format";
+import {formatJsonText} from "@/utils/format";
 
 const props = defineProps({
-  modelValue: { type: Boolean, default: false },
-  title: { type: String, default: "JSON 预览" },
-  data: { type: [Object, Array, String], default: null }
+  modelValue: {type: Boolean, default: false},
+  title: {type: String, default: "JSON 预览"},
+  data: {type: [Object, Array, String], default: null}
 });
 
 const emit = defineEmits(["update:modelValue"]);

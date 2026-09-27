@@ -1,5 +1,5 @@
-import { postQuery, post, put } from "./http";
-import type { Dict } from "../types";
+import {postQuery, post, put} from "./http";
+import type {Dict} from "@/types";
 
 export function listUsers(params: Dict) {
   return postQuery("/api/users", params);

@@ -1,5 +1,5 @@
-import { postQuery, post, put, del, get } from "./http";
-import type { Dict } from "../types";
+import {postQuery, post, put, del, get} from "./http";
+import type {Dict} from "@/types";
 
 export function listEnumConfigs(params: Dict) {
   return postQuery("/api/system/enums/list", params);

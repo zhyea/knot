@@ -1,7 +1,7 @@
-import axios, { type AxiosResponse, type AxiosRequestConfig } from "axios";
-import { ElMessage } from "element-plus";
-import { useAuth } from "../composables/useAuth";
-import { touchIdleActivity } from "../composables/idleActivity";
+import axios, {type AxiosResponse, type AxiosRequestConfig} from "axios";
+import {ElMessage} from "element-plus";
+import {useAuth} from "@/composables/useAuth";
+import {touchIdleActivity} from "@/composables/idleActivity";
 import router from "../router";
 
 declare module "axios" {
@@ -27,7 +27,7 @@ const http = axios.create({
 
 // 请求拦截器：自动携带 token
 http.interceptors.request.use((config) => {
-  const { token } = useAuth();
+  const {token} = useAuth();
   if (token.value) {
     config.headers.Authorization = `Bearer ${token.value}`;
     if (!config.skipIdleTouch) {
@@ -61,7 +61,7 @@ http.interceptors.response.use(
 
     // 401 未授权时，清理 token 并跳转到登录页
     if (error.response?.status === 401 && !isLoginRequest) {
-      const { logout } = useAuth();
+      const {logout} = useAuth();
       logout();
       router.push("/login");
       ElMessage.error("登录已过期，请重新登录");

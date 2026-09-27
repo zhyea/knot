@@ -1,5 +1,5 @@
-import { del, get, post, postQuery, put } from "./http";
-import type { Dict } from "../types";
+import {del, get, post, postQuery, put} from "./http";
+import type {Dict} from "@/types";
 
 export function listDepartments(params: Dict) {
   return postQuery("/api/system/departments/list", params);

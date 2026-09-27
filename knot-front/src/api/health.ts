@@ -1,4 +1,4 @@
-import { postQuery } from "./http";
+import {postQuery} from "./http";
 
 export function getHealth() {
   return postQuery("/api/health");

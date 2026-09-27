@@ -1,5 +1,5 @@
-import { del, get, post, postQuery } from "./http";
-import type { Dict } from "../types";
+import {del, get, post, postQuery} from "./http";
+import type {Dict} from "@/types";
 
 export function listExternalModelSources() {
   return get("/api/external-models/sources");

@@ -1,5 +1,5 @@
-import { postQuery, post, put, get } from "./http";
-import type { Dict } from "../types";
+import {postQuery, post, put, get} from "./http";
+import type {Dict} from "@/types";
 
 export function listProviderAccounts(params: Dict) {
   return postQuery("/api/provider-accounts/list", params);
@@ -24,7 +24,7 @@ export function listCredentialTypes() {
 
 export function checkProviderAccountCode(code: string, excludeId: number | string | null) {
   return get("/api/provider-accounts/check-code", {
-    params: { code, excludeId: excludeId ?? undefined }
+    params: {code, excludeId: excludeId ?? undefined}
   });
 }
 
@@ -37,7 +37,7 @@ export function updateProviderAccount(id: number | string, payload: Dict) {
 }
 
 export function updateProviderAccountStatus(id: number | string, enabled: boolean) {
-  return put(`/api/provider-accounts/${id}/status`, { enabled });
+  return put(`/api/provider-accounts/${id}/status`, {enabled});
 }
 
 export const listProviders = listProviderAccounts;

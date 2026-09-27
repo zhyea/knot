@@ -1,5 +1,5 @@
-import { postQuery, post, put, get } from "./http";
-import type { Dict } from "../types";
+import {postQuery, post, put, get} from "./http";
+import type {Dict} from "@/types";
 
 export function listModels(params: Dict) {
   return postQuery("/api/models/list", params);
@@ -11,7 +11,7 @@ export function getModel(id: number | string) {
 
 export function checkModelCode(code: string, excludeId: number | string | null) {
   return get("/api/models/check-code", {
-    params: { code, excludeId: excludeId ?? undefined }
+    params: {code, excludeId: excludeId ?? undefined}
   });
 }
 
@@ -36,5 +36,5 @@ export function updateModel(id: number | string, payload: Dict) {
 }
 
 export function updateModelStatus(id: number | string, enabled: boolean) {
-  return put(`/api/models/${id}/status`, { enabled });
+  return put(`/api/models/${id}/status`, {enabled});
 }

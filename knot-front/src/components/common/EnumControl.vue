@@ -32,7 +32,8 @@
       v-for="item in filteredOptions"
       :key="item.value"
       :value="item.value"
-    >{{ optionLabel(item) }}</el-radio>
+    >{{ optionLabel(item) }}
+    </el-radio>
   </el-radio-group>
 
   <!-- 复选框组 -->
@@ -46,14 +47,15 @@
       v-for="item in filteredOptions"
       :key="item.value"
       :value="item.value"
-    >{{ optionLabel(item) }}</el-checkbox>
+    >{{ optionLabel(item) }}
+    </el-checkbox>
   </el-checkbox-group>
 </template>
 
 <script setup lang="ts">
-import { computed, type PropType } from "vue";
-import { useEnumOptions } from "../../composables/useEnumOptions";
-import type { SelectOption } from "@/types";
+import {computed, type PropType} from "vue";
+import {useEnumOptions} from "@/composables/useEnumOptions";
+import type {SelectOption} from "@/types";
 
 /**
  * 后端代码枚举的统一控件（数据源 GET /api/common/enums，见 useEnumOptions）。
@@ -75,7 +77,7 @@ const props = defineProps({
     default: ""
   },
   /** 代码枚举键，如 ModelTypeEnum */
-  enumName: { type: String, required: true },
+  enumName: {type: String, required: true},
   /** 展示形态：select | radio | checkbox */
   display: {
     type: String,
@@ -83,23 +85,23 @@ const props = defineProps({
     validator: (value: unknown) => ["select", "radio", "checkbox"].includes(String(value))
   },
   /** 仅 display="select" 生效：多选 */
-  multiple: { type: Boolean, default: false },
-  placeholder: { type: String, default: "请选择" },
-  clearable: { type: Boolean, default: false },
-  filterable: { type: Boolean, default: false },
-  disabled: { type: Boolean, default: false },
-  collapseTags: { type: Boolean, default: false },
-  collapseTagsTooltip: { type: Boolean, default: false },
-  selectStyle: { type: [String, Object], default: () => ({ width: "100%" }) },
+  multiple: {type: Boolean, default: false},
+  placeholder: {type: String, default: "请选择"},
+  clearable: {type: Boolean, default: false},
+  filterable: {type: Boolean, default: false},
+  disabled: {type: Boolean, default: false},
+  collapseTags: {type: Boolean, default: false},
+  collapseTagsTooltip: {type: Boolean, default: false},
+  selectStyle: {type: [String, Object], default: () => ({width: "100%"})},
   /** 仅展示指定 code 列表 */
-  includeCodes: { type: Array as PropType<string[] | null>, default: null },
+  includeCodes: {type: Array as PropType<string[] | null>, default: null},
   /** 展示时附带编码，如「对话 (CHAT)」 */
-  showCode: { type: Boolean, default: false }
+  showCode: {type: Boolean, default: false}
 });
 
 const emit = defineEmits(["update:modelValue"]);
 
-const { optionsOf, loadEnums } = useEnumOptions();
+const {optionsOf, loadEnums} = useEnumOptions();
 
 const filteredOptions = computed(() => optionsOf(props.enumName, props.includeCodes ?? undefined));
 

@@ -1,5 +1,5 @@
-import { postQuery, post } from "./http";
-import type { Dict } from "../types";
+import {postQuery, post} from "./http";
+import type {Dict} from "@/types";
 
 export function listNotifyTemplates(params: Dict) {
   return postQuery("/api/notifications/templates/list", params);

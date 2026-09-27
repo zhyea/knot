@@ -13,18 +13,18 @@
           <div class="section-head">
             <h3>基础信息</h3>
             <el-form-item label="启用" class="inline-switch">
-              <el-switch v-model="form.enabled" />
+              <el-switch v-model="form.enabled"/>
             </el-form-item>
           </div>
           <el-row :gutter="16">
             <el-col :span="12">
               <el-form-item label="规则编码" required>
-                <el-input v-model="form.code" :disabled="isEdit" placeholder="如 OPENAI_GPT4O" />
+                <el-input v-model="form.code" :disabled="isEdit" placeholder="如 OPENAI_GPT4O"/>
               </el-form-item>
             </el-col>
             <el-col :span="12">
               <el-form-item label="规则名称" required>
-                <el-input v-model="form.name" />
+                <el-input v-model="form.name"/>
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -55,13 +55,13 @@
             </el-col>
             <el-col :span="12">
               <el-form-item label="币种">
-                <EnumSelect v-model="form.currency" category="billing_currency" />
+                <EnumSelect v-model="form.currency" category="billing_currency"/>
               </el-form-item>
             </el-col>
           </el-row>
         </div>
 
-        <div class="space-line" />
+        <div class="space-line"/>
 
         <div class="slot-body form-section">
           <div class="section-head">
@@ -87,17 +87,17 @@
               </el-form-item>
             </el-col>
           </el-row>
-          <component :is="modeComponent" :form="form" />
+          <component :is="modeComponent" :form="form"/>
         </div>
 
-        <div class="space-line" />
+        <div class="space-line"/>
 
         <div class="slot-body form-section">
           <div class="section-head">
             <h3>备注</h3>
           </div>
           <el-form-item label-width="0">
-            <el-input v-model="form.remark" type="textarea" :rows="4" maxlength="500" show-word-limit />
+            <el-input v-model="form.remark" type="textarea" :rows="4" maxlength="500" show-word-limit/>
           </el-form-item>
         </div>
       </el-form>
@@ -111,10 +111,10 @@
 </template>
 
 <script setup lang="ts">
-import { type PropType,  computed, reactive, ref, watch } from "vue";
-import type { Component, Ref } from "vue";
-import { ElMessage } from "element-plus";
-import type { Dict, Row } from "@/types";
+import {type PropType, computed, reactive, ref, watch} from "vue";
+import type {Component, Ref} from "vue";
+import {ElMessage} from "element-plus";
+import type {Dict, Row} from "@/types";
 import EnumSelect from "../common/EnumSelect.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import BillingModeAudioConfig from "./modes/BillingModeAudioConfig.vue";
@@ -126,15 +126,15 @@ import BillingModeRequestConfig from "./modes/BillingModeRequestConfig.vue";
 import BillingModeTieredConfig from "./modes/BillingModeTieredConfig.vue";
 import BillingModeTokenConfig from "./modes/BillingModeTokenConfig.vue";
 import BillingModeVideoConfig from "./modes/BillingModeVideoConfig.vue";
-import { createBillingRule, updateBillingRule, listModeCapabilities } from "../../api/billing";
-import { listProviders } from "../../api/providers";
-import { listLogicalModels } from "../../api/logicalModels";
-import { isValidJsonText, parseJsonObject, stringifyJson } from "../../utils/format";
-import { mergeOptionList, normalizeOptionList, resolveSelectedOption } from "../../utils/options";
+import {createBillingRule, updateBillingRule, listModeCapabilities} from "@/api/billing";
+import {listProviders} from "@/api/providers";
+import {listLogicalModels} from "@/api/logicalModels";
+import {isValidJsonText, parseJsonObject, stringifyJson} from "@/utils/format";
+import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
 
 const props = defineProps({
-  modelValue: { type: Boolean, default: false },
-  rule: { type: Object as PropType<Dict | null>, default: null }
+  modelValue: {type: Boolean, default: false},
+  rule: {type: Object as PropType<Dict | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -167,6 +167,7 @@ const activeModeCapability = computed(() =>
   modeCapabilities.value.find((item) => item.code === form.billingMode) || null
 );
 const unitCodes = computed(() => activeModeCapability.value?.supportedUnits || []);
+
 interface BillingRuleFormState {
   id: number | string | null;
   code: string;
@@ -304,13 +305,13 @@ async function loadModeCapabilities() {
   modeCapabilities.value = Array.isArray(data) ? data : [];
 }
 
-async function loadProviders(params = { pageNum: 1, pageSize: 10 }) {
+async function loadProviders(params = {pageNum: 1, pageSize: 10}) {
   const res = await listProviders(params);
   mergeOptions(providerOptions, normalizeOptionList(res));
   return res;
 }
 
-async function loadLogicalModels(params = { pageNum: 1, pageSize: 10 }) {
+async function loadLogicalModels(params = {pageNum: 1, pageSize: 10}) {
   const res = await listLogicalModels(params);
   mergeOptions(logicalModelOptions, normalizeOptionList(res));
   return res;
@@ -365,10 +366,10 @@ function buildConfigJson() {
     if (form.videoPrice1080p != null) {
       resolutionPrices["1080P"] = form.videoPrice1080p;
     }
-    return Object.keys(resolutionPrices).length ? stringifyJson({ resolutionPrices }) : null;
+    return Object.keys(resolutionPrices).length ? stringifyJson({resolutionPrices}) : null;
   }
   if (form.billingMode === "EMBEDDING") {
-    return stringifyJson({ inputUnitPrice: form.inputUnitPrice });
+    return stringifyJson({inputUnitPrice: form.inputUnitPrice});
   }
   if (form.billingMode === "CUSTOM") {
     return form.customConfigJson?.trim() || null;

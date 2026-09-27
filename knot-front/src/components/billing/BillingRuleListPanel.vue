@@ -1,9 +1,9 @@
 <template>
   <div>
     <el-table v-loading="loading" :data="rows" stripe border size="small" style="width: 100%">
-      <el-table-column prop="id" label="ID" width="70" align="center" />
-      <el-table-column prop="code" label="编码" width="140" show-overflow-tooltip />
-      <el-table-column prop="name" label="名称" min-width="150" show-overflow-tooltip />
+      <el-table-column prop="id" label="ID" width="70" align="center"/>
+      <el-table-column prop="code" label="编码" width="140" show-overflow-tooltip/>
+      <el-table-column prop="name" label="名称" min-width="150" show-overflow-tooltip/>
       <el-table-column label="供应商" min-width="130" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.providerName || (row.providerId ? `#${row.providerId}` : "全局") }}
@@ -20,9 +20,9 @@
       <el-table-column label="计费模式" width="130">
         <template #default="{ row }">{{ billingModeLabel(row.billingMode) }}</template>
       </el-table-column>
-      <el-table-column prop="currency" label="币种" width="80" align="center" />
-      <el-table-column prop="unit" label="单位" width="110" />
-      <el-table-column prop="unitPrice" label="单价" width="110" />
+      <el-table-column prop="currency" label="币种" width="80" align="center"/>
+      <el-table-column prop="unit" label="单位" width="110"/>
+      <el-table-column prop="unitPrice" label="单价" width="110"/>
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch
@@ -62,21 +62,21 @@
 </template>
 
 <script setup lang="ts">
-import { type PropType,  onMounted } from "vue";
-import { Delete, Document, Edit } from "@element-plus/icons-vue";
-import type { Row } from "@/types";
+import {type PropType, onMounted} from "vue";
+import {Delete, Document, Edit} from "@element-plus/icons-vue";
+import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
-import { useEnums } from "../../composables/useEnums";
+import {useEnums} from "@/composables/useEnums";
 
 defineProps({
-  rows: { type: Array, default: (): Row[] => [] },
-  loading: { type: Boolean, default: false },
-  total: { type: Number, default: 0 },
-  pageNum: { type: Number, default: 1 },
-  pageSize: { type: Number, default: 20 },
-  togglingId: { type: [Number, String] as PropType<number | string | null>, default: null },
-  showRefresh: { type: Boolean, default: true }
+  rows: {type: Array, default: (): Row[] => []},
+  loading: {type: Boolean, default: false},
+  total: {type: Number, default: 0},
+  pageNum: {type: Number, default: 1},
+  pageSize: {type: Number, default: 20},
+  togglingId: {type: [Number, String] as PropType<number | string | null>, default: null},
+  showRefresh: {type: Boolean, default: true}
 });
 
 const emit = defineEmits([
@@ -89,7 +89,7 @@ const emit = defineEmits([
   "page-change",
   "size-change"
 ]);
-const { options: billingModeOptions, loadOptions: loadBillingModes } = useEnums("billing_mode");
+const {options: billingModeOptions, loadOptions: loadBillingModes} = useEnums("billing_mode");
 
 function billingModeLabel(code: unknown): string {
   if (!code) return "-";

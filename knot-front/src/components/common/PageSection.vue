@@ -2,7 +2,7 @@
   <div class="page-section">
     <h2 v-if="title" class="title">{{ title }}</h2>
     <div v-if="$slots.default" class="slot-body">
-      <slot />
+      <slot/>
     </div>
   </div>
 </template>

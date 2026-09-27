@@ -1,5 +1,5 @@
-import { postQuery, post, put, get, del } from "./http";
-import type { Dict } from "../types";
+import {postQuery, post, put, get, del} from "./http";
+import type {Dict} from "@/types";
 
 export function listProviderProfiles(params: Dict) {
   return postQuery("/api/provider-profiles/list", params);
@@ -11,7 +11,7 @@ export function getProviderProfile(id: number | string) {
 
 export function checkProviderProfileCode(code: string, excludeId: number | string | null) {
   return get("/api/provider-profiles/check-code", {
-    params: { code, excludeId: excludeId ?? undefined }
+    params: {code, excludeId: excludeId ?? undefined}
   });
 }
 

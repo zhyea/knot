@@ -28,9 +28,9 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, watch } from "vue";
-import { Delete, Plus } from "@element-plus/icons-vue";
-import type { Dict } from "../../types";
+import {reactive, watch} from "vue";
+import {Delete, Plus} from "@element-plus/icons-vue";
+import type {Dict} from "@/types";
 
 /** 一行键值对（键/值在编辑期均为字符串，emit 时再按需转成数字） */
 interface KvPair {
@@ -40,13 +40,13 @@ interface KvPair {
 
 const props = defineProps({
   /** v-model 绑定的 JSON 对象 */
-  modelValue: { type: Object, default: () => ({}) },
+  modelValue: {type: Object, default: () => ({})},
   /** 值类型提示，number 时自动将值转为数字 */
-  valueMode: { type: String, default: "string" }, // "string" | "number"
+  valueMode: {type: String, default: "string"}, // "string" | "number"
   /** 值以密码框展示（默认掩码） */
-  valueSecret: { type: Boolean, default: false },
+  valueSecret: {type: Boolean, default: false},
   /** 是否显示密码框右侧小眼睛（仅管理员应为 true） */
-  allowReveal: { type: Boolean, default: false }
+  allowReveal: {type: Boolean, default: false}
 });
 
 const emit = defineEmits(["update:modelValue"]);
@@ -58,7 +58,7 @@ function objectToPairs(obj: unknown): void {
   pairs.length = 0;
   if (obj && typeof obj === "object") {
     for (const [k, v] of Object.entries(obj)) {
-      pairs.push({ key: k, val: String(v) });
+      pairs.push({key: k, val: String(v)});
     }
   }
 }
@@ -78,7 +78,7 @@ function emitUpdate() {
 }
 
 function addRow() {
-  pairs.push({ key: "", val: "" });
+  pairs.push({key: "", val: ""});
 }
 
 function removeRow(idx: number): void {
@@ -90,7 +90,7 @@ function removeRow(idx: number): void {
 watch(
   () => props.modelValue,
   (val) => objectToPairs(val),
-  { immediate: true, deep: false }
+  {immediate: true, deep: false}
 );
 </script>
 
@@ -98,16 +98,19 @@ watch(
 .kv-editor {
   width: 100%;
 }
+
 .kv-row {
   display: flex;
   align-items: center;
   gap: 6px;
   margin-bottom: 6px;
 }
+
 .kv-key {
   width: 120px;
   flex-shrink: 0;
 }
+
 .kv-val {
   flex: 1;
 }

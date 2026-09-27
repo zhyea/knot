@@ -22,20 +22,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch, type PropType } from "vue";
-import { normalizeOptionList } from "../../utils/options";
-import type { Row } from "../../types";
+import {computed, onBeforeUnmount, ref, watch, type PropType} from "vue";
+import {normalizeOptionList} from "@/utils/options";
+import type {Row} from "@/types";
 
-defineOptions({ inheritAttrs: false });
+defineOptions({inheritAttrs: false});
 
 const props = defineProps({
-  modelValue: { type: [String, Number, Array] as PropType<string | number | unknown[] | null>, default: null },
-  loadFunction: { type: Function, required: true },
-  labelFunction: { type: Function, required: true },
-  selectedOptions: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
-  extraParams: { type: Object, default: () => ({}) },
-  valueKey: { type: String, default: "id" },
-  multiple: { type: Boolean, default: false }
+  modelValue: {type: [String, Number, Array] as PropType<string | number | unknown[] | null>, default: null},
+  loadFunction: {type: Function, required: true},
+  labelFunction: {type: Function, required: true},
+  selectedOptions: {type: Array as PropType<Row[]>, default: (): Row[] => []},
+  extraParams: {type: Object, default: () => ({})},
+  valueKey: {type: String, default: "id"},
+  multiple: {type: Boolean, default: false}
 });
 
 const emit = defineEmits(["update:modelValue", "change"]);

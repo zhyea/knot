@@ -1,5 +1,5 @@
-import { del, get, post, postQuery, put } from "./http";
-import type { Dict } from "../types";
+import {del, get, post, postQuery, put} from "./http";
+import type {Dict} from "@/types";
 
 export function listLogicalModels(params: Dict) {
   return postQuery("/api/logical-models/list", params);
@@ -11,7 +11,7 @@ export function getLogicalModel(id: number | string) {
 
 export function checkLogicalModelCode(code: string, excludeId: number | string | null) {
   return get("/api/logical-models/check-code", {
-    params: { code, excludeId: excludeId ?? undefined }
+    params: {code, excludeId: excludeId ?? undefined}
   });
 }
 
@@ -24,7 +24,7 @@ export function updateLogicalModel(id: number | string, payload: Dict) {
 }
 
 export function updateLogicalModelStatus(id: number | string, enabled: boolean) {
-  return put(`/api/logical-models/${id}/status`, { enabled });
+  return put(`/api/logical-models/${id}/status`, {enabled});
 }
 
 export function deleteLogicalModel(id: number | string) {

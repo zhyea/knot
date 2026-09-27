@@ -1,5 +1,5 @@
-import { postQuery } from "./http";
-import type { Dict } from "../types";
+import {postQuery} from "./http";
+import type {Dict} from "@/types";
 
 export function listOperationLogs(params: Dict) {
   return postQuery("/api/system/operation-logs", params);

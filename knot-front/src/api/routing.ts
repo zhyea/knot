@@ -1,6 +1,6 @@
-import { postQuery, post, put, get } from "./http";
-import type { Dict } from "../types";
-import type { AxiosRequestConfig } from "axios";
+import {postQuery, post, put, get} from "./http";
+import type {Dict} from "@/types";
+import type {AxiosRequestConfig} from "axios";
 
 export function listRoutingRules(params: Dict) {
   return postQuery("/api/routing-rules/list", params);
@@ -19,7 +19,7 @@ export function updateRoutingConsumer(id: number | string, payload: Dict) {
 }
 
 export function updateRoutingConsumerStatus(id: number | string, enabled: boolean) {
-  return put(`/api/routing-consumers/${id}/status`, { enabled });
+  return put(`/api/routing-consumers/${id}/status`, {enabled});
 }
 
 export function rotateRoutingConsumerSecret(id: number | string) {
@@ -28,7 +28,7 @@ export function rotateRoutingConsumerSecret(id: number | string) {
 
 export function checkRoutingConsumerCode(code: string, excludeId: number | string | null) {
   return get("/api/routing-consumers/check-code", {
-    params: { code, excludeId: excludeId ?? undefined }
+    params: {code, excludeId: excludeId ?? undefined}
   });
 }
 
@@ -41,12 +41,12 @@ export function updateRoutingRule(id: number | string, payload: Dict) {
 }
 
 export function updateRoutingRuleStatus(id: number | string, enabled: boolean) {
-  return put(`/api/routing-rules/${id}/status`, { enabled });
+  return put(`/api/routing-rules/${id}/status`, {enabled});
 }
 
 export function checkRoutingRuleCode(code: string, excludeId: number | string | null) {
   return get("/api/routing-rules/check-code", {
-    params: { code, excludeId: excludeId ?? undefined }
+    params: {code, excludeId: excludeId ?? undefined}
   });
 }
 

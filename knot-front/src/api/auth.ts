@@ -1,5 +1,5 @@
 import { post } from "./http";
-import type { Dict } from "../types";
+import type { Dict } from "@/types";
 
 export function login(data: Dict) {
   return post("/api/auth/login", data, { silentError: true });

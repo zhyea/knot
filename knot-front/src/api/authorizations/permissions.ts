@@ -1,5 +1,5 @@
 import { del, get, post, put } from "../http";
-import type { Dict } from "../../types";
+import type { Dict } from "@/types";
 
 export function listAuthorizationPermissions(params: Dict) {
   return get("/api/system/authorizations/permissions", { params });

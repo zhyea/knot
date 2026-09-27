@@ -12,11 +12,11 @@
 <script setup lang="ts">
 import FilterField from "./FilterField.vue";
 
-const value = defineModel({ type: String, default: "" });
+const value = defineModel({type: String, default: ""});
 
 defineProps({
-  label: { type: String, default: "关键字" },
-  placeholder: { type: String, default: "" }
+  label: {type: String, default: "关键字"},
+  placeholder: {type: String, default: ""}
 });
 
 const emit = defineEmits(["query"]);

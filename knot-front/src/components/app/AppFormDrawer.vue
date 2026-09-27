@@ -1,28 +1,28 @@
 <template>
   <el-drawer
-      :model-value="modelValue"
-      :title="isEdit ? '编辑应用' : '新建应用'"
-      size="45%"
-      class="drawer-with-scrollbar"
-      destroy-on-close
-      @update:model-value="emit('update:modelValue', $event)"
-      @closed="onClosed"
+    :model-value="modelValue"
+    :title="isEdit ? '编辑应用' : '新建应用'"
+    size="45%"
+    class="drawer-with-scrollbar"
+    destroy-on-close
+    @update:model-value="emit('update:modelValue', $event)"
+    @closed="onClosed"
   >
     <el-scrollbar max-height="calc(100vh - 140px)">
-    <el-form :model="form" label-width="100px">
-      <div class="slot-body">
-        <el-form-item label="App ID" required>
-          <el-input v-model="form.appId" :disabled="isEdit"/>
-        </el-form-item>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="名称" required>
-              <el-input v-model="form.name"/>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="所属部门">
-              <RemoteEntitySelect
+      <el-form :model="form" label-width="100px">
+        <div class="slot-body">
+          <el-form-item label="App ID" required>
+            <el-input v-model="form.appId" :disabled="isEdit"/>
+          </el-form-item>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="名称" required>
+                <el-input v-model="form.name"/>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="所属部门">
+                <RemoteEntitySelect
                   v-model="form.deptId"
                   :load-function="listDepartments"
                   :label-function="departmentLabel"
@@ -30,12 +30,12 @@
                   placeholder="请选择部门"
                   clearable
                   style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="负责人">
-              <RemoteEntitySelect
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="负责人">
+                <RemoteEntitySelect
                   v-model="form.ownerUserId"
                   :load-function="listUsers"
                   :label-function="userLabel"
@@ -43,23 +43,23 @@
                   placeholder="请选择负责人"
                   clearable
                   style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="备注">
-          <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="选填"/>
-        </el-form-item>
-      </div>
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-form-item label="备注">
+            <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="选填"/>
+          </el-form-item>
+        </div>
 
-      <div class="space-line"/>
+        <div class="space-line"/>
 
-      <TrafficPolicySection
+        <TrafficPolicySection
           class="slot-body"
           v-model:rate-limit="form.rateLimitPolicy"
           v-model:quota="form.quotaPolicy"
-      />
-    </el-form>
+        />
+      </el-form>
     </el-scrollbar>
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
@@ -69,7 +69,7 @@
 </template>
 
 <script setup lang="ts">
-import { type PropType, computed, reactive, ref, watch} from "vue";
+import {type PropType, computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
@@ -80,12 +80,12 @@ import {
   isEmptyRateLimitPolicy,
   normalizeQuotaPolicy,
   normalizeRateLimitPolicy
-} from "../../utils/trafficPolicy";
-import {createApp, updateApp} from "../../api/apps";
-import {listDepartments} from "../../api/departments";
-import {listUsers} from "../../api/users";
-import { normalizeOptionList, resolveSelectedOption } from "../../utils/options";
-import type {Dict, Row} from "../../types";
+} from "@/utils/trafficPolicy";
+import {createApp, updateApp} from "@/api/apps";
+import {listDepartments} from "@/api/departments";
+import {listUsers} from "@/api/users";
+import {normalizeOptionList, resolveSelectedOption} from "@/utils/options";
+import type {Dict, Row} from "@/types";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -169,14 +169,14 @@ function resetForm() {
 }
 
 watch(
-    () => [props.modelValue, props.app],
-    ([visible]) => {
-      if (visible) {
-        resetForm();
-        loadDepartments();
-        loadUsers();
-      }
+  () => [props.modelValue, props.app],
+  ([visible]) => {
+    if (visible) {
+      resetForm();
+      loadDepartments();
+      loadUsers();
     }
+  }
 );
 
 function onClosed() {
@@ -185,11 +185,11 @@ function onClosed() {
 
 function buildPayload() {
   const rateLimitPolicy = isEmptyRateLimitPolicy(form.rateLimitPolicy)
-      ? null
-      : normalizeRateLimitPolicy(form.rateLimitPolicy);
+    ? null
+    : normalizeRateLimitPolicy(form.rateLimitPolicy);
   const quotaPolicy = isEmptyQuotaPolicy(form.quotaPolicy)
-      ? null
-      : normalizeQuotaPolicy(form.quotaPolicy);
+    ? null
+    : normalizeQuotaPolicy(form.quotaPolicy);
   return {
     appId: form.appId,
     name: form.name,

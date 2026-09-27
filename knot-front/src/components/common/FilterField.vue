@@ -2,27 +2,27 @@
   <div class="list-filter-item" :class="{ 'list-filter-item--grow': grow }">
     <span class="list-filter-label">{{ label }}</span>
     <div class="list-filter-field" :style="controlStyle">
-      <slot />
+      <slot/>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import {computed} from "vue";
 
 const props = defineProps({
-  label: { type: String, default: "" },
+  label: {type: String, default: ""},
   /** 自适应占满剩余宽度，关键字输入一般用这个 */
-  grow: { type: Boolean, default: false },
+  grow: {type: Boolean, default: false},
   /** 固定控件宽度，如 220 或 "220px" */
-  width: { type: [Number, String], default: null }
+  width: {type: [Number, String], default: null}
 });
 
 const controlStyle = computed(() => {
   if (props.width === null || props.width === "") {
     return null;
   }
-  return { width: typeof props.width === "number" ? `${props.width}px` : props.width };
+  return {width: typeof props.width === "number" ? `${props.width}px` : props.width};
 });
 </script>
 
