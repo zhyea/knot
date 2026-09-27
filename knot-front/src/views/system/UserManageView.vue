@@ -43,7 +43,7 @@
 
 <script setup lang="ts">
 import type {Dict, Row} from "@/types";
-import {reactive, ref, watch} from "vue";
+import {ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";

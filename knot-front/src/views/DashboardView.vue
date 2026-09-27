@@ -172,19 +172,19 @@
               type="button"
               @click="goToRoute('/system/logs')"
             >
-              <div class="activity-list__main">
-                <div class="activity-list__title">
+              <span class="activity-list__main">
+                <span class="activity-list__title">
                   <span class="activity-list__module">{{ resolveModuleName(log.module) }}</span>
                   <span class="activity-list__operation">{{ log.operation || "--" }}</span>
-                </div>
-                <div class="activity-list__entity">{{ log.entityName || log.entityType || "--" }}</div>
-              </div>
-              <div class="activity-list__meta">
+                </span>
+                <span class="activity-list__entity">{{ log.entityName || log.entityType || "--" }}</span>
+              </span>
+              <span class="activity-list__meta">
                 <el-tag :type="log.status === 'SUCCESS' ? 'success' : 'danger'" size="small">
                   {{ log.status || "--" }}
                 </el-tag>
                 <span class="activity-list__time">{{ formatDateTime(log.createdAt) }}</span>
-              </div>
+              </span>
             </button>
           </div>
           <el-empty v-else description="暂无操作记录" :image-size="72" />
@@ -222,7 +222,7 @@ import {listProviders} from "@/api/providers";
 import {listRoutingRules} from "@/api/routing";
 import {useAuth} from "@/composables/useAuth";
 import {formatDateTime} from "@/utils/format";
-import type {Dict, ListResponse, Row} from "@/types";
+import type {Dict, Row} from "@/types";
 
 /** 模块目录条目（/api/modules 返回） */
 interface ModuleCatalogItem {

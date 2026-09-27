@@ -1,4 +1,4 @@
-import {computed, ref, type ComputedRef, type Ref} from "vue";
+import {computed, ref, type Ref} from "vue";
 import zhCn from "element-plus/es/locale/lang/zh-cn";
 import zhTw from "element-plus/es/locale/lang/zh-tw";
 import en from "element-plus/es/locale/lang/en";
@@ -53,7 +53,7 @@ function interpolate(template: unknown, params: TranslateParams = {}): string {
   if (typeof template !== "string") {
     return String(template);
   }
-  return template.replace(/\{(\w+)\}/g, (_, name) => String(params[name] ?? ""));
+  return template.replace(/\{(\w+)}/g, (_, name) => String(params[name] ?? ""));
 }
 
 function applyLocale(locale: LocaleCode): void {

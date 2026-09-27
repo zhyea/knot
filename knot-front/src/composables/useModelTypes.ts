@@ -1,5 +1,5 @@
 import {computed, ref} from "vue";
-import type {Dict, Row} from "@/types";
+import type {Row} from "@/types";
 import {listModelTypes} from "@/api/models";
 
 /**

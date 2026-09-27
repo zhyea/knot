@@ -14,6 +14,7 @@ export interface UseAutoQueryOptions {
  *
  * @param source ref / getter / 普通对象
  * @param query 变更回调
+ * @param options 可选配置，见 UseAutoQueryOptions（debounce / deep / enabled）
  */
 export function useAutoQuery(
   source: WatchSource | Record<string, any>,

@@ -1,6 +1,6 @@
 import {computed, reactive, ref, type Ref} from "vue";
 import {ElMessage} from "element-plus";
-import type {Dict, ResourceField, ResourceSubmitter, Row, RowAction, SelectOptionLike} from "@/types";
+import type {Dict, ResourceField, ResourceSubmitter, Row, RowAction} from "@/types";
 import {useAutoQuery} from "./useAutoQuery";
 import {usePageList} from "./usePageList";
 import {
@@ -207,7 +207,7 @@ export function useAuthorizationManagement() {
       }
     }
 
-    const groups = Array.from(moduleMap.values())
+    return Array.from(moduleMap.values())
       .map((group) => ({
         moduleId: group.moduleId,
         moduleName: group.moduleName,
@@ -217,8 +217,6 @@ export function useAuthorizationManagement() {
       }))
       .filter((group) => group.menus.length > 0 || group.unassignedPermissions.length > 0)
       .sort((a, b) => a.moduleSortOrder - b.moduleSortOrder || `${a.moduleName}`.localeCompare(`${b.moduleName}`, "zh-Hans-CN"));
-
-    return groups;
   });
 
   const moduleFilters = computed(() => [
@@ -385,8 +383,7 @@ export function useAuthorizationManagement() {
 
   async function loadRoleSnapshot(roleId: number | string) {
     const snapshot = await getRoleAuthorizationSnapshot(roleId);
-    const role = rows.value.find((item) => item.id === roleId) || snapshot?.roles?.[0] || null;
-    selectedRole.value = role;
+    selectedRole.value = rows.value.find((item) => item.id === roleId) || snapshot?.roles?.[0] || null;
     grantedPermissionIds.value = snapshot?.grantedPermissionIds || [];
   }
 

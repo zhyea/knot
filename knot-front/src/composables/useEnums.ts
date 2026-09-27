@@ -1,6 +1,6 @@
-import {ref, readonly} from "vue";
+import {ref} from "vue";
 import type {Dict, Row} from "@/types";
-import {listEnumsByCategory, listEnumCategories} from "@/api/enums";
+import {listEnumItemsByCategory, listEnumCategories} from "@/api/enums";
 
 /**
  * 枚举数据缓存 composable
@@ -33,7 +33,7 @@ export function useEnums(category: string, enabledOnly = true) {
         options.value = filter(cached.data, enabledOnly);
         return;
       }
-      const data = await listEnumsByCategory(category);
+      const data = await listEnumItemsByCategory(category);
       CACHE[category] = {data, ts: Date.now()};
       options.value = filter(data, enabledOnly);
     } finally {

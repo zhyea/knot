@@ -36,11 +36,6 @@ export function deleteEnumConfig(id: number | string) {
   return del(`/api/system/enums/${id}`);
 }
 
-/** @deprecated 使用 listEnumItemsByCategory */
-export function listEnumsByCategory(category: string) {
-  return listEnumItemsByCategory(category);
-}
-
 /**
  * 代码枚举全集：GET /api/common/enums，返回 { 枚举键: { code: label } }。
  * 目前仅包含已从 DB 迁移到后端的 ModelTypeEnum、ModelApiProtocolEnum，
