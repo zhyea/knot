@@ -136,7 +136,7 @@ router.afterEach(() => {
   sessionStorage.removeItem(CHUNK_RELOAD_KEY);
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const { isLoggedIn, needsPasswordChange } = useAuth();
   const whiteList = ["/login", "/force-password-change"];
 

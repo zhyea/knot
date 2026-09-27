@@ -342,7 +342,7 @@ const boundTargetRows = computed(() =>
       const source = findTargetOption(item.targetType, item.targetId);
       item.id = item.targetId;
       item.targetCode = targetOptionCode(item.targetType, source) || item.targetCode;
-      item.targetName = targetOptionName(item.targetType, source) || item.targetName;
+      item.targetName = targetOptionName(source) || item.targetName;
       item.modelType = source?.modelType || item.modelType;
       item.providerId = source?.providerId || item.providerId;
       return item;
@@ -387,13 +387,9 @@ function consumerLabel(consumer: Row): string {
   return consumer.name || consumer.consumerCode || `#${consumer.id}`;
 }
 
-function modelLabel(model: Row): string {
-  return model.modelCode ? `${model.name || model.modelCode}（${model.modelCode}）` : `#${model.id}`;
-}
-
 function targetLabel(target: Row): string {
   const code = targetOptionCode(targetType.value, target);
-  const name = targetOptionName(targetType.value, target);
+  const name = targetOptionName(target);
   return code ? `${name || code}（${code}）` : `#${target.id}`;
 }
 
@@ -450,7 +446,7 @@ function targetOptionCode(type: string, option: Row | null | undefined): string 
   return type === "MODEL_POOL" ? option.poolCode : option.modelCode;
 }
 
-function targetOptionName(type: string, option: Row | null | undefined): string {
+function targetOptionName(option: Row | null | undefined): string {
   if (!option) return "";
   return option.name || option.modelName || option.poolCode || option.modelCode;
 }
@@ -609,7 +605,7 @@ function onSelectedTargetsChange(targetIds: Array<string | number | null>) {
       targetType: targetType.value,
       targetId,
       targetCode: targetOptionCode(targetType.value, source),
-      targetName: targetOptionName(targetType.value, source),
+      targetName: targetOptionName(source),
       modelType: source?.modelType,
       providerId: source?.providerId,
       priority: 100,

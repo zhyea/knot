@@ -77,7 +77,6 @@ const {
   load,
   onPageChange,
   onSizeChange,
-  resetPage,
   handleQuery,
   handleReset
 } = useListQuery({ apiFn: listProviders, fields: { keyword: "" } });

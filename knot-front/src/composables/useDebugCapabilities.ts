@@ -1,5 +1,5 @@
 import {computed, ref} from "vue";
-import type {Dict, Row} from "@/types";
+import type {Dict} from "@/types";
 import {listDebugCapabilities} from "@/api/routing";
 
 /**
@@ -139,7 +139,7 @@ export function extractPrompt(body: unknown, promptField: string | null): string
   if (!promptField) {
     return null;
   }
-  const indexed = promptField.match(/^(\w+)\[(\d+)\](?:\.(\w+))?$/);
+  const indexed = promptField.match(/^(\w+)\[(\d+)](?:\.(\w+))?$/);
   if (indexed) {
     const list = (body as Dict)?.[indexed[1]];
     if (!Array.isArray(list)) {

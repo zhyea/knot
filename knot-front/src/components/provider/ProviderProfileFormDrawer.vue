@@ -59,7 +59,7 @@ const rules = {
   code: [
     { required: true, message: "请输入编码", trigger: "blur" },
     {
-      validator: async (rule: FormItemRule, value: string, callback: (error?: string | Error) => void) => {
+      validator: async (_rule: FormItemRule, value: string, callback: (error?: string | Error) => void) => {
         if (!value) return callback();
         try {
           const result = await checkProviderProfileCode(value, editing.value?.id);
@@ -73,7 +73,7 @@ const rules = {
   ],
   name: [{ required: true, message: "请输入名称", trigger: "blur" }],
   tags: [{
-    validator: (rule: FormItemRule, value: unknown[], callback: (error?: string | Error) => void) => {
+    validator: (_rule: FormItemRule, value: unknown[], callback: (error?: string | Error) => void) => {
       const list = (value || []).map((item) => String(item).trim()).filter(Boolean);
       callback(list.length ? undefined : new Error("请至少选择一个分类"));
     },

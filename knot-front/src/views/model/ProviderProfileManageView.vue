@@ -75,7 +75,6 @@ const {
   load,
   onPageChange,
   onSizeChange,
-  resetPage,
   handleQuery,
   handleReset
 } = useListQuery({ apiFn: listProviderProfiles, fields: { keyword: "", tag: "" } });

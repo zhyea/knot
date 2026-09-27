@@ -247,21 +247,6 @@ interface ModuleCatalogItem {
   capabilities?: string[];
 }
 
-/** 授权菜单节点（可递归） */
-interface MenuNode {
-  menuName?: string;
-  routePath?: string;
-  icon?: string;
-  children?: MenuNode[];
-}
-
-/** 快捷入口 */
-interface QuickLink {
-  path: string;
-  label: string;
-  icon: Component;
-}
-
 const router = useRouter();
 const { modules: authorizedModules } = useAuth();
 

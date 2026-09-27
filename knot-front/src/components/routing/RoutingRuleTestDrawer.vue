@@ -124,7 +124,7 @@
             <el-tabs v-model="responseTab" class="debug-tabs debug-tabs--response">
               <el-tab-pane label="概览" name="summary">
                 <div v-if="summaryItems.length" class="result-meta">
-                  <div v-for="item in summaryItems" :key="item.label" class="result-meta__item" :class="item.className">
+                  <div v-for="item in summaryItems" :key="item.label" class="result-meta__item" :class="{ 'result-meta__item--error': item.isError }">
                     <span class="result-meta__label">{{ item.label }}</span>
                     <span class="result-meta__value">{{ item.value }}</span>
                   </div>
@@ -165,7 +165,6 @@ import {useModelTypes} from "@/composables/useModelTypes";
 import {useDebugCapabilities, hydrateTemplate, extractPrompt} from "@/composables/useDebugCapabilities";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {formatJson, formatJsonText, parseJsonResult, stringifyJson} from "@/utils/format";
-import type {ApiBusinessError} from "@/api/http";
 import type {Dict, Row} from "@/types";
 
 const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || "http://127.0.0.1:9090";
@@ -240,16 +239,15 @@ const drawerTitle = computed(() => {
   return name ? `路由规则测试 — ${name}` : "路由规则测试";
 });
 
-const targetOptions = computed(() => {
-  const list = Array.isArray(props.targets) ? props.targets : [];
-  return list
+const targetOptions = computed(() =>
+  (Array.isArray(props.targets) ? props.targets : [])
     .filter((item) => item?.targetId != null)
     .map((item) => ({
       ...item,
       key: targetKeyOf(item),
       label: targetLabel(item)
-    }));
-});
+    }))
+);
 
 const activeTarget = computed(() => targetOptions.value.find((item) => item.key === testForm.targetKey) || null);
 const availableProtocols = computed(() => {
@@ -300,7 +298,7 @@ const summaryItems = computed(() => {
   if (!testResult.value) {
     return [];
   }
-  const items = [];
+  const items: Array<{ label: string; value: unknown; isError?: boolean }> = [];
   if (testResult.value.protocol) {
     items.push({label: "接口协议", value: protocolLabel(testResult.value.protocol)});
   }
@@ -308,7 +306,7 @@ const summaryItems = computed(() => {
     items.push({label: "命中模型", value: testResult.value.modelCode});
   }
   if (testResult.value.errorMessage) {
-    items.push({label: "错误信息", value: testResult.value.errorMessage, className: "result-meta__item--error"});
+    items.push({label: "错误信息", value: testResult.value.errorMessage, isError: true});
   }
   return items;
 });
