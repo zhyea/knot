@@ -687,7 +687,8 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 (119, 'system:scheduled-task:trigger', '定时任务触发', 'API', 1, 14, 'ENABLED', 1, NULL),
 (120, 'system:security:view', '安全策略查看', 'API', 1, NULL, 'ENABLED', 1, NULL),
 (121, 'system:security:update', '安全策略更新', 'API', 1, NULL, 'ENABLED', 1, NULL),
-(122, 'system:security:evict', '安全策略清理缓存', 'API', 1, NULL, 'ENABLED', 1, NULL);
+(122, 'system:security:evict', '安全策略清理缓存', 'API', 1, NULL, 'ENABLED', 1, NULL),
+(123, 'model:external-model:ignore', '外部模型忽略', 'API', 2, 10, 'ENABLED', 1, NULL);
 
 INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
 (54, 58, 'POST', '/api/docs/openapi.json', 'ApiDocController', 'ENABLED'),
@@ -790,7 +791,8 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (151, 120, 'POST', '/api/security/alerts', 'SecurityController', 'ENABLED'),
 (152, 122, 'POST', '/api/security/cache/evict', 'SecurityController', 'ENABLED'),
 (153, 15, 'POST', '/api/system/log-types', 'SystemController', 'ENABLED'),
-(154, 15, 'POST', '/api/system/logs', 'SystemController', 'ENABLED');
+(154, 15, 'POST', '/api/system/logs', 'SystemController', 'ENABLED'),
+(155, 123, 'POST', '/api/external-models/items/{id}/ignored', 'ExternalModelController', 'ENABLED');
 
 -- OPERATOR（运维）：新增接口权限全量授予（与既有 27-55 全量口径一致）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
@@ -858,7 +860,8 @@ INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (2, 119),
 (2, 120),
 (2, 121),
-(2, 122);
+(2, 122),
+(2, 123);
 
 -- DEVELOPER（开发）：仅授予只读类接口权限
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
