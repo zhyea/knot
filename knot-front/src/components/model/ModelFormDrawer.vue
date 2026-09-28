@@ -256,7 +256,7 @@
 
               <el-row :gutter="12" class="api-binding-card__row">
                 <el-col :span="12">
-                  <el-form-item label="Usage解析器">
+                  <el-form-item label="Usage">
                     <el-select
                       v-model="binding.usageExtractor"
                       filterable
@@ -273,7 +273,7 @@
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="流式Usage解析器">
+                  <el-form-item label="流式Usage">
                     <el-select
                       v-model="binding.streamUsageExtractor"
                       clearable
