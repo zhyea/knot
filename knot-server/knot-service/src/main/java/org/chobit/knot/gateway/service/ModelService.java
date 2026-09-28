@@ -28,6 +28,7 @@ import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.usage.UsageExtractorCatalog;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.model.ModelApiProtocolItem;
 import org.chobit.knot.gateway.vo.model.ModelTypeItem;
 import org.chobit.knot.gateway.vo.model.RequestAdapterItem;
@@ -116,6 +117,21 @@ public class ModelService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "供应商模型不存在");
         }
         return enrich(entity);
+    }
+
+    /**
+     * Builds the model snapshot used by {@code @OperationLog} SpEL expressions.
+     * Returns {@code null} when the model no longer exists.
+     */
+    public Map<String, Object> modelAuditSnapshot(Long id) {
+        if (id == null) {
+            return null;
+        }
+        try {
+            return JsonKit.toMap(getById(id));
+        } catch (BusinessException e) {
+            return null;
+        }
     }
 
     /**
