@@ -10,6 +10,8 @@ declare module "axios" {
     skipIdleTouch?: boolean;
     /** 失败时不弹 ElMessage，由调用方自行处理 */
     silentError?: boolean;
+    /** 请求发出时实际使用的登录令牌，用于忽略旧会话的 401 */
+    authToken?: string;
   }
 }
 
@@ -29,6 +31,9 @@ const http = axios.create({
 http.interceptors.request.use((config) => {
   const {token} = useAuth();
   if (token.value) {
+    // 保存请求发出时的 token。响应可能在用户重新登录后才返回，
+    // 不能让旧会话的 401 清理新会话。
+    config.authToken = token.value;
     config.headers.Authorization = `Bearer ${token.value}`;
     if (!config.skipIdleTouch) {
       touchIdleActivity();
@@ -59,13 +64,27 @@ http.interceptors.response.use(
     const requestUrl = error.config?.url || "";
     const isLoginRequest = requestUrl.includes("/api/auth/login");
 
-    // 401 未授权时，清理 token 并跳转到登录页
+    // 401 只允许当前会话对应的请求触发退出。登录前发出的无 token 请求、
+    // 以及旧会话延迟返回的 401，都不能清理刚建立的新会话。
     if (error.response?.status === 401 && !isLoginRequest) {
-      const {logout} = useAuth();
-      logout();
-      router.push("/login");
-      ElMessage.error("登录已过期，请重新登录");
-      return Promise.reject(new Error("登录已过期"));
+      const {token, clearAllAuthState} = useAuth();
+      const requestToken = error.config?.authToken;
+      const currentToken = token.value;
+      const belongsToCurrentSession =
+        !!currentToken && !!requestToken && requestToken === currentToken;
+
+      if (belongsToCurrentSession) {
+        // JWT 无服务端会话，收到当前 token 的 401 时直接清理本地状态，
+        // 避免再次调用 logout 造成并发请求和二次 401。
+        clearAllAuthState();
+        if (router.currentRoute.value.path !== "/login") {
+          router.push("/login");
+        }
+        ElMessage.error("登录已过期，请重新登录");
+        return Promise.reject(new Error("登录已过期"));
+      }
+      // 旧会话的响应不能影响当前会话，也不能向调用方伪报“当前登录已过期”。
+      return Promise.reject(error);
     }
 
     const silentError = error.config?.silentError;
