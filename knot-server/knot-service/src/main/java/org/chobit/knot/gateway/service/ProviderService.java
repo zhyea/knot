@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.dto.provider.ProviderAccountDto;
@@ -83,12 +84,13 @@ public class ProviderService {
      * 认证配置与策略统一由 {@link #getById(Long)} 提供。
      */
     public PageResult<ProviderAccountDto> list(PageRequest pageRequest, String keyword) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<ProviderAccountEntity> pageInfo = new PageInfo<>(providerAccountMapper.list(normalizeKeyword(keyword)));
-        List<ProviderAccountDto> dtos = pageInfo.getList().stream()
-                .map(providerConverter::toDto)
-                .collect(Collectors.toList());
-        return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<ProviderAccountEntity> pageInfo = new PageInfo<>(providerAccountMapper.list(normalizeKeyword(keyword)));
+            List<ProviderAccountDto> dtos = pageInfo.getList().stream()
+                    .map(providerConverter::toDto)
+                    .collect(Collectors.toList());
+            return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        }
     }
 
     /**

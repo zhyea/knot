@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.entity.ProviderProfileEntity;
@@ -27,12 +28,13 @@ public class ProviderProfileService {
     }
 
     public PageResult<ProviderProfileItem> list(String keyword, String tag, PageRequest pageRequest) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        List<ProviderProfileItem> rows = providerProfileMapper.list(normalizeKeyword(keyword), normalizeKeyword(tag)).stream()
-                .map(this::toItem)
-                .toList();
-        PageInfo<ProviderProfileItem> page = new PageInfo<>(rows);
-        return PageResult.of(page.getList(), page.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            List<ProviderProfileItem> rows = providerProfileMapper.list(normalizeKeyword(keyword), normalizeKeyword(tag)).stream()
+                    .map(this::toItem)
+                    .toList();
+            PageInfo<ProviderProfileItem> page = new PageInfo<>(rows);
+            return PageResult.of(page.getList(), page.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        }
     }
 
     private String normalizeKeyword(String keyword) {

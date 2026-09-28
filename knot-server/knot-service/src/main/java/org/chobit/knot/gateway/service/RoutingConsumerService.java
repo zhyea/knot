@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
@@ -53,12 +54,13 @@ public class RoutingConsumerService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<RoutingConsumerDto> list(PageRequest pageRequest, String keyword) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<RoutingConsumerEntity> pageInfo = new PageInfo<>(routingConsumerMapper.list(normalizeKeyword(keyword)));
-        List<RoutingConsumerDto> dtos = pageInfo.getList().stream().map(entity ->
-                toDto(entity, trafficPolicySupport.load(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), entity.getId()))
-        ).toList();
-        return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<RoutingConsumerEntity> pageInfo = new PageInfo<>(routingConsumerMapper.list(normalizeKeyword(keyword)));
+            List<RoutingConsumerDto> dtos = pageInfo.getList().stream().map(entity ->
+                    toDto(entity, trafficPolicySupport.load(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), entity.getId()))
+            ).toList();
+            return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        }
     }
 
     private static String normalizeKeyword(String keyword) {

@@ -14,8 +14,6 @@ import org.chobit.knot.gateway.vo.user.UpdateUserStatusRequest;
 import org.chobit.knot.gateway.vo.user.UserItem;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/users")
 @AuthCheck

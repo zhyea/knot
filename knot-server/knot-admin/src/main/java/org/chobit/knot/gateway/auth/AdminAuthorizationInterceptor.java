@@ -6,6 +6,7 @@ import org.chobit.knot.gateway.service.AdminAuthorizationService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
+import org.springframework.lang.NonNull;
 import org.springframework.web.servlet.HandlerMapping;
 
 @Component
@@ -30,7 +31,9 @@ public class AdminAuthorizationInterceptor implements HandlerInterceptor {
      * 公共接口通过在 {@code WebMvcConfig} 中显式配置 excludePathPatterns 白名单放行。
      */
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+    public boolean preHandle(@NonNull HttpServletRequest request,
+                             @NonNull HttpServletResponse response,
+                             @NonNull Object handler) {
         if (!(handler instanceof HandlerMethod)) {
             return true;
         }

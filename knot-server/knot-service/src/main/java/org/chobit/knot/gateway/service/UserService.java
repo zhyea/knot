@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.auth.JwtUtil;
@@ -40,6 +41,9 @@ public class UserService {
     private static final int ONE_TIME_PASSWORD_LENGTH = 12;
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    /** BCrypt 输入上限：超过 72 字节的部分会被截断，入库前显式拒绝。 */
+    private static final int MAX_PASSWORD_BYTES = 72;
+
     private final UserMapper userMapper;
     private final DepartmentMapper departmentMapper;
     private final AdminAuthorizationManageMapper roleMapper;
@@ -67,10 +71,10 @@ public class UserService {
         if (user == null) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
-        if (!passwordEncoder.matches(password, user.getPasswordHash())) {
+        if (passwordTooLong(password) || !passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "用户名或密码错误");
         }
-        if (!statusEnabledEquals(user.getStatus())) {
+        if (isDisabled(user.getStatus())) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "当前用户已被禁用");
         }
 
@@ -90,6 +94,9 @@ public class UserService {
         if (password.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "新密码不能为空");
         }
+        if (passwordTooLong(password)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "密码长度不能超过 72 字节");
+        }
         Long userId;
         try {
             userId = JwtUtil.parsePasswordChangeToken(passwordChangeToken).get("userId", Long.class);
@@ -101,7 +108,7 @@ public class UserService {
         if (user == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
-        if (!statusEnabledEquals(user.getStatus())) {
+        if (isDisabled(user.getStatus())) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "当前用户已被禁用");
         }
         userMapper.updateUserPassword(userId, passwordEncoder.encode(password));
@@ -110,18 +117,12 @@ public class UserService {
     /**
      * Lists matching results.
      */
-    public PageResult<UserDto> listUsers(PageRequest pageRequest) {
-        return listUsers(pageRequest, null);
-    }
-
-    /**
-     * Lists matching results.
-     */
     public PageResult<UserDto> listUsers(PageRequest pageRequest, String keyword) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<UserEntity> pageInfo = new PageInfo<>(userMapper.listUsers(normalizeKeyword(keyword)));
-        attachRoleBindings(pageInfo.getList());
-        return PageResult.fromPage(pageInfo, userConverter::toDtoList, pageRequest);
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<UserEntity> pageInfo = new PageInfo<>(userMapper.listUsers(normalizeKeyword(keyword)));
+            attachRoleBindings(pageInfo.getList());
+            return PageResult.fromPage(pageInfo, userConverter::toDtoList, pageRequest);
+        }
     }
 
     private static String normalizeKeyword(String keyword) {
@@ -155,7 +156,11 @@ public class UserService {
 
     /**
      * Returns a user snapshot for operation log auditing.
+     * <p>
+     * 仅由 {@code @OperationLog} 的 SpEL 表达式（{@code @userService.userAuditSnapshot(...)}）反射调用，
+     * Java 侧无直接引用，IDE 会误报 unused。
      */
+    @SuppressWarnings("unused")
     public Map<String, Object> userAuditSnapshot(Long id) {
         if (id == null) {
             return null;
@@ -190,6 +195,9 @@ public class UserService {
         String password = request.password() == null ? "" : request.password().trim();
         if (password.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "密码不能为空");
+        }
+        if (passwordTooLong(password)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "密码长度不能超过 72 字节");
         }
 
         UserEntity entity = new UserEntity();
@@ -322,7 +330,11 @@ public class UserService {
         return department;
     }
 
-    private static boolean statusEnabledEquals(Integer status) {
-        return status != null && status == STATUS_ENABLED;
+    private static boolean isDisabled(Integer status) {
+        return status == null || status != STATUS_ENABLED;
+    }
+
+    private static boolean passwordTooLong(String password) {
+        return password != null && password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > MAX_PASSWORD_BYTES;
     }
 }

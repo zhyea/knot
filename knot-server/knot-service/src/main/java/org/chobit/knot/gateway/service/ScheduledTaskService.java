@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
@@ -47,13 +48,14 @@ public class ScheduledTaskService {
      */
     public PageResult<ScheduledTaskEntity> listTasks(ScheduledTaskQuery query) {
         PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<ScheduledTaskEntity> pageInfo = new PageInfo<>(scheduledTaskMapper.listTasks(
-                query != null ? normalizeKeyword(query.keyword()) : null,
-                query != null ? query.status() : null,
-                query != null ? query.handlerCode() : null
-        ));
-        return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<ScheduledTaskEntity> pageInfo = new PageInfo<>(scheduledTaskMapper.listTasks(
+                    query != null ? normalizeKeyword(query.keyword()) : null,
+                    query != null ? query.status() : null,
+                    query != null ? query.handlerCode() : null
+            ));
+            return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        }
     }
 
     private String normalizeKeyword(String keyword) {
@@ -69,13 +71,14 @@ public class ScheduledTaskService {
      */
     public PageResult<ScheduledTaskRunEntity> listRuns(ScheduledTaskRunQuery query) {
         PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<ScheduledTaskRunEntity> pageInfo = new PageInfo<>(scheduledTaskMapper.listRuns(
-                query != null ? query.taskCode() : null,
-                query != null ? query.status() : null,
-                query != null ? query.triggerType() : null
-        ));
-        return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<ScheduledTaskRunEntity> pageInfo = new PageInfo<>(scheduledTaskMapper.listRuns(
+                    query != null ? query.taskCode() : null,
+                    query != null ? query.status() : null,
+                    query != null ? query.triggerType() : null
+            ));
+            return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        }
     }
 
     /**

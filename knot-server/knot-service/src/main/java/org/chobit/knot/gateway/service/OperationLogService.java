@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -63,16 +64,17 @@ public class OperationLogService {
 
     public PageResult<OperationLogEntity> list(PageRequest pageRequest, String module, String operation, String status,
                                                String keyword) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<OperationLogEntity> pageInfo = new PageInfo<>(operationLogMapper.list(
-                normalizeValue(module),
-                normalizeValue(operation),
-                normalizeValue(status),
-                normalizeValue(keyword)
-        ));
-        List<OperationLogEntity> list = new ArrayList<>(pageInfo.getList());
-        list.forEach(this::retainOnlyChangedJsonFields);
-        return PageResult.of(list, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<OperationLogEntity> pageInfo = new PageInfo<>(operationLogMapper.list(
+                    normalizeValue(module),
+                    normalizeValue(operation),
+                    normalizeValue(status),
+                    normalizeValue(keyword)
+            ));
+            List<OperationLogEntity> list = new ArrayList<>(pageInfo.getList());
+            list.forEach(this::retainOnlyChangedJsonFields);
+            return PageResult.of(list, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        }
     }
 
     public List<String> listModules() {

@@ -981,7 +981,8 @@ onMounted(() => {
   justify-content: space-between;
   gap: 12px;
   padding: 14px 0;
-  border-top: 1px solid #f0f2f5;
+  border: none;
+  border-top: 1px solid var(--knot-border, #ebeef5);
   background: transparent;
   text-align: left;
   cursor: pointer;

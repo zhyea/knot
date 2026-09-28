@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.entity.AdminRoleEntity;
@@ -32,9 +33,10 @@ public class AuthorizationRoleService {
      * Lists roles with pagination.
      */
     public PageResult<AdminRoleEntity> listRoles(PageRequest pageRequest, String keyword) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<AdminRoleEntity> pageInfo = new PageInfo<>(support.mapper().listRoles(support.normalizeKeyword(keyword)));
-        return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<AdminRoleEntity> pageInfo = new PageInfo<>(support.mapper().listRoles(support.normalizeKeyword(keyword)));
+            return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        }
     }
 
     /**

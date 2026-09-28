@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.model.PageRequest;
@@ -63,9 +64,10 @@ public class SecurityService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<AlertItemDto> listAlerts(PageRequest pageRequest) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<AlertEntity> pageInfo = new PageInfo<>(securityMapper.listAlerts());
-        return PageResult.fromPage(pageInfo, securityConverter::toAlertItemDtoList, pageRequest);
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<AlertEntity> pageInfo = new PageInfo<>(securityMapper.listAlerts());
+            return PageResult.fromPage(pageInfo, securityConverter::toAlertItemDtoList, pageRequest);
+        }
     }
 
     /**

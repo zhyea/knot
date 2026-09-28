@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.error.BusinessException;
@@ -41,9 +42,10 @@ public class PluginService implements PluginBindingProvider {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<PluginDto> list(PageRequest pageRequest, String keyword, String status) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<PluginInstanceEntity> pageInfo = new PageInfo<>(pluginMapper.list(normalizeKeyword(keyword), normalizeStatus(status)));
-        return PageResult.fromPage(pageInfo, pluginConverter::toDtoList, pageRequest);
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<PluginInstanceEntity> pageInfo = new PageInfo<>(pluginMapper.list(normalizeKeyword(keyword), normalizeStatus(status)));
+            return PageResult.fromPage(pageInfo, pluginConverter::toDtoList, pageRequest);
+        }
     }
 
     /**

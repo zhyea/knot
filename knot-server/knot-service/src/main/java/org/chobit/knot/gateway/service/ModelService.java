@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.adapter.request.RequestAdapterCatalog;
@@ -90,19 +91,20 @@ public class ModelService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<ModelDto> list(PageRequest pageRequest, String keyword, List<String> modelTypes) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<ModelEntity> pageInfo = new PageInfo<>(
-                modelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes))
-        );
-        List<ModelEntity> entities = pageInfo.getList();
-        List<Long> ids = entities.stream().map(ModelEntity::getId).toList();
-        Map<Long, TrafficPolicies> trafficMap =
-                trafficPolicySupport.loadBatch(TrafficResourceTypeEnum.MODEL.code(), ids);
-        Map<Long, List<ModelApiBindingDto>> bindingMap = loadBindingMap(ids);
-        List<ModelDto> dtos = entities.stream()
-                .map(entity -> enrich(modelConverter.toDto(entity), trafficMap.get(entity.getId()), bindingMap.get(entity.getId())))
-                .collect(Collectors.toList());
-        return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<ModelEntity> pageInfo = new PageInfo<>(
+                    modelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes))
+            );
+            List<ModelEntity> entities = pageInfo.getList();
+            List<Long> ids = entities.stream().map(ModelEntity::getId).toList();
+            Map<Long, TrafficPolicies> trafficMap =
+                    trafficPolicySupport.loadBatch(TrafficResourceTypeEnum.MODEL.code(), ids);
+            Map<Long, List<ModelApiBindingDto>> bindingMap = loadBindingMap(ids);
+            List<ModelDto> dtos = entities.stream()
+                    .map(entity -> enrich(modelConverter.toDto(entity), trafficMap.get(entity.getId()), bindingMap.get(entity.getId())))
+                    .collect(Collectors.toList());
+            return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        }
     }
 
     /**

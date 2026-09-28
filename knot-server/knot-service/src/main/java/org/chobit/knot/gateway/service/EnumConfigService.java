@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.entity.EnumCategoryEntity;
@@ -41,13 +42,14 @@ public class EnumConfigService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<EnumConfigEntity> list(PageRequest pageRequest, String category) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<EnumConfigEntity> pageInfo = new PageInfo<>(
-                category != null && !category.isBlank()
-                        ? enumConfigMapper.listByCategoryFilter(category)
-                        : enumConfigMapper.list()
-        );
-        return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<EnumConfigEntity> pageInfo = new PageInfo<>(
+                    category != null && !category.isBlank()
+                            ? enumConfigMapper.listByCategoryFilter(category)
+                            : enumConfigMapper.list()
+            );
+            return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        }
     }
 
     /**

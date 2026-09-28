@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
@@ -55,12 +56,13 @@ public class AppService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<AppDto> list(PageRequest pageRequest, String keyword) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<AppEntity> pageInfo = new PageInfo<>(appMapper.list(normalizeKeyword(keyword)));
-        List<AppDto> dtos = pageInfo.getList().stream()
-                .map(e -> enrich(appConverter.toDto(e), e.getId()))
-                .toList();
-        return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<AppEntity> pageInfo = new PageInfo<>(appMapper.list(normalizeKeyword(keyword)));
+            List<AppDto> dtos = pageInfo.getList().stream()
+                    .map(e -> enrich(appConverter.toDto(e), e.getId()))
+                    .toList();
+            return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        }
     }
 
     /**

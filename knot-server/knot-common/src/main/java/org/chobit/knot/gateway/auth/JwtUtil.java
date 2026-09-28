@@ -66,13 +66,6 @@ public class JwtUtil {
     /**
      * Generates a standard access token.
      */
-    public static String generateToken(Long userId, String username) {
-        return generateToken(userId, username, List.of());
-    }
-
-    /**
-     * Generates a standard access token.
-     */
     public static String generateToken(Long userId, String username, List<String> roles) {
         return Jwts.builder()
                 .subject(username)
@@ -126,18 +119,6 @@ public class JwtUtil {
         Claims claims = parseToken(token);
         validatePurpose(claims, PURPOSE_FORCE_PASSWORD_CHANGE);
         return claims;
-    }
-
-    /**
-     * Returns whether the provided token can be parsed successfully.
-     */
-    public static boolean isValid(String token) {
-        try {
-            parseToken(token);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
     }
 
     private static void validatePurpose(Claims claims, String expectedPurpose) {

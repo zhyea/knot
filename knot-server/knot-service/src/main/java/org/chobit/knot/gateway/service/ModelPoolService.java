@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
@@ -45,13 +46,14 @@ public class ModelPoolService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<ModelPoolDto> list(PageRequest pageRequest, String keyword, List<String> modelTypes) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<ModelPoolEntity> pageInfo =
-                new PageInfo<>(modelPoolMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes)));
-        List<ModelPoolDto> dtos = pageInfo.getList().stream()
-                .map(entity -> enrich(modelPoolConverter.toDto(entity)))
-                .toList();
-        return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<ModelPoolEntity> pageInfo =
+                    new PageInfo<>(modelPoolMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes)));
+            List<ModelPoolDto> dtos = pageInfo.getList().stream()
+                    .map(entity -> enrich(modelPoolConverter.toDto(entity)))
+                    .toList();
+            return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        }
     }
 
     /**

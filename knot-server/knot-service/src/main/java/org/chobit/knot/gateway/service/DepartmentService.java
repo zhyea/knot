@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.converter.DepartmentConverter;
@@ -42,9 +43,10 @@ public class DepartmentService {
     }
 
     public PageResult<DepartmentDto> list(PageRequest pageRequest, String keyword, Long parentId) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<DepartmentEntity> pageInfo = new PageInfo<>(departmentMapper.list(normalizeKeyword(keyword), parentId));
-        return PageResult.fromPage(pageInfo, departmentConverter::toDtoList, pageRequest);
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<DepartmentEntity> pageInfo = new PageInfo<>(departmentMapper.list(normalizeKeyword(keyword), parentId));
+            return PageResult.fromPage(pageInfo, departmentConverter::toDtoList, pageRequest);
+        }
     }
 
     public List<DepartmentDto> listAll() {

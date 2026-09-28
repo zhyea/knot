@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.config.GatewayRuntimeProperties;
@@ -160,13 +161,14 @@ public class RoutingRuleService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<RoutingRuleDto> list(PageRequest pageRequest, String keyword, List<String> modelTypes) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<RoutingRuleEntity> pageInfo = new PageInfo<>(routingRuleMapper.list(
-                normalizeNullable(keyword),
-                normalizeModelTypesForQuery(modelTypes)
-        ));
-        List<RoutingRuleDto> dtos = enrichList(pageInfo.getList());
-        return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<RoutingRuleEntity> pageInfo = new PageInfo<>(routingRuleMapper.list(
+                    normalizeNullable(keyword),
+                    normalizeModelTypesForQuery(modelTypes)
+            ));
+            List<RoutingRuleDto> dtos = enrichList(pageInfo.getList());
+            return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        }
     }
 
     /**

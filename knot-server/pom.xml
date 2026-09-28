@@ -6,7 +6,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.3.4</version>
+        <version>3.3.13</version>
         <relativePath/>
     </parent>
 
@@ -23,6 +23,8 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <java.version>17</java.version>
+        <!-- 覆盖 Boot 3.3.13 BOM 的 10.1.42：取 10.1 线 OSS 最新补丁（含 CVE-2025-55754 等修复） -->
+        <tomcat.version>10.1.60</tomcat.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok.version>1.18.38</lombok.version>
@@ -112,14 +114,15 @@
                 <version>${jjwt.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.springframework.security</groupId>
-                <artifactId>spring-security-crypto</artifactId>
-                <version>6.3.3</version>
-            </dependency>
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-starter-quartz</artifactId>
-                <version>3.3.4</version>
+                <groupId>org.quartz-scheduler</groupId>
+                <artifactId>quartz</artifactId>
+                <exclusions>
+                    <!-- 项目数据源由 HikariCP 管理，排除 quartz 自带的 c3p0/mchange（CVE-2026-27727） -->
+                    <exclusion>
+                        <groupId>com.mchange</groupId>
+                        <artifactId>*</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
         </dependencies>
     </dependencyManagement>

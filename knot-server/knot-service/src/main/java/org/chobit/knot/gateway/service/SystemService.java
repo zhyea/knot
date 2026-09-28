@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.model.PageRequest;
@@ -29,9 +30,10 @@ public class SystemService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<OperationLogDto> listOperationLogs(PageRequest pageRequest) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<OperationLogEntity> pageInfo = new PageInfo<>(systemMapper.listOperationLogs());
-        return PageResult.fromPage(pageInfo, systemConverter::toOperationLogDtoList, pageRequest);
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<OperationLogEntity> pageInfo = new PageInfo<>(systemMapper.listOperationLogs());
+            return PageResult.fromPage(pageInfo, systemConverter::toOperationLogDtoList, pageRequest);
+        }
     }
 
     /**

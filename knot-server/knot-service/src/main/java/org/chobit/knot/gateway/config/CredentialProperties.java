@@ -1,7 +1,11 @@
 package org.chobit.knot.gateway.config;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+@Getter
+@Setter
 @ConfigurationProperties(prefix = "knot.credential")
 public class CredentialProperties {
 
@@ -19,19 +23,5 @@ public class CredentialProperties {
      */
     public boolean isDevDefaultKey() {
         return DEV_DEFAULT_KEY.equals(encryptionKey);
-    }
-
-    /**
-     * Returns the configured encryption key.
-     */
-    public String getEncryptionKey() {
-        return encryptionKey;
-    }
-
-    /**
-     * Updates the configured encryption key.
-     */
-    public void setEncryptionKey(String encryptionKey) {
-        this.encryptionKey = encryptionKey;
     }
 }

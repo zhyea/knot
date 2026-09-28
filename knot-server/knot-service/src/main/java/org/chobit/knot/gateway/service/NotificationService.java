@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
@@ -40,9 +41,10 @@ public class NotificationService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<TemplateDto> listTemplates(PageRequest pageRequest, String keyword) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<NotifyTemplateEntity> pageInfo = new PageInfo<>(notificationMapper.listTemplates(normalizeKeyword(keyword)));
-        return PageResult.fromPage(pageInfo, notificationConverter::toTemplateDtoList, pageRequest);
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<NotifyTemplateEntity> pageInfo = new PageInfo<>(notificationMapper.listTemplates(normalizeKeyword(keyword)));
+            return PageResult.fromPage(pageInfo, notificationConverter::toTemplateDtoList, pageRequest);
+        }
     }
 
     /**

@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
@@ -70,11 +71,12 @@ public class BillingService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<BillingRuleDto> listRules(PageRequest pageRequest, String keyword, Long providerId, Long logicalModelId) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<BillingRuleEntity> pageInfo = new PageInfo<>(
-                billingRuleMapper.list(normalizeKeyword(keyword), providerId, logicalModelId)
-        );
-        return PageResult.fromPage(pageInfo, list -> list.stream().map(billingConverter::toRuleDto).toList(), pageRequest);
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<BillingRuleEntity> pageInfo = new PageInfo<>(
+                    billingRuleMapper.list(normalizeKeyword(keyword), providerId, logicalModelId)
+            );
+            return PageResult.fromPage(pageInfo, list -> list.stream().map(billingConverter::toRuleDto).toList(), pageRequest);
+        }
     }
 
     /**

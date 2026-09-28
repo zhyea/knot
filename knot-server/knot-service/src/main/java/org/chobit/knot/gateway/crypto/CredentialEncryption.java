@@ -33,11 +33,4 @@ public class CredentialEncryption {
     public String decrypt(String stored) {
         return cipher.decrypt(stored);
     }
-
-    /**
-     * Returns whether the current condition is satisfied. Executes the public operation.
-     */
-    public static boolean isEncrypted(String value) {
-        return AesGcmCipher.isEncrypted(value);
-    }
 }

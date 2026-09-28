@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.dto.model.ExternalModelItemQuery;
@@ -54,15 +55,16 @@ public class ExternalModelService {
      */
     public PageResult<ExternalModelItemEntity> listItems(ExternalModelItemQuery query) {
         PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<ExternalModelItemEntity> pageInfo = new PageInfo<>(externalModelMapper.listItems(
-                query != null ? query.sourceCode() : null,
-                query != null ? query.syncStatus() : null,
-                normalizeKeyword(query != null ? query.keyword() : null),
-                normalizeKeyword(query != null ? query.modelType() : null),
-                query != null ? query.ids() : null
-        ));
-        return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<ExternalModelItemEntity> pageInfo = new PageInfo<>(externalModelMapper.listItems(
+                    query != null ? query.sourceCode() : null,
+                    query != null ? query.syncStatus() : null,
+                    normalizeKeyword(query != null ? query.keyword() : null),
+                    normalizeKeyword(query != null ? query.modelType() : null),
+                    query != null ? query.ids() : null
+            ));
+            return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        }
     }
 
     /**

@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
@@ -62,14 +63,15 @@ public class LogicalModelService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<LogicalModelDto> list(PageRequest pageRequest, String keyword, List<String> modelTypes) {
-        PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize());
-        PageInfo<LogicalModelEntity> pageInfo = new PageInfo<>(
-                logicalModelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes))
-        );
-        List<LogicalModelDto> list = pageInfo.getList().stream()
-                .map(logicalModelConverter::toDto)
-                .toList();
-        return PageResult.of(list, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<LogicalModelEntity> pageInfo = new PageInfo<>(
+                    logicalModelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes))
+            );
+            List<LogicalModelDto> list = pageInfo.getList().stream()
+                    .map(logicalModelConverter::toDto)
+                    .toList();
+            return PageResult.of(list, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        }
     }
 
     private static String normalizeKeyword(String keyword) {
