@@ -573,8 +573,7 @@ CREATE TABLE IF NOT EXISTS kb_routing_rule_targets (
 CREATE TABLE IF NOT EXISTS kb_billing_rules (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) NOT NULL,
-  name VARCHAR(100) NOT NULL,
-  provider_account_id BIGINT DEFAULT NULL,
+  provider_id BIGINT DEFAULT NULL,
   logical_model_id BIGINT DEFAULT NULL,
   current_version_id BIGINT DEFAULT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
@@ -583,7 +582,7 @@ CREATE TABLE IF NOT EXISTS kb_billing_rules (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_billing_rules_code (code),
-  KEY idx_billing_rules_match (provider_account_id, logical_model_id, status, is_deleted)
+  KEY idx_billing_rules_match (provider_id, logical_model_id, status, is_deleted)
 );
 
 CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (

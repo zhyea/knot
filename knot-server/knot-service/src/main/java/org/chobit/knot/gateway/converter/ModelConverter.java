@@ -22,7 +22,7 @@ public interface ModelConverter {
 
     @Mapping(source = "enabled", target = "status", qualifiedByName = "enabledToStatus")
     @Mapping(target = "providerName", ignore = true)
-    @Mapping(target = "billingRuleName", ignore = true)
+    @Mapping(target = "billingRuleCode", ignore = true)
     // name/modelType 派生自绑定的统一模型，不允许从请求写回
     @Mapping(target = "name", ignore = true)
     @Mapping(target = "modelType", ignore = true)
@@ -35,7 +35,7 @@ public interface ModelConverter {
     ModelItem toVO(ModelDto dto);
 
     @Mapping(target = "providerName", ignore = true)
-    @Mapping(target = "billingRuleName", ignore = true)
+    @Mapping(target = "billingRuleCode", ignore = true)
     ModelDto toDto(ModelItem vo);
 
     List<ModelItem> toVOList(List<ModelDto> dtos);

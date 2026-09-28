@@ -18,16 +18,6 @@
           </div>
           <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="规则编码" required>
-                <el-input v-model="form.code" :disabled="isEdit" placeholder="如 OPENAI_GPT4O"/>
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="规则名称" required>
-                <el-input v-model="form.name"/>
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
               <el-form-item label="供应商">
                 <RemoteEntitySelect
                   v-model="form.providerId"
@@ -60,6 +50,7 @@
             </el-col>
           </el-row>
         </div>
+        <!-- 规则编码不再展示：新建时按「供应商类型-统一模型ID」自动生成，编辑沿用原编码 -->
 
         <div class="space-line"/>
 
@@ -127,7 +118,7 @@ import BillingModeTieredConfig from "./modes/BillingModeTieredConfig.vue";
 import BillingModeTokenConfig from "./modes/BillingModeTokenConfig.vue";
 import BillingModeVideoConfig from "./modes/BillingModeVideoConfig.vue";
 import {createBillingRule, updateBillingRule, listModeCapabilities} from "@/api/billing";
-import {listProviders} from "@/api/providers";
+import {listProviderProfiles} from "@/api/providerProfiles";
 import {listLogicalModels} from "@/api/logicalModels";
 import {isValidJsonText, parseJsonObject, stringifyJson} from "@/utils/format";
 import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
@@ -170,8 +161,8 @@ const unitCodes = computed(() => activeModeCapability.value?.supportedUnits || [
 
 interface BillingRuleFormState {
   id: number | string | null;
+  /** 编辑时沿用原编码；新建时按「供应商类型-统一模型ID」自动生成 */
   code: string;
-  name: string;
   providerId: number | string | null;
   logicalModelId: number | string | null;
   billingMode: string;
@@ -196,7 +187,6 @@ interface BillingRuleFormState {
 const form = reactive<BillingRuleFormState>({
   id: null,
   code: "",
-  name: "",
   providerId: null,
   logicalModelId: null,
   billingMode: "TOKEN",
@@ -254,7 +244,6 @@ function resetForm() {
   const config = parseJsonObject(row?.configJson);
   form.id = row?.id ?? null;
   form.code = row?.code || "";
-  form.name = row?.name || "";
   form.providerId = row?.providerId ?? null;
   form.logicalModelId = row?.logicalModelId ?? null;
   form.billingMode = normalizeMode(row?.billingMode || "TOKEN");
@@ -306,7 +295,7 @@ async function loadModeCapabilities() {
 }
 
 async function loadProviders(params = {pageNum: 1, pageSize: 10}) {
-  const res = await listProviders(params);
+  const res = await listProviderProfiles(params);
   mergeOptions(providerOptions, normalizeOptionList(res));
   return res;
 }
@@ -383,11 +372,25 @@ function primaryUnitPrice() {
   return form.unitPrice;
 }
 
+/**
+ * 规则编码 = 供应商类型(code)-统一模型ID；未选统一模型视为供应商默认规则（-default），
+ * 未选供应商则为全局规则（GLOBAL-DEFAULT）。编辑时沿用原编码，不重新生成。
+ */
+function resolveRuleCode(): string {
+  if (isEdit.value) {
+    return form.code.trim();
+  }
+  const provider = providerOptions.value.find((item) => item.id === form.providerId);
+  const providerType = String(provider?.code || provider?.name || "GLOBAL").trim().toUpperCase() || "GLOBAL";
+  const modelPart = form.logicalModelId == null ? "DEFAULT" : String(form.logicalModelId);
+  return `${providerType}-${modelPart}`;
+}
+
 function buildPayload() {
   const tiered = form.billingMode === "TIERED";
   return {
-    code: form.code.trim(),
-    name: form.name.trim(),
+    code: resolveRuleCode(),
+    name: null,
     providerId: form.providerId,
     logicalModelId: form.logicalModelId,
     billingMode: form.billingMode,
@@ -403,10 +406,6 @@ function buildPayload() {
 }
 
 async function submit() {
-  if (!form.code?.trim() || !form.name?.trim()) {
-    ElMessage.warning("请填写规则编码与名称");
-    return;
-  }
   if (form.billingMode === "TIERED" && !validateJson(form.ladderJson, "阶梯配置")) {
     return;
   }

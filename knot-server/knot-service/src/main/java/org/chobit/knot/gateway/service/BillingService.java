@@ -116,7 +116,6 @@ public class BillingService {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", dto.id());
             m.put("code", dto.code());
-            m.put("name", dto.name());
             m.put("providerId", dto.providerId());
             m.put("providerName", dto.providerName());
             m.put("logicalModelId", dto.logicalModelId());
@@ -251,7 +250,6 @@ public class BillingService {
         detail.put("modelId", modelId);
         detail.put("billingRuleId", rule.getId());
         detail.put("billingRuleCode", rule.getCode());
-        detail.put("billingRuleName", rule.getName());
         detail.put("versionNo", rule.getVersionNo());
         detail.put("billingMode", rule.getBillingMode());
         detail.put("currency", rule.getCurrency());
@@ -317,7 +315,6 @@ public class BillingService {
 
     private void applyRule(BillingRuleEntity entity, BillingRuleDto request) {
         entity.setCode(normalizeCode(request.code()));
-        entity.setName(trimToEmpty(request.name()));
         entity.setProviderId(request.providerId());
         entity.setLogicalModelId(request.logicalModelId());
         entity.setRemark(blankToNull(request.remark()));
@@ -376,9 +373,6 @@ public class BillingService {
         }
         if (billingRuleMapper.countByCode(code, excludeId) > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, "billing rule code already exists");
-        }
-        if (trimToEmpty(request.name()).isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "please input billing rule name");
         }
         BigDecimal unitPrice = request.unitPrice() == null ? BigDecimal.ZERO : request.unitPrice();
         if (unitPrice.signum() < 0) {

@@ -9,7 +9,6 @@ import java.time.LocalDateTime;
 public class BillingRuleEntity {
     private Long id;
     private String code;
-    private String name;
     private Long providerId;
     private String providerName;
     private Long logicalModelId;

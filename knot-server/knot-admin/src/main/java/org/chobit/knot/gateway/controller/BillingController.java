@@ -59,7 +59,7 @@ public class BillingController {
      */
     @OperationLog(module = "billing", operation = "CREATE", entityType = "BillingRule",
             entityIdAfter = "#result.id()",
-            entityNameAfter = "#result.name()",
+            entityNameAfter = "#result.code()",
             description = "'创建计费规则'",
             newValueSpel = "@billingService.billingRuleAuditSnapshot(#result.id())")
     @PostMapping()
@@ -73,7 +73,7 @@ public class BillingController {
      */
     @OperationLog(module = "billing", operation = "UPDATE", entityType = "BillingRule",
             entityId = "#p0",
-            entityNameAfter = "#result.name()",
+            entityNameAfter = "#result.code()",
             description = "'更新计费规则'",
             oldValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)",
             newValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)")
@@ -88,7 +88,7 @@ public class BillingController {
      */
     @OperationLog(module = "billing", operation = "UPDATE", entityType = "BillingRule",
             entityId = "#p0",
-            entityNameAfter = "#result.name()",
+            entityNameAfter = "#result.code()",
             description = "'更新计费规则状态'",
             oldValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)",
             newValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)")

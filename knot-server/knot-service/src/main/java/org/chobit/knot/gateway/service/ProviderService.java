@@ -72,25 +72,27 @@ public class ProviderService {
     /**
      * Lists matching results. Executes the public operation.
      */
-    public PageResult<ProviderAccountDto> list(PageRequest pageRequest) {
-        return list(pageRequest, null);
-    }
-
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     /**
      * 列表只返回列表页展示所需的字段：不读取凭据、不加载频控与额度策略。
      * 认证配置与策略统一由 {@link #getById(Long)} 提供。
+     * enabled 为 null 时不过滤状态；true 只返回 ENABLED，false 只返回 DISABLED。
      */
-    public PageResult<ProviderAccountDto> list(PageRequest pageRequest, String keyword) {
+    public PageResult<ProviderAccountDto> list(PageRequest pageRequest, String keyword, Boolean enabled) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
-            PageInfo<ProviderAccountEntity> pageInfo = new PageInfo<>(providerAccountMapper.list(normalizeKeyword(keyword)));
+            PageInfo<ProviderAccountEntity> pageInfo = new PageInfo<>(
+                    providerAccountMapper.list(normalizeKeyword(keyword), toStatus(enabled)));
             List<ProviderAccountDto> dtos = pageInfo.getList().stream()
                     .map(providerConverter::toDto)
                     .collect(Collectors.toList());
             return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
         }
+    }
+
+    private String toStatus(Boolean enabled) {
+        if (enabled == null) {
+            return null;
+        }
+        return Boolean.TRUE.equals(enabled) ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code();
     }
 
     /**

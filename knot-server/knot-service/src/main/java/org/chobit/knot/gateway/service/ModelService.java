@@ -258,7 +258,7 @@ public class ModelService {
                     enabled,
                     existing.logicalModelId(),
                     existing.billingRuleId(),
-                    existing.billingRuleName(),
+                    existing.billingRuleCode(),
                     existing.rateLimitPolicy(),
                     existing.quotaPolicy(),
                     existing.apiBindings()
@@ -321,7 +321,7 @@ public class ModelService {
                 base.enabled(),
                 resolveLogicalModelId(base.id()),
                 base.billingRuleId(),
-                base.billingRuleName(),
+                base.billingRuleCode(),
                 rate,
                 quota,
                 apiBindings == null ? listApiBindings(base.id()) : apiBindings

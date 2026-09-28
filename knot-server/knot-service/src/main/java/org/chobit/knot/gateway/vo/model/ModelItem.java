@@ -6,7 +6,7 @@ import org.chobit.knot.gateway.model.RateLimitPolicy;
 import java.util.List;
 
 public record ModelItem(Long id, String modelCode, String name, Long providerId, String providerName, String modelType,
-                        String version, String baseUrl, String remark, boolean enabled, Long logicalModelId, Long billingRuleId, String billingRuleName,
+                        String version, String baseUrl, String remark, boolean enabled, Long logicalModelId, Long billingRuleId, String billingRuleCode,
                         RateLimitPolicy rateLimitPolicy, QuotaPolicy quotaPolicy,
                         List<ModelApiBindingItem> apiBindings) {
 }

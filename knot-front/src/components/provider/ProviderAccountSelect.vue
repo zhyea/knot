@@ -5,6 +5,7 @@
     :load-function="loadOptions"
     :label-function="providerAccountLabel"
     :selected-options="mergedSelectedOptions"
+    :extra-params="{ enabled: true }"
     @update:model-value="emit('update:modelValue', $event)"
     @change="onChange"
   />

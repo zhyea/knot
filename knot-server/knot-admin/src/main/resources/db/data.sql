@@ -384,12 +384,13 @@ INSERT IGNORE INTO kb_routing_rule_targets (id, rule_id, target_type, target_id,
 -- 计费规则
 -- =========================
 
-INSERT IGNORE INTO kb_billing_rules (id, code, name, provider_account_id, logical_model_id, current_version_id, status) VALUES
-(1, 'TOKEN_GPT4O',      'GPT-4o Token计费',        1, 1, 1, 'ACTIVE'),
-(2, 'TOKEN_GPT4O_MINI', 'GPT-4o Mini Token计费',   1, 2, 2, 'ACTIVE'),
-(3, 'TOKEN_CLAUDE_S4',  'Claude Sonnet 4 Token计费',2, 3, 3, 'ACTIVE'),
-(4, 'TOKEN_DEEPSEEK',   'DeepSeek Chat Token计费', 3, 4, 4, 'ACTIVE'),
-(5, 'EMBEDDING',        'Embedding 计费',          NULL, NULL, 5, 'ACTIVE');
+-- 计费规则（provider_id 指向供应商主数据 kb_providers，非供应商账户）
+INSERT IGNORE INTO kb_billing_rules (id, code, provider_id, logical_model_id, current_version_id, status) VALUES
+(1, 'TOKEN_GPT4O',      1, 1, 1, 'ACTIVE'),
+(2, 'TOKEN_GPT4O_MINI', 1, 2, 2, 'ACTIVE'),
+(3, 'TOKEN_CLAUDE_S4',  2, 3, 3, 'ACTIVE'),
+(4, 'TOKEN_DEEPSEEK',   3, 4, 4, 'ACTIVE'),
+(5, 'EMBEDDING',        NULL, NULL, 5, 'ACTIVE');
 
 INSERT IGNORE INTO kb_billing_rule_versions (id, rule_id, version_no, billing_mode, currency, status, effective_from) VALUES
 (1, 1, 1, 'TOKEN', 'USD', 'ACTIVE', NOW()),

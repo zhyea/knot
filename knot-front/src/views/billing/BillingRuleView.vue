@@ -4,13 +4,13 @@
       <FilterBar @query="handleQuery" @reset="handleReset">
         <KeywordInput
           v-model="query.keyword"
-          placeholder="按编码、名称、供应商、统一模型筛选"
+          placeholder="按供应商、统一模型筛选"
           @query="handleQuery"
         />
         <FilterField label="供应商" :width="220">
           <RemoteEntitySelect
             v-model="query.providerId"
-            :load-function="listProviders"
+            :load-function="listProviderProfiles"
             :label-function="providerLabel"
             :selected-options="selectedProviderOptions"
             clearable
@@ -80,7 +80,7 @@ import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {useListQuery} from "@/composables/useListQuery";
 import {deleteBillingRule, listBillingRules, updateBillingRuleStatus} from "@/api/billing";
 import {listBillingRuleOperationLogs} from "@/api/operationLogs";
-import {listProviders} from "@/api/providers";
+import {listProviderProfiles} from "@/api/providerProfiles";
 import {listLogicalModels} from "@/api/logicalModels";
 
 const {
@@ -144,7 +144,7 @@ function openEdit(row: Row) {
 
 function openChangeLog(row: Row) {
   logRuleId.value = row.id;
-  logRuleName.value = row.name || `#${row.id}`;
+  logRuleName.value = row.code || `#${row.id}`;
   logDrawer.value = true;
 }
 

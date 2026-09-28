@@ -163,11 +163,6 @@
                       <span class="bind-list__text">{{ row.code || "-" }}</span>
                     </template>
                   </el-table-column>
-                  <el-table-column prop="name" label="规则名称" min-width="180" show-overflow-tooltip>
-                    <template #default="{ row }">
-                      <span class="bind-list__text">{{ row.name || "-" }}</span>
-                    </template>
-                  </el-table-column>
                   <el-table-column label="版本" width="80" show-overflow-tooltip>
                     <template #default="{ row }">
                       <span class="bind-list__text">v{{ row.versionNo || 1 }}</span>
@@ -341,6 +336,7 @@ import {
 } from "@/api/models";
 import {listLogicalModels} from "@/api/logicalModels";
 import {listBillingRules} from "@/api/billing";
+import {getProviderAccount} from "@/api/providers";
 import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
 
 /** 模型 API 绑定行（表单内 uid 用于 :key 稳定渲染） */
@@ -410,6 +406,8 @@ const form = reactive<ModelFormState>({
 const isEdit = computed(() => props.model?.id != null);
 const selectedLogicalModel = computed(() => logicalModelOptions.value.find((item) => item.id === form.logicalModelId));
 const selectedBillingRule = computed(() => billingRuleOptions.value.find((item) => item.id === form.billingRuleId));
+/** 当前选中供应商账户（含 providerId），计费规则过滤按供应商主数据 id 而非账户 id */
+const selectedProviderAccount = ref<Row | null>(null);
 const selectedProviderOptions = computed(() =>
   resolveSelectedOption(form.providerId, [], {
     id: form.providerId,
@@ -424,11 +422,11 @@ const selectedLogicalModelOptions = computed(() =>
 const selectedBillingRuleOptions = computed(() =>
   resolveSelectedOption(form.billingRuleId, billingRuleOptions.value, {
     id: form.billingRuleId,
-    name: props.model?.billingRuleName
+    code: props.model?.billingRuleCode
   })
 );
 const billingRuleFilterParams = computed(() => ({
-  providerId: form.providerId ?? undefined,
+  providerId: selectedProviderAccount.value?.providerId ?? undefined,
   logicalModelId: form.logicalModelId ?? undefined
 }));
 const streamUsageExtractorOptions = computed(() =>
@@ -449,7 +447,7 @@ async function loadLogicalModels(params = {pageNum: 1, pageSize: 10}) {
 async function loadBillingRules(params: Dict = {pageNum: 1, pageSize: 10}) {
   const data = await listBillingRules({
     ...params,
-    providerId: params.providerId ?? form.providerId ?? undefined,
+    providerId: params.providerId ?? selectedProviderAccount.value?.providerId ?? undefined,
     logicalModelId: params.logicalModelId ?? form.logicalModelId ?? undefined
   });
   mergeOptions(billingRuleOptions, normalizeOptionList(data));
@@ -485,7 +483,7 @@ function isEnabledLogicalModel(model: Row): boolean {
 }
 
 function billingRuleLabel(rule: Row): string {
-  return rule.code ? `${rule.name || rule.code} (${rule.code}, v${rule.versionNo || 1})` : `#${rule.id}`;
+  return rule.code ? `${rule.code} (v${rule.versionNo || 1})` : `#${rule.id}`;
 }
 
 function usageExtractorLabel(item: Row): string {
@@ -497,6 +495,7 @@ function requestAdapterLabel(item: Row): string {
 }
 
 function onProviderAccountChange(account: Row) {
+  selectedProviderAccount.value = account || null;
   form.baseUrl = account?.baseUrl || "";
 }
 
@@ -568,11 +567,16 @@ async function resetForm() {
           if (detail) {
             fillForm(detail);
           }
+          // 编辑回填时账户对象未经下拉 change 产生，取详情补齐供应商 id 供规则过滤
+          selectedProviderAccount.value = form.providerId != null
+            ? (await getProviderAccount(form.providerId) as Row | null)
+            : null;
         } finally {
           detailLoading.value = false;
         }
       }
     } else {
+      selectedProviderAccount.value = null;
       form.id = null;
       form.modelCode = "";
       form.baseUrl = "";

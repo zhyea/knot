@@ -20,6 +20,9 @@
                     or p.code like concat('%', #{keyword}, '%')
                 )
             </if>
+            <if test="status != null and status != ''">
+                and pa.status = #{status}
+            </if>
         </where>
         order by pa.id desc
     </select>

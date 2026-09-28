@@ -2,8 +2,6 @@
   <div>
     <el-table v-loading="loading" :data="rows" stripe border size="small" style="width: 100%">
       <el-table-column prop="id" label="ID" width="70" align="center"/>
-      <el-table-column prop="code" label="编码" width="140" show-overflow-tooltip/>
-      <el-table-column prop="name" label="名称" min-width="150" show-overflow-tooltip/>
       <el-table-column label="供应商" min-width="130" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.providerName || (row.providerId ? `#${row.providerId}` : "全局") }}

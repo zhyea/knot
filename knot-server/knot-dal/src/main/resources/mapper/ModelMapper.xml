@@ -10,7 +10,7 @@
         m.id, m.provider_account_id AS provider_id, m.model_code, m.version, m.base_url, m.remark, m.billing_rule_id, m.status,
         <include refid="modelNameExpr"/> AS name,
         <include refid="modelTypeExpr"/> AS model_type,
-        p.name AS provider_name, br.name AS billing_rule_name
+        p.name AS provider_name, br.code AS billing_rule_code
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.ModelEntity">

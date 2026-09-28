@@ -40,7 +40,8 @@ public class ProviderController {
     public PageResult<ProviderAccountItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<ProviderAccountDto> page = providerService.list(
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
-                query == null ? null : query.keyword()
+                query == null ? null : query.keyword(),
+                query == null ? null : query.enabled()
         );
         return page.mapList(providerConverter::toVOList);
     }

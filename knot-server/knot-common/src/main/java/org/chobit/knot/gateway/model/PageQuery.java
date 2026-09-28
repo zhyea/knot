@@ -15,6 +15,7 @@ public record PageQuery(
         String keyword,
         String tag,
         String status,
+        Boolean enabled,
         List<String> modelTypes,
         Long parentId,
         Long providerId,

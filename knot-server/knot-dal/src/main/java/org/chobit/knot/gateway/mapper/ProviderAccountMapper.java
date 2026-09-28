@@ -9,7 +9,8 @@ import java.util.List;
 @Mapper
 public interface ProviderAccountMapper {
 
-    List<ProviderAccountEntity> list(@Param("keyword") String keyword);
+    List<ProviderAccountEntity> list(@Param("keyword") String keyword,
+                                     @Param("status") String status);
 
     ProviderAccountEntity getById(Long id);
 

@@ -17,6 +17,6 @@ public class ModelEntity {
     private String baseUrl;
     private String remark;
     private Long billingRuleId;
-    private String billingRuleName;
+    private String billingRuleCode;
     private String status;
 }
