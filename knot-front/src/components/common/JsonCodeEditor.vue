@@ -86,7 +86,8 @@ const displayText = computed(() => {
 const highlightedJson = computed(() => renderHighlightedJson(displayText.value));
 const bodyStyle = computed(() => ({
   minHeight: props.minHeight,
-  maxHeight: props.maxHeight
+  maxHeight: props.maxHeight,
+  ...(props.height ? {height: props.height} : {})
 }));
 const highlightStyle = computed(() => {
   if (props.readonly) {
