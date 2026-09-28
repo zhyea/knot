@@ -4,7 +4,7 @@
 
     <sql id="RuleColumns">
         br.id, br.code, br.provider_code, p.name as provider_name,
-        br.logical_model_id, lm.model_name as logical_model_name,
+        br.logical_model_code, lm.model_name as logical_model_name,
         br.current_version_id, br.remark, br.status, br.is_deleted,
         bv.version_no, bv.version_code, bv.billing_mode, bv.currency, bv.config_json, bv.ladder_json,
         bv.effective_from, bv.effective_to,
@@ -13,7 +13,7 @@
 
     <sql id="ActiveRuleColumns">
         br.id, br.code, br.provider_code, p.name as provider_name,
-        br.logical_model_id, lm.model_name as logical_model_name,
+        br.logical_model_code, lm.model_name as logical_model_name,
         bv.id as current_version_id, br.remark, br.status, br.is_deleted,
         bv.version_no, bv.version_code, bv.billing_mode, bv.currency, bv.config_json, bv.ladder_json,
         bv.effective_from, bv.effective_to,
@@ -24,7 +24,7 @@
         select <include refid="RuleColumns"/>
         from kb_billing_rules br
         left join kb_providers p on br.provider_code = p.code
-        left join kb_logical_models lm on br.logical_model_id = lm.id
+        left join kb_logical_models lm on br.logical_model_code = lm.model_code
         left join kb_billing_rule_versions bv on br.current_version_id = bv.id
         left join kb_billing_rule_version_items bvi on bv.id = bvi.version_id
         <where>
@@ -40,8 +40,8 @@
             <if test="providerCode != null and providerCode != ''">
                 and (br.provider_code = #{providerCode} or br.provider_code is null)
             </if>
-            <if test="logicalModelId != null">
-                and (br.logical_model_id = #{logicalModelId} or br.logical_model_id is null)
+            <if test="logicalModelCode != null and logicalModelCode != ''">
+                and (br.logical_model_code = #{logicalModelCode} or br.logical_model_code is null)
             </if>
         </where>
         order by br.id desc
@@ -51,7 +51,7 @@
         select <include refid="RuleColumns"/>
         from kb_billing_rules br
         left join kb_providers p on br.provider_code = p.code
-        left join kb_logical_models lm on br.logical_model_id = lm.id
+        left join kb_logical_models lm on br.logical_model_code = lm.model_code
         left join kb_billing_rule_versions bv on br.current_version_id = bv.id
         left join kb_billing_rule_version_items bvi on bv.id = bvi.version_id
         where br.id = #{id} and br.is_deleted = 0
@@ -77,7 +77,7 @@
         from kb_billing_rules br
         inner join kb_billing_rule_versions bv on br.id = bv.rule_id
         left join kb_providers p on br.provider_code = p.code
-        left join kb_logical_models lm on br.logical_model_id = lm.id
+        left join kb_logical_models lm on br.logical_model_code = lm.model_code
         left join kb_billing_rule_version_items bvi on bv.id = bvi.version_id
         where br.id = #{ruleId}
           and br.status = 'ACTIVE'
@@ -94,7 +94,7 @@
         from kb_billing_rules br
         inner join kb_billing_rule_versions bv on br.id = bv.rule_id
         left join kb_providers p on br.provider_code = p.code
-        left join kb_logical_models lm on br.logical_model_id = lm.id
+        left join kb_logical_models lm on br.logical_model_code = lm.model_code
         left join kb_billing_rule_version_items bvi on bv.id = bvi.version_id
         where br.status = 'ACTIVE'
           and br.is_deleted = 0
@@ -102,30 +102,30 @@
           and bv.effective_from &lt;= #{effectiveAt}
           and (bv.effective_to is null or bv.effective_to &gt; #{effectiveAt})
           and (
-            (br.provider_code = #{providerCode} and br.logical_model_id = (
-                select pm.logical_model_id from kb_provider_model_mappings pm where pm.model_id = #{modelId} limit 1
+            (br.provider_code = #{providerCode} and br.logical_model_code = (
+                select pm.logical_model_code from kb_provider_model_mappings pm where pm.model_id = #{modelId} limit 1
             ))
-            or (br.provider_code = #{providerCode} and br.logical_model_id is null)
-            or (br.provider_code is null and br.logical_model_id is null)
+            or (br.provider_code = #{providerCode} and br.logical_model_code is null)
+            or (br.provider_code is null and br.logical_model_code is null)
           )
         order by
           case
-            when br.provider_code = #{providerCode} and br.logical_model_id is not null then 1
-            when br.provider_code = #{providerCode} and br.logical_model_id is null then 2
+            when br.provider_code = #{providerCode} and br.logical_model_code is not null then 1
+            when br.provider_code = #{providerCode} and br.logical_model_code is null then 2
             else 3
           end,
           bv.effective_from desc, bv.version_no desc, br.id desc
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_billing_rules(code, provider_code, logical_model_id, current_version_id, status, remark, is_deleted)
-        values(#{code}, #{providerCode}, #{logicalModelId}, #{currentVersionId}, #{status}, #{remark}, 0)
+        insert into kb_billing_rules(code, provider_code, logical_model_code, current_version_id, status, remark, is_deleted)
+        values(#{code}, #{providerCode}, #{logicalModelCode}, #{currentVersionId}, #{status}, #{remark}, 0)
     </insert>
 
     <update id="update">
         update kb_billing_rules
         set provider_code = #{providerCode},
-            logical_model_id = #{logicalModelId},
+            logical_model_code = #{logicalModelCode},
             current_version_id = #{currentVersionId},
             status = #{status},
             remark = #{remark}

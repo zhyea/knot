@@ -95,7 +95,6 @@ public class PluginService implements PluginBindingProvider {
     private PluginBindingView toBindingView(PluginBindingEntity entity) {
         return new PluginBindingView(
                 entity.getId(),
-                entity.getInstanceId(),
                 entity.getInstanceCode(),
                 entity.getInstanceName(),
                 entity.getPackageCode(),

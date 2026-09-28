@@ -2,10 +2,9 @@ package org.chobit.knot.gateway.vo.model;
 
 public record ProviderModelMappingItem(
         Long id,
-        Long logicalModelId,
         String logicalModelCode,
         String logicalModelName,
-        Long providerId,
+        String providerAccountCode,
         String providerName,
         Long modelId,
         String modelCode,

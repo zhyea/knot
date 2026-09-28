@@ -305,7 +305,7 @@ CREATE TABLE IF NOT EXISTS kb_provider_discount_policies (
 
 CREATE TABLE IF NOT EXISTS kb_models (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  provider_account_id BIGINT NOT NULL,
+  provider_account_code VARCHAR(32) NOT NULL COMMENT '所属供应商账户 code（kb_provider_accounts.code）',
   model_code VARCHAR(128) NOT NULL,
   version VARCHAR(64) NOT NULL,
   base_url VARCHAR(255) DEFAULT NULL,
@@ -317,7 +317,7 @@ CREATE TABLE IF NOT EXISTS kb_models (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_models_code (model_code),
-  KEY idx_models_provider_account (provider_account_id)
+  KEY idx_models_provider_account (provider_account_code)
 );
 
 CREATE TABLE IF NOT EXISTS kb_model_pools (
@@ -336,16 +336,16 @@ CREATE TABLE IF NOT EXISTS kb_model_pools (
 
 CREATE TABLE IF NOT EXISTS kb_model_pool_items (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  pool_id BIGINT NOT NULL,
-  model_id BIGINT NOT NULL,
+  pool_code VARCHAR(64) NOT NULL COMMENT '所属模型池 code（kb_model_pools.pool_code）',
+  model_code VARCHAR(128) NOT NULL COMMENT '供应商模型 code（kb_models.model_code）',
   weight INT NOT NULL DEFAULT 100,
   priority INT NOT NULL DEFAULT 100,
   status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_model_pool_item (pool_id, model_id),
-  KEY idx_model_pool_items_pool (pool_id, status, priority),
-  KEY idx_model_pool_items_model (model_id)
+  UNIQUE KEY uk_model_pool_item (pool_code, model_code),
+  KEY idx_model_pool_items_pool (pool_code, status, priority),
+  KEY idx_model_pool_items_model (model_code)
 );
 
 CREATE TABLE IF NOT EXISTS kb_logical_models (
@@ -378,18 +378,18 @@ CREATE TABLE IF NOT EXISTS kb_logical_models (
 
 CREATE TABLE IF NOT EXISTS kb_provider_model_mappings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  logical_model_id BIGINT NOT NULL,
-  provider_account_id BIGINT NOT NULL,
-  model_id BIGINT NOT NULL,
+  logical_model_code VARCHAR(128) NOT NULL COMMENT '统一模型 code（kb_logical_models.model_code）',
+  provider_account_code VARCHAR(32) NOT NULL COMMENT '供应商账户 code（kb_provider_accounts.code）',
+  model_id BIGINT NOT NULL COMMENT '供应商模型 id（kb_models.id）',
   provider_model_name VARCHAR(128) NOT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
   priority INT NOT NULL DEFAULT 100,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_provider_model_mapping_model (model_id),
-  KEY idx_logical_provider_model (logical_model_id, provider_account_id, model_id),
-  KEY idx_logical_model (logical_model_id, status),
-  KEY idx_provider_account_model (provider_account_id, model_id, status)
+  KEY idx_logical_provider_model (logical_model_code, provider_account_code, model_id),
+  KEY idx_logical_model (logical_model_code, status),
+  KEY idx_provider_account_model (provider_account_code, model_id, status)
 );
 
 CREATE TABLE IF NOT EXISTS kx_model_sources (
@@ -574,7 +574,7 @@ CREATE TABLE IF NOT EXISTS kb_billing_rules (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) NOT NULL,
   provider_code VARCHAR(32) DEFAULT NULL,
-  logical_model_id BIGINT DEFAULT NULL,
+  logical_model_code VARCHAR(128) DEFAULT NULL COMMENT '统一模型 code（kb_logical_models.model_code）',
   current_version_id BIGINT DEFAULT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
   is_deleted TINYINT NOT NULL DEFAULT 0,
@@ -582,7 +582,7 @@ CREATE TABLE IF NOT EXISTS kb_billing_rules (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_billing_rules_code (code),
-  KEY idx_billing_rules_match (provider_code, logical_model_id, status, is_deleted)
+  KEY idx_billing_rules_match (provider_code, logical_model_code, status, is_deleted)
 );
 
 CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
@@ -676,7 +676,7 @@ CREATE TABLE IF NOT EXISTS kb_plugin_packages (
 
 CREATE TABLE IF NOT EXISTS kb_plugin_capabilities (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  package_id BIGINT NOT NULL,
+  plugin_code VARCHAR(64) NOT NULL COMMENT '所属插件包 code（kb_plugin_packages.plugin_code）',
   capability_code VARCHAR(64) NOT NULL,
   capability_name VARCHAR(100) NOT NULL,
   extension_point VARCHAR(64) NOT NULL,
@@ -686,14 +686,14 @@ CREATE TABLE IF NOT EXISTS kb_plugin_capabilities (
   status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_plugin_capabilities_code (package_id, capability_code, stage_code),
+  UNIQUE KEY uk_plugin_capabilities_code (plugin_code, capability_code, stage_code),
   KEY idx_plugin_capabilities_extension_stage (extension_point, stage_code, status)
 );
 
 CREATE TABLE IF NOT EXISTS kb_plugin_instances (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  package_id BIGINT NOT NULL,
-  capability_id BIGINT NOT NULL,
+  plugin_code VARCHAR(64) NOT NULL COMMENT '所属插件包 code（kb_plugin_packages.plugin_code）',
+  capability_id BIGINT NOT NULL COMMENT '插件能力 id（kb_plugin_capabilities.id）',
   instance_code VARCHAR(64) NOT NULL,
   instance_name VARCHAR(100) NOT NULL,
   config_json JSON DEFAULT NULL,
@@ -704,13 +704,13 @@ CREATE TABLE IF NOT EXISTS kb_plugin_instances (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_plugin_instances_code (instance_code),
-  KEY idx_plugin_instances_package_status (package_id, status),
+  KEY idx_plugin_instances_package_status (plugin_code, status),
   KEY idx_plugin_instances_capability_status (capability_id, status)
 );
 
 CREATE TABLE IF NOT EXISTS kb_plugin_bindings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  instance_id BIGINT NOT NULL,
+  instance_code VARCHAR(64) NOT NULL COMMENT '插件实例 code（kb_plugin_instances.instance_code）',
   scope_type VARCHAR(32) NOT NULL DEFAULT 'GLOBAL',
   scope_ref_id BIGINT DEFAULT NULL,
   stage_code VARCHAR(64) NOT NULL,
@@ -721,7 +721,7 @@ CREATE TABLE IF NOT EXISTS kb_plugin_bindings (
   status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_plugin_bindings_scope (instance_id, scope_type, scope_ref_id, stage_code),
+  UNIQUE KEY uk_plugin_bindings_scope (instance_code, scope_type, scope_ref_id, stage_code),
   KEY idx_plugin_bindings_stage (stage_code, status, order_no),
   KEY idx_plugin_bindings_scope_status (scope_type, scope_ref_id, status)
 );
@@ -745,14 +745,14 @@ CREATE TABLE IF NOT EXISTS kr_plugin_execution_logs (
 
 CREATE TABLE IF NOT EXISTS kb_plugin_config_versions (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  instance_id BIGINT NOT NULL,
+  instance_code VARCHAR(64) NOT NULL COMMENT '插件实例 code（kb_plugin_instances.instance_code）',
   version_no INT NOT NULL,
   version_code VARCHAR(64) NOT NULL,
   config_json JSON DEFAULT NULL,
   operator_id BIGINT DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_plugin_config_versions (instance_id, version_no),
-  KEY idx_plugin_config_versions_code (instance_id, version_code)
+  UNIQUE KEY uk_plugin_config_versions (instance_code, version_no),
+  KEY idx_plugin_config_versions_code (instance_code, version_code)
 );
 
 CREATE TABLE IF NOT EXISTS kb_notification_templates (
@@ -768,14 +768,14 @@ CREATE TABLE IF NOT EXISTS kb_notification_templates (
 
 CREATE TABLE IF NOT EXISTS kb_notification_records (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  template_id BIGINT NOT NULL,
+  template_code VARCHAR(64) NOT NULL COMMENT '通知模板 code（kb_notification_templates.code）',
   receiver VARCHAR(255) NOT NULL,
   channel VARCHAR(32) NOT NULL,
   send_status VARCHAR(32) NOT NULL,
   error_msg VARCHAR(255) DEFAULT NULL,
   sent_at DATETIME DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_notification_records_template (template_id)
+  KEY idx_notification_records_template (template_code)
 );
 
 

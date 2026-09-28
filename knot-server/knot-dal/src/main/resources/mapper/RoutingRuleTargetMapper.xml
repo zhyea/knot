@@ -12,7 +12,7 @@
         <result property="targetCode" column="target_code"/>
         <result property="targetName" column="target_name"/>
         <result property="modelType" column="model_type"/>
-        <result property="providerId" column="provider_id"/>
+        <result property="providerAccountCode" column="provider_account_code"/>
     </resultMap>
 
     <sql id="RuleTargetSelectColumns">
@@ -23,9 +23,9 @@
         rt.priority,
         rt.is_primary,
         coalesce(m.model_code, mp.pool_code) as target_code,
-        coalesce((select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.id = pm2.logical_model_id where pm2.model_id = m.id order by pm2.id asc limit 1), mp.name) as target_name,
-        coalesce((select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.id = pm2.logical_model_id where pm2.model_id = m.id order by pm2.id asc limit 1), mp.model_type) as model_type,
-        m.provider_account_id AS provider_id
+        coalesce((select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id order by pm2.id asc limit 1), mp.name) as target_name,
+        coalesce((select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id order by pm2.id asc limit 1), mp.model_type) as model_type,
+        m.provider_account_code
     </sql>
 
     <select id="listByRuleIds" resultMap="RoutingRuleTargetResultMap">

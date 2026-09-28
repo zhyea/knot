@@ -20,7 +20,8 @@
             <el-col :span="12">
               <el-form-item label="供应商">
                 <RemoteEntitySelect
-                  v-model="form.providerId"
+                  v-model="form.providerCode"
+                  value-key="code"
                   :load-function="loadProviders"
                   :label-function="providerLabel"
                   :selected-options="selectedProviderOptions"
@@ -33,7 +34,8 @@
             <el-col :span="12">
               <el-form-item label="统一模型">
                 <RemoteEntitySelect
-                  v-model="form.logicalModelId"
+                  v-model="form.logicalModelCode"
+                  value-key="modelCode"
                   :load-function="loadLogicalModels"
                   :label-function="logicalModelLabel"
                   :selected-options="selectedLogicalModelOptions"
@@ -163,8 +165,8 @@ interface BillingRuleFormState {
   id: number | string | null;
   /** 编辑时沿用原编码；新建时按「供应商类型-统一模型ID」自动生成 */
   code: string;
-  providerId: number | string | null;
-  logicalModelId: number | string | null;
+  providerCode: string | null;
+  logicalModelCode: string | null;
   billingMode: string;
   currency: string;
   itemType: string;
@@ -187,8 +189,8 @@ interface BillingRuleFormState {
 const form = reactive<BillingRuleFormState>({
   id: null,
   code: "",
-  providerId: null,
-  logicalModelId: null,
+  providerCode: null,
+  logicalModelCode: null,
   billingMode: "TOKEN",
   currency: "USD",
   itemType: "INPUT_TOKEN",
@@ -211,14 +213,14 @@ const form = reactive<BillingRuleFormState>({
 const isEdit = computed(() => props.rule != null);
 const modeComponent = computed(() => componentsByMode[form.billingMode] || BillingModeTokenConfig);
 const selectedProviderOptions = computed(() =>
-  resolveSelectedOption(form.providerId, providerOptions.value, {
-    id: form.providerId,
+  resolveSelectedOption(form.providerCode, providerOptions.value, {
+    id: form.providerCode,
     name: props.rule?.providerName
   })
 );
 const selectedLogicalModelOptions = computed(() =>
-  resolveSelectedOption(form.logicalModelId, logicalModelOptions.value, {
-    id: form.logicalModelId,
+  resolveSelectedOption(form.logicalModelCode, logicalModelOptions.value, {
+    id: form.logicalModelCode,
     modelName: props.rule?.logicalModelName
   })
 );
@@ -244,8 +246,8 @@ function resetForm() {
   const config = parseJsonObject(row?.configJson);
   form.id = row?.id ?? null;
   form.code = row?.code || "";
-  form.providerId = row?.providerId ?? null;
-  form.logicalModelId = row?.logicalModelId ?? null;
+  form.providerCode = row?.providerCode ?? null;
+  form.logicalModelCode = row?.logicalModelCode ?? null;
   form.billingMode = normalizeMode(row?.billingMode || "TOKEN");
   form.currency = row?.currency || "USD";
   form.itemType = row?.itemType || modeDefaults(form.billingMode).itemType;
@@ -380,9 +382,9 @@ function resolveRuleCode(): string {
   if (isEdit.value) {
     return form.code.trim();
   }
-  const provider = providerOptions.value.find((item) => item.id === form.providerId);
+  const provider = providerOptions.value.find((item) => item.code === form.providerCode);
   const providerType = String(provider?.code || provider?.name || "GLOBAL").trim().toUpperCase() || "GLOBAL";
-  const modelPart = form.logicalModelId == null ? "DEFAULT" : String(form.logicalModelId);
+  const modelPart = form.logicalModelCode == null ? "DEFAULT" : String(form.logicalModelCode);
   return `${providerType}-${modelPart}`;
 }
 
@@ -391,8 +393,8 @@ function buildPayload() {
   return {
     code: resolveRuleCode(),
     name: null,
-    providerId: form.providerId,
-    logicalModelId: form.logicalModelId,
+    providerCode: form.providerCode,
+    logicalModelCode: form.logicalModelCode,
     billingMode: form.billingMode,
     currency: form.currency,
     itemType: form.itemType,

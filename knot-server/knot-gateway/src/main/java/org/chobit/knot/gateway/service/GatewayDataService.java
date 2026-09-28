@@ -39,9 +39,11 @@ public class GatewayDataService {
     private final LoadingCache<ConsumerRuleKey, Optional<RoutingRuleEntity>> enabledRuleByConsumerAndCodeCache;
     private final LoadingCache<Long, List<RoutingRuleTargetEntity>> targetsByRuleIdCache;
     private final LoadingCache<Long, Optional<ModelEntity>> modelByIdCache;
+    private final LoadingCache<String, Optional<ModelEntity>> modelByCodeCache;
     private final LoadingCache<Long, Optional<ModelPoolEntity>> modelPoolByIdCache;
-    private final LoadingCache<Long, List<ModelPoolItemEntity>> modelPoolItemsByPoolIdCache;
+    private final LoadingCache<String, List<ModelPoolItemEntity>> modelPoolItemsByPoolCodeCache;
     private final LoadingCache<Long, Optional<ProviderAccountEntity>> providerByIdCache;
+    private final LoadingCache<String, Optional<ProviderAccountEntity>> providerByCodeCache;
     private final LoadingCache<Long, Optional<ProviderCredentialEntity>> activeCredentialByProviderIdCache;
     private final LoadingCache<Long, List<ModelApiBindingEntity>> apiBindingsByModelIdCache;
     private final LoadingCache<ResourceKey, Optional<TrafficPolicies>> trafficPoliciesCache;
@@ -72,9 +74,11 @@ public class GatewayDataService {
                 routingRuleMapper.getEnabledByConsumerIdAndRuleCode(key.consumerId(), key.ruleCode()));
         this.targetsByRuleIdCache = listCache(routingRuleTargetMapper::listByRuleId);
         this.modelByIdCache = optionalCache(modelMapper::getById);
+        this.modelByCodeCache = optionalCache(modelMapper::getByCode);
         this.modelPoolByIdCache = optionalCache(modelPoolMapper::getById);
-        this.modelPoolItemsByPoolIdCache = listCache(modelPoolMapper::listItemsByPoolId);
+        this.modelPoolItemsByPoolCodeCache = listCache(modelPoolMapper::listItemsByPoolCode);
         this.providerByIdCache = optionalCache(providerAccountMapper::getById);
+        this.providerByCodeCache = optionalCache(providerAccountMapper::getByCode);
         this.activeCredentialByProviderIdCache = optionalCache(providerCredentialMapper::getActiveByProviderId);
         this.apiBindingsByModelIdCache = listCache(modelApiBindingMapper::listByModelId);
         this.trafficPoliciesCache = optionalCache(key ->
@@ -135,6 +139,16 @@ public class GatewayDataService {
     /**
      * Returns the requested value. Executes the public operation.
      */
+    public ModelEntity getModelByCode(String modelCode) {
+        if (modelCode == null) {
+            return null;
+        }
+        return modelByCodeCache.get(modelCode).orElse(null);
+    }
+
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
     public ModelPoolEntity getModelPoolById(Long id) {
         return modelPoolByIdCache.get(id).orElse(null);
     }
@@ -142,8 +156,8 @@ public class GatewayDataService {
     /**
      * Lists matching results. Executes the public operation.
      */
-    public List<ModelPoolItemEntity> listModelPoolItemsByPoolId(Long poolId) {
-        return modelPoolItemsByPoolIdCache.get(poolId);
+    public List<ModelPoolItemEntity> listModelPoolItemsByPoolCode(String poolCode) {
+        return modelPoolItemsByPoolCodeCache.get(poolCode);
     }
 
     /**
@@ -151,6 +165,16 @@ public class GatewayDataService {
      */
     public ProviderAccountEntity getProviderById(Long id) {
         return providerByIdCache.get(id).orElse(null);
+    }
+
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
+    public ProviderAccountEntity getProviderAccountByCode(String code) {
+        if (code == null) {
+            return null;
+        }
+        return providerByCodeCache.get(code).orElse(null);
     }
 
     /**

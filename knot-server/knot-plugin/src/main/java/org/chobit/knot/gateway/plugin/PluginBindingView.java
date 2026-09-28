@@ -1,7 +1,6 @@
 package org.chobit.knot.gateway.plugin;
 
 public record PluginBindingView(Long bindingId,
-                                Long instanceId,
                                 String instanceCode,
                                 String instanceName,
                                 String packageCode,

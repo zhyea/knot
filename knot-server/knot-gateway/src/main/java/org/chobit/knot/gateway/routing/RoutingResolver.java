@@ -156,7 +156,7 @@ public class RoutingResolver {
                         entity.getTargetCode(),
                         entity.getTargetName(),
                         entity.getModelType(),
-                        entity.getProviderId(),
+                        entity.getProviderAccountCode(),
                         entity.getPriority() != null ? entity.getPriority() : 100,
                         Boolean.TRUE.equals(entity.getPrimary())
                 ))
@@ -175,7 +175,7 @@ public class RoutingResolver {
                     model.getModelCode(),
                     model.getName(),
                     model.getModelType(),
-                    model.getProviderId(),
+                    model.getProviderAccountCode(),
                     target.priority(),
                     target.primary()
             ));
@@ -191,26 +191,33 @@ public class RoutingResolver {
     }
 
     private List<RoutingRuleTargetDto> resolvePoolCandidates(ModelPoolEntity pool, RoutingRuleTargetDto target) {
-        return dataService.listModelPoolItemsByPoolId(pool.getId()).stream()
+        // 池条目只存 model_code，模型实体（含主键 id，下游取凭据/协议绑定用）按 code 从缓存解析
+        Comparator<PoolItemCandidate> byPriority =
+                Comparator.comparingInt(candidate -> poolItemPriority(candidate.item()));
+        Comparator<PoolItemCandidate> byWeight =
+                Comparator.comparingInt(candidate -> poolItemWeight(candidate.item()));
+        return dataService.listModelPoolItemsByPoolCode(pool.getPoolCode()).stream()
                 .filter(item -> EntityStatusEnum.ENABLED.code().equals(item.getStatus()))
-                .filter(item -> {
-                    ModelEntity model = dataService.getModelById(item.getModelId());
-                    return model != null && EntityStatusEnum.ENABLED.code().equals(model.getStatus());
-                })
-                .sorted(Comparator.comparingInt(this::poolItemPriority).reversed()
-                        .thenComparing(Comparator.comparingInt(this::poolItemWeight).reversed())
-                        .thenComparing(ModelPoolItemEntity::getId))
-                .map(item -> new RoutingRuleTargetDto(
+                .map(item -> new PoolItemCandidate(item, dataService.getModelByCode(item.getModelCode())))
+                .filter(candidate -> candidate.model() != null
+                        && EntityStatusEnum.ENABLED.code().equals(candidate.model().getStatus()))
+                .sorted(byPriority.reversed()
+                        .thenComparing(byWeight.reversed())
+                        .thenComparing(candidate -> candidate.item().getId()))
+                .map(candidate -> new RoutingRuleTargetDto(
                         RouteTargetTypeEnum.MODEL.code(),
-                        item.getModelId(),
-                        item.getModelCode(),
-                        item.getModelName(),
-                        item.getModelType(),
-                        item.getProviderId(),
+                        candidate.model().getId(),
+                        candidate.item().getModelCode(),
+                        candidate.item().getModelName(),
+                        candidate.item().getModelType(),
+                        candidate.item().getProviderAccountCode(),
                         target.priority(),
                         target.primary()
                 ))
                 .toList();
+    }
+
+    private record PoolItemCandidate(ModelPoolItemEntity item, ModelEntity model) {
     }
 
     private int poolItemPriority(ModelPoolItemEntity item) {

@@ -225,7 +225,7 @@ public class ModelService {
                 request.rateLimitPolicy(),
                 request.quotaPolicy()
         );
-        saveLogicalModelMapping(entity.getId(), request.logicalModelId(), modelCode);
+        saveLogicalModelMapping(entity.getId(), request.logicalModelCode(), modelCode);
         saveApiBindings(entity.getId(), request.apiBindings(), modelType);
         return getById(entity.getId());
     }
@@ -252,7 +252,7 @@ public class ModelService {
                 request.rateLimitPolicy(),
                 request.quotaPolicy()
         );
-        saveLogicalModelMapping(id, request.logicalModelId(), modelCode);
+        saveLogicalModelMapping(id, request.logicalModelCode(), modelCode);
         if (request.apiBindings() != null) {
             saveApiBindings(id, request.apiBindings(), modelType);
         }
@@ -270,14 +270,15 @@ public class ModelService {
                     existing.id(),
                     existing.modelCode(),
                     existing.name(),
-                    existing.providerId(),
+                    existing.providerAccountCode(),
                     existing.providerName(),
+                    existing.providerCode(),
                     existing.modelType(),
                     existing.version(),
                     existing.baseUrl(),
                     existing.remark(),
                     enabled,
-                    existing.logicalModelId(),
+                    existing.logicalModelCode(),
                     existing.billingRuleId(),
                     existing.billingRuleCode(),
                     existing.rateLimitPolicy(),
@@ -333,14 +334,15 @@ public class ModelService {
                 base.id(),
                 base.modelCode(),
                 base.name(),
-                base.providerId(),
+                base.providerAccountCode(),
                 base.providerName(),
+                base.providerCode(),
                 base.modelType(),
                 base.version(),
                 base.baseUrl(),
                 base.remark(),
                 base.enabled(),
-                resolveLogicalModelId(base.id()),
+                resolveLogicalModelCode(base.id()),
                 base.billingRuleId(),
                 base.billingRuleCode(),
                 rate,
@@ -353,13 +355,13 @@ public class ModelService {
      * 名称与模型类型不再由请求提供：模型类型取自绑定统一模型的 modelType，名称同样派生自统一模型。
      */
     private String validateModelRequest(ModelDto request) {
-        if (request.providerId() == null) {
+        if (request.providerAccountCode() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择供应商");
         }
-        if (request.logicalModelId() == null) {
+        if (request.logicalModelCode() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择统一模型");
         }
-        LogicalModelEntity logicalModel = logicalModelMapper.getById(request.logicalModelId());
+        LogicalModelEntity logicalModel = logicalModelMapper.getByCode(request.logicalModelCode());
         if (logicalModel == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择统一模型");
         }
@@ -372,10 +374,10 @@ public class ModelService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择计费规则");
         }
         BillingRuleEntity billingRule = billingRuleMapper.getById(request.billingRuleId());
-        ProviderAccountEntity account = providerAccountMapper.getById(request.providerId());
+        ProviderAccountEntity account = providerAccountMapper.getByCode(request.providerAccountCode());
         if (billingRule == null || account == null
                 || !matchesNullableScope(billingRule.getProviderCode(), account.getProviderCode())
-                || !matchesNullableScope(billingRule.getLogicalModelId(), request.logicalModelId())) {
+                || !matchesNullableScope(billingRule.getLogicalModelCode(), request.logicalModelCode())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "计费规则与供应商或统一模型不匹配");
         }
         if (request.enabled()) {
@@ -403,12 +405,12 @@ public class ModelService {
         return text;
     }
 
-    private void saveLogicalModelMapping(Long modelId, Long logicalModelId, String modelCode) {
+    private void saveLogicalModelMapping(Long modelId, String logicalModelCode, String modelCode) {
         logicalModelMapper.deleteMappingsByModelId(modelId);
         ProviderModelMappingEntity mapping = new ProviderModelMappingEntity();
-        mapping.setLogicalModelId(logicalModelId);
+        mapping.setLogicalModelCode(logicalModelCode);
         ModelEntity model = modelMapper.getById(modelId);
-        mapping.setProviderId(model.getProviderId());
+        mapping.setProviderAccountCode(model.getProviderAccountCode());
         mapping.setModelId(modelId);
         mapping.setProviderModelName(modelCode);
         mapping.setStatus(EntityStatusEnum.ENABLED.code());
@@ -416,9 +418,9 @@ public class ModelService {
         logicalModelMapper.insertMapping(mapping);
     }
 
-    private Long resolveLogicalModelId(Long modelId) {
+    private String resolveLogicalModelCode(Long modelId) {
         List<ProviderModelMappingEntity> mappings = logicalModelMapper.listMappingsByModelId(modelId);
-        return mappings.isEmpty() ? null : mappings.get(0).getLogicalModelId();
+        return mappings.isEmpty() ? null : mappings.get(0).getLogicalModelCode();
     }
 
     private Map<Long, List<ModelApiBindingDto>> loadBindingMap(List<Long> modelIds) {

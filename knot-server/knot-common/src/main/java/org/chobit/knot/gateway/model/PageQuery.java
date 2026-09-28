@@ -19,7 +19,7 @@ public record PageQuery(
         List<String> modelTypes,
         Long parentId,
         String providerCode,
-        Long logicalModelId
+        String logicalModelCode
 ) {
     /**
      * Converts the query to a page request.

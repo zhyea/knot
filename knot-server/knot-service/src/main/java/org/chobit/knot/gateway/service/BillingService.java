@@ -70,10 +70,10 @@ public class BillingService {
     /**
      * Lists matching results. Executes the public operation.
      */
-    public PageResult<BillingRuleDto> listRules(PageRequest pageRequest, String keyword, String providerCode, Long logicalModelId) {
+    public PageResult<BillingRuleDto> listRules(PageRequest pageRequest, String keyword, String providerCode, String logicalModelCode) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<BillingRuleEntity> pageInfo = new PageInfo<>(
-                    billingRuleMapper.list(normalizeKeyword(keyword), providerCode, logicalModelId)
+                    billingRuleMapper.list(normalizeKeyword(keyword), providerCode, logicalModelCode)
             );
             return PageResult.fromPage(pageInfo, list -> list.stream().map(billingConverter::toRuleDto).toList(), pageRequest);
         }
@@ -118,7 +118,7 @@ public class BillingService {
             m.put("code", dto.code());
             m.put("providerCode", dto.providerCode());
             m.put("providerName", dto.providerName());
-            m.put("logicalModelId", dto.logicalModelId());
+            m.put("logicalModelCode", dto.logicalModelCode());
             m.put("logicalModelName", dto.logicalModelName());
             m.put("currentVersionId", dto.currentVersionId());
             m.put("versionNo", dto.versionNo());
@@ -316,7 +316,7 @@ public class BillingService {
     private void applyRule(BillingRuleEntity entity, BillingRuleDto request) {
         entity.setCode(normalizeCode(request.code()));
         entity.setProviderCode(request.providerCode());
-        entity.setLogicalModelId(request.logicalModelId());
+        entity.setLogicalModelCode(request.logicalModelCode());
         entity.setRemark(blankToNull(request.remark()));
         entity.setStatus(request.enabled() ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code());
     }
@@ -351,7 +351,7 @@ public class BillingService {
     private String buildVersionCode(BillingRuleDto request) {
         Map<String, Object> versionPayload = new LinkedHashMap<>();
         versionPayload.put("providerCode", request.providerCode());
-        versionPayload.put("logicalModelId", request.logicalModelId());
+        versionPayload.put("logicalModelCode", request.logicalModelCode());
         versionPayload.put("billingMode", normalizeBillingMode(request.billingMode()));
         versionPayload.put("currency", normalizeCurrency(request.currency()));
         versionPayload.put("itemType", normalizeItemType(request.itemType()));

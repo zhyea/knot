@@ -27,9 +27,9 @@ public interface ModelPoolMapper {
 
     int deleteById(@Param("id") Long id);
 
-    List<ModelPoolItemEntity> listItemsByPoolId(@Param("poolId") Long poolId);
+    List<ModelPoolItemEntity> listItemsByPoolCode(@Param("poolCode") String poolCode);
 
-    int deleteItemsByPoolId(@Param("poolId") Long poolId);
+    int deleteItemsByPoolCode(@Param("poolCode") String poolCode);
 
     int insertItem(ModelPoolItemEntity entity);
 }

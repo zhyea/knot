@@ -9,7 +9,8 @@
         />
         <FilterField label="供应商" :width="220">
           <RemoteEntitySelect
-            v-model="query.providerId"
+            v-model="query.providerCode"
+            value-key="code"
             :load-function="listProviderProfiles"
             :label-function="providerLabel"
             :selected-options="selectedProviderOptions"
@@ -19,7 +20,8 @@
         </FilterField>
         <FilterField label="统一模型" :width="220">
           <RemoteEntitySelect
-            v-model="query.logicalModelId"
+            v-model="query.logicalModelCode"
+            value-key="modelCode"
             :load-function="listLogicalModels"
             :label-function="logicalModelLabel"
             :selected-options="selectedLogicalModelOptions"
@@ -96,7 +98,7 @@ const {
   resetPage,
   handleQuery,
   handleReset
-} = useListQuery({ apiFn: listBillingRules, fields: { keyword: "", providerId: null, logicalModelId: null } });
+} = useListQuery({ apiFn: listBillingRules, fields: { keyword: "", providerCode: null, logicalModelCode: null } });
 
 const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateBillingRuleStatus
@@ -110,15 +112,15 @@ const logRuleName = ref("");
 
 const selectedProviderOptions = computed(() =>
   rows.value
-    .filter((row) => row.providerId === query.providerId && row.providerId != null)
-    .map((row) => ({ id: row.providerId, name: row.providerName }))
+    .filter((row) => row.providerCode === query.providerCode && row.providerCode != null)
+    .map((row) => ({ id: row.providerCode, name: row.providerName }))
 );
 
 const selectedLogicalModelOptions = computed(() =>
   rows.value
-    .filter((row) => row.logicalModelId === query.logicalModelId && row.logicalModelId != null)
+    .filter((row) => row.logicalModelCode === query.logicalModelCode && row.logicalModelCode != null)
     .map((row) => ({
-      id: row.logicalModelId,
+      id: row.logicalModelCode,
       modelName: row.logicalModelName,
       modelCode: row.logicalModelCode
     }))

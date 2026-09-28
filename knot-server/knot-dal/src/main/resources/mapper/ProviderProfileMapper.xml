@@ -56,11 +56,11 @@
     </select>
 
     <select id="countModelsByProviderId" resultType="java.lang.Long">
-        select count(1) from kb_models where provider_account_id = #{providerId}
+        select count(1) from kb_models where provider_account_code = (select code from kb_provider_accounts where id = #{providerId})
     </select>
 
     <select id="countMappingsByProviderId" resultType="java.lang.Long">
-        select count(1) from kb_provider_model_mappings where provider_account_id = #{providerId}
+        select count(1) from kb_provider_model_mappings where provider_account_code = (select code from kb_provider_accounts where id = #{providerId})
     </select>
 
     <select id="countBillingRulesByProviderId" resultType="java.lang.Long">

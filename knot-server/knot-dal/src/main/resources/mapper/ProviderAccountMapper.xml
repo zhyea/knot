@@ -34,6 +34,13 @@
         where pa.id = #{id}
     </select>
 
+    <select id="getByCode" resultType="org.chobit.knot.gateway.entity.ProviderAccountEntity">
+        select <include refid="ProviderColumns"/>
+        from kb_provider_accounts pa
+        inner join kb_providers p on pa.provider_code = p.code
+        where pa.code = #{code}
+    </select>
+
     <select id="countByCode" resultType="java.lang.Long">
         select count(1) from kb_provider_accounts where code = #{code}
         <if test="excludeId != null">

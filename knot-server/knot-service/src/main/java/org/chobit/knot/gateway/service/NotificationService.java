@@ -72,7 +72,7 @@ public class NotificationService {
                 ? notificationConverter.toTemplateDto(entity)
                 : new TemplateDto(0L, templateCode, templateCode, "EMAIL", "");
         for (String receiver : receivers) {
-            notificationMapper.insertRecord(template.id(), receiver, template.channel(), "SENT");
+            notificationMapper.insertRecord(template.code(), receiver, template.channel(), "SENT");
         }
         return new SendResultDto("ntf_" + System.currentTimeMillis(), "SENT", receivers.size());
     }

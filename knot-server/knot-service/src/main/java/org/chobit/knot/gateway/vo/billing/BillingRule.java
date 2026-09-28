@@ -8,7 +8,7 @@ public record BillingRule(
         String code,
         String providerCode,
         String providerName,
-        Long logicalModelId,
+        String logicalModelCode,
         String logicalModelName,
         Long currentVersionId,
         Integer versionNo,

@@ -13,5 +13,5 @@ public class RoutingRuleTargetEntity {
     private String targetCode;
     private String targetName;
     private String modelType;
-    private Long providerId;
+    private String providerAccountCode;
 }

@@ -9,17 +9,26 @@ import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.model.NormalizedUsage;
+import org.chobit.knot.gateway.model.UsageAccounting;
 import org.chobit.knot.gateway.service.GatewayDataService;
 import org.chobit.knot.gateway.usage.AnthropicUsageExtractor;
 import org.chobit.knot.gateway.usage.ImageUsageExtractor;
 import org.chobit.knot.gateway.usage.UsageExtractor;
 import org.chobit.knot.gateway.usage.UsageExtractorCatalog;
 import org.chobit.knot.gateway.usage.UsageNormalizationSupport;
+import org.chobit.knot.gateway.usage.UsageRawReader;
 import org.chobit.knot.gateway.usage.VideoUsageExtractor;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
+/**
+ * 上游响应用量提取入口：提取计费输入、计算计费结果，并保留上游原文。
+ *
+ * <p>提取分三份：{@code rawUsage}/{@code rawBody} 原文透传、
+ * {@code billing} 内部计费输入、{@code normalized} 计费结果，
+ * 三者打包成 {@link UsageAccounting} 交给 {@code ProxyResult}。</p>
+ */
 @Component
 public class UsageExtractorRegistry {
 
@@ -31,7 +40,7 @@ public class UsageExtractorRegistry {
         this.dataService = dataService;
     }
 
-    public NormalizedUsage extract(String responseBody, UpstreamRequestContext context, UpstreamRequestAdapter adapter) {
+    public UsageAccounting extract(String responseBody, UpstreamRequestContext context, UpstreamRequestAdapter adapter) {
         return extract(responseBody, isEventStream(responseBody), context, adapter);
     }
 
@@ -40,34 +49,37 @@ public class UsageExtractorRegistry {
      *
      * <p>与整包提取走同一套提取器与归一化逻辑，由调用方对多个事件的结果取最大值合并。</p>
      */
-    public NormalizedUsage extractEvent(String eventData, UpstreamRequestContext context, UpstreamRequestAdapter adapter) {
+    public UsageAccounting extractEvent(String eventData, UpstreamRequestContext context, UpstreamRequestAdapter adapter) {
         return extract(eventData, true, context, adapter);
     }
 
-    private NormalizedUsage extract(String body,
+    private UsageAccounting extract(String body,
                                     boolean eventStream,
                                     UpstreamRequestContext context,
                                     UpstreamRequestAdapter adapter) {
+        Map<String, Object> rawBody = UsageRawReader.readBody(body);
+        Map<String, Object> rawUsage = UsageRawReader.readUsage(rawBody);
         BillingRuleEntity billingRule = resolveBillingRule(context);
         String code = resolveExtractorCode(eventStream, context);
         UsageExtractor extractor = resolve(code);
         if (extractor != null) {
-            BillingUsage extracted = extractor.extractUsageBody(body);
-            if (!extracted.isEmpty()) {
-                return UsageNormalizationSupport.normalize(
-                        extracted,
-                        billingRule,
-                        requestBody(context),
-                        extractor.calculator()
-                );
+            BillingUsage billing = extractor.extractUsageBody(body);
+            if (!billing.isEmpty()) {
+                return normalize(billing, rawBody, rawUsage, billingRule, requestBody(context), extractor.calculator());
             }
         }
-        return UsageNormalizationSupport.normalize(
-                adapter.extractUsage(body, context),
-                billingRule,
-                requestBody(context),
-                fallbackCalculator(context)
-        );
+        BillingUsage billing = adapter.extractUsage(body, context);
+        return normalize(billing, rawBody, rawUsage, billingRule, requestBody(context), fallbackCalculator(context));
+    }
+
+    private UsageAccounting normalize(BillingUsage billing,
+                                      Map<String, Object> rawBody,
+                                      Map<String, Object> rawUsage,
+                                      BillingRuleEntity billingRule,
+                                      Map<String, Object> requestBody,
+                                      org.chobit.knot.gateway.usage.calculator.BillingModeCalculator calculator) {
+        NormalizedUsage normalized = UsageNormalizationSupport.normalize(billing, billingRule, requestBody, calculator);
+        return UsageAccounting.of(rawUsage, rawBody, billing, normalized);
     }
 
     private Map<String, Object> requestBody(UpstreamRequestContext context) {

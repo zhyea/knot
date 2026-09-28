@@ -147,7 +147,7 @@ public class UpstreamProxyClient {
     }
 
     private ProviderAccountEntity resolveProvider(ModelEntity model, String modelCode) {
-        ProviderAccountEntity provider = dataService.getProviderById(model.getProviderId());
+        ProviderAccountEntity provider = dataService.getProviderAccountByCode(model.getProviderAccountCode());
         if (provider == null) {
             throw new GatewayUpstreamException("provider not found for model: " + modelCode, ProxyErrorCodeEnum.PROVIDER_NOT_FOUND.code());
         }

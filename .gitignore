@@ -25,4 +25,6 @@ resources/.arch-internal-preview.css
 .workbuddy
 *.log
 *.json
+*.sh
 */*.d.ts
+db_p1

@@ -4,12 +4,12 @@
       <el-table-column prop="id" label="ID" width="70" align="center"/>
       <el-table-column label="供应商" min-width="130" show-overflow-tooltip>
         <template #default="{ row }">
-          {{ row.providerName || (row.providerId ? `#${row.providerId}` : "全局") }}
+          {{ row.providerName || (row.providerCode ? `#${row.providerCode}` : "全局") }}
         </template>
       </el-table-column>
       <el-table-column label="统一模型" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">
-          {{ row.logicalModelName || (row.logicalModelId ? `#${row.logicalModelId}` : "默认") }}
+          {{ row.logicalModelName || (row.logicalModelCode ? `#${row.logicalModelCode}` : "默认") }}
         </template>
       </el-table-column>
       <el-table-column label="版本" width="90" align="center">

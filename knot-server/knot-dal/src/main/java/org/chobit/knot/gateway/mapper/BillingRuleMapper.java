@@ -14,7 +14,7 @@ public interface BillingRuleMapper {
 
     List<BillingRuleEntity> list(@Param("keyword") String keyword,
                                  @Param("providerCode") String providerCode,
-                                 @Param("logicalModelId") Long logicalModelId);
+                                 @Param("logicalModelCode") String logicalModelCode);
 
     BillingRuleEntity getById(Long id);
 

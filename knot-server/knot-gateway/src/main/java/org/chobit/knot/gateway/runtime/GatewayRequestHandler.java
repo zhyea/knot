@@ -10,6 +10,7 @@ import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.exception.GatewayRateLimitException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.*;
+import org.chobit.knot.gateway.model.usage.ModelUsagePayload;
 import org.chobit.knot.gateway.plugin.PluginDispatcher;
 import org.chobit.knot.gateway.routing.RoutingResolver;
 import org.chobit.knot.gateway.traffic.GatewayTrafficGuard;
@@ -122,19 +123,19 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         if (!routing.returnUsageDetail()) {
             return result.responseBody();
         }
-        NormalizedUsage usage = result.usage();
-        if (usage == null) {
+        ModelUsagePayload payload = ModelUsagePayload.of(result.usage());
+        if (payload == null) {
             return result.responseBody();
         }
         if (isEventStream(result.responseBody())) {
-            return appendUsageEvent(result.responseBody(), usage);
+            return appendUsageEvent(result.responseBody(), payload);
         }
         Map<String, Object> body = JsonKit.fromJson(result.responseBody(), new com.fasterxml.jackson.core.type.TypeReference<>() {
         });
         if (body == null) {
             return result.responseBody();
         }
-        body.put(AiPayloadFields.KNOT_USAGE, usage);
+        body.put(AiPayloadFields.MODEL_USAGE, payload);
         return body;
     }
 
@@ -172,9 +173,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         return value.lines().anyMatch(line -> StringUtils.startsWith(StringUtils.trim(line), "data:"));
     }
 
-    private String appendUsageEvent(String responseBody, NormalizedUsage usage) {
+    private String appendUsageEvent(String responseBody, ModelUsagePayload payload) {
         Map<String, Object> event = new LinkedHashMap<>();
-        event.put(AiPayloadFields.KNOT_USAGE, usage);
+        event.put(AiPayloadFields.MODEL_USAGE, payload);
         String usageData = "data: " + JsonKit.toJson(event);
         String doneMarker = "data: [DONE]";
         int doneIndex = responseBody.lastIndexOf(doneMarker);

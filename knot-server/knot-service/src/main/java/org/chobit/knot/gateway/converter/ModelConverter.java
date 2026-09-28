@@ -14,7 +14,7 @@ public interface ModelConverter {
     // ==================== Entity ↔ DTO ====================
 
     @Mapping(source = "status", target = "enabled", qualifiedByName = "statusToEnabled")
-    @Mapping(target = "logicalModelId", ignore = true)
+    @Mapping(target = "logicalModelCode", ignore = true)
     @Mapping(target = "rateLimitPolicy", ignore = true)
     @Mapping(target = "quotaPolicy", ignore = true)
     @Mapping(target = "apiBindings", ignore = true)
@@ -22,6 +22,7 @@ public interface ModelConverter {
 
     @Mapping(source = "enabled", target = "status", qualifiedByName = "enabledToStatus")
     @Mapping(target = "providerName", ignore = true)
+    @Mapping(target = "providerCode", ignore = true)
     @Mapping(target = "billingRuleCode", ignore = true)
     // name/modelType 派生自绑定的统一模型，不允许从请求写回
     @Mapping(target = "name", ignore = true)

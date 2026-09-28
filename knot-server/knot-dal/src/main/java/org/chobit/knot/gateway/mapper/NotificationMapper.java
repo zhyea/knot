@@ -15,7 +15,7 @@ public interface NotificationMapper {
 
     int insertTemplate(NotifyTemplateEntity entity);
 
-    int insertRecord(@Param("templateId") Long templateId,
+    int insertRecord(@Param("templateCode") String templateCode,
                      @Param("receiver") String receiver,
                      @Param("channel") String channel,
                      @Param("sendStatus") String sendStatus);

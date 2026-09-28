@@ -11,7 +11,7 @@ public class BillingRuleEntity {
     private String code;
     private String providerCode;
     private String providerName;
-    private Long logicalModelId;
+    private String logicalModelCode;
     private String logicalModelName;
     private Long currentVersionId;
     private String remark;

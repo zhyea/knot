@@ -264,27 +264,27 @@ INSERT IGNORE INTO kb_provider_discount_policies (id, provider_account_id, polic
 (3, 3, '直减5元',     'GLOBAL',   NULL, 'FIXED',      5.0000, 100, NOW(), 'ACTIVE');
 
 -- 模型
-INSERT IGNORE INTO kb_models (id, provider_account_id, model_code, version, base_url, status) VALUES
-(1,  1, 'gpt-4o',            '2024-08-06', 'https://api.openai.com', 'ENABLED'),
-(2,  1, 'gpt-4o-mini',       '2024-07-18', 'https://api.openai.com', 'ENABLED'),
-(3,  1, 'text-embedding-3-large','2024-01-01','https://api.openai.com','ENABLED'),
-(4,  2, 'claude-sonnet-4-20250514','2025-05-14','https://api.anthropic.com','ENABLED'),
-(5,  2, 'claude-haiku-3-5-20241022','2024-10-22','https://api.anthropic.com','ENABLED'),
-(6,  3, 'deepseek-chat',     '2024-08-01', 'https://api.deepseek.com', 'ENABLED'),
-(7,  3, 'deepseek-reasoner', '2025-01-20', 'https://api.deepseek.com', 'ENABLED'),
-(8,  4, 'qwen-image',        '2025-08-01', 'https://dashscope.aliyuncs.com', 'ENABLED'),
-(9,  4, 'qwen-image-edit',   '2025-08-01', 'https://dashscope.aliyuncs.com', 'ENABLED'),
-(10, 1, 'gpt-image-1',       '2025-04-01', 'https://api.openai.com', 'ENABLED');
+INSERT IGNORE INTO kb_models (id, provider_account_code, model_code, version, base_url, status) VALUES
+(1,  'openai-default',    'gpt-4o',            '2024-08-06', 'https://api.openai.com', 'ENABLED'),
+(2,  'openai-default',    'gpt-4o-mini',       '2024-07-18', 'https://api.openai.com', 'ENABLED'),
+(3,  'openai-default',    'text-embedding-3-large','2024-01-01','https://api.openai.com','ENABLED'),
+(4,  'anthropic-default', 'claude-sonnet-4-20250514','2025-05-14','https://api.anthropic.com','ENABLED'),
+(5,  'anthropic-default', 'claude-haiku-3-5-20241022','2024-10-22','https://api.anthropic.com','ENABLED'),
+(6,  'deepseek-default',  'deepseek-chat',     '2024-08-01', 'https://api.deepseek.com', 'ENABLED'),
+(7,  'deepseek-default',  'deepseek-reasoner', '2025-01-20', 'https://api.deepseek.com', 'ENABLED'),
+(8,  'qwen-default',      'qwen-image',        '2025-08-01', 'https://dashscope.aliyuncs.com', 'ENABLED'),
+(9,  'qwen-default',      'qwen-image-edit',   '2025-08-01', 'https://dashscope.aliyuncs.com', 'ENABLED'),
+(10, 'openai-default',    'gpt-image-1',       '2025-04-01', 'https://api.openai.com', 'ENABLED');
 
 INSERT IGNORE INTO kb_model_pools (id, pool_code, name, model_type, selection_strategy, status, remark) VALUES
 (1, 'chat-premium-pool', 'Premium Chat Pool', 'CHAT', 'WEIGHTED', 'ENABLED', 'Premium chat routing pool'),
 (2, 'chat-economy-pool', 'Economy Chat Pool', 'CHAT', 'WEIGHTED', 'ENABLED', 'Economy chat routing pool');
 
-INSERT IGNORE INTO kb_model_pool_items (id, pool_id, model_id, weight, priority, status) VALUES
-(1, 1, 1, 70, 10, 'ENABLED'),
-(2, 1, 4, 30, 20, 'ENABLED'),
-(3, 2, 2, 60, 10, 'ENABLED'),
-(4, 2, 6, 40, 20, 'ENABLED');
+INSERT IGNORE INTO kb_model_pool_items (id, pool_code, model_code, weight, priority, status) VALUES
+(1, 'chat-premium-pool', 'gpt-4o',                  70, 10, 'ENABLED'),
+(2, 'chat-premium-pool', 'claude-sonnet-4-20250514', 30, 20, 'ENABLED'),
+(3, 'chat-economy-pool', 'gpt-4o-mini',             60, 10, 'ENABLED'),
+(4, 'chat-economy-pool', 'deepseek-chat',           40, 20, 'ENABLED');
 
 INSERT IGNORE INTO kb_logical_models (
   id, model_code, model_name, model_type, model_family, display_name, description,
@@ -309,12 +309,12 @@ INSERT IGNORE INTO kb_logical_models (
   'PUBLIC', 'PUBLISHED', 'ENABLED', 20, 0, 'Economy provider route');
 
 INSERT IGNORE INTO kb_provider_model_mappings (
-  id, logical_model_id, provider_account_id, model_id, provider_model_name, status, priority
+  id, logical_model_code, provider_account_code, model_id, provider_model_name, status, priority
 ) VALUES
-(1, 1, 1, 1, 'gpt-4o', 'ENABLED', 10),
-(2, 1, 2, 4, 'claude-sonnet-4-20250514', 'ENABLED', 20),
-(3, 2, 1, 2, 'gpt-4o-mini', 'ENABLED', 10),
-(4, 2, 3, 6, 'deepseek-chat', 'ENABLED', 20);
+(1, 'knot-chat-premium', 'openai-default',    1, 'gpt-4o', 'ENABLED', 10),
+(2, 'knot-chat-premium', 'anthropic-default', 4, 'claude-sonnet-4-20250514', 'ENABLED', 20),
+(3, 'knot-chat-economy', 'openai-default',    2, 'gpt-4o-mini', 'ENABLED', 10),
+(4, 'knot-chat-economy', 'deepseek-default',  6, 'deepseek-chat', 'ENABLED', 20);
 
 INSERT IGNORE INTO kx_model_sources (
   id, source_code, source_name, source_url, api_url, source_type, status
@@ -385,12 +385,12 @@ INSERT IGNORE INTO kb_routing_rule_targets (id, rule_id, target_type, target_id,
 -- =========================
 
 -- 计费规则（provider_code 指向供应商主数据 kb_providers.code，非供应商账户）
-INSERT IGNORE INTO kb_billing_rules (id, code, provider_code, logical_model_id, current_version_id, status) VALUES
-(1, 'TOKEN_GPT4O',      'openai',    1, 1, 'ACTIVE'),
-(2, 'TOKEN_GPT4O_MINI', 'openai',    2, 2, 'ACTIVE'),
-(3, 'TOKEN_CLAUDE_S4',  'anthropic', 3, 3, 'ACTIVE'),
-(4, 'TOKEN_DEEPSEEK',   'deepseek',  4, 4, 'ACTIVE'),
-(5, 'EMBEDDING',        NULL, NULL, 5, 'ACTIVE');
+INSERT IGNORE INTO kb_billing_rules (id, code, provider_code, logical_model_code, current_version_id, status) VALUES
+(1, 'TOKEN_GPT4O',      'openai',    'knot-chat-premium', 1, 'ACTIVE'),
+(2, 'TOKEN_GPT4O_MINI', 'openai',    'knot-chat-economy', 2, 'ACTIVE'),
+(3, 'TOKEN_CLAUDE_S4',  'anthropic', 'knot-chat-premium', 3, 'ACTIVE'),
+(4, 'TOKEN_DEEPSEEK',   'deepseek',  'knot-chat-economy', 4, 'ACTIVE'),
+(5, 'EMBEDDING',        NULL,        NULL,                5, 'ACTIVE');
 
 INSERT IGNORE INTO kb_billing_rule_versions (id, rule_id, version_no, billing_mode, currency, status, effective_from) VALUES
 (1, 1, 1, 'TOKEN', 'USD', 'ACTIVE', NOW()),
@@ -444,44 +444,44 @@ INSERT IGNORE INTO kb_plugin_packages (
  JSON_OBJECT('pluginId', 'builtin-provider-audit', 'extensionPoint', 'UPSTREAM_EXCHANGE'), 'ACTIVE');
 
 INSERT IGNORE INTO kb_plugin_capabilities (
-  id, package_id, capability_code, capability_name, extension_point, stage_code, order_hint, status
+  id, plugin_code, capability_code, capability_name, extension_point, stage_code, order_hint, status
 ) VALUES
-(1, 1, 'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_REQUEST', 100, 'ACTIVE'),
-(2, 1, 'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_RESPONSE', 100, 'ACTIVE'),
-(3, 1, 'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_ERROR', 100, 'ACTIVE'),
-(4, 2, 'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_REQUEST', 100, 'ACTIVE'),
-(5, 2, 'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_RESPONSE', 100, 'ACTIVE'),
-(6, 2, 'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_ERROR', 100, 'ACTIVE');
+(1, 'builtin-gateway-audit', 'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_REQUEST', 100, 'ACTIVE'),
+(2, 'builtin-gateway-audit', 'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_RESPONSE', 100, 'ACTIVE'),
+(3, 'builtin-gateway-audit', 'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_ERROR', 100, 'ACTIVE'),
+(4, 'builtin-provider-audit', 'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_REQUEST', 100, 'ACTIVE'),
+(5, 'builtin-provider-audit', 'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_RESPONSE', 100, 'ACTIVE'),
+(6, 'builtin-provider-audit', 'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_ERROR', 100, 'ACTIVE');
 
 INSERT IGNORE INTO kb_plugin_instances (
-  id, package_id, capability_id, instance_code, instance_name, config_json, status, fail_mode, timeout_ms, concurrency_limit
+  id, plugin_code, capability_id, instance_code, instance_name, config_json, status, fail_mode, timeout_ms, concurrency_limit
 ) VALUES
-(1, 1, 1, 'gateway-request-log', '网关请求日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
-(2, 1, 2, 'gateway-response-log', '网关响应日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
-(3, 1, 3, 'gateway-error-log', '网关异常日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
-(4, 2, 4, 'provider-request-log', '上游请求日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
-(5, 2, 5, 'provider-response-log', '上游响应日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
-(6, 2, 6, 'provider-error-log', '上游异常日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0);
+(1, 'builtin-gateway-audit', 1, 'gateway-request-log', '网关请求日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
+(2, 'builtin-gateway-audit', 2, 'gateway-response-log', '网关响应日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
+(3, 'builtin-gateway-audit', 3, 'gateway-error-log', '网关异常日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
+(4, 'builtin-provider-audit', 4, 'provider-request-log', '上游请求日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
+(5, 'builtin-provider-audit', 5, 'provider-response-log', '上游响应日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0),
+(6, 'builtin-provider-audit', 6, 'provider-error-log', '上游异常日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 'ACTIVE', 'FAIL_OPEN', 3000, 0);
 
 INSERT IGNORE INTO kb_plugin_bindings (
-  id, instance_id, scope_type, scope_ref_id, stage_code, order_no, status, binding_config_json
+  id, instance_code, scope_type, scope_ref_id, stage_code, order_no, status, binding_config_json
 ) VALUES
-(1, 1, 'GLOBAL', NULL, 'GATEWAY_REQUEST', 100, 'ACTIVE', JSON_OBJECT('maskApiKey', true)),
-(2, 2, 'GLOBAL', NULL, 'GATEWAY_RESPONSE', 100, 'ACTIVE', JSON_OBJECT()),
-(3, 3, 'GLOBAL', NULL, 'GATEWAY_ERROR', 100, 'ACTIVE', JSON_OBJECT()),
-(4, 4, 'GLOBAL', NULL, 'UPSTREAM_REQUEST', 100, 'ACTIVE', JSON_OBJECT()),
-(5, 5, 'GLOBAL', NULL, 'UPSTREAM_RESPONSE', 100, 'ACTIVE', JSON_OBJECT()),
-(6, 6, 'GLOBAL', NULL, 'UPSTREAM_ERROR', 100, 'ACTIVE', JSON_OBJECT());
+(1, 'gateway-request-log', 'GLOBAL', NULL, 'GATEWAY_REQUEST', 100, 'ACTIVE', JSON_OBJECT('maskApiKey', true)),
+(2, 'gateway-response-log', 'GLOBAL', NULL, 'GATEWAY_RESPONSE', 100, 'ACTIVE', JSON_OBJECT()),
+(3, 'gateway-error-log', 'GLOBAL', NULL, 'GATEWAY_ERROR', 100, 'ACTIVE', JSON_OBJECT()),
+(4, 'provider-request-log', 'GLOBAL', NULL, 'UPSTREAM_REQUEST', 100, 'ACTIVE', JSON_OBJECT()),
+(5, 'provider-response-log', 'GLOBAL', NULL, 'UPSTREAM_RESPONSE', 100, 'ACTIVE', JSON_OBJECT()),
+(6, 'provider-error-log', 'GLOBAL', NULL, 'UPSTREAM_ERROR', 100, 'ACTIVE', JSON_OBJECT());
 
 INSERT IGNORE INTO kb_plugin_config_versions (
-  id, instance_id, version_no, version_code, config_json, operator_id
+  id, instance_code, version_no, version_code, config_json, operator_id
 ) VALUES
-(1, 1, 1, MD5('gateway-request-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
-(2, 2, 1, MD5('gateway-response-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
-(3, 3, 1, MD5('gateway-error-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
-(4, 4, 1, MD5('provider-request-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
-(5, 5, 1, MD5('provider-response-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
-(6, 6, 1, MD5('provider-error-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1);
+(1, 'gateway-request-log', 1, MD5('gateway-request-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
+(2, 'gateway-response-log', 1, MD5('gateway-response-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
+(3, 'gateway-error-log', 1, MD5('gateway-error-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
+(4, 'provider-request-log', 1, MD5('provider-request-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
+(5, 'provider-response-log', 1, MD5('provider-response-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
+(6, 'provider-error-log', 1, MD5('provider-error-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1);
 
 -- 通知模板
 INSERT IGNORE INTO kb_notification_templates (id, code, name, channel, title_tpl, content_tpl, status) VALUES

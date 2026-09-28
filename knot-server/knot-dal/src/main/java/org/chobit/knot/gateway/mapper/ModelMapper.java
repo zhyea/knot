@@ -13,6 +13,8 @@ public interface ModelMapper {
 
     ModelEntity getById(Long id);
 
+    ModelEntity getByCode(@Param("modelCode") String modelCode);
+
     int insert(ModelEntity entity);
 
     int update(ModelEntity entity);

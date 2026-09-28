@@ -124,6 +124,7 @@
 
 
 
+    <!-- 参数语义为应用业务码：kb_app_credentials.app_id 存 kb_apps.app_id -->
     <select id="countCredentialsByAppId" resultType="java.lang.Long">
 
         select count(1) from kb_app_credentials where app_id = #{appId}
@@ -132,6 +133,7 @@
 
 
 
+    <!-- 参数语义为应用主键 id：kb_app_model_permissions.app_id 仍存主键 -->
     <select id="countModelPermissionsByAppId" resultType="java.lang.Long">
 
         select count(1) from kb_app_model_permissions where app_id = #{appId}

@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.traffic;
 
 import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
+import org.chobit.knot.gateway.entity.ProviderAccountEntity;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.ResolvedRouting;
@@ -46,14 +47,21 @@ public class GatewayTrafficGuard {
      */
     public boolean checkTarget(RoutingRuleTargetDto target, TrafficCheckContext context) {
         return checkResource(TrafficResourceTypeEnum.MODEL.code(), target.targetId())
-                && checkProvider(target.providerId(), context);
+                && checkProvider(target.providerAccountCode(), context);
     }
 
-    private boolean checkProvider(Long providerId, TrafficCheckContext context) {
-        if (providerId == null) {
+    /**
+     * 频控资源仍按账户主键 id 绑定（多态资源列），故先按 code 取账户再回落到 id。
+     */
+    private boolean checkProvider(String providerAccountCode, TrafficCheckContext context) {
+        if (providerAccountCode == null) {
             return true;
         }
-        return context.providerResults.computeIfAbsent(providerId,
+        ProviderAccountEntity account = dataService.getProviderAccountByCode(providerAccountCode);
+        if (account == null || account.getId() == null) {
+            return true;
+        }
+        return context.providerResults.computeIfAbsent(account.getId(),
                 id -> checkResource(TrafficResourceTypeEnum.PROVIDER.code(), id));
     }
 

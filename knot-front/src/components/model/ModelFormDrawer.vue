@@ -45,7 +45,8 @@
             <el-col :span="12">
               <el-form-item label="供应商账户" required>
                 <ProviderAccountSelect
-                  v-model="form.providerId"
+                  v-model="form.providerAccountCode"
+                  value-key="code"
                   :selected-options="selectedProviderOptions"
                   placeholder="请选择供应商账户"
                   style="width: 100%"
@@ -90,7 +91,8 @@
               </div>
               <el-form-item label="绑定统一模型" required class="bind-block-item">
                 <RemoteEntitySelect
-                  v-model="form.logicalModelId"
+                  v-model="form.logicalModelCode"
+                  value-key="modelCode"
                   :load-function="loadLogicalModels"
                   :label-function="logicalModelLabel"
                   :selected-options="selectedLogicalModelOptions"
@@ -147,7 +149,7 @@
                     :label-function="billingRuleLabel"
                     :selected-options="selectedBillingRuleOptions"
                     :extra-params="billingRuleFilterParams"
-                    :disabled="!form.providerId || !form.logicalModelId"
+                    :disabled="!form.providerAccountCode || !form.logicalModelCode"
                     placeholder="请选择计费规则"
                     style="width: 100%"
                   />
@@ -378,8 +380,8 @@ interface ModelFormState {
   modelCode: string;
   baseUrl: string;
   remark: string;
-  providerId: number | string | null;
-  logicalModelId: number | string | null;
+  providerAccountCode: string | null;
+  logicalModelCode: string | null;
   billingRuleId: number | string | null;
   version: string;
   enabled: boolean;
@@ -393,8 +395,8 @@ const form = reactive<ModelFormState>({
   modelCode: "",
   baseUrl: "",
   remark: "",
-  providerId: null,
-  logicalModelId: null,
+  providerAccountCode: null,
+  logicalModelCode: null,
   billingRuleId: null,
   version: "1.0.0",
   enabled: false,
@@ -404,19 +406,19 @@ const form = reactive<ModelFormState>({
 });
 
 const isEdit = computed(() => props.model?.id != null);
-const selectedLogicalModel = computed(() => logicalModelOptions.value.find((item) => item.id === form.logicalModelId));
+const selectedLogicalModel = computed(() => logicalModelOptions.value.find((item) => item.modelCode === form.logicalModelCode));
 const selectedBillingRule = computed(() => billingRuleOptions.value.find((item) => item.id === form.billingRuleId));
-/** 当前选中供应商账户（含 providerId），计费规则过滤按供应商主数据 id 而非账户 id */
+/** 当前选中供应商账户（含 providerCode），计费规则过滤按供应商 code 而非账户 id */
 const selectedProviderAccount = ref<Row | null>(null);
 const selectedProviderOptions = computed(() =>
-  resolveSelectedOption(form.providerId, [], {
-    id: form.providerId,
+  resolveSelectedOption(form.providerAccountCode, [], {
+    id: form.providerAccountCode,
     providerName: props.model?.providerName
   })
 );
 const selectedLogicalModelOptions = computed(() =>
-  resolveSelectedOption(form.logicalModelId, logicalModelOptions.value, {
-    id: form.logicalModelId
+  resolveSelectedOption(form.logicalModelCode, logicalModelOptions.value, {
+    id: form.logicalModelCode
   })
 );
 const selectedBillingRuleOptions = computed(() =>
@@ -426,8 +428,8 @@ const selectedBillingRuleOptions = computed(() =>
   })
 );
 const billingRuleFilterParams = computed(() => ({
-  providerId: selectedProviderAccount.value?.providerId ?? undefined,
-  logicalModelId: form.logicalModelId ?? undefined
+  providerCode: selectedProviderAccount.value?.providerCode ?? undefined,
+  logicalModelCode: form.logicalModelCode ?? undefined
 }));
 const streamUsageExtractorOptions = computed(() =>
   usageExtractorOptions.value.filter((item) => item.streamSupported !== false)
@@ -447,8 +449,8 @@ async function loadLogicalModels(params = {pageNum: 1, pageSize: 10}) {
 async function loadBillingRules(params: Dict = {pageNum: 1, pageSize: 10}) {
   const data = await listBillingRules({
     ...params,
-    providerId: params.providerId ?? selectedProviderAccount.value?.providerId ?? undefined,
-    logicalModelId: params.logicalModelId ?? form.logicalModelId ?? undefined
+    providerCode: params.providerCode ?? selectedProviderAccount.value?.providerCode ?? undefined,
+    logicalModelCode: params.logicalModelCode ?? form.logicalModelCode ?? undefined
   });
   mergeOptions(billingRuleOptions, normalizeOptionList(data));
   return data;
@@ -504,8 +506,8 @@ function fillForm(row: Row) {
   form.modelCode = row.modelCode || "";
   form.baseUrl = row.baseUrl || "";
   form.remark = row.remark || "";
-  form.providerId = row.providerId ?? null;
-  form.logicalModelId = row.logicalModelId ?? null;
+  form.providerAccountCode = row.providerAccountCode ?? null;
+  form.logicalModelCode = row.logicalModelCode ?? null;
   form.billingRuleId = row.billingRuleId ?? null;
   form.version = row.version || "1.0.0";
   form.enabled = row.enabled === true;
@@ -531,12 +533,12 @@ watch(
 );
 
 watch(
-  () => [form.providerId, form.logicalModelId],
-  ([providerId, logicalModelId], [oldProviderId, oldLogicalModelId]) => {
+  () => [form.providerAccountCode, form.logicalModelCode],
+  ([providerAccountCode, logicalModelCode], [oldAccountCode, oldLogicalModelCode]) => {
     if (!props.modelValue || resettingForm.value) {
       return;
     }
-    if (providerId !== oldProviderId || logicalModelId !== oldLogicalModelId) {
+    if (providerAccountCode !== oldAccountCode || logicalModelCode !== oldLogicalModelCode) {
       form.billingRuleId = null;
       billingRuleOptions.value = [];
     }
@@ -568,8 +570,9 @@ async function resetForm() {
             fillForm(detail);
           }
           // 编辑回填时账户对象未经下拉 change 产生，取详情补齐供应商 id 供规则过滤
-          selectedProviderAccount.value = form.providerId != null
-            ? (await getProviderAccount(form.providerId) as Row | null)
+          // 编辑回填时账户对象未经下拉 change 产生，用模型详情携带的供应商 code 供规则过滤
+          selectedProviderAccount.value = form.providerAccountCode != null
+            ? ({ code: form.providerAccountCode, providerCode: props.model?.providerCode ?? null } as Row)
             : null;
         } finally {
           detailLoading.value = false;
@@ -581,8 +584,8 @@ async function resetForm() {
       form.modelCode = "";
       form.baseUrl = "";
       form.remark = "";
-      form.providerId = null;
-      form.logicalModelId = null;
+      form.providerAccountCode = null;
+      form.logicalModelCode = null;
       form.billingRuleId = null;
       form.version = "1.0.0";
       form.enabled = false;
@@ -651,8 +654,8 @@ function validateRequired(showMessage = true) {
   const checks: Array<[unknown, string]> = [
     [form.modelCode?.trim(), "请填写模型编码"],
     [form.baseUrl?.trim(), "请填写 Base URL"],
-    [form.providerId, "请选择供应商账户"],
-    [form.logicalModelId, "请选择统一模型"],
+    [form.providerAccountCode, "请选择供应商账户"],
+    [form.logicalModelCode, "请选择统一模型"],
     [form.billingRuleId, "请选择计费规则"]
   ];
   const failed = checks.find(([ok]) => !ok);
@@ -784,8 +787,8 @@ function buildPayload() {
     modelCode: form.modelCode?.trim(),
     baseUrl: form.baseUrl?.trim() || null,
     remark: form.remark?.trim() || null,
-    providerId: form.providerId,
-    logicalModelId: form.logicalModelId,
+    providerAccountCode: form.providerAccountCode,
+    logicalModelCode: form.logicalModelCode,
     billingRuleId: form.billingRuleId,
     version: form.version,
     enabled: form.enabled,

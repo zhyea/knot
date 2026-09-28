@@ -5,7 +5,6 @@ import lombok.Data;
 @Data
 public class PluginBindingEntity {
     private Long id;
-    private Long instanceId;
     private String instanceCode;
     private String instanceName;
     private String packageCode;

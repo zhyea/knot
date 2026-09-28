@@ -6,7 +6,7 @@ public record RoutingRuleTargetDto(
         String targetCode,
         String targetName,
         String modelType,
-        Long providerId,
+        String providerAccountCode,
         int priority,
         boolean primary
 ) {

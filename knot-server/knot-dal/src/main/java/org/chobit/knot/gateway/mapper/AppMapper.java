@@ -21,8 +21,10 @@ public interface AppMapper {
 
     int softDelete(Long id);
 
-    Long countCredentialsByAppId(Long appId);
+    /** 按应用业务码统计凭据数（kb_app_credentials.app_id 存业务码） */
+    Long countCredentialsByAppId(@Param("appId") String appId);
 
+    /** 按应用主键 id 统计模型权限数（kb_app_model_permissions.app_id 存主键 id） */
     Long countModelPermissionsByAppId(Long appId);
 
     Long countByDeptId(Long deptId);

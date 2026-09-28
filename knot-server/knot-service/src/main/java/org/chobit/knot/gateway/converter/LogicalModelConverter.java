@@ -146,10 +146,9 @@ public class LogicalModelConverter {
         }
         return new ProviderModelMappingDto(
                 entity.getId(),
-                entity.getLogicalModelId(),
                 entity.getLogicalModelCode(),
                 entity.getLogicalModelName(),
-                entity.getProviderId(),
+                entity.getProviderAccountCode(),
                 entity.getProviderName(),
                 entity.getModelId(),
                 entity.getModelCode(),
@@ -166,8 +165,8 @@ public class LogicalModelConverter {
     public ProviderModelMappingEntity toMappingEntity(ProviderModelMappingDto dto) {
         ProviderModelMappingEntity entity = new ProviderModelMappingEntity();
         entity.setId(dto.id());
-        entity.setLogicalModelId(dto.logicalModelId());
-        entity.setProviderId(dto.providerId());
+        entity.setLogicalModelCode(dto.logicalModelCode());
+        entity.setProviderAccountCode(dto.providerAccountCode());
         entity.setModelId(dto.modelId());
         entity.setProviderModelName(dto.providerModelName());
         entity.setStatus(dto.enabled() ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
@@ -183,8 +182,8 @@ public class LogicalModelConverter {
             return null;
         }
         return new ProviderModelMappingItem(
-                dto.id(), dto.logicalModelId(), dto.logicalModelCode(), dto.logicalModelName(),
-                dto.providerId(), dto.providerName(),
+                dto.id(), dto.logicalModelCode(), dto.logicalModelName(),
+                dto.providerAccountCode(), dto.providerName(),
                 dto.modelId(), dto.modelCode(), dto.modelName(), dto.providerModelName(),
                 dto.enabled(), dto.priority()
         );
@@ -195,8 +194,8 @@ public class LogicalModelConverter {
      */
     public ProviderModelMappingDto toMappingDto(ProviderModelMappingItem item) {
         return new ProviderModelMappingDto(
-                item.id(), item.logicalModelId(), item.logicalModelCode(), item.logicalModelName(),
-                item.providerId(), item.providerName(),
+                item.id(), item.logicalModelCode(), item.logicalModelName(),
+                item.providerAccountCode(), item.providerName(),
                 item.modelId(), item.modelCode(), item.modelName(), item.providerModelName(),
                 item.enabled(), item.priority()
         );

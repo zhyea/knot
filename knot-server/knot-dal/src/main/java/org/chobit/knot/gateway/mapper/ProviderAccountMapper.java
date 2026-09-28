@@ -14,6 +14,9 @@ public interface ProviderAccountMapper {
 
     ProviderAccountEntity getById(Long id);
 
+    /** 按账户业务码查询（ kb_provider_accounts.code 唯一） */
+    ProviderAccountEntity getByCode(String code);
+
     Long countByCode(@Param("code") String code,
                      @Param("excludeId") Long excludeId);
 

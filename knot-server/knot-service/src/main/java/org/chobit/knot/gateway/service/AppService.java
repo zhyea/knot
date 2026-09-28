@@ -125,19 +125,22 @@ public class AppService {
         if (existing == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "应用不存在");
         }
-        assertNotInUse(id);
+        assertNotInUse(existing);
         int rows = appMapper.softDelete(id);
         if (rows == 0) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "应用不存在或已删除");
         }
     }
 
-    private void assertNotInUse(Long appId) {
+    /**
+     * 删除前置校验：凭据按应用业务码绑定，模型权限按应用主键 id 绑定，两者参数语义不同。
+     */
+    private void assertNotInUse(AppEntity app) {
         List<String> reasons = new ArrayList<>();
-        if (countPositive(appMapper.countCredentialsByAppId(appId))) {
+        if (countPositive(appMapper.countCredentialsByAppId(app.getAppId()))) {
             reasons.add("已配置 API 凭证");
         }
-        if (countPositive(appMapper.countModelPermissionsByAppId(appId))) {
+        if (countPositive(appMapper.countModelPermissionsByAppId(app.getId()))) {
             reasons.add("已分配模型权限");
         }
         if (!reasons.isEmpty()) {

@@ -41,7 +41,7 @@ public class BillingController {
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
                 query == null ? null : query.keyword(),
                 query == null ? null : query.providerCode(),
-                query == null ? null : query.logicalModelId()
+                query == null ? null : query.logicalModelCode()
         );
         return page.mapList(billingConverter::toRuleVOList);
     }

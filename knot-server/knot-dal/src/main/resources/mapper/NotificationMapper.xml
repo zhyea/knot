@@ -30,8 +30,8 @@
     </insert>
 
     <insert id="insertRecord">
-        insert into kb_notification_records(template_id, receiver, channel, send_status, created_at)
-        values(#{templateId}, #{receiver}, #{channel}, #{sendStatus}, now())
+        insert into kb_notification_records(template_code, receiver, channel, send_status, created_at)
+        values(#{templateCode}, #{receiver}, #{channel}, #{sendStatus}, now())
     </insert>
 
 </mapper>

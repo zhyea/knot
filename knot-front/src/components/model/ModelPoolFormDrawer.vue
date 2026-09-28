@@ -67,10 +67,11 @@
         </div>
         <el-form-item label="绑定模型" required class="bind-block-item">
           <RemoteEntitySelect
-            v-model="selectedModelIds"
+            v-model="selectedModelCodes"
             :load-function="loadModelOptions"
             :label-function="modelLabel"
             :selected-options="boundModelRows"
+            value-key="modelCode"
             :extra-params="{ modelTypes: form.modelType ? [form.modelType] : [] }"
             placeholder="请选择模型，可多选"
             multiple
@@ -83,7 +84,7 @@
           v-if="boundModelRows.length"
           :data="boundModelRows"
           border
-          row-key="modelId"
+          row-key="modelCode"
           class="model-pool-items-table"
         >
           <el-table-column prop="modelCode" label="模型编码" min-width="150" show-overflow-tooltip>
@@ -98,7 +99,7 @@
           </el-table-column>
           <el-table-column label="供应商" min-width="120" show-overflow-tooltip>
             <template #default="{ row }">
-              <span class="bind-list__text">{{ row.providerName || (row.providerId ? `#${row.providerId}` : "—") }}</span>
+              <span class="bind-list__text">{{ row.providerName || (row.providerAccountCode ? `#${row.providerAccountCode}` : "—") }}</span>
             </template>
           </el-table-column>
           <el-table-column label="权重" width="150" align="center">
@@ -118,7 +119,7 @@
           </el-table-column>
           <el-table-column label="操作" width="70" align="center">
             <template #default="{ row }">
-              <el-button link type="danger" @click="removeModel(row.modelId)">
+              <el-button link type="danger" @click="removeModel(row.modelCode)">
                 <el-icon><Delete /></el-icon>
               </el-button>
             </template>
@@ -163,13 +164,12 @@ const { options: strategyOptions, loadOptions: loadStrategyOptions } = useEnums(
 
 interface PoolItemForm {
   id?: number | string | null;
-  modelCode?: any;
+  modelCode: string;
   modelName?: any;
   name?: any;
   modelType?: any;
-  providerId?: any;
+  providerAccountCode?: any;
   providerName?: any;
-  modelId: number | string | null;
   weight: number;
   priority: number;
   enabled: boolean;
@@ -197,20 +197,20 @@ const form = reactive<PoolFormState>({
   items: []
 });
 
-const selectedModelIds = computed({
-  get: () => form.items.map((item) => item.modelId).filter((id) => id != null),
-  set: (ids) => onSelectedModelsChange(ids)
+const selectedModelCodes = computed({
+  get: () => form.items.map((item) => item.modelCode).filter((code) => code != null),
+  set: (codes) => onSelectedModelsChange(codes)
 });
 
 const boundModelRows = computed(() =>
   form.items.map((item) => {
-    const model = modelOptions.value.find((m) => m.id === item.modelId);
-    item.id = item.modelId;
+    const model = modelOptions.value.find((m) => m.modelCode === item.modelCode);
+    item.id = model?.id ?? item.id;
     item.modelCode = model?.modelCode || item.modelCode;
     item.modelName = model?.name || item.modelName;
     item.name = model?.name || item.name;
     item.modelType = model?.modelType || item.modelType;
-    item.providerId = model?.providerId || item.providerId;
+    item.providerAccountCode = model?.providerAccountCode || item.providerAccountCode;
     item.providerName = model?.providerName || item.providerName;
     return item;
   })
@@ -241,11 +241,11 @@ function resetForm() {
   form.enabled = row?.enabled === true;
   form.remark = row?.remark || "";
   form.items = (row?.items || []).map((item: Row) => ({
-    modelId: item.modelId,
+    id: item.id ?? null,
     modelCode: item.modelCode,
     modelName: item.modelName,
     modelType: item.modelType,
-    providerId: item.providerId,
+    providerAccountCode: item.providerAccountCode,
     providerName: item.providerName,
     weight: item.weight ?? 100,
     priority: item.priority ?? 100,
@@ -278,19 +278,19 @@ function onModelTypeChange() {
   loadModelOptions({ pageNum: 1, pageSize: 10, modelTypes: form.modelType ? [form.modelType] : [] });
 }
 
-function onSelectedModelsChange(modelIds: any) {
-  const nextIds = Array.isArray(modelIds) ? modelIds : [];
-  const existingById = new Map(form.items.map((item) => [item.modelId, item]));
-  form.items = nextIds.map((modelId) => existingById.get(modelId) || {
-    modelId,
+function onSelectedModelsChange(codes: any) {
+  const nextCodes = Array.isArray(codes) ? codes : [];
+  const existingByCode = new Map(form.items.map((item) => [item.modelCode, item]));
+  form.items = nextCodes.map((modelCode) => existingByCode.get(modelCode) || {
+    modelCode,
     weight: 100,
     priority: 100,
     enabled: true
   });
 }
 
-function removeModel(modelId: any) {
-  onSelectedModelsChange(form.items.map((item) => item.modelId).filter((id) => id !== modelId));
+function removeModel(modelCode: any) {
+  onSelectedModelsChange(form.items.map((item) => item.modelCode).filter((code) => code !== modelCode));
 }
 
 function onClosed() {
@@ -321,7 +321,7 @@ function buildPayload() {
     enabled: form.enabled,
     remark: form.remark?.trim() || null,
     items: form.items.map((item) => ({
-      modelId: item.modelId,
+      modelCode: item.modelCode,
       weight: item.weight ?? 100,
       priority: item.priority ?? 100,
       enabled: item.enabled !== false

@@ -1,8 +1,10 @@
 package org.chobit.knot.gateway.upstream.stream;
 
 import org.apache.commons.lang3.StringUtils;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
-import org.chobit.knot.gateway.model.NormalizedUsage;
+import org.chobit.knot.gateway.model.UsageAccounting;
+import org.chobit.knot.gateway.model.usage.ModelUsagePayload;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -23,7 +25,7 @@ import java.util.Map;
  * 把上游响应边收边发给调用方：读完一行立刻写出并 flush，不在网关侧堆积整包响应。
  *
  * <p>SSE 场景额外做一件事：逐事件累计用量，并在上游 {@code data: [DONE]} 之前插入
- * {@code knot_usage} 事件，与整包缓冲模式下的行为保持一致。</p>
+ * {@code model_usage} 事件，与整包缓冲模式下的行为保持一致。</p>
  */
 public class ProxyStreamingBody implements StreamingResponseBody {
 
@@ -47,7 +49,7 @@ public class ProxyStreamingBody implements StreamingResponseBody {
     }
 
     @Override
-    public void writeTo(OutputStream outputStream) throws IOException {
+    public void writeTo(@NonNull OutputStream outputStream) throws IOException {
         try (UpstreamStreamResponse ignored = stream) {
             if (stream.isEventStream()) {
                 pumpEventStream(outputStream);
@@ -59,7 +61,7 @@ public class ProxyStreamingBody implements StreamingResponseBody {
 
     private void pumpEventStream(OutputStream out) throws IOException {
         Writer writer = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8), bufferSize);
-        NormalizedUsage usage = null;
+        UsageAccounting usage = null;
         boolean usageAppended = false;
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(stream.body(), StandardCharsets.UTF_8), bufferSize)) {
@@ -108,31 +110,29 @@ public class ProxyStreamingBody implements StreamingResponseBody {
     /**
      * 单个 SSE 事件的用量提取。失败不影响转发，只影响最终是否注入用量事件。
      */
-    private NormalizedUsage extractUsage(String data) {
+    private UsageAccounting extractUsage(String data) {
         if (StringUtils.isEmpty(data) || DONE_MARKER.equals(data) || !data.contains(USAGE_FIELD)) {
             return null;
         }
         return usageExtractorRegistry.extractEvent(data, stream.context(), stream.adapter());
     }
 
-    private String usageEvent(NormalizedUsage usage) {
+    private String usageEvent(UsageAccounting usage) {
         Map<String, Object> event = new LinkedHashMap<>();
-        event.put(AiPayloadFields.KNOT_USAGE, usage);
+        event.put(AiPayloadFields.MODEL_USAGE, ModelUsagePayload.of(usage));
         return DATA_PREFIX + " " + JsonKit.toJson(event);
     }
 
     /**
      * 逐事件取 token 数更大的一份，与整包提取的 mergeMax 语义对齐。
      */
-    private NormalizedUsage better(NormalizedUsage current, NormalizedUsage candidate) {
+    private UsageAccounting better(UsageAccounting current, UsageAccounting candidate) {
         if (candidate == null) {
             return current;
         }
         if (current == null) {
             return candidate;
         }
-        long currentTokens = current.totalTokens() == null ? 0L : current.totalTokens();
-        long candidateTokens = candidate.totalTokens() == null ? 0L : candidate.totalTokens();
-        return candidateTokens >= currentTokens ? candidate : current;
+        return candidate.totalTokens() >= current.totalTokens() ? candidate : current;
     }
 }

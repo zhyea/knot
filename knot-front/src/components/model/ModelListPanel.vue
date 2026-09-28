@@ -6,7 +6,7 @@
       <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip />
       <el-table-column label="供应商" min-width="120" show-overflow-tooltip>
         <template #default="{ row }">
-          {{ row.providerName || (row.providerId != null ? `#${row.providerId}` : "-") }}
+          {{ row.providerName || (row.providerAccountCode ? `#${row.providerAccountCode}` : "-") }}
         </template>
       </el-table-column>
       <el-table-column label="类型" min-width="100">

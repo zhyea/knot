@@ -302,7 +302,7 @@ public class RoutingRuleService {
             String responseBody = executeGatewayTest(baseUrl, gatewayPath, secretKey, rule.ruleCode(), protocol, body);
             return new RoutingTestResult(
                     rule.id(),
-                    selectedTarget.providerId(),
+                    selectedTarget.providerAccountCode(),
                     selectedTarget.targetId(),
                     model,
                     protocol.code(),
@@ -315,7 +315,7 @@ public class RoutingRuleService {
         } catch (HttpStatusCodeException ex) {
             return new RoutingTestResult(
                     rule.id(),
-                    selectedTarget.providerId(),
+                    selectedTarget.providerAccountCode(),
                     selectedTarget.targetId(),
                     model,
                     protocol.code(),
@@ -328,7 +328,7 @@ public class RoutingRuleService {
         } catch (Exception ex) {
             return new RoutingTestResult(
                     rule.id(),
-                    selectedTarget.providerId(),
+                    selectedTarget.providerAccountCode(),
                     selectedTarget.targetId(),
                     model,
                     protocol.code(),
@@ -500,9 +500,16 @@ public class RoutingRuleService {
         if (!"MODEL_POOL".equals(targetType)) {
             return Set.of();
         }
-        List<Long> enabledModelIds = modelPoolMapper.listItemsByPoolId(target.targetId()).stream()
+        // 池条目只存 model_code，协议绑定仍按模型主键 id 查询，这里做一次 code → id 解析
+        ModelPoolEntity protocolPool = modelPoolMapper.getById(target.targetId());
+        if (protocolPool == null) {
+            return Set.of();
+        }
+        List<Long> enabledModelIds = modelPoolMapper.listItemsByPoolCode(protocolPool.getPoolCode()).stream()
                 .filter(item -> "ENABLED".equals(item.getStatus()))
-                .map(item -> item.getModelId())
+                .map(item -> modelMapper.getByCode(item.getModelCode()))
+                .filter(model -> model != null)
+                .map(ModelEntity::getId)
                 .distinct()
                 .toList();
         if (enabledModelIds.isEmpty()) {
@@ -780,7 +787,7 @@ public class RoutingRuleService {
                 entity.getTargetCode(),
                 entity.getTargetName(),
                 entity.getModelType(),
-                entity.getProviderId(),
+                entity.getProviderAccountCode(),
                 entity.getPriority() != null ? entity.getPriority() : 100,
                 Boolean.TRUE.equals(entity.getPrimary())
         );
@@ -954,7 +961,7 @@ public class RoutingRuleService {
             if (enabledRule && !"ENABLED".equals(pool.getStatus())) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target model pool is disabled");
             }
-            if (enabledRule && modelPoolMapper.listItemsByPoolId(pool.getId()).stream().noneMatch(item -> "ENABLED".equals(item.getStatus()))) {
+            if (enabledRule && modelPoolMapper.listItemsByPoolCode(pool.getPoolCode()).stream().noneMatch(item -> "ENABLED".equals(item.getStatus()))) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target model pool has no enabled model");
             }
             return;

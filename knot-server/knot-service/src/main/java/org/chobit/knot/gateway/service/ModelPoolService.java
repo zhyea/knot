@@ -87,7 +87,7 @@ public class ModelPoolService {
         validateForSave(request, null);
         ModelPoolEntity entity = modelPoolConverter.toEntity(normalize(request));
         modelPoolMapper.insert(entity);
-        saveItems(entity.getId(), request.items());
+        saveItems(entity.getPoolCode(), request.items());
         return getById(entity.getId());
     }
 
@@ -103,7 +103,7 @@ public class ModelPoolService {
         ModelPoolEntity entity = modelPoolConverter.toEntity(normalize(request));
         entity.setId(id);
         modelPoolMapper.update(entity);
-        saveItems(id, request.items());
+        saveItems(entity.getPoolCode(), request.items());
         return getById(id);
     }
 
@@ -133,10 +133,11 @@ public class ModelPoolService {
      */
     @Transactional
     public void delete(Long id) {
-        if (modelPoolMapper.getById(id) == null) {
+        ModelPoolEntity existing = modelPoolMapper.getById(id);
+        if (existing == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "model pool not found");
         }
-        modelPoolMapper.deleteItemsByPoolId(id);
+        modelPoolMapper.deleteItemsByPoolCode(existing.getPoolCode());
         modelPoolMapper.deleteById(id);
     }
 
@@ -165,7 +166,7 @@ public class ModelPoolService {
     }
 
     private ModelPoolDto enrich(ModelPoolDto dto) {
-        List<ModelPoolItemDto> items = modelPoolMapper.listItemsByPoolId(dto.id()).stream()
+        List<ModelPoolItemDto> items = modelPoolMapper.listItemsByPoolCode(dto.poolCode()).stream()
                 .map(modelPoolConverter::toItemDto)
                 .toList();
         return new ModelPoolDto(
@@ -180,15 +181,15 @@ public class ModelPoolService {
         );
     }
 
-    private void saveItems(Long poolId, List<ModelPoolItemDto> items) {
-        modelPoolMapper.deleteItemsByPoolId(poolId);
+    private void saveItems(String poolCode, List<ModelPoolItemDto> items) {
+        modelPoolMapper.deleteItemsByPoolCode(poolCode);
         if (items == null) {
             return;
         }
         for (ModelPoolItemDto item : items) {
             ModelPoolItemEntity entity = new ModelPoolItemEntity();
-            entity.setPoolId(poolId);
-            entity.setModelId(item.modelId());
+            entity.setPoolCode(poolCode);
+            entity.setModelCode(item.modelCode());
             entity.setWeight(defaultInt(item.weight(), 100));
             entity.setPriority(defaultInt(item.priority(), 100));
             entity.setStatus(item.enabled() ? "ENABLED" : "DISABLED");
@@ -213,15 +214,15 @@ public class ModelPoolService {
         if (request.enabled() && items.stream().noneMatch(ModelPoolItemDto::enabled)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "enabled model pool requires at least one enabled model");
         }
-        long distinct = items.stream().map(ModelPoolItemDto::modelId).distinct().count();
+        long distinct = items.stream().map(ModelPoolItemDto::modelCode).distinct().count();
         if (distinct != items.size()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "model pool item cannot repeat");
         }
         for (ModelPoolItemDto item : items) {
-            if (item.modelId() == null) {
+            if (item.modelCode() == null) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "please select model");
             }
-            ModelEntity model = modelMapper.getById(item.modelId());
+            ModelEntity model = modelMapper.getByCode(item.modelCode());
             if (model == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "model not found");
             }

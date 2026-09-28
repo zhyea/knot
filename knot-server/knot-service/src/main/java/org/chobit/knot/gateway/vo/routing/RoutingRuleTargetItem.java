@@ -6,7 +6,7 @@ public record RoutingRuleTargetItem(
         String targetCode,
         String targetName,
         String modelType,
-        Long providerId,
+        String providerAccountCode,
         Integer priority,
         Boolean primary
 ) {

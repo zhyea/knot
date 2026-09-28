@@ -13,10 +13,10 @@
     </sql>
 
     <sql id="MappingColumns">
-        pm.id, pm.logical_model_id, lm.model_code AS logical_model_code, lm.model_name AS logical_model_name,
-        pm.provider_account_id AS provider_id, p.name AS provider_name,
+        pm.id, pm.logical_model_code, lm.model_name AS logical_model_name,
+        pm.provider_account_code, p.name AS provider_name,
         pm.model_id, m.model_code,
-        (select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.id = pm2.logical_model_id where pm2.model_id = m.id order by pm2.id asc limit 1) AS model_name,
+        (select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id order by pm2.id asc limit 1) AS model_name,
         pm.provider_model_name, pm.status, pm.priority, pm.created_at, pm.updated_at
     </sql>
 
@@ -121,20 +121,20 @@
     <select id="listMappings" resultType="org.chobit.knot.gateway.entity.ProviderModelMappingEntity">
         select <include refid="MappingColumns"/>
         from kb_provider_model_mappings pm
-        left join kb_logical_models lm on pm.logical_model_id = lm.id
-        left join kb_provider_accounts pa on pm.provider_account_id = pa.id
-        left join kb_providers p on pa.provider_id = p.id
+        left join kb_logical_models lm on pm.logical_model_code = lm.model_code
+        left join kb_provider_accounts pa on pm.provider_account_code = pa.code
+        left join kb_providers p on pa.provider_code = p.code
         left join kb_models m on pm.model_id = m.id
-        where pm.logical_model_id = #{logicalModelId}
+        where pm.logical_model_code = #{logicalModelCode}
         order by pm.priority asc, pm.id asc
     </select>
 
     <select id="listMappingsByModelId" resultType="org.chobit.knot.gateway.entity.ProviderModelMappingEntity">
         select <include refid="MappingColumns"/>
         from kb_provider_model_mappings pm
-        left join kb_logical_models lm on pm.logical_model_id = lm.id
-        left join kb_provider_accounts pa on pm.provider_account_id = pa.id
-        left join kb_providers p on pa.provider_id = p.id
+        left join kb_logical_models lm on pm.logical_model_code = lm.model_code
+        left join kb_provider_accounts pa on pm.provider_account_code = pa.code
+        left join kb_providers p on pa.provider_code = p.code
         left join kb_models m on pm.model_id = m.id
         where pm.model_id = #{modelId}
         order by pm.priority asc, pm.id asc
@@ -143,35 +143,35 @@
     <select id="getMappingById" resultType="org.chobit.knot.gateway.entity.ProviderModelMappingEntity">
         select <include refid="MappingColumns"/>
         from kb_provider_model_mappings pm
-        left join kb_logical_models lm on pm.logical_model_id = lm.id
-        left join kb_provider_accounts pa on pm.provider_account_id = pa.id
-        left join kb_providers p on pa.provider_id = p.id
+        left join kb_logical_models lm on pm.logical_model_code = lm.model_code
+        left join kb_provider_accounts pa on pm.provider_account_code = pa.code
+        left join kb_providers p on pa.provider_code = p.code
         left join kb_models m on pm.model_id = m.id
         where pm.id = #{id}
     </select>
 
     <insert id="insertMapping" useGeneratedKeys="true" keyProperty="id">
         insert into kb_provider_model_mappings(
-            logical_model_id, provider_account_id, model_id, provider_model_name, status, priority
+            logical_model_code, provider_account_code, model_id, provider_model_name, status, priority
         ) values (
-            #{logicalModelId}, #{providerId}, #{modelId}, #{providerModelName}, #{status}, #{priority}
+            #{logicalModelCode}, #{providerAccountCode}, #{modelId}, #{providerModelName}, #{status}, #{priority}
         )
     </insert>
 
     <update id="updateMapping">
         update kb_provider_model_mappings
-        set provider_account_id = #{providerId},
+        set provider_account_code = #{providerAccountCode},
             model_id = #{modelId},
             provider_model_name = #{providerModelName},
             status = #{status},
             priority = #{priority}
         where id = #{id}
-          and logical_model_id = #{logicalModelId}
+          and logical_model_code = #{logicalModelCode}
     </update>
 
-    <delete id="deleteMappingsByLogicalModelId">
+    <delete id="deleteMappingsByLogicalModelCode">
         delete from kb_provider_model_mappings
-        where logical_model_id = #{logicalModelId}
+        where logical_model_code = #{logicalModelCode}
     </delete>
 
     <delete id="deleteMappingsByModelId">
@@ -182,7 +182,7 @@
     <delete id="deleteMapping">
         delete from kb_provider_model_mappings
         where id = #{mappingId}
-          and logical_model_id = #{logicalModelId}
+          and logical_model_code = #{logicalModelCode}
     </delete>
 
 </mapper>

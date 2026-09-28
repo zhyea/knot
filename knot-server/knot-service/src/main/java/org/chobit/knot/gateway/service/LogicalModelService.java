@@ -13,6 +13,7 @@ import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ProviderModelMappingEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.mapper.ExternalModelMapper;
 import org.chobit.knot.gateway.mapper.LogicalModelMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
@@ -21,7 +22,6 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -100,7 +100,7 @@ public class LogicalModelService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "logical model not found");
         }
         LogicalModelDto base = logicalModelConverter.toDto(entity);
-        return logicalModelConverter.withMappings(base, listMappings(id));
+        return logicalModelConverter.withMappings(base, listMappings(entity.getModelCode()));
     }
 
     /**
@@ -155,7 +155,9 @@ public class LogicalModelService {
      */
     @Transactional
     public LogicalModelDto updateStatus(Long id, boolean enabled) {
-        ensureLogicalModel(id);
+        if (logicalModelMapper.getById(id) == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "logical model not found");
+        }
         logicalModelMapper.updateStatus(
                 id,
                 enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code()
@@ -168,9 +170,12 @@ public class LogicalModelService {
      */
     @Transactional
     public void delete(Long id) {
-        ensureLogicalModel(id);
+        LogicalModelEntity entity = logicalModelMapper.getById(id);
+        if (entity == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "logical model not found");
+        }
         externalModelMapper.clearLogicalModelMatch(id);
-        logicalModelMapper.deleteMappingsByLogicalModelId(id);
+        logicalModelMapper.deleteMappingsByLogicalModelCode(entity.getModelCode());
         int affected = logicalModelMapper.deleteById(id);
         if (affected == 0) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "logical model not found");
@@ -186,16 +191,7 @@ public class LogicalModelService {
         }
         try {
             LogicalModelDto dto = getById(id);
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", dto.id());
-            m.put("modelCode", dto.modelCode());
-            m.put("modelName", dto.modelName());
-            m.put("modelType", dto.modelType());
-            m.put("publishStatus", dto.publishStatus());
-            m.put("enabled", dto.enabled());
-            m.put("featured", dto.featured());
-            m.put("mappingCount", dto.mappings() == null ? 0 : dto.mappings().size());
-            return m;
+            return JsonKit.toMap(dto);
         } catch (BusinessException e) {
             return null;
         }
@@ -204,9 +200,9 @@ public class LogicalModelService {
     /**
      * Lists matching results. Executes the public operation.
      */
-    public List<ProviderModelMappingDto> listMappings(Long logicalModelId) {
-        ensureLogicalModel(logicalModelId);
-        return logicalModelMapper.listMappings(logicalModelId).stream()
+    public List<ProviderModelMappingDto> listMappings(String logicalModelCode) {
+        ensureLogicalModel(logicalModelCode);
+        return logicalModelMapper.listMappings(logicalModelCode).stream()
                 .map(logicalModelConverter::toMappingDto)
                 .toList();
     }
@@ -225,10 +221,10 @@ public class LogicalModelService {
      * Creates a new resource. Executes the public operation.
      */
     @Transactional
-    public ProviderModelMappingDto createMapping(Long logicalModelId, ProviderModelMappingDto request) {
-        ensureLogicalModel(logicalModelId);
+    public ProviderModelMappingDto createMapping(String logicalModelCode, ProviderModelMappingDto request) {
+        ensureLogicalModel(logicalModelCode);
         ProviderModelMappingEntity entity = logicalModelConverter.toMappingEntity(request);
-        entity.setLogicalModelId(logicalModelId);
+        entity.setLogicalModelCode(logicalModelCode);
         enrichMappingFromModel(entity);
         logicalModelMapper.insertMapping(entity);
         return logicalModelConverter.toMappingDto(logicalModelMapper.getMappingById(entity.getId()));
@@ -238,15 +234,15 @@ public class LogicalModelService {
      * Updates the target resource. Executes the public operation.
      */
     @Transactional
-    public ProviderModelMappingDto updateMapping(Long logicalModelId, Long mappingId, ProviderModelMappingDto request) {
-        ensureLogicalModel(logicalModelId);
+    public ProviderModelMappingDto updateMapping(String logicalModelCode, Long mappingId, ProviderModelMappingDto request) {
+        ensureLogicalModel(logicalModelCode);
         ProviderModelMappingEntity existing = logicalModelMapper.getMappingById(mappingId);
-        if (existing == null || !logicalModelId.equals(existing.getLogicalModelId())) {
+        if (existing == null || !logicalModelCode.equals(existing.getLogicalModelCode())) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "model mapping not found");
         }
         ProviderModelMappingEntity entity = logicalModelConverter.toMappingEntity(request);
         entity.setId(mappingId);
-        entity.setLogicalModelId(logicalModelId);
+        entity.setLogicalModelCode(logicalModelCode);
         enrichMappingFromModel(entity);
         logicalModelMapper.updateMapping(entity);
         return logicalModelConverter.toMappingDto(logicalModelMapper.getMappingById(mappingId));
@@ -256,8 +252,8 @@ public class LogicalModelService {
      * Deletes the target resource. Executes the public operation.
      */
     @Transactional
-    public void deleteMapping(Long logicalModelId, Long mappingId) {
-        int affected = logicalModelMapper.deleteMapping(logicalModelId, mappingId);
+    public void deleteMapping(String logicalModelCode, Long mappingId) {
+        int affected = logicalModelMapper.deleteMapping(logicalModelCode, mappingId);
         if (affected == 0) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "model mapping not found");
         }
@@ -271,14 +267,14 @@ public class LogicalModelService {
         if (model == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "provider model not found");
         }
-        mapping.setProviderId(model.getProviderId());
+        mapping.setProviderAccountCode(model.getProviderAccountCode());
         if (mapping.getProviderModelName() == null || mapping.getProviderModelName().isBlank()) {
             mapping.setProviderModelName(model.getModelCode());
         }
     }
 
-    private void ensureLogicalModel(Long id) {
-        if (logicalModelMapper.getById(id) == null) {
+    private void ensureLogicalModel(String code) {
+        if (logicalModelMapper.getByCode(code) == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "logical model not found");
         }
     }

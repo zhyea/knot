@@ -29,7 +29,7 @@
             <el-col :span="12">
               <el-form-item label="供应商" required>
                 <el-select
-                  v-model="form.providerId"
+                  v-model="form.providerCode"
                   placeholder="请选择供应商"
                   filterable
                   style="width: 100%"
@@ -147,7 +147,7 @@ const codeValidated = ref(false);
 const detailLoading = ref(false);
 const form = reactive<Dict>({
   id: null,
-  providerId: null,
+  providerCode: null,
   code: "",
   baseUrl: "",
   enabled: true,
@@ -237,7 +237,7 @@ async function loadSuggestedCode() {
 
 function fillFormFromRow(row: Row) {
   form.id = row.id;
-  form.providerId = row.providerId;
+  form.providerCode = row.providerCode;
   form.code = row.code || "";
   form.baseUrl = row.baseUrl || "";
   form.enabled = !!row.enabled;
@@ -297,7 +297,7 @@ async function loadProviderOptions() {
     const result = await listProviderProfiles({pageNum: 1, pageSize: 500});
     const list: Row[] = Array.isArray(result) ? result : result?.list || [];
     providerOptions.value = list.map((item) => ({
-      value: item.id,
+      value: item.code,
       label: `${item.name || item.code}（${item.code}）`
     }));
   } catch {
@@ -374,7 +374,7 @@ function buildPayload(): Dict {
     if (!k?.trim() || !String(authConfig[k] ?? "").trim()) delete authConfig[k];
   });
   return {
-    providerId: form.providerId,
+    providerCode: form.providerCode,
     code: form.code?.trim(),
     baseUrl: form.baseUrl?.trim() || null,
     enabled: form.enabled,

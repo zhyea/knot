@@ -27,7 +27,7 @@ public interface LogicalModelMapper {
 
     Long countByModelCode(@Param("modelCode") String modelCode, @Param("excludeId") Long excludeId);
 
-    List<ProviderModelMappingEntity> listMappings(Long logicalModelId);
+    List<ProviderModelMappingEntity> listMappings(String logicalModelCode);
 
     List<ProviderModelMappingEntity> listMappingsByModelId(Long modelId);
 
@@ -37,9 +37,9 @@ public interface LogicalModelMapper {
 
     int updateMapping(ProviderModelMappingEntity entity);
 
-    int deleteMappingsByLogicalModelId(Long logicalModelId);
+    int deleteMappingsByLogicalModelCode(String logicalModelCode);
 
     int deleteMappingsByModelId(Long modelId);
 
-    int deleteMapping(@Param("logicalModelId") Long logicalModelId, @Param("mappingId") Long mappingId);
+    int deleteMapping(@Param("logicalModelCode") String logicalModelCode, @Param("mappingId") Long mappingId);
 }

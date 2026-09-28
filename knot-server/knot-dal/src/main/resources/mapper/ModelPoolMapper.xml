@@ -72,33 +72,33 @@
         delete from kb_model_pools where id = #{id}
     </delete>
 
-    <select id="listItemsByPoolId" resultType="org.chobit.knot.gateway.entity.ModelPoolItemEntity">
+    <select id="listItemsByPoolCode" resultType="org.chobit.knot.gateway.entity.ModelPoolItemEntity">
         select mpi.id,
-               mpi.pool_id,
-               mpi.model_id,
+               mpi.pool_code,
+               mpi.model_code,
                mpi.weight,
                mpi.priority,
                mpi.status,
                m.model_code,
-               (select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.id = pm2.logical_model_id where pm2.model_id = m.id order by pm2.id asc limit 1) as model_name,
-               (select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.id = pm2.logical_model_id where pm2.model_id = m.id order by pm2.id asc limit 1) as model_type,
-               m.provider_account_id AS provider_id,
+               (select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id order by pm2.id asc limit 1) as model_name,
+               (select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id order by pm2.id asc limit 1) as model_type,
+               m.provider_account_code,
                p.name as provider_name
         from kb_model_pool_items mpi
-        inner join kb_models m on mpi.model_id = m.id
-        left join kb_provider_accounts pa on m.provider_account_id = pa.id
-        left join kb_providers p on pa.provider_id = p.id
-        where mpi.pool_id = #{poolId}
+        inner join kb_models m on mpi.model_code = m.model_code
+        left join kb_provider_accounts pa on m.provider_account_code = pa.code
+        left join kb_providers p on pa.provider_code = p.code
+        where mpi.pool_code = #{poolCode}
         order by mpi.priority asc, mpi.id asc
     </select>
 
-    <delete id="deleteItemsByPoolId">
-        delete from kb_model_pool_items where pool_id = #{poolId}
+    <delete id="deleteItemsByPoolCode">
+        delete from kb_model_pool_items where pool_code = #{poolCode}
     </delete>
 
     <insert id="insertItem" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_model_pool_items(pool_id, model_id, weight, priority, status)
-        values(#{poolId}, #{modelId}, #{weight}, #{priority}, #{status})
+        insert into kb_model_pool_items(pool_code, model_code, weight, priority, status)
+        values(#{poolCode}, #{modelCode}, #{weight}, #{priority}, #{status})
     </insert>
 
 </mapper>
