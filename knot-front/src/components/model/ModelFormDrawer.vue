@@ -273,7 +273,7 @@
                   </el-form-item>
                 </el-col>
                 <el-col :span="12">
-                  <el-form-item label="流式解析器">
+                  <el-form-item label="流式Usage解析器">
                     <el-select
                       v-model="binding.streamUsageExtractor"
                       clearable
