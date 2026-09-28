@@ -24,6 +24,11 @@ const forcePasswordChangeState = ref<Row>(
     { username: "", passwordChangeToken: "", realName: "" }) as Row
 );
 
+// 登录流程和 MainLayout 挂载可能同时刷新授权信息；复用同一个请求，
+// 避免重复请求在会话切换时互相覆盖状态。
+let authorizationsRequest: Promise<Row | null> | null = null;
+let authorizationsRequestToken: string | null = null;
+
 export function useAuth() {
   const isLoggedIn = computed(() => !!token.value);
   const needsPasswordChange = computed(() => !!forcePasswordChangeState.value?.passwordChangeToken);
@@ -83,18 +88,37 @@ export function useAuth() {
       setAuthorizations({ permissions: [], modules: [] });
       return { permissions: [], modules: [] };
     }
-    const response = await getMyAuthorizations({ silentError: true });
-    setAuthorizations(response);
-    if (response) {
-      setUser({
-        ...((user.value || {}) as Dict),
-        userId: response.userId,
-        username: response.username,
-        realName: response.realName,
-        roles: response.roles || []
-      });
+    if (authorizationsRequest && authorizationsRequestToken === token.value) {
+      return authorizationsRequest;
     }
-    return response;
+
+    const requestToken = token.value;
+    authorizationsRequestToken = requestToken;
+    authorizationsRequest = getMyAuthorizations({ silentError: true })
+      .then((response) => {
+        // 请求返回期间可能已经退出或重新登录；旧响应不得覆盖新会话。
+        if (token.value !== requestToken) {
+          return null;
+        }
+        setAuthorizations(response);
+        if (response) {
+          setUser({
+            ...((user.value || {}) as Dict),
+            userId: response.userId,
+            username: response.username,
+            realName: response.realName,
+            roles: response.roles || []
+          });
+        }
+        return response;
+      })
+      .finally(() => {
+        if (authorizationsRequestToken === requestToken) {
+          authorizationsRequest = null;
+          authorizationsRequestToken = null;
+        }
+      });
+    return authorizationsRequest;
   }
 
   async function login(username: string, password: string): Promise<Row> {
