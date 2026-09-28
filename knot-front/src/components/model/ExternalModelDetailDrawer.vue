@@ -32,7 +32,13 @@
         </el-descriptions>
         </el-tab-pane>
         <el-tab-pane label="JSON">
-          <JsonCodeEditor :model-value="rawJsonText" readonly min-height="225px" max-height="560px"/>
+          <JsonCodeEditor
+            :model-value="rawJsonText"
+            readonly
+            min-height="225px"
+            height="calc(100vh - 260px)"
+            max-height="560px"
+          />
         </el-tab-pane>
       </el-tabs>
     </el-scrollbar>
