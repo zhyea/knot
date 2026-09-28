@@ -20,6 +20,11 @@ public class AuthInterceptor implements HandlerInterceptor {
      */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+        // CORS 预检请求不携带 Authorization，不能按业务请求做 JWT 校验。
+        // 若前后端分离部署，拦截 OPTIONS 会把正常预检误报成 401。
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
         String auth = request.getHeader(HEADER_AUTH);
         if (auth == null || !auth.startsWith(BEARER)) {
             throw new UnauthorizedException("未登录或 token 无效");
