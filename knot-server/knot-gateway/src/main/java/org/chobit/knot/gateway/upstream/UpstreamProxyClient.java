@@ -96,10 +96,7 @@ public class UpstreamProxyClient {
      */
     public ProxyResult proxy(UpstreamRequestContext context) {
         UpstreamProtocolExecutor protocolExecutor = protocolExecutorRegistry.resolve(context.protocol());
-        var requestAdapter = requestAdapterRegistry.resolve(
-                context.requestAdapter(),
-                context.provider() == null ? null : context.provider().getProviderCode()
-        );
+        var requestAdapter = requestAdapterRegistry.resolve(context.requestAdapter());
         dispatchPlugin(context, PluginStageCode.UPSTREAM_REQUEST, null, null);
         try {
             ProxyResult result = protocolExecutor.execute(context, requestAdapter);

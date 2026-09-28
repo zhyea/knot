@@ -29,7 +29,8 @@ public class RequestAdapterCatalog {
                 .map(item -> new RequestAdapterDefinition(
                         item.code(),
                         item.label(),
-                        item.getClass().getName()
+                        item.getClass().getName(),
+                        item.protocol()
                 ))
                 .toList();
     }
@@ -44,13 +45,6 @@ public class RequestAdapterCatalog {
             return byCode;
         }
         return adaptersByClassName.get(trimmed);
-    }
-
-    public UpstreamRequestAdapter resolveByProviderType(String providerType) {
-        return adapters.stream()
-                .filter(adapter -> adapter.supports(providerType))
-                .findFirst()
-                .orElse(null);
     }
 
     private Map<String, UpstreamRequestAdapter> buildCodeIndex(List<UpstreamRequestAdapter> adapters) {

@@ -5,12 +5,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
+import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 
 import java.util.Map;
+import java.util.Set;
 
 public interface UpstreamRequestAdapter {
 
@@ -18,7 +20,7 @@ public interface UpstreamRequestAdapter {
 
     String label();
 
-    boolean supports(String providerType);
+    Set<ModelApiProtocolEnum> protocol();
 
     default String resolvePath(UpstreamRequestContext context, String defaultPath) {
         String bindingPath = context.binding() == null ? null : context.binding().getApiPath();

@@ -8,7 +8,6 @@ import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.constants.enums.ProviderTypeEnum;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -26,10 +25,22 @@ public class OpenAiCompatibleRequestAdapter implements UpstreamRequestAdapter {
 
     public static final String CODE = "OPENAI_COMPATIBLE";
 
-    private static final Set<String> PROVIDER_TYPES = Set.of(
-            ProviderTypeEnum.OPENAI.code(),
-            ProviderTypeEnum.DEEPSEEK.code(),
-            ProviderTypeEnum.OPENROUTER.code()
+    private static final Set<ModelApiProtocolEnum> PROTOCOLS = Set.of(
+            ModelApiProtocolEnum.CHAT_COMPLETIONS,
+            ModelApiProtocolEnum.RESPONSES,
+            ModelApiProtocolEnum.MESSAGES,
+            ModelApiProtocolEnum.COMPLETIONS,
+            ModelApiProtocolEnum.EMBEDDINGS,
+            ModelApiProtocolEnum.IMAGE_GENERATIONS,
+            ModelApiProtocolEnum.IMAGE_EDITS,
+            ModelApiProtocolEnum.IMAGE_VARIATIONS,
+            ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS,
+            ModelApiProtocolEnum.AUDIO_TRANSLATIONS,
+            ModelApiProtocolEnum.AUDIO_SPEECH,
+            ModelApiProtocolEnum.VIDEO_GENERATIONS,
+            ModelApiProtocolEnum.RERANK,
+            ModelApiProtocolEnum.MODERATIONS,
+            ModelApiProtocolEnum.CUSTOM
     );
 
     @Override
@@ -43,8 +54,8 @@ public class OpenAiCompatibleRequestAdapter implements UpstreamRequestAdapter {
     }
 
     @Override
-    public boolean supports(String providerType) {
-        return providerType == null || PROVIDER_TYPES.contains(StringUtils.upperCase(StringUtils.trim(providerType)));
+    public Set<ModelApiProtocolEnum> protocol() {
+        return PROTOCOLS;
     }
 
     @Override

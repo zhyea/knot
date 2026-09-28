@@ -227,7 +227,7 @@
                       v-model="binding.requestAdapter"
                       clearable
                       filterable
-                      placeholder="留空时按供应商类型自动匹配"
+                      placeholder="留空时使用 OpenAI Compatible"
                       style="width: 100%"
                     >
                       <el-option

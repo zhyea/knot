@@ -6,7 +6,6 @@ import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.constants.enums.ProviderTypeEnum;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -16,6 +15,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 @Order(10)
@@ -35,8 +35,13 @@ public class AnthropicRequestAdapter implements UpstreamRequestAdapter {
     }
 
     @Override
-    public boolean supports(String providerType) {
-        return ProviderTypeEnum.ANTHROPIC.code().equals(StringUtils.upperCase(StringUtils.trim(providerType)));
+    public Set<ModelApiProtocolEnum> protocol() {
+        return Set.of(
+                ModelApiProtocolEnum.CHAT_COMPLETIONS,
+                ModelApiProtocolEnum.RESPONSES,
+                ModelApiProtocolEnum.MESSAGES,
+                ModelApiProtocolEnum.COMPLETIONS
+        );
     }
 
     @Override

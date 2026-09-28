@@ -8,7 +8,6 @@ import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.constants.enums.ProviderTypeEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.util.JsonKit;
@@ -25,6 +24,7 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 @Order(20)
@@ -50,8 +50,11 @@ public class QwenRequestAdapter implements UpstreamRequestAdapter {
     }
 
     @Override
-    public boolean supports(String providerType) {
-        return ProviderTypeEnum.QWEN.code().equals(StringUtils.upperCase(StringUtils.trim(providerType)));
+    public Set<ModelApiProtocolEnum> protocol() {
+        return Set.of(
+                ModelApiProtocolEnum.IMAGE_GENERATIONS,
+                ModelApiProtocolEnum.IMAGE_EDITS
+        );
     }
 
     @Override

@@ -12,12 +12,8 @@ public class UpstreamRequestAdapterRegistry {
 
     private final RequestAdapterCatalog requestAdapterCatalog;
 
-    public UpstreamRequestAdapter resolve(String requestAdapter, String providerType) {
+    public UpstreamRequestAdapter resolve(String requestAdapter) {
         UpstreamRequestAdapter adapter = requestAdapterCatalog.resolve(requestAdapter);
-        if (adapter != null) {
-            return adapter;
-        }
-        adapter = requestAdapterCatalog.resolveByProviderType(providerType);
         if (adapter != null) {
             return adapter;
         }

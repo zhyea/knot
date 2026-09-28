@@ -152,7 +152,8 @@ public class ModelService {
                 .map(item -> new RequestAdapterItem(
                         item.code(),
                         item.label(),
-                        item.className()
+                        item.className(),
+                        item.protocol()
                 ))
                 .toList();
     }
