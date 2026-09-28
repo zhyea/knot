@@ -26,18 +26,32 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue", "change"]);
 const options = ref<Row[]>([]);
+const selectedAccount = ref<Row | null>(null);
 
-const mergedSelectedOptions = computed(() => mergeOptionList(props.selectedOptions, options.value));
+const mergedSelectedOptions = computed(() =>
+  mergeOptionList(
+    mergeOptionList(props.selectedOptions, options.value),
+    selectedAccount.value ? [selectedAccount.value] : []
+  )
+);
 
 watch(
   () => props.modelValue,
   async (id) => {
-    if (id == null || options.value.some((item) => item.id === id)) {
+    if (id == null) {
+      selectedAccount.value = null;
+      return;
+    }
+    const existing = options.value.find((item) => String(item.id) === String(id));
+    if (existing) {
+      selectedAccount.value = {...existing, id};
       return;
     }
     const account = await getProviderAccountOption(id);
-    if (props.modelValue === id && account) {
-      options.value = mergeOptionList(options.value, [account]);
+    if (String(props.modelValue) === String(id) && account) {
+      const normalized = {...account, id};
+      selectedAccount.value = normalized;
+      options.value = mergeOptionList(options.value, [normalized]);
     }
   },
   { immediate: true }
@@ -45,7 +59,13 @@ watch(
 
 async function loadOptions(params: Dict): Promise<unknown> {
   const data = await listProviderAccounts(params);
-  options.value = mergeOptionList(options.value, normalizeOptionList(data));
+  const list = normalizeOptionList(data);
+  options.value = mergeOptionList(options.value, list);
+  const currentId = props.modelValue;
+  const current = list.find((item) => String(item.id) === String(currentId));
+  if (current && currentId != null) {
+    selectedAccount.value = {...current, id: currentId};
+  }
   return data;
 }
 
