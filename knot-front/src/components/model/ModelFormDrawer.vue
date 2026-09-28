@@ -213,7 +213,6 @@
                       v-model="binding.protocol"
                       enum-name="ModelApiProtocolEnum"
                       filterable
-                      show-code
                       placeholder="请选择接口协议"
                       :include-codes="allowedApiProtocolCodes"
                     />
@@ -490,11 +489,11 @@ function billingRuleLabel(rule: Row): string {
 }
 
 function usageExtractorLabel(item: Row): string {
-  return item?.label ? `${item.label} (${item.code})` : item?.code || "";
+  return item?.label || item?.code || "";
 }
 
 function requestAdapterLabel(item: Row): string {
-  return item?.label ? `${item.label} (${item.code})` : item?.code || "";
+  return item?.label || item?.code || "";
 }
 
 function onProviderAccountChange(account: Row) {
