@@ -34,6 +34,10 @@ public class AdminAuthorizationInterceptor implements HandlerInterceptor {
     public boolean preHandle(@NonNull HttpServletRequest request,
                              @NonNull HttpServletResponse response,
                              @NonNull Object handler) {
+        // CORS 预检请求不携带用户 token，也不应参与接口级权限判断。
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            return true;
+        }
         if (!(handler instanceof HandlerMethod)) {
             return true;
         }
