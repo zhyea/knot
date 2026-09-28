@@ -3,7 +3,7 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.ProviderAccountMapper">
 
     <sql id="ProviderColumns">
-        pa.id, pa.provider_id, p.name AS provider_name, p.code AS provider_code,
+        pa.id, pa.provider_code, p.name AS provider_name,
         pa.code, pa.base_url, pa.status,
         pa.created_at, pa.updated_at
     </sql>
@@ -11,7 +11,7 @@
     <select id="list" resultType="org.chobit.knot.gateway.entity.ProviderAccountEntity">
         select <include refid="ProviderColumns"/>
         from kb_provider_accounts pa
-        inner join kb_providers p on pa.provider_id = p.id
+        inner join kb_providers p on pa.provider_code = p.code
         <where>
             <if test="keyword != null and keyword != ''">
                 and (
@@ -30,7 +30,7 @@
     <select id="getById" resultType="org.chobit.knot.gateway.entity.ProviderAccountEntity">
         select <include refid="ProviderColumns"/>
         from kb_provider_accounts pa
-        inner join kb_providers p on pa.provider_id = p.id
+        inner join kb_providers p on pa.provider_code = p.code
         where pa.id = #{id}
     </select>
 
@@ -42,13 +42,13 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_provider_accounts(provider_id, code, base_url, status)
-        values(#{providerId}, #{code}, #{baseUrl}, #{status})
+        insert into kb_provider_accounts(provider_code, code, base_url, status)
+        values(#{providerCode}, #{code}, #{baseUrl}, #{status})
     </insert>
 
     <update id="update">
         update kb_provider_accounts
-        set provider_id = #{providerId},
+        set provider_code = #{providerCode},
             code = #{code},
             base_url = #{baseUrl},
             status = #{status}

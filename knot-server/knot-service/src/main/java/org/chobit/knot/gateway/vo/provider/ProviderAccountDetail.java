@@ -15,7 +15,7 @@ import java.util.Map;
  *
  * <p>{@code id / providerName / createdAt / updatedAt} 在新建请求中为 {@code null}。
  */
-public record ProviderAccountDetail(Long id, Long providerId, String providerName,
+public record ProviderAccountDetail(Long id, String providerCode, String providerName,
                                     String code, String baseUrl, boolean enabled,
                                     LocalDateTime createdAt, LocalDateTime updatedAt,
                                     String credentialType,

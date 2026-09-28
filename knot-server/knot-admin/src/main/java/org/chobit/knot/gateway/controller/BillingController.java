@@ -40,7 +40,7 @@ public class BillingController {
         PageResult<BillingRuleDto> page = billingService.listRules(
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
                 query == null ? null : query.keyword(),
-                query == null ? null : query.providerId(),
+                query == null ? null : query.providerCode(),
                 query == null ? null : query.logicalModelId()
         );
         return page.mapList(billingConverter::toRuleVOList);

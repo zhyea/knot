@@ -18,7 +18,7 @@ public record PageQuery(
         Boolean enabled,
         List<String> modelTypes,
         Long parentId,
-        Long providerId,
+        String providerCode,
         Long logicalModelId
 ) {
     /**

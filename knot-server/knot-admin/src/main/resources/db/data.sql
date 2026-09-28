@@ -208,7 +208,7 @@ INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 -- =========================
 
 -- 供应商
--- 供应商信息 = 供应商类型的主数据（供应商账户通过 provider_id 关联）
+-- 供应商信息 = 供应商类型的主数据（供应商账户通过 provider_code 关联）
 -- tag 语义为供应商分类：原厂 / 云厂商 / 代理
 INSERT IGNORE INTO kb_providers (id, code, name, tag) VALUES
 (1, 'openai',       'OpenAI',       '原厂'),
@@ -218,11 +218,11 @@ INSERT IGNORE INTO kb_providers (id, code, name, tag) VALUES
 (5, 'zhipu',        'Zhipu',        '原厂'),
 (6, 'openrouter',   'OpenRouter',   '云厂商');
 
-INSERT IGNORE INTO kb_provider_accounts (id, provider_id, code, status) VALUES
-(1, 1, 'openai-default',    'ENABLED'),
-(2, 2, 'anthropic-default', 'ENABLED'),
-(3, 3, 'deepseek-default',  'ENABLED'),
-(4, 4, 'qwen-default',      'ENABLED');
+INSERT IGNORE INTO kb_provider_accounts (id, provider_code, code, status) VALUES
+(1, 'openai',    'openai-default',    'ENABLED'),
+(2, 'anthropic', 'anthropic-default', 'ENABLED'),
+(3, 'deepseek',  'deepseek-default',  'ENABLED'),
+(4, 'qwen',      'qwen-default',      'ENABLED');
 
 -- 频控/额度策略（独立表 + 资源绑定）
 INSERT IGNORE INTO kb_rate_limit_policies (id, policy_code, policy_name, per_second, per_minute, time_window, status) VALUES
@@ -345,9 +345,9 @@ INSERT IGNORE INTO kb_apps (id, app_id, name, dept_id, owner_user_id, remark, st
 
 -- 应用凭证
 INSERT IGNORE INTO kb_app_credentials (id, app_id, app_key, app_secret_hash, status) VALUES
-(1, 1, 'knot_pk_001', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ACTIVE'),
-(2, 2, 'knot_pk_002', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ACTIVE'),
-(3, 3, 'knot_pk_003', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ACTIVE');
+(1, 'app_001', 'knot_pk_001', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ACTIVE'),
+(2, 'app_002', 'knot_pk_002', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ACTIVE'),
+(3, 'app_003', 'knot_pk_003', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ACTIVE');
 
 -- 应用-模型权限
 INSERT IGNORE INTO kb_app_model_permissions (app_id, model_id) VALUES
@@ -384,12 +384,12 @@ INSERT IGNORE INTO kb_routing_rule_targets (id, rule_id, target_type, target_id,
 -- 计费规则
 -- =========================
 
--- 计费规则（provider_id 指向供应商主数据 kb_providers，非供应商账户）
-INSERT IGNORE INTO kb_billing_rules (id, code, provider_id, logical_model_id, current_version_id, status) VALUES
-(1, 'TOKEN_GPT4O',      1, 1, 1, 'ACTIVE'),
-(2, 'TOKEN_GPT4O_MINI', 1, 2, 2, 'ACTIVE'),
-(3, 'TOKEN_CLAUDE_S4',  2, 3, 3, 'ACTIVE'),
-(4, 'TOKEN_DEEPSEEK',   3, 4, 4, 'ACTIVE'),
+-- 计费规则（provider_code 指向供应商主数据 kb_providers.code，非供应商账户）
+INSERT IGNORE INTO kb_billing_rules (id, code, provider_code, logical_model_id, current_version_id, status) VALUES
+(1, 'TOKEN_GPT4O',      'openai',    1, 1, 'ACTIVE'),
+(2, 'TOKEN_GPT4O_MINI', 'openai',    2, 2, 'ACTIVE'),
+(3, 'TOKEN_CLAUDE_S4',  'anthropic', 3, 3, 'ACTIVE'),
+(4, 'TOKEN_DEEPSEEK',   'deepseek',  4, 4, 'ACTIVE'),
 (5, 'EMBEDDING',        NULL, NULL, 5, 'ACTIVE');
 
 INSERT IGNORE INTO kb_billing_rule_versions (id, rule_id, version_no, billing_mode, currency, status, effective_from) VALUES

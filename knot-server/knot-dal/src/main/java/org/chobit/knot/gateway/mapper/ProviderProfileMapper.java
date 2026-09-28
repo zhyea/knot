@@ -14,6 +14,8 @@ public interface ProviderProfileMapper {
 
     ProviderProfileEntity getById(Long id);
 
+    ProviderProfileEntity getByCode(String code);
+
     Long countByCode(@Param("code") String code,
                      @Param("excludeId") Long excludeId);
 

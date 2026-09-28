@@ -182,7 +182,7 @@ public class ProviderService {
      */
     @Transactional
     public ProviderAccountDto create(ProviderAccountDto request) {
-        assertProviderProfileExists(request.providerId());
+        assertProviderProfileCodeExists(request.providerCode());
         ProviderCredentialTypeEnum credentialType = validateCredential(request);
         String code = resolveCodeForSave(request.code(), null);
         assertCodeAvailable(code, null);
@@ -205,7 +205,7 @@ public class ProviderService {
         if (existing == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "供应商不存在");
         }
-        assertProviderProfileExists(request.providerId());
+        assertProviderProfileCodeExists(request.providerCode());
         ProviderCredentialTypeEnum credentialType = validateCredential(request);
         String code = resolveCodeForSave(request.code(), existing.getCode());
         assertCodeAvailable(code, id);
@@ -253,7 +253,7 @@ public class ProviderService {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
         QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
         return new ProviderAccountDto(
-                base.id(), base.providerId(), base.providerName(),
+                base.id(), base.providerCode(), base.providerName(),
                 base.code(), base.type(), base.baseUrl(), base.enabled(),
                 base.createdAt(), base.updatedAt(),
                 credentialSupport.credentialType(credential),
@@ -327,8 +327,8 @@ public class ProviderService {
         }
     }
 
-    private void assertProviderProfileExists(Long providerId) {
-        if (providerId == null || providerProfileMapper.getById(providerId) == null) {
+    private void assertProviderProfileCodeExists(String providerCode) {
+        if (providerCode == null || providerProfileMapper.getByCode(providerCode) == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "供应商不存在");
         }
     }

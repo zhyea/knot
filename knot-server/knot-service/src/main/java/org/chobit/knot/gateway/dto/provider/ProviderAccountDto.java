@@ -6,7 +6,7 @@ import org.chobit.knot.gateway.model.RateLimitPolicy;
 import java.time.LocalDateTime;
 import java.util.Map;
 
-public record ProviderAccountDto(Long id, Long providerId, String providerName,
+public record ProviderAccountDto(Long id, String providerCode, String providerName,
                                  String code, String type, String baseUrl, boolean enabled,
                                  LocalDateTime createdAt, LocalDateTime updatedAt,
                                  String credentialType,

@@ -15,6 +15,7 @@ import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.entity.LogicalModelEntity;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
+import org.chobit.knot.gateway.entity.ProviderAccountEntity;
 import org.chobit.knot.gateway.entity.ProviderModelMappingEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
@@ -22,6 +23,7 @@ import org.chobit.knot.gateway.mapper.BillingRuleMapper;
 import org.chobit.knot.gateway.mapper.LogicalModelMapper;
 import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
+import org.chobit.knot.gateway.mapper.ProviderAccountMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
@@ -48,6 +50,7 @@ public class ModelService {
     private final ModelApiBindingMapper modelApiBindingMapper;
     private final LogicalModelMapper logicalModelMapper;
     private final BillingRuleMapper billingRuleMapper;
+    private final ProviderAccountMapper providerAccountMapper;
     private final ModelConverter modelConverter;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
     private final UsageExtractorCatalog usageExtractorCatalog;
@@ -60,6 +63,7 @@ public class ModelService {
                         ModelApiBindingMapper modelApiBindingMapper,
                         LogicalModelMapper logicalModelMapper,
                         BillingRuleMapper billingRuleMapper,
+                        ProviderAccountMapper providerAccountMapper,
                         ModelConverter modelConverter,
                         ResourceTrafficPolicySupport trafficPolicySupport,
                         UsageExtractorCatalog usageExtractorCatalog,
@@ -68,6 +72,7 @@ public class ModelService {
         this.modelApiBindingMapper = modelApiBindingMapper;
         this.logicalModelMapper = logicalModelMapper;
         this.billingRuleMapper = billingRuleMapper;
+        this.providerAccountMapper = providerAccountMapper;
         this.modelConverter = modelConverter;
         this.trafficPolicySupport = trafficPolicySupport;
         this.usageExtractorCatalog = usageExtractorCatalog;
@@ -367,8 +372,9 @@ public class ModelService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择计费规则");
         }
         BillingRuleEntity billingRule = billingRuleMapper.getById(request.billingRuleId());
-        if (billingRule == null
-                || !matchesNullableScope(billingRule.getProviderId(), request.providerId())
+        ProviderAccountEntity account = providerAccountMapper.getById(request.providerId());
+        if (billingRule == null || account == null
+                || !matchesNullableScope(billingRule.getProviderCode(), account.getProviderCode())
                 || !matchesNullableScope(billingRule.getLogicalModelId(), request.logicalModelId())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "计费规则与供应商或统一模型不匹配");
         }
@@ -383,6 +389,10 @@ public class ModelService {
 
     private static boolean matchesNullableScope(Long ruleScopeId, Long selectedId) {
         return ruleScopeId == null || ruleScopeId.equals(selectedId);
+    }
+
+    private static boolean matchesNullableScope(String ruleScopeCode, String selectedCode) {
+        return ruleScopeCode == null || ruleScopeCode.equals(selectedCode);
     }
 
     private static String requireText(String value, String message) {

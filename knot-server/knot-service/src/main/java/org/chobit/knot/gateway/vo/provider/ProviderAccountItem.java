@@ -13,10 +13,10 @@ import java.time.LocalDateTime;
  * 且会把明文 apiKey 送到浏览器（2026-09-23 的凭据解析故障正是被这条路径放大）。
  * 新增字段前请先确认列表页确实会渲染它。
  *
- * <p>{@code providerId} 是例外：模型表单选择账户后需要用它（供应商主数据 id）
+ * <p>{@code providerCode} 是例外：模型表单选择账户后需要用它（供应商主数据 code）
  * 联动过滤计费规则，属选择器联动所需，非列表渲染字段。
  */
-public record ProviderAccountItem(Long id, Long providerId, String code, String providerName, String type,
+public record ProviderAccountItem(Long id, String providerCode, String code, String providerName, String type,
                                   String baseUrl, LocalDateTime createdAt, LocalDateTime updatedAt,
                                   boolean enabled) {
 }

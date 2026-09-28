@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 public class BillingRuleEntity {
     private Long id;
     private String code;
-    private Long providerId;
+    private String providerCode;
     private String providerName;
     private Long logicalModelId;
     private String logicalModelName;

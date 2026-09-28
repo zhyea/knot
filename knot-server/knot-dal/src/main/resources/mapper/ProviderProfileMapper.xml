@@ -27,6 +27,12 @@
         where id = #{id}
     </select>
 
+    <select id="getByCode" resultType="org.chobit.knot.gateway.entity.ProviderProfileEntity">
+        select <include refid="ProviderProfileColumns"/>
+        from kb_providers
+        where code = #{code}
+    </select>
+
     <select id="countByCode" resultType="java.lang.Long">
         select count(1)
         from kb_providers
@@ -37,7 +43,8 @@
     </select>
 
     <select id="countAccountsByProviderId" resultType="java.lang.Long">
-        select count(1) from kb_provider_accounts where provider_id = #{providerId}
+        select count(1) from kb_provider_accounts
+        where provider_code = (select code from kb_providers where id = #{providerId})
     </select>
 
     <select id="countCredentialsByProviderId" resultType="java.lang.Long">
@@ -57,7 +64,8 @@
     </select>
 
     <select id="countBillingRulesByProviderId" resultType="java.lang.Long">
-        select count(1) from kb_billing_rules where provider_account_id = #{providerId}
+        select count(1) from kb_billing_rules
+        where provider_code = (select code from kb_providers where id = #{providerId})
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">

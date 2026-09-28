@@ -7,10 +7,9 @@ import java.time.LocalDateTime;
 @Data
 public class ProviderAccountEntity {
     private Long id;
-    private Long providerId;
+    private String providerCode;
     private String providerName;
     private String code;
-    private String providerCode;
     private String baseUrl;
     private String status;
     private LocalDateTime createdAt;

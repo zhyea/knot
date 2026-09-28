@@ -263,14 +263,14 @@ CREATE TABLE IF NOT EXISTS kb_providers (
 
 CREATE TABLE IF NOT EXISTS kb_provider_accounts (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  provider_id BIGINT NOT NULL COMMENT '所属供应商主数据 ID',
+  provider_code VARCHAR(32) NOT NULL COMMENT '所属供应商 code（kb_providers.code）',
   code VARCHAR(32) NOT NULL,
   base_url VARCHAR(255) DEFAULT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_provider_accounts_code (code),
-  KEY idx_provider_accounts_provider (provider_id)
+  KEY idx_provider_accounts_provider (provider_code)
 );
 
 CREATE TABLE IF NOT EXISTS kb_provider_credentials (
@@ -494,7 +494,7 @@ CREATE TABLE IF NOT EXISTS kb_apps (
 
 CREATE TABLE IF NOT EXISTS kb_app_credentials (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  app_id BIGINT NOT NULL,
+  app_id VARCHAR(64) NOT NULL COMMENT '所属应用业务码（kb_apps.app_id），非主键 id',
   app_key VARCHAR(128) NOT NULL,
   app_secret_hash VARCHAR(255) NOT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
@@ -573,7 +573,7 @@ CREATE TABLE IF NOT EXISTS kb_routing_rule_targets (
 CREATE TABLE IF NOT EXISTS kb_billing_rules (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) NOT NULL,
-  provider_id BIGINT DEFAULT NULL,
+  provider_code VARCHAR(32) DEFAULT NULL,
   logical_model_id BIGINT DEFAULT NULL,
   current_version_id BIGINT DEFAULT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
@@ -582,7 +582,7 @@ CREATE TABLE IF NOT EXISTS kb_billing_rules (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_billing_rules_code (code),
-  KEY idx_billing_rules_match (provider_id, logical_model_id, status, is_deleted)
+  KEY idx_billing_rules_match (provider_code, logical_model_id, status, is_deleted)
 );
 
 CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (

@@ -24,7 +24,7 @@ public interface ProviderConverter {
     ProviderAccountDto toDto(ProviderAccountEntity entity);
 
     @Mapping(source = "enabled", target = "status", qualifiedByName = "enabledToStatus")
-    @Mapping(target = "providerCode", ignore = true)
+    @Mapping(target = "providerName", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     ProviderAccountEntity toEntity(ProviderAccountDto dto);

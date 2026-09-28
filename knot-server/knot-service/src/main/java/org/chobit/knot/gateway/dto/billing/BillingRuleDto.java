@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 public record BillingRuleDto(
         Long id,
         String code,
-        Long providerId,
+        String providerCode,
         String providerName,
         Long logicalModelId,
         String logicalModelName,

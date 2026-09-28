@@ -70,10 +70,10 @@ public class BillingService {
     /**
      * Lists matching results. Executes the public operation.
      */
-    public PageResult<BillingRuleDto> listRules(PageRequest pageRequest, String keyword, Long providerId, Long logicalModelId) {
+    public PageResult<BillingRuleDto> listRules(PageRequest pageRequest, String keyword, String providerCode, Long logicalModelId) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<BillingRuleEntity> pageInfo = new PageInfo<>(
-                    billingRuleMapper.list(normalizeKeyword(keyword), providerId, logicalModelId)
+                    billingRuleMapper.list(normalizeKeyword(keyword), providerCode, logicalModelId)
             );
             return PageResult.fromPage(pageInfo, list -> list.stream().map(billingConverter::toRuleDto).toList(), pageRequest);
         }
@@ -116,7 +116,7 @@ public class BillingService {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("id", dto.id());
             m.put("code", dto.code());
-            m.put("providerId", dto.providerId());
+            m.put("providerCode", dto.providerCode());
             m.put("providerName", dto.providerName());
             m.put("logicalModelId", dto.logicalModelId());
             m.put("logicalModelName", dto.logicalModelName());
@@ -315,7 +315,7 @@ public class BillingService {
 
     private void applyRule(BillingRuleEntity entity, BillingRuleDto request) {
         entity.setCode(normalizeCode(request.code()));
-        entity.setProviderId(request.providerId());
+        entity.setProviderCode(request.providerCode());
         entity.setLogicalModelId(request.logicalModelId());
         entity.setRemark(blankToNull(request.remark()));
         entity.setStatus(request.enabled() ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code());
@@ -350,7 +350,7 @@ public class BillingService {
 
     private String buildVersionCode(BillingRuleDto request) {
         Map<String, Object> versionPayload = new LinkedHashMap<>();
-        versionPayload.put("providerId", request.providerId());
+        versionPayload.put("providerCode", request.providerCode());
         versionPayload.put("logicalModelId", request.logicalModelId());
         versionPayload.put("billingMode", normalizeBillingMode(request.billingMode()));
         versionPayload.put("currency", normalizeCurrency(request.currency()));

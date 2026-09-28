@@ -13,7 +13,7 @@ import java.util.List;
 public interface BillingRuleMapper {
 
     List<BillingRuleEntity> list(@Param("keyword") String keyword,
-                                 @Param("providerId") Long providerId,
+                                 @Param("providerCode") String providerCode,
                                  @Param("logicalModelId") Long logicalModelId);
 
     BillingRuleEntity getById(Long id);
@@ -25,7 +25,7 @@ public interface BillingRuleMapper {
     BillingRuleEntity getActiveByRuleId(@Param("ruleId") Long ruleId,
                                         @Param("effectiveAt") LocalDateTime effectiveAt);
 
-    List<BillingRuleEntity> listActiveCandidates(@Param("providerId") Long providerId,
+    List<BillingRuleEntity> listActiveCandidates(@Param("providerCode") String providerCode,
                                                  @Param("modelId") Long modelId,
                                                  @Param("effectiveAt") LocalDateTime effectiveAt);
 
