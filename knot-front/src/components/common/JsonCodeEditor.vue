@@ -53,7 +53,9 @@ const props = defineProps({
   modelValue: {type: String, default: ""},
   readonly: {type: Boolean, default: false},
   minHeight: {type: String, default: "180px"},
-  maxHeight: {type: String, default: "420px"}
+  maxHeight: {type: String, default: "420px"},
+  /** 固定滚动容器高度；只设置 max-height 时，el-scrollbar 无法稳定计算滚动区域 */
+  height: {type: String, default: ""}
 });
 
 const emit = defineEmits(["update:modelValue"]);
