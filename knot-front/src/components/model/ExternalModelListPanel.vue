@@ -26,6 +26,7 @@
             :actions="[
               { key: 'view', label: '查看', icon: View },
               { key: 'create', label: '一键创建统一模型', icon: Plus, hidden: row.logicalModelId },
+              { key: row.ignored ? 'unignore' : 'ignore', label: row.ignored ? '解除忽略' : '忽略', icon: row.ignored ? View : Hide },
               { key: 'delete', label: '删除', icon: Delete, type: 'danger', confirm: '确认物理删除该外部模型？' }
             ]"
             @action="(action) => emit('action', action, row)"
@@ -47,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import {Delete, Plus, View} from "@element-plus/icons-vue";
+import {Delete, Hide, Plus, View} from "@element-plus/icons-vue";
 import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";

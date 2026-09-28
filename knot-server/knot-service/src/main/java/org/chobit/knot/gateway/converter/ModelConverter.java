@@ -23,6 +23,9 @@ public interface ModelConverter {
     @Mapping(source = "enabled", target = "status", qualifiedByName = "enabledToStatus")
     @Mapping(target = "providerName", ignore = true)
     @Mapping(target = "billingRuleName", ignore = true)
+    // name/modelType 派生自绑定的统一模型，不允许从请求写回
+    @Mapping(target = "name", ignore = true)
+    @Mapping(target = "modelType", ignore = true)
     ModelEntity toEntity(ModelDto dto);
 
     List<ModelDto> toDtoList(List<ModelEntity> entities);

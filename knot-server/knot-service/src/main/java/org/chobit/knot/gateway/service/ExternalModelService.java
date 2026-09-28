@@ -120,7 +120,6 @@ public class ExternalModelService {
                 item.getModelType() != null ? item.getModelType() : "CHAT",
                 item.getModelFamily(),
                 item.getModelName(),
-                firstSentence(item.getDescription()),
                 item.getDescription(),
                 readStringList(item.getTagsJson()),
                 List.of(),
@@ -204,6 +203,13 @@ public class ExternalModelService {
         return externalModelMapper.deleteItems(itemIds);
     }
 
+    @Transactional
+    public void setIgnored(Long itemId, boolean ignored) {
+        if (externalModelMapper.updateItemIgnored(itemId, ignored) == 0) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "external model item not found");
+        }
+    }
+
     private String generateModelCode(ExternalModelItemEntity item) {
         String base = slug(item.getNormalizedName() != null ? item.getNormalizedName() : item.getModelName());
         if (base.isBlank()) {
@@ -227,14 +233,6 @@ public class ExternalModelService {
         v = Pattern.compile("[^a-z0-9]+").matcher(v).replaceAll("-");
         v = Pattern.compile("(^-+|-+$)").matcher(v).replaceAll("");
         return v.length() > 96 ? v.substring(0, 96) : v;
-    }
-
-    private String firstSentence(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.length() <= 120 ? trimmed : trimmed.substring(0, 120);
     }
 
     private List<String> readStringList(String json) {

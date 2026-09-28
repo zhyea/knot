@@ -264,17 +264,17 @@ INSERT IGNORE INTO kb_provider_discount_policies (id, provider_account_id, polic
 (3, 3, '直减5元',     'GLOBAL',   NULL, 'FIXED',      5.0000, 100, NOW(), 'ACTIVE');
 
 -- 模型
-INSERT IGNORE INTO kb_models (id, provider_account_id, model_code, name, model_type, version, base_url, status) VALUES
-(1,  1, 'gpt-4o',            'GPT-4o',            'CHAT',   '2024-08-06', 'https://api.openai.com', 'ENABLED'),
-(2,  1, 'gpt-4o-mini',       'GPT-4o Mini',       'CHAT',   '2024-07-18', 'https://api.openai.com', 'ENABLED'),
-(3,  1, 'text-embedding-3-large','Text Embedding 3 Large','EMBEDDING','2024-01-01','https://api.openai.com','ENABLED'),
-(4,  2, 'claude-sonnet-4-20250514','Claude Sonnet 4','CHAT', '2025-05-14','https://api.anthropic.com','ENABLED'),
-(5,  2, 'claude-haiku-3-5-20241022','Claude 3.5 Haiku','CHAT','2024-10-22','https://api.anthropic.com','ENABLED'),
-(6,  3, 'deepseek-chat',     'DeepSeek Chat',     'CHAT',   '2024-08-01', 'https://api.deepseek.com', 'ENABLED'),
-(7,  3, 'deepseek-reasoner', 'DeepSeek Reasoner', 'CHAT',   '2025-01-20', 'https://api.deepseek.com', 'ENABLED'),
-(8,  4, 'qwen-image',        'Qwen Image',        'IMAGE',  '2025-08-01', 'https://dashscope.aliyuncs.com', 'ENABLED'),
-(9,  4, 'qwen-image-edit',   'Qwen Image Edit',   'IMAGE',  '2025-08-01', 'https://dashscope.aliyuncs.com', 'ENABLED'),
-(10, 1, 'gpt-image-1',       'GPT Image 1',       'IMAGE',  '2025-04-01', 'https://api.openai.com', 'ENABLED');
+INSERT IGNORE INTO kb_models (id, provider_account_id, model_code, version, base_url, status) VALUES
+(1,  1, 'gpt-4o',            '2024-08-06', 'https://api.openai.com', 'ENABLED'),
+(2,  1, 'gpt-4o-mini',       '2024-07-18', 'https://api.openai.com', 'ENABLED'),
+(3,  1, 'text-embedding-3-large','2024-01-01','https://api.openai.com','ENABLED'),
+(4,  2, 'claude-sonnet-4-20250514','2025-05-14','https://api.anthropic.com','ENABLED'),
+(5,  2, 'claude-haiku-3-5-20241022','2024-10-22','https://api.anthropic.com','ENABLED'),
+(6,  3, 'deepseek-chat',     '2024-08-01', 'https://api.deepseek.com', 'ENABLED'),
+(7,  3, 'deepseek-reasoner', '2025-01-20', 'https://api.deepseek.com', 'ENABLED'),
+(8,  4, 'qwen-image',        '2025-08-01', 'https://dashscope.aliyuncs.com', 'ENABLED'),
+(9,  4, 'qwen-image-edit',   '2025-08-01', 'https://dashscope.aliyuncs.com', 'ENABLED'),
+(10, 1, 'gpt-image-1',       '2025-04-01', 'https://api.openai.com', 'ENABLED');
 
 INSERT IGNORE INTO kb_model_pools (id, pool_code, name, model_type, selection_strategy, status, remark) VALUES
 (1, 'chat-premium-pool', 'Premium Chat Pool', 'CHAT', 'WEIGHTED', 'ENABLED', 'Premium chat routing pool'),
@@ -287,21 +287,21 @@ INSERT IGNORE INTO kb_model_pool_items (id, pool_id, model_id, weight, priority,
 (4, 2, 6, 40, 20, 'ENABLED');
 
 INSERT IGNORE INTO kb_logical_models (
-  id, model_code, model_name, model_type, model_family, display_name, tagline, description,
+  id, model_code, model_name, model_type, model_family, display_name, description,
   tags_json, use_cases_json, context_window, max_output_tokens,
   input_modalities_json, output_modalities_json, languages_json,
   visibility, publish_status, status, sort_order, featured,
   remark
 ) VALUES
 (1, 'knot-chat-premium', 'Knot Chat Premium', 'CHAT', 'omni',
- 'Knot Chat Premium', 'High quality chat model for complex tasks',
+ 'Knot Chat Premium',
  'A logical chat model that routes to premium provider models by policy.',
  JSON_ARRAY('chat', 'reasoning', 'premium'),
  JSON_ARRAY('knowledge assistant', 'research', 'complex analysis'),
  200000, 8192, JSON_ARRAY('text', 'image'), JSON_ARRAY('text'), JSON_ARRAY('zh-CN', 'en-US'),
   'PUBLIC', 'PUBLISHED', 'ENABLED', 10, 1, 'Premium provider route'),
 (2, 'knot-chat-economy', 'Knot Chat Economy', 'CHAT', 'general',
- 'Knot Chat Economy', 'Cost effective chat model for daily workloads',
+ 'Knot Chat Economy',
  'A logical chat model that routes to economical provider models.',
  JSON_ARRAY('chat', 'economy'),
  JSON_ARRAY('customer service', 'daily assistant'),

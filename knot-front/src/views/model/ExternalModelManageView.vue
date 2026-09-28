@@ -91,6 +91,7 @@ import {
   getExternalModelItem,
   listExternalModelItems,
   listExternalModelSources,
+  setExternalModelIgnored,
   syncExternalModelSource
 } from "@/api/externalModels";
 
@@ -138,6 +139,15 @@ async function handleAction(action: string, row: Row) {
   if (action === "view") await openDetail(row);
   if (action === "create") await createOne(row);
   if (action === "delete") await deleteOne(row);
+  if (action === "ignore" || action === "unignore") await toggleIgnored(row);
+}
+
+async function toggleIgnored(row: Row) {
+  const ignored = !Boolean(row.ignored);
+  await setExternalModelIgnored(row.id, ignored);
+  ElMessage.success(ignored ? "已忽略外部模型" : "已解除忽略");
+  selectedRows.value = [];
+  await resetPage();
 }
 
 function handleSelectionChange(selection: Row[]) {

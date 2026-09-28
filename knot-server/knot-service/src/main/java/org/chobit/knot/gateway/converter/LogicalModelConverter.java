@@ -31,7 +31,6 @@ public class LogicalModelConverter {
                 entity.getModelType(),
                 entity.getModelFamily(),
                 entity.getDisplayName(),
-                entity.getTagline(),
                 entity.getDescription(),
                 toStringList(entity.getTagsJson()),
                 toStringList(entity.getUseCasesJson()),
@@ -63,7 +62,6 @@ public class LogicalModelConverter {
         entity.setModelType(dto.modelType());
         entity.setModelFamily(dto.modelFamily());
         entity.setDisplayName(dto.displayName());
-        entity.setTagline(dto.tagline());
         entity.setDescription(dto.description());
         entity.setTagsJson(toJson(dto.tags()));
         entity.setUseCasesJson(toJson(dto.useCases()));
@@ -87,7 +85,7 @@ public class LogicalModelConverter {
     public LogicalModelDto withMappings(LogicalModelDto base, List<ProviderModelMappingDto> mappings) {
         return new LogicalModelDto(
                 base.id(), base.modelCode(), base.modelName(), base.modelType(), base.modelFamily(),
-                base.displayName(), base.tagline(), base.description(),
+                base.displayName(), base.description(),
                 base.tags(), base.useCases(), base.contextWindow(), base.maxOutputTokens(),
                 base.inputModalities(), base.outputModalities(), base.languages(),
                 base.visibility(), base.publishStatus(), base.enabled(), base.sortOrder(), base.featured(),
@@ -105,7 +103,7 @@ public class LogicalModelConverter {
         }
         return new LogicalModelItem(
                 dto.id(), dto.modelCode(), dto.modelName(), dto.modelType(), dto.modelFamily(),
-                dto.displayName(), dto.tagline(), dto.description(),
+                dto.displayName(), dto.description(),
                 dto.tags(), dto.useCases(), dto.contextWindow(), dto.maxOutputTokens(),
                 dto.inputModalities(), dto.outputModalities(), dto.languages(),
                 dto.visibility(), dto.publishStatus(), dto.enabled(), dto.sortOrder(), dto.featured(),
@@ -120,7 +118,7 @@ public class LogicalModelConverter {
     public LogicalModelDto toDto(LogicalModelItem item) {
         return new LogicalModelDto(
                 item.id(), item.modelCode(), item.modelName(), item.modelType(), item.modelFamily(),
-                item.displayName(), item.tagline(), item.description(),
+                item.displayName(), item.description(),
                 safeList(item.tags()), safeList(item.useCases()),
                 item.contextWindow(), item.maxOutputTokens(), safeList(item.inputModalities()),
                 safeList(item.outputModalities()), safeList(item.languages()),

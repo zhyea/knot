@@ -93,4 +93,9 @@ public class ExternalModelController {
     public int deleteItems(@RequestBody List<Long> ids) {
         return externalModelService.deleteItems(ids);
     }
+
+    @PostMapping("/items/{id}/ignored")
+    public void setIgnored(@PathVariable Long id, @RequestParam boolean ignored) {
+        externalModelService.setIgnored(id, ignored);
+    }
 }

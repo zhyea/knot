@@ -40,6 +40,7 @@ public class ExternalModelItemEntity {
     private String capabilitiesJson;
     private Integer maxCompletionTokens;
     private Long logicalModelId;
+    private Boolean ignored;
     private String syncStatus;
     private String syncHash;
     private LocalDateTime lastSeenAt;

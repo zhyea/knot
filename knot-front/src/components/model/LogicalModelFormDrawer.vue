@@ -54,18 +54,9 @@
           </el-col>
         </el-row>
 
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="展示名称">
-              <el-input v-model="form.displayName" placeholder="统一模型展示名称" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="一句话介绍">
-              <el-input v-model="form.tagline" maxlength="255" show-word-limit />
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <el-form-item label="展示名称">
+          <el-input v-model="form.displayName" placeholder="统一模型展示名称" />
+        </el-form-item>
         <el-form-item label="模型说明">
           <el-input v-model="form.description" type="textarea" :rows="3" />
         </el-form-item>
@@ -226,7 +217,6 @@ interface LogicalModelForm {
   modelType: string;
   modelFamily: string;
   displayName: string;
-  tagline: string;
   description: string;
   tags: string[];
   useCases: string[];
@@ -251,7 +241,6 @@ function defaultForm(): LogicalModelForm {
     modelType: "CHAT",
     modelFamily: "",
     displayName: "",
-    tagline: "",
     description: "",
     tags: [],
     useCases: [],

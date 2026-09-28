@@ -32,3 +32,7 @@ export function deleteExternalModelItem(id: number | string) {
 export function deleteExternalModelItems(ids: (number | string)[]) {
   return post("/api/external-models/items/batch-delete", ids);
 }
+
+export function setExternalModelIgnored(id: number | string, ignored: boolean) {
+  return post(`/api/external-models/items/${id}/ignored?ignored=${ignored}`, {});
+}

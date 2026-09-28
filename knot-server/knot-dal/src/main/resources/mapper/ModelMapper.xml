@@ -2,8 +2,14 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.gateway.mapper.ModelMapper">
 
+    <!-- 名称与模型类型不再落 kb_models，从绑定的统一模型（1:1 映射）派生 -->
+    <sql id="modelNameExpr">(select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.id = pm2.logical_model_id where pm2.model_id = m.id order by pm2.id asc limit 1)</sql>
+    <sql id="modelTypeExpr">(select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.id = pm2.logical_model_id where pm2.model_id = m.id order by pm2.id asc limit 1)</sql>
+
     <sql id="ModelSelectColumns">
-        m.id, m.provider_account_id AS provider_id, m.model_code, m.name, m.model_type, m.version, m.base_url, m.billing_rule_id, m.status,
+        m.id, m.provider_account_id AS provider_id, m.model_code, m.version, m.base_url, m.remark, m.billing_rule_id, m.status,
+        <include refid="modelNameExpr"/> AS name,
+        <include refid="modelTypeExpr"/> AS model_type,
         p.name AS provider_name, br.name AS billing_rule_name
     </sql>
 
@@ -17,12 +23,12 @@
             <if test="keyword != null and keyword != ''">
                 and (
                     m.model_code like concat('%', #{keyword}, '%')
-                    or m.name like concat('%', #{keyword}, '%')
+                    or <include refid="modelNameExpr"/> like concat('%', #{keyword}, '%')
                     or p.name like concat('%', #{keyword}, '%')
                 )
             </if>
             <if test="modelTypes != null and modelTypes.size() > 0">
-                and m.model_type in
+                and <include refid="modelTypeExpr"/> in
                 <foreach collection="modelTypes" item="type" open="(" separator="," close=")">
                     #{type}
                 </foreach>
@@ -41,18 +47,17 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_models(provider_account_id, model_code, name, model_type, version, base_url, billing_rule_id, status)
-        values(#{providerId}, #{modelCode}, #{name}, #{modelType}, #{version}, #{baseUrl}, #{billingRuleId}, #{status})
+        insert into kb_models(provider_account_id, model_code, version, base_url, remark, billing_rule_id, status)
+        values(#{providerId}, #{modelCode}, #{version}, #{baseUrl}, #{remark}, #{billingRuleId}, #{status})
     </insert>
 
     <update id="update">
         update kb_models
         set provider_account_id = #{providerId},
             model_code = #{modelCode},
-            name = #{name},
-            model_type = #{modelType},
             version = #{version},
             base_url = #{baseUrl},
+            remark = #{remark},
             billing_rule_id = #{billingRuleId},
             status = #{status}
         where id = #{id}

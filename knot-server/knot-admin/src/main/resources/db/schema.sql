@@ -307,10 +307,9 @@ CREATE TABLE IF NOT EXISTS kb_models (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   provider_account_id BIGINT NOT NULL,
   model_code VARCHAR(128) NOT NULL,
-  name VARCHAR(100) NOT NULL,
-  model_type VARCHAR(64) NOT NULL,
   version VARCHAR(64) NOT NULL,
   base_url VARCHAR(255) DEFAULT NULL,
+  remark VARCHAR(255) DEFAULT NULL,
   billing_rule_id BIGINT DEFAULT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'DISABLED',
   tags_json JSON DEFAULT NULL,
@@ -356,7 +355,6 @@ CREATE TABLE IF NOT EXISTS kb_logical_models (
   model_type VARCHAR(64) NOT NULL,
   model_family VARCHAR(64) DEFAULT NULL,
   display_name VARCHAR(128) DEFAULT NULL,
-  tagline VARCHAR(255) DEFAULT NULL,
   description TEXT DEFAULT NULL,
   tags_json JSON DEFAULT NULL,
   use_cases_json JSON DEFAULT NULL,
@@ -443,6 +441,7 @@ CREATE TABLE IF NOT EXISTS kx_model_items (
   capabilities_json JSON DEFAULT NULL,
   max_completion_tokens INT DEFAULT NULL,
   logical_model_id BIGINT DEFAULT NULL,
+  ignored TINYINT NOT NULL DEFAULT 0,
   sync_status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
   sync_hash VARCHAR(64) DEFAULT NULL,
   last_seen_at DATETIME DEFAULT NULL,
@@ -452,6 +451,7 @@ CREATE TABLE IF NOT EXISTS kx_model_items (
   KEY idx_external_model_logical_model (logical_model_id),
   KEY idx_external_model_provider (provider_code),
   KEY idx_external_model_created_time (model_created_at),
+  KEY idx_external_model_ignored (ignored),
   KEY idx_external_model_sync_status (sync_status)
 );
 

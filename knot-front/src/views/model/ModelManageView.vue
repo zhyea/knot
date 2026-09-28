@@ -106,7 +106,7 @@ async function openCopy(row: Row) {
 
 function openChangeLog(row: Row) {
   logModelId.value = row.id;
-  logModelName.value = row.name || row.modelCode || `#${row.id}`;
+  logModelName.value = row.modelCode || `#${row.id}`;
   logDrawer.value = true;
 }
 
@@ -119,7 +119,6 @@ function buildModelCopy(source: Dict = {}): Dict {
     ...source,
     id: null,
     modelCode: copyModelCode(source.modelCode),
-    name: source.name ? `${source.name} Copy` : "",
     enabled: false,
     apiBindings: Array.isArray(source.apiBindings)
       ? source.apiBindings.map((item) => ({ ...item, id: null }))

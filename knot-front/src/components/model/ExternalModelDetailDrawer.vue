@@ -8,7 +8,9 @@
     @update:model-value="emit('update:modelValue', $event)"
   >
     <el-scrollbar max-height="calc(100vh - 140px)">
-      <el-descriptions v-if="detail" :column="1" border class="external-model-detail">
+      <el-tabs v-if="detail" type="border-card">
+        <el-tab-pane label="表格">
+        <el-descriptions :column="1" border class="external-model-detail">
         <el-descriptions-item label="模型名称">{{ detail.modelName || "—" }}</el-descriptions-item>
         <el-descriptions-item label="模型 ID">{{ detail.modelId || "—" }}</el-descriptions-item>
         <el-descriptions-item label="Slug">{{ detail.canonicalSlug || "—" }}</el-descriptions-item>
@@ -27,9 +29,12 @@
           <span v-else>—</span>
         </el-descriptions-item>
         <el-descriptions-item label="描述">{{ detail.description || "—" }}</el-descriptions-item>
-      </el-descriptions>
-      <div class="raw-title">原始数据</div>
-      <JsonCodeEditor :model-value="rawJsonText" readonly min-height="225px" max-height="560px"/>
+        </el-descriptions>
+        </el-tab-pane>
+        <el-tab-pane label="JSON">
+          <JsonCodeEditor :model-value="rawJsonText" readonly min-height="225px" max-height="560px"/>
+        </el-tab-pane>
+      </el-tabs>
     </el-scrollbar>
   </el-drawer>
 </template>
@@ -75,10 +80,4 @@ function formatArray(value: unknown): string {
   word-break: break-word;
 }
 
-.raw-title {
-  margin: 18px 0 8px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--knot-text, #303133);
-}
 </style>

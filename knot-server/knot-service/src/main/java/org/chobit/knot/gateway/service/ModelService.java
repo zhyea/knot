@@ -197,7 +197,6 @@ public class ModelService {
         String modelType = validateModelRequest(request);
         ModelEntity entity = modelConverter.toEntity(request);
         entity.setModelCode(modelCode);
-        entity.setModelType(modelType);
         modelMapper.insert(entity);
         trafficPolicySupport.save(
                 TrafficResourceTypeEnum.MODEL.code(),
@@ -225,7 +224,6 @@ public class ModelService {
         ModelEntity entity = modelConverter.toEntity(request);
         entity.setId(id);
         entity.setModelCode(modelCode);
-        entity.setModelType(modelType);
         modelMapper.update(entity);
         trafficPolicySupport.save(
                 TrafficResourceTypeEnum.MODEL.code(),
@@ -241,29 +239,32 @@ public class ModelService {
     }
 
     /**
-     * Updates the model enabled status only.
+     * Updates the model enabled status only. Enabling runs full validation; disabling skips it.
      */
     @Transactional
     public ModelDto updateStatus(Long id, boolean enabled) {
         ModelDto existing = getById(id);
-        ModelDto request = new ModelDto(
-                existing.id(),
-                existing.modelCode(),
-                existing.name(),
-                existing.providerId(),
-                existing.providerName(),
-                existing.modelType(),
-                existing.version(),
-                existing.baseUrl(),
-                enabled,
-                existing.logicalModelId(),
-                existing.billingRuleId(),
-                existing.billingRuleName(),
-                existing.rateLimitPolicy(),
-                existing.quotaPolicy(),
-                existing.apiBindings()
-        );
-        validateModelRequest(request);
+        if (enabled) {
+            ModelDto request = new ModelDto(
+                    existing.id(),
+                    existing.modelCode(),
+                    existing.name(),
+                    existing.providerId(),
+                    existing.providerName(),
+                    existing.modelType(),
+                    existing.version(),
+                    existing.baseUrl(),
+                    existing.remark(),
+                    enabled,
+                    existing.logicalModelId(),
+                    existing.billingRuleId(),
+                    existing.billingRuleName(),
+                    existing.rateLimitPolicy(),
+                    existing.quotaPolicy(),
+                    existing.apiBindings()
+            );
+            validateModelRequest(request);
+        }
         modelMapper.updateStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
         return getById(id);
     }
@@ -316,6 +317,7 @@ public class ModelService {
                 base.modelType(),
                 base.version(),
                 base.baseUrl(),
+                base.remark(),
                 base.enabled(),
                 resolveLogicalModelId(base.id()),
                 base.billingRuleId(),
@@ -326,13 +328,13 @@ public class ModelService {
         );
     }
 
+    /**
+     * 名称与模型类型不再由请求提供：模型类型取自绑定统一模型的 modelType，名称同样派生自统一模型。
+     */
     private String validateModelRequest(ModelDto request) {
-        requireText(request.name(), "请填写名称");
         if (request.providerId() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择供应商");
         }
-        requireText(request.modelType(), "请选择模型类型");
-        String modelType = ModelTypeEnum.requireCode(request.modelType(), "不支持的模型类型，请重新选择");
         if (request.logicalModelId() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择统一模型");
         }
@@ -343,6 +345,7 @@ public class ModelService {
         if (!EntityStatusEnum.ENABLED.code().equals(logicalModel.getStatus())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "只能绑定已启用的统一模型");
         }
+        String modelType = ModelTypeEnum.requireCode(logicalModel.getModelType(), "绑定的统一模型缺少模型类型");
         String baseUrl = blankToNull(request.baseUrl());
         if (request.billingRuleId() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择计费规则");
@@ -355,8 +358,6 @@ public class ModelService {
         }
         if (request.enabled()) {
             requireText(request.modelCode(), "请填写模型编码");
-            requireText(request.name(), "请填写名称");
-            requireText(request.modelType(), "请选择模型类型");
             if (baseUrl == null) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请填写 Base URL");
             }

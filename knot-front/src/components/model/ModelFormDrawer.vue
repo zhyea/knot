@@ -14,7 +14,7 @@
           <div class="section-head">
             <div>
               <h3>基础信息</h3>
-              <p>维护供应商模型编码、名称、类型、版本以及上游基础地址。</p>
+              <p>维护供应商模型编码、版本以及上游基础地址；名称与类型由绑定的统一模型派生。</p>
             </div>
             <el-form-item label="启用" class="inline-switch">
               <el-switch v-model="form.enabled" :before-change="beforeEnableChange"/>
@@ -32,19 +32,6 @@
                   :disabled="modelCodeChecking"
                   @blur="validateModelCode"
                 />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="名称" required>
-                <el-input v-model="form.name" placeholder="请输入模型名称"/>
-              </el-form-item>
-            </el-col>
-          </el-row>
-
-          <el-row :gutter="16" class="form-grid">
-            <el-col :span="12">
-              <el-form-item label="模型类型" required>
-                <EnumControl v-model="form.modelType" enum-name="ModelTypeEnum"/>
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -72,6 +59,17 @@
               </el-form-item>
             </el-col>
           </el-row>
+
+          <el-form-item label="备注">
+            <el-input
+              v-model="form.remark"
+              type="textarea"
+              :rows="2"
+              maxlength="255"
+              show-word-limit
+              placeholder="选填，记录模型用途、注意事项等"
+            />
+          </el-form-item>
         </div>
 
         <div class="space-line"/>
@@ -366,7 +364,7 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue", "saved"]);
 
-const {loadOptions: loadModelTypes, protocolsOf, defaultCode} = useModelTypes();
+const {loadOptions: loadModelTypes, protocolsOf} = useModelTypes();
 const logicalModelOptions = ref<Row[]>([]);
 const billingRuleOptions = ref<Row[]>([]);
 const usageExtractorOptions = ref<Row[]>([]);
@@ -383,12 +381,11 @@ const MODEL_CODE_MAX_LEN = 128;
 interface ModelFormState {
   id: number | string | null;
   modelCode: string;
-  name: string;
   baseUrl: string;
+  remark: string;
   providerId: number | string | null;
   logicalModelId: number | string | null;
   billingRuleId: number | string | null;
-  modelType: string;
   version: string;
   enabled: boolean;
   rateLimitPolicy: Dict;
@@ -399,12 +396,11 @@ interface ModelFormState {
 const form = reactive<ModelFormState>({
   id: null,
   modelCode: "",
-  name: "",
   baseUrl: "",
+  remark: "",
   providerId: null,
   logicalModelId: null,
   billingRuleId: null,
-  modelType: "",
   version: "1.0.0",
   enabled: false,
   rateLimitPolicy: emptyRateLimitPolicy(),
@@ -439,7 +435,9 @@ const billingRuleFilterParams = computed(() => ({
 const streamUsageExtractorOptions = computed(() =>
   usageExtractorOptions.value.filter((item) => item.streamSupported !== false)
 );
-const allowedApiProtocolCodes = computed(() => allowedProtocolsForModelType(form.modelType));
+const allowedApiProtocolCodes = computed(() =>
+  allowedProtocolsForModelType(String(selectedLogicalModel.value?.modelType || ""))
+);
 
 async function loadLogicalModels(params = {pageNum: 1, pageSize: 10}) {
   const data = await listLogicalModels(params);
@@ -506,12 +504,11 @@ function onProviderAccountChange(account: Row) {
 function fillForm(row: Row) {
   form.id = row.id;
   form.modelCode = row.modelCode || "";
-  form.name = row.name || "";
   form.baseUrl = row.baseUrl || "";
+  form.remark = row.remark || "";
   form.providerId = row.providerId ?? null;
   form.logicalModelId = row.logicalModelId ?? null;
   form.billingRuleId = row.billingRuleId ?? null;
-  form.modelType = row.modelType || "";
   form.version = row.version || "1.0.0";
   form.enabled = row.enabled === true;
   form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
@@ -549,7 +546,7 @@ watch(
 );
 
 watch(
-  () => form.modelType,
+  () => selectedLogicalModel.value?.modelType,
   () => {
     if (!props.modelValue || resettingForm.value) {
       return;
@@ -579,12 +576,11 @@ async function resetForm() {
     } else {
       form.id = null;
       form.modelCode = "";
-      form.name = "";
       form.baseUrl = "";
+      form.remark = "";
       form.providerId = null;
       form.logicalModelId = null;
       form.billingRuleId = null;
-      form.modelType = defaultCode.value || "CHAT";
       form.version = "1.0.0";
       form.enabled = false;
       form.rateLimitPolicy = emptyRateLimitPolicy();
@@ -651,10 +647,8 @@ async function validateModelCode() {
 function validateRequired(showMessage = true) {
   const checks: Array<[unknown, string]> = [
     [form.modelCode?.trim(), "请填写模型编码"],
-    [form.name?.trim(), "请填写名称"],
     [form.baseUrl?.trim(), "请填写 Base URL"],
     [form.providerId, "请选择供应商账户"],
-    [form.modelType?.trim(), "请选择模型类型"],
     [form.logicalModelId, "请选择统一模型"],
     [form.billingRuleId, "请选择计费规则"]
   ];
@@ -785,12 +779,11 @@ function buildApiBindingsPayload() {
 function buildPayload() {
   return {
     modelCode: form.modelCode?.trim(),
-    name: form.name?.trim(),
     baseUrl: form.baseUrl?.trim() || null,
+    remark: form.remark?.trim() || null,
     providerId: form.providerId,
     logicalModelId: form.logicalModelId,
     billingRuleId: form.billingRuleId,
-    modelType: form.modelType,
     version: form.version,
     enabled: form.enabled,
     rateLimitPolicy: isEmptyRateLimitPolicy(form.rateLimitPolicy) ? null : normalizeRateLimitPolicy(form.rateLimitPolicy),

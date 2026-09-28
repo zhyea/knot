@@ -15,7 +15,7 @@
               {{ tag }}
             </el-tag>
           </div>
-          <p class="tagline">{{ row.tagline || row.description || "暂无介绍" }}</p>
+          <p class="tagline">{{ row.description || "暂无介绍" }}</p>
           <div class="card-footer">
             <div class="footer-meta">
               <strong>{{ row.modelFamily || "-" }}</strong>

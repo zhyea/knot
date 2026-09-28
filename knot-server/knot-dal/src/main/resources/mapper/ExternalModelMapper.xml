@@ -16,7 +16,7 @@
         supported_voices_json, knowledge_cutoff, expiration_date, raw_json,
         normalized_name, model_family, model_type, tags_json, capabilities_json,
         max_completion_tokens,
-        logical_model_id, sync_status, sync_hash, last_seen_at,
+        logical_model_id, ignored, sync_status, sync_hash, last_seen_at,
         created_at, updated_at
     </sql>
 
@@ -71,7 +71,7 @@
                 </foreach>
             </if>
         </where>
-        order by coalesce(model_created_at, created_at) desc, id desc
+        order by ignored asc, coalesce(model_created_at, created_at) desc, id desc
     </select>
 
     <select id="getItemById" resultType="org.chobit.knot.gateway.entity.ExternalModelItemEntity">
@@ -172,5 +172,11 @@
         update kx_model_items
         set logical_model_id = null
         where logical_model_id = #{logicalModelId}
+    </update>
+
+    <update id="updateItemIgnored">
+        update kx_model_items
+        set ignored = #{ignored}
+        where id = #{id}
     </update>
 </mapper>

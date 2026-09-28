@@ -4,7 +4,7 @@
 
     <sql id="LogicalModelColumns">
         id, model_code, model_name, model_type, model_family,
-        display_name, tagline, description,
+        display_name, description,
         tags_json, use_cases_json,
         context_window, max_output_tokens,
         input_modalities_json, output_modalities_json, languages_json,
@@ -15,7 +15,8 @@
     <sql id="MappingColumns">
         pm.id, pm.logical_model_id, lm.model_code AS logical_model_code, lm.model_name AS logical_model_name,
         pm.provider_account_id AS provider_id, p.name AS provider_name,
-        pm.model_id, m.model_code, m.name AS model_name,
+        pm.model_id, m.model_code,
+        (select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.id = pm2.logical_model_id where pm2.model_id = m.id order by pm2.id asc limit 1) AS model_name,
         pm.provider_model_name, pm.status, pm.priority, pm.created_at, pm.updated_at
     </sql>
 
@@ -65,7 +66,7 @@
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into kb_logical_models(
             model_code, model_name, model_type, model_family,
-            display_name, tagline, description,
+            display_name, description,
             tags_json, use_cases_json,
             context_window, max_output_tokens,
             input_modalities_json, output_modalities_json, languages_json,
@@ -73,7 +74,7 @@
             remark
         ) values (
             #{modelCode}, #{modelName}, #{modelType}, #{modelFamily},
-            #{displayName}, #{tagline}, #{description},
+            #{displayName}, #{description},
             #{tagsJson}, #{useCasesJson},
             #{contextWindow}, #{maxOutputTokens},
             #{inputModalitiesJson}, #{outputModalitiesJson}, #{languagesJson},
@@ -89,7 +90,6 @@
             model_type = #{modelType},
             model_family = #{modelFamily},
             display_name = #{displayName},
-            tagline = #{tagline},
             description = #{description},
             tags_json = #{tagsJson},
             use_cases_json = #{useCasesJson},
