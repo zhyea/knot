@@ -72,8 +72,10 @@ async function handleLogin() {
       router.push("/force-password-change");
       return;
     }
-    await Promise.all([loadThemePreference(), loadLocalePreference()]);
-    await router.push("/");
+    // 登录状态已经写入本地后立即进入控制台；用户偏好设置属于非关键初始化，
+    // 不能因为接口慢或暂时不可用阻塞路由跳转。
+    await router.replace("/");
+    void Promise.allSettled([loadThemePreference(), loadLocalePreference()]);
     ElMessage.success(t("login.success"));
   } catch (error) {
     ElMessage.error((error as Error)?.message || t("login.failed"));
