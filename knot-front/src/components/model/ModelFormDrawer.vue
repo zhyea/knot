@@ -36,7 +36,7 @@
             </el-col>
             <el-col :span="12">
               <el-form-item label="版本">
-                <el-input v-model="form.version" placeholder="如 2024-08-06 或 1.0.0"/>
+                <el-input v-model="form.version" placeholder="如 v2026092910 或 1.0.0" @focus="fillVersionOnFocus"/>
               </el-form-item>
             </el-col>
           </el-row>
@@ -411,15 +411,16 @@ const selectedBillingRule = computed(() => billingRuleOptions.value.find((item) 
 /** 当前选中供应商账户（含 providerCode），计费规则过滤按供应商 code 而非账户 id */
 const selectedProviderAccount = ref<Row | null>(null);
 const selectedProviderOptions = computed(() =>
+  // 账户下拉 value-key 为 code，回显兜底对象必须带 code 键（而非 id），否则 label 匹配不上
   resolveSelectedOption(form.providerAccountCode, [], {
-    id: form.providerAccountCode,
+    code: form.providerAccountCode,
     providerName: props.model?.providerName
-  })
+  }, "code")
 );
 const selectedLogicalModelOptions = computed(() =>
   resolveSelectedOption(form.logicalModelCode, logicalModelOptions.value, {
-    id: form.logicalModelCode
-  })
+    modelCode: form.logicalModelCode
+  }, "modelCode")
 );
 const selectedBillingRuleOptions = computed(() =>
   resolveSelectedOption(form.billingRuleId, billingRuleOptions.value, {
@@ -501,6 +502,21 @@ function onProviderAccountChange(account: Row) {
   form.baseUrl = account?.baseUrl || "";
 }
 
+/** 版本输入框获得焦点时，自动以当前时间（小时级，如 v2026092910）填充；不覆盖已有自定义值 */
+function fillVersionOnFocus() {
+  const current = String(form.version ?? "").trim();
+  const isBlank = !current;
+  const isDefaultOnCreate = !isEdit.value && current === "1.0.0";
+  if (isBlank || isDefaultOnCreate) {
+    form.version = `v${formatHourVersion(new Date())}`;
+  }
+}
+
+function formatHourVersion(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}${pad(date.getHours())}`;
+}
+
 function fillForm(row: Row) {
   form.id = row.id;
   form.modelCode = row.modelCode || "";
@@ -560,25 +576,26 @@ async function resetForm() {
   modelCodeError.value = "";
   modelCodeValidated.value = false;
   try {
-    if (props.model) {
-      fillForm(props.model);
-      if (isEdit.value) {
-        detailLoading.value = true;
-        try {
-          const detail = await getModel(props.model.id);
-          if (detail) {
-            fillForm(detail);
+      if (props.model) {
+        fillForm(props.model);
+        let detailProviderCode: string | null | undefined = props.model?.providerCode;
+        if (isEdit.value) {
+          detailLoading.value = true;
+          try {
+            const detail = await getModel(props.model.id);
+            if (detail) {
+              fillForm(detail);
+              detailProviderCode = detail.providerCode ?? detailProviderCode;
+            }
+          } finally {
+            detailLoading.value = false;
           }
-          // 编辑回填时账户对象未经下拉 change 产生，取详情补齐供应商 id 供规则过滤
-          // 编辑回填时账户对象未经下拉 change 产生，用模型详情携带的供应商 code 供规则过滤
-          selectedProviderAccount.value = form.providerAccountCode != null
-            ? ({ code: form.providerAccountCode, providerCode: props.model?.providerCode ?? null } as Row)
-            : null;
-        } finally {
-          detailLoading.value = false;
         }
-      }
-    } else {
+        // 编辑回填时账户对象未经下拉 change 产生，用详情携带的供应商 code 供计费规则过滤
+        selectedProviderAccount.value = form.providerAccountCode != null
+          ? ({ code: form.providerAccountCode, providerCode: detailProviderCode ?? null } as Row)
+          : null;
+      } else {
       selectedProviderAccount.value = null;
       form.id = null;
       form.modelCode = "";

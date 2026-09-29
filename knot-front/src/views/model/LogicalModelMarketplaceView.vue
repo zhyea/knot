@@ -70,6 +70,11 @@
     </div>
 
     <LogicalModelFormDrawer v-model="formVisible" :model="editingModel" @saved="resetPage" />
+    <OperationLogDrawer
+      v-model="logDrawer"
+      :title="`统一模型变更日志 - ${logModelName || ''}`"
+      :load-logs="loadModelOperationLogs"
+    />
   </PageSection>
 </template>
 
@@ -83,10 +88,12 @@ import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import {useListQuery} from "@/composables/useListQuery";
 import EnumControl from "../../components/common/EnumControl.vue";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import LogicalModelFormDrawer from "../../components/model/LogicalModelFormDrawer.vue";
 import LogicalModelTable from "../../components/model/LogicalModelTable.vue";
 import LogicalModelCardGrid from "../../components/model/LogicalModelCardGrid.vue";
 import {deleteLogicalModel, listLogicalModels} from "@/api/logicalModels";
+import {listLogicalModelOperationLogs} from "@/api/operationLogs";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {getStorageItem, getStorageJson, setStorageItem, setStorageJson} from "@/utils/storage";
 
@@ -143,6 +150,9 @@ const { optionsOf } = useEnumOptions();
 const modelTypeOptions = computed(() => optionsOf("ModelTypeEnum"));
 const formVisible = ref(false);
 const editingModel = ref<Dict | null>(null);
+const logDrawer = ref(false);
+const logModelId = ref<number | string | null>(null);
+const logModelName = ref("");
 
 function openCreate() {
   editingModel.value = null;
@@ -156,7 +166,18 @@ function openEdit(row: Row) {
 
 function handleAction(action: string, row: Row) {
   if (action === "edit") openEdit(row);
+  if (action === "log") openChangeLog(row);
   if (action === "delete") removeModel(row);
+}
+
+function openChangeLog(row: Row) {
+  logModelId.value = row.id;
+  logModelName.value = row.modelCode || `#${row.id}`;
+  logDrawer.value = true;
+}
+
+function loadModelOperationLogs() {
+  return listLogicalModelOperationLogs(logModelId.value!);
 }
 
 async function removeModel(row: Row) {

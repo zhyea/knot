@@ -35,11 +35,12 @@
       <el-table-column label="更新时间" width="160" show-overflow-tooltip>
         <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="140" align="center" header-align="center" fixed="right">
+      <el-table-column label="操作" width="190" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <RowActions
             :actions="[
               { key: 'edit', label: '编辑', icon: Edit },
+              { key: 'log', label: '日志', icon: Document },
               { key: 'delete', label: '删除', icon: Delete, type: 'danger', confirm: '确认删除该统一模型？' }
             ]"
             @action="(action) => emit('action', action, row)"
@@ -65,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import {Delete, Edit} from "@element-plus/icons-vue";
+import {Delete, Document, Edit} from "@element-plus/icons-vue";
 import type {PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";

@@ -58,6 +58,11 @@ export function listModelOperationLogs(modelId: number | string) {
   return getOperationLogsByEntity("Model", modelId, {params: {module: "model"}});
 }
 
+/** 某统一模型（entity_type=LogicalModel）在 logical-model 模块下的操作日志 */
+export function listLogicalModelOperationLogs(logicalModelId: number | string) {
+  return getOperationLogsByEntity("LogicalModel", logicalModelId, {params: {module: "logical-model"}});
+}
+
 /** 某应用（entity_type=App）在 app 模块下的操作日志 */
 export function listAppOperationLogs(appId: number | string) {
   return getOperationLogsByEntity("App", appId, {params: {module: "app"}});

@@ -24,6 +24,7 @@
             <RowActions
               :actions="[
                 { key: 'edit', label: '编辑', icon: Edit },
+                { key: 'log', label: '日志', icon: Document },
                 { key: 'delete', label: '删除', icon: Delete, type: 'danger', confirm: '确认删除该统一模型？' }
               ]"
               @action="(action) => emit('action', action, row)"
@@ -48,7 +49,7 @@
 </template>
 
 <script setup lang="ts">
-import {Delete, Edit} from "@element-plus/icons-vue";
+import {Delete, Document, Edit} from "@element-plus/icons-vue";
 import type {PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
