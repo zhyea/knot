@@ -17,6 +17,7 @@ import org.chobit.knot.gateway.mapper.UserMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.vo.auth.LoginResponse;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.user.ResetPasswordResult;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -171,18 +172,7 @@ public class UserService {
         }
         entity.setRoleIds(userMapper.listRoleIdsByUserId(id));
         entity.setRoleNames(resolveRoleNames(entity.getRoleIds()));
-        Map<String, Object> snapshot = new LinkedHashMap<>();
-        snapshot.put("id", entity.getId());
-        snapshot.put("username", entity.getUsername());
-        snapshot.put("realName", entity.getRealName());
-        snapshot.put("deptId", entity.getDeptId());
-        snapshot.put("deptName", entity.getDeptName());
-        snapshot.put("status", entity.getStatus());
-        snapshot.put("roleIds", entity.getRoleIds());
-        snapshot.put("roleNames", entity.getRoleNames());
-        snapshot.put("lastLoginTime", entity.getLastLoginTime());
-        snapshot.put("updatedAt", entity.getUpdatedAt());
-        return snapshot;
+        return JsonKit.toMaskedMap(entity);
     }
 
     /**

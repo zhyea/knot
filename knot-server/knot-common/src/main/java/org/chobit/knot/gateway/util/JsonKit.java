@@ -22,6 +22,8 @@ public final class JsonKit {
 
     private static final ObjectMapper DEFAULT_MAPPER = createDefaultMapper();
     private static volatile ObjectMapper mapper = DEFAULT_MAPPER;
+    private static final ObjectMapper AUDIT_MAPPER = createAuditMapper(DEFAULT_MAPPER);
+    private static volatile ObjectMapper auditMapper = AUDIT_MAPPER;
     private static volatile boolean springInitialized;
 
     private JsonKit() {
@@ -35,8 +37,18 @@ public final class JsonKit {
             return;
         }
         mapper = springMapper.copy();
+        auditMapper = createAuditMapper(springMapper);
         springInitialized = true;
         log.debug("JsonKit initialized from Spring ObjectMapper");
+    }
+
+    /**
+     * 构造带 {@link MaskingModule} 的审计专用 mapper，用于 {@link #toMaskedMap} 的字段级脱敏。
+     */
+    private static ObjectMapper createAuditMapper(ObjectMapper base) {
+        ObjectMapper m = base.copy();
+        m.registerModule(new MaskingModule());
+        return m;
     }
 
     /**
@@ -162,6 +174,14 @@ public final class JsonKit {
      */
     public static Map<String, Object> toMap(Object obj) {
         return mapper.convertValue(obj, new TypeReference<>() {
+        });
+    }
+
+    /**
+     * 转换为 Map 并对 {@link Sensitive} 标注字段做脱敏，专用于操作日志审计快照。
+     */
+    public static Map<String, Object> toMaskedMap(Object obj) {
+        return auditMapper.convertValue(obj, new TypeReference<>() {
         });
     }
 

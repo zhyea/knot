@@ -24,6 +24,7 @@ import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.tools.ProviderCodes;
 import org.chobit.knot.gateway.vo.provider.CredentialTypeItem;
 import org.springframework.stereotype.Service;
@@ -32,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -164,16 +164,8 @@ public class ProviderService {
         } catch (BusinessException e) {
             return null;
         }
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("id", dto.id());
-        m.put("code", dto.code());
-        m.put("type", dto.type());
-        m.put("baseUrl", dto.baseUrl());
-        m.put("enabled", dto.enabled());
-        m.put("credentialType", dto.credentialType());
+        Map<String, Object> m = JsonKit.toMap(dto);
         m.put("authConfig", credentialSupport.maskAuthConfig(loadRawAuthConfig(id)));
-        m.put("rateLimitPolicy", dto.rateLimitPolicy());
-        m.put("quotaPolicy", dto.quotaPolicy());
         return m;
     }
 
@@ -397,17 +389,7 @@ public class ProviderService {
         if (e == null) {
             return null;
         }
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("id", e.getId());
-        m.put("providerId", e.getProviderId());
-        m.put("policyName", e.getPolicyName());
-        m.put("scopeType", e.getScopeType());
-        m.put("scopeRefId", e.getScopeRefId());
-        m.put("discountType", e.getDiscountType());
-        m.put("discountValue", e.getDiscountValue());
-        m.put("priority", e.getPriority());
-        m.put("status", e.getStatus());
-        return m;
+        return JsonKit.toMap(e);
     }
 
     private DiscountPolicyDto toDiscountPolicyDto(DiscountPolicyEntity e) {

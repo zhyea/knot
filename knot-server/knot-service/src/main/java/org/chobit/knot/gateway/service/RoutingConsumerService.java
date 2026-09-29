@@ -14,12 +14,12 @@ import org.chobit.knot.gateway.mapper.UserMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.tools.RoutingRuleCodeGenerator;
 import org.chobit.knot.gateway.util.tools.RoutingSecretKeyGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -100,19 +100,7 @@ public class RoutingConsumerService {
         }
         try {
             RoutingConsumerDto dto = getById(id);
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", dto.id());
-            m.put("consumerCode", dto.consumerCode());
-            m.put("name", dto.name());
-            m.put("userId", dto.userId());
-            m.put("userName", dto.userName());
-            m.put("secretKey", maskSecretKey(dto.secretKey()));
-            m.put("returnUsageDetail", dto.returnUsageDetail());
-            m.put("enabled", dto.enabled());
-            m.put("ruleCount", dto.ruleCount());
-            m.put("rateLimitPolicy", dto.rateLimitPolicy());
-            m.put("quotaPolicy", dto.quotaPolicy());
-            return m;
+            return JsonKit.toMaskedMap(dto);
         } catch (BusinessException e) {
             return null;
         }
@@ -293,12 +281,5 @@ public class RoutingConsumerService {
             return realName;
         }
         return entity.getUserUsername();
-    }
-
-    private static String maskSecretKey(String secretKey) {
-        if (secretKey == null || secretKey.length() <= 10) {
-            return secretKey;
-        }
-        return secretKey.substring(0, 7) + "..." + secretKey.substring(secretKey.length() - 4);
     }
 }

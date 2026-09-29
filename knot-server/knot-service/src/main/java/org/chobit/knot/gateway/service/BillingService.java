@@ -113,28 +113,7 @@ public class BillingService {
         }
         try {
             BillingRuleDto dto = getRuleById(id);
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", dto.id());
-            m.put("code", dto.code());
-            m.put("providerCode", dto.providerCode());
-            m.put("providerName", dto.providerName());
-            m.put("logicalModelCode", dto.logicalModelCode());
-            m.put("logicalModelName", dto.logicalModelName());
-            m.put("currentVersionId", dto.currentVersionId());
-            m.put("versionNo", dto.versionNo());
-            m.put("versionCode", dto.versionCode());
-            m.put("billingMode", dto.billingMode());
-            m.put("currency", dto.currency());
-            m.put("itemType", dto.itemType());
-            m.put("unit", dto.unit());
-            m.put("unitPrice", dto.unitPrice());
-            m.put("configJson", dto.configJson());
-            m.put("ladderJson", dto.ladderJson());
-            m.put("enabled", dto.enabled());
-            m.put("effectiveFrom", dto.effectiveFrom());
-            m.put("effectiveTo", dto.effectiveTo());
-            m.put("remark", dto.remark());
-            return m;
+            return JsonKit.toMap(dto);
         } catch (BusinessException e) {
             return null;
         }

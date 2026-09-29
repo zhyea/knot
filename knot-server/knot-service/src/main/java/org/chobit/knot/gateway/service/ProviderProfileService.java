@@ -9,11 +9,11 @@ import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.ProviderProfileMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.provider.ProviderProfileItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -129,12 +129,7 @@ public class ProviderProfileService {
         if (entity == null) {
             return Map.of();
         }
-        Map<String, Object> snapshot = new LinkedHashMap<>();
-        snapshot.put("id", entity.getId());
-        snapshot.put("code", entity.getCode());
-        snapshot.put("name", entity.getName());
-        snapshot.put("tag", entity.getTag());
-        return snapshot;
+        return JsonKit.toMap(entity);
     }
 
     private ProviderProfileItem toItem(ProviderProfileEntity entity) {

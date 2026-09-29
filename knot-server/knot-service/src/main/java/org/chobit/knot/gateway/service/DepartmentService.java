@@ -13,6 +13,7 @@ import org.chobit.knot.gateway.mapper.DepartmentMapper;
 import org.chobit.knot.gateway.mapper.UserMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,7 +21,6 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -136,16 +136,7 @@ public class DepartmentService {
         if (entity == null) {
             return null;
         }
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("id", entity.getId());
-        m.put("deptCode", entity.getDeptCode());
-        m.put("deptName", entity.getDeptName());
-        m.put("parentId", entity.getParentId());
-        m.put("status", entity.getStatus());
-        m.put("sortOrder", entity.getSortOrder());
-        m.put("remark", entity.getRemark());
-        m.put("updatedAt", entity.getUpdatedAt());
-        return m;
+        return JsonKit.toMap(entity);
     }
 
     private static String normalizeKeyword(String keyword) {

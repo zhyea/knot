@@ -16,11 +16,11 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -167,18 +167,7 @@ public class AppService {
         }
         try {
             AppDto dto = getById(id);
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("id", dto.id());
-            m.put("appId", dto.appId());
-            m.put("name", dto.name());
-            m.put("deptId", dto.deptId());
-            m.put("deptName", dto.deptName());
-            m.put("ownerUserId", dto.ownerUserId());
-            m.put("ownerName", dto.ownerName());
-            m.put("remark", dto.remark());
-            m.put("rateLimitPolicy", dto.rateLimitPolicy());
-            m.put("quotaPolicy", dto.quotaPolicy());
-            return m;
+            return JsonKit.toMap(dto);
         } catch (BusinessException e) {
             return null;
         }
