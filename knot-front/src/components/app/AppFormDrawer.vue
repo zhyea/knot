@@ -11,8 +11,8 @@
     <el-scrollbar max-height="calc(100vh - 140px)">
       <el-form :model="form" label-width="100px">
         <div class="slot-body">
-          <el-form-item label="App ID" required>
-            <el-input v-model="form.appId" :disabled="isEdit"/>
+          <el-form-item label="App Code" required>
+            <el-input v-model="form.appCode" :disabled="isEdit"/>
           </el-form-item>
           <el-row :gutter="16">
             <el-col :span="12">
@@ -100,7 +100,7 @@ const userOptions = ref<Row[]>([]);
 
 const form = reactive({
   id: null,
-  appId: "",
+  appCode: "",
   name: "",
   deptId: null,
   ownerUserId: null,
@@ -144,7 +144,7 @@ async function loadUsers() {
 
 function fillFormFromRow(row: Row): void {
   form.id = row.id;
-  form.appId = row.appId || "";
+  form.appCode = row.appCode || "";
   form.name = row.name || "";
   form.deptId = row.deptId ?? null;
   form.ownerUserId = row.ownerUserId ?? null;
@@ -158,7 +158,7 @@ function resetForm() {
     fillFormFromRow(props.app);
   } else {
     form.id = null;
-    form.appId = "";
+    form.appCode = "";
     form.name = "";
     form.deptId = null;
     form.ownerUserId = null;
@@ -191,7 +191,7 @@ function buildPayload() {
     ? null
     : normalizeQuotaPolicy(form.quotaPolicy);
   return {
-    appId: form.appId,
+    appCode: form.appCode,
     name: form.name,
     deptId: form.deptId,
     ownerUserId: form.ownerUserId,
@@ -202,8 +202,8 @@ function buildPayload() {
 }
 
 async function submit() {
-  if (!form.appId?.trim() || !form.name?.trim()) {
-    ElMessage.warning("请填写 App ID 与名称");
+  if (!form.appCode?.trim() || !form.name?.trim()) {
+    ElMessage.warning("请填写 App Code 与名称");
     return;
   }
   saving.value = true;

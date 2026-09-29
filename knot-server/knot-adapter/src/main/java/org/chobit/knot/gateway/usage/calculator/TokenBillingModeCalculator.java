@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.usage.calculator;
 
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
+import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.model.BillingConfig;
 import org.chobit.knot.gateway.model.BillingUsage;
@@ -33,10 +34,22 @@ public class TokenBillingModeCalculator extends AbstractBillingModeCalculator {
         long cacheWriteTokens = usage.cacheWriteTokens();
         long ladderAmount = totalTokens;
         BigDecimal zero = BigDecimal.ZERO;
-        BigDecimal inputPrice = config == null ? zero : config.resolvePrice(BillingConfig.PriceKind.INPUT, ladderAmount, zero);
-        BigDecimal outputPrice = config == null ? zero : config.resolvePrice(BillingConfig.PriceKind.OUTPUT, ladderAmount, zero);
-        BigDecimal cacheReadPrice = config == null ? zero : config.resolvePrice(BillingConfig.PriceKind.CACHE_READ, ladderAmount, zero);
-        BigDecimal cacheWritePrice = config == null ? inputPrice : config.resolvePrice(BillingConfig.PriceKind.CACHE_WRITE, ladderAmount, inputPrice);
+        BigDecimal inputPrice;
+        BigDecimal outputPrice;
+        BigDecimal cacheReadPrice;
+        BigDecimal cacheWritePrice;
+        if (config == null) {
+            inputPrice = zero;
+            outputPrice = zero;
+            cacheReadPrice = zero;
+            cacheWritePrice = zero;
+        } else {
+            BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan()));
+            inputPrice = pricing.resolvePrice(BillingConfig.PriceKind.INPUT, ladderAmount, zero);
+            outputPrice = pricing.resolvePrice(BillingConfig.PriceKind.OUTPUT, ladderAmount, zero);
+            cacheReadPrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_READ, ladderAmount, zero);
+            cacheWritePrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_WRITE, ladderAmount, inputPrice);
+        }
         long uncachedInputTokens = Math.max(0L, inputTokens - cacheReadTokens - cacheWriteTokens);
         BigDecimal inputCost = cost(uncachedInputTokens, inputPrice, unitSize);
         BigDecimal outputCost = cost(outputTokens, outputPrice, unitSize);

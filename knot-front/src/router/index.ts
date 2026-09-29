@@ -75,6 +75,7 @@ const routes: RouteRecordRaw[] = [
     component: NestedView,
     children: [
       { path: "rules", name: "billing-rules", component: () => import("@/views/billing/BillingRuleView.vue"), meta: { titleKey: "route.billingRules" } },
+      { path: "reports", name: "billing-reports", component: () => import("@/views/billing/BillingReportView.vue"), meta: { titleKey: "route.billingReports" } },
       { path: "reconciliation", name: "billing-reconciliation", component: () => import("@/views/billing/ReconciliationView.vue"), meta: { titleKey: "route.billingReconciliation" } }
     ]
   },

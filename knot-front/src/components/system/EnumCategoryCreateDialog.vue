@@ -8,7 +8,7 @@
   >
     <el-form :model="form" label-width="90px">
       <el-form-item label="分类编码" required>
-        <el-input v-model="form.category" placeholder="如 provider_type" />
+        <el-input v-model="form.category" placeholder="如 billing_unit" />
       </el-form-item>
       <el-form-item label="枚举编码" required>
         <el-input v-model="form.itemCode" placeholder="如 OPENAI" />

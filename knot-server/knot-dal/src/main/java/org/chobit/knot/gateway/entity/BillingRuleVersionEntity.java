@@ -16,6 +16,8 @@ public class BillingRuleVersionEntity {
     /** 配置内容指纹（MD5），同一 rule_id 内唯一 */
     private String uniqHash;
     private String billingMode;
+    /** 进阶定价方案（PricingPlanEnum）：FIXED/TIERED/PEAK_OFF_PEAK */
+    private String pricingPlan;
     private String currency;
     private String unit;
     private String configJson;

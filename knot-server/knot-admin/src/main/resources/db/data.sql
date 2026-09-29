@@ -58,7 +58,9 @@ INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, rou
 (19, 2, NULL, 'model.provider-profiles', '供应商信息', '/model-management/provider-profiles', 'ProviderProfileManageView', 'Connection', 60, 'ENABLED'),
 (11, 3, NULL, 'routing.rules', '路由规则', '/routing/rules', 'routing/RoutingRuleView', 'Share', 10, 'ENABLED'),
 (12, 3, NULL, 'routing.consumers', '消费者', '/routing/consumers', 'routing/RoutingConsumerView', 'Share', 20, 'ENABLED'),
-(13, 4, NULL, 'billing.rules', '计费规则', '/billing/rules', 'billing/BillingRuleView', 'Coin', 10, 'ENABLED');
+(13, 4, NULL, 'billing.rules', '计费规则', '/billing/rules', 'billing/BillingRuleView', 'Coin', 10, 'ENABLED'),
+(20, 4, NULL, 'billing.reports', '计费报表', '/billing/reports', 'billing/BillingReportView', 'Odometer', 20, 'ENABLED'),
+(21, 4, NULL, 'billing.reconciliation', '计费对账', '/billing/reconciliation', 'billing/ReconciliationView', 'Document', 30, 'ENABLED');
 
 INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
 (1, 'system:user:page', '用户管理页面访问', 'PAGE', 1, 1, 'ENABLED', 1, NULL),
@@ -117,7 +119,10 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 (26, 'billing:rule:page', '计费规则页面访问', 'PAGE', 4, 13, 'ENABLED', 1, NULL),
 (55, 'system:authorization-resource:page', '授权资源页面访问', 'PAGE', 1, 18, 'ENABLED', 1, NULL),
 (56, 'system:user:reset-password', '重置用户密码', 'API', 1, 1, 'ENABLED', 1, NULL),
-(57, 'model:provider-profile:page', '供应商信息页面访问', 'PAGE', 2, 19, 'ENABLED', 1, NULL);
+(57, 'model:provider-profile:page', '供应商信息页面访问', 'PAGE', 2, 19, 'ENABLED', 1, NULL),
+(124, 'billing:report:page', '计费报表页面访问', 'PAGE', 4, 20, 'ENABLED', 1, NULL),
+(125, 'billing:report:view', '计费报表查看', 'API', 4, 20, 'ENABLED', 1, NULL),
+(126, 'billing:reconciliation:page', '计费对账页面访问', 'PAGE', 4, 21, 'ENABLED', 1, NULL);
 
 -- ADMIN 角色的全量授权统一放在本文件末尾，避免新增权限遗漏。
 
@@ -338,13 +343,13 @@ INSERT IGNORE INTO kb_model_api_bindings (id, model_id, protocol, api_path, requ
 -- =========================
 
 -- 应用
-INSERT IGNORE INTO kb_apps (id, app_id, name, dept_id, owner_user_id, remark, status) VALUES
+INSERT IGNORE INTO kb_apps (id, app_code, name, dept_id, owner_user_id, remark, status) VALUES
 (1, 'app_001', '内部知识库助手',   1, 1, '面向内部员工的知识检索与问答', 'ENABLED'),
 (2, 'app_002', '客服对话系统',     3, 2, '对外客服场景的对话接入',       'ENABLED'),
 (3, 'app_003', '代码审查工具',     2, 3, '研发流程中的代码审查辅助',     'ENABLED');
 
 -- 应用凭证
-INSERT IGNORE INTO kb_app_credentials (id, app_id, app_key, app_secret_hash, status) VALUES
+INSERT IGNORE INTO kb_app_credentials (id, app_code, app_key, app_secret_hash, status) VALUES
 (1, 'app_001', 'knot_pk_001', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ACTIVE'),
 (2, 'app_002', 'knot_pk_002', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ACTIVE'),
 (3, 'app_003', 'knot_pk_003', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'ACTIVE');
@@ -393,12 +398,12 @@ INSERT IGNORE INTO kb_billing_rules (id, code, provider_code, logical_model_code
 (4, 'TOKEN_DEEPSEEK',   'deepseek',  'knot-chat-economy', 'ACTIVE'),
 (5, 'EMBEDDING',        NULL,        NULL,                'ACTIVE');
 
-INSERT IGNORE INTO kb_billing_rule_versions (id, rule_id, version_code, uniq_hash, billing_mode, currency, unit, config_json, status, effective_from) VALUES
-(1, 1, 'v1', 'seed-token-gpt4o-v1',      'TOKEN',     'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.00125,"cacheWrite":0.005,"input":0.005,"output":0.015}}', 'ACTIVE', NOW()),
-(2, 2, 'v1', 'seed-token-gpt4o-mini-v1', 'TOKEN',     'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.000025,"cacheWrite":0.00015,"input":0.00015,"output":0.0006}}', 'ACTIVE', NOW()),
-(3, 3, 'v1', 'seed-token-claude-s4-v1',  'TOKEN',     'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.0003,"cacheWrite":0.00375,"input":0.003,"output":0.015}}', 'ACTIVE', NOW()),
-(4, 4, 'v1', 'seed-token-deepseek-v1',   'TOKEN',     'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.000014,"cacheWrite":0.00014,"input":0.00014,"output":0.00028}}', 'ACTIVE', NOW()),
-(5, 5, 'v1', 'seed-embedding-v1',        'EMBEDDING', 'USD', '1K_TOKENS', '{"defaultUnitPrice":0.00013}', 'ACTIVE', NOW());
+INSERT IGNORE INTO kb_billing_rule_versions (id, rule_id, version_code, uniq_hash, billing_mode, pricing_plan, currency, unit, config_json, status, effective_from) VALUES
+(1, 1, 'v1', 'seed-token-gpt4o-v1',      'TOKEN',     'FIXED', 'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.00125,"cacheWrite":0.005,"input":0.005,"output":0.015}}', 'ACTIVE', NOW()),
+(2, 2, 'v1', 'seed-token-gpt4o-mini-v1', 'TOKEN',     'FIXED', 'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.000025,"cacheWrite":0.00015,"input":0.00015,"output":0.0006}}', 'ACTIVE', NOW()),
+(3, 3, 'v1', 'seed-token-claude-s4-v1',  'TOKEN',     'FIXED', 'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.0003,"cacheWrite":0.00375,"input":0.003,"output":0.015}}', 'ACTIVE', NOW()),
+(4, 4, 'v1', 'seed-token-deepseek-v1',   'TOKEN',     'FIXED', 'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.000014,"cacheWrite":0.00014,"input":0.00014,"output":0.00028}}', 'ACTIVE', NOW()),
+(5, 5, 'v1', 'seed-embedding-v1',        'EMBEDDING', 'FIXED', 'USD', '1K_TOKENS', '{"defaultUnitPrice":0.00013}', 'ACTIVE', NOW());
 
 -- =========================
 -- 安全与监控
@@ -485,11 +490,9 @@ INSERT IGNORE INTO kb_notification_templates (id, code, name, channel, title_tpl
 
 -- 枚举分类（与 ks_enum_configs.category_id 对应；is_system=1 表示系统内置分类）
 INSERT IGNORE INTO ks_enum_categories (id, category, category_name, is_system, is_enabled) VALUES
-(1, 'provider_type', '供应商类型', 0, 1),
 (3, 'app_type', '应用类型', 0, 1),
 (5, 'scope_type', '折扣范围', 0, 1),
 (6, 'discount_type', '折扣类型', 0, 1),
-(7, 'billing_mode', '计费模式', 0, 1),
 (8, 'billing_unit', '计费单位', 0, 1),
 (10, 'channel', '通知渠道', 0, 1),
 (11, 'plugin_source_type', '插件来源类型', 0, 1),
@@ -510,15 +513,6 @@ INSERT IGNORE INTO ks_enum_categories (id, category, category_name, is_system, i
 -- 枚举项（category_id 关联 ks_enum_categories.id）
 
 INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_order, is_enabled) VALUES
-(7, 'TOKEN',          'Token', 1, 1),
-(7, 'REQUEST',        '请求', 2, 1),
-(7, 'IMAGE',          '图片', 3, 1),
-(7, 'AUDIO',          '音频', 4, 1),
-(7, 'VIDEO',          '视频', 5, 1),
-(7, 'EMBEDDING',      'Embedding', 6, 1),
-(7, 'TIERED',         '阶梯', 7, 1),
-(7, 'FREE',           '免费', 8, 1),
-(7, 'CUSTOM',         '自定义', 9, 1),
 (8, '1K_TOKENS',     '千 Token', 1, 1),
 (8, '1M_TOKENS',     '百万 Token', 2, 1),
 (8, 'PER_TOKEN',     '单 Token', 3, 1),
@@ -544,14 +538,8 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 (23, 'WEIGHTED',               '权重', 1, 1),
 (23, 'PRIORITY',               '优先级', 2, 1),
 (23, 'RANDOM',                 '随机', 3, 1),
-(1, 'OPENAI',    'OpenAI',     1, 1),
-(1, 'ANTHROPIC', 'Anthropic',  2, 1),
-(1, 'DEEPSEEK',  'DeepSeek',   3, 1),
-(1, 'QWEN',      'Qwen',       4, 1),
-(1, 'ZHIPU',     'Zhipu',      5, 1),
-(1, 'GOOGLE',    'Google',     6, 1),
-(1, 'MISTRAL',   'Mistral',    7, 1),
-(1, 'CUSTOM',    '自定义',    99, 1),
+-- 供应商类型（category 1）已移除：供应商品牌主数据以 kb_providers 表为唯一来源，
+-- 前端下拉/标签走 useProviderTypeOptions（/api/provider-profiles）
 (3, 'WEB',     'Web应用', 1, 1),
 (3, 'MOBILE',  '移动应用', 2, 1),
 (3, 'SERVICE', '微服务',   3, 1),
@@ -595,9 +583,8 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 (14, 'HIGH',   '高', 1, 1),
 (14, 'MEDIUM', '中', 2, 1),
 (14, 'LOW',    '低', 3, 1),
-(15, 'ENABLED',   '启用',     1, 1),
-(15, 'DISABLED',  '禁用',     2, 1),
-(15, 'ACTIVE',    '活跃',     3, 1),
+-- 通用状态字典：仅保留运行态杂项（操作日志 SUCCESS/FAILURE 等）；
+-- EntityStatusEnum（ENABLED/DISABLED/ACTIVE/INACTIVE/DELETED）已迁代码枚举 /api/common/enums
 (15, 'ONLINE',    '在线',     4, 1),
 (15, 'RUNNING',   '运行中',   5, 1),
 (15, 'DRAFT',     '草稿',     6, 1),
@@ -605,7 +592,6 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 (15, 'SUCCESS',   '成功',     8, 1),
 (15, 'FAILURE',   '失败',     9, 1),
 (15, 'FAILED',    '失败(旧)', 10, 1),
-(15, 'INACTIVE',  '未激活',   11, 1),
 (16, 'PUBLIC',    '公开',     1, 1),
 (16, 'INTERNAL',  '内部',     2, 1),
 (16, 'PRIVATE',   '私有',     3, 1),
@@ -787,7 +773,8 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (152, 122, 'POST', '/api/security/cache/evict', 'SecurityController', 'ENABLED'),
 (153, 15, 'POST', '/api/system/log-types', 'SystemController', 'ENABLED'),
 (154, 15, 'POST', '/api/system/logs', 'SystemController', 'ENABLED'),
-(155, 123, 'POST', '/api/external-models/items/{id}/ignored', 'ExternalModelController', 'ENABLED');
+(155, 123, 'POST', '/api/external-models/items/{id}/ignored', 'ExternalModelController', 'ENABLED'),
+(156, 125, 'GET', '/api/billing/report/summary', 'BillingController', 'ENABLED');
 
 -- OPERATOR（运维）：新增接口权限全量授予（与既有 27-55 全量口径一致）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
@@ -856,7 +843,10 @@ INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (2, 120),
 (2, 121),
 (2, 122),
-(2, 123);
+(2, 123),
+(2, 124),
+(2, 125),
+(2, 126);
 
 -- DEVELOPER（开发）：仅授予只读类接口权限
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
@@ -873,7 +863,10 @@ INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (3, 103),
 (3, 107),
 (3, 112),
-(3, 120);
+(3, 120),
+(3, 124),
+(3, 125),
+(3, 126);
 
 -- ============================================================
 -- 权威授权块（必须保持在文件最后）

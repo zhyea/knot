@@ -8,6 +8,10 @@ import type {Dict, SelectOption} from "@/types";
  * 仅包含已从 DB 迁移到后端的枚举，当前有：
  *  - ModelTypeEnum        13 项模型类型（code -> 中文名）
  *  - ModelApiProtocolEnum 接口协议（code -> 协议名）
+ *  - BillingModeEnum      计费模式（8 项，code -> 中文名）
+ *  - PricingPlanEnum      进阶定价方案（FIXED/TIERED/PEAK_OFF_PEAK；可用性由 mode-capabilities 约束）
+ *  - EntityStatusEnum     实体生命周期状态（启用/禁用/生效/停用/已删除）
+ *  - RouteTargetTypeEnum  路由目标类型（模型/模型池）
  * 其余枚举分类仍在 ks_enum_configs，走 useEnums（/api/system/enums），两套来源不要混用。
  *
  * 用法：

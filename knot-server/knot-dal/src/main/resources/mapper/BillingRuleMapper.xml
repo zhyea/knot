@@ -16,7 +16,8 @@
         br.id, br.code, br.provider_code, p.name as provider_name,
         br.logical_model_code, lm.model_name as logical_model_name,
         br.status, br.remark,
-        bv.version_code, bv.uniq_hash, bv.billing_mode, bv.currency, bv.unit,
+        bv.version_code, bv.uniq_hash, bv.billing_mode, bv.pricing_plan, bv.currency, bv.unit,
+        bv.status as version_status,
         bv.config_json, bv.effective_from, bv.effective_to
     </sql>
 
@@ -44,6 +45,17 @@
             </if>
         </where>
         order by br.id desc
+    </select>
+
+    <!-- 报表用：全量非删除规则（含当前版本字段），数据量小，聚合在服务层完成 -->
+    <select id="listForReport" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
+        select <include refid="RuleColumns"/>
+        from kb_billing_rules br
+        left join kb_providers p on br.provider_code = p.code
+        left join kb_logical_models lm on br.logical_model_code = lm.model_code
+        <include refid="VersionJoin"/>
+        where br.status != 'DELETED'
+        order by br.id
     </select>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
@@ -138,7 +150,7 @@
     </update>
 
     <select id="getLatestVersion" resultType="org.chobit.knot.gateway.entity.BillingRuleVersionEntity">
-        select id, rule_id, version_code, uniq_hash, billing_mode, currency, unit,
+        select id, rule_id, version_code, uniq_hash, billing_mode, pricing_plan, currency, unit,
                config_json, status, effective_from, effective_to
         from kb_billing_rule_versions
         where rule_id = #{ruleId}
@@ -147,22 +159,24 @@
     </select>
 
     <select id="getVersionByHash" resultType="org.chobit.knot.gateway.entity.BillingRuleVersionEntity">
-        select id, rule_id, version_code, uniq_hash, billing_mode, currency, unit,
+        select id, rule_id, version_code, uniq_hash, billing_mode, pricing_plan, currency, unit,
                config_json, status, effective_from, effective_to
         from kb_billing_rule_versions
         where rule_id = #{ruleId} and uniq_hash = #{uniqHash}
         limit 1
     </select>
 
-    <select id="countVersions" resultType="java.lang.Integer">
-        select count(1) from kb_billing_rule_versions where rule_id = #{ruleId}
+    <select id="maxVersionSeq" resultType="java.lang.Integer">
+        select coalesce(max(cast(substring(version_code, 2) as unsigned)), 0)
+        from kb_billing_rule_versions
+        where rule_id = #{ruleId} and version_code like 'v%'
     </select>
 
     <insert id="insertVersion" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_billing_rule_versions(rule_id, version_code, uniq_hash, billing_mode, currency,
-                                             unit, config_json, status, effective_from, effective_to)
-        values(#{ruleId}, #{versionCode}, #{uniqHash}, #{billingMode}, #{currency},
-               #{unit}, #{configJson}, #{status}, #{effectiveFrom}, #{effectiveTo})
+        insert into kb_billing_rule_versions(rule_id, version_code, uniq_hash, billing_mode, pricing_plan,
+                                             currency, unit, config_json, status, effective_from, effective_to)
+        values(#{ruleId}, #{versionCode}, #{uniqHash}, #{billingMode}, #{pricingPlan},
+               #{currency}, #{unit}, #{configJson}, #{status}, #{effectiveFrom}, #{effectiveTo})
     </insert>
 
     <update id="activateVersion">

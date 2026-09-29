@@ -63,9 +63,19 @@
           <el-row :gutter="16">
             <el-col :span="12">
               <el-form-item label="计费模式">
-                <EnumSelect
+                <EnumControl
                   v-model="form.billingMode"
-                  category="billing_mode"
+                  enum-name="BillingModeEnum"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="进阶方案">
+                <EnumControl
+                  v-model="form.pricingPlan"
+                  enum-name="PricingPlanEnum"
+                  :include-codes="planCodes"
+                  show-code
                 />
               </el-form-item>
             </el-col>
@@ -80,7 +90,9 @@
               </el-form-item>
             </el-col>
           </el-row>
+          <!-- 第一层：模式组件（用量与基础价格）；第二层：方案组件（进阶定价明细） -->
           <component :is="modeComponent" :form="form"/>
+          <component :is="planComponent" :form="form"/>
         </div>
 
         <div class="space-line"/>
@@ -109,6 +121,7 @@ import type {Component, Ref} from "vue";
 import {ElMessage} from "element-plus";
 import type {Dict, Row} from "@/types";
 import EnumSelect from "../common/EnumSelect.vue";
+import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import BillingModeAudioConfig from "./modes/BillingModeAudioConfig.vue";
 import BillingModeCustomConfig from "./modes/BillingModeCustomConfig.vue";
@@ -116,9 +129,10 @@ import BillingModeEmbeddingConfig from "./modes/BillingModeEmbeddingConfig.vue";
 import BillingModeFreeConfig from "./modes/BillingModeFreeConfig.vue";
 import BillingModeImageConfig from "./modes/BillingModeImageConfig.vue";
 import BillingModeRequestConfig from "./modes/BillingModeRequestConfig.vue";
-import BillingModeTieredConfig from "./modes/BillingModeTieredConfig.vue";
 import BillingModeTokenConfig from "./modes/BillingModeTokenConfig.vue";
 import BillingModeVideoConfig from "./modes/BillingModeVideoConfig.vue";
+import PricingPlanFixedConfig from "./plans/PricingPlanFixedConfig.vue";
+import PricingPlanTieredConfig from "./plans/PricingPlanTieredConfig.vue";
 import {createBillingRule, updateBillingRule, listModeCapabilities} from "@/api/billing";
 import {listProviderProfiles} from "@/api/providerProfiles";
 import {listLogicalModels} from "@/api/logicalModels";
@@ -132,8 +146,8 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue", "saved"]);
 
-// 「模式 -> 可用单位 / 默认单位 / 默认价格项」由后端 BillingModeEnum 经
-// GET /api/billing/mode-capabilities 下发；单位与价格项文案走 DB 枚举，前端不再维护映射表
+// 两层组件：模式组件决定“量”（基础价格），方案组件决定“价”（进阶定价明细）。
+// 模式能力与方案支持矩阵由后端 GET /api/billing/mode-capabilities 下发，前端不维护映射表。
 const componentsByMode: Record<string, Component> = {
   TOKEN: BillingModeTokenConfig,
   REQUEST: BillingModeRequestConfig,
@@ -141,9 +155,13 @@ const componentsByMode: Record<string, Component> = {
   AUDIO: BillingModeAudioConfig,
   VIDEO: BillingModeVideoConfig,
   EMBEDDING: BillingModeEmbeddingConfig,
-  TIERED: BillingModeTieredConfig,
   FREE: BillingModeFreeConfig,
   CUSTOM: BillingModeCustomConfig
+};
+
+const componentsByPlan: Record<string, Component> = {
+  FIXED: PricingPlanFixedConfig,
+  TIERED: PricingPlanTieredConfig
 };
 
 const visible = computed({
@@ -154,12 +172,14 @@ const visible = computed({
 const saving = ref(false);
 const providerOptions = ref<Row[]>([]);
 const logicalModelOptions = ref<Row[]>([]);
-const modeCapabilities = ref<Row[]>([]);
+const billingModes = ref<Row[]>([]);
 
 const activeModeCapability = computed(() =>
-  modeCapabilities.value.find((item) => item.code === form.billingMode) || null
+  billingModes.value.find((item) => item.code === form.billingMode) || null
 );
 const unitCodes = computed(() => activeModeCapability.value?.supportedUnits || []);
+/** 当前模式支持的进阶方案（PEAK_OFF_PEAK 属阶段三，后端不下发） */
+const planCodes = computed(() => activeModeCapability.value?.supportedPricingPlans || ["FIXED"]);
 
 interface BillingRuleFormState {
   id: number | string | null;
@@ -168,9 +188,11 @@ interface BillingRuleFormState {
   providerCode: string | null;
   logicalModelCode: string | null;
   billingMode: string;
+  /** 进阶定价方案（FIXED/TIERED），高低峰属阶段三 */
+  pricingPlan: string;
   currency: string;
   unit: string;
-  /** 简单模式（REQUEST/IMAGE/AUDIO/VIDEO/EMBEDDING/TIERED）单价，写入 configJson.defaultUnitPrice */
+  /** 简单模式（REQUEST/IMAGE/AUDIO/VIDEO/EMBEDDING）单价，写入 configJson.defaultUnitPrice */
   unitPrice: number;
   /** TOKEN 模式分项单价，写入 configJson.basePrices */
   inputUnitPrice: number;
@@ -181,8 +203,8 @@ interface BillingRuleFormState {
   videoPrice1080p: number | null;
   imageResolution: string;
   imageQuality: string;
-  /** 阶梯配置（TIERED），保存时合并进 configJson.ladder */
-  ladderJson: string;
+  /** 阶梯配置（pricingPlan=TIERED），保存时合并进 configJson.tier */
+  tierJson: string;
   customConfigJson: string;
   enabled: boolean;
   remark: string;
@@ -194,6 +216,7 @@ const form = reactive<BillingRuleFormState>({
   providerCode: null,
   logicalModelCode: null,
   billingMode: "TOKEN",
+  pricingPlan: "FIXED",
   currency: "USD",
   unit: "1K_TOKENS",
   unitPrice: 0.002,
@@ -205,7 +228,7 @@ const form = reactive<BillingRuleFormState>({
   videoPrice1080p: null,
   imageResolution: "",
   imageQuality: "",
-  ladderJson: "",
+  tierJson: "",
   customConfigJson: "",
   enabled: true,
   remark: ""
@@ -213,6 +236,7 @@ const form = reactive<BillingRuleFormState>({
 
 const isEdit = computed(() => props.rule != null);
 const modeComponent = computed(() => componentsByMode[form.billingMode] || BillingModeTokenConfig);
+const planComponent = computed(() => componentsByPlan[form.pricingPlan] || PricingPlanFixedConfig);
 const selectedProviderOptions = computed(() =>
   resolveSelectedOption(form.providerCode, providerOptions.value, {
     id: form.providerCode,
@@ -242,6 +266,16 @@ watch(
   (mode) => applyModeDefaults(mode)
 );
 
+// 切换模式时若当前方案不被支持则回退固定价；方案切换保留基础价格，仅清理方案专属配置由后端校验兜底
+watch(
+  () => form.pricingPlan,
+  (plan) => {
+    if (plan && !planCodes.value.includes(plan)) {
+      form.pricingPlan = "FIXED";
+    }
+  }
+);
+
 function resetForm() {
   const row = props.rule;
   const config = parseJsonObject(row?.configJson);
@@ -251,6 +285,7 @@ function resetForm() {
   form.providerCode = row?.providerCode ?? null;
   form.logicalModelCode = row?.logicalModelCode ?? null;
   form.billingMode = normalizeMode(row?.billingMode || "TOKEN");
+  form.pricingPlan = String(row?.pricingPlan || "FIXED").trim().toUpperCase();
   form.currency = row?.currency || "USD";
   form.unit = row?.unit || modeDefaults(form.billingMode).unit;
   form.unitPrice = Number(config.defaultUnitPrice ?? 0.002);
@@ -262,7 +297,7 @@ function resetForm() {
   form.videoPrice1080p = config.resolutionPrices?.["1080P"] != null ? Number(config.resolutionPrices["1080P"]) : null;
   form.imageResolution = config.imageResolution || "";
   form.imageQuality = config.imageQuality || "";
-  form.ladderJson = Array.isArray(config.ladder) ? stringifyJson(config.ladder) : "";
+  form.tierJson = Array.isArray(config.tier) ? stringifyJson(config.tier) : "";
   form.customConfigJson = form.billingMode === "CUSTOM" ? row?.configJson || "" : "";
   form.enabled = row?.enabled !== false;
   form.remark = row?.remark || "";
@@ -271,7 +306,7 @@ function resetForm() {
 
 /** 当前模式的默认单位；能力未加载完成时退回新建表单的初值 */
 function modeDefaults(mode: string): { unit: string } {
-  const matched = modeCapabilities.value.find((item) => item.code === mode);
+  const matched = billingModes.value.find((item) => item.code === mode);
   return {
     unit: matched?.defaultUnit || "1K_TOKENS"
   };
@@ -282,11 +317,15 @@ function applyModeDefaults(mode: string) {
   if (!unitCodes.value.includes(form.unit)) {
     form.unit = defaults.unit;
   }
+  // 模式切换后方案能力矩阵变化：不支持的方案回退固定价
+  if (!planCodes.value.includes(form.pricingPlan)) {
+    form.pricingPlan = "FIXED";
+  }
 }
 
 async function loadModeCapabilities() {
   const data = await listModeCapabilities();
-  modeCapabilities.value = Array.isArray(data) ? data : [];
+  billingModes.value = Array.isArray(data?.billingModes) ? data.billingModes : [];
 }
 
 async function loadProviders(params = {pageNum: 1, pageSize: 10}) {
@@ -323,27 +362,28 @@ function validateJson(value: unknown, label: string): boolean {
 }
 
 function normalizeMode(mode: unknown): string {
-  // 取值由 DB 枚举 billing_mode 下拉约束，这里只做格式归一与空值兜底
+  // 取值由后端枚举 BillingModeEnum 下拉约束，这里只做格式归一与空值兜底
   return String(mode || "").trim().toUpperCase() || "TOKEN";
 }
 
-function buildConfigJson() {
+/** 基础价格部分（模式组件产出）；进阶方案明细在此基础上合并 */
+function buildBaseConfig(): Dict | null {
   if (form.billingMode === "TOKEN") {
-    return stringifyJson({
+    return {
       basePrices: {
         input: form.inputUnitPrice,
         output: form.outputUnitPrice,
         cacheRead: form.cacheReadUnitPrice,
         cacheWrite: form.cacheWriteUnitPrice
       }
-    });
+    };
   }
   if (form.billingMode === "IMAGE") {
-    return stringifyJson({
+    return {
       defaultUnitPrice: form.unitPrice,
       imageResolution: form.imageResolution?.trim() || null,
       imageQuality: form.imageQuality?.trim() || null
-    });
+    };
   }
   if (form.billingMode === "VIDEO") {
     const resolutionPrices: Dict = {};
@@ -353,28 +393,33 @@ function buildConfigJson() {
     if (form.videoPrice1080p != null) {
       resolutionPrices["1080P"] = form.videoPrice1080p;
     }
-    return stringifyJson({
+    return {
       defaultUnitPrice: form.unitPrice,
       ...(Object.keys(resolutionPrices).length ? {resolutionPrices} : {})
-    });
+    };
   }
   if (form.billingMode === "EMBEDDING") {
-    return stringifyJson({defaultUnitPrice: form.inputUnitPrice});
+    return {defaultUnitPrice: form.inputUnitPrice};
   }
-  if (form.billingMode === "TIERED") {
-    const ladder = form.ladderJson?.trim() ? parseJsonObject(form.ladderJson) : null;
-    return stringifyJson({
-      defaultUnitPrice: form.unitPrice,
-      ...(ladder ? {ladder} : {})
-    });
+  if (form.billingMode === "REQUEST" || form.billingMode === "AUDIO") {
+    return {defaultUnitPrice: form.unitPrice};
   }
+  return null;
+}
+
+function buildConfigJson() {
   if (form.billingMode === "CUSTOM") {
     return form.customConfigJson?.trim() || null;
   }
-  if (form.billingMode === "REQUEST" || form.billingMode === "AUDIO") {
-    return stringifyJson({defaultUnitPrice: form.unitPrice});
+  const base = buildBaseConfig();
+  if (form.pricingPlan === "TIERED") {
+    const tier = form.tierJson?.trim() ? parseJsonObject(form.tierJson) : null;
+    return stringifyJson({
+      ...(base || {}),
+      ...(tier ? {tier} : {})
+    });
   }
-  return null;
+  return base ? stringifyJson(base) : null;
 }
 
 /**
@@ -397,6 +442,7 @@ function buildPayload() {
     providerCode: form.providerCode,
     logicalModelCode: form.logicalModelCode,
     billingMode: form.billingMode,
+    pricingPlan: form.pricingPlan,
     currency: form.currency,
     unit: form.billingMode === "FREE" ? "1K_TOKENS" : form.unit,
     configJson: buildConfigJson(),
@@ -406,7 +452,7 @@ function buildPayload() {
 }
 
 async function submit() {
-  if (form.billingMode === "TIERED" && !validateJson(form.ladderJson, "阶梯配置")) {
+  if (form.pricingPlan === "TIERED" && !validateJson(form.tierJson, "阶梯配置")) {
     return;
   }
   if (form.billingMode === "CUSTOM" && !validateJson(form.customConfigJson, "自定义配置")) {

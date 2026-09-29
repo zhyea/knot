@@ -27,7 +27,7 @@ import type {Row} from "@/types";
 
 const props = defineProps({
   modelValue: {type: [String, Number, Array], default: ""},
-  /** 枚举分类，如 provider_type、model_type */
+  /** 枚举分类，如 billing_unit、app_type */
   category: {type: String, required: true},
   placeholder: {type: String, default: "请选择"},
   clearable: {type: Boolean, default: false},

@@ -9,14 +9,14 @@ import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.BillingService;
-import org.chobit.knot.gateway.vo.billing.BillingModeCapabilityItem;
+import org.chobit.knot.gateway.vo.billing.BillingCapabilities;
+import org.chobit.knot.gateway.vo.billing.BillingReportSummary;
 import org.chobit.knot.gateway.vo.billing.BillingRule;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.billing.ReconciliationRequest;
 import org.chobit.knot.gateway.vo.billing.ReconciliationResult;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/billing")
@@ -47,11 +47,19 @@ public class BillingController {
     }
 
     /**
-     * Lists billing mode capabilities: supported units and default values per mode.
+     * 计费能力矩阵：模式（量）与进阶方案（价）两层能力。
      */
     @GetMapping("/mode-capabilities")
-    public List<BillingModeCapabilityItem> modeCapabilities() {
+    public BillingCapabilities modeCapabilities() {
         return billingService.listModeCapabilities();
+    }
+
+    /**
+     * 计费报表汇总（配置维度）：规则状态计数与供应商/模式/方案/币种分布。
+     */
+    @GetMapping("/report/summary")
+    public BillingReportSummary reportSummary() {
+        return billingService.getReportSummary();
     }
 
     /**

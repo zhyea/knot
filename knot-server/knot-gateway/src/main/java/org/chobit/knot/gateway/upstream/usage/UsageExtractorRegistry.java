@@ -4,7 +4,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.constants.enums.ProviderTypeEnum;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.model.BillingUsage;
@@ -102,7 +101,7 @@ public class UsageExtractorRegistry {
             }
         }
         if (context.provider() != null
-                && ProviderTypeEnum.ANTHROPIC.code().equals(StringUtils.upperCase(context.provider().getProviderCode()))) {
+                && "ANTHROPIC".equals(StringUtils.upperCase(context.provider().getProviderCode()))) {
             return AnthropicUsageExtractor.CODE;
         }
         if (context.protocol() != null) {

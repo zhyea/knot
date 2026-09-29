@@ -1,8 +1,12 @@
 package org.chobit.knot.gateway.service;
 
+import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
+import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.constants.enums.EnumOption;
+import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
+import org.chobit.knot.gateway.constants.enums.RouteTargetTypeEnum;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -28,6 +32,10 @@ public class EnumOptionRegistry {
         Map<String, Map<String, String>> map = new LinkedHashMap<>();
         put(map, ModelTypeEnum.class.getSimpleName(), ModelTypeEnum.values());
         put(map, ModelApiProtocolEnum.class.getSimpleName(), ModelApiProtocolEnum.values());
+        put(map, BillingModeEnum.class.getSimpleName(), BillingModeEnum.values());
+        put(map, PricingPlanEnum.class.getSimpleName(), PricingPlanEnum.values());
+        put(map, EntityStatusEnum.class.getSimpleName(), EntityStatusEnum.values());
+        put(map, RouteTargetTypeEnum.class.getSimpleName(), RouteTargetTypeEnum.values());
         this.enumMap = Collections.unmodifiableMap(map);
     }
 

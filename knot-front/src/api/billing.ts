@@ -10,6 +10,11 @@ export function listModeCapabilities() {
   return get("/api/billing/mode-capabilities");
 }
 
+/** 计费报表汇总（配置维度）：规则状态计数 + 供应商/模式/方案/币种分布 */
+export function getBillingReportSummary() {
+  return get("/api/billing/report/summary");
+}
+
 export function createBillingRule(payload: Dict) {
   return post("/api/billing", payload);
 }

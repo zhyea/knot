@@ -5,7 +5,7 @@ import org.chobit.knot.gateway.model.RateLimitPolicy;
 
 public record AppItem(
         Long id,
-        String appId,
+        String appCode,
         String name,
         Long deptId,
         String deptName,

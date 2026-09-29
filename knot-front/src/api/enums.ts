@@ -38,7 +38,8 @@ export function deleteEnumConfig(id: number | string) {
 
 /**
  * 代码枚举全集：GET /api/common/enums，返回 { 枚举键: { code: label } }。
- * 目前仅包含已从 DB 迁移到后端的 ModelTypeEnum、ModelApiProtocolEnum，
+ * 目前包含已从 DB 迁移到后端的 ModelTypeEnum、ModelApiProtocolEnum、BillingModeEnum、
+ * PricingPlanEnum、EntityStatusEnum、RouteTargetTypeEnum，
  * 其余枚举分类仍走 /api/system/enums（ks_enum_configs）。
  */
 export function listCommonEnums() {

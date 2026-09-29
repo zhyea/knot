@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.usage.calculator;
 
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
+import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.model.BillingConfig;
 import org.chobit.knot.gateway.model.BillingUsage;
@@ -35,7 +36,9 @@ public class SimpleBillingModeCalculator extends AbstractBillingModeCalculator {
         }
         int unitSize = unitSize(rule);
         BillingConfig config = BillingConfig.fromJsonOrNull(rule.getConfigJson());
-        BigDecimal unitPrice = config == null ? BigDecimal.ZERO : config.resolveDefaultPrice(BigDecimal.ZERO);
+        BigDecimal unitPrice = config == null
+                ? BigDecimal.ZERO
+                : config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan())).resolveDefaultPrice(BigDecimal.ZERO);
         BigDecimal totalCost = cost(amount, unitPrice, unitSize);
         return new NormalizedBillingAmount(
                 usage.totalTokens(),

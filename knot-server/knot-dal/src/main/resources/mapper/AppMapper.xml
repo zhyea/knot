@@ -10,7 +10,7 @@
 
         a.id,
 
-        a.app_id,
+        a.app_code,
 
         a.name,
 
@@ -45,7 +45,7 @@
         where a.is_deleted = 0
         <if test="keyword != null and keyword != ''">
             and (
-                a.app_id like concat('%', #{keyword}, '%')
+                a.app_code like concat('%', #{keyword}, '%')
                 or a.name like concat('%', #{keyword}, '%')
                 or d.dept_name like concat('%', #{keyword}, '%')
                 or u.real_name like concat('%', #{keyword}, '%')
@@ -74,9 +74,9 @@
 
 
 
-    <select id="countByAppId" resultType="java.lang.Long">
+    <select id="countByAppCode" resultType="java.lang.Long">
 
-        select count(1) from kb_apps where app_id = #{appId}
+        select count(1) from kb_apps where app_code = #{appCode}
 
     </select>
 
@@ -84,9 +84,9 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
 
-        insert into kb_apps(app_id, name, dept_id, owner_user_id, remark, status, is_deleted)
+        insert into kb_apps(app_code, name, dept_id, owner_user_id, remark, status, is_deleted)
 
-        values(#{appId}, #{name}, #{deptId}, #{ownerUserId}, #{remark}, 'ENABLED', 0)
+        values(#{appCode}, #{name}, #{deptId}, #{ownerUserId}, #{remark}, 'ENABLED', 0)
 
     </insert>
 
@@ -124,10 +124,10 @@
 
 
 
-    <!-- 参数语义为应用业务码：kb_app_credentials.app_id 存 kb_apps.app_id -->
-    <select id="countCredentialsByAppId" resultType="java.lang.Long">
+    <!-- 参数语义为应用业务码：kb_app_credentials.app_code 存 kb_apps.app_code -->
+    <select id="countCredentialsByAppCode" resultType="java.lang.Long">
 
-        select count(1) from kb_app_credentials where app_id = #{appId}
+        select count(1) from kb_app_credentials where app_code = #{appCode}
 
     </select>
 

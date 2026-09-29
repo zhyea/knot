@@ -10,6 +10,7 @@ import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.BillingUnitEnum;
 import org.chobit.knot.gateway.constants.enums.CurrencyCodeEnum;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
 import org.chobit.knot.gateway.model.BillingConfig;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -23,7 +24,8 @@ import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
-import org.chobit.knot.gateway.vo.billing.BillingModeCapabilityItem;
+import org.chobit.knot.gateway.vo.billing.BillingCapabilities;
+import org.chobit.knot.gateway.vo.billing.BillingReportSummary;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.MapNumberUtils;
 import org.springframework.stereotype.Service;
@@ -90,15 +92,87 @@ public class BillingService {
     }
 
     /**
-     * Lists billing mode capabilities: supported units and default unit per mode.
+     * 计费能力矩阵：模式 -> 单位/默认单位/支持的进阶方案；方案列表（仅已开放的）。
      */
-    public List<BillingModeCapabilityItem> listModeCapabilities() {
-        return Arrays.stream(BillingModeEnum.values())
-                .map(mode -> new BillingModeCapabilityItem(
+    public BillingCapabilities listModeCapabilities() {
+        List<BillingCapabilities.BillingModeCapability> modes = Arrays.stream(BillingModeEnum.values())
+                .map(mode -> new BillingCapabilities.BillingModeCapability(
                         mode.code(),
                         mode.supportedUnitCodes(),
-                        mode.defaultUnit().code()
+                        mode.defaultUnit().code(),
+                        Arrays.stream(PricingPlanEnum.values())
+                                .filter(PricingPlanEnum::isAvailable)
+                                .filter(plan -> plan.supports(mode))
+                                .map(PricingPlanEnum::code)
+                                .toList()
                 ))
+                .toList();
+        List<BillingCapabilities.PricingPlanCapability> plans = Arrays.stream(PricingPlanEnum.values())
+                .filter(PricingPlanEnum::isAvailable)
+                .map(plan -> new BillingCapabilities.PricingPlanCapability(plan.code()))
+                .toList();
+        return new BillingCapabilities(modes, plans);
+    }
+
+    /**
+     * 计费报表汇总（配置维度）：规则状态计数 + 供应商/计费模式/进阶方案/币种分布。
+     * 按「当前版本」口径聚合，数据量小，一次取全量后内存分组。
+     */
+    public BillingReportSummary getReportSummary() {
+        List<BillingRuleEntity> rules = billingRuleMapper.listForReport();
+
+        long activeRules = rules.stream().filter(r -> isActive(r.getStatus())).count();
+        long activeVersionRules = rules.stream()
+                .filter(r -> r.getVersionCode() != null && isActive(r.getVersionStatus()))
+                .count();
+
+        Map<String, BillingReportSummary.ProviderDistribution> providerMap = new LinkedHashMap<>();
+        Map<String, Long> modeMap = new LinkedHashMap<>();
+        Map<String, Long> planMap = new LinkedHashMap<>();
+        Map<String, Long> currencyMap = new LinkedHashMap<>();
+
+        for (BillingRuleEntity rule : rules) {
+            boolean active = isActive(rule.getStatus());
+
+            String providerKey = rule.getProviderCode() == null ? "" : rule.getProviderCode();
+            providerMap.compute(providerKey, (key, dist) -> {
+                if (dist == null) {
+                    return new BillingReportSummary.ProviderDistribution(
+                            rule.getProviderCode(), rule.getProviderName(), 1L, active ? 1L : 0L);
+                }
+                return new BillingReportSummary.ProviderDistribution(
+                        dist.providerCode(), dist.providerName(), dist.ruleCount() + 1,
+                        dist.activeCount() + (active ? 1L : 0L));
+            });
+
+            modeMap.merge(rule.getBillingMode() == null ? "" : rule.getBillingMode(), 1L, Long::sum);
+            planMap.merge(rule.getPricingPlan() == null ? "" : rule.getPricingPlan(), 1L, Long::sum);
+            currencyMap.merge(rule.getCurrency() == null ? "" : rule.getCurrency(), 1L, Long::sum);
+        }
+
+        long providerCount = providerMap.keySet().stream().filter(key -> !key.isEmpty()).count();
+
+        return new BillingReportSummary(
+                rules.size(),
+                activeRules,
+                rules.size() - activeRules,
+                activeVersionRules,
+                providerCount,
+                List.copyOf(providerMap.values()),
+                toCodeCounts(modeMap),
+                toCodeCounts(planMap),
+                toCodeCounts(currencyMap)
+        );
+    }
+
+    private boolean isActive(String status) {
+        return "ACTIVE".equals(status);
+    }
+
+    private List<BillingReportSummary.CodeCount> toCodeCounts(Map<String, Long> map) {
+        return map.entrySet().stream()
+                .map(entry -> new BillingReportSummary.CodeCount(
+                        entry.getKey().isEmpty() ? null : entry.getKey(), entry.getValue()))
                 .toList();
     }
 
@@ -241,9 +315,19 @@ public class BillingService {
             long ladderAmount = totalTokens > 0 ? totalTokens : inputTokens + outputTokens;
             BillingConfig config = BillingConfig.fromJsonOrNull(configJson);
             BigDecimal zero = BigDecimal.ZERO;
-            BigDecimal inputPrice = config == null ? zero : config.resolvePrice(BillingConfig.PriceKind.INPUT, ladderAmount, zero);
-            BigDecimal outputPrice = config == null ? zero : config.resolvePrice(BillingConfig.PriceKind.OUTPUT, ladderAmount, zero);
-            BigDecimal cacheReadPrice = config == null ? zero : config.resolvePrice(BillingConfig.PriceKind.CACHE_READ, ladderAmount, zero);
+            BigDecimal inputPrice;
+            BigDecimal outputPrice;
+            BigDecimal cacheReadPrice;
+            if (config == null) {
+                inputPrice = zero;
+                outputPrice = zero;
+                cacheReadPrice = zero;
+            } else {
+                BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan()));
+                inputPrice = pricing.resolvePrice(BillingConfig.PriceKind.INPUT, ladderAmount, zero);
+                outputPrice = pricing.resolvePrice(BillingConfig.PriceKind.OUTPUT, ladderAmount, zero);
+                cacheReadPrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_READ, ladderAmount, zero);
+            }
             BigDecimal inputCost = cost(inputTokens - cacheReadTokens, inputPrice, unitSize);
             BigDecimal outputCost = cost(outputTokens, outputPrice, unitSize);
             BigDecimal cacheReadCost = cost(cacheReadTokens, cacheReadPrice, unitSize);
@@ -269,7 +353,9 @@ public class BillingService {
             amount = 1L;
         }
         BillingConfig config = BillingConfig.fromJsonOrNull(configJson);
-        BigDecimal unitPrice = config == null ? BigDecimal.ZERO : config.resolveDefaultPrice(BigDecimal.ZERO);
+        BigDecimal unitPrice = config == null
+                ? BigDecimal.ZERO
+                : config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan())).resolveDefaultPrice(BigDecimal.ZERO);
         Map<String, Object> parts = new LinkedHashMap<>();
         parts.put("amount", amount);
         return new BillingAmount(parts, cost(amount, unitPrice, unitSize));
@@ -307,12 +393,13 @@ public class BillingService {
     }
 
     private BillingRuleVersionEntity createVersion(Long ruleId, BillingRuleDto request, boolean active) {
-        String versionCode = "v" + (billingRuleMapper.countVersions(ruleId) + 1);
+        String versionCode = "v" + (billingRuleMapper.maxVersionSeq(ruleId) + 1);
         BillingRuleVersionEntity version = new BillingRuleVersionEntity();
         version.setRuleId(ruleId);
         version.setVersionCode(versionCode);
         version.setUniqHash(buildUniqHash(request));
         version.setBillingMode(normalizeBillingMode(request.billingMode()));
+        version.setPricingPlan(normalizePricingPlan(request.pricingPlan()));
         version.setCurrency(normalizeCurrency(request.currency()));
         version.setUnit(normalizeUnit(request.unit()));
         version.setConfigJson(blankToNull(request.configJson()));
@@ -324,10 +411,11 @@ public class BillingService {
         return version;
     }
 
-    /** 版本内容指纹：结构化计费字段 + 归一化 config_json 的 MD5 */
+    /** 版本内容指纹：结构化计费字段（含 pricingPlan）+ 归一化 config_json 的 MD5 */
     private String buildUniqHash(BillingRuleDto request) {
         Map<String, Object> versionPayload = new LinkedHashMap<>();
         versionPayload.put("billingMode", normalizeBillingMode(request.billingMode()));
+        versionPayload.put("pricingPlan", normalizePricingPlan(request.pricingPlan()));
         versionPayload.put("currency", normalizeCurrency(request.currency()));
         versionPayload.put("unit", normalizeUnit(request.unit()));
         versionPayload.put("configJson", normalizeJsonText(request.configJson()));
@@ -346,15 +434,24 @@ public class BillingService {
         if (billingRuleMapper.countByCode(code, excludeId) > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, "billing rule code already exists");
         }
-        validateConfigJson(request.configJson());
+        PricingPlanEnum plan = PricingPlanEnum.fromCode(request.pricingPlan());
+        if (plan == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "unsupported pricing plan: " + request.pricingPlan());
+        }
         validateModeAndUnit(request.billingMode(), request.unit());
+        BillingModeEnum mode = BillingModeEnum.fromCode(request.billingMode());
+        if (!plan.supports(mode)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "pricing plan " + plan.code() + " is not supported by mode " + request.billingMode());
+        }
+        validateConfigJson(request.configJson(), plan);
     }
 
     /**
-     * config_json 校验：可解析为对象；defaultUnitPrice / basePrices / ladder 价格非负；
-     * ladder 结构合法且区间不重叠。
+     * config_json 校验：可解析为对象；基础结构合法；并按 pricingPlan 追加方案级约束
+     * （TIERED 要求 tier 非空且每项 unitPrices 完整；PEAK_OFF_PEAK 属阶段三暂不接受）。
      */
-    private void validateConfigJson(String configJson) {
+    private void validateConfigJson(String configJson, PricingPlanEnum plan) {
         String normalized = blankToNull(configJson);
         if (normalized == null) {
             return;
@@ -365,7 +462,7 @@ public class BillingService {
         } catch (IllegalArgumentException e) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "config_json must be a valid JSON object");
         }
-        String error = config == null ? null : config.validate();
+        String error = config == null ? null : config.validate(plan);
         if (error != null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "config_json invalid: " + error);
         }
@@ -429,6 +526,12 @@ public class BillingService {
     private static String normalizeCurrency(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase();
         return normalized.isEmpty() ? CurrencyCodeEnum.USD.code() : normalized;
+    }
+
+    /** 进阶定价方案归一：空值默认 FIXED（调用前已由 validateRule 保证非空合法） */
+    private static String normalizePricingPlan(String value) {
+        PricingPlanEnum plan = PricingPlanEnum.fromCode(value);
+        return plan == null ? PricingPlanEnum.FIXED.code() : plan.code();
     }
 
     private static String normalizeUnit(String value) {

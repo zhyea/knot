@@ -15,6 +15,9 @@ public interface BillingRuleMapper {
                                  @Param("providerCode") String providerCode,
                                  @Param("logicalModelCode") String logicalModelCode);
 
+    /** 报表用：全量非删除规则（含当前版本字段），不分页 */
+    List<BillingRuleEntity> listForReport();
+
     BillingRuleEntity getById(Long id);
 
     Long countByCode(@Param("code") String code, @Param("excludeId") Long excludeId);
@@ -49,8 +52,8 @@ public interface BillingRuleMapper {
     /** 维持「同一规则仅一个 ACTIVE 版本」不变量 */
     int disableOtherActiveVersions(@Param("ruleId") Long ruleId, @Param("keepId") Long keepId);
 
-    /** 同一规则下的版本数量，用于生成 version_code（v{n}） */
-    int countVersions(Long ruleId);
+    /** 同一规则下历史版本号的最大序号（version_code 形如 v{n}），用于生成 version_code（max+1，物理删版本行不撞号） */
+    int maxVersionSeq(Long ruleId);
 
     int insertVersion(BillingRuleVersionEntity entity);
 

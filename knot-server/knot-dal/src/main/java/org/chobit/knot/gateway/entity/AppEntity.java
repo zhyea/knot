@@ -5,7 +5,8 @@ import lombok.Data;
 @Data
 public class AppEntity {
     private Long id;
-    private String appId;
+    /** 应用业务码（kb_apps.app_code），非主键 id */
+    private String appCode;
     private String name;
     private Long deptId;
     /**

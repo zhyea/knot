@@ -64,7 +64,8 @@ import type {SelectOption} from "@/types";
  * - display="radio"    单选框组
  * - display="checkbox" 复选框组（v-model 恒为数组）
  *
- * 枚举键目前有 "ModelTypeEnum"、"ModelApiProtocolEnum"；
+ * 枚举键目前有 "ModelTypeEnum"、"ModelApiProtocolEnum"、"BillingModeEnum"、"PricingPlanEnum"、
+ * "EntityStatusEnum"、"RouteTargetTypeEnum"；
  * DB 可配置枚举（ks_enum_configs）不归它管，继续用 EnumSelect。
  */
 /** 单选取标量，多选取数组 */

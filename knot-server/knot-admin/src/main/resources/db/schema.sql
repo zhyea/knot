@@ -478,7 +478,7 @@ CREATE TABLE IF NOT EXISTS kb_model_api_bindings (
 -- =========================
 CREATE TABLE IF NOT EXISTS kb_apps (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  app_id VARCHAR(64) NOT NULL,
+  app_code VARCHAR(64) NOT NULL,
   name VARCHAR(100) NOT NULL,
   dept_id BIGINT DEFAULT NULL,
   owner_user_id BIGINT DEFAULT NULL,
@@ -489,18 +489,18 @@ CREATE TABLE IF NOT EXISTS kb_apps (
   ip_whitelist_json JSON DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_apps_app_id (app_id)
+  UNIQUE KEY uk_apps_app_code (app_code)
 );
 
 CREATE TABLE IF NOT EXISTS kb_app_credentials (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  app_id VARCHAR(64) NOT NULL COMMENT '所属应用业务码（kb_apps.app_id），非主键 id',
+  app_code VARCHAR(64) NOT NULL COMMENT '所属应用业务码（kb_apps.app_code），非主键 id',
   app_key VARCHAR(128) NOT NULL,
   app_secret_hash VARCHAR(255) NOT NULL,
   status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uk_app_credentials_key (app_key),
-  KEY idx_app_credentials_app (app_id)
+  KEY idx_app_credentials_app (app_code)
 );
 
 CREATE TABLE IF NOT EXISTS kb_app_model_permissions (
@@ -589,6 +589,7 @@ CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
   version_code VARCHAR(32) NOT NULL COMMENT '规则内人工可读版本号（v1/v2/2026-01）',
   uniq_hash VARCHAR(64) NOT NULL COMMENT '版本配置内容指纹（MD5），同一 rule_id 内唯一，防止重复版本',
   billing_mode VARCHAR(32) NOT NULL,
+  pricing_plan VARCHAR(32) NOT NULL DEFAULT 'FIXED' COMMENT '进阶定价方案（PricingPlanEnum）：FIXED/TIERED/PEAK_OFF_PEAK，决定“价”，不改变用量',
   currency VARCHAR(16) NOT NULL DEFAULT 'USD',
   unit VARCHAR(32) NOT NULL DEFAULT '1K_TOKENS' COMMENT '计费单位（BillingUnitEnum code）',
   config_json JSON DEFAULT NULL COMMENT '计费配置：defaultUnitPrice + basePrices + ladder + 模式扩展',

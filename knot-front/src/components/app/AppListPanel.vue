@@ -2,7 +2,7 @@
   <div>
     <el-table v-loading="loading" :data="rows" stripe border>
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center"/>
-      <el-table-column prop="appId" label="App ID" min-width="120"/>
+      <el-table-column prop="appCode" label="App Code" min-width="120"/>
       <el-table-column prop="name" label="名称" min-width="120"/>
       <el-table-column prop="deptName" label="所属部门" min-width="120" show-overflow-tooltip/>
       <el-table-column prop="ownerName" label="负责人" min-width="100" show-overflow-tooltip/>

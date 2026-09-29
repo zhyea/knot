@@ -20,7 +20,7 @@ class BillingModeEnumTest {
     @Test
     void containsNineModesInStableOrder() {
         BillingModeEnum[] values = BillingModeEnum.values();
-        assertEquals(9, values.length);
+        assertEquals(8, values.length);
         assertEquals("TOKEN", values[0].code());
         assertEquals("CUSTOM", values[values.length - 1].code());
 

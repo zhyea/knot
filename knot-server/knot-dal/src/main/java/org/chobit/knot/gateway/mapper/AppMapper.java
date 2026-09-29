@@ -13,7 +13,7 @@ public interface AppMapper {
 
     AppEntity getById(Long id);
 
-    Long countByAppId(String appId);
+    Long countByAppCode(String appCode);
 
     int insert(AppEntity entity);
 
@@ -21,10 +21,10 @@ public interface AppMapper {
 
     int softDelete(Long id);
 
-    /** 按应用业务码统计凭据数（kb_app_credentials.app_id 存业务码） */
-    Long countCredentialsByAppId(@Param("appId") String appId);
+    /** 按应用业务码统计凭据数（kb_app_credentials.app_code 存业务码） */
+    Long countCredentialsByAppCode(@Param("appCode") String appCode);
 
-    /** 按应用主键 id 统计模型权限数（kb_app_model_permissions.app_id 存主键 id） */
+    /** 按应用主键 id 统计模型权限数（kb_app_model_permissions.app_id 存主键 id，与业务码语义不同） */
     Long countModelPermissionsByAppId(Long appId);
 
     Long countByDeptId(Long deptId);

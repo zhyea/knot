@@ -81,16 +81,16 @@ public class AppService {
      */
     @Transactional
     public AppDto create(AppDto request) {
-        String appId = request.appId() != null ? request.appId().trim() : "";
-        if (appId.isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "please input App ID");
+        String appCode = request.appCode() != null ? request.appCode().trim() : "";
+        if (appCode.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "please input App Code");
         }
-        if (countPositive(appMapper.countByAppId(appId))) {
-            throw new BusinessException(ErrorCode.CONFLICT, "App ID already exists: " + appId);
+        if (countPositive(appMapper.countByAppCode(appCode))) {
+            throw new BusinessException(ErrorCode.CONFLICT, "App Code already exists: " + appCode);
         }
         validateDepartment(request.deptId());
         AppEntity entity = appConverter.toEntity(request);
-        entity.setAppId(appId);
+        entity.setAppCode(appCode);
         appMapper.insert(entity);
         trafficPolicySupport.save(TrafficResourceTypeEnum.APP.code(), entity.getId(),
                 request.rateLimitPolicy(), request.quotaPolicy());
@@ -109,7 +109,7 @@ public class AppService {
         validateDepartment(request.deptId());
         AppEntity entity = appConverter.toEntity(request);
         entity.setId(id);
-        entity.setAppId(existing.getAppId());
+        entity.setAppCode(existing.getAppCode());
         appMapper.update(entity);
         trafficPolicySupport.save(TrafficResourceTypeEnum.APP.code(), id,
                 request.rateLimitPolicy(), request.quotaPolicy());
@@ -133,11 +133,11 @@ public class AppService {
     }
 
     /**
-     * 删除前置校验：凭据按应用业务码绑定，模型权限按应用主键 id 绑定，两者参数语义不同。
+     * 删除前置校验：凭据按应用业务码（app_code）绑定，模型权限按应用主键 id（app_id）绑定，两者参数语义不同。
      */
     private void assertNotInUse(AppEntity app) {
         List<String> reasons = new ArrayList<>();
-        if (countPositive(appMapper.countCredentialsByAppId(app.getAppId()))) {
+        if (countPositive(appMapper.countCredentialsByAppCode(app.getAppCode()))) {
             reasons.add("已配置 API 凭证");
         }
         if (countPositive(appMapper.countModelPermissionsByAppId(app.getId()))) {
@@ -179,7 +179,7 @@ public class AppService {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
         QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
         return new AppDto(
-                base.id(), base.appId(), base.name(), base.deptId(), base.deptName(),
+                base.id(), base.appCode(), base.name(), base.deptId(), base.deptName(),
                 base.ownerUserId(), base.ownerName(), base.remark(),
                 rate, quota
         );

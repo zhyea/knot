@@ -15,8 +15,11 @@
       <el-table-column label="版本" width="120" align="center" show-overflow-tooltip>
         <template #default="{ row }">{{ row.versionCode || "-" }}</template>
       </el-table-column>
-      <el-table-column label="计费模式" width="130">
+      <el-table-column label="计费模式" width="120">
         <template #default="{ row }">{{ billingModeLabel(row.billingMode) }}</template>
+      </el-table-column>
+      <el-table-column label="进阶方案" width="110">
+        <template #default="{ row }">{{ pricingPlanLabel(row.pricingPlan) }}</template>
       </el-table-column>
       <el-table-column prop="currency" label="币种" width="80" align="center"/>
       <el-table-column prop="unit" label="单位" width="110"/>
@@ -59,12 +62,12 @@
 </template>
 
 <script setup lang="ts">
-import {type PropType, onMounted} from "vue";
+import {type PropType} from "vue";
 import {Delete, Document, Edit} from "@element-plus/icons-vue";
 import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
-import {useEnums} from "@/composables/useEnums";
+import {useEnumOptions} from "@/composables/useEnumOptions";
 
 defineProps({
   rows: {type: Array, default: (): Row[] => []},
@@ -86,13 +89,13 @@ const emit = defineEmits([
   "page-change",
   "size-change"
 ]);
-const {options: billingModeOptions, loadOptions: loadBillingModes} = useEnums("billing_mode");
+const {labelOf: enumLabelOf} = useEnumOptions();
 
 function billingModeLabel(code: unknown): string {
-  if (!code) return "-";
-  const item = billingModeOptions.value.find((option) => option.itemCode === code);
-  return item?.itemLabel || code;
+  return enumLabelOf("BillingModeEnum", code);
 }
 
-onMounted(loadBillingModes);
+function pricingPlanLabel(code: unknown): string {
+  return enumLabelOf("PricingPlanEnum", code, "-");
+}
 </script>

@@ -157,6 +157,15 @@
                         </annotationProcessorPaths>
                     </configuration>
                 </plugin>
+                <!-- JDK 25 + Mockito self-attach：不配此 argLine 时 surefire 测试可能间歇性全炸
+                     （byte-buddy external attach 被环境拦截），固化默认开启 -->
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <configuration>
+                        <argLine>-Djdk.attach.allowAttachSelf=true -XX:+EnableDynamicAgentLoading</argLine>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>

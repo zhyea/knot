@@ -56,12 +56,16 @@ import KeywordInput from "../../components/common/KeywordInput.vue";
 import {useListQuery} from "@/composables/useListQuery";
 import PluginFormDialog from "../../components/plugin/PluginFormDialog.vue";
 import PluginListPanel from "../../components/plugin/PluginListPanel.vue";
-import {useEnums} from "@/composables/useEnums";
+import {useEnumOptions} from "@/composables/useEnumOptions";
 import {listPlugins, updatePluginStatus} from "@/api/plugins";
 
-const { options: statusOptions, loadOptions: loadStatusOptions } = useEnums("status");
+// 插件状态筛选：EntityStatusEnum 子集（代码枚举，/api/common/enums）
+const {optionsOf: enumOptionsOf} = useEnumOptions();
 const pluginStatusOptions = computed(() =>
-  statusOptions.value.filter((item) => ["ENABLED", "DISABLED"].includes(item.itemCode))
+  enumOptionsOf("EntityStatusEnum", ["ENABLED", "DISABLED"]).map((item) => ({
+    itemCode: item.value,
+    itemLabel: item.label
+  }))
 );
 
 const {
@@ -115,7 +119,6 @@ async function onStatus(row: Row, enabled: string | number | boolean) {
 
 
 onMounted(() => {
-  loadStatusOptions();
   pageLoad();
 });
 </script>

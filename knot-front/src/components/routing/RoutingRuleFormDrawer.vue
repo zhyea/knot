@@ -158,8 +158,11 @@
         </div>
         <el-form-item label="目标类型" class="bind-block-item model-bind-item">
           <el-radio-group v-model="targetType">
-            <el-radio-button value="MODEL">模型</el-radio-button>
-            <el-radio-button value="MODEL_POOL">模型池</el-radio-button>
+            <el-radio-button
+              v-for="item in targetTypeOptions"
+              :key="item.value"
+              :value="item.value"
+            >{{ item.label }}</el-radio-button>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="绑定目标" required class="bind-block-item model-bind-item">
@@ -240,6 +243,7 @@
 
 <script setup lang="ts">
 import {type PropType, computed, reactive, ref, watch, type Ref} from "vue";
+import {useEnumOptions} from "@/composables/useEnumOptions";
 import {ElMessage} from "element-plus";
 import {Delete} from "@element-plus/icons-vue";
 import EnumControl from "../common/EnumControl.vue";
@@ -284,6 +288,10 @@ const primaryTargetKeyModel = computed<string | undefined>({
   set: (value) => { primaryTargetKey.value = value ?? null; }
 });
 const targetType = ref("MODEL");
+
+// 路由目标类型：后端代码枚举 RouteTargetTypeEnum（/api/common/enums）
+const {optionsOf: rtEnumOptionsOf, labelOf: enumLabelOf} = useEnumOptions();
+const targetTypeOptions = computed(() => rtEnumOptionsOf("RouteTargetTypeEnum"));
 
 interface RuleTargetForm {
   id?: number | string | null;
@@ -375,7 +383,7 @@ const targetExtraParams = computed(() => ({
 }));
 
 function appLabel(app: Row): string {
-  return app.name || app.appId || `#${app.id}`;
+  return app.name || app.appCode || `#${app.id}`;
 }
 
 function userLabel(user: Row): string {
@@ -456,7 +464,7 @@ function targetKey(row: Row): string {
 }
 
 function targetTypeLabel(type: string): string {
-  return type === "MODEL_POOL" ? "模型池" : "模型";
+  return enumLabelOf("RouteTargetTypeEnum", type, type);
 }
 
 function parseAppScenarioTags(value: unknown): string[] {

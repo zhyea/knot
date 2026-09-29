@@ -92,7 +92,7 @@ function onAppSaved() {
 
 function openChangeLog(row: Row) {
   logAppId.value = row.id;
-  logAppName.value = row.name || row.appId || `#${row.id}`;
+  logAppName.value = row.name || row.appCode || `#${row.id}`;
   logDrawer.value = true;
 }
 
