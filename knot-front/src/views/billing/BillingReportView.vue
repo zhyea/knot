@@ -28,7 +28,7 @@
           <h3 class="report-block__title">计费模式分布</h3>
           <el-table :data="modeRows" size="small" border>
             <el-table-column label="计费模式" min-width="140">
-              <template #default="{ row }">{{ resolveEnumLabel(modeOptions, row.code, row.code || "（未配置）") }}</template>
+              <template #default="{ row }">{{ modeLabel(row.code) }}</template>
             </el-table-column>
             <el-table-column label="规则数" width="90" align="center">
               <template #default="{ row }">{{ row.count }}</template>
@@ -40,7 +40,7 @@
           <h3 class="report-block__title">进阶方案分布</h3>
           <el-table :data="planRows" size="small" border>
             <el-table-column label="进阶方案" min-width="140">
-              <template #default="{ row }">{{ resolveEnumLabel(planOptions, row.code, row.code || "（未配置）") }}</template>
+              <template #default="{ row }">{{ planLabel(row.code) }}</template>
             </el-table-column>
             <el-table-column label="规则数" width="90" align="center">
               <template #default="{ row }">{{ row.count }}</template>
@@ -69,13 +69,14 @@ import type {Dict, Row} from "@/types";
 import {computed, onMounted, ref} from "vue";
 import PageSection from "@/components/common/PageSection.vue";
 import {getBillingReportSummary} from "@/api/billing";
-import {useEnums, resolveEnumLabel} from "@/composables/useEnums";
+import {useEnumOptions} from "@/composables/useEnumOptions";
 
 const loading = ref(false);
 const summary = ref<Dict | null>(null);
 
-const {options: modeOptions, loadOptions: loadModeOptions} = useEnums("billing_mode");
-const {options: planOptions, loadOptions: loadPlanOptions} = useEnums("billing_pricing_plan");
+// 计费模式/进阶方案的标签来自后端代码枚举（BillingModeEnum / PricingPlanEnum），
+// DB 字典 ks_enum_configs 中这两个分类已随迁移删除，不得再走 useEnums。
+const {labelOf: enumLabelOf} = useEnumOptions();
 
 const statCards = computed(() => [
   {label: "规则总数", value: summary.value?.totalRules ?? 0},
@@ -85,9 +86,17 @@ const statCards = computed(() => [
   {label: "涉及供应商", value: summary.value?.providerCount ?? 0}
 ]);
 
-/** 计费模式分布行（枚举字典加载失败时兜底展示原始 code） */
+/** 计费模式分布行（枚举加载失败时兜底展示原始 code） */
 const modeRows = computed<Row[]>(() => (summary.value?.byBillingMode as Row[]) || []);
 const planRows = computed<Row[]>(() => (summary.value?.byPricingPlan as Row[]) || []);
+
+function modeLabel(code: unknown): string {
+  return enumLabelOf("BillingModeEnum", code, String(code || "（未配置）"));
+}
+
+function planLabel(code: unknown): string {
+  return enumLabelOf("PricingPlanEnum", code, String(code || "（未配置）"));
+}
 
 async function loadSummary() {
   loading.value = true;
@@ -98,11 +107,7 @@ async function loadSummary() {
   }
 }
 
-onMounted(() => {
-  loadSummary();
-  loadModeOptions();
-  loadPlanOptions();
-});
+onMounted(loadSummary);
 </script>
 
 <style scoped>

@@ -4,10 +4,10 @@
       <template #title>
         <div class="tier-editor__hint-body">
           <span>
-            按本次请求总 Token 命中<strong>唯一档位</strong>计价，不跨档拆段；未命中任何档位时回退上方基础价。
+            按{{ scope.amountLabel }}命中<strong>唯一档位</strong>计价，不跨档拆段；未命中任何档位时回退上方基础价。
             起始用量与截止用量均为闭区间，截止用量留空 = 上不封顶，<strong>该档只能是最后一档</strong>。
           </span>
-          <span class="tier-editor__hint-unit">阶梯档位基准：本次请求总 Token</span>
+          <span class="tier-editor__hint-unit">阶梯档位基准：{{ scope.amountLabel }}</span>
         </div>
       </template>
     </el-alert>
@@ -53,7 +53,9 @@
         </el-col>
         <el-col :span="8">
           <el-form-item label="档位操作">
-            <el-button size="small" @click="fillTierFromBase(index)">填基础价</el-button>
+            <el-button size="small" :disabled="!canFillFromBase" @click="fillTierFromBase(index)">
+              填基础价
+            </el-button>
           </el-form-item>
         </el-col>
       </el-row>
@@ -68,7 +70,7 @@
 
     <div class="tier-editor__actions">
       <el-button :disabled="!canAppend" @click="append">新增档位</el-button>
-      <el-button :disabled="!rows.length" @click="fillAllFromBase">全部填入基础价</el-button>
+      <el-button :disabled="!rows.length || !canFillFromBase" @click="fillAllFromBase">全部填入基础价</el-button>
       <span v-if="!canAppend" class="tier-editor__tip">末档已上不封顶，需先补齐截止用量才能继续加档</span>
     </div>
 
@@ -87,10 +89,13 @@ import type {Dict} from "@/types";
 import TierPriceFields from "./TierPriceFields.vue";
 import {
   TIER_PRICE_FIELDS,
+  basePricesOf,
+  createTierPriceSet,
   createTierRow,
   describeTierRange,
   toNumberOrNull,
   issueMessage,
+  tierScope,
   validateTierRows
 } from "@/utils/billingTier";
 import type {TierIssue, TierPriceSet, TierRow} from "@/utils/billingTier";
@@ -105,6 +110,9 @@ const props = defineProps({
  */
 const rows = computed<TierRow[]>(() => (Array.isArray(props.form.tiers) ? props.form.tiers : []));
 const issues = computed<TierIssue[]>(() => validateTierRows(rows.value));
+/** 用量口径与基础价映射由计费模式决定；方案层不感知具体模式 */
+const scope = computed(() => tierScope(props.form.billingMode));
+const canFillFromBase = computed(() => scope.value.basePriceFields != null);
 const canAppend = computed(() => {
   const last = rows.value[rows.value.length - 1];
   return !last || toNumberOrNull(last.to) != null;
@@ -132,7 +140,7 @@ function append() {
   const previousTo = last ? toNumberOrNull(last.to) : null;
   const row = createTierRow({
     from: previousTo == null ? 0 : previousTo + 1,
-    unitPrices: basePrices()
+    unitPrices: basePrices() || createTierPriceSet(null)
   });
   rows.value.push(row);
 }
@@ -151,29 +159,27 @@ function move(index: number, offset: number) {
   list.splice(target, 0, moved);
 }
 
-/** 取 TOKEN 模式组件维护的 6 项基础单价（与档位 unitPrices 同构） */
-function basePrices(): TierPriceSet {
-  return {
-    input: toNumberOrNull(props.form.inputUnitPrice),
-    output: toNumberOrNull(props.form.outputUnitPrice),
-    cacheRead: toNumberOrNull(props.form.cacheReadUnitPrice),
-    cacheWrite: toNumberOrNull(props.form.cacheWriteUnitPrice),
-    cacheWrite5m: toNumberOrNull(props.form.cacheWrite5mUnitPrice),
-    cacheWrite1h: toNumberOrNull(props.form.cacheWrite1hUnitPrice)
-  };
+/** 取当前模式的基础单价（由 mode 的 scope 决定，本组件不直接读模式专属字段） */
+function basePrices(): TierPriceSet | null {
+  return basePricesOf(props.form, props.form.billingMode);
 }
 
 function fillTierFromBase(index: number) {
   const row = rows.value[index];
-  if (!row) {
+  const base = basePrices();
+  if (!row || !base) {
     return;
   }
-  row.unitPrices = basePrices();
+  row.unitPrices = base;
   ElMessage.success(`第 ${index + 1} 档已填入基础价`);
 }
 
 function fillAllFromBase() {
   const base = basePrices();
+  if (!base) {
+    ElMessage.warning("当前计费模式没有分项基础价，请直接填写各档单价");
+    return;
+  }
   const missing = TIER_PRICE_FIELDS.filter((field) => base[field.key] == null);
   if (missing.length) {
     ElMessage.warning(`基础价缺少 ${missing.map((field) => field.label).join("、")}，请先在上方填写`);

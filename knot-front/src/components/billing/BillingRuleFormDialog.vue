@@ -138,8 +138,8 @@ import {listProviderProfiles} from "@/api/providerProfiles";
 import {listLogicalModels} from "@/api/logicalModels";
 import {isValidJsonText, parseJsonObject, stringifyJson} from "@/utils/format";
 import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
-import {createTierRow, parseTierRows, toNumberOrNull, toTierPayload, validateTierRows} from "@/utils/billingTier";
-import type {TierPriceSet, TierRow} from "@/utils/billingTier";
+import {basePricesOf, createTierPriceSet, createTierRow, parseTierRows, toNumberOrNull, toTierPayload, validateTierRows} from "@/utils/billingTier";
+import type {TierRow} from "@/utils/billingTier";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -282,22 +282,15 @@ watch(
     }
     // 首次切到阶梯价时给一个起始档位，避免空白表格无从下手
     if (plan === "TIERED" && !form.tiers.length) {
-      form.tiers.push(createTierRow({from: 0, unitPrices: currentBasePrices()}));
+      form.tiers.push(
+        createTierRow({
+          from: 0,
+          unitPrices: basePricesOf(form, form.billingMode) || createTierPriceSet(null)
+        })
+      );
     }
   }
 );
-
-/** 取当前 TOKEN 基础单价（新建档位与首次启用阶梯时的默认值来源） */
-function currentBasePrices(): TierPriceSet {
-  return {
-    input: toNumberOrNull(form.inputUnitPrice),
-    output: toNumberOrNull(form.outputUnitPrice),
-    cacheRead: toNumberOrNull(form.cacheReadUnitPrice),
-    cacheWrite: toNumberOrNull(form.cacheWriteUnitPrice),
-    cacheWrite5m: toNumberOrNull(form.cacheWrite5mUnitPrice),
-    cacheWrite1h: toNumberOrNull(form.cacheWrite1hUnitPrice)
-  };
-}
 
 function resetForm() {
   const row = props.rule;

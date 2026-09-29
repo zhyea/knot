@@ -338,7 +338,6 @@ import {
 } from "@/api/models";
 import {listLogicalModels} from "@/api/logicalModels";
 import {listBillingRules} from "@/api/billing";
-import {getProviderAccount} from "@/api/providers";
 import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
 
 /** 模型 API 绑定行（表单内 uid 用于 :key 稳定渲染） */
