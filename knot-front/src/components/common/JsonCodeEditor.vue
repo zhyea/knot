@@ -270,6 +270,7 @@ function visualizeWhitespaceText(text: unknown): string {
 
 .json-editor__highlight code {
   display: block;
+  padding: 0;
 }
 
 .json-editor__highlight {
