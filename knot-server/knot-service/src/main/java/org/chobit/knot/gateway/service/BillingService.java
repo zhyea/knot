@@ -10,6 +10,7 @@ import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.BillingUnitEnum;
 import org.chobit.knot.gateway.constants.enums.CurrencyCodeEnum;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.model.BillingConfig;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.BillingConverter;
@@ -23,7 +24,6 @@ import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.vo.billing.BillingModeCapabilityItem;
-import org.chobit.knot.gateway.util.BillingPriceResolver;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.MapNumberUtils;
 import org.springframework.stereotype.Service;
@@ -239,9 +239,11 @@ public class BillingService {
             long cacheReadTokens = MapNumberUtils.nestedLong(usage, "prompt_tokens_details", "cached_tokens")
                     + MapNumberUtils.nestedLong(usage, "input_tokens_details", "cached_tokens");
             long ladderAmount = totalTokens > 0 ? totalTokens : inputTokens + outputTokens;
-            BigDecimal inputPrice = BillingPriceResolver.resolvePrice(configJson, "input", ladderAmount, BigDecimal.ZERO);
-            BigDecimal outputPrice = BillingPriceResolver.resolvePrice(configJson, "output", ladderAmount, BigDecimal.ZERO);
-            BigDecimal cacheReadPrice = BillingPriceResolver.resolvePrice(configJson, "cacheRead", ladderAmount, BigDecimal.ZERO);
+            BillingConfig config = BillingConfig.fromJsonOrNull(configJson);
+            BigDecimal zero = BigDecimal.ZERO;
+            BigDecimal inputPrice = config == null ? zero : config.resolvePrice(BillingConfig.PriceKind.INPUT, ladderAmount, zero);
+            BigDecimal outputPrice = config == null ? zero : config.resolvePrice(BillingConfig.PriceKind.OUTPUT, ladderAmount, zero);
+            BigDecimal cacheReadPrice = config == null ? zero : config.resolvePrice(BillingConfig.PriceKind.CACHE_READ, ladderAmount, zero);
             BigDecimal inputCost = cost(inputTokens - cacheReadTokens, inputPrice, unitSize);
             BigDecimal outputCost = cost(outputTokens, outputPrice, unitSize);
             BigDecimal cacheReadCost = cost(cacheReadTokens, cacheReadPrice, unitSize);
@@ -266,7 +268,8 @@ public class BillingService {
         if (amount <= 0 && (BillingModeEnum.IMAGE == modeEnum || BillingModeEnum.REQUEST == modeEnum)) {
             amount = 1L;
         }
-        BigDecimal unitPrice = BillingPriceResolver.resolveDefaultPrice(configJson, amount, BigDecimal.ZERO);
+        BillingConfig config = BillingConfig.fromJsonOrNull(configJson);
+        BigDecimal unitPrice = config == null ? BigDecimal.ZERO : config.resolveDefaultPrice(BigDecimal.ZERO);
         Map<String, Object> parts = new LinkedHashMap<>();
         parts.put("amount", amount);
         return new BillingAmount(parts, cost(amount, unitPrice, unitSize));
@@ -356,35 +359,15 @@ public class BillingService {
         if (normalized == null) {
             return;
         }
-        Map<String, Object> config;
+        BillingConfig config;
         try {
-            Object parsed = OBJECT_MAPPER.readValue(normalized, Object.class);
-            config = parsed instanceof Map<?, ?> map ? castToMap(map) : null;
-        } catch (JsonProcessingException e) {
+            config = BillingConfig.parse(normalized);
+        } catch (IllegalArgumentException e) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "config_json must be a valid JSON object");
         }
-        if (config == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "config_json must be a JSON object");
-        }
-        BigDecimal defaultUnitPrice = decimalOf(config.get("defaultUnitPrice"));
-        if (defaultUnitPrice != null && defaultUnitPrice.signum() < 0) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "config_json.defaultUnitPrice cannot be negative");
-        }
-        if (config.get("basePrices") != null) {
-            if (!(config.get("basePrices") instanceof Map<?, ?> basePrices)) {
-                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "config_json.basePrices must be an object");
-            }
-            for (Map.Entry<?, ?> entry : basePrices.entrySet()) {
-                BigDecimal price = decimalOf(entry.getValue());
-                if (price == null || price.signum() < 0) {
-                    throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                            "base price cannot be negative: " + entry.getKey());
-                }
-            }
-        }
-        String ladderError = BillingPriceResolver.validateLadder(config.get("ladder"));
-        if (ladderError != null) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "config_json.ladder invalid: " + ladderError);
+        String error = config == null ? null : config.validate();
+        if (error != null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "config_json invalid: " + error);
         }
     }
 
@@ -411,11 +394,6 @@ public class BillingService {
         if (count != null && count > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, message);
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> castToMap(Map<?, ?> map) {
-        return (Map<String, Object>) map;
     }
 
     private static String statusFor(boolean enabled) {
@@ -456,23 +434,6 @@ public class BillingService {
     private static String normalizeUnit(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase();
         return normalized.isEmpty() ? BillingUnitEnum.ONE_K_TOKENS.code() : normalized;
-    }
-
-    private static BigDecimal decimalOf(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof BigDecimal decimal) {
-            return decimal;
-        }
-        if (value instanceof Number number) {
-            return new BigDecimal(String.valueOf(number));
-        }
-        try {
-            return new BigDecimal(String.valueOf(value).trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
     }
 
     private static Object normalizeJsonText(String value) {

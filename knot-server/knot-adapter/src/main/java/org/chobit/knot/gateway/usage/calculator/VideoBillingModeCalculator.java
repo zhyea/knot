@@ -3,22 +3,19 @@ package org.chobit.knot.gateway.usage.calculator;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
+import org.chobit.knot.gateway.model.BillingConfig;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.model.NormalizedBillingAmount;
 import org.chobit.knot.gateway.usage.NormalizedUsageContext;
-import org.chobit.knot.gateway.util.BillingPriceResolver;
-import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 @Component
 public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
 
-    private static final String CONFIG_KEY = "resolutionPrices";
     private static final String REQUEST_SIZE = "size";
     private static final String FALLBACK_SIZE = "resolution";
 
@@ -36,7 +33,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         if (resolution == null) {
             resolution = normalizeResolution(context.requestBody().get(FALLBACK_SIZE));
         }
-        BigDecimal unitPrice = resolveUnitPrice(rule, resolution, amount);
+        BigDecimal unitPrice = resolveUnitPrice(rule, resolution);
         int unitSize = unitSize(rule);
         BigDecimal totalCost = cost(amount, unitPrice, unitSize);
         String detailType = resolution == null
@@ -49,37 +46,24 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         );
     }
 
-    private BigDecimal resolveUnitPrice(BillingRuleEntity rule, String resolution, long amount) {
-        BigDecimal fallback = BillingPriceResolver.resolveDefaultPrice(rule.getConfigJson(), amount, BigDecimal.ZERO);
-        if (StringUtils.isBlank(rule.getConfigJson()) || resolution == null) {
+    private BigDecimal resolveUnitPrice(BillingRuleEntity rule, String resolution) {
+        BillingConfig config = BillingConfig.fromJsonOrNull(rule.getConfigJson());
+        if (config == null || resolution == null) {
+            return config == null ? BigDecimal.ZERO : config.resolveDefaultPrice(BigDecimal.ZERO);
+        }
+        BigDecimal fallback = config.resolveDefaultPrice(BigDecimal.ZERO);
+        Map<String, BigDecimal> prices = config.resolutionPrices();
+        if (prices == null || prices.isEmpty()) {
             return fallback;
         }
-        Map<String, Object> config = JsonKit.fromJson(rule.getConfigJson(), new com.fasterxml.jackson.core.type.TypeReference<>() {
-        });
-        if (config == null || config.isEmpty()) {
-            return fallback;
-        }
-        Object resolutionPrices = config.get(CONFIG_KEY);
-        if (!(resolutionPrices instanceof Map<?, ?> rawPrices)) {
-            return fallback;
-        }
-        Map<String, Object> prices = new LinkedHashMap<>();
-        rawPrices.forEach((key, value) -> prices.put(String.valueOf(key), value));
-        Object matched = prices.get(resolution);
+        BigDecimal matched = prices.get(resolution);
         if (matched == null) {
             matched = prices.get(StringUtils.upperCase(resolution));
         }
         if (matched == null) {
             matched = prices.get(StringUtils.lowerCase(resolution));
         }
-        if (matched == null) {
-            return fallback;
-        }
-        try {
-            return new BigDecimal(String.valueOf(matched));
-        } catch (NumberFormatException ex) {
-            return fallback;
-        }
+        return matched == null ? fallback : matched;
     }
 
     private String normalizeResolution(Object value) {

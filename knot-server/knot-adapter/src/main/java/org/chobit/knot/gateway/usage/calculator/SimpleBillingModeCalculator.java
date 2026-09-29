@@ -2,10 +2,10 @@ package org.chobit.knot.gateway.usage.calculator;
 
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
+import org.chobit.knot.gateway.model.BillingConfig;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.model.NormalizedBillingAmount;
 import org.chobit.knot.gateway.usage.NormalizedUsageContext;
-import org.chobit.knot.gateway.util.BillingPriceResolver;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -34,7 +34,8 @@ public class SimpleBillingModeCalculator extends AbstractBillingModeCalculator {
             amount = 1L;
         }
         int unitSize = unitSize(rule);
-        BigDecimal unitPrice = BillingPriceResolver.resolveDefaultPrice(rule.getConfigJson(), amount, BigDecimal.ZERO);
+        BillingConfig config = BillingConfig.fromJsonOrNull(rule.getConfigJson());
+        BigDecimal unitPrice = config == null ? BigDecimal.ZERO : config.resolveDefaultPrice(BigDecimal.ZERO);
         BigDecimal totalCost = cost(amount, unitPrice, unitSize);
         return new NormalizedBillingAmount(
                 usage.totalTokens(),
