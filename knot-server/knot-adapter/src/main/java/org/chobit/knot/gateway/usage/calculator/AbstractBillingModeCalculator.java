@@ -77,37 +77,6 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
         return StringUtils.defaultIfBlank(normalized, BillingUnitEnum.ONE_K_TOKENS.code());
     }
 
-    protected BigDecimal jsonDecimal(String json, String key, BigDecimal fallback) {
-        if (StringUtils.isBlank(json)) {
-            return fallback;
-        }
-        String pattern = "\"" + key + "\"";
-        int keyIndex = json.indexOf(pattern);
-        if (keyIndex < 0) {
-            return fallback;
-        }
-        int colon = json.indexOf(':', keyIndex + pattern.length());
-        if (colon < 0) {
-            return fallback;
-        }
-        int start = colon + 1;
-        while (start < json.length() && Character.isWhitespace(json.charAt(start))) {
-            start++;
-        }
-        int end = start;
-        while (end < json.length() && "-0123456789.".indexOf(json.charAt(end)) >= 0) {
-            end++;
-        }
-        if (end <= start) {
-            return fallback;
-        }
-        try {
-            return new BigDecimal(json.substring(start, end));
-        } catch (NumberFormatException ex) {
-            return fallback;
-        }
-    }
-
     protected long firstAmount(long primary, long fallback) {
         return primary > 0 ? primary : fallback;
     }

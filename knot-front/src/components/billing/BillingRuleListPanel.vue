@@ -12,15 +12,14 @@
           {{ row.logicalModelName || (row.logicalModelCode ? `#${row.logicalModelCode}` : "默认") }}
         </template>
       </el-table-column>
-      <el-table-column label="版本" width="90" align="center">
-        <template #default="{ row }">v{{ row.versionNo || 1 }}</template>
+      <el-table-column label="版本" width="120" align="center" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.versionCode || "-" }}</template>
       </el-table-column>
       <el-table-column label="计费模式" width="130">
         <template #default="{ row }">{{ billingModeLabel(row.billingMode) }}</template>
       </el-table-column>
       <el-table-column prop="currency" label="币种" width="80" align="center"/>
       <el-table-column prop="unit" label="单位" width="110"/>
-      <el-table-column prop="unitPrice" label="单价" width="110"/>
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch

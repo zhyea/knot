@@ -2,22 +2,22 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.gateway.mapper.BillingRuleMapper">
 
+    <!-- 当前版本 = 规则下优先取 ACTIVE、再取最近生效的版本（展示用；计费路径见 getActiveByRuleId/listActiveCandidates） -->
+    <sql id="VersionJoin">
+        left join kb_billing_rule_versions bv on bv.id = (
+            select v.id from kb_billing_rule_versions v
+            where v.rule_id = br.id
+            order by (v.status = 'ACTIVE') desc, v.effective_from desc, v.id desc
+            limit 1
+        )
+    </sql>
+
     <sql id="RuleColumns">
         br.id, br.code, br.provider_code, p.name as provider_name,
         br.logical_model_code, lm.model_name as logical_model_name,
-        br.current_version_id, br.remark, br.status, br.is_deleted,
-        bv.version_no, bv.version_code, bv.billing_mode, bv.currency, bv.config_json, bv.ladder_json,
-        bv.effective_from, bv.effective_to,
-        bvi.item_type, bvi.unit, bvi.unit_price
-    </sql>
-
-    <sql id="ActiveRuleColumns">
-        br.id, br.code, br.provider_code, p.name as provider_name,
-        br.logical_model_code, lm.model_name as logical_model_name,
-        bv.id as current_version_id, br.remark, br.status, br.is_deleted,
-        bv.version_no, bv.version_code, bv.billing_mode, bv.currency, bv.config_json, bv.ladder_json,
-        bv.effective_from, bv.effective_to,
-        bvi.item_type, bvi.unit, bvi.unit_price
+        br.status, br.remark,
+        bv.version_code, bv.uniq_hash, bv.billing_mode, bv.currency, bv.unit,
+        bv.config_json, bv.effective_from, bv.effective_to
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
@@ -25,10 +25,9 @@
         from kb_billing_rules br
         left join kb_providers p on br.provider_code = p.code
         left join kb_logical_models lm on br.logical_model_code = lm.model_code
-        left join kb_billing_rule_versions bv on br.current_version_id = bv.id
-        left join kb_billing_rule_version_items bvi on bv.id = bvi.version_id
+        <include refid="VersionJoin"/>
         <where>
-            br.is_deleted = 0
+            br.status != 'DELETED'
             <if test="keyword != null and keyword != ''">
                 and (
                     br.code like concat('%', #{keyword}, '%')
@@ -52,9 +51,8 @@
         from kb_billing_rules br
         left join kb_providers p on br.provider_code = p.code
         left join kb_logical_models lm on br.logical_model_code = lm.model_code
-        left join kb_billing_rule_versions bv on br.current_version_id = bv.id
-        left join kb_billing_rule_version_items bvi on bv.id = bvi.version_id
-        where br.id = #{id} and br.is_deleted = 0
+        <include refid="VersionJoin"/>
+        where br.id = #{id} and br.status != 'DELETED'
     </select>
 
     <select id="countByCode" resultType="java.lang.Long">
@@ -73,31 +71,27 @@
     </select>
 
     <select id="getActiveByRuleId" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
-        select <include refid="ActiveRuleColumns"/>
+        select <include refid="RuleColumns"/>
         from kb_billing_rules br
         inner join kb_billing_rule_versions bv on br.id = bv.rule_id
         left join kb_providers p on br.provider_code = p.code
         left join kb_logical_models lm on br.logical_model_code = lm.model_code
-        left join kb_billing_rule_version_items bvi on bv.id = bvi.version_id
         where br.id = #{ruleId}
           and br.status = 'ACTIVE'
-          and br.is_deleted = 0
           and bv.status = 'ACTIVE'
           and bv.effective_from &lt;= #{effectiveAt}
           and (bv.effective_to is null or bv.effective_to &gt; #{effectiveAt})
-        order by bv.effective_from desc, bv.version_no desc, bv.id desc
+        order by bv.effective_from desc, bv.id desc
         limit 1
     </select>
 
     <select id="listActiveCandidates" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
-        select <include refid="ActiveRuleColumns"/>
+        select <include refid="RuleColumns"/>
         from kb_billing_rules br
         inner join kb_billing_rule_versions bv on br.id = bv.rule_id
         left join kb_providers p on br.provider_code = p.code
         left join kb_logical_models lm on br.logical_model_code = lm.model_code
-        left join kb_billing_rule_version_items bvi on bv.id = bvi.version_id
         where br.status = 'ACTIVE'
-          and br.is_deleted = 0
           and bv.status = 'ACTIVE'
           and bv.effective_from &lt;= #{effectiveAt}
           and (bv.effective_to is null or bv.effective_to &gt; #{effectiveAt})
@@ -114,19 +108,18 @@
             when br.provider_code = #{providerCode} and br.logical_model_code is null then 2
             else 3
           end,
-          bv.effective_from desc, bv.version_no desc, br.id desc
+          bv.effective_from desc, br.id desc
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_billing_rules(code, provider_code, logical_model_code, current_version_id, status, remark, is_deleted)
-        values(#{code}, #{providerCode}, #{logicalModelCode}, #{currentVersionId}, #{status}, #{remark}, 0)
+        insert into kb_billing_rules(code, provider_code, logical_model_code, status, remark)
+        values(#{code}, #{providerCode}, #{logicalModelCode}, #{status}, #{remark})
     </insert>
 
     <update id="update">
         update kb_billing_rules
         set provider_code = #{providerCode},
             logical_model_code = #{logicalModelCode},
-            current_version_id = #{currentVersionId},
             status = #{status},
             remark = #{remark}
         where id = #{id}
@@ -138,34 +131,52 @@
         where id = #{id}
     </update>
 
-    <update id="softDelete">
+    <update id="deleteRule">
         update kb_billing_rules
-        set is_deleted = 1,
-            status = 'DELETED'
+        set status = 'DELETED'
         where id = #{id}
     </update>
 
-    <update id="updateCurrentVersion">
-        update kb_billing_rules set current_version_id = #{currentVersionId} where id = #{id}
-    </update>
+    <select id="getLatestVersion" resultType="org.chobit.knot.gateway.entity.BillingRuleVersionEntity">
+        select id, rule_id, version_code, uniq_hash, billing_mode, currency, unit,
+               config_json, status, effective_from, effective_to
+        from kb_billing_rule_versions
+        where rule_id = #{ruleId}
+        order by effective_from desc, id desc
+        limit 1
+    </select>
 
-    <select id="maxVersionNo" resultType="java.lang.Integer">
-        select max(version_no) from kb_billing_rule_versions where rule_id = #{ruleId}
+    <select id="getVersionByHash" resultType="org.chobit.knot.gateway.entity.BillingRuleVersionEntity">
+        select id, rule_id, version_code, uniq_hash, billing_mode, currency, unit,
+               config_json, status, effective_from, effective_to
+        from kb_billing_rule_versions
+        where rule_id = #{ruleId} and uniq_hash = #{uniqHash}
+        limit 1
+    </select>
+
+    <select id="countVersions" resultType="java.lang.Integer">
+        select count(1) from kb_billing_rule_versions where rule_id = #{ruleId}
     </select>
 
     <insert id="insertVersion" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_billing_rule_versions(rule_id, version_no, version_code, billing_mode, currency,
-                                          config_json, ladder_json, status,
-                                          effective_from, effective_to, change_reason)
-        values(#{ruleId}, #{versionNo}, #{versionCode}, #{billingMode}, #{currency},
-               #{configJson}, #{ladderJson}, #{status},
-               #{effectiveFrom}, #{effectiveTo}, #{changeReason})
+        insert into kb_billing_rule_versions(rule_id, version_code, uniq_hash, billing_mode, currency,
+                                             unit, config_json, status, effective_from, effective_to)
+        values(#{ruleId}, #{versionCode}, #{uniqHash}, #{billingMode}, #{currency},
+               #{unit}, #{configJson}, #{status}, #{effectiveFrom}, #{effectiveTo})
     </insert>
 
-    <insert id="insertVersionItem" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_billing_rule_version_items(version_id, item_type, unit, unit_size, unit_price, metadata_json)
-        values(#{versionId}, #{itemType}, #{unit}, #{unitSize}, #{unitPrice}, #{metadataJson})
-    </insert>
+    <update id="activateVersion">
+        update kb_billing_rule_versions
+        set status = 'ACTIVE',
+            effective_from = #{effectiveFrom}
+        where id = #{id}
+    </update>
+
+    <update id="disableOtherActiveVersions">
+        update kb_billing_rule_versions
+        set status = 'DISABLED'
+        where rule_id = #{ruleId} and id != #{keepId} and status = 'ACTIVE'
+    </update>
 
     <update id="updateVersionStatus">
         update kb_billing_rule_versions

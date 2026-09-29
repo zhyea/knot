@@ -167,7 +167,7 @@
                   </el-table-column>
                   <el-table-column label="版本" width="80" show-overflow-tooltip>
                     <template #default="{ row }">
-                      <span class="bind-list__text">v{{ row.versionNo || 1 }}</span>
+                      <span class="bind-list__text">{{ row.versionCode || "-" }}</span>
                     </template>
                   </el-table-column>
                   <el-table-column label="是否启用" width="90" align="center">
@@ -486,7 +486,7 @@ function isEnabledLogicalModel(model: Row): boolean {
 }
 
 function billingRuleLabel(rule: Row): string {
-  return rule.code ? `${rule.code} (v${rule.versionNo || 1})` : `#${rule.id}`;
+  return rule.code ? `${rule.code} (${rule.versionCode || "-"})` : `#${rule.id}`;
 }
 
 function usageExtractorLabel(item: Row): string {

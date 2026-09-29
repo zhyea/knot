@@ -63,10 +63,7 @@ public final class UsageNormalizationSupport {
     }
 
     private static String billingVersion(BillingRuleEntity rule) {
-        if (StringUtils.isNotBlank(rule.getVersionCode())) {
-            return rule.getVersionCode();
-        }
-        return rule.getVersionNo() == null ? null : String.valueOf(rule.getVersionNo());
+        return StringUtils.trimToNull(rule.getVersionCode());
     }
 
     private static String normalizeBillingMode(String value) {

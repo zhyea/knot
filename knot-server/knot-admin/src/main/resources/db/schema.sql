@@ -575,45 +575,30 @@ CREATE TABLE IF NOT EXISTS kb_billing_rules (
   code VARCHAR(64) NOT NULL,
   provider_code VARCHAR(32) DEFAULT NULL,
   logical_model_code VARCHAR(128) DEFAULT NULL COMMENT '统一模型 code（kb_logical_models.model_code）',
-  current_version_id BIGINT DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
-  is_deleted TINYINT NOT NULL DEFAULT 0,
+  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE' COMMENT '生命周期状态：ACTIVE/INACTIVE/DELETED，查询排除 DELETED，启停与删除不得混用',
   remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_billing_rules_code (code),
-  KEY idx_billing_rules_match (provider_code, logical_model_code, status, is_deleted)
+  KEY idx_billing_rules_match (provider_code, logical_model_code, status)
 );
 
 CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   rule_id BIGINT NOT NULL,
-  version_no INT NOT NULL,
-  version_code VARCHAR(32) DEFAULT NULL,
+  version_code VARCHAR(32) NOT NULL COMMENT '规则内人工可读版本号（v1/v2/2026-01）',
+  uniq_hash VARCHAR(64) NOT NULL COMMENT '版本配置内容指纹（MD5），同一 rule_id 内唯一，防止重复版本',
   billing_mode VARCHAR(32) NOT NULL,
   currency VARCHAR(16) NOT NULL DEFAULT 'USD',
-  config_json JSON DEFAULT NULL,
-  ladder_json JSON DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  unit VARCHAR(32) NOT NULL DEFAULT '1K_TOKENS' COMMENT '计费单位（BillingUnitEnum code）',
+  config_json JSON DEFAULT NULL COMMENT '计费配置：defaultUnitPrice + basePrices + ladder + 模式扩展',
+  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE' COMMENT '版本状态：ACTIVE/DISABLED',
   effective_from DATETIME NOT NULL,
   effective_to DATETIME DEFAULT NULL,
-  change_reason VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_billing_rule_version (rule_id, version_no),
+  UNIQUE KEY uk_billing_rule_version_code (rule_id, version_code),
+  UNIQUE KEY uk_billing_rule_version_hash (rule_id, uniq_hash),
   KEY idx_billing_rule_versions_active (rule_id, status, effective_from, effective_to)
-);
-
-
-CREATE TABLE IF NOT EXISTS kb_billing_rule_version_items (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  version_id BIGINT NOT NULL,
-  item_type VARCHAR(64) NOT NULL,
-  unit VARCHAR(32) NOT NULL,
-  unit_size INT NOT NULL DEFAULT 1000,
-  unit_price DECIMAL(18,6) NOT NULL,
-  metadata_json JSON DEFAULT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_billing_rule_version_items_version (version_id)
 );
 
 -- =========================

@@ -2,9 +2,12 @@ package org.chobit.knot.gateway.entity;
 
 import lombok.Data;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * 计费规则主体 + 当前版本（最近生效版本）展示字段。
+ * 规则表只存身份与绑定；价格配置在版本 config_json 中。
+ */
 @Data
 public class BillingRuleEntity {
     private Long id;
@@ -13,21 +16,17 @@ public class BillingRuleEntity {
     private String providerName;
     private String logicalModelCode;
     private String logicalModelName;
-    private Long currentVersionId;
-    private String remark;
+    /** 生命周期状态：ACTIVE/INACTIVE/DELETED，查询排除 DELETED */
     private String status;
-    private Boolean deleted;
+    private String remark;
 
-    /** Current/active version fields for list and audit display. */
-    private Integer versionNo;
+    /** 当前版本（最近生效版本）字段，用于列表与审计展示 */
     private String versionCode;
+    private String uniqHash;
     private String billingMode;
     private String currency;
     private String unit;
-    private BigDecimal unitPrice;
-    private String itemType;
     private String configJson;
-    private String ladderJson;
     private LocalDateTime effectiveFrom;
     private LocalDateTime effectiveTo;
 }

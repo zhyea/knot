@@ -36,8 +36,6 @@ class BillingModeEnumTest {
             assertFalse(mode.supportedUnits().isEmpty(), "no supported units for " + mode.code());
             assertTrue(mode.supportedUnits().contains(mode.defaultUnit()),
                     "default unit not in supported units for " + mode.code());
-            assertNotNull(mode.defaultItemType(), "no default item type for " + mode.code());
-            assertFalse(mode.defaultItemType().isBlank(), "blank default item type for " + mode.code());
         }
     }
 

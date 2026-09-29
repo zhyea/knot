@@ -1,8 +1,11 @@
 package org.chobit.knot.gateway.vo.billing;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * 计费规则 VO：规则主体绑定信息 + 当前版本（最近生效版本）配置。
+ * 价格与阶梯配置全部在 configJson 中（defaultUnitPrice / basePrices / ladder）。
+ */
 public record BillingRule(
         Long id,
         String code,
@@ -10,16 +13,12 @@ public record BillingRule(
         String providerName,
         String logicalModelCode,
         String logicalModelName,
-        Long currentVersionId,
-        Integer versionNo,
         String versionCode,
+        String uniqHash,
         String billingMode,
         String currency,
-        String itemType,
         String unit,
-        BigDecimal unitPrice,
         String configJson,
-        String ladderJson,
         boolean enabled,
         LocalDateTime effectiveFrom,
         LocalDateTime effectiveTo,

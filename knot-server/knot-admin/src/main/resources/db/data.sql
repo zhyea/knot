@@ -385,26 +385,20 @@ INSERT IGNORE INTO kb_routing_rule_targets (id, rule_id, target_type, target_id,
 -- =========================
 
 -- 计费规则（provider_code 指向供应商主数据 kb_providers.code，非供应商账户）
-INSERT IGNORE INTO kb_billing_rules (id, code, provider_code, logical_model_code, current_version_id, status) VALUES
-(1, 'TOKEN_GPT4O',      'openai',    'knot-chat-premium', 1, 'ACTIVE'),
-(2, 'TOKEN_GPT4O_MINI', 'openai',    'knot-chat-economy', 2, 'ACTIVE'),
-(3, 'TOKEN_CLAUDE_S4',  'anthropic', 'knot-chat-premium', 3, 'ACTIVE'),
-(4, 'TOKEN_DEEPSEEK',   'deepseek',  'knot-chat-economy', 4, 'ACTIVE'),
-(5, 'EMBEDDING',        NULL,        NULL,                5, 'ACTIVE');
+-- 两表模型：规则主体只存身份与绑定；价格配置全部进版本 config_json
+INSERT IGNORE INTO kb_billing_rules (id, code, provider_code, logical_model_code, status) VALUES
+(1, 'TOKEN_GPT4O',      'openai',    'knot-chat-premium', 'ACTIVE'),
+(2, 'TOKEN_GPT4O_MINI', 'openai',    'knot-chat-economy', 'ACTIVE'),
+(3, 'TOKEN_CLAUDE_S4',  'anthropic', 'knot-chat-premium', 'ACTIVE'),
+(4, 'TOKEN_DEEPSEEK',   'deepseek',  'knot-chat-economy', 'ACTIVE'),
+(5, 'EMBEDDING',        NULL,        NULL,                'ACTIVE');
 
-INSERT IGNORE INTO kb_billing_rule_versions (id, rule_id, version_no, billing_mode, currency, status, effective_from) VALUES
-(1, 1, 1, 'TOKEN', 'USD', 'ACTIVE', NOW()),
-(2, 2, 1, 'TOKEN', 'USD', 'ACTIVE', NOW()),
-(3, 3, 1, 'TOKEN', 'USD', 'ACTIVE', NOW()),
-(4, 4, 1, 'TOKEN', 'USD', 'ACTIVE', NOW()),
-(5, 5, 1, 'EMBEDDING', 'USD', 'ACTIVE', NOW());
-
-INSERT IGNORE INTO kb_billing_rule_version_items (id, version_id, item_type, unit, unit_size, unit_price) VALUES
-(1, 1, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.005000),
-(2, 2, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.000150),
-(3, 3, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.003000),
-(4, 4, 'INPUT_TOKEN', '1K_TOKENS', 1000, 0.000140),
-(5, 5, 'EMBEDDING_TOKEN', '1K_TOKENS', 1000, 0.000130);
+INSERT IGNORE INTO kb_billing_rule_versions (id, rule_id, version_code, uniq_hash, billing_mode, currency, unit, config_json, status, effective_from) VALUES
+(1, 1, 'v1', 'seed-token-gpt4o-v1',      'TOKEN',     'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.00125,"cacheWrite":0.005,"input":0.005,"output":0.015}}', 'ACTIVE', NOW()),
+(2, 2, 'v1', 'seed-token-gpt4o-mini-v1', 'TOKEN',     'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.000025,"cacheWrite":0.00015,"input":0.00015,"output":0.0006}}', 'ACTIVE', NOW()),
+(3, 3, 'v1', 'seed-token-claude-s4-v1',  'TOKEN',     'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.0003,"cacheWrite":0.00375,"input":0.003,"output":0.015}}', 'ACTIVE', NOW()),
+(4, 4, 'v1', 'seed-token-deepseek-v1',   'TOKEN',     'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.000014,"cacheWrite":0.00014,"input":0.00014,"output":0.00028}}', 'ACTIVE', NOW()),
+(5, 5, 'v1', 'seed-embedding-v1',        'EMBEDDING', 'USD', '1K_TOKENS', '{"defaultUnitPrice":0.00013}', 'ACTIVE', NOW());
 
 -- =========================
 -- 安全与监控

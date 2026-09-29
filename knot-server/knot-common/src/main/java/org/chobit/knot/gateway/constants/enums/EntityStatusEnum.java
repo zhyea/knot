@@ -4,7 +4,9 @@ public enum EntityStatusEnum {
     ENABLED("ENABLED"),
     DISABLED("DISABLED"),
     ACTIVE("ACTIVE"),
-    INACTIVE("INACTIVE");
+    INACTIVE("INACTIVE"),
+    /** 生命周期删除（如计费规则），查询侧排除 */
+    DELETED("DELETED");
 
     private final String code;
 

@@ -6,6 +6,7 @@ import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.model.NormalizedBillingAmount;
 import org.chobit.knot.gateway.usage.NormalizedUsageContext;
+import org.chobit.knot.gateway.util.BillingPriceResolver;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Component;
 
@@ -35,12 +36,12 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         if (resolution == null) {
             resolution = normalizeResolution(context.requestBody().get(FALLBACK_SIZE));
         }
-        BigDecimal unitPrice = resolveUnitPrice(rule, resolution);
+        BigDecimal unitPrice = resolveUnitPrice(rule, resolution, amount);
         int unitSize = unitSize(rule);
         BigDecimal totalCost = cost(amount, unitPrice, unitSize);
         String detailType = resolution == null
-                ? normalizeDetailType(rule.getItemType(), BillingModeEnum.VIDEO)
-                : normalizeDetailType(rule.getItemType(), BillingModeEnum.VIDEO) + ":" + resolution;
+                ? normalizeDetailType(rule.getBillingMode(), BillingModeEnum.VIDEO)
+                : normalizeDetailType(rule.getBillingMode(), BillingModeEnum.VIDEO) + ":" + resolution;
         return new NormalizedBillingAmount(
                 usage.totalTokens(),
                 totalCost,
@@ -48,8 +49,8 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         );
     }
 
-    private BigDecimal resolveUnitPrice(BillingRuleEntity rule, String resolution) {
-        BigDecimal fallback = safeMoney(rule.getUnitPrice());
+    private BigDecimal resolveUnitPrice(BillingRuleEntity rule, String resolution, long amount) {
+        BigDecimal fallback = BillingPriceResolver.resolveDefaultPrice(rule.getConfigJson(), amount, BigDecimal.ZERO);
         if (StringUtils.isBlank(rule.getConfigJson()) || resolution == null) {
             return fallback;
         }

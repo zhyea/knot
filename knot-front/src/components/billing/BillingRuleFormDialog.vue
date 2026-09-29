@@ -169,9 +169,10 @@ interface BillingRuleFormState {
   logicalModelCode: string | null;
   billingMode: string;
   currency: string;
-  itemType: string;
   unit: string;
+  /** 简单模式（REQUEST/IMAGE/AUDIO/VIDEO/EMBEDDING/TIERED）单价，写入 configJson.defaultUnitPrice */
   unitPrice: number;
+  /** TOKEN 模式分项单价，写入 configJson.basePrices */
   inputUnitPrice: number;
   outputUnitPrice: number;
   cacheReadUnitPrice: number;
@@ -180,6 +181,7 @@ interface BillingRuleFormState {
   videoPrice1080p: number | null;
   imageResolution: string;
   imageQuality: string;
+  /** 阶梯配置（TIERED），保存时合并进 configJson.ladder */
   ladderJson: string;
   customConfigJson: string;
   enabled: boolean;
@@ -193,7 +195,6 @@ const form = reactive<BillingRuleFormState>({
   logicalModelCode: null,
   billingMode: "TOKEN",
   currency: "USD",
-  itemType: "INPUT_TOKEN",
   unit: "1K_TOKENS",
   unitPrice: 0.002,
   inputUnitPrice: 0.002,
@@ -244,50 +245,42 @@ watch(
 function resetForm() {
   const row = props.rule;
   const config = parseJsonObject(row?.configJson);
+  const basePrices = (config.basePrices && typeof config.basePrices === "object") ? config.basePrices : {};
   form.id = row?.id ?? null;
   form.code = row?.code || "";
   form.providerCode = row?.providerCode ?? null;
   form.logicalModelCode = row?.logicalModelCode ?? null;
   form.billingMode = normalizeMode(row?.billingMode || "TOKEN");
   form.currency = row?.currency || "USD";
-  form.itemType = row?.itemType || modeDefaults(form.billingMode).itemType;
   form.unit = row?.unit || modeDefaults(form.billingMode).unit;
-  form.unitPrice = Number(row?.unitPrice ?? 0.002);
-  form.inputUnitPrice = Number(config.inputUnitPrice ?? row?.unitPrice ?? 0.002);
-  form.outputUnitPrice = Number(config.outputUnitPrice ?? row?.unitPrice ?? 0.002);
-  form.cacheReadUnitPrice = Number(config.cacheReadUnitPrice ?? 0);
-  form.cacheWriteUnitPrice = Number(config.cacheWriteUnitPrice ?? 0);
+  form.unitPrice = Number(config.defaultUnitPrice ?? 0.002);
+  form.inputUnitPrice = Number(basePrices.input ?? config.defaultUnitPrice ?? 0.002);
+  form.outputUnitPrice = Number(basePrices.output ?? config.defaultUnitPrice ?? 0.002);
+  form.cacheReadUnitPrice = Number(basePrices.cacheRead ?? 0);
+  form.cacheWriteUnitPrice = Number(basePrices.cacheWrite ?? 0);
   form.videoPrice720p = config.resolutionPrices?.["720P"] != null ? Number(config.resolutionPrices["720P"]) : null;
   form.videoPrice1080p = config.resolutionPrices?.["1080P"] != null ? Number(config.resolutionPrices["1080P"]) : null;
   form.imageResolution = config.imageResolution || "";
   form.imageQuality = config.imageQuality || "";
-  form.ladderJson = row?.ladderJson || "";
+  form.ladderJson = Array.isArray(config.ladder) ? stringifyJson(config.ladder) : "";
   form.customConfigJson = form.billingMode === "CUSTOM" ? row?.configJson || "" : "";
   form.enabled = row?.enabled !== false;
   form.remark = row?.remark || "";
-  applyModeDefaults(form.billingMode, false);
+  applyModeDefaults(form.billingMode);
 }
 
-/** 当前模式的默认单位与价格项；能力未加载完成时退回新建表单的初值 */
-function modeDefaults(mode: string): { itemType: string; unit: string } {
+/** 当前模式的默认单位；能力未加载完成时退回新建表单的初值 */
+function modeDefaults(mode: string): { unit: string } {
   const matched = modeCapabilities.value.find((item) => item.code === mode);
   return {
-    itemType: matched?.defaultItemType || "INPUT_TOKEN",
     unit: matched?.defaultUnit || "1K_TOKENS"
   };
 }
 
-function applyModeDefaults(mode: string, resetPrice = true) {
+function applyModeDefaults(mode: string) {
   const defaults = modeDefaults(mode);
-  form.itemType = defaults.itemType;
   if (!unitCodes.value.includes(form.unit)) {
     form.unit = defaults.unit;
-  }
-  if (mode === "FREE") {
-    form.unitPrice = 0;
-  }
-  if (resetPrice && mode === "EMBEDDING") {
-    form.unitPrice = form.inputUnitPrice;
   }
 }
 
@@ -337,14 +330,17 @@ function normalizeMode(mode: unknown): string {
 function buildConfigJson() {
   if (form.billingMode === "TOKEN") {
     return stringifyJson({
-      inputUnitPrice: form.inputUnitPrice,
-      outputUnitPrice: form.outputUnitPrice,
-      cacheReadUnitPrice: form.cacheReadUnitPrice,
-      cacheWriteUnitPrice: form.cacheWriteUnitPrice
+      basePrices: {
+        input: form.inputUnitPrice,
+        output: form.outputUnitPrice,
+        cacheRead: form.cacheReadUnitPrice,
+        cacheWrite: form.cacheWriteUnitPrice
+      }
     });
   }
   if (form.billingMode === "IMAGE") {
     return stringifyJson({
+      defaultUnitPrice: form.unitPrice,
       imageResolution: form.imageResolution?.trim() || null,
       imageQuality: form.imageQuality?.trim() || null
     });
@@ -357,21 +353,28 @@ function buildConfigJson() {
     if (form.videoPrice1080p != null) {
       resolutionPrices["1080P"] = form.videoPrice1080p;
     }
-    return Object.keys(resolutionPrices).length ? stringifyJson({resolutionPrices}) : null;
+    return stringifyJson({
+      defaultUnitPrice: form.unitPrice,
+      ...(Object.keys(resolutionPrices).length ? {resolutionPrices} : {})
+    });
   }
   if (form.billingMode === "EMBEDDING") {
-    return stringifyJson({inputUnitPrice: form.inputUnitPrice});
+    return stringifyJson({defaultUnitPrice: form.inputUnitPrice});
+  }
+  if (form.billingMode === "TIERED") {
+    const ladder = form.ladderJson?.trim() ? parseJsonObject(form.ladderJson) : null;
+    return stringifyJson({
+      defaultUnitPrice: form.unitPrice,
+      ...(ladder ? {ladder} : {})
+    });
   }
   if (form.billingMode === "CUSTOM") {
     return form.customConfigJson?.trim() || null;
   }
+  if (form.billingMode === "REQUEST" || form.billingMode === "AUDIO") {
+    return stringifyJson({defaultUnitPrice: form.unitPrice});
+  }
   return null;
-}
-
-function primaryUnitPrice() {
-  if (form.billingMode === "FREE" || form.billingMode === "CUSTOM") return 0;
-  if (form.billingMode === "TOKEN" || form.billingMode === "EMBEDDING") return form.inputUnitPrice;
-  return form.unitPrice;
 }
 
 /**
@@ -389,19 +392,14 @@ function resolveRuleCode(): string {
 }
 
 function buildPayload() {
-  const tiered = form.billingMode === "TIERED";
   return {
     code: resolveRuleCode(),
-    name: null,
     providerCode: form.providerCode,
     logicalModelCode: form.logicalModelCode,
     billingMode: form.billingMode,
     currency: form.currency,
-    itemType: form.itemType,
     unit: form.billingMode === "FREE" ? "1K_TOKENS" : form.unit,
-    unitPrice: primaryUnitPrice(),
     configJson: buildConfigJson(),
-    ladderJson: tiered ? form.ladderJson?.trim() || null : null,
     enabled: form.enabled,
     remark: form.remark?.trim() || null
   };
