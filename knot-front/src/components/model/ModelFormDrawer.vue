@@ -398,7 +398,7 @@ const form = reactive<ModelFormState>({
   providerAccountCode: null,
   logicalModelCode: null,
   billingRuleId: null,
-  version: "1.0.0",
+  version: "",
   enabled: false,
   rateLimitPolicy: emptyRateLimitPolicy(),
   quotaPolicy: emptyQuotaPolicy(),
@@ -502,13 +502,15 @@ function onProviderAccountChange(account: Row) {
   form.baseUrl = account?.baseUrl || "";
 }
 
-/** 版本输入框获得焦点时，自动以当前时间（小时级，如 v2026092910）填充；不覆盖已有自定义值 */
+/** 新建时的默认版本：打开表单时的当前时间（小时级，如 v2026092910） */
+function defaultVersion(): string {
+  return `v${formatHourVersion(new Date())}`;
+}
+
+/** 版本输入框获得焦点时，若为空则自动以当前时间（小时级，如 v2026092910）填充；不覆盖已有值 */
 function fillVersionOnFocus() {
-  const current = String(form.version ?? "").trim();
-  const isBlank = !current;
-  const isDefaultOnCreate = !isEdit.value && current === "1.0.0";
-  if (isBlank || isDefaultOnCreate) {
-    form.version = `v${formatHourVersion(new Date())}`;
+  if (!String(form.version ?? "").trim()) {
+    form.version = defaultVersion();
   }
 }
 
@@ -604,7 +606,7 @@ async function resetForm() {
       form.providerAccountCode = null;
       form.logicalModelCode = null;
       form.billingRuleId = null;
-      form.version = "1.0.0";
+      form.version = defaultVersion();
       form.enabled = false;
       form.rateLimitPolicy = emptyRateLimitPolicy();
       form.quotaPolicy = emptyQuotaPolicy();
