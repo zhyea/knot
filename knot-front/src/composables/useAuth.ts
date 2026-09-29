@@ -139,7 +139,12 @@ export function useAuth() {
       realName: response.realName,
       roles: response.roles || []
     });
-    await loadAuthorizations();
+    // 授权信息只影响登录后的菜单和权限展示，不能阻塞登录页跳转。
+    // 后端授权接口异常或响应较慢时，MainLayout 会继续复用这次请求并在完成后更新状态。
+    void loadAuthorizations().catch((error): undefined => {
+      console.error("登录后加载授权信息失败", error);
+      return undefined;
+    });
     touchIdleActivity();
     return response;
   }
