@@ -7,6 +7,7 @@
       border
       style="width: 100%"
     >
+      <el-table-column prop="id" label="ID" min-width="50" />
       <el-table-column label="模型名称" min-width="200" show-overflow-tooltip>
         <template #default="{ row }">{{ row.displayName || row.modelName || "-" }}</template>
       </el-table-column>
