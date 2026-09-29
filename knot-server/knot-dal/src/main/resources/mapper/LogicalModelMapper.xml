@@ -39,7 +39,7 @@
                 </foreach>
             </if>
         </where>
-        order by featured desc, sort_order asc, id desc
+        order by sort_order asc, id desc, featured desc
     </select>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.LogicalModelEntity">
