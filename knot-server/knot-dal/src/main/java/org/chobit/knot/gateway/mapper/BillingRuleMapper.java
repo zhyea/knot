@@ -27,10 +27,6 @@ public interface BillingRuleMapper {
     BillingRuleEntity getActiveByRuleId(@Param("ruleId") Long ruleId,
                                         @Param("effectiveAt") LocalDateTime effectiveAt);
 
-    List<BillingRuleEntity> listActiveCandidates(@Param("providerCode") String providerCode,
-                                                 @Param("modelId") Long modelId,
-                                                 @Param("effectiveAt") LocalDateTime effectiveAt);
-
     int insert(BillingRuleEntity entity);
 
     int update(BillingRuleEntity entity);

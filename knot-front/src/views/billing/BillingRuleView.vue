@@ -48,6 +48,7 @@
           :show-refresh="false"
           @edit="openEdit"
           @log="openChangeLog"
+          @tier-detail="openTierDetail"
           @delete="handleDelete"
           @enabled-change="handleEnabledChange"
           @page-change="onPageChange"
@@ -57,6 +58,8 @@
     </div>
 
     <BillingRuleFormDialog v-model="ruleDlg" :rule="currentRule" @saved="resetPage" />
+
+    <TierRuleDetailDrawer v-model="tierDrawer" :rule="tierRule" />
 
     <OperationLogDrawer
       v-model="logDrawer"
@@ -78,6 +81,7 @@ import RemoteEntitySelect from "../../components/common/RemoteEntitySelect.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import BillingRuleFormDialog from "../../components/billing/BillingRuleFormDialog.vue";
 import BillingRuleListPanel from "../../components/billing/BillingRuleListPanel.vue";
+import TierRuleDetailDrawer from "../../components/billing/TierRuleDetailDrawer.vue";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {useListQuery} from "@/composables/useListQuery";
 import {deleteBillingRule, listBillingRules, updateBillingRuleStatus} from "@/api/billing";
@@ -109,6 +113,8 @@ const currentRule = ref<Dict | null>(null);
 const logDrawer = ref(false);
 const logRuleId = ref<number | string | null>(null);
 const logRuleName = ref("");
+const tierDrawer = ref(false);
+const tierRule = ref<Row | null>(null);
 
 const selectedProviderOptions = computed(() =>
   rows.value
@@ -148,6 +154,11 @@ function openChangeLog(row: Row) {
   logRuleId.value = row.id;
   logRuleName.value = row.code || `#${row.id}`;
   logDrawer.value = true;
+}
+
+function openTierDetail(row: Row) {
+  tierRule.value = row;
+  tierDrawer.value = true;
 }
 
 function loadBillingRuleOperationLogs() {

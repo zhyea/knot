@@ -21,6 +21,19 @@
       <el-table-column label="进阶方案" width="110">
         <template #default="{ row }">{{ pricingPlanLabel(row.pricingPlan) }}</template>
       </el-table-column>
+      <el-table-column label="阶梯" width="130" align="center">
+        <template #default="{ row }">
+          <el-button
+            v-if="tierCount(row)"
+            link
+            type="primary"
+            @click="emit('tier-detail', row)"
+          >
+            {{ tierCount(row) }} 档 · 明细
+          </el-button>
+          <span v-else>—</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="currency" label="币种" width="80" align="center"/>
       <el-table-column prop="unit" label="单位" width="110"/>
       <el-table-column label="启用" width="88" align="center">
@@ -68,6 +81,8 @@ import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
+import {parseTierRows} from "@/utils/billingTier";
+import {parseJsonObject} from "@/utils/format";
 
 defineProps({
   rows: {type: Array, default: (): Row[] => []},
@@ -83,6 +98,7 @@ const emit = defineEmits([
   "create",
   "edit",
   "log",
+  "tier-detail",
   "delete",
   "refresh",
   "enabled-change",
@@ -97,5 +113,10 @@ function billingModeLabel(code: unknown): string {
 
 function pricingPlanLabel(code: unknown): string {
   return enumLabelOf("PricingPlanEnum", code, "-");
+}
+
+/** 当前版本的阶梯档数；0 表示非阶梯或无档位（列表据此隐藏明细入口） */
+function tierCount(row: Row): number {
+  return parseTierRows(parseJsonObject(row.configJson).tier).length;
 }
 </script>

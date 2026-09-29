@@ -10,8 +10,6 @@ import java.util.List;
 @Mapper
 public interface SecurityMapper {
 
-    List<SecurityPolicyEntity> listPolicies();
-
     int insertPolicy(SecurityPolicyEntity entity);
 
     int updatePolicy(SecurityPolicyEntity entity);

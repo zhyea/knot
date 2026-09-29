@@ -138,6 +138,8 @@ import {listProviderProfiles} from "@/api/providerProfiles";
 import {listLogicalModels} from "@/api/logicalModels";
 import {isValidJsonText, parseJsonObject, stringifyJson} from "@/utils/format";
 import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
+import {createTierRow, parseTierRows, toNumberOrNull, toTierPayload, validateTierRows} from "@/utils/billingTier";
+import type {TierPriceSet, TierRow} from "@/utils/billingTier";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -199,12 +201,14 @@ interface BillingRuleFormState {
   outputUnitPrice: number;
   cacheReadUnitPrice: number;
   cacheWriteUnitPrice: number;
+  cacheWrite5mUnitPrice: number;
+  cacheWrite1hUnitPrice: number;
   videoPrice720p: number | null;
   videoPrice1080p: number | null;
   imageResolution: string;
   imageQuality: string;
-  /** 阶梯配置（pricingPlan=TIERED），保存时合并进 configJson.tier */
-  tierJson: string;
+  /** 阶梯档位（pricingPlan=TIERED），保存时由 {@link toTierPayload} 并入 configJson.tier */
+  tiers: TierRow[];
   customConfigJson: string;
   enabled: boolean;
   remark: string;
@@ -224,11 +228,13 @@ const form = reactive<BillingRuleFormState>({
   outputUnitPrice: 0.002,
   cacheReadUnitPrice: 0,
   cacheWriteUnitPrice: 0,
+  cacheWrite5mUnitPrice: 0,
+  cacheWrite1hUnitPrice: 0,
   videoPrice720p: null,
   videoPrice1080p: null,
   imageResolution: "",
   imageQuality: "",
-  tierJson: "",
+  tiers: [],
   customConfigJson: "",
   enabled: true,
   remark: ""
@@ -272,9 +278,26 @@ watch(
   (plan) => {
     if (plan && !planCodes.value.includes(plan)) {
       form.pricingPlan = "FIXED";
+      return;
+    }
+    // 首次切到阶梯价时给一个起始档位，避免空白表格无从下手
+    if (plan === "TIERED" && !form.tiers.length) {
+      form.tiers.push(createTierRow({from: 0, unitPrices: currentBasePrices()}));
     }
   }
 );
+
+/** 取当前 TOKEN 基础单价（新建档位与首次启用阶梯时的默认值来源） */
+function currentBasePrices(): TierPriceSet {
+  return {
+    input: toNumberOrNull(form.inputUnitPrice),
+    output: toNumberOrNull(form.outputUnitPrice),
+    cacheRead: toNumberOrNull(form.cacheReadUnitPrice),
+    cacheWrite: toNumberOrNull(form.cacheWriteUnitPrice),
+    cacheWrite5m: toNumberOrNull(form.cacheWrite5mUnitPrice),
+    cacheWrite1h: toNumberOrNull(form.cacheWrite1hUnitPrice)
+  };
+}
 
 function resetForm() {
   const row = props.rule;
@@ -293,11 +316,13 @@ function resetForm() {
   form.outputUnitPrice = Number(basePrices.output ?? config.defaultUnitPrice ?? 0.002);
   form.cacheReadUnitPrice = Number(basePrices.cacheRead ?? 0);
   form.cacheWriteUnitPrice = Number(basePrices.cacheWrite ?? 0);
+  form.cacheWrite5mUnitPrice = Number(basePrices.cacheWrite5m ?? basePrices.cacheWrite ?? 0);
+  form.cacheWrite1hUnitPrice = Number(basePrices.cacheWrite1h ?? basePrices.cacheWrite ?? 0);
   form.videoPrice720p = config.resolutionPrices?.["720P"] != null ? Number(config.resolutionPrices["720P"]) : null;
   form.videoPrice1080p = config.resolutionPrices?.["1080P"] != null ? Number(config.resolutionPrices["1080P"]) : null;
   form.imageResolution = config.imageResolution || "";
   form.imageQuality = config.imageQuality || "";
-  form.tierJson = Array.isArray(config.tier) ? stringifyJson(config.tier) : "";
+  form.tiers = parseTierRows(config.tier);
   form.customConfigJson = form.billingMode === "CUSTOM" ? row?.configJson || "" : "";
   form.enabled = row?.enabled !== false;
   form.remark = row?.remark || "";
@@ -374,7 +399,9 @@ function buildBaseConfig(): Dict | null {
         input: form.inputUnitPrice,
         output: form.outputUnitPrice,
         cacheRead: form.cacheReadUnitPrice,
-        cacheWrite: form.cacheWriteUnitPrice
+        cacheWrite: form.cacheWriteUnitPrice,
+        cacheWrite5m: form.cacheWrite5mUnitPrice,
+        cacheWrite1h: form.cacheWrite1hUnitPrice
       }
     };
   }
@@ -413,10 +440,10 @@ function buildConfigJson() {
   }
   const base = buildBaseConfig();
   if (form.pricingPlan === "TIERED") {
-    const tier = form.tierJson?.trim() ? parseJsonObject(form.tierJson) : null;
+    // 档位缺失项以 0 落库，满足后端「每档 6 项单价齐全」约束
     return stringifyJson({
       ...(base || {}),
-      ...(tier ? {tier} : {})
+      tier: toTierPayload(form.tiers)
     });
   }
   return base ? stringifyJson(base) : null;
@@ -452,7 +479,9 @@ function buildPayload() {
 }
 
 async function submit() {
-  if (form.pricingPlan === "TIERED" && !validateJson(form.tierJson, "阶梯配置")) {
+  const tierIssues = form.pricingPlan === "TIERED" ? validateTierRows(form.tiers) : [];
+  if (tierIssues.length) {
+    ElMessage.warning(tierIssues[0].message);
     return;
   }
   if (form.billingMode === "CUSTOM" && !validateJson(form.customConfigJson, "自定义配置")) {

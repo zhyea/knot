@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.gateway.mapper.BillingRuleMapper">
 
-    <!-- 当前版本 = 规则下优先取 ACTIVE、再取最近生效的版本（展示用；计费路径见 getActiveByRuleId/listActiveCandidates） -->
+    <!-- 当前版本 = 规则下优先取 ACTIVE、再取最近生效的版本（展示用；计费路径见 getActiveByRuleId） -->
     <sql id="VersionJoin">
         left join kb_billing_rule_versions bv on bv.id = (
             select v.id from kb_billing_rule_versions v
@@ -95,32 +95,6 @@
           and (bv.effective_to is null or bv.effective_to &gt; #{effectiveAt})
         order by bv.effective_from desc, bv.id desc
         limit 1
-    </select>
-
-    <select id="listActiveCandidates" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
-        select <include refid="RuleColumns"/>
-        from kb_billing_rules br
-        inner join kb_billing_rule_versions bv on br.id = bv.rule_id
-        left join kb_providers p on br.provider_code = p.code
-        left join kb_logical_models lm on br.logical_model_code = lm.model_code
-        where br.status = 'ACTIVE'
-          and bv.status = 'ACTIVE'
-          and bv.effective_from &lt;= #{effectiveAt}
-          and (bv.effective_to is null or bv.effective_to &gt; #{effectiveAt})
-          and (
-            (br.provider_code = #{providerCode} and br.logical_model_code = (
-                select pm.logical_model_code from kb_provider_model_mappings pm where pm.model_id = #{modelId} limit 1
-            ))
-            or (br.provider_code = #{providerCode} and br.logical_model_code is null)
-            or (br.provider_code is null and br.logical_model_code is null)
-          )
-        order by
-          case
-            when br.provider_code = #{providerCode} and br.logical_model_code is not null then 1
-            when br.provider_code = #{providerCode} and br.logical_model_code is null then 2
-            else 3
-          end,
-          bv.effective_from desc, br.id desc
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
