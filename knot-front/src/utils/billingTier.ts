@@ -38,9 +38,9 @@ export const TIER_PRICE_FIELDS: ReadonlyArray<{ key: keyof TierPriceSet; label: 
   { key: "input", label: "非缓存输入", hint: "input" },
   { key: "output", label: "输出", hint: "output" },
   { key: "cacheRead", label: "缓存读取", hint: "cacheRead" },
-  { key: "cacheWrite", label: "缓存写入", hint: "cacheWrite" },
-  { key: "cacheWrite5m", label: "缓存写入(5m)", hint: "cacheWrite5m" },
-  { key: "cacheWrite1h", label: "缓存写入(1h)", hint: "cacheWrite1h" }
+  { key: "cacheWrite", label: "缓存写", hint: "cacheWrite" },
+  { key: "cacheWrite5m", label: "缓存写(5m)", hint: "cacheWrite5m" },
+  { key: "cacheWrite1h", label: "缓存写(1h)", hint: "cacheWrite1h" }
 ];
 
 /** 校验结果：定位到档位序号与具体字段 */
