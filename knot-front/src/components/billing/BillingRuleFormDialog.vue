@@ -62,7 +62,7 @@
           </div>
           <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="计费模式" class="billing-label-purple">
+              <el-form-item label="计费模式" class="billing-strategy-label">
                 <EnumControl
                   v-model="form.billingMode"
                   enum-name="BillingModeEnum"
@@ -70,7 +70,7 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="进阶方案" class="billing-label-purple">
+              <el-form-item label="进阶方案" class="billing-strategy-label">
                 <EnumControl
                   v-model="form.pricingPlan"
                   enum-name="PricingPlanEnum"
@@ -80,7 +80,7 @@
               </el-form-item>
             </el-col>
             <el-col v-if="form.billingMode !== 'FREE'" :span="12">
-              <el-form-item label="计费单位" class="billing-label-purple">
+              <el-form-item label="计费单位" class="billing-strategy-label">
                 <EnumSelect
                   v-model="form.unit"
                   category="billing_unit"
@@ -566,13 +566,11 @@ async function submit() {
 
 :deep(.billing-usage-field .el-form-item__label) {
   background: #e4f5ed;
-  border-radius: 4px;
   padding: 0 8px;
 }
 
-:deep(.billing-label-purple .el-form-item__label) {
-  background: #f2e8f5;
-  border-radius: 4px;
+:deep(.billing-strategy-label .el-form-item__label) {
+  background: #f7dce8;
   padding: 0 8px;
 }
 
