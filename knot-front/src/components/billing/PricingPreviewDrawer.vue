@@ -7,7 +7,7 @@
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="preview__form">
-      <el-form-item label="发生时刻（UTC）" label-width="130px">
+      <el-form-item label="发生时刻（规则时区）" label-width="130px">
         <el-date-picker
           v-model="probeDate"
           type="date"
@@ -105,7 +105,7 @@ const PRICE_LABELS: Record<string, string> = {
   input: "输入",
   output: "输出",
   cache_read: "缓存读取",
-  cache_write: "缓存写入",
+  cache_write: "缓存写",
   default: "默认单价"
 };
 
@@ -159,7 +159,7 @@ const usageNumber = computed(() => {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 });
 
-/** 日期 + HH:mm 拼成后端可解析的 ISO instant（判定时区由规则配置决定，这里统一按 UTC 送） */
+/** 日期 + HH:mm 拼成后端可解析的 ISO instant；高低峰规则会按自身 UTC 偏移判定。 */
 function toInstant(date: string, time: string): string | null {
   if (!date || !time || !/^\d{2}:\d{2}$/.test(time)) {
     return null;
