@@ -9,8 +9,6 @@ import java.time.LocalDateTime;
 public record BillingRule(
         Long id,
         String code,
-        String providerCode,
-        String providerName,
         String logicalModelCode,
         String logicalModelName,
         String versionCode,

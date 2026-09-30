@@ -10,19 +10,19 @@ public record BillingReportSummary(long totalRules,
                                    long activeRules,
                                    long inactiveRules,
                                    long activeVersionRules,
-                                   long providerCount,
-                                   List<ProviderDistribution> byProvider,
+                                   long modelCount,
+                                   List<LogicalModelDistribution> byLogicalModel,
                                    List<CodeCount> byBillingMode,
                                    List<CodeCount> byPricingPlan,
                                    List<CodeCount> byCurrency) {
 
     /**
-     * 供应商维度分布：规则数与其中启用规则数（providerCode 为 null 表示全局规则）。
+     * 统一模型维度分布：规则数与其中启用规则数（logicalModelCode 为 null 表示未限定模型的默认规则）。
      */
-    public record ProviderDistribution(String providerCode,
-                                       String providerName,
-                                       long ruleCount,
-                                       long activeCount) {
+    public record LogicalModelDistribution(String logicalModelCode,
+                                           String logicalModelName,
+                                           long ruleCount,
+                                           long activeCount) {
     }
 
     /**

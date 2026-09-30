@@ -47,7 +47,7 @@ public class GatewayDataService {
     private final LoadingCache<Long, Optional<ProviderCredentialEntity>> activeCredentialByProviderIdCache;
     private final LoadingCache<Long, List<ModelApiBindingEntity>> apiBindingsByModelIdCache;
     private final LoadingCache<ResourceKey, Optional<TrafficPolicies>> trafficPoliciesCache;
-    private final LoadingCache<Long, Optional<BillingRuleEntity>> activeBillingRuleByIdCache;
+    private final LoadingCache<String, Optional<BillingRuleEntity>> activeBillingRuleByCodeCache;
 
     /**
      * Constructs a new instance.
@@ -83,8 +83,8 @@ public class GatewayDataService {
         this.apiBindingsByModelIdCache = listCache(modelApiBindingMapper::listByModelId);
         this.trafficPoliciesCache = optionalCache(key ->
                 loadTrafficPolicies(key, resourceTrafficPolicyMapper, rateLimitPolicyMapper, quotaPolicyMapper));
-        this.activeBillingRuleByIdCache = optionalCache(ruleId ->
-                billingRuleMapper.getActiveByRuleId(ruleId, LocalDateTime.now()));
+        this.activeBillingRuleByCodeCache = optionalCache(ruleCode ->
+                billingRuleMapper.getActiveByRuleCode(ruleCode, LocalDateTime.now()));
     }
 
     /**
@@ -205,8 +205,8 @@ public class GatewayDataService {
     /**
      * Returns the requested value. Executes the public operation.
      */
-    public BillingRuleEntity getActiveBillingRuleById(Long ruleId) {
-        return activeBillingRuleByIdCache.get(ruleId).orElse(null);
+    public BillingRuleEntity getActiveBillingRuleByCode(String ruleCode) {
+        return activeBillingRuleByCodeCache.get(ruleCode).orElse(null);
     }
 
     private TrafficPolicies loadTrafficPolicies(ResourceKey key,

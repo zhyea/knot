@@ -10,10 +10,10 @@
 
       <section class="report-grid">
         <div class="report-block">
-          <h3 class="report-block__title">供应商分布</h3>
-          <el-table :data="summary?.byProvider || []" size="small" border>
-            <el-table-column label="供应商" min-width="140" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.providerName || row.providerCode || "（全局）" }}</template>
+          <h3 class="report-block__title">统一模型分布</h3>
+          <el-table :data="summary?.byLogicalModel || []" size="small" border>
+            <el-table-column label="统一模型" min-width="140" show-overflow-tooltip>
+              <template #default="{ row }">{{ row.logicalModelName || row.logicalModelCode || "（默认）" }}</template>
             </el-table-column>
             <el-table-column label="规则数" width="90" align="center">
               <template #default="{ row }">{{ row.ruleCount }}</template>
@@ -83,7 +83,7 @@ const statCards = computed(() => [
   {label: "启用规则", value: summary.value?.activeRules ?? 0},
   {label: "停用规则", value: summary.value?.inactiveRules ?? 0},
   {label: "含生效版本", value: summary.value?.activeVersionRules ?? 0},
-  {label: "涉及供应商", value: summary.value?.providerCount ?? 0}
+  {label: "涉及统一模型", value: summary.value?.modelCount ?? 0}
 ]);
 
 /** 计费模式分布行（枚举加载失败时兜底展示原始 code） */

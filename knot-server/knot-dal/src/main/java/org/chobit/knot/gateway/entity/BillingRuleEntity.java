@@ -12,8 +12,6 @@ import java.time.LocalDateTime;
 public class BillingRuleEntity {
     private Long id;
     private String code;
-    private String providerCode;
-    private String providerName;
     private String logicalModelCode;
     private String logicalModelName;
     /** 生命周期状态：ACTIVE/INACTIVE/DELETED，查询排除 DELETED */

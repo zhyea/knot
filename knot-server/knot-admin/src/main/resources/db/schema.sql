@@ -310,14 +310,15 @@ CREATE TABLE IF NOT EXISTS kb_models (
   version VARCHAR(64) NOT NULL,
   base_url VARCHAR(255) DEFAULT NULL,
   remark VARCHAR(255) DEFAULT NULL,
-  billing_rule_id BIGINT DEFAULT NULL,
+  billing_rule_code VARCHAR(64) DEFAULT NULL COMMENT '绑定计费规则 code（kb_billing_rules.code），非主键 id',
   status VARCHAR(32) NOT NULL DEFAULT 'DISABLED',
   tags_json JSON DEFAULT NULL,
   params_json JSON DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_models_code (model_code),
-  KEY idx_models_provider_account (provider_account_code)
+  KEY idx_models_provider_account (provider_account_code),
+  KEY idx_models_billing_rule (billing_rule_code)
 );
 
 CREATE TABLE IF NOT EXISTS kb_model_pools (
@@ -573,14 +574,13 @@ CREATE TABLE IF NOT EXISTS kb_routing_rule_targets (
 CREATE TABLE IF NOT EXISTS kb_billing_rules (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) NOT NULL,
-  provider_code VARCHAR(32) DEFAULT NULL,
   logical_model_code VARCHAR(128) DEFAULT NULL COMMENT '统一模型 code（kb_logical_models.model_code）',
   status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE' COMMENT '生命周期状态：ACTIVE/INACTIVE/DELETED，查询排除 DELETED，启停与删除不得混用',
   remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_billing_rules_code (code),
-  KEY idx_billing_rules_match (provider_code, logical_model_code, status)
+  KEY idx_billing_rules_match (logical_model_code, status)
 );
 
 CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (

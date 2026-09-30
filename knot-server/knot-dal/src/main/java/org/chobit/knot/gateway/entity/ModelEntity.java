@@ -19,7 +19,7 @@ public class ModelEntity {
     private String version;
     private String baseUrl;
     private String remark;
-    private Long billingRuleId;
+    /** 绑定计费规则业务码（kb_billing_rules.code），非主键 id */
     private String billingRuleCode;
     private String status;
 }

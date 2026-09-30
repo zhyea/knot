@@ -1,12 +1,7 @@
 <template>
   <div>
     <el-table v-loading="loading" :data="rows" stripe border size="small" style="width: 100%">
-      <el-table-column prop="id" label="ID" width="70" align="center"/>
-      <el-table-column label="供应商" min-width="130" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ row.providerName || (row.providerCode ? `#${row.providerCode}` : "全局") }}
-        </template>
-      </el-table-column>
+      <el-table-column prop="code" label="规则编码" min-width="160" show-overflow-tooltip/>
       <el-table-column label="统一模型" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.logicalModelName || (row.logicalModelCode ? `#${row.logicalModelCode}` : "默认") }}

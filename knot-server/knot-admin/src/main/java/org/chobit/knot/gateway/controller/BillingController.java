@@ -42,7 +42,6 @@ public class BillingController {
         PageResult<BillingRuleDto> page = billingService.listRules(
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
                 query == null ? null : query.keyword(),
-                query == null ? null : query.providerCode(),
                 query == null ? null : query.logicalModelCode()
         );
         return page.mapList(billingConverter::toRuleVOList);
@@ -57,7 +56,7 @@ public class BillingController {
     }
 
     /**
-     * 计费报表汇总（配置维度）：规则状态计数与供应商/模式/方案/币种分布。
+     * 计费报表汇总（配置维度）：规则状态计数与统一模型/模式/方案/币种分布。
      */
     @GetMapping("/report/summary")
     public BillingReportSummary reportSummary() {

@@ -7,10 +7,10 @@
     <sql id="modelTypeExpr">(select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id order by pm2.id asc limit 1)</sql>
 
     <sql id="ModelSelectColumns">
-        m.id, m.provider_account_code, m.model_code, m.version, m.base_url, m.remark, m.billing_rule_id, m.status,
+        m.id, m.provider_account_code, m.model_code, m.version, m.base_url, m.remark, m.billing_rule_code, m.status,
         <include refid="modelNameExpr"/> AS name,
         <include refid="modelTypeExpr"/> AS model_type,
-        p.name AS provider_name, p.code AS provider_code, br.code AS billing_rule_code
+        p.name AS provider_name, p.code AS provider_code
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.ModelEntity">
@@ -18,7 +18,6 @@
         from kb_models m
         left join kb_provider_accounts pa on m.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
-        left join kb_billing_rules br on m.billing_rule_id = br.id
         <where>
             <if test="keyword != null and keyword != ''">
                 and (
@@ -42,7 +41,6 @@
         from kb_models m
         left join kb_provider_accounts pa on m.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
-        left join kb_billing_rules br on m.billing_rule_id = br.id
         where m.id = #{id}
     </select>
 
@@ -51,13 +49,12 @@
         from kb_models m
         left join kb_provider_accounts pa on m.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
-        left join kb_billing_rules br on m.billing_rule_id = br.id
         where m.model_code = #{modelCode}
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_models(provider_account_code, model_code, version, base_url, remark, billing_rule_id, status)
-        values(#{providerAccountCode}, #{modelCode}, #{version}, #{baseUrl}, #{remark}, #{billingRuleId}, #{status})
+        insert into kb_models(provider_account_code, model_code, version, base_url, remark, billing_rule_code, status)
+        values(#{providerAccountCode}, #{modelCode}, #{version}, #{baseUrl}, #{remark}, #{billingRuleCode}, #{status})
     </insert>
 
     <update id="update">
@@ -67,7 +64,7 @@
             version = #{version},
             base_url = #{baseUrl},
             remark = #{remark},
-            billing_rule_id = #{billingRuleId},
+            billing_rule_code = #{billingRuleCode},
             status = #{status}
         where id = #{id}
     </update>

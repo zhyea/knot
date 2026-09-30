@@ -140,11 +140,12 @@
               <div class="binding-card">
                 <div class="binding-card__head">
                   <span>计费规则</span>
-                  <small>按供应商和统一模型筛选</small>
+                  <small>按统一模型筛选，绑定用规则 code</small>
                 </div>
                 <el-form-item label="绑定计费规则" required class="bind-block-item">
                   <RemoteEntitySelect
-                    v-model="form.billingRuleId"
+                    v-model="form.billingRuleCode"
+                    value-key="code"
                     :load-function="loadBillingRules"
                     :label-function="billingRuleLabel"
                     :selected-options="selectedBillingRuleOptions"
@@ -381,7 +382,8 @@ interface ModelFormState {
   remark: string;
   providerAccountCode: string | null;
   logicalModelCode: string | null;
-  billingRuleId: number | string | null;
+  /** 绑定计费规则用业务码 code（kb_billing_rules.code），不绑主键 id */
+  billingRuleCode: string | null;
   version: string;
   enabled: boolean;
   rateLimitPolicy: Dict;
@@ -396,7 +398,7 @@ const form = reactive<ModelFormState>({
   remark: "",
   providerAccountCode: null,
   logicalModelCode: null,
-  billingRuleId: null,
+  billingRuleCode: null,
   version: "",
   enabled: false,
   rateLimitPolicy: emptyRateLimitPolicy(),
@@ -406,9 +408,7 @@ const form = reactive<ModelFormState>({
 
 const isEdit = computed(() => props.model?.id != null);
 const selectedLogicalModel = computed(() => logicalModelOptions.value.find((item) => item.modelCode === form.logicalModelCode));
-const selectedBillingRule = computed(() => billingRuleOptions.value.find((item) => item.id === form.billingRuleId));
-/** 当前选中供应商账户（含 providerCode），计费规则过滤按供应商 code 而非账户 id */
-const selectedProviderAccount = ref<Row | null>(null);
+const selectedBillingRule = computed(() => billingRuleOptions.value.find((item) => item.code === form.billingRuleCode));
 const selectedProviderOptions = computed(() =>
   // 账户下拉 value-key 为 code，回显兜底对象必须带 code 键（而非 id），否则 label 匹配不上
   resolveSelectedOption(form.providerAccountCode, [], {
@@ -422,13 +422,11 @@ const selectedLogicalModelOptions = computed(() =>
   }, "modelCode")
 );
 const selectedBillingRuleOptions = computed(() =>
-  resolveSelectedOption(form.billingRuleId, billingRuleOptions.value, {
-    id: form.billingRuleId,
-    code: props.model?.billingRuleCode
-  })
+  resolveSelectedOption(form.billingRuleCode, billingRuleOptions.value, {
+    code: form.billingRuleCode ?? props.model?.billingRuleCode
+  }, "code")
 );
 const billingRuleFilterParams = computed(() => ({
-  providerCode: selectedProviderAccount.value?.providerCode ?? undefined,
   logicalModelCode: form.logicalModelCode ?? undefined
 }));
 const streamUsageExtractorOptions = computed(() =>
@@ -449,7 +447,6 @@ async function loadLogicalModels(params = {pageNum: 1, pageSize: 10}) {
 async function loadBillingRules(params: Dict = {pageNum: 1, pageSize: 10}) {
   const data = await listBillingRules({
     ...params,
-    providerCode: params.providerCode ?? selectedProviderAccount.value?.providerCode ?? undefined,
     logicalModelCode: params.logicalModelCode ?? form.logicalModelCode ?? undefined
   });
   mergeOptions(billingRuleOptions, normalizeOptionList(data));
@@ -497,7 +494,6 @@ function requestAdapterLabel(item: Row): string {
 }
 
 function onProviderAccountChange(account: Row) {
-  selectedProviderAccount.value = account || null;
   form.baseUrl = account?.baseUrl || "";
 }
 
@@ -525,7 +521,7 @@ function fillForm(row: Row) {
   form.remark = row.remark || "";
   form.providerAccountCode = row.providerAccountCode ?? null;
   form.logicalModelCode = row.logicalModelCode ?? null;
-  form.billingRuleId = row.billingRuleId ?? null;
+  form.billingRuleCode = row.billingRuleCode ?? null;
   form.version = row.version || "1.0.0";
   form.enabled = row.enabled === true;
   form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
@@ -556,7 +552,7 @@ watch(
       return;
     }
     if (providerAccountCode !== oldAccountCode || logicalModelCode !== oldLogicalModelCode) {
-      form.billingRuleId = null;
+      form.billingRuleCode = null;
       billingRuleOptions.value = [];
     }
   }
@@ -579,32 +575,25 @@ async function resetForm() {
   try {
       if (props.model) {
         fillForm(props.model);
-        let detailProviderCode: string | null | undefined = props.model?.providerCode;
         if (isEdit.value) {
           detailLoading.value = true;
           try {
             const detail = await getModel(props.model.id);
             if (detail) {
               fillForm(detail);
-              detailProviderCode = detail.providerCode ?? detailProviderCode;
             }
           } finally {
             detailLoading.value = false;
           }
         }
-        // 编辑回填时账户对象未经下拉 change 产生，用详情携带的供应商 code 供计费规则过滤
-        selectedProviderAccount.value = form.providerAccountCode != null
-          ? ({ code: form.providerAccountCode, providerCode: detailProviderCode ?? null } as Row)
-          : null;
       } else {
-      selectedProviderAccount.value = null;
       form.id = null;
       form.modelCode = "";
       form.baseUrl = "";
       form.remark = "";
       form.providerAccountCode = null;
       form.logicalModelCode = null;
-      form.billingRuleId = null;
+      form.billingRuleCode = null;
       form.version = defaultVersion();
       form.enabled = false;
       form.rateLimitPolicy = emptyRateLimitPolicy();
@@ -674,7 +663,7 @@ function validateRequired(showMessage = true) {
     [form.baseUrl?.trim(), "请填写 Base URL"],
     [form.providerAccountCode, "请选择供应商账户"],
     [form.logicalModelCode, "请选择统一模型"],
-    [form.billingRuleId, "请选择计费规则"]
+    [form.billingRuleCode, "请选择计费规则"]
   ];
   const failed = checks.find(([ok]) => !ok);
   if (failed && showMessage) {
@@ -807,7 +796,7 @@ function buildPayload() {
     remark: form.remark?.trim() || null,
     providerAccountCode: form.providerAccountCode,
     logicalModelCode: form.logicalModelCode,
-    billingRuleId: form.billingRuleId,
+    billingRuleCode: form.billingRuleCode,
     version: form.version,
     enabled: form.enabled,
     rateLimitPolicy: isEmptyRateLimitPolicy(form.rateLimitPolicy) ? null : normalizeRateLimitPolicy(form.rateLimitPolicy),

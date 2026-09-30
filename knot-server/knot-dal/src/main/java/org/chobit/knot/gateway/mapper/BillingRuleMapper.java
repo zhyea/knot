@@ -12,7 +12,6 @@ import java.util.List;
 public interface BillingRuleMapper {
 
     List<BillingRuleEntity> list(@Param("keyword") String keyword,
-                                 @Param("providerCode") String providerCode,
                                  @Param("logicalModelCode") String logicalModelCode);
 
     /** 报表用：全量非删除规则（含当前版本字段），不分页 */
@@ -20,12 +19,17 @@ public interface BillingRuleMapper {
 
     BillingRuleEntity getById(Long id);
 
+    /** 按业务码取规则（跨模块绑定一律用 code） */
+    BillingRuleEntity getByCode(String code);
+
     Long countByCode(@Param("code") String code, @Param("excludeId") Long excludeId);
 
-    Long countBoundModels(Long id);
+    /** 按业务码统计绑定了该规则的供应商模型数 */
+    Long countBoundModels(@Param("code") String code);
 
-    BillingRuleEntity getActiveByRuleId(@Param("ruleId") Long ruleId,
-                                        @Param("effectiveAt") LocalDateTime effectiveAt);
+    /** 计费路径：按规则业务码取当前生效版本 */
+    BillingRuleEntity getActiveByRuleCode(@Param("ruleCode") String ruleCode,
+                                          @Param("effectiveAt") LocalDateTime effectiveAt);
 
     int insert(BillingRuleEntity entity);
 

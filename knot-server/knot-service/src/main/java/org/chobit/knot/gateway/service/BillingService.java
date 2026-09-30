@@ -74,16 +74,16 @@ public class BillingService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<BillingRuleDto> listRules(PageRequest pageRequest) {
-        return listRules(pageRequest, null, null, null);
+        return listRules(pageRequest, null, null);
     }
 
     /**
      * Lists matching results. Executes the public operation.
      */
-    public PageResult<BillingRuleDto> listRules(PageRequest pageRequest, String keyword, String providerCode, String logicalModelCode) {
+    public PageResult<BillingRuleDto> listRules(PageRequest pageRequest, String keyword, String logicalModelCode) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<BillingRuleEntity> pageInfo = new PageInfo<>(
-                    billingRuleMapper.list(normalizeKeyword(keyword), providerCode, logicalModelCode)
+                    billingRuleMapper.list(normalizeKeyword(keyword), logicalModelCode)
             );
             return PageResult.fromPage(pageInfo, list -> list.stream().map(billingConverter::toRuleDto).toList(), pageRequest);
         }
@@ -209,7 +209,7 @@ public class BillingService {
     }
 
     /**
-     * 计费报表汇总（配置维度）：规则状态计数 + 供应商/计费模式/进阶方案/币种分布。
+     * 计费报表汇总（配置维度）：规则状态计数 + 统一模型/计费模式/进阶方案/币种分布。
      * 按「当前版本」口径聚合，数据量小，一次取全量后内存分组。
      */
     public BillingReportSummary getReportSummary() {
@@ -220,7 +220,7 @@ public class BillingService {
                 .filter(r -> r.getVersionCode() != null && isActive(r.getVersionStatus()))
                 .count();
 
-        Map<String, BillingReportSummary.ProviderDistribution> providerMap = new LinkedHashMap<>();
+        Map<String, BillingReportSummary.LogicalModelDistribution> modelMap = new LinkedHashMap<>();
         Map<String, Long> modeMap = new LinkedHashMap<>();
         Map<String, Long> planMap = new LinkedHashMap<>();
         Map<String, Long> currencyMap = new LinkedHashMap<>();
@@ -228,14 +228,14 @@ public class BillingService {
         for (BillingRuleEntity rule : rules) {
             boolean active = isActive(rule.getStatus());
 
-            String providerKey = rule.getProviderCode() == null ? "" : rule.getProviderCode();
-            providerMap.compute(providerKey, (key, dist) -> {
+            String modelKey = rule.getLogicalModelCode() == null ? "" : rule.getLogicalModelCode();
+            modelMap.compute(modelKey, (key, dist) -> {
                 if (dist == null) {
-                    return new BillingReportSummary.ProviderDistribution(
-                            rule.getProviderCode(), rule.getProviderName(), 1L, active ? 1L : 0L);
+                    return new BillingReportSummary.LogicalModelDistribution(
+                            rule.getLogicalModelCode(), rule.getLogicalModelName(), 1L, active ? 1L : 0L);
                 }
-                return new BillingReportSummary.ProviderDistribution(
-                        dist.providerCode(), dist.providerName(), dist.ruleCount() + 1,
+                return new BillingReportSummary.LogicalModelDistribution(
+                        dist.logicalModelCode(), dist.logicalModelName(), dist.ruleCount() + 1,
                         dist.activeCount() + (active ? 1L : 0L));
             });
 
@@ -244,15 +244,15 @@ public class BillingService {
             currencyMap.merge(rule.getCurrency() == null ? "" : rule.getCurrency(), 1L, Long::sum);
         }
 
-        long providerCount = providerMap.keySet().stream().filter(key -> !key.isEmpty()).count();
+        long modelCount = modelMap.keySet().stream().filter(key -> !key.isEmpty()).count();
 
         return new BillingReportSummary(
                 rules.size(),
                 activeRules,
                 rules.size() - activeRules,
                 activeVersionRules,
-                providerCount,
-                List.copyOf(providerMap.values()),
+                modelCount,
+                List.copyOf(modelMap.values()),
                 toCodeCounts(modeMap),
                 toCodeCounts(planMap),
                 toCodeCounts(currencyMap)
@@ -311,7 +311,7 @@ public class BillingService {
         }
         validateRule(request, id);
         if (!request.enabled()) {
-            assertRuleNotBound(id, "billing rule is bound by provider models, cannot disable");
+            assertRuleNotBound(existing.getCode(), "billing rule is bound by provider models, cannot disable");
         }
         applyRule(existing, request);
         existing.setId(id);
@@ -331,7 +331,7 @@ public class BillingService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "billing rule not found");
         }
         if (!enabled) {
-            assertRuleNotBound(id, "billing rule is bound by provider models, cannot disable");
+            assertRuleNotBound(existing.getCode(), "billing rule is bound by provider models, cannot disable");
         }
         billingRuleMapper.updateStatus(id, enabled ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code());
         BillingRuleVersionEntity latest = billingRuleMapper.getLatestVersion(id);
@@ -350,7 +350,7 @@ public class BillingService {
         if (existing == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "billing rule not found");
         }
-        assertRuleNotBound(id, "billing rule is bound by provider models, cannot delete");
+        assertRuleNotBound(existing.getCode(), "billing rule is bound by provider models, cannot delete");
         billingRuleMapper.deleteRule(id);
     }
 
@@ -369,10 +369,10 @@ public class BillingService {
             return null;
         }
         ModelEntity model = modelMapper.getById(modelId);
-        if (model == null || model.getBillingRuleId() == null) {
+        if (model == null || model.getBillingRuleCode() == null) {
             return null;
         }
-        BillingRuleEntity rule = billingRuleMapper.getActiveByRuleId(model.getBillingRuleId(), LocalDateTime.now());
+        BillingRuleEntity rule = billingRuleMapper.getActiveByRuleCode(model.getBillingRuleCode(), LocalDateTime.now());
         if (rule == null) {
             return null;
         }
@@ -460,7 +460,6 @@ public class BillingService {
 
     private void applyRule(BillingRuleEntity entity, BillingRuleDto request) {
         entity.setCode(normalizeCode(request.code()));
-        entity.setProviderCode(request.providerCode());
         entity.setLogicalModelCode(request.logicalModelCode());
         entity.setRemark(blankToNull(request.remark()));
     }
@@ -580,8 +579,8 @@ public class BillingService {
         }
     }
 
-    private void assertRuleNotBound(Long id, String message) {
-        Long count = billingRuleMapper.countBoundModels(id);
+    private void assertRuleNotBound(String code, String message) {
+        Long count = billingRuleMapper.countBoundModels(code);
         if (count != null && count > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, message);
         }

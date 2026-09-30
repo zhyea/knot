@@ -4,20 +4,9 @@
       <FilterBar @query="handleQuery" @reset="handleReset">
         <KeywordInput
           v-model="query.keyword"
-          placeholder="按供应商、统一模型筛选"
+          placeholder="按规则编码、统一模型筛选"
           @query="handleQuery"
         />
-        <FilterField label="供应商" :width="220">
-          <RemoteEntitySelect
-            v-model="query.providerCode"
-            value-key="code"
-            :load-function="listProviderProfiles"
-            :label-function="providerLabel"
-            :selected-options="selectedProviderOptions"
-            clearable
-            placeholder="全部供应商"
-          />
-        </FilterField>
         <FilterField label="统一模型" :width="220">
           <RemoteEntitySelect
             v-model="query.logicalModelCode"
@@ -94,7 +83,6 @@ import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {useListQuery} from "@/composables/useListQuery";
 import {deleteBillingRule, listBillingRules, updateBillingRuleStatus} from "@/api/billing";
 import {listBillingRuleOperationLogs} from "@/api/operationLogs";
-import {listProviderProfiles} from "@/api/providerProfiles";
 import {listLogicalModels} from "@/api/logicalModels";
 
 const {
@@ -110,7 +98,7 @@ const {
   resetPage,
   handleQuery,
   handleReset
-} = useListQuery({ apiFn: listBillingRules, fields: { keyword: "", providerCode: null, logicalModelCode: null } });
+} = useListQuery({ apiFn: listBillingRules, fields: { keyword: "", logicalModelCode: null } });
 
 const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateBillingRuleStatus
@@ -128,12 +116,6 @@ const peakRule = ref<Row | null>(null);
 const previewDrawer = ref(false);
 const previewRule = ref<Row | null>(null);
 
-const selectedProviderOptions = computed(() =>
-  rows.value
-    .filter((row) => row.providerCode === query.providerCode && row.providerCode != null)
-    .map((row) => ({ id: row.providerCode, name: row.providerName }))
-);
-
 const selectedLogicalModelOptions = computed(() =>
   rows.value
     .filter((row) => row.logicalModelCode === query.logicalModelCode && row.logicalModelCode != null)
@@ -143,10 +125,6 @@ const selectedLogicalModelOptions = computed(() =>
       modelCode: row.logicalModelCode
     }))
 );
-
-function providerLabel(row: Row) {
-  return row?.name || row?.code || `#${row?.id ?? ""}`;
-}
 
 function logicalModelLabel(row: Row) {
   return row?.modelName || row?.displayName || row?.modelCode || `#${row?.id ?? ""}`;

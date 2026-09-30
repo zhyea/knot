@@ -2,7 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.gateway.mapper.BillingRuleMapper">
 
-    <!-- 当前版本 = 规则下优先取 ACTIVE、再取最近生效的版本（展示用；计费路径见 getActiveByRuleId） -->
+    <!-- 当前版本 = 规则下优先取 ACTIVE、再取最近生效的版本（展示用；计费路径见 getActiveByRuleCode） -->
     <sql id="VersionJoin">
         left join kb_billing_rule_versions bv on bv.id = (
             select v.id from kb_billing_rule_versions v
@@ -13,7 +13,7 @@
     </sql>
 
     <sql id="RuleColumns">
-        br.id, br.code, br.provider_code, p.name as provider_name,
+        br.id, br.code,
         br.logical_model_code, lm.model_name as logical_model_name,
         br.status, br.remark,
         bv.version_code, bv.uniq_hash, bv.billing_mode, bv.pricing_plan, bv.currency, bv.unit,
@@ -24,7 +24,6 @@
     <select id="list" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
         select <include refid="RuleColumns"/>
         from kb_billing_rules br
-        left join kb_providers p on br.provider_code = p.code
         left join kb_logical_models lm on br.logical_model_code = lm.model_code
         <include refid="VersionJoin"/>
         <where>
@@ -32,13 +31,9 @@
             <if test="keyword != null and keyword != ''">
                 and (
                     br.code like concat('%', #{keyword}, '%')
-                    or p.name like concat('%', #{keyword}, '%')
                     or lm.model_name like concat('%', #{keyword}, '%')
                     or lm.model_code like concat('%', #{keyword}, '%')
                 )
-            </if>
-            <if test="providerCode != null and providerCode != ''">
-                and (br.provider_code = #{providerCode} or br.provider_code is null)
             </if>
             <if test="logicalModelCode != null and logicalModelCode != ''">
                 and (br.logical_model_code = #{logicalModelCode} or br.logical_model_code is null)
@@ -51,7 +46,6 @@
     <select id="listForReport" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
         select <include refid="RuleColumns"/>
         from kb_billing_rules br
-        left join kb_providers p on br.provider_code = p.code
         left join kb_logical_models lm on br.logical_model_code = lm.model_code
         <include refid="VersionJoin"/>
         where br.status != 'DELETED'
@@ -61,10 +55,18 @@
     <select id="getById" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
         select <include refid="RuleColumns"/>
         from kb_billing_rules br
-        left join kb_providers p on br.provider_code = p.code
         left join kb_logical_models lm on br.logical_model_code = lm.model_code
         <include refid="VersionJoin"/>
         where br.id = #{id} and br.status != 'DELETED'
+    </select>
+
+    <!-- 按业务码取规则（供应商模型绑定校验用） -->
+    <select id="getByCode" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
+        select <include refid="RuleColumns"/>
+        from kb_billing_rules br
+        left join kb_logical_models lm on br.logical_model_code = lm.model_code
+        <include refid="VersionJoin"/>
+        where br.code = #{code} and br.status != 'DELETED'
     </select>
 
     <select id="countByCode" resultType="java.lang.Long">
@@ -79,16 +81,15 @@
     <select id="countBoundModels" resultType="java.lang.Long">
         select count(1)
         from kb_models
-        where billing_rule_id = #{id}
+        where billing_rule_code = #{code}
     </select>
 
-    <select id="getActiveByRuleId" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
+    <select id="getActiveByRuleCode" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
         select <include refid="RuleColumns"/>
         from kb_billing_rules br
         inner join kb_billing_rule_versions bv on br.id = bv.rule_id
-        left join kb_providers p on br.provider_code = p.code
         left join kb_logical_models lm on br.logical_model_code = lm.model_code
-        where br.id = #{ruleId}
+        where br.code = #{ruleCode}
           and br.status = 'ACTIVE'
           and bv.status = 'ACTIVE'
           and bv.effective_from &lt;= #{effectiveAt}
@@ -98,14 +99,13 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_billing_rules(code, provider_code, logical_model_code, status, remark)
-        values(#{code}, #{providerCode}, #{logicalModelCode}, #{status}, #{remark})
+        insert into kb_billing_rules(code, logical_model_code, status, remark)
+        values(#{code}, #{logicalModelCode}, #{status}, #{remark})
     </insert>
 
     <update id="update">
         update kb_billing_rules
-        set provider_code = #{providerCode},
-            logical_model_code = #{logicalModelCode},
+        set logical_model_code = #{logicalModelCode},
             status = #{status},
             remark = #{remark}
         where id = #{id}

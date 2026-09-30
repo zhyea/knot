@@ -279,7 +279,6 @@ public class ModelService {
                     existing.remark(),
                     enabled,
                     existing.logicalModelCode(),
-                    existing.billingRuleId(),
                     existing.billingRuleCode(),
                     existing.rateLimitPolicy(),
                     existing.quotaPolicy(),
@@ -343,7 +342,6 @@ public class ModelService {
                 base.remark(),
                 base.enabled(),
                 resolveLogicalModelCode(base.id()),
-                base.billingRuleId(),
                 base.billingRuleCode(),
                 rate,
                 quota,
@@ -370,15 +368,14 @@ public class ModelService {
         }
         String modelType = ModelTypeEnum.requireCode(logicalModel.getModelType(), "绑定的统一模型缺少模型类型");
         String baseUrl = blankToNull(request.baseUrl());
-        if (request.billingRuleId() == null) {
+        if (request.billingRuleCode() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择计费规则");
         }
-        BillingRuleEntity billingRule = billingRuleMapper.getById(request.billingRuleId());
+        BillingRuleEntity billingRule = billingRuleMapper.getByCode(request.billingRuleCode());
         ProviderAccountEntity account = providerAccountMapper.getByCode(request.providerAccountCode());
         if (billingRule == null || account == null
-                || !matchesNullableScope(billingRule.getProviderCode(), account.getProviderCode())
                 || !matchesNullableScope(billingRule.getLogicalModelCode(), request.logicalModelCode())) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "计费规则与供应商或统一模型不匹配");
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "计费规则与统一模型不匹配");
         }
         if (request.enabled()) {
             requireText(request.modelCode(), "请填写模型编码");
@@ -387,10 +384,6 @@ public class ModelService {
             }
         }
         return modelType;
-    }
-
-    private static boolean matchesNullableScope(Long ruleScopeId, Long selectedId) {
-        return ruleScopeId == null || ruleScopeId.equals(selectedId);
     }
 
     private static boolean matchesNullableScope(String ruleScopeCode, String selectedCode) {

@@ -92,7 +92,7 @@ class BillingServicePreviewTest {
         when(mapper.getById(7L)).thenReturn(entity);
 
         BillingRuleDto dto = new BillingRuleDto(
-                7L, "BR-TOKEN-PEAK", null, null, null, null,
+                7L, "BR-TOKEN-PEAK", null, null,
                 "v1", null, "TOKEN", pricingPlan, "USD", "ONE_K_TOKENS", CONFIG,
                 true, LocalDateTime.now(), null, null);
         BillingConverter converter = mock(BillingConverter.class);

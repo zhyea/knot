@@ -128,10 +128,10 @@ public class UsageExtractorRegistry {
     }
 
     private BillingRuleEntity resolveBillingRule(UpstreamRequestContext context) {
-        if (context == null || context.model() == null || context.model().getBillingRuleId() == null) {
+        if (context == null || context.model() == null || context.model().getBillingRuleCode() == null) {
             return null;
         }
-        return dataService.getActiveBillingRuleById(context.model().getBillingRuleId());
+        return dataService.getActiveBillingRuleByCode(context.model().getBillingRuleCode());
     }
 
     private org.chobit.knot.gateway.usage.calculator.BillingModeCalculator fallbackCalculator(UpstreamRequestContext context) {
