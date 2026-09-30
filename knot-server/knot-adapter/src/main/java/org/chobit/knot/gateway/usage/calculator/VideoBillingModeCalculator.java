@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 
 @Component
 public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
@@ -34,7 +33,9 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         if (resolution == null) {
             resolution = normalizeResolution(context.requestBody().get(FALLBACK_SIZE));
         }
-        BigDecimal unitPrice = resolveUnitPrice(rule, resolution);
+        // 带发生时点传给方案层，简单价分支才能吃到相位倍率
+        BillingConfig.PricingContext pricingContext = new BillingConfig.PricingContext(amount, context.occurredAt());
+        BigDecimal unitPrice = resolveUnitPrice(rule, resolution, pricingContext);
         int unitSize = unitSize(rule);
         BigDecimal totalCost = cost(amount, unitPrice, unitSize);
         String detailType = resolution == null
@@ -47,25 +48,35 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         );
     }
 
-    private BigDecimal resolveUnitPrice(BillingRuleEntity rule, String resolution) {
+    /**
+     * 分辨率单价 -&gt; defaultUnitPrice -&gt; 0。
+     *
+     * <p>⚠ 已知缺口：命中的分辨率价直接返回，**未过** {@code PricingPlan} 倍率链路
+     * （方案文档 §八 风险 ①）。首期 PEAK_OFF_PEAK 仅支持 TOKEN 模式，VIDEO 拿不到该方案，
+     * 故无实际影响；放开到非 TOKEN 前必须先处理这里。
+     */
+    private BigDecimal resolveUnitPrice(BillingRuleEntity rule,
+                                        String resolution,
+                                        BillingConfig.PricingContext pricingContext) {
         BillingConfig config = BillingConfig.fromJsonOrNull(rule.getConfigJson());
         if (config == null || resolution == null) {
             return config == null ? BigDecimal.ZERO
-                    : config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan())).resolveDefaultPrice(BigDecimal.ZERO);
+                    : planOf(config, rule).resolveDefaultPrice(pricingContext, BigDecimal.ZERO);
         }
-        BigDecimal fallback = config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan())).resolveDefaultPrice(BigDecimal.ZERO);
-        Map<String, BigDecimal> prices = config.resolutionPrices();
-        if (prices == null || prices.isEmpty()) {
-            return fallback;
-        }
-        BigDecimal matched = prices.get(resolution);
+        BillingConfig.PricingPlan plan = planOf(config, rule);
+        BigDecimal fallback = plan.resolveDefaultPrice(pricingContext, BigDecimal.ZERO);
+        BigDecimal matched = config.resolutionPrice(resolution);
         if (matched == null) {
-            matched = prices.get(StringUtils.upperCase(resolution));
+            matched = config.resolutionPrice(StringUtils.upperCase(resolution));
         }
         if (matched == null) {
-            matched = prices.get(StringUtils.lowerCase(resolution));
+            matched = config.resolutionPrice(StringUtils.lowerCase(resolution));
         }
         return matched == null ? fallback : matched;
+    }
+
+    private static BillingConfig.PricingPlan planOf(BillingConfig config, BillingRuleEntity rule) {
+        return config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan()));
     }
 
     private String normalizeResolution(Object value) {

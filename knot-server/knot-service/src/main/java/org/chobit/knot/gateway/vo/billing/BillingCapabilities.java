@@ -19,7 +19,8 @@ public record BillingCapabilities(List<BillingModeCapability> billingModes,
     }
 
     /**
-     * 进阶定价方案能力（仅已开放的方案；PEAK_OFF_PEAK 属阶段三，暂不下发）。
+     * 进阶定价方案能力（仅 {@link org.chobit.knot.gateway.constants.enums.PricingPlanEnum#isAvailable()}
+     * 开放的方案；阶段三后三个方案全部开放）。
      */
     public record PricingPlanCapability(String code) {
     }

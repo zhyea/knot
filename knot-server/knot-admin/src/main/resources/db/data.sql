@@ -669,7 +669,8 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 (120, 'system:security:view', '安全策略查看', 'API', 1, NULL, 'ENABLED', 1, NULL),
 (121, 'system:security:update', '安全策略更新', 'API', 1, NULL, 'ENABLED', 1, NULL),
 (122, 'system:security:evict', '安全策略清理缓存', 'API', 1, NULL, 'ENABLED', 1, NULL),
-(123, 'model:external-model:ignore', '外部模型忽略', 'API', 2, 10, 'ENABLED', 1, NULL);
+(123, 'model:external-model:ignore', '外部模型忽略', 'API', 2, 10, 'ENABLED', 1, NULL),
+(127, 'billing:rule:preview', '计费规则方案试算', 'API', 4, 13, 'ENABLED', 1, NULL);
 
 INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
 (54, 58, 'POST', '/api/docs/openapi.json', 'ApiDocController', 'ENABLED'),
@@ -774,7 +775,8 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (153, 15, 'POST', '/api/system/log-types', 'SystemController', 'ENABLED'),
 (154, 15, 'POST', '/api/system/logs', 'SystemController', 'ENABLED'),
 (155, 123, 'POST', '/api/external-models/items/{id}/ignored', 'ExternalModelController', 'ENABLED'),
-(156, 125, 'GET', '/api/billing/report/summary', 'BillingController', 'ENABLED');
+(156, 125, 'GET', '/api/billing/report/summary', 'BillingController', 'ENABLED'),
+(157, 127, 'POST', '/api/billing/rules/{id}/preview', 'BillingController', 'ENABLED');
 
 -- OPERATOR（运维）：新增接口权限全量授予（与既有 27-55 全量口径一致）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
@@ -846,7 +848,8 @@ INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (2, 123),
 (2, 124),
 (2, 125),
-(2, 126);
+(2, 126),
+(2, 127);
 
 -- DEVELOPER（开发）：仅授予只读类接口权限
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
@@ -866,7 +869,8 @@ INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (3, 120),
 (3, 124),
 (3, 125),
-(3, 126);
+(3, 126),
+(3, 127);
 
 -- ============================================================
 -- 权威授权块（必须保持在文件最后）

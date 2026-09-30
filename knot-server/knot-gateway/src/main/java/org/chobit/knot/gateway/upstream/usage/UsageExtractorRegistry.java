@@ -19,6 +19,7 @@ import org.chobit.knot.gateway.usage.UsageRawReader;
 import org.chobit.knot.gateway.usage.VideoUsageExtractor;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.Map;
 
 /**
@@ -61,14 +62,16 @@ public class UsageExtractorRegistry {
         BillingRuleEntity billingRule = resolveBillingRule(context);
         String code = resolveExtractorCode(eventStream, context);
         UsageExtractor extractor = resolve(code);
+        // 发生时点：一次提取一个值，整包/逐事件各归各自（首期网关进程 UTC）
+        Instant occurredAt = Instant.now();
         if (extractor != null) {
             BillingUsage billing = extractor.extractUsageBody(body);
             if (!billing.isEmpty()) {
-                return normalize(billing, rawBody, rawUsage, billingRule, requestBody(context), extractor.calculator());
+                return normalize(billing, rawBody, rawUsage, billingRule, requestBody(context), occurredAt, extractor.calculator());
             }
         }
         BillingUsage billing = adapter.extractUsage(body, context);
-        return normalize(billing, rawBody, rawUsage, billingRule, requestBody(context), fallbackCalculator(context));
+        return normalize(billing, rawBody, rawUsage, billingRule, requestBody(context), occurredAt, fallbackCalculator(context));
     }
 
     private UsageAccounting normalize(BillingUsage billing,
@@ -76,8 +79,10 @@ public class UsageExtractorRegistry {
                                       Map<String, Object> rawUsage,
                                       BillingRuleEntity billingRule,
                                       Map<String, Object> requestBody,
+                                      Instant occurredAt,
                                       org.chobit.knot.gateway.usage.calculator.BillingModeCalculator calculator) {
-        NormalizedUsage normalized = UsageNormalizationSupport.normalize(billing, billingRule, requestBody, calculator);
+        NormalizedUsage normalized =
+                UsageNormalizationSupport.normalize(billing, billingRule, requestBody, occurredAt, calculator);
         return UsageAccounting.of(rawUsage, rawBody, billing, normalized);
     }
 

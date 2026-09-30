@@ -19,8 +19,8 @@ public enum PricingPlanEnum implements EnumOption {
     TIERED("阶梯价", BillingModeEnum.TOKEN),
 
     /**
-     * 高低峰价：按本地时间/星期/节假日调整价格；首期仅 TOKEN。
-     * 预留枚举值，判定器与日历属阶段三，暂未对外开放（能力矩阵不下发）。
+     * 高低峰价：按发生时点所处相位打折，相位判定见 {@code PeakOffPeakResolver}；首期仅 TOKEN。
+     * 已随阶段三落地与本方案一并开放（原 `this != PEAK_OFF_PEAK` 的排除条件已移除）。
      */
     PEAK_OFF_PEAK("高低峰价", BillingModeEnum.TOKEN);
 
@@ -44,9 +44,9 @@ public enum PricingPlanEnum implements EnumOption {
         return mode != null && supportedBillingModes().contains(mode);
     }
 
-    /** 是否已对外开放（能力矩阵下发与保存校验用；PEAK_OFF_PEAK 属阶段三） */
+    /** 是否已对外开放（能力矩阵下发与保存校验用；阶段三后三个方案全部开放） */
     public boolean isAvailable() {
-        return this != PEAK_OFF_PEAK;
+        return true;
     }
 
     public String code() {

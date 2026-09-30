@@ -15,6 +15,8 @@ import org.chobit.knot.gateway.vo.billing.BillingRule;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.billing.ReconciliationRequest;
 import org.chobit.knot.gateway.vo.billing.ReconciliationResult;
+import org.chobit.knot.gateway.vo.billing.PricingPreviewRequest;
+import org.chobit.knot.gateway.vo.billing.PricingPreviewResult;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -116,6 +118,15 @@ public class BillingController {
     @DeleteMapping("/rules/{id}")
     public void deleteRule(@PathVariable Long id) {
         billingService.deleteRule(id);
+    }
+
+    /**
+     * 计费方案试算：给定规则与时点，返回相位判定与最终单价（高低峰排障/页面自测用）。
+     */
+    @PostMapping("/rules/{id}/preview")
+    public PricingPreviewResult previewRule(@PathVariable Long id,
+                                            @RequestBody(required = false) PricingPreviewRequest request) {
+        return billingService.previewPricing(id, request);
     }
 
     /**

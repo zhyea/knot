@@ -14,6 +14,9 @@ import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
 import org.chobit.knot.gateway.model.BillingConfig;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.pricing.HolidayCalendar;
+import org.chobit.knot.gateway.pricing.PeakOffPeakResolver;
+import org.chobit.knot.gateway.pricing.PhaseDecision;
 import org.chobit.knot.gateway.converter.BillingConverter;
 import org.chobit.knot.gateway.dto.billing.BillingRuleDto;
 import org.chobit.knot.gateway.dto.billing.ReconciliationResultDto;
@@ -26,8 +29,11 @@ import org.chobit.knot.gateway.mapper.BillingRuleMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.vo.billing.BillingCapabilities;
 import org.chobit.knot.gateway.vo.billing.BillingReportSummary;
+import org.chobit.knot.gateway.vo.billing.PricingPreviewRequest;
+import org.chobit.knot.gateway.vo.billing.PricingPreviewResult;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.MapNumberUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,12 +42,17 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -92,7 +103,92 @@ public class BillingService {
     }
 
     /**
+     * 方案试算：给定规则与时点，**复用** {@code PeakOffPeakResolver} 算出相位与最终单价。
+     *
+     * <p>用途有两个：管理端配置页的「时间判定测试」，以及排障时确认某个时刻实际按多少收费。
+     * 因此这里不能用另一套判定实现兜底 —— 判定错了就说明线上错了。
+     *
+     * <p>日历来源：首期为 {@code HolidayCalendar.EMPTY}（不建表），即节假日/调休一律不命中，
+     * 判定结果只反映「星期 + 时段」；接入真实日历时改这一个入参即可。
+     */
+    public PricingPreviewResult previewPricing(Long ruleId, PricingPreviewRequest request) {
+        BillingRuleDto rule = getRuleById(ruleId);
+        Instant occurredAt = parseInstant(request == null ? null : request.occurredAt());
+        long amount = request == null || request.usageAmount() == null || request.usageAmount() < 0
+                ? 0L
+                : request.usageAmount();
+        String mode = normalizeBillingMode(rule.billingMode());
+        BillingModeEnum modeEnum = BillingModeEnum.fromCode(mode);
+        if (modeEnum == null) {
+            modeEnum = BillingModeEnum.CUSTOM;
+        }
+        PricingPlanEnum plan = PricingPlanEnum.fromCode(rule.pricingPlan());
+        BillingConfig config = BillingConfig.fromJsonOrNull(rule.configJson());
+        BillingConfig.PricingContext context = new BillingConfig.PricingContext(amount, occurredAt);
+        BigDecimal zero = BigDecimal.ZERO;
+
+        PhaseDecision decision = null;
+        Map<String, BigDecimal> prices;
+        if (config == null) {
+            prices = BillingModeEnum.TOKEN == modeEnum ? tokenPricesOf(null, context, zero) : Map.of("default", zero);
+        } else {
+            BillingConfig.PricingPlan pricingPlan = config.pricingPlan(plan, HolidayCalendar.EMPTY);
+            if (PricingPlanEnum.PEAK_OFF_PEAK == plan) {
+                decision = PeakOffPeakResolver.resolve(config.pricing(), occurredAt, HolidayCalendar.EMPTY);
+            }
+            prices = BillingModeEnum.TOKEN == modeEnum
+                    ? tokenPricesOf(pricingPlan, context, zero)
+                    : Map.of("default", pricingPlan.resolveDefaultPrice(context, zero));
+        }
+        return new PricingPreviewResult(
+                rule.id(),
+                rule.code(),
+                modeEnum.code(),
+                plan == null ? PricingPlanEnum.FIXED.code() : plan.code(),
+                rule.currency(),
+                rule.unit(),
+                unitSize(rule.unit()),
+                occurredAt.toString(),
+                config == null || config.pricing() == null ? null : config.pricing().timezone(),
+                decision == null ? null : decision.phase().code(),
+                decision == null ? null : decision.reason().name(),
+                decision == null ? null : decision.multiplier(),
+                prices
+        );
+    }
+
+    /** TOKEN 模式四种单价一次性算齐；未填的价格记为 0，与既有 TOKEN 计算器口径一致 */
+    private Map<String, BigDecimal> tokenPricesOf(BillingConfig.PricingPlan pricingPlan,
+                                                  BillingConfig.PricingContext context,
+                                                  BigDecimal zero) {
+        LinkedHashMap<String, BigDecimal> prices = new LinkedHashMap<>();
+        for (BillingConfig.PriceKind kind : BillingConfig.PriceKind.values()) {
+            BigDecimal price = pricingPlan == null ? zero : pricingPlan.resolvePrice(kind, context, zero);
+            prices.put(kind.name().toLowerCase(Locale.ROOT), price);
+        }
+        return prices;
+    }
+
+    /** ISO-8601 时点解析：支持 {@code 2026-09-28T02:30:00Z} 与带偏移写法；空值取当前时间 */
+    private Instant parseInstant(String text) {
+        String value = StringUtils.trimToNull(text);
+        if (value == null) {
+            return Instant.now();
+        }
+        try {
+            return Instant.parse(value);
+        } catch (DateTimeParseException ignored) {
+            // 允许带偏移的写法（如 2026-09-28T10:30:00+08:00）
+            OffsetDateTime offset = OffsetDateTime.parse(value, DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+            return offset.toInstant();
+        }
+    }
+
+    /**
      * 计费能力矩阵：模式 -> 单位/默认单位/支持的进阶方案；方案列表（仅已开放的）。
+     *
+     * <p>方案的下发口径即 {@link PricingPlanEnum#supports}，与保存端 {@link #validateRule} 同源，
+     * 因此「某模式能看到哪些方案」在前后端不会走偏。
      */
     public BillingCapabilities listModeCapabilities() {
         List<BillingCapabilities.BillingModeCapability> modes = Arrays.stream(BillingModeEnum.values())
@@ -449,7 +545,7 @@ public class BillingService {
 
     /**
      * config_json 校验：可解析为对象；基础结构合法；并按 pricingPlan 追加方案级约束
-     * （TIERED 要求 tier 非空且每项 unitPrices 完整；PEAK_OFF_PEAK 属阶段三暂不接受）。
+     * （TIERED 要求 tier 非空且每项 unitPrices 完整；PEAK_OFF_PEAK 要求 pricing 结构合法）。
      */
     private void validateConfigJson(String configJson, PricingPlanEnum plan) {
         String normalized = blankToNull(configJson);

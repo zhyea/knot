@@ -45,10 +45,12 @@ public class TokenBillingModeCalculator extends AbstractBillingModeCalculator {
             cacheWritePrice = zero;
         } else {
             BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan()));
-            inputPrice = pricing.resolvePrice(BillingConfig.PriceKind.INPUT, ladderAmount, zero);
-            outputPrice = pricing.resolvePrice(BillingConfig.PriceKind.OUTPUT, ladderAmount, zero);
-            cacheReadPrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_READ, ladderAmount, zero);
-            cacheWritePrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_WRITE, ladderAmount, inputPrice);
+            // 带发生时点 → 高低峰等按时间定价的方案才能在热路径真正生效
+            BillingConfig.PricingContext pricingContext = new BillingConfig.PricingContext(ladderAmount, context.occurredAt());
+            inputPrice = pricing.resolvePrice(BillingConfig.PriceKind.INPUT, pricingContext, zero);
+            outputPrice = pricing.resolvePrice(BillingConfig.PriceKind.OUTPUT, pricingContext, zero);
+            cacheReadPrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_READ, pricingContext, zero);
+            cacheWritePrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_WRITE, pricingContext, inputPrice);
         }
         long uncachedInputTokens = Math.max(0L, inputTokens - cacheReadTokens - cacheWriteTokens);
         BigDecimal inputCost = cost(uncachedInputTokens, inputPrice, unitSize);

@@ -8,6 +8,7 @@ import org.chobit.knot.gateway.model.NormalizedBillingAmount;
 import org.chobit.knot.gateway.model.NormalizedUsage;
 import org.chobit.knot.gateway.usage.calculator.BillingModeCalculator;
 
+import java.time.Instant;
 import java.util.Map;
 
 public final class UsageNormalizationSupport {
@@ -16,9 +17,13 @@ public final class UsageNormalizationSupport {
     }
 
 
+    /**
+     * @param occurredAt 用量发生时点；null 由 {@link NormalizedUsageContext} 兜底成 {@code Instant.now()}
+     */
     public static NormalizedUsage normalize(BillingUsage usage,
                                             BillingRuleEntity rule,
                                             Map<String, Object> requestBody,
+                                            Instant occurredAt,
                                             BillingModeCalculator calculator) {
         if (usage == null || usage.isEmpty() || rule == null) {
             return null;
@@ -32,7 +37,8 @@ public final class UsageNormalizationSupport {
         if (calculator == null) {
             throw new IllegalStateException("UsageExtractor calculator is required");
         }
-        NormalizedBillingAmount amount = calculator.calculate(new NormalizedUsageContext(rule, normalizedUsage, requestBody));
+        NormalizedBillingAmount amount =
+                calculator.calculate(new NormalizedUsageContext(rule, normalizedUsage, requestBody, occurredAt));
         long totalTokens = normalizedUsage.totalTokens() > 0
                 ? normalizedUsage.totalTokens()
                 : normalizedUsage.inputTokens() + normalizedUsage.outputTokens();
