@@ -62,7 +62,7 @@
           </div>
           <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="计费模式">
+              <el-form-item label="计费模式" class="billing-label-purple">
                 <EnumControl
                   v-model="form.billingMode"
                   enum-name="BillingModeEnum"
@@ -70,7 +70,7 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="进阶方案">
+              <el-form-item label="进阶方案" class="billing-label-purple">
                 <EnumControl
                   v-model="form.pricingPlan"
                   enum-name="PricingPlanEnum"
@@ -80,7 +80,7 @@
               </el-form-item>
             </el-col>
             <el-col v-if="form.billingMode !== 'FREE'" :span="12">
-              <el-form-item label="计费单位">
+              <el-form-item label="计费单位" class="billing-label-purple">
                 <EnumSelect
                   v-model="form.unit"
                   category="billing_unit"
@@ -91,7 +91,10 @@
             </el-col>
           </el-row>
           <!-- 第一层：模式组件（用量与基础价格）；第二层：方案组件（进阶定价明细） -->
-          <component :is="modeComponent" :form="form"/>
+          <div class="billing-base-card">
+            <div class="billing-base-card__title">基础计费规则</div>
+            <component :is="modeComponent" :form="form"/>
+          </div>
           <component :is="planComponent" :form="form"/>
         </div>
 
@@ -207,6 +210,7 @@ interface BillingRuleFormState {
   cacheWriteUnitPrice: number;
   cacheWrite5mUnitPrice: number;
   cacheWrite1hUnitPrice: number;
+  cacheWriteMode: "standard" | "ttl";
   videoPrice720p: number | null;
   videoPrice1080p: number | null;
   imageResolution: string;
@@ -236,6 +240,7 @@ const form = reactive<BillingRuleFormState>({
   cacheWriteUnitPrice: 0,
   cacheWrite5mUnitPrice: 0,
   cacheWrite1hUnitPrice: 0,
+  cacheWriteMode: "standard",
   videoPrice720p: null,
   videoPrice1080p: null,
   imageResolution: "",
@@ -279,6 +284,18 @@ watch(
   (mode) => applyModeDefaults(mode)
 );
 
+watch(
+  () => form.cacheWriteMode,
+  (mode) => {
+    if (mode === "standard") {
+      form.cacheWrite5mUnitPrice = 0;
+      form.cacheWrite1hUnitPrice = 0;
+    } else {
+      form.cacheWriteUnitPrice = 0;
+    }
+  }
+);
+
 // 切换模式时若当前方案不被支持则回退固定价；方案切换保留基础价格，仅清理方案专属配置由后端校验兜底
 watch(
   () => form.pricingPlan,
@@ -320,8 +337,9 @@ function resetForm() {
   form.outputUnitPrice = Number(basePrices.output ?? config.defaultUnitPrice ?? 0.002);
   form.cacheReadUnitPrice = Number(basePrices.cacheRead ?? 0);
   form.cacheWriteUnitPrice = Number(basePrices.cacheWrite ?? 0);
-  form.cacheWrite5mUnitPrice = Number(basePrices.cacheWrite5m ?? basePrices.cacheWrite ?? 0);
-  form.cacheWrite1hUnitPrice = Number(basePrices.cacheWrite1h ?? basePrices.cacheWrite ?? 0);
+  form.cacheWrite5mUnitPrice = Number(basePrices.cacheWrite5m ?? 0);
+  form.cacheWrite1hUnitPrice = Number(basePrices.cacheWrite1h ?? 0);
+  form.cacheWriteMode = basePrices.cacheWrite5m != null || basePrices.cacheWrite1h != null ? "ttl" : "standard";
   form.videoPrice720p = config.resolutionPrices?.["720P"] != null ? Number(config.resolutionPrices["720P"]) : null;
   form.videoPrice1080p = config.resolutionPrices?.["1080P"] != null ? Number(config.resolutionPrices["1080P"]) : null;
   form.imageResolution = config.imageResolution || "";
@@ -405,9 +423,9 @@ function buildBaseConfig(): Dict | null {
         input: form.inputUnitPrice,
         output: form.outputUnitPrice,
         cacheRead: form.cacheReadUnitPrice,
-        cacheWrite: form.cacheWriteUnitPrice,
-        cacheWrite5m: form.cacheWrite5mUnitPrice,
-        cacheWrite1h: form.cacheWrite1hUnitPrice
+        cacheWrite: form.cacheWriteMode === "standard" ? form.cacheWriteUnitPrice : 0,
+        cacheWrite5m: form.cacheWriteMode === "ttl" ? form.cacheWrite5mUnitPrice : 0,
+        cacheWrite1h: form.cacheWriteMode === "ttl" ? form.cacheWrite1hUnitPrice : 0
       }
     };
   }
@@ -529,6 +547,33 @@ async function submit() {
 
 .form-section {
   border-color: #e4e7ed;
+}
+
+.billing-base-card {
+  margin-top: 12px;
+  padding: 12px 14px 4px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  background: var(--el-fill-color-blank);
+}
+
+.billing-base-card__title {
+  margin-bottom: 12px;
+  color: var(--el-text-color-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+:deep(.billing-usage-field .el-form-item__label) {
+  background: #e4f5ed;
+  border-radius: 4px;
+  padding: 0 8px;
+}
+
+:deep(.billing-label-purple .el-form-item__label) {
+  background: #f2e8f5;
+  border-radius: 4px;
+  padding: 0 8px;
 }
 
 .section-head {
