@@ -1,10 +1,9 @@
 <template>
-  <el-row :gutter="12">
-    <el-col v-for="field in TIER_PRICE_FIELDS" :key="field.key" :span="8">
+  <el-row :gutter="16">
+    <el-col v-for="field in visiblePriceFields" :key="field.key" :span="12">
       <el-form-item
         :label="field.label"
         :error="fieldError(field.key)"
-        label-position="top"
         class="tier-price-field"
       >
         <el-input-number
@@ -12,8 +11,6 @@
           :min="0"
           :step="0.0001"
           :precision="6"
-          :controls="false"
-          size="small"
           placeholder="必填"
           class="tier-price-field__input"
           @update:model-value="(value) => update(field.key, value)"
@@ -32,12 +29,19 @@ const props = defineProps({
   /** 所属档位序号（-1 表示与档位无关） */
   index: {type: Number, default: -1},
   prices: {type: Object, required: true},
+  cacheWriteMode: {type: String as () => "standard" | "ttl", default: "standard"},
   issues: {type: Array as () => TierIssue[], default: (): TierIssue[] => []}
 });
 
 const emit = defineEmits(["update:prices"]);
 
 const priceSet = computed(() => props.prices as TierPriceSet);
+const visiblePriceFields = computed(() => TIER_PRICE_FIELDS.filter((field) => {
+  if (props.cacheWriteMode === "standard") {
+    return field.key !== "cacheWrite5m" && field.key !== "cacheWrite1h";
+  }
+  return field.key !== "cacheWrite";
+}));
 
 function update(key: keyof TierPriceSet, value: number | undefined | null) {
   emit("update:prices", {...priceSet.value, [key]: toNumberOrNull(value)});
@@ -49,11 +53,8 @@ function fieldError(key: keyof TierPriceSet): string {
 </script>
 
 <style scoped>
-.tier-price-field {
-  margin-bottom: 12px;
-}
-
 .tier-price-field__input {
   width: 100%;
 }
+
 </style>
