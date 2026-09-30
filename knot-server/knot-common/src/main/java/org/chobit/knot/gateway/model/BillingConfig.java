@@ -11,9 +11,6 @@ import org.chobit.knot.gateway.util.JsonKit;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.Instant;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -81,9 +78,6 @@ public record BillingConfig(
 
     /** 调休策略：整日低峰，或按所调休星期的高峰窗口判定 */
     private static final Set<String> SUPPORTED_MAKE_UP_POLICIES = Set.of("OFF_PEAK", "FOLLOW_WEEKDAY_WINDOWS");
-
-    /** 时段时钟格式（线程安全，替代 SimpleDateFormat） */
-    private static final DateTimeFormatter CLOCK_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     /** 价格种类：对应 config_json 中的具名价格字段 */
     public enum PriceKind {
@@ -170,9 +164,83 @@ public record BillingConfig(
         }
     }
 
-    /** 日内时段 {@code HH:mm}：start 含、end 不含；不允许跨午夜（start &lt; end） */
+    /**
+     * 日内时段：start 含、end 不含（左闭右开）；start &lt; end，禁止跨午夜（跨零点须拆两段）。
+     *
+     * <p>{@code end} 允许特例 {@code "24:00"}（= 次日 0 点），用于表达「覆盖到午夜」；
+     * {@code start} 不允许 24:00。换算与判定统一走 {@link #windowRangeOf(Window)} 分钟数轴。
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Window(String start, String end) {
+    }
+
+    /** {@code end} 的午夜特例：表示次日 0 点（左闭右开的右端点） */
+    public static final String CLOCK_MIDNIGHT_END = "24:00";
+
+    /** 一天的分钟数（数轴端点：24:00 = 1440） */
+    public static final int MINUTES_OF_DAY = 1440;
+
+    /**
+     * 换算到「当天 0 点起算分钟数轴」上的窗口区间 {@code [startMinute, endMinute)}。
+     *
+     * <p>robin 定的口径：窗口一律先换算成分钟数轴再比较，24:00 只是数轴端点 1440（= 明天 0 点），
+     * 不在任何判定/校验处散落字符串特判。校验（validateWindows）与判定
+     * （{@code PeakOffPeakResolver}）共用本出口；格式非法返回 null。
+     */
+    public record WindowRange(int startMinute, int endMinute) {
+
+        /** 时刻（当日分钟数）是否落在区间内（左闭右开） */
+        public boolean covers(int minuteOfDay) {
+            return minuteOfDay >= startMinute && minuteOfDay < endMinute;
+        }
+    }
+
+    /**
+     * 窗口 -> 分钟数轴区间的唯一换算出口。
+     *
+     * <p>{@code start} 必须是合法 {@code HH:mm}（不接受 24:00）；{@code end} 额外接受
+     * {@code "24:00"}。任一端格式非法返回 null。
+     */
+    public static WindowRange windowRangeOf(Window window) {
+        if (window == null) {
+            return null;
+        }
+        Integer start = clockMinutes(window.start());
+        if (start == null) {
+            return null;
+        }
+        Integer end = CLOCK_MIDNIGHT_END.equals(blankToNull(window.end()))
+                ? MINUTES_OF_DAY
+                : clockMinutes(window.end());
+        return end == null ? null : new WindowRange(start, end);
+    }
+
+    /** {@code HH:mm} -> 当日分钟数；非法返回 null（手工解析，{@code 24:00} 不在此放行） */
+    private static Integer clockMinutes(String value) {
+        String text = blankToNull(value);
+        if (text == null || text.length() != 5 || text.charAt(2) != ':') {
+            return null;
+        }
+        String hh = text.substring(0, 2);
+        String mm = text.substring(3);
+        if (!isDigits(hh) || !isDigits(mm)) {
+            return null;
+        }
+        int hours = Integer.parseInt(hh);
+        int minutes = Integer.parseInt(mm);
+        if (hours > 23 || minutes > 59) {
+            return null;
+        }
+        return hours * 60 + minutes;
+    }
+
+    private static boolean isDigits(String text) {
+        for (int index = 0; index < text.length(); index++) {
+            if (!Character.isDigit(text.charAt(index))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -562,6 +630,7 @@ public record BillingConfig(
                 || !last.condition().isDefault() || !PHASE_OFF_PEAK.equals(last.phase())) {
             return "pricing.phases last item must be the DEFAULT off-peak fallback";
         }
+        String makeUpPolicy = null;
         for (int index = 0; index < phases.size(); index++) {
             PhaseRule rule = phases.get(index);
             String item = "pricing.phases[" + index + "]";
@@ -579,8 +648,23 @@ public record BillingConfig(
             if (conditionError != null) {
                 return conditionError;
             }
+            // 调休日是否按工作日窗口判定由判定器读「第一条高峰规则」的策略决定，各条必须一致
+            if (!rule.condition().isDefault() && index < phases.size() - 1) {
+                String current = normalizedMakeUpPolicy(rule.condition());
+                if (makeUpPolicy == null) {
+                    makeUpPolicy = current;
+                } else if (!makeUpPolicy.equals(current)) {
+                    return item + ".condition.makeUpWorkdayPolicy must be identical across all peak rules";
+                }
+            }
         }
         return null;
+    }
+
+    /** 调休策略归一：缺失按默认 OFF_PEAK */
+    private static String normalizedMakeUpPolicy(PhaseCondition condition) {
+        String policy = blankToNull(condition.makeUpWorkdayPolicy());
+        return policy == null ? "OFF_PEAK" : policy;
     }
 
     /** 倍率必须落在 {@code (0, 1]}：低峰是打折，不允许免费也不允许涨价 */
@@ -617,41 +701,25 @@ public record BillingConfig(
         if (windows == null || windows.isEmpty()) {
             return item + ".condition.windows must not be empty";
         }
-        LocalTime previousEnd = null;
+        int previousEndMinute = -1;
         for (int index = 0; index < windows.size(); index++) {
             Window window = windows.get(index);
             String windowItem = item + ".condition.windows[" + index + "]";
-            if (window == null) {
-                return windowItem + " is required";
-            }
-            LocalTime start = parseClock(window.start());
-            LocalTime end = parseClock(window.end());
-            if (start == null || end == null) {
-                return windowItem + " must use HH:mm clock format";
+            // 唯一换算出口：end 可为 24:00（数轴 1440），格式非法/跨午夜/重叠全在数轴上判
+            WindowRange range = windowRangeOf(window);
+            if (range == null) {
+                return windowItem + " must use HH:mm clock format (end may also be 24:00)";
             }
             // 禁止跨午夜：22:00-02:00 须拆成两段；00:00-00:00 不代表全天
-            if (!start.isBefore(end)) {
+            if (range.startMinute() >= range.endMinute()) {
                 return windowItem + ".start must be before end and cannot cross midnight";
             }
-            if (previousEnd != null && start.isBefore(previousEnd)) {
+            if (previousEndMinute >= 0 && range.startMinute() < previousEndMinute) {
                 return windowItem + " overlaps the previous window";
             }
-            previousEnd = end;
+            previousEndMinute = range.endMinute();
         }
         return null;
-    }
-
-    /** {@code HH:mm} 解析；非法格式返回 null（{@link DateTimeFormatter} 线程安全，不做静态可变缓存） */
-    private static LocalTime parseClock(String value) {
-        String text = value == null ? "" : value.trim();
-        if (text.isEmpty()) {
-            return null;
-        }
-        try {
-            return LocalTime.parse(text, CLOCK_FORMATTER);
-        } catch (DateTimeParseException e) {
-            return null;
-        }
     }
 
     private static String blankToNull(String value) {

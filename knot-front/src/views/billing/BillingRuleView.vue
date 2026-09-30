@@ -49,6 +49,8 @@
           @edit="openEdit"
           @log="openChangeLog"
           @tier-detail="openTierDetail"
+          @peak-detail="openPeakDetail"
+          @preview="openPreview"
           @delete="handleDelete"
           @enabled-change="handleEnabledChange"
           @page-change="onPageChange"
@@ -60,6 +62,10 @@
     <BillingRuleFormDialog v-model="ruleDlg" :rule="currentRule" @saved="resetPage" />
 
     <TierRuleDetailDrawer v-model="tierDrawer" :rule="tierRule" />
+
+    <PeakRuleDetailDrawer v-model="peakDrawer" :rule="peakRule" />
+
+    <PricingPreviewDrawer v-model="previewDrawer" :rule="previewRule" />
 
     <OperationLogDrawer
       v-model="logDrawer"
@@ -82,6 +88,8 @@ import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import BillingRuleFormDialog from "../../components/billing/BillingRuleFormDialog.vue";
 import BillingRuleListPanel from "../../components/billing/BillingRuleListPanel.vue";
 import TierRuleDetailDrawer from "../../components/billing/TierRuleDetailDrawer.vue";
+import PeakRuleDetailDrawer from "../../components/billing/PeakRuleDetailDrawer.vue";
+import PricingPreviewDrawer from "../../components/billing/PricingPreviewDrawer.vue";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {useListQuery} from "@/composables/useListQuery";
 import {deleteBillingRule, listBillingRules, updateBillingRuleStatus} from "@/api/billing";
@@ -115,6 +123,10 @@ const logRuleId = ref<number | string | null>(null);
 const logRuleName = ref("");
 const tierDrawer = ref(false);
 const tierRule = ref<Row | null>(null);
+const peakDrawer = ref(false);
+const peakRule = ref<Row | null>(null);
+const previewDrawer = ref(false);
+const previewRule = ref<Row | null>(null);
 
 const selectedProviderOptions = computed(() =>
   rows.value
@@ -159,6 +171,16 @@ function openChangeLog(row: Row) {
 function openTierDetail(row: Row) {
   tierRule.value = row;
   tierDrawer.value = true;
+}
+
+function openPeakDetail(row: Row) {
+  peakRule.value = row;
+  peakDrawer.value = true;
+}
+
+function openPreview(row: Row) {
+  previewRule.value = row;
+  previewDrawer.value = true;
 }
 
 function loadBillingRuleOperationLogs() {

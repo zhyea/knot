@@ -133,6 +133,7 @@ import BillingModeTokenConfig from "./modes/BillingModeTokenConfig.vue";
 import BillingModeVideoConfig from "./modes/BillingModeVideoConfig.vue";
 import PricingPlanFixedConfig from "./plans/PricingPlanFixedConfig.vue";
 import PricingPlanTieredConfig from "./plans/PricingPlanTieredConfig.vue";
+import PricingPlanPeakOffPeakConfig from "./plans/PricingPlanPeakOffPeakConfig.vue";
 import {createBillingRule, updateBillingRule, listModeCapabilities} from "@/api/billing";
 import {listProviderProfiles} from "@/api/providerProfiles";
 import {listLogicalModels} from "@/api/logicalModels";
@@ -140,6 +141,8 @@ import {isValidJsonText, parseJsonObject, stringifyJson} from "@/utils/format";
 import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
 import {basePricesOf, createTierPriceSet, createTierRow, parseTierRows, toNumberOrNull, toTierPayload, validateTierRows} from "@/utils/billingTier";
 import type {TierRow} from "@/utils/billingTier";
+import {createDefaultPeakPricing, parsePeakPricing, toPeakPayload, validatePeakPricing} from "@/utils/billingPeakOffPeak";
+import type {PeakPricing} from "@/utils/billingPeakOffPeak";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -163,7 +166,8 @@ const componentsByMode: Record<string, Component> = {
 
 const componentsByPlan: Record<string, Component> = {
   FIXED: PricingPlanFixedConfig,
-  TIERED: PricingPlanTieredConfig
+  TIERED: PricingPlanTieredConfig,
+  PEAK_OFF_PEAK: PricingPlanPeakOffPeakConfig
 };
 
 const visible = computed({
@@ -180,7 +184,7 @@ const activeModeCapability = computed(() =>
   billingModes.value.find((item) => item.code === form.billingMode) || null
 );
 const unitCodes = computed(() => activeModeCapability.value?.supportedUnits || []);
-/** 当前模式支持的进阶方案（PEAK_OFF_PEAK 属阶段三，后端不下发） */
+/** 当前模式支持的进阶方案；能力矩阵由后端下发，PEAK_OFF_PEAK 首期只对 TOKEN 开放 */
 const planCodes = computed(() => activeModeCapability.value?.supportedPricingPlans || ["FIXED"]);
 
 interface BillingRuleFormState {
@@ -190,7 +194,7 @@ interface BillingRuleFormState {
   providerCode: string | null;
   logicalModelCode: string | null;
   billingMode: string;
-  /** 进阶定价方案（FIXED/TIERED），高低峰属阶段三 */
+  /** 进阶定价方案：FIXED / TIERED / PEAK_OFF_PEAK */
   pricingPlan: string;
   currency: string;
   unit: string;
@@ -209,6 +213,8 @@ interface BillingRuleFormState {
   imageQuality: string;
   /** 阶梯档位（pricingPlan=TIERED），保存时由 {@link toTierPayload} 并入 configJson.tier */
   tiers: TierRow[];
+  /** 高低峰配置（pricingPlan=PEAK_OFF_PEAK），保存时由 {@link toPeakPayload} 并入 configJson.pricing */
+  peakPricing: PeakPricing | null;
   customConfigJson: string;
   enabled: boolean;
   remark: string;
@@ -235,6 +241,7 @@ const form = reactive<BillingRuleFormState>({
   imageResolution: "",
   imageQuality: "",
   tiers: [],
+  peakPricing: null,
   customConfigJson: "",
   enabled: true,
   remark: ""
@@ -289,6 +296,10 @@ watch(
         })
       );
     }
+    // 首次切到高低峰时补默认骨架（工作日高峰 + 兜底低峰）
+    if (plan === "PEAK_OFF_PEAK" && !form.peakPricing) {
+      form.peakPricing = createDefaultPeakPricing();
+    }
   }
 );
 
@@ -316,6 +327,8 @@ function resetForm() {
   form.imageResolution = config.imageResolution || "";
   form.imageQuality = config.imageQuality || "";
   form.tiers = parseTierRows(config.tier);
+  // 高低峰回显：存过的用原配置，没有（或结构缺失）则给一份默认骨架
+  form.peakPricing = parsePeakPricing(config.pricing) || createDefaultPeakPricing();
   form.customConfigJson = form.billingMode === "CUSTOM" ? row?.configJson || "" : "";
   form.enabled = row?.enabled !== false;
   form.remark = row?.remark || "";
@@ -439,6 +452,13 @@ function buildConfigJson() {
       tier: toTierPayload(form.tiers)
     });
   }
+  if (form.pricingPlan === "PEAK_OFF_PEAK") {
+    // 方案层只输出相位与倍率，价格本体来自上方基础价
+    return stringifyJson({
+      ...(base || {}),
+      pricing: toPeakPayload(form.peakPricing)
+    });
+  }
   return base ? stringifyJson(base) : null;
 }
 
@@ -475,6 +495,11 @@ async function submit() {
   const tierIssues = form.pricingPlan === "TIERED" ? validateTierRows(form.tiers) : [];
   if (tierIssues.length) {
     ElMessage.warning(tierIssues[0].message);
+    return;
+  }
+  const peakIssues = form.pricingPlan === "PEAK_OFF_PEAK" ? validatePeakPricing(form.peakPricing) : [];
+  if (peakIssues.length) {
+    ElMessage.warning(peakIssues[0].message);
     return;
   }
   if (form.billingMode === "CUSTOM" && !validateJson(form.customConfigJson, "自定义配置")) {

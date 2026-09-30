@@ -10,8 +10,6 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.List;
 
 /**
@@ -33,8 +31,6 @@ import java.util.List;
  * 这是既定语义（方案文档 §四 取舍 3），实现不做特判。
  */
 public final class PeakOffPeakResolver {
-
-    private static final DateTimeFormatter CLOCK_FORMATTER = DateTimeFormatter.ofPattern("HH:mm");
 
     /** 调休日沿用所调休星期的高峰窗口策略名 */
     private static final String MAKE_UP_FOLLOW_WEEKDAY = "FOLLOW_WEEKDAY_WINDOWS";
@@ -118,19 +114,24 @@ public final class PeakOffPeakResolver {
         return weekdays != null && weekdays.contains(date.getDayOfWeek());
     }
 
+    /**
+     * 时刻是否落在条件的任一窗口内。
+     *
+     * <p>换算走 {@link BillingConfig#windowRangeOf} 这一个出口：窗口先变成
+     * 「当天 0 点起算分钟数」区间 {@code [start, end)} 再比较，{@code 24:00} 即数轴端点 1440
+     * （= 次日 0 点），因此「01:00-24:00」能正确覆盖到当日最后一刻，且不跨午夜。
+     * 判定器不再自行解析 {@code HH:mm}，与校验共用同一份换算。
+     */
     private static boolean hitsWindow(BillingConfig.PhaseCondition condition, LocalTime time) {
         List<BillingConfig.Window> windows = condition.windows();
         if (windows == null || windows.isEmpty()) {
             return false;
         }
+        int minuteOfDay = time.getHour() * 60 + time.getMinute();
         for (BillingConfig.Window window : windows) {
-            LocalTime start = parseClock(window.start());
-            LocalTime end = parseClock(window.end());
-            if (start == null || end == null) {
-                continue;
-            }
+            BillingConfig.WindowRange range = BillingConfig.windowRangeOf(window);
             // 左闭右开：01:00 命中 01:00-04:00，04:00 不命中
-            if (!time.isBefore(start) && time.isBefore(end)) {
+            if (range != null && range.covers(minuteOfDay)) {
                 return true;
             }
         }
@@ -180,18 +181,6 @@ public final class PeakOffPeakResolver {
         try {
             return instant.atZone(ZoneId.of(zoneId));
         } catch (DateTimeException e) {
-            return null;
-        }
-    }
-
-    private static LocalTime parseClock(String value) {
-        String text = value == null ? "" : value.trim();
-        if (text.isEmpty()) {
-            return null;
-        }
-        try {
-            return LocalTime.parse(text, CLOCK_FORMATTER);
-        } catch (DateTimeParseException e) {
             return null;
         }
     }

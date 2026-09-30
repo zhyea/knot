@@ -213,6 +213,104 @@ class BillingConfigTest {
                         """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
     }
 
+    /** end=24:00 = 次日 0 点（数轴端点 1440）；start 不允许 24:00 */
+    @Test
+    void midnightEndIsAcceptedButMidnightStartIsNot() {
+        String template = "{\"pricing\":{\"rateMode\":\"MULTIPLIER\",\"timezone\":\"UTC\",\"phases\":["
+                + "{\"condition\":{\"weekdays\":[\"MONDAY\"],\"windows\":[{\"start\":\"%s\",\"end\":\"%s\"}]},"
+                + "\"phase\":\"PEAK\",\"multiplier\":1},"
+                + "{\"condition\":{\"type\":\"DEFAULT\"},\"phase\":\"OFF_PEAK\",\"multiplier\":0.8}]}}";
+        // 覆盖到午夜：合法
+        assertNull(BillingConfig.parse(String.format(template, "01:00", "24:00"))
+                .validate(PricingPlanEnum.PEAK_OFF_PEAK));
+        // 全天 00:00-24:00：合法
+        assertNull(BillingConfig.parse(String.format(template, "00:00", "24:00"))
+                .validate(PricingPlanEnum.PEAK_OFF_PEAK));
+        // start=24:00 不合法（数轴上与 end 不可比且语义无意义）
+        assertEquals("pricing.phases[0].condition.windows[0] must use HH:mm clock format (end may also be 24:00)",
+                BillingConfig.parse(String.format(template, "24:00", "24:00"))
+                        .validate(PricingPlanEnum.PEAK_OFF_PEAK));
+        // end=24:00 之后的下一段不能与之重叠
+        assertEquals("pricing.phases[0].condition.windows[1] overlaps the previous window",
+                BillingConfig.parse("""
+                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                          {"condition":{"weekdays":["MONDAY"],
+                                        "windows":[{"start":"01:00","end":"24:00"},
+                                                   {"start":"23:00","end":"23:30"}]},
+                           "phase":"PEAK","multiplier":1},
+                          {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
+                        """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+        // 24:00 当作 start 与 24:00 结尾可衔接（相邻不算重叠）
+        assertNull(BillingConfig.parse("""
+                {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                  {"condition":{"weekdays":["MONDAY"],
+                                "windows":[{"start":"00:00","end":"08:00"},
+                                           {"start":"08:00","end":"24:00"}]},
+                   "phase":"PEAK","multiplier":1},
+                  {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
+                """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+    }
+
+    /** 调休策略各条必须一致：判定器只读第一条，不一致必须拒绝保存而非静默忽略 */
+    @Test
+    void makeUpWorkdayPolicyMustBeIdenticalAcrossPeakRules() {
+        // 不一致 -> 拒绝
+        assertEquals("pricing.phases[1].condition.makeUpWorkdayPolicy must be identical across all peak rules",
+                BillingConfig.parse("""
+                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                          {"condition":{"weekdays":["MONDAY"],"windows":[{"start":"01:00","end":"04:00"}],
+                                        "makeUpWorkdayPolicy":"OFF_PEAK"},
+                           "phase":"PEAK","multiplier":1},
+                          {"condition":{"weekdays":["TUESDAY"],"windows":[{"start":"01:00","end":"04:00"}],
+                                        "makeUpWorkdayPolicy":"FOLLOW_WEEKDAY_WINDOWS"},
+                           "phase":"PEAK","multiplier":1},
+                          {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
+                        """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+        // 一致（显式相同）-> 通过
+        assertNull(BillingConfig.parse("""
+                {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                  {"condition":{"weekdays":["MONDAY"],"windows":[{"start":"01:00","end":"04:00"}],
+                                "makeUpWorkdayPolicy":"FOLLOW_WEEKDAY_WINDOWS"},
+                   "phase":"PEAK","multiplier":1},
+                  {"condition":{"weekdays":["TUESDAY"],"windows":[{"start":"01:00","end":"04:00"}],
+                                "makeUpWorkdayPolicy":"FOLLOW_WEEKDAY_WINDOWS"},
+                   "phase":"PEAK","multiplier":1},
+                  {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
+                """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+        // 一致（一条缺失按默认 OFF_PEAK，另一条显式 OFF_PEAK）-> 通过
+        assertNull(BillingConfig.parse("""
+                {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                  {"condition":{"weekdays":["MONDAY"],"windows":[{"start":"01:00","end":"04:00"}]},
+                   "phase":"PEAK","multiplier":1},
+                  {"condition":{"weekdays":["TUESDAY"],"windows":[{"start":"01:00","end":"04:00"}],
+                                "makeUpWorkdayPolicy":"OFF_PEAK"},
+                   "phase":"PEAK","multiplier":1},
+                  {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
+                """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+    }
+
+    /** 24:00 端点必须真的覆盖到当日最后一刻，而不是把 23:59 之后的每分钟都漏给低峰 */
+    @Test
+    void midnightEndWindowCoversUntilEndOfDay() {
+        BillingConfig config = BillingConfig.parse("""
+                {"basePrices":{"input":10},
+                 "pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                   {"condition":{"weekdays":["WEDNESDAY"],
+                                 "windows":[{"start":"01:00","end":"24:00"}]},
+                    "phase":"PEAK","multiplier":1},
+                   {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.5}]}}
+                """);
+        BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.PEAK_OFF_PEAK);
+        // 2026-09-30 周三：23:59Z 仍在高峰窗口内（左闭右开延伸到次日 0 点）
+        assertEquals(0, new BigDecimal("10").compareTo(
+                pricing.resolvePrice(BillingConfig.PriceKind.INPUT,
+                        new BillingConfig.PricingContext(100, instant(2026, 9, 30, 23, 59)), ZERO)));
+        // 00:30Z 不在窗口内 -> 低峰 5
+        assertEquals(0, new BigDecimal("5.0").compareTo(
+                pricing.resolvePrice(BillingConfig.PriceKind.INPUT,
+                        new BillingConfig.PricingContext(100, instant(2026, 9, 30, 0, 30)), ZERO)));
+    }
+
     @Test
     void peakOffPeakMultipliesModeBasePrice() {
         BillingConfig config = BillingConfig.parse("""
