@@ -7,14 +7,13 @@ import type {Dict} from "@/types";
  * {@code PeakOffPeakResolver} 严格对齐：
  * <ul>
  *   <li>方案类型不写进 JSON（由版本列 {@code pricing_plan} 表达），因此这里也没有 {@code type} 根节点；</li>
- *   <li>{@code rateMode} 首期固定 {@code MULTIPLIER}，{@code timezone} 白名单只有 {@code UTC}；</li>
+ *   <li>{@code rateMode} 首期固定 {@code MULTIPLIER}，{@code timezone} 使用 UTC 偏移；</li>
  *   <li>{@code phases} 首项必须是 PEAK，末项必须是 {@code condition.type=DEFAULT} 的兜底低峰；</li>
  *   <li>倍率落在 {@code (0, 1]}：低峰是打折，不允许免费也不允许涨价；</li>
  *   <li>时段 {@code HH:mm} 左闭右开，禁止跨午夜，同一条件内不得重叠；
  *       {@code end} 允许特例 {@code 24:00}（= 次日 0 点）以表达「覆盖到午夜」；</li>
  *   <li>全部时段先换算到「当天 0 点起算分钟数轴」再比较（{@code 24:00} 即 1440），
  *       校验 / 判定 / 时间轴共用 {@link toMinuteRange} 一个出口，不散落字符串特判；</li>
- *   <li>多条高峰规则的调休策略必须一致（后端判定只读第一条，不一致会被拒绝保存）。</li>
  * </ul>
  *
  * <p>方案层**不持有价格**：它只输出相位与倍率，价格本体来自模式层（TOKEN 的 basePrices、
@@ -53,8 +52,6 @@ export interface PeakPhaseRow {
   /** ISO DayOfWeek 名（Java 枚举名），如 ["MONDAY","FRIDAY"] */
   weekdays: string[];
   windows: PeakWindow[];
-  /** 调休日策略：OFF_PEAK（按低峰）/ FOLLOW_WEEKDAY_WINDOWS（按工作日窗口判定） */
-  makeUpWorkdayPolicy: string;
 }
 
 export interface PeakPricing {
@@ -80,25 +77,22 @@ export const PEAK_WEEKDAYS: ReadonlyArray<{ code: string; label: string; short: 
   { code: "SUNDAY", label: "周日", short: "日" }
 ];
 
-/** 首期时区白名单：只接受 UTC，禁止 +08:00 这类固定偏移（与后端 SUPPORTED_TIMEZONES 同源） */
-export const PEAK_TIMEZONE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = [
-  { value: "UTC", label: "UTC" }
-];
+/** UTC 偏移列表；与后端 BillingConfig 的白名单保持一致。 */
+export const PEAK_TIMEZONE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = Array.from(
+  {length: 27},
+  (_, index) => {
+    const offset = index - 12;
+    const value = offset <= 0 ? `UTC${offset < 0 ? offset : "+0"}` : `UTC+${offset}`;
+    return {value, label: value};
+  }
+);
 
-/** 调休日策略；节假日策略首期固定 OFF_PEAK，无选项 */
-export const PEAK_MAKE_UP_POLICIES: ReadonlyArray<{ value: string; label: string; hint: string }> = [
-  { value: "OFF_PEAK", label: "整日低峰", hint: "调休上班日一律按低峰倍率计费" },
-  { value: "FOLLOW_WEEKDAY_WINDOWS", label: "按工作日窗口", hint: "调休日忽略当天星期，按所调休星期的高峰窗口判定" }
-];
-
-const DEFAULT_MAKE_UP_POLICY = "OFF_PEAK";
 const HOLIDAY_POLICY = "OFF_PEAK";
 
 /** 判定原因；与后端 PhaseReason 同名 */
 export const PEAK_REASONS: Record<string, string> = {
   PEAK_WINDOW: "命中高峰时段",
   HOLIDAY: "节假日整日低峰",
-  MAKE_UP_WORKDAY: "调休上班日按策略判低峰",
   DEFAULT: "未命中任何高峰时段，走兜底低峰",
   NO_TIMESTAMP: "缺少发生时间，不调整"
 };
@@ -219,14 +213,13 @@ export function createPeakPhaseRow(init: Partial<PeakPhaseRow> = {}): PeakPhaseR
     isDefault: init.isDefault ?? false,
     weekdays: init.weekdays ? [...init.weekdays] : [],
     windows: init.windows ? init.windows.map((item) => ({ ...item, uid: item.uid ?? nextUid("window") })) : [],
-    makeUpWorkdayPolicy: init.makeUpWorkdayPolicy ?? DEFAULT_MAKE_UP_POLICY
   };
 }
 
 /** 新建规则时的默认骨架：工作日 01:00-04:00 为高峰，其余一律低峰 0.8 倍 */
 export function createDefaultPeakPricing(): PeakPricing {
   return {
-    timezone: "UTC",
+    timezone: "UTC+0",
     phases: [
       createPeakPhaseRow({
         phase: "PEAK",
@@ -268,11 +261,10 @@ export function parsePeakPricing(raw: unknown): PeakPricing | null {
       isDefault: String(condition.type || "").trim().toUpperCase() === "DEFAULT",
       weekdays,
       windows,
-      makeUpWorkdayPolicy: String(condition.makeUpWorkdayPolicy || DEFAULT_MAKE_UP_POLICY).trim().toUpperCase()
     });
   });
   return {
-    timezone: String(source.timezone || "UTC").trim() || "UTC",
+    timezone: normalizeTimezone(String(source.timezone || "UTC+0").trim() || "UTC+0"),
     phases
   };
 }
@@ -294,8 +286,7 @@ export function toPeakPayload(pricing: PeakPricing | null): Dict | null {
       condition: {
         weekdays: row.weekdays,
         windows: row.windows.map((window) => ({ start: window.start, end: window.end })),
-        holidayPolicy: HOLIDAY_POLICY,
-        makeUpWorkdayPolicy: row.makeUpWorkdayPolicy || DEFAULT_MAKE_UP_POLICY
+        holidayPolicy: HOLIDAY_POLICY
       },
       phase: row.phase,
       multiplier: toNumberOrNull(row.multiplier) ?? 1
@@ -303,7 +294,7 @@ export function toPeakPayload(pricing: PeakPricing | null): Dict | null {
   });
   return {
     rateMode: "MULTIPLIER",
-    timezone: pricing.timezone || "UTC",
+    timezone: normalizeTimezone(pricing.timezone || "UTC+0"),
     phases
   };
 }
@@ -314,7 +305,7 @@ export function validatePeakPricing(pricing: PeakPricing | null): PeakIssue[] {
     return [{ index: -1, message: "高低峰方案缺少 pricing 配置" }];
   }
   if (!PEAK_TIMEZONE_OPTIONS.some((item) => item.value === pricing.timezone)) {
-    return [{ index: -1, message: `时区只支持 ${PEAK_TIMEZONE_OPTIONS.map((item) => item.value).join("、")}` }];
+    return [{ index: -1, message: "时区必须选择 UTC-12 至 UTC+14 的偏移" }];
   }
   const phases = pricing.phases || [];
   if (!phases.length) {
@@ -329,9 +320,6 @@ export function validatePeakPricing(pricing: PeakPricing | null): PeakIssue[] {
     issues.push({ index: phases.length - 1, message: "末条必须是兜底低峰（condition.type=DEFAULT，phase=OFF_PEAK）" });
   }
 
-  /** 判定器只读第一条高峰规则的调休策略，各条不一致会导致静默忽略 -> 后端拒绝保存，前端先拦 */
-  let makeUpPolicy: string | null = null;
-
   phases.forEach((row, index) => {
     const seq = index + 1;
     const multiplier = toNumberOrNull(row.multiplier);
@@ -344,16 +332,6 @@ export function validatePeakPricing(pricing: PeakPricing | null): PeakIssue[] {
     }
     if (row.isDefault) {
       return;
-    }
-    const currentPolicy = row.makeUpWorkdayPolicy || DEFAULT_MAKE_UP_POLICY;
-    if (makeUpPolicy == null) {
-      makeUpPolicy = currentPolicy;
-    } else if (makeUpPolicy !== currentPolicy) {
-      issues.push({
-        index,
-        field: "makeUpWorkdayPolicy",
-        message: `第 ${seq} 条：调休策略必须与其它高峰规则一致（判定只认第一条）`
-      });
     }
     if (!row.weekdays.length) {
       issues.push({ index, field: "weekdays", message: `第 ${seq} 条：适用星期至少选 1 天` });
@@ -440,19 +418,23 @@ export interface PeakDecision {
  * <p>与后端的差异只有一处：日历数据源。首期后端注入的是空日历，因此这里不判节假日/调休，
  * 结果只反映「星期 + 时段」；接入真实日历时两侧一起补。
  *
- * @param at ISO 日期 {@code yyyy-MM-dd} 与 UTC 时刻 {@code HH:mm}
+ * @param at ISO 日期 {@code yyyy-MM-dd} 与所选 UTC 偏移下的本地时刻 {@code HH:mm}
  */
 export function resolvePeakPhase(pricing: PeakPricing | null, date: string, time: string): PeakDecision | null {
   const minutes = parseClock(time);
   if (!pricing || !date || minutes == null) {
     return null;
   }
-  const parsed = new Date(`${date}T00:00:00Z`);
-  if (Number.isNaN(parsed.getTime())) {
+  const parsed = localDateTimeToInstant(date, time, pricing.timezone);
+  if (!parsed) {
+    return null;
+  }
+  const localDate = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(localDate.getTime())) {
     return null;
   }
   // JS getUTCDay: 0=周日；Java DayOfWeek: 周一=1 ... 周日=7
-  const javaDay = ((parsed.getUTCDay() + 6) % 7) + 1;
+  const javaDay = ((localDate.getUTCDay() + 6) % 7) + 1;
   const weekdayCode = PEAK_WEEKDAYS[javaDay - 1]?.code;
   const phases = pricing.phases || [];
   const fallback = phases[phases.length - 1];
@@ -473,4 +455,26 @@ export function resolvePeakPhase(pricing: PeakPricing | null, date: string, time
     }
   }
   return { phase: "OFF_PEAK", reason: "DEFAULT", multiplier: fallbackMultiplier };
+}
+
+/** 将所选 UTC 偏移中的本地日期时间转换为瞬时点，供页面试算使用。 */
+function localDateTimeToInstant(date: string, time: string, timezone: string): Date | null {
+  const match = /^UTC([+-])(\d{1,2})$/.exec(normalizeTimezone(timezone));
+  if (!match) {
+    return null;
+  }
+  const hours = Number(match[2]);
+  if (!Number.isInteger(hours) || hours > 14 || (match[1] === "-" && hours > 12)) {
+    return null;
+  }
+  const naive = new Date(`${date}T${time}:00Z`);
+  if (Number.isNaN(naive.getTime())) {
+    return null;
+  }
+  const offsetMinutes = (match[1] === "+" ? 1 : -1) * hours * 60;
+  return new Date(naive.getTime() - offsetMinutes * 60_000);
+}
+
+function normalizeTimezone(value: string): string {
+  return value === "UTC" || value === "UTC-0" ? "UTC+0" : value;
 }
