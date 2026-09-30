@@ -11,6 +11,7 @@ import org.chobit.knot.gateway.util.JsonKit;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -66,8 +67,10 @@ public record BillingConfig(
     /** 首期唯一的计价方式：在模式层基础单价上乘相位倍率 */
     private static final String RATE_MODE_MULTIPLIER = "MULTIPLIER";
 
-    /** 首期时区白名单：只接受 UTC，禁止 {@code +08:00} 这类固定偏移（公共导出，判定器须同源） */
-    public static final Set<String> SUPPORTED_TIMEZONES = Set.of("UTC");
+    /** 全部 IANA 时区白名单；固定偏移（如 +08:00）不在其中。 */
+    public static final Set<String> SUPPORTED_TIMEZONES = java.util.stream.Stream.concat(
+                    java.util.stream.Stream.of("UTC"), ZoneId.getAvailableZoneIds().stream())
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
 
     private static final String PHASE_PEAK = "PEAK";
     private static final String PHASE_OFF_PEAK = "OFF_PEAK";
