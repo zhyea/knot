@@ -19,43 +19,33 @@
         <span class="tier-card__spacer"/>
         <el-button link :disabled="index === 0" @click="move(index, -1)">上移</el-button>
         <el-button link :disabled="index === rows.length - 1" @click="move(index, 1)">下移</el-button>
+        <el-button link :disabled="!canFillFromBase" @click="fillTierFromBase(index)">填基础价</el-button>
         <el-button link type="danger" @click="remove(index)">删除</el-button>
       </div>
 
-      <el-row :gutter="12">
-        <el-col :span="8">
-          <el-form-item label="起始用量" :error="fieldError(index, 'from')">
+      <el-row :gutter="16">
+        <el-col :span="12">
+          <el-form-item label="起始用量" class="billing-usage-field" :error="fieldError(index, 'from')">
             <el-input-number
               :model-value="row.from"
               :min="0"
               :step="1000"
-              :controls="false"
-              size="small"
               placeholder="必填（含）"
               class="tier-card__input"
               @update:model-value="(value) => setValue(index, 'from', value)"
             />
           </el-form-item>
         </el-col>
-        <el-col :span="8">
-          <el-form-item label="截止用量" :error="fieldError(index, 'to')">
+        <el-col :span="12">
+          <el-form-item label="截止用量" class="billing-usage-field" :error="fieldError(index, 'to')">
             <el-input-number
               :model-value="row.to"
               :min="0"
               :step="1000"
-              :controls="false"
-              size="small"
               placeholder="留空 = 上不封顶（含）"
               class="tier-card__input"
               @update:model-value="(value) => setValue(index, 'to', value)"
             />
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="档位操作">
-            <el-button size="small" :disabled="!canFillFromBase" @click="fillTierFromBase(index)">
-              填基础价
-            </el-button>
           </el-form-item>
         </el-col>
       </el-row>
@@ -63,6 +53,7 @@
       <TierPriceFields
         :index="index"
         :prices="row.unitPrices"
+        :cache-write-mode="form.cacheWriteMode"
         :issues="issues"
         @update:prices="(value) => setPrices(index, value)"
       />
