@@ -3,12 +3,11 @@ package org.chobit.knot.gateway.pricing;
 import org.chobit.knot.gateway.model.BillingConfig;
 
 import java.math.BigDecimal;
-import java.time.DateTimeException;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -20,7 +19,7 @@ import java.util.List;
  *
  * <p>判定链（详见 docs/高低峰计费方案-2026-09-30.md §四）：
  * <pre>
- * local = occurredAt(ZoneId(pricing.timezone))              // 首期 timezone 恒为 UTC
+ * local = occurredAt(UTC offset(pricing.timezone))
  * if  holiday(local.date)                                         -> OFF_PEAK  HOLIDAY
  * elif makeUpWorkday(local.date) &amp;&amp; policy == OFF_PEAK           -> OFF_PEAK  MAKE_UP_WORKDAY
  * elif ∃ 高峰规则：dow ∈ weekdays ∧ time ∈ [start, end)            -> PEAK     PEAK_WINDOW
@@ -170,17 +169,22 @@ public final class PeakOffPeakResolver {
      * 按配置时区换算本地时间；时区不在白名单（首期仅 UTC）时返回 null。
      *
      * <p>白名单在保存期已由 {@code BillingConfig#validatePricing} 拦过一道，这里再拦是**防御**：
-     * 历史脏数据、直接改库、以及 {@code +08:00} 这类 {@link ZoneId#of} 合法但语义不符的固定偏移，
+     * 历史脏数据、直接改库、以及不符合 UTC 偏移格式的固定偏移，
      * 都不该参与判定；落到 null 会一路降级到「不调整」（倍率 1），即宁可不打折也不乱打折。
      */
     private static ZonedDateTime localTime(Instant instant, String timezone) {
-        String zoneId = timezone == null || timezone.isBlank() ? "UTC" : timezone.trim();
+        String zoneId = timezone == null || timezone.isBlank() ? "UTC+0" : timezone.trim();
+        if ("UTC".equals(zoneId) || "UTC-0".equals(zoneId)) {
+            zoneId = "UTC+0";
+        }
         if (!BillingConfig.SUPPORTED_TIMEZONES.contains(zoneId)) {
             return null;
         }
         try {
-            return instant.atZone(ZoneId.of(zoneId));
-        } catch (DateTimeException e) {
+            int sign = zoneId.charAt(3) == '+' ? 1 : -1;
+            int hours = Integer.parseInt(zoneId.substring(4));
+            return instant.atZone(ZoneOffset.ofHours(sign * hours));
+        } catch (RuntimeException e) {
             return null;
         }
     }
