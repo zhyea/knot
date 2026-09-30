@@ -4,7 +4,6 @@ import org.chobit.knot.gateway.annotation.AuthCheck;
 import org.chobit.knot.gateway.dto.system.OperationLogListResult;
 import org.chobit.knot.gateway.dto.system.OperationLogQuery;
 import org.chobit.knot.gateway.entity.OperationLogEntity;
-import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.service.OperationLogService;
 import org.springframework.web.bind.annotation.*;
 

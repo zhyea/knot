@@ -5,7 +5,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
 import org.chobit.knot.gateway.pricing.HolidayCalendar;
 import org.chobit.knot.gateway.pricing.PeakOffPeakResolver;
-import org.chobit.knot.gateway.pricing.PhaseDecision;
 import org.chobit.knot.gateway.util.JsonKit;
 
 import java.math.BigDecimal;

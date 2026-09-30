@@ -3,7 +3,6 @@ package org.chobit.knot.gateway.controller;
 import jakarta.validation.Valid;
 import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.model.PageQuery;
-import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.ProviderProfileService;
 import org.chobit.knot.gateway.vo.provider.ProviderProfileItem;

@@ -5,7 +5,6 @@ import org.chobit.knot.gateway.dto.model.ModelPoolItemDto;
 import org.chobit.knot.gateway.entity.ModelPoolEntity;
 import org.chobit.knot.gateway.entity.ModelPoolItemEntity;
 import org.chobit.knot.gateway.vo.model.ModelPool;
-import org.chobit.knot.gateway.vo.model.ModelPoolItem;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

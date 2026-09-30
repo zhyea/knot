@@ -137,7 +137,7 @@ import {createBillingRule, updateBillingRule, listModeCapabilities} from "@/api/
 import {listLogicalModels} from "@/api/logicalModels";
 import {isValidJsonText, parseJsonObject, stringifyJson} from "@/utils/format";
 import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
-import {basePricesOf, createTierPriceSet, createTierRow, parseTierRows, toNumberOrNull, toTierPayload, validateTierRows} from "@/utils/billingTier";
+import {basePricesOf, createTierPriceSet, createTierRow, parseTierRows, toTierPayload, validateTierRows} from "@/utils/billingTier";
 import type {TierRow} from "@/utils/billingTier";
 import {createDefaultPeakPricing, parsePeakPricing, toPeakPayload, validatePeakPricing} from "@/utils/billingPeakOffPeak";
 import type {PeakPricing} from "@/utils/billingPeakOffPeak";
