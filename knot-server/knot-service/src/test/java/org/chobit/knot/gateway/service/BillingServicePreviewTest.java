@@ -94,7 +94,7 @@ class BillingServicePreviewTest {
         BillingRuleDto dto = new BillingRuleDto(
                 7L, "BR-TOKEN-PEAK", null, null,
                 "v1", null, "TOKEN", pricingPlan, "USD", "ONE_K_TOKENS", CONFIG,
-                true, LocalDateTime.now(), null, null);
+                true, LocalDateTime.now(), null, null, 0L);
         BillingConverter converter = mock(BillingConverter.class);
         when(converter.toRuleDto(entity)).thenReturn(dto);
 

@@ -18,7 +18,8 @@
         br.status, br.remark,
         bv.version_code, bv.uniq_hash, bv.billing_mode, bv.pricing_plan, bv.currency, bv.unit,
         bv.status as version_status,
-        bv.config_json, bv.effective_from, bv.effective_to
+        bv.config_json, bv.effective_from, bv.effective_to,
+        (select count(1) from kb_models m where m.billing_rule_code = br.code) as bound_model_count
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
@@ -105,7 +106,8 @@
 
     <update id="update">
         update kb_billing_rules
-        set logical_model_code = #{logicalModelCode},
+        set code = #{code},
+            logical_model_code = #{logicalModelCode},
             status = #{status},
             remark = #{remark}
         where id = #{id}

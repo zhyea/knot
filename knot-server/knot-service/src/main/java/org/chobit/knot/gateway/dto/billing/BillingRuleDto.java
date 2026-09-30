@@ -21,6 +21,8 @@ public record BillingRuleDto(
         boolean enabled,
         LocalDateTime effectiveFrom,
         LocalDateTime effectiveTo,
-        String remark
+        String remark,
+        /** 只读派生：绑定了该规则编码的供应商模型数 */
+        Long boundModelCount
 ) {
 }

@@ -310,6 +310,7 @@ public class BillingService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "billing rule not found");
         }
         validateRule(request, id);
+        assertCodeChangeAllowed(existing, normalizeCode(request.code()));
         if (!request.enabled()) {
             assertRuleNotBound(existing.getCode(), "billing rule is bound by provider models, cannot disable");
         }
@@ -583,6 +584,22 @@ public class BillingService {
         Long count = billingRuleMapper.countBoundModels(code);
         if (count != null && count > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, message);
+        }
+    }
+
+    /**
+     * 规则编码可改，但原编码一旦被供应商模型绑定就不许改：绑定存的是 code，改了会让存量模型掉绑。
+     * 未绑定（或编码未变）时放行；唯一性由 {@link #validateRule} 的 countByCode 保证。
+     */
+    private void assertCodeChangeAllowed(BillingRuleEntity existing, String newCode) {
+        String oldCode = normalizeCode(existing.getCode());
+        if (oldCode.equals(newCode)) {
+            return;
+        }
+        Long count = billingRuleMapper.countBoundModels(oldCode);
+        if (count != null && count > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT,
+                    "billing rule code is used by " + count + " provider models, cannot change");
         }
     }
 

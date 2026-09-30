@@ -23,8 +23,10 @@
                   v-model="form.code"
                   placeholder="如 TOKEN_GPT4O"
                   maxlength="64"
-                  :disabled="isEdit"
                 />
+                <div v-if="codeBlockedByBinding" class="form-tip">
+                  已被 {{ boundModelCount }} 个供应商模型使用，需先解绑才能修改
+                </div>
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -243,6 +245,14 @@ const form = reactive<BillingRuleFormState>({
 });
 
 const isEdit = computed(() => props.rule != null);
+/** 只读派生：绑定了该编码的供应商模型数（后端 RuleColumns 子查询带出） */
+const boundModelCount = computed(() => Number(props.rule?.boundModelCount ?? 0));
+/** 编辑且编码已被使用时不允许改码：绑定存的是 code，改了存量模型会掉绑 */
+const codeBlockedByBinding = computed(() => isEdit.value && boundModelCount.value > 0);
+/** 是否真的改了编码（后端大写归一，这里同口径比较） */
+const codeChanged = computed(() =>
+  String(props.rule?.code || "").trim().toUpperCase() !== resolveRuleCode().toUpperCase()
+);
 const modeComponent = computed(() => componentsByMode[form.billingMode] || BillingModeTokenConfig);
 const planComponent = computed(() => componentsByPlan[form.pricingPlan] || PricingPlanFixedConfig);
 const selectedLogicalModelOptions = computed(() =>
@@ -477,6 +487,11 @@ async function submit() {
     ElMessage.warning("请填写规则编码");
     return;
   }
+  // 保存前确认编码未被使用：被绑定的编码改了会让存量模型掉绑（后端亦有同名硬校验）
+  if (codeBlockedByBinding.value && codeChanged.value) {
+    ElMessage.warning(`规则编码已被 ${boundModelCount.value} 个供应商模型使用，请先解绑后再修改`);
+    return;
+  }
   const tierIssues = form.pricingPlan === "TIERED" ? validateTierRows(form.tiers) : [];
   if (tierIssues.length) {
     ElMessage.warning(tierIssues[0].message);
@@ -564,5 +579,12 @@ async function submit() {
 
 .space-line {
   height: 14px;
+}
+
+.form-tip {
+  width: 100%;
+  color: var(--el-color-warning);
+  font-size: 12px;
+  line-height: 1.5;
 }
 </style>

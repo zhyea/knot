@@ -31,4 +31,7 @@ public class BillingRuleEntity {
     private String configJson;
     private LocalDateTime effectiveFrom;
     private LocalDateTime effectiveTo;
+
+    /** 只读派生：绑定了该规则编码的供应商模型数（改编码/停用/删除前据此判断可否操作） */
+    private Long boundModelCount;
 }
