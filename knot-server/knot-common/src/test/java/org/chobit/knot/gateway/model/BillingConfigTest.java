@@ -141,17 +141,19 @@ class BillingConfigTest {
         assertEquals("pricing.rateMode must be MULTIPLIER",
                 BillingConfig.parse(String.format(base, "FLAT", "UTC", validPhases))
                         .validate(PricingPlanEnum.PEAK_OFF_PEAK));
-        // timezone 白名单只有 UTC，+08:00 这类固定偏移必须被拒
-        assertEquals("pricing.timezone must be one of [UTC]",
+        // 仅接受 UTC 偏移格式，+08:00 与 IANA 名称必须被拒
+        assertEquals("pricing.timezone must be a valid UTC offset",
                 BillingConfig.parse(String.format(base, "MULTIPLIER", "+08:00", validPhases))
                         .validate(PricingPlanEnum.PEAK_OFF_PEAK));
-        assertEquals("pricing.timezone must be one of [UTC]",
+        assertEquals("pricing.timezone must be a valid UTC offset",
                 BillingConfig.parse(String.format(base, "MULTIPLIER", "Asia/Shanghai", validPhases))
                         .validate(PricingPlanEnum.PEAK_OFF_PEAK));
+        assertNull(BillingConfig.parse(String.format(base, "MULTIPLIER", "UTC+8", validPhases))
+                .validate(PricingPlanEnum.PEAK_OFF_PEAK));
         assertEquals("pricing.phases must be a non-empty array",
                 BillingConfig.parse("{\"pricing\":{\"rateMode\":\"MULTIPLIER\",\"timezone\":\"UTC\",\"phases\":[]}}")
                         .validate(PricingPlanEnum.PEAK_OFF_PEAK));
-        // 首项必须是高峰
+       // 首项必须是高峰
         assertEquals("pricing.phases first item must be PEAK",
                 BillingConfig.parse("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
