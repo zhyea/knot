@@ -3,7 +3,9 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.SystemMapper">
 
     <select id="listOperationLogs" resultType="org.chobit.knot.gateway.entity.OperationLogEntity">
-        select id, module_code, action_code, target_id, result_status
+        -- ks_operation_logs 的实际列是 module / operation / entity_id / status；
+        -- 旧写法查 module_code / action_code / target_id / result_status 会直接 SQL 报错（Unknown column）
+        select id, module, operation, entity_id, status
         from ks_operation_logs
         order by id desc
     </select>

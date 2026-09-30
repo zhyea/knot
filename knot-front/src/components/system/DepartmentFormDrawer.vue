@@ -217,13 +217,13 @@ function countSubtreeHeight(node: Row) {
   if (!children.length) {
     return 1;
   }
-  return 1 + Math.max(...children.map((child: any) => countSubtreeHeight(child)));
+  return 1 + Math.max(...children.map((child: Row) => countSubtreeHeight(child)));
 }
 
-function findNodeById(nodes: any, id: any): any {
+function findNodeById(nodes: Row[], id: unknown): Row | null {
   for (const node of nodes || []) {
     if (node.id === id) return node;
-    const found: any = findNodeById(node.children, id);
+    const found: Row | null = findNodeById(node.children, id);
     if (found) return found;
   }
   return null;

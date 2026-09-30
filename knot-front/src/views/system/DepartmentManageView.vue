@@ -118,7 +118,7 @@ watch(treeKeyword, (value) => {
 
 const flatTreeMap = computed(() => {
   const map = new Map();
-  const walk = (nodes: any, level = 1) => {
+  const walk = (nodes: Row[], level = 1) => {
     for (const node of nodes || []) {
       map.set(node.id, { ...node, level });
       walk(node.children, level + 1);
@@ -188,19 +188,19 @@ async function onDelete(row: Row) {
   await refreshAll();
 }
 
-function filterTreeNode(keyword: string, data: any) {
+function filterTreeNode(keyword: string, data: Row) {
   if (!keyword) return true;
   const value = keyword.trim().toLowerCase();
   return `${data.deptName || ""} ${data.deptCode || ""}`.toLowerCase().includes(value);
 }
 
-function onTreeNodeClick(data: any) {
+function onTreeNodeClick(data: Row) {
   selectedNode.value = data;
   query.parentId = data.id;
   resetPage();
 }
 
-function annotateLevels(nodes: any, level = 1) {
+function annotateLevels(nodes: Row[], level = 1): Row[] {
   return (nodes || []).map((node: Row) => ({
     ...node,
     level,
@@ -208,7 +208,7 @@ function annotateLevels(nodes: any, level = 1) {
   }));
 }
 
-function withRowLevels(list: any) {
+function withRowLevels(list: Row[]): Row[] {
   return (list || []).map((row: Row) => ({
     ...row,
     level: flatTreeMap.value.get(row.id)?.level || 1

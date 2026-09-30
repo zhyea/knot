@@ -165,11 +165,11 @@ const { options: strategyOptions, loadOptions: loadStrategyOptions } = useEnums(
 interface PoolItemForm {
   id?: number | string | null;
   modelCode: string;
-  modelName?: any;
-  name?: any;
-  modelType?: any;
-  providerAccountCode?: any;
-  providerName?: any;
+  modelName?: string;
+  name?: string;
+  modelType?: string;
+  providerAccountCode?: string;
+  providerName?: string;
   weight: number;
   priority: number;
   enabled: boolean;
@@ -216,11 +216,11 @@ const boundModelRows = computed(() =>
   })
 );
 
-function modelLabel(model: any) {
+function modelLabel(model: Row) {
   return model.modelCode ? `${model.name || model.modelCode}（${model.modelCode}）` : `#${model.id}`;
 }
 
-function mergeOptions(list: any) {
+function mergeOptions(list: Row[]) {
   modelOptions.value = mergeOptionList(modelOptions.value, list);
 }
 
@@ -278,7 +278,7 @@ function onModelTypeChange() {
   loadModelOptions({ pageNum: 1, pageSize: 10, modelTypes: form.modelType ? [form.modelType] : [] });
 }
 
-function onSelectedModelsChange(codes: any) {
+function onSelectedModelsChange(codes: string[]) {
   const nextCodes = Array.isArray(codes) ? codes : [];
   const existingByCode = new Map(form.items.map((item) => [item.modelCode, item]));
   form.items = nextCodes.map((modelCode) => existingByCode.get(modelCode) || {
@@ -289,7 +289,7 @@ function onSelectedModelsChange(codes: any) {
   });
 }
 
-function removeModel(modelCode: any) {
+function removeModel(modelCode: string) {
   onSelectedModelsChange(form.items.map((item) => item.modelCode).filter((code) => code !== modelCode));
 }
 

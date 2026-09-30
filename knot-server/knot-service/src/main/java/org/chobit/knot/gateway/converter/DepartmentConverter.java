@@ -15,6 +15,8 @@ public interface DepartmentConverter {
 
     List<DepartmentDto> toDtoList(List<DepartmentEntity> entities);
 
+    // isDeleted 是逻辑删除标记，由 DB 维护（新增恒 0、删除走 mapper 的 update），不从入参带
+    @Mapping(target = "isDeleted", ignore = true)
     DepartmentEntity toEntity(DepartmentDto dto);
 
     @Mapping(target = "children", ignore = true)

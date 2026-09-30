@@ -16,6 +16,8 @@ public interface BillingConverter {
     BillingRuleDto toRuleDto(BillingRuleEntity entity);
 
     @org.mapstruct.Mapping(source = "enabled", target = "status", qualifiedByName = "billingEnabledToStatus")
+    // versionStatus 是查询侧派生列（当前版本状态，来自 kb_billing_rule_versions.status），写路径不回写
+    @org.mapstruct.Mapping(target = "versionStatus", ignore = true)
     BillingRuleEntity toRuleEntity(BillingRuleDto dto);
 
     BillingRule toRuleVO(BillingRuleDto dto);
