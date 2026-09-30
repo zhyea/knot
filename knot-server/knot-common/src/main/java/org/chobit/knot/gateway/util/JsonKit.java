@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.util;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -71,8 +72,13 @@ public final class JsonKit {
     }
 
     /**
-     * Returns a defensive copy of the current mapper.
+     * 返回当前 mapper 的防御性副本。
+     *
+     * @deprecated 外部不应再直接持有 mapper。类型转换请用 {@link #fromJson}/{@link #toJson}/{@link #parse}；
+     *             需就解析失败做出反应（上抛领域异常）的场景用
+     *             {@link #fromJsonOrThrow}/{@link #toJsonOrThrow}/{@link #parseOrThrow}。
      */
+    @Deprecated(since = "2026-09-30", forRemoval = true)
     public static ObjectMapper mapper() {
         return mapper.copy();
     }
@@ -90,6 +96,19 @@ public final class JsonKit {
             log.error("Serialize object to json failed", e);
             return null;
         }
+    }
+
+    /**
+     * 序列化对象为 JSON，但<b>不上吞</b>失败：以受检 {@link JsonProcessingException} 上抛。
+     * 当调用方必须就序列化失败做出反应（如转为领域异常）时使用，替代直接持有 mapper 调 writeValueAsString。
+     *
+     * @throws JsonProcessingException 序列化失败时抛出
+     */
+    public static String toJsonOrThrow(Object src) throws JsonProcessingException {
+        if (src == null) {
+            return null;
+        }
+        return mapper.writeValueAsString(src);
     }
 
     /**
@@ -123,6 +142,31 @@ public final class JsonKit {
     }
 
     /**
+     * 反序列化到具体类，但<b>不上吞</b>解析失败：以受检 {@link JsonProcessingException} 上抛。
+     * 当调用方必须就非法输入做出反应（如转为领域异常）时使用，替代直接持有 mapper 调 readValue。
+     *
+     * @throws JsonProcessingException 解析失败时抛出
+     */
+    public static <T> T fromJsonOrThrow(String json, Class<T> clazz) throws JsonProcessingException {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        return mapper.readValue(json, clazz);
+    }
+
+    /**
+     * 按类型引用反序列化，但不上吞解析失败：以受检 {@link JsonProcessingException} 上抛。
+     *
+     * @throws JsonProcessingException 解析失败时抛出
+     */
+    public static <T> T fromJsonOrThrow(String json, TypeReference<T> typeRef) throws JsonProcessingException {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        return mapper.readValue(json, typeRef);
+    }
+
+    /**
      * Parses JSON to a tree node.
      */
     public static JsonNode parse(String json) {
@@ -135,6 +179,19 @@ public final class JsonKit {
             log.error("Parse json tree failed, payload: {}", digestForLog(json), e);
             return null;
         }
+    }
+
+    /**
+     * 解析为树节点，但<b>不上吞</b>失败：以受检 {@link JsonProcessingException} 上抛。
+     * 当调用方必须就非法输入做出反应（如转为领域异常）时使用，替代直接持有 mapper 调 readTree。
+     *
+     * @throws JsonProcessingException 解析失败时抛出
+     */
+    public static JsonNode parseOrThrow(String json) throws JsonProcessingException {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        return mapper.readTree(json);
     }
 
     /**

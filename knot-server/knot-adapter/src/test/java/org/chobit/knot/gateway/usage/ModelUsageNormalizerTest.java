@@ -157,8 +157,8 @@ class ModelUsageNormalizerTest {
         raw.put("output_tokens", 50);
 
         ModelUsage usage = ModelUsageNormalizer.fromRaw(raw);
-        String json = JsonKit.mapper().writeValueAsString(usage);
-        JsonNode node = JsonKit.mapper().readTree(json);
+        String json = JsonKit.toJson(usage);
+        JsonNode node = JsonKit.parse(json);
 
         // 0 值字段省略（omitempty），上游未报的维度不出现在输出里
         assertFalse(json.contains("image_count"));

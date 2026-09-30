@@ -1,7 +1,6 @@
 package org.chobit.knot.gateway.usage;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.usage.calculator.BillingModeCalculator;
@@ -59,12 +58,7 @@ public interface UsageExtractor {
     }
 
     private static Map<String, Object> readMap(String json) {
-        try {
-            ObjectMapper mapper = JsonKit.mapper();
-            return mapper.readValue(json, new TypeReference<>() {
-            });
-        } catch (Exception ignored) {
-            return null;
-        }
+        return JsonKit.fromJson(json, new TypeReference<>() {
+        });
     }
 }

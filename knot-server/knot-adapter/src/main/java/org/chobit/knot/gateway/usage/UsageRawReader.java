@@ -1,7 +1,6 @@
 package org.chobit.knot.gateway.usage;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.util.JsonKit;
@@ -110,12 +109,7 @@ public final class UsageRawReader {
     }
 
     private static Map<String, Object> readMap(String json) {
-        try {
-            ObjectMapper mapper = JsonKit.mapper();
-            return mapper.readValue(json, new TypeReference<>() {
-            });
-        } catch (Exception ignored) {
-            return null;
-        }
+        return JsonKit.fromJson(json, new TypeReference<>() {
+        });
     }
 }

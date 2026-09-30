@@ -1,7 +1,6 @@
 package org.chobit.knot.gateway.service.external;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.entity.ExternalModelItemEntity;
@@ -41,7 +40,6 @@ public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvid
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(15))
             .build();
-    private final ObjectMapper mapper = JsonKit.mapper();
 
     /**
      * Constructs a new instance.
@@ -84,7 +82,7 @@ public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvid
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 throw new IllegalStateException("OpenRouter request failed: HTTP " + response.statusCode());
             }
-            JsonNode root = mapper.readTree(response.body());
+            JsonNode root = JsonKit.parseOrThrow(response.body());
             JsonNode data = root.path("data");
             if (!data.isArray()) {
                 return List.of();

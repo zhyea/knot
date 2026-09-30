@@ -1,7 +1,6 @@
 package org.chobit.knot.gateway.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
@@ -57,7 +56,6 @@ import java.util.Map;
 
 @Service
 public class BillingService {
-    private static final ObjectMapper OBJECT_MAPPER = JsonKit.mapper();
 
     private final BillingRuleMapper billingRuleMapper;
     private final ModelMapper modelMapper;
@@ -516,7 +514,7 @@ public class BillingService {
         versionPayload.put("unit", normalizeUnit(request.unit()));
         versionPayload.put("configJson", normalizeJsonText(request.configJson()));
         try {
-            return md5Hex(OBJECT_MAPPER.writeValueAsString(versionPayload));
+            return md5Hex(JsonKit.toJsonOrThrow(versionPayload));
         } catch (JsonProcessingException e) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "failed to build billing version hash");
         }
@@ -640,11 +638,8 @@ public class BillingService {
         if (normalized == null) {
             return null;
         }
-        try {
-            return canonicalizeJsonValue(OBJECT_MAPPER.readValue(normalized, Object.class));
-        } catch (JsonProcessingException e) {
-            return normalized;
-        }
+        Object parsed = JsonKit.fromJson(normalized, Object.class);
+        return parsed != null ? canonicalizeJsonValue(parsed) : normalized;
     }
 
     @SuppressWarnings("unchecked")

@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
 import org.chobit.knot.gateway.pricing.HolidayCalendar;
 import org.chobit.knot.gateway.pricing.PeakOffPeakResolver;
@@ -267,8 +267,8 @@ public record BillingConfig(
             return null;
         }
         try {
-            return MapperHolder.MAPPER.readValue(json, BillingConfig.class);
-        } catch (Exception e) {
+            return JsonKit.fromJsonOrThrow(json, BillingConfig.class);
+        } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("config_json must be a valid JSON object", e);
         }
     }
@@ -282,11 +282,6 @@ public record BillingConfig(
         } catch (IllegalArgumentException e) {
             return null;
         }
-    }
-
-    /** 延迟持有 ObjectMapper，避免 record 泛型静态初始化顺序问题 */
-    private static final class MapperHolder {
-        static final ObjectMapper MAPPER = JsonKit.mapper();
     }
 
     /** 视频分辨率单价：resolutionPrices[resolution]，未配置返回 null */
