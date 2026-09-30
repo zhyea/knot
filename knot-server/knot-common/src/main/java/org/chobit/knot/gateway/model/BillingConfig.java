@@ -11,7 +11,6 @@ import org.chobit.knot.gateway.util.JsonKit;
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.Instant;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -67,9 +66,11 @@ public record BillingConfig(
     /** 首期唯一的计价方式：在模式层基础单价上乘相位倍率 */
     private static final String RATE_MODE_MULTIPLIER = "MULTIPLIER";
 
-    /** 全部 IANA 时区白名单；固定偏移（如 +08:00）不在其中。 */
+    /** UTC 偏移白名单，覆盖 UTC-12 至 UTC+14；UTC 为历史零偏移别名。 */
     public static final Set<String> SUPPORTED_TIMEZONES = java.util.stream.Stream.concat(
-                    java.util.stream.Stream.of("UTC"), ZoneId.getAvailableZoneIds().stream())
+                    java.util.stream.Stream.of("UTC"),
+                    java.util.stream.IntStream.rangeClosed(-12, 14)
+                            .mapToObj(offset -> offset < 0 ? "UTC" + offset : "UTC+" + offset))
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
 
     private static final String PHASE_PEAK = "PEAK";
@@ -601,7 +602,7 @@ public record BillingConfig(
     /**
      * PEAK_OFF_PEAK 专属：pricing 必填，且 rateMode / timezone / 相位 / 倍率 / 星期 / 时段全部合法。
      *
-     * <p>与时区、幅值相关的白名单收在这里：{@code timezone} 使用 IANA 时区（禁止 {@code +08:00} 这类固定偏移），
+     * <p>与时区、幅值相关的白名单收在这里：{@code timezone} 使用 UTC 偏移（例如 {@code UTC+8}），
      * {@code holidayPolicy} 首期只允许 {@code OFF_PEAK}，倍率必须落在 {@code (0, 1]}。
      */
     private static String validatePricing(Pricing pricing) {
@@ -613,7 +614,7 @@ public record BillingConfig(
         }
         String timezone = blankToNull(pricing.timezone());
         if (timezone == null || !SUPPORTED_TIMEZONES.contains(timezone)) {
-            return "pricing.timezone must be a valid IANA timezone";
+            return "pricing.timezone must be a valid UTC offset";
         }
         List<PhaseRule> phases = pricing.phases();
         if (phases == null || phases.isEmpty()) {
