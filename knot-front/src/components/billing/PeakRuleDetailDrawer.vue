@@ -20,8 +20,8 @@
       </el-descriptions>
 
       <div class="peak-detail__hint">
-        时段按 UTC 解释、左闭右开；「午夜」表示覆盖到当日 24:00（= 次日 0 点）。
-        最终单价 = 模式层基础价 × 命中相位倍率。首期节假日/调休日历为空，不会命中。
+        时段按 {{ pricing.timezone }} 解释、左闭右开；「午夜」表示覆盖到当日 24:00（= 次日 0 点）。
+        最终单价 = 模式层基础价 × 命中相位倍率。首期节假日日历为空，不会命中。
       </div>
 
       <el-table :data="peakRows" border size="small" stripe>
@@ -41,18 +41,15 @@
         <el-table-column label="适用星期" min-width="150">
           <template #default="{ row }">{{ weekdayText(row) }}</template>
         </el-table-column>
-        <el-table-column label="时段（UTC，左闭右开）" min-width="200">
+        <el-table-column :label="`时段（${pricing.timezone}，左闭右开）`" min-width="200">
           <template #default="{ row }">{{ describePeakWindows(row) }}</template>
-        </el-table-column>
-        <el-table-column label="调休上班日" min-width="140">
-          <template #default="{ row }">{{ makeUpText(row) }}</template>
         </el-table-column>
       </el-table>
 
       <div class="peak-detail__timeline">
         <div class="peak-detail__timeline-head">
           <span class="peak-detail__label">一周时间轴</span>
-          <span class="peak-detail__hint-inline">高峰时段（UTC）</span>
+          <span class="peak-detail__hint-inline">高峰时段（{{ pricing.timezone }}）</span>
         </div>
         <div v-for="day in PEAK_WEEKDAYS" :key="day.code" class="peak-detail__track-row">
           <span class="peak-detail__day">{{ day.label }}</span>
@@ -75,7 +72,6 @@
 import {computed} from "vue";
 import type {Row} from "@/types";
 import {
-  PEAK_MAKE_UP_POLICIES,
   PEAK_PHASE_LABELS,
   PEAK_WEEKDAYS,
   coversHour,
@@ -109,14 +105,6 @@ function weekdayText(row: PeakPhaseRow): string {
     return "未选星期";
   }
   return PEAK_WEEKDAYS.filter((day) => row.weekdays.includes(day.code)).map((day) => day.label).join("、");
-}
-
-function makeUpText(row: PeakPhaseRow): string {
-  if (row.isDefault) {
-    return "—";
-  }
-  const policy = PEAK_MAKE_UP_POLICIES.find((item) => item.value === row.makeUpWorkdayPolicy);
-  return policy ? policy.label : row.makeUpWorkdayPolicy || "—";
 }
 
 /** 任一高峰规则在该星期该小时生效即高亮（多规则取并集，修正原先只看第一条的摘要） */
