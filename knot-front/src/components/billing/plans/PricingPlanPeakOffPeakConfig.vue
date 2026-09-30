@@ -5,7 +5,7 @@
         <div class="peak-editor__hint-body">
           <span>
             高低峰只描述「价」怎么随时间变化：<strong>最终单价 = 上方基础价 × 相位倍率</strong>，
-            方案层不持有任何价格。时段一律按 <strong>UTC</strong> 解释；首期节假日/调休日历为空，不会命中。
+            方案层不持有任何价格。时段按所选 <strong>UTC 偏移</strong> 解释；首期节假日日历为空，不会命中。
           </span>
         </div>
       </template>
@@ -13,8 +13,8 @@
 
     <el-row :gutter="16">
       <el-col :span="8">
-        <el-form-item label="时区">
-          <el-select v-model="pricing.timezone" class="peak-editor__control">
+        <el-form-item label="时区" class="billing-usage-field">
+          <el-select v-model="pricing.timezone" filterable class="peak-editor__control">
             <el-option
               v-for="item in PEAK_TIMEZONE_OPTIONS"
               :key="item.value"
@@ -26,7 +26,7 @@
       </el-col>
       <el-col :span="16">
         <el-form-item label-width="0">
-          <span class="peak-editor__tip">首期仅支持 UTC；跨午夜时段（如 22:00–02:00）请拆成两段配置。</span>
+          <span class="peak-editor__tip">请选择 UTC 偏移；跨午夜时段（如 22:00–02:00）请拆成两段配置。</span>
         </el-form-item>
       </el-col>
     </el-row>
@@ -111,28 +111,9 @@
         </div>
       </div>
 
-      <el-row :gutter="12">
-        <el-col :span="12">
-          <el-form-item label="调休上班日" :error="fieldError(index, 'makeUpWorkdayPolicy')">
-            <el-select v-model="row.makeUpWorkdayPolicy" size="small" class="phase-card__control">
-              <el-option
-                v-for="item in PEAK_MAKE_UP_POLICIES"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label-width="0">
-            <span class="peak-editor__tip">
-              {{ makeUpHint(row.makeUpWorkdayPolicy) }}<br>
-              多条高峰规则请保持一致（判定只认第一条，不一致后端会拒绝保存）
-            </span>
-          </el-form-item>
-        </el-col>
-      </el-row>
+      <el-form-item label-width="0">
+        <span class="peak-editor__tip">节假日整日按低峰计费；历史调休配置仍可兼容读取。</span>
+      </el-form-item>
     </div>
 
     <div class="peak-editor__actions">
@@ -174,7 +155,7 @@
     <div class="peak-timeline">
       <div class="peak-timeline__head">
         <span class="peak-timeline__label">一周时间轴</span>
-        <span class="peak-editor__tip">高峰时段（UTC）</span>
+        <span class="peak-editor__tip">高峰时段（{{ pricing.timezone }}）</span>
       </div>
       <div v-for="day in PEAK_WEEKDAYS" :key="day.code" class="peak-timeline__row">
         <span class="peak-timeline__day">{{ day.label }}</span>
@@ -210,7 +191,7 @@
           v-model="probeDate"
           type="date"
           value-format="YYYY-MM-DD"
-          placeholder="UTC 日期"
+          :placeholder="`${pricing.timezone} 日期`"
           size="small"
           class="peak-probe__date"
         />
@@ -218,7 +199,7 @@
           v-model="probeTime"
           format="HH:mm"
           value-format="HH:mm"
-          placeholder="UTC 时刻"
+          :placeholder="`${pricing.timezone} 时刻`"
           size="small"
           class="peak-probe__time"
         />
@@ -241,7 +222,6 @@
 import {computed, ref} from "vue";
 import type {Dict} from "@/types";
 import {
-  PEAK_MAKE_UP_POLICIES,
   PEAK_MIDNIGHT_END,
   PEAK_PHASE_LABELS,
   PEAK_REASONS,
@@ -301,10 +281,6 @@ function phaseSummary(row: PeakPhaseRow): string {
 /** 时间轴：任一高峰规则在该星期该小时生效即高亮 */
 function isPeakHour(weekdayCode: string, hour: number): boolean {
   return peakPhases.value.some((row) => coversWeekday(row, weekdayCode) && coversHour(row, hour));
-}
-
-function makeUpHint(policy: string): string {
-  return PEAK_MAKE_UP_POLICIES.find((item) => item.value === policy)?.hint || "";
 }
 
 /** 新高峰规则插在兜底低峰之前，末项始终是兜底项 */
