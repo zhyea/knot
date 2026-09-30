@@ -507,8 +507,7 @@ INSERT IGNORE INTO ks_enum_categories (id, category, category_name, is_system, i
 (16, 'logical_model_visibility', '统一模型可见性', 0, 1),
 (17, 'logical_model_publish_status', '统一模型发布状态', 0, 1),
 (23, 'model_pool_selection_strategy', '模型池选择策略', 1, 1),
-(9, 'billing_currency', '计费币种', 0, 1),
-(21, 'billing_item_type', '计费价格项', 0, 1);
+(9, 'billing_currency', '计费币种', 0, 1);
 
 -- 枚举项（category_id 关联 ks_enum_categories.id）
 
@@ -523,21 +522,9 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 (8, 'CUSTOM',        '自定义', 99, 1),
 (9, 'USD',            'USD', 1, 1),
 (9, 'CNY',            'CNY', 2, 1),
-(21, 'INPUT_TOKEN',       '输入 Token', 1, 1),
-(21, 'OUTPUT_TOKEN',      '输出 Token', 2, 1),
-(21, 'CACHE_READ_TOKEN',  '缓存读取 Token', 3, 1),
-(21, 'CACHE_WRITE_TOKEN', '缓存写入 Token', 4, 1),
-(21, 'REQUEST',           '请求', 5, 1),
-(21, 'IMAGE',             '图片', 6, 1),
-(21, 'AUDIO_MINUTE',      '音频分钟', 7, 1),
-(21, 'VIDEO_SECOND',      '视频秒数', 8, 1),
-(21, 'EMBEDDING_TOKEN',   'Embedding Token', 9, 1),
-(21, 'TIERED_USAGE',      '阶梯用量', 10, 1),
-(21, 'FREE',              '免费', 11, 1),
-(21, 'CUSTOM',            '自定义', 12, 1),
-(23, 'WEIGHTED',               '权重', 1, 1),
-(23, 'PRIORITY',               '优先级', 2, 1),
-(23, 'RANDOM',                 '随机', 3, 1),
+(23, 'WEIGHTED',      '权重', 1, 1),
+(23, 'PRIORITY',      '优先级', 2, 1),
+(23, 'RANDOM',        '随机', 3, 1),
 -- 供应商类型（category 1）已移除：供应商品牌主数据以 kb_providers 表为唯一来源，
 -- 前端下拉/标签走 useProviderTypeOptions（/api/provider-profiles）
 (3, 'WEB',     'Web应用', 1, 1),
