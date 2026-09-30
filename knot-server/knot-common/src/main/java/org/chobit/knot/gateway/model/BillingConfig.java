@@ -601,7 +601,7 @@ public record BillingConfig(
     /**
      * PEAK_OFF_PEAK 专属：pricing 必填，且 rateMode / timezone / 相位 / 倍率 / 星期 / 时段全部合法。
      *
-     * <p>与时区、幅值相关的白名单收在这里：{@code timezone} 首期只允许 {@code UTC}（禁止 {@code +08:00} 这类固定偏移），
+     * <p>与时区、幅值相关的白名单收在这里：{@code timezone} 使用 IANA 时区（禁止 {@code +08:00} 这类固定偏移），
      * {@code holidayPolicy} 首期只允许 {@code OFF_PEAK}，倍率必须落在 {@code (0, 1]}。
      */
     private static String validatePricing(Pricing pricing) {
@@ -613,7 +613,7 @@ public record BillingConfig(
         }
         String timezone = blankToNull(pricing.timezone());
         if (timezone == null || !SUPPORTED_TIMEZONES.contains(timezone)) {
-            return "pricing.timezone must be one of " + SUPPORTED_TIMEZONES;
+            return "pricing.timezone must be a valid IANA timezone";
         }
         List<PhaseRule> phases = pricing.phases();
         if (phases == null || phases.isEmpty()) {
