@@ -389,14 +389,15 @@ INSERT IGNORE INTO kb_routing_rule_targets (id, rule_id, target_type, target_id,
 -- 计费规则
 -- =========================
 
--- 计费规则（规则只按统一模型限定作用域，不再绑定供应商）
+-- 计费规则（规则按模型族限定作用域，不再绑定供应商或统一模型）
 -- 两表模型：规则主体只存身份与绑定；价格配置全部进版本 config_json
-INSERT IGNORE INTO kb_billing_rules (id, code, logical_model_code, status) VALUES
-(1, 'TOKEN_GPT4O',      'knot-chat-premium', 'ACTIVE'),
-(2, 'TOKEN_GPT4O_MINI', 'knot-chat-economy', 'ACTIVE'),
-(3, 'TOKEN_CLAUDE_S4',  'knot-chat-premium', 'ACTIVE'),
-(4, 'TOKEN_DEEPSEEK',   'knot-chat-economy', 'ACTIVE'),
-(5, 'EMBEDDING',        NULL,                'ACTIVE');
+-- model_family 取 ks_enum_configs(category='model_family') 的 item_code；NULL = 默认规则，覆盖所有族
+INSERT IGNORE INTO kb_billing_rules (id, code, model_family, status) VALUES
+(1, 'TOKEN_GPT4O',      'gpt',      'ACTIVE'),
+(2, 'TOKEN_GPT4O_MINI', 'gpt',      'ACTIVE'),
+(3, 'TOKEN_CLAUDE_S4',  'claude',   'ACTIVE'),
+(4, 'TOKEN_DEEPSEEK',   'deepseek', 'ACTIVE'),
+(5, 'EMBEDDING',        NULL,       'ACTIVE');
 
 INSERT IGNORE INTO kb_billing_rule_versions (id, rule_id, version_code, uniq_hash, billing_mode, pricing_plan, currency, unit, config_json, status, effective_from) VALUES
 (1, 1, 'v1', 'seed-token-gpt4o-v1',      'TOKEN',     'FIXED', 'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.00125,"cacheWrite":0.005,"input":0.005,"output":0.015}}', 'ACTIVE', NOW()),
