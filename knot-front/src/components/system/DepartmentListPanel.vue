@@ -75,9 +75,9 @@ defineProps({
 
 const emit = defineEmits(["create", "create-child", "refresh", "status-change", "action", "page-change", "size-change"]);
 
-function formatDateTime(dateTime: any) {
+function formatDateTime(dateTime: unknown) {
   if (!dateTime) return "-";
-  return new Date(dateTime).toLocaleString("zh-CN", {
+  return new Date(dateTime as string | number | Date).toLocaleString("zh-CN", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",

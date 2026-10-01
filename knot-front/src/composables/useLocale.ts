@@ -6,6 +6,7 @@ import fr from "element-plus/es/locale/lang/fr";
 import {getMySettings, saveMySettings} from "@/api/userSettings";
 import {DEFAULT_LOCALE, messages} from "@/i18n/messages";
 import {getStorageItem, hasStorageItem, setStorageItem} from "@/utils/storage";
+import type {Dict} from "@/types";
 
 export type LocaleCode = keyof typeof messages;
 
@@ -46,7 +47,10 @@ function loadStored(): LocaleCode {
 }
 
 function resolveMessage(locale: LocaleCode, key: string): unknown {
-  return key.split(".").reduce((result: any, segment) => result?.[segment], messages[locale]);
+  return key.split(".").reduce<Dict | undefined>(
+    (result, segment) => result?.[segment],
+    messages[locale] as Dict
+  );
 }
 
 function interpolate(template: unknown, params: TranslateParams = {}): string {

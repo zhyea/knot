@@ -1,6 +1,6 @@
 import {onScopeDispose, reactive, ref, watch} from "vue";
 import {useRoute, useRouter} from "vue-router";
-import type {Dict, ListResponse, QueryFn} from "@/types";
+import type {Dict, ListResponse, QueryFn, Row} from "@/types";
 
 export interface UseListQueryOptions {
   /** 列表接口 */
@@ -35,7 +35,7 @@ export function useListQuery(options: UseListQueryOptions) {
   const route = useRoute();
   const router = useRouter();
 
-  const rows = ref<any[]>([]);
+  const rows = ref<Row[]>([]);
   const loading = ref(false);
   const total = ref(0);
   const pageNum = ref(1);

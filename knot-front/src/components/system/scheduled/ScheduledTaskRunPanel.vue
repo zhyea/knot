@@ -78,7 +78,7 @@ const {
   onSizeChange
 } = usePageList(listScheduledTaskRuns, { extra: query });
 
-function focusTask(taskCode: any) {
+function focusTask(taskCode: string) {
   query.taskCode = taskCode || props.fixedTaskCode || "";
   query.status = "";
   resetPage();

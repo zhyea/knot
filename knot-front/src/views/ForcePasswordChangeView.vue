@@ -73,7 +73,7 @@ const rules = computed(() => ({
   confirmPassword: [
     { required: true, message: t("forcePasswordChange.confirmPasswordRequired"), trigger: "blur" },
     {
-      validator: (_rule: any, value: any, callback: any) => {
+      validator: (_rule: unknown, value: unknown, callback: (error?: string | Error) => void) => {
         if (value !== form.newPassword) {
           callback(new Error(t("forcePasswordChange.passwordMismatch")));
           return;

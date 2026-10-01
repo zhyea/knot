@@ -744,7 +744,7 @@ function allowedProtocolsForModelType(modelType: string): string[] {
   return protocolsOf(modelType);
 }
 
-function isProtocolAllowedForModelType(protocol: any) {
+function isProtocolAllowedForModelType(protocol: string) {
   const code = normalizeProtocolCode(protocol);
   return Boolean(code) && allowedApiProtocolCodes.value.includes(code);
 }
@@ -757,11 +757,11 @@ function firstAvailableProtocolCode(usedProtocols = new Set()) {
   return allowedApiProtocolCodes.value.find((code) => !usedProtocols.has(code)) || firstAllowedProtocolCode();
 }
 
-function normalizeProtocolCode(protocol: any) {
+function normalizeProtocolCode(protocol: string) {
   return String(protocol || "").trim().toUpperCase();
 }
 
-function normalizeProtocolForModelType(protocol: any, usedProtocols = new Set()) {
+function normalizeProtocolForModelType(protocol: string, usedProtocols = new Set<unknown>()) {
   const code = normalizeProtocolCode(protocol);
   return code && isProtocolAllowedForModelType(code) && !usedProtocols.has(code)
     ? code

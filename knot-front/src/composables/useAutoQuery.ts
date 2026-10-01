@@ -1,4 +1,5 @@
 import {isRef, onScopeDispose, watch, type WatchSource} from "vue";
+import type {Dict} from "@/types";
 
 export interface UseAutoQueryOptions {
   /** 输入防抖（ms） */
@@ -17,7 +18,7 @@ export interface UseAutoQueryOptions {
  * @param options 可选配置，见 UseAutoQueryOptions（debounce / deep / enabled）
  */
 export function useAutoQuery(
-  source: WatchSource | Record<string, any>,
+  source: WatchSource | Dict,
   query: () => void,
   options: UseAutoQueryOptions = {}
 ) {

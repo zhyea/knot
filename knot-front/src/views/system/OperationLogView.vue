@@ -154,18 +154,18 @@ async function onLogRow(row: Row) {
   detailDrawer.value = true;
 }
 
-function normalizeOptions(values: any, labelResolver: any = null) {
+function normalizeOptions(values: unknown, labelResolver: ((value: string) => string) | null = null) {
   return normalizeValues(values).map((value) => ({
     label: labelResolver ? labelResolver(value) : value,
     value
   }));
 }
 
-function resolveModuleLabel(value: any) {
+function resolveModuleLabel(value: string): string {
   return (moduleLabelMap as Dict)[value] || value;
 }
 
-function normalizeValues(values: any) {
+function normalizeValues(values: unknown): string[] {
   return Array.isArray(values)
     ? values.filter((item) => item != null && `${item}`.trim() !== "").map((item) => `${item}`)
     : [];

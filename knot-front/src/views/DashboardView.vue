@@ -390,7 +390,7 @@ const rankedModules = computed(() =>
 const quickLinks = computed(() => {
   const links: Dict[] = [];
 
-  function collectMenus(menus: Row[], parentIcon: any) {
+  function collectMenus(menus: Row[], parentIcon: string) {
     for (const menu of menus || []) {
       const children = Array.isArray(menu.children) ? menu.children : [];
       if (children.length) {
@@ -439,7 +439,7 @@ function resolveModuleName(code: string) {
   return moduleNameMap.value[code] || fallbackModuleNameMap[code] || code || "--";
 }
 
-function normalizeTotal(result: any) {
+function normalizeTotal(result: Row) {
   if (Array.isArray(result)) {
     return result.length;
   }
@@ -450,7 +450,7 @@ function normalizeTotal(result: any) {
   return Array.isArray(result?.list) ? result.list.length : 0;
 }
 
-async function withFallback(factory: any, fallback: any) {
+async function withFallback<T, F>(factory: () => Promise<T>, fallback: F): Promise<T | F> {
   try {
     return await factory();
   } catch {
@@ -458,7 +458,7 @@ async function withFallback(factory: any, fallback: any) {
   }
 }
 
-function formatCount(value: any) {
+function formatCount(value: number | string) {
   return new Intl.NumberFormat("zh-CN").format(Number(value || 0));
 }
 

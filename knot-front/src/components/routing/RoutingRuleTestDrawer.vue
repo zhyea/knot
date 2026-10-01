@@ -217,10 +217,10 @@ interface RoutingTestResult {
   curl?: string;
   status: string;
   httpStatus: number | string | null;
-  modelCode: any;
+  modelCode: string | null;
   protocol: string | null;
   errorMessage: string;
-  responseBody: any;
+  responseBody: string;
 }
 
 const testResult = ref<RoutingTestResult | null>(null);

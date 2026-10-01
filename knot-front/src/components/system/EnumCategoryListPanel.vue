@@ -36,7 +36,7 @@ import RowActions from "../common/RowActions.vue";
 import StatusTag from "../common/StatusTag.vue";
 
 defineProps({
-  summaries: { type: Array, default: (): any[] => [] },
+  summaries: { type: Array, default: (): unknown[] => [] },
   loading: { type: Boolean, default: false }
 });
 
