@@ -1,12 +1,12 @@
 package org.chobit.knot.gateway.plugin.builtin;
 
 import org.chobit.knot.gateway.plugin.*;
+import org.chobit.knot.gateway.plugin.log.UpstreamRequestPayload;
 import org.chobit.knot.gateway.plugin.upstream.UpstreamPluginContext;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @Component
 public class UpstreamRequestLoggingPlugin implements PluginHandler<UpstreamPluginContext> {
@@ -33,13 +33,13 @@ public class UpstreamRequestLoggingPlugin implements PluginHandler<UpstreamPlugi
 
     @Override
     public void handle(PluginBindingView binding, UpstreamPluginContext context) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("providerCode", context.providerCode());
-        payload.put("modelCode", context.modelCode());
-        payload.put("protocol", context.protocol());
-        payload.put("bindingProtocol", context.bindingProtocol());
-        payload.put("contentType", context.contentType() == null ? null : context.contentType().toString());
-        payload.put("requestBody", context.requestBody());
+        UpstreamRequestPayload payload = new UpstreamRequestPayload(
+                context.providerCode(),
+                context.modelCode(),
+                context.protocol(),
+                context.bindingProtocol(),
+                context.contentType() == null ? null : context.contentType().toString(),
+                JsonKit.toTree(context.requestBody()));
         eventSink.emit(new PluginEvent(
                 PluginEventType.PROVIDER_REQUEST,
                 context.traceId(),

@@ -7,11 +7,10 @@ import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.RoutingConsumerService;
+import org.chobit.knot.gateway.vo.common.CodeAvailability;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.routing.RoutingConsumer;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/routing-consumers")
@@ -43,9 +42,9 @@ public class RoutingConsumerController {
      * Checks whether the requested condition is satisfied. Executes the public operation.
      */
     @GetMapping("/check-code")
-    public Map<String, Boolean> checkCode(@RequestParam String code,
-                                          @RequestParam(required = false) Long excludeId) {
-        return Map.of("available", routingConsumerService.isConsumerCodeAvailable(code, excludeId));
+    public CodeAvailability checkCode(@RequestParam String code,
+                                      @RequestParam(required = false) Long excludeId) {
+        return new CodeAvailability(routingConsumerService.isConsumerCodeAvailable(code, excludeId));
     }
 
     /**

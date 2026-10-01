@@ -8,6 +8,7 @@ import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.RoutingRuleService;
+import org.chobit.knot.gateway.vo.common.CodeAvailability;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.routing.ProtocolDebugCapabilityItem;
 import org.chobit.knot.gateway.vo.routing.RoutingRule;
@@ -16,7 +17,6 @@ import org.chobit.knot.gateway.vo.routing.RoutingTestResult;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/routing-rules")
@@ -57,9 +57,9 @@ public class RoutingRuleController {
      * Checks whether the rule code is available.
      */
     @GetMapping("/check-code")
-    public Map<String, Boolean> checkCode(@RequestParam String code,
-                                          @RequestParam(required = false) Long excludeId) {
-        return Map.of("available", routingRuleService.isRuleCodeAvailable(code, excludeId));
+    public CodeAvailability checkCode(@RequestParam String code,
+                                      @RequestParam(required = false) Long excludeId) {
+        return new CodeAvailability(routingRuleService.isRuleCodeAvailable(code, excludeId));
     }
 
     /**

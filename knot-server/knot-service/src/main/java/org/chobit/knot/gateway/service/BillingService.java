@@ -405,41 +405,48 @@ public class BillingService {
         return calculateSimpleAmount(rule, usage, unitSize, modeEnum);
     }
 
-    /** TOKEN 计费：input / output / cacheRead 三类单价分别计费后汇总。 */
+    /** TOKEN 计费：input / output / cacheRead / cacheWrite 四类单价分别计费后汇总。 */
     private BillingAmount calculateTokenAmount(BillingRuleEntity rule, Map<String, Object> usage, int unitSize) {
         long inputTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS);
         long outputTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.COMPLETION_TOKENS, AiPayloadFields.OUTPUT_TOKENS);
         long totalTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.TOTAL_TOKENS);
         long cacheReadTokens = MapNumberUtils.nestedLong(usage, "prompt_tokens_details", "cached_tokens")
                 + MapNumberUtils.nestedLong(usage, "input_tokens_details", "cached_tokens");
+        long cacheWriteTokens = MapNumberUtils.nestedLong(usage, "prompt_tokens_details", "cache_creation_input_tokens")
+                + MapNumberUtils.nestedLong(usage, "input_tokens_details", "cache_creation_input_tokens")
+                + MapNumberUtils.firstLong(usage, "cache_creation_input_tokens", "cached_write_tokens",
+                "cache_write_input_tokens", "cache_write_tokens");
         long ladderAmount = totalTokens > 0 ? totalTokens : inputTokens + outputTokens;
         BillingConfig config = BillingConfig.fromJsonOrNull(rule.getConfigJson());
         BigDecimal zero = BigDecimal.ZERO;
         BigDecimal inputPrice;
         BigDecimal outputPrice;
         BigDecimal cacheReadPrice;
+        BigDecimal cacheWritePrice;
         if (config == null) {
             inputPrice = zero;
             outputPrice = zero;
             cacheReadPrice = zero;
+            cacheWritePrice = zero;
         } else {
             BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan()));
             inputPrice = pricing.resolvePrice(BillingConfig.PriceKind.INPUT, ladderAmount, zero);
             outputPrice = pricing.resolvePrice(BillingConfig.PriceKind.OUTPUT, ladderAmount, zero);
             cacheReadPrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_READ, ladderAmount, zero);
+            cacheWritePrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_WRITE, ladderAmount, zero);
         }
-        BigDecimal inputCost = cost(inputTokens - cacheReadTokens, inputPrice, unitSize);
-        BigDecimal outputCost = cost(outputTokens, outputPrice, unitSize);
-        BigDecimal cacheReadCost = cost(cacheReadTokens, cacheReadPrice, unitSize);
-        Map<String, Object> parts = new LinkedHashMap<>();
-        parts.put("inputTokens", inputTokens);
-        parts.put("outputTokens", outputTokens);
-        parts.put("totalTokens", totalTokens > 0 ? totalTokens : inputTokens + outputTokens);
-        parts.put("cacheReadTokens", cacheReadTokens);
-        parts.put("inputCost", inputCost);
-        parts.put("outputCost", outputCost);
-        parts.put("cacheReadCost", cacheReadCost);
-        return new BillingAmount(parts, inputCost.add(outputCost).add(cacheReadCost));
+        TokenBillingParts parts = new TokenBillingParts(
+                inputTokens,
+                outputTokens,
+                totalTokens > 0 ? totalTokens : inputTokens + outputTokens,
+                cacheReadTokens,
+                cacheWriteTokens,
+                cost(TokenBillingParts.uncachedInput(inputTokens, cacheReadTokens, cacheWriteTokens),
+                        inputPrice, unitSize),
+                cost(outputTokens, outputPrice, unitSize),
+                cost(cacheReadTokens, cacheReadPrice, unitSize),
+                cost(cacheWriteTokens, cacheWritePrice, unitSize));
+        return new BillingAmount(parts.toUsageMap(), parts.totalCost());
     }
 
     /** 非 TOKEN 计费（EMBEDDING / REQUEST / IMAGE / AUDIO / VIDEO 等）：按模式取用量，套默认单价计费。 */
@@ -465,6 +472,67 @@ public class BillingService {
     }
 
     private record BillingAmount(Map<String, Object> usage, BigDecimal totalCost) {
+    }
+
+    /**
+     * TOKEN 计费明细：输入 / 输出 / 缓存读 / 缓存写四类 token 与对应金额。
+     * 字段固定，用具名类型代替 Map + 字符串键；数量一律 {@code long}，金额一律 {@code BigDecimal}。
+     * 只在结果边界转成 Map，以兼容既有的对外 JSON 字段名。
+     */
+    private static final class TokenBillingParts {
+        private final long inputTokens;
+        private final long outputTokens;
+        private final long totalTokens;
+        private final long cacheReadTokens;
+        private final long cacheWriteTokens;
+        private final BigDecimal inputCost;
+        private final BigDecimal outputCost;
+        private final BigDecimal cacheReadCost;
+        private final BigDecimal cacheWriteCost;
+
+        private TokenBillingParts(long inputTokens,
+                                  long outputTokens,
+                                  long totalTokens,
+                                  long cacheReadTokens,
+                                  long cacheWriteTokens,
+                                  BigDecimal inputCost,
+                                  BigDecimal outputCost,
+                                  BigDecimal cacheReadCost,
+                                  BigDecimal cacheWriteCost) {
+            this.inputTokens = inputTokens;
+            this.outputTokens = outputTokens;
+            this.totalTokens = totalTokens;
+            this.cacheReadTokens = cacheReadTokens;
+            this.cacheWriteTokens = cacheWriteTokens;
+            this.inputCost = inputCost;
+            this.outputCost = outputCost;
+            this.cacheReadCost = cacheReadCost;
+            this.cacheWriteCost = cacheWriteCost;
+        }
+
+        /** 可按普通输入单价计费的 token：扣除缓存读与缓存写，且不为负。 */
+        private static long uncachedInput(long inputTokens, long cacheReadTokens, long cacheWriteTokens) {
+            return Math.max(0L, inputTokens - cacheReadTokens - cacheWriteTokens);
+        }
+
+        private BigDecimal totalCost() {
+            return inputCost.add(outputCost).add(cacheReadCost).add(cacheWriteCost);
+        }
+
+        /** 结果边界：转成既有 JSON 字段名，保持对外形状稳定。 */
+        private Map<String, Object> toUsageMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("inputTokens", inputTokens);
+            map.put("outputTokens", outputTokens);
+            map.put("totalTokens", totalTokens);
+            map.put("cacheReadTokens", cacheReadTokens);
+            map.put("cacheWriteTokens", cacheWriteTokens);
+            map.put("inputCost", inputCost);
+            map.put("outputCost", outputCost);
+            map.put("cacheReadCost", cacheReadCost);
+            map.put("cacheWriteCost", cacheWriteCost);
+            return map;
+        }
     }
 
     private void applyRule(BillingRuleEntity entity, BillingRuleDto request) {
@@ -514,18 +582,36 @@ public class BillingService {
     }
 
     /** 版本内容指纹：结构化计费字段（含 pricingPlan）+ 归一化 config_json 的 MD5 */
-    private String buildUniqHash(BillingRuleDto request) {
-        Map<String, Object> versionPayload = new LinkedHashMap<>();
-        versionPayload.put("billingMode", normalizeBillingMode(request.billingMode()));
-        versionPayload.put("pricingPlan", normalizePricingPlan(request.pricingPlan()));
-        versionPayload.put("currency", normalizeCurrency(request.currency()));
-        versionPayload.put("unit", normalizeUnit(request.unit()));
-        versionPayload.put("configJson", normalizeJsonText(request.configJson()));
+    /** 包内可见：便于同包测试直接验证指纹兼容性与字段作用域。 */
+    String buildUniqHash(BillingRuleDto request) {
+        BillingRuleDto normalized = request.withNormalizedPricing(
+                normalizeBillingMode(request.billingMode()),
+                normalizePricingPlan(request.pricingPlan()),
+                normalizeCurrency(request.currency()),
+                normalizeUnit(request.unit()));
+        BillingVersionFingerprint fingerprint = new BillingVersionFingerprint(
+                normalized.billingMode(),
+                normalized.pricingPlan(),
+                normalized.currency(),
+                normalized.unit(),
+                normalizeJsonText(normalized.configJson()));
         try {
-            return md5Hex(JsonKit.toJsonOrThrow(versionPayload));
+            return md5Hex(JsonKit.toJsonOrThrow(fingerprint));
         } catch (JsonProcessingException e) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "failed to build billing version hash");
         }
+    }
+
+    /**
+     * 版本内容指纹投影：只含参与版本判断的 5 个字段，字段名由 Java 成员决定，不再依赖魔数字符串键。
+     * configJson 保持规范化后的 JSON 值语义（对象 / 数组 / 数字 / null），不能先转成 JSON 字符串，
+     * 否则序列化结果会从 JSON 对象变成带引号的字符串，破坏既有 MD5。
+     */
+    private record BillingVersionFingerprint(String billingMode,
+                                             String pricingPlan,
+                                             String currency,
+                                             String unit,
+                                             Object configJson) {
     }
 
     private void validateRule(BillingRuleDto request, Long excludeId) {

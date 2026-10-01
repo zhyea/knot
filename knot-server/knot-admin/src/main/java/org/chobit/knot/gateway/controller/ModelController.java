@@ -8,6 +8,7 @@ import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.ModelService;
+import org.chobit.knot.gateway.vo.common.CodeAvailability;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.model.ModelItem;
 import org.chobit.knot.gateway.vo.model.ModelApiProtocolItem;
@@ -17,7 +18,6 @@ import org.chobit.knot.gateway.vo.model.UsageExtractorItem;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/models")
@@ -37,10 +37,10 @@ public class ModelController {
      * Checks whether the model code is available.
      */
     @GetMapping("/check-code")
-    public Map<String, Boolean> checkCode(
+    public CodeAvailability checkCode(
             @RequestParam String code,
             @RequestParam(required = false) Long excludeId) {
-        return Map.of("available", modelService.isModelCodeAvailable(code, excludeId));
+        return new CodeAvailability(modelService.isModelCodeAvailable(code, excludeId));
     }
 
     /**

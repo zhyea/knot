@@ -13,7 +13,7 @@ public class GatewayPluginContext extends PluginDispatchContext {
     private final String apiKey;
     private final String ruleCode;
     private final String protocol;
-    private final Map<String, Object> routingSnapshot;
+    private final GatewayRoutingSnapshot routingSnapshot;
     private final Map<String, Object> requestBody;
     private final MediaType contentType;
     private final Object responseBody;
@@ -25,7 +25,7 @@ public class GatewayPluginContext extends PluginDispatchContext {
                                 String apiKey,
                                 String ruleCode,
                                 String protocol,
-                                Map<String, Object> routingSnapshot,
+                                GatewayRoutingSnapshot routingSnapshot,
                                 Map<String, Object> requestBody,
                                 MediaType contentType,
                                 Object responseBody,
@@ -35,7 +35,7 @@ public class GatewayPluginContext extends PluginDispatchContext {
         this.apiKey = apiKey;
         this.ruleCode = ruleCode;
         this.protocol = protocol;
-        this.routingSnapshot = routingSnapshot == null ? Map.of() : new LinkedHashMap<>(routingSnapshot);
+        this.routingSnapshot = routingSnapshot;
         this.requestBody = requestBody == null ? Map.of() : new LinkedHashMap<>(requestBody);
         this.contentType = contentType;
         this.responseBody = responseBody;
@@ -58,7 +58,7 @@ public class GatewayPluginContext extends PluginDispatchContext {
         return protocol;
     }
 
-    public Map<String, Object> routingSnapshot() {
+    public GatewayRoutingSnapshot routingSnapshot() {
         return routingSnapshot;
     }
 

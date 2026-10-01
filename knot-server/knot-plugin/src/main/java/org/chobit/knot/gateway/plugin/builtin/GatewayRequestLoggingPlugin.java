@@ -2,11 +2,11 @@ package org.chobit.knot.gateway.plugin.builtin;
 
 import org.chobit.knot.gateway.plugin.*;
 import org.chobit.knot.gateway.plugin.gateway.GatewayPluginContext;
+import org.chobit.knot.gateway.plugin.log.GatewayRequestPayload;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @Component
 public class GatewayRequestLoggingPlugin implements PluginHandler<GatewayPluginContext> {
@@ -37,12 +37,12 @@ public class GatewayRequestLoggingPlugin implements PluginHandler<GatewayPluginC
     }
 
     private PluginEvent buildEvent(PluginBindingView binding, GatewayPluginContext context, PluginEventType eventType) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("ruleCode", context.ruleCode());
-        payload.put("protocol", context.protocol());
-        payload.put("contentType", context.contentType() == null ? null : context.contentType().toString());
-        payload.put("requestBody", context.requestBody());
-        payload.put("routing", context.routingSnapshot());
+        GatewayRequestPayload payload = new GatewayRequestPayload(
+                context.ruleCode(),
+                context.protocol(),
+                context.contentType() == null ? null : context.contentType().toString(),
+                JsonKit.toTree(context.requestBody()),
+                context.routingSnapshot());
         return new PluginEvent(
                 eventType,
                 context.traceId(),

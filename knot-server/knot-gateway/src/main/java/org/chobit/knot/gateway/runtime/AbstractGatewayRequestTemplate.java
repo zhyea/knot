@@ -10,12 +10,12 @@ import org.chobit.knot.gateway.plugin.PluginDispatcher;
 import org.chobit.knot.gateway.plugin.PluginExtensionPoint;
 import org.chobit.knot.gateway.plugin.PluginStageCode;
 import org.chobit.knot.gateway.plugin.gateway.GatewayPluginContext;
+import org.chobit.knot.gateway.plugin.gateway.GatewayRoutingSnapshot;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.request.GatewayModelRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.MediaType;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -136,20 +136,23 @@ public abstract class AbstractGatewayRequestTemplate {
         );
     }
 
-    private Map<String, Object> routingSnapshot(ResolvedRouting routing) {
+    private GatewayRoutingSnapshot routingSnapshot(ResolvedRouting routing) {
         if (routing == null) {
             return null;
         }
-        Map<String, Object> snapshot = new LinkedHashMap<>();
-        snapshot.put("ruleId", routing.ruleId());
-        snapshot.put("ruleCode", routing.ruleCode());
-        snapshot.put("consumerId", routing.consumerId());
-        snapshot.put("returnUsageDetail", routing.returnUsageDetail());
-        snapshot.put("candidateCount", routing.candidateModels() == null ? 0 : routing.candidateModels().size());
+        String appId = null;
+        String department = null;
         if (routing.routingInfo() != null) {
-            snapshot.put("appId", routing.routingInfo().app() == null ? null : routing.routingInfo().app().appId());
-            snapshot.put("department", routing.routingInfo().department() == null ? null : routing.routingInfo().department().name());
+            appId = routing.routingInfo().app() == null ? null : routing.routingInfo().app().appId();
+            department = routing.routingInfo().department() == null ? null : routing.routingInfo().department().name();
         }
-        return snapshot;
+        return new GatewayRoutingSnapshot(
+                routing.ruleId(),
+                routing.ruleCode(),
+                routing.consumerId(),
+                routing.returnUsageDetail(),
+                routing.candidateModels() == null ? 0 : routing.candidateModels().size(),
+                appId,
+                department);
     }
 }

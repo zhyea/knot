@@ -1,7 +1,8 @@
 package org.chobit.knot.gateway.plugin;
 
+import org.chobit.knot.gateway.plugin.log.PluginLogPayload;
+
 import java.time.LocalDateTime;
-import java.util.Map;
 
 public record PluginEvent(PluginEventType eventType,
                           String traceId,
@@ -11,6 +12,6 @@ public record PluginEvent(PluginEventType eventType,
                           PluginStageCode stageCode,
                           String scopeType,
                           Long scopeRefId,
-                          Map<String, Object> payload,
+                          PluginLogPayload payload,
                           LocalDateTime occurredAt) {
 }

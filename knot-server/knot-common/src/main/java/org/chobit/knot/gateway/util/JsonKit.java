@@ -243,6 +243,17 @@ public final class JsonKit {
     }
 
     /**
+     * 把任意对象（Map / List / POJO）转为 {@link JsonNode} 树。
+     * 用于日志快照等需要保留原始 JSON 结构但又不想继续用 Map 拼装的场景，转换统一走本类归口。
+     */
+    public static JsonNode toTree(Object obj) {
+        if (obj == null) {
+            return null;
+        }
+        return mapper.valueToTree(obj);
+    }
+
+    /**
      * Creates an object node.
      */
     public static ObjectNode createObjectNode() {

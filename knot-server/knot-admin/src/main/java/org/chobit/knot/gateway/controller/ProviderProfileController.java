@@ -5,10 +5,9 @@ import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.ProviderProfileService;
+import org.chobit.knot.gateway.vo.common.CodeAvailability;
 import org.chobit.knot.gateway.vo.provider.ProviderProfileItem;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/provider-profiles")
@@ -34,9 +33,9 @@ public class ProviderProfileController {
     }
 
     @GetMapping("/check-code")
-    public Map<String, Boolean> checkCode(@RequestParam String code,
-                                          @RequestParam(required = false) Long excludeId) {
-        return Map.of("available", providerProfileService.isCodeAvailable(code, excludeId));
+    public CodeAvailability checkCode(@RequestParam String code,
+                                      @RequestParam(required = false) Long excludeId) {
+        return new CodeAvailability(providerProfileService.isCodeAvailable(code, excludeId));
     }
 
     @OperationLog(module = "provider-profile", operation = "CREATE", entityType = "ProviderProfile",

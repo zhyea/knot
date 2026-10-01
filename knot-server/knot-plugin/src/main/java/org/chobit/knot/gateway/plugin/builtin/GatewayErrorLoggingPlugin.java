@@ -2,11 +2,11 @@ package org.chobit.knot.gateway.plugin.builtin;
 
 import org.chobit.knot.gateway.plugin.*;
 import org.chobit.knot.gateway.plugin.gateway.GatewayPluginContext;
+import org.chobit.knot.gateway.plugin.log.GatewayErrorPayload;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @Component
 public class GatewayErrorLoggingPlugin implements PluginHandler<GatewayPluginContext> {
@@ -34,12 +34,12 @@ public class GatewayErrorLoggingPlugin implements PluginHandler<GatewayPluginCon
     @Override
     public void handle(PluginBindingView binding, GatewayPluginContext context) {
         Throwable error = context.error();
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("ruleCode", context.ruleCode());
-        payload.put("protocol", context.protocol());
-        payload.put("requestBody", context.requestBody());
-        payload.put("errorType", error == null ? null : error.getClass().getSimpleName());
-        payload.put("errorMessage", error == null ? null : error.getMessage());
+        GatewayErrorPayload payload = new GatewayErrorPayload(
+                context.ruleCode(),
+                context.protocol(),
+                error == null ? null : error.getClass().getSimpleName(),
+                error == null ? null : error.getMessage(),
+                JsonKit.toTree(context.requestBody()));
         eventSink.emit(new PluginEvent(
                 PluginEventType.GATEWAY_ERROR,
                 context.traceId(),

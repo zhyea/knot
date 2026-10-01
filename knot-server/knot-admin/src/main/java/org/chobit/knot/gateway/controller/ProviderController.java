@@ -8,6 +8,7 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.ProviderConverter;
 import org.chobit.knot.gateway.dto.provider.DiscountPolicyDto;
 import org.chobit.knot.gateway.service.ProviderService;
+import org.chobit.knot.gateway.vo.common.CodeAvailability;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.provider.DiscountPolicy;
 import org.chobit.knot.gateway.vo.provider.CredentialTypeItem;
@@ -17,7 +18,6 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/provider-accounts")
@@ -66,10 +66,10 @@ public class ProviderController {
      * Checks whether the requested condition is satisfied. Executes the public operation.
      */
     @GetMapping("/check-code")
-    public Map<String, Boolean> checkCode(
+    public CodeAvailability checkCode(
             @RequestParam String code,
             @RequestParam(required = false) Long excludeId) {
-        return Map.of("available", providerService.isCodeAvailable(code, excludeId));
+        return new CodeAvailability(providerService.isCodeAvailable(code, excludeId));
     }
 
     /**
