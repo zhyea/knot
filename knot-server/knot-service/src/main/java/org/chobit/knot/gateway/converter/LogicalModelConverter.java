@@ -60,7 +60,7 @@ public class LogicalModelConverter {
         entity.setModelCode(dto.modelCode());
         entity.setModelName(dto.modelName());
         entity.setModelType(dto.modelType());
-        entity.setModelFamily(dto.modelFamily());
+        entity.setModelFamily(dto.modelFamily() == null ? null : dto.modelFamily().trim().toLowerCase());
         entity.setDisplayName(dto.displayName());
         entity.setDescription(dto.description());
         entity.setTagsJson(toJson(dto.tags()));

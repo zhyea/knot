@@ -2,9 +2,9 @@
   <div>
     <el-table v-loading="loading" :data="rows" stripe border size="small" style="width: 100%">
       <el-table-column prop="code" label="规则编码" min-width="160" show-overflow-tooltip/>
-      <el-table-column label="统一模型" min-width="150" show-overflow-tooltip>
+      <el-table-column label="模型族" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">
-          {{ row.logicalModelName || (row.logicalModelCode ? `#${row.logicalModelCode}` : "默认") }}
+          {{ row.modelFamilyName || (row.modelFamilyCode ? `#${row.modelFamilyCode}` : "默认") }}
         </template>
       </el-table-column>
       <el-table-column label="版本" width="120" align="center" show-overflow-tooltip>

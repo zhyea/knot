@@ -12,7 +12,7 @@
     <template v-else>
       <el-descriptions border size="small" :column="2" class="tier-detail__meta">
         <el-descriptions-item label="供应商">{{ rule?.providerName || "全局" }}</el-descriptions-item>
-        <el-descriptions-item label="统一模型">{{ rule?.logicalModelName || "默认" }}</el-descriptions-item>
+        <el-descriptions-item label="模型族">{{ rule?.modelFamilyName || "默认" }}</el-descriptions-item>
         <el-descriptions-item label="计费单位">{{ rule?.unit || "-" }}</el-descriptions-item>
         <el-descriptions-item label="币种">{{ rule?.currency || "-" }}</el-descriptions-item>
       </el-descriptions>

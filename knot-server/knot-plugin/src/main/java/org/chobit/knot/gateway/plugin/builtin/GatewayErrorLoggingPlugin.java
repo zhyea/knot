@@ -41,7 +41,7 @@ public class GatewayErrorLoggingPlugin implements PluginHandler<GatewayPluginCon
         payload.put("errorType", error == null ? null : error.getClass().getSimpleName());
         payload.put("errorMessage", error == null ? null : error.getMessage());
         eventSink.emit(new PluginEvent(
-                "gateway-error",
+                PluginEventType.GATEWAY_ERROR,
                 context.traceId(),
                 context.traceparent(),
                 binding.instanceCode(),

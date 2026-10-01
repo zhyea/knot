@@ -39,7 +39,7 @@ public class UpstreamResponseLoggingPlugin implements PluginHandler<UpstreamPlug
         payload.put("protocol", context.protocol());
         payload.put("response", context.responseSnapshot());
         eventSink.emit(new PluginEvent(
-                "provider-response",
+                PluginEventType.PROVIDER_RESPONSE,
                 context.traceId(),
                 context.traceparent(),
                 binding.instanceCode(),

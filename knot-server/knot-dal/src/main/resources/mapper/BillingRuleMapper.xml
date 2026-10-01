@@ -12,9 +12,20 @@
         )
     </sql>
 
+    <!--
+      模型族作用域：br.model_family 存的是 ks_enum_configs(category=model_family) 的 item_code。
+      模型族名称（展示用）通过枚举表实时解析，不冗余存储。
+    -->
+    <sql id="FamilyJoin">
+        left join ks_enum_categories ecf on ecf.category = 'model_family' and ecf.is_deleted = 0
+        left join ks_enum_configs ef on ef.category_id = ecf.id
+            and ef.item_code = br.model_family
+            and ef.is_deleted = 0
+    </sql>
+
     <sql id="RuleColumns">
         br.id, br.code,
-        br.logical_model_code, lm.model_name as logical_model_name,
+        br.model_family as model_family_code, ef.item_label as model_family_name,
         br.status, br.remark,
         bv.version_code, bv.uniq_hash, bv.billing_mode, bv.pricing_plan, bv.currency, bv.unit,
         bv.status as version_status,
@@ -25,19 +36,19 @@
     <select id="list" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
         select <include refid="RuleColumns"/>
         from kb_billing_rules br
-        left join kb_logical_models lm on br.logical_model_code = lm.model_code
+        <include refid="FamilyJoin"/>
         <include refid="VersionJoin"/>
         <where>
             br.status != 'DELETED'
             <if test="keyword != null and keyword != ''">
                 and (
                     br.code like concat('%', #{keyword}, '%')
-                    or lm.model_name like concat('%', #{keyword}, '%')
-                    or lm.model_code like concat('%', #{keyword}, '%')
+                    or ef.item_label like concat('%', #{keyword}, '%')
+                    or br.model_family like concat('%', #{keyword}, '%')
                 )
             </if>
-            <if test="logicalModelCode != null and logicalModelCode != ''">
-                and (br.logical_model_code = #{logicalModelCode} or br.logical_model_code is null)
+            <if test="modelFamilyCode != null and modelFamilyCode != ''">
+                and (br.model_family = #{modelFamilyCode} or br.model_family is null)
             </if>
         </where>
         order by br.id desc
@@ -47,7 +58,7 @@
     <select id="listForReport" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
         select <include refid="RuleColumns"/>
         from kb_billing_rules br
-        left join kb_logical_models lm on br.logical_model_code = lm.model_code
+        <include refid="FamilyJoin"/>
         <include refid="VersionJoin"/>
         where br.status != 'DELETED'
         order by br.id
@@ -56,7 +67,7 @@
     <select id="getById" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
         select <include refid="RuleColumns"/>
         from kb_billing_rules br
-        left join kb_logical_models lm on br.logical_model_code = lm.model_code
+        <include refid="FamilyJoin"/>
         <include refid="VersionJoin"/>
         where br.id = #{id} and br.status != 'DELETED'
     </select>
@@ -65,7 +76,7 @@
     <select id="getByCode" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
         select <include refid="RuleColumns"/>
         from kb_billing_rules br
-        left join kb_logical_models lm on br.logical_model_code = lm.model_code
+        <include refid="FamilyJoin"/>
         <include refid="VersionJoin"/>
         where br.code = #{code} and br.status != 'DELETED'
     </select>
@@ -89,7 +100,7 @@
         select <include refid="RuleColumns"/>
         from kb_billing_rules br
         inner join kb_billing_rule_versions bv on br.id = bv.rule_id
-        left join kb_logical_models lm on br.logical_model_code = lm.model_code
+        <include refid="FamilyJoin"/>
         where br.code = #{ruleCode}
           and br.status = 'ACTIVE'
           and bv.status = 'ACTIVE'
@@ -100,14 +111,14 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_billing_rules(code, logical_model_code, status, remark)
-        values(#{code}, #{logicalModelCode}, #{status}, #{remark})
+        insert into kb_billing_rules(code, model_family, status, remark)
+        values(#{code}, #{modelFamilyCode}, #{status}, #{remark})
     </insert>
 
     <update id="update">
         update kb_billing_rules
         set code = #{code},
-            logical_model_code = #{logicalModelCode},
+            model_family = #{modelFamilyCode},
             status = #{status},
             remark = #{remark}
         where id = #{id}

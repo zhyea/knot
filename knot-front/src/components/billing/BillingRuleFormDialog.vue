@@ -30,13 +30,10 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="统一模型">
-                <RemoteEntitySelect
-                  v-model="form.logicalModelCode"
-                  value-key="modelCode"
-                  :load-function="loadLogicalModels"
-                  :label-function="logicalModelLabel"
-                  :selected-options="selectedLogicalModelOptions"
+              <el-form-item label="模型族">
+                <EnumSelect
+                  v-model="form.modelFamily"
+                  category="model_family"
                   clearable
                   placeholder="不选则作为默认规则"
                   style="width: 100%"
@@ -116,12 +113,11 @@
 
 <script setup lang="ts">
 import {type PropType, computed, reactive, ref, watch} from "vue";
-import type {Component, Ref} from "vue";
+import type {Component} from "vue";
 import {ElMessage} from "element-plus";
 import type {Dict, Row} from "@/types";
 import EnumSelect from "../common/EnumSelect.vue";
 import EnumControl from "../common/EnumControl.vue";
-import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import BillingModeAudioConfig from "./modes/BillingModeAudioConfig.vue";
 import BillingModeCustomConfig from "./modes/BillingModeCustomConfig.vue";
 import BillingModeEmbeddingConfig from "./modes/BillingModeEmbeddingConfig.vue";
@@ -134,9 +130,7 @@ import PricingPlanFixedConfig from "./plans/PricingPlanFixedConfig.vue";
 import PricingPlanTieredConfig from "./plans/PricingPlanTieredConfig.vue";
 import PricingPlanPeakOffPeakConfig from "./plans/PricingPlanPeakOffPeakConfig.vue";
 import {createBillingRule, updateBillingRule, listModeCapabilities} from "@/api/billing";
-import {listLogicalModels} from "@/api/logicalModels";
 import {isValidJsonText, parseJsonObject, stringifyJson} from "@/utils/format";
-import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
 import {basePricesOf, createTierPriceSet, createTierRow, parseTierRows, toTierPayload, validateTierRows} from "@/utils/billingTier";
 import type {TierRow} from "@/utils/billingTier";
 import {createDefaultPeakPricing, parsePeakPricing, toPeakPayload, validatePeakPricing} from "@/utils/billingPeakOffPeak";
@@ -174,7 +168,6 @@ const visible = computed({
 });
 
 const saving = ref(false);
-const logicalModelOptions = ref<Row[]>([]);
 const billingModes = ref<Row[]>([]);
 
 const activeModeCapability = computed(() =>
@@ -188,7 +181,8 @@ interface BillingRuleFormState {
   id: number | string | null;
   /** 规则业务码，新建时手工填写（大写归一由后端处理），编辑时不可改 */
   code: string;
-  logicalModelCode: string | null;
+  /** 模型族 code（ks_enum_configs.category=model_family 的 item_code）；空串表示默认规则，覆盖所有族 */
+  modelFamily: string;
   billingMode: string;
   /** 进阶定价方案：FIXED / TIERED / PEAK_OFF_PEAK */
   pricingPlan: string;
@@ -220,7 +214,7 @@ interface BillingRuleFormState {
 const form = reactive<BillingRuleFormState>({
   id: null,
   code: "",
-  logicalModelCode: null,
+  modelFamily: "",
   billingMode: "TOKEN",
   pricingPlan: "FIXED",
   currency: "USD",
@@ -255,12 +249,6 @@ const codeChanged = computed(() =>
 );
 const modeComponent = computed(() => componentsByMode[form.billingMode] || BillingModeTokenConfig);
 const planComponent = computed(() => componentsByPlan[form.pricingPlan] || PricingPlanFixedConfig);
-const selectedLogicalModelOptions = computed(() =>
-  resolveSelectedOption(form.logicalModelCode, logicalModelOptions.value, {
-    id: form.logicalModelCode,
-    modelName: props.rule?.logicalModelName
-  })
-);
 
 watch(
   () => [props.modelValue, props.rule],
@@ -269,7 +257,7 @@ watch(
       return;
     }
     resetForm();
-    await Promise.all([loadLogicalModels(), loadModeCapabilities()]);
+    await Promise.all([loadModeCapabilities()]);
   }
 );
 
@@ -320,7 +308,7 @@ function resetForm() {
   const basePrices = (config.basePrices && typeof config.basePrices === "object") ? config.basePrices : {};
   form.id = row?.id ?? null;
   form.code = row?.code || "";
-  form.logicalModelCode = row?.logicalModelCode ?? null;
+  form.modelFamily = row?.modelFamily ?? "";
   form.billingMode = normalizeMode(row?.billingMode || "TOKEN");
   form.pricingPlan = String(row?.pricingPlan || "FIXED").trim().toUpperCase();
   form.currency = row?.currency || "USD";
@@ -368,21 +356,6 @@ function applyModeDefaults(mode: string) {
 async function loadModeCapabilities() {
   const data = await listModeCapabilities();
   billingModes.value = Array.isArray(data?.billingModes) ? data.billingModes : [];
-}
-
-async function loadLogicalModels(params = {pageNum: 1, pageSize: 10}) {
-  const res = await listLogicalModels(params);
-  mergeOptions(logicalModelOptions, normalizeOptionList(res));
-  return res;
-}
-
-function mergeOptions(targetRef: Ref<Row[]>, list: Row[]) {
-  targetRef.value = mergeOptionList(targetRef.value, list);
-}
-
-function logicalModelLabel(model: Row): string {
-  const name = model.displayName || model.modelName || model.modelCode || `#${model.id}`;
-  return model.modelCode ? `${name} (${model.modelCode})` : name;
 }
 
 function validateJson(value: unknown, label: string): boolean {
@@ -471,7 +444,7 @@ function resolveRuleCode(): string {
 function buildPayload() {
   return {
     code: resolveRuleCode(),
-    logicalModelCode: form.logicalModelCode,
+    modelFamily: form.modelFamily ? form.modelFamily : null,
     billingMode: form.billingMode,
     pricingPlan: form.pricingPlan,
     currency: form.currency,

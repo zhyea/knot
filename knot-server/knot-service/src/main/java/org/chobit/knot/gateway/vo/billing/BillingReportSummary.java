@@ -11,18 +11,18 @@ public record BillingReportSummary(long totalRules,
                                    long inactiveRules,
                                    long activeVersionRules,
                                    long modelCount,
-                                   List<LogicalModelDistribution> byLogicalModel,
+                                   List<ModelFamilyDistribution> byModelFamily,
                                    List<CodeCount> byBillingMode,
                                    List<CodeCount> byPricingPlan,
                                    List<CodeCount> byCurrency) {
 
     /**
-     * 统一模型维度分布：规则数与其中启用规则数（logicalModelCode 为 null 表示未限定模型的默认规则）。
+     * 模型族维度分布：规则数与其中启用规则数（modelFamilyCode 为 null 表示未限定族的默认规则）。
      */
-    public record LogicalModelDistribution(String logicalModelCode,
-                                           String logicalModelName,
-                                           long ruleCount,
-                                           long activeCount) {
+    public record ModelFamilyDistribution(String modelFamilyCode,
+                                          String modelFamilyName,
+                                          long ruleCount,
+                                          long activeCount) {
     }
 
     /**

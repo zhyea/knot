@@ -104,9 +104,6 @@ public class RoutingRuleService {
             Map.entry(ModelApiProtocolEnum.MODERATIONS, "适用于内容安全审核，通常使用 input。")
     );
 
-    /** 请求体模板中的占位符，由前端按当前选择填充 */
-    private static final String MODEL_PLACEHOLDER = "{{model}}";
-    private static final String PROMPT_PLACEHOLDER = "{{prompt}}";
     private final RoutingRuleTargetMapper routingRuleTargetMapper;
     private final RoutingRuleConsumerMapper routingRuleConsumerMapper;
     private final RoutingConsumerMapper routingConsumerMapper;
@@ -429,47 +426,9 @@ public class RoutingRuleService {
         Map<String, Object> body = new LinkedHashMap<>();
         if (requestBody != null && !requestBody.isEmpty()) {
             body.putAll(requestBody);
-        } else {
-            body.putAll(defaultRequestBody(protocol, model, prompt));
         }
         body.put("model", model);
         fillDefaultPromptFields(protocol, body, prompt);
-        return body;
-    }
-
-    private Map<String, Object> defaultRequestBody(ModelApiProtocolEnum protocol, String model, String prompt) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("model", model);
-        switch (protocol) {
-            case CHAT_COMPLETIONS -> body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
-            case RESPONSES -> body.put("input", prompt);
-            case MESSAGES -> {
-                body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
-                body.put("max_tokens", 1024);
-            }
-            case COMPLETIONS -> body.put("prompt", prompt);
-            case EMBEDDINGS -> body.put("input", List.of(prompt));
-            case IMAGE_GENERATIONS -> body.put("prompt", prompt);
-            case IMAGE_EDITS -> {
-                body.put("prompt", prompt);
-                body.put("image", "https://example.com/image.png");
-            }
-            case IMAGE_VARIATIONS -> body.put("image", "https://example.com/image.png");
-            case AUDIO_TRANSCRIPTIONS, AUDIO_TRANSLATIONS -> body.put("file", "D:/path/to/audio.mp3");
-            case AUDIO_SPEECH -> {
-                body.put("input", prompt);
-                body.put("voice", "alloy");
-            }
-            case VIDEO_GENERATIONS -> body.put("prompt", prompt);
-            case RERANK -> {
-                body.put("query", prompt);
-                body.put("documents", List.of("文档 1", "文档 2"));
-                body.put("top_n", 2);
-            }
-            case MODERATIONS -> body.put("input", prompt);
-            default -> {
-            }
-        }
         return body;
     }
 
@@ -547,8 +506,9 @@ public class RoutingRuleService {
     }
 
     /**
-     * 调试能力下发：网关路径、说明文案、默认请求体模板（占位符形式）与 prompt 字段路径。
-     * 全部取值复用调试执行链的同一批方法，保证预览与实际执行一致。
+     * 调试能力下发：网关路径、说明文案与 prompt 字段路径。
+     * 默认请求体不再硬编码，改由「预设请求」用例（kb_test_request_presets）维护，
+     * 调试面板按当前协议从预设中载入具体请求体。
      */
     public List<ProtocolDebugCapabilityItem> listDebugCapabilities() {
         return Arrays.stream(ModelApiProtocolEnum.values())
@@ -558,7 +518,6 @@ public class RoutingRuleService {
                         protocol.canonical().code(),
                         buildGatewayTestPath(protocol),
                         PROTOCOL_DEBUG_HINTS.get(protocol),
-                        defaultRequestBody(protocol, MODEL_PLACEHOLDER, PROMPT_PLACEHOLDER),
                         promptFieldOf(protocol)
                 ))
                 .toList();

@@ -12,7 +12,7 @@ import java.util.List;
 public interface BillingRuleMapper {
 
     List<BillingRuleEntity> list(@Param("keyword") String keyword,
-                                 @Param("logicalModelCode") String logicalModelCode);
+                                 @Param("modelFamilyCode") String modelFamilyCode);
 
     /** 报表用：全量非删除规则（含当前版本字段），不分页 */
     List<BillingRuleEntity> listForReport();

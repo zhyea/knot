@@ -33,10 +33,10 @@ public class GatewayRequestLoggingPlugin implements PluginHandler<GatewayPluginC
 
     @Override
     public void handle(PluginBindingView binding, GatewayPluginContext context) {
-        eventSink.emit(buildEvent(binding, context, "gateway-request"));
+        eventSink.emit(buildEvent(binding, context, PluginEventType.GATEWAY_REQUEST));
     }
 
-    private PluginEvent buildEvent(PluginBindingView binding, GatewayPluginContext context, String eventType) {
+    private PluginEvent buildEvent(PluginBindingView binding, GatewayPluginContext context, PluginEventType eventType) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("ruleCode", context.ruleCode());
         payload.put("protocol", context.protocol());

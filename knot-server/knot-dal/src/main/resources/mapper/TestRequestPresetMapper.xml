@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.TestRequestPresetMapper">
+
+    <sql id="Base_Column_List">
+        id, code, name, protocol_code, request_body, remark, status, created_at, updated_at
+    </sql>
+
+    <select id="listPresets" resultType="org.chobit.knot.gateway.entity.TestRequestPresetEntity">
+        select
+        <include refid="Base_Column_List"/>
+        from kb_test_request_presets
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (
+                    code like concat('%', #{keyword}, '%')
+                    or name like concat('%', #{keyword}, '%')
+                    or remark like concat('%', #{keyword}, '%')
+                )
+            </if>
+            <if test="protocolCode != null and protocolCode != ''">
+                and protocol_code = #{protocolCode}
+            </if>
+        </where>
+        order by id desc
+    </select>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.TestRequestPresetEntity">
+        select
+        <include refid="Base_Column_List"/>
+        from kb_test_request_presets
+        where id = #{id}
+    </select>
+
+    <select id="getByCode" resultType="org.chobit.knot.gateway.entity.TestRequestPresetEntity">
+        select
+        <include refid="Base_Column_List"/>
+        from kb_test_request_presets
+        where code = #{code}
+    </select>
+
+    <select id="countByCode" resultType="int">
+        select count(1)
+        from kb_test_request_presets
+        where code = #{code}
+        <if test="excludeId != null">
+            and id != #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insertPreset" useGeneratedKeys="true" keyProperty="id">
+        insert into kb_test_request_presets(code, name, protocol_code, request_body, remark, status)
+        values(#{code}, #{name}, #{protocolCode}, #{requestBody}, #{remark}, #{status})
+    </insert>
+
+    <update id="updatePreset">
+        update kb_test_request_presets
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="protocolCode != null">protocol_code = #{protocolCode},</if>
+            <if test="requestBody != null">request_body = #{requestBody},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        update kb_test_request_presets
+        set status = #{status}
+        where id = #{id}
+    </update>
+
+    <delete id="deletePreset">
+        delete from kb_test_request_presets
+        where id = #{id}
+    </delete>
+
+    <select id="listActive" resultType="org.chobit.knot.gateway.entity.TestRequestPresetEntity">
+        select
+        <include refid="Base_Column_List"/>
+        from kb_test_request_presets
+        where status = 'ACTIVE'
+        order by id desc
+    </select>
+
+</mapper>

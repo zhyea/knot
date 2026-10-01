@@ -25,6 +25,6 @@ public class KafkaPlaceholderPluginEventSink implements PluginEventSink {
                 properties.getKafka().getTopicPrefix(),
                 properties.getKafka().getBootstrapServers(),
                 event.traceId(),
-                event.eventType());
+                event.eventType() == null ? null : event.eventType().code());
     }
 }

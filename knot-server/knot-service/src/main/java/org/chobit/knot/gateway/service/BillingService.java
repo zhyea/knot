@@ -80,10 +80,10 @@ public class BillingService {
     /**
      * Lists matching results. Executes the public operation.
      */
-    public PageResult<BillingRuleDto> listRules(PageRequest pageRequest, String keyword, String logicalModelCode) {
+    public PageResult<BillingRuleDto> listRules(PageRequest pageRequest, String keyword, String modelFamilyCode) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<BillingRuleEntity> pageInfo = new PageInfo<>(
-                    billingRuleMapper.list(normalizeKeyword(keyword), logicalModelCode)
+                    billingRuleMapper.list(normalizeKeyword(keyword), normalizeModelFamily(modelFamilyCode))
             );
             return PageResult.fromPage(pageInfo, list -> list.stream().map(billingConverter::toRuleDto).toList(), pageRequest);
         }
@@ -209,7 +209,7 @@ public class BillingService {
     }
 
     /**
-     * 计费报表汇总（配置维度）：规则状态计数 + 统一模型/计费模式/进阶方案/币种分布。
+     * 计费报表汇总（配置维度）：规则状态计数 + 模型族/计费模式/进阶方案/币种分布。
      * 按「当前版本」口径聚合，数据量小，一次取全量后内存分组。
      */
     public BillingReportSummary getReportSummary() {
@@ -220,7 +220,7 @@ public class BillingService {
                 .filter(r -> r.getVersionCode() != null && isActive(r.getVersionStatus()))
                 .count();
 
-        Map<String, BillingReportSummary.LogicalModelDistribution> modelMap = new LinkedHashMap<>();
+        Map<String, BillingReportSummary.ModelFamilyDistribution> familyMap = new LinkedHashMap<>();
         Map<String, Long> modeMap = new LinkedHashMap<>();
         Map<String, Long> planMap = new LinkedHashMap<>();
         Map<String, Long> currencyMap = new LinkedHashMap<>();
@@ -228,14 +228,14 @@ public class BillingService {
         for (BillingRuleEntity rule : rules) {
             boolean active = isActive(rule.getStatus());
 
-            String modelKey = rule.getLogicalModelCode() == null ? "" : rule.getLogicalModelCode();
-            modelMap.compute(modelKey, (key, dist) -> {
+            String familyKey = rule.getModelFamilyCode() == null ? "" : rule.getModelFamilyCode();
+            familyMap.compute(familyKey, (key, dist) -> {
                 if (dist == null) {
-                    return new BillingReportSummary.LogicalModelDistribution(
-                            rule.getLogicalModelCode(), rule.getLogicalModelName(), 1L, active ? 1L : 0L);
+                    return new BillingReportSummary.ModelFamilyDistribution(
+                            rule.getModelFamilyCode(), rule.getModelFamilyName(), 1L, active ? 1L : 0L);
                 }
-                return new BillingReportSummary.LogicalModelDistribution(
-                        dist.logicalModelCode(), dist.logicalModelName(), dist.ruleCount() + 1,
+                return new BillingReportSummary.ModelFamilyDistribution(
+                        dist.modelFamilyCode(), dist.modelFamilyName(), dist.ruleCount() + 1,
                         dist.activeCount() + (active ? 1L : 0L));
             });
 
@@ -244,7 +244,7 @@ public class BillingService {
             currencyMap.merge(rule.getCurrency() == null ? "" : rule.getCurrency(), 1L, Long::sum);
         }
 
-        long modelCount = modelMap.keySet().stream().filter(key -> !key.isEmpty()).count();
+        long modelCount = familyMap.keySet().stream().filter(key -> !key.isEmpty()).count();
 
         return new BillingReportSummary(
                 rules.size(),
@@ -252,7 +252,7 @@ public class BillingService {
                 rules.size() - activeRules,
                 activeVersionRules,
                 modelCount,
-                List.copyOf(modelMap.values()),
+                List.copyOf(familyMap.values()),
                 toCodeCounts(modeMap),
                 toCodeCounts(planMap),
                 toCodeCounts(currencyMap)
@@ -469,7 +469,7 @@ public class BillingService {
 
     private void applyRule(BillingRuleEntity entity, BillingRuleDto request) {
         entity.setCode(normalizeCode(request.code()));
-        entity.setLogicalModelCode(request.logicalModelCode());
+        entity.setModelFamilyCode(normalizeModelFamily(request.modelFamilyCode()));
         entity.setRemark(blankToNull(request.remark()));
     }
 
@@ -655,6 +655,12 @@ public class BillingService {
     private static String normalizeUnit(String value) {
         String normalized = value == null ? "" : value.trim().toUpperCase();
         return normalized.isEmpty() ? BillingUnitEnum.ONE_K_TOKENS.code() : normalized;
+    }
+
+    /** 模型族 code 归一：小写；空值返回 null 表示默认规则（覆盖所有族） */
+    private static String normalizeModelFamily(String value) {
+        String normalized = value == null ? "" : value.trim().toLowerCase();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private static Object normalizeJsonText(String value) {

@@ -4,18 +4,15 @@
       <FilterBar @query="handleQuery" @reset="handleReset">
         <KeywordInput
           v-model="query.keyword"
-          placeholder="按规则编码、统一模型筛选"
+          placeholder="按规则编码、模型族筛选"
           @query="handleQuery"
         />
-        <FilterField label="统一模型" :width="220">
-          <RemoteEntitySelect
-            v-model="query.logicalModelCode"
-            value-key="modelCode"
-            :load-function="listLogicalModels"
-            :label-function="logicalModelLabel"
-            :selected-options="selectedLogicalModelOptions"
+        <FilterField label="模型族" :width="220">
+          <EnumSelect
+            v-model="query.modelFamilyCode"
+            category="model_family"
             clearable
-            placeholder="全部统一模型"
+            placeholder="全部模型族"
           />
         </FilterField>
       </FilterBar>
@@ -66,13 +63,13 @@
 
 <script setup lang="ts">
 import type {Dict, Row} from "@/types";
-import {computed, ref} from "vue";
+import {ref} from "vue";
 import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
-import RemoteEntitySelect from "../../components/common/RemoteEntitySelect.vue";
+import EnumSelect from "../../components/common/EnumSelect.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import BillingRuleFormDialog from "../../components/billing/BillingRuleFormDialog.vue";
 import BillingRuleListPanel from "../../components/billing/BillingRuleListPanel.vue";
@@ -83,7 +80,6 @@ import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {useListQuery} from "@/composables/useListQuery";
 import {deleteBillingRule, listBillingRules, updateBillingRuleStatus} from "@/api/billing";
 import {listBillingRuleOperationLogs} from "@/api/operationLogs";
-import {listLogicalModels} from "@/api/logicalModels";
 
 const {
   query,
@@ -98,7 +94,7 @@ const {
   resetPage,
   handleQuery,
   handleReset
-} = useListQuery({ apiFn: listBillingRules, fields: { keyword: "", logicalModelCode: null } });
+} = useListQuery({ apiFn: listBillingRules, fields: { keyword: "", modelFamilyCode: null } });
 
 const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateBillingRuleStatus
@@ -115,20 +111,6 @@ const peakDrawer = ref(false);
 const peakRule = ref<Row | null>(null);
 const previewDrawer = ref(false);
 const previewRule = ref<Row | null>(null);
-
-const selectedLogicalModelOptions = computed(() =>
-  rows.value
-    .filter((row) => row.logicalModelCode === query.logicalModelCode && row.logicalModelCode != null)
-    .map((row) => ({
-      id: row.logicalModelCode,
-      modelName: row.logicalModelName,
-      modelCode: row.logicalModelCode
-    }))
-);
-
-function logicalModelLabel(row: Row) {
-  return row?.modelName || row?.displayName || row?.modelCode || `#${row?.id ?? ""}`;
-}
 
 function openCreate() {
   currentRule.value = null;

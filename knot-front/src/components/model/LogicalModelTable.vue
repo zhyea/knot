@@ -20,7 +20,9 @@
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column prop="modelFamily" label="模型族" min-width="120" show-overflow-tooltip />
+      <el-table-column label="模型族" min-width="120" show-overflow-tooltip>
+        <template #default="{ row }">{{ familyLabel(row.modelFamily) }}</template>
+      </el-table-column>
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch
@@ -68,11 +70,12 @@
 
 <script setup lang="ts">
 import {Delete, Document, Edit} from "@element-plus/icons-vue";
-import type {PropType} from "vue";
+import {onMounted, type PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {updateLogicalModelStatus} from "@/api/logicalModels";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
+import {useEnums, resolveEnumLabel} from "@/composables/useEnums";
 import type {Row, SelectOption} from "@/types";
 
 const props = defineProps({
@@ -92,10 +95,18 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateLogicalModelStatus
 });
 
+const {options: familyOptions, loadOptions: loadFamilyOptions} = useEnums("model_family");
+onMounted(loadFamilyOptions);
+
 function modelTypeLabel(code: unknown): string {
   if (!code) return "-";
   const item = props.modelTypeOptions.find((option) => option.value === code);
   return item?.label || String(code);
+}
+
+function familyLabel(code: unknown): string {
+  if (!code) return "-";
+  return resolveEnumLabel(familyOptions.value, code, String(code));
 }
 
 async function handleEnabledChange(row: Row, enabled: string | number | boolean): Promise<void> {

@@ -374,7 +374,7 @@ public class ModelService {
         BillingRuleEntity billingRule = billingRuleMapper.getByCode(request.billingRuleCode());
         ProviderAccountEntity account = providerAccountMapper.getByCode(request.providerAccountCode());
         if (billingRule == null || account == null
-                || !matchesNullableScope(billingRule.getLogicalModelCode(), request.logicalModelCode())) {
+                || !matchesNullableScope(billingRule.getModelFamilyCode(), logicalModel.getModelFamily())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "计费规则与统一模型不匹配");
         }
         if (request.enabled()) {

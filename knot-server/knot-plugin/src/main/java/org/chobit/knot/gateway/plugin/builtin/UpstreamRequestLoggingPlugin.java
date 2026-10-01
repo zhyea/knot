@@ -41,7 +41,7 @@ public class UpstreamRequestLoggingPlugin implements PluginHandler<UpstreamPlugi
         payload.put("contentType", context.contentType() == null ? null : context.contentType().toString());
         payload.put("requestBody", context.requestBody());
         eventSink.emit(new PluginEvent(
-                "provider-request",
+                PluginEventType.PROVIDER_REQUEST,
                 context.traceId(),
                 context.traceparent(),
                 binding.instanceCode(),

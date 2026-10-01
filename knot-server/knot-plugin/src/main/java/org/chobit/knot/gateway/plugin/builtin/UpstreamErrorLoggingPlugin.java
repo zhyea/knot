@@ -42,7 +42,7 @@ public class UpstreamErrorLoggingPlugin implements PluginHandler<UpstreamPluginC
         payload.put("errorType", error == null ? null : error.getClass().getSimpleName());
         payload.put("errorMessage", error == null ? null : error.getMessage());
         eventSink.emit(new PluginEvent(
-                "provider-error",
+                PluginEventType.PROVIDER_ERROR,
                 context.traceId(),
                 context.traceparent(),
                 binding.instanceCode(),

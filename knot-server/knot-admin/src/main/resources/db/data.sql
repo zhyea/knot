@@ -298,14 +298,14 @@ INSERT IGNORE INTO kb_logical_models (
   visibility, publish_status, status, sort_order, featured,
   remark
 ) VALUES
-(1, 'knot-chat-premium', 'Knot Chat Premium', 'CHAT', 'omni',
+(1, 'knot-chat-premium', 'Knot Chat Premium', 'CHAT', NULL,
  'Knot Chat Premium',
  'A logical chat model that routes to premium provider models by policy.',
  JSON_ARRAY('chat', 'reasoning', 'premium'),
  JSON_ARRAY('knowledge assistant', 'research', 'complex analysis'),
  200000, 8192, JSON_ARRAY('text', 'image'), JSON_ARRAY('text'), JSON_ARRAY('zh-CN', 'en-US'),
   'PUBLIC', 'PUBLISHED', 'ENABLED', 10, 1, 'Premium provider route'),
-(2, 'knot-chat-economy', 'Knot Chat Economy', 'CHAT', 'general',
+(2, 'knot-chat-economy', 'Knot Chat Economy', 'CHAT', NULL,
  'Knot Chat Economy',
  'A logical chat model that routes to economical provider models.',
  JSON_ARRAY('chat', 'economy'),
@@ -586,6 +586,35 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 (17, 'PUBLISHED', '已发布',   2, 1),
 (17, 'ARCHIVED',  '已下架',   3, 1);
 
+-- 模型族枚举分类（category_id=28）：计费规则作用域与统一模型均引用该族 code（item_code）。
+-- 该分类可动态维护，新增族在枚举管理页操作即可。
+INSERT IGNORE INTO ks_enum_categories (id, category, category_name, is_system, is_enabled) VALUES
+(28, 'model_family', '模型族', 0, 1);
+
+INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_order, is_enabled) VALUES
+(28, 'gpt',      'GPT（OpenAI）',        1,  1),
+(28, 'claude',   'Claude（Anthropic）',   2,  1),
+(28, 'gemini',   'Gemini（Google）',      3,  1),
+(28, 'gemma',    'Gemma（Google）',       4,  1),
+(28, 'grok',     'Grok（xAI）',           5,  1),
+(28, 'llama',    'Llama（Meta）',         6,  1),
+(28, 'mistral',  'Mistral',               7,  1),
+(28, 'cohere',   'Cohere',                8,  1),
+(28, 'phi',      'Phi（Microsoft）',       9,  1),
+(28, 'deepseek', 'DeepSeek',              10, 1),
+(28, 'qwen',     '通义千问（Qwen）',      11, 1),
+(28, 'glm',      '智谱 GLM',              12, 1),
+(28, 'minimax',  'MiniMax',               13, 1),
+(28, 'hailuo',   '海螺 AI（Hailuo）',     14, 1),
+(28, 'moonshot', 'Kimi（Moonshot）',      15, 1),
+(28, 'yi',       '零一万物（Yi）',        16, 1),
+(28, 'step',     '阶跃星辰（Step）',      17, 1),
+(28, 'baichuan', '百川（Baichuan）',      18, 1),
+(28, 'doubao',   '豆包（Doubao）',        19, 1),
+(28, 'hunyuan',  '混元（Hunyuan）',       20, 1),
+(28, 'ernie',    '文心一言（ERNIE）',     21, 1),
+(28, 'spark',    '讯飞星火（Spark）',     22, 1);
+
 -- ============================================================
 -- 接口级授权：API 权限与绑定（默认拒绝，全量覆盖）
 -- 由 .workbuddy/audit/gen_api_bindings.py 生成，勿手工编辑
@@ -858,6 +887,37 @@ INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (3, 125),
 (3, 126),
 (3, 127);
+
+-- ============================================================
+-- 预设请求（路由调试请求用例）接口权限
+-- 由 .workbuddy/audit/gen_api_bindings.py 同源口径：view/create/update/delete/enable
+-- ============================================================
+INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permission_type, module_id, menu_id, status, built_in, remark) VALUES
+(128, 'routing:preset:view', '预设请求查看', 'API', 3, 11, 'ENABLED', 1, NULL),
+(129, 'routing:preset:create', '预设请求创建', 'API', 3, 11, 'ENABLED', 1, NULL),
+(130, 'routing:preset:update', '预设请求更新', 'API', 3, 11, 'ENABLED', 1, NULL),
+(131, 'routing:preset:delete', '预设请求删除', 'API', 3, 11, 'ENABLED', 1, NULL),
+(132, 'routing:preset:enable', '预设请求更新状态', 'API', 3, 11, 'ENABLED', 1, NULL);
+
+INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
+(158, 128, 'POST', '/api/test-request-presets/list', 'TestRequestPresetController', 'ENABLED'),
+(159, 129, 'POST', '/api/test-request-presets', 'TestRequestPresetController', 'ENABLED'),
+(160, 130, 'PUT', '/api/test-request-presets/{id}', 'TestRequestPresetController', 'ENABLED'),
+(161, 131, 'DELETE', '/api/test-request-presets/{id}', 'TestRequestPresetController', 'ENABLED'),
+(162, 128, 'GET', '/api/test-request-presets/options', 'TestRequestPresetController', 'ENABLED'),
+(163, 132, 'PUT', '/api/test-request-presets/{id}/status', 'TestRequestPresetController', 'ENABLED');
+
+-- OPERATOR（运维）：预设请求接口全量授予
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
+(2, 128),
+(2, 129),
+(2, 130),
+(2, 131),
+(2, 132);
+
+-- DEVELOPER（开发）：仅授予只读类接口权限
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
+(3, 128);
 
 -- ============================================================
 -- 权威授权块（必须保持在文件最后）

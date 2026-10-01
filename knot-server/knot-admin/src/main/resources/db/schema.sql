@@ -574,13 +574,13 @@ CREATE TABLE IF NOT EXISTS kb_routing_rule_targets (
 CREATE TABLE IF NOT EXISTS kb_billing_rules (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) NOT NULL,
-  logical_model_code VARCHAR(128) DEFAULT NULL COMMENT '统一模型 code（kb_logical_models.model_code）',
+  model_family VARCHAR(64) DEFAULT NULL COMMENT '模型族 code（ks_enum_configs.category=model_family 的 item_code）；为空表示默认规则，覆盖所有族',
   status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE' COMMENT '生命周期状态：ACTIVE/INACTIVE/DELETED，查询排除 DELETED，启停与删除不得混用',
   remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_billing_rules_code (code),
-  KEY idx_billing_rules_match (logical_model_code, status)
+  KEY idx_billing_rules_match (model_family, status)
 );
 
 CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
@@ -796,3 +796,21 @@ CREATE TABLE IF NOT EXISTS ks_enum_configs (
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_enum_category_code (category_id, item_code)
 );
+
+-- =========================
+-- 路由调试预设请求用例
+-- =========================
+-- 替代 RoutingRuleService#defaultRequestBody 的硬编码骨架：由用户维护完整、具体的请求体 JSON，
+-- 按协议归类、全局共享复用。调试面板按当前协议从预设中载入请求体。
+CREATE TABLE IF NOT EXISTS kb_test_request_presets (
+    id            BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    code          VARCHAR(64)  NOT NULL COMMENT '预设编码，人工填写，唯一',
+    name          VARCHAR(100) NOT NULL COMMENT '预设名称',
+    protocol_code VARCHAR(64)  NOT NULL COMMENT '关联协议 canonical code，如 CHAT_COMPLETIONS',
+    request_body  LONGTEXT     NOT NULL COMMENT '完整请求体 JSON（具体值；model/prompt 由调试面板按目标覆盖）',
+    remark        VARCHAR(255) DEFAULT NULL COMMENT '备注',
+    status        VARCHAR(32)  NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE / INACTIVE',
+    created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_test_request_presets_code (code)
+) COMMENT = '路由调试预设请求用例（替代硬编码默认请求体）';

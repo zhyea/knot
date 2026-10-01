@@ -38,7 +38,7 @@ public class GatewayResponseLoggingPlugin implements PluginHandler<GatewayPlugin
         payload.put("protocol", context.protocol());
         payload.put("responseBody", context.responseBody());
         eventSink.emit(new PluginEvent(
-                "gateway-response",
+                PluginEventType.GATEWAY_RESPONSE,
                 context.traceId(),
                 context.traceparent(),
                 binding.instanceCode(),

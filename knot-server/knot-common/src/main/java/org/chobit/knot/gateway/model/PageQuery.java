@@ -18,7 +18,8 @@ public record PageQuery(
         Boolean enabled,
         List<String> modelTypes,
         Long parentId,
-        String logicalModelCode
+        String modelFamilyCode,
+        String protocol
 ) {
     /**
      * Converts the query to a page request.

@@ -49,7 +49,13 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="模型族">
-              <el-input v-model="form.modelFamily" placeholder="如 omni/general" />
+              <EnumSelect
+                v-model="form.modelFamily"
+                category="model_family"
+                filterable
+                clearable
+                placeholder="如 GPT / Claude / DeepSeek"
+              />
             </el-form-item>
           </el-col>
         </el-row>
