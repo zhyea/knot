@@ -394,48 +394,56 @@ public class BillingService {
     }
 
     private BillingAmount calculateAmount(BillingRuleEntity rule, Map<String, Object> usage) {
-        String mode = normalizeBillingMode(rule.getBillingMode());
         int unitSize = unitSize(rule.getUnit());
-        String configJson = rule.getConfigJson();
-        BillingModeEnum modeEnum = BillingModeEnum.fromCode(mode);
+        BillingModeEnum modeEnum = BillingModeEnum.fromCode(normalizeBillingMode(rule.getBillingMode()));
         if (modeEnum == null) {
             modeEnum = BillingModeEnum.CUSTOM;
         }
         if (BillingModeEnum.TOKEN == modeEnum) {
-            long inputTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS);
-            long outputTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.COMPLETION_TOKENS, AiPayloadFields.OUTPUT_TOKENS);
-            long totalTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.TOTAL_TOKENS);
-            long cacheReadTokens = MapNumberUtils.nestedLong(usage, "prompt_tokens_details", "cached_tokens")
-                    + MapNumberUtils.nestedLong(usage, "input_tokens_details", "cached_tokens");
-            long ladderAmount = totalTokens > 0 ? totalTokens : inputTokens + outputTokens;
-            BillingConfig config = BillingConfig.fromJsonOrNull(configJson);
-            BigDecimal zero = BigDecimal.ZERO;
-            BigDecimal inputPrice;
-            BigDecimal outputPrice;
-            BigDecimal cacheReadPrice;
-            if (config == null) {
-                inputPrice = zero;
-                outputPrice = zero;
-                cacheReadPrice = zero;
-            } else {
-                BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan()));
-                inputPrice = pricing.resolvePrice(BillingConfig.PriceKind.INPUT, ladderAmount, zero);
-                outputPrice = pricing.resolvePrice(BillingConfig.PriceKind.OUTPUT, ladderAmount, zero);
-                cacheReadPrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_READ, ladderAmount, zero);
-            }
-            BigDecimal inputCost = cost(inputTokens - cacheReadTokens, inputPrice, unitSize);
-            BigDecimal outputCost = cost(outputTokens, outputPrice, unitSize);
-            BigDecimal cacheReadCost = cost(cacheReadTokens, cacheReadPrice, unitSize);
-            Map<String, Object> parts = new LinkedHashMap<>();
-            parts.put("inputTokens", inputTokens);
-            parts.put("outputTokens", outputTokens);
-            parts.put("totalTokens", totalTokens > 0 ? totalTokens : inputTokens + outputTokens);
-            parts.put("cacheReadTokens", cacheReadTokens);
-            parts.put("inputCost", inputCost);
-            parts.put("outputCost", outputCost);
-            parts.put("cacheReadCost", cacheReadCost);
-            return new BillingAmount(parts, inputCost.add(outputCost).add(cacheReadCost));
+            return calculateTokenAmount(rule, usage, unitSize);
         }
+        return calculateSimpleAmount(rule, usage, unitSize, modeEnum);
+    }
+
+    /** TOKEN 计费：input / output / cacheRead 三类单价分别计费后汇总。 */
+    private BillingAmount calculateTokenAmount(BillingRuleEntity rule, Map<String, Object> usage, int unitSize) {
+        long inputTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS);
+        long outputTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.COMPLETION_TOKENS, AiPayloadFields.OUTPUT_TOKENS);
+        long totalTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.TOTAL_TOKENS);
+        long cacheReadTokens = MapNumberUtils.nestedLong(usage, "prompt_tokens_details", "cached_tokens")
+                + MapNumberUtils.nestedLong(usage, "input_tokens_details", "cached_tokens");
+        long ladderAmount = totalTokens > 0 ? totalTokens : inputTokens + outputTokens;
+        BillingConfig config = BillingConfig.fromJsonOrNull(rule.getConfigJson());
+        BigDecimal zero = BigDecimal.ZERO;
+        BigDecimal inputPrice;
+        BigDecimal outputPrice;
+        BigDecimal cacheReadPrice;
+        if (config == null) {
+            inputPrice = zero;
+            outputPrice = zero;
+            cacheReadPrice = zero;
+        } else {
+            BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan()));
+            inputPrice = pricing.resolvePrice(BillingConfig.PriceKind.INPUT, ladderAmount, zero);
+            outputPrice = pricing.resolvePrice(BillingConfig.PriceKind.OUTPUT, ladderAmount, zero);
+            cacheReadPrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_READ, ladderAmount, zero);
+        }
+        BigDecimal inputCost = cost(inputTokens - cacheReadTokens, inputPrice, unitSize);
+        BigDecimal outputCost = cost(outputTokens, outputPrice, unitSize);
+        BigDecimal cacheReadCost = cost(cacheReadTokens, cacheReadPrice, unitSize);
+        Map<String, Object> parts = new LinkedHashMap<>();
+        parts.put("inputTokens", inputTokens);
+        parts.put("outputTokens", outputTokens);
+        parts.put("totalTokens", totalTokens > 0 ? totalTokens : inputTokens + outputTokens);
+        parts.put("cacheReadTokens", cacheReadTokens);
+        parts.put("inputCost", inputCost);
+        parts.put("outputCost", outputCost);
+        parts.put("cacheReadCost", cacheReadCost);
+        return new BillingAmount(parts, inputCost.add(outputCost).add(cacheReadCost));
+    }
+
+    /** 非 TOKEN 计费（EMBEDDING / REQUEST / IMAGE / AUDIO / VIDEO 等）：按模式取用量，套默认单价计费。 */
+    private BillingAmount calculateSimpleAmount(BillingRuleEntity rule, Map<String, Object> usage, int unitSize, BillingModeEnum modeEnum) {
         long amount = switch (modeEnum) {
             case EMBEDDING -> MapNumberUtils.firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS, AiPayloadFields.TOTAL_TOKENS);
             case REQUEST -> 1L;
@@ -447,7 +455,7 @@ public class BillingService {
         if (amount <= 0 && (BillingModeEnum.IMAGE == modeEnum || BillingModeEnum.REQUEST == modeEnum)) {
             amount = 1L;
         }
-        BillingConfig config = BillingConfig.fromJsonOrNull(configJson);
+        BillingConfig config = BillingConfig.fromJsonOrNull(rule.getConfigJson());
         BigDecimal unitPrice = config == null
                 ? BigDecimal.ZERO
                 : config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan())).resolveDefaultPrice(BigDecimal.ZERO);
