@@ -67,7 +67,8 @@ const routes: RouteRecordRaw[] = [
     component: NestedView,
     children: [
       { path: "consumers", name: "routing-consumers", component: () => import("@/views/routing/RoutingConsumerView.vue"), meta: { titleKey: "route.routingConsumers" } },
-      { path: "rules", name: "routing-rules", component: () => import("@/views/routing/RoutingRuleView.vue"), meta: { titleKey: "route.routingRules" } }
+      { path: "rules", name: "routing-rules", component: () => import("@/views/routing/RoutingRuleView.vue"), meta: { titleKey: "route.routingRules" } },
+      { path: "presets", name: "routing-presets", component: () => import("@/views/routing/TestRequestPresetView.vue"), meta: { titleKey: "route.presetRequests" } }
     ]
   },
   {
