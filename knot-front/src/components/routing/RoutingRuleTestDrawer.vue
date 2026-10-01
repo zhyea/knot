@@ -73,6 +73,25 @@
               </el-form-item>
             </div>
 
+            <el-form-item label="预设请求">
+              <el-select
+                v-model="selectedPresetId"
+                :disabled="filteredPresetOptions.length === 0"
+                placeholder="从预设请求载入请求模板"
+                clearable
+                filterable
+                style="width: 100%"
+                @change="onPresetChange"
+              >
+                <el-option
+                  v-for="preset in filteredPresetOptions"
+                  :key="preset.id"
+                  :label="preset.name"
+                  :value="preset.id"
+                />
+              </el-select>
+            </el-form-item>
+
             <div class="request-template">
               <div class="request-template__head">
                 <div>
@@ -162,13 +181,13 @@ import {getModel} from "@/api/models";
 import {getModelPool} from "@/api/modelPools";
 import {testRoutingRule} from "@/api/routing";
 import {useModelTypes} from "@/composables/useModelTypes";
-import {useDebugCapabilities, hydrateTemplate, extractPrompt} from "@/composables/useDebugCapabilities";
+import {useDebugCapabilities, extractPrompt} from "@/composables/useDebugCapabilities";
+import {listTestRequestPresetOptions} from "@/api/routing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {formatJson, formatJsonText, parseJsonResult, stringifyJson} from "@/utils/format";
 import type {Dict, Row} from "@/types";
 
 const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || "http://127.0.0.1:9090";
-const DEFAULT_PROMPT = "你好，这是一条路由规则测试消息";
 
 // 协议名称来自后端 ModelApiProtocolEnum（/api/common/enums），前端不再维护 code->label 映射
 const {labelOf: enumLabelOf} = useEnumOptions();
@@ -203,7 +222,6 @@ const {
   canonicalOf,
   gatewayPathOf,
   hintOf,
-  templateOf,
   promptFieldOf
 } = useDebugCapabilities();
 
@@ -227,6 +245,10 @@ const testResult = ref<RoutingTestResult | null>(null);
 const targetProtocolMap = reactive<Dict>({});
 const targetResolvedModelMap = reactive<Dict>({});
 const templateStore = reactive<Dict>({});
+
+/** 预设请求（按协议复用的完整请求体用例），调试面板下拉从接口载入 */
+const presetOptions = ref<Array<{ id: number; name: string; protocolCode: string; requestBody: string }>>([]);
+const selectedPresetId = ref<number | string | null>(null);
 
 const testForm = reactive({
   secretKey: "",
@@ -258,6 +280,13 @@ const activeProtocol = computed(() => normalizeProtocolCode(testForm.protocol));
 const activeTargetLabel = computed(() => activeTarget.value?.label || "-");
 const activeProtocolLabel = computed(() => protocolLabel(activeProtocol.value));
 const activeTemplateKey = computed(() => `${testForm.targetKey || "default"}::${activeProtocol.value || "default"}`);
+const filteredPresetOptions = computed(() => {
+  const protocol = activeProtocol.value;
+  if (!protocol) {
+    return [];
+  }
+  return presetOptions.value.filter((preset) => preset.protocolCode === protocol);
+});
 const protocolHint = computed(() => hintOf(activeProtocol.value));
 const resolvedModel = computed(() => {
   const targetKey = testForm.targetKey;
@@ -323,7 +352,7 @@ watch(
     expandedPanels.value = [];
     testForm.secretKey = props.secretKey || "";
     initializeTargetSelection();
-    await Promise.all([loadModelTypes(), loadDebugCapabilities()]);
+    await Promise.all([loadModelTypes(), loadDebugCapabilities(), loadPresetOptions()]);
     await loadProtocolsForCurrentTarget();
   }
 );
@@ -507,6 +536,7 @@ function ensureTemplateForCurrentSelection() {
   if (!protocol || !activeTemplateKey.value) {
     return;
   }
+  selectedPresetId.value = null;
   if (!templateStore[activeTemplateKey.value]) {
     templateStore[activeTemplateKey.value] = createDefaultTemplate(protocol, resolvedModel.value);
     return;
@@ -518,14 +548,57 @@ function resetCurrentTemplate() {
   if (!activeProtocol.value) {
     return;
   }
+  selectedPresetId.value = null;
   templateStore[activeTemplateKey.value] = createDefaultTemplate(activeProtocol.value, resolvedModel.value);
 }
 
+async function loadPresetOptions() {
+  try {
+    const list = await listTestRequestPresetOptions();
+    presetOptions.value = Array.isArray(list)
+      ? (list as Dict[]).map((item) => ({
+          id: item.id,
+          name: item.name,
+          protocolCode: item.protocolCode,
+          requestBody: item.requestBody
+        }))
+      : [];
+  } catch {
+    presetOptions.value = [];
+  }
+}
+
+function onPresetChange(presetId: number | string | null) {
+  if (!presetId) {
+    return;
+  }
+  const preset = presetOptions.value.find((item) => String(item.id) === String(presetId));
+  if (!preset) {
+    return;
+  }
+  const parsed = safeParseTemplate(preset.requestBody);
+  const base = parsed.error ? {} : parsed.value;
+  templateStore[activeTemplateKey.value] = formatJson(syncModelInto(base, resolvedModel.value));
+}
+
 function createDefaultTemplate(protocol: unknown, model: string | undefined): string {
-  // 请求体模板由后端能力接口下发（与 RoutingRuleService.defaultRequestBody 同源），这里只做占位符填充
-  const template = templateOf(normalizeProtocolCode(protocol));
-  const body = template ? hydrateTemplate(template, model || "model-name", DEFAULT_PROMPT) : {model: model || "model-name"};
-  return formatJson(body);
+  // 默认请求体由「预设请求」用例提供（替代原硬编码骨架）；按当前协议取首个匹配预设，否则回退最小结构
+  const candidate = presetOptions.value.find((preset) => preset.protocolCode === normalizeProtocolCode(protocol));
+  const parsed = candidate ? safeParseTemplate(candidate.requestBody) : {error: true, value: {}};
+  const base = parsed.error ? {} : parsed.value;
+  if (candidate) {
+    selectedPresetId.value = candidate.id;
+  }
+  return formatJson(syncModelInto(base, model));
+}
+
+/** 保证请求体对象含 model 字段（调试面板按目标覆盖为命中模型编码） */
+function syncModelInto(body: unknown, model: string | undefined): Dict {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return {model: model || "model-name"};
+  }
+  const source = body as Dict;
+  return {...source, model: model || source.model || "model-name"};
 }
 
 function syncTemplateModelField(templateKey: string, model: string | undefined): void {

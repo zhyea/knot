@@ -146,6 +146,8 @@ declare module 'vue' {
     ScheduledTaskRunPanel: typeof import('./src/components/system/scheduled/ScheduledTaskRunPanel.vue')['default']
     ShellCodeBlock: typeof import('./src/components/common/ShellCodeBlock.vue')['default']
     StatusTag: typeof import('./src/components/common/StatusTag.vue')['default']
+    TestRequestPresetFormDrawer: typeof import('./src/components/routing/TestRequestPresetFormDrawer.vue')['default']
+    TestRequestPresetListPanel: typeof import('./src/components/routing/TestRequestPresetListPanel.vue')['default']
     TierPriceFields: typeof import('./src/components/billing/plans/TierPriceFields.vue')['default']
     TierRuleDetailDrawer: typeof import('./src/components/billing/TierRuleDetailDrawer.vue')['default']
     TrafficPolicySection: typeof import('./src/components/common/TrafficPolicySection.vue')['default']

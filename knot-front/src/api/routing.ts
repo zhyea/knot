@@ -1,4 +1,4 @@
-import {postQuery, post, put, get} from "./http";
+import {postQuery, post, put, get, del} from "./http";
 import type {Dict} from "@/types";
 import type {AxiosRequestConfig} from "axios";
 

@@ -9,8 +9,9 @@ import {listDebugCapabilities} from "@/api/routing";
  *  - gatewayPathOf(code)   网关调试路径（替代 PROTOCOL_PATHS）
  *  - canonicalOf(code)     供应商别名归一（替代 PROTOCOL_CANONICAL_MAP）
  *  - hintOf(code)          协议说明文案（替代 PROTOCOL_HINTS）
- *  - templateOf(code)      默认请求体模板（{{model}} / {{prompt}} 占位，替代请求体 switch）
  *  - promptFieldOf(code)   请求体中承载 prompt 的字段路径（替代 inferPrompt switch）
+ *
+ * 默认请求体不再是硬编码：改由「预设请求」用例（kb_test_request_presets）维护，调试面板按协议从预设载入。
  *
  * 用法：
  *   const { loadOptions, capabilityOf } = useDebugCapabilities();
@@ -21,7 +22,6 @@ interface DebugCapability {
   canonicalCode: string;
   gatewayPath: string;
   hint: string;
-  defaultRequestBody: unknown;
   promptField: string | null;
 }
 
@@ -47,7 +47,6 @@ function applyList(list: unknown): void {
           canonicalCode: normalizeCode(item?.canonicalCode || item?.code),
           gatewayPath: item?.gatewayPath || "",
           hint: item?.hint || "",
-          defaultRequestBody: item?.defaultRequestBody || null,
           promptField: item?.promptField || null
         }
       ];
@@ -100,35 +99,11 @@ export function useDebugCapabilities() {
     return capabilityMap.value[normalizeCode(code)]?.hint || "";
   }
 
-  function templateOf(code: unknown): unknown {
-    return capabilityMap.value[normalizeCode(code)]?.defaultRequestBody || null;
-  }
-
   function promptFieldOf(code: unknown): string | null {
     return capabilityMap.value[normalizeCode(code)]?.promptField || null;
   }
 
-  return { loading, loadOptions, loaded, capabilityOf, canonicalOf, gatewayPathOf, hintOf, templateOf, promptFieldOf };
-}
-
-/**
- * 用实际取值替换模板中的 {{model}} / {{prompt}} 占位符（深度遍历）
- */
-export function hydrateTemplate(template: unknown, model?: string, prompt?: string): unknown {
-  if (typeof template === "string") {
-    return template
-      .replaceAll("{{model}}", model || "model-name")
-      .replaceAll("{{prompt}}", prompt || "");
-  }
-  if (Array.isArray(template)) {
-    return template.map((item: unknown) => hydrateTemplate(item, model, prompt));
-  }
-  if (template && typeof template === "object") {
-    return Object.fromEntries(
-      Object.entries(template).map(([key, value]) => [key, hydrateTemplate(value, model, prompt)])
-    );
-  }
-  return template;
+  return { loading, loadOptions, loaded, capabilityOf, canonicalOf, gatewayPathOf, hintOf, promptFieldOf };
 }
 
 /**
