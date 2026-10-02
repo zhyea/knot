@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from "vue";
+import {computed, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import type {Dict, Row} from "@/types";
 import {previewBillingRule} from "@/api/billing";
@@ -99,6 +99,16 @@ const probeTime = ref<string>("02:00");
 const usageAmount = ref<number>(1000);
 const loading = ref(false);
 const result = ref<Dict | null>(null);
+
+// 打开时清掉上一次的试算结果：结果区只在点「试算」后出现，避免先看到历史值
+watch(
+  () => props.modelValue,
+  (value) => {
+    if (value) {
+      result.value = null;
+    }
+  }
+);
 
 /** 价格种类键 -> 中文（后端 TOKEN 给四项，其余给 default） */
 const PRICE_LABELS: Record<string, string> = {

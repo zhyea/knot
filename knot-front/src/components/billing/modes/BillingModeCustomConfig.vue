@@ -1,7 +1,12 @@
 <template>
   <div class="billing-mode-custom-config">
     <div class="billing-mode-custom-config__label">自定义配置</div>
-    <JsonCodeEditor v-model="form.customConfigJson" min-height="320px" max-height="620px" />
+    <JsonCodeEditor
+      v-model="form.customConfigJson"
+      min-height="320px"
+      height="calc(100vh - 420px)"
+      max-height="620px"
+    />
   </div>
 </template>
 

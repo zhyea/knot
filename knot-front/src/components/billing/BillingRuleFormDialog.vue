@@ -118,6 +118,7 @@
           <JsonCodeEditor
             v-model="configJsonText"
             min-height="320px"
+            height="calc(100vh - 320px)"
             max-height="620px"
           />
         </el-tab-pane>
@@ -151,7 +152,7 @@ import PricingPlanFixedConfig from "./plans/PricingPlanFixedConfig.vue";
 import PricingPlanTieredConfig from "./plans/PricingPlanTieredConfig.vue";
 import PricingPlanPeakOffPeakConfig from "./plans/PricingPlanPeakOffPeakConfig.vue";
 import {createBillingRule, updateBillingRule, listModeCapabilities, getBillingRule} from "@/api/billing";
-import {isValidJsonText, parseJsonObject, roundPrice, stringifyJson} from "@/utils/format";
+import {formatJsonText, isValidJsonText, parseJsonObject, roundPrice, stringifyJson} from "@/utils/format";
 import {basePricesOf, createTierPriceSet, createTierRow, parseTierRows, toTierPayload, validateTierRows} from "@/utils/billingTier";
 import type {TierRow} from "@/utils/billingTier";
 import {createDefaultPeakPricing, parsePeakPricing, toPeakPayload, validatePeakPricing} from "@/utils/billingPeakOffPeak";
@@ -270,6 +271,8 @@ const isEdit = computed(() => props.ruleId != null);
 /** 抽屉内 Tab：form=表单编辑，json=config_json 原文查看/编辑 */
 const activeTab = ref<"form" | "json">("form");
 const configJsonText = ref("");
+/** 重新打开抽屉时置位：跳过上一次停留 json 页遗留文本的回写，避免历史内容污染新表单 */
+let suppressJsonApplyBack = false;
 /** 只读派生：绑定了该编码的供应商模型数（详情接口带出） */
 const boundModelCount = computed(() => Number(detail.value?.boundModelCount ?? 0));
 /** 编辑且编码已被使用时不允许改码：绑定存的是 code，改了存量模型会掉绑 */
@@ -394,6 +397,10 @@ watch(
     if (!value) {
       return;
     }
+    // 上一次停留在 json 页时关闭了抽屉：重开时不走遗留文本回写
+    if (activeTab.value === "json") {
+      suppressJsonApplyBack = true;
+    }
     capabilitiesLoaded.value = false;
     activeTab.value = "form";
     detail.value = null;
@@ -409,11 +416,15 @@ async function loadDetailAndCapabilities() {
   applyModeDefaults(form.billingMode);
 }
 
-/** 编辑时按 id 从后端取全量记录（列表是轻量 VO，configJson 不在列表数据里） */
+/** 切到 json 页展示配置文本（与 JsonCodeEditor「格式化」按钮同口径）；切回表单页时回写编辑内容 */
 watch(activeTab, (tab, prev) => {
   if (tab === "json") {
     const built = buildConfigJson();
-    configJsonText.value = built ? prettyJsonText(built) : "";
+    configJsonText.value = built ? formatJsonText(built) : "";
+    return;
+  }
+  if (suppressJsonApplyBack) {
+    suppressJsonApplyBack = false;
     return;
   }
   if (prev === "json" && !applyJsonTextToForm()) {
@@ -421,14 +432,6 @@ watch(activeTab, (tab, prev) => {
     activeTab.value = "json";
   }
 });
-
-function prettyJsonText(text: string): string {
-  try {
-    return JSON.stringify(JSON.parse(text), null, 2);
-  } catch {
-    return text;
-  }
-}
 
 /** config_json 页文本回写表单；失败返回 false。回写前先格式化，保证加载口径一致 */
 function applyJsonTextToForm(): boolean {
@@ -445,7 +448,7 @@ function applyJsonTextToForm(): boolean {
     ElMessage.warning("config_json 不是合法 JSON");
     return false;
   }
-  const pretty = prettyJsonText(text);
+  const pretty = formatJsonText(text);
   configJsonText.value = pretty;
   if (form.billingMode === "CUSTOM") {
     form.customConfigJson = pretty;

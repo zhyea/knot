@@ -52,6 +52,11 @@ export interface PeakPhaseRow {
   /** ISO DayOfWeek 数字（周一=1 ... 周日=7），与后端 PhaseCondition.weekdays 同口径 */
   weekdays: number[];
   windows: PeakWindow[];
+  /**
+   * 调休策略（OFF_PEAK / FOLLOW_WEEKDAY_WINDOWS）；后端可选字段。
+   * 前端只做透传保真（config_json 页展示不丢字段），本地判定不消费它。
+   */
+  makeUpWorkdayPolicy?: string;
 }
 
 export interface PeakPricing {
@@ -218,6 +223,7 @@ export function createPeakPhaseRow(init: Partial<PeakPhaseRow> = {}): PeakPhaseR
     isDefault: init.isDefault ?? false,
     weekdays: init.weekdays ? [...init.weekdays] : [],
     windows: init.windows ? init.windows.map((item) => ({ ...item, uid: item.uid ?? nextUid("window") })) : [],
+    makeUpWorkdayPolicy: init.makeUpWorkdayPolicy,
   };
 }
 
@@ -274,6 +280,7 @@ export function parsePeakPricing(raw: unknown): PeakPricing | null {
       isDefault: String(condition.type || "").trim().toUpperCase() === "DEFAULT",
       weekdays,
       windows,
+      makeUpWorkdayPolicy: String(condition.makeUpWorkdayPolicy ?? "").trim() || undefined,
     });
   });
   return {
@@ -299,7 +306,9 @@ export function toPeakPayload(pricing: PeakPricing | null): Dict | null {
       condition: {
         weekdays: row.weekdays,
         windows: row.windows.map((window) => ({ start: window.start, end: window.end })),
-        holidayPolicy: HOLIDAY_POLICY
+        holidayPolicy: HOLIDAY_POLICY,
+        // 存量配置带调休策略时透传，避免往返重建丢字段；前端新建的骨架没有该字段则不输出
+        ...(row.makeUpWorkdayPolicy ? { makeUpWorkdayPolicy: row.makeUpWorkdayPolicy } : {})
       },
       phase: row.phase,
       multiplier: toNumberOrNull(row.multiplier) ?? 1
