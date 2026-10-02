@@ -1,15 +1,13 @@
 package org.chobit.knot.gateway.adapter.request;
 
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.adapter.AuthConfigSupport;
+import org.chobit.knot.gateway.adapter.AuthScheme;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
-import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -22,7 +20,6 @@ import java.util.Set;
 public class AnthropicRequestAdapter implements UpstreamRequestAdapter {
 
     public static final String CODE = "ANTHROPIC";
-    private static final String DEFAULT_VERSION = "2023-06-01";
 
     @Override
     public String code() {
@@ -75,12 +72,8 @@ public class AnthropicRequestAdapter implements UpstreamRequestAdapter {
     }
 
     @Override
-    public void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
-        String apiKey = AuthConfigSupport.apiKey(context.authConfig());
-        if (StringUtils.isNotBlank(apiKey)) {
-            requestSpec.header(GatewayHeaders.X_API_KEY, apiKey);
-        }
-        requestSpec.header(GatewayHeaders.ANTHROPIC_VERSION, DEFAULT_VERSION);
+    public AuthScheme authScheme() {
+        return AuthScheme.API_KEY;
     }
 
     @Override

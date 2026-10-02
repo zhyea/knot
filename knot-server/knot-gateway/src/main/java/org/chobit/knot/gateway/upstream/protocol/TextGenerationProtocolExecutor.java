@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.upstream.protocol;
 
+import org.chobit.knot.gateway.adapter.UpstreamAuthApplier;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
@@ -27,8 +28,9 @@ public class TextGenerationProtocolExecutor extends AbstractUpstreamProtocolExec
      */
     public TextGenerationProtocolExecutor(RestClient restClient,
                                           UsageExtractorRegistry usageExtractorRegistry,
-                                          GatewayUpstreamClientProperties clientProperties) {
-        super(restClient, usageExtractorRegistry, clientProperties);
+                                          GatewayUpstreamClientProperties clientProperties,
+                                          UpstreamAuthApplier authApplier) {
+        super(restClient, usageExtractorRegistry, clientProperties, authApplier);
     }
 
     /**

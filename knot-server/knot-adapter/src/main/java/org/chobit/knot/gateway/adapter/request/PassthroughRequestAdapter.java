@@ -1,10 +1,10 @@
 package org.chobit.knot.gateway.adapter.request;
 
+import org.chobit.knot.gateway.adapter.AuthScheme;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
 import java.util.Set;
 
@@ -43,7 +43,7 @@ public class PassthroughRequestAdapter implements UpstreamRequestAdapter {
     }
 
     @Override
-    public void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
-        // 透传：不注入任何鉴权或协议头，保持原始请求原样
+    public AuthScheme authScheme() {
+        return AuthScheme.NONE;
     }
 }

@@ -1,10 +1,10 @@
 package org.chobit.knot.gateway.adapter.request;
 
+import org.chobit.knot.gateway.adapter.AuthScheme;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.client.RestClient;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -14,8 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 透传适配器回归测试：盯两件事 —— ① {@code buildRequestBody} 原样返回请求体且不做任何转换；
- * ② {@code applyHeaders} 不注入任何头。
+ * 透传适配器回归测试：盯三件事 —— ① {@code buildRequestBody} 原样返回请求体且不做任何转换；
+ * ② {@code authScheme} 声明为 {@link AuthScheme#NONE}（不注入鉴权头）；③ code/label 稳定。
  */
 class PassthroughRequestAdapterTest {
 
@@ -63,15 +63,8 @@ class PassthroughRequestAdapterTest {
     }
 
     @Test
-    void shouldNotInjectHeaders() {
-        RestClient.RequestBodySpec spec = RestClient.create().post();
-        Map<String, Object> source = new LinkedHashMap<>();
-        UpstreamRequestContext ctx = context(ModelApiProtocolEnum.CHAT_COMPLETIONS, source);
-
-        adapter.applyHeaders(spec, ctx);
-
-        // 没有任何异常即视为通过；不注入任何协议/鉴权头
-        assertTrue(true);
+    void shouldDeclareNoneAuthScheme() {
+        assertEquals(AuthScheme.NONE, adapter.authScheme(), "纯透传适配器不应注入任何鉴权头");
     }
 
     private UpstreamRequestContext context(ModelApiProtocolEnum protocol, Map<String, Object> body) {

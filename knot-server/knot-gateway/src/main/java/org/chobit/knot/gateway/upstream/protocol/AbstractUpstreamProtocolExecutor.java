@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.upstream.protocol;
 
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.UpstreamAuthApplier;
 import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
@@ -35,13 +36,16 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     private final RestClient restClient;
     private final UsageExtractorRegistry usageExtractorRegistry;
     private final GatewayUpstreamClientProperties clientProperties;
+    private final UpstreamAuthApplier authApplier;
 
     protected AbstractUpstreamProtocolExecutor(RestClient restClient,
                                                UsageExtractorRegistry usageExtractorRegistry,
-                                               GatewayUpstreamClientProperties clientProperties) {
+                                               GatewayUpstreamClientProperties clientProperties,
+                                               UpstreamAuthApplier authApplier) {
         this.restClient = restClient;
         this.usageExtractorRegistry = usageExtractorRegistry;
         this.clientProperties = clientProperties;
+        this.authApplier = authApplier;
     }
 
     /**
@@ -163,7 +167,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
         if (StringUtils.isNotBlank(context.traceparent())) {
             spec.header(GatewayHeaders.TRACEPARENT, StringUtils.trim(context.traceparent()));
         }
-        adapter.applyHeaders(spec, context);
+        authApplier.apply(spec, context, adapter.authScheme());
         return spec;
     }
 

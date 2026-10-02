@@ -2,15 +2,11 @@ package org.chobit.knot.gateway.adapter.request;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.adapter.AuthConfigSupport;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
-import org.chobit.knot.gateway.constants.AuthConstants;
-import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -75,14 +71,6 @@ public class OpenAiCompatibleRequestAdapter implements UpstreamRequestAdapter {
             return anthropicMessagesToChatCompletions(context.requestBody());
         }
         return context.requestBody();
-    }
-
-    @Override
-    public void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
-        String apiKey = AuthConfigSupport.apiKey(context.authConfig());
-        if (StringUtils.isNotBlank(apiKey)) {
-            requestSpec.header(GatewayHeaders.AUTHORIZATION, AuthConstants.BEARER_PREFIX + apiKey);
-        }
     }
 
     @SuppressWarnings("unchecked")

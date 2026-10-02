@@ -2,13 +2,13 @@ package org.chobit.knot.gateway.adapter.request;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.AuthScheme;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.http.MediaType;
-import org.springframework.web.client.RestClient;
 
 import java.util.Map;
 import java.util.Set;
@@ -28,11 +28,17 @@ public interface UpstreamRequestAdapter {
 
     Object buildRequestBody(UpstreamRequestContext context);
 
+    /**
+     * 该适配器所需的上游鉴权方案。实际鉴权头由 {@link UpstreamAuthApplier} 统一注入，
+     * 适配器不再自行处理鉴权。默认 {@link AuthScheme#BEARER}。
+     */
+    default AuthScheme authScheme() {
+        return AuthScheme.BEARER;
+    }
+
     default MediaType resolveContentType(UpstreamRequestContext context) {
         return context.contentType();
     }
-
-    void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context);
 
     default String handleResponse(String responseBody, UpstreamRequestContext context) {
         return responseBody;

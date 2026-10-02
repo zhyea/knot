@@ -2,18 +2,14 @@ package org.chobit.knot.gateway.adapter.request;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.adapter.AuthConfigSupport;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
-import org.chobit.knot.gateway.constants.AuthConstants;
-import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -79,14 +75,6 @@ public class QwenRequestAdapter implements UpstreamRequestAdapter {
             return imageEditBody(context);
         }
         return context.requestBody();
-    }
-
-    @Override
-    public void applyHeaders(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
-        String apiKey = AuthConfigSupport.apiKey(context.authConfig());
-        if (StringUtils.isNotBlank(apiKey)) {
-            requestSpec.header(GatewayHeaders.AUTHORIZATION, AuthConstants.BEARER_PREFIX + apiKey);
-        }
     }
 
     @Override
