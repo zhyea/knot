@@ -72,7 +72,8 @@ INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, rou
 (12, 3, NULL, 'routing.consumers', '消费者', '/routing/consumers', 'routing/RoutingConsumerView', 'Share', 20, 'ENABLED'),
 (13, 4, NULL, 'billing.rules', '计费规则', '/billing/rules', 'billing/BillingRuleView', 'Coin', 10, 'ENABLED'),
 (20, 4, NULL, 'billing.reports', '计费报表', '/billing/reports', 'billing/BillingReportView', 'Odometer', 20, 'ENABLED'),
-(21, 4, NULL, 'billing.reconciliation', '计费对账', '/billing/reconciliation', 'billing/ReconciliationView', 'Document', 30, 'ENABLED');
+(21, 4, NULL, 'billing.reconciliation', '计费对账', '/billing/reconciliation', 'billing/ReconciliationView', 'Document', 30, 'ENABLED'),
+(22, 3, NULL, 'routing.presets', '预设请求', '/routing/presets', 'routing/TestRequestPresetView', 'Share', 30, 'ENABLED');
 
 -- =========================
 -- 授权与权限
@@ -210,11 +211,12 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 (125, 'billing:report:view', '计费报表查看', 'API', 4, 20, 'ENABLED', 1, NULL),
 (126, 'billing:reconciliation:page', '计费对账页面访问', 'PAGE', 4, 21, 'ENABLED', 1, NULL),
 (127, 'billing:rule:preview', '计费规则方案试算', 'API', 4, 13, 'ENABLED', 1, NULL),
-(128, 'routing:preset:view', '预设请求查看', 'API', 3, 11, 'ENABLED', 1, NULL),
-(129, 'routing:preset:create', '预设请求创建', 'API', 3, 11, 'ENABLED', 1, NULL),
-(130, 'routing:preset:update', '预设请求更新', 'API', 3, 11, 'ENABLED', 1, NULL),
-(131, 'routing:preset:delete', '预设请求删除', 'API', 3, 11, 'ENABLED', 1, NULL),
-(132, 'routing:preset:enable', '预设请求更新状态', 'API', 3, 11, 'ENABLED', 1, NULL);
+(128, 'routing:preset:view', '预设请求查看', 'API', 3, 22, 'ENABLED', 1, NULL),
+(129, 'routing:preset:create', '预设请求创建', 'API', 3, 22, 'ENABLED', 1, NULL),
+(130, 'routing:preset:update', '预设请求更新', 'API', 3, 22, 'ENABLED', 1, NULL),
+(131, 'routing:preset:delete', '预设请求删除', 'API', 3, 22, 'ENABLED', 1, NULL),
+(132, 'routing:preset:enable', '预设请求更新状态', 'API', 3, 22, 'ENABLED', 1, NULL),
+(133, 'routing:preset:page', '预设请求页面访问', 'PAGE', 3, 22, 'ENABLED', 1, NULL);
 
 -- API 权限绑定（默认拒绝：未绑定接口一律 403；由 .workbuddy/audit/gen_api_bindings.py 生成）
 INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
@@ -399,11 +401,11 @@ INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (2, 106),(2, 107),(2, 108),(2, 109),(2, 110),(2, 111),(2, 112),(2, 113),
 (2, 114),(2, 115),(2, 116),(2, 117),(2, 118),(2, 119),(2, 120),(2, 121),
 (2, 122),(2, 123),(2, 124),(2, 125),(2, 126),(2, 127),(2, 128),(2, 129),
-(2, 130),(2, 131),(2, 132),(3, 14),(3, 15),(3, 16),(3, 17),(3, 18),
+(2, 130),(2, 131),(2, 132),(2, 133),(3, 14),(3, 15),(3, 16),(3, 17),(3, 18),
 (3, 19),(3, 20),(3, 21),(3, 22),(3, 23),(3, 24),(3, 25),(3, 26),
 (3, 58),(3, 66),(3, 67),(3, 75),(3, 79),(3, 84),(3, 88),(3, 93),
 (3, 94),(3, 99),(3, 103),(3, 107),(3, 112),(3, 120),(3, 124),(3, 125),
-(3, 126),(3, 127),(3, 128);
+(3, 126),(3, 127),(3, 128),(3, 133);
 
 -- 存量库修补：把「授权资源页面访问」补给已持有「角色授权页面访问」(id=12) 的角色。
 -- 注意：ADMIN 的 55 由文件末尾的权威授权块保证，不依赖本句。

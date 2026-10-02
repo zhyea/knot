@@ -32,10 +32,10 @@
     </el-col>
     <el-col :span="12">
       <el-form-item label="缓存写方式">
-        <el-select v-model="form.cacheWriteMode" style="width: 100%">
-          <el-option label="缓存写" value="standard" />
-          <el-option label="缓存写(5m)/(1h)" value="ttl" />
-        </el-select>
+        <el-radio-group v-model="form.cacheWriteMode">
+          <el-radio-button value="standard">缓存写</el-radio-button>
+          <el-radio-button value="ttl">缓存写(5m)/(1h)</el-radio-button>
+        </el-radio-group>
       </el-form-item>
     </el-col>
   </el-row>

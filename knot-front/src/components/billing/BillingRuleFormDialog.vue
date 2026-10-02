@@ -35,6 +35,7 @@
                   v-model="form.modelFamily"
                   category="model_family"
                   clearable
+                  filterable
                   placeholder="不选则作为默认规则"
                   style="width: 100%"
                 />
@@ -218,7 +219,7 @@ const form = reactive<BillingRuleFormState>({
   billingMode: "TOKEN",
   pricingPlan: "FIXED",
   currency: "USD",
-  unit: "1K_TOKENS",
+  unit: "1M_TOKENS",
   unitPrice: 0.002,
   inputUnitPrice: 0.002,
   outputUnitPrice: 0.002,
@@ -338,7 +339,7 @@ function resetForm() {
 function modeDefaults(mode: string): { unit: string } {
   const matched = billingModes.value.find((item) => item.code === mode);
   return {
-    unit: matched?.defaultUnit || "1K_TOKENS"
+    unit: matched?.defaultUnit || "1M_TOKENS"
   };
 }
 

@@ -11,17 +11,17 @@ import java.util.List;
  */
 public enum BillingModeEnum implements EnumOption {
     TOKEN("TOKEN", "Token", units(BillingUnitEnum.PER_TOKEN, BillingUnitEnum.ONE_K_TOKENS, BillingUnitEnum.ONE_M_TOKENS),
-            BillingUnitEnum.ONE_K_TOKENS),
+            BillingUnitEnum.ONE_M_TOKENS),
     REQUEST("REQUEST", "请求", units(BillingUnitEnum.PER_REQUEST), BillingUnitEnum.PER_REQUEST),
     IMAGE("IMAGE", "图片", units(BillingUnitEnum.PER_IMAGE), BillingUnitEnum.PER_IMAGE),
     AUDIO("AUDIO", "音频", units(BillingUnitEnum.PER_MINUTE), BillingUnitEnum.PER_MINUTE),
     VIDEO("VIDEO", "视频", units(BillingUnitEnum.PER_SECOND), BillingUnitEnum.PER_SECOND),
     EMBEDDING("EMBEDDING", "Embedding", units(BillingUnitEnum.PER_TOKEN, BillingUnitEnum.ONE_K_TOKENS, BillingUnitEnum.ONE_M_TOKENS),
-            BillingUnitEnum.ONE_K_TOKENS),
+            BillingUnitEnum.ONE_M_TOKENS),
     FREE("FREE", "免费", units(BillingUnitEnum.ONE_K_TOKENS), BillingUnitEnum.ONE_K_TOKENS),
     CUSTOM("CUSTOM", "自定义", units(BillingUnitEnum.PER_TOKEN, BillingUnitEnum.ONE_K_TOKENS, BillingUnitEnum.ONE_M_TOKENS,
             BillingUnitEnum.PER_REQUEST, BillingUnitEnum.PER_IMAGE, BillingUnitEnum.PER_MINUTE, BillingUnitEnum.PER_SECOND),
-            BillingUnitEnum.ONE_K_TOKENS);
+            BillingUnitEnum.ONE_M_TOKENS);
 
     private final String code;
     private final String label;
