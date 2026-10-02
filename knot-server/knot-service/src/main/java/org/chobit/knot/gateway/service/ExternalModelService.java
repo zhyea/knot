@@ -12,6 +12,7 @@ import org.chobit.knot.gateway.entity.ExternalModelSourceEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.ExternalModelMapper;
+import org.chobit.knot.gateway.service.ModelFamilyResolver;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.external.ExternalModelSyncProvider;
@@ -31,16 +32,19 @@ public class ExternalModelService {
     private final ExternalModelMapper externalModelMapper;
     private final LogicalModelService logicalModelService;
     private final Map<String, ExternalModelSyncProvider> providers;
+    private final ModelFamilyResolver modelFamilyResolver;
 
     /**
      * Constructs a new instance.
      */
     public ExternalModelService(ExternalModelMapper externalModelMapper,
                                 LogicalModelService logicalModelService,
-                                List<ExternalModelSyncProvider> providers) {
+                                List<ExternalModelSyncProvider> providers,
+                                ModelFamilyResolver modelFamilyResolver) {
         this.externalModelMapper = externalModelMapper;
         this.logicalModelService = logicalModelService;
         this.providers = providers.stream().collect(Collectors.toMap(ExternalModelSyncProvider::sourceCode, Function.identity()));
+        this.modelFamilyResolver = modelFamilyResolver;
     }
 
     /**
@@ -118,7 +122,7 @@ public class ExternalModelService {
                 code,
                 item.getModelName(),
                 item.getModelType() != null ? item.getModelType() : "CHAT",
-                item.getModelFamily(),
+                modelFamilyResolver.resolve(item.getModelId(), item.getModelName()),
                 item.getModelName(),
                 item.getDescription(),
                 readStringList(item.getTagsJson()),

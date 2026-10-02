@@ -6,6 +6,7 @@ import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.entity.ExternalModelItemEntity;
 import org.chobit.knot.gateway.entity.ExternalModelSourceEntity;
 import org.chobit.knot.gateway.mapper.ExternalModelMapper;
+import org.chobit.knot.gateway.service.ModelFamilyResolver;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Component;
 
@@ -41,11 +42,15 @@ public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvid
             .connectTimeout(Duration.ofSeconds(15))
             .build();
 
+    private final ModelFamilyResolver modelFamilyResolver;
+
     /**
      * Constructs a new instance.
      */
-    public OpenRouterModelSyncProvider(ExternalModelMapper externalModelMapper) {
+    public OpenRouterModelSyncProvider(ExternalModelMapper externalModelMapper,
+                                      ModelFamilyResolver modelFamilyResolver) {
         super(externalModelMapper);
+        this.modelFamilyResolver = modelFamilyResolver;
     }
 
     /**
@@ -141,7 +146,7 @@ public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvid
         entity.setExpirationDate(text(topProvider, "expiration"));
         entity.setRawJson(JsonKit.toJson(node));
         entity.setNormalizedName(normalizeName(name));
-        entity.setModelFamily(modelFamily(id, name));
+        entity.setModelFamily(modelFamilyResolver.resolve(id, name));
         entity.setModelType(modelType(id, name, inputModalities, outputModalities));
         entity.setTagsJson(JsonKit.toJson(tags(entity, inputModalities, outputModalities)));
         entity.setCapabilitiesJson(JsonKit.toJson(capabilities(entity, inputModalities, outputModalities)));
@@ -171,14 +176,6 @@ public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvid
         }
         int slash = id.indexOf('/');
         return slash > 0 ? title(id.substring(0, slash)) : "OpenRouter";
-    }
-
-    private String modelFamily(String id, String name) {
-        int slash = id.indexOf('/');
-        String value = slash > 0 ? id.substring(slash + 1) : name;
-        return value.replaceAll("(?i)(-?preview|-?latest|-?beta|-?free)$", "")
-                .replace(':', ' ')
-                .trim();
     }
 
     private String modelType(String id, String name, List<String> inputModalities, List<String> outputModalities) {
