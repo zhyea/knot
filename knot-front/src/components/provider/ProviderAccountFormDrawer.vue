@@ -64,6 +64,20 @@
               />
             </el-select>
           </el-form-item>
+          <el-form-item v-if="form.credentialType" label="鉴权方式" required>
+            <el-select
+              v-model="form.authApplier"
+              placeholder="请选择鉴权方式"
+              style="width: 100%"
+            >
+              <el-option
+                v-for="option in authApplierOptions"
+                :key="option.code"
+                :label="option.label"
+                :value="option.code"
+              />
+            </el-select>
+          </el-form-item>
           <el-form-item
             v-for="field in requiredCredentialFields"
             :key="field"
@@ -118,7 +132,8 @@ import {
   updateProvider,
   getProvider,
   checkProviderCode,
-  listCredentialTypes
+  listCredentialTypes,
+  listAuthAppliers
 } from "@/api/providers";
 import type {Dict, Row, SelectOption} from "@/types";
 
@@ -127,6 +142,12 @@ interface CredentialTypeOption {
   code: string;
   label: string;
   requiredFields?: string[];
+}
+
+/** 鉴权策略选项：code / label，由后端 UpstreamAuthApplierCatalog 下发 */
+interface AuthApplierOption {
+  code: string;
+  label: string;
 }
 
 const props = defineProps({
@@ -150,7 +171,8 @@ const form = reactive<Dict>({
   code: "",
   baseUrl: "",
   enabled: true,
-  credentialType: "api-key",
+  credentialType: null,
+  authApplier: null,
   authConfig: {apiKey: ""},
   rateLimitPolicy: {},
   quotaPolicy: {}
@@ -158,10 +180,11 @@ const form = reactive<Dict>({
 
 const isEdit = computed(() => props.providerId != null);
 
-// 新建表单的默认认证类型（UI 默认值）；可选项与必填字段由后端 /api/provider-accounts/credential-types 下发
-const DEFAULT_CREDENTIAL_TYPE = "api-key";
+// 默认鉴权策略（选中认证类型后的默认勾选）；可选项由后端 /api/provider-accounts/auth-appliers 下发
+const DEFAULT_AUTH_APPLIER = "BEARER";
 
 const credentialTypeOptions = ref<CredentialTypeOption[]>([]);
+const authApplierOptions = ref<AuthApplierOption[]>([]);
 
 const requiredCredentialFields = computed<string[]>(() => {
   const matched = credentialTypeOptions.value.find((option) => option.code === form.credentialType);
@@ -185,6 +208,15 @@ async function loadCredentialTypes() {
   credentialTypeOptions.value = Array.isArray(data) ? data : [];
 }
 
+async function loadAuthAppliers() {
+  try {
+    const data = await listAuthAppliers();
+    authApplierOptions.value = Array.isArray(data) ? data : [];
+  } catch {
+    authApplierOptions.value = [];
+  }
+}
+
 function syncCredentialParts() {
   const required = new Set(requiredCredentialFields.value);
   const custom: Dict = {};
@@ -197,6 +229,8 @@ function syncCredentialParts() {
 }
 
 function handleCredentialTypeChange() {
+  // 切换认证类型后重置鉴权方式为默认（策略与类型的对应关系由后端校验兜底）
+  form.authApplier = DEFAULT_AUTH_APPLIER;
   const required = requiredCredentialFields.value;
   const requiredSet = new Set(required);
   const config: Dict = {};
@@ -229,7 +263,8 @@ function fillFormFromRow(row: Row) {
   form.code = row.code || "";
   form.baseUrl = row.baseUrl || "";
   form.enabled = !!row.enabled;
-  form.credentialType = row.credentialType || DEFAULT_CREDENTIAL_TYPE;
+  form.credentialType = row.credentialType || null;
+  form.authApplier = row.authApplier || DEFAULT_AUTH_APPLIER;
   form.authConfig = normalizeAuthConfig(row.authConfig);
   // 初次加载：把存量 authConfig 里不属于当前类型的键拆到自定义编辑器，一次性完成
   syncCredentialParts();
@@ -247,7 +282,8 @@ function clearForm() {
   form.code = "";
   form.baseUrl = "";
   form.enabled = true;
-  form.credentialType = DEFAULT_CREDENTIAL_TYPE;
+  form.credentialType = null;
+  form.authApplier = null;
   form.authConfig = defaultAuthConfig();
   syncCredentialParts();
   form.rateLimitPolicy = {};
@@ -304,6 +340,7 @@ watch(
 
 loadProviderOptions();
 loadCredentialTypes();
+loadAuthAppliers();
 
 watch(
   () => form.code,
@@ -367,6 +404,7 @@ function buildPayload(): Dict {
     baseUrl: form.baseUrl?.trim() || null,
     enabled: form.enabled,
     credentialType: form.credentialType,
+    authApplier: form.authApplier,
     authConfig: Object.keys(authConfig).length ? authConfig : null,
     rateLimitPolicy: Object.keys(form.rateLimitPolicy).length ? form.rateLimitPolicy : null,
     quotaPolicy: Object.keys(form.quotaPolicy).length ? form.quotaPolicy : null
@@ -374,6 +412,14 @@ function buildPayload(): Dict {
 }
 
 async function submit() {
+  if (!form.credentialType) {
+    ElMessage.warning("请选择认证类型");
+    return;
+  }
+  if (!form.authApplier) {
+    ElMessage.warning("请选择鉴权方式");
+    return;
+  }
   for (const field of requiredCredentialFields.value) {
     if (!String(form.authConfig[field] ?? "").trim()) {
       ElMessage.warning(`请填写 ${field}`);

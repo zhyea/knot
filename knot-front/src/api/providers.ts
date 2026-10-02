@@ -22,6 +22,11 @@ export function listCredentialTypes() {
   return get("/api/provider-accounts/credential-types");
 }
 
+/** 鉴权策略选项：code / label，由后端 UpstreamAuthApplierCatalog 下发 */
+export function listAuthAppliers() {
+  return get("/api/provider-accounts/auth-appliers");
+}
+
 export function checkProviderAccountCode(code: string, excludeId: number | string | null) {
   return get("/api/provider-accounts/check-code", {
     params: {code, excludeId: excludeId ?? undefined}

@@ -125,6 +125,9 @@ export const messages = {
       themeTitle: "页面主题",
       themeDescription: "主题设置会保存到当前登录用户，下次登录后自动恢复。"
     },
+    session: {
+      idleLogout: "超过 {minutes} 分钟未操作，已自动退出登录"
+    },
     locale: {
       "zh-CN": "简体中文",
       "zh-TW": "繁體中文",
@@ -269,6 +272,9 @@ export const messages = {
       themeTitle: "頁面主題",
       themeDescription: "主題設定會保存到目前登入使用者，下次登入後自動恢復。"
     },
+    session: {
+      idleLogout: "超過 {minutes} 分鐘未操作，已自動登出"
+    },
     locale: {
       "zh-CN": "简体中文",
       "zh-TW": "繁體中文",
@@ -412,6 +418,9 @@ export const messages = {
       themeTitle: "Page Theme",
       themeDescription: "Theme preference is saved for the current user and restored on the next login."
     },
+    session: {
+      idleLogout: "No activity for {minutes} minutes. You have been signed out."
+    },
     locale: {
       "zh-CN": "简体中文",
       "zh-TW": "繁體中文",
@@ -554,6 +563,9 @@ export const messages = {
       languageDescription: "La préférence de langue est enregistrée pour l'utilisateur courant et restaurée à la prochaine connexion.",
       themeTitle: "Thème de page",
       themeDescription: "La préférence de thème est enregistrée pour l'utilisateur courant et restaurée à la prochaine connexion."
+    },
+    session: {
+      idleLogout: "Aucune activité pendant {minutes} minutes. Vous avez été déconnecté."
     },
     locale: {
       "zh-CN": "简体中文",

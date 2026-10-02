@@ -11,6 +11,9 @@ public class ProviderCredentialEntity {
 
     private String credentialType;
 
+    /** 鉴权策略编码（UpstreamAuthApplier code），明文列 */
+    private String authApplier;
+
     private String encryptedConfig;
 
     private String status;

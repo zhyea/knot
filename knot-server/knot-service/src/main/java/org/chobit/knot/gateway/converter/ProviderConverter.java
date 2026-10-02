@@ -20,6 +20,7 @@ public interface ProviderConverter {
     @Mapping(target = "rateLimitPolicy", ignore = true)
     @Mapping(target = "quotaPolicy", ignore = true)
     @Mapping(target = "credentialType", ignore = true)
+    @Mapping(target = "authApplier", ignore = true)
     @Mapping(target = "authConfig", ignore = true)
     ProviderAccountDto toDto(ProviderAccountEntity entity);
 

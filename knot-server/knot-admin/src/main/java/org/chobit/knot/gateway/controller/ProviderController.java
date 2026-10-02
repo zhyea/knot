@@ -11,6 +11,7 @@ import org.chobit.knot.gateway.service.ProviderService;
 import org.chobit.knot.gateway.vo.common.CodeAvailability;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.provider.DiscountPolicy;
+import org.chobit.knot.gateway.vo.provider.AuthApplierItem;
 import org.chobit.knot.gateway.vo.provider.CredentialTypeItem;
 import org.chobit.knot.gateway.vo.provider.ProviderAccountDetail;
 import org.chobit.knot.gateway.vo.provider.ProviderAccountItem;
@@ -52,6 +53,14 @@ public class ProviderController {
     @GetMapping("/credential-types")
     public List<CredentialTypeItem> credentialTypes() {
         return providerService.listCredentialTypes();
+    }
+
+    /**
+     * Lists auth appliers (auth_applier strategies) supported by provider accounts.
+     */
+    @GetMapping("/auth-appliers")
+    public List<AuthApplierItem> authAppliers() {
+        return providerService.listAuthAppliers();
     }
 
     /**

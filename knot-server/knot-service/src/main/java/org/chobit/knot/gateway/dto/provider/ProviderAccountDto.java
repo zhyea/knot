@@ -10,6 +10,7 @@ public record ProviderAccountDto(Long id, String providerCode, String providerNa
                                  String code, String type, String baseUrl, boolean enabled,
                                  LocalDateTime createdAt, LocalDateTime updatedAt,
                                  String credentialType,
+                                 String authApplier,
                                  Map<String, Object> authConfig,
                                  RateLimitPolicy rateLimitPolicy, QuotaPolicy quotaPolicy) {
 }

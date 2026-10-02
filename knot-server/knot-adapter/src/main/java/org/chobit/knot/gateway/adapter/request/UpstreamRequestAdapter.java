@@ -2,7 +2,6 @@ package org.chobit.knot.gateway.adapter.request;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.adapter.AuthScheme;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
@@ -27,14 +26,6 @@ public interface UpstreamRequestAdapter {
     }
 
     Object buildRequestBody(UpstreamRequestContext context);
-
-    /**
-     * 该适配器所需的上游鉴权方案。实际鉴权头由 {@link UpstreamAuthApplier} 统一注入，
-     * 适配器不再自行处理鉴权。默认 {@link AuthScheme#BEARER}。
-     */
-    default AuthScheme authScheme() {
-        return AuthScheme.BEARER;
-    }
 
     default MediaType resolveContentType(UpstreamRequestContext context) {
         return context.contentType();

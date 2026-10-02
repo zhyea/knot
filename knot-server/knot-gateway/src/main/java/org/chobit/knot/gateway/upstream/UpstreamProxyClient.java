@@ -9,6 +9,7 @@ import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ProviderAccountEntity;
+import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.plugin.PluginDispatcher;
@@ -78,16 +79,18 @@ public class UpstreamProxyClient {
         ProviderAccountEntity provider = resolveProvider(model, model.getModelCode());
         ModelApiProtocolEnum resolvedProtocol = resolveProtocol(protocol);
         ModelApiBindingEntity binding = resolveBinding(model.getId(), resolvedProtocol);
+        ProviderCredentialEntity credential = dataService.getActiveCredentialByProviderId(provider.getId());
         return new UpstreamRequestContext(
                 resolvedProtocol,
                 requestBody,
                 contentType,
                 model,
                 provider,
-                providerCredentialSupport.toAuthConfig(dataService.getActiveCredentialByProviderId(provider.getId())),
+                providerCredentialSupport.toAuthConfig(credential),
                 binding,
                 traceparent,
-                currentTraceId()
+                currentTraceId(),
+                providerCredentialSupport.authApplier(credential)
         );
     }
 
@@ -117,16 +120,18 @@ public class UpstreamProxyClient {
         ProviderAccountEntity provider = resolveProvider(model, target == null ? null : target.targetCode());
         ModelApiProtocolEnum resolvedProtocol = resolveProtocol(protocol);
         ModelApiBindingEntity binding = resolveBinding(model.getId(), resolvedProtocol);
+        ProviderCredentialEntity credential = dataService.getActiveCredentialByProviderId(provider.getId());
         return new UpstreamRequestContext(
                 resolvedProtocol,
                 requestBody,
                 contentType,
                 model,
                 provider,
-                providerCredentialSupport.toAuthConfig(dataService.getActiveCredentialByProviderId(provider.getId())),
+                providerCredentialSupport.toAuthConfig(credential),
                 binding,
                 traceparent,
-                currentTraceId()
+                currentTraceId(),
+                providerCredentialSupport.authApplier(credential)
         );
     }
 

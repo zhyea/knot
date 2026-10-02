@@ -1,7 +1,6 @@
 package org.chobit.knot.gateway.adapter.request;
 
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.adapter.AuthScheme;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
@@ -69,11 +68,6 @@ public class AnthropicRequestAdapter implements UpstreamRequestAdapter {
             return completionsToMessages(context.requestBody());
         }
         return context.requestBody();
-    }
-
-    @Override
-    public AuthScheme authScheme() {
-        return AuthScheme.API_KEY;
     }
 
     @Override

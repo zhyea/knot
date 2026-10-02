@@ -3,6 +3,8 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplierCatalog;
 import org.chobit.knot.gateway.dto.provider.ProviderAccountDto;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
@@ -26,6 +28,7 @@ import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.tools.ProviderCodes;
+import org.chobit.knot.gateway.vo.provider.AuthApplierItem;
 import org.chobit.knot.gateway.vo.provider.CredentialTypeItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,6 +50,7 @@ public class ProviderService {
     private final ProviderCredentialSupport credentialSupport;
     private final CurrentAuth currentAuth;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
+    private final UpstreamAuthApplierCatalog authApplierCatalog;
 
     /**
      * Constructs a new instance.
@@ -58,7 +62,8 @@ public class ProviderService {
                            ProviderConverter providerConverter,
                            ProviderCredentialSupport credentialSupport,
                            CurrentAuth currentAuth,
-                           ResourceTrafficPolicySupport trafficPolicySupport) {
+                           ResourceTrafficPolicySupport trafficPolicySupport,
+                           UpstreamAuthApplierCatalog authApplierCatalog) {
         this.providerAccountMapper = providerAccountMapper;
         this.providerProfileMapper = providerProfileMapper;
         this.providerCredentialMapper = providerCredentialMapper;
@@ -67,6 +72,7 @@ public class ProviderService {
         this.credentialSupport = credentialSupport;
         this.currentAuth = currentAuth;
         this.trafficPolicySupport = trafficPolicySupport;
+        this.authApplierCatalog = authApplierCatalog;
     }
 
     /**
@@ -142,6 +148,28 @@ public class ProviderService {
                 .toList();
     }
 
+    /**
+     * 鉴权策略选项（auth_applier），由 UpstreamAuthApplierCatalog 单一来源下发。
+     */
+    public List<AuthApplierItem> listAuthAppliers() {
+        return authApplierCatalog.definitions().stream()
+                .map(item -> new AuthApplierItem(item.code(), item.label()))
+                .toList();
+    }
+
+    /**
+     * 校验并归一化鉴权策略 code：空放行（运行时回退默认策略），非空必须是已注册策略。
+     */
+    private String validateAuthApplier(String authApplier) {
+        if (StringUtils.isBlank(authApplier)) {
+            return null;
+        }
+        if (!authApplierCatalog.supports(authApplier)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不支持的鉴权策略：" + authApplier);
+        }
+        return StringUtils.trim(authApplier);
+    }
+
     public boolean isCodeAvailable(String code, Long excludeId) {
         String normalized = normalizeCode(code);
         if (normalized.isEmpty()) {
@@ -182,6 +210,7 @@ public class ProviderService {
         entity.setCode(code);
         providerAccountMapper.insert(entity);
         credentialSupport.saveAuthConfig(entity.getId(), credentialType.code(),
+                validateAuthApplier(request.authApplier()),
                 resolveAuthConfigForSave(null, request.authConfig()));
         trafficPolicySupport.save(TrafficResourceTypeEnum.PROVIDER.code(), entity.getId(),
                 request.rateLimitPolicy(), request.quotaPolicy());
@@ -206,6 +235,7 @@ public class ProviderService {
         entity.setCode(code);
         providerAccountMapper.update(entity);
         credentialSupport.saveAuthConfig(id, credentialType.code(),
+                validateAuthApplier(request.authApplier()),
                 resolveAuthConfigForSave(id, request.authConfig()));
         trafficPolicySupport.save(TrafficResourceTypeEnum.PROVIDER.code(), id,
                 request.rateLimitPolicy(), request.quotaPolicy());
@@ -249,6 +279,7 @@ public class ProviderService {
                 base.code(), base.type(), base.baseUrl(), base.enabled(),
                 base.createdAt(), base.updatedAt(),
                 credentialSupport.credentialType(credential),
+                credentialSupport.authApplier(credential),
                 auth, rate, quota
         );
     }

@@ -277,6 +277,7 @@ CREATE TABLE IF NOT EXISTS kb_provider_credentials (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   provider_account_id BIGINT NOT NULL,
   credential_type VARCHAR(32) NOT NULL,
+  auth_applier VARCHAR(64) DEFAULT NULL COMMENT '鉴权策略编码（UpstreamAuthApplier code），空则回退默认 Bearer',
   encrypted_config TEXT DEFAULT NULL COMMENT '加密后的任意键值认证配置 JSON',
   status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

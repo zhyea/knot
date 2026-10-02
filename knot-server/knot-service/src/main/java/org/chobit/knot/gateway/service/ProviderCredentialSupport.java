@@ -63,9 +63,17 @@ public class ProviderCredentialSupport {
     }
 
     /**
+     * 鉴权策略 code（UpstreamAuthApplier）。空值交由 {@code UpstreamAuthApplierCatalog} 回退默认策略。
+     */
+    public String authApplier(ProviderCredentialEntity credential) {
+        return credential == null ? null : credential.getAuthApplier();
+    }
+
+    /**
      * Executes the public operation. Executes the public operation.
      */
-    public void saveAuthConfig(Long providerId, String credentialType, Map<String, Object> authConfig) {
+    public void saveAuthConfig(Long providerId, String credentialType, String authApplier,
+                               Map<String, Object> authConfig) {
         if (providerId == null) {
             return;
         }
@@ -82,6 +90,7 @@ public class ProviderCredentialSupport {
         }
         entity.setEncryptedConfig(encryptConfig(authConfig));
         entity.setCredentialType(ProviderCredentialTypeEnum.fromCode(credentialType).code());
+        entity.setAuthApplier(authApplier);
 
         if (isNew) {
             providerCredentialMapper.insert(entity);

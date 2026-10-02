@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.upstream.protocol;
 
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.adapter.UpstreamAuthApplier;
+import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplierCatalog;
 import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
@@ -36,16 +36,16 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     private final RestClient restClient;
     private final UsageExtractorRegistry usageExtractorRegistry;
     private final GatewayUpstreamClientProperties clientProperties;
-    private final UpstreamAuthApplier authApplier;
+    private final UpstreamAuthApplierCatalog authApplierCatalog;
 
     protected AbstractUpstreamProtocolExecutor(RestClient restClient,
                                                UsageExtractorRegistry usageExtractorRegistry,
                                                GatewayUpstreamClientProperties clientProperties,
-                                               UpstreamAuthApplier authApplier) {
+                                               UpstreamAuthApplierCatalog authApplierCatalog) {
         this.restClient = restClient;
         this.usageExtractorRegistry = usageExtractorRegistry;
         this.clientProperties = clientProperties;
-        this.authApplier = authApplier;
+        this.authApplierCatalog = authApplierCatalog;
     }
 
     /**
@@ -167,7 +167,8 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
         if (StringUtils.isNotBlank(context.traceparent())) {
             spec.header(GatewayHeaders.TRACEPARENT, StringUtils.trim(context.traceparent()));
         }
-        authApplier.apply(spec, context, adapter.authScheme());
+        // 鉴权完全由供应商侧策略决定（auth_applier），与请求适配器无关
+        authApplierCatalog.resolve(context.authApplier()).apply(spec, context);
         return spec;
     }
 

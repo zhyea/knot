@@ -17,8 +17,10 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
                                      Map<String, Object> authConfig,
                                      ModelApiBindingEntity binding,
                                      String traceparent,
-                                     String traceId) {
+                                     String traceId,
+                                     String authApplier) {
 
+    /** 便利构造：鉴权策略默认 null（由 UpstreamAuthApplierCatalog 回退默认策略 Bearer）。 */
     public UpstreamRequestContext(ModelApiProtocolEnum protocol,
                                   Map<String, Object> requestBody,
                                   MediaType contentType,
@@ -28,6 +30,19 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
                                   ModelApiBindingEntity binding,
                                   String traceparent,
                                   String traceId) {
+        this(protocol, requestBody, contentType, model, provider, authConfig, binding, traceparent, traceId, null);
+    }
+
+    public UpstreamRequestContext(ModelApiProtocolEnum protocol,
+                                  Map<String, Object> requestBody,
+                                  MediaType contentType,
+                                  ModelEntity model,
+                                  ProviderAccountEntity provider,
+                                  Map<String, Object> authConfig,
+                                  ModelApiBindingEntity binding,
+                                  String traceparent,
+                                  String traceId,
+                                  String authApplier) {
         this.protocol = protocol;
         this.requestBody = requestBody == null ? new LinkedHashMap<>() : new LinkedHashMap<>(requestBody);
         this.contentType = contentType == null ? MediaType.APPLICATION_JSON : contentType;
@@ -37,6 +52,7 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
         this.binding = binding;
         this.traceparent = traceparent;
         this.traceId = traceId;
+        this.authApplier = authApplier;
     }
 
     public String baseUrl() {

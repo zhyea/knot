@@ -383,7 +383,8 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (161, 131, 'DELETE', '/api/test-request-presets/{id}', 'TestRequestPresetController', 'ENABLED'),
 (162, 128, 'GET', '/api/test-request-presets/options', 'TestRequestPresetController', 'ENABLED'),
 (163, 132, 'PUT', '/api/test-request-presets/{id}/status', 'TestRequestPresetController', 'ENABLED'),
-(164, 67, 'GET', '/api/billing/rules/{id}', 'BillingController', 'ENABLED');
+(164, 67, 'GET', '/api/billing/rules/{id}', 'BillingController', 'ENABLED'),
+(165, 99, 'GET', '/api/provider-accounts/auth-appliers', 'ProviderController', 'ENABLED');
 
 -- 角色授权（OPERATOR 全量 / DEVELOPER 只读；ADMIN 由文件末尾权威块全量授予）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
@@ -464,10 +465,10 @@ INSERT IGNORE INTO kb_resource_traffic_policies (id, resource_type, resource_id,
 -- 的写入契约一致；旧版种子密文存的是裸密钥字符串，会导致 JsonKit.fromJson 解析失败并静默降级为空 apiKey。
 -- 注意：密文由 KNOT_CREDENTIAL_ENCRYPTION_KEY 派生密钥加密，更换密钥后必须重新生成（见
 -- docs/database/migration/2026-09-23-fix-provider-credential-config-format.sql 的生成说明）。
-INSERT IGNORE INTO kb_provider_credentials (id, provider_account_id, credential_type, encrypted_config, status) VALUES
-(1, 1, 'api-key', 'ENC:Gxdt09+Mk+BnH3+meLh03rvVO/lr/5vjxcjK0RNW0PgB0X/vYX0QzaixD9xPh/gKVYTC/0JSNl4lU7zy+g==', 'ACTIVE'),
-(2, 2, 'api-key', 'ENC:v3v8kgxDLYoAKyNICNxGKU655xOH3Sd1k2qtSS+bgYcvtq/fXGyufZ1gA+Qr2LMBT1eRTJ6teFCPY5r/OvTjqw==', 'ACTIVE'),
-(3, 3, 'api-key', 'ENC:pnMjBuMkVI19v432F8xRJ1U976XGPXwM19DakGTc8GoKMEvIy/6QcOMUbwwsRbXMJ4kqXsY+X+sKrnBuuijw', 'ACTIVE');
+INSERT IGNORE INTO kb_provider_credentials (id, provider_account_id, credential_type, auth_applier, encrypted_config, status) VALUES
+(1, 1, 'api-key', 'BEARER', 'ENC:Gxdt09+Mk+BnH3+meLh03rvVO/lr/5vjxcjK0RNW0PgB0X/vYX0QzaixD9xPh/gKVYTC/0JSNl4lU7zy+g==', 'ACTIVE'),
+(2, 2, 'api-key', 'ANTHROPIC_API_KEY', 'ENC:v3v8kgxDLYoAKyNICNxGKU655xOH3Sd1k2qtSS+bgYcvtq/fXGyufZ1gA+Qr2LMBT1eRTJ6teFCPY5r/OvTjqw==', 'ACTIVE'),
+(3, 3, 'api-key', 'BEARER', 'ENC:pnMjBuMkVI19v432F8xRJ1U976XGPXwM19DakGTc8GoKMEvIy/6QcOMUbwwsRbXMJ4kqXsY+X+sKrnBuuijw', 'ACTIVE');
 
 -- 供应商折扣策略
 INSERT IGNORE INTO kb_provider_discount_policies (id, provider_account_id, policy_name, scope_type, scope_ref_id, discount_type, discount_value, priority, effective_from, status) VALUES

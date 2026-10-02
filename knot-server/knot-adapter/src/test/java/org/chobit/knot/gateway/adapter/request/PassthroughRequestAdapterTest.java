@@ -1,6 +1,5 @@
 package org.chobit.knot.gateway.adapter.request;
 
-import org.chobit.knot.gateway.adapter.AuthScheme;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
@@ -14,8 +13,8 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 透传适配器回归测试：盯三件事 —— ① {@code buildRequestBody} 原样返回请求体且不做任何转换；
- * ② {@code authScheme} 声明为 {@link AuthScheme#NONE}（不注入鉴权头）；③ code/label 稳定。
+ * 透传适配器回归测试：盯两件事 —— ① {@code buildRequestBody} 原样返回请求体且不做任何转换；
+ * ② code/label 稳定。鉴权与本适配器无关（由供应商侧 auth_applier 策略决定）。
  */
 class PassthroughRequestAdapterTest {
 
@@ -60,11 +59,6 @@ class PassthroughRequestAdapterTest {
 
         assertTrue(source.containsKey(AiPayloadFields.MODEL), "原始请求不应被改写");
         assertTrue(source.containsKey(AiPayloadFields.MESSAGES));
-    }
-
-    @Test
-    void shouldDeclareNoneAuthScheme() {
-        assertEquals(AuthScheme.NONE, adapter.authScheme(), "纯透传适配器不应注入任何鉴权头");
     }
 
     private UpstreamRequestContext context(ModelApiProtocolEnum protocol, Map<String, Object> body) {

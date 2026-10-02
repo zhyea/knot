@@ -19,6 +19,7 @@ public record ProviderAccountDetail(Long id, String providerCode, String provide
                                     String code, String baseUrl, boolean enabled,
                                     LocalDateTime createdAt, LocalDateTime updatedAt,
                                     String credentialType,
+                                    String authApplier,
                                     Map<String, Object> authConfig,
                                     RateLimitPolicy rateLimitPolicy, QuotaPolicy quotaPolicy) {
 }
