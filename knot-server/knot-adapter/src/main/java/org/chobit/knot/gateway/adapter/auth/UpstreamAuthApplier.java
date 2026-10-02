@@ -1,7 +1,10 @@
 package org.chobit.knot.gateway.adapter.auth;
 
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
+import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
 import org.springframework.web.client.RestClient;
+
+import java.util.Set;
 
 /**
  * 上游鉴权策略。
@@ -15,6 +18,12 @@ public interface UpstreamAuthApplier {
     String code();
 
     String label();
+
+    /**
+     * 该策略适用的供应商认证类型（{@link ProviderCredentialTypeEnum}）。
+     * 前端据此按已选认证类型筛选可选鉴权方式；后端保存时也会据此校验。
+     */
+    Set<ProviderCredentialTypeEnum> credentialTypes();
 
     /**
      * 把该供应商的鉴权头（含凭据与协议固定头）写入请求。缺少凭据时静默跳过。

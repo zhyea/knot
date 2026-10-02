@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.adapter.auth;
 
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -35,6 +36,10 @@ public class UpstreamAuthApplierCatalog {
                 .map(item -> new UpstreamAuthApplierDefinition(
                         item.code(),
                         item.label(),
+                        item.credentialTypes().stream()
+                                .map(ProviderCredentialTypeEnum::code)
+                                .sorted()
+                                .toList(),
                         item.getClass().getName()
                 ))
                 .toList();
@@ -54,6 +59,17 @@ public class UpstreamAuthApplierCatalog {
         }
         String trimmed = StringUtils.trim(codeOrClassName);
         return byCode.containsKey(StringUtils.upperCase(trimmed)) || byClassName.containsKey(trimmed);
+    }
+
+    /**
+     * 该策略是否适用于指定的供应商认证类型（保存时校验，防止下发不匹配的组合）。
+     */
+    public boolean supports(String codeOrClassName, ProviderCredentialTypeEnum credentialType) {
+        if (!supports(codeOrClassName)) {
+            return false;
+        }
+        UpstreamAuthApplier applier = resolve(codeOrClassName);
+        return applier != null && (credentialType == null || applier.credentialTypes().contains(credentialType));
     }
 
     /**

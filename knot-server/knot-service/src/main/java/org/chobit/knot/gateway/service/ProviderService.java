@@ -153,18 +153,19 @@ public class ProviderService {
      */
     public List<AuthApplierItem> listAuthAppliers() {
         return authApplierCatalog.definitions().stream()
-                .map(item -> new AuthApplierItem(item.code(), item.label()))
+                .map(item -> new AuthApplierItem(item.code(), item.label(), item.credentialTypes()))
                 .toList();
     }
 
     /**
-     * 校验并归一化鉴权策略 code：空放行（运行时回退默认策略），非空必须是已注册策略。
+     * 校验并归一化鉴权策略 code：空放行（运行时回退默认策略），非空必须是已注册且适用于
+     * 该认证类型的策略。
      */
-    private String validateAuthApplier(String authApplier) {
+    private String validateAuthApplier(String authApplier, ProviderCredentialTypeEnum credentialType) {
         if (StringUtils.isBlank(authApplier)) {
             return null;
         }
-        if (!authApplierCatalog.supports(authApplier)) {
+        if (!authApplierCatalog.supports(authApplier, credentialType)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不支持的鉴权策略：" + authApplier);
         }
         return StringUtils.trim(authApplier);
@@ -210,7 +211,7 @@ public class ProviderService {
         entity.setCode(code);
         providerAccountMapper.insert(entity);
         credentialSupport.saveAuthConfig(entity.getId(), credentialType.code(),
-                validateAuthApplier(request.authApplier()),
+                validateAuthApplier(request.authApplier(), credentialType),
                 resolveAuthConfigForSave(null, request.authConfig()));
         trafficPolicySupport.save(TrafficResourceTypeEnum.PROVIDER.code(), entity.getId(),
                 request.rateLimitPolicy(), request.quotaPolicy());
@@ -235,7 +236,7 @@ public class ProviderService {
         entity.setCode(code);
         providerAccountMapper.update(entity);
         credentialSupport.saveAuthConfig(id, credentialType.code(),
-                validateAuthApplier(request.authApplier()),
+                validateAuthApplier(request.authApplier(), credentialType),
                 resolveAuthConfigForSave(id, request.authConfig()));
         trafficPolicySupport.save(TrafficResourceTypeEnum.PROVIDER.code(), id,
                 request.rateLimitPolicy(), request.quotaPolicy());

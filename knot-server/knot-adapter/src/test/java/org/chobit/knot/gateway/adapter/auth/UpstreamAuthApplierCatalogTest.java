@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.adapter.auth;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 import org.springframework.web.client.RestClient;
@@ -68,6 +69,28 @@ class UpstreamAuthApplierCatalogTest {
         assertTrue(defs.stream().anyMatch(d -> "BEARER".equals(d.code())));
         assertTrue(defs.stream().anyMatch(d -> "ANTHROPIC_API_KEY".equals(d.code())));
         assertTrue(defs.stream().anyMatch(d -> "NONE".equals(d.code())));
+    }
+
+    @Test
+    void shouldAssociateCredentialTypesPerApplier() {
+        // 读 apiKey 的两个策略仅适用 api-key；NoAuth 不读凭据、对所有类型有效
+        assertEquals(java.util.Set.of(ProviderCredentialTypeEnum.API_KEY), bearer.credentialTypes());
+        assertEquals(java.util.Set.of(ProviderCredentialTypeEnum.API_KEY), anthropic.credentialTypes());
+        assertEquals(ProviderCredentialTypeEnum.values().length, none.credentialTypes().size());
+    }
+
+    @Test
+    void shouldValidateApplierAgainstCredentialType() {
+        assertTrue(catalog.supports("BEARER", ProviderCredentialTypeEnum.API_KEY));
+        assertFalse(catalog.supports("BEARER", ProviderCredentialTypeEnum.AWS_AUTH), "BEARER 不适用于 aws-auth");
+        assertTrue(catalog.supports("NONE", ProviderCredentialTypeEnum.AWS_AUTH), "NONE 不读凭据，适用所有类型");
+    }
+
+    @Test
+    void shouldCarryCredentialTypesInDefinitions() {
+        UpstreamAuthApplierDefinition bearerDef = catalog.definitions().stream()
+                .filter(d -> "BEARER".equals(d.code())).findFirst().orElseThrow();
+        assertTrue(bearerDef.credentialTypes().contains(ProviderCredentialTypeEnum.API_KEY.code()));
     }
 
     @Test

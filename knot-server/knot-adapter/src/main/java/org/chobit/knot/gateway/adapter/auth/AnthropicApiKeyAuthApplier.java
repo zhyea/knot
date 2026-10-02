@@ -4,9 +4,12 @@ import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.adapter.AuthConfigSupport;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
+import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+
+import java.util.Set;
 
 /**
  * Anthropic 鉴权：{@code x-api-key: <apiKey>} + 固定协议头 {@code anthropic-version}。
@@ -28,6 +31,12 @@ public class AnthropicApiKeyAuthApplier implements UpstreamAuthApplier {
     @Override
     public String label() {
         return "Anthropic API Key（x-api-key）";
+    }
+
+    @Override
+    public Set<ProviderCredentialTypeEnum> credentialTypes() {
+        // 读取 authConfig.apiKey 作为凭据，仅适用于 api-key 认证类型
+        return Set.of(ProviderCredentialTypeEnum.API_KEY);
     }
 
     @Override

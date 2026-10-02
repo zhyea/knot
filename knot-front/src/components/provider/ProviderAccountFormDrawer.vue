@@ -71,7 +71,7 @@
               style="width: 100%"
             >
               <el-option
-                v-for="option in authApplierOptions"
+                v-for="option in availableAuthAppliers"
                 :key="option.code"
                 :label="option.label"
                 :value="option.code"
@@ -148,6 +148,8 @@ interface CredentialTypeOption {
 interface AuthApplierOption {
   code: string;
   label: string;
+  /** 该策略适用的认证类型 code（用于按已选认证类型过滤） */
+  credentialTypes?: string[];
 }
 
 const props = defineProps({
@@ -185,6 +187,24 @@ const DEFAULT_AUTH_APPLIER = "BEARER";
 
 const credentialTypeOptions = ref<CredentialTypeOption[]>([]);
 const authApplierOptions = ref<AuthApplierOption[]>([]);
+
+// 按已选认证类型过滤可选鉴权方式（后端随选项下发 credentialTypes 关联关系）
+const availableAuthAppliers = computed<AuthApplierOption[]>(() => {
+  const type = form.credentialType;
+  if (!type) {
+    return [];
+  }
+  return authApplierOptions.value.filter((option) => (option.credentialTypes || []).includes(type));
+});
+
+// 选定认证类型后的默认鉴权方式：优先默认策略，兼容不到则取第一个可选项
+function defaultAuthApplierForType(): string | null {
+  const available = availableAuthAppliers.value;
+  if (available.some((option) => option.code === DEFAULT_AUTH_APPLIER)) {
+    return DEFAULT_AUTH_APPLIER;
+  }
+  return available[0]?.code || null;
+}
 
 const requiredCredentialFields = computed<string[]>(() => {
   const matched = credentialTypeOptions.value.find((option) => option.code === form.credentialType);
@@ -229,8 +249,8 @@ function syncCredentialParts() {
 }
 
 function handleCredentialTypeChange() {
-  // 切换认证类型后重置鉴权方式为默认（策略与类型的对应关系由后端校验兜底）
-  form.authApplier = DEFAULT_AUTH_APPLIER;
+  // 切换认证类型后按新类型重置鉴权方式（取该类型下的默认可选项）
+  form.authApplier = defaultAuthApplierForType();
   const required = requiredCredentialFields.value;
   const requiredSet = new Set(required);
   const config: Dict = {};
@@ -264,7 +284,7 @@ function fillFormFromRow(row: Row) {
   form.baseUrl = row.baseUrl || "";
   form.enabled = !!row.enabled;
   form.credentialType = row.credentialType || null;
-  form.authApplier = row.authApplier || DEFAULT_AUTH_APPLIER;
+  form.authApplier = row.authApplier || defaultAuthApplierForType();
   form.authConfig = normalizeAuthConfig(row.authConfig);
   // 初次加载：把存量 authConfig 里不属于当前类型的键拆到自定义编辑器，一次性完成
   syncCredentialParts();
