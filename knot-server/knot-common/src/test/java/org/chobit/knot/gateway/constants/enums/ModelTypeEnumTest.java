@@ -73,8 +73,6 @@ class ModelTypeEnumTest {
             assertTrue(type.supportsProtocol("RESPONSES"));
             assertTrue(type.supportsProtocol("MESSAGES"));
             assertTrue(type.supportsProtocol("COMPLETIONS"));
-            assertTrue(type.supportsProtocol("OPENAI_CHAT_COMPLETIONS"));
-            assertTrue(type.supportsProtocol("ANTHROPIC_MESSAGES"));
             assertFalse(type.supportsProtocol("EMBEDDINGS"));
             assertFalse(type.supportsProtocol("IMAGE_GENERATIONS"));
         }

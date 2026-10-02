@@ -21,23 +21,21 @@
         复制
       </el-button>
     </div>
-    <el-scrollbar ref="scrollbarRef" class="json-editor__scrollbar" :style="bodyStyle" @scroll="syncWrapScroll">
+    <el-scrollbar class="json-editor__scrollbar" :style="bodyStyle">
       <div
         class="json-editor__body"
         :class="{ 'json-editor__body--editable': !readonly, 'json-editor__body--readonly': readonly }"
       >
-        <pre class="json-editor__highlight" :style="highlightStyle" aria-hidden="true"><code
+        <pre class="json-editor__highlight" aria-hidden="true"><code
           v-html="highlightedJson"></code></pre>
         <textarea
           v-if="!readonly"
-          ref="inputRef"
           class="json-editor__input"
           :value="modelValue"
           wrap="off"
           spellcheck="false"
           @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
           @keydown="handleKeydown"
-          @scroll="syncInputScroll"
         />
       </div>
     </el-scrollbar>
@@ -45,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from "vue";
+import {computed} from "vue";
 import {ElMessage} from "element-plus";
 import {escapeHtml, formatJsonText} from "@/utils/format";
 
@@ -60,20 +58,6 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
-/** el-scrollbar 实例上用到的滚动控制方法 */
-interface ScrollbarExpose {
-  setScrollTop?: (top: number) => void;
-  setScrollLeft?: (left: number) => void;
-}
-
-/** 滚动同步来源，避免两个滚动容器互相触发 */
-type SyncSource = "wrap" | "input" | null;
-
-const scrollTop = ref(0);
-const scrollLeft = ref(0);
-const scrollbarRef = ref<ScrollbarExpose | null>(null);
-const inputRef = ref<HTMLTextAreaElement | null>(null);
-let syncSource: SyncSource = null;
 const JSON_TOKEN_REGEX = /("(?:\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g;
 
 const displayText = computed(() => {
@@ -89,14 +73,6 @@ const bodyStyle = computed(() => ({
   maxHeight: props.maxHeight,
   ...(props.height ? {height: props.height} : {})
 }));
-const highlightStyle = computed(() => {
-  if (props.readonly) {
-    return {};
-  }
-  return {
-    transform: `translate(${-scrollLeft.value}px, ${-scrollTop.value}px)`
-  };
-});
 
 function formatCurrentJson() {
   const formatted = formatJsonText(props.modelValue);
@@ -135,41 +111,6 @@ function handleKeydown(event: KeyboardEvent): void {
   requestAnimationFrame(() => {
     target.selectionStart = start + 1;
     target.selectionEnd = start + 1;
-  });
-}
-
-function syncInputScroll(event: Event): void {
-  if (syncSource === "wrap") {
-    return;
-  }
-  syncSource = "input";
-  const target = event.target as HTMLElement;
-  scrollTop.value = target.scrollTop;
-  scrollLeft.value = target.scrollLeft;
-  scrollbarRef.value?.setScrollTop?.(scrollTop.value);
-  scrollbarRef.value?.setScrollLeft?.(scrollLeft.value);
-  requestAnimationFrame(() => {
-    if (syncSource === "input") {
-      syncSource = null;
-    }
-  });
-}
-
-function syncWrapScroll({scrollTop: nextTop, scrollLeft: nextLeft}: { scrollTop: number; scrollLeft: number }): void {
-  if (props.readonly || syncSource === "input") {
-    return;
-  }
-  syncSource = "wrap";
-  scrollTop.value = nextTop;
-  scrollLeft.value = nextLeft;
-  if (inputRef.value) {
-    inputRef.value.scrollTop = nextTop;
-    inputRef.value.scrollLeft = nextLeft;
-  }
-  requestAnimationFrame(() => {
-    if (syncSource === "wrap") {
-      syncSource = null;
-    }
   });
 }
 
@@ -280,7 +221,6 @@ function visualizeWhitespaceText(text: unknown): string {
 
 .json-editor__body--editable .json-editor__highlight {
   min-width: max-content;
-  transform-origin: left top;
   padding-right: 120px;
 }
 
@@ -289,17 +229,11 @@ function visualizeWhitespaceText(text: unknown): string {
   inset: 0;
   height: 100%;
   resize: none;
-  overflow: auto;
+  overflow: hidden;
   background: transparent;
   color: transparent;
   caret-color: #303133;
-  scrollbar-width: none;
   padding-right: 120px;
-}
-
-.json-editor__input::-webkit-scrollbar {
-  width: 0;
-  height: 0;
 }
 
 .json-editor--readonly .json-editor__highlight {

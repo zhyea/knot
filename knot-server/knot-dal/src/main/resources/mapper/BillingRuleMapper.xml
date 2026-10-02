@@ -33,12 +33,14 @@
         (select count(1) from kb_models m where m.billing_rule_code = br.code) as bound_model_count
     </sql>
 
-    <!-- 列表轻量列：只查列表页展示的字段；config_json / uniq_hash / 生效期 / 备注 / 绑定数等重字段走 getById 详情 -->
+    <!-- 列表轻量列：只查列表页展示的字段；config_json / uniq_hash / 生效期 / 备注等重字段走 getById 详情。
+         绑定数量（供应商模型绑定数）为列表展示所需，保留相关子查询 -->
     <sql id="ListColumns">
         br.id, br.code,
         br.model_family as model_family_code, ef.item_label as model_family_name,
         br.status,
-        bv.version_code, bv.billing_mode, bv.pricing_plan, bv.currency, bv.unit
+        bv.version_code, bv.billing_mode, bv.pricing_plan, bv.currency, bv.unit,
+        (select count(1) from kb_models m where m.billing_rule_code = br.code) as bound_model_count
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
@@ -153,14 +155,6 @@
         limit 1
     </select>
 
-    <select id="getVersionByHash" resultType="org.chobit.knot.gateway.entity.BillingRuleVersionEntity">
-        select id, rule_id, version_code, uniq_hash, billing_mode, pricing_plan, currency, unit,
-               config_json, status, effective_from, effective_to
-        from kb_billing_rule_versions
-        where rule_id = #{ruleId} and uniq_hash = #{uniqHash}
-        limit 1
-    </select>
-
     <select id="maxVersionSeq" resultType="java.lang.Integer">
         select coalesce(max(cast(substring(version_code, 2) as unsigned)), 0)
         from kb_billing_rule_versions
@@ -174,17 +168,18 @@
                #{currency}, #{unit}, #{configJson}, #{status}, #{effectiveFrom}, #{effectiveTo})
     </insert>
 
-    <update id="activateVersion">
+    <update id="updateVersionContent">
         update kb_billing_rule_versions
-        set status = 'ACTIVE',
-            effective_from = #{effectiveFrom}
+        set uniq_hash = #{uniqHash},
+            billing_mode = #{billingMode},
+            pricing_plan = #{pricingPlan},
+            currency = #{currency},
+            unit = #{unit},
+            config_json = #{configJson},
+            status = #{status},
+            effective_from = #{effectiveFrom},
+            effective_to = #{effectiveTo}
         where id = #{id}
-    </update>
-
-    <update id="disableOtherActiveVersions">
-        update kb_billing_rule_versions
-        set status = 'DISABLED'
-        where rule_id = #{ruleId} and id != #{keepId} and status = 'ACTIVE'
     </update>
 
     <update id="updateVersionStatus">

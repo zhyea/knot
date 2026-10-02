@@ -21,31 +21,18 @@ public enum ModelApiProtocolEnum implements EnumOption {
     VIDEO_GENERATIONS("VIDEO_GENERATIONS", "Video Generations", "/v1/videos/generations", false),
     RERANK("RERANK", "Rerank", "/v1/rerank", false),
     MODERATIONS("MODERATIONS", "Moderations", "/v1/moderations", false),
-    CUSTOM("CUSTOM", "自定义", null, false),
-
-    /** Backward-compatible aliases for existing seed data. */
-    OPENAI_CHAT_COMPLETIONS("OPENAI_CHAT_COMPLETIONS", "OpenAI Chat Completions", "/v1/chat/completions", true, CHAT_COMPLETIONS),
-    OPENAI_COMPLETIONS("OPENAI_COMPLETIONS", "OpenAI Completions", "/v1/completions", true, COMPLETIONS),
-    OPENAI_RESPONSES("OPENAI_RESPONSES", "OpenAI Responses", "/v1/responses", true, RESPONSES),
-    ANTHROPIC_MESSAGES("ANTHROPIC_MESSAGES", "Anthropic Messages", "/v1/messages", true, MESSAGES);
+    CUSTOM("CUSTOM", "自定义", null, false);
 
     private final String code;
     private final String name;
     private final String defaultPath;
     private final boolean streamSupported;
-    private final ModelApiProtocolEnum canonical;
 
     ModelApiProtocolEnum(String code, String name, String defaultPath, boolean streamSupported) {
-        this(code, name, defaultPath, streamSupported, null);
-    }
-
-    ModelApiProtocolEnum(String code, String name, String defaultPath, boolean streamSupported,
-                         ModelApiProtocolEnum canonical) {
         this.code = code;
         this.name = name;
         this.defaultPath = defaultPath;
         this.streamSupported = streamSupported;
-        this.canonical = canonical == null ? this : canonical;
     }
 
     /**
@@ -85,7 +72,7 @@ public enum ModelApiProtocolEnum implements EnumOption {
      * Executes the public operation. Executes the public operation.
      */
     public ModelApiProtocolEnum canonical() {
-        return canonical;
+        return this;
     }
 
     /**

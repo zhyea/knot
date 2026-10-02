@@ -140,7 +140,7 @@
               <div class="binding-card">
                 <div class="binding-card__head">
                   <span>计费规则</span>
-                  <small>按统一模型筛选，绑定用规则 code</small>
+                  <small>按统一模型的模型族筛选；点击列表行绑定规则 code</small>
                 </div>
                 <el-form-item label="绑定计费规则" required class="bind-block-item">
                   <RemoteEntitySelect
@@ -156,20 +156,33 @@
                   />
                 </el-form-item>
                 <el-table
-                  v-if="selectedBillingRule"
-                  :data="[selectedBillingRule]"
+                  v-if="billingRuleOptions.length"
+                  :data="billingRuleOptions"
+                  row-key="code"
+                  :current-row-key="form.billingRuleCode ?? undefined"
                   border
-                  class="bind-table billing-rule-bind-table"
+                  highlight-current-row
+                  class="bind-table billing-rule-list-table"
+                  @current-change="onBillingRuleRowSelect"
                 >
                   <el-table-column prop="code" label="规则编码" min-width="150" show-overflow-tooltip>
                     <template #default="{ row }">
                       <span class="bind-list__text">{{ row.code || "-" }}</span>
                     </template>
                   </el-table-column>
-                  <el-table-column label="版本" width="80" show-overflow-tooltip>
+                  <el-table-column label="模型族" min-width="140" show-overflow-tooltip>
                     <template #default="{ row }">
-                      <span class="bind-list__text">{{ row.versionCode || "-" }}</span>
+                      <span class="bind-list__text">{{ row.modelFamilyName || row.modelFamilyCode || "默认（所有模型族）" }}</span>
                     </template>
+                  </el-table-column>
+                  <el-table-column label="计费模式" min-width="110" show-overflow-tooltip>
+                    <template #default="{ row }">{{ modeLabel(row.billingMode) }}</template>
+                  </el-table-column>
+                  <el-table-column label="进阶方案" min-width="110" show-overflow-tooltip>
+                    <template #default="{ row }">{{ planLabel(row.pricingPlan) }}</template>
+                  </el-table-column>
+                  <el-table-column label="单位" min-width="110" show-overflow-tooltip>
+                    <template #default="{ row }">{{ unitLabel(row.unit) }}</template>
                   </el-table-column>
                   <el-table-column label="是否启用" width="90" align="center">
                     <template #default="{ row }">
@@ -179,6 +192,9 @@
                     </template>
                   </el-table-column>
                 </el-table>
+                <div v-else class="empty-billing-rule">
+                  请先在上方选择统一模型（按模型族筛选可绑定的计费规则）
+                </div>
               </div>
             </div>
           </div>
@@ -321,6 +337,7 @@ import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import ProviderAccountSelect from "../provider/ProviderAccountSelect.vue";
 import {useModelTypes} from "@/composables/useModelTypes";
+import {useEnumOptions} from "@/composables/useEnumOptions";
 import {
   emptyQuotaPolicy,
   emptyRateLimitPolicy,
@@ -362,6 +379,7 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const {loadOptions: loadModelTypes, protocolsOf} = useModelTypes();
+const {labelOf: enumLabelOf} = useEnumOptions();
 const logicalModelOptions = ref<Row[]>([]);
 const billingRuleOptions = ref<Row[]>([]);
 const usageExtractorOptions = ref<Row[]>([]);
@@ -408,7 +426,6 @@ const form = reactive<ModelFormState>({
 
 const isEdit = computed(() => props.model?.id != null);
 const selectedLogicalModel = computed(() => logicalModelOptions.value.find((item) => item.modelCode === form.logicalModelCode));
-const selectedBillingRule = computed(() => billingRuleOptions.value.find((item) => item.code === form.billingRuleCode));
 const selectedProviderOptions = computed(() =>
   // 账户下拉 value-key 为 code，回显兜底对象必须带 code 键（而非 id），否则 label 匹配不上
   resolveSelectedOption(form.providerAccountCode, [], {
@@ -426,8 +443,9 @@ const selectedBillingRuleOptions = computed(() =>
     code: form.billingRuleCode ?? props.model?.billingRuleCode
   }, "code")
 );
+/** 计费规则按「模型族」过滤：模型族由绑定的统一模型派生（后端 br.model_family 存 item_code） */
 const billingRuleFilterParams = computed(() => ({
-  logicalModelCode: form.logicalModelCode ?? undefined
+  modelFamilyCode: selectedLogicalModel.value?.modelFamily || undefined
 }));
 const streamUsageExtractorOptions = computed(() =>
   usageExtractorOptions.value.filter((item) => item.streamSupported !== false)
@@ -445,9 +463,13 @@ async function loadLogicalModels(params = {pageNum: 1, pageSize: 10}) {
 }
 
 async function loadBillingRules(params: Dict = {pageNum: 1, pageSize: 10}) {
+  // 模型族切换后需整体替换为新族候选，故翻到第 1 页时清空旧列表
+  if ((params.pageNum ?? 1) === 1) {
+    billingRuleOptions.value = [];
+  }
   const data = await listBillingRules({
     ...params,
-    logicalModelCode: params.logicalModelCode ?? form.logicalModelCode ?? undefined
+    modelFamilyCode: params.modelFamilyCode ?? selectedLogicalModel.value?.modelFamily ?? undefined
   });
   mergeOptions(billingRuleOptions, normalizeOptionList(data));
   return data;
@@ -483,6 +505,25 @@ function isEnabledLogicalModel(model: Row): boolean {
 
 function billingRuleLabel(rule: Row): string {
   return rule.code ? `${rule.code} (${rule.versionCode || "-"})` : `#${rule.id}`;
+}
+
+function modeLabel(code: unknown): string {
+  return enumLabelOf("BillingModeEnum", code, String(code || "-"));
+}
+
+function planLabel(code: unknown): string {
+  return enumLabelOf("PricingPlanEnum", code, String(code || "-"));
+}
+
+function unitLabel(code: unknown): string {
+  return enumLabelOf("billing_unit", code, String(code || "-"));
+}
+
+/** 点击候选列表行即绑定该规则（与上方 RemoteEntitySelect 共用 form.billingRuleCode） */
+function onBillingRuleRowSelect(row: Row | null) {
+  if (row) {
+    form.billingRuleCode = row.code;
+  }
 }
 
 function usageExtractorLabel(item: Row): string {
@@ -547,13 +588,15 @@ watch(
 
 watch(
   () => [form.providerAccountCode, form.logicalModelCode],
-  ([providerAccountCode, logicalModelCode], [oldAccountCode, oldLogicalModelCode]) => {
+  async ([providerAccountCode, logicalModelCode], [oldAccountCode, oldLogicalModelCode]) => {
     if (!props.modelValue || resettingForm.value) {
       return;
     }
     if (providerAccountCode !== oldAccountCode || logicalModelCode !== oldLogicalModelCode) {
       form.billingRuleCode = null;
       billingRuleOptions.value = [];
+      // 模型族随统一模型变化，重新拉取候选计费规则
+      await loadBillingRules();
     }
   }
 );
@@ -611,12 +654,13 @@ watch(
     if (visible) {
       await Promise.all([
         loadLogicalModels(),
-        loadBillingRules(),
         loadModelTypes(),
         loadUsageExtractors(),
         loadRequestAdapters()
       ]);
       await resetForm();
+      // 重置表单拿到绑定的统一模型（含模型族）后，再按模型族拉取候选计费规则
+      await loadBillingRules();
     }
   }
 );
@@ -933,6 +977,21 @@ async function submit() {
 .bind-table {
   margin-top: 10px;
   width: 100%;
+}
+
+.billing-rule-list-table {
+  max-height: 320px;
+  overflow: auto;
+}
+
+.empty-billing-rule {
+  margin-top: 10px;
+  border: 1px dashed var(--knot-border, #dcdfe6);
+  background: var(--knot-panel-muted, #fafafa);
+  color: #909399;
+  font-size: 12px;
+  padding: 14px;
+  text-align: center;
 }
 
 .bind-table :deep(.el-table__cell) {

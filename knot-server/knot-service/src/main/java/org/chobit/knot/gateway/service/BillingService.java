@@ -294,8 +294,8 @@ public class BillingService {
     }
 
     /**
-     * Updates the rule and syncs versions: 配置指纹变化才出新版本；
-     * 指纹与已有历史版本相同则复用该版本（避免重复版本，天然支持回退）。
+     * Updates the rule and syncs its single version in place: 原地覆盖配置，
+     * 不生成新版本（版本仅占位预留，无实际迭代语义；见 MEMORY.md §七）。
      */
     @Transactional
     public BillingRuleDto updateRule(Long id, BillingRuleDto request) {
@@ -535,25 +535,26 @@ public class BillingService {
         entity.setRemark(blankToNull(request.remark()));
     }
 
-    /** 配置指纹变化 -> 新版本；与历史版本指纹相同 -> 复用（激活并刷新生效时间）；最新版本未变 -> 仅同步状态 */
+    /**
+     * 更新规则时同步其唯一版本：原地覆盖配置内容（计费字段 + config_json + 生效期 + 状态），
+     * 不生成新版本、不复用历史版本。版本仅占位预留，无实际迭代语义（见 MEMORY.md §七）。
+     */
     private void syncVersion(Long ruleId, BillingRuleDto request, boolean enabled) {
-        String uniqHash = buildUniqHash(request);
         BillingRuleVersionEntity latest = billingRuleMapper.getLatestVersion(ruleId);
-        if (latest != null && uniqHash.equals(latest.getUniqHash())) {
-            billingRuleMapper.updateVersionStatus(latest.getId(), statusFor(enabled));
+        if (latest == null) {
+            createVersion(ruleId, request, enabled);
             return;
         }
-        BillingRuleVersionEntity same = billingRuleMapper.getVersionByHash(ruleId, uniqHash);
-        if (same != null) {
-            if (enabled) {
-                billingRuleMapper.activateVersion(same.getId(), LocalDateTime.now());
-                billingRuleMapper.disableOtherActiveVersions(ruleId, same.getId());
-            } else {
-                billingRuleMapper.updateVersionStatus(same.getId(), EntityStatusEnum.DISABLED.code());
-            }
-            return;
-        }
-        createVersion(ruleId, request, enabled);
+        latest.setUniqHash(buildUniqHash(request));
+        latest.setBillingMode(normalizeBillingMode(request.billingMode()));
+        latest.setPricingPlan(normalizePricingPlan(request.pricingPlan()));
+        latest.setCurrency(normalizeCurrency(request.currency()));
+        latest.setUnit(normalizeUnit(request.unit()));
+        latest.setConfigJson(blankToNull(request.configJson()));
+        latest.setEffectiveFrom(request.effectiveFrom() == null ? LocalDateTime.now() : request.effectiveFrom());
+        latest.setEffectiveTo(request.effectiveTo());
+        latest.setStatus(statusFor(enabled));
+        billingRuleMapper.updateVersionContent(latest);
     }
 
     private BillingRuleVersionEntity createVersion(Long ruleId, BillingRuleDto request, boolean active) {
@@ -571,7 +572,6 @@ public class BillingService {
         version.setEffectiveTo(request.effectiveTo());
         version.setStatus(active ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.DISABLED.code());
         billingRuleMapper.insertVersion(version);
-        billingRuleMapper.disableOtherActiveVersions(ruleId, version.getId());
         return version;
     }
 

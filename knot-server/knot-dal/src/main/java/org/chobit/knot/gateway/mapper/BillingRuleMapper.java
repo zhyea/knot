@@ -43,16 +43,10 @@ public interface BillingRuleMapper {
 
     BillingRuleVersionEntity getLatestVersion(Long ruleId);
 
-    BillingRuleVersionEntity getVersionByHash(@Param("ruleId") Long ruleId,
-                                              @Param("uniqHash") String uniqHash);
+    /** 原地更新版本配置内容（计费字段 + config_json + 生效期 + 状态），不生成新版本 */
+    int updateVersionContent(BillingRuleVersionEntity entity);
 
-    /** 激活指定版本并刷新生效时间（规则内其余 ACTIVE 版本由 disableOtherActiveVersions 收敛） */
-    int activateVersion(@Param("id") Long id, @Param("effectiveFrom") LocalDateTime effectiveFrom);
-
-    /** 维持「同一规则仅一个 ACTIVE 版本」不变量 */
-    int disableOtherActiveVersions(@Param("ruleId") Long ruleId, @Param("keepId") Long keepId);
-
-    /** 同一规则下历史版本号的最大序号（version_code 形如 v{n}），用于生成 version_code（max+1，物理删版本行不撞号） */
+    /** 同一规则下历史版本号的最大序号（version_code 形如 v{n}），用于生成初始 version_code（max+1） */
     int maxVersionSeq(Long ruleId);
 
     int insertVersion(BillingRuleVersionEntity entity);

@@ -16,11 +16,4 @@ class ModelApiProtocolEnumTest {
             assertFalse(protocol.displayName().isBlank());
         });
     }
-
-    @Test
-    void legacyAliasResolvesToCanonicalProtocol() {
-        ModelApiProtocolEnum protocol = ModelApiProtocolEnum.fromCode("openai_chat_completions");
-
-        assertEquals(ModelApiProtocolEnum.CHAT_COMPLETIONS, protocol.canonical());
-    }
 }

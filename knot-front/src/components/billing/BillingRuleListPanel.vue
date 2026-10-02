@@ -18,6 +18,9 @@
       </el-table-column>
       <el-table-column prop="currency" label="币种" width="80" align="center"/>
       <el-table-column prop="unit" label="单位" width="110"/>
+      <el-table-column label="绑定数量" width="100" align="center" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.boundModelCount ?? 0 }}</template>
+      </el-table-column>
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch
