@@ -12,7 +12,7 @@
       <section class="list-page-block list-page-block--content">
         <div class="list-page-toolbar">
           <div class="list-page-toolbar__actions list-page-toolbar__actions--start">
-            <el-button type="primary" @click="openCreate">新建供应商</el-button>
+            <el-button type="primary" @click="openCreate">新建供应商账户</el-button>
           </div>
         </div>
 
