@@ -16,33 +16,6 @@
       <el-table-column label="进阶方案" width="110">
         <template #default="{ row }">{{ pricingPlanLabel(row.pricingPlan) }}</template>
       </el-table-column>
-      <el-table-column label="阶梯" width="130" align="center">
-        <template #default="{ row }">
-          <el-button
-            v-if="tierCount(row)"
-            link
-            type="primary"
-            @click="emit('tier-detail', row)"
-          >
-            {{ tierCount(row) }} 档 · 明细
-          </el-button>
-          <span v-else>—</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="高低峰" width="180" align="center" show-overflow-tooltip>
-        <template #default="{ row }">
-          <el-button
-            v-if="peakSummary(row)"
-            link
-            type="primary"
-            :title="peakTitle(row)"
-            @click="emit('peak-detail', row)"
-          >
-            {{ peakSummary(row) }}
-          </el-button>
-          <span v-else>—</span>
-        </template>
-      </el-table-column>
       <el-table-column prop="currency" label="币种" width="80" align="center"/>
       <el-table-column prop="unit" label="单位" width="110"/>
       <el-table-column label="启用" width="88" align="center">
@@ -91,9 +64,6 @@ import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
-import {parseTierRows} from "@/utils/billingTier";
-import {PEAK_WEEKDAYS, describePeakWindows, parsePeakPricing, toNumberOrNull} from "@/utils/billingPeakOffPeak";
-import {parseJsonObject} from "@/utils/format";
 
 defineProps({
   rows: {type: Array, default: (): Row[] => []},
@@ -109,8 +79,6 @@ const emit = defineEmits([
   "create",
   "edit",
   "log",
-  "tier-detail",
-  "peak-detail",
   "preview",
   "delete",
   "refresh",
@@ -126,76 +94,5 @@ function billingModeLabel(code: unknown): string {
 
 function pricingPlanLabel(code: unknown): string {
   return enumLabelOf("PricingPlanEnum", code, "-");
-}
-
-/** 当前版本的阶梯档数；0 表示非阶梯或无档位（列表据此隐藏明细入口） */
-function tierCount(row: Row): number {
-  return parseTierRows(parseJsonObject(row.configJson).tier).length;
-}
-
-/** 全部高峰规则（不含兜底）；多规则时摘要必须覆盖全部，不能只看第一条 */
-function peakRows(row: Row) {
-  const pricing = peakPricingOf(row);
-  return pricing ? pricing.phases.filter((item) => !item.isDefault) : [];
-}
-
-/**
- * 高低峰摘要：倍率 + 规则数 + 时段总数。
- * 多规则时展示「N 条」，与明细抽屉口径一致（修正原先只取第一条导致的漏报）。
- */
-function peakSummary(row: Row): string {
-  const pricing = peakPricingOf(row);
-  if (!pricing) {
-    return "";
-  }
-  const peaks = peakRows(row);
-  const fallback = pricing.phases[pricing.phases.length - 1];
-  const segments = peaks.reduce((total, item) => total + item.windows.length, 0);
-  const scope = peaks.length > 1 ? `${peaks.length} 条规则 · ` : "";
-  return `${scope}高峰 ${formatMultiplier(peakMultipliers(peaks), "/")} / 低峰 ×${formatMultiplier(fallback?.multiplier)}`
-    + (segments ? ` · ${segments} 段` : "");
-}
-
-/** 所有高峰倍率，去重后展示（多规则时可能是 1/0.9 这样的组合） */
-function peakMultipliers(peaks: ReturnType<typeof peakRows>): string {
-  const values = peaks.map((item) => String(toNumberOrNull(item.multiplier) ?? "-"));
-  return Array.from(new Set(values)).join("/");
-}
-
-/** 悬浮明细：每条高峰规则的星期 + 时段，多规则逐个列出 */
-function peakTitle(row: Row): string {
-  const pricing = peakPricingOf(row);
-  if (!pricing) {
-    return "";
-  }
-  const peaks = peakRows(row);
-  if (!peaks.length) {
-    return "兜底低峰";
-  }
-  return peaks
-    .map((peak, index) => {
-      const weekdays = peak.weekdays.length ? peak.weekdays.map(shortWeekday).join("") : "未选星期";
-      return `规则 ${index + 1}：${weekdays} ${describePeakWindows(peak)}（×${formatMultiplier(peak.multiplier)}）`;
-    })
-    .join("\n");
-}
-
-/** ISO 星期名 -> 中文短名 */
-function shortWeekday(code: string): string {
-  return PEAK_WEEKDAYS.find((day) => day.code === code)?.short || code;
-}
-
-function peakPricingOf(row: Row) {
-  if (String(row.pricingPlan || "").trim().toUpperCase() !== "PEAK_OFF_PEAK") {
-    return null;
-  }
-  return parsePeakPricing(parseJsonObject(row.configJson).pricing);
-}
-
-function formatMultiplier(value: unknown, separator = ""): string {
-  if (typeof value === "string") {
-    return value;
-  }
-  return String(toNumberOrNull(value) ?? "-");
 }
 </script>

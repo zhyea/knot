@@ -8,7 +8,9 @@
     destroy-on-close
   >
     <el-scrollbar max-height="calc(100vh - 140px)">
-      <el-form :model="form" label-width="118px" class="billing-rule-form">
+      <el-tabs v-model="activeTab" class="billing-rule-tabs">
+        <el-tab-pane label="表单编辑" name="form">
+          <el-form :model="form" label-width="118px" class="billing-rule-form">
         <div class="slot-body form-section">
           <div class="section-head">
             <h3>基础信息</h3>
@@ -83,6 +85,14 @@
                 />
               </el-form-item>
             </el-col>
+            <el-col v-if="form.billingMode === 'TOKEN'" :span="12">
+              <el-form-item label="缓存写方式" class="cache-write-label">
+                <el-radio-group v-model="form.cacheWriteMode">
+                  <el-radio-button value="standard">缓存写</el-radio-button>
+                  <el-radio-button value="ttl">缓存写(5m)/(1h)</el-radio-button>
+                </el-radio-group>
+              </el-form-item>
+            </el-col>
           </el-row>
           <!-- 第一层：模式组件（用量与基础价格）；第二层：方案组件（进阶定价明细） -->
           <div class="billing-base-card">
@@ -102,7 +112,18 @@
             <el-input v-model="form.remark" type="textarea" :rows="4" maxlength="500" show-word-limit/>
           </el-form-item>
         </div>
-      </el-form>
+          </el-form>
+        </el-tab-pane>
+        <el-tab-pane label="config_json" name="json">
+          <el-input
+            v-model="configJsonText"
+            type="textarea"
+            :rows="18"
+            spellcheck="false"
+            class="config-json-editor"
+          />
+        </el-tab-pane>
+      </el-tabs>
     </el-scrollbar>
 
     <template #footer>
@@ -131,7 +152,7 @@ import PricingPlanFixedConfig from "./plans/PricingPlanFixedConfig.vue";
 import PricingPlanTieredConfig from "./plans/PricingPlanTieredConfig.vue";
 import PricingPlanPeakOffPeakConfig from "./plans/PricingPlanPeakOffPeakConfig.vue";
 import {createBillingRule, updateBillingRule, listModeCapabilities} from "@/api/billing";
-import {isValidJsonText, parseJsonObject, stringifyJson} from "@/utils/format";
+import {isValidJsonText, parseJsonObject, roundPrice, stringifyJson} from "@/utils/format";
 import {basePricesOf, createTierPriceSet, createTierRow, parseTierRows, toTierPayload, validateTierRows} from "@/utils/billingTier";
 import type {TierRow} from "@/utils/billingTier";
 import {createDefaultPeakPricing, parsePeakPricing, toPeakPayload, validatePeakPricing} from "@/utils/billingPeakOffPeak";
@@ -180,7 +201,7 @@ const planCodes = computed(() => activeModeCapability.value?.supportedPricingPla
 
 interface BillingRuleFormState {
   id: number | string | null;
-  /** 规则业务码，新建时手工填写（大写归一由后端处理），编辑时不可改 */
+  /** 规则业务码，新建时手工填写（去空白归一由后端处理，不强制大写），编辑时可改（被绑定时后端拒绝） */
   code: string;
   /** 模型族 code（ks_enum_configs.category=model_family 的 item_code）；空串表示默认规则，覆盖所有族 */
   modelFamily: string;
@@ -240,13 +261,17 @@ const form = reactive<BillingRuleFormState>({
 });
 
 const isEdit = computed(() => props.rule != null);
+
+/** 抽屉内 Tab：form=表单编辑，json=config_json 原文查看/编辑 */
+const activeTab = ref<"form" | "json">("form");
+const configJsonText = ref("");
 /** 只读派生：绑定了该编码的供应商模型数（后端 RuleColumns 子查询带出） */
 const boundModelCount = computed(() => Number(props.rule?.boundModelCount ?? 0));
 /** 编辑且编码已被使用时不允许改码：绑定存的是 code，改了存量模型会掉绑 */
 const codeBlockedByBinding = computed(() => isEdit.value && boundModelCount.value > 0);
-/** 是否真的改了编码（后端大写归一，这里同口径比较） */
+/** 是否真的改了编码（后端仅去空白不做大小写归一，这里同口径比较） */
 const codeChanged = computed(() =>
-  String(props.rule?.code || "").trim().toUpperCase() !== resolveRuleCode().toUpperCase()
+  String(props.rule?.code || "").trim() !== resolveRuleCode()
 );
 const modeComponent = computed(() => componentsByMode[form.billingMode] || BillingModeTokenConfig);
 const planComponent = computed(() => componentsByPlan[form.pricingPlan] || PricingPlanFixedConfig);
@@ -279,6 +304,30 @@ watch(
   }
 );
 
+// 计费项精度：输入框不做 6 位补零显示，确认后收敛到 6 位小数（后端不校验 scale，这里统一兜底）
+const PRICE_FIELDS = [
+  "unitPrice",
+  "inputUnitPrice",
+  "outputUnitPrice",
+  "cacheReadUnitPrice",
+  "cacheWriteUnitPrice",
+  "cacheWrite5mUnitPrice",
+  "cacheWrite1hUnitPrice",
+  "videoPrice720p",
+  "videoPrice1080p"
+] as const;
+for (const field of PRICE_FIELDS) {
+  watch(
+    () => form[field],
+    (value) => {
+      const rounded = roundPrice(value);
+      if (rounded !== undefined && rounded !== value) {
+        form[field] = rounded;
+      }
+    }
+  );
+}
+
 // 切换模式时若当前方案不被支持则回退固定价；方案切换保留基础价格，仅清理方案专属配置由后端校验兜底
 watch(
   () => form.pricingPlan,
@@ -303,10 +352,61 @@ watch(
   }
 );
 
+watch(
+  () => props.modelValue,
+  (value) => {
+    if (value) {
+      activeTab.value = "form";
+    }
+  }
+);
+
+// 进入 json 页：用当前表单实时生成 config_json（格式化展示）；离开时把编辑内容回写表单
+watch(activeTab, (tab, prev) => {
+  if (tab === "json") {
+    const built = buildConfigJson();
+    configJsonText.value = built ? prettyJsonText(built) : "";
+    return;
+  }
+  if (prev === "json" && !applyJsonTextToForm()) {
+    // 回写失败（非法 JSON 等）：留在 json 页让用户继续修
+    activeTab.value = "json";
+  }
+});
+
+function prettyJsonText(text: string): string {
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2);
+  } catch {
+    return text;
+  }
+}
+
+/** config_json 页文本回写表单；失败返回 false */
+function applyJsonTextToForm(): boolean {
+  const text = configJsonText.value.trim();
+  if (!text) {
+    if (form.billingMode === "CUSTOM") {
+      form.customConfigJson = "";
+      return true;
+    }
+    ElMessage.warning("config_json 不能为空");
+    return false;
+  }
+  if (!isValidJsonText(text)) {
+    ElMessage.warning("config_json 不是合法 JSON");
+    return false;
+  }
+  if (form.billingMode === "CUSTOM") {
+    form.customConfigJson = text;
+    return true;
+  }
+  applyConfig(parseJsonObject(text));
+  return true;
+}
+
 function resetForm() {
   const row = props.rule;
-  const config = parseJsonObject(row?.configJson);
-  const basePrices = (config.basePrices && typeof config.basePrices === "object") ? config.basePrices : {};
   form.id = row?.id ?? null;
   form.code = row?.code || "";
   form.modelFamily = row?.modelFamily ?? "";
@@ -314,6 +414,16 @@ function resetForm() {
   form.pricingPlan = String(row?.pricingPlan || "FIXED").trim().toUpperCase();
   form.currency = row?.currency || "USD";
   form.unit = row?.unit || modeDefaults(form.billingMode).unit;
+  form.customConfigJson = form.billingMode === "CUSTOM" ? row?.configJson || "" : "";
+  form.enabled = row?.enabled !== false;
+  form.remark = row?.remark || "";
+  applyConfig(parseJsonObject(row?.configJson));
+  applyModeDefaults(form.billingMode);
+}
+
+/** config 结构映射回表单字段（编辑回显与 config_json 页回写共用同一份映射） */
+function applyConfig(config: Dict) {
+  const basePrices = (config.basePrices && typeof config.basePrices === "object") ? config.basePrices : {};
   form.unitPrice = Number(config.defaultUnitPrice ?? 0.002);
   form.inputUnitPrice = Number(basePrices.input ?? config.defaultUnitPrice ?? 0.002);
   form.outputUnitPrice = Number(basePrices.output ?? config.defaultUnitPrice ?? 0.002);
@@ -329,10 +439,6 @@ function resetForm() {
   form.tiers = parseTierRows(config.tier);
   // 高低峰回显：存过的用原配置，没有（或结构缺失）则给一份默认骨架
   form.peakPricing = parsePeakPricing(config.pricing) || createDefaultPeakPricing();
-  form.customConfigJson = form.billingMode === "CUSTOM" ? row?.configJson || "" : "";
-  form.enabled = row?.enabled !== false;
-  form.remark = row?.remark || "";
-  applyModeDefaults(form.billingMode);
 }
 
 /** 当前模式的默认单位；能力未加载完成时退回新建表单的初值 */
@@ -437,7 +543,7 @@ function buildConfigJson() {
   return base ? stringifyJson(base) : null;
 }
 
-/** 规则编码由人工填写（后端做大写归一与唯一性校验），编辑时只读 */
+/** 规则编码由人工填写（后端做去空白与唯一性校验，不强制大写） */
 function resolveRuleCode(): string {
   return form.code.trim();
 }
@@ -457,6 +563,10 @@ function buildPayload() {
 }
 
 async function submit() {
+  // 停留在 json 页直接保存时，先把编辑内容回写表单再走统一构建
+  if (activeTab.value === "json" && !applyJsonTextToForm()) {
+    return;
+  }
   if (!resolveRuleCode()) {
     ElMessage.warning("请填写规则编码");
     return;
@@ -530,6 +640,11 @@ async function submit() {
   padding: 0 8px;
 }
 
+:deep(.cache-write-label .el-form-item__label) {
+  background: #fff9c4;
+  padding: 0 8px;
+}
+
 .section-head {
   display: flex;
   align-items: flex-start;
@@ -560,5 +675,11 @@ async function submit() {
   color: var(--el-color-warning);
   font-size: 12px;
   line-height: 1.5;
+}
+
+.config-json-editor :deep(.el-textarea__inner) {
+  font-family: Consolas, Monaco, "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.6;
 }
 </style>

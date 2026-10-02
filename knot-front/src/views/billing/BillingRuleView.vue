@@ -34,8 +34,6 @@
           :show-refresh="false"
           @edit="openEdit"
           @log="openChangeLog"
-          @tier-detail="openTierDetail"
-          @peak-detail="openPeakDetail"
           @preview="openPreview"
           @delete="handleDelete"
           @enabled-change="handleEnabledChange"
@@ -46,10 +44,6 @@
     </div>
 
     <BillingRuleFormDialog v-model="ruleDlg" :rule="currentRule" @saved="resetPage" />
-
-    <TierRuleDetailDrawer v-model="tierDrawer" :rule="tierRule" />
-
-    <PeakRuleDetailDrawer v-model="peakDrawer" :rule="peakRule" />
 
     <PricingPreviewDrawer v-model="previewDrawer" :rule="previewRule" />
 
@@ -73,8 +67,6 @@ import EnumSelect from "../../components/common/EnumSelect.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import BillingRuleFormDialog from "../../components/billing/BillingRuleFormDialog.vue";
 import BillingRuleListPanel from "../../components/billing/BillingRuleListPanel.vue";
-import TierRuleDetailDrawer from "../../components/billing/TierRuleDetailDrawer.vue";
-import PeakRuleDetailDrawer from "../../components/billing/PeakRuleDetailDrawer.vue";
 import PricingPreviewDrawer from "../../components/billing/PricingPreviewDrawer.vue";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {useListQuery} from "@/composables/useListQuery";
@@ -105,10 +97,6 @@ const currentRule = ref<Dict | null>(null);
 const logDrawer = ref(false);
 const logRuleId = ref<number | string | null>(null);
 const logRuleName = ref("");
-const tierDrawer = ref(false);
-const tierRule = ref<Row | null>(null);
-const peakDrawer = ref(false);
-const peakRule = ref<Row | null>(null);
 const previewDrawer = ref(false);
 const previewRule = ref<Row | null>(null);
 
@@ -126,16 +114,6 @@ function openChangeLog(row: Row) {
   logRuleId.value = row.id;
   logRuleName.value = row.code || `#${row.id}`;
   logDrawer.value = true;
-}
-
-function openTierDetail(row: Row) {
-  tierRule.value = row;
-  tierDrawer.value = true;
-}
-
-function openPeakDetail(row: Row) {
-  peakRule.value = row;
-  peakDrawer.value = true;
 }
 
 function openPreview(row: Row) {

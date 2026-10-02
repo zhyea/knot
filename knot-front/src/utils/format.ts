@@ -131,6 +131,17 @@ export function fmtMoney(v: unknown): string {
 }
 
 /**
+ * 计费项精度收敛：保留 6 位小数上限（输入框不做显示补零，仅在确认/提交时收敛）。
+ * 空/非法值返回 undefined，便于直接回写给可空字段。
+ */
+export function roundPrice(value: unknown, decimals = 6): number | undefined {
+  if (value == null || value === "") return undefined;
+  const n = Number(value);
+  if (Number.isNaN(n)) return undefined;
+  return Math.round(n * 10 ** decimals) / 10 ** decimals;
+}
+
+/**
  * Parse `rateLimitJson` and `quotaJson` into policy objects.
  */
 export function parsePolicies(form: {

@@ -117,7 +117,6 @@ import {
   createProvider,
   updateProvider,
   getProvider,
-  suggestProviderCode,
   checkProviderCode,
   listCredentialTypes
 } from "@/api/providers";
@@ -224,17 +223,6 @@ function credentialFieldType(field: string): string {
     : isSecretCredentialField(field) ? "password" : "text";
 }
 
-async function loadSuggestedCode() {
-  try {
-    form.code = (await suggestProviderCode()) || "";
-    codeError.value = "";
-    codeValidated.value = true;
-  } catch {
-    form.code = "";
-    codeValidated.value = false;
-  }
-}
-
 function fillFormFromRow(row: Row) {
   form.id = row.id;
   form.providerCode = row.providerCode;
@@ -271,7 +259,7 @@ async function resetForm() {
   codeValidated.value = false;
   clearForm();
   if (!props.providerId) {
-    await loadSuggestedCode();
+    // 新建不预填编码，由用户手工填写（submit 前有唯一性校验兜底）
     return;
   }
   detailLoading.value = true;
