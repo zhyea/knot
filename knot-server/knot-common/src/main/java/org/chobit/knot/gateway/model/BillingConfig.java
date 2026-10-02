@@ -8,7 +8,6 @@ import org.chobit.knot.gateway.pricing.PeakOffPeakResolver;
 import org.chobit.knot.gateway.util.JsonKit;
 
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +35,7 @@ import java.util.Set;
  *   "pricing": {                   // pricingPlan=PEAK_OFF_PEAK 时的高低峰倍率（不含 type，方案类型由版本列表达）
  *     "rateMode": "MULTIPLIER", "timezone": "UTC",
  *     "phases": [
- *       { "condition": { "weekdays": ["MONDAY"], "windows": [{"start":"01:00","end":"04:00"}],
+ *       { "condition": { "weekdays": [1], "windows": [{"start":"01:00","end":"04:00"}],
  *                        "holidayPolicy": "OFF_PEAK", "makeUpWorkdayPolicy": "OFF_PEAK" },
  *         "phase": "PEAK", "multiplier": 1 },
  *       { "condition": { "type": "DEFAULT" }, "phase": "OFF_PEAK", "multiplier": 0.8 }
@@ -152,10 +151,11 @@ public record BillingConfig(
      * 相位命中条件。
      *
      * <p>{@code type} 为 {@code DEFAULT} 时表示兜底低峰，不参与星期/时段判定；
+     * {@code weekdays} 为 ISO DayOfWeek 数字（周一=1 ... 周日=7，与 {@link java.time.DayOfWeek#getValue} 同口径）；
      * 其余字段语义见 {@link PeakOffPeakResolver}。
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record PhaseCondition(List<DayOfWeek> weekdays,
+    public record PhaseCondition(List<Integer> weekdays,
                                  List<Window> windows,
                                  String holidayPolicy,
                                  String makeUpWorkdayPolicy,
@@ -694,6 +694,11 @@ public record BillingConfig(
         }
         if (condition.weekdays() == null || condition.weekdays().isEmpty()) {
             return item + ".condition.weekdays must not be empty";
+        }
+        for (Integer day : condition.weekdays()) {
+            if (day == null || day < 1 || day > 7) {
+                return item + ".condition.weekdays must contain ISO day numbers 1 (Monday) to 7 (Sunday)";
+            }
         }
         List<Window> windows = condition.windows();
         if (windows == null || windows.isEmpty()) {

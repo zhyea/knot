@@ -130,7 +130,7 @@ class BillingConfigTest {
     void validateRejectsBadPricing() {
         String base = "{\"pricing\":{\"rateMode\":\"%s\",\"timezone\":\"%s\",\"phases\":%s}}";
         String validPhases = """
-                [{"condition":{"weekdays":["MONDAY"],"windows":[{"start":"01:00","end":"04:00"}]},
+                [{"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                   "phase":"PEAK","multiplier":1},
                  {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]
                 """;
@@ -163,21 +163,21 @@ class BillingConfigTest {
         assertEquals("pricing.phases last item must be the DEFAULT off-peak fallback",
                 BillingConfig.parse("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
-                          {"condition":{"weekdays":["MONDAY"],"windows":[{"start":"01:00","end":"04:00"}]},
+                          {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                            "phase":"PEAK","multiplier":1}]}}
                         """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
         // 倍率越界：>1 与 <=0
         assertEquals("pricing.phases[1].multiplier cannot be greater than 1",
                 BillingConfig.parse("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
-                          {"condition":{"weekdays":["MONDAY"],"windows":[{"start":"01:00","end":"04:00"}]},
+                          {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                            "phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":1.2}]}}
                         """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
         assertEquals("pricing.phases[1].multiplier must be greater than 0",
                 BillingConfig.parse("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
-                          {"condition":{"weekdays":["MONDAY"],"windows":[{"start":"01:00","end":"04:00"}]},
+                          {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                            "phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0}]}}
                         """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
@@ -192,14 +192,14 @@ class BillingConfigTest {
         assertEquals("pricing.phases[0].condition.windows must not be empty",
                 BillingConfig.parse("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
-                          {"condition":{"weekdays":["MONDAY"]},"phase":"PEAK","multiplier":1},
+                          {"condition":{"weekdays":[1]},"phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
                         """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
         // 跨午夜时段必须拆成两段
         assertEquals("pricing.phases[0].condition.windows[0].start must be before end and cannot cross midnight",
                 BillingConfig.parse("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
-                          {"condition":{"weekdays":["MONDAY"],"windows":[{"start":"22:00","end":"02:00"}]},
+                          {"condition":{"weekdays":[1],"windows":[{"start":"22:00","end":"02:00"}]},
                            "phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
                         """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
@@ -207,7 +207,7 @@ class BillingConfigTest {
         assertEquals("pricing.phases[0].condition.windows[1] overlaps the previous window",
                 BillingConfig.parse("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
-                          {"condition":{"weekdays":["MONDAY"],
+                          {"condition":{"weekdays":[1],
                                         "windows":[{"start":"01:00","end":"04:00"},
                                                    {"start":"03:00","end":"06:00"}]},
                            "phase":"PEAK","multiplier":1},
@@ -219,7 +219,7 @@ class BillingConfigTest {
     @Test
     void midnightEndIsAcceptedButMidnightStartIsNot() {
         String template = "{\"pricing\":{\"rateMode\":\"MULTIPLIER\",\"timezone\":\"UTC\",\"phases\":["
-                + "{\"condition\":{\"weekdays\":[\"MONDAY\"],\"windows\":[{\"start\":\"%s\",\"end\":\"%s\"}]},"
+                + "{\"condition\":{\"weekdays\":[1],\"windows\":[{\"start\":\"%s\",\"end\":\"%s\"}]},"
                 + "\"phase\":\"PEAK\",\"multiplier\":1},"
                 + "{\"condition\":{\"type\":\"DEFAULT\"},\"phase\":\"OFF_PEAK\",\"multiplier\":0.8}]}}";
         // 覆盖到午夜：合法
@@ -236,7 +236,7 @@ class BillingConfigTest {
         assertEquals("pricing.phases[0].condition.windows[1] overlaps the previous window",
                 BillingConfig.parse("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
-                          {"condition":{"weekdays":["MONDAY"],
+                          {"condition":{"weekdays":[1],
                                         "windows":[{"start":"01:00","end":"24:00"},
                                                    {"start":"23:00","end":"23:30"}]},
                            "phase":"PEAK","multiplier":1},
@@ -245,7 +245,7 @@ class BillingConfigTest {
         // 24:00 当作 start 与 24:00 结尾可衔接（相邻不算重叠）
         assertNull(BillingConfig.parse("""
                 {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
-                  {"condition":{"weekdays":["MONDAY"],
+                  {"condition":{"weekdays":[1],
                                 "windows":[{"start":"00:00","end":"08:00"},
                                            {"start":"08:00","end":"24:00"}]},
                    "phase":"PEAK","multiplier":1},
@@ -260,10 +260,10 @@ class BillingConfigTest {
         assertEquals("pricing.phases[1].condition.makeUpWorkdayPolicy must be identical across all peak rules",
                 BillingConfig.parse("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
-                          {"condition":{"weekdays":["MONDAY"],"windows":[{"start":"01:00","end":"04:00"}],
+                          {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}],
                                         "makeUpWorkdayPolicy":"OFF_PEAK"},
                            "phase":"PEAK","multiplier":1},
-                          {"condition":{"weekdays":["TUESDAY"],"windows":[{"start":"01:00","end":"04:00"}],
+                          {"condition":{"weekdays":[2],"windows":[{"start":"01:00","end":"04:00"}],
                                         "makeUpWorkdayPolicy":"FOLLOW_WEEKDAY_WINDOWS"},
                            "phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
@@ -271,10 +271,10 @@ class BillingConfigTest {
         // 一致（显式相同）-> 通过
         assertNull(BillingConfig.parse("""
                 {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
-                  {"condition":{"weekdays":["MONDAY"],"windows":[{"start":"01:00","end":"04:00"}],
+                  {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}],
                                 "makeUpWorkdayPolicy":"FOLLOW_WEEKDAY_WINDOWS"},
                    "phase":"PEAK","multiplier":1},
-                  {"condition":{"weekdays":["TUESDAY"],"windows":[{"start":"01:00","end":"04:00"}],
+                  {"condition":{"weekdays":[2],"windows":[{"start":"01:00","end":"04:00"}],
                                 "makeUpWorkdayPolicy":"FOLLOW_WEEKDAY_WINDOWS"},
                    "phase":"PEAK","multiplier":1},
                   {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
@@ -282,9 +282,9 @@ class BillingConfigTest {
         // 一致（一条缺失按默认 OFF_PEAK，另一条显式 OFF_PEAK）-> 通过
         assertNull(BillingConfig.parse("""
                 {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
-                  {"condition":{"weekdays":["MONDAY"],"windows":[{"start":"01:00","end":"04:00"}]},
+                  {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                    "phase":"PEAK","multiplier":1},
-                  {"condition":{"weekdays":["TUESDAY"],"windows":[{"start":"01:00","end":"04:00"}],
+                  {"condition":{"weekdays":[2],"windows":[{"start":"01:00","end":"04:00"}],
                                 "makeUpWorkdayPolicy":"OFF_PEAK"},
                    "phase":"PEAK","multiplier":1},
                   {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
@@ -297,7 +297,7 @@ class BillingConfigTest {
         BillingConfig config = BillingConfig.parse("""
                 {"basePrices":{"input":10},
                  "pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
-                   {"condition":{"weekdays":["WEDNESDAY"],
+                   {"condition":{"weekdays":[3],
                                  "windows":[{"start":"01:00","end":"24:00"}]},
                     "phase":"PEAK","multiplier":1},
                    {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.5}]}}
@@ -318,7 +318,7 @@ class BillingConfigTest {
         BillingConfig config = BillingConfig.parse("""
                 {"basePrices":{"input":4,"output":20},
                  "pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
-                   {"condition":{"weekdays":["MONDAY","WEDNESDAY"],
+                   {"condition":{"weekdays":[1,3],
                                  "windows":[{"start":"01:00","end":"04:00"}]},
                     "phase":"PEAK","multiplier":1},
                    {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}

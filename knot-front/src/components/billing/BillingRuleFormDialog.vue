@@ -8,7 +8,7 @@
     destroy-on-close
   >
     <el-scrollbar max-height="calc(100vh - 140px)">
-      <el-tabs v-model="activeTab" class="billing-rule-tabs">
+      <el-tabs v-model="activeTab" type="border-card">
         <el-tab-pane label="表单编辑" name="form">
           <el-form :model="form" label-width="118px" class="billing-rule-form">
         <div class="slot-body form-section">
@@ -34,7 +34,7 @@
             <el-col :span="12">
               <el-form-item label="模型族">
                 <EnumSelect
-                  v-model="form.modelFamily"
+                  v-model="form.modelFamilyCode"
                   category="model_family"
                   clearable
                   filterable
@@ -85,7 +85,7 @@
                 />
               </el-form-item>
             </el-col>
-            <el-col v-if="form.billingMode === 'TOKEN'" :span="12">
+            <el-col v-if="form.billingMode === 'TOKEN'" :span="24">
               <el-form-item label="缓存写方式" class="cache-write-label">
                 <el-radio-group v-model="form.cacheWriteMode">
                   <el-radio-button value="standard">缓存写</el-radio-button>
@@ -115,12 +115,10 @@
           </el-form>
         </el-tab-pane>
         <el-tab-pane label="config_json" name="json">
-          <el-input
+          <JsonCodeEditor
             v-model="configJsonText"
-            type="textarea"
-            :rows="18"
-            spellcheck="false"
-            class="config-json-editor"
+            min-height="320px"
+            max-height="620px"
           />
         </el-tab-pane>
       </el-tabs>
@@ -140,6 +138,7 @@ import {ElMessage} from "element-plus";
 import type {Dict, Row} from "@/types";
 import EnumSelect from "../common/EnumSelect.vue";
 import EnumControl from "../common/EnumControl.vue";
+import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import BillingModeAudioConfig from "./modes/BillingModeAudioConfig.vue";
 import BillingModeCustomConfig from "./modes/BillingModeCustomConfig.vue";
 import BillingModeEmbeddingConfig from "./modes/BillingModeEmbeddingConfig.vue";
@@ -204,7 +203,7 @@ interface BillingRuleFormState {
   /** 规则业务码，新建时手工填写（去空白归一由后端处理，不强制大写），编辑时可改（被绑定时后端拒绝） */
   code: string;
   /** 模型族 code（ks_enum_configs.category=model_family 的 item_code）；空串表示默认规则，覆盖所有族 */
-  modelFamily: string;
+  modelFamilyCode: string;
   billingMode: string;
   /** 进阶定价方案：FIXED / TIERED / PEAK_OFF_PEAK */
   pricingPlan: string;
@@ -236,7 +235,7 @@ interface BillingRuleFormState {
 const form = reactive<BillingRuleFormState>({
   id: null,
   code: "",
-  modelFamily: "",
+  modelFamilyCode: "",
   billingMode: "TOKEN",
   pricingPlan: "FIXED",
   currency: "USD",
@@ -409,7 +408,7 @@ function resetForm() {
   const row = props.rule;
   form.id = row?.id ?? null;
   form.code = row?.code || "";
-  form.modelFamily = row?.modelFamily ?? "";
+  form.modelFamilyCode = row?.modelFamilyCode ?? "";
   form.billingMode = normalizeMode(row?.billingMode || "TOKEN");
   form.pricingPlan = String(row?.pricingPlan || "FIXED").trim().toUpperCase();
   form.currency = row?.currency || "USD";
@@ -551,7 +550,7 @@ function resolveRuleCode(): string {
 function buildPayload() {
   return {
     code: resolveRuleCode(),
-    modelFamily: form.modelFamily ? form.modelFamily : null,
+    modelFamilyCode: form.modelFamilyCode ? form.modelFamilyCode : null,
     billingMode: form.billingMode,
     pricingPlan: form.pricingPlan,
     currency: form.currency,
@@ -675,11 +674,5 @@ async function submit() {
   color: var(--el-color-warning);
   font-size: 12px;
   line-height: 1.5;
-}
-
-.config-json-editor :deep(.el-textarea__inner) {
-  font-family: Consolas, Monaco, "Courier New", monospace;
-  font-size: 13px;
-  line-height: 1.6;
 }
 </style>

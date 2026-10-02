@@ -701,8 +701,9 @@ public class BillingService {
         return enabled ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.DISABLED.code();
     }
 
+    /** 规则编码归一：仅去空白，不再强制大写（编码大小写由用户自定，唯一性按原值校验） */
     private static String normalizeCode(String value) {
-        return value == null ? "" : value.trim().toUpperCase();
+        return value == null ? "" : value.trim();
     }
 
     private static String trimToEmpty(String value) {

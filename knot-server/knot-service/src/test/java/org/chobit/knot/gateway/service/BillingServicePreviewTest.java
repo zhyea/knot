@@ -34,7 +34,7 @@ class BillingServicePreviewTest {
                 "timezone": "UTC",
                 "phases": [
                   {"phase": "PEAK", "multiplier": 1.5,
-                   "condition": {"type": "WEEKDAY_WINDOW", "weekdays": ["MONDAY"],
+                   "condition": {"type": "WEEKDAY_WINDOW", "weekdays": [1],
                                  "windows": [{"start": "01:00", "end": "04:00"}]}},
                   {"phase": "OFF_PEAK", "multiplier": 0.5, "condition": {"type": "DEFAULT"}}
                 ]

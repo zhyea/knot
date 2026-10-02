@@ -60,7 +60,7 @@
         <el-col :span="16">
           <el-form-item label="适用星期" :error="fieldError(index, 'weekdays')">
             <el-checkbox-group v-model="row.weekdays" size="small">
-              <el-checkbox-button v-for="day in PEAK_WEEKDAYS" :key="day.code" :value="day.code">
+              <el-checkbox-button v-for="day in PEAK_WEEKDAYS" :key="day.value" :value="day.value">
                 {{ day.short }}
               </el-checkbox-button>
             </el-checkbox-group>
@@ -157,14 +157,14 @@
         <span class="peak-timeline__label">一周时间轴</span>
         <span class="peak-editor__tip">高峰时段（{{ pricing.timezone }}）</span>
       </div>
-      <div v-for="day in PEAK_WEEKDAYS" :key="day.code" class="peak-timeline__row">
+      <div v-for="day in PEAK_WEEKDAYS" :key="day.value" class="peak-timeline__row">
         <span class="peak-timeline__day">{{ day.label }}</span>
         <div class="peak-timeline__track">
           <span
             v-for="hour in 24"
             :key="hour"
             class="peak-timeline__cell"
-            :class="{ 'peak-timeline__cell--peak': isPeakHour(day.code, hour - 1) }"
+            :class="{ 'peak-timeline__cell--peak': isPeakHour(day.value, hour - 1) }"
             :title="`${day.label} ${String(hour - 1).padStart(2, '0')}:00`"
           />
         </div>
@@ -274,13 +274,13 @@ function phaseSummary(row: PeakPhaseRow): string {
   if (!row.weekdays.length) {
     return "未选星期";
   }
-  const labels = PEAK_WEEKDAYS.filter((day) => row.weekdays.includes(day.code)).map((day) => day.short);
+  const labels = PEAK_WEEKDAYS.filter((day) => row.weekdays.includes(day.value)).map((day) => day.short);
   return `${labels.join("")} · ${describePeakWindows(row)}`;
 }
 
 /** 时间轴：任一高峰规则在该星期该小时生效即高亮 */
-function isPeakHour(weekdayCode: string, hour: number): boolean {
-  return peakPhases.value.some((row) => coversWeekday(row, weekdayCode) && coversHour(row, hour));
+function isPeakHour(day: number, hour: number): boolean {
+  return peakPhases.value.some((row) => coversWeekday(row, day) && coversHour(row, hour));
 }
 
 /** 新高峰规则插在兜底低峰之前，末项始终是兜底项 */
@@ -288,7 +288,7 @@ function addPhase() {
   const phases = pricing.value.phases;
   phases.splice(Math.max(0, phases.length - 1), 0, createPeakPhaseRow({
     multiplier: 1,
-    weekdays: ["MONDAY"],
+    weekdays: [1],
     windows: [createWindow("09:00", "18:00")]
   }));
 }

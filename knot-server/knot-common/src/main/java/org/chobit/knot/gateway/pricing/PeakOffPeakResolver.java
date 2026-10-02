@@ -3,7 +3,6 @@ package org.chobit.knot.gateway.pricing;
 import org.chobit.knot.gateway.model.BillingConfig;
 
 import java.math.BigDecimal;
-import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -109,8 +108,9 @@ public final class PeakOffPeakResolver {
     }
 
     private static boolean hitsWeekday(BillingConfig.PhaseCondition condition, LocalDate date) {
-        List<DayOfWeek> weekdays = condition.weekdays();
-        return weekdays != null && weekdays.contains(date.getDayOfWeek());
+        List<Integer> weekdays = condition.weekdays();
+        // weekdays 为 ISO DayOfWeek 数字（周一=1 ... 周日=7），与 getDayOfWeek().getValue() 同口径
+        return weekdays != null && weekdays.contains(date.getDayOfWeek().getValue());
     }
 
     /**

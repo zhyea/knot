@@ -24,7 +24,7 @@ class PeakOffPeakResolverTest {
     /** MONDAY/WEDNESDAY 01:00-04:00 与 06:00-10:00 为高峰，其余兜底 0.8 */
     private static final String PRICING_JSON = """
             {"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
-              {"condition":{"weekdays":["MONDAY","WEDNESDAY"],
+              {"condition":{"weekdays":[1,3],
                             "windows":[{"start":"01:00","end":"04:00"},{"start":"06:00","end":"10:00"}],
                             "holidayPolicy":"OFF_PEAK","makeUpWorkdayPolicy":"%s"},
                "phase":"PEAK","multiplier":1},

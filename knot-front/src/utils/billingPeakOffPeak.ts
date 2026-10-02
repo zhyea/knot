@@ -49,8 +49,8 @@ export interface PeakPhaseRow {
   multiplier: number | null;
   /** 兜底低峰（末项）：不参与星期/时段判定 */
   isDefault: boolean;
-  /** ISO DayOfWeek 名（Java 枚举名），如 ["MONDAY","FRIDAY"] */
-  weekdays: string[];
+  /** ISO DayOfWeek 数字（周一=1 ... 周日=7），与后端 PhaseCondition.weekdays 同口径 */
+  weekdays: number[];
   windows: PeakWindow[];
 }
 
@@ -66,16 +66,21 @@ export interface PeakIssue {
   message: string;
 }
 
-/** 一周七天：ISO DayOfWeek 枚举名 -> 中文（顺序即展示顺序） */
-export const PEAK_WEEKDAYS: ReadonlyArray<{ code: string; label: string; short: string }> = [
-  { code: "MONDAY", label: "周一", short: "一" },
-  { code: "TUESDAY", label: "周二", short: "二" },
-  { code: "WEDNESDAY", label: "周三", short: "三" },
-  { code: "THURSDAY", label: "周四", short: "四" },
-  { code: "FRIDAY", label: "周五", short: "五" },
-  { code: "SATURDAY", label: "周六", short: "六" },
-  { code: "SUNDAY", label: "周日", short: "日" }
+/** 一周七天：ISO DayOfWeek 数字（周一=1 ... 周日=7）-> 中文（顺序即展示顺序） */
+export const PEAK_WEEKDAYS: ReadonlyArray<{ value: number; label: string; short: string }> = [
+  { value: 1, label: "周一", short: "一" },
+  { value: 2, label: "周二", short: "二" },
+  { value: 3, label: "周三", short: "三" },
+  { value: 4, label: "周四", short: "四" },
+  { value: 5, label: "周五", short: "五" },
+  { value: 6, label: "周六", short: "六" },
+  { value: 7, label: "周日", short: "日" }
 ];
+
+/** 存量数据兼容解析：旧版 weekdays 存的是 ISO 枚举名（"MONDAY"），编辑保存时统一转数字 */
+const LEGACY_WEEKDAY_CODES: Record<string, number> = {
+  MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6, SUNDAY: 7
+};
 
 /** UTC 偏移列表；与后端 BillingConfig 的白名单保持一致。 */
 export const PEAK_TIMEZONE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = Array.from(
@@ -224,7 +229,7 @@ export function createDefaultPeakPricing(): PeakPricing {
       createPeakPhaseRow({
         phase: "PEAK",
         multiplier: 1,
-        weekdays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY"],
+        weekdays: [1, 2, 3, 4, 5],
         windows: [createWindow("01:00", "04:00")]
       }),
       createPeakPhaseRow({ phase: "OFF_PEAK", multiplier: 0.8, isDefault: true })
@@ -246,7 +251,15 @@ export function parsePeakPricing(raw: unknown): PeakPricing | null {
     const phase = (item && typeof item === "object" ? item : {}) as Dict;
     const condition = (phase.condition && typeof phase.condition === "object" ? phase.condition : {}) as Dict;
     const weekdays = Array.isArray(condition.weekdays)
-      ? condition.weekdays.map((code) => String(code || "").trim().toUpperCase()).filter(Boolean)
+      ? condition.weekdays
+          .map((item) => {
+            if (typeof item === "number" && Number.isInteger(item) && item >= 1 && item <= 7) {
+              return item;
+            }
+            // 存量数据是枚举名（"MONDAY"），读取时转数字；序列化只输出数字
+            return LEGACY_WEEKDAY_CODES[String(item || "").trim().toUpperCase()] ?? null;
+          })
+          .filter((value): value is number => value != null)
       : [];
     const windows = Array.isArray(condition.windows)
       ? condition.windows.map((item2) => {
@@ -373,8 +386,8 @@ export function peakIssueMessage(issues: PeakIssue[], index: number, field: stri
 }
 
 /** 该相位是否在指定星期生效（用于时间轴高亮） */
-export function coversWeekday(row: PeakPhaseRow, weekdayCode: string): boolean {
-  return !row.isDefault && row.weekdays.includes(weekdayCode);
+export function coversWeekday(row: PeakPhaseRow, day: number): boolean {
+  return !row.isDefault && row.weekdays.includes(day);
 }
 
 /** 某一小时是否落在相位窗口内（时间轴渲染用：小时起点落在窗口内即算命中） */
@@ -433,9 +446,8 @@ export function resolvePeakPhase(pricing: PeakPricing | null, date: string, time
   if (Number.isNaN(localDate.getTime())) {
     return null;
   }
-  // JS getUTCDay: 0=周日；Java DayOfWeek: 周一=1 ... 周日=7
+  // JS getUTCDay: 0=周日；ISO DayOfWeek: 周一=1 ... 周日=7
   const javaDay = ((localDate.getUTCDay() + 6) % 7) + 1;
-  const weekdayCode = PEAK_WEEKDAYS[javaDay - 1]?.code;
   const phases = pricing.phases || [];
   const fallback = phases[phases.length - 1];
   const fallbackMultiplier = toNumberOrNull(fallback?.multiplier) ?? 1;
@@ -443,7 +455,7 @@ export function resolvePeakPhase(pricing: PeakPricing | null, date: string, time
     if (row.isDefault || row.phase !== "PEAK") {
       continue;
     }
-    if (!weekdayCode || !row.weekdays.includes(weekdayCode)) {
+    if (!row.weekdays.includes(javaDay)) {
       continue;
     }
     const hit = row.windows.some((window) => {
