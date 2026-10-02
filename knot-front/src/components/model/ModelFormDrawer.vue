@@ -42,7 +42,7 @@
           </el-row>
 
           <el-row :gutter="16" class="form-grid">
-            <el-col :span="12">
+            <el-col :span="24">
               <el-form-item label="供应商账户" required>
                 <ProviderAccountSelect
                   v-model="form.providerAccountCode"
@@ -54,7 +54,10 @@
                 />
               </el-form-item>
             </el-col>
-            <el-col :span="12">
+          </el-row>
+
+          <el-row :gutter="16" class="form-grid">
+            <el-col :span="24">
               <el-form-item label="Base URL" required>
                 <el-input v-model="form.baseUrl" placeholder="https://api.example.com"/>
               </el-form-item>
