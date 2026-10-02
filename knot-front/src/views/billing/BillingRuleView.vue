@@ -43,7 +43,7 @@
       </section>
     </div>
 
-    <BillingRuleFormDialog v-model="ruleDlg" :rule="currentRule" @saved="resetPage" />
+    <BillingRuleFormDialog v-model="ruleDlg" :rule-id="currentRuleId" @saved="resetPage" />
 
     <PricingPreviewDrawer v-model="previewDrawer" :rule="previewRule" />
 
@@ -56,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import type {Dict, Row} from "@/types";
+import type {Row} from "@/types";
 import {ref} from "vue";
 import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -93,7 +93,8 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
 });
 
 const ruleDlg = ref(false);
-const currentRule = ref<Dict | null>(null);
+/** 编辑目标规则 id：编辑抽屉打开时按 id 从后端取全量记录（列表行是轻量 VO） */
+const currentRuleId = ref<number | null>(null);
 const logDrawer = ref(false);
 const logRuleId = ref<number | string | null>(null);
 const logRuleName = ref("");
@@ -101,12 +102,12 @@ const previewDrawer = ref(false);
 const previewRule = ref<Row | null>(null);
 
 function openCreate() {
-  currentRule.value = null;
+  currentRuleId.value = null;
   ruleDlg.value = true;
 }
 
 function openEdit(row: Row) {
-  currentRule.value = row;
+  currentRuleId.value = Number(row.id);
   ruleDlg.value = true;
 }
 

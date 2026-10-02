@@ -5,6 +5,11 @@ export function listBillingRules(params: Dict) {
   return postQuery("/api/billing/rules", params);
 }
 
+/** 规则详情（含 configJson）：编辑抽屉打开时按 id 从后端取全量记录 */
+export function getBillingRule(id: number | string) {
+  return get(`/api/billing/rules/${id}`);
+}
+
 /** 计费模式能力：supportedUnits / defaultUnit / defaultItemType */
 export function listModeCapabilities() {
   return get("/api/billing/mode-capabilities");

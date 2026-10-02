@@ -382,7 +382,8 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (160, 130, 'PUT', '/api/test-request-presets/{id}', 'TestRequestPresetController', 'ENABLED'),
 (161, 131, 'DELETE', '/api/test-request-presets/{id}', 'TestRequestPresetController', 'ENABLED'),
 (162, 128, 'GET', '/api/test-request-presets/options', 'TestRequestPresetController', 'ENABLED'),
-(163, 132, 'PUT', '/api/test-request-presets/{id}/status', 'TestRequestPresetController', 'ENABLED');
+(163, 132, 'PUT', '/api/test-request-presets/{id}/status', 'TestRequestPresetController', 'ENABLED'),
+(164, 67, 'GET', '/api/billing/rules/{id}', 'BillingController', 'ENABLED');
 
 -- 角色授权（OPERATOR 全量 / DEVELOPER 只读；ADMIN 由文件末尾权威块全量授予）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES

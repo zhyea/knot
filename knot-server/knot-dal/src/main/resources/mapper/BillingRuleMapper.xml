@@ -33,8 +33,16 @@
         (select count(1) from kb_models m where m.billing_rule_code = br.code) as bound_model_count
     </sql>
 
+    <!-- 列表轻量列：只查列表页展示的字段；config_json / uniq_hash / 生效期 / 备注 / 绑定数等重字段走 getById 详情 -->
+    <sql id="ListColumns">
+        br.id, br.code,
+        br.model_family as model_family_code, ef.item_label as model_family_name,
+        br.status,
+        bv.version_code, bv.billing_mode, bv.pricing_plan, bv.currency, bv.unit
+    </sql>
+
     <select id="list" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
-        select <include refid="RuleColumns"/>
+        select <include refid="ListColumns"/>
         from kb_billing_rules br
         <include refid="FamilyJoin"/>
         <include refid="VersionJoin"/>

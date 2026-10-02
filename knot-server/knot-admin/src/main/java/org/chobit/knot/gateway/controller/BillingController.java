@@ -12,6 +12,7 @@ import org.chobit.knot.gateway.service.BillingService;
 import org.chobit.knot.gateway.vo.billing.BillingCapabilities;
 import org.chobit.knot.gateway.vo.billing.BillingReportSummary;
 import org.chobit.knot.gateway.vo.billing.BillingRule;
+import org.chobit.knot.gateway.vo.billing.BillingRuleListItem;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.billing.ReconciliationRequest;
 import org.chobit.knot.gateway.vo.billing.ReconciliationResult;
@@ -38,13 +39,20 @@ public class BillingController {
      * Lists matching results. Executes the public operation.
      */
     @PostMapping("/rules")
-    public PageResult<BillingRule> listRules(@RequestBody(required = false) PageQuery query) {
-        PageResult<BillingRuleDto> page = billingService.listRules(
+    public PageResult<BillingRuleListItem> listRules(@RequestBody(required = false) PageQuery query) {
+        return billingService.listRules(
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
                 query == null ? null : query.keyword(),
                 query == null ? null : query.modelFamilyCode()
         );
-        return page.mapList(billingConverter::toRuleVOList);
+    }
+
+    /**
+     * 规则详情（含 configJson）：编辑抽屉打开时按 id 从后端取全量记录，列表只走轻量 VO。
+     */
+    @GetMapping("/rules/{id}")
+    public BillingRule getRule(@PathVariable Long id) {
+        return billingConverter.toRuleVO(billingService.getRuleById(id));
     }
 
     /**

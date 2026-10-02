@@ -4,6 +4,7 @@ import org.chobit.knot.gateway.dto.billing.BillingRuleDto;
 import org.chobit.knot.gateway.dto.billing.ReconciliationResultDto;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.vo.billing.BillingRule;
+import org.chobit.knot.gateway.vo.billing.BillingRuleListItem;
 import org.chobit.knot.gateway.vo.billing.ReconciliationResult;
 import org.mapstruct.Mapper;
 
@@ -21,6 +22,11 @@ public interface BillingConverter {
     BillingRuleEntity toRuleEntity(BillingRuleDto dto);
 
     BillingRule toRuleVO(BillingRuleDto dto);
+
+    @org.mapstruct.Mapping(source = "status", target = "enabled", qualifiedByName = "billingStatusToEnabled")
+    BillingRuleListItem toRuleListItem(BillingRuleEntity entity);
+
+    List<BillingRuleListItem> toRuleListItemList(List<BillingRuleEntity> entities);
 
     ReconciliationResult toReconciliationVO(ReconciliationResultDto dto);
 

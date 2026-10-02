@@ -7,7 +7,7 @@
     class="drawer-with-scrollbar"
     destroy-on-close
   >
-    <el-scrollbar max-height="calc(100vh - 140px)">
+    <el-scrollbar v-loading="detailLoading" max-height="calc(100vh - 140px)">
       <el-tabs v-model="activeTab" type="border-card">
         <el-tab-pane label="表单编辑" name="form">
           <el-form :model="form" label-width="118px" class="billing-rule-form">
@@ -150,7 +150,7 @@ import BillingModeVideoConfig from "./modes/BillingModeVideoConfig.vue";
 import PricingPlanFixedConfig from "./plans/PricingPlanFixedConfig.vue";
 import PricingPlanTieredConfig from "./plans/PricingPlanTieredConfig.vue";
 import PricingPlanPeakOffPeakConfig from "./plans/PricingPlanPeakOffPeakConfig.vue";
-import {createBillingRule, updateBillingRule, listModeCapabilities} from "@/api/billing";
+import {createBillingRule, updateBillingRule, listModeCapabilities, getBillingRule} from "@/api/billing";
 import {isValidJsonText, parseJsonObject, roundPrice, stringifyJson} from "@/utils/format";
 import {basePricesOf, createTierPriceSet, createTierRow, parseTierRows, toTierPayload, validateTierRows} from "@/utils/billingTier";
 import type {TierRow} from "@/utils/billingTier";
@@ -159,7 +159,8 @@ import type {PeakPricing} from "@/utils/billingPeakOffPeak";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  rule: {type: Object as PropType<Dict | null>, default: null}
+  /** 编辑目标的规则 id；null 表示新建。全量记录由抽屉打开时向后端获取，不走列表行数据 */
+  ruleId: {type: Number as PropType<number | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -190,6 +191,11 @@ const visible = computed({
 
 const saving = ref(false);
 const billingModes = ref<Row[]>([]);
+/** 能力矩阵是否已加载：加载前不校验 unit/plan（否则编辑回显会被误重置为 FIXED） */
+const capabilitiesLoaded = ref(false);
+const detailLoading = ref(false);
+/** 编辑时从后端详情接口取到的全量记录 */
+const detail = ref<Dict | null>(null);
 
 const activeModeCapability = computed(() =>
   billingModes.value.find((item) => item.code === form.billingMode) || null
@@ -259,38 +265,66 @@ const form = reactive<BillingRuleFormState>({
   remark: ""
 });
 
-const isEdit = computed(() => props.rule != null);
+const isEdit = computed(() => props.ruleId != null);
 
 /** 抽屉内 Tab：form=表单编辑，json=config_json 原文查看/编辑 */
 const activeTab = ref<"form" | "json">("form");
 const configJsonText = ref("");
-/** 只读派生：绑定了该编码的供应商模型数（后端 RuleColumns 子查询带出） */
-const boundModelCount = computed(() => Number(props.rule?.boundModelCount ?? 0));
+/** 只读派生：绑定了该编码的供应商模型数（详情接口带出） */
+const boundModelCount = computed(() => Number(detail.value?.boundModelCount ?? 0));
 /** 编辑且编码已被使用时不允许改码：绑定存的是 code，改了存量模型会掉绑 */
 const codeBlockedByBinding = computed(() => isEdit.value && boundModelCount.value > 0);
 /** 是否真的改了编码（后端仅去空白不做大小写归一，这里同口径比较） */
 const codeChanged = computed(() =>
-  String(props.rule?.code || "").trim() !== resolveRuleCode()
+  String(detail.value?.code || "").trim() !== resolveRuleCode()
 );
 const modeComponent = computed(() => componentsByMode[form.billingMode] || BillingModeTokenConfig);
 const planComponent = computed(() => componentsByPlan[form.pricingPlan] || PricingPlanFixedConfig);
 
-watch(
-  () => [props.modelValue, props.rule],
-  async ([value]) => {
-    if (!value) {
+/** 编辑时按 id 从后端取全量记录（列表是轻量 VO，configJson 不在列表数据里） */
+async function loadDetail() {
+  if (props.ruleId == null) {
+    return;
+  }
+  detailLoading.value = true;
+  try {
+    const row = await getBillingRule(props.ruleId);
+    if (!row) {
+      ElMessage.error("未找到该计费规则");
+      visible.value = false;
       return;
     }
-    resetForm();
-    await Promise.all([loadModeCapabilities()]);
+    detail.value = row as Dict;
+    fillFormFromDetail(row as Dict);
+  } catch {
+    // 详情拿不到就关掉抽屉：留着空表单可能被误保存
+    ElMessage.error("加载计费规则详情失败，请重试");
+    visible.value = false;
+  } finally {
+    detailLoading.value = false;
   }
-);
+}
+
+function fillFormFromDetail(row: Dict) {
+  form.id = row.id;
+  form.code = row.code || "";
+  form.modelFamilyCode = row.modelFamilyCode ?? "";
+  form.billingMode = normalizeMode(row.billingMode || "TOKEN");
+  form.pricingPlan = String(row.pricingPlan || "FIXED").trim().toUpperCase();
+  form.currency = row.currency || "USD";
+  form.unit = row.unit || modeDefaults(form.billingMode).unit;
+  form.customConfigJson = form.billingMode === "CUSTOM" ? row.configJson || "" : "";
+  form.enabled = row.enabled !== false;
+  form.remark = row.remark || "";
+  applyConfig(parseJsonObject(row.configJson));
+}
 
 watch(
   () => form.billingMode,
   (mode) => applyModeDefaults(mode)
 );
 
+// 能力矩阵加载前的回显阶段不校验 unit/plan，避免编辑打开时保存过的方案被误重置为 FIXED
 watch(
   () => form.cacheWriteMode,
   (mode) => {
@@ -331,6 +365,9 @@ for (const field of PRICE_FIELDS) {
 watch(
   () => form.pricingPlan,
   (plan) => {
+    if (!capabilitiesLoaded.value) {
+      return;
+    }
     if (plan && !planCodes.value.includes(plan)) {
       form.pricingPlan = "FIXED";
       return;
@@ -354,13 +391,25 @@ watch(
 watch(
   () => props.modelValue,
   (value) => {
-    if (value) {
-      activeTab.value = "form";
+    if (!value) {
+      return;
     }
+    capabilitiesLoaded.value = false;
+    activeTab.value = "form";
+    detail.value = null;
+    resetForm();
+    loadDetailAndCapabilities();
   }
 );
 
-// 进入 json 页：用当前表单实时生成 config_json（格式化展示）；离开时把编辑内容回写表单
+/** 拉详情与能力矩阵（并行），就绪后统一做一次模式默认值校验 */
+async function loadDetailAndCapabilities() {
+  await Promise.all([loadModeCapabilities(), loadDetail()]);
+  capabilitiesLoaded.value = true;
+  applyModeDefaults(form.billingMode);
+}
+
+/** 编辑时按 id 从后端取全量记录（列表是轻量 VO，configJson 不在列表数据里） */
 watch(activeTab, (tab, prev) => {
   if (tab === "json") {
     const built = buildConfigJson();
@@ -381,7 +430,7 @@ function prettyJsonText(text: string): string {
   }
 }
 
-/** config_json 页文本回写表单；失败返回 false */
+/** config_json 页文本回写表单；失败返回 false。回写前先格式化，保证加载口径一致 */
 function applyJsonTextToForm(): boolean {
   const text = configJsonText.value.trim();
   if (!text) {
@@ -396,28 +445,41 @@ function applyJsonTextToForm(): boolean {
     ElMessage.warning("config_json 不是合法 JSON");
     return false;
   }
+  const pretty = prettyJsonText(text);
+  configJsonText.value = pretty;
   if (form.billingMode === "CUSTOM") {
-    form.customConfigJson = text;
+    form.customConfigJson = pretty;
     return true;
   }
-  applyConfig(parseJsonObject(text));
+  applyConfig(parseJsonObject(pretty));
   return true;
 }
 
 function resetForm() {
-  const row = props.rule;
-  form.id = row?.id ?? null;
-  form.code = row?.code || "";
-  form.modelFamilyCode = row?.modelFamilyCode ?? "";
-  form.billingMode = normalizeMode(row?.billingMode || "TOKEN");
-  form.pricingPlan = String(row?.pricingPlan || "FIXED").trim().toUpperCase();
-  form.currency = row?.currency || "USD";
-  form.unit = row?.unit || modeDefaults(form.billingMode).unit;
-  form.customConfigJson = form.billingMode === "CUSTOM" ? row?.configJson || "" : "";
-  form.enabled = row?.enabled !== false;
-  form.remark = row?.remark || "";
-  applyConfig(parseJsonObject(row?.configJson));
-  applyModeDefaults(form.billingMode);
+  form.id = null;
+  form.code = "";
+  form.modelFamilyCode = "";
+  form.billingMode = "TOKEN";
+  form.pricingPlan = "FIXED";
+  form.currency = "USD";
+  form.unit = "1M_TOKENS";
+  form.unitPrice = 0.002;
+  form.inputUnitPrice = 0.002;
+  form.outputUnitPrice = 0.002;
+  form.cacheReadUnitPrice = 0;
+  form.cacheWriteUnitPrice = 0;
+  form.cacheWrite5mUnitPrice = 0;
+  form.cacheWrite1hUnitPrice = 0;
+  form.cacheWriteMode = "standard";
+  form.videoPrice720p = null;
+  form.videoPrice1080p = null;
+  form.imageResolution = "";
+  form.imageQuality = "";
+  form.tiers = [];
+  form.peakPricing = null;
+  form.customConfigJson = "";
+  form.enabled = true;
+  form.remark = "";
 }
 
 /** config 结构映射回表单字段（编辑回显与 config_json 页回写共用同一份映射） */
@@ -430,7 +492,10 @@ function applyConfig(config: Dict) {
   form.cacheWriteUnitPrice = Number(basePrices.cacheWrite ?? 0);
   form.cacheWrite5mUnitPrice = Number(basePrices.cacheWrite5m ?? 0);
   form.cacheWrite1hUnitPrice = Number(basePrices.cacheWrite1h ?? 0);
-  form.cacheWriteMode = basePrices.cacheWrite5m != null || basePrices.cacheWrite1h != null ? "ttl" : "standard";
+  // cacheWriteMode 已落库（config.cacheWriteMode）；存量数据没有该字段时按分价字段推断
+  form.cacheWriteMode = config.cacheWriteMode === "ttl" || config.cacheWriteMode === "standard"
+    ? config.cacheWriteMode
+    : (basePrices.cacheWrite5m != null || basePrices.cacheWrite1h != null ? "ttl" : "standard");
   form.videoPrice720p = config.resolutionPrices?.["720P"] != null ? Number(config.resolutionPrices["720P"]) : null;
   form.videoPrice1080p = config.resolutionPrices?.["1080P"] != null ? Number(config.resolutionPrices["1080P"]) : null;
   form.imageResolution = config.imageResolution || "";
@@ -449,6 +514,9 @@ function modeDefaults(mode: string): { unit: string } {
 }
 
 function applyModeDefaults(mode: string) {
+  if (!capabilitiesLoaded.value) {
+    return;
+  }
   const defaults = modeDefaults(mode);
   if (!unitCodes.value.includes(form.unit)) {
     form.unit = defaults.unit;
@@ -481,6 +549,7 @@ function normalizeMode(mode: unknown): string {
 function buildBaseConfig(): Dict | null {
   if (form.billingMode === "TOKEN") {
     return {
+      cacheWriteMode: form.cacheWriteMode,
       basePrices: {
         input: form.inputUnitPrice,
         output: form.outputUnitPrice,
@@ -526,20 +595,20 @@ function buildConfigJson() {
   }
   const base = buildBaseConfig();
   if (form.pricingPlan === "TIERED") {
-    // 档位缺失项以 0 落库，满足后端「每档 6 项单价齐全」约束
+    // 档位缺失项以 0 落库，满足后端「每档 6 项单价齐全」约束；保存前统一 2 空格格式化
     return stringifyJson({
       ...(base || {}),
       tier: toTierPayload(form.tiers)
-    });
+    }, 2);
   }
   if (form.pricingPlan === "PEAK_OFF_PEAK") {
     // 方案层只输出相位与倍率，价格本体来自上方基础价
     return stringifyJson({
       ...(base || {}),
       pricing: toPeakPayload(form.peakPricing)
-    });
+    }, 2);
   }
-  return base ? stringifyJson(base) : null;
+  return base ? stringifyJson(base, 2) : null;
 }
 
 /** 规则编码由人工填写（后端做去空白与唯一性校验，不强制大写） */

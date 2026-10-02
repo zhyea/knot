@@ -28,6 +28,7 @@ import java.util.Set;
  *     "input": 4, "output": 20, "cacheRead": 0.2, "cacheWrite": 5,
  *     "cacheWrite5m": 5, "cacheWrite1h": 5
  *   },
+ *   "cacheWriteMode": "standard",  // 可选，TOKEN 缓存写方式：standard=单字段 / ttl=5m/1h 分字段
  *   "tier": [                      // pricingPlan=TIERED 时的阶梯档位（from 含、to 含，to 省略表示上不封顶）
  *     { "condition": { "from": 0, "to": 1000000 }, "unitPrices": { "input": 4, "output": 20 } },
  *     { "condition": { "from": 1000001 },            "unitPrices": { "input": 2, "output": 10 } }
@@ -59,7 +60,12 @@ public record BillingConfig(
         PriceSet basePrices,
         List<TierRule> tier,
         Map<String, BigDecimal> resolutionPrices,
-        Pricing pricing) {
+        Pricing pricing,
+        /** 缓存写方式（TOKEN 模式）：standard=单字段缓存写，ttl=5m/1h 分字段；null 视为 standard */
+        String cacheWriteMode) {
+
+    /** cacheWriteMode 合法取值 */
+    public static final Set<String> SUPPORTED_CACHE_WRITE_MODES = Set.of("standard", "ttl");
 
     /** 首期唯一的计价方式：在模式层基础单价上乘相位倍率 */
     private static final String RATE_MODE_MULTIPLIER = "MULTIPLIER";
@@ -465,6 +471,9 @@ public record BillingConfig(
      * tier 的 from 必填且非负、from&lt;=to、档位不重叠（开放档位必须是最后一个）。
      */
     public String validate() {
+        if (cacheWriteMode != null && !SUPPORTED_CACHE_WRITE_MODES.contains(cacheWriteMode)) {
+            return "cacheWriteMode must be standard or ttl";
+        }
         if (defaultUnitPrice != null && defaultUnitPrice.signum() < 0) {
             return "defaultUnitPrice cannot be negative";
         }

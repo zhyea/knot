@@ -28,6 +28,7 @@ import org.chobit.knot.gateway.mapper.BillingRuleMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.vo.billing.BillingCapabilities;
 import org.chobit.knot.gateway.vo.billing.BillingReportSummary;
+import org.chobit.knot.gateway.vo.billing.BillingRuleListItem;
 import org.chobit.knot.gateway.vo.billing.PricingPreviewRequest;
 import org.chobit.knot.gateway.vo.billing.PricingPreviewResult;
 import org.chobit.knot.gateway.util.JsonKit;
@@ -73,19 +74,12 @@ public class BillingService {
     /**
      * Lists matching results. Executes the public operation.
      */
-    public PageResult<BillingRuleDto> listRules(PageRequest pageRequest) {
-        return listRules(pageRequest, null, null);
-    }
-
-    /**
-     * Lists matching results. Executes the public operation.
-     */
-    public PageResult<BillingRuleDto> listRules(PageRequest pageRequest, String keyword, String modelFamilyCode) {
+    public PageResult<BillingRuleListItem> listRules(PageRequest pageRequest, String keyword, String modelFamilyCode) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<BillingRuleEntity> pageInfo = new PageInfo<>(
                     billingRuleMapper.list(normalizeKeyword(keyword), normalizeModelFamily(modelFamilyCode))
             );
-            return PageResult.fromPage(pageInfo, list -> list.stream().map(billingConverter::toRuleDto).toList(), pageRequest);
+            return PageResult.fromPage(pageInfo, list -> list.stream().map(billingConverter::toRuleListItem).toList(), pageRequest);
         }
     }
 
