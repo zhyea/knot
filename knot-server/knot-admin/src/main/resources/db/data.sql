@@ -597,6 +597,55 @@ INSERT IGNORE INTO kb_routing_rule_targets (id, rule_id, target_type, target_id,
 (3, 2, 'MODEL',      4, 100, 1),
 (4, 3, 'MODEL_POOL', 2, 100, 1);
 
+-- 路由调试预设请求用例
+-- 请求体中的 model 会由调试面板按所选目标覆盖；messages/input/prompt 等内容可直接编辑后测试。
+-- 音频转录/翻译与图片编辑/变体需要本地文件，请将示例占位路径替换为实际文件路径。
+INSERT IGNORE INTO kb_test_request_presets
+    (code, name, protocol_code, request_body, remark, status)
+VALUES
+('builtin-chat-completions-basic', '标准对话（Chat Completions）', 'CHAT_COMPLETIONS',
+ '{"model":"model-name","messages":[{"role":"user","content":"你好，请用一句话介绍这个模型。"}],"temperature":0.2,"max_tokens":256}',
+ '适用于 OpenAI 兼容的对话接口。', 'ACTIVE'),
+('builtin-responses-basic', '标准响应（Responses）', 'RESPONSES',
+ '{"model":"model-name","input":"你好，请用一句话介绍这个模型。","max_output_tokens":256}',
+ '适用于 OpenAI Responses 接口。', 'ACTIVE'),
+('builtin-messages-basic', '消息对话（Messages）', 'MESSAGES',
+ '{"model":"model-name","messages":[{"role":"user","content":"你好，请用一句话介绍这个模型。"}],"max_tokens":256,"temperature":0.2}',
+ '适用于 Anthropic Messages 接口。', 'ACTIVE'),
+('builtin-completions-basic', '文本补全（Completions）', 'COMPLETIONS',
+ '{"model":"model-name","prompt":"请完成这句话：人工智能正在","max_tokens":64,"temperature":0.2}',
+ '适用于传统文本补全接口。', 'ACTIVE'),
+('builtin-embeddings-basic', '文本向量（Embeddings）', 'EMBEDDINGS',
+ '{"model":"model-name","input":["这是一段用于向量化的示例文本。"],"encoding_format":"float"}',
+ '适用于文本向量化接口。', 'ACTIVE'),
+('builtin-image-generations-basic', '文生图（Image Generations）', 'IMAGE_GENERATIONS',
+ '{"model":"model-name","prompt":"一只坐在窗边读书的橘猫，柔和自然光，简洁插画风格","n":1,"size":"1024x1024"}',
+ '适用于文生图接口。', 'ACTIVE'),
+('builtin-image-edits-file', '图片编辑（Image Edits）', 'IMAGE_EDITS',
+ '{"model":"model-name","prompt":"将背景替换为晴朗的蓝天","image":"/tmp/knot-example.png","size":"1024x1024"}',
+ '请将 image 替换为可访问的本地图片路径；调试请求会以 multipart 发送。', 'ACTIVE'),
+('builtin-image-variations-file', '图片变体（Image Variations）', 'IMAGE_VARIATIONS',
+ '{"model":"model-name","image":"/tmp/knot-example.png","n":1,"size":"1024x1024"}',
+ '请将 image 替换为可访问的本地图片路径。', 'ACTIVE'),
+('builtin-audio-transcriptions-file', '音频转录（Audio Transcriptions）', 'AUDIO_TRANSCRIPTIONS',
+ '{"model":"model-name","file":"/tmp/knot-example.mp3","language":"zh","response_format":"json"}',
+ '请将 file 替换为实际音频文件路径。', 'ACTIVE'),
+('builtin-audio-translations-file', '音频翻译（Audio Translations）', 'AUDIO_TRANSLATIONS',
+ '{"model":"model-name","file":"/tmp/knot-example.mp3","response_format":"json"}',
+ '请将 file 替换为实际音频文件路径。', 'ACTIVE'),
+('builtin-audio-speech-basic', '语音合成（Audio Speech）', 'AUDIO_SPEECH',
+ '{"model":"model-name","input":"你好，这是一段语音合成测试。","voice":"alloy","response_format":"mp3"}',
+ '适用于语音合成接口。', 'ACTIVE'),
+('builtin-video-generations-basic', '视频生成（Video Generations）', 'VIDEO_GENERATIONS',
+ '{"model":"model-name","prompt":"一条小路穿过春天的森林，镜头缓慢向前推进","size":"1280x720","duration":5}',
+ '适用于视频生成接口。', 'ACTIVE'),
+('builtin-rerank-basic', '文档重排（Rerank）', 'RERANK',
+ '{"model":"model-name","query":"网关如何选择上游模型？","documents":["网关根据路由规则选择模型。","计费规则负责计算调用成本。","预设请求用于快速调试接口。"],"top_n":2,"return_documents":true}',
+ '适用于文档重排接口。', 'ACTIVE'),
+('builtin-moderations-basic', '内容审核（Moderations）', 'MODERATIONS',
+ '{"model":"model-name","input":"这是一段用于内容安全审核的示例文本。"}',
+ '适用于内容审核接口。', 'ACTIVE');
+
 -- =========================
 -- 计费规则
 -- =========================
