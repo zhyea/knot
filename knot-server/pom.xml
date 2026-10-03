@@ -23,6 +23,8 @@
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
         <java.version>17</java.version>
+        <!-- Keep Maven and IDE-imported modules on the project's supported bytecode level. -->
+        <maven.compiler.release>${java.version}</maven.compiler.release>
         <!-- 覆盖 Boot 3.3.13 BOM 的 10.1.42：取 10.1 线 OSS 最新补丁（含 CVE-2025-55754 等修复） -->
         <tomcat.version>10.1.60</tomcat.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
