@@ -27,5 +27,7 @@ resources/.arch-internal-preview.css
 *.json
 *.sh
 *.txt
+*.gw
+*.app
 */*.d.ts
 db_p1
