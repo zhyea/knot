@@ -14,6 +14,9 @@ public class TestRequestPresetEntity {
     private String code;
     private String name;
     private String protocolCode;
+    private String logicalModelCode;
+    /** 派生自 kb_logical_models，非本表列 */
+    private String logicalModelName;
     private String requestBody;
     private String remark;
     private String status;

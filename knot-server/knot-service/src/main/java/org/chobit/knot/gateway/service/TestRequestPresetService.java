@@ -10,6 +10,7 @@ import org.chobit.knot.gateway.dto.routing.TestRequestPresetDto;
 import org.chobit.knot.gateway.entity.TestRequestPresetEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.gateway.mapper.LogicalModelMapper;
 import org.chobit.knot.gateway.mapper.TestRequestPresetMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -25,13 +26,17 @@ import java.util.List;
 @Service
 public class TestRequestPresetService {
     private final TestRequestPresetMapper presetMapper;
+    private final LogicalModelMapper logicalModelMapper;
     private final TestRequestPresetConverter presetConverter;
 
     /**
      * Constructs a new instance.
      */
-    public TestRequestPresetService(TestRequestPresetMapper presetMapper, TestRequestPresetConverter presetConverter) {
+    public TestRequestPresetService(TestRequestPresetMapper presetMapper,
+                                    LogicalModelMapper logicalModelMapper,
+                                    TestRequestPresetConverter presetConverter) {
         this.presetMapper = presetMapper;
+        this.logicalModelMapper = logicalModelMapper;
         this.presetConverter = presetConverter;
     }
 
@@ -116,6 +121,11 @@ public class TestRequestPresetService {
         if (protocol == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "协议不支持或不存在");
         }
+        // 统一模型维度可空：留空为通用用例；填了则必须指向真实存在的统一模型（按业务码判定）
+        String logicalModelCode = normalizeLogicalModelCode(request.logicalModelCode());
+        if (logicalModelCode != null && logicalModelMapper.getByCode(logicalModelCode) == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "统一模型不存在");
+        }
     }
 
     private TestRequestPresetEntity toEntity(TestRequestPresetDto request) {
@@ -124,6 +134,8 @@ public class TestRequestPresetService {
         entity.setName(request.name().trim());
         // 协议归一为 canonical code，保证跨别名一致
         entity.setProtocolCode(ModelApiProtocolEnum.fromCode(request.protocolCode()).canonical().code());
+        // 可空归类维度：空串归一为 null（通用用例）
+        entity.setLogicalModelCode(normalizeLogicalModelCode(request.logicalModelCode()));
         entity.setRequestBody(request.requestBody());
         entity.setRemark(request.remark() == null ? null : request.remark().trim());
         entity.setStatus(request.status() == null ? EntityStatusEnum.ACTIVE.code() : request.status());
@@ -137,6 +149,12 @@ public class TestRequestPresetService {
 
     private static String normalizeProtocol(String protocolCode) {
         String value = protocolCode == null ? "" : protocolCode.trim();
+        return value.isEmpty() ? null : value;
+    }
+
+    /** 统一模型归一：空白视为未归类（通用用例），返回 null。 */
+    private static String normalizeLogicalModelCode(String logicalModelCode) {
+        String value = logicalModelCode == null ? "" : logicalModelCode.trim();
         return value.isEmpty() ? null : value;
     }
 }

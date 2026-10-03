@@ -13,7 +13,7 @@
           <div class="section-head">
             <div>
               <h3>基础信息</h3>
-              <p>维护预设编码、名称与关联协议，按协议归类、全局共享复用。</p>
+              <p>维护预设编码、名称与关联协议，按协议归类、全局共享复用；统一模型为可选归类维度，不影响调试面板的用例过滤。</p>
             </div>
             <el-form-item label="启用" class="inline-switch" :disabled="readonly">
               <el-switch v-model="form.enabled" />
@@ -40,15 +40,33 @@
             </el-col>
           </el-row>
 
-          <el-form-item label="协议" required>
-            <EnumControl
-              v-model="form.protocolCode"
-              enum-name="ModelApiProtocolEnum"
-              filterable
-              :disabled="readonly"
-              placeholder="选择关联协议"
-            />
-          </el-form-item>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="协议" required>
+                <EnumControl
+                  v-model="form.protocolCode"
+                  enum-name="ModelApiProtocolEnum"
+                  filterable
+                  :disabled="readonly"
+                  placeholder="选择关联协议"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="统一模型">
+                <RemoteEntitySelect
+                  v-model="form.logicalModelCode"
+                  value-key="modelCode"
+                  :load-function="loadLogicalModelOptions"
+                  :label-function="logicalModelLabel"
+                  :selected-options="selectedLogicalModelOptions"
+                  :disabled="readonly"
+                  clearable
+                  placeholder="可选，仅作归类"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
 
           <el-form-item label="备注">
             <el-input
@@ -95,9 +113,12 @@
 import {type PropType, computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import EnumControl from "../common/EnumControl.vue";
+import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import {createTestRequestPreset, updateTestRequestPreset} from "@/api/routing";
+import {listLogicalModels} from "@/api/logicalModels";
 import type {Dict, Row} from "@/types";
+import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
 import {parseJsonResult} from "@/utils/format";
 
 const props = defineProps({
@@ -123,16 +144,37 @@ const drawerTitle = computed(() => {
 const saving = ref(false);
 const codeError = ref("");
 const bodyError = ref("");
+const logicalModelOptions = ref<Row[]>([]);
 
 const form = reactive({
   id: null as number | null,
   code: "",
   name: "",
   protocolCode: "",
+  logicalModelCode: null as string | null,
+  logicalModelName: "" as string | undefined,
   requestBody: "",
   remark: "",
   enabled: true
 });
+
+/** 统一模型为可清空的可选维度：已选项需回显名称，未归类时为空数组 */
+const selectedLogicalModelOptions = computed(() =>
+  resolveSelectedOption(form.logicalModelCode, logicalModelOptions.value, {
+    modelCode: form.logicalModelCode,
+    modelName: form.logicalModelName
+  }, "modelCode")
+);
+
+function logicalModelLabel(model: Row) {
+  return model.modelCode ? `${model.modelName || model.modelCode}（${model.modelCode}）` : `#${model.id}`;
+}
+
+async function loadLogicalModelOptions(params: Dict) {
+  const res = await listLogicalModels(params);
+  logicalModelOptions.value = mergeOptionList(logicalModelOptions.value, normalizeOptionList(res), "modelCode");
+  return res;
+}
 
 watch(
   () => props.modelValue,
@@ -157,11 +199,14 @@ function resetForm(row: Row | null = null) {
   form.code = row?.code || "";
   form.name = row?.name || "";
   form.protocolCode = row?.protocolCode || "";
+  form.logicalModelCode = row?.logicalModelCode || null;
+  form.logicalModelName = row?.logicalModelName;
   form.requestBody = row?.requestBody || "";
   form.remark = row?.remark ?? "";
   form.enabled = row?.status !== "INACTIVE";
   codeError.value = "";
   bodyError.value = "";
+  logicalModelOptions.value = [];
 }
 
 function onClosed() {
@@ -197,6 +242,8 @@ function buildPayload() {
     code: form.code.trim(),
     name: form.name.trim(),
     protocolCode: form.protocolCode,
+    // 可选归类维度：留空提交 null（通用用例）
+    logicalModelCode: form.logicalModelCode || null,
     requestBody: form.requestBody,
     remark: form.remark?.trim() || null,
     status: form.enabled ? "ACTIVE" : "INACTIVE"

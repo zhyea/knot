@@ -2,41 +2,49 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.gateway.mapper.TestRequestPresetMapper">
 
-    <sql id="Base_Column_List">
-        id, code, name, protocol_code, request_body, remark, status, created_at, updated_at
+    <!-- 统一模型维度为可选归类：logical_model_name 派生自 kb_logical_models -->
+    <sql id="PresetSelectColumns">
+        p.id, p.code, p.name, p.protocol_code, p.logical_model_code, p.request_body, p.remark, p.status,
+        p.created_at, p.updated_at,
+        lm.model_name AS logical_model_name
+    </sql>
+
+    <sql id="PresetFromClause">
+        from kb_test_request_presets p
+        left join kb_logical_models lm on lm.model_code = p.logical_model_code and lm.is_deleted = 0
     </sql>
 
     <select id="listPresets" resultType="org.chobit.knot.gateway.entity.TestRequestPresetEntity">
         select
-        <include refid="Base_Column_List"/>
-        from kb_test_request_presets
+        <include refid="PresetSelectColumns"/>
+        <include refid="PresetFromClause"/>
         <where>
             <if test="keyword != null and keyword != ''">
                 and (
-                    code like concat('%', #{keyword}, '%')
-                    or name like concat('%', #{keyword}, '%')
-                    or remark like concat('%', #{keyword}, '%')
+                    p.code like concat('%', #{keyword}, '%')
+                    or p.name like concat('%', #{keyword}, '%')
+                    or p.remark like concat('%', #{keyword}, '%')
                 )
             </if>
             <if test="protocolCode != null and protocolCode != ''">
-                and protocol_code = #{protocolCode}
+                and p.protocol_code = #{protocolCode}
             </if>
         </where>
-        order by id desc
+        order by p.id desc
     </select>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.TestRequestPresetEntity">
         select
-        <include refid="Base_Column_List"/>
-        from kb_test_request_presets
-        where id = #{id}
+        <include refid="PresetSelectColumns"/>
+        <include refid="PresetFromClause"/>
+        where p.id = #{id}
     </select>
 
     <select id="getByCode" resultType="org.chobit.knot.gateway.entity.TestRequestPresetEntity">
         select
-        <include refid="Base_Column_List"/>
-        from kb_test_request_presets
-        where code = #{code}
+        <include refid="PresetSelectColumns"/>
+        <include refid="PresetFromClause"/>
+        where p.code = #{code}
     </select>
 
     <select id="countByCode" resultType="int">
@@ -49,8 +57,8 @@
     </select>
 
     <insert id="insertPreset" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_test_request_presets(code, name, protocol_code, request_body, remark, status)
-        values(#{code}, #{name}, #{protocolCode}, #{requestBody}, #{remark}, #{status})
+        insert into kb_test_request_presets(code, name, protocol_code, logical_model_code, request_body, remark, status)
+        values(#{code}, #{name}, #{protocolCode}, #{logicalModelCode}, #{requestBody}, #{remark}, #{status})
     </insert>
 
     <update id="updatePreset">
@@ -58,6 +66,8 @@
         <set>
             <if test="name != null">name = #{name},</if>
             <if test="protocolCode != null">protocol_code = #{protocolCode},</if>
+            <!-- 归类维度可清空：null 表示通用用例，故不能用 if 判空跳过 -->
+            logical_model_code = #{logicalModelCode},
             <if test="requestBody != null">request_body = #{requestBody},</if>
             <if test="remark != null">remark = #{remark},</if>
             <if test="status != null">status = #{status},</if>
@@ -78,10 +88,10 @@
 
     <select id="listActive" resultType="org.chobit.knot.gateway.entity.TestRequestPresetEntity">
         select
-        <include refid="Base_Column_List"/>
-        from kb_test_request_presets
-        where status = 'ACTIVE'
-        order by id desc
+        <include refid="PresetSelectColumns"/>
+        <include refid="PresetFromClause"/>
+        where p.status = 'ACTIVE'
+        order by p.id desc
     </select>
 
 </mapper>
