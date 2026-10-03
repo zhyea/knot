@@ -32,16 +32,18 @@
         select <include refid="PoolSelectColumns"/>
         from kb_model_pools
         where id = #{id}
+          and is_deleted = 0
     </select>
 
     <select id="getByCode" resultType="org.chobit.knot.gateway.entity.ModelPoolEntity">
         select <include refid="PoolSelectColumns"/>
         from kb_model_pools
         where pool_code = #{poolCode}
+          and is_deleted = 0
     </select>
 
     <select id="countByPoolCode" resultType="java.lang.Long">
-        select count(1) from kb_model_pools where pool_code = #{poolCode}
+        select count(1) from kb_model_pools where pool_code = #{poolCode} and is_deleted = 0
         <if test="excludeId != null">
             and id != #{excludeId}
         </if>
@@ -61,16 +63,18 @@
             status = #{status},
             remark = #{remark}
         where id = #{id}
+          and is_deleted = 0
     </update>
 
     <update id="updateStatus">
         update kb_model_pools
         set status = #{status}
         where id = #{id}
+          and is_deleted = 0
     </update>
 
     <delete id="deleteById">
-        delete from kb_model_pools where id = #{id}
+        delete from kb_model_pools where id = #{id} and is_deleted = 0
     </delete>
 
     <select id="listItemsByPoolCode" resultType="org.chobit.knot.gateway.entity.ModelPoolItemEntity">
@@ -103,7 +107,7 @@
     </insert>
 
     <update id="logicalDelete">
-        update kb_model_pools set is_deleted = 1 where id = #{id}
+        update kb_model_pools set is_deleted = 1 where id = #{id} and is_deleted = 0
     </update>
 
     <select id="countRoutingTargetsByPoolId" resultType="java.lang.Long">
