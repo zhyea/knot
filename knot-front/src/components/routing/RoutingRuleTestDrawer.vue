@@ -73,57 +73,58 @@
               </el-form-item>
             </div>
 
-            <el-form-item label="预设请求">
-              <el-select
-                v-model="selectedPresetId"
-                :disabled="filteredPresetOptions.length === 0"
-                placeholder="从预设请求载入请求模板"
-                clearable
-                filterable
-                style="width: 100%"
-                @change="onPresetChange"
-              >
-                <el-option
-                  v-for="preset in filteredPresetOptions"
-                  :key="preset.id"
-                  :label="preset.name"
-                  :value="preset.id"
-                />
-              </el-select>
-            </el-form-item>
+            <el-collapse v-model="expandedPanels" class="debug-collapse">
+              <el-collapse-item name="preset" title="预设请求">
+                <el-form-item label-width="0">
+                  <el-select
+                    v-model="selectedPresetId"
+                    :disabled="filteredPresetOptions.length === 0"
+                    placeholder="从预设请求载入请求模板"
+                    clearable
+                    filterable
+                    style="width: 100%"
+                    @change="onPresetChange"
+                  >
+                    <el-option
+                      v-for="preset in filteredPresetOptions"
+                      :key="preset.id"
+                      :label="preset.name"
+                      :value="preset.id"
+                    />
+                  </el-select>
+                </el-form-item>
+              </el-collapse-item>
 
-            <div class="request-template">
-              <div class="request-template__head">
-                <div>
-                  <h4>请求模板</h4>
-                  <p>每种协议维护独立模板，切换协议后自动保留。</p>
+              <el-collapse-item name="template" title="请求模板">
+                <div class="request-template">
+                  <div class="request-template__head">
+                    <p>每种协议维护独立模板，切换协议后自动保留。</p>
+                    <el-button size="small" @click="resetCurrentTemplate">重置模板</el-button>
+                  </div>
+                  <JsonCodeEditor
+                    v-model="currentTemplateText"
+                    min-height="220px"
+                    max-height="320px"
+                  />
+                  <div v-if="protocolHint" class="request-template__hint">{{ protocolHint }}</div>
                 </div>
-                <el-button size="small" @click="resetCurrentTemplate">重置模板</el-button>
-              </div>
-              <JsonCodeEditor
-                v-model="currentTemplateText"
-                min-height="220px"
-                max-height="320px"
-              />
-              <div v-if="protocolHint" class="request-template__hint">{{ protocolHint }}</div>
-            </div>
-          </el-form>
+              </el-collapse-item>
 
-          <el-collapse v-model="expandedPanels" class="request-preview-collapse">
-            <el-collapse-item title="请求预览" name="preview">
-              <el-tabs v-model="requestTab" class="debug-tabs">
-                <el-tab-pane label="Headers" name="headers">
-                  <ShellCodeBlock :code="requestHeadersText" language="json" :copyable="true"/>
-                </el-tab-pane>
-                <el-tab-pane label="Body" name="body">
-                  <ShellCodeBlock :code="requestBodyText" language="json" :copyable="true"/>
-                </el-tab-pane>
-                <el-tab-pane label="curl" name="curl">
-                  <ShellCodeBlock :code="displayCurl" language="bash" :copyable="true"/>
-                </el-tab-pane>
-              </el-tabs>
-            </el-collapse-item>
-          </el-collapse>
+              <el-collapse-item name="preview" title="请求预览">
+                <el-tabs v-model="requestTab" class="debug-tabs debug-tabs--preview">
+                  <el-tab-pane label="Headers" name="headers">
+                    <ShellCodeBlock :code="requestHeadersText" language="json" :copyable="true"/>
+                  </el-tab-pane>
+                  <el-tab-pane label="Body" name="body">
+                    <ShellCodeBlock :code="requestBodyText" language="json" :copyable="true"/>
+                  </el-tab-pane>
+                  <el-tab-pane label="curl" name="curl">
+                    <ShellCodeBlock :code="displayCurl" language="bash" :copyable="true"/>
+                  </el-tab-pane>
+                </el-tabs>
+              </el-collapse-item>
+            </el-collapse>
+          </el-form>
         </section>
 
         <section class="debug-panel debug-panel--response">
@@ -229,7 +230,7 @@ const loading = ref(false);
 const protocolLoading = ref(false);
 const requestTab = ref("body");
 const responseTab = ref("summary");
-const expandedPanels = ref<string[]>([]);
+const expandedPanels = ref<string[]>(["template"]);
 
 interface RoutingTestResult {
   curl?: string;
@@ -349,7 +350,7 @@ watch(
     testResult.value = null;
     requestTab.value = "body";
     responseTab.value = "summary";
-    expandedPanels.value = [];
+    expandedPanels.value = ["template"];
     testForm.secretKey = props.secretKey || "";
     initializeTargetSelection();
     await Promise.all([loadModelTypes(), loadDebugCapabilities(), loadPresetOptions()]);
@@ -882,13 +883,6 @@ function onClosed() {
   margin-bottom: 8px;
 }
 
-.request-template__head h4 {
-  margin: 0 0 4px;
-  color: var(--el-text-color-primary);
-  font-size: 13px;
-  font-weight: 600;
-}
-
 .request-template__head p {
   margin: 0;
   color: var(--el-text-color-secondary);
@@ -903,21 +897,21 @@ function onClosed() {
   line-height: 1.5;
 }
 
-.request-preview-collapse {
+.debug-collapse {
   margin-top: 10px;
 }
 
-.request-preview-collapse :deep(.el-collapse-item__header) {
+.debug-collapse :deep(.el-collapse-item__header) {
   height: 34px;
   color: var(--el-text-color-regular);
   font-size: 12px;
 }
 
-.request-preview-collapse :deep(.el-collapse-item__wrap) {
+.debug-collapse :deep(.el-collapse-item__wrap) {
   border-bottom: 0;
 }
 
-.request-preview-collapse :deep(.el-collapse-item__content) {
+.debug-collapse :deep(.el-collapse-item__content) {
   padding-bottom: 0;
 }
 
@@ -935,8 +929,9 @@ function onClosed() {
   font-size: 12px;
 }
 
-.debug-tabs :deep(.el-tabs__content) {
-  min-height: 360px;
+/* 请求预览按内容自适应，不撑出大片空白 */
+.debug-tabs--preview :deep(.el-tabs__content) {
+  min-height: 0;
 }
 
 .debug-tabs--response {
@@ -948,7 +943,7 @@ function onClosed() {
 
 .debug-tabs--response :deep(.el-tabs__content) {
   flex: 1;
-  min-height: 0;
+  min-height: 360px;
 }
 
 .debug-tabs--response :deep(.el-tab-pane) {

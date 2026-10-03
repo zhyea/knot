@@ -9,15 +9,17 @@
         </template>
       </el-table-column>
       <el-table-column prop="appName" label="应用" min-width="100" show-overflow-tooltip />
-      <el-table-column prop="appScenario" label="应用场景" min-width="120" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ row.appScenario || "-" }}
-        </template>
-      </el-table-column>
       <el-table-column prop="userName" label="用户" min-width="100" show-overflow-tooltip />
-      <el-table-column label="路由目标" min-width="200" show-overflow-tooltip>
+      <el-table-column label="路由目标" min-width="220">
         <template #default="{ row }">
-          {{ targetsLabel(row.targets) }}
+          <div v-if="targetsLabel(row.targets).length" class="cell-targets">
+            <span
+              v-for="(label, index) in targetsLabel(row.targets)"
+              :key="index"
+              class="cell-targets__line"
+            >{{ label }}</span>
+          </div>
+          <span v-else>-</span>
         </template>
       </el-table-column>
       <el-table-column label="启用" width="88" align="center">
@@ -94,17 +96,17 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateRoutingRuleStatus
 });
 
-function targetsLabel(targets: unknown) {
+function targetsLabel(targets: unknown): string[] {
   if (!Array.isArray(targets) || !targets.length) {
-    return "-";
+    return [];
   }
-  return targets
-    .map((t: Row) => {
-      const type = labelOf("RouteTargetTypeEnum", t.targetType, t.targetType);
-      const code = t.targetCode || t.targetId || "";
-      return type ? `${type}:${code}` : code;
-    })
-    .join("、");
+  return targets.map((t: Row) => {
+    const type = labelOf("RouteTargetTypeEnum", t.targetType, t.targetType);
+    const name = t.targetName || t.targetCode || t.targetId || "";
+    const code = t.targetCode || t.targetId || "";
+    const text = [type, name].filter(Boolean).join("：") || String(code);
+    return t.primary ? `${text}（主）` : text;
+  });
 }
 
 function consumerNamesLabel(consumerNames: unknown) {
@@ -122,3 +124,20 @@ async function handleEnabledChange(row: Row, enabled: string | number | boolean)
   emit("changed");
 }
 </script>
+
+<style scoped>
+.cell-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0;
+}
+
+/* 路由目标每个目标独占一行，字号比常规单元格小一号 */
+.cell-targets__line {
+  color: var(--el-text-color-regular);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+</style>
