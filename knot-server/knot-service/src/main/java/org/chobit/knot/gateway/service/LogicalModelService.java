@@ -180,6 +180,9 @@ public class LogicalModelService {
         if (entity == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "logical model not found");
         }
+        if (EntityStatusEnum.ENABLED.code().equals(entity.getStatus())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "启用中的统一模型不能删除，请先停用");
+        }
         long refCount = logicalModelMapper.countMappingsByLogicalModelCode(entity.getModelCode());
         Long itemRefCount = externalModelMapper.countByLogicalModelId(id);
         refCount += itemRefCount == null ? 0 : itemRefCount;
@@ -193,7 +196,10 @@ public class LogicalModelService {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * Builds the audit snapshot recorded by {@code @OperationLog}.
+     * Evaluated by the {@code @Around} aspect before the method body runs, so a logical
+     * delete still captures the full pre-delete state. Returns null once the model is gone
+     * (repeated delete) or the id is null.
      */
     public Map<String, Object> logicalModelAuditSnapshot(Long id) {
         if (id == null) {

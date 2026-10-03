@@ -26,11 +26,12 @@
         </template>
       </el-table-column>
       <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
-      <el-table-column label="操作" width="110" align="center" header-align="center" fixed="right">
+      <el-table-column label="操作" width="170" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <RowActions
             :actions="[
               { key: 'edit', label: '编辑', icon: Edit },
+              { key: 'log', label: '日志', icon: Document },
               { key: 'delete', label: '删除', icon: Delete, type: 'danger' }
             ]"
             @action="(action) => emit(action, row)"
@@ -53,7 +54,7 @@
 
 <script setup lang="ts">
 import type {Row} from "@/types";
-import {Delete, Edit} from "@element-plus/icons-vue";
+import {Delete, Document, Edit} from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {updateModelPoolStatus} from "@/api/modelPools";
@@ -73,6 +74,7 @@ const emit = defineEmits([
   "create",
   "refresh",
   "edit",
+  "log",
   "delete",
   "page-change",
   "size-change",

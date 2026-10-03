@@ -16,7 +16,7 @@
         pm.id, pm.logical_model_code, lm.model_name AS logical_model_name,
         pm.provider_account_code, p.name AS provider_name,
         pm.model_id, m.model_code,
-        (select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id order by pm2.id asc limit 1) AS model_name,
+        (select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1) AS model_name,
         pm.provider_model_name, pm.status, pm.priority, pm.created_at, pm.updated_at
     </sql>
 
@@ -128,7 +128,7 @@
     <select id="listMappings" resultType="org.chobit.knot.gateway.entity.ProviderModelMappingEntity">
         select <include refid="MappingColumns"/>
         from kb_provider_model_mappings pm
-        left join kb_logical_models lm on pm.logical_model_code = lm.model_code
+        left join kb_logical_models lm on pm.logical_model_code = lm.model_code and lm.is_deleted = 0
         left join kb_provider_accounts pa on pm.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
         left join kb_models m on pm.model_id = m.id
@@ -139,7 +139,7 @@
     <select id="listMappingsByModelId" resultType="org.chobit.knot.gateway.entity.ProviderModelMappingEntity">
         select <include refid="MappingColumns"/>
         from kb_provider_model_mappings pm
-        left join kb_logical_models lm on pm.logical_model_code = lm.model_code
+        left join kb_logical_models lm on pm.logical_model_code = lm.model_code and lm.is_deleted = 0
         left join kb_provider_accounts pa on pm.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
         left join kb_models m on pm.model_id = m.id
@@ -150,7 +150,7 @@
     <select id="getMappingById" resultType="org.chobit.knot.gateway.entity.ProviderModelMappingEntity">
         select <include refid="MappingColumns"/>
         from kb_provider_model_mappings pm
-        left join kb_logical_models lm on pm.logical_model_code = lm.model_code
+        left join kb_logical_models lm on pm.logical_model_code = lm.model_code and lm.is_deleted = 0
         left join kb_provider_accounts pa on pm.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
         left join kb_models m on pm.model_id = m.id

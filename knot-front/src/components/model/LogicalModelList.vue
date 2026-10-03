@@ -8,10 +8,10 @@
       style="width: 100%"
     >
       <el-table-column prop="id" label="ID" min-width="50" />
+      <el-table-column prop="modelCode" label="模型编码" min-width="180" show-overflow-tooltip />
       <el-table-column label="模型名称" min-width="200" show-overflow-tooltip>
         <template #default="{ row }">{{ row.displayName || row.modelName || "-" }}</template>
       </el-table-column>
-      <el-table-column prop="modelCode" label="模型编码" min-width="160" show-overflow-tooltip />
       <el-table-column label="类型" width="110" show-overflow-tooltip>
         <template #default="{ row }">
           <el-tag v-if="modelTypeLabel(row.modelType) !== '-'" size="small" effect="plain">

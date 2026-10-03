@@ -3,8 +3,8 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.ModelMapper">
 
     <!-- 名称与模型类型不再落 kb_models，从绑定的统一模型（1:1 映射）派生 -->
-    <sql id="modelNameExpr">(select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id order by pm2.id asc limit 1)</sql>
-    <sql id="modelTypeExpr">(select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id order by pm2.id asc limit 1)</sql>
+    <sql id="modelNameExpr">(select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
+    <sql id="modelTypeExpr">(select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
 
     <sql id="ModelSelectColumns">
         m.id, m.provider_account_code, m.model_code, m.version, m.base_url, m.remark, m.billing_rule_code, m.status,

@@ -37,7 +37,7 @@
           </div>
         </div>
 
-        <LogicalModelTable
+        <LogicalModelList
           v-if="viewMode === 'list'"
           :rows="rows"
           :loading="loading"
@@ -90,7 +90,7 @@ import {useListQuery} from "@/composables/useListQuery";
 import EnumControl from "../../components/common/EnumControl.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import LogicalModelFormDrawer from "../../components/model/LogicalModelFormDrawer.vue";
-import LogicalModelTable from "../../components/model/LogicalModelTable.vue";
+import LogicalModelList from "../../components/model/LogicalModelList.vue";
 import LogicalModelCardGrid from "../../components/model/LogicalModelCardGrid.vue";
 import {deleteLogicalModel, listLogicalModels} from "@/api/logicalModels";
 import {listLogicalModelOperationLogs} from "@/api/operationLogs";

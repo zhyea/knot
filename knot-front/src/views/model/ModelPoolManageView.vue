@@ -35,6 +35,7 @@
           :show-refresh="false"
           @edit="openEdit"
           @delete="remove"
+          @log="openChangeLog"
           @page-change="onPageChange"
           @size-change="onSizeChange"
           @changed="load"
@@ -43,6 +44,11 @@
     </div>
 
     <ModelPoolFormDrawer v-model="formVisible" :pool="editingPool" @saved="resetPage" />
+    <OperationLogDrawer
+      v-model="logDrawer"
+      :title="`模型池变更日志 - ${logPoolName || ''}`"
+      :load-logs="loadModelPoolOperationLogs"
+    />
   </PageSection>
 </template>
 
@@ -54,11 +60,13 @@ import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import {useListQuery} from "@/composables/useListQuery";
 import EnumControl from "../../components/common/EnumControl.vue";
 import ModelPoolListPanel from "../../components/model/ModelPoolListPanel.vue";
 import ModelPoolFormDrawer from "../../components/model/ModelPoolFormDrawer.vue";
 import {deleteModelPool, listModelPools} from "@/api/modelPools";
+import {listModelPoolOperationLogs} from "@/api/operationLogs";
 
 const {
   query,
@@ -77,6 +85,9 @@ const {
 
 const formVisible = ref(false);
 const editingPool = ref<Dict | null>(null);
+const logDrawer = ref(false);
+const logPoolId = ref<number | string | null>(null);
+const logPoolName = ref("");
 
 function openCreate() {
   editingPool.value = null;
@@ -97,6 +108,15 @@ async function remove(row: Row) {
   resetPage();
 }
 
+function openChangeLog(row: Row) {
+  logPoolId.value = row.id;
+  logPoolName.value = row.poolCode || `#${row.id}`;
+  logDrawer.value = true;
+}
+
+function loadModelPoolOperationLogs() {
+  return listModelPoolOperationLogs(logPoolId.value!);
+}
 
 onMounted(load);
 </script>

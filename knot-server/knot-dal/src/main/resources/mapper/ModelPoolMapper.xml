@@ -2,44 +2,53 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.gateway.mapper.ModelPoolMapper">
 
+    <!-- 模型池按统一模型绑定：model_type / logical_model_name 均派生自 kb_logical_models -->
     <sql id="PoolSelectColumns">
-        id, pool_code, name, model_type, selection_strategy, status, remark
+        mp.id, mp.pool_code, mp.name, mp.logical_model_code, mp.selection_strategy, mp.status, mp.remark,
+        lm.model_name AS logical_model_name,
+        lm.model_type AS model_type
+    </sql>
+
+    <sql id="PoolFromClause">
+        from kb_model_pools mp
+        left join kb_logical_models lm on lm.model_code = mp.logical_model_code and lm.is_deleted = 0
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.ModelPoolEntity">
         select <include refid="PoolSelectColumns"/>
-        from kb_model_pools
+        <include refid="PoolFromClause"/>
         <where>
-            and is_deleted = 0
+            and mp.is_deleted = 0
             <if test="keyword != null and keyword != ''">
                 and (
-                    pool_code like concat('%', #{keyword}, '%')
-                    or name like concat('%', #{keyword}, '%')
-                    or remark like concat('%', #{keyword}, '%')
+                    mp.pool_code like concat('%', #{keyword}, '%')
+                    or mp.name like concat('%', #{keyword}, '%')
+                    or mp.remark like concat('%', #{keyword}, '%')
+                    or lm.model_name like concat('%', #{keyword}, '%')
                 )
             </if>
             <if test="modelTypes != null and modelTypes.size() > 0">
-                and model_type in
+                and lm.model_type in
                 <foreach collection="modelTypes" item="type" open="(" separator="," close=")">
                     #{type}
                 </foreach>
             </if>
         </where>
-        order by id desc
+        order by mp.id desc
     </select>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.ModelPoolEntity">
         select <include refid="PoolSelectColumns"/>
-        from kb_model_pools
-        where id = #{id}
-          and is_deleted = 0
+        <include refid="PoolFromClause"/>
+        where mp.id = #{id}
+          and mp.is_deleted = 0
     </select>
 
     <select id="getByCode" resultType="org.chobit.knot.gateway.entity.ModelPoolEntity">
         select <include refid="PoolSelectColumns"/>
-        from kb_model_pools
-        where pool_code = #{poolCode}
-          and is_deleted = 0
+        <include refid="PoolFromClause"/>
+        where mp.pool_code = #{poolCode}
+          and mp.is_deleted = 0
     </select>
 
     <select id="countByPoolCode" resultType="java.lang.Long">
@@ -50,15 +59,15 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_model_pools(pool_code, name, model_type, selection_strategy, status, remark)
-        values(#{poolCode}, #{name}, #{modelType}, #{selectionStrategy}, #{status}, #{remark})
+        insert into kb_model_pools(pool_code, name, logical_model_code, selection_strategy, status, remark)
+        values(#{poolCode}, #{name}, #{logicalModelCode}, #{selectionStrategy}, #{status}, #{remark})
     </insert>
 
     <update id="update">
         update kb_model_pools
         set pool_code = #{poolCode},
             name = #{name},
-            model_type = #{modelType},
+            logical_model_code = #{logicalModelCode},
             selection_strategy = #{selectionStrategy},
             status = #{status},
             remark = #{remark}
@@ -85,8 +94,8 @@
                mpi.priority,
                mpi.status,
                m.model_code,
-               (select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id order by pm2.id asc limit 1) as model_name,
-               (select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id order by pm2.id asc limit 1) as model_type,
+               (select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1) as model_name,
+               (select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1) as model_type,
                m.provider_account_code,
                p.name as provider_name
         from kb_model_pool_items mpi

@@ -10,8 +10,8 @@
       @selection-change="(selection) => emit('selection-change', selection)"
     >
       <el-table-column type="selection" width="48" fixed="left" />
-      <el-table-column prop="modelName" label="模型名称" min-width="220" show-overflow-tooltip />
-      <el-table-column prop="modelId" label="模型 ID" min-width="220" show-overflow-tooltip />
+      <el-table-column prop="modelId" label="模型 ID" min-width="250" show-overflow-tooltip />
+      <el-table-column prop="modelName" label="模型名称" min-width="250" show-overflow-tooltip />
       <el-table-column prop="providerName" label="供应商" min-width="130" show-overflow-tooltip />
       <el-table-column label="类型" min-width="110" show-overflow-tooltip>
         <template #default="{ row }">{{ modelTypeLabel(row.modelType) }}</template>

@@ -106,6 +106,7 @@ declare module 'vue' {
     ListPagination: typeof import('./src/components/common/ListPagination.vue')['default']
     LogicalModelCardGrid: typeof import('./src/components/model/LogicalModelCardGrid.vue')['default']
     LogicalModelFormDrawer: typeof import('./src/components/model/LogicalModelFormDrawer.vue')['default']
+    LogicalModelList: typeof import('./src/components/model/LogicalModelList.vue')['default']
     LogicalModelTable: typeof import('./src/components/model/LogicalModelTable.vue')['default']
     ModelFormDrawer: typeof import('./src/components/model/ModelFormDrawer.vue')['default']
     ModelListPanel: typeof import('./src/components/model/ModelListPanel.vue')['default']

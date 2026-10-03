@@ -147,7 +147,9 @@ public class ModelPoolService {
 
     /**
      * Builds the audit snapshot recorded by {@code @OperationLog}.
-     * Returns null when the pool no longer exists, which is expected after a delete.
+     * Evaluated by the {@code @Around} aspect before the method body runs, so a logical
+     * delete still captures the full pre-delete state. Returns null once the pool is gone
+     * (repeated delete) or the id is null.
      */
     public Map<String, Object> modelPoolAuditSnapshot(Long id) {
         if (id == null) {
