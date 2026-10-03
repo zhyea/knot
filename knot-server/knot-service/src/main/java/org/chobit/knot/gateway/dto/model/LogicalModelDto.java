@@ -21,6 +21,8 @@ public record LogicalModelDto(
         String visibility,
         String publishStatus,
         boolean enabled,
+        /** 已逻辑删除：管理列表仍展示（浅红底 + 恢复按钮），下拉/绑定类查询一律排除 */
+        boolean deleted,
         Integer sortOrder,
         boolean featured,
         String remark,

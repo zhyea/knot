@@ -137,6 +137,7 @@ public class ExternalModelService {
                 "PUBLIC",
                 "DRAFT",
                 false,
+                false,
                 0,
                 false,
                 "Imported from " + item.getSourceCode() + ": " + item.getModelId(),

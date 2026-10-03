@@ -8,7 +8,7 @@
         tags_json, use_cases_json,
         context_window, max_output_tokens,
         input_modalities_json, output_modalities_json, languages_json,
-        visibility, publish_status, status, sort_order, featured,
+        visibility, publish_status, status, is_deleted, sort_order, featured,
         remark, created_at, updated_at
     </sql>
 
@@ -24,7 +24,9 @@
         select <include refid="LogicalModelColumns"/>
         from kb_logical_models
         <where>
-            and is_deleted = 0
+            <if test="includeDeleted == null or !includeDeleted">
+                and is_deleted = 0
+            </if>
             <if test="keyword != null and keyword != ''">
                 and (
                     model_code like concat('%', #{keyword}, '%')
@@ -40,7 +42,7 @@
                 </foreach>
             </if>
         </where>
-        order by sort_order asc, id desc, featured desc
+        order by is_deleted asc, sort_order asc, id desc, featured desc
     </select>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.LogicalModelEntity">
@@ -50,6 +52,13 @@
           and is_deleted = 0
     </select>
 
+    <!-- 含已删除：供「恢复」前的存在性判断与操作日志快照使用 -->
+    <select id="getByIdIncludingDeleted" resultType="org.chobit.knot.gateway.entity.LogicalModelEntity">
+        select <include refid="LogicalModelColumns"/>
+        from kb_logical_models
+        where id = #{id}
+    </select>
+
     <select id="getByCode" resultType="org.chobit.knot.gateway.entity.LogicalModelEntity">
         select <include refid="LogicalModelColumns"/>
         from kb_logical_models
@@ -57,11 +66,11 @@
           and is_deleted = 0
     </select>
 
+    <!-- 编码唯一性按物理行判定（含已逻辑删除的行）：uk_logical_models_code 不区分 is_deleted -->
     <select id="countByModelCode" resultType="java.lang.Long">
         select count(1)
         from kb_logical_models
         where model_code = #{modelCode}
-          and is_deleted = 0
         <if test="excludeId != null">
             and id != #{excludeId}
         </if>
@@ -194,6 +203,10 @@
 
     <update id="logicalDelete">
         update kb_logical_models set is_deleted = 1 where id = #{id} and is_deleted = 0
+    </update>
+
+    <update id="restore">
+        update kb_logical_models set is_deleted = 0 where id = #{id} and is_deleted = 1
     </update>
 
     <select id="countMappingsByLogicalModelCode" resultType="java.lang.Long">

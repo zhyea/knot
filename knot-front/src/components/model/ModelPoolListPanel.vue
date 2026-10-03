@@ -1,6 +1,13 @@
 <template>
   <div>
-    <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
+    <el-table
+      v-loading="loading"
+      :data="rows"
+      :row-class-name="rowClassName"
+      stripe
+      border
+      style="width: 100%"
+    >
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
       <el-table-column prop="poolCode" label="模型池编码" min-width="150" show-overflow-tooltip />
       <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip />
@@ -23,6 +30,7 @@
           <el-switch
             :model-value="row.enabled !== false"
             :loading="togglingId === row.id"
+            :disabled="row.deleted === true"
             inline-prompt
             active-text="启用"
             inactive-text="禁用"
@@ -34,11 +42,7 @@
       <el-table-column label="操作" width="170" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <RowActions
-            :actions="[
-              { key: 'edit', label: '编辑', icon: Edit },
-              { key: 'log', label: '日志', icon: Document },
-              { key: 'delete', label: '删除', icon: Delete, type: 'danger' }
-            ]"
+            :actions="rowActions(row)"
             @action="(action) => emit(action, row)"
           />
         </template>
@@ -58,8 +62,8 @@
 </template>
 
 <script setup lang="ts">
-import type {Row} from "@/types";
-import {Delete, Document, Edit} from "@element-plus/icons-vue";
+import type {Row, RowAction} from "@/types";
+import {Delete, Document, Edit, RefreshLeft} from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {updateModelPoolStatus} from "@/api/modelPools";
@@ -99,6 +103,26 @@ function strategyLabel(code: string) {
   return labelOf("ModelPoolSelectionStrategyEnum", code, code || "-");
 }
 
+/** 已删除行：浅红底标识（排序已由后端 is_deleted asc 放到末尾） */
+function rowClassName({ row }: { row: Row }) {
+  return row.deleted === true ? "row-deleted" : "";
+}
+
+/** 已删除行只给「日志 / 恢复」，编辑与删除都无意义；恢复后按常规操作列展示 */
+function rowActions(row: Row): RowAction[] {
+  if (row.deleted === true) {
+    return [
+      { key: "log", label: "日志", icon: Document },
+      { key: "restore", label: "恢复", icon: RefreshLeft, type: "success", confirm: "确认恢复该模型池？" }
+    ];
+  }
+  return [
+    { key: "edit", label: "编辑", icon: Edit },
+    { key: "log", label: "日志", icon: Document },
+    { key: "delete", label: "删除", icon: Delete, type: "danger" }
+  ];
+}
+
 async function handleEnabledChange(row: Row, enabled: string | number | boolean) {
   await onEnabledChange(row, enabled);
   emit("changed");
@@ -111,5 +135,16 @@ async function handleEnabledChange(row: Row, enabled: string | number | boolean)
   color: #303133;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 已逻辑删除的行：浅红底 + 文字降透明度，与正常行一眼可分 */
+:deep(.el-table__row.row-deleted > td) {
+  background: #fef0f0 !important;
+  color: #c45656;
+}
+
+:deep(.el-table__row.row-deleted > td .bind-list__text) {
+  color: #c45656;
+  text-decoration: line-through;
 }
 </style>

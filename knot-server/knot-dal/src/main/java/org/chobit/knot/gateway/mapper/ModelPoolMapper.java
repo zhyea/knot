@@ -10,9 +10,13 @@ import java.util.List;
 @Mapper
 public interface ModelPoolMapper {
 
-    List<ModelPoolEntity> list(@Param("keyword") String keyword, @Param("modelTypes") List<String> modelTypes);
+    List<ModelPoolEntity> list(@Param("keyword") String keyword,
+                               @Param("modelTypes") List<String> modelTypes,
+                               @Param("includeDeleted") Boolean includeDeleted);
 
     ModelPoolEntity getById(@Param("id") Long id);
+
+    ModelPoolEntity getByIdIncludingDeleted(@Param("id") Long id);
 
     ModelPoolEntity getByCode(@Param("poolCode") String poolCode);
 
@@ -34,6 +38,8 @@ public interface ModelPoolMapper {
     int insertItem(ModelPoolItemEntity entity);
 
     int logicalDelete(@Param("id") Long id);
+
+    int restore(@Param("id") Long id);
 
     Long countRoutingTargetsByPoolId(@Param("poolId") Long poolId);
 }

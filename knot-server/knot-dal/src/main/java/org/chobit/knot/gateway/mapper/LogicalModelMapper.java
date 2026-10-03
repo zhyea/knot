@@ -11,9 +11,12 @@ import java.util.List;
 public interface LogicalModelMapper {
 
     List<LogicalModelEntity> list(@Param("keyword") String keyword,
-                                  @Param("modelTypes") List<String> modelTypes);
+                                  @Param("modelTypes") List<String> modelTypes,
+                                  @Param("includeDeleted") Boolean includeDeleted);
 
     LogicalModelEntity getById(Long id);
+
+    LogicalModelEntity getByIdIncludingDeleted(Long id);
 
     LogicalModelEntity getByCode(String modelCode);
 
@@ -44,6 +47,8 @@ public interface LogicalModelMapper {
     int deleteMapping(@Param("logicalModelCode") String logicalModelCode, @Param("mappingId") Long mappingId);
 
     int logicalDelete(@Param("id") Long id);
+
+    int restore(@Param("id") Long id);
 
     Long countMappingsByLogicalModelCode(@Param("logicalModelCode") String logicalModelCode);
 }

@@ -30,3 +30,12 @@ export function updateLogicalModelStatus(id: number | string, enabled: boolean) 
 export function deleteLogicalModel(id: number | string) {
   return del(`/api/logical-models/${id}`);
 }
+
+/**
+ * 恢复已逻辑删除的统一模型。
+ * 编码唯一性按物理行判定（uk_logical_models_code 不区分 is_deleted），删除后同 model_code
+ * 无法新建，只能恢复；管理列表传 includeDeleted=true 才能看到已删除行。
+ */
+export function restoreLogicalModel(id: number | string) {
+  return put(`/api/logical-models/${id}/restore`);
+}

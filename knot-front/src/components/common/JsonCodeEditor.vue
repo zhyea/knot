@@ -293,22 +293,23 @@ function visualizeWhitespaceText(text: unknown): string {
 
 .json-editor :deep(.json-tab-visual) {
   vertical-align: baseline;
-  background-image: linear-gradient(#f87171, #f87171);
+  background-image: linear-gradient(#fca5a5, #fca5a5);
   background-repeat: no-repeat;
-  /* 横线末端停在箭头前约 0.25ch（≈1.8px），留出可见间隙 */
-  background-size: calc(100% - 1.05ch) 0.5px;
+  /* 线段末端顶到箭头左缘（0 间隙）；箭头右缘到 tab 盒右边界留0.38ch，
+     叠加下一个 tab 线段的 0.2ch 起点间距 → 箭头与右侧横线视觉间距约 0.58ch */
+  background-size: calc(100% - 1.42ch) 0.5px;
   background-position: left 0.2ch center;
 }
 
 .json-editor :deep(.json-tab-visual::after) {
   content: "";
   position: absolute;
-  right: 0;
+  right: 0.5ch;
   top: 50%;
   width: 0.6ch;
   height: 0.6ch;
-  border-top: 1px solid #f87171;
-  border-right: 1px solid #f87171;
+  border-top: 1px solid #fca5a5;
+  border-right: 1px solid #fca5a5;
   transform: translateY(-50%) rotate(45deg);
   transform-origin: center;
 }

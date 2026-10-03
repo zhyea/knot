@@ -6,18 +6,36 @@
       stripe
       border
       style="width: 100%"
+      class="external-model-table"
       :row-class-name="rowClassName"
+      scrollbar-always-on
       @selection-change="(selection) => emit('selection-change', selection)"
     >
       <el-table-column type="selection" width="48" fixed="left" />
-      <el-table-column prop="modelId" label="模型 ID" min-width="250" show-overflow-tooltip />
-      <el-table-column prop="modelName" label="模型名称" min-width="250" show-overflow-tooltip />
-      <el-table-column prop="providerName" label="供应商" min-width="130" show-overflow-tooltip />
-      <el-table-column label="类型" min-width="110" show-overflow-tooltip>
+      <el-table-column prop="modelId" label="模型 ID" width="280">
+        <template #default="{ row }">
+          <span class="cell-wrap">{{ row.modelId || "-" }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="modelName" label="模型名称" width="240">
+        <template #default="{ row }">
+          <span class="cell-wrap">{{ row.modelName || "-" }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="providerName" label="供应商" width="150">
+        <template #default="{ row }">
+          <span class="cell-wrap">{{ row.providerName || "-" }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="类型" width="120">
         <template #default="{ row }">{{ modelTypeLabel(row.modelType) }}</template>
       </el-table-column>
-      <el-table-column prop="contextLength" label="上下文" min-width="100" show-overflow-tooltip />
-      <el-table-column label="创建时间" min-width="160" show-overflow-tooltip>
+      <el-table-column prop="contextLength" label="上下文" width="120">
+        <template #default="{ row }">
+          <span class="cell-wrap">{{ row.contextLength ?? "-" }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="创建时间" width="170">
         <template #default="{ row }">{{ formatDateTime(row.modelCreatedAt || row.createdAt) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="160" align="center" header-align="center" fixed="right">
@@ -83,7 +101,19 @@ function rowClassName({ row }: { row: Row }): string {
 </script>
 
 <style scoped>
-:deep(.el-table__body tr.external-model-uncreated-row > td.el-table__cell) {
+:deep(.external-model-table .el-table__cell) {
+  word-break: break-word;
+}
+
+.cell-wrap {
+  display: inline-block;
+  max-width: 100%;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+:deep(.external-model-table .el-table__body tr.external-model-uncreated-row > td.el-table__cell) {
   background-color: #f0f9eb;
 }
 

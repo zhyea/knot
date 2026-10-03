@@ -61,7 +61,8 @@ public class ModelPoolController {
         PageResult<ModelPoolDto> page = modelPoolService.list(
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
                 query == null ? null : query.keyword(),
-                query == null ? null : query.modelTypes()
+                query == null ? null : query.modelTypes(),
+                query == null ? null : query.includeDeleted()
         );
         return page.mapList(modelPoolConverter::toVOList);
     }
@@ -117,5 +118,20 @@ public class ModelPoolController {
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         modelPoolService.delete(id);
+    }
+
+    /**
+     * 恢复已逻辑删除的模型池。编码唯一性按物理行判定，删除后同 pool_code 无法新建，
+     * 只能通过本接口恢复。
+     */
+    @OperationLog(module = "model-pool", operation = "UPDATE", entityType = "ModelPool",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'恢复模型池'",
+            oldValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)",
+            newValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)")
+    @PutMapping("/{id}/restore")
+    public ModelPool restore(@PathVariable Long id) {
+        return modelPoolConverter.toVO(modelPoolService.restore(id));
     }
 }

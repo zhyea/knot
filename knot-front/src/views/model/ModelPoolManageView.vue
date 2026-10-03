@@ -65,9 +65,13 @@ import {useListQuery} from "@/composables/useListQuery";
 import EnumControl from "../../components/common/EnumControl.vue";
 import ModelPoolListPanel from "../../components/model/ModelPoolListPanel.vue";
 import ModelPoolFormDrawer from "../../components/model/ModelPoolFormDrawer.vue";
-import {deleteModelPool, listModelPools} from "@/api/modelPools";
+import {deleteModelPool, listModelPools, restoreModelPool} from "@/api/modelPools";
 import {listModelPoolOperationLogs} from "@/api/operationLogs";
 
+/**
+ * 管理列表带 includeDeleted=true：已逻辑删除的模型池仍展示（浅红底 + 恢复按钮），
+ * 排序由后端 is_deleted asc 放到末尾。路由规则等下拉场景不传该参数，已删除项不列为备选。
+ */
 const {
   query,
   rows,
@@ -81,7 +85,10 @@ const {
   resetPage,
   handleQuery,
   handleReset
-} = useListQuery({ apiFn: listModelPools, fields: { keyword: "", modelTypes: [] } });
+} = useListQuery({
+  apiFn: (params: Dict) => listModelPools({...params, includeDeleted: true}),
+  fields: { keyword: "", modelTypes: [] }
+});
 
 const formVisible = ref(false);
 const editingPool = ref<Dict | null>(null);
@@ -105,6 +112,12 @@ async function remove(row: Row) {
   });
   await deleteModelPool(row.id);
   ElMessage.success("已删除");
+  resetPage();
+}
+
+async function restore(row: Row) {
+  await restoreModelPool(row.id);
+  ElMessage.success("已恢复");
   resetPage();
 }
 

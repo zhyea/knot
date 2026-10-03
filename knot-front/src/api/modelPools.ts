@@ -30,3 +30,12 @@ export function updateModelPoolStatus(id: number | string, enabled: boolean) {
 export function deleteModelPool(id: number | string) {
   return del(`/api/model-pools/${id}`);
 }
+
+/**
+ * 恢复已逻辑删除的模型池。
+ * 编码唯一性按物理行判定（uk_model_pools_code 不区分 is_deleted），删除后同 pool_code
+ * 无法新建，只能恢复；管理列表传 includeDeleted=true 才能看到已删除行。
+ */
+export function restoreModelPool(id: number | string) {
+  return put(`/api/model-pools/${id}/restore`);
+}

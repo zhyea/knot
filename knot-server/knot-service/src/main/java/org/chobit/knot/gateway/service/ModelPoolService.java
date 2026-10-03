@@ -49,11 +49,17 @@ public class ModelPoolService {
 
     /**
      * Lists matching results. Executes the public operation.
+     *
+     * @param includeDeleted 管理列表传 true 以便展示已删除行（浅红底 + 恢复按钮）；
+     *                       下拉/选择类查询保持 false，已删除项不列为备选
      */
-    public PageResult<ModelPoolDto> list(PageRequest pageRequest, String keyword, List<String> modelTypes) {
+    public PageResult<ModelPoolDto> list(PageRequest pageRequest,
+                                         String keyword,
+                                         List<String> modelTypes,
+                                         Boolean includeDeleted) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
-            PageInfo<ModelPoolEntity> pageInfo =
-                    new PageInfo<>(modelPoolMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes)));
+            PageInfo<ModelPoolEntity> pageInfo = new PageInfo<>(modelPoolMapper.list(
+                    normalizeKeyword(keyword), normalizeModelTypes(modelTypes), includeDeleted));
             List<ModelPoolDto> dtos = pageInfo.getList().stream()
                     .map(entity -> enrich(modelPoolConverter.toDto(entity)))
                     .toList();
@@ -69,7 +75,7 @@ public class ModelPoolService {
         if (entity == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "model pool not found");
         }
-        return enrich(modelPoolConverter.toDto(entity));
+        return toDto(entity);
     }
 
     /**
@@ -138,6 +144,7 @@ public class ModelPoolService {
                 existing.modelType(),
                 existing.selectionStrategy(),
                 enabled,
+                existing.deleted(),
                 existing.remark(),
                 existing.items()
         );
@@ -163,6 +170,32 @@ public class ModelPoolService {
     }
 
     /**
+     * Restores a logically deleted model pool.
+     *
+     * <p>编码唯一性按物理行判定（uk_model_pools_code 不区分 is_deleted），所以逻辑删除后同
+     * {@code pool_code} 无法新建，只能恢复。恢复时校验绑定的统一模型仍存在且未删除，
+     * 避免恢复出一个指向已删除统一模型的池。
+     */
+    @Transactional
+    public ModelPoolDto restore(Long id) {
+        ModelPoolEntity existing = modelPoolMapper.getByIdIncludingDeleted(id);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "model pool not found");
+        }
+        if (!Integer.valueOf(1).equals(existing.getIsDeleted())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "模型池未被删除，无需恢复");
+        }
+        LogicalModelEntity logicalModel = logicalModelMapper.getByCode(existing.getLogicalModelCode());
+        if (logicalModel == null) {
+            throw new BusinessException(ErrorCode.CONFLICT, "绑定的统一模型已被删除，无法恢复");
+        }
+        if (modelPoolMapper.restore(id) == 0) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "model pool not found");
+        }
+        return getById(id);
+    }
+
+    /**
      * Builds the audit snapshot recorded by {@code @OperationLog}.
      * Evaluated by the {@code @Around} aspect before the method body runs, so a logical
      * delete still captures the full pre-delete state. Returns null once the pool is gone
@@ -173,11 +206,16 @@ public class ModelPoolService {
             return null;
         }
         try {
-            ModelPoolDto dto = getById(id);
-            return JsonKit.toMap(dto);
+            // 含已删除：恢复操作要取删除前快照，删除操作要取删除瞬间状态
+            ModelPoolEntity entity = modelPoolMapper.getByIdIncludingDeleted(id);
+            return entity == null ? null : JsonKit.toMap(toDto(entity));
         } catch (BusinessException e) {
             return null;
         }
+    }
+
+    private ModelPoolDto toDto(ModelPoolEntity entity) {
+        return enrich(modelPoolConverter.toDto(entity));
     }
 
     private ModelPoolDto enrich(ModelPoolDto dto) {
@@ -193,6 +231,7 @@ public class ModelPoolService {
                 dto.modelType(),
                 dto.selectionStrategy(),
                 dto.enabled(),
+                dto.deleted(),
                 dto.remark(),
                 items
         );
@@ -291,6 +330,7 @@ public class ModelPoolService {
                 null,
                 ModelPoolSelectionStrategyEnum.requireCode(request.selectionStrategy(), "unsupported selection strategy"),
                 request.enabled(),
+                false,
                 normalizeNullable(request.remark()),
                 request.items()
         );

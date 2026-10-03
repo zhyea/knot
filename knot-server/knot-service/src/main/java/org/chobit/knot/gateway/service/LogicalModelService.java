@@ -51,23 +51,29 @@ public class LogicalModelService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<LogicalModelDto> list(PageRequest pageRequest) {
-        return list(pageRequest, null);
+        return list(pageRequest, null, null, null);
     }
 
     /**
-     * Lists matching results. Executes the public operation.
+     * Returns matching results. Executes the public operation.
      */
     public PageResult<LogicalModelDto> list(PageRequest pageRequest, String keyword) {
-        return list(pageRequest, keyword, null);
+        return list(pageRequest, keyword, null, null);
     }
 
     /**
-     * Lists matching results. Executes the public operation.
+     * Returns matching results. Executes the public operation.
+     *
+     * @param includeDeleted 管理列表传 true 以便展示已删除行（浅红底 + 恢复按钮）；
+     *                       下拉/绑定类查询保持 false，已删除项不列为备选
      */
-    public PageResult<LogicalModelDto> list(PageRequest pageRequest, String keyword, List<String> modelTypes) {
+    public PageResult<LogicalModelDto> list(PageRequest pageRequest,
+                                            String keyword,
+                                            List<String> modelTypes,
+                                            Boolean includeDeleted) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<LogicalModelEntity> pageInfo = new PageInfo<>(
-                    logicalModelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes))
+                    logicalModelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes), includeDeleted)
             );
             List<LogicalModelDto> list = pageInfo.getList().stream()
                     .map(logicalModelConverter::toDto)
@@ -196,6 +202,27 @@ public class LogicalModelService {
     }
 
     /**
+     * Restores a logically deleted logical model.
+     *
+     * <p>编码唯一性按物理行判定（uk_logical_models_code 不区分 is_deleted），所以逻辑删除后
+     * 同 {@code model_code} 无法新建，只能恢复。
+     */
+    @Transactional
+    public LogicalModelDto restore(Long id) {
+        LogicalModelEntity entity = logicalModelMapper.getByIdIncludingDeleted(id);
+        if (entity == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "logical model not found");
+        }
+        if (!Integer.valueOf(1).equals(entity.getIsDeleted())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "统一模型未被删除，无需恢复");
+        }
+        if (logicalModelMapper.restore(id) == 0) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "logical model not found");
+        }
+        return getById(id);
+    }
+
+    /**
      * Builds the audit snapshot recorded by {@code @OperationLog}.
      * Evaluated by the {@code @Around} aspect before the method body runs, so a logical
      * delete still captures the full pre-delete state. Returns null once the model is gone
@@ -206,8 +233,9 @@ public class LogicalModelService {
             return null;
         }
         try {
-            LogicalModelDto dto = getById(id);
-            return JsonKit.toMap(dto);
+            // 含已删除：恢复操作要取删除前快照，删除操作要取删除瞬间状态
+            LogicalModelEntity entity = logicalModelMapper.getByIdIncludingDeleted(id);
+            return entity == null ? null : JsonKit.toMap(logicalModelConverter.toDto(entity));
         } catch (BusinessException e) {
             return null;
         }

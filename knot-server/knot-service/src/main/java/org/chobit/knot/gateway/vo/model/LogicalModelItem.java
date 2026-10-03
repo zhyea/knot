@@ -21,6 +21,7 @@ public record LogicalModelItem(
         String visibility,
         String publishStatus,
         boolean enabled,
+        boolean deleted,
         Integer sortOrder,
         boolean featured,
         String remark,

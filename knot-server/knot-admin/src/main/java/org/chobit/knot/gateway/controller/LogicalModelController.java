@@ -54,7 +54,8 @@ public class LogicalModelController {
         PageResult<LogicalModelDto> page = logicalModelService.list(
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
                 query == null ? null : query.keyword(),
-                query == null ? null : query.modelTypes()
+                query == null ? null : query.modelTypes(),
+                query == null ? null : query.includeDeleted()
         );
         return page.mapList(logicalModelConverter::toVOList);
     }
@@ -121,6 +122,21 @@ public class LogicalModelController {
      */
     public void delete(@PathVariable Long id) {
         logicalModelService.delete(id);
+    }
+
+    /**
+     * 恢复已逻辑删除的统一模型。编码唯一性按物理行判定，删除后同 model_code 无法新建，
+     * 只能通过本接口恢复。
+     */
+    @OperationLog(module = "logical-model", operation = "UPDATE", entityType = "LogicalModel",
+            entityId = "#p0",
+            entityNameAfter = "#result.modelName()",
+            description = "'恢复统一模型'",
+            oldValueSpel = "@logicalModelService.logicalModelAuditSnapshot(#p0)",
+            newValueSpel = "@logicalModelService.logicalModelAuditSnapshot(#p0)")
+    @PutMapping("/{id}/restore")
+    public LogicalModelItem restore(@PathVariable Long id) {
+        return logicalModelConverter.toVO(logicalModelService.restore(id));
     }
 
 }

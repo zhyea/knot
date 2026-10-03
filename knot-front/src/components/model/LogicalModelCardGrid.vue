@@ -2,7 +2,12 @@
   <div>
     <div v-loading="loading" class="market-body">
       <div v-if="rows.length" class="model-grid">
-        <div v-for="row in rows" :key="row.id" class="model-card">
+        <div
+          v-for="row in rows"
+          :key="row.id"
+          class="model-card"
+          :class="{ 'model-card--deleted': row.deleted === true }"
+        >
           <div class="corner-ribbon" :class="ribbonClass(row)">{{ statusText(row) }}</div>
           <div class="card-top">
             <div class="model-main">
@@ -22,11 +27,7 @@
               <span>更新时间：{{ formatDate(row.updatedAt) }}</span>
             </div>
             <RowActions
-              :actions="[
-                { key: 'edit', label: '编辑', icon: Edit },
-                { key: 'log', label: '日志', icon: Document },
-                { key: 'delete', label: '删除', icon: Delete, type: 'danger', confirm: '确认删除该统一模型？' }
-              ]"
+              :actions="rowActions(row)"
               @action="(action) => emit('action', action, row)"
             />
           </div>
@@ -49,12 +50,12 @@
 </template>
 
 <script setup lang="ts">
-import {Delete, Document, Edit} from "@element-plus/icons-vue";
+import {Delete, Document, Edit, RefreshLeft} from "@element-plus/icons-vue";
 import {onMounted, type PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {useEnums, resolveEnumLabel} from "@/composables/useEnums";
-import type {Row, SelectOption} from "@/types";
+import type {Row, RowAction, SelectOption} from "@/types";
 
 const props = defineProps({
   rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
@@ -97,15 +98,32 @@ function displayTags(row: Row): string[] {
 }
 
 function statusText(row: Row): string {
+  if (row.deleted === true) return "已删除";
   if (row.featured) return "推荐";
   if (row.publishStatus === "PUBLISHED") return "已发布";
   return row.enabled ? "可用" : "草稿";
 }
 
 function ribbonClass(row: Row): string {
+  if (row.deleted === true) return "corner-ribbon--deleted";
   if (row.featured) return "corner-ribbon--hot";
   if (row.publishStatus === "PUBLISHED") return "corner-ribbon--new";
   return row.enabled ? "corner-ribbon--new" : "corner-ribbon--draft";
+}
+
+/** 已删除卡片只给「日志 / 恢复」，编辑与删除都无意义 */
+function rowActions(row: Row): RowAction[] {
+  if (row.deleted === true) {
+    return [
+      { key: "log", label: "日志", icon: Document },
+      { key: "restore", label: "恢复", icon: RefreshLeft, type: "success", confirm: "确认恢复该统一模型？" }
+    ];
+  }
+  return [
+    { key: "edit", label: "编辑", icon: Edit },
+    { key: "log", label: "日志", icon: Document },
+    { key: "delete", label: "删除", icon: Delete, type: "danger", confirm: "确认删除该统一模型？" }
+  ];
 }
 
 function formatDate(value: unknown): string {
@@ -255,5 +273,25 @@ function formatDate(value: unknown): string {
 .corner-ribbon--draft {
   background: #f4f4f5;
   color: #909399;
+}
+
+.corner-ribbon--deleted {
+  background: #fef0f0;
+  color: #c45656;
+}
+
+/* 已逻辑删除的卡片：浅红底 + 整体降透明度，与正常卡片一眼可分 */
+.model-card--deleted {
+  border-color: #f5c2c2;
+  background: #fef7f7;
+  box-shadow: none;
+}
+
+.model-card--deleted .model-name,
+.model-card--deleted .model-code,
+.model-card--deleted .tagline,
+.model-card--deleted .footer-meta {
+  color: #c45656;
+  opacity: 0.75;
 }
 </style>

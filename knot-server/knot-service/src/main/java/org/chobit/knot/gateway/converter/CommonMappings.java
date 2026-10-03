@@ -57,6 +57,16 @@ public class CommonMappings {
         return enabled ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code();
     }
 
+    // ==================== logic-delete flag ====================
+
+    /**
+     * TINYINT 逻辑删除标记 → 布尔 {@code deleted}。0 / 未设置视为未删除。
+     */
+    @Named("deletedFlag")
+    public boolean deletedFlag(Integer isDeleted) {
+        return isDeleted != null && isDeleted != 0;
+    }
+
     // ==================== JSON <-> RateLimitPolicy ====================
 
     /**

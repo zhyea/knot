@@ -5,6 +5,7 @@
     <!-- 模型池按统一模型绑定：model_type / logical_model_name 均派生自 kb_logical_models -->
     <sql id="PoolSelectColumns">
         mp.id, mp.pool_code, mp.name, mp.logical_model_code, mp.selection_strategy, mp.status, mp.remark,
+        mp.is_deleted,
         lm.model_name AS logical_model_name,
         lm.model_type AS model_type
     </sql>
@@ -18,7 +19,9 @@
         select <include refid="PoolSelectColumns"/>
         <include refid="PoolFromClause"/>
         <where>
-            and mp.is_deleted = 0
+            <if test="includeDeleted == null or !includeDeleted">
+                and mp.is_deleted = 0
+            </if>
             <if test="keyword != null and keyword != ''">
                 and (
                     mp.pool_code like concat('%', #{keyword}, '%')
@@ -34,7 +37,7 @@
                 </foreach>
             </if>
         </where>
-        order by mp.id desc
+        order by mp.is_deleted asc, mp.id desc
     </select>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.ModelPoolEntity">
@@ -44,15 +47,23 @@
           and mp.is_deleted = 0
     </select>
 
+    <!-- 含已删除：供「恢复」前的存在性判断与操作日志快照使用（管理端列表已删除行也要能取到） -->
+    <select id="getByIdIncludingDeleted" resultType="org.chobit.knot.gateway.entity.ModelPoolEntity">
+        select <include refid="PoolSelectColumns"/>
+        <include refid="PoolFromClause"/>
+        where mp.id = #{id}
+    </select>
+
     <select id="getByCode" resultType="org.chobit.knot.gateway.entity.ModelPoolEntity">
         select <include refid="PoolSelectColumns"/>
         <include refid="PoolFromClause"/>
         where mp.pool_code = #{poolCode}
-          and mp.is_deleted = 0
     </select>
 
+    <!-- 编码唯一性按物理行判定（含已逻辑删除的行）：uk_model_pools_code 不区分 is_deleted，
+         若这里过滤掉已删除行，前端 check-code 会误报「可用」，随后 insert 撞 Duplicate entry。 -->
     <select id="countByPoolCode" resultType="java.lang.Long">
-        select count(1) from kb_model_pools where pool_code = #{poolCode} and is_deleted = 0
+        select count(1) from kb_model_pools where pool_code = #{poolCode}
         <if test="excludeId != null">
             and id != #{excludeId}
         </if>
@@ -117,6 +128,10 @@
 
     <update id="logicalDelete">
         update kb_model_pools set is_deleted = 1 where id = #{id} and is_deleted = 0
+    </update>
+
+    <update id="restore">
+        update kb_model_pools set is_deleted = 0 where id = #{id} and is_deleted = 1
     </update>
 
     <select id="countRoutingTargetsByPoolId" resultType="java.lang.Long">

@@ -3,6 +3,7 @@
     <el-table
       v-loading="loading"
       :data="rows"
+      :row-class-name="rowClassName"
       stripe
       border
       style="width: 100%"
@@ -28,6 +29,7 @@
           <el-switch
             :model-value="row.enabled !== false"
             :loading="togglingId === row.id"
+            :disabled="row.deleted === true"
             inline-prompt
             active-text="启用"
             inactive-text="禁用"
@@ -41,11 +43,7 @@
       <el-table-column label="操作" width="190" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <RowActions
-            :actions="[
-              { key: 'edit', label: '编辑', icon: Edit },
-              { key: 'log', label: '日志', icon: Document },
-              { key: 'delete', label: '删除', icon: Delete, type: 'danger', confirm: '确认删除该统一模型？' }
-            ]"
+            :actions="rowActions(row)"
             @action="(action) => emit('action', action, row)"
           />
         </template>
@@ -69,14 +67,14 @@
 </template>
 
 <script setup lang="ts">
-import {Delete, Document, Edit} from "@element-plus/icons-vue";
+import {Delete, Document, Edit, RefreshLeft} from "@element-plus/icons-vue";
 import {onMounted, type PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {updateLogicalModelStatus} from "@/api/logicalModels";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {useEnums, resolveEnumLabel} from "@/composables/useEnums";
-import type {Row, SelectOption} from "@/types";
+import type {Row, RowAction, SelectOption} from "@/types";
 
 const props = defineProps({
   rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
@@ -118,4 +116,32 @@ function formatDateTime(value: unknown): string {
   if (!value) return "-";
   return String(value).replace("T", " ").slice(0, 19);
 }
+
+/** 已删除行：浅红底标识（排序已由后端 is_deleted asc 放到末尾） */
+function rowClassName({ row }: { row: Row }): string {
+  return row.deleted === true ? "row-deleted" : "";
+}
+
+/** 已删除行只给「日志 / 恢复」，编辑与删除都无意义 */
+function rowActions(row: Row): RowAction[] {
+  if (row.deleted === true) {
+    return [
+      { key: "log", label: "日志", icon: Document },
+      { key: "restore", label: "恢复", icon: RefreshLeft, type: "success", confirm: "确认恢复该统一模型？" }
+    ];
+  }
+  return [
+    { key: "edit", label: "编辑", icon: Edit },
+    { key: "log", label: "日志", icon: Document },
+    { key: "delete", label: "删除", icon: Delete, type: "danger", confirm: "确认删除该统一模型？" }
+  ];
+}
 </script>
+
+<style scoped>
+/* 已逻辑删除的行：浅红底 + 文字降透明度，与正常行一眼可分 */
+:deep(.el-table__row.row-deleted > td) {
+  background: #fef0f0 !important;
+  color: #c45656;
+}
+</style>

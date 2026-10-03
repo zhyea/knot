@@ -44,6 +44,7 @@ public class LogicalModelConverter {
                 entity.getVisibility(),
                 entity.getPublishStatus(),
                 EntityStatusEnum.ENABLED.code().equals(entity.getStatus()),
+                entity.getIsDeleted() != null && entity.getIsDeleted() != 0,
                 entity.getSortOrder(),
                 Boolean.TRUE.equals(entity.getFeatured()),
                 entity.getRemark(),
@@ -90,8 +91,8 @@ public class LogicalModelConverter {
                 base.displayName(), base.description(),
                 base.tags(), base.useCases(), base.contextWindow(), base.maxOutputTokens(),
                 base.inputModalities(), base.outputModalities(), base.languages(),
-                base.visibility(), base.publishStatus(), base.enabled(), base.sortOrder(), base.featured(),
-                base.remark(), base.createdAt(), base.updatedAt(),
+                base.visibility(), base.publishStatus(), base.enabled(), base.deleted(), base.sortOrder(),
+                base.featured(), base.remark(), base.createdAt(), base.updatedAt(),
                 mappings != null ? mappings : List.of()
         );
     }
@@ -108,7 +109,7 @@ public class LogicalModelConverter {
                 dto.displayName(), dto.description(),
                 dto.tags(), dto.useCases(), dto.contextWindow(), dto.maxOutputTokens(),
                 dto.inputModalities(), dto.outputModalities(), dto.languages(),
-                dto.visibility(), dto.publishStatus(), dto.enabled(), dto.sortOrder(), dto.featured(),
+                dto.visibility(), dto.publishStatus(), dto.enabled(), dto.deleted(), dto.sortOrder(), dto.featured(),
                 dto.remark(), dto.createdAt(), dto.updatedAt(),
                 dto.mappings() == null ? List.of() : dto.mappings().stream().map(this::toMappingVO).toList()
         );
@@ -125,7 +126,7 @@ public class LogicalModelConverter {
                 item.contextWindow(), item.maxOutputTokens(), safeList(item.inputModalities()),
                 safeList(item.outputModalities()), safeList(item.languages()),
                 item.visibility(), item.publishStatus(),
-                item.enabled(), item.sortOrder(), item.featured(),
+                item.enabled(), item.deleted(), item.sortOrder(), item.featured(),
                 item.remark(),
                 item.createdAt(), item.updatedAt(),
                 item.mappings() == null ? List.of() : item.mappings().stream().map(this::toMappingDto).toList()

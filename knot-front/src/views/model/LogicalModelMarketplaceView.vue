@@ -92,7 +92,7 @@ import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import LogicalModelFormDrawer from "../../components/model/LogicalModelFormDrawer.vue";
 import LogicalModelList from "../../components/model/LogicalModelList.vue";
 import LogicalModelCardGrid from "../../components/model/LogicalModelCardGrid.vue";
-import {deleteLogicalModel, listLogicalModels} from "@/api/logicalModels";
+import {deleteLogicalModel, listLogicalModels, restoreLogicalModel} from "@/api/logicalModels";
 import {listLogicalModelOperationLogs} from "@/api/operationLogs";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {getStorageItem, getStorageJson, setStorageItem, setStorageJson} from "@/utils/storage";
@@ -128,6 +128,11 @@ const viewMode = ref(readViewMode());
 const viewPageSize = reactive(readViewPageSize());
 const viewPageSizes = computed(() => VIEW_PAGE_SIZES[viewMode.value] || VIEW_PAGE_SIZES.list);
 
+/**
+ * 管理列表带 includeDeleted=true：已逻辑删除的统一模型仍展示（浅红底/浅红卡 + 恢复按钮），
+ * 排序由后端 is_deleted asc 放到末尾。模型池/供应商模型的绑定下拉不传该参数，
+ * 已删除项不列为备选。
+ */
 const {
   query,
   rows,
@@ -141,7 +146,7 @@ const {
   handleQuery,
   handleReset
 } = useListQuery({
-  apiFn: listLogicalModels,
+  apiFn: (params: Dict) => listLogicalModels({...params, includeDeleted: true}),
   fields: { keyword: "", modelTypes: [] },
   pageSize: viewPageSize[viewMode.value]
 });
@@ -168,6 +173,7 @@ function handleAction(action: string, row: Row) {
   if (action === "edit") openEdit(row);
   if (action === "log") openChangeLog(row);
   if (action === "delete") removeModel(row);
+  if (action === "restore") restoreModel(row);
 }
 
 function openChangeLog(row: Row) {
@@ -183,6 +189,12 @@ function loadModelOperationLogs() {
 async function removeModel(row: Row) {
   await deleteLogicalModel(row.id);
   ElMessage.success("已删除统一模型");
+  await resetPage();
+}
+
+async function restoreModel(row: Row) {
+  await restoreLogicalModel(row.id);
+  ElMessage.success("已恢复统一模型");
   await resetPage();
 }
 

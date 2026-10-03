@@ -15,6 +15,7 @@ public record ModelPool(
         @Size(max = 64) String modelType,
         @NotBlank @Size(max = 32) String selectionStrategy,
         boolean enabled,
+        boolean deleted,
         @Size(max = 255) String remark,
         @Valid List<ModelPoolItem> items
 ) {

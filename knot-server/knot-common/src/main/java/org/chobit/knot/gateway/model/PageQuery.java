@@ -20,7 +20,9 @@ public record PageQuery(
         Long parentId,
         String modelFamilyCode,
         String logicalModelCode,
-        String protocol
+        String protocol,
+        /** 管理列表是否包含已逻辑删除的记录（默认 false）；下拉/选择类查询不传，保持只出未删除项 */
+        Boolean includeDeleted
 ) {
     /**
      * Converts the query to a page request.
