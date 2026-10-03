@@ -17,11 +17,6 @@ public interface ModelMapper {
 
     ModelEntity getByCode(@Param("modelCode") String modelCode);
 
-    /**
-     * 取供应商模型绑定的统一模型 code（与 name/model_type 派生口径一致：取映射表首条）。
-     */
-    String getLogicalModelCodeByModelCode(@Param("modelCode") String modelCode);
-
     int insert(ModelEntity entity);
 
     int update(ModelEntity entity);
