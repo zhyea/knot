@@ -8,21 +8,17 @@
       border
       style="width: 100%"
     >
-      <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
-      <el-table-column prop="poolCode" label="模型池编码" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip />
+      <el-table-column prop="id" label="ID" width="60" align="center" header-align="center" fixed="left"/>
+      <el-table-column prop="poolCode" label="模型池编码" min-width="200" show-overflow-tooltip />
       <el-table-column label="统一模型" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">
-          <span class="bind-list__text">{{ row.logicalModelName || row.logicalModelCode || "—" }}</span>
+          <span class="bind-list__text">{{ row.logicalModelCode || row.logicalModelName || "—" }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="模型类型" min-width="110">
-        <template #default="{ row }">{{ modelTypeLabel(row.modelType) }}</template>
-      </el-table-column>
-      <el-table-column label="选择策略" min-width="110">
+      <el-table-column label="选择策略" min-width="70">
         <template #default="{ row }">{{ strategyLabel(row.selectionStrategy) }}</template>
       </el-table-column>
-      <el-table-column label="模型数量" width="90" align="center">
+      <el-table-column label="模型数量" width="60" align="center">
         <template #default="{ row }">{{ row.items?.length || 0 }}</template>
       </el-table-column>
       <el-table-column label="启用" width="88" align="center">
@@ -38,7 +34,6 @@
           />
         </template>
       </el-table-column>
-      <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
       <el-table-column label="操作" width="170" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <RowActions
