@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.upstream.protocol;
 
 import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplierCatalog;
+import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
@@ -41,5 +42,16 @@ public class MediaProtocolExecutor extends AbstractUpstreamProtocolExecutor {
     @Override
     public boolean supports(ModelApiProtocolEnum protocol) {
         return protocol != null && PROTOCOLS.contains(protocol.canonical());
+    }
+
+    /**
+     * Audio Speech supports chunked audio/SSE responses when the request sets
+     * {@code stream=true}; the remaining media protocols are buffered.
+     */
+    @Override
+    protected boolean supportsStreaming(UpstreamRequestContext context) {
+        return context != null
+                && context.protocol() != null
+                && ModelApiProtocolEnum.AUDIO_SPEECH == context.protocol().canonical();
     }
 }
