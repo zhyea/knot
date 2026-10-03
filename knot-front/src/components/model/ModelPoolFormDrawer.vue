@@ -14,7 +14,7 @@
         <div class="section-head">
           <div>
             <h3>基础信息</h3>
-            <p>模型池编码提供给路由规则使用，启用前需要至少配置一个启用模型。</p>
+            <p>模型池编码提供给路由规则使用；池内模型必须全部属于同一个统一模型，启用前需要至少配置一个启用模型。</p>
           </div>
           <el-form-item label="启用" class="inline-switch">
             <el-switch v-model="form.enabled" />
@@ -32,8 +32,17 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="模型类型" required>
-              <EnumControl v-model="form.modelType" enum-name="ModelTypeEnum" @change="onModelTypeChange" />
+            <el-form-item label="统一模型" required>
+              <RemoteEntitySelect
+                v-model="form.logicalModelCode"
+                value-key="modelCode"
+                :load-function="loadLogicalModelOptions"
+                :label-function="logicalModelLabel"
+                :selected-options="selectedLogicalModelOptions"
+                placeholder="请选择统一模型"
+                style="width: 100%"
+                @change="onLogicalModelChange"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -55,7 +64,7 @@
         <div class="section-head">
           <div>
             <h3>池内模型</h3>
-            <p>按模型类型筛选供应商模型，权重用于加权选择，优先级用于优先级策略。</p>
+            <p>仅可选择归属于上方统一模型的供应商模型；权重用于加权选择，优先级用于优先级策略。</p>
           </div>
         </div>
         <el-form-item label="绑定模型" required class="bind-block-item">
@@ -65,8 +74,9 @@
             :label-function="modelLabel"
             :selected-options="boundModelRows"
             value-key="modelCode"
-            :extra-params="{ modelTypes: form.modelType ? [form.modelType] : [] }"
-            placeholder="请选择模型，可多选"
+            :disabled="!form.logicalModelCode"
+            :extra-params="{ logicalModelCode: form.logicalModelCode || undefined }"
+            :placeholder="form.logicalModelCode ? '请选择模型，可多选' : '请先选择统一模型'"
             multiple
             collapse-tags
             collapse-tags-tooltip
@@ -139,7 +149,8 @@ import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import {checkModelPoolCode, createModelPool, updateModelPool} from "@/api/modelPools";
 import {listModels} from "@/api/models";
-import {mergeOptionList, normalizeOptionList} from "@/utils/options";
+import {listLogicalModels} from "@/api/logicalModels";
+import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -152,6 +163,7 @@ const isEdit = computed(() => props.pool != null);
 const saving = ref(false);
 const poolCodeError = ref("");
 const modelOptions = ref<Row[]>([]);
+const logicalModelOptions = ref<Row[]>([]);
 
 interface PoolItemForm {
   id?: number | string | null;
@@ -170,7 +182,9 @@ interface PoolFormState {
   id: number | string | null;
   poolCode: string;
   name: string;
-  modelType: string;
+  logicalModelCode: string | null;
+  logicalModelName?: string;
+  modelType?: string;
   selectionStrategy: string;
   enabled: boolean;
   remark: string;
@@ -181,12 +195,19 @@ const form = reactive<PoolFormState>({
   id: null,
   poolCode: "",
   name: "",
-  modelType: "CHAT",
+  logicalModelCode: null,
   selectionStrategy: "WEIGHTED",
   enabled: false,
   remark: "",
   items: []
 });
+
+const selectedLogicalModelOptions = computed(() =>
+  resolveSelectedOption(form.logicalModelCode, logicalModelOptions.value, {
+    modelCode: form.logicalModelCode,
+    modelName: form.logicalModelName
+  }, "modelCode")
+);
 
 const selectedModelCodes = computed({
   get: () => form.items.map((item) => item.modelCode).filter((code) => code != null),
@@ -207,6 +228,10 @@ const boundModelRows = computed(() =>
   })
 );
 
+function logicalModelLabel(model: Row) {
+  return model.modelCode ? `${model.modelName || model.modelCode}（${model.modelCode}）` : `#${model.id}`;
+}
+
 function modelLabel(model: Row) {
   return model.modelCode ? `${model.name || model.modelCode}（${model.modelCode}）` : `#${model.id}`;
 }
@@ -216,9 +241,18 @@ function mergeOptions(list: Row[]) {
 }
 
 async function loadModelOptions(params: Dict) {
-  const res = await listModels(params);
+  if (!form.logicalModelCode) {
+    return {list: [], total: 0};
+  }
+  const res = await listModels({...params, logicalModelCode: form.logicalModelCode});
   const list = normalizeOptionList(res);
   mergeOptions(list);
+  return res;
+}
+
+async function loadLogicalModelOptions(params: Dict) {
+  const res = await listLogicalModels(params);
+  logicalModelOptions.value = mergeOptionList(logicalModelOptions.value, normalizeOptionList(res));
   return res;
 }
 
@@ -227,7 +261,9 @@ function resetForm() {
   form.id = row?.id ?? null;
   form.poolCode = row?.poolCode || "";
   form.name = row?.name || "";
-  form.modelType = row?.modelType || "CHAT";
+  form.logicalModelCode = row?.logicalModelCode || null;
+  form.logicalModelName = row?.logicalModelName;
+  form.modelType = row?.modelType;
   form.selectionStrategy = row?.selectionStrategy || "WEIGHTED";
   form.enabled = row?.enabled === true;
   form.remark = row?.remark || "";
@@ -250,7 +286,10 @@ watch(
   ([visible]) => {
     if (visible) {
       resetForm();
-      loadModelOptions({ pageNum: 1, pageSize: 10, modelTypes: form.modelType ? [form.modelType] : [] });
+      modelOptions.value = [];
+      if (form.logicalModelCode) {
+        loadModelOptions({pageNum: 1, pageSize: 10});
+      }
     }
   }
 );
@@ -262,10 +301,13 @@ watch(
   }
 );
 
-function onModelTypeChange() {
+/** 切换统一模型：池内模型必须全部归属新统一模型，故清空已选并清空候选缓存 */
+function onLogicalModelChange() {
   form.items = [];
   modelOptions.value = [];
-  loadModelOptions({ pageNum: 1, pageSize: 10, modelTypes: form.modelType ? [form.modelType] : [] });
+  if (form.logicalModelCode) {
+    loadModelOptions({pageNum: 1, pageSize: 10});
+  }
 }
 
 function onSelectedModelsChange(codes: string[]) {
@@ -306,7 +348,7 @@ function buildPayload() {
   return {
     poolCode: form.poolCode?.trim(),
     name: form.name?.trim(),
-    modelType: form.modelType,
+    logicalModelCode: form.logicalModelCode,
     selectionStrategy: form.selectionStrategy,
     enabled: form.enabled,
     remark: form.remark?.trim() || null,
@@ -322,6 +364,10 @@ function buildPayload() {
 async function submit() {
   if (!form.name?.trim()) {
     ElMessage.warning("请填写名称");
+    return;
+  }
+  if (!form.logicalModelCode) {
+    ElMessage.warning("请选择统一模型");
     return;
   }
   if (!(await validatePoolCode())) {

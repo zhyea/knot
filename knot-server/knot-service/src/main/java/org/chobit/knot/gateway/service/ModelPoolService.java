@@ -105,12 +105,17 @@ public class ModelPoolService {
         if (existing == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "model pool not found");
         }
-        validateForSave(request, id);
-        String logicalModelCode = normalizeLogicalModelCode(request.logicalModelCode());
+        // 改绑统一模型的前置检查先于逐项校验：池内非空时先给出「请先清空」的准确提示，
+        // 否则会被「池内模型必须属于同一统一模型」盖住。
+        String logicalModelCode = requireText(
+                normalizeLogicalModelCode(request.logicalModelCode()),
+                "please select logical model"
+        );
         if (!logicalModelCode.equals(normalizeText(existing.getLogicalModelCode()))
                 && !modelPoolMapper.listItemsByPoolCode(existing.getPoolCode()).isEmpty()) {
             throw new BusinessException(ErrorCode.CONFLICT, "切换统一模型前请先清空池内模型");
         }
+        validateForSave(request, id);
         ModelPoolEntity entity = modelPoolConverter.toEntity(normalize(request));
         entity.setId(id);
         modelPoolMapper.update(entity);
@@ -253,7 +258,7 @@ public class ModelPoolService {
             if (model == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "model not found");
             }
-            String boundLogicalModelCode = modelMapper.getLogicalModelCodeByModelCode(item.modelCode());
+            String boundLogicalModelCode = model.getLogicalModelCode();
             if (boundLogicalModelCode == null) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "模型未绑定统一模型，无法加入模型池");
             }

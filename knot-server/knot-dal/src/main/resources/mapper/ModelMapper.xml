@@ -57,15 +57,6 @@
         where m.model_code = #{modelCode}
     </select>
 
-    <select id="getLogicalModelCodeByModelCode" resultType="java.lang.String">
-        select pm.logical_model_code
-        from kb_provider_model_mappings pm
-        join kb_logical_models lm on lm.model_code = pm.logical_model_code and lm.is_deleted = 0
-        where pm.model_id = (select m.id from kb_models m where m.model_code = #{modelCode})
-        order by pm.id asc
-        limit 1
-    </select>
-
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into kb_models(provider_account_code, model_code, version, base_url, remark, billing_rule_code, status)
         values(#{providerAccountCode}, #{modelCode}, #{version}, #{baseUrl}, #{remark}, #{billingRuleCode}, #{status})

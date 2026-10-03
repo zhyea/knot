@@ -4,6 +4,11 @@
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
       <el-table-column prop="poolCode" label="模型池编码" min-width="150" show-overflow-tooltip />
       <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip />
+      <el-table-column label="统一模型" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span class="bind-list__text">{{ row.logicalModelName || row.logicalModelCode || "—" }}</span>
+        </template>
+      </el-table-column>
       <el-table-column label="模型类型" min-width="110">
         <template #default="{ row }">{{ modelTypeLabel(row.modelType) }}</template>
       </el-table-column>
@@ -99,3 +104,12 @@ async function handleEnabledChange(row: Row, enabled: string | number | boolean)
   emit("changed");
 }
 </script>
+
+<style scoped>
+.bind-list__text {
+  overflow: hidden;
+  color: #303133;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+</style>
