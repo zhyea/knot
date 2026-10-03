@@ -538,9 +538,15 @@ function onPresetChange(presetId: number | string | null) {
 }
 
 function createDefaultTemplate(protocol: unknown): string {
-  // 默认请求体由「预设请求」用例提供（替代原硬编码骨架）；按当前协议取首个匹配预设，否则回退最小结构
-  const candidate = presetOptions.value.find((preset) => preset.protocolCode === normalizeProtocolCode(protocol));
-  const parsed = candidate ? safeParseTemplate(candidate.requestBody) : {error: true, value: {}};
+  // 默认请求体由「预设请求」用例提供（替代原硬编码骨架）；同协议优先取非流式用例，否则回退最小结构
+  const candidates = presetOptions.value.filter((preset) => preset.protocolCode === normalizeProtocolCode(protocol));
+  // 同一协议同时提供流式与非流式用例时，默认保持非流式；用户可在下拉中主动选择流式版本。
+  const candidate = candidates.find((preset) => {
+    const parsed = safeParseTemplate(preset.requestBody);
+    const body = parsed.value as Dict;
+    return !parsed.error && body?.stream !== true;
+  }) || candidates[0];
+    const parsed = candidate ? safeParseTemplate(candidate.requestBody) : {error: true, value: {}};
   const base = parsed.error ? {} : parsed.value;
   if (candidate) {
     selectedPresetId.value = candidate.id;
