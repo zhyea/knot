@@ -90,14 +90,9 @@
           row-key="modelCode"
           class="model-pool-items-table"
         >
-          <el-table-column prop="modelCode" label="模型编码" min-width="150" show-overflow-tooltip>
+          <el-table-column prop="modelCode" label="模型编码" min-width="160" show-overflow-tooltip>
             <template #default="{ row }">
               <span class="bind-list__text">{{ row.modelCode || "—" }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="模型名称" min-width="160" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span class="bind-list__text">{{ row.modelName || row.name || "—" }}</span>
             </template>
           </el-table-column>
           <el-table-column label="供应商" min-width="120" show-overflow-tooltip>
