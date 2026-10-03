@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.ModelFamilyMapper">
+
+    <!--
+      模型族 = ks_enum_configs(category='model_family')，与枚举管理页同源。
+      引用数：统一模型按 model_family 归类 + 计费规则按 model_family 作用域，均只统计未删除行。
+    -->
+    <sql id="ModelFamilyColumns">
+        ec.id,
+        ec.item_code   AS code,
+        ec.item_label  AS name,
+        ec.sort_order  AS sortOrder,
+        ec.is_enabled  AS enabled,
+        ec.remark,
+        ((select count(*) from kb_logical_models lm where lm.model_family = ec.item_code and lm.is_deleted = 0)
+            + (select count(*) from kb_billing_rules br
+               where br.model_family = ec.item_code and coalesce(br.status, '') &lt;&gt; 'DELETED')) AS usageCount
+    </sql>
+
+    <sql id="ModelFamilyFrom">
+        from ks_enum_configs ec
+        inner join ks_enum_categories c on ec.category_id = c.id
+        where ec.is_deleted = 0
+          and c.is_deleted = 0
+          and c.category = 'model_family'
+    </sql>
+
+    <select id="list" resultType="org.chobit.knot.gateway.entity.ModelFamilyEntity">
+        select <include refid="ModelFamilyColumns"/>
+        <include refid="ModelFamilyFrom"/>
+        <if test="keyword != null and keyword != ''">
+            and (
+                ec.item_code like concat('%', #{keyword}, '%')
+                or ec.item_label like concat('%', #{keyword}, '%')
+                or ec.remark like concat('%', #{keyword}, '%')
+            )
+        </if>
+        order by ec.sort_order, ec.id
+    </select>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.ModelFamilyEntity">
+        select <include refid="ModelFamilyColumns"/>
+        <include refid="ModelFamilyFrom"/>
+        and ec.id = #{id}
+    </select>
+
+    <select id="getByCode" resultType="org.chobit.knot.gateway.entity.ModelFamilyEntity">
+        select <include refid="ModelFamilyColumns"/>
+        <include refid="ModelFamilyFrom"/>
+        and ec.item_code = #{code}
+    </select>
+
+</mapper>

@@ -104,7 +104,7 @@ public class ZhipuRequestAdapter implements UpstreamRequestAdapter {
     private Map<String, Object> imageGenerationBody(UpstreamRequestContext context) {
         Map<String, Object> source = context.requestBody();
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put(AiPayloadFields.MODEL, context.model().getModelCode());
+        body.put(AiPayloadFields.MODEL, context.model().getUpstreamModel());
         body.put(AiPayloadFields.PROMPT, requiredText(source.get(AiPayloadFields.PROMPT), "prompt is required for Zhipu image generation"));
         copyIfPresent(source, body, "size");
         copyIfPresent(source, body, "quality");

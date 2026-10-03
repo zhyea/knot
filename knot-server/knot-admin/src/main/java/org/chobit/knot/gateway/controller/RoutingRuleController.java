@@ -113,7 +113,6 @@ public class RoutingRuleController {
         return routingRuleService.testInvoke(id,
                 request.secretKey(),
                 request.prompt(),
-                request.model(),
                 request.protocol(),
                 request.targetType(),
                 request.targetId(),

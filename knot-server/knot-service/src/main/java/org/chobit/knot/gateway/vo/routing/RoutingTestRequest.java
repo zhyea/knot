@@ -7,7 +7,6 @@ import java.util.Map;
 public record RoutingTestRequest(
         @NotBlank String secretKey,
         String prompt,
-        String model,
         String protocol,
         String targetType,
         Long targetId,

@@ -224,6 +224,7 @@ public class ModelService {
         String modelType = validateModelRequest(request);
         ModelEntity entity = modelConverter.toEntity(request);
         entity.setModelCode(modelCode);
+        entity.setUpstreamModel(request.upstreamModel().trim());
         modelMapper.insert(entity);
         trafficPolicySupport.save(
                 TrafficResourceTypeEnum.MODEL.code(),
@@ -251,6 +252,7 @@ public class ModelService {
         ModelEntity entity = modelConverter.toEntity(request);
         entity.setId(id);
         entity.setModelCode(modelCode);
+        entity.setUpstreamModel(request.upstreamModel().trim());
         modelMapper.update(entity);
         trafficPolicySupport.save(
                 TrafficResourceTypeEnum.MODEL.code(),
@@ -275,6 +277,7 @@ public class ModelService {
             ModelDto request = new ModelDto(
                     existing.id(),
                     existing.modelCode(),
+                    existing.upstreamModel(),
                     existing.name(),
                     existing.providerAccountCode(),
                     existing.providerName(),
@@ -343,6 +346,7 @@ public class ModelService {
         return new ModelDto(
                 base.id(),
                 base.modelCode(),
+                base.upstreamModel(),
                 base.name(),
                 base.providerAccountCode(),
                 base.providerName(),
@@ -370,6 +374,8 @@ public class ModelService {
         if (request.logicalModelCode() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择统一模型");
         }
+        // 上游模型必填：向上游发起请求时写入请求体 model 参数，为空则上游必然拒单
+        requireText(request.upstreamModel(), "请填写上游模型");
         LogicalModelEntity logicalModel = logicalModelMapper.getByCode(request.logicalModelCode());
         if (logicalModel == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择统一模型");

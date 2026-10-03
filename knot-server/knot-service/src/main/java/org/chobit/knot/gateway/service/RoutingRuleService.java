@@ -272,7 +272,6 @@ public class RoutingRuleService {
     public RoutingTestResult testInvoke(Long ruleId,
                                         String secretKey,
                                         String prompt,
-                                        String modelCode,
                                         String protocolCode,
                                         String targetType,
                                         Long targetId,
@@ -287,9 +286,10 @@ public class RoutingRuleService {
         }
         RoutingRuleTargetDto selectedTarget = resolveTestTarget(rule, targetType, targetId);
         ModelApiProtocolEnum protocol = resolveTestProtocol(protocolCode, selectedTarget);
-        String model = resolveRequestModelCode(modelCode, selectedTarget);
+        // 客户端无需传 model：请求体不带 model，网关按路由目标的上游模型（kb_models.upstream_model）覆盖
+        String model = selectedTarget.targetCode();
         String userPrompt = normalizeTestPrompt(prompt);
-        Map<String, Object> body = buildRequestBody(protocol, model, userPrompt, requestBody);
+        Map<String, Object> body = buildRequestBody(protocol, userPrompt, requestBody);
 
         String baseUrl = normalizeGatewayBaseUrl();
         String gatewayPath = buildGatewayTestPath(protocol);
@@ -406,28 +406,19 @@ public class RoutingRuleService {
         return supportedProtocolsForTarget(target).stream().findFirst().orElse(ModelApiProtocolEnum.CHAT_COMPLETIONS);
     }
 
-    private String resolveRequestModelCode(String modelCode, RoutingRuleTargetDto target) {
-        String normalized = modelCode == null ? "" : modelCode.trim();
-        if (!normalized.isEmpty()) {
-            return normalized;
-        }
-        return target.targetCode();
-    }
-
     private String normalizeTestPrompt(String prompt) {
         String normalized = prompt == null ? "" : prompt.trim();
         return normalized.isEmpty() ? DEFAULT_TEST_PROMPT : normalized;
     }
 
     private Map<String, Object> buildRequestBody(ModelApiProtocolEnum protocol,
-                                                 String model,
                                                  String prompt,
                                                  Map<String, Object> requestBody) {
         Map<String, Object> body = new LinkedHashMap<>();
         if (requestBody != null && !requestBody.isEmpty()) {
             body.putAll(requestBody);
         }
-        body.put("model", model);
+        body.remove("model");
         fillDefaultPromptFields(protocol, body, prompt);
         return body;
     }
@@ -743,6 +734,7 @@ public class RoutingRuleService {
                 entity.getTargetType(),
                 entity.getTargetId(),
                 entity.getTargetCode(),
+                null,
                 entity.getTargetName(),
                 entity.getModelType(),
                 entity.getProviderAccountCode(),

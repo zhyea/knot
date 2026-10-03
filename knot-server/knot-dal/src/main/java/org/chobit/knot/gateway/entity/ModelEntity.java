@@ -12,6 +12,8 @@ public class ModelEntity {
     /** 关联 kb_providers.code（经账户推导），仅查询展示 */
     private String providerCode;
     private String modelCode;
+    /** 上游模型标识：向上游发起请求时写入请求体 model 参数 */
+    private String upstreamModel;
     /** 派生字段：取自 kb_provider_model_mappings（供应商模型 → 统一模型 1:1 映射） */
     private String logicalModelCode;
     /** 派生字段：取自绑定的统一模型（kb_provider_model_mappings → kb_logical_models），不落 kb_models */

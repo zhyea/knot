@@ -47,7 +47,8 @@ const routes: RouteRecordRaw[] = [
       { path: "providers", redirect: { name: "model-management-provider-accounts" } },
       { path: "provider-profiles", name: "model-management-provider-profiles", component: () => import("@/views/model/ProviderProfileManageView.vue"), meta: { titleKey: "route.providerProfiles" } },
       { path: "logical-models", name: "model-management-logical-models", component: () => import("@/views/model/LogicalModelMarketplaceView.vue"), meta: { titleKey: "route.modelManagementLogicalModels" } },
-      { path: "external-models", name: "model-management-external-models", component: () => import("@/views/model/ExternalModelManageView.vue"), meta: { titleKey: "route.modelManagementExternalModels" } }
+      { path: "external-models", name: "model-management-external-models", component: () => import("@/views/model/ExternalModelManageView.vue"), meta: { titleKey: "route.modelManagementExternalModels" } },
+      { path: "model-families", name: "model-management-model-families", component: () => import("@/views/model/ModelFamilyView.vue"), meta: { titleKey: "route.modelFamilies" } }
     ]
   },
   { path: "/providers", redirect: "/model-management/provider-accounts" },
@@ -56,6 +57,7 @@ const routes: RouteRecordRaw[] = [
   { path: "/logical-models", redirect: "/model-management/logical-models" },
   { path: "/models", redirect: "/model-management/models" },
   { path: "/model-pools", redirect: "/model-management/model-pools" },
+  { path: "/model-families", redirect: "/model-management/model-families" },
   {
     path: "/apps",
     name: "apps",

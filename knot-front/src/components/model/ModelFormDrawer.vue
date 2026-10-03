@@ -14,7 +14,7 @@
           <div class="section-head">
             <div>
               <h3>基础信息</h3>
-              <p>维护供应商模型编码、版本以及上游基础地址；名称与类型由绑定的统一模型派生。</p>
+              <p>维护供应商模型编码、统一模型、上游模型、版本以及上游基础地址；名称与类型由绑定的统一模型派生。</p>
             </div>
             <el-form-item label="启用" class="inline-switch">
               <el-switch v-model="form.enabled" :before-change="beforeEnableChange"/>
@@ -30,7 +30,7 @@
                   maxlength="128"
                   show-word-limit
                   :disabled="modelCodeChecking"
-                  @blur="validateModelCode"
+                  @blur="onModelCodeBlur"
                 />
               </el-form-item>
             </el-col>
@@ -64,6 +64,32 @@
             </el-col>
           </el-row>
 
+          <el-row :gutter="16" class="form-grid">
+            <el-col :span="12">
+              <el-form-item label="统一模型" required>
+                <RemoteEntitySelect
+                  v-model="form.logicalModelCode"
+                  value-key="modelCode"
+                  :load-function="loadLogicalModels"
+                  :label-function="logicalModelLabel"
+                  :selected-options="selectedLogicalModelOptions"
+                  placeholder="请选择统一模型"
+                  style="width: 100%"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="上游模型" required>
+                <el-input
+                  v-model="form.upstreamModel"
+                  placeholder="向上游请求时使用的 model，如 gpt-4o"
+                  maxlength="128"
+                  show-word-limit
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
+
           <el-form-item label="备注">
             <el-input
               v-model="form.remark"
@@ -82,117 +108,61 @@
           <div class="section-head">
             <div>
               <h3>绑定配置</h3>
-              <p>维护统一模型和计费规则之间的关系；启用前必须配置完整。</p>
+              <p>维护计费规则绑定；启用前必须配置完整。</p>
             </div>
           </div>
 
-          <div class="binding-stack">
-            <div class="binding-card">
-              <div class="binding-card__head">
-                <span>统一模型</span>
-                <small>调用方感知的统一模型名称</small>
-              </div>
-              <el-form-item label="绑定统一模型" required class="bind-block-item">
-                <RemoteEntitySelect
-                  v-model="form.logicalModelCode"
-                  value-key="modelCode"
-                  :load-function="loadLogicalModels"
-                  :label-function="logicalModelLabel"
-                  :selected-options="selectedLogicalModelOptions"
-                  placeholder="请选择统一模型"
-                  style="width: 100%"
-                />
-              </el-form-item>
-              <el-table
-                v-if="selectedLogicalModel"
-                :data="[selectedLogicalModel]"
-                border
-                class="bind-table logical-model-bind-table"
-              >
-                <el-table-column prop="modelCode" label="统一模型编码" min-width="150" show-overflow-tooltip>
-                  <template #default="{ row }">
-                    <span class="bind-list__text">{{ row.modelCode || "-" }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column label="统一模型名称" min-width="160" show-overflow-tooltip>
-                  <template #default="{ row }">
-                    <span class="bind-list__text">{{ logicalModelName(row) }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="modelType" label="模型类型" width="100" show-overflow-tooltip>
-                  <template #default="{ row }">
-                    <span class="bind-list__text">{{ row.modelType || "-" }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column prop="modelFamily" label="模型族" width="120" show-overflow-tooltip>
-                  <template #default="{ row }">
-                    <span class="bind-list__text">{{ row.modelFamily || "-" }}</span>
-                  </template>
-                </el-table-column>
-                <el-table-column label="是否启用" width="100" align="center">
-                  <template #default="{ row }">
-                    <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
-                      {{ row.enabled === false ? "停用" : "启用" }}
-                    </el-tag>
-                  </template>
-                </el-table-column>
-              </el-table>
+          <div class="binding-card">
+            <div class="binding-card__head">
+              <span>计费规则</span>
+              <small>下拉选择规则（按统一模型的模型族筛选候选）；下方只回显当前已绑定的那一条</small>
             </div>
-
-            <div class="binding-grid">
-              <div class="binding-card">
-                <div class="binding-card__head">
-                  <span>计费规则</span>
-                  <small>下拉选择规则（按统一模型的模型族筛选候选）；下方只回显当前已绑定的那一条</small>
-                </div>
-                <el-form-item label="绑定计费规则" required class="bind-block-item">
-                  <RemoteEntitySelect
-                    v-model="form.billingRuleCode"
-                    value-key="code"
-                    :load-function="loadBillingRules"
-                    :label-function="billingRuleLabel"
-                    :selected-options="selectedBillingRuleOptions"
-                    :extra-params="billingRuleFilterParams"
-                    :disabled="!form.providerAccountCode || !form.logicalModelCode"
-                    placeholder="请选择计费规则"
-                    style="width: 100%"
-                  />
-                </el-form-item>
-                <el-table
-                  v-if="boundBillingRule"
-                  :data="[boundBillingRule]"
-                  row-key="code"
-                  border
-                  class="bind-table"
-                >
-                  <el-table-column prop="code" label="规则编码" min-width="150" show-overflow-tooltip>
-                    <template #default="{ row }">
-                      <span class="bind-list__text">{{ row.code || "-" }}</span>
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="模型族" min-width="140" show-overflow-tooltip>
-                    <template #default="{ row }">
-                      <span class="bind-list__text">{{ row.modelFamilyName || row.modelFamilyCode || "默认（所有模型族）" }}</span>
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="计费模式" min-width="110" show-overflow-tooltip>
-                    <template #default="{ row }">{{ modeLabel(row.billingMode) }}</template>
-                  </el-table-column>
-                  <el-table-column label="进阶方案" min-width="110" show-overflow-tooltip>
-                    <template #default="{ row }">{{ planLabel(row.pricingPlan) }}</template>
-                  </el-table-column>
-                  <el-table-column label="是否启用" width="90" align="center">
-                    <template #default="{ row }">
-                      <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
-                        {{ row.enabled === false ? "停用" : "启用" }}
-                      </el-tag>
-                    </template>
-                  </el-table-column>
-                </el-table>
-                <div v-else class="empty-billing-rule">
-                  {{ form.billingRuleCode ? "已绑定的计费规则不存在或已删除，请重新选择" : "尚未绑定计费规则，请从上方下拉选择" }}
-                </div>
-              </div>
+            <el-form-item label="绑定计费规则" required class="bind-block-item">
+              <RemoteEntitySelect
+                v-model="form.billingRuleCode"
+                value-key="code"
+                :load-function="loadBillingRules"
+                :label-function="billingRuleLabel"
+                :selected-options="selectedBillingRuleOptions"
+                :extra-params="billingRuleFilterParams"
+                :disabled="!form.providerAccountCode || !form.logicalModelCode"
+                placeholder="请选择计费规则"
+                style="width: 100%"
+              />
+            </el-form-item>
+            <el-table
+              v-if="boundBillingRule"
+              :data="[boundBillingRule]"
+              row-key="code"
+              border
+              class="bind-table"
+            >
+              <el-table-column prop="code" label="规则编码" min-width="150" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <span class="bind-list__text">{{ row.code || "-" }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="模型族" min-width="140" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <span class="bind-list__text">{{ row.modelFamilyName || row.modelFamilyCode || "默认（所有模型族）" }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="计费模式" min-width="110" show-overflow-tooltip>
+                <template #default="{ row }">{{ modeLabel(row.billingMode) }}</template>
+              </el-table-column>
+              <el-table-column label="进阶方案" min-width="110" show-overflow-tooltip>
+                <template #default="{ row }">{{ planLabel(row.pricingPlan) }}</template>
+              </el-table-column>
+              <el-table-column label="是否启用" width="90" align="center">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
+                    {{ row.enabled === false ? "停用" : "启用" }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div v-else class="empty-billing-rule">
+              {{ form.billingRuleCode ? "已绑定的计费规则不存在或已删除，请重新选择" : "尚未绑定计费规则，请从上方下拉选择" }}
             </div>
           </div>
         </div>
@@ -394,6 +364,8 @@ const MODEL_CODE_MAX_LEN = 128;
 interface ModelFormState {
   id: number | string | null;
   modelCode: string;
+  /** 上游模型：向上游发起请求时写入请求体 model 参数，与 modelCode 可不同 */
+  upstreamModel: string;
   baseUrl: string;
   remark: string;
   providerAccountCode: string | null;
@@ -410,6 +382,7 @@ interface ModelFormState {
 const form = reactive<ModelFormState>({
   id: null,
   modelCode: "",
+  upstreamModel: "",
   baseUrl: "",
   remark: "",
   providerAccountCode: null,
@@ -555,6 +528,7 @@ function formatHourVersion(date: Date): string {
 function fillForm(row: Row) {
   form.id = row.id;
   form.modelCode = row.modelCode || "";
+  form.upstreamModel = row.upstreamModel || "";
   form.baseUrl = row.baseUrl || "";
   form.remark = row.remark || "";
   form.providerAccountCode = row.providerAccountCode ?? null;
@@ -639,6 +613,7 @@ async function resetForm() {
       } else {
       form.id = null;
       form.modelCode = "";
+      form.upstreamModel = "";
       form.baseUrl = "";
       form.remark = "";
       form.providerAccountCode = null;
@@ -677,6 +652,14 @@ function onClosed() {
   modelCodeError.value = "";
 }
 
+/** 模型编码失焦：上游模型为空时以模型编码兜底（多数供应商上游模型与编码同名），再走唯一性校验 */
+function onModelCodeBlur() {
+  if (!String(form.upstreamModel ?? "").trim()) {
+    form.upstreamModel = form.modelCode?.trim() || "";
+  }
+  void validateModelCode();
+}
+
 async function validateModelCode() {
   const code = form.modelCode?.trim();
   if (!code) {
@@ -711,6 +694,7 @@ async function validateModelCode() {
 function validateRequired(showMessage = true) {
   const checks: Array<[unknown, string]> = [
     [form.modelCode?.trim(), "请填写模型编码"],
+    [form.upstreamModel?.trim(), "请填写上游模型"],
     [form.baseUrl?.trim(), "请填写 Base URL"],
     [form.providerAccountCode, "请选择供应商账户"],
     [form.logicalModelCode, "请选择统一模型"],
@@ -843,6 +827,7 @@ function buildApiBindingsPayload() {
 function buildPayload() {
   return {
     modelCode: form.modelCode?.trim(),
+    upstreamModel: form.upstreamModel?.trim(),
     baseUrl: form.baseUrl?.trim() || null,
     remark: form.remark?.trim() || null,
     providerAccountCode: form.providerAccountCode,
@@ -934,17 +919,6 @@ async function submit() {
 
 .space-line {
   height: 14px;
-}
-
-.binding-stack {
-  display: grid;
-  gap: 14px;
-}
-
-.binding-grid {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: 1fr;
 }
 
 .binding-card,

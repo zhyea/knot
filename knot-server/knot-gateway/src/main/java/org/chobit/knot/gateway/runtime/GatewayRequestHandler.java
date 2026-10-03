@@ -90,8 +90,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
             }
             hasAllowedTarget = true;
 
-            // 替换请求体中的模型代码
-            requestBody.put(AiPayloadFields.MODEL, candidate.targetCode());
+            // 客户端无需传 model：请求体 model 恒按路由目标的上游模型覆盖（kb_models.upstream_model）
+            requestBody.put(AiPayloadFields.MODEL, candidate.upstreamModelCode());
 
             // 调用上游服务
             try {

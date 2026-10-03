@@ -308,6 +308,7 @@ CREATE TABLE IF NOT EXISTS kb_models (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   provider_account_code VARCHAR(32) NOT NULL COMMENT '所属供应商账户 code（kb_provider_accounts.code）',
   model_code VARCHAR(128) NOT NULL,
+  upstream_model VARCHAR(128) NOT NULL COMMENT '上游模型标识：向上游发起请求时写入请求体 model 参数',
   version VARCHAR(64) NOT NULL,
   base_url VARCHAR(255) DEFAULT NULL,
   remark VARCHAR(255) DEFAULT NULL,

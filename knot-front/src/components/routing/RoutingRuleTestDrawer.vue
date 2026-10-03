@@ -244,7 +244,6 @@ interface RoutingTestResult {
 
 const testResult = ref<RoutingTestResult | null>(null);
 const targetProtocolMap = reactive<Dict>({});
-const targetResolvedModelMap = reactive<Dict>({});
 const templateStore = reactive<Dict>({});
 
 /** 预设请求（按协议复用的完整请求体用例），调试面板下拉从接口载入 */
@@ -289,10 +288,6 @@ const filteredPresetOptions = computed(() => {
   return presetOptions.value.filter((preset) => preset.protocolCode === protocol);
 });
 const protocolHint = computed(() => hintOf(activeProtocol.value));
-const resolvedModel = computed(() => {
-  const targetKey = testForm.targetKey;
-  return targetResolvedModelMap[targetKey] || activeTarget.value?.targetCode || "model-name";
-});
 
 const currentTemplateText = computed({
   get() {
@@ -430,13 +425,8 @@ async function loadProtocolsForCurrentTarget() {
   protocolLoading.value = true;
   try {
     const detail = await resolveTargetProtocolDetail(target);
-    const protocols = detail.protocols.length ? detail.protocols : fallbackProtocolsForModelType(target.modelType);
+    const protocols = detail.length ? detail : fallbackProtocolsForModelType(target.modelType);
     targetProtocolMap[target.key] = protocols;
-    if (detail.resolvedModel) {
-      targetResolvedModelMap[target.key] = detail.resolvedModel;
-    } else if (!targetResolvedModelMap[target.key]) {
-      targetResolvedModelMap[target.key] = target.targetCode || "model-name";
-    }
     if (!protocols.includes(normalizeProtocolCode(testForm.protocol))) {
       testForm.protocol = protocols[0] || "";
     } else {
@@ -452,65 +442,32 @@ async function resolveTargetProtocolDetail(target: RoutingTarget) {
   if (normalizeTargetType(target.targetType) === "MODEL_POOL") {
     return await loadModelPoolProtocols(target);
   }
-  return await loadModelProtocols(target.targetId as string | number, target.modelType, target.targetCode);
+  return await loadModelProtocols(target.targetId as string | number, target.modelType);
 }
 
-async function loadModelProtocols(
-  modelId: number | string,
-  modelType: string | undefined,
-  fallbackModelCode: string | undefined
-): Promise<{ protocols: string[]; resolvedModel: string }> {
+async function loadModelProtocols(modelId: number | string, modelType: string | undefined): Promise<string[]> {
   try {
     const detail = await getModel(modelId);
     const bindings = Array.isArray(detail?.apiBindings) ? detail.apiBindings : [];
-    const protocols = normalizeProtocolsFromBindings(bindings, modelType);
-    return {
-      protocols,
-      resolvedModel: detail?.modelCode || fallbackModelCode || "model-name"
-    };
+    return normalizeProtocolsFromBindings(bindings, modelType);
   } catch {
-    return {
-      protocols: fallbackProtocolsForModelType(modelType),
-      resolvedModel: fallbackModelCode || "model-name"
-    };
+    return fallbackProtocolsForModelType(modelType);
   }
 }
 
-async function loadModelPoolProtocols(target: RoutingTarget): Promise<{ protocols: string[]; resolvedModel: string }> {
+async function loadModelPoolProtocols(target: RoutingTarget): Promise<string[]> {
   try {
     const detail = await getModelPool(target.targetId as string | number);
     const enabledItems: Row[] = (Array.isArray(detail?.items) ? detail.items : []).filter((item: Row) => item.enabled !== false);
     if (!enabledItems.length) {
-      return {
-        protocols: fallbackProtocolsForModelType(target.modelType),
-        resolvedModel: target.targetCode || "model-name"
-      };
+      return fallbackProtocolsForModelType(target.modelType);
     }
-    const models = await Promise.all(enabledItems.map((item: Row) => loadModelProtocols(item.modelId, item.modelType, item.modelCode)));
-    const protocolLists = models.map((item) => item.protocols).filter((item: string[]) => item.length);
-    const protocols = intersectProtocolLists(protocolLists);
-    const resolvedModel = selectPoolResolvedModel(enabledItems);
-    return {
-      protocols: protocols.length ? protocols : fallbackProtocolsForModelType(target.modelType),
-      resolvedModel: resolvedModel || target.targetCode || "model-name"
-    };
+    const protocolLists = await Promise.all(enabledItems.map((item: Row) => loadModelProtocols(item.modelId, item.modelType)));
+    const protocols = intersectProtocolLists(protocolLists.filter((item: string[]) => item.length));
+    return protocols.length ? protocols : fallbackProtocolsForModelType(target.modelType);
   } catch {
-    return {
-      protocols: fallbackProtocolsForModelType(target.modelType),
-      resolvedModel: target.targetCode || "model-name"
-    };
+    return fallbackProtocolsForModelType(target.modelType);
   }
-}
-
-function selectPoolResolvedModel(items: Row[]): string {
-  const sorted = [...items].sort((left: Row, right: Row) => {
-    const priorityDiff = (right.priority ?? 100) - (left.priority ?? 100);
-    if (priorityDiff !== 0) return priorityDiff;
-    const weightDiff = (right.weight ?? 100) - (left.weight ?? 100);
-    if (weightDiff !== 0) return weightDiff;
-    return (left.id ?? 0) - (right.id ?? 0);
-  });
-  return sorted[0]?.modelCode || "";
 }
 
 function normalizeProtocolsFromBindings(bindings: Row[], modelType: string | undefined): string[] {
@@ -539,10 +496,8 @@ function ensureTemplateForCurrentSelection() {
   }
   selectedPresetId.value = null;
   if (!templateStore[activeTemplateKey.value]) {
-    templateStore[activeTemplateKey.value] = createDefaultTemplate(protocol, resolvedModel.value);
-    return;
+    templateStore[activeTemplateKey.value] = createDefaultTemplate(protocol);
   }
-  syncTemplateModelField(activeTemplateKey.value, resolvedModel.value);
 }
 
 function resetCurrentTemplate() {
@@ -550,7 +505,7 @@ function resetCurrentTemplate() {
     return;
   }
   selectedPresetId.value = null;
-  templateStore[activeTemplateKey.value] = createDefaultTemplate(activeProtocol.value, resolvedModel.value);
+  templateStore[activeTemplateKey.value] = createDefaultTemplate(activeProtocol.value);
 }
 
 async function loadPresetOptions() {
@@ -579,10 +534,10 @@ function onPresetChange(presetId: number | string | null) {
   }
   const parsed = safeParseTemplate(preset.requestBody);
   const base = parsed.error ? {} : parsed.value;
-  templateStore[activeTemplateKey.value] = formatJson(syncModelInto(base, resolvedModel.value));
+  templateStore[activeTemplateKey.value] = formatJson(stripModelField(base));
 }
 
-function createDefaultTemplate(protocol: unknown, model: string | undefined): string {
+function createDefaultTemplate(protocol: unknown): string {
   // 默认请求体由「预设请求」用例提供（替代原硬编码骨架）；按当前协议取首个匹配预设，否则回退最小结构
   const candidate = presetOptions.value.find((preset) => preset.protocolCode === normalizeProtocolCode(protocol));
   const parsed = candidate ? safeParseTemplate(candidate.requestBody) : {error: true, value: {}};
@@ -590,26 +545,16 @@ function createDefaultTemplate(protocol: unknown, model: string | undefined): st
   if (candidate) {
     selectedPresetId.value = candidate.id;
   }
-  return formatJson(syncModelInto(base, model));
+  return formatJson(stripModelField(base));
 }
 
-/** 保证请求体对象含 model 字段（调试面板按目标覆盖为命中模型编码） */
-function syncModelInto(body: unknown, model: string | undefined): Dict {
+/** 客户端无需传 model：请求体的 model 由网关按路由目标的上游模型覆盖，这里一律剔除 */
+function stripModelField(body: unknown): Dict {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return {model: model || "model-name"};
+    return {};
   }
-  const source = body as Dict;
-  return {...source, model: model || source.model || "model-name"};
-}
-
-function syncTemplateModelField(templateKey: string, model: string | undefined): void {
-  const parsed = safeParseTemplate(templateStore[templateKey]);
-  if (parsed.error || !parsed.value || typeof parsed.value !== "object" || Array.isArray(parsed.value)) {
-    return;
-  }
-  const source = parsed.value as Dict;
-  const next = {...source, model: model || source.model || "model-name"};
-  templateStore[templateKey] = formatJson(next);
+  const {model: _ignored, ...rest} = body as Dict;
+  return rest;
 }
 
 function safeParseTemplate(text: unknown) {
@@ -686,7 +631,7 @@ async function runTest() {
     testResult.value = {
       status: "ERROR",
       httpStatus: null,
-      modelCode: resolvedModel.value,
+      modelCode: null,
       protocol: activeProtocol.value,
       errorMessage: "请求模板不是合法 JSON",
       responseBody: currentTemplateText.value || ""
@@ -700,7 +645,6 @@ async function runTest() {
     const requestBody = (parsedTemplateBody.value.value || {}) as Dict;
     testResult.value = await testRoutingRule(props.ruleId, {
       secretKey: testForm.secretKey.trim(),
-      model: requestBody.model || resolvedModel.value,
       prompt: inferPrompt(requestBody, activeProtocol.value), protocol: activeProtocol.value,
       targetType: activeTarget.value.targetType,
       targetId: activeTarget.value.targetId,

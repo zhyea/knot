@@ -126,6 +126,8 @@ class ZhipuRequestAdapterTest {
     private ModelEntity model(String modelCode) {
         ModelEntity model = new ModelEntity();
         model.setModelCode(modelCode);
+        // 上游请求体 model 取 upstream_model（建实体时与 model_code 同值，等价于未单独配置上游模型）
+        model.setUpstreamModel(modelCode);
         return model;
     }
 

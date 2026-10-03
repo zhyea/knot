@@ -68,6 +68,7 @@ INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, rou
 (9, 2, NULL, 'model.logical-models', '统一模型', '/model-management/logical-models', 'LogicalModelMarketplaceView', 'Cpu', 40, 'ENABLED'),
 (10, 2, NULL, 'model.external-models', '外部模型', '/model-management/external-models', 'ExternalModelManageView', 'Cpu', 50, 'ENABLED'),
 (19, 2, NULL, 'model.provider-profiles', '供应商信息', '/model-management/provider-profiles', 'ProviderProfileManageView', 'Connection', 60, 'ENABLED'),
+(23, 2, NULL, 'model.model-families', '模型族', '/model-management/model-families', 'ModelFamilyView', 'Cpu', 70, 'ENABLED'),
 (11, 3, NULL, 'routing.rules', '路由规则', '/routing/rules', 'routing/RoutingRuleView', 'Share', 10, 'ENABLED'),
 (12, 3, NULL, 'routing.consumers', '消费者', '/routing/consumers', 'routing/RoutingConsumerView', 'Share', 20, 'ENABLED'),
 (13, 4, NULL, 'billing.rules', '计费规则', '/billing/rules', 'billing/BillingRuleView', 'Coin', 10, 'ENABLED'),
@@ -218,7 +219,13 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 (132, 'routing:preset:enable', '预设请求更新状态', 'API', 3, 22, 'ENABLED', 1, NULL),
 (133, 'routing:preset:page', '预设请求页面访问', 'PAGE', 3, 22, 'ENABLED', 1, NULL),
 (134, 'model:logical-model:restore', '统一模型恢复', 'API', 2, 9, 'ENABLED', 1, NULL),
-(135, 'model:model-pool:restore', '模型池恢复', 'API', 2, 8, 'ENABLED', 1, NULL);
+(135, 'model:model-pool:restore', '模型池恢复', 'API', 2, 8, 'ENABLED', 1, NULL),
+(136, 'model:model-family:page', '模型族页面访问', 'PAGE', 2, 23, 'ENABLED', 1, NULL),
+(137, 'model:model-family:view', '模型族查看', 'API', 2, 23, 'ENABLED', 1, NULL),
+(138, 'model:model-family:create', '模型族创建', 'API', 2, 23, 'ENABLED', 1, NULL),
+(139, 'model:model-family:update', '模型族更新', 'API', 2, 23, 'ENABLED', 1, NULL),
+(140, 'model:model-family:enable', '模型族更新状态', 'API', 2, 23, 'ENABLED', 1, NULL),
+(141, 'model:model-family:delete', '模型族删除', 'API', 2, 23, 'ENABLED', 1, NULL);
 
 -- API 权限绑定（默认拒绝：未绑定接口一律 403；由 .workbuddy/audit/gen_api_bindings.py 生成）
 INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
@@ -388,7 +395,14 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (164, 67, 'GET', '/api/billing/rules/{id}', 'BillingController', 'ENABLED'),
 (165, 99, 'GET', '/api/provider-accounts/auth-appliers', 'ProviderController', 'ENABLED'),
 (166, 134, 'PUT', '/api/logical-models/{id}/restore', 'LogicalModelController', 'ENABLED'),
-(167, 135, 'PUT', '/api/model-pools/{id}/restore', 'ModelPoolController', 'ENABLED');
+(167, 135, 'PUT', '/api/model-pools/{id}/restore', 'ModelPoolController', 'ENABLED'),
+(168, 137, 'POST', '/api/model-families/list', 'ModelFamilyController', 'ENABLED'),
+(169, 137, 'GET', '/api/model-families/check-code', 'ModelFamilyController', 'ENABLED'),
+(170, 137, 'GET', '/api/model-families/{id}', 'ModelFamilyController', 'ENABLED'),
+(171, 138, 'POST', '/api/model-families', 'ModelFamilyController', 'ENABLED'),
+(172, 139, 'PUT', '/api/model-families/{id}', 'ModelFamilyController', 'ENABLED'),
+(173, 140, 'PUT', '/api/model-families/{id}/status', 'ModelFamilyController', 'ENABLED'),
+(174, 141, 'DELETE', '/api/model-families/{id}', 'ModelFamilyController', 'ENABLED');
 
 -- 角色授权（OPERATOR 全量 / DEVELOPER 只读；ADMIN 由文件末尾权威块全量授予）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
@@ -407,11 +421,12 @@ INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (2, 106),(2, 107),(2, 108),(2, 109),(2, 110),(2, 111),(2, 112),(2, 113),
 (2, 114),(2, 115),(2, 116),(2, 117),(2, 118),(2, 119),(2, 120),(2, 121),
 (2, 122),(2, 123),(2, 124),(2, 125),(2, 126),(2, 127),(2, 128),(2, 129),
-(2, 130),(2, 131),(2, 132),(2, 133),(2, 134),(2, 135),(3, 14),(3, 15),(3, 16),(3, 17),(3, 18),
+(2, 130),(2, 131),(2, 132),(2, 133),(2, 134),(2, 135),(2, 136),(2, 137),(2, 138),(2, 139),
+(2, 140),(2, 141),(3, 14),(3, 15),(3, 16),(3, 17),(3, 18),
 (3, 19),(3, 20),(3, 21),(3, 22),(3, 23),(3, 24),(3, 25),(3, 26),
 (3, 58),(3, 66),(3, 67),(3, 75),(3, 79),(3, 84),(3, 88),(3, 93),
 (3, 94),(3, 99),(3, 103),(3, 107),(3, 112),(3, 120),(3, 124),(3, 125),
-(3, 126),(3, 127),(3, 128),(3, 133);
+(3, 126),(3, 127),(3, 128),(3, 133),(3, 136),(3, 137);
 
 -- 存量库修补：把「授权资源页面访问」补给已持有「角色授权页面访问」(id=12) 的角色。
 -- 注意：ADMIN 的 55 由文件末尾的权威授权块保证，不依赖本句。
@@ -481,17 +496,17 @@ INSERT IGNORE INTO kb_provider_discount_policies (id, provider_account_id, polic
 (3, 3, '直减5元',     'GLOBAL',   NULL, 'FIXED',      5.0000, 100, NOW(), 'ACTIVE');
 
 -- 模型
-INSERT IGNORE INTO kb_models (id, provider_account_code, model_code, version, base_url, status) VALUES
-(1,  'openai-default',    'gpt-4o',            '2024-08-06', 'https://api.openai.com', 'ENABLED'),
-(2,  'openai-default',    'gpt-4o-mini',       '2024-07-18', 'https://api.openai.com', 'ENABLED'),
-(3,  'openai-default',    'text-embedding-3-large','2024-01-01','https://api.openai.com','ENABLED'),
-(4,  'anthropic-default', 'claude-sonnet-4-20250514','2025-05-14','https://api.anthropic.com','ENABLED'),
-(5,  'anthropic-default', 'claude-haiku-3-5-20241022','2024-10-22','https://api.anthropic.com','ENABLED'),
-(6,  'deepseek-default',  'deepseek-chat',     '2024-08-01', 'https://api.deepseek.com', 'ENABLED'),
-(7,  'deepseek-default',  'deepseek-reasoner', '2025-01-20', 'https://api.deepseek.com', 'ENABLED'),
-(8,  'qwen-default',      'qwen-image',        '2025-08-01', 'https://dashscope.aliyuncs.com', 'ENABLED'),
-(9,  'qwen-default',      'qwen-image-edit',   '2025-08-01', 'https://dashscope.aliyuncs.com', 'ENABLED'),
-(10, 'openai-default',    'gpt-image-1',       '2025-04-01', 'https://api.openai.com', 'ENABLED');
+INSERT IGNORE INTO kb_models (id, provider_account_code, model_code, upstream_model, version, base_url, status) VALUES
+(1,  'openai-default',    'gpt-4o',            'gpt-4o',            '2024-08-06', 'https://api.openai.com', 'ENABLED'),
+(2,  'openai-default',    'gpt-4o-mini',       'gpt-4o-mini',       '2024-07-18', 'https://api.openai.com', 'ENABLED'),
+(3,  'openai-default',    'text-embedding-3-large','text-embedding-3-large','2024-01-01','https://api.openai.com','ENABLED'),
+(4,  'anthropic-default', 'claude-sonnet-4-20250514','claude-sonnet-4-20250514','2025-05-14','https://api.anthropic.com','ENABLED'),
+(5,  'anthropic-default', 'claude-haiku-3-5-20241022','claude-haiku-3-5-20241022','2024-10-22','https://api.anthropic.com','ENABLED'),
+(6,  'deepseek-default',  'deepseek-chat',     'deepseek-chat',     '2024-08-01', 'https://api.deepseek.com', 'ENABLED'),
+(7,  'deepseek-default',  'deepseek-reasoner', 'deepseek-reasoner', '2025-01-20', 'https://api.deepseek.com', 'ENABLED'),
+(8,  'qwen-default',      'qwen-image',        'qwen-image',        '2025-08-01', 'https://dashscope.aliyuncs.com', 'ENABLED'),
+(9,  'qwen-default',      'qwen-image-edit',   'qwen-image-edit',   '2025-08-01', 'https://dashscope.aliyuncs.com', 'ENABLED'),
+(10, 'openai-default',    'gpt-image-1',       'gpt-image-1',       '2025-04-01', 'https://api.openai.com', 'ENABLED');
 
 INSERT IGNORE INTO kb_model_pools (id, pool_code, name, logical_model_code, selection_strategy, status, remark) VALUES
 (1, 'chat-premium-pool', 'Premium Chat Pool', 'knot-chat-premium', 'WEIGHTED', 'ENABLED', 'Premium chat routing pool'),

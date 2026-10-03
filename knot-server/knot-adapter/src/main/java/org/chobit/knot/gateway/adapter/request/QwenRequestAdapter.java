@@ -132,7 +132,7 @@ public class QwenRequestAdapter implements UpstreamRequestAdapter {
 
     private Map<String, Object> baseBody(UpstreamRequestContext context, List<Map<String, Object>> content) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put(AiPayloadFields.MODEL, context.model().getModelCode());
+        body.put(AiPayloadFields.MODEL, context.model().getUpstreamModel());
         body.put("input", Map.of(
                 AiPayloadFields.MESSAGES,
                 List.of(Map.of(AiPayloadFields.ROLE, AiPayloadFields.USER, AiPayloadFields.CONTENT, content))
