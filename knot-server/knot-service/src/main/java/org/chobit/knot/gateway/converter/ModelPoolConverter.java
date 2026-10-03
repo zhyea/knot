@@ -18,6 +18,9 @@ public interface ModelPoolConverter {
     ModelPoolDto toDto(ModelPoolEntity entity);
 
     @Mapping(source = "enabled", target = "status", qualifiedByName = "enabledToStatus")
+    // logicalModelName / modelType 派生自绑定统一模型，不允许从请求写回
+    @Mapping(target = "logicalModelName", ignore = true)
+    @Mapping(target = "modelType", ignore = true)
     ModelPoolEntity toEntity(ModelPoolDto dto);
 
     @Mapping(source = "status", target = "enabled", qualifiedByName = "statusToEnabled")

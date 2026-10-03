@@ -19,6 +19,7 @@ public record PageQuery(
         List<String> modelTypes,
         Long parentId,
         String modelFamilyCode,
+        String logicalModelCode,
         String protocol
 ) {
     /**

@@ -9,11 +9,18 @@ import java.util.List;
 @Mapper
 public interface ModelMapper {
 
-    List<ModelEntity> list(@Param("keyword") String keyword, @Param("modelTypes") List<String> modelTypes);
+    List<ModelEntity> list(@Param("keyword") String keyword,
+                           @Param("modelTypes") List<String> modelTypes,
+                           @Param("logicalModelCode") String logicalModelCode);
 
     ModelEntity getById(Long id);
 
     ModelEntity getByCode(@Param("modelCode") String modelCode);
+
+    /**
+     * 取供应商模型绑定的统一模型 code（与 name/model_type 派生口径一致：取映射表首条）。
+     */
+    String getLogicalModelCodeByModelCode(@Param("modelCode") String modelCode);
 
     int insert(ModelEntity entity);
 

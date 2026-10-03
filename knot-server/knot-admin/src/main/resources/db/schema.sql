@@ -326,7 +326,7 @@ CREATE TABLE IF NOT EXISTS kb_model_pools (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   pool_code VARCHAR(64) NOT NULL,
   name VARCHAR(100) NOT NULL,
-  model_type VARCHAR(64) NOT NULL,
+  logical_model_code VARCHAR(128) NOT NULL COMMENT '统一模型 code（kb_logical_models.model_code），池内模型必须全部归属该统一模型',
   selection_strategy VARCHAR(32) NOT NULL DEFAULT 'WEIGHTED',
   status VARCHAR(32) NOT NULL DEFAULT 'DISABLED',
   is_deleted TINYINT(1) NOT NULL DEFAULT 0,
@@ -334,7 +334,7 @@ CREATE TABLE IF NOT EXISTS kb_model_pools (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_model_pools_code (pool_code),
-  KEY idx_model_pools_type_status (model_type, status)
+  KEY idx_model_pools_logical_status (logical_model_code, status)
 );
 
 CREATE TABLE IF NOT EXISTS kb_model_pool_items (

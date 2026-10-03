@@ -489,9 +489,9 @@ INSERT IGNORE INTO kb_models (id, provider_account_code, model_code, version, ba
 (9,  'qwen-default',      'qwen-image-edit',   '2025-08-01', 'https://dashscope.aliyuncs.com', 'ENABLED'),
 (10, 'openai-default',    'gpt-image-1',       '2025-04-01', 'https://api.openai.com', 'ENABLED');
 
-INSERT IGNORE INTO kb_model_pools (id, pool_code, name, model_type, selection_strategy, status, remark) VALUES
-(1, 'chat-premium-pool', 'Premium Chat Pool', 'CHAT', 'WEIGHTED', 'ENABLED', 'Premium chat routing pool'),
-(2, 'chat-economy-pool', 'Economy Chat Pool', 'CHAT', 'WEIGHTED', 'ENABLED', 'Economy chat routing pool');
+INSERT IGNORE INTO kb_model_pools (id, pool_code, name, logical_model_code, selection_strategy, status, remark) VALUES
+(1, 'chat-premium-pool', 'Premium Chat Pool', 'knot-chat-premium', 'WEIGHTED', 'ENABLED', 'Premium chat routing pool'),
+(2, 'chat-economy-pool', 'Economy Chat Pool', 'knot-chat-economy', 'WEIGHTED', 'ENABLED', 'Economy chat routing pool');
 
 INSERT IGNORE INTO kb_model_pool_items (id, pool_code, model_code, weight, priority, status) VALUES
 (1, 'chat-premium-pool', 'gpt-4o',                  70, 10, 'ENABLED'),

@@ -83,23 +83,29 @@ public class ModelService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<ModelDto> list(PageRequest pageRequest) {
-        return list(pageRequest, null);
+        return list(pageRequest, null, null, null);
     }
 
     /**
-     * Lists matching results. Executes the public operation.
+     * Returns matching results. Executes the public operation.
      */
     public PageResult<ModelDto> list(PageRequest pageRequest, String keyword) {
-        return list(pageRequest, keyword, null);
+        return list(pageRequest, keyword, null, null);
     }
 
     /**
-     * Lists matching results. Executes the public operation.
+     * Returns matching results. Executes the public operation.
+     *
+     * @param logicalModelCode 按绑定统一模型过滤（模型池选模型时用），为空不过滤
      */
-    public PageResult<ModelDto> list(PageRequest pageRequest, String keyword, List<String> modelTypes) {
+    public PageResult<ModelDto> list(PageRequest pageRequest,
+                                     String keyword,
+                                     List<String> modelTypes,
+                                     String logicalModelCode) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<ModelEntity> pageInfo = new PageInfo<>(
-                    modelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes))
+                    modelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes),
+                            normalizeTextToNull(logicalModelCode))
             );
             List<ModelEntity> entities = pageInfo.getList();
             List<Long> ids = entities.stream().map(ModelEntity::getId).toList();
@@ -314,6 +320,11 @@ public class ModelService {
         return value.isEmpty() ? null : value;
     }
 
+    private static String normalizeTextToNull(String value) {
+        String text = value != null ? value.trim() : "";
+        return text.isEmpty() ? null : text;
+    }
+
     private static List<String> normalizeModelTypes(List<String> modelTypes) {
         if (modelTypes == null || modelTypes.isEmpty()) {
             return null;
@@ -341,7 +352,7 @@ public class ModelService {
                 base.baseUrl(),
                 base.remark(),
                 base.enabled(),
-                resolveLogicalModelCode(base.id()),
+                base.logicalModelCode(),
                 base.billingRuleCode(),
                 rate,
                 quota,
@@ -409,11 +420,6 @@ public class ModelService {
         mapping.setStatus(EntityStatusEnum.ENABLED.code());
         mapping.setPriority(100);
         logicalModelMapper.insertMapping(mapping);
-    }
-
-    private String resolveLogicalModelCode(Long modelId) {
-        List<ProviderModelMappingEntity> mappings = logicalModelMapper.listMappingsByModelId(modelId);
-        return mappings.isEmpty() ? null : mappings.get(0).getLogicalModelCode();
     }
 
     private Map<Long, List<ModelApiBindingDto>> loadBindingMap(List<Long> modelIds) {

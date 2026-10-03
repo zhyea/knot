@@ -14,7 +14,6 @@ public interface ModelConverter {
     // ==================== Entity ↔ DTO ====================
 
     @Mapping(source = "status", target = "enabled", qualifiedByName = "statusToEnabled")
-    @Mapping(target = "logicalModelCode", ignore = true)
     @Mapping(target = "rateLimitPolicy", ignore = true)
     @Mapping(target = "quotaPolicy", ignore = true)
     @Mapping(target = "apiBindings", ignore = true)
@@ -23,9 +22,11 @@ public interface ModelConverter {
     @Mapping(source = "enabled", target = "status", qualifiedByName = "enabledToStatus")
     @Mapping(target = "providerName", ignore = true)
     @Mapping(target = "providerCode", ignore = true)
-    // name/modelType 派生自绑定的统一模型，不允许从请求写回；billingRuleCode 来自请求（按业务码绑定）
+    // name/modelType 派生自绑定的统一模型，不允许从请求写回；logicalModelCode 来自请求，
+    // 但只经 kb_provider_model_mappings 落库，不写 kb_models 列；billingRuleCode 来自请求（按业务码绑定）
     @Mapping(target = "name", ignore = true)
     @Mapping(target = "modelType", ignore = true)
+    @Mapping(target = "logicalModelCode", ignore = true)
     ModelEntity toEntity(ModelDto dto);
 
     List<ModelDto> toDtoList(List<ModelEntity> entities);

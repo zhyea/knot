@@ -3,11 +3,13 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.ModelMapper">
 
     <!-- 名称与模型类型不再落 kb_models，从绑定的统一模型（1:1 映射）派生 -->
+    <sql id="logicalModelCodeExpr">(select pm2.logical_model_code from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
     <sql id="modelNameExpr">(select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
     <sql id="modelTypeExpr">(select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
 
     <sql id="ModelSelectColumns">
         m.id, m.provider_account_code, m.model_code, m.version, m.base_url, m.remark, m.billing_rule_code, m.status,
+        <include refid="logicalModelCodeExpr"/> AS logical_model_code,
         <include refid="modelNameExpr"/> AS name,
         <include refid="modelTypeExpr"/> AS model_type,
         p.name AS provider_name, p.code AS provider_code
@@ -32,6 +34,9 @@
                     #{type}
                 </foreach>
             </if>
+            <if test="logicalModelCode != null and logicalModelCode != ''">
+                and <include refid="logicalModelCodeExpr"/> = #{logicalModelCode}
+            </if>
         </where>
         order by m.id desc
     </select>
@@ -50,6 +55,15 @@
         left join kb_provider_accounts pa on m.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
         where m.model_code = #{modelCode}
+    </select>
+
+    <select id="getLogicalModelCodeByModelCode" resultType="java.lang.String">
+        select pm.logical_model_code
+        from kb_provider_model_mappings pm
+        join kb_logical_models lm on lm.model_code = pm.logical_model_code and lm.is_deleted = 0
+        where pm.model_id = (select m.id from kb_models m where m.model_code = #{modelCode})
+        order by pm.id asc
+        limit 1
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">

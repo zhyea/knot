@@ -6,6 +6,8 @@ public record ModelPoolDto(
         Long id,
         String poolCode,
         String name,
+        String logicalModelCode,
+        String logicalModelName,
         String modelType,
         String selectionStrategy,
         boolean enabled,

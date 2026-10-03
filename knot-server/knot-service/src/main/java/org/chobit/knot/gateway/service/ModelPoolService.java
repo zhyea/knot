@@ -5,15 +5,16 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelPoolSelectionStrategyEnum;
-import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.converter.ModelPoolConverter;
 import org.chobit.knot.gateway.dto.model.ModelPoolDto;
 import org.chobit.knot.gateway.dto.model.ModelPoolItemDto;
+import org.chobit.knot.gateway.entity.LogicalModelEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ModelPoolEntity;
 import org.chobit.knot.gateway.entity.ModelPoolItemEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.gateway.mapper.LogicalModelMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.mapper.ModelPoolMapper;
 import org.chobit.knot.gateway.model.PageRequest;
@@ -30,6 +31,7 @@ public class ModelPoolService {
 
     private final ModelPoolMapper modelPoolMapper;
     private final ModelMapper modelMapper;
+    private final LogicalModelMapper logicalModelMapper;
     private final ModelPoolConverter modelPoolConverter;
 
     /**
@@ -37,9 +39,11 @@ public class ModelPoolService {
      */
     public ModelPoolService(ModelPoolMapper modelPoolMapper,
                             ModelMapper modelMapper,
+                            LogicalModelMapper logicalModelMapper,
                             ModelPoolConverter modelPoolConverter) {
         this.modelPoolMapper = modelPoolMapper;
         this.modelMapper = modelMapper;
+        this.logicalModelMapper = logicalModelMapper;
         this.modelPoolConverter = modelPoolConverter;
     }
 
@@ -97,10 +101,16 @@ public class ModelPoolService {
      */
     @Transactional
     public ModelPoolDto update(Long id, ModelPoolDto request) {
-        if (modelPoolMapper.getById(id) == null) {
+        ModelPoolEntity existing = modelPoolMapper.getById(id);
+        if (existing == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "model pool not found");
         }
         validateForSave(request, id);
+        String logicalModelCode = normalizeLogicalModelCode(request.logicalModelCode());
+        if (!logicalModelCode.equals(normalizeText(existing.getLogicalModelCode()))
+                && !modelPoolMapper.listItemsByPoolCode(existing.getPoolCode()).isEmpty()) {
+            throw new BusinessException(ErrorCode.CONFLICT, "切换统一模型前请先清空池内模型");
+        }
         ModelPoolEntity entity = modelPoolConverter.toEntity(normalize(request));
         entity.setId(id);
         modelPoolMapper.update(entity);
@@ -118,6 +128,8 @@ public class ModelPoolService {
                 existing.id(),
                 existing.poolCode(),
                 existing.name(),
+                existing.logicalModelCode(),
+                existing.logicalModelName(),
                 existing.modelType(),
                 existing.selectionStrategy(),
                 enabled,
@@ -171,6 +183,8 @@ public class ModelPoolService {
                 dto.id(),
                 dto.poolCode(),
                 dto.name(),
+                dto.logicalModelCode(),
+                dto.logicalModelName(),
                 dto.modelType(),
                 dto.selectionStrategy(),
                 dto.enabled(),
@@ -199,15 +213,30 @@ public class ModelPoolService {
         String poolCode = normalizePoolCode(request.poolCode());
         requireText(poolCode, "please input pool code");
         requireText(request.name(), "please input pool name");
-        ModelTypeEnum.requireCode(request.modelType(), "unsupported model type");
+        String logicalModelCode = requireText(
+                normalizeLogicalModelCode(request.logicalModelCode()),
+                "please select logical model"
+        );
+        LogicalModelEntity logicalModel = logicalModelMapper.getByCode(logicalModelCode);
+        if (logicalModel == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "logical model not found");
+        }
+        if (EntityStatusEnum.ENABLED.code().equals(request.enabled())
+                && !EntityStatusEnum.ENABLED.code().equals(logicalModel.getStatus())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "只能绑定已启用的统一模型");
+        }
         ModelPoolSelectionStrategyEnum.requireCode(request.selectionStrategy(), "unsupported selection strategy");
         if (!isPoolCodeAvailable(poolCode, excludeId)) {
             throw new BusinessException(ErrorCode.CONFLICT, "model pool code already exists");
         }
-        validateItems(request);
+        validateItems(request, logicalModelCode);
     }
 
-    private void validateItems(ModelPoolDto request) {
+    /**
+     * 池内模型必须全部映射到池绑定的同一个统一模型：逐个按 model_code 反查
+     * kb_provider_model_mappings.logical_model_code 比对。
+     */
+    private void validateItems(ModelPoolDto request, String logicalModelCode) {
         List<ModelPoolItemDto> items = request.items() == null ? List.of() : request.items();
         if (request.enabled() && items.stream().noneMatch(ModelPoolItemDto::enabled)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "enabled model pool requires at least one enabled model");
@@ -224,8 +253,15 @@ public class ModelPoolService {
             if (model == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "model not found");
             }
-            if (!normalizeText(request.modelType()).equals(model.getModelType())) {
-                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "model type must match model pool type");
+            String boundLogicalModelCode = modelMapper.getLogicalModelCodeByModelCode(item.modelCode());
+            if (boundLogicalModelCode == null) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "模型未绑定统一模型，无法加入模型池");
+            }
+            if (!logicalModelCode.equals(boundLogicalModelCode)) {
+                throw new BusinessException(
+                        ErrorCode.VALIDATION_ERROR,
+                        "一个模型池中的模型必须属于同一个统一模型"
+                );
             }
             if (request.enabled() && item.enabled() && !"ENABLED".equals(model.getStatus())) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "enabled model pool cannot bind disabled model");
@@ -236,17 +272,27 @@ public class ModelPoolService {
         }
     }
 
+    /**
+     * modelType / logicalModelName 由绑定统一模型派生，不接受请求值：置 null，
+     * 由 {@code toEntity} 的 ignore 语义保证不落库，查询时再从统一模型派生。
+     */
     private ModelPoolDto normalize(ModelPoolDto request) {
         return new ModelPoolDto(
                 request.id(),
                 normalizePoolCode(request.poolCode()),
                 normalizeText(request.name()),
-                ModelTypeEnum.requireCode(request.modelType(), "unsupported model type"),
+                normalizeLogicalModelCode(request.logicalModelCode()),
+                null,
+                null,
                 ModelPoolSelectionStrategyEnum.requireCode(request.selectionStrategy(), "unsupported selection strategy"),
                 request.enabled(),
                 normalizeNullable(request.remark()),
                 request.items()
         );
+    }
+
+    private static String normalizeLogicalModelCode(String logicalModelCode) {
+        return normalizeText(logicalModelCode);
     }
 
     private static String normalizePoolCode(String poolCode) {
