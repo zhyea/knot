@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class PluginService implements PluginBindingProvider {
@@ -67,6 +68,11 @@ public class PluginService implements PluginBindingProvider {
         e.setName(request.name());
         e.setPackageCode(request.packageCode());
         e.setCapabilityCode(request.capabilityCode());
+        // 扩展点与执行阶段由代码枚举唯一定义，非法 code 直接拒绝，不再依赖 DB 字典
+        e.setExtensionPoint(PluginExtensionPoint.requireCode(request.extensionPoint(),
+                "unsupported plugin extension point: " + request.extensionPoint()));
+        e.setStageCode(PluginStageCode.requireCode(request.stageCode(),
+                "unsupported plugin stage code: " + request.stageCode()));
         e.setStatus(request.status());
         e.setFailMode(request.failMode());
         e.setTimeoutMs(request.timeoutMs());
@@ -87,12 +93,22 @@ public class PluginService implements PluginBindingProvider {
 
     @Override
     public List<PluginBindingView> listBindings(PluginExtensionPoint extensionPoint, PluginStageCode stageCode) {
-        return pluginMapper.listActiveBindings(extensionPoint.name(), stageCode.code()).stream()
+        return pluginMapper.listActiveBindings(extensionPoint.code(), stageCode.code()).stream()
                 .map(this::toBindingView)
+                .filter(Objects::nonNull)
                 .toList();
     }
 
+    /**
+     * 绑定行的枚举列一律按 code 解析；存量非法 code 直接跳过，避免 valueOf 抛异常打挂整条链路。
+     */
     private PluginBindingView toBindingView(PluginBindingEntity entity) {
+        PluginExtensionPoint point = PluginExtensionPoint.fromCode(entity.getExtensionPoint());
+        PluginStageCode stage = PluginStageCode.fromCode(entity.getStageCode());
+        PluginScopeType scope = PluginScopeType.fromCode(entity.getScopeType());
+        if (point == null || stage == null || scope == null) {
+            return null;
+        }
         return new PluginBindingView(
                 entity.getId(),
                 entity.getInstanceCode(),
@@ -100,9 +116,9 @@ public class PluginService implements PluginBindingProvider {
                 entity.getPackageCode(),
                 entity.getPackageName(),
                 entity.getCapabilityCode(),
-                PluginExtensionPoint.valueOf(entity.getExtensionPoint()),
-                PluginStageCode.fromCode(entity.getStageCode()),
-                PluginScopeType.valueOf(entity.getScopeType()),
+                point,
+                stage,
+                scope,
                 entity.getScopeRefId(),
                 entity.getOrderNo(),
                 entity.getConfigJson(),

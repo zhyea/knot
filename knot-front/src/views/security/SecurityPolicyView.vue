@@ -17,7 +17,7 @@
       <el-form :model="policy" label-width="110px" class="policy-form">
         <el-form-item label="策略编码"><el-input v-model="policy.policyCode" placeholder="如 default-auth" /></el-form-item>
         <el-form-item label="状态">
-          <EnumSelect v-model="policy.status" category="status" :include-codes="['ACTIVE', 'INACTIVE']" />
+          <EnumControl v-model="policy.status" enum-name="EntityStatusEnum" :include-codes="['ACTIVE', 'INACTIVE']" />
         </el-form-item>
         <el-form-item label="配置 JSON">
           <el-input v-model="policy.configJson" type="textarea" :rows="6" placeholder='{"mfa":true}' />
@@ -35,7 +35,6 @@ import type {Dict} from "@/types";
 import {computed, reactive, ref} from "vue";
 import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
-import EnumSelect from "../../components/common/EnumSelect.vue";
 import {getSecurityOverview, updateSecurityPolicy} from "@/api/security";
 
 const ov = ref<Dict | null>(null);

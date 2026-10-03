@@ -2,6 +2,8 @@ package org.chobit.knot.gateway.converter;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.LogicalModelPublishStatusEnum;
+import org.chobit.knot.gateway.constants.enums.LogicalModelVisibilityEnum;
 import org.chobit.knot.gateway.dto.model.LogicalModelDto;
 import org.chobit.knot.gateway.dto.model.ProviderModelMappingDto;
 import org.chobit.knot.gateway.entity.LogicalModelEntity;
@@ -70,8 +72,8 @@ public class LogicalModelConverter {
         entity.setInputModalitiesJson(toJson(dto.inputModalities()));
         entity.setOutputModalitiesJson(toJson(dto.outputModalities()));
         entity.setLanguagesJson(toJson(dto.languages()));
-        entity.setVisibility(defaultString(dto.visibility(), "PUBLIC"));
-        entity.setPublishStatus(defaultString(dto.publishStatus(), "DRAFT"));
+        entity.setVisibility(defaultString(dto.visibility(), LogicalModelVisibilityEnum.defaultVisibility().code()));
+        entity.setPublishStatus(defaultString(dto.publishStatus(), LogicalModelPublishStatusEnum.defaultStatus().code()));
         entity.setStatus(dto.enabled() ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
         entity.setSortOrder(dto.sortOrder() != null ? dto.sortOrder() : 0);
         entity.setFeatured(dto.featured());

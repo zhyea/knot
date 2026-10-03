@@ -33,6 +33,7 @@ import java.util.List;
 public class RoutingResolver {
 
     private final GatewayDataService dataService;
+    private final ModelPoolSelection modelPoolSelection;
 
     /**
      * Resolves the requested value from current context and configuration. Executes the public operation.
@@ -192,18 +193,21 @@ public class RoutingResolver {
 
     private List<RoutingRuleTargetDto> resolvePoolCandidates(ModelPoolEntity pool, RoutingRuleTargetDto target) {
         // 池条目只存 model_code，模型实体（含主键 id，下游取凭据/协议绑定用）按 code 从缓存解析
-        Comparator<PoolItemCandidate> byPriority =
-                Comparator.comparingInt(candidate -> poolItemPriority(candidate.item()));
-        Comparator<PoolItemCandidate> byWeight =
-                Comparator.comparingInt(candidate -> poolItemWeight(candidate.item()));
-        return dataService.listModelPoolItemsByPoolCode(pool.getPoolCode()).stream()
+        List<PoolItemCandidate> available = dataService.listModelPoolItemsByPoolCode(pool.getPoolCode()).stream()
                 .filter(item -> EntityStatusEnum.ENABLED.code().equals(item.getStatus()))
                 .map(item -> new PoolItemCandidate(item, dataService.getModelByCode(item.getModelCode())))
                 .filter(candidate -> candidate.model() != null
                         && EntityStatusEnum.ENABLED.code().equals(candidate.model().getStatus()))
-                .sorted(byPriority.reversed()
-                        .thenComparing(byWeight.reversed())
-                        .thenComparing(candidate -> candidate.item().getId()))
+                .toList();
+        // 池内选中顺序由模型池的 selection_strategy 决定：首个即本次选中，其余为故障转移候选
+        List<PoolItemCandidate> ordered = modelPoolSelection.order(
+                available,
+                pool.getSelectionStrategy(),
+                candidate -> poolItemPriority(candidate.item()),
+                candidate -> poolItemWeight(candidate.item()),
+                candidate -> candidate.item().getId() != null ? candidate.item().getId() : 0L
+        );
+        return ordered.stream()
                 .map(candidate -> new RoutingRuleTargetDto(
                         RouteTargetTypeEnum.MODEL.code(),
                         candidate.model().getId(),

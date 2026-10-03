@@ -6,8 +6,8 @@ import {listEnumItemsByCategory, listEnumCategories} from "@/api/enums";
  * 枚举数据缓存 composable
  *
  * 用法：
- *   const { options, loadOptions } = useEnums("billing_unit");
- *   // options.value → [{ itemCode: "1K_TOKENS", itemLabel: "千 Token" }, ...]
+ *   const { options, loadOptions } = useEnums("model_family");
+ *   // options.value → [{ itemCode: "gpt", itemLabel: "GPT（OpenAI）" }, ...]
  */
 const CACHE: Record<string, { data: unknown; ts: number }> = {};
 const TTL = 5 * 60 * 1000; // 5 分钟缓存
@@ -18,7 +18,7 @@ function isExpired(entry: { data: unknown; ts: number } | undefined): boolean {
 
 /**
  * 按分类加载枚举选项（带缓存）
- * @param {string} category  如 billing_unit、app_type
+ * @param {string} category  如 model_family、discount_type（仅限仍由 DB 维护的分类）
  * @param {boolean} enabledOnly 是否只返回启用项，默认 true
  */
 export function useEnums(category: string, enabledOnly = true) {

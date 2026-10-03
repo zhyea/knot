@@ -88,10 +88,10 @@ import KeywordInput from "../../components/common/KeywordInput.vue";
 import OperationLogDetailDrawer from "../../components/system/OperationLogDetailDrawer.vue";
 import OperationLogListPanel from "../../components/system/OperationLogListPanel.vue";
 import {useListQuery} from "@/composables/useListQuery";
-import {resolveEnumLabel, useEnums} from "@/composables/useEnums";
+import {useEnumOptions} from "@/composables/useEnumOptions";
 import {getOperationLogDetail, listOperationLogs} from "@/api/operationLogs";
 
-const { options: statusOptions, loadOptions: loadStatusOptions } = useEnums("status");
+const { labelOf } = useEnumOptions();
 
 const moduleLabelMap = {
   system: "系统管理",
@@ -121,7 +121,7 @@ const logStatusOptions = computed(() =>
 );
 
 function statusLabel(code: string) {
-  return resolveEnumLabel(statusOptions.value, code, code || "-");
+  return labelOf("OperationLogStatusEnum", code, code || "-");
 }
 
 async function fetchOperationLogs(params: Dict) {
@@ -172,7 +172,6 @@ function normalizeValues(values: unknown): string[] {
 }
 
 onMounted(() => {
-  loadStatusOptions();
   load();
 });
 </script>

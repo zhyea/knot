@@ -519,7 +519,7 @@ function planLabel(code: unknown): string {
 }
 
 function unitLabel(code: unknown): string {
-  return enumLabelOf("billing_unit", code, String(code || "-"));
+  return enumLabelOf("BillingUnitEnum", code, String(code || "-"));
 }
 
 /** 点击候选列表行即绑定该规则（与上方 RemoteEntitySelect 共用 form.billingRuleCode） */

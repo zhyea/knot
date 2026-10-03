@@ -27,7 +27,7 @@
         <el-input-number v-model="form.priority" :min="0" style="width: 100%" />
       </el-form-item>
       <el-form-item label="状态">
-        <EnumSelect v-model="form.status" category="status" :include-codes="['ACTIVE', 'INACTIVE']" />
+        <EnumControl v-model="form.status" enum-name="EntityStatusEnum" :include-codes="['ACTIVE', 'INACTIVE']" />
       </el-form-item>
     </el-form>
     <template #footer>
@@ -42,6 +42,7 @@ import type {Dict} from "@/types";
 import {type PropType,  computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import EnumSelect from "../common/EnumSelect.vue";
+import EnumControl from "../common/EnumControl.vue";
 import {createDiscountPolicy, updateDiscountPolicy} from "@/api/providers";
 
 const props = defineProps({

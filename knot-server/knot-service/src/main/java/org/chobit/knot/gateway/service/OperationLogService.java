@@ -6,6 +6,7 @@ import com.github.pagehelper.PageInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
+import org.chobit.knot.gateway.constants.enums.OperationLogStatusEnum;
 import org.chobit.knot.gateway.entity.OperationLogEntity;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -86,7 +87,7 @@ public class OperationLogService {
     }
 
     public List<String> listStatuses() {
-        return List.of("SUCCESS", "FAILURE");
+        return OperationLogStatusEnum.codes();
     }
 
     /**

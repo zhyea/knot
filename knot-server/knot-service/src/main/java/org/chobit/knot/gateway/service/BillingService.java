@@ -616,6 +616,8 @@ public class BillingService {
         if (billingRuleMapper.countByCode(code, excludeId) > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, "billing rule code already exists");
         }
+        CurrencyCodeEnum.requireCode(normalizeCurrency(request.currency()),
+                "unsupported currency: " + request.currency());
         PricingPlanEnum plan = PricingPlanEnum.fromCode(request.pricingPlan());
         if (plan == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "unsupported pricing plan: " + request.pricingPlan());
@@ -662,9 +664,10 @@ public class BillingService {
         if (unit == null || unit.isBlank()) {
             return;
         }
-        if (!mode.supportsUnit(unit)) {
+        String normalizedUnit = BillingUnitEnum.requireCode(unit, "unsupported billing unit: " + unit);
+        if (!mode.supportsUnit(normalizedUnit)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                    "billing unit " + unit + " is not supported by mode " + mode.code());
+                    "billing unit " + normalizedUnit + " is not supported by mode " + mode.code());
         }
     }
 

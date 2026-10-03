@@ -293,21 +293,22 @@ function visualizeWhitespaceText(text: unknown): string {
 
 .json-editor :deep(.json-tab-visual) {
   vertical-align: baseline;
-  background-image: linear-gradient(#dc2626, #dc2626);
+  background-image: linear-gradient(#f87171, #f87171);
   background-repeat: no-repeat;
-  background-size: calc(100% - 0.8ch) 0.5px;
+  /* 横线末端停在箭头前约 0.25ch（≈1.8px），留出可见间隙 */
+  background-size: calc(100% - 1.05ch) 0.5px;
   background-position: left 0.2ch center;
 }
 
 .json-editor :deep(.json-tab-visual::after) {
   content: "";
   position: absolute;
-  right: 0.06ch;
+  right: 0;
   top: 50%;
   width: 0.6ch;
   height: 0.6ch;
-  border-top: 1px solid #dc2626;
-  border-right: 1px solid #dc2626;
+  border-top: 1px solid #f87171;
+  border-right: 1px solid #f87171;
   transform: translateY(-50%) rotate(45deg);
   transform-origin: center;
 }

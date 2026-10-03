@@ -7,14 +7,11 @@
       <el-form-item label="名称" required>
         <el-input v-model="form.name" />
       </el-form-item>
-      <el-form-item label="类型">
-        <EnumSelect v-model="form.pluginType" category="plugin_type" />
-      </el-form-item>
       <el-form-item label="版本">
         <el-input v-model="form.version" />
       </el-form-item>
       <el-form-item label="状态">
-        <EnumSelect v-model="form.status" category="status" :include-codes="['ENABLED', 'DISABLED']" />
+        <EnumControl v-model="form.status" enum-name="EntityStatusEnum" :include-codes="['ENABLED', 'DISABLED']" />
       </el-form-item>
     </el-form>
     <template #footer>
@@ -27,7 +24,7 @@
 <script setup lang="ts">
 import {computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
-import EnumSelect from "../common/EnumSelect.vue";
+import EnumControl from "../common/EnumControl.vue";
 import {createPlugin} from "@/api/plugins";
 
 const props = defineProps({
@@ -42,7 +39,7 @@ const visible = computed({
 });
 
 const saving = ref(false);
-const form = reactive({ code: "", name: "", pluginType: "PRE", version: "0.0.1", status: "DISABLED" });
+const form = reactive({ code: "", name: "", version: "0.0.1", status: "DISABLED" });
 
 watch(
   () => props.modelValue,
@@ -54,7 +51,6 @@ watch(
 function resetForm() {
   form.code = "";
   form.name = "";
-  form.pluginType = "PRE";
   form.version = "0.0.1";
   form.status = "DISABLED";
 }
@@ -70,7 +66,6 @@ async function submit() {
       id: null,
       code: form.code.trim(),
       name: form.name.trim(),
-      pluginType: form.pluginType,
       version: form.version,
       status: form.status
     });

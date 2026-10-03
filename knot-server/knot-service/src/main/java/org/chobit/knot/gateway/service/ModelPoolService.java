@@ -4,6 +4,7 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.ModelPoolSelectionStrategyEnum;
 import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.converter.ModelPoolConverter;
 import org.chobit.knot.gateway.dto.model.ModelPoolDto;
@@ -194,7 +195,7 @@ public class ModelPoolService {
         requireText(poolCode, "please input pool code");
         requireText(request.name(), "please input pool name");
         ModelTypeEnum.requireCode(request.modelType(), "unsupported model type");
-        requireText(request.selectionStrategy(), "please select selection strategy");
+        ModelPoolSelectionStrategyEnum.requireCode(request.selectionStrategy(), "unsupported selection strategy");
         if (!isPoolCodeAvailable(poolCode, excludeId)) {
             throw new BusinessException(ErrorCode.CONFLICT, "model pool code already exists");
         }
@@ -236,7 +237,7 @@ public class ModelPoolService {
                 normalizePoolCode(request.poolCode()),
                 normalizeText(request.name()),
                 ModelTypeEnum.requireCode(request.modelType(), "unsupported model type"),
-                normalizeText(request.selectionStrategy()),
+                ModelPoolSelectionStrategyEnum.requireCode(request.selectionStrategy(), "unsupported selection strategy"),
                 request.enabled(),
                 normalizeNullable(request.remark()),
                 request.items()

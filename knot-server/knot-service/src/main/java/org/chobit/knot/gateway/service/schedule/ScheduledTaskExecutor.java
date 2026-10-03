@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.service.schedule;
 
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.ScheduledTaskRunStatusEnum;
 import org.chobit.knot.gateway.entity.ScheduledTaskEntity;
 import org.chobit.knot.gateway.entity.ScheduledTaskRunEntity;
 import org.chobit.knot.gateway.mapper.ScheduledTaskMapper;
@@ -21,9 +22,9 @@ import java.util.stream.Collectors;
 public class ScheduledTaskExecutor {
 
     private static final String MODE_SINGLE = "SINGLE";
-    private static final String STATUS_RUNNING = "RUNNING";
-    private static final String STATUS_SUCCESS = "SUCCESS";
-    private static final String STATUS_FAILURE = "FAILURE";
+    private static final String STATUS_RUNNING = ScheduledTaskRunStatusEnum.RUNNING.code();
+    private static final String STATUS_SUCCESS = ScheduledTaskRunStatusEnum.SUCCESS.code();
+    private static final String STATUS_FAILURE = ScheduledTaskRunStatusEnum.FAILURE.code();
 
     private final ScheduledTaskMapper scheduledTaskMapper;
     private final NodeIdentity nodeIdentity;

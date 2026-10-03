@@ -45,6 +45,33 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue", "saved"]);
 
+/**
+ * 禁止在 DB 重建的分类编码（与后端 EnumConfigService 的两组保留字保持一致）：
+ * ① 已由代码枚举接管的分类（双源漂移风险）；
+ * ② 已退役的零消费孤儿分类（误配置入口）。
+ * 若将来要启用某个孤儿分类，应走「新建 Java enum + 注册 EnumOptionRegistry」，
+ * 而不是在这里手工填回字典表。
+ */
+const RESERVED_CATEGORY_CODES = [
+  // 代码枚举已接管
+  "app_type",
+  "billing_unit",
+  "billing_currency",
+  "plugin_scope_type",
+  "status",
+  "logical_model_visibility",
+  "logical_model_publish_status",
+  "model_pool_selection_strategy",
+  "plugin_extension_point",
+  "plugin_stage_code",
+  // 零消费孤儿分类（2026-10-03 退役）
+  "plugin_source_type",
+  "alert_level",
+  "risk_level",
+  "plugin_fail_mode",
+  "plugin_result_status"
+];
+
 const saving = ref(false);
 const form = reactive({
   category: "",
@@ -74,6 +101,11 @@ watch(
 async function submit() {
   if (!form.category?.trim() || !form.itemCode?.trim() || !form.itemLabel?.trim()) {
     ElMessage.warning("请填写分类编码、枚举编码和显示名");
+    return;
+  }
+  const category = form.category.trim();
+  if (RESERVED_CATEGORY_CODES.includes(category)) {
+    ElMessage.warning(`枚举分类 ${category} 已退役（代码枚举接管或零消费孤儿），禁止在 DB 重建`);
     return;
   }
   saving.value = true;

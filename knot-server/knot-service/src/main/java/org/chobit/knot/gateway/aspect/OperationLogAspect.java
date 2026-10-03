@@ -7,6 +7,7 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.chobit.knot.gateway.annotation.OperationLog;
+import org.chobit.knot.gateway.constants.enums.OperationLogStatusEnum;
 import org.chobit.knot.gateway.entity.OperationLogEntity;
 import org.chobit.knot.gateway.service.OperationLogService;
 import org.chobit.knot.gateway.util.JsonKit;
@@ -53,7 +54,7 @@ public class OperationLogAspect {
             Object result = joinPoint.proceed();
 
             long executionTime = System.currentTimeMillis() - startTime;
-            logEntity.setStatus("SUCCESS");
+            logEntity.setStatus(OperationLogStatusEnum.SUCCESS.code());
             logEntity.setExecutionTime(executionTime);
             applyAfterResult(joinPoint, operationLog, result, logEntity);
             captureNewValue(joinPoint, operationLog, result, logEntity);
@@ -61,7 +62,7 @@ public class OperationLogAspect {
             return result;
         } catch (Exception e) {
             long executionTime = System.currentTimeMillis() - startTime;
-            logEntity.setStatus("FAILURE");
+            logEntity.setStatus(OperationLogStatusEnum.FAILURE.code());
             logEntity.setExecutionTime(executionTime);
             logEntity.setErrorMsg(e.getMessage());
             asyncSaveLog(logEntity);

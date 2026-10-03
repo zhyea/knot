@@ -7,6 +7,7 @@ import org.chobit.knot.gateway.config.GatewayRuntimeProperties;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
+import org.chobit.knot.gateway.constants.enums.RoutingTestStatusEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.converter.RoutingRuleConverter;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleDto;
@@ -303,7 +304,7 @@ public class RoutingRuleService {
                     selectedTarget.targetId(),
                     model,
                     protocol.code(),
-                    "SUCCESS",
+                    RoutingTestStatusEnum.SUCCESS.code(),
                     curl,
                     200,
                     responseBody,
@@ -316,7 +317,7 @@ public class RoutingRuleService {
                     selectedTarget.targetId(),
                     model,
                     protocol.code(),
-                    "FAILED",
+                    RoutingTestStatusEnum.FAILED.code(),
                     curl,
                     ex.getStatusCode().value(),
                     ex.getResponseBodyAsString(),
@@ -329,7 +330,7 @@ public class RoutingRuleService {
                     selectedTarget.targetId(),
                     model,
                     protocol.code(),
-                    "FAILED",
+                    RoutingTestStatusEnum.FAILED.code(),
                     curl,
                     null,
                     null,

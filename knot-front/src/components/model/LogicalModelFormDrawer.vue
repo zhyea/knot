@@ -149,12 +149,12 @@
             <el-row :gutter="16">
               <el-col :span="8">
                 <el-form-item label="可见性">
-                  <EnumSelect v-model="form.visibility" category="logical_model_visibility" />
+                  <EnumControl v-model="form.visibility" enum-name="LogicalModelVisibilityEnum" />
                 </el-form-item>
               </el-col>
               <el-col :span="8">
                 <el-form-item label="发布状态">
-                  <EnumSelect v-model="form.publishStatus" category="logical_model_publish_status" />
+                  <EnumControl v-model="form.publishStatus" enum-name="LogicalModelPublishStatusEnum" />
                 </el-form-item>
               </el-col>
               <el-col :span="6">

@@ -4,6 +4,8 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.LogicalModelPublishStatusEnum;
+import org.chobit.knot.gateway.constants.enums.LogicalModelVisibilityEnum;
 import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.converter.LogicalModelConverter;
 import org.chobit.knot.gateway.dto.model.LogicalModelDto;
@@ -126,6 +128,8 @@ public class LogicalModelService {
         entity.setModelCode(code);
         entity.setModelName(requireText(request.modelName(), "model name is required"));
         entity.setModelType(ModelTypeEnum.requireCode(request.modelType(), "unsupported model type"));
+        entity.setVisibility(resolveVisibility(request.visibility()));
+        entity.setPublishStatus(resolvePublishStatus(request.publishStatus()));
         logicalModelMapper.insert(entity);
         return getById(entity.getId());
     }
@@ -146,6 +150,8 @@ public class LogicalModelService {
         entity.setModelCode(code);
         entity.setModelName(requireText(request.modelName(), "model name is required"));
         entity.setModelType(ModelTypeEnum.requireCode(request.modelType(), "unsupported model type"));
+        entity.setVisibility(resolveVisibility(request.visibility()));
+        entity.setPublishStatus(resolvePublishStatus(request.publishStatus()));
         logicalModelMapper.update(entity);
         return getById(id);
     }
@@ -302,6 +308,26 @@ public class LogicalModelService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, message);
         }
         return text;
+    }
+
+    /**
+     * 可见性：空白取默认 PUBLIC，非空必须命中代码枚举，否则拒绝。
+     */
+    private static String resolveVisibility(String value) {
+        if (value == null || value.isBlank()) {
+            return LogicalModelVisibilityEnum.defaultVisibility().code();
+        }
+        return LogicalModelVisibilityEnum.requireCode(value, "unsupported visibility: " + value);
+    }
+
+    /**
+     * 发布状态：空白取默认 DRAFT，非空必须命中代码枚举，否则拒绝。
+     */
+    private static String resolvePublishStatus(String value) {
+        if (value == null || value.isBlank()) {
+            return LogicalModelPublishStatusEnum.defaultStatus().code();
+        }
+        return LogicalModelPublishStatusEnum.requireCode(value, "unsupported publish status: " + value);
     }
 
     private static String normalizeCode(String value) {

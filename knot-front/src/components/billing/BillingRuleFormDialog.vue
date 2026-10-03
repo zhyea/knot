@@ -45,7 +45,7 @@
             </el-col>
             <el-col :span="12">
               <el-form-item label="币种">
-                <EnumSelect v-model="form.currency" category="billing_currency"/>
+                <EnumControl v-model="form.currency" enum-name="CurrencyCodeEnum"/>
               </el-form-item>
             </el-col>
           </el-row>
@@ -77,9 +77,9 @@
             </el-col>
             <el-col v-if="form.billingMode !== 'FREE'" :span="12">
               <el-form-item label="计费单位" class="billing-strategy-label">
-                <EnumSelect
+                <EnumControl
                   v-model="form.unit"
-                  category="billing_unit"
+                  enum-name="BillingUnitEnum"
                   :include-codes="unitCodes"
                   show-code
                 />

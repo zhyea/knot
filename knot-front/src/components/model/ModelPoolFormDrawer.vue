@@ -38,14 +38,7 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="选择策略" required>
-                <el-select v-model="form.selectionStrategy" style="width: 100%">
-                  <el-option
-                    v-for="item in strategyOptions"
-                    :key="item.itemCode"
-                    :label="item.itemLabel"
-                    :value="item.itemCode"
-                  />
-                </el-select>
+              <EnumControl v-model="form.selectionStrategy" enum-name="ModelPoolSelectionStrategyEnum" />
             </el-form-item>
           </el-col>
           <el-col :span="24">
@@ -146,7 +139,6 @@ import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import {checkModelPoolCode, createModelPool, updateModelPool} from "@/api/modelPools";
 import {listModels} from "@/api/models";
-import {useEnums} from "@/composables/useEnums";
 import {mergeOptionList, normalizeOptionList} from "@/utils/options";
 
 const props = defineProps({
@@ -160,7 +152,6 @@ const isEdit = computed(() => props.pool != null);
 const saving = ref(false);
 const poolCodeError = ref("");
 const modelOptions = ref<Row[]>([]);
-const { options: strategyOptions, loadOptions: loadStrategyOptions } = useEnums("model_pool_selection_strategy");
 
 interface PoolItemForm {
   id?: number | string | null;
@@ -259,7 +250,6 @@ watch(
   ([visible]) => {
     if (visible) {
       resetForm();
-      loadStrategyOptions();
       loadModelOptions({ pageNum: 1, pageSize: 10, modelTypes: form.modelType ? [form.modelType] : [] });
     }
   }
