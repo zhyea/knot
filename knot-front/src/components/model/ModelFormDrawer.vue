@@ -143,7 +143,7 @@
               <div class="binding-card">
                 <div class="binding-card__head">
                   <span>计费规则</span>
-                  <small>按统一模型的模型族筛选；点击列表行绑定规则 code</small>
+                  <small>下拉选择规则（按统一模型的模型族筛选候选）；下方只回显当前已绑定的那一条</small>
                 </div>
                 <el-form-item label="绑定计费规则" required class="bind-block-item">
                   <RemoteEntitySelect
@@ -159,14 +159,11 @@
                   />
                 </el-form-item>
                 <el-table
-                  v-if="billingRuleOptions.length"
-                  :data="billingRuleOptions"
+                  v-if="boundBillingRule"
+                  :data="[boundBillingRule]"
                   row-key="code"
-                  :current-row-key="form.billingRuleCode ?? undefined"
                   border
-                  highlight-current-row
-                  class="bind-table billing-rule-list-table"
-                  @current-change="onBillingRuleRowSelect"
+                  class="bind-table"
                 >
                   <el-table-column prop="code" label="规则编码" min-width="150" show-overflow-tooltip>
                     <template #default="{ row }">
@@ -184,9 +181,6 @@
                   <el-table-column label="进阶方案" min-width="110" show-overflow-tooltip>
                     <template #default="{ row }">{{ planLabel(row.pricingPlan) }}</template>
                   </el-table-column>
-                  <el-table-column label="单位" min-width="110" show-overflow-tooltip>
-                    <template #default="{ row }">{{ unitLabel(row.unit) }}</template>
-                  </el-table-column>
                   <el-table-column label="是否启用" width="90" align="center">
                     <template #default="{ row }">
                       <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
@@ -196,7 +190,7 @@
                   </el-table-column>
                 </el-table>
                 <div v-else class="empty-billing-rule">
-                  请先在上方选择统一模型（按模型族筛选可绑定的计费规则）
+                  {{ form.billingRuleCode ? "已绑定的计费规则不存在或已删除，请重新选择" : "尚未绑定计费规则，请从上方下拉选择" }}
                 </div>
               </div>
             </div>
@@ -384,7 +378,8 @@ const emit = defineEmits(["update:modelValue", "saved"]);
 const {loadOptions: loadModelTypes, protocolsOf} = useModelTypes();
 const {labelOf: enumLabelOf} = useEnumOptions();
 const logicalModelOptions = ref<Row[]>([]);
-const billingRuleOptions = ref<Row[]>([]);
+/** 当前已绑定的计费规则行（按 code 精确取回，表格只展示它）；未绑定为 null */
+const boundBillingRule = ref<Row | null>(null);
 const usageExtractorOptions = ref<Row[]>([]);
 const requestAdapterOptions = ref<Row[]>([]);
 const saving = ref(false);
@@ -442,7 +437,7 @@ const selectedLogicalModelOptions = computed(() =>
   }, "modelCode")
 );
 const selectedBillingRuleOptions = computed(() =>
-  resolveSelectedOption(form.billingRuleCode, billingRuleOptions.value, {
+  resolveSelectedOption(form.billingRuleCode, boundBillingRule.value ? [boundBillingRule.value] : [], {
     code: form.billingRuleCode ?? props.model?.billingRuleCode
   }, "code")
 );
@@ -465,17 +460,27 @@ async function loadLogicalModels(params = {pageNum: 1, pageSize: 10}) {
   return {...(data || {}), list};
 }
 
+/** 下拉候选：按模型族筛选（模型族由绑定的统一模型派生，后端 br.model_family 存 item_code） */
 async function loadBillingRules(params: Dict = {pageNum: 1, pageSize: 10}) {
-  // 模型族切换后需整体替换为新族候选，故翻到第 1 页时清空旧列表
-  if ((params.pageNum ?? 1) === 1) {
-    billingRuleOptions.value = [];
-  }
-  const data = await listBillingRules({
+  return listBillingRules({
     ...params,
     modelFamilyCode: params.modelFamilyCode ?? selectedLogicalModel.value?.modelFamily ?? undefined
   });
-  mergeOptions(billingRuleOptions, normalizeOptionList(data));
-  return data;
+}
+
+/**
+ * 按业务码精确取回已绑定的那一条规则（表格只展示它）。
+ *
+ * <p>走 code 精确匹配而非 keyword 模糊搜索 —— 模糊搜可能命中不到、或命中一堆同前缀规则。
+ */
+async function loadBoundBillingRule(code: string | null) {
+  const target = code?.trim();
+  if (!target) {
+    boundBillingRule.value = null;
+    return;
+  }
+  const data = await listBillingRules({pageNum: 1, pageSize: 1, code: target});
+  boundBillingRule.value = normalizeOptionList(data).find((item) => item.code === target) ?? null;
 }
 
 async function loadUsageExtractors() {
@@ -516,17 +521,6 @@ function modeLabel(code: unknown): string {
 
 function planLabel(code: unknown): string {
   return enumLabelOf("PricingPlanEnum", code, String(code || "-"));
-}
-
-function unitLabel(code: unknown): string {
-  return enumLabelOf("BillingUnitEnum", code, String(code || "-"));
-}
-
-/** 点击候选列表行即绑定该规则（与上方 RemoteEntitySelect 共用 form.billingRuleCode） */
-function onBillingRuleRowSelect(row: Row | null) {
-  if (row) {
-    form.billingRuleCode = row.code;
-  }
 }
 
 function usageExtractorLabel(item: Row): string {
@@ -596,11 +590,21 @@ watch(
       return;
     }
     if (providerAccountCode !== oldAccountCode || logicalModelCode !== oldLogicalModelCode) {
+      // 模型族随统一模型变化，已绑定的规则不再适用，一并清空
       form.billingRuleCode = null;
-      billingRuleOptions.value = [];
-      // 模型族随统一模型变化，重新拉取候选计费规则
-      await loadBillingRules();
+      boundBillingRule.value = null;
     }
+  }
+);
+
+// 表格只回显已绑定那一条：绑定码变化即按 code 精确取回（含下拉选择后的即时回显）
+watch(
+  () => form.billingRuleCode,
+  async (code) => {
+    if (!props.modelValue) {
+      return;
+    }
+    await loadBoundBillingRule(code);
   }
 );
 
@@ -662,8 +666,8 @@ watch(
         loadRequestAdapters()
       ]);
       await resetForm();
-      // 重置表单拿到绑定的统一模型（含模型族）后，再按模型族拉取候选计费规则
-      await loadBillingRules();
+      // 表单重置后按已绑定码取回那一条规则（watch 在同值时不触发，这里显式补一次）
+      await loadBoundBillingRule(form.billingRuleCode);
     }
   }
 );
@@ -980,11 +984,6 @@ async function submit() {
 .bind-table {
   margin-top: 10px;
   width: 100%;
-}
-
-.billing-rule-list-table {
-  max-height: 320px;
-  overflow: auto;
 }
 
 .empty-billing-rule {

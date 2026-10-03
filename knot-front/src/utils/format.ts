@@ -16,6 +16,17 @@ export function formatDateTime(value: unknown): string {
   return String(value);
 }
 
+/**
+ * 千分位分隔的整数展示（上下文长度、模型 ID 序号等大数值列）。
+ * 非数值 / 空值返回 fallback，避免把 "-" 显示成 "NaN"。
+ */
+export function formatThousands(value: unknown, fallback = "—"): string {
+  if (value == null || value === "") return fallback;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return String(value);
+  return Math.trunc(n).toLocaleString("en-US");
+}
+
 export function formatJson(obj: unknown): string {
   if (obj == null) return "";
   try {

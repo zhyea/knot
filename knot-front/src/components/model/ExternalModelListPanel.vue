@@ -30,9 +30,15 @@
       <el-table-column label="类型" width="120">
         <template #default="{ row }">{{ modelTypeLabel(row.modelType) }}</template>
       </el-table-column>
-      <el-table-column prop="contextLength" label="上下文" width="120">
+      <el-table-column
+        prop="contextLength"
+        label="上下文"
+        width="140"
+        align="left"
+        header-align="left"
+      >
         <template #default="{ row }">
-          <span class="cell-wrap">{{ row.contextLength ?? "-" }}</span>
+          <span class="cell-wrap cell-num">{{ formatThousands(row.contextLength, "-") }}</span>
         </template>
       </el-table-column>
       <el-table-column label="创建时间" width="170">
@@ -71,6 +77,7 @@ import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
+import {formatThousands} from "@/utils/format";
 
 const { labelOf } = useEnumOptions();
 
@@ -111,6 +118,12 @@ function rowClassName({ row }: { row: Row }): string {
   white-space: normal;
   word-break: break-word;
   line-height: 1.5;
+}
+
+/* 数值列：左对齐 + 等宽数字，千分位分隔后位数对齐更好读 */
+.cell-num {
+  text-align: left;
+  font-variant-numeric: tabular-nums;
 }
 
 :deep(.external-model-table .el-table__body tr.external-model-uncreated-row > td.el-table__cell) {

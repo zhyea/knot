@@ -43,7 +43,8 @@ public class BillingController {
         return billingService.listRules(
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
                 query == null ? null : query.keyword(),
-                query == null ? null : query.modelFamilyCode()
+                query == null ? null : query.modelFamilyCode(),
+                query == null ? null : query.code()
         );
     }
 

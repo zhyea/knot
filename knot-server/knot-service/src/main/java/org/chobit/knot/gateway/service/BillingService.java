@@ -74,10 +74,15 @@ public class BillingService {
     /**
      * Lists matching results. Executes the public operation.
      */
-    public PageResult<BillingRuleListItem> listRules(PageRequest pageRequest, String keyword, String modelFamilyCode) {
+    public PageResult<BillingRuleListItem> listRules(PageRequest pageRequest,
+                                                     String keyword,
+                                                     String modelFamilyCode,
+                                                     String code) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<BillingRuleEntity> pageInfo = new PageInfo<>(
-                    billingRuleMapper.list(normalizeKeyword(keyword), normalizeModelFamily(modelFamilyCode))
+                    billingRuleMapper.list(normalizeKeyword(keyword),
+                            normalizeModelFamily(modelFamilyCode),
+                            normalizeKeyword(code))
             );
             return PageResult.fromPage(pageInfo, list -> list.stream().map(billingConverter::toRuleListItem).toList(), pageRequest);
         }

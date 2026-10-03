@@ -60,6 +60,9 @@
             <if test="modelFamilyCode != null and modelFamilyCode != ''">
                 and (br.model_family = #{modelFamilyCode} or br.model_family is null)
             </if>
+            <if test="code != null and code != ''">
+                and br.code = #{code}
+            </if>
         </where>
         order by br.id desc
     </select>
