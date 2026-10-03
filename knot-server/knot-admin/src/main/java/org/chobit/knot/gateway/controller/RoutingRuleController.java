@@ -47,8 +47,7 @@ public class RoutingRuleController {
     public PageResult<RoutingRule> list(@RequestBody(required = false) PageQuery query) {
         PageResult<RoutingRuleDto> page = routingRuleService.list(
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
-                query == null ? null : query.keyword(),
-                query == null ? null : query.modelTypes()
+                query == null ? null : query.keyword()
         );
         return page.mapList(routingRuleConverter::toVOList);
     }

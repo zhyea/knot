@@ -24,6 +24,7 @@
         select <include refid="LogicalModelColumns"/>
         from kb_logical_models
         <where>
+            and is_deleted = 0
             <if test="keyword != null and keyword != ''">
                 and (
                     model_code like concat('%', #{keyword}, '%')
@@ -46,18 +47,21 @@
         select <include refid="LogicalModelColumns"/>
         from kb_logical_models
         where id = #{id}
+          and is_deleted = 0
     </select>
 
     <select id="getByCode" resultType="org.chobit.knot.gateway.entity.LogicalModelEntity">
         select <include refid="LogicalModelColumns"/>
         from kb_logical_models
         where model_code = #{modelCode}
+          and is_deleted = 0
     </select>
 
     <select id="countByModelCode" resultType="java.lang.Long">
         select count(1)
         from kb_logical_models
         where model_code = #{modelCode}
+          and is_deleted = 0
         <if test="excludeId != null">
             and id != #{excludeId}
         </if>
@@ -105,17 +109,20 @@
             featured = #{featured},
             remark = #{remark}
         where id = #{id}
+          and is_deleted = 0
     </update>
 
     <update id="updateStatus">
         update kb_logical_models
         set status = #{status}
         where id = #{id}
+          and is_deleted = 0
     </update>
 
     <delete id="deleteById">
         delete from kb_logical_models
         where id = #{id}
+          and is_deleted = 0
     </delete>
 
     <select id="listMappings" resultType="org.chobit.knot.gateway.entity.ProviderModelMappingEntity">
@@ -184,5 +191,13 @@
         where id = #{mappingId}
           and logical_model_code = #{logicalModelCode}
     </delete>
+
+    <update id="logicalDelete">
+        update kb_logical_models set is_deleted = 1 where id = #{id} and is_deleted = 0
+    </update>
+
+    <select id="countMappingsByLogicalModelCode" resultType="java.lang.Long">
+        select count(1) from kb_provider_model_mappings where logical_model_code = #{logicalModelCode}
+    </select>
 
 </mapper>

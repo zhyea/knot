@@ -180,9 +180,13 @@ public class LogicalModelService {
         if (entity == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "logical model not found");
         }
-        externalModelMapper.clearLogicalModelMatch(id);
-        logicalModelMapper.deleteMappingsByLogicalModelCode(entity.getModelCode());
-        int affected = logicalModelMapper.deleteById(id);
+        long refCount = logicalModelMapper.countMappingsByLogicalModelCode(entity.getModelCode());
+        Long itemRefCount = externalModelMapper.countByLogicalModelId(id);
+        refCount += itemRefCount == null ? 0 : itemRefCount;
+        if (refCount > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "该统一模型已被供应商模型或外部模型引用，无法删除");
+        }
+        int affected = logicalModelMapper.logicalDelete(id);
         if (affected == 0) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "logical model not found");
         }

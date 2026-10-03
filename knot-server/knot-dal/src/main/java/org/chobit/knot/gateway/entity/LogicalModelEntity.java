@@ -23,6 +23,7 @@ public class LogicalModelEntity {
     private String visibility;
     private String publishStatus;
     private String status;
+    private Integer isDeleted;
     private Integer sortOrder;
     private Boolean featured;
     private String remark;

@@ -32,4 +32,8 @@ public interface ModelPoolMapper {
     int deleteItemsByPoolCode(@Param("poolCode") String poolCode);
 
     int insertItem(ModelPoolItemEntity entity);
+
+    int logicalDelete(@Param("id") Long id);
+
+    Long countRoutingTargetsByPoolId(@Param("poolId") Long poolId);
 }

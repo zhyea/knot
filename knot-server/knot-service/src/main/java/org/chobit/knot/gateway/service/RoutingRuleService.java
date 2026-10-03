@@ -54,10 +54,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
-import java.util.LinkedHashSet;
 import java.util.stream.Collectors;
 
 @Service
@@ -152,17 +153,16 @@ public class RoutingRuleService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<RoutingRuleDto> list(PageRequest pageRequest) {
-        return list(pageRequest, null, null);
+        return list(pageRequest, null);
     }
 
     /**
      * Lists matching results. Executes the public operation.
      */
-    public PageResult<RoutingRuleDto> list(PageRequest pageRequest, String keyword, List<String> modelTypes) {
+    public PageResult<RoutingRuleDto> list(PageRequest pageRequest, String keyword) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<RoutingRuleEntity> pageInfo = new PageInfo<>(routingRuleMapper.list(
-                    normalizeNullable(keyword),
-                    normalizeModelTypesForQuery(modelTypes)
+                    normalizeNullable(keyword)
             ));
             List<RoutingRuleDto> dtos = enrichList(pageInfo.getList());
             return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
@@ -240,7 +240,6 @@ public class RoutingRuleService {
                 existing.ruleCode(),
                 existing.name(),
                 existing.appScenario(),
-                existing.modelTypes(),
                 existing.consumerIds(),
                 existing.consumerNames(),
                 existing.appId(),
@@ -704,7 +703,6 @@ public class RoutingRuleService {
                 entity.getRuleCode(),
                 entity.getName(),
                 entity.getAppScenario(),
-                parseModelTypes(entity.getModelTypes()),
                 consumerIds,
                 consumerNames,
                 entity.getAppId(),
@@ -771,15 +769,20 @@ public class RoutingRuleService {
 
     private void saveConsumers(Long ruleId, List<Long> consumerIds) {
         routingRuleConsumerMapper.deleteByRuleId(ruleId);
-        if (consumerIds == null) {
+        if (consumerIds == null || consumerIds.isEmpty()) {
             return;
         }
-        for (Long consumerId : consumerIds.stream().distinct().toList()) {
-            RoutingRuleConsumerEntity entity = new RoutingRuleConsumerEntity();
-            entity.setRuleId(ruleId);
-            entity.setConsumerId(consumerId);
-            routingRuleConsumerMapper.insert(entity);
+        Long consumerId = consumerIds.stream()
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+        if (consumerId == null) {
+            return;
         }
+        RoutingRuleConsumerEntity entity = new RoutingRuleConsumerEntity();
+        entity.setRuleId(ruleId);
+        entity.setConsumerId(consumerId);
+        routingRuleConsumerMapper.insert(entity);
     }
 
     private RoutingRuleDto ensureGeneratedFieldsForCreate(RoutingRuleDto request) {
@@ -792,7 +795,6 @@ public class RoutingRuleService {
                 generateUniqueRuleCode(),
                 request.name(),
                 request.appScenario(),
-                normalizeModelTypes(request.modelTypes()),
                 request.consumerIds(),
                 request.consumerNames(),
                 request.appId(),
@@ -851,9 +853,9 @@ public class RoutingRuleService {
         }
         if (request.enabled()) {
             validateEnabledRule(request);
-            validateTargets(request.targets(), true, normalizeModelTypes(request.modelTypes()));
+            validateTargets(request.targets(), true);
         } else if (request.targets() != null && !request.targets().isEmpty()) {
-            validateTargets(request.targets(), false, normalizeModelTypes(request.modelTypes()));
+            validateTargets(request.targets(), false);
         }
     }
 
@@ -864,15 +866,12 @@ public class RoutingRuleService {
         if (request.appId() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "启用规则前请选择绑定应用");
         }
-        if (normalizeModelTypes(request.modelTypes()).isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "启用规则前请选择模型类型");
-        }
         if (request.targets() == null || request.targets().isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "启用规则前请至少绑定一个模型");
         }
     }
 
-    private void validateTargets(List<RoutingRuleTargetDto> targets, boolean enabledRule, List<String> modelTypes) {
+    private void validateTargets(List<RoutingRuleTargetDto> targets, boolean enabledRule) {
         if (targets == null || targets.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请至少绑定一个模型");
         }
@@ -888,11 +887,11 @@ public class RoutingRuleService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "模型绑定不能重复");
         }
         for (RoutingRuleTargetDto target : targets) {
-            validateTarget(target, enabledRule, modelTypes);
+            validateTarget(target, enabledRule);
         }
     }
 
-    private void validateTarget(RoutingRuleTargetDto target, boolean enabledRule, List<String> modelTypes) {
+    private void validateTarget(RoutingRuleTargetDto target, boolean enabledRule) {
         String targetType = normalizeTargetType(target.targetType());
         if (target.targetId() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "please select routing target");
@@ -901,9 +900,6 @@ public class RoutingRuleService {
             ModelEntity model = modelMapper.getById(target.targetId());
             if (model == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "model not found");
-            }
-            if (modelTypes != null && !modelTypes.isEmpty() && !modelTypes.contains(model.getModelType())) {
-                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target model type is not allowed by rule");
             }
             if (enabledRule && !"ENABLED".equals(model.getStatus())) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target model is disabled");
@@ -914,9 +910,6 @@ public class RoutingRuleService {
             ModelPoolEntity pool = modelPoolMapper.getById(target.targetId());
             if (pool == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "model pool not found");
-            }
-            if (modelTypes != null && !modelTypes.isEmpty() && !modelTypes.contains(pool.getModelType())) {
-                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target model pool type is not allowed by rule");
             }
             if (enabledRule && !"ENABLED".equals(pool.getStatus())) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target model pool is disabled");
@@ -934,7 +927,6 @@ public class RoutingRuleService {
         entity.setRuleCode(normalizeRuleCode(request.ruleCode()));
         entity.setName(request.name() != null ? request.name().trim() : "");
         entity.setAppScenario(normalizeNullable(request.appScenario()));
-        entity.setModelTypes(String.join(",", normalizeModelTypes(request.modelTypes())));
         entity.setAppId(request.appId());
         entity.setUserId(request.userId());
         return entity;
@@ -971,14 +963,6 @@ public class RoutingRuleService {
         if (entity == null || entity.getUserId() == null) {
             return null;
         }
-        String realName = entity.getUserRealName() != null ? entity.getUserRealName().trim() : "";
-        if (!realName.isEmpty()) {
-            String username = entity.getUserUsername();
-            if (username != null && !username.isBlank() && !realName.equals(username)) {
-                return realName + "（" + username + "）";
-            }
-            return realName;
-        }
         return entity.getUserUsername();
     }
 
@@ -996,40 +980,4 @@ public class RoutingRuleService {
         return normalized.isEmpty() ? "MODEL" : normalized;
     }
 
-    private static List<String> parseModelTypes(String value) {
-        if (value == null || value.isBlank()) {
-            return List.of("CHAT");
-        }
-        List<String> result = value.lines()
-                .flatMap(line -> List.of(line.split(",")).stream())
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .distinct()
-                .toList();
-        return result.isEmpty() ? List.of("CHAT") : result;
-    }
-
-    private static List<String> normalizeModelTypes(List<String> modelTypes) {
-        if (modelTypes == null || modelTypes.isEmpty()) {
-            return List.of("CHAT");
-        }
-        List<String> result = modelTypes.stream()
-                .map(s -> s == null ? "" : s.trim())
-                .filter(s -> !s.isEmpty())
-                .distinct()
-                .collect(Collectors.toList());
-        return result.isEmpty() ? List.of("CHAT") : result;
-    }
-
-    private static List<String> normalizeModelTypesForQuery(List<String> modelTypes) {
-        if (modelTypes == null || modelTypes.isEmpty()) {
-            return null;
-        }
-        List<String> result = modelTypes.stream()
-                .map(s -> s == null ? "" : s.trim())
-                .filter(s -> !s.isEmpty())
-                .distinct()
-                .collect(Collectors.toList());
-        return result.isEmpty() ? null : result;
-    }
 }

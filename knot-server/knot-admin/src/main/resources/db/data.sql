@@ -577,10 +577,10 @@ INSERT IGNORE INTO kb_routing_consumers (id, consumer_code, name, user_id, secre
 (2, 'consumer-research',    '模型评测消费者',       1, 'sk-demo-claude-routing-key-002', 0, 'ENABLED'),
 (3, 'consumer-cs',          '客服系统消费者',       2, 'sk-demo-deepseek-routing-key-003', 0, 'ENABLED');
 
-INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, model_types, app_id, user_id, status) VALUES
-(1, 'gpt4o-default',    'GPT-4o默认路由',    '知识库问答', 'CHAT', 1, 1, 'ENABLED'),
-(2, 'claude-default',   'Claude默认路由',    '模型评测',   'CHAT', 1, 1, 'ENABLED'),
-(3, 'deepseek-lowcost', 'DeepSeek低成本路由', '客服对话',   'CHAT', 2, 2, 'ENABLED');
+INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, app_id, user_id, status) VALUES
+(1, 'gpt4o-default',    'GPT-4o默认路由',    '知识库问答', 1, 1, 'ENABLED'),
+(2, 'claude-default',   'Claude默认路由',    '模型评测',   1, 1, 'ENABLED'),
+(3, 'deepseek-lowcost', 'DeepSeek低成本路由', '客服对话',   2, 2, 'ENABLED');
 
 INSERT IGNORE INTO kb_routing_rule_consumers (id, rule_id, consumer_id) VALUES
 (1, 1, 1),

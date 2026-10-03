@@ -7,16 +7,6 @@
           placeholder="按规则编码、名称、应用、用户筛选"
           @query="handleQuery"
         />
-        <FilterField label="模型类型" :width="260">
-          <EnumControl
-            v-model="query.modelTypes"
-            enum-name="ModelTypeEnum"
-            multiple
-            collapse-tags
-            collapse-tags-tooltip
-            clearable
-          />
-        </FilterField>
       </FilterBar>
 
       <section class="list-page-block list-page-block--content">
@@ -69,7 +59,6 @@ import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import {useListQuery} from "@/composables/useListQuery";
-import EnumControl from "../../components/common/EnumControl.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import RoutingRuleListPanel from "../../components/routing/RoutingRuleListPanel.vue";
 import RoutingRuleFormDrawer from "../../components/routing/RoutingRuleFormDrawer.vue";
@@ -91,7 +80,7 @@ const {
   resetPage,
   handleQuery,
   handleReset
-} = useListQuery({ apiFn: listRoutingRules, fields: { keyword: "", modelTypes: [] } });
+} = useListQuery({ apiFn: listRoutingRules, fields: { keyword: "" } });
 
 const formVisible = ref(false);
 const editingRule = ref<Dict | null>(null);

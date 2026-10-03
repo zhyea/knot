@@ -9,8 +9,7 @@ import java.util.List;
 @Mapper
 public interface RoutingRuleMapper {
 
-    List<RoutingRuleEntity> list(@Param("keyword") String keyword,
-                                 @Param("modelTypes") List<String> modelTypes);
+    List<RoutingRuleEntity> list(@Param("keyword") String keyword);
 
     RoutingRuleEntity getById(Long id);
 

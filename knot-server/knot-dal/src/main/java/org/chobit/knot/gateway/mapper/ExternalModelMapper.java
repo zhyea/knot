@@ -44,4 +44,6 @@ public interface ExternalModelMapper {
     int clearLogicalModelMatch(Long logicalModelId);
 
     int updateItemIgnored(@Param("id") Long id, @Param("ignored") Boolean ignored);
+
+    Long countByLogicalModelId(@Param("logicalModelId") Long logicalModelId);
 }

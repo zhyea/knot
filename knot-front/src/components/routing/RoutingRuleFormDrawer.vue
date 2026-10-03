@@ -62,7 +62,7 @@
         <div class="section-head">
           <div>
             <h3>路由配置</h3>
-            <p>指定当前规则关联的应用、用户和模型类型。</p>
+            <p>指定当前规则关联的应用与用户。</p>
           </div>
         </div>
         <el-row :gutter="16">
@@ -91,15 +91,6 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <el-form-item label="模型类型" required>
-              <EnumControl
-                  v-model="form.modelTypes"
-                  enum-name="ModelTypeEnum"
-                  multiple
-              />
-            </el-form-item>
-          </el-col>
         </el-row>
       </div>
 
@@ -114,16 +105,13 @@
         </div>
         <el-form-item label="绑定消费者" required class="bind-block-item consumer-bind-item">
           <RemoteEntitySelect
-              v-model="form.consumerIds"
+              v-model="selectedConsumerId"
               :load-function="loadConsumerOptions"
               :label-function="consumerLabel"
               :selected-options="selectedConsumers"
-              placeholder="请选择消费者，可多选"
-              multiple
-              collapse-tags
-              collapse-tags-tooltip
+              placeholder="请选择消费者"
               style="width: 100%"
-              @change="onConsumersChange"
+              @change="onConsumerChange"
           />
         </el-form-item>
         <el-table v-if="selectedConsumers.length" :data="selectedConsumers" border class="bind-table consumer-bind-table">
@@ -192,11 +180,6 @@
               <span class="bind-list__text">{{ row.targetCode || "—" }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="targetName" label="目标名称" min-width="180" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span class="bind-list__text">{{ row.targetName || "—" }}</span>
-            </template>
-          </el-table-column>
           <el-table-column label="优先级" width="160" align="center">
             <template #default="{ row }">
               <el-input-number
@@ -246,7 +229,6 @@ import {type PropType, computed, reactive, ref, watch, type Ref} from "vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {ElMessage} from "element-plus";
 import {Delete} from "@element-plus/icons-vue";
-import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import {
@@ -313,7 +295,6 @@ interface RuleForm {
   consumerIds: Array<string | number>;
   appId: number | string | null;
   userId: number | string | null;
-  modelTypes: string[];
   enabled: boolean;
   targets: RuleTargetForm[];
   rateLimitPolicy: Dict;
@@ -328,7 +309,6 @@ const form = reactive<RuleForm>({
   consumerIds: [],
   appId: null,
   userId: null,
-  modelTypes: ["CHAT"],
   enabled: true,
   targets: [],
   rateLimitPolicy: emptyRateLimitPolicy(),
@@ -341,6 +321,10 @@ const selectedConsumers = computed(() =>
       return consumer || { id, name: props.rule?.consumerNames?.[index] };
     })
 );
+const selectedConsumerId = computed<string | number | null>({
+  get: () => (form.consumerIds.length ? form.consumerIds[0] : null),
+  set: (value) => { form.consumerIds = value == null ? [] : [value]; }
+});
 const selectedTargetIds = computed({
   get: () => form.targets.filter((item) => item.targetType === targetType.value).map((item) => item.targetId),
   set: (ids) => onSelectedTargetsChange(ids)
@@ -378,9 +362,7 @@ const selectedUserOptions = computed(() =>
     realName: props.rule?.userName
   })
 );
-const targetExtraParams = computed(() => ({
-  modelTypes: Array.isArray(form.modelTypes) && form.modelTypes.length ? [...form.modelTypes] : undefined
-}));
+const targetExtraParams = computed(() => ({}));
 
 function appLabel(app: Row): string {
   return app.name || app.appCode || `#${app.id}`;
@@ -508,7 +490,6 @@ function resetForm() {
     form.consumerIds = Array.isArray(row.consumerIds) ? [...row.consumerIds] : [];
     form.appId = row.appId ?? null;
     form.userId = row.userId ?? null;
-    form.modelTypes = Array.isArray(row.modelTypes) && row.modelTypes.length ? [...row.modelTypes] : ["CHAT"];
     form.enabled = row.enabled !== false;
     form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
     form.quotaPolicy = normalizeQuotaPolicy(row.quotaPolicy);
@@ -532,7 +513,6 @@ function resetForm() {
     form.consumerIds = [];
     form.appId = null;
     form.userId = null;
-    form.modelTypes = ["CHAT"];
     form.enabled = false;
     form.targets = [];
     form.rateLimitPolicy = emptyRateLimitPolicy();
@@ -566,38 +546,13 @@ watch(
     }
 );
 
-watch(
-    () => [...(form.modelTypes || [])],
-    () => {
-      const allowedTypes = new Set(form.modelTypes || []);
-      let changed = false;
-      form.targets = form.targets.map((item) => {
-        const option = findTargetOption(item.targetType, item.targetId);
-        const modelType = option?.modelType || item.modelType;
-        if (modelType && allowedTypes.size && !allowedTypes.has(modelType)) {
-          changed = true;
-          return null;
-        }
-        return item;
-      }).filter((item): item is RuleTargetForm => item != null);
-      if (changed) {
-        primaryTargetKey.value = form.targets[0] ? targetKey(form.targets[0]) : null;
-      }
-      if (props.modelValue) {
-        modelOptions.value = [];
-        modelPoolOptions.value = [];
-      }
-    }
-);
-
 function onClosed() {
   form.id = null;
 }
 
-function onConsumersChange(consumerIds: Array<string | number>) {
-  const consumer = consumerOptions.value.find((item) => consumerIds.includes(item.id));
-  if (!form.userId && consumer?.userId) {
-    form.userId = consumer.userId;
+function onConsumerChange(_value: unknown, selected: Row | null) {
+  if (!form.userId && selected?.userId) {
+    form.userId = selected.userId;
   }
 }
 
@@ -689,7 +644,6 @@ function buildSubmitPayload() {
     consumerIds: [...form.consumerIds],
     appId: form.appId,
     userId: form.userId,
-    modelTypes: form.modelTypes?.length ? [...form.modelTypes] : ["CHAT"],
     enabled: form.enabled,
     targets,
     rateLimitPolicy,
@@ -712,10 +666,6 @@ async function submit() {
     }
     if (!form.appId) {
       ElMessage.warning("启用规则前请选择绑定应用");
-      return;
-    }
-    if (!form.modelTypes?.length) {
-      ElMessage.warning("启用规则前请选择模型类型");
       return;
     }
     if (!form.targets.length || form.targets.some((m) => !m.targetId)) {

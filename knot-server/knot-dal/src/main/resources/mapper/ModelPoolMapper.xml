@@ -10,6 +10,7 @@
         select <include refid="PoolSelectColumns"/>
         from kb_model_pools
         <where>
+            and is_deleted = 0
             <if test="keyword != null and keyword != ''">
                 and (
                     pool_code like concat('%', #{keyword}, '%')
@@ -100,5 +101,13 @@
         insert into kb_model_pool_items(pool_code, model_code, weight, priority, status)
         values(#{poolCode}, #{modelCode}, #{weight}, #{priority}, #{status})
     </insert>
+
+    <update id="logicalDelete">
+        update kb_model_pools set is_deleted = 1 where id = #{id}
+    </update>
+
+    <select id="countRoutingTargetsByPoolId" resultType="java.lang.Long">
+        select count(1) from kb_routing_rule_targets where target_type = 'MODEL_POOL' and target_id = #{poolId}
+    </select>
 
 </mapper>

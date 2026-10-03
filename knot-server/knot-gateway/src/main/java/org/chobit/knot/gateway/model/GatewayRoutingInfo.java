@@ -11,8 +11,7 @@ public record GatewayRoutingInfo(RuleInfo rule,
     public record RuleInfo(Long id,
                            String code,
                            String name,
-                           String appScenario,
-                           String modelTypes) {
+                           String appScenario) {
     }
 
     public record ConsumerInfo(Long id,

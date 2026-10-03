@@ -10,5 +10,6 @@ public class ModelPoolEntity {
     private String modelType;
     private String selectionStrategy;
     private String status;
+    private Integer isDeleted;
     private String remark;
 }

@@ -8,7 +8,6 @@ public class RoutingRuleEntity {
     private String ruleCode;
     private String name;
     private String appScenario;
-    private String modelTypes;
     private Long appId;
     private String appName;
     private Long userId;

@@ -88,8 +88,7 @@ public class RoutingResolver {
                         rule.getId(),
                         rule.getRuleCode(),
                         rule.getName(),
-                        rule.getAppScenario(),
-                        rule.getModelTypes()
+                        rule.getAppScenario()
                 ),
                 new GatewayRoutingInfo.ConsumerInfo(
                         consumer.getId(),

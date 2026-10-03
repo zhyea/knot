@@ -10,7 +10,6 @@ public record RoutingRuleDto(
         String ruleCode,
         String name,
         String appScenario,
-        List<String> modelTypes,
         List<Long> consumerIds,
         List<String> consumerNames,
         Long appId,

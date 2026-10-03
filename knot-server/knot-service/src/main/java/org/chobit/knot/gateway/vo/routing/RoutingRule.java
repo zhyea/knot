@@ -13,7 +13,6 @@ public record RoutingRule(
         @Size(max = 32) String ruleCode,
         @NotBlank String name,
         @Size(max = 128) String appScenario,
-        List<@Size(max = 64) String> modelTypes,
         List<Long> consumerIds,
         List<String> consumerNames,
         Long appId,

@@ -42,4 +42,8 @@ public interface LogicalModelMapper {
     int deleteMappingsByModelId(Long modelId);
 
     int deleteMapping(@Param("logicalModelCode") String logicalModelCode, @Param("mappingId") Long mappingId);
+
+    int logicalDelete(@Param("id") Long id);
+
+    Long countMappingsByLogicalModelCode(@Param("logicalModelCode") String logicalModelCode);
 }

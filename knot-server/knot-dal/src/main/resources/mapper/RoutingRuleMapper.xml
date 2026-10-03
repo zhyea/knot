@@ -3,7 +3,7 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.RoutingRuleMapper">
 
     <sql id="RuleSelectColumns">
-        r.id, r.rule_code, r.name, r.app_scenario, r.model_types,
+        r.id, r.rule_code, r.name, r.app_scenario,
         r.app_id, a.name AS app_name,
         r.user_id, u.real_name AS user_real_name, u.username AS user_username,
         r.fallback_rule_id, r.status
@@ -23,13 +23,6 @@
                     or a.name like concat('%', #{keyword}, '%')
                     or u.real_name like concat('%', #{keyword}, '%')
                     or u.username like concat('%', #{keyword}, '%')
-                )
-            </if>
-            <if test="modelTypes != null and modelTypes.size() > 0">
-                and (
-                    <foreach collection="modelTypes" item="type" separator=" or ">
-                        find_in_set(#{type}, r.model_types)
-                    </foreach>
                 )
             </if>
         </where>
@@ -78,8 +71,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_routing_rules(rule_code, name, app_scenario, model_types, app_id, user_id, fallback_rule_id, status)
-        values(#{ruleCode}, #{name}, #{appScenario}, #{modelTypes}, #{appId}, #{userId}, #{fallbackRuleId}, #{status})
+        insert into kb_routing_rules(rule_code, name, app_scenario, app_id, user_id, fallback_rule_id, status)
+        values(#{ruleCode}, #{name}, #{appScenario}, #{appId}, #{userId}, #{fallbackRuleId}, #{status})
     </insert>
 
     <update id="update">
@@ -87,7 +80,6 @@
         set rule_code = #{ruleCode},
             name = #{name},
             app_scenario = #{appScenario},
-            model_types = #{modelTypes},
             app_id = #{appId},
             user_id = #{userId},
             fallback_rule_id = #{fallbackRuleId},

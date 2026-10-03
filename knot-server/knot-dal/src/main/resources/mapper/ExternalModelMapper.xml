@@ -179,4 +179,8 @@
         set ignored = #{ignored}
         where id = #{id}
     </update>
+
+    <select id="countByLogicalModelId" resultType="java.lang.Long">
+        select count(1) from kx_model_items where logical_model_id = #{logicalModelId}
+    </select>
 </mapper>

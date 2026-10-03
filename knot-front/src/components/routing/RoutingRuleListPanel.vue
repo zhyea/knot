@@ -2,18 +2,22 @@
   <div>
     <el-table v-loading="loading" :data="rows" stripe border>
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
-      <el-table-column prop="ruleCode" label="规则编码" min-width="120" show-overflow-tooltip />
-      <el-table-column prop="name" label="名称" min-width="120" />
-      <el-table-column label="消费者" min-width="140" show-overflow-tooltip>
+      <el-table-column prop="ruleCode" label="规则编码" min-width="160" show-overflow-tooltip />
+      <el-table-column label="消费者" min-width="120" show-overflow-tooltip>
         <template #default="{ row }">
           {{ consumerNamesLabel(row.consumerNames) }}
         </template>
       </el-table-column>
       <el-table-column prop="appName" label="应用" min-width="100" show-overflow-tooltip />
-      <el-table-column prop="userName" label="用户" min-width="100" show-overflow-tooltip />
-      <el-table-column label="模型类型" min-width="88" show-overflow-tooltip>
+      <el-table-column prop="appScenario" label="应用场景" min-width="120" show-overflow-tooltip>
         <template #default="{ row }">
-          {{ modelTypesLabel(row.modelTypes) }}
+          {{ row.appScenario || "-" }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="userName" label="用户" min-width="100" show-overflow-tooltip />
+      <el-table-column label="路由目标" min-width="200" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ targetsLabel(row.targets) }}
         </template>
       </el-table-column>
       <el-table-column label="启用" width="88" align="center">
@@ -90,9 +94,17 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateRoutingRuleStatus
 });
 
-function modelTypesLabel(modelTypes: unknown) {
-  const list: string[] = Array.isArray(modelTypes) && modelTypes.length ? modelTypes : ["CHAT"];
-  return list.map((code) => labelOf("ModelTypeEnum", code, code)).join("、");
+function targetsLabel(targets: unknown) {
+  if (!Array.isArray(targets) || !targets.length) {
+    return "-";
+  }
+  return targets
+    .map((t: Row) => {
+      const type = labelOf("RouteTargetTypeEnum", t.targetType, t.targetType);
+      const code = t.targetCode || t.targetId || "";
+      return type ? `${type}:${code}` : code;
+    })
+    .join("、");
 }
 
 function consumerNamesLabel(consumerNames: unknown) {
