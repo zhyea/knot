@@ -1,24 +1,24 @@
 <template>
   <div>
     <el-table v-loading="loading" :data="rows" stripe border size="small" style="width: 100%">
-      <el-table-column prop="code" label="规则编码" min-width="160" show-overflow-tooltip/>
+      <el-table-column prop="code" label="规则编码" min-width="180" show-overflow-tooltip/>
       <el-table-column label="模型族" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.modelFamilyName || (row.modelFamilyCode ? `#${row.modelFamilyCode}` : "默认") }}
         </template>
       </el-table-column>
-      <el-table-column label="版本" width="120" align="center" show-overflow-tooltip>
+      <el-table-column label="版本" width="90" align="center" show-overflow-tooltip>
         <template #default="{ row }">{{ row.versionCode || "-" }}</template>
       </el-table-column>
-      <el-table-column label="计费模式" width="120">
+      <el-table-column label="计费模式" width="100">
         <template #default="{ row }">{{ billingModeLabel(row.billingMode) }}</template>
       </el-table-column>
-      <el-table-column label="进阶方案" width="110">
+      <el-table-column label="进阶方案" width="100">
         <template #default="{ row }">{{ pricingPlanLabel(row.pricingPlan) }}</template>
       </el-table-column>
       <el-table-column prop="currency" label="币种" width="80" align="center"/>
       <el-table-column prop="unit" label="单位" width="110"/>
-      <el-table-column label="绑定数量" width="100" align="center" show-overflow-tooltip>
+      <el-table-column label="绑定数量" width="100" align="right" show-overflow-tooltip>
         <template #default="{ row }">{{ row.boundModelCount ?? 0 }}</template>
       </el-table-column>
       <el-table-column label="启用" width="88" align="center">
