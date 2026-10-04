@@ -256,6 +256,10 @@ public class ModelPoolService {
     private void validateForSave(ModelPoolDto request, Long excludeId) {
         String poolCode = normalizePoolCode(request.poolCode());
         requireText(poolCode, "please input pool code");
+        // 新建模型池强制 pool 前缀约定；编辑既有池（历史数据可能为 -pool 后缀）豁免
+        if (excludeId == null && !poolCode.toLowerCase().startsWith("pool")) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "model pool code must start with 'pool'");
+        }
         requireText(request.name(), "please input pool name");
         String logicalModelCode = requireText(
                 normalizeLogicalModelCode(request.logicalModelCode()),
