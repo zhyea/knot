@@ -180,7 +180,7 @@ import {getModel} from "@/api/models";
 import {getModelPool} from "@/api/modelPools";
 import {testRoutingRule, testRoutingRuleStream} from "@/api/routing";
 import {useModelTypes} from "@/composables/useModelTypes";
-import {useDebugCapabilities, extractPrompt} from "@/composables/useDebugCapabilities";
+import {useDebugCapabilities} from "@/composables/useDebugCapabilities";
 import {listTestRequestPresetOptions} from "@/api/routing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {formatJson, formatJsonText, parseJsonResult, stringifyJson, highlightJsonHtml} from "@/utils/format";
@@ -222,8 +222,7 @@ const {
   loadOptions: loadDebugCapabilities,
   canonicalOf,
   gatewayPathOf,
-  hintOf,
-  promptFieldOf
+  hintOf
 } = useDebugCapabilities();
 
 const loading = ref(false);
@@ -711,28 +710,26 @@ async function runTest() {
   }
 }
 
-/** 组装测试请求体：两条链路共用，保证 prompt / 协议 / 目标口径一致 */
-function buildTestPayload(requestBody: Dict, target: RoutingTarget, protocol: string): Dict {
-  return {
-    secretKey: testForm.secretKey.trim(),
-    prompt: inferPrompt(requestBody, protocol),
-    protocol,
-    targetType: target.targetType,
-    targetId: target.targetId,
-    requestBody
-  };
-}
-
-/** 非流式：沿用既有 /test + Axios JSON 链路 */
+/** 非流式：直接请求网关原生 JSON 接口，避免经过管理端 /test 包装接口 */
 async function runBufferedTest(requestBody: Dict, target: RoutingTarget, protocol: string) {
   loading.value = true;
   testResult.value = null;
   try {
-    testResult.value = await testRoutingRule(
-      props.ruleId as number,
-      buildTestPayload(requestBody, target, protocol),
-      {silentError: true}
+    const response = await testRoutingRule(
+      requestUrl.value,
+      stripModelField(requestBody),
+      testForm.secretKey.trim(),
+      resolveRuleHeaderValue()
     );
+    testResult.value = {
+      status: "SUCCESS",
+      httpStatus: response.status,
+      modelCode: target.targetCode ?? null,
+      protocol,
+      curl: curlPreview.value,
+      errorMessage: "",
+      responseBody: serializeBody(response.data)
+    };
     responseTab.value = "body";
   } catch (error) {
     responseTab.value = "body";
@@ -936,11 +933,6 @@ function stopStreaming() {
   abortStreaming();
 }
 
-function inferPrompt(body: unknown, protocol: unknown): string | null {
-  // prompt 字段路径由后端能力接口下发，这里做通用路径取值，不再按协议 switch
-  return extractPrompt(body, promptFieldOf(normalizeProtocolCode(protocol)));
-}
-
 function normalizeErrorResult(error: Dict): Dict {
   const data = error?.response?.data;
   if (data && typeof data === "object") {
@@ -959,7 +951,11 @@ function normalizeErrorResult(error: Dict): Dict {
       httpStatus: error?.response?.status ?? null,
       modelCode: data.modelCode ?? null,
       protocol: data.protocol ?? activeProtocol.value,
-      errorMessage: data.message || data.error || error.message || "请求失败",
+      errorMessage:
+        data.message ||
+        (typeof data.error === "object" ? data.error?.message : data.error) ||
+        error.message ||
+        "请求失败",
       responseBody: serializeBody(data)
     };
   }
