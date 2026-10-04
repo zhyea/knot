@@ -117,7 +117,7 @@
 
           <div v-if="isStreaming" class="stream-status">
             <span class="stream-status__dot"/>
-            <span>正在接收 · 已接收 {{ receivedBytesLabel }} · 已用 {{ elapsedLabel }}</span>
+            <span>正在接收 · 区块 {{ streamBlocks.length }} · 已接收 {{ receivedBytesLabel }} · 已用 {{ elapsedLabel }}</span>
           </div>
 
           <el-skeleton v-if="loading && !isStreaming" :rows="5" animated/>
@@ -143,6 +143,20 @@
                 />
                 <el-empty v-else description="无响应内容" :image-size="64"/>
               </el-tab-pane>
+              <el-tab-pane label="流式响应" name="stream" class="response-stream-pane">
+                <el-scrollbar ref="streamScrollbar" max-height="calc(100vh - 320px)" class="stream-blocks-scroll">
+                  <div class="stream-blocks">
+                    <div v-for="block in streamBlocks" :key="block.id" class="stream-block">
+                      <div class="stream-block__head">
+                        <span class="stream-block__index">#{{ block.id }}</span>
+                        <span v-if="block.event" class="stream-block__event">event: {{ block.event }}</span>
+                      </div>
+                      <pre class="stream-block__code" v-html="highlightBlock(block.data)"></pre>
+                    </div>
+                    <div v-if="!streamBlocks.length" class="stream-blocks__empty">等待流式响应…</div>
+                  </div>
+                </el-scrollbar>
+              </el-tab-pane>
             </el-tabs>
           </template>
           <el-empty v-else description="执行请求后在这里查看响应结果" :image-size="72"/>
@@ -157,7 +171,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onBeforeUnmount, reactive, ref, watch, type PropType} from "vue";
+import {computed, nextTick, onBeforeUnmount, reactive, ref, watch, type PropType} from "vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import ShellCodeBlock from "../common/ShellCodeBlock.vue";
 import {getModel} from "@/api/models";
@@ -167,7 +181,7 @@ import {useModelTypes} from "@/composables/useModelTypes";
 import {useDebugCapabilities, extractPrompt} from "@/composables/useDebugCapabilities";
 import {listTestRequestPresetOptions} from "@/api/routing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
-import {formatJson, formatJsonText, parseJsonResult, stringifyJson} from "@/utils/format";
+import {formatJson, formatJsonText, parseJsonResult, stringifyJson, highlightJsonHtml} from "@/utils/format";
 import {readEventStream, type SseEvent} from "@/utils/sse";
 import type {Dict, Row} from "@/types";
 
@@ -246,6 +260,27 @@ let pendingText = "";
 /** 驱动「已用时」每秒重算的计时器 */
 let elapsedTimer: ReturnType<typeof setInterval> | null = null;
 const elapsedTick = ref(0);
+
+// ===================== 流式区块（每收到一个事件追加一个区块） =====================
+interface StreamBlock {
+  id: number;
+  event?: string;
+  data: string;
+}
+
+/** 流式区块列表：每个 SSE 事件独立成块，逐块动态追加到「流式响应」页 */
+const streamBlocks = ref<StreamBlock[]>([]);
+/** 区块滚动容器引用，用于追加后自动滚到底部 */
+const streamScrollbar = ref<ScrollbarLike | null>(null);
+/** 已生成尚未刷入界面的区块（节流） */
+let pendingBlocks: StreamBlock[] = [];
+let blockSeq = 0;
+/** 区块追加节流计时器，避免高频重排 */
+let blockFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+interface ScrollbarLike {
+  wrapRef?: HTMLElement;
+}
 
 const isStreaming = computed(() => streamAbortController.value !== null);
 
@@ -715,6 +750,10 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protoc
   receivedBytes.value = 0;
   streamBody.value = "";
   pendingText = "";
+  streamBlocks.value = [];
+  pendingBlocks = [];
+  blockSeq = 0;
+  clearBlockTimers();
   loading.value = true;
   if (elapsedTimer) {
     clearInterval(elapsedTimer);
@@ -722,8 +761,8 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protoc
   elapsedTimer = setInterval(() => {
     elapsedTick.value += 1;
   }, 1000);
-  // 先切到 Body 页并建立 RUNNING 态，避免等待期间显示空 skeleton
-  responseTab.value = "body";
+  // 先切到「流式响应」页并建立 RUNNING 态，避免等待期间显示空 skeleton
+  responseTab.value = "stream";
   testResult.value = {
     status: "RUNNING",
     httpStatus: null,
@@ -773,6 +812,7 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protoc
       clearTimeout(flushTimer);
       flushTimer = null;
     }
+    clearBlockTimers();
     if (elapsedTimer) {
       clearInterval(elapsedTimer);
       elapsedTimer = null;
@@ -785,8 +825,57 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protoc
 }
 
 function handleStreamEvent(event: SseEvent) {
-  // 流式测试现在直连网关，事件就是上游原生 SSE；完整原文用于调试展示。
+  // 流式测试现在直连网关，事件就是上游原生 SSE。
+  // 每个事件独立成块追加到「流式响应」页，同时维护原始累计文本供 Body 页展示。
+  const dataText = event.data ?? "";
+  pendingBlocks.push({id: blockSeq++, event: event.event, data: dataText});
+  scheduleBlockFlush();
   appendStreamText(formatUpstreamEvent(event));
+}
+
+/** 节流刷入区块：逐事件直接改响应式数组会让 v-html 高频重排，统一 60ms 批处理 */
+function scheduleBlockFlush() {
+  if (blockFlushTimer) {
+    return;
+  }
+  blockFlushTimer = setTimeout(() => {
+    blockFlushTimer = null;
+    flushBlocks();
+  }, 60);
+}
+
+function flushBlocks() {
+  if (!pendingBlocks.length) {
+    return;
+  }
+  streamBlocks.value = [...streamBlocks.value, ...pendingBlocks];
+  pendingBlocks = [];
+  scrollStreamToBottom();
+}
+
+function clearBlockTimers() {
+  if (blockFlushTimer) {
+    clearTimeout(blockFlushTimer);
+    blockFlushTimer = null;
+  }
+  pendingBlocks = [];
+}
+
+function scrollStreamToBottom() {
+  nextTick(() => {
+    const wrap = streamScrollbar.value?.wrapRef;
+    if (wrap) {
+      wrap.scrollTop = wrap.scrollHeight;
+    }
+  });
+}
+
+/** 区块内代码高亮：复用 JSON 高亮（内部已做 HTML 转义，无 XSS 风险） */
+function highlightBlock(data: string): string {
+  if (!data) {
+    return '<span class="sh-muted">（空）</span>';
+  }
+  return highlightJsonHtml(data);
 }
 
 function formatUpstreamEvent(event: SseEvent): string {
@@ -895,12 +984,14 @@ function onClosed() {
     clearTimeout(flushTimer);
     flushTimer = null;
   }
+  clearBlockTimers();
   if (elapsedTimer) {
     clearInterval(elapsedTimer);
     elapsedTimer = null;
   }
   pendingText = "";
   streamBody.value = "";
+  streamBlocks.value = [];
   receivedBytes.value = 0;
   streamStartedAt.value = null;
   testResult.value = null;
@@ -913,6 +1004,7 @@ onBeforeUnmount(() => {
     clearTimeout(flushTimer);
     flushTimer = null;
   }
+  clearBlockTimers();
   if (elapsedTimer) {
     clearInterval(elapsedTimer);
     elapsedTimer = null;
@@ -1119,11 +1211,13 @@ onBeforeUnmount(() => {
 
 .response-body-code :deep(.shell-code-scrollbar) {
   flex: 1;
-  max-height: none;
+  /* 必须 !important：ShellCodeBlock 的 max-height="220px" 会生成内联 style，
+     普通 class 覆写压不过内联，故 Body 高度被锁死 220px。!important 才能破除 */
+  max-height: none !important;
 }
 
 .response-body-code :deep(.el-scrollbar__wrap) {
-  max-height: none;
+  max-height: none !important;
 }
 
 .result-meta {
@@ -1195,6 +1289,90 @@ onBeforeUnmount(() => {
   50% {
     opacity: 0.25;
   }
+}
+
+/* 流式响应：每收到一个事件追加一个独立区块 */
+.response-stream-pane {
+  height: 100%;
+}
+
+.stream-blocks-scroll {
+  height: 100%;
+}
+
+.stream-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 4px;
+}
+
+.stream-block {
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  overflow: hidden;
+  background: #1e1e1e;
+}
+
+.stream-block__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px;
+  background: var(--el-fill-color-light);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  font-size: 11px;
+}
+
+.stream-block__index {
+  font-weight: 700;
+  color: var(--el-color-primary);
+  font-family: Consolas, "Courier New", monospace;
+}
+
+.stream-block__event {
+  color: var(--el-text-color-secondary);
+  font-family: Consolas, "Courier New", monospace;
+}
+
+.stream-block__code {
+  margin: 0;
+  padding: 10px 12px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.stream-block__code :deep(.json-key) {
+  color: #9cdcfe;
+}
+
+.stream-block__code :deep(.json-string) {
+  color: #ce9178;
+}
+
+.stream-block__code :deep(.json-number) {
+  color: #b5cea8;
+}
+
+.stream-block__code :deep(.json-boolean),
+.stream-block__code :deep(.json-null) {
+  color: #569cd6;
+}
+
+.stream-block__code :deep(.sh-muted) {
+  color: #808080;
+}
+
+.stream-blocks__empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
 }
 
 @media (max-width: 900px) {

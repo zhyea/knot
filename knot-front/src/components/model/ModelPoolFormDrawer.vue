@@ -23,7 +23,24 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="模型池编码" required :error="poolCodeError">
-              <el-input v-model="form.poolCode" maxlength="64" show-word-limit @blur="validatePoolCode" />
+              <el-input
+                v-if="!isEdit"
+                v-model="poolSuffix"
+                maxlength="59"
+                show-word-limit
+                placeholder="如 chat-xxx（自动加 pool- 前缀）"
+                @blur="validatePoolCode"
+              >
+                <template #prepend>pool-</template>
+              </el-input>
+              <el-input
+                v-else
+                v-model="form.poolCode"
+                maxlength="64"
+                show-word-limit
+                placeholder="如 chat-premium-pool"
+                @blur="validatePoolCode"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -160,6 +177,7 @@ const emit = defineEmits(["update:modelValue", "saved"]);
 const isEdit = computed(() => props.pool != null);
 const saving = ref(false);
 const poolCodeError = ref("");
+const poolSuffix = ref("");
 const modelOptions = ref<Row[]>([]);
 const logicalModelOptions = ref<Row[]>([]);
 
@@ -277,6 +295,7 @@ function resetForm() {
     enabled: item.enabled !== false
   }));
   poolCodeError.value = "";
+  poolSuffix.value = "";
 }
 
 watch(
@@ -293,7 +312,7 @@ watch(
 );
 
 watch(
-  () => form.poolCode,
+  () => [form.poolCode, poolSuffix.value],
   () => {
     poolCodeError.value = "";
   }
@@ -327,9 +346,16 @@ function onClosed() {
   form.id = null;
 }
 
+/** 组装提交用的完整编码：新建池锁定 pool- 前缀 + 后缀；编辑既有池用原始完整编码 */
+function buildPoolCode(): string {
+  const suffix = (poolSuffix.value || "").trim();
+  return isEdit.value ? (form.poolCode?.trim() || "") : `pool-${suffix}`;
+}
+
 async function validatePoolCode() {
-  const code = form.poolCode?.trim();
-  if (!code) {
+  const code = buildPoolCode();
+  const missing = isEdit.value ? !form.poolCode?.trim() : !poolSuffix.value?.trim();
+  if (missing) {
     poolCodeError.value = "请填写模型池编码";
     return false;
   }
@@ -344,7 +370,7 @@ async function validatePoolCode() {
 
 function buildPayload() {
   return {
-    poolCode: form.poolCode?.trim(),
+    poolCode: buildPoolCode(),
     name: form.name?.trim(),
     logicalModelCode: form.logicalModelCode,
     selectionStrategy: form.selectionStrategy,

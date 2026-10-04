@@ -66,11 +66,9 @@ import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {updateRoutingRuleStatus} from "@/api/routing";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
-import {useEnumOptions} from "@/composables/useEnumOptions";
 import type {PropType} from "vue";
 import type {Row} from "@/types";
 
-const { labelOf } = useEnumOptions();
 
 defineProps({
   rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
@@ -101,11 +99,8 @@ function targetsLabel(targets: unknown): string[] {
     return [];
   }
   return targets.map((t: Row) => {
-    const type = labelOf("RouteTargetTypeEnum", t.targetType, t.targetType);
-    const name = t.targetName || t.targetCode || t.targetId || "";
     const code = t.targetCode || t.targetId || "";
-    const text = [type, name].filter(Boolean).join("：") || String(code);
-    return t.primary ? `${text}（主）` : text;
+    return t.primary ? `${code}（主）` : String(code);
   });
 }
 
@@ -135,9 +130,12 @@ async function handleEnabledChange(row: Row, enabled: string | number | boolean)
 
 /* 路由目标每个目标独占一行，字号比常规单元格小一号 */
 .cell-targets__line {
+  display: block;
   color: var(--el-text-color-regular);
   font-size: 12px;
   line-height: 1.5;
-  word-break: break-all;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>
