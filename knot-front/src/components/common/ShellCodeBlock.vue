@@ -68,6 +68,9 @@ function highlightShell(text: string): string {
 }
 
 .shell-code-block {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
   margin: 0;
   padding: 14px 16px;
   padding-right: 72px;
@@ -78,6 +81,13 @@ function highlightShell(text: string): string {
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-all;
+}
+
+/* <code> 由 v-html 注入高亮 HTML，默认 inline 会塌缩成内容宽度，
+   进而把整框（含浮动的复制按钮）挤成窄竖条。改为 block 撑满 <pre> 宽度。 */
+.shell-code-block code {
+  display: block;
+  width: 100%;
 }
 
 .shell-code-block :deep(.sh-cmd) {

@@ -124,15 +124,19 @@
                 </div>
                 <el-empty v-else description="无额外结果信息" :image-size="64"/>
                 <div class="result-body">
-                  <div class="result-body__title">完整响应体</div>
-                  <ShellCodeBlock
-                    v-if="resultBodyText"
-                    class="response-body-code"
-                    :code="resultBodyText"
-                    language="json"
-                    :copyable="true"
+                  <template v-if="displayReasoning">
+                    <div class="result-body__title">思考过程 · reasoning_content</div>
+                    <pre class="content-block content-block--reasoning">{{ displayReasoning }}</pre>
+                  </template>
+                  <template v-if="displayContent">
+                    <div class="result-body__title">完整内容 · content</div>
+                    <pre class="content-block">{{ displayContent }}</pre>
+                  </template>
+                  <el-empty
+                    v-if="!displayContent && !displayReasoning"
+                    description="无内容"
+                    :image-size="64"
                   />
-                  <el-empty v-else description="无响应内容" :image-size="64"/>
                 </div>
               </el-tab-pane>
               <el-tab-pane label="Body" name="body" class="response-body-pane">
@@ -283,6 +287,15 @@ interface ScrollbarLike {
   wrapRef?: HTMLElement;
 }
 
+// ===================== 流式内容拼装（概览页展示完整 content / reasoning_content） =====================
+/** 流式拼装的完整 content（多包 delta.content 累加） */
+const streamContent = ref("");
+/** 流式拼装的完整 reasoning_content（思考过程，与 content 分开展示） */
+const streamReasoning = ref("");
+/** 已提取但尚未刷入界面的 content / reasoning 片段（复用区块节流计时器） */
+let pendingContent = "";
+let pendingReasoning = "";
+
 const isStreaming = computed(() => streamAbortController.value !== null);
 
 const receivedBytesLabel = computed(() => {
@@ -382,6 +395,32 @@ const resultBodyText = computed(() => {
     return "";
   }
   return formatBody(testResult.value.responseBody);
+});
+
+/** 概览页「完整内容」：优先用流式拼装的 content，否则从非流式响应体反解 */
+const displayContent = computed(() => {
+  if (streamContent.value) {
+    return streamContent.value;
+  }
+  const body = testResult.value?.responseBody;
+  if (!body) {
+    return "";
+  }
+  const parsed = parseJsonResult(body, null);
+  return parsed.error ? "" : extractField(parsed.value, "content");
+});
+
+/** 概览页「思考过程」：reasoning_content，与 content 分开 */
+const displayReasoning = computed(() => {
+  if (streamReasoning.value) {
+    return streamReasoning.value;
+  }
+  const body = testResult.value?.responseBody;
+  if (!body) {
+    return "";
+  }
+  const parsed = parseJsonResult(body, null);
+  return parsed.error ? "" : extractField(parsed.value, "reasoning_content");
 });
 const summaryItems = computed(() => {
   if (!testResult.value) {
@@ -752,6 +791,8 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protoc
   streamBlocks.value = [];
   pendingBlocks = [];
   blockSeq = 0;
+  streamContent.value = "";
+  streamReasoning.value = "";
   clearBlockTimers();
   loading.value = true;
   if (elapsedTimer) {
@@ -825,11 +866,46 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protoc
 
 function handleStreamEvent(event: SseEvent) {
   // 流式测试现在直连网关，事件就是上游原生 SSE。
-  // 每个事件独立成块追加到「流式响应」页，同时维护原始累计文本供 Body 页展示。
+  // 每个事件独立成块追加到「流式响应」页；同时从 data 反解出 content / reasoning_content 累加，供概览页展示完整内容。
   const dataText = event.data ?? "";
+  const parsed = parseJsonResult(dataText, null);
+  if (!parsed.error && parsed.value && typeof parsed.value === "object") {
+    pendingContent += extractField(parsed.value, "content");
+    pendingReasoning += extractField(parsed.value, "reasoning_content");
+  }
   pendingBlocks.push({id: blockSeq++, event: event.event, data: dataText});
   scheduleBlockFlush();
   appendStreamText(formatUpstreamEvent(event));
+}
+
+/**
+ * 从上游响应（单个 SSE data 或完整响应体）深搜指定字段并拼接：
+ * 兼容 chat 流式 `choices[].delta.content`、缓冲 `choices[].message.content`、completions `choices[].text` 及顶层 `content`。
+ * 仅取字符串值，避免误抓无关同名字段造成的噪音（这里 content / reasoning_content 语义稳定）。
+ */
+function extractField(node: unknown, key: string): string {
+  if (node == null || typeof node !== "object") {
+    return "";
+  }
+  const results: string[] = [];
+  const visit = (current: unknown) => {
+    if (current == null || typeof current !== "object") {
+      return;
+    }
+    if (Array.isArray(current)) {
+      current.forEach(visit);
+      return;
+    }
+    for (const [k, v] of Object.entries(current)) {
+      if (k === key && typeof v === "string" && v.length > 0) {
+        results.push(v);
+      } else if (v && typeof v === "object") {
+        visit(v);
+      }
+    }
+  };
+  visit(node);
+  return results.join("");
 }
 
 /** 节流刷入区块：逐事件直接改响应式数组会让 v-html 高频重排，统一 60ms 批处理 */
@@ -847,6 +923,14 @@ function flushBlocks() {
   if (!pendingBlocks.length) {
     return;
   }
+  if (pendingContent) {
+    streamContent.value += pendingContent;
+    pendingContent = "";
+  }
+  if (pendingReasoning) {
+    streamReasoning.value += pendingReasoning;
+    pendingReasoning = "";
+  }
   streamBlocks.value = [...streamBlocks.value, ...pendingBlocks];
   pendingBlocks = [];
   scrollStreamToBottom();
@@ -858,6 +942,8 @@ function clearBlockTimers() {
     blockFlushTimer = null;
   }
   pendingBlocks = [];
+  pendingContent = "";
+  pendingReasoning = "";
 }
 
 function scrollStreamToBottom() {
@@ -990,6 +1076,8 @@ function onClosed() {
   pendingText = "";
   streamBody.value = "";
   streamBlocks.value = [];
+  streamContent.value = "";
+  streamReasoning.value = "";
   receivedBytes.value = 0;
   streamStartedAt.value = null;
   testResult.value = null;
@@ -1252,16 +1340,37 @@ onBeforeUnmount(() => {
   background: var(--el-color-danger-light-9);
 }
 
-/* 概览 tab 内的完整响应体区块 */
+/* 概览 tab 内的完整内容区块（content / reasoning_content 分开展示） */
 .result-body {
   margin-top: 4px;
 }
 
 .result-body__title {
-  margin-bottom: 8px;
+  margin: 12px 0 8px;
   color: var(--el-text-color-regular);
   font-size: 12px;
   font-weight: 600;
+}
+
+.content-block {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  background: var(--el-fill-color-blank);
+  color: var(--el-text-color-primary);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow: auto;
+}
+
+.content-block--reasoning {
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-secondary);
 }
 
 .result-meta__item--error .result-meta__value {

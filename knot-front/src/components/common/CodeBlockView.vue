@@ -73,6 +73,9 @@ async function onCopy() {
 .code-block-view {
   position: relative;
   width: 100%;
+  /* 祖先若是 shrink-to-fit / 未拉伸的 flex 项，min-width:0 防止整框被内容宽度拉塌 */
+  min-width: 0;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -109,6 +112,8 @@ async function onCopy() {
 
 .code-block-view__body {
   position: relative;
+  width: 100%;
+  box-sizing: border-box;
   min-height: 100%;
 }
 </style>
