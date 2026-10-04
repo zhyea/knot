@@ -60,39 +60,38 @@
             </div>
 
             <el-collapse v-model="expandedPanels" class="debug-collapse">
-              <el-collapse-item name="preset" title="预设请求">
-                <div class="preset-row">
-                  <el-select
-                    v-model="selectedPresetId"
-                    :disabled="filteredPresetOptions.length === 0"
-                    placeholder="从预设请求载入请求模板"
-                    clearable
-                    filterable
-                    class="preset-select"
-                    @change="onPresetChange"
-                  >
-                    <el-option
-                      v-for="preset in filteredPresetOptions"
-                      :key="preset.id"
-                      :label="preset.name"
-                      :value="preset.id"
-                    />
-                  </el-select>
-                  <el-button size="small" @click="resetCurrentTemplate">重置模板</el-button>
-                </div>
-
-                <div class="request-template">
-                  <JsonCodeEditor
-                    v-model="currentTemplateText"
-                    min-height="220px"
-                    max-height="320px"
-                  />
-                  <div v-if="protocolHint" class="request-template__hint">{{ protocolHint }}</div>
-                </div>
-              </el-collapse-item>
-
               <el-collapse-item name="preview" title="请求预览">
                 <el-tabs v-model="requestTab" class="debug-tabs debug-tabs--preview">
+                  <el-tab-pane label="预设请求" name="preset">
+                    <div class="preset-row">
+                      <el-select
+                        v-model="selectedPresetId"
+                        :disabled="filteredPresetOptions.length === 0"
+                        placeholder="从预设请求载入请求模板"
+                        clearable
+                        filterable
+                        class="preset-select"
+                        @change="onPresetChange"
+                      >
+                        <el-option
+                          v-for="preset in filteredPresetOptions"
+                          :key="preset.id"
+                          :label="preset.name"
+                          :value="preset.id"
+                        />
+                      </el-select>
+                      <el-button size="small" @click="resetCurrentTemplate">重置模板</el-button>
+                    </div>
+
+                    <div class="request-template">
+                      <JsonCodeEditor
+                        v-model="currentTemplateText"
+                        min-height="220px"
+                        max-height="320px"
+                      />
+                      <div v-if="protocolHint" class="request-template__hint">{{ protocolHint }}</div>
+                    </div>
+                  </el-tab-pane>
                   <el-tab-pane label="Headers" name="headers">
                     <ShellCodeBlock :code="requestHeadersText" language="json" :copyable="true"/>
                   </el-tab-pane>
@@ -216,9 +215,9 @@ const {
 
 const loading = ref(false);
 const protocolLoading = ref(false);
-const requestTab = ref("body");
+const requestTab = ref("preset");
 const responseTab = ref("summary");
-const expandedPanels = ref<string[]>(["template"]);
+const expandedPanels = ref<string[]>(["preview"]);
 
 interface RoutingTestResult {
   curl?: string;
@@ -384,9 +383,9 @@ watch(
       return;
     }
     testResult.value = null;
-    requestTab.value = "body";
+    requestTab.value = "preset";
     responseTab.value = "summary";
-    expandedPanels.value = ["template"];
+    expandedPanels.value = ["preview"];
     testForm.secretKey = props.secretKey || "";
     initializeTargetSelection();
     await Promise.all([loadModelTypes(), loadDebugCapabilities(), loadPresetOptions()]);
