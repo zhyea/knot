@@ -47,7 +47,6 @@
                 <ProviderAccountSelect
                   v-model="form.providerAccountCode"
                   value-key="code"
-                  :code-only="codeOnly"
                   :selected-options="selectedProviderOptions"
                   placeholder="请选择供应商账户"
                   style="width: 100%"
@@ -74,7 +73,6 @@
                   :load-function="loadLogicalModels"
                   :label-function="logicalModelLabel"
                   :selected-options="selectedLogicalModelOptions"
-                  :code-only="codeOnly"
                   placeholder="请选择统一模型"
                   style="width: 100%"
                 />
@@ -123,7 +121,6 @@
               <RemoteEntitySelect
                 v-model="form.billingRuleCode"
                 value-key="code"
-                :code-only="codeOnly"
                 :load-function="loadBillingRules"
                 :label-function="billingRuleLabel"
                 :selected-options="selectedBillingRuleOptions"
