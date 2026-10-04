@@ -39,6 +39,7 @@
       v-model="testVisible"
       :rule-id="testRuleId"
       :rule-name="testRuleName"
+      :rule-code="testRuleCode"
       :secret-key="testSecretKey"
       :targets="testTargets"
     />
@@ -87,6 +88,7 @@ const editingRule = ref<Dict | null>(null);
 const testVisible = ref(false);
 const testRuleId = ref<number | null>(null);
 const testRuleName = ref("");
+const testRuleCode = ref("");
 const testSecretKey = ref("");
 const testTargets = ref<Row[]>([]);
 const logDrawer = ref(false);
@@ -110,6 +112,7 @@ function onRuleSaved() {
 async function openTest(row: Row) {
   testRuleId.value = row.id;
   testRuleName.value = row.name || row.ruleCode || "";
+  testRuleCode.value = row.ruleCode || "";
   testSecretKey.value = await loadConsumerSecretKey(row.consumerIds);
   testTargets.value = Array.isArray(row.targets) ? row.targets : [];
   testVisible.value = true;
