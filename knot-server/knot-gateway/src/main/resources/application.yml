@@ -12,8 +12,8 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/knot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     driver-class-name: com.mysql.cj.jdbc.Driver
     # 账号口令一律支持外部注入；默认值为本机开发库，生产部署必须覆盖
-    username: ${KNOT_DB_USERNAME:root}
-    password: ${KNOT_DB_PASSWORD:12345678}
+    username: ${KNOT_DB_USERNAME:admin}
+    password: ${KNOT_DB_PASSWORD:admin}
   quartz:
     auto-startup: false
 
