@@ -16,8 +16,11 @@
               <span class="request-toolbar__method">POST</span>
               <div class="request-toolbar__url">{{ requestUrl }}</div>
             </div>
-            <el-button type="primary" :loading="loading" :disabled="!ruleId" @click="runTest">
+            <el-button v-if="!isStreaming" type="primary" :loading="loading" :disabled="!ruleId" @click="runTest">
               发送请求
+            </el-button>
+            <el-button v-else type="danger" @click="stopStreaming">
+              停止请求
             </el-button>
           </div>
 
@@ -111,13 +114,18 @@
               <h3>响应结果</h3>
               <p>所有响应和错误都统一在这里展示。</p>
             </div>
-            <el-tag v-if="testResult" :type="testResult.status === 'SUCCESS' ? 'success' : 'danger'" size="small">
+            <el-tag v-if="testResult" :type="resultTagType" size="small">
               {{ testResult.status }}
               <template v-if="testResult.httpStatus != null"> · HTTP {{ testResult.httpStatus }}</template>
             </el-tag>
           </div>
 
-          <el-skeleton v-if="loading" :rows="5" animated/>
+          <div v-if="isStreaming" class="stream-status">
+            <span class="stream-status__dot"/>
+            <span>正在接收 · 已接收 {{ receivedBytesLabel }} · 已用 {{ elapsedLabel }}</span>
+          </div>
+
+          <el-skeleton v-if="loading && !isStreaming" :rows="5" animated/>
           <template v-else-if="testResult">
             <el-tabs v-model="responseTab" class="debug-tabs debug-tabs--response">
               <el-tab-pane label="概览" name="summary">
@@ -154,17 +162,18 @@
 </template>
 
 <script setup lang="ts">
-import {computed, reactive, ref, watch, type PropType} from "vue";
+import {computed, onBeforeUnmount, reactive, ref, watch, type PropType} from "vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import ShellCodeBlock from "../common/ShellCodeBlock.vue";
 import {getModel} from "@/api/models";
 import {getModelPool} from "@/api/modelPools";
-import {testRoutingRule} from "@/api/routing";
+import {testRoutingRule, testRoutingRuleStream} from "@/api/routing";
 import {useModelTypes} from "@/composables/useModelTypes";
 import {useDebugCapabilities, extractPrompt} from "@/composables/useDebugCapabilities";
 import {listTestRequestPresetOptions} from "@/api/routing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {formatJson, formatJsonText, parseJsonResult, stringifyJson} from "@/utils/format";
+import {readEventStream, type SseEvent} from "@/utils/sse";
 import type {Dict, Row} from "@/types";
 
 const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || "http://127.0.0.1:9090";
@@ -224,6 +233,52 @@ interface RoutingTestResult {
 const testResult = ref<RoutingTestResult | null>(null);
 const targetProtocolMap = reactive<Dict>({});
 const templateStore = reactive<Dict>({});
+
+// ===================== 流式测试状态 =====================
+/** 正在进行的流式请求；非 null 时「发送请求」切换为「停止请求」 */
+const streamAbortController = ref<AbortController | null>(null);
+/** 流式累计接收的响应文本（原始顺序，不做中途格式化） */
+const streamBody = ref("");
+/** 已接收字节数，用于「正在接收」指示 */
+const receivedBytes = ref(0);
+/** 流开始时间戳，用于计算已用时 */
+const streamStartedAt = ref<number | null>(null);
+/** 触发重渲染的节流计时器：逐 token 直接改响应式属性会让高亮组件高频重算 */
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+/** 已收到但尚未刷入界面的片段 */
+let pendingText = "";
+/** 驱动「已用时」每秒重算的计时器 */
+let elapsedTimer: ReturnType<typeof setInterval> | null = null;
+const elapsedTick = ref(0);
+
+const isStreaming = computed(() => streamAbortController.value !== null);
+
+const receivedBytesLabel = computed(() => {
+  const bytes = receivedBytes.value;
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`;
+  }
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+});
+
+const elapsedLabel = computed(() => {
+  // 依赖 elapsedTick 才能随 setInterval 重算
+  void elapsedTick.value;
+  if (streamStartedAt.value == null) {
+    return "0.0s";
+  }
+  return `${((Date.now() - streamStartedAt.value) / 1000).toFixed(1)}s`;
+});
+
+const resultTagType = computed(() => {
+  if (testResult.value?.status === "RUNNING") {
+    return "warning";
+  }
+  return testResult.value?.status === "SUCCESS" ? "success" : "danger";
+});
 
 /** 预设请求（按协议复用的完整请求体用例），调试面板下拉从接口载入 */
 const presetOptions = ref<Array<{ id: number; name: string; protocolCode: string; requestBody: string }>>([]);
@@ -293,6 +348,10 @@ const requestBodyText = computed(() => {
 const curlPreview = computed(() => buildCurlCommand());
 const displayCurl = computed(() => testResult.value?.curl || curlPreview.value);
 const resultBodyText = computed(() => {
+  // 流式阶段用原始文本（半截 JSON 格式化会报错），结束后再走 formatBody
+  if (isStreaming.value) {
+    return streamBody.value;
+  }
   if (!testResult.value?.responseBody) {
     return "";
   }
@@ -308,6 +367,9 @@ const summaryItems = computed(() => {
   }
   if (testResult.value.modelCode) {
     items.push({label: "命中模型", value: testResult.value.modelCode});
+  }
+  if (isStreaming.value) {
+    items.push({label: "已接收", value: receivedBytesLabel.value});
   }
   if (testResult.value.errorMessage) {
     items.push({label: "错误信息", value: testResult.value.errorMessage, isError: true});
@@ -569,42 +631,32 @@ function formatBody(body: unknown): string {
   return formatJsonText(body, 2, String(body));
 }
 
+/** 收集请求前置校验失败，统一的提示形态 */
+function validationError(message: string): boolean {
+  responseTab.value = "summary";
+  testResult.value = {
+    status: "ERROR",
+    httpStatus: null,
+    modelCode: null,
+    protocol: activeProtocol.value || null,
+    errorMessage: message,
+    responseBody: ""
+  };
+  return false;
+}
+
 async function runTest() {
   if (!props.ruleId) return;
   if (!testForm.secretKey?.trim()) {
-    responseTab.value = "summary";
-    testResult.value = {
-      status: "ERROR",
-      httpStatus: null,
-      modelCode: null,
-      protocol: activeProtocol.value || null,
-      errorMessage: "请填写 API Key",
-      responseBody: ""
-    };
+    validationError("请填写 API Key");
     return;
   }
   if (!activeTarget.value) {
-    responseTab.value = "summary";
-    testResult.value = {
-      status: "ERROR",
-      httpStatus: null,
-      modelCode: null,
-      protocol: activeProtocol.value || null,
-      errorMessage: "请选择调试目标",
-      responseBody: ""
-    };
+    validationError("请选择调试目标");
     return;
   }
   if (!activeProtocol.value) {
-    responseTab.value = "summary";
-    testResult.value = {
-      status: "ERROR",
-      httpStatus: null,
-      modelCode: null,
-      protocol: null,
-      errorMessage: "当前目标没有可调试的接口协议",
-      responseBody: ""
-    };
+    validationError("当前目标没有可调试的接口协议");
     return;
   }
   if (parsedTemplateBody.value.error) {
@@ -620,17 +672,40 @@ async function runTest() {
     return;
   }
 
+  const requestBody = (parsedTemplateBody.value.value || {}) as Dict;
+  // 提前取出已通过校验的目标与协议：runTest 的空值收窄不会传递到子函数
+  const target = activeTarget.value;
+  const protocol = activeProtocol.value;
+  // stream=true 走增量展示，其余保持原有一次性 JSON 行为
+  if (requestBody.stream === true) {
+    await runStreamingTest(requestBody, target, protocol);
+  } else {
+    await runBufferedTest(requestBody, target, protocol);
+  }
+}
+
+/** 组装测试请求体：两条链路共用，保证 prompt / 协议 / 目标口径一致 */
+function buildTestPayload(requestBody: Dict, target: RoutingTarget, protocol: string): Dict {
+  return {
+    secretKey: testForm.secretKey.trim(),
+    prompt: inferPrompt(requestBody, protocol),
+    protocol,
+    targetType: target.targetType,
+    targetId: target.targetId,
+    requestBody
+  };
+}
+
+/** 非流式：沿用既有 /test + Axios JSON 链路 */
+async function runBufferedTest(requestBody: Dict, target: RoutingTarget, protocol: string) {
   loading.value = true;
   testResult.value = null;
   try {
-    const requestBody = (parsedTemplateBody.value.value || {}) as Dict;
-    testResult.value = await testRoutingRule(props.ruleId, {
-      secretKey: testForm.secretKey.trim(),
-      prompt: inferPrompt(requestBody, activeProtocol.value), protocol: activeProtocol.value,
-      targetType: activeTarget.value.targetType,
-      targetId: activeTarget.value.targetId,
-      requestBody
-    }, {silentError: true});
+    testResult.value = await testRoutingRule(
+      props.ruleId as number,
+      buildTestPayload(requestBody, target, protocol),
+      {silentError: true}
+    );
     responseTab.value = "body";
   } catch (error) {
     responseTab.value = "body";
@@ -638,6 +713,185 @@ async function runTest() {
   } finally {
     loading.value = false;
   }
+}
+
+/** 流式：SSE 增量展示，meta/chunk/complete/error 分状态推进 */
+async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protocol: string) {
+  // 重复点击时先中止上一条，避免两个流同时写同一个缓冲区
+  abortStreaming();
+  const controller = new AbortController();
+  streamAbortController.value = controller;
+  streamStartedAt.value = Date.now();
+  receivedBytes.value = 0;
+  streamBody.value = "";
+  pendingText = "";
+  loading.value = true;
+  if (elapsedTimer) {
+    clearInterval(elapsedTimer);
+  }
+  elapsedTimer = setInterval(() => {
+    elapsedTick.value += 1;
+  }, 1000);
+  // 先切到 Body 页并建立 RUNNING 态，避免等待期间显示空 skeleton
+  responseTab.value = "body";
+  testResult.value = {
+    status: "RUNNING",
+    httpStatus: null,
+    modelCode: null,
+    protocol,
+    curl: curlPreview.value,
+    errorMessage: "",
+    responseBody: ""
+  };
+
+  try {
+    const response = await testRoutingRuleStream(
+      props.ruleId as number,
+      buildTestPayload(requestBody, target, protocol),
+      controller.signal
+    );
+
+    await readEventStream(response, handleStreamEvent, {abortSignal: controller.signal});
+    flushStreamText();
+    // 流正常结束但未收到 complete：视为协议异常
+    if (testResult.value?.status === "RUNNING") {
+      finishStream("FAILED", "流式响应未返回结束事件");
+    }
+  } catch (error) {
+    flushStreamText();
+    if (isAbortError(error)) {
+      // 用户主动停止：保留已收到内容，不弹全局网络错误
+      if (testResult.value?.status === "RUNNING") {
+        finishStream("STOPPED", "");
+      }
+    } else {
+      responseTab.value = "body";
+      testResult.value = normalizeErrorResult(error as Dict) as RoutingTestResult;
+    }
+  } finally {
+    if (flushTimer) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+    if (elapsedTimer) {
+      clearInterval(elapsedTimer);
+      elapsedTimer = null;
+    }
+    pendingText = "";
+    loading.value = false;
+    streamAbortController.value = null;
+    streamStartedAt.value = null;
+  }
+}
+
+function handleStreamEvent(event: SseEvent) {
+  let data: Dict;
+  try {
+    data = parseJsonResult(event.data, {}).value as Dict;
+  } catch {
+    // 协议异常：data 不是合法 JSON，显式报错而非静默丢弃
+    finishStream("FAILED", `流式事件 ${event.event} 的 data 不是合法 JSON`);
+    return;
+  }
+
+  switch (event.event) {
+    case "meta": {
+      if (testResult.value) {
+        testResult.value = {
+          ...testResult.value,
+          modelCode: data.modelCode ?? testResult.value.modelCode,
+          protocol: data.protocol ?? testResult.value.protocol,
+          curl: data.curl ?? testResult.value.curl
+        };
+      }
+      break;
+    }
+    case "chunk": {
+      if (data.encoding === "base64") {
+        // 二进制响应：展示类型与大小，不在抽屉内播放
+        appendStreamText(`[二进制响应 ${data.contentType || "unknown"} · ${data.content?.length || 0} 字符 base64]\n`);
+        return;
+      }
+      appendStreamText(String(data.text ?? ""));
+      break;
+    }
+    case "complete": {
+      flushStreamText();
+      finishStream(data.status === "SUCCESS" ? "SUCCESS" : "FAILED", "");
+      if (testResult.value && data.httpStatus != null) {
+        testResult.value = {...testResult.value, httpStatus: data.httpStatus};
+      }
+      break;
+    }
+    case "error": {
+      flushStreamText();
+      finishStream("FAILED", String(data.errorMessage || "流式请求失败"));
+      if (testResult.value) {
+        testResult.value = {
+          ...testResult.value,
+          httpStatus: data.httpStatus ?? testResult.value.httpStatus,
+          responseBody: data.responseBody
+            ? `${streamBody.value}${data.responseBody}`
+            : streamBody.value
+        };
+      }
+      break;
+    }
+    default:
+      // 未知事件：忽略但保留扩展空间（契约新增版本字段时不会导致解析失败）
+      break;
+  }
+}
+
+/** 累积片段并节流刷新：逐 token 直接改响应式属性会让高亮组件高频重算 */
+function appendStreamText(text: string) {
+  if (!text) {
+    return;
+  }
+  pendingText += text;
+  receivedBytes.value += new TextEncoder().encode(text).length;
+  if (flushTimer) {
+    return;
+  }
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    flushStreamText();
+  }, 50);
+}
+
+function flushStreamText() {
+  if (!pendingText) {
+    return;
+  }
+  streamBody.value += pendingText;
+  pendingText = "";
+}
+
+/** 结束流式态：把已收到的内容固化到 responseBody，并置终态 */
+function finishStream(status: string, errorMessage: string) {
+  if (testResult.value) {
+    testResult.value = {
+      ...testResult.value,
+      status,
+      errorMessage,
+      responseBody: streamBody.value
+    };
+  }
+}
+
+function isAbortError(error: unknown): boolean {
+  return (error as {name?: string})?.name === "AbortError";
+}
+
+/** 用户点击「停止请求」或关闭抽屉时调用 */
+function abortStreaming() {
+  if (streamAbortController.value) {
+    streamAbortController.value.abort();
+  }
+}
+
+function stopStreaming() {
+  abortStreaming();
 }
 
 function inferPrompt(body: unknown, protocol: unknown): string | null {
@@ -684,9 +938,35 @@ function serializeBody(body: unknown): string {
 }
 
 function onClosed() {
+  // 关闭抽屉必须中止在途流，否则网关连接与异步线程一直被占用
+  abortStreaming();
+  if (flushTimer) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
+  if (elapsedTimer) {
+    clearInterval(elapsedTimer);
+    elapsedTimer = null;
+  }
+  pendingText = "";
+  streamBody.value = "";
+  receivedBytes.value = 0;
+  streamStartedAt.value = null;
   testResult.value = null;
   loading.value = false;
 }
+
+onBeforeUnmount(() => {
+  abortStreaming();
+  if (flushTimer) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
+  if (elapsedTimer) {
+    clearInterval(elapsedTimer);
+    elapsedTimer = null;
+  }
+});
 </script>
 
 <style scoped>
@@ -931,6 +1211,39 @@ function onClosed() {
 
 .result-meta__item--error .result-meta__value {
   color: var(--el-color-danger);
+}
+
+/* 流式接收指示：呼吸点 + 实时字节/耗时 */
+.stream-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--el-color-warning-light-9);
+  color: var(--el-color-warning);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.stream-status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--el-color-warning);
+  animation: stream-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes stream-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.25;
+  }
 }
 
 @media (max-width: 900px) {

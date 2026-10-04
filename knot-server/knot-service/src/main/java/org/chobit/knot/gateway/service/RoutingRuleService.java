@@ -41,6 +41,8 @@ import org.chobit.knot.gateway.util.tools.RoutingRuleCodeGenerator;
 import org.chobit.knot.gateway.vo.routing.ProtocolDebugCapabilityItem;
 import org.chobit.knot.gateway.vo.routing.RoutingTestResult;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,6 +69,10 @@ public class RoutingRuleService {
     private static final int RULE_CODE_MAX_LEN = 32;
     private static final String TRACEPARENT = "00-00000000000000000000000000000001-0000000000000001-01";
     private static final String DEFAULT_TEST_PROMPT = "你好，这是一条路由规则测试消息";
+    /** 调试链路连接网关的超时 */
+    private static final int CONNECT_TIMEOUT_MS = 5_000;
+    /** 流式读取的空闲超时（按相邻数据间隔计算，不限制整包总时长） */
+    private static final int READ_IDLE_TIMEOUT_MS = 120_000;
     private static final Set<ModelApiProtocolEnum> DEBUGGABLE_PROTOCOLS = Set.of(
             ModelApiProtocolEnum.CHAT_COMPLETIONS,
             ModelApiProtocolEnum.RESPONSES,
@@ -146,7 +152,19 @@ public class RoutingRuleService {
         this.routingRuleConverter = routingRuleConverter;
         this.trafficPolicySupport = trafficPolicySupport;
         this.gatewayRuntimeProperties = gatewayRuntimeProperties;
-        this.restClient = RestClient.create();
+        this.restClient = createRestClient();
+    }
+
+    /**
+     * 调试链路专用客户端：显式设置连接超时与流式读取空闲超时。
+     */
+    private static RestClient createRestClient() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(CONNECT_TIMEOUT_MS);
+        factory.setReadTimeout(READ_IDLE_TIMEOUT_MS);
+        return RestClient.builder()
+                .requestFactory(factory)
+                .build();
     }
 
     /**
@@ -276,6 +294,60 @@ public class RoutingRuleService {
                                         String targetType,
                                         Long targetId,
                                         Map<String, Object> requestBody) {
+        RoutingTestPreparation prep = prepareTestInvocation(
+                ruleId, secretKey, prompt, protocolCode, targetType, targetId, requestBody);
+        try {
+            String responseBody = executeGatewayTest(prep.baseUrl(), prep.gatewayPath(), prep.secretKey(),
+                    prep.rule().ruleCode(), prep.protocol(), prep.body());
+            return buildTestResult(prep, RoutingTestStatusEnum.SUCCESS.code(), 200, responseBody, null);
+        } catch (HttpStatusCodeException ex) {
+            return buildTestResult(prep, RoutingTestStatusEnum.FAILED.code(), ex.getStatusCode().value(),
+                    ex.getResponseBodyAsString(), ex.getMessage());
+        } catch (Exception ex) {
+            return buildTestResult(prep, RoutingTestStatusEnum.FAILED.code(), null, null, ex.getMessage());
+        }
+    }
+
+    /**
+     * 打开一条流式调试通道：完成全部校验后向网关发起请求，并持有未关闭的响应体供增量读取。
+     *
+     * <p>校验失败时抛出 {@link BusinessException}，由全局异常处理器在建立 SSE 之前返回
+     * 4xx {@code ApiResponse}；一旦返回本方法，调用方必须关闭返回的句柄。</p>
+     */
+    public RoutingTestStreamHandle openTestStream(Long ruleId,
+                                                 String secretKey,
+                                                 String prompt,
+                                                 String protocolCode,
+                                                 String targetType,
+                                                 Long targetId,
+                                                 Map<String, Object> requestBody) {
+        RoutingTestPreparation prep = prepareTestInvocation(
+                ruleId, secretKey, prompt, protocolCode, targetType, targetId, requestBody);
+        // exchange(fn, false) 不自动关闭响应：既不应用默认错误处理器（网关 4xx/5xx 需要原样读取响应体），
+        // 也让响应体保持可增量读取
+        ClientHttpResponse response = restClient.post()
+                .uri(prep.baseUrl() + prep.gatewayPath())
+                .header("Authorization", "Bearer " + prep.secretKey())
+                .header("Rule", prep.rule().ruleCode())
+                .header("traceparent", TRACEPARENT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.ALL)
+                .body(prep.body())
+                .exchange((clientRequest, clientResponse) -> clientResponse, false);
+        return new RoutingTestStreamHandle(response, prep);
+    }
+
+    /**
+     * 同步 / 流式共用的准备步骤：查规则、校验消费者、校验启用状态、解析目标与协议、
+     * 构造请求体（保留 stream、剔除 model）、生成网关地址与 curl。
+     */
+    private RoutingTestPreparation prepareTestInvocation(Long ruleId,
+                                                         String secretKey,
+                                                         String prompt,
+                                                         String protocolCode,
+                                                         String targetType,
+                                                         Long targetId,
+                                                         Map<String, Object> requestBody) {
         RoutingRuleDto rule = getById(ruleId);
         RoutingConsumerEntity consumer = findBoundConsumerBySecretKey(rule.consumerIds(), secretKey);
         if (consumer == null) {
@@ -294,48 +366,27 @@ public class RoutingRuleService {
         String baseUrl = normalizeGatewayBaseUrl();
         String gatewayPath = buildGatewayTestPath(protocol);
         String curl = buildTestCurl(baseUrl, gatewayPath, secretKey, rule.ruleCode(), protocol, body);
+        return new RoutingTestPreparation(rule, secretKey, selectedTarget, protocol, model,
+                body, baseUrl, gatewayPath, curl);
+    }
 
-        try {
-            String responseBody = executeGatewayTest(baseUrl, gatewayPath, secretKey, rule.ruleCode(), protocol, body);
-            return new RoutingTestResult(
-                    rule.id(),
-                    selectedTarget.providerAccountCode(),
-                    selectedTarget.targetId(),
-                    model,
-                    protocol.code(),
-                    RoutingTestStatusEnum.SUCCESS.code(),
-                    curl,
-                    200,
-                    responseBody,
-                    null
-            );
-        } catch (HttpStatusCodeException ex) {
-            return new RoutingTestResult(
-                    rule.id(),
-                    selectedTarget.providerAccountCode(),
-                    selectedTarget.targetId(),
-                    model,
-                    protocol.code(),
-                    RoutingTestStatusEnum.FAILED.code(),
-                    curl,
-                    ex.getStatusCode().value(),
-                    ex.getResponseBodyAsString(),
-                    ex.getMessage()
-            );
-        } catch (Exception ex) {
-            return new RoutingTestResult(
-                    rule.id(),
-                    selectedTarget.providerAccountCode(),
-                    selectedTarget.targetId(),
-                    model,
-                    protocol.code(),
-                    RoutingTestStatusEnum.FAILED.code(),
-                    curl,
-                    null,
-                    null,
-                    ex.getMessage()
-            );
-        }
+    private RoutingTestResult buildTestResult(RoutingTestPreparation prep,
+                                              String status,
+                                              Integer httpStatus,
+                                              String responseBody,
+                                              String errorMessage) {
+        return new RoutingTestResult(
+                prep.rule().id(),
+                prep.target().providerAccountCode(),
+                prep.target().targetId(),
+                prep.model(),
+                prep.protocol().code(),
+                status,
+                prep.curl(),
+                httpStatus,
+                responseBody,
+                errorMessage
+        );
     }
 
     private String normalizeGatewayBaseUrl() {

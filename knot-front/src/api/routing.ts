@@ -1,4 +1,4 @@
-import {postQuery, post, put, get, del} from "./http";
+import {postQuery, post, put, get, del, postEventStream} from "./http";
 import type {Dict} from "@/types";
 import type {AxiosRequestConfig} from "axios";
 
@@ -52,6 +52,18 @@ export function checkRoutingRuleCode(code: string, excludeId: number | string | 
 
 export function testRoutingRule(id: number | string, payload: Dict, config: AxiosRequestConfig) {
   return post(`/api/routing-rules/${id}/test`, payload, config);
+}
+
+/**
+ * 流式路由规则测试：以 fetch 发起 SSE 请求，返回原始 Response 供增量解析。
+ * 与 testRoutingRule 的区别仅在传输方式，请求体结构完全一致。
+ */
+export function testRoutingRuleStream(
+  id: number | string,
+  payload: Dict,
+  signal?: AbortSignal
+) {
+  return postEventStream(`/api/routing-rules/${id}/test/stream`, payload, signal);
 }
 
 /** 调试协议能力：gatewayPath / hint / promptField（默认请求体不再硬编码，改由预设请求维护） */

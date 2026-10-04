@@ -144,4 +144,67 @@ export function del<T = any>(url: string, config: AxiosRequestConfig = {}): Prom
   return http.delete(url, config).then(unwrapData as (response: AxiosResponse) => T);
 }
 
+/**
+ * 以 `fetch` 发起 SSE 流式 POST 请求，返回原始 `Response` 供 `readEventStream` 增量读取。
+ *
+ * <p>不复用 Axios 实例：Axios 面向一次性 JSON 解包（`unwrapData` + 30s 超时），
+ * 与「长连接 + ReadableStream」模型冲突。此处独立处理鉴权头与 401。</p>
+ *
+ * <p>注意：不设置总时长超时（流式响应本就可能很长），超时由调用方通过
+ * `readEventStream` 的空闲超时与 `AbortSignal` 控制。</p>
+ */
+export async function postEventStream(
+  url: string,
+  data: unknown,
+  signal?: AbortSignal
+): Promise<Response> {
+  const {token, clearAllAuthState} = useAuth();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "text/event-stream"
+  };
+  if (token.value) {
+    headers.Authorization = `Bearer ${token.value}`;
+    touchIdleActivity();
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(data ?? {}),
+    signal
+  });
+
+  if (response.ok) {
+    return response;
+  }
+
+  // 与 Axios 拦截器保持一致：只有当前会话的 401 才清理登录态
+  if (response.status === 401) {
+    clearAllAuthState();
+    if (router.currentRoute.value.path !== "/login") {
+      router.push("/login");
+    }
+    ElMessage.error("登录已过期，请重新登录");
+    throw new Error("登录已过期");
+  }
+
+  // 非 2xx：把 ApiResponse 结构转成与 Axios 一致的错误形态，便于复用 normalizeErrorResult
+  const raw = await response.text();
+  let body: unknown = raw;
+  try {
+    body = raw ? JSON.parse(raw) : null;
+  } catch {
+    // 非 JSON 响应（如容器网关的纯文本错误）保留原文
+  }
+  const message =
+    (body && typeof body === "object" && "message" in body
+      ? String((body as {message?: unknown}).message ?? "")
+      : "") || `请求失败（HTTP ${response.status}）`;
+  ElMessage.error(message);
+  throw Object.assign(new Error(message), {
+    response: {status: response.status, data: body}
+  });
+}
+
 export default http;
