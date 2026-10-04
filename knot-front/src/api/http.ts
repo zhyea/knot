@@ -214,4 +214,51 @@ export async function postEventStream(
   });
 }
 
+/**
+ * 以消费者 API Key 直接向网关发送一次性 JSON POST 请求。
+ * 管理端 Axios 实例会自动覆盖 Authorization 为登录态 JWT，因此网关调试
+ * 请求必须使用独立的 fetch 链路。
+ */
+export async function postGatewayJson<T = unknown>(
+  url: string,
+  data: unknown,
+  secretKey: string,
+  ruleCode: string
+): Promise<{status: number; data: T}> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${secretKey}`,
+      Rule: ruleCode,
+      "Content-Type": "application/json",
+      Accept: "application/json"
+    },
+    body: JSON.stringify(data ?? {})
+  });
+
+  const raw = await response.text();
+  let body: unknown = raw;
+  try {
+    body = raw ? JSON.parse(raw) : null;
+  } catch {
+    // 非 JSON 响应保留原文，便于调试网关返回的纯文本错误。
+  }
+
+  if (response.ok) {
+    return {status: response.status, data: body as T};
+  }
+
+  const message =
+    (body && typeof body === "object" && "message" in body
+      ? String((body as {message?: unknown}).message ?? "")
+      : "") ||
+    (body && typeof body === "object" && "error" in body
+      ? String((body as {error?: unknown}).error ?? "")
+      : "") ||
+    `请求失败（HTTP ${response.status}）`;
+  throw Object.assign(new Error(message), {
+    response: {status: response.status, data: body}
+  });
+}
+
 export default http;
