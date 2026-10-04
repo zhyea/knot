@@ -43,13 +43,19 @@ function highlightShell(text: string): string {
   if (!text) {
     return '<span class="sh-muted">（暂无内容）</span>';
   }
-  let html = escapeHtml(text);
-  html = html.replace(/\b(curl)\b/g, '<span class="sh-cmd">$1</span>');
-  html = html.replace(/(-[A-Za-z]+)/g, '<span class="sh-flag">$1</span>');
-  html = html.replace(/(https?:\/\/[^\s'\\]+)/g, '<span class="sh-url">$1</span>');
-  html = html.replace(/('(?:[^'\\]|\\.)*')/g, '<span class="sh-str">$1</span>');
-  html = html.replace(/\\$/gm, '<span class="sh-cont">\\</span>');
-  return html;
+  // 单次扫描：在已转义文本上按 token 包裹，避免「先插 <span class="sh-cmd"> 再被 (-[A-Za-z]+)
+  // 二次匹配到 class 里的 -cmd」导致生成 <span class="sh<span class="sh-flag">-cmd</span>"> 这类破损结构。
+  const escaped = escapeHtml(text);
+  return escaped.replace(
+    /curl|https?:\/\/[^\s'\\]+|'(?:[^'\\]|\\.)*'|\\$|-[A-Za-z]+/gm,
+    (m) => {
+      if (m === "curl") return '<span class="sh-cmd">curl</span>';
+      if (m.startsWith("http")) return `<span class="sh-url">${m}</span>`;
+      if (m.startsWith("'")) return `<span class="sh-str">${m}</span>`;
+      if (m === "\\") return '<span class="sh-cont">\\</span>';
+      return `<span class="sh-flag">${m}</span>`;
+    }
+  );
 }
 </script>
 

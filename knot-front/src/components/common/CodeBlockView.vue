@@ -79,9 +79,11 @@ async function onCopy() {
 }
 
 .code-block-view__actions {
-  position: absolute;
-  top: 8px;
-  right: 8px;
+  /* !important：复制按钮必须悬浮在代码框右上角，防止任何外部/全局规则意外将其改为 static/relative
+     而退化为「占用垂直空间」的流内元素（即用户反馈的「没悬浮、占了一列垂直空间」）。 */
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
   z-index: 3;
   display: flex;
   align-items: center;
