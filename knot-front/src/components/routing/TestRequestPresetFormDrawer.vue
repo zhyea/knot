@@ -91,7 +91,7 @@
               <p>维护完整、具体的请求体 JSON；调试面板按当前目标覆盖 model 字段。</p>
             </div>
           </div>
-          <el-form-item label="请求体" required :error="bodyError">
+          <el-form-item label-width="0" required :error="bodyError">
             <JsonCodeEditor
               v-model="form.requestBody"
               :readonly="readonly"

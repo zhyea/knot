@@ -26,7 +26,6 @@
 
           <div class="request-summary">
             <el-tag size="small" effect="plain">规则：{{ props.ruleName?.trim() || `#${props.ruleId || "-"}` }}</el-tag>
-            <el-tag size="small" effect="plain">目标：{{ activeTargetLabel }}</el-tag>
             <el-tag size="small" effect="plain">协议：{{ activeProtocolLabel }}</el-tag>
           </div>
 
@@ -93,10 +92,7 @@
                     </div>
                   </el-tab-pane>
                   <el-tab-pane label="Headers" name="headers">
-                    <ShellCodeBlock :code="requestHeadersText" language="json" :copyable="true"/>
-                  </el-tab-pane>
-                  <el-tab-pane label="Body" name="body">
-                    <ShellCodeBlock :code="requestBodyText" language="json" :copyable="true"/>
+                    <JsonCodeEditor :model-value="requestHeadersText" readonly min-height="220px" max-height="320px"/>
                   </el-tab-pane>
                   <el-tab-pane label="curl" name="curl">
                     <ShellCodeBlock :code="displayCurl" language="bash" :copyable="true"/>
@@ -338,12 +334,6 @@ const requestHeadersText = computed(() => formatJson({
   "Content-Type": "application/json"
 }));
 const parsedTemplateBody = computed(() => safeParseTemplate(currentTemplateText.value));
-const requestBodyText = computed(() => {
-  if (parsedTemplateBody.value.error) {
-    return currentTemplateText.value || "{}";
-  }
-  return formatJson(parsedTemplateBody.value.value || {});
-});
 const curlPreview = computed(() => buildCurlCommand());
 const displayCurl = computed(() => testResult.value?.curl || curlPreview.value);
 const resultBodyText = computed(() => {
