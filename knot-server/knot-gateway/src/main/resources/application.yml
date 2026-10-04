@@ -12,8 +12,8 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/knot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     driver-class-name: com.mysql.cj.jdbc.Driver
     # 账号口令一律支持外部注入；默认值为本机开发库，生产部署必须覆盖
-    username: ${KNOT_DB_USERNAME:admin}
-    password: ${KNOT_DB_PASSWORD:admin}
+    username: ${KNOT_DB_USERNAME:root}
+    password: ${KNOT_DB_PASSWORD:12345678}
   quartz:
     auto-startup: false
 
@@ -37,7 +37,10 @@ knot:
         topic-prefix: knot.plugin
         bootstrap-servers: ${KNOT_PLUGIN_KAFKA_BOOTSTRAP_SERVERS:}
   gateway:
-    upstream:
+     cors:
+      # 管理端流式调试直连网关时使用；生产环境请通过配置覆盖
+      allowed-origins: ${KNOT_GATEWAY_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+     upstream:
       # 上游 HTTP 客户端：Apache HttpClient 5 连接池 + 有界超时
       connect-timeout: 5s
       connection-request-timeout: 5s
