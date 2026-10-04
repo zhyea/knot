@@ -1,6 +1,15 @@
 <template>
-  <div class="json-editor" :class="{ 'json-editor--readonly': readonly }">
-    <div class="json-editor__actions">
+  <CodeBlockView
+    class="json-editor"
+    :class="{ 'json-editor--readonly': readonly }"
+    :copy-text="props.modelValue"
+    theme="light"
+    empty-message="暂无可复制内容"
+    :min-height="minHeight"
+    :max-height="maxHeight"
+    :height="height"
+  >
+    <template #actions>
       <el-button
         v-if="!readonly"
         class="json-editor__action-btn"
@@ -8,53 +17,50 @@
         text
         type="primary"
         @click="formatCurrentJson"
-      >
-        格式化
-      </el-button>
-      <el-button
-        class="json-editor__action-btn"
-        size="small"
-        text
-        type="primary"
-        @click="copyCurrentJson"
-      >
-        复制
-      </el-button>
+      >格式化</el-button>
+    </template>
+    <div
+      class="json-editor__body"
+      :class="{ 'json-editor__body--editable': !readonly, 'json-editor__body--readonly': readonly }"
+    >
+      <pre class="json-editor__highlight" aria-hidden="true"><code
+        v-html="highlightedJson"></code></pre>
+      <textarea
+        v-if="!readonly"
+        class="json-editor__input"
+        :value="modelValue"
+        wrap="off"
+        spellcheck="false"
+        @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
+        @keydown="handleKeydown"
+      />
     </div>
-    <el-scrollbar class="json-editor__scrollbar" :style="bodyStyle">
-      <div
-        class="json-editor__body"
-        :class="{ 'json-editor__body--editable': !readonly, 'json-editor__body--readonly': readonly }"
-      >
-        <pre class="json-editor__highlight" aria-hidden="true"><code
-          v-html="highlightedJson"></code></pre>
-        <textarea
-          v-if="!readonly"
-          class="json-editor__input"
-          :value="modelValue"
-          wrap="off"
-          spellcheck="false"
-          @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
-          @keydown="handleKeydown"
-        />
-      </div>
-    </el-scrollbar>
-  </div>
+  </CodeBlockView>
 </template>
 
 <script setup lang="ts">
 import {computed} from "vue";
 import {ElMessage} from "element-plus";
 import {escapeHtml, formatJsonText} from "@/utils/format";
+import CodeBlockView from "./CodeBlockView.vue";
 
-const props = defineProps({
-  modelValue: {type: String, default: ""},
-  readonly: {type: Boolean, default: false},
-  minHeight: {type: String, default: "180px"},
-  maxHeight: {type: String, default: "420px"},
-  /** 固定滚动容器高度；只设置 max-height 时，el-scrollbar 无法稳定计算滚动区域 */
-  height: {type: String, default: ""}
-});
+const props = withDefaults(
+  defineProps<{
+    modelValue?: string;
+    readonly?: boolean;
+    minHeight?: string;
+    maxHeight?: string;
+    /** 固定滚动容器高度；只设置 max-height 时，el-scrollbar 无法稳定计算滚动区域 */
+    height?: string;
+  }>(),
+  {
+    modelValue: "",
+    readonly: false,
+    minHeight: "180px",
+    maxHeight: "420px",
+    height: ""
+  }
+);
 
 const emit = defineEmits(["update:modelValue"]);
 
@@ -68,11 +74,6 @@ const displayText = computed(() => {
 });
 
 const highlightedJson = computed(() => renderHighlightedJson(displayText.value));
-const bodyStyle = computed(() => ({
-  minHeight: props.minHeight,
-  maxHeight: props.maxHeight,
-  ...(props.height ? {height: props.height} : {})
-}));
 
 function formatCurrentJson() {
   const formatted = formatJsonText(props.modelValue);
@@ -81,20 +82,6 @@ function formatCurrentJson() {
     return;
   }
   emit("update:modelValue", formatted);
-}
-
-async function copyCurrentJson() {
-  const text = props.modelValue || "";
-  if (!text) {
-    ElMessage.warning("暂无可复制内容");
-    return;
-  }
-  try {
-    await navigator.clipboard.writeText(text);
-    ElMessage.success("已复制");
-  } catch {
-    ElMessage.error("复制失败");
-  }
 }
 
 function handleKeydown(event: KeyboardEvent): void {
@@ -152,7 +139,6 @@ function visualizeWhitespaceText(text: unknown): string {
     return escapeHtml(char);
   }).join("");
 }
-
 </script>
 
 <style scoped>
@@ -161,23 +147,6 @@ function visualizeWhitespaceText(text: unknown): string {
   width: 100%;
   border: 1px solid var(--knot-border, #e4e7ed);
   background: var(--knot-fill-light, #f5f7fa);
-}
-
-.json-editor__actions {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.json-editor__action-btn {
-  min-height: 24px;
-  padding: 4px 8px;
-  background: rgb(255 255 255 / 88%);
-  backdrop-filter: blur(4px);
 }
 
 .json-editor__body {
@@ -189,8 +158,11 @@ function visualizeWhitespaceText(text: unknown): string {
   overflow: hidden;
 }
 
-.json-editor__scrollbar {
-  width: 100%;
+.json-editor__action-btn {
+  min-height: 24px;
+  padding: 4px 8px;
+  background: rgb(255 255 255 / 88%);
+  backdrop-filter: blur(4px);
 }
 
 .json-editor__highlight,

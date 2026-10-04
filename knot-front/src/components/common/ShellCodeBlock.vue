@@ -1,31 +1,35 @@
 <template>
-  <div class="shell-code-wrap">
-    <el-scrollbar class="shell-code-scrollbar" max-height="220px">
-      <pre class="shell-code-block"><code v-html="highlighted"></code></pre>
-    </el-scrollbar>
-    <el-button
-      v-if="copyable"
-      class="copy-btn"
-      size="small"
-      text
-      type="primary"
-      @click="copyCode"
-    >
-      复制
-    </el-button>
-  </div>
+  <CodeBlockView
+    class="shell-code-wrap"
+    :copy-text="props.code"
+    :copyable="copyable"
+    theme="dark"
+    :max-height="maxHeight"
+  >
+    <pre class="shell-code-block"><code v-html="highlighted"></code></pre>
+  </CodeBlockView>
 </template>
 
 <script setup lang="ts">
 import {computed} from "vue";
-import {ElMessage} from "element-plus";
 import {escapeHtml, highlightJsonHtml} from "@/utils/format";
+import CodeBlockView from "./CodeBlockView.vue";
 
-const props = defineProps({
-  code: { type: String, default: "" },
-  copyable: { type: Boolean, default: true },
-  language: { type: String, default: "shell" }
-});
+const props = withDefaults(
+  defineProps<{
+    code?: string;
+    copyable?: boolean;
+    language?: string;
+    /** 滚动区高度上限，默认 220px；外层可用 !important 覆写以撑满 */
+    maxHeight?: string;
+  }>(),
+  {
+    code: "",
+    copyable: true,
+    language: "shell",
+    maxHeight: "220px"
+  }
+);
 
 const highlighted = computed(() => {
   const text = props.code || "";
@@ -47,16 +51,6 @@ function highlightShell(text: string): string {
   html = html.replace(/\\$/gm, '<span class="sh-cont">\\</span>');
   return html;
 }
-
-async function copyCode() {
-  if (!props.code) return;
-  try {
-    await navigator.clipboard.writeText(props.code);
-    ElMessage.success("已复制");
-  } catch {
-    ElMessage.error("复制失败");
-  }
-}
 </script>
 
 <style scoped>
@@ -65,10 +59,6 @@ async function copyCode() {
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 0;
   overflow: hidden;
-}
-
-.shell-code-scrollbar {
-  max-height: 220px;
 }
 
 .shell-code-block {
@@ -121,12 +111,5 @@ async function copyCode() {
 .shell-code-block :deep(.json-boolean),
 .shell-code-block :deep(.json-null) {
   color: #569cd6;
-}
-
-.copy-btn {
-  position: absolute;
-  right: 8px;
-  top: 6px;
-  background: rgb(30 30 30 / 88%);
 }
 </style>

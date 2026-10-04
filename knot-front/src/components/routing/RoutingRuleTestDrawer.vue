@@ -1209,10 +1209,10 @@ onBeforeUnmount(() => {
   flex-direction: column;
 }
 
-.response-body-code :deep(.shell-code-scrollbar) {
+.response-body-code :deep(.code-block-view__scrollbar) {
   flex: 1;
-  /* 必须 !important：ShellCodeBlock 的 max-height="220px" 会生成内联 style，
-     普通 class 覆写压不过内联，故 Body 高度被锁死 220px。!important 才能破除 */
+  /* 必须 !important：CodeBlockView 的 max-height 由 prop 生成内联 style，
+     普通 class 覆写压不过内联，故 Body 高度被锁死默认上限。!important 才能破除 */
   max-height: none !important;
 }
 

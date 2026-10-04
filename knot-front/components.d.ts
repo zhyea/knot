@@ -31,6 +31,7 @@ declare module 'vue' {
     BillingModeVideoConfig: typeof import('./src/components/billing/modes/BillingModeVideoConfig.vue')['default']
     BillingRuleFormDialog: typeof import('./src/components/billing/BillingRuleFormDialog.vue')['default']
     BillingRuleListPanel: typeof import('./src/components/billing/BillingRuleListPanel.vue')['default']
+    CodeBlockView: typeof import('./src/components/common/CodeBlockView.vue')['default']
     CronExpressionInput: typeof import('./src/components/system/scheduled/CronExpressionInput.vue')['default']
     DepartmentFormDrawer: typeof import('./src/components/system/DepartmentFormDrawer.vue')['default']
     DepartmentListPanel: typeof import('./src/components/system/DepartmentListPanel.vue')['default']
