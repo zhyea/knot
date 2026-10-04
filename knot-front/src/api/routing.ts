@@ -55,15 +55,20 @@ export function testRoutingRule(id: number | string, payload: Dict, config: Axio
 }
 
 /**
- * 流式路由规则测试：以 fetch 发起 SSE 请求，返回原始 Response 供增量解析。
- * 与 testRoutingRule 的区别仅在传输方式，请求体结构完全一致。
+ * 流式路由规则测试：直接请求网关协议地址，返回原始 Response 供增量解析。
+ * 管理端只负责配置/选择目标；网关需要消费者 API Key 和 Rule 头，不能走 /api 管理接口。
  */
 export function testRoutingRuleStream(
-  id: number | string,
+  gatewayUrl: string,
   payload: Dict,
+  secretKey: string,
+  ruleCode: string,
   signal?: AbortSignal
 ) {
-  return postEventStream(`/api/routing-rules/${id}/test/stream`, payload, signal);
+  return postEventStream(gatewayUrl, payload, signal, {
+    Authorization: `Bearer ${secretKey}`,
+    Rule: ruleCode
+  });
 }
 
 /** 调试协议能力：gatewayPath / hint / promptField（默认请求体不再硬编码，改由预设请求维护） */
@@ -96,4 +101,3 @@ export function updateTestRequestPresetStatus(id: number | string, enabled: bool
 export function deleteTestRequestPreset(id: number | string) {
   return del(`/api/test-request-presets/${id}`);
 }
-
