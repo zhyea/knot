@@ -158,6 +158,7 @@ function visualizeWhitespaceText(text: unknown): string {
 <style scoped>
 .json-editor {
   position: relative;
+  width: 100%;
   border: 1px solid var(--knot-border, #e4e7ed);
   background: var(--knot-fill-light, #f5f7fa);
 }

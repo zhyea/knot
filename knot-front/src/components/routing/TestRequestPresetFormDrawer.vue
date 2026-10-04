@@ -120,7 +120,7 @@ import {createTestRequestPreset, updateTestRequestPreset} from "@/api/routing";
 import {listLogicalModels} from "@/api/logicalModels";
 import type {Dict, Row} from "@/types";
 import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
-import {parseJsonResult} from "@/utils/format";
+import {formatJsonText, parseJsonResult} from "@/utils/format";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -204,7 +204,7 @@ function resetForm(row: Row | null = null) {
   form.protocolCode = row?.protocolCode || "";
   form.logicalModelCode = row?.logicalModelCode || null;
   form.logicalModelName = row?.logicalModelName;
-  form.requestBody = row?.requestBody || "";
+  form.requestBody = formatJsonText(row?.requestBody);
   form.remark = row?.remark ?? "";
   form.enabled = row?.status !== "INACTIVE";
   codeError.value = "";
