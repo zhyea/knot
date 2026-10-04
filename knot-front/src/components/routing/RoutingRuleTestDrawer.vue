@@ -26,19 +26,10 @@
 
           <div class="request-summary">
             <el-tag size="small" effect="plain">规则：{{ props.ruleName?.trim() || `#${props.ruleId || "-"}` }}</el-tag>
-            <el-tag size="small" effect="plain">协议：{{ activeProtocolLabel }}</el-tag>
           </div>
 
           <el-form label-width="72px" class="test-form">
             <div class="test-form__row">
-              <el-form-item label="API Key" required>
-                <el-input
-                  v-model="testForm.secretKey"
-                  placeholder="sk- 开头的消费者 API Key"
-                  type="password"
-                  show-password
-                />
-              </el-form-item>
               <el-form-item label="协议">
                 <el-select
                   v-model="testForm.protocol"
@@ -132,6 +123,17 @@
                   </div>
                 </div>
                 <el-empty v-else description="无额外结果信息" :image-size="64"/>
+                <div class="result-body">
+                  <div class="result-body__title">完整响应体</div>
+                  <ShellCodeBlock
+                    v-if="resultBodyText"
+                    class="response-body-code"
+                    :code="resultBodyText"
+                    language="json"
+                    :copyable="true"
+                  />
+                  <el-empty v-else description="无响应内容" :image-size="64"/>
+                </div>
               </el-tab-pane>
               <el-tab-pane label="Body" name="body" class="response-body-pane">
                 <ShellCodeBlock
@@ -1252,6 +1254,18 @@ onBeforeUnmount(() => {
 
 .result-meta__item--error {
   background: var(--el-color-danger-light-9);
+}
+
+/* 概览 tab 内的完整响应体区块 */
+.result-body {
+  margin-top: 4px;
+}
+
+.result-body__title {
+  margin-bottom: 8px;
+  color: var(--el-text-color-regular);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .result-meta__item--error .result-meta__value {
