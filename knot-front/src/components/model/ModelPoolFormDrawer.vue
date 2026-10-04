@@ -56,7 +56,6 @@
                 :load-function="loadLogicalModelOptions"
                 :label-function="logicalModelLabel"
                 :selected-options="selectedLogicalModelOptions"
-                :code-only="codeOnly"
                 placeholder="请选择统一模型"
                 style="width: 100%"
                 @change="onLogicalModelChange"

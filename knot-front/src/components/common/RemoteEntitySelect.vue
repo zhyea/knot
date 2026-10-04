@@ -37,7 +37,7 @@ const props = defineProps({
   valueKey: {type: String, default: "id"},
   multiple: {type: Boolean, default: false},
   /** 仅展示 code（忽略 labelFunction）；取 codeKey 字段，缺省取 valueKey */
-  codeOnly: {type: Boolean, default: false},
+  codeOnly: {type: Boolean, default: true},
   codeKey: {type: String, default: null}
 });
 
