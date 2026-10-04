@@ -2,15 +2,15 @@
   <div>
     <el-table v-loading="loading" :data="rows" stripe border>
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
-      <el-table-column prop="ruleCode" label="规则编码" width="200" show-overflow-tooltip />
-      <el-table-column label="消费者" width="150" show-overflow-tooltip>
+      <el-table-column prop="ruleCode" label="规则编码" min-width="240" show-overflow-tooltip />
+      <el-table-column label="消费者" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">
           {{ consumerNamesLabel(row.consumerNames) }}
         </template>
       </el-table-column>
-      <el-table-column prop="appName" label="应用" width="130" show-overflow-tooltip />
-      <el-table-column prop="userName" label="用户" width="130" show-overflow-tooltip />
-      <el-table-column label="路由目标" width="240">
+      <el-table-column prop="appName" label="应用" min-width="130" show-overflow-tooltip />
+      <el-table-column prop="userName" label="用户" min-width="130" show-overflow-tooltip />
+      <el-table-column label="路由目标" min-width="240">
         <template #default="{ row }">
           <div v-if="targetsLabel(row.targets).length" class="cell-targets">
             <span
