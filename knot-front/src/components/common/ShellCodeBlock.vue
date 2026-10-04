@@ -73,7 +73,6 @@ function highlightShell(text: string): string {
   box-sizing: border-box;
   margin: 0;
   padding: 14px 16px;
-  padding-right: 72px;
   background: #1e1e1e;
   color: #d4d4d4;
   font-family: Consolas, "Courier New", monospace;
