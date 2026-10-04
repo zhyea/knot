@@ -156,9 +156,11 @@ export function del<T = any>(url: string, config: AxiosRequestConfig = {}): Prom
 export async function postEventStream(
   url: string,
   data: unknown,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  requestHeaders: Record<string, string> = {}
 ): Promise<Response> {
   const {token, clearAllAuthState} = useAuth();
+  const usesAdminAuth = !requestHeaders.Authorization;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "text/event-stream"
@@ -167,6 +169,9 @@ export async function postEventStream(
     headers.Authorization = `Bearer ${token.value}`;
     touchIdleActivity();
   }
+  // 调试网关流使用消费者 API Key 覆盖管理端 JWT，并附带 Rule 头。
+  // 普通管理端 SSE 调用不传该参数，仍沿用当前登录态。
+  Object.assign(headers, requestHeaders);
 
   const response = await fetch(url, {
     method: "POST",
@@ -180,7 +185,7 @@ export async function postEventStream(
   }
 
   // 与 Axios 拦截器保持一致：只有当前会话的 401 才清理登录态
-  if (response.status === 401) {
+  if (response.status === 401 && usesAdminAuth) {
     clearAllAuthState();
     if (router.currentRoute.value.path !== "/login") {
       router.push("/login");
@@ -201,7 +206,9 @@ export async function postEventStream(
     (body && typeof body === "object" && "message" in body
       ? String((body as {message?: unknown}).message ?? "")
       : "") || `请求失败（HTTP ${response.status}）`;
-  ElMessage.error(message);
+  if (usesAdminAuth) {
+    ElMessage.error(message);
+  }
   throw Object.assign(new Error(message), {
     response: {status: response.status, data: body}
   });
