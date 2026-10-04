@@ -1,6 +1,5 @@
-import {postQuery, post, put, get, del, postEventStream} from "./http";
+import {postQuery, post, put, get, del, postEventStream, postGatewayJson} from "./http";
 import type {Dict} from "@/types";
-import type {AxiosRequestConfig} from "axios";
 
 export function listRoutingRules(params: Dict) {
   return postQuery("/api/routing-rules/list", params);
@@ -50,8 +49,13 @@ export function checkRoutingRuleCode(code: string, excludeId: number | string | 
   });
 }
 
-export function testRoutingRule(id: number | string, payload: Dict, config: AxiosRequestConfig) {
-  return post(`/api/routing-rules/${id}/test`, payload, config);
+export function testRoutingRule(
+  gatewayUrl: string,
+  payload: Dict,
+  secretKey: string,
+  ruleCode: string
+) {
+  return postGatewayJson(gatewayUrl, payload, secretKey, ruleCode);
 }
 
 /**
