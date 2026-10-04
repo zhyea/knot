@@ -60,6 +60,7 @@
                   :load-function="loadLogicalModelOptions"
                   :label-function="logicalModelLabel"
                   :selected-options="selectedLogicalModelOptions"
+                  :code-only="codeOnly"
                   :disabled="readonly"
                   clearable
                   placeholder="可选，仅作归类"
@@ -124,7 +125,9 @@ import {parseJsonResult} from "@/utils/format";
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
   preset: {type: Object as PropType<Dict | null>, default: null},
-  readonly: {type: Boolean, default: false}
+  readonly: {type: Boolean, default: false},
+  /** 统一模型下拉仅展示 modelCode */
+  codeOnly: {type: Boolean, default: false}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);

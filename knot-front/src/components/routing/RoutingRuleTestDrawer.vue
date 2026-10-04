@@ -25,11 +25,10 @@
             <el-tag size="small" effect="plain">规则：{{ props.ruleName?.trim() || `#${props.ruleId || "-"}` }}</el-tag>
             <el-tag size="small" effect="plain">目标：{{ activeTargetLabel }}</el-tag>
             <el-tag size="small" effect="plain">协议：{{ activeProtocolLabel }}</el-tag>
-            <el-tag size="small" effect="plain">HTTP {{ testResult?.httpStatus ?? "-" }}</el-tag>
           </div>
 
           <el-form label-width="72px" class="test-form">
-            <div class="test-form__row test-form__row--three">
+            <div class="test-form__row">
               <el-form-item label="API Key" required>
                 <el-input
                   v-model="testForm.secretKey"
@@ -37,22 +36,6 @@
                   type="password"
                   show-password
                 />
-              </el-form-item>
-              <el-form-item label="目标">
-                <el-select
-                  v-model="testForm.targetKey"
-                  placeholder="选择调试目标"
-                  filterable
-                  style="width: 100%"
-                  @change="onTargetChange"
-                >
-                  <el-option
-                    v-for="target in targetOptions"
-                    :key="target.key"
-                    :label="target.label"
-                    :value="target.key"
-                  />
-                </el-select>
               </el-form-item>
               <el-form-item label="协议">
                 <el-select
@@ -75,14 +58,14 @@
 
             <el-collapse v-model="expandedPanels" class="debug-collapse">
               <el-collapse-item name="preset" title="预设请求">
-                <el-form-item label-width="0">
+                <div class="preset-row">
                   <el-select
                     v-model="selectedPresetId"
                     :disabled="filteredPresetOptions.length === 0"
                     placeholder="从预设请求载入请求模板"
                     clearable
                     filterable
-                    style="width: 100%"
+                    class="preset-select"
                     @change="onPresetChange"
                   >
                     <el-option
@@ -92,15 +75,10 @@
                       :value="preset.id"
                     />
                   </el-select>
-                </el-form-item>
-              </el-collapse-item>
+                  <el-button size="small" @click="resetCurrentTemplate">重置模板</el-button>
+                </div>
 
-              <el-collapse-item name="template" title="请求模板">
                 <div class="request-template">
-                  <div class="request-template__head">
-                    <p>每种协议维护独立模板，切换协议后自动保留。</p>
-                    <el-button size="small" @click="resetCurrentTemplate">重置模板</el-button>
-                  </div>
                   <JsonCodeEditor
                     v-model="currentTemplateText"
                     min-height="220px"
@@ -144,7 +122,8 @@
             <el-tabs v-model="responseTab" class="debug-tabs debug-tabs--response">
               <el-tab-pane label="概览" name="summary">
                 <div v-if="summaryItems.length" class="result-meta">
-                  <div v-for="item in summaryItems" :key="item.label" class="result-meta__item" :class="{ 'result-meta__item--error': item.isError }">
+                  <div v-for="item in summaryItems" :key="item.label" class="result-meta__item"
+                       :class="{ 'result-meta__item--error': item.isError }">
                     <span class="result-meta__label">{{ item.label }}</span>
                     <span class="result-meta__value">{{ item.value }}</span>
                   </div>
@@ -412,10 +391,6 @@ function fallbackProtocolsForModelType(modelType: unknown): string[] {
   return protocols.length ? Array.from(new Set(protocols)) : [...DEFAULT_FALLBACK_PROTOCOLS];
 }
 
-async function onTargetChange() {
-  await loadProtocolsForCurrentTarget();
-}
-
 async function loadProtocolsForCurrentTarget() {
   const target = activeTarget.value;
   if (!target) {
@@ -513,11 +488,11 @@ async function loadPresetOptions() {
     const list = await listTestRequestPresetOptions();
     presetOptions.value = Array.isArray(list)
       ? (list as Dict[]).map((item) => ({
-          id: item.id,
-          name: item.name,
-          protocolCode: item.protocolCode,
-          requestBody: item.requestBody
-        }))
+        id: item.id,
+        name: item.name,
+        protocolCode: item.protocolCode,
+        requestBody: item.requestBody
+      }))
       : [];
   } catch {
     presetOptions.value = [];
@@ -546,7 +521,7 @@ function createDefaultTemplate(protocol: unknown): string {
     const body = parsed.value as Dict;
     return !parsed.error && body?.stream !== true;
   }) || candidates[0];
-    const parsed = candidate ? safeParseTemplate(candidate.requestBody) : {error: true, value: {}};
+  const parsed = candidate ? safeParseTemplate(candidate.requestBody) : {error: true, value: {}};
   const base = parsed.error ? {} : parsed.value;
   if (candidate) {
     selectedPresetId.value = candidate.id;
@@ -825,19 +800,16 @@ function onClosed() {
   margin-top: 2px;
 }
 
-.request-template__head {
+.preset-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   margin-bottom: 8px;
 }
 
-.request-template__head p {
-  margin: 0;
-  color: var(--el-text-color-secondary);
-  font-size: 12px;
-  line-height: 1.5;
+.preset-row .preset-select {
+  flex: 1;
+  min-width: 0;
 }
 
 .request-template__hint {
@@ -974,11 +946,6 @@ function onClosed() {
 
   .request-toolbar__method {
     width: 72px;
-  }
-
-  .request-template__head {
-    align-items: flex-start;
-    flex-direction: column;
   }
 
   .debug-panel--response {

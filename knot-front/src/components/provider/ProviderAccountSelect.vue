@@ -7,6 +7,8 @@
     :label-function="providerAccountLabel"
     :selected-options="mergedSelectedOptions"
     :extra-params="{ enabled: true }"
+    :code-only="codeOnly"
+    code-key="code"
     @update:model-value="emit('update:modelValue', $event)"
     @change="onChange"
   />
@@ -25,7 +27,9 @@ const props = defineProps({
   modelValue: { type: [String, Number] as PropType<string | number | null>, default: null },
   selectedOptions: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
   /** 选中值取账户行的哪个字段：id 或 code；内部匹配必须与之一致，否则会把 code 当 id 传给后端 */
-  valueKey: { type: String, default: "id" }
+  valueKey: { type: String, default: "id" },
+  /** 仅展示账户 code（忽略供应商前缀与名称） */
+  codeOnly: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(["update:modelValue", "change"]);

@@ -15,7 +15,7 @@
     <el-option
       v-for="item in mergedOptions"
       :key="item[valueKey]"
-      :label="labelFunction(item)"
+      :label="optionLabel(item)"
       :value="item[valueKey]"
     />
   </el-select>
@@ -35,7 +35,10 @@ const props = defineProps({
   selectedOptions: {type: Array as PropType<Row[]>, default: (): Row[] => []},
   extraParams: {type: Object, default: () => ({})},
   valueKey: {type: String, default: "id"},
-  multiple: {type: Boolean, default: false}
+  multiple: {type: Boolean, default: false},
+  /** 仅展示 code（忽略 labelFunction）；取 codeKey 字段，缺省取 valueKey */
+  codeOnly: {type: Boolean, default: false},
+  codeKey: {type: String, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "change"]);
@@ -93,6 +96,15 @@ function search(keyword: string): void {
 
 function onUpdate(value: unknown): void {
   emit("update:modelValue", value);
+}
+
+function optionLabel(item: Row): string {
+  if (props.codeOnly) {
+    const key = props.codeKey ?? props.valueKey;
+    const code = item?.[key];
+    return code == null ? "" : String(code);
+  }
+  return props.labelFunction(item);
 }
 
 function onChange(value: unknown): void {

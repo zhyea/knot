@@ -41,6 +41,8 @@ const props = defineProps({
   includeCodes: {type: Array, default: null},
   /** 展示时附带编码，如「固定 (FIXED)」 */
   showCode: {type: Boolean, default: false},
+  /** 仅展示 itemCode，忽略 itemLabel */
+  codeOnly: {type: Boolean, default: false},
   enabledOnly: {type: Boolean, default: true}
 });
 
@@ -58,6 +60,9 @@ const filteredOptions = computed(() => {
 });
 
 function optionLabel(item: Row): string {
+  if (props.codeOnly) {
+    return item.itemCode;
+  }
   if (props.showCode) {
     return `${item.itemLabel} (${item.itemCode})`;
   }

@@ -47,6 +47,7 @@
                 <ProviderAccountSelect
                   v-model="form.providerAccountCode"
                   value-key="code"
+                  :code-only="codeOnly"
                   :selected-options="selectedProviderOptions"
                   placeholder="请选择供应商账户"
                   style="width: 100%"
@@ -73,6 +74,7 @@
                   :load-function="loadLogicalModels"
                   :label-function="logicalModelLabel"
                   :selected-options="selectedLogicalModelOptions"
+                  :code-only="codeOnly"
                   placeholder="请选择统一模型"
                   style="width: 100%"
                 />
@@ -121,6 +123,7 @@
               <RemoteEntitySelect
                 v-model="form.billingRuleCode"
                 value-key="code"
+                :code-only="codeOnly"
                 :load-function="loadBillingRules"
                 :label-function="billingRuleLabel"
                 :selected-options="selectedBillingRuleOptions"
@@ -144,7 +147,9 @@
               </el-table-column>
               <el-table-column label="模型族" min-width="140" show-overflow-tooltip>
                 <template #default="{ row }">
-                  <span class="bind-list__text">{{ row.modelFamilyName || row.modelFamilyCode || "默认（所有模型族）" }}</span>
+                  <span class="bind-list__text">{{
+                      row.modelFamilyName || row.modelFamilyCode || "默认（所有模型族）"
+                    }}</span>
                 </template>
               </el-table-column>
               <el-table-column label="计费模式" min-width="110" show-overflow-tooltip>
@@ -162,7 +167,9 @@
               </el-table-column>
             </el-table>
             <div v-else class="empty-billing-rule">
-              {{ form.billingRuleCode ? "已绑定的计费规则不存在或已删除，请重新选择" : "尚未绑定计费规则，请从上方下拉选择" }}
+              {{
+                form.billingRuleCode ? "已绑定的计费规则不存在或已删除，请重新选择" : "尚未绑定计费规则，请从上方下拉选择"
+              }}
             </div>
           </div>
         </div>
@@ -340,7 +347,9 @@ interface ModelApiBinding {
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  model: {type: Object as PropType<Dict | null>, default: null}
+  model: {type: Object as PropType<Dict | null>, default: null},
+  /** 统一模型下拉仅展示 modelCode */
+  codeOnly: {type: Boolean, default: false}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -597,20 +606,20 @@ async function resetForm() {
   modelCodeError.value = "";
   modelCodeValidated.value = false;
   try {
-      if (props.model) {
-        fillForm(props.model);
-        if (isEdit.value) {
-          detailLoading.value = true;
-          try {
-            const detail = await getModel(props.model.id);
-            if (detail) {
-              fillForm(detail);
-            }
-          } finally {
-            detailLoading.value = false;
+    if (props.model) {
+      fillForm(props.model);
+      if (isEdit.value) {
+        detailLoading.value = true;
+        try {
+          const detail = await getModel(props.model.id);
+          if (detail) {
+            fillForm(detail);
           }
+        } finally {
+          detailLoading.value = false;
         }
-      } else {
+      }
+    } else {
       form.id = null;
       form.modelCode = "";
       form.upstreamModel = "";

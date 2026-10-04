@@ -39,6 +39,7 @@
                 :load-function="loadLogicalModelOptions"
                 :label-function="logicalModelLabel"
                 :selected-options="selectedLogicalModelOptions"
+                :code-only="codeOnly"
                 placeholder="请选择统一模型"
                 style="width: 100%"
                 @change="onLogicalModelChange"
@@ -149,7 +150,9 @@ import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/uti
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  pool: { type: Object as PropType<Dict | null>, default: null }
+  pool: { type: Object as PropType<Dict | null>, default: null },
+  /** 统一模型下拉仅展示 modelCode */
+  codeOnly: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);

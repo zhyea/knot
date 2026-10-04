@@ -36,6 +36,7 @@
                 <EnumSelect
                   v-model="form.modelFamilyCode"
                   category="model_family"
+                  :code-only="codeOnly"
                   clearable
                   filterable
                   placeholder="不选则作为默认规则"
@@ -161,7 +162,9 @@ import type {PeakPricing} from "@/utils/billingPeakOffPeak";
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
   /** 编辑目标的规则 id；null 表示新建。全量记录由抽屉打开时向后端获取，不走列表行数据 */
-  ruleId: {type: Number as PropType<number | null>, default: null}
+  ruleId: {type: Number as PropType<number | null>, default: null},
+  /** 模型族下拉仅展示 itemCode */
+  codeOnly: {type: Boolean, default: false}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
