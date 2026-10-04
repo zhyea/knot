@@ -194,6 +194,7 @@ const props = defineProps({
   modelValue: {type: Boolean, default: false},
   ruleId: {type: Number as PropType<number | null>, default: null},
   ruleName: {type: String, default: ""},
+  ruleCode: {type: String, default: ""},
   secretKey: {type: String, default: ""},
   targets: {type: Array as PropType<RoutingTarget[]>, default: (): RoutingTarget[] => []}
 });
@@ -599,7 +600,7 @@ function normalizeBaseUrl() {
 }
 
 function resolveRuleHeaderValue() {
-  return props.ruleName?.trim() || props.ruleId || "your-rule-code";
+  return props.ruleCode?.trim() || "your-rule-code";
 }
 
 function buildCurlCommand() {
@@ -734,17 +735,27 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protoc
   };
 
   try {
+    const gatewayBody = stripModelField(requestBody);
     const response = await testRoutingRuleStream(
-      props.ruleId as number,
-      buildTestPayload(requestBody, target, protocol),
+      requestUrl.value,
+      gatewayBody,
+      testForm.secretKey.trim(),
+      resolveRuleHeaderValue(),
       controller.signal
     );
+    if (testResult.value) {
+      testResult.value = {
+        ...testResult.value,
+        httpStatus: response.status,
+        modelCode: target.targetCode || testResult.value.modelCode
+      };
+    }
 
     await readEventStream(response, handleStreamEvent, {abortSignal: controller.signal});
     flushStreamText();
-    // 流正常结束但未收到 complete：视为协议异常
+    // 直连网关读取的是原生模型 SSE，没有管理端包装的 complete 事件；EOF 即成功结束。
     if (testResult.value?.status === "RUNNING") {
-      finishStream("FAILED", "流式响应未返回结束事件");
+      finishStream("SUCCESS", "");
     }
   } catch (error) {
     flushStreamText();
@@ -774,62 +785,13 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protoc
 }
 
 function handleStreamEvent(event: SseEvent) {
-  let data: Dict;
-  try {
-    data = parseJsonResult(event.data, {}).value as Dict;
-  } catch {
-    // 协议异常：data 不是合法 JSON，显式报错而非静默丢弃
-    finishStream("FAILED", `流式事件 ${event.event} 的 data 不是合法 JSON`);
-    return;
-  }
+  // 流式测试现在直连网关，事件就是上游原生 SSE；完整原文用于调试展示。
+  appendStreamText(formatUpstreamEvent(event));
+}
 
-  switch (event.event) {
-    case "meta": {
-      if (testResult.value) {
-        testResult.value = {
-          ...testResult.value,
-          modelCode: data.modelCode ?? testResult.value.modelCode,
-          protocol: data.protocol ?? testResult.value.protocol,
-          curl: data.curl ?? testResult.value.curl
-        };
-      }
-      break;
-    }
-    case "chunk": {
-      if (data.encoding === "base64") {
-        // 二进制响应：展示类型与大小，不在抽屉内播放
-        appendStreamText(`[二进制响应 ${data.contentType || "unknown"} · ${data.content?.length || 0} 字符 base64]\n`);
-        return;
-      }
-      appendStreamText(String(data.text ?? ""));
-      break;
-    }
-    case "complete": {
-      flushStreamText();
-      finishStream(data.status === "SUCCESS" ? "SUCCESS" : "FAILED", "");
-      if (testResult.value && data.httpStatus != null) {
-        testResult.value = {...testResult.value, httpStatus: data.httpStatus};
-      }
-      break;
-    }
-    case "error": {
-      flushStreamText();
-      finishStream("FAILED", String(data.errorMessage || "流式请求失败"));
-      if (testResult.value) {
-        testResult.value = {
-          ...testResult.value,
-          httpStatus: data.httpStatus ?? testResult.value.httpStatus,
-          responseBody: data.responseBody
-            ? `${streamBody.value}${data.responseBody}`
-            : streamBody.value
-        };
-      }
-      break;
-    }
-    default:
-      // 未知事件：忽略但保留扩展空间（契约新增版本字段时不会导致解析失败）
-      break;
-  }
+function formatUpstreamEvent(event: SseEvent): string {
+  const eventLine = event.event && event.event !== "message" ? `event: ${event.event}\n` : "";
+  return `${eventLine}data: ${event.data}\n\n`;
 }
 
 /** 累积片段并节流刷新：逐 token 直接改响应式属性会让高亮组件高频重算 */
