@@ -41,6 +41,6 @@ public class VideoUsageExtractor extends DefaultUsageExtractor {
             return usage;
         }
         long seconds = MapNumberUtils.firstLong(body, "duration_seconds", "video_seconds", "seconds", "duration");
-        return seconds > 0 ? new BillingUsage(0L, 0L, 0L, 0L, 0L, seconds) : BillingUsage.empty();
+        return seconds > 0 ? new BillingUsage(0L, 0L, 0L, 0L, 0L, 0L, 0L, seconds) : BillingUsage.empty();
     }
 }

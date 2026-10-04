@@ -64,17 +64,43 @@ class ModelUsageNormalizerTest {
         assertEquals(20L, usage.input().tokens().cacheWrite5m());
         assertEquals(10L, usage.input().tokens().cacheWrite1h());
         assertEquals(0L, usage.input().tokens().cacheWrite(), "5m/1h 明细存在时 cache_write 总量必须归 0");
-        // text = 100 - (cacheRead 10 + 5m 20 + 1h 10)
-        assertEquals(60L, usage.input().tokens().text());
+        // Anthropic 语义：input_tokens 不含缓存读写，输入总量 = 100 + cacheRead 10 + 5m 20 + 1h 10 = 140
+        // text = 140 - (cacheRead 10 + 5m 20 + 1h 10) = 100
+        assertEquals(100L, usage.input().tokens().text());
         assertEquals(0L, usage.input().tokens().unclassified());
-        // 上游未报 total_tokens：两侧明细相加 = 100 + 50
-        assertEquals(150L, usage.totalTokens());
+        // 上游未报 total_tokens：两侧明细相加 = 140 + 50
+        assertEquals(190L, usage.totalTokens());
+    }
+
+    @Test
+    void shouldAddCacheBackToInputTotalForAnthropicStyleUsage() {
+        // Anthropic 真实形态：input_tokens 不含缓存，5m/1h 独立上报
+        Map<String, Object> raw = new LinkedHashMap<>();
+        raw.put("input_tokens", 700);
+        raw.put("output_tokens", 200);
+        raw.put("cache_read_input_tokens", 300);
+        raw.put("cache_creation", Map.of(
+                "ephemeral_5m_input_tokens", 400,
+                "ephemeral_1h_input_tokens", 100
+        ));
+
+        ModelUsage usage = ModelUsageNormalizer.fromRaw(raw);
+
+        assertNotNull(usage);
+        // 输入总量 = 700 + 300 + 400 + 100 = 1500；text = 1500 - (300 + 400 + 100) = 700
+        assertEquals(700L, usage.input().tokens().text());
+        assertEquals(300L, usage.input().tokens().cacheRead());
+        assertEquals(400L, usage.input().tokens().cacheWrite5m());
+        assertEquals(100L, usage.input().tokens().cacheWrite1h());
+        // 与 billing 视图（走 BillingUsage 总量语义）必须同口径，否则两视图会打架
+        assertEquals(1700L, usage.totalTokens());
     }
 
     @Test
     void shouldPutUnexplainedResidueIntoUnclassified() {
+        // OpenAI 语义：prompt_tokens 已含缓存命中，总量不再加缓存
         Map<String, Object> raw = new LinkedHashMap<>();
-        raw.put("input_tokens", 100);
+        raw.put("prompt_tokens", 100);
         raw.put("text_tokens", 10);
         raw.put("image_tokens", 20);
         raw.put("video_tokens", 15);

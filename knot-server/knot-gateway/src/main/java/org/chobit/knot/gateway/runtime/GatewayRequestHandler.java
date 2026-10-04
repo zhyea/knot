@@ -7,14 +7,17 @@ import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.gateway.exception.GatewayQuotaException;
 import org.chobit.knot.gateway.exception.GatewayRateLimitException;
+import org.chobit.knot.gateway.exception.GatewayRequestException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.*;
-import org.chobit.knot.gateway.model.usage.ModelUsagePayload;
+import org.chobit.knot.gateway.model.usage.KnotExtendPayload;
 import org.chobit.knot.gateway.plugin.PluginDispatcher;
 import org.chobit.knot.gateway.routing.RoutingResolver;
 import org.chobit.knot.gateway.traffic.GatewayTrafficGuard;
 import org.chobit.knot.gateway.traffic.GatewayTrafficGuard.TrafficCheckContext;
+import org.chobit.knot.gateway.traffic.TrafficDecision;
 import org.chobit.knot.gateway.upstream.UpstreamProxyClient;
 import org.chobit.knot.gateway.upstream.stream.ProxyStreamingBody;
 import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
@@ -73,8 +76,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         String traceparent = context.traceparent();
 
         // 检查应用、路由规则和消费者的频控和额度控制
-        if (!trafficGuard.checkRouting(routing)) {
-            throw new GatewayRateLimitException("Routing traffic policy rejected", ProxyErrorCodeEnum.RATE_LIMIT_EXCEEDED.code());
+        TrafficDecision routingDecision = trafficGuard.checkRouting(routing);
+        if (!routingDecision.allowed()) {
+            throw reject(routingDecision, "Routing traffic policy rejected");
         }
 
         Map<String, Object> requestBody = exchange.requestBody();
@@ -82,10 +86,15 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         GatewayUpstreamException lastUpstreamException = new GatewayUpstreamException("No available routing target",
                 ProxyErrorCodeEnum.NO_ROUTING_TARGET.code()
         );
+        TrafficDecision firstRejection = null;
         boolean hasAllowedTarget = false;
         for (RoutingRuleTargetDto candidate : routing.candidateModels()) {
             // 检查目标模型的频控和额度控制
-            if (!trafficGuard.checkTarget(candidate, trafficContext)) {
+            TrafficDecision targetDecision = trafficGuard.checkTarget(candidate, trafficContext);
+            if (!targetDecision.allowed()) {
+                if (firstRejection == null) {
+                    firstRejection = targetDecision;
+                }
                 continue;
             }
             hasAllowedTarget = true;
@@ -95,15 +104,42 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
             // 调用上游服务
             try {
-                return proxyClient.proxy(requestBody, exchange.contentType(), candidate, protocol, traceparent);
+                ProxyResult result = proxyClient.proxy(requestBody, exchange.contentType(), candidate, protocol, traceparent);
+                // 额度事后累计：上游成功才记账，失败重试与 failover 不重复扣减
+                trafficGuard.record(routing, candidate, tokenDelta(result), trafficContext);
+                return result;
             } catch (GatewayUpstreamException e) {
                 lastUpstreamException = e;
             }
         }
         if (!hasAllowedTarget) {
-            throw new GatewayRateLimitException("Target traffic policy rejected", ProxyErrorCodeEnum.RATE_LIMIT_EXCEEDED.code());
+            if (firstRejection != null) {
+                throw reject(firstRejection, "Target traffic policy rejected");
+            }
+            throw lastUpstreamException;
         }
         throw lastUpstreamException;
+    }
+
+    /**
+     * 把流量判定翻译成网关异常：频控与额度走不同错误码，便于调用方区分处置。
+     */
+    private GatewayRequestException reject(TrafficDecision decision, String message) {
+        String detail = message + ": resource=" + decision.resourceType() + "#" + decision.resourceId()
+                + ", reason=" + decision.reason()
+                + ", limit=" + decision.limit() + ", used=" + decision.used();
+        if (decision.reason().quota()) {
+            return new GatewayQuotaException(detail, decision.reason().errorCode().code());
+        }
+        return new GatewayRateLimitException(detail, decision.reason().errorCode().code());
+    }
+
+    /**
+     * 本次调用的 token 用量：优先取计费结果，无计费规则时退回上游用量输入。
+     */
+    private long tokenDelta(ProxyResult result) {
+        UsageAccounting usage = result == null ? null : result.usage();
+        return usage == null ? 0L : usage.totalTokens();
     }
 
 
@@ -123,7 +159,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         if (!routing.returnUsageDetail()) {
             return result.responseBody();
         }
-        ModelUsagePayload payload = ModelUsagePayload.of(result.usage());
+        KnotExtendPayload payload = KnotExtendPayload.of(result.usage());
         if (payload == null) {
             return result.responseBody();
         }
@@ -135,7 +171,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         if (body == null) {
             return result.responseBody();
         }
-        body.put(AiPayloadFields.MODEL_USAGE, payload);
+        body.put(AiPayloadFields.KNOT_EXTEND, payload);
         return body;
     }
 
@@ -173,9 +209,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         return value.lines().anyMatch(line -> StringUtils.startsWith(StringUtils.trim(line), "data:"));
     }
 
-    private String appendUsageEvent(String responseBody, ModelUsagePayload payload) {
+    private String appendUsageEvent(String responseBody, KnotExtendPayload payload) {
         Map<String, Object> event = new LinkedHashMap<>();
-        event.put(AiPayloadFields.MODEL_USAGE, payload);
+        event.put(AiPayloadFields.KNOT_EXTEND, payload);
         String usageData = "data: " + JsonKit.toJson(event);
         String doneMarker = "data: [DONE]";
         int doneIndex = responseBody.lastIndexOf(doneMarker);

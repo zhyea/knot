@@ -76,7 +76,7 @@ public class AnthropicRequestAdapter implements UpstreamRequestAdapter {
         if (usage.isEmpty()) {
             return usage;
         }
-        long inputTokens = usage.inputTokens() + usage.cacheReadTokens() + usage.cacheWriteTokens();
+        long inputTokens = usage.inputTokens() + usage.cacheReadTokens() + usage.cacheWriteTotal();
         long totalTokens = Math.max(usage.totalTokens(), inputTokens + usage.outputTokens());
         return new BillingUsage(
                 inputTokens,
@@ -84,6 +84,8 @@ public class AnthropicRequestAdapter implements UpstreamRequestAdapter {
                 totalTokens,
                 usage.cacheReadTokens(),
                 usage.cacheWriteTokens(),
+                usage.cacheWrite5mTokens(),
+                usage.cacheWrite1hTokens(),
                 usage.amount()
         );
     }

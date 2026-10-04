@@ -106,7 +106,7 @@ public class QwenRequestAdapter implements UpstreamRequestAdapter {
         }
         Object data = body.get("data");
         long amount = data instanceof List<?> list ? list.size() : 0L;
-        return amount > 0 ? new BillingUsage(0L, 0L, 0L, 0L, 0L, amount) : BillingUsage.empty();
+        return amount > 0 ? new BillingUsage(0L, 0L, 0L, 0L, 0L, 0L, 0L, amount) : BillingUsage.empty();
     }
 
     private Map<String, Object> imageGenerationBody(UpstreamRequestContext context) {

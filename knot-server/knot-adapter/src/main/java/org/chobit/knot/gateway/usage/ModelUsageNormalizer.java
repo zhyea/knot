@@ -66,10 +66,9 @@ public final class ModelUsageNormalizer {
         if (raw == null || raw.isEmpty()) {
             return null;
         }
-        long inputTotal = flat(raw, AiPayloadFields.INPUT_TOKENS, AiPayloadFields.PROMPT_TOKENS);
         long outputTotal = flat(raw, AiPayloadFields.OUTPUT_TOKENS, AiPayloadFields.COMPLETION_TOKENS);
 
-        InputTokens inputTokens = inputTokens(raw, inputTotal);
+        InputTokens inputTokens = inputTokens(raw);
         OutputTokens outputTokens = outputTokens(raw, outputTotal);
 
         Input input = Input.of(
@@ -102,17 +101,22 @@ public final class ModelUsageNormalizer {
         if (usage == null || usage.isEmpty()) {
             return mediaOnly(rawBody);
         }
+        long cacheWrite5m = usage.cacheWrite5mTokens();
+        long cacheWrite1h = usage.cacheWrite1hTokens();
+        // 与 InputTokens 构造器同一口径：ttl 明细其一大于 0 时单字段总量作废
+        long cacheWrite = cacheWrite5m + cacheWrite1h > 0 ? 0L : usage.cacheWriteTokens();
+        long nonTextInput = usage.cacheReadTokens() + cacheWrite + cacheWrite5m + cacheWrite1h;
         InputTokens inputTokens = new InputTokens(
                 // BillingUsage.inputTokens 语义为「输入侧总量」：OpenAI 的 prompt_tokens 含缓存命中，
                 // Anthropic 侧提取器已把 cache_read/write 加回总量，两种语义下
                 // 「纯文本 = 总量 − 缓存读写」都成立；负数说明语义已乱，兜底为 0。
-                Math.max(0L, usage.inputTokens() - usage.cacheReadTokens() - usage.cacheWriteTokens()),
+                Math.max(0L, usage.inputTokens() - nonTextInput),
                 0L,
                 0L,
                 usage.cacheReadTokens(),
-                usage.cacheWriteTokens(),
-                0L,
-                0L,
+                cacheWrite,
+                cacheWrite5m,
+                cacheWrite1h,
                 0L
         );
         OutputTokens outputTokens = new OutputTokens(usage.outputTokens(), 0L, 0L, 0L, 0L);
@@ -156,7 +160,17 @@ public final class ModelUsageNormalizer {
         return ModelUsage.of(usage.input(), filled, usage.totalTokens());
     }
 
-    private static InputTokens inputTokens(Map<String, Object> raw, long inputTotal) {
+    /**
+     * 上游是否按 OpenAI 语义上报用量（{@code prompt_tokens} 为特征字段）。
+     *
+     * <p>OpenAI 的 {@code prompt_tokens} 已含缓存命中，Anthropic 的 {@code input_tokens} 不含；
+     * 这是判断「上报的输入总量要不要把缓存加回来」的唯一依据。</p>
+     */
+    private static boolean promptTokensReported(Map<String, Object> raw) {
+        return flat(raw, AiPayloadFields.PROMPT_TOKENS) > 0;
+    }
+
+    private static InputTokens inputTokens(Map<String, Object> raw) {
         long cacheWrite5m = cacheWrite5m(raw);
         long cacheWrite1h = cacheWrite1h(raw);
         long detailedCacheWrite = cacheWrite5m + cacheWrite1h;
@@ -164,6 +178,17 @@ public final class ModelUsageNormalizer {
         long cacheRead = flat(raw, "cache_read_input_tokens", "cache_read_tokens", "cached_read_tokens", "prompt_cache_hit_tokens")
                 + nested(raw, DETAILS_PROMPT, "cached_tokens")
                 + nested(raw, DETAILS_INPUT, "cached_tokens");
+        // 两侧 token 总量是否「已含缓存」由厂商语义决定：
+        //   OpenAI   -> prompt_tokens 已含缓存命中，直接用上报值；
+        //   Anthropic-> input_tokens 不含缓存读写，必须把缓存加回才是该侧总量。
+        // 判据用「是否上报 prompt_tokens」：只有 OpenAI 系会报这个字段。
+        // 不区分会让同一份 Anthropic usage 在 usage 视图里 text 被算成 0、total 少一截，
+        // 与 billing 视图（走 BillingUsage，已按总量语义算）对不上。
+        long cacheTotal = cacheRead + cacheWrite + detailedCacheWrite;
+        long inputTotal = flat(raw, AiPayloadFields.INPUT_TOKENS, AiPayloadFields.PROMPT_TOKENS);
+        if (!promptTokensReported(raw)) {
+            inputTotal += cacheTotal;
+        }
         long image = flat(raw, "image_tokens", "input_image_tokens")
                 + nested(raw, DETAILS_INPUT, "image_tokens")
                 + nested(raw, DETAILS_PROMPT, "image_tokens");

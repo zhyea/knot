@@ -123,6 +123,24 @@
         limit 1
     </select>
 
+    <!--
+      计费回退匹配：模型未显式绑定计费规则时，先按模型族精确匹配，再回退 model_family 为空的默认规则。
+      modelFamilyCode 为 null 时 `br.model_family = null` 恒不成立，只剩默认规则分支，语义正确。
+    -->
+    <select id="getActiveByModelFamily" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
+        select <include refid="RuleColumns"/>
+        from kb_billing_rules br
+        inner join kb_billing_rule_versions bv on br.id = bv.rule_id
+        <include refid="FamilyJoin"/>
+        where br.status = 'ACTIVE'
+          and bv.status = 'ACTIVE'
+          and bv.effective_from &lt;= #{effectiveAt}
+          and (bv.effective_to is null or bv.effective_to &gt; #{effectiveAt})
+          and (br.model_family = #{modelFamilyCode} or br.model_family is null)
+        order by (br.model_family is null) asc, bv.effective_from desc, bv.id desc
+        limit 1
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into kb_billing_rules(code, model_family, status, remark)
         values(#{code}, #{modelFamilyCode}, #{status}, #{remark})

@@ -33,7 +33,7 @@ public class ImageUsageExtractor extends DefaultUsageExtractor {
         }
         Object data = body.get("data");
         long amount = data instanceof Iterable<?> iterable ? count(iterable) : 0L;
-        return amount > 0 ? new BillingUsage(0L, 0L, 0L, 0L, 0L, amount) : BillingUsage.empty();
+        return amount > 0 ? new BillingUsage(0L, 0L, 0L, 0L, 0L, 0L, 0L, amount) : BillingUsage.empty();
     }
 
     private long count(Iterable<?> iterable) {

@@ -91,7 +91,7 @@ class PeakOffPeakHotPathTest {
     }
 
     private BillingUsage usage() {
-        return new BillingUsage(1_000L, 200L, 1_200L, 0L, 0L, 0L);
+        return new BillingUsage(1_000L, 200L, 1_200L, 0L, 0L, 0L, 0L, 0L);
     }
 
     private BillingRuleEntity rule() {

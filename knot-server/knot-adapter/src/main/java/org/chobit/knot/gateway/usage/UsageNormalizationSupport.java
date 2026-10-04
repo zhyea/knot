@@ -64,6 +64,8 @@ public final class UsageNormalizationSupport {
                 totalTokens,
                 usage.cacheReadTokens(),
                 usage.cacheWriteTokens(),
+                usage.cacheWrite5mTokens(),
+                usage.cacheWrite1hTokens(),
                 usage.amount()
         );
     }

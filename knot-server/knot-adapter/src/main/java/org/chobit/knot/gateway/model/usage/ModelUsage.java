@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * 统一用量结构体 {@code model_usage}。
+ * 统一用量结构体 {@code knot_extend.usage}。
  *
  * <p>按「输入侧 / 输出侧」两段组织：每侧自带 token 明细，非 token 维度
  * （图片张数、音频秒数、视频秒数）与 token 明细平级，避免多类用量挤进同一个字段。
@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  *
  * <p>本结构只描述「用量」，不参与定价。计费仍由
  * {@link org.chobit.knot.gateway.model.BillingUsage} + {@link org.chobit.knot.gateway.model.NormalizedUsage}
- * 承载，两者在 {@link ModelUsagePayload} 中并列输出。</p>
+ * 承载，两者在 {@link KnotExtendPayload} 中并列输出。</p>
  */
 @JsonInclude(JsonInclude.Include.NON_DEFAULT)
 public record ModelUsage(Input input,

@@ -4,7 +4,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.model.UsageAccounting;
-import org.chobit.knot.gateway.model.usage.ModelUsagePayload;
+import org.chobit.knot.gateway.model.usage.KnotExtendPayload;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -25,7 +25,7 @@ import java.util.Map;
  * 把上游响应边收边发给调用方：读完一行立刻写出并 flush，不在网关侧堆积整包响应。
  *
  * <p>SSE 场景额外做一件事：逐事件累计用量，并在上游 {@code data: [DONE]} 之前插入
- * {@code model_usage} 事件，与整包缓冲模式下的行为保持一致。</p>
+ * {@code knot_extend} 事件（上游不发 [DONE] 时在流结束处兜底插入），与整包缓冲模式下的行为保持一致。</p>
  */
 public class ProxyStreamingBody implements StreamingResponseBody {
 
@@ -68,22 +68,22 @@ public class ProxyStreamingBody implements StreamingResponseBody {
             String line;
             while ((line = reader.readLine()) != null) {
                 String trimmed = StringUtils.trim(line);
-                if (appendUsage) {
-                    if (!usageAppended && isDoneEvent(trimmed)) {
-                        usageAppended = true;
-                        if (usage != null) {
-                            writer.write(usageEvent(usage));
-                            writer.write('\n');
-                        }
-                    } else if (trimmed.startsWith(DATA_PREFIX)) {
-                        usage = better(usage, extractUsage(StringUtils.trim(trimmed.substring(DATA_PREFIX.length()))));
-                    }
+                if (appendUsage && !usageAppended && isDoneEvent(trimmed)) {
+                    usageAppended = true;
+                    writeUsageEvent(writer, usage);
+                } else if (appendUsage && trimmed.startsWith(DATA_PREFIX)) {
+                    usage = better(usage, extractUsage(StringUtils.trim(trimmed.substring(DATA_PREFIX.length()))));
                 }
                 writer.write(line);
                 writer.write('\n');
                 writer.flush();
             }
         } finally {
+            // 上游不发 [DONE]（Anthropic 以 event: message_stop 收尾）时，在流结束处兜底注入，
+            // 否则调用方永远拿不到 knot_extend
+            if (appendUsage && !usageAppended) {
+                writeUsageEvent(writer, usage);
+            }
             writer.flush();
         }
     }
@@ -117,9 +117,24 @@ public class ProxyStreamingBody implements StreamingResponseBody {
         return usageExtractorRegistry.extractEvent(data, stream.context(), stream.adapter());
     }
 
-    private String usageEvent(UsageAccounting usage) {
+    /**
+     * 写出 knot_extend 事件。用量缺失或两视图都为空时不写，避免给调用方塞一个空对象。
+     */
+    private void writeUsageEvent(Writer writer, UsageAccounting usage) throws IOException {
+        if (usage == null) {
+            return;
+        }
+        KnotExtendPayload payload = KnotExtendPayload.of(usage);
+        if (payload == null) {
+            return;
+        }
+        writer.write(usageEvent(payload));
+        writer.write('\n');
+    }
+
+    private String usageEvent(KnotExtendPayload payload) {
         Map<String, Object> event = new LinkedHashMap<>();
-        event.put(AiPayloadFields.MODEL_USAGE, ModelUsagePayload.of(usage));
+        event.put(AiPayloadFields.KNOT_EXTEND, payload);
         return DATA_PREFIX + " " + JsonKit.toJson(event);
     }
 

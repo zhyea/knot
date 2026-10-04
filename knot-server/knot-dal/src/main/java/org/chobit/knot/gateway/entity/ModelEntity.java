@@ -20,6 +20,8 @@ public class ModelEntity {
     private String name;
     /** 派生字段：取自绑定的统一模型，不落 kb_models */
     private String modelType;
+    /** 派生字段：取自绑定的统一模型（kb_logical_models.model_family），供计费规则按族回退匹配 */
+    private String modelFamilyCode;
     private String version;
     private String baseUrl;
     private String remark;

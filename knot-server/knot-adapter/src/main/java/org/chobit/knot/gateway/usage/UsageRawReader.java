@@ -9,7 +9,7 @@ import org.chobit.knot.gateway.util.MapNumberUtils;
 import java.util.Map;
 
 /**
- * 读取上游响应的「原始用量载体」，供 {@code model_usage.raw} 透传使用。
+ * 读取上游响应的「原始用量载体」，作为归一化输入（不再对外透传）。
  *
  * <p>规则：
  * <ul>

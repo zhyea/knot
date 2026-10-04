@@ -89,7 +89,7 @@ public record BillingConfig(
 
     /** 价格种类：对应 config_json 中的具名价格字段 */
     public enum PriceKind {
-        INPUT, OUTPUT, CACHE_READ, CACHE_WRITE
+        INPUT, OUTPUT, CACHE_READ, CACHE_WRITE, CACHE_WRITE_5M, CACHE_WRITE_1H
     }
 
     /** 价格种类 -> JSON 键名（校验错误提示用） */
@@ -99,6 +99,8 @@ public record BillingConfig(
             case OUTPUT -> "output";
             case CACHE_READ -> "cacheRead";
             case CACHE_WRITE -> "cacheWrite";
+            case CACHE_WRITE_5M -> "cacheWrite5m";
+            case CACHE_WRITE_1H -> "cacheWrite1h";
         };
     }
 
@@ -122,6 +124,8 @@ public record BillingConfig(
                 case OUTPUT -> output;
                 case CACHE_READ -> cacheRead;
                 case CACHE_WRITE -> cacheWrite;
+                case CACHE_WRITE_5M -> cacheWrite5m;
+                case CACHE_WRITE_1H -> cacheWrite1h;
             };
         }
     }

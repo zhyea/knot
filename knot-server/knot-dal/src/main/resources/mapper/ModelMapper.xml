@@ -6,12 +6,14 @@
     <sql id="logicalModelCodeExpr">(select pm2.logical_model_code from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
     <sql id="modelNameExpr">(select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
     <sql id="modelTypeExpr">(select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
+    <sql id="modelFamilyExpr">(select lm2.model_family from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
 
     <sql id="ModelSelectColumns">
         m.id, m.provider_account_code, m.model_code, m.upstream_model, m.version, m.base_url, m.remark, m.billing_rule_code, m.status,
         <include refid="logicalModelCodeExpr"/> AS logical_model_code,
         <include refid="modelNameExpr"/> AS name,
         <include refid="modelTypeExpr"/> AS model_type,
+        <include refid="modelFamilyExpr"/> AS model_family_code,
         p.name AS provider_name, p.code AS provider_code
     </sql>
 

@@ -127,11 +127,20 @@ public class UsageExtractorRegistry {
         return value != null && value.lines().anyMatch(line -> StringUtils.startsWith(StringUtils.trim(line), "data:"));
     }
 
+    /**
+     * 计费规则解析：模型显式绑定优先，未绑定时按模型族回退（族精确匹配 → 默认规则）。
+     *
+     * <p>回退链必须存在——{@code kb_models.billing_rule_code} 允许为空，
+     * 只认显式绑定会让未绑模型的计费整体消失（明细与总价全无）。</p>
+     */
     private BillingRuleEntity resolveBillingRule(UpstreamRequestContext context) {
-        if (context == null || context.model() == null || context.model().getBillingRuleCode() == null) {
+        if (context == null || context.model() == null) {
             return null;
         }
-        return dataService.getActiveBillingRuleByCode(context.model().getBillingRuleCode());
+        return dataService.getActiveBillingRule(
+                context.model().getBillingRuleCode(),
+                context.model().getModelFamilyCode()
+        );
     }
 
     private org.chobit.knot.gateway.usage.calculator.BillingModeCalculator fallbackCalculator(UpstreamRequestContext context) {

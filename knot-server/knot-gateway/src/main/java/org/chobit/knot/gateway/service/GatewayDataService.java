@@ -1,6 +1,8 @@
 package org.chobit.knot.gateway.service;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.Expiry;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import org.chobit.knot.gateway.entity.*;
 import org.chobit.knot.gateway.mapper.AppCredentialMapper;
@@ -32,6 +34,19 @@ public class GatewayDataService {
     private static final Duration EXPIRE_AFTER_WRITE = Duration.ofMinutes(10);
     private static final Duration REFRESH_AFTER_WRITE = Duration.ofMinutes(3);
 
+    /**
+     * 命中计费规则的缓存时长：与其余缓存一致。
+     */
+    private static final Duration BILLING_RULE_HIT_TTL = Duration.ofMinutes(10);
+
+    /**
+     * 未命中计费规则的缓存时长：显著短于命中时长。
+     *
+     * <p>管理员刚给模型绑定规则后，若把「查不到」也缓存 10 分钟，计费会整整 10 分钟不出结果
+     * （实测复现：先打一次未绑定的请求，再绑定规则，billing 仍是缺失的）。空结果只做防穿透。</p>
+     */
+    private static final Duration BILLING_RULE_MISS_TTL = Duration.ofSeconds(30);
+
     private final LoadingCache<String, Optional<AppCredentialEntity>> appCredentialByKeyCache;
     private final LoadingCache<Long, Optional<AppEntity>> appByIdCache;
     private final LoadingCache<String, Optional<RoutingConsumerEntity>> consumerBySecretKeyCache;
@@ -47,7 +62,10 @@ public class GatewayDataService {
     private final LoadingCache<Long, Optional<ProviderCredentialEntity>> activeCredentialByProviderIdCache;
     private final LoadingCache<Long, List<ModelApiBindingEntity>> apiBindingsByModelIdCache;
     private final LoadingCache<ResourceKey, Optional<TrafficPolicies>> trafficPoliciesCache;
-    private final LoadingCache<String, Optional<BillingRuleEntity>> activeBillingRuleByCodeCache;
+    private final Cache<BillingRuleKey, Optional<BillingRuleEntity>> billingRuleCache;
+
+    /** 计费规则回退查询（显式绑定码 → 模型族）走热路径，不经过缓存包装，故持有 mapper */
+    private final BillingRuleMapper billingRuleMapper;
 
     /**
      * Constructs a new instance.
@@ -83,8 +101,8 @@ public class GatewayDataService {
         this.apiBindingsByModelIdCache = listCache(modelApiBindingMapper::listByModelId);
         this.trafficPoliciesCache = optionalCache(key ->
                 loadTrafficPolicies(key, resourceTrafficPolicyMapper, rateLimitPolicyMapper, quotaPolicyMapper));
-        this.activeBillingRuleByCodeCache = optionalCache(ruleCode ->
-                billingRuleMapper.getActiveByRuleCode(ruleCode, LocalDateTime.now()));
+        this.billingRuleMapper = billingRuleMapper;
+        this.billingRuleCache = billingRuleCache();
     }
 
     /**
@@ -203,10 +221,70 @@ public class GatewayDataService {
     }
 
     /**
-     * Returns the requested value. Executes the public operation.
+     * 计费规则解析：先按模型显式绑定的规则业务码，未命中或未绑定时按模型族回退（族精确 → 默认规则）。
+     *
+     * @param ruleCode        模型显式绑定的计费规则业务码，可为空
+     * @param modelFamilyCode 模型族 code（派生自绑定统一模型的 model_family），可为空
      */
-    public BillingRuleEntity getActiveBillingRuleByCode(String ruleCode) {
-        return activeBillingRuleByCodeCache.get(ruleCode).orElse(null);
+    public BillingRuleEntity getActiveBillingRule(String ruleCode, String modelFamilyCode) {
+        BillingRuleKey key = new BillingRuleKey(normalize(ruleCode), normalize(modelFamilyCode));
+        Optional<BillingRuleEntity> cached = billingRuleCache.getIfPresent(key);
+        if (cached != null) {
+            return cached.orElse(null);
+        }
+        Optional<BillingRuleEntity> loaded = Optional.ofNullable(loadBillingRule(key));
+        billingRuleCache.put(key, loaded);
+        return loaded.orElse(null);
+    }
+
+    private BillingRuleEntity loadBillingRule(BillingRuleKey key) {
+        LocalDateTime now = LocalDateTime.now();
+        if (key.ruleCode() != null) {
+            BillingRuleEntity byCode = billingRuleMapper.getActiveByRuleCode(key.ruleCode(), now);
+            if (byCode != null) {
+                return byCode;
+            }
+        }
+        return billingRuleMapper.getActiveByModelFamily(key.modelFamilyCode(), now);
+    }
+
+    /**
+     * 计费规则缓存：命中与未命中用不同过期时长，避免「刚绑定规则却长时间不出计费」。
+     */
+    private Cache<BillingRuleKey, Optional<BillingRuleEntity>> billingRuleCache() {
+        long hitNanos = BILLING_RULE_HIT_TTL.toNanos();
+        long missNanos = BILLING_RULE_MISS_TTL.toNanos();
+        return Caffeine.newBuilder()
+                .maximumSize(2_000)
+                .expireAfter(new Expiry<BillingRuleKey, Optional<BillingRuleEntity>>() {
+                    @Override
+                    public long expireAfterCreate(BillingRuleKey key,
+                                                  Optional<BillingRuleEntity> value,
+                                                  long currentTime) {
+                        return value.isPresent() ? hitNanos : missNanos;
+                    }
+
+                    @Override
+                    public long expireAfterUpdate(BillingRuleKey key,
+                                                  Optional<BillingRuleEntity> value,
+                                                  long currentTime,
+                                                  long currentDuration) {
+                        return currentDuration;
+                    }
+
+                    @Override
+                    public long expireAfterRead(BillingRuleKey key,
+                                                Optional<BillingRuleEntity> value,
+                                                long currentTime,
+                                                long currentDuration) {
+                        return currentDuration;
+                    }
+                })
+                .build();
+    }
+
+    private static String normalize(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private TrafficPolicies loadTrafficPolicies(ResourceKey key,
@@ -250,5 +328,9 @@ public class GatewayDataService {
     }
 
     private record ResourceKey(String resourceType, Long resourceId) {
+    }
+
+    /** 计费规则缓存键：显式绑定码 + 模型族（两者都可为空） */
+    private record BillingRuleKey(String ruleCode, String modelFamilyCode) {
     }
 }

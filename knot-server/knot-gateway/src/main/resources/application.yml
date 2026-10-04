@@ -36,6 +36,17 @@ knot:
         enabled: false
         topic-prefix: knot.plugin
         bootstrap-servers: ${KNOT_PLUGIN_KAFKA_BOOTSTRAP_SERVERS:}
+  traffic:
+    # 计数存储：caffeine（单节点，默认） / redis（多节点共享同一份计数）
+    store: ${KNOT_TRAFFIC_STORE:caffeine}
+    # 存储键前缀：多环境共用同一 Redis 时用于隔离
+    key-prefix: ${KNOT_TRAFFIC_KEY_PREFIX:knot:traffic}
+    # 日 / 月额度窗口换算所用时区，多节点必须配置成同一个值
+    zone: ${KNOT_TRAFFIC_ZONE:Asia/Shanghai}
+    # caffeine 存储的最大条目数
+    maximum-size: ${KNOT_TRAFFIC_MAXIMUM_SIZE:200000}
+    # redis 不可用时是否放行：false 表示直接抛错
+    fail-open: ${KNOT_TRAFFIC_FAIL_OPEN:true}
   gateway:
      cors:
       # 管理端流式调试直连网关时使用；生产环境请通过配置覆盖

@@ -40,7 +40,9 @@ public class AnthropicUsageExtractor extends DefaultUsageExtractor {
         if (usage.isEmpty()) {
             return usage;
         }
-        long inputTokens = usage.inputTokens() + usage.cacheReadTokens() + usage.cacheWriteTokens();
+        // Anthropic 的 input_tokens 不含缓存读写，两侧相加才是输入侧 token 总量；
+        // 缓存写走有效总量（ttl 明细优先），避免 5m/1h 口径下漏算
+        long inputTokens = usage.inputTokens() + usage.cacheReadTokens() + usage.cacheWriteTotal();
         long totalTokens = Math.max(usage.totalTokens(), inputTokens + usage.outputTokens());
         return new BillingUsage(
                 inputTokens,
@@ -48,6 +50,8 @@ public class AnthropicUsageExtractor extends DefaultUsageExtractor {
                 totalTokens,
                 usage.cacheReadTokens(),
                 usage.cacheWriteTokens(),
+                usage.cacheWrite5mTokens(),
+                usage.cacheWrite1hTokens(),
                 usage.amount()
         );
     }
