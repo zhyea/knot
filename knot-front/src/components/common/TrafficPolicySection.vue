@@ -11,12 +11,12 @@
     <!-- 限流：模型 / 路由规则层 -->
     <el-row v-if="mode === 'rate'" :gutter="16">
       <el-col :span="12">
-        <el-form-item label="每分钟请求数（RPM）">
+        <el-form-item label="每分钟请求数（RPM）" label-width="120px">
           <el-input-number v-model="rateDraft.rpm" :min="0" :step="10" controls-position="right" class="traffic-policy__field"/>
         </el-form-item>
       </el-col>
       <el-col :span="12">
-        <el-form-item label="每分钟 Token（TPM）">
+        <el-form-item label="每分钟 Token（TPM）" label-width="120px">
           <el-input-number v-model="rateDraft.tpm" :min="0" :step="1000" controls-position="right" class="traffic-policy__field"/>
         </el-form-item>
       </el-col>
