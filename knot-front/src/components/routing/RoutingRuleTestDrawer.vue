@@ -24,13 +24,9 @@
             </el-button>
           </div>
 
-          <div class="request-summary">
-            <el-tag size="small" effect="plain">规则：{{ props.ruleName?.trim() || `#${props.ruleId || "-"}` }}</el-tag>
-          </div>
-
-          <el-form label-width="72px" class="test-form">
+          <el-form label-width="0px" class="test-form">
             <div class="test-form__row">
-              <el-form-item label="协议">
+              <el-form-item label="">
                 <el-select
                   v-model="testForm.protocol"
                   :loading="protocolLoading"
@@ -596,9 +592,44 @@ function ensureTemplateForCurrentSelection() {
   if (!protocol || !activeTemplateKey.value) {
     return;
   }
-  selectedPresetId.value = null;
   if (!templateStore[activeTemplateKey.value]) {
-    templateStore[activeTemplateKey.value] = createDefaultTemplate(protocol);
+    // 首次为该 (target, protocol) 生成模板：有可选项则默认选中第一个预设并载入其请求体
+    seedTemplateForProtocol();
+  } else if (selectedPresetId.value == null && filteredPresetOptions.value.length) {
+    // 模板已存在（多为预设未加载时的空白占位）：补选第一个预设
+    autoSelectFirstPreset();
+  }
+}
+
+/** 为该 (target, protocol) 首次生成模板：存在可选项时默认选中第一个预设并载入请求体，否则留空白默认 */
+function seedTemplateForProtocol() {
+  const first = filteredPresetOptions.value[0];
+  if (first) {
+    onPresetChange(first.id);
+  } else {
+    selectedPresetId.value = null;
+    templateStore[activeTemplateKey.value] = createDefaultTemplate(activeProtocol.value);
+  }
+}
+
+/**
+ * 预设请求下拉「默认选中第一个」：未选中且存在可选项时，自动选中过滤后的第一个。
+ * 仅当模板仍为空白占位（未加载过预设 / 用户尚未编辑）才覆盖模板，避免清掉用户已输入的内容。
+ */
+function autoSelectFirstPreset() {
+  if (selectedPresetId.value != null) {
+    return;
+  }
+  const first = filteredPresetOptions.value[0];
+  if (!first) {
+    return;
+  }
+  const current = templateStore[activeTemplateKey.value] || "";
+  const isBlank = !current.trim() || current.trim() === "{}";
+  if (isBlank) {
+    onPresetChange(first.id);
+  } else {
+    selectedPresetId.value = first.id;
   }
 }
 
@@ -624,9 +655,13 @@ async function loadPresetOptions() {
   } catch {
     presetOptions.value = [];
   }
+  // 预设加载完成后，若当前未选中任何预设，默认选中过滤后的第一个（协议已确定时生效）
+  autoSelectFirstPreset();
 }
 
 function onPresetChange(presetId: number | string | null) {
+  // 同步选中态：用户交互由 v-model 赋值，但程序化调用需在此显式设置
+  selectedPresetId.value = presetId;
   if (!presetId) {
     return;
   }
@@ -640,20 +675,9 @@ function onPresetChange(presetId: number | string | null) {
 }
 
 function createDefaultTemplate(protocol: unknown): string {
-  // 默认请求体由「预设请求」用例提供（替代原硬编码骨架）；同协议优先取非流式用例，否则回退最小结构
-  const candidates = presetOptions.value.filter((preset) => preset.protocolCode === normalizeProtocolCode(protocol));
-  // 同一协议同时提供流式与非流式用例时，默认保持非流式；用户可在下拉中主动选择流式版本。
-  const candidate = candidates.find((preset) => {
-    const parsed = safeParseTemplate(preset.requestBody);
-    const body = parsed.value as Dict;
-    return !parsed.error && body?.stream !== true;
-  }) || candidates[0];
-  const parsed = candidate ? safeParseTemplate(candidate.requestBody) : {error: true, value: {}};
-  const base = parsed.error ? {} : parsed.value;
-  if (candidate) {
-    selectedPresetId.value = candidate.id;
-  }
-  return formatJson(stripModelField(base));
+  // 无预设可用时的空白默认请求体；具体结构由「预设请求」用例提供（替代原硬编码骨架）
+  void protocol;
+  return "{}";
 }
 
 /** 客户端无需传 model：请求体的 model 由网关按路由目标的上游模型覆盖，这里一律剔除 */
