@@ -132,7 +132,11 @@ export async function readEventStream(
     for (const event of parser.push(decoder.decode())) {
       onEvent(event);
     }
-    parser.flush();
+    // EOF 可能没有以空行结束，仍需把残留的完整事件交给调用方。
+    const trailingEvent = parser.flush();
+    if (trailingEvent) {
+      onEvent(trailingEvent);
+    }
   } finally {
     // 取消时释放底层连接；已结束时 cancel 也能安全忽略
     try {
