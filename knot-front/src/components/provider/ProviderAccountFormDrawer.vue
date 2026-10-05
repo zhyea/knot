@@ -107,7 +107,9 @@
 
         <TrafficPolicySection
           class="slot-body"
-          v-model:rate-limit="form.rateLimitPolicy"
+          mode="quota"
+          title="限额配置"
+          description="按统计窗口约束该供应商账户可消耗的 Token 总量与成本上限。"
           v-model:quota="form.quotaPolicy"
         />
       </el-form>
@@ -125,6 +127,11 @@ import {type PropType, computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import KvEditor from "../common/KvEditor.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
+import {
+  emptyQuotaPolicy,
+  isEmptyQuotaPolicy,
+  normalizeQuotaPolicy
+} from "@/utils/trafficPolicy";
 import {useAuth} from "@/composables/useAuth";
 import {listProviderProfiles} from "@/api/providerProfiles";
 import {
@@ -176,8 +183,7 @@ const form = reactive<Dict>({
   credentialType: null,
   authApplier: null,
   authConfig: {apiKey: ""},
-  rateLimitPolicy: {},
-  quotaPolicy: {}
+  quotaPolicy: emptyQuotaPolicy()
 });
 
 const isEdit = computed(() => props.providerId != null);
@@ -288,9 +294,7 @@ function fillFormFromRow(row: Row) {
   form.authConfig = normalizeAuthConfig(row.authConfig);
   // 初次加载：把存量 authConfig 里不属于当前类型的键拆到自定义编辑器，一次性完成
   syncCredentialParts();
-  form.rateLimitPolicy =
-    row.rateLimitPolicy && typeof row.rateLimitPolicy === "object" ? {...row.rateLimitPolicy} : {};
-  form.quotaPolicy = row.quotaPolicy && typeof row.quotaPolicy === "object" ? {...row.quotaPolicy} : {};
+  form.quotaPolicy = normalizeQuotaPolicy(row.quotaPolicy);
   if (form.code) {
     codeValidated.value = true;
   }
@@ -306,8 +310,7 @@ function clearForm() {
   form.authApplier = null;
   form.authConfig = defaultAuthConfig();
   syncCredentialParts();
-  form.rateLimitPolicy = {};
-  form.quotaPolicy = {};
+  form.quotaPolicy = emptyQuotaPolicy();
 }
 
 async function resetForm() {
@@ -426,8 +429,7 @@ function buildPayload(): Dict {
     credentialType: form.credentialType,
     authApplier: form.authApplier,
     authConfig: Object.keys(authConfig).length ? authConfig : null,
-    rateLimitPolicy: Object.keys(form.rateLimitPolicy).length ? form.rateLimitPolicy : null,
-    quotaPolicy: Object.keys(form.quotaPolicy).length ? form.quotaPolicy : null
+    quotaPolicy: isEmptyQuotaPolicy(form.quotaPolicy) ? null : normalizeQuotaPolicy(form.quotaPolicy)
   };
 }
 

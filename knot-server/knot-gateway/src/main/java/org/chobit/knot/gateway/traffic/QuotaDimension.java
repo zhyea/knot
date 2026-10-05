@@ -2,47 +2,53 @@ package org.chobit.knot.gateway.traffic;
 
 import org.chobit.knot.gateway.model.QuotaPolicy;
 
-import java.time.Duration;
-import java.time.YearMonth;
-import java.time.ZonedDateTime;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 /**
- * 额度维度：与 {@code kb_quota_policies} 的三个限额字段一一对应。
+ * 限额维度：与 {@code kb_quota_policies} 的 {@code max_tokens} / {@code cost_limit} 一一对应。
  *
- * <p>口径（由 robin 拍板）：</p>
- * <ul>
- *   <li>{@code daily_limit} —— 自然日窗口内的<b>请求数</b>上限；</li>
- *   <li>{@code monthly_limit} —— 自然月窗口内的<b>请求数</b>上限；</li>
- *   <li>{@code token_limit} —— <b>累计 token</b> 上限，不按窗口清零。</li>
- * </ul>
+ * <p>两者都按策略指定的
+ * {@link org.chobit.knot.gateway.constants.enums.QuotaWindowEnum 统计窗口}累计、窗口结束清零，
+ * 且都在请求成功后才记账——上游失败与 failover 重试不消耗额度。</p>
  *
- * <p>日 / 月窗口的起止按配置的时区换算（默认 {@code Asia/Shanghai}）；
- * 累计 token 没有自然边界，采用「滑动续期」：每次累加都把 TTL 往后推
- * {@link #TOTAL_SLIDING_TTL}，长期无流量的资源会被存储自动淘汰，不会无限堆积。</p>
+ * <p>成本维度以「纳元」（1e-8）为单位存成整数计数：与计费侧口径对齐——
+ * {@code AbstractBillingModeCalculator.cost} 产出的成本就是 {@code setScale(8, HALF_UP)}，
+ * 缩放因子必须一致，否则小额成本（单价 1e-6 / 1e-8 量级）会被截断成 0，
+ * 表现为「明明花超了却一直不超限」。用 {@code long} 缩放值累加既避开浮点误差，
+ * 也与 Redis {@code INCRBY} 的语义天然契合。</p>
+ *
+ * <p><b>配置精度与计数精度是两回事，别一起改</b>：用户配置成本上限只要求 4 位小数
+ * （{@code cost_limit DECIMAL(18,4)}、前端 {@code precision=4}），那是「预算能配到多细」的诉求；
+ * 但内部计数必须保留 8 位——若把本缩放因子降到 4，单次 1e-8 的成本会截断成 0，
+ * 额度永远不累加，直接退回「明明花超了却一直不超限」。</p>
+ *
+ * <p>取值上界：{@code long} 计数约 9.2e18，对应金额上限约 9.2e10（百亿），
+ * 远超任何配额场景，无需额外保护。</p>
  */
 public enum QuotaDimension {
 
-    DAILY_REQUESTS("DAILY_REQUESTS", true),
-    MONTHLY_REQUESTS("MONTHLY_REQUESTS", true),
-    TOTAL_TOKENS("TOTAL_TOKENS", false);
+    TOKENS("TOKENS"),
+    COST("COST");
 
     /**
-     * 累计 token 维度的滑动续期时长。
+     * 成本的计数单位：1 元 = 10^8 计数（纳元），与计费侧 {@code setScale(8, HALF_UP)} 对齐。
+     *
+     * <p><b>不要因为成本上限只配 4 位小数就把它降到 4</b>——那样单次 1e-8 的成本
+     * 会截断成 0，额度永远不累加。</p>
      */
-    public static final Duration TOTAL_SLIDING_TTL = Duration.ofDays(30);
+    public static final int COST_SCALE = 8;
 
     /**
-     * 全部额度维度。
+     * 全部限额维度。
      */
-    public static final List<QuotaDimension> ALL = List.of(DAILY_REQUESTS, MONTHLY_REQUESTS, TOTAL_TOKENS);
+    public static final List<QuotaDimension> ALL = List.of(TOKENS, COST);
 
     private final String code;
-    private final boolean requestBased;
 
-    QuotaDimension(String code, boolean requestBased) {
+    QuotaDimension(String code) {
         this.code = code;
-        this.requestBased = requestBased;
     }
 
     /**
@@ -53,57 +59,44 @@ public enum QuotaDimension {
     }
 
     /**
-     * 是否按「请求数」计数；{@code false} 表示按 token 数计数。
-     */
-    public boolean requestBased() {
-        return requestBased;
-    }
-
-    /**
-     * 该维度在给定策略下的限额；{@code <= 0} 表示这一维度不做限制。
+     * 该维度在给定策略下的限额（成本维度已换算成纳元计数）；{@code <= 0} 表示这一维度不限。
+     *
+     * <p>成本维度缺币种时视为未配置——不做汇率换算，币种不明就不累加。</p>
      */
     public long limitOf(QuotaPolicy policy) {
         if (policy == null) {
             return 0L;
         }
-        return switch (this) {
-            case DAILY_REQUESTS -> policy.dailyLimit();
-            case MONTHLY_REQUESTS -> policy.monthlyLimit();
-            case TOTAL_TOKENS -> policy.tokenLimit();
-        };
+        if (this == TOKENS) {
+            return policy.maxTokens();
+        }
+        if (policy.costLimit() == null || policy.currency() == null || policy.currency().isBlank()) {
+            return 0L;
+        }
+        return toScaledAmount(policy.costLimit());
+    }
+
+    /**
+     * 金额 → 纳元计数（金额 × 10^8）。
+     *
+     * <p>注意是<b>乘</b> 10^8 而不是 {@code setScale(8, …)}：{@code setScale} 只改小数位数，
+     * {@code new BigDecimal("10.00").setScale(8, HALF_UP)} 仍是 {@code 10.00000000}（{@code longValue}=10），
+     * 不是 10^8 —— 那样写会把 6.00 这种正常金额当成 6 纳元，额度完全失效。</p>
+     *
+     * <p>{@code setScale(0, HALF_UP)} 收尾是为了让超过 8 位小数的输入按四舍五入收敛到整数计数，
+     * 而不是静默截断（截断会让「已超限」判定偏松）。</p>
+     */
+    public static long toScaledAmount(BigDecimal amount) {
+        if (amount == null) {
+            return 0L;
+        }
+        return amount.movePointRight(COST_SCALE).setScale(0, RoundingMode.HALF_UP).longValueExact();
     }
 
     /**
      * 该维度超限时对应的拒绝原因。
      */
     public TrafficRejectReason rejectReason() {
-        return switch (this) {
-            case DAILY_REQUESTS -> TrafficRejectReason.QUOTA_DAILY;
-            case MONTHLY_REQUESTS -> TrafficRejectReason.QUOTA_MONTHLY;
-            case TOTAL_TOKENS -> TrafficRejectReason.QUOTA_TOKEN;
-        };
-    }
-
-    /**
-     * 当前时刻所在的窗口标识：自然日 / 自然月 / 固定值 {@code ALL}。
-     */
-    public String windowId(ZonedDateTime now) {
-        return switch (this) {
-            case DAILY_REQUESTS -> now.toLocalDate().toString();
-            case MONTHLY_REQUESTS -> YearMonth.from(now).toString();
-            case TOTAL_TOKENS -> "ALL";
-        };
-    }
-
-    /**
-     * 当前窗口的结束时刻（毫秒）。
-     */
-    public long expireAtMillis(ZonedDateTime now) {
-        return switch (this) {
-            case DAILY_REQUESTS -> now.toLocalDate().plusDays(1).atStartOfDay(now.getZone()).toInstant().toEpochMilli();
-            case MONTHLY_REQUESTS -> YearMonth.from(now).plusMonths(1)
-                    .atDay(1).atStartOfDay(now.getZone()).toInstant().toEpochMilli();
-            case TOTAL_TOKENS -> now.plus(TOTAL_SLIDING_TTL).toInstant().toEpochMilli();
-        };
+        return this == TOKENS ? TrafficRejectReason.QUOTA_TOKENS : TrafficRejectReason.QUOTA_COST;
     }
 }

@@ -9,8 +9,8 @@
         <el-input-number
           :model-value="prices[field.key]"
           :min="0"
-          :step="0.0001"
-          :precision="6"
+          :step="UNIT_PRICE_STEP"
+          :precision="UNIT_PRICE_PRECISION"
           placeholder="必填"
           class="tier-price-field__input"
           @update:model-value="(value) => update(field.key, value)"
@@ -23,6 +23,7 @@
 <script setup lang="ts">
 import {computed} from "vue";
 import {TIER_PRICE_FIELDS, issueMessage, toNumberOrNull} from "@/utils/billingTier";
+import {UNIT_PRICE_PRECISION, UNIT_PRICE_STEP} from "@/utils/billingPrice";
 import type {TierIssue, TierPriceSet} from "@/utils/billingTier";
 
 const props = defineProps({

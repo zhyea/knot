@@ -1,4 +1,5 @@
 import type {Dict} from "@/types";
+import {UNIT_PRICE_PRECISION} from "@/utils/billingPrice";
 
 /**
  * Compatible with Jackson LocalDateTime arrays like `[y,m,d,h,mi,s,nano]`.
@@ -132,20 +133,25 @@ export function highlightJsonHtml(value: unknown): string {
 }
 
 /**
- * Format money with 4 decimal places.
+ * Format money with 8 decimal places.
+ *
+ * <p>精度与计费侧 {@code setScale(8, HALF_UP)} 一致：成本单价常在 1e-6 ~ 1e-8 量级，
+ * 4 位会把 0.00000001 显示成 0.0000，看起来像「没花钱」。</p>
  */
 export function fmtMoney(v: unknown): string {
   if (v == null || v === "") return "—";
   const n = Number(v);
   if (Number.isNaN(n)) return String(v);
-  return n.toFixed(4);
+  return n.toFixed(UNIT_PRICE_PRECISION);
 }
 
 /**
- * 计费项精度收敛：保留 6 位小数上限（输入框不做显示补零，仅在确认/提交时收敛）。
+ * 计费项精度收敛：保留 8 位小数上限（输入框不做显示补零，仅在确认/提交时收敛）。
  * 空/非法值返回 undefined，便于直接回写给可空字段。
+ *
+ * <p>默认 8 位与 {@link UNIT_PRICE_PRECISION} 一致；用 6 位会把 1e-8 单价抹成 0。</p>
  */
-export function roundPrice(value: unknown, decimals = 6): number | undefined {
+export function roundPrice(value: unknown, decimals = UNIT_PRICE_PRECISION): number | undefined {
   if (value == null || value === "") return undefined;
   const n = Number(value);
   if (Number.isNaN(n)) return undefined;

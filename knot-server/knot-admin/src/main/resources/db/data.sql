@@ -457,27 +457,28 @@ INSERT IGNORE INTO kb_provider_accounts (id, provider_code, code, status) VALUES
 (4, 'qwen',      'qwen-default',      'ENABLED');
 
 -- 频控/额度策略（独立表 + 资源绑定）
-INSERT IGNORE INTO kb_rate_limit_policies (id, policy_code, policy_name, per_second, per_minute, time_window, status) VALUES
-(1, 'PROVIDER-1-RL', 'PROVIDER #1 频控', 100, 5000, 'MINUTE', 'ACTIVE'),
-(2, 'PROVIDER-2-RL', 'PROVIDER #2 频控', 50,  2000, 'MINUTE', 'ACTIVE'),
-(3, 'PROVIDER-3-RL', 'PROVIDER #3 频控', 30,  1000, 'MINUTE', 'ACTIVE'),
-(4, 'APP-1-RL',      'APP #1 频控',      10,  600,  'MINUTE', 'ACTIVE'),
-(5, 'APP-2-RL',      'APP #2 频控',      5,   300,  'MINUTE', 'ACTIVE');
+INSERT IGNORE INTO kb_rate_limit_policies (id, policy_code, policy_name, rpm, tpm, status) VALUES
+(1, 'MODEL-1-RL',        'MODEL #1 限流',         60,  200000, 'ACTIVE'),
+(2, 'MODEL-4-RL',        'MODEL #4 限流',         30,  100000, 'ACTIVE'),
+(3, 'ROUTING_RULE-1-RL', 'ROUTING_RULE #1 限流', 120,  500000, 'ACTIVE');
 
-INSERT IGNORE INTO kb_quota_policies (id, policy_code, policy_name, daily_limit, monthly_limit, token_limit, alert_enabled, status) VALUES
-(1, 'PROVIDER-1-QT', 'PROVIDER #1 额度', 1000000, 30000000, 500000000, 1, 'ACTIVE'),
-(2, 'PROVIDER-2-QT', 'PROVIDER #2 额度', 500000,  15000000, 200000000, 1, 'ACTIVE'),
-(3, 'PROVIDER-3-QT', 'PROVIDER #3 额度', 200000,  6000000,  100000000, 0, 'ACTIVE'),
-(4, 'APP-1-QT',      'APP #1 额度',      10000,   300000,   5000000,   1, 'ACTIVE'),
-(5, 'APP-2-QT',      'APP #2 额度',      5000,    150000,   2000000,   1, 'ACTIVE');
+INSERT IGNORE INTO kb_quota_policies (id, policy_code, policy_name, max_tokens, cost_limit, currency, quota_window, status) VALUES
+(1, 'PROVIDER-1-QT', 'PROVIDER #1 额度', 500000000, 20000.000000, 'USD', 'MONTH', 'ACTIVE'),
+(2, 'PROVIDER-2-QT', 'PROVIDER #2 额度', 200000000,  8000.000000, 'USD', 'MONTH', 'ACTIVE'),
+(3, 'PROVIDER-3-QT', 'PROVIDER #3 额度', 100000000,  3000.000000, 'CNY', 'MONTH', 'ACTIVE'),
+(4, 'APP-1-QT',      'APP #1 额度',        5000000,   500.000000, 'USD', 'MONTH', 'ACTIVE'),
+(5, 'APP-2-QT',      'APP #2 额度',         200000,    20.000000, 'USD', 'DAY',   'ACTIVE');
 
 INSERT IGNORE INTO kb_resource_traffic_policies (id, resource_type, resource_id, rate_limit_policy_id, quota_policy_id) VALUES
-(1, 'PROVIDER', 1, 1, 1),
-(2, 'PROVIDER', 2, 2, 2),
-(3, 'PROVIDER', 3, 3, 3),
-(6, 'PROVIDER', 4, 3, 3),
-(4, 'APP',      1, 4, 4),
-(5, 'APP',      2, 5, 5);
+(1, 'PROVIDER',     1, NULL, 1),
+(2, 'PROVIDER',     2, NULL, 2),
+(3, 'PROVIDER',     3, NULL, 3),
+(6, 'PROVIDER',     4, NULL, 3),
+(4, 'APP',          1, NULL, 4),
+(5, 'APP',          2, NULL, 5),
+(7, 'MODEL',        1, 1, NULL),
+(8, 'MODEL',        4, 2, NULL),
+(9, 'ROUTING_RULE', 1, 3, NULL);
 
 -- 供应商凭证（认证配置整体以 AES-GCM 密文保存；前缀 ENC:）
 -- 密文解密后必须是 JSON 对象形态（如 {"apiKey":"sk-..."}），与 ProviderCredentialSupport.saveAuthConfig

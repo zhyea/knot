@@ -1,20 +1,25 @@
 package org.chobit.knot.gateway.traffic;
 
+import org.chobit.knot.gateway.constants.enums.QuotaWindowEnum;
+
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 /**
- * 频控 / 额度计数键的拼装入口。
+ * 限流 / 限额计数键的拼装入口。
  *
- * <p>键格式：{@code <prefix>:<维度族>:<资源类型>:<资源ID>:<维度>:<窗口>}，例如：</p>
+ * <p>键格式：{@code <prefix>:<维度族>:<资源类型>:<资源ID>:<维度>[:<币种>]:<窗口>}，例如：</p>
  * <pre>
- * knot:traffic:rl:MODEL:12:SECOND:1760000000
- * knot:traffic:qt:APP:3:DAILY_REQUESTS:2026-10-04
- * knot:traffic:qt:MODEL:12:TOTAL_TOKENS:ALL
+ * knot:traffic:rl:MODEL:12:RPM:29333333
+ * knot:traffic:rl:MODEL:12:TPM:29333333
+ * knot:traffic:qt:APP:3:TOKENS:202610
+ * knot:traffic:qt:APP:3:COST:USD:20261005
  * </pre>
  *
- * <p>键里带上窗口标识，计数条目随窗口自然过期，不需要后台清理任务。</p>
+ * <p>限流键用 epoch 分钟序号（与时区无关），限额键用按时区换算的窗口标识
+ * （{@code 202610} 表示 2026 年 10 月，{@code 20261005} 表示 10 月 5 日当天）。
+ * 换窗口即换键、旧键随 TTL 过期，因此两类键都不需要后台清理任务。</p>
  */
 public final class TrafficCounterKeys {
 
@@ -28,7 +33,7 @@ public final class TrafficCounterKeys {
      * Constructs a new instance.
      *
      * @param prefix 键前缀，多环境共用同一 Redis 时用于隔离
-     * @param zone   日 / 月窗口换算所用时区
+     * @param zone   限额窗口换算所用时区；多节点必须一致
      */
     public TrafficCounterKeys(String prefix, ZoneId zone) {
         this.prefix = prefix;
@@ -36,21 +41,34 @@ public final class TrafficCounterKeys {
     }
 
     /**
-     * 频控计数键：窗口由 epoch 毫秒整除得出，与时区无关。
+     * 限流计数键：分钟级固定窗口，由 epoch 毫秒整除得出。
      */
-    public TrafficCounterKey rateLimit(String resourceType, long resourceId, RateLimitWindow window, long nowMillis) {
+    public TrafficCounterKey rateLimit(String resourceType,
+                                       long resourceId,
+                                       RateLimitDimension dimension,
+                                       long nowMillis) {
         String key = prefix + ':' + RATE_LIMIT_PREFIX + ':' + resourceType + ':' + resourceId
-                + ':' + window.code() + ':' + window.windowId(nowMillis);
-        return new TrafficCounterKey(key, window.expireAtMillis(nowMillis));
+                + ':' + dimension.code() + ':' + dimension.windowId(nowMillis);
+        return new TrafficCounterKey(key, dimension.expireAtMillis(nowMillis));
     }
 
     /**
-     * 额度计数键：日 / 月窗口按配置时区换算。
+     * 限额计数键：窗口由策略决定，窗口一过自动清零。
+     *
+     * @param currency 仅成本维度需要，把不同币种分到不同键上
      */
-    public TrafficCounterKey quota(String resourceType, long resourceId, QuotaDimension dimension, Instant now) {
+    public TrafficCounterKey quota(String resourceType,
+                                   long resourceId,
+                                   QuotaDimension dimension,
+                                   QuotaWindowEnum window,
+                                   String currency,
+                                   Instant now) {
         ZonedDateTime zoned = now.atZone(zone);
+        String currencyPart = dimension == QuotaDimension.COST && currency != null
+                ? ':' + currency.trim().toUpperCase()
+                : "";
         String key = prefix + ':' + QUOTA_PREFIX + ':' + resourceType + ':' + resourceId
-                + ':' + dimension.code() + ':' + dimension.windowId(zoned);
-        return new TrafficCounterKey(key, dimension.expireAtMillis(zoned));
+                + ':' + dimension.code() + currencyPart + ':' + window.windowId(zoned);
+        return new TrafficCounterKey(key, window.expireAtMillis(zoned));
     }
 }

@@ -56,7 +56,9 @@
 
         <TrafficPolicySection
           class="slot-body"
-          v-model:rate-limit="form.rateLimitPolicy"
+          mode="quota"
+          title="限额配置"
+          description="按统计窗口约束该应用可消耗的 Token 总量与成本上限。"
           v-model:quota="form.quotaPolicy"
         />
       </el-form>
@@ -75,11 +77,8 @@ import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import {
   emptyQuotaPolicy,
-  emptyRateLimitPolicy,
   isEmptyQuotaPolicy,
-  isEmptyRateLimitPolicy,
-  normalizeQuotaPolicy,
-  normalizeRateLimitPolicy
+  normalizeQuotaPolicy
 } from "@/utils/trafficPolicy";
 import {createApp, updateApp} from "@/api/apps";
 import {listDepartments} from "@/api/departments";
@@ -105,7 +104,6 @@ const form = reactive({
   deptId: null,
   ownerUserId: null,
   remark: "",
-  rateLimitPolicy: emptyRateLimitPolicy(),
   quotaPolicy: emptyQuotaPolicy()
 });
 
@@ -149,7 +147,6 @@ function fillFormFromRow(row: Row): void {
   form.deptId = row.deptId ?? null;
   form.ownerUserId = row.ownerUserId ?? null;
   form.remark = row.remark ?? "";
-  form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
   form.quotaPolicy = normalizeQuotaPolicy(row.quotaPolicy);
 }
 
@@ -163,7 +160,6 @@ function resetForm() {
     form.deptId = null;
     form.ownerUserId = null;
     form.remark = "";
-    form.rateLimitPolicy = emptyRateLimitPolicy();
     form.quotaPolicy = emptyQuotaPolicy();
   }
 }
@@ -184,9 +180,6 @@ function onClosed() {
 }
 
 function buildPayload() {
-  const rateLimitPolicy = isEmptyRateLimitPolicy(form.rateLimitPolicy)
-    ? null
-    : normalizeRateLimitPolicy(form.rateLimitPolicy);
   const quotaPolicy = isEmptyQuotaPolicy(form.quotaPolicy)
     ? null
     : normalizeQuotaPolicy(form.quotaPolicy);
@@ -196,7 +189,6 @@ function buildPayload() {
     deptId: form.deptId,
     ownerUserId: form.ownerUserId,
     remark: form.remark?.trim() || null,
-    rateLimitPolicy,
     quotaPolicy
   };
 }

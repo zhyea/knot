@@ -1,47 +1,47 @@
 <template>
   <el-drawer
-      :model-value="modelValue"
-      :title="isEdit ? '编辑路由规则' : '新建路由规则'"
-      size="55%"
-      class="drawer-with-scrollbar"
-      destroy-on-close
-      @update:model-value="emit('update:modelValue', $event)"
-      @closed="onClosed"
+    :model-value="modelValue"
+    :title="isEdit ? '编辑路由规则' : '新建路由规则'"
+    size="55%"
+    class="drawer-with-scrollbar"
+    destroy-on-close
+    @update:model-value="emit('update:modelValue', $event)"
+    @closed="onClosed"
   >
     <el-scrollbar max-height="calc(100vh - 140px)">
-    <el-form :model="form" label-width="100px" class="routing-rule-form">
-      <div class="slot-body rule-section">
-        <div class="section-head">
-          <div>
-            <h3>基础信息</h3>
-            <p>定义规则编码、名称和可选应用场景，编码用于接口与审计定位。</p>
+      <el-form :model="form" label-width="100px" class="routing-rule-form">
+        <div class="slot-body rule-section">
+          <div class="section-head">
+            <div>
+              <h3>基础信息</h3>
+              <p>定义规则编码、名称和可选应用场景，编码用于接口与审计定位。</p>
+            </div>
+            <el-form-item label="启用" class="inline-switch">
+              <el-switch v-model="form.enabled"/>
+            </el-form-item>
           </div>
-          <el-form-item label="启用" class="inline-switch">
-            <el-switch v-model="form.enabled"/>
-          </el-form-item>
-        </div>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="规则编码" required :error="ruleCodeError">
-              <el-input
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="规则编码" required :error="ruleCodeError">
+                <el-input
                   v-model="form.ruleCode"
                   placeholder="最长 32 位"
                   maxlength="32"
                   show-word-limit
                   @blur="validateRuleCode"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="名称" required>
-              <el-input v-model="form.name"/>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="16">
-          <el-col :span="24">
-            <el-form-item label="应用场景">
-              <el-select
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="名称" required>
+                <el-input v-model="form.name"/>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="16">
+            <el-col :span="24">
+              <el-form-item label="应用场景">
+                <el-select
                   v-model="form.appScenarios"
                   placeholder="如：知识库问答、客服对话"
                   multiple
@@ -50,112 +50,118 @@
                   default-first-option
                   clearable
                   style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </div>
-
-      <div class="space-line"/>
-
-      <div class="slot-body rule-section">
-        <div class="section-head">
-          <div>
-            <h3>路由配置</h3>
-            <p>指定当前规则关联的应用与用户。</p>
-          </div>
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
         </div>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="绑定应用" required>
-              <RemoteEntitySelect
+
+        <div class="space-line"/>
+
+        <div class="slot-body rule-section">
+          <div class="section-head">
+            <div>
+              <h3>路由配置</h3>
+              <p>指定当前规则关联的应用与用户。</p>
+            </div>
+          </div>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="绑定应用" required>
+                <RemoteEntitySelect
                   v-model="form.appId"
+                  :code-only="false"
                   :load-function="loadAppOptions"
                   :label-function="appLabel"
                   :selected-options="selectedAppOptions"
                   placeholder="请选择应用"
                   style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="用户">
-              <RemoteEntitySelect
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="用户">
+                <RemoteEntitySelect
                   v-model="form.userId"
+                  :code-only="false"
                   :load-function="loadUserOptions"
                   :label-function="userLabel"
                   :selected-options="selectedUserOptions"
                   placeholder="请选择用户"
                   clearable
                   style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </div>
-
-      <div class="space-line"/>
-
-      <div class="slot-body rule-section">
-        <div class="section-head">
-          <div>
-            <h3>绑定消费者</h3>
-            <p>消费者维护 API Key，一个消费者可以对应多个路由规则。</p>
-          </div>
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
         </div>
-        <el-form-item label="绑定消费者" required class="bind-block-item consumer-bind-item">
-          <RemoteEntitySelect
+
+        <div class="space-line"/>
+
+        <div class="slot-body rule-section">
+          <div class="section-head">
+            <div>
+              <h3>绑定消费者</h3>
+              <p>消费者维护 API Key，一个消费者可以对应多个路由规则。</p>
+            </div>
+          </div>
+          <el-form-item label="绑定消费者" required class="bind-block-item consumer-bind-item">
+            <RemoteEntitySelect
               v-model="selectedConsumerId"
+              :code-only="false"
               :load-function="loadConsumerOptions"
               :label-function="consumerLabel"
               :selected-options="selectedConsumers"
               placeholder="请选择消费者"
               style="width: 100%"
               @change="onConsumerChange"
-          />
-        </el-form-item>
-        <el-table v-if="selectedConsumers.length" :data="selectedConsumers" border class="bind-table consumer-bind-table">
-          <el-table-column prop="consumerCode" label="消费者编码" min-width="160" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span class="bind-list__text">{{ row.consumerCode || "—" }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="name" label="消费者名称" min-width="160" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span class="bind-list__text">{{ row.name || "—" }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="是否启用" width="100" align="center">
-            <template #default="{ row }">
-              <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
-                {{ row.enabled === false ? "停用" : "启用" }}
-              </el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-
-      <div class="space-line"/>
-
-      <div class="slot-body rule-section">
-        <div class="section-head">
-          <div>
-            <h3>绑定路由目标</h3>
-            <p>路由目标可以是供应商模型或模型池，模型池会按自身策略解析为最终模型。</p>
-          </div>
+            />
+          </el-form-item>
+          <el-table v-if="selectedConsumers.length" :data="selectedConsumers" border
+                    class="bind-table consumer-bind-table">
+            <el-table-column prop="consumerCode" label="消费者编码" min-width="160" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="bind-list__text">{{ row.consumerCode || "—" }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="name" label="消费者名称" min-width="160" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="bind-list__text">{{ row.name || "—" }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="是否启用" width="100" align="center">
+              <template #default="{ row }">
+                <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
+                  {{ row.enabled === false ? "停用" : "启用" }}
+                </el-tag>
+              </template>
+            </el-table-column>
+          </el-table>
         </div>
-        <el-form-item label="目标类型" class="bind-block-item model-bind-item">
-          <el-radio-group v-model="targetType">
-            <el-radio-button
-              v-for="item in targetTypeOptions"
-              :key="item.value"
-              :value="item.value"
-            >{{ item.label }}</el-radio-button>
-          </el-radio-group>
-        </el-form-item>
-        <el-form-item label="绑定目标" required class="bind-block-item model-bind-item">
-          <RemoteEntitySelect
+
+        <div class="space-line"/>
+
+        <div class="slot-body rule-section">
+          <div class="section-head">
+            <div>
+              <h3>绑定路由目标</h3>
+              <p>路由目标可以是供应商模型或模型池，模型池会按自身策略解析为最终模型。</p>
+            </div>
+          </div>
+          <el-form-item label="目标类型" class="bind-block-item model-bind-item">
+            <el-radio-group v-model="targetType">
+              <el-radio-button
+                v-for="item in targetTypeOptions"
+                :key="item.value"
+                :value="item.value"
+              >{{ item.label }}
+              </el-radio-button>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="绑定目标" required class="bind-block-item model-bind-item">
+            <RemoteEntitySelect
               :key="targetType"
+              :code-only="false"
               v-model="selectedTargetIds"
               :load-function="loadTargetOptions"
               :label-function="targetLabel"
@@ -167,55 +173,58 @@
               collapse-tags-tooltip
               style="width: 100%"
               @change="onSelectedTargetsChange"
-          />
-        </el-form-item>
-        <el-table v-if="form.targets.length" :data="boundTargetRows" border :row-key="targetKey" class="bind-table model-bind-table">
-          <el-table-column label="目标类型" width="100" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span class="bind-list__text">{{ targetTypeLabel(row.targetType) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="targetCode" label="目标编码" min-width="150" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span class="bind-list__text">{{ row.targetCode || "—" }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="优先级" width="160" align="center">
-            <template #default="{ row }">
-              <el-input-number
-                v-model="row.priority"
-                :min="0"
-                :max="9999"
-                :disabled="primaryTargetKey === targetKey(row)"
-                class="bind-table-number"
-              />
-            </template>
-          </el-table-column>
-          <el-table-column label="主目标" width="80" align="center">
-            <template #default="{ row }">
-              <el-radio v-model="primaryTargetKeyModel" :value="targetKey(row)" label="" />
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="70" align="center">
-            <template #default="{ row }">
-              <el-button link type="danger" @click="removeTarget(row)">
-                <el-icon><Delete /></el-icon>
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
+            />
+          </el-form-item>
+          <el-table v-if="form.targets.length" :data="boundTargetRows" border :row-key="targetKey"
+                    class="bind-table model-bind-table">
+            <el-table-column label="目标类型" width="100" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="bind-list__text">{{ targetTypeLabel(row.targetType) }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column prop="targetCode" label="目标编码" min-width="150" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span class="bind-list__text">{{ row.targetCode || "—" }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="优先级" width="160" align="center">
+              <template #default="{ row }">
+                <el-input-number
+                  v-model="row.priority"
+                  :min="0"
+                  :max="9999"
+                  :disabled="primaryTargetKey === targetKey(row)"
+                  class="bind-table-number"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column label="主目标" width="80" align="center">
+              <template #default="{ row }">
+                <el-radio v-model="primaryTargetKeyModel" :value="targetKey(row)" label=""/>
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="70" align="center">
+              <template #default="{ row }">
+                <el-button link type="danger" @click="removeTarget(row)">
+                  <el-icon>
+                    <Delete/>
+                  </el-icon>
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
 
-      <div class="space-line"/>
+        <div class="space-line"/>
 
-      <TrafficPolicySection
-        class="slot-body rule-section"
-        title="策略配置"
-        description="按需覆盖频控和额度策略，留空时不单独配置。"
-        v-model:rate-limit="form.rateLimitPolicy"
-        v-model:quota="form.quotaPolicy"
-      />
-    </el-form>
+        <TrafficPolicySection
+          class="slot-body rule-section"
+          mode="rate"
+          title="限流配置"
+          description="按需覆盖路由规则级限流，留空时不单独配置。"
+          v-model:rate-limit="form.rateLimitPolicy"
+        />
+      </el-form>
     </el-scrollbar>
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
@@ -232,12 +241,10 @@ import {Delete} from "@element-plus/icons-vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import {
-  emptyQuotaPolicy,
   emptyRateLimitPolicy,
-  isEmptyQuotaPolicy,
   isEmptyRateLimitPolicy,
-  normalizeQuotaPolicy,
-  normalizeRateLimitPolicy
+  normalizeRateLimitPolicy,
+  type RateLimitPolicy
 } from "@/utils/trafficPolicy";
 import {createRoutingRule, updateRoutingRule, checkRoutingRuleCode, listRoutingConsumers} from "@/api/routing";
 import {listApps} from "@/api/apps";
@@ -267,7 +274,9 @@ const primaryTargetKey = ref<string | null>(null);
 /** el-radio 的 v-model 不接受 null：null（未指定主目标）映射为 undefined */
 const primaryTargetKeyModel = computed<string | undefined>({
   get: () => primaryTargetKey.value ?? undefined,
-  set: (value) => { primaryTargetKey.value = value ?? null; }
+  set: (value) => {
+    primaryTargetKey.value = value ?? null;
+  }
 });
 const targetType = ref("MODEL");
 
@@ -297,8 +306,7 @@ interface RuleForm {
   userId: number | string | null;
   enabled: boolean;
   targets: RuleTargetForm[];
-  rateLimitPolicy: Dict;
-  quotaPolicy: Dict;
+  rateLimitPolicy: RateLimitPolicy;
 }
 
 const form = reactive<RuleForm>({
@@ -311,44 +319,45 @@ const form = reactive<RuleForm>({
   userId: null,
   enabled: true,
   targets: [],
-  rateLimitPolicy: emptyRateLimitPolicy(),
-  quotaPolicy: emptyQuotaPolicy()
+  rateLimitPolicy: emptyRateLimitPolicy()
 });
 
 const selectedConsumers = computed(() =>
-    form.consumerIds.map((id, index) => {
-      const consumer = consumerOptions.value.find((item) => item.id === id);
-      return consumer || { id, name: props.rule?.consumerNames?.[index] };
-    })
+  form.consumerIds.map((id, index) => {
+    const consumer = consumerOptions.value.find((item) => item.id === id);
+    return consumer || {id, name: props.rule?.consumerNames?.[index]};
+  })
 );
 const selectedConsumerId = computed<string | number | null>({
   get: () => (form.consumerIds.length ? form.consumerIds[0] : null),
-  set: (value) => { form.consumerIds = value == null ? [] : [value]; }
+  set: (value) => {
+    form.consumerIds = value == null ? [] : [value];
+  }
 });
 const selectedTargetIds = computed({
   get: () => form.targets.filter((item) => item.targetType === targetType.value).map((item) => item.targetId),
   set: (ids) => onSelectedTargetsChange(ids)
 });
 const boundTargetRows = computed(() =>
-    form.targets.map((item) => {
-      const source = findTargetOption(item.targetType, item.targetId);
-      item.id = item.targetId;
-      item.targetCode = targetOptionCode(item.targetType, source) || item.targetCode;
-      item.targetName = targetOptionName(source) || item.targetName;
-      item.modelType = source?.modelType || item.modelType;
-      item.providerId = source?.providerId || item.providerId;
-      return item;
-    })
+  form.targets.map((item) => {
+    const source = findTargetOption(item.targetType, item.targetId);
+    item.id = item.targetId;
+    item.targetCode = targetOptionCode(item.targetType, source) || item.targetCode;
+    item.targetName = targetOptionName(source) || item.targetName;
+    item.modelType = source?.modelType || item.modelType;
+    item.providerId = source?.providerId || item.providerId;
+    return item;
+  })
 );
 const selectedTargetOptions = computed(() =>
-    form.targets
-        .filter((item) => item.targetType === targetType.value)
-        .map((item) => findTargetOption(item.targetType, item.targetId) || {
-          id: item.targetId,
-          modelCode: item.targetCode,
-          poolCode: item.targetCode,
-          name: item.targetName
-        })
+  form.targets
+    .filter((item) => item.targetType === targetType.value)
+    .map((item) => findTargetOption(item.targetType, item.targetId) || {
+      id: item.targetId,
+      modelCode: item.targetCode,
+      poolCode: item.targetCode,
+      name: item.targetName
+    })
 );
 const selectedAppOptions = computed(() =>
   resolveSelectedOption(form.appId, appOptions.value, {
@@ -454,9 +463,9 @@ function parseAppScenarioTags(value: unknown): string[] {
     return [];
   }
   return String(value)
-      .split(/[，,]/)
-      .map((item) => item.trim())
-      .filter(Boolean);
+    .split(/[，,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function buildAppScenarioValue() {
@@ -492,7 +501,6 @@ function resetForm() {
     form.userId = row.userId ?? null;
     form.enabled = row.enabled !== false;
     form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
-    form.quotaPolicy = normalizeQuotaPolicy(row.quotaPolicy);
     form.targets = (row.targets || []).map((m: Dict) => ({
       targetType: m.targetType || "MODEL",
       targetId: m.targetId,
@@ -516,34 +524,33 @@ function resetForm() {
     form.enabled = false;
     form.targets = [];
     form.rateLimitPolicy = emptyRateLimitPolicy();
-    form.quotaPolicy = emptyQuotaPolicy();
     primaryTargetKey.value = null;
   }
   ruleCodeError.value = "";
 }
 
 watch(
-    () => [props.modelValue, props.rule],
-    ([visible]) => {
-      if (visible) {
-        resetForm();
-        loadOptions();
-      }
+  () => [props.modelValue, props.rule],
+  ([visible]) => {
+    if (visible) {
+      resetForm();
+      loadOptions();
     }
+  }
 );
 
 watch(
-    () => form.ruleCode,
-    () => {
-      const normalized = normalizeRuleCode(form.ruleCode);
-      if (form.ruleCode !== normalized) {
-        form.ruleCode = normalized;
-        return;
-      }
-      if (ruleCodeError.value) {
-        ruleCodeError.value = "";
-      }
+  () => form.ruleCode,
+  () => {
+    const normalized = normalizeRuleCode(form.ruleCode);
+    if (form.ruleCode !== normalized) {
+      form.ruleCode = normalized;
+      return;
     }
+    if (ruleCodeError.value) {
+      ruleCodeError.value = "";
+    }
+  }
 );
 
 function onClosed() {
@@ -634,9 +641,8 @@ function buildSubmitPayload() {
     primary: targetKey(m) === primaryKey
   }));
   const rateLimitPolicy = isEmptyRateLimitPolicy(form.rateLimitPolicy)
-      ? null
-      : normalizeRateLimitPolicy(form.rateLimitPolicy);
-  const quotaPolicy = isEmptyQuotaPolicy(form.quotaPolicy) ? null : normalizeQuotaPolicy(form.quotaPolicy);
+    ? null
+    : normalizeRateLimitPolicy(form.rateLimitPolicy);
   return {
     ruleCode: normalizeRuleCode(form.ruleCode),
     name: form.name?.trim(),
@@ -646,8 +652,7 @@ function buildSubmitPayload() {
     userId: form.userId,
     enabled: form.enabled,
     targets,
-    rateLimitPolicy,
-    quotaPolicy
+    rateLimitPolicy
   };
 }
 

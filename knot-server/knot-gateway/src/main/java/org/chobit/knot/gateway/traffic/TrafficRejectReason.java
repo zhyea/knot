@@ -8,24 +8,24 @@ import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 public enum TrafficRejectReason {
 
     /**
-     * 超出频控阈值（秒级或分钟级窗口）。
+     * 超出每分钟请求数上限（RPM）。
      */
-    RATE_LIMIT(ProxyErrorCodeEnum.RATE_LIMIT_EXCEEDED),
+    RATE_LIMIT_RPM(ProxyErrorCodeEnum.RATE_LIMIT_EXCEEDED),
 
     /**
-     * 超出日请求数额度。
+     * 超出每分钟 token 上限（TPM）。
      */
-    QUOTA_DAILY(ProxyErrorCodeEnum.QUOTA_EXCEEDED),
+    RATE_LIMIT_TPM(ProxyErrorCodeEnum.RATE_LIMIT_EXCEEDED),
 
     /**
-     * 超出月请求数额度。
+     * 超出累计 token 限额。
      */
-    QUOTA_MONTHLY(ProxyErrorCodeEnum.QUOTA_EXCEEDED),
+    QUOTA_TOKENS(ProxyErrorCodeEnum.QUOTA_EXCEEDED),
 
     /**
-     * 超出累计 token 额度。
+     * 超出累计成本上限。
      */
-    QUOTA_TOKEN(ProxyErrorCodeEnum.QUOTA_EXCEEDED);
+    QUOTA_COST(ProxyErrorCodeEnum.QUOTA_EXCEEDED);
 
     private final ProxyErrorCodeEnum errorCode;
 
@@ -41,9 +41,9 @@ public enum TrafficRejectReason {
     }
 
     /**
-     * 是否为额度类拒绝（区别于频控类）。
+     * 是否为限额类拒绝（区别于限流类）。
      */
     public boolean quota() {
-        return this != RATE_LIMIT;
+        return this == QUOTA_TOKENS || this == QUOTA_COST;
     }
 }

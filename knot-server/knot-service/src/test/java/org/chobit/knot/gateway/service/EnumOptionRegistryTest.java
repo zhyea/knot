@@ -15,7 +15,7 @@ class EnumOptionRegistryTest {
     void exposesOnlyMigratedEnums() {
         Map<String, Map<String, String>> map = registry.enumMap();
 
-        assertEquals(17, map.size());
+        assertEquals(18, map.size());
         assertTrue(map.containsKey("ModelTypeEnum"));
         assertTrue(map.containsKey("ModelApiProtocolEnum"));
         assertTrue(map.containsKey("BillingModeEnum"));
@@ -24,6 +24,7 @@ class EnumOptionRegistryTest {
         assertTrue(map.containsKey("RouteTargetTypeEnum"));
         assertTrue(map.containsKey("BillingUnitEnum"));
         assertTrue(map.containsKey("CurrencyCodeEnum"));
+        assertTrue(map.containsKey("QuotaWindowEnum"));
         assertTrue(map.containsKey("ModelPoolSelectionStrategyEnum"));
         assertTrue(map.containsKey("PluginExtensionPoint"));
         assertTrue(map.containsKey("PluginStageCode"));
@@ -65,6 +66,11 @@ class EnumOptionRegistryTest {
         Map<String, String> currencies = registry.enumMap().get("CurrencyCodeEnum");
         assertEquals(2, currencies.size());
         assertEquals("CNY", currencies.get("CNY"));
+
+        Map<String, String> quotaWindows = registry.enumMap().get("QuotaWindowEnum");
+        assertEquals(5, quotaWindows.size());
+        assertEquals("每月", quotaWindows.get("MONTH"));
+        assertEquals("每分钟", quotaWindows.get("MINUTE"));
 
         Map<String, String> strategies = registry.enumMap().get("ModelPoolSelectionStrategyEnum");
         assertEquals(3, strategies.size());

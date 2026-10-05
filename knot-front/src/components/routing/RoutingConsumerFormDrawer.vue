@@ -91,9 +91,9 @@
 
       <TrafficPolicySection
         class="slot-body consumer-section"
-        title="策略配置"
-        description="消费者维度的频控和额度限制会与应用策略合并，取更严格的非零限制。"
-        v-model:rate-limit="form.rateLimitPolicy"
+        mode="quota"
+        title="限额配置"
+        description="消费者维度的限额会与应用限额合并，取更严格的非零上限。"
         v-model:quota="form.quotaPolicy"
       />
     </el-form>
@@ -112,11 +112,8 @@ import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import {
   emptyQuotaPolicy,
-  emptyRateLimitPolicy,
   isEmptyQuotaPolicy,
-  isEmptyRateLimitPolicy,
-  normalizeQuotaPolicy,
-  normalizeRateLimitPolicy
+  normalizeQuotaPolicy
 } from "@/utils/trafficPolicy";
 import {listUsers} from "@/api/users";
 import {
@@ -151,7 +148,6 @@ const form = reactive({
   userId: null,
   returnUsageDetail: false,
   enabled: true,
-  rateLimitPolicy: emptyRateLimitPolicy(),
   quotaPolicy: emptyQuotaPolicy()
 });
 
@@ -198,7 +194,6 @@ function resetForm(row: Row | null = null) {
   form.userId = row?.userId ?? null;
   form.returnUsageDetail = row?.returnUsageDetail === true;
   form.enabled = row?.enabled !== false;
-  form.rateLimitPolicy = normalizeRateLimitPolicy(row?.rateLimitPolicy);
   form.quotaPolicy = normalizeQuotaPolicy(row?.quotaPolicy);
   consumerCodeError.value = "";
 }
@@ -227,9 +222,6 @@ async function validateConsumerCode() {
 }
 
 function buildPayload() {
-  const rateLimitPolicy = isEmptyRateLimitPolicy(form.rateLimitPolicy)
-    ? null
-    : normalizeRateLimitPolicy(form.rateLimitPolicy);
   const quotaPolicy = isEmptyQuotaPolicy(form.quotaPolicy)
     ? null
     : normalizeQuotaPolicy(form.quotaPolicy);
@@ -239,7 +231,6 @@ function buildPayload() {
     userId: form.userId,
     returnUsageDetail: form.returnUsageDetail,
     enabled: form.enabled,
-    rateLimitPolicy,
     quotaPolicy
   };
 }

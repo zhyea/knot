@@ -281,12 +281,10 @@
 
         <TrafficPolicySection
           class="slot-body model-section"
-          title="策略配置"
-          description="按需配置模型级频控和额度策略；留空则不在模型维度覆盖。"
-          rate-label="Rate Limit"
+          mode="rate"
+          title="限流配置"
+          description="按需配置模型级限流；留空则不在模型维度覆盖。"
           v-model:rate-limit="form.rateLimitPolicy"
-          v-model:quota="form.quotaPolicy"
-          :columns="2"
         />
       </el-form>
     </el-scrollbar>
@@ -310,12 +308,10 @@ import ProviderAccountSelect from "../provider/ProviderAccountSelect.vue";
 import {useModelTypes} from "@/composables/useModelTypes";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {
-  emptyQuotaPolicy,
   emptyRateLimitPolicy,
-  isEmptyQuotaPolicy,
   isEmptyRateLimitPolicy,
-  normalizeQuotaPolicy,
-  normalizeRateLimitPolicy
+  normalizeRateLimitPolicy,
+  type RateLimitPolicy
 } from "@/utils/trafficPolicy";
 import {
   checkModelCode,
@@ -380,8 +376,7 @@ interface ModelFormState {
   billingRuleCode: string | null;
   version: string;
   enabled: boolean;
-  rateLimitPolicy: Dict;
-  quotaPolicy: Dict;
+  rateLimitPolicy: RateLimitPolicy;
   apiBindings: ModelApiBinding[];
 }
 
@@ -397,7 +392,6 @@ const form = reactive<ModelFormState>({
   version: "",
   enabled: false,
   rateLimitPolicy: emptyRateLimitPolicy(),
-  quotaPolicy: emptyQuotaPolicy(),
   apiBindings: []
 });
 
@@ -543,7 +537,6 @@ function fillForm(row: Row) {
   form.version = row.version || "1.0.0";
   form.enabled = row.enabled === true;
   form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
-  form.quotaPolicy = normalizeQuotaPolicy(row.quotaPolicy);
   form.apiBindings = normalizeApiBindings(row.apiBindings);
   if (form.modelCode) {
     modelCodeValidated.value = true;
@@ -628,7 +621,6 @@ async function resetForm() {
       form.version = defaultVersion();
       form.enabled = false;
       form.rateLimitPolicy = emptyRateLimitPolicy();
-      form.quotaPolicy = emptyQuotaPolicy();
       form.apiBindings = [];
     }
   } finally {
@@ -842,7 +834,6 @@ function buildPayload() {
     version: form.version,
     enabled: form.enabled,
     rateLimitPolicy: isEmptyRateLimitPolicy(form.rateLimitPolicy) ? null : normalizeRateLimitPolicy(form.rateLimitPolicy),
-    quotaPolicy: isEmptyQuotaPolicy(form.quotaPolicy) ? null : normalizeQuotaPolicy(form.quotaPolicy),
     apiBindings: buildApiBindingsPayload()
   };
 }

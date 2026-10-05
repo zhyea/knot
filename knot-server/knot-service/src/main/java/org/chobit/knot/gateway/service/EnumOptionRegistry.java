@@ -11,6 +11,7 @@ import org.chobit.knot.gateway.constants.enums.ModelPoolSelectionStrategyEnum;
 import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.constants.enums.EnumOption;
 import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
+import org.chobit.knot.gateway.constants.enums.QuotaWindowEnum;
 import org.chobit.knot.gateway.constants.enums.RouteTargetTypeEnum;
 import org.chobit.knot.gateway.constants.enums.RoutingTestStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ScheduledTaskRunStatusEnum;
@@ -46,6 +47,7 @@ public class EnumOptionRegistry {
         put(map, BillingModeEnum.class.getSimpleName(), BillingModeEnum.values());
         put(map, BillingUnitEnum.class.getSimpleName(), BillingUnitEnum.values());
         put(map, CurrencyCodeEnum.class.getSimpleName(), CurrencyCodeEnum.values());
+        put(map, QuotaWindowEnum.class.getSimpleName(), QuotaWindowEnum.values());
         put(map, PricingPlanEnum.class.getSimpleName(), PricingPlanEnum.values());
         put(map, EntityStatusEnum.class.getSimpleName(), EntityStatusEnum.values());
         put(map, RouteTargetTypeEnum.class.getSimpleName(), RouteTargetTypeEnum.values());

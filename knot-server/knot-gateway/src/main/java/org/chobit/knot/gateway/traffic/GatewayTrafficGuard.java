@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.traffic;
 
 import lombok.RequiredArgsConstructor;
+import org.chobit.knot.gateway.constants.enums.QuotaWindowEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.model.QuotaPolicy;
@@ -16,20 +17,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 网关流量守卫：频控 + 额度。
+ * 网关流量守卫：限流 + 限额。
  *
  * <h3>分层</h3>
  * <ul>
  *   <li>本类只负责<b>业务判定</b>：哪些资源要检查、限额是多少、超了算什么原因；</li>
- *   <li>计数一律下沉到 {@link TrafficCounterStore}，单节点 / 多节点只是换实现，判定代码不动。</li>
+ *   <li>策略来源 {@link TrafficPolicySource} 与计数存储 {@link TrafficCounterStore}
+ *       都是可替换依赖，单节点 / 多节点只是换实现，判定代码不动。</li>
  * </ul>
  *
  * <h3>口径</h3>
  * <ul>
- *   <li><b>频控</b>：请求进入即计数（{@code +1}，无论上游成败），秒级 / 分钟级固定窗口，
- *       阈值取 {@code per_second} / {@code per_minute}；</li>
- *   <li><b>额度</b>：请求前只判断「已用量是否达到上限」，请求成功后再按真实用量累加
- *       （日 / 月窗口计请求数，累计维度计 token）。上游失败不消耗额度。</li>
+ *   <li><b>限流</b>（模型 / 路由规则）：RPM 请求进入即 +1，超出即拒；
+ *       TPM 只能事后累加——请求前拿不到 token 数，超限在<b>后续请求</b>上拦住。</li>
+ *   <li><b>限额</b>（应用 / 供应商账户 / 消费者）：窗口内 token 与成本上限，
+ *       窗口由策略指定（分钟 / 小时 / 天 / 周 / 月），请求成功后才记账，
+ *       上游失败与 failover 重试不消耗额度。</li>
  * </ul>
  */
 @Component
@@ -70,31 +73,20 @@ public class GatewayTrafficGuard {
      *
      * @param routing 已解析的路由（应用 / 规则 / 消费者）
      * @param target 实际调用成功的路由目标（模型 / 供应商）
-     * @param tokens 本次调用消耗的 token 数，取不到时为 {@code 0}
+     * @param usage  本次用量（token 与成本）
      * @param context 与 {@link #checkTarget} 共用的请求上下文
      */
     public void record(ResolvedRouting routing,
                        RoutingRuleTargetDto target,
-                       long tokens,
+                       TrafficUsage usage,
                        TrafficCheckContext context) {
         List<ResourceRef> refs = new ArrayList<>(routingResources(routing));
         refs.addAll(targetResources(target, context));
         Instant now = Instant.now();
         for (ResourceRef ref : refs) {
-            QuotaPolicy quota = quotaPolicyOf(ref);
-            if (quota == null) {
-                continue;
-            }
-            for (QuotaDimension dimension : QuotaDimension.ALL) {
-                if (dimension.limitOf(quota) <= 0L) {
-                    continue;
-                }
-                long delta = dimension.requestBased() ? 1L : tokens;
-                if (delta <= 0L) {
-                    continue;
-                }
-                TrafficCounterKey key = counterKeys.quota(ref.type(), ref.id(), dimension, now);
-                counterStore.addAndGet(key.key(), delta, key.expireAtMillis());
+            TrafficPolicies policies = policySource.policiesOf(ref.type(), ref.id());
+            if (policies != null) {
+                accumulate(ref, policies, usage, now);
             }
         }
     }
@@ -102,61 +94,111 @@ public class GatewayTrafficGuard {
     private TrafficDecision checkResources(List<ResourceRef> refs, Instant now) {
         long nowMillis = now.toEpochMilli();
         for (ResourceRef ref : refs) {
-            TrafficPolicies policies = policySource.policiesOf(ref.type(), ref.id());
-            TrafficDecision rateLimit = checkRateLimit(ref, policies == null ? null : policies.rateLimitPolicy(), nowMillis);
-            if (!rateLimit.allowed()) {
-                return rateLimit;
+            TrafficResourceTypeEnum type = TrafficResourceTypeEnum.ofCode(ref.type());
+            if (type == null) {
+                continue;
             }
-            TrafficDecision quota = checkQuota(ref, policies == null ? null : policies.quotaPolicy(), now);
-            if (!quota.allowed()) {
-                return quota;
+            TrafficPolicies policies = policySource.policiesOf(ref.type(), ref.id());
+            RateLimitPolicy rateLimit = policies == null ? null : policies.rateLimitPolicy();
+            QuotaPolicy quota = policies == null ? null : policies.quotaPolicy();
+            if (type.supportsRateLimit()) {
+                TrafficDecision decision = checkRateLimit(ref, rateLimit, nowMillis);
+                if (!decision.allowed()) {
+                    return decision;
+                }
+            }
+            if (type.supportsQuota()) {
+                TrafficDecision decision = checkQuota(ref, quota, now);
+                if (!decision.allowed()) {
+                    return decision;
+                }
             }
         }
         return TrafficDecision.allow();
     }
 
     /**
-     * 频控：请求进入即计数，超出窗口阈值即拒绝。
+     * 限流：RPM 事前计数、TPM 只读判断（TPM 的用量在 {@link #record} 里累加）。
      */
     private TrafficDecision checkRateLimit(ResourceRef ref, RateLimitPolicy policy, long nowMillis) {
         if (policy == null) {
             return TrafficDecision.allow();
         }
-        for (RateLimitWindow window : RateLimitWindow.ALL) {
-            int limit = window.limitOf(policy);
+        for (RateLimitDimension dimension : RateLimitDimension.ALL) {
+            int limit = dimension.limitOf(policy);
             if (limit <= 0) {
                 continue;
             }
-            TrafficCounterKey key = counterKeys.rateLimit(ref.type(), ref.id(), window, nowMillis);
-            long used = counterStore.addAndGet(key.key(), 1L, key.expireAtMillis());
-            if (used > limit) {
-                return TrafficDecision.reject(TrafficRejectReason.RATE_LIMIT,
-                        ref.type(), ref.id(), limit, used, key.expireAtMillis());
+            TrafficCounterKey key = counterKeys.rateLimit(ref.type(), ref.id(), dimension, nowMillis);
+            long used = dimension.requestBased()
+                    ? counterStore.addAndGet(key.key(), 1L, key.expireAtMillis())
+                    : counterStore.get(key.key());
+            boolean exceeded = dimension.requestBased() ? used > limit : used >= limit;
+            if (exceeded) {
+                return reject(dimension.rejectReason(), ref, limit, used, key.expireAtMillis());
             }
         }
         return TrafficDecision.allow();
     }
 
     /**
-     * 额度：事后累计，所以这里只读不写——上游失败的请求不消耗额度。
+     * 限额：窗口内累计量，只读判断——上游失败的请求不消耗额度。
      */
     private TrafficDecision checkQuota(ResourceRef ref, QuotaPolicy policy, Instant now) {
         if (policy == null) {
             return TrafficDecision.allow();
         }
+        QuotaWindowEnum window = QuotaWindowEnum.fromCode(policy.window());
         for (QuotaDimension dimension : QuotaDimension.ALL) {
             long limit = dimension.limitOf(policy);
             if (limit <= 0L) {
                 continue;
             }
-            TrafficCounterKey key = counterKeys.quota(ref.type(), ref.id(), dimension, now);
+            TrafficCounterKey key = counterKeys.quota(ref.type(), ref.id(), dimension, window, policy.currency(), now);
             long used = counterStore.get(key.key());
             if (used >= limit) {
-                return TrafficDecision.reject(dimension.rejectReason(),
-                        ref.type(), ref.id(), limit, used, key.expireAtMillis());
+                return reject(dimension.rejectReason(), ref, limit, used, key.expireAtMillis());
             }
         }
         return TrafficDecision.allow();
+    }
+
+    /**
+     * 按资源所属层累加：限流层只累加 TPM，限额层累加 token 与成本。
+     */
+    private void accumulate(ResourceRef ref, TrafficPolicies policies, TrafficUsage usage, Instant now) {
+        TrafficResourceTypeEnum type = TrafficResourceTypeEnum.ofCode(ref.type());
+        if (type == null) {
+            return;
+        }
+        if (type.supportsRateLimit()) {
+            RateLimitPolicy rateLimit = policies.rateLimitPolicy();
+            if (rateLimit != null && rateLimit.tpm() > 0 && usage.tokens() > 0L) {
+                TrafficCounterKey key = counterKeys.rateLimit(ref.type(), ref.id(),
+                        RateLimitDimension.TPM, now.toEpochMilli());
+                counterStore.addAndGet(key.key(), usage.tokens(), key.expireAtMillis());
+            }
+        }
+        if (!type.supportsQuota()) {
+            return;
+        }
+        QuotaPolicy quota = policies.quotaPolicy();
+        if (quota == null) {
+            return;
+        }
+        QuotaWindowEnum window = QuotaWindowEnum.fromCode(quota.window());
+        if (quota.maxTokens() > 0L && usage.tokens() > 0L) {
+            TrafficCounterKey key = counterKeys.quota(ref.type(), ref.id(),
+                    QuotaDimension.TOKENS, window, null, now);
+            counterStore.addAndGet(key.key(), usage.tokens(), key.expireAtMillis());
+        }
+        if (QuotaDimension.COST.limitOf(quota) > 0L
+                && usage.hasCost()
+                && usage.currency().equalsIgnoreCase(quota.currency())) {
+            TrafficCounterKey key = counterKeys.quota(ref.type(), ref.id(),
+                    QuotaDimension.COST, window, quota.currency(), now);
+            counterStore.addAndGet(key.key(), QuotaDimension.toScaledAmount(usage.cost()), key.expireAtMillis());
+        }
     }
 
     private List<ResourceRef> routingResources(ResolvedRouting routing) {
@@ -194,7 +236,7 @@ public class GatewayTrafficGuard {
     }
 
     /**
-     * 供应商账户按 code 绑定策略，但频控资源列仍是账户主键 id，故这里解析成 id。
+     * 供应商账户按 code 绑定策略，但受控资源列仍是账户主键 id，故这里解析成 id。
      */
     private Long resolveProviderId(String providerAccountCode, TrafficCheckContext context) {
         if (providerAccountCode == null) {
@@ -203,9 +245,12 @@ public class GatewayTrafficGuard {
         return context.providerIds.computeIfAbsent(providerAccountCode, policySource::providerAccountIdOf);
     }
 
-    private QuotaPolicy quotaPolicyOf(ResourceRef ref) {
-        TrafficPolicies policies = policySource.policiesOf(ref.type(), ref.id());
-        return policies == null ? null : policies.quotaPolicy();
+    private static TrafficDecision reject(TrafficRejectReason reason,
+                                          ResourceRef ref,
+                                          long limit,
+                                          long used,
+                                          long resetAtMillis) {
+        return TrafficDecision.reject(reason, ref.type(), ref.id(), limit, used, resetAtMillis);
     }
 
     /**

@@ -3,7 +3,7 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.QuotaPolicyMapper">
 
     <sql id="Columns">
-        id, policy_code, policy_name, daily_limit, monthly_limit, token_limit, alert_enabled, status, remark
+        id, policy_code, policy_name, max_tokens, cost_limit, currency, quota_window, status, remark
     </sql>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.QuotaPolicyEntity">
@@ -19,17 +19,17 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_quota_policies(policy_code, policy_name, daily_limit, monthly_limit, token_limit, alert_enabled, status, remark)
-        values(#{policyCode}, #{policyName}, #{dailyLimit}, #{monthlyLimit}, #{tokenLimit}, #{alertEnabled}, #{status}, #{remark})
+        insert into kb_quota_policies(policy_code, policy_name, max_tokens, cost_limit, currency, quota_window, status, remark)
+        values(#{policyCode}, #{policyName}, #{maxTokens}, #{costLimit}, #{currency}, #{quotaWindow}, #{status}, #{remark})
     </insert>
 
     <update id="update">
         update kb_quota_policies
         set policy_name = #{policyName},
-            daily_limit = #{dailyLimit},
-            monthly_limit = #{monthlyLimit},
-            token_limit = #{tokenLimit},
-            alert_enabled = #{alertEnabled},
+            max_tokens = #{maxTokens},
+            cost_limit = #{costLimit},
+            currency = #{currency},
+            quota_window = #{quotaWindow},
             status = #{status},
             remark = #{remark}
         where id = #{id}

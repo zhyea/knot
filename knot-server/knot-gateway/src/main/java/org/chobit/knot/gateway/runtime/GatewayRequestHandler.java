@@ -18,6 +18,7 @@ import org.chobit.knot.gateway.routing.RoutingResolver;
 import org.chobit.knot.gateway.traffic.GatewayTrafficGuard;
 import org.chobit.knot.gateway.traffic.GatewayTrafficGuard.TrafficCheckContext;
 import org.chobit.knot.gateway.traffic.TrafficDecision;
+import org.chobit.knot.gateway.traffic.TrafficUsage;
 import org.chobit.knot.gateway.upstream.UpstreamProxyClient;
 import org.chobit.knot.gateway.upstream.stream.ProxyStreamingBody;
 import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
@@ -105,8 +106,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
             // 调用上游服务
             try {
                 ProxyResult result = proxyClient.proxy(requestBody, exchange.contentType(), candidate, protocol, traceparent);
-                // 额度事后累计：上游成功才记账，失败重试与 failover 不重复扣减
-                trafficGuard.record(routing, candidate, tokenDelta(result), trafficContext);
+                // 限额与 TPM 事后累计：上游成功才记账，失败重试与 failover 不重复扣减
+                trafficGuard.record(routing, candidate, usageOf(result), trafficContext);
                 return result;
             } catch (GatewayUpstreamException e) {
                 lastUpstreamException = e;
@@ -135,11 +136,18 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     }
 
     /**
-     * 本次调用的 token 用量：优先取计费结果，无计费规则时退回上游用量输入。
+     * 本次调用的用量：token 取归一化结果（无计费规则时退回上游用量输入），
+     * 成本与币种只认计费结果——没有计费结果就没有成本，不做估算。
      */
-    private long tokenDelta(ProxyResult result) {
+    private TrafficUsage usageOf(ProxyResult result) {
         UsageAccounting usage = result == null ? null : result.usage();
-        return usage == null ? 0L : usage.totalTokens();
+        if (usage == null) {
+            return TrafficUsage.EMPTY;
+        }
+        NormalizedUsage normalized = usage.normalized();
+        return TrafficUsage.of(usage.totalTokens(),
+                normalized == null ? null : normalized.totalCost(),
+                normalized == null ? null : normalized.currency());
     }
 
 

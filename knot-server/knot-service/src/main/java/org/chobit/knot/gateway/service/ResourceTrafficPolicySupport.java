@@ -1,6 +1,8 @@
 package org.chobit.knot.gateway.service;
 
 import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.QuotaWindowEnum;
+import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.entity.QuotaPolicyEntity;
 import org.chobit.knot.gateway.entity.RateLimitPolicyEntity;
 import org.chobit.knot.gateway.entity.ResourceTrafficPolicyEntity;
@@ -104,33 +106,38 @@ public class ResourceTrafficPolicySupport {
         if (resourceId == null) {
             return;
         }
+        // 每层只落自己那一类策略：模型 / 路由规则只存限流，应用 / 供应商 / 消费者只存额度，
+        // 传错方向的策略在这里被丢掉，避免绑定表里出现永不被判定的脏数据
+        RateLimitPolicy effectiveRateLimit = supportsRateLimit(resourceType) ? rateLimit : null;
+        QuotaPolicy effectiveQuota = supportsQuota(resourceType) ? quota : null;
+
         ResourceTrafficPolicyEntity binding = bindingMapper.getByResource(resourceType, resourceId);
         Long rateId = binding != null ? binding.getRateLimitPolicyId() : null;
         Long quotaId = binding != null ? binding.getQuotaPolicyId() : null;
 
-        if (isEmptyRateLimit(rateLimit)) {
+        if (isEmptyRateLimit(effectiveRateLimit)) {
             if (rateId != null) {
                 rateLimitPolicyMapper.deleteById(rateId);
                 rateId = null;
             }
         } else {
             if (rateId == null) {
-                rateId = insertRateLimit(resourceType, resourceId, rateLimit);
+                rateId = insertRateLimit(resourceType, resourceId, effectiveRateLimit);
             } else {
-                updateRateLimit(rateId, resourceType, resourceId, rateLimit);
+                updateRateLimit(rateId, resourceType, resourceId, effectiveRateLimit);
             }
         }
 
-        if (isEmptyQuota(quota)) {
+        if (isEmptyQuota(effectiveQuota)) {
             if (quotaId != null) {
                 quotaPolicyMapper.deleteById(quotaId);
                 quotaId = null;
             }
         } else {
             if (quotaId == null) {
-                quotaId = insertQuota(resourceType, resourceId, quota);
+                quotaId = insertQuota(resourceType, resourceId, effectiveQuota);
             } else {
-                updateQuota(quotaId, resourceType, resourceId, quota);
+                updateQuota(quotaId, resourceType, resourceId, effectiveQuota);
             }
         }
 
@@ -196,16 +203,15 @@ public class ResourceTrafficPolicySupport {
     }
 
     private static void fillRateLimit(RateLimitPolicyEntity entity, RateLimitPolicy policy) {
-        entity.setPerSecond(policy.perSecond());
-        entity.setPerMinute(policy.perMinute());
-        entity.setTimeWindow(policy.timeWindow() != null ? policy.timeWindow() : "MINUTE");
+        entity.setRpm(policy.rpm());
+        entity.setTpm(policy.tpm());
     }
 
     private static void fillQuota(QuotaPolicyEntity entity, QuotaPolicy policy) {
-        entity.setDailyLimit(policy.dailyLimit());
-        entity.setMonthlyLimit(policy.monthlyLimit());
-        entity.setTokenLimit(policy.tokenLimit());
-        entity.setAlertEnabled(policy.alertEnabled());
+        entity.setMaxTokens(policy.maxTokens());
+        entity.setCostLimit(policy.costLimit());
+        entity.setCurrency(policy.currency());
+        entity.setQuotaWindow(QuotaWindowEnum.fromCode(policy.window()).code());
     }
 
     /**
@@ -216,9 +222,8 @@ public class ResourceTrafficPolicySupport {
             return null;
         }
         return new RateLimitPolicy(
-                entity.getPerSecond() != null ? entity.getPerSecond() : 0,
-                entity.getPerMinute() != null ? entity.getPerMinute() : 0,
-                entity.getTimeWindow() != null ? entity.getTimeWindow() : "MINUTE"
+                entity.getRpm() != null ? entity.getRpm() : 0,
+                entity.getTpm() != null ? entity.getTpm() : 0
         );
     }
 
@@ -230,20 +235,37 @@ public class ResourceTrafficPolicySupport {
             return null;
         }
         return new QuotaPolicy(
-                entity.getDailyLimit() != null ? entity.getDailyLimit() : 0L,
-                entity.getMonthlyLimit() != null ? entity.getMonthlyLimit() : 0L,
-                entity.getTokenLimit() != null ? entity.getTokenLimit() : 0L,
-                Boolean.TRUE.equals(entity.getAlertEnabled())
+                entity.getMaxTokens() != null ? entity.getMaxTokens() : 0L,
+                entity.getCostLimit(),
+                entity.getCurrency(),
+                QuotaWindowEnum.fromCode(entity.getQuotaWindow()).code()
         );
     }
 
     private static boolean isEmptyRateLimit(RateLimitPolicy policy) {
-        return policy == null || (policy.perSecond() <= 0 && policy.perMinute() <= 0);
+        return policy == null || (policy.rpm() <= 0 && policy.tpm() <= 0);
     }
 
     private static boolean isEmptyQuota(QuotaPolicy policy) {
         return policy == null
-                || (policy.dailyLimit() <= 0 && policy.monthlyLimit() <= 0 && policy.tokenLimit() <= 0);
+                || (policy.maxTokens() <= 0 && (policy.costLimit() == null || policy.costLimit().signum() <= 0));
+    }
+
+    /**
+     * 模型与路由规则只配限流（RPM / TPM）。
+     */
+    private static boolean supportsRateLimit(String resourceType) {
+        return TrafficResourceTypeEnum.MODEL.code().equals(resourceType)
+                || TrafficResourceTypeEnum.ROUTING_RULE.code().equals(resourceType);
+    }
+
+    /**
+     * 应用、供应商账户与消费者只配额度（最大 token / 成本上限）。
+     */
+    private static boolean supportsQuota(String resourceType) {
+        return TrafficResourceTypeEnum.APP.code().equals(resourceType)
+                || TrafficResourceTypeEnum.PROVIDER.code().equals(resourceType)
+                || TrafficResourceTypeEnum.ROUTING_CONSUMER.code().equals(resourceType);
     }
 
     private static String policyCode(String resourceType, Long resourceId, String suffix) {

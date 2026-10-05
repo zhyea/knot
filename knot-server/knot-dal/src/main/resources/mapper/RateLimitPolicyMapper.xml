@@ -3,7 +3,7 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.RateLimitPolicyMapper">
 
     <sql id="Columns">
-        id, policy_code, policy_name, per_second, per_minute, time_window, status, remark
+        id, policy_code, policy_name, rpm, tpm, status, remark
     </sql>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.RateLimitPolicyEntity">
@@ -19,16 +19,15 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_rate_limit_policies(policy_code, policy_name, per_second, per_minute, time_window, status, remark)
-        values(#{policyCode}, #{policyName}, #{perSecond}, #{perMinute}, #{timeWindow}, #{status}, #{remark})
+        insert into kb_rate_limit_policies(policy_code, policy_name, rpm, tpm, status, remark)
+        values(#{policyCode}, #{policyName}, #{rpm}, #{tpm}, #{status}, #{remark})
     </insert>
 
     <update id="update">
         update kb_rate_limit_policies
         set policy_name = #{policyName},
-            per_second = #{perSecond},
-            per_minute = #{perMinute},
-            time_window = #{timeWindow},
+            rpm = #{rpm},
+            tpm = #{tpm},
             status = #{status},
             remark = #{remark}
         where id = #{id}
