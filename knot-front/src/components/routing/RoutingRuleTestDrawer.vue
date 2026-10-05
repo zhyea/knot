@@ -12,10 +12,22 @@
       <div class="slot-body routing-test">
         <section class="debug-panel debug-panel--request">
           <div class="request-toolbar">
-            <div class="request-toolbar__main">
-              <span class="request-toolbar__method">POST</span>
-              <div class="request-toolbar__url">{{ requestUrl }}</div>
-            </div>
+            <el-select
+              v-model="testForm.protocol"
+              :loading="protocolLoading"
+              :disabled="availableProtocols.length === 0"
+              placeholder="选择接口协议"
+              class="request-toolbar__protocol"
+              @change="ensureTemplateForCurrentSelection"
+            >
+              <el-option
+                v-for="protocol in availableProtocols"
+                :key="protocol.code"
+                :label="protocol.label"
+                :value="protocol.code"
+              />
+            </el-select>
+            <div class="request-toolbar__url">{{ requestUrl }}</div>
             <el-button v-if="!isStreaming" type="primary" :loading="loading" :disabled="!ruleId" @click="runTest">
               发送请求
             </el-button>
@@ -25,26 +37,6 @@
           </div>
 
           <el-form label-width="0px" class="test-form">
-            <div class="test-form__row">
-              <el-form-item label="">
-                <el-select
-                  v-model="testForm.protocol"
-                  :loading="protocolLoading"
-                  :disabled="availableProtocols.length === 0"
-                  placeholder="选择接口协议"
-                  style="width: 100%"
-                  @change="ensureTemplateForCurrentSelection"
-                >
-                  <el-option
-                    v-for="protocol in availableProtocols"
-                    :key="protocol.code"
-                    :label="protocol.label"
-                    :value="protocol.code"
-                  />
-                </el-select>
-              </el-form-item>
-            </div>
-
             <el-collapse v-model="expandedPanels" class="debug-collapse">
               <el-collapse-item name="preview" title="请求预览">
                 <el-tabs v-model="requestTab" class="debug-tabs debug-tabs--preview">
@@ -1168,27 +1160,14 @@ onBeforeUnmount(() => {
   margin-bottom: 10px;
 }
 
-.request-toolbar__main {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-  flex: 1;
-}
-
-.request-toolbar__method {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 34px;
-  border-radius: 6px;
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
-  font-size: 12px;
-  font-weight: 700;
+/* 顶部协议选择下拉框：占整体宽度的 1/3，与 URL、发送按钮并列 */
+.request-toolbar__protocol {
+  flex: 0 0 33.333%;
+  min-width: 0;
 }
 
 .request-toolbar__url {
+  flex: 1 1 auto;
   min-width: 0;
   height: 34px;
   padding: 0 12px;
@@ -1213,20 +1192,6 @@ onBeforeUnmount(() => {
 
 .test-form {
   margin-bottom: 0;
-}
-
-.test-form__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(240px, 1fr);
-  gap: 12px;
-}
-
-.test-form__row--three {
-  grid-template-columns: minmax(0, 1.2fr) minmax(220px, 1fr) minmax(220px, 1fr);
-}
-
-.test-form__row :deep(.el-form-item) {
-  margin-bottom: 10px;
 }
 
 .request-template {
@@ -1519,18 +1484,16 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 900px) {
-  .request-toolbar,
-  .test-form__row,
-  .test-form__row--three {
-    grid-template-columns: 1fr;
+  .request-toolbar {
+    flex-wrap: wrap;
   }
 
-  .request-toolbar__main {
-    grid-template-columns: 1fr;
+  .request-toolbar__protocol {
+    flex: 0 0 100%;
   }
 
-  .request-toolbar__method {
-    width: 72px;
+  .request-toolbar__url {
+    flex: 1 1 100%;
   }
 
   .debug-panel--response {
