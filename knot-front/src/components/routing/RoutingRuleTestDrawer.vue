@@ -871,12 +871,16 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protoc
 
     await readEventStream(response, handleStreamEvent, {abortSignal: controller.signal});
     flushStreamText();
+    // EOF 可能发生在区块节流定时器触发前，必须先刷入最后一批区块及概览内容。
+    flushBlocks();
     // 直连网关读取的是原生模型 SSE，没有管理端包装的 complete 事件；EOF 即成功结束。
     if (testResult.value?.status === "RUNNING") {
       finishStream("SUCCESS", "");
     }
   } catch (error) {
     flushStreamText();
+    // 网络错误或用户中止时也要保留已经收到但尚未节流刷新的内容。
+    flushBlocks();
     if (isAbortError(error)) {
       // 用户主动停止：保留已收到内容，不弹全局网络错误
       if (testResult.value?.status === "RUNNING") {
@@ -887,6 +891,9 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protoc
       testResult.value = normalizeErrorResult(error as Dict) as RoutingTestResult;
     }
   } finally {
+    // 兜底处理所有结束路径，避免 finally 清理掉最后一批待刷数据。
+    flushStreamText();
+    flushBlocks();
     if (flushTimer) {
       clearTimeout(flushTimer);
       flushTimer = null;
