@@ -120,6 +120,15 @@
                 </div>
                 <el-empty v-else description="无结果信息" :image-size="64"/>
               </el-tab-pane>
+              <el-tab-pane label="Header" name="header">
+                <div v-if="responseHeaderItems.length" class="result-meta">
+                  <div v-for="item in responseHeaderItems" :key="item.label" class="result-meta__item">
+                    <span class="result-meta__label">{{ item.label }}</span>
+                    <span class="result-meta__value">{{ item.value }}</span>
+                  </div>
+                </div>
+                <el-empty v-else description="无响应头" :image-size="64"/>
+              </el-tab-pane>
               <el-tab-pane label="Body" name="body" class="response-body-pane">
                 <ShellCodeBlock
                   v-if="resultBodyText"
@@ -227,6 +236,8 @@ interface RoutingTestResult {
 }
 
 const testResult = ref<RoutingTestResult | null>(null);
+/** 最近一次响应的响应头，供「响应 Header」tab 展示 */
+const responseHeaders = ref<Record<string, string>>({});
 const targetProtocolMap = reactive<Dict>({});
 const templateStore = reactive<Dict>({});
 
@@ -423,6 +434,11 @@ const summaryItems = computed(() => {
   return items;
 });
 
+/** 响应头：转为与概览同款卡片所需的 {label, value} 列表 */
+const responseHeaderItems = computed(() =>
+  Object.entries(responseHeaders.value).map(([label, value]) => ({label, value}))
+);
+
 watch(
   () => [props.modelValue, props.ruleId, props.secretKey],
   async ([visible]) => {
@@ -430,6 +446,7 @@ watch(
       return;
     }
     testResult.value = null;
+    responseHeaders.value = {};
     requestTab.value = "preset";
     responseTab.value = "summary";
     expandedPanels.value = ["preview"];
@@ -762,6 +779,7 @@ async function runTest() {
 async function runBufferedTest(requestBody: Dict, target: RoutingTarget, protocol: string) {
   loading.value = true;
   testResult.value = null;
+  responseHeaders.value = {};
   try {
     const response = await testRoutingRule(
       requestUrl.value,
@@ -769,6 +787,7 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget, protoco
       testForm.secretKey.trim(),
       resolveRuleHeaderValue()
     );
+    responseHeaders.value = response.headers || {};
     testResult.value = {
       status: "SUCCESS",
       httpStatus: response.status,
@@ -781,7 +800,11 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget, protoco
     responseTab.value = "body";
   } catch (error) {
     responseTab.value = "body";
-    testResult.value = normalizeErrorResult(error as Dict) as RoutingTestResult;
+    const err = error as Dict;
+    if (err?.response?.headers) {
+      responseHeaders.value = err.response.headers as Record<string, string>;
+    }
+    testResult.value = normalizeErrorResult(err) as RoutingTestResult;
   } finally {
     loading.value = false;
   }
@@ -796,6 +819,7 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protoc
   streamStartedAt.value = Date.now();
   receivedBytes.value = 0;
   streamBody.value = "";
+  responseHeaders.value = {};
   pendingText = "";
   streamBlocks.value = [];
   pendingBlocks = [];
@@ -831,6 +855,12 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protoc
       resolveRuleHeaderValue(),
       controller.signal
     );
+    // 采集网关原生响应头（SSE 首包即带），供「响应 Header」tab 展示
+    const streamHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      streamHeaders[key] = value;
+    });
+    responseHeaders.value = streamHeaders;
     if (testResult.value) {
       testResult.value = {
         ...testResult.value,
@@ -1090,6 +1120,7 @@ function onClosed() {
   receivedBytes.value = 0;
   streamStartedAt.value = null;
   testResult.value = null;
+  responseHeaders.value = {};
   loading.value = false;
 }
 

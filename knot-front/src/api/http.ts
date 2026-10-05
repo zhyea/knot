@@ -210,7 +210,7 @@ export async function postEventStream(
     ElMessage.error(message);
   }
   throw Object.assign(new Error(message), {
-    response: {status: response.status, data: body}
+    response: {status: response.status, data: body, headers: Object.fromEntries(response.headers)}
   });
 }
 
@@ -224,7 +224,7 @@ export async function postGatewayJson<T = unknown>(
   data: unknown,
   secretKey: string,
   ruleCode: string
-): Promise<{status: number; data: T}> {
+): Promise<{status: number; data: T; headers: Record<string, string>}> {
   const response = await fetch(url, {
     method: "POST",
     headers: {
@@ -244,8 +244,14 @@ export async function postGatewayJson<T = unknown>(
     // 非 JSON 响应保留原文，便于调试网关返回的纯文本错误。
   }
 
+  // 采集响应头（多值按逗号拼接），供调试面板「响应 Header」tab 展示
+  const headers: Record<string, string> = {};
+  response.headers.forEach((value, key) => {
+    headers[key] = value;
+  });
+
   if (response.ok) {
-    return {status: response.status, data: body as T};
+    return {status: response.status, data: body as T, headers};
   }
 
   const message =
@@ -257,7 +263,7 @@ export async function postGatewayJson<T = unknown>(
       : "") ||
     `请求失败（HTTP ${response.status}）`;
   throw Object.assign(new Error(message), {
-    response: {status: response.status, data: body}
+    response: {status: response.status, data: body, headers}
   });
 }
 
