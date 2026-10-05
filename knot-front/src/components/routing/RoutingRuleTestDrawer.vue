@@ -103,29 +103,22 @@
           <template v-else-if="testResult">
             <el-tabs v-model="responseTab" class="debug-tabs debug-tabs--response">
               <el-tab-pane label="概览" name="summary">
-                <div v-if="summaryItems.length" class="result-meta">
+                <div v-if="summaryItems.length || displayReasoning || displayContent" class="result-meta">
                   <div v-for="item in summaryItems" :key="item.label" class="result-meta__item"
                        :class="{ 'result-meta__item--error': item.isError }">
                     <span class="result-meta__label">{{ item.label }}</span>
                     <span class="result-meta__value">{{ item.value }}</span>
                   </div>
+                  <div v-if="displayReasoning" class="result-meta__item">
+                    <span class="result-meta__label">思考过程 · reasoning_content</span>
+                    <pre class="result-meta__value result-meta__value--block">{{ displayReasoning }}</pre>
+                  </div>
+                  <div v-if="displayContent" class="result-meta__item">
+                    <span class="result-meta__label">完整内容 · content</span>
+                    <pre class="result-meta__value result-meta__value--block">{{ displayContent }}</pre>
+                  </div>
                 </div>
-                <el-empty v-else description="无额外结果信息" :image-size="64"/>
-                <div class="result-body">
-                  <template v-if="displayReasoning">
-                    <div class="result-body__title">思考过程 · reasoning_content</div>
-                    <pre class="content-block content-block--reasoning">{{ displayReasoning }}</pre>
-                  </template>
-                  <template v-if="displayContent">
-                    <div class="result-body__title">完整内容 · content</div>
-                    <pre class="content-block">{{ displayContent }}</pre>
-                  </template>
-                  <el-empty
-                    v-if="!displayContent && !displayReasoning"
-                    description="无内容"
-                    :image-size="64"
-                  />
-                </div>
+                <el-empty v-else description="无结果信息" :image-size="64"/>
               </el-tab-pane>
               <el-tab-pane label="Body" name="body" class="response-body-pane">
                 <ShellCodeBlock
@@ -1160,9 +1153,9 @@ onBeforeUnmount(() => {
   margin-bottom: 10px;
 }
 
-/* 顶部协议选择下拉框：占整体宽度的 1/3，与 URL、发送按钮并列 */
+/* 顶部协议选择下拉框：占整体宽度的 2/7，与 URL、发送按钮并列 */
 .request-toolbar__protocol {
-  flex: 0 0 33.333%;
+  flex: 0 0 28.5714%;
   min-width: 0;
 }
 
@@ -1329,37 +1322,15 @@ onBeforeUnmount(() => {
   background: var(--el-color-danger-light-9);
 }
 
-/* 概览 tab 内的完整内容区块（content / reasoning_content 分开展示） */
-.result-body {
-  margin-top: 4px;
-}
-
-.result-body__title {
-  margin: 12px 0 8px;
-  color: var(--el-text-color-regular);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.content-block {
-  margin: 0;
-  padding: 10px 12px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
-  background: var(--el-fill-color-blank);
-  color: var(--el-text-color-primary);
+/* 概览 tab 内 content / reasoning_content 作为同款卡片的值区：等宽、可滚动、限高 */
+.result-meta__value--block {
   font-family: Consolas, "Courier New", monospace;
-  font-size: 12px;
-  line-height: 1.6;
+  font-weight: 400;
   white-space: pre-wrap;
   word-break: break-word;
+  line-height: 1.6;
   max-height: 320px;
   overflow: auto;
-}
-
-.content-block--reasoning {
-  background: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
 }
 
 .result-meta__item--error .result-meta__value {
