@@ -12,12 +12,12 @@
     <el-row v-if="mode === 'rate'" :gutter="16">
       <el-col :span="12">
         <el-form-item label="每分钟请求数（RPM）" label-width="120px">
-          <el-input-number v-model="rateDraft.rpm" :min="0" :step="10" controls-position="right" class="traffic-policy__field"/>
+          <el-input-number v-model="rateDraft.rpm" :min="0" :step="10" class="traffic-policy__field"/>
         </el-form-item>
       </el-col>
       <el-col :span="12">
         <el-form-item label="每分钟 Token（TPM）" label-width="120px">
-          <el-input-number v-model="rateDraft.tpm" :min="0" :step="1000" controls-position="right" class="traffic-policy__field"/>
+          <el-input-number v-model="rateDraft.tpm" :min="0" :step="1000" class="traffic-policy__field"/>
         </el-form-item>
       </el-col>
     </el-row>
@@ -34,12 +34,12 @@
         </el-col>
         <el-col :span="8">
           <el-form-item label="最大 Token 数">
-            <el-input-number v-model="quotaDraft.maxTokens" :min="0" :step="10000" controls-position="right" class="traffic-policy__field"/>
+            <el-input-number v-model="quotaDraft.maxTokens" :min="0" :step="10000" class="traffic-policy__field"/>
           </el-form-item>
         </el-col>
         <el-col :span="8">
           <el-form-item label="成本上限">
-            <el-input-number v-model="quotaDraft.costLimit" :min="0" :precision="4" :step="1" controls-position="right" class="traffic-policy__field"/>
+            <el-input-number v-model="quotaDraft.costLimit" :min="0" :precision="4" :step="1" class="traffic-policy__field"/>
           </el-form-item>
         </el-col>
       </el-row>
