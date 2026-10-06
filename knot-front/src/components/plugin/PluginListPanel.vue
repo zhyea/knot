@@ -38,7 +38,7 @@ import ListPagination from "../common/ListPagination.vue";
 import type {Row} from "@/types";
 
 defineProps({
-  rows: { type: Array, default: (): Row[] => [] },
+  rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   statusUpdatingId: { type: Number as PropType<number | null>, default: null },
   total: { type: Number, default: 0 },

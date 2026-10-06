@@ -43,11 +43,12 @@
 </template>
 
 <script setup lang="ts">
+import type {PropType} from "vue";
 import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 
 defineProps({
-  rows: { type: Array, default: (): Row[] => [] },
+  rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },

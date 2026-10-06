@@ -21,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed} from "vue";
+import {computed, type PropType} from "vue";
 import {TIER_PRICE_FIELDS, issueMessage, toNumberOrNull} from "@/utils/billingTier";
 import {UNIT_PRICE_PRECISION, UNIT_PRICE_STEP} from "@/utils/billingPrice";
 import type {TierIssue, TierPriceSet} from "@/utils/billingTier";
@@ -31,7 +31,7 @@ const props = defineProps({
   index: {type: Number, default: -1},
   prices: {type: Object, required: true},
   cacheWriteMode: {type: String as () => "standard" | "ttl", default: "standard"},
-  issues: {type: Array as () => TierIssue[], default: (): TierIssue[] => []}
+  issues: {type: Array as PropType<TierIssue[]>, default: (): TierIssue[] => []}
 });
 
 const emit = defineEmits(["update:prices"]);

@@ -224,6 +224,15 @@
           description="按需覆盖路由规则级限流，留空时不单独配置。"
           v-model:rate-limit="form.rateLimitPolicy"
         />
+
+        <div class="space-line"/>
+
+        <RetryPolicySection
+          class="slot-body rule-section"
+          title="失败重试"
+          description="上游瞬态失败时先在同一目标上原地重投，次数耗尽才切换到下一个候选。"
+          v-model:retry-policy="form.retryPolicy"
+        />
       </el-form>
     </el-scrollbar>
     <template #footer>
@@ -240,12 +249,14 @@ import {ElMessage} from "element-plus";
 import {Delete} from "@element-plus/icons-vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
+import RetryPolicySection from "../common/RetryPolicySection.vue";
 import {
   emptyRateLimitPolicy,
   isEmptyRateLimitPolicy,
   normalizeRateLimitPolicy,
   type RateLimitPolicy
 } from "@/utils/trafficPolicy";
+import {defaultRetryPolicy, normalizeRetryPolicy, type RetryPolicy} from "@/utils/retryPolicy";
 import {createRoutingRule, updateRoutingRule, checkRoutingRuleCode, listRoutingConsumers} from "@/api/routing";
 import {listApps} from "@/api/apps";
 import {listModels} from "@/api/models";
@@ -307,6 +318,7 @@ interface RuleForm {
   enabled: boolean;
   targets: RuleTargetForm[];
   rateLimitPolicy: RateLimitPolicy;
+  retryPolicy: RetryPolicy;
 }
 
 const form = reactive<RuleForm>({
@@ -319,7 +331,8 @@ const form = reactive<RuleForm>({
   userId: null,
   enabled: true,
   targets: [],
-  rateLimitPolicy: emptyRateLimitPolicy()
+  rateLimitPolicy: emptyRateLimitPolicy(),
+  retryPolicy: defaultRetryPolicy()
 });
 
 const selectedConsumers = computed(() =>
@@ -501,6 +514,7 @@ function resetForm() {
     form.userId = row.userId ?? null;
     form.enabled = row.enabled !== false;
     form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
+    form.retryPolicy = normalizeRetryPolicy(row.retryPolicy);
     form.targets = (row.targets || []).map((m: Dict) => ({
       targetType: m.targetType || "MODEL",
       targetId: m.targetId,
@@ -524,6 +538,7 @@ function resetForm() {
     form.enabled = false;
     form.targets = [];
     form.rateLimitPolicy = emptyRateLimitPolicy();
+    form.retryPolicy = defaultRetryPolicy();
     primaryTargetKey.value = null;
   }
   ruleCodeError.value = "";
@@ -652,7 +667,10 @@ function buildSubmitPayload() {
     userId: form.userId,
     enabled: form.enabled,
     targets,
-    rateLimitPolicy
+    rateLimitPolicy,
+    // 恒提交归一化结果：关闭重试也要显式落库（enabled=false），
+    // 若传 null 会被运行时当成「未配置」而退回默认开启策略
+    retryPolicy: normalizeRetryPolicy(form.retryPolicy)
   };
 }
 

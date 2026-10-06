@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.gateway.model.RetryPolicy;
 
 import java.util.List;
 
@@ -22,6 +23,8 @@ public record RoutingRule(
         boolean enabled,
         @Valid List<RoutingRuleTargetItem> targets,
         RateLimitPolicy rateLimitPolicy,
-        QuotaPolicy quotaPolicy
+        QuotaPolicy quotaPolicy,
+        /** 规则级失败重试策略；null 表示未配置，运行时按内置默认（开启）处理 */
+        RetryPolicy retryPolicy
 ) {
 }

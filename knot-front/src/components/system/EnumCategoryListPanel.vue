@@ -31,12 +31,14 @@
 </template>
 
 <script setup lang="ts">
+import type {PropType} from "vue";
 import {Document, List} from "@element-plus/icons-vue";
+import type {Row} from "@/types";
 import RowActions from "../common/RowActions.vue";
 import StatusTag from "../common/StatusTag.vue";
 
 defineProps({
-  summaries: { type: Array, default: (): unknown[] => [] },
+  summaries: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
   loading: { type: Boolean, default: false }
 });
 

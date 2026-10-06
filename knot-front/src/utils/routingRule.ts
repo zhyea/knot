@@ -1,4 +1,5 @@
 import type {Dict} from "@/types";
+import {normalizeRetryPolicy} from "@/utils/retryPolicy";
 
 /** 生成路由规则编码（32 位十六进制，与后端 RoutingRuleCodeGenerator 一致） */
 export function generateRoutingRuleCode() {
@@ -22,6 +23,7 @@ export function buildRoutingRulePayload(row: Dict, enabled: boolean): Dict {
       primary: !!m.primary
     })),
     rateLimitPolicy: row.rateLimitPolicy ?? null,
-    quotaPolicy: row.quotaPolicy ?? null
+    quotaPolicy: row.quotaPolicy ?? null,
+    retryPolicy: normalizeRetryPolicy(row.retryPolicy)
   };
 }

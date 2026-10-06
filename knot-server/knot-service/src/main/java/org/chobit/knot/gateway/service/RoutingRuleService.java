@@ -35,6 +35,7 @@ import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.gateway.model.RetryPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.tools.RoutingRuleCodeGenerator;
@@ -267,7 +268,8 @@ public class RoutingRuleService {
                 enabled,
                 existing.targets(),
                 existing.rateLimitPolicy(),
-                existing.quotaPolicy()
+                existing.quotaPolicy(),
+                existing.retryPolicy()
         );
         validateForSave(request, id);
         routingRuleMapper.updateStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
@@ -754,7 +756,8 @@ public class RoutingRuleService {
                 "ENABLED".equals(entity.getStatus()),
                 targets,
                 rate,
-                quota
+                quota,
+                RetryPolicy.parse(entity.getRetryPolicy())
         );
     }
 
@@ -847,7 +850,8 @@ public class RoutingRuleService {
                 request.enabled(),
                 request.targets(),
                 request.rateLimitPolicy(),
-                request.quotaPolicy()
+                request.quotaPolicy(),
+                request.retryPolicy()
         );
     }
 
@@ -972,6 +976,8 @@ public class RoutingRuleService {
         entity.setAppScenario(normalizeNullable(request.appScenario()));
         entity.setAppId(request.appId());
         entity.setUserId(request.userId());
+        // 未配置（null）落库为 NULL，运行时按内置默认策略处理
+        entity.setRetryPolicy(RetryPolicy.serialize(request.retryPolicy()));
         return entity;
     }
 

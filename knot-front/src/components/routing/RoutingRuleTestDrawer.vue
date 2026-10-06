@@ -120,15 +120,6 @@
                 </div>
                 <el-empty v-else description="无结果信息" :image-size="64"/>
               </el-tab-pane>
-              <el-tab-pane label="Header" name="header">
-                <div v-if="responseHeaderItems.length" class="result-meta">
-                  <div v-for="item in responseHeaderItems" :key="item.label" class="result-meta__item">
-                    <span class="result-meta__label">{{ item.label }}</span>
-                    <span class="result-meta__value">{{ item.value }}</span>
-                  </div>
-                </div>
-                <el-empty v-else description="无响应头" :image-size="64"/>
-              </el-tab-pane>
               <el-tab-pane label="Body" name="body" class="response-body-pane">
                 <ShellCodeBlock
                   v-if="resultBodyText"
@@ -152,6 +143,15 @@
                     <div v-if="!streamBlocks.length" class="stream-blocks__empty">等待流式响应…</div>
                   </div>
                 </el-scrollbar>
+              </el-tab-pane>
+              <el-tab-pane label="Header" name="header">
+                <div v-if="responseHeaderItems.length" class="result-meta">
+                  <div v-for="item in responseHeaderItems" :key="item.label" class="result-meta__item">
+                    <span class="result-meta__label">{{ item.label }}</span>
+                    <span class="result-meta__value">{{ item.value }}</span>
+                  </div>
+                </div>
+                <el-empty v-else description="无响应头" :image-size="64"/>
               </el-tab-pane>
             </el-tabs>
           </template>

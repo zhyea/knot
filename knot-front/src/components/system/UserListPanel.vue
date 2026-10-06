@@ -58,13 +58,14 @@
 </template>
 
 <script setup lang="ts">
+import type {PropType} from "vue";
 import type {Row} from "@/types";
 import {Document, Edit, Key} from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 
 defineProps({
-  users: { type: Array, default: (): Row[] => [] },
+  users: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },

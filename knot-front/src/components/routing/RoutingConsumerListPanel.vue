@@ -66,7 +66,7 @@ import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 
 defineProps({
-  rows: { type: Array, default: (): Row[] => [] },
+  rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },

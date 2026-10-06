@@ -21,12 +21,12 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, watch} from "vue";
+import {computed, onMounted, watch, type PropType} from "vue";
 import {useEnums} from "@/composables/useEnums";
 import type {Row} from "@/types";
 
 const props = defineProps({
-  modelValue: {type: [String, Number, Array], default: ""},
+  modelValue: {type: [String, Number, Array] as PropType<string | number | (string | number)[]>, default: ""},
   /** 枚举分类，如 billing_unit、app_type */
   category: {type: String, required: true},
   placeholder: {type: String, default: "请选择"},
@@ -38,7 +38,7 @@ const props = defineProps({
   collapseTagsTooltip: {type: Boolean, default: false},
   selectStyle: {type: [String, Object], default: () => ({width: "100%"})},
   /** 仅展示指定 itemCode 列表 */
-  includeCodes: {type: Array, default: null},
+  includeCodes: {type: Array as PropType<string[] | null>, default: null},
   /** 展示时附带编码，如「固定 (FIXED)」 */
   showCode: {type: Boolean, default: false},
   /** 仅展示 itemCode，忽略 itemLabel */

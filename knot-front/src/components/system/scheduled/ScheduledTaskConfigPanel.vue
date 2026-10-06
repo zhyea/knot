@@ -41,6 +41,7 @@
 </template>
 
 <script setup lang="ts">
+import type {PropType} from "vue";
 import type {Row} from "@/types";
 import {Edit, Tickets, VideoPlay} from "@element-plus/icons-vue";
 import RowActions from "../../common/RowActions.vue";
@@ -49,7 +50,7 @@ import {triggerScheduledTask} from "@/api/scheduledTasks";
 import {taskModeLabel, taskStatusLabel} from "@/utils/scheduledTask";
 
 const props = defineProps({
-  rows: { type: Array, default: (): Row[] => [] },
+  rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },

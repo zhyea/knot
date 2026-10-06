@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.runtime;
 
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
@@ -14,6 +15,8 @@ import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.*;
 import org.chobit.knot.gateway.model.usage.KnotExtendPayload;
 import org.chobit.knot.gateway.plugin.PluginDispatcher;
+import org.chobit.knot.gateway.retry.BackoffCalculator;
+import org.chobit.knot.gateway.retry.RetryableClassifier;
 import org.chobit.knot.gateway.routing.RoutingResolver;
 import org.chobit.knot.gateway.traffic.GatewayTrafficGuard;
 import org.chobit.knot.gateway.traffic.GatewayTrafficGuard.TrafficCheckContext;
@@ -34,7 +37,9 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Supplier;
 
+@Slf4j
 @Component
 public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
@@ -89,6 +94,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         );
         TrafficDecision firstRejection = null;
         boolean hasAllowedTarget = false;
+        RetryPolicy retryPolicy = routing.effectiveRetryPolicy();
         for (RoutingRuleTargetDto candidate : routing.candidateModels()) {
             // 检查目标模型的频控和额度控制
             TrafficDecision targetDecision = trafficGuard.checkTarget(candidate, trafficContext);
@@ -100,12 +106,12 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
             }
             hasAllowedTarget = true;
 
-            // 客户端无需传 model：请求体 model 恒按路由目标的上游模型覆盖（kb_models.upstream_model）
-            requestBody.put(AiPayloadFields.MODEL, candidate.upstreamModelCode());
-
-            // 调用上游服务
+            // 调用上游服务；失败重试发生在本候选内部，频控检查不随重投次数累加
             try {
-                ProxyResult result = proxyClient.proxy(requestBody, exchange.contentType(), candidate, protocol, traceparent);
+                ProxyResult result = invokeWithRetry(retryPolicy, candidate, () -> proxyClient.proxy(
+                        // 客户端无需传 model：请求体 model 恒按路由目标的上游模型覆盖（kb_models.upstream_model）
+                        withTargetModel(requestBody, candidate),
+                        exchange.contentType(), candidate, protocol, traceparent));
                 // 限额与 TPM 事后累计：上游成功才记账，失败重试与 failover 不重复扣减
                 trafficGuard.record(routing, candidate, usageOf(result), trafficContext);
                 return result;
@@ -120,6 +126,63 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
             throw lastUpstreamException;
         }
         throw lastUpstreamException;
+    }
+
+    /**
+     * 把请求体 model 覆盖为当前候选的上游模型后原样返回，便于在重试闭包里复用同一个 body。
+     */
+    private Map<String, Object> withTargetModel(Map<String, Object> requestBody, RoutingRuleTargetDto candidate) {
+        requestBody.put(AiPayloadFields.MODEL, candidate.upstreamModelCode());
+        return requestBody;
+    }
+
+    /**
+     * 对同一个路由目标按规则级策略做失败重试。
+     *
+     * <p>重试位于「跨候选 failover」之前：同一目标的连续失败先在原地重投，次数耗尽或
+     * 命中不可重试口径时才抛出最后一个异常，由外层切到下一个候选。</p>
+     *
+     * <p>只捕获 {@link GatewayUpstreamException}：网关自身的异常（鉴权、频控、额度、代码缺陷）
+     * 不属于上游失败，不重试，直接上抛。</p>
+     *
+     * <p>流式请求的失败只可能在「首个字节之前」抛到这里——一旦拿到带
+     * {@code streamResponse} 的结果就已向调用方提交，无法再重投，这也正好是流式重试的安全边界。</p>
+     */
+    private ProxyResult invokeWithRetry(RetryPolicy policy,
+                                        RoutingRuleTargetDto candidate,
+                                        Supplier<ProxyResult> attempt) {
+        int maxAttempts = Math.max(1, policy.maxAttempts());
+        for (int failed = 0; ; failed++) {
+            try {
+                return attempt.get();
+            } catch (GatewayUpstreamException e) {
+                if (failed + 1 >= maxAttempts || !RetryableClassifier.retryable(e, policy)) {
+                    throw e;
+                }
+                long delayMs = BackoffCalculator.delayMillis(failed + 1, policy, e.retryAfterMs());
+                log.warn("Retry routing target after upstream failure: target={}, attempt={}/{}, status={}, code={}, delayMs={}",
+                        candidate.targetCode(), failed + 1, maxAttempts, e.httpStatus(), e.code(), delayMs);
+                if (!sleepQuietly(delayMs)) {
+                    Thread.currentThread().interrupt();
+                    throw e;
+                }
+            }
+        }
+    }
+
+    /**
+     * 退避等待；被中断时返回 false，由调用方决定是否中止重试。
+     */
+    private static boolean sleepQuietly(long millis) {
+        if (millis <= 0) {
+            return true;
+        }
+        try {
+            Thread.sleep(millis);
+            return true;
+        } catch (InterruptedException e) {
+            return false;
+        }
     }
 
     /**

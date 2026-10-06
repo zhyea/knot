@@ -17,6 +17,7 @@ import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.GatewayRoutingInfo;
 import org.chobit.knot.gateway.model.ResolvedRouting;
+import org.chobit.knot.gateway.model.RetryPolicy;
 import org.chobit.knot.gateway.service.GatewayDataService;
 import org.chobit.knot.gateway.util.tools.RoutingSecretKeyGenerator;
 import org.springframework.stereotype.Component;
@@ -77,7 +78,8 @@ public class RoutingResolver {
                 consumer.getSecretKey(),
                 Boolean.TRUE.equals(consumer.getReturnUsageDetail()),
                 candidates,
-                routingInfo);
+                routingInfo,
+                RetryPolicy.parse(rule.getRetryPolicy()));
     }
 
     private static GatewayRoutingInfo buildRoutingInfo(RoutingRuleEntity rule,

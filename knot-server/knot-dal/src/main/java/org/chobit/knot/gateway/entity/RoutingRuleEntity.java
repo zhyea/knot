@@ -15,5 +15,7 @@ public class RoutingRuleEntity {
     private String userRealName;
     private String userUsername;
     private Long fallbackRuleId;
+    /** 规则级失败重试策略（JSON，RetryPolicy 序列化结果）；空表示走内置默认策略 */
+    private String retryPolicy;
     private String status;
 }

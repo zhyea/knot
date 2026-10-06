@@ -13,6 +13,7 @@ import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpResponse;
@@ -25,6 +26,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Collection;
 import java.util.Map;
 
@@ -73,7 +77,8 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                     e.getMessage(),
                     ProxyErrorCodeEnum.UPSTREAM_ERROR.code(),
                     e.getStatusCode().value(),
-                    e.getResponseBodyAsString()
+                    e.getResponseBodyAsString(),
+                    retryAfterMs(e.getResponseHeaders())
             );
         } catch (Exception e) {
             throw new GatewayUpstreamException(e.getMessage(), ProxyErrorCodeEnum.UPSTREAM_ERROR.code());
@@ -132,7 +137,8 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                     "upstream responded with status " + statusCode.value(),
                     ProxyErrorCodeEnum.UPSTREAM_ERROR.code(),
                     statusCode.value(),
-                    errorBody
+                    errorBody,
+                    retryAfterMs(response.getHeaders())
             );
         }
         return new UpstreamStreamResponse(
@@ -142,6 +148,41 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                 adapter,
                 response
         );
+    }
+
+    /**
+     * 读取上游 {@code Retry-After} 响应头，换算成毫秒供重试退避参考。
+     *
+     * <p>只有 429/503 这类明确限流响应才会携带；拿不到就返回 null，
+     * 退避退化为纯指数退避，不影响主流程。</p>
+     */
+    private static Long retryAfterMs(HttpHeaders headers) {
+        return headers == null ? null : parseRetryAfter(headers.getFirst("Retry-After"));
+    }
+
+    /**
+     * 解析 {@code Retry-After}：优先按「秒数」解释，其次按 HTTP 日期（RFC 1123）解释。
+     *
+     * <p>两种都解析不了返回 null。秒数为负或日期已过统一按 0 处理（立即重试由退避策略决定），
+     * 并做上界收敛避免异常大的值溢出。</p>
+     */
+    static Long parseRetryAfter(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String trimmed = raw.trim();
+        try {
+            long seconds = Long.parseLong(trimmed);
+            return Math.max(0L, Math.min(seconds, 3_600L) * 1_000L);
+        } catch (NumberFormatException ignored) {
+            // 不是秒数，继续按 HTTP 日期解释
+        }
+        try {
+            ZonedDateTime moment = ZonedDateTime.parse(trimmed, DateTimeFormatter.RFC_1123_DATE_TIME);
+            return Math.max(0L, moment.toInstant().toEpochMilli() - System.currentTimeMillis());
+        } catch (DateTimeParseException ignored) {
+            return null;
+        }
     }
 
     /**

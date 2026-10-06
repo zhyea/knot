@@ -73,6 +73,7 @@
 
 <script setup lang="ts">
 import {Delete, Hide, Plus, Search, View} from "@element-plus/icons-vue";
+import type {PropType} from "vue";
 import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
@@ -82,7 +83,7 @@ import {formatThousands} from "@/utils/format";
 const { labelOf } = useEnumOptions();
 
 defineProps({
-  rows: { type: Array, default: (): Row[] => [] },
+  rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },

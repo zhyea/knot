@@ -39,10 +39,11 @@ import {Delete, Document, Edit} from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {deleteApp} from "@/api/apps";
+import type {PropType} from "vue";
 import type {Row} from "@/types";
 
 defineProps({
-  rows: {type: Array, default: (): Row[] => []},
+  rows: {type: Array as PropType<Row[]>, default: (): Row[] => []},
   loading: {type: Boolean, default: false},
   total: {type: Number, default: 0},
   pageNum: {type: Number, default: 1},
