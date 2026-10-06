@@ -83,29 +83,31 @@ public class ModelService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<ModelDto> list(PageRequest pageRequest) {
-        return list(pageRequest, null, null, null);
+        return list(pageRequest, null, null, null, null);
     }
 
     /**
      * Returns matching results. Executes the public operation.
      */
     public PageResult<ModelDto> list(PageRequest pageRequest, String keyword) {
-        return list(pageRequest, keyword, null, null);
+        return list(pageRequest, keyword, null, null, null);
     }
 
     /**
      * Returns matching results. Executes the public operation.
      *
      * @param logicalModelCode 按绑定统一模型过滤（模型池选模型时用），为空不过滤
+     * @param status           按状态过滤（路由规则绑定目标时传 ENABLED，只出已启用模型），为空不过滤
      */
     public PageResult<ModelDto> list(PageRequest pageRequest,
                                      String keyword,
                                      List<String> modelTypes,
-                                     String logicalModelCode) {
+                                     String logicalModelCode,
+                                     String status) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<ModelEntity> pageInfo = new PageInfo<>(
                     modelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes),
-                            normalizeTextToNull(logicalModelCode))
+                            normalizeTextToNull(logicalModelCode), normalizeTextToNull(status))
             );
             List<ModelEntity> entities = pageInfo.getList();
             List<Long> ids = entities.stream().map(ModelEntity::getId).toList();

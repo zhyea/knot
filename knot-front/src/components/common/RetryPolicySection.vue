@@ -158,7 +158,8 @@ const draft = reactive<RetryPolicy>({...defaultRetryPolicy(), ...normalizeRetryP
 
 function sameRetryPolicy(left: unknown, right: RetryPolicy): boolean {
   const normalized = normalizeRetryPolicy(left);
-  return normalized.enabled === right.enabled
+  return normalized.mode === right.mode
+    && normalized.enabled === right.enabled
     && normalized.maxAttempts === right.maxAttempts
     && normalized.backoffBaseMs === right.backoffBaseMs
     && normalized.backoffMaxMs === right.backoffMaxMs

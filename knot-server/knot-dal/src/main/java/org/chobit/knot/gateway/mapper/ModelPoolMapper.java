@@ -12,7 +12,8 @@ public interface ModelPoolMapper {
 
     List<ModelPoolEntity> list(@Param("keyword") String keyword,
                                @Param("modelTypes") List<String> modelTypes,
-                               @Param("includeDeleted") Boolean includeDeleted);
+                               @Param("includeDeleted") Boolean includeDeleted,
+                               @Param("status") String status);
 
     ModelPoolEntity getById(@Param("id") Long id);
 

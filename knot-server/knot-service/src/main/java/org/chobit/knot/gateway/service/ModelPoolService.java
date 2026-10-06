@@ -56,10 +56,12 @@ public class ModelPoolService {
     public PageResult<ModelPoolDto> list(PageRequest pageRequest,
                                          String keyword,
                                          List<String> modelTypes,
-                                         Boolean includeDeleted) {
+                                         Boolean includeDeleted,
+                                         String status) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<ModelPoolEntity> pageInfo = new PageInfo<>(modelPoolMapper.list(
-                    normalizeKeyword(keyword), normalizeModelTypes(modelTypes), includeDeleted));
+                    normalizeKeyword(keyword), normalizeModelTypes(modelTypes), includeDeleted,
+                    normalizeTextToNull(status)));
             List<ModelPoolDto> dtos = pageInfo.getList().stream()
                     .map(entity -> enrich(modelPoolConverter.toDto(entity)))
                     .toList();

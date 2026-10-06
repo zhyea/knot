@@ -39,6 +39,9 @@
             <if test="logicalModelCode != null and logicalModelCode != ''">
                 and <include refid="logicalModelCodeExpr"/> = #{logicalModelCode}
             </if>
+            <if test="status != null and status != ''">
+                and m.status = #{status}
+            </if>
         </where>
         order by m.id desc
     </select>

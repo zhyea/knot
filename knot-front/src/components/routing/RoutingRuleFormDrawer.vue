@@ -384,7 +384,7 @@ const selectedUserOptions = computed(() =>
     realName: props.rule?.userName
   })
 );
-const targetExtraParams = computed(() => ({}));
+const targetExtraParams = computed(() => ({status: "ENABLED"}));
 
 function appLabel(app: Row): string {
   return app.name || app.appCode || `#${app.id}`;

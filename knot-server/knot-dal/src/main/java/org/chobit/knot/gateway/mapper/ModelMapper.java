@@ -11,7 +11,8 @@ public interface ModelMapper {
 
     List<ModelEntity> list(@Param("keyword") String keyword,
                            @Param("modelTypes") List<String> modelTypes,
-                           @Param("logicalModelCode") String logicalModelCode);
+                           @Param("logicalModelCode") String logicalModelCode,
+                           @Param("status") String status);
 
     ModelEntity getById(Long id);
 

@@ -36,6 +36,9 @@
                     #{type}
                 </foreach>
             </if>
+            <if test="status != null and status != ''">
+                and mp.status = #{status}
+            </if>
         </where>
         order by mp.is_deleted asc, mp.id desc
     </select>
