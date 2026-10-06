@@ -62,11 +62,11 @@ public record RetryPolicy(
      * 默认重试状态集。单独抽成常量而非引用 {@link #DEFAULT}：紧凑构造器在 {@code DEFAULT}
      * 静态初始化期间就会执行，此时 {@code DEFAULT} 仍为 null，回退分支读它会 NPE。
      */
-    private static final List<String> DEFAULT_RETRY_ON = List.of("500", "502", "503", "504", "429");
+    private static final List<String> DEFAULT_RETRY_ON = List.of("4xx", "5xx");
 
     /**
      * 默认策略：默认开启、简单模式，总尝试 2 次、恒定退避（200ms，倍数 1.0）、不抖动，
-     * 重试 5xx 与 429，服从上游 Retry-After。
+     * 重试 4xx 与 5xx（通配符），服从上游 Retry-After。
      */
     public static final RetryPolicy DEFAULT = new RetryPolicy(
             Boolean.TRUE,
@@ -119,28 +119,41 @@ public record RetryPolicy(
     }
 
     /**
-     * 上游状态码是否命中重试条件。
+     * 上游状态码是否命中重试条件（支持精确码与通配符 {@code Nxx}）。
      */
     public boolean matchesStatus(int status) {
-        boolean hit = statusSet().contains(status);
+        boolean hit = matchesStatusInternal(status);
         return MODE_DENYLIST.equals(retryOnMode) != hit;
     }
 
     /**
-     * 参与判定的状态码集合；非法项在构造时已过滤。
+     * 命中判定：精确状态码或通配符前缀（{@code Nxx}，如 4xx 匹配 400-499）任一项匹配即命中。
      */
-    public Set<Integer> statusSet() {
-        Set<Integer> set = new LinkedHashSet<>();
+    private boolean matchesStatusInternal(int status) {
         if (retryOn == null) {
-            return set;
+            return false;
         }
+        int prefix = status / 100;
         for (String item : retryOn) {
-            Integer parsed = parseStatus(item);
-            if (parsed != null) {
-                set.add(parsed);
+            if (item == null) {
+                continue;
+            }
+            String trimmed = item.trim();
+            if (trimmed.isEmpty()) {
+                continue;
+            }
+            if (trimmed.matches("\\d+")) {
+                if (Integer.parseInt(trimmed) == status) {
+                    return true;
+                }
+            } else if (trimmed.matches("(?i)^\\dxx$")) {
+                int wildcardPrefix = Character.getNumericValue(trimmed.charAt(0));
+                if (wildcardPrefix == prefix) {
+                    return true;
+                }
             }
         }
-        return set;
+        return false;
     }
 
     /**
@@ -166,23 +179,32 @@ public record RetryPolicy(
         return MODE_PROFESSIONAL.equals(normalized) ? MODE_PROFESSIONAL : MODE_SIMPLE;
     }
 
+    /**
+     * 归一化状态码集合：保留合法精确码与通配符（{@code Nxx}），其余丢弃；全空时退回默认。
+     */
     private static List<String> normalizeRetryOn(List<String> raw) {
-        Set<Integer> parsed = new LinkedHashSet<>();
+        Set<String> parsed = new LinkedHashSet<>();
+        boolean hasValid = false;
         if (raw != null) {
             for (String item : raw) {
-                Integer status = parseStatus(item);
-                if (status != null) {
-                    parsed.add(status);
+                String token = normalizeStatusToken(item);
+                if (token != null) {
+                    parsed.add(token);
+                    hasValid = true;
                 }
             }
         }
-        if (parsed.isEmpty()) {
+        if (!hasValid) {
             return DEFAULT_RETRY_ON;
         }
-        return parsed.stream().map(String::valueOf).toList();
+        return List.copyOf(parsed);
     }
 
-    private static Integer parseStatus(String value) {
+    /**
+     * 归一化单个 token：精确状态码归一成去前导零的数字串（范围 100-599）；
+     * 通配符 {@code Nxx}（如 4xx/5xx）归一成小写前缀；非法项返回 null 丢弃。
+     */
+    private static String normalizeStatusToken(String value) {
         if (value == null) {
             return null;
         }
@@ -190,11 +212,25 @@ public record RetryPolicy(
         if (trimmed.isEmpty()) {
             return null;
         }
-        try {
-            return Integer.valueOf(trimmed);
-        } catch (NumberFormatException e) {
-            return null;
+        if (trimmed.matches("\\d+")) {
+            try {
+                int code = Integer.parseInt(trimmed);
+                if (code < 100 || code > 599) {
+                    return null;
+                }
+                return String.valueOf(code);
+            } catch (NumberFormatException e) {
+                return null;
+            }
         }
+        if (trimmed.matches("(?i)^\\dxx$")) {
+            int prefix = Character.getNumericValue(trimmed.charAt(0));
+            if (prefix < 1 || prefix > 5) {
+                return null;
+            }
+            return prefix + "xx";
+        }
+        return null;
     }
 
     private static int clampInt(Integer value, int fallback, int min, int max) {

@@ -29,12 +29,25 @@ class RetryableClassifierTest {
     }
 
     @Test
-    void clientErrorsAreNotRetryable() {
-        assertFalse(RetryableClassifier.retryable(error(400), DEFAULT));
-        assertFalse(RetryableClassifier.retryable(error(401), DEFAULT));
-        assertFalse(RetryableClassifier.retryable(error(403), DEFAULT));
-        assertFalse(RetryableClassifier.retryable(error(404), DEFAULT));
-        assertFalse(RetryableClassifier.retryable(error(422), DEFAULT));
+    void defaultRetries4xxAnd5xx() {
+        // 默认集合 4xx + 5xx（通配符），故 4xx 与 5xx 均默认重试
+        assertTrue(RetryableClassifier.retryable(error(400), DEFAULT));
+        assertTrue(RetryableClassifier.retryable(error(401), DEFAULT));
+        assertTrue(RetryableClassifier.retryable(error(403), DEFAULT));
+        assertTrue(RetryableClassifier.retryable(error(404), DEFAULT));
+        assertTrue(RetryableClassifier.retryable(error(422), DEFAULT));
+        assertTrue(RetryableClassifier.retryable(error(500), DEFAULT));
+        assertTrue(RetryableClassifier.retryable(error(502), DEFAULT));
+        assertTrue(RetryableClassifier.retryable(error(503), DEFAULT));
+        assertTrue(RetryableClassifier.retryable(error(504), DEFAULT));
+    }
+
+    @Test
+    void nonErrorClassesAreNotRetryableByDefault() {
+        // 默认未覆盖 1xx/2xx/3xx，重定向类状态默认不重试
+        assertFalse(RetryableClassifier.retryable(error(301), DEFAULT));
+        assertFalse(RetryableClassifier.retryable(error(302), DEFAULT));
+        assertFalse(RetryableClassifier.retryable(error(304), DEFAULT));
     }
 
     @Test

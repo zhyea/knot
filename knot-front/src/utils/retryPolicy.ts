@@ -46,8 +46,8 @@ export const RETRY_MODE_SIMPLE = "simple";
 export const RETRY_MODE_PROFESSIONAL = "professional";
 export const RETRY_MODE_ALLOWLIST = "allowlist";
 export const RETRY_MODE_DENYLIST = "denylist";
-/** 默认重试状态集：5xx 与 429 */
-export const RETRY_ON_DEFAULT = ["500", "502", "503", "504", "429"];
+/** 默认重试状态集：全部 4xx 与 5xx（通配符 Nxx） */
+export const RETRY_ON_DEFAULT = ["4xx", "5xx"];
 
 export function defaultRetryPolicy(): RetryPolicy {
   return {
@@ -79,7 +79,9 @@ export function normalizeRetryPolicy(raw: unknown): RetryPolicy {
   const mode = normalizeConfigMode(source.mode);
   const retryOnMode = normalizeRetryOnMode(source.retryOnMode);
   const statuses = Array.isArray(source.retryOn)
-    ? source.retryOn.map(item => String(item ?? "").trim()).filter(item => /^\d+$/.test(item))
+    ? source.retryOn
+        .map(item => String(item ?? "").trim().toLowerCase())
+        .filter(item => /^(\d+|[1-5]xx)$/.test(item))
     : [];
   const retryOn = statuses.length ? statuses : [...RETRY_ON_DEFAULT];
   const maxAttempts = clampInt(source.maxAttempts, RETRY_MAX_ATTEMPTS_DEFAULT, 1, RETRY_MAX_ATTEMPTS_LIMIT);

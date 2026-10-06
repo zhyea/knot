@@ -9,6 +9,11 @@
 > - multiplier 由整数改为**支持 1 位小数浮点**（归一化四舍五入）。
 > - 新增**配置模式**：`simple`（默认，仅暴露尝试次数+判定方式+状态码，其余走内置默认）/ `professional`（全字段可调）。后端 `RetryPolicy` 增 `mode` 字段 + `normalizeConfigMode`；前端 `RetryPolicySection` 加模式切换并显隐控件。
 > - 清理死字段 `fallback_rule_id`（设计误标为已实现，实际无消费者），含 DROP 迁移。
+> - `retryOn` 支持**通配符 `Nxx`**（`4xx`/`5xx`），默认集合改为 `["4xx","5xx"]`。
+>   **⚠ 契约变更：4xx 由「默认不重试」翻转为「默认重试」**（robin 拍板按字面 `4xx+5xx`），
+>   故 401/403/404 等也会原地重投；如需收紧把 `retryOn` 显式配成 `["5xx","429"]` 即可。
+>   后端 `matchesStatus` 改为「精确码 OR 通配符」双判定、`normalizeRetryOn` 保留通配符 token；
+>   前端 `retryPolicy.ts` 归一化放行通配符、`RetryPolicySection` 预设加入 `4xx`/`5xx`。
 >
 > **验证结论**（真实 exit code）
 > | 门禁 | 结果 |
@@ -75,9 +80,9 @@ for (candidate : routing.candidateModels()) {
 
 按上游 HTTP 状态码 + 错误码分类：
 
-- ✅ 默认可重试：`5xx`（500/502/503/504）、`429`（上游限流）、网络层异常（连接超时、读超时、连接重置、EOF）。
-- ❌ 默认不可重试：`4xx`（400/401/403/404/422）、业务错误（内容审核等）、配置类（`MODEL_NOT_FOUND` / `PROVIDER_NOT_FOUND` / `API_PROTOCOL_NOT_CONFIGURED`）。
-- 可配置：`retryOn` 状态白名单（或黑名单 `retryOnMode=denylist`）覆盖默认，支持把特定 4xx 也设为重试。
+- ✅ 默认可重试：**全部 4xx 与 5xx**（默认集合即用通配符 `["4xx","5xx"]`）、网络层异常（连接超时、读超时、连接重置、EOF）。
+- ❌ 默认不可重试：1xx/2xx/3xx（如重定向 301/302/304）、业务错误（内容审核等）、配置类（`MODEL_NOT_FOUND` / `PROVIDER_NOT_FOUND` / `API_PROTOCOL_NOT_CONFIGURED`）。
+- 可配置：`retryOn` 支持**通配符 `Nxx`**（如 `4xx`/`5xx` 匹配某一类全部状态码）与精确码（`500`/`429`）混用；allowlist（命中才重试）/ denylist（命中才不重试，`retryOnMode=denylist`）覆盖默认。
 - 无 HTTP 状态时按错误码兜底：网络/超时类可重试，配置类不可重试。
 
 判定优先级：非 `GatewayUpstreamException` → 不重试；`httpStatus` 为空 → 按错误码分；`httpStatus` 有值 → 按 `retryOn` 集合判定。
@@ -109,7 +114,7 @@ for (candidate : routing.candidateModels()) {
   "mode": "simple",
   "maxAttempts": 2,
   "retryOnMode": "allowlist",
-  "retryOn": ["500","502","503","504","429"],
+  "retryOn": ["4xx", "5xx"],
   "backoffBaseMs": 200,
   "backoffMaxMs": 5000,
   "multiplier": 1.0,
@@ -126,7 +131,7 @@ for (candidate : routing.candidateModels()) {
 | `mode` | `simple` / `professional` | `simple` | 全 |
 | `maxAttempts` | 总尝试次数（含首次） | `2` | 全（simple 仅此一项可调） |
 | `retryOnMode` | `allowlist` / `denylist` | `allowlist` | 全（simple 仅此一项可调） |
-| `retryOn` | 状态集合 | `["500","502","503","504","429"]` | 全（simple 仅此一项可调） |
+| `retryOn` | 状态集合（支持 `Nxx` 通配符） | `["4xx","5xx"]` | 全（simple 仅此一项可调） |
 | `backoffBaseMs` | 首次退避基数 | `200` | 仅 professional |
 | `backoffMaxMs` | 单次退避上限 / 总预算上限 | `5000` | 仅 professional |
 | `multiplier` | 指数基数（**1 位小数浮点**） | `1.0` | 仅 professional |
@@ -135,6 +140,10 @@ for (candidate : routing.candidateModels()) {
 
 约定：`maxAttempts<=1` 视为关闭重试；`retry_policy` 为空/解析失败 → 走默认启用策略（simple + 上述默认）。
 
+> **`retryOn` 通配符**：每项可以是精确状态码（`500`、`429`）或通配符 `Nxx`（`4xx` 匹配 400-499、`5xx` 匹配 500-599）。
+> 归一化时精确码限定 100-599、通配符前缀限定 1-5，非法项直接丢弃，全空退回默认 `["4xx","5xx"]`。
+> 两种写法可混用（如 `["5xx","429"]` = 全部服务端错误 + 上游限流）。
+
 ## 10. 可观测性
 
 - `GatewayTraceContext` 记录：最终命中目标 `targetCode`、各候选尝试次数 `attempts`、末次失败原因。
@@ -142,7 +151,7 @@ for (candidate : routing.candidateModels()) {
 
 ## 11. 默认值
 
-默认开启 + 简单模式：`maxAttempts=2`、base 200ms、cap 5s、恒定退避（倍数 `1.0`，即不放大）、不抖动、重试 5xx/429、服从 Retry-After。规则可显式 `enabled=false` 关闭；切到 professional 模式可微调 base/cap/倍数(1 位小数)/抖动/Retry-After。
+默认开启 + 简单模式：`maxAttempts=2`、base 200ms、cap 5s、恒定退避（倍数 `1.0`，即不放大）、不抖动、重试 4xx 与 5xx（通配符）、服从 Retry-After。规则可显式 `enabled=false` 关闭；切到 professional 模式可微调 base/cap/倍数(1 位小数)/抖动/Retry-After。
 
 ## 12. 落地影响面（文件级）
 

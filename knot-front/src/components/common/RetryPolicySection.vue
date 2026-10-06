@@ -156,8 +156,8 @@ const hint =
   + "流式请求只在首个字节之前失败才可重试，一旦开始转发即向调用方提交。"
   + "简单模式仅配置尝试次数与判定条件，退避等参数走内置默认；专业模式可微调全部退避参数。";
 
-/** 常用状态码预设，仍可手动输入任意状态码 */
-const statusOptions = computed(() => ["429", "500", "502", "503", "504", "408", "409"]);
+/** 常用状态码预设（含通配符 4xx/5xx），仍可手动输入任意状态码或通配符 */
+const statusOptions = computed(() => ["4xx", "5xx", "429", "500", "502", "503", "504", "408", "409"]);
 
 /** 本地草稿 + 深度 watch 回写父级，不直接改 props 对象 */
 const draft = reactive<RetryPolicy>({...defaultRetryPolicy(), ...normalizeRetryPolicy(props.retryPolicy)});

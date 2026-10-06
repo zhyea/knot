@@ -73,11 +73,13 @@ class RetryPolicyTest {
 
     @Test
     void allowlistRetriesOnlyListedStatuses() {
-        RetryPolicy policy = RetryPolicy.DEFAULT;
+        // 显式白名单：只重试列出的精确码，未列出的 4xx 不重试
+        RetryPolicy policy = new RetryPolicy(true, 2, 200, 5_000, 1.0, false, true,
+                RetryPolicy.MODE_ALLOWLIST, List.of("500", "429"), RetryPolicy.MODE_SIMPLE);
         assertTrue(policy.matchesStatus(500));
         assertTrue(policy.matchesStatus(429));
         assertFalse(policy.matchesStatus(400));
-        assertFalse(policy.matchesStatus(401));
+        assertFalse(policy.matchesStatus(404));
     }
 
     @Test
@@ -129,5 +131,38 @@ class RetryPolicyTest {
         RetryPolicy blank = new RetryPolicy(true, 2, 200, 5_000, 2.0, false, true,
                 RetryPolicy.MODE_ALLOWLIST, List.of("500"), null);
         assertEquals(RetryPolicy.MODE_SIMPLE, blank.mode());
+    }
+
+    @Test
+    void defaultUsesWildcardClasses() {
+        assertEquals(List.of("4xx", "5xx"), RetryPolicy.DEFAULT.retryOn());
+        // 默认集合为通配符 4xx+5xx：4xx/5xx 均命中，1xx/2xx/3xx 不命中
+        assertTrue(RetryPolicy.DEFAULT.matchesStatus(404));
+        assertTrue(RetryPolicy.DEFAULT.matchesStatus(503));
+        assertFalse(RetryPolicy.DEFAULT.matchesStatus(301));
+    }
+
+    @Test
+    void wildcardMatchesWholeClass() {
+        RetryPolicy only5xx = new RetryPolicy(true, 2, 200, 5_000, 1.0, false, true,
+                RetryPolicy.MODE_ALLOWLIST, List.of("5xx"), RetryPolicy.MODE_SIMPLE);
+        assertTrue(only5xx.matchesStatus(500));
+        assertTrue(only5xx.matchesStatus(599));
+        assertFalse(only5xx.matchesStatus(404));
+
+        RetryPolicy only4xx = new RetryPolicy(true, 2, 200, 5_000, 1.0, false, true,
+                RetryPolicy.MODE_ALLOWLIST, List.of("4xx"), RetryPolicy.MODE_SIMPLE);
+        assertTrue(only4xx.matchesStatus(400));
+        assertTrue(only4xx.matchesStatus(499));
+        assertFalse(only4xx.matchesStatus(503));
+    }
+
+    @Test
+    void wildcardMixedWithExactCodes() {
+        RetryPolicy policy = new RetryPolicy(true, 2, 200, 5_000, 1.0, false, true,
+                RetryPolicy.MODE_ALLOWLIST, List.of("5xx", "429"), RetryPolicy.MODE_SIMPLE);
+        assertTrue(policy.matchesStatus(503));
+        assertTrue(policy.matchesStatus(429));
+        assertFalse(policy.matchesStatus(404));
     }
 }
