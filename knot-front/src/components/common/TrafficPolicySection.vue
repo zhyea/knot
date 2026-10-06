@@ -96,18 +96,51 @@ const windowOptions = computed(() => optionsOf("QuotaWindowEnum"));
 const rateDraft = reactive<RateLimitPolicy>({...emptyRateLimitPolicy(), ...props.rateLimit});
 const quotaDraft = reactive<QuotaPolicy>({...emptyQuotaPolicy(), ...normalizeQuotaPolicy(props.quota)});
 
+function sameRateLimitPolicy(left: unknown, right: RateLimitPolicy): boolean {
+  const normalized = normalizeRateLimitPolicy(left);
+  return normalized.rpm === right.rpm && normalized.tpm === right.tpm;
+}
+
+function sameQuotaPolicy(left: unknown, right: QuotaPolicy): boolean {
+  const normalized = normalizeQuotaPolicy(left);
+  return normalized.maxTokens === right.maxTokens
+    && normalized.costLimit === right.costLimit
+    && normalized.currency === right.currency
+    && normalized.window === right.window;
+}
+
 watch(() => props.rateLimit,
-  value => Object.assign(rateDraft, normalizeRateLimitPolicy(value)),
+  value => {
+    const normalized = normalizeRateLimitPolicy(value);
+    if (!sameRateLimitPolicy(rateDraft, normalized)) {
+      Object.assign(rateDraft, normalized);
+    }
+  },
   {immediate: true, deep: true});
 watch(() => props.quota,
-  value => Object.assign(quotaDraft, normalizeQuotaPolicy(value)),
+  value => {
+    const normalized = normalizeQuotaPolicy(value);
+    if (!sameQuotaPolicy(quotaDraft, normalized)) {
+      Object.assign(quotaDraft, normalized);
+    }
+  },
   {immediate: true, deep: true});
 
 watch(rateDraft,
-  value => emit("update:rateLimit", {...value}),
+  value => {
+    const next = {...value};
+    if (!sameRateLimitPolicy(props.rateLimit, next)) {
+      emit("update:rateLimit", next);
+    }
+  },
   {deep: true});
 watch(quotaDraft,
-  value => emit("update:quota", {...value}),
+  value => {
+    const next = {...value};
+    if (!sameQuotaPolicy(props.quota, next)) {
+      emit("update:quota", next);
+    }
+  },
   {deep: true});
 </script>
 
