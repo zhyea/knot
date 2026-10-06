@@ -134,6 +134,7 @@ declare module 'vue' {
     ProviderProfileFormDrawer: typeof import('./src/components/provider/ProviderProfileFormDrawer.vue')['default']
     ProviderProfileListPanel: typeof import('./src/components/provider/ProviderProfileListPanel.vue')['default']
     RemoteEntitySelect: typeof import('./src/components/common/RemoteEntitySelect.vue')['default']
+    RetryPolicySection: typeof import('./src/components/common/RetryPolicySection.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     RoutingConsumerFormDrawer: typeof import('./src/components/routing/RoutingConsumerFormDrawer.vue')['default']
