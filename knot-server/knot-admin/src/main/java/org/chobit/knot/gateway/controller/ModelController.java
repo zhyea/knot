@@ -92,7 +92,8 @@ public class ModelController {
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
                 query == null ? null : query.keyword(),
                 query == null ? null : query.modelTypes(),
-                query == null ? null : query.logicalModelCode()
+                query == null ? null : query.logicalModelCode(),
+                query == null ? null : query.status()
         );
         return page.mapList(modelConverter::toVOList);
     }
