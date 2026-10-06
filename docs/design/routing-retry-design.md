@@ -1,8 +1,14 @@
 # 路由规则 · 模型失败重试方案设计
 
-> 状态：**已实现并验证**（2026-10-05 设计 → 2026-10-06 落地）
+> 状态：**已实现并验证**（2026-10-05 设计 → 2026-10-06 落地 → 2026-10-06 调整双模式与新默认）
 > 关联代码：`knot-server/knot-gateway/.../runtime/GatewayRequestHandler.java`（`proxyWithFailover` / `invokeWithRetry`）
 > 设计日期：2026-10-05
+>
+> **调整记录**（2026-10-06）
+> - 默认值收紧：maxAttempts `3 → 2`、multiplier `2.0 → 1.0`、jitter `true → false`。
+> - multiplier 由整数改为**支持 1 位小数浮点**（归一化四舍五入）。
+> - 新增**配置模式**：`simple`（默认，仅暴露尝试次数+判定方式+状态码，其余走内置默认）/ `professional`（全字段可调）。后端 `RetryPolicy` 增 `mode` 字段 + `normalizeConfigMode`；前端 `RetryPolicySection` 加模式切换并显隐控件。
+> - 清理死字段 `fallback_rule_id`（设计误标为已实现，实际无消费者），含 DROP 迁移。
 >
 > **验证结论**（真实 exit code）
 > | 门禁 | 结果 |
@@ -32,13 +38,12 @@
 - 不引入冗余列：规则级策略用单 `retry_policy` JSON 列承载（类比 `kb_billing_rules.config_json`）。
 - 流式请求仅在「首个字节前」可重试，不破坏已建立的数据流。
 
-## 3. 三层降级模型（由内到外，顺序执行）
+## 3. 降级模型（由内到外：retry → failover）
 
 | 层 | 行为 | 现状 |
 |---|---|---|
 | **Retry** | 同一目标失败后原地重投 N 次 + 退避 | ❌ 本次新增 |
 | **Failover** | Retry 耗尽仍失败 → 切规则内下一候选 | ✅ 已有 |
-| **Rule Fallback** | 规则内候选全耗尽 → `fallbackRuleId` 规则 | ✅ 已有 |
 
 ## 4. 重试执行流程
 
@@ -101,30 +106,34 @@ for (candidate : routing.candidateModels()) {
 ```json
 {
   "enabled": true,
-  "maxAttempts": 3,
+  "mode": "simple",
+  "maxAttempts": 2,
+  "retryOnMode": "allowlist",
+  "retryOn": ["500","502","503","504","429"],
   "backoffBaseMs": 200,
   "backoffMaxMs": 5000,
-  "multiplier": 2.0,
-  "jitter": true,
-  "respectRetryAfter": true,
-  "retryOnMode": "allowlist",
-  "retryOn": ["500","502","503","504","429"]
+  "multiplier": 1.0,
+  "jitter": false,
+  "respectRetryAfter": true
 }
 ```
 
-| 字段 | 含义 | 默认 |
-|---|---|---|
-| `enabled` | 是否启用重试 | `true` |
-| `maxAttempts` | 总尝试次数（含首次） | `3` |
-| `backoffBaseMs` | 首次退避基数 | `200` |
-| `backoffMaxMs` | 单次退避上限 / 总预算上限 | `5000` |
-| `multiplier` | 指数基数 | `2.0` |
-| `jitter` | 随机抖动 | `true` |
-| `respectRetryAfter` | 服从上游 Retry-After | `true` |
-| `retryOnMode` | `allowlist` / `denylist` | `allowlist` |
-| `retryOn` | 状态集合 | `["500","502","503","504","429"]` |
+> **双模式**：`mode=simple`（默认）只暴露「尝试次数 + 判定方式 + 状态码」三项，其余字段在持久化与解析时退回内置默认（`backoffBaseMs=200`、`backoffMaxMs=5000`、`multiplier=1.0`、`jitter=false`、`respectRetryAfter=true`）；`mode=professional` 放开全部字段。前端 `RetryPolicySection` 按此显隐控件，提交恒送归一化结果。
 
-约定：`maxAttempts<=1` 视为关闭重试；`retry_policy` 为空/解析失败 → 走默认启用策略。
+| 字段 | 含义 | 默认 | 模式 |
+|---|---|---|---|
+| `enabled` | 是否启用重试 | `true` | 全 |
+| `mode` | `simple` / `professional` | `simple` | 全 |
+| `maxAttempts` | 总尝试次数（含首次） | `2` | 全（simple 仅此一项可调） |
+| `retryOnMode` | `allowlist` / `denylist` | `allowlist` | 全（simple 仅此一项可调） |
+| `retryOn` | 状态集合 | `["500","502","503","504","429"]` | 全（simple 仅此一项可调） |
+| `backoffBaseMs` | 首次退避基数 | `200` | 仅 professional |
+| `backoffMaxMs` | 单次退避上限 / 总预算上限 | `5000` | 仅 professional |
+| `multiplier` | 指数基数（**1 位小数浮点**） | `1.0` | 仅 professional |
+| `jitter` | 随机抖动 | `false` | 仅 professional |
+| `respectRetryAfter` | 服从上游 Retry-After | `true` | 仅 professional |
+
+约定：`maxAttempts<=1` 视为关闭重试；`retry_policy` 为空/解析失败 → 走默认启用策略（simple + 上述默认）。
 
 ## 10. 可观测性
 
@@ -133,7 +142,7 @@ for (candidate : routing.candidateModels()) {
 
 ## 11. 默认值
 
-默认开启：`maxAttempts=3`、base 200ms、cap 5s、指数 ×2 + jitter、重试 5xx/429、服从 Retry-After。规则可显式 `enabled=false` 关闭。
+默认开启 + 简单模式：`maxAttempts=2`、base 200ms、cap 5s、恒定退避（倍数 `1.0`，即不放大）、不抖动、重试 5xx/429、服从 Retry-After。规则可显式 `enabled=false` 关闭；切到 professional 模式可微调 base/cap/倍数(1 位小数)/抖动/Retry-After。
 
 ## 12. 落地影响面（文件级）
 

@@ -12,51 +12,19 @@
 
     <el-row :gutter="16">
       <el-col :span="12">
+        <el-form-item label="配置模式" label-width="110px">
+          <el-radio-group v-model="draft.mode" :disabled="!draft.enabled">
+            <el-radio-button :value="RETRY_MODE_SIMPLE">简单</el-radio-button>
+            <el-radio-button :value="RETRY_MODE_PROFESSIONAL">专业</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+      </el-col>
+      <el-col :span="12">
         <el-form-item label="总尝试次数" label-width="110px">
           <el-input-number
             v-model="draft.maxAttempts"
             :min="1"
             :max="RETRY_MAX_ATTEMPTS_LIMIT"
-            :disabled="!draft.enabled"
-            class="retry-policy__field"
-          />
-        </el-form-item>
-      </el-col>
-      <el-col :span="12">
-        <el-form-item label="退避基数(ms)" label-width="110px">
-          <el-input-number
-            v-model="draft.backoffBaseMs"
-            :min="0"
-            :max="RETRY_BACKOFF_LIMIT_MS"
-            :step="100"
-            :disabled="!draft.enabled"
-            class="retry-policy__field"
-          />
-        </el-form-item>
-      </el-col>
-    </el-row>
-
-    <el-row :gutter="16">
-      <el-col :span="12">
-        <el-form-item label="退避上限(ms)" label-width="110px">
-          <el-input-number
-            v-model="draft.backoffMaxMs"
-            :min="0"
-            :max="RETRY_BACKOFF_LIMIT_MS"
-            :step="500"
-            :disabled="!draft.enabled"
-            class="retry-policy__field"
-          />
-        </el-form-item>
-      </el-col>
-      <el-col :span="12">
-        <el-form-item label="退避倍数" label-width="110px">
-          <el-input-number
-            v-model="draft.multiplier"
-            :min="1"
-            :max="RETRY_MULTIPLIER_LIMIT"
-            :step="0.5"
-            :precision="1"
             :disabled="!draft.enabled"
             class="retry-policy__field"
           />
@@ -91,18 +59,63 @@
       </el-col>
     </el-row>
 
-    <el-row :gutter="16">
-      <el-col :span="12">
-        <el-form-item label="退避抖动" label-width="110px">
-          <el-switch v-model="draft.jitter" :disabled="!draft.enabled"/>
-        </el-form-item>
-      </el-col>
-      <el-col :span="12">
-        <el-form-item label="服从 Retry-After" label-width="110px">
-          <el-switch v-model="draft.respectRetryAfter" :disabled="!draft.enabled"/>
-        </el-form-item>
-      </el-col>
-    </el-row>
+    <template v-if="draft.mode === RETRY_MODE_PROFESSIONAL">
+      <el-row :gutter="16">
+        <el-col :span="12">
+          <el-form-item label="退避基数(ms)" label-width="110px">
+            <el-input-number
+              v-model="draft.backoffBaseMs"
+              :min="0"
+              :max="RETRY_BACKOFF_LIMIT_MS"
+              :step="100"
+              :disabled="!draft.enabled"
+              class="retry-policy__field"
+            />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="退避上限(ms)" label-width="110px">
+            <el-input-number
+              v-model="draft.backoffMaxMs"
+              :min="0"
+              :max="RETRY_BACKOFF_LIMIT_MS"
+              :step="500"
+              :disabled="!draft.enabled"
+              class="retry-policy__field"
+            />
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-row :gutter="16">
+        <el-col :span="12">
+          <el-form-item label="退避倍数" label-width="110px">
+            <el-input-number
+              v-model="draft.multiplier"
+              :min="1"
+              :max="RETRY_MULTIPLIER_LIMIT"
+              :step="0.1"
+              :precision="1"
+              :disabled="!draft.enabled"
+              class="retry-policy__field"
+            />
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="退避抖动" label-width="110px">
+            <el-switch v-model="draft.jitter" :disabled="!draft.enabled"/>
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-row :gutter="16">
+        <el-col :span="12">
+          <el-form-item label="服从 Retry-After" label-width="110px">
+            <el-switch v-model="draft.respectRetryAfter" :disabled="!draft.enabled"/>
+          </el-form-item>
+        </el-col>
+      </el-row>
+    </template>
 
     <p class="retry-policy__hint">{{ hint }}</p>
   </div>
@@ -117,6 +130,8 @@ import {
   RETRY_MAX_ATTEMPTS_LIMIT,
   RETRY_MODE_ALLOWLIST,
   RETRY_MODE_DENYLIST,
+  RETRY_MODE_PROFESSIONAL,
+  RETRY_MODE_SIMPLE,
   RETRY_MULTIPLIER_LIMIT,
   type RetryPolicy
 } from "@/utils/retryPolicy";
@@ -138,7 +153,8 @@ const emit = defineEmits<{
 const hint =
   "重试发生在「切换下一个候选」之前：同一目标连续失败先在原地重投，次数耗尽才 failover。"
   + "默认重试 5xx 与 429 等瞬态失败；4xx 与配置类错误不重试，直接切换目标。"
-  + "流式请求只在首个字节之前失败才可重试，一旦开始转发即向调用方提交。";
+  + "流式请求只在首个字节之前失败才可重试，一旦开始转发即向调用方提交。"
+  + "简单模式仅配置尝试次数与判定条件，退避等参数走内置默认；专业模式可微调全部退避参数。";
 
 /** 常用状态码预设，仍可手动输入任意状态码 */
 const statusOptions = computed(() => ["429", "500", "502", "503", "504", "408", "409"]);

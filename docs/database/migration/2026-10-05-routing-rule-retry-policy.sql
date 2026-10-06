@@ -26,7 +26,7 @@ SET @ddl := IF(
             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'kb_routing_rules'
               AND COLUMN_NAME = 'retry_policy'),
     'DO 0',
-    'ALTER TABLE kb_routing_rules ADD COLUMN retry_policy TEXT NULL COMMENT ''失败重试策略（JSON）；空表示走内置默认策略'' AFTER fallback_rule_id');
+    'ALTER TABLE kb_routing_rules ADD COLUMN retry_policy TEXT NULL COMMENT ''失败重试策略（JSON）；空表示走内置默认策略'' AFTER user_id');
 PREPARE stmt FROM @ddl;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;

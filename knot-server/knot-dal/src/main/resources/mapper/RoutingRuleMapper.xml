@@ -6,7 +6,7 @@
         r.id, r.rule_code, r.name, r.app_scenario,
         r.app_id, a.name AS app_name,
         r.user_id, u.real_name AS user_real_name, u.username AS user_username,
-        r.fallback_rule_id, r.retry_policy, r.status
+        r.retry_policy, r.status
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
@@ -71,9 +71,9 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_routing_rules(rule_code, name, app_scenario, app_id, user_id, fallback_rule_id,
+        insert into kb_routing_rules(rule_code, name, app_scenario, app_id, user_id,
                                      retry_policy, status)
-        values(#{ruleCode}, #{name}, #{appScenario}, #{appId}, #{userId}, #{fallbackRuleId},
+        values(#{ruleCode}, #{name}, #{appScenario}, #{appId}, #{userId},
                #{retryPolicy}, #{status})
     </insert>
 
@@ -84,7 +84,6 @@
             app_scenario = #{appScenario},
             app_id = #{appId},
             user_id = #{userId},
-            fallback_rule_id = #{fallbackRuleId},
             retry_policy = #{retryPolicy},
             status = #{status}
         where id = #{id}

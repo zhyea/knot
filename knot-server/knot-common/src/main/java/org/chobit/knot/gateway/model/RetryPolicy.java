@@ -11,14 +11,17 @@ import java.util.Set;
  * 路由规则级「失败重试」策略。
  *
  * <p>重试位于<b>跨候选 failover 之前</b>：对同一路由目标（同一 {@code upstream_model}）原地重投，
- * 次数耗尽仍失败才切到规则内的下一个候选。三层降级顺序为「retry → failover → 规则 fallback」。</p>
+ * 次数耗尽仍失败才切到规则内的下一个候选。降级顺序为「retry → failover」。</p>
  *
  * <p>各字段在<b>紧凑构造器中即归一化</b>——缺省值填充、越界收敛、状态集过滤非法项。
  * 因此任何 {@code RetryPolicy} 实例（含 Jackson 反序列化出来的）拿到的都是可直接使用的有效值，
  * 调用方不需要再做空值兜底。</p>
  *
+ * <p>配置分两种模式：{@code simple}（仅尝试次数 + 判定方式 + 状态码，其余走内置默认）
+ * 与 {@code professional}（全字段可调）。默认 {@code simple}。</p>
+ *
  * <p>存储为 {@code kb_routing_rules.retry_policy}（TEXT/JSON）；该列为空表示未显式配置，
- * 运行时解析为 {@link #DEFAULT}（默认开启）。</p>
+ * 运行时解析为 {@link #DEFAULT}（默认开启、简单模式）。</p>
  */
 public record RetryPolicy(
         /** 是否启用重试；关闭等价于「每个目标只试一次」，直接走 failover */
@@ -29,7 +32,7 @@ public record RetryPolicy(
         Integer backoffBaseMs,
         /** 单次退避上限（毫秒），同时作为总预算上限 */
         Integer backoffMaxMs,
-        /** 指数退避基数 */
+        /** 指数退避倍数（1 位小数浮点，缺省 1.0 表示恒定退避） */
         Double multiplier,
         /** 是否在退避区间内随机取值，打散重试尖峰 */
         Boolean jitter,
@@ -38,16 +41,20 @@ public record RetryPolicy(
         /** {@code allowlist}（命中才重试）/ {@code denylist}（命中才不重试） */
         String retryOnMode,
         /** 参与判定的上游 HTTP 状态码集合（字符串形式，便于 JSON 与前端传输） */
-        List<String> retryOn
+        List<String> retryOn,
+        /** 配置模式：{@code simple} 仅尝试次数+判定方式+状态码 / {@code professional} 全字段 */
+        String mode
 ) {
 
-    public static final int MAX_ATTEMPTS_DEFAULT = 3;
+    public static final int MAX_ATTEMPTS_DEFAULT = 2;
     public static final int MAX_ATTEMPTS_LIMIT = 10;
     public static final int BACKOFF_BASE_MS_DEFAULT = 200;
     public static final int BACKOFF_MAX_MS_DEFAULT = 5_000;
     public static final int BACKOFF_LIMIT_MS = 60_000;
-    public static final double MULTIPLIER_DEFAULT = 2.0;
+    public static final double MULTIPLIER_DEFAULT = 1.0;
     public static final double MULTIPLIER_LIMIT = 10.0;
+    public static final String MODE_SIMPLE = "simple";
+    public static final String MODE_PROFESSIONAL = "professional";
     public static final String MODE_ALLOWLIST = "allowlist";
     public static final String MODE_DENYLIST = "denylist";
 
@@ -58,7 +65,7 @@ public record RetryPolicy(
     private static final List<String> DEFAULT_RETRY_ON = List.of("500", "502", "503", "504", "429");
 
     /**
-     * 默认策略：默认开启，总尝试 3 次，指数退避（200ms 起、×2、上限 5s）+ 抖动，
+     * 默认策略：默认开启、简单模式，总尝试 2 次、恒定退避（200ms，倍数 1.0）、不抖动，
      * 重试 5xx 与 429，服从上游 Retry-After。
      */
     public static final RetryPolicy DEFAULT = new RetryPolicy(
@@ -67,10 +74,11 @@ public record RetryPolicy(
             BACKOFF_BASE_MS_DEFAULT,
             BACKOFF_MAX_MS_DEFAULT,
             MULTIPLIER_DEFAULT,
-            Boolean.TRUE,
+            Boolean.FALSE,
             Boolean.TRUE,
             MODE_ALLOWLIST,
-            DEFAULT_RETRY_ON
+            DEFAULT_RETRY_ON,
+            MODE_SIMPLE
     );
 
     /**
@@ -84,11 +92,12 @@ public record RetryPolicy(
         maxAttempts = clampInt(maxAttempts, MAX_ATTEMPTS_DEFAULT, 1, MAX_ATTEMPTS_LIMIT);
         backoffBaseMs = clampInt(backoffBaseMs, BACKOFF_BASE_MS_DEFAULT, 0, BACKOFF_LIMIT_MS);
         backoffMaxMs = clampInt(backoffMaxMs, BACKOFF_MAX_MS_DEFAULT, 0, BACKOFF_LIMIT_MS);
-        multiplier = clampDouble(multiplier, MULTIPLIER_DEFAULT, 1.0, MULTIPLIER_LIMIT);
-        jitter = jitter == null ? Boolean.TRUE : jitter;
+        multiplier = roundToOneDecimal(clampDouble(multiplier, MULTIPLIER_DEFAULT, 1.0, MULTIPLIER_LIMIT));
+        jitter = jitter == null ? Boolean.FALSE : jitter;
         respectRetryAfter = respectRetryAfter == null ? Boolean.TRUE : respectRetryAfter;
-        retryOnMode = normalizeMode(retryOnMode);
+        retryOnMode = normalizeRetryOnMode(retryOnMode);
         retryOn = normalizeRetryOn(retryOn);
+        mode = normalizeConfigMode(mode);
     }
 
     /**
@@ -141,12 +150,20 @@ public record RetryPolicy(
         return Boolean.TRUE.equals(enabled) && maxAttempts != null && maxAttempts > 1;
     }
 
-    private static String normalizeMode(String mode) {
+    private static String normalizeRetryOnMode(String mode) {
         if (mode == null || mode.isBlank()) {
             return MODE_ALLOWLIST;
         }
         String normalized = mode.trim().toLowerCase(Locale.ROOT);
         return MODE_DENYLIST.equals(normalized) ? MODE_DENYLIST : MODE_ALLOWLIST;
+    }
+
+    private static String normalizeConfigMode(String mode) {
+        if (mode == null || mode.isBlank()) {
+            return MODE_SIMPLE;
+        }
+        String normalized = mode.trim().toLowerCase(Locale.ROOT);
+        return MODE_PROFESSIONAL.equals(normalized) ? MODE_PROFESSIONAL : MODE_SIMPLE;
     }
 
     private static List<String> normalizeRetryOn(List<String> raw) {
@@ -192,5 +209,10 @@ public record RetryPolicy(
             return fallback;
         }
         return Math.min(max, Math.max(min, value));
+    }
+
+    /** 退避倍数归一化为 1 位小数（四舍五入），避免 2.67 这类过长小数污染配置 */
+    private static double roundToOneDecimal(double value) {
+        return Math.round(value * 10.0) / 10.0;
     }
 }

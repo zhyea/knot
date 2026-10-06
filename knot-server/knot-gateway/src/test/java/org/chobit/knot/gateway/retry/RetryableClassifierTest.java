@@ -58,9 +58,9 @@ class RetryableClassifierTest {
     @Test
     void disabledOrSingleAttemptPolicyNeverRetries() {
         RetryPolicy disabled = new RetryPolicy(false, 3, 200, 5_000, 2.0, true, true,
-                RetryPolicy.MODE_ALLOWLIST, List.of("500"));
+                RetryPolicy.MODE_ALLOWLIST, List.of("500"), RetryPolicy.MODE_SIMPLE);
         RetryPolicy single = new RetryPolicy(true, 1, 200, 5_000, 2.0, true, true,
-                RetryPolicy.MODE_ALLOWLIST, List.of("500"));
+                RetryPolicy.MODE_ALLOWLIST, List.of("500"), RetryPolicy.MODE_SIMPLE);
         assertFalse(RetryableClassifier.retryable(error(500), disabled));
         assertFalse(RetryableClassifier.retryable(error(500), single));
     }
@@ -68,7 +68,7 @@ class RetryableClassifierTest {
     @Test
     void denylistSkipsListedStatuses() {
         RetryPolicy denylist = new RetryPolicy(true, 3, 200, 5_000, 2.0, false, false,
-                RetryPolicy.MODE_DENYLIST, List.of("400", "401"));
+                RetryPolicy.MODE_DENYLIST, List.of("400", "401"), RetryPolicy.MODE_SIMPLE);
         assertFalse(RetryableClassifier.retryable(error(400), denylist));
         assertTrue(RetryableClassifier.retryable(error(500), denylist));
     }

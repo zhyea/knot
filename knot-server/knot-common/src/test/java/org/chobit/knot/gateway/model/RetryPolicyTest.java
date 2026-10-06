@@ -28,15 +28,16 @@ class RetryPolicyTest {
     }
 
     @Test
-    void defaultIsEnabledWithSaneValues() {
+    void defaultIsEnabledSimpleWithSaneValues() {
         RetryPolicy policy = RetryPolicy.DEFAULT;
         assertTrue(policy.enabled());
         assertTrue(policy.retryable());
-        assertEquals(3, policy.maxAttempts());
+        assertEquals(RetryPolicy.MODE_SIMPLE, policy.mode());
+        assertEquals(2, policy.maxAttempts());
         assertEquals(200, policy.backoffBaseMs());
         assertEquals(5_000, policy.backoffMaxMs());
-        assertEquals(2.0, policy.multiplier());
-        assertTrue(policy.jitter());
+        assertEquals(1.0, policy.multiplier());
+        assertFalse(policy.jitter());
         assertTrue(policy.respectRetryAfter());
         assertEquals(RetryPolicy.MODE_ALLOWLIST, policy.retryOnMode());
     }
@@ -44,21 +45,29 @@ class RetryPolicyTest {
     @Test
     void outOfRangeValuesAreClamped() {
         RetryPolicy policy = new RetryPolicy(true, 999, -5, 999_999, 100.0, true, true,
-                RetryPolicy.MODE_ALLOWLIST, List.of("500"));
+                RetryPolicy.MODE_ALLOWLIST, List.of("500"), RetryPolicy.MODE_SIMPLE);
         assertEquals(RetryPolicy.MAX_ATTEMPTS_LIMIT, policy.maxAttempts());
         assertEquals(0, policy.backoffBaseMs());
         assertEquals(RetryPolicy.BACKOFF_LIMIT_MS, policy.backoffMaxMs());
-        assertEquals(RetryPolicy.MULTIPLIER_LIMIT, policy.multiplier());
+        assertEquals(10.0, policy.multiplier());
+    }
+
+    @Test
+    void multiplierIsRoundedToOneDecimal() {
+        assertEquals(2.7, new RetryPolicy(true, 2, 200, 5_000, 2.67, true, false,
+                RetryPolicy.MODE_ALLOWLIST, List.of("500"), RetryPolicy.MODE_SIMPLE).multiplier());
+        assertEquals(1.2, new RetryPolicy(true, 2, 200, 5_000, 1.234, true, false,
+                RetryPolicy.MODE_ALLOWLIST, List.of("500"), RetryPolicy.MODE_SIMPLE).multiplier());
     }
 
     @Test
     void invalidStatusesAreFilteredAndEmptyFallsBackToDefault() {
-        RetryPolicy filtered = new RetryPolicy(true, 3, 200, 5_000, 2.0, true, true,
-                RetryPolicy.MODE_ALLOWLIST, Arrays.asList("500", "abc", "", null));
+        RetryPolicy filtered = new RetryPolicy(true, 2, 200, 5_000, 2.0, true, false,
+                RetryPolicy.MODE_ALLOWLIST, Arrays.asList("500", "abc", "", null), RetryPolicy.MODE_SIMPLE);
         assertEquals(List.of("500"), filtered.retryOn());
 
-        RetryPolicy empty = new RetryPolicy(true, 3, 200, 5_000, 2.0, true, true,
-                RetryPolicy.MODE_ALLOWLIST, List.of());
+        RetryPolicy empty = new RetryPolicy(true, 2, 200, 5_000, 2.0, true, false,
+                RetryPolicy.MODE_ALLOWLIST, List.of(), RetryPolicy.MODE_SIMPLE);
         assertEquals(RetryPolicy.DEFAULT.retryOn(), empty.retryOn());
     }
 
@@ -73,8 +82,8 @@ class RetryPolicyTest {
 
     @Test
     void denylistSkipsOnlyListedStatuses() {
-        RetryPolicy policy = new RetryPolicy(true, 3, 200, 5_000, 2.0, false, false,
-                RetryPolicy.MODE_DENYLIST, List.of("400", "401"));
+        RetryPolicy policy = new RetryPolicy(true, 2, 200, 5_000, 2.0, false, false,
+                RetryPolicy.MODE_DENYLIST, List.of("400", "401"), RetryPolicy.MODE_SIMPLE);
         assertFalse(policy.matchesStatus(400));
         assertTrue(policy.matchesStatus(500));
     }
@@ -82,15 +91,15 @@ class RetryPolicyTest {
     @Test
     void singleAttemptOrDisabledMeansNoRetry() {
         assertFalse(new RetryPolicy(true, 1, 200, 5_000, 2.0, true, true,
-                RetryPolicy.MODE_ALLOWLIST, List.of("500")).retryable());
-        assertFalse(new RetryPolicy(false, 3, 200, 5_000, 2.0, true, true,
-                RetryPolicy.MODE_ALLOWLIST, List.of("500")).retryable());
+                RetryPolicy.MODE_ALLOWLIST, List.of("500"), RetryPolicy.MODE_SIMPLE).retryable());
+        assertFalse(new RetryPolicy(false, 2, 200, 5_000, 2.0, true, true,
+                RetryPolicy.MODE_ALLOWLIST, List.of("500"), RetryPolicy.MODE_SIMPLE).retryable());
     }
 
     @Test
     void serializeAndParseRoundTripKeepsDisabledState() {
-        RetryPolicy disabled = new RetryPolicy(false, 5, 100, 1_000, 1.5, false, false,
-                RetryPolicy.MODE_DENYLIST, List.of("400"));
+        RetryPolicy disabled = new RetryPolicy(false, 5, 100, 1_000, 2.5, false, false,
+                RetryPolicy.MODE_DENYLIST, List.of("400"), RetryPolicy.MODE_PROFESSIONAL);
         String json = RetryPolicy.serialize(disabled);
         assertNotNull(json);
 
@@ -100,9 +109,25 @@ class RetryPolicyTest {
         assertEquals(5, parsed.maxAttempts());
         assertEquals(100, parsed.backoffBaseMs());
         assertEquals(1_000, parsed.backoffMaxMs());
-        assertEquals(1.5, parsed.multiplier());
+        assertEquals(2.5, parsed.multiplier());
         assertFalse(parsed.jitter());
         assertFalse(parsed.respectRetryAfter());
         assertEquals(RetryPolicy.MODE_DENYLIST, parsed.retryOnMode());
+        assertEquals(RetryPolicy.MODE_PROFESSIONAL, parsed.mode());
+    }
+
+    @Test
+    void configModeNormalized() {
+        RetryPolicy professional = new RetryPolicy(true, 2, 200, 5_000, 2.0, false, true,
+                RetryPolicy.MODE_ALLOWLIST, List.of("500"), "professional");
+        assertEquals(RetryPolicy.MODE_PROFESSIONAL, professional.mode());
+
+        RetryPolicy garbage = new RetryPolicy(true, 2, 200, 5_000, 2.0, false, true,
+                RetryPolicy.MODE_ALLOWLIST, List.of("500"), "whatever");
+        assertEquals(RetryPolicy.MODE_SIMPLE, garbage.mode());
+
+        RetryPolicy blank = new RetryPolicy(true, 2, 200, 5_000, 2.0, false, true,
+                RetryPolicy.MODE_ALLOWLIST, List.of("500"), null);
+        assertEquals(RetryPolicy.MODE_SIMPLE, blank.mode());
     }
 }
