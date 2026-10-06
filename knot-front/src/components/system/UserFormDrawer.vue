@@ -19,9 +19,10 @@
           <el-form-item label="所属部门">
             <RemoteEntitySelect
               v-model="form.deptId"
-              :load-function="loadDepartments"
-              :label-function="departmentLabel"
-              :selected-options="selectedDepartmentOptions"
+              :load-function="loadDepartmentOptions"
+              value-key="value"
+              :code-only="false"
+              label-key="label"
               placeholder="请选择部门"
               clearable
               style="width: 100%"
@@ -72,9 +73,9 @@ import {type PropType, computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import {createUser, updateUser} from "@/api/users";
 import {listAuthorizationRoles} from "@/api/authorizations/roles";
-import {listDepartments} from "@/api/departments";
+import {listDepartmentOptions} from "@/api/options";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
-import {normalizeOptionList, resolveSelectedOption} from "@/utils/options";
+import {normalizeOptionList, resolveSelectedOption, toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 
 const props = defineProps({
@@ -85,7 +86,6 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const saving = ref(false);
-const departmentOptions = ref<Row[]>([]);
 const roleOptions = ref<Row[]>([]);
 interface UserFormState {
   id: number | string | null;
@@ -134,18 +134,10 @@ watch(
   ([visible]) => {
     if (visible) {
       resetForm();
-      loadDepartments();
       loadRoles();
     }
   },
   {immediate: true}
-);
-
-const selectedDepartmentOptions = computed(() =>
-  resolveSelectedOption(form.deptId, departmentOptions.value, {
-    id: form.deptId,
-    deptName: props.user?.deptName
-  })
 );
 
 const selectedRoleOptions = computed(() => {
@@ -177,10 +169,7 @@ function roleLabel(role: Row) {
   return role.code ? `${role.name} (${role.code})` : role.name || `#${role.id}`;
 }
 
-async function loadDepartments() {
-  const data = await listDepartments({pageNum: 1, pageSize: 100});
-  departmentOptions.value = normalizeOptionList(data);
-}
+const loadDepartmentOptions = toOptionsLoader(listDepartmentOptions);
 
 async function loadRoles(params = {}) {
   const data = await listAuthorizationRoles(params);

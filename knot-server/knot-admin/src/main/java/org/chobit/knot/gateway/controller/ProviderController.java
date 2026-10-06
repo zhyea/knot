@@ -15,6 +15,10 @@ import org.chobit.knot.gateway.vo.provider.AuthApplierItem;
 import org.chobit.knot.gateway.vo.provider.CredentialTypeItem;
 import org.chobit.knot.gateway.vo.provider.ProviderAccountDetail;
 import org.chobit.knot.gateway.vo.provider.ProviderAccountItem;
+import org.chobit.knot.gateway.model.ProviderAccountOptionQuery;
+import org.chobit.knot.gateway.service.OptionsService;
+import org.chobit.knot.gateway.vo.common.OptionItem;
+import org.chobit.knot.gateway.vo.common.OptionPage;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,13 +29,20 @@ import java.util.List;
 public class ProviderController {
     private final ProviderService providerService;
     private final ProviderConverter providerConverter;
+    private final OptionsService optionsService;
 
     /**
      * Constructs a new instance.
      */
-    public ProviderController(ProviderService providerService, ProviderConverter providerConverter) {
+    public ProviderController(ProviderService providerService, ProviderConverter providerConverter, OptionsService optionsService) {
         this.providerService = providerService;
         this.providerConverter = providerConverter;
+        this.optionsService = optionsService;
+    }
+
+    @PostMapping("/options")
+    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) ProviderAccountOptionQuery query) {
+        return optionsService.listProviderAccountOptions(query);
     }
 
     /**
@@ -79,14 +90,6 @@ public class ProviderController {
             @RequestParam String code,
             @RequestParam(required = false) Long excludeId) {
         return new CodeAvailability(providerService.isCodeAvailable(code, excludeId));
-    }
-
-    /**
-     * Returns the non-sensitive option data used by account selectors.
-     */
-    @GetMapping("/options/{id}")
-    public ProviderAccountItem getOption(@PathVariable Long id) {
-        return providerConverter.toVO(providerService.getOptionById(id));
     }
 
     /**

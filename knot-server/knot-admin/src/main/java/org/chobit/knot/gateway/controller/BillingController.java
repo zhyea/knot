@@ -18,6 +18,10 @@ import org.chobit.knot.gateway.vo.billing.ReconciliationRequest;
 import org.chobit.knot.gateway.vo.billing.ReconciliationResult;
 import org.chobit.knot.gateway.vo.billing.PricingPreviewRequest;
 import org.chobit.knot.gateway.vo.billing.PricingPreviewResult;
+import org.chobit.knot.gateway.model.BillingRuleOptionQuery;
+import org.chobit.knot.gateway.service.OptionsService;
+import org.chobit.knot.gateway.vo.common.OptionItem;
+import org.chobit.knot.gateway.vo.common.OptionPage;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -26,13 +30,20 @@ import org.springframework.web.bind.annotation.*;
 public class BillingController {
     private final BillingService billingService;
     private final BillingConverter billingConverter;
+    private final OptionsService optionsService;
 
     /**
      * Constructs a new instance.
      */
-    public BillingController(BillingService billingService, BillingConverter billingConverter) {
+    public BillingController(BillingService billingService, BillingConverter billingConverter, OptionsService optionsService) {
         this.billingService = billingService;
         this.billingConverter = billingConverter;
+        this.optionsService = optionsService;
+    }
+
+    @PostMapping("/options")
+    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) BillingRuleOptionQuery query) {
+        return optionsService.listBillingRuleOptions(query);
     }
 
     /**

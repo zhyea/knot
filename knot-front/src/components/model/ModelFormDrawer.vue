@@ -46,8 +46,6 @@
               <el-form-item label="供应商账户" required>
                 <ProviderAccountSelect
                   v-model="form.providerAccountCode"
-                  value-key="code"
-                  :selected-options="selectedProviderOptions"
                   placeholder="请选择供应商账户"
                   style="width: 100%"
                   @change="onProviderAccountChange"
@@ -69,10 +67,11 @@
               <el-form-item label="统一模型" required>
                 <RemoteEntitySelect
                   v-model="form.logicalModelCode"
-                  value-key="modelCode"
-                  :load-function="loadLogicalModels"
-                  :label-function="logicalModelLabel"
-                  :selected-options="selectedLogicalModelOptions"
+                  value-key="value"
+                  :load-function="loadLogicalModelOptions"
+                  :code-only="false"
+                  code-key="code"
+                  label-key="label"
                   placeholder="请选择统一模型"
                   style="width: 100%"
                 />
@@ -120,10 +119,11 @@
             <el-form-item label="绑定计费规则" required class="bind-block-item">
               <RemoteEntitySelect
                 v-model="form.billingRuleCode"
-                value-key="code"
-                :load-function="loadBillingRules"
-                :label-function="billingRuleLabel"
-                :selected-options="selectedBillingRuleOptions"
+                value-key="value"
+                :load-function="loadBillingRuleOptions"
+                :code-only="false"
+                code-key="code"
+                label-key="label"
                 :extra-params="billingRuleFilterParams"
                 :disabled="!form.providerAccountCode || !form.logicalModelCode"
                 placeholder="请选择计费规则"
@@ -321,9 +321,9 @@ import {
   listUsageExtractors,
   updateModel
 } from "@/api/models";
-import {listLogicalModels} from "@/api/logicalModels";
 import {listBillingRules} from "@/api/billing";
-import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
+import {listBillingRuleOptions, listLogicalModelOptions} from "@/api/options";
+import {normalizeOptionList, resolveSelectedOption, toOptionsLoader} from "@/utils/options";
 
 /** 模型 API 绑定行（表单内 uid 用于 :key 稳定渲染） */
 interface ModelApiBinding {
@@ -396,50 +396,22 @@ const form = reactive<ModelFormState>({
 });
 
 const isEdit = computed(() => props.model?.id != null);
-const selectedLogicalModel = computed(() => logicalModelOptions.value.find((item) => item.modelCode === form.logicalModelCode));
-const selectedProviderOptions = computed(() =>
-  // 账户下拉 value-key 为 code，回显兜底对象必须带 code 键（而非 id），否则 label 匹配不上
-  resolveSelectedOption(form.providerAccountCode, [], {
-    code: form.providerAccountCode,
-    providerName: props.model?.providerName
-  }, "code")
-);
-const selectedLogicalModelOptions = computed(() =>
-  resolveSelectedOption(form.logicalModelCode, logicalModelOptions.value, {
-    modelCode: form.logicalModelCode
-  }, "modelCode")
-);
-const selectedBillingRuleOptions = computed(() =>
-  resolveSelectedOption(form.billingRuleCode, boundBillingRule.value ? [boundBillingRule.value] : [], {
-    code: form.billingRuleCode ?? props.model?.billingRuleCode
-  }, "code")
-);
+const selectedLogicalModel = computed(() => logicalModelOptions.value.find((item) => item.value === form.logicalModelCode));
+const metaOf = (row: Row | undefined): Row => (row?.meta as Row) ?? {};
 /** 计费规则按「模型族」过滤：模型族由绑定的统一模型派生（后端 br.model_family 存 item_code） */
 const billingRuleFilterParams = computed(() => ({
-  modelFamilyCode: selectedLogicalModel.value?.modelFamily || undefined
+  modelFamilyCode: metaOf(selectedLogicalModel.value).modelFamily || undefined
 }));
 const streamUsageExtractorOptions = computed(() =>
   usageExtractorOptions.value.filter((item) => item.streamSupported !== false)
 );
 const allowedApiProtocolCodes = computed(() =>
-  allowedProtocolsForModelType(String(selectedLogicalModel.value?.modelType || ""))
+  allowedProtocolsForModelType(String(metaOf(selectedLogicalModel.value).modelType || ""))
 );
 
-async function loadLogicalModels(params = {pageNum: 1, pageSize: 10}) {
-  const data = await listLogicalModels(params);
-  const list = Array.isArray(data?.list) ? data.list.filter(isEnabledLogicalModel) : [];
-  mergeOptions(logicalModelOptions, list);
-  logicalModelOptions.value = logicalModelOptions.value.filter(isEnabledLogicalModel);
-  return {...(data || {}), list};
-}
+const loadLogicalModelOptions = toOptionsLoader(listLogicalModelOptions, logicalModelOptions);
 
-/** 下拉候选：按模型族筛选（模型族由绑定的统一模型派生，后端 br.model_family 存 item_code） */
-async function loadBillingRules(params: Dict = {pageNum: 1, pageSize: 10}) {
-  return listBillingRules({
-    ...params,
-    modelFamilyCode: params.modelFamilyCode ?? selectedLogicalModel.value?.modelFamily ?? undefined
-  });
-}
+const loadBillingRuleOptions = toOptionsLoader(listBillingRuleOptions);
 
 /**
  * 按业务码精确取回已绑定的那一条规则（表格只展示它）。
@@ -468,24 +440,12 @@ async function loadRequestAdapters() {
   return data;
 }
 
-function mergeOptions(targetRef: Ref<Row[]>, list: Row[]) {
-  targetRef.value = mergeOptionList(targetRef.value, list);
-}
-
-function logicalModelName(model: Row): string {
-  return model.displayName || model.modelName || model.modelCode || `#${model.id}`;
-}
-
-function logicalModelLabel(model: Row): string {
-  return model.modelCode ? `${logicalModelName(model)} (${model.modelCode})` : logicalModelName(model);
-}
-
 function isEnabledLogicalModel(model: Row): boolean {
-  return model?.enabled !== false;
-}
-
-function billingRuleLabel(rule: Row): string {
-  return rule.code ? `${rule.code} (${rule.versionCode || "-"})` : `#${rule.id}`;
+  if (!model) {
+    return false;
+  }
+  const status = metaOf(model).status;
+  return status ? status === "ENABLED" : model.disabled !== true;
 }
 
 function modeLabel(code: unknown): string {
@@ -632,13 +592,14 @@ watch(
   () => [props.modelValue, props.model],
   async ([visible]) => {
     if (visible) {
+      await resetForm();
       await Promise.all([
-        loadLogicalModels(),
+        // 带 values 精确回显已绑定统一模型，保证 selectedLogicalModel（协议联动/提交校验）在首屏即有值
+        loadLogicalModelOptions({values: form.logicalModelCode ? [form.logicalModelCode] : []}),
         loadModelTypes(),
         loadUsageExtractors(),
         loadRequestAdapters()
       ]);
-      await resetForm();
       // 表单重置后按已绑定码取回那一条规则（watch 在同值时不触发，这里显式补一次）
       await loadBoundBillingRule(form.billingRuleCode);
     }

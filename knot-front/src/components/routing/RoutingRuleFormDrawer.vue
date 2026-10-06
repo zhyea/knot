@@ -71,9 +71,10 @@
                 <RemoteEntitySelect
                   v-model="form.appId"
                   :code-only="false"
+                  code-key="code"
+                  label-key="label"
+                  value-key="value"
                   :load-function="loadAppOptions"
-                  :label-function="appLabel"
-                  :selected-options="selectedAppOptions"
                   placeholder="请选择应用"
                   style="width: 100%"
                 />
@@ -84,9 +85,10 @@
                 <RemoteEntitySelect
                   v-model="form.userId"
                   :code-only="false"
+                  code-key="code"
+                  label-key="label"
+                  value-key="value"
                   :load-function="loadUserOptions"
-                  :label-function="userLabel"
-                  :selected-options="selectedUserOptions"
                   placeholder="请选择用户"
                   clearable
                   style="width: 100%"
@@ -109,9 +111,10 @@
             <RemoteEntitySelect
               v-model="selectedConsumerId"
               :code-only="false"
+              code-key="code"
+              label-key="label"
+              value-key="value"
               :load-function="loadConsumerOptions"
-              :label-function="consumerLabel"
-              :selected-options="selectedConsumers"
               placeholder="请选择消费者"
               style="width: 100%"
               @change="onConsumerChange"
@@ -119,20 +122,20 @@
           </el-form-item>
           <el-table v-if="selectedConsumers.length" :data="selectedConsumers" border
                     class="bind-table consumer-bind-table">
-            <el-table-column prop="consumerCode" label="消费者编码" min-width="160" show-overflow-tooltip>
+            <el-table-column prop="code" label="消费者编码" min-width="160" show-overflow-tooltip>
               <template #default="{ row }">
-                <span class="bind-list__text">{{ row.consumerCode || "—" }}</span>
+                <span class="bind-list__text">{{ row.code || "—" }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="name" label="消费者名称" min-width="160" show-overflow-tooltip>
+            <el-table-column prop="label" label="消费者名称" min-width="160" show-overflow-tooltip>
               <template #default="{ row }">
-                <span class="bind-list__text">{{ row.name || "—" }}</span>
+                <span class="bind-list__text">{{ row.label || "—" }}</span>
               </template>
             </el-table-column>
             <el-table-column label="是否启用" width="100" align="center">
               <template #default="{ row }">
-                <el-tag size="small" :type="row.enabled === false ? 'info' : 'success'">
-                  {{ row.enabled === false ? "停用" : "启用" }}
+                <el-tag size="small" :type="row.disabled === true ? 'info' : 'success'">
+                  {{ row.disabled === true ? "停用" : "启用" }}
                 </el-tag>
               </template>
             </el-table-column>
@@ -162,10 +165,11 @@
             <RemoteEntitySelect
               :key="targetType"
               :code-only="false"
-              v-model="selectedTargetIds"
+              v-model="selectedTargetCodes"
               :load-function="loadTargetOptions"
-              :label-function="targetLabel"
-              :selected-options="selectedTargetOptions"
+              value-key="value"
+              code-key="code"
+              label-key="label"
               :extra-params="targetExtraParams"
               placeholder="请选择路由目标，可多选"
               :multiple="true"
@@ -257,12 +261,9 @@ import {
   type RateLimitPolicy
 } from "@/utils/trafficPolicy";
 import {defaultRetryPolicy, normalizeRetryPolicy, type RetryPolicy} from "@/utils/retryPolicy";
-import {createRoutingRule, updateRoutingRule, checkRoutingRuleCode, listRoutingConsumers} from "@/api/routing";
-import {listApps} from "@/api/apps";
-import {listModels} from "@/api/models";
-import {listModelPools} from "@/api/modelPools";
-import {listUsers} from "@/api/users";
-import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
+import {createRoutingRule, updateRoutingRule, checkRoutingRuleCode} from "@/api/routing";
+import {listAppOptions, listModelOptions, listModelPoolOptions, listRoutingConsumerOptions, listUserOptions} from "@/api/options";
+import {toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 
 const props = defineProps({
@@ -298,11 +299,8 @@ const targetTypeOptions = computed(() => rtEnumOptionsOf("RouteTargetTypeEnum"))
 interface RuleTargetForm {
   id?: number | string | null;
   targetType: string;
-  targetId: number | string | null;
   targetCode: string | null;
   targetName: string | null;
-  modelType: string | null;
-  providerId: number | string | null;
   priority: number;
   primary: boolean;
 }
@@ -337,8 +335,8 @@ const form = reactive<RuleForm>({
 
 const selectedConsumers = computed(() =>
   form.consumerIds.map((id, index) => {
-    const consumer = consumerOptions.value.find((item) => item.id === id);
-    return consumer || {id, name: props.rule?.consumerNames?.[index]};
+    const consumer = consumerOptions.value.find((item) => String(item.value) === String(id));
+    return consumer || {value: id, label: props.rule?.consumerNames?.[index] || `#${id}`};
   })
 );
 const selectedConsumerId = computed<string | number | null>({
@@ -347,124 +345,50 @@ const selectedConsumerId = computed<string | number | null>({
     form.consumerIds = value == null ? [] : [value];
   }
 });
-const selectedTargetIds = computed({
-  get: () => form.targets.filter((item) => item.targetType === targetType.value).map((item) => item.targetId),
-  set: (ids) => onSelectedTargetsChange(ids)
+const selectedTargetCodes = computed({
+  get: () => form.targets.filter((item) => item.targetType === targetType.value).map((item) => item.targetCode).filter((c) => c != null),
+  set: (codes) => onSelectedTargetsChange(codes)
 });
 const boundTargetRows = computed(() =>
   form.targets.map((item) => {
-    const source = findTargetOption(item.targetType, item.targetId);
-    item.id = item.targetId;
-    item.targetCode = targetOptionCode(item.targetType, source) || item.targetCode;
+    const source = findTargetOption(item.targetType, item.targetCode);
+    item.targetCode = item.targetCode || targetOptionCode(item.targetType, source);
     item.targetName = targetOptionName(source) || item.targetName;
-    item.modelType = source?.modelType || item.modelType;
-    item.providerId = source?.providerId || item.providerId;
     return item;
-  })
-);
-const selectedTargetOptions = computed(() =>
-  form.targets
-    .filter((item) => item.targetType === targetType.value)
-    .map((item) => findTargetOption(item.targetType, item.targetId) || {
-      id: item.targetId,
-      modelCode: item.targetCode,
-      poolCode: item.targetCode,
-      name: item.targetName
-    })
-);
-const selectedAppOptions = computed(() =>
-  resolveSelectedOption(form.appId, appOptions.value, {
-    id: form.appId,
-    name: props.rule?.appName
-  })
-);
-const selectedUserOptions = computed(() =>
-  resolveSelectedOption(form.userId, userOptions.value, {
-    id: form.userId,
-    realName: props.rule?.userName
   })
 );
 const targetExtraParams = computed(() => ({status: "ENABLED"}));
 
-function appLabel(app: Row): string {
-  return app.name || app.appCode || `#${app.id}`;
-}
+const loadAppOptions = toOptionsLoader(listAppOptions, appOptions);
 
-function userLabel(user: Row): string {
-  const name = user.realName?.trim() || user.username;
-  return name === user.username ? name : `${name}（${user.username}）`;
-}
+const loadUserOptions = toOptionsLoader(listUserOptions, userOptions);
 
-function consumerLabel(consumer: Row): string {
-  return consumer.name || consumer.consumerCode || `#${consumer.id}`;
-}
+const loadConsumerOptions = toOptionsLoader(listRoutingConsumerOptions, consumerOptions);
 
-function targetLabel(target: Row): string {
-  const code = targetOptionCode(targetType.value, target);
-  const name = targetOptionName(target);
-  return code ? `${name || code}（${code}）` : `#${target.id}`;
-}
 
-function mergeOptions(targetRef: Ref<Row[]>, list: Row[]) {
-  targetRef.value = mergeOptionList(targetRef.value, list);
-}
 
-async function loadAppOptions(params: Dict) {
-  const res = await listApps(params);
-  const list = normalizeOptionList(res);
-  mergeOptions(appOptions, list);
-  return res;
-}
+const loadModelOptions = toOptionsLoader(listModelOptions, modelOptions);
+const loadModelPoolOptions = toOptionsLoader(listModelPoolOptions, modelPoolOptions);
+const loadTargetOptions = (params: Dict) =>
+  (targetType.value === "MODEL_POOL" ? loadModelPoolOptions(params) : loadModelOptions(params));
 
-async function loadUserOptions(params: Dict) {
-  const res = await listUsers(params);
-  const list = normalizeOptionList(res);
-  mergeOptions(userOptions, list);
-  return res;
-}
-
-async function loadConsumerOptions(params: Dict) {
-  const res = await listRoutingConsumers(params);
-  const list = normalizeOptionList(res);
-  mergeOptions(consumerOptions, list);
-  return res;
-}
-
-async function loadModelOptions(params: Dict) {
-  const res = await listModels(params);
-  const list = normalizeOptionList(res);
-  mergeOptions(modelOptions, list);
-  return res;
-}
-
-async function loadModelPoolOptions(params: Dict) {
-  const res = await listModelPools(params);
-  const list = normalizeOptionList(res);
-  mergeOptions(modelPoolOptions, list);
-  return res;
-}
-
-async function loadTargetOptions(params: Dict) {
-  return targetType.value === "MODEL_POOL" ? loadModelPoolOptions(params) : loadModelOptions(params);
-}
-
-function findTargetOption(type: string, id: unknown): Row | undefined {
+function findTargetOption(type: string, code: unknown): Row | undefined {
   const options = type === "MODEL_POOL" ? modelPoolOptions.value : modelOptions.value;
-  return options.find((item) => item.id === id);
+  return options.find((item) => String(item.value) === String(code));
 }
 
 function targetOptionCode(type: string, option: Row | null | undefined): string {
   if (!option) return "";
-  return type === "MODEL_POOL" ? option.poolCode : option.modelCode;
+  return String(option.value ?? "");
 }
 
 function targetOptionName(option: Row | null | undefined): string {
   if (!option) return "";
-  return option.name || option.modelName || option.poolCode || option.modelCode;
+  return option.label || String(option.value ?? "");
 }
 
 function targetKey(row: Row): string {
-  return `${row.targetType}:${row.targetId}`;
+  return `${row.targetType}:${row.targetCode}`;
 }
 
 function targetTypeLabel(type: string): string {
@@ -491,14 +415,12 @@ function normalizeRuleCode(value: unknown): string {
 }
 
 async function loadOptions() {
-  const [appsRes, usersRes, consumersRes] = await Promise.all([
+  // 预热候选：toOptionsLoader 已把结果并入各自累加器（appOptions/userOptions/consumerOptions）
+  await Promise.all([
     loadAppOptions({pageNum: 1, pageSize: 10}),
     loadUserOptions({pageNum: 1, pageSize: 10}),
     loadConsumerOptions({pageNum: 1, pageSize: 10})
   ]);
-  appOptions.value = normalizeOptionList(appsRes);
-  userOptions.value = normalizeOptionList(usersRes);
-  consumerOptions.value = normalizeOptionList(consumersRes);
 }
 
 function resetForm() {
@@ -517,11 +439,8 @@ function resetForm() {
     form.retryPolicy = normalizeRetryPolicy(row.retryPolicy);
     form.targets = (row.targets || []).map((m: Dict) => ({
       targetType: m.targetType || "MODEL",
-      targetId: m.targetId,
       targetCode: m.targetCode,
       targetName: m.targetName || m.name,
-      modelType: m.modelType,
-      providerId: m.providerId,
       priority: m.priority ?? 100,
       primary: !!m.primary
     }));
@@ -578,21 +497,18 @@ function onConsumerChange(_value: unknown, selected: Row | null) {
   }
 }
 
-function onSelectedTargetsChange(targetIds: Array<string | number | null>) {
-  const nextIds = Array.isArray(targetIds) ? targetIds : [];
+function onSelectedTargetsChange(targetCodes: Array<string | number | null>) {
+  const nextCodes = Array.isArray(targetCodes) ? targetCodes : [];
   const existingByKey = new Map(form.targets.map((item) => [targetKey(item), item]));
   const otherTargets = form.targets.filter((item) => item.targetType !== targetType.value);
   const previousPrimaryKey = primaryTargetKey.value;
-  const currentTargets = nextIds.map((targetId) => {
-    const key = `${targetType.value}:${targetId}`;
-    const source = findTargetOption(targetType.value, targetId);
+  const currentTargets = nextCodes.map((targetCode) => {
+    const key = `${targetType.value}:${targetCode}`;
+    const source = findTargetOption(targetType.value, targetCode);
     return existingByKey.get(key) || {
       targetType: targetType.value,
-      targetId,
-      targetCode: targetOptionCode(targetType.value, source),
+      targetCode: String(targetCode),
       targetName: targetOptionName(source),
-      modelType: source?.modelType,
-      providerId: source?.providerId,
       priority: 100,
       primary: false
     };
@@ -651,7 +567,7 @@ function buildSubmitPayload() {
   primaryTargetKey.value = primaryKey;
   const targets = form.targets.map((m) => ({
     targetType: m.targetType,
-    targetId: m.targetId,
+    targetCode: m.targetCode,
     priority: m.priority ?? 100,
     primary: targetKey(m) === primaryKey
   }));
@@ -691,7 +607,7 @@ async function submit() {
       ElMessage.warning("启用规则前请选择绑定应用");
       return;
     }
-    if (!form.targets.length || form.targets.some((m) => !m.targetId)) {
+    if (!form.targets.length || form.targets.some((m) => !m.targetCode)) {
       ElMessage.warning("启用规则前请完整配置路由目标");
       return;
     }

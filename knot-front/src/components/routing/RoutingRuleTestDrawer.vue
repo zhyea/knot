@@ -175,7 +175,7 @@ import {getModelPool} from "@/api/modelPools";
 import {testRoutingRule, testRoutingRuleStream} from "@/api/routing";
 import {useModelTypes} from "@/composables/useModelTypes";
 import {useDebugCapabilities} from "@/composables/useDebugCapabilities";
-import {listTestRequestPresetOptions} from "@/api/routing";
+import {getTestRequestPreset, listTestRequestPresetOptions} from "@/api/routing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {formatJson, formatJsonText, parseJsonResult, stringifyJson, highlightJsonHtml} from "@/utils/format";
 import {readEventStream, type SseEvent} from "@/utils/sse";
@@ -318,7 +318,7 @@ const resultTagType = computed(() => {
 });
 
 /** 预设请求（按协议复用的完整请求体用例），调试面板下拉从接口载入 */
-const presetOptions = ref<Array<{ id: number; name: string; protocolCode: string; requestBody: string }>>([]);
+const presetOptions = ref<Array<{ id: number; name: string; protocolCode: string }>>([]);
 const selectedPresetId = ref<number | string | null>(null);
 
 const testForm = reactive({
@@ -645,15 +645,13 @@ function resetCurrentTemplate() {
 
 async function loadPresetOptions() {
   try {
-    const list = await listTestRequestPresetOptions();
-    presetOptions.value = Array.isArray(list)
-      ? (list as Dict[]).map((item) => ({
-        id: item.id,
-        name: item.name,
-        protocolCode: item.protocolCode,
-        requestBody: item.requestBody
-      }))
-      : [];
+    const page = await listTestRequestPresetOptions();
+    // 统一 OptionPage 契约：value=id，label=name，code=protocolCode；requestBody 选中时按 id 懒加载
+    presetOptions.value = (page?.list ?? []).map((item) => ({
+      id: Number(item.value),
+      name: item.label,
+      protocolCode: item.code ?? ""
+    }));
   } catch {
     presetOptions.value = [];
   }
@@ -661,7 +659,7 @@ async function loadPresetOptions() {
   autoSelectFirstPreset();
 }
 
-function onPresetChange(presetId: number | string | null) {
+async function onPresetChange(presetId: number | string | null) {
   // 同步选中态：用户交互由 v-model 赋值，但程序化调用需在此显式设置
   selectedPresetId.value = presetId;
   if (!presetId) {
@@ -671,7 +669,18 @@ function onPresetChange(presetId: number | string | null) {
   if (!preset) {
     return;
   }
-  const parsed = safeParseTemplate(preset.requestBody);
+  // options 契约不承载 requestBody（大字段），选中后按 id 懒加载预设详情
+  let requestBody = "{}";
+  try {
+    const detail = await getTestRequestPreset(preset.id);
+    if (String(selectedPresetId.value) !== String(presetId)) {
+      return;
+    }
+    requestBody = detail?.requestBody || "{}";
+  } catch {
+    requestBody = "{}";
+  }
+  const parsed = safeParseTemplate(requestBody);
   const base = parsed.error ? {} : parsed.value;
   templateStore[activeTemplateKey.value] = formatJson(stripModelField(base));
 }

@@ -806,11 +806,36 @@ public class RoutingRuleService {
             RoutingRuleTargetEntity entity = new RoutingRuleTargetEntity();
             entity.setRuleId(ruleId);
             entity.setTargetType(normalizeTargetType(target.targetType()));
-            entity.setTargetId(target.targetId());
+            entity.setTargetCode(resolveTargetCode(target));
             entity.setPriority(target.priority());
             entity.setPrimary(target.primary());
             routingRuleTargetMapper.insert(entity);
         }
+    }
+
+    /**
+     * 解析路由目标的业务 code。优先使用提交方直传的 {@code targetCode}（前端 options loader 已改为返回 code）；
+     * 兼容仅传数字主键 {@code targetId} 的历史调用方，按目标类型反查 model_code / pool_code。
+     */
+    private String resolveTargetCode(RoutingRuleTargetDto target) {
+        if (target.targetCode() != null && !target.targetCode().isBlank()) {
+            return target.targetCode().trim();
+        }
+        if (target.targetId() != null) {
+            String type = normalizeTargetType(target.targetType());
+            if ("MODEL".equals(type)) {
+                ModelEntity model = modelMapper.getById(target.targetId());
+                if (model != null) {
+                    return model.getModelCode();
+                }
+            } else if ("MODEL_POOL".equals(type)) {
+                ModelPoolEntity pool = modelPoolMapper.getById(target.targetId());
+                if (pool != null) {
+                    return pool.getPoolCode();
+                }
+            }
+        }
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target code is required");
     }
 
     private void saveConsumers(Long ruleId, List<Long> consumerIds) {

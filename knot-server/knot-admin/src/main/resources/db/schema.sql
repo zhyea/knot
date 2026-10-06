@@ -562,11 +562,11 @@ CREATE TABLE IF NOT EXISTS kb_routing_rule_targets (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   rule_id BIGINT NOT NULL,
   target_type VARCHAR(32) NOT NULL,
-  target_id BIGINT NOT NULL,
+  target_code VARCHAR(64) NOT NULL,
   priority INT NOT NULL DEFAULT 100,
   is_primary TINYINT(1) NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_routing_rule_target (rule_id, target_type, target_id),
+  UNIQUE KEY uk_routing_rule_target (rule_id, target_type, target_code),
   KEY idx_routing_rule_targets_rule (rule_id, priority)
 );
 

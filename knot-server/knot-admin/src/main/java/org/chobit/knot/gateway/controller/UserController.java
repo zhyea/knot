@@ -12,6 +12,10 @@ import org.chobit.knot.gateway.service.UserService;
 import org.chobit.knot.gateway.vo.user.ResetPasswordResult;
 import org.chobit.knot.gateway.vo.user.UpdateUserStatusRequest;
 import org.chobit.knot.gateway.vo.user.UserItem;
+import org.chobit.knot.gateway.model.UserOptionQuery;
+import org.chobit.knot.gateway.service.OptionsService;
+import org.chobit.knot.gateway.vo.common.OptionItem;
+import org.chobit.knot.gateway.vo.common.OptionPage;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,14 +24,21 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
     private final UserService userService;
     private final UserConverter userConverter;
+    private final OptionsService optionsService;
 
     /**
      * Constructs a new instance.
      */
     public UserController(UserService userService,
-                          UserConverter userConverter) {
+                          UserConverter userConverter, OptionsService optionsService) {
         this.userService = userService;
         this.userConverter = userConverter;
+        this.optionsService = optionsService;
+    }
+
+    @PostMapping("/options")
+    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) UserOptionQuery query) {
+        return optionsService.listUserOptions(query);
     }
 
     /**

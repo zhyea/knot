@@ -9,6 +9,10 @@ import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.AppService;
 import org.chobit.knot.gateway.vo.app.AppItem;
+import org.chobit.knot.gateway.model.AppOptionQuery;
+import org.chobit.knot.gateway.service.OptionsService;
+import org.chobit.knot.gateway.vo.common.OptionItem;
+import org.chobit.knot.gateway.vo.common.OptionPage;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,13 +20,20 @@ import org.springframework.web.bind.annotation.*;
 public class AppController {
     private final AppService appService;
     private final AppConverter appConverter;
+    private final OptionsService optionsService;
 
     /**
      * Constructs a new instance.
      */
-    public AppController(AppService appService, AppConverter appConverter) {
+    public AppController(AppService appService, AppConverter appConverter, OptionsService optionsService) {
         this.appService = appService;
         this.appConverter = appConverter;
+        this.optionsService = optionsService;
+    }
+
+    @PostMapping("/options")
+    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) AppOptionQuery query) {
+        return optionsService.listAppOptions(query);
     }
 
     /**

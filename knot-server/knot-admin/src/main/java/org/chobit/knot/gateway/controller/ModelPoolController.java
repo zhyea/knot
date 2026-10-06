@@ -11,6 +11,10 @@ import org.chobit.knot.gateway.service.ModelPoolService;
 import org.chobit.knot.gateway.vo.common.CodeAvailability;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.model.ModelPool;
+import org.chobit.knot.gateway.model.ModelPoolOptionQuery;
+import org.chobit.knot.gateway.service.OptionsService;
+import org.chobit.knot.gateway.vo.common.OptionItem;
+import org.chobit.knot.gateway.vo.common.OptionPage;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,13 +31,20 @@ public class ModelPoolController {
 
     private final ModelPoolService modelPoolService;
     private final ModelPoolConverter modelPoolConverter;
+    private final OptionsService optionsService;
 
     /**
      * Constructs a new instance.
      */
-    public ModelPoolController(ModelPoolService modelPoolService, ModelPoolConverter modelPoolConverter) {
+    public ModelPoolController(ModelPoolService modelPoolService, ModelPoolConverter modelPoolConverter, OptionsService optionsService) {
         this.modelPoolService = modelPoolService;
         this.modelPoolConverter = modelPoolConverter;
+        this.optionsService = optionsService;
+    }
+
+    @PostMapping("/options")
+    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) ModelPoolOptionQuery query) {
+        return optionsService.listModelPoolOptions(query);
     }
 
     /**

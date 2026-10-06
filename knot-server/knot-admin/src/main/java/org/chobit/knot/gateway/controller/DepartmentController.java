@@ -11,6 +11,10 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.DepartmentService;
 import org.chobit.knot.gateway.vo.system.DepartmentItem;
 import org.chobit.knot.gateway.vo.system.UpdateDepartmentStatusRequest;
+import org.chobit.knot.gateway.model.DepartmentOptionQuery;
+import org.chobit.knot.gateway.service.OptionsService;
+import org.chobit.knot.gateway.vo.common.OptionItem;
+import org.chobit.knot.gateway.vo.common.OptionPage;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -25,10 +29,17 @@ public class DepartmentController {
 
     private final DepartmentService departmentService;
     private final DepartmentConverter departmentConverter;
+    private final OptionsService optionsService;
 
-    public DepartmentController(DepartmentService departmentService, DepartmentConverter departmentConverter) {
+    public DepartmentController(DepartmentService departmentService, DepartmentConverter departmentConverter, OptionsService optionsService) {
         this.departmentService = departmentService;
         this.departmentConverter = departmentConverter;
+        this.optionsService = optionsService;
+    }
+
+    @PostMapping("/options")
+    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) DepartmentOptionQuery query) {
+        return optionsService.listDepartmentOptions(query);
     }
 
     @PostMapping("/list")

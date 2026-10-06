@@ -8,6 +8,8 @@ import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.TestRequestPresetService;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
+import org.chobit.knot.gateway.vo.common.OptionItem;
+import org.chobit.knot.gateway.vo.common.OptionPage;
 import org.chobit.knot.gateway.vo.routing.TestRequestPreset;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,9 +39,19 @@ public class TestRequestPresetController {
         return page.mapList(presetConverter::toVOList);
     }
 
+    /** 下拉候选：统一 OptionPage 契约（value=id，label=name，code=protocolCode）。 */
     @GetMapping("/options")
-    public List<TestRequestPreset> options() {
-        return presetConverter.toVOList(presetService.listActiveOptions());
+    public OptionPage<OptionItem> options() {
+        List<OptionItem> list = presetConverter.toVOList(presetService.listActiveOptions()).stream()
+                .map(p -> new OptionItem(p.id(), p.name(), p.protocolCode()))
+                .toList();
+        return OptionPage.of(list, list.size(), 1, Math.max(list.size(), 1));
+    }
+
+    /** 预设详情：下拉选中后按 id 取完整请求体模板（options 契约不承载 requestBody 大字段）。 */
+    @GetMapping("/{id}")
+    public TestRequestPreset get(@PathVariable Long id) {
+        return presetConverter.toVO(presetService.get(id));
     }
 
     @PostMapping

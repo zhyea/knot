@@ -15,6 +15,45 @@ export interface PageResult<T = any> {
 /** 列表接口返回值：统一分页结构，或裸数组（无分页的场景） */
 export type ListResponse<T = any> = PageResult<T> | T[];
 
+/**
+ * 独立 options 接口（下拉候选）统一契约。
+ * 硬约束见 `.workbuddy/memory/options-refactor-constraints.md` 第 0/1 节：
+ * - 有传参一律 POST /api/{resource}/options；仅无传参才 GET
+ * - `value` 类型随资源（id 型=number，code 型=string），前端不得自行猜测
+ * - `missingValues` 中的项必须统一展示「已选项不存在或无权限」并阻止非法提交
+ */
+export interface OptionQuery {
+  keyword?: string;
+  pageNum?: number;
+  pageSize?: number;
+  /** 已选值回显（上限 100），编辑场景不在第一页的项也须返回 */
+  values?: string[];
+  /** 仅返回启用项，默认 true */
+  enabledOnly?: boolean;
+  /** 含逻辑删除项，默认 false */
+  includeDeleted?: boolean;
+  /** 资源白名单过滤，仅含后端显式声明的字段，禁止任意透传 */
+  filters?: Record<string, unknown>;
+}
+
+export interface OptionItem {
+  value: string | number;
+  label: string;
+  code?: string;
+  disabled?: boolean;
+  /** 仅承载下拉确实需要的非敏感业务信息 */
+  meta?: Dict;
+}
+
+export interface OptionPage<T = OptionItem> {
+  list: T[];
+  total: number;
+  pageNum: number;
+  pageSize: number;
+  /** 请求 values 中不存在 / 无权限的项 */
+  missingValues: string[];
+}
+
 /** 任意键值对：后端 VO / 表单对象在未建模前的通用形态 */
 export type Dict = Record<string, any>;
 

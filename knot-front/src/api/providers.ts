@@ -9,10 +9,6 @@ export function getProviderAccount(id: number | string) {
   return get(`/api/provider-accounts/${id}`);
 }
 
-export function getProviderAccountOption(id: number | string) {
-  return get(`/api/provider-accounts/options/${id}`);
-}
-
 export function suggestProviderAccountCode() {
   return get("/api/provider-accounts/suggest-code");
 }

@@ -52,10 +52,11 @@
             <el-form-item label="统一模型" required>
               <RemoteEntitySelect
                 v-model="form.logicalModelCode"
-                value-key="modelCode"
+                value-key="value"
                 :load-function="loadLogicalModelOptions"
-                :label-function="logicalModelLabel"
-                :selected-options="selectedLogicalModelOptions"
+                :code-only="false"
+                code-key="code"
+                label-key="label"
                 placeholder="请选择统一模型"
                 style="width: 100%"
                 @change="onLogicalModelChange"
@@ -88,9 +89,10 @@
           <RemoteEntitySelect
             v-model="selectedModelCodes"
             :load-function="loadModelOptions"
-            :label-function="modelLabel"
-            :selected-options="boundModelRows"
-            value-key="modelCode"
+            :code-only="false"
+            code-key="code"
+            label-key="label"
+            value-key="value"
             :disabled="!form.logicalModelCode"
             :extra-params="{ logicalModelCode: form.logicalModelCode || undefined }"
             :placeholder="form.logicalModelCode ? '请选择模型，可多选' : '请先选择统一模型'"
@@ -160,9 +162,8 @@ import {ElMessage} from "element-plus";
 import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import {checkModelPoolCode, createModelPool, updateModelPool} from "@/api/modelPools";
-import {listModels} from "@/api/models";
-import {listLogicalModels} from "@/api/logicalModels";
-import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
+import {listLogicalModelOptions, listModelOptions} from "@/api/options";
+import {resolveSelectedOption, toOptionsLoader} from "@/utils/options";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -183,6 +184,8 @@ const logicalModelOptions = ref<Row[]>([]);
 interface PoolItemForm {
   id?: number | string | null;
   modelCode: string;
+  /** 新 options 契约的取值字段（= modelCode），供下拉按 value-key="value" 匹配 */
+  value?: string;
   modelName?: string;
   name?: string;
   modelType?: string;
@@ -219,9 +222,9 @@ const form = reactive<PoolFormState>({
 
 const selectedLogicalModelOptions = computed(() =>
   resolveSelectedOption(form.logicalModelCode, logicalModelOptions.value, {
-    modelCode: form.logicalModelCode,
-    modelName: form.logicalModelName
-  }, "modelCode")
+    value: form.logicalModelCode,
+    label: form.logicalModelName
+  }, "value")
 );
 
 const selectedModelCodes = computed({
@@ -231,45 +234,20 @@ const selectedModelCodes = computed({
 
 const boundModelRows = computed(() =>
   form.items.map((item) => {
-    const model = modelOptions.value.find((m) => m.modelCode === item.modelCode);
-    item.id = model?.id ?? item.id;
-    item.modelCode = model?.modelCode || item.modelCode;
-    item.modelName = model?.name || item.modelName;
-    item.name = model?.name || item.name;
-    item.modelType = model?.modelType || item.modelType;
-    item.providerAccountCode = model?.providerAccountCode || item.providerAccountCode;
-    item.providerName = model?.providerName || item.providerName;
+    const model = modelOptions.value.find((m) => m.value === item.modelCode);
+    const meta = (model?.meta as Row) ?? {};
+    item.value = item.modelCode;
+    item.modelName = meta.modelName || item.modelName;
+    item.name = meta.name || item.name;
+    item.modelType = meta.modelType || item.modelType;
+    item.providerAccountCode = meta.providerAccountCode || item.providerAccountCode;
+    item.providerName = meta.providerName || item.providerName;
     return item;
   })
 );
 
-function logicalModelLabel(model: Row) {
-  return model.modelCode ? `${model.modelName || model.modelCode}（${model.modelCode}）` : `#${model.id}`;
-}
-
-function modelLabel(model: Row) {
-  return model.modelCode ? `${model.name || model.modelCode}（${model.modelCode}）` : `#${model.id}`;
-}
-
-function mergeOptions(list: Row[]) {
-  modelOptions.value = mergeOptionList(modelOptions.value, list);
-}
-
-async function loadModelOptions(params: Dict) {
-  if (!form.logicalModelCode) {
-    return {list: [], total: 0};
-  }
-  const res = await listModels({...params, logicalModelCode: form.logicalModelCode});
-  const list = normalizeOptionList(res);
-  mergeOptions(list);
-  return res;
-}
-
-async function loadLogicalModelOptions(params: Dict) {
-  const res = await listLogicalModels(params);
-  logicalModelOptions.value = mergeOptionList(logicalModelOptions.value, normalizeOptionList(res));
-  return res;
-}
+const loadModelOptions = toOptionsLoader(listModelOptions, modelOptions);
+const loadLogicalModelOptions = toOptionsLoader(listLogicalModelOptions, logicalModelOptions);
 
 function resetForm() {
   const row = props.pool;
@@ -304,7 +282,7 @@ watch(
       resetForm();
       modelOptions.value = [];
       if (form.logicalModelCode) {
-        loadModelOptions({pageNum: 1, pageSize: 10});
+        loadModelOptions({values: form.items.map((i) => i.modelCode).filter((c) => c != null)});
       }
     }
   }
@@ -322,7 +300,7 @@ function onLogicalModelChange() {
   form.items = [];
   modelOptions.value = [];
   if (form.logicalModelCode) {
-    loadModelOptions({pageNum: 1, pageSize: 10});
+    loadModelOptions({});
   }
 }
 

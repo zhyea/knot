@@ -11,6 +11,10 @@ import org.chobit.knot.gateway.service.LogicalModelService;
 import org.chobit.knot.gateway.vo.common.CodeAvailability;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.model.LogicalModelItem;
+import org.chobit.knot.gateway.model.LogicalModelOptionQuery;
+import org.chobit.knot.gateway.service.OptionsService;
+import org.chobit.knot.gateway.vo.common.OptionItem;
+import org.chobit.knot.gateway.vo.common.OptionPage;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -18,14 +22,21 @@ import org.springframework.web.bind.annotation.*;
 public class LogicalModelController {
     private final LogicalModelService logicalModelService;
     private final LogicalModelConverter logicalModelConverter;
+    private final OptionsService optionsService;
 
     /**
      * Constructs a new instance.
      */
     public LogicalModelController(LogicalModelService logicalModelService,
-                                  LogicalModelConverter logicalModelConverter) {
+                                  LogicalModelConverter logicalModelConverter, OptionsService optionsService) {
         this.logicalModelService = logicalModelService;
         this.logicalModelConverter = logicalModelConverter;
+        this.optionsService = optionsService;
+    }
+
+    @PostMapping("/options")
+    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) LogicalModelOptionQuery query) {
+        return optionsService.listLogicalModelOptions(query);
     }
 
     /**

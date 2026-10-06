@@ -10,6 +10,10 @@ import org.chobit.knot.gateway.service.RoutingConsumerService;
 import org.chobit.knot.gateway.vo.common.CodeAvailability;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.routing.RoutingConsumer;
+import org.chobit.knot.gateway.model.RoutingConsumerOptionQuery;
+import org.chobit.knot.gateway.service.OptionsService;
+import org.chobit.knot.gateway.vo.common.OptionItem;
+import org.chobit.knot.gateway.vo.common.OptionPage;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -17,12 +21,19 @@ import org.springframework.web.bind.annotation.*;
 public class RoutingConsumerController {
 
     private final RoutingConsumerService routingConsumerService;
+    private final OptionsService optionsService;
 
     /**
      * Constructs a new instance.
      */
-    public RoutingConsumerController(RoutingConsumerService routingConsumerService) {
+    public RoutingConsumerController(RoutingConsumerService routingConsumerService, OptionsService optionsService) {
         this.routingConsumerService = routingConsumerService;
+        this.optionsService = optionsService;
+    }
+
+    @PostMapping("/options")
+    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) RoutingConsumerOptionQuery query) {
+        return optionsService.listRoutingConsumerOptions(query);
     }
 
     /**
@@ -36,6 +47,17 @@ public class RoutingConsumerController {
                         query == null ? null : query.keyword()
                 );
         return page.map(this::toVO);
+    }
+
+    /**
+     * 消费者详情：按 id 精确取（含 secretKey），供路由测试按需取密钥。
+     *
+     * <p>下拉候选用 {@code POST /options}（不含 secretKey）；密钥只在此详情按需返回，
+     * 避免列表接口把全部密钥批量下发到前端。</p>
+     */
+    @GetMapping("/{id}")
+    public RoutingConsumer get(@PathVariable Long id) {
+        return toVO(routingConsumerService.getById(id));
     }
 
     /**

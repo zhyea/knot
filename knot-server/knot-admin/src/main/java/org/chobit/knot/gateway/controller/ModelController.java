@@ -15,6 +15,10 @@ import org.chobit.knot.gateway.vo.model.ModelApiProtocolItem;
 import org.chobit.knot.gateway.vo.model.ModelTypeItem;
 import org.chobit.knot.gateway.vo.model.RequestAdapterItem;
 import org.chobit.knot.gateway.vo.model.UsageExtractorItem;
+import org.chobit.knot.gateway.model.ModelOptionQuery;
+import org.chobit.knot.gateway.service.OptionsService;
+import org.chobit.knot.gateway.vo.common.OptionItem;
+import org.chobit.knot.gateway.vo.common.OptionPage;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,13 +28,20 @@ import java.util.List;
 public class ModelController {
     private final ModelService modelService;
     private final ModelConverter modelConverter;
+    private final OptionsService optionsService;
 
     /**
      * Constructs a new instance.
      */
-    public ModelController(ModelService modelService, ModelConverter modelConverter) {
+    public ModelController(ModelService modelService, ModelConverter modelConverter, OptionsService optionsService) {
         this.modelService = modelService;
         this.modelConverter = modelConverter;
+        this.optionsService = optionsService;
+    }
+
+    @PostMapping("/options")
+    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) ModelOptionQuery query) {
+        return optionsService.listModelOptions(query);
     }
 
     /**

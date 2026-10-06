@@ -19,10 +19,10 @@
         rt.id,
         rt.rule_id,
         rt.target_type,
-        rt.target_id,
         rt.priority,
         rt.is_primary,
-        coalesce(m.model_code, mp.pool_code) as target_code,
+        rt.target_code as target_code,
+        coalesce(m.id, mp.id) as target_id,
         coalesce((select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1), mp.name) as target_name,
         coalesce((select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1), lm.model_type) as model_type,
         m.provider_account_code
@@ -31,8 +31,8 @@
     <select id="listByRuleIds" resultMap="RoutingRuleTargetResultMap">
         select <include refid="RuleTargetSelectColumns"/>
         from kb_routing_rule_targets rt
-        left join kb_models m on rt.target_type = 'MODEL' and rt.target_id = m.id
-        left join kb_model_pools mp on rt.target_type = 'MODEL_POOL' and rt.target_id = mp.id and mp.is_deleted = 0
+        left join kb_models m on rt.target_type = 'MODEL' and rt.target_code = m.model_code
+        left join kb_model_pools mp on rt.target_type = 'MODEL_POOL' and rt.target_code = mp.pool_code and mp.is_deleted = 0
         left join kb_logical_models lm on lm.model_code = mp.logical_model_code and lm.is_deleted = 0
         where rt.rule_id in
         <foreach collection="ruleIds" item="id" open="(" separator="," close=")">
@@ -44,8 +44,8 @@
     <select id="listByRuleId" resultMap="RoutingRuleTargetResultMap">
         select <include refid="RuleTargetSelectColumns"/>
         from kb_routing_rule_targets rt
-        left join kb_models m on rt.target_type = 'MODEL' and rt.target_id = m.id
-        left join kb_model_pools mp on rt.target_type = 'MODEL_POOL' and rt.target_id = mp.id and mp.is_deleted = 0
+        left join kb_models m on rt.target_type = 'MODEL' and rt.target_code = m.model_code
+        left join kb_model_pools mp on rt.target_type = 'MODEL_POOL' and rt.target_code = mp.pool_code and mp.is_deleted = 0
         left join kb_logical_models lm on lm.model_code = mp.logical_model_code and lm.is_deleted = 0
         where rt.rule_id = #{ruleId}
         order by rt.priority asc, rt.id asc
@@ -56,8 +56,8 @@
     </delete>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_routing_rule_targets(rule_id, target_type, target_id, priority, is_primary)
-        values(#{ruleId}, #{targetType}, #{targetId}, #{priority}, #{primary})
+        insert into kb_routing_rule_targets(rule_id, target_type, target_code, priority, is_primary)
+        values(#{ruleId}, #{targetType}, #{targetCode}, #{priority}, #{primary})
     </insert>
 
 </mapper>

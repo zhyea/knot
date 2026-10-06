@@ -56,11 +56,11 @@
               <el-form-item label="统一模型">
                 <RemoteEntitySelect
                   v-model="form.logicalModelCode"
-                  value-key="modelCode"
+                  value-key="value"
                   :load-function="loadLogicalModelOptions"
-                  :label-function="logicalModelLabel"
-                  :selected-options="selectedLogicalModelOptions"
                   :code-only="codeOnly"
+                  code-key="code"
+                  label-key="label"
                   :disabled="readonly"
                   clearable
                   placeholder="可选，仅作归类"
@@ -117,9 +117,9 @@ import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import {createTestRequestPreset, updateTestRequestPreset} from "@/api/routing";
-import {listLogicalModels} from "@/api/logicalModels";
+import {listLogicalModelOptions} from "@/api/options";
 import type {Dict, Row} from "@/types";
-import {mergeOptionList, normalizeOptionList, resolveSelectedOption} from "@/utils/options";
+import {toOptionsLoader} from "@/utils/options";
 import {formatJsonText, parseJsonResult} from "@/utils/format";
 
 const props = defineProps({
@@ -147,7 +147,6 @@ const drawerTitle = computed(() => {
 const saving = ref(false);
 const codeError = ref("");
 const bodyError = ref("");
-const logicalModelOptions = ref<Row[]>([]);
 
 const form = reactive({
   id: null as number | null,
@@ -155,29 +154,12 @@ const form = reactive({
   name: "",
   protocolCode: "",
   logicalModelCode: null as string | null,
-  logicalModelName: "" as string | undefined,
   requestBody: "",
   remark: "",
   enabled: true
 });
 
-/** 统一模型为可清空的可选维度：已选项需回显名称，未归类时为空数组 */
-const selectedLogicalModelOptions = computed(() =>
-  resolveSelectedOption(form.logicalModelCode, logicalModelOptions.value, {
-    modelCode: form.logicalModelCode,
-    modelName: form.logicalModelName
-  }, "modelCode")
-);
-
-function logicalModelLabel(model: Row) {
-  return model.modelCode ? `${model.modelName || model.modelCode}（${model.modelCode}）` : `#${model.id}`;
-}
-
-async function loadLogicalModelOptions(params: Dict) {
-  const res = await listLogicalModels(params);
-  logicalModelOptions.value = mergeOptionList(logicalModelOptions.value, normalizeOptionList(res), "modelCode");
-  return res;
-}
+const loadLogicalModelOptions = toOptionsLoader(listLogicalModelOptions);
 
 watch(
   () => props.modelValue,
@@ -203,13 +185,11 @@ function resetForm(row: Row | null = null) {
   form.name = row?.name || "";
   form.protocolCode = row?.protocolCode || "";
   form.logicalModelCode = row?.logicalModelCode || null;
-  form.logicalModelName = row?.logicalModelName;
   form.requestBody = formatJsonText(row?.requestBody);
   form.remark = row?.remark ?? "";
   form.enabled = row?.status !== "INACTIVE";
   codeError.value = "";
   bodyError.value = "";
-  logicalModelOptions.value = [];
 }
 
 function onClosed() {

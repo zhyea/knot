@@ -40,9 +40,10 @@
         <el-form-item label="用户">
           <RemoteEntitySelect
             v-model="form.userId"
-            :load-function="listUsers"
-            :label-function="userLabel"
-            :selected-options="selectedUserOptions"
+            :load-function="loadUserOptions"
+            value-key="value"
+            :code-only="false"
+            label-key="label"
             placeholder="请选择用户"
             clearable
             style="width: 100%"
@@ -115,14 +116,14 @@ import {
   isEmptyQuotaPolicy,
   normalizeQuotaPolicy
 } from "@/utils/trafficPolicy";
-import {listUsers} from "@/api/users";
+import {listUserOptions} from "@/api/options";
 import {
   checkRoutingConsumerCode,
   createRoutingConsumer,
   updateRoutingConsumer
 } from "@/api/routing";
 import {generateRoutingRuleCode} from "@/utils/routingRule";
-import {normalizeOptionList, resolveSelectedOption} from "@/utils/options";
+import {toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 
 const props = defineProps({
@@ -139,7 +140,6 @@ const visible = computed({
 
 const saving = ref(false);
 const consumerCodeError = ref("");
-const userOptions = ref<Row[]>([]);
 
 const form = reactive({
   id: null,
@@ -151,19 +151,11 @@ const form = reactive({
   quotaPolicy: emptyQuotaPolicy()
 });
 
-const selectedUserOptions = computed(() =>
-  resolveSelectedOption(form.userId, userOptions.value, {
-    id: form.userId,
-    realName: props.consumer?.userName
-  })
-);
-
 watch(
   () => props.modelValue,
   (value) => {
     if (value) {
       resetForm(props.consumer);
-      loadOptions();
     }
   }
 );
@@ -177,15 +169,7 @@ watch(
   }
 );
 
-function userLabel(user: Row): string {
-  const name = user.realName?.trim() || user.username;
-  return name === user.username ? name : `${name}（${user.username}）`;
-}
-
-async function loadOptions() {
-  const usersRes = await listUsers({ pageNum: 1, pageSize: 10 });
-  userOptions.value = normalizeOptionList(usersRes);
-}
+const loadUserOptions = toOptionsLoader(listUserOptions);
 
 function resetForm(row: Row | null = null) {
   form.id = row?.id ?? null;

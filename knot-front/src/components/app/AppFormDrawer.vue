@@ -24,9 +24,10 @@
               <el-form-item label="所属部门">
                 <RemoteEntitySelect
                   v-model="form.deptId"
-                  :load-function="listDepartments"
-                  :label-function="departmentLabel"
-                  :selected-options="selectedDepartmentOptions"
+                  :load-function="loadDepartmentOptions"
+                  value-key="value"
+                  :code-only="false"
+                  label-key="label"
                   placeholder="请选择部门"
                   clearable
                   style="width: 100%"
@@ -37,9 +38,10 @@
               <el-form-item label="负责人">
                 <RemoteEntitySelect
                   v-model="form.ownerUserId"
-                  :load-function="listUsers"
-                  :label-function="userLabel"
-                  :selected-options="selectedOwnerOptions"
+                  :load-function="loadUserOptions"
+                  value-key="value"
+                  :code-only="false"
+                  label-key="label"
                   placeholder="请选择负责人"
                   clearable
                   style="width: 100%"
@@ -81,9 +83,8 @@ import {
   normalizeQuotaPolicy
 } from "@/utils/trafficPolicy";
 import {createApp, updateApp} from "@/api/apps";
-import {listDepartments} from "@/api/departments";
-import {listUsers} from "@/api/users";
-import {normalizeOptionList, resolveSelectedOption} from "@/utils/options";
+import {listDepartmentOptions, listUserOptions} from "@/api/options";
+import {toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 
 const props = defineProps({
@@ -94,8 +95,8 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const saving = ref(false);
-const departmentOptions = ref<Row[]>([]);
-const userOptions = ref<Row[]>([]);
+const loadDepartmentOptions = toOptionsLoader(listDepartmentOptions);
+const loadUserOptions = toOptionsLoader(listUserOptions);
 
 const form = reactive({
   id: null,
@@ -108,37 +109,6 @@ const form = reactive({
 });
 
 const isEdit = computed(() => props.app != null);
-const selectedDepartmentOptions = computed(() =>
-  resolveSelectedOption(form.deptId, departmentOptions.value, {
-    id: form.deptId,
-    deptName: props.app?.deptName
-  })
-);
-const selectedOwnerOptions = computed(() =>
-  resolveSelectedOption(form.ownerUserId, userOptions.value, {
-    id: form.ownerUserId,
-    realName: props.app?.ownerName
-  })
-);
-
-function departmentLabel(department: Row): string {
-  return department.deptCode ? `${department.deptName}（${department.deptCode}）` : (department.deptName || `#${department.id}`);
-}
-
-function userLabel(user: Row): string {
-  const name = user.realName?.trim() || user.username;
-  return name === user.username ? name : `${name}（${user.username}）`;
-}
-
-async function loadDepartments() {
-  const data = await listDepartments({pageNum: 1, pageSize: 20});
-  departmentOptions.value = normalizeOptionList(data);
-}
-
-async function loadUsers() {
-  const data = await listUsers({pageNum: 1, pageSize: 10});
-  userOptions.value = normalizeOptionList(data);
-}
 
 function fillFormFromRow(row: Row): void {
   form.id = row.id;
@@ -169,8 +139,6 @@ watch(
   ([visible]) => {
     if (visible) {
       resetForm();
-      loadDepartments();
-      loadUsers();
     }
   }
 );

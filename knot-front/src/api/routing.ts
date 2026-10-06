@@ -1,5 +1,6 @@
 import {postQuery, post, put, get, del, postEventStream, postGatewayJson} from "./http";
 import type {Dict} from "@/types";
+import type {OptionPage} from "./options";
 
 export function listRoutingRules(params: Dict) {
   return postQuery("/api/routing-rules/list", params);
@@ -7,6 +8,11 @@ export function listRoutingRules(params: Dict) {
 
 export function listRoutingConsumers(params: Dict) {
   return postQuery("/api/routing-consumers/list", params);
+}
+
+/** 消费者详情（含 secretKey）：路由测试按 id 精确取密钥，避免列表批量下发。 */
+export function getRoutingConsumer(id: number | string) {
+  return get<Dict>(`/api/routing-consumers/${id}`);
 }
 
 export function createRoutingConsumer(payload: Dict) {
@@ -86,8 +92,14 @@ export function listTestRequestPresets(params: Dict) {
   return postQuery("/api/test-request-presets/list", params);
 }
 
+/** 下拉候选：统一 OptionPage 契约（value=id，label=name，code=protocolCode）。 */
 export function listTestRequestPresetOptions() {
-  return get("/api/test-request-presets/options");
+  return get<OptionPage>("/api/test-request-presets/options");
+}
+
+/** 预设详情：选中后按 id 取完整请求体模板（options 不含 requestBody）。 */
+export function getTestRequestPreset(id: number | string) {
+  return get<Dict>(`/api/test-request-presets/${id}`);
 }
 
 export function createTestRequestPreset(payload: Dict) {

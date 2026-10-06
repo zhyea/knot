@@ -345,7 +345,6 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (114, 99, 'GET', '/api/provider-accounts/credential-types', 'ProviderController', 'ENABLED'),
 (115, 99, 'GET', '/api/provider-accounts/suggest-code', 'ProviderController', 'ENABLED'),
 (116, 99, 'GET', '/api/provider-accounts/check-code', 'ProviderController', 'ENABLED'),
-(117, 99, 'GET', '/api/provider-accounts/options/{id}', 'ProviderController', 'ENABLED'),
 (118, 99, 'GET', '/api/provider-accounts/{id}', 'ProviderController', 'ENABLED'),
 (119, 100, 'POST', '/api/provider-accounts', 'ProviderController', 'ENABLED'),
 (120, 101, 'PUT', '/api/provider-accounts/{id}', 'ProviderController', 'ENABLED'),
@@ -607,11 +606,14 @@ INSERT IGNORE INTO kb_routing_rule_consumers (id, rule_id, consumer_id) VALUES
 (2, 2, 2),
 (3, 3, 3);
 
-INSERT IGNORE INTO kb_routing_rule_targets (id, rule_id, target_type, target_id, priority, is_primary) VALUES
-(1, 1, 'MODEL_POOL', 1, 100, 1),
-(2, 1, 'MODEL',      2, 90,  0),
-(3, 2, 'MODEL',      4, 100, 1),
-(4, 3, 'MODEL_POOL', 2, 100, 1);
+INSERT IGNORE INTO kb_routing_rule_targets (id, rule_id, target_type, target_code, priority, is_primary)
+SELECT 1, 1, 'MODEL_POOL', mp.pool_code, 100, 1 FROM kb_model_pools mp WHERE mp.id = 1
+UNION ALL
+SELECT 2, 1, 'MODEL', m.model_code, 90, 0 FROM kb_models m WHERE m.id = 2
+UNION ALL
+SELECT 3, 2, 'MODEL', m.model_code, 100, 1 FROM kb_models m WHERE m.id = 4
+UNION ALL
+SELECT 4, 3, 'MODEL_POOL', mp.pool_code, 100, 1 FROM kb_model_pools mp WHERE mp.id = 2;
 
 -- 路由调试预设请求用例
 -- 请求体中的 model 会由调试面板按所选目标覆盖；messages/input/prompt 等内容可直接编辑后测试。
@@ -829,6 +831,27 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 (28, 'hunyuan',  '混元（Hunyuan）',       20, 1),
 (28, 'ernie',    '文心一言（ERNIE）',     21, 1),
 (28, 'spark',    '讯飞星火（Spark）',     22, 1);
+
+-- ============================================================
+-- 接口级授权：API 权限与绑定（默认拒绝，全量覆盖）
+-- 由 .workbuddy/audit/gen_api_bindings.py 生成，勿手工编辑
+-- ============================================================
+-- 本次无新增权限码（9 个 POST options 端点复用已有 *:view），仅新增接口绑定。
+INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
+(175, 34, 'POST', '/api/apps/options', 'AppController', 'ENABLED'),
+(176, 67, 'POST', '/api/billing/options', 'BillingController', 'ENABLED'),
+(177, 7, 'POST', '/api/system/departments/options', 'DepartmentController', 'ENABLED'),
+(178, 79, 'POST', '/api/logical-models/options', 'LogicalModelController', 'ENABLED'),
+(179, 84, 'POST', '/api/models/options', 'ModelController', 'ENABLED'),
+(180, 88, 'POST', '/api/model-pools/options', 'ModelPoolController', 'ENABLED'),
+(181, 99, 'POST', '/api/provider-accounts/options', 'ProviderController', 'ENABLED'),
+(182, 107, 'POST', '/api/routing-consumers/options', 'RoutingConsumerController', 'ENABLED'),
+(183, 113, 'POST', '/api/routing-rules/{id}/test/stream', 'RoutingRuleController', 'ENABLED'),
+(184, 2, 'POST', '/api/users/options', 'UserController', 'ENABLED'),
+-- 阶段三：预设 options 统一 OptionPage 后，选中预设按 id 懒加载请求体详情（复用 routing:preset:view）
+(185, 128, 'GET', '/api/test-request-presets/{id}', 'TestRequestPresetController', 'ENABLED'),
+-- 阶段三：路由测试按 id 精确取消费者密钥（复用 routing:consumer:view），密钥不再随列表批量下发
+(186, 107, 'GET', '/api/routing-consumers/{id}', 'RoutingConsumerController', 'ENABLED');
 
 -- ============================================================
 -- 权威授权块（必须保持在文件最后）

@@ -65,7 +65,7 @@ import RoutingRuleListPanel from "../../components/routing/RoutingRuleListPanel.
 import RoutingRuleFormDrawer from "../../components/routing/RoutingRuleFormDrawer.vue";
 import RoutingRuleTestDrawer from "../../components/routing/RoutingRuleTestDrawer.vue";
 import {listRoutingRuleOperationLogs} from "@/api/operationLogs";
-import {listRoutingConsumers, listRoutingRules} from "@/api/routing";
+import {listRoutingConsumers, listRoutingRules, getRoutingConsumer} from "@/api/routing";
 import {normalizeOptionList} from "@/utils/options";
 
 const {
@@ -123,9 +123,14 @@ async function loadConsumerSecretKey(consumerIds: Array<string | number>) {
   if (!ids.length) {
     return "";
   }
-  const res = await listRoutingConsumers({ pageNum: 1, pageSize: 500 });
-  const consumers = normalizeOptionList(res);
-  return consumers.find((item) => ids.includes(item.id))?.secretKey || "";
+  // 按 id 精确取首个消费者的密钥：走详情端点而非全量列表
+  // （下拉候选用 POST /options，刻意不含 secretKey；密钥只在详情按需取）
+  try {
+    const detail = await getRoutingConsumer(ids[0]);
+    return detail?.secretKey || "";
+  } catch {
+    return "";
+  }
 }
 
 function openChangeLog(row: Row) {

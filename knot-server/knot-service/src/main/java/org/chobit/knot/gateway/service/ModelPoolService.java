@@ -379,6 +379,11 @@ public class ModelPoolService {
         return value == null ? "" : value.trim();
     }
 
+    private static String normalizeTextToNull(String value) {
+        String text = value != null ? value.trim() : "";
+        return text.isEmpty() ? null : text;
+    }
+
     private static String normalizeNullable(String value) {
         String text = normalizeText(value);
         return text.isEmpty() ? null : text;

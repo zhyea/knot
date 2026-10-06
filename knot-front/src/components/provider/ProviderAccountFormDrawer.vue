@@ -341,7 +341,8 @@ async function resetForm() {
 
 async function loadProviderOptions() {
   try {
-    const result = await listProviderProfiles({pageNum: 1, pageSize: 500});
+    // 供应商信息下拉：仅建 code→label 映射，供应商数量级远小于服务端上限 50，无需全量拉取
+    const result = await listProviderProfiles({pageNum: 1, pageSize: 50});
     const list: Row[] = Array.isArray(result) ? result : result?.list || [];
     providerOptions.value = list.map((item) => ({
       value: item.code,
