@@ -4,8 +4,12 @@ import jakarta.validation.Valid;
 import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.model.ProviderProfileOptionQuery;
+import org.chobit.knot.gateway.service.OptionsService;
 import org.chobit.knot.gateway.service.ProviderProfileService;
 import org.chobit.knot.gateway.vo.common.CodeAvailability;
+import org.chobit.knot.gateway.vo.common.OptionItem;
+import org.chobit.knot.gateway.vo.common.OptionPage;
 import org.chobit.knot.gateway.vo.provider.ProviderProfileItem;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,9 +18,12 @@ import org.springframework.web.bind.annotation.*;
 public class ProviderProfileController {
 
     private final ProviderProfileService providerProfileService;
+    private final OptionsService optionsService;
 
-    public ProviderProfileController(ProviderProfileService providerProfileService) {
+    public ProviderProfileController(ProviderProfileService providerProfileService,
+                                     OptionsService optionsService) {
         this.providerProfileService = providerProfileService;
+        this.optionsService = optionsService;
     }
 
     @PostMapping("/list")
@@ -30,6 +37,14 @@ public class ProviderProfileController {
     @GetMapping("/{id}")
     public ProviderProfileItem getById(@PathVariable Long id) {
         return providerProfileService.getById(id);
+    }
+
+    /**
+     * 供应商信息下拉候选（options）。value=code；{@code kb_providers} 无启用态，disabled 恒 0。
+     */
+    @PostMapping("/options")
+    public OptionPage<OptionItem> options(@RequestBody(required = false) ProviderProfileOptionQuery query) {
+        return optionsService.listProviderProfileOptions(query);
     }
 
     @GetMapping("/check-code")

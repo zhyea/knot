@@ -251,8 +251,6 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (20, 15, 'GET', '/api/operation-logs/operator/{operatorId}', 'OperationLogController', 'ENABLED'),
 (21, 15, 'GET', '/api/operation-logs/entity/{entityType}/{entityId}', 'OperationLogController', 'ENABLED'),
 (22, 28, 'POST', '/api/system/scheduled-tasks/list', 'ScheduledTaskController', 'ENABLED'),
-(23, 30, 'GET', '/api/enums/summaries', 'EnumController', 'ENABLED'),
-(24, 30, 'GET', '/api/enums/{category}/items', 'EnumController', 'ENABLED'),
 (25, 32, 'POST', '/api/plugins/list', 'PluginController', 'ENABLED'),
 (26, 34, 'POST', '/api/apps/list', 'AppController', 'ENABLED'),
 (27, 13, 'POST', '/api/system/authorizations/roles/list', 'AuthorizationRoleController', 'ENABLED'),
@@ -851,7 +849,11 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 -- 阶段三：预设 options 统一 OptionPage 后，选中预设按 id 懒加载请求体详情（复用 routing:preset:view）
 (185, 128, 'GET', '/api/test-request-presets/{id}', 'TestRequestPresetController', 'ENABLED'),
 -- 阶段三：路由测试按 id 精确取消费者密钥（复用 routing:consumer:view），密钥不再随列表批量下发
-(186, 107, 'GET', '/api/routing-consumers/{id}', 'RoutingConsumerController', 'ENABLED');
+(186, 107, 'GET', '/api/routing-consumers/{id}', 'RoutingConsumerController', 'ENABLED'),
+-- 阶段四扩范围：角色下拉独立 options（复用 system:authz:role:view）
+(187, 66, 'POST', '/api/system/authorizations/roles/options', 'AuthorizationRoleController', 'ENABLED'),
+-- 阶段四扩范围：供应商信息下拉独立 options（复用 model:provider-profile:view）
+(188, 103, 'POST', '/api/provider-profiles/options', 'ProviderProfileController', 'ENABLED');
 
 -- ============================================================
 -- 权威授权块（必须保持在文件最后）

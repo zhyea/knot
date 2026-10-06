@@ -288,4 +288,54 @@
         <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
     </select>
 
+    <!-- ==================== 角色（value=id；ks_roles 无 status/is_deleted → 无启用过滤，disabled 恒 0） ==================== -->
+    <select id="listRoleOptions" resultType="map">
+        select r.id as value,
+               COALESCE(NULLIF(r.name, ''), r.code) as label,
+               r.code as code,
+               0 as disabled
+        from ks_roles r
+        where 1 = 1
+        <if test="keyword != null and keyword != ''">
+            and (r.name like concat('%', #{keyword}, '%')
+                 or r.code like concat('%', #{keyword}, '%'))
+        </if>
+        order by r.id asc
+    </select>
+
+    <select id="listRoleOptionsByValues" resultType="map">
+        select r.id as value,
+               COALESCE(NULLIF(r.name, ''), r.code) as label,
+               r.code as code,
+               0 as disabled
+        from ks_roles r
+        where cast(r.id as char) in
+        <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
+    </select>
+
+    <!-- ==================== 供应商信息（value=code；kb_providers 无 status/is_deleted → 无启用过滤，disabled 恒 0） ==================== -->
+    <select id="listProviderProfileOptions" resultType="map">
+        select p.code as value,
+               concat(p.name, ' / ', p.code) as label,
+               p.code as code,
+               0 as disabled
+        from kb_providers p
+        where 1 = 1
+        <if test="keyword != null and keyword != ''">
+            and (p.name like concat('%', #{keyword}, '%')
+                 or p.code like concat('%', #{keyword}, '%'))
+        </if>
+        order by p.code asc
+    </select>
+
+    <select id="listProviderProfileOptionsByValues" resultType="map">
+        select p.code as value,
+               concat(p.name, ' / ', p.code) as label,
+               p.code as code,
+               0 as disabled
+        from kb_providers p
+        where p.code in
+        <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
+    </select>
+
 </mapper>

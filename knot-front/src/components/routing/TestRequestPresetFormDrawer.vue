@@ -121,6 +121,7 @@ import {listLogicalModelOptions} from "@/api/options";
 import type {Dict, Row} from "@/types";
 import {toOptionsLoader} from "@/utils/options";
 import {formatJsonText, parseJsonResult} from "@/utils/format";
+import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -233,7 +234,14 @@ function buildPayload() {
   };
 }
 
+// 下拉缺失值守卫：已选项被删除/无权限时阻止提交（options 契约第 10 条）
+const missing = useMissingOptionGuard();
+
 async function submit() {
+  if (missing.hasMissing.value) {
+    ElMessage.warning(missing.hint.value);
+    return;
+  }
   if (!form.name?.trim()) {
     ElMessage.warning("请填写名称");
     return;

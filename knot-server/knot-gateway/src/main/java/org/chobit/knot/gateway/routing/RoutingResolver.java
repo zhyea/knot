@@ -25,6 +25,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 根据消费者 API Key 和路由规则编码解析本次网关请求的路由信息。
@@ -133,21 +134,26 @@ public class RoutingResolver {
         ordered.add(first);
         targets.stream()
                 .filter(target -> !sameTarget(target, first))
+                // 排序键用存储主键 targetCode（NOT NULL）；targetId 是 left join 派生的可空值，
+                // 用它做 natural ordering 会在目标被删/JOIN 未命中时抛 NPE
                 .sorted(Comparator.comparingInt(RoutingRuleTargetDto::priority).reversed()
-                        .thenComparing(RoutingRuleTargetDto::targetId)
+                        .thenComparing(RoutingRuleTargetDto::targetCode)
                         .thenComparing(RoutingRuleTargetDto::targetType))
                 .forEach(ordered::add);
         return ordered;
     }
 
+    /**
+     * 身份去重：同一路由目标（存储主键 targetCode + 目标类型）只保留一条。
+     * 用存储主键而非派生的 targetId，对齐「跨模块绑定存 code 不存 id」口径。
+     * 不手写整对象字段比对——那是字段清单的第二份真相，加字段必漏且编译器不报。
+     */
     private boolean sameTarget(RoutingRuleTargetDto left, RoutingRuleTargetDto right) {
         if (left == null || right == null) {
             return false;
         }
-        return left.targetId() != null
-                && left.targetId().equals(right.targetId())
-                && left.targetType() != null
-                && left.targetType().equals(right.targetType());
+        return Objects.equals(left.targetCode(), right.targetCode())
+                && Objects.equals(left.targetType(), right.targetType());
     }
 
     private List<RoutingRuleTargetDto> listTargets(Long ruleId) {
@@ -168,7 +174,8 @@ public class RoutingResolver {
 
     private List<RoutingRuleTargetDto> resolveTargetCandidates(RoutingRuleTargetDto target) {
         if (RouteTargetTypeEnum.MODEL.code().equals(target.targetType())) {
-            ModelEntity model = dataService.getModelById(target.targetId());
+            // 按存储主键 targetCode 取模型：targetId 是 left join 派生的可空值（目标被删即失效）
+            ModelEntity model = dataService.getModelByCode(target.targetCode());
             if (model == null || !EntityStatusEnum.ENABLED.code().equals(model.getStatus())) {
                 return List.of();
             }

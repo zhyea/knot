@@ -87,4 +87,14 @@ public interface OptionsMapper {
                                                     @Param("modelFamilyCode") String modelFamilyCode);
 
     List<Map<String, Object>> listBillingRuleOptionsByValues(@Param("values") List<String> values);
+
+    // ---------- 角色（value=id；ks_roles 无 status/is_deleted，disabled 恒 0） ----------
+    List<Map<String, Object>> listRoleOptions(@Param("keyword") String keyword);
+
+    List<Map<String, Object>> listRoleOptionsByValues(@Param("values") List<String> values);
+
+    // ---------- 供应商信息（value=code；kb_providers 无 status/is_deleted，disabled 恒 0） ----------
+    List<Map<String, Object>> listProviderProfileOptions(@Param("keyword") String keyword);
+
+    List<Map<String, Object>> listProviderProfileOptionsByValues(@Param("values") List<String> values);
 }

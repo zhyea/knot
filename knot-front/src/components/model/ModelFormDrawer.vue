@@ -324,6 +324,7 @@ import {
 import {listBillingRules} from "@/api/billing";
 import {listBillingRuleOptions, listLogicalModelOptions} from "@/api/options";
 import {normalizeOptionList, resolveSelectedOption, toOptionsLoader} from "@/utils/options";
+import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 
 /** 模型 API 绑定行（表单内 uid 用于 :key 稳定渲染） */
 interface ModelApiBinding {
@@ -799,7 +800,14 @@ function buildPayload() {
   };
 }
 
+// 下拉缺失值守卫：已选项被删除/无权限时阻止提交（options 契约第 10 条）
+const missing = useMissingOptionGuard();
+
 async function submit() {
+  if (missing.hasMissing.value) {
+    ElMessage.warning(missing.hint.value);
+    return;
+  }
   if (!validateRequired(true)) {
     return;
   }

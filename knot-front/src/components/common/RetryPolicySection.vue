@@ -118,9 +118,9 @@
 </template>
 
 <script setup lang="ts">
-import {computed, reactive, watch} from "vue";
+import {computed} from "vue";
+import {useDraftModel} from "@/composables/useDraftModel";
 import {
-  defaultRetryPolicy,
   normalizeRetryPolicy,
   RETRY_BACKOFF_LIMIT_MS,
   RETRY_MAX_ATTEMPTS_LIMIT,
@@ -153,41 +153,12 @@ const hint =
 /** 常用状态码预设（含通配符 4xx/5xx），仍可手动输入任意状态码或通配符 */
 const statusOptions = computed(() => ["4xx", "5xx", "429", "500", "502", "503", "504", "408", "409"]);
 
-/** 本地草稿 + 深度 watch 回写父级，不直接改 props 对象 */
-const draft = reactive<RetryPolicy>({...defaultRetryPolicy(), ...normalizeRetryPolicy(props.retryPolicy)});
-
-function sameRetryPolicy(left: unknown, right: RetryPolicy): boolean {
-  const normalized = normalizeRetryPolicy(left);
-  return normalized.mode === right.mode
-    && normalized.enabled === right.enabled
-    && normalized.maxAttempts === right.maxAttempts
-    && normalized.backoffBaseMs === right.backoffBaseMs
-    && normalized.backoffMaxMs === right.backoffMaxMs
-    && normalized.multiplier === right.multiplier
-    && normalized.jitter === right.jitter
-    && normalized.respectRetryAfter === right.respectRetryAfter
-    && normalized.retryOnMode === right.retryOnMode
-    && normalized.retryOn.length === right.retryOn.length
-    && normalized.retryOn.every((item, index) => item === right.retryOn[index]);
-}
-
-watch(() => props.retryPolicy,
-  value => {
-    const normalized = normalizeRetryPolicy(value);
-    if (!sameRetryPolicy(draft, normalized)) {
-      Object.assign(draft, normalized);
-    }
-  },
-  {immediate: true, deep: true});
-
-watch(draft,
-  value => {
-    const next = {...value, retryOn: [...value.retryOn]};
-    if (!sameRetryPolicy(props.retryPolicy, next)) {
-      emit("update:retryPolicy", next);
-    }
-  },
-  {deep: true});
+/** 本地草稿 + 双向同步：不直接改 props 对象，回环由 useDraftModel 内的结构比较阻断 */
+const draft = useDraftModel<RetryPolicy>(
+  () => props.retryPolicy,
+  normalizeRetryPolicy,
+  value => emit("update:retryPolicy", value)
+);
 </script>
 
 <style scoped>

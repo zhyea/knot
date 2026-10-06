@@ -28,19 +28,16 @@
           <el-row :gutter="16">
             <el-col :span="12">
               <el-form-item label="供应商" required>
-                <el-select
+                <RemoteEntitySelect
                   v-model="form.providerCode"
+                  :load-function="loadProviderProfileOptions"
+                  value-key="value"
+                  :code-only="false"
+                  label-key="label"
                   placeholder="请选择供应商"
-                  filterable
+                  clearable
                   style="width: 100%"
-                >
-                  <el-option
-                    v-for="option in providerOptions"
-                    :key="option.value"
-                    :label="option.label"
-                    :value="option.value"
-                  />
-                </el-select>
+                />
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -133,7 +130,9 @@ import {
   normalizeQuotaPolicy
 } from "@/utils/trafficPolicy";
 import {useAuth} from "@/composables/useAuth";
-import {listProviderProfiles} from "@/api/providerProfiles";
+import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
+import {listProviderProfileOptions} from "@/api/options";
+import {toOptionsLoader} from "@/utils/options";
 import {
   createProvider,
   updateProvider,
@@ -142,7 +141,8 @@ import {
   listCredentialTypes,
   listAuthAppliers
 } from "@/api/providers";
-import type {Dict, Row, SelectOption} from "@/types";
+import type {Dict, Row} from "@/types";
+import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 
 /** 认证类型选项：code / label / requiredFields，由后端 ProviderCredentialTypeEnum 下发 */
 interface CredentialTypeOption {
@@ -168,7 +168,6 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const {isAdmin} = useAuth();
-const providerOptions = ref<SelectOption[]>([]);
 const saving = ref(false);
 const codeChecking = ref(false);
 const codeError = ref("");
@@ -339,19 +338,8 @@ async function resetForm() {
   }
 }
 
-async function loadProviderOptions() {
-  try {
-    // 供应商信息下拉：仅建 code→label 映射，供应商数量级远小于服务端上限 50，无需全量拉取
-    const result = await listProviderProfiles({pageNum: 1, pageSize: 50});
-    const list: Row[] = Array.isArray(result) ? result : result?.list || [];
-    providerOptions.value = list.map((item) => ({
-      value: item.code,
-      label: `${item.name || item.code}（${item.code}）`
-    }));
-  } catch {
-    providerOptions.value = [];
-  }
-}
+/** 供应商信息下拉：value=code，label 由后端给出（name / code）；编辑态回显由组件自动带 values。 */
+const loadProviderProfileOptions = toOptionsLoader(listProviderProfileOptions);
 
 watch(
   () => [props.modelValue, props.providerId],
@@ -362,7 +350,6 @@ watch(
   }
 );
 
-loadProviderOptions();
 loadCredentialTypes();
 loadAuthAppliers();
 
@@ -434,7 +421,14 @@ function buildPayload(): Dict {
   };
 }
 
+// 下拉缺失值守卫：已选项被删除/无权限时阻止提交（options 契约第 10 条）
+const missing = useMissingOptionGuard();
+
 async function submit() {
+  if (missing.hasMissing.value) {
+    ElMessage.warning(missing.hint.value);
+    return;
+  }
   if (!form.credentialType) {
     ElMessage.warning("请选择认证类型");
     return;

@@ -5,8 +5,12 @@ import org.chobit.knot.gateway.entity.AdminRoleEntity;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.model.RoleOptionQuery;
 import org.chobit.knot.gateway.service.AuthorizationRoleService;
+import org.chobit.knot.gateway.service.OptionsService;
 import org.chobit.knot.gateway.vo.auth.AdminAuthorizationSnapshotResponse;
+import org.chobit.knot.gateway.vo.common.OptionItem;
+import org.chobit.knot.gateway.vo.common.OptionPage;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,12 +31,14 @@ import java.util.List;
 public class AuthorizationRoleController {
 
     private final AuthorizationRoleService roleService;
+    private final OptionsService optionsService;
 
     /**
      * Constructs a new instance.
      */
-    public AuthorizationRoleController(AuthorizationRoleService roleService) {
+    public AuthorizationRoleController(AuthorizationRoleService roleService, OptionsService optionsService) {
         this.roleService = roleService;
+        this.optionsService = optionsService;
     }
 
     /**
@@ -42,6 +48,14 @@ public class AuthorizationRoleController {
     public PageResult<AdminRoleEntity> listRoles(@RequestBody(required = false) PageQuery query) {
         PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
         return roleService.listRoles(pageRequest, query == null ? null : query.keyword());
+    }
+
+    /**
+     * 角色下拉候选（options）。value=id；{@code ks_roles} 无启用态，disabled 恒 0。
+     */
+    @PostMapping("/options")
+    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) RoleOptionQuery query) {
+        return optionsService.listRoleOptions(query);
     }
 
     /**

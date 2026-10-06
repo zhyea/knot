@@ -12,6 +12,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 全局异常处理器，统一返回 {@link ApiResponse}，避免再被
@@ -95,6 +96,19 @@ public class GlobalExceptionHandler {
     public ApiResponse<Void> handleConstraintViolation(ConstraintViolationException e) {
         log.warn("Constraint violation: {}", e.getMessage());
         return ApiResponse.fail(rwProperties.getFailCode(), e.getMessage());
+    }
+
+    /**
+     * 未匹配到任何 handler（含不存在的路径 / 被删除的端点）。
+     *
+     * <p>Spring 6.1+ 对未匹配路径抛 {@link NoResourceFoundException}，若不拦截会落到
+     * {@code handleException} 变成 500；此处显式返回 404，便于前端区分「接口不存在」与「服务端故障」。</p>
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiResponse<Void> handleNoResourceFound(NoResourceFoundException e) {
+        log.warn("No handler for {}: {}", e.getResourcePath(), e.getMessage());
+        return ApiResponse.fail(rwProperties.getFailCode(), "接口不存在: " + e.getResourcePath());
     }
 
     /**

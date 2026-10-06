@@ -55,11 +55,10 @@
 </template>
 
 <script setup lang="ts">
-import {computed, reactive, watch} from "vue";
+import {computed} from "vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
+import {useDraftModel} from "@/composables/useDraftModel";
 import {
-  emptyQuotaPolicy,
-  emptyRateLimitPolicy,
   normalizeQuotaPolicy,
   normalizeRateLimitPolicy,
   type QuotaPolicy,
@@ -92,56 +91,17 @@ const {optionsOf} = useEnumOptions();
 const currencyOptions = computed(() => optionsOf("CurrencyCodeEnum"));
 const windowOptions = computed(() => optionsOf("QuotaWindowEnum"));
 
-/** 本地草稿 + 深度 watch 回写父级，不直接改 props 对象 */
-const rateDraft = reactive<RateLimitPolicy>({...emptyRateLimitPolicy(), ...props.rateLimit});
-const quotaDraft = reactive<QuotaPolicy>({...emptyQuotaPolicy(), ...normalizeQuotaPolicy(props.quota)});
-
-function sameRateLimitPolicy(left: unknown, right: RateLimitPolicy): boolean {
-  const normalized = normalizeRateLimitPolicy(left);
-  return normalized.rpm === right.rpm && normalized.tpm === right.tpm;
-}
-
-function sameQuotaPolicy(left: unknown, right: QuotaPolicy): boolean {
-  const normalized = normalizeQuotaPolicy(left);
-  return normalized.maxTokens === right.maxTokens
-    && normalized.costLimit === right.costLimit
-    && normalized.currency === right.currency
-    && normalized.window === right.window;
-}
-
-watch(() => props.rateLimit,
-  value => {
-    const normalized = normalizeRateLimitPolicy(value);
-    if (!sameRateLimitPolicy(rateDraft, normalized)) {
-      Object.assign(rateDraft, normalized);
-    }
-  },
-  {immediate: true, deep: true});
-watch(() => props.quota,
-  value => {
-    const normalized = normalizeQuotaPolicy(value);
-    if (!sameQuotaPolicy(quotaDraft, normalized)) {
-      Object.assign(quotaDraft, normalized);
-    }
-  },
-  {immediate: true, deep: true});
-
-watch(rateDraft,
-  value => {
-    const next = {...value};
-    if (!sameRateLimitPolicy(props.rateLimit, next)) {
-      emit("update:rateLimit", next);
-    }
-  },
-  {deep: true});
-watch(quotaDraft,
-  value => {
-    const next = {...value};
-    if (!sameQuotaPolicy(props.quota, next)) {
-      emit("update:quota", next);
-    }
-  },
-  {deep: true});
+/** 本地草稿 + 双向同步：不直接改 props 对象，回环由 useDraftModel 内的结构比较阻断 */
+const rateDraft = useDraftModel<RateLimitPolicy>(
+  () => props.rateLimit,
+  normalizeRateLimitPolicy,
+  value => emit("update:rateLimit", value)
+);
+const quotaDraft = useDraftModel<QuotaPolicy>(
+  () => props.quota,
+  normalizeQuotaPolicy,
+  value => emit("update:quota", value)
+);
 </script>
 
 <style scoped>

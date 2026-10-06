@@ -73,3 +73,13 @@ export function listRoutingConsumerOptions(params: OptionQuery) {
 export function listBillingRuleOptions(params: OptionQuery) {
   return options("/api/billing/options", params);
 }
+
+// 阶段四扩范围（原为列表接口例外）：角色 value=id；供应商信息 value=code。
+
+export function listRoleOptions(params: OptionQuery) {
+  return options("/api/system/authorizations/roles/options", params);
+}
+
+export function listProviderProfileOptions(params: OptionQuery) {
+  return options("/api/provider-profiles/options", params);
+}

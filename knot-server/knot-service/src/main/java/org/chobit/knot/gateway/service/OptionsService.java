@@ -14,6 +14,8 @@ import org.chobit.knot.gateway.model.ModelOptionQuery;
 import org.chobit.knot.gateway.model.ModelPoolOptionQuery;
 import org.chobit.knot.gateway.model.OptionQuery;
 import org.chobit.knot.gateway.model.ProviderAccountOptionQuery;
+import org.chobit.knot.gateway.model.ProviderProfileOptionQuery;
+import org.chobit.knot.gateway.model.RoleOptionQuery;
 import org.chobit.knot.gateway.model.RoutingConsumerOptionQuery;
 import org.chobit.knot.gateway.model.UserOptionQuery;
 import org.chobit.knot.gateway.vo.common.OptionItem;
@@ -28,7 +30,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 9 类资源下拉候选（options）服务。统一契约见 options-refactor-constraints.md。
+ * 下拉候选（options）服务：P0 九类 + 阶段四扩的两类（角色、供应商信息）= 11 类资源。
+ * 统一契约见 options-refactor-constraints.md。
  *
  * <p>核心流程（每资源一致）：
  * <ol>
@@ -151,6 +154,24 @@ public class OptionsService {
         return assemble(base,
                 () -> optionsMapper.listBillingRuleOptions(kw, eo, family),
                 vals -> optionsMapper.listBillingRuleOptionsByValues(vals));
+    }
+
+    // ==================== 角色（value=id；无启用态，disabled 恒 0） ====================
+    public OptionPage<OptionItem> listRoleOptions(RoleOptionQuery query) {
+        OptionQuery base = query == null ? EMPTY : query.toBase();
+        String kw = keyword(query == null ? null : query.keyword());
+        return assemble(base,
+                () -> optionsMapper.listRoleOptions(kw),
+                vals -> optionsMapper.listRoleOptionsByValues(vals));
+    }
+
+    // ==================== 供应商信息（value=code；无启用态，disabled 恒 0） ====================
+    public OptionPage<OptionItem> listProviderProfileOptions(ProviderProfileOptionQuery query) {
+        OptionQuery base = query == null ? EMPTY : query.toBase();
+        String kw = keyword(query == null ? null : query.keyword());
+        return assemble(base,
+                () -> optionsMapper.listProviderProfileOptions(kw),
+                vals -> optionsMapper.listProviderProfileOptionsByValues(vals));
     }
 
     // ==================== 共享逻辑 ====================

@@ -31,9 +31,10 @@
           <el-form-item label="绑定角色">
             <RemoteEntitySelect
               v-model="form.roleIds"
-              :load-function="loadRoles"
-              :label-function="roleLabel"
-              :selected-options="selectedRoleOptions"
+              :load-function="loadRoleOptions"
+              value-key="value"
+              :code-only="false"
+              label-key="label"
               multiple
               placeholder="请选择角色"
               style="width: 100%"
@@ -72,11 +73,11 @@
 import {type PropType, computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import {createUser, updateUser} from "@/api/users";
-import {listAuthorizationRoles} from "@/api/authorizations/roles";
-import {listDepartmentOptions} from "@/api/options";
+import {listDepartmentOptions, listRoleOptions} from "@/api/options";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
-import {normalizeOptionList, resolveSelectedOption, toOptionsLoader} from "@/utils/options";
-import type {Dict, Row} from "@/types";
+import {toOptionsLoader} from "@/utils/options";
+import type {Dict} from "@/types";
+import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -86,7 +87,6 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const saving = ref(false);
-const roleOptions = ref<Row[]>([]);
 interface UserFormState {
   id: number | string | null;
   username: string;
@@ -134,50 +134,24 @@ watch(
   ([visible]) => {
     if (visible) {
       resetForm();
-      loadRoles();
     }
   },
   {immediate: true}
 );
 
-const selectedRoleOptions = computed(() => {
-  const roleIds = Array.isArray(form.roleIds) ? form.roleIds : [];
-  const roleNameMap = new Map();
-  (props.user?.roleIds || []).forEach((roleId: number, index: number) => {
-    roleNameMap.set(roleId, props.user?.roleNames?.[index]);
-  });
-  return roleIds.map((roleId) => {
-    const selected = roleOptions.value.find((item) => item?.id === roleId);
-    if (selected) {
-      return selected;
-    }
-    return {
-      id: roleId,
-      name: roleNameMap.get(roleId) || `#${roleId}`,
-      code: ""
-    };
-  });
-});
-
-function departmentLabel(department: Row) {
-  return department.deptCode
-    ? `${department.deptName} (${department.deptCode})`
-    : department.deptName || `#${department.id}`;
-}
-
-function roleLabel(role: Row) {
-  return role.code ? `${role.name} (${role.code})` : role.name || `#${role.id}`;
-}
-
 const loadDepartmentOptions = toOptionsLoader(listDepartmentOptions);
 
-async function loadRoles(params = {}) {
-  const data = await listAuthorizationRoles(params);
-  roleOptions.value = normalizeOptionList(data);
-  return data;
-}
+/** 角色下拉：value=id，label 由后端给出（name）；编辑态回显由组件自动带 values 交后端。 */
+const loadRoleOptions = toOptionsLoader(listRoleOptions);
+
+// 下拉缺失值守卫：已选项被删除/无权限时阻止提交（options 契约第 10 条）
+const missing = useMissingOptionGuard();
 
 async function submit() {
+  if (missing.hasMissing.value) {
+    ElMessage.warning(missing.hint.value);
+    return;
+  }
   if (!form.username?.trim()) {
     ElMessage.warning("请填写用户名");
     return;
