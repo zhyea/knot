@@ -15,30 +15,14 @@
         <el-form-item label="配置模式" label-width="110px">
           <el-radio-group v-model="draft.mode" :disabled="!draft.enabled">
             <el-radio-button :value="RETRY_MODE_SIMPLE">简单</el-radio-button>
-            <el-radio-button :value="RETRY_MODE_PROFESSIONAL">4深度</el-radio-button>
+            <el-radio-button :value="RETRY_MODE_PROFESSIONAL">深度</el-radio-button>
           </el-radio-group>
         </el-form-item>
       </el-col>
     </el-row>
 
     <el-row :gutter="16">
-      <el-col :span="12">
-        <el-form-item label="状态码" label-width="110px">
-          <el-select
-            v-model="draft.retryOn"
-            multiple
-            filterable
-            allow-create
-            default-first-option
-            :disabled="!draft.enabled"
-            placeholder="如 500 / 4xx / 5xx"
-            class="retry-policy__field"
-          >
-            <el-option v-for="item in statusOptions" :key="item" :label="item" :value="item"/>
-          </el-select>
-        </el-form-item>
-      </el-col>
-      <el-col :span="12">
+      <el-col :span="8">
         <el-form-item label="总尝试次数" label-width="110px">
           <el-input-number
             v-model="draft.maxAttempts"
@@ -48,6 +32,25 @@
             controls-position="right"
             class="retry-policy__field"
           />
+        </el-form-item>
+      </el-col>
+      <el-col :span="16">
+        <el-form-item label="状态码" label-width="110px">
+          <el-select
+            v-model="draft.retryOn"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            collapse-tags
+            collapse-tags-tooltip
+            :max-collapse-tags="4"
+            :disabled="!draft.enabled"
+            placeholder="如 500 / 4xx / 5xx"
+            class="retry-policy__field"
+          >
+            <el-option v-for="item in statusOptions" :key="item" :label="item" :value="item"/>
+          </el-select>
         </el-form-item>
       </el-col>
     </el-row>
@@ -68,7 +71,7 @@
           </el-form-item>
         </el-col>
         <el-col :span="8">
-          <el-form-item label="退避倍数" label-width="110px">
+          <el-form-item label="退避倍数" label-width="80px">
             <el-input-number
               v-model="draft.multiplier"
               :min="1"
@@ -97,13 +100,13 @@
       </el-row>
 
       <el-row :gutter="16">
-        <el-col :span="12">
+        <el-col :span="6">
           <el-form-item label="退避抖动" label-width="110px">
             <el-switch v-model="draft.jitter" :disabled="!draft.enabled"/>
           </el-form-item>
         </el-col>
-        <el-col :span="12">
-          <el-form-item label="服从 Retry-After" label-width="110px">
+        <el-col :span="8">
+          <el-form-item label="服从Retry-After" label-width="110px">
             <el-switch v-model="draft.respectRetryAfter" :disabled="!draft.enabled"/>
           </el-form-item>
         </el-col>
