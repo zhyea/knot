@@ -162,12 +162,36 @@ const statusOptions = computed(() => ["429", "500", "502", "503", "504", "408", 
 /** 本地草稿 + 深度 watch 回写父级，不直接改 props 对象 */
 const draft = reactive<RetryPolicy>({...defaultRetryPolicy(), ...normalizeRetryPolicy(props.retryPolicy)});
 
+function sameRetryPolicy(left: unknown, right: RetryPolicy): boolean {
+  const normalized = normalizeRetryPolicy(left);
+  return normalized.enabled === right.enabled
+    && normalized.maxAttempts === right.maxAttempts
+    && normalized.backoffBaseMs === right.backoffBaseMs
+    && normalized.backoffMaxMs === right.backoffMaxMs
+    && normalized.multiplier === right.multiplier
+    && normalized.jitter === right.jitter
+    && normalized.respectRetryAfter === right.respectRetryAfter
+    && normalized.retryOnMode === right.retryOnMode
+    && normalized.retryOn.length === right.retryOn.length
+    && normalized.retryOn.every((item, index) => item === right.retryOn[index]);
+}
+
 watch(() => props.retryPolicy,
-  value => Object.assign(draft, normalizeRetryPolicy(value)),
+  value => {
+    const normalized = normalizeRetryPolicy(value);
+    if (!sameRetryPolicy(draft, normalized)) {
+      Object.assign(draft, normalized);
+    }
+  },
   {immediate: true, deep: true});
 
 watch(draft,
-  value => emit("update:retryPolicy", {...value}),
+  value => {
+    const next = {...value, retryOn: [...value.retryOn]};
+    if (!sameRetryPolicy(props.retryPolicy, next)) {
+      emit("update:retryPolicy", next);
+    }
+  },
   {deep: true});
 </script>
 
