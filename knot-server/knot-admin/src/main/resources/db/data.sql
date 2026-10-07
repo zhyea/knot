@@ -277,10 +277,10 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (46, 52, 'POST', '/api/system/authorizations/api-bindings', 'AuthorizationApiBindingController', 'ENABLED'),
 (47, 53, 'PUT', '/api/system/authorizations/api-bindings/{id}', 'AuthorizationApiBindingController', 'ENABLED'),
 (48, 54, 'DELETE', '/api/system/authorizations/api-bindings/{id}', 'AuthorizationApiBindingController', 'ENABLED'),
-(49, 41, 'PUT', '/api/system/authorizations/modules/{id}/status', 'AuthorizationModuleController', 'ENABLED'),
-(50, 45, 'PUT', '/api/system/authorizations/menus/{id}/status', 'AuthorizationMenuController', 'ENABLED'),
-(51, 49, 'PUT', '/api/system/authorizations/permissions/{id}/status', 'AuthorizationPermissionController', 'ENABLED'),
-(52, 53, 'PUT', '/api/system/authorizations/api-bindings/{id}/status', 'AuthorizationApiBindingController', 'ENABLED'),
+(49, 64, 'PUT', '/api/system/authorizations/modules/{id}/status', 'AuthorizationModuleController', 'ENABLED'),
+(50, 63, 'PUT', '/api/system/authorizations/menus/{id}/status', 'AuthorizationMenuController', 'ENABLED'),
+(51, 65, 'PUT', '/api/system/authorizations/permissions/{id}/status', 'AuthorizationPermissionController', 'ENABLED'),
+(52, 62, 'PUT', '/api/system/authorizations/api-bindings/{id}/status', 'AuthorizationApiBindingController', 'ENABLED'),
 (53, 56, 'PUT', '/api/users/{id}/reset-password', 'UserController', 'ENABLED'),
 (54, 58, 'POST', '/api/docs/openapi.json', 'ApiDocController', 'ENABLED'),
 (55, 58, 'POST', '/api/docs/changelog', 'ApiDocController', 'ENABLED'),
@@ -401,7 +401,23 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (171, 138, 'POST', '/api/model-families', 'ModelFamilyController', 'ENABLED'),
 (172, 139, 'PUT', '/api/model-families/{id}', 'ModelFamilyController', 'ENABLED'),
 (173, 140, 'PUT', '/api/model-families/{id}/status', 'ModelFamilyController', 'ENABLED'),
-(174, 141, 'DELETE', '/api/model-families/{id}', 'ModelFamilyController', 'ENABLED');
+(174, 141, 'DELETE', '/api/model-families/{id}', 'ModelFamilyController', 'ENABLED'),
+(175, 34, 'POST', '/api/apps/options', 'AppController', 'ENABLED'),
+(176, 67, 'POST', '/api/billing/options', 'BillingController', 'ENABLED'),
+(177, 7, 'POST', '/api/system/departments/options', 'DepartmentController', 'ENABLED'),
+(178, 79, 'POST', '/api/logical-models/options', 'LogicalModelController', 'ENABLED'),
+(179, 84, 'POST', '/api/models/options', 'ModelController', 'ENABLED'),
+(180, 88, 'POST', '/api/model-pools/options', 'ModelPoolController', 'ENABLED'),
+(181, 99, 'POST', '/api/provider-accounts/options', 'ProviderController', 'ENABLED'),
+(182, 107, 'POST', '/api/routing-consumers/options', 'RoutingConsumerController', 'ENABLED'),
+(183, 113, 'POST', '/api/routing-rules/{id}/test/stream', 'RoutingRuleController', 'ENABLED'),
+(184, 2, 'POST', '/api/users/options', 'UserController', 'ENABLED'),
+(185, 128, 'GET', '/api/test-request-presets/{id}', 'TestRequestPresetController', 'ENABLED'),
+(186, 107, 'GET', '/api/routing-consumers/{id}', 'RoutingConsumerController', 'ENABLED'),
+(187, 66, 'POST', '/api/system/authorizations/roles/options', 'AuthorizationRoleController', 'ENABLED'),
+(188, 103, 'POST', '/api/provider-profiles/options', 'ProviderProfileController', 'ENABLED'),
+(189, 142, 'DELETE', '/api/models/{id}', 'ModelController', 'ENABLED'),
+(190, 86, 'PUT', '/api/models/{id}/restore', 'ModelController', 'ENABLED');
 
 -- 角色授权（OPERATOR 全量 / DEVELOPER 只读；ADMIN 由文件末尾权威块全量授予）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
@@ -832,33 +848,6 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 (28, 'ernie',    '文心一言（ERNIE）',     21, 1),
 (28, 'spark',    '讯飞星火（Spark）',     22, 1);
 
--- ============================================================
--- 接口级授权：API 权限与绑定（默认拒绝，全量覆盖）
--- 由 .workbuddy/audit/gen_api_bindings.py 生成，勿手工编辑
--- ============================================================
--- 本次无新增权限码（9 个 POST options 端点复用已有 *:view），仅新增接口绑定。
-INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
-(175, 34, 'POST', '/api/apps/options', 'AppController', 'ENABLED'),
-(176, 67, 'POST', '/api/billing/options', 'BillingController', 'ENABLED'),
-(177, 7, 'POST', '/api/system/departments/options', 'DepartmentController', 'ENABLED'),
-(178, 79, 'POST', '/api/logical-models/options', 'LogicalModelController', 'ENABLED'),
-(179, 84, 'POST', '/api/models/options', 'ModelController', 'ENABLED'),
-(180, 88, 'POST', '/api/model-pools/options', 'ModelPoolController', 'ENABLED'),
-(181, 99, 'POST', '/api/provider-accounts/options', 'ProviderController', 'ENABLED'),
-(182, 107, 'POST', '/api/routing-consumers/options', 'RoutingConsumerController', 'ENABLED'),
-(183, 113, 'POST', '/api/routing-rules/{id}/test/stream', 'RoutingRuleController', 'ENABLED'),
-(184, 2, 'POST', '/api/users/options', 'UserController', 'ENABLED'),
--- 阶段三：预设 options 统一 OptionPage 后，选中预设按 id 懒加载请求体详情（复用 routing:preset:view）
-(185, 128, 'GET', '/api/test-request-presets/{id}', 'TestRequestPresetController', 'ENABLED'),
--- 阶段三：路由测试按 id 精确取消费者密钥（复用 routing:consumer:view），密钥不再随列表批量下发
-(186, 107, 'GET', '/api/routing-consumers/{id}', 'RoutingConsumerController', 'ENABLED'),
--- 阶段四扩范围：角色下拉独立 options（复用 system:authz:role:view）
-(187, 66, 'POST', '/api/system/authorizations/roles/options', 'AuthorizationRoleController', 'ENABLED'),
--- 阶段四扩范围：供应商信息下拉独立 options（复用 model:provider-profile:view）
-(188, 103, 'POST', '/api/provider-profiles/options', 'ProviderProfileController', 'ENABLED'),
--- kb_models 逻辑删除（2026-10-07）：删除走 model:model:delete，恢复复用 model:model:update
-(189, 142, 'DELETE', '/api/models/{id}', 'ModelController', 'ENABLED'),
-(190, 86, 'PUT', '/api/models/{id}/restore', 'ModelController', 'ENABLED');
 
 -- ============================================================
 -- 权威授权块（必须保持在文件最后）

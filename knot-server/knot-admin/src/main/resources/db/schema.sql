@@ -313,6 +313,7 @@ CREATE TABLE IF NOT EXISTS kb_models (
   remark VARCHAR(255) DEFAULT NULL,
   billing_rule_code VARCHAR(64) DEFAULT NULL COMMENT '绑定计费规则 code（kb_billing_rules.code），非主键 id',
   status VARCHAR(32) NOT NULL DEFAULT 'DISABLED',
+  is_deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除：0-否 1-是；与 kb_model_pools / kb_logical_models 同款逻辑删除约定',
   tags_json JSON DEFAULT NULL,
   params_json JSON DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -271,7 +271,7 @@ public class ModelPoolService {
         if (logicalModel == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "logical model not found");
         }
-        if (EntityStatusEnum.ENABLED.code().equals(request.enabled())
+        if (request.enabled()
                 && !EntityStatusEnum.ENABLED.code().equals(logicalModel.getStatus())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "只能绑定已启用的统一模型");
         }
