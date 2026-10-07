@@ -225,7 +225,9 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 (138, 'model:model-family:create', '模型族创建', 'API', 2, 23, 'ENABLED', 1, NULL),
 (139, 'model:model-family:update', '模型族更新', 'API', 2, 23, 'ENABLED', 1, NULL),
 (140, 'model:model-family:enable', '模型族更新状态', 'API', 2, 23, 'ENABLED', 1, NULL),
-(141, 'model:model-family:delete', '模型族删除', 'API', 2, 23, 'ENABLED', 1, NULL);
+(141, 'model:model-family:delete', '模型族删除', 'API', 2, 23, 'ENABLED', 1, NULL),
+-- kb_models 逻辑删除（2026-10-07）：供应商模型删除 / 恢复（model_code 唯一性按物理行，删除后只能恢复）
+(142, 'model:model:delete', '供应商模型删除', 'API', 2, 7, 'ENABLED', 1, NULL);
 
 -- API 权限绑定（默认拒绝：未绑定接口一律 403；由 .workbuddy/audit/gen_api_bindings.py 生成）
 INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
@@ -853,7 +855,10 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 -- 阶段四扩范围：角色下拉独立 options（复用 system:authz:role:view）
 (187, 66, 'POST', '/api/system/authorizations/roles/options', 'AuthorizationRoleController', 'ENABLED'),
 -- 阶段四扩范围：供应商信息下拉独立 options（复用 model:provider-profile:view）
-(188, 103, 'POST', '/api/provider-profiles/options', 'ProviderProfileController', 'ENABLED');
+(188, 103, 'POST', '/api/provider-profiles/options', 'ProviderProfileController', 'ENABLED'),
+-- kb_models 逻辑删除（2026-10-07）：删除走 model:model:delete，恢复复用 model:model:update
+(189, 142, 'DELETE', '/api/models/{id}', 'ModelController', 'ENABLED'),
+(190, 86, 'PUT', '/api/models/{id}/restore', 'ModelController', 'ENABLED');
 
 -- ============================================================
 -- 权威授权块（必须保持在文件最后）

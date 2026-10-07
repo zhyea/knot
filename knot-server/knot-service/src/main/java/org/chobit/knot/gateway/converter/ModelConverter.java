@@ -14,6 +14,7 @@ public interface ModelConverter {
     // ==================== Entity ↔ DTO ====================
 
     @Mapping(source = "status", target = "enabled", qualifiedByName = "statusToEnabled")
+    @Mapping(source = "isDeleted", target = "deleted", qualifiedByName = "deletedFlag")
     @Mapping(target = "rateLimitPolicy", ignore = true)
     @Mapping(target = "quotaPolicy", ignore = true)
     @Mapping(target = "apiBindings", ignore = true)
@@ -27,6 +28,10 @@ public interface ModelConverter {
     @Mapping(target = "name", ignore = true)
     @Mapping(target = "modelType", ignore = true)
     @Mapping(target = "logicalModelCode", ignore = true)
+    // modelFamilyCode 也是派生字段（取自 kb_logical_models.model_family），不落 kb_models 列
+    @Mapping(target = "modelFamilyCode", ignore = true)
+    // is_deleted 只能通过删除 / 恢复接口翻转，不接受请求写回
+    @Mapping(target = "isDeleted", ignore = true)
     ModelEntity toEntity(ModelDto dto);
 
     List<ModelDto> toDtoList(List<ModelEntity> entities);

@@ -83,14 +83,14 @@ public class ModelService {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<ModelDto> list(PageRequest pageRequest) {
-        return list(pageRequest, null, null, null, null);
+        return list(pageRequest, null, null, null, null, null);
     }
 
     /**
      * Returns matching results. Executes the public operation.
      */
     public PageResult<ModelDto> list(PageRequest pageRequest, String keyword) {
-        return list(pageRequest, keyword, null, null, null);
+        return list(pageRequest, keyword, null, null, null, null);
     }
 
     /**
@@ -98,16 +98,18 @@ public class ModelService {
      *
      * @param logicalModelCode 按绑定统一模型过滤（模型池选模型时用），为空不过滤
      * @param status           按状态过滤（路由规则绑定目标时传 ENABLED，只出已启用模型），为空不过滤
+     * @param includeDeleted   管理列表传 true 以便展示已删除行（浅红底 + 恢复按钮），为空等同 false
      */
     public PageResult<ModelDto> list(PageRequest pageRequest,
                                      String keyword,
                                      List<String> modelTypes,
                                      String logicalModelCode,
-                                     String status) {
+                                     String status,
+                                     Boolean includeDeleted) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<ModelEntity> pageInfo = new PageInfo<>(
                     modelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes),
-                            normalizeTextToNull(logicalModelCode), normalizeTextToNull(status))
+                            normalizeTextToNull(logicalModelCode), normalizeTextToNull(status), includeDeleted)
             );
             List<ModelEntity> entities = pageInfo.getList();
             List<Long> ids = entities.stream().map(ModelEntity::getId).toList();
@@ -293,11 +295,70 @@ public class ModelService {
                     existing.billingRuleCode(),
                     existing.rateLimitPolicy(),
                     existing.quotaPolicy(),
-                    existing.apiBindings()
+                    existing.apiBindings(),
+                    existing.deleted()
             );
             validateModelRequest(request);
         }
         modelMapper.updateStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+        return getById(id);
+    }
+
+    /**
+     * 逻辑删除供应商模型。被引用时拒绝删除（先解除引用再删）。
+     *
+     * <p>不走物理删除：历史路由目标的 target_code 仍需能解析出可读信息，且删除可恢复。</p>
+     *
+     * <p>四类引用都要拦：路由规则目标、模型池条目、厂商模型映射、模型 API 协议绑定。
+     * 后三类若不拦，逻辑删除后对应的 inner join 查询会直接落空（池内条目「凭空消失」、
+     * API 绑定查不到协议），属于静默数据损坏。</p>
+     */
+    @Transactional
+    public void delete(Long id) {
+        ModelEntity existing = modelMapper.getById(id);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "供应商模型不存在");
+        }
+        requireNoReference(modelMapper.countRoutingTargetsByModelCode(existing.getModelCode()),
+                "该供应商模型已被路由规则引用，无法删除");
+        requireNoReference(modelMapper.countPoolItemsByModelCode(existing.getModelCode()),
+                "该供应商模型已被模型池引用，无法删除");
+        requireNoReference(modelMapper.countProviderMappingsByModelId(id),
+                "该供应商模型已被厂商模型映射引用，无法删除");
+        requireNoReference(modelMapper.countApiBindingsByModelId(id),
+                "该供应商模型已被 API 协议绑定引用，无法删除");
+        modelMapper.logicalDelete(id);
+    }
+
+    private static void requireNoReference(Long count, String message) {
+        if (count != null && count > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, message);
+        }
+    }
+
+    /**
+     * 恢复已逻辑删除的供应商模型。
+     *
+     * <p>model_code 唯一性按物理行判定（uk_models_code 不区分 is_deleted），所以逻辑删除后同
+     * {@code model_code} 无法新建，只能恢复。恢复时校验绑定的统一模型仍存在且未删除，
+     * 避免恢复出一个指向已删除统一模型的模型。</p>
+     */
+    @Transactional
+    public ModelDto restore(Long id) {
+        ModelEntity existing = modelMapper.getByIdIncludingDeleted(id);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "供应商模型不存在");
+        }
+        if (!Integer.valueOf(1).equals(existing.getIsDeleted())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "供应商模型未被删除，无需恢复");
+        }
+        if (existing.getLogicalModelCode() != null
+                && logicalModelMapper.getByCode(existing.getLogicalModelCode()) == null) {
+            throw new BusinessException(ErrorCode.CONFLICT, "绑定的统一模型已被删除，无法恢复");
+        }
+        if (modelMapper.restore(id) == 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "供应商模型恢复失败，请刷新后重试");
+        }
         return getById(id);
     }
 
@@ -362,7 +423,8 @@ public class ModelService {
                 base.billingRuleCode(),
                 rate,
                 quota,
-                apiBindings == null ? listApiBindings(base.id()) : apiBindings
+                apiBindings == null ? listApiBindings(base.id()) : apiBindings,
+                base.deleted()
         );
     }
 

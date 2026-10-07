@@ -31,7 +31,7 @@
     <select id="listByRuleIds" resultMap="RoutingRuleTargetResultMap">
         select <include refid="RuleTargetSelectColumns"/>
         from kb_routing_rule_targets rt
-        left join kb_models m on rt.target_type = 'MODEL' and rt.target_code = m.model_code
+        left join kb_models m on rt.target_type = 'MODEL' and rt.target_code = m.model_code and m.is_deleted = 0
         left join kb_model_pools mp on rt.target_type = 'MODEL_POOL' and rt.target_code = mp.pool_code and mp.is_deleted = 0
         left join kb_logical_models lm on lm.model_code = mp.logical_model_code and lm.is_deleted = 0
         where rt.rule_id in
@@ -44,7 +44,7 @@
     <select id="listByRuleId" resultMap="RoutingRuleTargetResultMap">
         select <include refid="RuleTargetSelectColumns"/>
         from kb_routing_rule_targets rt
-        left join kb_models m on rt.target_type = 'MODEL' and rt.target_code = m.model_code
+        left join kb_models m on rt.target_type = 'MODEL' and rt.target_code = m.model_code and m.is_deleted = 0
         left join kb_model_pools mp on rt.target_type = 'MODEL_POOL' and rt.target_code = mp.pool_code and mp.is_deleted = 0
         left join kb_logical_models lm on lm.model_code = mp.logical_model_code and lm.is_deleted = 0
         where rt.rule_id = #{ruleId}

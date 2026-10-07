@@ -164,7 +164,7 @@ public class ModelPoolService {
         if (existing == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "model pool not found");
         }
-        Long refCount = modelPoolMapper.countRoutingTargetsByPoolId(id);
+        Long refCount = modelPoolMapper.countRoutingTargetsByPoolCode(existing.getPoolCode());
         if (refCount != null && refCount > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, "该模型池已被路由规则引用，无法删除");
         }

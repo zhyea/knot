@@ -13,14 +13,14 @@
     <select id="getById" resultType="org.chobit.knot.gateway.entity.ModelApiBindingEntity">
         select <include refid="BindingSelectColumns"/>
         from kb_model_api_bindings b
-        inner join kb_models m on b.model_id = m.id
+        inner join kb_models m on b.model_id = m.id and m.is_deleted = 0
         where b.id = #{id}
     </select>
 
     <select id="listByModelId" resultType="org.chobit.knot.gateway.entity.ModelApiBindingEntity">
         select <include refid="BindingSelectColumns"/>
         from kb_model_api_bindings b
-        inner join kb_models m on b.model_id = m.id
+        inner join kb_models m on b.model_id = m.id and m.is_deleted = 0
         where b.model_id = #{modelId}
         order by b.id asc
     </select>
@@ -28,7 +28,7 @@
     <select id="listByModelIds" resultType="org.chobit.knot.gateway.entity.ModelApiBindingEntity">
         select <include refid="BindingSelectColumns"/>
         from kb_model_api_bindings b
-        inner join kb_models m on b.model_id = m.id
+        inner join kb_models m on b.model_id = m.id and m.is_deleted = 0
         where b.model_id in
         <foreach collection="modelIds" item="id" open="(" separator="," close=")">
             #{id}

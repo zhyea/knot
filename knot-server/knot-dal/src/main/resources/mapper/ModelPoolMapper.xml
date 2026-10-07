@@ -113,7 +113,7 @@
                m.provider_account_code,
                p.name as provider_name
         from kb_model_pool_items mpi
-        inner join kb_models m on mpi.model_code = m.model_code
+        inner join kb_models m on mpi.model_code = m.model_code and m.is_deleted = 0
         left join kb_provider_accounts pa on m.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
         where mpi.pool_code = #{poolCode}
@@ -137,8 +137,8 @@
         update kb_model_pools set is_deleted = 0 where id = #{id} and is_deleted = 1
     </update>
 
-    <select id="countRoutingTargetsByPoolId" resultType="java.lang.Long">
-        select count(1) from kb_routing_rule_targets where target_type = 'MODEL_POOL' and target_id = #{poolId}
+    <select id="countRoutingTargetsByPoolCode" resultType="java.lang.Long">
+        select count(1) from kb_routing_rule_targets where target_type = 'MODEL_POOL' and target_code = #{poolCode}
     </select>
 
 </mapper>

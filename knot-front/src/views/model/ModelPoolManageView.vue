@@ -35,6 +35,7 @@
           :show-refresh="false"
           @edit="openEdit"
           @delete="remove"
+          @restore="restore"
           @log="openChangeLog"
           @page-change="onPageChange"
           @size-change="onSizeChange"

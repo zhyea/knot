@@ -8,5 +8,6 @@ import java.util.List;
 public record ModelItem(Long id, String modelCode, String upstreamModel, String name, String providerAccountCode, String providerName, String providerCode, String modelType,
                         String version, String baseUrl, String remark, boolean enabled, String logicalModelCode, String billingRuleCode,
                         RateLimitPolicy rateLimitPolicy, QuotaPolicy quotaPolicy,
-                        List<ModelApiBindingItem> apiBindings) {
+                        List<ModelApiBindingItem> apiBindings,
+                        boolean deleted) {
 }

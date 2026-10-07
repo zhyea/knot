@@ -30,7 +30,7 @@
         bv.version_code, bv.uniq_hash, bv.billing_mode, bv.pricing_plan, bv.currency, bv.unit,
         bv.status as version_status,
         bv.config_json, bv.effective_from, bv.effective_to,
-        (select count(1) from kb_models m where m.billing_rule_code = br.code) as bound_model_count
+        (select count(1) from kb_models m where m.billing_rule_code = br.code and m.is_deleted = 0) as bound_model_count
     </sql>
 
     <!-- 列表轻量列：只查列表页展示的字段；config_json / uniq_hash / 生效期 / 备注等重字段走 getById 详情。
@@ -40,7 +40,7 @@
         br.model_family as model_family_code, ef.item_label as model_family_name,
         br.status,
         bv.version_code, bv.billing_mode, bv.pricing_plan, bv.currency, bv.unit,
-        (select count(1) from kb_models m where m.billing_rule_code = br.code) as bound_model_count
+        (select count(1) from kb_models m where m.billing_rule_code = br.code and m.is_deleted = 0) as bound_model_count
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
@@ -107,6 +107,7 @@
         select count(1)
         from kb_models
         where billing_rule_code = #{code}
+          and is_deleted = 0
     </select>
 
     <select id="getActiveByRuleCode" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">

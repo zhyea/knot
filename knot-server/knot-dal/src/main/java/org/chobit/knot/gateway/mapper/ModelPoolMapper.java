@@ -42,5 +42,6 @@ public interface ModelPoolMapper {
 
     int restore(@Param("id") Long id);
 
-    Long countRoutingTargetsByPoolId(@Param("poolId") Long poolId);
+    /** 引用检查按存储主键 code 统计（target_id 已于 10-06 迁移 DROP，仅剩 target_code） */
+    Long countRoutingTargetsByPoolCode(@Param("poolCode") String poolCode);
 }

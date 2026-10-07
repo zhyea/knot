@@ -1,6 +1,6 @@
 <template>
   <div>
-    <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
+    <el-table v-loading="loading" :data="rows" :row-class-name="rowClassName" stripe border style="width: 100%">
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
       <el-table-column prop="modelCode" label="模型编码" min-width="180" show-overflow-tooltip />
       <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip />
@@ -20,6 +20,7 @@
           <el-switch
             :model-value="row.enabled !== false"
             :loading="togglingId === row.id"
+            :disabled="row.deleted === true"
             inline-prompt
             active-text="启用"
             inactive-text="禁用"
@@ -27,15 +28,11 @@
           />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" align="center" header-align="center" fixed="right">
+      <el-table-column label="操作" width="200" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <RowActions
-            :actions="[
-              { key: 'edit', label: '编辑', icon: Edit },
-              { key: 'copy', label: '复制', icon: CopyDocument },
-              { key: 'log', label: '日志', icon: Document }
-            ]"
-            @action="(action) => handleAction(action, row)"
+            :actions="rowActions(row)"
+            @action="(action) => emit(action, row)"
           />
         </template>
       </el-table-column>
@@ -54,8 +51,8 @@
 
 <script setup lang="ts">
 import type {PropType} from "vue";
-import type {Row} from "@/types";
-import {CopyDocument, Document, Edit} from "@element-plus/icons-vue";
+import type {Row, RowAction} from "@/types";
+import {CopyDocument, Delete, Document, Edit, RefreshLeft} from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {updateModelStatus} from "@/api/models";
@@ -71,7 +68,7 @@ defineProps({
   showRefresh: { type: Boolean, default: true }
 });
 
-const emit = defineEmits(["create", "refresh", "edit", "copy", "log", "page-change", "size-change", "changed"]);
+const emit = defineEmits(["create", "refresh", "edit", "copy", "log", "delete", "restore", "page-change", "size-change", "changed"]);
 
 const { labelOf } = useEnumOptions();
 
@@ -84,8 +81,25 @@ function modelTypeLabel(code: string) {
   return labelOf("ModelTypeEnum", code, code);
 }
 
-function handleAction(action: string, row: Row) {
-  emit(action as "create" | "edit" | "copy" | "log", row);
+/** 已删除行：浅红底标识（排序已由后端 is_deleted asc 放到末尾） */
+function rowClassName({ row }: { row: Row }) {
+  return row.deleted === true ? "row-deleted" : "";
+}
+
+/** 已删除行只给「日志 / 恢复」，编辑 / 复制 / 删除都无意义；恢复后按常规操作列展示 */
+function rowActions(row: Row): RowAction[] {
+  if (row.deleted === true) {
+    return [
+      { key: "log", label: "日志", icon: Document },
+      { key: "restore", label: "恢复", icon: RefreshLeft, type: "success", confirm: "确认恢复该供应商模型？" }
+    ];
+  }
+  return [
+    { key: "edit", label: "编辑", icon: Edit },
+    { key: "copy", label: "复制", icon: CopyDocument },
+    { key: "log", label: "日志", icon: Document },
+    { key: "delete", label: "删除", icon: Delete, type: "danger" }
+  ];
 }
 
 async function handleEnabledChange(row: Row, enabled: string | number | boolean) {
@@ -93,3 +107,11 @@ async function handleEnabledChange(row: Row, enabled: string | number | boolean)
   emit("changed");
 }
 </script>
+
+<style scoped>
+/* 已逻辑删除的行：浅红底标识 */
+:deep(.el-table__row.row-deleted > td) {
+  background: #fef0f0 !important;
+  color: #c45656;
+}
+</style>

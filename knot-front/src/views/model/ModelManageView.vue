@@ -34,6 +34,8 @@
           :show-refresh="false"
           @edit="openEdit"
           @copy="openCopy"
+          @delete="remove"
+          @restore="restore"
           @log="openChangeLog"
           @page-change="onPageChange"
           @size-change="onSizeChange"
@@ -62,11 +64,16 @@ import KeywordInput from "../../components/common/KeywordInput.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import ModelFormDrawer from "../../components/model/ModelFormDrawer.vue";
 import ModelListPanel from "../../components/model/ModelListPanel.vue";
-import {getModel, listModels} from "@/api/models";
+import {deleteModel, getModel, listModels, restoreModel} from "@/api/models";
 import {listModelOperationLogs} from "@/api/operationLogs";
 import {useListQuery} from "@/composables/useListQuery";
 import type {Dict} from "@/types";
+import {ElMessage, ElMessageBox} from "element-plus";
 
+/**
+ * 管理列表带 includeDeleted=true：已逻辑删除的供应商模型仍展示（浅红底 + 恢复按钮），
+ * 排序由后端 is_deleted asc 放到末尾。路由规则 / options 等下拉场景不传该参数，已删除项不列为备选。
+ */
 const {
   query,
   rows,
@@ -80,7 +87,10 @@ const {
   resetPage,
   handleQuery,
   handleReset
-} = useListQuery({ apiFn: listModels, fields: { keyword: "", modelTypes: [] } });
+} = useListQuery({
+  apiFn: (params: Dict) => listModels({...params, includeDeleted: true}),
+  fields: { keyword: "", modelTypes: [] }
+});
 
 const formVisible = ref(false);
 const editingModel = ref<Dict | null>(null);
@@ -129,6 +139,23 @@ function buildModelCopy(source: Dict = {}): Dict {
 function copyModelCode(modelCode: string) {
   const code = String(modelCode || "").trim();
   return code ? `${code}-copy` : "";
+}
+
+/** 逻辑删除（不物理删除）；被路由规则引用时后端返回 409，错误提示由 http 层统一弹出 */
+async function remove(row: Row) {
+  await ElMessageBox.confirm(`确认删除供应商模型“${row.name || row.modelCode}”？`, "删除确认", {
+    type: "warning"
+  });
+  await deleteModel(row.id);
+  ElMessage.success("已删除");
+  resetPage();
+}
+
+/** 恢复已逻辑删除的模型：model_code 唯一性按物理行判定，删除后同 code 无法新建，只能恢复 */
+async function restore(row: Row) {
+  await restoreModel(row.id);
+  ElMessage.success("已恢复");
+  resetPage();
 }
 
 onMounted(load);

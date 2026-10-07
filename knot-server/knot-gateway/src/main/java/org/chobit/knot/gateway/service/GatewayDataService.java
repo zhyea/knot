@@ -56,6 +56,7 @@ public class GatewayDataService {
     private final LoadingCache<Long, Optional<ModelEntity>> modelByIdCache;
     private final LoadingCache<String, Optional<ModelEntity>> modelByCodeCache;
     private final LoadingCache<Long, Optional<ModelPoolEntity>> modelPoolByIdCache;
+    private final LoadingCache<String, Optional<ModelPoolEntity>> modelPoolByCodeCache;
     private final LoadingCache<String, List<ModelPoolItemEntity>> modelPoolItemsByPoolCodeCache;
     private final LoadingCache<Long, Optional<ProviderAccountEntity>> providerByIdCache;
     private final LoadingCache<String, Optional<ProviderAccountEntity>> providerByCodeCache;
@@ -94,6 +95,7 @@ public class GatewayDataService {
         this.modelByIdCache = optionalCache(modelMapper::getById);
         this.modelByCodeCache = optionalCache(modelMapper::getByCode);
         this.modelPoolByIdCache = optionalCache(modelPoolMapper::getById);
+        this.modelPoolByCodeCache = optionalCache(modelPoolMapper::getByCode);
         this.modelPoolItemsByPoolCodeCache = listCache(modelPoolMapper::listItemsByPoolCode);
         this.providerByIdCache = optionalCache(providerAccountMapper::getById);
         this.providerByCodeCache = optionalCache(providerAccountMapper::getByCode);
@@ -151,6 +153,9 @@ public class GatewayDataService {
      * Returns the requested value. Executes the public operation.
      */
     public ModelEntity getModelById(Long id) {
+        if (id == null) {
+            return null;
+        }
         return modelByIdCache.get(id).orElse(null);
     }
 
@@ -168,7 +173,21 @@ public class GatewayDataService {
      * Returns the requested value. Executes the public operation.
      */
     public ModelPoolEntity getModelPoolById(Long id) {
+        if (id == null) {
+            return null;
+        }
         return modelPoolByIdCache.get(id).orElse(null);
+    }
+
+    /**
+     * 按存储主键 code 取模型池。对齐路由目标「存 code 不存 id」口径，且对 null 入参安全
+     * （Caffeine {@code get(null)} 会抛 NPE）。
+     */
+    public ModelPoolEntity getModelPoolByCode(String poolCode) {
+        if (poolCode == null) {
+            return null;
+        }
+        return modelPoolByCodeCache.get(poolCode).orElse(null);
     }
 
     /**

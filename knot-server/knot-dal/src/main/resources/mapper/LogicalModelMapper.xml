@@ -140,7 +140,7 @@
         left join kb_logical_models lm on pm.logical_model_code = lm.model_code and lm.is_deleted = 0
         left join kb_provider_accounts pa on pm.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
-        left join kb_models m on pm.model_id = m.id
+        left join kb_models m on pm.model_id = m.id and m.is_deleted = 0
         where pm.logical_model_code = #{logicalModelCode}
         order by pm.priority asc, pm.id asc
     </select>
@@ -151,7 +151,7 @@
         left join kb_logical_models lm on pm.logical_model_code = lm.model_code and lm.is_deleted = 0
         left join kb_provider_accounts pa on pm.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
-        left join kb_models m on pm.model_id = m.id
+        left join kb_models m on pm.model_id = m.id and m.is_deleted = 0
         where pm.model_id = #{modelId}
         order by pm.priority asc, pm.id asc
     </select>
@@ -162,7 +162,7 @@
         left join kb_logical_models lm on pm.logical_model_code = lm.model_code and lm.is_deleted = 0
         left join kb_provider_accounts pa on pm.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
-        left join kb_models m on pm.model_id = m.id
+        left join kb_models m on pm.model_id = m.id and m.is_deleted = 0
         where pm.id = #{id}
     </select>
 

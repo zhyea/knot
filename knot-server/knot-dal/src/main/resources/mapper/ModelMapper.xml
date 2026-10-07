@@ -10,6 +10,7 @@
 
     <sql id="ModelSelectColumns">
         m.id, m.provider_account_code, m.model_code, m.upstream_model, m.version, m.base_url, m.remark, m.billing_rule_code, m.status,
+        m.is_deleted,
         <include refid="logicalModelCodeExpr"/> AS logical_model_code,
         <include refid="modelNameExpr"/> AS name,
         <include refid="modelTypeExpr"/> AS model_type,
@@ -17,12 +18,19 @@
         p.name AS provider_name, p.code AS provider_code
     </sql>
 
-    <select id="list" resultType="org.chobit.knot.gateway.entity.ModelEntity">
-        select <include refid="ModelSelectColumns"/>
+    <sql id="ModelFromClause">
         from kb_models m
         left join kb_provider_accounts pa on m.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
+    </sql>
+
+    <select id="list" resultType="org.chobit.knot.gateway.entity.ModelEntity">
+        select <include refid="ModelSelectColumns"/>
+        <include refid="ModelFromClause"/>
         <where>
+            <if test="includeDeleted == null or !includeDeleted">
+                and m.is_deleted = 0
+            </if>
             <if test="keyword != null and keyword != ''">
                 and (
                     m.model_code like concat('%', #{keyword}, '%')
@@ -43,23 +51,28 @@
                 and m.status = #{status}
             </if>
         </where>
-        order by m.id desc
+        order by m.is_deleted asc, m.id desc
     </select>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.ModelEntity">
         select <include refid="ModelSelectColumns"/>
-        from kb_models m
-        left join kb_provider_accounts pa on m.provider_account_code = pa.code
-        left join kb_providers p on pa.provider_code = p.code
+        <include refid="ModelFromClause"/>
+        where m.id = #{id}
+          and m.is_deleted = 0
+    </select>
+
+    <!-- 含已删除：供「恢复」前的存在性判断与操作日志快照使用 -->
+    <select id="getByIdIncludingDeleted" resultType="org.chobit.knot.gateway.entity.ModelEntity">
+        select <include refid="ModelSelectColumns"/>
+        <include refid="ModelFromClause"/>
         where m.id = #{id}
     </select>
 
     <select id="getByCode" resultType="org.chobit.knot.gateway.entity.ModelEntity">
         select <include refid="ModelSelectColumns"/>
-        from kb_models m
-        left join kb_provider_accounts pa on m.provider_account_code = pa.code
-        left join kb_providers p on pa.provider_code = p.code
+        <include refid="ModelFromClause"/>
         where m.model_code = #{modelCode}
+          and m.is_deleted = 0
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
@@ -78,14 +91,42 @@
             billing_rule_code = #{billingRuleCode},
             status = #{status}
         where id = #{id}
+          and is_deleted = 0
     </update>
 
     <update id="updateStatus">
         update kb_models
         set status = #{status}
         where id = #{id}
+          and is_deleted = 0
     </update>
 
+    <update id="logicalDelete">
+        update kb_models set is_deleted = 1 where id = #{id} and is_deleted = 0
+    </update>
+
+    <update id="restore">
+        update kb_models set is_deleted = 0 where id = #{id} and is_deleted = 1
+    </update>
+
+    <select id="countRoutingTargetsByModelCode" resultType="java.lang.Long">
+        select count(1) from kb_routing_rule_targets where target_type = 'MODEL' and target_code = #{modelCode}
+    </select>
+
+    <select id="countPoolItemsByModelCode" resultType="java.lang.Long">
+        select count(1) from kb_model_pool_items where model_code = #{modelCode}
+    </select>
+
+    <select id="countProviderMappingsByModelId" resultType="java.lang.Long">
+        select count(1) from kb_provider_model_mappings where model_id = #{modelId}
+    </select>
+
+    <select id="countApiBindingsByModelId" resultType="java.lang.Long">
+        select count(1) from kb_model_api_bindings where model_id = #{modelId}
+    </select>
+
+    <!-- 编码唯一性按物理行判定（含已逻辑删除的行）：uk_models_code 不区分 is_deleted，
+         若这里过滤掉已删除行，前端 check-code 会误报「可用」，随后 insert 撞 Duplicate entry。 -->
     <select id="countByModelCode" resultType="java.lang.Long">
         select count(1) from kb_models where model_code = #{modelCode}
         <if test="excludeId != null">

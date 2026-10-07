@@ -104,7 +104,8 @@ public class ModelController {
                 query == null ? null : query.keyword(),
                 query == null ? null : query.modelTypes(),
                 query == null ? null : query.logicalModelCode(),
-                query == null ? null : query.status()
+                query == null ? null : query.status(),
+                query == null ? null : query.includeDeleted()
         );
         return page.mapList(modelConverter::toVOList);
     }
@@ -151,5 +152,33 @@ public class ModelController {
     public ModelItem updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
         ModelDto updated = modelService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
         return modelConverter.toVO(updated);
+    }
+
+    /**
+     * 逻辑删除供应商模型（被路由规则引用时返回 409）。不物理删除，可通过恢复接口还原。
+     */
+    @OperationLog(module = "model", operation = "DELETE", entityType = "Model",
+            entityId = "#p0",
+            description = "'删除供应商模型'",
+            oldValueSpel = "@modelService.modelAuditSnapshot(#p0)")
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        modelService.delete(id);
+    }
+
+    /**
+     * 恢复已逻辑删除的供应商模型。model_code 唯一性按物理行判定，删除后同 model_code 无法新建，
+     * 只能通过本接口恢复。
+     */
+    @OperationLog(module = "model", operation = "UPDATE", entityType = "Model",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'恢复供应商模型'",
+            oldValueSpel = "@modelService.modelAuditSnapshot(#p0)",
+            newValueSpel = "@modelService.modelAuditSnapshot(#p0)")
+    @PutMapping("/{id}/restore")
+    public ModelItem restore(@PathVariable Long id) {
+        ModelDto restored = modelService.restore(id);
+        return modelConverter.toVO(restored);
     }
 }

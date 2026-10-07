@@ -194,7 +194,7 @@ public class RoutingResolver {
         if (!RouteTargetTypeEnum.MODEL_POOL.code().equals(target.targetType())) {
             return List.of();
         }
-        ModelPoolEntity pool = dataService.getModelPoolById(target.targetId());
+        ModelPoolEntity pool = dataService.getModelPoolByCode(target.targetCode());
         if (pool == null || !EntityStatusEnum.ENABLED.code().equals(pool.getStatus())) {
             return List.of();
         }

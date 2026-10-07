@@ -1,4 +1,4 @@
-import {postQuery, post, put, get} from "./http";
+import {postQuery, post, put, get, del} from "./http";
 import type {Dict} from "@/types";
 
 export function listModels(params: Dict) {
@@ -37,4 +37,18 @@ export function updateModel(id: number | string, payload: Dict) {
 
 export function updateModelStatus(id: number | string, enabled: boolean) {
   return put(`/api/models/${id}/status`, {enabled});
+}
+
+/** 逻辑删除供应商模型（被路由规则引用时后端返回 409）；不物理删除，可恢复 */
+export function deleteModel(id: number | string) {
+  return del(`/api/models/${id}`);
+}
+
+/**
+ * 恢复已逻辑删除的供应商模型。
+ * model_code 唯一性按物理行判定（uk_models_code 不区分 is_deleted），删除后同 model_code
+ * 无法新建，只能恢复；管理列表传 includeDeleted=true 才能看到已删除行。
+ */
+export function restoreModel(id: number | string) {
+  return put(`/api/models/${id}/restore`);
 }
