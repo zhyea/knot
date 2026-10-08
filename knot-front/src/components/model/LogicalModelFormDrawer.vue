@@ -9,175 +9,195 @@
     @closed="onClosed"
   >
     <el-scrollbar max-height="calc(100vh - 140px)">
-    <el-form v-loading="detailLoading" :model="form" label-width="110px" class="logical-model-form">
-      <div class="slot-body form-section">
-        <div class="section-head">
-          <div>
-            <h3>基础信息</h3>
-            <p>对调用方暴露的统一模型名称和基础能力描述。</p>
+      <el-form v-loading="detailLoading" :model="form" label-width="110px" class="logical-model-form">
+        <div class="slot-body form-section">
+          <div class="section-head">
+            <div>
+              <h3>基础信息</h3>
+              <p>对调用方暴露的统一模型名称和基础能力描述。</p>
+            </div>
+            <el-form-item label="启用" class="inline-switch">
+              <el-switch v-model="form.enabled"/>
+            </el-form-item>
           </div>
-          <el-form-item label="启用" class="inline-switch">
-            <el-switch v-model="form.enabled" />
+
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="模型编码" required :error="modelCodeError">
+                <el-input
+                  v-model="form.modelCode"
+                  placeholder="如 knot-chat-premium"
+                  maxlength="128"
+                  show-word-limit
+                  :disabled="modelCodeChecking"
+                  @blur="validateModelCode"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="模型名称" required>
+                <el-input v-model="form.modelName" placeholder="如 Knot Chat Premium"/>
+              </el-form-item>
+            </el-col>
+          </el-row>
+
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="模型类型" required>
+                <EnumControl v-model="form.modelType" enum-name="ModelTypeEnum"/>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="模型族">
+                <EnumSelect
+                  v-model="form.modelFamily"
+                  category="model_family"
+                  filterable
+                  clearable
+                  placeholder="如 GPT / Claude / DeepSeek"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
+
+          <el-form-item label="展示名称">
+            <el-input v-model="form.displayName" placeholder="统一模型展示名称"/>
+          </el-form-item>
+          <el-form-item label="模型说明">
+            <el-input v-model="form.description" type="textarea" :rows="3"/>
           </el-form-item>
         </div>
 
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="模型编码" required :error="modelCodeError">
-              <el-input
-                v-model="form.modelCode"
-                placeholder="如 knot-chat-premium"
-                maxlength="128"
-                show-word-limit
-                :disabled="modelCodeChecking"
-                @blur="validateModelCode"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="模型名称" required>
-              <el-input v-model="form.modelName" placeholder="如 Knot Chat Premium" />
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <div class="space-line"/>
 
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="模型类型" required>
-              <EnumControl v-model="form.modelType" enum-name="ModelTypeEnum" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="模型族">
-              <EnumSelect
-                v-model="form.modelFamily"
-                category="model_family"
-                filterable
-                clearable
-                placeholder="如 GPT / Claude / DeepSeek"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-form-item label="展示名称">
-          <el-input v-model="form.displayName" placeholder="统一模型展示名称" />
-        </el-form-item>
-        <el-form-item label="模型说明">
-          <el-input v-model="form.description" type="textarea" :rows="3" />
-        </el-form-item>
-      </div>
-
-      <div class="space-line" />
-
-      <div class="slot-body form-section">
-        <div class="section-head">
-          <div>
-            <h3>能力与约束</h3>
-            <p>描述统一模型的输入输出限制、模态和语言能力。</p>
-          </div>
-        </div>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="最大输入">
-              <el-input-number
-                v-model="form.contextWindow"
-                :min="0"
-                :step="1"
-                controls-position="right"
-                class="number-field"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="最大输出">
-              <el-input-number
-                v-model="form.maxOutputTokens"
-                :min="0"
-                :step="1"
-                controls-position="right"
-                class="number-field"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="16">
-          <el-col :span="8">
-            <el-form-item label="输入模态">
-              <el-select v-model="form.inputModalities" multiple filterable allow-create default-first-option style="width: 100%" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="输出模态">
-              <el-select v-model="form.outputModalities" multiple filterable allow-create default-first-option style="width: 100%" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="8">
-            <el-form-item label="语言">
-              <el-select v-model="form.languages" multiple filterable allow-create default-first-option style="width: 100%" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="备注">
-          <el-input v-model="form.remark" type="textarea" :rows="2" />
-        </el-form-item>
-      </div>
-
-      <div class="space-line" />
-
-      <el-collapse v-model="squareDisplayActive" class="square-display-collapse">
-        <el-collapse-item name="square-display">
-          <template #title>
-            <div class="collapse-title">
-              <strong>广场展示</strong>
-              <span>用于统一模型检索、推荐和用户选型。</span>
+        <div class="slot-body form-section">
+          <div class="section-head">
+            <div>
+              <h3>能力与约束</h3>
+              <p>描述统一模型的输入输出限制、模态和语言能力。</p>
             </div>
-          </template>
-          <div class="slot-body form-section">
-            <el-row :gutter="16">
-              <el-col :span="12">
-                <el-form-item label="标签">
-                  <el-select v-model="form.tags" multiple filterable allow-create default-first-option style="width: 100%" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="应用场景">
-                  <el-select v-model="form.useCases" multiple filterable allow-create default-first-option style="width: 100%" />
-                </el-form-item>
-              </el-col>
-            </el-row>
-            <el-row :gutter="16">
-              <el-col :span="8">
-                <el-form-item label="可见性">
-                  <EnumControl v-model="form.visibility" enum-name="LogicalModelVisibilityEnum" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item label="发布状态">
-                  <EnumControl v-model="form.publishStatus" enum-name="LogicalModelPublishStatusEnum" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="6">
-                <el-form-item label="排序">
-                  <el-input-number
-                    v-model="form.sortOrder"
-                    :min="0"
-                    :step="1"
-                    controls-position="right"
-                    class="number-field"
-                  />
-                </el-form-item>
-              </el-col>
-              <el-col :span="6">
-                <el-form-item label="推荐">
-                  <el-switch v-model="form.featured" />
-                </el-form-item>
-              </el-col>
-            </el-row>
           </div>
-        </el-collapse-item>
-      </el-collapse>
-    </el-form>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="最大输入">
+                <el-input-number
+                  v-model="form.contextWindow"
+                  :min="0"
+                  :step="1"
+                  controls-position="right"
+                  class="number-field"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="最大输出">
+                <el-input-number
+                  v-model="form.maxOutputTokens"
+                  :min="0"
+                  :step="1"
+                  controls-position="right"
+                  class="number-field"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="16">
+            <el-col :span="8">
+              <el-form-item label="输入模态">
+                <el-select v-model="form.inputModalities" multiple
+                           filterable
+                           allow-create
+                           default-first-option
+                           collapse-tags
+                           :max-collapse-tags="3"
+                           style="width: 100%"/>
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="输出模态">
+                <el-select v-model="form.outputModalities" multiple
+                           filterable
+                           allow-create
+                           default-first-option
+                           collapse-tags
+                           :max-collapse-tags="3"
+                           style="width: 100%"/>
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="语言">
+                <el-select v-model="form.languages" multiple
+                           filterable
+                           allow-create d
+                           efault-first-option
+                           collapse-tags
+                           :max-collapse-tags="3"
+                           style="width: 100%"/>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-form-item label="备注">
+            <el-input v-model="form.remark" type="textarea" :rows="2"/>
+          </el-form-item>
+        </div>
+
+        <div class="space-line"/>
+
+        <el-collapse v-model="squareDisplayActive" class="square-display-collapse">
+          <el-collapse-item name="square-display">
+            <template #title>
+              <div class="collapse-title">
+                <strong>广场展示</strong>
+                <span>用于统一模型检索、推荐和用户选型。</span>
+              </div>
+            </template>
+            <div class="slot-body form-section">
+              <el-row :gutter="16">
+                <el-col :span="12">
+                  <el-form-item label="标签">
+                    <el-select v-model="form.tags" multiple filterable allow-create default-first-option
+                               style="width: 100%"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="应用场景">
+                    <el-select v-model="form.useCases" multiple filterable allow-create default-first-option
+                               style="width: 100%"/>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-row :gutter="16">
+                <el-col :span="8">
+                  <el-form-item label="可见性">
+                    <EnumControl v-model="form.visibility" enum-name="LogicalModelVisibilityEnum"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="发布状态">
+                    <EnumControl v-model="form.publishStatus" enum-name="LogicalModelPublishStatusEnum"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="6">
+                  <el-form-item label="排序">
+                    <el-input-number
+                      v-model="form.sortOrder"
+                      :min="0"
+                      :step="1"
+                      controls-position="right"
+                      class="number-field"
+                    />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="6">
+                  <el-form-item label="推荐">
+                    <el-switch v-model="form.featured"/>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </div>
+          </el-collapse-item>
+        </el-collapse>
+      </el-form>
     </el-scrollbar>
     <template #footer>
       <el-button @click="emit('update:modelValue', false)">取消</el-button>
@@ -187,7 +207,7 @@
 </template>
 
 <script setup lang="ts">
-import {type PropType,  computed, reactive, ref, watch} from "vue";
+import {type PropType, computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import type {Dict, Row} from "@/types";
 import EnumControl from "../common/EnumControl.vue";
@@ -200,8 +220,8 @@ import {
 } from "@/api/logicalModels";
 
 const props = defineProps({
-  modelValue: { type: Boolean, default: false },
-  model: { type: Object as PropType<Dict | null>, default: null }
+  modelValue: {type: Boolean, default: false},
+  model: {type: Object as PropType<Dict | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
