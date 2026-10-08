@@ -96,6 +96,7 @@
         select pa.code as value,
                concat(COALESCE(p.name, pa.provider_code), ' / ', pa.code) as label,
                pa.code as code,
+               pa.base_url as baseUrl,
                0 as disabled
         from kb_provider_accounts pa
         left join kb_providers p on p.code = pa.provider_code
@@ -113,6 +114,7 @@
         select pa.code as value,
                concat(COALESCE(p.name, pa.provider_code), ' / ', pa.code) as label,
                pa.code as code,
+               pa.base_url as baseUrl,
                (case when pa.status = 1 then 0 else 1 end) as disabled
         from kb_provider_accounts pa
         left join kb_providers p on p.code = pa.provider_code
