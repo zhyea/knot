@@ -8,8 +8,8 @@
       border
       style="width: 100%"
     >
-      <el-table-column prop="id" label="ID" min-width="50" />
-      <el-table-column prop="modelCode" label="模型编码" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="id" label="ID" min-width="50"/>
+      <el-table-column prop="modelCode" label="模型编码" min-width="180" show-overflow-tooltip/>
       <el-table-column label="模型名称" min-width="200" show-overflow-tooltip>
         <template #default="{ row }">{{ row.displayName || row.modelName || "-" }}</template>
       </el-table-column>
@@ -37,7 +37,7 @@
           />
         </template>
       </el-table-column>
-      <el-table-column label="更新时间" width="180" show-overflow-tooltip>
+      <el-table-column label="更新时间" width="180" align="center" show-overflow-tooltip>
         <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="190" align="center" header-align="center" fixed="right">
@@ -49,7 +49,7 @@
         </template>
       </el-table-column>
       <template #empty>
-        <el-empty description="暂无统一模型" />
+        <el-empty description="暂无统一模型"/>
       </template>
     </el-table>
 
@@ -77,19 +77,19 @@ import {useEnums, resolveEnumLabel} from "@/composables/useEnums";
 import type {Row, RowAction, SelectOption} from "@/types";
 
 const props = defineProps({
-  rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
-  loading: { type: Boolean, default: false },
-  total: { type: Number, default: 0 },
-  pageNum: { type: Number, default: 1 },
-  pageSize: { type: Number, default: 20 },
-  pageSizes: { type: Array as PropType<number[]>, default: (): number[] => [10, 20, 50] },
-  modelTypeOptions: { type: Array as PropType<SelectOption[]>, default: (): SelectOption[] => [] },
-  showRefresh: { type: Boolean, default: true }
+  rows: {type: Array as PropType<Row[]>, default: (): Row[] => []},
+  loading: {type: Boolean, default: false},
+  total: {type: Number, default: 0},
+  pageNum: {type: Number, default: 1},
+  pageSize: {type: Number, default: 20},
+  pageSizes: {type: Array as PropType<number[]>, default: (): number[] => [10, 20, 50]},
+  modelTypeOptions: {type: Array as PropType<SelectOption[]>, default: (): SelectOption[] => []},
+  showRefresh: {type: Boolean, default: true}
 });
 
 const emit = defineEmits(["action", "refresh", "page-change", "size-change", "changed"]);
 
-const { togglingId, onEnabledChange } = useEnabledToggle({
+const {togglingId, onEnabledChange} = useEnabledToggle({
   updateApi: updateLogicalModelStatus
 });
 
@@ -118,7 +118,7 @@ function formatDateTime(value: unknown): string {
 }
 
 /** 已删除行：浅红底标识（排序已由后端 is_deleted asc 放到末尾） */
-function rowClassName({ row }: { row: Row }): string {
+function rowClassName({row}: { row: Row }): string {
   return row.deleted === true ? "row-deleted" : "";
 }
 
@@ -126,14 +126,14 @@ function rowClassName({ row }: { row: Row }): string {
 function rowActions(row: Row): RowAction[] {
   if (row.deleted === true) {
     return [
-      { key: "log", label: "日志", icon: Document },
-      { key: "restore", label: "恢复", icon: RefreshLeft, type: "success", confirm: "确认恢复该统一模型？" }
+      {key: "log", label: "日志", icon: Document},
+      {key: "restore", label: "恢复", icon: RefreshLeft, type: "success", confirm: "确认恢复该统一模型？"}
     ];
   }
   return [
-    { key: "edit", label: "编辑", icon: Edit },
-    { key: "log", label: "日志", icon: Document },
-    { key: "delete", label: "删除", icon: Delete, type: "danger", confirm: "确认删除该统一模型？" }
+    {key: "edit", label: "编辑", icon: Edit},
+    {key: "log", label: "日志", icon: Document},
+    {key: "delete", label: "删除", icon: Delete, type: "danger", confirm: "确认删除该统一模型？"}
   ];
 }
 </script>
