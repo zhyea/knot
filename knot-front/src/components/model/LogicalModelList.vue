@@ -21,7 +21,7 @@
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column label="模型族" min-width="120" show-overflow-tooltip>
+      <el-table-column label="模型族" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">{{ familyLabel(row.modelFamily) }}</template>
       </el-table-column>
       <el-table-column label="启用" width="88" align="center">
@@ -37,7 +37,7 @@
           />
         </template>
       </el-table-column>
-      <el-table-column label="更新时间" width="160" show-overflow-tooltip>
+      <el-table-column label="更新时间" width="180" show-overflow-tooltip>
         <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="190" align="center" header-align="center" fixed="right">
