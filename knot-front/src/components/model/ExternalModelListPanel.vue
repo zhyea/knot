@@ -11,13 +11,13 @@
       scrollbar-always-on
       @selection-change="(selection) => emit('selection-change', selection)"
     >
-      <el-table-column type="selection" width="48" fixed="left" />
+      <el-table-column type="selection" width="48" fixed="left"/>
       <el-table-column prop="modelId" label="模型 ID" width="280">
         <template #default="{ row }">
           <span class="cell-wrap">{{ row.modelId || "-" }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="modelName" label="模型名称" width="240">
+      <el-table-column prop="modelName" label="模型名称" width="360">
         <template #default="{ row }">
           <span class="cell-wrap">{{ row.modelName || "-" }}</span>
         </template>
@@ -27,7 +27,7 @@
           <span class="cell-wrap">{{ row.providerName || "-" }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="类型" width="120">
+      <el-table-column label="类型" width="160">
         <template #default="{ row }">{{ modelTypeLabel(row.modelType) }}</template>
       </el-table-column>
       <el-table-column
@@ -41,10 +41,10 @@
           <span class="cell-wrap cell-num">{{ formatThousands(row.contextLength, "-") }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="创建时间" width="170">
+      <el-table-column label="创建时间" width="180">
         <template #default="{ row }">{{ formatDateTime(row.modelCreatedAt || row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="160" align="center" header-align="center" fixed="right">
+      <el-table-column label="操作" width="180" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <RowActions
             :actions="[
@@ -80,15 +80,15 @@ import RowActions from "../common/RowActions.vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {formatThousands} from "@/utils/format";
 
-const { labelOf } = useEnumOptions();
+const {labelOf} = useEnumOptions();
 
 defineProps({
-  rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
-  loading: { type: Boolean, default: false },
-  total: { type: Number, default: 0 },
-  pageNum: { type: Number, default: 1 },
-  pageSize: { type: Number, default: 20 },
-  showRefresh: { type: Boolean, default: true }
+  rows: {type: Array as PropType<Row[]>, default: (): Row[] => []},
+  loading: {type: Boolean, default: false},
+  total: {type: Number, default: 0},
+  pageNum: {type: Number, default: 1},
+  pageSize: {type: Number, default: 20},
+  showRefresh: {type: Boolean, default: true}
 });
 
 const emit = defineEmits(["selection-change", "action", "refresh", "page-change", "size-change"]);
@@ -103,7 +103,7 @@ function formatDateTime(value: unknown): string {
   return String(value).replace("T", " ").slice(0, 19);
 }
 
-function rowClassName({ row }: { row: Row }): string {
+function rowClassName({row}: { row: Row }): string {
   return row.logicalModelId == null ? "external-model-uncreated-row" : "";
 }
 </script>
