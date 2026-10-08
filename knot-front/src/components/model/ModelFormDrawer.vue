@@ -211,6 +211,7 @@
                   <el-form-item label="请求适配器">
                     <el-select
                       v-model="binding.requestAdapter"
+                      default-first-option
                       clearable
                       filterable
                       placeholder="留空时使用 OpenAI Compatible"
@@ -301,7 +302,7 @@
 </template>
 
 <script setup lang="ts">
-import { EnabledStatus } from "@/constants/status";
+import {EnabledStatus} from "@/constants/status";
 import {type PropType, computed, reactive, ref, watch} from "vue";
 import type {Ref} from "vue";
 import {ElMessage} from "element-plus";
