@@ -196,18 +196,18 @@ public class RoutingRuleService {
     }
 
     /**
-     * 路由规则变更快照，供 {@code @OperationLog} 的 SpEL 表达式
-     * （{@code @routingRuleService.routingRuleAuditSnapshot(...)}）生成 JSON。
-     * 返回的 DTO 不含时间戳等易变字段，故「无实质变化」的更新前后快照会完全一致，
-     * 切面据此判定为无变化操作、跳过日志记录。
-     * 返回 null 表示记录已不存在。
+     * Returns the audit snapshot used by {@code @OperationLog} SpEL expressions.
+     *
+     * <p>The operation log aspect evaluates this method both before and after
+     * routing rule updates. A missing rule is treated as an empty snapshot so
+     * that audit collection never changes the outcome of the business request.</p>
      */
     public Map<String, Object> routingRuleAuditSnapshot(Long id) {
         if (id == null) {
             return null;
         }
         try {
-            return JsonKit.toMap(getById(id));
+            return JsonKit.toMaskedMap(getById(id));
         } catch (BusinessException e) {
             return null;
         }
