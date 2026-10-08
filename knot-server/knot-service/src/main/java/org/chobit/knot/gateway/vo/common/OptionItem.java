@@ -10,19 +10,23 @@ import java.util.Map;
  * （见 options-refactor-constraints.md 第 0 节）。</p>
  *
  * <p>{@code value} 类型随资源：id 型资源为数值、code 型资源为字符串，前端不得自行猜测或强制转换。</p>
+ *
+ * <p>{@code baseUrl} 仅供应商账户选项使用（前端选中账户后回填模型 Base URL），非供应商账户恒为
+ * null；属于非敏感的上游地址，可按 options 契约透出。</p>
  */
 public record OptionItem(
         Object value,
         String label,
         String code,
         Boolean disabled,
-        Map<String, Object> meta
+        Map<String, Object> meta,
+        String baseUrl
 ) {
     public OptionItem(Object value, String label) {
-        this(value, label, null, null, null);
+        this(value, label, null, null, null, null);
     }
 
     public OptionItem(Object value, String label, String code) {
-        this(value, label, code, null, null);
+        this(value, label, code, null, null, null);
     }
 }

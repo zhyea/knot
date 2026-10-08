@@ -11,7 +11,6 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AlertListPanel: typeof import('./src/components/security/AlertListPanel.vue')['default']
     AppFormDrawer: typeof import('./src/components/app/AppFormDrawer.vue')['default']
     AppListPanel: typeof import('./src/components/app/AppListPanel.vue')['default']
     AuthorizationEntityFormDialog: typeof import('./src/components/system/auth/AuthorizationEntityFormDialog.vue')['default']
@@ -108,7 +107,6 @@ declare module 'vue' {
     LogicalModelCardGrid: typeof import('./src/components/model/LogicalModelCardGrid.vue')['default']
     LogicalModelFormDrawer: typeof import('./src/components/model/LogicalModelFormDrawer.vue')['default']
     LogicalModelList: typeof import('./src/components/model/LogicalModelList.vue')['default']
-    LogicalModelTable: typeof import('./src/components/model/LogicalModelTable.vue')['default']
     ModelFamilyFormDialog: typeof import('./src/components/model/ModelFamilyFormDialog.vue')['default']
     ModelFormDrawer: typeof import('./src/components/model/ModelFormDrawer.vue')['default']
     ModelListPanel: typeof import('./src/components/model/ModelListPanel.vue')['default']

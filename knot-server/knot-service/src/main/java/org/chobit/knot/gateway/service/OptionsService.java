@@ -237,7 +237,8 @@ public class OptionsService {
                     (String) r.get("label"),
                     (String) r.get("code"),
                     toBoolean(r.get("disabled")),
-                    toMeta(r.get("meta"))));
+                    toMeta(r.get("meta")),
+                    (String) r.get("baseUrl")));
         }
         return out;
     }

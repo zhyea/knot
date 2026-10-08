@@ -36,7 +36,11 @@
             </el-col>
             <el-col :span="12">
               <el-form-item label="版本">
-                <el-input v-model="form.version" placeholder="如 v2026092910 或 1.0.0" @focus="fillVersionOnFocus"/>
+                <el-input v-model="form.version" placeholder="如 v2026092910 或 1.0.0" @focus="fillVersionOnFocus">
+                  <template #append>
+                    <el-button :icon="RefreshRight" title="生成最新版本" @click="refreshVersion"/>
+                  </template>
+                </el-input>
               </el-form-item>
             </el-col>
           </el-row>
@@ -301,6 +305,7 @@ import { EnabledStatus } from "@/constants/status";
 import {type PropType, computed, reactive, ref, watch} from "vue";
 import type {Ref} from "vue";
 import {ElMessage} from "element-plus";
+import {RefreshRight} from "@element-plus/icons-vue";
 import type {Dict, Row} from "@/types";
 import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
@@ -481,6 +486,11 @@ function fillVersionOnFocus() {
   if (!String(form.version ?? "").trim()) {
     form.version = defaultVersion();
   }
+}
+
+/** 刷新按钮：无论是否为空，直接以当前时间（小时级）重新生成最新版本 */
+function refreshVersion() {
+  form.version = defaultVersion();
 }
 
 function formatHourVersion(date: Date): string {
