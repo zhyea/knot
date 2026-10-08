@@ -12,12 +12,12 @@
       @selection-change="(selection) => emit('selection-change', selection)"
     >
       <el-table-column type="selection" width="48" fixed="left"/>
-      <el-table-column prop="modelId" label="模型 ID" width="280">
+      <el-table-column prop="modelId" label="模型 ID" width="300">
         <template #default="{ row }">
           <span class="cell-wrap">{{ row.modelId || "-" }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="modelName" label="模型名称" width="360">
+      <el-table-column prop="modelName" label="模型名称" width="450">
         <template #default="{ row }">
           <span class="cell-wrap">{{ row.modelName || "-" }}</span>
         </template>
@@ -33,15 +33,15 @@
       <el-table-column
         prop="contextLength"
         label="上下文"
-        width="140"
-        align="left"
-        header-align="left"
+        width="160"
+        align="right"
+        header-align="center"
       >
         <template #default="{ row }">
           <span class="cell-wrap cell-num">{{ formatThousands(row.contextLength, "-") }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="创建时间" width="180">
+      <el-table-column label="创建时间" width="180" align="center">
         <template #default="{ row }">{{ formatDateTime(row.modelCreatedAt || row.createdAt) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="180" align="center" header-align="center" fixed="right">
