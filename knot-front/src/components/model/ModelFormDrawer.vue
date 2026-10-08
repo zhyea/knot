@@ -214,7 +214,7 @@
                       default-first-option
                       clearable
                       filterable
-                      placeholder="留空时使用 OpenAI Compatible"
+                      placeholder="留空时使用透传（默认）"
                       style="width: 100%"
                     >
                       <el-option
@@ -438,13 +438,20 @@ async function loadBoundBillingRule(code: string | null) {
 
 async function loadUsageExtractors() {
   const data = await listUsageExtractors();
-  usageExtractorOptions.value = Array.isArray(data) ? data : [];
-  return data;
+  const arr = Array.isArray(data) ? data : [];
+  // 防御性置顶：即便后端排序变化，DEFAULT 抽取器也必须位于下拉首位
+  arr.sort(
+    (a, b) =>
+      (a?.code === "DEFAULT" ? -1 : 0) - (b?.code === "DEFAULT" ? -1 : 0)
+  );
+  usageExtractorOptions.value = arr;
+  return arr;
 }
 
 async function loadRequestAdapters() {
   const data = await listRequestAdapters();
   requestAdapterOptions.value = Array.isArray(data) ? data : [];
+  normalizeApiBindingRequestAdapters();
   return data;
 }
 
@@ -703,7 +710,7 @@ function createApiBinding(source: Dict = {}): ModelApiBinding {
     id: source.id ?? null,
     protocol: normalizeProtocolForModelType(source.protocol),
     apiPath: source.apiPath || "",
-    requestAdapter: source.requestAdapter || "",
+    requestAdapter: normalizeRequestAdapterCode(source.requestAdapter),
     usageExtractor: source.usageExtractor || "DEFAULT",
     streamUsageExtractor: source.streamUsageExtractor || "",
     enabled: source.enabled !== false,
@@ -782,6 +789,24 @@ function normalizeApiBindingProtocols() {
   for (const binding of form.apiBindings) {
     binding.protocol = normalizeProtocolForModelType(binding.protocol, usedProtocols);
     usedProtocols.add(binding.protocol);
+  }
+}
+
+/** 请求适配器下拉首项（后端以 @Order(0) 保证「透传」排第一），与网关运行时兜底一致 */
+function firstRequestAdapterCode() {
+  return String(requestAdapterOptions.value[0]?.code || "").trim().toUpperCase();
+}
+
+/** 留空 → 下拉首项（透传）；下拉未就绪时保持留空，提交后端按透传兜底 */
+function normalizeRequestAdapterCode(requestAdapter: unknown) {
+  const code = String(requestAdapter ?? "").trim().toUpperCase();
+  return code || firstRequestAdapterCode();
+}
+
+/** 适配器下拉加载完成后补齐留空项（表单回显早于下拉加载，需二次归一） */
+function normalizeApiBindingRequestAdapters() {
+  for (const binding of form.apiBindings) {
+    binding.requestAdapter = normalizeRequestAdapterCode(binding.requestAdapter);
   }
 }
 

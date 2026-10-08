@@ -152,6 +152,25 @@ class PeakOffPeakResolverTest {
                 PeakOffPeakResolver.apply(base, pricing, context(instant(2026, 9, 30, 5, 0)), HolidayCalendar.EMPTY)));
     }
 
+    @Test
+    void absoluteModeExposesMatchedPhaseUnitPrices() {
+        BillingConfig.Pricing pricing = BillingConfig.parse("""
+                {"pricing":{"rateMode":"ABSOLUTE","timezone":"UTC","phases":[
+                  {"condition":{"weekdays":[1,3],"windows":[{"start":"01:00","end":"04:00"}]},
+                   "phase":"PEAK","unitPrices":{"input":10,"output":50}},
+                  {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","unitPrices":{"input":6,"output":30}}]}}
+                """).pricing();
+        assertNotNull(pricing);
+        // 高峰窗口命中 -> matchedRule 携带峰值自身单价
+        PhaseDecision peak = resolve(pricing, instant(2026, 9, 30, 3, 0), HolidayCalendar.EMPTY);
+        assertNotNull(peak.matchedRule());
+        assertEquals(0, new BigDecimal("10").compareTo(peak.matchedRule().unitPrices().input()));
+        // 兜底低峰 -> matchedRule 携带自身单价
+        PhaseDecision off = resolve(pricing, instant(2026, 9, 30, 5, 0), HolidayCalendar.EMPTY);
+        assertNotNull(off.matchedRule());
+        assertEquals(0, new BigDecimal("6").compareTo(off.matchedRule().unitPrices().input()));
+    }
+
     private static BillingConfig.Pricing pricing(String makeUpPolicy) {
         return pricingWithTimezoneAndPolicy("UTC", makeUpPolicy);
     }

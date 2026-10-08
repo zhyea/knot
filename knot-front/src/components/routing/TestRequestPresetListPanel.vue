@@ -22,12 +22,13 @@
           />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="140" align="center" header-align="center" fixed="right">
+      <el-table-column label="操作" width="180" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <RowActions
             :actions="[
-              { key: 'view', label: '查看', icon: View },
+              { key: 'view', label: '查看', icon: Search },
               { key: 'edit', label: '编辑', icon: Edit },
+              { key: 'log', label: '操作记录', icon: Document },
               { key: 'delete', label: '删除', icon: Delete, type: 'danger', confirm: '删除后无法恢复，确认继续？' }
             ]"
             @action="(action) => emit('action', action, row)"
@@ -50,7 +51,7 @@
 
 <script setup lang="ts">
 import {type PropType} from "vue";
-import {Edit, Delete, View} from "@element-plus/icons-vue";
+import {Document, Edit, Delete, Search} from "@element-plus/icons-vue";
 import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";

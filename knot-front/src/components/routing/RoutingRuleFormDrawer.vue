@@ -14,7 +14,7 @@
           <div class="section-head">
             <div>
               <h3>基础信息</h3>
-              <p>定义规则编码、名称和可选应用场景，编码用于接口与审计定位。</p>
+              <p>定义规则编码、名称、绑定应用与应用场景，编码用于接口与审计定位。</p>
             </div>
             <el-form-item label="启用" class="inline-switch">
               <el-switch v-model="form.enabled"/>
@@ -39,7 +39,20 @@
             </el-col>
           </el-row>
           <el-row :gutter="16">
-            <el-col :span="24">
+            <el-col :span="12">
+              <el-form-item label="绑定应用" required>
+                <RemoteEntitySelect
+                  v-model="form.appId"
+                  code-key="code"
+                  label-key="label"
+                  value-key="value"
+                  :load-function="loadAppOptions"
+                  placeholder="请选择应用"
+                  style="width: 100%"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
               <el-form-item label="应用场景">
                 <el-select
                   v-model="form.appScenarios"
@@ -61,48 +74,6 @@
         <div class="slot-body rule-section">
           <div class="section-head">
             <div>
-              <h3>路由配置</h3>
-              <p>指定当前规则关联的应用与用户。</p>
-            </div>
-          </div>
-          <el-row :gutter="16">
-            <el-col :span="12">
-              <el-form-item label="绑定应用" required>
-                <RemoteEntitySelect
-                  v-model="form.appId"
-                  :code-only="false"
-                  code-key="code"
-                  label-key="label"
-                  value-key="value"
-                  :load-function="loadAppOptions"
-                  placeholder="请选择应用"
-                  style="width: 100%"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="用户">
-                <RemoteEntitySelect
-                  v-model="form.userId"
-                  :code-only="false"
-                  code-key="code"
-                  label-key="label"
-                  value-key="value"
-                  :load-function="loadUserOptions"
-                  placeholder="请选择用户"
-                  clearable
-                  style="width: 100%"
-                />
-              </el-form-item>
-            </el-col>
-          </el-row>
-        </div>
-
-        <div class="space-line"/>
-
-        <div class="slot-body rule-section">
-          <div class="section-head">
-            <div>
               <h3>绑定消费者</h3>
               <p>消费者维护 API Key，一个消费者可以对应多个路由规则。</p>
             </div>
@@ -110,7 +81,6 @@
           <el-form-item label="绑定消费者" required class="bind-block-item consumer-bind-item">
             <RemoteEntitySelect
               v-model="selectedConsumerId"
-              :code-only="false"
               code-key="code"
               label-key="label"
               value-key="value"
@@ -164,7 +134,6 @@
           <el-form-item label="绑定目标" required class="bind-block-item model-bind-item">
             <RemoteEntitySelect
               :key="targetType"
-              :code-only="false"
               v-model="selectedTargetCodes"
               :load-function="loadTargetOptions"
               value-key="value"
@@ -262,7 +231,7 @@ import {
 } from "@/utils/trafficPolicy";
 import {defaultRetryPolicy, normalizeRetryPolicy, type RetryPolicy} from "@/utils/retryPolicy";
 import {createRoutingRule, updateRoutingRule, checkRoutingRuleCode} from "@/api/routing";
-import {listAppOptions, listModelOptions, listModelPoolOptions, listRoutingConsumerOptions, listUserOptions} from "@/api/options";
+import {listAppOptions, listModelOptions, listModelPoolOptions, listRoutingConsumerOptions} from "@/api/options";
 import {toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
@@ -277,7 +246,6 @@ const emit = defineEmits(["update:modelValue", "saved"]);
 const isEdit = computed(() => props.rule != null);
 
 const appOptions = ref<Row[]>([]);
-const userOptions = ref<Row[]>([]);
 const modelOptions = ref<Row[]>([]);
 const modelPoolOptions = ref<Row[]>([]);
 const consumerOptions = ref<Row[]>([]);
@@ -362,8 +330,6 @@ const targetExtraParams = computed(() => ({status: "ENABLED"}));
 
 const loadAppOptions = toOptionsLoader(listAppOptions, appOptions);
 
-const loadUserOptions = toOptionsLoader(listUserOptions, userOptions);
-
 const loadConsumerOptions = toOptionsLoader(listRoutingConsumerOptions, consumerOptions);
 
 
@@ -416,10 +382,9 @@ function normalizeRuleCode(value: unknown): string {
 }
 
 async function loadOptions() {
-  // 预热候选：toOptionsLoader 已把结果并入各自累加器（appOptions/userOptions/consumerOptions）
+  // 预热候选：toOptionsLoader 已把结果并入各自累加器（appOptions/consumerOptions）
   await Promise.all([
     loadAppOptions({pageNum: 1, pageSize: 10}),
-    loadUserOptions({pageNum: 1, pageSize: 10}),
     loadConsumerOptions({pageNum: 1, pageSize: 10})
   ]);
 }

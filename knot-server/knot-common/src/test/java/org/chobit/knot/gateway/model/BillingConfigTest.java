@@ -137,8 +137,8 @@ class BillingConfigTest {
         // 合法结构通过
         assertNull(BillingConfig.parse(
                 String.format(base, "MULTIPLIER", "UTC", validPhases)).validate(PricingPlanEnum.PEAK_OFF_PEAK));
-        // rateMode 首期只允许 MULTIPLIER
-        assertEquals("pricing.rateMode must be MULTIPLIER",
+        // rateMode 仅允许 MULTIPLIER 或 ABSOLUTE
+        assertEquals("pricing.rateMode must be MULTIPLIER or ABSOLUTE",
                 BillingConfig.parse(String.format(base, "FLAT", "UTC", validPhases))
                         .validate(PricingPlanEnum.PEAK_OFF_PEAK));
         // 仅接受 UTC 偏移格式，+08:00 与 IANA 名称必须被拒
@@ -338,8 +338,54 @@ class BillingConfigTest {
                 pricing.resolvePrice(BillingConfig.PriceKind.INPUT, 100, ZERO)));
     }
 
-    private static Instant instant(int year, int month, int day, int hour, int minute) {
-        return ZonedDateTime.of(year, month, day, hour, minute, 0, 0, ZoneOffset.UTC).toInstant();
+    @Test
+    void peakOffPeakAbsoluteUsesPhaseOwnPrice() {
+        BillingConfig config = BillingConfig.parse("""
+                {"basePrices":{"input":4,"output":20},
+                 "pricing":{"rateMode":"ABSOLUTE","timezone":"UTC","phases":[
+                   {"condition":{"weekdays":[1,3],
+                                 "windows":[{"start":"01:00","end":"04:00"}]},
+                    "phase":"PEAK","unitPrices":{"input":10,"output":50}},
+                   {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK",
+                    "unitPrices":{"input":6,"output":30}}]}}
+                """);
+        BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.PEAK_OFF_PEAK);
+        // 周三 03:00Z 命中高峰窗口 -> 直接取峰值自身单价，与 basePrices 无关
+        Instant peak = instant(2026, 9, 30, 3, 0);
+        assertEquals(0, new BigDecimal("10").compareTo(
+                pricing.resolvePrice(BillingConfig.PriceKind.INPUT, new BillingConfig.PricingContext(100, peak), ZERO)));
+        assertEquals(0, new BigDecimal("50").compareTo(
+                pricing.resolvePrice(BillingConfig.PriceKind.OUTPUT, new BillingConfig.PricingContext(100, peak), ZERO)));
+        // 窗口外 -> 兜底低峰自身单价 6 / 30，不做任何乘法
+        Instant off = instant(2026, 9, 30, 5, 0);
+        assertEquals(0, new BigDecimal("6").compareTo(
+                pricing.resolvePrice(BillingConfig.PriceKind.INPUT, new BillingConfig.PricingContext(100, off), ZERO)));
+        assertEquals(0, new BigDecimal("30").compareTo(
+                pricing.resolvePrice(BillingConfig.PriceKind.OUTPUT, new BillingConfig.PricingContext(100, off), ZERO)));
+    }
+
+    @Test
+    void peakOffPeakAbsoluteRejectsMissingUnitPrices() {
+        // 缺 unitPrices 应通过方案级校验拦截
+        BillingConfig missing = BillingConfig.parse("""
+                {"pricing":{"rateMode":"ABSOLUTE","timezone":"UTC","phases":[
+                   {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
+                    "phase":"PEAK"},
+                   {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK"}]}}
+                """);
+        assertNotNull(missing.validate(PricingPlanEnum.PEAK_OFF_PEAK));
+
+        // 带完整 unitPrices 应通过
+        BillingConfig ok = BillingConfig.parse("""
+                {"pricing":{"rateMode":"ABSOLUTE","timezone":"UTC","phases":[
+                   {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
+                    "phase":"PEAK","unitPrices":{"input":10}},
+                   {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","unitPrices":{"input":6}}]}}
+                """);
+        assertNull(ok.validate(PricingPlanEnum.PEAK_OFF_PEAK));
+    }
+
+    private static Instant instant(int year, int month, int day, int hour, int minute) {        return ZonedDateTime.of(year, month, day, hour, minute, 0, 0, ZoneOffset.UTC).toInstant();
     }
 
     @Test

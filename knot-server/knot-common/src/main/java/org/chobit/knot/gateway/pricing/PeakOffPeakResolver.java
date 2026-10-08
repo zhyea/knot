@@ -101,7 +101,7 @@ public final class PeakOffPeakResolver {
                 continue;
             }
             if (hitsWindow(rule.condition(), time)) {
-                return new PhaseDecision(PricingPhase.PEAK, PhaseReason.PEAK_WINDOW, multiplier(rule));
+                return new PhaseDecision(PricingPhase.PEAK, PhaseReason.PEAK_WINDOW, multiplier(rule), rule);
             }
         }
         return null;
@@ -140,14 +140,16 @@ public final class PeakOffPeakResolver {
     /** 低峰判定：优先取兜底项的倍率，没有兜底项则不打折 */
     private static PhaseDecision offPeak(PhaseReason reason, List<BillingConfig.PhaseRule> phases) {
         BigDecimal multiplier = BigDecimal.ONE;
+        BillingConfig.PhaseRule matched = null;
         for (int index = phases.size() - 1; index >= 0; index--) {
             BillingConfig.PhaseRule rule = phases.get(index);
             if (rule != null && rule.condition() != null && rule.condition().isDefault()) {
                 multiplier = multiplier(rule);
+                matched = rule;
                 break;
             }
         }
-        return new PhaseDecision(PricingPhase.OFF_PEAK, reason, multiplier);
+        return new PhaseDecision(PricingPhase.OFF_PEAK, reason, multiplier, matched);
     }
 
     /** 调休策略取自高峰规则的 condition；缺失按 OFF_PEAK 处理 */

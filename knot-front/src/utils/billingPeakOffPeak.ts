@@ -26,6 +26,19 @@ import type {Dict} from "@/types";
 /** 相位；后端 PricingPhase 只有这两个取值 */
 export type PeakPhaseCode = "PEAK" | "OFF_PEAK";
 
+/** 价随相位变化的模式：MULTIPLIER=基础价×倍率；ABSOLUTE=命中位相自身单价（非倍数） */
+export type PeakRateMode = "MULTIPLIER" | "ABSOLUTE";
+
+/** 独立单价（ABSOLUTE 模式）：每个相位自带的分项价格；缺省字段视为未配置 */
+export interface PeakUnitPrice {
+  input?: number | null;
+  output?: number | null;
+  cacheRead?: number | null;
+  cacheWrite?: number | null;
+  cacheWrite5m?: number | null;
+  cacheWrite1h?: number | null;
+}
+
 /** end 的午夜特例：表示次日 0 点（左闭右开的右端点），镜像后端 BillingConfig.CLOCK_MIDNIGHT_END */
 export const PEAK_MIDNIGHT_END = "24:00";
 
@@ -41,12 +54,14 @@ export interface PeakWindow {
   end: string;
 }
 
-/** 一条相位规则：命中条件 -> 相位 + 倍率 */
+/** 一条相位规则：命中条件 -> 相位 + 倍率（或独立单价） */
 export interface PeakPhaseRow {
   /** 仅用于前端 v-for 稳定 key，不参与序列化 */
   uid?: string;
   phase: PeakPhaseCode;
   multiplier: number | null;
+  /** ABSOLUTE 模式：该相位自身携带的分项单价 */
+  unitPrices?: PeakUnitPrice | null;
   /** 兜底低峰（末项）：不参与星期/时段判定 */
   isDefault: boolean;
   /** ISO DayOfWeek 数字（周一=1 ... 周日=7），与后端 PhaseCondition.weekdays 同口径 */
@@ -60,6 +75,8 @@ export interface PeakPhaseRow {
 }
 
 export interface PeakPricing {
+  /** 价随相位变化的模式；缺省按 MULTIPLIER 处理 */
+  rateMode?: PeakRateMode;
   timezone: string;
   phases: PeakPhaseRow[];
 }
@@ -111,6 +128,16 @@ export const PEAK_PHASE_LABELS: Record<string, string> = {
   PEAK: "高峰",
   OFF_PEAK: "低峰"
 };
+
+/** 相位自带单价的字段清单（ABSOLUTE 模式）：顺序即展示顺序 */
+export const PEAK_UNIT_PRICE_FIELDS: ReadonlyArray<{ key: keyof PeakUnitPrice; label: string }> = [
+  { key: "input", label: "输入单价" },
+  { key: "output", label: "输出单价" },
+  { key: "cacheRead", label: "缓存读单价" },
+  { key: "cacheWrite", label: "缓存写单价" },
+  { key: "cacheWrite5m", label: "缓存写(5m)单价" },
+  { key: "cacheWrite1h", label: "缓存写(1h)单价" }
+];
 
 /** 宽松转数字：空值与非法值统一归一为 null */
 export function toNumberOrNull(value: unknown): number | null {
@@ -220,6 +247,7 @@ export function createPeakPhaseRow(init: Partial<PeakPhaseRow> = {}): PeakPhaseR
     uid: init.uid ?? nextUid("phase"),
     phase: init.phase ?? "PEAK",
     multiplier: init.multiplier ?? null,
+    unitPrices: init.unitPrices ? { ...init.unitPrices } : null,
     isDefault: init.isDefault ?? false,
     weekdays: init.weekdays ? [...init.weekdays] : [],
     windows: init.windows ? init.windows.map((item) => ({ ...item, uid: item.uid ?? nextUid("window") })) : [],
@@ -277,6 +305,7 @@ export function parsePeakPricing(raw: unknown): PeakPricing | null {
     return createPeakPhaseRow({
       phase: String(phase.phase || "").trim().toUpperCase() === "OFF_PEAK" ? "OFF_PEAK" : "PEAK",
       multiplier: toNumberOrNull(phase.multiplier),
+      unitPrices: parsePeakUnitPrices(phase.unitPrices),
       isDefault: String(condition.type || "").trim().toUpperCase() === "DEFAULT",
       weekdays,
       windows,
@@ -284,9 +313,35 @@ export function parsePeakPricing(raw: unknown): PeakPricing | null {
     });
   });
   return {
+    rateMode: pricingRateModeOf(source.rateMode),
     timezone: normalizeTimezone(String(source.timezone || "UTC+0").trim() || "UTC+0"),
     phases
   };
+}
+
+/** 读取相位自带单价（ABSOLUTE 模式）：只保留数值字段，非数字统一归一为 null */
+function parsePeakUnitPrices(raw: unknown): PeakUnitPrice | null {
+  const source = raw && typeof raw === "object" ? (raw as Dict) : null;
+  if (!source) {
+    return null;
+  }
+  const keys: (keyof PeakUnitPrice)[] = [
+    "input", "output", "cacheRead", "cacheWrite", "cacheWrite5m", "cacheWrite1h"
+  ];
+  const result: PeakUnitPrice = {};
+  for (const key of keys) {
+    const value = toNumberOrNull(source[key as string]);
+    if (value != null) {
+      result[key] = value;
+    }
+  }
+  // 一项都没配置视为空（等价于未设置）
+  return Object.keys(result).length ? result : null;
+}
+
+/** 归一 rateMode：缺省或非法按 MULTIPLIER 处理，避免脏数据绕过校验 */
+function pricingRateModeOf(value: unknown): PeakRateMode {
+  return String(value || "").trim().toUpperCase() === "ABSOLUTE" ? "ABSOLUTE" : "MULTIPLIER";
 }
 
 /** 表单结构 -> 后端 config.pricing；兜底项的 condition 只带 type=DEFAULT */
@@ -294,41 +349,77 @@ export function toPeakPayload(pricing: PeakPricing | null): Dict | null {
   if (!pricing) {
     return null;
   }
+  const rateMode = pricingRateModeOf(pricing.rateMode);
   const phases = (pricing.phases || []).map((row) => {
-    if (row.isDefault) {
+    const condition = row.isDefault
+      ? { type: "DEFAULT" }
+      : {
+          weekdays: row.weekdays,
+          windows: row.windows.map((window) => ({ start: window.start, end: window.end })),
+          holidayPolicy: HOLIDAY_POLICY,
+          // 存量配置带调休策略时透传，避免往返重建丢字段；前端新建的骨架没有该字段则不输出
+          ...(row.makeUpWorkdayPolicy ? { makeUpWorkdayPolicy: row.makeUpWorkdayPolicy } : {})
+        };
+    if (rateMode === "ABSOLUTE") {
+      // ABSOLUTE：只输出命中位相自身单价，不做倍数
       return {
-        condition: { type: "DEFAULT" },
+        condition,
         phase: row.phase,
-        multiplier: toNumberOrNull(row.multiplier) ?? 1
+        unitPrices: toUnitPricesPayload(row.unitPrices)
       };
     }
     return {
-      condition: {
-        weekdays: row.weekdays,
-        windows: row.windows.map((window) => ({ start: window.start, end: window.end })),
-        holidayPolicy: HOLIDAY_POLICY,
-        // 存量配置带调休策略时透传，避免往返重建丢字段；前端新建的骨架没有该字段则不输出
-        ...(row.makeUpWorkdayPolicy ? { makeUpWorkdayPolicy: row.makeUpWorkdayPolicy } : {})
-      },
+      condition,
       phase: row.phase,
       multiplier: toNumberOrNull(row.multiplier) ?? 1
     };
   });
   return {
-    rateMode: "MULTIPLIER",
+    rateMode,
     timezone: normalizeTimezone(pricing.timezone || "UTC+0"),
     phases
   };
 }
 
-/** 校验高低峰配置，返回可读错误列表；空数组表示合法（镜像后端 validatePricing） */
-export function validatePeakPricing(pricing: PeakPricing | null): PeakIssue[] {
+/** ABSOLUTE 相位单价 -> 后端 unitPrices：只输出已填写的数值字段 */
+function toUnitPricesPayload(unitPrices: PeakUnitPrice | null | undefined): Dict {
+  const result: Dict = {};
+  if (unitPrices) {
+    const keys: (keyof PeakUnitPrice)[] = [
+      "input", "output", "cacheRead", "cacheWrite", "cacheWrite5m", "cacheWrite1h"
+    ];
+    for (const key of keys) {
+      const value = toNumberOrNull(unitPrices[key]);
+      if (value != null) {
+        result[key as string] = value;
+      }
+    }
+  }
+  return result;
+}
+
+/** 单价字段标签（ABSOLUTE 校验/提示用） */
+function peakUnitPriceLabel(key: keyof PeakUnitPrice): string {
+  return PEAK_UNIT_PRICE_FIELDS.find((item) => item.key === key)?.label ?? String(key);
+}
+
+/**
+ * 校验高低峰配置，返回可读错误列表；空数组表示合法（镜像后端 validatePricing）。
+ *
+ * <p>{@code billingMode} 仅在 ABSOLUTE 模式下用于决定单价的「必填字段集」：
+ * TOKEN 要求 6 项分项单价齐全，简单模式（REQUEST/IMAGE/AUDIO/VIDEO/EMBEDDING）只要求 input。
+ * MULTIPLIER 模式忽略该参数，仍只校验倍率。
+ */
+export function validatePeakPricing(pricing: PeakPricing | null, billingMode?: string): PeakIssue[] {
   if (!pricing) {
     return [{ index: -1, message: "高低峰方案缺少 pricing 配置" }];
   }
   if (!PEAK_TIMEZONE_OPTIONS.some((item) => item.value === pricing.timezone)) {
     return [{ index: -1, message: "时区必须选择 UTC-12 至 UTC+14 的偏移" }];
   }
+  const rateMode = pricingRateModeOf(pricing.rateMode);
+  const isAbsolute = rateMode === "ABSOLUTE";
+  const isTokenMode = billingMode === "TOKEN";
   const phases = pricing.phases || [];
   if (!phases.length) {
     return [{ index: -1, message: "至少需要配置 1 条相位规则" }];
@@ -344,13 +435,21 @@ export function validatePeakPricing(pricing: PeakPricing | null): PeakIssue[] {
 
   phases.forEach((row, index) => {
     const seq = index + 1;
-    const multiplier = toNumberOrNull(row.multiplier);
-    if (multiplier == null) {
-      issues.push({ index, field: "multiplier", message: `第 ${seq} 条：倍率必填` });
-    } else if (multiplier <= 0) {
-      issues.push({ index, field: "multiplier", message: `第 ${seq} 条：倍率必须大于 0` });
-    } else if (multiplier > 1) {
-      issues.push({ index, field: "multiplier", message: `第 ${seq} 条：倍率不能大于 1（低峰是打折，不允许涨价）` });
+    if (isAbsolute) {
+      // ABSOLUTE：每个相位必须自带单价（必填 + 非负）；TOKEN 要求 6 项齐全，简单模式只要求 input
+      const unitIssue = validateAbsolutePhaseUnitPrices(row.unitPrices, index, seq, isTokenMode);
+      if (unitIssue) {
+        issues.push(unitIssue);
+      }
+    } else {
+      const multiplier = toNumberOrNull(row.multiplier);
+      if (multiplier == null) {
+        issues.push({ index, field: "multiplier", message: `第 ${seq} 条：倍率必填` });
+      } else if (multiplier <= 0) {
+        issues.push({ index, field: "multiplier", message: `第 ${seq} 条：倍率必须大于 0` });
+      } else if (multiplier > 1) {
+        issues.push({ index, field: "multiplier", message: `第 ${seq} 条：倍率不能大于 1（低峰是打折，不允许涨价）` });
+      }
     }
     if (row.isDefault) {
       return;
@@ -386,6 +485,39 @@ export function validatePeakPricing(pricing: PeakPricing | null): PeakIssue[] {
     });
   });
   return issues;
+}
+
+/** ABSOLUTE 模式单相位单价校验：必填字段缺失或为负报错（TOKEN 要求 6 项，简单模式只要求 input） */
+function validateAbsolutePhaseUnitPrices(
+  unitPrices: PeakUnitPrice | null | undefined,
+  index: number,
+  seq: number,
+  isTokenMode: boolean
+): PeakIssue | null {
+  const prices = unitPrices && typeof unitPrices === "object" ? unitPrices : null;
+  const required: (keyof PeakUnitPrice)[] = isTokenMode
+    ? ["input", "output", "cacheRead", "cacheWrite", "cacheWrite5m", "cacheWrite1h"]
+    : ["input"];
+  for (const key of required) {
+    const value = toNumberOrNull(prices?.[key]);
+    if (value == null) {
+      return { index, field: `unitPrices.${key}`, message: `第 ${seq} 条（ABSOLUTE）：${peakUnitPriceLabel(key)}必填` };
+    }
+    if (value < 0) {
+      return { index, field: `unitPrices.${key}`, message: `第 ${seq} 条（ABSOLUTE）：${peakUnitPriceLabel(key)}不能为负数` };
+    }
+  }
+  // 简单模式允许填写其余分项，但填了就必须非负
+  if (!isTokenMode && prices) {
+    const optional: (keyof PeakUnitPrice)[] = ["output", "cacheRead", "cacheWrite", "cacheWrite5m", "cacheWrite1h"];
+    for (const key of optional) {
+      const value = toNumberOrNull(prices[key]);
+      if (value != null && value < 0) {
+        return { index, field: `unitPrices.${key}`, message: `第 ${seq} 条（ABSOLUTE）：${peakUnitPriceLabel(key)}不能为负数` };
+      }
+    }
+  }
+  return null;
 }
 
 /** 取指定相位指定字段的错误文案 */
@@ -432,6 +564,8 @@ export interface PeakDecision {
   phase: PeakPhaseCode;
   reason: string;
   multiplier: number;
+  /** ABSOLUTE 模式：命中位相自身携带的分项单价；MULTIPLIER 模式恒为 null */
+  unitPrices?: PeakUnitPrice | null;
 }
 
 /**
@@ -459,7 +593,8 @@ export function resolvePeakPhase(pricing: PeakPricing | null, date: string, time
   const javaDay = ((localDate.getUTCDay() + 6) % 7) + 1;
   const phases = pricing.phases || [];
   const fallback = phases[phases.length - 1];
-  const fallbackMultiplier = toNumberOrNull(fallback?.multiplier) ?? 1;
+  const isAbsolute = pricingRateModeOf(pricing.rateMode) === "ABSOLUTE";
+  const fallbackUnitPrices = isAbsolute ? (fallback?.unitPrices ?? null) : null;
   for (const row of phases) {
     if (row.isDefault || row.phase !== "PEAK") {
       continue;
@@ -472,9 +607,16 @@ export function resolvePeakPhase(pricing: PeakPricing | null, date: string, time
       return range != null && minutes >= range.startMinute && minutes < range.endMinute;
     });
     if (hit) {
+      if (isAbsolute) {
+        return { phase: "PEAK", reason: "PEAK_WINDOW", multiplier: 1, unitPrices: row.unitPrices ?? null };
+      }
       return { phase: "PEAK", reason: "PEAK_WINDOW", multiplier: toNumberOrNull(row.multiplier) ?? 1 };
     }
   }
+  if (isAbsolute) {
+    return { phase: "OFF_PEAK", reason: "DEFAULT", multiplier: 1, unitPrices: fallbackUnitPrices };
+  }
+  const fallbackMultiplier = toNumberOrNull(fallback?.multiplier) ?? 1;
   return { phase: "OFF_PEAK", reason: "DEFAULT", multiplier: fallbackMultiplier };
 }
 

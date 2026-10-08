@@ -3,7 +3,7 @@
     <el-table v-loading="loading" :data="rows" :row-class-name="rowClassName" stripe border style="width: 100%">
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
       <el-table-column prop="modelCode" label="模型编码" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="name" label="统一模型" min-width="180" show-overflow-tooltip />
       <el-table-column label="供应商" min-width="90" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.providerName || (row.providerAccountCode ? `#${row.providerAccountCode}` : "-") }}

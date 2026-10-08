@@ -952,7 +952,7 @@ public class RoutingRuleService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请指定且仅指定一个主模型");
         }
         long distinctTargets = targets.stream()
-                .map(target -> normalizeTargetType(target.targetType()) + ":" + target.targetId())
+                .map(target -> normalizeTargetType(target.targetType()) + ":" + resolveTargetCode(target))
                 .distinct()
                 .count();
         if (distinctTargets != targets.size()) {
@@ -965,11 +965,12 @@ public class RoutingRuleService {
 
     private void validateTarget(RoutingRuleTargetDto target, boolean enabledRule) {
         String targetType = normalizeTargetType(target.targetType());
-        if (target.targetId() == null) {
+        if (target.targetCode() == null && target.targetId() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "please select routing target");
         }
+        String code = resolveTargetCode(target);
         if ("MODEL".equals(targetType)) {
-            ModelEntity model = modelMapper.getById(target.targetId());
+            ModelEntity model = modelMapper.getByCode(code);
             if (model == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "model not found");
             }
@@ -979,7 +980,7 @@ public class RoutingRuleService {
             return;
         }
         if ("MODEL_POOL".equals(targetType)) {
-            ModelPoolEntity pool = modelPoolMapper.getById(target.targetId());
+            ModelPoolEntity pool = modelPoolMapper.getByCode(code);
             if (pool == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "model pool not found");
             }

@@ -122,7 +122,6 @@ import {
   createRoutingConsumer,
   updateRoutingConsumer
 } from "@/api/routing";
-import {generateRoutingRuleCode} from "@/utils/routingRule";
 import {toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
@@ -174,7 +173,8 @@ const loadUserOptions = toOptionsLoader(listUserOptions);
 
 function resetForm(row: Row | null = null) {
   form.id = row?.id ?? null;
-  form.consumerCode = row?.consumerCode || generateRoutingRuleCode();
+  // 不预置默认消费者编码：编码由用户自行填写（编码即接口与审计定位标识）
+  form.consumerCode = row?.consumerCode || "";
   form.name = row?.name || "";
   form.userId = row?.userId ?? null;
   form.returnUsageDetail = row?.returnUsageDetail === true;

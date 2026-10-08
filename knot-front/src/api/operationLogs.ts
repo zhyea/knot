@@ -83,6 +83,16 @@ export function listRoutingRuleOperationLogs(ruleId: number | string) {
   return getOperationLogsByEntity("RoutingRule", ruleId, {params: {module: "routing"}});
 }
 
+/** 某消费者（entity_type=RoutingConsumer）在 routing 模块下的操作日志 */
+export function listRoutingConsumerOperationLogs(consumerId: number | string) {
+  return getOperationLogsByEntity("RoutingConsumer", consumerId, {params: {module: "routing"}});
+}
+
+/** 某预设请求（entity_type=TestRequestPreset）在 routing 模块下的操作日志 */
+export function listTestRequestPresetOperationLogs(presetId: number | string) {
+  return getOperationLogsByEntity("TestRequestPreset", presetId, {params: {module: "routing"}});
+}
+
 export function listBillingRuleOperationLogs(ruleId: number | string) {
   return getOperationLogsByEntity("BillingRule", ruleId, {params: {module: "billing"}});
 }

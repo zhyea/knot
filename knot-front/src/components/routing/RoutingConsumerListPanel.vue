@@ -33,12 +33,13 @@
           />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="110" align="center" header-align="center" fixed="right">
+      <el-table-column label="操作" width="160" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <RowActions
             :actions="[
               { key: 'edit', label: '编辑', icon: Edit },
-              { key: 'rotate', label: '重置 Key', icon: Key, type: 'warning', confirm: '重置后旧 API Key 将不可用，确认继续？' }
+              { key: 'rotate', label: '重置 Key', icon: Key, type: 'warning', confirm: '重置后旧 API Key 将不可用，确认继续？' },
+              { key: 'log', label: '操作记录', icon: Document }
             ]"
             @action="(action) => emit('action', action, row)"
           />
@@ -61,7 +62,7 @@
 <script setup lang="ts">
 import type {PropType} from "vue";
 import type {Row} from "@/types";
-import {CopyDocument, Edit, Key} from "@element-plus/icons-vue";
+import {CopyDocument, Document, Edit, Key} from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 

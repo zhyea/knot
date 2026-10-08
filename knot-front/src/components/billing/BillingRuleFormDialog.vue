@@ -655,7 +655,7 @@ async function submit() {
     ElMessage.warning(tierIssues[0].message);
     return;
   }
-  const peakIssues = form.pricingPlan === "PEAK_OFF_PEAK" ? validatePeakPricing(form.peakPricing) : [];
+  const peakIssues = form.pricingPlan === "PEAK_OFF_PEAK" ? validatePeakPricing(form.peakPricing, form.billingMode) : [];
   if (peakIssues.length) {
     ElMessage.warning(peakIssues[0].message);
     return;

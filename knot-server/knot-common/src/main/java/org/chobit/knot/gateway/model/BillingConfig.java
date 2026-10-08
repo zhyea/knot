@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
 import org.chobit.knot.gateway.pricing.HolidayCalendar;
 import org.chobit.knot.gateway.pricing.PeakOffPeakResolver;
+import org.chobit.knot.gateway.pricing.PhaseDecision;
 import org.chobit.knot.gateway.util.JsonKit;
 
 import java.math.BigDecimal;
@@ -69,6 +70,9 @@ public record BillingConfig(
 
     /** 首期唯一的计价方式：在模式层基础单价上乘相位倍率 */
     private static final String RATE_MODE_MULTIPLIER = "MULTIPLIER";
+
+    /** 独立单价模式：命中相位自身携带 unitPrices，不再对模式层基础价做乘法 */
+    private static final String RATE_MODE_ABSOLUTE = "ABSOLUTE";
 
     /** UTC 偏移白名单，覆盖 UTC-12 至 UTC+14；UTC 为历史零偏移别名。 */
     public static final Set<String> SUPPORTED_TIMEZONES = java.util.stream.Stream.concat(
@@ -146,15 +150,21 @@ public record BillingConfig(
      * 高低峰配置：只描述“价”怎么随时间变化，不含任何模式专属字段。
      *
      * <p>方案类型不写进 JSON（由版本列 {@code pricing_plan} 表达），故此结构无 {@code type} 字段，
-     * 避免与版本列双写产生不一致。
+     * 避免与版本列双写产生不一致。{@code rateMode} 两种取值：
+     * <ul>
+     *   <li>{@code MULTIPLIER}（默认）：最终单价 = 模式层基础价 × 命中相位倍率；</li>
+     *   <li>{@code ABSOLUTE}：最终单价 = 命中相位自身携带的 {@code unitPrices}，不做乘法（支持高低峰非倍数计费）。</li>
+     * </ul>
+     * ABSOLUTE 模式下每个 {@link PhaseRule} 必须自带 {@code unitPrices}（分项价格），
+     * 简单模式约定把单单价收在 {@code unitPrices.input} 槽位。
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Pricing(String rateMode, String timezone, List<PhaseRule> phases) {
     }
 
-    /** 相位规则：命中条件 -> 所属相位 + 该相位倍率 */
+    /** 相位规则：命中条件 -> 所属相位 + 该相位倍率；ABSOLUTE 模式下额外携带自身单价 */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record PhaseRule(PhaseCondition condition, String phase, BigDecimal multiplier) {
+    public record PhaseRule(PhaseCondition condition, String phase, BigDecimal multiplier, PriceSet unitPrices) {
     }
 
     /**
@@ -421,6 +431,10 @@ public record BillingConfig(
                                       Pricing pricing,
                                       HolidayCalendar calendar) implements PricingPlan {
 
+        private boolean absolute() {
+            return RATE_MODE_ABSOLUTE.equals(blankToNull(pricing == null ? null : pricing.rateMode()));
+        }
+
         @Override
         public PricingPlanEnum plan() {
             return PricingPlanEnum.PEAK_OFF_PEAK;
@@ -428,22 +442,36 @@ public record BillingConfig(
 
         @Override
         public BigDecimal resolvePrice(PriceKind kind, PricingContext context, BigDecimal fallback) {
+            PhaseDecision decision = PeakOffPeakResolver.resolve(
+                    pricing, context == null ? null : context.occurredAt(), calendar);
+            if (absolute()) {
+                return absolutePrice(decision.matchedRule(), kind, fallback);
+            }
             BigDecimal fromBase = basePrices == null ? null : basePrices.valueOf(kind);
             BigDecimal base = fromBase != null ? fromBase : (defaultUnitPrice != null ? defaultUnitPrice : fallback);
-            return applyMultiplier(base, context);
+            return base == null ? null : base.multiply(decision.multiplier());
         }
 
         @Override
         public BigDecimal resolveDefaultPrice(PricingContext context, BigDecimal fallback) {
+            PhaseDecision decision = PeakOffPeakResolver.resolve(
+                    pricing, context == null ? null : context.occurredAt(), calendar);
+            if (absolute()) {
+                // 简单模式单单价：ABSOLUTE 相位价格统一收在 input 槽位
+                BillingConfig.PhaseRule rule = decision.matchedRule();
+                BigDecimal price = rule != null && rule.unitPrices() != null ? rule.unitPrices().input() : null;
+                return price != null ? price : fallback;
+            }
             BigDecimal base = defaultUnitPrice != null ? defaultUnitPrice : fallback;
-            return applyMultiplier(base, context);
+            return base == null ? null : base.multiply(decision.multiplier());
         }
 
-        private BigDecimal applyMultiplier(BigDecimal basePrice, PricingContext context) {
-            if (basePrice == null) {
-                return null;
+        private BigDecimal absolutePrice(BillingConfig.PhaseRule rule, PriceKind kind, BigDecimal fallback) {
+            if (rule == null || rule.unitPrices() == null) {
+                return fallback;
             }
-            return PeakOffPeakResolver.apply(basePrice, pricing, context, calendar);
+            BigDecimal price = rule.unitPrices().valueOf(kind);
+            return price != null ? price : fallback;
         }
     }
 
@@ -621,8 +649,12 @@ public record BillingConfig(
         if (pricing == null) {
             return "pricing is required for PEAK_OFF_PEAK plan";
         }
-        if (!RATE_MODE_MULTIPLIER.equals(blankToNull(pricing.rateMode()))) {
-            return "pricing.rateMode must be MULTIPLIER";
+        String rateMode = blankToNull(pricing.rateMode());
+        if (rateMode == null) {
+            rateMode = RATE_MODE_MULTIPLIER;
+        }
+        if (!RATE_MODE_MULTIPLIER.equals(rateMode) && !RATE_MODE_ABSOLUTE.equals(rateMode)) {
+            return "pricing.rateMode must be MULTIPLIER or ABSOLUTE";
         }
         String timezone = blankToNull(pricing.timezone());
         if (timezone == null || !SUPPORTED_TIMEZONES.contains(timezone)) {
@@ -642,15 +674,23 @@ public record BillingConfig(
             return "pricing.phases last item must be the DEFAULT off-peak fallback";
         }
         String makeUpPolicy = null;
+        boolean absolute = RATE_MODE_ABSOLUTE.equals(rateMode);
         for (int index = 0; index < phases.size(); index++) {
             PhaseRule rule = phases.get(index);
             String item = "pricing.phases[" + index + "]";
             if (rule == null || rule.condition() == null) {
                 return item + ".condition is required";
             }
-            String multiplierError = validateMultiplier(rule.multiplier(), item);
-            if (multiplierError != null) {
-                return multiplierError;
+            if (absolute) {
+                String unitPriceError = validateAbsoluteUnitPrices(rule.unitPrices(), item);
+                if (unitPriceError != null) {
+                    return unitPriceError;
+                }
+            } else {
+                String multiplierError = validateMultiplier(rule.multiplier(), item);
+                if (multiplierError != null) {
+                    return multiplierError;
+                }
             }
             if (!SUPPORTED_PHASES.contains(blankToNull(rule.phase()))) {
                 return item + ".phase must be PEAK or OFF_PEAK";
@@ -667,6 +707,20 @@ public record BillingConfig(
                 } else if (!makeUpPolicy.equals(current)) {
                     return item + ".condition.makeUpWorkdayPolicy must be identical across all peak rules";
                 }
+            }
+        }
+        return null;
+    }
+
+    /** ABSOLUTE 模式：每个相位必须自带 unitPrices，且已配置价格非负（分项完整性由前端按模式校验） */
+    private static String validateAbsoluteUnitPrices(PriceSet unitPrices, String item) {
+        if (unitPrices == null) {
+            return item + ".unitPrices is required for ABSOLUTE rate mode";
+        }
+        for (PriceKind kind : PriceKind.values()) {
+            BigDecimal price = unitPrices.valueOf(kind);
+            if (price != null && price.signum() < 0) {
+                return item + ".unitPrices." + jsonName(kind) + " cannot be negative";
             }
         }
         return null;

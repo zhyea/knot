@@ -38,6 +38,12 @@
       :consumer="editingConsumer"
       @saved="resetPage"
     />
+
+    <OperationLogDrawer
+      v-model="logDrawer"
+      :title="`消费者操作记录 - ${logConsumerName || ''}`"
+      :load-logs="loadRoutingConsumerOperationLogs"
+    />
   </PageSection>
 </template>
 
@@ -50,6 +56,7 @@ import FilterBar from "../../components/common/FilterBar.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import RoutingConsumerFormDrawer from "../../components/routing/RoutingConsumerFormDrawer.vue";
 import RoutingConsumerListPanel from "../../components/routing/RoutingConsumerListPanel.vue";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {useListQuery} from "@/composables/useListQuery";
 import {
@@ -57,6 +64,7 @@ import {
   rotateRoutingConsumerSecret,
   updateRoutingConsumerStatus
 } from "@/api/routing";
+import {listRoutingConsumerOperationLogs} from "@/api/operationLogs";
 
 const {
   query,
@@ -79,6 +87,9 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
 
 const drawerVisible = ref(false);
 const editingConsumer = ref<Dict | null>(null);
+const logDrawer = ref(false);
+const logConsumerId = ref<number | string | null>(null);
+const logConsumerName = ref("");
 
 function openCreate() {
   editingConsumer.value = null;
@@ -93,6 +104,17 @@ function openEdit(row: Row) {
 function handleAction(action: string, row: Row) {
   if (action === "edit") openEdit(row);
   if (action === "rotate") rotateSecret(row);
+  if (action === "log") openLog(row);
+}
+
+function openLog(row: Row) {
+  logConsumerId.value = row.id;
+  logConsumerName.value = row.name || row.consumerCode || `#${row.id}`;
+  logDrawer.value = true;
+}
+
+function loadRoutingConsumerOperationLogs() {
+  return listRoutingConsumerOperationLogs(logConsumerId.value!);
 }
 
 async function handleEnabledChange(row: Row, enabled: string | number | boolean) {

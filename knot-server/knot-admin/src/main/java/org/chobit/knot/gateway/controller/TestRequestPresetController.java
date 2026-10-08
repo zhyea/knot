@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import jakarta.validation.Valid;
+import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.converter.TestRequestPresetConverter;
 import org.chobit.knot.gateway.dto.routing.TestRequestPresetDto;
 import org.chobit.knot.gateway.model.PageQuery;
@@ -54,24 +55,35 @@ public class TestRequestPresetController {
         return presetConverter.toVO(presetService.get(id));
     }
 
+    @OperationLog(module = "routing", operation = "CREATE", entityType = "TestRequestPreset",
+            entityIdAfter = "#result.id()",
+            entityNameAfter = "#result.name()")
     @PostMapping
     public TestRequestPreset create(@RequestBody @Valid TestRequestPreset request) {
         TestRequestPresetDto created = presetService.create(presetConverter.toDto(request));
         return presetConverter.toVO(created);
     }
 
+    @OperationLog(module = "routing", operation = "UPDATE", entityType = "TestRequestPreset",
+            entityId = "#id",
+            entityNameAfter = "#result.name()")
     @PutMapping("/{id}")
     public TestRequestPreset update(@PathVariable Long id, @RequestBody @Valid TestRequestPreset request) {
         TestRequestPresetDto updated = presetService.update(id, presetConverter.toDto(request));
         return presetConverter.toVO(updated);
     }
 
+    @OperationLog(module = "routing", operation = "UPDATE", entityType = "TestRequestPreset",
+            entityId = "#id",
+            entityNameAfter = "#result.name()")
     @PutMapping("/{id}/status")
     public TestRequestPreset updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
         TestRequestPresetDto updated = presetService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
         return presetConverter.toVO(updated);
     }
 
+    @OperationLog(module = "routing", operation = "DELETE", entityType = "TestRequestPreset",
+            entityId = "#id")
     @DeleteMapping("/{id}")
     public void delete(@PathVariable Long id) {
         presetService.delete(id);

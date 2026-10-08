@@ -3,7 +3,11 @@
     <el-alert type="info" :closable="false" class="peak-editor__hint">
       <template #title>
         <div class="peak-editor__hint-body">
-          <span>
+          <span v-if="isAbsolute">
+            高低峰只描述「价」怎么随时间变化：<strong>ABSOLUTE 模式下最终单价 = 命中位相自身携带的单价</strong>，
+            不再对上方基础价做乘法。时段按所选 <strong>UTC 偏移</strong> 解释；首期节假日日历为空，不会命中。
+          </span>
+          <span v-else>
             高低峰只描述「价」怎么随时间变化：<strong>最终单价 = 上方基础价 × 相位倍率</strong>，
             方案层不持有任何价格。时段按所选 <strong>UTC 偏移</strong> 解释；首期节假日日历为空，不会命中。
           </span>
@@ -31,6 +35,28 @@
       </el-col>
     </el-row>
 
+    <el-row :gutter="16">
+      <el-col :span="24">
+        <el-form-item label="计价方式" class="billing-usage-field">
+          <el-radio-group v-model="pricing.rateMode">
+            <el-radio-button value="MULTIPLIER">倍数（基础价 × 倍率）</el-radio-button>
+            <el-radio-button value="ABSOLUTE">独立单价（命中位相自身单价）</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+      </el-col>
+      <el-col v-if="isAbsolute" :span="24">
+        <el-form-item label-width="0">
+          <span class="peak-editor__tip">
+            {{
+              isTokenMode
+                ? "ABSOLUTE 模式每个相位需填写 6 项分项单价（输入/输出/缓存读/缓存写/缓存写5m/缓存写1h）。"
+                : "ABSOLUTE 模式每个相位只需填写输入单价，最终单价不再对基础价做乘法。"
+            }}
+          </span>
+        </el-form-item>
+      </el-col>
+    </el-row>
+
     <div v-for="(row, index) in peakPhases" :key="row.uid || `phase-${index}`" class="phase-card">
       <div class="phase-card__head">
         <span class="phase-card__title">高峰规则 {{ index + 1 }}</span>
@@ -41,7 +67,7 @@
         </el-button>
       </div>
 
-      <el-row :gutter="12">
+      <el-row v-if="!isAbsolute" :gutter="12">
         <el-col :span="8">
           <el-form-item label="高峰倍率" :error="fieldError(index, 'multiplier')">
             <el-input-number
@@ -57,6 +83,39 @@
             />
           </el-form-item>
         </el-col>
+        <el-col :span="16">
+          <el-form-item label="适用星期" :error="fieldError(index, 'weekdays')">
+            <el-checkbox-group v-model="row.weekdays" size="small">
+              <el-checkbox-button v-for="day in PEAK_WEEKDAYS" :key="day.value" :value="day.value">
+                {{ day.short }}
+              </el-checkbox-button>
+            </el-checkbox-group>
+          </el-form-item>
+        </el-col>
+      </el-row>
+
+      <el-row v-else :gutter="12">
+        <el-col :span="24">
+          <el-form-item label="相位单价" :error="absFieldError(index)">
+            <div class="phase-card__unit-prices">
+              <div v-for="field in unitPriceFields" :key="field.key" class="unit-price-item">
+                <span class="unit-price-item__label">{{ field.label }}</span>
+                <el-input-number
+                  :model-value="row.unitPrices?.[field.key] ?? null"
+                  :min="0"
+                  :step="0.0001"
+                  :controls="false"
+                  size="small"
+                  placeholder="0"
+                  class="unit-price-item__control"
+                  @update:model-value="(v: number | null | undefined) => setUnitPrice(row, field.key, v)"
+                />
+              </div>
+            </div>
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-row v-if="isAbsolute" :gutter="12">
         <el-col :span="16">
           <el-form-item label="适用星期" :error="fieldError(index, 'weekdays')">
             <el-checkbox-group v-model="row.weekdays" size="small">
@@ -126,7 +185,7 @@
         <span class="phase-card__title">兜底低峰</span>
         <span class="phase-card__summary">未命中任何高峰时段时生效</span>
       </div>
-      <el-row :gutter="12">
+      <el-row v-if="!isAbsolute" :gutter="12">
         <el-col :span="8">
           <el-form-item label="低峰倍率" :error="fieldError(fallbackIndex, 'multiplier')">
             <el-input-number
@@ -147,6 +206,27 @@
             <span class="peak-editor__tip">
               末条规则必须为兜底低峰（condition.type=DEFAULT），后端保存时会复核
             </span>
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-row v-else :gutter="12">
+        <el-col :span="24">
+          <el-form-item label="低峰单价" :error="absFieldError(fallbackIndex)">
+            <div class="phase-card__unit-prices">
+              <div v-for="field in unitPriceFields" :key="field.key" class="unit-price-item">
+                <span class="unit-price-item__label">{{ field.label }}</span>
+                <el-input-number
+                  :model-value="fallback.unitPrices?.[field.key] ?? null"
+                  :min="0"
+                  :step="0.0001"
+                  :controls="false"
+                  size="small"
+                  placeholder="0"
+                  class="unit-price-item__control"
+                  @update:model-value="(v: number | null | undefined) => setUnitPrice(fallback, field.key, v)"
+                />
+              </div>
+            </div>
           </el-form-item>
         </el-col>
       </el-row>
@@ -204,7 +284,12 @@
           class="peak-probe__time"
         />
         <el-tag v-if="decision" :type="decision.phase === 'PEAK' ? 'warning' : 'success'" size="small">
-          {{ PEAK_PHASE_LABELS[decision.phase] }} × {{ decision.multiplier }}
+          <template v-if="isAbsolute && decision.unitPrices">
+            {{ PEAK_PHASE_LABELS[decision.phase] }} · {{ absolutePreview(decision.unitPrices) }}
+          </template>
+          <template v-else>
+            {{ PEAK_PHASE_LABELS[decision.phase] }} × {{ decision.multiplier }}
+          </template>
         </el-tag>
         <span v-if="decision" class="peak-editor__tip">{{ PEAK_REASONS[decision.reason] }}</span>
       </div>
@@ -219,13 +304,14 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from "vue";
+import {computed, ref, watch} from "vue";
 import type {Dict} from "@/types";
 import {
   PEAK_MIDNIGHT_END,
   PEAK_PHASE_LABELS,
   PEAK_REASONS,
   PEAK_TIMEZONE_OPTIONS,
+  PEAK_UNIT_PRICE_FIELDS,
   PEAK_WEEKDAYS,
   createDefaultPeakPricing,
   createPeakPhaseRow,
@@ -238,9 +324,10 @@ import {
   parseClockEndpoint,
   peakIssueMessage,
   resolvePeakPhase,
+  toNumberOrNull,
   validatePeakPricing
 } from "@/utils/billingPeakOffPeak";
-import type {PeakIssue, PeakPricing, PeakPhaseRow, PeakWindow} from "@/utils/billingPeakOffPeak";
+import type {PeakIssue, PeakPhaseRow, PeakPricing, PeakUnitPrice, PeakWindow} from "@/utils/billingPeakOffPeak";
 
 const props = defineProps({
   form: {type: Object as () => Dict, required: true}
@@ -260,7 +347,15 @@ function isUsable(value: unknown): boolean {
   return !!current && Array.isArray(current.phases) && current.phases.length > 0;
 }
 
-const issues = computed<PeakIssue[]>(() => validatePeakPricing(pricing.value));
+const issues = computed<PeakIssue[]>(() => validatePeakPricing(pricing.value, props.form.billingMode));
+/** ABSOLUTE 模式：展示命中位相自身单价，倍率概念不适用 */
+const isAbsolute = computed(() => pricing.value.rateMode === "ABSOLUTE");
+/** 当前计费模式：TOKEN 要求 6 项分项单价，简单模式只要求 input */
+const isTokenMode = computed(() => props.form.billingMode === "TOKEN");
+/** ABSOLUTE 模式下要展示/校验的单价字段集（顺序即展示顺序） */
+const unitPriceFields = computed(() =>
+  isTokenMode.value ? PEAK_UNIT_PRICE_FIELDS : [PEAK_UNIT_PRICE_FIELDS[0]]
+);
 /** 高峰规则（非兜底项）按原顺序展示；兜底项单独渲染在下方 */
 const peakPhases = computed<PeakPhaseRow[]>(() => pricing.value.phases.filter((row) => !row.isDefault));
 const fallbackIndex = computed(() => pricing.value.phases.length - 1);
@@ -337,6 +432,41 @@ function fieldError(index: number, field: string): string {
   return peakIssueMessage(issues.value, index, field);
 }
 
+/** ABSOLUTE 模式：一个相位的单价错误可能有多个字段，汇总展示首条 */
+function absFieldError(index: number): string {
+  const matched = issues.value.filter(
+    (item) => item.index === index && item.field != null && item.field.startsWith("unitPrices.")
+  );
+  return matched.length ? matched[0].message : "";
+}
+
+/** 探针预览：ABSOLUTE 命中相位的单价文案 */
+function absolutePreview(unitPrices: PeakUnitPrice | null | undefined): string {
+  if (!unitPrices) {
+    return "单价未填";
+  }
+  const input = toNumberOrNull(unitPrices.input);
+  if (input == null) {
+    return "单价未填";
+  }
+  if (isTokenMode.value) {
+    const output = toNumberOrNull(unitPrices.output);
+    return `输入¥${input}${output != null ? ` / 输出¥${output}` : ""}`;
+  }
+  return `单价¥${input}`;
+}
+
+/**
+ * 懒初始化相位单价：unitPrices 为 null 时填空对象再写字段，避免可空 v-model 报错；
+ * 清空输入归位为 null，序列化时与「未填写」同口径。
+ */
+function setUnitPrice(row: PeakPhaseRow, key: keyof PeakUnitPrice, value: number | null | undefined) {
+  if (!row.unitPrices) {
+    row.unitPrices = {};
+  }
+  row.unitPrices[key] = value == null ? null : Number(value);
+}
+
 function windowError(index: number, windowIndex: number): string {
   return peakIssueMessage(issues.value, index, `windows.${windowIndex}`);
 }
@@ -402,6 +532,29 @@ function windowError(index: number, windowIndex: number): string {
 
 .phase-card__control {
   width: 100%;
+}
+
+.phase-card__unit-prices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  width: 100%;
+}
+
+.unit-price-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.unit-price-item__label {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.unit-price-item__control {
+  width: 132px;
 }
 
 .phase-card__windows {

@@ -47,6 +47,12 @@
       :readonly="viewMode"
       @saved="resetPage"
     />
+
+    <OperationLogDrawer
+      v-model="logDrawer"
+      :title="`预设请求操作记录 - ${logPresetName || ''}`"
+      :load-logs="loadTestRequestPresetOperationLogs"
+    />
   </PageSection>
 </template>
 
@@ -61,12 +67,14 @@ import KeywordInput from "../../components/common/KeywordInput.vue";
 import EnumControl from "../../components/common/EnumControl.vue";
 import TestRequestPresetListPanel from "../../components/routing/TestRequestPresetListPanel.vue";
 import TestRequestPresetFormDrawer from "../../components/routing/TestRequestPresetFormDrawer.vue";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import {useListQuery} from "@/composables/useListQuery";
 import {
   deleteTestRequestPreset,
   listTestRequestPresets,
   updateTestRequestPresetStatus
 } from "@/api/routing";
+import {listTestRequestPresetOperationLogs} from "@/api/operationLogs";
 
 const {
   query,
@@ -111,9 +119,25 @@ function handleAction(action: string, row: Row) {
     openView(row);
   } else if (action === "edit") {
     openEdit(row);
+  } else if (action === "log") {
+    openLog(row);
   } else if (action === "delete") {
     removePreset(row);
   }
+}
+
+const logDrawer = ref(false);
+const logPresetId = ref<number | string | null>(null);
+const logPresetName = ref("");
+
+function openLog(row: Row) {
+  logPresetId.value = row.id;
+  logPresetName.value = row.name || row.code || `#${row.id}`;
+  logDrawer.value = true;
+}
+
+function loadTestRequestPresetOperationLogs() {
+  return listTestRequestPresetOperationLogs(logPresetId.value!);
 }
 
 async function removePreset(row: Row) {
