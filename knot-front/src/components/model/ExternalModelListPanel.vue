@@ -17,7 +17,7 @@
           <span class="cell-wrap">{{ row.modelId || "-" }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="modelName" label="模型名称" width="450">
+      <el-table-column prop="modelName" label="模型名称" width="400">
         <template #default="{ row }">
           <span class="cell-wrap">{{ row.modelName || "-" }}</span>
         </template>
