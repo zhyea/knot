@@ -41,9 +41,9 @@ public class TestRequestPresetController {
 
     /** 下拉候选：统一 OptionPage 契约（value=id，label=name，code=protocolCode）。 */
     @GetMapping("/options")
-    public OptionPage<OptionItem> options() {
-        List<OptionItem> list = presetConverter.toVOList(presetService.listActiveOptions()).stream()
-                .map(p -> new OptionItem(p.id(), p.name(), p.protocolCode()))
+    public OptionPage<OptionItem<Void>> options() {
+        List<OptionItem<Void>> list = presetConverter.toVOList(presetService.listActiveOptions()).stream()
+                .map(p -> new OptionItem<Void>(p.id(), p.name(), p.protocolCode()))
                 .toList();
         return OptionPage.of(list, list.size(), 1, Math.max(list.size(), 1));
     }

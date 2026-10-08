@@ -15,6 +15,7 @@ import org.chobit.knot.gateway.model.LogicalModelOptionQuery;
 import org.chobit.knot.gateway.service.OptionsService;
 import org.chobit.knot.gateway.vo.common.OptionItem;
 import org.chobit.knot.gateway.vo.common.OptionPage;
+import org.chobit.knot.gateway.vo.common.meta.LogicalModelMeta;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -35,7 +36,7 @@ public class LogicalModelController {
     }
 
     @PostMapping("/options")
-    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) LogicalModelOptionQuery query) {
+    public OptionPage<OptionItem<LogicalModelMeta>> listOptions(@RequestBody(required = false) LogicalModelOptionQuery query) {
         return optionsService.listLogicalModelOptions(query);
     }
 

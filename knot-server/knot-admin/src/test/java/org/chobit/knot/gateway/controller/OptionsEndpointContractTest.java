@@ -1,6 +1,8 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.GlobalExceptionHandler;
+import org.chobit.knot.gateway.converter.OptionConverter;
+import org.chobit.knot.gateway.entity.OptionRow;
 import org.chobit.knot.gateway.mapper.OptionsMapper;
 import org.chobit.knot.gateway.rw.RwProperties;
 import org.chobit.knot.gateway.service.OptionsService;
@@ -11,9 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -56,18 +56,24 @@ class OptionsEndpointContractTest {
     @BeforeEach
     void setUp() {
         mapper = mock(OptionsMapper.class);
-        service = new OptionsService(mapper);
+        service = new OptionsService(mapper, new OptionConverter());
     }
 
     /** mapper 打桩器：检索页返回 search、回显返回 echo，并把检索调用参数记进 calls。 */
     private interface Stubber {
-        void stub(OptionsMapper m, List<Map<String, Object>> search,
-                  List<Map<String, Object>> echo, List<Object[]> calls);
+        void stub(OptionsMapper m, List<OptionRow<?>> search,
+                  List<OptionRow<?>> echo, List<Object[]> calls);
     }
 
-    /** 端点描述符：路径 + controller 工厂 + 打桩器 + 该资源样例 value（字符串形态，与 values 传参一致）。 */
+    /**
+     * 端点描述符：路径 + controller 工厂 + 打桩器 + 该资源样例 value + 是否有启用态过滤。
+     *
+     * <p>{@code sample} 类型随资源的 value 语义：id 型资源为 {@link Long}（用户/部门/应用/
+     * 路由消费者/角色），code 型为 {@link String}（供应商账户/统一模型/供应商模型/模型池/
+     * 计费规则/供应商信息）。泛型化后这一约定由编译器与运行期共同守护。</p>
+     */
     private record Endpoint(String name, String path, Function<OptionsService, Object> factory,
-                            Stubber stubber, String sample, boolean hasEnabledOnly) {
+                            Stubber stubber, Object sample, boolean hasEnabledOnly) {
         @Override
         public String toString() {
             return name;
@@ -81,94 +87,98 @@ class OptionsEndpointContractTest {
                         (m, s, e, c) -> {
                             when(m.listUserOptions(any(), anyBoolean(), anyBoolean()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));
-                            when(m.listUserOptionsByValues(anyList())).thenReturn(e);
-                        }, "1", true),
+                            when(m.listUserOptionsByValues(anyList())).thenAnswer(inv -> e);
+                        }, 1L, true),
                 new Endpoint("部门", "/api/system/departments/options",
                         svc -> new DepartmentController(null, null, svc),
                         (m, s, e, c) -> {
                             when(m.listDepartmentOptions(any(), anyBoolean(), anyBoolean()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));
-                            when(m.listDepartmentOptionsByValues(anyList())).thenReturn(e);
-                        }, "2", true),
+                            when(m.listDepartmentOptionsByValues(anyList())).thenAnswer(inv -> e);
+                        }, 2L, true),
                 new Endpoint("应用", "/api/apps/options",
                         svc -> new AppController(null, null, svc),
                         (m, s, e, c) -> {
                             when(m.listAppOptions(any(), anyBoolean(), anyBoolean()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));
-                            when(m.listAppOptionsByValues(anyList())).thenReturn(e);
-                        }, "3", true),
+                            when(m.listAppOptionsByValues(anyList())).thenAnswer(inv -> e);
+                        }, 3L, true),
                 new Endpoint("供应商账户", "/api/provider-accounts/options",
                         svc -> new ProviderController(null, null, svc),
                         (m, s, e, c) -> {
                             when(m.listProviderAccountOptions(any(), anyBoolean()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));
-                            when(m.listProviderAccountOptionsByValues(anyList())).thenReturn(e);
+                            when(m.listProviderAccountOptionsByValues(anyList())).thenAnswer(inv -> e);
                         }, "acc-1", true),
                 new Endpoint("统一模型", "/api/logical-models/options",
                         svc -> new LogicalModelController(null, null, svc),
                         (m, s, e, c) -> {
                             when(m.listLogicalModelOptions(any(), anyBoolean(), anyBoolean(), any()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));
-                            when(m.listLogicalModelOptionsByValues(anyList())).thenReturn(e);
+                            when(m.listLogicalModelOptionsByValues(anyList())).thenAnswer(inv -> e);
                         }, "text.default", true),
                 new Endpoint("供应商模型", "/api/models/options",
                         svc -> new ModelController(null, null, svc),
                         (m, s, e, c) -> {
                             when(m.listModelOptions(any(), anyBoolean(), any(), any(), any()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));
-                            when(m.listModelOptionsByValues(anyList())).thenReturn(e);
+                            when(m.listModelOptionsByValues(anyList())).thenAnswer(inv -> e);
                         }, "gpt-4o", true),
                 new Endpoint("模型池", "/api/model-pools/options",
                         svc -> new ModelPoolController(null, null, svc),
                         (m, s, e, c) -> {
                             when(m.listModelPoolOptions(any(), anyBoolean(), anyBoolean(), any()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));
-                            when(m.listModelPoolOptionsByValues(anyList())).thenReturn(e);
+                            when(m.listModelPoolOptionsByValues(anyList())).thenAnswer(inv -> e);
                         }, "chat-economy-pool", true),
                 new Endpoint("路由消费者", "/api/routing-consumers/options",
                         svc -> new RoutingConsumerController(null, svc),
                         (m, s, e, c) -> {
                             when(m.listRoutingConsumerOptions(any(), anyBoolean()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));
-                            when(m.listRoutingConsumerOptionsByValues(anyList())).thenReturn(e);
-                        }, "5", true),
+                            when(m.listRoutingConsumerOptionsByValues(anyList())).thenAnswer(inv -> e);
+                        }, 5L, true),
                 new Endpoint("计费规则", "/api/billing/options",
                         svc -> new BillingController(null, null, svc),
                         (m, s, e, c) -> {
                             when(m.listBillingRuleOptions(any(), anyBoolean(), any()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));
-                            when(m.listBillingRuleOptionsByValues(anyList())).thenReturn(e);
+                            when(m.listBillingRuleOptionsByValues(anyList())).thenAnswer(inv -> e);
                         }, "rule-a", true),
                 new Endpoint("角色", "/api/system/authorizations/roles/options",
                         svc -> new AuthorizationRoleController(null, svc),
                         (m, s, e, c) -> {
                             when(m.listRoleOptions(any()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));
-                            when(m.listRoleOptionsByValues(anyList())).thenReturn(e);
-                        }, "7", false),
+                            when(m.listRoleOptionsByValues(anyList())).thenAnswer(inv -> e);
+                        }, 7L, false),
                 new Endpoint("供应商信息", "/api/provider-profiles/options",
                         svc -> new ProviderProfileController(null, svc),
                         (m, s, e, c) -> {
                             when(m.listProviderProfileOptions(any()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));
-                            when(m.listProviderProfileOptionsByValues(anyList())).thenReturn(e);
+                            when(m.listProviderProfileOptionsByValues(anyList())).thenAnswer(inv -> e);
                         }, "aliyun", false)
         );
     }
 
-    private static List<Map<String, Object>> capture(List<Object[]> calls, Object[] args,
-                                                     List<Map<String, Object>> rows) {
+    private static List<OptionRow<?>> capture(List<Object[]> calls, Object[] args,
+                List<OptionRow<?>> rows) {
         calls.add(args);
         return rows;
     }
 
-    private static Map<String, Object> row(Object value, String label, String code, int disabled) {
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("value", value);
-        m.put("label", label);
-        m.put("code", code);
-        m.put("disabled", disabled);
-        return m;
+    /**
+     * 打桩行。value 的实际类型必须与端点的 value 语义一致（id 型=Long / code 型=String）——
+     * 泛型化后这一条由编译器守护：id 型端点误传 String 桩会直接 ClassCastException。
+     */
+    private static <V> OptionRow<V> row(V value, String label, String code, int disabled) {
+        OptionRow<V> r = new OptionRow<>();
+        r.setValue(value);
+        r.setLabel(label);
+        r.setCode(code);
+        r.setDisabled(disabled);
+        return r;
     }
 
     private MockMvc mvcFor(Endpoint ep) {
@@ -229,7 +239,7 @@ class OptionsEndpointContractTest {
         List<Object[]> calls = new ArrayList<>();
         ep.stubber().stub(mapper, List.of(), List.of(row(ep.sample(), "Echo", "echo-code", 0)), calls);
 
-        mvcFor(ep).perform(post(ep.path()).contentType(CT).content(valuesBody(List.of(ep.sample()))))
+        mvcFor(ep).perform(post(ep.path()).contentType(CT).content(valuesBody(List.of(String.valueOf(ep.sample())))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.list.length()").value(1))
                 .andExpect(jsonPath("$.list[0].label").value("Echo"))
@@ -244,7 +254,7 @@ class OptionsEndpointContractTest {
         ep.stubber().stub(mapper, List.of(), List.of(row(ep.sample(), "Echo", "echo-code", 0)), calls);
 
         mvcFor(ep).perform(post(ep.path()).contentType(CT)
-                        .content(valuesBody(List.of(ep.sample(), "ghost"))))
+                        .content(valuesBody(List.of(String.valueOf(ep.sample()), "ghost"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.list.length()").value(1))
                 .andExpect(jsonPath("$.missingValues.length()").value(1))
@@ -258,7 +268,7 @@ class OptionsEndpointContractTest {
         List<Object[]> calls = new ArrayList<>();
         ep.stubber().stub(mapper, List.of(), List.of(row(ep.sample(), "Echo", "echo-code", 1)), calls);
 
-        mvcFor(ep).perform(post(ep.path()).contentType(CT).content(valuesBody(List.of(ep.sample()))))
+        mvcFor(ep).perform(post(ep.path()).contentType(CT).content(valuesBody(List.of(String.valueOf(ep.sample())))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.list[0].disabled").value(true))
                 .andExpect(jsonPath("$.missingValues").isEmpty());

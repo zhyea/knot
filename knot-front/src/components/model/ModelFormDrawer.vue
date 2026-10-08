@@ -306,7 +306,7 @@ import {type PropType, computed, reactive, ref, watch} from "vue";
 import type {Ref} from "vue";
 import {ElMessage} from "element-plus";
 import {RefreshRight} from "@element-plus/icons-vue";
-import type {Dict, Row} from "@/types";
+import type {Dict, Row, OptionItem, ProviderAccountMeta} from "@/types";
 import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
@@ -472,8 +472,9 @@ function requestAdapterLabel(item: Row): string {
   return item?.label || item?.code || "";
 }
 
-function onProviderAccountChange(account: Row) {
-  form.baseUrl = account?.baseUrl || "";
+/** 选中供应商账户后回填上游 Base URL。后端把 baseUrl 放在 options 候选项的强类型 meta 里（非敏感地址）。 */
+function onProviderAccountChange(account: OptionItem<ProviderAccountMeta> | null) {
+  form.baseUrl = account?.meta?.baseUrl ?? "";
 }
 
 /** 新建时的默认版本：打开表单时的当前时间（小时级，如 v2026092910） */

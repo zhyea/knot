@@ -43,7 +43,7 @@ public class ProviderProfileController {
      * 供应商信息下拉候选（options）。value=code；{@code kb_providers} 无启用态，disabled 恒 0。
      */
     @PostMapping("/options")
-    public OptionPage<OptionItem> options(@RequestBody(required = false) ProviderProfileOptionQuery query) {
+    public OptionPage<OptionItem<Void>> options(@RequestBody(required = false) ProviderProfileOptionQuery query) {
         return optionsService.listProviderProfileOptions(query);
     }
 

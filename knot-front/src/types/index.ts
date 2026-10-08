@@ -36,16 +36,53 @@ export interface OptionQuery {
   filters?: Record<string, unknown>;
 }
 
-export interface OptionItem {
-  value: string | number;
-  label: string;
-  code?: string;
-  disabled?: boolean;
-  /** 仅承载下拉确实需要的非敏感业务信息 */
-  meta?: Dict;
+/**
+ * 下拉候选项 meta 强类型（与后端 `vo.common.meta.*` 各 record 对齐）。
+ * 仅承载下拉确实需要、且非敏感的派生信息；字段集合由后端 `OptionsMapper.xml` 的
+ * `json_object` 生成，前端不得假设额外键。
+ */
+/** 供应商账户：上游网关 baseUrl（非凭据）。 */
+export interface ProviderAccountMeta {
+  baseUrl: string;
 }
 
-export interface OptionPage<T = OptionItem> {
+/** 统一模型：协议联动（modelType）与计费族过滤（modelFamily）、启用态。 */
+export interface LogicalModelMeta {
+  modelType?: string | null;
+  modelFamily?: string | null;
+  status?: number | null;
+}
+
+/** 供应商模型：供应商 / 统一模型派生字段，供池内表格与表单联动展示。 */
+export interface ModelMeta {
+  providerName?: string | null;
+  providerAccountCode?: string | null;
+  modelName?: string | null;
+  name?: string | null;
+  modelType?: string | null;
+  logicalModelCode?: string | null;
+  status?: number | null;
+}
+
+/** 所有带 meta 的下拉候选项类型联合（无 meta 资源 meta 恒为 null）。 */
+export type OptionMeta = ProviderAccountMeta | LogicalModelMeta | ModelMeta | null;
+
+/**
+ * 下拉候选项（与后端 `OptionItem<M>` 对齐）。
+ * 泛型 M：meta 的强类型（默认 `OptionMeta` 联合，含 null）。value 类型随资源
+ * （id 型=number，code 型=string），前端不得自行猜测，统一以 `string | number` 承接。
+ * `meta` 不再是松散的 `Record<string, any>`，其结构由 M 约束。
+ */
+export interface OptionItem<M = OptionMeta> {
+  value: string | number;
+  label: string;
+  code?: string | null;
+  disabled?: boolean | null;
+  /** 仅承载下拉确实需要的非敏感业务信息，强类型由 M 约束 */
+  meta?: M | null;
+}
+
+export interface OptionPage<T = OptionItem<OptionMeta>> {
   list: T[];
   total: number;
   pageNum: number;

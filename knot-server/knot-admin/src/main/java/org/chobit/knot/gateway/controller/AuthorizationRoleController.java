@@ -54,7 +54,7 @@ public class AuthorizationRoleController {
      * 角色下拉候选（options）。value=id；{@code ks_roles} 无启用态，disabled 恒 0。
      */
     @PostMapping("/options")
-    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) RoleOptionQuery query) {
+    public OptionPage<OptionItem<Void>> listOptions(@RequestBody(required = false) RoleOptionQuery query) {
         return optionsService.listRoleOptions(query);
     }
 

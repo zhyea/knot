@@ -19,6 +19,7 @@ import org.chobit.knot.gateway.model.ProviderAccountOptionQuery;
 import org.chobit.knot.gateway.service.OptionsService;
 import org.chobit.knot.gateway.vo.common.OptionItem;
 import org.chobit.knot.gateway.vo.common.OptionPage;
+import org.chobit.knot.gateway.vo.common.meta.ProviderAccountMeta;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -41,7 +42,7 @@ public class ProviderController {
     }
 
     @PostMapping("/options")
-    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) ProviderAccountOptionQuery query) {
+    public OptionPage<OptionItem<ProviderAccountMeta>> listOptions(@RequestBody(required = false) ProviderAccountOptionQuery query) {
         return optionsService.listProviderAccountOptions(query);
     }
 

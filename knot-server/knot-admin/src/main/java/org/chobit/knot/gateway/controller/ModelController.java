@@ -19,6 +19,7 @@ import org.chobit.knot.gateway.model.ModelOptionQuery;
 import org.chobit.knot.gateway.service.OptionsService;
 import org.chobit.knot.gateway.vo.common.OptionItem;
 import org.chobit.knot.gateway.vo.common.OptionPage;
+import org.chobit.knot.gateway.vo.common.meta.ModelMeta;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -40,7 +41,7 @@ public class ModelController {
     }
 
     @PostMapping("/options")
-    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) ModelOptionQuery query) {
+    public OptionPage<OptionItem<ModelMeta>> listOptions(@RequestBody(required = false) ModelOptionQuery query) {
         return optionsService.listModelOptions(query);
     }
 

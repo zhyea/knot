@@ -43,7 +43,7 @@ public class ModelPoolController {
     }
 
     @PostMapping("/options")
-    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) ModelPoolOptionQuery query) {
+    public OptionPage<OptionItem<Void>> listOptions(@RequestBody(required = false) ModelPoolOptionQuery query) {
         return optionsService.listModelPoolOptions(query);
     }
 

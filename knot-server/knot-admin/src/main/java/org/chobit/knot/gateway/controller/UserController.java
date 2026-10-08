@@ -37,7 +37,7 @@ public class UserController {
     }
 
     @PostMapping("/options")
-    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) UserOptionQuery query) {
+    public OptionPage<OptionItem<Void>> listOptions(@RequestBody(required = false) UserOptionQuery query) {
         return optionsService.listUserOptions(query);
     }
 

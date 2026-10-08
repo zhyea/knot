@@ -1,345 +1,358 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <!--
-  下拉候选（options）投影。统一四列别名：value / label / code / disabled(0|1)。
+  下拉候选（options）投影。统一列别名：value / label / code / disabled(0|1) / meta(JSON 文本)。
+  resultType 统一为 OptionRow（DAL 行对象，泛型仅作文档提示，反射按JDBC 实际类型填充），
+  由 knot-service 的 OptionConverter 归一为对外 OptionItem。
   检索页不分页（PageHelper 追加 limit/count）；byValues 用于已选回显 + missingValues 判定。
   敏感字段隔离：路由消费者、供应商账户相关 select 绝不包含 secret_key / encrypted_config。
+  baseUrl 不单独占列，已并入供应商账户的 meta。
 -->
 <mapper namespace="org.chobit.knot.gateway.mapper.OptionsMapper">
 
-    <!-- ==================== 用户（value=id） ==================== -->
-    <select id="listUserOptions" resultType="map">
-        select u.id as value,
-               COALESCE(NULLIF(u.real_name, ''), u.username) as label,
-               u.username as code,
-               0 as disabled
-        from ks_users u
-        where 1 = 1
-        <if test="!includeDeleted"> and u.is_deleted = 0 </if>
-        <if test="enabledOnly"> and u.status = 1 </if>
-        <if test="keyword != null and keyword != ''">
-            and (u.username like concat('%', #{keyword}, '%')
-                 or u.real_name like concat('%', #{keyword}, '%'))
-        </if>
-        order by u.id desc
-    </select>
+  <resultMap id="optionRow" type="org.chobit.knot.gateway.entity.OptionRow">
+    <result column="value" property="value"/>
+    <result column="label" property="label"/>
+    <result column="code" property="code"/>
+    <result column="disabled" property="disabled"/>
+    <result column="meta" property="meta"/>
+  </resultMap>
 
-    <select id="listUserOptionsByValues" resultType="map">
-        select u.id as value,
-               COALESCE(NULLIF(u.real_name, ''), u.username) as label,
-               u.username as code,
-               (case when u.status = 1 then 0 else 1 end) as disabled
-        from ks_users u
-        where u.is_deleted = 0
-          and cast(u.id as char) in
-        <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
-    </select>
+  <!-- ==================== 用户（value=id） ==================== -->
+  <select id="listUserOptions" resultMap="optionRow">
+    select u.id as value,
+    COALESCE(NULLIF(u.real_name, ''), u.username) as label,
+    u.username as code,
+    0 as disabled
+    from ks_users u
+    where 1 = 1
+    <if test="!includeDeleted">and u.is_deleted = 0</if>
+    <if test="enabledOnly">and u.status = 1</if>
+    <if test="keyword != null and keyword != ''">
+      and (u.username like concat('%', #{keyword}, '%')
+      or u.real_name like concat('%', #{keyword}, '%'))
+    </if>
+    order by u.id desc
+  </select>
 
-    <!-- ==================== 部门（value=id） ==================== -->
-    <select id="listDepartmentOptions" resultType="map">
-        select d.id as value,
-               d.dept_name as label,
-               d.dept_code as code,
-               0 as disabled
-        from ks_departments d
-        where 1 = 1
-        <if test="!includeDeleted"> and d.is_deleted = 0 </if>
-        <if test="enabledOnly"> and d.status = 1 </if>
-        <if test="keyword != null and keyword != ''">
-            and (d.dept_name like concat('%', #{keyword}, '%')
-                 or d.dept_code like concat('%', #{keyword}, '%'))
-        </if>
-        order by d.sort_order asc, d.id asc
-    </select>
+  <select id="listUserOptionsByValues" resultMap="optionRow">
+    select u.id as value,
+    COALESCE(NULLIF(u.real_name, ''), u.username) as label,
+    u.username as code,
+    (case when u.status = 1 then 0 else 1 end) as disabled
+    from ks_users u
+    where u.is_deleted = 0
+    and cast(u.id as char) in
+    <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
+  </select>
 
-    <select id="listDepartmentOptionsByValues" resultType="map">
-        select d.id as value,
-               d.dept_name as label,
-               d.dept_code as code,
-               (case when d.status = 1 then 0 else 1 end) as disabled
-        from ks_departments d
-        where d.is_deleted = 0
-          and cast(d.id as char) in
-        <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
-    </select>
+  <!-- ==================== 部门（value=id） ==================== -->
+  <select id="listDepartmentOptions" resultMap="optionRow">
+    select d.id as value,
+    d.dept_name as label,
+    d.dept_code as code,
+    0 as disabled
+    from ks_departments d
+    where 1 = 1
+    <if test="!includeDeleted">and d.is_deleted = 0</if>
+    <if test="enabledOnly">and d.status = 1</if>
+    <if test="keyword != null and keyword != ''">
+      and (d.dept_name like concat('%', #{keyword}, '%')
+      or d.dept_code like concat('%', #{keyword}, '%'))
+    </if>
+    order by d.sort_order asc, d.id asc
+  </select>
 
-    <!-- ==================== 应用（value=id） ==================== -->
-    <select id="listAppOptions" resultType="map">
-        select a.id as value,
-               a.name as label,
-               a.app_code as code,
-               0 as disabled
-        from kb_apps a
-        where 1 = 1
-        <if test="!includeDeleted"> and a.is_deleted = 0 </if>
-        <if test="enabledOnly"> and a.status = 1 </if>
-        <if test="keyword != null and keyword != ''">
-            and (a.name like concat('%', #{keyword}, '%')
-                 or a.app_code like concat('%', #{keyword}, '%'))
-        </if>
-        order by a.id desc
-    </select>
+  <select id="listDepartmentOptionsByValues" resultMap="optionRow">
+    select d.id as value,
+    d.dept_name as label,
+    d.dept_code as code,
+    (case when d.status = 1 then 0 else 1 end) as disabled
+    from ks_departments d
+    where d.is_deleted = 0
+    and cast(d.id as char) in
+    <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
+  </select>
 
-    <select id="listAppOptionsByValues" resultType="map">
-        select a.id as value,
-               a.name as label,
-               a.app_code as code,
-               (case when a.status = 1 then 0 else 1 end) as disabled
-        from kb_apps a
-        where a.is_deleted = 0
-          and cast(a.id as char) in
-        <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
-    </select>
+  <!-- ==================== 应用（value=id） ==================== -->
+  <select id="listAppOptions" resultMap="optionRow">
+    select a.id as value,
+    a.name as label,
+    a.app_code as code,
+    0 as disabled
+    from kb_apps a
+    where 1 = 1
+    <if test="!includeDeleted">and a.is_deleted = 0</if>
+    <if test="enabledOnly">and a.status = 1</if>
+    <if test="keyword != null and keyword != ''">
+      and (a.name like concat('%', #{keyword}, '%')
+      or a.app_code like concat('%', #{keyword}, '%'))
+    </if>
+    order by a.id desc
+  </select>
 
-    <!-- ==================== 供应商账户（value=code；label=供应商/账户码，无凭据列） ==================== -->
-    <select id="listProviderAccountOptions" resultType="map">
-        select pa.code as value,
-               concat(COALESCE(p.name, pa.provider_code), ' / ', pa.code) as label,
-               pa.code as code,
-               pa.base_url as baseUrl,
-               0 as disabled
-        from kb_provider_accounts pa
-        left join kb_providers p on p.code = pa.provider_code
-        where 1 = 1
-        <if test="enabledOnly"> and pa.status = 1 </if>
-        <if test="keyword != null and keyword != ''">
-            and (pa.code like concat('%', #{keyword}, '%')
-                 or pa.provider_code like concat('%', #{keyword}, '%')
-                 or p.name like concat('%', #{keyword}, '%'))
-        </if>
-        order by pa.code asc
-    </select>
+  <select id="listAppOptionsByValues" resultMap="optionRow">
+    select a.id as value,
+    a.name as label,
+    a.app_code as code,
+    (case when a.status = 1 then 0 else 1 end) as disabled
+    from kb_apps a
+    where a.is_deleted = 0
+    and cast(a.id as char) in
+    <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
+  </select>
 
-    <select id="listProviderAccountOptionsByValues" resultType="map">
-        select pa.code as value,
-               concat(COALESCE(p.name, pa.provider_code), ' / ', pa.code) as label,
-               pa.code as code,
-               pa.base_url as baseUrl,
-               (case when pa.status = 1 then 0 else 1 end) as disabled
-        from kb_provider_accounts pa
-        left join kb_providers p on p.code = pa.provider_code
-        where pa.code in
-        <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
-    </select>
+  <!-- ==================== 供应商账户（value=code；label=供应商/账户码；meta 承载 baseUrl，无凭据列） ==================== -->
+  <select id="listProviderAccountOptions" resultMap="optionRow">
+    select pa.code as value,
+    concat(COALESCE(p.name, pa.provider_code), ' / ', pa.code) as label,
+    pa.code as code,
+    0 as disabled,
+    json_object('baseUrl', pa.base_url) as meta
+    from kb_provider_accounts pa
+    left join kb_providers p on p.code = pa.provider_code
+    where 1 = 1
+    <if test="enabledOnly">and pa.status = 1</if>
+    <if test="keyword != null and keyword != ''">
+      and (pa.code like concat('%', #{keyword}, '%')
+      or pa.provider_code like concat('%', #{keyword}, '%')
+      or p.name like concat('%', #{keyword}, '%'))
+    </if>
+    order by pa.code asc
+  </select>
 
-    <!-- ==================== 统一模型（value=modelCode；meta 承载 modelType/modelFamily 供前端协议联动与计费族过滤） ==================== -->
-    <select id="listLogicalModelOptions" resultType="map">
-        select lm.model_code as value,
-               COALESCE(NULLIF(lm.display_name, ''), lm.model_name) as label,
-               lm.model_code as code,
-               0 as disabled,
-               json_object('modelType', lm.model_type,
-                           'modelFamily', lm.model_family,
-                           'status', lm.status) as meta
-        from kb_logical_models lm
-        where 1 = 1
-        <if test="!includeDeleted"> and lm.is_deleted = 0 </if>
-        <if test="enabledOnly"> and lm.status = 1 </if>
-        <if test="modelFamilyCode != null and modelFamilyCode != ''"> and lm.model_family = #{modelFamilyCode} </if>
-        <if test="keyword != null and keyword != ''">
-            and (lm.model_name like concat('%', #{keyword}, '%')
-                 or lm.model_code like concat('%', #{keyword}, '%')
-                 or lm.display_name like concat('%', #{keyword}, '%'))
-        </if>
-        order by lm.sort_order asc, lm.id asc
-    </select>
+  <select id="listProviderAccountOptionsByValues" resultMap="optionRow">
+    select pa.code as value,
+    concat(COALESCE(p.name, pa.provider_code), ' / ', pa.code) as label,
+    pa.code as code,
+    (case when pa.status = 1 then 0 else 1 end) as disabled,
+    json_object('baseUrl', pa.base_url) as meta
+    from kb_provider_accounts pa
+    left join kb_providers p on p.code = pa.provider_code
+    where pa.code in
+    <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
+  </select>
 
-    <select id="listLogicalModelOptionsByValues" resultType="map">
-        select lm.model_code as value,
-               COALESCE(NULLIF(lm.display_name, ''), lm.model_name) as label,
-               lm.model_code as code,
-               (case when lm.status = 1 then 0 else 1 end) as disabled,
-               json_object('modelType', lm.model_type,
-                           'modelFamily', lm.model_family,
-                           'status', lm.status) as meta
-        from kb_logical_models lm
-        where lm.is_deleted = 0
-          and lm.model_code in
-        <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
-    </select>
+  <!-- ==================== 统一模型（value=modelCode；meta 承载 modelType/modelFamily 供前端协议联动与计费族过滤） ==================== -->
+  <select id="listLogicalModelOptions" resultMap="optionRow">
+    select lm.model_code as value,
+    COALESCE(NULLIF(lm.display_name, ''), lm.model_name) as label,
+    lm.model_code as code,
+    0 as disabled,
+    json_object('modelType', lm.model_type,
+    'modelFamily', lm.model_family,
+    'status', lm.status) as meta
+    from kb_logical_models lm
+    where 1 = 1
+    <if test="!includeDeleted">and lm.is_deleted = 0</if>
+    <if test="enabledOnly">and lm.status = 1</if>
+    <if test="modelFamilyCode != null and modelFamilyCode != ''">and lm.model_family = #{modelFamilyCode}</if>
+    <if test="keyword != null and keyword != ''">
+      and (lm.model_name like concat('%', #{keyword}, '%')
+      or lm.model_code like concat('%', #{keyword}, '%')
+      or lm.display_name like concat('%', #{keyword}, '%'))
+    </if>
+    order by lm.sort_order asc, lm.id asc
+  </select>
 
-    <!-- ==================== 供应商模型（value=modelCode；meta 承载供应商/统一模型派生字段供池内表格与联动） ==================== -->
-    <select id="listModelOptions" resultType="map">
-        select m.model_code as value,
-               COALESCE(lm.model_name, m.model_code) as label,
-               m.model_code as code,
-               0 as disabled,
-               json_object('providerName', COALESCE(p.name, m.provider_account_code),
-                           'providerAccountCode', m.provider_account_code,
-                           'modelName', lm.model_name,
-                           'name', lm.model_name,
-                           'modelType', lm.model_type,
-                           'logicalModelCode', pmm.logical_model_code,
-                           'status', m.status) as meta
-        from kb_models m
-        left join kb_provider_model_mappings pmm on pmm.model_id = m.id
-        left join kb_logical_models lm on lm.model_code = pmm.logical_model_code and lm.is_deleted = 0
-        left join kb_providers p on p.code = m.provider_account_code
-        where 1 = 1
-        and m.is_deleted = 0
-        <if test="enabledOnly"> and m.status = 1 </if>
-        <if test="logicalModelCode != null and logicalModelCode != ''"> and pmm.logical_model_code = #{logicalModelCode} </if>
-        <if test="modelFamilyCode != null and modelFamilyCode != ''"> and lm.model_family = #{modelFamilyCode} </if>
-        <if test="providerAccountCode != null and providerAccountCode != ''"> and m.provider_account_code = #{providerAccountCode} </if>
-        <if test="keyword != null and keyword != ''">
-            and (m.model_code like concat('%', #{keyword}, '%')
-                 or m.upstream_model like concat('%', #{keyword}, '%')
-                 or lm.model_name like concat('%', #{keyword}, '%'))
-        </if>
-        order by m.model_code asc
-    </select>
+  <select id="listLogicalModelOptionsByValues" resultMap="optionRow">
+    select lm.model_code as value,
+    COALESCE(NULLIF(lm.display_name, ''), lm.model_name) as label,
+    lm.model_code as code,
+    (case when lm.status = 1 then 0 else 1 end) as disabled,
+    json_object('modelType', lm.model_type,
+    'modelFamily', lm.model_family,
+    'status', lm.status) as meta
+    from kb_logical_models lm
+    where lm.is_deleted = 0
+    and lm.model_code in
+    <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
+  </select>
 
-    <select id="listModelOptionsByValues" resultType="map">
-        select m.model_code as value,
-               COALESCE(lm.model_name, m.model_code) as label,
-               m.model_code as code,
-               (case when m.status = 1 then 0 else 1 end) as disabled,
-               json_object('providerName', COALESCE(p.name, m.provider_account_code),
-                           'providerAccountCode', m.provider_account_code,
-                           'modelName', lm.model_name,
-                           'name', lm.model_name,
-                           'modelType', lm.model_type,
-                           'logicalModelCode', pmm.logical_model_code,
-                           'status', m.status) as meta
-        from kb_models m
-        left join kb_provider_model_mappings pmm on pmm.model_id = m.id
-        left join kb_logical_models lm on lm.model_code = pmm.logical_model_code and lm.is_deleted = 0
-        left join kb_providers p on p.code = m.provider_account_code
-        where m.is_deleted = 0
-          and m.model_code in
-        <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
-    </select>
+  <!-- ==================== 供应商模型（value=modelCode；meta 承载供应商/统一模型派生字段供池内表格与联动） ==================== -->
+  <select id="listModelOptions" resultMap="optionRow">
+    select m.model_code as value,
+    COALESCE(lm.model_name, m.model_code) as label,
+    m.model_code as code,
+    0 as disabled,
+    json_object('providerName', COALESCE(p.name, m.provider_account_code),
+    'providerAccountCode', m.provider_account_code,
+    'modelName', lm.model_name,
+    'name', lm.model_name,
+    'modelType', lm.model_type,
+    'logicalModelCode', pmm.logical_model_code,
+    'status', m.status) as meta
+    from kb_models m
+    left join kb_provider_model_mappings pmm on pmm.model_id = m.id
+    left join kb_logical_models lm on lm.model_code = pmm.logical_model_code and lm.is_deleted = 0
+    left join kb_providers p on p.code = m.provider_account_code
+    where 1 = 1
+    and m.is_deleted = 0
+    <if test="enabledOnly">and m.status = 1</if>
+    <if test="logicalModelCode != null and logicalModelCode != ''">and pmm.logical_model_code = #{logicalModelCode}</if>
+    <if test="modelFamilyCode != null and modelFamilyCode != ''">and lm.model_family = #{modelFamilyCode}</if>
+    <if test="providerAccountCode != null and providerAccountCode != ''">and m.provider_account_code =
+      #{providerAccountCode}
+    </if>
+    <if test="keyword != null and keyword != ''">
+      and (m.model_code like concat('%', #{keyword}, '%')
+      or m.upstream_model like concat('%', #{keyword}, '%')
+      or lm.model_name like concat('%', #{keyword}, '%'))
+    </if>
+    order by m.model_code asc
+  </select>
 
-    <!-- ==================== 模型池（value=poolCode） ==================== -->
-    <select id="listModelPoolOptions" resultType="map">
-        select mp.pool_code as value,
-               mp.name as label,
-               mp.pool_code as code,
-               0 as disabled
-        from kb_model_pools mp
-        where 1 = 1
-        <if test="!includeDeleted"> and mp.is_deleted = 0 </if>
-        <if test="enabledOnly"> and mp.status = 1 </if>
-        <if test="logicalModelCode != null and logicalModelCode != ''"> and mp.logical_model_code = #{logicalModelCode} </if>
-        <if test="keyword != null and keyword != ''">
-            and (mp.name like concat('%', #{keyword}, '%')
-                 or mp.pool_code like concat('%', #{keyword}, '%'))
-        </if>
-        order by mp.id desc
-    </select>
+  <select id="listModelOptionsByValues" resultMap="optionRow">
+    select m.model_code as value,
+    COALESCE(lm.model_name, m.model_code) as label,
+    m.model_code as code,
+    (case when m.status = 1 then 0 else 1 end) as disabled,
+    json_object('providerName', COALESCE(p.name, m.provider_account_code),
+    'providerAccountCode', m.provider_account_code,
+    'modelName', lm.model_name,
+    'name', lm.model_name,
+    'modelType', lm.model_type,
+    'logicalModelCode', pmm.logical_model_code,
+    'status', m.status) as meta
+    from kb_models m
+    left join kb_provider_model_mappings pmm on pmm.model_id = m.id
+    left join kb_logical_models lm on lm.model_code = pmm.logical_model_code and lm.is_deleted = 0
+    left join kb_providers p on p.code = m.provider_account_code
+    where m.is_deleted = 0
+    and m.model_code in
+    <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
+  </select>
 
-    <select id="listModelPoolOptionsByValues" resultType="map">
-        select mp.pool_code as value,
-               mp.name as label,
-               mp.pool_code as code,
-               (case when mp.status = 1 then 0 else 1 end) as disabled
-        from kb_model_pools mp
-        where mp.is_deleted = 0
-          and mp.pool_code in
-        <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
-    </select>
+  <!-- ==================== 模型池（value=poolCode） ==================== -->
+  <select id="listModelPoolOptions" resultMap="optionRow">
+    select mp.pool_code as value,
+    mp.name as label,
+    mp.pool_code as code,
+    0 as disabled
+    from kb_model_pools mp
+    where 1 = 1
+    <if test="!includeDeleted">and mp.is_deleted = 0</if>
+    <if test="enabledOnly">and mp.status = 1</if>
+    <if test="logicalModelCode != null and logicalModelCode != ''">and mp.logical_model_code = #{logicalModelCode}</if>
+    <if test="keyword != null and keyword != ''">
+      and (mp.name like concat('%', #{keyword}, '%')
+      or mp.pool_code like concat('%', #{keyword}, '%'))
+    </if>
+    order by mp.id desc
+  </select>
 
-    <!-- ==================== 路由消费者（value=id；禁 secret_key） ==================== -->
-    <select id="listRoutingConsumerOptions" resultType="map">
-        select c.id as value,
-               c.name as label,
-               c.consumer_code as code,
-               0 as disabled
-        from kb_routing_consumers c
-        where 1 = 1
-        <if test="enabledOnly"> and c.status = 1 </if>
-        <if test="keyword != null and keyword != ''">
-            and (c.name like concat('%', #{keyword}, '%')
-                 or c.consumer_code like concat('%', #{keyword}, '%'))
-        </if>
-        order by c.id desc
-    </select>
+  <select id="listModelPoolOptionsByValues" resultMap="optionRow">
+    select mp.pool_code as value,
+    mp.name as label,
+    mp.pool_code as code,
+    (case when mp.status = 1 then 0 else 1 end) as disabled
+    from kb_model_pools mp
+    where mp.is_deleted = 0
+    and mp.pool_code in
+    <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
+  </select>
 
-    <select id="listRoutingConsumerOptionsByValues" resultType="map">
-        select c.id as value,
-               c.name as label,
-               c.consumer_code as code,
-               (case when c.status = 1 then 0 else 1 end) as disabled
-        from kb_routing_consumers c
-        where cast(c.id as char) in
-        <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
-    </select>
+  <!-- ==================== 路由消费者（value=id；禁 secret_key） ==================== -->
+  <select id="listRoutingConsumerOptions" resultMap="optionRow">
+    select c.id as value,
+    c.name as label,
+    c.consumer_code as code,
+    0 as disabled
+    from kb_routing_consumers c
+    where 1 = 1
+    <if test="enabledOnly">and c.status = 1</if>
+    <if test="keyword != null and keyword != ''">
+      and (c.name like concat('%', #{keyword}, '%')
+      or c.consumer_code like concat('%', #{keyword}, '%'))
+    </if>
+    order by c.id desc
+  </select>
 
-    <!-- ==================== 计费规则（value=code；排除已删除） ==================== -->
-    <select id="listBillingRuleOptions" resultType="map">
-        select br.code as value,
-               br.code as label,
-               br.code as code,
-               0 as disabled
-        from kb_billing_rules br
-        where br.is_deleted = 0
-        <if test="enabledOnly"> and br.status = 1 </if>
-        <if test="modelFamilyCode != null and modelFamilyCode != ''"> and br.model_family = #{modelFamilyCode} </if>
-        <if test="keyword != null and keyword != ''">
-            and br.code like concat('%', #{keyword}, '%')
-        </if>
-        order by br.code asc
-    </select>
+  <select id="listRoutingConsumerOptionsByValues" resultMap="optionRow">
+    select c.id as value,
+    c.name as label,
+    c.consumer_code as code,
+    (case when c.status = 1 then 0 else 1 end) as disabled
+    from kb_routing_consumers c
+    where cast(c.id as char) in
+    <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
+  </select>
 
-    <select id="listBillingRuleOptionsByValues" resultType="map">
-        select br.code as value,
-               br.code as label,
-               br.code as code,
-               (case when br.status = 1 then 0 else 1 end) as disabled
-        from kb_billing_rules br
-        where br.is_deleted = 0
-          and br.code in
-        <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
-    </select>
+  <!-- ==================== 计费规则（value=code；排除已删除） ==================== -->
+  <select id="listBillingRuleOptions" resultMap="optionRow">
+    select br.code as value,
+    br.code as label,
+    br.code as code,
+    0 as disabled
+    from kb_billing_rules br
+    where br.is_deleted = 0
+    <if test="enabledOnly">and br.status = 1</if>
+    <if test="modelFamilyCode != null and modelFamilyCode != ''">and br.model_family = #{modelFamilyCode}</if>
+    <if test="keyword != null and keyword != ''">
+      and br.code like concat('%', #{keyword}, '%')
+    </if>
+    order by br.code asc
+  </select>
 
-    <!-- ==================== 角色（value=id；ks_roles 无 status/is_deleted → 无启用过滤，disabled 恒 0） ==================== -->
-    <select id="listRoleOptions" resultType="map">
-        select r.id as value,
-               COALESCE(NULLIF(r.name, ''), r.code) as label,
-               r.code as code,
-               0 as disabled
-        from ks_roles r
-        where 1 = 1
-        <if test="keyword != null and keyword != ''">
-            and (r.name like concat('%', #{keyword}, '%')
-                 or r.code like concat('%', #{keyword}, '%'))
-        </if>
-        order by r.id asc
-    </select>
+  <select id="listBillingRuleOptionsByValues" resultMap="optionRow">
+    select br.code as value,
+    br.code as label,
+    br.code as code,
+    (case when br.status = 1 then 0 else 1 end) as disabled
+    from kb_billing_rules br
+    where br.is_deleted = 0
+    and br.code in
+    <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
+  </select>
 
-    <select id="listRoleOptionsByValues" resultType="map">
-        select r.id as value,
-               COALESCE(NULLIF(r.name, ''), r.code) as label,
-               r.code as code,
-               0 as disabled
-        from ks_roles r
-        where cast(r.id as char) in
-        <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
-    </select>
+  <!-- ==================== 角色（value=id；ks_roles 无 status/is_deleted → 无启用过滤，disabled 恒 0） ==================== -->
+  <select id="listRoleOptions" resultMap="optionRow">
+    select r.id as value,
+    COALESCE(NULLIF(r.name, ''), r.code) as label,
+    r.code as code,
+    0 as disabled
+    from ks_roles r
+    where 1 = 1
+    <if test="keyword != null and keyword != ''">
+      and (r.name like concat('%', #{keyword}, '%')
+      or r.code like concat('%', #{keyword}, '%'))
+    </if>
+    order by r.id asc
+  </select>
 
-    <!-- ==================== 供应商信息（value=code；kb_providers 无 status/is_deleted → 无启用过滤，disabled 恒 0） ==================== -->
-    <select id="listProviderProfileOptions" resultType="map">
-        select p.code as value,
-               concat(p.name, ' / ', p.code) as label,
-               p.code as code,
-               0 as disabled
-        from kb_providers p
-        where 1 = 1
-        <if test="keyword != null and keyword != ''">
-            and (p.name like concat('%', #{keyword}, '%')
-                 or p.code like concat('%', #{keyword}, '%'))
-        </if>
-        order by p.code asc
-    </select>
+  <select id="listRoleOptionsByValues" resultMap="optionRow">
+    select r.id as value,
+    COALESCE(NULLIF(r.name, ''), r.code) as label,
+    r.code as code,
+    0 as disabled
+    from ks_roles r
+    where cast(r.id as char) in
+    <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
+  </select>
 
-    <select id="listProviderProfileOptionsByValues" resultType="map">
-        select p.code as value,
-               concat(p.name, ' / ', p.code) as label,
-               p.code as code,
-               0 as disabled
-        from kb_providers p
-        where p.code in
-        <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
-    </select>
+  <!-- ==================== 供应商信息（value=code；kb_providers 无 status/is_deleted → 无启用过滤，disabled 恒 0） ==================== -->
+  <select id="listProviderProfileOptions" resultMap="optionRow">
+    select p.code as value,
+    concat(p.name, ' / ', p.code) as label,
+    p.code as code,
+    0 as disabled
+    from kb_providers p
+    where 1 = 1
+    <if test="keyword != null and keyword != ''">
+      and (p.name like concat('%', #{keyword}, '%')
+      or p.code like concat('%', #{keyword}, '%'))
+    </if>
+    order by p.code asc
+  </select>
+
+  <select id="listProviderProfileOptionsByValues" resultMap="optionRow">
+    select p.code as value,
+    concat(p.name, ' / ', p.code) as label,
+    p.code as code,
+    0 as disabled
+    from kb_providers p
+    where p.code in
+    <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
+  </select>
 
 </mapper>

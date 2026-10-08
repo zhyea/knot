@@ -42,7 +42,7 @@ public class BillingController {
     }
 
     @PostMapping("/options")
-    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) BillingRuleOptionQuery query) {
+    public OptionPage<OptionItem<Void>> listOptions(@RequestBody(required = false) BillingRuleOptionQuery query) {
         return optionsService.listBillingRuleOptions(query);
     }
 

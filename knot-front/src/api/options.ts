@@ -1,14 +1,15 @@
 import {postQuery} from "./http";
-import type {Dict} from "@/types";
+import type {Dict, OptionItem, OptionMeta, ProviderAccountMeta, LogicalModelMeta, ModelMeta} from "@/types";
 
-/** 下拉候选项（与后端 OptionItem 对齐；value 类型随资源，勿强制转换）。 */
-export interface OptionItem {
-  value: string | number;
-  label: string;
-  code?: string | null;
-  disabled?: boolean | null;
-  meta?: Record<string, unknown> | null;
-}
+/**
+ * 下拉候选项（与后端 `OptionItem<M>` 对齐；value 类型随资源，勿强制转换）。
+ *
+ * 泛型 M：meta 的强类型（见 `@/types` 的 `ProviderAccountMeta` / `LogicalModelMeta` / `ModelMeta`）。
+ * 不显式指定时默认 `OptionItem<OptionMeta>`。
+ *
+ * `meta` 承载下拉需要的派生信息，一律走这一个强类型对象，**不再有顶层扩展字段**。
+ */
+export type {OptionItem, OptionMeta, ProviderAccountMeta, LogicalModelMeta, ModelMeta} from "@/types";
 
 /** 下拉候选分页（与后端 OptionPage 对齐）。missingValues = 已选但不存在/无权限。 */
 export interface OptionPage<T = OptionItem> {
@@ -51,15 +52,15 @@ export function listAppOptions(params: OptionQuery) {
 }
 
 export function listProviderAccountOptions(params: OptionQuery) {
-  return options("/api/provider-accounts/options", params);
+  return options<OptionItem<ProviderAccountMeta>>("/api/provider-accounts/options", params);
 }
 
 export function listLogicalModelOptions(params: OptionQuery) {
-  return options("/api/logical-models/options", params);
+  return options<OptionItem<LogicalModelMeta>>("/api/logical-models/options", params);
 }
 
 export function listModelOptions(params: OptionQuery) {
-  return options("/api/models/options", params);
+  return options<OptionItem<ModelMeta>>("/api/models/options", params);
 }
 
 export function listModelPoolOptions(params: OptionQuery) {

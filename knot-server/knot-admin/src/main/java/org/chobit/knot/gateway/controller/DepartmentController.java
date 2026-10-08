@@ -38,7 +38,7 @@ public class DepartmentController {
     }
 
     @PostMapping("/options")
-    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) DepartmentOptionQuery query) {
+    public OptionPage<OptionItem<Void>> listOptions(@RequestBody(required = false) DepartmentOptionQuery query) {
         return optionsService.listDepartmentOptions(query);
     }
 

@@ -32,7 +32,7 @@ public class RoutingConsumerController {
     }
 
     @PostMapping("/options")
-    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) RoutingConsumerOptionQuery query) {
+    public OptionPage<OptionItem<Void>> listOptions(@RequestBody(required = false) RoutingConsumerOptionQuery query) {
         return optionsService.listRoutingConsumerOptions(query);
     }
 

@@ -32,7 +32,7 @@ public class AppController {
     }
 
     @PostMapping("/options")
-    public OptionPage<OptionItem> listOptions(@RequestBody(required = false) AppOptionQuery query) {
+    public OptionPage<OptionItem<Void>> listOptions(@RequestBody(required = false) AppOptionQuery query) {
         return optionsService.listAppOptions(query);
     }
 

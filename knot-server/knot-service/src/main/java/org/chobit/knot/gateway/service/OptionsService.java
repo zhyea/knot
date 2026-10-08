@@ -2,10 +2,11 @@ package org.chobit.knot.gateway.service;
 
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
+import org.chobit.knot.gateway.converter.OptionConverter;
+import org.chobit.knot.gateway.entity.OptionRow;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.OptionsMapper;
-import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.model.AppOptionQuery;
 import org.chobit.knot.gateway.model.BillingRuleOptionQuery;
 import org.chobit.knot.gateway.model.DepartmentOptionQuery;
@@ -20,13 +21,17 @@ import org.chobit.knot.gateway.model.RoutingConsumerOptionQuery;
 import org.chobit.knot.gateway.model.UserOptionQuery;
 import org.chobit.knot.gateway.vo.common.OptionItem;
 import org.chobit.knot.gateway.vo.common.OptionPage;
+import org.chobit.knot.gateway.vo.common.meta.LogicalModelMeta;
+import org.chobit.knot.gateway.vo.common.meta.ModelMeta;
+import org.chobit.knot.gateway.vo.common.meta.ProviderAccountMeta;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -42,64 +47,74 @@ import java.util.stream.Collectors;
  *   <li>{@code missingValues} = 请求 values 中未命中的项（不存在 / 已删 / 无权限），前端据此阻止非法提交。</li>
  * </ol>
  *
- * <p>敏感字段：路由消费者、供应商账户 options 绝不返回 secretKey / 凭据 / 完整 configJson（见约束 R6）。</p>
+ * <p>层间职责：DAL 返回 {@link OptionRow}（列名与字段名由 {@code resultMap} 绑定），
+ * 本类只做分页 / 合并 / 缺失判定三件业务，行→ VO 的逐字段归一交给 {@link OptionConverter}。</p>
+ *
+ * <p>敏感字段：路由消费者、供应商账户 options 绝不返回 secretKey / 凭据 / 完整 configJson（见约束 R6）。
+ * 供应商账户的 baseUrl 走 {@code meta} 返回，不单独占 VO 字段。</p>
  */
 @Service
 public class OptionsService {
 
     private final OptionsMapper optionsMapper;
+    private final OptionConverter optionConverter;
 
     private static final OptionQuery EMPTY = new OptionQuery(null, null, null, null, null, null);
 
-    public OptionsService(OptionsMapper optionsMapper) {
+    public OptionsService(OptionsMapper optionsMapper, OptionConverter optionConverter) {
         this.optionsMapper = optionsMapper;
+        this.optionConverter = optionConverter;
     }
 
     // ==================== 用户（value=id） ====================
-    public OptionPage<OptionItem> listUserOptions(UserOptionQuery query) {
+    public OptionPage<OptionItem<Void>> listUserOptions(UserOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         boolean eo = base.effectiveEnabledOnly();
         boolean inc = base.effectiveIncludeDeleted();
         return assemble(base,
                 () -> optionsMapper.listUserOptions(kw, eo, inc),
-                vals -> optionsMapper.listUserOptionsByValues(vals));
+                vals -> optionsMapper.listUserOptionsByValues(vals),
+                optionConverter::toUserItems);
     }
 
     // ==================== 部门（value=id） ====================
-    public OptionPage<OptionItem> listDepartmentOptions(DepartmentOptionQuery query) {
+    public OptionPage<OptionItem<Void>> listDepartmentOptions(DepartmentOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         boolean eo = base.effectiveEnabledOnly();
         boolean inc = base.effectiveIncludeDeleted();
         return assemble(base,
                 () -> optionsMapper.listDepartmentOptions(kw, eo, inc),
-                vals -> optionsMapper.listDepartmentOptionsByValues(vals));
+                vals -> optionsMapper.listDepartmentOptionsByValues(vals),
+                optionConverter::toDepartmentItems);
     }
 
     // ==================== 应用（value=id） ====================
-    public OptionPage<OptionItem> listAppOptions(AppOptionQuery query) {
+    public OptionPage<OptionItem<Void>> listAppOptions(AppOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         boolean eo = base.effectiveEnabledOnly();
         boolean inc = base.effectiveIncludeDeleted();
         return assemble(base,
                 () -> optionsMapper.listAppOptions(kw, eo, inc),
-                vals -> optionsMapper.listAppOptionsByValues(vals));
+                vals -> optionsMapper.listAppOptionsByValues(vals),
+                optionConverter::toAppItems);
     }
 
-    // ==================== 供应商账户（value=code） ====================
-    public OptionPage<OptionItem> listProviderAccountOptions(ProviderAccountOptionQuery query) {
+    // ==================== 供应商账户（value=code；meta=ProviderAccountMeta.baseUrl） ====================
+    public OptionPage<OptionItem<ProviderAccountMeta>> listProviderAccountOptions(ProviderAccountOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         boolean eo = base.effectiveEnabledOnly();
         return assemble(base,
                 () -> optionsMapper.listProviderAccountOptions(kw, eo),
-                vals -> optionsMapper.listProviderAccountOptionsByValues(vals));
+                vals -> optionsMapper.listProviderAccountOptionsByValues(vals),
+                optionConverter::toProviderAccountItems);
     }
 
-    // ==================== 统一模型（value=modelCode） ====================
-    public OptionPage<OptionItem> listLogicalModelOptions(LogicalModelOptionQuery query) {
+    // ==================== 统一模型（value=modelCode；meta=LogicalModelMeta） ====================
+    public OptionPage<OptionItem<LogicalModelMeta>> listLogicalModelOptions(LogicalModelOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         String family = code(query == null ? null : query.modelFamilyCode());
@@ -107,11 +122,12 @@ public class OptionsService {
         boolean inc = base.effectiveIncludeDeleted();
         return assemble(base,
                 () -> optionsMapper.listLogicalModelOptions(kw, eo, inc, family),
-                vals -> optionsMapper.listLogicalModelOptionsByValues(vals));
+                vals -> optionsMapper.listLogicalModelOptionsByValues(vals),
+                optionConverter::toLogicalModelItems);
     }
 
-    // ==================== 供应商模型（value=modelCode） ====================
-    public OptionPage<OptionItem> listModelOptions(ModelOptionQuery query) {
+    // ==================== 供应商模型（value=modelCode；meta=ModelMeta） ====================
+    public OptionPage<OptionItem<ModelMeta>> listModelOptions(ModelOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         String logical = code(query == null ? null : query.logicalModelCode());
@@ -120,11 +136,12 @@ public class OptionsService {
         boolean eo = base.effectiveEnabledOnly();
         return assemble(base,
                 () -> optionsMapper.listModelOptions(kw, eo, logical, family, account),
-                vals -> optionsMapper.listModelOptionsByValues(vals));
+                vals -> optionsMapper.listModelOptionsByValues(vals),
+                optionConverter::toModelItems);
     }
 
     // ==================== 模型池（value=poolCode） ====================
-    public OptionPage<OptionItem> listModelPoolOptions(ModelPoolOptionQuery query) {
+    public OptionPage<OptionItem<Void>> listModelPoolOptions(ModelPoolOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         String logical = code(query == null ? null : query.logicalModelCode());
@@ -132,54 +149,60 @@ public class OptionsService {
         boolean inc = base.effectiveIncludeDeleted();
         return assemble(base,
                 () -> optionsMapper.listModelPoolOptions(kw, eo, inc, logical),
-                vals -> optionsMapper.listModelPoolOptionsByValues(vals));
+                vals -> optionsMapper.listModelPoolOptionsByValues(vals),
+                optionConverter::toModelPoolItems);
     }
 
     // ==================== 路由消费者（value=id；禁 secretKey） ====================
-    public OptionPage<OptionItem> listRoutingConsumerOptions(RoutingConsumerOptionQuery query) {
+    public OptionPage<OptionItem<Void>> listRoutingConsumerOptions(RoutingConsumerOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         boolean eo = base.effectiveEnabledOnly();
         return assemble(base,
                 () -> optionsMapper.listRoutingConsumerOptions(kw, eo),
-                vals -> optionsMapper.listRoutingConsumerOptionsByValues(vals));
+                vals -> optionsMapper.listRoutingConsumerOptionsByValues(vals),
+                optionConverter::toRoutingConsumerItems);
     }
 
     // ==================== 计费规则（value=code） ====================
-    public OptionPage<OptionItem> listBillingRuleOptions(BillingRuleOptionQuery query) {
+    public OptionPage<OptionItem<Void>> listBillingRuleOptions(BillingRuleOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         String family = code(query == null ? null : query.modelFamilyCode());
         boolean eo = base.effectiveEnabledOnly();
         return assemble(base,
                 () -> optionsMapper.listBillingRuleOptions(kw, eo, family),
-                vals -> optionsMapper.listBillingRuleOptionsByValues(vals));
+                vals -> optionsMapper.listBillingRuleOptionsByValues(vals),
+                optionConverter::toBillingRuleItems);
     }
 
     // ==================== 角色（value=id；无启用态，disabled 恒 0） ====================
-    public OptionPage<OptionItem> listRoleOptions(RoleOptionQuery query) {
+    public OptionPage<OptionItem<Void>> listRoleOptions(RoleOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         return assemble(base,
                 () -> optionsMapper.listRoleOptions(kw),
-                vals -> optionsMapper.listRoleOptionsByValues(vals));
+                vals -> optionsMapper.listRoleOptionsByValues(vals),
+                optionConverter::toRoleItems);
     }
 
     // ==================== 供应商信息（value=code；无启用态，disabled 恒 0） ====================
-    public OptionPage<OptionItem> listProviderProfileOptions(ProviderProfileOptionQuery query) {
+    public OptionPage<OptionItem<Void>> listProviderProfileOptions(ProviderProfileOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         return assemble(base,
                 () -> optionsMapper.listProviderProfileOptions(kw),
-                vals -> optionsMapper.listProviderProfileOptionsByValues(vals));
+                vals -> optionsMapper.listProviderProfileOptionsByValues(vals),
+                optionConverter::toProviderProfileItems);
     }
 
     // ==================== 共享逻辑 ====================
 
-    private OptionPage<OptionItem> assemble(
+    private <V, M> OptionPage<OptionItem<M>> assemble(
             OptionQuery base,
-            java.util.function.Supplier<List<Map<String, Object>>> paged,
-            java.util.function.Function<List<String>, List<Map<String, Object>>> byValues) {
+            Supplier<List<OptionRow<V>>> paged,
+            Function<List<String>, List<OptionRow<V>>> byValues,
+            Function<List<OptionRow<V>>, List<OptionItem<M>>> convert) {
         List<String> values = base.values();
         if (values != null && values.size() > OptionQuery.MAX_VALUES) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
@@ -188,26 +211,36 @@ public class OptionsService {
         int pn = base.effectivePageNum();
         int ps = base.effectivePageSize();
 
-        List<Map<String, Object>> raw;
+        List<OptionRow<V>> raw;
         long total;
         try (Page<?> page = PageHelper.startPage(pn, ps)) {
             raw = paged.get();
             total = page.getTotal();
         }
 
-        List<OptionItem> items = toItems(raw);
-        List<OptionItem> merged = new ArrayList<>(items);
+        List<OptionItem<M>> items = convertOrEmpty(convert, raw);
+        List<OptionItem<M>> merged = new ArrayList<>(items);
         if (values != null && !values.isEmpty()) {
             Set<String> present = items.stream()
                     .map(oi -> String.valueOf(oi.value()))
                     .collect(Collectors.toCollection(LinkedHashSet::new));
-            for (OptionItem oi : toItems(byValues.apply(values))) {
+            for (OptionItem<M> oi : convertOrEmpty(convert, byValues.apply(values))) {
                 if (present.add(String.valueOf(oi.value()))) {
                     merged.add(oi);
                 }
             }
         }
         return OptionPage.of(merged, total, pn, ps, computeMissing(values, merged));
+    }
+
+    /**
+     * 批量转换对 null 入参返回 null，而后续 {@code new ArrayList<>(items)} 会 NPE。
+     * MyBatis 实际返回空 List，此处仅为守住"入参 null ⇒ 视作空结果"的边界，与原实现一致。
+     */
+    private static <V, M> List<OptionItem<M>> convertOrEmpty(
+            Function<List<OptionRow<V>>, List<OptionItem<M>>> convert, List<OptionRow<V>> rows) {
+        List<OptionItem<M>> converted = convert.apply(rows);
+        return converted == null ? List.of() : converted;
     }
 
     private static String keyword(String kw) {
@@ -226,62 +259,7 @@ public class OptionsService {
         return t.isEmpty() ? null : t;
     }
 
-    private static List<OptionItem> toItems(List<Map<String, Object>> raw) {
-        if (raw == null || raw.isEmpty()) {
-            return List.of();
-        }
-        List<OptionItem> out = new ArrayList<>(raw.size());
-        for (Map<String, Object> r : raw) {
-            out.add(new OptionItem(
-                    r.get("value"),
-                    (String) r.get("label"),
-                    (String) r.get("code"),
-                    toBoolean(r.get("disabled")),
-                    toMeta(r.get("meta")),
-                    (String) r.get("baseUrl")));
-        }
-        return out;
-    }
-
-    /** meta 列由 SQL json_object 生成（JSON 字符串），解析为 Map；空/非法返回 null。 */
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> toMeta(Object raw) {
-        if (raw == null) {
-            return null;
-        }
-        if (raw instanceof Map<?, ?> map) {
-            return map.isEmpty() ? null : (Map<String, Object>) map;
-        }
-        String json = raw.toString().trim();
-        if (json.isEmpty()) {
-            return null;
-        }
-        try {
-            Map<String, Object> parsed = JsonKit.fromJson(json, Map.class);
-            return parsed == null || parsed.isEmpty() ? null : parsed;
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    private static Boolean toBoolean(Object d) {
-        if (d == null) {
-            return null;
-        }
-        if (d instanceof Boolean b) {
-            return b;
-        }
-        if (d instanceof Number n) {
-            return n.intValue() != 0;
-        }
-        String s = d.toString().trim();
-        if (s.isEmpty()) {
-            return null;
-        }
-        return "1".equals(s) || "true".equalsIgnoreCase(s);
-    }
-
-    private static List<String> computeMissing(List<String> values, List<OptionItem> merged) {
+    private static <M> List<String> computeMissing(List<String> values, List<OptionItem<M>> merged) {
         if (values == null || values.isEmpty()) {
             return List.of();
         }
