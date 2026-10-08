@@ -181,7 +181,7 @@ const form = reactive<Dict>({
   enabled: true,
   credentialType: null,
   authApplier: null,
-  authConfig: {apiKey: ""},
+  authConfig: {},
   quotaPolicy: emptyQuotaPolicy()
 });
 

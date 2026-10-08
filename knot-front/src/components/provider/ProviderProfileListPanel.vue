@@ -1,7 +1,7 @@
 <template>
   <div class="list-page-table">
     <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
-      <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
+      <el-table-column prop="id" label="ID" width="60" align="center" header-align="center" />
       <el-table-column prop="code" label="编码" min-width="18%" show-overflow-tooltip />
       <el-table-column prop="name" label="名称" min-width="22%" show-overflow-tooltip />
       <el-table-column label="分类" min-width="22%">
@@ -14,10 +14,10 @@
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column label="创建时间" min-width="18%">
+      <el-table-column label="创建时间" min-width="18%" align="center" header-align="center">
         <template #default="{ row }">{{ formatTime(row.createdAt) }}</template>
       </el-table-column>
-      <el-table-column label="更新时间" min-width="18%">
+      <el-table-column label="更新时间" min-width="18%" align="center" header-align="center">
         <template #default="{ row }">{{ formatTime(row.updatedAt) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="170" align="center" header-align="center" fixed="right">
