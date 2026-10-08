@@ -3,7 +3,6 @@ package org.chobit.knot.gateway.model;
 public record GatewayRoutingInfo(RuleInfo rule,
                                  ConsumerInfo consumer,
                                  AppInfo app,
-                                 UserInfo ruleUser,
                                  UserInfo consumerUser,
                                  UserInfo appOwner,
                                  DepartmentInfo department) {
