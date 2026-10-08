@@ -200,6 +200,24 @@ public class RoutingRuleService {
     }
 
     /**
+     * Returns the audit snapshot used by {@code @OperationLog} SpEL expressions.
+     *
+     * <p>The operation log aspect evaluates this method both before and after
+     * routing rule updates. A missing rule is treated as an empty snapshot so
+     * that audit collection never changes the outcome of the business request.</p>
+     */
+    public Map<String, Object> routingRuleAuditSnapshot(Long id) {
+        if (id == null) {
+            return null;
+        }
+        try {
+            return JsonKit.toMaskedMap(getById(id));
+        } catch (BusinessException e) {
+            return null;
+        }
+    }
+
+    /**
      * Returns whether the current condition is satisfied. Executes the public operation.
      */
     public boolean isRuleCodeAvailable(String ruleCode, Long excludeId) {
