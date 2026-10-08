@@ -109,7 +109,8 @@
                            allow-create
                            default-first-option
                            collapse-tags
-                           :max-collapse-tags="3"
+                           collapse-tags-tooltip
+                           :max-collapse-tags="2"
                            style="width: 100%"/>
               </el-form-item>
             </el-col>
@@ -120,7 +121,8 @@
                            allow-create
                            default-first-option
                            collapse-tags
-                           :max-collapse-tags="3"
+                           collapse-tags-tooltip
+                           :max-collapse-tags="2"
                            style="width: 100%"/>
               </el-form-item>
             </el-col>
@@ -131,7 +133,8 @@
                            allow-create d
                            efault-first-option
                            collapse-tags
-                           :max-collapse-tags="3"
+                           collapse-tags-tooltip
+                           :max-collapse-tags="2"
                            style="width: 100%"/>
               </el-form-item>
             </el-col>

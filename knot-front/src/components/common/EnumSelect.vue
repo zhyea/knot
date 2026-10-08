@@ -6,8 +6,8 @@
     :filterable="filterable"
     :disabled="disabled"
     :multiple="multiple"
-    :collapse-tags="collapseTags"
-    :collapse-tags-tooltip="collapseTagsTooltip"
+    collapse-tags
+    collapse-tags-tooltip
     :style="selectStyle"
     @update:model-value="emit('update:modelValue', $event)"
   >
