@@ -101,7 +101,6 @@ public class RoutingResolver {
                         Boolean.TRUE.equals(consumer.getReturnUsageDetail())
                 ),
                 new GatewayRoutingInfo.AppInfo(app.getId(), app.getAppCode(), app.getName(), app.getDeptId()),
-                new GatewayRoutingInfo.UserInfo(rule.getUserId(), rule.getUserUsername(), rule.getUserRealName()),
                 new GatewayRoutingInfo.UserInfo(consumer.getUserId(), consumer.getUserUsername(), consumer.getUserRealName()),
                 new GatewayRoutingInfo.UserInfo(app.getOwnerUserId(), null, app.getOwnerRealName()),
                 new GatewayRoutingInfo.DepartmentInfo(app.getDeptId(), null)
