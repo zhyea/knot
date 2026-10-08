@@ -18,8 +18,6 @@ public record RoutingRule(
         List<String> consumerNames,
         Long appId,
         String appName,
-        Long userId,
-        String userName,
         boolean enabled,
         @Valid List<RoutingRuleTargetItem> targets,
         RateLimitPolicy rateLimitPolicy,

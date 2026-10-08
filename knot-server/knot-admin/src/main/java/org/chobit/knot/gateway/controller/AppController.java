@@ -13,6 +13,7 @@ import org.chobit.knot.gateway.model.AppOptionQuery;
 import org.chobit.knot.gateway.service.OptionsService;
 import org.chobit.knot.gateway.vo.common.OptionItem;
 import org.chobit.knot.gateway.vo.common.OptionPage;
+import org.chobit.knot.gateway.vo.common.meta.AppOptionMeta;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -32,7 +33,7 @@ public class AppController {
     }
 
     @PostMapping("/options")
-    public OptionPage<OptionItem<Void>> listOptions(@RequestBody(required = false) AppOptionQuery query) {
+    public OptionPage<OptionItem<AppOptionMeta>> listOptions(@RequestBody(required = false) AppOptionQuery query) {
         return optionsService.listAppOptions(query);
     }
 

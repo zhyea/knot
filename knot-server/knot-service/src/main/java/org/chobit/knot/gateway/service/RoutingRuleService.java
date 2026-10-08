@@ -30,7 +30,6 @@ import org.chobit.knot.gateway.mapper.RoutingConsumerMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleConsumerMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleTargetMapper;
-import org.chobit.knot.gateway.mapper.UserMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
@@ -67,7 +66,7 @@ import java.util.stream.Collectors;
 @Service
 public class RoutingRuleService {
 
-    private static final int RULE_CODE_MAX_LEN = 32;
+    private static final int RULE_CODE_MAX_LEN = 64;
     private static final String TRACEPARENT = "00-00000000000000000000000000000001-0000000000000001-01";
     private static final String DEFAULT_TEST_PROMPT = "你好，这是一条路由规则测试消息";
     /** 调试链路连接网关的超时 */
@@ -120,7 +119,6 @@ public class RoutingRuleService {
     private final ModelMapper modelMapper;
     private final ModelPoolMapper modelPoolMapper;
     private final AppMapper appMapper;
-    private final UserMapper userMapper;
     private final RoutingRuleConverter routingRuleConverter;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
     private final GatewayRuntimeProperties gatewayRuntimeProperties;
@@ -137,7 +135,6 @@ public class RoutingRuleService {
                               ModelMapper modelMapper,
                               ModelPoolMapper modelPoolMapper,
                               AppMapper appMapper,
-                              UserMapper userMapper,
                               RoutingRuleConverter routingRuleConverter,
                               ResourceTrafficPolicySupport trafficPolicySupport,
                               GatewayRuntimeProperties gatewayRuntimeProperties) {
@@ -149,7 +146,6 @@ public class RoutingRuleService {
         this.modelMapper = modelMapper;
         this.modelPoolMapper = modelPoolMapper;
         this.appMapper = appMapper;
-        this.userMapper = userMapper;
         this.routingRuleConverter = routingRuleConverter;
         this.trafficPolicySupport = trafficPolicySupport;
         this.gatewayRuntimeProperties = gatewayRuntimeProperties;
@@ -197,6 +193,24 @@ public class RoutingRuleService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "路由规则不存在");
         }
         return enrich(entity);
+    }
+
+    /**
+     * 路由规则变更快照，供 {@code @OperationLog} 的 SpEL 表达式
+     * （{@code @routingRuleService.routingRuleAuditSnapshot(...)}）生成 JSON。
+     * 返回的 DTO 不含时间戳等易变字段，故「无实质变化」的更新前后快照会完全一致，
+     * 切面据此判定为无变化操作、跳过日志记录。
+     * 返回 null 表示记录已不存在。
+     */
+    public Map<String, Object> routingRuleAuditSnapshot(Long id) {
+        if (id == null) {
+            return null;
+        }
+        try {
+            return JsonKit.toMap(getById(id));
+        } catch (BusinessException e) {
+            return null;
+        }
     }
 
     /**
@@ -263,8 +277,6 @@ public class RoutingRuleService {
                 existing.consumerNames(),
                 existing.appId(),
                 existing.appName(),
-                existing.userId(),
-                existing.userName(),
                 enabled,
                 existing.targets(),
                 existing.rateLimitPolicy(),
@@ -751,8 +763,6 @@ public class RoutingRuleService {
                 consumerNames,
                 entity.getAppId(),
                 entity.getAppName(),
-                entity.getUserId(),
-                resolveUserName(entity),
                 EnabledStatusEnum.isEnabled(entity.getStatus()),
                 targets,
                 rate,
@@ -870,8 +880,6 @@ public class RoutingRuleService {
                 request.consumerNames(),
                 request.appId(),
                 request.appName(),
-                request.userId(),
-                request.userName(),
                 request.enabled(),
                 request.targets(),
                 request.rateLimitPolicy(),
@@ -919,9 +927,6 @@ public class RoutingRuleService {
             if (app == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "绑定应用不存在");
             }
-        }
-        if (request.userId() != null && userMapper.getUserById(request.userId()) == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
         if (request.enabled()) {
             validateEnabledRule(request);
@@ -1001,7 +1006,6 @@ public class RoutingRuleService {
         entity.setName(request.name() != null ? request.name().trim() : "");
         entity.setAppScenario(normalizeNullable(request.appScenario()));
         entity.setAppId(request.appId());
-        entity.setUserId(request.userId());
         // 未配置（null）落库为 NULL，运行时按内置默认策略处理
         entity.setRetryPolicy(RetryPolicy.serialize(request.retryPolicy()));
         return entity;
@@ -1032,13 +1036,6 @@ public class RoutingRuleService {
             return name;
         }
         return entity.getConsumerCode();
-    }
-
-    private static String resolveUserName(RoutingRuleEntity entity) {
-        if (entity == null || entity.getUserId() == null) {
-            return null;
-        }
-        return entity.getUserUsername();
     }
 
     private static String normalizeRuleCode(String ruleCode) {

@@ -544,11 +544,10 @@ CREATE TABLE IF NOT EXISTS kb_routing_consumers (
 
 CREATE TABLE IF NOT EXISTS kb_routing_rules (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  rule_code VARCHAR(32) NOT NULL,
+  rule_code VARCHAR(64) NOT NULL,
   name VARCHAR(100) NOT NULL,
   app_scenario VARCHAR(128) DEFAULT NULL,
   app_id BIGINT DEFAULT NULL,
-  user_id BIGINT DEFAULT NULL,
   retry_policy TEXT DEFAULT NULL COMMENT '失败重试策略（JSON）；空表示走内置默认策略',
   status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
 

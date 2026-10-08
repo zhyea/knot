@@ -56,11 +56,7 @@
               <el-form-item label="统一模型">
                 <RemoteEntitySelect
                   v-model="form.logicalModelCode"
-                  value-key="value"
                   :load-function="loadLogicalModelOptions"
-                  :code-only="codeOnly"
-                  code-key="code"
-                  label-key="label"
                   :disabled="readonly"
                   clearable
                   placeholder="可选，仅作归类"
@@ -126,9 +122,7 @@ import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
   preset: {type: Object as PropType<Dict | null>, default: null},
-  readonly: {type: Boolean, default: false},
-  /** 统一模型下拉仅展示 modelCode */
-  codeOnly: {type: Boolean, default: false}
+  readonly: {type: Boolean, default: false}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);

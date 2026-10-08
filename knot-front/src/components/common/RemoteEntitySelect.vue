@@ -14,9 +14,9 @@
   >
     <el-option
       v-for="item in mergedOptions"
-      :key="keyOf(item)"
-      :label="optionLabel(item)"
-      :value="item[valueKey]"
+      :key="String(item.value)"
+      :label="item.label"
+      :value="item.value"
       :disabled="item.disabled === true"
     />
   </el-select>
@@ -28,22 +28,23 @@ import {MISSING_OPTION_LABEL_PREFIX, normalizeOptionList, OPTION_PAGE_SIZE} from
 import {useMissingOptionReporter} from "@/composables/useMissingOptionGuard";
 import type {Dict, Row} from "@/types";
 
+/**
+ * 远程搜索下拉。固定消费 options 契约：{@code value} 是绑定键、{@code label} 是展示文本、
+ * 附加业务属性一律读 {@code meta}。
+ *
+ * <p>组件<b>不再</b>知道任何资源语义——历史上有 valueKey / codeOnly / codeKey / labelKey /
+ * labelFunction 五个按资源切换取值与展示的 prop，导致「同一个 code 字段在用户那里是 username、
+ * 在应用那里是 appCode、在预设那里是 protocolCode」。options 契约移除顶层 {@code code} 后，
+ * 这些 prop 全部删除：要展示什么文字由后端生成 label，要读附加属性由调用方读类型化 meta。</p>
+ */
 defineOptions({inheritAttrs: false});
 
 const props = defineProps({
   modelValue: {type: [String, Number, Array] as PropType<string | number | unknown[] | null>, default: null},
   loadFunction: {type: Function, required: true},
-  /** 新 options 契约可用 labelKey 直接取 label，此时可不传 */
-  labelFunction: {type: Function, default: () => (item: Row) => String(item?.label ?? "")},
   selectedOptions: {type: Array as PropType<Row[]>, default: (): Row[] => []},
   extraParams: {type: Object, default: () => ({})},
-  valueKey: {type: String, default: "id"},
-  multiple: {type: Boolean, default: false},
-  /** 仅展示 code（忽略 labelFunction）；取 codeKey 字段，缺省取 valueKey */
-  codeOnly: {type: Boolean, default: true},
-  codeKey: {type: String, default: null},
-  /** 直接取该字段作为 label（新 options 契约：value-key="value" + label-key="label"）；缺省仍走 labelFunction */
-  labelKey: {type: String, default: null}
+  multiple: {type: Boolean, default: false}
 });
 
 const emit = defineEmits(["update:modelValue", "change", "missing-values"]);
@@ -57,25 +58,25 @@ let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** 统一键：后端 missingValues 为字符串，id 型 modelValue 为数字，此处归一避免错配。 */
 function keyOf(item: Row): string {
-  return String(item?.[props.valueKey]);
+  return String(item?.value);
 }
 
 const mergedOptions = computed(() => {
   const map = new Map<string, Row>();
   for (const item of props.selectedOptions || []) {
-    if (item && item[props.valueKey] != null) {
+    if (item && item.value != null) {
       map.set(keyOf(item), item);
     }
   }
   for (const item of options.value) {
-    if (item && item[props.valueKey] != null) {
+    if (item && item.value != null) {
       map.set(keyOf(item), item);
     }
   }
   // 缺失项（已删除 / 无权限）：渲染为禁用占位项，让用户看得见（而非 el-select 回退成裸 id）
   for (const v of missingValues.value) {
     map.set(v, {
-      [props.valueKey]: v,
+      value: v,
       label: MISSING_OPTION_LABEL_PREFIX + v + "）",
       disabled: true,
       missing: true
@@ -152,24 +153,6 @@ function search(keyword: string): void {
 
 function onUpdate(value: unknown): void {
   emit("update:modelValue", value);
-}
-
-function optionLabel(item: Row): string {
-  // 缺失占位项恒显示提示文本，不受 codeOnly / codeKey 影响
-  if (item?.missing === true) {
-    return String(item?.label ?? "");
-  }
-  // 优先级：codeOnly(显示 code，可配) > labelKey(直接取字段) > labelFunction
-  if (props.codeOnly) {
-    const key = props.codeKey ?? props.valueKey;
-    const code = item?.[key];
-    return code == null ? "" : String(code);
-  }
-  if (props.labelKey) {
-    const label = item?.[props.labelKey];
-    return label == null ? "" : String(label);
-  }
-  return props.labelFunction(item);
 }
 
 function onChange(value: unknown): void {

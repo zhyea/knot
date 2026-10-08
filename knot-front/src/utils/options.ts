@@ -1,45 +1,49 @@
 import type {Dict, Row} from "@/types";
 import type {OptionPage, OptionQuery} from "@/api/options";
 
-/** 新 options 契约固定使用 value 作为取值字段（mergeOptionList 去重键）。 */
-export const OPTION_VALUE_KEY = "value";
-
-export function mergeOptionList(
-  existingList: Row[],
-  incomingList: Row[],
-  valueKey = "id"
-): Row[] {
+/**
+ * 按 {@code value} 合并两份候选（后者覆盖前者）。
+ *
+ * <p>options 契约的取值字段固定为 {@code value}：组件不再接受 valueKey / codeKey 之类按资源
+ * 切换的键，因此这里不再留 valueKey 形参（历史默认值 {@code "id"} 是旧契约残留，
+ * 新契约下 id 并非候选项字段，留着会让人误以为还能按资源切键）。</p>
+ */
+export function mergeOptionList(existingList: Row[], incomingList: Row[]): Row[] {
   const map = new Map<string, Row>();
   for (const item of existingList || []) {
-    if (item && item[valueKey] != null) {
-      map.set(String(item[valueKey]), item);
+    if (item && item.value != null) {
+      map.set(String(item.value), item);
     }
   }
   for (const item of incomingList || []) {
-    if (item && item[valueKey] != null) {
-      map.set(String(item[valueKey]), item);
+    if (item && item.value != null) {
+      map.set(String(item.value), item);
     }
   }
   return Array.from(map.values());
 }
 
+/**
+ * 把已选值解析成候选列表：命中则返回该项，未命中回落 fallback，都没有则造一个仅含 value 的占位行。
+ *
+ * <p>同样固定按 {@code value} 匹配，与后端 {@code missingValues} 的字符串比较口径一致。</p>
+ */
 export function resolveSelectedOption(
   value: unknown,
   options: Row[],
-  fallback: Row | null = null,
-  valueKey = "id"
+  fallback: Row | null = null
 ): Row[] {
   if (value == null || value === "") {
     return [];
   }
-  const selected = (options || []).find((item) => item?.[valueKey] === value);
+  const selected = (options || []).find((item) => item?.value === value);
   if (selected) {
     return [selected];
   }
-  if (fallback?.[valueKey] != null) {
+  if (fallback?.value != null) {
     return [fallback];
   }
-  return [{ [valueKey]: value }];
+  return [{value}];
 }
 
 /**
@@ -60,7 +64,7 @@ export function toOptionsLoader<T extends OptionQuery>(
   return async (params: Dict = {}): Promise<OptionPage> => {
     const page = await fetcher(params as T);
     if (accumulator) {
-      accumulator.value = mergeOptionList(accumulator.value, page.list, OPTION_VALUE_KEY);
+      accumulator.value = mergeOptionList(accumulator.value, page.list);
     }
     return page;
   };

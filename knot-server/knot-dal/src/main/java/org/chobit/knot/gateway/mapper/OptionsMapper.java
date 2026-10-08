@@ -17,8 +17,9 @@ import java.util.List;
  *       仅保留「存在」条件并计算 disabled 标记，停用/已删项据此回显并进 missingValues）。</li>
  * </ul>
  *
- * <p>返回 {@code List<OptionRow<V>>}：投影列名 value / label / code / disabled / meta 与该类字段
+ * <p>返回 {@code List<OptionRow<V>>}：投影列名 value / label / disabled / meta 与该类字段
  * 一一对应，由 MyBatis 直接填充（见 {@code OptionsMapper.xml} 的 {@code resultType}）。
+ * 顶层不再有 {@code code}——业务码由 SQL 侧 {@code json_object} 投到 {@code meta}。
  * 泛型 {@code V} 标注 value 的实际类型——id 型资源 {@code Long}，code 型资源 {@code String}——
  * 仅作文档与编译期提示，反射填充行为与不带泛型一致。</p>
  *

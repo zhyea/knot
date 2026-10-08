@@ -64,19 +64,62 @@ export interface ModelMeta {
   status?: number | null;
 }
 
+/** 用户：登录名（value 是用户 id）。 */
+export interface UserOptionMeta {
+  username?: string | null;
+}
+
+/** 部门：部门编码（value 是部门 id）。 */
+export interface DepartmentOptionMeta {
+  deptCode?: string | null;
+}
+
+/** 应用：业务码（value 是应用 id）；应用凭据不进入 meta。 */
+export interface AppOptionMeta {
+  appCode?: string | null;
+}
+
+/** 路由消费者：消费码（value 是消费者 id）；secretKey 不进入 meta。 */
+export interface RoutingConsumerOptionMeta {
+  consumerCode?: string | null;
+}
+
+/** 角色：角色编码（value 是角色 id）。 */
+export interface RoleOptionMeta {
+  roleCode?: string | null;
+}
+
+/** 测试请求预设：接口协议（value 是预设 id），决定调试面板的协议适配器。 */
+export interface TestRequestPresetOptionMeta {
+  protocolCode?: string | null;
+}
+
 /** 所有带 meta 的下拉候选项类型联合（无 meta 资源 meta 恒为 null）。 */
-export type OptionMeta = ProviderAccountMeta | LogicalModelMeta | ModelMeta | null;
+export type OptionMeta =
+  | ProviderAccountMeta
+  | LogicalModelMeta
+  | ModelMeta
+  | UserOptionMeta
+  | DepartmentOptionMeta
+  | AppOptionMeta
+  | RoutingConsumerOptionMeta
+  | RoleOptionMeta
+  | TestRequestPresetOptionMeta
+  | null;
 
 /**
  * 下拉候选项（与后端 `OptionItem<M>` 对齐）。
  * 泛型 M：meta 的强类型（默认 `OptionMeta` 联合，含 null）。value 类型随资源
  * （id 型=number，code 型=string），前端不得自行猜测，统一以 `string | number` 承接。
+ *
+ * 顶层 `code` 已移除：业务码属资源语义，一律走资源专属 `meta`（如 `meta.username` /
+ * `meta.appCode` / `meta.consumerCode`），避免按资源猜测同名顶层字段的含义。
+ * 枚举的 `EnumOptionItem.code` 是枚举项的正式取值，不受此约束，保持现状。
  * `meta` 不再是松散的 `Record<string, any>`，其结构由 M 约束。
  */
 export interface OptionItem<M = OptionMeta> {
   value: string | number;
   label: string;
-  code?: string | null;
   disabled?: boolean | null;
   /** 仅承载下拉确实需要的非敏感业务信息，强类型由 M 约束 */
   meta?: M | null;

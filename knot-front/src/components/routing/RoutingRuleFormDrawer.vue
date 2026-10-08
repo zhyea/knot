@@ -25,8 +25,8 @@
               <el-form-item label="规则编码" required :error="ruleCodeError">
                 <el-input
                   v-model="form.ruleCode"
-                  placeholder="最长 32 位"
-                  maxlength="32"
+                  placeholder="最长 64 位"
+                  maxlength="64"
                   show-word-limit
                   @blur="validateRuleCode"
                 />
@@ -43,9 +43,6 @@
               <el-form-item label="绑定应用" required>
                 <RemoteEntitySelect
                   v-model="form.appId"
-                  code-key="code"
-                  label-key="label"
-                  value-key="value"
                   :load-function="loadAppOptions"
                   placeholder="请选择应用"
                   style="width: 100%"
@@ -81,20 +78,16 @@
           <el-form-item label="绑定消费者" required class="bind-block-item consumer-bind-item">
             <RemoteEntitySelect
               v-model="selectedConsumerId"
-              code-key="code"
-              label-key="label"
-              value-key="value"
               :load-function="loadConsumerOptions"
               placeholder="请选择消费者"
               style="width: 100%"
-              @change="onConsumerChange"
             />
           </el-form-item>
           <el-table v-if="selectedConsumers.length" :data="selectedConsumers" border
                     class="bind-table consumer-bind-table">
-            <el-table-column prop="code" label="消费者编码" min-width="160" show-overflow-tooltip>
+            <el-table-column label="消费者编码" min-width="160" show-overflow-tooltip>
               <template #default="{ row }">
-                <span class="bind-list__text">{{ row.code || "—" }}</span>
+                <span class="bind-list__text">{{ row.meta?.consumerCode || "—" }}</span>
               </template>
             </el-table-column>
             <el-table-column prop="label" label="消费者名称" min-width="160" show-overflow-tooltip>
@@ -136,9 +129,6 @@
               :key="targetType"
               v-model="selectedTargetCodes"
               :load-function="loadTargetOptions"
-              value-key="value"
-              code-key="code"
-              label-key="label"
               :extra-params="targetExtraParams"
               placeholder="请选择路由目标，可多选"
               :multiple="true"
@@ -281,7 +271,6 @@ interface RuleForm {
   appScenarios: string[];
   consumerIds: Array<string | number>;
   appId: number | string | null;
-  userId: number | string | null;
   enabled: boolean;
   targets: RuleTargetForm[];
   rateLimitPolicy: RateLimitPolicy;
@@ -295,7 +284,6 @@ const form = reactive<RuleForm>({
   appScenarios: [],
   consumerIds: [],
   appId: null,
-  userId: null,
   enabled: true,
   targets: [],
   rateLimitPolicy: emptyRateLimitPolicy(),
@@ -399,7 +387,6 @@ function resetForm() {
     form.appScenarios = parseAppScenarioTags(row.appScenario);
     form.consumerIds = Array.isArray(row.consumerIds) ? [...row.consumerIds] : [];
     form.appId = row.appId ?? null;
-    form.userId = row.userId ?? null;
     form.enabled = row.enabled !== false;
     form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
     form.retryPolicy = normalizeRetryPolicy(row.retryPolicy);
@@ -419,7 +406,6 @@ function resetForm() {
     form.appScenarios = [];
     form.consumerIds = [];
     form.appId = null;
-    form.userId = null;
     form.enabled = false;
     form.targets = [];
     form.rateLimitPolicy = emptyRateLimitPolicy();
@@ -455,12 +441,6 @@ watch(
 
 function onClosed() {
   form.id = null;
-}
-
-function onConsumerChange(_value: unknown, selected: Row | null) {
-  if (!form.userId && selected?.userId) {
-    form.userId = selected.userId;
-  }
 }
 
 function onSelectedTargetsChange(targetCodes: Array<string | number | null>) {
@@ -546,7 +526,6 @@ function buildSubmitPayload() {
     appScenario: buildAppScenarioValue(),
     consumerIds: [...form.consumerIds],
     appId: form.appId,
-    userId: form.userId,
     enabled: form.enabled,
     targets,
     rateLimitPolicy,

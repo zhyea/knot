@@ -21,9 +21,14 @@ import org.chobit.knot.gateway.model.RoutingConsumerOptionQuery;
 import org.chobit.knot.gateway.model.UserOptionQuery;
 import org.chobit.knot.gateway.vo.common.OptionItem;
 import org.chobit.knot.gateway.vo.common.OptionPage;
+import org.chobit.knot.gateway.vo.common.meta.AppOptionMeta;
+import org.chobit.knot.gateway.vo.common.meta.DepartmentOptionMeta;
 import org.chobit.knot.gateway.vo.common.meta.LogicalModelMeta;
 import org.chobit.knot.gateway.vo.common.meta.ModelMeta;
 import org.chobit.knot.gateway.vo.common.meta.ProviderAccountMeta;
+import org.chobit.knot.gateway.vo.common.meta.RoleOptionMeta;
+import org.chobit.knot.gateway.vo.common.meta.RoutingConsumerOptionMeta;
+import org.chobit.knot.gateway.vo.common.meta.UserOptionMeta;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -66,8 +71,8 @@ public class OptionsService {
         this.optionConverter = optionConverter;
     }
 
-    // ==================== 用户（value=id） ====================
-    public OptionPage<OptionItem<Void>> listUserOptions(UserOptionQuery query) {
+    // ==================== 用户（value=id；meta=username） ====================
+    public OptionPage<OptionItem<UserOptionMeta>> listUserOptions(UserOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         boolean eo = base.effectiveEnabledOnly();
@@ -78,8 +83,8 @@ public class OptionsService {
                 optionConverter::toUserItems);
     }
 
-    // ==================== 部门（value=id） ====================
-    public OptionPage<OptionItem<Void>> listDepartmentOptions(DepartmentOptionQuery query) {
+    // ==================== 部门（value=id；meta=deptCode） ====================
+    public OptionPage<OptionItem<DepartmentOptionMeta>> listDepartmentOptions(DepartmentOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         boolean eo = base.effectiveEnabledOnly();
@@ -90,8 +95,8 @@ public class OptionsService {
                 optionConverter::toDepartmentItems);
     }
 
-    // ==================== 应用（value=id） ====================
-    public OptionPage<OptionItem<Void>> listAppOptions(AppOptionQuery query) {
+    // ==================== 应用（value=id；meta=appCode） ====================
+    public OptionPage<OptionItem<AppOptionMeta>> listAppOptions(AppOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         boolean eo = base.effectiveEnabledOnly();
@@ -153,8 +158,8 @@ public class OptionsService {
                 optionConverter::toModelPoolItems);
     }
 
-    // ==================== 路由消费者（value=id；禁 secretKey） ====================
-    public OptionPage<OptionItem<Void>> listRoutingConsumerOptions(RoutingConsumerOptionQuery query) {
+    // ==================== 路由消费者（value=id；meta=consumerCode；禁 secretKey） ====================
+    public OptionPage<OptionItem<RoutingConsumerOptionMeta>> listRoutingConsumerOptions(RoutingConsumerOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         boolean eo = base.effectiveEnabledOnly();
@@ -176,8 +181,8 @@ public class OptionsService {
                 optionConverter::toBillingRuleItems);
     }
 
-    // ==================== 角色（value=id；无启用态，disabled 恒 0） ====================
-    public OptionPage<OptionItem<Void>> listRoleOptions(RoleOptionQuery query) {
+    // ==================== 角色（value=id；meta=roleCode；无启用态，disabled 恒 0） ====================
+    public OptionPage<OptionItem<RoleOptionMeta>> listRoleOptions(RoleOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         return assemble(base,

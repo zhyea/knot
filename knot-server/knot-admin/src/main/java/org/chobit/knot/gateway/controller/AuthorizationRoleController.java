@@ -11,6 +11,7 @@ import org.chobit.knot.gateway.service.OptionsService;
 import org.chobit.knot.gateway.vo.auth.AdminAuthorizationSnapshotResponse;
 import org.chobit.knot.gateway.vo.common.OptionItem;
 import org.chobit.knot.gateway.vo.common.OptionPage;
+import org.chobit.knot.gateway.vo.common.meta.RoleOptionMeta;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -51,10 +52,10 @@ public class AuthorizationRoleController {
     }
 
     /**
-     * 角色下拉候选（options）。value=id；{@code ks_roles} 无启用态，disabled 恒 0。
+     * 角色下拉候选（options）。value=id，meta=roleCode；{@code ks_roles} 无启用态，disabled 恒 0。
      */
     @PostMapping("/options")
-    public OptionPage<OptionItem<Void>> listOptions(@RequestBody(required = false) RoleOptionQuery query) {
+    public OptionPage<OptionItem<RoleOptionMeta>> listOptions(@RequestBody(required = false) RoleOptionQuery query) {
         return optionsService.listRoleOptions(query);
     }
 

@@ -58,6 +58,10 @@ public class OperationLogAspect {
             logEntity.setExecutionTime(executionTime);
             applyAfterResult(joinPoint, operationLog, result, logEntity);
             captureNewValue(joinPoint, operationLog, result, logEntity);
+            // 无实质变化的更新操作（前后快照完全一致）不记录日志，避免噪声审计
+            if (isNoChangeUpdate(operationLog, logEntity)) {
+                return result;
+            }
             asyncSaveLog(logEntity);
             return result;
         } catch (Exception e) {
@@ -174,6 +178,19 @@ public class OperationLogAspect {
 
     private void asyncSaveLog(OperationLogEntity logEntity) {
         operationLogService.saveAsync(logEntity);
+    }
+
+    /**
+     * 判定是否为「无变化的更新操作」：仅当操作类型为 UPDATE 且旧值、新值均已捕获且完全一致时成立。
+     * 用于过滤掉前端重复提交、或字段值未真正改变的保存请求。
+     */
+    private boolean isNoChangeUpdate(OperationLog operationLog, OperationLogEntity logEntity) {
+        if (!"UPDATE".equals(operationLog.operation())) {
+            return false;
+        }
+        String oldValue = logEntity.getOldValue();
+        String newValue = logEntity.getNewValue();
+        return oldValue != null && oldValue.equals(newValue);
     }
 
     private StandardEvaluationContext buildContext(ProceedingJoinPoint joinPoint, Object result) {

@@ -15,6 +15,7 @@ import org.chobit.knot.gateway.model.DepartmentOptionQuery;
 import org.chobit.knot.gateway.service.OptionsService;
 import org.chobit.knot.gateway.vo.common.OptionItem;
 import org.chobit.knot.gateway.vo.common.OptionPage;
+import org.chobit.knot.gateway.vo.common.meta.DepartmentOptionMeta;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -38,7 +39,7 @@ public class DepartmentController {
     }
 
     @PostMapping("/options")
-    public OptionPage<OptionItem<Void>> listOptions(@RequestBody(required = false) DepartmentOptionQuery query) {
+    public OptionPage<OptionItem<DepartmentOptionMeta>> listOptions(@RequestBody(required = false) DepartmentOptionQuery query) {
         return optionsService.listDepartmentOptions(query);
     }
 

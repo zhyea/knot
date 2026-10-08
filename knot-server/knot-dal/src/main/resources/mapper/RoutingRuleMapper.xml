@@ -5,7 +5,6 @@
     <sql id="RuleSelectColumns">
         r.id, r.rule_code, r.name, r.app_scenario,
         r.app_id, a.name AS app_name,
-        r.user_id, u.real_name AS user_real_name, u.username AS user_username,
         r.retry_policy, r.status
     </sql>
 
@@ -13,7 +12,6 @@
         select <include refid="RuleSelectColumns"/>
         from kb_routing_rules r
         left join kb_apps a on r.app_id = a.id
-        left join ks_users u on r.user_id = u.id and u.is_deleted = 0
         <where>
             <if test="keyword != null and keyword != ''">
                 and (
@@ -21,8 +19,6 @@
                     or r.name like concat('%', #{keyword}, '%')
                     or r.app_scenario like concat('%', #{keyword}, '%')
                     or a.name like concat('%', #{keyword}, '%')
-                    or u.real_name like concat('%', #{keyword}, '%')
-                    or u.username like concat('%', #{keyword}, '%')
                 )
             </if>
         </where>
@@ -33,7 +29,6 @@
         select <include refid="RuleSelectColumns"/>
         from kb_routing_rules r
         left join kb_apps a on r.app_id = a.id
-        left join ks_users u on r.user_id = u.id and u.is_deleted = 0
         where r.id = #{id}
     </select>
 
@@ -42,7 +37,6 @@
         from kb_routing_rules r
         inner join kb_routing_rule_consumers rc on r.id = rc.rule_id
         left join kb_apps a on r.app_id = a.id
-        left join ks_users u on r.user_id = u.id and u.is_deleted = 0
         where rc.consumer_id = #{consumerId}
           and r.status = 1
           and rc.status = 1
@@ -54,7 +48,6 @@
         from kb_routing_rules r
         inner join kb_routing_rule_consumers rc on r.id = rc.rule_id
         left join kb_apps a on r.app_id = a.id
-        left join ks_users u on r.user_id = u.id and u.is_deleted = 0
         where rc.consumer_id = #{consumerId}
           and r.rule_code = #{ruleCode}
           and r.status = 1
@@ -71,9 +64,9 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_routing_rules(rule_code, name, app_scenario, app_id, user_id,
+        insert into kb_routing_rules(rule_code, name, app_scenario, app_id,
                                      retry_policy, status)
-        values(#{ruleCode}, #{name}, #{appScenario}, #{appId}, #{userId},
+        values(#{ruleCode}, #{name}, #{appScenario}, #{appId},
                #{retryPolicy}, #{status})
     </insert>
 
@@ -83,7 +76,6 @@
             name = #{name},
             app_scenario = #{appScenario},
             app_id = #{appId},
-            user_id = #{userId},
             retry_policy = #{retryPolicy},
             status = #{status}
         where id = #{id}

@@ -6,8 +6,11 @@ import lombok.Data;
  * 下拉候选投影行（options 专用 DAL 行对象）。
  *
  * <p>{@code OptionsMapper} 的统一返回类型，取代原先的 {@code List<Map<String, Object>>}：
- * 投影列名（value/label/code/disabled/meta）与本类字段一一对应，MyBatis 直接映射，
+ * 投影列名（value/label/disabled/meta）与本类字段一一对应，MyBatis 直接映射，
  * 列名写错在编译期与冒烟阶段即暴露，不再靠 Service 里手写字符串取键兜底。</p>
+ *
+ * <p>顶层 <b>没有 {@code code}</b>：业务码属资源语义，由 SQL 侧 {@code json_object} 投到 {@code meta}
+ * （如 {@code json_object('consumerCode', c.consumer_code)}），不再单独占一列。</p>
  *
  * <p>与 {@code OptionItem} 的差别：本类是<b> DAL 行</b>（含 {@code disabled} 的 SQL 原始 0/1 语义），
  * {@code OptionItem} 是<b> 对外 VO</b>（{@code disabled} 已是布尔、meta 已是反序列化后的 Map）。
@@ -28,9 +31,6 @@ public class OptionRow<V> {
 
     /** 展示文本（SQL 层COALESCE 组装好，不在 Java 侧二次拼接）。 */
     private String label;
-
-    /** 业务码，仅下拉确实需要时才有。 */
-    private String code;
 
     /** 是否禁用（停用/ 已删）。SQL 侧输出 0/1，转换层归一为布尔。 */
     private Integer disabled;

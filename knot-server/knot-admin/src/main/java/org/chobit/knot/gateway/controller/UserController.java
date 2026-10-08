@@ -16,6 +16,7 @@ import org.chobit.knot.gateway.model.UserOptionQuery;
 import org.chobit.knot.gateway.service.OptionsService;
 import org.chobit.knot.gateway.vo.common.OptionItem;
 import org.chobit.knot.gateway.vo.common.OptionPage;
+import org.chobit.knot.gateway.vo.common.meta.UserOptionMeta;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -37,7 +38,7 @@ public class UserController {
     }
 
     @PostMapping("/options")
-    public OptionPage<OptionItem<Void>> listOptions(@RequestBody(required = false) UserOptionQuery query) {
+    public OptionPage<OptionItem<UserOptionMeta>> listOptions(@RequestBody(required = false) UserOptionQuery query) {
         return optionsService.listUserOptions(query);
     }
 

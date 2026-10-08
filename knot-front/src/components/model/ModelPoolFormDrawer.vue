@@ -52,11 +52,7 @@
             <el-form-item label="统一模型" required>
               <RemoteEntitySelect
                 v-model="form.logicalModelCode"
-                value-key="value"
                 :load-function="loadLogicalModelOptions"
-                :code-only="false"
-                code-key="code"
-                label-key="label"
                 placeholder="请选择统一模型"
                 style="width: 100%"
                 @change="onLogicalModelChange"
@@ -89,10 +85,6 @@
           <RemoteEntitySelect
             v-model="selectedModelCodes"
             :load-function="loadModelOptions"
-            :code-only="false"
-            code-key="code"
-            label-key="label"
-            value-key="value"
             :disabled="!form.logicalModelCode"
             :extra-params="{ logicalModelCode: form.logicalModelCode || undefined }"
             :placeholder="form.logicalModelCode ? '请选择模型，可多选' : '请先选择统一模型'"
@@ -168,9 +160,7 @@ import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  pool: { type: Object as PropType<Dict | null>, default: null },
-  /** 统一模型下拉仅展示 modelCode */
-  codeOnly: { type: Boolean, default: false }
+  pool: { type: Object as PropType<Dict | null>, default: null }
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -185,7 +175,7 @@ const logicalModelOptions = ref<Row[]>([]);
 interface PoolItemForm {
   id?: number | string | null;
   modelCode: string;
-  /** 新 options 契约的取值字段（= modelCode），供下拉按 value-key="value" 匹配 */
+  /** 候选项的取值字段（= modelCode）；下拉固定按 value 匹配（options 契约） */
   value?: string;
   modelName?: string;
   name?: string;
@@ -225,7 +215,7 @@ const selectedLogicalModelOptions = computed(() =>
   resolveSelectedOption(form.logicalModelCode, logicalModelOptions.value, {
     value: form.logicalModelCode,
     label: form.logicalModelName
-  }, "value")
+  })
 );
 
 const selectedModelCodes = computed({

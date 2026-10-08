@@ -646,11 +646,12 @@ function resetCurrentTemplate() {
 async function loadPresetOptions() {
   try {
     const page = await listTestRequestPresetOptions();
-    // 统一 OptionPage 契约：value=id，label=name，code=protocolCode；requestBody 选中时按 id 懒加载
+    // 统一 OptionPage 契约：value=id，label=name，接口协议走 meta.protocolCode；
+    // requestBody 选中时按 id 懒加载
     presetOptions.value = (page?.list ?? []).map((item) => ({
       id: Number(item.value),
       name: item.label,
-      protocolCode: item.code ?? ""
+      protocolCode: item.meta?.protocolCode ?? ""
     }));
   } catch {
     presetOptions.value = [];

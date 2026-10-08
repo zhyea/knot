@@ -14,6 +14,7 @@ import org.chobit.knot.gateway.model.RoutingConsumerOptionQuery;
 import org.chobit.knot.gateway.service.OptionsService;
 import org.chobit.knot.gateway.vo.common.OptionItem;
 import org.chobit.knot.gateway.vo.common.OptionPage;
+import org.chobit.knot.gateway.vo.common.meta.RoutingConsumerOptionMeta;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -32,7 +33,7 @@ public class RoutingConsumerController {
     }
 
     @PostMapping("/options")
-    public OptionPage<OptionItem<Void>> listOptions(@RequestBody(required = false) RoutingConsumerOptionQuery query) {
+    public OptionPage<OptionItem<RoutingConsumerOptionMeta>> listOptions(@RequestBody(required = false) RoutingConsumerOptionQuery query) {
         return optionsService.listRoutingConsumerOptions(query);
     }
 

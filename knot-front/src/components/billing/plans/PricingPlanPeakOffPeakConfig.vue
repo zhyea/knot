@@ -96,7 +96,7 @@
 
       <el-row v-else :gutter="12">
         <el-col :span="24">
-          <el-form-item label="相位单价" :error="absFieldError(index)">
+          <el-form-item label-width="0" :error="absFieldError(index)">
             <div class="phase-card__unit-prices">
               <div v-for="field in unitPriceFields" :key="field.key" class="unit-price-item">
                 <span class="unit-price-item__label">{{ field.label }}</span>
@@ -211,7 +211,7 @@
       </el-row>
       <el-row v-else :gutter="12">
         <el-col :span="24">
-          <el-form-item label="低峰单价" :error="absFieldError(fallbackIndex)">
+          <el-form-item label-width="0" :error="absFieldError(fallbackIndex)">
             <div class="phase-card__unit-prices">
               <div v-for="field in unitPriceFields" :key="field.key" class="unit-price-item">
                 <span class="unit-price-item__label">{{ field.label }}</span>
@@ -347,17 +347,48 @@ function isUsable(value: unknown): boolean {
   return !!current && Array.isArray(current.phases) && current.phases.length > 0;
 }
 
-const issues = computed<PeakIssue[]>(() => validatePeakPricing(pricing.value, props.form.billingMode));
+const issues = computed<PeakIssue[]>(() => validatePeakPricing(pricing.value, props.form.billingMode, props.form.cacheWriteMode));
 /** ABSOLUTE 模式：展示命中位相自身单价，倍率概念不适用 */
 const isAbsolute = computed(() => pricing.value.rateMode === "ABSOLUTE");
 /** 当前计费模式：TOKEN 要求 6 项分项单价，简单模式只要求 input */
 const isTokenMode = computed(() => props.form.billingMode === "TOKEN");
-/** ABSOLUTE 模式下要展示/校验的单价字段集（顺序即展示顺序） */
-const unitPriceFields = computed(() =>
-  isTokenMode.value ? PEAK_UNIT_PRICE_FIELDS : [PEAK_UNIT_PRICE_FIELDS[0]]
-);
+/** ABSOLUTE 模式下要展示/校验的单价字段集（顺序即展示顺序）。
+ *  TOKEN 模式随外部「缓存写方式」联动：standard 展示缓存写，ttl 展示缓存写(5m)/(1h)，
+ *  与 BillingRuleFormDialog 的 cacheWriteMode 选择保持一致。 */
+const unitPriceFields = computed(() => {
+  if (!isTokenMode.value) {
+    return [PEAK_UNIT_PRICE_FIELDS[0]];
+  }
+  const mode = props.form.cacheWriteMode;
+  return PEAK_UNIT_PRICE_FIELDS.filter((f) => {
+    if (mode === "ttl") {
+      return f.key !== "cacheWrite";
+    }
+    return f.key !== "cacheWrite5m" && f.key !== "cacheWrite1h";
+  });
+});
 /** 高峰规则（非兜底项）按原顺序展示；兜底项单独渲染在下方 */
 const peakPhases = computed<PeakPhaseRow[]>(() => pricing.value.phases.filter((row) => !row.isDefault));
+
+/**
+ * 外部「缓存写方式」切换时，清理 ABSOLUTE 相位单价里被隐藏的那组缓存写字段，
+ * 避免残留数值被 toUnitPricesPayload 误带出（与 BillingRuleFormDialog 对基础价的处理一致）。
+ */
+watch(
+  () => props.form.cacheWriteMode,
+  (mode) => {
+    const hideKeys: (keyof PeakUnitPrice)[] =
+      mode === "ttl" ? ["cacheWrite"] : ["cacheWrite5m", "cacheWrite1h"];
+    for (const row of pricing.value.phases) {
+      if (!row.unitPrices) {
+        continue;
+      }
+      for (const key of hideKeys) {
+        row.unitPrices[key] = null;
+      }
+    }
+  }
+);
 const fallbackIndex = computed(() => pricing.value.phases.length - 1);
 const fallback = computed<PeakPhaseRow>(() => pricing.value.phases[fallbackIndex.value]);
 
@@ -548,6 +579,9 @@ function windowError(index: number, windowIndex: number): string {
 }
 
 .unit-price-item__label {
+  flex: 0 0 110px;
+  width: 110px;
+  text-align: right;
   color: var(--el-text-color-secondary);
   font-size: 13px;
   white-space: nowrap;

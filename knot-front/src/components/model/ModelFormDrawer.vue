@@ -71,11 +71,7 @@
               <el-form-item label="统一模型" required>
                 <RemoteEntitySelect
                   v-model="form.logicalModelCode"
-                  value-key="value"
                   :load-function="loadLogicalModelOptions"
-                  :code-only="false"
-                  code-key="code"
-                  label-key="label"
                   placeholder="请选择统一模型"
                   style="width: 100%"
                 />
@@ -123,11 +119,7 @@
             <el-form-item label="绑定计费规则" required class="bind-block-item">
               <RemoteEntitySelect
                 v-model="form.billingRuleCode"
-                value-key="value"
                 :load-function="loadBillingRuleOptions"
-                :code-only="false"
-                code-key="code"
-                label-key="label"
                 :extra-params="billingRuleFilterParams"
                 :disabled="!form.providerAccountCode || !form.logicalModelCode"
                 placeholder="请选择计费规则"
@@ -348,9 +340,7 @@ interface ModelApiBinding {
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
-  model: {type: Object as PropType<Dict | null>, default: null},
-  /** 统一模型下拉仅展示 modelCode */
-  codeOnly: {type: Boolean, default: false}
+  model: {type: Object as PropType<Dict | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
@@ -624,6 +614,12 @@ watch(
       ]);
       // 表单重置后按已绑定码取回那一条规则（watch 在同值时不触发，这里显式补一次）
       await loadBoundBillingRule(form.billingRuleCode);
+      // 协议映射表（/api/models/types）此时已就绪：对已绑定协议做一次复核。
+      // 允许列表未就绪时 normalizeApiBindingProtocols 仅保留原值，这里再跑一次，
+      // 剔除真正不被当前统一模型类型允许的协议，保证接口返回值（已保存协议）正确映射回来。
+      if (form.apiBindings.length) {
+        normalizeApiBindingProtocols();
+      }
     }
   }
 );
@@ -779,6 +775,12 @@ function normalizeProtocolCode(protocol: string) {
 
 function normalizeProtocolForModelType(protocol: string, usedProtocols = new Set<unknown>()) {
   const code = normalizeProtocolCode(protocol);
+  // 协议映射表（allowedApiProtocolCodes，源自 /api/models/types）未就绪时不做任何改写，
+  // 保留已保存协议。否则统一模型刚选中、协议列表接口尚未返回时，空列表会把已有协议误清空，
+  // 表现为「接口协议类型与接口返回值（已保存协议）没有成功映射」。
+  if (allowedApiProtocolCodes.value.length === 0) {
+    return code || firstAllowedProtocolCode();
+  }
   return code && isProtocolAllowedForModelType(code) && !usedProtocols.has(code)
     ? code
     : firstAvailableProtocolCode(usedProtocols);

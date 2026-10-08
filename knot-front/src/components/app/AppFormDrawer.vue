@@ -25,9 +25,6 @@
                 <RemoteEntitySelect
                   v-model="form.deptId"
                   :load-function="loadDepartmentOptions"
-                  value-key="value"
-                  :code-only="false"
-                  label-key="label"
                   placeholder="请选择部门"
                   clearable
                   style="width: 100%"
@@ -39,9 +36,6 @@
                 <RemoteEntitySelect
                   v-model="form.ownerUserId"
                   :load-function="loadUserOptions"
-                  value-key="value"
-                  :code-only="false"
-                  label-key="label"
                   placeholder="请选择负责人"
                   clearable
                   style="width: 100%"

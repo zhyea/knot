@@ -1,5 +1,6 @@
 import {postQuery, post, put, get, del, postEventStream, postGatewayJson} from "./http";
 import type {Dict} from "@/types";
+import type {OptionItem, TestRequestPresetOptionMeta} from "@/types";
 import type {OptionPage} from "./options";
 
 export function listRoutingRules(params: Dict) {
@@ -92,9 +93,12 @@ export function listTestRequestPresets(params: Dict) {
   return postQuery("/api/test-request-presets/list", params);
 }
 
-/** 下拉候选：统一 OptionPage 契约（value=id，label=name，code=protocolCode）。 */
+/**
+ * 下拉候选：统一 OptionPage 契约（value=id，label=name）。
+ * 接口协议已收敛到 meta：{@code meta.protocolCode}（顶层 code 随 options 强类型化移除）。
+ */
 export function listTestRequestPresetOptions() {
-  return get<OptionPage>("/api/test-request-presets/options");
+  return get<OptionPage<OptionItem<TestRequestPresetOptionMeta>>>("/api/test-request-presets/options");
 }
 
 /** 预设详情：选中后按 id 取完整请求体模板（options 不含 requestBody）。 */

@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <!--
-  下拉候选（options）投影。统一列别名：value / label / code / disabled(0|1) / meta(JSON 文本)。
+  下拉候选（options）投影。统一列别名：value / label / disabled(0|1) / meta(JSON 文本)。
+  顶层不再有 code：业务码属资源语义，一律由 json_object 投到 meta（如 'consumerCode'），
+  绑定键恒为 value，业务属性恒读 meta。
   resultType 统一为 OptionRow（DAL 行对象，泛型仅作文档提示，反射按JDBC 实际类型填充），
   由 knot-service 的 OptionConverter 归一为对外 OptionItem。
   检索页不分页（PageHelper 追加 limit/count）；byValues 用于已选回显 + missingValues 判定。
+  ⚠ byValues 必须与普通查询返回完全相同的 meta 形状，否则回显项会「首屏有 meta、回显项没有 meta」。
   敏感字段隔离：路由消费者、供应商账户相关 select 绝不包含 secret_key / encrypted_config。
   baseUrl 不单独占列，已并入供应商账户的 meta。
 -->
@@ -13,17 +16,16 @@
   <resultMap id="optionRow" type="org.chobit.knot.gateway.entity.OptionRow">
     <result column="value" property="value"/>
     <result column="label" property="label"/>
-    <result column="code" property="code"/>
     <result column="disabled" property="disabled"/>
     <result column="meta" property="meta"/>
   </resultMap>
 
-  <!-- ==================== 用户（value=id） ==================== -->
+  <!-- ==================== 用户（value=id；meta=username） ==================== -->
   <select id="listUserOptions" resultMap="optionRow">
     select u.id as value,
     COALESCE(NULLIF(u.real_name, ''), u.username) as label,
-    u.username as code,
-    0 as disabled
+    0 as disabled,
+    json_object('username', u.username) as meta
     from ks_users u
     where 1 = 1
     <if test="!includeDeleted">and u.is_deleted = 0</if>
@@ -38,20 +40,20 @@
   <select id="listUserOptionsByValues" resultMap="optionRow">
     select u.id as value,
     COALESCE(NULLIF(u.real_name, ''), u.username) as label,
-    u.username as code,
-    (case when u.status = 1 then 0 else 1 end) as disabled
+    (case when u.status = 1 then 0 else 1 end) as disabled,
+    json_object('username', u.username) as meta
     from ks_users u
     where u.is_deleted = 0
     and cast(u.id as char) in
     <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
   </select>
 
-  <!-- ==================== 部门（value=id） ==================== -->
+  <!-- ==================== 部门（value=id；meta=deptCode） ==================== -->
   <select id="listDepartmentOptions" resultMap="optionRow">
     select d.id as value,
     d.dept_name as label,
-    d.dept_code as code,
-    0 as disabled
+    0 as disabled,
+    json_object('deptCode', d.dept_code) as meta
     from ks_departments d
     where 1 = 1
     <if test="!includeDeleted">and d.is_deleted = 0</if>
@@ -66,20 +68,20 @@
   <select id="listDepartmentOptionsByValues" resultMap="optionRow">
     select d.id as value,
     d.dept_name as label,
-    d.dept_code as code,
-    (case when d.status = 1 then 0 else 1 end) as disabled
+    (case when d.status = 1 then 0 else 1 end) as disabled,
+    json_object('deptCode', d.dept_code) as meta
     from ks_departments d
     where d.is_deleted = 0
     and cast(d.id as char) in
     <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
   </select>
 
-  <!-- ==================== 应用（value=id） ==================== -->
+  <!-- ==================== 应用（value=id；meta=appCode） ==================== -->
   <select id="listAppOptions" resultMap="optionRow">
     select a.id as value,
     a.name as label,
-    a.app_code as code,
-    0 as disabled
+    0 as disabled,
+    json_object('appCode', a.app_code) as meta
     from kb_apps a
     where 1 = 1
     <if test="!includeDeleted">and a.is_deleted = 0</if>
@@ -94,8 +96,8 @@
   <select id="listAppOptionsByValues" resultMap="optionRow">
     select a.id as value,
     a.name as label,
-    a.app_code as code,
-    (case when a.status = 1 then 0 else 1 end) as disabled
+    (case when a.status = 1 then 0 else 1 end) as disabled,
+    json_object('appCode', a.app_code) as meta
     from kb_apps a
     where a.is_deleted = 0
     and cast(a.id as char) in
@@ -106,7 +108,6 @@
   <select id="listProviderAccountOptions" resultMap="optionRow">
     select pa.code as value,
     concat(COALESCE(p.name, pa.provider_code), ' / ', pa.code) as label,
-    pa.code as code,
     0 as disabled,
     json_object('baseUrl', pa.base_url) as meta
     from kb_provider_accounts pa
@@ -124,7 +125,6 @@
   <select id="listProviderAccountOptionsByValues" resultMap="optionRow">
     select pa.code as value,
     concat(COALESCE(p.name, pa.provider_code), ' / ', pa.code) as label,
-    pa.code as code,
     (case when pa.status = 1 then 0 else 1 end) as disabled,
     json_object('baseUrl', pa.base_url) as meta
     from kb_provider_accounts pa
@@ -137,7 +137,6 @@
   <select id="listLogicalModelOptions" resultMap="optionRow">
     select lm.model_code as value,
     COALESCE(NULLIF(lm.display_name, ''), lm.model_name) as label,
-    lm.model_code as code,
     0 as disabled,
     json_object('modelType', lm.model_type,
     'modelFamily', lm.model_family,
@@ -158,7 +157,6 @@
   <select id="listLogicalModelOptionsByValues" resultMap="optionRow">
     select lm.model_code as value,
     COALESCE(NULLIF(lm.display_name, ''), lm.model_name) as label,
-    lm.model_code as code,
     (case when lm.status = 1 then 0 else 1 end) as disabled,
     json_object('modelType', lm.model_type,
     'modelFamily', lm.model_family,
@@ -173,7 +171,6 @@
   <select id="listModelOptions" resultMap="optionRow">
     select m.model_code as value,
     COALESCE(lm.model_name, m.model_code) as label,
-    m.model_code as code,
     0 as disabled,
     json_object('providerName', COALESCE(p.name, m.provider_account_code),
     'providerAccountCode', m.provider_account_code,
@@ -205,7 +202,6 @@
   <select id="listModelOptionsByValues" resultMap="optionRow">
     select m.model_code as value,
     COALESCE(lm.model_name, m.model_code) as label,
-    m.model_code as code,
     (case when m.status = 1 then 0 else 1 end) as disabled,
     json_object('providerName', COALESCE(p.name, m.provider_account_code),
     'providerAccountCode', m.provider_account_code,
@@ -223,11 +219,10 @@
     <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
   </select>
 
-  <!-- ==================== 模型池（value=poolCode） ==================== -->
+  <!-- ==================== 模型池（value=poolCode；无 meta） ==================== -->
   <select id="listModelPoolOptions" resultMap="optionRow">
     select mp.pool_code as value,
     mp.name as label,
-    mp.pool_code as code,
     0 as disabled
     from kb_model_pools mp
     where 1 = 1
@@ -244,7 +239,6 @@
   <select id="listModelPoolOptionsByValues" resultMap="optionRow">
     select mp.pool_code as value,
     mp.name as label,
-    mp.pool_code as code,
     (case when mp.status = 1 then 0 else 1 end) as disabled
     from kb_model_pools mp
     where mp.is_deleted = 0
@@ -252,12 +246,12 @@
     <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
   </select>
 
-  <!-- ==================== 路由消费者（value=id；禁 secret_key） ==================== -->
+  <!-- ==================== 路由消费者（value=id；meta=consumerCode；禁 secret_key） ==================== -->
   <select id="listRoutingConsumerOptions" resultMap="optionRow">
     select c.id as value,
     c.name as label,
-    c.consumer_code as code,
-    0 as disabled
+    0 as disabled,
+    json_object('consumerCode', c.consumer_code) as meta
     from kb_routing_consumers c
     where 1 = 1
     <if test="enabledOnly">and c.status = 1</if>
@@ -271,18 +265,17 @@
   <select id="listRoutingConsumerOptionsByValues" resultMap="optionRow">
     select c.id as value,
     c.name as label,
-    c.consumer_code as code,
-    (case when c.status = 1 then 0 else 1 end) as disabled
+    (case when c.status = 1 then 0 else 1 end) as disabled,
+    json_object('consumerCode', c.consumer_code) as meta
     from kb_routing_consumers c
     where cast(c.id as char) in
     <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
   </select>
 
-  <!-- ==================== 计费规则（value=code；排除已删除） ==================== -->
+  <!-- ==================== 计费规则（value=code；无 meta；排除已删除） ==================== -->
   <select id="listBillingRuleOptions" resultMap="optionRow">
     select br.code as value,
     br.code as label,
-    br.code as code,
     0 as disabled
     from kb_billing_rules br
     where br.is_deleted = 0
@@ -297,7 +290,6 @@
   <select id="listBillingRuleOptionsByValues" resultMap="optionRow">
     select br.code as value,
     br.code as label,
-    br.code as code,
     (case when br.status = 1 then 0 else 1 end) as disabled
     from kb_billing_rules br
     where br.is_deleted = 0
@@ -305,12 +297,12 @@
     <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
   </select>
 
-  <!-- ==================== 角色（value=id；ks_roles 无 status/is_deleted → 无启用过滤，disabled 恒 0） ==================== -->
+  <!-- ==================== 角色（value=id；meta=roleCode；ks_roles 无 status/is_deleted → 无启用过滤，disabled 恒 0） ==================== -->
   <select id="listRoleOptions" resultMap="optionRow">
     select r.id as value,
     COALESCE(NULLIF(r.name, ''), r.code) as label,
-    r.code as code,
-    0 as disabled
+    0 as disabled,
+    json_object('roleCode', r.code) as meta
     from ks_roles r
     where 1 = 1
     <if test="keyword != null and keyword != ''">
@@ -323,18 +315,17 @@
   <select id="listRoleOptionsByValues" resultMap="optionRow">
     select r.id as value,
     COALESCE(NULLIF(r.name, ''), r.code) as label,
-    r.code as code,
-    0 as disabled
+    0 as disabled,
+    json_object('roleCode', r.code) as meta
     from ks_roles r
     where cast(r.id as char) in
     <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
   </select>
 
-  <!-- ==================== 供应商信息（value=code；kb_providers 无 status/is_deleted → 无启用过滤，disabled 恒 0） ==================== -->
+  <!-- ==================== 供应商信息（value=code；无 meta；kb_providers 无 status/is_deleted → 无启用过滤，disabled 恒 0） ==================== -->
   <select id="listProviderProfileOptions" resultMap="optionRow">
     select p.code as value,
     concat(p.name, ' / ', p.code) as label,
-    p.code as code,
     0 as disabled
     from kb_providers p
     where 1 = 1
@@ -348,7 +339,6 @@
   <select id="listProviderProfileOptionsByValues" resultMap="optionRow">
     select p.code as value,
     concat(p.name, ' / ', p.code) as label,
-    p.code as code,
     0 as disabled
     from kb_providers p
     where p.code in

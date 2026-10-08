@@ -3,9 +3,14 @@ package org.chobit.knot.gateway.converter;
 import org.chobit.knot.gateway.entity.OptionRow;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.common.OptionItem;
+import org.chobit.knot.gateway.vo.common.meta.AppOptionMeta;
+import org.chobit.knot.gateway.vo.common.meta.DepartmentOptionMeta;
 import org.chobit.knot.gateway.vo.common.meta.LogicalModelMeta;
 import org.chobit.knot.gateway.vo.common.meta.ModelMeta;
 import org.chobit.knot.gateway.vo.common.meta.ProviderAccountMeta;
+import org.chobit.knot.gateway.vo.common.meta.RoleOptionMeta;
+import org.chobit.knot.gateway.vo.common.meta.RoutingConsumerOptionMeta;
+import org.chobit.knot.gateway.vo.common.meta.UserOptionMeta;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -19,10 +24,14 @@ import java.util.function.Function;
  * 不再出现 {@code r.get("label")} 这类写错不报错的取键。</p>
  *
  * <p>按<b>资源</b>而非按 value 类型拆方法，返回各自 {@code OptionItem<M>}：
- * 有 meta 的三种资源（供应商账户 / 统一模型 / 供应商模型）落到强类型 meta DTO，
- * 其余 8 种无 meta 资源统一 {@code OptionItem<Void>}（meta 恒为 null）。
- * 泛型化后 value 语义（options-refactor-constraints.md 第 0 节第 2 条）由 {@code OptionRow<Long/String>}
- * 与 mapper 返回类型在 DAL 边界守护，本类仅做逐字段归一。</p>
+ * 8 种有 meta 的资源（用户 / 部门 / 应用 / 路由消费者 / 角色 / 供应商账户 / 统一模型 / 供应商模型）
+ * 落到强类型 meta DTO，其余 3 种（模型池 / 计费规则 / 供应商信息）统一 {@code OptionItem<Void>}
+ * （meta 恒为 null）。value 语义（options-refactor-constraints.md 第 0 节第 2 条）由
+ * {@code OptionRow<Long/String>} 与 mapper 返回类型在 DAL 边界守护，本类仅做逐字段归一。</p>
+ *
+ * <p>顶层 {@code code} 已移除：id 型资源的业务码（username / deptCode / appCode / consumerCode /
+ * roleCode）改由 SQL 侧 {@code json_object} 投到 {@code meta}，经 {@link #parseMeta} 反序列化为对应
+ * record；本类不再从行上取 {@code code}。</p>
  *
  * <p>两处需显式映射：
  * <ul>
@@ -36,45 +45,45 @@ import java.util.function.Function;
 @Component
 public class OptionConverter {
 
-    // ==================== id 型资源（value=Long，无 meta） ====================
+    // ==================== id 型资源（value=Long；业务码走 meta） ====================
 
-    public OptionItem<Void> toUserItem(OptionRow<Long> row) {
-        return build(row, null);
+    public OptionItem<UserOptionMeta> toUserItem(OptionRow<Long> row) {
+        return build(row, parseMeta(row.getMeta(), UserOptionMeta.class));
     }
 
-    public List<OptionItem<Void>> toUserItems(List<OptionRow<Long>> rows) {
+    public List<OptionItem<UserOptionMeta>> toUserItems(List<OptionRow<Long>> rows) {
         return mapRows(rows, this::toUserItem);
     }
 
-    public OptionItem<Void> toDepartmentItem(OptionRow<Long> row) {
-        return build(row, null);
+    public OptionItem<DepartmentOptionMeta> toDepartmentItem(OptionRow<Long> row) {
+        return build(row, parseMeta(row.getMeta(), DepartmentOptionMeta.class));
     }
 
-    public List<OptionItem<Void>> toDepartmentItems(List<OptionRow<Long>> rows) {
+    public List<OptionItem<DepartmentOptionMeta>> toDepartmentItems(List<OptionRow<Long>> rows) {
         return mapRows(rows, this::toDepartmentItem);
     }
 
-    public OptionItem<Void> toAppItem(OptionRow<Long> row) {
-        return build(row, null);
+    public OptionItem<AppOptionMeta> toAppItem(OptionRow<Long> row) {
+        return build(row, parseMeta(row.getMeta(), AppOptionMeta.class));
     }
 
-    public List<OptionItem<Void>> toAppItems(List<OptionRow<Long>> rows) {
+    public List<OptionItem<AppOptionMeta>> toAppItems(List<OptionRow<Long>> rows) {
         return mapRows(rows, this::toAppItem);
     }
 
-    public OptionItem<Void> toRoutingConsumerItem(OptionRow<Long> row) {
-        return build(row, null);
+    public OptionItem<RoutingConsumerOptionMeta> toRoutingConsumerItem(OptionRow<Long> row) {
+        return build(row, parseMeta(row.getMeta(), RoutingConsumerOptionMeta.class));
     }
 
-    public List<OptionItem<Void>> toRoutingConsumerItems(List<OptionRow<Long>> rows) {
+    public List<OptionItem<RoutingConsumerOptionMeta>> toRoutingConsumerItems(List<OptionRow<Long>> rows) {
         return mapRows(rows, this::toRoutingConsumerItem);
     }
 
-    public OptionItem<Void> toRoleItem(OptionRow<Long> row) {
-        return build(row, null);
+    public OptionItem<RoleOptionMeta> toRoleItem(OptionRow<Long> row) {
+        return build(row, parseMeta(row.getMeta(), RoleOptionMeta.class));
     }
 
-    public List<OptionItem<Void>> toRoleItems(List<OptionRow<Long>> rows) {
+    public List<OptionItem<RoleOptionMeta>> toRoleItems(List<OptionRow<Long>> rows) {
         return mapRows(rows, this::toRoleItem);
     }
 
@@ -133,7 +142,7 @@ public class OptionConverter {
     // ==================== 私有工具 ====================
 
     private <M> OptionItem<M> build(OptionRow<?> row, M meta) {
-        return new OptionItem<>(row.getValue(), row.getLabel(), row.getCode(),
+        return new OptionItem<>(row.getValue(), row.getLabel(),
                 toDisabled(row.getDisabled()), meta);
     }
 

@@ -11,6 +11,7 @@ import org.chobit.knot.gateway.service.TestRequestPresetService;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.common.OptionItem;
 import org.chobit.knot.gateway.vo.common.OptionPage;
+import org.chobit.knot.gateway.vo.common.meta.TestRequestPresetOptionMeta;
 import org.chobit.knot.gateway.vo.routing.TestRequestPreset;
 import org.springframework.web.bind.annotation.*;
 
@@ -40,12 +41,19 @@ public class TestRequestPresetController {
         return page.mapList(presetConverter::toVOList);
     }
 
-    /** 下拉候选：统一 OptionPage 契约（value=id，label=name，code=protocolCode）。 */
+    /**
+     * 下拉候选：统一 OptionPage 契约（value=id，label=name，meta.protocolCode=接口协议）。
+     *
+     * <p>协议码不再塞进 {@code OptionItem} 的第三构造参数（原顶层 {@code code}）——那是绑定键之外的
+     * 业务属性，按 options 契约一律走资源专属 meta。</p>
+     */
     @GetMapping("/options")
-    public OptionPage<OptionItem<Void>> options() {
-        List<OptionItem<Void>> list = presetConverter.toVOList(presetService.listActiveOptions()).stream()
-                .map(p -> new OptionItem<Void>(p.id(), p.name(), p.protocolCode()))
-                .toList();
+    public OptionPage<OptionItem<TestRequestPresetOptionMeta>> options() {
+        List<OptionItem<TestRequestPresetOptionMeta>> list =
+                presetConverter.toVOList(presetService.listActiveOptions()).stream()
+                        .map(p -> new OptionItem<TestRequestPresetOptionMeta>(
+                                p.id(), p.name(), null, new TestRequestPresetOptionMeta(p.protocolCode())))
+                        .toList();
         return OptionPage.of(list, list.size(), 1, Math.max(list.size(), 1));
     }
 

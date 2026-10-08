@@ -41,9 +41,6 @@
           <RemoteEntitySelect
             v-model="form.userId"
             :load-function="loadUserOptions"
-            value-key="value"
-            :code-only="false"
-            label-key="label"
             placeholder="请选择用户"
             clearable
             style="width: 100%"

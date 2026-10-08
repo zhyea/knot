@@ -15,8 +15,6 @@ public record RoutingRuleDto(
         List<String> consumerNames,
         Long appId,
         String appName,
-        Long userId,
-        String userName,
         boolean enabled,
         List<RoutingRuleTargetDto> targets,
         RateLimitPolicy rateLimitPolicy,

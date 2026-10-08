@@ -12,6 +12,8 @@ import org.chobit.knot.gateway.vo.common.OptionItem;
 import org.chobit.knot.gateway.vo.common.OptionPage;
 import org.chobit.knot.gateway.vo.common.meta.ModelMeta;
 import org.chobit.knot.gateway.vo.common.meta.ProviderAccountMeta;
+import org.chobit.knot.gateway.vo.common.meta.RoutingConsumerOptionMeta;
+import org.chobit.knot.gateway.vo.common.meta.UserOptionMeta;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -61,22 +63,22 @@ class OptionsServiceTest {
         service = new OptionsService(mapper, new OptionConverter());
     }
 
-    /** id 型行（value=Long），供用户 / 部门 / 应用 / 路由消费者 / 角色类资源打桩。 */
-    private static OptionRow<Long> idRow(Long value, String label, String code, int disabled) {
+    /** id 型行（value=Long），供用户 / 部门 / 应用 / 路由消费者 / 角色类资源打桩。meta 为 json_object 文本，可为 null。 */
+    private static OptionRow<Long> idRow(Long value, String label, String meta, int disabled) {
         OptionRow<Long> row = new OptionRow<>();
         row.setValue(value);
         row.setLabel(label);
-        row.setCode(code);
+        row.setMeta(meta);
         row.setDisabled(disabled);
         return row;
     }
 
-    /** code 型行（value=String），供模型 / 模型池 / 计费规则 / 供应商账户类资源打桩。 */
-    private static OptionRow<String> codeRow(String value, String label, String code, int disabled) {
+    /** code 型行（value=String），供模型 / 模型池 / 计费规则 / 供应商账户类资源打桩。meta 同上。 */
+    private static OptionRow<String> codeRow(String value, String label, String meta, int disabled) {
         OptionRow<String> row = new OptionRow<>();
         row.setValue(value);
         row.setLabel(label);
-        row.setCode(code);
+        row.setMeta(meta);
         row.setDisabled(disabled);
         return row;
     }
@@ -89,8 +91,8 @@ class OptionsServiceTest {
     // 场景 1：默认启用过滤 + 首页默认 20
     @Test
     void defaultsToEnabledOnlyFirstPageSize20() {
-        when(mapper.listUserOptions(isNull(), anyBoolean(), anyBoolean())).thenReturn(List.of(idRow(1L, "Alice", "alice", 0)));
-        OptionPage<OptionItem<Void>> page = service.listUserOptions(null);
+        when(mapper.listUserOptions(isNull(), anyBoolean(), anyBoolean())).thenReturn(List.of(idRow(1L, "Alice", null, 0)));
+        OptionPage<OptionItem<UserOptionMeta>> page = service.listUserOptions(null);
 
         verify(mapper).listUserOptions(isNull(), eq(true), eq(false));
         assertEquals(1, page.pageNum());
@@ -103,17 +105,17 @@ class OptionsServiceTest {
     @Test
     void clampsPageSizeTo50() {
         when(mapper.listUserOptions(any(), anyBoolean(), anyBoolean())).thenReturn(List.of());
-        OptionPage<OptionItem<Void>> page = service.listUserOptions(userQuery(1, 999, null, null, null, null));
+        OptionPage<OptionItem<UserOptionMeta>> page = service.listUserOptions(userQuery(1, 999, null, null, null, null));
         assertEquals(50, page.pageSize());
     }
 
     // 场景 3：请求 values 中不存在的项进 missingValues
     @Test
     void reportsMissingValues() {
-        when(mapper.listUserOptions(any(), anyBoolean(), anyBoolean())).thenReturn(List.of(idRow(1L, "Alice", "alice", 0)));
-        when(mapper.listUserOptionsByValues(anyList())).thenReturn(List.of(idRow(1L, "Alice", "alice", 0)));
+        when(mapper.listUserOptions(any(), anyBoolean(), anyBoolean())).thenReturn(List.of(idRow(1L, "Alice", null, 0)));
+        when(mapper.listUserOptionsByValues(anyList())).thenReturn(List.of(idRow(1L, "Alice", null, 0)));
 
-        OptionPage<OptionItem<Void>> page = service.listUserOptions(userQuery(1, 20, null, List.of("1", "999"), null, null));
+        OptionPage<OptionItem<UserOptionMeta>> page = service.listUserOptions(userQuery(1, 20, null, List.of("1", "999"), null, null));
 
         assertEquals(List.of("999"), page.missingValues());
         assertEquals(1, page.list().size());
@@ -122,12 +124,12 @@ class OptionsServiceTest {
     // 场景 4：回显合并 + 去重 + disabled 标记（停用的已选项也能回显）
     @Test
     void mergesEchoItemsDeduplicatesAndMarksDisabled() {
-        when(mapper.listUserOptions(any(), anyBoolean(), anyBoolean())).thenReturn(List.of(idRow(1L, "Alice", "alice", 0)));
+        when(mapper.listUserOptions(any(), anyBoolean(), anyBoolean())).thenReturn(List.of(idRow(1L, "Alice", null, 0)));
         when(mapper.listUserOptionsByValues(anyList())).thenReturn(List.of(
-                idRow(1L, "Alice", "alice", 0),
-                idRow(2L, "Bob", "bob", 1)));
+                idRow(1L, "Alice", null, 0),
+                idRow(2L, "Bob", null, 1)));
 
-        OptionPage<OptionItem<Void>> page = service.listUserOptions(userQuery(1, 20, null, List.of("1", "2"), null, null));
+        OptionPage<OptionItem<UserOptionMeta>> page = service.listUserOptions(userQuery(1, 20, null, List.of("1", "2"), null, null));
 
         // 1 只出现一次（首页 + 回显去重），2 追加进来
         assertEquals(2, page.list().size());
@@ -153,12 +155,14 @@ class OptionsServiceTest {
     @Test
     void codeValuedResourceKeepsStringValue() {
         when(mapper.listModelPoolOptions(any(), anyBoolean(), anyBoolean(), any())).thenReturn(List.of());
-        when(mapper.listModelPoolOptionsByValues(anyList())).thenReturn(List.of(codeRow("chat-economy-pool", "经济池", "chat-economy-pool", 0)));
+        when(mapper.listModelPoolOptionsByValues(anyList())).thenReturn(List.of(codeRow("chat-economy-pool", "经济池", null, 0)));
 
         ModelPoolOptionQuery q = new ModelPoolOptionQuery(1, 20, null, List.of("chat-economy-pool"), null, null, null);
         OptionPage<OptionItem<Void>> page = service.listModelPoolOptions(q);
 
         assertEquals("chat-economy-pool", page.list().get(0).value());
+        // 无附加信息的资源（模型池）meta 恒为 null
+        assertNull(page.list().get(0).meta());
         assertTrue(page.missingValues().isEmpty());
     }
 
@@ -169,28 +173,30 @@ class OptionsServiceTest {
         when(mapper.listRoutingConsumerOptionsByValues(anyList())).thenReturn(List.of());
 
         RoutingConsumerOptionQuery q = new RoutingConsumerOptionQuery(1, 20, null, List.of("7", "8"), null, null);
-        OptionPage<OptionItem<Void>> page = service.listRoutingConsumerOptions(q);
+        OptionPage<OptionItem<RoutingConsumerOptionMeta>> page = service.listRoutingConsumerOptions(q);
 
         assertTrue(page.list().isEmpty());
         assertEquals(List.of("7", "8"), page.missingValues());
     }
 
-    // 补充：路由消费者/供应商账户 options 的 OptionItem 永远只有 value/label/code/disabled，meta 为 null（无凭据）
+    // 补充：路由消费者的业务码走 meta（顶层 code 已移除），meta 只含 consumerCode，不含 secretKey / 凭据
     @Test
-    void sensitiveOptionsCarryNoMeta() {
-        when(mapper.listRoutingConsumerOptions(any(), anyBoolean())).thenReturn(List.of(idRow(3L, "consumer-a", "ca", 0)));
-        OptionPage<OptionItem<Void>> page = service.listRoutingConsumerOptions(null);
-        OptionItem<Void> item = page.list().get(0);
-        assertNull(item.meta());
+    void consumerOptionCarriesConsumerCodeMeta() {
+        when(mapper.listRoutingConsumerOptions(any(), anyBoolean()))
+                .thenReturn(List.of(idRow(3L, "consumer-a", "{\"consumerCode\":\"ca\"}", 0)));
+        OptionPage<OptionItem<RoutingConsumerOptionMeta>> page = service.listRoutingConsumerOptions(null);
+        OptionItem<RoutingConsumerOptionMeta> item = page.list().get(0);
+
         assertEquals(3L, item.value());
-        assertEquals("ca", item.code());
+        assertNotNull(item.meta());
+        assertEquals("ca", item.meta().consumerCode());
     }
 
     // 补充：计费规则 value=code 回显
     @Test
     void billingRuleValueIsCode() {
         when(mapper.listBillingRuleOptions(any(), anyBoolean(), any())).thenReturn(List.of());
-        when(mapper.listBillingRuleOptionsByValues(anyList())).thenReturn(List.of(codeRow("rule-a", "rule-a", "rule-a", 0)));
+        when(mapper.listBillingRuleOptionsByValues(anyList())).thenReturn(List.of(codeRow("rule-a", "rule-a", null, 0)));
         BillingRuleOptionQuery q = new BillingRuleOptionQuery(1, 20, null, List.of("rule-a"), null, null, null);
         OptionPage<OptionItem<Void>> page = service.listBillingRuleOptions(q);
         assertEquals("rule-a", page.list().get(0).value());
@@ -200,12 +206,12 @@ class OptionsServiceTest {
     @Test
     void providerAccountMetaDeserializesToRecord() {
         OptionConverter converter = new OptionConverter();
-        OptionRow<String> row = codeRow("acc-1", "Aliyun / acc-1", "acc-1", 0);
+        OptionRow<String> row = codeRow("acc-1", "Aliyun / acc-1", null, 0);
         row.setMeta("{\"baseUrl\":\"https://gis-api.example.com\"}");
 
         OptionItem<ProviderAccountMeta> item = converter.toProviderAccountItem(row);
 
-        assertEquals("acc-1", item.code());
+        assertEquals("acc-1", item.value());
         assertNotNull(item.meta());
         assertEquals("https://gis-api.example.com", item.meta().baseUrl());
     }
@@ -214,7 +220,7 @@ class OptionsServiceTest {
     @Test
     void modelMetaDeserializesToRecord() {
         OptionConverter converter = new OptionConverter();
-        OptionRow<String> row = codeRow("gpt-4o", "GPT-4o", "gpt-4o", 0);
+        OptionRow<String> row = codeRow("gpt-4o", "GPT-4o", null, 0);
         row.setMeta("{\"providerName\":\"OpenAI\",\"providerAccountCode\":\"openai-1\","
                 + "\"modelName\":\"GPT-4o\",\"name\":\"GPT-4o\",\"modelType\":\"chat\","
                 + "\"logicalModelCode\":\"text.default\",\"status\":1}");
@@ -226,5 +232,18 @@ class OptionsServiceTest {
         assertEquals("chat", meta.modelType());
         assertEquals("text.default", meta.logicalModelCode());
         assertEquals(1, meta.status());
+    }
+
+    // 补充：id 型资源（用户）的业务码走 meta —— username 不再占顶层 code
+    @Test
+    void userOptionCarriesUsernameMeta() {
+        OptionConverter converter = new OptionConverter();
+        OptionRow<Long> row = idRow(5L, "Alice", "{\"username\":\"alice\"}", 0);
+
+        OptionItem<UserOptionMeta> item = converter.toUserItem(row);
+
+        assertEquals(5L, item.value());
+        assertNotNull(item.meta());
+        assertEquals("alice", item.meta().username());
     }
 }

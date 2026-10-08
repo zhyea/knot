@@ -410,7 +410,7 @@ function peakUnitPriceLabel(key: keyof PeakUnitPrice): string {
  * TOKEN 要求 6 项分项单价齐全，简单模式（REQUEST/IMAGE/AUDIO/VIDEO/EMBEDDING）只要求 input。
  * MULTIPLIER 模式忽略该参数，仍只校验倍率。
  */
-export function validatePeakPricing(pricing: PeakPricing | null, billingMode?: string): PeakIssue[] {
+export function validatePeakPricing(pricing: PeakPricing | null, billingMode?: string, cacheWriteMode?: string): PeakIssue[] {
   if (!pricing) {
     return [{ index: -1, message: "高低峰方案缺少 pricing 配置" }];
   }
@@ -437,7 +437,7 @@ export function validatePeakPricing(pricing: PeakPricing | null, billingMode?: s
     const seq = index + 1;
     if (isAbsolute) {
       // ABSOLUTE：每个相位必须自带单价（必填 + 非负）；TOKEN 要求 6 项齐全，简单模式只要求 input
-      const unitIssue = validateAbsolutePhaseUnitPrices(row.unitPrices, index, seq, isTokenMode);
+      const unitIssue = validateAbsolutePhaseUnitPrices(row.unitPrices, index, seq, isTokenMode, cacheWriteMode);
       if (unitIssue) {
         issues.push(unitIssue);
       }
@@ -492,11 +492,16 @@ function validateAbsolutePhaseUnitPrices(
   unitPrices: PeakUnitPrice | null | undefined,
   index: number,
   seq: number,
-  isTokenMode: boolean
+  isTokenMode: boolean,
+  cacheWriteMode?: string
 ): PeakIssue | null {
   const prices = unitPrices && typeof unitPrices === "object" ? unitPrices : null;
+  // TOKEN 模式必填字段集随「缓存写方式」联动：standard 填 cacheWrite，ttl 填 cacheWrite5m/1h，
+  // 与 BillingRuleFormDialog 的 cacheWriteMode 选择及 toPeakPayload 输出口径一致。
   const required: (keyof PeakUnitPrice)[] = isTokenMode
-    ? ["input", "output", "cacheRead", "cacheWrite", "cacheWrite5m", "cacheWrite1h"]
+    ? (cacheWriteMode === "ttl"
+        ? ["input", "output", "cacheRead", "cacheWrite5m", "cacheWrite1h"]
+        : ["input", "output", "cacheRead", "cacheWrite"])
     : ["input"];
   for (const key of required) {
     const value = toNumberOrNull(prices?.[key]);

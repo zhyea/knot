@@ -172,11 +172,10 @@ class OptionsEndpointContractTest {
      * 打桩行。value 的实际类型必须与端点的 value 语义一致（id 型=Long / code 型=String）——
      * 泛型化后这一条由编译器守护：id 型端点误传 String 桩会直接 ClassCastException。
      */
-    private static <V> OptionRow<V> row(V value, String label, String code, int disabled) {
+    private static <V> OptionRow<V> row(V value, String label, int disabled) {
         OptionRow<V> r = new OptionRow<>();
         r.setValue(value);
         r.setLabel(label);
-        r.setCode(code);
         r.setDisabled(disabled);
         return r;
     }
@@ -202,7 +201,7 @@ class OptionsEndpointContractTest {
     @MethodSource("endpoints")
     void scenario1Defaults(Endpoint ep) throws Exception {
         List<Object[]> calls = new ArrayList<>();
-        ep.stubber().stub(mapper, List.of(row(ep.sample(), "Alice", "alice", 0)), List.of(), calls);
+        ep.stubber().stub(mapper, List.of(row(ep.sample(), "Alice", 0)), List.of(), calls);
 
         mvcFor(ep).perform(post(ep.path()).contentType(CT).content("{}"))
                 .andExpect(status().isOk())
@@ -223,7 +222,7 @@ class OptionsEndpointContractTest {
     @MethodSource("endpoints")
     void scenario2Keyword(Endpoint ep) throws Exception {
         List<Object[]> calls = new ArrayList<>();
-        ep.stubber().stub(mapper, List.of(row(ep.sample(), "Alice", "alice", 0)), List.of(), calls);
+        ep.stubber().stub(mapper, List.of(row(ep.sample(), "Alice", 0)), List.of(), calls);
 
         mvcFor(ep).perform(post(ep.path()).contentType(CT).content(body("\"keyword\":\"ali\"")))
                 .andExpect(status().isOk());
@@ -237,7 +236,7 @@ class OptionsEndpointContractTest {
     @MethodSource("endpoints")
     void scenario3SingleValueEcho(Endpoint ep) throws Exception {
         List<Object[]> calls = new ArrayList<>();
-        ep.stubber().stub(mapper, List.of(), List.of(row(ep.sample(), "Echo", "echo-code", 0)), calls);
+        ep.stubber().stub(mapper, List.of(), List.of(row(ep.sample(), "Echo", 0)), calls);
 
         mvcFor(ep).perform(post(ep.path()).contentType(CT).content(valuesBody(List.of(String.valueOf(ep.sample())))))
                 .andExpect(status().isOk())
@@ -251,7 +250,7 @@ class OptionsEndpointContractTest {
     @MethodSource("endpoints")
     void scenario4MultiValueWithMissing(Endpoint ep) throws Exception {
         List<Object[]> calls = new ArrayList<>();
-        ep.stubber().stub(mapper, List.of(), List.of(row(ep.sample(), "Echo", "echo-code", 0)), calls);
+        ep.stubber().stub(mapper, List.of(), List.of(row(ep.sample(), "Echo", 0)), calls);
 
         mvcFor(ep).perform(post(ep.path()).contentType(CT)
                         .content(valuesBody(List.of(String.valueOf(ep.sample()), "ghost"))))
@@ -266,7 +265,7 @@ class OptionsEndpointContractTest {
     @MethodSource("endpoints")
     void scenario5DisabledEcho(Endpoint ep) throws Exception {
         List<Object[]> calls = new ArrayList<>();
-        ep.stubber().stub(mapper, List.of(), List.of(row(ep.sample(), "Echo", "echo-code", 1)), calls);
+        ep.stubber().stub(mapper, List.of(), List.of(row(ep.sample(), "Echo", 1)), calls);
 
         mvcFor(ep).perform(post(ep.path()).contentType(CT).content(valuesBody(List.of(String.valueOf(ep.sample())))))
                 .andExpect(status().isOk())
@@ -314,7 +313,7 @@ class OptionsEndpointContractTest {
     @MethodSource("endpoints")
     void responseShapeAndNoSecretLeak(Endpoint ep) throws Exception {
         List<Object[]> calls = new ArrayList<>();
-        ep.stubber().stub(mapper, List.of(row(ep.sample(), "Alice", "alice", 0)), List.of(), calls);
+        ep.stubber().stub(mapper, List.of(row(ep.sample(), "Alice", 0)), List.of(), calls);
 
         String json = mvcFor(ep).perform(post(ep.path()).contentType(CT).content("{}"))
                 .andExpect(status().isOk())
@@ -330,5 +329,8 @@ class OptionsEndpointContractTest {
             org.junit.jupiter.api.Assertions.assertTrue(json.contains(field),
                     "options 响应缺少契约字段: " + field);
         }
+        // 顶层 code 已移除：业务码一律走资源专属 meta，避免调用方按资源猜测同名顶层字段
+        org.junit.jupiter.api.Assertions.assertFalse(json.contains("\"code\""),
+                "options 响应不得再有顶层 code 字段 → " + json);
     }
 }

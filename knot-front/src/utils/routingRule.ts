@@ -14,7 +14,6 @@ export function buildRoutingRulePayload(row: Dict, enabled: boolean): Dict {
     appScenario: row.appScenario ?? null,
     consumerIds: Array.isArray(row.consumerIds) ? row.consumerIds : [],
     appId: row.appId,
-    userId: row.userId ?? null,
     enabled,
     targets: (row.targets || []).map((m: Dict) => ({
       targetType: m.targetType || "MODEL",

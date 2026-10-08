@@ -31,9 +31,6 @@
                 <RemoteEntitySelect
                   v-model="form.providerCode"
                   :load-function="loadProviderProfileOptions"
-                  value-key="value"
-                  :code-only="false"
-                  label-key="label"
                   placeholder="请选择供应商"
                   clearable
                   style="width: 100%"
