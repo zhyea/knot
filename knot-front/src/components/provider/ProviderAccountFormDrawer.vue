@@ -218,7 +218,7 @@ const requiredCredentialFields = computed<string[]>(() => {
 const customAuthConfig = ref<Dict>({});
 
 function defaultAuthConfig(): Dict {
-  return {apiKey: ""};
+  return {};
 }
 
 function normalizeAuthConfig(raw: unknown): Dict {
