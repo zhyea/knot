@@ -1,6 +1,8 @@
 package org.chobit.knot.gateway.usage;
 
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.core.annotation.OrderUtils;
+import org.springframework.core.Ordered;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -19,7 +21,10 @@ public class UsageExtractorCatalog {
 
     public UsageExtractorCatalog(List<UsageExtractor> extractors) {
         List<UsageExtractor> sorted = new ArrayList<>(extractors);
-        sorted.sort(Comparator.comparing(UsageExtractor::code, String.CASE_INSENSITIVE_ORDER));
+        // 排序键尊重各实现的 @Order（DEFAULT @Order(0) 置顶），同序时再按 code 兜底，保证确定性。
+        sorted.sort(Comparator
+                .comparingInt((UsageExtractor e) -> OrderUtils.getOrder(e.getClass(), Ordered.LOWEST_PRECEDENCE))
+                .thenComparing(UsageExtractor::code, String.CASE_INSENSITIVE_ORDER));
         this.extractors = List.copyOf(sorted);
         this.extractorsByCode = buildCodeIndex(this.extractors);
         this.extractorsByClassName = buildClassIndex(this.extractors);

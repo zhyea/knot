@@ -1,6 +1,8 @@
 package org.chobit.knot.gateway.adapter.request;
 
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.core.annotation.OrderUtils;
+import org.springframework.core.Ordered;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -18,7 +20,10 @@ public class RequestAdapterCatalog {
 
     public RequestAdapterCatalog(List<UpstreamRequestAdapter> adapters) {
         List<UpstreamRequestAdapter> sorted = new ArrayList<>(adapters);
-        sorted.sort(Comparator.comparing(UpstreamRequestAdapter::code, String.CASE_INSENSITIVE_ORDER));
+        // 排序键尊重各实现的 @Order（透传 @Order(0) 置顶），同序时再按 code 兜底，保证确定性。
+        sorted.sort(Comparator
+                .comparingInt((UpstreamRequestAdapter a) -> OrderUtils.getOrder(a.getClass(), Ordered.LOWEST_PRECEDENCE))
+                .thenComparing(UpstreamRequestAdapter::code, String.CASE_INSENSITIVE_ORDER));
         this.adapters = List.copyOf(sorted);
         this.adaptersByCode = buildCodeIndex(this.adapters);
         this.adaptersByClassName = buildClassIndex(this.adapters);

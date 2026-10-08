@@ -2,6 +2,8 @@ package org.chobit.knot.gateway.adapter.auth;
 
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
+import org.springframework.core.annotation.OrderUtils;
+import org.springframework.core.Ordered;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -24,7 +26,10 @@ public class UpstreamAuthApplierCatalog {
 
     public UpstreamAuthApplierCatalog(List<UpstreamAuthApplier> appliers) {
         List<UpstreamAuthApplier> sorted = new ArrayList<>(appliers);
-        sorted.sort(Comparator.comparing(UpstreamAuthApplier::code, String.CASE_INSENSITIVE_ORDER));
+        // 排序键尊重各实现的 @Order（BEARER @Order(10) 最小，默认项置顶），同序时再按 code 兜底。
+        sorted.sort(Comparator
+                .comparingInt((UpstreamAuthApplier a) -> OrderUtils.getOrder(a.getClass(), Ordered.LOWEST_PRECEDENCE))
+                .thenComparing(UpstreamAuthApplier::code, String.CASE_INSENSITIVE_ORDER));
         this.appliers = List.copyOf(sorted);
         this.byCode = buildCodeIndex(this.appliers);
         this.byClassName = buildClassIndex(this.appliers);
