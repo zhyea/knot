@@ -40,7 +40,7 @@ const props = defineProps({
   valueKey: {type: String, default: "id"},
   multiple: {type: Boolean, default: false},
   /** 仅展示 code（忽略 labelFunction）；取 codeKey 字段，缺省取 valueKey */
-  codeOnly: {type: Boolean, default: true},
+  codeOnly: {type: Boolean, default: false},
   codeKey: {type: String, default: null},
   /** 直接取该字段作为 label（新 options 契约：value-key="value" + label-key="label"）；缺省仍走 labelFunction */
   labelKey: {type: String, default: null}
