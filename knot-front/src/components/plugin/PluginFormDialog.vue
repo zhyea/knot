@@ -11,7 +11,7 @@
         <el-input v-model="form.version" />
       </el-form-item>
       <el-form-item label="状态">
-        <EnumControl v-model="form.status" enum-name="EntityStatusEnum" :include-codes="['ENABLED', 'DISABLED']" />
+        <EnumControl v-model="form.status" enum-name="PluginInstanceStatusEnum" />
       </el-form-item>
     </el-form>
     <template #footer>
@@ -39,7 +39,7 @@ const visible = computed({
 });
 
 const saving = ref(false);
-const form = reactive({ code: "", name: "", version: "0.0.1", status: "DISABLED" });
+const form = reactive({ code: "", name: "", version: "0.0.1", status: 2 });
 
 watch(
   () => props.modelValue,
@@ -52,7 +52,7 @@ function resetForm() {
   form.code = "";
   form.name = "";
   form.version = "0.0.1";
-  form.status = "DISABLED";
+  form.status = 2;
 }
 
 async function submit() {

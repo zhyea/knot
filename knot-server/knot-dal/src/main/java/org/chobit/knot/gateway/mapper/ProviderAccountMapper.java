@@ -10,7 +10,7 @@ import java.util.List;
 public interface ProviderAccountMapper {
 
     List<ProviderAccountEntity> list(@Param("keyword") String keyword,
-                                     @Param("status") String status);
+                                     @Param("status") Integer status);
 
     ProviderAccountEntity getById(Long id);
 
@@ -25,5 +25,5 @@ public interface ProviderAccountMapper {
     int update(ProviderAccountEntity entity);
 
     int updateStatus(@Param("id") Long id,
-                     @Param("status") String status);
+                     @Param("status") Integer status);
 }

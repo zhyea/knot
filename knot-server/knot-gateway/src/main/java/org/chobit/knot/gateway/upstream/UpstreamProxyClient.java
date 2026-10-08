@@ -2,7 +2,7 @@ package org.chobit.knot.gateway.upstream;
 
 import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
@@ -165,7 +165,7 @@ public class UpstreamProxyClient {
 
     private ModelApiBindingEntity resolveBinding(Long modelId, ModelApiProtocolEnum protocol) {
         return dataService.listApiBindingsByModelId(modelId).stream()
-                .filter(item -> EntityStatusEnum.ENABLED.code().equals(item.getStatus()))
+                .filter(item -> EnabledStatusEnum.isEnabled(item.getStatus()))
                 .filter(item -> protocol.matches(item.getProtocol()))
                 .findFirst()
                 .orElse(null);

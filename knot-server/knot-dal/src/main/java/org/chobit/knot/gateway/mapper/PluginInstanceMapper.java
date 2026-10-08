@@ -11,13 +11,13 @@ import java.util.List;
 public interface PluginInstanceMapper {
 
     List<PluginInstanceEntity> list(@Param("keyword") String keyword,
-                                    @Param("status") String status);
+                                    @Param("status") Integer status);
 
     PluginInstanceEntity getById(Long id);
 
     int insert(PluginInstanceEntity entity);
 
-    int updateStatus(@Param("id") Long id, @Param("status") String status);
+    int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 
     List<PluginBindingEntity> listActiveBindings(@Param("extensionPoint") String extensionPoint,
                                                  @Param("stageCode") String stageCode);

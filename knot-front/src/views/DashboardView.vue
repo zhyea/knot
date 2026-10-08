@@ -196,7 +196,7 @@
                 <span class="activity-list__entity">{{ log.entityName || log.entityType || "--" }}</span>
               </span>
               <span class="activity-list__meta">
-                <el-tag :type="log.status === 'SUCCESS' ? 'success' : 'danger'" size="small">
+                <el-tag :type="log.status === OperationLogStatus.SUCCESS ? 'success' : 'danger'" size="small">
                   {{ log.status || "--" }}
                 </el-tag>
                 <span class="activity-list__time">{{ formatDateTime(log.createdAt) }}</span>
@@ -211,6 +211,7 @@
 </template>
 
 <script setup lang="ts">
+import { OperationLogStatus } from "@/constants/status";
 import {computed, onMounted, reactive, ref} from "vue";
 import type {Component} from "vue";
 import {useRouter} from "vue-router";

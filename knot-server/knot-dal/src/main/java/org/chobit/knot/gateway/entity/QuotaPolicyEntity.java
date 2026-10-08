@@ -13,6 +13,7 @@ public class QuotaPolicyEntity {
     private BigDecimal costLimit;
     private String currency;
     private String quotaWindow;
-    private String status;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
     private String remark;
 }

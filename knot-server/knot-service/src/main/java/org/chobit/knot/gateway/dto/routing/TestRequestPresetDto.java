@@ -8,5 +8,6 @@ public record TestRequestPresetDto(Long id,
                                    String logicalModelName,
                                    String requestBody,
                                    String remark,
-                                   String status) {
+                                   /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+                                   Integer status) {
 }

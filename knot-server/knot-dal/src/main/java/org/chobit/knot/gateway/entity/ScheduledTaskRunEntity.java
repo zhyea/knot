@@ -13,7 +13,8 @@ public class ScheduledTaskRunEntity {
     private String executionMode;
     private String nodeId;
     private String triggerType;
-    private String status;
+    /** 运行状态（ScheduledTaskRunStatusEnum）：1-运行中 2-成功 3-失败 */
+    private Integer status;
     private LocalDateTime startTime;
     private LocalDateTime endTime;
     private Long durationMs;

@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.converter.TestRequestPresetConverter;
 import org.chobit.knot.gateway.dto.routing.TestRequestPresetDto;
@@ -69,7 +69,7 @@ public class TestRequestPresetService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "编码已存在");
         }
         TestRequestPresetEntity entity = toEntity(request);
-        entity.setStatus(EntityStatusEnum.ACTIVE.code());
+        entity.setStatus(EnabledStatusEnum.ENABLED.code());
         presetMapper.insertPreset(entity);
         return presetConverter.toDto(entity);
     }
@@ -103,7 +103,7 @@ public class TestRequestPresetService {
         if (presetMapper.getById(id) == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "预设请求不存在");
         }
-        presetMapper.updateStatus(id, enabled ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code());
+        presetMapper.updateStatus(id, EnabledStatusEnum.codeOf(enabled));
         return presetConverter.toDto(presetMapper.getById(id));
     }
 
@@ -138,7 +138,9 @@ public class TestRequestPresetService {
         entity.setLogicalModelCode(normalizeLogicalModelCode(request.logicalModelCode()));
         entity.setRequestBody(request.requestBody());
         entity.setRemark(request.remark() == null ? null : request.remark().trim());
-        entity.setStatus(request.status() == null ? EntityStatusEnum.ACTIVE.code() : request.status());
+        entity.setStatus(request.status() == null
+                ? EnabledStatusEnum.ENABLED.code()
+                : EnabledStatusEnum.requireCode(request.status(), "无效的启用状态").code());
         return entity;
     }
 

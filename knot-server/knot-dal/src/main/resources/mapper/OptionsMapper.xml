@@ -72,7 +72,7 @@
         from kb_apps a
         where 1 = 1
         <if test="!includeDeleted"> and a.is_deleted = 0 </if>
-        <if test="enabledOnly"> and a.status = 'ENABLED' </if>
+        <if test="enabledOnly"> and a.status = 1 </if>
         <if test="keyword != null and keyword != ''">
             and (a.name like concat('%', #{keyword}, '%')
                  or a.app_code like concat('%', #{keyword}, '%'))
@@ -84,7 +84,7 @@
         select a.id as value,
                a.name as label,
                a.app_code as code,
-               (case when a.status = 'ENABLED' then 0 else 1 end) as disabled
+               (case when a.status = 1 then 0 else 1 end) as disabled
         from kb_apps a
         where a.is_deleted = 0
           and cast(a.id as char) in
@@ -100,7 +100,7 @@
         from kb_provider_accounts pa
         left join kb_providers p on p.code = pa.provider_code
         where 1 = 1
-        <if test="enabledOnly"> and pa.status = 'ENABLED' </if>
+        <if test="enabledOnly"> and pa.status = 1 </if>
         <if test="keyword != null and keyword != ''">
             and (pa.code like concat('%', #{keyword}, '%')
                  or pa.provider_code like concat('%', #{keyword}, '%')
@@ -113,7 +113,7 @@
         select pa.code as value,
                concat(COALESCE(p.name, pa.provider_code), ' / ', pa.code) as label,
                pa.code as code,
-               (case when pa.status = 'ENABLED' then 0 else 1 end) as disabled
+               (case when pa.status = 1 then 0 else 1 end) as disabled
         from kb_provider_accounts pa
         left join kb_providers p on p.code = pa.provider_code
         where pa.code in
@@ -132,7 +132,7 @@
         from kb_logical_models lm
         where 1 = 1
         <if test="!includeDeleted"> and lm.is_deleted = 0 </if>
-        <if test="enabledOnly"> and lm.status = 'ENABLED' </if>
+        <if test="enabledOnly"> and lm.status = 1 </if>
         <if test="modelFamilyCode != null and modelFamilyCode != ''"> and lm.model_family = #{modelFamilyCode} </if>
         <if test="keyword != null and keyword != ''">
             and (lm.model_name like concat('%', #{keyword}, '%')
@@ -146,7 +146,7 @@
         select lm.model_code as value,
                COALESCE(NULLIF(lm.display_name, ''), lm.model_name) as label,
                lm.model_code as code,
-               (case when lm.status = 'ENABLED' then 0 else 1 end) as disabled,
+               (case when lm.status = 1 then 0 else 1 end) as disabled,
                json_object('modelType', lm.model_type,
                            'modelFamily', lm.model_family,
                            'status', lm.status) as meta
@@ -175,7 +175,7 @@
         left join kb_providers p on p.code = m.provider_account_code
         where 1 = 1
         and m.is_deleted = 0
-        <if test="enabledOnly"> and m.status = 'ENABLED' </if>
+        <if test="enabledOnly"> and m.status = 1 </if>
         <if test="logicalModelCode != null and logicalModelCode != ''"> and pmm.logical_model_code = #{logicalModelCode} </if>
         <if test="modelFamilyCode != null and modelFamilyCode != ''"> and lm.model_family = #{modelFamilyCode} </if>
         <if test="providerAccountCode != null and providerAccountCode != ''"> and m.provider_account_code = #{providerAccountCode} </if>
@@ -191,7 +191,7 @@
         select m.model_code as value,
                COALESCE(lm.model_name, m.model_code) as label,
                m.model_code as code,
-               (case when m.status = 'ENABLED' then 0 else 1 end) as disabled,
+               (case when m.status = 1 then 0 else 1 end) as disabled,
                json_object('providerName', COALESCE(p.name, m.provider_account_code),
                            'providerAccountCode', m.provider_account_code,
                            'modelName', lm.model_name,
@@ -217,7 +217,7 @@
         from kb_model_pools mp
         where 1 = 1
         <if test="!includeDeleted"> and mp.is_deleted = 0 </if>
-        <if test="enabledOnly"> and mp.status = 'ENABLED' </if>
+        <if test="enabledOnly"> and mp.status = 1 </if>
         <if test="logicalModelCode != null and logicalModelCode != ''"> and mp.logical_model_code = #{logicalModelCode} </if>
         <if test="keyword != null and keyword != ''">
             and (mp.name like concat('%', #{keyword}, '%')
@@ -230,7 +230,7 @@
         select mp.pool_code as value,
                mp.name as label,
                mp.pool_code as code,
-               (case when mp.status = 'ENABLED' then 0 else 1 end) as disabled
+               (case when mp.status = 1 then 0 else 1 end) as disabled
         from kb_model_pools mp
         where mp.is_deleted = 0
           and mp.pool_code in
@@ -245,7 +245,7 @@
                0 as disabled
         from kb_routing_consumers c
         where 1 = 1
-        <if test="enabledOnly"> and c.status = 'ENABLED' </if>
+        <if test="enabledOnly"> and c.status = 1 </if>
         <if test="keyword != null and keyword != ''">
             and (c.name like concat('%', #{keyword}, '%')
                  or c.consumer_code like concat('%', #{keyword}, '%'))
@@ -257,21 +257,21 @@
         select c.id as value,
                c.name as label,
                c.consumer_code as code,
-               (case when c.status = 'ENABLED' then 0 else 1 end) as disabled
+               (case when c.status = 1 then 0 else 1 end) as disabled
         from kb_routing_consumers c
         where cast(c.id as char) in
         <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
     </select>
 
-    <!-- ==================== 计费规则（value=code；排除 DELETED） ==================== -->
+    <!-- ==================== 计费规则（value=code；排除已删除） ==================== -->
     <select id="listBillingRuleOptions" resultType="map">
         select br.code as value,
                br.code as label,
                br.code as code,
                0 as disabled
         from kb_billing_rules br
-        where br.status &lt;&gt; 'DELETED'
-        <if test="enabledOnly"> and br.status = 'ACTIVE' </if>
+        where br.is_deleted = 0
+        <if test="enabledOnly"> and br.status = 1 </if>
         <if test="modelFamilyCode != null and modelFamilyCode != ''"> and br.model_family = #{modelFamilyCode} </if>
         <if test="keyword != null and keyword != ''">
             and br.code like concat('%', #{keyword}, '%')
@@ -283,9 +283,9 @@
         select br.code as value,
                br.code as label,
                br.code as code,
-               (case when br.status = 'ACTIVE' then 0 else 1 end) as disabled
+               (case when br.status = 1 then 0 else 1 end) as disabled
         from kb_billing_rules br
-        where br.status &lt;&gt; 'DELETED'
+        where br.is_deleted = 0
           and br.code in
         <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
     </select>

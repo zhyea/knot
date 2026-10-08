@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.LogicalModelPublishStatusEnum;
 import org.chobit.knot.gateway.constants.enums.LogicalModelVisibilityEnum;
 import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
@@ -170,10 +170,7 @@ public class LogicalModelService {
         if (logicalModelMapper.getById(id) == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "logical model not found");
         }
-        logicalModelMapper.updateStatus(
-                id,
-                enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code()
-        );
+        logicalModelMapper.updateStatus(id, EnabledStatusEnum.codeOf(enabled));
         return getById(id);
     }
 
@@ -186,7 +183,7 @@ public class LogicalModelService {
         if (entity == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "logical model not found");
         }
-        if (EntityStatusEnum.ENABLED.code().equals(entity.getStatus())) {
+        if (EnabledStatusEnum.isEnabled(entity.getStatus())) {
             throw new BusinessException(ErrorCode.CONFLICT, "启用中的统一模型不能删除，请先停用");
         }
         long refCount = logicalModelMapper.countMappingsByLogicalModelCode(entity.getModelCode());
@@ -359,10 +356,10 @@ public class LogicalModelService {
     }
 
     /**
-     * 发布状态：空白取默认 DRAFT，非空必须命中代码枚举，否则拒绝。
+     * 发布状态：null 取默认 DRAFT，非空必须命中代码枚举，否则拒绝。
      */
-    private static String resolvePublishStatus(String value) {
-        if (value == null || value.isBlank()) {
+    private static Integer resolvePublishStatus(Integer value) {
+        if (value == null) {
             return LogicalModelPublishStatusEnum.defaultStatus().code();
         }
         return LogicalModelPublishStatusEnum.requireCode(value, "unsupported publish status: " + value);

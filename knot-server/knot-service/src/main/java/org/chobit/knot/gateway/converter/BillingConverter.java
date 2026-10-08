@@ -13,17 +13,17 @@ import java.util.List;
 @Mapper(componentModel = "spring", uses = CommonMappings.class)
 public interface BillingConverter {
 
-    @org.mapstruct.Mapping(source = "status", target = "enabled", qualifiedByName = "billingStatusToEnabled")
+    @org.mapstruct.Mapping(source = "status", target = "enabled", qualifiedByName = "statusToEnabled")
     BillingRuleDto toRuleDto(BillingRuleEntity entity);
 
-    @org.mapstruct.Mapping(source = "enabled", target = "status", qualifiedByName = "billingEnabledToStatus")
+    @org.mapstruct.Mapping(source = "enabled", target = "status", qualifiedByName = "enabledToStatus")
     // versionStatus 是查询侧派生列（当前版本状态，来自 kb_billing_rule_versions.status），写路径不回写
     @org.mapstruct.Mapping(target = "versionStatus", ignore = true)
     BillingRuleEntity toRuleEntity(BillingRuleDto dto);
 
     BillingRule toRuleVO(BillingRuleDto dto);
 
-    @org.mapstruct.Mapping(source = "status", target = "enabled", qualifiedByName = "billingStatusToEnabled")
+    @org.mapstruct.Mapping(source = "status", target = "enabled", qualifiedByName = "statusToEnabled")
     BillingRuleListItem toRuleListItem(BillingRuleEntity entity);
 
     List<BillingRuleListItem> toRuleListItemList(List<BillingRuleEntity> entities);

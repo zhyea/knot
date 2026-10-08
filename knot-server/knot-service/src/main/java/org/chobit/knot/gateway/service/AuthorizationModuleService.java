@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.service;
 
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.entity.AdminModuleEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,7 +46,7 @@ public class AuthorizationModuleService {
     public AdminModuleEntity updateModule(Long id, AdminModuleEntity request) {
         AdminModuleEntity existing = support.getModuleById(id);
         request.setId(id);
-        if (request.getStatus() == null || request.getStatus().isBlank()) {
+        if (request.getStatus() == null) {
             request.setStatus(existing.getStatus());
         }
         support.validateModule(request, id);
@@ -60,7 +60,7 @@ public class AuthorizationModuleService {
     @Transactional
     public AdminModuleEntity updateStatus(Long id, boolean enabled) {
         support.getModuleById(id);
-        support.mapper().updateModuleStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+        support.mapper().updateModuleStatus(id, EnabledStatusEnum.codeOf(enabled));
         return support.getModuleById(id);
     }
 

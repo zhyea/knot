@@ -188,7 +188,8 @@ function resetForm(row: Row | null = null) {
   form.logicalModelCode = row?.logicalModelCode || null;
   form.requestBody = formatJsonText(row?.requestBody);
   form.remark = row?.remark ?? "";
-  form.enabled = row?.status !== "INACTIVE";
+  // 数字状态：0 是合法值（停用），不能用 truthy 判断
+  form.enabled = row?.status === 0 ? false : true;
   codeError.value = "";
   bodyError.value = "";
 }
@@ -230,7 +231,7 @@ function buildPayload() {
     logicalModelCode: form.logicalModelCode || null,
     requestBody: form.requestBody,
     remark: form.remark?.trim() || null,
-    status: form.enabled ? "ACTIVE" : "INACTIVE"
+    status: form.enabled ? 1 : 0
   };
 }
 

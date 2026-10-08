@@ -22,7 +22,7 @@ public interface TestRequestPresetMapper {
 
     int updatePreset(TestRequestPresetEntity entity);
 
-    int updateStatus(@Param("id") Long id, @Param("status") String status);
+    int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 
     int deletePreset(Long id);
 

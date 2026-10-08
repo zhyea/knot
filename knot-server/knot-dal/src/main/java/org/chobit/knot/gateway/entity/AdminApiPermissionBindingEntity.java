@@ -11,5 +11,6 @@ public class AdminApiPermissionBindingEntity {
     private String httpMethod;
     private String pathPattern;
     private String controllerClass;
-    private String status;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
 }

@@ -12,7 +12,8 @@ public class ExternalModelSourceEntity {
     private String sourceUrl;
     private String apiUrl;
     private String sourceType;
-    private String status;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
     private LocalDateTime lastSyncAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

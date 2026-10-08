@@ -21,7 +21,8 @@ public class BillingRuleVersionEntity {
     private String currency;
     private String unit;
     private String configJson;
-    private String status;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
     private LocalDateTime effectiveFrom;
     private LocalDateTime effectiveTo;
 }

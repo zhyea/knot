@@ -27,7 +27,7 @@
         <el-input-number v-model="form.priority" :min="0" style="width: 100%" />
       </el-form-item>
       <el-form-item label="状态">
-        <EnumControl v-model="form.status" enum-name="EntityStatusEnum" :include-codes="['ACTIVE', 'INACTIVE']" />
+        <EnumControl v-model="form.status" enum-name="EnabledStatusEnum" :include-codes="[1, 0]" />
       </el-form-item>
     </el-form>
     <template #footer>
@@ -38,6 +38,7 @@
 </template>
 
 <script setup lang="ts">
+import { EnabledStatus } from "@/constants/status";
 import type {Dict} from "@/types";
 import {type PropType,  computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
@@ -63,7 +64,7 @@ const form = reactive({
   discountType: "PERCENTAGE",
   discountValue: 0.95,
   priority: 10,
-  status: "ACTIVE"
+  status: EnabledStatus.ENABLED
 });
 
 const isEdit = computed(() => props.policy != null);
@@ -87,7 +88,7 @@ function resetForm() {
     form.discountType = "PERCENTAGE";
     form.discountValue = 0.95;
     form.priority = 10;
-    form.status = "ACTIVE";
+    form.status = EnabledStatus.ENABLED;
   }
 }
 

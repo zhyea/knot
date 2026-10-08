@@ -13,12 +13,13 @@ public record OperationLogListResult(
         int pages,
         List<String> moduleOptions,
         List<String> operationOptions,
-        List<String> statusOptions
+        /** 执行结果（OperationLogStatusEnum）：1-成功 2-失败 */
+        List<Integer> statusOptions
 ) {
     public static OperationLogListResult of(PageResult<OperationLogEntity> page,
                                             List<String> moduleOptions,
                                             List<String> operationOptions,
-                                            List<String> statusOptions) {
+                                            List<Integer> statusOptions) {
         return new OperationLogListResult(
                 page.list(),
                 page.total(),

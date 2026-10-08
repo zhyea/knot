@@ -109,7 +109,7 @@ const moduleLabelMap = {
 
 const moduleOptions = ref<Row[]>([]);
 const operationOptions = ref<Row[]>([]);
-const rawStatusOptions = ref<string[]>([]);
+const rawStatusOptions = ref<number[]>([]);
 const detailDrawer = ref(false);
 const currentLog = ref<Dict | null>(null);
 
@@ -120,15 +120,15 @@ const logStatusOptions = computed(() =>
   }))
 );
 
-function statusLabel(code: string) {
-  return labelOf("OperationLogStatusEnum", code, code || "-");
+function statusLabel(code: number) {
+  return labelOf("OperationLogStatusEnum", code, String(code ?? "-"));
 }
 
 async function fetchOperationLogs(params: Dict) {
   const result = await listOperationLogs(params);
   moduleOptions.value = normalizeOptions(result?.moduleOptions, resolveModuleLabel);
   operationOptions.value = normalizeOptions(result?.operationOptions);
-  rawStatusOptions.value = normalizeValues(result?.statusOptions);
+  rawStatusOptions.value = normalizeNumberValues(result?.statusOptions);
   return result;
 }
 
@@ -146,7 +146,7 @@ const {
   handleReset
 } = useListQuery({
   apiFn: fetchOperationLogs,
-  fields: { keyword: "", module: "", operation: "", status: "" }
+  fields: { keyword: "", module: "", operation: "", status: null as number | null }
 });
 
 async function onLogRow(row: Row) {
@@ -169,6 +169,10 @@ function normalizeValues(values: unknown): string[] {
   return Array.isArray(values)
     ? values.filter((item) => item != null && `${item}`.trim() !== "").map((item) => `${item}`)
     : [];
+}
+
+function normalizeNumberValues(values: unknown): number[] {
+  return Array.isArray(values) ? values.filter((item): item is number => typeof item === "number") : [];
 }
 
 onMounted(() => {

@@ -12,7 +12,7 @@ public interface ModelMapper {
     List<ModelEntity> list(@Param("keyword") String keyword,
                            @Param("modelTypes") List<String> modelTypes,
                            @Param("logicalModelCode") String logicalModelCode,
-                           @Param("status") String status,
+                           @Param("status") Integer status,
                            @Param("includeDeleted") Boolean includeDeleted);
 
     ModelEntity getById(Long id);
@@ -27,7 +27,7 @@ public interface ModelMapper {
     int update(ModelEntity entity);
 
     int updateStatus(@Param("id") Long id,
-                     @Param("status") String status);
+                     @Param("status") Integer status);
 
     int logicalDelete(@Param("id") Long id);
 

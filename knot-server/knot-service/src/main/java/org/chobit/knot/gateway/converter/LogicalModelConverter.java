@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.converter;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.LogicalModelPublishStatusEnum;
 import org.chobit.knot.gateway.constants.enums.LogicalModelVisibilityEnum;
 import org.chobit.knot.gateway.dto.model.LogicalModelDto;
@@ -43,7 +43,7 @@ public class LogicalModelConverter {
                 toStringList(entity.getLanguagesJson()),
                 entity.getVisibility(),
                 entity.getPublishStatus(),
-                EntityStatusEnum.ENABLED.code().equals(entity.getStatus()),
+                EnabledStatusEnum.isEnabled(entity.getStatus()),
                 entity.getIsDeleted() != null && entity.getIsDeleted() != 0,
                 entity.getSortOrder(),
                 Boolean.TRUE.equals(entity.getFeatured()),
@@ -74,8 +74,10 @@ public class LogicalModelConverter {
         entity.setOutputModalitiesJson(toJson(dto.outputModalities()));
         entity.setLanguagesJson(toJson(dto.languages()));
         entity.setVisibility(defaultString(dto.visibility(), LogicalModelVisibilityEnum.defaultVisibility().code()));
-        entity.setPublishStatus(defaultString(dto.publishStatus(), LogicalModelPublishStatusEnum.defaultStatus().code()));
-        entity.setStatus(dto.enabled() ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+        entity.setPublishStatus(dto.publishStatus() != null
+                ? dto.publishStatus()
+                : LogicalModelPublishStatusEnum.defaultStatus().code());
+        entity.setStatus(EnabledStatusEnum.codeOf(dto.enabled()));
         entity.setSortOrder(dto.sortOrder() != null ? dto.sortOrder() : 0);
         entity.setFeatured(dto.featured());
         entity.setRemark(dto.remark());
@@ -157,7 +159,7 @@ public class LogicalModelConverter {
                 entity.getModelCode(),
                 entity.getModelName(),
                 entity.getProviderModelName(),
-                EntityStatusEnum.ENABLED.code().equals(entity.getStatus()),
+                EnabledStatusEnum.isEnabled(entity.getStatus()),
                 entity.getPriority()
         );
     }
@@ -172,7 +174,7 @@ public class LogicalModelConverter {
         entity.setProviderAccountCode(dto.providerAccountCode());
         entity.setModelId(dto.modelId());
         entity.setProviderModelName(dto.providerModelName());
-        entity.setStatus(dto.enabled() ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+        entity.setStatus(EnabledStatusEnum.codeOf(dto.enabled()));
         entity.setPriority(dto.priority() != null ? dto.priority() : 100);
         return entity;
     }

@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.service.schedule;
 
 import lombok.extern.slf4j.Slf4j;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.entity.ScheduledTaskEntity;
 import org.chobit.knot.gateway.mapper.ScheduledTaskMapper;
 import org.quartz.*;
@@ -44,7 +44,7 @@ public class ScheduledTaskSchedulerService {
     public void reschedule(ScheduledTaskEntity task) {
         try {
             unschedule(task.getTaskCode());
-            if (!EntityStatusEnum.ENABLED.code().equals(task.getStatus())) {
+            if (!EnabledStatusEnum.isEnabled(task.getStatus())) {
                 return;
             }
 
@@ -89,7 +89,7 @@ public class ScheduledTaskSchedulerService {
     public void triggerNow(String taskCode) {
         try {
             ScheduledTaskEntity task = scheduledTaskMapper.getTaskByCode(taskCode);
-            if (task == null || !EntityStatusEnum.ENABLED.code().equals(task.getStatus())) {
+            if (task == null || !EnabledStatusEnum.isEnabled(task.getStatus())) {
                 throw new IllegalArgumentException("Task is not enabled: " + taskCode);
             }
             JobKey jobKey = jobKey(taskCode);

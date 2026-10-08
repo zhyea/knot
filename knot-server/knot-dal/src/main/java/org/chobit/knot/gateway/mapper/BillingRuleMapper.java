@@ -13,12 +13,16 @@ public interface BillingRuleMapper {
 
     List<BillingRuleEntity> list(@Param("keyword") String keyword,
                                  @Param("modelFamilyCode") String modelFamilyCode,
-                                 @Param("code") String code);
+                                 @Param("code") String code,
+                                 @Param("includeDeleted") Boolean includeDeleted);
 
     /** 报表用：全量非删除规则（含当前版本字段），不分页 */
     List<BillingRuleEntity> listForReport();
 
     BillingRuleEntity getById(Long id);
+
+    /** 含已删除：恢复前置校验用（查询侧唯一的「越过 is_deleted」入口） */
+    BillingRuleEntity getByIdIncludingDeleted(@Param("id") Long id);
 
     /** 按业务码取规则（跨模块绑定一律用 code） */
     BillingRuleEntity getByCode(String code);
@@ -45,10 +49,13 @@ public interface BillingRuleMapper {
     int update(BillingRuleEntity entity);
 
     int updateStatus(@Param("id") Long id,
-                     @Param("status") String status);
+                     @Param("status") Integer status);
 
-    /** 生命周期删除：status 置 DELETED，查询侧排除 */
-    int deleteRule(Long id);
+    /** 逻辑删除：is_deleted = 1 且 status = 0（删时强制停用），条件更新保证幂等 */
+    int logicalDelete(Long id);
+
+    /** 恢复：is_deleted = 0，status 保持 0（是否启用由调用方显式决定） */
+    int restore(Long id);
 
     BillingRuleVersionEntity getLatestVersion(Long ruleId);
 
@@ -60,5 +67,5 @@ public interface BillingRuleMapper {
 
     int insertVersion(BillingRuleVersionEntity entity);
 
-    int updateVersionStatus(@Param("id") Long id, @Param("status") String status);
+    int updateVersionStatus(@Param("id") Long id, @Param("status") Integer status);
 }

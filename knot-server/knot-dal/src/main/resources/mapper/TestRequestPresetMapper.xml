@@ -90,7 +90,7 @@
         select
         <include refid="PresetSelectColumns"/>
         <include refid="PresetFromClause"/>
-        where p.status = 'ACTIVE'
+        where p.status = 1
         order by p.id desc
     </select>
 

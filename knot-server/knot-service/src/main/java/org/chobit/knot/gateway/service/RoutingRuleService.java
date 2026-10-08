@@ -4,7 +4,7 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.config.GatewayRuntimeProperties;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.constants.enums.RoutingTestStatusEnum;
@@ -219,7 +219,7 @@ public class RoutingRuleService {
         RoutingRuleDto normalized = ensureGeneratedFieldsForCreate(request);
         validateForSave(normalized, null);
         RoutingRuleEntity entity = toEntity(normalized);
-        entity.setStatus(normalized.enabled() ? "ENABLED" : "DISABLED");
+        entity.setStatus(EnabledStatusEnum.codeOf(normalized.enabled()));
         routingRuleMapper.insert(entity);
         saveConsumers(entity.getId(), normalized.consumerIds());
         saveTargets(entity.getId(), normalized.targets());
@@ -239,7 +239,7 @@ public class RoutingRuleService {
         validateForSave(request, id);
         RoutingRuleEntity entity = toEntity(request);
         entity.setId(id);
-        entity.setStatus(request.enabled() ? "ENABLED" : "DISABLED");
+        entity.setStatus(EnabledStatusEnum.codeOf(request.enabled()));
         routingRuleMapper.update(entity);
         saveConsumers(id, request.consumerIds());
         saveTargets(id, request.targets());
@@ -272,7 +272,7 @@ public class RoutingRuleService {
                 existing.retryPolicy()
         );
         validateForSave(request, id);
-        routingRuleMapper.updateStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+        routingRuleMapper.updateStatus(id, EnabledStatusEnum.codeOf(enabled));
         return getById(id);
     }
 
@@ -509,7 +509,7 @@ public class RoutingRuleService {
             return Set.of();
         }
         List<Long> enabledModelIds = modelPoolMapper.listItemsByPoolCode(protocolPool.getPoolCode()).stream()
-                .filter(item -> "ENABLED".equals(item.getStatus()))
+                .filter(item -> EnabledStatusEnum.isEnabled(item.getStatus()))
                 .map(item -> modelMapper.getByCode(item.getModelCode()))
                 .filter(model -> model != null)
                 .map(ModelEntity::getId)
@@ -532,7 +532,7 @@ public class RoutingRuleService {
 
     private Set<ModelApiProtocolEnum> supportedProtocolsForModel(Long modelId, String modelType) {
         Set<ModelApiProtocolEnum> bindings = modelApiBindingMapper.listByModelId(modelId).stream()
-                .filter(item -> "ENABLED".equals(item.getStatus()))
+                .filter(item -> EnabledStatusEnum.isEnabled(item.getStatus()))
                 .map(ModelApiBindingEntity::getProtocol)
                 .map(ModelApiProtocolEnum::fromCode)
                 .filter(item -> item != null && item.defaultPath() != null)
@@ -753,7 +753,7 @@ public class RoutingRuleService {
                 entity.getAppName(),
                 entity.getUserId(),
                 resolveUserName(entity),
-                "ENABLED".equals(entity.getStatus()),
+                EnabledStatusEnum.isEnabled(entity.getStatus()),
                 targets,
                 rate,
                 quota,
@@ -909,7 +909,7 @@ public class RoutingRuleService {
                 if (consumer == null) {
                     throw new BusinessException(ErrorCode.NOT_FOUND, "消费者不存在");
                 }
-                if (request.enabled() && !"ENABLED".equals(consumer.getStatus())) {
+                if (request.enabled() && !EnabledStatusEnum.isEnabled(consumer.getStatus())) {
                     throw new BusinessException(ErrorCode.VALIDATION_ERROR, "消费者未启用");
                 }
             }
@@ -973,7 +973,7 @@ public class RoutingRuleService {
             if (model == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "model not found");
             }
-            if (enabledRule && !"ENABLED".equals(model.getStatus())) {
+            if (enabledRule && !EnabledStatusEnum.isEnabled(model.getStatus())) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target model is disabled");
             }
             return;
@@ -983,10 +983,10 @@ public class RoutingRuleService {
             if (pool == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "model pool not found");
             }
-            if (enabledRule && !"ENABLED".equals(pool.getStatus())) {
+            if (enabledRule && !EnabledStatusEnum.isEnabled(pool.getStatus())) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target model pool is disabled");
             }
-            if (enabledRule && modelPoolMapper.listItemsByPoolCode(pool.getPoolCode()).stream().noneMatch(item -> "ENABLED".equals(item.getStatus()))) {
+            if (enabledRule && modelPoolMapper.listItemsByPoolCode(pool.getPoolCode()).stream().noneMatch(item -> EnabledStatusEnum.isEnabled(item.getStatus()))) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target model pool has no enabled model");
             }
             return;
@@ -1014,7 +1014,7 @@ public class RoutingRuleService {
         for (Long consumerId : consumerIds) {
             RoutingConsumerEntity consumer = routingConsumerMapper.getById(consumerId);
             if (consumer != null
-                    && "ENABLED".equals(consumer.getStatus())
+                    && EnabledStatusEnum.isEnabled(consumer.getStatus())
                     && normalized.equals(consumer.getSecretKey())) {
                 return consumer;
             }

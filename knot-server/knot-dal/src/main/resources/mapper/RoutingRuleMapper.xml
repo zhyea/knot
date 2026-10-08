@@ -44,8 +44,8 @@
         left join kb_apps a on r.app_id = a.id
         left join ks_users u on r.user_id = u.id and u.is_deleted = 0
         where rc.consumer_id = #{consumerId}
-          and r.status = 'ENABLED'
-          and rc.status = 'ENABLED'
+          and r.status = 1
+          and rc.status = 1
         order by r.id desc
     </select>
 
@@ -57,8 +57,8 @@
         left join ks_users u on r.user_id = u.id and u.is_deleted = 0
         where rc.consumer_id = #{consumerId}
           and r.rule_code = #{ruleCode}
-          and r.status = 'ENABLED'
-          and rc.status = 'ENABLED'
+          and r.status = 1
+          and rc.status = 1
         limit 1
     </select>
 

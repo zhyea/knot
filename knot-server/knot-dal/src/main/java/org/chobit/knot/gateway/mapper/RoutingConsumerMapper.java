@@ -25,7 +25,7 @@ public interface RoutingConsumerMapper {
     int update(RoutingConsumerEntity entity);
 
     int updateStatus(@Param("id") Long id,
-                     @Param("status") String status);
+                     @Param("status") Integer status);
 
     int updateSecretKey(@Param("id") Long id, @Param("secretKey") String secretKey);
 }

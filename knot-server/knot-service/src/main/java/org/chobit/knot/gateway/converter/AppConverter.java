@@ -31,7 +31,7 @@ public interface AppConverter {
 
 
 
-    @Mapping(target = "status", constant = "ENABLED")
+    @Mapping(target = "status", constant = "1")
 
     @Mapping(target = "ownerRealName", ignore = true)
 

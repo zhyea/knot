@@ -43,7 +43,7 @@ public interface AdminAuthorizationManageMapper {
 
     int updateModule(AdminModuleEntity entity);
 
-    int updateModuleStatus(@Param("id") Long id, @Param("status") String status);
+    int updateModuleStatus(@Param("id") Long id, @Param("status") Integer status);
 
     int deleteModule(@Param("id") Long id);
 
@@ -63,7 +63,7 @@ public interface AdminAuthorizationManageMapper {
 
     int updateMenu(AdminMenuEntity entity);
 
-    int updateMenuStatus(@Param("id") Long id, @Param("status") String status);
+    int updateMenuStatus(@Param("id") Long id, @Param("status") Integer status);
 
     int deleteMenu(@Param("id") Long id);
 
@@ -84,7 +84,7 @@ public interface AdminAuthorizationManageMapper {
 
     int updatePermission(AdminPermissionEntity entity);
 
-    int updatePermissionStatus(@Param("id") Long id, @Param("status") String status);
+    int updatePermissionStatus(@Param("id") Long id, @Param("status") Integer status);
 
     int deletePermission(@Param("id") Long id);
 
@@ -106,7 +106,7 @@ public interface AdminAuthorizationManageMapper {
 
     int updateApiPermissionBinding(AdminApiPermissionBindingEntity entity);
 
-    int updateApiPermissionBindingStatus(@Param("id") Long id, @Param("status") String status);
+    int updateApiPermissionBindingStatus(@Param("id") Long id, @Param("status") Integer status);
 
     int deleteApiPermissionBinding(@Param("id") Long id);
 }

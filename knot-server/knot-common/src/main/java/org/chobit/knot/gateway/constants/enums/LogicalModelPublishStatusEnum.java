@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.constants.enums;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 
-import java.util.Arrays;
+import java.util.List;
 
 /**
  * 统一模型发布状态：已从 ks_enum_configs（logical_model_publish_status 字典）迁出，
@@ -12,21 +12,21 @@ import java.util.Arrays;
  * <p>发布状态只描述发布生命周期，不控制可用性：可用性由 enabled 决定，
  * 二者互不影响，避免「已发布但被停用」这类状态互相污染。</p>
  */
-public enum LogicalModelPublishStatusEnum implements EnumOption {
-    DRAFT("DRAFT", "草稿"),
-    PUBLISHED("PUBLISHED", "已发布"),
-    ARCHIVED("ARCHIVED", "已下架");
+public enum LogicalModelPublishStatusEnum implements NumericEnumOption {
+    DRAFT(1, "草稿"),
+    PUBLISHED(2, "已发布"),
+    ARCHIVED(3, "已下架");
 
-    private final String code;
+    private final int code;
     private final String label;
 
-    LogicalModelPublishStatusEnum(String code, String label) {
+    LogicalModelPublishStatusEnum(int code, String label) {
         this.code = code;
         this.label = label;
     }
 
     @Override
-    public String code() {
+    public int code() {
         return code;
     }
 
@@ -41,24 +41,19 @@ public enum LogicalModelPublishStatusEnum implements EnumOption {
         return DRAFT;
     }
 
-    /**
-     * Builds the target value from the source input. Executes the public operation.
-     */
-    public static LogicalModelPublishStatusEnum fromCode(String code) {
-        if (code == null || code.isBlank()) {
-            return null;
-        }
-        String normalized = code.trim().toUpperCase();
-        return Arrays.stream(values())
-                .filter(item -> item.code.equals(normalized))
-                .findFirst()
-                .orElse(null);
+    public static LogicalModelPublishStatusEnum fromCode(Integer code) {
+        return NumericEnumOption.fromCode(values(), code);
+    }
+
+    /** 全部状态 code，供查询下拉使用 */
+    public static List<Integer> codes() {
+        return NumericEnumOption.codes(values());
     }
 
     /**
-     * 校验发布状态编码并返回规范大写形式，非法值直接拒绝。
+     * 校验发布状态编码并返回其数字值，非法值直接拒绝。
      */
-    public static String requireCode(String code, String errorMessage) {
+    public static int requireCode(Integer code, String errorMessage) {
         LogicalModelPublishStatusEnum status = fromCode(code);
         if (status == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, errorMessage);

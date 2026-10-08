@@ -19,7 +19,8 @@ public record LogicalModelDto(
         List<String> outputModalities,
         List<String> languages,
         String visibility,
-        String publishStatus,
+        /** 发布状态（LogicalModelPublishStatusEnum）：1-DRAFT 2-PUBLISHED 3-ARCHIVED */
+        Integer publishStatus,
         boolean enabled,
         /** 已逻辑删除：管理列表仍展示（浅红底 + 恢复按钮），下拉/绑定类查询一律排除 */
         boolean deleted,

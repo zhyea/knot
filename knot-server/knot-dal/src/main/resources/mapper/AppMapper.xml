@@ -86,7 +86,7 @@
 
         insert into kb_apps(app_code, name, dept_id, owner_user_id, remark, status, is_deleted)
 
-        values(#{appCode}, #{name}, #{deptId}, #{ownerUserId}, #{remark}, 'ENABLED', 0)
+        values(#{appCode}, #{name}, #{deptId}, #{ownerUserId}, #{remark}, 1, 0)
 
     </insert>
 

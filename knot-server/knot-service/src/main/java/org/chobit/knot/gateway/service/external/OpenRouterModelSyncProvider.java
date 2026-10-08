@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.service.external;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.entity.ExternalModelItemEntity;
 import org.chobit.knot.gateway.entity.ExternalModelSourceEntity;
@@ -69,7 +69,7 @@ public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvid
         source.setSourceUrl(SOURCE_URL);
         source.setApiUrl(API_URL);
         source.setSourceType("MODEL_CATALOG");
-        source.setStatus(EntityStatusEnum.ENABLED.code());
+        source.setStatus(EnabledStatusEnum.ENABLED.code());
         return source;
     }
 

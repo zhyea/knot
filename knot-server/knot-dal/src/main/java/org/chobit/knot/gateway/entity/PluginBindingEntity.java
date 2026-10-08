@@ -15,8 +15,8 @@ public class PluginBindingEntity {
     private String scopeType;
     private Long scopeRefId;
     private Integer orderNo;
-    private String status;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
     private String configJson;
-    private String failMode;
     private Integer timeoutMs;
 }

@@ -79,7 +79,7 @@ while (end < json.length() && "-0123456789.".indexOf(json.charAt(end)) >= 0) { e
 **其他缺陷**：`"+2"` 的 `+` 不在字符集内 → 静默回落；`indexOf("\""+key+"\"")` 取首次出现，若前面字符串值内含同名文本会命中错误位置。
 **修复**：改用 Jackson `JsonKit.parse(configJson).path(key).decimalValue()`，删除手写扫描。
 
-### BUG-06 ✅已复核 缓存全链路零失效入口（含吊销 Key 后仍可用）
+### BUG-06 ✅已关闭 缓存全链路零失效入口（2026-10-07：安全与监控模块整体移除，ks_cache_records 等三表及 SecurityService 删除，缺陷随模块清理关闭）
 **位置**：`knot-gateway/.../service/GatewayDataService.java:46-47`（`expireAfterWrite 10min` + `refreshAfterWrite 3min`）
 **证据**：全仓 grep `invalidate|cleanUp|CacheEvict`，命中项**全部**属于 `SecurityService.evictCache` —— 而该方法（`SecurityService.java:75-79`）只 INSERT 一行 `cache_records`，**不清除任何缓存**。故 `GatewayDataService` 的 Caffeine 缓存**没有任何失效入口**。
 **后果**：

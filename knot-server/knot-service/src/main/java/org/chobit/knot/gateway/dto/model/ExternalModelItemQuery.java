@@ -8,7 +8,8 @@ public record ExternalModelItemQuery(
         Integer pageNum,
         Integer pageSize,
         String sourceCode,
-        String syncStatus,
+        /** 同步状态（ExternalModelSyncStatusEnum）：1-待同步 2-已同步 3-失败 */
+        Integer syncStatus,
         String keyword,
         String modelType,
         List<Long> ids

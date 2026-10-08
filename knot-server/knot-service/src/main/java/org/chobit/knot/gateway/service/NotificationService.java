@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.NotificationConverter;
@@ -57,7 +57,7 @@ public class NotificationService {
         e.setName(request.name());
         e.setChannel(request.channel());
         e.setContentTpl(request.content());
-        e.setStatus(EntityStatusEnum.ACTIVE.code());
+        e.setStatus(EnabledStatusEnum.ENABLED.code());
         notificationMapper.insertTemplate(e);
         return notificationConverter.toTemplateDto(e);
     }

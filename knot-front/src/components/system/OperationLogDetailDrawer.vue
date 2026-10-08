@@ -10,7 +10,7 @@
       <el-descriptions-item label="操作人">{{ log.operatorName || "-" }}</el-descriptions-item>
       <el-descriptions-item label="IP地址">{{ log.ipAddress }}</el-descriptions-item>
       <el-descriptions-item label="状态">
-        <el-tag :type="log.status === 'SUCCESS' ? 'success' : 'danger'" size="small">
+        <el-tag :type="log.status === OperationLogStatus.SUCCESS ? 'success' : 'danger'" size="small">
           {{ statusLabel(log.status) }}
         </el-tag>
       </el-descriptions-item>
@@ -34,6 +34,7 @@
 </template>
 
 <script setup lang="ts">
+import { OperationLogStatus } from "@/constants/status";
 import type {Dict} from "@/types";
 import {type PropType,  computed} from "vue";
 

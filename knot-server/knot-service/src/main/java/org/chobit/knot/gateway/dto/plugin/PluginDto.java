@@ -9,8 +9,7 @@ public record PluginDto(Long id,
                         String extensionPoint,
                         String stageCode,
                         String version,
-                        String status,
-                        String failMode,
+                        Integer status,
                         Integer timeoutMs,
                         String configJson) {
 }

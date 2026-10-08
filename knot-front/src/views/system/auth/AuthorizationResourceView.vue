@@ -20,7 +20,7 @@
           >
             <template #statusSwitch="{ row }">
               <el-switch
-                :model-value="row.status !== 'DISABLED'"
+                :model-value="row.status === EnabledStatus.ENABLED"
                 :loading="state.moduleStatusUpdatingId.value === row.id"
                 inline-prompt
                 active-text="启用"
@@ -52,7 +52,7 @@
             </template>
             <template #statusSwitch="{ row }">
               <el-switch
-                :model-value="row.status !== 'DISABLED'"
+                :model-value="row.status === EnabledStatus.ENABLED"
                 :loading="state.menuStatusUpdatingId.value === row.id"
                 inline-prompt
                 active-text="启用"
@@ -82,7 +82,7 @@
           >
             <template #statusSwitch="{ row }">
               <el-switch
-                :model-value="row.status !== 'DISABLED'"
+                :model-value="row.status === EnabledStatus.ENABLED"
                 :loading="state.permissionStatusUpdatingId.value === row.id"
                 inline-prompt
                 active-text="启用"
@@ -111,7 +111,7 @@
           >
             <template #statusSwitch="{ row }">
               <el-switch
-                :model-value="row.status !== 'DISABLED'"
+                :model-value="row.status === EnabledStatus.ENABLED"
                 :loading="state.apiBindingStatusUpdatingId.value === row.id"
                 inline-prompt
                 active-text="启用"
@@ -127,6 +127,7 @@
 </template>
 
 <script setup lang="ts">
+import { EnabledStatus } from "@/constants/status";
 import AuthorizationResourcePanel from "../../../components/system/auth/AuthorizationResourcePanel.vue";
 
 defineProps({

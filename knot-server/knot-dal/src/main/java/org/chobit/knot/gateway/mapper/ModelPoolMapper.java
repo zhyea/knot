@@ -13,7 +13,7 @@ public interface ModelPoolMapper {
     List<ModelPoolEntity> list(@Param("keyword") String keyword,
                                @Param("modelTypes") List<String> modelTypes,
                                @Param("includeDeleted") Boolean includeDeleted,
-                               @Param("status") String status);
+                               @Param("status") Integer status);
 
     ModelPoolEntity getById(@Param("id") Long id);
 
@@ -28,7 +28,7 @@ public interface ModelPoolMapper {
     int update(ModelPoolEntity entity);
 
     int updateStatus(@Param("id") Long id,
-                     @Param("status") String status);
+                     @Param("status") Integer status);
 
     int deleteById(@Param("id") Long id);
 

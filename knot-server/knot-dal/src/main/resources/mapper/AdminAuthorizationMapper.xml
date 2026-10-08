@@ -9,7 +9,7 @@
         inner join ks_role_permissions rp on rp.role_id = r.id
         inner join ks_permissions p on p.id = rp.permission_id
         where ur.user_id = #{userId}
-          and p.status = 'ENABLED'
+          and p.status = 1
     </select>
 
     <select id="getApiPermissionBinding" resultType="org.chobit.knot.gateway.entity.AdminApiPermissionBindingEntity">
@@ -24,8 +24,8 @@
         inner join ks_permissions p on p.id = b.permission_id
         where b.http_method = #{httpMethod}
           and b.path_pattern = #{pathPattern}
-          and b.status = 'ENABLED'
-          and p.status = 'ENABLED'
+          and b.status = 1
+          and p.status = 1
         limit 1
     </select>
 
@@ -51,9 +51,9 @@
         inner join ks_modules sm on sm.id = m.module_id
         where ur.user_id = #{userId}
           and p.permission_type = 'PAGE'
-          and p.status = 'ENABLED'
-          and m.status = 'ENABLED'
-          and sm.status = 'ENABLED'
+          and p.status = 1
+          and m.status = 1
+          and sm.status = 1
         order by sm.sort_order asc, m.sort_order asc, m.id asc
     </select>
 

@@ -206,12 +206,12 @@ public class UserService {
      * Updates the user status.
      */
     @Transactional
-    public UserDto updateUserStatus(Long id, String status) {
+    public UserDto updateUserStatus(Long id, Integer status) {
         UserEntity entity = userMapper.getUserById(id);
         if (entity == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
-        entity.setStatus(Integer.parseInt(status));
+        entity.setStatus(status);
         userMapper.updateUserStatus(entity);
         return loadUserDto(id);
     }

@@ -11,7 +11,8 @@ public class ProviderAccountEntity {
     private String providerName;
     private String code;
     private String baseUrl;
-    private String status;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

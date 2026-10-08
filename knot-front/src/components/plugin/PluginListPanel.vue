@@ -9,7 +9,7 @@
       <el-table-column label="状态" min-width="10%" align="center" header-align="center">
         <template #default="{ row }">
           <el-switch
-            :model-value="row.status === 'ENABLED'"
+            :model-value="row.status === PluginInstanceStatus.ACTIVE"
             :loading="statusUpdatingId === row.id"
             inline-prompt
             active-text="启用"
@@ -33,6 +33,7 @@
 </template>
 
 <script setup lang="ts">
+import { PluginInstanceStatus } from "@/constants/status";
 import type {PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import type {Row} from "@/types";

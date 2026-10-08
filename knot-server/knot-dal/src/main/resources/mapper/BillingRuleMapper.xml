@@ -2,12 +2,12 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.gateway.mapper.BillingRuleMapper">
 
-    <!-- 当前版本 = 规则下优先取 ACTIVE、再取最近生效的版本（展示用；计费路径见 getActiveByRuleCode） -->
+    <!-- 当前版本 = 规则下优先取启用、再取最近生效的版本（展示用；计费路径见 getActiveByRuleCode） -->
     <sql id="VersionJoin">
         left join kb_billing_rule_versions bv on bv.id = (
             select v.id from kb_billing_rule_versions v
             where v.rule_id = br.id
-            order by (v.status = 'ACTIVE') desc, v.effective_from desc, v.id desc
+            order by (v.status = 1) desc, v.effective_from desc, v.id desc
             limit 1
         )
     </sql>
@@ -26,7 +26,7 @@
     <sql id="RuleColumns">
         br.id, br.code,
         br.model_family as model_family_code, ef.item_label as model_family_name,
-        br.status, br.remark,
+        br.status, br.is_deleted, br.remark,
         bv.version_code, bv.uniq_hash, bv.billing_mode, bv.pricing_plan, bv.currency, bv.unit,
         bv.status as version_status,
         bv.config_json, bv.effective_from, bv.effective_to,
@@ -49,7 +49,9 @@
         <include refid="FamilyJoin"/>
         <include refid="VersionJoin"/>
         <where>
-            br.status != 'DELETED'
+            <if test="includeDeleted == null or !includeDeleted">
+                br.is_deleted = 0
+            </if>
             <if test="keyword != null and keyword != ''">
                 and (
                     br.code like concat('%', #{keyword}, '%')
@@ -64,7 +66,7 @@
                 and br.code = #{code}
             </if>
         </where>
-        order by br.id desc
+        order by br.is_deleted asc, br.id desc
     </select>
 
     <!-- 报表用：全量非删除规则（含当前版本字段），数据量小，聚合在服务层完成 -->
@@ -73,7 +75,7 @@
         from kb_billing_rules br
         <include refid="FamilyJoin"/>
         <include refid="VersionJoin"/>
-        where br.status != 'DELETED'
+        where br.is_deleted = 0
         order by br.id
     </select>
 
@@ -82,7 +84,16 @@
         from kb_billing_rules br
         <include refid="FamilyJoin"/>
         <include refid="VersionJoin"/>
-        where br.id = #{id} and br.status != 'DELETED'
+        where br.id = #{id} and br.is_deleted = 0
+    </select>
+
+    <!-- 含已删除：仅恢复前置校验用 -->
+    <select id="getByIdIncludingDeleted" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">
+        select <include refid="RuleColumns"/>
+        from kb_billing_rules br
+        <include refid="FamilyJoin"/>
+        <include refid="VersionJoin"/>
+        where br.id = #{id}
     </select>
 
     <!-- 按业务码取规则（供应商模型绑定校验用） -->
@@ -91,7 +102,7 @@
         from kb_billing_rules br
         <include refid="FamilyJoin"/>
         <include refid="VersionJoin"/>
-        where br.code = #{code} and br.status != 'DELETED'
+        where br.code = #{code} and br.is_deleted = 0
     </select>
 
     <select id="countByCode" resultType="java.lang.Long">
@@ -116,8 +127,9 @@
         inner join kb_billing_rule_versions bv on br.id = bv.rule_id
         <include refid="FamilyJoin"/>
         where br.code = #{ruleCode}
-          and br.status = 'ACTIVE'
-          and bv.status = 'ACTIVE'
+          and br.is_deleted = 0
+          and br.status = 1
+          and bv.status = 1
           and bv.effective_from &lt;= #{effectiveAt}
           and (bv.effective_to is null or bv.effective_to &gt; #{effectiveAt})
         order by bv.effective_from desc, bv.id desc
@@ -133,8 +145,9 @@
         from kb_billing_rules br
         inner join kb_billing_rule_versions bv on br.id = bv.rule_id
         <include refid="FamilyJoin"/>
-        where br.status = 'ACTIVE'
-          and bv.status = 'ACTIVE'
+        where br.is_deleted = 0
+          and br.status = 1
+          and bv.status = 1
           and bv.effective_from &lt;= #{effectiveAt}
           and (bv.effective_to is null or bv.effective_to &gt; #{effectiveAt})
           and (br.model_family = #{modelFamilyCode} or br.model_family is null)
@@ -162,10 +175,18 @@
         where id = #{id}
     </update>
 
-    <update id="deleteRule">
+    <!-- 逻辑删除：删时强制停用（status = 0），避免恢复后立刻参与计费 -->
+    <update id="logicalDelete">
         update kb_billing_rules
-        set status = 'DELETED'
-        where id = #{id}
+        set is_deleted = 1, status = 0
+        where id = #{id} and is_deleted = 0
+    </update>
+
+    <!-- 恢复：只清 is_deleted，status 保持 0，是否启用由调用方显式决定 -->
+    <update id="restore">
+        update kb_billing_rules
+        set is_deleted = 0
+        where id = #{id} and is_deleted = 1
     </update>
 
     <select id="getLatestVersion" resultType="org.chobit.knot.gateway.entity.BillingRuleVersionEntity">

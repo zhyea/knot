@@ -21,7 +21,7 @@ import org.chobit.knot.gateway.mapper.ProviderAccountMapper;
 import org.chobit.knot.gateway.mapper.ProviderProfileMapper;
 import org.chobit.knot.gateway.auth.CurrentAuth;
 import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
@@ -94,11 +94,11 @@ public class ProviderService {
         }
     }
 
-    private String toStatus(Boolean enabled) {
+    private Integer toStatus(Boolean enabled) {
         if (enabled == null) {
             return null;
         }
-        return Boolean.TRUE.equals(enabled) ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code();
+        return EnabledStatusEnum.codeOf(Boolean.TRUE.equals(enabled));
     }
 
     /**
@@ -241,7 +241,7 @@ public class ProviderService {
         if (existing == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "供应商不存在");
         }
-        providerAccountMapper.updateStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+        providerAccountMapper.updateStatus(id, EnabledStatusEnum.codeOf(enabled));
         return getById(id);
     }
 
@@ -373,7 +373,7 @@ public class ProviderService {
         entity.setDiscountValue(BigDecimal.valueOf(request.discountValue()));
         entity.setPriority(request.priority());
         entity.setEffectiveFrom(LocalDateTime.now());
-        entity.setStatus(request.status() != null ? request.status() : EntityStatusEnum.ACTIVE.code());
+        entity.setStatus(request.status() != null ? request.status() : EnabledStatusEnum.ENABLED.code());
         discountPolicyMapper.insert(entity);
         return toDiscountPolicyDto(entity);
     }

@@ -19,7 +19,8 @@ public record LogicalModelItem(
         List<String> outputModalities,
         List<String> languages,
         String visibility,
-        String publishStatus,
+        /** 发布状态（LogicalModelPublishStatusEnum）：1-DRAFT 2-PUBLISHED 3-ARCHIVED */
+        Integer publishStatus,
         boolean enabled,
         boolean deleted,
         Integer sortOrder,

@@ -12,6 +12,5 @@ public record PluginBindingView(Long bindingId,
                                 Long scopeRefId,
                                 Integer orderNo,
                                 String configJson,
-                                String failMode,
                                 Integer timeoutMs) {
 }

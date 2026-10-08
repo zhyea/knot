@@ -12,7 +12,7 @@ import java.util.List;
 public interface ScheduledTaskMapper {
 
     List<ScheduledTaskEntity> listTasks(@Param("keyword") String keyword,
-                                        @Param("status") String status,
+                                        @Param("status") Integer status,
                                         @Param("handlerCode") String handlerCode);
 
     List<ScheduledTaskEntity> listEnabledTasks();
@@ -37,7 +37,7 @@ public interface ScheduledTaskMapper {
     int updateRun(ScheduledTaskRunEntity entity);
 
     List<ScheduledTaskRunEntity> listRuns(@Param("taskCode") String taskCode,
-                                          @Param("status") String status,
+                                          @Param("status") Integer status,
                                           @Param("triggerType") String triggerType);
 
     int deleteRunsBefore(LocalDateTime beforeTime);

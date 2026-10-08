@@ -50,6 +50,7 @@
 </template>
 
 <script setup lang="ts">
+import { LogicalModelPublishStatus } from "@/constants/status";
 import {Delete, Document, Edit, RefreshLeft} from "@element-plus/icons-vue";
 import {onMounted, type PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
@@ -100,14 +101,14 @@ function displayTags(row: Row): string[] {
 function statusText(row: Row): string {
   if (row.deleted === true) return "已删除";
   if (row.featured) return "推荐";
-  if (row.publishStatus === "PUBLISHED") return "已发布";
+  if (row.publishStatus === LogicalModelPublishStatus.PUBLISHED) return "已发布";
   return row.enabled ? "可用" : "草稿";
 }
 
 function ribbonClass(row: Row): string {
   if (row.deleted === true) return "corner-ribbon--deleted";
   if (row.featured) return "corner-ribbon--hot";
-  if (row.publishStatus === "PUBLISHED") return "corner-ribbon--new";
+  if (row.publishStatus === LogicalModelPublishStatus.PUBLISHED) return "corner-ribbon--new";
   return row.enabled ? "corner-ribbon--new" : "corner-ribbon--draft";
 }
 

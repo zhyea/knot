@@ -86,7 +86,7 @@ public class OperationLogService {
         return operationLogMapper.listDistinctOperations();
     }
 
-    public List<String> listStatuses() {
+    public List<Integer> listStatuses() {
         return OperationLogStatusEnum.codes();
     }
 

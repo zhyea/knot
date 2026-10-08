@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingConsumerDto;
 import org.chobit.knot.gateway.entity.RoutingConsumerEntity;
@@ -115,7 +115,7 @@ public class RoutingConsumerService {
         validateForSave(normalized, null);
         RoutingConsumerEntity entity = toEntity(normalized);
         entity.setSecretKey(generateUniqueSecretKey());
-        entity.setStatus(normalized.enabled() ? "ENABLED" : "DISABLED");
+        entity.setStatus(EnabledStatusEnum.codeOf(normalized.enabled()));
         routingConsumerMapper.insert(entity);
         trafficPolicySupport.save(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), entity.getId(),
                 normalized.rateLimitPolicy(), normalized.quotaPolicy());
@@ -133,7 +133,7 @@ public class RoutingConsumerService {
         validateForSave(request, id);
         RoutingConsumerEntity entity = toEntity(request);
         entity.setId(id);
-        entity.setStatus(request.enabled() ? "ENABLED" : "DISABLED");
+        entity.setStatus(EnabledStatusEnum.codeOf(request.enabled()));
         routingConsumerMapper.update(entity);
         trafficPolicySupport.save(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), id,
                 request.rateLimitPolicy(), request.quotaPolicy());
@@ -160,7 +160,7 @@ public class RoutingConsumerService {
                 existing.quotaPolicy()
         );
         validateForSave(request, id);
-        routingConsumerMapper.updateStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+        routingConsumerMapper.updateStatus(id, EnabledStatusEnum.codeOf(enabled));
         return getById(id);
     }
 
@@ -228,7 +228,7 @@ public class RoutingConsumerService {
                 resolveUserName(entity),
                 entity.getSecretKey(),
                 Boolean.TRUE.equals(entity.getReturnUsageDetail()),
-                "ENABLED".equals(entity.getStatus()),
+                EnabledStatusEnum.isEnabled(entity.getStatus()),
                 ruleCount != null ? ruleCount : 0L,
                 traffic != null ? traffic.rateLimitPolicy() : null,
                 traffic != null ? traffic.quotaPolicy() : null

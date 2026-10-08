@@ -21,8 +21,10 @@ public class LogicalModelEntity {
     private String outputModalitiesJson;
     private String languagesJson;
     private String visibility;
-    private String publishStatus;
-    private String status;
+    /** 发布状态（LogicalModelPublishStatusEnum）：1-DRAFT 2-PUBLISHED 3-ARCHIVED */
+    private Integer publishStatus;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
     private Integer isDeleted;
     private Integer sortOrder;
     private Boolean featured;

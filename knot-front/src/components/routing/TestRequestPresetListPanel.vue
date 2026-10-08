@@ -13,7 +13,7 @@
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch
-            :model-value="row.status === 'ACTIVE'"
+            :model-value="row.status === 1"
             :loading="togglingId === row.id"
             inline-prompt
             active-text="启用"

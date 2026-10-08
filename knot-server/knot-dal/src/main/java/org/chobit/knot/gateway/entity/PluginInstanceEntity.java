@@ -13,8 +13,8 @@ public class PluginInstanceEntity {
     private String extensionPoint;
     private String stageCode;
     private String version;
-    private String status;
-    private String failMode;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
     private Integer timeoutMs;
     private String configJson;
 }

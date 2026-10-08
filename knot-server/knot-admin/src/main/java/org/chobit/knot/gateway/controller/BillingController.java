@@ -55,7 +55,8 @@ public class BillingController {
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
                 query == null ? null : query.keyword(),
                 query == null ? null : query.modelFamilyCode(),
-                query == null ? null : query.code()
+                query == null ? null : query.code(),
+                query == null ? null : query.includeDeleted()
         );
     }
 
@@ -137,6 +138,19 @@ public class BillingController {
     @DeleteMapping("/rules/{id}")
     public void deleteRule(@PathVariable Long id) {
         billingService.deleteRule(id);
+    }
+
+    /**
+     * 恢复已逻辑删除的计费规则：仅清 {@code is_deleted}，{@code status} 保持停用，需显式启用才生效。
+     */
+    @OperationLog(module = "billing", operation = "UPDATE", entityType = "BillingRule",
+            entityId = "#p0",
+            entityNameAfter = "#result.code()",
+            description = "'恢复计费规则'",
+            newValueSpel = "@billingService.billingRuleAuditSnapshot(#p0)")
+    @PutMapping("/rules/{id}/restore")
+    public BillingRule restoreRule(@PathVariable Long id) {
+        return billingConverter.toRuleVO(billingService.restoreRule(id));
     }
 
     /**

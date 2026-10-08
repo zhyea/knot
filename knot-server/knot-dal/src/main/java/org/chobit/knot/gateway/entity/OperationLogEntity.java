@@ -18,7 +18,8 @@ public class OperationLogEntity {
     private String operatorName;
     private String ipAddress;
     private String userAgent;
-    private String status;
+    /** 执行结果（OperationLogStatusEnum）：1-成功 2-失败 */
+    private Integer status;
     private String errorMsg;
     private Long executionTime;
     private LocalDateTime createdAt;

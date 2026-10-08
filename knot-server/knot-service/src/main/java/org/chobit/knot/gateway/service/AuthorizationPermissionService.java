@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.service;
 
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.entity.AdminPermissionEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
@@ -48,7 +48,7 @@ public class AuthorizationPermissionService {
     public AdminPermissionEntity updatePermission(Long id, AdminPermissionEntity request) {
         AdminPermissionEntity existing = support.getPermissionById(id);
         request.setId(id);
-        if (request.getStatus() == null || request.getStatus().isBlank()) {
+        if (request.getStatus() == null) {
             request.setStatus(existing.getStatus());
         }
         support.validatePermission(request, id);
@@ -62,7 +62,7 @@ public class AuthorizationPermissionService {
     @Transactional
     public AdminPermissionEntity updateStatus(Long id, boolean enabled) {
         support.getPermissionById(id);
-        support.mapper().updatePermissionStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+        support.mapper().updatePermissionStatus(id, EnabledStatusEnum.codeOf(enabled));
         return support.getPermissionById(id);
     }
 

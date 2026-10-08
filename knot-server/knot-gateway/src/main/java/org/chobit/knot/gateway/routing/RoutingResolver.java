@@ -2,7 +2,7 @@ package org.chobit.knot.gateway.routing;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.constants.enums.RouteTargetTypeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
@@ -51,7 +51,7 @@ public class RoutingResolver {
         if (consumer == null) {
             throw new GatewayAuthException("Consumer API key not found");
         }
-        if (!EntityStatusEnum.ENABLED.code().equals(consumer.getStatus())) {
+        if (!EnabledStatusEnum.isEnabled(consumer.getStatus())) {
             throw new GatewayAuthException("Consumer is disabled");
         }
         RoutingRuleEntity rule = dataService.getEnabledRuleByConsumerAndCode(consumer.getId(), StringUtils.trim(ruleCode));
@@ -62,7 +62,7 @@ public class RoutingResolver {
         if (app == null) {
             throw new GatewayAuthException("Bound app not found");
         }
-        if (!EntityStatusEnum.ENABLED.code().equals(app.getStatus())) {
+        if (!EnabledStatusEnum.isEnabled(app.getStatus())) {
             throw new GatewayAuthException("Bound app is disabled");
         }
         List<RoutingRuleTargetDto> candidates = resolveCandidateModels(rule.getId());
@@ -176,7 +176,7 @@ public class RoutingResolver {
         if (RouteTargetTypeEnum.MODEL.code().equals(target.targetType())) {
             // 按存储主键 targetCode 取模型：targetId 是 left join 派生的可空值（目标被删即失效）
             ModelEntity model = dataService.getModelByCode(target.targetCode());
-            if (model == null || !EntityStatusEnum.ENABLED.code().equals(model.getStatus())) {
+            if (model == null || !EnabledStatusEnum.isEnabled(model.getStatus())) {
                 return List.of();
             }
             return List.of(new RoutingRuleTargetDto(
@@ -195,7 +195,7 @@ public class RoutingResolver {
             return List.of();
         }
         ModelPoolEntity pool = dataService.getModelPoolByCode(target.targetCode());
-        if (pool == null || !EntityStatusEnum.ENABLED.code().equals(pool.getStatus())) {
+        if (pool == null || !EnabledStatusEnum.isEnabled(pool.getStatus())) {
             return List.of();
         }
         return resolvePoolCandidates(pool, target);
@@ -204,10 +204,10 @@ public class RoutingResolver {
     private List<RoutingRuleTargetDto> resolvePoolCandidates(ModelPoolEntity pool, RoutingRuleTargetDto target) {
         // 池条目只存 model_code，模型实体（含主键 id，下游取凭据/协议绑定用）按 code 从缓存解析
         List<PoolItemCandidate> available = dataService.listModelPoolItemsByPoolCode(pool.getPoolCode()).stream()
-                .filter(item -> EntityStatusEnum.ENABLED.code().equals(item.getStatus()))
+                .filter(item -> EnabledStatusEnum.isEnabled(item.getStatus()))
                 .map(item -> new PoolItemCandidate(item, dataService.getModelByCode(item.getModelCode())))
                 .filter(candidate -> candidate.model() != null
-                        && EntityStatusEnum.ENABLED.code().equals(candidate.model().getStatus()))
+                        && EnabledStatusEnum.isEnabled(candidate.model().getStatus()))
                 .toList();
         // 池内选中顺序由模型池的 selection_strategy 决定：首个即本次选中，其余为故障转移候选
         List<PoolItemCandidate> ordered = modelPoolSelection.order(

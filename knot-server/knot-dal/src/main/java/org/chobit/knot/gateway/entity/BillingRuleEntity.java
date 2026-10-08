@@ -14,15 +14,17 @@ public class BillingRuleEntity {
     private String code;
     private String modelFamilyCode;
     private String modelFamilyName;
-    /** 生命周期状态：ACTIVE/INACTIVE/DELETED，查询排除 DELETED */
-    private String status;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用；删除语义见 isDeleted */
+    private Integer status;
+    /** 逻辑删除：0-否 1-是（删除时同时置 status=0，恢复后保持停用） */
+    private Integer isDeleted;
     private String remark;
 
     /** 当前版本（最近生效版本）字段，用于列表与审计展示 */
     private String versionCode;
     private String uniqHash;
-    /** 当前版本状态：ACTIVE/DISABLED */
-    private String versionStatus;
+    /** 当前版本状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer versionStatus;
     private String billingMode;
     /** 进阶定价方案（PricingPlanEnum）：FIXED/TIERED/PEAK_OFF_PEAK */
     private String pricingPlan;

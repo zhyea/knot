@@ -14,7 +14,7 @@
       </el-table-column>
       <el-table-column prop="status" label="状态" width="80" align="center">
         <template #default="{ row }">
-          <el-tag :type="row.status === 'ENABLED' ? 'success' : 'info'" size="small">
+          <el-tag :type="row.status === EnabledStatus.ENABLED ? 'success' : 'info'" size="small">
             {{ taskStatusLabel(row.status) }}
           </el-tag>
         </template>
@@ -41,6 +41,7 @@
 </template>
 
 <script setup lang="ts">
+import { EnabledStatus } from "@/constants/status";
 import type {PropType} from "vue";
 import type {Row} from "@/types";
 import {Edit, Tickets, VideoPlay} from "@element-plus/icons-vue";
@@ -68,7 +69,7 @@ function taskActions(row: Row) {
       key: "run",
       label: "立即执行",
       icon: VideoPlay,
-      disabled: row.status !== "ENABLED",
+      disabled: row.status !== EnabledStatus.ENABLED,
       confirm: "确认立即执行该任务？"
     }
   ];

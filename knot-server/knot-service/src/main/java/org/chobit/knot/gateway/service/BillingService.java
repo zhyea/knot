@@ -8,7 +8,7 @@ import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.BillingUnitEnum;
 import org.chobit.knot.gateway.constants.enums.CurrencyCodeEnum;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
 import org.chobit.knot.gateway.model.BillingConfig;
 import org.chobit.knot.gateway.model.PageRequest;
@@ -77,12 +77,14 @@ public class BillingService {
     public PageResult<BillingRuleListItem> listRules(PageRequest pageRequest,
                                                      String keyword,
                                                      String modelFamilyCode,
-                                                     String code) {
+                                                     String code,
+                                                     Boolean includeDeleted) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<BillingRuleEntity> pageInfo = new PageInfo<>(
                     billingRuleMapper.list(normalizeKeyword(keyword),
                             normalizeModelFamily(modelFamilyCode),
-                            normalizeKeyword(code))
+                            normalizeKeyword(code),
+                            includeDeleted)
             );
             return PageResult.fromPage(pageInfo, list -> list.stream().map(billingConverter::toRuleListItem).toList(), pageRequest);
         }
@@ -258,8 +260,8 @@ public class BillingService {
         );
     }
 
-    private boolean isActive(String status) {
-        return "ACTIVE".equals(status);
+    private boolean isActive(Integer status) {
+        return EnabledStatusEnum.isEnabled(status);
     }
 
     private List<BillingReportSummary.CodeCount> toCodeCounts(Map<String, Long> map) {
@@ -292,7 +294,7 @@ public class BillingService {
         validateRule(request, null);
         BillingRuleEntity e = new BillingRuleEntity();
         applyRule(e, request);
-        e.setStatus(request.enabled() ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code());
+        e.setStatus(EnabledStatusEnum.codeOf(request.enabled()));
         billingRuleMapper.insert(e);
         createVersion(e.getId(), request, request.enabled());
         return billingConverter.toRuleDto(billingRuleMapper.getById(e.getId()));
@@ -315,7 +317,7 @@ public class BillingService {
         }
         applyRule(existing, request);
         existing.setId(id);
-        existing.setStatus(request.enabled() ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code());
+        existing.setStatus(EnabledStatusEnum.codeOf(request.enabled()));
         syncVersion(id, request, request.enabled());
         billingRuleMapper.update(existing);
         return billingConverter.toRuleDto(billingRuleMapper.getById(id));
@@ -333,7 +335,7 @@ public class BillingService {
         if (!enabled) {
             assertRuleNotBound(existing.getCode(), "billing rule is bound by provider models, cannot disable");
         }
-        billingRuleMapper.updateStatus(id, enabled ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code());
+        billingRuleMapper.updateStatus(id, EnabledStatusEnum.codeOf(enabled));
         BillingRuleVersionEntity latest = billingRuleMapper.getLatestVersion(id);
         if (latest != null) {
             billingRuleMapper.updateVersionStatus(latest.getId(), statusFor(enabled));
@@ -342,7 +344,10 @@ public class BillingService {
     }
 
     /**
-     * Lifecycle-deletes the rule（status 置 DELETED，不做物理删除）。
+     * Lifecycle-deletes the rule（{@code is_deleted = 1} 且 {@code status = 0}，不做物理删除）。
+     *
+     * <p>删时强制停用：避免恢复后立刻参与计费。恢复后是否启用由调用方显式调
+     * {@code PUT /rules/{id}/status} 决定。</p>
      */
     @Transactional
     public void deleteRule(Long id) {
@@ -351,7 +356,28 @@ public class BillingService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "billing rule not found");
         }
         assertRuleNotBound(existing.getCode(), "billing rule is bound by provider models, cannot delete");
-        billingRuleMapper.deleteRule(id);
+        billingRuleMapper.logicalDelete(id);
+    }
+
+    /**
+     * 恢复已逻辑删除的计费规则：{@code is_deleted = 0}，{@code status} 保持 0（不自动生效）。
+     *
+     * <p>code 唯一性按物理行判定（uk_billing_rules_code 不区分 is_deleted），所以逻辑删除后同
+     * {@code code} 无法新建，只能恢复。</p>
+     */
+    @Transactional
+    public BillingRuleDto restoreRule(Long id) {
+        BillingRuleEntity existing = billingRuleMapper.getByIdIncludingDeleted(id);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "billing rule not found");
+        }
+        if (!Integer.valueOf(1).equals(existing.getIsDeleted())) {
+            throw new BusinessException(ErrorCode.CONFLICT, "billing rule is not deleted, restore skipped");
+        }
+        if (billingRuleMapper.restore(id) == 0) {
+            throw new BusinessException(ErrorCode.CONFLICT, "billing rule restore failed, refresh and retry");
+        }
+        return getRuleById(id);
     }
 
     /**
@@ -575,7 +601,7 @@ public class BillingService {
         version.setConfigJson(blankToNull(request.configJson()));
         version.setEffectiveFrom(request.effectiveFrom() == null ? LocalDateTime.now() : request.effectiveFrom());
         version.setEffectiveTo(request.effectiveTo());
-        version.setStatus(active ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.DISABLED.code());
+        version.setStatus(EnabledStatusEnum.codeOf(active));
         billingRuleMapper.insertVersion(version);
         return version;
     }
@@ -699,8 +725,8 @@ public class BillingService {
         }
     }
 
-    private static String statusFor(boolean enabled) {
-        return enabled ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.DISABLED.code();
+    private static Integer statusFor(boolean enabled) {
+        return EnabledStatusEnum.codeOf(enabled);
     }
 
     /** 规则编码归一：仅去空白，不再强制大写（编码大小写由用户自定，唯一性按原值校验） */

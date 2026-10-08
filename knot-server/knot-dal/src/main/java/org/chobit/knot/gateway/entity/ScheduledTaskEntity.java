@@ -12,7 +12,8 @@ public class ScheduledTaskEntity {
     private String handlerCode;
     private String cronExpression;
     private String executionMode;
-    private String status;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
     private String description;
     private LocalDateTime lastFireAt;
     private LocalDateTime nextFireAt;

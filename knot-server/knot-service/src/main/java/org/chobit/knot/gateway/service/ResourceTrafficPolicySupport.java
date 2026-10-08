@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.service;
 
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.QuotaWindowEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.entity.QuotaPolicyEntity;
@@ -167,7 +167,7 @@ public class ResourceTrafficPolicySupport {
         entity.setPolicyCode(policyCode(resourceType, resourceId, "RL"));
         entity.setPolicyName(policyName(resourceType, resourceId, "频控"));
         fillRateLimit(entity, policy);
-        entity.setStatus(EntityStatusEnum.ACTIVE.code());
+        entity.setStatus(EnabledStatusEnum.ENABLED.code());
         rateLimitPolicyMapper.insert(entity);
         return entity.getId();
     }
@@ -187,7 +187,7 @@ public class ResourceTrafficPolicySupport {
         entity.setPolicyCode(policyCode(resourceType, resourceId, "QT"));
         entity.setPolicyName(policyName(resourceType, resourceId, "额度"));
         fillQuota(entity, policy);
-        entity.setStatus(EntityStatusEnum.ACTIVE.code());
+        entity.setStatus(EnabledStatusEnum.ENABLED.code());
         quotaPolicyMapper.insert(entity);
         return entity.getId();
     }
@@ -218,7 +218,7 @@ public class ResourceTrafficPolicySupport {
      * Converts the source value to the target representation. Executes the public operation.
      */
     public static RateLimitPolicy toRateLimitModel(RateLimitPolicyEntity entity) {
-        if (entity == null || !EntityStatusEnum.ACTIVE.code().equals(entity.getStatus())) {
+        if (entity == null || !EnabledStatusEnum.isEnabled(entity.getStatus())) {
             return null;
         }
         return new RateLimitPolicy(
@@ -231,7 +231,7 @@ public class ResourceTrafficPolicySupport {
      * Converts the source value to the target representation. Executes the public operation.
      */
     public static QuotaPolicy toQuotaModel(QuotaPolicyEntity entity) {
-        if (entity == null || !EntityStatusEnum.ACTIVE.code().equals(entity.getStatus())) {
+        if (entity == null || !EnabledStatusEnum.isEnabled(entity.getStatus())) {
             return null;
         }
         return new QuotaPolicy(

@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.chobit.knot.gateway.auth.AuthRoles;
 import org.chobit.knot.gateway.constants.AuthConstants;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
 import org.chobit.knot.gateway.crypto.CredentialEncryption;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
@@ -86,7 +86,7 @@ public class ProviderCredentialSupport {
         if (isNew) {
             entity = new ProviderCredentialEntity();
             entity.setProviderId(providerId);
-            entity.setStatus(EntityStatusEnum.ACTIVE.code());
+            entity.setStatus(EnabledStatusEnum.ENABLED.code());
         }
         entity.setEncryptedConfig(encryptConfig(authConfig));
         entity.setCredentialType(ProviderCredentialTypeEnum.fromCode(credentialType).code());

@@ -15,7 +15,7 @@
         ec.remark,
         ((select count(*) from kb_logical_models lm where lm.model_family = ec.item_code and lm.is_deleted = 0)
             + (select count(*) from kb_billing_rules br
-               where br.model_family = ec.item_code and coalesce(br.status, '') &lt;&gt; 'DELETED')) AS usageCount
+               where br.model_family = ec.item_code and br.is_deleted = 0)) AS usageCount
     </sql>
 
     <sql id="ModelFamilyFrom">

@@ -14,7 +14,8 @@ public class AdminPermissionEntity {
     private Long menuId;
     private String menuCode;
     private String menuName;
-    private String status;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
     private Integer builtIn;
     private String remark;
 }

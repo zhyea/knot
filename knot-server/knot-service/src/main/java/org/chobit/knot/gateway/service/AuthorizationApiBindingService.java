@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.service;
 
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.entity.AdminApiPermissionBindingEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,7 +46,7 @@ public class AuthorizationApiBindingService {
     public AdminApiPermissionBindingEntity updateApiPermissionBinding(Long id, AdminApiPermissionBindingEntity request) {
         AdminApiPermissionBindingEntity existing = support.getApiPermissionBindingById(id);
         request.setId(id);
-        if (request.getStatus() == null || request.getStatus().isBlank()) {
+        if (request.getStatus() == null) {
             request.setStatus(existing.getStatus());
         }
         support.validateApiPermissionBinding(request, id);
@@ -60,7 +60,7 @@ public class AuthorizationApiBindingService {
     @Transactional
     public AdminApiPermissionBindingEntity updateStatus(Long id, boolean enabled) {
         support.getApiPermissionBindingById(id);
-        support.mapper().updateApiPermissionBindingStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+        support.mapper().updateApiPermissionBindingStatus(id, EnabledStatusEnum.codeOf(enabled));
         return support.getApiPermissionBindingById(id);
     }
 

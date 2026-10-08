@@ -135,7 +135,7 @@ public class ExternalModelService {
                 readStringList(item.getOutputModalitiesJson()),
                 List.of(),
                 "PUBLIC",
-                "DRAFT",
+                LogicalModelPublishStatusEnum.defaultStatus().code(),
                 false,
                 false,
                 0,

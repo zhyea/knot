@@ -27,7 +27,8 @@ public class ModelEntity {
     private String remark;
     /** 绑定计费规则业务码（kb_billing_rules.code），非主键 id */
     private String billingRuleCode;
-    private String status;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
     /** 逻辑删除：0-否 1-是（uk_models_code 不区分 is_deleted，删除后同 code 只能恢复，不能新建） */
     private Integer isDeleted;
 }

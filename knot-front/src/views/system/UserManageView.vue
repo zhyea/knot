@@ -130,9 +130,9 @@ async function handleAction(action: string, row: Row) {
   }
 }
 
-async function onStatusChange(row: Row, status: string | number | boolean) {
+async function onStatusChange(row: Row, status: number) {
   try {
-    await updateUserStatus(row.id, { status: status.toString() });
+    await updateUserStatus(row.id, { status });
     ElMessage.success("状态已更新");
     await resetPage();
   } catch {

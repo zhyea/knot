@@ -40,7 +40,6 @@ resource_traffic_policies,kb_resource_traffic_policies,kb,资源-策略绑定
 billing_rules,kb_billing_rules,kb,计费规则
 billing_rule_versions,kb_billing_rule_versions,kb,计费规则版本
 billing_rule_version_items,kb_billing_rule_version_items,kb,计费版本计价项
-security_policies,kb_security_policies,kb,安全策略
 plugin_packages,kb_plugin_packages,kb,插件包
 plugin_capabilities,kb_plugin_capabilities,kb,插件能力
 plugin_instances,kb_plugin_instances,kb,插件实例
@@ -48,8 +47,6 @@ plugin_bindings,kb_plugin_bindings,kb,插件绑定
 plugin_config_versions,kb_plugin_config_versions,kb,插件配置版本
 notification_templates,kb_notification_templates,kb,通知模板
 notification_records,kb_notification_records,kb,通知发送记录
-alerts,ks_alerts,ks,告警（平台级监控，归系统域）
-cache_records,ks_cache_records,ks,缓存登记（平台基础设施，归系统域）
 plugin_execution_logs,kr_plugin_execution_logs,kr,插件执行流水（高频只增，唯一 kr 表）
 external_model_sources,kx_model_sources,kx,外部模型源
 external_model_items,kx_model_items,kx,外部模型条目快照

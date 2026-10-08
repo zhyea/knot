@@ -70,7 +70,8 @@ CREATE TABLE IF NOT EXISTS ks_modules (
   module_name VARCHAR(100) NOT NULL,
   icon VARCHAR(64) DEFAULT NULL,
   sort_order INT NOT NULL DEFAULT 0,
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_sys_modules_code (module_code)
@@ -86,7 +87,8 @@ CREATE TABLE IF NOT EXISTS ks_menus (
   component_key VARCHAR(128) DEFAULT NULL,
   icon VARCHAR(64) DEFAULT NULL,
   sort_order INT NOT NULL DEFAULT 0,
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_sys_menus_code (menu_code),
@@ -100,7 +102,8 @@ CREATE TABLE IF NOT EXISTS ks_permissions (
   permission_type VARCHAR(32) NOT NULL,
   module_id BIGINT NOT NULL,
   menu_id BIGINT DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+
   built_in TINYINT NOT NULL DEFAULT 1,
   remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -123,7 +126,8 @@ CREATE TABLE IF NOT EXISTS ks_api_permission_bindings (
   http_method VARCHAR(16) NOT NULL,
   path_pattern VARCHAR(255) NOT NULL,
   controller_class VARCHAR(255) DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_sys_api_permission_binding (http_method, path_pattern),
@@ -144,7 +148,7 @@ CREATE TABLE IF NOT EXISTS ks_operation_logs (
   operator_name VARCHAR(64) DEFAULT NULL COMMENT '操作人姓名',
   ip_address VARCHAR(64) DEFAULT NULL COMMENT 'IP地址',
   user_agent VARCHAR(500) DEFAULT NULL COMMENT '浏览器UA',
-  status VARCHAR(32) NOT NULL DEFAULT 'SUCCESS' COMMENT '操作状态：SUCCESS/FAILURE',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '执行结果（OperationLogStatusEnum）：1-成功 2-失败',
   error_msg VARCHAR(1000) DEFAULT NULL COMMENT '错误信息',
   execution_time BIGINT DEFAULT NULL COMMENT '耗时(ms)',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -172,7 +176,8 @@ CREATE TABLE IF NOT EXISTS ks_scheduled_tasks (
   handler_code VARCHAR(64) NOT NULL,
   cron_expression VARCHAR(64) NOT NULL,
   execution_mode VARCHAR(32) NOT NULL DEFAULT 'SINGLE',
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+
   description VARCHAR(500) DEFAULT NULL,
   last_fire_at DATETIME DEFAULT NULL,
   next_fire_at DATETIME DEFAULT NULL,
@@ -191,7 +196,7 @@ CREATE TABLE IF NOT EXISTS ks_scheduled_task_runs (
   execution_mode VARCHAR(32) NOT NULL,
   node_id VARCHAR(128) NOT NULL,
   trigger_type VARCHAR(32) NOT NULL,
-  status VARCHAR(32) NOT NULL,
+  status TINYINT NOT NULL COMMENT '运行状态（ScheduledTaskRunStatusEnum）：1-运行中 2-成功 3-失败',
   start_time DATETIME NOT NULL,
   end_time DATETIME DEFAULT NULL,
   duration_ms BIGINT DEFAULT NULL,
@@ -212,7 +217,8 @@ CREATE TABLE IF NOT EXISTS kb_rate_limit_policies (
   policy_name VARCHAR(100) NOT NULL,
   rpm INT NOT NULL DEFAULT 0 COMMENT '每分钟请求数上限；0=不限',
   tpm INT NOT NULL DEFAULT 0 COMMENT '每分钟 token 上限；0=不限',
-  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+
   remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -227,7 +233,8 @@ CREATE TABLE IF NOT EXISTS kb_quota_policies (
   cost_limit DECIMAL(18,4) DEFAULT NULL COMMENT '窗口内成本上限；4 位小数（用户配置精度）；NULL 或 0=不限',
   currency VARCHAR(8) DEFAULT NULL COMMENT '成本币种：USD / CNY',
   quota_window VARCHAR(16) NOT NULL DEFAULT 'MONTH' COMMENT '统计窗口：MINUTE/HOUR/DAY/WEEK/MONTH，窗口结束清零',
-  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+
   remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -265,7 +272,7 @@ CREATE TABLE IF NOT EXISTS kb_provider_accounts (
   provider_code VARCHAR(32) NOT NULL COMMENT '所属供应商 code（kb_providers.code）',
   code VARCHAR(32) NOT NULL,
   base_url VARCHAR(255) DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_provider_accounts_code (code),
@@ -278,7 +285,7 @@ CREATE TABLE IF NOT EXISTS kb_provider_credentials (
   credential_type VARCHAR(32) NOT NULL,
   auth_applier VARCHAR(64) DEFAULT NULL COMMENT '鉴权策略编码（UpstreamAuthApplier code），空则回退默认 Bearer',
   encrypted_config TEXT DEFAULT NULL COMMENT '加密后的任意键值认证配置 JSON',
-  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_provider_credentials_account (provider_account_id)
@@ -295,7 +302,7 @@ CREATE TABLE IF NOT EXISTS kb_provider_discount_policies (
   priority INT NOT NULL DEFAULT 100,
   effective_from DATETIME NOT NULL,
   effective_to DATETIME DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -312,7 +319,7 @@ CREATE TABLE IF NOT EXISTS kb_models (
   base_url VARCHAR(255) DEFAULT NULL,
   remark VARCHAR(255) DEFAULT NULL,
   billing_rule_code VARCHAR(64) DEFAULT NULL COMMENT '绑定计费规则 code（kb_billing_rules.code），非主键 id',
-  status VARCHAR(32) NOT NULL DEFAULT 'DISABLED',
+  status TINYINT NOT NULL DEFAULT 0 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   is_deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除：0-否 1-是；与 kb_model_pools / kb_logical_models 同款逻辑删除约定',
   tags_json JSON DEFAULT NULL,
   params_json JSON DEFAULT NULL,
@@ -329,7 +336,7 @@ CREATE TABLE IF NOT EXISTS kb_model_pools (
   name VARCHAR(100) NOT NULL,
   logical_model_code VARCHAR(128) NOT NULL COMMENT '统一模型 code（kb_logical_models.model_code），池内模型必须全部归属该统一模型',
   selection_strategy VARCHAR(32) NOT NULL DEFAULT 'WEIGHTED',
-  status VARCHAR(32) NOT NULL DEFAULT 'DISABLED',
+  status TINYINT NOT NULL DEFAULT 0 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   is_deleted TINYINT(1) NOT NULL DEFAULT 0,
   remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -344,7 +351,7 @@ CREATE TABLE IF NOT EXISTS kb_model_pool_items (
   model_code VARCHAR(128) NOT NULL COMMENT '供应商模型 code（kb_models.model_code）',
   weight INT NOT NULL DEFAULT 100,
   priority INT NOT NULL DEFAULT 100,
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_model_pool_item (pool_code, model_code),
@@ -368,8 +375,8 @@ CREATE TABLE IF NOT EXISTS kb_logical_models (
   output_modalities_json JSON DEFAULT NULL,
   languages_json JSON DEFAULT NULL,
   visibility VARCHAR(32) NOT NULL DEFAULT 'PUBLIC',
-  publish_status VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  publish_status TINYINT NOT NULL DEFAULT 1 COMMENT '发布状态（LogicalModelPublishStatusEnum）：1-DRAFT 2-PUBLISHED 3-ARCHIVED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   is_deleted TINYINT(1) NOT NULL DEFAULT 0,
   sort_order INT NOT NULL DEFAULT 0,
   featured TINYINT NOT NULL DEFAULT 0,
@@ -387,7 +394,7 @@ CREATE TABLE IF NOT EXISTS kb_provider_model_mappings (
   provider_account_code VARCHAR(32) NOT NULL COMMENT '供应商账户 code（kb_provider_accounts.code）',
   model_id BIGINT NOT NULL COMMENT '供应商模型 id（kb_models.id）',
   provider_model_name VARCHAR(128) NOT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   priority INT NOT NULL DEFAULT 100,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -404,7 +411,7 @@ CREATE TABLE IF NOT EXISTS kx_model_sources (
   source_url VARCHAR(512) NOT NULL,
   api_url VARCHAR(512) NOT NULL,
   source_type VARCHAR(32) NOT NULL DEFAULT 'COMMERCIAL_LLM',
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   last_sync_at DATETIME DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -447,7 +454,7 @@ CREATE TABLE IF NOT EXISTS kx_model_items (
   max_completion_tokens INT DEFAULT NULL,
   logical_model_id BIGINT DEFAULT NULL,
   ignored TINYINT NOT NULL DEFAULT 0,
-  sync_status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+  sync_status TINYINT NOT NULL DEFAULT 1 COMMENT '同步状态（ExternalModelSyncStatusEnum）：1-待同步 2-已同步 3-失败',
   sync_hash VARCHAR(64) DEFAULT NULL,
   last_seen_at DATETIME DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -469,7 +476,7 @@ CREATE TABLE IF NOT EXISTS kb_model_api_bindings (
   request_adapter VARCHAR(255) DEFAULT NULL COMMENT '上游请求适配器编码或类名',
   usage_extractor VARCHAR(255) NOT NULL DEFAULT 'DEFAULT' COMMENT '非流式响应 Usage 解析器编码或类名',
   stream_usage_extractor VARCHAR(255) DEFAULT NULL COMMENT '流式响应 Usage 解析器编码或类名，为空时复用 usage_extractor',
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -490,7 +497,8 @@ CREATE TABLE IF NOT EXISTS kb_apps (
   remark VARCHAR(255) DEFAULT NULL COMMENT '备注',
   is_deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0-否 1-是',
   app_type VARCHAR(32) DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+
   ip_whitelist_json JSON DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -502,7 +510,8 @@ CREATE TABLE IF NOT EXISTS kb_app_credentials (
   app_code VARCHAR(64) NOT NULL COMMENT '所属应用业务码（kb_apps.app_code），非主键 id',
   app_key VARCHAR(128) NOT NULL,
   app_secret_hash VARCHAR(255) NOT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uk_app_credentials_key (app_key),
   KEY idx_app_credentials_app (app_code)
@@ -524,7 +533,8 @@ CREATE TABLE IF NOT EXISTS kb_routing_consumers (
   user_id BIGINT DEFAULT NULL,
   secret_key VARCHAR(64) NOT NULL,
   return_usage_detail TINYINT(1) NOT NULL DEFAULT 0,
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_routing_consumers_code (consumer_code),
@@ -540,7 +550,8 @@ CREATE TABLE IF NOT EXISTS kb_routing_rules (
   app_id BIGINT DEFAULT NULL,
   user_id BIGINT DEFAULT NULL,
   retry_policy TEXT DEFAULT NULL COMMENT '失败重试策略（JSON）；空表示走内置默认策略',
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_routing_rules_code (rule_code),
@@ -551,7 +562,8 @@ CREATE TABLE IF NOT EXISTS kb_routing_rule_consumers (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   rule_id BIGINT NOT NULL,
   consumer_id BIGINT NOT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_routing_rule_consumer (rule_id, consumer_id),
@@ -578,7 +590,8 @@ CREATE TABLE IF NOT EXISTS kb_billing_rules (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) NOT NULL,
   model_family VARCHAR(64) DEFAULT NULL COMMENT '模型族 code（ks_enum_configs.category=model_family 的 item_code）；为空表示默认规则，覆盖所有族',
-  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE' COMMENT '生命周期状态：ACTIVE/INACTIVE/DELETED，查询排除 DELETED，启停与删除不得混用',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用；删除语义见 is_deleted',
+  is_deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除：0-否 1-是；删除时同时置 status=0，恢复后保持停用',
   remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -596,50 +609,13 @@ CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
   currency VARCHAR(16) NOT NULL DEFAULT 'USD',
   unit VARCHAR(32) NOT NULL DEFAULT '1K_TOKENS' COMMENT '计费单位（BillingUnitEnum code）',
   config_json JSON DEFAULT NULL COMMENT '计费配置：defaultUnitPrice + basePrices + ladder + 模式扩展',
-  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE' COMMENT '版本状态：ACTIVE/DISABLED',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   effective_from DATETIME NOT NULL,
   effective_to DATETIME DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uk_billing_rule_version_code (rule_id, version_code),
   UNIQUE KEY uk_billing_rule_version_hash (rule_id, uniq_hash),
   KEY idx_billing_rule_versions_active (rule_id, status, effective_from, effective_to)
-);
-
--- =========================
--- 安全与监控
--- =========================
-CREATE TABLE IF NOT EXISTS kb_security_policies (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  policy_type VARCHAR(32) NOT NULL,
-  policy_code VARCHAR(64) NOT NULL,
-  config_json JSON NOT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ENABLED',
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_security_policies_code (policy_code)
-);
-
-CREATE TABLE IF NOT EXISTS ks_alerts (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  alert_type VARCHAR(32) NOT NULL,
-  level VARCHAR(16) NOT NULL,
-  biz_type VARCHAR(32) DEFAULT NULL,
-  biz_id BIGINT DEFAULT NULL,
-  title VARCHAR(200) NOT NULL,
-  content TEXT DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'OPEN',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  resolved_at DATETIME DEFAULT NULL,
-  KEY idx_alerts_level_status_time (level, status, created_at)
-);
-
-CREATE TABLE IF NOT EXISTS ks_cache_records (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  cache_key VARCHAR(255) NOT NULL,
-  cache_type VARCHAR(64) NOT NULL,
-  expire_at DATETIME DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_cache_records_key (cache_key)
 );
 
 -- =========================
@@ -657,7 +633,7 @@ CREATE TABLE IF NOT EXISTS kb_plugin_packages (
   checksum VARCHAR(128) DEFAULT NULL,
   signature VARCHAR(255) DEFAULT NULL,
   compatibility_json JSON DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '包状态（PluginPackageStatusEnum）：1-生效 2-禁用 3-已废弃',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_plugin_packages_code (plugin_code)
@@ -672,7 +648,8 @@ CREATE TABLE IF NOT EXISTS kb_plugin_capabilities (
   stage_code VARCHAR(64) NOT NULL,
   order_hint INT NOT NULL DEFAULT 100,
   config_schema_json JSON DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_plugin_capabilities_code (plugin_code, capability_code, stage_code),
@@ -686,8 +663,7 @@ CREATE TABLE IF NOT EXISTS kb_plugin_instances (
   instance_code VARCHAR(64) NOT NULL,
   instance_name VARCHAR(100) NOT NULL,
   config_json JSON DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'DRAFT',
-  fail_mode VARCHAR(32) NOT NULL DEFAULT 'FAIL_OPEN',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '实例状态（PluginInstanceStatusEnum）：1-草稿 2-生效 3-暂停 4-归档',
   timeout_ms INT NOT NULL DEFAULT 3000,
   concurrency_limit INT NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -707,7 +683,8 @@ CREATE TABLE IF NOT EXISTS kb_plugin_bindings (
   match_expression VARCHAR(255) DEFAULT NULL,
   gray_config_json JSON DEFAULT NULL,
   binding_config_json JSON DEFAULT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_plugin_bindings_scope (instance_code, scope_type, scope_ref_id, stage_code),
@@ -722,7 +699,7 @@ CREATE TABLE IF NOT EXISTS kr_plugin_execution_logs (
   stage_code VARCHAR(64) NOT NULL,
   scope_type VARCHAR(32) DEFAULT NULL,
   scope_ref_id BIGINT DEFAULT NULL,
-  result_status VARCHAR(32) NOT NULL,
+  result_status TINYINT NOT NULL COMMENT '执行结果（PluginExecutionResultStatusEnum）：1-成功 2-跳过 3-失败 4-超时 5-熔断',
   duration_ms BIGINT DEFAULT NULL,
   error_code VARCHAR(64) DEFAULT NULL,
   error_message VARCHAR(500) DEFAULT NULL,
@@ -751,7 +728,8 @@ CREATE TABLE IF NOT EXISTS kb_notification_templates (
   channel VARCHAR(32) NOT NULL,
   title_tpl VARCHAR(255) NOT NULL,
   content_tpl TEXT NOT NULL,
-  status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+
   UNIQUE KEY uk_notification_templates_code (code)
 );
 
@@ -760,7 +738,7 @@ CREATE TABLE IF NOT EXISTS kb_notification_records (
   template_code VARCHAR(64) NOT NULL COMMENT '通知模板 code（kb_notification_templates.code）',
   receiver VARCHAR(255) NOT NULL,
   channel VARCHAR(32) NOT NULL,
-  send_status VARCHAR(32) NOT NULL,
+  send_status TINYINT NOT NULL COMMENT '发送状态（NotificationSendStatusEnum）：1-待发送 2-已发送 3-失败 4-重试中',
   error_msg VARCHAR(255) DEFAULT NULL,
   sent_at DATETIME DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -813,7 +791,7 @@ CREATE TABLE IF NOT EXISTS kb_test_request_presets (
     logical_model_code VARCHAR(128) DEFAULT NULL COMMENT '关联统一模型 code（kb_logical_models.model_code），可空，仅作归类',
     request_body  LONGTEXT     NOT NULL COMMENT '完整请求体 JSON（具体值；model/prompt 由调试面板按目标覆盖）',
     remark        VARCHAR(255) DEFAULT NULL COMMENT '备注',
-    status        VARCHAR(32)  NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE / INACTIVE',
+    status        TINYINT      NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
     created_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_test_request_presets_code (code),

@@ -19,7 +19,8 @@ public class TestRequestPresetEntity {
     private String logicalModelName;
     private String requestBody;
     private String remark;
-    private String status;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

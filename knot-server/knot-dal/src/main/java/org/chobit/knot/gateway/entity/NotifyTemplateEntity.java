@@ -9,5 +9,6 @@ public class NotifyTemplateEntity {
     private String name;
     private String channel;
     private String contentTpl;
-    private String status;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
 }

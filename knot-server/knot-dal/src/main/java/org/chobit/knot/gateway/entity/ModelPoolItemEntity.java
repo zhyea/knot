@@ -9,7 +9,8 @@ public class ModelPoolItemEntity {
     private String modelCode;
     private Integer weight;
     private Integer priority;
-    private String status;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
     private String modelName;
     private String modelType;
     private String providerAccountCode;

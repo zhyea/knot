@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.dto.system.ScheduledTaskQuery;
 import org.chobit.knot.gateway.dto.system.ScheduledTaskRequest;
 import org.chobit.knot.gateway.dto.system.ScheduledTaskRunQuery;
@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 public class ScheduledTaskService {
 
     private static final Set<String> EXECUTION_MODES = Set.of("SINGLE", "BROADCAST");
-    private static final Set<String> STATUSES = Set.of(EntityStatusEnum.ENABLED.code(), EntityStatusEnum.DISABLED.code());
+    private static final Set<Integer> STATUSES = Set.of(EnabledStatusEnum.ENABLED.code(), EnabledStatusEnum.DISABLED.code());
 
     private final ScheduledTaskMapper scheduledTaskMapper;
     private final ScheduledTaskSchedulerService schedulerService;
@@ -140,7 +140,10 @@ public class ScheduledTaskService {
         entity.setHandlerCode(required(request.handlerCode(), "handlerCode"));
         entity.setCronExpression(required(request.cronExpression(), "cronExpression"));
         entity.setExecutionMode(required(request.executionMode(), "executionMode"));
-        entity.setStatus(required(request.status(), "status"));
+        if (request.status() == null) {
+            throw new IllegalArgumentException("status is required");
+        }
+        entity.setStatus(request.status());
         entity.setDescription(blankToNull(request.description()));
 
         if (!handlerCodes.contains(entity.getHandlerCode())) {

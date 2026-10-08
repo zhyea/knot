@@ -29,7 +29,7 @@
         select id, task_code, task_name, handler_code, cron_expression, execution_mode,
                status, description, last_fire_at, next_fire_at, created_at, updated_at
         from ks_scheduled_tasks
-        where status = 'ENABLED'
+        where status = 1
         order by id asc
     </select>
 

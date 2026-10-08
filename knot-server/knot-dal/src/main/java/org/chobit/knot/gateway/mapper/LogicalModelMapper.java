@@ -24,7 +24,7 @@ public interface LogicalModelMapper {
 
     int update(LogicalModelEntity entity);
 
-    int updateStatus(@Param("id") Long id, @Param("status") String status);
+    int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 
     int deleteById(Long id);
 

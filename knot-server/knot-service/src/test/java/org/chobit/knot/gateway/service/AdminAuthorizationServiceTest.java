@@ -75,7 +75,7 @@ class AdminAuthorizationServiceTest {
         entity.setHttpMethod("POST");
         entity.setPathPattern("/api/apps");
         entity.setControllerClass("AppController");
-        entity.setStatus("ENABLED");
+        entity.setStatus(1);
         return entity;
     }
 }

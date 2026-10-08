@@ -15,7 +15,8 @@ public class ProviderModelMappingEntity {
     private String modelCode;
     private String modelName;
     private String providerModelName;
-    private String status;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
     private Integer priority;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

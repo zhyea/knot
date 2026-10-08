@@ -41,7 +41,8 @@ public class ExternalModelItemEntity {
     private Integer maxCompletionTokens;
     private Long logicalModelId;
     private Boolean ignored;
-    private String syncStatus;
+    /** 同步状态（ExternalModelSyncStatusEnum）：1-待同步 2-已同步 3-失败 */
+    private Integer syncStatus;
     private String syncHash;
     private LocalDateTime lastSeenAt;
     private LocalDateTime createdAt;

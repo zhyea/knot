@@ -19,7 +19,7 @@
       <el-table-column prop="ipAddress" label="IP 地址" width="140" />
       <el-table-column prop="status" label="状态" width="90">
         <template #default="{ row }">
-          <el-tag :type="row.status === 'SUCCESS' ? 'success' : 'danger'" size="small">
+          <el-tag :type="row.status === OperationLogStatus.SUCCESS ? 'success' : 'danger'" size="small">
             {{ statusLabel(row.status) }}
           </el-tag>
         </template>
@@ -43,6 +43,7 @@
 </template>
 
 <script setup lang="ts">
+import { OperationLogStatus } from "@/constants/status";
 import type {PropType} from "vue";
 import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";

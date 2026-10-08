@@ -14,7 +14,6 @@
             pc.stage_code,
             pp.version,
             pi.status,
-            pi.fail_mode,
             pi.timeout_ms,
             pi.config_json
         from kb_plugin_instances pi
@@ -29,7 +28,7 @@
                     or pc.capability_code like concat('%', #{keyword}, '%')
                 )
             </if>
-            <if test="status != null and status != ''">
+            <if test="status != null">
                 and pi.status = #{status}
             </if>
         </where>
@@ -48,7 +47,6 @@
             pc.stage_code,
             pp.version,
             pi.status,
-            pi.fail_mode,
             pi.timeout_ms,
             pi.config_json
         from kb_plugin_instances pi
@@ -65,7 +63,6 @@
             instance_name,
             config_json,
             status,
-            fail_mode,
             timeout_ms,
             concurrency_limit
         ) values(
@@ -79,7 +76,6 @@
             #{name},
             #{configJson},
             #{status},
-            #{failMode},
             #{timeoutMs},
             0
         )
@@ -106,16 +102,15 @@
             pb.order_no,
             pb.status,
             coalesce(pb.binding_config_json, pi.config_json) as config_json,
-            pi.fail_mode,
             pi.timeout_ms
         from kb_plugin_bindings pb
         inner join kb_plugin_instances pi on pi.instance_code = pb.instance_code
         inner join kb_plugin_packages pp on pp.plugin_code = pi.plugin_code
         inner join kb_plugin_capabilities pc on pc.id = pi.capability_id
-        where pb.status = 'ACTIVE'
-          and pi.status = 'ACTIVE'
-          and pp.status = 'ACTIVE'
-          and pc.status = 'ACTIVE'
+        where pb.status = 1
+          and pi.status = 1
+          and pp.status = 1
+          and pc.status = 1
           and pc.extension_point = #{extensionPoint}
           and pb.stage_code = #{stageCode}
         order by pb.order_no asc, pb.id asc

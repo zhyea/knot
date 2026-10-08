@@ -44,7 +44,7 @@ public class PluginService implements PluginBindingProvider {
      */
     public PageResult<PluginDto> list(PageRequest pageRequest, String keyword, String status) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
-            PageInfo<PluginInstanceEntity> pageInfo = new PageInfo<>(pluginMapper.list(normalizeKeyword(keyword), normalizeStatus(status)));
+            PageInfo<PluginInstanceEntity> pageInfo = new PageInfo<>(pluginMapper.list(normalizeKeyword(keyword), toStatusCode(status)));
             return PageResult.fromPage(pageInfo, pluginConverter::toDtoList, pageRequest);
         }
     }
@@ -74,7 +74,6 @@ public class PluginService implements PluginBindingProvider {
         e.setStageCode(PluginStageCode.requireCode(request.stageCode(),
                 "unsupported plugin stage code: " + request.stageCode()));
         e.setStatus(request.status());
-        e.setFailMode(request.failMode());
         e.setTimeoutMs(request.timeoutMs());
         e.setConfigJson(request.configJson());
         pluginMapper.insert(e);
@@ -85,7 +84,7 @@ public class PluginService implements PluginBindingProvider {
      * Updates the target resource. Executes the public operation.
      */
     @Transactional
-    public PluginDto updateStatus(Long id, String status) {
+    public PluginDto updateStatus(Long id, Integer status) {
         getById(id); // ensure exists
         pluginMapper.updateStatus(id, status);
         return getById(id);
@@ -122,7 +121,6 @@ public class PluginService implements PluginBindingProvider {
                 entity.getScopeRefId(),
                 entity.getOrderNo(),
                 entity.getConfigJson(),
-                entity.getFailMode(),
                 entity.getTimeoutMs()
         );
     }
@@ -132,9 +130,17 @@ public class PluginService implements PluginBindingProvider {
         return value.isEmpty() ? null : value;
     }
 
-    private static String normalizeStatus(String status) {
+    /** 查询参数归一：数字字符串 -> PluginInstanceStatusEnum code；非法值不过滤 */
+    private static Integer toStatusCode(String status) {
         String value = status == null ? "" : status.trim();
-        return value.isEmpty() ? null : value;
+        if (value.isEmpty()) {
+            return null;
+        }
+        try {
+            return Integer.valueOf(value);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
 }

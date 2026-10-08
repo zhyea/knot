@@ -26,8 +26,8 @@
       <el-table-column v-if="showEntityName" prop="entityName" label="对象" min-width="120" show-overflow-tooltip/>
       <el-table-column prop="status" label="结果" width="80" align="center" header-align="center">
         <template #default="{ row }">
-          <el-tag :type="row.status === 'SUCCESS' ? 'success' : 'danger'" size="small">
-            {{ row.status === "SUCCESS" ? "成功" : "失败" }}
+          <el-tag :type="row.status === OperationLogStatus.SUCCESS ? 'success' : 'danger'" size="small">
+            {{ row.status === OperationLogStatus.SUCCESS ? "成功" : "失败" }}
           </el-tag>
         </template>
       </el-table-column>
@@ -40,6 +40,7 @@
 </template>
 
 <script setup lang="ts">
+import { OperationLogStatus } from "@/constants/status";
 import {ref, watch} from "vue";
 import type {Row} from "@/types";
 

@@ -37,13 +37,19 @@ export function deleteEnumConfig(id: number | string) {
 }
 
 /**
- * 代码枚举全集：GET /api/common/enums，返回 { 枚举键: { code: label } }。
- * 已由后端 EnumOptionRegistry 注册的 17 个代码枚举（前端只读、禁止在 DB 重建）：
+ * 代码枚举全集：GET /api/common/enums，返回 { 枚举键: [{ code, label }, ...] }。
+ *
+ * ⚠ 响应是**数组**不是 map：JSON object key 必然是字符串，用 map 会让数字 code 退化成
+ * 字符串 "1"，与字符串 code 无法区分（2026-10-07 改为数组结构，无 v1 兼容层）。
+ *
+ * 已由后端 EnumOptionRegistry 注册的 18 个代码枚举（前端只读、禁止在 DB 重建）：
  *   ModelTypeEnum、ModelApiProtocolEnum、BillingModeEnum、BillingUnitEnum、
- *   CurrencyCodeEnum、PricingPlanEnum、EntityStatusEnum、RouteTargetTypeEnum、
+ *   CurrencyCodeEnum、PricingPlanEnum、EnabledStatusEnum、RouteTargetTypeEnum、
  *   ModelPoolSelectionStrategyEnum、PluginExtensionPoint、PluginStageCode、PluginScopeType、
  *   OperationLogStatusEnum、ScheduledTaskRunStatusEnum、RoutingTestStatusEnum、
  *   LogicalModelVisibilityEnum、LogicalModelPublishStatusEnum。
+ * 其中 EnabledStatusEnum 是**数字 code**（1 启用 / 0 禁用），取代了原来的
+ *   EntityStatusEnum（五态混用，已于 2026-10-07 删除）。
  * 其余枚举分类仅剩 4 个仍由 DB 维护且有真实消费方：
  *   scope_type（折扣范围）/ discount_type（折扣类型）/ channel（通知渠道）/ model_family（模型族）。
  * 2026-10-03 已退役 5 个零消费孤儿分类（plugin_source_type / alert_level / risk_level /

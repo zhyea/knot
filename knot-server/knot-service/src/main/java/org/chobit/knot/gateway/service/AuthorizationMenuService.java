@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.service;
 
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.entity.AdminMenuEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
@@ -48,7 +48,7 @@ public class AuthorizationMenuService {
     public AdminMenuEntity updateMenu(Long id, AdminMenuEntity request) {
         AdminMenuEntity existing = support.getMenuById(id);
         request.setId(id);
-        if (request.getStatus() == null || request.getStatus().isBlank()) {
+        if (request.getStatus() == null) {
             request.setStatus(existing.getStatus());
         }
         support.validateMenu(request, id);
@@ -62,7 +62,7 @@ public class AuthorizationMenuService {
     @Transactional
     public AdminMenuEntity updateStatus(Long id, boolean enabled) {
         support.getMenuById(id);
-        support.mapper().updateMenuStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+        support.mapper().updateMenuStatus(id, EnabledStatusEnum.codeOf(enabled));
         return support.getMenuById(id);
     }
 

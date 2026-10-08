@@ -5,6 +5,7 @@ import org.chobit.knot.gateway.entity.AdminMenuEntity;
 import org.chobit.knot.gateway.entity.AdminModuleEntity;
 import org.chobit.knot.gateway.entity.AdminPermissionEntity;
 import org.chobit.knot.gateway.entity.AdminRoleEntity;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.AdminAuthorizationManageMapper;
@@ -118,8 +119,8 @@ public class AuthorizationManageSupport {
         if (request.getSortOrder() == null) {
             request.setSortOrder(0);
         }
-        if (isBlank(request.getStatus())) {
-            request.setStatus("ENABLED");
+        if (request.getStatus() == null) {
+            request.setStatus(EnabledStatusEnum.ENABLED.code());
         }
     }
 
@@ -152,8 +153,8 @@ public class AuthorizationManageSupport {
         if (request.getSortOrder() == null) {
             request.setSortOrder(0);
         }
-        if (isBlank(request.getStatus())) {
-            request.setStatus("ENABLED");
+        if (request.getStatus() == null) {
+            request.setStatus(EnabledStatusEnum.ENABLED.code());
         }
     }
 
@@ -179,8 +180,8 @@ public class AuthorizationManageSupport {
         if (request.getBuiltIn() == null) {
             request.setBuiltIn(0);
         }
-        if (isBlank(request.getStatus())) {
-            request.setStatus("ENABLED");
+        if (request.getStatus() == null) {
+            request.setStatus(EnabledStatusEnum.ENABLED.code());
         }
     }
 
@@ -203,8 +204,8 @@ public class AuthorizationManageSupport {
         if (request.getControllerClass() != null) {
             request.setControllerClass(request.getControllerClass().trim());
         }
-        if (isBlank(request.getStatus())) {
-            request.setStatus("ENABLED");
+        if (request.getStatus() == null) {
+            request.setStatus(EnabledStatusEnum.ENABLED.code());
         }
     }
 

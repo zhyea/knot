@@ -232,7 +232,8 @@ interface LogicalModelForm {
   outputModalities: string[];
   languages: string[];
   visibility: string;
-  publishStatus: string;
+  /** 发布状态（LogicalModelPublishStatusEnum）：1-DRAFT 2-PUBLISHED 3-ARCHIVED */
+  publishStatus: number;
   enabled: boolean;
   sortOrder: number;
   featured: boolean;
@@ -256,7 +257,7 @@ function defaultForm(): LogicalModelForm {
     outputModalities: ["text"],
     languages: ["zh-CN"],
     visibility: "PUBLIC",
-    publishStatus: "DRAFT",
+    publishStatus: 1,
     enabled: true,
     sortOrder: 0,
     featured: false,

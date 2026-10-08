@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.service.schedule;
 
 import lombok.extern.slf4j.Slf4j;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ScheduledTaskRunStatusEnum;
 import org.chobit.knot.gateway.entity.ScheduledTaskEntity;
 import org.chobit.knot.gateway.entity.ScheduledTaskRunEntity;
@@ -22,9 +22,9 @@ import java.util.stream.Collectors;
 public class ScheduledTaskExecutor {
 
     private static final String MODE_SINGLE = "SINGLE";
-    private static final String STATUS_RUNNING = ScheduledTaskRunStatusEnum.RUNNING.code();
-    private static final String STATUS_SUCCESS = ScheduledTaskRunStatusEnum.SUCCESS.code();
-    private static final String STATUS_FAILURE = ScheduledTaskRunStatusEnum.FAILURE.code();
+    private static final Integer STATUS_RUNNING = ScheduledTaskRunStatusEnum.RUNNING.code();
+    private static final Integer STATUS_SUCCESS = ScheduledTaskRunStatusEnum.SUCCESS.code();
+    private static final Integer STATUS_FAILURE = ScheduledTaskRunStatusEnum.FAILURE.code();
 
     private final ScheduledTaskMapper scheduledTaskMapper;
     private final NodeIdentity nodeIdentity;
@@ -47,7 +47,7 @@ public class ScheduledTaskExecutor {
     @Transactional
     public void execute(String taskCode, String triggerType, Date nextFireTime) {
         ScheduledTaskEntity task = scheduledTaskMapper.getTaskByCode(taskCode);
-        if (task == null || !EntityStatusEnum.ENABLED.code().equals(task.getStatus())) {
+        if (task == null || !EnabledStatusEnum.isEnabled(task.getStatus())) {
             return;
         }
 
@@ -97,7 +97,7 @@ public class ScheduledTaskExecutor {
         }
     }
 
-    private void finishRun(ScheduledTaskRunEntity run, String status, Integer affectedRows, String message, LocalDateTime start) {
+    private void finishRun(ScheduledTaskRunEntity run, Integer status, Integer affectedRows, String message, LocalDateTime start) {
         LocalDateTime end = LocalDateTime.now();
         run.setStatus(status);
         run.setEndTime(end);

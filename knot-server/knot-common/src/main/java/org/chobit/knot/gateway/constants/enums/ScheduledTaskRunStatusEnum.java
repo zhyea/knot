@@ -3,7 +3,6 @@ package org.chobit.knot.gateway.constants.enums;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -12,21 +11,21 @@ import java.util.List;
  *
  * <p>RUNNING 是一次执行中的瞬时状态，SUCCESS / FAILURE 是终态。</p>
  */
-public enum ScheduledTaskRunStatusEnum implements EnumOption {
-    RUNNING("RUNNING", "运行中"),
-    SUCCESS("SUCCESS", "成功"),
-    FAILURE("FAILURE", "失败");
+public enum ScheduledTaskRunStatusEnum implements NumericEnumOption {
+    RUNNING(1, "运行中"),
+    SUCCESS(2, "成功"),
+    FAILURE(3, "失败");
 
-    private final String code;
+    private final int code;
     private final String label;
 
-    ScheduledTaskRunStatusEnum(String code, String label) {
+    ScheduledTaskRunStatusEnum(int code, String label) {
         this.code = code;
         this.label = label;
     }
 
     @Override
-    public String code() {
+    public int code() {
         return code;
     }
 
@@ -36,29 +35,19 @@ public enum ScheduledTaskRunStatusEnum implements EnumOption {
         return label;
     }
 
-    /**
-     * Builds the target value from the source input. Executes the public operation.
-     */
-    public static ScheduledTaskRunStatusEnum fromCode(String code) {
-        if (code == null || code.isBlank()) {
-            return null;
-        }
-        String normalized = code.trim().toUpperCase();
-        return Arrays.stream(values())
-                .filter(item -> item.code.equals(normalized))
-                .findFirst()
-                .orElse(null);
+    public static ScheduledTaskRunStatusEnum fromCode(Integer code) {
+        return NumericEnumOption.fromCode(values(), code);
     }
 
     /** 全部状态 code，供查询下拉使用 */
-    public static List<String> codes() {
-        return Arrays.stream(values()).map(ScheduledTaskRunStatusEnum::code).toList();
+    public static List<Integer> codes() {
+        return NumericEnumOption.codes(values());
     }
 
     /**
-     * 校验状态编码并返回规范大写形式，非法值直接拒绝。
+     * 校验状态编码并返回其数字值，非法值直接拒绝。
      */
-    public static String requireCode(String code, String errorMessage) {
+    public static int requireCode(Integer code, String errorMessage) {
         ScheduledTaskRunStatusEnum status = fromCode(code);
         if (status == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, errorMessage);

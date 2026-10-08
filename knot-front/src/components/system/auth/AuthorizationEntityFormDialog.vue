@@ -28,8 +28,8 @@
           <el-switch
             v-else-if="field.type === 'switch'"
             v-model="localForm[field.key]"
-            :active-value="field.activeValue ?? 'ENABLED'"
-            :inactive-value="field.inactiveValue ?? 'DISABLED'"
+            :active-value="field.activeValue ?? EnabledStatus.ENABLED"
+            :inactive-value="field.inactiveValue ?? EnabledStatus.DISABLED"
             inline-prompt
             active-text="启用"
             inactive-text="禁用"
@@ -78,6 +78,7 @@
 </template>
 
 <script setup lang="ts">
+import { EnabledStatus } from "@/constants/status";
 import {reactive, ref, watch, type PropType} from "vue";
 import {ElMessage} from "element-plus";
 import type {Dict, ResourceField, ResourceSubmitter} from "@/types";
@@ -113,7 +114,7 @@ function resetForm() {
     } else if (field.type === "number") {
       localForm[field.key] = 0;
     } else if (field.type === "switch") {
-      localForm[field.key] = field.activeValue ?? "ENABLED";
+      localForm[field.key] = field.activeValue ?? EnabledStatus.ENABLED;
     } else {
       localForm[field.key] = "";
     }

@@ -26,5 +26,5 @@ public interface RoutingRuleMapper {
     int update(RoutingRuleEntity entity);
 
     int updateStatus(@Param("id") Long id,
-                     @Param("status") String status);
+                     @Param("status") Integer status);
 }

@@ -297,6 +297,7 @@
 </template>
 
 <script setup lang="ts">
+import { EnabledStatus } from "@/constants/status";
 import {type PropType, computed, reactive, ref, watch} from "vue";
 import type {Ref} from "vue";
 import {ElMessage} from "element-plus";
@@ -446,7 +447,8 @@ function isEnabledLogicalModel(model: Row): boolean {
     return false;
   }
   const status = metaOf(model).status;
-  return status ? status === "ENABLED" : model.disabled !== true;
+  // 状态已数字化：1-启用 0-停用；0 是合法值，禁止 truthy 判断
+  return status == null ? model.disabled !== true : status === EnabledStatus.ENABLED;
 }
 
 function modeLabel(code: unknown): string {

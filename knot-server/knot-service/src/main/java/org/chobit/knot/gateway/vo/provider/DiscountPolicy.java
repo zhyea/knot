@@ -8,6 +8,6 @@ public record DiscountPolicy(
         String discountType,
         double discountValue,
         int priority,
-        String status
+        Integer status
 ) {
 }

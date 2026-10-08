@@ -59,10 +59,10 @@ import PluginListPanel from "../../components/plugin/PluginListPanel.vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {listPlugins, updatePluginStatus} from "@/api/plugins";
 
-// 插件状态筛选：EntityStatusEnum 子集（代码枚举，/api/common/enums）
+// 插件状态筛选：PluginInstanceStatusEnum（代码枚举，/api/common/enums；1-草稿 2-生效 3-暂停 4-归档）
 const {optionsOf: enumOptionsOf} = useEnumOptions();
 const pluginStatusOptions = computed(() =>
-  enumOptionsOf("EntityStatusEnum", ["ENABLED", "DISABLED"]).map((item) => ({
+  enumOptionsOf("PluginInstanceStatusEnum").map((item) => ({
     itemCode: item.value,
     itemLabel: item.label
   }))

@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelPoolSelectionStrategyEnum;
 import org.chobit.knot.gateway.converter.ModelPoolConverter;
 import org.chobit.knot.gateway.dto.model.ModelPoolDto;
@@ -61,7 +61,7 @@ public class ModelPoolService {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<ModelPoolEntity> pageInfo = new PageInfo<>(modelPoolMapper.list(
                     normalizeKeyword(keyword), normalizeModelTypes(modelTypes), includeDeleted,
-                    normalizeTextToNull(status)));
+                    EnabledStatusEnum.parse(status)));
             List<ModelPoolDto> dtos = pageInfo.getList().stream()
                     .map(entity -> enrich(modelPoolConverter.toDto(entity)))
                     .toList();
@@ -151,7 +151,7 @@ public class ModelPoolService {
                 existing.items()
         );
         validateForSave(request, id);
-        modelPoolMapper.updateStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+        modelPoolMapper.updateStatus(id, EnabledStatusEnum.codeOf(enabled));
         return getById(id);
     }
 
@@ -250,7 +250,7 @@ public class ModelPoolService {
             entity.setModelCode(item.modelCode());
             entity.setWeight(defaultInt(item.weight(), 100));
             entity.setPriority(defaultInt(item.priority(), 100));
-            entity.setStatus(item.enabled() ? "ENABLED" : "DISABLED");
+            entity.setStatus(EnabledStatusEnum.codeOf(item.enabled()));
             modelPoolMapper.insertItem(entity);
         }
     }
@@ -272,7 +272,7 @@ public class ModelPoolService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "logical model not found");
         }
         if (request.enabled()
-                && !EntityStatusEnum.ENABLED.code().equals(logicalModel.getStatus())) {
+                && !EnabledStatusEnum.isEnabled(logicalModel.getStatus())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "只能绑定已启用的统一模型");
         }
         ModelPoolSelectionStrategyEnum.requireCode(request.selectionStrategy(), "unsupported selection strategy");
@@ -313,7 +313,7 @@ public class ModelPoolService {
                         "一个模型池中的模型必须属于同一个统一模型"
                 );
             }
-            if (request.enabled() && item.enabled() && !"ENABLED".equals(model.getStatus())) {
+            if (request.enabled() && item.enabled() && !EnabledStatusEnum.isEnabled(model.getStatus())) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "enabled model pool cannot bind disabled model");
             }
             if (defaultInt(item.weight(), 100) <= 0) {

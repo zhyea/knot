@@ -82,15 +82,6 @@ const routes: RouteRecordRaw[] = [
       { path: "reconciliation", name: "billing-reconciliation", component: () => import("@/views/billing/ReconciliationView.vue"), meta: { titleKey: "route.billingReconciliation" } }
     ]
   },
-  {
-    path: "/security",
-    component: NestedView,
-    children: [
-      { path: "policy", name: "security-policy", component: () => import("@/views/security/SecurityPolicyView.vue"), meta: { titleKey: "route.securityPolicy" } },
-      { path: "alerts", name: "security-alerts", component: () => import("@/views/security/AlertManageView.vue"), meta: { titleKey: "route.securityAlerts" } },
-      { path: "cache", name: "security-cache", component: () => import("@/views/security/CacheManageView.vue"), meta: { titleKey: "route.securityCache" } }
-    ]
-  },
   { path: "/plugins", redirect: "/system/plugins" },
   {
     path: "/notifications",

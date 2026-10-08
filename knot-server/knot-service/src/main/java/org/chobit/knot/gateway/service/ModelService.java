@@ -4,7 +4,7 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.adapter.request.RequestAdapterCatalog;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
@@ -109,7 +109,7 @@ public class ModelService {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<ModelEntity> pageInfo = new PageInfo<>(
                     modelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes),
-                            normalizeTextToNull(logicalModelCode), normalizeTextToNull(status), includeDeleted)
+                            normalizeTextToNull(logicalModelCode), EnabledStatusEnum.parse(status), includeDeleted)
             );
             List<ModelEntity> entities = pageInfo.getList();
             List<Long> ids = entities.stream().map(ModelEntity::getId).toList();
@@ -300,7 +300,7 @@ public class ModelService {
             );
             validateModelRequest(request);
         }
-        modelMapper.updateStatus(id, enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+        modelMapper.updateStatus(id, EnabledStatusEnum.codeOf(enabled));
         return getById(id);
     }
 
@@ -444,7 +444,7 @@ public class ModelService {
         if (logicalModel == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择统一模型");
         }
-        if (!EntityStatusEnum.ENABLED.code().equals(logicalModel.getStatus())) {
+        if (!EnabledStatusEnum.isEnabled(logicalModel.getStatus())) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "只能绑定已启用的统一模型");
         }
         String modelType = ModelTypeEnum.requireCode(logicalModel.getModelType(), "绑定的统一模型缺少模型类型");
@@ -487,7 +487,7 @@ public class ModelService {
         mapping.setProviderAccountCode(model.getProviderAccountCode());
         mapping.setModelId(modelId);
         mapping.setProviderModelName(modelCode);
-        mapping.setStatus(EntityStatusEnum.ENABLED.code());
+        mapping.setStatus(EnabledStatusEnum.ENABLED.code());
         mapping.setPriority(100);
         logicalModelMapper.insertMapping(mapping);
     }
@@ -523,7 +523,7 @@ public class ModelService {
                 entity.getRequestAdapter(),
                 entity.getUsageExtractor(),
                 entity.getStreamUsageExtractor(),
-                EntityStatusEnum.ENABLED.code().equals(entity.getStatus()),
+                EnabledStatusEnum.isEnabled(entity.getStatus()),
                 entity.getRemark()
         );
         return new ModelApiBindingDtoWithModelId(entity.getModelId(), dto);
@@ -557,7 +557,7 @@ public class ModelService {
             entity.setRequestAdapter(blankToNull(binding.requestAdapter()));
             entity.setUsageExtractor(blankToDefault(binding.usageExtractor(), "DEFAULT"));
             entity.setStreamUsageExtractor(blankToNull(binding.streamUsageExtractor()));
-            entity.setStatus(binding.enabled() ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code());
+            entity.setStatus(EnabledStatusEnum.codeOf(binding.enabled()));
             entity.setRemark(blankToNull(binding.remark()));
             modelApiBindingMapper.insert(entity);
         }

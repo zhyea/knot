@@ -65,7 +65,8 @@ import type {SelectOption} from "@/types";
  * - display="checkbox" 复选框组（v-model 恒为数组）
  *
  * 枚举键目前有 "ModelTypeEnum"、"ModelApiProtocolEnum"、"BillingModeEnum"、"PricingPlanEnum"、
- * "EntityStatusEnum"、"RouteTargetTypeEnum"；
+ * "EnabledStatusEnum"、"RouteTargetTypeEnum"；
+ * 其中 EnabledStatusEnum 是数字 code（1 / 0），0 是合法值，不要写 `if (value)`。
  * DB 可配置枚举（ks_enum_configs）不归它管，继续用 EnumSelect。
  */
 /** 单选取标量，多选取数组 */
@@ -95,7 +96,8 @@ const props = defineProps({
   collapseTagsTooltip: {type: Boolean, default: false},
   selectStyle: {type: [String, Object], default: () => ({width: "100%"})},
   /** 仅展示指定 code 列表 */
-  includeCodes: {type: Array as PropType<string[] | null>, default: null},
+  /** 仅保留这些 code；数字状态枚举传 [1, 0]，字符串枚举传 ["CHAT", ...] */
+  includeCodes: {type: Array as PropType<(string | number)[] | null>, default: null},
   /** 展示时附带编码，如「对话 (CHAT)」 */
   showCode: {type: Boolean, default: false}
 });

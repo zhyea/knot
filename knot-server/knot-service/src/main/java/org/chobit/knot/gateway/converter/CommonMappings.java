@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.converter;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.chobit.knot.gateway.constants.enums.EntityStatusEnum;
+import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.model.QuotaPolicy;
@@ -20,41 +20,22 @@ import java.util.Map;
 @Component
 public class CommonMappings {
 
-    // ==================== status <-> enabled ====================
+    // ==================== status(TINYINT) <-> enabled ====================
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * 数字状态 → 布尔 {@code enabled}。仅 {@code 1} 视为启用，null 与 {@code 0} 均为未启用。
      */
     @Named("statusToEnabled")
-    public boolean statusToEnabled(String status) {
-        return EntityStatusEnum.ENABLED.code().equals(status);
+    public boolean statusToEnabled(Integer status) {
+        return EnabledStatusEnum.isEnabled(status);
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * 布尔 {@code enabled} → 数字状态（1 / 0）。
      */
     @Named("enabledToStatus")
-    public String enabledToStatus(boolean enabled) {
-        return enabled ? EntityStatusEnum.ENABLED.code() : EntityStatusEnum.DISABLED.code();
-    }
-
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
-    @Named("billingStatusToEnabled")
-    public boolean billingStatusToEnabled(String status) {
-        if (status == null) {
-            return false;
-        }
-        return EntityStatusEnum.ACTIVE.code().equalsIgnoreCase(status) || EntityStatusEnum.ENABLED.code().equalsIgnoreCase(status);
-    }
-
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
-    @Named("billingEnabledToStatus")
-    public String billingEnabledToStatus(boolean enabled) {
-        return enabled ? EntityStatusEnum.ACTIVE.code() : EntityStatusEnum.INACTIVE.code();
+    public Integer enabledToStatus(boolean enabled) {
+        return EnabledStatusEnum.codeOf(enabled);
     }
 
     // ==================== logic-delete flag ====================
@@ -142,16 +123,6 @@ public class CommonMappings {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "invalid auth config json");
         }
         return json;
-    }
-
-    // ==================== Long id <-> Alert ID (ALERT- prefix) ====================
-
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
-    @Named("idToAlertId")
-    public String idToAlertId(Long id) {
-        return id == null ? "ALERT-0" : "ALERT-" + id;
     }
 
     // ==================== String <-> Long (owner field) ====================
