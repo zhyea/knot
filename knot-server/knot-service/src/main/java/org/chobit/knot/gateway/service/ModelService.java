@@ -282,7 +282,6 @@ public class ModelService {
                     existing.id(),
                     existing.modelCode(),
                     existing.upstreamModel(),
-                    existing.name(),
                     existing.providerAccountCode(),
                     existing.providerName(),
                     existing.providerCode(),
@@ -410,7 +409,6 @@ public class ModelService {
                 base.id(),
                 base.modelCode(),
                 base.upstreamModel(),
-                base.name(),
                 base.providerAccountCode(),
                 base.providerName(),
                 base.providerCode(),
@@ -429,7 +427,7 @@ public class ModelService {
     }
 
     /**
-     * 名称与模型类型不再由请求提供：模型类型取自绑定统一模型的 modelType，名称同样派生自统一模型。
+     * 模型类型不由请求提供，取自绑定统一模型的 modelType。
      */
     private String validateModelRequest(ModelDto request) {
         if (request.providerAccountCode() == null) {
