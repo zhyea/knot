@@ -55,6 +55,32 @@
               </button>
             </div>
           </section>
+
+          <section class="settings-card">
+            <div class="settings-card__header">
+              <div>
+                <h3>{{ t("settings.timezoneTitle") }}</h3>
+                <p>{{ t("settings.timezoneDescription") }}</p>
+              </div>
+              <el-tag effect="plain">{{ t("common.current") }}: {{ currentTimezoneLabel }}</el-tag>
+            </div>
+
+            <el-select
+              :model-value="currentTimezone"
+              :loading="timezoneLoading"
+              :disabled="savingTimezone"
+              filterable
+              class="settings-select"
+              @update:model-value="chooseTimezone"
+            >
+              <el-option
+                v-for="item in timezoneOptions"
+                :key="item.itemCode"
+                :label="item.itemLabel"
+                :value="item.itemCode"
+              />
+            </el-select>
+          </section>
         </div>
       </section>
     </div>
@@ -62,21 +88,35 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from "vue";
+import {computed, onMounted, ref} from "vue";
 import {Check} from "@element-plus/icons-vue";
 import PageSection from "../../components/common/PageSection.vue";
 import {LOCALES, useLocale, type LocaleCode} from "@/composables/useLocale";
 import {THEMES, useTheme} from "@/composables/useTheme";
+import {useTimezone} from "@/composables/useTimezone";
 
 const { current: localeCurrent, setLocale, t } = useLocale();
 const { current: themeCurrent, setTheme } = useTheme();
 
+const {
+  current: timezoneCurrent,
+  label: currentTimezoneLabel,
+  options: timezoneOptions,
+  loading: timezoneLoading,
+  loadOptions: loadTimezoneOptions,
+  setTimezone
+} = useTimezone();
+
 const savingLocale = ref(false);
 const savingTheme = ref(false);
+const savingTimezone = ref(false);
 const locales = LOCALES;
+
+onMounted(() => loadTimezoneOptions());
 
 const currentLocale = computed(() => localeCurrent.value);
 const currentTheme = computed(() => themeCurrent.value);
+const currentTimezone = computed(() => timezoneCurrent.value);
 const currentLocaleLabel = computed(() => t(`locale.${currentLocale.value}`));
 const currentThemeLabel = computed(() => t(THEMES.find((theme) => theme.key === currentTheme.value)?.labelKey || "theme.blue"));
 
@@ -101,6 +141,19 @@ async function chooseTheme(key: string) {
     await setTheme(key);
   } finally {
     savingTheme.value = false;
+  }
+}
+
+async function chooseTimezone(code: string | number) {
+  const value = String(code ?? "");
+  if (!value || value === currentTimezone.value || savingTimezone.value) {
+    return;
+  }
+  savingTimezone.value = true;
+  try {
+    await setTimezone(value);
+  } finally {
+    savingTimezone.value = false;
   }
 }
 </script>
@@ -186,5 +239,10 @@ async function chooseTheme(key: string) {
 
 .settings-choice__check {
   color: var(--el-color-primary);
+}
+
+.settings-select {
+  width: 100%;
+  max-width: 420px;
 }
 </style>
