@@ -899,6 +899,7 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protoc
     } else {
       responseTab.value = "body";
       testResult.value = normalizeErrorResult(error as Dict) as RoutingTestResult;
+      appendStreamError(testResult.value);
     }
   } finally {
     // 兜底处理所有结束路径，避免 finally 清理掉最后一批待刷数据。
@@ -925,6 +926,17 @@ function handleStreamEvent(event: SseEvent) {
   // 每个事件独立成块追加到「流式响应」页；同时从 data 反解出 content / reasoning_content 累加，供概览页展示完整内容。
   const dataText = event.data ?? "";
   const parsed = parseJsonResult(dataText, null);
+  if (event.event === "error" && testResult.value) {
+    const errorData = parsed.value && typeof parsed.value === "object" ? parsed.value as Dict : {};
+    const errorMessage = String(errorData.errorMessage || errorData.message || "网关请求失败");
+    testResult.value = {
+      ...testResult.value,
+      status: "ERROR",
+      httpStatus: errorData.httpStatus ?? testResult.value.httpStatus,
+      errorMessage,
+      responseBody: String(errorData.responseBody || dataText)
+    };
+  }
   if (!parsed.error && parsed.value && typeof parsed.value === "object") {
     pendingContent += extractField(parsed.value, "content");
     pendingReasoning += extractField(parsed.value, "reasoning_content");
@@ -1106,9 +1118,40 @@ function normalizeErrorResult(error: Dict): Dict {
     httpStatus: error?.response?.status ?? null,
     modelCode: null,
     protocol: activeProtocol.value || null,
-    errorMessage: error?.message || "网络错误",
-    responseBody: ""
+    errorMessage: normalizeNetworkErrorMessage(error?.message),
+    // fetch 网络失败没有 response body；仍把错误写入 Body，避免调试面板看起来像空响应。
+    responseBody: normalizeNetworkErrorMessage(error?.message)
   };
+}
+
+/** 将 fetch 无响应错误转换成用户可操作的提示，避免只显示浏览器的英文 TypeError。 */
+function normalizeNetworkErrorMessage(message: unknown): string {
+  const raw = String(message || "").trim();
+  if (!raw || /failed to fetch|networkerror|load failed/i.test(raw)) {
+    return "无法连接 gateway 服务，请确认 gateway 已启动且地址可访问";
+  }
+  return `网络错误：${raw}`;
+}
+
+/** 流式请求在首个事件前失败时，同时填充 Body 和「流式响应」页。 */
+function appendStreamError(result: RoutingTestResult) {
+  const errorText = result.responseBody || result.errorMessage || "请求失败";
+  const errorData = stringifyJson({
+    status: result.status,
+    httpStatus: result.httpStatus,
+    errorMessage: result.errorMessage,
+    responseBody: errorText
+  });
+  streamBlocks.value = [
+    ...streamBlocks.value,
+    {id: blockSeq++, event: "error", data: errorData}
+  ];
+  // 保留已收到的上游片段，并把本次错误追加到 Body，便于复制完整诊断信息。
+  streamBody.value = streamBody.value
+    ? `${streamBody.value}\n\n[error] ${errorText}`
+    : errorText;
+  result.responseBody = streamBody.value;
+  responseTab.value = "stream";
 }
 
 function serializeBody(body: unknown): string {
