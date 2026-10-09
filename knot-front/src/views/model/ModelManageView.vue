@@ -13,7 +13,7 @@
         </FilterField>
         <KeywordInput
           v-model="query.keyword"
-          placeholder="按模型编码、名称、供应商筛选"
+          placeholder="按模型编码、供应商筛选"
           @query="handleQuery"
         />
       </FilterBar>
@@ -143,7 +143,7 @@ function copyModelCode(modelCode: string) {
 
 /** 逻辑删除（不物理删除）；被路由规则引用时后端返回 409，错误提示由 http 层统一弹出 */
 async function remove(row: Row) {
-  await ElMessageBox.confirm(`确认删除供应商模型“${row.name || row.modelCode}”？`, "删除确认", {
+  await ElMessageBox.confirm(`确认删除供应商模型“${row.modelCode}”？`, "删除确认", {
     type: "warning"
   });
   await deleteModel(row.id);
