@@ -16,8 +16,6 @@ public class ModelEntity {
     private String upstreamModel;
     /** 派生字段：取自 kb_provider_model_mappings（供应商模型 → 统一模型 1:1 映射） */
     private String logicalModelCode;
-    /** 派生字段：取自绑定的统一模型（kb_provider_model_mappings → kb_logical_models），不落 kb_models */
-    private String name;
     /** 派生字段：取自绑定的统一模型，不落 kb_models */
     private String modelType;
     /** 派生字段：取自绑定的统一模型（kb_logical_models.model_family），供计费规则按族回退匹配 */
