@@ -31,6 +31,7 @@
           :show-refresh="false"
           @edit="openTaskDrawer"
           @logs="openRunDrawer"
+          @log="openLog"
           @triggered="onTaskTriggered"
           @page-change="onPageChange"
           @size-change="onSizeChange"
@@ -45,6 +46,12 @@
     />
 
     <ScheduledTaskRunDrawer v-model="runDrawer" :task="runTask" />
+
+    <OperationLogDrawer
+      v-model="logDrawer"
+      :title="`定时任务操作日志 - ${logName || ''}`"
+      :load-logs="loadTaskLogs"
+    />
   </PageSection>
 </template>
 
@@ -58,10 +65,12 @@ import KeywordInput from "../../components/common/KeywordInput.vue";
 import ScheduledTaskConfigPanel from "../../components/system/scheduled/ScheduledTaskConfigPanel.vue";
 import ScheduledTaskFormDrawer from "../../components/system/scheduled/ScheduledTaskFormDrawer.vue";
 import ScheduledTaskRunDrawer from "../../components/system/scheduled/ScheduledTaskRunDrawer.vue";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import {listScheduledTasks} from "@/api/scheduledTasks";
 import {useListQuery} from "@/composables/useListQuery";
 import {EnabledStatus} from "@/constants/status";
 import type {Dict, Row} from "@/types";
+import {listOperationLogsByEntity} from "@/api/operationLogs";
 
 const {
   query,
@@ -83,6 +92,10 @@ const runDrawer = ref(false);
 const editingTask = ref<Dict | null>(null);
 const runTask = ref<Dict | null>(null);
 
+const logDrawer = ref(false);
+const logId = ref<number | string | null>(null);
+const logName = ref("");
+
 function openTaskDrawer(task: Row | null = null) {
   editingTask.value = task || null;
   taskDrawer.value = true;
@@ -96,6 +109,16 @@ function onTaskSaved() {
 function openRunDrawer(task: Row) {
   runTask.value = task;
   runDrawer.value = true;
+}
+
+function openLog(task: Row) {
+  logId.value = task.id;
+  logName.value = task.taskName || task.taskCode || `#${task.id}`;
+  logDrawer.value = true;
+}
+
+function loadTaskLogs() {
+  return listOperationLogsByEntity({ module: "scheduled-task", entityType: "ScheduledTask", entityId: logId.value! });
 }
 
 function onTaskTriggered(task: Row) {

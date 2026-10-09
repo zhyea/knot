@@ -35,6 +35,7 @@
           :page-size="pageSize"
           :show-refresh="false"
           @status-change="onStatus"
+          @action="onPluginAction"
           @page-change="onPageChange"
           @size-change="onSizeChange"
         />
@@ -42,6 +43,12 @@
     </div>
 
     <PluginFormDialog v-model="dlg" @saved="resetPage" />
+
+    <OperationLogDrawer
+      v-model="logDrawer"
+      :title="`插件操作日志 - ${logName || ''}`"
+      :load-logs="loadPluginLogs"
+    />
   </PageSection>
 </template>
 
@@ -58,6 +65,8 @@ import PluginFormDialog from "../../components/plugin/PluginFormDialog.vue";
 import PluginListPanel from "../../components/plugin/PluginListPanel.vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {listPlugins, updatePluginStatus} from "@/api/plugins";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
+import {listOperationLogsByEntity} from "@/api/operationLogs";
 
 // 插件状态筛选：PluginInstanceStatusEnum（代码枚举，/api/common/enums；1-草稿 2-生效 3-暂停 4-归档）
 const {optionsOf: enumOptionsOf} = useEnumOptions();
@@ -86,6 +95,22 @@ const {
 const pluginRows = ref<Row[]>([]);
 const dlg = ref(false);
 const statusUpdatingId = ref<number | null>(null);
+
+const logDrawer = ref(false);
+const logId = ref<number | string | null>(null);
+const logName = ref("");
+
+function onPluginAction(action: string, row: Row) {
+  if (action === "log") {
+    logId.value = row.id;
+    logName.value = row.name || row.code || `#${row.id}`;
+    logDrawer.value = true;
+  }
+}
+
+function loadPluginLogs() {
+  return listOperationLogsByEntity({ module: "plugin", entityType: "Plugin", entityId: logId.value! });
+}
 
 watch(
   rows,

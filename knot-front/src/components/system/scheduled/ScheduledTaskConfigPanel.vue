@@ -44,7 +44,7 @@
 import { EnabledStatus } from "@/constants/status";
 import type {PropType} from "vue";
 import type {Row} from "@/types";
-import {Edit, Tickets, VideoPlay} from "@element-plus/icons-vue";
+import {Document, Edit, Tickets, VideoPlay} from "@element-plus/icons-vue";
 import RowActions from "../../common/RowActions.vue";
 import ListPagination from "../../common/ListPagination.vue";
 import {triggerScheduledTask} from "@/api/scheduledTasks";
@@ -59,12 +59,13 @@ const props = defineProps({
   showRefresh: { type: Boolean, default: true }
 });
 
-const emit = defineEmits(["edit", "logs", "triggered", "refresh", "page-change", "size-change"]);
+const emit = defineEmits(["edit", "logs", "log", "triggered", "refresh", "page-change", "size-change"]);
 
 function taskActions(row: Row) {
   return [
     { key: "edit", label: "编辑", icon: Edit },
     { key: "logs", label: "执行记录", icon: Tickets },
+    { key: "log", label: "操作日志", icon: Document },
     {
       key: "run",
       label: "立即执行",
@@ -82,6 +83,10 @@ async function handleAction(action: string, row: Row) {
   }
   if (action === "logs") {
     emit("logs", row);
+    return;
+  }
+  if (action === "log") {
+    emit("log", row);
     return;
   }
   if (action === "run") {

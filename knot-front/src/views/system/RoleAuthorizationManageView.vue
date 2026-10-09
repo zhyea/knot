@@ -19,6 +19,12 @@
       @toggle="state.togglePermission"
       @keyword-change="state.handlePermissionKeywordChange"
     />
+
+    <OperationLogDrawer
+      v-model="state.logDrawerVisible.value"
+      :title="state.logTitle.value"
+      :load-logs="state.logLoadFn.value"
+    />
   </PageSection>
 </template>
 
@@ -27,6 +33,7 @@ import {onMounted} from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import AuthorizationRoleGrantDrawer from "../../components/system/auth/AuthorizationRoleGrantDrawer.vue";
 import AuthorizationRoleFormDialog from "../../components/system/auth/AuthorizationRoleFormDialog.vue";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import {useAuthorizationManagement} from "@/composables/useAuthorizationManagement";
 import RoleAuthorizationView from "./auth/RoleAuthorizationView.vue";
 

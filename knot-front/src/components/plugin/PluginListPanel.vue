@@ -18,6 +18,14 @@
           />
         </template>
       </el-table-column>
+      <el-table-column label="操作" width="110" align="center" header-align="center" fixed="right">
+        <template #default="{ row }">
+          <RowActions
+            :actions="[{ key: 'log', label: '操作日志', icon: Document }]"
+            @action="(action) => emit('action', action, row)"
+          />
+        </template>
+      </el-table-column>
     </el-table>
 
     <ListPagination
@@ -36,6 +44,8 @@
 import { PluginInstanceStatus } from "@/constants/status";
 import type {PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
+import RowActions from "../common/RowActions.vue";
+import { Document } from "@element-plus/icons-vue";
 import type {Row} from "@/types";
 
 defineProps({
@@ -48,5 +58,5 @@ defineProps({
   showRefresh: { type: Boolean, default: true }
 });
 
-const emit = defineEmits(["create", "refresh", "status-change", "page-change", "size-change"]);
+const emit = defineEmits(["create", "refresh", "status-change", "action", "page-change", "size-change"]);
 </script>

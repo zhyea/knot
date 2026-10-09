@@ -75,7 +75,7 @@
 </template>
 
 <script setup lang="ts">
-import {Delete, Edit} from "@element-plus/icons-vue";
+import {Delete, Document, Edit} from "@element-plus/icons-vue";
 import type {PropType} from "vue";
 import RowActions from "../../common/RowActions.vue";
 import type {Dict, ResourceField, Row, RowAction, TableColumn} from "@/types";
@@ -125,6 +125,7 @@ function buildActions(row: Row): RowAction[] {
   }
   return [
     { key: "edit", label: "编辑", icon: Edit },
+    { key: "log", label: "操作日志", icon: Document },
     deleteAction
   ];
 }

@@ -65,6 +65,12 @@
                     or description like concat('%', #{keyword}, '%')
                 )
             </if>
+            <if test="entityType != null and entityType != ''">
+                and entity_type = #{entityType}
+            </if>
+            <if test="entityId != null">
+                and entity_id = #{entityId}
+            </if>
         </where>
         order by created_at desc
     </select>

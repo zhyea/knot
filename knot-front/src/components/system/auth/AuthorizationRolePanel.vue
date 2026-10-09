@@ -25,6 +25,7 @@
             :actions="[
               { key: 'grant', label: '授权', icon: Lock },
               { key: 'edit', label: '编辑', icon: Edit },
+              { key: 'log', label: '操作日志', icon: Document },
               { key: 'delete', label: '删除', icon: Delete, type: 'danger', confirm: `确认删除角色 ${row.name} ?` }
             ]"
             @action="(action) => emit('action', action, row)"
@@ -46,7 +47,7 @@
 
 <script setup lang="ts">
 import type {PropType} from "vue";
-import {Delete, Edit, Lock} from "@element-plus/icons-vue";
+import {Delete, Document, Edit, Lock} from "@element-plus/icons-vue";
 import RowActions from "../../common/RowActions.vue";
 import ListPagination from "../../common/ListPagination.vue";
 import type {Row} from "@/types";

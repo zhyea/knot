@@ -29,6 +29,7 @@ import {
   updateAuthorizationPermission,
   updateAuthorizationPermissionStatus
 } from "@/api/authorizations";
+import {listOperationLogsByEntity} from "@/api/operationLogs";
 
 /** 权限分组树里的菜单节点 */
 interface PermissionMenuNode {
@@ -70,6 +71,17 @@ export function useAuthorizationManagement() {
   const resourceDialogFields = ref<ResourceField[]>([]);
   const resourceDialogSubmitter = ref<ResourceSubmitter>(async () => ({}));
   const resourceType = ref("");
+
+  // 操作日志抽屉（查看某条授权资源的变更记录，统一走 POST /api/operation-logs/list）
+  const logDrawerVisible = ref(false);
+  const logTitle = ref("");
+  const logLoadFn = ref<(() => Promise<Row[]>)>(async () => []);
+
+  function openLogDrawer(loadFn: () => Promise<Row[]>, title: string) {
+    logLoadFn.value = loadFn;
+    logTitle.value = title;
+    logDrawerVisible.value = true;
+  }
 
   const moduleLoading = ref(false);
   const menuLoading = ref(false);
@@ -397,6 +409,13 @@ export function useAuthorizationManagement() {
       openRoleGrant(row);
       return;
     }
+    if (action === "log") {
+      openLogDrawer(
+        () => listOperationLogsByEntity({ module: "authorization", entityType: "Role", entityId: row.id }),
+        `角色操作日志 - ${row.name || row.code || row.id}`
+      );
+      return;
+    }
     if (action === "edit") {
       editingRole.value = row;
       roleDialogVisible.value = true;
@@ -600,6 +619,13 @@ export function useAuthorizationManagement() {
   }
 
   function handleModuleAction(action: string, row: Row) {
+    if (action === "log") {
+      openLogDrawer(
+        () => listOperationLogsByEntity({ module: "authorization", entityType: "Module", entityId: row.id }),
+        `模块操作日志 - ${row.moduleName || row.moduleCode || row.id}`
+      );
+      return;
+    }
     if (action === "edit") {
       resourceType.value = "module";
       resourceDialogTitle.value = "编辑模块";
@@ -641,6 +667,13 @@ export function useAuthorizationManagement() {
   }
 
   function handleMenuAction(action: string, row: Row) {
+    if (action === "log") {
+      openLogDrawer(
+        () => listOperationLogsByEntity({ module: "authorization", entityType: "Menu", entityId: row.id }),
+        `菜单操作日志 - ${row.menuName || row.menuCode || row.id}`
+      );
+      return;
+    }
     if (action === "edit") {
       resourceType.value = "menu";
       resourceDialogTitle.value = "编辑菜单";
@@ -696,6 +729,13 @@ export function useAuthorizationManagement() {
   }
 
   function handlePermissionAction(action: string, row: Row) {
+    if (action === "log") {
+      openLogDrawer(
+        () => listOperationLogsByEntity({ module: "authorization", entityType: "Permission", entityId: row.id }),
+        `权限操作日志 - ${row.permissionName || row.permissionCode || row.id}`
+      );
+      return;
+    }
     if (action === "edit") {
       resourceType.value = "permission";
       resourceDialogTitle.value = "编辑权限";
@@ -756,6 +796,13 @@ export function useAuthorizationManagement() {
   }
 
   function handleApiBindingAction(action: string, row: Row) {
+    if (action === "log") {
+      openLogDrawer(
+        () => listOperationLogsByEntity({ module: "authorization", entityType: "ApiPermissionBinding", entityId: row.id }),
+        `API 绑定操作日志 - ${row.pathPattern || row.id}`
+      );
+      return;
+    }
     if (action === "edit") {
       resourceType.value = "binding";
       resourceDialogTitle.value = "编辑 API 绑定";
@@ -987,6 +1034,9 @@ export function useAuthorizationManagement() {
     resourceDialogForm,
     resourceDialogFields,
     resourceDialogSubmitter,
+    logDrawerVisible,
+    logTitle,
+    logLoadFn,
     rows,
     loading,
     total,

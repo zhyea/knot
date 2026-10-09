@@ -68,6 +68,12 @@
     </div>
 
     <ExternalModelDetailDrawer v-model="detailVisible" :detail="detail" />
+
+    <OperationLogDrawer
+      v-model="logDrawer"
+      :title="`外部模型操作日志 - ${logName || ''}`"
+      :load-logs="loadExternalLogs"
+    />
   </PageSection>
 </template>
 
@@ -83,6 +89,8 @@ import {useListQuery} from "@/composables/useListQuery";
 import EnumControl from "../../components/common/EnumControl.vue";
 import ExternalModelDetailDrawer from "../../components/model/ExternalModelDetailDrawer.vue";
 import ExternalModelListPanel from "../../components/model/ExternalModelListPanel.vue";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
+import {listOperationLogsByEntity} from "@/api/operationLogs";
 import {
   createLogicalModelFromExternalItem,
   createLogicalModelsFromExternalItems,
@@ -117,6 +125,10 @@ const detailVisible = ref(false);
 const detail = ref<Dict | null>(null);
 const selectedRows = ref<Row[]>([]);
 
+const logDrawer = ref(false);
+const logId = ref<number | string | null>(null);
+const logName = ref("");
+
 const createAllDisabled = computed(() => creatingAll.value || selectedRows.value.length === 0);
 
 async function loadSources() {
@@ -140,6 +152,17 @@ async function handleAction(action: string, row: Row) {
   if (action === "create") await createOne(row);
   if (action === "delete") await deleteOne(row);
   if (action === "ignore" || action === "unignore") await toggleIgnored(row);
+  if (action === "log") openLog(row);
+}
+
+function openLog(row: Row) {
+  logId.value = row.id;
+  logName.value = row.modelName || row.modelId || `#${row.id}`;
+  logDrawer.value = true;
+}
+
+function loadExternalLogs() {
+  return listOperationLogsByEntity({ module: "external-model", entityType: "ExternalModelItem", entityId: logId.value! });
 }
 
 async function toggleIgnored(row: Row) {

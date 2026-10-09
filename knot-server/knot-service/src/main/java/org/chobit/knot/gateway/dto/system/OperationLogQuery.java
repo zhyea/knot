@@ -8,7 +8,9 @@ public record OperationLogQuery(
         String module,
         String operation,
         String status,
-        String keyword
+        String keyword,
+        String entityType,
+        Long entityId
 ) {
     public PageRequest toPageRequest() {
         return PageRequest.of(pageNum, pageSize);

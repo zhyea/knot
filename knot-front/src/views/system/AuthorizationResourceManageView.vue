@@ -10,6 +10,12 @@
       :submitter="state.resourceDialogSubmitter.value"
       @saved="state.onResourceSaved"
     />
+
+    <OperationLogDrawer
+      v-model="state.logDrawerVisible.value"
+      :title="state.logTitle.value"
+      :load-logs="state.logLoadFn.value"
+    />
   </PageSection>
 </template>
 
@@ -17,6 +23,7 @@
 import {onMounted} from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import AuthorizationEntityFormDialog from "../../components/system/auth/AuthorizationEntityFormDialog.vue";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import {useAuthorizationManagement} from "@/composables/useAuthorizationManagement";
 import AuthorizationResourceView from "./auth/AuthorizationResourceView.vue";
 

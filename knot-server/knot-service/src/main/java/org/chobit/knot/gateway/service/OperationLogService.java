@@ -64,13 +64,15 @@ public class OperationLogService {
     }
 
     public PageResult<OperationLogEntity> list(PageRequest pageRequest, String module, String operation, String status,
-                                               String keyword) {
+                                               String keyword, String entityType, Long entityId) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<OperationLogEntity> pageInfo = new PageInfo<>(operationLogMapper.list(
                     normalizeValue(module),
                     normalizeValue(operation),
                     normalizeValue(status),
-                    normalizeValue(keyword)
+                    normalizeValue(keyword),
+                    normalizeValue(entityType),
+                    entityId
             ));
             List<OperationLogEntity> list = new ArrayList<>(pageInfo.getList());
             list.forEach(this::retainOnlyChangedJsonFields);

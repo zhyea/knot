@@ -39,11 +39,12 @@
             </template>
           </el-table-column>
           <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
-          <el-table-column label="操作" width="120" align="center" header-align="center" fixed="right">
+          <el-table-column label="操作" width="160" align="center" header-align="center" fixed="right">
             <template #default="{ row }">
               <RowActions
                 :actions="[
                   { key: 'edit', label: '编辑', icon: Edit },
+                  { key: 'log', label: '操作日志', icon: Document },
                   { key: 'delete', label: '删除', icon: Delete, type: 'danger' }
                 ]"
                 @action="(action) => handleAction(action, row)"
@@ -64,6 +65,12 @@
     </div>
 
     <ModelFamilyFormDialog v-model="formVisible" :family="editingFamily" @saved="resetPage" />
+
+    <OperationLogDrawer
+      v-model="logDrawer"
+      :title="`模型族操作日志 - ${logName || ''}`"
+      :load-logs="loadFamilyLogs"
+    />
   </PageSection>
 </template>
 
@@ -71,16 +78,18 @@
 import type {Dict, Row} from "@/types";
 import {onMounted, ref} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";
-import {Delete, Edit} from "@element-plus/icons-vue";
+import {Delete, Document, Edit} from "@element-plus/icons-vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import ListPagination from "../../components/common/ListPagination.vue";
 import RowActions from "../../components/common/RowActions.vue";
+import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import ModelFamilyFormDialog from "../../components/model/ModelFamilyFormDialog.vue";
 import {useListQuery} from "@/composables/useListQuery";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {deleteModelFamily, listModelFamilies, updateModelFamilyStatus} from "@/api/modelFamilies";
+import {listOperationLogsByEntity} from "@/api/operationLogs";
 
 /**
  * 模型族主数据存于枚举表 ks_enum_configs（category='model_family'），与「系统管理 / 枚举管理」
@@ -108,6 +117,10 @@ const {
 const formVisible = ref(false);
 const editingFamily = ref<Row | null>(null);
 
+const logDrawer = ref(false);
+const logId = ref<number | string | null>(null);
+const logName = ref("");
+
 const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateModelFamilyStatus
 });
@@ -131,8 +144,19 @@ async function remove(row: Row) {
   resetPage();
 }
 
+function openLog(row: Row) {
+  logId.value = row.id;
+  logName.value = row.name || row.code || `#${row.id}`;
+  logDrawer.value = true;
+}
+
+function loadFamilyLogs() {
+  return listOperationLogsByEntity({ module: "model-family", entityType: "ModelFamily", entityId: logId.value! });
+}
+
 function handleAction(action: string, row: Row) {
   if (action === "edit") openEdit(row);
+  if (action === "log") openLog(row);
   if (action === "delete") remove(row);
 }
 
