@@ -116,7 +116,7 @@ public class ModelController {
      */
     @OperationLog(module = "model", operation = "CREATE", entityType = "Model",
             entityIdAfter = "#result.id()",
-            entityNameAfter = "#result.name()",
+            entityNameAfter = "#result.modelCode()",
             description = "'创建模型'",
             newValueSpel = "@modelService.modelAuditSnapshot(#result.id())")
     @PostMapping
@@ -130,7 +130,7 @@ public class ModelController {
      */
     @OperationLog(module = "model", operation = "UPDATE", entityType = "Model",
             entityId = "#p0",
-            entityNameAfter = "#result.name()",
+            entityNameAfter = "#result.modelCode()",
             description = "'更新模型'",
             oldValueSpel = "@modelService.modelAuditSnapshot(#p0)",
             newValueSpel = "@modelService.modelAuditSnapshot(#p0)")
@@ -145,7 +145,7 @@ public class ModelController {
      */
     @OperationLog(module = "model", operation = "UPDATE", entityType = "Model",
             entityId = "#p0",
-            entityNameAfter = "#result.name()",
+            entityNameAfter = "#result.modelCode()",
             description = "'更新模型状态'",
             oldValueSpel = "@modelService.modelAuditSnapshot(#p0)",
             newValueSpel = "@modelService.modelAuditSnapshot(#p0)")
@@ -173,7 +173,7 @@ public class ModelController {
      */
     @OperationLog(module = "model", operation = "UPDATE", entityType = "Model",
             entityId = "#p0",
-            entityNameAfter = "#result.name()",
+            entityNameAfter = "#result.modelCode()",
             description = "'恢复供应商模型'",
             oldValueSpel = "@modelService.modelAuditSnapshot(#p0)",
             newValueSpel = "@modelService.modelAuditSnapshot(#p0)")
