@@ -28,8 +28,8 @@
       </el-form-item>
       <el-form-item label="状态" prop="status">
         <el-radio-group v-model="form.status">
-          <el-radio-button label="ENABLED">启用</el-radio-button>
-          <el-radio-button label="DISABLED">禁用</el-radio-button>
+          <el-radio-button :label="EnabledStatus.ENABLED">启用</el-radio-button>
+          <el-radio-button :label="EnabledStatus.DISABLED">禁用</el-radio-button>
         </el-radio-group>
       </el-form-item>
       <el-form-item label="说明">
@@ -49,6 +49,7 @@ import type {Dict} from "@/types";
 import {type PropType,  computed, reactive, ref, watch} from "vue";
 import CronExpressionInput from "./CronExpressionInput.vue";
 import {createScheduledTask, updateScheduledTask} from "@/api/scheduledTasks";
+import {EnabledStatus} from "@/constants/status";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -105,7 +106,7 @@ function defaultForm() {
     handlerCode: "",
     cronExpression: "0 0 3 * * ?",
     executionMode: "SINGLE",
-    status: "ENABLED",
+    status: EnabledStatus.ENABLED,
     description: ""
   };
 }
