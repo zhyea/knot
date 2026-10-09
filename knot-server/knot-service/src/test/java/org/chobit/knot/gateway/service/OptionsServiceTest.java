@@ -220,15 +220,16 @@ class OptionsServiceTest {
     @Test
     void modelMetaDeserializesToRecord() {
         OptionConverter converter = new OptionConverter();
-        OptionRow<String> row = codeRow("gpt-4o", "GPT-4o", null, 0);
+        OptionRow<String> row = codeRow("gpt-4o", "gpt-4o", null, 0);
         row.setMeta("{\"providerName\":\"OpenAI\",\"providerAccountCode\":\"openai-1\","
-                + "\"modelName\":\"GPT-4o\",\"name\":\"GPT-4o\",\"modelType\":\"chat\","
+                + "\"modelType\":\"chat\","
                 + "\"logicalModelCode\":\"text.default\",\"status\":1}");
 
         OptionItem<ModelMeta> item = converter.toModelItem(row);
         ModelMeta meta = item.meta();
         assertNotNull(meta);
         assertEquals("OpenAI", meta.providerName());
+        assertEquals("gpt-4o", item.label());
         assertEquals("chat", meta.modelType());
         assertEquals("text.default", meta.logicalModelCode());
         assertEquals(1, meta.status());
