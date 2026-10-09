@@ -555,8 +555,8 @@ onMounted(() => {
 }
 
 .dashboard-hero__actions {
-  --refresh-control-width: 180px;
-  --refresh-control-height: 42px;
+  --refresh-control-width: 200px;
+  --refresh-control-height: 36px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -1079,7 +1079,7 @@ onMounted(() => {
   }
 
   .refresh-button {
-    width: 42px;
+    width: 36px;
   }
 
   .metric-grid,
