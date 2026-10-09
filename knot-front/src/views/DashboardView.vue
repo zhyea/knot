@@ -12,7 +12,7 @@
         <div class="refresh-pill">
           <strong class="refresh-pill__value">{{ lastUpdatedAt || "--" }}</strong>
         </div>
-        <el-button :icon="RefreshRight" type="primary" plain @click="loadDashboard">刷新</el-button>
+        <el-button :icon="RefreshRight" type="primary" plain @click="loadDashboard"></el-button>
       </div>
     </section>
 
