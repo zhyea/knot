@@ -12,7 +12,13 @@
         <div class="refresh-pill">
           <strong class="refresh-pill__value">{{ lastUpdatedAt || "--" }}</strong>
         </div>
-        <el-button :icon="RefreshRight" type="primary" plain @click="loadDashboard"></el-button>
+        <el-button
+          class="refresh-button"
+          :icon="RefreshRight"
+          type="primary"
+          plain
+          @click="loadDashboard"
+        ></el-button>
       </div>
     </section>
 
@@ -549,6 +555,8 @@ onMounted(() => {
 }
 
 .dashboard-hero__actions {
+  --refresh-control-width: 180px;
+  --refresh-control-height: 42px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -561,10 +569,19 @@ onMounted(() => {
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  min-width: 180px;
+  width: var(--refresh-control-width);
+  min-width: var(--refresh-control-width);
+  height: var(--refresh-control-height);
   padding: 10px 14px;
   border: 1px solid var(--knot-border, #ebeef5);
   background: #fff;
+}
+
+.refresh-button {
+  width: var(--refresh-control-height);
+  min-width: var(--refresh-control-height);
+  height: var(--refresh-control-height);
+  padding: 0;
 }
 
 .refresh-pill__label {
@@ -1054,6 +1071,15 @@ onMounted(() => {
   .dashboard-hero__actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .refresh-pill {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .refresh-button {
+    width: 42px;
   }
 
   .metric-grid,
