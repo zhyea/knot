@@ -67,7 +67,7 @@
           </el-row>
           <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="绑定消费者" required class="bind-block-item consumer-bind-item">
+              <el-form-item label="消费者" required>
                 <RemoteEntitySelect
                   v-model="selectedConsumerId"
                   :load-function="loadConsumerOptions"
