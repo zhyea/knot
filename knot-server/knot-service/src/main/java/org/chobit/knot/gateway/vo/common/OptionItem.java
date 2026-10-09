@@ -22,7 +22,7 @@ package org.chobit.knot.gateway.vo.common;
  * 由调用方与 DAL 边界 {@code OptionRow<V>} 守护，本类不再为 value 泛型）。</p>
  *
  * <p>{@code meta} 承载下拉需要的派生信息，一律走这一个字段，不再按资源扩 VO 字段：
- * 供应商账户的 {@code baseUrl}、供应商模型的 {@code providerName}/{@code modelName}/{@code modelType}/
+ * 供应商账户的 {@code baseUrl}、供应商模型的 {@code providerName}/{@code modelType}/
  * {@code logicalModelCode}、统一模型的 {@code modelType}/{@code modelFamily}/{@code status} 均在此。
  * 全部键由 SQL 侧 {@code json_object} 生成，禁止为某资源新增顶层字段。</p>
  */
