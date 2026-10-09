@@ -2,9 +2,8 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.gateway.mapper.ModelMapper">
 
-    <!-- 名称与模型类型不再落 kb_models，从绑定的统一模型（1:1 映射）派生 -->
+    <!-- 模型类型不落 kb_models，从绑定的统一模型（1:1 映射）派生 -->
     <sql id="logicalModelCodeExpr">(select pm2.logical_model_code from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
-    <sql id="modelNameExpr">(select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
     <sql id="modelTypeExpr">(select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
     <sql id="modelFamilyExpr">(select lm2.model_family from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
 
@@ -12,7 +11,6 @@
         m.id, m.provider_account_code, m.model_code, m.upstream_model, m.version, m.base_url, m.remark, m.billing_rule_code, m.status,
         m.is_deleted,
         <include refid="logicalModelCodeExpr"/> AS logical_model_code,
-        <include refid="modelNameExpr"/> AS name,
         <include refid="modelTypeExpr"/> AS model_type,
         <include refid="modelFamilyExpr"/> AS model_family_code,
         p.name AS provider_name, p.code AS provider_code
@@ -34,7 +32,6 @@
             <if test="keyword != null and keyword != ''">
                 and (
                     m.model_code like concat('%', #{keyword}, '%')
-                    or <include refid="modelNameExpr"/> like concat('%', #{keyword}, '%')
                     or p.name like concat('%', #{keyword}, '%')
                 )
             </if>
