@@ -170,12 +170,10 @@
   <!-- ==================== 供应商模型（value=modelCode；meta 承载供应商/统一模型派生字段供池内表格与联动） ==================== -->
   <select id="listModelOptions" resultMap="optionRow">
     select m.model_code as value,
-    COALESCE(lm.model_name, m.model_code) as label,
+    m.model_code as label,
     0 as disabled,
     json_object('providerName', COALESCE(p.name, m.provider_account_code),
     'providerAccountCode', m.provider_account_code,
-    'modelName', lm.model_name,
-    'name', lm.model_name,
     'modelType', lm.model_type,
     'logicalModelCode', pmm.logical_model_code,
     'status', m.status) as meta
@@ -201,12 +199,10 @@
 
   <select id="listModelOptionsByValues" resultMap="optionRow">
     select m.model_code as value,
-    COALESCE(lm.model_name, m.model_code) as label,
+    m.model_code as label,
     (case when m.status = 1 then 0 else 1 end) as disabled,
     json_object('providerName', COALESCE(p.name, m.provider_account_code),
     'providerAccountCode', m.provider_account_code,
-    'modelName', lm.model_name,
-    'name', lm.model_name,
     'modelType', lm.model_type,
     'logicalModelCode', pmm.logical_model_code,
     'status', m.status) as meta
