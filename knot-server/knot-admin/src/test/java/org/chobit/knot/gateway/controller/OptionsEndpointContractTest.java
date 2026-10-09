@@ -68,9 +68,9 @@ class OptionsEndpointContractTest {
     /**
      * 端点描述符：路径 + controller 工厂 + 打桩器 + 该资源样例 value + 是否有启用态过滤。
      *
-     * <p>{@code sample} 类型随资源的 value 语义：id 型资源为 {@link Long}（用户/部门/应用/
-     * 路由消费者/角色），code 型为 {@link String}（供应商账户/统一模型/供应商模型/模型池/
-     * 计费规则/供应商信息）。泛型化后这一约定由编译器与运行期共同守护。</p>
+     * <p>{@code sample} 类型随资源的 value 语义：id 型资源为 {@link Long}（部门/应用/
+     * 路由消费者/角色），code 型为 {@link String}（用户按 username/供应商账户/统一模型/
+     * 供应商模型/模型池/计费规则/供应商信息）。泛型化后这一约定由编译器与运行期共同守护。</p>
      */
     private record Endpoint(String name, String path, Function<OptionsService, Object> factory,
                             Stubber stubber, Object sample, boolean hasEnabledOnly) {
@@ -82,13 +82,13 @@ class OptionsEndpointContractTest {
 
     static List<Endpoint> endpoints() {
         return List.of(
-                new Endpoint("用户", "/api/users/options",
+                new Endpoint("用户(username)", "/api/users/options-by-username",
                         svc -> new UserController(null, null, svc),
                         (m, s, e, c) -> {
-                            when(m.listUserOptions(any(), anyBoolean(), anyBoolean()))
+                            when(m.listUserUsernameOptions(any(), anyBoolean(), anyBoolean()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));
-                            when(m.listUserOptionsByValues(anyList())).thenAnswer(inv -> e);
-                        }, 1L, true),
+                            when(m.listUserUsernameOptionsByValues(anyList())).thenAnswer(inv -> e);
+                        }, "alice", true),
                 new Endpoint("部门", "/api/system/departments/options",
                         svc -> new DepartmentController(null, null, svc),
                         (m, s, e, c) -> {

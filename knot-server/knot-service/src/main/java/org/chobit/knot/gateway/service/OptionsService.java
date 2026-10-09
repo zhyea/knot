@@ -71,19 +71,7 @@ public class OptionsService {
         this.optionConverter = optionConverter;
     }
 
-    // ==================== 用户（value=id；meta=username） ====================
-    public OptionPage<OptionItem<UserOptionMeta>> listUserOptions(UserOptionQuery query) {
-        OptionQuery base = query == null ? EMPTY : query.toBase();
-        String kw = keyword(query == null ? null : query.keyword());
-        boolean eo = base.effectiveEnabledOnly();
-        boolean inc = base.effectiveIncludeDeleted();
-        return assemble(base,
-                () -> optionsMapper.listUserOptions(kw, eo, inc),
-                vals -> optionsMapper.listUserOptionsByValues(vals),
-                optionConverter::toUserItems);
-    }
-
-    // ==================== 用户（value=username；meta=username；路由规则按 username 绑定用户） ====================
+    // ==================== 用户（value=username；meta=username；路由规则/应用/消费者均按 username 绑定用户） ====================
     public OptionPage<OptionItem<UserOptionMeta>> listUserUsernameOptions(UserOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());

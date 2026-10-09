@@ -103,8 +103,18 @@ const moduleLabelMap = {
   department: "部门管理",
   enum: "枚举管理",
   provider: "供应商",
+  authorization: "授权管理",
+  auth: "认证",
   "logical-model": "统一模型",
-  "model-pool": "模型池"
+  "model-pool": "模型池",
+  "model-family": "模型族",
+  "external-model": "外部模型",
+  "provider-account": "供应商账户",
+  "provider-profile": "供应商档案",
+  "scheduled-task": "定时任务",
+  notification: "通知",
+  plugin: "插件",
+  "user-setting": "个人设置"
 };
 
 const moduleOptions = ref<Row[]>([]);

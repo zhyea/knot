@@ -76,16 +76,25 @@ public class ProviderProfileService {
         return getById(id);
     }
 
+    /**
+     * 删除供应商档案：档案下只要还挂着账户，或账户下仍有凭据 / 折扣策略 / 模型 / 映射，就拒绝删除。
+     *
+     * <p>引用检查一律按「档案 code → 账户 → 账户下的资源」这条链查（跨模块绑定存 code 不存 id）。
+     * 计费规则不按供应商关联，不在引用检查范围内。</p>
+     */
     @Transactional
     public void delete(Long id) {
-        getById(id);
-        if (providerProfileMapper.countAccountsByProviderId(id) > 0L
-                || providerProfileMapper.countCredentialsByProviderId(id) > 0L
-                || providerProfileMapper.countDiscountPoliciesByProviderId(id) > 0L
-                || providerProfileMapper.countModelsByProviderId(id) > 0L
-                || providerProfileMapper.countMappingsByProviderId(id) > 0L
-                || providerProfileMapper.countBillingRulesByProviderId(id) > 0L) {
-            throw new BusinessException(ErrorCode.CONFLICT);
+        ProviderProfileEntity existing = providerProfileMapper.getById(id);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND);
+        }
+        String providerCode = existing.getCode();
+        if (providerProfileMapper.countAccountsByProviderCode(providerCode) > 0L
+                || providerProfileMapper.countCredentialsByProviderCode(providerCode) > 0L
+                || providerProfileMapper.countDiscountPoliciesByProviderCode(providerCode) > 0L
+                || providerProfileMapper.countModelsByProviderCode(providerCode) > 0L
+                || providerProfileMapper.countMappingsByProviderCode(providerCode) > 0L) {
+            throw new BusinessException(ErrorCode.CONFLICT, "供应商档案下仍有关联账户或账户数据，无法删除");
         }
         providerProfileMapper.deleteById(id);
     }

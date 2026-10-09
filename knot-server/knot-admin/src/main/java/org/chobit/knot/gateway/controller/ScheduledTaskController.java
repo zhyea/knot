@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.controller;
 
+import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.dto.system.ScheduledTaskQuery;
 import org.chobit.knot.gateway.dto.system.ScheduledTaskRequest;
 import org.chobit.knot.gateway.dto.system.ScheduledTaskRunQuery;
@@ -35,6 +36,11 @@ public class ScheduledTaskController {
     /**
      * Creates a new resource. Executes the public operation.
      */
+    @OperationLog(module = "scheduled-task", operation = "CREATE", entityType = "ScheduledTask",
+            entityIdAfter = "#result.id",
+            entityNameAfter = "#result.taskName",
+            description = "'新建定时任务'",
+            newValueSpel = "#result")
     @PostMapping
     public ScheduledTaskEntity create(@RequestBody ScheduledTaskRequest request) {
         return scheduledTaskService.create(request);
@@ -43,6 +49,11 @@ public class ScheduledTaskController {
     /**
      * Updates the target resource. Executes the public operation.
      */
+    @OperationLog(module = "scheduled-task", operation = "UPDATE", entityType = "ScheduledTask",
+            entityId = "#p0",
+            entityNameAfter = "#result.taskName",
+            description = "'更新定时任务'",
+            newValueSpel = "#result")
     @PutMapping("/{id}")
     public ScheduledTaskEntity update(@PathVariable Long id, @RequestBody ScheduledTaskRequest request) {
         return scheduledTaskService.update(id, request);
@@ -51,6 +62,11 @@ public class ScheduledTaskController {
     /**
      * Triggers the requested operation immediately. Executes the public operation.
      */
+    @OperationLog(module = "scheduled-task", operation = "EXECUTE", entityType = "ScheduledTask",
+            entityId = "#p0",
+            description = "'手动触发定时任务'",
+            recordOldValue = false,
+            recordNewValue = false)
     @PostMapping("/{id}/trigger")
     public void trigger(@PathVariable Long id) {
         scheduledTaskService.triggerNow(id);

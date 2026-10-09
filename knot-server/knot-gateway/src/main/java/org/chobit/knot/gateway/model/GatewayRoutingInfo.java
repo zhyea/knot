@@ -10,7 +10,9 @@ public record GatewayRoutingInfo(RuleInfo rule,
     public record RuleInfo(Long id,
                            String code,
                            String name,
-                           String appScenario) {
+                           String appScenario,
+                           /** 归属用户登录名（按 username 绑定，非主键 id） */
+                           String username) {
     }
 
     public record ConsumerInfo(Long id,

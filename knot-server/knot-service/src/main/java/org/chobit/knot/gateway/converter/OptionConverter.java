@@ -47,14 +47,7 @@ public class OptionConverter {
 
     // ==================== id 型资源（value=Long；业务码走 meta） ====================
 
-    public OptionItem<UserOptionMeta> toUserItem(OptionRow<Long> row) {
-        return build(row, parseMeta(row.getMeta(), UserOptionMeta.class));
-    }
-
-    public List<OptionItem<UserOptionMeta>> toUserItems(List<OptionRow<Long>> rows) {
-        return mapRows(rows, this::toUserItem);
-    }
-
+    /** 用户下拉按 username 取值（跨模块绑定存 code 不存 id），故用户只有 String 型 value。 */
     public OptionItem<UserOptionMeta> toUserUsernameItem(OptionRow<String> row) {
         return build(row, parseMeta(row.getMeta(), UserOptionMeta.class));
     }

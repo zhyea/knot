@@ -404,14 +404,14 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (181, 99, 'POST', '/api/provider-accounts/options', 'ProviderController', 1),
 (182, 107, 'POST', '/api/routing-consumers/options', 'RoutingConsumerController', 1),
 (183, 113, 'POST', '/api/routing-rules/{id}/test/stream', 'RoutingRuleController', 1),
-(184, 2, 'POST', '/api/users/options', 'UserController', 1),
 (185, 128, 'GET', '/api/test-request-presets/{id}', 'TestRequestPresetController', 1),
 (186, 107, 'GET', '/api/routing-consumers/{id}', 'RoutingConsumerController', 1),
 (187, 66, 'POST', '/api/system/authorizations/roles/options', 'AuthorizationRoleController', 1),
 (188, 103, 'POST', '/api/provider-profiles/options', 'ProviderProfileController', 1),
 (189, 142, 'DELETE', '/api/models/{id}', 'ModelController', 1),
 (190, 86, 'PUT', '/api/models/{id}/restore', 'ModelController', 1),
-(191, 143, 'PUT', '/api/billing/rules/{id}/restore', 'BillingController', 1);
+(191, 143, 'PUT', '/api/billing/rules/{id}/restore', 'BillingController', 1),
+(192, 2, 'POST', '/api/users/options-by-username', 'UserController', 1);
 
 -- 角色授权（OPERATOR 全量 / DEVELOPER 只读；ADMIN 由文件末尾权威块全量授予）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
@@ -606,10 +606,10 @@ INSERT IGNORE INTO kb_routing_consumers (id, consumer_code, name, user_username,
 (2, 'consumer-research',    '模型评测消费者',       'admin', 'sk-demo-claude-routing-key-002', 0, 1),
 (3, 'consumer-cs',          '客服系统消费者',       'zhangsan', 'sk-demo-deepseek-routing-key-003', 0, 1);
 
-INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, app_id, status) VALUES
-(1, 'gpt4o-default',    'GPT-4o默认路由',    '知识库问答', 1, 1),
-(2, 'claude-default',   'Claude默认路由',    '模型评测',   1, 1),
-(3, 'deepseek-lowcost', 'DeepSeek低成本路由', '客服对话',   2, 1);
+INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, app_id, username, status) VALUES
+(1, 'gpt4o-default',    'GPT-4o默认路由',    '知识库问答', 1, 'admin', 1),
+(2, 'claude-default',   'Claude默认路由',    '模型评测',   1, 'admin', 1),
+(3, 'deepseek-lowcost', 'DeepSeek低成本路由', '客服对话',   2, 'zhangsan', 1);
 
 INSERT IGNORE INTO kb_routing_rule_consumers (id, rule_id, consumer_id) VALUES
 (1, 1, 1),

@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import jakarta.validation.Valid;
+import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.dto.auth.ForcePasswordChangeRequest;
 import org.chobit.knot.gateway.dto.auth.LoginRequest;
 import org.chobit.knot.gateway.service.UserService;
@@ -26,6 +27,11 @@ public class AuthController {
     /**
      * Logs in with username and password.
      */
+    @OperationLog(module = "auth", operation = "LOGIN", entityType = "User",
+            entityName = "#request.username()",
+            description = "'用户登录'",
+            recordOldValue = false,
+            recordNewValue = false)
     @PostMapping("/login")
     public LoginResponse login(@RequestBody @Valid LoginRequest request) {
         return userService.login(request.username(), request.password());
@@ -34,6 +40,10 @@ public class AuthController {
     /**
      * Completes the forced password change flow.
      */
+    @OperationLog(module = "auth", operation = "UPDATE", entityType = "User",
+            description = "'强制修改密码'",
+            recordOldValue = false,
+            recordNewValue = false)
     @PostMapping("/force-password-change")
     public void forcePasswordChange(@RequestBody @Valid ForcePasswordChangeRequest request) {
         userService.forcePasswordChange(request.passwordChangeToken(), request.newPassword());
@@ -42,6 +52,10 @@ public class AuthController {
     /**
      * Logs out the current user.
      */
+    @OperationLog(module = "auth", operation = "LOGOUT", entityType = "User",
+            description = "'用户退出登录'",
+            recordOldValue = false,
+            recordNewValue = false)
     @PostMapping("/logout")
     public void logout() {
         // JWT is stateless, client should discard the token.

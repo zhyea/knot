@@ -62,7 +62,7 @@ export interface ModelMeta {
   status?: number | null;
 }
 
-/** 用户：登录名（value 是用户 id）。 */
+/** 用户：登录名（value 是 username，非主键 id —— 跨模块绑定存 code 不存 id）。 */
 export interface UserOptionMeta {
   username?: string | null;
 }

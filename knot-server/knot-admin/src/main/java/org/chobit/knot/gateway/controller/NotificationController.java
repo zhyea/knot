@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.controller;
 
+import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -44,6 +45,11 @@ public class NotificationController {
     /**
      * Creates a new resource. Executes the public operation.
      */
+    @OperationLog(module = "notification", operation = "CREATE", entityType = "NotifyTemplate",
+            entityIdAfter = "#result.id",
+            entityNameAfter = "#result.name",
+            description = "'新建通知模板'",
+            newValueSpel = "#result")
     @PostMapping("/templates")
     public NotifyTemplate createTemplate(@RequestBody @Valid NotifyTemplate request) {
         TemplateDto created = notificationService.createTemplate(
@@ -55,6 +61,11 @@ public class NotificationController {
     /**
      * Executes the public operation. Executes the public operation.
      */
+    @OperationLog(module = "notification", operation = "SEND", entityType = "NotifyTemplate",
+            entityName = "#request.templateCode()",
+            description = "'发送通知'",
+            recordOldValue = false,
+            newValueSpel = "#result")
     @PostMapping("/send")
     public NotifySendResult send(@RequestBody @Valid NotifySendRequest request) {
         SendResultDto sent = notificationService.send(request.templateCode(), request.receivers(), request.vars());
@@ -64,6 +75,11 @@ public class NotificationController {
     /**
      * Creates a new resource. Executes the public operation.
      */
+    @OperationLog(module = "notification", operation = "CREATE", entityType = "NotifyPolicy",
+            entityName = "#request.eventType()",
+            description = "'新建通知策略'",
+            recordOldValue = false,
+            newValueSpel = "#result")
     @PostMapping("/policies")
     public NotifyPolicy createPolicy(@RequestBody @Valid NotifyPolicy request) {
         return request;

@@ -29,14 +29,7 @@ import java.util.List;
 @Mapper
 public interface OptionsMapper {
 
-    // ---------- 用户（value=id） ----------
-    List<OptionRow<Long>> listUserOptions(@Param("keyword") String keyword,
-                                          @Param("enabledOnly") boolean enabledOnly,
-                                          @Param("includeDeleted") boolean includeDeleted);
-
-    List<OptionRow<Long>> listUserOptionsByValues(@Param("values") List<String> values);
-
-    // ---------- 用户（value=username；路由规则按 username 绑定用户） ----------
+    // ---------- 用户（value=username；路由规则/应用/消费者均按 username 绑定用户） ----------
     List<OptionRow<String>> listUserUsernameOptions(@Param("keyword") String keyword,
                                                     @Param("enabledOnly") boolean enabledOnly,
                                                     @Param("includeDeleted") boolean includeDeleted);

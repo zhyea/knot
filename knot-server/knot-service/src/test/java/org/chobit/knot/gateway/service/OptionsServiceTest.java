@@ -63,7 +63,7 @@ class OptionsServiceTest {
         service = new OptionsService(mapper, new OptionConverter());
     }
 
-    /** id 型行（value=Long），供用户 / 部门 / 应用 / 路由消费者 / 角色类资源打桩。meta 为 json_object 文本，可为 null。 */
+    /** id 型行（value=Long），供部门 / 应用 / 路由消费者 / 角色类资源打桩（用户已改按 username 取值）。meta 为 json_object 文本，可为 null。 */
     private static OptionRow<Long> idRow(Long value, String label, String meta, int disabled) {
         OptionRow<Long> row = new OptionRow<>();
         row.setValue(value);
@@ -91,31 +91,31 @@ class OptionsServiceTest {
     // 场景 1：默认启用过滤 + 首页默认 20
     @Test
     void defaultsToEnabledOnlyFirstPageSize20() {
-        when(mapper.listUserOptions(isNull(), anyBoolean(), anyBoolean())).thenReturn(List.of(idRow(1L, "Alice", null, 0)));
-        OptionPage<OptionItem<UserOptionMeta>> page = service.listUserOptions(null);
+        when(mapper.listUserUsernameOptions(isNull(), anyBoolean(), anyBoolean())).thenReturn(List.of(codeRow("alice", "Alice", null, 0)));
+        OptionPage<OptionItem<UserOptionMeta>> page = service.listUserUsernameOptions(null);
 
-        verify(mapper).listUserOptions(isNull(), eq(true), eq(false));
+        verify(mapper).listUserUsernameOptions(isNull(), eq(true), eq(false));
         assertEquals(1, page.pageNum());
         assertEquals(20, page.pageSize());
         assertEquals(1, page.list().size());
-        assertEquals(1L, page.list().get(0).value());
+        assertEquals("alice", page.list().get(0).value());
     }
 
     // 场景 2：pageSize 超过上限被钳制到 50
     @Test
     void clampsPageSizeTo50() {
-        when(mapper.listUserOptions(any(), anyBoolean(), anyBoolean())).thenReturn(List.of());
-        OptionPage<OptionItem<UserOptionMeta>> page = service.listUserOptions(userQuery(1, 999, null, null, null, null));
+        when(mapper.listUserUsernameOptions(any(), anyBoolean(), anyBoolean())).thenReturn(List.of());
+        OptionPage<OptionItem<UserOptionMeta>> page = service.listUserUsernameOptions(userQuery(1, 999, null, null, null, null));
         assertEquals(50, page.pageSize());
     }
 
     // 场景 3：请求 values 中不存在的项进 missingValues
     @Test
     void reportsMissingValues() {
-        when(mapper.listUserOptions(any(), anyBoolean(), anyBoolean())).thenReturn(List.of(idRow(1L, "Alice", null, 0)));
-        when(mapper.listUserOptionsByValues(anyList())).thenReturn(List.of(idRow(1L, "Alice", null, 0)));
+        when(mapper.listUserUsernameOptions(any(), anyBoolean(), anyBoolean())).thenReturn(List.of(codeRow("alice", "Alice", null, 0)));
+        when(mapper.listUserUsernameOptionsByValues(anyList())).thenReturn(List.of(codeRow("alice", "Alice", null, 0)));
 
-        OptionPage<OptionItem<UserOptionMeta>> page = service.listUserOptions(userQuery(1, 20, null, List.of("1", "999"), null, null));
+        OptionPage<OptionItem<UserOptionMeta>> page = service.listUserUsernameOptions(userQuery(1, 20, null, List.of("alice", "999"), null, null));
 
         assertEquals(List.of("999"), page.missingValues());
         assertEquals(1, page.list().size());
@@ -124,17 +124,17 @@ class OptionsServiceTest {
     // 场景 4：回显合并 + 去重 + disabled 标记（停用的已选项也能回显）
     @Test
     void mergesEchoItemsDeduplicatesAndMarksDisabled() {
-        when(mapper.listUserOptions(any(), anyBoolean(), anyBoolean())).thenReturn(List.of(idRow(1L, "Alice", null, 0)));
-        when(mapper.listUserOptionsByValues(anyList())).thenReturn(List.of(
-                idRow(1L, "Alice", null, 0),
-                idRow(2L, "Bob", null, 1)));
+        when(mapper.listUserUsernameOptions(any(), anyBoolean(), anyBoolean())).thenReturn(List.of(codeRow("alice", "Alice", null, 0)));
+        when(mapper.listUserUsernameOptionsByValues(anyList())).thenReturn(List.of(
+                codeRow("alice", "Alice", null, 0),
+                codeRow("bob", "Bob", null, 1)));
 
-        OptionPage<OptionItem<UserOptionMeta>> page = service.listUserOptions(userQuery(1, 20, null, List.of("1", "2"), null, null));
+        OptionPage<OptionItem<UserOptionMeta>> page = service.listUserUsernameOptions(userQuery(1, 20, null, List.of("alice", "bob"), null, null));
 
         // 1 只出现一次（首页 + 回显去重），2 追加进来
         assertEquals(2, page.list().size());
-        assertEquals(1L, page.list().get(0).value());
-        assertEquals(2L, page.list().get(1).value());
+        assertEquals("alice", page.list().get(0).value());
+        assertEquals("bob", page.list().get(1).value());
         assertEquals(Boolean.TRUE, page.list().get(1).disabled());
         assertTrue(page.missingValues().isEmpty());
     }
@@ -147,8 +147,8 @@ class OptionsServiceTest {
             tooMany.add(String.valueOf(i));
         }
         assertThrows(BusinessException.class,
-                () -> service.listUserOptions(userQuery(1, 20, null, tooMany, null, null)));
-        verify(mapper, never()).listUserOptionsByValues(anyList());
+                () -> service.listUserUsernameOptions(userQuery(1, 20, null, tooMany, null, null)));
+        verify(mapper, never()).listUserUsernameOptionsByValues(anyList());
     }
 
     // 场景 6：code 型资源 value 原样透传（模型池 poolCode 不被数字化）
@@ -235,15 +235,15 @@ class OptionsServiceTest {
         assertEquals(1, meta.status());
     }
 
-    // 补充：id 型资源（用户）的业务码走 meta —— username 不再占顶层 code
+    // 补充：用户按 username 取值（value=username），meta 仍带 username
     @Test
     void userOptionCarriesUsernameMeta() {
         OptionConverter converter = new OptionConverter();
-        OptionRow<Long> row = idRow(5L, "Alice", "{\"username\":\"alice\"}", 0);
+        OptionRow<String> row = codeRow("alice", "Alice", "{\"username\":\"alice\"}", 0);
 
-        OptionItem<UserOptionMeta> item = converter.toUserItem(row);
+        OptionItem<UserOptionMeta> item = converter.toUserUsernameItem(row);
 
-        assertEquals(5L, item.value());
+        assertEquals("alice", item.value());
         assertNotNull(item.meta());
         assertEquals("alice", item.meta().username());
     }

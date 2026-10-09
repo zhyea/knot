@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.annotation.AuthCheck;
+import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.auth.CurrentAuth;
 import org.chobit.knot.gateway.service.UserSettingService;
 import org.chobit.knot.gateway.vo.user.UserSettingsRequest;
@@ -41,6 +42,9 @@ public class UserSettingController {
      * Executes the public operation. Executes the public operation.
      */
     @AuthCheck
+    @OperationLog(module = "user-setting", operation = "UPDATE", entityType = "UserSetting",
+            description = "'保存个人设置'",
+            newValueSpel = "#result")
     @PutMapping("/me")
     public Map<String, String> saveMySettings(@RequestBody UserSettingsRequest body) {
         return userSettingService.saveSettings(currentAuth.currentUserId(), body == null ? null : body.settings());

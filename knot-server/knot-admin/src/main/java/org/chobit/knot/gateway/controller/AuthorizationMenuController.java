@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.annotation.AuthCheck;
+import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.entity.AdminMenuEntity;
 import org.chobit.knot.gateway.service.AuthorizationMenuService;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
@@ -47,6 +48,11 @@ public class AuthorizationMenuController {
     /**
      * Creates a menu.
      */
+    @OperationLog(module = "authorization", operation = "CREATE", entityType = "Menu",
+            entityIdAfter = "#result.id",
+            entityNameAfter = "#result.menuName",
+            description = "'新建菜单'",
+            newValueSpel = "#result")
     @PostMapping
     public AdminMenuEntity createMenu(@RequestBody AdminMenuEntity request) {
         return menuService.createMenu(request);
@@ -55,6 +61,12 @@ public class AuthorizationMenuController {
     /**
      * Updates a menu.
      */
+    @OperationLog(module = "authorization", operation = "UPDATE", entityType = "Menu",
+            entityId = "#p0",
+            entityNameAfter = "#result.menuName",
+            description = "'更新菜单'",
+            oldValueSpel = "@authorizationMenuService.menuAuditSnapshot(#p0)",
+            newValueSpel = "#result")
     @PutMapping("/{id}")
     public AdminMenuEntity updateMenu(@PathVariable Long id, @RequestBody AdminMenuEntity request) {
         return menuService.updateMenu(id, request);
@@ -63,6 +75,12 @@ public class AuthorizationMenuController {
     /**
      * Updates menu enabled status.
      */
+    @OperationLog(module = "authorization", operation = "UPDATE", entityType = "Menu",
+            entityId = "#p0",
+            entityNameAfter = "#result.menuName",
+            description = "'更新菜单状态'",
+            oldValueSpel = "@authorizationMenuService.menuAuditSnapshot(#p0)",
+            newValueSpel = "#result")
     @PutMapping("/{id}/status")
     public AdminMenuEntity updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
         return menuService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
@@ -71,6 +89,12 @@ public class AuthorizationMenuController {
     /**
      * Deletes a menu.
      */
+    @OperationLog(module = "authorization", operation = "DELETE", entityType = "Menu",
+            entityId = "#p0",
+            entityNameAfter = "#result.menuName",
+            description = "'删除菜单'",
+            oldValueSpel = "@authorizationMenuService.menuAuditSnapshot(#p0)",
+            recordNewValue = false)
     @DeleteMapping("/{id}")
     public AdminMenuEntity deleteMenu(@PathVariable Long id) {
         return menuService.deleteMenu(id);

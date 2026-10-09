@@ -42,30 +42,35 @@
         </if>
     </select>
 
-    <select id="countAccountsByProviderId" resultType="java.lang.Long">
+    <!-- 引用检查：档案 -> 账户（按 code 绑定）-> 账户下的凭据/折扣策略/模型/映射。
+         ⚠ 2026-10-10 修正：旧实现把「供应商档案 id」当成「供应商账户 id / code」直接查，
+           语义全错；另有一条查 kb_billing_rules.provider_code 的检查——该表根本没有这一列，
+           导致删除档案必 500。计费规则不按供应商关联，故该检查直接移除。 -->
+
+    <select id="countAccountsByProviderCode" resultType="java.lang.Long">
         select count(1) from kb_provider_accounts
-        where provider_code = (select code from kb_providers where id = #{providerId})
+        where provider_code = #{providerCode}
     </select>
 
-    <select id="countCredentialsByProviderId" resultType="java.lang.Long">
-        select count(1) from kb_provider_credentials where provider_account_id = #{providerId}
+    <select id="countCredentialsByProviderCode" resultType="java.lang.Long">
+        select count(1) from kb_provider_credentials
+        where provider_account_id in (select id from kb_provider_accounts where provider_code = #{providerCode})
     </select>
 
-    <select id="countDiscountPoliciesByProviderId" resultType="java.lang.Long">
-        select count(1) from kb_provider_discount_policies where provider_account_id = #{providerId}
+    <select id="countDiscountPoliciesByProviderCode" resultType="java.lang.Long">
+        select count(1) from kb_provider_discount_policies
+        where provider_account_id in (select id from kb_provider_accounts where provider_code = #{providerCode})
     </select>
 
-    <select id="countModelsByProviderId" resultType="java.lang.Long">
-        select count(1) from kb_models where provider_account_code = (select code from kb_provider_accounts where id = #{providerId}) and is_deleted = 0
+    <select id="countModelsByProviderCode" resultType="java.lang.Long">
+        select count(1) from kb_models
+        where is_deleted = 0
+          and provider_account_code in (select code from kb_provider_accounts where provider_code = #{providerCode})
     </select>
 
-    <select id="countMappingsByProviderId" resultType="java.lang.Long">
-        select count(1) from kb_provider_model_mappings where provider_account_code = (select code from kb_provider_accounts where id = #{providerId})
-    </select>
-
-    <select id="countBillingRulesByProviderId" resultType="java.lang.Long">
-        select count(1) from kb_billing_rules
-        where provider_code = (select code from kb_providers where id = #{providerId})
+    <select id="countMappingsByProviderCode" resultType="java.lang.Long">
+        select count(1) from kb_provider_model_mappings
+        where provider_account_code in (select code from kb_provider_accounts where provider_code = #{providerCode})
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">

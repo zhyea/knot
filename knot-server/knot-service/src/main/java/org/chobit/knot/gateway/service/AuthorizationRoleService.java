@@ -99,4 +99,18 @@ public class AuthorizationRoleService {
         }
         return getRoleAuthorizationSnapshot(roleId);
     }
+
+    /**
+     * Returns a role snapshot for operation log auditing.
+     *
+     * <p>仅由 {@code @OperationLog} 的 SpEL 表达式（{@code @authorizationRoleService.roleAuditSnapshot(#p0)}）
+     * 反射调用，Java 侧无直接引用，IDE 会误报 unused。
+     */
+    @SuppressWarnings("unused")
+    public AdminRoleEntity roleAuditSnapshot(Long id) {
+        if (id == null) {
+            return null;
+        }
+        return support.getRoleById(id);
+    }
 }

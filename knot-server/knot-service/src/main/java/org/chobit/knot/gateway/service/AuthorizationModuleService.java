@@ -74,4 +74,18 @@ public class AuthorizationModuleService {
         support.mapper().deleteModule(id);
         return existing;
     }
+
+    /**
+     * Returns a module snapshot for operation log auditing.
+     *
+     * <p>仅由 {@code @OperationLog} 的 SpEL 表达式（{@code @authorizationModuleService.moduleAuditSnapshot(#p0)}）
+     * 反射调用，Java 侧无直接引用，IDE 会误报 unused。
+     */
+    @SuppressWarnings("unused")
+    public AdminModuleEntity moduleAuditSnapshot(Long id) {
+        if (id == null) {
+            return null;
+        }
+        return support.getModuleById(id);
+    }
 }

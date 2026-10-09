@@ -83,4 +83,18 @@ public class AuthorizationMenuService {
         support.mapper().deleteMenu(id);
         return existing;
     }
+
+    /**
+     * Returns a menu snapshot for operation log auditing.
+     *
+     * <p>仅由 {@code @OperationLog} 的 SpEL 表达式（{@code @authorizationMenuService.menuAuditSnapshot(#p0)}）
+     * 反射调用，Java 侧无直接引用，IDE 会误报 unused。
+     */
+    @SuppressWarnings("unused")
+    public AdminMenuEntity menuAuditSnapshot(Long id) {
+        if (id == null) {
+            return null;
+        }
+        return support.getMenuById(id);
+    }
 }

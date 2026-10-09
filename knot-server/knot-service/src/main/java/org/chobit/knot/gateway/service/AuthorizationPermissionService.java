@@ -86,4 +86,18 @@ public class AuthorizationPermissionService {
         support.mapper().deletePermission(id);
         return existing;
     }
+
+    /**
+     * Returns a permission snapshot for operation log auditing.
+     *
+     * <p>仅由 {@code @OperationLog} 的 SpEL 表达式（{@code @authorizationPermissionService.permissionAuditSnapshot(#p0)}）
+     * 反射调用，Java 侧无直接引用，IDE 会误报 unused。
+     */
+    @SuppressWarnings("unused")
+    public AdminPermissionEntity permissionAuditSnapshot(Long id) {
+        if (id == null) {
+            return null;
+        }
+        return support.getPermissionById(id);
+    }
 }

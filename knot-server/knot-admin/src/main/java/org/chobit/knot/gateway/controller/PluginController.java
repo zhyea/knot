@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.controller;
 
+import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -42,6 +43,11 @@ public class PluginController {
     /**
      * Creates a new resource. Executes the public operation.
      */
+    @OperationLog(module = "plugin", operation = "CREATE", entityType = "Plugin",
+            entityIdAfter = "#result.id",
+            entityNameAfter = "#result.name",
+            description = "'新建插件'",
+            newValueSpel = "#result")
     @PostMapping
     public PluginItem create(@RequestBody @Valid PluginItem request) {
         PluginDto created = pluginService.create(pluginConverter.toDto(request));
@@ -51,6 +57,12 @@ public class PluginController {
     /**
      * Updates the target resource. Executes the public operation.
      */
+    @OperationLog(module = "plugin", operation = "UPDATE", entityType = "Plugin",
+            entityId = "#p0",
+            entityNameAfter = "#result.name",
+            description = "'更新插件状态'",
+            oldValueSpel = "@pluginService.getById(#p0)",
+            newValueSpel = "#result")
     @PutMapping("/{id}/status")
     public PluginItem updateStatus(@PathVariable Long id, @RequestBody @Valid PluginStatusRequest request) {
         PluginDto updated = pluginService.updateStatus(id, request.status());

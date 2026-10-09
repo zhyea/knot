@@ -20,35 +20,7 @@
     <result column="meta" property="meta"/>
   </resultMap>
 
-  <!-- ==================== 用户（value=id；meta=username） ==================== -->
-  <select id="listUserOptions" resultMap="optionRow">
-    select u.id as value,
-    COALESCE(NULLIF(u.real_name, ''), u.username) as label,
-    0 as disabled,
-    json_object('username', u.username) as meta
-    from ks_users u
-    where 1 = 1
-    <if test="!includeDeleted">and u.is_deleted = 0</if>
-    <if test="enabledOnly">and u.status = 1</if>
-    <if test="keyword != null and keyword != ''">
-      and (u.username like concat('%', #{keyword}, '%')
-      or u.real_name like concat('%', #{keyword}, '%'))
-    </if>
-    order by u.id desc
-  </select>
-
-  <select id="listUserOptionsByValues" resultMap="optionRow">
-    select u.id as value,
-    COALESCE(NULLIF(u.real_name, ''), u.username) as label,
-    (case when u.status = 1 then 0 else 1 end) as disabled,
-    json_object('username', u.username) as meta
-    from ks_users u
-    where u.is_deleted = 0
-    and cast(u.id as char) in
-    <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
-  </select>
-
-  <!-- ==================== 用户（value=username；路由规则按 username 绑定用户） ==================== -->
+  <!-- ==================== 用户（value=username；路由规则/应用/消费者均按 username 绑定用户） ==================== -->
   <select id="listUserUsernameOptions" resultMap="optionRow">
     select u.username as value,
     COALESCE(NULLIF(u.real_name, ''), u.username) as label,

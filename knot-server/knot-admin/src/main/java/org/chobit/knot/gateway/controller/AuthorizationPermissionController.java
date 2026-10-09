@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.annotation.AuthCheck;
+import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.entity.AdminPermissionEntity;
 import org.chobit.knot.gateway.service.AuthorizationPermissionService;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
@@ -48,6 +49,11 @@ public class AuthorizationPermissionController {
     /**
      * Creates a permission.
      */
+    @OperationLog(module = "authorization", operation = "CREATE", entityType = "Permission",
+            entityIdAfter = "#result.id",
+            entityNameAfter = "#result.permissionName",
+            description = "'新建权限'",
+            newValueSpel = "#result")
     @PostMapping
     public AdminPermissionEntity createPermission(@RequestBody AdminPermissionEntity request) {
         return permissionService.createPermission(request);
@@ -56,6 +62,12 @@ public class AuthorizationPermissionController {
     /**
      * Updates a permission.
      */
+    @OperationLog(module = "authorization", operation = "UPDATE", entityType = "Permission",
+            entityId = "#p0",
+            entityNameAfter = "#result.permissionName",
+            description = "'更新权限'",
+            oldValueSpel = "@authorizationPermissionService.permissionAuditSnapshot(#p0)",
+            newValueSpel = "#result")
     @PutMapping("/{id}")
     public AdminPermissionEntity updatePermission(@PathVariable Long id, @RequestBody AdminPermissionEntity request) {
         return permissionService.updatePermission(id, request);
@@ -64,6 +76,12 @@ public class AuthorizationPermissionController {
     /**
      * Updates permission enabled status.
      */
+    @OperationLog(module = "authorization", operation = "UPDATE", entityType = "Permission",
+            entityId = "#p0",
+            entityNameAfter = "#result.permissionName",
+            description = "'更新权限状态'",
+            oldValueSpel = "@authorizationPermissionService.permissionAuditSnapshot(#p0)",
+            newValueSpel = "#result")
     @PutMapping("/{id}/status")
     public AdminPermissionEntity updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
         return permissionService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
@@ -72,6 +90,12 @@ public class AuthorizationPermissionController {
     /**
      * Deletes a permission.
      */
+    @OperationLog(module = "authorization", operation = "DELETE", entityType = "Permission",
+            entityId = "#p0",
+            entityNameAfter = "#result.permissionName",
+            description = "'删除权限'",
+            oldValueSpel = "@authorizationPermissionService.permissionAuditSnapshot(#p0)",
+            recordNewValue = false)
     @DeleteMapping("/{id}")
     public AdminPermissionEntity deletePermission(@PathVariable Long id) {
         return permissionService.deletePermission(id);
