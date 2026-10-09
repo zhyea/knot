@@ -11,10 +11,6 @@ public class ModelApiBindingEntity {
      * 关联 kb_models.model_code，仅查询展示
      */
     private String modelCode;
-    /**
-     * 关联 kb_models.name，仅查询展示
-     */
-    private String modelName;
     private String providerAccountCode;
     /**
      * 协议编码，见 {@link ModelApiProtocolEnum}
