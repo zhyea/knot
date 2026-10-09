@@ -14,10 +14,12 @@ import org.chobit.knot.gateway.mapper.LogicalModelMapper;
 import org.chobit.knot.gateway.mapper.TestRequestPresetMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 路由调试预设请求用例服务。用例替代 {@code RoutingRuleService#defaultRequestBody} 的硬编码骨架，
@@ -60,6 +62,21 @@ public class TestRequestPresetService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "预设请求不存在");
         }
         return presetConverter.toDto(entity);
+    }
+
+    /**
+     * Builds the snapshot used by operation-log SpEL expressions.
+     *
+     * <p>The aspect evaluates this method before and after an update. Returning
+     * the current persisted row before the update gives the log a real old value
+     * and lets the aspect suppress no-op update logs.</p>
+     */
+    public Map<String, Object> testRequestPresetAuditSnapshot(Long id) {
+        if (id == null) {
+            return null;
+        }
+        TestRequestPresetEntity entity = presetMapper.getById(id);
+        return entity == null ? null : JsonKit.toMap(presetConverter.toDto(entity));
     }
 
     @Transactional
