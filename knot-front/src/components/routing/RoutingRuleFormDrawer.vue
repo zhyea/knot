@@ -44,6 +44,7 @@
                 <RemoteEntitySelect
                   v-model="form.appId"
                   :load-function="loadAppOptions"
+                  :selected-options="selectedAppOptions"
                   placeholder="请选择应用"
                   style="width: 100%"
                 />
@@ -79,6 +80,7 @@
             <RemoteEntitySelect
               v-model="selectedConsumerId"
               :load-function="loadConsumerOptions"
+              :selected-options="selectedConsumers"
               placeholder="请选择消费者"
               style="width: 100%"
             />
@@ -296,6 +298,13 @@ const selectedConsumers = computed(() =>
     return consumer || {value: id, label: props.rule?.consumerNames?.[index] || `#${id}`};
   })
 );
+const selectedAppOptions = computed(() => {
+  if (form.appId == null) {
+    return [];
+  }
+  const app = appOptions.value.find((item) => String(item.value) === String(form.appId));
+  return [app || {value: form.appId, label: props.rule?.appName || `#${form.appId}`}];
+});
 const selectedConsumerId = computed<string | number | null>({
   get: () => (form.consumerIds.length ? form.consumerIds[0] : null),
   set: (value) => {
