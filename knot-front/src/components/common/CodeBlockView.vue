@@ -98,7 +98,18 @@ async function onCopy() {
 }
 
 .code-block-view--dark .code-block-view__actions {
-  background: rgb(30 30 30 / 88%);
+  background: #f5f7fa;
+}
+
+.code-block-view--dark .code-block-view__copy {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.code-block-view--dark .code-block-view__copy:hover,
+.code-block-view--dark .code-block-view__copy:focus-visible {
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .code-block-view__copy {
