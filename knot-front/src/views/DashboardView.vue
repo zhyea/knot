@@ -10,7 +10,6 @@
       </div>
       <div class="dashboard-hero__actions">
         <div class="refresh-pill">
-          <span class="refresh-pill__label">最近刷新</span>
           <strong class="refresh-pill__value">{{ lastUpdatedAt || "--" }}</strong>
         </div>
         <el-button :icon="RefreshRight" type="primary" plain @click="loadDashboard">刷新</el-button>
