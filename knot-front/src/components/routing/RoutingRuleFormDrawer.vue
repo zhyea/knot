@@ -65,46 +65,19 @@
               </el-form-item>
             </el-col>
           </el-row>
-        </div>
-
-        <div class="space-line"/>
-
-        <div class="slot-body rule-section">
-          <div class="section-head">
-            <div>
-              <h3>绑定消费者</h3>
-              <p>消费者维护 API Key，一个消费者可以对应多个路由规则。</p>
-            </div>
-          </div>
-          <el-form-item label="绑定消费者" required class="bind-block-item consumer-bind-item">
-            <RemoteEntitySelect
-              v-model="selectedConsumerId"
-              :load-function="loadConsumerOptions"
-              :selected-options="selectedConsumers"
-              placeholder="请选择消费者"
-              style="width: 100%"
-            />
-          </el-form-item>
-          <el-table v-if="selectedConsumers.length" :data="selectedConsumers" border
-                    class="bind-table consumer-bind-table">
-            <el-table-column label="消费者编码" min-width="160" show-overflow-tooltip>
-              <template #default="{ row }">
-                <span class="bind-list__text">{{ row.meta?.consumerCode || "—" }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="label" label="消费者名称" min-width="160" show-overflow-tooltip>
-              <template #default="{ row }">
-                <span class="bind-list__text">{{ row.label || "—" }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="是否启用" width="100" align="center">
-              <template #default="{ row }">
-                <el-tag size="small" :type="row.disabled === true ? 'info' : 'success'">
-                  {{ row.disabled === true ? "停用" : "启用" }}
-                </el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="绑定消费者" required class="bind-block-item consumer-bind-item">
+                <RemoteEntitySelect
+                  v-model="selectedConsumerId"
+                  :load-function="loadConsumerOptions"
+                  :selected-options="selectedConsumers"
+                  placeholder="请选择消费者"
+                  style="width: 100%"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
         </div>
 
         <div class="space-line"/>
