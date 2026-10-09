@@ -23,9 +23,8 @@ public interface ModelConverter {
     @Mapping(source = "enabled", target = "status", qualifiedByName = "enabledToStatus")
     @Mapping(target = "providerName", ignore = true)
     @Mapping(target = "providerCode", ignore = true)
-    // name/modelType 派生自绑定的统一模型，不允许从请求写回；logicalModelCode 来自请求，
+    // modelType 派生自绑定的统一模型，不允许从请求写回；logicalModelCode 来自请求，
     // 但只经 kb_provider_model_mappings 落库，不写 kb_models 列；billingRuleCode 来自请求（按业务码绑定）
-    @Mapping(target = "name", ignore = true)
     @Mapping(target = "modelType", ignore = true)
     @Mapping(target = "logicalModelCode", ignore = true)
     // modelFamilyCode 也是派生字段（取自 kb_logical_models.model_family），不落 kb_models 列
