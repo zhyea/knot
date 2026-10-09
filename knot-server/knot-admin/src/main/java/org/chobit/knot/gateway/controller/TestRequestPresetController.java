@@ -74,7 +74,9 @@ public class TestRequestPresetController {
 
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "TestRequestPreset",
             entityId = "#id",
-            entityNameAfter = "#result.name()")
+            entityNameAfter = "#result.name()",
+            oldValueSpel = "@testRequestPresetService.testRequestPresetAuditSnapshot(#p0)",
+            newValueSpel = "@testRequestPresetService.testRequestPresetAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     public TestRequestPreset update(@PathVariable Long id, @RequestBody @Valid TestRequestPreset request) {
         TestRequestPresetDto updated = presetService.update(id, presetConverter.toDto(request));
@@ -83,7 +85,9 @@ public class TestRequestPresetController {
 
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "TestRequestPreset",
             entityId = "#id",
-            entityNameAfter = "#result.name()")
+            entityNameAfter = "#result.name()",
+            oldValueSpel = "@testRequestPresetService.testRequestPresetAuditSnapshot(#p0)",
+            newValueSpel = "@testRequestPresetService.testRequestPresetAuditSnapshot(#p0)")
     @PutMapping("/{id}/status")
     public TestRequestPreset updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
         TestRequestPresetDto updated = presetService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
