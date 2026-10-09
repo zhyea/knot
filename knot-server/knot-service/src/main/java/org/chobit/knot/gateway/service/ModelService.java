@@ -38,10 +38,14 @@ import org.chobit.knot.gateway.vo.model.UsageExtractorItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -527,38 +531,88 @@ public class ModelService {
         return new ModelApiBindingDtoWithModelId(entity.getModelId(), dto);
     }
 
+    /**
+     * 按绑定行 id 做增量同步：命中已有行则原地更新，新增行插入，请求中缺失的行删除。
+     *
+     * <p>旧实现「先按 model_id 整表删除、再全量插入」会让每次保存都重排 binding 主键。即使用户
+     * 未做任何调整，行 id 也会变化：一是产生无意义的物理变更，二是 {@code modelAuditSnapshot}
+     * 会带出 binding id，导致前后快照不等而误记一条「更新模型」审计日志。改为 diff 后主键稳定，
+     * 无实质变化时不写库、也不触发审计。</p>
+     */
     private void saveApiBindings(Long modelId, List<ModelApiBindingDto> bindings, String modelType) {
-        modelApiBindingMapper.deleteByModelId(modelId);
-        if (bindings == null || bindings.isEmpty()) {
-            return;
-        }
-        ModelTypeEnum type = ModelTypeEnum.fromCodeOrNull(modelType);
-        if (type == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不支持的模型类型，请重新选择");
-        }
-        for (ModelApiBindingDto binding : bindings) {
-            String protocolCode = requireText(binding.protocol(), "请选择接口协议").toUpperCase();
-            ModelApiProtocolEnum protocol = ModelApiProtocolEnum.fromCode(protocolCode);
-            if (protocol == null) {
-                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不支持的接口协议：" + protocolCode);
+        List<ModelApiBindingEntity> desired = new ArrayList<>();
+        if (bindings != null && !bindings.isEmpty()) {
+            ModelTypeEnum type = ModelTypeEnum.fromCodeOrNull(modelType);
+            if (type == null) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不支持的模型类型，请重新选择");
             }
-            if (!type.supportsProtocol(protocol.code())) {
-                throw new BusinessException(
-                        ErrorCode.VALIDATION_ERROR,
-                        "模型类型“" + type.displayName() + "”不支持接口协议：" + protocolCode
-                );
+            for (ModelApiBindingDto binding : bindings) {
+                desired.add(toApiBindingEntity(modelId, binding, type));
             }
-            ModelApiBindingEntity entity = new ModelApiBindingEntity();
-            entity.setModelId(modelId);
-            entity.setProtocol(protocol.code());
-            entity.setApiPath(blankToNull(binding.apiPath()));
-            entity.setRequestAdapter(blankToNull(binding.requestAdapter()));
-            entity.setUsageExtractor(blankToDefault(binding.usageExtractor(), "DEFAULT"));
-            entity.setStreamUsageExtractor(blankToNull(binding.streamUsageExtractor()));
-            entity.setStatus(EnabledStatusEnum.codeOf(binding.enabled()));
-            entity.setRemark(blankToNull(binding.remark()));
-            modelApiBindingMapper.insert(entity);
         }
+        Map<Long, ModelApiBindingEntity> existingById = modelApiBindingMapper.listByModelId(modelId).stream()
+                .collect(Collectors.toMap(ModelApiBindingEntity::getId, entity -> entity,
+                        (left, right) -> left, LinkedHashMap::new));
+        Set<Long> retainedIds = new HashSet<>();
+        for (ModelApiBindingEntity desiredEntity : desired) {
+            Long id = desiredEntity.getId();
+            ModelApiBindingEntity existing = id == null ? null : existingById.get(id);
+            if (existing == null) {
+                desiredEntity.setId(null);
+                modelApiBindingMapper.insert(desiredEntity);
+                continue;
+            }
+            retainedIds.add(id);
+            if (apiBindingChanged(existing, desiredEntity)) {
+                modelApiBindingMapper.update(desiredEntity);
+            }
+        }
+        for (ModelApiBindingEntity existing : existingById.values()) {
+            if (!retainedIds.contains(existing.getId())) {
+                modelApiBindingMapper.deleteById(existing.getId());
+            }
+        }
+    }
+
+    /**
+     * 校验并构建单条 API 绑定实体（含请求带回来的行 id，用于 diff 命中已有行）。
+     */
+    private ModelApiBindingEntity toApiBindingEntity(Long modelId, ModelApiBindingDto binding, ModelTypeEnum type) {
+        String protocolCode = requireText(binding.protocol(), "请选择接口协议").toUpperCase();
+        ModelApiProtocolEnum protocol = ModelApiProtocolEnum.fromCode(protocolCode);
+        if (protocol == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不支持的接口协议：" + protocolCode);
+        }
+        if (!type.supportsProtocol(protocol.code())) {
+            throw new BusinessException(
+                    ErrorCode.VALIDATION_ERROR,
+                    "模型类型“" + type.displayName() + "”不支持接口协议：" + protocolCode
+            );
+        }
+        ModelApiBindingEntity entity = new ModelApiBindingEntity();
+        entity.setId(binding.id());
+        entity.setModelId(modelId);
+        entity.setProtocol(protocol.code());
+        entity.setApiPath(blankToNull(binding.apiPath()));
+        entity.setRequestAdapter(blankToNull(binding.requestAdapter()));
+        entity.setUsageExtractor(blankToDefault(binding.usageExtractor(), "DEFAULT"));
+        entity.setStreamUsageExtractor(blankToNull(binding.streamUsageExtractor()));
+        entity.setStatus(EnabledStatusEnum.codeOf(binding.enabled()));
+        entity.setRemark(blankToNull(binding.remark()));
+        return entity;
+    }
+
+    /**
+     * 仅比较可编辑字段，判断已有行是否需要真正写库。
+     */
+    private static boolean apiBindingChanged(ModelApiBindingEntity existing, ModelApiBindingEntity desired) {
+        return !Objects.equals(existing.getProtocol(), desired.getProtocol())
+                || !Objects.equals(existing.getApiPath(), desired.getApiPath())
+                || !Objects.equals(existing.getRequestAdapter(), desired.getRequestAdapter())
+                || !Objects.equals(existing.getUsageExtractor(), desired.getUsageExtractor())
+                || !Objects.equals(existing.getStreamUsageExtractor(), desired.getStreamUsageExtractor())
+                || !Objects.equals(existing.getStatus(), desired.getStatus())
+                || !Objects.equals(existing.getRemark(), desired.getRemark());
     }
 
     private static String blankToNull(String value) {
