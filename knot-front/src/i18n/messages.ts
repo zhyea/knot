@@ -117,7 +117,9 @@ export const messages = {
       languageTitle: "界面语言",
       languageDescription: "语言设置会保存到当前登录用户，下次登录后自动恢复。",
       themeTitle: "页面主题",
-      themeDescription: "主题设置会保存到当前登录用户，下次登录后自动恢复。"
+      themeDescription: "主题设置会保存到当前登录用户，下次登录后自动恢复。",
+      timezoneTitle: "时区",
+      timezoneDescription: "时区设置会保存到当前登录用户，下次登录后自动恢复。"
     },
     session: {
       idleLogout: "超过 {minutes} 分钟未操作，已自动退出登录"
@@ -258,7 +260,9 @@ export const messages = {
       languageTitle: "介面語言",
       languageDescription: "語言設定會保存到目前登入使用者，下次登入後自動恢復。",
       themeTitle: "頁面主題",
-      themeDescription: "主題設定會保存到目前登入使用者，下次登入後自動恢復。"
+      themeDescription: "主題設定會保存到目前登入使用者，下次登入後自動恢復。",
+      timezoneTitle: "時區",
+      timezoneDescription: "時區設定會保存到目前登入使用者，下次登入後自動恢復。"
     },
     session: {
       idleLogout: "超過 {minutes} 分鐘未操作，已自動登出"
@@ -398,7 +402,9 @@ export const messages = {
       languageTitle: "Interface Language",
       languageDescription: "Language preference is saved for the current user and restored on the next login.",
       themeTitle: "Page Theme",
-      themeDescription: "Theme preference is saved for the current user and restored on the next login."
+      themeDescription: "Theme preference is saved for the current user and restored on the next login.",
+      timezoneTitle: "Time Zone",
+      timezoneDescription: "Time zone preference is saved for the current user and restored on the next login."
     },
     session: {
       idleLogout: "No activity for {minutes} minutes. You have been signed out."
@@ -538,7 +544,9 @@ export const messages = {
       languageTitle: "Langue de l'interface",
       languageDescription: "La préférence de langue est enregistrée pour l'utilisateur courant et restaurée à la prochaine connexion.",
       themeTitle: "Thème de page",
-      themeDescription: "La préférence de thème est enregistrée pour l'utilisateur courant et restaurée à la prochaine connexion."
+      themeDescription: "La préférence de thème est enregistrée pour l'utilisateur courant et restaurée à la prochaine connexion.",
+      timezoneTitle: "Fuseau horaire",
+      timezoneDescription: "La préférence de fuseau horaire est enregistrée pour l'utilisateur courant et restaurée à la prochaine connexion."
     },
     session: {
       idleLogout: "Aucune activité pendant {minutes} minutes. Vous avez été déconnecté."
