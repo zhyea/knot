@@ -57,8 +57,6 @@ export interface LogicalModelMeta {
 export interface ModelMeta {
   providerName?: string | null;
   providerAccountCode?: string | null;
-  modelName?: string | null;
-  name?: string | null;
   modelType?: string | null;
   logicalModelCode?: string | null;
   status?: number | null;
