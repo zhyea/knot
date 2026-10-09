@@ -9,8 +9,6 @@ package org.chobit.knot.gateway.vo.common.meta;
 public record ModelMeta(
         String providerName,
         String providerAccountCode,
-        String modelName,
-        String name,
         String modelType,
         String logicalModelCode,
         Integer status
