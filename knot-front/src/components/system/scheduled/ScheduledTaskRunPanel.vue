@@ -8,9 +8,9 @@
         <el-form-item label="状态">
           <el-select v-model="query.status" placeholder="请选择状态">
             <el-option label="全部" value="" />
-            <el-option label="运行中" value="RUNNING" />
-            <el-option label="成功" value="SUCCESS" />
-            <el-option label="失败" value="FAILURE" />
+            <el-option label="运行中" :value="ScheduledTaskRunStatus.RUNNING" />
+            <el-option label="成功" :value="ScheduledTaskRunStatus.SUCCESS" />
+            <el-option label="失败" :value="ScheduledTaskRunStatus.FAILURE" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -58,13 +58,14 @@
 import {reactive} from "vue";
 import {usePageList} from "@/composables/usePageList";
 import {listScheduledTaskRuns} from "@/api/scheduledTasks";
+import {ScheduledTaskRunStatus} from "@/constants/status";
 import {runStatusLabel, runStatusType, taskModeLabel} from "@/utils/scheduledTask";
 
 const props = defineProps({
   fixedTaskCode: { type: String, default: "" }
 });
 
-const query = reactive({ taskCode: "", status: "" });
+const query = reactive<{ taskCode: string; status: string | number }>({ taskCode: "", status: "" });
 
 const {
   rows,
