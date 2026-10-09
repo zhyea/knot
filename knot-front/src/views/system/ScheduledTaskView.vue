@@ -9,8 +9,8 @@
         />
         <FilterField label="状态" :width="180">
           <el-select v-model="query.status" placeholder="请选择状态" clearable>
-            <el-option label="启用" value="ENABLED" />
-            <el-option label="禁用" value="DISABLED" />
+            <el-option label="启用" :value="EnabledStatus.ENABLED" />
+            <el-option label="禁用" :value="EnabledStatus.DISABLED" />
           </el-select>
         </FilterField>
       </FilterBar>
@@ -60,6 +60,7 @@ import ScheduledTaskFormDrawer from "../../components/system/scheduled/Scheduled
 import ScheduledTaskRunDrawer from "../../components/system/scheduled/ScheduledTaskRunDrawer.vue";
 import {listScheduledTasks} from "@/api/scheduledTasks";
 import {useListQuery} from "@/composables/useListQuery";
+import {EnabledStatus} from "@/constants/status";
 import type {Dict, Row} from "@/types";
 
 const {
