@@ -36,7 +36,10 @@
               </el-menu-item>
 
               <template v-for="module in dynamicModules" :key="module.moduleCode">
-                <el-menu-item v-if="module.menus.length === 1" :index="module.menus[0].routePath">
+                <el-menu-item
+                  v-if="module.menus.length === 1"
+                  :index="module.menus[0].routePath || module.menus[0].menuCode || module.moduleCode || ''"
+                >                  
                   <el-icon><component :is="resolveMenuIcon(module.icon)" /></el-icon>
                   <span>{{ module.moduleName }}</span>
                 </el-menu-item>
