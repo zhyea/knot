@@ -9,7 +9,7 @@ public record AppItem(
         String name,
         Long deptId,
         String deptName,
-        Long ownerUserId,
+        String ownerUsername,
         String ownerName,
         String remark,
         RateLimitPolicy rateLimitPolicy,

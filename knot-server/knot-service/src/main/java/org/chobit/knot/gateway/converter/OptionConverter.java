@@ -55,6 +55,14 @@ public class OptionConverter {
         return mapRows(rows, this::toUserItem);
     }
 
+    public OptionItem<UserOptionMeta> toUserUsernameItem(OptionRow<String> row) {
+        return build(row, parseMeta(row.getMeta(), UserOptionMeta.class));
+    }
+
+    public List<OptionItem<UserOptionMeta>> toUserUsernameItems(List<OptionRow<String>> rows) {
+        return mapRows(rows, this::toUserUsernameItem);
+    }
+
     public OptionItem<DepartmentOptionMeta> toDepartmentItem(OptionRow<Long> row) {
         return build(row, parseMeta(row.getMeta(), DepartmentOptionMeta.class));
     }

@@ -580,10 +580,10 @@ INSERT IGNORE INTO kb_model_api_bindings (id, model_id, protocol, api_path, requ
 -- =========================
 
 -- 应用
-INSERT IGNORE INTO kb_apps (id, app_code, name, dept_id, owner_user_id, remark, status) VALUES
-(1, 'app_001', '内部知识库助手',   1, 1, '面向内部员工的知识检索与问答', 1),
-(2, 'app_002', '客服对话系统',     3, 2, '对外客服场景的对话接入',       1),
-(3, 'app_003', '代码审查工具',     2, 3, '研发流程中的代码审查辅助',     1);
+INSERT IGNORE INTO kb_apps (id, app_code, name, dept_id, owner_username, remark, status) VALUES
+(1, 'app_001', '内部知识库助手',   1, 'admin', '面向内部员工的知识检索与问答', 1),
+(2, 'app_002', '客服对话系统',     3, 'zhangsan', '对外客服场景的对话接入',       1),
+(3, 'app_003', '代码审查工具',     2, 'lisi', '研发流程中的代码审查辅助',     1);
 
 -- 应用凭证
 INSERT IGNORE INTO kb_app_credentials (id, app_code, app_key, app_secret_hash, status) VALUES
@@ -601,10 +601,10 @@ INSERT IGNORE INTO kb_app_model_permissions (app_id, model_id) VALUES
 -- 路由规则
 -- =========================
 
-INSERT IGNORE INTO kb_routing_consumers (id, consumer_code, name, user_id, secret_key, return_usage_detail, status) VALUES
-(1, 'consumer-internal-kb', '内部知识库助手消费者', 1, 'sk-demo-gpt4o-routing-key-001', 0, 1),
-(2, 'consumer-research',    '模型评测消费者',       1, 'sk-demo-claude-routing-key-002', 0, 1),
-(3, 'consumer-cs',          '客服系统消费者',       2, 'sk-demo-deepseek-routing-key-003', 0, 1);
+INSERT IGNORE INTO kb_routing_consumers (id, consumer_code, name, user_username, secret_key, return_usage_detail, status) VALUES
+(1, 'consumer-internal-kb', '内部知识库助手消费者', 'admin', 'sk-demo-gpt4o-routing-key-001', 0, 1),
+(2, 'consumer-research',    '模型评测消费者',       'admin', 'sk-demo-claude-routing-key-002', 0, 1),
+(3, 'consumer-cs',          '客服系统消费者',       'zhangsan', 'sk-demo-deepseek-routing-key-003', 0, 1);
 
 INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, app_id, status) VALUES
 (1, 'gpt4o-default',    'GPT-4o默认路由',    '知识库问答', 1, 1),

@@ -277,6 +277,7 @@ public class RoutingRuleService {
                 existing.consumerNames(),
                 existing.appId(),
                 existing.appName(),
+                existing.username(),
                 enabled,
                 existing.targets(),
                 existing.rateLimitPolicy(),
@@ -763,6 +764,7 @@ public class RoutingRuleService {
                 consumerNames,
                 entity.getAppId(),
                 entity.getAppName(),
+                entity.getUsername(),
                 EnabledStatusEnum.isEnabled(entity.getStatus()),
                 targets,
                 rate,
@@ -880,6 +882,7 @@ public class RoutingRuleService {
                 request.consumerNames(),
                 request.appId(),
                 request.appName(),
+                request.username(),
                 request.enabled(),
                 request.targets(),
                 request.rateLimitPolicy(),
@@ -1006,6 +1009,8 @@ public class RoutingRuleService {
         entity.setName(request.name() != null ? request.name().trim() : "");
         entity.setAppScenario(normalizeNullable(request.appScenario()));
         entity.setAppId(request.appId());
+        // 路由规则按 username 绑定用户（业务码，非主键 id）
+        entity.setUsername(normalizeNullable(request.username()));
         // 未配置（null）落库为 NULL，运行时按内置默认策略处理
         entity.setRetryPolicy(RetryPolicy.serialize(request.retryPolicy()));
         return entity;

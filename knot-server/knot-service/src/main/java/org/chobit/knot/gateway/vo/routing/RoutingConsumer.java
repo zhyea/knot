@@ -9,7 +9,7 @@ public record RoutingConsumer(
         Long id,
         @Size(max = 32) String consumerCode,
         @NotBlank String name,
-        Long userId,
+        String userUsername,
         String userName,
         String secretKey,
         boolean returnUsageDetail,

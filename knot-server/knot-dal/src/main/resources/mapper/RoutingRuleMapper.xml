@@ -4,7 +4,7 @@
 
     <sql id="RuleSelectColumns">
         r.id, r.rule_code, r.name, r.app_scenario,
-        r.app_id, a.name AS app_name,
+        r.app_id, a.name AS app_name, r.username,
         r.retry_policy, r.status
     </sql>
 
@@ -65,9 +65,9 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into kb_routing_rules(rule_code, name, app_scenario, app_id,
-                                     retry_policy, status)
+                                     username, retry_policy, status)
         values(#{ruleCode}, #{name}, #{appScenario}, #{appId},
-               #{retryPolicy}, #{status})
+               #{username}, #{retryPolicy}, #{status})
     </insert>
 
     <update id="update">
@@ -76,6 +76,7 @@
             name = #{name},
             app_scenario = #{appScenario},
             app_id = #{appId},
+            username = #{username},
             retry_policy = #{retryPolicy},
             status = #{status}
         where id = #{id}

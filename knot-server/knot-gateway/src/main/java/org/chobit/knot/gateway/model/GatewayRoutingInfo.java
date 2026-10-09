@@ -26,8 +26,8 @@ public record GatewayRoutingInfo(RuleInfo rule,
                           Long deptId) {
     }
 
-    public record UserInfo(Long id,
-                           String username,
+    /** 归属用户（按 username 绑定，非主键 id；realName 由 ks_users join 派生展示） */
+    public record UserInfo(String username,
                            String realName) {
     }
 

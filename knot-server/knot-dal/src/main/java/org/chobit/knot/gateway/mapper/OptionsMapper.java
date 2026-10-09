@@ -36,6 +36,13 @@ public interface OptionsMapper {
 
     List<OptionRow<Long>> listUserOptionsByValues(@Param("values") List<String> values);
 
+    // ---------- 用户（value=username；路由规则按 username 绑定用户） ----------
+    List<OptionRow<String>> listUserUsernameOptions(@Param("keyword") String keyword,
+                                                    @Param("enabledOnly") boolean enabledOnly,
+                                                    @Param("includeDeleted") boolean includeDeleted);
+
+    List<OptionRow<String>> listUserUsernameOptionsByValues(@Param("values") List<String> values);
+
     // ---------- 部门（value=id） ----------
     List<OptionRow<Long>> listDepartmentOptions(@Param("keyword") String keyword,
                                                 @Param("enabledOnly") boolean enabledOnly,

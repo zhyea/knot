@@ -126,7 +126,7 @@ public class RoutingConsumerController {
 
     private RoutingConsumer toVO(RoutingConsumerDto dto) {
         return new RoutingConsumer(
-                dto.id(), dto.consumerCode(), dto.name(), dto.userId(), dto.userName(),
+                dto.id(), dto.consumerCode(), dto.name(), dto.userUsername(), dto.userName(),
                 dto.secretKey(), dto.returnUsageDetail(), dto.enabled(), dto.ruleCount(),
                 dto.rateLimitPolicy(), dto.quotaPolicy()
         );
@@ -134,7 +134,7 @@ public class RoutingConsumerController {
 
     private RoutingConsumerDto toDto(RoutingConsumer vo) {
         return new RoutingConsumerDto(
-                vo.id(), vo.consumerCode(), vo.name(), vo.userId(), vo.userName(),
+                vo.id(), vo.consumerCode(), vo.name(), vo.userUsername(), vo.userName(),
                 vo.secretKey(), vo.returnUsageDetail(), vo.enabled(), vo.ruleCount(),
                 vo.rateLimitPolicy(), vo.quotaPolicy()
         );

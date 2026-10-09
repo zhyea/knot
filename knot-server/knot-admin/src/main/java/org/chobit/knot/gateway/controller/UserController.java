@@ -43,6 +43,14 @@ public class UserController {
     }
 
     /**
+     * 用户下拉（value=username）：路由规则按 username 绑定用户时使用，value 取登录名而非主键 id。
+     */
+    @PostMapping("/options-by-username")
+    public OptionPage<OptionItem<UserOptionMeta>> listOptionsByUsername(@RequestBody(required = false) UserOptionQuery query) {
+        return optionsService.listUserUsernameOptions(query);
+    }
+
+    /**
      * Lists users.
      */
     @PostMapping

@@ -13,7 +13,8 @@ public class AppEntity {
      * 关联 ks_departments.dept_name，仅查询展示
      */
     private String deptName;
-    private Long ownerUserId;
+    /** 归属用户登录名（业务码，绑定 username，非主键 id） */
+    private String ownerUsername;
     /**
      * 关联 ks_users.real_name，仅查询展示
      */

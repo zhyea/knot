@@ -32,14 +32,14 @@
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="负责人">
-                <RemoteEntitySelect
-                  v-model="form.ownerUserId"
-                  :load-function="loadUserOptions"
-                  placeholder="请选择负责人"
-                  clearable
-                  style="width: 100%"
-                />
+            <el-form-item label="负责人">
+              <RemoteEntitySelect
+                v-model="form.ownerUsername"
+                :load-function="loadUserUsernameOptions"
+                placeholder="请选择负责人"
+                clearable
+                style="width: 100%"
+              />
               </el-form-item>
             </el-col>
           </el-row>
@@ -77,7 +77,7 @@ import {
   normalizeQuotaPolicy
 } from "@/utils/trafficPolicy";
 import {createApp, updateApp} from "@/api/apps";
-import {listDepartmentOptions, listUserOptions} from "@/api/options";
+import {listDepartmentOptions, listUserUsernameOptions} from "@/api/options";
 import {toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
@@ -91,14 +91,14 @@ const emit = defineEmits(["update:modelValue", "saved"]);
 
 const saving = ref(false);
 const loadDepartmentOptions = toOptionsLoader(listDepartmentOptions);
-const loadUserOptions = toOptionsLoader(listUserOptions);
+const loadUserUsernameOptions = toOptionsLoader(listUserUsernameOptions);
 
 const form = reactive({
   id: null,
   appCode: "",
   name: "",
   deptId: null,
-  ownerUserId: null,
+  ownerUsername: null,
   remark: "",
   quotaPolicy: emptyQuotaPolicy()
 });
@@ -110,7 +110,7 @@ function fillFormFromRow(row: Row): void {
   form.appCode = row.appCode || "";
   form.name = row.name || "";
   form.deptId = row.deptId ?? null;
-  form.ownerUserId = row.ownerUserId ?? null;
+  form.ownerUsername = row.ownerUsername ?? null;
   form.remark = row.remark ?? "";
   form.quotaPolicy = normalizeQuotaPolicy(row.quotaPolicy);
 }
@@ -123,7 +123,7 @@ function resetForm() {
     form.appCode = "";
     form.name = "";
     form.deptId = null;
-    form.ownerUserId = null;
+    form.ownerUsername = null;
     form.remark = "";
     form.quotaPolicy = emptyQuotaPolicy();
   }
@@ -150,7 +150,7 @@ function buildPayload() {
     appCode: form.appCode,
     name: form.name,
     deptId: form.deptId,
-    ownerUserId: form.ownerUserId,
+    ownerUsername: form.ownerUsername,
     remark: form.remark?.trim() || null,
     quotaPolicy
   };

@@ -101,8 +101,8 @@ public class RoutingResolver {
                         Boolean.TRUE.equals(consumer.getReturnUsageDetail())
                 ),
                 new GatewayRoutingInfo.AppInfo(app.getId(), app.getAppCode(), app.getName(), app.getDeptId()),
-                new GatewayRoutingInfo.UserInfo(consumer.getUserId(), consumer.getUserUsername(), consumer.getUserRealName()),
-                new GatewayRoutingInfo.UserInfo(app.getOwnerUserId(), null, app.getOwnerRealName()),
+                new GatewayRoutingInfo.UserInfo(consumer.getUserUsername(), consumer.getUserRealName()),
+                new GatewayRoutingInfo.UserInfo(app.getOwnerUsername(), app.getOwnerRealName()),
                 new GatewayRoutingInfo.DepartmentInfo(app.getDeptId(), null)
         );
     }
@@ -183,7 +183,7 @@ public class RoutingResolver {
                     model.getId(),
                     model.getModelCode(),
                     model.getUpstreamModel(),
-                    model.getName(),
+                    model.getModelCode(),
                     model.getModelType(),
                     model.getProviderAccountCode(),
                     target.priority(),

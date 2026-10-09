@@ -39,8 +39,8 @@
         </el-row>
         <el-form-item label="用户">
           <RemoteEntitySelect
-            v-model="form.userId"
-            :load-function="loadUserOptions"
+            v-model="form.userUsername"
+            :load-function="loadUserUsernameOptions"
             placeholder="请选择用户"
             clearable
             style="width: 100%"
@@ -113,7 +113,7 @@ import {
   isEmptyQuotaPolicy,
   normalizeQuotaPolicy
 } from "@/utils/trafficPolicy";
-import {listUserOptions} from "@/api/options";
+import {listUserUsernameOptions} from "@/api/options";
 import {
   checkRoutingConsumerCode,
   createRoutingConsumer,
@@ -142,7 +142,7 @@ const form = reactive({
   id: null,
   consumerCode: "",
   name: "",
-  userId: null,
+  userUsername: null,
   returnUsageDetail: false,
   enabled: true,
   quotaPolicy: emptyQuotaPolicy()
@@ -166,14 +166,14 @@ watch(
   }
 );
 
-const loadUserOptions = toOptionsLoader(listUserOptions);
+const loadUserUsernameOptions = toOptionsLoader(listUserUsernameOptions);
 
 function resetForm(row: Row | null = null) {
   form.id = row?.id ?? null;
   // 不预置默认消费者编码：编码由用户自行填写（编码即接口与审计定位标识）
   form.consumerCode = row?.consumerCode || "";
   form.name = row?.name || "";
-  form.userId = row?.userId ?? null;
+  form.userUsername = row?.userUsername ?? null;
   form.returnUsageDetail = row?.returnUsageDetail === true;
   form.enabled = row?.enabled !== false;
   form.quotaPolicy = normalizeQuotaPolicy(row?.quotaPolicy);
@@ -210,7 +210,7 @@ function buildPayload() {
   return {
     consumerCode: form.consumerCode?.trim(),
     name: form.name?.trim(),
-    userId: form.userId,
+    userUsername: form.userUsername,
     returnUsageDetail: form.returnUsageDetail,
     enabled: form.enabled,
     quotaPolicy

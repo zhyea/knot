@@ -180,7 +180,7 @@ public class AppService {
         QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
         return new AppDto(
                 base.id(), base.appCode(), base.name(), base.deptId(), base.deptName(),
-                base.ownerUserId(), base.ownerName(), base.remark(),
+                base.ownerUsername(), base.ownerName(), base.remark(),
                 rate, quota
         );
     }

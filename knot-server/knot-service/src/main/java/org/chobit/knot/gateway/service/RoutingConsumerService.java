@@ -150,7 +150,7 @@ public class RoutingConsumerService {
                 existing.id(),
                 existing.consumerCode(),
                 existing.name(),
-                existing.userId(),
+                existing.userUsername(),
                 existing.userName(),
                 existing.secretKey(),
                 existing.returnUsageDetail(),
@@ -186,7 +186,7 @@ public class RoutingConsumerService {
                 request.id(),
                 generateUniqueConsumerCode(),
                 request.name(),
-                request.userId(),
+                request.userUsername(),
                 request.userName(),
                 request.secretKey(),
                 request.returnUsageDetail(),
@@ -213,7 +213,7 @@ public class RoutingConsumerService {
         if (request.name() == null || request.name().isBlank()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请填写消费者名称");
         }
-        if (request.userId() != null && userMapper.getUserById(request.userId()) == null) {
+        if (request.userUsername() != null && userMapper.getUserByUsername(request.userUsername()) == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
     }
@@ -224,7 +224,7 @@ public class RoutingConsumerService {
                 entity.getId(),
                 entity.getConsumerCode(),
                 entity.getName(),
-                entity.getUserId(),
+                entity.getUserUsername(),
                 resolveUserName(entity),
                 entity.getSecretKey(),
                 Boolean.TRUE.equals(entity.getReturnUsageDetail()),
@@ -239,7 +239,7 @@ public class RoutingConsumerService {
         RoutingConsumerEntity entity = new RoutingConsumerEntity();
         entity.setConsumerCode(normalizeConsumerCode(request.consumerCode()));
         entity.setName(request.name() != null ? request.name().trim() : "");
-        entity.setUserId(request.userId());
+        entity.setUserUsername(request.userUsername());
         entity.setReturnUsageDetail(request.returnUsageDetail());
         return entity;
     }
@@ -269,7 +269,7 @@ public class RoutingConsumerService {
     }
 
     private static String resolveUserName(RoutingConsumerEntity entity) {
-        if (entity == null || entity.getUserId() == null) {
+        if (entity == null || entity.getUserUsername() == null) {
             return null;
         }
         String realName = entity.getUserRealName() != null ? entity.getUserRealName().trim() : "";

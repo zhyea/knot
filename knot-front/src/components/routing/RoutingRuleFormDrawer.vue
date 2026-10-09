@@ -78,6 +78,19 @@
               </el-form-item>
             </el-col>
           </el-row>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="归属用户">
+                <RemoteEntitySelect
+                  v-model="form.username"
+                  :load-function="loadUserUsernameOptions"
+                  :selected-options="selectedUsernameOptions"
+                  placeholder="请选择归属用户"
+                  style="width: 100%"
+                />
+              </el-form-item>
+            </el-col>
+          </el-row>
         </div>
 
         <div class="space-line"/>
@@ -196,7 +209,7 @@ import {
 } from "@/utils/trafficPolicy";
 import {defaultRetryPolicy, normalizeRetryPolicy, type RetryPolicy} from "@/utils/retryPolicy";
 import {createRoutingRule, updateRoutingRule, checkRoutingRuleCode} from "@/api/routing";
-import {listAppOptions, listModelOptions, listModelPoolOptions, listRoutingConsumerOptions} from "@/api/options";
+import {listAppOptions, listModelOptions, listModelPoolOptions, listRoutingConsumerOptions, listUserUsernameOptions} from "@/api/options";
 import {toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
@@ -214,6 +227,7 @@ const appOptions = ref<Row[]>([]);
 const modelOptions = ref<Row[]>([]);
 const modelPoolOptions = ref<Row[]>([]);
 const consumerOptions = ref<Row[]>([]);
+const userUsernameOptions = ref<Row[]>([]);
 const saving = ref(false);
 const ruleCodeError = ref("");
 const primaryTargetKey = ref<string | null>(null);
@@ -246,6 +260,8 @@ interface RuleForm {
   appScenarios: string[];
   consumerIds: Array<string | number>;
   appId: number | string | null;
+  /** 归属用户登录名（绑定 username，非 user.id） */
+  username: string | null;
   enabled: boolean;
   targets: RuleTargetForm[];
   rateLimitPolicy: RateLimitPolicy;
@@ -259,6 +275,7 @@ const form = reactive<RuleForm>({
   appScenarios: [],
   consumerIds: [],
   appId: null,
+  username: null,
   enabled: true,
   targets: [],
   rateLimitPolicy: emptyRateLimitPolicy(),
@@ -284,6 +301,11 @@ const selectedConsumerId = computed<string | number | null>({
     form.consumerIds = value == null ? [] : [value];
   }
 });
+
+/** 归属用户下拉回显项：value 取 username（业务码），label 兜底为 username。 */
+const selectedUsernameOptions = computed<Row[]>(() =>
+  form.username ? [{value: form.username, label: form.username}] : []
+);
 const selectedTargetCodes = computed({
   get: () => form.targets.filter((item) => item.targetType === targetType.value).map((item) => item.targetCode).filter((c) => c != null),
   set: (codes) => onSelectedTargetsChange(codes)
@@ -301,6 +323,8 @@ const targetExtraParams = computed(() => ({status: "ENABLED"}));
 const loadAppOptions = toOptionsLoader(listAppOptions, appOptions);
 
 const loadConsumerOptions = toOptionsLoader(listRoutingConsumerOptions, consumerOptions);
+
+const loadUserUsernameOptions = toOptionsLoader(listUserUsernameOptions, userUsernameOptions);
 
 
 
@@ -369,6 +393,7 @@ function resetForm() {
     form.appScenarios = parseAppScenarioTags(row.appScenario);
     form.consumerIds = Array.isArray(row.consumerIds) ? [...row.consumerIds] : [];
     form.appId = row.appId ?? null;
+    form.username = row.username || null;
     form.enabled = row.enabled !== false;
     form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
     form.retryPolicy = normalizeRetryPolicy(row.retryPolicy);
@@ -388,6 +413,7 @@ function resetForm() {
     form.appScenarios = [];
     form.consumerIds = [];
     form.appId = null;
+    form.username = null;
     form.enabled = false;
     form.targets = [];
     form.rateLimitPolicy = emptyRateLimitPolicy();
@@ -508,6 +534,7 @@ function buildSubmitPayload() {
     appScenario: buildAppScenarioValue(),
     consumerIds: [...form.consumerIds],
     appId: form.appId,
+    username: form.username || null,
     enabled: form.enabled,
     targets,
     rateLimitPolicy,

@@ -8,7 +8,7 @@ public record RoutingConsumerDto(
         Long id,
         String consumerCode,
         String name,
-        Long userId,
+        String userUsername,
         String userName,
         @Sensitive String secretKey,
         boolean returnUsageDetail,

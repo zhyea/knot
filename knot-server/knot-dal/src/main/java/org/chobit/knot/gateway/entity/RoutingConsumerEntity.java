@@ -7,8 +7,8 @@ public class RoutingConsumerEntity {
     private Long id;
     private String consumerCode;
     private String name;
-    private Long userId;
     private String userRealName;
+    /** 归属用户登录名（业务码，绑定 username，非主键 id） */
     private String userUsername;
     private String secretKey;
     private Boolean returnUsageDetail;

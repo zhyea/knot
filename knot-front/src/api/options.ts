@@ -69,8 +69,9 @@ function options<T = OptionItem>(url: string, params: OptionQuery): Promise<Opti
 // 业务码不再占顶层 code —— id 型资源的业务码走各自 meta
 // （username / deptCode / appCode / consumerCode / roleCode）。
 
-export function listUserOptions(params: OptionQuery) {
-  return options<OptionItem<UserOptionMeta>>("/api/users/options", params);
+/** 用户下拉（value=username）：路由规则/应用/消费者均按 username 绑定用户，value 取登录名而非主键 id。 */
+export function listUserUsernameOptions(params: OptionQuery) {
+  return options<OptionItem<UserOptionMeta>>("/api/users/options-by-username", params);
 }
 
 export function listDepartmentOptions(params: OptionQuery) {

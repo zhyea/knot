@@ -83,6 +83,18 @@ public class OptionsService {
                 optionConverter::toUserItems);
     }
 
+    // ==================== 用户（value=username；meta=username；路由规则按 username 绑定用户） ====================
+    public OptionPage<OptionItem<UserOptionMeta>> listUserUsernameOptions(UserOptionQuery query) {
+        OptionQuery base = query == null ? EMPTY : query.toBase();
+        String kw = keyword(query == null ? null : query.keyword());
+        boolean eo = base.effectiveEnabledOnly();
+        boolean inc = base.effectiveIncludeDeleted();
+        return assemble(base,
+                () -> optionsMapper.listUserUsernameOptions(kw, eo, inc),
+                vals -> optionsMapper.listUserUsernameOptionsByValues(vals),
+                optionConverter::toUserUsernameItems);
+    }
+
     // ==================== 部门（value=id；meta=deptCode） ====================
     public OptionPage<OptionItem<DepartmentOptionMeta>> listDepartmentOptions(DepartmentOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();

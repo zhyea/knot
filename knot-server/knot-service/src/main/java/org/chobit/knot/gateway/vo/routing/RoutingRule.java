@@ -18,6 +18,8 @@ public record RoutingRule(
         List<String> consumerNames,
         Long appId,
         String appName,
+        /** 归属用户登录名（业务码，非主键 id）；路由规则按 username 绑定用户 */
+        String username,
         boolean enabled,
         @Valid List<RoutingRuleTargetItem> targets,
         RateLimitPolicy rateLimitPolicy,

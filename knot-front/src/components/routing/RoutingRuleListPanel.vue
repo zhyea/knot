@@ -9,6 +9,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="appName" label="应用" min-width="130" show-overflow-tooltip />
+      <el-table-column prop="username" label="归属用户" min-width="120" show-overflow-tooltip />
       <el-table-column label="路由目标" min-width="240">
         <template #default="{ row }">
           <div v-if="targetsLabel(row.targets).length" class="cell-targets">
