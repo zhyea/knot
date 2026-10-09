@@ -177,8 +177,6 @@ interface PoolItemForm {
   modelCode: string;
   /** 候选项的取值字段（= modelCode）；下拉固定按 value 匹配（options 契约） */
   value?: string;
-  modelName?: string;
-  name?: string;
   modelType?: string;
   providerAccountCode?: string;
   providerName?: string;
@@ -228,8 +226,6 @@ const boundModelRows = computed(() =>
     const model = modelOptions.value.find((m) => m.value === item.modelCode);
     const meta = (model?.meta as Row) ?? {};
     item.value = item.modelCode;
-    item.modelName = meta.modelName || item.modelName;
-    item.name = meta.name || item.name;
     item.modelType = meta.modelType || item.modelType;
     item.providerAccountCode = meta.providerAccountCode || item.providerAccountCode;
     item.providerName = meta.providerName || item.providerName;
@@ -254,7 +250,6 @@ function resetForm() {
   form.items = (row?.items || []).map((item: Row) => ({
     id: item.id ?? null,
     modelCode: item.modelCode,
-    modelName: item.modelName,
     modelType: item.modelType,
     providerAccountCode: item.providerAccountCode,
     providerName: item.providerName,
