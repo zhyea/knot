@@ -9,13 +9,6 @@ export function listOperationLogs(params: Dict) {
 }
 
 /**
- * 根据ID查询操作日志详情
- */
-export function getOperationLogDetail(id: number | string) {
-  return get(`/api/operation-logs/${id}`);
-}
-
-/**
  * 按模块 + 实体维度查询操作日志（POST /api/operation-logs/list）。
  * 返回日志数组，便于直接作为 OperationLogDrawer 的 loadLogs 数据源。
  */

@@ -5,7 +5,6 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Expiry;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import org.chobit.knot.gateway.entity.*;
-import org.chobit.knot.gateway.mapper.AppCredentialMapper;
 import org.chobit.knot.gateway.mapper.AppMapper;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
 import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
@@ -47,7 +46,6 @@ public class GatewayDataService {
      */
     private static final Duration BILLING_RULE_MISS_TTL = Duration.ofSeconds(30);
 
-    private final LoadingCache<String, Optional<AppCredentialEntity>> appCredentialByKeyCache;
     private final LoadingCache<Long, Optional<AppEntity>> appByIdCache;
     private final LoadingCache<String, Optional<RoutingConsumerEntity>> consumerBySecretKeyCache;
     private final LoadingCache<Long, List<RoutingRuleEntity>> enabledRulesByConsumerIdCache;
@@ -71,8 +69,7 @@ public class GatewayDataService {
     /**
      * Constructs a new instance.
      */
-    public GatewayDataService(AppCredentialMapper appCredentialMapper,
-                              AppMapper appMapper,
+    public GatewayDataService(AppMapper appMapper,
                               RoutingConsumerMapper routingConsumerMapper,
                               RoutingRuleMapper routingRuleMapper,
                               RoutingRuleTargetMapper routingRuleTargetMapper,
@@ -85,7 +82,6 @@ public class GatewayDataService {
                               RateLimitPolicyMapper rateLimitPolicyMapper,
                               QuotaPolicyMapper quotaPolicyMapper,
                               BillingRuleMapper billingRuleMapper) {
-        this.appCredentialByKeyCache = optionalCache(appCredentialMapper::getByAppKey);
         this.appByIdCache = optionalCache(appMapper::getById);
         this.consumerBySecretKeyCache = optionalCache(routingConsumerMapper::getBySecretKey);
         this.enabledRulesByConsumerIdCache = listCache(routingRuleMapper::listEnabledByConsumerId);
@@ -105,13 +101,6 @@ public class GatewayDataService {
                 loadTrafficPolicies(key, resourceTrafficPolicyMapper, rateLimitPolicyMapper, quotaPolicyMapper));
         this.billingRuleMapper = billingRuleMapper;
         this.billingRuleCache = billingRuleCache();
-    }
-
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
-    public AppCredentialEntity getAppCredentialByKey(String appKey) {
-        return appCredentialByKeyCache.get(appKey).orElse(null);
     }
 
     /**

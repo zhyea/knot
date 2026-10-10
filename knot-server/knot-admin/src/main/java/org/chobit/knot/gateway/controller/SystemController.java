@@ -2,13 +2,11 @@ package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.annotation.AuthCheck;
 import org.chobit.knot.gateway.converter.SystemConverter;
-import org.chobit.knot.gateway.dto.system.OperationLogDetailDto;
 import org.chobit.knot.gateway.dto.system.OperationLogDto;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.SystemService;
-import org.chobit.knot.gateway.vo.system.OperationLogDetail;
 import org.chobit.knot.gateway.vo.system.OperationLogItem;
 import org.chobit.knot.gateway.vo.system.RoleItem;
 import org.chobit.knot.gateway.vo.system.SystemLogItem;
@@ -72,15 +70,5 @@ public class SystemController {
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest()
         );
         return page.mapList(systemConverter::toOperationLogVOList);
-    }
-
-    /**
-     * Returns operation log detail.
-     */
-    @AuthCheck
-    @PostMapping("/operation-logs/{id}")
-    public OperationLogDetail operationLogDetail(@PathVariable Long id) {
-        OperationLogDetailDto detail = systemService.getOperationLogDetail(id);
-        return systemConverter.toOperationLogDetailVO(detail);
     }
 }

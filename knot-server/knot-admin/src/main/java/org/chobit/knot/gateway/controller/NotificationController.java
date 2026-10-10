@@ -5,14 +5,11 @@ import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.NotificationConverter;
-import org.chobit.knot.gateway.dto.notification.SendResultDto;
 import org.chobit.knot.gateway.dto.notification.TemplateDto;
 import org.chobit.knot.gateway.service.NotificationService;
 import org.chobit.knot.gateway.vo.notification.*;
 import jakarta.validation.Valid;
 import org.chobit.knot.gateway.vo.notification.NotifyPolicy;
-import org.chobit.knot.gateway.vo.notification.NotifySendRequest;
-import org.chobit.knot.gateway.vo.notification.NotifySendResult;
 import org.chobit.knot.gateway.vo.notification.NotifyTemplate;
 import org.springframework.web.bind.annotation.*;
 
@@ -56,20 +53,6 @@ public class NotificationController {
                 notificationConverter.toTemplateDto(request)
         );
         return notificationConverter.toTemplateVO(created);
-    }
-
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
-    @OperationLog(module = "notification", operation = "SEND", entityType = "NotifyTemplate",
-            entityName = "#request.templateCode()",
-            description = "'发送通知'",
-            recordOldValue = false,
-            newValueSpel = "#result")
-    @PostMapping("/send")
-    public NotifySendResult send(@RequestBody @Valid NotifySendRequest request) {
-        SendResultDto sent = notificationService.send(request.templateCode(), request.receivers(), request.vars());
-        return notificationConverter.toSendResultVO(sent);
     }
 
     /**

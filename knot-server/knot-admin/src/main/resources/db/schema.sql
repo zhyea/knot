@@ -158,17 +158,6 @@ CREATE TABLE IF NOT EXISTS ks_operation_logs (
   KEY idx_created_at (created_at)
 );
 
-CREATE TABLE IF NOT EXISTS ks_operation_log_details (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  log_id BIGINT NOT NULL,
-  request_json JSON DEFAULT NULL,
-  response_json JSON DEFAULT NULL,
-  before_json JSON DEFAULT NULL,
-  after_json JSON DEFAULT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_operation_log_details_log (log_id)
-);
-
 CREATE TABLE IF NOT EXISTS ks_scheduled_tasks (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   task_code VARCHAR(64) NOT NULL,
@@ -423,45 +412,27 @@ CREATE TABLE IF NOT EXISTS kx_model_items (
   source_code VARCHAR(64) NOT NULL,
   model_id VARCHAR(160) NOT NULL,
   canonical_slug VARCHAR(256) DEFAULT NULL,
-  hugging_face_id VARCHAR(256) DEFAULT NULL,
   model_name VARCHAR(256) NOT NULL,
-  provider_code VARCHAR(128) DEFAULT NULL,
   provider_name VARCHAR(128) DEFAULT NULL,
   model_url VARCHAR(512) DEFAULT NULL,
-  details_path VARCHAR(512) DEFAULT NULL,
-  created_timestamp BIGINT DEFAULT NULL,
   model_created_at DATETIME DEFAULT NULL,
   description TEXT DEFAULT NULL,
   context_length INT DEFAULT NULL,
-  modality VARCHAR(128) DEFAULT NULL,
   input_modalities_json JSON DEFAULT NULL,
   output_modalities_json JSON DEFAULT NULL,
-  tokenizer VARCHAR(128) DEFAULT NULL,
-  instruct_type VARCHAR(128) DEFAULT NULL,
-  pricing_json JSON DEFAULT NULL,
-  top_provider_json JSON DEFAULT NULL,
-  supported_parameters_json JSON DEFAULT NULL,
-  default_parameters_json JSON DEFAULT NULL,
-  supported_voices_json JSON DEFAULT NULL,
-  knowledge_cutoff VARCHAR(64) DEFAULT NULL,
-  expiration_date VARCHAR(64) DEFAULT NULL,
   raw_json JSON DEFAULT NULL,
   normalized_name VARCHAR(256) DEFAULT NULL,
-  model_family VARCHAR(128) DEFAULT NULL,
   model_type VARCHAR(64) DEFAULT NULL,
   tags_json JSON DEFAULT NULL,
-  capabilities_json JSON DEFAULT NULL,
   max_completion_tokens INT DEFAULT NULL,
   logical_model_id BIGINT DEFAULT NULL,
   ignored TINYINT NOT NULL DEFAULT 0,
   sync_status TINYINT NOT NULL DEFAULT 1 COMMENT '同步状态（ExternalModelSyncStatusEnum）：1-待同步 2-已同步 3-失败',
   sync_hash VARCHAR(64) DEFAULT NULL,
-  last_seen_at DATETIME DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_external_model_item (source_code, model_id),
   KEY idx_external_model_logical_model (logical_model_id),
-  KEY idx_external_model_provider (provider_code),
   KEY idx_external_model_created_time (model_created_at),
   KEY idx_external_model_ignored (ignored),
   KEY idx_external_model_sync_status (sync_status)
@@ -505,24 +476,6 @@ CREATE TABLE IF NOT EXISTS kb_apps (
   UNIQUE KEY uk_apps_app_code (app_code)
 );
 
-CREATE TABLE IF NOT EXISTS kb_app_credentials (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  app_code VARCHAR(64) NOT NULL COMMENT '所属应用业务码（kb_apps.app_code），非主键 id',
-  app_key VARCHAR(128) NOT NULL,
-  app_secret_hash VARCHAR(255) NOT NULL,
-  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
-
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_app_credentials_key (app_key),
-  KEY idx_app_credentials_app (app_code)
-);
-
-CREATE TABLE IF NOT EXISTS kb_app_model_permissions (
-  app_id BIGINT NOT NULL,
-  model_id BIGINT NOT NULL,
-  PRIMARY KEY (app_id, model_id)
-);
-
 -- =========================
 -- 路由规则
 -- =========================
@@ -547,7 +500,7 @@ CREATE TABLE IF NOT EXISTS kb_routing_rules (
   rule_code VARCHAR(64) NOT NULL,
   name VARCHAR(100) NOT NULL,
   app_scenario VARCHAR(128) DEFAULT NULL,
-  app_id BIGINT DEFAULT NULL,
+  app_code VARCHAR(64) DEFAULT NULL COMMENT '绑定应用业务码（kb_apps.app_code），非主键 id',
   username VARCHAR(64) DEFAULT NULL COMMENT '归属用户登录名（绑定 username，非主键 id）',
   retry_policy TEXT DEFAULT NULL COMMENT '失败重试策略（JSON）；空表示走内置默认策略',
   status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
@@ -555,7 +508,7 @@ CREATE TABLE IF NOT EXISTS kb_routing_rules (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_routing_rules_code (rule_code),
-  KEY idx_routing_rules_app (app_id, status)
+  KEY idx_routing_rules_app (app_code, status)
 );
 
 CREATE TABLE IF NOT EXISTS kb_routing_rule_consumers (
@@ -692,35 +645,6 @@ CREATE TABLE IF NOT EXISTS kb_plugin_bindings (
   KEY idx_plugin_bindings_scope_status (scope_type, scope_ref_id, status)
 );
 
-CREATE TABLE IF NOT EXISTS kr_plugin_execution_logs (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  trace_id VARCHAR(64) NOT NULL,
-  instance_id BIGINT NOT NULL,
-  stage_code VARCHAR(64) NOT NULL,
-  scope_type VARCHAR(32) DEFAULT NULL,
-  scope_ref_id BIGINT DEFAULT NULL,
-  result_status TINYINT NOT NULL COMMENT '执行结果（PluginExecutionResultStatusEnum）：1-成功 2-跳过 3-失败 4-超时 5-熔断',
-  duration_ms BIGINT DEFAULT NULL,
-  error_code VARCHAR(64) DEFAULT NULL,
-  error_message VARCHAR(500) DEFAULT NULL,
-  snapshot_json JSON DEFAULT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_plugin_execution_logs_trace (trace_id),
-  KEY idx_plugin_execution_logs_instance_time (instance_id, created_at)
-);
-
-CREATE TABLE IF NOT EXISTS kb_plugin_config_versions (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  instance_code VARCHAR(64) NOT NULL COMMENT '插件实例 code（kb_plugin_instances.instance_code）',
-  version_no INT NOT NULL,
-  version_code VARCHAR(64) NOT NULL,
-  config_json JSON DEFAULT NULL,
-  operator_id BIGINT DEFAULT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_plugin_config_versions (instance_code, version_no),
-  KEY idx_plugin_config_versions_code (instance_code, version_code)
-);
-
 CREATE TABLE IF NOT EXISTS kb_notification_templates (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) NOT NULL,
@@ -732,19 +656,6 @@ CREATE TABLE IF NOT EXISTS kb_notification_templates (
 
   UNIQUE KEY uk_notification_templates_code (code)
 );
-
-CREATE TABLE IF NOT EXISTS kb_notification_records (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  template_code VARCHAR(64) NOT NULL COMMENT '通知模板 code（kb_notification_templates.code）',
-  receiver VARCHAR(255) NOT NULL,
-  channel VARCHAR(32) NOT NULL,
-  send_status TINYINT NOT NULL COMMENT '发送状态（NotificationSendStatusEnum）：1-待发送 2-已发送 3-失败 4-重试中',
-  error_msg VARCHAR(255) DEFAULT NULL,
-  sent_at DATETIME DEFAULT NULL,
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_notification_records_template (template_code)
-);
-
 
 -- =========================
 -- 枚举配置

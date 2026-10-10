@@ -10,10 +10,4 @@
         order by id desc
     </select>
 
-    <select id="getOperationLogDetail" resultType="org.chobit.knot.gateway.entity.OperationLogDetailEntity">
-        select log_id, before_json, after_json
-        from ks_operation_log_details
-        where log_id = #{logId}
-    </select>
-
 </mapper>

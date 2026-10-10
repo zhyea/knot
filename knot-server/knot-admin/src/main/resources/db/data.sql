@@ -588,18 +588,6 @@ INSERT IGNORE INTO kb_apps (id, app_code, name, dept_code, owner_username, remar
 (2, 'app_002', '客服对话系统',     'OPS', 'zhangsan', '对外客服场景的对话接入',       1),
 (3, 'app_003', '代码审查工具',     'RND', 'lisi', '研发流程中的代码审查辅助',     1);
 
--- 应用凭证
-INSERT IGNORE INTO kb_app_credentials (id, app_code, app_key, app_secret_hash, status) VALUES
-(1, 'app_001', 'knot_pk_001', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 1),
-(2, 'app_002', 'knot_pk_002', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 1),
-(3, 'app_003', 'knot_pk_003', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 1);
-
--- 应用-模型权限
-INSERT IGNORE INTO kb_app_model_permissions (app_id, model_id) VALUES
-(1,1),(1,2),(1,4),(1,6),(1,10),
-(2,1),(2,2),(2,4),(2,5),(2,10),
-(3,1),(3,2),(3,6),(3,7),(3,10);
-
 -- =========================
 -- 路由规则
 -- =========================
@@ -609,10 +597,10 @@ INSERT IGNORE INTO kb_routing_consumers (id, consumer_code, name, user_username,
 (2, 'consumer-research',    '模型评测消费者',       'admin', 'sk-demo-claude-routing-key-002', 0, 1),
 (3, 'consumer-cs',          '客服系统消费者',       'zhangsan', 'sk-demo-deepseek-routing-key-003', 0, 1);
 
-INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, app_id, username, status) VALUES
-(1, 'gpt4o-default',    'GPT-4o默认路由',    '知识库问答', 1, 'admin', 1),
-(2, 'claude-default',   'Claude默认路由',    '模型评测',   1, 'admin', 1),
-(3, 'deepseek-lowcost', 'DeepSeek低成本路由', '客服对话',   2, 'zhangsan', 1);
+INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, app_code, username, status) VALUES
+(1, 'gpt4o-default',    'GPT-4o默认路由',    '知识库问答', 'app_001', 'admin', 1),
+(2, 'claude-default',   'Claude默认路由',    '模型评测',   'app_001', 'admin', 1),
+(3, 'deepseek-lowcost', 'DeepSeek低成本路由', '客服对话',   'app_002', 'zhangsan', 1);
 
 INSERT IGNORE INTO kb_routing_rule_consumers (id, rule_code, consumer_code) VALUES
 (1, 'gpt4o-default',    'consumer-internal-kb'),
@@ -763,16 +751,6 @@ INSERT IGNORE INTO kb_plugin_bindings (
 (4, 'provider-request-log', 'GLOBAL', NULL, 'UPSTREAM_REQUEST', 100, 1, JSON_OBJECT()),
 (5, 'provider-response-log', 'GLOBAL', NULL, 'UPSTREAM_RESPONSE', 100, 1, JSON_OBJECT()),
 (6, 'provider-error-log', 'GLOBAL', NULL, 'UPSTREAM_ERROR', 100, 1, JSON_OBJECT());
-
-INSERT IGNORE INTO kb_plugin_config_versions (
-  id, instance_code, version_no, version_code, config_json, operator_id
-) VALUES
-(1, 'gateway-request-log', 1, MD5('gateway-request-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
-(2, 'gateway-response-log', 1, MD5('gateway-response-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
-(3, 'gateway-error-log', 1, MD5('gateway-error-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
-(4, 'provider-request-log', 1, MD5('provider-request-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
-(5, 'provider-response-log', 1, MD5('provider-response-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1),
-(6, 'provider-error-log', 1, MD5('provider-error-log'), JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 1);
 
 -- 通知模板
 INSERT IGNORE INTO kb_notification_templates (id, code, name, channel, title_tpl, content_tpl, status) VALUES

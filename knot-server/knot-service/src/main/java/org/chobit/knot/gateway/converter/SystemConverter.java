@@ -21,16 +21,11 @@ public interface SystemConverter {
     @Mapping(source = "status", target = "resultStatus")
     OperationLogDto toOperationLogDto(OperationLogEntity entity);
 
-    @Mapping(source = "logId", target = "id")
-    OperationLogDetailDto toOperationLogDetailDto(OperationLogDetailEntity entity);
-
     List<OperationLogDto> toOperationLogDtoList(List<OperationLogEntity> entities);
 
     // ==================== DTO ↔ VO ====================
 
     OperationLogItem toOperationLogVO(OperationLogDto dto);
-
-    OperationLogDetail toOperationLogDetailVO(OperationLogDetailDto dto);
 
     List<OperationLogItem> toOperationLogVOList(List<OperationLogDto> dtos);
 

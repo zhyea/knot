@@ -9,10 +9,6 @@ export function createNotifyTemplate(payload: Dict) {
   return post("/api/notifications/templates", payload);
 }
 
-export function sendNotification(payload: Dict) {
-  return post("/api/notifications/send", payload);
-}
-
 export function createNotifyPolicy(payload: Dict) {
   return post("/api/notifications/policies", payload);
 }

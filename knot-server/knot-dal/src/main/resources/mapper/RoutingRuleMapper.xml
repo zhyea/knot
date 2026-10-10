@@ -4,14 +4,14 @@
 
     <sql id="RuleSelectColumns">
         r.id, r.rule_code, r.name, r.app_scenario,
-        r.app_id, a.name AS app_name, r.username,
+        r.app_code, a.id AS app_id, a.name AS app_name, r.username,
         r.retry_policy, r.status
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
         select <include refid="RuleSelectColumns"/>
         from kb_routing_rules r
-        left join kb_apps a on r.app_id = a.id
+        left join kb_apps a on r.app_code = a.app_code
         <where>
             <if test="keyword != null and keyword != ''">
                 and (
@@ -28,7 +28,7 @@
     <select id="getById" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
         select <include refid="RuleSelectColumns"/>
         from kb_routing_rules r
-        left join kb_apps a on r.app_id = a.id
+        left join kb_apps a on r.app_code = a.app_code
         where r.id = #{id}
     </select>
 
@@ -37,7 +37,7 @@
         from kb_routing_rules r
         inner join kb_routing_rule_consumers rc on r.rule_code = rc.rule_code
         inner join kb_routing_consumers c on c.consumer_code = rc.consumer_code
-        left join kb_apps a on r.app_id = a.id
+        left join kb_apps a on r.app_code = a.app_code
         where c.id = #{consumerId}
           and r.status = 1
           and rc.status = 1
@@ -49,7 +49,7 @@
         from kb_routing_rules r
         inner join kb_routing_rule_consumers rc on r.rule_code = rc.rule_code
         inner join kb_routing_consumers c on c.consumer_code = rc.consumer_code
-        left join kb_apps a on r.app_id = a.id
+        left join kb_apps a on r.app_code = a.app_code
         where c.id = #{consumerId}
           and r.rule_code = #{ruleCode}
           and r.status = 1
@@ -66,9 +66,9 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_routing_rules(rule_code, name, app_scenario, app_id,
+        insert into kb_routing_rules(rule_code, name, app_scenario, app_code,
                                      username, retry_policy, status)
-        values(#{ruleCode}, #{name}, #{appScenario}, #{appId},
+        values(#{ruleCode}, #{name}, #{appScenario}, #{appCode},
                #{username}, #{retryPolicy}, #{status})
     </insert>
 
@@ -77,7 +77,7 @@
         set rule_code = #{ruleCode},
             name = #{name},
             app_scenario = #{appScenario},
-            app_id = #{appId},
+            app_code = #{appCode},
             username = #{username},
             retry_policy = #{retryPolicy},
             status = #{status}

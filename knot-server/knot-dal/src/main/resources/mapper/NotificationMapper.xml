@@ -29,9 +29,4 @@
         values(#{code}, #{name}, #{channel}, #{name}, #{contentTpl}, #{status})
     </insert>
 
-    <insert id="insertRecord">
-        insert into kb_notification_records(template_code, receiver, channel, send_status, created_at)
-        values(#{templateCode}, #{receiver}, #{channel}, #{sendStatus}, now())
-    </insert>
-
 </mapper>

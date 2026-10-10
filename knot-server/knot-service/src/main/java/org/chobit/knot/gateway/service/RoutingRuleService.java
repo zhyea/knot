@@ -1023,7 +1023,16 @@ public class RoutingRuleService {
         entity.setRuleCode(normalizeRuleCode(request.ruleCode()));
         entity.setName(request.name() != null ? request.name().trim() : "");
         entity.setAppScenario(normalizeNullable(request.appScenario()));
-        entity.setAppId(request.appId());
+        // 路由规则按应用业务码绑定（kb_apps.app_code），跨平台可移植；VO 仍以 appId(PK) 传值，此处解析为 code
+        if (request.appId() != null) {
+            AppEntity app = appMapper.getById(request.appId());
+            if (app == null) {
+                throw new BusinessException(ErrorCode.NOT_FOUND, "绑定应用不存在");
+            }
+            entity.setAppCode(app.getAppCode());
+        } else {
+            entity.setAppCode(null);
+        }
         // 路由规则按 username 绑定用户（业务码，非主键 id）
         entity.setUsername(normalizeNullable(request.username()));
         // 未配置（null）落库为 NULL，运行时按内置默认策略处理

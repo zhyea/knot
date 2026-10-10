@@ -1,9 +1,7 @@
 package org.chobit.knot.gateway.converter;
 
-import org.chobit.knot.gateway.dto.notification.SendResultDto;
 import org.chobit.knot.gateway.dto.notification.TemplateDto;
 import org.chobit.knot.gateway.entity.NotifyTemplateEntity;
-import org.chobit.knot.gateway.vo.notification.NotifySendResult;
 import org.chobit.knot.gateway.vo.notification.NotifyTemplate;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -27,6 +25,4 @@ public interface NotificationConverter {
     TemplateDto toTemplateDto(NotifyTemplate vo);
 
     List<NotifyTemplate> toTemplateVOList(List<TemplateDto> dtos);
-
-    NotifySendResult toSendResultVO(SendResultDto dto);
 }

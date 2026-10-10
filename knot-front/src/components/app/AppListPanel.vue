@@ -61,7 +61,7 @@ function handleAction(action: string, row: Row): void {
 
 async function onDelete(row: Row): Promise<void> {
   await ElMessageBox.confirm(
-    `确认删除应用“${row.name}”？\n删除后应用不可恢复；如该应用已配置 API 凭证或模型权限，将无法删除。`,
+    `确认删除应用“${row.name}”？\n删除后应用不可恢复。`,
     "删除应用",
     {
       type: "warning",

@@ -36,7 +36,5 @@ public interface OperationLogMapper {
 
     OperationLogEntity getById(Long id);
 
-    int deleteDetailsByLogCreatedBefore(LocalDateTime beforeTime);
-
     int deleteByCreatedBefore(LocalDateTime beforeTime);
 }

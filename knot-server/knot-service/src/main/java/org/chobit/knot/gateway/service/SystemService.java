@@ -6,9 +6,7 @@ import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.SystemConverter;
-import org.chobit.knot.gateway.dto.system.OperationLogDetailDto;
 import org.chobit.knot.gateway.dto.system.OperationLogDto;
-import org.chobit.knot.gateway.entity.OperationLogDetailEntity;
 import org.chobit.knot.gateway.entity.OperationLogEntity;
 import org.chobit.knot.gateway.mapper.SystemMapper;
 import org.springframework.stereotype.Service;
@@ -34,17 +32,6 @@ public class SystemService {
             PageInfo<OperationLogEntity> pageInfo = new PageInfo<>(systemMapper.listOperationLogs());
             return PageResult.fromPage(pageInfo, systemConverter::toOperationLogDtoList, pageRequest);
         }
-    }
-
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
-    public OperationLogDetailDto getOperationLogDetail(Long id) {
-        OperationLogDetailEntity detail = systemMapper.getOperationLogDetail(id);
-        if (detail == null) {
-            return new OperationLogDetailDto(id, "{}", "{}");
-        }
-        return systemConverter.toOperationLogDetailDto(detail);
     }
 
 }

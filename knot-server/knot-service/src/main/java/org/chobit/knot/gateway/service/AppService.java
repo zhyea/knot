@@ -20,7 +20,6 @@ import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -85,7 +84,8 @@ public class AppService {
         if (appCode.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "please input App Code");
         }
-        if (countPositive(appMapper.countByAppCode(appCode))) {
+        Long existingApp = appMapper.countByAppCode(appCode);
+        if (existingApp != null && existingApp > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, "App Code already exists: " + appCode);
         }
         validateDepartment(request.deptCode());
@@ -125,32 +125,10 @@ public class AppService {
         if (existing == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "应用不存在");
         }
-        assertNotInUse(existing);
         int rows = appMapper.softDelete(id);
         if (rows == 0) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "应用不存在或已删除");
         }
-    }
-
-    /**
-     * 删除前置校验：凭据按应用业务码（app_code）绑定，模型权限按应用主键 id（app_id）绑定，两者参数语义不同。
-     */
-    private void assertNotInUse(AppEntity app) {
-        List<String> reasons = new ArrayList<>();
-        if (countPositive(appMapper.countCredentialsByAppCode(app.getAppCode()))) {
-            reasons.add("已配置 API 凭证");
-        }
-        if (countPositive(appMapper.countModelPermissionsByAppId(app.getId()))) {
-            reasons.add("已分配模型权限");
-        }
-        if (!reasons.isEmpty()) {
-            throw new BusinessException(ErrorCode.CONFLICT,
-                    "该应用正在被使用，无法删除：" + String.join("，", reasons));
-        }
-    }
-
-    private static boolean countPositive(Long count) {
-        return count != null && count > 0;
     }
 
     private static String normalizeKeyword(String keyword) {

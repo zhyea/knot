@@ -7,15 +7,13 @@ import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.NotificationConverter;
-import org.chobit.knot.gateway.dto.notification.SendResultDto;
 import org.chobit.knot.gateway.dto.notification.TemplateDto;
 import org.chobit.knot.gateway.entity.NotifyTemplateEntity;
 import org.chobit.knot.gateway.mapper.NotificationMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Map;
+
 
 @Service
 public class NotificationService {
@@ -60,21 +58,6 @@ public class NotificationService {
         e.setStatus(EnabledStatusEnum.ENABLED.code());
         notificationMapper.insertTemplate(e);
         return notificationConverter.toTemplateDto(e);
-    }
-
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
-    @Transactional
-    public SendResultDto send(String templateCode, List<String> receivers, Map<String, String> vars) {
-        NotifyTemplateEntity entity = notificationMapper.getTemplateByCode(templateCode);
-        TemplateDto template = entity != null
-                ? notificationConverter.toTemplateDto(entity)
-                : new TemplateDto(0L, templateCode, templateCode, "EMAIL", "");
-        for (String receiver : receivers) {
-            notificationMapper.insertRecord(template.code(), receiver, template.channel(), "SENT");
-        }
-        return new SendResultDto("ntf_" + System.currentTimeMillis(), "SENT", receivers.size());
     }
 
     private static String normalizeKeyword(String keyword) {

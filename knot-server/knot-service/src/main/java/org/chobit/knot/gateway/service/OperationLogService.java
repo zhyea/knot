@@ -108,7 +108,6 @@ public class OperationLogService {
      */
     @Transactional
     public int deleteBefore(LocalDateTime beforeTime) {
-        operationLogMapper.deleteDetailsByLogCreatedBefore(beforeTime);
         return operationLogMapper.deleteByCreatedBefore(beforeTime);
     }
 
