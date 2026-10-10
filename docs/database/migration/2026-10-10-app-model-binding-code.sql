@@ -15,6 +15,13 @@
 -- 回填语句同样按旧列存在性守卫，避免对全新库（无旧列）执行时报 Unknown column。
 
 -- ========== 3. kb_app_model_permissions.app_id/model_id -> app_code/model_code ==========
+-- 注：kb_app_model_permissions 已被 2026-10-10-drop-orphan-tables.sql 整表删除。
+-- 本节按「表是否存在」守卫：表已删时整体 no-op，避免 SELECT/ALTER 不存在的表报错；
+-- 表仍存在（未跑 orphan 迁移的旧库）时行为不变，照常完成 id -> code 迁移。
+SET @tbl_exists = (
+    SELECT COUNT(1) FROM information_schema.TABLES
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'kb_app_model_permissions'
+);
 SET @old_exists = (
     SELECT COUNT(1) FROM information_schema.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'kb_app_model_permissions'
@@ -25,6 +32,8 @@ SET @new_exists = (
     WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'kb_app_model_permissions'
       AND COLUMN_NAME IN ('app_code', 'model_code')
 );
+SET @old_exists = IF(@tbl_exists = 0, 0, @old_exists);
+SET @new_exists = IF(@tbl_exists = 0, 1, @new_exists);
 
 SET @sql = IF(@old_exists > 0 AND @new_exists = 0,
     'ALTER TABLE kb_app_model_permissions ADD COLUMN app_code VARCHAR(64) DEFAULT NULL COMMENT ''应用业务码（kb_apps.app_code），非主键 id'', ADD COLUMN model_code VARCHAR(128) DEFAULT NULL COMMENT ''供应商模型业务码（kb_models.model_code），非主键 id''',
@@ -42,9 +51,11 @@ SET @sql = IF(@old_exists > 0,
     'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- 孤儿核对：app_id/model_id 指向不存在的行会导致业务码为空（预期 0）
-SELECT COUNT(*) AS orphan_app_model_permissions
-    FROM kb_app_model_permissions WHERE app_code IS NULL OR model_code IS NULL;
+-- 孤儿核对：app_id/model_id 指向不存在的行会导致业务码为空（预期 0；表已删时返回 0）
+SET @sql = IF(@tbl_exists > 0,
+    'SELECT COUNT(*) AS orphan_app_model_permissions FROM kb_app_model_permissions WHERE app_code IS NULL OR model_code IS NULL',
+    'SELECT 0 AS orphan_app_model_permissions');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- 删旧列前先删复合主键（依赖 app_id/model_id）
 SET @sql = IF(@old_exists > 0 AND @new_exists = 0,
@@ -62,8 +73,8 @@ SET @sql = IF(@old_exists > 0 AND @new_exists = 0,
     'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
--- 加新主键（独立存在性守卫，幂等）
-SET @new_pk = (SELECT COUNT(1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='kb_app_model_permissions' AND INDEX_NAME='PRIMARY');
+-- 加新主键（独立存在性守卫，幂等；表已删时跳过）
+SET @new_pk = IF(@tbl_exists = 0, 1, (SELECT COUNT(1) FROM information_schema.STATISTICS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='kb_app_model_permissions' AND INDEX_NAME='PRIMARY'));
 SET @sql = IF(@new_pk = 0, 'ALTER TABLE kb_app_model_permissions ADD PRIMARY KEY (app_code, model_code)', 'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 

@@ -88,12 +88,10 @@ public class ExternalModelService {
         }
         String rawJson = item.getRawJson();
         String description = item.getDescription();
-        String capabilitiesJson = item.getCapabilitiesJson();
         Integer contextLength = item.getContextLength();
         ExternalModelItemEntity enriched = provider.enrichDetail(item);
         if (!same(rawJson, enriched.getRawJson())
                 || !same(description, enriched.getDescription())
-                || !same(capabilitiesJson, enriched.getCapabilitiesJson())
                 || !same(contextLength, enriched.getContextLength())) {
             externalModelMapper.updateItem(enriched);
         }
