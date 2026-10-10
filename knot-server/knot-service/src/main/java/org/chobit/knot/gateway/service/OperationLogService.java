@@ -4,6 +4,7 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.constants.enums.OperationLogStatusEnum;
@@ -19,12 +20,16 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
 @Slf4j
 @Service
 public class OperationLogService {
+
+    private static final Set<String> IGNORED_SNAPSHOT_FIELDS = Set.of(
+            "updatedAt", "updated_at", "updateTime", "update_time");
 
     private final OperationLogMapper operationLogMapper;
 
@@ -108,6 +113,7 @@ public class OperationLogService {
      */
     @Transactional
     public int deleteBefore(LocalDateTime beforeTime) {
+        operationLogMapper.deleteDetailsByLogCreatedBefore(beforeTime);
         return operationLogMapper.deleteByCreatedBefore(beforeTime);
     }
 
@@ -135,6 +141,17 @@ public class OperationLogService {
         try {
             JsonNode oldRoot = JsonKit.parse(oldV);
             JsonNode newRoot = JsonKit.parse(newV);
+            if (oldRoot == null && newRoot == null) {
+                return;
+            }
+            if (oldRoot != null) {
+                removeIgnoredSnapshotFields(oldRoot);
+                e.setOldValue(JsonKit.toJson(oldRoot));
+            }
+            if (newRoot != null) {
+                removeIgnoredSnapshotFields(newRoot);
+                e.setNewValue(JsonKit.toJson(newRoot));
+            }
             if (oldRoot == null || newRoot == null || !oldRoot.isObject() || !newRoot.isObject()) {
                 return;
             }
@@ -165,6 +182,15 @@ public class OperationLogService {
             }
         } catch (Exception ex) {
             log.debug("Skip old/new diff trim for operation log: {}", ex.toString());
+        }
+    }
+
+    private void removeIgnoredSnapshotFields(JsonNode node) {
+        if (node instanceof ObjectNode objectNode) {
+            IGNORED_SNAPSHOT_FIELDS.forEach(objectNode::remove);
+            objectNode.elements().forEachRemaining(this::removeIgnoredSnapshotFields);
+        } else if (node instanceof ArrayNode arrayNode) {
+            arrayNode.elements().forEachRemaining(this::removeIgnoredSnapshotFields);
         }
     }
 
