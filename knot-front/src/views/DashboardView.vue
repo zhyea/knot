@@ -10,7 +10,7 @@
       </div>
       <div class="dashboard-hero__actions">
         <div class="refresh-pill">
-          <strong class="refresh-pill__value">{{ lastUpdatedAt || "--" }}</strong>
+          <strong class="refresh-pill__value">{{ lastUpdatedAtText }}</strong>
         </div>
         <el-button
           class="refresh-button"
@@ -243,7 +243,8 @@ import {listOperationLogs} from "@/api/operationLogs";
 import {listProviders} from "@/api/providers";
 import {listRoutingRules} from "@/api/routing";
 import {useAuth} from "@/composables/useAuth";
-import {formatDateTime} from "@/utils/format";
+import {useTimezone} from "@/composables/useTimezone";
+import {formatDateTime, formatDateTimeInTimezone} from "@/utils/format";
 import type {Dict, Row} from "@/types";
 
 /** 模块目录条目（/api/modules 返回） */
@@ -255,6 +256,7 @@ interface ModuleCatalogItem {
 
 const router = useRouter();
 const { modules: authorizedModules } = useAuth();
+const { current: currentTimezone } = useTimezone();
 
 const health = reactive({
   status: "",
@@ -271,6 +273,9 @@ const statTotals = reactive({
 
 const loading = ref(false);
 const lastUpdatedAt = ref("");
+const lastUpdatedAtText = computed(() =>
+  lastUpdatedAt.value ? formatDateTimeInTimezone(lastUpdatedAt.value, currentTimezone.value) : "--"
+);
 const moduleCatalog = ref<ModuleCatalogItem[]>([]);
 const recentLogs = ref<Row[]>([]);
 
@@ -499,7 +504,7 @@ async function loadDashboard() {
     statTotals.logicalModels = normalizeTotal(logicalModelsResult);
     statTotals.routingRules = normalizeTotal(routingRulesResult);
     recentLogs.value = Array.isArray(logsResult?.list) ? logsResult.list.slice(0, 6) : [];
-    lastUpdatedAt.value = formatDateTime(new Date().toISOString());
+    lastUpdatedAt.value = new Date().toISOString();
   } finally {
     loading.value = false;
   }
