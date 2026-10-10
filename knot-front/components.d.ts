@@ -129,8 +129,6 @@ declare module 'vue' {
     ProviderAccountFormDrawer: typeof import('./src/components/provider/ProviderAccountFormDrawer.vue')['default']
     ProviderAccountListPanel: typeof import('./src/components/provider/ProviderAccountListPanel.vue')['default']
     ProviderAccountSelect: typeof import('./src/components/provider/ProviderAccountSelect.vue')['default']
-    ProviderDiscountDrawer: typeof import('./src/components/provider/ProviderDiscountDrawer.vue')['default']
-    ProviderDiscountFormDialog: typeof import('./src/components/provider/ProviderDiscountFormDialog.vue')['default']
     ProviderProfileFormDrawer: typeof import('./src/components/provider/ProviderProfileFormDrawer.vue')['default']
     ProviderProfileListPanel: typeof import('./src/components/provider/ProviderProfileListPanel.vue')['default']
     RemoteEntitySelect: typeof import('./src/components/common/RemoteEntitySelect.vue')['default']
