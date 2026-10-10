@@ -12,6 +12,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
 
 import java.lang.reflect.Method;
+import java.time.LocalDateTime;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.LinkedHashMap;
@@ -52,14 +53,31 @@ class OperationLogAspectTest {
     void recordsUpdateLogWithRealOldAndNewValue() throws Throwable {
         Map<String, Object> before = snapshot("预设A", "OLD-BODY");
         Map<String, Object> after = snapshot("预设A", "NEW-BODY");
+        before.put("updatedAt", LocalDateTime.of(2026, 10, 10, 10, 0));
+        after.put("updatedAt", LocalDateTime.of(2026, 10, 10, 10, 1));
         OperationLogAspect aspect = aspectWith(new AuditStub(before, after));
 
         aspect.recordLog(joinPoint(7L), annotationOf("update"));
 
         OperationLogEntity saved = captureSavedLog();
         assertNotNull(saved.getOldValue(), "旧值不应为空");
-        assertEquals(JsonKit.toJson(before), saved.getOldValue());
-        assertEquals(JsonKit.toJson(after), saved.getNewValue());
+        assertEquals("OLD-BODY", JsonKit.parse(saved.getOldValue()).path("requestBody").asText());
+        assertEquals("NEW-BODY", JsonKit.parse(saved.getNewValue()).path("requestBody").asText());
+        assertEquals(false, JsonKit.parse(saved.getOldValue()).has("updatedAt"));
+        assertEquals(false, JsonKit.parse(saved.getNewValue()).has("updatedAt"));
+    }
+
+    @Test
+    void suppressesUpdateLogWhenOnlyUpdatedAtChanges() throws Throwable {
+        Map<String, Object> before = snapshot("预设A", "PAYLOAD");
+        Map<String, Object> after = snapshot("预设A", "PAYLOAD");
+        before.put("updatedAt", LocalDateTime.of(2026, 10, 10, 10, 0));
+        after.put("updatedAt", LocalDateTime.of(2026, 10, 10, 10, 1));
+        OperationLogAspect aspect = aspectWith(new AuditStub(before, after));
+
+        aspect.recordLog(joinPoint(7L), annotationOf("update"));
+
+        verify(logMapper, never()).insert(any());
     }
 
     @Test

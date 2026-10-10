@@ -18,6 +18,26 @@ export function formatDateTime(value: unknown): string {
 }
 
 /**
+ * Format an instant with a user-configured UTC offset such as `UTC+08:00`.
+ */
+export function formatDateTimeInTimezone(value: unknown, timezone: string): string {
+  if (value == null || value === "") return "—";
+
+  const date = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(date.getTime())) return formatDateTime(value);
+
+  const offsetMatch = String(timezone || "UTC").match(/^UTC([+-])(\d{1,2})(?::?(\d{2}))?$/);
+  const offsetMinutes = offsetMatch
+    ? (offsetMatch[1] === "-" ? -1 : 1) * (Number(offsetMatch[2]) * 60 + Number(offsetMatch[3] || 0))
+    : 0;
+  const shifted = new Date(date.getTime() + offsetMinutes * 60 * 1000);
+  const pad = (number: number) => String(number).padStart(2, "0");
+
+  return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())} `
+    + `${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}:${pad(shifted.getUTCSeconds())}`;
+}
+
+/**
  * 千分位分隔的整数展示（上下文长度、模型 ID 序号等大数值列）。
  * 非数值 / 空值返回 fallback，避免把 "-" 显示成 "NaN"。
  */
