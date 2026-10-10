@@ -9,11 +9,11 @@ import java.util.List;
 @Mapper
 public interface RoutingRuleTargetMapper {
 
-    List<RoutingRuleTargetEntity> listByRuleIds(@Param("ruleIds") List<Long> ruleIds);
+    List<RoutingRuleTargetEntity> listByRuleCodes(@Param("ruleCodes") List<String> ruleCodes);
 
-    List<RoutingRuleTargetEntity> listByRuleId(@Param("ruleId") Long ruleId);
+    List<RoutingRuleTargetEntity> listByRuleCode(@Param("ruleCode") String ruleCode);
 
-    int deleteByRuleId(@Param("ruleId") Long ruleId);
+    int deleteByRuleCode(@Param("ruleCode") String ruleCode);
 
     int insert(RoutingRuleTargetEntity entity);
 }

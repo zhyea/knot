@@ -57,13 +57,13 @@ public interface BillingRuleMapper {
     /** 恢复：is_deleted = 0，status 保持 0（是否启用由调用方显式决定） */
     int restore(Long id);
 
-    BillingRuleVersionEntity getLatestVersion(Long ruleId);
+    BillingRuleVersionEntity getLatestVersion(@Param("ruleCode") String ruleCode);
 
     /** 原地更新版本配置内容（计费字段 + config_json + 生效期 + 状态），不生成新版本 */
     int updateVersionContent(BillingRuleVersionEntity entity);
 
     /** 同一规则下历史版本号的最大序号（version_code 形如 v{n}），用于生成初始 version_code（max+1） */
-    int maxVersionSeq(Long ruleId);
+    int maxVersionSeq(@Param("ruleCode") String ruleCode);
 
     int insertVersion(BillingRuleVersionEntity entity);
 

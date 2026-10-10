@@ -52,7 +52,7 @@ public class GatewayDataService {
     private final LoadingCache<String, Optional<RoutingConsumerEntity>> consumerBySecretKeyCache;
     private final LoadingCache<Long, List<RoutingRuleEntity>> enabledRulesByConsumerIdCache;
     private final LoadingCache<ConsumerRuleKey, Optional<RoutingRuleEntity>> enabledRuleByConsumerAndCodeCache;
-    private final LoadingCache<Long, List<RoutingRuleTargetEntity>> targetsByRuleIdCache;
+    private final LoadingCache<String, List<RoutingRuleTargetEntity>> targetsByRuleIdCache;
     private final LoadingCache<Long, Optional<ModelEntity>> modelByIdCache;
     private final LoadingCache<String, Optional<ModelEntity>> modelByCodeCache;
     private final LoadingCache<Long, Optional<ModelPoolEntity>> modelPoolByIdCache;
@@ -91,7 +91,7 @@ public class GatewayDataService {
         this.enabledRulesByConsumerIdCache = listCache(routingRuleMapper::listEnabledByConsumerId);
         this.enabledRuleByConsumerAndCodeCache = optionalCache(key ->
                 routingRuleMapper.getEnabledByConsumerIdAndRuleCode(key.consumerId(), key.ruleCode()));
-        this.targetsByRuleIdCache = listCache(routingRuleTargetMapper::listByRuleId);
+        this.targetsByRuleIdCache = listCache(routingRuleTargetMapper::listByRuleCode);
         this.modelByIdCache = optionalCache(modelMapper::getById);
         this.modelByCodeCache = optionalCache(modelMapper::getByCode);
         this.modelPoolByIdCache = optionalCache(modelPoolMapper::getById);
@@ -145,8 +145,8 @@ public class GatewayDataService {
     /**
      * Lists matching results. Executes the public operation.
      */
-    public List<RoutingRuleTargetEntity> listTargetsByRuleId(Long ruleId) {
-        return targetsByRuleIdCache.get(ruleId);
+    public List<RoutingRuleTargetEntity> listTargetsByRuleCode(String ruleCode) {
+        return targetsByRuleIdCache.get(ruleCode);
     }
 
     /**

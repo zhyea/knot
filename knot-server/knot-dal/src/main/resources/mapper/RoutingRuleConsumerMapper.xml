@@ -2,25 +2,25 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.gateway.mapper.RoutingRuleConsumerMapper">
 
-    <select id="listByRuleIds" resultType="org.chobit.knot.gateway.entity.RoutingRuleConsumerEntity">
-        select rc.id, rc.rule_id, rc.consumer_id,
-               c.consumer_code, c.name AS consumer_name, c.status
+    <select id="listByRuleCodes" resultType="org.chobit.knot.gateway.entity.RoutingRuleConsumerEntity">
+        select rc.id, rc.rule_code, rc.consumer_code,
+               c.id as consumer_id, c.name AS consumer_name, c.status
         from kb_routing_rule_consumers rc
-        left join kb_routing_consumers c on rc.consumer_id = c.id
-        where rc.rule_id in
-        <foreach collection="ruleIds" item="id" open="(" separator="," close=")">
-            #{id}
+        left join kb_routing_consumers c on rc.consumer_code = c.consumer_code
+        where rc.rule_code in
+        <foreach collection="ruleCodes" item="code" open="(" separator="," close=")">
+            #{code}
         </foreach>
-        order by rc.rule_id, rc.id
+        order by rc.rule_code, rc.id
     </select>
 
-    <delete id="deleteByRuleId">
-        delete from kb_routing_rule_consumers where rule_id = #{ruleId}
+    <delete id="deleteByRuleCode">
+        delete from kb_routing_rule_consumers where rule_code = #{ruleCode}
     </delete>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_routing_rule_consumers(rule_id, consumer_id)
-        values(#{ruleId}, #{consumerId})
+        insert into kb_routing_rule_consumers(rule_code, consumer_code)
+        values(#{ruleCode}, #{consumerCode})
     </insert>
 
 </mapper>

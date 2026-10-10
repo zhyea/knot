@@ -48,8 +48,9 @@
     </select>
 
     <select id="countRulesByConsumerId" resultType="java.lang.Long">
-        select count(1) from kb_routing_rule_consumers
-        where consumer_id = #{consumerId}
+        select count(1) from kb_routing_rule_consumers rc
+        inner join kb_routing_consumers c on c.consumer_code = rc.consumer_code
+        where c.id = #{consumerId}
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">

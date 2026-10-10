@@ -10,10 +10,11 @@ import java.time.LocalDateTime;
 @Data
 public class BillingRuleVersionEntity {
     private Long id;
-    private Long ruleId;
+    /** 计费规则业务码（kb_billing_rules.code），非主键 id，落库列 */
+    private String ruleCode;
     /** 规则内人工可读版本号（v1/v2/2026-01） */
     private String versionCode;
-    /** 配置内容指纹（MD5），同一 rule_id 内唯一 */
+    /** 配置内容指纹（MD5），同一 rule_code 内唯一 */
     private String uniqHash;
     private String billingMode;
     /** 进阶定价方案（PricingPlanEnum）：FIXED/TIERED/PEAK_OFF_PEAK */

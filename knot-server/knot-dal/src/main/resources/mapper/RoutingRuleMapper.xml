@@ -35,9 +35,10 @@
     <select id="listEnabledByConsumerId" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
         select <include refid="RuleSelectColumns"/>
         from kb_routing_rules r
-        inner join kb_routing_rule_consumers rc on r.id = rc.rule_id
+        inner join kb_routing_rule_consumers rc on r.rule_code = rc.rule_code
+        inner join kb_routing_consumers c on c.consumer_code = rc.consumer_code
         left join kb_apps a on r.app_id = a.id
-        where rc.consumer_id = #{consumerId}
+        where c.id = #{consumerId}
           and r.status = 1
           and rc.status = 1
         order by r.id desc
@@ -46,9 +47,10 @@
     <select id="getEnabledByConsumerIdAndRuleCode" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
         select <include refid="RuleSelectColumns"/>
         from kb_routing_rules r
-        inner join kb_routing_rule_consumers rc on r.id = rc.rule_id
+        inner join kb_routing_rule_consumers rc on r.rule_code = rc.rule_code
+        inner join kb_routing_consumers c on c.consumer_code = rc.consumer_code
         left join kb_apps a on r.app_id = a.id
-        where rc.consumer_id = #{consumerId}
+        where c.id = #{consumerId}
           and r.rule_code = #{ruleCode}
           and r.status = 1
           and rc.status = 1

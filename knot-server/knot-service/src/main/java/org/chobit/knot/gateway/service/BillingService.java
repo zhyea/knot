@@ -296,7 +296,7 @@ public class BillingService {
         applyRule(e, request);
         e.setStatus(EnabledStatusEnum.codeOf(request.enabled()));
         billingRuleMapper.insert(e);
-        createVersion(e.getId(), request, request.enabled());
+        createVersion(e.getCode(), request, request.enabled());
         return billingConverter.toRuleDto(billingRuleMapper.getById(e.getId()));
     }
 
@@ -318,7 +318,7 @@ public class BillingService {
         applyRule(existing, request);
         existing.setId(id);
         existing.setStatus(EnabledStatusEnum.codeOf(request.enabled()));
-        syncVersion(id, request, request.enabled());
+        syncVersion(existing.getCode(), request, request.enabled());
         billingRuleMapper.update(existing);
         return billingConverter.toRuleDto(billingRuleMapper.getById(id));
     }
@@ -336,7 +336,7 @@ public class BillingService {
             assertRuleNotBound(existing.getCode(), "billing rule is bound by provider models, cannot disable");
         }
         billingRuleMapper.updateStatus(id, EnabledStatusEnum.codeOf(enabled));
-        BillingRuleVersionEntity latest = billingRuleMapper.getLatestVersion(id);
+        BillingRuleVersionEntity latest = billingRuleMapper.getLatestVersion(existing.getCode());
         if (latest != null) {
             billingRuleMapper.updateVersionStatus(latest.getId(), statusFor(enabled));
         }
@@ -570,10 +570,10 @@ public class BillingService {
      * 更新规则时同步其唯一版本：原地覆盖配置内容（计费字段 + config_json + 生效期 + 状态），
      * 不生成新版本、不复用历史版本。版本仅占位预留，无实际迭代语义（见 MEMORY.md §七）。
      */
-    private void syncVersion(Long ruleId, BillingRuleDto request, boolean enabled) {
-        BillingRuleVersionEntity latest = billingRuleMapper.getLatestVersion(ruleId);
+    private void syncVersion(String ruleCode, BillingRuleDto request, boolean enabled) {
+        BillingRuleVersionEntity latest = billingRuleMapper.getLatestVersion(ruleCode);
         if (latest == null) {
-            createVersion(ruleId, request, enabled);
+            createVersion(ruleCode, request, enabled);
             return;
         }
         latest.setUniqHash(buildUniqHash(request));
@@ -588,10 +588,10 @@ public class BillingService {
         billingRuleMapper.updateVersionContent(latest);
     }
 
-    private BillingRuleVersionEntity createVersion(Long ruleId, BillingRuleDto request, boolean active) {
-        String versionCode = "v" + (billingRuleMapper.maxVersionSeq(ruleId) + 1);
+    private BillingRuleVersionEntity createVersion(String ruleCode, BillingRuleDto request, boolean active) {
+        String versionCode = "v" + (billingRuleMapper.maxVersionSeq(ruleCode) + 1);
         BillingRuleVersionEntity version = new BillingRuleVersionEntity();
-        version.setRuleId(ruleId);
+        version.setRuleCode(ruleCode);
         version.setVersionCode(versionCode);
         version.setUniqHash(buildUniqHash(request));
         version.setBillingMode(normalizeBillingMode(request.billingMode()));

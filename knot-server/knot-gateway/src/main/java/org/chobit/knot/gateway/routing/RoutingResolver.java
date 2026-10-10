@@ -65,7 +65,7 @@ public class RoutingResolver {
         if (!EnabledStatusEnum.isEnabled(app.getStatus())) {
             throw new GatewayAuthException("Bound app is disabled");
         }
-        List<RoutingRuleTargetDto> candidates = resolveCandidateModels(rule.getId());
+        List<RoutingRuleTargetDto> candidates = resolveCandidateModels(rule.getRuleCode());
         if (candidates.isEmpty()) {
             throw new GatewayUpstreamException(
                     "No enabled routing target is available",
@@ -108,8 +108,8 @@ public class RoutingResolver {
         );
     }
 
-    private List<RoutingRuleTargetDto> resolveCandidateModels(Long ruleId) {
-        List<RoutingRuleTargetDto> orderedTargets = orderTargets(ruleId);
+    private List<RoutingRuleTargetDto> resolveCandidateModels(String ruleCode) {
+        List<RoutingRuleTargetDto> orderedTargets = orderTargets(ruleCode);
         if (orderedTargets.isEmpty()) {
             return List.of();
         }
@@ -120,8 +120,8 @@ public class RoutingResolver {
         return candidates;
     }
 
-    private List<RoutingRuleTargetDto> orderTargets(Long ruleId) {
-        List<RoutingRuleTargetDto> targets = listTargets(ruleId);
+    private List<RoutingRuleTargetDto> orderTargets(String ruleCode) {
+        List<RoutingRuleTargetDto> targets = listTargets(ruleCode);
         if (targets.isEmpty()) {
             return List.of();
         }
@@ -156,8 +156,8 @@ public class RoutingResolver {
                 && Objects.equals(left.targetType(), right.targetType());
     }
 
-    private List<RoutingRuleTargetDto> listTargets(Long ruleId) {
-        return dataService.listTargetsByRuleId(ruleId).stream()
+    private List<RoutingRuleTargetDto> listTargets(String ruleCode) {
+        return dataService.listTargetsByRuleCode(ruleCode).stream()
                 .map(entity -> new RoutingRuleTargetDto(
                         entity.getTargetType(),
                         entity.getTargetId(),

@@ -5,7 +5,8 @@ import lombok.Data;
 @Data
 public class RoutingRuleTargetEntity {
     private Long id;
-    private Long ruleId;
+    /** 路由规则业务码（kb_routing_rules.rule_code），非主键 id，落库列 */
+    private String ruleCode;
     private String targetType;
     private Long targetId;
     private Integer priority;

@@ -9,9 +9,9 @@ import java.util.List;
 @Mapper
 public interface RoutingRuleConsumerMapper {
 
-    List<RoutingRuleConsumerEntity> listByRuleIds(@Param("ruleIds") List<Long> ruleIds);
+    List<RoutingRuleConsumerEntity> listByRuleCodes(@Param("ruleCodes") List<String> ruleCodes);
 
-    void deleteByRuleId(Long ruleId);
+    void deleteByRuleCode(@Param("ruleCode") String ruleCode);
 
     int insert(RoutingRuleConsumerEntity entity);
 }

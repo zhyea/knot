@@ -713,18 +713,19 @@ public class RoutingRuleService {
         if (entities == null || entities.isEmpty()) {
             return List.of();
         }
-        List<Long> ruleIds = entities.stream().map(RoutingRuleEntity::getId).toList();
-        Map<Long, List<RoutingRuleTargetDto>> targetsByRule = loadTargetsByRuleIds(ruleIds);
-        Map<Long, List<RoutingRuleConsumerEntity>> consumersByRule = loadConsumersByRuleIds(ruleIds);
+        List<String> ruleCodes = entities.stream().map(RoutingRuleEntity::getRuleCode).toList();
+        Map<String, List<RoutingRuleTargetDto>> targetsByRule = loadTargetsByRuleCodes(ruleCodes);
+        Map<String, List<RoutingRuleConsumerEntity>> consumersByRule = loadConsumersByRuleCodes(ruleCodes);
         Map<Long, TrafficPolicies> traffic =
-                trafficPolicySupport.loadBatch(TrafficResourceTypeEnum.ROUTING_RULE.code(), ruleIds);
+                trafficPolicySupport.loadBatch(TrafficResourceTypeEnum.ROUTING_RULE.code(),
+                        entities.stream().map(RoutingRuleEntity::getId).toList());
         List<RoutingRuleDto> result = new ArrayList<>();
         for (RoutingRuleEntity entity : entities) {
             TrafficPolicies tp = traffic.get(entity.getId());
             result.add(toDto(
                     entity,
-                    consumersByRule.getOrDefault(entity.getId(), List.of()),
-                    targetsByRule.getOrDefault(entity.getId(), List.of()),
+                    consumersByRule.getOrDefault(entity.getRuleCode(), List.of()),
+                    targetsByRule.getOrDefault(entity.getRuleCode(), List.of()),
                     tp
             ));
         }
@@ -732,15 +733,15 @@ public class RoutingRuleService {
     }
 
     private RoutingRuleDto enrich(RoutingRuleEntity entity) {
-        Map<Long, List<RoutingRuleTargetDto>> targetsByRule =
-                loadTargetsByRuleIds(List.of(entity.getId()));
-        Map<Long, List<RoutingRuleConsumerEntity>> consumersByRule =
-                loadConsumersByRuleIds(List.of(entity.getId()));
+        Map<String, List<RoutingRuleTargetDto>> targetsByRule =
+                loadTargetsByRuleCodes(List.of(entity.getRuleCode()));
+        Map<String, List<RoutingRuleConsumerEntity>> consumersByRule =
+                loadConsumersByRuleCodes(List.of(entity.getRuleCode()));
         TrafficPolicies traffic =
                 trafficPolicySupport.load(TrafficResourceTypeEnum.ROUTING_RULE.code(), entity.getId());
         return toDto(entity,
-                consumersByRule.getOrDefault(entity.getId(), List.of()),
-                targetsByRule.getOrDefault(entity.getId(), List.of()),
+                consumersByRule.getOrDefault(entity.getRuleCode(), List.of()),
+                targetsByRule.getOrDefault(entity.getRuleCode(), List.of()),
                 traffic);
     }
 
@@ -773,24 +774,24 @@ public class RoutingRuleService {
         );
     }
 
-    private Map<Long, List<RoutingRuleConsumerEntity>> loadConsumersByRuleIds(List<Long> ruleIds) {
-        if (ruleIds == null || ruleIds.isEmpty()) {
+    private Map<String, List<RoutingRuleConsumerEntity>> loadConsumersByRuleCodes(List<String> ruleCodes) {
+        if (ruleCodes == null || ruleCodes.isEmpty()) {
             return Map.of();
         }
-        Map<Long, List<RoutingRuleConsumerEntity>> result = new HashMap<>();
-        for (RoutingRuleConsumerEntity entity : routingRuleConsumerMapper.listByRuleIds(ruleIds)) {
-            result.computeIfAbsent(entity.getRuleId(), k -> new ArrayList<>()).add(entity);
+        Map<String, List<RoutingRuleConsumerEntity>> result = new HashMap<>();
+        for (RoutingRuleConsumerEntity entity : routingRuleConsumerMapper.listByRuleCodes(ruleCodes)) {
+            result.computeIfAbsent(entity.getRuleCode(), k -> new ArrayList<>()).add(entity);
         }
         return result;
     }
 
-    private Map<Long, List<RoutingRuleTargetDto>> loadTargetsByRuleIds(List<Long> ruleIds) {
-        if (ruleIds == null || ruleIds.isEmpty()) {
+    private Map<String, List<RoutingRuleTargetDto>> loadTargetsByRuleCodes(List<String> ruleCodes) {
+        if (ruleCodes == null || ruleCodes.isEmpty()) {
             return Map.of();
         }
-        Map<Long, List<RoutingRuleTargetDto>> result = new HashMap<>();
-        for (RoutingRuleTargetEntity entity : routingRuleTargetMapper.listByRuleIds(ruleIds)) {
-            result.computeIfAbsent(entity.getRuleId(), k -> new ArrayList<>()).add(toTargetDto(entity));
+        Map<String, List<RoutingRuleTargetDto>> result = new HashMap<>();
+        for (RoutingRuleTargetEntity entity : routingRuleTargetMapper.listByRuleCodes(ruleCodes)) {
+            result.computeIfAbsent(entity.getRuleCode(), k -> new ArrayList<>()).add(toTargetDto(entity));
         }
         return result;
     }
@@ -810,13 +811,18 @@ public class RoutingRuleService {
     }
 
     private void saveTargets(Long ruleId, List<RoutingRuleTargetDto> targets) {
-        routingRuleTargetMapper.deleteByRuleId(ruleId);
+        RoutingRuleEntity rule = routingRuleMapper.getById(ruleId);
+        if (rule == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "路由规则不存在");
+        }
+        String ruleCode = rule.getRuleCode();
+        routingRuleTargetMapper.deleteByRuleCode(ruleCode);
         if (targets == null) {
             return;
         }
         for (RoutingRuleTargetDto target : targets) {
             RoutingRuleTargetEntity entity = new RoutingRuleTargetEntity();
-            entity.setRuleId(ruleId);
+            entity.setRuleCode(ruleCode);
             entity.setTargetType(normalizeTargetType(target.targetType()));
             entity.setTargetCode(resolveTargetCode(target));
             entity.setPriority(target.priority());
@@ -851,7 +857,12 @@ public class RoutingRuleService {
     }
 
     private void saveConsumers(Long ruleId, List<Long> consumerIds) {
-        routingRuleConsumerMapper.deleteByRuleId(ruleId);
+        RoutingRuleEntity rule = routingRuleMapper.getById(ruleId);
+        if (rule == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "路由规则不存在");
+        }
+        String ruleCode = rule.getRuleCode();
+        routingRuleConsumerMapper.deleteByRuleCode(ruleCode);
         if (consumerIds == null || consumerIds.isEmpty()) {
             return;
         }
@@ -862,9 +873,13 @@ public class RoutingRuleService {
         if (consumerId == null) {
             return;
         }
+        RoutingConsumerEntity consumer = routingConsumerMapper.getById(consumerId);
+        if (consumer == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "消费者不存在");
+        }
         RoutingRuleConsumerEntity entity = new RoutingRuleConsumerEntity();
-        entity.setRuleId(ruleId);
-        entity.setConsumerId(consumerId);
+        entity.setRuleCode(ruleCode);
+        entity.setConsumerCode(consumer.getConsumerCode());
         routingRuleConsumerMapper.insert(entity);
     }
 

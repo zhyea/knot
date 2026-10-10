@@ -560,27 +560,27 @@ CREATE TABLE IF NOT EXISTS kb_routing_rules (
 
 CREATE TABLE IF NOT EXISTS kb_routing_rule_consumers (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  rule_id BIGINT NOT NULL,
-  consumer_id BIGINT NOT NULL,
+  rule_code VARCHAR(64) NOT NULL COMMENT '路由规则业务码（kb_routing_rules.rule_code），非主键 id',
+  consumer_code VARCHAR(32) NOT NULL COMMENT '消费者业务码（kb_routing_consumers.consumer_code），非主键 id',
   status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
 
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_routing_rule_consumer (rule_id, consumer_id),
-  KEY idx_rrc_consumer (consumer_id, status),
-  KEY idx_rrc_rule (rule_id, status)
+  UNIQUE KEY uk_routing_rule_consumer (rule_code, consumer_code),
+  KEY idx_rrc_consumer (consumer_code, status),
+  KEY idx_rrc_rule (rule_code, status)
 );
 
 CREATE TABLE IF NOT EXISTS kb_routing_rule_targets (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  rule_id BIGINT NOT NULL,
+  rule_code VARCHAR(64) NOT NULL COMMENT '路由规则业务码（kb_routing_rules.rule_code），非主键 id',
   target_type VARCHAR(32) NOT NULL,
   target_code VARCHAR(64) NOT NULL,
   priority INT NOT NULL DEFAULT 100,
   is_primary TINYINT(1) NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_routing_rule_target (rule_id, target_type, target_code),
-  KEY idx_routing_rule_targets_rule (rule_id, priority)
+  UNIQUE KEY uk_routing_rule_target (rule_code, target_type, target_code),
+  KEY idx_routing_rule_targets_rule (rule_code, priority)
 );
 
 -- =========================
@@ -601,9 +601,9 @@ CREATE TABLE IF NOT EXISTS kb_billing_rules (
 
 CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  rule_id BIGINT NOT NULL,
+  rule_code VARCHAR(64) NOT NULL COMMENT '计费规则业务码（kb_billing_rules.code），非主键 id',
   version_code VARCHAR(32) NOT NULL COMMENT '规则内人工可读版本号（v1/v2/2026-01）',
-  uniq_hash VARCHAR(64) NOT NULL COMMENT '版本配置内容指纹（MD5），同一 rule_id 内唯一，防止重复版本',
+  uniq_hash VARCHAR(64) NOT NULL COMMENT '版本配置内容指纹（MD5），同一 rule_code 内唯一，防止重复版本',
   billing_mode VARCHAR(32) NOT NULL,
   pricing_plan VARCHAR(32) NOT NULL DEFAULT 'FIXED' COMMENT '进阶定价方案（PricingPlanEnum）：FIXED/TIERED/PEAK_OFF_PEAK，决定“价”，不改变用量',
   currency VARCHAR(16) NOT NULL DEFAULT 'USD',
@@ -613,9 +613,9 @@ CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
   effective_from DATETIME NOT NULL,
   effective_to DATETIME DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_billing_rule_version_code (rule_id, version_code),
-  UNIQUE KEY uk_billing_rule_version_hash (rule_id, uniq_hash),
-  KEY idx_billing_rule_versions_active (rule_id, status, effective_from, effective_to)
+  UNIQUE KEY uk_billing_rule_version_code (rule_code, version_code),
+  UNIQUE KEY uk_billing_rule_version_hash (rule_code, uniq_hash),
+  KEY idx_billing_rule_versions_active (rule_code, status, effective_from, effective_to)
 );
 
 -- =========================
