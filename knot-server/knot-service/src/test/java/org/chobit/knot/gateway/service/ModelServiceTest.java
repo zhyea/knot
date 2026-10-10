@@ -48,6 +48,6 @@ class ModelServiceTest {
     }
 
     private static ModelService modelService() {
-        return new ModelService(null, null, null, null, null, null, null, null, null);
+        return new ModelService(null, null, null, null, null, null, null, null, null, null);
     }
 }

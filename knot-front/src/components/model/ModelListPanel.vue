@@ -52,7 +52,7 @@
 <script setup lang="ts">
 import type {PropType} from "vue";
 import type {Row, RowAction} from "@/types";
-import {CopyDocument, Delete, Document, Edit, RefreshLeft} from "@element-plus/icons-vue";
+import {CopyDocument, Delete, Discount, Document, Edit, RefreshLeft} from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {updateModelStatus} from "@/api/models";
@@ -68,7 +68,7 @@ defineProps({
   showRefresh: { type: Boolean, default: true }
 });
 
-const emit = defineEmits(["create", "refresh", "edit", "copy", "log", "delete", "restore", "page-change", "size-change", "changed"]);
+const emit = defineEmits(["create", "refresh", "edit", "copy", "discount", "log", "delete", "restore", "page-change", "size-change", "changed"]);
 
 const { labelOf } = useEnumOptions();
 
@@ -97,6 +97,7 @@ function rowActions(row: Row): RowAction[] {
   return [
     { key: "edit", label: "编辑", icon: Edit },
     { key: "copy", label: "复制", icon: CopyDocument },
+    { key: "discount", label: "折扣策略", icon: Discount },
     { key: "log", label: "日志", icon: Document },
     { key: "delete", label: "删除", icon: Delete, type: "danger" }
   ];

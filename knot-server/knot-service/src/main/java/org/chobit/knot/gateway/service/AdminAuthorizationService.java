@@ -61,7 +61,7 @@ public class AdminAuthorizationService {
                 user.getId(),
                 user.getUsername(),
                 user.getRealName(),
-                user.getDeptId(),
+                user.getDeptCode(),
                 user.getDeptName(),
                 userMapper.listRoleCodesByUserId(userId),
                 listPermissionCodes(userId),

@@ -1,7 +1,7 @@
 <template>
   <el-drawer
     :model-value="modelValue"
-    :title="`折扣策略 - 供应商 #${providerId ?? ''}`"
+    :title="`折扣策略 - 模型 ${modelCode}`"
     size="50%"
     class="drawer-with-scrollbar"
     destroy-on-close
@@ -30,9 +30,9 @@
       </el-table>
     </el-scrollbar>
 
-    <ProviderDiscountFormDialog
+    <ModelDiscountFormDialog
       v-model="formVisible"
-      :provider-id="providerId"
+      :model-code="modelCode"
       :policy="editingPolicy"
       @saved="onFormSaved"
     />
@@ -40,16 +40,16 @@
 </template>
 
 <script setup lang="ts">
-import {type PropType,  ref, watch} from "vue";
+import {ref, watch} from "vue";
 import {Edit} from "@element-plus/icons-vue";
 import RowActions from "../common/RowActions.vue";
-import {listDiscountPolicies} from "@/api/providers";
-import ProviderDiscountFormDialog from "./ProviderDiscountFormDialog.vue";
+import {listDiscountPolicies} from "@/api/models";
+import ModelDiscountFormDialog from "./ModelDiscountFormDialog.vue";
 import type {Dict, Row} from "@/types";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  providerId: { type: Number as PropType<number | null>, default: null }
+  modelCode: { type: String, default: "" }
 });
 
 const emit = defineEmits(["update:modelValue", "changed"]);
@@ -60,10 +60,10 @@ const formVisible = ref(false);
 const editingPolicy = ref<Dict | null>(null);
 
 async function load() {
-  if (!props.providerId) return;
+  if (!props.modelCode) return;
   loading.value = true;
   try {
-    const res = await listDiscountPolicies(props.providerId);
+    const res = await listDiscountPolicies(props.modelCode);
     rows.value = Array.isArray(res) ? res : res?.list || [];
   } finally {
     loading.value = false;
@@ -92,9 +92,9 @@ function onClosed() {
 }
 
 watch(
-  () => [props.modelValue, props.providerId],
-  ([visible, providerId]) => {
-    if (visible && providerId) load();
+  () => [props.modelValue, props.modelCode],
+  ([visible, modelCode]) => {
+    if (visible && modelCode) load();
   }
 );
 

@@ -23,7 +23,7 @@
             <el-col :span="12">
               <el-form-item label="所属部门">
                 <RemoteEntitySelect
-                  v-model="form.deptId"
+                  v-model="form.deptCode"
                   :load-function="loadDepartmentOptions"
                   placeholder="请选择部门"
                   clearable
@@ -97,7 +97,7 @@ const form = reactive({
   id: null,
   appCode: "",
   name: "",
-  deptId: null,
+  deptCode: null,
   ownerUsername: null,
   remark: "",
   quotaPolicy: emptyQuotaPolicy()
@@ -109,7 +109,7 @@ function fillFormFromRow(row: Row): void {
   form.id = row.id;
   form.appCode = row.appCode || "";
   form.name = row.name || "";
-  form.deptId = row.deptId ?? null;
+  form.deptCode = row.deptCode ?? null;
   form.ownerUsername = row.ownerUsername ?? null;
   form.remark = row.remark ?? "";
   form.quotaPolicy = normalizeQuotaPolicy(row.quotaPolicy);
@@ -122,7 +122,7 @@ function resetForm() {
     form.id = null;
     form.appCode = "";
     form.name = "";
-    form.deptId = null;
+    form.deptCode = null;
     form.ownerUsername = null;
     form.remark = "";
     form.quotaPolicy = emptyQuotaPolicy();
@@ -149,7 +149,7 @@ function buildPayload() {
   return {
     appCode: form.appCode,
     name: form.name,
-    deptId: form.deptId,
+    deptCode: form.deptCode,
     ownerUsername: form.ownerUsername,
     remark: form.remark?.trim() || null,
     quotaPolicy

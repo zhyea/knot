@@ -8,7 +8,8 @@ public class AppEntity {
     /** 应用业务码（kb_apps.app_code），非主键 id */
     private String appCode;
     private String name;
-    private Long deptId;
+    /** 归属部门业务码（绑定 ks_departments.dept_code，非主键 id） */
+    private String deptCode;
     /**
      * 关联 ks_departments.dept_name，仅查询展示
      */

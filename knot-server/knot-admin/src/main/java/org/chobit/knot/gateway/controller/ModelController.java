@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.converter.ModelConverter;
 import org.chobit.knot.gateway.dto.model.ModelDto;
+import org.chobit.knot.gateway.dto.provider.DiscountPolicyDto;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -15,6 +16,7 @@ import org.chobit.knot.gateway.vo.model.ModelApiProtocolItem;
 import org.chobit.knot.gateway.vo.model.ModelTypeItem;
 import org.chobit.knot.gateway.vo.model.RequestAdapterItem;
 import org.chobit.knot.gateway.vo.model.UsageExtractorItem;
+import org.chobit.knot.gateway.vo.provider.DiscountPolicy;
 import org.chobit.knot.gateway.model.ModelOptionQuery;
 import org.chobit.knot.gateway.service.OptionsService;
 import org.chobit.knot.gateway.vo.common.OptionItem;
@@ -181,5 +183,49 @@ public class ModelController {
     public ModelItem restore(@PathVariable Long id) {
         ModelDto restored = modelService.restore(id);
         return modelConverter.toVO(restored);
+    }
+
+    // ==================== 折扣策略（绑定供应商模型 model_code） ====================
+
+    @PostMapping("/{modelCode}/discount-policies/list")
+    public List<DiscountPolicy> listDiscountPolicies(@PathVariable String modelCode) {
+        return modelService.listDiscountPolicies(modelCode).stream()
+                .map(ModelController::toDiscountPolicyVO)
+                .toList();
+    }
+
+    @OperationLog(module = "model", operation = "CREATE", entityType = "Model",
+            entityId = "#p0",
+            entityNameAfter = "#p0",
+            description = "'新增折扣策略'",
+            newValueSpel = "#result")
+    @PostMapping("/{modelCode}/discount-policies")
+    public DiscountPolicy createDiscountPolicy(@PathVariable String modelCode,
+                                               @RequestBody @Valid DiscountPolicy request) {
+        return toDiscountPolicyVO(modelService.createDiscountPolicy(modelCode, toDiscountPolicyDto(request)));
+    }
+
+    @OperationLog(module = "model", operation = "UPDATE", entityType = "Model",
+            entityId = "#p0",
+            entityNameAfter = "#p0",
+            description = "'更新折扣策略'",
+            oldValueSpel = "@modelService.discountPolicyAuditSnapshot(#p1)",
+            newValueSpel = "#result")
+    @PutMapping("/{modelCode}/discount-policies/{policyId}")
+    public DiscountPolicy updateDiscountPolicy(@PathVariable String modelCode,
+                                               @PathVariable Long policyId,
+                                               @RequestBody @Valid DiscountPolicy request) {
+        return toDiscountPolicyVO(modelService.updateDiscountPolicy(modelCode, policyId, toDiscountPolicyDto(request)));
+    }
+
+    private static DiscountPolicyDto toDiscountPolicyDto(DiscountPolicy vo) {
+        return new DiscountPolicyDto(
+                null, vo.policyName(), vo.scopeType(), vo.scopeRefId(),
+                vo.discountType(), vo.discountValue(), vo.priority(), vo.status());
+    }
+
+    private static DiscountPolicy toDiscountPolicyVO(DiscountPolicyDto dto) {
+        return new DiscountPolicy(dto.id(), dto.policyName(), dto.scopeType(), dto.scopeRefId(),
+                dto.discountType(), dto.discountValue(), dto.priority(), dto.status());
     }
 }

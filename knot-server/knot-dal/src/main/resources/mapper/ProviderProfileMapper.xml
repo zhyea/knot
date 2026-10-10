@@ -57,9 +57,13 @@
         where provider_account_id in (select id from kb_provider_accounts where provider_code = #{providerCode})
     </select>
 
+    <!-- 折扣策略现按模型业务码绑定，故经 kb_models 反查该供应商名下模型所引用的策略数 -->
     <select id="countDiscountPoliciesByProviderCode" resultType="java.lang.Long">
         select count(1) from kb_provider_discount_policies
-        where provider_account_id in (select id from kb_provider_accounts where provider_code = #{providerCode})
+        where model_code in (
+            select model_code from kb_models
+            where provider_account_code in (select code from kb_provider_accounts where provider_code = #{providerCode})
+        )
     </select>
 
     <select id="countModelsByProviderCode" resultType="java.lang.Long">

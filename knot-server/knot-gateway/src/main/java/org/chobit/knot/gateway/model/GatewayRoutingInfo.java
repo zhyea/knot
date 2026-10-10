@@ -25,7 +25,8 @@ public record GatewayRoutingInfo(RuleInfo rule,
     public record AppInfo(Long id,
                           String appId,
                           String name,
-                          Long deptId) {
+                          /** 归属部门业务码（ks_departments.dept_code，非主键 id） */
+                          String deptCode) {
     }
 
     /** 归属用户（按 username 绑定，非主键 id；realName 由 ks_users join 派生展示） */
@@ -33,7 +34,8 @@ public record GatewayRoutingInfo(RuleInfo rule,
                            String realName) {
     }
 
-    public record DepartmentInfo(Long id,
+    /** 归属部门（按 dept_code 业务码绑定，非主键 id） */
+    public record DepartmentInfo(String deptCode,
                                  String name) {
     }
 }

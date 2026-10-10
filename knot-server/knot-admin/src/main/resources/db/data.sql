@@ -19,10 +19,10 @@
 -- =========================
 
 -- 用户 (password_hash = BCrypt('admin123'))
-INSERT IGNORE INTO ks_users (id, username, password_hash, real_name, dept_id, status) VALUES
-(1, 'admin', '$2a$10$HUYfxtiEgiRARR/fG46hEeAvcfcQ2WXMPh2NxPw5zkc06fDKeWkxi', '系统管理员', 1, 1),
-(2, 'zhangsan', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '张三', 3, 1),
-(3, 'lisi', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '李四', 2, 1);
+INSERT IGNORE INTO ks_users (id, username, password_hash, real_name, dept_code, status) VALUES
+(1, 'admin', '$2a$10$HUYfxtiEgiRARR/fG46hEeAvcfcQ2WXMPh2NxPw5zkc06fDKeWkxi', '系统管理员', 'HQ',  1),
+(2, 'zhangsan', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '张三', 'OPS', 1),
+(3, 'lisi', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '李四', 'RND', 1);
 
 -- 部门
 INSERT IGNORE INTO ks_departments (id, dept_code, dept_name, parent_id, status, sort_order, remark) VALUES
@@ -499,11 +499,14 @@ INSERT IGNORE INTO kb_provider_credentials (id, provider_account_id, credential_
 (2, 2, 'api-key', 'ANTHROPIC_API_KEY', 'ENC:v3v8kgxDLYoAKyNICNxGKU655xOH3Sd1k2qtSS+bgYcvtq/fXGyufZ1gA+Qr2LMBT1eRTJ6teFCPY5r/OvTjqw==', 1),
 (3, 3, 'api-key', 'BEARER', 'ENC:pnMjBuMkVI19v432F8xRJ1U976XGPXwM19DakGTc8GoKMEvIy/6QcOMUbwwsRbXMJ4kqXsY+X+sKrnBuuijw', 1);
 
--- 供应商折扣策略
-INSERT IGNORE INTO kb_provider_discount_policies (id, provider_account_id, policy_name, scope_type, scope_ref_id, discount_type, discount_value, priority, effective_from, status) VALUES
-(1, 1, '新用户9折',   'GLOBAL',   NULL, 'PERCENTAGE', 0.9000, 100, NOW(), 1),
-(2, 2, '企业客户8折', 'GLOBAL',   NULL, 'PERCENTAGE', 0.8000, 90,  NOW(), 1),
-(3, 3, '直减5元',     'GLOBAL',   NULL, 'FIXED',      5.0000, 100, NOW(), 1);
+-- 折扣策略（绑定供应商模型业务码 kb_models.model_code）
+-- 折扣是模型级概念：同一供应商账户下的不同模型可以有不同折扣，故种子特意让
+-- openai-default 下的 gpt-4o 与 gpt-4o-mini 各持一条不同策略，用于验证该语义。
+INSERT IGNORE INTO kb_provider_discount_policies (id, model_code, policy_name, scope_type, scope_ref_id, discount_type, discount_value, priority, effective_from, status) VALUES
+(1, 'gpt-4o',            '旗舰模型9折',   'GLOBAL',   NULL, 'PERCENTAGE', 0.9000, 100, NOW(), 1),
+(2, 'gpt-4o-mini',       '轻量模型75折',  'GLOBAL',   NULL, 'PERCENTAGE', 0.7500, 100, NOW(), 1),
+(3, 'claude-sonnet-4-20250514', '企业客户8折', 'GLOBAL', NULL, 'PERCENTAGE', 0.8000, 90,  NOW(), 1),
+(4, 'deepseek-chat',     '直减5元',       'GLOBAL',   NULL, 'FIXED',      5.0000, 100, NOW(), 1);
 
 -- 模型
 INSERT IGNORE INTO kb_models (id, provider_account_code, model_code, upstream_model, version, base_url, status) VALUES
@@ -580,10 +583,10 @@ INSERT IGNORE INTO kb_model_api_bindings (id, model_id, protocol, api_path, requ
 -- =========================
 
 -- 应用
-INSERT IGNORE INTO kb_apps (id, app_code, name, dept_id, owner_username, remark, status) VALUES
-(1, 'app_001', '内部知识库助手',   1, 'admin', '面向内部员工的知识检索与问答', 1),
-(2, 'app_002', '客服对话系统',     3, 'zhangsan', '对外客服场景的对话接入',       1),
-(3, 'app_003', '代码审查工具',     2, 'lisi', '研发流程中的代码审查辅助',     1);
+INSERT IGNORE INTO kb_apps (id, app_code, name, dept_code, owner_username, remark, status) VALUES
+(1, 'app_001', '内部知识库助手',   'HQ',  'admin', '面向内部员工的知识检索与问答', 1),
+(2, 'app_002', '客服对话系统',     'OPS', 'zhangsan', '对外客服场景的对话接入',       1),
+(3, 'app_003', '代码审查工具',     'RND', 'lisi', '研发流程中的代码审查辅助',     1);
 
 -- 应用凭证
 INSERT IGNORE INTO kb_app_credentials (id, app_code, app_key, app_secret_hash, status) VALUES

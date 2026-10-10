@@ -11,7 +11,9 @@ import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.converter.ModelConverter;
 import org.chobit.knot.gateway.dto.model.ModelApiBindingDto;
 import org.chobit.knot.gateway.dto.model.ModelDto;
+import org.chobit.knot.gateway.dto.provider.DiscountPolicyDto;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
+import org.chobit.knot.gateway.entity.DiscountPolicyEntity;
 import org.chobit.knot.gateway.entity.LogicalModelEntity;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
@@ -20,6 +22,7 @@ import org.chobit.knot.gateway.entity.ProviderModelMappingEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
+import org.chobit.knot.gateway.mapper.DiscountPolicyMapper;
 import org.chobit.knot.gateway.mapper.LogicalModelMapper;
 import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
@@ -38,6 +41,8 @@ import org.chobit.knot.gateway.vo.model.UsageExtractorItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -51,6 +56,7 @@ import java.util.stream.Collectors;
 @Service
 public class ModelService {
     private final ModelMapper modelMapper;
+    private final DiscountPolicyMapper discountPolicyMapper;
     private final ModelApiBindingMapper modelApiBindingMapper;
     private final LogicalModelMapper logicalModelMapper;
     private final BillingRuleMapper billingRuleMapper;
@@ -64,6 +70,7 @@ public class ModelService {
      * Constructs a new instance.
      */
     public ModelService(ModelMapper modelMapper,
+                        DiscountPolicyMapper discountPolicyMapper,
                         ModelApiBindingMapper modelApiBindingMapper,
                         LogicalModelMapper logicalModelMapper,
                         BillingRuleMapper billingRuleMapper,
@@ -73,6 +80,7 @@ public class ModelService {
                         UsageExtractorCatalog usageExtractorCatalog,
                         RequestAdapterCatalog requestAdapterCatalog) {
         this.modelMapper = modelMapper;
+        this.discountPolicyMapper = discountPolicyMapper;
         this.modelApiBindingMapper = modelApiBindingMapper;
         this.logicalModelMapper = logicalModelMapper;
         this.billingRuleMapper = billingRuleMapper;
@@ -330,7 +338,84 @@ public class ModelService {
                 "该供应商模型已被厂商模型映射引用，无法删除");
         requireNoReference(modelMapper.countApiBindingsByModelId(id),
                 "该供应商模型已被 API 协议绑定引用，无法删除");
+        requireNoReference(discountPolicyMapper.countByModelCode(existing.getModelCode()),
+                "该供应商模型已被折扣策略引用，无法删除");
         modelMapper.logicalDelete(id);
+    }
+
+    // ==================== 折扣策略（绑定供应商模型 model_code） ====================
+
+    /**
+     * 列出某供应商模型下的折扣策略。modelCode 为业务码（kb_models.model_code），非主键 id。
+     */
+    public List<DiscountPolicyDto> listDiscountPolicies(String modelCode) {
+        requireExistingModel(modelCode);
+        return discountPolicyMapper.listByModelCode(modelCode).stream()
+                .map(this::toDiscountPolicyDto)
+                .toList();
+    }
+
+    @Transactional
+    public DiscountPolicyDto createDiscountPolicy(String modelCode, DiscountPolicyDto request) {
+        requireExistingModel(modelCode);
+        DiscountPolicyEntity entity = new DiscountPolicyEntity();
+        entity.setModelCode(modelCode);
+        entity.setPolicyName(request.policyName());
+        entity.setScopeType(request.scopeType());
+        entity.setScopeRefId(request.scopeRefId());
+        entity.setDiscountType(request.discountType());
+        entity.setDiscountValue(BigDecimal.valueOf(request.discountValue()));
+        entity.setPriority(request.priority());
+        entity.setEffectiveFrom(LocalDateTime.now());
+        entity.setStatus(request.status() != null ? request.status() : EnabledStatusEnum.ENABLED.code());
+        discountPolicyMapper.insert(entity);
+        return toDiscountPolicyDto(entity);
+    }
+
+    @Transactional
+    public DiscountPolicyDto updateDiscountPolicy(String modelCode, Long policyId, DiscountPolicyDto request) {
+        requireExistingModel(modelCode);
+        DiscountPolicyEntity entity = discountPolicyMapper.getById(policyId);
+        // 归属模型不可跨模型改：命中不到即视为不存在
+        if (entity == null || !modelCode.equals(entity.getModelCode())) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "折扣策略不存在");
+        }
+        entity.setPolicyName(request.policyName());
+        entity.setScopeType(request.scopeType());
+        entity.setScopeRefId(request.scopeRefId());
+        entity.setDiscountType(request.discountType());
+        entity.setDiscountValue(BigDecimal.valueOf(request.discountValue()));
+        entity.setPriority(request.priority());
+        entity.setStatus(request.status());
+        discountPolicyMapper.update(entity);
+        return toDiscountPolicyDto(entity);
+    }
+
+    public Map<String, Object> discountPolicyAuditSnapshot(Long policyId) {
+        if (policyId == null) {
+            return null;
+        }
+        DiscountPolicyEntity entity = discountPolicyMapper.getById(policyId);
+        return entity == null ? null : JsonKit.toMap(entity);
+    }
+
+    /** 折扣策略按模型业务码绑定，模型必须存在且未删除。 */
+    private void requireExistingModel(String modelCode) {
+        if (modelCode == null || modelCode.isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "模型业务码不能为空");
+        }
+        ModelEntity existing = modelMapper.getByCode(modelCode);
+        if (existing == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "供应商模型不存在");
+        }
+    }
+
+    private DiscountPolicyDto toDiscountPolicyDto(DiscountPolicyEntity e) {
+        return new DiscountPolicyDto(
+                e.getId(), e.getPolicyName(), e.getScopeType(), e.getScopeRefId(),
+                e.getDiscountType(), e.getDiscountValue() != null ? e.getDiscountValue().doubleValue() : 0.0,
+                e.getPriority() != null ? e.getPriority() : 100, e.getStatus()
+        );
     }
 
     private static void requireNoReference(Long count, String message) {

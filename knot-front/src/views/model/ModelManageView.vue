@@ -34,6 +34,7 @@
           :show-refresh="false"
           @edit="openEdit"
           @copy="openCopy"
+          @discount="openDiscount"
           @delete="remove"
           @restore="restore"
           @log="openChangeLog"
@@ -45,6 +46,7 @@
     </div>
 
     <ModelFormDrawer v-model="formVisible" :model="editingModel" @saved="resetPage" />
+    <ModelDiscountDrawer v-model="discountDrawerVisible" :model-code="discountModelCode" />
     <OperationLogDrawer
       v-model="logDrawer"
       :title="`模型变更日志 - ${logModelName || ''}`"
@@ -63,6 +65,7 @@ import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import ModelFormDrawer from "../../components/model/ModelFormDrawer.vue";
+import ModelDiscountDrawer from "../../components/model/ModelDiscountDrawer.vue";
 import ModelListPanel from "../../components/model/ModelListPanel.vue";
 import {deleteModel, getModel, listModels, restoreModel} from "@/api/models";
 import {listModelOperationLogs} from "@/api/operationLogs";
@@ -94,6 +97,8 @@ const {
 
 const formVisible = ref(false);
 const editingModel = ref<Dict | null>(null);
+const discountDrawerVisible = ref(false);
+const discountModelCode = ref("");
 const logDrawer = ref(false);
 const logModelId = ref<number | string | null>(null);
 const logModelName = ref("");
@@ -112,6 +117,12 @@ async function openCopy(row: Row) {
   const detail = row?.id ? await getModel(row.id) : row;
   editingModel.value = buildModelCopy(detail || row);
   formVisible.value = true;
+}
+
+/** 折扣策略绑定在模型业务码 model_code 上，故抽屉按 modelCode 而非 id 传参 */
+function openDiscount(row: Row) {
+  discountModelCode.value = String(row.modelCode || "");
+  discountDrawerVisible.value = true;
 }
 
 function openChangeLog(row: Row) {

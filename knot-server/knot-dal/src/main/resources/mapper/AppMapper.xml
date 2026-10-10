@@ -14,7 +14,7 @@
 
         a.name,
 
-        a.dept_id,
+        a.dept_code,
 
         d.dept_name,
 
@@ -38,7 +38,7 @@
 
         from kb_apps a
 
-        left join ks_departments d on a.dept_id = d.id and d.is_deleted = 0
+        left join ks_departments d on a.dept_code = d.dept_code and d.is_deleted = 0
 
         left join ks_users u on a.owner_username = u.username and u.is_deleted = 0
 
@@ -64,7 +64,7 @@
 
         from kb_apps a
 
-        left join ks_departments d on a.dept_id = d.id and d.is_deleted = 0
+        left join ks_departments d on a.dept_code = d.dept_code and d.is_deleted = 0
 
         left join ks_users u on a.owner_username = u.username and u.is_deleted = 0
 
@@ -84,9 +84,9 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
 
-        insert into kb_apps(app_code, name, dept_id, owner_username, remark, status, is_deleted)
+        insert into kb_apps(app_code, name, dept_code, owner_username, remark, status, is_deleted)
 
-        values(#{appCode}, #{name}, #{deptId}, #{ownerUsername}, #{remark}, 1, 0)
+        values(#{appCode}, #{name}, #{deptCode}, #{ownerUsername}, #{remark}, 1, 0)
 
     </insert>
 
@@ -98,7 +98,7 @@
 
         set name = #{name},
 
-            dept_id = #{deptId},
+            dept_code = #{deptCode},
 
             owner_username = #{ownerUsername},
 
@@ -142,9 +142,9 @@
 
 
 
-    <select id="countByDeptId" resultType="java.lang.Long">
+    <select id="countByDeptCode" resultType="java.lang.Long">
 
-        select count(1) from kb_apps where dept_id = #{deptId} and is_deleted = 0
+        select count(1) from kb_apps where dept_code = #{deptCode} and is_deleted = 0
 
     </select>
 

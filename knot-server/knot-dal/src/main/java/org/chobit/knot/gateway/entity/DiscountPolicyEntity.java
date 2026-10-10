@@ -8,7 +8,8 @@ import java.time.LocalDateTime;
 @Data
 public class DiscountPolicyEntity {
     private Long id;
-    private Long providerId;
+    /** 绑定的供应商模型业务码（kb_models.model_code），非主键 id */
+    private String modelCode;
     private String policyName;
     private String scopeType;
     private Long scopeRefId;

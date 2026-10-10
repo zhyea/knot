@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS ks_users (
   username VARCHAR(64) NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   real_name VARCHAR(100) DEFAULT NULL,
-  dept_id BIGINT DEFAULT NULL,
+  dept_code VARCHAR(64) DEFAULT NULL COMMENT '归属部门业务码（绑定 ks_departments.dept_code，非主键 id）',
   phone VARCHAR(32) DEFAULT NULL,
   email VARCHAR(128) DEFAULT NULL,
   status INT NOT NULL DEFAULT 1,
@@ -293,7 +293,7 @@ CREATE TABLE IF NOT EXISTS kb_provider_credentials (
 
 CREATE TABLE IF NOT EXISTS kb_provider_discount_policies (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  provider_account_id BIGINT NOT NULL,
+  model_code VARCHAR(128) NOT NULL COMMENT '绑定的供应商模型业务码（kb_models.model_code），非主键 id',
   policy_name VARCHAR(100) NOT NULL,
   scope_type VARCHAR(32) NOT NULL,
   scope_ref_id BIGINT DEFAULT NULL,
@@ -306,7 +306,7 @@ CREATE TABLE IF NOT EXISTS kb_provider_discount_policies (
   remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  KEY idx_provider_discount_account_time (provider_account_id, effective_from, effective_to),
+  KEY idx_provider_discount_model_time (model_code, effective_from, effective_to),
   KEY idx_provider_discount_scope (scope_type, scope_ref_id, status)
 );
 
@@ -492,7 +492,7 @@ CREATE TABLE IF NOT EXISTS kb_apps (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   app_code VARCHAR(64) NOT NULL,
   name VARCHAR(100) NOT NULL,
-  dept_id BIGINT DEFAULT NULL,
+  dept_code VARCHAR(64) DEFAULT NULL COMMENT '归属部门业务码（绑定 ks_departments.dept_code，非主键 id）',
   owner_username VARCHAR(64) DEFAULT NULL COMMENT '归属用户登录名（绑定 username，非主键 id）',
   remark VARCHAR(255) DEFAULT NULL COMMENT '备注',
   is_deleted TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除：0-否 1-是',

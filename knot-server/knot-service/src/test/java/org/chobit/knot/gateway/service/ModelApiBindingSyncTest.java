@@ -66,7 +66,7 @@ class ModelApiBindingSyncTest {
     };
 
     private final ModelService service = new ModelService(
-            modelMapper, bindingMapper, logicalModelMapper, billingRuleMapper, providerAccountMapper,
+            modelMapper, null, bindingMapper, logicalModelMapper, billingRuleMapper, providerAccountMapper,
             modelConverter, trafficPolicySupport, null, null);
 
     @BeforeEach

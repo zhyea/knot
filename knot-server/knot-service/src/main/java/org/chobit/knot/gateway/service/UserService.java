@@ -180,7 +180,7 @@ public class UserService {
      */
     @Transactional
     public UserDto createUser(UserDto request) {
-        DepartmentEntity department = validateDepartment(request.deptId());
+        DepartmentEntity department = validateDepartment(request.deptCode());
         List<Long> roleIds = normalizeRoleIds(request.roleIds());
         String password = request.password() == null ? "" : request.password().trim();
         if (password.isEmpty()) {
@@ -193,7 +193,7 @@ public class UserService {
         UserEntity entity = new UserEntity();
         entity.setUsername(request.username());
         entity.setRealName(request.realName());
-        entity.setDeptId(department != null ? department.getId() : null);
+        entity.setDeptCode(department != null ? department.getDeptCode() : null);
         entity.setDeptName(department != null ? department.getDeptName() : null);
         entity.setStatus(request.status());
         entity.setPasswordHash(passwordEncoder.encode(password));
@@ -225,10 +225,10 @@ public class UserService {
         if (entity == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
-        DepartmentEntity department = validateDepartment(request.deptId());
+        DepartmentEntity department = validateDepartment(request.deptCode());
         List<Long> roleIds = normalizeRoleIds(request.roleIds());
         entity.setRealName(request.realName());
-        entity.setDeptId(department != null ? department.getId() : null);
+        entity.setDeptCode(department != null ? department.getDeptCode() : null);
         entity.setDeptName(department != null ? department.getDeptName() : null);
         entity.setStatus(request.status());
         userMapper.updateUser(entity);
@@ -309,11 +309,11 @@ public class UserService {
                 .toList();
     }
 
-    private DepartmentEntity validateDepartment(Long deptId) {
-        if (deptId == null) {
+    private DepartmentEntity validateDepartment(String deptCode) {
+        if (deptCode == null || deptCode.isBlank()) {
             return null;
         }
-        DepartmentEntity department = departmentMapper.getById(deptId);
+        DepartmentEntity department = departmentMapper.getByCode(deptCode);
         if (department == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "部门不存在");
         }

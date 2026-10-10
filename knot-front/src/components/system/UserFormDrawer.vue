@@ -18,7 +18,7 @@
           </el-form-item>
           <el-form-item label="所属部门">
             <RemoteEntitySelect
-              v-model="form.deptId"
+              v-model="form.deptCode"
               :load-function="loadDepartmentOptions"
               placeholder="请选择部门"
               clearable
@@ -86,7 +86,7 @@ interface UserFormState {
   username: string;
   realName: string;
   password: string;
-  deptId: number | string | null;
+  deptCode: string | null;
   roleIds: number[];
   status: number;
 }
@@ -96,7 +96,7 @@ const form = reactive<UserFormState>({
   username: "",
   realName: "",
   password: "",
-  deptId: null,
+  deptCode: null,
   roleIds: [],
   status: 1
 });
@@ -109,7 +109,7 @@ function resetForm() {
     form.username = props.user.username;
     form.realName = props.user.realName || "";
     form.password = "";
-    form.deptId = props.user.deptId ?? null;
+    form.deptCode = props.user.deptCode ?? null;
     form.roleIds = Array.isArray(props.user.roleIds) ? [...props.user.roleIds] : [];
     form.status = props.user.status ?? 1;
     return;
@@ -118,7 +118,7 @@ function resetForm() {
   form.username = "";
   form.realName = "";
   form.password = "";
-  form.deptId = null;
+  form.deptCode = null;
   form.roleIds = [];
   form.status = 1;
 }
@@ -160,7 +160,7 @@ async function submit() {
       id: form.id,
       username: form.username.trim(),
       realName: form.realName?.trim() || form.username.trim(),
-      deptId: form.deptId,
+      deptCode: form.deptCode,
       roleIds: Array.isArray(form.roleIds) ? [...form.roleIds] : [],
       status: form.status
     };

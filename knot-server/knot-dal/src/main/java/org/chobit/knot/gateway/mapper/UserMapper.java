@@ -16,7 +16,8 @@ public interface UserMapper {
 
     UserEntity getUserByUsername(String username);
 
-    Long countByDeptId(Long deptId);
+    /** 按部门业务码统计用户数（ks_users.dept_code 存业务码） */
+    Long countByDeptCode(@Param("deptCode") String deptCode);
 
     int insertUser(UserEntity entity);
 

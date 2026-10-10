@@ -7,7 +7,8 @@ public record AppDto(
         Long id,
         String appCode,
         String name,
-        Long deptId,
+        /** 归属部门业务码（ks_departments.dept_code，非主键 id） */
+        String deptCode,
         String deptName,
         String ownerUsername,
         String ownerName,

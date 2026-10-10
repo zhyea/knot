@@ -11,11 +11,8 @@ import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.ProviderConverter;
-import org.chobit.knot.gateway.dto.provider.DiscountPolicyDto;
-import org.chobit.knot.gateway.entity.DiscountPolicyEntity;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.chobit.knot.gateway.entity.ProviderAccountEntity;
-import org.chobit.knot.gateway.mapper.DiscountPolicyMapper;
 import org.chobit.knot.gateway.mapper.ProviderCredentialMapper;
 import org.chobit.knot.gateway.mapper.ProviderAccountMapper;
 import org.chobit.knot.gateway.mapper.ProviderProfileMapper;
@@ -45,7 +42,6 @@ public class ProviderService {
     private final ProviderAccountMapper providerAccountMapper;
     private final ProviderProfileMapper providerProfileMapper;
     private final ProviderCredentialMapper providerCredentialMapper;
-    private final DiscountPolicyMapper discountPolicyMapper;
     private final ProviderConverter providerConverter;
     private final ProviderCredentialSupport credentialSupport;
     private final CurrentAuth currentAuth;
@@ -58,7 +54,6 @@ public class ProviderService {
     public ProviderService(ProviderAccountMapper providerAccountMapper,
                            ProviderProfileMapper providerProfileMapper,
                            ProviderCredentialMapper providerCredentialMapper,
-                           DiscountPolicyMapper discountPolicyMapper,
                            ProviderConverter providerConverter,
                            ProviderCredentialSupport credentialSupport,
                            CurrentAuth currentAuth,
@@ -67,7 +62,6 @@ public class ProviderService {
         this.providerAccountMapper = providerAccountMapper;
         this.providerProfileMapper = providerProfileMapper;
         this.providerCredentialMapper = providerCredentialMapper;
-        this.discountPolicyMapper = discountPolicyMapper;
         this.providerConverter = providerConverter;
         this.credentialSupport = credentialSupport;
         this.currentAuth = currentAuth;
@@ -346,78 +340,4 @@ public class ProviderService {
         }
     }
 
-    // ==================== 折扣策略 ====================
-
-    /**
-     * Lists matching results. Executes the public operation.
-     */
-    public List<DiscountPolicyDto> listDiscountPolicies(Long providerId) {
-        getById(providerId);
-        return discountPolicyMapper.listByProviderId(providerId).stream()
-                .map(this::toDiscountPolicyDto)
-                .toList();
-    }
-
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
-    @Transactional
-    public DiscountPolicyDto createDiscountPolicy(Long providerId, DiscountPolicyDto request) {
-        getById(providerId);
-        DiscountPolicyEntity entity = new DiscountPolicyEntity();
-        entity.setProviderId(providerId);
-        entity.setPolicyName(request.policyName());
-        entity.setScopeType(request.scopeType());
-        entity.setScopeRefId(request.scopeRefId());
-        entity.setDiscountType(request.discountType());
-        entity.setDiscountValue(BigDecimal.valueOf(request.discountValue()));
-        entity.setPriority(request.priority());
-        entity.setEffectiveFrom(LocalDateTime.now());
-        entity.setStatus(request.status() != null ? request.status() : EnabledStatusEnum.ENABLED.code());
-        discountPolicyMapper.insert(entity);
-        return toDiscountPolicyDto(entity);
-    }
-
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
-    @Transactional
-    public DiscountPolicyDto updateDiscountPolicy(Long providerId, Long policyId, DiscountPolicyDto request) {
-        getById(providerId);
-        DiscountPolicyEntity entity = discountPolicyMapper.getById(policyId);
-        if (entity == null || !entity.getProviderId().equals(providerId)) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "discount policy not found");
-        }
-        entity.setPolicyName(request.policyName());
-        entity.setScopeType(request.scopeType());
-        entity.setScopeRefId(request.scopeRefId());
-        entity.setDiscountType(request.discountType());
-        entity.setDiscountValue(BigDecimal.valueOf(request.discountValue()));
-        entity.setPriority(request.priority());
-        entity.setStatus(request.status());
-        discountPolicyMapper.update(entity);
-        return toDiscountPolicyDto(entity);
-    }
-
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
-    public Map<String, Object> discountPolicyAuditSnapshot(Long policyId) {
-        if (policyId == null) {
-            return null;
-        }
-        DiscountPolicyEntity e = discountPolicyMapper.getById(policyId);
-        if (e == null) {
-            return null;
-        }
-        return JsonKit.toMap(e);
-    }
-
-    private DiscountPolicyDto toDiscountPolicyDto(DiscountPolicyEntity e) {
-        return new DiscountPolicyDto(
-                e.getId(), e.getPolicyName(), e.getScopeType(), e.getScopeRefId(),
-                e.getDiscountType(), e.getDiscountValue() != null ? e.getDiscountValue().doubleValue() : 0.0,
-                e.getPriority() != null ? e.getPriority() : 100, e.getStatus()
-        );
-    }
 }

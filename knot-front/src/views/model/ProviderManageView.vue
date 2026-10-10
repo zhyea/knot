@@ -24,7 +24,6 @@
           :page-size="pageSize"
           :show-refresh="false"
           @edit="openEdit"
-          @discount="openDiscount"
           @log="openChangeLog"
           @page-change="onPageChange"
           @size-change="onSizeChange"
@@ -37,12 +36,6 @@
       v-model="formVisible"
       :provider-id="editingProviderId"
       @saved="onProviderSaved"
-    />
-
-    <ProviderDiscountDrawer
-      v-model="discountDrawerVisible"
-      :provider-id="discountProviderId"
-      @changed="load"
     />
 
     <OperationLogDrawer
@@ -63,7 +56,6 @@ import {useListQuery} from "@/composables/useListQuery";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import ProviderAccountListPanel from "../../components/provider/ProviderAccountListPanel.vue";
 import ProviderAccountFormDrawer from "../../components/provider/ProviderAccountFormDrawer.vue";
-import ProviderDiscountDrawer from "../../components/provider/ProviderDiscountDrawer.vue";
 import {listProviderOperationLogs} from "@/api/operationLogs";
 import {listProviders} from "@/api/providers";
 
@@ -83,8 +75,6 @@ const {
 
 const formVisible = ref(false);
 const editingProviderId = ref<number | null>(null);
-const discountDrawerVisible = ref(false);
-const discountProviderId = ref<number | null>(null);
 const logDrawer = ref(false);
 const logProviderId = ref<number | null>(null);
 const logProviderName = ref("");
@@ -101,11 +91,6 @@ function openEdit(row: Row) {
 
 function onProviderSaved() {
   load();
-}
-
-function openDiscount(row: Row) {
-  discountProviderId.value = row.id;
-  discountDrawerVisible.value = true;
 }
 
 function openChangeLog(row: Row) {

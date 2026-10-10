@@ -44,11 +44,11 @@ import {type PropType,  computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import EnumSelect from "../common/EnumSelect.vue";
 import EnumControl from "../common/EnumControl.vue";
-import {createDiscountPolicy, updateDiscountPolicy} from "@/api/providers";
+import {createDiscountPolicy, updateDiscountPolicy} from "@/api/models";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  providerId: { type: Number as PropType<number | null>, default: null },
+  modelCode: { type: String, default: "" },
   /** 传入策略行表示编辑，null 表示新增 */
   policy: { type: Object as PropType<Dict | null>, default: null }
 });
@@ -100,7 +100,7 @@ watch(
 );
 
 async function submit() {
-  if (!props.providerId) return;
+  if (!props.modelCode) return;
   saving.value = true;
   try {
     const body = {
@@ -113,9 +113,9 @@ async function submit() {
       status: form.status
     };
     if (isEdit.value) {
-      await updateDiscountPolicy(props.providerId, form.id!, body);
+      await updateDiscountPolicy(props.modelCode, form.id!, body);
     } else {
-      await createDiscountPolicy(props.providerId, body);
+      await createDiscountPolicy(props.modelCode, body);
     }
     ElMessage.success("已保存");
     emit("update:modelValue", false);

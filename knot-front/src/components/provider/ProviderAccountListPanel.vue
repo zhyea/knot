@@ -27,7 +27,6 @@
           <RowActions
             :actions="[
               { key: 'edit', label: '编辑', icon: Edit },
-              { key: 'discount', label: '折扣策略', icon: Discount },
               { key: 'log', label: '日志', icon: Document }
             ]"
             @action="(action) => handleAction(action, row)"
@@ -49,7 +48,7 @@
 </template>
 
 <script setup lang="ts">
-import {Discount, Document, Edit} from "@element-plus/icons-vue";
+import {Document, Edit} from "@element-plus/icons-vue";
 import type {PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
@@ -71,7 +70,6 @@ const emit = defineEmits([
   "create",
   "refresh",
   "edit",
-  "discount",
   "log",
   "page-change",
   "size-change",
@@ -84,7 +82,6 @@ const {togglingId, onEnabledChange} = useEnabledToggle({
 
 function handleAction(action: string, row: Row): void {
   if (action === "edit") emit("edit", row);
-  if (action === "discount") emit("discount", row);
   if (action === "log") emit("log", row);
 }
 

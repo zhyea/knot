@@ -27,5 +27,6 @@ public interface AppMapper {
     /** 按应用主键 id 统计模型权限数（kb_app_model_permissions.app_id 存主键 id，与业务码语义不同） */
     Long countModelPermissionsByAppId(Long appId);
 
-    Long countByDeptId(Long deptId);
+    /** 按部门业务码统计应用数（kb_apps.dept_code 存业务码） */
+    Long countByDeptCode(@Param("deptCode") String deptCode);
 }

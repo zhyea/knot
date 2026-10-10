@@ -6,13 +6,13 @@
         select u.id,
                u.username,
                u.real_name,
-               u.dept_id,
+               u.dept_code,
                d.dept_name,
                u.status,
                u.last_login_time,
                u.updated_at
         from ks_users u
-        left join ks_departments d on d.id = u.dept_id and d.is_deleted = 0
+        left join ks_departments d on d.dept_code = u.dept_code and d.is_deleted = 0
         where u.is_deleted = 0
         <if test="keyword != null and keyword != ''">
             and (
@@ -28,13 +28,13 @@
         select u.id,
                u.username,
                u.real_name,
-               u.dept_id,
+               u.dept_code,
                d.dept_name,
                u.status,
                u.last_login_time,
                u.updated_at
         from ks_users u
-        left join ks_departments d on d.id = u.dept_id and d.is_deleted = 0
+        left join ks_departments d on d.dept_code = u.dept_code and d.is_deleted = 0
         where u.id = #{id} and u.is_deleted = 0
     </select>
 
@@ -43,25 +43,25 @@
                u.username,
                u.password_hash,
                u.real_name,
-               u.dept_id,
+               u.dept_code,
                d.dept_name,
                u.status,
                u.last_login_time,
                u.updated_at
         from ks_users u
-        left join ks_departments d on d.id = u.dept_id and d.is_deleted = 0
+        left join ks_departments d on d.dept_code = u.dept_code and d.is_deleted = 0
         where u.username = #{username} and u.is_deleted = 0
     </select>
 
-    <select id="countByDeptId" resultType="java.lang.Long">
+    <select id="countByDeptCode" resultType="java.lang.Long">
         select count(1)
         from ks_users
-        where dept_id = #{deptId} and is_deleted = 0
+        where dept_code = #{deptCode} and is_deleted = 0
     </select>
 
     <insert id="insertUser" useGeneratedKeys="true" keyProperty="id">
-        insert into ks_users(username, password_hash, real_name, dept_id, status)
-        values(#{username}, #{passwordHash}, #{realName}, #{deptId}, #{status})
+        insert into ks_users(username, password_hash, real_name, dept_code, status)
+        values(#{username}, #{passwordHash}, #{realName}, #{deptCode}, #{status})
     </insert>
 
     <update id="updateUserStatus">
@@ -71,7 +71,7 @@
     <update id="updateUser">
         update ks_users set 
             real_name = #{realName},
-            dept_id = #{deptId},
+            dept_code = #{deptCode},
             status = #{status},
             updated_at = NOW()
         where id = #{id}

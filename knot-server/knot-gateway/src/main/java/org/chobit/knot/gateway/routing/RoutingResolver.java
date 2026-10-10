@@ -101,10 +101,10 @@ public class RoutingResolver {
                         consumer.getSecretKey(),
                         Boolean.TRUE.equals(consumer.getReturnUsageDetail())
                 ),
-                new GatewayRoutingInfo.AppInfo(app.getId(), app.getAppCode(), app.getName(), app.getDeptId()),
+                new GatewayRoutingInfo.AppInfo(app.getId(), app.getAppCode(), app.getName(), app.getDeptCode()),
                 new GatewayRoutingInfo.UserInfo(consumer.getUserUsername(), consumer.getUserRealName()),
                 new GatewayRoutingInfo.UserInfo(app.getOwnerUsername(), app.getOwnerRealName()),
-                new GatewayRoutingInfo.DepartmentInfo(app.getDeptId(), null)
+                new GatewayRoutingInfo.DepartmentInfo(app.getDeptCode(), null)
         );
     }
 

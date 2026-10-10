@@ -48,15 +48,3 @@ export const checkProviderCode = checkProviderAccountCode;
 export const createProvider = createProviderAccount;
 export const updateProvider = updateProviderAccount;
 export const updateProviderStatus = updateProviderAccountStatus;
-
-export function listDiscountPolicies(providerAccountId: number | string, params: Dict = {}) {
-  return postQuery(`/api/provider-accounts/${providerAccountId}/discount-policies/list`, params);
-}
-
-export function createDiscountPolicy(providerAccountId: number | string, payload: Dict) {
-  return post(`/api/provider-accounts/${providerAccountId}/discount-policies`, payload);
-}
-
-export function updateDiscountPolicy(providerAccountId: number | string, policyId: number | string, payload: Dict) {
-  return put(`/api/provider-accounts/${providerAccountId}/discount-policies/${policyId}`, payload);
-}

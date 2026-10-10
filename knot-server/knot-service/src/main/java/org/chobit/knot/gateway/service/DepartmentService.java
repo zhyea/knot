@@ -116,11 +116,13 @@ public class DepartmentService {
         if (childCount != null && childCount > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, "department has child departments and cannot be deleted");
         }
-        Long appCount = appMapper.countByDeptId(id);
+        // 应用与用户均按部门业务码 dept_code 绑定，故按 existing.getDeptCode() 反查占用
+        String deptCode = existing.getDeptCode();
+        Long appCount = appMapper.countByDeptCode(deptCode);
         if (appCount != null && appCount > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, "department is referenced by apps and cannot be deleted");
         }
-        Long userCount = userMapper.countByDeptId(id);
+        Long userCount = userMapper.countByDeptCode(deptCode);
         if (userCount != null && userCount > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, "department is referenced by users and cannot be deleted");
         }

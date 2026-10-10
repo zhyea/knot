@@ -67,7 +67,7 @@ export interface UserOptionMeta {
   username?: string | null;
 }
 
-/** 部门：部门编码（value 是部门 id）。 */
+/** 部门：value 即部门业务码 dept_code（非主键 id），与 meta.deptCode 一致。 */
 export interface DepartmentOptionMeta {
   deptCode?: string | null;
 }

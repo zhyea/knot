@@ -52,3 +52,17 @@ export function deleteModel(id: number | string) {
 export function restoreModel(id: number | string) {
   return put(`/api/models/${id}/restore`);
 }
+
+/* ==================== 折扣策略（绑定供应商模型 model_code） ==================== */
+
+export function listDiscountPolicies(modelCode: string, params: Dict = {}) {
+  return postQuery(`/api/models/${modelCode}/discount-policies/list`, params);
+}
+
+export function createDiscountPolicy(modelCode: string, payload: Dict) {
+  return post(`/api/models/${modelCode}/discount-policies`, payload);
+}
+
+export function updateDiscountPolicy(modelCode: string, policyId: number | string, payload: Dict) {
+  return put(`/api/models/${modelCode}/discount-policies/${policyId}`, payload);
+}

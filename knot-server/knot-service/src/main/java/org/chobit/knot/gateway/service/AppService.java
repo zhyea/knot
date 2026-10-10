@@ -88,7 +88,7 @@ public class AppService {
         if (countPositive(appMapper.countByAppCode(appCode))) {
             throw new BusinessException(ErrorCode.CONFLICT, "App Code already exists: " + appCode);
         }
-        validateDepartment(request.deptId());
+        validateDepartment(request.deptCode());
         AppEntity entity = appConverter.toEntity(request);
         entity.setAppCode(appCode);
         appMapper.insert(entity);
@@ -106,7 +106,7 @@ public class AppService {
         if (existing == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "app not found");
         }
-        validateDepartment(request.deptId());
+        validateDepartment(request.deptCode());
         AppEntity entity = appConverter.toEntity(request);
         entity.setId(id);
         entity.setAppCode(existing.getAppCode());
@@ -179,17 +179,20 @@ public class AppService {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
         QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
         return new AppDto(
-                base.id(), base.appCode(), base.name(), base.deptId(), base.deptName(),
+                base.id(), base.appCode(), base.name(), base.deptCode(), base.deptName(),
                 base.ownerUsername(), base.ownerName(), base.remark(),
                 rate, quota
         );
     }
 
-    private void validateDepartment(Long deptId) {
-        if (deptId == null) {
+    /**
+     * 部门绑定走业务码 dept_code（非主键 id），按 code 校验存在性。
+     */
+    private void validateDepartment(String deptCode) {
+        if (deptCode == null || deptCode.isBlank()) {
             return;
         }
-        if (departmentMapper.getById(deptId) == null) {
+        if (departmentMapper.getByCode(deptCode) == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "department not found");
         }
     }
