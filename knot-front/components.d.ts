@@ -107,6 +107,8 @@ declare module 'vue' {
     LogicalModelCardGrid: typeof import('./src/components/model/LogicalModelCardGrid.vue')['default']
     LogicalModelFormDrawer: typeof import('./src/components/model/LogicalModelFormDrawer.vue')['default']
     LogicalModelList: typeof import('./src/components/model/LogicalModelList.vue')['default']
+    ModelDiscountDrawer: typeof import('./src/components/model/ModelDiscountDrawer.vue')['default']
+    ModelDiscountFormDialog: typeof import('./src/components/model/ModelDiscountFormDialog.vue')['default']
     ModelFamilyFormDialog: typeof import('./src/components/model/ModelFamilyFormDialog.vue')['default']
     ModelFormDrawer: typeof import('./src/components/model/ModelFormDrawer.vue')['default']
     ModelListPanel: typeof import('./src/components/model/ModelListPanel.vue')['default']
