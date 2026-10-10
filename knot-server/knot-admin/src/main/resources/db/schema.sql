@@ -232,15 +232,15 @@ CREATE TABLE IF NOT EXISTS kb_quota_policies (
 
 CREATE TABLE IF NOT EXISTS kb_resource_traffic_policies (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  resource_type VARCHAR(32) NOT NULL COMMENT 'APP / MODEL / PROVIDER',
-  resource_id BIGINT NOT NULL,
-  rate_limit_policy_id BIGINT DEFAULT NULL,
-  quota_policy_id BIGINT DEFAULT NULL,
+  resource_type VARCHAR(32) NOT NULL COMMENT 'APP / MODEL / PROVIDER / ROUTING_RULE / ROUTING_CONSUMER',
+  resource_code VARCHAR(128) NOT NULL COMMENT '资源业务码（按 resource_type 指向对应表的 code），非主键 id',
+  rate_limit_policy_code VARCHAR(64) DEFAULT NULL COMMENT '频控策略业务码（kb_rate_limit_policies.policy_code），非主键 id',
+  quota_policy_code VARCHAR(64) DEFAULT NULL COMMENT '额度策略业务码（kb_quota_policies.policy_code），非主键 id',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_resource_traffic (resource_type, resource_id),
-  KEY idx_resource_traffic_rate (rate_limit_policy_id),
-  KEY idx_resource_traffic_quota (quota_policy_id)
+  UNIQUE KEY uk_resource_traffic (resource_type, resource_code),
+  KEY idx_resource_traffic_rate (rate_limit_policy_code),
+  KEY idx_resource_traffic_quota (quota_policy_code)
 );
 
 -- =========================
@@ -270,14 +270,14 @@ CREATE TABLE IF NOT EXISTS kb_provider_accounts (
 
 CREATE TABLE IF NOT EXISTS kb_provider_credentials (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  provider_account_id BIGINT NOT NULL,
+  provider_account_code VARCHAR(32) NOT NULL COMMENT '供应商账户业务码（kb_provider_accounts.code），非主键 id',
   credential_type VARCHAR(32) NOT NULL,
   auth_applier VARCHAR(64) DEFAULT NULL COMMENT '鉴权策略编码（UpstreamAuthApplier code），空则回退默认 Bearer',
   encrypted_config TEXT DEFAULT NULL COMMENT '加密后的任意键值认证配置 JSON',
   status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  KEY idx_provider_credentials_account (provider_account_id)
+  KEY idx_provider_credentials_account (provider_account_code)
 );
 
 CREATE TABLE IF NOT EXISTS kb_provider_discount_policies (
@@ -285,7 +285,7 @@ CREATE TABLE IF NOT EXISTS kb_provider_discount_policies (
   model_code VARCHAR(128) NOT NULL COMMENT '绑定的供应商模型业务码（kb_models.model_code），非主键 id',
   policy_name VARCHAR(100) NOT NULL,
   scope_type VARCHAR(32) NOT NULL,
-  scope_ref_id BIGINT DEFAULT NULL,
+  scope_ref_code VARCHAR(128) DEFAULT NULL COMMENT '折扣范围业务码（GLOBAL 为空；MODEL→kb_models.model_code，APP→kb_apps.app_code），非主键 id',
   discount_type VARCHAR(32) NOT NULL,
   discount_value DECIMAL(10,4) NOT NULL,
   priority INT NOT NULL DEFAULT 100,
@@ -296,7 +296,7 @@ CREATE TABLE IF NOT EXISTS kb_provider_discount_policies (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_provider_discount_model_time (model_code, effective_from, effective_to),
-  KEY idx_provider_discount_scope (scope_type, scope_ref_id, status)
+  KEY idx_provider_discount_scope (scope_type, scope_ref_code, status)
 );
 
 CREATE TABLE IF NOT EXISTS kb_models (
@@ -381,16 +381,16 @@ CREATE TABLE IF NOT EXISTS kb_provider_model_mappings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   logical_model_code VARCHAR(128) NOT NULL COMMENT '统一模型 code（kb_logical_models.model_code）',
   provider_account_code VARCHAR(32) NOT NULL COMMENT '供应商账户 code（kb_provider_accounts.code）',
-  model_id BIGINT NOT NULL COMMENT '供应商模型 id（kb_models.id）',
+  model_code VARCHAR(128) NOT NULL COMMENT '供应商模型业务码（kb_models.model_code），非主键 id',
   provider_model_name VARCHAR(128) NOT NULL,
   status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   priority INT NOT NULL DEFAULT 100,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_provider_model_mapping_model (model_id),
-  KEY idx_logical_provider_model (logical_model_code, provider_account_code, model_id),
+  UNIQUE KEY uk_provider_model_mapping_model (model_code),
+  KEY idx_logical_provider_model (logical_model_code, provider_account_code, model_code),
   KEY idx_logical_model (logical_model_code, status),
-  KEY idx_provider_account_model (provider_account_code, model_id, status)
+  KEY idx_provider_account_model (provider_account_code, model_code, status)
 );
 
 CREATE TABLE IF NOT EXISTS kx_model_sources (
@@ -441,7 +441,7 @@ CREATE TABLE IF NOT EXISTS kx_model_items (
 -- 供应商模型与 API 协议绑定（协议 + 消耗取值逻辑）
 CREATE TABLE IF NOT EXISTS kb_model_api_bindings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  model_id BIGINT NOT NULL COMMENT '模型 ID，关联 kb_models.id',
+  model_code VARCHAR(128) NOT NULL COMMENT '模型业务码（kb_models.model_code），非主键 id',
   protocol VARCHAR(64) NOT NULL COMMENT 'API 协议编码',
   api_path VARCHAR(255) DEFAULT NULL COMMENT '上游 API 路径，为空时使用协议默认路径',
   request_adapter VARCHAR(255) DEFAULT NULL COMMENT '上游请求适配器编码或类名',
@@ -451,8 +451,8 @@ CREATE TABLE IF NOT EXISTS kb_model_api_bindings (
   remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_model_api_protocol (model_id, protocol),
-  KEY idx_model_api_bindings_model (model_id),
+  UNIQUE KEY uk_model_api_protocol (model_code, protocol),
+  KEY idx_model_api_bindings_model (model_code),
   KEY idx_model_api_bindings_protocol (protocol)
 );
 
@@ -630,7 +630,7 @@ CREATE TABLE IF NOT EXISTS kb_plugin_bindings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   instance_code VARCHAR(64) NOT NULL COMMENT '插件实例 code（kb_plugin_instances.instance_code）',
   scope_type VARCHAR(32) NOT NULL DEFAULT 'GLOBAL',
-  scope_ref_id BIGINT DEFAULT NULL,
+  scope_ref_code VARCHAR(128) DEFAULT NULL COMMENT '作用范围对象业务码（GLOBAL 为空；APP→app_code，RULE→rule_code，PROVIDER→kb_provider_accounts.code，MODEL→model_code，POOL→pool_code），非主键 id',
   stage_code VARCHAR(64) NOT NULL,
   order_no INT NOT NULL DEFAULT 100,
   match_expression VARCHAR(255) DEFAULT NULL,
@@ -640,9 +640,9 @@ CREATE TABLE IF NOT EXISTS kb_plugin_bindings (
 
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_plugin_bindings_scope (instance_code, scope_type, scope_ref_id, stage_code),
+  UNIQUE KEY uk_plugin_bindings_scope (instance_code, scope_type, scope_ref_code, stage_code),
   KEY idx_plugin_bindings_stage (stage_code, status, order_no),
-  KEY idx_plugin_bindings_scope_status (scope_type, scope_ref_id, status)
+  KEY idx_plugin_bindings_scope_status (scope_type, scope_ref_code, status)
 );
 
 CREATE TABLE IF NOT EXISTS kb_notification_templates (

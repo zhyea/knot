@@ -11,7 +11,9 @@ public class ProviderModelMappingEntity {
     private String logicalModelName;
     private String providerAccountCode;
     private String providerName;
+    /** 由 join kb_models 派生（m.id），不落库 */
     private Long modelId;
+    /** 落库列：供应商模型业务码（kb_models.model_code），非主键 id */
     private String modelCode;
     private String modelName;
     private String providerModelName;

@@ -3,7 +3,7 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.DiscountPolicyMapper">
 
     <sql id="DiscountPolicyColumns">
-        id, model_code, policy_name, scope_type, scope_ref_id,
+        id, model_code, policy_name, scope_type, scope_ref_code,
         discount_type, discount_value, priority, effective_from, effective_to, status, remark
     </sql>
 
@@ -25,9 +25,9 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_provider_discount_policies(model_code, policy_name, scope_type, scope_ref_id,
+        insert into kb_provider_discount_policies(model_code, policy_name, scope_type, scope_ref_code,
                                                 discount_type, discount_value, priority, effective_from, status)
-        values(#{modelCode}, #{policyName}, #{scopeType}, #{scopeRefId},
+        values(#{modelCode}, #{policyName}, #{scopeType}, #{scopeRefCode},
                #{discountType}, #{discountValue}, #{priority}, #{effectiveFrom}, #{status})
     </insert>
 
@@ -35,7 +35,7 @@
         update kb_provider_discount_policies
         set policy_name = #{policyName},
             scope_type = #{scopeType},
-            scope_ref_id = #{scopeRefId},
+            scope_ref_code = #{scopeRefCode},
             discount_type = #{discountType},
             discount_value = #{discountValue},
             priority = #{priority},

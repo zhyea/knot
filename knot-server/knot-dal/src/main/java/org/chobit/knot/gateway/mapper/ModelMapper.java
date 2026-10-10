@@ -39,11 +39,11 @@ public interface ModelMapper {
     /** 引用检查：模型池条目（kb_model_pool_items.model_code），逻辑删除会使池内条目查询 inner join 落空 */
     Long countPoolItemsByModelCode(@Param("modelCode") String modelCode);
 
-    /** 引用检查：厂商模型映射（kb_provider_model_mappings.model_id） */
-    Long countProviderMappingsByModelId(@Param("modelId") Long modelId);
+    /** 引用检查：厂商模型映射（kb_provider_model_mappings.model_code） */
+    Long countProviderMappingsByModelCode(@Param("modelCode") String modelCode);
 
-    /** 引用检查：模型 API 协议绑定（kb_model_api_bindings.model_id） */
-    Long countApiBindingsByModelId(@Param("modelId") Long modelId);
+    /** 引用检查：模型 API 协议绑定（kb_model_api_bindings.model_code） */
+    Long countApiBindingsByModelCode(@Param("modelCode") String modelCode);
 
     Long countByModelCode(@Param("modelCode") String modelCode,
                           @Param("excludeId") Long excludeId);

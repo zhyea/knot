@@ -12,7 +12,8 @@ public class DiscountPolicyEntity {
     private String modelCode;
     private String policyName;
     private String scopeType;
-    private Long scopeRefId;
+    /** 折扣范围对象业务码（GLOBAL 为空；MODEL→model_code，APP→app_code），非主键 id */
+    private String scopeRefCode;
     private String discountType;
     private BigDecimal discountValue;
     private Integer priority;

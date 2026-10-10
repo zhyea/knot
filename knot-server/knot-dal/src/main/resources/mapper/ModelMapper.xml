@@ -3,9 +3,9 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.ModelMapper">
 
     <!-- 模型类型不落 kb_models，从绑定的统一模型（1:1 映射）派生 -->
-    <sql id="logicalModelCodeExpr">(select pm2.logical_model_code from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
-    <sql id="modelTypeExpr">(select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
-    <sql id="modelFamilyExpr">(select lm2.model_family from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
+    <sql id="logicalModelCodeExpr">(select pm2.logical_model_code from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_code = m.model_code and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
+    <sql id="modelTypeExpr">(select lm2.model_type from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_code = m.model_code and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
+    <sql id="modelFamilyExpr">(select lm2.model_family from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_code = m.model_code and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
 
     <sql id="ModelSelectColumns">
         m.id, m.provider_account_code, m.model_code, m.upstream_model, m.version, m.base_url, m.remark, m.billing_rule_code, m.status,
@@ -114,12 +114,12 @@
         select count(1) from kb_model_pool_items where model_code = #{modelCode}
     </select>
 
-    <select id="countProviderMappingsByModelId" resultType="java.lang.Long">
-        select count(1) from kb_provider_model_mappings where model_id = #{modelId}
+    <select id="countProviderMappingsByModelCode" resultType="java.lang.Long">
+        select count(1) from kb_provider_model_mappings where model_code = #{modelCode}
     </select>
 
-    <select id="countApiBindingsByModelId" resultType="java.lang.Long">
-        select count(1) from kb_model_api_bindings where model_id = #{modelId}
+    <select id="countApiBindingsByModelCode" resultType="java.lang.Long">
+        select count(1) from kb_model_api_bindings where model_code = #{modelCode}
     </select>
 
     <!-- 编码唯一性按物理行判定（含已逻辑删除的行）：uk_models_code 不区分 is_deleted，

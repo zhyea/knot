@@ -59,7 +59,10 @@ class CaffeineTrafficCounterStoreTest {
     @Test
     void evictsWhenMaximumSizeExceeded() {
         CaffeineTrafficCounterStore store = new CaffeineTrafficCounterStore(2L);
-        long expireAt = T0 + 60_000L;
+        // 单参构造用的是系统墙钟，过期时刻必须取「未来」：若沿用 T0（固定历史时间戳），
+        // 条目写入即过期，淘汰由「过期清理」主导而不是 maximumSize，alive 会在
+        // 0~2 之间随机波动（维护是否及时清到最后两条），断言因此 flaky。
+        long expireAt = System.currentTimeMillis() + 60_000L;
         for (int i = 0; i < 200; i++) {
             store.addAndGet("k" + i, 1L, expireAt);
         }

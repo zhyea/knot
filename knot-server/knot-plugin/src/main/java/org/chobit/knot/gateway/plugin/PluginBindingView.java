@@ -9,7 +9,7 @@ public record PluginBindingView(Long bindingId,
                                 PluginExtensionPoint extensionPoint,
                                 PluginStageCode stageCode,
                                 PluginScopeType scopeType,
-                                Long scopeRefId,
+                                String scopeRefCode,
                                 Integer orderNo,
                                 String configJson,
                                 Integer timeoutMs) {

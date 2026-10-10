@@ -13,7 +13,8 @@ public class PluginBindingEntity {
     private String extensionPoint;
     private String stageCode;
     private String scopeType;
-    private Long scopeRefId;
+    /** 作用范围对象业务码（GLOBAL 为空；APP→app_code，RULE→rule_code，PROVIDER→账户 code，MODEL→model_code，POOL→pool_code），非主键 id */
+    private String scopeRefCode;
     private Integer orderNo;
     /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
     private Integer status;

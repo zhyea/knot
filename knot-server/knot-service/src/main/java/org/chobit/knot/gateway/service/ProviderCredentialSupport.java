@@ -6,7 +6,11 @@ import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
 import org.chobit.knot.gateway.crypto.CredentialEncryption;
+import org.chobit.knot.gateway.error.BusinessException;
+import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.gateway.entity.ProviderAccountEntity;
 import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
+import org.chobit.knot.gateway.mapper.ProviderAccountMapper;
 import org.chobit.knot.gateway.mapper.ProviderCredentialMapper;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Component;
@@ -21,14 +25,17 @@ import java.util.Map;
 public class ProviderCredentialSupport {
 
     private final ProviderCredentialMapper providerCredentialMapper;
+    private final ProviderAccountMapper providerAccountMapper;
     private final CredentialEncryption credentialEncryption;
 
     /**
      * Constructs a new instance.
      */
     public ProviderCredentialSupport(ProviderCredentialMapper providerCredentialMapper,
+                                     ProviderAccountMapper providerAccountMapper,
                                      CredentialEncryption credentialEncryption) {
         this.providerCredentialMapper = providerCredentialMapper;
+        this.providerAccountMapper = providerAccountMapper;
         this.credentialEncryption = credentialEncryption;
     }
 
@@ -86,6 +93,7 @@ public class ProviderCredentialSupport {
         if (isNew) {
             entity = new ProviderCredentialEntity();
             entity.setProviderId(providerId);
+            entity.setProviderAccountCode(requireAccountCode(providerId));
             entity.setStatus(EnabledStatusEnum.ENABLED.code());
         }
         entity.setEncryptedConfig(encryptConfig(authConfig));
@@ -97,6 +105,17 @@ public class ProviderCredentialSupport {
         } else {
             providerCredentialMapper.update(entity);
         }
+    }
+
+    /**
+     * 把供应商账户主键解析为业务码：绑定列一律存 code 不存 id。
+     */
+    private String requireAccountCode(Long providerId) {
+        ProviderAccountEntity account = providerAccountMapper.getById(providerId);
+        if (account == null || account.getCode() == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "供应商账户不存在");
+        }
+        return account.getCode();
     }
 
     /**

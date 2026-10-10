@@ -334,9 +334,9 @@ public class ModelService {
                 "该供应商模型已被路由规则引用，无法删除");
         requireNoReference(modelMapper.countPoolItemsByModelCode(existing.getModelCode()),
                 "该供应商模型已被模型池引用，无法删除");
-        requireNoReference(modelMapper.countProviderMappingsByModelId(id),
+        requireNoReference(modelMapper.countProviderMappingsByModelCode(existing.getModelCode()),
                 "该供应商模型已被厂商模型映射引用，无法删除");
-        requireNoReference(modelMapper.countApiBindingsByModelId(id),
+        requireNoReference(modelMapper.countApiBindingsByModelCode(existing.getModelCode()),
                 "该供应商模型已被 API 协议绑定引用，无法删除");
         requireNoReference(discountPolicyMapper.countByModelCode(existing.getModelCode()),
                 "该供应商模型已被折扣策略引用，无法删除");
@@ -362,7 +362,7 @@ public class ModelService {
         entity.setModelCode(modelCode);
         entity.setPolicyName(request.policyName());
         entity.setScopeType(request.scopeType());
-        entity.setScopeRefId(request.scopeRefId());
+        entity.setScopeRefCode(request.scopeRefCode());
         entity.setDiscountType(request.discountType());
         entity.setDiscountValue(BigDecimal.valueOf(request.discountValue()));
         entity.setPriority(request.priority());
@@ -382,7 +382,7 @@ public class ModelService {
         }
         entity.setPolicyName(request.policyName());
         entity.setScopeType(request.scopeType());
-        entity.setScopeRefId(request.scopeRefId());
+        entity.setScopeRefCode(request.scopeRefCode());
         entity.setDiscountType(request.discountType());
         entity.setDiscountValue(BigDecimal.valueOf(request.discountValue()));
         entity.setPriority(request.priority());
@@ -412,10 +412,21 @@ public class ModelService {
 
     private DiscountPolicyDto toDiscountPolicyDto(DiscountPolicyEntity e) {
         return new DiscountPolicyDto(
-                e.getId(), e.getPolicyName(), e.getScopeType(), e.getScopeRefId(),
+                e.getId(), e.getPolicyName(), e.getScopeType(), e.getScopeRefCode(),
                 e.getDiscountType(), e.getDiscountValue() != null ? e.getDiscountValue().doubleValue() : 0.0,
                 e.getPriority() != null ? e.getPriority() : 100, e.getStatus()
         );
+    }
+
+    /**
+     * 把供应商模型主键解析为业务码：绑定列一律存 code 不存 id。
+     */
+    private String requireModelCode(Long modelId) {
+        ModelEntity model = modelMapper.getById(modelId);
+        if (model == null || model.getModelCode() == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "供应商模型不存在");
+        }
+        return model.getModelCode();
     }
 
     private static void requireNoReference(Long count, String message) {
@@ -572,7 +583,7 @@ public class ModelService {
         mapping.setLogicalModelCode(logicalModelCode);
         ModelEntity model = modelMapper.getById(modelId);
         mapping.setProviderAccountCode(model.getProviderAccountCode());
-        mapping.setModelId(modelId);
+        mapping.setModelCode(model.getModelCode());
         mapping.setProviderModelName(modelCode);
         mapping.setStatus(EnabledStatusEnum.ENABLED.code());
         mapping.setPriority(100);
@@ -631,8 +642,9 @@ public class ModelService {
             if (type == null) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不支持的模型类型，请重新选择");
             }
+            String modelCode = requireModelCode(modelId);
             for (ModelApiBindingDto binding : bindings) {
-                desired.add(toApiBindingEntity(modelId, binding, type));
+                desired.add(toApiBindingEntity(modelCode, binding, type));
             }
         }
         Map<Long, ModelApiBindingEntity> existingById = modelApiBindingMapper.listByModelId(modelId).stream()
@@ -662,7 +674,7 @@ public class ModelService {
     /**
      * 校验并构建单条 API 绑定实体（含请求带回来的行 id，用于 diff 命中已有行）。
      */
-    private ModelApiBindingEntity toApiBindingEntity(Long modelId, ModelApiBindingDto binding, ModelTypeEnum type) {
+    private ModelApiBindingEntity toApiBindingEntity(String modelCode, ModelApiBindingDto binding, ModelTypeEnum type) {
         String protocolCode = requireText(binding.protocol(), "请选择接口协议").toUpperCase();
         ModelApiProtocolEnum protocol = ModelApiProtocolEnum.fromCode(protocolCode);
         if (protocol == null) {
@@ -676,7 +688,7 @@ public class ModelService {
         }
         ModelApiBindingEntity entity = new ModelApiBindingEntity();
         entity.setId(binding.id());
-        entity.setModelId(modelId);
+        entity.setModelCode(modelCode);
         entity.setProtocol(protocol.code());
         entity.setApiPath(blankToNull(binding.apiPath()));
         entity.setRequestAdapter(blankToNull(binding.requestAdapter()));

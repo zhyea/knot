@@ -11,7 +11,7 @@ public record PluginEvent(PluginEventType eventType,
                           String pluginCapabilityCode,
                           PluginStageCode stageCode,
                           String scopeType,
-                          Long scopeRefId,
+                          String scopeRefCode,
                           PluginLogPayload payload,
                           LocalDateTime occurredAt) {
 }

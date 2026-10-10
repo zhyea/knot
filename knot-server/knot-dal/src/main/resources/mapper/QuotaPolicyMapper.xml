@@ -18,6 +18,18 @@
         </foreach>
     </select>
 
+    <select id="getByCode" resultType="org.chobit.knot.gateway.entity.QuotaPolicyEntity">
+        select <include refid="Columns"/> from kb_quota_policies where policy_code = #{policyCode}
+    </select>
+
+    <select id="listByCodes" resultType="org.chobit.knot.gateway.entity.QuotaPolicyEntity">
+        select <include refid="Columns"/> from kb_quota_policies
+        where policy_code in
+        <foreach collection="codes" item="code" open="(" separator="," close=")">
+            #{code}
+        </foreach>
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into kb_quota_policies(policy_code, policy_name, max_tokens, cost_limit, currency, quota_window, status, remark)
         values(#{policyCode}, #{policyName}, #{maxTokens}, #{costLimit}, #{currency}, #{quotaWindow}, #{status}, #{remark})

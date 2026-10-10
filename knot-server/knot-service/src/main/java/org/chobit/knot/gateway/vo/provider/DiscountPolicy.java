@@ -4,7 +4,7 @@ public record DiscountPolicy(
         Long id,
         String policyName,
         String scopeType,
-        Long scopeRefId,
+        String scopeRefCode,
         String discountType,
         double discountValue,
         int priority,

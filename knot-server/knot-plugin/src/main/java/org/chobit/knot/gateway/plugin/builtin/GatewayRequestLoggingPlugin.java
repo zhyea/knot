@@ -51,7 +51,7 @@ public class GatewayRequestLoggingPlugin implements PluginHandler<GatewayPluginC
                 binding.capabilityCode(),
                 context.stageCode(),
                 binding.scopeType() == null ? null : binding.scopeType().name(),
-                binding.scopeRefId(),
+                binding.scopeRefCode(),
                 payload,
                 LocalDateTime.now()
         );

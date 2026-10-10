@@ -118,7 +118,7 @@ public class PluginService implements PluginBindingProvider {
                 point,
                 stage,
                 scope,
-                entity.getScopeRefId(),
+                entity.getScopeRefCode(),
                 entity.getOrderNo(),
                 entity.getConfigJson(),
                 entity.getTimeoutMs()

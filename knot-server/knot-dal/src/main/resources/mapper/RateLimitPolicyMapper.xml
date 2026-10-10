@@ -18,6 +18,18 @@
         </foreach>
     </select>
 
+    <select id="getByCode" resultType="org.chobit.knot.gateway.entity.RateLimitPolicyEntity">
+        select <include refid="Columns"/> from kb_rate_limit_policies where policy_code = #{policyCode}
+    </select>
+
+    <select id="listByCodes" resultType="org.chobit.knot.gateway.entity.RateLimitPolicyEntity">
+        select <include refid="Columns"/> from kb_rate_limit_policies
+        where policy_code in
+        <foreach collection="codes" item="code" open="(" separator="," close=")">
+            #{code}
+        </foreach>
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into kb_rate_limit_policies(policy_code, policy_name, rpm, tpm, status, remark)
         values(#{policyCode}, #{policyName}, #{rpm}, #{tpm}, #{status}, #{remark})

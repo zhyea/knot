@@ -6,9 +6,10 @@ import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 @Data
 public class ModelApiBindingEntity {
     private Long id;
+    /** 由 join kb_models 派生（m.id），不落库 */
     private Long modelId;
     /**
-     * 关联 kb_models.model_code，仅查询展示
+     * 落库列：关联 kb_models.model_code（业务码，非主键 id）
      */
     private String modelCode;
     private String providerAccountCode;

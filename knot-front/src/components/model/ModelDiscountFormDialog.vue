@@ -14,8 +14,12 @@
       <el-form-item label="范围类型">
         <EnumSelect v-model="form.scopeType" category="scope_type" />
       </el-form-item>
-      <el-form-item label="范围 ID">
-        <el-input-number v-model="form.scopeRefId" :min="0" style="width: 100%" />
+      <el-form-item label="范围对象码">
+        <el-input
+          v-model="form.scopeRefCode"
+          :disabled="isGlobalScope"
+          :placeholder="isGlobalScope ? '全局范围无需填写' : 'MODEL 填 model_code，APP 填 app_code'"
+        />
       </el-form-item>
       <el-form-item label="折扣类型">
         <EnumSelect v-model="form.discountType" category="discount_type" />
@@ -60,7 +64,7 @@ const form = reactive({
   id: null,
   policyName: "",
   scopeType: "GLOBAL",
-  scopeRefId: 0,
+  scopeRefCode: "",
   discountType: "PERCENTAGE",
   discountValue: 0.95,
   priority: 10,
@@ -68,6 +72,8 @@ const form = reactive({
 });
 
 const isEdit = computed(() => props.policy != null);
+/** 全局范围不绑定具体对象：范围对象码留空并禁用输入 */
+const isGlobalScope = computed(() => form.scopeType === "GLOBAL");
 
 function resetForm() {
   if (props.policy) {
@@ -75,7 +81,7 @@ function resetForm() {
     form.id = row.id;
     form.policyName = row.policyName;
     form.scopeType = row.scopeType;
-    form.scopeRefId = row.scopeRefId;
+    form.scopeRefCode = row.scopeRefCode ?? "";
     form.discountType = row.discountType;
     form.discountValue = row.discountValue;
     form.priority = row.priority;
@@ -84,7 +90,7 @@ function resetForm() {
     form.id = null;
     form.policyName = "";
     form.scopeType = "GLOBAL";
-    form.scopeRefId = 0;
+    form.scopeRefCode = "";
     form.discountType = "PERCENTAGE";
     form.discountValue = 0.95;
     form.priority = 10;
@@ -106,7 +112,7 @@ async function submit() {
     const body = {
       policyName: form.policyName,
       scopeType: form.scopeType,
-      scopeRefId: form.scopeRefId,
+      scopeRefCode: form.scopeRefCode,
       discountType: form.discountType,
       discountValue: form.discountValue,
       priority: form.priority,

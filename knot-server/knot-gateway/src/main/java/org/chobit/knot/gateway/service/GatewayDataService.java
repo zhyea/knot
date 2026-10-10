@@ -303,12 +303,12 @@ public class GatewayDataService {
         if (binding == null) {
             return new TrafficPolicies(null, null);
         }
-        RateLimitPolicyEntity rate = binding.getRateLimitPolicyId() == null
+        RateLimitPolicyEntity rate = binding.getRateLimitPolicyCode() == null
                 ? null
-                : rateLimitPolicyMapper.getById(binding.getRateLimitPolicyId());
-        QuotaPolicyEntity quota = binding.getQuotaPolicyId() == null
+                : rateLimitPolicyMapper.getByCode(binding.getRateLimitPolicyCode());
+        QuotaPolicyEntity quota = binding.getQuotaPolicyCode() == null
                 ? null
-                : quotaPolicyMapper.getById(binding.getQuotaPolicyId());
+                : quotaPolicyMapper.getByCode(binding.getQuotaPolicyCode());
         return new TrafficPolicies(
                 ResourceTrafficPolicySupport.toRateLimitModel(rate),
                 ResourceTrafficPolicySupport.toQuotaModel(quota)

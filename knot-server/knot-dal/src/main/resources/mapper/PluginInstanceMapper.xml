@@ -98,7 +98,7 @@
             pc.extension_point,
             pb.stage_code,
             pb.scope_type,
-            pb.scope_ref_id,
+            pb.scope_ref_code,
             pb.order_no,
             pb.status,
             coalesce(pb.binding_config_json, pi.config_json) as config_json,

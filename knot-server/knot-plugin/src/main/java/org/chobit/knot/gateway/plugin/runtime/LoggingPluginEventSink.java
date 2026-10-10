@@ -12,14 +12,14 @@ public class LoggingPluginEventSink implements PluginEventSink {
 
     @Override
     public void emit(PluginEvent event) {
-        log.info("plugin-event type={} stage={} instance={} capability={} traceId={} scope={} scopeRefId={} payload={}",
+        log.info("plugin-event type={} stage={} instance={} capability={} traceId={} scope={} scopeRefCode={} payload={}",
                 event.eventType() == null ? null : event.eventType().code(),
                 event.stageCode() == null ? null : event.stageCode().code(),
                 event.pluginInstanceCode(),
                 event.pluginCapabilityCode(),
                 event.traceId(),
                 event.scopeType(),
-                event.scopeRefId(),
+                event.scopeRefCode(),
                 JsonKit.toJson(event.payload()));
     }
 }

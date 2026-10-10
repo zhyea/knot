@@ -13,6 +13,10 @@ public interface QuotaPolicyMapper {
 
     List<QuotaPolicyEntity> listByIds(@Param("ids") List<Long> ids);
 
+    QuotaPolicyEntity getByCode(@Param("policyCode") String policyCode);
+
+    List<QuotaPolicyEntity> listByCodes(@Param("codes") List<String> codes);
+
     int insert(QuotaPolicyEntity entity);
 
     int update(QuotaPolicyEntity entity);

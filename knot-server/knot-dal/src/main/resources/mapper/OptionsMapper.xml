@@ -178,7 +178,7 @@
     'logicalModelCode', pmm.logical_model_code,
     'status', m.status) as meta
     from kb_models m
-    left join kb_provider_model_mappings pmm on pmm.model_id = m.id
+    left join kb_provider_model_mappings pmm on pmm.model_code = m.model_code
     left join kb_logical_models lm on lm.model_code = pmm.logical_model_code and lm.is_deleted = 0
     left join kb_providers p on p.code = m.provider_account_code
     where 1 = 1
@@ -207,7 +207,7 @@
     'logicalModelCode', pmm.logical_model_code,
     'status', m.status) as meta
     from kb_models m
-    left join kb_provider_model_mappings pmm on pmm.model_id = m.id
+    left join kb_provider_model_mappings pmm on pmm.model_code = m.model_code
     left join kb_logical_models lm on lm.model_code = pmm.logical_model_code and lm.is_deleted = 0
     left join kb_providers p on p.code = m.provider_account_code
     where m.is_deleted = 0

@@ -309,6 +309,8 @@ public class LogicalModelService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "provider model not found");
         }
         mapping.setProviderAccountCode(model.getProviderAccountCode());
+        // 绑定列落业务码（非主键 id）
+        mapping.setModelCode(model.getModelCode());
         if (mapping.getProviderModelName() == null || mapping.getProviderModelName().isBlank()) {
             mapping.setProviderModelName(model.getModelCode());
         }

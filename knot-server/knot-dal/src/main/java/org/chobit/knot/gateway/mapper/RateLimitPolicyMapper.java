@@ -13,6 +13,10 @@ public interface RateLimitPolicyMapper {
 
     List<RateLimitPolicyEntity> listByIds(@Param("ids") List<Long> ids);
 
+    RateLimitPolicyEntity getByCode(@Param("policyCode") String policyCode);
+
+    List<RateLimitPolicyEntity> listByCodes(@Param("codes") List<String> codes);
+
     int insert(RateLimitPolicyEntity entity);
 
     int update(RateLimitPolicyEntity entity);

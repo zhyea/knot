@@ -15,8 +15,8 @@
     <sql id="MappingColumns">
         pm.id, pm.logical_model_code, lm.model_name AS logical_model_name,
         pm.provider_account_code, p.name AS provider_name,
-        pm.model_id, m.model_code,
-        (select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_id = m.id and lm2.is_deleted = 0 order by pm2.id asc limit 1) AS model_name,
+        pm.model_code, m.id AS model_id,
+        (select lm2.model_name from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_code = m.model_code and lm2.is_deleted = 0 order by pm2.id asc limit 1) AS model_name,
         pm.provider_model_name, pm.status, pm.priority, pm.created_at, pm.updated_at
     </sql>
 
@@ -140,7 +140,7 @@
         left join kb_logical_models lm on pm.logical_model_code = lm.model_code and lm.is_deleted = 0
         left join kb_provider_accounts pa on pm.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
-        left join kb_models m on pm.model_id = m.id and m.is_deleted = 0
+        left join kb_models m on pm.model_code = m.model_code and m.is_deleted = 0
         where pm.logical_model_code = #{logicalModelCode}
         order by pm.priority asc, pm.id asc
     </select>
@@ -151,8 +151,8 @@
         left join kb_logical_models lm on pm.logical_model_code = lm.model_code and lm.is_deleted = 0
         left join kb_provider_accounts pa on pm.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
-        left join kb_models m on pm.model_id = m.id and m.is_deleted = 0
-        where pm.model_id = #{modelId}
+        left join kb_models m on pm.model_code = m.model_code and m.is_deleted = 0
+        where m.id = #{modelId}
         order by pm.priority asc, pm.id asc
     </select>
 
@@ -162,22 +162,22 @@
         left join kb_logical_models lm on pm.logical_model_code = lm.model_code and lm.is_deleted = 0
         left join kb_provider_accounts pa on pm.provider_account_code = pa.code
         left join kb_providers p on pa.provider_code = p.code
-        left join kb_models m on pm.model_id = m.id and m.is_deleted = 0
+        left join kb_models m on pm.model_code = m.model_code and m.is_deleted = 0
         where pm.id = #{id}
     </select>
 
     <insert id="insertMapping" useGeneratedKeys="true" keyProperty="id">
         insert into kb_provider_model_mappings(
-            logical_model_code, provider_account_code, model_id, provider_model_name, status, priority
+            logical_model_code, provider_account_code, model_code, provider_model_name, status, priority
         ) values (
-            #{logicalModelCode}, #{providerAccountCode}, #{modelId}, #{providerModelName}, #{status}, #{priority}
+            #{logicalModelCode}, #{providerAccountCode}, #{modelCode}, #{providerModelName}, #{status}, #{priority}
         )
     </insert>
 
     <update id="updateMapping">
         update kb_provider_model_mappings
         set provider_account_code = #{providerAccountCode},
-            model_id = #{modelId},
+            model_code = #{modelCode},
             provider_model_name = #{providerModelName},
             status = #{status},
             priority = #{priority}
@@ -191,8 +191,10 @@
     </delete>
 
     <delete id="deleteMappingsByModelId">
-        delete from kb_provider_model_mappings
-        where model_id = #{modelId}
+        delete pm
+        from kb_provider_model_mappings pm
+        inner join kb_models m on pm.model_code = m.model_code
+        where m.id = #{modelId}
     </delete>
 
     <delete id="deleteMapping">

@@ -113,7 +113,7 @@ public class OperationLogService {
      */
     @Transactional
     public int deleteBefore(LocalDateTime beforeTime) {
-        operationLogMapper.deleteDetailsByLogCreatedBefore(beforeTime);
+        // ks_operation_log_details 明细表已随废弃表清理下线，无需再级联清理明细
         return operationLogMapper.deleteByCreatedBefore(beforeTime);
     }
 

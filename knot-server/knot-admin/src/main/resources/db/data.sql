@@ -478,31 +478,31 @@ INSERT IGNORE INTO kb_quota_policies (id, policy_code, policy_name, max_tokens, 
 (4, 'APP-1-QT',      'APP #1 额度',        5000000,   500.000000, 'USD', 'MONTH', 1),
 (5, 'APP-2-QT',      'APP #2 额度',         200000,    20.000000, 'USD', 'DAY',   1);
 
-INSERT IGNORE INTO kb_resource_traffic_policies (id, resource_type, resource_id, rate_limit_policy_id, quota_policy_id) VALUES
-(1, 'PROVIDER',     1, NULL, 1),
-(2, 'PROVIDER',     2, NULL, 2),
-(3, 'PROVIDER',     3, NULL, 3),
-(6, 'PROVIDER',     4, NULL, 3),
-(4, 'APP',          1, NULL, 4),
-(5, 'APP',          2, NULL, 5),
-(7, 'MODEL',        1, 1, NULL),
-(8, 'MODEL',        4, 2, NULL),
-(9, 'ROUTING_RULE', 1, 3, NULL);
+INSERT IGNORE INTO kb_resource_traffic_policies (id, resource_type, resource_code, rate_limit_policy_code, quota_policy_code) VALUES
+(1, 'PROVIDER',     'openai-default',                 NULL,            'PROVIDER-1-QT'),
+(2, 'PROVIDER',     'anthropic-default',              NULL,            'PROVIDER-2-QT'),
+(3, 'PROVIDER',     'deepseek-default',               NULL,            'PROVIDER-3-QT'),
+(6, 'PROVIDER',     'qwen-default',                   NULL,            'PROVIDER-3-QT'),
+(4, 'APP',          'app_001',                        NULL,            'APP-1-QT'),
+(5, 'APP',          'app_002',                        NULL,            'APP-2-QT'),
+(7, 'MODEL',        'gpt-4o',                         'MODEL-1-RL',    NULL),
+(8, 'MODEL',        'claude-sonnet-4-20250514',       'MODEL-4-RL',    NULL),
+(9, 'ROUTING_RULE', 'gpt4o-default',                  'ROUTING_RULE-1-RL', NULL);
 
 -- 供应商凭证（认证配置整体以 AES-GCM 密文保存；前缀 ENC:）
 -- 密文解密后必须是 JSON 对象形态（如 {"apiKey":"sk-..."}），与 ProviderCredentialSupport.saveAuthConfig
 -- 的写入契约一致；旧版种子密文存的是裸密钥字符串，会导致 JsonKit.fromJson 解析失败并静默降级为空 apiKey。
 -- 注意：密文由 KNOT_CREDENTIAL_ENCRYPTION_KEY 派生密钥加密，更换密钥后必须重新生成（见
 -- docs/database/migration/2026-09-23-fix-provider-credential-config-format.sql 的生成说明）。
-INSERT IGNORE INTO kb_provider_credentials (id, provider_account_id, credential_type, auth_applier, encrypted_config, status) VALUES
-(1, 1, 'api-key', 'BEARER', 'ENC:Gxdt09+Mk+BnH3+meLh03rvVO/lr/5vjxcjK0RNW0PgB0X/vYX0QzaixD9xPh/gKVYTC/0JSNl4lU7zy+g==', 1),
-(2, 2, 'api-key', 'ANTHROPIC_API_KEY', 'ENC:v3v8kgxDLYoAKyNICNxGKU655xOH3Sd1k2qtSS+bgYcvtq/fXGyufZ1gA+Qr2LMBT1eRTJ6teFCPY5r/OvTjqw==', 1),
-(3, 3, 'api-key', 'BEARER', 'ENC:pnMjBuMkVI19v432F8xRJ1U976XGPXwM19DakGTc8GoKMEvIy/6QcOMUbwwsRbXMJ4kqXsY+X+sKrnBuuijw', 1);
+INSERT IGNORE INTO kb_provider_credentials (id, provider_account_code, credential_type, auth_applier, encrypted_config, status) VALUES
+(1, 'openai-default', 'api-key', 'BEARER', 'ENC:Gxdt09+Mk+BnH3+meLh03rvVO/lr/5vjxcjK0RNW0PgB0X/vYX0QzaixD9xPh/gKVYTC/0JSNl4lU7zy+g==', 1),
+(2, 'anthropic-default', 'api-key', 'ANTHROPIC_API_KEY', 'ENC:v3v8kgxDLYoAKyNICNxGKU655xOH3Sd1k2qtSS+bgYcvtq/fXGyufZ1gA+Qr2LMBT1eRTJ6teFCPY5r/OvTjqw==', 1),
+(3, 'deepseek-default', 'api-key', 'BEARER', 'ENC:pnMjBuMkVI19v432F8xRJ1U976XGPXwM19DakGTc8GoKMEvIy/6QcOMUbwwsRbXMJ4kqXsY+X+sKrnBuuijw', 1);
 
 -- 折扣策略（绑定供应商模型业务码 kb_models.model_code）
 -- 折扣是模型级概念：同一供应商账户下的不同模型可以有不同折扣，故种子特意让
 -- openai-default 下的 gpt-4o 与 gpt-4o-mini 各持一条不同策略，用于验证该语义。
-INSERT IGNORE INTO kb_provider_discount_policies (id, model_code, policy_name, scope_type, scope_ref_id, discount_type, discount_value, priority, effective_from, status) VALUES
+INSERT IGNORE INTO kb_provider_discount_policies (id, model_code, policy_name, scope_type, scope_ref_code, discount_type, discount_value, priority, effective_from, status) VALUES
 (1, 'gpt-4o',            '旗舰模型9折',   'GLOBAL',   NULL, 'PERCENTAGE', 0.9000, 100, NOW(), 1),
 (2, 'gpt-4o-mini',       '轻量模型75折',  'GLOBAL',   NULL, 'PERCENTAGE', 0.7500, 100, NOW(), 1),
 (3, 'claude-sonnet-4-20250514', '企业客户8折', 'GLOBAL', NULL, 'PERCENTAGE', 0.8000, 90,  NOW(), 1),
@@ -554,12 +554,12 @@ INSERT IGNORE INTO kb_logical_models (
   'PUBLIC', 2, 1, 20, 0, 'Economy provider route');
 
 INSERT IGNORE INTO kb_provider_model_mappings (
-  id, logical_model_code, provider_account_code, model_id, provider_model_name, status, priority
+  id, logical_model_code, provider_account_code, model_code, provider_model_name, status, priority
 ) VALUES
-(1, 'knot-chat-premium', 'openai-default',    1, 'gpt-4o', 1, 10),
-(2, 'knot-chat-premium', 'anthropic-default', 4, 'claude-sonnet-4-20250514', 1, 20),
-(3, 'knot-chat-economy', 'openai-default',    2, 'gpt-4o-mini', 1, 10),
-(4, 'knot-chat-economy', 'deepseek-default',  6, 'deepseek-chat', 1, 20);
+(1, 'knot-chat-premium', 'openai-default',    'gpt-4o', 'gpt-4o', 1, 10),
+(2, 'knot-chat-premium', 'anthropic-default', 'claude-sonnet-4-20250514', 'claude-sonnet-4-20250514', 1, 20),
+(3, 'knot-chat-economy', 'openai-default',    'gpt-4o-mini', 'gpt-4o-mini', 1, 10),
+(4, 'knot-chat-economy', 'deepseek-default',  'deepseek-chat', 'deepseek-chat', 1, 20);
 
 INSERT IGNORE INTO kx_model_sources (
   id, source_code, source_name, source_url, api_url, source_type, status
@@ -568,15 +568,15 @@ INSERT IGNORE INTO kx_model_sources (
  'https://openrouter.ai/api/v1/models', 'MODEL_CATALOG', 1);
 
 -- 模型 API 协议绑定（usage_extractor 为 Usage 解析器编码或类名）
-INSERT IGNORE INTO kb_model_api_bindings (id, model_id, protocol, api_path, request_adapter, usage_extractor, status, remark) VALUES
-(1, 1, 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT', 1, 'GPT-4o Chat Completions'),
-(2, 2, 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT', 1, 'GPT-4o Mini Chat Completions'),
-(3, 4, 'MESSAGES', '/v1/messages', 'ANTHROPIC', 'ANTHROPIC', 1, 'Claude Sonnet Messages API'),
-(4, 6, 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT', 1, 'DeepSeek Chat'),
-(5, 8, 'IMAGE_GENERATIONS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'DEFAULT', 1, 'Qwen Image Generation'),
-(6, 9, 'IMAGE_EDITS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'DEFAULT', 1, 'Qwen Image Edit'),
-(7, 10, 'IMAGE_GENERATIONS', '/v1/images/generations', 'OPENAI_COMPATIBLE', 'DEFAULT', 1, 'OpenAI Image Generation'),
-(8, 10, 'IMAGE_EDITS', '/v1/images/edits', 'OPENAI_COMPATIBLE', 'DEFAULT', 1, 'OpenAI Image Edit');
+INSERT IGNORE INTO kb_model_api_bindings (id, model_code, protocol, api_path, request_adapter, usage_extractor, status, remark) VALUES
+(1, 'gpt-4o', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT', 1, 'GPT-4o Chat Completions'),
+(2, 'gpt-4o-mini', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT', 1, 'GPT-4o Mini Chat Completions'),
+(3, 'claude-sonnet-4-20250514', 'MESSAGES', '/v1/messages', 'ANTHROPIC', 'ANTHROPIC', 1, 'Claude Sonnet Messages API'),
+(4, 'deepseek-chat', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT', 1, 'DeepSeek Chat'),
+(5, 'qwen-image', 'IMAGE_GENERATIONS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'DEFAULT', 1, 'Qwen Image Generation'),
+(6, 'qwen-image-edit', 'IMAGE_EDITS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'DEFAULT', 1, 'Qwen Image Edit'),
+(7, 'gpt-image-1', 'IMAGE_GENERATIONS', '/v1/images/generations', 'OPENAI_COMPATIBLE', 'DEFAULT', 1, 'OpenAI Image Generation'),
+(8, 'gpt-image-1', 'IMAGE_EDITS', '/v1/images/edits', 'OPENAI_COMPATIBLE', 'DEFAULT', 1, 'OpenAI Image Edit');
 
 -- =========================
 -- 应用管理
@@ -743,7 +743,7 @@ INSERT IGNORE INTO kb_plugin_instances (
 (6, 'builtin-provider-audit', 6, 'provider-error-log', '上游异常日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0);
 
 INSERT IGNORE INTO kb_plugin_bindings (
-  id, instance_code, scope_type, scope_ref_id, stage_code, order_no, status, binding_config_json
+  id, instance_code, scope_type, scope_ref_code, stage_code, order_no, status, binding_config_json
 ) VALUES
 (1, 'gateway-request-log', 'GLOBAL', NULL, 'GATEWAY_REQUEST', 100, 1, JSON_OBJECT('maskApiKey', true)),
 (2, 'gateway-response-log', 'GLOBAL', NULL, 'GATEWAY_RESPONSE', 100, 1, JSON_OBJECT()),
