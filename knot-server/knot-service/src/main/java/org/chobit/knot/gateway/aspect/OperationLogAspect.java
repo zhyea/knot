@@ -1,5 +1,8 @@
 package org.chobit.knot.gateway.aspect;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -20,6 +23,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.util.Set;
+
 /**
  * 操作日志切面：拦截 {@link OperationLog} 注解，并异步写入操作日志表。
  */
@@ -27,6 +32,9 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @Aspect
 @Component
 public class OperationLogAspect {
+
+    private static final Set<String> IGNORED_SNAPSHOT_FIELDS = Set.of(
+            "updatedAt", "updated_at", "updateTime", "update_time");
 
     private final OperationLogService operationLogService;
     private final BeanFactory beanFactory;
@@ -111,7 +119,25 @@ public class OperationLogAspect {
             return s;
         }
         String json = JsonKit.toJson(value);
-        return json != null ? json : String.valueOf(value);
+        return json != null ? removeIgnoredSnapshotFields(json) : String.valueOf(value);
+    }
+
+    private String removeIgnoredSnapshotFields(String json) {
+        JsonNode root = JsonKit.parse(json);
+        if (root == null) {
+            return json;
+        }
+        removeIgnoredSnapshotFields(root);
+        return JsonKit.toJson(root);
+    }
+
+    private void removeIgnoredSnapshotFields(JsonNode node) {
+        if (node instanceof ObjectNode objectNode) {
+            IGNORED_SNAPSHOT_FIELDS.forEach(objectNode::remove);
+            objectNode.elements().forEachRemaining(this::removeIgnoredSnapshotFields);
+        } else if (node instanceof ArrayNode arrayNode) {
+            arrayNode.elements().forEachRemaining(this::removeIgnoredSnapshotFields);
+        }
     }
 
     private Object evaluateExpression(ProceedingJoinPoint joinPoint, String expression, Object result) {
