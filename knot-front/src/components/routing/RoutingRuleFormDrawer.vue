@@ -78,8 +78,6 @@
                 />
               </el-form-item>
             </el-col>
-          </el-row>
-          <el-row :gutter="16">
             <el-col :span="12">
               <el-form-item label="归属用户">
                 <RemoteEntitySelect
