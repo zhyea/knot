@@ -415,27 +415,27 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 
 -- 角色授权（OPERATOR 全量 / DEVELOPER 只读；ADMIN 由文件末尾权威块全量授予）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
-(2, 1),(2, 2),(2, 6),(2, 7),(2, 14),(2, 15),(2, 16),(2, 17),
-(2, 18),(2, 19),(2, 20),(2, 21),(2, 22),(2, 23),(2, 24),(2, 25),
-(2, 26),(2, 27),(2, 28),(2, 29),(2, 30),(2, 31),(2, 32),(2, 33),
-(2, 34),(2, 35),(2, 36),(2, 37),(2, 38),(2, 39),(2, 40),(2, 41),
-(2, 42),(2, 43),(2, 44),(2, 45),(2, 46),(2, 47),(2, 48),(2, 49),
-(2, 50),(2, 51),(2, 52),(2, 53),(2, 54),(2, 55),(2, 57),(3, 57),
-(2, 58),(2, 59),(2, 60),(2, 61),(2, 62),(2, 63),(2, 64),(2, 65),
-(2, 66),(2, 67),(2, 68),(2, 69),(2, 70),(2, 71),(2, 72),(2, 73),
-(2, 74),(2, 75),(2, 76),(2, 77),(2, 78),(2, 79),(2, 80),(2, 81),
-(2, 82),(2, 83),(2, 84),(2, 85),(2, 86),(2, 87),(2, 88),(2, 89),
-(2, 90),(2, 91),(2, 92),(2, 93),(2, 94),(2, 95),(2, 96),(2, 97),
-(2, 98),(2, 99),(2, 100),(2, 101),(2, 102),(2, 103),(2, 104),(2, 105),
-(2, 106),(2, 107),(2, 108),(2, 109),(2, 110),(2, 111),(2, 112),(2, 113),
-(2, 114),(2, 115),(2, 116),(2, 117),(2, 118),(2, 119),(2, 120),(2, 121),
-(2, 122),(2, 123),(2, 124),(2, 125),(2, 126),(2, 127),(2, 128),(2, 129),
-(2, 130),(2, 131),(2, 132),(2, 133),(2, 134),(2, 135),(2, 136),(2, 137),(2, 138),(2, 139),
-(2, 140),(2, 141),(3, 14),(3, 15),(3, 16),(3, 17),(3, 18),
-(3, 19),(3, 20),(3, 21),(3, 22),(3, 23),(3, 24),(3, 25),(3, 26),
-(3, 58),(3, 66),(3, 67),(3, 75),(3, 79),(3, 84),(3, 88),(3, 93),
-(3, 94),(3, 99),(3, 103),(3, 107),(3, 112),(3, 120),(3, 124),(3, 125),
-(3, 126),(3, 127),(3, 128),(3, 133),(3, 136),(3, 137);
+(2, 1), (2, 2), (2, 6), (2, 7), (2, 14), (2, 15), (2, 16), (2, 17),
+(2, 18), (2, 19), (2, 20), (2, 21), (2, 22), (2, 23), (2, 24), (2, 25),
+(2, 26), (2, 27), (2, 28), (2, 29), (2, 30), (2, 31), (2, 32), (2, 33),
+(2, 34), (2, 35), (2, 36), (2, 37), (2, 38), (2, 39), (2, 40), (2, 41),
+(2, 42), (2, 43), (2, 44), (2, 45), (2, 46), (2, 47), (2, 48), (2, 49),
+(2, 50), (2, 51), (2, 52), (2, 53), (2, 54), (2, 55), (2, 57), (3, 57),
+(2, 58), (2, 59), (2, 60), (2, 61), (2, 62), (2, 63), (2, 64), (2, 65),
+(2, 66), (2, 67), (2, 68), (2, 69), (2, 70), (2, 71), (2, 72), (2, 73),
+(2, 74), (2, 75), (2, 76), (2, 77), (2, 78), (2, 79), (2, 80), (2, 81),
+(2, 82), (2, 83), (2, 84), (2, 85), (2, 86), (2, 87), (2, 88), (2, 89),
+(2, 90), (2, 91), (2, 92), (2, 93), (2, 94), (2, 95), (2, 96), (2, 97),
+(2, 98), (2, 99), (2, 100), (2, 101), (2, 102), (2, 103), (2, 104), (2, 105),
+(2, 106), (2, 107), (2, 108), (2, 109), (2, 110), (2, 111), (2, 112), (2, 113),
+(2, 114), (2, 115), (2, 116), (2, 117), (2, 118), (2, 119), (2, 120), (2, 121),
+(2, 122), (2, 123), (2, 124), (2, 125), (2, 126), (2, 127), (2, 128), (2, 129),
+(2, 130), (2, 131), (2, 132), (2, 133), (2, 134), (2, 135), (2, 136), (2, 137), (2, 138), (2, 139),
+(2, 140), (2, 141), (3, 14), (3, 15), (3, 16), (3, 17), (3, 18),
+(3, 19), (3, 20), (3, 21), (3, 22), (3, 23), (3, 24), (3, 25), (3, 26),
+(3, 58), (3, 66), (3, 67), (3, 75), (3, 79), (3, 84), (3, 88), (3, 93),
+(3, 94), (3, 99), (3, 103), (3, 107), (3, 112), (3, 120), (3, 124), (3, 125),
+(3, 126), (3, 127), (3, 128), (3, 133), (3, 136), (3, 137);
 
 -- 存量库修补：把「授权资源页面访问」补给已持有「角色授权页面访问」(id=12) 的角色。
 -- 注意：ADMIN 的 55 由文件末尾的权威授权块保证，不依赖本句。
@@ -479,15 +479,15 @@ INSERT IGNORE INTO kb_quota_policies (id, policy_code, policy_name, max_tokens, 
 (5, 'APP-2-QT',      'APP #2 额度',         200000,    20.000000, 'USD', 'DAY',   1);
 
 INSERT IGNORE INTO kb_resource_traffic_policies (id, resource_type, resource_code, rate_limit_policy_code, quota_policy_code) VALUES
-(1, 'PROVIDER',     'openai-default',                 NULL,            'PROVIDER-1-QT'),
-(2, 'PROVIDER',     'anthropic-default',              NULL,            'PROVIDER-2-QT'),
-(3, 'PROVIDER',     'deepseek-default',               NULL,            'PROVIDER-3-QT'),
-(6, 'PROVIDER',     'qwen-default',                   NULL,            'PROVIDER-3-QT'),
-(4, 'APP',          'app_001',                        NULL,            'APP-1-QT'),
-(5, 'APP',          'app_002',                        NULL,            'APP-2-QT'),
-(7, 'MODEL',        'gpt-4o',                         'MODEL-1-RL',    NULL),
-(8, 'MODEL',        'claude-sonnet-4-20250514',       'MODEL-4-RL',    NULL),
-(9, 'ROUTING_RULE', 'gpt4o-default',                  'ROUTING_RULE-1-RL', NULL);
+(1, 'PROVIDER', 'openai-default', NULL, 'PROVIDER-1-QT'),
+(2, 'PROVIDER', 'anthropic-default', NULL, 'PROVIDER-2-QT'),
+(3, 'PROVIDER', 'deepseek-default', NULL, 'PROVIDER-3-QT'),
+(6, 'PROVIDER', 'qwen-default', NULL, 'PROVIDER-3-QT'),
+(4, 'APP', 'app_001', NULL, 'APP-1-QT'),
+(5, 'APP', 'app_002', NULL, 'APP-2-QT'),
+(7, 'MODEL', 'gpt-4o', 'MODEL-1-RL', NULL),
+(8, 'MODEL', 'claude-sonnet-4-20250514', 'MODEL-4-RL', NULL),
+(9, 'ROUTING_RULE', 'gpt4o-default', 'ROUTING_RULE-1-RL', NULL);
 
 -- 供应商凭证（认证配置整体以 AES-GCM 密文保存；前缀 ENC:）
 -- 密文解密后必须是 JSON 对象形态（如 {"apiKey":"sk-..."}），与 ProviderCredentialSupport.saveAuthConfig
@@ -503,33 +503,33 @@ INSERT IGNORE INTO kb_provider_credentials (id, provider_account_code, credentia
 -- 折扣是模型级概念：同一供应商账户下的不同模型可以有不同折扣，故种子特意让
 -- openai-default 下的 gpt-4o 与 gpt-4o-mini 各持一条不同策略，用于验证该语义。
 INSERT IGNORE INTO kb_provider_discount_policies (id, model_code, policy_name, scope_type, scope_ref_code, discount_type, discount_value, priority, effective_from, status) VALUES
-(1, 'gpt-4o',            '旗舰模型9折',   'GLOBAL',   NULL, 'PERCENTAGE', 0.9000, 100, NOW(), 1),
-(2, 'gpt-4o-mini',       '轻量模型75折',  'GLOBAL',   NULL, 'PERCENTAGE', 0.7500, 100, NOW(), 1),
-(3, 'claude-sonnet-4-20250514', '企业客户8折', 'GLOBAL', NULL, 'PERCENTAGE', 0.8000, 90,  NOW(), 1),
-(4, 'deepseek-chat',     '直减5元',       'GLOBAL',   NULL, 'FIXED',      5.0000, 100, NOW(), 1);
+(1, 'gpt-4o', '旗舰模型9折', 'GLOBAL', NULL, 'PERCENTAGE', 0.9000, 100, NOW(), 1),
+(2, 'gpt-4o-mini', '轻量模型75折', 'GLOBAL', NULL, 'PERCENTAGE', 0.7500, 100, NOW(), 1),
+(3, 'claude-sonnet-4-20250514', '企业客户8折', 'GLOBAL', NULL, 'PERCENTAGE', 0.8000, 90, NOW(), 1),
+(4, 'deepseek-chat', '直减5元', 'GLOBAL', NULL, 'FIXED', 5.0000, 100, NOW(), 1);
 
 -- 模型
 INSERT IGNORE INTO kb_models (id, provider_account_code, model_code, upstream_model, version, base_url, status) VALUES
-(1,  'openai-default',    'gpt-4o',            'gpt-4o',            '2024-08-06', 'https://api.openai.com', 1),
-(2,  'openai-default',    'gpt-4o-mini',       'gpt-4o-mini',       '2024-07-18', 'https://api.openai.com', 1),
-(3,  'openai-default',    'text-embedding-3-large','text-embedding-3-large','2024-01-01','https://api.openai.com',1),
-(4,  'anthropic-default', 'claude-sonnet-4-20250514','claude-sonnet-4-20250514','2025-05-14','https://api.anthropic.com',1),
-(5,  'anthropic-default', 'claude-haiku-3-5-20241022','claude-haiku-3-5-20241022','2024-10-22','https://api.anthropic.com',1),
-(6,  'deepseek-default',  'deepseek-chat',     'deepseek-chat',     '2024-08-01', 'https://api.deepseek.com', 1),
-(7,  'deepseek-default',  'deepseek-reasoner', 'deepseek-reasoner', '2025-01-20', 'https://api.deepseek.com', 1),
-(8,  'qwen-default',      'qwen-image',        'qwen-image',        '2025-08-01', 'https://dashscope.aliyuncs.com', 1),
-(9,  'qwen-default',      'qwen-image-edit',   'qwen-image-edit',   '2025-08-01', 'https://dashscope.aliyuncs.com', 1),
-(10, 'openai-default',    'gpt-image-1',       'gpt-image-1',       '2025-04-01', 'https://api.openai.com', 1);
+(1, 'openai-default', 'gpt-4o', 'gpt-4o', '2024-08-06', 'https://api.openai.com', 1),
+(2, 'openai-default', 'gpt-4o-mini', 'gpt-4o-mini', '2024-07-18', 'https://api.openai.com', 1),
+(3, 'openai-default', 'text-embedding-3-large', 'text-embedding-3-large', '2024-01-01', 'https://api.openai.com', 1),
+(4, 'anthropic-default', 'claude-sonnet-4-20250514', 'claude-sonnet-4-20250514', '2025-05-14', 'https://api.anthropic.com', 1),
+(5, 'anthropic-default', 'claude-haiku-3-5-20241022', 'claude-haiku-3-5-20241022', '2024-10-22', 'https://api.anthropic.com', 1),
+(6, 'deepseek-default', 'deepseek-chat', 'deepseek-chat', '2024-08-01', 'https://api.deepseek.com', 1),
+(7, 'deepseek-default', 'deepseek-reasoner', 'deepseek-reasoner', '2025-01-20', 'https://api.deepseek.com', 1),
+(8, 'qwen-default', 'qwen-image', 'qwen-image', '2025-08-01', 'https://dashscope.aliyuncs.com', 1),
+(9, 'qwen-default', 'qwen-image-edit', 'qwen-image-edit', '2025-08-01', 'https://dashscope.aliyuncs.com', 1),
+(10, 'openai-default', 'gpt-image-1', 'gpt-image-1', '2025-04-01', 'https://api.openai.com', 1);
 
 INSERT IGNORE INTO kb_model_pools (id, pool_code, name, logical_model_code, selection_strategy, status, remark) VALUES
 (1, 'chat-premium-pool', 'Premium Chat Pool', 'knot-chat-premium', 'WEIGHTED', 1, 'Premium chat routing pool'),
 (2, 'chat-economy-pool', 'Economy Chat Pool', 'knot-chat-economy', 'WEIGHTED', 1, 'Economy chat routing pool');
 
 INSERT IGNORE INTO kb_model_pool_items (id, pool_code, model_code, weight, priority, status) VALUES
-(1, 'chat-premium-pool', 'gpt-4o',                  70, 10, 1),
+(1, 'chat-premium-pool', 'gpt-4o', 70, 10, 1),
 (2, 'chat-premium-pool', 'claude-sonnet-4-20250514', 30, 20, 1),
-(3, 'chat-economy-pool', 'gpt-4o-mini',             60, 10, 1),
-(4, 'chat-economy-pool', 'deepseek-chat',           40, 20, 1);
+(3, 'chat-economy-pool', 'gpt-4o-mini', 60, 10, 1),
+(4, 'chat-economy-pool', 'deepseek-chat', 40, 20, 1);
 
 INSERT IGNORE INTO kb_logical_models (
   id, model_code, model_name, model_type, model_family, display_name, description,
@@ -539,33 +539,33 @@ INSERT IGNORE INTO kb_logical_models (
   remark
 ) VALUES
 (1, 'knot-chat-premium', 'Knot Chat Premium', 'CHAT', NULL,
- 'Knot Chat Premium',
- 'A logical chat model that routes to premium provider models by policy.',
- JSON_ARRAY('chat', 'reasoning', 'premium'),
- JSON_ARRAY('knowledge assistant', 'research', 'complex analysis'),
- 200000, 8192, JSON_ARRAY('text', 'image'), JSON_ARRAY('text'), JSON_ARRAY('zh-CN', 'en-US'),
+  'Knot Chat Premium',
+  'A logical chat model that routes to premium provider models by policy.',
+  JSON_ARRAY('chat', 'reasoning', 'premium'),
+  JSON_ARRAY('knowledge assistant', 'research', 'complex analysis'),
+  200000, 8192, JSON_ARRAY('text', 'image'), JSON_ARRAY('text'), JSON_ARRAY('zh-CN', 'en-US'),
   'PUBLIC', 2, 1, 10, 1, 'Premium provider route'),
 (2, 'knot-chat-economy', 'Knot Chat Economy', 'CHAT', NULL,
- 'Knot Chat Economy',
- 'A logical chat model that routes to economical provider models.',
- JSON_ARRAY('chat', 'economy'),
- JSON_ARRAY('customer service', 'daily assistant'),
- 128000, 4096, JSON_ARRAY('text'), JSON_ARRAY('text'), JSON_ARRAY('zh-CN', 'en-US'),
+  'Knot Chat Economy',
+  'A logical chat model that routes to economical provider models.',
+  JSON_ARRAY('chat', 'economy'),
+  JSON_ARRAY('customer service', 'daily assistant'),
+  128000, 4096, JSON_ARRAY('text'), JSON_ARRAY('text'), JSON_ARRAY('zh-CN', 'en-US'),
   'PUBLIC', 2, 1, 20, 0, 'Economy provider route');
 
 INSERT IGNORE INTO kb_provider_model_mappings (
   id, logical_model_code, provider_account_code, model_code, provider_model_name, status, priority
 ) VALUES
-(1, 'knot-chat-premium', 'openai-default',    'gpt-4o', 'gpt-4o', 1, 10),
+(1, 'knot-chat-premium', 'openai-default', 'gpt-4o', 'gpt-4o', 1, 10),
 (2, 'knot-chat-premium', 'anthropic-default', 'claude-sonnet-4-20250514', 'claude-sonnet-4-20250514', 1, 20),
-(3, 'knot-chat-economy', 'openai-default',    'gpt-4o-mini', 'gpt-4o-mini', 1, 10),
-(4, 'knot-chat-economy', 'deepseek-default',  'deepseek-chat', 'deepseek-chat', 1, 20);
+(3, 'knot-chat-economy', 'openai-default', 'gpt-4o-mini', 'gpt-4o-mini', 1, 10),
+(4, 'knot-chat-economy', 'deepseek-default', 'deepseek-chat', 'deepseek-chat', 1, 20);
 
 INSERT IGNORE INTO kx_model_sources (
   id, source_code, source_name, source_url, api_url, source_type, status
 ) VALUES
 (1, 'OPENROUTER', 'OpenRouter Models', 'https://openrouter.ai/models',
- 'https://openrouter.ai/api/v1/models', 'MODEL_CATALOG', 1);
+  'https://openrouter.ai/api/v1/models', 'MODEL_CATALOG', 1);
 
 -- 模型 API 协议绑定（usage_extractor 为 Usage 解析器编码或类名）
 INSERT IGNORE INTO kb_model_api_bindings (id, model_code, protocol, api_path, request_adapter, usage_extractor, status, remark) VALUES
@@ -584,9 +584,9 @@ INSERT IGNORE INTO kb_model_api_bindings (id, model_code, protocol, api_path, re
 
 -- 应用
 INSERT IGNORE INTO kb_apps (id, app_code, name, dept_code, owner_username, remark, status) VALUES
-(1, 'app_001', '内部知识库助手',   'HQ',  'admin', '面向内部员工的知识检索与问答', 1),
-(2, 'app_002', '客服对话系统',     'OPS', 'zhangsan', '对外客服场景的对话接入',       1),
-(3, 'app_003', '代码审查工具',     'RND', 'lisi', '研发流程中的代码审查辅助',     1);
+(1, 'app_001', '内部知识库助手', 'HQ', 'admin', '面向内部员工的知识检索与问答', 1),
+(2, 'app_002', '客服对话系统', 'OPS', 'zhangsan', '对外客服场景的对话接入', 1),
+(3, 'app_003', '代码审查工具', 'RND', 'lisi', '研发流程中的代码审查辅助', 1);
 
 -- =========================
 -- 路由规则
@@ -594,13 +594,13 @@ INSERT IGNORE INTO kb_apps (id, app_code, name, dept_code, owner_username, remar
 
 INSERT IGNORE INTO kb_routing_consumers (id, consumer_code, name, user_username, secret_key, return_usage_detail, status) VALUES
 (1, 'consumer-internal-kb', '内部知识库助手消费者', 'admin', 'sk-demo-gpt4o-routing-key-001', 0, 1),
-(2, 'consumer-research',    '模型评测消费者',       'admin', 'sk-demo-claude-routing-key-002', 0, 1),
-(3, 'consumer-cs',          '客服系统消费者',       'zhangsan', 'sk-demo-deepseek-routing-key-003', 0, 1);
+(2, 'consumer-research', '模型评测消费者', 'admin', 'sk-demo-claude-routing-key-002', 0, 1),
+(3, 'consumer-cs', '客服系统消费者', 'zhangsan', 'sk-demo-deepseek-routing-key-003', 0, 1);
 
 INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, app_code, username, status) VALUES
-(1, 'gpt4o-default',    'GPT-4o默认路由',    '知识库问答', 'app_001', 'admin', 1),
-(2, 'claude-default',   'Claude默认路由',    '模型评测',   'app_001', 'admin', 1),
-(3, 'deepseek-lowcost', 'DeepSeek低成本路由', '客服对话',   'app_002', 'zhangsan', 1);
+(1, 'gpt4o-default', 'GPT-4o默认路由', '知识库问答', 'app_001', 'admin', 1),
+(2, 'claude-default', 'Claude默认路由', '模型评测', 'app_001', 'admin', 1),
+(3, 'deepseek-lowcost', 'DeepSeek低成本路由', '客服对话', 'app_002', 'zhangsan', 1);
 
 INSERT IGNORE INTO kb_routing_rule_consumers (id, rule_code, consumer_code) VALUES
 (1, 'gpt4o-default',    'consumer-internal-kb'),
@@ -620,66 +620,66 @@ SELECT 4, 'deepseek-lowcost', 'MODEL_POOL', mp.pool_code, 100, 1 FROM kb_model_p
 -- 请求体中的 model 会由调试面板按所选目标覆盖；messages/input/prompt 等内容可直接编辑后测试。
 -- 音频转录/翻译与图片编辑/变体需要本地文件，请将示例占位路径替换为实际文件路径。
 
-INSERT IGNORE INTO kb_test_request_presets
-    (code, name, protocol_code, request_body, remark, status)
-VALUES
+INSERT IGNORE INTO kb_test_request_presets (
+  code, name, protocol_code, request_body, remark, status
+) VALUES
 ('builtin-chat-completions-stream', '标准对话（Chat Completions，流式）', 'CHAT_COMPLETIONS',
- '{"model":"model-name","messages":[{"role":"user","content":"你好，请用一句话介绍这个模型。"}],"temperature":0.2,"max_tokens":256,"stream":true,"stream_options":{"include_usage":true}}',
- '适用于 OpenAI 兼容的 SSE 对话接口；通过 stream_options 请求流式 usage。', 1),
+  '{"model":"model-name","messages":[{"role":"user","content":"你好，请用一句话介绍这个模型。"}],"temperature":0.2,"max_tokens":256,"stream":true,"stream_options":{"include_usage":true}}',
+  '适用于 OpenAI 兼容的 SSE 对话接口；通过 stream_options 请求流式 usage。', 1),
 ('builtin-chat-completions-basic', '标准对话（Chat Completions，非流式）', 'CHAT_COMPLETIONS',
- '{"model":"model-name","messages":[{"role":"user","content":"你好，请用一句话介绍这个模型。"}],"temperature":0.2,"max_tokens":256,"stream":false}',
- '适用于 OpenAI 兼容的对话接口。', 1),
+  '{"model":"model-name","messages":[{"role":"user","content":"你好，请用一句话介绍这个模型。"}],"temperature":0.2,"max_tokens":256,"stream":false}',
+  '适用于 OpenAI 兼容的对话接口。', 1),
 ('builtin-responses-stream', '标准响应（Responses，流式）', 'RESPONSES',
- '{"model":"model-name","input":"你好，请用一句话介绍这个模型。","max_output_tokens":256,"stream":true}',
- '适用于 OpenAI Responses SSE 接口。', 1),
+  '{"model":"model-name","input":"你好，请用一句话介绍这个模型。","max_output_tokens":256,"stream":true}',
+  '适用于 OpenAI Responses SSE 接口。', 1),
 ('builtin-responses-basic', '标准响应（Responses，非流式）', 'RESPONSES',
- '{"model":"model-name","input":"你好，请用一句话介绍这个模型。","max_output_tokens":256,"stream":false}',
- '适用于 OpenAI Responses 接口。', 1),
+  '{"model":"model-name","input":"你好，请用一句话介绍这个模型。","max_output_tokens":256,"stream":false}',
+  '适用于 OpenAI Responses 接口。', 1),
 ('builtin-messages-stream', '消息对话（Messages，流式）', 'MESSAGES',
- '{"model":"model-name","messages":[{"role":"user","content":"你好，请用一句话介绍这个模型。"}],"max_tokens":256,"temperature":0.2,"stream":true}',
- '适用于 Anthropic Messages SSE 接口。', 1),
+  '{"model":"model-name","messages":[{"role":"user","content":"你好，请用一句话介绍这个模型。"}],"max_tokens":256,"temperature":0.2,"stream":true}',
+  '适用于 Anthropic Messages SSE 接口。', 1),
 ('builtin-messages-basic', '消息对话（Messages，非流式）', 'MESSAGES',
- '{"model":"model-name","messages":[{"role":"user","content":"你好，请用一句话介绍这个模型。"}],"max_tokens":256,"temperature":0.2,"stream":false}',
- '适用于 Anthropic Messages 接口。', 1),
+  '{"model":"model-name","messages":[{"role":"user","content":"你好，请用一句话介绍这个模型。"}],"max_tokens":256,"temperature":0.2,"stream":false}',
+  '适用于 Anthropic Messages 接口。', 1),
 ('builtin-completions-stream', '文本补全（Completions，流式）', 'COMPLETIONS',
- '{"model":"model-name","prompt":"请完成这句话：人工智能正在","max_tokens":64,"temperature":0.2,"stream":true}',
- '适用于传统文本补全 SSE 接口。', 1),
+  '{"model":"model-name","prompt":"请完成这句话：人工智能正在","max_tokens":64,"temperature":0.2,"stream":true}',
+  '适用于传统文本补全 SSE 接口。', 1),
 ('builtin-completions-basic', '文本补全（Completions，非流式）', 'COMPLETIONS',
- '{"model":"model-name","prompt":"请完成这句话：人工智能正在","max_tokens":64,"temperature":0.2,"stream":false}',
- '适用于传统文本补全接口。', 1),
+  '{"model":"model-name","prompt":"请完成这句话：人工智能正在","max_tokens":64,"temperature":0.2,"stream":false}',
+  '适用于传统文本补全接口。', 1),
 ('builtin-embeddings-basic', '文本向量（Embeddings）', 'EMBEDDINGS',
- '{"model":"model-name","input":["这是一段用于向量化的示例文本。"],"encoding_format":"float"}',
- '适用于文本向量化接口。', 1),
+  '{"model":"model-name","input":["这是一段用于向量化的示例文本。"],"encoding_format":"float"}',
+  '适用于文本向量化接口。', 1),
 ('builtin-image-generations-basic', '文生图（Image Generations）', 'IMAGE_GENERATIONS',
- '{"model":"model-name","prompt":"一只坐在窗边读书的橘猫，柔和自然光，简洁插画风格","n":1,"size":"1024x1024"}',
- '适用于文生图接口。', 1),
+  '{"model":"model-name","prompt":"一只坐在窗边读书的橘猫，柔和自然光，简洁插画风格","n":1,"size":"1024x1024"}',
+  '适用于文生图接口。', 1),
 ('builtin-image-edits-file', '图片编辑（Image Edits）', 'IMAGE_EDITS',
- '{"model":"model-name","prompt":"将背景替换为晴朗的蓝天","image":"/tmp/knot-example.png","size":"1024x1024"}',
- '请将 image 替换为可访问的本地图片路径；调试请求会以 multipart 发送。', 1),
+  '{"model":"model-name","prompt":"将背景替换为晴朗的蓝天","image":"/tmp/knot-example.png","size":"1024x1024"}',
+  '请将 image 替换为可访问的本地图片路径；调试请求会以 multipart 发送。', 1),
 ('builtin-image-variations-file', '图片变体（Image Variations）', 'IMAGE_VARIATIONS',
- '{"model":"model-name","image":"/tmp/knot-example.png","n":1,"size":"1024x1024"}',
- '请将 image 替换为可访问的本地图片路径。', 1),
+  '{"model":"model-name","image":"/tmp/knot-example.png","n":1,"size":"1024x1024"}',
+  '请将 image 替换为可访问的本地图片路径。', 1),
 ('builtin-audio-transcriptions-file', '音频转录（Audio Transcriptions）', 'AUDIO_TRANSCRIPTIONS',
- '{"model":"model-name","file":"/tmp/knot-example.mp3","language":"zh","response_format":"json"}',
- '请将 file 替换为实际音频文件路径。', 1),
+  '{"model":"model-name","file":"/tmp/knot-example.mp3","language":"zh","response_format":"json"}',
+  '请将 file 替换为实际音频文件路径。', 1),
 ('builtin-audio-translations-file', '音频翻译（Audio Translations）', 'AUDIO_TRANSLATIONS',
- '{"model":"model-name","file":"/tmp/knot-example.mp3","response_format":"json"}',
- '请将 file 替换为实际音频文件路径。', 1),
+  '{"model":"model-name","file":"/tmp/knot-example.mp3","response_format":"json"}',
+  '请将 file 替换为实际音频文件路径。', 1),
 ('builtin-audio-speech-stream', '语音合成（Audio Speech，流式）', 'AUDIO_SPEECH',
- '{"model":"model-name","input":"你好，这是一段语音合成测试。","voice":"alloy","stream":true,"stream_format":"sse"}',
- '适用于支持 SSE 音频输出的语音合成接口。', 1),
+  '{"model":"model-name","input":"你好，这是一段语音合成测试。","voice":"alloy","stream":true,"stream_format":"sse"}',
+  '适用于支持 SSE 音频输出的语音合成接口。', 1),
 ('builtin-audio-speech-basic', '语音合成（Audio Speech，非流式）', 'AUDIO_SPEECH',
- '{"model":"model-name","input":"你好，这是一段语音合成测试。","voice":"alloy","response_format":"mp3","stream":false}',
- '适用于语音合成接口。', 1),
+  '{"model":"model-name","input":"你好，这是一段语音合成测试。","voice":"alloy","response_format":"mp3","stream":false}',
+  '适用于语音合成接口。', 1),
 ('builtin-video-generations-basic', '视频生成（Video Generations）', 'VIDEO_GENERATIONS',
- '{"model":"model-name","prompt":"一条小路穿过春天的森林，镜头缓慢向前推进","size":"1280x720","duration":5}',
- '适用于视频生成接口。', 1),
+  '{"model":"model-name","prompt":"一条小路穿过春天的森林，镜头缓慢向前推进","size":"1280x720","duration":5}',
+  '适用于视频生成接口。', 1),
 ('builtin-rerank-basic', '文档重排（Rerank）', 'RERANK',
- '{"model":"model-name","query":"网关如何选择上游模型？","documents":["网关根据路由规则选择模型。","计费规则负责计算调用成本。","预设请求用于快速调试接口。"],"top_n":2,"return_documents":true}',
- '适用于文档重排接口。', 1),
+  '{"model":"model-name","query":"网关如何选择上游模型？","documents":["网关根据路由规则选择模型。","计费规则负责计算调用成本。","预设请求用于快速调试接口。"],"top_n":2,"return_documents":true}',
+  '适用于文档重排接口。', 1),
 ('builtin-moderations-basic', '内容审核（Moderations）', 'MODERATIONS',
- '{"model":"model-name","input":"这是一段用于内容安全审核的示例文本。"}',
- '适用于内容审核接口。', 1);
+  '{"model":"model-name","input":"这是一段用于内容安全审核的示例文本。"}',
+  '适用于内容审核接口。', 1);
 
 -- =========================
 -- 计费规则
@@ -718,9 +718,9 @@ INSERT IGNORE INTO kb_plugin_packages (
   id, plugin_code, plugin_name, version, source_type, entrypoint, manifest_json, status
 ) VALUES
 (1, 'builtin-gateway-audit', '网关请求响应审计插件', '1.0.0', 'BUILTIN', 'org.chobit.knot.gateway.plugin.builtin.GatewayRequestLoggingPlugin',
- JSON_OBJECT('pluginId', 'builtin-gateway-audit', 'extensionPoint', 'GATEWAY_EXCHANGE'), 1),
+  JSON_OBJECT('pluginId', 'builtin-gateway-audit', 'extensionPoint', 'GATEWAY_EXCHANGE'), 1),
 (2, 'builtin-provider-audit', '上游请求响应审计插件', '1.0.0', 'BUILTIN', 'org.chobit.knot.gateway.plugin.builtin.UpstreamRequestLoggingPlugin',
- JSON_OBJECT('pluginId', 'builtin-provider-audit', 'extensionPoint', 'UPSTREAM_EXCHANGE'), 1);
+  JSON_OBJECT('pluginId', 'builtin-provider-audit', 'extensionPoint', 'UPSTREAM_EXCHANGE'), 1);
 
 INSERT IGNORE INTO kb_plugin_capabilities (
   id, plugin_code, capability_code, capability_name, extension_point, stage_code, order_hint, status
@@ -754,8 +754,8 @@ INSERT IGNORE INTO kb_plugin_bindings (
 
 -- 通知模板
 INSERT IGNORE INTO kb_notification_templates (id, code, name, channel, title_tpl, content_tpl, status) VALUES
-(1, 'QUOTA_ALERT',    '配额告警',   'EMAIL', '配额告警: {{appName}}',   '应用 {{appName}} 的配额已使用 {{percent}}%，请及时处理。', 1),
-(2, 'ERROR_ALERT',    '异常告警',   'EMAIL', '异常告警: {{providerName}}','供应商 {{providerName}} 错误率超过阈值，当前 {{errorRate}}%。', 1),
+(1, 'QUOTA_ALERT', '配额告警', 'EMAIL', '配额告警: {{appName}}', '应用 {{appName}} 的配额已使用 {{percent}}%，请及时处理。', 1),
+(2, 'ERROR_ALERT', '异常告警', 'EMAIL', '异常告警: {{providerName}}','供应商 {{providerName}} 错误率超过阈值，当前 {{errorRate}}%。', 1),
 (3, 'CREDENTIAL_EXPIRE','凭证过期提醒','EMAIL','凭证即将过期: {{providerName}}','供应商 {{providerName}} 的 API Key 将在 {{expireDate}} 过期。', 1);
 
 -- =========================
@@ -851,7 +851,6 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 (29, 'UTC+13:00', 'UTC+13:00 萨摩亚（阿皮亚）',            37, 1),
 (29, 'UTC+14:00', 'UTC+14:00 基里巴斯（圣诞岛）',          38, 1);
 
-
 -- ============================================================
 -- 权威授权块（必须保持在文件最后）
 -- ============================================================
@@ -861,5 +860,5 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM ks_roles r
-         CROSS JOIN ks_permissions p
+  CROSS JOIN ks_permissions p
 WHERE r.code = 'ADMIN';
