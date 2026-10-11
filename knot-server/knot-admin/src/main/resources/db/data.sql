@@ -411,7 +411,10 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (189, 142, 'DELETE', '/api/models/{id}', 'ModelController', 1),
 (190, 86, 'PUT', '/api/models/{id}/restore', 'ModelController', 1),
 (191, 143, 'PUT', '/api/billing/rules/{id}/restore', 'BillingController', 1),
-(192, 2, 'POST', '/api/users/options-by-username', 'UserController', 1);
+(192, 2, 'POST', '/api/users/options-by-username', 'UserController', 1),
+(193, 84, 'POST', '/api/models/{modelCode}/discount-policies/list', 'ModelController', 1),
+(194, 85, 'POST', '/api/models/{modelCode}/discount-policies', 'ModelController', 1),
+(195, 86, 'PUT', '/api/models/{modelCode}/discount-policies/{policyId}', 'ModelController', 1);
 
 -- 角色授权（OPERATOR 全量 / DEVELOPER 只读；ADMIN 由文件末尾权威块全量授予）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
