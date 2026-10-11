@@ -10,7 +10,7 @@
     <el-scrollbar v-loading="detailLoading" max-height="calc(100vh - 140px)">
       <el-tabs v-model="activeTab" type="border-card">
         <el-tab-pane label="表单编辑" name="form">
-          <el-form :model="form" label-width="118px" class="billing-rule-form">
+          <el-form :model="form" label-width="90px" class="billing-rule-form">
         <div class="slot-body form-section">
           <div class="section-head">
             <h3>基础信息</h3>
