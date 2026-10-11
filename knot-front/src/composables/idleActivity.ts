@@ -1,7 +1,7 @@
 import {getStorageItem, removeStorageItem, setStorageItem} from "@/utils/storage";
 
 // 连续无操作达到该时长后自动退出登录，单位：毫秒
-export const IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+export const IDLE_TIMEOUT_MS = 60 * 60 * 1000;
 
 /**
  * localStorage 落盘节流间隔。
