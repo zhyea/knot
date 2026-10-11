@@ -46,6 +46,21 @@ class GatewayTrafficGuardTest {
     }
 
     @Test
+    void resetAtIsWindowEndNotKeyTtl() {
+        // 键的 TTL 比窗口多留一个窗口余量；对外告知的重置时刻必须是窗口结束，
+        // 否则 Retry-After 会凭空多报一分钟。
+        setUpWith(new TrafficPolicies(new RateLimitPolicy(1, 0), null));
+        var context = guard.newContext();
+
+        assertTrue(guard.checkTarget(target(), context).allowed());
+        TrafficDecision rejected = guard.checkTarget(target(), context);
+
+        long now = System.currentTimeMillis();
+        assertTrue(rejected.resetAtMillis() > now, "重置时刻应在未来");
+        assertTrue(rejected.resetAtMillis() - now <= 60_000L, "重置时刻是窗口结束，不是多留一个窗口的 TTL");
+    }
+
+    @Test
     void tpmRejectsOnlyAfterTokensAccumulated() {
         setUpWith(new TrafficPolicies(new RateLimitPolicy(0, 1000), null));
         var context = guard.newContext();
@@ -87,6 +102,7 @@ class GatewayTrafficGuardTest {
         assertEquals(TrafficRejectReason.QUOTA_COST, rejected.reason());
         assertEquals(1_000_000_000L, rejected.limit(), "10.00 应换算成 10^8 纳元计数");
         assertEquals(1_200_000_000L, rejected.used());
+        assertEquals("USD", rejected.currency(), "成本维度必须带币种，否则响应体里的单位无从得知");
     }
 
     @Test

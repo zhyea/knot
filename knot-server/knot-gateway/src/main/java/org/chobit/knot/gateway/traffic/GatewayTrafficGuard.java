@@ -135,7 +135,9 @@ public class GatewayTrafficGuard {
                     : counterStore.get(key.key());
             boolean exceeded = dimension.requestBased() ? used > limit : used >= limit;
             if (exceeded) {
-                return reject(dimension.rejectReason(), ref, limit, used, key.expireAtMillis());
+                // 用窗口结束时刻而非键的 TTL 告知重置时间：TTL 多留了一个窗口余量
+                return reject(dimension.rejectReason(), ref, limit, used,
+                        dimension.windowEndMillis(nowMillis), null);
             }
         }
         return TrafficDecision.allow();
@@ -157,7 +159,8 @@ public class GatewayTrafficGuard {
             TrafficCounterKey key = counterKeys.quota(ref.type(), ref.id(), dimension, window, policy.currency(), now);
             long used = counterStore.get(key.key());
             if (used >= limit) {
-                return reject(dimension.rejectReason(), ref, limit, used, key.expireAtMillis());
+                String currency = dimension == QuotaDimension.COST ? policy.currency() : null;
+                return reject(dimension.rejectReason(), ref, limit, used, key.expireAtMillis(), currency);
             }
         }
         return TrafficDecision.allow();
@@ -249,8 +252,9 @@ public class GatewayTrafficGuard {
                                           ResourceRef ref,
                                           long limit,
                                           long used,
-                                          long resetAtMillis) {
-        return TrafficDecision.reject(reason, ref.type(), ref.id(), limit, used, resetAtMillis);
+                                          long resetAtMillis,
+                                          String currency) {
+        return TrafficDecision.reject(reason, ref.type(), ref.id(), limit, used, resetAtMillis, currency);
     }
 
     /**

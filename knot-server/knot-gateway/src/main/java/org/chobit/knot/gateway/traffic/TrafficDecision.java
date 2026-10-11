@@ -4,7 +4,9 @@ package org.chobit.knot.gateway.traffic;
  * 一次流量判定的结果。
  *
  * <p>{@code allowed=false} 时带上被拒原因、命中的资源、限额与当前用量、窗口重置时刻，
- * 供网关拼错误信息，也方便后续往响应头里透出 {@code Retry-After}。</p>
+ * 供网关拼错误信息与响应头 {@code Retry-After}。</p>
+ *
+ * @param currency 被拒维度为成本时所用的币种，其余维度为 {@code null}
  */
 public record TrafficDecision(boolean allowed,
                               TrafficRejectReason reason,
@@ -12,9 +14,10 @@ public record TrafficDecision(boolean allowed,
                               Long resourceId,
                               long limit,
                               long used,
-                              long resetAtMillis) {
+                              long resetAtMillis,
+                              String currency) {
 
-    private static final TrafficDecision ALLOWED = new TrafficDecision(true, null, null, null, 0L, 0L, 0L);
+    private static final TrafficDecision ALLOWED = new TrafficDecision(true, null, null, null, 0L, 0L, 0L, null);
 
     /**
      * 放行。
@@ -29,16 +32,18 @@ public record TrafficDecision(boolean allowed,
      * @param reason        被拒原因
      * @param resourceType  命中的资源类型
      * @param resourceId    命中的资源 ID
-     * @param limit         限额
-     * @param used          当前用量（已含本次）
+     * @param limit         限额（成本维度为纳元计数）
+     * @param used          当前用量（已含本次；成本维度为纳元计数）
      * @param resetAtMillis 计数重置时刻
+     * @param currency      成本维度的币种，其余维度传 {@code null}
      */
     public static TrafficDecision reject(TrafficRejectReason reason,
                                          String resourceType,
                                          Long resourceId,
                                          long limit,
                                          long used,
-                                         long resetAtMillis) {
-        return new TrafficDecision(false, reason, resourceType, resourceId, limit, used, resetAtMillis);
+                                         long resetAtMillis,
+                                         String currency) {
+        return new TrafficDecision(false, reason, resourceType, resourceId, limit, used, resetAtMillis, currency);
     }
 }

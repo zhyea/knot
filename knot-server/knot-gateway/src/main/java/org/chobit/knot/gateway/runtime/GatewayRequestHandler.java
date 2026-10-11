@@ -84,7 +84,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         // 检查应用、路由规则和消费者的频控和额度控制
         TrafficDecision routingDecision = trafficGuard.checkRouting(routing);
         if (!routingDecision.allowed()) {
-            throw reject(routingDecision, "Routing traffic policy rejected");
+            throw reject(routingDecision);
         }
 
         Map<String, Object> requestBody = exchange.requestBody();
@@ -121,7 +121,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         }
         if (!hasAllowedTarget) {
             if (firstRejection != null) {
-                throw reject(firstRejection, "Target traffic policy rejected");
+                throw reject(firstRejection);
             }
             throw lastUpstreamException;
         }
@@ -186,16 +186,15 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     }
 
     /**
-     * 把流量判定翻译成网关异常：频控与额度走不同错误码，便于调用方区分处置。
+     * 把流量判定翻译成网关异常：限流与额度共用 429 出口，靠错误码与明细区分处置。
      */
-    private GatewayRequestException reject(TrafficDecision decision, String message) {
-        String detail = message + ": resource=" + decision.resourceType() + "#" + decision.resourceId()
-                + ", reason=" + decision.reason()
-                + ", limit=" + decision.limit() + ", used=" + decision.used();
+    private GatewayRequestException reject(TrafficDecision decision) {
+        TrafficRejectDetail detail = TrafficRejectDetail.of(decision, System.currentTimeMillis());
+        String code = decision.reason().errorCode().code();
         if (decision.reason().quota()) {
-            return new GatewayQuotaException(detail, decision.reason().errorCode().code());
+            return new GatewayQuotaException(detail.describe(), code, detail);
         }
-        return new GatewayRateLimitException(detail, decision.reason().errorCode().code());
+        return new GatewayRateLimitException(detail.describe(), code, detail);
     }
 
     /**

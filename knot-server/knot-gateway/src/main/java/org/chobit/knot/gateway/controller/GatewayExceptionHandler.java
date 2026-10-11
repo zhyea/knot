@@ -4,12 +4,15 @@ import org.chobit.knot.gateway.constants.enums.GatewayErrorTypeEnum;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
-import org.chobit.knot.gateway.exception.GatewayRateLimitException;
+import jakarta.servlet.http.HttpServletResponse;
 import org.chobit.knot.gateway.exception.GatewayRequestException;
+import org.chobit.knot.gateway.exception.GatewayTrafficRejectException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.GatewayErrorResponse;
+import org.chobit.knot.gateway.model.TrafficRejectDetail;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -74,14 +77,23 @@ public class GatewayExceptionHandler {
     }
 
     /**
-     * Handles gateway rate limit errors.
+     * Handles gateway rate limit and quota errors.
+     *
+     * <p>Both land on 429: callers need only one retry strategy, and the response body
+     * carries a structured {@code detail} (resource, dimension, limit, used, reset time)
+     * plus a {@code Retry-After} header telling when the window resets.</p>
      */
     @ResponseBody
     @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
-    @ExceptionHandler(GatewayRateLimitException.class)
-    public GatewayErrorResponse handleGatewayRateLimitException(GatewayRateLimitException e) {
-        log.warn("Gateway rate limit exception: code={}, message={}", e.code(), e.getMessage());
-        return gatewayError(e);
+    @ExceptionHandler(GatewayTrafficRejectException.class)
+    public GatewayErrorResponse handleGatewayTrafficRejectException(GatewayTrafficRejectException e,
+                                                                    HttpServletResponse response) {
+        log.warn("Gateway traffic rejected: type={}, code={}, message={}", e.type(), e.code(), e.getMessage());
+        TrafficRejectDetail detail = e.detail();
+        if (detail != null && detail.resetAfterSeconds() > 0L) {
+            response.setHeader(HttpHeaders.RETRY_AFTER, Long.toString(detail.resetAfterSeconds()));
+        }
+        return GatewayErrorResponse.ofRejection(e.getMessage(), e.type(), e.code(), detail);
     }
 
     /**

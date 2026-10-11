@@ -72,10 +72,20 @@ public enum RateLimitDimension {
     }
 
     /**
-     * 当前窗口的结束时刻，多留一个窗口长度余量，避免节点间时钟偏差导致翻页抖动。
+     * 计数键的 TTL：比窗口结束时刻多留一个窗口长度余量，避免节点间时钟偏差导致翻页抖动。
+     *
+     * <p>这是<b>存储层</b>的过期时间，不是业务上的重置时刻——后者取 {@link #windowEndMillis}，
+     * 否则 {@code Retry-After} 会凭空多报一分钟。</p>
      */
     public long expireAtMillis(long nowMillis) {
         return (nowMillis / WINDOW_MILLIS + 2) * WINDOW_MILLIS;
+    }
+
+    /**
+     * 当前窗口的结束时刻：计数真正归零、请求可再次放行的时刻，用于对外告知何时可重试。
+     */
+    public long windowEndMillis(long nowMillis) {
+        return (nowMillis / WINDOW_MILLIS + 1) * WINDOW_MILLIS;
     }
 
     /**
