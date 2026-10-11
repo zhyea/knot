@@ -44,7 +44,7 @@
       </el-row>
       <el-row :gutter="16">
         <el-col :span="12">
-          <el-form-item label="最大 Token 数">
+          <el-form-item label="最大Token数">
             <el-input-number v-model="quotaDraft.maxTokens" controls-position="right"
                              :min="0" :step="10000" class="traffic-policy__field"/>
           </el-form-item>
