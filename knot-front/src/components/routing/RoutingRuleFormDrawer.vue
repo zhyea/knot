@@ -2,7 +2,7 @@
   <el-drawer
     :model-value="modelValue"
     :title="isEdit ? '编辑路由规则' : '新建路由规则'"
-    size="55%"
+    size="64%"
     class="drawer-with-scrollbar"
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
