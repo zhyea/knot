@@ -283,20 +283,15 @@ CREATE TABLE IF NOT EXISTS kb_provider_credentials (
 CREATE TABLE IF NOT EXISTS kb_provider_discount_policies (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   model_code VARCHAR(128) NOT NULL COMMENT '绑定的供应商模型业务码（kb_models.model_code），非主键 id',
-  policy_name VARCHAR(100) NOT NULL,
-  scope_type VARCHAR(32) NOT NULL,
-  scope_ref_code VARCHAR(128) DEFAULT NULL COMMENT '折扣范围业务码（GLOBAL 为空；MODEL→kb_models.model_code，APP→kb_apps.app_code），非主键 id',
   discount_type VARCHAR(32) NOT NULL,
   discount_value DECIMAL(10,4) NOT NULL,
-  priority INT NOT NULL DEFAULT 100,
   effective_from DATETIME NOT NULL,
   effective_to DATETIME DEFAULT NULL,
   status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   remark VARCHAR(255) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  KEY idx_provider_discount_model_time (model_code, effective_from, effective_to),
-  KEY idx_provider_discount_scope (scope_type, scope_ref_code, status)
+  KEY idx_provider_discount_model_time (model_code, effective_from, effective_to)
 );
 
 CREATE TABLE IF NOT EXISTS kb_models (

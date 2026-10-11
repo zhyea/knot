@@ -65,6 +65,8 @@ export interface ModelMeta {
 /** 用户：登录名（value 是 username，非主键 id —— 跨模块绑定存 code 不存 id）。 */
 export interface UserOptionMeta {
   username?: string | null;
+  /** 真实姓名（ks_users.real_name）；下拉 label 由后端拼成「姓名(用户名)」 */
+  realName?: string | null;
 }
 
 /** 部门：value 即部门业务码 dept_code（非主键 id），与 meta.deptCode 一致。 */

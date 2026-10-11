@@ -30,6 +30,7 @@
                   maxlength="128"
                   show-word-limit
                   :disabled="modelCodeChecking"
+                  :readonly="isEdit"
                   @blur="onModelCodeBlur"
                 />
               </el-form-item>
@@ -638,6 +639,12 @@ function onModelCodeBlur() {
 }
 
 async function validateModelCode() {
+  // 编辑已有模型时编码只读（身份码不可改），无需再校验唯一性
+  if (isEdit.value) {
+    modelCodeError.value = "";
+    modelCodeValidated.value = true;
+    return true;
+  }
   const code = form.modelCode?.trim();
   if (!code) {
     modelCodeError.value = "请填写模型编码";

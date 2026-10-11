@@ -505,11 +505,11 @@ INSERT IGNORE INTO kb_provider_credentials (id, provider_account_code, credentia
 -- 折扣策略（绑定供应商模型业务码 kb_models.model_code）
 -- 折扣是模型级概念：同一供应商账户下的不同模型可以有不同折扣，故种子特意让
 -- openai-default 下的 gpt-4o 与 gpt-4o-mini 各持一条不同策略，用于验证该语义。
-INSERT IGNORE INTO kb_provider_discount_policies (id, model_code, policy_name, scope_type, scope_ref_code, discount_type, discount_value, priority, effective_from, status) VALUES
-(1, 'gpt-4o', '旗舰模型9折', 'GLOBAL', NULL, 'PERCENTAGE', 0.9000, 100, NOW(), 1),
-(2, 'gpt-4o-mini', '轻量模型75折', 'GLOBAL', NULL, 'PERCENTAGE', 0.7500, 100, NOW(), 1),
-(3, 'claude-sonnet-4-20250514', '企业客户8折', 'GLOBAL', NULL, 'PERCENTAGE', 0.8000, 90, NOW(), 1),
-(4, 'deepseek-chat', '直减5元', 'GLOBAL', NULL, 'FIXED', 5.0000, 100, NOW(), 1);
+INSERT IGNORE INTO kb_provider_discount_policies (id, model_code, discount_type, discount_value, effective_from, status) VALUES
+(1, 'gpt-4o',            'PERCENTAGE', 0.9000, NOW(), 1),
+(2, 'gpt-4o-mini',       'PERCENTAGE', 0.7500, NOW(), 1),
+(3, 'claude-sonnet-4-20250514', 'PERCENTAGE', 0.8000, NOW(), 1),
+(4, 'deepseek-chat',     'FIXED',      5.0000, NOW(), 1);
 
 -- 模型
 INSERT IGNORE INTO kb_models (id, provider_account_code, model_code, upstream_model, version, base_url, status) VALUES

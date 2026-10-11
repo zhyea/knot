@@ -220,12 +220,11 @@ public class ModelController {
 
     private static DiscountPolicyDto toDiscountPolicyDto(DiscountPolicy vo) {
         return new DiscountPolicyDto(
-                null, vo.policyName(), vo.scopeType(), vo.scopeRefCode(),
-                vo.discountType(), vo.discountValue(), vo.priority(), vo.status());
+                null, vo.discountType(), vo.discountValue(), vo.status());
     }
 
     private static DiscountPolicy toDiscountPolicyVO(DiscountPolicyDto dto) {
-        return new DiscountPolicy(dto.id(), dto.policyName(), dto.scopeType(), dto.scopeRefCode(),
-                dto.discountType(), dto.discountValue(), dto.priority(), dto.status());
+        return new DiscountPolicy(dto.id(),
+                dto.discountType(), dto.discountValue(), dto.status());
     }
 }

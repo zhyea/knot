@@ -9,7 +9,11 @@
         </template>
       </el-table-column>
       <el-table-column prop="appName" label="应用" min-width="130" show-overflow-tooltip />
-      <el-table-column prop="username" label="归属用户" min-width="120" show-overflow-tooltip />
+      <el-table-column label="归属用户" min-width="140" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ userLabel(row) }}
+        </template>
+      </el-table-column>
       <el-table-column label="路由目标" min-width="240">
         <template #default="{ row }">
           <div v-if="targetsLabel(row.targets).length" class="cell-targets">
@@ -106,6 +110,16 @@ function targetsLabel(targets: unknown): string[] {
 
 function consumerNamesLabel(consumerNames: unknown) {
   return Array.isArray(consumerNames) && consumerNames.length ? consumerNames.join("、") : "-";
+}
+
+/** 归属用户展示为「姓名(用户名)」；真实姓名为空时回退纯用户名 */
+function userLabel(row: Row): string {
+  const username = row.username;
+  const realName = row.userRealName;
+  if (realName) {
+    return `${realName}(${username})`;
+  }
+  return username || "-";
 }
 
 function handleAction(action: string, row: Row) {

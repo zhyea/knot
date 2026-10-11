@@ -20,6 +20,8 @@ public record RoutingRule(
         String appName,
         /** 归属用户登录名（业务码，非主键 id）；路由规则按 username 绑定用户 */
         String username,
+        /** 归属用户真实姓名（由后端 join ks_users 取真实名，列表展示「姓名(用户名)」用） */
+        String userRealName,
         boolean enabled,
         @Valid List<RoutingRuleTargetItem> targets,
         RateLimitPolicy rateLimitPolicy,

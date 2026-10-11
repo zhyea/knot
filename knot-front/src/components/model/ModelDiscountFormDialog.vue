@@ -8,30 +8,25 @@
     @update:model-value="emit('update:modelValue', $event)"
   >
     <el-form :model="form" label-width="100px">
-      <el-form-item label="策略名">
-        <el-input v-model="form.policyName" />
-      </el-form-item>
-      <el-form-item label="范围类型">
-        <EnumSelect v-model="form.scopeType" category="scope_type" />
-      </el-form-item>
-      <el-form-item label="范围对象码">
-        <el-input
-          v-model="form.scopeRefCode"
-          :disabled="isGlobalScope"
-          :placeholder="isGlobalScope ? '全局范围无需填写' : 'MODEL 填 model_code，APP 填 app_code'"
-        />
-      </el-form-item>
       <el-form-item label="折扣类型">
-        <EnumSelect v-model="form.discountType" category="discount_type" />
+        <el-radio-group v-model="form.discountType">
+          <el-radio-button v-for="opt in discountTypeOptions" :key="opt.itemCode" :value="opt.itemCode">
+            {{ opt.itemLabel }}
+          </el-radio-button>
+        </el-radio-group>
       </el-form-item>
       <el-form-item label="折扣值">
         <el-input-number v-model="form.discountValue" :step="0.01" style="width: 100%" />
       </el-form-item>
-      <el-form-item label="优先级">
-        <el-input-number v-model="form.priority" :min="0" style="width: 100%" />
-      </el-form-item>
       <el-form-item label="状态">
-        <EnumControl v-model="form.status" enum-name="EnabledStatusEnum" :include-codes="[1, 0]" />
+        <el-switch
+          v-model="form.status"
+          :active-value="1"
+          :inactive-value="0"
+          active-text="启用"
+          inactive-text="禁用"
+          inline-prompt
+        />
       </el-form-item>
     </el-form>
     <template #footer>
@@ -42,59 +37,47 @@
 </template>
 
 <script setup lang="ts">
-import { EnabledStatus } from "@/constants/status";
 import type {Dict} from "@/types";
-import {type PropType,  computed, reactive, ref, watch} from "vue";
+import {type PropType, computed, onMounted, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
-import EnumSelect from "../common/EnumSelect.vue";
-import EnumControl from "../common/EnumControl.vue";
+import {useEnums} from "@/composables/useEnums";
 import {createDiscountPolicy, updateDiscountPolicy} from "@/api/models";
 
 const props = defineProps({
-  modelValue: { type: Boolean, default: false },
-  modelCode: { type: String, default: "" },
+  modelValue: {type: Boolean, default: false},
+  modelCode: {type: String, default: ""},
   /** 传入策略行表示编辑，null 表示新增 */
-  policy: { type: Object as PropType<Dict | null>, default: null }
+  policy: {type: Object as PropType<Dict | null>, default: null}
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const saving = ref(false);
+/** 折扣类型（DB 枚举 category=discount_type）：PERCENTAGE / FIXED，单选框展示 */
+const {options: discountTypeOptions, loadOptions} = useEnums("discount_type");
+onMounted(loadOptions);
+
 const form = reactive({
   id: null,
-  policyName: "",
-  scopeType: "GLOBAL",
-  scopeRefCode: "",
   discountType: "PERCENTAGE",
   discountValue: 0.95,
-  priority: 10,
-  status: EnabledStatus.ENABLED
+  status: 1
 });
 
 const isEdit = computed(() => props.policy != null);
-/** 全局范围不绑定具体对象：范围对象码留空并禁用输入 */
-const isGlobalScope = computed(() => form.scopeType === "GLOBAL");
 
 function resetForm() {
   if (props.policy) {
     const row = props.policy;
     form.id = row.id;
-    form.policyName = row.policyName;
-    form.scopeType = row.scopeType;
-    form.scopeRefCode = row.scopeRefCode ?? "";
     form.discountType = row.discountType;
     form.discountValue = row.discountValue;
-    form.priority = row.priority;
     form.status = row.status;
   } else {
     form.id = null;
-    form.policyName = "";
-    form.scopeType = "GLOBAL";
-    form.scopeRefCode = "";
     form.discountType = "PERCENTAGE";
     form.discountValue = 0.95;
-    form.priority = 10;
-    form.status = EnabledStatus.ENABLED;
+    form.status = 1;
   }
 }
 
@@ -110,12 +93,8 @@ async function submit() {
   saving.value = true;
   try {
     const body = {
-      policyName: form.policyName,
-      scopeType: form.scopeType,
-      scopeRefCode: form.scopeRefCode,
       discountType: form.discountType,
       discountValue: form.discountValue,
-      priority: form.priority,
       status: form.status
     };
     if (isEdit.value) {

@@ -16,6 +16,8 @@ public class RoutingRuleEntity {
     private String appName;
     /** 归属用户登录名（业务码，非主键 id）；路由规则按 username 绑定用户，便于跨库稳定归因 */
     private String username;
+    /** 归属用户真实姓名（由 join ks_users 派生，不落库）；列表展示用「姓名(用户名)」 */
+    private String userRealName;
     /** 规则级失败重试策略（JSON，RetryPolicy 序列化结果）；空表示走内置默认策略 */
     private String retryPolicy;
     /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */

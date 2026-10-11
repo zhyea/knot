@@ -25,6 +25,7 @@
                   v-model="form.code"
                   placeholder="如 TOKEN_GPT4O"
                   maxlength="64"
+                  :readonly="codeBlockedByBinding"
                 />
                 <div v-if="codeBlockedByBinding" class="form-tip">
                   已被 {{ boundModelCount }} 个供应商模型使用，需先解绑才能修改

@@ -360,12 +360,8 @@ public class ModelService {
         requireExistingModel(modelCode);
         DiscountPolicyEntity entity = new DiscountPolicyEntity();
         entity.setModelCode(modelCode);
-        entity.setPolicyName(request.policyName());
-        entity.setScopeType(request.scopeType());
-        entity.setScopeRefCode(request.scopeRefCode());
         entity.setDiscountType(request.discountType());
         entity.setDiscountValue(BigDecimal.valueOf(request.discountValue()));
-        entity.setPriority(request.priority());
         entity.setEffectiveFrom(LocalDateTime.now());
         entity.setStatus(request.status() != null ? request.status() : EnabledStatusEnum.ENABLED.code());
         discountPolicyMapper.insert(entity);
@@ -380,12 +376,8 @@ public class ModelService {
         if (entity == null || !modelCode.equals(entity.getModelCode())) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "折扣策略不存在");
         }
-        entity.setPolicyName(request.policyName());
-        entity.setScopeType(request.scopeType());
-        entity.setScopeRefCode(request.scopeRefCode());
         entity.setDiscountType(request.discountType());
         entity.setDiscountValue(BigDecimal.valueOf(request.discountValue()));
-        entity.setPriority(request.priority());
         entity.setStatus(request.status());
         discountPolicyMapper.update(entity);
         return toDiscountPolicyDto(entity);
@@ -412,9 +404,9 @@ public class ModelService {
 
     private DiscountPolicyDto toDiscountPolicyDto(DiscountPolicyEntity e) {
         return new DiscountPolicyDto(
-                e.getId(), e.getPolicyName(), e.getScopeType(), e.getScopeRefCode(),
+                e.getId(),
                 e.getDiscountType(), e.getDiscountValue() != null ? e.getDiscountValue().doubleValue() : 0.0,
-                e.getPriority() != null ? e.getPriority() : 100, e.getStatus()
+                e.getStatus()
         );
     }
 

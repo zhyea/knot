@@ -21,15 +21,16 @@
         </div>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="消费者编码" required :error="consumerCodeError">
-              <el-input
-                v-model="form.consumerCode"
-                maxlength="32"
-                show-word-limit
-                placeholder="最长 32 位"
-                @blur="validateConsumerCode"
-              />
-            </el-form-item>
+          <el-form-item label="消费者编码" required :error="consumerCodeError">
+            <el-input
+              v-model="form.consumerCode"
+              maxlength="32"
+              show-word-limit
+              placeholder="最长 32 位"
+              :readonly="!!props.consumer"
+              @blur="validateConsumerCode"
+            />
+          </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="名称" required>
@@ -185,6 +186,11 @@ function onClosed() {
 }
 
 async function validateConsumerCode() {
+  // 编辑已有消费者时编码只读（身份码不可改），无需再校验唯一性
+  if (props.consumer) {
+    consumerCodeError.value = "";
+    return true;
+  }
   const code = form.consumerCode?.trim();
   if (!code) {
     consumerCodeError.value = "请填写消费者编码";

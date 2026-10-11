@@ -3,15 +3,15 @@
 <mapper namespace="org.chobit.knot.gateway.mapper.DiscountPolicyMapper">
 
     <sql id="DiscountPolicyColumns">
-        id, model_code, policy_name, scope_type, scope_ref_code,
-        discount_type, discount_value, priority, effective_from, effective_to, status, remark
+        id, model_code,
+        discount_type, discount_value, effective_from, effective_to, status, remark
     </sql>
 
     <select id="listByModelCode" resultType="org.chobit.knot.gateway.entity.DiscountPolicyEntity">
         select <include refid="DiscountPolicyColumns"/>
         from kb_provider_discount_policies
         where model_code = #{modelCode}
-        order by priority asc, id desc
+        order by id desc
     </select>
 
     <select id="getById" resultType="org.chobit.knot.gateway.entity.DiscountPolicyEntity">
@@ -25,20 +25,16 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_provider_discount_policies(model_code, policy_name, scope_type, scope_ref_code,
-                                                discount_type, discount_value, priority, effective_from, status)
-        values(#{modelCode}, #{policyName}, #{scopeType}, #{scopeRefCode},
-               #{discountType}, #{discountValue}, #{priority}, #{effectiveFrom}, #{status})
+        insert into kb_provider_discount_policies(model_code,
+                                                discount_type, discount_value, effective_from, status)
+        values(#{modelCode},
+               #{discountType}, #{discountValue}, #{effectiveFrom}, #{status})
     </insert>
 
     <update id="update">
         update kb_provider_discount_policies
-        set policy_name = #{policyName},
-            scope_type = #{scopeType},
-            scope_ref_code = #{scopeRefCode},
-            discount_type = #{discountType},
+        set discount_type = #{discountType},
             discount_value = #{discountValue},
-            priority = #{priority},
             status = #{status}
         where id = #{id}
     </update>

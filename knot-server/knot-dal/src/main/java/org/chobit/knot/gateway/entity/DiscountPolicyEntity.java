@@ -10,13 +10,8 @@ public class DiscountPolicyEntity {
     private Long id;
     /** 绑定的供应商模型业务码（kb_models.model_code），非主键 id */
     private String modelCode;
-    private String policyName;
-    private String scopeType;
-    /** 折扣范围对象业务码（GLOBAL 为空；MODEL→model_code，APP→app_code），非主键 id */
-    private String scopeRefCode;
     private String discountType;
     private BigDecimal discountValue;
-    private Integer priority;
     private LocalDateTime effectiveFrom;
     private LocalDateTime effectiveTo;
     /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */

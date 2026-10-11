@@ -22,15 +22,16 @@
           </div>
           <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="规则编码" required :error="ruleCodeError">
-                <el-input
-                  v-model="form.ruleCode"
-                  placeholder="最长 64 位"
-                  maxlength="64"
-                  show-word-limit
-                  @blur="validateRuleCode"
-                />
-              </el-form-item>
+            <el-form-item label="规则编码" required :error="ruleCodeError">
+              <el-input
+                v-model="form.ruleCode"
+                placeholder="最长 64 位"
+                maxlength="64"
+                show-word-limit
+                :readonly="isEdit"
+                @blur="validateRuleCode"
+              />
+            </el-form-item>
             </el-col>
             <el-col :span="12">
               <el-form-item label="名称" required>
@@ -302,10 +303,16 @@ const selectedConsumerId = computed<string | number | null>({
   }
 });
 
-/** 归属用户下拉回显项：value 取 username（业务码），label 兜底为 username。 */
-const selectedUsernameOptions = computed<Row[]>(() =>
-  form.username ? [{value: form.username, label: form.username}] : []
-);
+/** 归属用户下拉回显项：value 取 username（业务码）；label 优先「姓名(用户名)」，无真实姓名时回退纯 username。 */
+const selectedUserRealName = ref<string | null>(null);
+const selectedUsernameOptions = computed<Row[]>(() => {
+  if (!form.username) {
+    return [];
+  }
+  const realName = selectedUserRealName.value;
+  const label = realName ? `${realName}(${form.username})` : form.username;
+  return [{value: form.username, label}];
+});
 const selectedTargetCodes = computed({
   get: () => form.targets.filter((item) => item.targetType === targetType.value).map((item) => item.targetCode).filter((c) => c != null),
   set: (codes) => onSelectedTargetsChange(codes)
@@ -394,6 +401,7 @@ function resetForm() {
     form.consumerIds = Array.isArray(row.consumerIds) ? [...row.consumerIds] : [];
     form.appId = row.appId ?? null;
     form.username = row.username || null;
+    selectedUserRealName.value = row.userRealName ?? null;
     form.enabled = row.enabled !== false;
     form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
     form.retryPolicy = normalizeRetryPolicy(row.retryPolicy);
@@ -414,6 +422,7 @@ function resetForm() {
     form.consumerIds = [];
     form.appId = null;
     form.username = null;
+    selectedUserRealName.value = null;
     form.enabled = false;
     form.targets = [];
     form.rateLimitPolicy = emptyRateLimitPolicy();
@@ -497,6 +506,11 @@ function resolvePrimaryTargetKey() {
 }
 
 async function validateRuleCode() {
+  // 编辑已有规则时编码只读（身份码不可改），无需再校验唯一性
+  if (isEdit.value) {
+    ruleCodeError.value = "";
+    return true;
+  }
   const code = normalizeRuleCode(form.ruleCode);
   form.ruleCode = code;
   if (!code) {

@@ -15,10 +15,15 @@
       </div>
       <el-table v-loading="loading" :data="rows" size="small" border style="width: 100%">
         <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
-        <el-table-column prop="policyName" label="策略名" min-width="25%" />
-        <el-table-column prop="discountType" label="类型" min-width="12%" />
-        <el-table-column prop="discountValue" label="值" min-width="10%" />
-        <el-table-column prop="status" label="状态" min-width="10%" />
+        <el-table-column prop="discountType" label="类型" min-width="14%" />
+        <el-table-column prop="discountValue" label="值" min-width="12%" />
+        <el-table-column label="状态" min-width="12%" align="center" header-align="center">
+          <template #default="{ row }">
+            <el-tag size="small" :type="row.status === 0 ? 'info' : 'success'">
+              {{ row.status === 0 ? '禁用' : '启用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="80" align="center" header-align="center" fixed="right">
           <template #default="{ row }">
             <RowActions
