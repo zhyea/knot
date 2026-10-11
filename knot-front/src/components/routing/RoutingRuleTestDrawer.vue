@@ -130,7 +130,7 @@
                 />
                 <el-empty v-else description="无响应内容" :image-size="64"/>
               </el-tab-pane>
-              <el-tab-pane label="流式响应" name="stream" class="response-stream-pane">
+              <el-tab-pane v-if="showStreamTab" label="流式响应" name="stream" class="response-stream-pane">
                 <el-scrollbar ref="streamScrollbar" max-height="calc(100vh - 320px)" class="stream-blocks-scroll">
                   <div class="stream-blocks">
                     <div v-for="block in streamBlocks" :key="block.id" class="stream-block">
@@ -289,6 +289,18 @@ let pendingContent = "";
 let pendingReasoning = "";
 
 const isStreaming = computed(() => streamAbortController.value !== null);
+
+/** 请求模板是否声明 stream:true（非流式请求不展示「流式响应」tab） */
+const requestIsStreaming = computed(() => {
+  const parsed = parsedTemplateBody.value;
+  if (parsed.error) {
+    return false;
+  }
+  const body = parsed.value as { stream?: unknown } | null;
+  return body?.stream === true;
+});
+/** 仅流式进行中或请求为流式时才展示「流式响应」tab，避免非流式响应下出现无内容的空页 */
+const showStreamTab = computed(() => isStreaming.value || requestIsStreaming.value);
 
 const receivedBytesLabel = computed(() => {
   const bytes = receivedBytes.value;
@@ -466,6 +478,13 @@ watch(
     await loadProtocolsForCurrentTarget();
   }
 );
+
+watch(showStreamTab, (visible) => {
+  // 切到非流式请求后「流式响应」tab 消失，若当前激活项正停在该 tab，回退到 Body 避免空内容区
+  if (!visible && responseTab.value === "stream") {
+    responseTab.value = "body";
+  }
+});
 
 function initializeTargetSelection() {
   const primary = targetOptions.value.find((item) => item.primary) || targetOptions.value[0];

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -34,7 +35,7 @@ class GatewayTrafficRejectResponseTest {
 
     @Test
     void rateLimitRejectionReturns429WithDetailAndRetryAfter() throws Exception {
-        MvcResult result = perform(() -> reject(TrafficRejectReason.RATE_LIMIT_RPM, "MODEL", 7L, 2L, 3L, null));
+        MvcResult result = perform(() -> reject(TrafficRejectReason.RATE_LIMIT_RPM, "MODEL", "gpt-4o", 2L, 3L, null));
 
         assertEquals(429, result.getResponse().getStatus());
         assertEquals("42", result.getResponse().getHeader(HttpHeaders.RETRY_AFTER));
@@ -42,7 +43,9 @@ class GatewayTrafficRejectResponseTest {
         String body = result.getResponse().getContentAsString();
         assertTrue(body.contains("\"type\":\"rate_limit_error\""), body);
         assertTrue(body.contains("\"code\":\"RATE_LIMIT_EXCEEDED\""), body);
-        assertTrue(body.contains("Rate limit exceeded for MODEL#7"), body);
+        assertTrue(body.contains("Rate limit exceeded for MODEL#gpt-4o"), body);
+        assertTrue(body.contains("\"resourceCode\":\"gpt-4o\""), body);
+        assertFalse(body.contains("resourceId"), body);
         assertTrue(body.contains("\"dimension\":\"RPM\""), body);
         assertTrue(body.contains("\"unit\":\"requests/minute\""), body);
         assertTrue(body.contains("\"used\":3"), body);
@@ -52,7 +55,7 @@ class GatewayTrafficRejectResponseTest {
 
     @Test
     void quotaRejectionAlsoReturns429() throws Exception {
-        MvcResult result = perform(() -> reject(TrafficRejectReason.QUOTA_COST, "PROVIDER", 99L,
+        MvcResult result = perform(() -> reject(TrafficRejectReason.QUOTA_COST, "PROVIDER", "account-code",
                 1_000_000_000L, 1_200_000_000L, "USD"));
 
         assertEquals(429, result.getResponse().getStatus(), "限额超支必须走 429，不能掉进兜底的 500");
@@ -63,7 +66,9 @@ class GatewayTrafficRejectResponseTest {
         assertTrue(body.contains("\"code\":\"QUOTA_EXCEEDED\""), body);
         assertTrue(body.contains("\"dimension\":\"COST\""), body);
         assertTrue(body.contains("\"unit\":\"USD\""), body);
-        assertTrue(body.contains("Quota exceeded for PROVIDER#99"), body);
+        assertTrue(body.contains("Quota exceeded for PROVIDER#account-code"), body);
+        assertTrue(body.contains("\"resourceCode\":\"account-code\""), body);
+        assertFalse(body.contains("resourceId"), body);
     }
 
     /**
@@ -82,12 +87,12 @@ class GatewayTrafficRejectResponseTest {
 
     private static GatewayTrafficRejectException reject(TrafficRejectReason reason,
                                                        String resourceType,
-                                                       Long resourceId,
+                                                       String resourceCode,
                                                        long limit,
                                                        long used,
                                                        String currency) {
         long resetAt = reason == TrafficRejectReason.RATE_LIMIT_RPM ? NOW + 42_000L : NOW + 3_600_000L;
-        TrafficDecision decision = TrafficDecision.reject(reason, resourceType, resourceId,
+        TrafficDecision decision = TrafficDecision.reject(reason, resourceType, resourceCode,
                 limit, used, resetAt, currency);
         TrafficRejectDetail detail = TrafficRejectDetail.of(decision, NOW);
         String code = reason.errorCode().code();

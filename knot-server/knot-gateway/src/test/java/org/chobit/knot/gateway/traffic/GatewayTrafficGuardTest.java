@@ -43,6 +43,7 @@ class GatewayTrafficGuardTest {
         assertEquals(TrafficRejectReason.RATE_LIMIT_RPM, rejected.reason());
         assertEquals(2L, rejected.limit());
         assertEquals(3L, rejected.used());
+        assertEquals("model-code", rejected.resourceCode(), "对外只暴露业务码，主键 id 是内部序号");
     }
 
     @Test
@@ -86,6 +87,7 @@ class GatewayTrafficGuardTest {
         assertFalse(rejected.allowed());
         assertEquals(TrafficRejectReason.QUOTA_TOKENS, rejected.reason());
         assertEquals(1000L, rejected.limit());
+        assertEquals(PROVIDER_CODE, rejected.resourceCode(), "供应商账户按 code 对外，不看解析出来的 id");
     }
 
     @Test

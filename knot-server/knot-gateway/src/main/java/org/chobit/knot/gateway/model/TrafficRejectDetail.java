@@ -16,10 +16,13 @@ import java.time.format.DateTimeFormatter;
  * <p>随 429 响应体的 {@code error.detail} 返回。数值一律换算成<b>自然单位</b>再输出——
  * 成本维度内部按纳元（1e-8）计数，直接透给调用方是无法读的 {@code 1000000000}，
  * 这里统一还原成金额（配合 {@link #unit} 给出币种）。</p>
+ *
+ * <p>资源一律按业务码 {@code resourceCode} 标识：主键 id 是部署相关的内部序号，
+ * 同一个应用在不同环境 id 不同，调用方拿到也无法定位，而业务码是跨环境稳定的。</p>
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record TrafficRejectDetail(String resourceType,
-                                  Long resourceId,
+                                  String resourceCode,
                                   String reason,
                                   String dimension,
                                   String unit,
@@ -41,7 +44,7 @@ public record TrafficRejectDetail(String resourceType,
         boolean cost = reason == TrafficRejectReason.QUOTA_COST;
         return new TrafficRejectDetail(
                 decision.resourceType(),
-                decision.resourceId(),
+                decision.resourceCode(),
                 reason.name(),
                 reason.dimension(),
                 cost ? decision.currency() : reason.unit(),
@@ -56,7 +59,7 @@ public record TrafficRejectDetail(String resourceType,
      * 面向调用方的一句话说明，同时作为响应体的 {@code error.message}。
      */
     public String describe() {
-        String subject = resourceType + "#" + resourceId;
+        String subject = resourceType + "#" + resourceCode;
         String headline = reason != null && reason.startsWith("QUOTA")
                 ? "Quota exceeded for " + subject
                 : "Rate limit exceeded for " + subject;

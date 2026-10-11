@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.constants.enums.QuotaWindowEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.gateway.model.GatewayRoutingInfo;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.ResolvedRouting;
@@ -209,16 +210,18 @@ public class GatewayTrafficGuard {
         if (routing == null) {
             return refs;
         }
-        if (routing.routingInfo() != null
-                && routing.routingInfo().app() != null
-                && routing.routingInfo().app().id() != null) {
-            refs.add(new ResourceRef(TrafficResourceTypeEnum.APP.code(), routing.routingInfo().app().id()));
+        GatewayRoutingInfo info = routing.routingInfo();
+        if (info != null && info.app() != null && info.app().id() != null) {
+            // AppInfo.appId 装的是业务码 app_code（见 RoutingResolver 构造处），不是主键
+            refs.add(new ResourceRef(TrafficResourceTypeEnum.APP.code(), info.app().id(), info.app().appId()));
         }
         if (routing.ruleId() != null) {
-            refs.add(new ResourceRef(TrafficResourceTypeEnum.ROUTING_RULE.code(), routing.ruleId()));
+            refs.add(new ResourceRef(TrafficResourceTypeEnum.ROUTING_RULE.code(), routing.ruleId(), routing.ruleCode()));
         }
+        GatewayRoutingInfo.ConsumerInfo consumer = info == null ? null : info.consumer();
         if (routing.consumerId() != null) {
-            refs.add(new ResourceRef(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), routing.consumerId()));
+            refs.add(new ResourceRef(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(),
+                    routing.consumerId(), consumer == null ? null : consumer.code()));
         }
         return refs;
     }
@@ -229,11 +232,11 @@ public class GatewayTrafficGuard {
             return refs;
         }
         if (target.targetId() != null) {
-            refs.add(new ResourceRef(TrafficResourceTypeEnum.MODEL.code(), target.targetId()));
+            refs.add(new ResourceRef(TrafficResourceTypeEnum.MODEL.code(), target.targetId(), target.targetCode()));
         }
         Long providerId = resolveProviderId(target.providerAccountCode(), context);
         if (providerId != null) {
-            refs.add(new ResourceRef(TrafficResourceTypeEnum.PROVIDER.code(), providerId));
+            refs.add(new ResourceRef(TrafficResourceTypeEnum.PROVIDER.code(), providerId, target.providerAccountCode()));
         }
         return refs;
     }
@@ -254,13 +257,13 @@ public class GatewayTrafficGuard {
                                           long used,
                                           long resetAtMillis,
                                           String currency) {
-        return TrafficDecision.reject(reason, ref.type(), ref.id(), limit, used, resetAtMillis, currency);
+        return TrafficDecision.reject(reason, ref.type(), ref.code(), limit, used, resetAtMillis, currency);
     }
 
     /**
-     * 受控资源引用。
+     * 受控资源引用：{@code id} 用于计数键，{@code code} 用于对外拒绝明细。
      */
-    private record ResourceRef(String type, Long id) {
+    private record ResourceRef(String type, Long id, String code) {
     }
 
     /**
