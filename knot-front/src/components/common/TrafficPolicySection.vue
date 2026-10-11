@@ -12,12 +12,14 @@
     <el-row v-if="mode === 'rate'" :gutter="16">
       <el-col :span="12">
         <el-form-item label="每分钟请求数（RPM）" label-width="150px">
-          <el-input-number v-model="rateDraft.rpm" :min="0" :step="10" class="traffic-policy__field"/>
+          <el-input-number v-model="rateDraft.rpm" :min="0" :step="10" controls-position="right"
+                           class="traffic-policy__field"/>
         </el-form-item>
       </el-col>
       <el-col :span="12">
         <el-form-item label="每分钟 Token（TPM）" label-width="150px">
-          <el-input-number v-model="rateDraft.tpm" :min="0" :step="1000" class="traffic-policy__field"/>
+          <el-input-number v-model="rateDraft.tpm" :min="0" :step="1000" controls-position="right"
+                           class="traffic-policy__field"/>
         </el-form-item>
       </el-col>
     </el-row>
@@ -25,29 +27,35 @@
     <!-- 限额：应用 / 供应商账户 / 消费者层 -->
     <template v-else>
       <el-row :gutter="16">
-        <el-col :span="8">
+        <el-col :span="12">
           <el-form-item label="统计窗口">
             <el-select v-model="quotaDraft.window" class="traffic-policy__field">
               <el-option v-for="item in windowOptions" :key="item.value" :label="item.label" :value="item.value"/>
             </el-select>
           </el-form-item>
         </el-col>
-        <el-col :span="8">
-          <el-form-item label="最大 Token 数">
-            <el-input-number v-model="quotaDraft.maxTokens" :min="0" :step="10000" class="traffic-policy__field"/>
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="成本上限">
-            <el-input-number v-model="quotaDraft.costLimit" :min="0" :precision="4" :step="1" class="traffic-policy__field"/>
+        <el-col :span="12">
+          <el-form-item label="币种">
+            <el-select v-model="quotaDraft.currency" class="traffic-policy__field">
+              <el-option v-for="item in currencyOptions" :key="item.value" :label="item.label" :value="item.value"/>
+            </el-select>
           </el-form-item>
         </el-col>
       </el-row>
-      <el-form-item label="币种">
-        <el-select v-model="quotaDraft.currency" class="traffic-policy__field">
-          <el-option v-for="item in currencyOptions" :key="item.value" :label="item.label" :value="item.value"/>
-        </el-select>
-      </el-form-item>
+      <el-row :gutter="16">
+        <el-col :span="12">
+          <el-form-item label="最大 Token 数">
+            <el-input-number v-model="quotaDraft.maxTokens" controls-position="right"
+                             :min="0" :step="10000" class="traffic-policy__field"/>
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="成本上限">
+            <el-input-number v-model="quotaDraft.costLimit" controls-position="right"
+                             :min="0" :precision="4" :step="1" class="traffic-policy__field"/>
+          </el-form-item>
+        </el-col>
+      </el-row>
     </template>
 
     <p class="traffic-policy__hint">{{ mode === 'rate' ? rateHint : quotaHint }}</p>
