@@ -8,7 +8,7 @@
     @closed="onClosed"
   >
     <el-scrollbar max-height="calc(100vh - 140px)">
-    <el-form :model="form" label-width="118px" class="consumer-form">
+    <el-form :model="form" label-width="96px" class="consumer-form">
       <div class="slot-body consumer-section">
         <div class="section-head">
           <div>
