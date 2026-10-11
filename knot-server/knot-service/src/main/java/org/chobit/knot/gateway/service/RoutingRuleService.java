@@ -283,7 +283,9 @@ public class RoutingRuleService {
                 existing.targets(),
                 existing.rateLimitPolicy(),
                 existing.quotaPolicy(),
-                existing.retryPolicy()
+                existing.retryPolicy(),
+                existing.createdAt(),
+                existing.updatedAt()
         );
         validateForSave(request, id);
         routingRuleMapper.updateStatus(id, EnabledStatusEnum.codeOf(enabled));
@@ -772,7 +774,9 @@ public class RoutingRuleService {
                 targets,
                 rate,
                 quota,
-                RetryPolicy.parse(entity.getRetryPolicy())
+                RetryPolicy.parse(entity.getRetryPolicy()),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt()
         );
     }
 
@@ -905,7 +909,9 @@ public class RoutingRuleService {
                 request.targets(),
                 request.rateLimitPolicy(),
                 request.quotaPolicy(),
-                request.retryPolicy()
+                request.retryPolicy(),
+                request.createdAt(),
+                request.updatedAt()
         );
     }
 

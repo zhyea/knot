@@ -7,6 +7,7 @@ import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.RetryPolicy;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public record RoutingRule(
@@ -27,6 +28,10 @@ public record RoutingRule(
         RateLimitPolicy rateLimitPolicy,
         QuotaPolicy quotaPolicy,
         /** 规则级失败重试策略；null 表示未配置，运行时按内置默认（开启）处理 */
-        RetryPolicy retryPolicy
+        RetryPolicy retryPolicy,
+        /** 创建时间 */
+        LocalDateTime createdAt,
+        /** 更新时间 */
+        LocalDateTime updatedAt
 ) {
 }

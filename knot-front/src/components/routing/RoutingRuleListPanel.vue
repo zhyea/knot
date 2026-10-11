@@ -3,17 +3,6 @@
     <el-table v-loading="loading" :data="rows" stripe border>
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
       <el-table-column prop="ruleCode" label="规则编码" min-width="240" show-overflow-tooltip />
-      <el-table-column label="消费者" min-width="150" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ consumerNamesLabel(row.consumerNames) }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="appName" label="应用" min-width="130" show-overflow-tooltip />
-      <el-table-column label="归属用户" min-width="140" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ userLabel(row) }}
-        </template>
-      </el-table-column>
       <el-table-column label="路由目标" min-width="240">
         <template #default="{ row }">
           <div v-if="targetsLabel(row.targets).length" class="cell-targets">
@@ -26,6 +15,27 @@
           <span v-else>-</span>
         </template>
       </el-table-column>
+      <el-table-column label="消费者" min-width="150" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ consumerNamesLabel(row.consumerNames) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="更新时间" width="170" align="center" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ formatDateTime(row.updatedAt) }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="appName" label="应用" min-width="130" show-overflow-tooltip />
+      <el-table-column label="应用场景" min-width="150" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.appScenario || "-" }}
+        </template>
+      </el-table-column>
+      <el-table-column label="归属用户" min-width="140" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ userLabel(row) }}
+        </template>
+      </el-table-column>
       <el-table-column label="启用" width="90" align="center">
         <template #default="{ row }">
           <el-switch
@@ -36,6 +46,11 @@
             inactive-text="禁用"
             @change="(value) => handleEnabledChange(row, value)"
           />
+        </template>
+      </el-table-column>
+      <el-table-column label="创建时间" width="170" align="center" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ formatDateTime(row.createdAt) }}
         </template>
       </el-table-column>
       <el-table-column label="操作" width="130" align="center" fixed="right" header-align="center">
@@ -70,6 +85,7 @@ import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {updateRoutingRuleStatus} from "@/api/routing";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
+import {formatDateTime} from "@/utils/format";
 import type {PropType} from "vue";
 import type {Row} from "@/types";
 

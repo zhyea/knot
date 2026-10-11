@@ -2,6 +2,8 @@ package org.chobit.knot.gateway.entity;
 
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 public class RoutingRuleEntity {
     private Long id;
@@ -22,4 +24,8 @@ public class RoutingRuleEntity {
     private String retryPolicy;
     /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
     private Integer status;
+    /** 创建时间（由 DB created_at 派生，不落库写路径） */
+    private LocalDateTime createdAt;
+    /** 更新时间（由 DB updated_at 派生，不落库写路径） */
+    private LocalDateTime updatedAt;
 }
