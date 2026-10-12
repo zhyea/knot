@@ -8,7 +8,7 @@
 | 问题 | 结论 |
 |---|---|
 | `type` 有几套取值域 | **三套**，由 `BillingModeCalculator` 实现类决定，彼此语义不通 |
-| 这份响应为什么是 `TOKEN` | 走的是 `DefaultUsageExtractor → SimpleBillingModeCalculator`，`type` 直接取 `kb_billing_rules.billing_mode` 原值 |
+| 这份响应为什么是 `TOKEN` | 走的是 `DefaultTokenUsageExtractor → SimpleBillingModeCalculator`，`type` 直接取 `kb_billing_rules.billing_mode` 原值 |
 | 谁是 calculator 的选择者 | **`UsageExtractor`（厂商/协议提取器）**，不是 `billing_mode`——这是根因 |
 | 高低峰为什么看不出来 | `NormalizedUsage` 与 `NormalizedUsageDetail` 都没带 `pricingPlan` / `phase` / `reason` / `multiplier`；管理端 `PricingPreviewResult` 才有 |
 | 更大的隐患 | OpenAI 系上游永远拿不到 `basePrices.{input,output,cacheRead}`，只按 `defaultUnitPrice` 收总量费 |
@@ -75,7 +75,7 @@ UsageExtractorRegistry.extract            knot-gateway/.../upstream/usage/UsageE
 
 | extractor | code | `calculator()` 返回 | 因此 type 域 |
 |---|---|---|---|
-| DefaultUsageExtractor | `DEFAULT` | **SimpleBillingModeCalculator** | B |
+| DefaultTokenUsageExtractor | `DEFAULT` | **SimpleBillingModeCalculator** | B |
 | AnthropicUsageExtractor | `ANTHROPIC` | **TokenBillingModeCalculator** | A |
 | ImageUsageExtractor | `IMAGE` | SimpleBillingModeCalculator（构造注入） | B |
 | VideoUsageExtractor | `VIDEO` | VideoBillingModeCalculator | C |

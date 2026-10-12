@@ -16,7 +16,7 @@
 
 | 上游 | 提取器 | calculator | 后果 |
 |---|---|---|---|
-| OpenAI 系（DEFAULT） | DefaultUsageExtractor | **Simple** | TOKEN 规则塌成 1 条，绕开 `basePrices` |
+| OpenAI 系（DEFAULT） | DefaultTokenUsageExtractor | **Simple** | TOKEN 规则塌成 1 条，绕开 `basePrices` |
 | ANTHROPIC | AnthropicUsageExtractor | Token | 正常拆 5 条 |
 | IMAGE | ImageUsageExtractor | Simple | 1 条 |
 | VIDEO | VideoUsageExtractor | Video | 1 条 + 分辨率 |

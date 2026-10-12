@@ -455,10 +455,12 @@ public class BillingService {
             cacheWritePrice = zero;
         } else {
             BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan()));
-            inputPrice = pricing.resolvePrice(BillingConfig.PriceKind.INPUT, ladderAmount, zero);
-            outputPrice = pricing.resolvePrice(BillingConfig.PriceKind.OUTPUT, ladderAmount, zero);
-            cacheReadPrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_READ, ladderAmount, zero);
-            cacheWritePrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_WRITE, ladderAmount, zero);
+            // 管理端离线试算无时间来源：显式构造无时点上下文（高低峰不调整）
+            BillingConfig.PricingContext pricingContext = BillingConfig.PricingContext.ofAmount(ladderAmount);
+            inputPrice = pricing.resolvePrice(BillingConfig.PriceKind.INPUT, pricingContext, zero);
+            outputPrice = pricing.resolvePrice(BillingConfig.PriceKind.OUTPUT, pricingContext, zero);
+            cacheReadPrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_READ, pricingContext, zero);
+            cacheWritePrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_WRITE, pricingContext, zero);
         }
         TokenBillingParts parts = new TokenBillingParts(
                 inputTokens,
@@ -490,7 +492,8 @@ public class BillingService {
         BillingConfig config = BillingConfig.fromJsonOrNull(rule.getConfigJson());
         BigDecimal unitPrice = config == null
                 ? BigDecimal.ZERO
-                : config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan())).resolveDefaultPrice(BigDecimal.ZERO);
+                : config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan()))
+                        .resolveDefaultPrice(BillingConfig.PricingContext.ofAmount(0L), BigDecimal.ZERO);
         Map<String, Object> parts = new LinkedHashMap<>();
         parts.put("amount", amount);
         return new BillingAmount(parts, cost(amount, unitPrice, unitSize));
