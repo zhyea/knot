@@ -40,10 +40,10 @@ class BillingConfigTest {
                 """);
         BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.FIXED);
         assertEquals(0, new BigDecimal("4").compareTo(
-                pricing.resolvePrice(BillingConfig.PriceKind.INPUT, 500_000, ZERO)));
+                pricing.resolvePrice(BillingConfig.PriceKind.INPUT, BillingConfig.PricingContext.ofAmount(500_000), ZERO)));
         assertEquals(0, new BigDecimal("0.5").compareTo(
-                pricing.resolvePrice(BillingConfig.PriceKind.CACHE_WRITE, 1, ZERO)));
-        assertEquals(0, new BigDecimal("0.5").compareTo(pricing.resolveDefaultPrice(ZERO)));
+                pricing.resolvePrice(BillingConfig.PriceKind.CACHE_WRITE, BillingConfig.PricingContext.ofAmount(1), ZERO)));
+        assertEquals(0, new BigDecimal("0.5").compareTo(pricing.resolveDefaultPrice(BillingConfig.PricingContext.ofAmount(1), ZERO)));
     }
 
     @Test
@@ -58,18 +58,18 @@ class BillingConfigTest {
         BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.TIERED);
         // 命中第一档
         assertEquals(0, new BigDecimal("1").compareTo(
-                pricing.resolvePrice(BillingConfig.PriceKind.INPUT, 500_000, ZERO)));
+                pricing.resolvePrice(BillingConfig.PriceKind.INPUT, BillingConfig.PricingContext.ofAmount(500_000), ZERO)));
         // 档位边界：from 与 to 均含
         assertEquals(0, new BigDecimal("1").compareTo(
-                pricing.resolvePrice(BillingConfig.PriceKind.INPUT, 1_000_000, ZERO)));
+                pricing.resolvePrice(BillingConfig.PriceKind.INPUT, BillingConfig.PricingContext.ofAmount(1_000_000), ZERO)));
         assertEquals(0, new BigDecimal("2").compareTo(
-                pricing.resolvePrice(BillingConfig.PriceKind.INPUT, 1_000_001, ZERO)));
+                pricing.resolvePrice(BillingConfig.PriceKind.INPUT, BillingConfig.PricingContext.ofAmount(1_000_001), ZERO)));
         // 第二档只配了 input，output 落回 basePrices
         assertEquals(0, new BigDecimal("20").compareTo(
-                pricing.resolvePrice(BillingConfig.PriceKind.OUTPUT, 2_000_000, ZERO)));
+                pricing.resolvePrice(BillingConfig.PriceKind.OUTPUT, BillingConfig.PricingContext.ofAmount(2_000_000), ZERO)));
         // 全部未命中 -> fallback
         assertEquals(0, new BigDecimal("9").compareTo(
-                pricing.resolvePrice(BillingConfig.PriceKind.CACHE_WRITE, 100, new BigDecimal("9"))));
+                pricing.resolvePrice(BillingConfig.PriceKind.CACHE_WRITE, BillingConfig.PricingContext.ofAmount(100), new BigDecimal("9"))));
     }
 
     @Test
@@ -333,9 +333,9 @@ class BillingConfigTest {
                 pricing.resolvePrice(BillingConfig.PriceKind.INPUT, new BillingConfig.PricingContext(100, instant(2026, 9, 30, 5, 0)), ZERO)));
         assertEquals(0, new BigDecimal("16.0").compareTo(
                 pricing.resolvePrice(BillingConfig.PriceKind.OUTPUT, new BillingConfig.PricingContext(100, instant(2026, 9, 30, 5, 0)), ZERO)));
-        // 无时间来源（旧签名）时不做调整，价格与 FIXED 一致
+        // 无时间来源时不做调整，价格与 FIXED 一致
         assertEquals(0, new BigDecimal("4").compareTo(
-                pricing.resolvePrice(BillingConfig.PriceKind.INPUT, 100, ZERO)));
+                pricing.resolvePrice(BillingConfig.PriceKind.INPUT, BillingConfig.PricingContext.ofAmount(100), ZERO)));
     }
 
     @Test
@@ -400,6 +400,6 @@ class BillingConfigTest {
         Map<String, BigDecimal> prices = config.resolutionPrices();
         assertEquals(2, prices.size());
         assertEquals(0, new BigDecimal("0.05").compareTo(
-                config.pricingPlan(PricingPlanEnum.FIXED).resolveDefaultPrice(ZERO)));
+                config.pricingPlan(PricingPlanEnum.FIXED).resolveDefaultPrice(BillingConfig.PricingContext.ofAmount(1), ZERO)));
     }
 }
