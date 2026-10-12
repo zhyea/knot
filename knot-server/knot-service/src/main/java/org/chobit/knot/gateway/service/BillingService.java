@@ -843,16 +843,7 @@ public class BillingService {
     }
 
     private static int unitSize(String unit) {
-        BillingUnitEnum unitEnum = BillingUnitEnum.fromCode(normalizeUnit(unit));
-        if (unitEnum == null) {
-            return 1_000;
-        }
-        return switch (unitEnum) {
-            case ONE_M_TOKENS -> 1_000_000;
-            case PER_TOKEN, PER_REQUEST, PER_IMAGE, PER_SECOND, CUSTOM -> 1;
-            case PER_MINUTE -> 60;
-            default -> 1_000;
-        };
+        return BillingUnitEnum.unitSizeOf(normalizeUnit(unit));
     }
 
     private static BigDecimal cost(long amount, BigDecimal unitPrice, int unitSize) {
