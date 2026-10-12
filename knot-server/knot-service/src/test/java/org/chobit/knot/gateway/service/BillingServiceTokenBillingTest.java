@@ -27,7 +27,7 @@ class BillingServiceTokenBillingTest {
 
     /**
      * 每 1K token：input=2、output=8、cacheRead=0.2、cacheWrite=2.5。
-     * unit = ONE_K_TOKENS -> unitSize = 1000。
+     * unit = 1K_TOKENS -> unitSize = 1000。
      */
     private static final String CONFIG = """
             {"basePrices": {"input": 2, "output": 8, "cacheRead": 0.2, "cacheWrite": 2.5}}
@@ -92,7 +92,7 @@ class BillingServiceTokenBillingTest {
         rule.setBillingMode("TOKEN");
         rule.setPricingPlan("FIXED");
         rule.setCurrency("USD");
-        rule.setUnit("ONE_K_TOKENS");
+        rule.setUnit("1K_TOKENS");
         rule.setConfigJson(CONFIG);
 
         ModelMapper modelMapper = mock(ModelMapper.class);
