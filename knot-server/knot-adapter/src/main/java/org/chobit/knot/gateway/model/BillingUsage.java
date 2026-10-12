@@ -1,151 +1,43 @@
 package org.chobit.knot.gateway.model;
 
-import org.apache.commons.lang3.ObjectUtils;
-import org.chobit.knot.gateway.constants.AiPayloadFields;
-import org.chobit.knot.gateway.util.MapNumberUtils;
-
-import java.util.Map;
-
 /**
- * 内部计费输入视图（扁平）：把厂商各异的上游用量压成计费所需的几个维度。
+ * 内部计费输入视图：把厂商各异的上游用量压成计费所需的维度。
  *
- * <p>缓存写两档口径互斥，与对外 {@code ModelUsage.InputTokens} 保持一致：
- * {@code cacheWriteTokens} 是单字段总量口径，{@code cacheWrite5mTokens} / {@code cacheWrite1hTokens}
- * 是按 TTL 拆分的明细口径。只要明细其一大于 0，总量口径即作废（见 {@link #cacheWriteTotal()}）。
+ * <p><b>按计费模式拆分（sealed）</b>，每类计量各归各的记录，不再用单个 {@code amount}
+ * 字段混装张数/秒数/次数：
+ * <ul>
+ *   <li>{@link TokenBillingUsage} —— TOKEN 模式：input/output/total 与缓存读写各档 token；</li>
+ *   <li>{@link ImageBillingUsage} —— IMAGE 模式：张数、像素（宽/高）；</li>
+ *   <li>{@link VideoBillingUsage} —— VIDEO 模式：时长、像素（宽/高）、是否有声音、是否有参考；</li>
+ *   <li>{@link AudioBillingUsage} —— AUDIO 模式：时长。</li>
+ * </ul>
+ *
+ * <p>提取器 {@code UsageExtractor<T extends BillingUsage>} 按协议产出对应类型，
+ * 计算器按 sealed 类型分摄取量，类型即契约，见 {@link org.chobit.knot.gateway.usage.extractor.UsageExtractor}。</p>
+ *
+ * <p><b>多模态记录内嵌 {@link TokenBillingUsage}</b>：上游可能同时上报 token 用量
+ * （如 gpt-image-1 的 {@code usage.total_tokens}），内嵌后 TOKEN 类规则仍能按 token 计费，
+ * 不丢量；纯媒体响应（无 usage）时内嵌为空用量。</p>
  */
-public record BillingUsage(Long inputTokens,
-                           Long outputTokens,
-                           Long totalTokens,
-                           Long cacheReadTokens,
-                           Long cacheWriteTokens,
-                           Long cacheWrite5mTokens,
-                           Long cacheWrite1hTokens,
-                           Long amount) {
+public sealed interface BillingUsage
+        permits TokenBillingUsage, ImageBillingUsage, VideoBillingUsage, AudioBillingUsage {
 
-    public BillingUsage {
-        inputTokens = safe(inputTokens);
-        outputTokens = safe(outputTokens);
-        totalTokens = safe(totalTokens);
-        cacheReadTokens = safe(cacheReadTokens);
-        cacheWriteTokens = safe(cacheWriteTokens);
-        cacheWrite5mTokens = safe(cacheWrite5mTokens);
-        cacheWrite1hTokens = safe(cacheWrite1hTokens);
-        amount = safe(amount);
-    }
-
-    public static BillingUsage empty() {
-        return new BillingUsage(0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L);
-    }
-
-    public static BillingUsage from(Map<String, Object> usage) {
-        if (usage == null || usage.isEmpty()) {
-            return empty();
-        }
-        long inputTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS);
-        long outputTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.COMPLETION_TOKENS, AiPayloadFields.OUTPUT_TOKENS);
-        long totalTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.TOTAL_TOKENS);
-        long cacheReadTokens =
-                MapNumberUtils.nestedLong(usage, "prompt_tokens_details", "cached_tokens")
-                        + MapNumberUtils.nestedLong(usage, "input_tokens_details", "cached_tokens")
-                        + MapNumberUtils.firstLong(usage, "cache_read_input_tokens", "cached_read_tokens",
-                        "cache_read_tokens", "prompt_cache_hit_tokens");
-        long cacheWriteTokens =
-                MapNumberUtils.nestedLong(usage, "prompt_tokens_details", "cache_creation_input_tokens")
-                        + MapNumberUtils.nestedLong(usage, "input_tokens_details", "cache_creation_input_tokens")
-                        + MapNumberUtils.firstLong(usage, "cache_creation_input_tokens", "cached_write_tokens",
-                        "cache_write_input_tokens", "cache_write_tokens");
-        long cacheWrite5mTokens = cacheWriteTtl(usage, "5m");
-        long cacheWrite1hTokens = cacheWriteTtl(usage, "1h");
-        if (totalTokens <= 0 && (inputTokens > 0 || outputTokens > 0)) {
-            totalTokens = inputTokens + outputTokens;
-        }
-        return new BillingUsage(
-                inputTokens,
-                outputTokens,
-                totalTokens,
-                cacheReadTokens,
-                cacheWriteTokens,
-                cacheWrite5mTokens,
-                cacheWrite1hTokens,
-                MapNumberUtils.firstLong(usage, "image_count", "images", "n", "duration_seconds", "audio_seconds", "video_seconds", "seconds", "amount")
-        );
-    }
+    /** 是否没有任何可用计费量（提取器与归一化入口据此判断有无用量） */
+    boolean isEmpty();
 
     /**
-     * 缓存写的有效总量：明细（5m / 1h）优先，只有明细都为 0 时才用单字段总量。
+     * 逐事件合并（SSE 场景）：同类型按分量取最大值；类型不同时保守返回 {@code this}
+     * （同一提取器跨事件类型必然一致，分支只为防御）。
      */
-    public long cacheWriteTotal() {
-        return cacheWrite5mTokens + cacheWrite1hTokens > 0
-                ? cacheWrite5mTokens + cacheWrite1hTokens
-                : cacheWriteTokens;
-    }
-
-    /** 是否走了 TTL 明细口径（5m / 1h 任一大于 0） */
-    public boolean cacheWriteTtlSplit() {
-        return cacheWrite5mTokens + cacheWrite1hTokens > 0;
-    }
-
-    public BillingUsage mergeMax(BillingUsage other) {
-        if (other == null) {
-            return this;
-        }
-        return new BillingUsage(
-                Math.max(inputTokens, other.inputTokens()),
-                Math.max(outputTokens, other.outputTokens()),
-                Math.max(totalTokens, other.totalTokens()),
-                Math.max(cacheReadTokens, other.cacheReadTokens()),
-                Math.max(cacheWriteTokens, other.cacheWriteTokens()),
-                Math.max(cacheWrite5mTokens, other.cacheWrite5mTokens()),
-                Math.max(cacheWrite1hTokens, other.cacheWrite1hTokens()),
-                Math.max(amount, other.amount())
-        );
-    }
-
-    public BillingUsage plus(BillingUsage other) {
-        if (other == null) {
-            return this;
-        }
-        return new BillingUsage(
-                inputTokens + other.inputTokens(),
-                outputTokens + other.outputTokens(),
-                totalTokens + other.totalTokens(),
-                cacheReadTokens + other.cacheReadTokens(),
-                cacheWriteTokens + other.cacheWriteTokens(),
-                cacheWrite5mTokens + other.cacheWrite5mTokens(),
-                cacheWrite1hTokens + other.cacheWrite1hTokens(),
-                amount + other.amount()
-        );
-    }
-
-    public boolean isEmpty() {
-        return inputTokens <= 0
-                && outputTokens <= 0
-                && totalTokens <= 0
-                && cacheReadTokens <= 0
-                && cacheWriteTokens <= 0
-                && cacheWrite5mTokens <= 0
-                && cacheWrite1hTokens <= 0
-                && amount <= 0;
-    }
+    BillingUsage mergeMax(BillingUsage other);
 
     /**
-     * 按 TTL 取缓存写 token 数：{@code ttl} 取 {@code 5m} 或 {@code 1h}。
+     * 内嵌的 token 用量：token 记录返回自身，媒体记录返回其内嵌部分
+     * （上游未上报时为 {@link TokenBillingUsage#empty()}）。
      *
-     * <p>别名与 {@code ModelUsageNormalizer} 的 5m/1h 识别保持一致，避免两处口径漂移。</p>
+     * <p>TOKEN 类规则与 token 总量统计经此取数，消费方无需逐个 sealed 类型分流。</p>
      */
-    private static long cacheWriteTtl(Map<String, Object> usage, String ttl) {
-        return MapNumberUtils.firstLong(usage,
-                        "cache_write_" + ttl,
-                        "cache_creation_" + ttl + "_input_tokens",
-                        "cache_write_input_tokens_" + ttl)
-                + MapNumberUtils.nestedLong(usage, "cache_creation", "ephemeral_" + ttl + "_input_tokens")
-                + MapNumberUtils.nestedLong(usage, "cache_creation", "cache_creation_input_tokens_" + ttl)
-                + MapNumberUtils.nestedLong(usage, "input_tokens_details", "cache_creation_" + ttl + "_input_tokens")
-                + MapNumberUtils.nestedLong(usage, "prompt_tokens_details", "cache_creation_" + ttl + "_input_tokens");
+    default TokenBillingUsage tokenUsage() {
+        return TokenBillingUsage.empty();
     }
-
-    private static long safe(Long value) {
-        return Math.max(0L, ObjectUtils.defaultIfNull(value, 0L));
-    }
-
 }

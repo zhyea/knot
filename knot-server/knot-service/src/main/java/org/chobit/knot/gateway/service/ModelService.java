@@ -4,6 +4,7 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.adapter.request.RequestAdapterCatalog;
+import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
@@ -182,7 +183,8 @@ public class ModelService {
                         item.code(),
                         item.label(),
                         item.className(),
-                        item.streamSupported()
+                        item.streamSupported(),
+                        item.billingModes().stream().map(BillingModeEnum::code).toList()
                 ))
                 .toList();
     }

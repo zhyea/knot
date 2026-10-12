@@ -328,19 +328,6 @@ public record BillingConfig(
 
         /** 简单模式/兜底单价：defaultUnitPrice -&gt; fallback，再乘相位倍率 */
         BigDecimal resolveDefaultPrice(PricingContext context, BigDecimal fallback);
-
-        /**
-         * 旧签名（无时间上下文）默认委托到带上下文的重载：occurredAt 为 null，高低峰不做调整。
-         * 存量调用点不改也能编译，但网关热路径应改传带 occurredAt 的 PricingContext，否则高低峰不生效。
-         */
-        default BigDecimal resolvePrice(PriceKind kind, long usageAmount, BigDecimal fallback) {
-            return resolvePrice(kind, PricingContext.ofAmount(usageAmount), fallback);
-        }
-
-        /** 旧签名（无时间上下文）默认委托，语义同 {@link #resolvePrice(PriceKind, long, BigDecimal)} */
-        default BigDecimal resolveDefaultPrice(BigDecimal fallback) {
-            return resolveDefaultPrice(new PricingContext(0L, null), fallback);
-        }
     }
 
     /** 固定价：基础价格直出 */

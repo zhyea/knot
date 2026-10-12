@@ -1,7 +1,11 @@
 package org.chobit.knot.gateway.usage;
 
 import org.chobit.knot.gateway.constants.AiPayloadFields;
+import org.chobit.knot.gateway.model.AudioBillingUsage;
 import org.chobit.knot.gateway.model.BillingUsage;
+import org.chobit.knot.gateway.model.ImageBillingUsage;
+import org.chobit.knot.gateway.model.TokenBillingUsage;
+import org.chobit.knot.gateway.model.VideoBillingUsage;
 import org.chobit.knot.gateway.model.usage.ModelUsage;
 import org.chobit.knot.gateway.model.usage.ModelUsage.Input;
 import org.chobit.knot.gateway.model.usage.ModelUsage.InputTokens;
@@ -96,11 +100,28 @@ public final class ModelUsageNormalizer {
 
     /**
      * 无原始 usage 时的兜底：用内部计费输入视图重建，多模态维度按响应体归因。
+     *
+     * <p>token 用量走明细重建；媒体用量只取各自的计量（IMAGE 张数 / VIDEO、AUDIO 秒数），
+     * token 明细不参与（内嵌 token 只服务计费，不进对外 usage 视图）。</p>
      */
     public static ModelUsage fromBilling(BillingUsage usage, Map<String, Object> rawBody) {
         if (usage == null || usage.isEmpty()) {
             return mediaOnly(rawBody);
         }
+        if (usage instanceof TokenBillingUsage token) {
+            return withBodyMedia(fromTokenUsage(token), rawBody);
+        }
+        long imageCount = usage instanceof ImageBillingUsage image ? image.count() : 0L;
+        long videoSeconds = usage instanceof VideoBillingUsage video ? video.durationSeconds() : 0L;
+        long audioSeconds = usage instanceof AudioBillingUsage audio ? audio.durationSeconds() : 0L;
+        ModelUsage media = ModelUsage.of(
+                Input.of(emptyInputTokens()),
+                Output.of(emptyOutputTokens(), imageCount, audioSeconds, videoSeconds),
+                0L);
+        return withBodyMedia(media, rawBody);
+    }
+
+    private static ModelUsage fromTokenUsage(TokenBillingUsage usage) {
         long cacheWrite5m = usage.cacheWrite5mTokens();
         long cacheWrite1h = usage.cacheWrite1hTokens();
         // 与 InputTokens 构造器同一口径：ttl 明细其一大于 0 时单字段总量作废
@@ -120,10 +141,15 @@ public final class ModelUsageNormalizer {
                 0L
         );
         OutputTokens outputTokens = new OutputTokens(usage.outputTokens(), 0L, 0L, 0L, 0L);
-        Input input = Input.of(inputTokens);
-        Output output = Output.of(outputTokens);
-        ModelUsage normalized = ModelUsage.of(input, output, usage.totalTokens());
-        return withBodyMedia(normalized, rawBody);
+        return ModelUsage.of(Input.of(inputTokens), Output.of(outputTokens), usage.totalTokens());
+    }
+
+    private static InputTokens emptyInputTokens() {
+        return new InputTokens(0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L);
+    }
+
+    private static OutputTokens emptyOutputTokens() {
+        return new OutputTokens(0L, 0L, 0L, 0L, 0L);
     }
 
     /**

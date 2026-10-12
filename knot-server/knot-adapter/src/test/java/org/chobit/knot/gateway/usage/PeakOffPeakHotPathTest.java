@@ -1,8 +1,8 @@
 package org.chobit.knot.gateway.usage;
 
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
-import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.model.NormalizedUsage;
+import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.usage.calculator.TokenBillingModeCalculator;
 import org.junit.jupiter.api.Test;
 
@@ -90,8 +90,8 @@ class PeakOffPeakHotPathTest {
                 .price();
     }
 
-    private BillingUsage usage() {
-        return new BillingUsage(1_000L, 200L, 1_200L, 0L, 0L, 0L, 0L, 0L);
+    private TokenBillingUsage usage() {
+        return new TokenBillingUsage(1_000L, 200L, 1_200L, 0L, 0L, 0L, 0L);
     }
 
     private BillingRuleEntity rule() {

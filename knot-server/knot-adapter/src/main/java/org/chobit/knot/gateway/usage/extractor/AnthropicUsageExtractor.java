@@ -1,21 +1,22 @@
 package org.chobit.knot.gateway.usage.extractor;
 
-import org.chobit.knot.gateway.model.BillingUsage;
+import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
+import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.usage.calculator.BillingModeCalculator;
-import org.chobit.knot.gateway.usage.calculator.SimpleBillingModeCalculator;
 import org.chobit.knot.gateway.usage.calculator.TokenBillingModeCalculator;
 import org.springframework.stereotype.Component;
 
+import java.util.EnumSet;
 import java.util.Map;
+import java.util.Set;
 
 @Component
-public class AnthropicUsageExtractor extends DefaultUsageExtractor {
+public class AnthropicUsageExtractor implements UsageExtractor<TokenBillingUsage> {
 
     public static final String CODE = "ANTHROPIC";
     private final TokenBillingModeCalculator calculator;
 
-    public AnthropicUsageExtractor(TokenBillingModeCalculator calculator, SimpleBillingModeCalculator defaultCalculator) {
-        super(defaultCalculator);
+    public AnthropicUsageExtractor(TokenBillingModeCalculator calculator) {
         this.calculator = calculator;
     }
 
@@ -35,24 +36,19 @@ public class AnthropicUsageExtractor extends DefaultUsageExtractor {
     }
 
     @Override
-    public BillingUsage extractUsage(Map<String, Object> body) {
-        BillingUsage usage = super.extractUsage(body);
-        if (usage.isEmpty()) {
-            return usage;
-        }
-        // Anthropic 的 input_tokens 不含缓存读写，两侧相加才是输入侧 token 总量；
-        // 缓存写走有效总量（ttl 明细优先），避免 5m/1h 口径下漏算
-        long inputTokens = usage.inputTokens() + usage.cacheReadTokens() + usage.cacheWriteTotal();
-        long totalTokens = Math.max(usage.totalTokens(), inputTokens + usage.outputTokens());
-        return new BillingUsage(
-                inputTokens,
-                usage.outputTokens(),
-                totalTokens,
-                usage.cacheReadTokens(),
-                usage.cacheWriteTokens(),
-                usage.cacheWrite5mTokens(),
-                usage.cacheWrite1hTokens(),
-                usage.amount()
-        );
+    public Set<BillingModeEnum> billingModes() {
+        // 只出 token 口径；Token 计算器遇媒体用量按错配零出账，配非 TOKEN 规则无意义
+        return EnumSet.of(BillingModeEnum.TOKEN);
+    }
+
+    @Override
+    public TokenBillingUsage empty() {
+        return TokenBillingUsage.empty();
+    }
+
+    @Override
+    public TokenBillingUsage extractUsage(Map<String, Object> body, Map<String, Object> requestBody) {
+        // Anthropic 口径：缓存读写加回输入侧总量（与 AnthropicRequestAdapter 同一出口）
+        return TokenBillingUsage.fromResponse(body).withCacheCountedInInput();
     }
 }

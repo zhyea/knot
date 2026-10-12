@@ -1,7 +1,10 @@
 package org.chobit.knot.gateway.usage;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import org.chobit.knot.gateway.model.BillingUsage;
+import org.chobit.knot.gateway.model.AudioBillingUsage;
+import org.chobit.knot.gateway.model.ImageBillingUsage;
+import org.chobit.knot.gateway.model.TokenBillingUsage;
+import org.chobit.knot.gateway.model.VideoBillingUsage;
 import org.chobit.knot.gateway.model.usage.ModelUsage;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.junit.jupiter.api.Test;
@@ -125,7 +128,7 @@ class ModelUsageNormalizerTest {
                 "data", List.of(Map.of("url", "a"), Map.of("url", "b"), Map.of("url", "c"))
         );
 
-        ModelUsage usage = ModelUsageNormalizer.fromSource(null, body, BillingUsage.empty());
+        ModelUsage usage = ModelUsageNormalizer.fromSource(null, body, TokenBillingUsage.empty());
 
         assertNotNull(usage);
         assertEquals(3L, usage.output().imageCount());
@@ -153,7 +156,7 @@ class ModelUsageNormalizerTest {
 
     @Test
     void shouldFallBackToBillingUsageWhenRawMissing() {
-        BillingUsage billing = BillingUsage.from(Map.of(
+        TokenBillingUsage billing = TokenBillingUsage.from(Map.of(
                 "prompt_tokens", 100,
                 "completion_tokens", 40,
                 "total_tokens", 140,
@@ -170,8 +173,30 @@ class ModelUsageNormalizerTest {
     }
 
     @Test
+    void shouldProjectMediaBillingUsageIntoOutputCounters() {
+        // 媒体用量只进各自计量：IMAGE 张数 / VIDEO 秒数 / AUDIO 秒数，token 明细不参与
+        ModelUsage image = ModelUsageNormalizer.fromBilling(
+                new ImageBillingUsage(TokenBillingUsage.empty(), 3L, 1_048_576L, 1024L, 1024L), null);
+        assertNotNull(image);
+        assertEquals(3L, image.output().imageCount());
+        assertEquals(0L, image.totalTokens());
+        assertEquals(0L, image.input().tokenTotal());
+
+        ModelUsage video = ModelUsageNormalizer.fromBilling(
+                new VideoBillingUsage(TokenBillingUsage.empty(), 12L, 921_600L, 1280L, 720L, true, false), null);
+        assertNotNull(video);
+        assertEquals(12L, video.output().videoSeconds());
+        assertEquals(0L, video.output().imageCount());
+
+        ModelUsage audio = ModelUsageNormalizer.fromBilling(
+                new AudioBillingUsage(TokenBillingUsage.empty(), 95L), null);
+        assertNotNull(audio);
+        assertEquals(95L, audio.output().audioSeconds());
+    }
+
+    @Test
     void shouldReturnNullWhenNothingToNormalize() {
-        assertNull(ModelUsageNormalizer.fromSource(null, null, BillingUsage.empty()));
+        assertNull(ModelUsageNormalizer.fromSource(null, null, TokenBillingUsage.empty()));
         assertNull(ModelUsageNormalizer.fromSource(Map.of(), null, null));
         assertNull(ModelUsageNormalizer.fromRaw(null));
     }

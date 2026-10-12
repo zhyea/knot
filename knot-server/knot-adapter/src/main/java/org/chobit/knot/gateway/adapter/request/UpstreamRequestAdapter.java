@@ -3,9 +3,9 @@ package org.chobit.knot.gateway.adapter.request;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
-import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.model.BillingUsage;
+import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.http.MediaType;
 
@@ -35,31 +35,30 @@ public interface UpstreamRequestAdapter {
         return responseBody;
     }
 
+    /**
+     * 适配器兜底提取（提取器未命中或无用量时）：只认 token 口径的 usage，
+     * 媒体计量由各媒体提取器负责。
+     */
     default BillingUsage extractUsage(String responseBody, UpstreamRequestContext context) {
         if (StringUtils.isBlank(responseBody)) {
-            return BillingUsage.empty();
+            return TokenBillingUsage.empty();
         }
         if (isEventStream(responseBody)) {
             return extractEventStreamUsage(responseBody, context);
         }
         Map<String, Object> body = readMap(responseBody);
         if (body == null || body.isEmpty()) {
-            return BillingUsage.empty();
+            return TokenBillingUsage.empty();
         }
         return extractUsageFromBody(body);
     }
 
-    @SuppressWarnings("unchecked")
     default BillingUsage extractUsageFromBody(Map<String, Object> body) {
-        Object usage = body.get(AiPayloadFields.USAGE);
-        if (usage instanceof Map<?, ?> map) {
-            return BillingUsage.from((Map<String, Object>) map);
-        }
-        return BillingUsage.empty();
+        return TokenBillingUsage.fromResponse(body);
     }
 
     default BillingUsage extractEventStreamUsage(String responseBody, UpstreamRequestContext context) {
-        BillingUsage usage = BillingUsage.empty();
+        BillingUsage usage = TokenBillingUsage.empty();
         for (String line : responseBody.split("\\R")) {
             String trimmed = StringUtils.trim(line);
             if (!StringUtils.startsWith(trimmed, "data:")) {

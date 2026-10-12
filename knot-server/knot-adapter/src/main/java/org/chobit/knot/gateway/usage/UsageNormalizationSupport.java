@@ -6,6 +6,7 @@ import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.model.NormalizedBillingAmount;
 import org.chobit.knot.gateway.model.NormalizedUsage;
+import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.usage.calculator.BillingModeCalculator;
 
 import java.time.Instant;
@@ -39,9 +40,10 @@ public final class UsageNormalizationSupport {
         }
         NormalizedBillingAmount amount =
                 calculator.calculate(new NormalizedUsageContext(rule, normalizedUsage, requestBody, occurredAt));
-        long totalTokens = normalizedUsage.totalTokens() > 0
-                ? normalizedUsage.totalTokens()
-                : normalizedUsage.inputTokens() + normalizedUsage.outputTokens();
+        TokenBillingUsage token = normalizedUsage.tokenUsage();
+        long totalTokens = token.totalTokens() > 0
+                ? token.totalTokens()
+                : token.inputTokens() + token.outputTokens();
         return new NormalizedUsage(
                 totalTokens,
                 amount.totalCost(),
@@ -52,21 +54,20 @@ public final class UsageNormalizationSupport {
     }
 
     private static BillingUsage normalizedUsage(BillingUsage usage, BillingModeEnum modeEnum) {
-        if (BillingModeEnum.TOKEN != modeEnum) {
+        if (BillingModeEnum.TOKEN != modeEnum || !(usage instanceof TokenBillingUsage token)) {
             return usage;
         }
-        long totalTokens = usage.totalTokens() > 0
-                ? usage.totalTokens()
-                : usage.inputTokens() + usage.outputTokens();
-        return new BillingUsage(
-                usage.inputTokens(),
-                usage.outputTokens(),
+        long totalTokens = token.totalTokens() > 0
+                ? token.totalTokens()
+                : token.inputTokens() + token.outputTokens();
+        return new TokenBillingUsage(
+                token.inputTokens(),
+                token.outputTokens(),
                 totalTokens,
-                usage.cacheReadTokens(),
-                usage.cacheWriteTokens(),
-                usage.cacheWrite5mTokens(),
-                usage.cacheWrite1hTokens(),
-                usage.amount()
+                token.cacheReadTokens(),
+                token.cacheWriteTokens(),
+                token.cacheWrite5mTokens(),
+                token.cacheWrite1hTokens()
         );
     }
 

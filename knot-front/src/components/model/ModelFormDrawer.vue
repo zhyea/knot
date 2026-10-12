@@ -244,7 +244,7 @@
                       style="width: 100%"
                     >
                       <el-option
-                        v-for="item in usageExtractorOptions"
+                        v-for="item in filteredUsageExtractorOptions"
                         :key="item.code"
                         :label="usageExtractorLabel(item)"
                         :value="item.code"
@@ -401,8 +401,30 @@ const metaOf = (row: Row | undefined): Row => (row?.meta as Row) ?? {};
 const billingRuleFilterParams = computed(() => ({
   modelFamilyCode: metaOf(selectedLogicalModel.value).modelFamily || undefined
 }));
+/** 已绑计费规则的计费模式码（未绑定/未回显时不收敛候选） */
+const boundBillingMode = computed(() => {
+  const code = boundBillingRule.value?.billingMode;
+  const normalized = typeof code === "string" ? code.trim().toUpperCase() : "";
+  return normalized || null;
+});
+
+/** 解析器是否声明支持指定计费模式：声明即契约，未列入即不出现在收敛后的候选里 */
+function supportsBillingMode(item: Row, mode: string): boolean {
+  const modes = item?.billingModes;
+  return Array.isArray(modes) && modes.some((code) => String(code).trim().toUpperCase() === mode);
+}
+
+/** Usage 解析器候选：按已绑计费规则的计费模式收敛，减少筛选范围 */
+const filteredUsageExtractorOptions = computed(() => {
+  const mode = boundBillingMode.value;
+  if (!mode) {
+    return usageExtractorOptions.value;
+  }
+  return usageExtractorOptions.value.filter((item) => supportsBillingMode(item, mode));
+});
+
 const streamUsageExtractorOptions = computed(() =>
-  usageExtractorOptions.value.filter((item) => item.streamSupported !== false)
+  filteredUsageExtractorOptions.value.filter((item) => item.streamSupported !== false)
 );
 const allowedApiProtocolCodes = computed(() =>
   allowedProtocolsForModelType(String(metaOf(selectedLogicalModel.value).modelType || ""))

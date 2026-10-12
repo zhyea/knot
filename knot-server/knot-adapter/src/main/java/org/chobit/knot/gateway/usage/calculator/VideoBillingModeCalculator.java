@@ -7,6 +7,7 @@ import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.model.BillingConfig;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.model.NormalizedBillingAmount;
+import org.chobit.knot.gateway.model.VideoBillingUsage;
 import org.chobit.knot.gateway.usage.NormalizedUsageContext;
 import org.springframework.stereotype.Component;
 
@@ -28,10 +29,19 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
     public NormalizedBillingAmount calculate(NormalizedUsageContext context) {
         BillingRuleEntity rule = rule(context);
         BillingUsage usage = context.usage();
-        long amount = firstAmount(usage.amount(), 1L);
-        String resolution = normalizeResolution(context.requestBody().get(REQUEST_SIZE));
-        if (resolution == null) {
-            resolution = normalizeResolution(context.requestBody().get(FALLBACK_SIZE));
+        long amount;
+        String resolution;
+        if (usage instanceof VideoBillingUsage video) {
+            // VIDEO 提取器产出：时长与像素（宽高）都在用量里，请求体不再参与
+            amount = firstAmount(video.durationSeconds(), 1L);
+            resolution = resolutionOf(video);
+        } else {
+            // 兜底：用量不是 VIDEO 提取器产出（类型错配）——秒数无从取，按 1 秒兜底，分辨率仍取请求体
+            amount = 1L;
+            resolution = normalizeResolution(context.requestBody().get(REQUEST_SIZE));
+            if (resolution == null) {
+                resolution = normalizeResolution(context.requestBody().get(FALLBACK_SIZE));
+            }
         }
         // 带发生时点传给方案层，简单价分支才能吃到相位倍率
         BillingConfig.PricingContext pricingContext = new BillingConfig.PricingContext(amount, context.occurredAt());
@@ -42,7 +52,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
                 ? normalizeDetailType(rule.getBillingMode(), BillingModeEnum.VIDEO)
                 : normalizeDetailType(rule.getBillingMode(), BillingModeEnum.VIDEO) + ":" + resolution;
         return new NormalizedBillingAmount(
-                usage.totalTokens(),
+                usage.tokenUsage().totalTokens(),
                 totalCost,
                 List.of(detail(detailType, amount, totalCost, unitPrice, unitSize))
         );
@@ -53,7 +63,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
      *
      * <p>⚠ 已知缺口：命中的分辨率价直接返回，**未过** {@code PricingPlan} 倍率链路
      * （方案文档 §八 风险 ①）。首期 PEAK_OFF_PEAK 仅支持 TOKEN 模式，VIDEO 拿不到该方案，
-     * 故无实际影响；放开到非 TOKEN 前必须先处理这里。
+     * 故无实际影响；放开到非 TOKEN 前必须先处理这里。</p>
      */
     private BigDecimal resolveUnitPrice(BillingRuleEntity rule,
                                         String resolution,
@@ -77,6 +87,18 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
 
     private static BillingConfig.PricingPlan planOf(BillingConfig config, BillingRuleEntity rule) {
         return config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan()));
+    }
+
+    /**
+     * 由用量里的宽高推导分辨率键（{@code 1280x720 -> 720P}），
+     * 与旧口径（请求体 {@code size} 文本归一化）落在同一张键空间上；
+     * 上游未上报尺寸时为 {@code null}，计默认价。
+     */
+    private String resolutionOf(VideoBillingUsage video) {
+        if (video.width() <= 0 || video.height() <= 0) {
+            return null;
+        }
+        return normalizeResolution(video.width() + "x" + video.height());
     }
 
     private String normalizeResolution(Object value) {

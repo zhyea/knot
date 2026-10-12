@@ -11,12 +11,14 @@ import org.chobit.knot.gateway.model.NormalizedUsage;
 import org.chobit.knot.gateway.model.UsageAccounting;
 import org.chobit.knot.gateway.service.GatewayDataService;
 import org.chobit.knot.gateway.usage.extractor.AnthropicUsageExtractor;
+import org.chobit.knot.gateway.usage.extractor.AudioUsageExtractor;
 import org.chobit.knot.gateway.usage.extractor.ImageUsageExtractor;
 import org.chobit.knot.gateway.usage.extractor.UsageExtractor;
 import org.chobit.knot.gateway.usage.extractor.UsageExtractorCatalog;
+import org.chobit.knot.gateway.usage.extractor.VideoUsageExtractor;
 import org.chobit.knot.gateway.usage.UsageNormalizationSupport;
 import org.chobit.knot.gateway.usage.UsageRawReader;
-import org.chobit.knot.gateway.usage.extractor.VideoUsageExtractor;
+import org.chobit.knot.gateway.usage.calculator.BillingModeCalculator;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -61,17 +63,19 @@ public class UsageExtractorRegistry {
         Map<String, Object> rawUsage = UsageRawReader.readUsage(rawBody);
         BillingRuleEntity billingRule = resolveBillingRule(context);
         String code = resolveExtractorCode(eventStream, context);
-        UsageExtractor extractor = resolve(code);
+        UsageExtractor<?> extractor = resolve(code);
+        Map<String, Object> requestBody = requestBody(context);
         // 发生时点：一次提取一个值，整包/逐事件各归各自（首期网关进程 UTC）
         Instant occurredAt = Instant.now();
         if (extractor != null) {
-            BillingUsage billing = extractor.extractUsageBody(body);
+            // 请求体一并给提取器：像素 / 是否有声音 / 是否有参考等计费属性只在请求侧
+            BillingUsage billing = extractor.extractUsageBody(body, requestBody);
             if (!billing.isEmpty()) {
-                return normalize(billing, rawBody, rawUsage, billingRule, requestBody(context), occurredAt, extractor.calculator());
+                return normalize(billing, rawBody, rawUsage, billingRule, requestBody, occurredAt, extractor.calculator());
             }
         }
         BillingUsage billing = adapter.extractUsage(body, context);
-        return normalize(billing, rawBody, rawUsage, billingRule, requestBody(context), occurredAt, fallbackCalculator(context));
+        return normalize(billing, rawBody, rawUsage, billingRule, requestBody, occurredAt, fallbackCalculator(context));
     }
 
     private UsageAccounting normalize(BillingUsage billing,
@@ -80,7 +84,7 @@ public class UsageExtractorRegistry {
                                       BillingRuleEntity billingRule,
                                       Map<String, Object> requestBody,
                                       Instant occurredAt,
-                                      org.chobit.knot.gateway.usage.calculator.BillingModeCalculator calculator) {
+                                      BillingModeCalculator calculator) {
         NormalizedUsage normalized =
                 UsageNormalizationSupport.normalize(billing, billingRule, requestBody, occurredAt, calculator);
         return UsageAccounting.of(rawUsage, rawBody, billing, normalized);
@@ -90,7 +94,7 @@ public class UsageExtractorRegistry {
         return context == null ? null : context.requestBody();
     }
 
-    private UsageExtractor resolve(String code) {
+    private UsageExtractor<?> resolve(String code) {
         return usageExtractorCatalog.resolve(code);
     }
 
@@ -119,6 +123,11 @@ public class UsageExtractorRegistry {
             if (protocol == ModelApiProtocolEnum.VIDEO_GENERATIONS) {
                 return VideoUsageExtractor.CODE;
             }
+            if (protocol == ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS
+                    || protocol == ModelApiProtocolEnum.AUDIO_TRANSLATIONS
+                    || protocol == ModelApiProtocolEnum.AUDIO_SPEECH) {
+                return AudioUsageExtractor.CODE;
+            }
         }
         return usageExtractorCatalog.defaultExtractor().code();
     }
@@ -143,7 +152,7 @@ public class UsageExtractorRegistry {
         );
     }
 
-    private org.chobit.knot.gateway.usage.calculator.BillingModeCalculator fallbackCalculator(UpstreamRequestContext context) {
+    private BillingModeCalculator fallbackCalculator(UpstreamRequestContext context) {
         if (context == null || context.protocol() == null) {
             return usageExtractorCatalog.defaultExtractor().calculator();
         }
@@ -155,6 +164,11 @@ public class UsageExtractorRegistry {
         }
         if (protocol == ModelApiProtocolEnum.VIDEO_GENERATIONS) {
             return usageExtractorCatalog.resolve(VideoUsageExtractor.CODE).calculator();
+        }
+        if (protocol == ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS
+                || protocol == ModelApiProtocolEnum.AUDIO_TRANSLATIONS
+                || protocol == ModelApiProtocolEnum.AUDIO_SPEECH) {
+            return usageExtractorCatalog.resolve(AudioUsageExtractor.CODE).calculator();
         }
         return usageExtractorCatalog.defaultExtractor().calculator();
     }

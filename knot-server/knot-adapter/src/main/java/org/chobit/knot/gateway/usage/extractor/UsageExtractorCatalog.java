@@ -15,28 +15,28 @@ import java.util.Map;
 @Component
 public class UsageExtractorCatalog {
 
-    private final List<UsageExtractor> extractors;
-    private final Map<String, UsageExtractor> extractorsByCode;
-    private final Map<String, UsageExtractor> extractorsByClassName;
-    private final UsageExtractor defaultExtractor;
+    private final List<UsageExtractor<?>> extractors;
+    private final Map<String, UsageExtractor<?>> extractorsByCode;
+    private final Map<String, UsageExtractor<?>> extractorsByClassName;
+    private final UsageExtractor<?> defaultExtractor;
 
-    public UsageExtractorCatalog(List<UsageExtractor> extractors) {
-        List<UsageExtractor> sorted = new ArrayList<>(extractors);
+    public UsageExtractorCatalog(List<UsageExtractor<?>> extractors) {
+        List<UsageExtractor<?>> sorted = new ArrayList<>(extractors);
         // 排序键尊重各实现的 @Order（DEFAULT @Order(0) 置顶），同序时再按 code 兜底，保证确定性。
         sorted.sort(Comparator
-                .comparingInt((UsageExtractor e) -> OrderUtils.getOrder(e.getClass(), Ordered.LOWEST_PRECEDENCE))
+                .comparingInt((UsageExtractor<?> e) -> OrderUtils.getOrder(e.getClass(), Ordered.LOWEST_PRECEDENCE))
                 .thenComparing(UsageExtractor::code, String.CASE_INSENSITIVE_ORDER));
         this.extractors = List.copyOf(sorted);
         this.extractorsByCode = buildCodeIndex(this.extractors);
         this.extractorsByClassName = buildClassIndex(this.extractors);
-        this.defaultExtractor = requireExtractor(DefaultUsageExtractor.CODE);
+        this.defaultExtractor = requireExtractor(DefaultTokenUsageExtractor.CODE);
     }
 
-    public List<UsageExtractor> extractors() {
+    public List<UsageExtractor<?>> extractors() {
         return extractors;
     }
 
-    public UsageExtractor defaultExtractor() {
+    public UsageExtractor<?> defaultExtractor() {
         return defaultExtractor;
     }
 
@@ -46,53 +46,54 @@ public class UsageExtractorCatalog {
                         item.code(),
                         item.label(),
                         item.getClass().getName(),
-                        item.streamSupported()
+                        item.streamSupported(),
+                        item.billingModes()
                 ))
                 .toList();
     }
 
-    public UsageExtractor resolve(String codeOrClassName) {
+    public UsageExtractor<?> resolve(String codeOrClassName) {
         if (StringUtils.isBlank(codeOrClassName)) {
             return null;
         }
         String trimmed = StringUtils.trim(codeOrClassName);
-        UsageExtractor byCode = extractorsByCode.get(StringUtils.upperCase(trimmed));
+        UsageExtractor<?> byCode = extractorsByCode.get(StringUtils.upperCase(trimmed));
         if (byCode != null) {
             return byCode;
         }
         return extractorsByClassName.get(trimmed);
     }
 
-    private UsageExtractor requireExtractor(String code) {
-        UsageExtractor extractor = resolve(code);
+    private UsageExtractor<?> requireExtractor(String code) {
+        UsageExtractor<?> extractor = resolve(code);
         if (extractor == null) {
             throw new IllegalStateException("UsageExtractor not found: " + code);
         }
         return extractor;
     }
 
-    private Map<String, UsageExtractor> buildCodeIndex(List<UsageExtractor> extractors) {
-        Map<String, UsageExtractor> index = new LinkedHashMap<>();
-        for (UsageExtractor extractor : extractors) {
+    private Map<String, UsageExtractor<?>> buildCodeIndex(List<UsageExtractor<?>> extractors) {
+        Map<String, UsageExtractor<?>> index = new LinkedHashMap<>();
+        for (UsageExtractor<?> extractor : extractors) {
             putUnique(index, StringUtils.upperCase(extractor.code()), extractor, "code");
         }
         return Map.copyOf(index);
     }
 
-    private Map<String, UsageExtractor> buildClassIndex(List<UsageExtractor> extractors) {
-        Map<String, UsageExtractor> index = new LinkedHashMap<>();
-        for (UsageExtractor extractor : extractors) {
+    private Map<String, UsageExtractor<?>> buildClassIndex(List<UsageExtractor<?>> extractors) {
+        Map<String, UsageExtractor<?>> index = new LinkedHashMap<>();
+        for (UsageExtractor<?> extractor : extractors) {
             putUnique(index, extractor.getClass().getName(), extractor, "class");
             putUnique(index, extractor.getClass().getSimpleName(), extractor, "class");
         }
         return Map.copyOf(index);
     }
 
-    private void putUnique(Map<String, UsageExtractor> index,
+    private void putUnique(Map<String, UsageExtractor<?>> index,
                            String key,
-                           UsageExtractor extractor,
+                           UsageExtractor<?> extractor,
                            String type) {
-        UsageExtractor existing = index.putIfAbsent(key, extractor);
+        UsageExtractor<?> existing = index.putIfAbsent(key, extractor);
         if (existing != null) {
             throw new IllegalStateException("Duplicate UsageExtractor " + type + ": " + key);
         }
