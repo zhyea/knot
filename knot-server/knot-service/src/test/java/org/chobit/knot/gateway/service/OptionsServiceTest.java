@@ -154,10 +154,10 @@ class OptionsServiceTest {
     // 场景 6：code 型资源 value 原样透传（模型池 poolCode 不被数字化）
     @Test
     void codeValuedResourceKeepsStringValue() {
-        when(mapper.listModelPoolOptions(any(), anyBoolean(), anyBoolean(), any())).thenReturn(List.of());
+        when(mapper.listModelPoolOptions(any(), anyBoolean(), anyBoolean(), any(), any())).thenReturn(List.of());
         when(mapper.listModelPoolOptionsByValues(anyList())).thenReturn(List.of(codeRow("chat-economy-pool", "经济池", null, 0)));
 
-        ModelPoolOptionQuery q = new ModelPoolOptionQuery(1, 20, null, List.of("chat-economy-pool"), null, null, null);
+        ModelPoolOptionQuery q = new ModelPoolOptionQuery(1, 20, null, List.of("chat-economy-pool"), null, null, null, null);
         OptionPage<OptionItem<Void>> page = service.listModelPoolOptions(q);
 
         assertEquals("chat-economy-pool", page.list().get(0).value());

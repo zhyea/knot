@@ -6,6 +6,7 @@ import java.util.Set;
 
 public record UsageExtractorDefinition(String code,
                                        String label,
+                                       String description,
                                        String className,
                                        boolean streamSupported,
                                        Set<BillingModeEnum> billingModes) {

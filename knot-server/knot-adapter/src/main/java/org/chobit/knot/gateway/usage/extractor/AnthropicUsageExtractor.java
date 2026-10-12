@@ -31,6 +31,13 @@ public class AnthropicUsageExtractor implements UsageExtractor<TokenBillingUsage
     }
 
     @Override
+    public String description() {
+        return "Anthropic Messages API 专用提取器：按 Anthropic 口径提取 input/output token 与 "
+                + "cache_creation、cache_read 明细。Anthropic 的 usage 上报不含缓存读写 token，"
+                + "本提取器将其加回输入侧总量后再计费，与上游口径保持一致。仅服务 TOKEN 计费模式。";
+    }
+
+    @Override
     public BillingModeCalculator calculator() {
         return calculator;
     }

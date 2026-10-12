@@ -138,9 +138,10 @@ public class OptionsService {
         String logical = code(query == null ? null : query.logicalModelCode());
         String family = code(query == null ? null : query.modelFamilyCode());
         String account = code(query == null ? null : query.providerAccountCode());
+        String preferred = code(query == null ? null : query.preferredLogicalModelCode());
         boolean eo = base.effectiveEnabledOnly();
         return assemble(base,
-                () -> optionsMapper.listModelOptions(kw, eo, logical, family, account),
+                () -> optionsMapper.listModelOptions(kw, eo, logical, family, account, preferred),
                 vals -> optionsMapper.listModelOptionsByValues(vals),
                 optionConverter::toModelItems);
     }
@@ -150,10 +151,11 @@ public class OptionsService {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());
         String logical = code(query == null ? null : query.logicalModelCode());
+        String preferred = code(query == null ? null : query.preferredLogicalModelCode());
         boolean eo = base.effectiveEnabledOnly();
         boolean inc = base.effectiveIncludeDeleted();
         return assemble(base,
-                () -> optionsMapper.listModelPoolOptions(kw, eo, inc, logical),
+                () -> optionsMapper.listModelPoolOptions(kw, eo, inc, logical, preferred),
                 vals -> optionsMapper.listModelPoolOptionsByValues(vals),
                 optionConverter::toModelPoolItems);
     }

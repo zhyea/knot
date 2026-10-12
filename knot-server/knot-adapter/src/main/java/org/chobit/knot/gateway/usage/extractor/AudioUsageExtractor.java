@@ -32,6 +32,12 @@ public class AudioUsageExtractor implements UsageExtractor<AudioBillingUsage> {
     }
 
     @Override
+    public String description() {
+        return "音频生成模型提取器：按时长（秒）计量，取响应体 usage 中上报的时长字段；token 分项内嵌保留，"
+                + "上游若同时上报 token 用量不丢失。仅服务 AUDIO 计费模式。";
+    }
+
+    @Override
     public BillingModeCalculator calculator() {
         return calculator;
     }

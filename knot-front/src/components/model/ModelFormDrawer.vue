@@ -236,7 +236,20 @@
 
               <el-row :gutter="12" class="api-binding-card__row">
                 <el-col :span="12">
-                  <el-form-item label="Usage">
+                  <el-form-item>
+                    <template #label>
+                      <span>Usage</span>
+                      <el-link
+                        class="usage-extractor-guide-link"
+                        type="primary"
+                        :underline="false"
+                        :href="usageExtractorGuideHref"
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        查看说明
+                      </el-link>
+                    </template>
                     <el-select
                       v-model="binding.usageExtractor"
                       filterable
@@ -298,6 +311,7 @@
 import {EnabledStatus} from "@/constants/status";
 import {type PropType, computed, reactive, ref, watch} from "vue";
 import type {Ref} from "vue";
+import {useRouter} from "vue-router";
 import {ElMessage} from "element-plus";
 import {RefreshRight} from "@element-plus/icons-vue";
 import type {Dict, Row, OptionItem, ProviderAccountMeta} from "@/types";
@@ -345,6 +359,13 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["update:modelValue", "saved"]);
+
+const router = useRouter();
+/**
+ * 提取器说明页链接（UsageExtractorView）：新标签页打开——
+ * 当前是抽屉表单，页内跳转会卸载列表页连带丢掉未保存的编辑状态。
+ */
+const usageExtractorGuideHref = router.resolve({name: "model-management-usage-extractors"}).href;
 
 const {loadOptions: loadModelTypes, protocolsOf} = useModelTypes();
 const {labelOf: enumLabelOf} = useEnumOptions();
@@ -955,6 +976,14 @@ async function submit() {
 
 .space-line {
   height: 14px;
+}
+
+/* Usage 标签旁的说明链接：紧贴标签文字，弱化字号不抢控件视觉 */
+.usage-extractor-guide-link {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 400;
+  vertical-align: baseline;
 }
 
 .binding-card,

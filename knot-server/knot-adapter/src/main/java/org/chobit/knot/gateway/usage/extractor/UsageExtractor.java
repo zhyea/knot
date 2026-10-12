@@ -29,6 +29,14 @@ public interface UsageExtractor<T extends BillingUsage> {
 
     String label();
 
+    /**
+     * 该提取器作用的自然语言描述：面向运维与模型配置人员，说明它从哪种上游响应里取什么量。
+     *
+     * <p>与 {@link #label()} 的分工：label 是下拉里的短名（恒简短），description 是提取器
+     * 说明页上的完整阐述——覆盖协议口径、取量字段、与计费模式的对应关系。纯展示，不参与逻辑。</p>
+     */
+    String description();
+
     default boolean streamSupported() {
         return true;
     }

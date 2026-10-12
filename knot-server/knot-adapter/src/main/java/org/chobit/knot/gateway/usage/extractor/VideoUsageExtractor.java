@@ -32,6 +32,13 @@ public class VideoUsageExtractor implements UsageExtractor<VideoBillingUsage> {
     }
 
     @Override
+    public String description() {
+        return "视频生成模型提取器：时长取响应体 usage 的秒数字段；像素尺寸、是否有声音"
+                + "（generate_audio 等）、是否有参考来源（input_reference 等）上游响应不回传，"
+                + "全部从请求体解析后随用量带入计价。token 分项内嵌保留。仅服务 VIDEO 计费模式。";
+    }
+
+    @Override
     public BillingModeCalculator calculator() {
         return calculator;
     }

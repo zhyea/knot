@@ -505,6 +505,7 @@ CREATE TABLE IF NOT EXISTS kb_routing_rules (
   app_scenario VARCHAR(128) DEFAULT NULL,
   app_code VARCHAR(64) DEFAULT NULL COMMENT '绑定应用业务码（kb_apps.app_code），非主键 id',
   username VARCHAR(64) DEFAULT NULL COMMENT '归属用户登录名（绑定 username，非主键 id）',
+  logical_model_code VARCHAR(128) DEFAULT NULL COMMENT '统一模型 code（kb_logical_models.model_code），非必填；选中后路由目标选择器将该统一模型对应的供应商模型/模型池优先置前（仅排序，不过滤）',
   retry_policy TEXT DEFAULT NULL COMMENT '失败重试策略（JSON）；空表示走内置默认策略',
   status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
 

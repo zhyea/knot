@@ -33,6 +33,13 @@ public class ImageUsageExtractor implements UsageExtractor<ImageBillingUsage> {
     }
 
     @Override
+    public String description() {
+        return "图片生成模型提取器：张数优先取响应体 data 数组长度，usage 里的 image_count 等别名字段兜底；"
+                + "像素尺寸（size）上游不回传，从请求体解析并随用量一起带入计价。token 分项内嵌保留，"
+                + "双报模型（如 gpt-image-1 同时上报图片与 token 用量）不丢量。仅服务 IMAGE 计费模式。";
+    }
+
+    @Override
     public BillingModeCalculator calculator() {
         return calculator;
     }

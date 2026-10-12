@@ -120,14 +120,14 @@ class OptionsEndpointContractTest {
                 new Endpoint("供应商模型", "/api/models/options",
                         svc -> new ModelController(null, null, svc),
                         (m, s, e, c) -> {
-                            when(m.listModelOptions(any(), anyBoolean(), any(), any(), any()))
+                            when(m.listModelOptions(any(), anyBoolean(), any(), any(), any(), any()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));
                             when(m.listModelOptionsByValues(anyList())).thenAnswer(inv -> e);
                         }, "gpt-4o", true),
                 new Endpoint("模型池", "/api/model-pools/options",
                         svc -> new ModelPoolController(null, null, svc),
                         (m, s, e, c) -> {
-                            when(m.listModelPoolOptions(any(), anyBoolean(), anyBoolean(), any()))
+                            when(m.listModelPoolOptions(any(), anyBoolean(), anyBoolean(), any(), any()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));
                             when(m.listModelPoolOptionsByValues(anyList())).thenAnswer(inv -> e);
                         }, "chat-economy-pool", true),

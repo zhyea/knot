@@ -36,6 +36,11 @@
           {{ userLabel(row) }}
         </template>
       </el-table-column>
+      <el-table-column label="统一模型" min-width="140" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.logicalModelName || row.logicalModelCode || "-" }}
+        </template>
+      </el-table-column>
       <el-table-column label="启用" width="90" align="center">
         <template #default="{ row }">
           <el-switch

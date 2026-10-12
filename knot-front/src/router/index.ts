@@ -48,7 +48,8 @@ const routes: RouteRecordRaw[] = [
       { path: "provider-profiles", name: "model-management-provider-profiles", component: () => import("@/views/model/ProviderProfileManageView.vue"), meta: { titleKey: "route.providerProfiles" } },
       { path: "logical-models", name: "model-management-logical-models", component: () => import("@/views/model/LogicalModelMarketplaceView.vue"), meta: { titleKey: "route.modelManagementLogicalModels" } },
       { path: "external-models", name: "model-management-external-models", component: () => import("@/views/model/ExternalModelManageView.vue"), meta: { titleKey: "route.modelManagementExternalModels" } },
-      { path: "model-families", name: "model-management-model-families", component: () => import("@/views/model/ModelFamilyView.vue"), meta: { titleKey: "route.modelFamilies" } }
+      { path: "model-families", name: "model-management-model-families", component: () => import("@/views/model/ModelFamilyView.vue"), meta: { titleKey: "route.modelFamilies" } },
+      { path: "usage-extractors", name: "model-management-usage-extractors", component: () => import("@/views/model/UsageExtractorView.vue"), meta: { titleKey: "route.usageExtractors" } }
     ]
   },
   { path: "/providers", redirect: "/model-management/provider-accounts" },

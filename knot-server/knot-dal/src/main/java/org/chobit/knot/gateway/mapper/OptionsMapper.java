@@ -69,7 +69,8 @@ public interface OptionsMapper {
                                               @Param("enabledOnly") boolean enabledOnly,
                                               @Param("logicalModelCode") String logicalModelCode,
                                               @Param("modelFamilyCode") String modelFamilyCode,
-                                              @Param("providerAccountCode") String providerAccountCode);
+                                              @Param("providerAccountCode") String providerAccountCode,
+                                              @Param("preferredLogicalModelCode") String preferredLogicalModelCode);
 
     List<OptionRow<String>> listModelOptionsByValues(@Param("values") List<String> values);
 
@@ -77,7 +78,8 @@ public interface OptionsMapper {
     List<OptionRow<String>> listModelPoolOptions(@Param("keyword") String keyword,
                                                   @Param("enabledOnly") boolean enabledOnly,
                                                   @Param("includeDeleted") boolean includeDeleted,
-                                                  @Param("logicalModelCode") String logicalModelCode);
+                                                  @Param("logicalModelCode") String logicalModelCode,
+                                                  @Param("preferredLogicalModelCode") String preferredLogicalModelCode);
 
     List<OptionRow<String>> listModelPoolOptionsByValues(@Param("values") List<String> values);
 

@@ -45,6 +45,7 @@ public class UsageExtractorCatalog {
                 .map(item -> new UsageExtractorDefinition(
                         item.code(),
                         item.label(),
+                        item.description(),
                         item.getClass().getName(),
                         item.streamSupported(),
                         item.billingModes()

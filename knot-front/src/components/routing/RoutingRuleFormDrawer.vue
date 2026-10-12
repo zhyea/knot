@@ -101,6 +101,16 @@
               <p>路由目标可以是供应商模型或模型池，模型池会按自身策略解析为最终模型。</p>
             </div>
           </div>
+          <el-form-item label="统一模型" class="bind-block-item model-bind-item">
+            <RemoteEntitySelect
+              v-model="form.logicalModelCode"
+              :load-function="loadLogicalModelOptions"
+              :selected-options="selectedLogicalModelOptions"
+              placeholder="可选：选择后，下方目标列表优先展示该统一模型对应的模型/模型池"
+              clearable
+              style="width: 100%"
+            />
+          </el-form-item>
           <el-form-item label="目标类型" class="bind-block-item model-bind-item">
             <el-radio-group v-model="targetType">
               <el-radio-button
@@ -208,7 +218,7 @@ import {
 } from "@/utils/trafficPolicy";
 import {defaultRetryPolicy, normalizeRetryPolicy, type RetryPolicy} from "@/utils/retryPolicy";
 import {createRoutingRule, updateRoutingRule, checkRoutingRuleCode} from "@/api/routing";
-import {listAppOptions, listModelOptions, listModelPoolOptions, listRoutingConsumerOptions, listUserUsernameOptions} from "@/api/options";
+import {listAppOptions, listLogicalModelOptions, listModelOptions, listModelPoolOptions, listRoutingConsumerOptions, listUserUsernameOptions} from "@/api/options";
 import {toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
@@ -223,6 +233,7 @@ const emit = defineEmits(["update:modelValue", "saved"]);
 const isEdit = computed(() => props.rule != null);
 
 const appOptions = ref<Row[]>([]);
+const logicalModelOptions = ref<Row[]>([]);
 const modelOptions = ref<Row[]>([]);
 const modelPoolOptions = ref<Row[]>([]);
 const consumerOptions = ref<Row[]>([]);
@@ -261,6 +272,8 @@ interface RuleForm {
   appId: number | string | null;
   /** 归属用户登录名（绑定 username，非 user.id） */
   username: string | null;
+  /** 统一模型 code（kb_logical_models.model_code），非必填；选中后目标选择器优先置前对应项（仅排序，不过滤） */
+  logicalModelCode: string | null;
   enabled: boolean;
   targets: RuleTargetForm[];
   rateLimitPolicy: RateLimitPolicy;
@@ -275,6 +288,7 @@ const form = reactive<RuleForm>({
   consumerIds: [],
   appId: null,
   username: null,
+  logicalModelCode: null,
   enabled: true,
   targets: [],
   rateLimitPolicy: emptyRateLimitPolicy(),
@@ -293,6 +307,15 @@ const selectedAppOptions = computed(() => {
   }
   const app = appOptions.value.find((item) => String(item.value) === String(form.appId));
   return [app || {value: form.appId, label: props.rule?.appName || `#${form.appId}`}];
+});
+/** 统一模型下拉回显项：value=logicalModelCode；后端已派生 logicalModelName，优先用作 label */
+const selectedLogicalModelOptions = computed<Row[]>(() => {
+  if (!form.logicalModelCode) {
+    return [];
+  }
+  const logical = logicalModelOptions.value.find((item) => String(item.value) === String(form.logicalModelCode));
+  const fallbackLabel = props.rule?.logicalModelName || form.logicalModelCode;
+  return [logical || {value: form.logicalModelCode, label: fallbackLabel}];
 });
 const selectedConsumerId = computed<string | number | null>({
   get: () => (form.consumerIds.length ? form.consumerIds[0] : null),
@@ -323,9 +346,15 @@ const boundTargetRows = computed(() =>
     return item;
   })
 );
-const targetExtraParams = computed(() => ({status: "ENABLED"}));
+/** 目标下拉附带统一模型优先排序上下文：选中统一模型后对应项置前，但不过滤（其余项仍可出现）。 */
+const targetExtraParams = computed(() => ({
+  status: "ENABLED",
+  preferredLogicalModelCode: form.logicalModelCode || undefined
+}));
 
 const loadAppOptions = toOptionsLoader(listAppOptions, appOptions);
+
+const loadLogicalModelOptions = toOptionsLoader(listLogicalModelOptions, logicalModelOptions);
 
 const loadConsumerOptions = toOptionsLoader(listRoutingConsumerOptions, consumerOptions);
 
@@ -399,6 +428,7 @@ function resetForm() {
     form.consumerIds = Array.isArray(row.consumerIds) ? [...row.consumerIds] : [];
     form.appId = row.appId ?? null;
     form.username = row.username || null;
+    form.logicalModelCode = row.logicalModelCode ?? null;
     selectedUserRealName.value = row.userRealName ?? null;
     form.enabled = row.enabled !== false;
     form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
@@ -420,6 +450,7 @@ function resetForm() {
     form.consumerIds = [];
     form.appId = null;
     form.username = null;
+    form.logicalModelCode = null;
     selectedUserRealName.value = null;
     form.enabled = false;
     form.targets = [];
@@ -547,6 +578,7 @@ function buildSubmitPayload() {
     consumerIds: [...form.consumerIds],
     appId: form.appId,
     username: form.username || null,
+    logicalModelCode: form.logicalModelCode || null,
     enabled: form.enabled,
     targets,
     rateLimitPolicy,

@@ -20,6 +20,10 @@ public record RoutingRuleDto(
         String username,
         /** 归属用户真实姓名（由后端 join ks_users 取真实名，列表展示「姓名(用户名)」用） */
         String userRealName,
+        /** 统一模型 code（kb_logical_models.model_code），非必填；选中后目标选择器优先置前对应项（仅排序，不过滤） */
+        String logicalModelCode,
+        /** 统一模型展示名（由 join kb_logical_models 派生，不落库）：display_name 优先，回退 model_name */
+        String logicalModelName,
         boolean enabled,
         List<RoutingRuleTargetDto> targets,
         RateLimitPolicy rateLimitPolicy,

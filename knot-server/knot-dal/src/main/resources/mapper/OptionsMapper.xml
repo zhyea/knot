@@ -168,6 +168,8 @@
   </select>
 
   <!-- ==================== 供应商模型（value=modelCode；meta 承载供应商/统一模型派生字段供池内表格与联动） ==================== -->
+  <!-- preferredLogicalModelCode：纯排序不过滤——命中统一模型的项置前，其余项仍可出现（路由规则目标选择器）；
+       为 null 时表达式恒 NULL、全行相等，排序退化为 model_code asc，行为与原口径一致 -->
   <select id="listModelOptions" resultMap="optionRow">
     select m.model_code as value,
     m.model_code as label,
@@ -194,7 +196,7 @@
       or m.upstream_model like concat('%', #{keyword}, '%')
       or lm.model_name like concat('%', #{keyword}, '%'))
     </if>
-    order by m.model_code asc
+    order by (pmm.logical_model_code = #{preferredLogicalModelCode}) desc, m.model_code asc
   </select>
 
   <select id="listModelOptionsByValues" resultMap="optionRow">
@@ -216,6 +218,8 @@
   </select>
 
   <!-- ==================== 模型池（value=poolCode；无 meta） ==================== -->
+  <!-- preferredLogicalModelCode：纯排序不过滤——命中统一模型的池置前，其余项仍可出现（路由规则目标选择器）；
+       为 null 时表达式恒 NULL、全行相等，排序退化为 id desc，行为与原口径一致 -->
   <select id="listModelPoolOptions" resultMap="optionRow">
     select mp.pool_code as value,
     mp.name as label,
@@ -229,7 +233,7 @@
       and (mp.name like concat('%', #{keyword}, '%')
       or mp.pool_code like concat('%', #{keyword}, '%'))
     </if>
-    order by mp.id desc
+    order by (mp.logical_model_code = #{preferredLogicalModelCode}) desc, mp.id desc
   </select>
 
   <select id="listModelPoolOptionsByValues" resultMap="optionRow">

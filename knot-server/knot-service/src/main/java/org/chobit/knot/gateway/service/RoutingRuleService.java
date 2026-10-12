@@ -23,6 +23,7 @@ import org.chobit.knot.gateway.entity.RoutingRuleTargetEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.AppMapper;
+import org.chobit.knot.gateway.mapper.LogicalModelMapper;
 import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.mapper.ModelPoolMapper;
@@ -119,6 +120,7 @@ public class RoutingRuleService {
     private final ModelMapper modelMapper;
     private final ModelPoolMapper modelPoolMapper;
     private final AppMapper appMapper;
+    private final LogicalModelMapper logicalModelMapper;
     private final RoutingRuleConverter routingRuleConverter;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
     private final GatewayRuntimeProperties gatewayRuntimeProperties;
@@ -135,6 +137,7 @@ public class RoutingRuleService {
                               ModelMapper modelMapper,
                               ModelPoolMapper modelPoolMapper,
                               AppMapper appMapper,
+                              LogicalModelMapper logicalModelMapper,
                               RoutingRuleConverter routingRuleConverter,
                               ResourceTrafficPolicySupport trafficPolicySupport,
                               GatewayRuntimeProperties gatewayRuntimeProperties) {
@@ -146,6 +149,7 @@ public class RoutingRuleService {
         this.modelMapper = modelMapper;
         this.modelPoolMapper = modelPoolMapper;
         this.appMapper = appMapper;
+        this.logicalModelMapper = logicalModelMapper;
         this.routingRuleConverter = routingRuleConverter;
         this.trafficPolicySupport = trafficPolicySupport;
         this.gatewayRuntimeProperties = gatewayRuntimeProperties;
@@ -279,6 +283,8 @@ public class RoutingRuleService {
                 existing.appName(),
                 existing.username(),
                 existing.userRealName(),
+                existing.logicalModelCode(),
+                existing.logicalModelName(),
                 enabled,
                 existing.targets(),
                 existing.rateLimitPolicy(),
@@ -770,6 +776,8 @@ public class RoutingRuleService {
                 entity.getAppName(),
                 entity.getUsername(),
                 entity.getUserRealName(),
+                entity.getLogicalModelCode(),
+                entity.getLogicalModelName(),
                 EnabledStatusEnum.isEnabled(entity.getStatus()),
                 targets,
                 rate,
@@ -905,6 +913,8 @@ public class RoutingRuleService {
                 request.appName(),
                 request.username(),
                 request.userRealName(),
+                request.logicalModelCode(),
+                request.logicalModelName(),
                 request.enabled(),
                 request.targets(),
                 request.rateLimitPolicy(),
@@ -954,6 +964,11 @@ public class RoutingRuleService {
             if (app == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "绑定应用不存在");
             }
+        }
+        // 统一模型非必填；传了则必须是有效 code（与 TestRequestPresetService 同口径）
+        if (request.logicalModelCode() != null && !request.logicalModelCode().isBlank()
+                && logicalModelMapper.getByCode(request.logicalModelCode().trim()) == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "统一模型不存在");
         }
         if (request.enabled()) {
             validateEnabledRule(request);
@@ -1044,6 +1059,8 @@ public class RoutingRuleService {
         }
         // 路由规则按 username 绑定用户（业务码，非主键 id）
         entity.setUsername(normalizeNullable(request.username()));
+        // 统一模型非必填：未配置（null/空）落库为 NULL，仅作为目标选择器的优先排序上下文
+        entity.setLogicalModelCode(normalizeNullable(request.logicalModelCode()));
         // 未配置（null）落库为 NULL，运行时按内置默认策略处理
         entity.setRetryPolicy(RetryPolicy.serialize(request.retryPolicy()));
         return entity;

@@ -182,6 +182,7 @@ public class ModelService {
                 .map(item -> new UsageExtractorItem(
                         item.code(),
                         item.label(),
+                        item.description(),
                         item.className(),
                         item.streamSupported(),
                         item.billingModes().stream().map(BillingModeEnum::code).toList()
