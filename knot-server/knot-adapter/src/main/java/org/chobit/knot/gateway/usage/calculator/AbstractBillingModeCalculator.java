@@ -5,6 +5,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.BillingUnitEnum;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
+import org.chobit.knot.gateway.error.BusinessException;
+import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.model.NormalizedUsageDetail;
 import org.chobit.knot.gateway.usage.NormalizedUsageContext;
 
@@ -20,13 +22,15 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
     protected int unitSize(BillingRuleEntity rule) {
         BillingUnitEnum unitEnum = BillingUnitEnum.fromCode(normalizeUnit(rule.getUnit()));
         if (unitEnum == null) {
-            return 1_000;
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "unsupported billing unit: " + rule.getUnit());
         }
         return switch (unitEnum) {
+            case ONE_K_TOKENS -> 1_000;
             case ONE_M_TOKENS -> 1_000_000;
             case PER_TOKEN, PER_REQUEST, PER_IMAGE, PER_SECOND, CUSTOM -> 1;
             case PER_MINUTE -> 60;
-            default -> 1_000;
+            default -> throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "billing unit not covered by calculator: " + unitEnum.code());
         };
     }
 
