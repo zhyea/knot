@@ -15,6 +15,7 @@
             pp.version,
             pi.status,
             pi.timeout_ms,
+            pi.plugin_type,
             pi.config_json
         from kb_plugin_instances pi
         inner join kb_plugin_packages pp on pp.plugin_code = pi.plugin_code
@@ -30,6 +31,9 @@
             </if>
             <if test="status != null">
                 and pi.status = #{status}
+            </if>
+            <if test="pluginType != null and pluginType != ''">
+                and pi.plugin_type = #{pluginType}
             </if>
         </where>
         order by pi.id desc
@@ -48,6 +52,7 @@
             pp.version,
             pi.status,
             pi.timeout_ms,
+            pi.plugin_type,
             pi.config_json
         from kb_plugin_instances pi
         inner join kb_plugin_packages pp on pp.plugin_code = pi.plugin_code
@@ -64,7 +69,8 @@
             config_json,
             status,
             timeout_ms,
-            concurrency_limit
+            concurrency_limit,
+            plugin_type
         ) values(
             #{packageCode},
             (select pc.id
@@ -77,7 +83,8 @@
             #{configJson},
             #{status},
             #{timeoutMs},
-            0
+            0,
+            #{pluginType}
         )
     </insert>
 

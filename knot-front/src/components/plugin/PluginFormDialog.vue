@@ -10,6 +10,9 @@
       <el-form-item label="版本">
         <el-input v-model="form.version" />
       </el-form-item>
+      <el-form-item label="类型" required>
+        <EnumControl v-model="form.pluginType" enum-name="PluginTypeEnum" />
+      </el-form-item>
       <el-form-item label="状态">
         <EnumControl v-model="form.status" enum-name="PluginInstanceStatusEnum" />
       </el-form-item>
@@ -39,7 +42,8 @@ const visible = computed({
 });
 
 const saving = ref(false);
-const form = reactive({ code: "", name: "", version: "0.0.1", status: 2 });
+// pluginType 默认 SYNC（同步插件）：当前内置插件均为嵌入请求链的同步 Handler
+const form = reactive({ code: "", name: "", version: "0.0.1", pluginType: "SYNC", status: 2 });
 
 watch(
   () => props.modelValue,
@@ -52,6 +56,7 @@ function resetForm() {
   form.code = "";
   form.name = "";
   form.version = "0.0.1";
+  form.pluginType = "SYNC";
   form.status = 2;
 }
 
@@ -67,6 +72,7 @@ async function submit() {
       code: form.code.trim(),
       name: form.name.trim(),
       version: form.version,
+      pluginType: form.pluginType,
       status: form.status
     });
     ElMessage.success("已创建");

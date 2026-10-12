@@ -6,6 +6,7 @@ import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.BillingUnitEnum;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.model.NormalizedUsageDetail;
+import org.chobit.knot.gateway.model.TokenUsageDetailKind;
 import org.chobit.knot.gateway.usage.NormalizedUsageContext;
 
 import java.math.BigDecimal;
@@ -45,6 +46,15 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
                 safeMoney(cost),
                 pricePerMillion(safeMoney(unitPrice), unitSize)
         );
+    }
+
+    /** 枚举版重载：明细类型以 {@link TokenUsageDetailKind} 声明，避免调用处散落魔法串 */
+    protected NormalizedUsageDetail detail(TokenUsageDetailKind kind,
+                                           long tokens,
+                                           BigDecimal cost,
+                                           BigDecimal unitPrice,
+                                           int unitSize) {
+        return detail(kind.key(), tokens, cost, unitPrice, unitSize);
     }
 
     protected BigDecimal pricePerMillion(BigDecimal unitPrice, int unitSize) {

@@ -745,14 +745,14 @@ INSERT IGNORE INTO kb_plugin_capabilities (
 (6, 'builtin-provider-audit', 'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_ERROR', 100, 1);
 
 INSERT IGNORE INTO kb_plugin_instances (
-  id, plugin_code, capability_id, instance_code, instance_name, config_json, status, timeout_ms, concurrency_limit
+  id, plugin_code, capability_id, instance_code, instance_name, config_json, status, timeout_ms, concurrency_limit, plugin_type
 ) VALUES
-(1, 'builtin-gateway-audit', 1, 'gateway-request-log', '网关请求日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0),
-(2, 'builtin-gateway-audit', 2, 'gateway-response-log', '网关响应日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0),
-(3, 'builtin-gateway-audit', 3, 'gateway-error-log', '网关异常日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0),
-(4, 'builtin-provider-audit', 4, 'provider-request-log', '上游请求日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0),
-(5, 'builtin-provider-audit', 5, 'provider-response-log', '上游响应日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0),
-(6, 'builtin-provider-audit', 6, 'provider-error-log', '上游异常日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0);
+(1, 'builtin-gateway-audit', 1, 'gateway-request-log', '网关请求日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0, 'SYNC'),
+(2, 'builtin-gateway-audit', 2, 'gateway-response-log', '网关响应日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0, 'SYNC'),
+(3, 'builtin-gateway-audit', 3, 'gateway-error-log', '网关异常日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0, 'SYNC'),
+(4, 'builtin-provider-audit', 4, 'provider-request-log', '上游请求日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0, 'SYNC'),
+(5, 'builtin-provider-audit', 5, 'provider-response-log', '上游响应日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0, 'SYNC'),
+(6, 'builtin-provider-audit', 6, 'provider-error-log', '上游异常日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0, 'SYNC');
 
 INSERT IGNORE INTO kb_plugin_bindings (
   id, instance_code, scope_type, scope_ref_code, stage_code, order_no, status, binding_config_json

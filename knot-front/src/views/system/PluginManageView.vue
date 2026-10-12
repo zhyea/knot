@@ -17,6 +17,16 @@
             />
           </el-select>
         </FilterField>
+        <FilterField label="类型" :width="180">
+          <el-select v-model="query.pluginType" clearable placeholder="全部">
+            <el-option
+            v-for="item in pluginTypeOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+            />
+          </el-select>
+        </FilterField>
       </FilterBar>
 
       <section class="list-page-block list-page-block--content">
@@ -77,6 +87,9 @@ const pluginStatusOptions = computed(() =>
   }))
 );
 
+// 插件类型筛选：PluginTypeEnum（代码枚举，/api/common/enums；SYNC-同步插件 ASYNC-异步插件）
+const pluginTypeOptions = computed(() => enumOptionsOf("PluginTypeEnum"));
+
 const {
   query,
   rows,
@@ -90,7 +103,7 @@ const {
   resetPage,
   handleQuery,
   handleReset
-} = useListQuery({ apiFn: listPlugins, fields: { keyword: "", status: "" } });
+} = useListQuery({ apiFn: listPlugins, fields: { keyword: "", status: "", pluginType: "" } });
 
 const pluginRows = ref<Row[]>([]);
 const dlg = ref(false);

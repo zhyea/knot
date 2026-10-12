@@ -4,7 +4,9 @@
       <el-table-column prop="id" label="ID" min-width="5%" align="center" header-align="center" />
       <el-table-column prop="code" label="编码" min-width="12%" />
       <el-table-column prop="name" label="名称" min-width="15%" />
-      <el-table-column prop="pluginType" label="类型" min-width="10%" />
+      <el-table-column label="类型" min-width="10%">
+        <template #default="{ row }">{{ pluginTypeLabel(row.pluginType) }}</template>
+      </el-table-column>
       <el-table-column prop="version" label="版本" min-width="8%" />
       <el-table-column label="状态" min-width="10%" align="center" header-align="center">
         <template #default="{ row }">
@@ -46,7 +48,10 @@ import type {PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import { Document } from "@element-plus/icons-vue";
+import { useEnumOptions } from "@/composables/useEnumOptions";
 import type {Row} from "@/types";
+
+const { labelOf } = useEnumOptions();
 
 defineProps({
   rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
@@ -59,4 +64,8 @@ defineProps({
 });
 
 const emit = defineEmits(["create", "refresh", "status-change", "action", "page-change", "size-change"]);
+
+function pluginTypeLabel(code: unknown): string {
+  return labelOf("PluginTypeEnum", code);
+}
 </script>

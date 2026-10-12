@@ -13,6 +13,7 @@ import org.chobit.knot.gateway.entity.PluginBindingEntity;
 import org.chobit.knot.gateway.entity.PluginInstanceEntity;
 import org.chobit.knot.gateway.mapper.PluginInstanceMapper;
 import org.chobit.knot.gateway.plugin.*;
+import org.chobit.knot.gateway.plugin.PluginTypeEnum;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,15 +37,15 @@ public class PluginService implements PluginBindingProvider {
      * Lists matching results. Executes the public operation.
      */
     public PageResult<PluginDto> list(PageRequest pageRequest) {
-        return list(pageRequest, null, null);
+        return list(pageRequest, null, null, null);
     }
 
     /**
      * Lists matching results. Executes the public operation.
      */
-    public PageResult<PluginDto> list(PageRequest pageRequest, String keyword, String status) {
+    public PageResult<PluginDto> list(PageRequest pageRequest, String keyword, String status, String pluginType) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
-            PageInfo<PluginInstanceEntity> pageInfo = new PageInfo<>(pluginMapper.list(normalizeKeyword(keyword), toStatusCode(status)));
+            PageInfo<PluginInstanceEntity> pageInfo = new PageInfo<>(pluginMapper.list(normalizeKeyword(keyword), toStatusCode(status), normalizePluginType(pluginType)));
             return PageResult.fromPage(pageInfo, pluginConverter::toDtoList, pageRequest);
         }
     }
@@ -75,6 +76,8 @@ public class PluginService implements PluginBindingProvider {
                 "unsupported plugin stage code: " + request.stageCode()));
         e.setStatus(request.status());
         e.setTimeoutMs(request.timeoutMs());
+        e.setPluginType(PluginTypeEnum.requireCode(request.pluginType(),
+                "unsupported plugin type: " + request.pluginType()));
         e.setConfigJson(request.configJson());
         pluginMapper.insert(e);
         return getById(e.getId());
@@ -128,6 +131,15 @@ public class PluginService implements PluginBindingProvider {
     private static String normalizeKeyword(String keyword) {
         String value = keyword == null ? "" : keyword.trim();
         return value.isEmpty() ? null : value;
+    }
+
+    /** 查询参数归一：空串视为不过滤；非 SYNC/ASYNC 的非法值同样不过滤（避免误吞全部结果） */
+    private static String normalizePluginType(String pluginType) {
+        String value = pluginType == null ? "" : pluginType.trim().toUpperCase();
+        if (value.isEmpty()) {
+            return null;
+        }
+        return PluginTypeEnum.fromCode(value) == null ? null : value;
     }
 
     /** 查询参数归一：数字字符串 -> PluginInstanceStatusEnum code；非法值不过滤 */

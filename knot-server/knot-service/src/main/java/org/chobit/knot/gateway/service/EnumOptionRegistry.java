@@ -22,6 +22,7 @@ import org.chobit.knot.gateway.constants.enums.OperationLogStatusEnum;
 import org.chobit.knot.gateway.plugin.PluginExtensionPoint;
 import org.chobit.knot.gateway.plugin.PluginScopeType;
 import org.chobit.knot.gateway.plugin.PluginStageCode;
+import org.chobit.knot.gateway.plugin.PluginTypeEnum;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
@@ -60,6 +61,7 @@ public class EnumOptionRegistry {
         put(map, PluginExtensionPoint.class.getSimpleName(), PluginExtensionPoint.values());
         put(map, PluginStageCode.class.getSimpleName(), PluginStageCode.values());
         put(map, PluginScopeType.class.getSimpleName(), PluginScopeType.values());
+        put(map, PluginTypeEnum.class.getSimpleName(), PluginTypeEnum.values());
         putNumeric(map, PluginInstanceStatusEnum.class.getSimpleName(), PluginInstanceStatusEnum.values());
         putNumeric(map, OperationLogStatusEnum.class.getSimpleName(), OperationLogStatusEnum.values());
         putNumeric(map, ScheduledTaskRunStatusEnum.class.getSimpleName(), ScheduledTaskRunStatusEnum.values());

@@ -35,7 +35,8 @@ public class PluginController {
         PageResult<PluginDto> page = pluginService.list(
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
                 query == null ? null : query.keyword(),
-                query == null ? null : query.status()
+                query == null ? null : query.status(),
+                query == null ? null : query.pluginType()
         );
         return page.mapList(pluginConverter::toVOList);
     }

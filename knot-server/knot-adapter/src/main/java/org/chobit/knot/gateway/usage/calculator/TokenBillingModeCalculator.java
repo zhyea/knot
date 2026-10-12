@@ -3,11 +3,7 @@ package org.chobit.knot.gateway.usage.calculator;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
-import org.chobit.knot.gateway.model.BillingConfig;
-import org.chobit.knot.gateway.model.BillingUsage;
-import org.chobit.knot.gateway.model.NormalizedBillingAmount;
-import org.chobit.knot.gateway.model.NormalizedUsageDetail;
-import org.chobit.knot.gateway.model.TokenBillingUsage;
+import org.chobit.knot.gateway.model.*;
 import org.chobit.knot.gateway.usage.NormalizedUsageContext;
 import org.springframework.stereotype.Component;
 
@@ -112,16 +108,16 @@ public class TokenBillingModeCalculator extends AbstractBillingModeCalculator {
         BigDecimal cacheWrite1hCost = cost(cacheWrite1hTokens, cacheWrite1hPrice, unitSize);
         List<NormalizedUsageDetail> details = ttlSplit
                 ? List.of(
-                detail("uncachedInput", uncachedInputTokens, inputCost, inputPrice, unitSize),
-                detail("cachedRead", cacheReadTokens, cacheReadCost, cacheReadPrice, unitSize),
-                detail("cachedWrite5m", cacheWrite5mTokens, cacheWrite5mCost, cacheWrite5mPrice, unitSize),
-                detail("cachedWrite1h", cacheWrite1hTokens, cacheWrite1hCost, cacheWrite1hPrice, unitSize),
-                detail("output", outputTokens, outputCost, outputPrice, unitSize))
+                detail(TokenUsageDetailKind.UNCACHED_INPUT, uncachedInputTokens, inputCost, inputPrice, unitSize),
+                detail(TokenUsageDetailKind.CACHED_READ, cacheReadTokens, cacheReadCost, cacheReadPrice, unitSize),
+                detail(TokenUsageDetailKind.CACHED_WRITE_5M, cacheWrite5mTokens, cacheWrite5mCost, cacheWrite5mPrice, unitSize),
+                detail(TokenUsageDetailKind.CACHED_WRITE_1H, cacheWrite1hTokens, cacheWrite1hCost, cacheWrite1hPrice, unitSize),
+                detail(TokenUsageDetailKind.OUTPUT, outputTokens, outputCost, outputPrice, unitSize))
                 : List.of(
-                detail("uncachedInput", uncachedInputTokens, inputCost, inputPrice, unitSize),
-                detail("cachedRead", cacheReadTokens, cacheReadCost, cacheReadPrice, unitSize),
-                detail("cachedWrite", cacheWriteTokens, cacheWriteCost, cacheWritePrice, unitSize),
-                detail("output", outputTokens, outputCost, outputPrice, unitSize));
+                detail(TokenUsageDetailKind.UNCACHED_INPUT, uncachedInputTokens, inputCost, inputPrice, unitSize),
+                detail(TokenUsageDetailKind.CACHED_READ, cacheReadTokens, cacheReadCost, cacheReadPrice, unitSize),
+                detail(TokenUsageDetailKind.CACHED_WRITE, cacheWriteTokens, cacheWriteCost, cacheWritePrice, unitSize),
+                detail(TokenUsageDetailKind.OUTPUT, outputTokens, outputCost, outputPrice, unitSize));
         return new NormalizedBillingAmount(
                 totalTokens,
                 inputCost.add(outputCost)

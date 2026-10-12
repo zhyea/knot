@@ -11,5 +11,6 @@ public record PluginDto(Long id,
                         String version,
                         Integer status,
                         Integer timeoutMs,
+                        String pluginType,
                         String configJson) {
 }

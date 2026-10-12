@@ -623,11 +623,13 @@ CREATE TABLE IF NOT EXISTS kb_plugin_instances (
   status TINYINT NOT NULL DEFAULT 1 COMMENT '实例状态（PluginInstanceStatusEnum）：1-草稿 2-生效 3-暂停 4-归档',
   timeout_ms INT NOT NULL DEFAULT 3000,
   concurrency_limit INT NOT NULL DEFAULT 0,
+  plugin_type VARCHAR(32) NOT NULL DEFAULT 'SYNC' COMMENT '插件执行类型（PluginTypeEnum）：SYNC-同步插件（嵌入请求链内联执行），ASYNC-异步插件（离链消费事件）',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_plugin_instances_code (instance_code),
   KEY idx_plugin_instances_package_status (plugin_code, status),
-  KEY idx_plugin_instances_capability_status (capability_id, status)
+  KEY idx_plugin_instances_capability_status (capability_id, status),
+  KEY idx_plugin_instances_type (plugin_type, status)
 );
 
 CREATE TABLE IF NOT EXISTS kb_plugin_bindings (

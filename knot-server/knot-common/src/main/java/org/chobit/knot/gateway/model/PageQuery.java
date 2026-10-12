@@ -15,6 +15,8 @@ public record PageQuery(
         String keyword,
         String tag,
         String status,
+        /** 插件执行类型精确匹配（PluginTypeEnum：SYNC/ASYNC）；来自插件列表「类型」筛选 */
+        String pluginType,
         Boolean enabled,
         List<String> modelTypes,
         Long parentId,

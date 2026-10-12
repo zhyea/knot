@@ -11,7 +11,8 @@ import java.util.List;
 public interface PluginInstanceMapper {
 
     List<PluginInstanceEntity> list(@Param("keyword") String keyword,
-                                    @Param("status") Integer status);
+                                    @Param("status") Integer status,
+                                    @Param("pluginType") String pluginType);
 
     PluginInstanceEntity getById(Long id);
 

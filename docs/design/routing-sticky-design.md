@@ -1,47 +1,53 @@
-# 路由规则 · 粘性路由方案设计
+# 模型池 · 粘性路由方案设计
 
-> 状态：**设计中，待 robin 评审**（未落地）
-> 关联代码（现状基线）：`knot-server/knot-gateway/.../routing/RoutingResolver.java`（候选生成）、`.../routing/ModelPoolSelection.java`（池选择策略）、`.../runtime/GatewayRequestHandler.java`（`proxyWithFailover` / `invokeWithRetry`）
-> 设计日期：2026-10-12
-> 参照样板：`docs/design/routing-retry-design.md`（规则级 JSON 策略列 + record 归一化 + 双模式存储）
+> 状态：**v2 已按 robin 拍板修订（2026-10-12），待评审后落地；未写任何代码**
+> 拍板记录（robin，2026-10-12 20:00）：
+> 1. 粘性**仅在模型池内**开启，不在路由规则层；
+> 2. **默认不开启**；
+> 3. 默认从 **Header** 取粘性 key，头名默认 `X-Knot-Sticky-Key`，**可修改**；
+> 4. 对粘性 key 做**一致性 hash**，按运算结果取池中模型作为**首选模型**；
+> 5. 统一缓存接口（caffeine/redis 可配）——经论证**不引入**，见 §7。
+>
+> v1（状态式绑定 + 规则级配置）已整体作废，本文档为完整修订版，非增量补丁。
+> 关联代码（现状基线）：`knot-server/knot-gateway/.../routing/RoutingResolver.java`（`resolvePoolCandidates`）、`.../routing/ModelPoolSelection.java`、`.../runtime/GatewayRequestHandler.java`
+> 参照样板：`docs/design/routing-retry-design.md`（规则级 JSON 策略列 + record 归一化）
 
 ## 1. 背景与现状
 
-### 1.1 现状链路
+### 1.1 现状链路（池展开段）
 
 ```
-控制器（Authorization + Rule + traceparent 头）
-  → AbstractGatewayRequestTemplate.handleMap
-    → RoutingResolver.resolveByRule(apiKey, ruleCode)
-        candidates = [primary 目标, 其余按 priority 降序]
-        池目标经 ModelPoolSelection.order(PRIORITY / RANDOM / WEIGHTED) 展开
-    → GatewayRequestHandler.proxyWithFailover
-        for candidate : candidates
-            trafficGuard.checkTarget(candidate)   // 频控/额度，每候选一次
-            invokeWithRetry(retryPolicy, candidate, proxy)  // 同目标原地重投
-            trafficGuard.record(...) → return
+RoutingResolver.resolveByRule(apiKey, ruleCode)
+  └─ resolvePoolCandidates(pool, target)
+       ├─ available = 池内启用条目（status=enabled 且模型 enabled）
+       ├─ ordered = ModelPoolSelection.order(available, selection_strategy)   // PRIORITY / RANDOM / WEIGHTED
+       └─ 候选 DTO 列表（ordered[0] 即本次首选，其余为 failover 链）
 ```
 
-### 1.2 缺口：会话多轮请求在上游之间漂移
+### 1.2 缺口：会话多轮请求在池内漂移
 
-- 模型池的 `RANDOM` / `WEIGHTED` 策略**每请求重掷**：同一会话（同一终端用户）的第 2、3…N 轮会落到池内不同模型/供应商账户。
+- `RANDOM` / `WEIGHTED` 策略**每请求重掷**：同一会话（同一终端用户）的第 2、3…N 轮落到池内不同模型/供应商账户。
 - 后果一（主）：**上游 prompt cache 全部落空**。OpenAI / Anthropic / Google 的缓存按「账户 + 区域 + 模型部署」命中，漂移即丢缓存 → 输入成本与首 token 延迟双劣化。
-- 后果二：排障路径不唯一，同一会话的行为随请求变化。
+- 后果二：排障路径不唯一。
 - 现状无任何会话亲和机制（全库 grep `粘性|sticky` 零命中）。
 
-### 1.3 设计定位
+### 1.3 为什么粘性在池层而不在规则层（拍板 1 的落地依据）
 
-粘性路由是**选择策略之上的一层候选重排**：同一会话的请求优先复用上次成功的上游目标。它不替换 `ModelPoolSelection`，只在「已有绑定」时把绑定目标提到候选首位。
+| 层 | 目标间语义 | 粘性是否有意义 |
+|---|---|---|
+| 路由规则 targets | **主备**（primary + priority 降序，故障转移语义） | 无意义——主备路径的切换本就该由故障驱动 |
+| 模型池 items | **均衡**（同统一模型的多账户/多部署，权重/随机/优先级都是分流手段） | **有意义**——粘性是池内分流的一个额外维度：会话亲和 |
+
+池内模型全部映射同一统一模型（`kb_model_pools.logical_model_code` 约束），功能等价，粘性不改变行为语义，只改变「谁接到这单」。
 
 ## 2. 设计目标与原则
 
-- **opt-in**：默认关闭。粘性是流量塑形（改变流量分布），与 retry 的「内 healing」性质不同，必须显式开启。
-- **可用性优先**：粘性目标不可用（不在候选列表 / 上游失败 / 被频控顺延）时**绝不把请求打失败**，回落普通选择并失效绑定。
-- **偏好而非独占**：只做 `preferred` 语义，不做 exclusive/strict（见 §11 风险）。
-- **零侵入策略层**：`ModelPoolSelection` 与 failover 主循环结构不变，粘性只做「读绑定 → 重排 → 成功后写绑定 → 失败后删绑定」。
-- **存 code 不存 id**：绑定值是 `targetCode`（`kb_models.model_code`），对齐跨模块绑定口径；模型被删/停用 → 候选列表自然不含它 → 绑定自动失效，无需主动清理。
-- **规则级 JSON 列**：完全复用 `retry_policy` 的存储与解析范式（单 TEXT 列 + record 紧凑构造器归一化 + `parse` 容错）。
-- **多节点降级可见**：无 Redis 时粘性退化为节点内 best-effort，启动日志明示，不静默。
+- **opt-in**：默认关闭（拍板 2）。粘性是流量塑形（用均衡换缓存），与 retry 的「内 healing」性质不同。
+- **无状态**：一致性 hash 决定首选，**不记录、不存储、不过期**（拍板 4）。多节点天然一致，无绑定失效、无并发双写、无 TTL 管理。
+- **只改首选，不改 failover**：hash 命中目标置顶为候选 `[0]`，其余保持池策略原序。故障转移、频控顺延逻辑零改动。
+- **可用性优先**：粘性目标任何不可用（被频控顺延、上游失败）都不打失败请求，靠既有 failover 兜底。
+- **零侵入策略层**：`ModelPoolSelection` 不改；粘性是 `resolvePoolCandidates` 内对 `ordered` 列表的一次置顶改写。
+- **配置最小面**：2 个字段（开关 + 头名），单 TEXT JSON 列，不设双模式、不暴露 hash 参数。
 
 ## 3. 粘性模型
 
@@ -49,162 +55,162 @@
 
 | 维度 | 决策 |
 |---|---|
-| 来源（`keySource`，按优先级取第一个非空） | `header`（客户端传约定头）/ `body`（请求体点分路径取字符串叶子）/ `consumer`（兜底，按消费者聚合） |
-| 头名称（`keyHeader`） | 默认 `X-Knot-Sticky-Key`，可配；全协议通用（含 multipart） |
-| 体路径（`bodyKeyPath`） | 点分路径，默认 `user`（OpenAI 标准 end-user 字段）；备选 `metadata.session_id` / `metadata.conversation_id`（Responses API 常见约定） |
-| consumer 兜底 | 键 = `consumer_code`；粒度最粗（同一消费者所有请求粘同一目标），仅适合单会话型接入 |
-| 归一化 | trim；上限 128 字符，超长取 **SHA-256 前 16 hex**；仅接受字符串叶子，非字符串/空值忽略该来源 |
-| 隐私 | 日志与存储键只出现 hash 后的键，不出现原文 |
+| 来源 | **仅 Header**（拍板 3）：`X-Knot-Sticky-Key`（默认，可配），控制器 `@RequestHeader(required = false)` 透传 |
+| 归一化 | trim；空值（未传/空白）→ **整个粘性逻辑跳过**，等同未启用；长度上限 512 字符（防滥用，不截断——MD5 输入无上限需求） |
+| 隐私 | 日志与 trace 只出 hash 后的键（MD5 hex 前 8 位），不出原文 |
+| body 来源 | **不纳入首版**（robin 字面只要 header）。后续如需 `user` / `metadata.session_id` 点分路径，作为独立增量排期 |
 
-> 键为空（客户端未传、路径不存在、值为空串）→ **整个粘性逻辑跳过**，等同未启用。不允许空串当键——那会把所有无键客户端粘成一个大热点。
-
-### 3.2 粘性粒度与作用域
-
-- 粘性对象 = **候选目标身份 `targetCode`**（model_code 唯一确定上游账户 + 模型，`provider_account_code` 已挂在候选 DTO 上，无需再降一层）。
-- 存储作用域：`ruleCode + stickyKeyHash → targetCode`。**跨规则不共享**——各规则候选列表不同，共享只会互相污染。
-- 首版只做 preferred，不提供 exclusive（§11）。
-
-### 3.3 语义：preferred
+### 3.2 一致性 hash（拍板 4）
 
 ```
-有绑定且目标仍在候选列表  → 候选顺序 = [绑定目标, 其余按原策略顺序]
-无绑定 / 目标已失效       → 原策略顺序不变；本次选中目标成功后写绑定
-绑定目标被频控顺延        → 顺延到下一候选；成功即把绑定改写到实际命中目标
-绑定目标上游失败          → 重试耗尽 → failover → 删除绑定（下轮重新选择）
+ring = ConsistentHashRing(candidates)   // candidates = 池内可用模型（model_code）
+   对每个候选建 VIRTUAL_NODES=160 个虚拟节点：
+   nodeKey = md5long(modelCode + "#" + i)   // i ∈ [0, 160)
+   全部 nodeKey 装入 TreeMap<Long, modelCode>
+
+select(stickyKey):
+   h = md5long(stickyKey)
+   entry = ring.ceilingEntry(h)           // 首个 ≥ h 的虚拟节点
+   return entry == null ? ring.firstEntry() : entry   // 绕回环首
 ```
 
-### 3.4 存储（双实现，对齐频控计数 store）
-
-| 项 | 决策 |
+| 决策 | 理由 |
 |---|---|
-| 接口 | `StickyStore`：`get(key)` / `bind(key, targetCode, ttlSeconds)` / `touch(key, ttlSeconds)` / `invalidate(key)` |
-| 键格式 | `knot:sticky:{ruleCode}:{keyHash}`，值 = targetCode |
-| TTL | **滑动过期**：命中即刷新。默认 30 min，可配 1–1440。选滑动而非绝对：会话活跃即续期、静默消亡；绝对过期会在长会话中途意外断粘 |
-| 装配 | `knot.sticky.store=caffeine`（默认，单节点 best-effort）/ `redis`（多节点共享），`@ConditionalOnProperty` 二选一，与 `TrafficCounterConfiguration` 同构 |
-| Redis 故障 | fail-open：视为未命中 + WARN，绝不阻断请求 |
-| 并发首请求 | 两个并发首请求可能各选各的、互相覆写——**last-write-wins，可接受**（下一轮即收敛）。不引 SETNX 选举，复杂度不配收益 |
-| 原子性 | 无复合操作需求（绑定幂等），GET / SETEX / EXPIRE / DEL 单命令即可，不需要 Lua |
+| **一致性 hash 而非 `hash % n`** | 池成员变化（增删模型/停用启用）时只影响环上相邻段，未变化的 key 保持命中——把「池变更导致的缓存重击」限制在最小范围 |
+| **MD5 取前 8 字节为 long** | Ketama 经典口径；JDK `MessageDigest` 自带，零依赖；只要确定性与均匀度，不需抗碰撞 |
+| **虚拟节点 160，固定不暴露** | Ketama 经典值；池典型 ≤20 模型时分布均匀度足够。该参数只影响均匀度、不影响正确性，暴露给用户是配置噪音 |
+| **环成员 = 池内可用候选** | 与 `resolvePoolCandidates` 的 `available` 同源；成员变化 → 环自然重建 |
+
+### 3.3 语义：hash 置顶
+
+```
+池启用粘性 且 stickyKey 非空：
+    preferred = ring.select(stickyKey)
+    ordered    = [preferred, ordered 除 preferred]      // preferred 必在 ordered 中（环成员同源）
+否则：
+    ordered 原样（走 selection_strategy）
+```
+
+- hash 只决定首选 `[0]`；**failover 链保持池策略原序**（`ModelPoolSelection` 的输出）。
+- 无绑定、无 TTL、无失效逻辑、无 bind/invalidate——**没有任何需要「删绑定」的失败路径**。
+- 与 `selection_strategy` 的关系：策略决定「无粘性时的首选 + failover 顺序」；粘性开启时首选被 hash 改写，策略仍管其余顺序，三者不互斥。
+
+### 3.4 与既有机制的交互
+
+| 机制 | 交互 |
+|---|---|
+| failover（`proxyWithFailover`） | 首选被 hash 改写，失败后顺延逻辑原样；**无删绑定动作**（对比 v1 状态式方案的正确性三规则，v2 全部消失） |
+| 重试（`invokeWithRetry`） | 正交，零改动 |
+| 频控/额度（`checkTarget`） | 无改动；首选被限流/限额拒 → 顺延下一候选，请求不失败 |
+| 池策略（`ModelPoolSelection`） | 无改动；其输出作为 failover 基序 |
+| 计费 / knot_extend / 对外契约 | 零改动，粘性不透出任何对外字段 |
 
 ## 4. 执行流程
 
 ### 4.1 链路改动点（3 处）
 
-1. **入口**：控制器新增可选头 `X-Knot-Sticky-Key`（`GatewayHeaders` 加常量），`handle / handleMultipart` 透传，`GatewayRequestContext` 加 final 字段持有。
-2. **解析**：`ResolvedRouting` 增加 `StickyPolicy stickyPolicy()`（对齐 `retryPolicy()` 的 nullable + `effectiveStickyPolicy()` 兜底），由 `RoutingResolver` 构造时 `StickyPolicy.parse(rule.getStickyPolicy())` 塞入。
-3. **代理**：`proxyWithFailover` 内在候选循环外包一层粘性协调：
+1. **入口透传**：控制器新增可选头 `X-Knot-Sticky-Key`（`GatewayHeaders` 加常量），`handle / handleMultipart` 透传，`GatewayRequestContext` 加 final 字段。
+2. **池展开置顶**：`RoutingResolver.resolvePoolCandidates` 内在 `modelPoolSelection.order(...)` 之后、映射候选 DTO 之前，按池的 `sticky_policy` 做 §3.3 置顶。**`GatewayRequestHandler` 零改动**。
+3. **配置解析**：`ModelPoolEntity` 加 `stickyPolicy`（String/JSON），经既有 Dto/VO/Converter/Mapper 链路落库与回显。
 
 ```java
-// proxyWithFailover 内，候选循环之前
-StickyResolution sticky = stickyCoordinator.resolve(routing, routing.candidateModels(), context);
-//   resolve：策略关闭/键为空 → 原样返回、hit=false
-//   有绑定且命中候选 → 绑定目标提至首位、hit=true
-List<RoutingRuleTargetDto> orderedCandidates = sticky.candidates();
-
-for (RoutingRuleTargetDto candidate : orderedCandidates) {
-    ... checkTarget ... invokeWithRetry ... record ...
-    stickyCoordinator.bind(routing, context, candidate);   // 成功：写/刷绑定（滑动 TTL）
-    return result;
-    } catch (GatewayUpstreamException e) {
-        lastUpstreamException = e;
-        if (sticky.isStickyTarget(candidate)) {
-            stickyCoordinator.invalidate(routing, context); // 粘住的目标也失败了 → 删绑定
-        }
-    }
+// RoutingResolver.resolvePoolCandidates 内（示意，非落地代码）
+List<PoolItemCandidate> ordered = modelPoolSelection.order(available, pool.getSelectionStrategy(), ...);
+StickyPolicy sticky = StickyPolicy.parse(pool.getStickyPolicy());
+if (sticky.enabled() && stickyKey != null) {
+    ConsistentHashRing ring = ConsistentHashRing.of(ordered, PoolItemCandidate::modelCode);
+    String preferred = ring.select(stickyKey);       // 命中必在 ordered 中
+    ordered = moveToFront(ordered, preferred);
 }
 ```
 
 ### 4.2 边界规则
 
-- **绑定只在成功后写**——失败不写，避免把坏目标钉住。
-- **绑定删除只在「粘性目标自身重试耗尽」时做**；普通候选失败不碰绑定（该键本就没绑它）。
-- **checkTarget 拒当前候选即顺延**，与现状一致；若被拒的是粘性目标，下一顺延候选成功后会自然改写绑定。
-- **流式无特殊分支**：粘性发生在首字节前的目标选择阶段，与流式重试边界（`invokeWithRetry` 内的现有约束）正交。
+- stickyKey 为空（头未传/空白）→ 跳过粘性，`ordered` 原样。
+- 池未启用粘性（默认）→ 同左。
+- 环为空/单候选 → `select` 直接返回唯一候选，等效无操作。
+- **热点倾斜**：少数高频 key（如全部传同一个会话 id）会把流量集中到环上相邻段——这是一致性 hash 的固有特性，由频控层兜底；文档需向用户明示「粘性 = 用均衡换缓存」。
 
-## 5. 与现有机制的交互
+## 5. 配置 Schema（模型池级 `sticky_policy` JSON 列）
 
-| 机制 | 交互 |
-|---|---|
-| 重试（`invokeWithRetry`） | 正交：粘性只改候选顺序，重试仍在单候选内部，行为不变 |
-| failover | 粘性目标重试耗尽后正常 failover，额外动作仅「删绑定」 |
-| 频控/额度（`GatewayTrafficGuard`） | 无改动；粘性目标被限即顺延，可用性优先 |
-| 池策略（`ModelPoolSelection`） | 无改动；有绑定时策略结果被「绑定目标置顶」改写，无绑定时策略原样生效 |
-| `GatewayDataService` 10min 缓存 | 互不感知：那是策略数据缓存，粘性存储是独立键空间 |
-| 计费 / knot_extend | 无改动，粘性不透出任何对外字段 |
-
-## 6. 配置 Schema（规则级 `sticky_policy` JSON 列）
-
-`kb_routing_rules` 新增列 `sticky_policy`（`TEXT DEFAULT NULL`，注释对齐 `retry_policy`）：
+`kb_model_pools` 新增列 `sticky_policy`（`TEXT DEFAULT NULL`）：
 
 ```json
 {
-  "enabled": true,
-  "keySource": "header",
-  "keyHeader": "X-Knot-Sticky-Key",
-  "bodyKeyPath": "user",
-  "ttlMinutes": 30
+  "enabled": false,
+  "headerName": "X-Knot-Sticky-Key"
 }
 ```
 
 | 字段 | 含义 | 默认 | 约束 |
 |---|---|---|---|
-| `enabled` | 是否启用粘性 | `false` | **默认关，opt-in** |
-| `keySource` | 键来源：`header` / `body` / `consumer` | `header` | 非法值归一为 `header` |
-| `keyHeader` | 头名称（`keySource=header` 时生效） | `X-Knot-Sticky-Key` | 非空；trim |
-| `bodyKeyPath` | 体取键点分路径（`keySource=body` 时生效） | `user` | 点分；只取字符串叶子 |
-| `ttlMinutes` | 绑定滑动 TTL（分钟） | `30` | clamp 1–1440 |
+| `enabled` | 是否启用粘性 | `false` | **默认关，opt-in**（拍板 2） |
+| `headerName` | 取粘性 key 的头名 | `X-Knot-Sticky-Key` | 非空、trim；大小写不敏感（HTTP 头语义） |
 
-约定：`sticky_policy` 为空/解析失败 → `StickyPolicy.DEFAULT`（关闭）；`keySource=consumer` 时忽略 `keyHeader` / `bodyKeyPath`。
-**不设 simple/professional 双模式**——字段共 4 个且全部平权，双模式只会增加前端显隐与持久化归一化的复杂度，收益为零（与 retry 的 10 字段场景不同）。
+约定：`sticky_policy` 为空/解析失败 → `StickyPolicy.DEFAULT`（关闭）。**不设 simple/professional 双模式**（字段共 2 个且平权）；**不暴露虚拟节点数/TTL/键来源**——分别是内部常数、无状态方案不存在的概念、首版不支持的来源。
 
-## 7. 可观测性
+> **头名可配的边界说明**：控制器按默认头 `X-Knot-Sticky-Key` 收参（Spring `@RequestHeader` 必须在映射期声明，无法运行时改）。`headerName` 配置项的真实语义是**接入侧约定**：管理端配置改名后，由接入文档/客户端按新头名发送；控制器侧固定读默认头。若需「运行时任意头名」，要改控制器为 `HttpServletRequest` 全量取头——复杂度与收益不匹配，首版不做，此处显式标注避免误解。
 
-- `GatewayRequestContext.attributes`（或 `GatewayTraceContext`）记录：`stickyKeyHash`、`stickyHit`（是否命中绑定）、`stickyTargetCode`（最终绑定/写入的目标）。
-- WARN 日志：绑定失效回落、Redis 故障 fail-open（与频控 store 的 fail-open 日志同格式）。
-- **不新增响应头**（对齐 retry 的收敛决策：`X-Knot-Retry-Attempts` 收益低于复杂度已暂缓；如后续排期可加 `X-Knot-Sticky-Hit`）。
+## 6. 可观测性
+
+- `GatewayRequestContext.attributes` 记录：`stickyKeyHash`（MD5 hex 前 8）、`stickyApplied`（是否应用了粘性置顶）、`stickyTargetCode`（hash 选中的目标）。
+- **不加响应头**（对齐 retry 的收敛决策）。
+- WARN 日志：仅 stickyKey 超长被拒等异常输入，不打原文。
+
+## 7. 缓存接口论证（拍板 5：统一缓存接口是否有必要）
+
+**结论：不引入 `StickyStore` 接口，不配 caffeine/redis 二选一。** 分层论证：
+
+| 候选缓存对象 | 是否必要 | 结论 |
+|---|---|---|
+| 粘性结果 / 绑定 | **无** | 一致性 hash 是 `(池成员, key)` 的确定性纯函数，每次现算即得，无状态可存——robin 的判断成立，v1 的整套 bind/invalidate/TTL 全部消失 |
+| hash 环结构 | **有，但只需进程内 Caffeine 单实现** | 160 虚拟节点 × 池大小（典型 ≤20）= ≤3200 次 MD5 + TreeMap 插入，每请求约 1–3ms，网关热路径不可忽略。缓存环（bounded、`expireAfterWrite` 与池数据缓存同周期）后降为一次 GET |
+| 共享存储（Redis） | **无** | 环是池成员的确定性纯函数，**各节点各自算出完全一致的环**，无共享必要；Redis 往返（~1ms）反而比本地缓存更慢，还引入一致性依赖与故障面 |
+
+**为什么不抽象统一接口**：双实现接口的价值在于「语义相同、存储可换」（如频控计数的全局口径需求）。粘性场景两个实现语义不同（本地缓存是性能优化，Redis 是无性能收益的共享），为一个假设的「将来可能共享」提前抽象接口属于空转。若未来出现真共享需求——**故障退避**（把近期连续失败的目标临时摘出环，§11 follow-up）——届时按需引入，接口形态由真实需求决定，不预埋。
+
+对照组：频控层 `TrafficCounterStore`（caffeine/redis 双实现）是**真需要**可配的场景——计数有状态且要求全局口径。两个场景并排，恰好说明「缓存接口按场景定，不为统一而统一」。
 
 ## 8. 默认值
 
-默认关闭。开启后：`keySource=header`、`keyHeader=X-Knot-Sticky-Key`、`bodyKeyPath=user`、`ttlMinutes=30`、caffeine 单节点存储（多节点部署显式切 `knot.sticky.store=redis`）。
+默认关闭。开启后：仅 header 来源、头名 `X-Knot-Sticky-Key`、虚拟节点 160、hash 环进程内 Caffeine 缓存（`maximumSize=512`，`expireAfterWrite=10min`，与 `GatewayDataService` 池缓存同周期）。
 
-## 9. 落地影响面（文件级）
+## 9. 落地影响面（文件级，待 robin 批准后实施）
 
 **DB**
-- `knot-admin/src/main/resources/db/schema.sql`：`kb_routing_rules` 加 `sticky_policy TEXT DEFAULT NULL COMMENT '粘性路由策略（JSON）；空表示未启用'`。
-- `docs/database/migration/2026-10-12-routing-sticky.sql`：幂等 `ADD COLUMN IF NOT EXISTS`。**先跑迁移再 package。**
+- `knot-admin/src/main/resources/db/schema.sql`：`kb_model_pools` 加 `sticky_policy TEXT DEFAULT NULL COMMENT '池内粘性路由策略（JSON）；空表示未启用'`。
+- `docs/database/migration/2026-10-12-model-pool-sticky.sql`：幂等 `ADD COLUMN IF NOT EXISTS`。**先跑迁移再 package。**
 
 **后端（knot-server）**
-- `knot-common/.../gateway/model/StickyPolicy.java`：record，紧凑构造器归一化（enabled/keySource/keyHeader/bodyKeyPath/ttlMinutes clamp）+ `parse` / `serialize`，完全对照 `RetryPolicy.java`。
-- `knot-common/.../gateway/model/StickyKeyExtractor.java`：按 `keySource` 从头/体/消费者取键 + 归一化 + SHA-256 截 16 hex。
-- `knot-gateway/.../sticky/StickyStore.java`（接口）、`CaffeineStickyStore.java`、`RedisStickyStore.java`、`StickyStoreConfiguration.java`（`@ConditionalOnProperty` 双实现 + `knot.sticky.*`  properties，对照 `traffic/TrafficCounterConfiguration.java`）。
-- `knot-gateway/.../sticky/StickyCoordinator.java`：`resolve`（读绑定 + 重排）/ `bind` / `invalidate` / `isStickyTarget`，返回 `StickyResolution`（ordered candidates + hit + stickyTargetCode）。
-- `knot-gateway/.../model/ResolvedRouting.java`：加 `stickyPolicy()` + `effectiveStickyPolicy()`。
-- `knot-gateway/.../routing/RoutingResolver.java`：构造 `ResolvedRouting` 时塞 `StickyPolicy.parse(rule.getStickyPolicy())`。
-- `knot-gateway/.../runtime/GatewayRequestHandler.java`：`proxyWithFailover` 按 §4.1 包粘性协调；`AbstractGatewayRequestTemplate` / `GatewayControllerSupport` / 各控制器透传 sticky 头；`GatewayRequestContext` 加字段；`constants/GatewayHeaders.java` 加 `X_KNOT_STICKY_KEY`。
-- `RoutingRuleEntity` / `RoutingRuleDto` / `RoutingRule` VO / `RoutingRuleConverter`：加 `stickyPolicy` 字段（对照 `retryPolicy` 已有链路逐站补）。
-- 既有 `ResolvedRouting` 构造点（含 `RoutingRuleStreamControllerTest` 等测试）同步补 `stickyPolicy` 参数。
+- `knot-common/.../gateway/model/StickyPolicy.java`：record（`enabled` / `headerName`），紧凑构造器归一化 + `parse` / `serialize`，对照 `RetryPolicy.java`。
+- `knot-common/.../gateway/model/StickyKeyNormalizer.java`（或并入 StickyPolicy）：trim、空判、512 上限、MD5 hash 输出。
+- `knot-gateway/.../routing/ConsistentHashRing.java`：虚拟节点环 + `select`，纯函数无 Spring 依赖。
+- `knot-gateway/.../routing/StickyRingCache.java`：Caffeine 环缓存（以「池码 + 成员指纹」为键，成员变化即换环）。
+- `knot-gateway/.../routing/RoutingResolver.java`：`resolvePoolCandidates` 内置顶逻辑；`resolveByRule` 透传 stickyKey（来自 `GatewayRequestContext`）。
+- `knot-gateway/.../runtime/GatewayRequestContext.java`：加 stickyKey final 字段；`AbstractGatewayRequestTemplate` / `GatewayControllerSupport` / 各控制器（`GatewayTextController` 等 7 个）透传可选头；`constants/GatewayHeaders.java` 加 `X_KNOT_STICKY_KEY`。
+- 模型池链路逐站补 `stickyPolicy`：`ModelPoolEntity` → `ModelPoolDto` → `ModelPool` VO → `ModelPoolConverter` → `ModelPoolMapper.xml`（`PoolSelectColumns` + `insert` + `update`）→ `ModelPoolService`（`enrich` / `normalize` / `updateStatus` 三处 record 构造 + 保存校验）。
 
 **前端（knot-front）**
-- `components/routing/RoutingRuleFormDrawer.vue`：新增「粘性路由」卡片（`components/common/StickyPolicySection.vue`，对照 `RetryPolicySection.vue`：开关 + 键来源 + 头名/体路径 + TTL）。
-- form model / `useDraftModel.ts` 同步加 `stickyPolicy`（**深比较勿漏字段**——2026-10-06 `RetryPolicySection` 漏比 `mode` 的教训）。
-- `utils/` 校验（TTL 范围、路径非空）+ 类型定义。
+- `components/model/ModelPoolFormDrawer.vue`：「基础信息」section 加「粘性路由」卡片（开关 + 头名输入，对照 `RetryPolicySection` 的卡片样式但更轻）；`buildPayload` / `resetForm` / `PoolFormState` 同步。
+- 类型定义（`ModelPool` interface）+ 校验（头名非空、开启时头名必填）。
 
 **测试**
-- 单测：`StickyPolicy` 归一化（默认关、ttl clamp、keySource 归一）；`StickyKeyExtractor`（头/体路径/consumer/超长 hash/非字符串忽略/空键跳过）；`StickyCoordinator`（重排、绑定、失效、fail-open）。
-- 网关集成测试（对齐现有风格）：同键第二请求候选首位 = 首次命中目标（WEIGHTED 池同样成立）；粘性目标连续 5xx 耗尽 → failover 且绑定删除（第三请求重新选择）；目标停用后绑定自动失效。
-- 真启 jar 冒烟：node 回声上游 + 同 sticky key 连续请求，验证 写绑定 → 命中置顶 → 失效回落 全链路；冒烟后清理。
+- 单测：`StickyPolicy` 归一化（默认关、头名归一/空值回落）；`ConsistentHashRing`（同键稳定命中、分布均匀度抽样、成员增删的最小漂移断言、空环/单候选）；`StickyRingCache`（成员指纹变化换环）。
+- 集成测试（RoutingResolver 或网关层）：同 sticky key 两请求 → 第二请求候选 `[0]` = 首次 hash 目标（WEIGHTED 池同样成立）；key 为空 → 候选序 = 原策略序；首选被频控拒 → 顺延且不失败。
+- 真启 jar 冒烟：node 回声上游 + 同 sticky key 连续请求验证候选置顶（trace/日志）；冒烟后清理。
 
 ## 10. 验证门禁
 
 1. 后端：`mvn -f knot-server/pom.xml package`（含测试）。
 2. 前端：`npm run type-check` + `npm run build`（build 后还原 `components.d.ts`）。
-3. 真启 admin jar 冒烟（一次性库 + `KNOT_SQL_INIT_MODE=NEVER`）：开粘性 → 同键两发验证置顶 → 停用目标验证回落 → 复原；DB 还原为 NULL。
+3. 真启 admin jar 冒烟（一次性库 + `KNOT_SQL_INIT_MODE=NEVER`）：建池开粘性 → 同键两发验证置顶 → 关粘性验证回落原策略 → 复原；DB 还原为 NULL。
 4. 全量 grep 残留确认零残留；未经显式批准不 `git commit`。
 
 ## 11. 风险与限制
 
-- **多节点无 Redis → 粘性退化节点内**：不同节点各自粘各自的，命中率打折。启动日志明示当前 store；文档要求多节点必须 `redis`。
-- **负载倾斜**：少数热点键把流量集中到单一目标。频控层（RPM/TPM/额度）已是既有保护网；文档需向用户明示「粘性 = 用均衡换缓存」。
+- **上游长时间故障时反复首撞**：无状态方案下，hash 首选恰好持续故障时，每轮请求都先撞它再 failover（请求不失败，但多一次失败往返）。这是「无绑定」的代价。**缓解 = follow-up 故障退避**（近期失败目标临时摘出环，需少量存储，届时按 §7 口径按需引入），首版不做。
+- **热点倾斜**：一致性 hash 固有特性，频控兜底 + 文档明示。
+- **池成员变更即漂移**：最小化（相邻段）但非零——这是特性：新成员加入本就该承接一部分 key。
+- **头名运行时不可配**（§5 边界说明）：配置项是接入约定，控制器固定读默认头。
 - **prompt cache 最终主权在上游**（region / deploy / 账户维度），网关粘性是必要非充分条件，不承诺命中率数字。
-- **首版仅 preferred**：不做 exclusive/strict。理由：AI 网关场景下「漂移」的代价是成本与延迟，「失败」的代价是业务事故，可用性优先；如确需强语义，后续以独立开关排期，不混入本期。
-- **滑动 TTL 无绝对上界**：活跃会话永续存在，键空间随会话数线性增长——由 Redis/Caffeine 的淘汰与 TTL 共同兜底。
-- 粘性键由客户端提供，**存在伪造/撞键可能**：归一化（长度截断 + hash）已防键空间爆炸；敏感场景建议 `keySource=consumer` 或由接入层注入不可伪造的头。
+- 首版仅 header 单来源；body 来源（`user` / `metadata.session_id`）列为后续增量。
