@@ -97,7 +97,7 @@ class PeakOffPeakHotPathTest {
     private BillingRuleEntity rule() {
         BillingRuleEntity rule = new BillingRuleEntity();
         rule.setBillingMode("TOKEN");
-        rule.setUnit("ONE_K_TOKENS");
+        rule.setUnit("1K_TOKENS");
         rule.setCurrency("USD");
         rule.setVersionCode("v1");
         rule.setConfigJson(CONFIG);
