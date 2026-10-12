@@ -1,6 +1,7 @@
 # 模型池 · 粘性路由方案设计
 
-> 状态：**v2 已按 robin 拍板修订（2026-10-12），待评审后落地；未写任何代码**
+> 状态：**已落地（2026-10-12）** —— 代码已实现并通过后端全量测试、前端类型检查/构建、真启 jar 冒烟；
+> 本文档保留为口径说明与后续变更依据。落地记录见 §12。
 > 拍板记录（robin，2026-10-12 20:00）：
 > 1. 粘性**仅在模型池内**开启，不在路由规则层；
 > 2. **默认不开启**；
@@ -214,3 +215,25 @@ if (sticky.enabled() && stickyKey != null) {
 - **头名运行时不可配**（§5 边界说明）：配置项是接入约定，控制器固定读默认头。
 - **prompt cache 最终主权在上游**（region / deploy / 账户维度），网关粘性是必要非充分条件，不承诺命中率数字。
 - 首版仅 header 单来源；body 来源（`user` / `metadata.session_id`）列为后续增量。
+
+
+## 12. 落地记录（2026-10-12）
+
+**验证结论（真实 exit code / 日志）**
+
+| 门禁 | 命令 | 结果 |
+|---|---|---|
+| 后端全量测试 | `mvn -f knot-server/pom.xml test` | BUILD SUCCESS，8 模块 408 例 0 失败（其中本次新增 StickyPolicyTest 6、ConsistentHashRingTest 8、StickyRoutingTest 8；其余增量为并行会话的最少负载用例） |
+| 前端类型检查 | `vue-tsc --noEmit` | EXIT=0（构建后复跑仍 EXIT=0） |
+| 前端构建 | `vite build` | EXIT=0 |
+| 真启 admin jar 冒烟 | 一次性库 `knot_smoke_sticky`（空库 + `KNOT_SQL_INIT_MODE=ALWAYS`）+ 18092 | `stickyPolicy` null → 写入 `{enabled:true,headerName:"X-Session-Id"}` → 回读一致 → 复原 null；库已 DROP、端口零监听 |
+
+**实现偏差（相对设计稿）**
+
+- 设计稿的 `StickyKeyNormalizer` + `StickyRingCache` 两个类合并进 `StickyRouting`（键归一化 + 环缓存本就是一个入口的两件事，拆两个文件只会多一层无意义跳转）。
+- 头名可配的实现边界按 §5 说明：控制器固定读 `X-Knot-Sticky-Key`，`headerName` 配置项作为接入侧约定落库与回显。
+- MapStruct 未自动选中 `@Named` 的 JSON 转换方法，`ModelPoolConverter` 改用显式 `qualifiedByName`（与 `statusToEnabled` 同款写法）。
+
+**并发说明**：落地期间另一会话正在同一批文件上做「最少负载（LEAST_LOAD）」池选择策略，
+`RoutingResolver` / `ModelPoolSelection` 为共享文件。粘性逻辑位于池策略排序**之后**，
+两者互不覆盖；已单独编译 `knot-gateway -am` 验证共存（BUILD SUCCESS）。

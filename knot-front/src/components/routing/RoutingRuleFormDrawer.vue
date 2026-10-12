@@ -111,6 +111,19 @@
               style="width: 100%"
             />
           </el-form-item>
+          <el-form-item label="目标选择策略" class="bind-block-item model-bind-item">
+            <el-select v-model="form.selectionStrategy" placeholder="请选择目标选择策略" style="width: 100%">
+              <el-option
+                v-for="item in selectionStrategyOptions"
+                :key="String(item.value)"
+                :label="item.label"
+                :value="String(item.value)"
+              />
+            </el-select>
+            <div class="field-tip">
+              优先级：按下方目标的主目标与优先级固定排序；最少负载：按各目标当前在途并发动态排序（最空闲优先，主目标仍排首位）。
+            </div>
+          </el-form-item>
           <el-form-item label="目标类型" class="bind-block-item model-bind-item">
             <el-radio-group v-model="targetType">
               <el-radio-button
@@ -253,6 +266,10 @@ const targetType = ref("MODEL");
 // 路由目标类型：后端代码枚举 RouteTargetTypeEnum（/api/common/enums）
 const {optionsOf: rtEnumOptionsOf, labelOf: enumLabelOf} = useEnumOptions();
 const targetTypeOptions = computed(() => rtEnumOptionsOf("RouteTargetTypeEnum"));
+/** 目标选择策略：复用池级枚举，但规则层只开放已实现的「优先级 / 最少负载」两种 */
+const selectionStrategyOptions = computed(() =>
+  rtEnumOptionsOf("ModelPoolSelectionStrategyEnum", ["PRIORITY", "LEAST_LOAD"])
+);
 
 interface RuleTargetForm {
   id?: number | string | null;
@@ -274,6 +291,8 @@ interface RuleForm {
   username: string | null;
   /** 统一模型 code（kb_logical_models.model_code），非必填；选中后目标选择器优先置前对应项（仅排序，不过滤） */
   logicalModelCode: string | null;
+  /** 目标选择策略（ModelPoolSelectionStrategyEnum）：PRIORITY 固定序 / LEAST_LOAD 按在途并发动态重排 */
+  selectionStrategy: string;
   enabled: boolean;
   targets: RuleTargetForm[];
   rateLimitPolicy: RateLimitPolicy;
@@ -289,6 +308,7 @@ const form = reactive<RuleForm>({
   appId: null,
   username: null,
   logicalModelCode: null,
+  selectionStrategy: "PRIORITY",
   enabled: true,
   targets: [],
   rateLimitPolicy: emptyRateLimitPolicy(),
@@ -429,6 +449,7 @@ function resetForm() {
     form.appId = row.appId ?? null;
     form.username = row.username || null;
     form.logicalModelCode = row.logicalModelCode ?? null;
+    form.selectionStrategy = row.selectionStrategy || "PRIORITY";
     selectedUserRealName.value = row.userRealName ?? null;
     form.enabled = row.enabled !== false;
     form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
@@ -451,6 +472,7 @@ function resetForm() {
     form.appId = null;
     form.username = null;
     form.logicalModelCode = null;
+    form.selectionStrategy = "PRIORITY";
     selectedUserRealName.value = null;
     form.enabled = false;
     form.targets = [];
@@ -579,6 +601,7 @@ function buildSubmitPayload() {
     appId: form.appId,
     username: form.username || null,
     logicalModelCode: form.logicalModelCode || null,
+    selectionStrategy: form.selectionStrategy || "PRIORITY",
     enabled: form.enabled,
     targets,
     rateLimitPolicy,
@@ -735,6 +758,13 @@ async function submit() {
   font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.field-tip {
+  width: 100%;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 @media (max-width: 900px) {
