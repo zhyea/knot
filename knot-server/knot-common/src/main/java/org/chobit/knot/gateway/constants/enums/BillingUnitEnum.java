@@ -43,6 +43,33 @@ public enum BillingUnitEnum implements EnumOption {
     }
 
     /**
+     * 单个计费单位对应的数量基数（如 1K_TOKENS=1000、PER_MINUTE=60 秒）。
+     * 金额 = 用量 / unitSize * 单价。新增枚举必须显式给出基数，
+     * 未覆盖时在运行期直接抛异常，避免静默按错误基数计费造成资损。
+     */
+    public int unitSize() {
+        return switch (this) {
+            case ONE_K_TOKENS -> 1_000;
+            case ONE_M_TOKENS -> 1_000_000;
+            case PER_TOKEN, PER_REQUEST, PER_IMAGE, PER_SECOND, CUSTOM -> 1;
+            case PER_MINUTE -> 60;
+            default -> throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "billing unit not covered by unitSize: " + code);
+        };
+    }
+
+    /**
+     * 按编码解析计费单位并返回数量基数，无法识别的编码直接拒绝。
+     */
+    public static int unitSizeOf(String code) {
+        BillingUnitEnum unit = fromCode(code);
+        if (unit == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "unsupported billing unit: " + code);
+        }
+        return unit.unitSize();
+    }
+
+    /**
      * Builds the target value from the source input. Executes the public operation.
      */
     public static BillingUnitEnum fromCode(String code) {
