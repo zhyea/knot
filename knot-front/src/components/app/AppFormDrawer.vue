@@ -54,8 +54,8 @@
           class="slot-body"
           mode="quota"
           title="限额配置"
-          description="按统计窗口约束该应用可消耗的 Token 总量与成本上限。"
-          v-model:quota="form.quotaPolicy"
+          description="按统计窗口约束该应用可消耗的 Token 总量与成本上限，可叠加多个不同窗口。"
+          v-model:quotas="form.quotaPolicies"
         />
       </el-form>
     </el-scrollbar>
@@ -72,9 +72,10 @@ import {ElMessage} from "element-plus";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import {
-  emptyQuotaPolicy,
+  emptyQuotaPolicies,
   isEmptyQuotaPolicy,
-  normalizeQuotaPolicy
+  normalizeQuotaPolicy,
+  normalizeQuotaPolicies
 } from "@/utils/trafficPolicy";
 import {createApp, updateApp} from "@/api/apps";
 import {listDepartmentOptions, listUserUsernameOptions} from "@/api/options";
@@ -100,7 +101,7 @@ const form = reactive({
   deptCode: null,
   ownerUsername: null,
   remark: "",
-  quotaPolicy: emptyQuotaPolicy()
+  quotaPolicies: emptyQuotaPolicies()
 });
 
 const isEdit = computed(() => props.app != null);
@@ -112,7 +113,7 @@ function fillFormFromRow(row: Row): void {
   form.deptCode = row.deptCode ?? null;
   form.ownerUsername = row.ownerUsername ?? null;
   form.remark = row.remark ?? "";
-  form.quotaPolicy = normalizeQuotaPolicy(row.quotaPolicy);
+  form.quotaPolicies = normalizeQuotaPolicies(row.quotaPolicies);
 }
 
 function resetForm() {
@@ -125,7 +126,7 @@ function resetForm() {
     form.deptCode = null;
     form.ownerUsername = null;
     form.remark = "";
-    form.quotaPolicy = emptyQuotaPolicy();
+    form.quotaPolicies = emptyQuotaPolicies();
   }
 }
 
@@ -143,16 +144,16 @@ function onClosed() {
 }
 
 function buildPayload() {
-  const quotaPolicy = isEmptyQuotaPolicy(form.quotaPolicy)
-    ? null
-    : normalizeQuotaPolicy(form.quotaPolicy);
+  const quotaPolicies = form.quotaPolicies
+    .map(normalizeQuotaPolicy)
+    .filter((q) => !isEmptyQuotaPolicy(q));
   return {
     appCode: form.appCode,
     name: form.name,
     deptCode: form.deptCode,
     ownerUsername: form.ownerUsername,
     remark: form.remark?.trim() || null,
-    quotaPolicy
+    quotaPolicies
   };
 }
 

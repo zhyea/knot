@@ -15,6 +15,4 @@ public class ResourceTrafficPolicyEntity {
     private Long resourceId;
     /** 落库列：频控策略业务码（kb_rate_limit_policies.policy_code），非主键 id */
     private String rateLimitPolicyCode;
-    /** 落库列：额度策略业务码（kb_quota_policies.policy_code），非主键 id */
-    private String quotaPolicyCode;
 }

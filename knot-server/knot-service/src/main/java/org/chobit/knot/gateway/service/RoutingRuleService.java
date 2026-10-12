@@ -238,7 +238,7 @@ public class RoutingRuleService {
         saveConsumers(entity.getId(), normalized.consumerIds());
         saveTargets(entity.getId(), normalized.targets());
         trafficPolicySupport.save(TrafficResourceTypeEnum.ROUTING_RULE.code(), entity.getId(),
-                normalized.rateLimitPolicy(), normalized.quotaPolicy());
+                normalized.rateLimitPolicy(), normalized.quotaPolicies());
         return getById(entity.getId());
     }
 
@@ -258,7 +258,7 @@ public class RoutingRuleService {
         saveConsumers(id, request.consumerIds());
         saveTargets(id, request.targets());
         trafficPolicySupport.save(TrafficResourceTypeEnum.ROUTING_RULE.code(), id,
-                request.rateLimitPolicy(), request.quotaPolicy());
+                request.rateLimitPolicy(), request.quotaPolicies());
         return getById(id);
     }
 
@@ -282,7 +282,7 @@ public class RoutingRuleService {
                 enabled,
                 existing.targets(),
                 existing.rateLimitPolicy(),
-                existing.quotaPolicy(),
+                existing.quotaPolicies(),
                 existing.retryPolicy(),
                 existing.createdAt(),
                 existing.updatedAt()
@@ -753,7 +753,7 @@ public class RoutingRuleService {
                                  List<RoutingRuleTargetDto> targets,
                                  TrafficPolicies traffic) {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
-        QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
+        List<QuotaPolicy> quotas = traffic != null ? traffic.quotaPolicies() : List.of();
         List<Long> consumerIds = consumers.stream().map(RoutingRuleConsumerEntity::getConsumerId).toList();
         List<String> consumerNames = consumers.stream()
                 .map(this::consumerDisplayName)
@@ -773,7 +773,7 @@ public class RoutingRuleService {
                 EnabledStatusEnum.isEnabled(entity.getStatus()),
                 targets,
                 rate,
-                quota,
+                quotas,
                 RetryPolicy.parse(entity.getRetryPolicy()),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
@@ -908,7 +908,7 @@ public class RoutingRuleService {
                 request.enabled(),
                 request.targets(),
                 request.rateLimitPolicy(),
-                request.quotaPolicy(),
+                request.quotaPolicies(),
                 request.retryPolicy(),
                 request.createdAt(),
                 request.updatedAt()

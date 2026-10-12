@@ -77,3 +77,27 @@ export function isEmptyQuotaPolicy(policy: unknown): boolean {
   const p = normalizeQuotaPolicy(policy);
   return p.maxTokens <= 0 && !p.costLimit;
 }
+
+/**
+ * 多窗口限额：每个资源可挂一组不同统计窗口的限额（卡列表）。
+ * - 数组不做过滤：编辑态新增的空白卡必须保留，过滤留给构建载荷时处理
+ * - 非法项（非对象）直接落空卡，避免整段配置因单条脏数据丢失
+ */
+export function emptyQuotaPolicies(): QuotaPolicy[] {
+  return [];
+}
+
+export function normalizeQuotaPolicies(raw: unknown): QuotaPolicy[] {
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.map((item) => normalizeQuotaPolicy(item));
+}
+
+export function isEmptyQuotaPolicies(policies: unknown): boolean {
+  const list = normalizeQuotaPolicies(policies);
+  if (list.length === 0) {
+    return true;
+  }
+  return list.every((p) => isEmptyQuotaPolicy(p));
+}

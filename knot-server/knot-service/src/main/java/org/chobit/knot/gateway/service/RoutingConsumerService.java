@@ -118,7 +118,7 @@ public class RoutingConsumerService {
         entity.setStatus(EnabledStatusEnum.codeOf(normalized.enabled()));
         routingConsumerMapper.insert(entity);
         trafficPolicySupport.save(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), entity.getId(),
-                normalized.rateLimitPolicy(), normalized.quotaPolicy());
+                normalized.rateLimitPolicy(), normalized.quotaPolicies());
         return getById(entity.getId());
     }
 
@@ -136,7 +136,7 @@ public class RoutingConsumerService {
         entity.setStatus(EnabledStatusEnum.codeOf(request.enabled()));
         routingConsumerMapper.update(entity);
         trafficPolicySupport.save(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), id,
-                request.rateLimitPolicy(), request.quotaPolicy());
+                request.rateLimitPolicy(), request.quotaPolicies());
         return getById(id);
     }
 
@@ -157,7 +157,7 @@ public class RoutingConsumerService {
                 enabled,
                 existing.ruleCount(),
                 existing.rateLimitPolicy(),
-                existing.quotaPolicy()
+                existing.quotaPolicies()
         );
         validateForSave(request, id);
         routingConsumerMapper.updateStatus(id, EnabledStatusEnum.codeOf(enabled));
@@ -193,7 +193,7 @@ public class RoutingConsumerService {
                 request.enabled(),
                 request.ruleCount(),
                 request.rateLimitPolicy(),
-                request.quotaPolicy()
+                request.quotaPolicies()
         );
     }
 
@@ -231,7 +231,7 @@ public class RoutingConsumerService {
                 EnabledStatusEnum.isEnabled(entity.getStatus()),
                 ruleCount != null ? ruleCount : 0L,
                 traffic != null ? traffic.rateLimitPolicy() : null,
-                traffic != null ? traffic.quotaPolicy() : null
+                traffic != null ? traffic.quotaPolicies() : null
         );
     }
 

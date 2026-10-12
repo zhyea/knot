@@ -12,9 +12,6 @@ import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.mapper.ModelPoolMapper;
 import org.chobit.knot.gateway.mapper.ProviderCredentialMapper;
 import org.chobit.knot.gateway.mapper.ProviderAccountMapper;
-import org.chobit.knot.gateway.mapper.QuotaPolicyMapper;
-import org.chobit.knot.gateway.mapper.RateLimitPolicyMapper;
-import org.chobit.knot.gateway.mapper.ResourceTrafficPolicyMapper;
 import org.chobit.knot.gateway.mapper.RoutingConsumerMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleTargetMapper;
@@ -78,9 +75,7 @@ public class GatewayDataService {
                               ProviderAccountMapper providerAccountMapper,
                               ProviderCredentialMapper providerCredentialMapper,
                               ModelApiBindingMapper modelApiBindingMapper,
-                              ResourceTrafficPolicyMapper resourceTrafficPolicyMapper,
-                              RateLimitPolicyMapper rateLimitPolicyMapper,
-                              QuotaPolicyMapper quotaPolicyMapper,
+                              ResourceTrafficPolicySupport trafficPolicySupport,
                               BillingRuleMapper billingRuleMapper) {
         this.appByIdCache = optionalCache(appMapper::getById);
         this.consumerBySecretKeyCache = optionalCache(routingConsumerMapper::getBySecretKey);
@@ -98,7 +93,7 @@ public class GatewayDataService {
         this.activeCredentialByProviderIdCache = optionalCache(providerCredentialMapper::getActiveByProviderId);
         this.apiBindingsByModelIdCache = listCache(modelApiBindingMapper::listByModelId);
         this.trafficPoliciesCache = optionalCache(key ->
-                loadTrafficPolicies(key, resourceTrafficPolicyMapper, rateLimitPolicyMapper, quotaPolicyMapper));
+                trafficPolicySupport.load(key.resourceType(), key.resourceId()));
         this.billingRuleMapper = billingRuleMapper;
         this.billingRuleCache = billingRuleCache();
     }
@@ -222,10 +217,10 @@ public class GatewayDataService {
      */
     public TrafficPolicies loadTrafficPolicies(String resourceType, Long resourceId) {
         if (resourceId == null) {
-            return new TrafficPolicies(null, null);
+            return new TrafficPolicies(null, List.of());
         }
         return trafficPoliciesCache.get(new ResourceKey(resourceType, resourceId))
-                .orElse(new TrafficPolicies(null, null));
+                .orElse(new TrafficPolicies(null, List.of()));
     }
 
     /**
@@ -293,26 +288,6 @@ public class GatewayDataService {
 
     private static String normalize(String value) {
         return value == null || value.isBlank() ? null : value.trim();
-    }
-
-    private TrafficPolicies loadTrafficPolicies(ResourceKey key,
-                                                ResourceTrafficPolicyMapper resourceTrafficPolicyMapper,
-                                                RateLimitPolicyMapper rateLimitPolicyMapper,
-                                                QuotaPolicyMapper quotaPolicyMapper) {
-        ResourceTrafficPolicyEntity binding = resourceTrafficPolicyMapper.getByResource(key.resourceType(), key.resourceId());
-        if (binding == null) {
-            return new TrafficPolicies(null, null);
-        }
-        RateLimitPolicyEntity rate = binding.getRateLimitPolicyCode() == null
-                ? null
-                : rateLimitPolicyMapper.getByCode(binding.getRateLimitPolicyCode());
-        QuotaPolicyEntity quota = binding.getQuotaPolicyCode() == null
-                ? null
-                : quotaPolicyMapper.getByCode(binding.getQuotaPolicyCode());
-        return new TrafficPolicies(
-                ResourceTrafficPolicySupport.toRateLimitModel(rate),
-                ResourceTrafficPolicySupport.toQuotaModel(quota)
-        );
     }
 
     private static <K, V> LoadingCache<K, Optional<V>> optionalCache(Function<K, V> loader) {

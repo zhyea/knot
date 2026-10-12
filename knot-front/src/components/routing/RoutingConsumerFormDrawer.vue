@@ -92,8 +92,8 @@
         class="slot-body consumer-section"
         mode="quota"
         title="限额配置"
-        description="消费者维度的限额会与应用限额合并，取更严格的非零上限。"
-        v-model:quota="form.quotaPolicy"
+        description="消费者维度的限额会与应用限额合并，取更严格的非零上限；可叠加多个不同统计窗口。"
+        v-model:quotas="form.quotaPolicies"
       />
     </el-form>
     </el-scrollbar>
@@ -110,9 +110,10 @@ import {ElMessage} from "element-plus";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import {
-  emptyQuotaPolicy,
+  emptyQuotaPolicies,
   isEmptyQuotaPolicy,
-  normalizeQuotaPolicy
+  normalizeQuotaPolicy,
+  normalizeQuotaPolicies
 } from "@/utils/trafficPolicy";
 import {listUserUsernameOptions} from "@/api/options";
 import {
@@ -146,7 +147,7 @@ const form = reactive({
   userUsername: null,
   returnUsageDetail: false,
   enabled: true,
-  quotaPolicy: emptyQuotaPolicy()
+  quotaPolicies: emptyQuotaPolicies()
 });
 
 watch(
@@ -177,7 +178,7 @@ function resetForm(row: Row | null = null) {
   form.userUsername = row?.userUsername ?? null;
   form.returnUsageDetail = row?.returnUsageDetail === true;
   form.enabled = row?.enabled !== false;
-  form.quotaPolicy = normalizeQuotaPolicy(row?.quotaPolicy);
+  form.quotaPolicies = normalizeQuotaPolicies(row?.quotaPolicies);
   consumerCodeError.value = "";
 }
 
@@ -210,16 +211,16 @@ async function validateConsumerCode() {
 }
 
 function buildPayload() {
-  const quotaPolicy = isEmptyQuotaPolicy(form.quotaPolicy)
-    ? null
-    : normalizeQuotaPolicy(form.quotaPolicy);
+  const quotaPolicies = form.quotaPolicies
+    .map(normalizeQuotaPolicy)
+    .filter((q) => !isEmptyQuotaPolicy(q));
   return {
     consumerCode: form.consumerCode?.trim(),
     name: form.name?.trim(),
     userUsername: form.userUsername,
     returnUsageDetail: form.returnUsageDetail,
     enabled: form.enabled,
-    quotaPolicy
+    quotaPolicies
   };
 }
 

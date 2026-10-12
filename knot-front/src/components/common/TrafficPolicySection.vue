@@ -24,38 +24,50 @@
       </el-col>
     </el-row>
 
-    <!-- 限额：应用 / 供应商账户 / 消费者层 -->
+    <!-- 限额：应用 / 供应商账户 / 消费者层（多窗口卡列表） -->
     <template v-else>
-      <el-row :gutter="16">
-        <el-col :span="12">
-          <el-form-item label="统计窗口">
-            <el-select v-model="quotaDraft.window" class="traffic-policy__field">
-              <el-option v-for="item in windowOptions" :key="item.value" :label="item.label" :value="item.value"/>
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="币种">
-            <el-select v-model="quotaDraft.currency" class="traffic-policy__field">
-              <el-option v-for="item in currencyOptions" :key="item.value" :label="item.label" :value="item.value"/>
-            </el-select>
-          </el-form-item>
-        </el-col>
-      </el-row>
-      <el-row :gutter="16">
-        <el-col :span="12">
-          <el-form-item label="最大Token数">
-            <el-input-number v-model="quotaDraft.maxTokens" controls-position="right"
-                             :min="0" :step="10000" class="traffic-policy__field"/>
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="成本上限">
-            <el-input-number v-model="quotaDraft.costLimit" controls-position="right"
-                             :min="0" :precision="4" :step="1" class="traffic-policy__field"/>
-          </el-form-item>
-        </el-col>
-      </el-row>
+      <div v-for="(quota, index) in quotaList" :key="index" class="quota-card">
+        <div class="quota-card__head">
+          <span class="quota-card__title">窗口 {{ index + 1 }}</span>
+          <el-button text type="danger" :icon="Delete" @click="removeQuota(index)">删除</el-button>
+        </div>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="统计窗口">
+              <el-select v-model="quotaList[index].window" class="traffic-policy__field">
+                <el-option v-for="item in windowOptions" :key="item.value" :label="item.label" :value="item.value"/>
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="币种">
+              <el-select v-model="quotaList[index].currency" class="traffic-policy__field">
+                <el-option v-for="item in currencyOptions" :key="item.value" :label="item.label" :value="item.value"/>
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="最大Token数">
+              <el-input-number v-model="quotaList[index].maxTokens" controls-position="right"
+                               :min="0" :step="10000" class="traffic-policy__field"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="成本上限">
+              <el-input-number v-model="quotaList[index].costLimit" controls-position="right"
+                               :min="0" :precision="4" :step="1" class="traffic-policy__field"/>
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </div>
+
+      <el-button :icon="Plus" plain class="quota-add" @click="addQuota">新增窗口配额</el-button>
+
+      <p v-if="quotaList.length === 0" class="traffic-policy__empty">
+        尚未配置窗口限额，点击上方按钮新增（可叠加多个不同统计窗口）。
+      </p>
     </template>
 
     <p class="traffic-policy__hint">{{ mode === 'rate' ? rateHint : quotaHint }}</p>
@@ -64,10 +76,12 @@
 
 <script setup lang="ts">
 import {computed} from "vue";
+import {Delete, Plus} from "@element-plus/icons-vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {useDraftModel} from "@/composables/useDraftModel";
 import {
-  normalizeQuotaPolicy,
+  emptyQuotaPolicy,
+  normalizeQuotaPolicies,
   normalizeRateLimitPolicy,
   type QuotaPolicy,
   type RateLimitPolicy
@@ -79,21 +93,21 @@ const props = withDefaults(defineProps<{
   title?: string;
   description?: string;
   rateLimit?: RateLimitPolicy;
-  quota?: QuotaPolicy;
+  quotas?: QuotaPolicy[];
 }>(), {
   title: "",
   description: "",
   rateLimit: undefined,
-  quota: undefined
+  quotas: undefined
 });
 
 const emit = defineEmits<{
   (e: "update:rateLimit", value: RateLimitPolicy): void;
-  (e: "update:quota", value: QuotaPolicy): void;
+  (e: "update:quotas", value: QuotaPolicy[]): void;
 }>();
 
 const rateHint = "RPM 在请求进入时计数，超限立即拒绝；TPM 按请求成功后的真实用量累加，超限在下一个请求拦下。";
-const quotaHint = "窗口结束自动清零。成本不做汇率换算：只有计费结果币种与所选币种一致时才累计。";
+const quotaHint = "每个统计窗口独立清零。成本不做汇率换算：只有计费结果币种与所选币种一致时才累计。";
 
 const {optionsOf} = useEnumOptions();
 const currencyOptions = computed(() => optionsOf("CurrencyCodeEnum"));
@@ -105,11 +119,19 @@ const rateDraft = useDraftModel<RateLimitPolicy>(
   normalizeRateLimitPolicy,
   value => emit("update:rateLimit", value)
 );
-const quotaDraft = useDraftModel<QuotaPolicy>(
-  () => props.quota,
-  normalizeQuotaPolicy,
-  value => emit("update:quota", value)
+const quotaList = useDraftModel<QuotaPolicy[]>(
+  () => props.quotas,
+  normalizeQuotaPolicies,
+  value => emit("update:quotas", value)
 );
+
+function addQuota() {
+  quotaList.push(emptyQuotaPolicy());
+}
+
+function removeQuota(index: number) {
+  quotaList.splice(index, 1);
+}
 </script>
 
 <style scoped>
@@ -150,5 +172,36 @@ const quotaDraft = useDraftModel<QuotaPolicy>(
   color: #909399;
   font-size: 12px;
   line-height: 1.5;
+}
+
+.quota-card {
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  padding: 12px 14px 0;
+  margin-bottom: 12px;
+  background: #fafafa;
+}
+
+.quota-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.quota-card__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--knot-text, #303133);
+}
+
+.quota-add {
+  width: 100%;
+}
+
+.traffic-policy__empty {
+  margin: 4px 0 0;
+  color: #c0c4cc;
+  font-size: 12px;
 }
 </style>

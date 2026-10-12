@@ -235,12 +235,20 @@ CREATE TABLE IF NOT EXISTS kb_resource_traffic_policies (
   resource_type VARCHAR(32) NOT NULL COMMENT 'APP / MODEL / PROVIDER / ROUTING_RULE / ROUTING_CONSUMER',
   resource_code VARCHAR(128) NOT NULL COMMENT '资源业务码（按 resource_type 指向对应表的 code），非主键 id',
   rate_limit_policy_code VARCHAR(64) DEFAULT NULL COMMENT '频控策略业务码（kb_rate_limit_policies.policy_code），非主键 id',
-  quota_policy_code VARCHAR(64) DEFAULT NULL COMMENT '额度策略业务码（kb_quota_policies.policy_code），非主键 id',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_resource_traffic (resource_type, resource_code),
-  KEY idx_resource_traffic_rate (rate_limit_policy_code),
-  KEY idx_resource_traffic_quota (quota_policy_code)
+  KEY idx_resource_traffic_rate (rate_limit_policy_code)
+);
+
+CREATE TABLE IF NOT EXISTS kb_resource_quota_bindings (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  resource_type VARCHAR(32) NOT NULL COMMENT 'APP / PROVIDER / ROUTING_CONSUMER（仅这三层配额度）',
+  resource_code VARCHAR(128) NOT NULL COMMENT '资源业务码（按 resource_type 指向对应表的 code），非主键 id',
+  quota_policy_code VARCHAR(64) NOT NULL COMMENT '额度策略业务码（kb_quota_policies.policy_code），非主键 id',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_rqb_resource_policy (resource_type, resource_code, quota_policy_code),
+  KEY idx_rqb_policy (quota_policy_code)
 );
 
 -- =========================

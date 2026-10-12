@@ -4,6 +4,8 @@ import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.util.Sensitive;
 
+import java.util.List;
+
 public record RoutingConsumerDto(
         Long id,
         String consumerCode,
@@ -15,6 +17,6 @@ public record RoutingConsumerDto(
         boolean enabled,
         Long ruleCount,
         RateLimitPolicy rateLimitPolicy,
-        QuotaPolicy quotaPolicy
+        List<QuotaPolicy> quotaPolicies
 ) {
 }

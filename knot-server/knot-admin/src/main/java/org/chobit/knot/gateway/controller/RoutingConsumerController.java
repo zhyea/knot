@@ -128,7 +128,7 @@ public class RoutingConsumerController {
         return new RoutingConsumer(
                 dto.id(), dto.consumerCode(), dto.name(), dto.userUsername(), dto.userName(),
                 dto.secretKey(), dto.returnUsageDetail(), dto.enabled(), dto.ruleCount(),
-                dto.rateLimitPolicy(), dto.quotaPolicy()
+                dto.rateLimitPolicy(), dto.quotaPolicies()
         );
     }
 
@@ -136,7 +136,7 @@ public class RoutingConsumerController {
         return new RoutingConsumerDto(
                 vo.id(), vo.consumerCode(), vo.name(), vo.userUsername(), vo.userName(),
                 vo.secretKey(), vo.returnUsageDetail(), vo.enabled(), vo.ruleCount(),
-                vo.rateLimitPolicy(), vo.quotaPolicy()
+                vo.rateLimitPolicy(), vo.quotaPolicies()
         );
     }
 }

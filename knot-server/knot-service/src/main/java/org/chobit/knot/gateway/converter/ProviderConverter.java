@@ -18,7 +18,7 @@ public interface ProviderConverter {
     @Mapping(source = "providerCode", target = "type")
     @Mapping(source = "status", target = "enabled", qualifiedByName = "statusToEnabled")
     @Mapping(target = "rateLimitPolicy", ignore = true)
-    @Mapping(target = "quotaPolicy", ignore = true)
+    @Mapping(target = "quotaPolicies", ignore = true)
     @Mapping(target = "credentialType", ignore = true)
     @Mapping(target = "authApplier", ignore = true)
     @Mapping(target = "authConfig", ignore = true)

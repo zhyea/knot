@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.ZoneId;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -25,14 +26,14 @@ class GatewayTrafficGuardTest {
 
     @Test
     void allowsWhenNoPolicyConfigured() {
-        setUpWith(new TrafficPolicies(null, null));
+        setUpWith(new TrafficPolicies(null, List.of()));
 
         assertTrue(guard.checkTarget(target(), guard.newContext()).allowed());
     }
 
     @Test
     void rpmRejectsRequestBeyondLimit() {
-        setUpWith(new TrafficPolicies(new RateLimitPolicy(2, 0), null));
+        setUpWith(new TrafficPolicies(new RateLimitPolicy(2, 0), List.of()));
         var context = guard.newContext();
 
         assertTrue(guard.checkTarget(target(), context).allowed());
@@ -50,7 +51,7 @@ class GatewayTrafficGuardTest {
     void resetAtIsWindowEndNotKeyTtl() {
         // 键的 TTL 比窗口多留一个窗口余量；对外告知的重置时刻必须是窗口结束，
         // 否则 Retry-After 会凭空多报一分钟。
-        setUpWith(new TrafficPolicies(new RateLimitPolicy(1, 0), null));
+        setUpWith(new TrafficPolicies(new RateLimitPolicy(1, 0), List.of()));
         var context = guard.newContext();
 
         assertTrue(guard.checkTarget(target(), context).allowed());
@@ -63,7 +64,7 @@ class GatewayTrafficGuardTest {
 
     @Test
     void tpmRejectsOnlyAfterTokensAccumulated() {
-        setUpWith(new TrafficPolicies(new RateLimitPolicy(0, 1000), null));
+        setUpWith(new TrafficPolicies(new RateLimitPolicy(0, 1000), List.of()));
         var context = guard.newContext();
 
         guard.record(null, target(), usage(600L, null, null), context);
@@ -79,7 +80,7 @@ class GatewayTrafficGuardTest {
 
     @Test
     void quotaTokensRejectsBeyondWindowLimit() {
-        setUpWith(new TrafficPolicies(null, new QuotaPolicy(1000L, null, null, "DAY")));
+        setUpWith(new TrafficPolicies(null, List.of(new QuotaPolicy(1000L, null, null, "DAY"))));
         var context = guard.newContext();
 
         guard.record(null, quotaTarget(), usage(1000L, null, null), context);
@@ -92,7 +93,7 @@ class GatewayTrafficGuardTest {
 
     @Test
     void quotaCostAccumulatesInScaledUnits() {
-        setUpWith(new TrafficPolicies(null, new QuotaPolicy(0L, new BigDecimal("10.00"), "USD", "MONTH")));
+        setUpWith(new TrafficPolicies(null, List.of(new QuotaPolicy(0L, new BigDecimal("10.00"), "USD", "MONTH"))));
         var context = guard.newContext();
 
         guard.record(null, quotaTarget(), usage(100L, new BigDecimal("6.00"), "USD"), context);
@@ -111,7 +112,7 @@ class GatewayTrafficGuardTest {
     void costWithEightDecimalsIsNotTruncatedToZero() {
         // 计费侧 cost() 是 setScale(8, HALF_UP)：单价 1e-8 的请求成本必须被计进额度，
         // 否则反复调用永远触发不了上限。
-        setUpWith(new TrafficPolicies(null, new QuotaPolicy(0L, new BigDecimal("0.00000002"), "USD", "MONTH")));
+        setUpWith(new TrafficPolicies(null, List.of(new QuotaPolicy(0L, new BigDecimal("0.00000002"), "USD", "MONTH"))));
         var context = guard.newContext();
 
         guard.record(null, quotaTarget(), usage(1L, new BigDecimal("0.00000001"), "USD"), context);
@@ -153,7 +154,7 @@ class GatewayTrafficGuardTest {
 
     @Test
     void costIsNotAccumulatedWhenCurrencyMismatches() {
-        setUpWith(new TrafficPolicies(null, new QuotaPolicy(0L, new BigDecimal("10.00"), "CNY", "MONTH")));
+        setUpWith(new TrafficPolicies(null, List.of(new QuotaPolicy(0L, new BigDecimal("10.00"), "CNY", "MONTH"))));
         var context = guard.newContext();
 
         guard.record(null, quotaTarget(), usage(100L, new BigDecimal("600.00"), "USD"), context);
@@ -163,7 +164,7 @@ class GatewayTrafficGuardTest {
     @Test
     void modelResourceIgnoresQuotaPolicy() {
         // 模型层只认限流：即便策略里塞了额度也不参与判定
-        setUpWith(new TrafficPolicies(null, new QuotaPolicy(1L, null, null, "DAY")));
+        setUpWith(new TrafficPolicies(null, List.of(new QuotaPolicy(1L, null, null, "DAY"))));
         var context = guard.newContext();
 
         guard.record(null, target(), usage(5000L, null, null), context);

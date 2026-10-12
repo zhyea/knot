@@ -16,7 +16,7 @@ public interface ModelConverter {
     @Mapping(source = "status", target = "enabled", qualifiedByName = "statusToEnabled")
     @Mapping(source = "isDeleted", target = "deleted", qualifiedByName = "deletedFlag")
     @Mapping(target = "rateLimitPolicy", ignore = true)
-    @Mapping(target = "quotaPolicy", ignore = true)
+    @Mapping(target = "quotaPolicies", ignore = true)
     @Mapping(target = "apiBindings", ignore = true)
     ModelDto toDto(ModelEntity entity);
 

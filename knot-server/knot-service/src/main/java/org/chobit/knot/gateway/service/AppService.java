@@ -93,7 +93,7 @@ public class AppService {
         entity.setAppCode(appCode);
         appMapper.insert(entity);
         trafficPolicySupport.save(TrafficResourceTypeEnum.APP.code(), entity.getId(),
-                request.rateLimitPolicy(), request.quotaPolicy());
+                request.rateLimitPolicy(), request.quotaPolicies());
         return getById(entity.getId());
     }
 
@@ -112,7 +112,7 @@ public class AppService {
         entity.setAppCode(existing.getAppCode());
         appMapper.update(entity);
         trafficPolicySupport.save(TrafficResourceTypeEnum.APP.code(), id,
-                request.rateLimitPolicy(), request.quotaPolicy());
+                request.rateLimitPolicy(), request.quotaPolicies());
         return getById(id);
     }
 
@@ -155,11 +155,11 @@ public class AppService {
         TrafficPolicies traffic =
                 trafficPolicySupport.load(TrafficResourceTypeEnum.APP.code(), appId);
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
-        QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
+        List<QuotaPolicy> quotas = traffic != null ? traffic.quotaPolicies() : List.of();
         return new AppDto(
                 base.id(), base.appCode(), base.name(), base.deptCode(), base.deptName(),
                 base.ownerUsername(), base.ownerName(), base.remark(),
-                rate, quota
+                rate, quotas
         );
     }
 

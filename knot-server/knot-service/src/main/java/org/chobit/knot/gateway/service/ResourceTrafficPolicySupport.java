@@ -5,17 +5,20 @@ import org.chobit.knot.gateway.constants.enums.QuotaWindowEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.entity.QuotaPolicyEntity;
 import org.chobit.knot.gateway.entity.RateLimitPolicyEntity;
+import org.chobit.knot.gateway.entity.ResourceQuotaBindingEntity;
 import org.chobit.knot.gateway.entity.ResourceTrafficPolicyEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.QuotaPolicyMapper;
 import org.chobit.knot.gateway.mapper.RateLimitPolicyMapper;
+import org.chobit.knot.gateway.mapper.ResourceQuotaBindingMapper;
 import org.chobit.knot.gateway.mapper.ResourceTrafficPolicyMapper;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -25,7 +28,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * 频控与额度策略支持：独立策略表加 {@code resource_traffic_policies} 资源绑定。
+ * 频控与额度策略支持：独立策略表加 {@code resource_traffic_policies} 资源绑定（限流），
+ * 额度走 {@code resource_quota_bindings} 子表，一个资源可挂多套不同统计窗口的额度策略。
  *
  * <p>绑定列一律存业务码（resource_code / rate_limit_policy_code / quota_policy_code），
  * 资源主键 id 由 mapper 多态 join 派生，对外接口仍按 id 收发，调用方零感知。</p>
@@ -36,31 +40,34 @@ public class ResourceTrafficPolicySupport {
     private final ResourceTrafficPolicyMapper bindingMapper;
     private final RateLimitPolicyMapper rateLimitPolicyMapper;
     private final QuotaPolicyMapper quotaPolicyMapper;
+    private final ResourceQuotaBindingMapper quotaBindingMapper;
 
     /**
      * Constructs a new instance.
      */
     public ResourceTrafficPolicySupport(ResourceTrafficPolicyMapper bindingMapper,
                                         RateLimitPolicyMapper rateLimitPolicyMapper,
-                                        QuotaPolicyMapper quotaPolicyMapper) {
+                                        QuotaPolicyMapper quotaPolicyMapper,
+                                        ResourceQuotaBindingMapper quotaBindingMapper) {
         this.bindingMapper = bindingMapper;
         this.rateLimitPolicyMapper = rateLimitPolicyMapper;
         this.quotaPolicyMapper = quotaPolicyMapper;
+        this.quotaBindingMapper = quotaBindingMapper;
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * 读取单资源的频控与额度策略。
      */
     public TrafficPolicies load(String resourceType, Long resourceId) {
         if (resourceId == null) {
-            return new TrafficPolicies(null, null);
+            return new TrafficPolicies(null, List.of());
         }
         Map<Long, TrafficPolicies> batch = loadBatch(resourceType, List.of(resourceId));
-        return batch.getOrDefault(resourceId, new TrafficPolicies(null, null));
+        return batch.getOrDefault(resourceId, new TrafficPolicies(null, List.of()));
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * 批量读取：限流走 resource_traffic_policies，额度走 resource_quota_bindings 子表。
      */
     public Map<Long, TrafficPolicies> loadBatch(String resourceType, List<Long> resourceIds) {
         if (resourceIds == null || resourceIds.isEmpty()) {
@@ -73,13 +80,13 @@ public class ResourceTrafficPolicySupport {
         }
 
         Set<String> rateCodes = new HashSet<>();
-        Set<String> quotaCodes = new HashSet<>();
+        Set<String> resourceCodes = new HashSet<>();
         for (ResourceTrafficPolicyEntity b : bindings) {
             if (b.getRateLimitPolicyCode() != null) {
                 rateCodes.add(b.getRateLimitPolicyCode());
             }
-            if (b.getQuotaPolicyCode() != null) {
-                quotaCodes.add(b.getQuotaPolicyCode());
+            if (b.getResourceCode() != null) {
+                resourceCodes.add(b.getResourceCode());
             }
         }
 
@@ -88,41 +95,65 @@ public class ResourceTrafficPolicySupport {
                 : rateLimitPolicyMapper.listByCodes(List.copyOf(rateCodes)).stream()
                 .collect(Collectors.toMap(RateLimitPolicyEntity::getPolicyCode, Function.identity(), (a, b) -> a));
 
+        // 额度经子表：先取绑定，再批量取 policy，最后按资源业务码分组
+        List<ResourceQuotaBindingEntity> quotaBindings = resourceCodes.isEmpty()
+                ? List.of()
+                : quotaBindingMapper.listByResources(resourceType, List.copyOf(resourceCodes));
+
+        Set<String> quotaCodes = new HashSet<>();
+        for (ResourceQuotaBindingEntity qb : quotaBindings) {
+            if (qb.getQuotaPolicyCode() != null) {
+                quotaCodes.add(qb.getQuotaPolicyCode());
+            }
+        }
         Map<String, QuotaPolicyEntity> quotaMap = quotaCodes.isEmpty()
                 ? Map.of()
                 : quotaPolicyMapper.listByCodes(List.copyOf(quotaCodes)).stream()
                 .collect(Collectors.toMap(QuotaPolicyEntity::getPolicyCode, Function.identity(), (a, b) -> a));
 
+        Map<String, List<QuotaPolicy>> quotaByResource = new HashMap<>();
+        for (ResourceQuotaBindingEntity qb : quotaBindings) {
+            QuotaPolicy q = toQuotaModel(quotaMap.get(qb.getQuotaPolicyCode()));
+            if (q == null) {
+                continue;
+            }
+            quotaByResource.computeIfAbsent(qb.getResourceCode(), k -> new ArrayList<>()).add(q);
+        }
+
         Map<Long, TrafficPolicies> result = new HashMap<>();
         for (ResourceTrafficPolicyEntity b : bindings) {
             RateLimitPolicy rate = b.getRateLimitPolicyCode() == null
                     ? null : toRateLimitModel(rateMap.get(b.getRateLimitPolicyCode()));
-            QuotaPolicy quota = b.getQuotaPolicyCode() == null
-                    ? null : toQuotaModel(quotaMap.get(b.getQuotaPolicyCode()));
+            List<QuotaPolicy> quotas = b.getResourceCode() == null
+                    ? List.of() : quotaByResource.getOrDefault(b.getResourceCode(), List.of());
             Long resourceId = b.getResourceId();
             if (resourceId != null) {
-                result.put(resourceId, new TrafficPolicies(rate, quota));
+                result.put(resourceId, new TrafficPolicies(rate, quotas));
             }
         }
         return result;
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * 写入：限流与额度按资源分层收口。额度支持一个资源挂多套（按窗口）的额度策略。
      */
-    public void save(String resourceType, Long resourceId, RateLimitPolicy rateLimit, QuotaPolicy quota) {
+    public void save(String resourceType, Long resourceId, RateLimitPolicy rateLimit, List<QuotaPolicy> quotas) {
         if (resourceId == null) {
             return;
         }
         // 每层只落自己那一类策略：模型 / 路由规则只存限流，应用 / 供应商 / 消费者只存额度，
         // 传错方向的策略在这里被丢掉，避免绑定表里出现永不被判定的脏数据
         RateLimitPolicy effectiveRateLimit = supportsRateLimit(resourceType) ? rateLimit : null;
-        QuotaPolicy effectiveQuota = supportsQuota(resourceType) ? quota : null;
+        List<QuotaPolicy> effectiveQuotas = supportsQuota(resourceType) && quotas != null ? quotas : List.of();
 
         ResourceTrafficPolicyEntity binding = bindingMapper.getByResource(resourceType, resourceId);
         String rateCode = binding != null ? binding.getRateLimitPolicyCode() : null;
-        String quotaCode = binding != null ? binding.getQuotaPolicyCode() : null;
+        String resourceCode = binding != null ? binding.getResourceCode() : null;
+        if (resourceCode == null) {
+            resourceCode = requireResourceCode(resourceType, resourceId);
+        }
 
+        // 限流（模型 / 路由规则）：原样 upsert 单策略
         if (isEmptyRateLimit(effectiveRateLimit)) {
             if (rateCode != null) {
                 deleteRateLimitByCode(rateCode);
@@ -136,37 +167,80 @@ public class ResourceTrafficPolicySupport {
             }
         }
 
-        if (isEmptyQuota(effectiveQuota)) {
-            if (quotaCode != null) {
-                deleteQuotaByCode(quotaCode);
-                quotaCode = null;
-            }
-        } else {
-            if (quotaCode == null) {
-                quotaCode = insertQuota(resourceType, resourceId, effectiveQuota);
-            } else {
-                updateQuota(quotaCode, resourceType, resourceId, effectiveQuota);
-            }
-        }
+        // 额度（应用 / 供应商 / 消费者）：子表整组替换 + 删孤儿
+        saveQuotas(resourceType, resourceId, effectiveQuotas, resourceCode);
 
-        if (rateCode == null && quotaCode == null) {
+        // 聚合行：只要有限流或额度就保留。额度落在子表，但聚合行必须存在一行使 loadBatch 能命中该资源
+        boolean hasQuota = !effectiveQuotas.isEmpty();
+        if (rateCode == null && !hasQuota) {
             if (binding != null) {
                 bindingMapper.deleteById(binding.getId());
             }
             return;
         }
-
         if (binding == null) {
             ResourceTrafficPolicyEntity created = new ResourceTrafficPolicyEntity();
             created.setResourceType(resourceType);
-            created.setResourceCode(requireResourceCode(resourceType, resourceId));
+            created.setResourceCode(resourceCode);
             created.setRateLimitPolicyCode(rateCode);
-            created.setQuotaPolicyCode(quotaCode);
             bindingMapper.insert(created);
         } else {
             binding.setRateLimitPolicyCode(rateCode);
-            binding.setQuotaPolicyCode(quotaCode);
             bindingMapper.update(binding);
+        }
+    }
+
+    /**
+     * 写入某资源的额度策略组：按窗口 upsert policy 行 + 整组替换子表绑定 + 删孤儿 policy。
+     */
+    private void saveQuotas(String resourceType, Long resourceId, List<QuotaPolicy> quotas, String resourceCode) {
+        Set<String> newCodes = new HashSet<>();
+        for (QuotaPolicy q : quotas) {
+            String code = quotaPolicyCode(resourceType, resourceId, q.window());
+            newCodes.add(code);
+            upsertQuota(code, resourceType, resourceId, q);
+        }
+        quotaBindingMapper.deleteByResource(resourceType, resourceCode);
+        if (!newCodes.isEmpty()) {
+            List<ResourceQuotaBindingEntity> rows = new ArrayList<>(newCodes.size());
+            for (String code : newCodes) {
+                ResourceQuotaBindingEntity b = new ResourceQuotaBindingEntity();
+                b.setResourceType(resourceType);
+                b.setResourceCode(resourceCode);
+                b.setQuotaPolicyCode(code);
+                rows.add(b);
+            }
+            quotaBindingMapper.insertBatch(rows);
+        }
+        deleteOrphanQuotas(resourceType, resourceId, newCodes);
+    }
+
+    private void upsertQuota(String policyCode, String resourceType, Long resourceId, QuotaPolicy policy) {
+        QuotaPolicyEntity entity = quotaPolicyMapper.getByCode(policyCode);
+        if (entity == null) {
+            entity = new QuotaPolicyEntity();
+            entity.setPolicyCode(policyCode);
+            entity.setPolicyName(policyName(resourceType, resourceId, "额度") + " " + policy.window());
+            entity.setStatus(EnabledStatusEnum.ENABLED.code());
+        }
+        fillQuota(entity, policy);
+        if (entity.getId() == null) {
+            quotaPolicyMapper.insert(entity);
+        } else {
+            quotaPolicyMapper.update(entity);
+        }
+    }
+
+    /**
+     * 删孤儿额度策略：业务码前缀匹配本资源、却不在本次保留集合内的 policy 行一并清理。
+     */
+    private void deleteOrphanQuotas(String resourceType, Long resourceId, Set<String> keepCodes) {
+        String prefix = quotaPolicyCodePrefix(resourceType, resourceId);
+        List<QuotaPolicyEntity> existing = quotaPolicyMapper.listByCodePrefix(prefix);
+        for (QuotaPolicyEntity e : existing) {
+            if (!keepCodes.contains(e.getPolicyCode())) {
+                quotaPolicyMapper.deleteById(e.getId());
+            }
         }
     }
 
@@ -185,13 +259,6 @@ public class ResourceTrafficPolicySupport {
         RateLimitPolicyEntity entity = rateLimitPolicyMapper.getByCode(policyCode);
         if (entity != null) {
             rateLimitPolicyMapper.deleteById(entity.getId());
-        }
-    }
-
-    private void deleteQuotaByCode(String policyCode) {
-        QuotaPolicyEntity entity = quotaPolicyMapper.getByCode(policyCode);
-        if (entity != null) {
-            quotaPolicyMapper.deleteById(entity.getId());
         }
     }
 
@@ -215,26 +282,6 @@ public class ResourceTrafficPolicySupport {
         rateLimitPolicyMapper.update(entity);
     }
 
-    private String insertQuota(String resourceType, Long resourceId, QuotaPolicy policy) {
-        QuotaPolicyEntity entity = new QuotaPolicyEntity();
-        entity.setPolicyCode(policyCode(resourceType, resourceId, "QT"));
-        entity.setPolicyName(policyName(resourceType, resourceId, "额度"));
-        fillQuota(entity, policy);
-        entity.setStatus(EnabledStatusEnum.ENABLED.code());
-        quotaPolicyMapper.insert(entity);
-        return entity.getPolicyCode();
-    }
-
-    private void updateQuota(String policyCode, String resourceType, Long resourceId, QuotaPolicy policy) {
-        QuotaPolicyEntity entity = quotaPolicyMapper.getByCode(policyCode);
-        if (entity == null) {
-            insertQuota(resourceType, resourceId, policy);
-            return;
-        }
-        fillQuota(entity, policy);
-        quotaPolicyMapper.update(entity);
-    }
-
     private static void fillRateLimit(RateLimitPolicyEntity entity, RateLimitPolicy policy) {
         entity.setRpm(policy.rpm());
         entity.setTpm(policy.tpm());
@@ -248,7 +295,7 @@ public class ResourceTrafficPolicySupport {
     }
 
     /**
-     * Converts the source value to the target representation. Executes the public operation.
+     * 实体转模型。停用的额度策略视为无效，返回 null。
      */
     public static RateLimitPolicy toRateLimitModel(RateLimitPolicyEntity entity) {
         if (entity == null || !EnabledStatusEnum.isEnabled(entity.getStatus())) {
@@ -261,7 +308,7 @@ public class ResourceTrafficPolicySupport {
     }
 
     /**
-     * Converts the source value to the target representation. Executes the public operation.
+     * 实体转模型。停用的额度策略视为无效，返回 null。
      */
     public static QuotaPolicy toQuotaModel(QuotaPolicyEntity entity) {
         if (entity == null || !EnabledStatusEnum.isEnabled(entity.getStatus())) {
@@ -307,5 +354,13 @@ public class ResourceTrafficPolicySupport {
 
     private static String policyName(String resourceType, Long resourceId, String suffix) {
         return resourceType + " #" + resourceId + " " + suffix;
+    }
+
+    private static String quotaPolicyCode(String resourceType, Long resourceId, String window) {
+        return resourceType + "-" + resourceId + "-QT-" + window;
+    }
+
+    private static String quotaPolicyCodePrefix(String resourceType, Long resourceId) {
+        return resourceType + "-" + resourceId + "-QT-";
     }
 }

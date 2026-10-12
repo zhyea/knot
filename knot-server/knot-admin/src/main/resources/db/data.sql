@@ -481,16 +481,25 @@ INSERT IGNORE INTO kb_quota_policies (id, policy_code, policy_name, max_tokens, 
 (4, 'APP-1-QT',      'APP #1 额度',        5000000,   500.000000, 'USD', 'MONTH', 1),
 (5, 'APP-2-QT',      'APP #2 额度',         200000,    20.000000, 'USD', 'DAY',   1);
 
-INSERT IGNORE INTO kb_resource_traffic_policies (id, resource_type, resource_code, rate_limit_policy_code, quota_policy_code) VALUES
-(1, 'PROVIDER', 'openai-default', NULL, 'PROVIDER-1-QT'),
-(2, 'PROVIDER', 'anthropic-default', NULL, 'PROVIDER-2-QT'),
-(3, 'PROVIDER', 'deepseek-default', NULL, 'PROVIDER-3-QT'),
-(6, 'PROVIDER', 'qwen-default', NULL, 'PROVIDER-3-QT'),
-(4, 'APP', 'app_001', NULL, 'APP-1-QT'),
-(5, 'APP', 'app_002', NULL, 'APP-2-QT'),
-(7, 'MODEL', 'gpt-4o', 'MODEL-1-RL', NULL),
-(8, 'MODEL', 'claude-sonnet-4-20250514', 'MODEL-4-RL', NULL),
-(9, 'ROUTING_RULE', 'gpt4o-default', 'ROUTING_RULE-1-RL', NULL);
+INSERT IGNORE INTO kb_resource_traffic_policies (id, resource_type, resource_code, rate_limit_policy_code) VALUES
+(1, 'PROVIDER', 'openai-default', NULL),
+(2, 'PROVIDER', 'anthropic-default', NULL),
+(3, 'PROVIDER', 'deepseek-default', NULL),
+(6, 'PROVIDER', 'qwen-default', NULL),
+(4, 'APP', 'app_001', NULL),
+(5, 'APP', 'app_002', NULL),
+(7, 'MODEL', 'gpt-4o', 'MODEL-1-RL'),
+(8, 'MODEL', 'claude-sonnet-4-20250514', 'MODEL-4-RL'),
+(9, 'ROUTING_RULE', 'gpt4o-default', 'ROUTING_RULE-1-RL');
+
+-- 额度走子表：一个资源可挂多套不同统计窗口的额度策略（每窗口一份 token + 成本上限）
+INSERT IGNORE INTO kb_resource_quota_bindings (resource_type, resource_code, quota_policy_code) VALUES
+('PROVIDER', 'openai-default', 'PROVIDER-1-QT'),
+('PROVIDER', 'anthropic-default', 'PROVIDER-2-QT'),
+('PROVIDER', 'deepseek-default', 'PROVIDER-3-QT'),
+('PROVIDER', 'qwen-default', 'PROVIDER-3-QT'),
+('APP', 'app_001', 'APP-1-QT'),
+('APP', 'app_002', 'APP-2-QT');
 
 -- 供应商凭证（认证配置整体以 AES-GCM 密文保存；前缀 ENC:）
 -- 密文解密后必须是 JSON 对象形态（如 {"apiKey":"sk-..."}），与 ProviderCredentialSupport.saveAuthConfig

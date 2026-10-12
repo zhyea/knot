@@ -26,7 +26,7 @@ public interface AppConverter {
 
     @Mapping(source = "ownerRealName", target = "ownerName")
     @Mapping(target = "rateLimitPolicy", ignore = true)
-    @Mapping(target = "quotaPolicy", ignore = true)
+    @Mapping(target = "quotaPolicies", ignore = true)
     AppDto toDto(AppEntity entity);
 
 

@@ -17,6 +17,11 @@ public interface QuotaPolicyMapper {
 
     List<QuotaPolicyEntity> listByCodes(@Param("codes") List<String> codes);
 
+    /**
+     * 按业务码前缀回收孤儿策略（写路径删孤儿时定位某资源名下的全部额度策略）。
+     */
+    List<QuotaPolicyEntity> listByCodePrefix(@Param("prefix") String prefix);
+
     int insert(QuotaPolicyEntity entity);
 
     int update(QuotaPolicyEntity entity);

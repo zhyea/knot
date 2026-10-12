@@ -25,7 +25,7 @@
 
     <sql id="Columns">
         p.id, p.resource_type, p.resource_code, r.id AS resource_id,
-        p.rate_limit_policy_code, p.quota_policy_code
+        p.rate_limit_policy_code
     </sql>
 
     <select id="getByResource" resultType="org.chobit.knot.gateway.entity.ResourceTrafficPolicyEntity">
@@ -71,14 +71,13 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_resource_traffic_policies(resource_type, resource_code, rate_limit_policy_code, quota_policy_code)
-        values(#{resourceType}, #{resourceCode}, #{rateLimitPolicyCode}, #{quotaPolicyCode})
+        insert into kb_resource_traffic_policies(resource_type, resource_code, rate_limit_policy_code)
+        values(#{resourceType}, #{resourceCode}, #{rateLimitPolicyCode})
     </insert>
 
     <update id="update">
         update kb_resource_traffic_policies
-        set rate_limit_policy_code = #{rateLimitPolicyCode},
-            quota_policy_code = #{quotaPolicyCode}
+        set rate_limit_policy_code = #{rateLimitPolicyCode}
         where id = #{id}
     </update>
 

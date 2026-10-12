@@ -3,6 +3,8 @@ package org.chobit.knot.gateway.vo.app;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 
+import java.util.List;
+
 public record AppItem(
         Long id,
         String appCode,
@@ -14,6 +16,6 @@ public record AppItem(
         String ownerName,
         String remark,
         RateLimitPolicy rateLimitPolicy,
-        QuotaPolicy quotaPolicy
+        List<QuotaPolicy> quotaPolicies
 ) {
 }

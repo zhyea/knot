@@ -54,9 +54,9 @@ class ModelApiBindingSyncTest {
     private final ProviderAccountMapper providerAccountMapper = mock(ProviderAccountMapper.class);
     private final ModelConverter modelConverter = mock(ModelConverter.class);
     // 具体类在本机 JVM 上无法被 Mockito 内联插桩，用轻量测试子类替换（只覆写 update 用到的两个方法）
-    private static final ResourceTrafficPolicySupport trafficPolicySupport = new ResourceTrafficPolicySupport(null, null, null) {
+    private static final ResourceTrafficPolicySupport trafficPolicySupport = new ResourceTrafficPolicySupport(null, null, null, null) {
         @Override
-        public void save(String resourceType, Long resourceId, RateLimitPolicy rateLimit, QuotaPolicy quota) {
+        public void save(String resourceType, Long resourceId, RateLimitPolicy rateLimit, List<QuotaPolicy> quotas) {
         }
 
         @Override

@@ -197,7 +197,7 @@ public class ProviderService {
                 validateAuthApplier(request.authApplier(), credentialType),
                 resolveAuthConfigForSave(null, request.authConfig()));
         trafficPolicySupport.save(TrafficResourceTypeEnum.PROVIDER.code(), entity.getId(),
-                request.rateLimitPolicy(), request.quotaPolicy());
+                request.rateLimitPolicy(), request.quotaPolicies());
         return getById(entity.getId());
     }
 
@@ -222,7 +222,7 @@ public class ProviderService {
                 validateAuthApplier(request.authApplier(), credentialType),
                 resolveAuthConfigForSave(id, request.authConfig()));
         trafficPolicySupport.save(TrafficResourceTypeEnum.PROVIDER.code(), id,
-                request.rateLimitPolicy(), request.quotaPolicy());
+                request.rateLimitPolicy(), request.quotaPolicies());
         return getById(id);
     }
 
@@ -257,14 +257,14 @@ public class ProviderService {
             auth = credentialSupport.maskAuthConfig(auth);
         }
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
-        QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
+        List<QuotaPolicy> quotas = traffic != null ? traffic.quotaPolicies() : List.of();
         return new ProviderAccountDto(
                 base.id(), base.providerCode(), base.providerName(),
                 base.code(), base.type(), base.baseUrl(), base.enabled(),
                 base.createdAt(), base.updatedAt(),
                 credentialSupport.credentialType(credential),
                 credentialSupport.authApplier(credential),
-                auth, rate, quota
+                auth, rate, quotas
         );
     }
 

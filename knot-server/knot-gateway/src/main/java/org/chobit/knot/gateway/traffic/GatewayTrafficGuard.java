@@ -101,7 +101,6 @@ public class GatewayTrafficGuard {
             }
             TrafficPolicies policies = policySource.policiesOf(ref.type(), ref.id());
             RateLimitPolicy rateLimit = policies == null ? null : policies.rateLimitPolicy();
-            QuotaPolicy quota = policies == null ? null : policies.quotaPolicy();
             if (type.supportsRateLimit()) {
                 TrafficDecision decision = checkRateLimit(ref, rateLimit, nowMillis);
                 if (!decision.allowed()) {
@@ -109,9 +108,12 @@ public class GatewayTrafficGuard {
                 }
             }
             if (type.supportsQuota()) {
-                TrafficDecision decision = checkQuota(ref, quota, now);
-                if (!decision.allowed()) {
-                    return decision;
+                List<QuotaPolicy> quotas = policies == null ? List.of() : policies.quotaPolicies();
+                for (QuotaPolicy quota : quotas) {
+                    TrafficDecision decision = checkQuota(ref, quota, now);
+                    if (!decision.allowed()) {
+                        return decision;
+                    }
                 }
             }
         }
@@ -186,22 +188,20 @@ public class GatewayTrafficGuard {
         if (!type.supportsQuota()) {
             return;
         }
-        QuotaPolicy quota = policies.quotaPolicy();
-        if (quota == null) {
-            return;
-        }
-        QuotaWindowEnum window = QuotaWindowEnum.fromCode(quota.window());
-        if (quota.maxTokens() > 0L && usage.tokens() > 0L) {
-            TrafficCounterKey key = counterKeys.quota(ref.type(), ref.id(),
-                    QuotaDimension.TOKENS, window, null, now);
-            counterStore.addAndGet(key.key(), usage.tokens(), key.expireAtMillis());
-        }
-        if (QuotaDimension.COST.limitOf(quota) > 0L
-                && usage.hasCost()
-                && usage.currency().equalsIgnoreCase(quota.currency())) {
-            TrafficCounterKey key = counterKeys.quota(ref.type(), ref.id(),
-                    QuotaDimension.COST, window, quota.currency(), now);
-            counterStore.addAndGet(key.key(), QuotaDimension.toScaledAmount(usage.cost()), key.expireAtMillis());
+        for (QuotaPolicy quota : policies.quotaPolicies()) {
+            QuotaWindowEnum window = QuotaWindowEnum.fromCode(quota.window());
+            if (quota.maxTokens() > 0L && usage.tokens() > 0L) {
+                TrafficCounterKey key = counterKeys.quota(ref.type(), ref.id(),
+                        QuotaDimension.TOKENS, window, null, now);
+                counterStore.addAndGet(key.key(), usage.tokens(), key.expireAtMillis());
+            }
+            if (QuotaDimension.COST.limitOf(quota) > 0L
+                    && usage.hasCost()
+                    && usage.currency().equalsIgnoreCase(quota.currency())) {
+                TrafficCounterKey key = counterKeys.quota(ref.type(), ref.id(),
+                        QuotaDimension.COST, window, quota.currency(), now);
+                counterStore.addAndGet(key.key(), QuotaDimension.toScaledAmount(usage.cost()), key.expireAtMillis());
+            }
         }
     }
 

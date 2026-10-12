@@ -4,6 +4,7 @@ import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
 public record ProviderAccountDto(Long id, String providerCode, String providerName,
@@ -12,5 +13,5 @@ public record ProviderAccountDto(Long id, String providerCode, String providerNa
                                  String credentialType,
                                  String authApplier,
                                  Map<String, Object> authConfig,
-                                 RateLimitPolicy rateLimitPolicy, QuotaPolicy quotaPolicy) {
+                                 RateLimitPolicy rateLimitPolicy, List<QuotaPolicy> quotaPolicies) {
 }

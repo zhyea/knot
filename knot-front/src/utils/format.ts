@@ -177,18 +177,3 @@ export function roundPrice(value: unknown, decimals = UNIT_PRICE_PRECISION): num
   if (Number.isNaN(n)) return undefined;
   return Math.round(n * 10 ** decimals) / 10 ** decimals;
 }
-
-/**
- * Parse `rateLimitJson` and `quotaJson` into policy objects.
- */
-export function parsePolicies(form: {
-  rateLimitJson?: string;
-  quotaJson?: string;
-}): { rateLimitPolicy: unknown; quotaPolicy: unknown } {
-  const r = parseJson((form.rateLimitJson || "").trim(), undefined);
-  const q = parseJson((form.quotaJson || "").trim(), undefined);
-  return {
-    rateLimitPolicy: r === undefined ? null : r,
-    quotaPolicy: q === undefined ? null : q
-  };
-}

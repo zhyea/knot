@@ -246,7 +246,7 @@ public class ModelService {
                 TrafficResourceTypeEnum.MODEL.code(),
                 entity.getId(),
                 request.rateLimitPolicy(),
-                request.quotaPolicy()
+                request.quotaPolicies()
         );
         saveLogicalModelMapping(entity.getId(), request.logicalModelCode(), modelCode);
         saveApiBindings(entity.getId(), request.apiBindings(), modelType);
@@ -274,7 +274,7 @@ public class ModelService {
                 TrafficResourceTypeEnum.MODEL.code(),
                 id,
                 request.rateLimitPolicy(),
-                request.quotaPolicy()
+                request.quotaPolicies()
         );
         saveLogicalModelMapping(id, request.logicalModelCode(), modelCode);
         if (request.apiBindings() != null) {
@@ -305,7 +305,7 @@ public class ModelService {
                     existing.logicalModelCode(),
                     existing.billingRuleCode(),
                     existing.rateLimitPolicy(),
-                    existing.quotaPolicy(),
+                    existing.quotaPolicies(),
                     existing.apiBindings(),
                     existing.deleted()
             );
@@ -496,7 +496,7 @@ public class ModelService {
 
     private ModelDto enrich(ModelDto base, TrafficPolicies traffic, List<ModelApiBindingDto> apiBindings) {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
-        QuotaPolicy quota = traffic != null ? traffic.quotaPolicy() : null;
+        List<QuotaPolicy> quotas = traffic != null ? traffic.quotaPolicies() : List.of();
         return new ModelDto(
                 base.id(),
                 base.modelCode(),
@@ -512,7 +512,7 @@ public class ModelService {
                 base.logicalModelCode(),
                 base.billingRuleCode(),
                 rate,
-                quota,
+                quotas,
                 apiBindings == null ? listApiBindings(base.id()) : apiBindings,
                 base.deleted()
         );

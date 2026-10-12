@@ -103,8 +103,8 @@
           class="slot-body"
           mode="quota"
           title="限额配置"
-          description="按统计窗口约束该供应商账户可消耗的 Token 总量与成本上限。"
-          v-model:quota="form.quotaPolicy"
+          description="按统计窗口约束该供应商账户可消耗的 Token 总量与成本上限，可叠加多个不同窗口。"
+          v-model:quotas="form.quotaPolicies"
         />
       </el-form>
     </el-scrollbar>
@@ -122,9 +122,11 @@ import {ElMessage} from "element-plus";
 import KvEditor from "../common/KvEditor.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import {
-  emptyQuotaPolicy,
+  emptyQuotaPolicies,
   isEmptyQuotaPolicy,
-  normalizeQuotaPolicy
+  normalizeQuotaPolicy,
+  normalizeQuotaPolicies,
+  type QuotaPolicy
 } from "@/utils/trafficPolicy";
 import {useAuth} from "@/composables/useAuth";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
@@ -179,7 +181,7 @@ const form = reactive<Dict>({
   credentialType: null,
   authApplier: null,
   authConfig: {},
-  quotaPolicy: emptyQuotaPolicy()
+  quotaPolicies: emptyQuotaPolicies()
 });
 
 const isEdit = computed(() => props.providerId != null);
@@ -290,7 +292,7 @@ function fillFormFromRow(row: Row) {
   form.authConfig = normalizeAuthConfig(row.authConfig);
   // 初次加载：把存量 authConfig 里不属于当前类型的键拆到自定义编辑器，一次性完成
   syncCredentialParts();
-  form.quotaPolicy = normalizeQuotaPolicy(row.quotaPolicy);
+  form.quotaPolicies = normalizeQuotaPolicies(row.quotaPolicies);
   if (form.code) {
     codeValidated.value = true;
   }
@@ -306,7 +308,7 @@ function clearForm() {
   form.authApplier = null;
   form.authConfig = defaultAuthConfig();
   syncCredentialParts();
-  form.quotaPolicy = emptyQuotaPolicy();
+  form.quotaPolicies = emptyQuotaPolicies();
 }
 
 async function resetForm() {
@@ -414,7 +416,9 @@ function buildPayload(): Dict {
     credentialType: form.credentialType,
     authApplier: form.authApplier,
     authConfig: Object.keys(authConfig).length ? authConfig : null,
-    quotaPolicy: isEmptyQuotaPolicy(form.quotaPolicy) ? null : normalizeQuotaPolicy(form.quotaPolicy)
+    quotaPolicies: (form.quotaPolicies as QuotaPolicy[])
+      .map(normalizeQuotaPolicy)
+      .filter((q: QuotaPolicy) => !isEmptyQuotaPolicy(q))
   };
 }
 

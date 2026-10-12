@@ -22,7 +22,7 @@ export function buildRoutingRulePayload(row: Dict, enabled: boolean): Dict {
       primary: !!m.primary
     })),
     rateLimitPolicy: row.rateLimitPolicy ?? null,
-    quotaPolicy: row.quotaPolicy ?? null,
+    quotaPolicies: Array.isArray(row.quotaPolicies) ? row.quotaPolicies : [],
     retryPolicy: normalizeRetryPolicy(row.retryPolicy)
   };
 }
