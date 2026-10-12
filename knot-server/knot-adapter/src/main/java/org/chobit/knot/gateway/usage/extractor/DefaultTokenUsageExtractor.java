@@ -15,7 +15,7 @@ import java.util.Set;
 @Order(0)
 public class DefaultTokenUsageExtractor implements UsageExtractor<TokenBillingUsage> {
 
-    public static final String CODE = "DEFAULT";
+    public static final String CODE = "DEFAULT-TOKEN";
     private final SimpleBillingModeCalculator calculator;
 
     public DefaultTokenUsageExtractor(SimpleBillingModeCalculator calculator) {
