@@ -202,3 +202,14 @@ sort:  load 升序  →  weight 降序  →  tieBreaker(id) 升序
 - `ProxyStreamingBody` 构造注入 `Runnable onComplete`，两 pump 的 `finally` 调 `leave`（流式覆盖到写完）。
 - 集成测试：高在途模型落选、空闲模型选中；流式结束才 leave（无泄漏）。
 - 真启 jar 冒烟：回声上游 + 并发压一模型 → 验证请求流向空闲模型；冒烟后清理零残留。
+
+> **落地状态（2026-10-12 一次性排期全部批次，已实施完成，待 robin 批准 commit）**
+> | 批次 | 范围 | 门禁结论 |
+> |---|---|---|
+> | 1 | load 包 + 枚举 | mvn test BUILD SUCCESS（CaffeineModelLoadStoreTest 6 例 PASS）；零行为变更 |
+> | 2 | 池内策略分支 | mvn test BUILD SUCCESS（ModelPoolSelectionTest 7 例 PASS） |
+> | 3 | 规则级列 + 字段 + 前端 | mvn test BUILD SUCCESS；vue-tsc EXIT=0；vite build EXIT=0；迁移探针两轮幂等通过；冒烟 S1-S5 PASS |
+> | 4 | 在途计数生命周期 | mvn test BUILD SUCCESS（ProxyStreamingBodyTest 4 例 PASS）；真启 jar 冒烟全绿；零残留 |
+> - 存储开关：`knot.load.store`（caffeine 默认 / redis 集群）；集群部署日志提示切 redis。
+> - 与同日粘性路由 v2 组合语义：粘性置顶优先、其余按 LEAST_LOAD。
+> - 源码零 commit，待显式批准。
