@@ -15,10 +15,12 @@ public interface ModelPoolConverter {
 
     @Mapping(source = "status", target = "enabled", qualifiedByName = "statusToEnabled")
     @Mapping(source = "isDeleted", target = "deleted", qualifiedByName = "deletedFlag")
+    @Mapping(source = "stickyPolicy", target = "stickyPolicy", qualifiedByName = "jsonToSticky")
     @Mapping(target = "items", ignore = true)
     ModelPoolDto toDto(ModelPoolEntity entity);
 
     @Mapping(source = "enabled", target = "status", qualifiedByName = "enabledToStatus")
+    @Mapping(source = "stickyPolicy", target = "stickyPolicy", qualifiedByName = "stickyToJson")
     // logicalModelName / modelType 派生自绑定统一模型，不允许从请求写回；deleted 只能通过恢复接口翻转
     @Mapping(target = "logicalModelName", ignore = true)
     @Mapping(target = "modelType", ignore = true)

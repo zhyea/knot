@@ -65,6 +65,25 @@
             </el-form-item>
           </el-col>
           <el-col :span="24">
+            <el-form-item label="粘性路由">
+              <div class="sticky-row">
+                <el-switch v-model="form.stickyPolicy.enabled" />
+                <el-input
+                  v-model="form.stickyPolicy.headerName"
+                  :disabled="!form.stickyPolicy.enabled"
+                  maxlength="128"
+                  show-word-limit
+                  placeholder="粘性键请求头"
+                  class="sticky-header-input"
+                />
+                <span class="sticky-hint">
+                  开启后，携带同一粘性键的请求会稳定落到池内同一个模型，用于命中上游 prompt cache；
+                  未传该请求头时仍按选择策略分配。
+                </span>
+              </div>
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
             <el-form-item label="备注">
               <el-input v-model="form.remark" type="textarea" :rows="2" maxlength="255" show-word-limit />
             </el-form-item>
@@ -155,6 +174,7 @@ import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import {checkModelPoolCode, createModelPool, updateModelPool} from "@/api/modelPools";
 import {listLogicalModelOptions, listModelOptions} from "@/api/options";
+import {defaultStickyPolicy, normalizeStickyPolicy, type StickyPolicy} from "@/utils/stickyPolicy";
 import {resolveSelectedOption, toOptionsLoader} from "@/utils/options";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 
@@ -193,6 +213,7 @@ interface PoolFormState {
   logicalModelName?: string;
   modelType?: string;
   selectionStrategy: string;
+  stickyPolicy: StickyPolicy;
   enabled: boolean;
   remark: string;
   items: PoolItemForm[];
@@ -204,6 +225,7 @@ const form = reactive<PoolFormState>({
   name: "",
   logicalModelCode: null,
   selectionStrategy: "WEIGHTED",
+  stickyPolicy: defaultStickyPolicy(),
   enabled: false,
   remark: "",
   items: []
@@ -245,6 +267,7 @@ function resetForm() {
   form.logicalModelName = row?.logicalModelName;
   form.modelType = row?.modelType;
   form.selectionStrategy = row?.selectionStrategy || "WEIGHTED";
+  form.stickyPolicy = normalizeStickyPolicy(row?.stickyPolicy);
   form.enabled = row?.enabled === true;
   form.remark = row?.remark || "";
   form.items = (row?.items || []).map((item: Row) => ({
@@ -337,6 +360,7 @@ function buildPayload() {
     name: form.name?.trim(),
     logicalModelCode: form.logicalModelCode,
     selectionStrategy: form.selectionStrategy,
+    stickyPolicy: normalizeStickyPolicy(form.stickyPolicy),
     enabled: form.enabled,
     remark: form.remark?.trim() || null,
     items: form.items.map((item) => ({
@@ -458,6 +482,24 @@ async function submit() {
 .model-pool-items-table :deep(.cell) {
   padding-left: 12px;
   padding-right: 12px;
+}
+
+.sticky-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.sticky-header-input {
+  width: 260px;
+}
+
+.sticky-hint {
+  flex: 1 1 320px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .table-number-input {

@@ -328,6 +328,7 @@ CREATE TABLE IF NOT EXISTS kb_model_pools (
   name VARCHAR(100) NOT NULL,
   logical_model_code VARCHAR(128) NOT NULL COMMENT '统一模型 code（kb_logical_models.model_code），池内模型必须全部归属该统一模型',
   selection_strategy VARCHAR(32) NOT NULL DEFAULT 'WEIGHTED',
+  sticky_policy TEXT DEFAULT NULL COMMENT '池内粘性路由策略（JSON）；空表示未启用，池选择走 selection_strategy',
   status TINYINT NOT NULL DEFAULT 0 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   is_deleted TINYINT(1) NOT NULL DEFAULT 0,
   remark VARCHAR(255) DEFAULT NULL,
@@ -507,6 +508,7 @@ CREATE TABLE IF NOT EXISTS kb_routing_rules (
   username VARCHAR(64) DEFAULT NULL COMMENT '归属用户登录名（绑定 username，非主键 id）',
   logical_model_code VARCHAR(128) DEFAULT NULL COMMENT '统一模型 code（kb_logical_models.model_code），非必填；选中后路由目标选择器将该统一模型对应的供应商模型/模型池优先置前（仅排序，不过滤）',
   retry_policy TEXT DEFAULT NULL COMMENT '失败重试策略（JSON）；空表示走内置默认策略',
+  selection_strategy VARCHAR(32) NOT NULL DEFAULT 'PRIORITY' COMMENT '路由目标选择策略（ModelPoolSelectionStrategyEnum）：PRIORITY-按优先级/主目标固定序；LEAST_LOAD-按目标在途并发动态重排（最空闲优先，主目标仍钉首）',
   status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
 
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

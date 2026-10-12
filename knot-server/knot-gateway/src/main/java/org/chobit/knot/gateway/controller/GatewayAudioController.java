@@ -28,8 +28,9 @@ public class GatewayAudioController extends GatewayControllerSupport {
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
             @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
             @RequestBody AudioTranscriptionRequest requestBody) {
-        return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS);
+        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS);
     }
 
     /**
@@ -40,8 +41,9 @@ public class GatewayAudioController extends GatewayControllerSupport {
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
             @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
             @RequestBody AudioTranslationRequest requestBody) {
-        return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.AUDIO_TRANSLATIONS);
+        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.AUDIO_TRANSLATIONS);
     }
 
     /**
@@ -52,7 +54,8 @@ public class GatewayAudioController extends GatewayControllerSupport {
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
             @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
             @RequestBody AudioSpeechRequest requestBody) {
-        return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.AUDIO_SPEECH);
+        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.AUDIO_SPEECH);
     }
 }

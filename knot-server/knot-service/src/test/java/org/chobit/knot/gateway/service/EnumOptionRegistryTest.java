@@ -88,8 +88,9 @@ class EnumOptionRegistryTest {
         assertLabel("QuotaWindowEnum", "MONTH", "每月");
         assertLabel("QuotaWindowEnum", "MINUTE", "每分钟");
 
-        assertEquals(3, optionsOf("ModelPoolSelectionStrategyEnum").size());
+        assertEquals(4, optionsOf("ModelPoolSelectionStrategyEnum").size());
         assertLabel("ModelPoolSelectionStrategyEnum", "RANDOM", "随机");
+        assertLabel("ModelPoolSelectionStrategyEnum", "LEAST_LOAD", "最少负载");
 
         assertEquals(3, optionsOf("LogicalModelVisibilityEnum").size());
         assertLabel("LogicalModelVisibilityEnum", "PUBLIC", "公开");

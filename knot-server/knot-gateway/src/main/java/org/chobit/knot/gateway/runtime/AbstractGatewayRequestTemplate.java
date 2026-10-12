@@ -38,9 +38,11 @@ public abstract class AbstractGatewayRequestTemplate {
     public final Object handle(String authorization,
                                String ruleCode,
                                String traceparent,
+                               String stickyKey,
                                GatewayModelRequest request,
                                ModelApiProtocolEnum protocol) {
-        return handleMap(authorization, ruleCode, traceparent, JsonKit.toMap(request), protocol, MediaType.APPLICATION_JSON);
+        return handleMap(authorization, ruleCode, traceparent, stickyKey,
+                JsonKit.toMap(request), protocol, MediaType.APPLICATION_JSON);
     }
 
     /**
@@ -49,21 +51,25 @@ public abstract class AbstractGatewayRequestTemplate {
     public final Object handleMultipart(String authorization,
                                         String ruleCode,
                                         String traceparent,
+                                        String stickyKey,
                                         Map<String, Object> requestBody,
                                         ModelApiProtocolEnum protocol) {
-        return handleMap(authorization, ruleCode, traceparent, requestBody, protocol, MediaType.MULTIPART_FORM_DATA);
+        return handleMap(authorization, ruleCode, traceparent, stickyKey,
+                requestBody, protocol, MediaType.MULTIPART_FORM_DATA);
     }
 
     private Object handleMap(String authorization,
                              String ruleCode,
                              String traceparent,
+                             String stickyKey,
                              Map<String, Object> requestBody,
                              ModelApiProtocolEnum protocol,
                              MediaType contentType) {
         // Build request context once so later stages can reuse resolved metadata.
         String apiKey = validateRequestHeaders(authorization, ruleCode);
         GatewayTraceContext traceContext = GatewayTraceContext.currentOrCreate(traceparent);
-        GatewayRequestContext context = new GatewayRequestContext(authorization, apiKey, ruleCode, traceContext, protocol);
+        GatewayRequestContext context = new GatewayRequestContext(
+                authorization, apiKey, ruleCode, traceContext, protocol, stickyKey);
         GatewayExchange exchange = new GatewayExchange(requestBody, contentType);
         try {
             ResolvedRouting routingInfo = resolveRouting(context);

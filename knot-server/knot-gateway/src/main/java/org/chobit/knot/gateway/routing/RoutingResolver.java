@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.routing;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.gateway.constants.enums.ModelPoolSelectionStrategyEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.constants.enums.RouteTargetTypeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
@@ -15,8 +16,11 @@ import org.chobit.knot.gateway.entity.RoutingRuleEntity;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
+import org.chobit.knot.gateway.load.ModelLoadKeys;
+import org.chobit.knot.gateway.load.ModelLoadStore;
 import org.chobit.knot.gateway.model.GatewayRoutingInfo;
 import org.chobit.knot.gateway.model.ResolvedRouting;
+import org.chobit.knot.gateway.model.StickyPolicy;
 import org.chobit.knot.gateway.model.RetryPolicy;
 import org.chobit.knot.gateway.service.GatewayDataService;
 import org.chobit.knot.gateway.util.tools.RoutingSecretKeyGenerator;
@@ -26,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Stream;
 
 /**
  * 根据消费者 API Key 和路由规则编码解析本次网关请求的路由信息。
@@ -36,11 +41,16 @@ public class RoutingResolver {
 
     private final GatewayDataService dataService;
     private final ModelPoolSelection modelPoolSelection;
+    private final ModelLoadStore modelLoadStore;
+    private final ModelLoadKeys modelLoadKeys;
+    private final StickyRouting stickyRouting;
 
     /**
      * Resolves the requested value from current context and configuration. Executes the public operation.
+     *
+     * @param stickyKey 粘性路由键（请求头原值，未传为 null）；仅当目标模型池开启粘性路由时参与池内首选的选择
      */
-    public ResolvedRouting resolveByRule(String secretKey, String ruleCode) {
+    public ResolvedRouting resolveByRule(String secretKey, String ruleCode, String stickyKey) {
         if (!RoutingSecretKeyGenerator.isRoutingSecretKey(secretKey)) {
             throw new GatewayAuthException("Invalid consumer API key");
         }
@@ -65,7 +75,8 @@ public class RoutingResolver {
         if (!EnabledStatusEnum.isEnabled(app.getStatus())) {
             throw new GatewayAuthException("Bound app is disabled");
         }
-        List<RoutingRuleTargetDto> candidates = resolveCandidateModels(rule.getRuleCode());
+        List<RoutingRuleTargetDto> candidates =
+                resolveCandidateModels(rule.getRuleCode(), stickyKey, rule.getSelectionStrategy());
         if (candidates.isEmpty()) {
             throw new GatewayUpstreamException(
                     "No enabled routing target is available",
@@ -108,19 +119,26 @@ public class RoutingResolver {
         );
     }
 
-    private List<RoutingRuleTargetDto> resolveCandidateModels(String ruleCode) {
-        List<RoutingRuleTargetDto> orderedTargets = orderTargets(ruleCode);
+    private List<RoutingRuleTargetDto> resolveCandidateModels(String ruleCode, String stickyKey, String strategyCode) {
+        List<RoutingRuleTargetDto> orderedTargets = orderTargets(ruleCode, strategyCode);
         if (orderedTargets.isEmpty()) {
             return List.of();
         }
         List<RoutingRuleTargetDto> candidates = new ArrayList<>();
         for (RoutingRuleTargetDto target : orderedTargets) {
-            candidates.addAll(resolveTargetCandidates(target));
+            candidates.addAll(resolveTargetCandidates(target, stickyKey));
         }
         return candidates;
     }
 
-    private List<RoutingRuleTargetDto> orderTargets(String ruleCode) {
+    /**
+     * 规则目标的选中顺序：主目标恒钉首位，其余按规则策略排序。
+     *
+     * <p>{@code PRIORITY}（默认）：按 priority 降序，与存量行为一致。
+     * {@code LEAST_LOAD}：按目标<b>在途并发</b>升序（最空闲优先），在途相同再回落到 priority 序——
+     * 主目标不参与负载重排，保留「主目标」运维契约（见 §7 子决策 1）。</p>
+     */
+    private List<RoutingRuleTargetDto> orderTargets(String ruleCode, String strategyCode) {
         List<RoutingRuleTargetDto> targets = listTargets(ruleCode);
         if (targets.isEmpty()) {
             return List.of();
@@ -130,17 +148,43 @@ public class RoutingResolver {
                 .findFirst()
                 .orElse(targets.get(0));
 
+        // 排序键用存储主键 targetCode（NOT NULL）；targetId 是 left join 派生的可空值，
+        // 用它做 natural ordering 会在目标被删/JOIN 未命中时抛 NPE
+        Comparator<RoutingRuleTargetDto> byConfiguredOrder =
+                Comparator.comparingInt(RoutingRuleTargetDto::priority).reversed()
+                        .thenComparing(RoutingRuleTargetDto::targetCode)
+                        .thenComparing(RoutingRuleTargetDto::targetType);
+
         List<RoutingRuleTargetDto> ordered = new ArrayList<>();
         ordered.add(first);
-        targets.stream()
-                .filter(target -> !sameTarget(target, first))
-                // 排序键用存储主键 targetCode（NOT NULL）；targetId 是 left join 派生的可空值，
-                // 用它做 natural ordering 会在目标被删/JOIN 未命中时抛 NPE
-                .sorted(Comparator.comparingInt(RoutingRuleTargetDto::priority).reversed()
-                        .thenComparing(RoutingRuleTargetDto::targetCode)
-                        .thenComparing(RoutingRuleTargetDto::targetType))
-                .forEach(ordered::add);
+        Stream<RoutingRuleTargetDto> rest = targets.stream()
+                .filter(target -> !sameTarget(target, first));
+        if (ModelPoolSelectionStrategyEnum.LEAST_LOAD == ModelPoolSelectionStrategyEnum.fromCode(strategyCode)) {
+            rest = rest.sorted(Comparator.comparingLong(this::targetLoad).thenComparing(byConfiguredOrder));
+        } else {
+            rest = rest.sorted(byConfiguredOrder);
+        }
+        rest.forEach(ordered::add);
         return ordered;
+    }
+
+    /**
+     * 单个规则目标的在途并发：模型目标取自身；模型池目标取池内启用条目之和（整池压力）。
+     */
+    private long targetLoad(RoutingRuleTargetDto target) {
+        if (RouteTargetTypeEnum.MODEL.code().equals(target.targetType())) {
+            return modelLoadStore.inflight(modelLoadKeys.model(target.targetCode()));
+        }
+        if (!RouteTargetTypeEnum.MODEL_POOL.code().equals(target.targetType())) {
+            return 0L;
+        }
+        long sum = 0L;
+        for (ModelPoolItemEntity item : dataService.listModelPoolItemsByPoolCode(target.targetCode())) {
+            if (EnabledStatusEnum.isEnabled(item.getStatus())) {
+                sum += modelLoadStore.inflight(modelLoadKeys.model(item.getModelCode()));
+            }
+        }
+        return sum;
     }
 
     /**
@@ -172,7 +216,7 @@ public class RoutingResolver {
                 .toList();
     }
 
-    private List<RoutingRuleTargetDto> resolveTargetCandidates(RoutingRuleTargetDto target) {
+    private List<RoutingRuleTargetDto> resolveTargetCandidates(RoutingRuleTargetDto target, String stickyKey) {
         if (RouteTargetTypeEnum.MODEL.code().equals(target.targetType())) {
             // 按存储主键 targetCode 取模型：targetId 是 left join 派生的可空值（目标被删即失效）
             ModelEntity model = dataService.getModelByCode(target.targetCode());
@@ -198,10 +242,12 @@ public class RoutingResolver {
         if (pool == null || !EnabledStatusEnum.isEnabled(pool.getStatus())) {
             return List.of();
         }
-        return resolvePoolCandidates(pool, target);
+        return resolvePoolCandidates(pool, target, stickyKey);
     }
 
-    private List<RoutingRuleTargetDto> resolvePoolCandidates(ModelPoolEntity pool, RoutingRuleTargetDto target) {
+    private List<RoutingRuleTargetDto> resolvePoolCandidates(ModelPoolEntity pool,
+                                                             RoutingRuleTargetDto target,
+                                                             String stickyKey) {
         // 池条目只存 model_code，模型实体（含主键 id，下游取凭据/协议绑定用）按 code 从缓存解析
         List<PoolItemCandidate> available = dataService.listModelPoolItemsByPoolCode(pool.getPoolCode()).stream()
                 .filter(item -> EnabledStatusEnum.isEnabled(item.getStatus()))
@@ -215,9 +261,12 @@ public class RoutingResolver {
                 pool.getSelectionStrategy(),
                 candidate -> poolItemPriority(candidate.item()),
                 candidate -> poolItemWeight(candidate.item()),
-                candidate -> candidate.item().getId() != null ? candidate.item().getId() : 0L
+                candidate -> candidate.item().getId() != null ? candidate.item().getId() : 0L,
+                candidate -> modelLoadStore.inflight(modelLoadKeys.model(candidate.item().getModelCode()))
         );
-        return ordered.stream()
+        // 池内粘性：把一致性 hash 命中的候选置顶为首选，其余保持池策略原序作 failover 链
+        List<PoolItemCandidate> stickyOrdered = applySticky(ordered, pool.getStickyPolicy(), stickyKey);
+        return stickyOrdered.stream()
                 .map(candidate -> new RoutingRuleTargetDto(
                         RouteTargetTypeEnum.MODEL.code(),
                         candidate.model().getId(),
@@ -241,5 +290,45 @@ public class RoutingResolver {
 
     private int poolItemWeight(ModelPoolItemEntity item) {
         return item.getWeight() != null ? item.getWeight() : 100;
+    }
+
+    /**
+     * 按池级粘性策略把一致性 hash 命中的候选置顶为首选。
+     *
+     * <p>只改首选，不改 failover 链：其余候选仍按 {@code selection_strategy} 的原顺序排列，
+     * 因此首选被频控拒绝或上游失败时照常顺延，请求不会因粘性而失败。</p>
+     *
+     * <p>策略关闭、粘性键为空、候选不足两个时原样返回——粘性是显式 opt-in 的能力。</p>
+     */
+    private List<PoolItemCandidate> applySticky(List<PoolItemCandidate> ordered,
+                                                String stickyPolicyJson,
+                                                String stickyKey) {
+        if (ordered == null || ordered.size() < 2) {
+            return ordered;
+        }
+        List<String> codes = ordered.stream()
+                .map(candidate -> candidate.item().getModelCode())
+                .toList();
+        String preferred = stickyRouting.preferred(codes, StickyPolicy.parse(stickyPolicyJson), stickyKey);
+        return preferred == null ? ordered : moveToFront(ordered, preferred);
+    }
+
+    /**
+     * 把指定编码的候选移到首位（已在首位或不存在时原样返回）。
+     */
+    private static List<PoolItemCandidate> moveToFront(List<PoolItemCandidate> ordered, String preferredCode) {
+        int index = -1;
+        for (int i = 0; i < ordered.size(); i++) {
+            if (preferredCode.equals(ordered.get(i).item().getModelCode())) {
+                index = i;
+                break;
+            }
+        }
+        if (index <= 0) {
+            return ordered;
+        }
+        List<PoolItemCandidate> result = new ArrayList<>(ordered);
+        result.add(0, result.remove(index));
+        return List.copyOf(result);
     }
 }

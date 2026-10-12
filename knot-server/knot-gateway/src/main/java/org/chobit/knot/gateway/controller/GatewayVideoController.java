@@ -26,7 +26,8 @@ public class GatewayVideoController extends GatewayControllerSupport {
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
             @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
             @RequestBody VideoGenerationRequest requestBody) {
-        return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.VIDEO_GENERATIONS);
+        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.VIDEO_GENERATIONS);
     }
 }

@@ -8,12 +8,14 @@ import java.util.Arrays;
 /**
  * 模型池选择策略：已从 ks_enum_configs（model_pool_selection_strategy 字典）迁出，
  * 通过 /api/common/enums 以 ModelPoolSelectionStrategyEnum 键下发前端。
- * 三种策略在模型池选模处均有实际分支，见 ModelPoolSelection。
+ * 四种策略在模型池选模处均有实际分支，见 ModelPoolSelection；
+ * {@code LEAST_LOAD} 由模型在途并发（ModelLoadStore）驱动，路由规则目标级亦复用本枚举。
  */
 public enum ModelPoolSelectionStrategyEnum implements EnumOption {
     WEIGHTED("WEIGHTED", "权重"),
     PRIORITY("PRIORITY", "优先级"),
-    RANDOM("RANDOM", "随机");
+    RANDOM("RANDOM", "随机"),
+    LEAST_LOAD("LEAST_LOAD", "最少负载");
 
     private final String code;
     private final String label;

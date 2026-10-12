@@ -4,7 +4,8 @@
 
     <!-- 模型池按统一模型绑定：model_type / logical_model_name 均派生自 kb_logical_models -->
     <sql id="PoolSelectColumns">
-        mp.id, mp.pool_code, mp.name, mp.logical_model_code, mp.selection_strategy, mp.status, mp.remark,
+        mp.id, mp.pool_code, mp.name, mp.logical_model_code, mp.selection_strategy, mp.sticky_policy, mp.status,
+        mp.remark,
         mp.is_deleted,
         lm.model_name AS logical_model_name,
         lm.model_type AS model_type
@@ -73,8 +74,9 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_model_pools(pool_code, name, logical_model_code, selection_strategy, status, remark)
-        values(#{poolCode}, #{name}, #{logicalModelCode}, #{selectionStrategy}, #{status}, #{remark})
+        insert into kb_model_pools(pool_code, name, logical_model_code, selection_strategy, sticky_policy, status,
+                                   remark)
+        values(#{poolCode}, #{name}, #{logicalModelCode}, #{selectionStrategy}, #{stickyPolicy}, #{status}, #{remark})
     </insert>
 
     <update id="update">
@@ -83,6 +85,7 @@
             name = #{name},
             logical_model_code = #{logicalModelCode},
             selection_strategy = #{selectionStrategy},
+            sticky_policy = #{stickyPolicy},
             status = #{status},
             remark = #{remark}
         where id = #{id}

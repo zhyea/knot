@@ -14,6 +14,8 @@ public class ModelPoolEntity {
     /** 派生字段：取自绑定统一模型的 model_type，不落 kb_model_pools */
     private String modelType;
     private String selectionStrategy;
+    /** 池内粘性路由策略（JSON）；空表示未启用，池选择走 selection_strategy */
+    private String stickyPolicy;
     /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
     private Integer status;
     private Integer isDeleted;

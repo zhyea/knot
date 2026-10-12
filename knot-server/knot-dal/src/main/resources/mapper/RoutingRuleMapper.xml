@@ -8,7 +8,7 @@
         ur.real_name AS user_real_name,
         r.logical_model_code,
         COALESCE(NULLIF(lm.display_name, ''), lm.model_name) AS logical_model_name,
-        r.retry_policy, r.status,
+        r.retry_policy, r.selection_strategy, r.status,
         r.created_at, r.updated_at
     </sql>
 
@@ -79,9 +79,9 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into kb_routing_rules(rule_code, name, app_scenario, app_code,
-                                     username, logical_model_code, retry_policy, status)
+                                     username, logical_model_code, retry_policy, selection_strategy, status)
         values(#{ruleCode}, #{name}, #{appScenario}, #{appCode},
-               #{username}, #{logicalModelCode}, #{retryPolicy}, #{status})
+               #{username}, #{logicalModelCode}, #{retryPolicy}, #{selectionStrategy}, #{status})
     </insert>
 
     <update id="update">
@@ -93,6 +93,7 @@
             username = #{username},
             logical_model_code = #{logicalModelCode},
             retry_policy = #{retryPolicy},
+            selection_strategy = #{selectionStrategy},
             status = #{status}
         where id = #{id}
     </update>

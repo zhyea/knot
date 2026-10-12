@@ -37,15 +37,23 @@ public class ProxyStreamingBody implements StreamingResponseBody {
     private final UsageExtractorRegistry usageExtractorRegistry;
     private final boolean appendUsage;
     private final int bufferSize;
+    /**
+     * 流结束（正常写完或中途抛错/客户端断连）时执行的收尾回调。
+     * 用于释放本次请求的模型在途计数——流式请求在首字节后请求线程就已返回，
+     * 在途必须覆盖到流写完，否则长流式响应会被当成「已空闲」而吸走超额流量。
+     */
+    private final Runnable onComplete;
 
     public ProxyStreamingBody(UpstreamStreamResponse stream,
                               UsageExtractorRegistry usageExtractorRegistry,
                               boolean appendUsage,
-                              int bufferSize) {
+                              int bufferSize,
+                              Runnable onComplete) {
         this.stream = stream;
         this.usageExtractorRegistry = usageExtractorRegistry;
         this.appendUsage = appendUsage;
         this.bufferSize = bufferSize > 0 ? bufferSize : 8192;
+        this.onComplete = onComplete;
     }
 
     @Override
@@ -55,6 +63,10 @@ public class ProxyStreamingBody implements StreamingResponseBody {
                 pumpEventStream(outputStream);
             } else {
                 pumpRaw(outputStream);
+            }
+        } finally {
+            if (onComplete != null) {
+                onComplete.run();
             }
         }
     }

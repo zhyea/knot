@@ -160,18 +160,45 @@ sort:  load 升序  →  weight 降序  →  tieBreaker(id) 升序
 - **gauge 泄漏**：靠 TTL + Caffeine 逐键过期兜底，最坏残留一个 TTL。
 - **容量单位**：v1 用模型级在途；同账户多模型共拥塞的账户级计量留 v1.1。
 
-## 7. 决策状态（robin 已拍板 4 项，2026-10-12）
+## 7. 决策状态（robin 已拍板 + 子决策确认默认值，2026-10-12）
 
-| # | 项 | 拍板 |
+**4 项主决策**（拍板）与 **4 项子决策**（确认用默认值）均已锁定，设计完成，可进入落地。
+
+| # | 项 | 决策 |
 |---|---|---|
 | 1 | 负载信号口径 | **在途并发**（新建 `ModelLoadStore` gauge）；RPM/TPM 平滑留 v1.1 |
 | 2 | 作用范围 | **两层都做**：模型池内 + 路由规则目标级 |
 | 3 | 存储开关 | **独立 `knot.load.store`**（caffeine 默认 / redis 多节点），对齐粘性范式 |
 | 4 | 与粘性 v2 组合 | **粘性置顶优先，其余按 LEAST_LOAD** |
 
-### 7.1 仍未锁定的子决策（建议默认值，待 robin 一句话确认）
+| # | 子决策 | 确认值（默认） |
+|---|---|---|
+| 1 | 规则级 `is_primary` 是否始终钉首 | **是**（保留主目标契约，不随负载漂移） |
+| 2 | `MODEL_POOL` 目标负载取值 | **sum（池内启用条目在途之和）** |
+| 3 | 规则级策略枚举 | **复用池级 `ModelPoolSelectionStrategyEnum`** |
+| 4 | caffeine 单节点集群告警 | 启动日志明示「单节点近似、多节点请切 redis」 |
 
-1. **规则级 `is_primary` 是否始终钉首**：默认**是**（保留主目标契约，不随负载漂移）。备选：primary 也参与 load 排序。
-2. **`MODEL_POOL` 目标的负载取值方式**：默认 **sum（池内启用条目在途之和）**；备选 min（最闲条目）/ avg（均值）。
-3. **规则级策略枚举是否复用池级 `ModelPoolSelectionStrategyEnum`**：默认**复用**（同语义，少一个枚举）。备选：规则级另起 `RoutingTargetSelectionStrategyEnum`（值集合可能不同，如规则级不需要 RANDOM）。
-4. **`knot.load.store` 默认 caffeine 下集群部署的告警方式**：启动日志明示「单节点近似、多节点请切 redis」。
+## 8. 落地批次建议（按风险排序，逐批显式确认）
+
+> 每批末尾跑对应门禁（mvn test / vue-tsc / vite / 真启 jar 冒烟），全绿再进下一批；未经显式批准不 `git commit`。
+
+**批次 1（隔离基础设施，零行为变更）**
+- 新包 `org.chobit.knot.gateway.load`：`ModelLoadStore` 接口、`CaffeineModelLoadStore`、`RedisModelLoadStore`、`ModelLoadStoreConfiguration`（`knot.load.store` 双实现）、`ModelLoadKeys`。
+- `ModelPoolSelectionStrategyEnum` 加 `LEAST_LOAD("LEAST_LOAD","最少负载")`。
+- 测试：`ModelLoadStore` caffeine/redis 实现测（enter/leave/get/clamp/fail-open）。
+
+**批次 2（池内策略分支，默认 PRIORITY 行为不变）**
+- `ModelPoolSelection.order` 加 `loadOf` 参数 + `LEAST_LOAD` 分支（`load 升序 → weight 降序 → id 升序`；全 0 退化权重序）。
+- `RoutingResolver` 注入 `ModelLoadStore`，池展开处传 `loadOf = id -> loadStore.get(key(id))`。
+- 测试：新增 `ModelPoolSelectionTest`（LEAST_LOAD 排序 + 平手 + 冷启动退化）。
+
+**批次 3（规则级列 + 字段 + 前端，schema/迁移有数据风险）**
+- DB：`schema.sql` 加 `kb_routing_rules.selection_strategy VARCHAR(32) NOT NULL DEFAULT 'PRIORITY'`；迁移 `docs/database/migration/2026-10-12-routing-least-load.sql`（幂等 ADD COLUMN）；先跑迁移再 package。
+- 后端：`RoutingRuleEntity`/`Dto`/`VO`/`Mapper.xml`/`Converter`/`Service` 加 `selectionStrategy`；`RoutingResolver.orderTargets(ruleCode, strategyCode)` 加规则级 `LEAST_LOAD` 分支（`primary 置顶 → load 升序 → priority 降序 → targetCode`）。
+- 前端：`RoutingRuleFormDrawer.vue` 加「目标选择策略」下拉（复用池级 `EnumControl`）+ `useDraftModel.ts` 深比较补字段。
+
+**批次 4（在途计数生命周期，热路径正确性，功能真正生效）**
+- `GatewayRequestHandler.proxyWithFailover`：`enter(candidate)` / `finally leave(candidate)`（非流式）。
+- `ProxyStreamingBody` 构造注入 `Runnable onComplete`，两 pump 的 `finally` 调 `leave`（流式覆盖到写完）。
+- 集成测试：高在途模型落选、空闲模型选中；流式结束才 leave（无泄漏）。
+- 真启 jar 冒烟：回声上游 + 并发压一模型 → 验证请求流向空闲模型；冒烟后清理零残留。

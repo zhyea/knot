@@ -22,6 +22,11 @@ public class GatewayRequestContext {
     private final String ruleCode;
     private final GatewayTraceContext traceContext;
     private final ModelApiProtocolEnum protocol;
+    /**
+     * 粘性路由键（请求头 {@code X-Knot-Sticky-Key} 原值，未传为 null）。
+     * 只在模型池开启粘性路由时参与池内首选的选择，其余场景为空不影响链路。
+     */
+    private final String stickyKey;
     private final Map<String, Object> attributes = new LinkedHashMap<>();
 
     @Setter

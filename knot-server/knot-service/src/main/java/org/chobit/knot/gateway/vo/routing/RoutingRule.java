@@ -33,6 +33,8 @@ public record RoutingRule(
         List<QuotaPolicy> quotaPolicies,
         /** 规则级失败重试策略；null 表示未配置，运行时按内置默认（开启）处理 */
         RetryPolicy retryPolicy,
+        /** 路由目标选择策略（ModelPoolSelectionStrategyEnum）：PRIORITY 固定序；LEAST_LOAD 按在途并发动态重排 */
+        @Size(max = 32) String selectionStrategy,
         /** 创建时间 */
         LocalDateTime createdAt,
         /** 更新时间 */

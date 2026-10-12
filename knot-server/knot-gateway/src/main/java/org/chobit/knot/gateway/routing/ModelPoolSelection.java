@@ -22,6 +22,8 @@ import org.springframework.stereotype.Component;
  *   <li>{@code RANDOM}：可用候选均匀随机排序。</li>
  *   <li>{@code WEIGHTED}：按权重做无放回加权抽样（Efraimidis-Spirakis），
  *       权重越大越容易被排到前面，且长期命中比例收敛到权重占比。</li>
+ *   <li>{@code LEAST_LOAD}：按<b>在途并发</b>（{@link org.chobit.knot.gateway.load.ModelLoadStore}）
+ *       升序，最空闲者优先；在途相同按权重降序、再按 id 升序。确定性排序，不含随机。</li>
  * </ul>
  *
  * <p>随机源可注入，便于用固定 seed 做可重复测试。</p>
@@ -47,12 +49,14 @@ public final class ModelPoolSelection {
      * @param priorityOf  候选优先级
      * @param weightOf    候选权重
      * @param tieBreakerOf 稳定兜底排序键（通常为候选主键）
+     * @param loadOf      候选在途并发（仅 {@code LEAST_LOAD} 使用；取不到按 0 处理）
      */
     public <T> List<T> order(List<T> candidates,
                              String strategyCode,
                              ToIntFunction<T> priorityOf,
                              ToIntFunction<T> weightOf,
-                             ToLongFunction<T> tieBreakerOf) {
+                             ToLongFunction<T> tieBreakerOf,
+                             ToLongFunction<T> loadOf) {
         if (candidates == null || candidates.isEmpty()) {
             return List.of();
         }
@@ -64,7 +68,26 @@ public final class ModelPoolSelection {
             case PRIORITY -> orderByPriority(candidates, priorityOf, tieBreakerOf);
             case RANDOM -> shuffled(candidates);
             case WEIGHTED -> weightedOrder(candidates, weightOf, tieBreakerOf);
+            case LEAST_LOAD -> orderByLoad(candidates, loadOf, weightOf, tieBreakerOf);
         };
+    }
+
+    /**
+     * 最空闲优先：在途并发升序 → 权重降序 → 稳定兜底键升序。
+     *
+     * <p>在途全为 {@code 0}（冷启动 / 计量不可用）时退化为「权重降序 + 兜底键升序」，
+     * 即 WEIGHTED 的确定性版本——不含随机，行为可预期。</p>
+     */
+    private <T> List<T> orderByLoad(List<T> candidates,
+                                    ToLongFunction<T> loadOf,
+                                    ToIntFunction<T> weightOf,
+                                    ToLongFunction<T> tieBreakerOf) {
+        Comparator<T> byWeightDesc = Comparator.comparingInt((T item) -> weightOf.applyAsInt(item)).reversed();
+        List<T> copy = new ArrayList<>(candidates);
+        copy.sort(Comparator.comparingLong((T item) -> loadOf.applyAsLong(item))
+                .thenComparing(byWeightDesc)
+                .thenComparingLong(tieBreakerOf::applyAsLong));
+        return List.copyOf(copy);
     }
 
     private <T> List<T> orderByPriority(List<T> candidates,

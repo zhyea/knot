@@ -6,6 +6,7 @@ import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.config.GatewayRuntimeProperties;
 import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.constants.enums.ModelPoolSelectionStrategyEnum;
 import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.constants.enums.RoutingTestStatusEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
@@ -68,6 +69,14 @@ import java.util.stream.Collectors;
 public class RoutingRuleService {
 
     private static final int RULE_CODE_MAX_LEN = 64;
+    /**
+     * 规则级目标选择策略白名单：复用池级枚举，但只接受路由目标排序已实现的两种。
+     * 池级的 WEIGHTED / RANDOM 在规则层没有语义（会被静默当成 PRIORITY），故写入口直接拒。
+     */
+    private static final Set<String> RULE_LEVEL_STRATEGIES = Set.of(
+            ModelPoolSelectionStrategyEnum.PRIORITY.code(),
+            ModelPoolSelectionStrategyEnum.LEAST_LOAD.code()
+    );
     private static final String TRACEPARENT = "00-00000000000000000000000000000001-0000000000000001-01";
     private static final String DEFAULT_TEST_PROMPT = "你好，这是一条路由规则测试消息";
     /** 调试链路连接网关的超时 */
@@ -290,6 +299,7 @@ public class RoutingRuleService {
                 existing.rateLimitPolicy(),
                 existing.quotaPolicies(),
                 existing.retryPolicy(),
+                existing.selectionStrategy(),
                 existing.createdAt(),
                 existing.updatedAt()
         );
@@ -783,9 +793,21 @@ public class RoutingRuleService {
                 rate,
                 quotas,
                 RetryPolicy.parse(entity.getRetryPolicy()),
+                normalizeSelectionStrategy(entity.getSelectionStrategy()),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
         );
+    }
+
+    /**
+     * 目标选择策略归一：空 / 未知值一律按 PRIORITY（与存量行为一致）。
+     *
+     * <p>与模型池的 {@code WEIGHTED} 默认不同——路由规则的目标顺序原本就是「主目标 + 优先级」，
+     * 缺省必须保持该行为，不能因为新增策略就改变未配置规则的选路结果。</p>
+     */
+    private static String normalizeSelectionStrategy(String code) {
+        ModelPoolSelectionStrategyEnum strategy = ModelPoolSelectionStrategyEnum.fromCode(code);
+        return strategy == null ? ModelPoolSelectionStrategyEnum.PRIORITY.code() : strategy.code();
     }
 
     private Map<String, List<RoutingRuleConsumerEntity>> loadConsumersByRuleCodes(List<String> ruleCodes) {
@@ -920,6 +942,7 @@ public class RoutingRuleService {
                 request.rateLimitPolicy(),
                 request.quotaPolicies(),
                 request.retryPolicy(),
+                request.selectionStrategy(),
                 request.createdAt(),
                 request.updatedAt()
         );
@@ -969,6 +992,12 @@ public class RoutingRuleService {
         if (request.logicalModelCode() != null && !request.logicalModelCode().isBlank()
                 && logicalModelMapper.getByCode(request.logicalModelCode().trim()) == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "统一模型不存在");
+        }
+        // 目标选择策略：空/缺省按 PRIORITY 落库；规则级只接受已实现的两种，
+        // 池级的 WEIGHTED/RANDOM 在规则层没有对应分支（会被静默当成 PRIORITY），故直接拒绝
+        if (request.selectionStrategy() != null && !request.selectionStrategy().isBlank()
+                && !RULE_LEVEL_STRATEGIES.contains(request.selectionStrategy().trim().toUpperCase())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "目标选择策略不支持");
         }
         if (request.enabled()) {
             validateEnabledRule(request);
@@ -1063,6 +1092,8 @@ public class RoutingRuleService {
         entity.setLogicalModelCode(normalizeNullable(request.logicalModelCode()));
         // 未配置（null）落库为 NULL，运行时按内置默认策略处理
         entity.setRetryPolicy(RetryPolicy.serialize(request.retryPolicy()));
+        // 目标选择策略：缺省 PRIORITY（保持既有固定序行为），非法值由 validateForSave 先行拒绝
+        entity.setSelectionStrategy(normalizeSelectionStrategy(request.selectionStrategy()));
         return entity;
     }
 

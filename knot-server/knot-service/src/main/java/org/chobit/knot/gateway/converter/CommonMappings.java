@@ -6,6 +6,7 @@ import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.gateway.model.StickyPolicy;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.mapstruct.Named;
 import org.springframework.stereotype.Component;
@@ -70,6 +71,27 @@ public class CommonMappings {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "invalid rate limit policy json");
         }
         return json;
+    }
+
+    // ==================== JSON <-> StickyPolicy ====================
+
+    /**
+     * 池粘性策略 JSON → 对象；空列返回 null（表示未配置，运行时走内置默认 = 关闭）。
+     */
+    @Named("jsonToSticky")
+    public StickyPolicy jsonToSticky(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        return JsonKit.fromJson(json, StickyPolicy.class);
+    }
+
+    /**
+     * 池粘性策略对象 → JSON；null 写出 null（未配置）。
+     */
+    @Named("stickyToJson")
+    public String stickyToJson(StickyPolicy policy) {
+        return policy == null ? null : JsonKit.toJson(policy);
     }
 
     // ==================== JSON <-> QuotaPolicy ====================

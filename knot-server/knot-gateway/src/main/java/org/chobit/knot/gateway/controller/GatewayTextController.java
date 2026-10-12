@@ -28,8 +28,9 @@ public class GatewayTextController extends GatewayControllerSupport {
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
             @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
             @RequestBody ChatCompletionRequest requestBody) {
-        return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.CHAT_COMPLETIONS);
+        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.CHAT_COMPLETIONS);
     }
 
     /**
@@ -40,8 +41,9 @@ public class GatewayTextController extends GatewayControllerSupport {
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
             @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
             @RequestBody ResponseRequest requestBody) {
-        return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.RESPONSES);
+        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.RESPONSES);
     }
 
     /**
@@ -52,7 +54,8 @@ public class GatewayTextController extends GatewayControllerSupport {
             @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
             @RequestHeader(value = GatewayHeaders.RULE) String rule,
             @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
             @RequestBody CompletionRequest requestBody) {
-        return handleRequest(authorization, rule, traceparent, requestBody, ModelApiProtocolEnum.COMPLETIONS);
+        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.COMPLETIONS);
     }
 }

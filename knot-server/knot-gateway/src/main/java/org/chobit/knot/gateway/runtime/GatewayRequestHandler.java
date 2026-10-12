@@ -12,6 +12,8 @@ import org.chobit.knot.gateway.exception.GatewayQuotaException;
 import org.chobit.knot.gateway.exception.GatewayRateLimitException;
 import org.chobit.knot.gateway.exception.GatewayRequestException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
+import org.chobit.knot.gateway.load.ModelLoadKeys;
+import org.chobit.knot.gateway.load.ModelLoadStore;
 import org.chobit.knot.gateway.model.*;
 import org.chobit.knot.gateway.model.usage.KnotExtendPayload;
 import org.chobit.knot.gateway.plugin.PluginDispatcher;
@@ -43,11 +45,18 @@ import java.util.function.Supplier;
 @Component
 public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
+    /**
+     * 请求上下文属性：流式响应写完时释放本请求在途计数的回调（{@code Runnable}）。
+     */
+    private static final String ATTR_LOAD_RELEASE = "loadRelease";
+
     private final UpstreamProxyClient proxyClient;
     private final RoutingResolver routingResolver;
     private final GatewayTrafficGuard trafficGuard;
     private final UsageExtractorRegistry usageExtractorRegistry;
     private final GatewayUpstreamClientProperties clientProperties;
+    private final ModelLoadStore modelLoadStore;
+    private final ModelLoadKeys modelLoadKeys;
 
     /**
      * Constructs a new instance.
@@ -57,18 +66,22 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                                  GatewayTrafficGuard trafficGuard,
                                  PluginDispatcher pluginDispatcher,
                                  UsageExtractorRegistry usageExtractorRegistry,
-                                 GatewayUpstreamClientProperties clientProperties) {
+                                 GatewayUpstreamClientProperties clientProperties,
+                                 ModelLoadStore modelLoadStore,
+                                 ModelLoadKeys modelLoadKeys) {
         super(pluginDispatcher);
         this.proxyClient = proxyService;
         this.routingResolver = routingAuthService;
         this.trafficGuard = trafficGuard;
         this.usageExtractorRegistry = usageExtractorRegistry;
         this.clientProperties = clientProperties;
+        this.modelLoadStore = modelLoadStore;
+        this.modelLoadKeys = modelLoadKeys;
     }
 
     @Override
     protected ResolvedRouting resolveRouting(GatewayRequestContext context) {
-        return routingResolver.resolveByRule(context.apiKey(), context.ruleCode());
+        return routingResolver.resolveByRule(context.apiKey(), context.ruleCode(), context.stickyKey());
     }
 
     @Override
@@ -106,6 +119,10 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
             }
             hasAllowedTarget = true;
 
+            // 在途 +1：最空闲选模（LEAST_LOAD）的负载来源，请求结束（含流式写完）才释放
+            final String loadKey = modelLoadKeys.model(candidate.targetCode());
+            modelLoadStore.enter(loadKey);
+            boolean deferredToStream = false;
             // 调用上游服务；失败重试发生在本候选内部，频控检查不随重投次数累加
             try {
                 ProxyResult result = invokeWithRetry(retryPolicy, candidate, () -> proxyClient.proxy(
@@ -114,9 +131,18 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                         exchange.contentType(), candidate, protocol, traceparent));
                 // 限额与 TPM 事后累计：上游成功才记账，失败重试与 failover 不重复扣减
                 trafficGuard.record(routing, candidate, usageOf(result), trafficContext);
+                if (result.streamResponse() != null) {
+                    // 流式：请求线程马上返回，在途必须持续到响应流写完，交给响应体结束时释放
+                    deferredToStream = true;
+                    context.putAttribute(ATTR_LOAD_RELEASE, (Runnable) () -> modelLoadStore.leave(loadKey));
+                }
                 return result;
             } catch (GatewayUpstreamException e) {
                 lastUpstreamException = e;
+            } finally {
+                if (!deferredToStream) {
+                    modelLoadStore.leave(loadKey);
+                }
             }
         }
         if (!hasAllowedTarget) {
@@ -221,7 +247,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
             return null;
         }
         if (result.streamResponse() != null) {
-            return streamResponse(result, routing);
+            return streamResponse(result, routing, context);
         }
         if (routing == null || result.responseBody() == null) {
             return result.responseBody();
@@ -252,11 +278,14 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
      * Spring 依据返回值的运行时类型选择处理器，一旦用 {@code ResponseEntity} 包装就会退化成
      * 消息转换器查找，反而写不出去。</p>
      */
-    private Object streamResponse(ProxyResult result, ResolvedRouting routing) {
+    private Object streamResponse(ProxyResult result, ResolvedRouting routing, GatewayRequestContext context) {
         UpstreamStreamResponse stream = result.streamResponse();
         prepareStreamingHeaders(stream.contentType());
         boolean appendUsage = routing != null && routing.returnUsageDetail();
-        return new ProxyStreamingBody(stream, usageExtractorRegistry, appendUsage, clientProperties.getStreamBufferSize());
+        // 在途计数在流写完时才释放（见 proxyWithFailover 的 deferredToStream）
+        Runnable loadRelease = context.attribute(ATTR_LOAD_RELEASE);
+        return new ProxyStreamingBody(stream, usageExtractorRegistry, appendUsage,
+                clientProperties.getStreamBufferSize(), loadRelease);
     }
 
     private void prepareStreamingHeaders(MediaType contentType) {

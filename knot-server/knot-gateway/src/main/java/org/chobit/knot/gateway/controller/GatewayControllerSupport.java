@@ -20,9 +20,10 @@ public abstract class GatewayControllerSupport {
     protected Object handleRequest(String authorization,
                                    String rule,
                                    String traceparent,
+                                   String stickyKey,
                                    GatewayModelRequest request,
                                    ModelApiProtocolEnum protocol) {
-        return requestHandler.handle(authorization, rule, traceparent, request, protocol);
+        return requestHandler.handle(authorization, rule, traceparent, stickyKey, request, protocol);
     }
 
     /**
@@ -31,8 +32,9 @@ public abstract class GatewayControllerSupport {
     protected Object handleMultipartRequest(String authorization,
                                             String rule,
                                             String traceparent,
+                                            String stickyKey,
                                             Map<String, Object> request,
                                             ModelApiProtocolEnum protocol) {
-        return requestHandler.handleMultipart(authorization, rule, traceparent, request, protocol);
+        return requestHandler.handleMultipart(authorization, rule, traceparent, stickyKey, request, protocol);
     }
 }
