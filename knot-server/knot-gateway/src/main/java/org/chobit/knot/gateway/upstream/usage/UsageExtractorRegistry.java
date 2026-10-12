@@ -10,13 +10,13 @@ import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.model.NormalizedUsage;
 import org.chobit.knot.gateway.model.UsageAccounting;
 import org.chobit.knot.gateway.service.GatewayDataService;
-import org.chobit.knot.gateway.usage.AnthropicUsageExtractor;
-import org.chobit.knot.gateway.usage.ImageUsageExtractor;
-import org.chobit.knot.gateway.usage.UsageExtractor;
-import org.chobit.knot.gateway.usage.UsageExtractorCatalog;
+import org.chobit.knot.gateway.usage.extractor.AnthropicUsageExtractor;
+import org.chobit.knot.gateway.usage.extractor.ImageUsageExtractor;
+import org.chobit.knot.gateway.usage.extractor.UsageExtractor;
+import org.chobit.knot.gateway.usage.extractor.UsageExtractorCatalog;
 import org.chobit.knot.gateway.usage.UsageNormalizationSupport;
 import org.chobit.knot.gateway.usage.UsageRawReader;
-import org.chobit.knot.gateway.usage.VideoUsageExtractor;
+import org.chobit.knot.gateway.usage.extractor.VideoUsageExtractor;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;

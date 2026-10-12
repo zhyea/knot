@@ -32,7 +32,7 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
-import org.chobit.knot.gateway.usage.UsageExtractorCatalog;
+import org.chobit.knot.gateway.usage.extractor.UsageExtractorCatalog;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.model.ModelApiProtocolItem;
 import org.chobit.knot.gateway.vo.model.ModelTypeItem;

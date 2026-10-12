@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.usage;
+package org.chobit.knot.gateway.usage.extractor;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang3.StringUtils;

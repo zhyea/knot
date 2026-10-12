@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.usage;
+package org.chobit.knot.gateway.usage.extractor;
 
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.usage.calculator.SimpleBillingModeCalculator;
