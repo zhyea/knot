@@ -1,7 +1,6 @@
 package org.chobit.knot.gateway.runtime;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
@@ -13,7 +12,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Getter
-@RequiredArgsConstructor
 @Accessors(fluent = true)
 public class GatewayRequestContext {
 
@@ -27,10 +25,31 @@ public class GatewayRequestContext {
      * 只在模型池开启粘性路由时参与池内首选的选择，其余场景为空不影响链路。
      */
     private final String stickyKey;
+    /**
+     * 请求进入网关模板处理的时刻（{@link System#currentTimeMillis()}），构造时固定。
+     * 首 token 响应时间（响应头 {@code X-Knot-First-Token-Time}）的测量起点：
+     * 端到端口径，含鉴权、路由解析、插件、频控与上游首字节，重试/failover 耗时亦计入。
+     */
+    private final long receivedAtMillis;
     private final Map<String, Object> attributes = new LinkedHashMap<>();
 
     @Setter
     private ResolvedRouting routing;
+
+    public GatewayRequestContext(String authorization,
+                                 String apiKey,
+                                 String ruleCode,
+                                 GatewayTraceContext traceContext,
+                                 ModelApiProtocolEnum protocol,
+                                 String stickyKey) {
+        this.authorization = authorization;
+        this.apiKey = apiKey;
+        this.ruleCode = ruleCode;
+        this.traceContext = traceContext;
+        this.protocol = protocol;
+        this.stickyKey = stickyKey;
+        this.receivedAtMillis = System.currentTimeMillis();
+    }
 
     /**
      * Executes the public operation. Executes the public operation.

@@ -14,6 +14,12 @@ public final class GatewayHeaders {
      * {@code StickyPolicy.HEADER_NAME_DEFAULT} 一致（池级配置可改，但控制器固定读此头）。
      */
     public static final String X_KNOT_STICKY_KEY = "X-Knot-Sticky-Key";
+    /**
+     * 首 token 响应时间（TTFT，毫秒）：请求进入网关模板处理 → 响应侧首个可观测产出
+     * （流式=上游首行数据，非流式=响应体就绪）的耗时。端到端口径，含网关自身鉴权、
+     * 路由解析、插件、频控与重试/failover 耗时；异常路径不设置，头缺失即本次无成功首 token。
+     */
+    public static final String X_KNOT_FIRST_TOKEN_TIME = "X-Knot-First-Token-Time";
     public static final String X_API_KEY = "x-api-key";
     public static final String ANTHROPIC_VERSION = "anthropic-version";
 

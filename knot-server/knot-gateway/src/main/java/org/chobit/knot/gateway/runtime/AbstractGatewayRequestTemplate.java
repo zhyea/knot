@@ -15,6 +15,7 @@ import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.request.GatewayModelRequest;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.MediaType;
+import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.util.Map;
 
@@ -79,6 +80,11 @@ public abstract class AbstractGatewayRequestTemplate {
             ProxyResult result = proxy(context, exchange);
             exchange.proxyResult(result);
             Object response = applyUsageAccounting(context, exchange);
+            // 首 token 响应时间：非流式在此写头（响应体就绪即产出就绪，等价首 token）；
+            // 流式返回 StreamingResponseBody，由响应体在上游首行写出前自行写头
+            if (response != null && !(response instanceof StreamingResponseBody)) {
+                FirstTokenHeaderWriter.of(context).mark();
+            }
             dispatchGatewayPlugin(context, exchange, PluginStageCode.GATEWAY_RESPONSE, response, null);
             return response;
         } catch (RuntimeException ex) {

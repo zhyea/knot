@@ -5,6 +5,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.model.UsageAccounting;
 import org.chobit.knot.gateway.model.usage.KnotExtendPayload;
+import org.chobit.knot.gateway.runtime.FirstTokenHeaderWriter;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
@@ -44,17 +45,24 @@ public class ProxyStreamingBody implements StreamingResponseBody {
      * 在途必须覆盖到流写完，否则长流式响应会被当成「已空闲」而吸走超额流量。
      */
     private final Runnable onComplete;
+    /**
+     * 首 token 响应时间写头器：上游首行数据到达时记录端到端耗时。
+     * 构造时把 {@code null} 归一为降级实例，调用点无需判空。
+     */
+    private final FirstTokenHeaderWriter firstTokenWriter;
 
     public ProxyStreamingBody(UpstreamStreamResponse stream,
                               UsageExtractorRegistry usageExtractorRegistry,
                               boolean appendUsage,
                               int bufferSize,
-                              Runnable onComplete) {
+                              Runnable onComplete,
+                              FirstTokenHeaderWriter firstTokenWriter) {
         this.stream = stream;
         this.usageExtractorRegistry = usageExtractorRegistry;
         this.appendUsage = appendUsage;
         this.bufferSize = bufferSize > 0 ? bufferSize : 8192;
         this.onComplete = onComplete;
+        this.firstTokenWriter = firstTokenWriter == null ? FirstTokenHeaderWriter.noop() : firstTokenWriter;
     }
 
     @Override
@@ -80,6 +88,8 @@ public class ProxyStreamingBody implements StreamingResponseBody {
                 new InputStreamReader(stream.body(), StandardCharsets.UTF_8), bufferSize)) {
             String line;
             while ((line = reader.readLine()) != null) {
+                // 首行数据到达即首 token：在本次写出前记录端到端耗时（响应头此刻尚未 commit，仍可写）
+                firstTokenWriter.mark();
                 String trimmed = StringUtils.trim(line);
                 if (appendUsage && !usageAppended && isDoneEvent(trimmed)) {
                     usageAppended = true;
@@ -106,6 +116,8 @@ public class ProxyStreamingBody implements StreamingResponseBody {
         try (InputStream in = stream.body()) {
             int read;
             while ((read = in.read(buffer)) != -1) {
+                // 同 SSE 路径：首个字节就绪即首 token，写出前记录（幂等，后续 read 直接短路）
+                firstTokenWriter.mark();
                 out.write(buffer, 0, read);
                 out.flush();
             }

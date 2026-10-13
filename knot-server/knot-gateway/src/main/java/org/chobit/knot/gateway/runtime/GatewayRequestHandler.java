@@ -289,7 +289,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         // 在途计数在流写完时才释放（见 proxyWithFailover 的 deferredToStream）
         Runnable loadRelease = context.attribute(ATTR_LOAD_RELEASE);
         return new ProxyStreamingBody(stream, usageExtractorRegistry, appendUsage,
-                clientProperties.getStreamBufferSize(), loadRelease);
+                clientProperties.getStreamBufferSize(), loadRelease,
+                FirstTokenHeaderWriter.of(context));
     }
 
     private void prepareStreamingHeaders(MediaType contentType) {
