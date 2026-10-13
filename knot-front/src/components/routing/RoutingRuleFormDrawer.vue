@@ -21,7 +21,7 @@
             </el-form-item>
           </div>
           <el-row :gutter="16">
-            <el-col :span="12">
+            <el-col :span="24">
             <el-form-item label="规则编码" required :error="ruleCodeError">
               <el-input
                 v-model="form.ruleCode"
@@ -33,12 +33,28 @@
               />
             </el-form-item>
             </el-col>
+          </el-row>
+
+          <el-row :gutter="16">
             <el-col :span="12">
               <el-form-item label="名称" required>
                 <el-input v-model="form.name"/>
               </el-form-item>
             </el-col>
+            <el-col :span="12">
+              <el-form-item label="统一模型" >
+                <RemoteEntitySelect
+                  v-model="form.logicalModelCode"
+                  :load-function="loadLogicalModelOptions"
+                  :selected-options="selectedLogicalModelOptions"
+                  placeholder="可选：选择后，下方目标列表优先展示该统一模型对应的模型/模型池"
+                  clearable
+                  style="width: 100%"
+                />
+              </el-form-item>
+            </el-col>
           </el-row>
+
           <el-row :gutter="16">
             <el-col :span="12">
               <el-form-item label="绑定应用" required>
@@ -101,39 +117,35 @@
               <p>路由目标可以是供应商模型或模型池，模型池会按自身策略解析为最终模型。</p>
             </div>
           </div>
-          <el-form-item label="统一模型" class="bind-block-item model-bind-item">
-            <RemoteEntitySelect
-              v-model="form.logicalModelCode"
-              :load-function="loadLogicalModelOptions"
-              :selected-options="selectedLogicalModelOptions"
-              placeholder="可选：选择后，下方目标列表优先展示该统一模型对应的模型/模型池"
-              clearable
-              style="width: 100%"
-            />
-          </el-form-item>
-          <el-form-item label="目标选择策略" class="bind-block-item model-bind-item">
-            <el-select v-model="form.selectionStrategy" placeholder="请选择目标选择策略" style="width: 100%">
-              <el-option
-                v-for="item in selectionStrategyOptions"
-                :key="String(item.value)"
-                :label="item.label"
-                :value="String(item.value)"
-              />
-            </el-select>
-            <div class="field-tip">
-              优先级：按下方目标的主目标与优先级固定排序；最少负载：按各目标当前在途并发动态排序（最空闲优先，主目标仍排首位）。
-            </div>
-          </el-form-item>
-          <el-form-item label="目标类型" class="bind-block-item model-bind-item">
-            <el-radio-group v-model="targetType">
-              <el-radio-button
-                v-for="item in targetTypeOptions"
-                :key="item.value"
-                :value="item.value"
-              >{{ item.label }}
-              </el-radio-button>
-            </el-radio-group>
-          </el-form-item>
+          <el-row :gutter="16">
+            <el-col :span="12">
+              <el-form-item label="目标类型" class="bind-block-item model-bind-item">
+                <el-radio-group v-model="targetType">
+                  <el-radio-button
+                    v-for="item in targetTypeOptions"
+                    :key="item.value"
+                    :value="item.value"
+                  >{{ item.label }}
+                  </el-radio-button>
+                </el-radio-group>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="目标选择策略" class="bind-block-item model-bind-item">
+                <el-select v-model="form.selectionStrategy" placeholder="请选择目标选择策略" style="width: 100%">
+                  <el-option
+                    v-for="item in selectionStrategyOptions"
+                    :key="String(item.value)"
+                    :label="item.label"
+                    :value="String(item.value)"
+                  />
+                </el-select>
+                <div class="field-tip">
+                  优先级：按下方目标的主目标与优先级固定排序；最少负载：按各目标当前在途并发动态排序（最空闲优先，主目标仍排首位）。
+                </div>
+              </el-form-item>
+            </el-col>
+          </el-row>
           <el-form-item label="绑定目标" required class="bind-block-item model-bind-item">
             <RemoteEntitySelect
               :key="targetType"

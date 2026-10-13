@@ -38,9 +38,9 @@ export function listProviderProfileOperationLogs(id: number | string) {
   return listOperationLogsByEntity({ module: "provider-profile", entityType: "ProviderProfile", entityId: id });
 }
 
-/** 某供应商（entity_type=Provider）在 provider 模块下的操作日志 */
+/** 某供应商账户（entity_type=ProviderAccount）在 provider-account 模块下的操作日志 */
 export function listProviderOperationLogs(providerId: number | string) {
-  return listOperationLogsByEntity({ module: "provider", entityType: "Provider", entityId: providerId });
+  return listOperationLogsByEntity({ module: "provider-account", entityType: "ProviderAccount", entityId: providerId });
 }
 
 /** 某模型（entity_type=Model）在 model 模块下的操作日志 */
