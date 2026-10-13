@@ -259,8 +259,12 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         if (payload == null) {
             return result.responseBody();
         }
+        Map<String, Object> rawUsage = result.usage().rawUsage();
+        if (rawUsage != null && rawUsage.isEmpty()) {
+            rawUsage = null;
+        }
         if (isEventStream(result.responseBody())) {
-            return appendUsageEvent(result.responseBody(), payload);
+            return appendUsageEvent(result.responseBody(), payload, rawUsage);
         }
         Map<String, Object> body = JsonKit.fromJson(result.responseBody(), new com.fasterxml.jackson.core.type.TypeReference<>() {
         });
@@ -308,9 +312,16 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         return value.lines().anyMatch(line -> StringUtils.startsWith(StringUtils.trim(line), "data:"));
     }
 
-    private String appendUsageEvent(String responseBody, KnotExtendPayload payload) {
+    /**
+     * 在 {@code [DONE]} 之前插入独立的 {@code knot_extend} 事件（{@code rawUsage} 并列），
+     * 不改动上游原有 chunk；无 {@code [DONE]} 时追加在流末尾。
+     */
+    private String appendUsageEvent(String responseBody, KnotExtendPayload payload, Map<String, Object> rawUsage) {
         Map<String, Object> event = new LinkedHashMap<>();
         event.put(AiPayloadFields.KNOT_EXTEND, payload);
+        if (rawUsage != null) {
+            event.put(AiPayloadFields.RAW_USAGE, rawUsage);
+        }
         String usageData = "data: " + JsonKit.toJson(event);
         String doneMarker = "data: [DONE]";
         int doneIndex = responseBody.lastIndexOf(doneMarker);
