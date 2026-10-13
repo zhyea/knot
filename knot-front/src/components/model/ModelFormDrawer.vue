@@ -239,16 +239,19 @@
                   <el-form-item>
                     <template #label>
                       <span>Usage</span>
-                      <el-link
-                        class="usage-extractor-guide-link"
-                        type="primary"
-                        :underline="false"
-                        :href="usageExtractorGuideHref"
-                        target="_blank"
-                        rel="noopener"
-                      >
-                        查看说明
-                      </el-link>
+                      <el-tooltip content="查看说明" placement="top">
+                        <el-link
+                          class="usage-extractor-guide-link"
+                          type="primary"
+                          :underline="false"
+                          :href="usageExtractorGuideHref"
+                          target="_blank"
+                          rel="noopener"
+                          aria-label="查看说明"
+                        >
+                          <el-icon><QuestionFilled/></el-icon>
+                        </el-link>
+                      </el-tooltip>
                     </template>
                     <el-select
                       v-model="binding.usageExtractor"
@@ -313,7 +316,7 @@ import {type PropType, computed, reactive, ref, watch} from "vue";
 import type {Ref} from "vue";
 import {useRouter} from "vue-router";
 import {ElMessage} from "element-plus";
-import {RefreshRight} from "@element-plus/icons-vue";
+import {QuestionFilled, RefreshRight} from "@element-plus/icons-vue";
 import type {Dict, Row, OptionItem, ProviderAccountMeta} from "@/types";
 import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
@@ -983,7 +986,7 @@ async function submit() {
   margin-left: 6px;
   font-size: 12px;
   font-weight: 400;
-  vertical-align: baseline;
+  vertical-align: -2px;
 }
 
 .binding-card,
