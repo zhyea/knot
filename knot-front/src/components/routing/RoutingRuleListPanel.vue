@@ -25,6 +25,18 @@
           {{ formatDateTime(row.updatedAt) }}
         </template>
       </el-table-column>
+      <el-table-column label="启用" width="90" align="center">
+        <template #default="{ row }">
+          <el-switch
+            :model-value="row.enabled !== false"
+            :loading="togglingId === row.id"
+            inline-prompt
+            active-text="启用"
+            inactive-text="禁用"
+            @change="(value) => handleEnabledChange(row, value)"
+          />
+        </template>
+      </el-table-column>
       <el-table-column prop="appName" label="应用" min-width="130" show-overflow-tooltip />
       <el-table-column label="应用场景" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">
@@ -39,18 +51,6 @@
       <el-table-column label="统一模型" min-width="140" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.logicalModelName || row.logicalModelCode || "-" }}
-        </template>
-      </el-table-column>
-      <el-table-column label="启用" width="90" align="center">
-        <template #default="{ row }">
-          <el-switch
-            :model-value="row.enabled !== false"
-            :loading="togglingId === row.id"
-            inline-prompt
-            active-text="启用"
-            inactive-text="禁用"
-            @change="(value) => handleEnabledChange(row, value)"
-          />
         </template>
       </el-table-column>
       <el-table-column label="创建时间" width="170" align="center" show-overflow-tooltip>
