@@ -44,7 +44,7 @@ public final class AiPayloadFields {
      * 字段名沿用上游通用的 {@code "usage"}：整包模式下与上游响应自带的 {@code usage}
      * 同义覆盖（值相同），下游按既有键名即可读到原始用量。上游未上报 {@code usage} 时省略。
      */
-    public static final String RAW_USAGE = "rawUsage";
+    public static final String RAW_USAGE = "usage";
     public static final String STREAM = "stream";
 
     private AiPayloadFields() {
