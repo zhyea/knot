@@ -313,7 +313,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     }
 
     /**
-     * 在 {@code [DONE]} 之前插入独立的 {@code knot_extend} 事件（{@code rawUsage} 并列），
+     * 在 {@code [DONE]} 之前插入独立的 {@code knot_extend} 事件（上游原始 usage 以并列 {@code usage} 字段透出），
      * 不改动上游原有 chunk；无 {@code [DONE]} 时追加在流末尾。
      */
     private String appendUsageEvent(String responseBody, KnotExtendPayload payload, Map<String, Object> rawUsage) {
