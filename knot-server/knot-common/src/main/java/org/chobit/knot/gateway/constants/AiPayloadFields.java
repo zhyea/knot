@@ -29,8 +29,8 @@ public final class AiPayloadFields {
      * 网关向调用方输出的扩展信息字段名，值为 {@code {usage, billing}} 两视图。
      *
      * <p>仅在路由消费者 {@code return_usage_detail} 打开时注入：整包响应作为响应体字段，
-     * SSE 响应合并进 {@code [DONE]} 前最后一个内容事件的 {@code data:} 行
-     * （事件不可解析时退回独立 {@code data:} 事件兜底）。历史字段 {@code knot_usage} / {@code model_usage}
+     * SSE 响应作为独立的 {@code data:} 事件插在 {@code [DONE]} 之前（无 [DONE] 时追加在流末尾），
+     * 不改动上游原有 chunk。历史字段 {@code knot_usage} / {@code model_usage}
      * 已被本字段取代（一次做干净，不留兼容）。</p>
      *
      * <p>{@code billing} 只在命中计费规则时出现；无规则可命中时整个 {@code billing} 省略，
@@ -39,7 +39,7 @@ public final class AiPayloadFields {
     public static final String KNOT_EXTEND = "knot_extend";
     /**
      * 上游原始 {@code usage} 原文透传字段名，与 {@link #KNOT_EXTEND} 并列注入
-     * （整包为响应体字段，SSE 为同一事件的字段），仅供下游与归一化结果对照排障，
+     * （整包为响应体字段，SSE 为同一独立事件的并列字段），仅供下游与归一化结果对照排障，
      * 业务口径仍以 {@code knot_extend} 的 {@code usage} / {@code billing} 为准。
      * 上游未上报 {@code usage} 时省略。
      */
