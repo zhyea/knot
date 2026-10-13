@@ -61,6 +61,5 @@ knot:
       validate-after-inactivity: 10s
       max-total-connections: 200
       max-connections-per-route: 50
-      streaming-enabled: true
       stream-buffer-size: 8192
       content-compression-enabled: false

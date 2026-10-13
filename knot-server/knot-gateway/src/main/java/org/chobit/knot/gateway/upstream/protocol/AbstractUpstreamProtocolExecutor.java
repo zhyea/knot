@@ -4,7 +4,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplierCatalog;
 import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
-import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
@@ -39,16 +38,13 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
 
     private final RestClient restClient;
     private final UsageExtractorRegistry usageExtractorRegistry;
-    private final GatewayUpstreamClientProperties clientProperties;
     private final UpstreamAuthApplierCatalog authApplierCatalog;
 
     protected AbstractUpstreamProtocolExecutor(RestClient restClient,
                                                UsageExtractorRegistry usageExtractorRegistry,
-                                               GatewayUpstreamClientProperties clientProperties,
                                                UpstreamAuthApplierCatalog authApplierCatalog) {
         this.restClient = restClient;
         this.usageExtractorRegistry = usageExtractorRegistry;
-        this.clientProperties = clientProperties;
         this.authApplierCatalog = authApplierCatalog;
     }
 
@@ -66,7 +62,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
         }
         MediaType contentType = adapter.resolveContentType(context);
         try {
-            if (clientProperties.isStreamingEnabled() && supportsStreaming(context) && isStreamRequest(context)) {
+            if (supportsStreaming(context) && isStreamRequest(context)) {
                 return executeStreaming(context, adapter, path, contentType);
             }
             return executeBuffered(context, adapter, path, contentType);

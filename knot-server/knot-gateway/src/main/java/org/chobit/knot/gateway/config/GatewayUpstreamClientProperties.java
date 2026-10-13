@@ -50,12 +50,6 @@ public class GatewayUpstreamClientProperties {
     private int maxConnectionsPerRoute = 50;
 
     /**
-     * 是否启用流式转发：{@code stream=true} 的请求边收边发，不再整包缓冲。
-     * 出问题时可置为 false 退回整包缓冲模式。
-     */
-    private boolean streamingEnabled = true;
-
-    /**
      * 流式转发的读写缓冲区大小（字节）。
      */
     private int streamBufferSize = 8192;
@@ -120,14 +114,6 @@ public class GatewayUpstreamClientProperties {
 
     public void setMaxConnectionsPerRoute(int maxConnectionsPerRoute) {
         this.maxConnectionsPerRoute = maxConnectionsPerRoute;
-    }
-
-    public boolean isStreamingEnabled() {
-        return streamingEnabled;
-    }
-
-    public void setStreamingEnabled(boolean streamingEnabled) {
-        this.streamingEnabled = streamingEnabled;
     }
 
     public int getStreamBufferSize() {
