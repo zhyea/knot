@@ -115,6 +115,31 @@ function currentValues(): string[] {
   return [];
 }
 
+/**
+ * 编辑态回显：已选值在候选项里还没有 label 时（组件刚挂载、尚未打开过下拉），
+ * el-select 会把裸 value（数字 id）直接渲染成 tag。这里侦测「有已选值但未覆盖」，
+ * 主动触发一次带 values 的加载，让后端把回显项（或 missingValues 占位）带回来。
+ *
+ * <p>只侦听已选值签名、且仅在未覆盖时加载，因此加载完成写入 options 后不会再次
+ * 触发（已覆盖），不会形成循环；后端确认缺失的值会以禁用占位项呈现，同样视为已覆盖。</p>
+ */
+const selectedSignature = computed(() => currentValues().join(","));
+
+watch(
+  selectedSignature,
+  (signature) => {
+    if (!signature || loading.value) {
+      return;
+    }
+    const covered = new Set(mergedOptions.value.map((item) => keyOf(item)));
+    const uncovered = currentValues().some((value) => !covered.has(value));
+    if (uncovered) {
+      loadOptions("");
+    }
+  },
+  {immediate: true}
+);
+
 async function loadOptions(keyword = "") {
   loading.value = true;
   try {
