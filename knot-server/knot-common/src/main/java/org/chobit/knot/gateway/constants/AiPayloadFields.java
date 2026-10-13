@@ -41,7 +41,8 @@ public final class AiPayloadFields {
      * 上游原始 {@code usage} 原文透传字段名，与 {@link #KNOT_EXTEND} 并列注入
      * （整包为响应体字段，SSE 为同一独立事件的并列字段），仅供下游与归一化结果对照排障，
      * 业务口径仍以 {@code knot_extend} 的 {@code usage} / {@code billing} 为准。
-     * 上游未上报 {@code usage} 时省略。
+     * 字段名沿用上游通用的 {@code "usage"}：整包模式下与上游响应自带的 {@code usage}
+     * 同义覆盖（值相同），下游按既有键名即可读到原始用量。上游未上报 {@code usage} 时省略。
      */
     public static final String RAW_USAGE = "rawUsage";
     public static final String STREAM = "stream";
