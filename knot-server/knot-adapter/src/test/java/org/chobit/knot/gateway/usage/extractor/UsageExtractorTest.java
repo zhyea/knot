@@ -27,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class UsageExtractorTest {
 
-    private final DefaultTokenUsageExtractor defaultExtractor = new DefaultTokenUsageExtractor(new SimpleBillingModeCalculator());
+    private final DefaultTokenUsageExtractor defaultExtractor = new DefaultTokenUsageExtractor(new TokenBillingModeCalculator());
     private final AnthropicUsageExtractor anthropicExtractor = new AnthropicUsageExtractor(new TokenBillingModeCalculator());
     private final ImageUsageExtractor imageExtractor = new ImageUsageExtractor(new SimpleBillingModeCalculator());
     private final VideoUsageExtractor videoExtractor = new VideoUsageExtractor(new VideoBillingModeCalculator());
