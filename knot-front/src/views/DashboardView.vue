@@ -338,9 +338,9 @@ const metrics = computed(() => {
     },
     {
       key: "providers",
-      label: "供应商",
+      label: "供应商账户",
       value: statTotals.providers,
-      moduleKey: "provider",
+      moduleKey: "provider-account",
       route: "/model-management/providers",
       tone: "teal",
       icon: Connection
