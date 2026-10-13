@@ -12,5 +12,6 @@ public record PluginItem(Long id,
                          Integer status,
                          Integer timeoutMs,
                          String pluginType,
-                         String configJson) {
+                         String configJson,
+                         Integer orphaned) {
 }

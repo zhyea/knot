@@ -11,7 +11,6 @@ import org.chobit.knot.gateway.constants.enums.LogicalModelVisibilityEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ModelPoolSelectionStrategyEnum;
 import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
-import org.chobit.knot.gateway.constants.enums.PluginInstanceStatusEnum;
 import org.chobit.knot.gateway.constants.enums.NumericEnumOption;
 import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
 import org.chobit.knot.gateway.constants.enums.QuotaWindowEnum;
@@ -62,7 +61,6 @@ public class EnumOptionRegistry {
         put(map, PluginStageCode.class.getSimpleName(), PluginStageCode.values());
         put(map, PluginScopeType.class.getSimpleName(), PluginScopeType.values());
         put(map, PluginTypeEnum.class.getSimpleName(), PluginTypeEnum.values());
-        putNumeric(map, PluginInstanceStatusEnum.class.getSimpleName(), PluginInstanceStatusEnum.values());
         putNumeric(map, OperationLogStatusEnum.class.getSimpleName(), OperationLogStatusEnum.values());
         putNumeric(map, ScheduledTaskRunStatusEnum.class.getSimpleName(), ScheduledTaskRunStatusEnum.values());
         put(map, RoutingTestStatusEnum.class.getSimpleName(), RoutingTestStatusEnum.values());

@@ -34,14 +34,6 @@ export const LogicalModelPublishStatus = {
   ARCHIVED: 3
 } as const;
 
-/** 插件实例状态（PluginInstanceStatusEnum） */
-export const PluginInstanceStatus = {
-  DRAFT: 1,
-  ACTIVE: 2,
-  PAUSED: 3,
-  ARCHIVED: 4
-} as const;
-
 /** 外部模型同步状态（ExternalModelSyncStatusEnum） */
 export const ExternalModelSyncStatus = {
   PENDING: 1,

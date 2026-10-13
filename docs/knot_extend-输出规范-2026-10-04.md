@@ -26,14 +26,20 @@
                  "total_tokens": 1200 },
     "billing": { "totalTokens": 1200, "totalCost": 0.00579, "currency": "USD",
                  "billingVersion": "v1",
-                 "detail": [ {"type":"uncachedInput","tokens":700,"cost":0.0021,"price":3.0},
-                             {"type":"cachedRead","tokens":300,"cost":0.00009,"price":0.3},
-                             {"type":"cachedWrite5m","tokens":400,"cost":0.0004,"price":1.0},
-                             {"type":"cachedWrite1h","tokens":100,"cost":0.0002,"price":2.0},
-                             {"type":"output","tokens":200,"cost":0.003,"price":15.0} ] }
+                 "detail": [ {"type":"uncachedInput","tokens":700,"cost":"0.00210000","price":3.0},
+                             {"type":"cachedRead","tokens":300,"cost":"0.00009000","price":0.3},
+                             {"type":"cachedWrite5m","tokens":400,"cost":"0.00040000","price":1.0},
+                             {"type":"cachedWrite1h","tokens":100,"cost":"0.00020000","price":2.0},
+                             {"type":"output","tokens":200,"cost":"0.00300000","price":15.0} ] }
   }
 }
 ```
+
+> ⚠ `detail.cost` 是**字符串**（十进制普通表示，8 位小数定标），不是数值：Jackson 默认按
+> `BigDecimal.toString()` 序列化数值，调整指数 < -6 的小额会输出科学计数法（如 `1E-8`），
+> 下游解析口径不一。2026-10-13 起在 `AbstractBillingModeCalculator#plainMoney`
+> 统一收敛为 `toPlainString()` 后作为字符串出账。`price` 维持数值——其为每百万单价，
+> 量级上不可能触发科学计数法。
 
 | 视图 | 类型 | 用途 |
 |---|---|---|
@@ -187,3 +193,4 @@ mock 上游 `usage_upstream.js`（19997）可切换 OpenAI / Anthropic-ttl 两�
 - [ ] 管理端计费预览（`BillingService.preview`）尚未接 ttl 5m/1h 价，与网关链路口径可能漂移。
 - [ ] `billing` 的驼峰字段与 `usage` 的 snake_case 风格不统一，下个破坏性版本再对齐。
 - [ ] 用量流水表（kx_model_usage）暂缓；`ModelUsage` 结构已为落库预留。
+- [ ] `billing.totalCost` 仍为 BigDecimal：单笔成本 < 1e-6 时同样会输出科学计数法（如 `1E-8`），待拍板是否同改为字符串。

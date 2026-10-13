@@ -43,9 +43,20 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
         return new NormalizedUsageDetail(
                 type,
                 tokens,
-                safeMoney(cost),
+                plainMoney(safeMoney(cost)),
                 pricePerMillion(safeMoney(unitPrice), unitSize)
         );
+    }
+
+    /**
+     * 金额的对外文本形态：十进制普通串（{@link BigDecimal#toPlainString()}），绝不出科学计数法。
+     *
+     * <p>detail.cost 的契约是字符串：Jackson 默认按 {@link BigDecimal#toString()} 写数值，
+     * 调整指数 &lt; -6 的小额（如 0.00000001）会序列化成 {@code 1E-8}；在进入
+     * {@link NormalizedUsageDetail} 前统一收敛成普通十进制。</p>
+     */
+    protected static String plainMoney(BigDecimal value) {
+        return value.toPlainString();
     }
 
     /** 枚举版重载：明细类型以 {@link TokenUsageDetailKind} 声明，避免调用处散落魔法串 */

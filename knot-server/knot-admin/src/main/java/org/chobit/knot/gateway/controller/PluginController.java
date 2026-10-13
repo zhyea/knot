@@ -42,21 +42,21 @@ public class PluginController {
     }
 
     /**
-     * Creates a new resource. Executes the public operation.
+     * 逻辑删除插件（死行不展示）。reconcile 标记 orphaned 的插件由前端删除按钮触发。
      */
-    @OperationLog(module = "plugin", operation = "CREATE", entityType = "Plugin",
-            entityIdAfter = "#result.id",
+    @OperationLog(module = "plugin", operation = "DELETE", entityType = "Plugin",
+            entityId = "#p0",
             entityNameAfter = "#result.name",
-            description = "'新建插件'",
-            newValueSpel = "#result")
-    @PostMapping
-    public PluginItem create(@RequestBody @Valid PluginItem request) {
-        PluginDto created = pluginService.create(pluginConverter.toDto(request));
-        return pluginConverter.toVO(created);
+            description = "'逻辑删除插件'",
+            oldValueSpel = "@pluginService.getById(#p0)")
+    @DeleteMapping("/{id}")
+    public PluginItem delete(@PathVariable Long id) {
+        PluginDto deleted = pluginService.markDeleted(id);
+        return pluginConverter.toVO(deleted);
     }
 
     /**
-     * Updates the target resource. Executes the public operation.
+     * 启用/禁用插件。状态语义为 EnabledStatusEnum（1-启用 0-停用）。
      */
     @OperationLog(module = "plugin", operation = "UPDATE", entityType = "Plugin",
             entityId = "#p0",

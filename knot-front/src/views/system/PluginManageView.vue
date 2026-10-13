@@ -30,12 +30,6 @@
       </FilterBar>
 
       <section class="list-page-block list-page-block--content">
-        <div class="list-page-toolbar">
-          <div class="list-page-toolbar__actions list-page-toolbar__actions--start">
-            <el-button type="primary" @click="dlg = true">新建插件</el-button>
-          </div>
-        </div>
-
         <PluginListPanel
           :rows="pluginRows"
           :loading="loading"
@@ -51,8 +45,6 @@
         />
       </section>
     </div>
-
-    <PluginFormDialog v-model="dlg" @saved="resetPage" />
 
     <OperationLogDrawer
       v-model="logDrawer"
@@ -71,17 +63,17 @@ import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import {useListQuery} from "@/composables/useListQuery";
-import PluginFormDialog from "../../components/plugin/PluginFormDialog.vue";
 import PluginListPanel from "../../components/plugin/PluginListPanel.vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
-import {listPlugins, updatePluginStatus} from "@/api/plugins";
+import {EnabledStatus} from "@/constants/status";
+import {listPlugins, updatePluginStatus, deletePlugin} from "@/api/plugins";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import {listOperationLogsByEntity} from "@/api/operationLogs";
 
-// 插件状态筛选：PluginInstanceStatusEnum（代码枚举，/api/common/enums；1-草稿 2-生效 3-暂停 4-归档）
+// 插件状态筛选：EnabledStatusEnum（代码枚举，/api/common/enums；1-启用 0-停用）
 const {optionsOf: enumOptionsOf} = useEnumOptions();
 const pluginStatusOptions = computed(() =>
-  enumOptionsOf("PluginInstanceStatusEnum").map((item) => ({
+  enumOptionsOf("EnabledStatusEnum").map((item) => ({
     itemCode: item.value,
     itemLabel: item.label
   }))
@@ -106,7 +98,6 @@ const {
 } = useListQuery({ apiFn: listPlugins, fields: { keyword: "", status: "", pluginType: "" } });
 
 const pluginRows = ref<Row[]>([]);
-const dlg = ref(false);
 const statusUpdatingId = ref<number | null>(null);
 
 const logDrawer = ref(false);
@@ -118,6 +109,15 @@ function onPluginAction(action: string, row: Row) {
     logId.value = row.id;
     logName.value = row.name || row.code || `#${row.id}`;
     logDrawer.value = true;
+  } else if (action === "delete") {
+    deletePlugin(row.id)
+      .then(() => {
+        ElMessage.success("已删除");
+        return resetPage();
+      })
+      .catch(() => {
+        // 错误由全局拦截器提示
+      });
   }
 }
 
@@ -138,7 +138,7 @@ async function onStatus(row: Row, enabled: string | number | boolean) {
     return;
   }
   const previousStatus = row.status;
-  const nextStatus = enabled ? "ENABLED" : "DISABLED";
+  const nextStatus = enabled ? EnabledStatus.ENABLED : EnabledStatus.DISABLED;
   if (previousStatus === nextStatus) {
     return;
   }
@@ -154,7 +154,6 @@ async function onStatus(row: Row, enabled: string | number | boolean) {
     statusUpdatingId.value = null;
   }
 }
-
 
 onMounted(() => {
   pageLoad();

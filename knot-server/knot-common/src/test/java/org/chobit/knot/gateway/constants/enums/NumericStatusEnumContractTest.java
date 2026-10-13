@@ -35,7 +35,6 @@ class NumericStatusEnumContractTest {
             OperationLogStatusEnum.class,
             ScheduledTaskRunStatusEnum.class,
             PluginPackageStatusEnum.class,
-            PluginInstanceStatusEnum.class,
             ExternalModelSyncStatusEnum.class,
             HealthStatusEnum.class,
             ReconciliationStatusEnum.class

@@ -580,78 +580,41 @@ CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
 -- =========================
 -- 可选扩展
 -- =========================
-CREATE TABLE IF NOT EXISTS kb_plugin_packages (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  plugin_code VARCHAR(64) NOT NULL,
-  plugin_name VARCHAR(100) NOT NULL,
-  version VARCHAR(32) NOT NULL,
-  source_type VARCHAR(32) NOT NULL DEFAULT 'BUILTIN',
-  artifact_path VARCHAR(255) DEFAULT NULL,
-  manifest_json JSON DEFAULT NULL,
-  entrypoint VARCHAR(255) DEFAULT NULL,
-  checksum VARCHAR(128) DEFAULT NULL,
-  signature VARCHAR(255) DEFAULT NULL,
-  compatibility_json JSON DEFAULT NULL,
-  status TINYINT NOT NULL DEFAULT 1 COMMENT '包状态（PluginPackageStatusEnum）：1-生效 2-禁用 3-已废弃',
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_plugin_packages_code (plugin_code)
-);
-
-CREATE TABLE IF NOT EXISTS kb_plugin_capabilities (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  plugin_code VARCHAR(64) NOT NULL COMMENT '所属插件包 code（kb_plugin_packages.plugin_code）',
-  capability_code VARCHAR(64) NOT NULL,
-  capability_name VARCHAR(100) NOT NULL,
-  extension_point VARCHAR(64) NOT NULL,
-  stage_code VARCHAR(64) NOT NULL,
-  order_hint INT NOT NULL DEFAULT 100,
-  config_schema_json JSON DEFAULT NULL,
-  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
-
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_plugin_capabilities_code (plugin_code, capability_code, stage_code),
-  KEY idx_plugin_capabilities_extension_stage (extension_point, stage_code, status)
-);
+-- 插件管理已单表收口（2026-10-13）：packages / capabilities / bindings 三表删除，
+-- 其展示信息与作用域维度已反范式冗余进 kb_plugin_instances；scope 维度按决策永久移除，
+-- 动态 jar 插件（source_type=JAR）确认不支持。
 
 CREATE TABLE IF NOT EXISTS kb_plugin_instances (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  plugin_code VARCHAR(64) NOT NULL COMMENT '所属插件包 code（kb_plugin_packages.plugin_code）',
-  capability_id BIGINT NOT NULL COMMENT '插件能力 id（kb_plugin_capabilities.id）',
-  instance_code VARCHAR(64) NOT NULL,
-  instance_name VARCHAR(100) NOT NULL,
-  config_json JSON DEFAULT NULL,
-  status TINYINT NOT NULL DEFAULT 1 COMMENT '实例状态（PluginInstanceStatusEnum）：1-草稿 2-生效 3-暂停 4-归档',
+  plugin_code VARCHAR(64) NOT NULL COMMENT '插件包业务码（反范式冗余，原 kb_plugin_packages.plugin_code）',
+  instance_code VARCHAR(64) NOT NULL COMMENT '实例 code（唯一业务码）',
+  instance_name VARCHAR(100) NOT NULL COMMENT '实例名称',
+  plugin_name VARCHAR(100) DEFAULT NULL COMMENT '插件名称（反范式冗余，原 packages.plugin_name）',
+  entrypoint VARCHAR(255) NOT NULL COMMENT '插件实现类全限定名（IOC 稳定键，启动期 reconcile 按此匹配）',
+  source_type VARCHAR(32) NOT NULL DEFAULT 'BUILTIN' COMMENT '来源类型（BUILTIN/JAR，当前仅 BUILTIN）',
+  version VARCHAR(32) DEFAULT NULL COMMENT '版本（反范式冗余，原 packages.version）',
+  capability_code VARCHAR(64) NOT NULL COMMENT '能力 code（反范式冗余，原 capabilities.capability_code）',
+  capability_name VARCHAR(100) DEFAULT NULL COMMENT '能力名称（反范式冗余，原 capabilities.capability_name）',
+  extension_point VARCHAR(64) NOT NULL COMMENT '扩展点（反范式冗余，原 capabilities.extension_point）',
+  stage_code VARCHAR(64) NOT NULL COMMENT '执行阶段（反范式冗余，原 capabilities.stage_code / bindings.stage_code）',
+  order_no INT NOT NULL DEFAULT 100 COMMENT '同阶段执行顺序（反范式冗余，原 bindings.order_no）',
+  config_json JSON DEFAULT NULL COMMENT '预留：运行期实例配置（后续外置 Nacos，暂保留列）',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   timeout_ms INT NOT NULL DEFAULT 3000,
   concurrency_limit INT NOT NULL DEFAULT 0,
   plugin_type VARCHAR(32) NOT NULL DEFAULT 'SYNC' COMMENT '插件执行类型（PluginTypeEnum）：SYNC-同步插件（嵌入请求链内联执行），ASYNC-异步插件（离链消费事件）',
+  is_deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除（死行不展示）：1-已删除 0-未删除',
+  orphaned TINYINT(1) NOT NULL DEFAULT 0 COMMENT '代码已移除标记（reconcile 检出 IOC 无此插件）：1-孤儿 0-正常',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_plugin_instances_code (instance_code),
   KEY idx_plugin_instances_package_status (plugin_code, status),
-  KEY idx_plugin_instances_capability_status (capability_id, status),
-  KEY idx_plugin_instances_type (plugin_type, status)
+  KEY idx_plugin_instances_capability_status (capability_code, status),
+  KEY idx_plugin_instances_type (plugin_type, status),
+  KEY idx_plugin_instances_ext_stage_status (extension_point, stage_code, status, is_deleted)
 );
 
-CREATE TABLE IF NOT EXISTS kb_plugin_bindings (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  instance_code VARCHAR(64) NOT NULL COMMENT '插件实例 code（kb_plugin_instances.instance_code）',
-  scope_type VARCHAR(32) NOT NULL DEFAULT 'GLOBAL',
-  scope_ref_code VARCHAR(128) DEFAULT NULL COMMENT '作用范围对象业务码（GLOBAL 为空；APP→app_code，RULE→rule_code，PROVIDER→kb_provider_accounts.code，MODEL→model_code，POOL→pool_code），非主键 id',
-  stage_code VARCHAR(64) NOT NULL,
-  order_no INT NOT NULL DEFAULT 100,
-  match_expression VARCHAR(255) DEFAULT NULL,
-  gray_config_json JSON DEFAULT NULL,
-  binding_config_json JSON DEFAULT NULL,
-  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
-
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_plugin_bindings_scope (instance_code, scope_type, scope_ref_code, stage_code),
-  KEY idx_plugin_bindings_stage (stage_code, status, order_no),
-  KEY idx_plugin_bindings_scope_status (scope_type, scope_ref_code, status)
-);
+-- 作用域绑定表已随单表收口删除（2026-10-13）。scope 维度按决策永久移除。
 
 CREATE TABLE IF NOT EXISTS kb_notification_templates (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,

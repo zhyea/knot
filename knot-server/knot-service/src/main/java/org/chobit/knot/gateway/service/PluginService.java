@@ -9,7 +9,6 @@ import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.PluginConverter;
 import org.chobit.knot.gateway.dto.plugin.PluginDto;
-import org.chobit.knot.gateway.entity.PluginBindingEntity;
 import org.chobit.knot.gateway.entity.PluginInstanceEntity;
 import org.chobit.knot.gateway.mapper.PluginInstanceMapper;
 import org.chobit.knot.gateway.plugin.*;
@@ -60,27 +59,13 @@ public class PluginService implements PluginBindingProvider {
     }
 
     /**
-     * Creates a new resource. Executes the public operation.
+     * 逻辑删除（死行不展示）。reconcile 标记 orphaned 的插件行，由前端删除按钮触发。
      */
     @Transactional
-    public PluginDto create(PluginDto request) {
-        PluginInstanceEntity e = new PluginInstanceEntity();
-        e.setCode(request.code());
-        e.setName(request.name());
-        e.setPackageCode(request.packageCode());
-        e.setCapabilityCode(request.capabilityCode());
-        // 扩展点与执行阶段由代码枚举唯一定义，非法 code 直接拒绝，不再依赖 DB 字典
-        e.setExtensionPoint(PluginExtensionPoint.requireCode(request.extensionPoint(),
-                "unsupported plugin extension point: " + request.extensionPoint()));
-        e.setStageCode(PluginStageCode.requireCode(request.stageCode(),
-                "unsupported plugin stage code: " + request.stageCode()));
-        e.setStatus(request.status());
-        e.setTimeoutMs(request.timeoutMs());
-        e.setPluginType(PluginTypeEnum.requireCode(request.pluginType(),
-                "unsupported plugin type: " + request.pluginType()));
-        e.setConfigJson(request.configJson());
-        pluginMapper.insert(e);
-        return getById(e.getId());
+    public PluginDto markDeleted(Long id) {
+        getById(id); // ensure exists
+        pluginMapper.updateDeleted(id, 1);
+        return getById(id);
     }
 
     /**
@@ -102,28 +87,25 @@ public class PluginService implements PluginBindingProvider {
     }
 
     /**
-     * 绑定行的枚举列一律按 code 解析；存量非法 code 直接跳过，避免 valueOf 抛异常打挂整条链路。
+     * 单表视图构造：枚举列按 code 解析；存量非法 code 直接跳过，避免 valueOf 抛异常打挂整条链路。
+     * scope 维度已随单表收口移除（2026-10-13），配置改由 Nacos 下发，故视图不再携带 scope/config。
      */
-    private PluginBindingView toBindingView(PluginBindingEntity entity) {
+    private PluginBindingView toBindingView(PluginInstanceEntity entity) {
         PluginExtensionPoint point = PluginExtensionPoint.fromCode(entity.getExtensionPoint());
         PluginStageCode stage = PluginStageCode.fromCode(entity.getStageCode());
-        PluginScopeType scope = PluginScopeType.fromCode(entity.getScopeType());
-        if (point == null || stage == null || scope == null) {
+        if (point == null || stage == null) {
             return null;
         }
         return new PluginBindingView(
                 entity.getId(),
-                entity.getInstanceCode(),
-                entity.getInstanceName(),
+                entity.getCode(),
+                entity.getName(),
                 entity.getPackageCode(),
                 entity.getPackageName(),
                 entity.getCapabilityCode(),
                 point,
                 stage,
-                scope,
-                entity.getScopeRefCode(),
                 entity.getOrderNo(),
-                entity.getConfigJson(),
                 entity.getTimeoutMs()
         );
     }
@@ -142,7 +124,7 @@ public class PluginService implements PluginBindingProvider {
         return PluginTypeEnum.fromCode(value) == null ? null : value;
     }
 
-    /** 查询参数归一：数字字符串 -> PluginInstanceStatusEnum code；非法值不过滤 */
+    /** 查询参数归一：数字字符串 -> EnabledStatusEnum code；非法值不过滤 */
     private static Integer toStatusCode(String status) {
         String value = status == null ? "" : status.trim();
         if (value.isEmpty()) {

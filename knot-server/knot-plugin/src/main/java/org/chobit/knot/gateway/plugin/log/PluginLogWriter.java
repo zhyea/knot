@@ -24,14 +24,12 @@ public final class PluginLogWriter {
                           PluginBindingView binding,
                           String traceId,
                           PluginLogPayload payload) {
-        log.info("plugin-event type={} stage={} instance={} capability={} traceId={} scope={} scopeRefCode={} payload={}",
+        log.info("plugin-event type={} stage={} instance={} capability={} traceId={} payload={}",
                 eventTypeCode,
                 stageCode == null ? null : stageCode.code(),
                 binding.instanceCode(),
                 binding.capabilityCode(),
                 traceId,
-                binding.scopeType() == null ? null : binding.scopeType().name(),
-                binding.scopeRefCode(),
                 JsonKit.toJson(payload));
     }
 }

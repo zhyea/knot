@@ -2,7 +2,6 @@ package org.chobit.knot.gateway.mapper;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.chobit.knot.gateway.entity.PluginBindingEntity;
 import org.chobit.knot.gateway.entity.PluginInstanceEntity;
 
 import java.util.List;
@@ -20,6 +19,12 @@ public interface PluginInstanceMapper {
 
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 
-    List<PluginBindingEntity> listActiveBindings(@Param("extensionPoint") String extensionPoint,
-                                                 @Param("stageCode") String stageCode);
+    int updateDeleted(@Param("id") Long id, @Param("isDeleted") Integer isDeleted);
+
+    List<PluginInstanceEntity> listActiveBindings(@Param("extensionPoint") String extensionPoint,
+                                                   @Param("stageCode") String stageCode);
+
+    List<PluginInstanceEntity> listAll();
+
+    int setOrphaned(@Param("id") Long id, @Param("orphaned") Integer orphaned);
 }

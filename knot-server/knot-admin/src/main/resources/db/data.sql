@@ -726,43 +726,38 @@ INSERT IGNORE INTO ks_scheduled_tasks (
 (3, 'openrouter-model-sync', 'OpenRouter 模型同步', 'OPENROUTER_MODEL_SYNC', '0 0 4 * * ?', 'SINGLE', 0, '同步 OpenRouter 模型到外部模型库');
 
 -- 插件
-INSERT IGNORE INTO kb_plugin_packages (
-  id, plugin_code, plugin_name, version, source_type, entrypoint, manifest_json, status
-) VALUES
-(1, 'builtin-gateway-audit', '网关请求响应审计插件', '1.0.0', 'BUILTIN', 'org.chobit.knot.gateway.plugin.builtin.GatewayRequestLoggingPlugin',
-  JSON_OBJECT('pluginId', 'builtin-gateway-audit', 'extensionPoint', 'GATEWAY_EXCHANGE'), 1),
-(2, 'builtin-provider-audit', '上游请求响应审计插件', '1.0.0', 'BUILTIN', 'org.chobit.knot.gateway.plugin.builtin.UpstreamRequestLoggingPlugin',
-  JSON_OBJECT('pluginId', 'builtin-provider-audit', 'extensionPoint', 'UPSTREAM_EXCHANGE'), 1);
-
-INSERT IGNORE INTO kb_plugin_capabilities (
-  id, plugin_code, capability_code, capability_name, extension_point, stage_code, order_hint, status
-) VALUES
-(1, 'builtin-gateway-audit', 'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_REQUEST', 100, 1),
-(2, 'builtin-gateway-audit', 'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_RESPONSE', 100, 1),
-(3, 'builtin-gateway-audit', 'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_ERROR', 100, 1),
-(4, 'builtin-provider-audit', 'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_REQUEST', 100, 1),
-(5, 'builtin-provider-audit', 'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_RESPONSE', 100, 1),
-(6, 'builtin-provider-audit', 'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_ERROR', 100, 1);
-
+-- 插件管理已单表收口（2026-10-13）：packages / capabilities / bindings 三表删除，
+-- 展示信息与执行阶段已反范式冗余进 kb_plugin_instances。status 改为 EnabledStatusEnum(1/0)，
+-- orphaned/is_deleted 初始均为 0（启动期 PluginReconcileRunner 按 entrypoint 校正）。
 INSERT IGNORE INTO kb_plugin_instances (
-  id, plugin_code, capability_id, instance_code, instance_name, config_json, status, timeout_ms, concurrency_limit, plugin_type
+  id, plugin_code, instance_code, instance_name, plugin_name, entrypoint, source_type, version,
+  capability_code, capability_name, extension_point, stage_code, order_no,
+  config_json, status, timeout_ms, concurrency_limit, plugin_type, is_deleted, orphaned
 ) VALUES
-(1, 'builtin-gateway-audit', 1, 'gateway-request-log', '网关请求日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0, 'SYNC'),
-(2, 'builtin-gateway-audit', 2, 'gateway-response-log', '网关响应日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0, 'SYNC'),
-(3, 'builtin-gateway-audit', 3, 'gateway-error-log', '网关异常日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0, 'SYNC'),
-(4, 'builtin-provider-audit', 4, 'provider-request-log', '上游请求日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0, 'SYNC'),
-(5, 'builtin-provider-audit', 5, 'provider-response-log', '上游响应日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0, 'SYNC'),
-(6, 'builtin-provider-audit', 6, 'provider-error-log', '上游异常日志插件', JSON_OBJECT('sink', 'LOG', 'plannedSink', 'KAFKA'), 2, 3000, 0, 'SYNC');
-
-INSERT IGNORE INTO kb_plugin_bindings (
-  id, instance_code, scope_type, scope_ref_code, stage_code, order_no, status, binding_config_json
-) VALUES
-(1, 'gateway-request-log', 'GLOBAL', NULL, 'GATEWAY_REQUEST', 100, 1, JSON_OBJECT('maskApiKey', true)),
-(2, 'gateway-response-log', 'GLOBAL', NULL, 'GATEWAY_RESPONSE', 100, 1, JSON_OBJECT()),
-(3, 'gateway-error-log', 'GLOBAL', NULL, 'GATEWAY_ERROR', 100, 1, JSON_OBJECT()),
-(4, 'provider-request-log', 'GLOBAL', NULL, 'UPSTREAM_REQUEST', 100, 1, JSON_OBJECT()),
-(5, 'provider-response-log', 'GLOBAL', NULL, 'UPSTREAM_RESPONSE', 100, 1, JSON_OBJECT()),
-(6, 'provider-error-log', 'GLOBAL', NULL, 'UPSTREAM_ERROR', 100, 1, JSON_OBJECT());
+(1, 'builtin-gateway-audit', 'gateway-request-log', '网关请求日志插件', '网关请求响应审计插件',
+  'org.chobit.knot.gateway.plugin.builtin.GatewayRequestLoggingPlugin', 'BUILTIN', '1.0.0',
+  'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_REQUEST', 100,
+  NULL, 1, 3000, 0, 'SYNC', 0, 0),
+(2, 'builtin-gateway-audit', 'gateway-response-log', '网关响应日志插件', '网关请求响应审计插件',
+  'org.chobit.knot.gateway.plugin.builtin.GatewayResponseLoggingPlugin', 'BUILTIN', '1.0.0',
+  'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_RESPONSE', 100,
+  NULL, 1, 3000, 0, 'SYNC', 0, 0),
+(3, 'builtin-gateway-audit', 'gateway-error-log', '网关异常日志插件', '网关请求响应审计插件',
+  'org.chobit.knot.gateway.plugin.builtin.GatewayErrorLoggingPlugin', 'BUILTIN', '1.0.0',
+  'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_ERROR', 100,
+  NULL, 1, 3000, 0, 'SYNC', 0, 0),
+(4, 'builtin-provider-audit', 'provider-request-log', '上游请求日志插件', '上游请求响应审计插件',
+  'org.chobit.knot.gateway.plugin.builtin.UpstreamRequestLoggingPlugin', 'BUILTIN', '1.0.0',
+  'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_REQUEST', 100,
+  NULL, 1, 3000, 0, 'SYNC', 0, 0),
+(5, 'builtin-provider-audit', 'provider-response-log', '上游响应日志插件', '上游请求响应审计插件',
+  'org.chobit.knot.gateway.plugin.builtin.UpstreamResponseLoggingPlugin', 'BUILTIN', '1.0.0',
+  'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_RESPONSE', 100,
+  NULL, 1, 3000, 0, 'SYNC', 0, 0),
+(6, 'builtin-provider-audit', 'provider-error-log', '上游异常日志插件', '上游请求响应审计插件',
+  'org.chobit.knot.gateway.plugin.builtin.UpstreamErrorLoggingPlugin', 'BUILTIN', '1.0.0',
+  'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_ERROR', 100,
+  NULL, 1, 3000, 0, 'SYNC', 0, 0);
 
 -- 通知模板
 INSERT IGNORE INTO kb_notification_templates (id, code, name, channel, title_tpl, content_tpl, status) VALUES

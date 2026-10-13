@@ -38,7 +38,7 @@ class EnumOptionRegistryTest {
     void exposesOnlyMigratedEnums() {
         Map<String, List<EnumOptionItem>> map = registry.enumMap();
 
-        assertEquals(20, map.size());
+        assertEquals(19, map.size());
         assertTrue(map.containsKey("ModelTypeEnum"));
         assertTrue(map.containsKey("ModelApiProtocolEnum"));
         assertTrue(map.containsKey("BillingModeEnum"));
@@ -55,7 +55,6 @@ class EnumOptionRegistryTest {
         assertTrue(map.containsKey("PluginStageCode"));
         assertTrue(map.containsKey("PluginScopeType"));
         assertTrue(map.containsKey("PluginTypeEnum"));
-        assertTrue(map.containsKey("PluginInstanceStatusEnum"));
         assertTrue(map.containsKey("OperationLogStatusEnum"));
         assertTrue(map.containsKey("ScheduledTaskRunStatusEnum"));
         assertTrue(map.containsKey("RoutingTestStatusEnum"));
@@ -112,9 +111,6 @@ class EnumOptionRegistryTest {
         assertEquals(2, optionsOf("PluginTypeEnum").size());
         assertLabel("PluginTypeEnum", "SYNC", "同步插件");
         assertLabel("PluginTypeEnum", "ASYNC", "异步插件");
-
-        assertEquals(4, optionsOf("PluginInstanceStatusEnum").size());
-        assertLabel("PluginInstanceStatusEnum", 2, "生效");
     }
 
     @Test

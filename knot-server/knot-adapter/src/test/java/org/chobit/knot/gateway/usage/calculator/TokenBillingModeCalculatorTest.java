@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * TOKEN 计算器按定价方案分发的计费行为：固定价 / 阶梯价 / 高低峰各自一条计费路径，
@@ -60,7 +61,7 @@ class TokenBillingModeCalculatorTest {
                 new TokenBillingUsage(1_000L, 200L, 1_200L, 0L, 500L, 0L, 0L), PEAK);
 
         // 缓存写未配分项价 -> 回落 input 价 2：500×2/1000 = 1
-        assertEquals(0, new BigDecimal("1.0").compareTo(detail(amount, "cachedWrite").cost()));
+        assertEquals("1.00000000", detail(amount, "cachedWrite").cost());
         // 未缓存输入 = 1000 - 0 - 500 = 500 -> 1.0；output 1.6；合计 3.6
         assertEquals(0, new BigDecimal("3.6").compareTo(amount.totalCost()));
     }
@@ -76,15 +77,15 @@ class TokenBillingModeCalculatorTest {
         // 阶梯基准是请求总 token（1_100_000 命中第二档），不是 input（400_000 会命中第一档）
         NormalizedBillingAmount second = calculate(rule(config, "TIERED"),
                 new TokenBillingUsage(400_000L, 700_000L, 1_100_000L, 0L, 0L, 0L, 0L), PEAK);
-        assertEquals(0, new BigDecimal("800").compareTo(detail(second, "uncachedInput").cost()), "400_000×2/1000");
+        assertEquals("800.00000000", detail(second, "uncachedInput").cost(), "400_000×2/1000");
         // 第二档未配 output -> 回落 basePrices 20
-        assertEquals(0, new BigDecimal("14000").compareTo(detail(second, "output").cost()), "700_000×20/1000");
+        assertEquals("14000.00000000", detail(second, "output").cost(), "700_000×20/1000");
         assertEquals(0, new BigDecimal("14800").compareTo(second.totalCost()));
 
         // 档位边界：to 含，总量恰好 1_000_000 仍命中第一档（价 1）
         NormalizedBillingAmount first = calculate(rule(config, "TIERED"),
                 new TokenBillingUsage(1_000_000L, 0L, 1_000_000L, 0L, 0L, 0L, 0L), PEAK);
-        assertEquals(0, new BigDecimal("1000").compareTo(detail(first, "uncachedInput").cost()), "1_000_000×1/1000");
+        assertEquals("1000.00000000", detail(first, "uncachedInput").cost(), "1_000_000×1/1000");
     }
 
     @Test
@@ -146,10 +147,10 @@ class TokenBillingModeCalculatorTest {
                 new TokenBillingUsage(1_000L, 200L, 1_400L, 100L, 0L, 200L, 300L), PEAK);
 
         assertEquals(List.of("uncachedInput", "cachedRead", "cachedWrite5m", "cachedWrite1h", "output"), types(amount));
-        assertEquals(0, new BigDecimal("0.8").compareTo(detail(amount, "uncachedInput").cost()), "400×2/1000");
-        assertEquals(0, new BigDecimal("0.02").compareTo(detail(amount, "cachedRead").cost()), "100×0.2/1000");
-        assertEquals(0, new BigDecimal("0.5").compareTo(detail(amount, "cachedWrite5m").cost()), "200×2.5/1000");
-        assertEquals(0, new BigDecimal("1.5").compareTo(detail(amount, "cachedWrite1h").cost()), "300×5/1000");
+        assertEquals("0.80000000", detail(amount, "uncachedInput").cost(), "400×2/1000");
+        assertEquals("0.02000000", detail(amount, "cachedRead").cost(), "100×0.2/1000");
+        assertEquals("0.50000000", detail(amount, "cachedWrite5m").cost(), "200×2.5/1000");
+        assertEquals("1.50000000", detail(amount, "cachedWrite1h").cost(), "300×5/1000");
         assertEquals(0, new BigDecimal("4.42").compareTo(amount.totalCost()));
     }
 
@@ -159,7 +160,7 @@ class TokenBillingModeCalculatorTest {
                 new TokenBillingUsage(1_000L, 200L, 1_200L, 100L, 500L, 0L, 0L), PEAK);
 
         assertEquals(List.of("uncachedInput", "cachedRead", "cachedWrite", "output"), types(amount));
-        assertEquals(0, new BigDecimal("1.25").compareTo(detail(amount, "cachedWrite").cost()), "500×2.5/1000");
+        assertEquals("1.25000000", detail(amount, "cachedWrite").cost(), "500×2.5/1000");
         assertEquals(0, new BigDecimal("3.67").compareTo(amount.totalCost()), "0.8 + 0.02 + 1.25 + 1.6");
     }
 
@@ -181,6 +182,18 @@ class TokenBillingModeCalculatorTest {
 
         assertEquals(0, BigDecimal.ZERO.compareTo(amount.totalCost()), "无配置按 0 出账");
         assertEquals(4, amount.details().size(), "明细仍按标准口径出具");
+    }
+
+    @Test
+    void tinyCostIsPlainDecimalNotScientificNotation() {
+        // 1 token × 0.00001 / 1000 = 0.00000001：BigDecimal.toString() 是 "1E-8"
+        // （调整指数 -8 < -6，Jackson 默认沿用 toString 原样写出），String 契约必须落成普通十进制
+        NormalizedBillingAmount amount = calculate(rule("{\"basePrices\":{\"input\":0.00001}}", "FIXED"),
+                new TokenBillingUsage(1L, 0L, 1L, 0L, 0L, 0L, 0L), PEAK);
+
+        String cost = detail(amount, "uncachedInput").cost();
+        assertEquals("0.00000001", cost);
+        assertFalse(cost.contains("E"), "不得出现科学计数法: " + cost);
     }
 
     @Test
