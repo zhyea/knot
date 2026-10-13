@@ -22,7 +22,7 @@
           </div>
 
           <el-row :gutter="16" class="form-grid">
-            <el-col :span="12">
+            <el-col :span="13">
               <el-form-item label="模型编码" required :error="modelCodeError">
                 <el-input
                   v-model="form.modelCode"
@@ -35,7 +35,7 @@
                 />
               </el-form-item>
             </el-col>
-            <el-col :span="12">
+            <el-col :span="11">
               <el-form-item label="版本">
                 <el-input v-model="form.version" placeholder="如 v2026092910 或 1.0.0" @focus="fillVersionOnFocus">
                   <template #append>
@@ -47,13 +47,23 @@
           </el-row>
 
           <el-row :gutter="16" class="form-grid">
-            <el-col :span="24">
+            <el-col :span="13">
               <el-form-item label="供应商账户" required>
                 <ProviderAccountSelect
                   v-model="form.providerAccountCode"
                   placeholder="请选择供应商账户"
                   style="width: 100%"
                   @change="onProviderAccountChange"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col :span="11">
+              <el-form-item label="统一模型" required>
+                <RemoteEntitySelect
+                  v-model="form.logicalModelCode"
+                  :load-function="loadLogicalModelOptions"
+                  placeholder="请选择统一模型"
+                  style="width: 100%"
                 />
               </el-form-item>
             </el-col>
@@ -68,17 +78,7 @@
           </el-row>
 
           <el-row :gutter="16" class="form-grid">
-            <el-col :span="12">
-              <el-form-item label="统一模型" required>
-                <RemoteEntitySelect
-                  v-model="form.logicalModelCode"
-                  :load-function="loadLogicalModelOptions"
-                  placeholder="请选择统一模型"
-                  style="width: 100%"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
+            <el-col :span="24">
               <el-form-item label="上游模型" required>
                 <el-input
                   v-model="form.upstreamModel"
