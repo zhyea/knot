@@ -28,7 +28,7 @@ import java.util.function.Function;
 public class GatewayDataService {
 
     private static final Duration EXPIRE_AFTER_WRITE = Duration.ofMinutes(10);
-    private static final Duration REFRESH_AFTER_WRITE = Duration.ofMinutes(3);
+    private static final Duration REFRESH_AFTER_WRITE = Duration.ofSeconds(30);
 
     /**
      * 命中计费规则的缓存时长：与其余缓存一致。
