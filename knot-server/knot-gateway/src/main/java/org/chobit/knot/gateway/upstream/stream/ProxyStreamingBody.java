@@ -24,8 +24,9 @@ import java.util.Map;
 /**
  * 把上游响应边收边发给调用方：读完一行立刻写出并 flush，不在网关侧堆积整包响应。
  *
- * <p>SSE 场景额外做一件事：逐事件累计用量，并在上游 {@code data: [DONE]} 之前插入
- * {@code knot_extend} 事件（上游不发 [DONE] 时在流结束处兜底插入），与整包缓冲模式下的行为保持一致。</p>
+ * <p>SSE 场景额外做一件事：逐事件累计用量，并在上游 {@code data: [DONE]} 之前插入独立的
+ * {@code knot_extend} 事件（{@code rawUsage} 并列；上游不发 [DONE] 时在流结束处兜底插入），
+ * 不改动上游原有 chunk，与整包缓冲模式下的行为保持一致。</p>
  */
 public class ProxyStreamingBody implements StreamingResponseBody {
 
@@ -130,7 +131,8 @@ public class ProxyStreamingBody implements StreamingResponseBody {
     }
 
     /**
-     * 写出 knot_extend 事件。用量缺失或两视图都为空时不写，避免给调用方塞一个空对象。
+     * 写出独立的 {@code knot_extend} 事件（{@code rawUsage} 并列，供下游对照排障）。
+     * 用量缺失或两视图都为空时不写，避免给调用方塞一个空对象。
      */
     private void writeUsageEvent(Writer writer, UsageAccounting usage) throws IOException {
         if (usage == null) {
@@ -140,13 +142,16 @@ public class ProxyStreamingBody implements StreamingResponseBody {
         if (payload == null) {
             return;
         }
-        writer.write(usageEvent(payload));
+        writer.write(usageEvent(payload, usage.rawUsage()));
         writer.write('\n');
     }
 
-    private String usageEvent(KnotExtendPayload payload) {
+    private String usageEvent(KnotExtendPayload payload, Map<String, Object> rawUsage) {
         Map<String, Object> event = new LinkedHashMap<>();
         event.put(AiPayloadFields.KNOT_EXTEND, payload);
+        if (rawUsage != null && !rawUsage.isEmpty()) {
+            event.put(AiPayloadFields.RAW_USAGE, rawUsage);
+        }
         return DATA_PREFIX + " " + JsonKit.toJson(event);
     }
 
