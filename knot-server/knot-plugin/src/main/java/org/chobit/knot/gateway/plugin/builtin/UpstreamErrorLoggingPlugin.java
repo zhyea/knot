@@ -1,21 +1,18 @@
 package org.chobit.knot.gateway.plugin.builtin;
 
 import org.chobit.knot.gateway.plugin.*;
+import org.chobit.knot.gateway.plugin.log.PluginLogWriter;
 import org.chobit.knot.gateway.plugin.log.UpstreamErrorPayload;
 import org.chobit.knot.gateway.plugin.upstream.UpstreamPluginContext;
 import org.chobit.knot.gateway.util.JsonKit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-
-import java.time.LocalDateTime;
 
 @Component
 public class UpstreamErrorLoggingPlugin implements PluginHandler<UpstreamPluginContext> {
 
-    private final PluginEventSink eventSink;
-
-    public UpstreamErrorLoggingPlugin(PluginEventSink eventSink) {
-        this.eventSink = eventSink;
-    }
+    private static final Logger log = LoggerFactory.getLogger(UpstreamErrorLoggingPlugin.class);
 
     @Override
     public PluginDescriptor descriptor() {
@@ -41,17 +38,6 @@ public class UpstreamErrorLoggingPlugin implements PluginHandler<UpstreamPluginC
                 error == null ? null : error.getClass().getSimpleName(),
                 error == null ? null : error.getMessage(),
                 JsonKit.toTree(context.requestBody()));
-        eventSink.emit(new PluginEvent(
-                PluginEventType.PROVIDER_ERROR,
-                context.traceId(),
-                context.traceparent(),
-                binding.instanceCode(),
-                binding.capabilityCode(),
-                context.stageCode(),
-                binding.scopeType() == null ? null : binding.scopeType().name(),
-                binding.scopeRefCode(),
-                payload,
-                LocalDateTime.now()
-        ));
+        PluginLogWriter.log(log, PluginEventType.PROVIDER_ERROR.code(), context.stageCode(), binding, context.traceId(), payload);
     }
 }

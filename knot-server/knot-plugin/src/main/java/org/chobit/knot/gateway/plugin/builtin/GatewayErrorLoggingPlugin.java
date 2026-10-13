@@ -3,19 +3,16 @@ package org.chobit.knot.gateway.plugin.builtin;
 import org.chobit.knot.gateway.plugin.*;
 import org.chobit.knot.gateway.plugin.gateway.GatewayPluginContext;
 import org.chobit.knot.gateway.plugin.log.GatewayErrorPayload;
+import org.chobit.knot.gateway.plugin.log.PluginLogWriter;
 import org.chobit.knot.gateway.util.JsonKit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-
-import java.time.LocalDateTime;
 
 @Component
 public class GatewayErrorLoggingPlugin implements PluginHandler<GatewayPluginContext> {
 
-    private final PluginEventSink eventSink;
-
-    public GatewayErrorLoggingPlugin(PluginEventSink eventSink) {
-        this.eventSink = eventSink;
-    }
+    private static final Logger log = LoggerFactory.getLogger(GatewayErrorLoggingPlugin.class);
 
     @Override
     public PluginDescriptor descriptor() {
@@ -40,17 +37,6 @@ public class GatewayErrorLoggingPlugin implements PluginHandler<GatewayPluginCon
                 error == null ? null : error.getClass().getSimpleName(),
                 error == null ? null : error.getMessage(),
                 JsonKit.toTree(context.requestBody()));
-        eventSink.emit(new PluginEvent(
-                PluginEventType.GATEWAY_ERROR,
-                context.traceId(),
-                context.traceparent(),
-                binding.instanceCode(),
-                binding.capabilityCode(),
-                context.stageCode(),
-                binding.scopeType() == null ? null : binding.scopeType().name(),
-                binding.scopeRefCode(),
-                payload,
-                LocalDateTime.now()
-        ));
+        PluginLogWriter.log(log, PluginEventType.GATEWAY_ERROR.code(), context.stageCode(), binding, context.traceId(), payload);
     }
 }

@@ -1,21 +1,18 @@
 package org.chobit.knot.gateway.plugin.builtin;
 
 import org.chobit.knot.gateway.plugin.*;
+import org.chobit.knot.gateway.plugin.log.PluginLogWriter;
 import org.chobit.knot.gateway.plugin.log.UpstreamResponsePayload;
 import org.chobit.knot.gateway.plugin.upstream.UpstreamPluginContext;
 import org.chobit.knot.gateway.util.JsonKit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-
-import java.time.LocalDateTime;
 
 @Component
 public class UpstreamResponseLoggingPlugin implements PluginHandler<UpstreamPluginContext> {
 
-    private final PluginEventSink eventSink;
-
-    public UpstreamResponseLoggingPlugin(PluginEventSink eventSink) {
-        this.eventSink = eventSink;
-    }
+    private static final Logger log = LoggerFactory.getLogger(UpstreamResponseLoggingPlugin.class);
 
     @Override
     public PluginDescriptor descriptor() {
@@ -38,17 +35,6 @@ public class UpstreamResponseLoggingPlugin implements PluginHandler<UpstreamPlug
                 context.modelCode(),
                 context.protocol(),
                 JsonKit.toTree(context.responseSnapshot()));
-        eventSink.emit(new PluginEvent(
-                PluginEventType.PROVIDER_RESPONSE,
-                context.traceId(),
-                context.traceparent(),
-                binding.instanceCode(),
-                binding.capabilityCode(),
-                context.stageCode(),
-                binding.scopeType() == null ? null : binding.scopeType().name(),
-                binding.scopeRefCode(),
-                payload,
-                LocalDateTime.now()
-        ));
+        PluginLogWriter.log(log, PluginEventType.PROVIDER_RESPONSE.code(), context.stageCode(), binding, context.traceId(), payload);
     }
 }
