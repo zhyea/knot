@@ -14,8 +14,8 @@ import org.chobit.knot.gateway.usage.ModelUsageNormalizer;
  *   <li>{@code billing}：本网关按计费规则算出的总价与计费明细。</li>
  * </ul>
  *
- * <p>上游原始 {@code usage} 对象不再对外透传：它已完整参与 {@code usage} 归一化，
- * 排障所需字段在 {@code usage} 中均有对应项，重复输出只会让调用方在两个口径间选错。
+ * <p>上游原始 {@code usage} 原文不放在本负载内，而是以并列字段 {@code upstreamUsage}
+ * 注入同一响应（整包为响应体字段，SSE 为同一事件的字段），供下游对照排障。
  *
  * <p>{@code billing} 在无计费规则可命中时为 {@code null} 并在 JSON 中省略；
  * {@code usage} 在上游完全未上报用量且无法从响应体推断时同样省略。
