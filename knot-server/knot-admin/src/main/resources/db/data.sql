@@ -438,7 +438,9 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (204, 150, 'POST', '/api/moderation-words/import', 'ModerationWordController', 1),
 (205, 145, 'GET', '/api/moderation-words/export', 'ModerationWordController', 1),
 (206, 151, 'DELETE', '/api/plugins/{id}', 'PluginController', 1),
-(207, 84, 'GET', '/api/models/code/{code}', 'ModelController', 1);
+(207, 84, 'GET', '/api/models/code/{code}', 'ModelController', 1),
+-- 路由调试协议下发（前端协议下拉数据源，与调试准入校验同源）
+(208, 112, 'GET', '/api/routing-rules/{id}/debug-protocols', 'RoutingRuleController', 1);
 
 -- 角色授权（OPERATOR 全量 / DEVELOPER 只读；ADMIN 由文件末尾权威块全量授予）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES

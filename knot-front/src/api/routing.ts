@@ -87,6 +87,16 @@ export function listDebugCapabilities() {
   return get("/api/routing-rules/debug-capabilities");
 }
 
+/**
+ * 规则各调试目标支持的接口协议：后端权威下发（与调试准入校验同源），
+ * 前端不再自行解析模型/模型池的协议绑定。
+ */
+export function listRoutingRuleDebugProtocols(ruleId: number | string) {
+  return get<{
+    targets: Array<{ targetType: string; targetId: number | string; primary: boolean; protocols: string[] }>;
+  }>(`/api/routing-rules/${ruleId}/debug-protocols`);
+}
+
 // ===================== 预设请求（路由调试请求用例） =====================
 
 export function listTestRequestPresets(params: Dict) {
