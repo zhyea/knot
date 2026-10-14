@@ -23,7 +23,7 @@ public class PluginInstanceEntity {
     /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
     private Integer status;
     private Integer timeoutMs;
-    /** 插件执行类型（PluginTypeEnum）：SYNC-同步插件，ASYNC-异步插件 */
+    /** 插件执行类型（PluginTypeEnum）：SYNC-同步插件 */
     private String pluginType;
     private String configJson;
     /** 逻辑删除（死行不展示）：1-已删除 0-未删除 */

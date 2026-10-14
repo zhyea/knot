@@ -4,6 +4,7 @@ import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
+import org.chobit.knot.gateway.service.ModerationWordResource;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.gateway.plugin.PluginDispatcher;
@@ -26,8 +27,17 @@ public abstract class AbstractGatewayRequestTemplate {
 
     private final PluginDispatcher pluginDispatcher;
 
-    protected AbstractGatewayRequestTemplate(PluginDispatcher pluginDispatcher) {
+    /**
+     * 词库资源供给（网关唯一的审核职责）：每请求取全量启用词条随插件上下文下发，
+     * 列表由 {@link ModerationWordResource} 按路由数据同款节奏缓存（约 30s 生效延迟），
+     * 编译 / 去重 / 定时重建已收敛到 knot-plugin 的 {@code ModerationWordCache}。
+     */
+    private final ModerationWordResource moderationWordResource;
+
+    protected AbstractGatewayRequestTemplate(PluginDispatcher pluginDispatcher,
+                                             ModerationWordResource moderationWordResource) {
         this.pluginDispatcher = pluginDispatcher;
+        this.moderationWordResource = moderationWordResource;
     }
 
     /**
@@ -140,6 +150,7 @@ public abstract class AbstractGatewayRequestTemplate {
                         context.ruleCode(),
                         context.protocol() == null ? null : context.protocol().canonical().code(),
                         routingSnapshot(context.routing()),
+                        moderationWordResource.currentWords(),
                         exchange == null ? null : exchange.requestBody(),
                         exchange == null ? null : exchange.contentType(),
                         responseBody,

@@ -7,8 +7,7 @@ import org.chobit.knot.gateway.dto.moderation.ModerationWordImportResult;
 import org.chobit.knot.gateway.entity.ModerationWordEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.mapper.ModerationWordMapper;
-import org.chobit.knot.gateway.plugin.moderation.ModerationSnapshotCache;
-import org.chobit.knot.gateway.plugin.moderation.ModerationWordSource;
+import org.chobit.knot.gateway.moderation.ModerationTerm;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -18,6 +17,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -40,26 +40,10 @@ import static org.mockito.Mockito.when;
  */
 class ModerationWordServiceTest {
 
-    /** 记录 invalidate 调用次数：验证「写操作后本节点立即失效」。 */
-    private static final class CountingSnapshotCache extends ModerationSnapshotCache {
-        private int invalidations;
-
-        CountingSnapshotCache() {
-            super(mock(ModerationWordSource.class), 0L);
-        }
-
-        @Override
-        public void invalidate() {
-            invalidations++;
-        }
-    }
-
     private final ModerationWordMapper wordMapper = mock(ModerationWordMapper.class);
     private final ModerationWordConverter converter = new ModerationWordConverter();
-    /** 计数子类而非 mock：JDK 25 下 Mockito inline 无法 instrument 本类（Byte Buddy 限制）。 */
-    private final CountingSnapshotCache snapshotCache = new CountingSnapshotCache();
     private final ModerationWordService service =
-            new ModerationWordService(wordMapper, converter, snapshotCache);
+            new ModerationWordService(wordMapper, converter);
 
     /** 全量行（含已逻辑删除）：importWords 的判重数据源。 */
     private final List<ModerationWordEntity> allRows = new ArrayList<>();
@@ -168,20 +152,6 @@ class ModerationWordServiceTest {
     }
 
     @Test
-    void importInvalidatesSnapshotOnlyWhenInserted() {
-        service.importWords(List.of(item("a", "AD")));
-        assertEquals(1, snapshotCache.invalidations);
-
-        // 全部跳过（已存在）时不再触发失效：省掉一次无意义的本节点缓存清理
-        allRows.clear();
-        liveRows.clear();
-        row(1L, "a", "AD", 0, 1);
-
-        service.importWords(List.of(item("a", "AD")));
-        assertEquals(1, snapshotCache.invalidations);
-    }
-
-    @Test
     void importEmptyBatchIsNoop() {
         ModerationWordImportResult result = service.importWords(List.of());
         assertEquals(0, result.total());
@@ -283,5 +253,29 @@ class ModerationWordServiceTest {
 
         assertThrows(BusinessException.class, () -> service.updateStatus(9L, true));
         verify(wordMapper, never()).updateStatus(anyLong(), anyInt());
+    }
+
+    // ==================== loadEnabledTerms ====================
+
+    @Test
+    void loadEnabledTermsMapsRowsToNeutralTerms() {
+        when(wordMapper.listEnabled()).thenReturn(List.of(row(1L, "badword", "ABUSE", 0, 1)));
+
+        List<ModerationTerm> terms = service.loadEnabledTerms();
+
+        assertEquals(1, terms.size());
+        ModerationTerm term = terms.get(0);
+        assertEquals("badword", term.word());
+        assertEquals("badword", term.normalizedWord());
+        assertEquals("ABUSE", term.categoryCode());
+        assertEquals(2, term.severity());
+        assertNotNull(term.updatedAtMillis());
+    }
+
+    @Test
+    void loadEnabledTermsReturnsEmptyListWhenNoRows() {
+        when(wordMapper.listEnabled()).thenReturn(List.of());
+
+        assertTrue(service.loadEnabledTerms().isEmpty());
     }
 }

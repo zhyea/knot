@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.plugin.moderation;
 
+import org.chobit.knot.gateway.moderation.ModerationTerm;
+import org.chobit.knot.gateway.util.TextNormalizer;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

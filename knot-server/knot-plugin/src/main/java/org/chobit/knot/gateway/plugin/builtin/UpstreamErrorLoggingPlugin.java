@@ -38,6 +38,6 @@ public class UpstreamErrorLoggingPlugin implements PluginHandler<UpstreamPluginC
                 error == null ? null : error.getClass().getSimpleName(),
                 error == null ? null : error.getMessage(),
                 JsonKit.toTree(context.requestBody()));
-        PluginLogWriter.log(log, PluginEventType.PROVIDER_ERROR.code(), context.stageCode(), binding, context.traceId(), payload);
+        PluginLogWriter.log(log, context.stageCode(), binding, context.traceId(), payload);
     }
 }

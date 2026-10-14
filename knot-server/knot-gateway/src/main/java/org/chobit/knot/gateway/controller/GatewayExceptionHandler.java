@@ -2,9 +2,9 @@ package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.constants.enums.GatewayErrorTypeEnum;
 import org.chobit.knot.gateway.error.BusinessException;
+import org.chobit.knot.gateway.error.GatewayBadRequestException;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
-import org.chobit.knot.gateway.plugin.moderation.ModerationRejectException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.chobit.knot.gateway.exception.GatewayRequestException;
 import org.chobit.knot.gateway.exception.GatewayTrafficRejectException;
@@ -78,18 +78,17 @@ public class GatewayExceptionHandler {
     }
 
     /**
-     * Handles sensitive word moderation rejections.
+     * Handles cross-module 400 rejections (e.g. sensitive word moderation).
      *
      * <p>400 rather than 429: 429 is reserved for rate limit and quota. Only the matched
      * category code is exposed — never the word itself, to prevent dictionary probing.</p>
      */
     @ResponseBody
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler(ModerationRejectException.class)
-    public GatewayErrorResponse handleModerationRejectException(ModerationRejectException e) {
-        log.warn("Gateway moderation rejected: category={}, message={}", e.categoryCode(), e.getMessage());
-        // 拒绝信号由 knot-plugin 抛出（插件不能反向依赖网关异常家族），type 在此补上
-        return GatewayErrorResponse.of(e.getMessage(), GatewayErrorTypeEnum.MODERATION_ERROR.code(), e.categoryCode());
+    @ExceptionHandler(GatewayBadRequestException.class)
+    public GatewayErrorResponse handleGatewayBadRequestException(GatewayBadRequestException e) {
+        log.warn("Gateway bad request: type={}, code={}, message={}", e.errorType(), e.code(), e.getMessage());
+        return GatewayErrorResponse.of(e.getMessage(), e.errorType(), e.code());
     }
 
     /**

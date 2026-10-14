@@ -37,6 +37,6 @@ public class GatewayErrorLoggingPlugin implements PluginHandler<GatewayPluginCon
                 error == null ? null : error.getClass().getSimpleName(),
                 error == null ? null : error.getMessage(),
                 JsonKit.toTree(context.requestBody()));
-        PluginLogWriter.log(log, PluginEventType.GATEWAY_ERROR.code(), context.stageCode(), binding, context.traceId(), payload);
+        PluginLogWriter.log(log, context.stageCode(), binding, context.traceId(), payload);
     }
 }

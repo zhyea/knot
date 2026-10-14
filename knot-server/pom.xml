@@ -35,6 +35,7 @@
 
     <modules>
         <module>knot-common</module>
+        <module>knot-plugin-api</module>
         <module>knot-plugin</module>
         <module>knot-adapter</module>
         <module>knot-dal</module>
@@ -48,6 +49,11 @@
             <dependency>
                 <groupId>org.chobit.knot</groupId>
                 <artifactId>knot-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.chobit.knot</groupId>
+                <artifactId>knot-plugin-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

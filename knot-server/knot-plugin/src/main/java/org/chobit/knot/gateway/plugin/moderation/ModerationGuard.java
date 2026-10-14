@@ -2,8 +2,10 @@ package org.chobit.knot.gateway.plugin.moderation;
 
 import org.chobit.knot.gateway.constants.enums.ModerationActionEnum;
 import org.chobit.knot.gateway.constants.enums.ModerationScopeEnum;
+import org.chobit.knot.gateway.plugin.components.ModerationWordCache;
 import org.chobit.knot.gateway.plugin.gateway.GatewayPluginContext;
 import org.chobit.knot.gateway.plugin.gateway.GatewayRoutingSnapshot;
+import org.chobit.knot.gateway.util.TextNormalizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,7 +23,12 @@ import java.util.List;
  * <p>出站（GATEWAY_RESPONSE 阶段）：位于用量记账之后，命中即不交付原响应体直接 400；
  * 上游成本已产生，<b>费用照记</b>。流式响应在此阶段拿到的是 {@code StreamingResponseBody}，不做检测（M2）。</p>
  *
- * <p>故障模式 <b>fail-open</b>：词库加载失败时放行并告警，内容安全自身故障不挂全站。</p>
+ * <p>是否拦截走插件实例启停（未启用则不分发到本守卫）。生效动作/方向来自本模块的
+ * {@link PluginProperties}（{@code knot.plugin.moderation.*}，经 IOC 注入）；
+ * 全量词条来自 {@link GatewayPluginContext#words()}——网关每请求下发最新词库资源，
+ * 守卫经 IOC 取 {@link ModerationWordCache} 编译自动机（内容版本去重），<b>不持有缓存 / 配置源，不碰持久层</b>。</p>
+ *
+ * <p>故障模式 <b>fail-open</b>：词库不可用（空词表）时放行，内容安全自身故障不挂全站。</p>
  */
 public class ModerationGuard {
 
@@ -30,54 +37,51 @@ public class ModerationGuard {
     private static final String DIRECTION_REQUEST = ModerationScopeEnum.REQUEST.code();
     private static final String DIRECTION_RESPONSE = ModerationScopeEnum.RESPONSE.code();
 
-    private final ModerationProperties properties;
-    private final ModerationSnapshotCache snapshotCache;
     private final ModerationEventSink eventSink;
+    private final ModerationWordCache wordCache;
+    private final PluginProperties properties;
 
     /**
      * Constructs a new instance.
      */
-    public ModerationGuard(ModerationProperties properties,
-                           ModerationSnapshotCache snapshotCache,
-                           ModerationEventSink eventSink) {
-        this.properties = properties;
-        this.snapshotCache = snapshotCache;
+    public ModerationGuard(ModerationEventSink eventSink,
+                           ModerationWordCache wordCache,
+                           PluginProperties properties) {
         this.eventSink = eventSink;
+        this.wordCache = wordCache;
+        this.properties = properties;
     }
 
     /**
      * 入站检测：命中按当前动作处置（BLOCK → 400）。
      */
     public void checkRequest(GatewayPluginContext context) {
-        if (!properties.isEnabled() || !properties.scopeEnum().coversRequest()) {
+        PluginProperties.Moderation moderation = properties.getModeration();
+        if (!moderation.scopeEnum().coversRequest()) {
             return;
         }
-        check(context, DIRECTION_REQUEST, ModerationTextExtractor.fromRequest(context.requestBody()));
+        check(context, moderation, wordCache.snapshotFor(context.words()), DIRECTION_REQUEST,
+                ModerationTextExtractor.fromRequest(context.requestBody()));
     }
 
     /**
      * 整包出站检测；流式响应体拿不到文本，走空列表直接放行（M2 增量检测）。
      */
     public void checkResponse(GatewayPluginContext context) {
-        if (!properties.isEnabled() || !properties.scopeEnum().coversResponse()) {
+        PluginProperties.Moderation moderation = properties.getModeration();
+        if (!moderation.scopeEnum().coversResponse()) {
             return;
         }
-        check(context, DIRECTION_RESPONSE, ModerationTextExtractor.fromResponseObject(context.responseBody()));
+        check(context, moderation, wordCache.snapshotFor(context.words()), DIRECTION_RESPONSE,
+                ModerationTextExtractor.fromResponseObject(context.responseBody()));
     }
 
-    private void check(GatewayPluginContext context, String direction, List<String> texts) {
-        if (texts == null || texts.isEmpty()) {
-            return;
-        }
-        ModerationSnapshot snapshot;
-        try {
-            snapshot = snapshotCache.snapshot();
-        } catch (RuntimeException e) {
-            // fail-open（常量 FAIL_MODE=OPEN）：审核自身故障不阻断业务
-            log.warn("Moderation word list unavailable, fail-open: {}", e.getMessage());
-            return;
-        }
-        if (snapshot == null || snapshot.empty()) {
+    private void check(GatewayPluginContext context,
+                       PluginProperties.Moderation moderation,
+                       ModerationSnapshot snapshot,
+                       String direction,
+                       List<String> texts) {
+        if (snapshot == null || snapshot.empty() || texts == null || texts.isEmpty()) {
             return;
         }
         List<AhoCorasickMatcher.Hit> effective = scan(texts, snapshot.matcher());
@@ -87,7 +91,7 @@ public class ModerationGuard {
         AhoCorasickMatcher.Hit top = effective.stream()
                 .max(Comparator.comparingInt(AhoCorasickMatcher.Hit::severity))
                 .orElseThrow();
-        ModerationActionEnum action = properties.actionEnum();
+        ModerationActionEnum action = moderation.actionEnum();
         eventSink.emit(ModerationHitEvent.of(
                 context == null ? null : context.traceId(),
                 appCodeOf(context),

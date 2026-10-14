@@ -42,10 +42,10 @@ export function deleteEnumConfig(id: number | string) {
  * ⚠ 响应是**数组**不是 map：JSON object key 必然是字符串，用 map 会让数字 code 退化成
  * 字符串 "1"，与字符串 code 无法区分（2026-10-07 改为数组结构，无 v1 兼容层）。
  *
- * 已由后端 EnumOptionRegistry 注册的 18 个代码枚举（前端只读、禁止在 DB 重建）：
+ * 已由后端 EnumOptionRegistry 注册的 17 个代码枚举（前端只读、禁止在 DB 重建）：
  *   ModelTypeEnum、ModelApiProtocolEnum、BillingModeEnum、BillingUnitEnum、
  *   CurrencyCodeEnum、PricingPlanEnum、EnabledStatusEnum、RouteTargetTypeEnum、
- *   ModelPoolSelectionStrategyEnum、PluginExtensionPoint、PluginStageCode、PluginScopeType、
+ *   ModelPoolSelectionStrategyEnum、PluginExtensionPoint、PluginStageCode、
  *   OperationLogStatusEnum、ScheduledTaskRunStatusEnum、RoutingTestStatusEnum、
  *   LogicalModelVisibilityEnum、LogicalModelPublishStatusEnum。
  * 其中 EnabledStatusEnum 是**数字 code**（1 启用 / 0 禁用），取代了原来的

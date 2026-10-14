@@ -24,13 +24,6 @@
         order by id
     </select>
 
-    <select id="maxUpdatedAt" resultType="java.time.LocalDateTime">
-        select max(updated_at)
-        from kb_moderation_word_lists
-        where is_deleted = 0
-          and status = 1
-    </select>
-
     <select id="list" resultType="org.chobit.knot.gateway.entity.ModerationWordEntity">
         select <include refid="ModerationWordColumns"/>
         from kb_moderation_word_lists

@@ -79,7 +79,7 @@ const pluginStatusOptions = computed(() =>
   }))
 );
 
-// 插件类型筛选：PluginTypeEnum（代码枚举，/api/common/enums；SYNC-同步插件 ASYNC-异步插件）
+// 插件类型筛选：PluginTypeEnum（代码枚举，/api/common/enums；SYNC-同步插件）
 const pluginTypeOptions = computed(() => enumOptionsOf("PluginTypeEnum"));
 
 const {

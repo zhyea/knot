@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.controller;
 
 import jakarta.validation.Valid;
 import org.chobit.knot.gateway.annotation.OperationLog;
+import org.chobit.knot.gateway.config.GatewayRuntimeProperties;
 import org.chobit.knot.gateway.converter.RoutingRuleConverter;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleDto;
 import org.chobit.knot.gateway.model.PageQuery;
@@ -43,13 +44,17 @@ public class RoutingRuleController {
 
     private final RoutingRuleService routingRuleService;
     private final RoutingRuleConverter routingRuleConverter;
+    private final GatewayRuntimeProperties gatewayRuntimeProperties;
 
     /**
      * Constructs a new instance.
      */
-    public RoutingRuleController(RoutingRuleService routingRuleService, RoutingRuleConverter routingRuleConverter) {
+    public RoutingRuleController(RoutingRuleService routingRuleService,
+                                 RoutingRuleConverter routingRuleConverter,
+                                 GatewayRuntimeProperties gatewayRuntimeProperties) {
         this.routingRuleService = routingRuleService;
         this.routingRuleConverter = routingRuleConverter;
+        this.gatewayRuntimeProperties = gatewayRuntimeProperties;
     }
 
     /**
@@ -130,7 +135,8 @@ public class RoutingRuleController {
      */
     @PostMapping("/{id}/test")
     public RoutingTestResult test(@PathVariable Long id, @RequestBody @Valid RoutingTestRequest request) {
-        return routingRuleService.testInvoke(id,
+        return routingRuleService.testInvoke(gatewayRuntimeProperties.normalizedBaseUrl(),
+                id,
                 request.secretKey(),
                 request.prompt(),
                 request.protocol(),
@@ -149,7 +155,8 @@ public class RoutingRuleController {
     @PostMapping(value = "/{id}/test/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<StreamingResponseBody> testStream(@PathVariable Long id,
                                                             @RequestBody @Valid RoutingTestRequest request) {
-        RoutingTestStreamHandle handle = routingRuleService.openTestStream(id,
+        RoutingTestStreamHandle handle = routingRuleService.openTestStream(gatewayRuntimeProperties.normalizedBaseUrl(),
+                id,
                 request.secretKey(),
                 request.prompt(),
                 request.protocol(),

@@ -17,7 +17,13 @@
     <dependencies>
         <dependency>
             <groupId>org.chobit.knot</groupId>
+            <artifactId>knot-plugin-api</artifactId>
+        </dependency>
+        <!-- 插件 bean 进 IOC（分发器按 PluginHandler 注入）：仅运行时需要，编译期禁止 import knot-plugin 的类 -->
+        <dependency>
+            <groupId>org.chobit.knot</groupId>
             <artifactId>knot-plugin</artifactId>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>org.chobit.knot</groupId>

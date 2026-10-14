@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.controller;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleDto;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.config.GatewayRuntimeProperties;
 import org.chobit.knot.gateway.rw.ApiResponseWrapperAdvice;
 import org.chobit.knot.gateway.rw.RwProperties;
 import org.chobit.knot.gateway.service.RoutingRuleService;
@@ -54,7 +55,7 @@ class RoutingRuleStreamControllerTest {
         JsonKit.init(new com.fasterxml.jackson.databind.ObjectMapper());
         service = new StubRoutingRuleService();
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new RoutingRuleController(service, null))
+                .standaloneSetup(new RoutingRuleController(service, null, new GatewayRuntimeProperties()))
                 .setControllerAdvice(new ApiResponseWrapperAdvice(new RwProperties()),
                         new org.chobit.knot.gateway.GlobalExceptionHandler(new RwProperties()))
                 .build();
@@ -243,7 +244,7 @@ class RoutingRuleStreamControllerTest {
         boolean handleClosed;
 
         StubRoutingRuleService() {
-            super(null, null, null, null, null, null, null, null, null, null, null, null);
+            super(null, null, null, null, null, null, null, null, null, null, null);
         }
 
         void setUpstream(String... chunks) {
@@ -267,7 +268,7 @@ class RoutingRuleStreamControllerTest {
         }
 
         @Override
-        public RoutingTestStreamHandle openTestStream(Long ruleId, String secretKey, String prompt,
+        public RoutingTestStreamHandle openTestStream(String gatewayBaseUrl, Long ruleId, String secretKey, String prompt,
                                                      String protocolCode, String targetType, Long targetId,
                                                      Map<String, Object> requestBody) {
             if (failOnOpen) {

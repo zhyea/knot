@@ -115,7 +115,7 @@ public class PluginService implements PluginBindingProvider {
         return value.isEmpty() ? null : value;
     }
 
-    /** 查询参数归一：空串视为不过滤；非 SYNC/ASYNC 的非法值同样不过滤（避免误吞全部结果） */
+    /** 查询参数归一：空串视为不过滤；非 SYNC 的非法值同样不过滤（避免误吞全部结果） */
     private static String normalizePluginType(String pluginType) {
         String value = pluginType == null ? "" : pluginType.trim().toUpperCase();
         if (value.isEmpty()) {

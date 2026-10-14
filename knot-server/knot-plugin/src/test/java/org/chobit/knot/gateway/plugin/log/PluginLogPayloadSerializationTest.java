@@ -3,14 +3,10 @@ package org.chobit.knot.gateway.plugin.log;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.chobit.knot.gateway.plugin.PluginEvent;
-import org.chobit.knot.gateway.plugin.PluginEventType;
-import org.chobit.knot.gateway.plugin.PluginStageCode;
 import org.chobit.knot.gateway.plugin.gateway.GatewayRoutingSnapshot;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.junit.jupiter.api.Test;
 
-import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -109,21 +105,5 @@ class PluginLogPayloadSerializationTest {
         assertEquals("provider-error", json.get("payloadType").asText());
         assertEquals("IllegalStateException", json.get("errorType").asText());
         assertEquals("boom", json.get("errorMessage").asText());
-    }
-
-    @Test
-    void shouldEmitPayloadTypeInsidePluginEventEnvelope() throws Exception {
-        PluginEvent event = new PluginEvent(
-                PluginEventType.GATEWAY_REQUEST, "trace-1", null,
-                "inst-1", "cap-1", PluginStageCode.GATEWAY_REQUEST,
-                "GLOBAL", null,
-                new GatewayResponsePayload("RULE-1", "OPENAI", null),
-                LocalDateTime.of(2026, 10, 2, 0, 0));
-
-        JsonNode json = mapper.valueToTree(event);
-        assertEquals("gateway-response", json.get("payload").get("payloadType").asText());
-        // 事件信封本身的字段不受 payload 收敛影响
-        assertEquals("trace-1", json.get("traceId").asText());
-        assertFalse(json.has("payloadType"), "payloadType 只应出现在 payload 内，不应污染事件信封");
     }
 }

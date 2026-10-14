@@ -3,7 +3,6 @@ package org.chobit.knot.gateway.service;
 import org.chobit.knot.gateway.entity.PluginInstanceEntity;
 import org.chobit.knot.gateway.mapper.PluginInstanceMapper;
 import org.chobit.knot.gateway.plugin.PluginDescriptor;
-import org.chobit.knot.gateway.plugin.PluginEventSink;
 import org.chobit.knot.gateway.plugin.PluginHandler;
 import org.chobit.knot.gateway.plugin.PluginTypeEnum;
 import org.slf4j.Logger;
@@ -29,7 +28,7 @@ import java.util.stream.Collectors;
  * </ul>
  *
  * 仅处理 SYNC handler（其 {@link PluginDescriptor} 提供 capability/extension/stage 用于分发匹配）；
- * ASYNC sink 仅纳入已知 entrypoint 集合防误标孤儿，不创建实例行（无 descriptor，且 dispatcher 仅按 SYNC 分发）。
+ * dispatcher 仅按 SYNC 分发，异步 sink 能力已移除。
  */
 @Component
 public class PluginReconcileRunner implements ApplicationRunner {
@@ -38,14 +37,11 @@ public class PluginReconcileRunner implements ApplicationRunner {
 
     private final PluginInstanceMapper mapper;
     private final List<PluginHandler<?>> handlers;
-    private final List<PluginEventSink> sinks;
 
     public PluginReconcileRunner(PluginInstanceMapper mapper,
-                                 List<PluginHandler<?>> handlers,
-                                 List<PluginEventSink> sinks) {
+                                 List<PluginHandler<?>> handlers) {
         this.mapper = mapper;
         this.handlers = handlers;
-        this.sinks = sinks;
     }
 
     @Override
@@ -56,9 +52,6 @@ public class PluginReconcileRunner implements ApplicationRunner {
 
         for (PluginHandler<?> h : handlers) {
             reconcileOne(h.getClass().getName(), h.descriptor(), existing, iocEntrypoints);
-        }
-        for (PluginEventSink s : sinks) {
-            iocEntrypoints.add(s.getClass().getName());
         }
 
         for (PluginInstanceEntity e : existing.values()) {

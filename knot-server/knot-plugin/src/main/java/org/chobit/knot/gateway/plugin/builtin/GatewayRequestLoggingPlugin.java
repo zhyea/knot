@@ -36,6 +36,6 @@ public class GatewayRequestLoggingPlugin implements PluginHandler<GatewayPluginC
                 context.contentType() == null ? null : context.contentType().toString(),
                 JsonKit.toTree(context.requestBody()),
                 context.routingSnapshot());
-        PluginLogWriter.log(log, PluginEventType.GATEWAY_REQUEST.code(), context.stageCode(), binding, context.traceId(), payload);
+        PluginLogWriter.log(log, context.stageCode(), binding, context.traceId(), payload);
     }
 }

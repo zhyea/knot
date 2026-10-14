@@ -14,14 +14,15 @@ import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.ModerationWordMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
-import org.chobit.knot.gateway.plugin.moderation.ModerationConstants;
-import org.chobit.knot.gateway.plugin.moderation.ModerationSnapshotCache;
-import org.chobit.knot.gateway.plugin.moderation.TextNormalizer;
+import org.chobit.knot.gateway.moderation.ModerationTerm;
+import org.chobit.knot.gateway.util.TextNormalizer;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.moderation.ModerationWordItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -36,8 +37,8 @@ import java.util.Set;
  * {@code restore} 端点、引用检查——本表无跨表引用（分类是枚举、插件不引用词行 id），
  * 故删除即停参与编译，不额外设引用拦截。</p>
  *
- * <p>写操作后调 {@link ModerationSnapshotCache#invalidate()}：本节点立即生效，
- * 其余网关节点等下一次版本轮询（最迟 {@link ModerationConstants#VERSION_CHECK_INTERVAL_MILLIS} 毫秒）。</p>
+ * <p>词库编译/缓存/定时刷新由网关运行时负责（admin 与 gateway 是两个进程，此处不再持有缓存）：
+ * 管理面写操作后，网关经版本轮询 / 定时刷新自行拾取变更，无需跨进程通知。</p>
  */
 @Service
 public class ModerationWordService {
@@ -51,17 +52,14 @@ public class ModerationWordService {
 
     private final ModerationWordMapper wordMapper;
     private final ModerationWordConverter converter;
-    private final ModerationSnapshotCache snapshotCache;
 
     /**
      * Constructs a new instance.
      */
     public ModerationWordService(ModerationWordMapper wordMapper,
-                                 ModerationWordConverter converter,
-                                 ModerationSnapshotCache snapshotCache) {
+                                 ModerationWordConverter converter) {
         this.wordMapper = wordMapper;
         this.converter = converter;
-        this.snapshotCache = snapshotCache;
     }
 
     /**
@@ -122,7 +120,6 @@ public class ModerationWordService {
         entity.setLang(defaultLang(request.lang()));
         entity.setStatus(EnabledStatusEnum.codeOf(request.enabled()));
         wordMapper.insert(entity);
-        invalidateSnapshot();
         return getById(entity.getId());
     }
 
@@ -147,7 +144,6 @@ public class ModerationWordService {
         entity.setLang(defaultLang(request.lang()));
         entity.setStatus(EnabledStatusEnum.codeOf(request.enabled()));
         wordMapper.update(entity);
-        invalidateSnapshot();
         return getById(id);
     }
 
@@ -160,7 +156,6 @@ public class ModerationWordService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "sensitive word not found");
         }
         wordMapper.updateStatus(id, EnabledStatusEnum.codeOf(enabled));
-        invalidateSnapshot();
         return getById(id);
     }
 
@@ -181,7 +176,6 @@ public class ModerationWordService {
         if (wordMapper.logicalDelete(id) == 0) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "sensitive word not found");
         }
-        invalidateSnapshot();
     }
 
     /**
@@ -202,7 +196,6 @@ public class ModerationWordService {
         if (wordMapper.restore(id) == 0) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "sensitive word not found");
         }
-        invalidateSnapshot();
         return getById(id);
     }
 
@@ -278,9 +271,6 @@ public class ModerationWordService {
             wordMapper.insert(entity);
             inserted++;
         }
-        if (inserted > 0) {
-            invalidateSnapshot();
-        }
         return ModerationWordImportResult.of(rows.size(), inserted, skipped, errors);
     }
 
@@ -291,6 +281,34 @@ public class ModerationWordService {
         return wordMapper.listForExport().stream()
                 .map(converter::toDto)
                 .toList();
+    }
+
+    /**
+     * 全量启用词条：网关每请求随插件上下文下发（中性 {@link ModerationTerm}，不暴露实体）。
+     *
+     * <p>词库加载收敛到本服务：网关只经此方法提供资源，缓存 / 编译 / 刷新在 knot-plugin 侧
+     * （{@code ModerationWordCache} 按 {@link ModerationTerm#versionOf(List)} 内容版本去重），
+     * plugin-api 不再持词源契约。</p>
+     */
+    public List<ModerationTerm> loadEnabledTerms() {
+        List<ModerationWordEntity> rows = wordMapper.listEnabled();
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+        List<ModerationTerm> terms = new ArrayList<>(rows.size());
+        for (ModerationWordEntity row : rows) {
+            terms.add(new ModerationTerm(
+                    row.getWord(),
+                    row.getNormalizedWord(),
+                    row.getCategoryCode(),
+                    row.getSeverity(),
+                    updatedAtMillis(row.getUpdatedAt())));
+        }
+        return terms;
+    }
+
+    private static Long updatedAtMillis(LocalDateTime value) {
+        return value == null ? null : value.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
     }
 
     /**
@@ -308,10 +326,6 @@ public class ModerationWordService {
         } catch (BusinessException e) {
             return null;
         }
-    }
-
-    private void invalidateSnapshot() {
-        snapshotCache.invalidate();
     }
 
     private Set<String> existingKeys() {

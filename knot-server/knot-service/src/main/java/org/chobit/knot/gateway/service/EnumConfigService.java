@@ -30,7 +30,6 @@ public class EnumConfigService {
             "app_type",
             "billing_unit",
             "billing_currency",
-            "plugin_scope_type",
             "status",
             "logical_model_visibility",
             "logical_model_publish_status",

@@ -34,6 +34,6 @@ public class GatewayResponseLoggingPlugin implements PluginHandler<GatewayPlugin
                 context.ruleCode(),
                 context.protocol(),
                 JsonKit.toTree(context.responseBody()));
-        PluginLogWriter.log(log, PluginEventType.GATEWAY_RESPONSE.code(), context.stageCode(), binding, context.traceId(), payload);
+        PluginLogWriter.log(log, context.stageCode(), binding, context.traceId(), payload);
     }
 }

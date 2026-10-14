@@ -340,3 +340,30 @@ knot:
 **未落地**
 - M2：MASK（需归一化→原文 offset 映射并在原 body 上改写）、流式出站增量检测（滑动窗口，只观测不改输出）、惩罚性计费。
 - M4：高级归一化（繁简/leetspeak/谐音）+ 正则 PII。
+
+**plugin-api 契约层净化 + 引擎归位（2026-10-14 二次重构，robin 逐条驱动）**
+- 目标：契约层（plugin-api）只留分发契约；`GatewayPluginContext` 只过中性数据，编译产物不过 api 边界。
+- 迁移：`ModerationTerm`（record + 静态 `versionOf` 统一版本算法）→ **knot-common** `gateway.moderation`；`AhoCorasickMatcher`/`ModerationSnapshot` → **knot-plugin**（引擎与守卫同模块）；`ModerationWordSource`（api 接口）/`DbModerationWordSource`（service 实现）**删除**，取词/版本能力并入 `ModerationWordService`（`loadEnabledTerms()`/`currentVersion()`），网关缓存直接依赖 service，不再设词源接口。
+- `GatewayPluginContext`：`moderationSnapshot`（编译快照）→ `words`（`List<ModerationTerm>` 中性词表）。守卫内部编译 + 按词表实例标识复用（volatile 双字段，先写 snapshot 后写 words；网关缓存重载才产出新实例 → 稳态零重复编译，避免万级词库每请求重建 trie）。
+- 缓存改名：`ModerationSnapshotCache` → `ModerationWordCache`（缓存值从编译快照改为词表，三层失效机制不变）；`ModerationRuntimeResolver.currentSnapshot()` → `currentWords()`（fail-open 空列表）。plugin-api pom 移除 caffeine（无引用）。
+- ⚠⚠ **修复一起运行时回归**：上一轮「plugin-api 瘦身」把 gateway/service pom 的 `knot-plugin` 依赖换成了 `knot-plugin-api`——编译 + 单测全绿，但插件 bean 不在 classpath：`DefaultPluginDispatcher` 注入的 handler 列表为空、`PluginReconcileRunner` 把全部插件实例标 orphaned。已恢复依赖并立规：**knot-plugin 的类禁止外部模块 import，对它的依赖一律 `<scope>runtime</scope>`**（编译期 import 直接被编译器拦下）。
+- 测试：`AhoCorasickMatcherTest` 随类迁 knot-plugin；`ModerationGuardTest` 改喂词表（11 例，新增「同实例复用不漏请求」）；`ModerationSnapshotCacheTest` → `ModerationWordCacheTest`（7 例，子类覆写取词两法规避 JDK25 Mockito inline 不能 mock 具体类，匹配行为移交 plugin 侧测试）；`ModerationWordServiceTest` 补取词/版本 4 例（19 例）。
+
+**审核核心逻辑 plugin 化，网关只提供资源（2026-10-14 三次重构，robin 定调）**
+- 主旨：**弱化 Moderation 在 gateway 中的体现——核心逻辑（缓存/编译/刷新/配置）全部移入 knot-plugin，gateway 只提供资源（词库数据）**。
+- 数据流反转：网关每请求经 `ModerationWordService.loadEnabledTerms()` 取全量启用词条，随 `GatewayPluginContext.words` 下发（fail-open 空列表）——这是网关唯一的审核职责；**网关不再持有任何审核缓存**（`ModerationWordCache`/`ModerationRuntimeResolver`/`ModerationCacheConstants`/`ModerationCacheConfiguration` 全删，`knot-gateway` 的 `moderation` 包清空）。
+- 编译缓存迁入 plugin：`knot-plugin/plugin/components/ModerationWordCache`（`@Component`，实现 `Refreshable`）——按**内容版本**（`ModerationTerm.versionOf`，与 SQL `MAX(updated_at)` 同口径）去重编译自动机，守卫经 Spring IOC 取用；`@Scheduled(fixedDelayString="${knot.plugin.moderation.refresh-interval:10000}")` 驱动防御性重建（新拓扑下每请求全量下发已无版本盲区，保留为兜底）。旧「实例标识复用」双字段逻辑废止（每请求新实例，改版本命中）。
+- 配置迁入 plugin：`PluginProperties`（`knot.plugin.moderation.*`）从 gateway 迁入 `knot-plugin/plugin/moderation`，由 `ModerationConfiguration` `@EnableConfigurationProperties` 启用；守卫直接 IOC 读 action/scope，`GatewayPluginContext.pluginConfig`（通用 JSON 通道）随之移除，契约只剩 `words`。
+- 调度设施简化：`ScheduledRefreshManager`（自建线程池托管器）**整个删除**，定时刷新改由实现类自身 `@Scheduled` 注解驱动；`Refreshable` 接口迁入 `knot-plugin/plugin/schedule`（约定：实现类标 `@Component`，需要时按 `List<Refreshable>` IOC 收集）。`GatewayApplication` 补 `@EnableScheduling`。
+- 死代码清理：`ModerationWordService.currentVersion()` 与 `ModerationWordMapper.maxUpdatedAt()`（接口 + XML）删除——版本改由词条列表自身派生，service 不再提供版本号；`ModerationConstants` 的配置键常量（CONFIG_KEY_ACTION/SCOPE）随 JSON 通道移除；`ModerationWordCache.invalidate()` 生产零调用，随旧实现删除。
+- 测试：`ModerationGuardTest` 改构造注入（cache + properties，12 例，新增「每请求新实例内容版本命中」）；新建 `plugin/components/ModerationWordCacheTest`（7 例：编译/版本复用/变化重编译/空表 fail-open/定时重建/间隔取值）；删除网关侧 `ModerationWordCacheTest` 与 `ScheduledRefreshManagerTest`；`ModerationWordServiceTest` 删版本 2 例（17 例）。
+- 取舍（robin 明确选择）：词库改每请求直取（DB），不做网关侧缓存——以一次轻量查询换取网关审核逻辑清零；后续若压测发现热点，再在 service 或插件侧议缓存。
+- 门禁：全量 `mvn clean test` 绿；真启冒烟（admin + gateway 启动、插件 bean 装配、调试能力端点）通过，冒烟库 DROP 零残留。
+
+**方案 B：网关侧词库资源缓存回归（2026-10-14 四次调整，robin 拍板）**
+- 触发点：robin 质疑「为什么不在 GatewayDataService 中缓存 currentWords 的值，反而每次请求直接查询」。代价复核发现比三次重构时呈现的更差——`currentWords()` 位于 `dispatchGatewayPlugin` 内，一个请求三个 stage（REQUEST/RESPONSE/ERROR）**各查一次全量词库**，万级词库下每请求约 3MB 结果集，DB 压力随 QPS×3 线性涨；plugin 侧版本去重只挡住「重复编译自动机」，挡不住「重复查库 + 重复物化 + 重复算版本」。
+- robin 决策：**方案 B**——恢复网关侧轻量词库缓存，独立小组件承载，**不进 GatewayDataService**（后者是路由热路径数据层，16 个缓存全按实体键；词库是单例式全量资源，挂上去既破坏其形态又把 moderation 在网关的存在感加强，违背三次重构主旨）。
+- 落地：新建 `knot-gateway` `gateway/moderation/ModerationWordResource`（`@Component`，Caffeine `LoadingCache` 单键缓存，expireAfterWrite 10min / refreshAfterWrite 30s，与 `GatewayDataService` 路由数据同款节奏；loader 调 `ModerationWordService.loadEnabledTerms()` 并 `List.copyOf`；fail-open 保留——取词异常不缓存、逐次重试、降级空列表 + warn）。`AbstractGatewayRequestTemplate`/`GatewayRequestHandler` 的构造依赖由 `ModerationWordService` 换为 `ModerationWordResource`，私有 `currentWords()`（含 fail-open）删除，逻辑收敛进资源组件。
+- 两边分工（最终形态）：**网关缓存「词库资源列表」**（DB 查询最多每 30s 一次，词库变更生效延迟约 30s，Caffeine 刷新期间旧值持续可见无空窗）；**plugin 缓存「编译自动机」**（`ModerationWordCache.snapshotFor` 按 `versionOf` 去重）。网关下发的是缓存内稳定实例，内容未变时版本一致 → 稳态零重复编译。同一请求三个 stage 现为缓存读（同实例），不再有请求内词表版本漂移。
+- 测试：新建 `ModerationWordResourceTest`（5 例：首读加载 / TTL 内复用只打一次桩 / null 归一空列表 / 加载抛异常 fail-open / 失败不缓存逐次重试；JDK25 Mockito 不能 mock 具体类，用 `ModerationWordService` 子类覆写取词）。
+- 门禁：全量 `mvn clean test` 绿；真启冒烟（网关启动 + 新 bean 装配 + 插件 reconcile）通过，冒烟库 DROP 零残留。

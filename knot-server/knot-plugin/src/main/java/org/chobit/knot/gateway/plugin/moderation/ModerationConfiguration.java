@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.plugin.moderation;
 
+import org.chobit.knot.gateway.plugin.components.ModerationWordCache;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -7,11 +8,13 @@ import org.springframework.context.annotation.Configuration;
 /**
  * 敏感词审核装配：全局唯一一份策略，无资源级绑定解析。
  *
- * <p>词库来源 {@link ModerationWordSource} 的实现由 knot-service 提供（依赖倒置，
- * 与 {@code PluginBindingProvider} / {@code PluginService} 同构），本模块不碰持久层。</p>
+ * <p>只装配审核运行时：事件 sink + 守卫。词库编译缓存（{@link ModerationWordCache}）与
+ * 本配置类均为 {@code @Component} / {@code @EnableConfigurationProperties} 自注册，
+ * 无需在此显式声明。词库数据由网关每请求经 {@code GatewayPluginContext.words} 下发
+ * （网关只提供资源），守卫经 IOC 取缓存编译快照——本模块不碰持久层。</p>
  */
 @Configuration
-@EnableConfigurationProperties(ModerationProperties.class)
+@EnableConfigurationProperties(PluginProperties.class)
 public class ModerationConfiguration {
 
     /**
@@ -23,23 +26,12 @@ public class ModerationConfiguration {
     }
 
     /**
-     * 词库快照缓存：注入可配置的定时刷新间隔。定时刷新由 {@code ScheduledRefreshManager} 统一托管调度，
-     * 本类只需实现 {@link org.chobit.knot.gateway.plugin.refresh.Refreshable}。
+     * 敏感词审核守卫：注入事件 sink、词库编译缓存与插件配置（均经 Spring IOC）。
      */
     @Bean
-    public ModerationSnapshotCache moderationSnapshotCache(ModerationWordSource source,
-                                                          ModerationProperties properties) {
-        return new ModerationSnapshotCache(
-                source, ModerationConstants.VERSION_CHECK_INTERVAL_MILLIS, properties.getRefreshInterval());
-    }
-
-    /**
-     * Declares a bean. Executes the public operation.
-     */
-    @Bean
-    public ModerationGuard moderationGuard(ModerationProperties properties,
-                                           ModerationSnapshotCache snapshotCache,
-                                           ModerationEventSink eventSink) {
-        return new ModerationGuard(properties, snapshotCache, eventSink);
+    public ModerationGuard moderationGuard(ModerationEventSink eventSink,
+                                           ModerationWordCache wordCache,
+                                           PluginProperties properties) {
+        return new ModerationGuard(eventSink, wordCache, properties);
     }
 }

@@ -4,11 +4,10 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.chobit.knot.gateway.entity.ModerationWordEntity;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 敏感词条读写：网关运行时只按「未逻辑删除 + 启用」加载全量词条，编译成一次自动机；
+ * 敏感词条读写：网关运行时只按「未逻辑删除 + 启用」加载全量词条，随插件上下文下发；
  * 管理面走完整 CRUD + 逻辑删除四必配。
  */
 @Mapper
@@ -18,14 +17,6 @@ public interface ModerationWordMapper {
      * 参与匹配的全部词条；词库为空时返回空列表（不是 null）。
      */
     List<ModerationWordEntity> listEnabled();
-
-    /**
-     * 已启用词条的最大更新时间：词库版本号来源，供缓存失效判定。
-     *
-     * <p>返回 {@link LocalDateTime} 而非数据库侧 epoch 毫秒：避免 MySQL session 时区
-     * 与 JVM 默认时区不一致导致版本号永远对不上（那样缓存会每次请求都重载）。</p>
-     */
-    LocalDateTime maxUpdatedAt();
 
     /**
      * 管理列表分页查询。

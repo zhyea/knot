@@ -1,9 +1,14 @@
 package org.chobit.knot.gateway.plugin.moderation;
 
+import org.chobit.knot.gateway.moderation.ModerationTerm;
+
 import java.util.List;
 
 /**
  * 词库快照：编译好的自动机 + 版本（用于审计事件回溯）。
+ *
+ * <p>由 {@link ModerationGuard} 从上下文下发的全量词条编译而来，是 knot-plugin 的内部实现——
+ * 契约层（{@code GatewayPluginContext}）只过中性词表，不过编译产物。</p>
  */
 public record ModerationSnapshot(AhoCorasickMatcher matcher, long version) {
 
@@ -12,15 +17,7 @@ public record ModerationSnapshot(AhoCorasickMatcher matcher, long version) {
      */
     public static ModerationSnapshot of(List<ModerationTerm> words) {
         AhoCorasickMatcher matcher = AhoCorasickMatcher.of(words);
-        long version = 0L;
-        if (words != null) {
-            version = words.stream()
-                    .filter(word -> word.updatedAtMillis() != null)
-                    .mapToLong(ModerationTerm::updatedAtMillis)
-                    .max()
-                    .orElse(0L);
-        }
-        return new ModerationSnapshot(matcher, version);
+        return new ModerationSnapshot(matcher, ModerationTerm.versionOf(words));
     }
 
     /**

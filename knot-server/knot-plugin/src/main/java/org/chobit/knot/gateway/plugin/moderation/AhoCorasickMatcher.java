@@ -1,5 +1,8 @@
 package org.chobit.knot.gateway.plugin.moderation;
 
+import org.chobit.knot.gateway.moderation.ModerationTerm;
+import org.chobit.knot.gateway.util.TextNormalizer;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,8 +16,7 @@ import java.util.Queue;
  * <p>不用逐词 {@code contains}（万级词库 × 数十 KB 正文 = 千万次比较），也不用数据库 LIKE。
  * 词库变更时整体重建：重建成本远低于运行期逐词匹配。</p>
  *
- * <p>入参是中性 {@link ModerationTerm}：本模块不依赖持久化实体，词库来源由
- * {@link ModerationWordSource} 的实现决定。</p>
+ * <p>入参是中性 {@link ModerationTerm}：本模块不依赖持久化实体，词库由网关经插件上下文下发。</p>
  */
 public final class AhoCorasickMatcher {
 

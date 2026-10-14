@@ -3,7 +3,6 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.chobit.knot.gateway.config.GatewayRuntimeProperties;
 import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ModelPoolSelectionStrategyEnum;
@@ -132,7 +131,6 @@ public class RoutingRuleService {
     private final LogicalModelMapper logicalModelMapper;
     private final RoutingRuleConverter routingRuleConverter;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
-    private final GatewayRuntimeProperties gatewayRuntimeProperties;
     private final RestClient restClient;
 
     /**
@@ -148,8 +146,7 @@ public class RoutingRuleService {
                               AppMapper appMapper,
                               LogicalModelMapper logicalModelMapper,
                               RoutingRuleConverter routingRuleConverter,
-                              ResourceTrafficPolicySupport trafficPolicySupport,
-                              GatewayRuntimeProperties gatewayRuntimeProperties) {
+                              ResourceTrafficPolicySupport trafficPolicySupport) {
         this.routingRuleMapper = routingRuleMapper;
         this.routingRuleTargetMapper = routingRuleTargetMapper;
         this.routingRuleConsumerMapper = routingRuleConsumerMapper;
@@ -161,7 +158,6 @@ public class RoutingRuleService {
         this.logicalModelMapper = logicalModelMapper;
         this.routingRuleConverter = routingRuleConverter;
         this.trafficPolicySupport = trafficPolicySupport;
-        this.gatewayRuntimeProperties = gatewayRuntimeProperties;
         this.restClient = createRestClient();
     }
 
@@ -320,8 +316,11 @@ public class RoutingRuleService {
 
     /**
      * Sends a test request through the gateway and returns the invocation result.
+     *
+     * @param gatewayBaseUrl 网关基地址（管理端配置透传，已归一化）
      */
-    public RoutingTestResult testInvoke(Long ruleId,
+    public RoutingTestResult testInvoke(String gatewayBaseUrl,
+                                        Long ruleId,
                                         String secretKey,
                                         String prompt,
                                         String protocolCode,
@@ -329,7 +328,7 @@ public class RoutingRuleService {
                                         Long targetId,
                                         Map<String, Object> requestBody) {
         RoutingTestPreparation prep = prepareTestInvocation(
-                ruleId, secretKey, prompt, protocolCode, targetType, targetId, requestBody);
+                gatewayBaseUrl, ruleId, secretKey, prompt, protocolCode, targetType, targetId, requestBody);
         try {
             String responseBody = executeGatewayTest(prep.baseUrl(), prep.gatewayPath(), prep.secretKey(),
                     prep.rule().ruleCode(), prep.protocol(), prep.body());
@@ -347,16 +346,19 @@ public class RoutingRuleService {
      *
      * <p>校验失败时抛出 {@link BusinessException}，由全局异常处理器在建立 SSE 之前返回
      * 4xx {@code ApiResponse}；一旦返回本方法，调用方必须关闭返回的句柄。</p>
+     *
+     * @param gatewayBaseUrl 网关基地址（管理端配置透传，已归一化）
      */
-    public RoutingTestStreamHandle openTestStream(Long ruleId,
-                                                 String secretKey,
-                                                 String prompt,
-                                                 String protocolCode,
-                                                 String targetType,
-                                                 Long targetId,
-                                                 Map<String, Object> requestBody) {
+    public RoutingTestStreamHandle openTestStream(String gatewayBaseUrl,
+                                                  Long ruleId,
+                                                  String secretKey,
+                                                  String prompt,
+                                                  String protocolCode,
+                                                  String targetType,
+                                                  Long targetId,
+                                                  Map<String, Object> requestBody) {
         RoutingTestPreparation prep = prepareTestInvocation(
-                ruleId, secretKey, prompt, protocolCode, targetType, targetId, requestBody);
+                gatewayBaseUrl, ruleId, secretKey, prompt, protocolCode, targetType, targetId, requestBody);
         // exchange(fn, false) 不自动关闭响应：既不应用默认错误处理器（网关 4xx/5xx 需要原样读取响应体），
         // 也让响应体保持可增量读取
         ClientHttpResponse response = restClient.post()
@@ -374,8 +376,11 @@ public class RoutingRuleService {
     /**
      * 同步 / 流式共用的准备步骤：查规则、校验消费者、校验启用状态、解析目标与协议、
      * 构造请求体（保留 stream、剔除 model）、生成网关地址与 curl。
+     *
+     * @param gatewayBaseUrl 网关基地址（管理端配置透传，已归一化）
      */
-    private RoutingTestPreparation prepareTestInvocation(Long ruleId,
+    private RoutingTestPreparation prepareTestInvocation(String gatewayBaseUrl,
+                                                         Long ruleId,
                                                          String secretKey,
                                                          String prompt,
                                                          String protocolCode,
@@ -397,7 +402,7 @@ public class RoutingRuleService {
         String userPrompt = normalizeTestPrompt(prompt);
         Map<String, Object> body = buildRequestBody(protocol, userPrompt, requestBody);
 
-        String baseUrl = normalizeGatewayBaseUrl();
+        String baseUrl = gatewayBaseUrl;
         String gatewayPath = buildGatewayTestPath(protocol);
         String curl = buildTestCurl(baseUrl, gatewayPath, secretKey, rule.ruleCode(), protocol, body);
         return new RoutingTestPreparation(rule, secretKey, selectedTarget, protocol, model,
@@ -421,14 +426,6 @@ public class RoutingRuleService {
                 responseBody,
                 errorMessage
         );
-    }
-
-    private String normalizeGatewayBaseUrl() {
-        String base = gatewayRuntimeProperties.getBaseUrl();
-        if (base == null || base.isBlank()) {
-            return "http://127.0.0.1:9090";
-        }
-        return base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
     }
 
     private String executeGatewayTest(String baseUrl,

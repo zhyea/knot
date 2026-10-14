@@ -15,6 +15,7 @@ import org.chobit.knot.gateway.exception.GatewayRequestException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.load.ModelLoadKeys;
 import org.chobit.knot.gateway.load.ModelLoadStore;
+import org.chobit.knot.gateway.service.ModerationWordResource;
 import org.chobit.knot.gateway.model.*;
 import org.chobit.knot.gateway.model.usage.KnotExtendPayload;
 import org.chobit.knot.gateway.plugin.PluginDispatcher;
@@ -69,8 +70,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                                  UsageExtractorRegistry usageExtractorRegistry,
                                  GatewayUpstreamClientProperties clientProperties,
                                  ModelLoadStore modelLoadStore,
-                                 ModelLoadKeys modelLoadKeys) {
-        super(pluginDispatcher);
+                                 ModelLoadKeys modelLoadKeys,
+                                 ModerationWordResource moderationWordResource) {
+        super(pluginDispatcher, moderationWordResource);
         this.proxyClient = proxyService;
         this.routingResolver = routingAuthService;
         this.trafficGuard = trafficGuard;
