@@ -47,7 +47,8 @@ INSERT IGNORE INTO ks_modules (id, module_code, module_name, icon, sort_order, s
 (1, 'system', '系统管理', 'Setting', 90, 1),
 (2, 'model', '模型管理', 'Box', 20, 1),
 (3, 'routing', '路由管理', 'Share', 30, 1),
-(4, 'billing', '计费管理', 'Coin', 40, 1);
+(4, 'billing', '计费管理', 'Coin', 40, 1),
+(5, 'moderation', '内容安全', 'Warning', 50, 1);
 
 -- 菜单（menu_id 被权限与前端路由引用；按 module_id + sort_order 排列）
 INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
@@ -73,7 +74,8 @@ INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, rou
 (13, 4, NULL, 'billing.rules', '计费规则', '/billing/rules', 'billing/BillingRuleView', 'Coin', 10, 1),
 (20, 4, NULL, 'billing.reports', '计费报表', '/billing/reports', 'billing/BillingReportView', 'Odometer', 20, 1),
 (21, 4, NULL, 'billing.reconciliation', '计费对账', '/billing/reconciliation', 'billing/ReconciliationView', 'Document', 30, 1),
-(22, 3, NULL, 'routing.presets', '预设请求', '/routing/presets', 'routing/TestRequestPresetView', 'Share', 30, 1);
+(22, 3, NULL, 'routing.presets', '预设请求', '/routing/presets', 'routing/TestRequestPresetView', 'Share', 30, 1),
+(24, 5, NULL, 'moderation.words', '敏感词管理', '/moderation/words', 'moderation/ModerationWordManageView', 'Warning', 10, 1);
 
 -- =========================
 -- 授权与权限
@@ -224,7 +226,17 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 (140, 'model:model-family:enable', '模型族更新状态', 'API', 2, 23, 1, 1, NULL),
 (141, 'model:model-family:delete', '模型族删除', 'API', 2, 23, 1, 1, NULL),
 -- kb_models 逻辑删除（2026-10-07）：供应商模型删除 / 恢复（model_code 唯一性按物理行，删除后只能恢复）
-(142, 'model:model:delete', '供应商模型删除', 'API', 2, 7, 1, 1, NULL);
+(142, 'model:model:delete', '供应商模型删除', 'API', 2, 7, 1, 1, NULL),
+-- 敏感词管理（内容安全模块，模块 5 / 菜单 24）
+(144, 'moderation:word:page', '敏感词管理页面访问', 'PAGE', 5, 24, 1, 1, NULL),
+(145, 'moderation:word:view', '敏感词查看', 'API', 5, 24, 1, 1, NULL),
+(146, 'moderation:word:create', '敏感词创建', 'API', 5, 24, 1, 1, NULL),
+(147, 'moderation:word:update', '敏感词更新', 'API', 5, 24, 1, 1, NULL),
+(148, 'moderation:word:enable', '敏感词更新状态', 'API', 5, 24, 1, 1, NULL),
+(149, 'moderation:word:delete', '敏感词删除', 'API', 5, 24, 1, 1, NULL),
+(150, 'moderation:word:import', '敏感词导入', 'API', 5, 24, 1, 1, NULL),
+-- 插件删除（PluginController DELETE /api/plugins/{id} 此前漏绑 → 前端删除按钮恒 403）
+(151, 'system:plugin:delete', '插件删除', 'API', 1, 16, 1, 1, NULL);
 
 -- API 权限绑定（默认拒绝：未绑定接口一律 403；由 .workbuddy/audit/gen_api_bindings.py 生成）
 INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
@@ -414,7 +426,19 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (192, 2, 'POST', '/api/users/options-by-username', 'UserController', 1),
 (193, 84, 'POST', '/api/models/{modelCode}/discount-policies/list', 'ModelController', 1),
 (194, 85, 'POST', '/api/models/{modelCode}/discount-policies', 'ModelController', 1),
-(195, 86, 'PUT', '/api/models/{modelCode}/discount-policies/{policyId}', 'ModelController', 1);
+(195, 86, 'PUT', '/api/models/{modelCode}/discount-policies/{policyId}', 'ModelController', 1),
+-- 敏感词管理（/api/moderation-words，默认拒绝：未绑定一律 403）
+(196, 145, 'GET', '/api/moderation-words/check-code', 'ModerationWordController', 1),
+(197, 145, 'GET', '/api/moderation-words/{id}', 'ModerationWordController', 1),
+(198, 145, 'POST', '/api/moderation-words/list', 'ModerationWordController', 1),
+(199, 146, 'POST', '/api/moderation-words', 'ModerationWordController', 1),
+(200, 147, 'PUT', '/api/moderation-words/{id}', 'ModerationWordController', 1),
+(201, 148, 'PUT', '/api/moderation-words/{id}/status', 'ModerationWordController', 1),
+(202, 149, 'DELETE', '/api/moderation-words/{id}', 'ModerationWordController', 1),
+(203, 147, 'PUT', '/api/moderation-words/{id}/restore', 'ModerationWordController', 1),
+(204, 150, 'POST', '/api/moderation-words/import', 'ModerationWordController', 1),
+(205, 145, 'GET', '/api/moderation-words/export', 'ModerationWordController', 1),
+(206, 151, 'DELETE', '/api/plugins/{id}', 'PluginController', 1);
 
 -- 角色授权（OPERATOR 全量 / DEVELOPER 只读；ADMIN 由文件末尾权威块全量授予）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
@@ -446,6 +470,26 @@ INSERT IGNORE INTO ks_role_permissions (role_id, permission_id)
 SELECT role_id, 55
 FROM ks_role_permissions
 WHERE permission_id = 12;
+
+-- 敏感词管理权限补给内置角色（按 permission_code 关联，避免依赖硬编码 id）：
+--   OPERATOR(2)  全量（与既有 27-55 全量口径一致）
+--   DEVELOPER(3) 仅只读 view
+--   ADMIN        由文件末尾权威授权块全量授予，不依赖本句。
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM ks_roles r
+  CROSS JOIN ks_permissions p
+WHERE r.code IN ('OPERATOR', 'DEVELOPER')
+  AND p.permission_code LIKE 'moderation:word:%'
+  AND (r.code = 'OPERATOR' OR p.permission_code = 'moderation:word:view');
+
+-- 插件删除权限补给内置角色（修复前端删除按钮恒 403 的既有缺陷）
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM ks_roles r
+  CROSS JOIN ks_permissions p
+WHERE r.code = 'OPERATOR'
+  AND p.permission_code = 'system:plugin:delete';
 
 -- =========================
 -- 供应商与模型
@@ -581,14 +625,14 @@ INSERT IGNORE INTO kx_model_sources (
 
 -- 模型 API 协议绑定（usage_extractor 为 Usage 解析器编码或类名）
 INSERT IGNORE INTO kb_model_api_bindings (id, model_code, protocol, api_path, request_adapter, usage_extractor, status, remark) VALUES
-(1, 'gpt-4o', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT', 1, 'GPT-4o Chat Completions'),
-(2, 'gpt-4o-mini', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT', 1, 'GPT-4o Mini Chat Completions'),
+(1, 'gpt-4o', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'GPT-4o Chat Completions'),
+(2, 'gpt-4o-mini', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'GPT-4o Mini Chat Completions'),
 (3, 'claude-sonnet-4-20250514', 'MESSAGES', '/v1/messages', 'ANTHROPIC', 'ANTHROPIC', 1, 'Claude Sonnet Messages API'),
-(4, 'deepseek-chat', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT', 1, 'DeepSeek Chat'),
-(5, 'qwen-image', 'IMAGE_GENERATIONS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'DEFAULT', 1, 'Qwen Image Generation'),
-(6, 'qwen-image-edit', 'IMAGE_EDITS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'DEFAULT', 1, 'Qwen Image Edit'),
-(7, 'gpt-image-1', 'IMAGE_GENERATIONS', '/v1/images/generations', 'OPENAI_COMPATIBLE', 'DEFAULT', 1, 'OpenAI Image Generation'),
-(8, 'gpt-image-1', 'IMAGE_EDITS', '/v1/images/edits', 'OPENAI_COMPATIBLE', 'DEFAULT', 1, 'OpenAI Image Edit');
+(4, 'deepseek-chat', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'DeepSeek Chat'),
+(5, 'qwen-image', 'IMAGE_GENERATIONS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'DEFAULT-TOKEN', 1, 'Qwen Image Generation'),
+(6, 'qwen-image-edit', 'IMAGE_EDITS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'DEFAULT-TOKEN', 1, 'Qwen Image Edit'),
+(7, 'gpt-image-1', 'IMAGE_GENERATIONS', '/v1/images/generations', 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'OpenAI Image Generation'),
+(8, 'gpt-image-1', 'IMAGE_EDITS', '/v1/images/edits', 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'OpenAI Image Edit');
 
 -- =========================
 -- 应用管理
@@ -757,6 +801,15 @@ INSERT IGNORE INTO kb_plugin_instances (
 (6, 'builtin-provider-audit', 'provider-error-log', '上游异常日志插件', '上游请求响应审计插件',
   'org.chobit.knot.gateway.plugin.builtin.UpstreamErrorLoggingPlugin', 'BUILTIN', '1.0.0',
   'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_ERROR', 100,
+  NULL, 1, 3000, 0, 'SYNC', 0, 0),
+-- 敏感词审核（order_no=200 > 审计日志 100：被拦截的请求/响应也先落审计，再由本插件抛 400）
+(7, 'builtin-moderation', 'sensitive-word-request-check', '敏感词入站检测插件', '敏感词审核插件',
+  'org.chobit.knot.gateway.plugin.moderation.SensitiveWordRequestPlugin', 'BUILTIN', '1.0.0',
+  'sensitive-word-moderation', '敏感词审核', 'GATEWAY_EXCHANGE', 'GATEWAY_REQUEST', 200,
+  NULL, 1, 3000, 0, 'SYNC', 0, 0),
+(8, 'builtin-moderation', 'sensitive-word-response-check', '敏感词出站检测插件', '敏感词审核插件',
+  'org.chobit.knot.gateway.plugin.moderation.SensitiveWordResponsePlugin', 'BUILTIN', '1.0.0',
+  'sensitive-word-moderation', '敏感词审核', 'GATEWAY_EXCHANGE', 'GATEWAY_RESPONSE', 200,
   NULL, 1, 3000, 0, 'SYNC', 0, 0);
 
 -- 通知模板
@@ -778,7 +831,18 @@ INSERT IGNORE INTO ks_enum_categories (id, category, category_name, is_system, i
 (6, 'discount_type', '折扣类型', 0, 1),
 (10, 'channel', '通知渠道', 0, 1),
 (28, 'model_family', '模型族', 0, 1),
-(29, 'timezone', '时区', 0, 1);
+(29, 'timezone', '时区', 0, 1),
+(30, 'moderation_category', '敏感词分类', 1, 1);
+
+-- 敏感词分类（category_id=30）：kb_moderation_word_lists.category_code 引用 item_code。
+-- is_system=1 的分类其下枚举项不可删改（词条行已引用该 code）。
+INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_order, is_enabled) VALUES
+(30, 'POLITICS', '涉政',   1, 1),
+(30, 'VIOLENCE', '暴恐',   2, 1),
+(30, 'PORN',     '色情',   3, 1),
+(30, 'AD',       '广告推广', 4, 1),
+(30, 'ABUSE',    '侮辱辱骂', 5, 1),
+(30, 'CUSTOM',   '自定义',  6, 1);
 
 -- 供应商类型（category 1）已移除：供应商品牌主数据以 kb_providers 表为唯一来源，
 -- 前端下拉/标签走 useProviderTypeOptions（/api/provider-profiles）

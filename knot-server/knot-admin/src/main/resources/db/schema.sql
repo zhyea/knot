@@ -449,7 +449,7 @@ CREATE TABLE IF NOT EXISTS kb_model_api_bindings (
   protocol VARCHAR(64) NOT NULL COMMENT 'API 协议编码',
   api_path VARCHAR(255) DEFAULT NULL COMMENT '上游 API 路径，为空时使用协议默认路径',
   request_adapter VARCHAR(255) DEFAULT NULL COMMENT '上游请求适配器编码或类名',
-  usage_extractor VARCHAR(255) NOT NULL DEFAULT 'DEFAULT' COMMENT '非流式响应 Usage 解析器编码或类名',
+  usage_extractor VARCHAR(255) NOT NULL DEFAULT 'DEFAULT-TOKEN' COMMENT '非流式响应 Usage 解析器编码或类名',
   stream_usage_extractor VARCHAR(255) DEFAULT NULL COMMENT '流式响应 Usage 解析器编码或类名，为空时复用 usage_extractor',
   status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   remark VARCHAR(255) DEFAULT NULL,
@@ -627,6 +627,28 @@ CREATE TABLE IF NOT EXISTS kb_notification_templates (
 
   UNIQUE KEY uk_notification_templates_code (code)
 );
+
+-- =========================
+-- 敏感词库（内容安全）
+-- =========================
+-- 敏感词条：Aho-Corasick 自动机数据源。分类走 ks_enum_configs（category='moderation_category'），
+-- 仅作标签维度；是否参与匹配只看本行 status / is_deleted。severity 挂在词条上而非分类。
+CREATE TABLE IF NOT EXISTS kb_moderation_word_lists (
+  id              BIGINT       PRIMARY KEY AUTO_INCREMENT,
+  word            VARCHAR(255) NOT NULL COMMENT '原始词条（支持 emoji/全角）',
+  normalized_word VARCHAR(255) NOT NULL COMMENT '归一化键（NFKC+小写+去零宽），判定走它、展示走 word',
+  category_code   VARCHAR(64)  NOT NULL COMMENT '绑分类（ks_enum_configs.item_code，category=moderation_category），非主键 id',
+  severity        TINYINT      NOT NULL DEFAULT 2 COMMENT '严重度：1-低 2-中 3-高；配合常量 SEVERITY_THRESHOLD 决定是否触发动作（见设计文档 §5.2）',
+  lang            VARCHAR(8)   DEFAULT 'zh' COMMENT '语言/变体标识',
+  status          TINYINT      NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
+  is_deleted      TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '逻辑删除：0-否 1-是',
+  remark          VARCHAR(255) DEFAULT NULL,
+  created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_word_category (word, category_code),
+  KEY idx_norm (normalized_word, category_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  COMMENT='敏感词条（Aho-Corasick 自动机数据源）';
 
 -- =========================
 -- 枚举配置

@@ -476,13 +476,18 @@ async function loadBoundBillingRule(code: string | null) {
 async function loadUsageExtractors() {
   const data = await listUsageExtractors();
   const arr = Array.isArray(data) ? data : [];
-  // 防御性置顶：即便后端排序变化，DEFAULT 抽取器也必须位于下拉首位
-  arr.sort(
-    (a, b) =>
-      (a?.code === "DEFAULT" ? -1 : 0) - (b?.code === "DEFAULT" ? -1 : 0)
-  );
   usageExtractorOptions.value = arr;
   return arr;
+}
+
+/**
+ * 取列表首个 Usage 提取器编码作为默认值。
+ *
+ * 后端 UsageExtractorCatalog 按 @Order 升序返回，默认提取器（DefaultTokenUsageExtractor @Order(0)）
+ * 恒为列表首项，故「第一项」即「默认项」，无需前端硬编码编码。列表未加载时回退空串，由后端兜底。
+ */
+function firstUsageExtractorCode(): string {
+  return usageExtractorOptions.value[0]?.code ?? "";
 }
 
 async function loadRequestAdapters() {
@@ -760,7 +765,7 @@ function createApiBinding(source: Dict = {}): ModelApiBinding {
     protocol: normalizeProtocolForModelType(source.protocol),
     apiPath: source.apiPath || "",
     requestAdapter: normalizeRequestAdapterCode(source.requestAdapter),
-    usageExtractor: source.usageExtractor || "DEFAULT",
+    usageExtractor: source.usageExtractor || firstUsageExtractorCode(),
     streamUsageExtractor: source.streamUsageExtractor || "",
     enabled: source.enabled !== false,
     remark: source.remark || ""
@@ -871,7 +876,7 @@ function buildApiBindingsPayload() {
     protocol: binding.protocol,
     apiPath: binding.apiPath?.trim() || null,
     requestAdapter: binding.requestAdapter?.trim() || null,
-    usageExtractor: binding.usageExtractor?.trim() || "DEFAULT",
+    usageExtractor: binding.usageExtractor?.trim() || firstUsageExtractorCode(),
     streamUsageExtractor: binding.streamUsageExtractor?.trim() || null,
     enabled: binding.enabled,
     remark: binding.remark?.trim() || null

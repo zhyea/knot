@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
+import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
@@ -81,7 +82,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
     @Override
     protected ResolvedRouting resolveRouting(GatewayRequestContext context) {
-        return routingResolver.resolveByRule(context.apiKey(), context.ruleCode(), context.stickyKey());
+        return routingResolver.resolveByRule(context.apiKey(), context.ruleCode(), context.stickyKey(), context.protocol());
     }
 
     @Override
@@ -136,6 +137,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                     deferredToStream = true;
                     context.putAttribute(ATTR_LOAD_RELEASE, (Runnable) () -> modelLoadStore.leave(loadKey));
                 }
+                // 响应头回写实际承接模型：流式此时尚未 commit（首行 flush 才提交头），写头依然生效
+                writeSelectedModelHeader(candidate);
                 return result;
             } catch (GatewayUpstreamException e) {
                 lastUpstreamException = e;
@@ -152,6 +155,24 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
             throw lastUpstreamException;
         }
         throw lastUpstreamException;
+    }
+
+    /**
+     * 把实际承接本次请求的模型业务码（kb_models.model_code）写入响应头 {@code X-Knot-Model}。
+     *
+     * <p>池内选中、粘性命中、failover 顺延之后真正调用上游的那个模型才是这里的取值，
+     * 便于调用方与管理面调试面板定位请求落点。拿不到 response（非 web 场景）时静默跳过。</p>
+     */
+    private void writeSelectedModelHeader(RoutingRuleTargetDto candidate) {
+        RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
+        if (!(attributes instanceof ServletRequestAttributes servletAttributes)) {
+            return;
+        }
+        HttpServletResponse response = servletAttributes.getResponse();
+        if (response == null || candidate == null || candidate.targetCode() == null) {
+            return;
+        }
+        response.setHeader(GatewayHeaders.X_KNOT_MODEL, candidate.targetCode());
     }
 
     /**

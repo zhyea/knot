@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.gateway.mapper.ModerationWordMapper">
+
+    <sql id="ModerationWordColumns">
+        id,
+        word,
+        normalized_word AS normalizedWord,
+        category_code   AS categoryCode,
+        severity,
+        lang,
+        status,
+        is_deleted      AS isDeleted,
+        remark,
+        created_at      AS createdAt,
+        updated_at      AS updatedAt
+    </sql>
+
+    <select id="listEnabled" resultType="org.chobit.knot.gateway.entity.ModerationWordEntity">
+        select <include refid="ModerationWordColumns"/>
+        from kb_moderation_word_lists
+        where is_deleted = 0
+          and status = 1
+        order by id
+    </select>
+
+    <select id="maxUpdatedAt" resultType="java.time.LocalDateTime">
+        select max(updated_at)
+        from kb_moderation_word_lists
+        where is_deleted = 0
+          and status = 1
+    </select>
+
+    <select id="list" resultType="org.chobit.knot.gateway.entity.ModerationWordEntity">
+        select <include refid="ModerationWordColumns"/>
+        from kb_moderation_word_lists
+        <where>
+            <!-- 管理列表默认不含已删除行；includeDeleted=true 时一并展示（浅红底 + 恢复按钮） -->
+            <if test="includeDeleted == null or !includeDeleted">
+                and is_deleted = 0
+            </if>
+            <if test="categoryCode != null and categoryCode != ''">
+                and category_code = #{categoryCode}
+            </if>
+            <if test="keyword != null and keyword != ''">
+                and (word like concat('%', #{keyword}, '%')
+                     or normalized_word like concat('%', #{keyword}, '%'))
+            </if>
+        </where>
+        order by is_deleted asc, id desc
+    </select>
+
+    <select id="listForExport" resultType="org.chobit.knot.gateway.entity.ModerationWordEntity">
+        select <include refid="ModerationWordColumns"/>
+        from kb_moderation_word_lists
+        where is_deleted = 0
+        order by category_code asc, id asc
+    </select>
+
+    <select id="getById" resultType="org.chobit.knot.gateway.entity.ModerationWordEntity">
+        select <include refid="ModerationWordColumns"/>
+        from kb_moderation_word_lists
+        where id = #{id}
+          and is_deleted = 0
+    </select>
+
+    <select id="getByIdIncludingDeleted" resultType="org.chobit.knot.gateway.entity.ModerationWordEntity">
+        select <include refid="ModerationWordColumns"/>
+        from kb_moderation_word_lists
+        where id = #{id}
+    </select>
+
+    <!-- 编码唯一性按物理行判定（含已逻辑删除的行）：uk_word_category 不区分 is_deleted -->
+    <select id="countByWordAndCategory" resultType="java.lang.Long">
+        select count(*)
+        from kb_moderation_word_lists
+        where word = #{word}
+          and category_code = #{categoryCode}
+        <if test="excludeId != null">
+            and id &lt;&gt; #{excludeId}
+        </if>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into kb_moderation_word_lists (
+            word, normalized_word, category_code, severity, lang, status, remark
+        ) values (
+            #{word}, #{normalizedWord}, #{categoryCode}, #{severity}, #{lang}, #{status}, #{remark}
+        )
+    </insert>
+
+    <update id="update">
+        update kb_moderation_word_lists
+        <set>
+            <if test="word != null">word = #{word},</if>
+            <if test="normalizedWord != null">normalized_word = #{normalizedWord},</if>
+            <if test="categoryCode != null">category_code = #{categoryCode},</if>
+            <if test="severity != null">severity = #{severity},</if>
+            <if test="lang != null">lang = #{lang},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        where id = #{id}
+          and is_deleted = 0
+    </update>
+
+    <update id="updateStatus">
+        update kb_moderation_word_lists
+        set status = #{status}
+        where id = #{id}
+          and is_deleted = 0
+    </update>
+
+    <update id="logicalDelete">
+        update kb_moderation_word_lists
+        set is_deleted = 1
+        where id = #{id}
+          and is_deleted = 0
+    </update>
+
+    <update id="restore">
+        update kb_moderation_word_lists
+        set is_deleted = 0
+        where id = #{id}
+          and is_deleted = 1
+    </update>
+
+</mapper>

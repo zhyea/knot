@@ -33,6 +33,7 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.usage.extractor.DefaultTokenUsageExtractor;
 import org.chobit.knot.gateway.usage.extractor.UsageExtractorCatalog;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.model.ModelApiProtocolItem;
@@ -687,7 +688,7 @@ public class ModelService {
         entity.setProtocol(protocol.code());
         entity.setApiPath(blankToNull(binding.apiPath()));
         entity.setRequestAdapter(blankToNull(binding.requestAdapter()));
-        entity.setUsageExtractor(blankToDefault(binding.usageExtractor(), "DEFAULT"));
+        entity.setUsageExtractor(blankToDefault(binding.usageExtractor(), DefaultTokenUsageExtractor.CODE));
         entity.setStreamUsageExtractor(blankToNull(binding.streamUsageExtractor()));
         entity.setStatus(EnabledStatusEnum.codeOf(binding.enabled()));
         entity.setRemark(blankToNull(binding.remark()));

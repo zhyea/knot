@@ -550,16 +550,13 @@ public class RoutingRuleService {
         if (enabledModelIds.isEmpty()) {
             return fallbackProtocolsForModelType(target.modelType());
         }
-        Set<ModelApiProtocolEnum> intersection = null;
+        // 池内模型能力允许不一致，取并集：只要池内任一模型支持该协议即可发起调试。
+        // 实际由哪个模型承接，由网关按请求协议筛选候选（见 RoutingResolver 的协议过滤）。
+        Set<ModelApiProtocolEnum> union = new LinkedHashSet<>();
         for (Long modelId : enabledModelIds) {
-            Set<ModelApiProtocolEnum> current = supportedProtocolsForModel(modelId, target.modelType());
-            if (intersection == null) {
-                intersection = new LinkedHashSet<>(current);
-            } else {
-                intersection.retainAll(current);
-            }
+            union.addAll(supportedProtocolsForModel(modelId, target.modelType()));
         }
-        return intersection == null ? Set.of() : intersection;
+        return union.isEmpty() ? fallbackProtocolsForModelType(target.modelType()) : union;
     }
 
     private Set<ModelApiProtocolEnum> supportedProtocolsForModel(Long modelId, String modelType) {

@@ -38,7 +38,7 @@ class EnumOptionRegistryTest {
     void exposesOnlyMigratedEnums() {
         Map<String, List<EnumOptionItem>> map = registry.enumMap();
 
-        assertEquals(19, map.size());
+        assertEquals(21, map.size());
         assertTrue(map.containsKey("ModelTypeEnum"));
         assertTrue(map.containsKey("ModelApiProtocolEnum"));
         assertTrue(map.containsKey("BillingModeEnum"));

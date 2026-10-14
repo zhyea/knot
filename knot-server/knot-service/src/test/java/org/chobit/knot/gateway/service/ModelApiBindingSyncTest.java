@@ -17,6 +17,7 @@ import org.chobit.knot.gateway.mapper.ProviderAccountMapper;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.usage.extractor.DefaultTokenUsageExtractor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -123,7 +124,7 @@ class ModelApiBindingSyncTest {
         when(bindingMapper.listByModelId(MODEL_ID)).thenReturn(List.of(existingBinding()));
 
         service.update(MODEL_ID, request(List.of(new ModelApiBindingDto(BINDING_ID, "CHAT_COMPLETIONS",
-                "/v1/chat/completions", null, "DEFAULT", null, true, "人工备注"))));
+                "/v1/chat/completions", null, DefaultTokenUsageExtractor.CODE, null, true, "人工备注"))));
 
         ArgumentCaptor<ModelApiBindingEntity> captor = ArgumentCaptor.forClass(ModelApiBindingEntity.class);
         verify(bindingMapper).update(captor.capture());
@@ -135,7 +136,7 @@ class ModelApiBindingSyncTest {
     @Test
     void addedBindingIsInserted() {
         service.update(MODEL_ID, request(List.of(new ModelApiBindingDto(null, "CHAT_COMPLETIONS",
-                null, null, "DEFAULT", null, true, null))));
+                null, null, DefaultTokenUsageExtractor.CODE, null, true, null))));
 
         ArgumentCaptor<ModelApiBindingEntity> captor = ArgumentCaptor.forClass(ModelApiBindingEntity.class);
         verify(bindingMapper).insert(captor.capture());
@@ -164,13 +165,13 @@ class ModelApiBindingSyncTest {
         entity.setModelId(MODEL_ID);
         entity.setProtocol("CHAT_COMPLETIONS");
         entity.setApiPath("/v1/chat/completions");
-        entity.setUsageExtractor("DEFAULT");
+        entity.setUsageExtractor(DefaultTokenUsageExtractor.CODE);
         entity.setStatus(EnabledStatusEnum.ENABLED.code());
         return entity;
     }
 
     private ModelApiBindingDto existingBindingDto() {
         return new ModelApiBindingDto(BINDING_ID, "CHAT_COMPLETIONS", "/v1/chat/completions",
-                null, "DEFAULT", null, true, null);
+                null, DefaultTokenUsageExtractor.CODE, null, true, null);
     }
 }

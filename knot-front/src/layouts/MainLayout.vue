@@ -127,7 +127,8 @@ import {
   Setting,
   Share,
   Tools,
-  User
+  User,
+  Warning
 } from "@element-plus/icons-vue";
 import {useAuth} from "@/composables/useAuth";
 import {useLocale} from "@/composables/useLocale";
@@ -180,7 +181,8 @@ const iconMap: Record<string, Component> = {
   Setting,
   Share,
   Tools,
-  User
+  User,
+  Warning
 };
 
 const activePath = computed(() => route.path);

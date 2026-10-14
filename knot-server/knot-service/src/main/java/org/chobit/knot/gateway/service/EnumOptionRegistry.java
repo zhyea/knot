@@ -9,6 +9,8 @@ import org.chobit.knot.gateway.constants.enums.EnumOptionItem;
 import org.chobit.knot.gateway.constants.enums.LogicalModelPublishStatusEnum;
 import org.chobit.knot.gateway.constants.enums.LogicalModelVisibilityEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.constants.enums.ModerationActionEnum;
+import org.chobit.knot.gateway.constants.enums.ModerationScopeEnum;
 import org.chobit.knot.gateway.constants.enums.ModelPoolSelectionStrategyEnum;
 import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.constants.enums.NumericEnumOption;
@@ -66,6 +68,8 @@ public class EnumOptionRegistry {
         put(map, RoutingTestStatusEnum.class.getSimpleName(), RoutingTestStatusEnum.values());
         put(map, LogicalModelVisibilityEnum.class.getSimpleName(), LogicalModelVisibilityEnum.values());
         putNumeric(map, LogicalModelPublishStatusEnum.class.getSimpleName(), LogicalModelPublishStatusEnum.values());
+        put(map, ModerationActionEnum.class.getSimpleName(), ModerationActionEnum.values());
+        put(map, ModerationScopeEnum.class.getSimpleName(), ModerationScopeEnum.values());
         this.enumMap = Collections.unmodifiableMap(map);
     }
 

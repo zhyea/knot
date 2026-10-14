@@ -85,6 +85,13 @@ const routes: RouteRecordRaw[] = [
   },
   { path: "/plugins", redirect: "/system/plugins" },
   {
+    path: "/moderation",
+    component: NestedView,
+    children: [
+      { path: "words", name: "moderation-words", component: () => import("@/views/moderation/ModerationWordManageView.vue"), meta: { titleKey: "route.moderationWords" } }
+    ]
+  },
+  {
     path: "/notifications",
     component: NestedView,
     children: [

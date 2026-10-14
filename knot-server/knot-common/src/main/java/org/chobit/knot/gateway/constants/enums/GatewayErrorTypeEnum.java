@@ -5,6 +5,7 @@ public enum GatewayErrorTypeEnum {
     INVALID_REQUEST_ERROR("invalid_request_error"),
     RATE_LIMIT_ERROR("rate_limit_error"),
     QUOTA_ERROR("quota_error"),
+    MODERATION_ERROR("moderation_error"),
     UPSTREAM_ERROR("upstream_error");
 
     private final String code;

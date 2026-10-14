@@ -52,10 +52,11 @@ class UsageExtractorBillingModesTest {
         for (UsageExtractorDefinition definition : catalog.definitions()) {
             modesByCode.put(definition.code(), definition.billingModes());
         }
-        assertEquals(EnumSet.allOf(BillingModeEnum.class), modesByCode.get("DEFAULT"));
-        assertEquals(EnumSet.of(BillingModeEnum.TOKEN), modesByCode.get("ANTHROPIC"));
-        assertEquals(EnumSet.of(BillingModeEnum.IMAGE), modesByCode.get("IMAGE"));
-        assertEquals(EnumSet.of(BillingModeEnum.VIDEO), modesByCode.get("VIDEO"));
-        assertEquals(EnumSet.of(BillingModeEnum.AUDIO), modesByCode.get("AUDIO"));
+        // code 一律取实现常量，避免 ff09840 改名后字面量不同步（本次修复的回归点）
+        assertEquals(EnumSet.allOf(BillingModeEnum.class), modesByCode.get(DefaultTokenUsageExtractor.CODE));
+        assertEquals(EnumSet.of(BillingModeEnum.TOKEN), modesByCode.get(AnthropicUsageExtractor.CODE));
+        assertEquals(EnumSet.of(BillingModeEnum.IMAGE), modesByCode.get(ImageUsageExtractor.CODE));
+        assertEquals(EnumSet.of(BillingModeEnum.VIDEO), modesByCode.get(VideoUsageExtractor.CODE));
+        assertEquals(EnumSet.of(BillingModeEnum.AUDIO), modesByCode.get(AudioUsageExtractor.CODE));
     }
 }

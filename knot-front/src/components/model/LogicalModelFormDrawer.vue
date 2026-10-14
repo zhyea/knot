@@ -130,8 +130,8 @@
               <el-form-item label="语言">
                 <el-select v-model="form.languages" multiple
                            filterable
-                           allow-create d
-                           efault-first-option
+                           allow-create
+                           default-first-option
                            collapse-tags
                            collapse-tags-tooltip
                            :max-collapse-tags="2"

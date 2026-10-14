@@ -15,7 +15,7 @@
         <el-table-column prop="label" label="名称" min-width="180" show-overflow-tooltip>
           <template #default="{ row }">
             <span>{{ row.label || "-" }}</span>
-            <el-tag v-if="row.code === 'DEFAULT'" size="small" type="info" effect="plain" class="extractor-guide__default-tag">
+            <el-tag v-if="row.code === rows[0]?.code" size="small" type="info" effect="plain" class="extractor-guide__default-tag">
               默认
             </el-tag>
           </template>

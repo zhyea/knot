@@ -1,8 +1,8 @@
 package org.chobit.knot.gateway.routing;
 
-import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ModelPoolSelectionStrategyEnum;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.constants.enums.RouteTargetTypeEnum;
@@ -36,7 +36,6 @@ import java.util.stream.Stream;
  * 根据消费者 API Key 和路由规则编码解析本次网关请求的路由信息。
  */
 @Component
-@RequiredArgsConstructor
 public class RoutingResolver {
 
     private final GatewayDataService dataService;
@@ -44,13 +43,38 @@ public class RoutingResolver {
     private final ModelLoadStore modelLoadStore;
     private final ModelLoadKeys modelLoadKeys;
     private final StickyRouting stickyRouting;
+    /**
+     * 协议候选过滤器：数据源适配自 {@link GatewayDataService}（库查询 + 10 分钟缓存）。
+     * 走 {@link ApiBindingSource} 函数接口而非直接依赖，是为了过滤逻辑可单测隔离。
+     */
+    private final ProtocolCandidateFilter protocolFilter;
+
+    /**
+     * Constructs a new instance.
+     */
+    public RoutingResolver(GatewayDataService dataService,
+                           ModelPoolSelection modelPoolSelection,
+                           ModelLoadStore modelLoadStore,
+                           ModelLoadKeys modelLoadKeys,
+                           StickyRouting stickyRouting) {
+        this.dataService = dataService;
+        this.modelPoolSelection = modelPoolSelection;
+        this.modelLoadStore = modelLoadStore;
+        this.modelLoadKeys = modelLoadKeys;
+        this.stickyRouting = stickyRouting;
+        this.protocolFilter = new ProtocolCandidateFilter(dataService::listApiBindingsByModelId);
+    }
 
     /**
      * Resolves the requested value from current context and configuration. Executes the public operation.
      *
+     * <p>候选只保留「声明了当前请求协议」的模型：协议能力取池内模型的<b>并集</b>（与调试面板一致），
+     * 但真正承接请求的候选必须自己支持该协议，避免把请求打到不具备该能力的上游。</p>
+     *
      * @param stickyKey 粘性路由键（请求头原值，未传为 null）；仅当目标模型池开启粘性路由时参与池内首选的选择
+     * @param protocol  本次请求的接口协议；为 null（未识别协议）时不作过滤，沿用原有候选链
      */
-    public ResolvedRouting resolveByRule(String secretKey, String ruleCode, String stickyKey) {
+    public ResolvedRouting resolveByRule(String secretKey, String ruleCode, String stickyKey, ModelApiProtocolEnum protocol) {
         if (!RoutingSecretKeyGenerator.isRoutingSecretKey(secretKey)) {
             throw new GatewayAuthException("Invalid consumer API key");
         }
@@ -83,6 +107,13 @@ public class RoutingResolver {
                     ProxyErrorCodeEnum.NO_ROUTING_TARGET.code()
             );
         }
+        candidates = filterByProtocol(candidates, protocol);
+        if (candidates.isEmpty()) {
+            throw new GatewayUpstreamException(
+                    "No routing target supports protocol " + protocol.canonical().code(),
+                    ProxyErrorCodeEnum.NO_ROUTING_TARGET.code()
+            );
+        }
         GatewayRoutingInfo routingInfo = buildRoutingInfo(rule, consumer, app);
         return new ResolvedRouting(rule.getId(),
                 rule.getRuleCode(),
@@ -92,6 +123,14 @@ public class RoutingResolver {
                 candidates,
                 routingInfo,
                 RetryPolicy.parse(rule.getRetryPolicy()));
+    }
+
+    /**
+     * 按请求协议筛选候选模型；协议为 null（未识别）时原样返回，保持既有行为。
+     */
+    private List<RoutingRuleTargetDto> filterByProtocol(List<RoutingRuleTargetDto> candidates,
+                                                        ModelApiProtocolEnum protocol) {
+        return protocolFilter.filter(candidates, protocol);
     }
 
     private static GatewayRoutingInfo buildRoutingInfo(RoutingRuleEntity rule,

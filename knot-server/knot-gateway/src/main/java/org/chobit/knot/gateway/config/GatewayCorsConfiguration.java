@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.config;
 
+import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -33,7 +34,8 @@ public class GatewayCorsConfiguration implements WebMvcConfigurer {
                 .allowedOrigins(allowedOrigins)
                 .allowedMethods("GET", "POST", "OPTIONS")
                 .allowedHeaders("Authorization", "Content-Type", "Accept", "Rule", "traceparent")
-                .exposedHeaders("Content-Type", "Cache-Control", "X-Accel-Buffering")
+                .exposedHeaders("Content-Type", "Cache-Control", "X-Accel-Buffering",
+                        GatewayHeaders.X_KNOT_FIRST_TOKEN_TIME, GatewayHeaders.X_KNOT_MODEL)
                 .allowCredentials(false)
                 .maxAge(3600);
     }

@@ -20,6 +20,11 @@ public final class GatewayHeaders {
      * 路由解析、插件、频控与重试/failover 耗时；异常路径不设置，头缺失即本次无成功首 token。
      */
     public static final String X_KNOT_FIRST_TOKEN_TIME = "X-Knot-First-Token-Time";
+    /**
+     * 实际承接本次请求的模型业务码（kb_models.model_code）：池内选中、粘性命中、failover 顺延之后
+     * 真正调用上游的那个模型。异常路径不设置，头缺失即本次没有成功调用任何上游模型。
+     */
+    public static final String X_KNOT_MODEL = "X-Knot-Model";
     public static final String X_API_KEY = "x-api-key";
     public static final String ANTHROPIC_VERSION = "anthropic-version";
 
