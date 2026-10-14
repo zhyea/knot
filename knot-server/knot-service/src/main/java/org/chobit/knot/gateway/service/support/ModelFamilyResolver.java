@@ -1,10 +1,11 @@
-package org.chobit.knot.gateway.service;
-
-import org.chobit.knot.gateway.entity.EnumConfigEntity;
-import org.springframework.stereotype.Component;
+package org.chobit.knot.gateway.service.support;
 
 import java.util.List;
 import java.util.Locale;
+import org.chobit.knot.gateway.entity.EnumConfigEntity;
+import org.chobit.knot.gateway.service.EnumConfigService;
+import org.springframework.stereotype.Component;
+
 
 /**
  * 将外部模型（OpenRouter 等）的模型标识归一到合法的 {@code model_family} 枚举码。

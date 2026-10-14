@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.constants.enums.EnumOptionItem;
-import org.chobit.knot.gateway.service.EnumOptionRegistry;
+import org.chobit.knot.gateway.service.support.EnumOptionRegistry;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;

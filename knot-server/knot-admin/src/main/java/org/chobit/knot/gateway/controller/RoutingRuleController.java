@@ -9,13 +9,14 @@ import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.RoutingRuleService;
-import org.chobit.knot.gateway.service.RoutingTestPreparation;
-import org.chobit.knot.gateway.service.RoutingTestStreamHandle;
+import org.chobit.knot.gateway.dto.routing.RoutingTestPreparation;
+import org.chobit.knot.gateway.dto.routing.RoutingTestStreamHandle;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.common.CodeAvailability;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.routing.ProtocolDebugCapabilityItem;
 import org.chobit.knot.gateway.vo.routing.RoutingRule;
+import org.chobit.knot.gateway.vo.routing.RoutingRuleDebugProtocols;
 import org.chobit.knot.gateway.vo.routing.RoutingTestRequest;
 import org.chobit.knot.gateway.vo.routing.RoutingTestResult;
 import org.springframework.http.HttpHeaders;
@@ -63,6 +64,14 @@ public class RoutingRuleController {
     @GetMapping("/debug-capabilities")
     public List<ProtocolDebugCapabilityItem> debugCapabilities() {
         return routingRuleService.listDebugCapabilities();
+    }
+
+    /**
+     * Lists the protocols each debug target of the rule supports, computed by the same source as test admission.
+     */
+    @GetMapping("/{id}/debug-protocols")
+    public RoutingRuleDebugProtocols debugProtocols(@PathVariable Long id) {
+        return routingRuleService.listDebugProtocols(id);
     }
 
     /**

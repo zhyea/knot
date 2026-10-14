@@ -6,7 +6,7 @@ import org.chobit.knot.gateway.dto.system.OperationLogDto;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
-import org.chobit.knot.gateway.service.SystemService;
+import org.chobit.knot.gateway.service.OperationLogService;
 import org.chobit.knot.gateway.vo.system.OperationLogItem;
 import org.chobit.knot.gateway.vo.system.RoleItem;
 import org.chobit.knot.gateway.vo.system.SystemLogItem;
@@ -17,14 +17,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/system")
 public class SystemController {
-    private final SystemService systemService;
+    private final OperationLogService operationLogService;
     private final SystemConverter systemConverter;
 
     /**
      * Constructs a new instance.
      */
-    public SystemController(SystemService systemService, SystemConverter systemConverter) {
-        this.systemService = systemService;
+    public SystemController(OperationLogService operationLogService, SystemConverter systemConverter) {
+        this.operationLogService = operationLogService;
         this.systemConverter = systemConverter;
     }
 
@@ -55,7 +55,7 @@ public class SystemController {
      */
     @PostMapping("/logs")
     public List<SystemLogItem> logs() {
-        return systemService.listOperationLogs(PageRequest.of(1, 10)).list().stream()
+        return operationLogService.listOperationLogs(PageRequest.of(1, 10)).list().stream()
                 .map(dto -> new SystemLogItem(dto.moduleCode(), "INFO", dto.actionCode()))
                 .toList();
     }
@@ -66,7 +66,7 @@ public class SystemController {
     @AuthCheck
     @PostMapping("/operation-logs")
     public PageResult<OperationLogItem> operationLogs(@RequestBody(required = false) PageQuery query) {
-        PageResult<OperationLogDto> page = systemService.listOperationLogs(
+        PageResult<OperationLogDto> page = operationLogService.listOperationLogs(
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest()
         );
         return page.mapList(systemConverter::toOperationLogVOList);

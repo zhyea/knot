@@ -3,6 +3,8 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import java.util.List;
+import java.util.Set;
 import org.chobit.knot.gateway.entity.EnumCategoryEntity;
 import org.chobit.knot.gateway.entity.EnumCategorySummary;
 import org.chobit.knot.gateway.entity.EnumConfigEntity;
@@ -12,11 +14,10 @@ import org.chobit.knot.gateway.mapper.EnumCategoryMapper;
 import org.chobit.knot.gateway.mapper.EnumConfigMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.service.support.EnumOptionRegistry;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Set;
 
 @Service
 public class EnumConfigService {

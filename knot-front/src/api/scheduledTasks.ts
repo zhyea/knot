@@ -20,3 +20,8 @@ export function triggerScheduledTask(id: number | string) {
 export function listScheduledTaskRuns(params: Dict) {
   return postQuery("/api/system/scheduled-tasks/runs", params);
 }
+
+/** 已注册的处理器编码（来源：Spring 容器中的 ScheduledTaskHandler bean），供任务表单下拉使用 */
+export function listScheduledTaskHandlers() {
+  return post<string[]>("/api/system/scheduled-tasks/handlers");
+}

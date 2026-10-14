@@ -58,15 +58,22 @@ model       → 领域值对象（非表映射）
 
 `System` / `Common` / `Base` / `Manager` / `Util` / `Helper` / `Info` / `Data` / `Object` 不得作为类名主干。既有孤例已整改（`SystemService` 并入 `OperationLogService`）。
 
-### 4.5 已落地整改（2026-10-15）
+### 4.5 已落地整改（2026-10-15，robin 拍板）
 
-| 动作 | 说明 |
-|---|---|
-| `SystemService` → 并入 `OperationLogService` | 读写一家，去掉泛化名 |
-| `AdminAuthorizationService` → `AuthorizationAccessService` | 去掉孤例前缀，职责是运行时 API 访问校验 |
-| `TestRequestPresetService` → `RoutingTestPresetService` | 补域前缀 |
-| 8 个协作者 → `service.support` 子包 | AuthorizationManageSupport / ProviderCredentialSupport / ResourceTrafficPolicySupport / DbModerationWordSource / ModelFamilyResolver / EnumOptionRegistry / PluginReconcileRunner / ProviderCredentialEncryptionMigrator |
-| `RoutingTestPreparation` / `RoutingTestStreamHandle` → `dto.routing` | 数据类型归位 |
+| 动作 | 说明 | 状态 |
+|---|---|---|
+| `SystemService` → 并入 `OperationLogService` | 读写一家，去掉泛化名；`SystemController` 改注入 `OperationLogService` | ✅ |
+| `AdminAuthorizationService` → `AuthorizationAccessService` | 去掉孤例前缀，职责是运行时 API 访问校验（含测试类同步改名） | ✅ |
+| `TestRequestPresetService` → `RoutingTestPresetService` | 补域前缀 | ✅ |
+| 6 个协作者 → `service.support` 子包 | AuthorizationManageSupport / ProviderCredentialSupport / ResourceTrafficPolicySupport / EnumOptionRegistry / ModelFamilyResolver / PluginReconcileRunner | ✅ |
+| `RoutingTestPreparation` / `RoutingTestStreamHandle` → `dto.routing` | 数据类型归位 | ✅ |
+| `ProviderCredentialEncryptionMigrator` 删除 | no-op 死代码 | ✅ |
+| `DbModerationWordSource` | 随敏感词架构调整被另一会话删除（2026-10-15） | 已随架构移除 |
+
+门禁：`mvn -pl knot-service,knot-admin -am test` **BUILD SUCCESS / 103 tests, 0 failures**。
+上下文证据：`AppControllerTest`（`@SpringBootTest`，无 mock）以 `AdminApplication` 完整启动成功 → `service.support` 子包被组件扫描覆盖（`AppService` → `ResourceTrafficPolicySupport` 注入链成立）。
+
+**follow-up**：`TestRequestPresetController` / `TestRequestPresetDto` / `TestRequestPresetMapper` 仍用旧名（Service 已改 `RoutingTestPresetService`），是否一并统一待定；真启 jar 冒烟未跑（并行会话活跃，避免抢占共享 m2 与数据库），待收口后补跑。
 
 ## 5. 编码细节
 

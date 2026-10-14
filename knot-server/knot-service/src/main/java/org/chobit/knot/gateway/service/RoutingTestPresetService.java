@@ -26,7 +26,7 @@ import java.util.Map;
  * 由用户维护完整、具体的请求体 JSON，按协议归类、全局共享复用。
  */
 @Service
-public class TestRequestPresetService {
+public class RoutingTestPresetService {
     private final TestRequestPresetMapper presetMapper;
     private final LogicalModelMapper logicalModelMapper;
     private final TestRequestPresetConverter presetConverter;
@@ -34,7 +34,7 @@ public class TestRequestPresetService {
     /**
      * Constructs a new instance.
      */
-    public TestRequestPresetService(TestRequestPresetMapper presetMapper,
+    public RoutingTestPresetService(TestRequestPresetMapper presetMapper,
                                     LogicalModelMapper logicalModelMapper,
                                     TestRequestPresetConverter presetConverter) {
         this.presetMapper = presetMapper;

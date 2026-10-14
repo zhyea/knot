@@ -5,17 +5,9 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Expiry;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import org.chobit.knot.gateway.entity.*;
-import org.chobit.knot.gateway.mapper.AppMapper;
-import org.chobit.knot.gateway.mapper.BillingRuleMapper;
-import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
-import org.chobit.knot.gateway.mapper.ModelMapper;
-import org.chobit.knot.gateway.mapper.ModelPoolMapper;
-import org.chobit.knot.gateway.mapper.ProviderCredentialMapper;
-import org.chobit.knot.gateway.mapper.ProviderAccountMapper;
-import org.chobit.knot.gateway.mapper.RoutingConsumerMapper;
-import org.chobit.knot.gateway.mapper.RoutingRuleMapper;
-import org.chobit.knot.gateway.mapper.RoutingRuleTargetMapper;
+import org.chobit.knot.gateway.mapper.*;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -23,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
+
 
 @Service
 public class GatewayDataService {

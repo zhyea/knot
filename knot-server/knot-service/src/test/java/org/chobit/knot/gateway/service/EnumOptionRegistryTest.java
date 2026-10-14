@@ -1,13 +1,15 @@
 package org.chobit.knot.gateway.service;
 
-import org.chobit.knot.gateway.constants.enums.EnumOptionItem;
-import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
 import java.util.Map;
+import org.chobit.knot.gateway.constants.enums.EnumOptionItem;
+import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
+import org.chobit.knot.gateway.service.support.EnumOptionRegistry;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
+
+
 
 class EnumOptionRegistryTest {
 

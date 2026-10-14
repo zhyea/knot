@@ -1,11 +1,13 @@
 package org.chobit.knot.gateway.service;
 
-import org.junit.jupiter.api.Test;
-
 import java.util.List;
+import org.chobit.knot.gateway.service.support.ModelFamilyResolver;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+
+
 
 class ModelFamilyResolverTest {
 

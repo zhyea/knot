@@ -14,7 +14,7 @@ import org.chobit.knot.gateway.entity.ExternalModelSourceEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.ExternalModelMapper;
-import org.chobit.knot.gateway.service.ModelFamilyResolver;
+import org.chobit.knot.gateway.service.support.ModelFamilyResolver;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.external.ExternalModelSyncProvider;

@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.service;
+package org.chobit.knot.gateway.service.support;
 
 import org.chobit.knot.gateway.entity.AdminApiPermissionBindingEntity;
 import org.chobit.knot.gateway.entity.AdminMenuEntity;

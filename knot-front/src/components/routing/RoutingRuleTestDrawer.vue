@@ -185,24 +185,18 @@
 import {computed, nextTick, onBeforeUnmount, reactive, ref, watch, type PropType} from "vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import ShellCodeBlock from "../common/ShellCodeBlock.vue";
-import {getModel, getModelByCode} from "@/api/models";
-import {getModelPool} from "@/api/modelPools";
-import {testRoutingRule, testRoutingRuleStream} from "@/api/routing";
-import {useModelTypes} from "@/composables/useModelTypes";
+import {listRoutingRuleDebugProtocols, testRoutingRule, testRoutingRuleStream} from "@/api/routing";
 import {useDebugCapabilities} from "@/composables/useDebugCapabilities";
 import {getTestRequestPreset, listTestRequestPresetOptions} from "@/api/routing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {formatJson, formatJsonText, parseJsonResult, stringifyJson, highlightJsonHtml} from "@/utils/format";
 import {readEventStream, type SseEvent} from "@/utils/sse";
-import type {Dict, Row} from "@/types";
+import type {Dict} from "@/types";
 
 const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || "http://127.0.0.1:9090";
 
 // 协议名称来自后端 ModelApiProtocolEnum（/api/common/enums），前端不再维护 code->label 映射
 const {labelOf: enumLabelOf} = useEnumOptions();
-
-// 后端模型类型数据不可用时的通用兜底协议（对话类）
-const DEFAULT_FALLBACK_PROTOCOLS = ["CHAT_COMPLETIONS", "RESPONSES", "MESSAGES", "COMPLETIONS"];
 
 /** 「全部目标」哨兵 key：协议下拉展示所有目标协议的并集（否则仅展示所选目标的协议） */
 const ALL_TARGETS_KEY = "__ALL__";
@@ -229,7 +223,6 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
-const {loadOptions: loadModelTypes, protocolsOf} = useModelTypes();
 const {
   loadOptions: loadDebugCapabilities,
   canonicalOf,
@@ -385,7 +378,6 @@ const availableProtocols = computed(() => {
   return protocols.map((code: string) => ({code, label: protocolLabel(code)}));
 });
 const activeProtocol = computed(() => normalizeProtocolCode(testForm.protocol));
-const activeTargetLabel = computed(() => (testForm.targetKey === ALL_TARGETS_KEY ? "全部目标" : activeTarget.value?.label || "-"));
 const activeProtocolLabel = computed(() => protocolLabel(activeProtocol.value));
 const activeTemplateKey = computed(() => `${testForm.targetKey || "default"}::${activeProtocol.value || "default"}`);
 const filteredPresetOptions = computed(() => {
@@ -489,7 +481,7 @@ watch(
     expandedPanels.value = ["preview"];
     testForm.secretKey = props.secretKey || "";
     initializeTargetSelection();
-    await Promise.all([loadModelTypes(), loadDebugCapabilities(), loadPresetOptions()]);
+    await Promise.all([loadDebugCapabilities(), loadPresetOptions()]);
     await loadAllTargetProtocols();
   }
 );
@@ -547,20 +539,6 @@ function normalizeProtocolCode(protocol: unknown): string {
   return canonicalOf(protocol);
 }
 
-/** 调试面板能否为该协议构造请求（无网关路径的协议如 CUSTOM 排除） */
-function isDebuggableProtocol(protocol: unknown): boolean {
-  return Boolean(gatewayPathOf(protocol));
-}
-
-function fallbackProtocolsForModelType(modelType: unknown): string[] {
-  // 来源为后端 /api/models/types 的 supportedProtocols，这里只做通用清洗：
-  // 归一化为 canonical 协议，并丢弃调试面板无法构造请求（无路径）的协议，如 CUSTOM
-  const protocols = protocolsOf(modelType)
-    .map((protocol: string) => normalizeProtocolCode(protocol))
-    .filter(isDebuggableProtocol);
-  return protocols.length ? Array.from(new Set(protocols)) : [...DEFAULT_FALLBACK_PROTOCOLS];
-}
-
 /** 当前选中目标（或「全部目标」并集）对应的协议列表 */
 function currentProtocolCodes(): string[] {
   if (testForm.targetKey === ALL_TARGETS_KEY) {
@@ -582,82 +560,40 @@ function onTargetChange() {
   syncCurrentProtocol();
 }
 
-/** 抽屉打开时预加载所有目标的协议（并集与单目标切换共用同一份缓存） */
+/**
+ * 抽屉打开时载入各目标的协议（并集与单目标切换共用同一份缓存）。
+ * 协议由后端 GET /api/routing-rules/{id}/debug-protocols 权威下发，与调试准入校验同源，
+ * 前端不再解析模型/模型池的协议绑定，避免两份实现漂移。
+ */
 async function loadAllTargetProtocols() {
   protocolLoading.value = true;
   try {
-    await Promise.all(
-      targetOptions.value.map(async (target) => {
-        const detail = await resolveTargetProtocolDetail(target);
-        targetProtocolMap[target.key] = detail.length ? detail : fallbackProtocolsForModelType(target.modelType);
-      })
-    );
+    clearProtocolMap();
+    if (props.ruleId == null) {
+      syncCurrentProtocol();
+      return;
+    }
+    const detail = await listRoutingRuleDebugProtocols(props.ruleId);
+    for (const item of detail?.targets || []) {
+      if (item?.targetId == null) {
+        continue;
+      }
+      targetProtocolMap[`${normalizeTargetType(item.targetType)}:${item.targetId}`] = item.protocols || [];
+    }
+    syncCurrentProtocol();
+  } catch {
+    // 载入失败保持空表：协议下拉随之置空，不做本地兜底，避免下拉出后端实际不放行的协议
+    clearProtocolMap();
     syncCurrentProtocol();
   } finally {
     protocolLoading.value = false;
   }
 }
 
-async function resolveTargetProtocolDetail(target: RoutingTarget) {
-  if (normalizeTargetType(target.targetType) === "MODEL_POOL") {
-    return await loadModelPoolProtocols(target);
+function clearProtocolMap() {
+  for (const key of Object.keys(targetProtocolMap)) {
+    delete targetProtocolMap[key];
   }
-  return await loadModelProtocols(target.targetId as string | number, target.modelType);
-}
-
-async function loadModelProtocols(modelId: number | string, modelType: string | undefined): Promise<string[]> {
-  try {
-    const detail = await getModel(modelId);
-    const bindings = Array.isArray(detail?.apiBindings) ? detail.apiBindings : [];
-    return normalizeProtocolsFromBindings(bindings, modelType);
-  } catch {
-    return fallbackProtocolsForModelType(modelType);
-  }
-}
-
-/** 按业务码取协议（模型池条目只有 model_code，没有 modelId，避免请求 /api/models/undefined） */
-async function loadModelProtocolsByCode(modelCode: string | undefined, modelType: string | undefined): Promise<string[]> {
-  if (!modelCode) {
-    return fallbackProtocolsForModelType(modelType);
-  }
-  try {
-    const detail = await getModelByCode(modelCode);
-    const bindings = Array.isArray(detail?.apiBindings) ? detail.apiBindings : [];
-    return normalizeProtocolsFromBindings(bindings, modelType);
-  } catch {
-    return fallbackProtocolsForModelType(modelType);
-  }
-}
-
-async function loadModelPoolProtocols(target: RoutingTarget): Promise<string[]> {
-  try {
-    const detail = await getModelPool(target.targetId as string | number);
-    const enabledItems: Row[] = (Array.isArray(detail?.items) ? detail.items : []).filter((item: Row) => item.enabled !== false);
-    if (!enabledItems.length) {
-      return fallbackProtocolsForModelType(target.modelType);
-    }
-    const protocolLists = await Promise.all(enabledItems.map((item: Row) => loadModelProtocolsByCode(item.modelCode, item.modelType)));
-    const protocols = unionProtocolLists(protocolLists.filter((item: string[]) => item.length));
-    return protocols.length ? protocols : fallbackProtocolsForModelType(target.modelType);
-  } catch {
-    return fallbackProtocolsForModelType(target.modelType);
-  }
-}
-
-function normalizeProtocolsFromBindings(bindings: Row[], modelType: string | undefined): string[] {
-  const protocols = bindings
-    .filter((item: Row) => item?.enabled !== false)
-    .map((item: Row) => normalizeProtocolCode(item.protocol))
-    .filter(isDebuggableProtocol);
-  return protocols.length ? Array.from(new Set(protocols)) : fallbackProtocolsForModelType(modelType);
-}
-
-function unionProtocolLists(lists: string[][]): string[] {
-  const result: string[] = [];
-  for (const list of lists) {
-    result.push(...list);
-  }
-  return Array.from(new Set(result));
 }
 
 function ensureTemplateForCurrentSelection() {

@@ -18,7 +18,7 @@ import org.chobit.knot.gateway.plugin.PluginStageCode;
 import org.chobit.knot.gateway.plugin.upstream.UpstreamPluginContext;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
 import org.chobit.knot.gateway.service.GatewayDataService;
-import org.chobit.knot.gateway.service.ProviderCredentialSupport;
+import org.chobit.knot.gateway.service.support.ProviderCredentialSupport;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutor;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutorRegistry;
 import org.chobit.knot.gateway.upstream.request.UpstreamRequestAdapterRegistry;

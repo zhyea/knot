@@ -18,12 +18,12 @@ import static org.mockito.Mockito.when;
 /**
  * 接口级授权采用「默认拒绝」：未配置绑定的接口一律拒绝，避免漏配被静默放行。
  */
-class AdminAuthorizationServiceTest {
+class AuthorizationAccessServiceTest {
 
     private final AdminAuthorizationMapper authorizationMapper = mock(AdminAuthorizationMapper.class);
     private final UserMapper userMapper = mock(UserMapper.class);
-    private final AdminAuthorizationService service =
-            new AdminAuthorizationService(authorizationMapper, userMapper);
+    private final AuthorizationAccessService service =
+            new AuthorizationAccessService(authorizationMapper, userMapper);
 
     @Test
     void missingBindingIsRejected() {

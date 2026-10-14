@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.service;
+package org.chobit.knot.gateway.service.support;
 
 import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.QuotaWindowEnum;

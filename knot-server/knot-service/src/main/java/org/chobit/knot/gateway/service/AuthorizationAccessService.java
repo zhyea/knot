@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.Objects;
 
 @Service
-public class AdminAuthorizationService {
+public class AuthorizationAccessService {
 
     private final AdminAuthorizationMapper adminAuthorizationMapper;
     private final UserMapper userMapper;
@@ -27,7 +27,7 @@ public class AdminAuthorizationService {
     /**
      * Constructs a new instance.
      */
-    public AdminAuthorizationService(AdminAuthorizationMapper adminAuthorizationMapper,
+    public AuthorizationAccessService(AdminAuthorizationMapper adminAuthorizationMapper,
                                      UserMapper userMapper) {
         this.adminAuthorizationMapper = adminAuthorizationMapper;
         this.userMapper = userMapper;

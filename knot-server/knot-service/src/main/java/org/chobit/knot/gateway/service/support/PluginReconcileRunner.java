@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.service;
+package org.chobit.knot.gateway.service.support;
 
 import org.chobit.knot.gateway.entity.PluginInstanceEntity;
 import org.chobit.knot.gateway.mapper.PluginInstanceMapper;

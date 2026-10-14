@@ -3,6 +3,17 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ModelPoolSelectionStrategyEnum;
@@ -12,6 +23,8 @@ import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.converter.RoutingRuleConverter;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleDto;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.gateway.dto.routing.RoutingTestPreparation;
+import org.chobit.knot.gateway.dto.routing.RoutingTestStreamHandle;
 import org.chobit.knot.gateway.entity.AppEntity;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
@@ -37,14 +50,17 @@ import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.RetryPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.tools.RoutingRuleCodeGenerator;
 import org.chobit.knot.gateway.vo.routing.ProtocolDebugCapabilityItem;
+import org.chobit.knot.gateway.vo.routing.RoutingRuleDebugProtocols;
+import org.chobit.knot.gateway.vo.routing.RoutingTargetDebugProtocols;
 import org.chobit.knot.gateway.vo.routing.RoutingTestResult;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
@@ -52,17 +68,6 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 public class RoutingRuleService {
@@ -594,6 +599,28 @@ public class RoutingRuleService {
     }
 
     /**
+     * 调试面板协议下拉的数据源：逐目标下发其支持的接口协议。
+     *
+     * <p>与调试准入校验 {@link #resolveTestProtocol} 共用 {@link #supportedProtocolsForTarget}，
+     * 前端不再自行解析模型/模型池的协议绑定，杜绝「下拉列出的协议」与「后端放行的协议」两份实现漂移。
+     */
+    public RoutingRuleDebugProtocols listDebugProtocols(Long ruleId) {
+        List<RoutingRuleTargetDto> targets = getById(ruleId).targets();
+        List<RoutingTargetDebugProtocols> items = (targets == null ? List.<RoutingRuleTargetDto>of() : targets).stream()
+                .filter(target -> target.targetId() != null)
+                .map(target -> new RoutingTargetDebugProtocols(
+                        normalizeTargetType(target.targetType()),
+                        target.targetId(),
+                        target.primary(),
+                        supportedProtocolsForTarget(target).stream()
+                                .map(ModelApiProtocolEnum::code)
+                                .toList()
+                ))
+                .toList();
+        return new RoutingRuleDebugProtocols(items);
+    }
+
+    /**
      * 请求体中承载 prompt 的字段路径；无 prompt 语义的协议（语音转录、图像变体）返回 null。
      * 与 {@link #fillDefaultPromptFields} 的取值口径保持一致。
      */
@@ -982,7 +1009,7 @@ public class RoutingRuleService {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "绑定应用不存在");
             }
         }
-        // 统一模型非必填；传了则必须是有效 code（与 TestRequestPresetService 同口径）
+        // 统一模型非必填；传了则必须是有效 code（与 RoutingTestPresetService 同口径）
         if (request.logicalModelCode() != null && !request.logicalModelCode().isBlank()
                 && logicalModelMapper.getByCode(request.logicalModelCode().trim()) == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "统一模型不存在");

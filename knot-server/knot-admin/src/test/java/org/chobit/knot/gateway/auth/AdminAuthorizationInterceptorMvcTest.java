@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.auth;
 import org.chobit.knot.gateway.GlobalExceptionHandler;
 import org.chobit.knot.gateway.error.ForbiddenException;
 import org.chobit.knot.gateway.rw.RwProperties;
-import org.chobit.knot.gateway.service.AdminAuthorizationService;
+import org.chobit.knot.gateway.service.AuthorizationAccessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
@@ -57,7 +57,7 @@ class AdminAuthorizationInterceptorMvcTest {
                 .andExpect(status().isOk());
     }
 
-    private static class StubAuthorizationService extends AdminAuthorizationService {
+    private static class StubAuthorizationService extends AuthorizationAccessService {
         private boolean reject;
 
         StubAuthorizationService() {

@@ -9,9 +9,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.constants.enums.OperationLogStatusEnum;
 import org.chobit.knot.gateway.entity.OperationLogEntity;
+import org.chobit.knot.gateway.converter.SystemConverter;
+import org.chobit.knot.gateway.dto.system.OperationLogDto;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.mapper.OperationLogMapper;
+import org.chobit.knot.gateway.mapper.SystemMapper;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -32,12 +35,28 @@ public class OperationLogService {
             "updatedAt", "updated_at", "updateTime", "update_time");
 
     private final OperationLogMapper operationLogMapper;
+    private final SystemMapper systemMapper;
+    private final SystemConverter systemConverter;
 
     /**
      * Constructs a new instance.
      */
-    public OperationLogService(OperationLogMapper operationLogMapper) {
+    public OperationLogService(OperationLogMapper operationLogMapper,
+                               SystemMapper systemMapper,
+                               SystemConverter systemConverter) {
         this.operationLogMapper = operationLogMapper;
+        this.systemMapper = systemMapper;
+        this.systemConverter = systemConverter;
+    }
+
+    /**
+     * 系统侧操作日志分页（原 SystemService 职责，2026-10-15 并入）。
+     */
+    public PageResult<OperationLogDto> listOperationLogs(PageRequest pageRequest) {
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<OperationLogEntity> pageInfo = new PageInfo<>(systemMapper.listOperationLogs());
+            return PageResult.fromPage(pageInfo, systemConverter::toOperationLogDtoList, pageRequest);
+        }
     }
 
     /**

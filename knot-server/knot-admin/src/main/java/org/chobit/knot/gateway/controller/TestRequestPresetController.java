@@ -7,7 +7,7 @@ import org.chobit.knot.gateway.dto.routing.TestRequestPresetDto;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
-import org.chobit.knot.gateway.service.TestRequestPresetService;
+import org.chobit.knot.gateway.service.RoutingTestPresetService;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
 import org.chobit.knot.gateway.vo.common.OptionItem;
 import org.chobit.knot.gateway.vo.common.OptionPage;
@@ -20,13 +20,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/test-request-presets")
 public class TestRequestPresetController {
-    private final TestRequestPresetService presetService;
+    private final RoutingTestPresetService presetService;
     private final TestRequestPresetConverter presetConverter;
 
     /**
      * Constructs a new instance.
      */
-    public TestRequestPresetController(TestRequestPresetService presetService, TestRequestPresetConverter presetConverter) {
+    public TestRequestPresetController(RoutingTestPresetService presetService, TestRequestPresetConverter presetConverter) {
         this.presetService = presetService;
         this.presetConverter = presetConverter;
     }

@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.service;
+package org.chobit.knot.gateway.service.support;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.chobit.knot.gateway.auth.AuthRoles;

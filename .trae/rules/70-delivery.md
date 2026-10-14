@@ -1,0 +1,52 @@
+---
+description: knot 交付规范：产物落盘位置、git 纪律、变更收口检查表、沟通约定
+alwaysApply: false
+---
+
+> 本文件由 `docs/standards/generate-tool-rules.py` 自动生成，**勿手工编辑**。权威源：`docs/standards/rules/rules/70-delivery.md`。
+
+# 70 · 交付、文档与协作规范
+
+> 适用：所有任务的收口环节。完整索引见 `docs/standards/PROJECT-STANDARDS.md`。
+
+## 1. 产物落盘位置（固定）
+
+| 产物 | 落盘位置 | 命名 |
+|---|---|---|
+| 报告 / 方案 / 巡检 | `docs/` | `<主题>-YYYY-MM-DD.md` |
+| 数据库迁移脚本 | `docs/database/migration/` | `YYYY-MM-DD-<主题>.sql` |
+| 设计与技术方案 | `docs/design/` 或 `docs/tech/` | 沿用既有命名 |
+| 项目规范 | `docs/standards/` | 见 `PROJECT-STANDARDS.md` |
+| 工作日志（过程） | `.workbuddy/memory/` | `YYYY-MM-DD.md`（**只追加，不覆盖**） |
+| 审计/探针脚本 | `.workbuddy/audit/` | `Probe*.java` / `*.py` |
+
+日志只记**有跨会话价值**的内容（决策、架构、门禁结论、踩坑），不记临时路径与一次性错误。
+
+## 2. Git 纪律
+
+- ⚠ **未经 robin 显式批准，绝不 `git commit`。**
+- 不在个人目录（Desktop / Downloads / Documents）做批量删除/整理；确需删除先列清单 + 显式确认 + 备份。
+- 不留兼容兜底、不留死代码——删除语义一次做干净。
+
+## 3. 变更收口检查表
+
+1. 改契约前**全量 grep 依赖者**
+2. 改完**再 grep 一次残留**
+3. 后端 `mvn test` + 前端 `vue-tsc --noEmit` + `vite build`
+4. 涉及启动装配/插件/配置的改动 → **真启 jar 冒烟**
+5. 临时库 DROP 清理，零残留
+6. 宣告完成前**重跑最终门禁**（防并发会话抢改）
+
+## 4. 巡检与审计
+
+- 脚本在 `.workbuddy/audit/*.py`，**只读**，报告落 `docs/代码质量巡检-YYYY-MM-DD.md`。
+- **报 0 条必须换算法复验**（注入必错探针重跑），不许直接采信"没问题"。
+- 死代码审计、告警巡检同理：结论要有证据链（文件路径 + 行号）。
+
+## 5. 沟通约定
+
+- **简体中文**回复，技术术语保留英文。
+- **结论先行 + 证据链 + 表格 + 具体代码引用（文件:行号）**。
+- 交付按「phase verdict 表 + 三门禁 + 关键实现要点 + follow-up」结构。
+- 未验证的项**显式标注为未验证**，不许含糊带过。
+- 重大方向调整**先对齐再动手**；拿不准就问，返工比多问一句贵。

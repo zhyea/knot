@@ -2,7 +2,7 @@ package org.chobit.knot.gateway.auth;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.chobit.knot.gateway.service.AdminAuthorizationService;
+import org.chobit.knot.gateway.service.AuthorizationAccessService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -12,13 +12,13 @@ import org.springframework.web.servlet.HandlerMapping;
 @Component
 public class AdminAuthorizationInterceptor implements HandlerInterceptor {
 
-    private final AdminAuthorizationService adminAuthorizationService;
+    private final AuthorizationAccessService adminAuthorizationService;
     private final CurrentAuth currentAuth;
 
     /**
      * Constructs a new instance.
      */
-    public AdminAuthorizationInterceptor(AdminAuthorizationService adminAuthorizationService,
+    public AdminAuthorizationInterceptor(AuthorizationAccessService adminAuthorizationService,
                                          CurrentAuth currentAuth) {
         this.adminAuthorizationService = adminAuthorizationService;
         this.currentAuth = currentAuth;

@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.service;
+package org.chobit.knot.gateway.dto.routing;
 
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
