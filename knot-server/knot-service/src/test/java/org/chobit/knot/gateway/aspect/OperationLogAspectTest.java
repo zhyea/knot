@@ -32,7 +32,7 @@ import static org.mockito.Mockito.when;
  * <p>覆盖「预设用例更新后不做任何调整也会记日志、且旧值为空」这一缺陷的两条根因：
  * 更新前用 {@code oldValueSpel} 取到真实旧值（不再为空），更新后快照与旧值一致时
  * 抑制日志（不再产生无意义审计）。注解与 SpEL 镜像
- * {@code TestRequestPresetController#update} 的接线方式。</p>
+ * {@code RoutingTestPresetController#update} 的接线方式。</p>
  */
 class OperationLogAspectTest {
 
@@ -141,7 +141,7 @@ class OperationLogAspectTest {
         }
     }
 
-    /** 镜像 TestRequestPresetController 的注解接线（旧值/新值均取持久化快照）。 */
+    /** 镜像 RoutingTestPresetController 的注解接线（旧值/新值均取持久化快照）。 */
     static class PresetFixture {
         @OperationLog(module = "routing", operation = "UPDATE", entityType = "TestRequestPreset",
                 entityId = "#id",

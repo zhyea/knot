@@ -12,15 +12,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/me")
 public class CurrentUserController {
 
-    private final AuthorizationAccessService adminAuthorizationService;
+    private final AuthorizationAccessService authorizationAccessService;
     private final CurrentAuth currentAuth;
 
     /**
      * Constructs a new instance.
      */
-    public CurrentUserController(AuthorizationAccessService adminAuthorizationService,
+    public CurrentUserController(AuthorizationAccessService authorizationAccessService,
                                  CurrentAuth currentAuth) {
-        this.adminAuthorizationService = adminAuthorizationService;
+        this.authorizationAccessService = authorizationAccessService;
         this.currentAuth = currentAuth;
     }
 
@@ -30,6 +30,6 @@ public class CurrentUserController {
     @AuthCheck
     @GetMapping("/authorizations")
     public AdminAuthorizationInfoResponse authorizations() {
-        return adminAuthorizationService.getAuthorizationInfo(currentAuth.currentUserId());
+        return authorizationAccessService.getAuthorizationInfo(currentAuth.currentUserId());
     }
 }

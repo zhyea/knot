@@ -5,13 +5,13 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.converter.TestRequestPresetConverter;
-import org.chobit.knot.gateway.dto.routing.TestRequestPresetDto;
-import org.chobit.knot.gateway.entity.TestRequestPresetEntity;
+import org.chobit.knot.gateway.converter.RoutingTestPresetConverter;
+import org.chobit.knot.gateway.dto.routing.RoutingTestPresetDto;
+import org.chobit.knot.gateway.entity.RoutingTestPresetEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.LogicalModelMapper;
-import org.chobit.knot.gateway.mapper.TestRequestPresetMapper;
+import org.chobit.knot.gateway.mapper.RoutingTestPresetMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.util.JsonKit;
@@ -27,24 +27,24 @@ import java.util.Map;
  */
 @Service
 public class RoutingTestPresetService {
-    private final TestRequestPresetMapper presetMapper;
+    private final RoutingTestPresetMapper presetMapper;
     private final LogicalModelMapper logicalModelMapper;
-    private final TestRequestPresetConverter presetConverter;
+    private final RoutingTestPresetConverter presetConverter;
 
     /**
      * Constructs a new instance.
      */
-    public RoutingTestPresetService(TestRequestPresetMapper presetMapper,
+    public RoutingTestPresetService(RoutingTestPresetMapper presetMapper,
                                     LogicalModelMapper logicalModelMapper,
-                                    TestRequestPresetConverter presetConverter) {
+                                    RoutingTestPresetConverter presetConverter) {
         this.presetMapper = presetMapper;
         this.logicalModelMapper = logicalModelMapper;
         this.presetConverter = presetConverter;
     }
 
-    public PageResult<TestRequestPresetDto> list(PageRequest pageRequest, String keyword, String protocolCode) {
+    public PageResult<RoutingTestPresetDto> list(PageRequest pageRequest, String keyword, String protocolCode) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
-            PageInfo<TestRequestPresetEntity> pageInfo = new PageInfo<>(
+            PageInfo<RoutingTestPresetEntity> pageInfo = new PageInfo<>(
                     presetMapper.listPresets(normalizeKeyword(keyword), normalizeProtocol(protocolCode))
             );
             return PageResult.fromPage(pageInfo, presetConverter::toDtoList, pageRequest);
@@ -52,12 +52,12 @@ public class RoutingTestPresetService {
     }
 
     /** 调试面板下拉用：仅返回启用中的用例（id / name / protocolCode / requestBody）。 */
-    public List<TestRequestPresetDto> listActiveOptions() {
+    public List<RoutingTestPresetDto> listActiveOptions() {
         return presetConverter.toDtoList(presetMapper.listActive());
     }
 
-    public TestRequestPresetDto get(Long id) {
-        TestRequestPresetEntity entity = presetMapper.getById(id);
+    public RoutingTestPresetDto get(Long id) {
+        RoutingTestPresetEntity entity = presetMapper.getById(id);
         if (entity == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "预设请求不存在");
         }
@@ -71,29 +71,29 @@ public class RoutingTestPresetService {
      * the current persisted row before the update gives the log a real old value
      * and lets the aspect suppress no-op update logs.</p>
      */
-    public Map<String, Object> testRequestPresetAuditSnapshot(Long id) {
+    public Map<String, Object> routingTestPresetAuditSnapshot(Long id) {
         if (id == null) {
             return null;
         }
-        TestRequestPresetEntity entity = presetMapper.getById(id);
+        RoutingTestPresetEntity entity = presetMapper.getById(id);
         return entity == null ? null : JsonKit.toMap(presetConverter.toDto(entity));
     }
 
     @Transactional
-    public TestRequestPresetDto create(TestRequestPresetDto request) {
+    public RoutingTestPresetDto create(RoutingTestPresetDto request) {
         validate(request);
         if (presetMapper.countByCode(request.code(), null) > 0) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "编码已存在");
         }
-        TestRequestPresetEntity entity = toEntity(request);
+        RoutingTestPresetEntity entity = toEntity(request);
         entity.setStatus(EnabledStatusEnum.ENABLED.code());
         presetMapper.insertPreset(entity);
         return presetConverter.toDto(entity);
     }
 
     @Transactional
-    public TestRequestPresetDto update(Long id, TestRequestPresetDto request) {
-        TestRequestPresetEntity existing = presetMapper.getById(id);
+    public RoutingTestPresetDto update(Long id, RoutingTestPresetDto request) {
+        RoutingTestPresetEntity existing = presetMapper.getById(id);
         if (existing == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "预设请求不存在");
         }
@@ -101,7 +101,7 @@ public class RoutingTestPresetService {
         if (presetMapper.countByCode(request.code(), id) > 0) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "编码已存在");
         }
-        TestRequestPresetEntity entity = toEntity(request);
+        RoutingTestPresetEntity entity = toEntity(request);
         entity.setId(id);
         presetMapper.updatePreset(entity);
         return presetConverter.toDto(presetMapper.getById(id));
@@ -116,7 +116,7 @@ public class RoutingTestPresetService {
     }
 
     @Transactional
-    public TestRequestPresetDto updateStatus(Long id, boolean enabled) {
+    public RoutingTestPresetDto updateStatus(Long id, boolean enabled) {
         if (presetMapper.getById(id) == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "预设请求不存在");
         }
@@ -124,7 +124,7 @@ public class RoutingTestPresetService {
         return presetConverter.toDto(presetMapper.getById(id));
     }
 
-    private void validate(TestRequestPresetDto request) {
+    private void validate(RoutingTestPresetDto request) {
         if (request.code() == null || request.code().trim().isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "编码不能为空");
         }
@@ -145,8 +145,8 @@ public class RoutingTestPresetService {
         }
     }
 
-    private TestRequestPresetEntity toEntity(TestRequestPresetDto request) {
-        TestRequestPresetEntity entity = new TestRequestPresetEntity();
+    private RoutingTestPresetEntity toEntity(RoutingTestPresetDto request) {
+        RoutingTestPresetEntity entity = new RoutingTestPresetEntity();
         entity.setCode(request.code().trim());
         entity.setName(request.name().trim());
         // 协议归一为 canonical code，保证跨别名一致

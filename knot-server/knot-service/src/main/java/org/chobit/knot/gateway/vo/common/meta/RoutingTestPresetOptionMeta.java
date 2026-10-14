@@ -7,5 +7,5 @@ package org.chobit.knot.gateway.vo.common.meta;
  * 选用哪个协议适配器，是绑定键之外的业务属性，因此落在 meta 而非顶层——改造前它被塞进
  * {@code OptionItem} 的第三构造参数（顶层 {@code code}），语义混杂，此处收敛为明确命名的字段。</p>
  */
-public record TestRequestPresetOptionMeta(String protocolCode) {
+public record RoutingTestPresetOptionMeta(String protocolCode) {
 }

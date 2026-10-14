@@ -12,15 +12,15 @@ import org.springframework.web.servlet.HandlerMapping;
 @Component
 public class AdminAuthorizationInterceptor implements HandlerInterceptor {
 
-    private final AuthorizationAccessService adminAuthorizationService;
+    private final AuthorizationAccessService authorizationAccessService;
     private final CurrentAuth currentAuth;
 
     /**
      * Constructs a new instance.
      */
-    public AdminAuthorizationInterceptor(AuthorizationAccessService adminAuthorizationService,
+    public AdminAuthorizationInterceptor(AuthorizationAccessService authorizationAccessService,
                                          CurrentAuth currentAuth) {
-        this.adminAuthorizationService = adminAuthorizationService;
+        this.authorizationAccessService = authorizationAccessService;
         this.currentAuth = currentAuth;
     }
 
@@ -45,7 +45,7 @@ public class AdminAuthorizationInterceptor implements HandlerInterceptor {
         if (pathPattern == null || pathPattern.isBlank()) {
             pathPattern = request.getRequestURI();
         }
-        adminAuthorizationService.validateApiAccess(currentAuth.currentUserId(), request.getMethod(), pathPattern);
+        authorizationAccessService.validateApiAccess(currentAuth.currentUserId(), request.getMethod(), pathPattern);
         return true;
     }
 }

@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
  * 由用户在「预设请求」菜单中维护完整、具体的请求体 JSON（按协议归类，全局共享复用）。
  */
 @Data
-public class TestRequestPresetEntity {
+public class RoutingTestPresetEntity {
     private Long id;
     private String code;
     private String name;
