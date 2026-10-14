@@ -1,7 +1,8 @@
 # 路由规则 · 供应商模型异常摘除方案设计
 
-> 状态：**已定稿，待开工**（2026-10-13 设计 → 2026-10-14 拍板收口）
-> 关联代码：`knot-gateway/.../runtime/GatewayRequestHandler.java`（`proxyWithFailover`）、`.../retry/*`、`.../load/*`
+> 状态：**已定稿**（2026-10-13 设计 → 2026-10-14 拍板收口）
+> 实现进度：**B1 + B2 已落地**（2026-10-15，530 例后端测试零失败 + 前端 type-check/vite build 全绿）；B3 慢信号、B4 管理面、B5 冒烟未开工
+> 关联代码：`knot-gateway/.../runtime/GatewayRequestHandler.java`（`proxyWithFailover` / `attemptCandidates`）、`.../retry/*`、`.../load/*`、`.../outage/*`
 > 关联设计：`docs/design/routing-retry-design.md`（retry → failover 两层降级已落地）
 >
 > **一次拍板**（robin，2026-10-13）：作用域=**规则×模型**；触发=**窗口内失败计数 + 首 token 延迟过长**；恢复=**冷却 + 半开探测**；存储=**运行时存储 + 管理面可查可控**。
@@ -350,7 +351,73 @@ public void release(@RequestBody ReleaseRequest request) { ... }
 | 批次 | 内容 | 门禁 |
 |---|---|---|
 | **B1 配置骨架** | `EjectionPolicy`（common）+ DB 加列 + 迁移脚本 + entity/dto/vo/converter/mapper 贯通 + 前端 `ejectionPolicy.ts` + `EjectionPolicySection.vue` + 抽屉接入 | `mvn test` / `vue-tsc` / `vite build` |
-| **B2 运行时核心** | `outage` 包（Keys/Properties/Store 双实现/State/Classifier/Tracker）+ handler 接入摘除过滤与异常计数 | `mvn test`（含 store、classifier 单测） |
+| **B2 运行时核心** | `outage` 包（Keys/Properties/Store 双实现/State/Classifier/Tracker）+ handler 接入摘除过滤与异常计数 + `FallbackTargetOutageStore` 降级适配器（Redis 优先 → Caffeine 降级 → 回灌恢复） | `mvn test`（含 store、classifier、适配器单测） |
 | **B3 慢信号** | `FirstTokenHeaderWriter` 观察者 + 流式/非流式两处注入 + 命中目标属性 | 单测 + gateway 模块全量 |
 | **B4 管理面** | 网关 `/_admin/outages*` + admin 转发 + 权限绑定 + 操作日志 + 前端面板（列表/恢复/手动摘除） | `mvn test` + 前端门禁 |
 | **B5 冒烟** | 假上游 5xx / 慢首 token / release / 全摘 fail-open 四场景真启 jar 验证，收尾 DROP 库 | 冒烟脚本退出码 0 |
+
+### 17.1 B1 + B2 实现记录（2026-10-15）
+
+**B1 配置骨架**
+
+| 文件 | 说明 |
+|---|---|
+| `knot-common/.../model/EjectionPolicy.java` | 12 字段 record + 紧凑构造器归一化 + `parse/serialize` + `DEFAULT`（默认关闭） |
+| `knot-common/.../model/EjectionPolicyTest.java` | 11 例：默认/容错/越界/模式/冷却增长/序列化往返 |
+| `knot-admin/src/main/resources/db/schema.sql` | `kb_routing_rules` 加 `ejection_policy TEXT`（位于 `retry_policy` 之后） |
+| `docs/database/migration/2026-10-15-routing-rule-ejection-policy.sql` | 幂等加列（information_schema 判定 + PREPARE），与 retry 迁移同范式 |
+| `RoutingRuleEntity` / `RoutingRuleDto` / `RoutingRule`(VO) | 均加 `ejectionPolicy` 字段 |
+| `RoutingRuleMapper.xml` | RuleSelectColumns / insert / update 三处同步 |
+| `RoutingRuleService` | 三处手工构造点 + `serialize/parse` 落库与回读 |
+| `knot-front/src/utils/ejectionPolicy.ts` | Mirror 后端归一化（`defaultEjectionPolicy` / `normalizeEjectionPolicy`） |
+| `knot-front/src/components/common/EjectionPolicySection.vue` | 对齐 `RetryPolicySection` 的卡片：开关 + 简单/深度模式 + 4 主参数 + 深度 7 参数 |
+| `RoutingRuleFormDrawer.vue` | 接入 Section、回填、submit 恒送归一化结果（与 retry 同口径：关闭也要显式落库） |
+
+**B2 运行时核心**
+
+| 文件 | 说明 |
+|---|---|
+| `outage/OutageState.java` | 不可变状态：failures/slows/windowEndAt/ejectedUntil/probeUntil/cooldownMs/reason |
+| `outage/AnomalyKind.java` | FAILURE / SLOW |
+| `outage/OutageStateMachine.java` | 纯函数状态机（5 个转换），两种存储共享 |
+| `outage/OutageKeys.java` | `knot:outage:RULE:<ruleCode>:MODEL:<modelCode>` |
+| `outage/OutageProperties.java` | `knot.outage.*`：store / keyPrefix / expireGraceMs / maximumSize / failOpen |
+| `outage/TargetOutageStore.java` + `CaffeineTargetOutageStore` + `RedisTargetOutageStore` + `OutageStoreConfiguration` | 双实现 + 装配；Redis 走 Hash（非 JSON，规避 cjson 大数科学计数法）+ 五段单段 Lua |
+| `outage/OutageClassifier.java` | 计数口径：5xx / 上游 429 / 无状态 UPSTREAM_ERROR 计；4xx（除 429）与配置类不计 |
+| `outage/OutageTracker.java` + `EjectionDecision.java` | 请求链门面：evaluate → recordFailure / recordSuccess |
+| `ResolvedRouting` / `RoutingResolver` | record 加 `ejectionPolicy` + `effectiveEjectionPolicy()`，解析处 `EjectionPolicy.parse` |
+| `GatewayRequestHandler` | `proxyWithFailover` 拆为两轮 `attemptCandidates`：摘除过滤在 `checkTarget` **之前**；全摘除时 fail-open 重跑一轮；`FailoverOutcome` 承载跨轮统计 |
+
+**B2 单测**：`OutageStateMachineTest` 10 + `CaffeineTargetOutageStoreTest` 7 + `OutageClassifierTest` 5，共 22 例。
+
+**实现偏差（相对设计稿）**
+
+1. **Redis 状态用 Hash 而非 JSON**：设计稿的值是 JSON，实现改为 Hash（字段 `f/s/w/e/p/c/r`）——Lua 5.1 数字经 cjson 编码会把毫秒时间戳写成科学计数法，Java 端解析会炸；Hash 字段是纯字符串，`Long.parseLong` 精确还原。
+2. **Lua 拆成五段独立脚本**（ANOMALY / SUCCESS / PROBE / FORCE_EJECT / DEL），每段仍是「读-改-写-过期」原子；单段大脚本难维护且 Redis 重编译开销大。
+3. **`release()` 直接走 `redis.delete`**，没有专用 Lua 脚本。
+4. **测试基准时刻取 `System.currentTimeMillis()`**：固定假时间戳（1970）会让 Caffeine 逐键过期立刻回收条目（`CaffeineTrafficCounterStore` 同款陷阱，已实测踩中）。
+
+**未覆盖**：Redis 实现无自动化单测（本机无 testcontainers 基建），仅靠 B5 冒烟验证；慢信号（B3）与管理面（B4）未接。
+
+### 17.2 存储降级适配器实现记录（2026-10-15）
+
+**需求**：单节点不装 Redis，用 Caffeine 顶替；多节点仍要 Redis 的全局视图。二者不是「二选一装配」——Redis 一抖动，纯 Redis 档只剩 fail-open（摘除能力消失）或抛错（缓存故障升级为选路故障）两种坏结果，故增加第三条路：**Redis 优先，不可用自动降级 Caffeine，恢复后回灌切回**。
+
+| 文件 | 说明 |
+|---|---|
+| `outage/FallbackTargetOutageStore.java` | 适配器：读路径 primary 优先，抛异常即降级；恢复探测节流（默认 10s）；恢复时回灌「本地仍摘除中」条目；`release/forceEject` 双写两侧 |
+| `outage/OutageProperties.java` | 新增 `knot.outage.recover-probe-interval-ms`（默认 10_000） |
+| `outage/OutageStoreConfiguration.java` | 新增 `fallback` 档 bean：Redis + Caffeine + ping 探针；`store=caffeine`（默认）与 `store=redis` 档不变 |
+| `FallbackTargetOutageStoreTest` | 9 例契约测试：读写路由 / 降级 / 探针节流 / 回灌 / 过期条目不回灌 / 运维双写 / list 跟随 / 探针通但操作失败不假恢复 |
+
+**三种部署形态**：多节点 + Redis 健康 → 全局共享视图；多节点 + Redis 抖动 → 降为各节点本地近似，功能不中断；单节点 → `store=caffeine` 直接用本地存储。
+
+**实现偏差与修复记录（相对初版适配器）**
+
+1. **恢复成功后当次读写直接走 primary**：初版 `recoverIfDue()` 切回后仍穿透到 `fallback.state(...)`，恢复瞬间那一跳会读到已 release 的空状态——刚回灌的摘除被漏掉，坏目标多吃一个请求。改为 recover 后不再穿透，当次调用重走 primary。
+2. **探针通 ≠ 存储可用**：恢复探测只证明 ping 可达（如只读副本），当次 primary 操作仍可能抛异常——此时重新降级，绝不假恢复（`probeOkButOpsStillFailStaysDegraded` 锁定）。
+3. **测试替身读语义对齐真实存储**：`FakeStore.state()` 初版用 `computeIfAbsent`（读即落库），与 `CaffeineTargetOutageStore` 的 `getIfPresent` 不符，会把「不回灌」断言反过；已改 `getOrDefault`。
+4. **固有限制（写进类注释）**：降级期间的窗口计数/探活租约不回灌（只搬仍摘除中的条目），恢复前的本地过程量丢失；要严格一致须 `store=redis` + Redis 高可用。
+
+**未覆盖**：`RedisTargetOutageStore` 本体仍无自动化单测（无 testcontainers），降级适配器只验证编排逻辑，不验证 Redis 侧行为——后者靠 B5 冒烟。
+

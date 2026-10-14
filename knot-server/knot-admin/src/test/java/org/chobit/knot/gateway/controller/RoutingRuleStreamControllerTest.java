@@ -277,7 +277,7 @@ class RoutingRuleStreamControllerTest {
             }
             RoutingTestPreparation prep = new RoutingTestPreparation(
                     new RoutingRuleDto(1L, "rule-a", "规则A", null, List.of(1L), List.of("消费者"),
-                            1L, "应用", null, null, null, null, true, List.of(), null, null, null,
+                            1L, "应用", null, null, null, null, true, List.of(), null, null, null, null,
                             "PRIORITY", null, null),
                     secretKey,
                     new RoutingRuleTargetDto("MODEL", 10L, "gpt-4o-mini", "gpt-4o-mini",

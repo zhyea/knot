@@ -48,6 +48,7 @@ import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.gateway.model.EjectionPolicy;
 import org.chobit.knot.gateway.model.RetryPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
@@ -300,6 +301,7 @@ public class RoutingRuleService {
                 existing.rateLimitPolicy(),
                 existing.quotaPolicies(),
                 existing.retryPolicy(),
+                existing.ejectionPolicy(),
                 existing.selectionStrategy(),
                 existing.createdAt(),
                 existing.updatedAt()
@@ -814,6 +816,7 @@ public class RoutingRuleService {
                 rate,
                 quotas,
                 RetryPolicy.parse(entity.getRetryPolicy()),
+                EjectionPolicy.parse(entity.getEjectionPolicy()),
                 normalizeSelectionStrategy(entity.getSelectionStrategy()),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt()
@@ -963,6 +966,7 @@ public class RoutingRuleService {
                 request.rateLimitPolicy(),
                 request.quotaPolicies(),
                 request.retryPolicy(),
+                request.ejectionPolicy(),
                 request.selectionStrategy(),
                 request.createdAt(),
                 request.updatedAt()
@@ -1113,6 +1117,8 @@ public class RoutingRuleService {
         entity.setLogicalModelCode(normalizeNullable(request.logicalModelCode()));
         // 未配置（null）落库为 NULL，运行时按内置默认策略处理
         entity.setRetryPolicy(RetryPolicy.serialize(request.retryPolicy()));
+        // 未配置（null）落库为 NULL，运行时按内置默认策略处理（默认关闭）
+        entity.setEjectionPolicy(EjectionPolicy.serialize(request.ejectionPolicy()));
         // 目标选择策略：缺省 PRIORITY（保持既有固定序行为），非法值由 validateForSave 先行拒绝
         entity.setSelectionStrategy(normalizeSelectionStrategy(request.selectionStrategy()));
         return entity;

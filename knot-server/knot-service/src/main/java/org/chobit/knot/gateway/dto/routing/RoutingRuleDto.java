@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.dto.routing;
 
+import org.chobit.knot.gateway.model.EjectionPolicy;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.RetryPolicy;
@@ -30,6 +31,8 @@ public record RoutingRuleDto(
         List<QuotaPolicy> quotaPolicies,
         /** 规则级失败重试策略；null 表示未配置，运行时按内置默认（开启）处理 */
         RetryPolicy retryPolicy,
+        /** 规则级异常摘除策略；null 表示未配置，运行时按内置默认（关闭）处理 */
+        EjectionPolicy ejectionPolicy,
         /** 路由目标选择策略（ModelPoolSelectionStrategyEnum）：PRIORITY 固定序；LEAST_LOAD 按在途并发动态重排 */
         String selectionStrategy,
         /** 创建时间 */

@@ -21,6 +21,7 @@ import org.chobit.knot.gateway.load.ModelLoadStore;
 import org.chobit.knot.gateway.model.GatewayRoutingInfo;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.gateway.model.StickyPolicy;
+import org.chobit.knot.gateway.model.EjectionPolicy;
 import org.chobit.knot.gateway.model.RetryPolicy;
 import org.chobit.knot.gateway.service.GatewayDataService;
 import org.chobit.knot.gateway.util.tools.RoutingSecretKeyGenerator;
@@ -122,7 +123,8 @@ public class RoutingResolver {
                 Boolean.TRUE.equals(consumer.getReturnUsageDetail()),
                 candidates,
                 routingInfo,
-                RetryPolicy.parse(rule.getRetryPolicy()));
+                RetryPolicy.parse(rule.getRetryPolicy()),
+                EjectionPolicy.parse(rule.getEjectionPolicy()));
     }
 
     /**

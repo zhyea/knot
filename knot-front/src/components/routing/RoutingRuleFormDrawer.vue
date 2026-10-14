@@ -219,6 +219,15 @@
           description="上游瞬态失败时先在同一目标上原地重投，次数耗尽才切换到下一个候选。"
           v-model:retry-policy="form.retryPolicy"
         />
+
+        <div class="space-line"/>
+
+        <EjectionPolicySection
+          class="slot-body rule-section"
+          title="异常摘除"
+          description="窗口内反复异常的供应商模型会被临时移出候选链，冷却结束后由探活请求恢复。"
+          v-model:ejection-policy="form.ejectionPolicy"
+        />
       </el-form>
     </el-scrollbar>
     <template #footer>
@@ -236,6 +245,7 @@ import {Delete} from "@element-plus/icons-vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import RetryPolicySection from "../common/RetryPolicySection.vue";
+import EjectionPolicySection from "../common/EjectionPolicySection.vue";
 import {
   emptyRateLimitPolicy,
   isEmptyRateLimitPolicy,
@@ -243,6 +253,11 @@ import {
   type RateLimitPolicy
 } from "@/utils/trafficPolicy";
 import {defaultRetryPolicy, normalizeRetryPolicy, type RetryPolicy} from "@/utils/retryPolicy";
+import {
+  defaultEjectionPolicy,
+  normalizeEjectionPolicy,
+  type EjectionPolicy
+} from "@/utils/ejectionPolicy";
 import {createRoutingRule, updateRoutingRule, checkRoutingRuleCode} from "@/api/routing";
 import {listAppOptions, listLogicalModelOptions, listModelOptions, listModelPoolOptions, listRoutingConsumerOptions, listUserUsernameOptions} from "@/api/options";
 import {toOptionsLoader} from "@/utils/options";
@@ -310,6 +325,7 @@ interface RuleForm {
   targets: RuleTargetForm[];
   rateLimitPolicy: RateLimitPolicy;
   retryPolicy: RetryPolicy;
+  ejectionPolicy: EjectionPolicy;
 }
 
 const form = reactive<RuleForm>({
@@ -325,7 +341,8 @@ const form = reactive<RuleForm>({
   enabled: true,
   targets: [],
   rateLimitPolicy: emptyRateLimitPolicy(),
-  retryPolicy: defaultRetryPolicy()
+  retryPolicy: defaultRetryPolicy(),
+  ejectionPolicy: defaultEjectionPolicy()
 });
 
 const selectedConsumers = computed(() =>
@@ -467,6 +484,7 @@ function resetForm() {
     form.enabled = row.enabled !== false;
     form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
     form.retryPolicy = normalizeRetryPolicy(row.retryPolicy);
+    form.ejectionPolicy = normalizeEjectionPolicy(row.ejectionPolicy);
     form.targets = (row.targets || []).map((m: Dict) => ({
       targetType: m.targetType || "MODEL",
       targetCode: m.targetCode,
@@ -491,6 +509,7 @@ function resetForm() {
     form.targets = [];
     form.rateLimitPolicy = emptyRateLimitPolicy();
     form.retryPolicy = defaultRetryPolicy();
+    form.ejectionPolicy = defaultEjectionPolicy();
     primaryTargetKey.value = null;
   }
   ruleCodeError.value = "";
@@ -620,7 +639,9 @@ function buildSubmitPayload() {
     rateLimitPolicy,
     // 恒提交归一化结果：关闭重试也要显式落库（enabled=false），
     // 若传 null 会被运行时当成「未配置」而退回默认开启策略
-    retryPolicy: normalizeRetryPolicy(form.retryPolicy)
+    retryPolicy: normalizeRetryPolicy(form.retryPolicy),
+    // 同上：摘除默认关闭，必须显式落库才能覆盖「未配置走默认」的语义
+    ejectionPolicy: normalizeEjectionPolicy(form.ejectionPolicy)
   };
 }
 

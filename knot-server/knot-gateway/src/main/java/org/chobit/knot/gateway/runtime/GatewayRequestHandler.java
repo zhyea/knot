@@ -18,6 +18,10 @@ import org.chobit.knot.gateway.load.ModelLoadStore;
 import org.chobit.knot.gateway.service.ModerationWordResource;
 import org.chobit.knot.gateway.model.*;
 import org.chobit.knot.gateway.model.usage.KnotExtendPayload;
+import org.chobit.knot.gateway.outage.EjectionDecision;
+import org.chobit.knot.gateway.outage.OutageKeys;
+import org.chobit.knot.gateway.outage.OutageState;
+import org.chobit.knot.gateway.outage.OutageTracker;
 import org.chobit.knot.gateway.plugin.PluginDispatcher;
 import org.chobit.knot.gateway.retry.BackoffCalculator;
 import org.chobit.knot.gateway.retry.RetryableClassifier;
@@ -59,6 +63,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     private final GatewayUpstreamClientProperties clientProperties;
     private final ModelLoadStore modelLoadStore;
     private final ModelLoadKeys modelLoadKeys;
+    private final OutageTracker outageTracker;
+    private final OutageKeys outageKeys;
 
     /**
      * Constructs a new instance.
@@ -71,7 +77,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                                  GatewayUpstreamClientProperties clientProperties,
                                  ModelLoadStore modelLoadStore,
                                  ModelLoadKeys modelLoadKeys,
-                                 ModerationWordResource moderationWordResource) {
+                                 ModerationWordResource moderationWordResource,
+                                 OutageTracker outageTracker,
+                                 OutageKeys outageKeys) {
         super(pluginDispatcher, moderationWordResource);
         this.proxyClient = proxyService;
         this.routingResolver = routingAuthService;
@@ -80,6 +88,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         this.clientProperties = clientProperties;
         this.modelLoadStore = modelLoadStore;
         this.modelLoadKeys = modelLoadKeys;
+        this.outageTracker = outageTracker;
+        this.outageKeys = outageKeys;
     }
 
     @Override
@@ -94,8 +104,6 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
     private ProxyResult proxyWithFailover(GatewayRequestContext context, GatewayExchange exchange) {
         ResolvedRouting routing = context.routing();
-        ModelApiProtocolEnum protocol = context.protocol();
-        String traceparent = context.traceparent();
 
         // 检查应用、路由规则和消费者的频控和额度控制
         TrafficDecision routingDecision = trafficGuard.checkRouting(routing);
@@ -104,14 +112,67 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         }
 
         Map<String, Object> requestBody = exchange.requestBody();
+        EjectionPolicy ejectionPolicy = routing.effectiveEjectionPolicy();
+        FailoverOutcome outcome = attemptCandidates(context, exchange, requestBody, ejectionPolicy, false);
+        if (outcome.result() != null) {
+            return outcome.result();
+        }
+        if (outcome.hasAllowedTarget()) {
+            throw outcome.lastUpstreamException();
+        }
+        if (outcome.firstRejection() != null) {
+            throw reject(outcome.firstRejection());
+        }
+        // 候选被摘除一空：摘除是「少打坏目标」的优化，不能演变成整体不可用
+        if (outcome.ejectedSkipped() > 0 && ejectionPolicy.isFailOpenWhenAllEjected()) {
+            log.warn("All routing candidates are ejected, fail-open for rule={} (ejected={})",
+                    routing.ruleCode(), outcome.ejectedSkipped());
+            FailoverOutcome reopened = attemptCandidates(context, exchange, requestBody, ejectionPolicy, true);
+            if (reopened.result() != null) {
+                return reopened.result();
+            }
+            if (reopened.firstRejection() != null) {
+                throw reject(reopened.firstRejection());
+            }
+            throw reopened.lastUpstreamException();
+        }
+        throw outcome.lastUpstreamException();
+    }
+
+    /**
+     * 遍历候选链取一次成功结果。
+     *
+     * <p>摘除过滤发生在频控检查<b>之前</b>：被摘除的目标既不消耗该目标的频控/额度预算，
+     * 也不写入「首个拒绝原因」——被摘除跳过不等于被限流，不能把 429 误报给客户端。</p>
+     *
+     * @param ignoreEjection true 时忽略摘除状态（候选被全部摘除后 fail-open 的第二轮）
+     */
+    private FailoverOutcome attemptCandidates(GatewayRequestContext context,
+                                              GatewayExchange exchange,
+                                              Map<String, Object> requestBody,
+                                              EjectionPolicy ejectionPolicy,
+                                              boolean ignoreEjection) {
+        ResolvedRouting routing = context.routing();
+        ModelApiProtocolEnum protocol = context.protocol();
+        String traceparent = context.traceparent();
         TrafficCheckContext trafficContext = trafficGuard.newContext();
         GatewayUpstreamException lastUpstreamException = new GatewayUpstreamException("No available routing target",
                 ProxyErrorCodeEnum.NO_ROUTING_TARGET.code()
         );
         TrafficDecision firstRejection = null;
         boolean hasAllowedTarget = false;
+        int ejectedSkipped = 0;
         RetryPolicy retryPolicy = routing.effectiveRetryPolicy();
         for (RoutingRuleTargetDto candidate : routing.candidateModels()) {
+            EjectionDecision decision = ignoreEjection
+                    ? new EjectionDecision(outageKeys.of(routing.ruleCode(), candidate.targetCode()),
+                    OutageState.HEALTHY, false, false, false)
+                    : outageTracker.evaluate(ejectionPolicy, routing.ruleCode(), candidate.targetCode(),
+                    System.currentTimeMillis());
+            if (decision.skip()) {
+                ejectedSkipped++;
+                continue;
+            }
             // 检查目标模型的频控和额度控制
             TrafficDecision targetDecision = trafficGuard.checkTarget(candidate, trafficContext);
             if (!targetDecision.allowed()) {
@@ -134,6 +195,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                         exchange.contentType(), candidate, protocol, traceparent));
                 // 限额与 TPM 事后累计：上游成功才记账，失败重试与 failover 不重复扣减
                 trafficGuard.record(routing, candidate, usageOf(result), trafficContext);
+                outageTracker.recordSuccess(decision, System.currentTimeMillis());
                 if (result.streamResponse() != null) {
                     // 流式：请求线程马上返回，在途必须持续到响应流写完，交给响应体结束时释放
                     deferredToStream = true;
@@ -141,22 +203,34 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                 }
                 // 响应头回写实际承接模型：流式此时尚未 commit（首行 flush 才提交头），写头依然生效
                 writeSelectedModelHeader(candidate);
-                return result;
+                return new FailoverOutcome(result, null, null, true, ejectedSkipped);
             } catch (GatewayUpstreamException e) {
                 lastUpstreamException = e;
+                // 一次候选调用最多计一次异常：重试内部的单次失败不放大摘除计数
+                outageTracker.recordFailure(decision, ejectionPolicy, e, System.currentTimeMillis());
             } finally {
                 if (!deferredToStream) {
                     modelLoadStore.leave(loadKey);
                 }
             }
         }
-        if (!hasAllowedTarget) {
-            if (firstRejection != null) {
-                throw reject(firstRejection);
-            }
-            throw lastUpstreamException;
-        }
-        throw lastUpstreamException;
+        return new FailoverOutcome(null, lastUpstreamException, firstRejection, hasAllowedTarget, ejectedSkipped);
+    }
+
+    /**
+     * 一次候选遍历的结果：成功结果与各项失败/跳过统计。
+     *
+     * @param result               成功的上游结果，null 表示本轮无候选成功
+     * @param lastUpstreamException 末次上游失败（无成功结果时抛给调用方）
+     * @param firstRejection       首个被频控/额度拒绝的判定（无可用候选时的抛出依据）
+     * @param hasAllowedTarget     是否存在通过频控检查的候选
+     * @param ejectedSkipped       因摘除被跳过的候选数（用于「全摘除 fail-open」判定）
+     */
+    private record FailoverOutcome(ProxyResult result,
+                                   GatewayUpstreamException lastUpstreamException,
+                                   TrafficDecision firstRejection,
+                                   boolean hasAllowedTarget,
+                                   int ejectedSkipped) {
     }
 
     /**

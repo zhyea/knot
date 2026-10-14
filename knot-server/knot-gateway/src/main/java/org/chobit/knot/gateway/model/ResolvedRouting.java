@@ -12,12 +12,21 @@ public record ResolvedRouting(Long ruleId,
                               List<RoutingRuleTargetDto> candidateModels,
                               GatewayRoutingInfo routingInfo,
                               /** 规则级失败重试策略；为 null 时运行时按 {@link RetryPolicy#DEFAULT} 处理 */
-                              RetryPolicy retryPolicy) {
+                              RetryPolicy retryPolicy,
+                              /** 规则级异常摘除策略；为 null 时运行时按 {@link EjectionPolicy#DEFAULT} 处理 */
+                              EjectionPolicy ejectionPolicy) {
 
     /**
      * 有效重试策略：未配置时退回内置默认（默认开启）。
      */
     public RetryPolicy effectiveRetryPolicy() {
         return retryPolicy == null ? RetryPolicy.DEFAULT : retryPolicy;
+    }
+
+    /**
+     * 有效摘除策略：未配置时退回内置默认（默认关闭）。
+     */
+    public EjectionPolicy effectiveEjectionPolicy() {
+        return ejectionPolicy == null ? EjectionPolicy.DEFAULT : ejectionPolicy;
     }
 }

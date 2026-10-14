@@ -26,6 +26,8 @@ public class RoutingRuleEntity {
     private String logicalModelName;
     /** 规则级失败重试策略（JSON，RetryPolicy 序列化结果）；空表示走内置默认策略 */
     private String retryPolicy;
+    /** 规则级异常摘除策略（JSON，EjectionPolicy 序列化结果）；空表示走内置默认策略（默认关闭） */
+    private String ejectionPolicy;
     /** 路由目标选择策略（ModelPoolSelectionStrategyEnum）：PRIORITY 固定序；LEAST_LOAD 按在途并发动态重排 */
     private String selectionStrategy;
     /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
