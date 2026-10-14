@@ -149,6 +149,18 @@ public class ModelService {
     }
 
     /**
+     * 按业务码（kb_models.model_code）返回模型详情，与 {@link #getById} 同款 enrich（含 apiBindings）。
+     * 前端路由规则测试抽屉按模型池条目的 modelCode 取协议时使用，避免依赖主键 id。
+     */
+    public ModelDto getByCode(String modelCode) {
+        ModelEntity entity = modelMapper.getByCode(modelCode);
+        if (entity == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "供应商模型不存在");
+        }
+        return enrich(entity);
+    }
+
+    /**
      * Builds the model snapshot used by {@code @OperationLog} SpEL expressions.
      * Returns {@code null} when the model no longer exists.
      */

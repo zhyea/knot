@@ -98,6 +98,15 @@ public class ModelController {
     }
 
     /**
+     * 按业务码返回模型详情（与 {@code /{id}} 同款 enrich，含 apiBindings）。
+     * 专供前端按 model_code 取协议信息使用，避免依赖主键 id。
+     */
+    @GetMapping("/code/{code}")
+    public ModelItem getByCode(@PathVariable String code) {
+        return modelConverter.toVO(modelService.getByCode(code));
+    }
+
+    /**
      * Lists models with pagination.
      */
     @PostMapping("/list")

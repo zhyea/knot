@@ -9,6 +9,11 @@ export function getModel(id: number | string) {
   return get(`/api/models/${id}`);
 }
 
+/** 按业务码 model_code 取模型详情（含 apiBindings）。供路由规则测试抽屉按模型池条目 code 解析协议使用。 */
+export function getModelByCode(code: string) {
+  return get(`/api/models/code/${encodeURIComponent(code)}`);
+}
+
 export function checkModelCode(code: string, excludeId: number | string | null) {
   return get("/api/models/check-code", {
     params: {code, excludeId: excludeId ?? undefined}

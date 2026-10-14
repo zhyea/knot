@@ -47,8 +47,7 @@ INSERT IGNORE INTO ks_modules (id, module_code, module_name, icon, sort_order, s
 (1, 'system', '系统管理', 'Setting', 90, 1),
 (2, 'model', '模型管理', 'Box', 20, 1),
 (3, 'routing', '路由管理', 'Share', 30, 1),
-(4, 'billing', '计费管理', 'Coin', 40, 1),
-(5, 'moderation', '内容安全', 'Warning', 50, 1);
+(4, 'billing', '计费管理', 'Coin', 40, 1);
 
 -- 菜单（menu_id 被权限与前端路由引用；按 module_id + sort_order 排列）
 INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, route_path, component_key, icon, sort_order, status) VALUES
@@ -75,7 +74,7 @@ INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, rou
 (20, 4, NULL, 'billing.reports', '计费报表', '/billing/reports', 'billing/BillingReportView', 'Odometer', 20, 1),
 (21, 4, NULL, 'billing.reconciliation', '计费对账', '/billing/reconciliation', 'billing/ReconciliationView', 'Document', 30, 1),
 (22, 3, NULL, 'routing.presets', '预设请求', '/routing/presets', 'routing/TestRequestPresetView', 'Share', 30, 1),
-(24, 5, NULL, 'moderation.words', '敏感词管理', '/moderation/words', 'moderation/ModerationWordManageView', 'Warning', 10, 1);
+(24, 3, NULL, 'moderation.words', '敏感词管理', '/routing/moderation-words', 'moderation/ModerationWordManageView', 'Warning', 40, 1);
 
 -- =========================
 -- 授权与权限
@@ -228,13 +227,13 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 -- kb_models 逻辑删除（2026-10-07）：供应商模型删除 / 恢复（model_code 唯一性按物理行，删除后只能恢复）
 (142, 'model:model:delete', '供应商模型删除', 'API', 2, 7, 1, 1, NULL),
 -- 敏感词管理（内容安全模块，模块 5 / 菜单 24）
-(144, 'moderation:word:page', '敏感词管理页面访问', 'PAGE', 5, 24, 1, 1, NULL),
-(145, 'moderation:word:view', '敏感词查看', 'API', 5, 24, 1, 1, NULL),
-(146, 'moderation:word:create', '敏感词创建', 'API', 5, 24, 1, 1, NULL),
-(147, 'moderation:word:update', '敏感词更新', 'API', 5, 24, 1, 1, NULL),
-(148, 'moderation:word:enable', '敏感词更新状态', 'API', 5, 24, 1, 1, NULL),
-(149, 'moderation:word:delete', '敏感词删除', 'API', 5, 24, 1, 1, NULL),
-(150, 'moderation:word:import', '敏感词导入', 'API', 5, 24, 1, 1, NULL),
+(144, 'moderation:word:page', '敏感词管理页面访问', 'PAGE', 3, 24, 1, 1, NULL),
+(145, 'moderation:word:view', '敏感词查看', 'API', 3, 24, 1, 1, NULL),
+(146, 'moderation:word:create', '敏感词创建', 'API', 3, 24, 1, 1, NULL),
+(147, 'moderation:word:update', '敏感词更新', 'API', 3, 24, 1, 1, NULL),
+(148, 'moderation:word:enable', '敏感词更新状态', 'API', 3, 24, 1, 1, NULL),
+(149, 'moderation:word:delete', '敏感词删除', 'API', 3, 24, 1, 1, NULL),
+(150, 'moderation:word:import', '敏感词导入', 'API', 3, 24, 1, 1, NULL),
 -- 插件删除（PluginController DELETE /api/plugins/{id} 此前漏绑 → 前端删除按钮恒 403）
 (151, 'system:plugin:delete', '插件删除', 'API', 1, 16, 1, 1, NULL);
 
@@ -438,7 +437,8 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (203, 147, 'PUT', '/api/moderation-words/{id}/restore', 'ModerationWordController', 1),
 (204, 150, 'POST', '/api/moderation-words/import', 'ModerationWordController', 1),
 (205, 145, 'GET', '/api/moderation-words/export', 'ModerationWordController', 1),
-(206, 151, 'DELETE', '/api/plugins/{id}', 'PluginController', 1);
+(206, 151, 'DELETE', '/api/plugins/{id}', 'PluginController', 1),
+(207, 84, 'GET', '/api/models/code/{code}', 'ModelController', 1);
 
 -- 角色授权（OPERATOR 全量 / DEVELOPER 只读；ADMIN 由文件末尾权威块全量授予）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES

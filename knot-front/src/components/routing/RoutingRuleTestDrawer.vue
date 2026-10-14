@@ -13,6 +13,21 @@
         <section class="debug-panel debug-panel--request">
           <div class="request-toolbar">
             <el-select
+              v-model="testForm.targetKey"
+              placeholder="选择调试目标"
+              filterable
+              class="request-toolbar__target"
+              @change="onTargetChange"
+            >
+              <el-option label="全部目标（所有协议）" :value="ALL_TARGETS_KEY" />
+              <el-option
+                v-for="target in targetOptions"
+                :key="target.key"
+                :label="target.label"
+                :value="target.key"
+              />
+            </el-select>
+            <el-select
               v-model="testForm.protocol"
               :loading="protocolLoading"
               :disabled="availableProtocols.length === 0"
@@ -170,7 +185,7 @@
 import {computed, nextTick, onBeforeUnmount, reactive, ref, watch, type PropType} from "vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import ShellCodeBlock from "../common/ShellCodeBlock.vue";
-import {getModel} from "@/api/models";
+import {getModel, getModelByCode} from "@/api/models";
 import {getModelPool} from "@/api/modelPools";
 import {testRoutingRule, testRoutingRuleStream} from "@/api/routing";
 import {useModelTypes} from "@/composables/useModelTypes";
@@ -188,6 +203,9 @@ const {labelOf: enumLabelOf} = useEnumOptions();
 
 // 后端模型类型数据不可用时的通用兜底协议（对话类）
 const DEFAULT_FALLBACK_PROTOCOLS = ["CHAT_COMPLETIONS", "RESPONSES", "MESSAGES", "COMPLETIONS"];
+
+/** 「全部目标」哨兵 key：协议下拉展示所有目标协议的并集（否则仅展示所选目标的协议） */
+const ALL_TARGETS_KEY = "__ALL__";
 
 /** 路由规则的一个下游目标（模型 / 模型池） */
 interface RoutingTarget {
@@ -356,11 +374,18 @@ const targetOptions = computed(() =>
 
 const activeTarget = computed(() => targetOptions.value.find((item) => item.key === testForm.targetKey) || null);
 const availableProtocols = computed(() => {
-  const protocols = targetProtocolMap[testForm.targetKey] || [];
+  // 「全部目标」= 所有目标协议并集；选定单一目标 = 该目标协议。多目标规则下各目标协议可能不同
+  // （如主目标 CHAT_COMPLETIONS、次目标 RESPONSES），只取主目标会漏掉后者。
+  let protocols: string[];
+  if (testForm.targetKey === ALL_TARGETS_KEY) {
+    protocols = Array.from(new Set(Object.values(targetProtocolMap).flat() as string[]));
+  } else {
+    protocols = (targetProtocolMap[testForm.targetKey] as string[]) || [];
+  }
   return protocols.map((code: string) => ({code, label: protocolLabel(code)}));
 });
 const activeProtocol = computed(() => normalizeProtocolCode(testForm.protocol));
-const activeTargetLabel = computed(() => activeTarget.value?.label || "-");
+const activeTargetLabel = computed(() => (testForm.targetKey === ALL_TARGETS_KEY ? "全部目标" : activeTarget.value?.label || "-"));
 const activeProtocolLabel = computed(() => protocolLabel(activeProtocol.value));
 const activeTemplateKey = computed(() => `${testForm.targetKey || "default"}::${activeProtocol.value || "default"}`);
 const filteredPresetOptions = computed(() => {
@@ -465,7 +490,7 @@ watch(
     testForm.secretKey = props.secretKey || "";
     initializeTargetSelection();
     await Promise.all([loadModelTypes(), loadDebugCapabilities(), loadPresetOptions()]);
-    await loadProtocolsForCurrentTarget();
+    await loadAllTargetProtocols();
   }
 );
 
@@ -475,7 +500,7 @@ watch(
     if (!props.modelValue || !value || value === oldValue) {
       return;
     }
-    await loadProtocolsForCurrentTarget();
+    onTargetChange();
   }
 );
 
@@ -487,8 +512,9 @@ watch(showStreamTab, (visible) => {
 });
 
 function initializeTargetSelection() {
-  const primary = targetOptions.value.find((item) => item.primary) || targetOptions.value[0];
-  testForm.targetKey = primary?.key || "";
+  // 默认「全部目标」：协议下拉给出所有目标协议的并集，避免只暴露主目标协议、
+  // 次目标（如 RESPONSES）永远无法调试；用户仍可在下拉里锁定单个目标。
+  testForm.targetKey = ALL_TARGETS_KEY;
 }
 
 function targetKeyOf(target: RoutingTarget): string {
@@ -535,23 +561,38 @@ function fallbackProtocolsForModelType(modelType: unknown): string[] {
   return protocols.length ? Array.from(new Set(protocols)) : [...DEFAULT_FALLBACK_PROTOCOLS];
 }
 
-async function loadProtocolsForCurrentTarget() {
-  const target = activeTarget.value;
-  if (!target) {
-    testForm.protocol = "";
-    return;
+/** 当前选中目标（或「全部目标」并集）对应的协议列表 */
+function currentProtocolCodes(): string[] {
+  if (testForm.targetKey === ALL_TARGETS_KEY) {
+    return Array.from(new Set(Object.values(targetProtocolMap).flat() as string[]));
   }
+  return (targetProtocolMap[testForm.targetKey] as string[]) || [];
+}
+
+/** 按当前协议列表校正已选协议并重载模板（切换目标后调用，协议已在打开抽屉时预加载） */
+function syncCurrentProtocol() {
+  const protocols = currentProtocolCodes();
+  const normalized = normalizeProtocolCode(testForm.protocol);
+  testForm.protocol = protocols.includes(normalized) ? normalized : protocols[0] || "";
+  ensureTemplateForCurrentSelection();
+}
+
+/** 目标切换回调：协议已预加载，只需同步选中协议 */
+function onTargetChange() {
+  syncCurrentProtocol();
+}
+
+/** 抽屉打开时预加载所有目标的协议（并集与单目标切换共用同一份缓存） */
+async function loadAllTargetProtocols() {
   protocolLoading.value = true;
   try {
-    const detail = await resolveTargetProtocolDetail(target);
-    const protocols = detail.length ? detail : fallbackProtocolsForModelType(target.modelType);
-    targetProtocolMap[target.key] = protocols;
-    if (!protocols.includes(normalizeProtocolCode(testForm.protocol))) {
-      testForm.protocol = protocols[0] || "";
-    } else {
-      testForm.protocol = normalizeProtocolCode(testForm.protocol);
-    }
-    ensureTemplateForCurrentSelection();
+    await Promise.all(
+      targetOptions.value.map(async (target) => {
+        const detail = await resolveTargetProtocolDetail(target);
+        targetProtocolMap[target.key] = detail.length ? detail : fallbackProtocolsForModelType(target.modelType);
+      })
+    );
+    syncCurrentProtocol();
   } finally {
     protocolLoading.value = false;
   }
@@ -574,6 +615,20 @@ async function loadModelProtocols(modelId: number | string, modelType: string | 
   }
 }
 
+/** 按业务码取协议（模型池条目只有 model_code，没有 modelId，避免请求 /api/models/undefined） */
+async function loadModelProtocolsByCode(modelCode: string | undefined, modelType: string | undefined): Promise<string[]> {
+  if (!modelCode) {
+    return fallbackProtocolsForModelType(modelType);
+  }
+  try {
+    const detail = await getModelByCode(modelCode);
+    const bindings = Array.isArray(detail?.apiBindings) ? detail.apiBindings : [];
+    return normalizeProtocolsFromBindings(bindings, modelType);
+  } catch {
+    return fallbackProtocolsForModelType(modelType);
+  }
+}
+
 async function loadModelPoolProtocols(target: RoutingTarget): Promise<string[]> {
   try {
     const detail = await getModelPool(target.targetId as string | number);
@@ -581,7 +636,7 @@ async function loadModelPoolProtocols(target: RoutingTarget): Promise<string[]> 
     if (!enabledItems.length) {
       return fallbackProtocolsForModelType(target.modelType);
     }
-    const protocolLists = await Promise.all(enabledItems.map((item: Row) => loadModelProtocols(item.modelId, item.modelType)));
+    const protocolLists = await Promise.all(enabledItems.map((item: Row) => loadModelProtocolsByCode(item.modelCode, item.modelType)));
     const protocols = unionProtocolLists(protocolLists.filter((item: string[]) => item.length));
     return protocols.length ? protocols : fallbackProtocolsForModelType(target.modelType);
   } catch {
@@ -768,7 +823,8 @@ async function runTest() {
     validationError("请填写 API Key");
     return;
   }
-  if (!activeTarget.value) {
+  // 「全部目标」是合法选择（协议取并集，由网关按规则路由），无需具体目标
+  if (testForm.targetKey !== ALL_TARGETS_KEY && !activeTarget.value) {
     validationError("请选择调试目标");
     return;
   }
@@ -791,6 +847,7 @@ async function runTest() {
 
   const requestBody = (parsedTemplateBody.value.value || {}) as Dict;
   // 提前取出已通过校验的目标与协议：runTest 的空值收窄不会传递到子函数
+  // 「全部目标」下 target 为 null（由网关按规则实际路由），结果里不展示 modelCode
   const target = activeTarget.value;
   const protocol = activeProtocol.value;
   // stream=true 走增量展示，其余保持原有一次性 JSON 行为
@@ -802,7 +859,7 @@ async function runTest() {
 }
 
 /** 非流式：直接请求网关原生 JSON 接口，避免经过管理端 /test 包装接口 */
-async function runBufferedTest(requestBody: Dict, target: RoutingTarget, protocol: string) {
+async function runBufferedTest(requestBody: Dict, target: RoutingTarget | null, protocol: string) {
   loading.value = true;
   testResult.value = null;
   responseHeaders.value = {};
@@ -817,7 +874,7 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget, protoco
     testResult.value = {
       status: "SUCCESS",
       httpStatus: response.status,
-      modelCode: target.targetCode ?? null,
+      modelCode: target?.targetCode ?? null,
       protocol,
       curl: curlPreview.value,
       errorMessage: "",
@@ -837,7 +894,7 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget, protoco
 }
 
 /** 流式：SSE 增量展示，meta/chunk/complete/error 分状态推进 */
-async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protocol: string) {
+async function runStreamingTest(requestBody: Dict, target: RoutingTarget | null, protocol: string) {
   // 重复点击时先中止上一条，避免两个流同时写同一个缓冲区
   abortStreaming();
   const controller = new AbortController();
@@ -891,7 +948,7 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget, protoc
       testResult.value = {
         ...testResult.value,
         httpStatus: response.status,
-        modelCode: target.targetCode || testResult.value.modelCode
+        modelCode: target?.targetCode || testResult.value.modelCode
       };
     }
 
@@ -1260,9 +1317,14 @@ onBeforeUnmount(() => {
   margin-bottom: 10px;
 }
 
-/* 顶部协议选择下拉框：占整体宽度的 2/7，与 URL、发送按钮并列 */
+/* 顶部目标/协议选择下拉框：各占整体宽度的 22%，与 URL、发送按钮并列 */
+.request-toolbar__target {
+  flex: 0 0 22%;
+  min-width: 0;
+}
+
 .request-toolbar__protocol {
-  flex: 0 0 28.5714%;
+  flex: 0 0 22%;
   min-width: 0;
 }
 
@@ -1564,6 +1626,10 @@ onBeforeUnmount(() => {
 @media (max-width: 900px) {
   .request-toolbar {
     flex-wrap: wrap;
+  }
+
+  .request-toolbar__target {
+    flex: 0 0 100%;
   }
 
   .request-toolbar__protocol {

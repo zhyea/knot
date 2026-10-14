@@ -71,7 +71,8 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: "consumers", name: "routing-consumers", component: () => import("@/views/routing/RoutingConsumerView.vue"), meta: { titleKey: "route.routingConsumers" } },
       { path: "rules", name: "routing-rules", component: () => import("@/views/routing/RoutingRuleView.vue"), meta: { titleKey: "route.routingRules" } },
-      { path: "presets", name: "routing-presets", component: () => import("@/views/routing/TestRequestPresetView.vue"), meta: { titleKey: "route.presetRequests" } }
+      { path: "presets", name: "routing-presets", component: () => import("@/views/routing/TestRequestPresetView.vue"), meta: { titleKey: "route.presetRequests" } },
+      { path: "moderation-words", name: "routing-moderation-words", component: () => import("@/views/moderation/ModerationWordManageView.vue"), meta: { titleKey: "route.moderationWords" } }
     ]
   },
   {
@@ -84,13 +85,8 @@ const routes: RouteRecordRaw[] = [
     ]
   },
   { path: "/plugins", redirect: "/system/plugins" },
-  {
-    path: "/moderation",
-    component: NestedView,
-    children: [
-      { path: "words", name: "moderation-words", component: () => import("@/views/moderation/ModerationWordManageView.vue"), meta: { titleKey: "route.moderationWords" } }
-    ]
-  },
+  { path: "/moderation", redirect: "/routing/moderation-words" },
+  { path: "/moderation/words", redirect: "/routing/moderation-words" },
   {
     path: "/notifications",
     component: NestedView,
