@@ -367,3 +367,10 @@ knot:
 - 两边分工（最终形态）：**网关缓存「词库资源列表」**（DB 查询最多每 30s 一次，词库变更生效延迟约 30s，Caffeine 刷新期间旧值持续可见无空窗）；**plugin 缓存「编译自动机」**（`ModerationWordCache.snapshotFor` 按 `versionOf` 去重）。网关下发的是缓存内稳定实例，内容未变时版本一致 → 稳态零重复编译。同一请求三个 stage 现为缓存读（同实例），不再有请求内词表版本漂移。
 - 测试：新建 `ModerationWordResourceTest`（5 例：首读加载 / TTL 内复用只打一次桩 / null 归一空列表 / 加载抛异常 fail-open / 失败不缓存逐次重试；JDK25 Mockito 不能 mock 具体类，用 `ModerationWordService` 子类覆写取词）。
 - 门禁：全量 `mvn clean test` 绿；真启冒烟（网关启动 + 新 bean 装配 + 插件 reconcile）通过，冒烟库 DROP 零残留。
+
+**插件侧定时刷新整体移除（2026-10-15，robin 判断）**
+- robin 判断：「ModerationWordCache 中的定时任务没有意义，他又不能从数据源获取数据」。核实成立：`@Scheduled` 刷新只能用 `lastWords`（最近一次经 `context.words` 收到的列表）重复编译同一份自动机——插件无数据源（knot-plugin 不碰持久层是红线），既拾取不到词库变更，也无额外保障（`compile()` 原子赋值无中间态可兜底）；真正的变更入口只有 `snapshotFor(words)` 的版本去重。
+- 移除清单：`ModerationWordCache` 删 `@Scheduled refresh()` / `refreshInterval()` / `lastWords` / `PluginProperties` 注入（构造改无参，`@Slf4j` 连带清除）；`Refreshable` 接口与 `plugin/schedule` 包**整个删除**（唯一实现即本缓存，`ScheduledRefreshManager` 早已不在）；`PluginProperties.Moderation.refreshInterval` 字段删除（消费方清零，`knot.plugin.moderation.*` 只剩 action/scope，yml 本就未配该键）；`GatewayApplication` 删 `@EnableScheduling`（全仓唯一 `@Scheduled` 即本缓存，删后零消费者；`@EnableAsync` 有 `OperationLogService` 真实消费者，保留）。
+- 语义收敛：插件缓存退化为纯粹的「编译 + 版本去重」组件——编译触发只认 `snapshotFor(context.words())`；空词表 fail-open 不冲刷已有产物由测试固化（`emptyWordsDoNotEvadeExistingSnapshot`）。
+- 测试：`ModerationWordCacheTest` 删定时重建 2 例 + 间隔取值 1 例，补「空词表不冲刷」1 例（7→5 例）；`ModerationGuardTest` 构造改 `new ModerationWordCache()`（12 例不变）。
+- 门禁：全量 `mvn clean test` 绿；真启网关冒烟（启动 + `ioc=8, existing=8` + 零 ERROR）通过，冒烟库 DROP 零残留。

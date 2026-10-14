@@ -2,11 +2,9 @@ package org.chobit.knot.gateway.plugin.components;
 
 import org.chobit.knot.gateway.moderation.ModerationTerm;
 import org.chobit.knot.gateway.plugin.moderation.ModerationSnapshot;
-import org.chobit.knot.gateway.plugin.moderation.PluginProperties;
 import org.chobit.knot.gateway.util.TextNormalizer;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,11 +13,13 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 词库编译缓存（plugin 侧）回归：盯四件事——
+ * 词库编译缓存（plugin 侧）回归：盯三件事——
  * ① 首次下发即编译；② 内容版本不变时复用已编译快照（每请求新实例也不重复编译）；
- * ③ 内容版本变化才重编译；④ 空词表 fail-open 空快照，定时刷新用最近词表防御性重建。
+ * ③ 内容版本变化才重编译；④ 空词表 fail-open 空快照。
  *
- * <p>匹配行为（自动机扫描）由 {@code ModerationGuardTest} 覆盖，本类只验证编译缓存的去重与刷新。</p>
+ * <p>匹配行为（自动机扫描）由 {@code ModerationGuardTest} 覆盖；本组件不持数据源、
+ * 无定时任务（词库变更唯一入口是网关每请求经 {@code GatewayPluginContext.words}
+ * 下发），故刷新语义即 {@code snapshotFor} 的版本去重本身。</p>
  */
 class ModerationWordCacheTest {
 
@@ -28,7 +28,7 @@ class ModerationWordCacheTest {
     }
 
     private static ModerationWordCache cache() {
-        return new ModerationWordCache(new PluginProperties());
+        return new ModerationWordCache();
     }
 
     @Test
@@ -73,32 +73,12 @@ class ModerationWordCacheTest {
     }
 
     @Test
-    void refreshRebuildsFromLastWords() {
+    void emptyWordsDoNotEvadeExistingSnapshot() {
         ModerationWordCache cache = cache();
         cache.snapshotFor(List.of(term("badword", 2, 1_000L)));
 
-        cache.refresh();
-
-        ModerationSnapshot after = cache.snapshotFor(List.of(term("badword", 2, 1_000L)));
-        assertTrue(!after.empty(), "定时刷新后最近词表仍应编译可用");
-        assertEquals(1_000L, after.version());
-    }
-
-    @Test
-    void refreshIsNoOpWhenNoWordsReceived() {
-        ModerationWordCache cache = cache();
-
-        cache.refresh();
-
-        assertTrue(cache.snapshotFor(List.of()).empty(), "未收到过词表时刷新不应产出快照");
-    }
-
-    @Test
-    void refreshIntervalComesFromProperties() {
-        PluginProperties properties = new PluginProperties();
-        properties.getModeration().setRefreshInterval(Duration.ofSeconds(30));
-        ModerationWordCache cache = new ModerationWordCache(properties);
-
-        assertEquals(Duration.ofSeconds(30), cache.refreshInterval());
+        assertTrue(cache.snapshotFor(List.of()).empty(), "空词表当次 fail-open");
+        assertTrue(!cache.snapshotFor(List.of(term("badword", 2, 1_000L))).empty(),
+                "空词表不应冲刷已有编译产物，后续同版本词表仍复用");
     }
 }

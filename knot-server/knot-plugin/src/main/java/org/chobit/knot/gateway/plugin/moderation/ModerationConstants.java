@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.plugin.moderation;
 /**
  * 敏感词审核的<b>扫描</b>常量：只装 {@link ModerationGuard} 扫描逻辑用到的阈值，随守卫留在 knot-plugin。
  *
- * <p>词库缓存的时序参数不在此——刷新间隔在 {@link PluginProperties.Moderation#getRefreshInterval()}，
+ * <p>词库时序参数（网关侧缓存 TTL）随 {@code ModerationWordResource} 内联，
  * 编译缓存的其余行为随 {@link ModerationWordCache} 内联（常量分散到具体类）。</p>
  */
 public final class ModerationConstants {

@@ -33,7 +33,7 @@ class ModerationGuardTest {
     }
 
     private static ModerationGuard guard(PluginProperties properties) {
-        return new ModerationGuard(new ModerationEventSink(), new ModerationWordCache(properties), properties);
+        return new ModerationGuard(new ModerationEventSink(), new ModerationWordCache(), properties);
     }
 
     private static GatewayPluginContext requestContext(List<ModerationTerm> words,

@@ -156,7 +156,7 @@
               :multiple="true"
               collapse-tags
               collapse-tags-tooltip
-              :max-collapse-tags="2"
+              :max-collapse-tags="3"
               style="width: 100%"
               @change="onSelectedTargetsChange"
             />
