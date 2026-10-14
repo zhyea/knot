@@ -323,10 +323,18 @@ knot:
 - `gen_api_bindings.py`：补 moderation 元数据 + import 动作；修复孤儿权限 bug（绑定去重判断前移至权限创建前）。
 - 真启 jar 冒烟（13/13 通过）：admin 18092 连 `knot_smoke_options`（`KNOT_SQL_INIT_MODE=NEVER`），登录 admin/admin123，验证 list/check-code/create/list/status/delete/restore/duplicate-block/import/export + plugin delete 非 403 + plugin list；收尾 DROP 冒烟库零残留。
 
+**P0-B 缓存失效修复（2026-10-14 复盘）**
+- 问题：原失效机制仅依赖 `currentVersion() = MAX(updated_at) WHERE is_deleted=0 AND status=1` 版本号轮询。删除/停用**非最新行**时该行退出过滤集、`MAX(updated_at)` 不变 → 网关版本号不变 → 不失效 → 最长等 10min TTL（版本信号结构性盲区，admin/gateway 是两进程、无即时广播路径）。
+- 方案（robin 拍板，**不建表**）：三层叠加 —— ① 版本号轮询（5s，最新行编辑快速路径，保留）；② **全局可配置定时刷新**（绕开版本比对，覆盖所有写类型：新增/编辑/删除/停用/启用）；③ `refreshAfterWrite(1min)` 异步重载（调度失效兜底，单请求访问到期也能重载）。
+- ⭐ **定时刷新已抽象为通用设施**（robin 指令「抽象下，后续也可刷新其他配置」）：新增 `Refreshable` 接口（`refresh()` + `refreshInterval()`）+ `ScheduledRefreshManager`（`@Component`，扫描全部 `Refreshable` bean 按各自间隔调度，`@PostConstruct start()` / `@PreDestroy shutdown()` 统一托管线程池）。`ModerationSnapshotCache` 仅实现 `Refreshable`，不再自持线程池；**后续新增可定时刷新的配置 = 实现 `Refreshable` 并注册为 bean，零额外接线**。
+- 配置（敏感词）：`ModerationProperties.refreshInterval`（默认 10s，经 `knot.moderation.refresh-interval` 全局覆盖，破例进配置）；代码常量口径 `ModerationConstants.SCHEDULED_REFRESH_INTERVAL` / `REFRESH_AFTER_WRITE`；`ModerationSnapshotCache` 改为 `LoadingCache` 方可承载 `refreshAfterWrite`。
+- 单测：`ModerationSnapshotCacheTest.scheduledRefreshPicksUpDeletedNonLatestWord` 直接验证"删除非最新行 → 版本号不变 → 纯版本轮询不失效 → 定时刷新在周期内拾取"，盲区被修复。
+- 门禁：全量 `mvn test` 绿（8 模块，含 `CountingSnapshotCache` 子类集成），新增测试通过。
+
 **仍未做**
 - M2：MASK（需归一化→原文 offset 映射并在原 body 上改写）、流式出站增量检测（滑动窗口，只观测不改输出）、惩罚性计费。
 - M4：高级归一化（繁简/leetspeak/谐音）+ 正则 PII。
-- 真启 jar 冒烟（网关侧 5s 版本轮询）：admin 侧 CRUD/授权/插件删除 403 修复已于 2026-10-14 真启验证（13/13）；`DbModerationWordSource` → `ModerationSnapshotCache` 版本轮询失效 + `ModerationGuard` 命中由单测覆盖，网关 e2e（需假上游解析 chunked）待测。
+- 真启 jar 冒烟（网关侧定时刷新 e2e）：admin 侧 CRUD/授权/插件删除 403 修复已于 2026-10-14 真启验证（13/13）；定时刷新 + `refreshAfterWrite` 失效行为已由 `ModerationSnapshotCacheTest.scheduledRefreshPicksUpDeletedNonLatestWord` 单测覆盖，网关 e2e 10s 生效窗口（需假上游解析 chunked）待测。
 - ⚠ **既有库必须先跑迁移**：dev 库 `knot` 当前有 4 行指向同一份插件代码（id 7/8 旧 entrypoint orphaned=1 + id 9/10 reconcile 自动补的新 entrypoint），不跑迁移会导致同一 handler 被调用两次。
 
 **未落地**

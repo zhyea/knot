@@ -582,7 +582,7 @@ async function loadModelPoolProtocols(target: RoutingTarget): Promise<string[]> 
       return fallbackProtocolsForModelType(target.modelType);
     }
     const protocolLists = await Promise.all(enabledItems.map((item: Row) => loadModelProtocols(item.modelId, item.modelType)));
-    const protocols = intersectProtocolLists(protocolLists.filter((item: string[]) => item.length));
+    const protocols = unionProtocolLists(protocolLists.filter((item: string[]) => item.length));
     return protocols.length ? protocols : fallbackProtocolsForModelType(target.modelType);
   } catch {
     return fallbackProtocolsForModelType(target.modelType);
@@ -597,13 +597,10 @@ function normalizeProtocolsFromBindings(bindings: Row[], modelType: string | und
   return protocols.length ? Array.from(new Set(protocols)) : fallbackProtocolsForModelType(modelType);
 }
 
-function intersectProtocolLists(lists: string[][]): string[] {
-  if (!lists.length) {
-    return [];
-  }
-  let result = [...lists[0]];
-  for (const list of lists.slice(1)) {
-    result = result.filter((item) => list.includes(item));
+function unionProtocolLists(lists: string[][]): string[] {
+  const result: string[] = [];
+  for (const list of lists) {
+    result.push(...list);
   }
   return Array.from(new Set(result));
 }

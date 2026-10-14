@@ -23,11 +23,14 @@ public class ModerationConfiguration {
     }
 
     /**
-     * Declares a bean. Executes the public operation.
+     * 词库快照缓存：注入可配置的定时刷新间隔。定时刷新由 {@code ScheduledRefreshManager} 统一托管调度，
+     * 本类只需实现 {@link org.chobit.knot.gateway.plugin.refresh.Refreshable}。
      */
     @Bean
-    public ModerationSnapshotCache moderationSnapshotCache(ModerationWordSource source) {
-        return new ModerationSnapshotCache(source);
+    public ModerationSnapshotCache moderationSnapshotCache(ModerationWordSource source,
+                                                          ModerationProperties properties) {
+        return new ModerationSnapshotCache(
+                source, ModerationConstants.VERSION_CHECK_INTERVAL_MILLIS, properties.getRefreshInterval());
     }
 
     /**

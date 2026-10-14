@@ -4,13 +4,18 @@ import org.chobit.knot.gateway.constants.enums.ModerationActionEnum;
 import org.chobit.knot.gateway.constants.enums.ModerationScopeEnum;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.time.Duration;
+
 /**
- * 敏感词审核全局配置。<b>只有三项</b>（设计文档 §5.2 口径 A）：其余维度一律走代码常量。
+ * 敏感词审核全局配置。设计文档 §5.2 口径 A 主张「只有三项」（enabled/action/scope），
+ * 其余维度走代码常量。本类额外暴露 <b>refreshInterval</b>，是 robin 在 2026-10-14 复盘后
+ * 的显式例外：定时刷新间隔需「全局可配置」，故破例进配置（仍经
+ * {@code knot.moderation.refresh-interval} 覆盖，默认值见字段）。
  *
  * <p>全局场景：无资源级策略绑定，所有请求共用这一份配置。</p>
  *
- * <p>三项均未在 {@code application.yml} 声明（值即默认值）；环境变量
- * {@code KNOT_MODERATION_ENABLED / _ACTION / _SCOPE} 经 Spring relaxed binding 仍可覆盖，不依赖 yml 是否声明。</p>
+ * <p>未在 {@code application.yml} 声明时取默认值；环境变量
+ * {@code KNOT_MODERATION_ENABLED / _ACTION / _SCOPE / _REFRESH_INTERVAL} 经 Spring relaxed binding 仍可覆盖。</p>
  */
 @ConfigurationProperties(prefix = "knot.moderation")
 public class ModerationProperties {
@@ -29,6 +34,14 @@ public class ModerationProperties {
      * 作用方向：REQUEST / RESPONSE / BOTH。
      */
     private String scope = ModerationScopeEnum.BOTH.code();
+
+    /**
+     * 词库快照定时刷新间隔：绕过 max(updated_at) 版本盲区的主路径（见 {@code ModerationSnapshotCache}）。
+     *
+     * <p>默认值 10s。删除/停用非最新行时版本号不变、版本轮询无法感知，只能靠这条定时直读词表兜底。
+     * 如需更激进可全局调小；调大则最坏生效延迟随之变大。</p>
+     */
+    private Duration refreshInterval = Duration.ofSeconds(10);
 
     /**
      * Executes the public operation. Executes the public operation.
@@ -55,6 +68,14 @@ public class ModerationProperties {
 
     public void setScope(String scope) {
         this.scope = scope;
+    }
+
+    public Duration getRefreshInterval() {
+        return refreshInterval;
+    }
+
+    public void setRefreshInterval(Duration refreshInterval) {
+        this.refreshInterval = refreshInterval;
     }
 
     /**

@@ -1,7 +1,9 @@
 package org.chobit.knot.gateway.plugin.moderation;
 
+import org.chobit.knot.gateway.plugin.refresh.ScheduledRefreshManager;
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -136,5 +138,41 @@ class ModerationSnapshotCacheTest {
 
         assertSame(first, cache.snapshot());
         assertThrows(IllegalStateException.class, failing::currentVersion);
+    }
+
+    /**
+     * 验证定时刷新能绕过 max(updated_at) 版本盲区：删除非最新行时版本号不变，
+     * 纯版本轮询不会失效，只能靠定时直读词表兜底。
+     */
+    @Test
+    void scheduledRefreshPicksUpDeletedNonLatestWord() throws Exception {
+        MutableSource source = new MutableSource();
+        // A 是较旧行(updatedAt=1000)，B 是最新行(updatedAt=2000)
+        source.setTerms(List.of(term("A", 2, 1_000L), term("B", 2, 2_000L)));
+        // 极短刷新间隔，验证定时刷新能绕过版本盲区（经通用托管器 ScheduledRefreshManager 调度）
+        ModerationSnapshotCache cache = new ModerationSnapshotCache(source, 0L, Duration.ofMillis(50));
+        ScheduledRefreshManager manager = new ScheduledRefreshManager(List.of(cache));
+        manager.start();
+        try {
+            ModerationSnapshot first = cache.snapshot();
+            assertEquals(1, first.matcher().scan("a").size(), "初始 A 应被命中");
+
+            // 删除非最新行 A：max(updated_at) 仍是 B 的 2000，版本号不变 → 纯版本轮询不会失效
+            source.setTerms(List.of(term("B", 2, 2_000L)));
+
+            boolean caught = false;
+            for (int i = 0; i < 40; i++) { // 最多约 2s
+                Thread.sleep(50);
+                ModerationSnapshot current = cache.snapshot();
+                if (current.matcher().scan("a").isEmpty()) {
+                    assertEquals(1, current.matcher().scan("b").size(), "B 仍应被命中");
+                    caught = true;
+                    break;
+                }
+            }
+            assertTrue(caught, "定时刷新应在周期内拾取删除的非最新词 A（绕过版本盲区）");
+        } finally {
+            manager.shutdown();
+        }
     }
 }
