@@ -45,6 +45,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.LongConsumer;
 import java.util.function.Supplier;
 
 @Slf4j
@@ -55,6 +56,12 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
      * 请求上下文属性：流式响应写完时释放本请求在途计数的回调（{@code Runnable}）。
      */
     private static final String ATTR_LOAD_RELEASE = "loadRelease";
+
+    /**
+     * 请求上下文属性：本次请求实际命中的路由目标（{@code RoutingRuleTargetDto}）。
+     * 候选调用成功后写入，供首 token 观察者把慢信号归属到具体目标（异常路径无首 token，不产生慢信号）。
+     */
+    private static final String ATTR_HIT_TARGET = "hitTarget";
 
     private final UpstreamProxyClient proxyClient;
     private final RoutingResolver routingResolver;
@@ -203,6 +210,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                 }
                 // 响应头回写实际承接模型：流式此时尚未 commit（首行 flush 才提交头），写头依然生效
                 writeSelectedModelHeader(candidate);
+                // 命中目标入上下文：首 token 观察者据此把慢信号归属到本候选（异常路径无首 token）
+                context.putAttribute(ATTR_HIT_TARGET, candidate);
                 return new FailoverOutcome(result, null, null, true, ejectedSkipped);
             } catch (GatewayUpstreamException e) {
                 lastUpstreamException = e;
@@ -387,7 +396,45 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         Runnable loadRelease = context.attribute(ATTR_LOAD_RELEASE);
         return new ProxyStreamingBody(stream, usageExtractorRegistry, appendUsage,
                 clientProperties.getStreamBufferSize(), loadRelease,
-                FirstTokenHeaderWriter.of(context));
+                FirstTokenHeaderWriter.of(context, firstTokenObserver(context)));
+    }
+
+    /**
+     * 慢信号观察者：策略启用时才挂（未启用则无观察者，TTFT 只写响应头）。
+     *
+     * <p>策略与规则码在请求线程捕获（此刻 {@code context.routing()} 已就绪），
+     * 命中目标在观察者触发时（流式可能在异步写线程）从上下文属性惰性读取。</p>
+     */
+    @Override
+    protected LongConsumer firstTokenObserver(GatewayRequestContext context) {
+        ResolvedRouting routing = context.routing();
+        if (routing == null) {
+            return null;
+        }
+        EjectionPolicy policy = routing.effectiveEjectionPolicy();
+        if (policy == null || !policy.isEnabled()) {
+            return null;
+        }
+        return slowSignalObserver(context, outageTracker, policy, routing.ruleCode());
+    }
+
+    /**
+     * 慢信号观察者工厂：首 token 耗时超过策略阈值时给命中目标记一次 SLOW 异常。
+     *
+     * <p>包级可见供单测直接驱动（无需构造整个 handler）。取不到命中目标
+     * （异常路径、非 proxy 出口）时静默跳过——没有首 token 就没有慢信号。</p>
+     */
+    static LongConsumer slowSignalObserver(GatewayRequestContext context,
+                                           OutageTracker tracker,
+                                           EjectionPolicy policy,
+                                           String ruleCode) {
+        return elapsed -> {
+            RoutingRuleTargetDto hit = context.attribute(ATTR_HIT_TARGET);
+            if (hit == null || hit.targetCode() == null) {
+                return;
+            }
+            tracker.recordSlow(policy, ruleCode, hit.targetCode(), elapsed, System.currentTimeMillis());
+        };
     }
 
     private void prepareStreamingHeaders(MediaType contentType) {

@@ -43,3 +43,22 @@ knot:
      cors:
       # 管理端流式调试直连网关时使用；生产环境请通过配置覆盖
       allowed-origins: ${KNOT_GATEWAY_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+  outage:
+    # 异常摘除状态存储：caffeine（单节点，默认）/ redis（多节点全局视图）
+    # / fallback（Redis 优先，不可用时自动降级 Caffeine，恢复后回灌切回）
+    store: ${KNOT_OUTAGE_STORE:caffeine}
+    # 存储键前缀：多个环境共用同一 Redis 时用于隔离
+    key-prefix: ${KNOT_OUTAGE_KEY_PREFIX:knot:outage}
+    # fallback 档的恢复探测间隔（毫秒）：太小会把「Redis 慢」放大成正反馈
+    recover-probe-interval-ms: ${KNOT_OUTAGE_RECOVER_PROBE_INTERVAL_MS:10000}
+    # 条目自然回收宽限（毫秒）：追加在最晚的窗口/摘除/探活到期时刻之后
+    expire-grace-ms: ${KNOT_OUTAGE_EXPIRE_GRACE_MS:60000}
+    # caffeine 存储的最大条目数
+    maximum-size: ${KNOT_OUTAGE_MAXIMUM_SIZE:20000}
+    # redis 不可用时是否放行：true 记日志后按「健康」处理（不摘除）
+    fail-open: ${KNOT_OUTAGE_FAIL_OPEN:true}
+    admin-api:
+      # 管理面 API（/_admin/outages*）总开关；false 时端点整体 404
+      enabled: ${KNOT_OUTAGE_ADMIN_API_ENABLED:true}
+      # 管理面共享令牌：未配置时仅允许 loopback 访问；多节点部署必须配置
+      token: ${KNOT_GATEWAY_ADMIN_TOKEN:}

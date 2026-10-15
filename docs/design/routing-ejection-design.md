@@ -1,7 +1,7 @@
 # 路由规则 · 供应商模型异常摘除方案设计
 
 > 状态：**已定稿**（2026-10-13 设计 → 2026-10-14 拍板收口）
-> 实现进度：**B1 + B2 已落地**（2026-10-15，530 例后端测试零失败 + 前端 type-check/vite build 全绿）；B3 慢信号、B4 管理面、B5 冒烟未开工
+> 实现进度：**B1 + B2 + B3 + B4 已落地**（2026-10-15；全 reactor 149 例后端测试零失败 + 前端 type-check/vite build 全绿）；B5 冒烟未开工
 > 关联代码：`knot-gateway/.../runtime/GatewayRequestHandler.java`（`proxyWithFailover` / `attemptCandidates`）、`.../retry/*`、`.../load/*`、`.../outage/*`
 > 关联设计：`docs/design/routing-retry-design.md`（retry → failover 两层降级已落地）
 >
@@ -420,4 +420,56 @@ public void release(@RequestBody ReleaseRequest request) { ... }
 4. **固有限制（写进类注释）**：降级期间的窗口计数/探活租约不回灌（只搬仍摘除中的条目），恢复前的本地过程量丢失；要严格一致须 `store=redis` + Redis 高可用。
 
 **未覆盖**：`RedisTargetOutageStore` 本体仍无自动化单测（无 testcontainers），降级适配器只验证编排逻辑，不验证 Redis 侧行为——后者靠 B5 冒烟。
+
+### 17.3 B3 慢信号 + B4 管理面实现记录（2026-10-15）
+
+**B3 慢信号（TTFT 超阈值归并窗口计数）**
+
+| 文件 | 说明 |
+|---|---|
+| `runtime/FirstTokenHeaderWriter.java` | 流式首 token 观察者：`onFirstToken` 回调把 `firstTokenLatencyMs` 透出给命中目标 |
+| `runtime/GatewayRequestHandler`（两处注入） | 流式 / 非流式两条请求链均在「命中目标确定后」注入慢信号采集；超时阈值取自 `ejectionPolicy.slowFirstTokenMs` |
+| `runtime/FirstTokenHeaderWriterTest.java` | 9 例：首 token 触发 / 不触发 / 流式分块 / 阈值边界 |
+| `runtime/GatewayRequestHandlerSlowObserverTest.java` | 3 例：慢信号归并进 `OutageTracker.recordSlow`，与 FAILURE 共用窗口计数器 |
+
+慢信号与 FAILURE 信号统一走 `OutageTracker`（B2 已实现），不新增状态维度，仅新增 `AnomalyKind.SLOW` 归一入口。
+
+**B4 管理面（网关运行时可查可控 + admin 转发 + 权限 + 日志 + 前端面板）**
+
+| 层 | 文件 | 说明 |
+|---|---|---|
+| 网关 | `outage/admin/OutageAdminController.java` | `/_admin/outages`（GET 列表）、`/_admin/outages/release`、`/_admin/outages/eject`；`@ConditionalOnProperty(knot.outage.admin-api.enabled)` 控制是否注册 |
+| 网关 | 准入保护 | 双保险：配了 `knot.outage.admin-token` 则比对 `X-Knot-Admin-Token` 头；未配则仅放行 loopback；拒绝用 `ResponseStatusException` 抛错 |
+| 网关 | `GatewayHeaders.X_KNOT_ADMIN_TOKEN` | 令牌头常量 |
+| 网关 | `outage/admin/OutageAdminControllerTest.java` | 7 例：令牌准入 / loopback / 非法令牌 403 / release 清除 / eject 打入冷却 / 空字段 400 / 列表镜像 |
+| 公共 | `common/error/ErrorCode.java` | 新增 `GATEWAY_UNAVAILABLE("GW-SYSTEM-503","gateway unavailable")` |
+| service | `dto/outage/GatewayOutageItem` / `GatewayOutageAck` / `GatewayOutageReleaseRequest` / `GatewayOutageEjectRequest` | 镜像网关的 record（Jackson record 反序列化，字段名对齐）；`eject` 默认冷却 `DEFAULT_COOLDOWN_SEC=60` + `cooldownMillis()` |
+| service | `service/GatewayOutageService.java` | 构造器自建 `RestClient`（连接 5s / 读取 10s）；`listOutages/release/eject` 转发网关 `/_admin/outages*`；令牌头常量硬编码（避免反向依赖网关）；`call()` 统一异常翻译（4xx→既有码，连接/5xx→GATEWAY_UNAVAILABLE） |
+| admin | `config/GatewayRuntimeProperties.java` | 新增 `adminToken`（绑定 `KNOT_GATEWAY_ADMIN_TOKEN`，默认 `""`），与既有的 `baseUrl` 并列 |
+| admin | `controller/GatewayOutageController.java` | `REST /api/gateway/outages`（GET 列表）、`POST /release`、`POST /eject`；`release/eject` 加 `@OperationLog(module="routing", operation="UPDATE", entityType="RoutingTarget", recordOldValue=false, newValueSpel="#p0")` |
+| admin | `controller/GatewayOutageControllerTest.java` | 4 例：`StubGatewayOutageService extends GatewayOutageService` 桩子类记录调用参数并回灌响应（JDK 25 + Mockito inline 不能 mock 具体类，改用桩子类）；覆盖 list/release/eject 委托与空字段拒绝 |
+| 前端 | `src/api/gatewayOutage.ts` | `GatewayOutageItem`/`GatewayOutageAck` 接口 + `listGatewayOutages`/`releaseGatewayOutage`/`ejectGatewayOutage` |
+| 前端 | `src/components/routing/RoutingRuleFormDrawer.vue` | 编辑态「当前摘除目标」面板：el-table 展示 modelCode/状态 tag/原因/窗口计数/剩余冷却/恢复按钮 + 手动摘除表单（模型 select 取绑定 MODEL 目标 / 冷却 input-number / 原因 input）；抽屉打开时 `refreshOutages()` 拉取，网关不可达静默降级不阻塞表单 |
+
+**权限绑定（幂等迁移 `docs/database/migration/2026-10-15-gateway-outage-admin.sql`）**
+
+- 权限：`152 routing:target:outage:view`、`153 routing:target:outage:manage`
+- API 绑定：`209 GET /api/gateway/outages`、`210 POST /api/gateway/outages/release`、`211 POST /api/gateway/outages/eject`
+- 角色授权：`(2,152)(2,153)`（OPERATOR 全量）、`(3,152)`（DEVELOPER 只读）；ADMIN 由 `data.sql` 末尾权威块自动全量授予，迁移额外对 NEVER 模式显式补齐 ADMIN 以防漏授权。
+- `data.sql` 同步落上述权限/绑定/角色行，保证 ALWAYS 初始化即有权。
+
+**关键实现偏差与修复**
+
+1. **admin 单测不能用 Mockito mock 具体类**：JDK 25 + Mockito inline 对具体类抛 `Byte Buddy ... not supported`。改用 `StubGatewayOutageService extends GatewayOutageService` 桩子类（契合项目「JDK 25 禁止 mock 具体类」铁律）。
+2. **`RestClient` 无 `apply` 方法**：改用链式 `.header` + 局部 final 变量（`base`/`req` 三元）解决 lambda 捕获非 eff-final。
+3. **异常翻译类型**：`HttpStatusCodeException.getStatusCode()` 返回 `HttpStatusCode`（非 `HttpStatus`），变量类型与 import 同步调整。
+4. **前端 `components.d.ts` 副作用**：`vite build` 会把 `knot-front/components.d.ts` 改写为残缺版，构建后已从快照还原，避免后续 `vue-tsc` 报 TS7006。
+5. **准入双保险而非单一令牌**：未配令牌时仅 loopback 可访问，避免「生产忘了配令牌即全网开放」；配令牌后非 loopback 也必须带正确头。
+
+**门禁结果（B4 收尾）**
+
+- 前端：`vue-tsc --noEmit` 0 错误；`vite build` 成功（含 `RoutingRuleView`）。
+- 后端：全 reactor `mvn -f knot-server/pom.xml test` BUILD SUCCESS；本次新增/相关 B4 用例：`GatewayOutageControllerTest` 4、`OutageAdminControllerTest` 7、`CaffeineTargetOutageStoreTest` 7、`FallbackTargetOutageStoreTest` 9、`OutageClassifierTest` 5、`OutageStateMachineTest` 10、`OutageTrackerTest` 5；全 reactor 总计 **Tests run: 149, Failures: 0, Errors: 0**。
+
+**未覆盖**：B5 真启 jar 冒烟（5xx / 慢首 token / release / 全摘 fail-open 四场景）尚未执行；`RedisTargetOutageStore` 本体仍无自动化单测（无 testcontainers），靠 B5 冒烟。
 

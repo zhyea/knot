@@ -158,7 +158,7 @@ class ProxyStreamingBodyTest {
         // 上游首个字节延迟 150ms 才就绪，模拟真实 TTFT
         String payload = "data: {\"choices\":[]}" + System.lineSeparator() + "data: [DONE]" + System.lineSeparator();
         MockHttpServletResponse response = new MockHttpServletResponse();
-        FirstTokenHeaderWriter writer = new FirstTokenHeaderWriter(System.currentTimeMillis(), response);
+        FirstTokenHeaderWriter writer = new FirstTokenHeaderWriter(System.currentTimeMillis(), response, null);
         ProxyStreamingBody body = new ProxyStreamingBody(
                 slowStream(payload, true, 150), null, false, 8192, null, writer);
 
@@ -174,7 +174,7 @@ class ProxyStreamingBodyTest {
     void writesFirstTokenTimeHeaderOnRawStream() throws IOException {
         String payload = "hello-stream";
         MockHttpServletResponse response = new MockHttpServletResponse();
-        FirstTokenHeaderWriter writer = new FirstTokenHeaderWriter(System.currentTimeMillis(), response);
+        FirstTokenHeaderWriter writer = new FirstTokenHeaderWriter(System.currentTimeMillis(), response, null);
         ProxyStreamingBody body = new ProxyStreamingBody(
                 slowStream(payload, false, 100), null, false, 8192, null, writer);
 

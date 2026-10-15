@@ -235,7 +235,10 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 (149, 'moderation:word:delete', '敏感词删除', 'API', 3, 24, 1, 1, NULL),
 (150, 'moderation:word:import', '敏感词导入', 'API', 3, 24, 1, 1, NULL),
 -- 插件删除（PluginController DELETE /api/plugins/{id} 此前漏绑 → 前端删除按钮恒 403）
-(151, 'system:plugin:delete', '插件删除', 'API', 1, 16, 1, 1, NULL);
+(151, 'system:plugin:delete', '插件删除', 'API', 1, 16, 1, 1, NULL),
+-- 网关摘除管理面（B4）：路由目标摘除查看 / 管理（恢复 + 手动摘除），模块 3 / 菜单 11（路由规则组）
+(152, 'routing:target:outage:view', '路由目标摘除查看', 'API', 3, 11, 1, 1, NULL),
+(153, 'routing:target:outage:manage', '路由目标摘除管理', 'API', 3, 11, 1, 1, NULL);
 
 -- API 权限绑定（默认拒绝：未绑定接口一律 403；由 .workbuddy/audit/gen_api_bindings.py 生成）
 INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
@@ -439,7 +442,11 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (205, 145, 'GET', '/api/moderation-words/export', 'ModerationWordController', 1),
 (206, 151, 'DELETE', '/api/plugins/{id}', 'PluginController', 1),
 -- 路由调试协议下发（前端协议下拉数据源，与调试准入校验同源）
-(208, 112, 'GET', '/api/routing-rules/{id}/debug-protocols', 'RoutingRuleController', 1);
+(208, 112, 'GET', '/api/routing-rules/{id}/debug-protocols', 'RoutingRuleController', 1),
+-- 网关摘除管理面（B4）：查看 / 恢复 / 手动摘除
+(209, 152, 'GET', '/api/gateway/outages', 'GatewayOutageController', 1),
+(210, 153, 'POST', '/api/gateway/outages/release', 'GatewayOutageController', 1),
+(211, 153, 'POST', '/api/gateway/outages/eject', 'GatewayOutageController', 1);
 
 -- 角色授权（OPERATOR 全量 / DEVELOPER 只读；ADMIN 由文件末尾权威块全量授予）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
@@ -463,7 +470,9 @@ INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (3, 19), (3, 20), (3, 21), (3, 22), (3, 23), (3, 24), (3, 25), (3, 26),
 (3, 58), (3, 66), (3, 67), (3, 75), (3, 79), (3, 84), (3, 88), (3, 93),
 (3, 94), (3, 99), (3, 103), (3, 107), (3, 112), (3, 120), (3, 124), (3, 125),
-(3, 126), (3, 127), (3, 128), (3, 133), (3, 136), (3, 137);
+(3, 126), (3, 127), (3, 128), (3, 133), (3, 136), (3, 137),
+-- 网关摘除管理面（B4）：OPERATOR 全量（查看 + 管理），DEVELOPER 仅查看；ADMIN 由末尾权威块全量授予
+(2, 152), (2, 153), (3, 152);
 
 -- 存量库修补：把「授权资源页面访问」补给已持有「角色授权页面访问」(id=12) 的角色。
 -- 注意：ADMIN 的 55 由文件末尾的权威授权块保证，不依赖本句。

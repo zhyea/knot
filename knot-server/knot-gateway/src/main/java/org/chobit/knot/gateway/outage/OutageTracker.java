@@ -83,4 +83,42 @@ public class OutageTracker {
             log.info("Routing target recovered after probe succeeded: key={}", decision.key());
         }
     }
+
+    /**
+     * 记录一次慢首 token（TTFT 超阈值）：与失败类异常共用同一套窗口计数器，达阈值同样摘除。
+     *
+     * <p>由首 token 观察者在上游首个可观测产出到达时回调（见
+     * {@code FirstTokenHeaderWriter#mark()}）。三个前置条件任一不满足即短路：
+     * 策略未启用、未开 {@code countSlow}、耗时未达 {@code slowFirstTokenMs}——
+     * 慢信号是 opt-in 的观测，不能反过来拖慢正常请求。</p>
+     *
+     * <p>fail-open 轮次（候选全摘后忽略摘除重跑）产生的慢信号同样计数：
+     * 目标确实慢，与它当前是否被摘除无关。</p>
+     *
+     * @param policy        规则级摘除策略（null 或未启用时短路）
+     * @param ruleCode      路由规则业务码
+     * @param modelCode     本次命中的供应商模型业务码
+     * @param elapsedMillis 首 token 端到端耗时（毫秒）
+     * @param nowMillis     当前时刻
+     */
+    public void recordSlow(EjectionPolicy policy,
+                           String ruleCode,
+                           String modelCode,
+                           long elapsedMillis,
+                           long nowMillis) {
+        if (policy == null || !policy.isEnabled() || !policy.isCountSlow()) {
+            return;
+        }
+        if (elapsedMillis < policy.slowFirstTokenMs()) {
+            return;
+        }
+        String key = keys.of(ruleCode, modelCode);
+        OutageState before = store.state(key, nowMillis);
+        OutageState next = store.recordAnomaly(key, policy, AnomalyKind.SLOW, nowMillis);
+        if (next.ejected(nowMillis) && !before.ejected(nowMillis)) {
+            log.warn("Routing target ejected after slow first token: key={}, ttftMs={}, thresholdMs={}, "
+                            + "anomalies={}, cooldownMs={}, reason={}",
+                    key, elapsedMillis, policy.slowFirstTokenMs(), next.anomalies(), policy.cooldownMs(), next.reason());
+        }
+    }
 }

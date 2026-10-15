@@ -228,6 +228,74 @@
           description="窗口内反复异常的供应商模型会被临时移出候选链，冷却结束后由探活请求恢复。"
           v-model:ejection-policy="form.ejectionPolicy"
         />
+
+        <div v-if="isEdit" class="space-line"/>
+
+        <!-- 当前摘除目标（B4 管理面）：仅编辑态展示本规则下被摘除/探活中的供应商模型，支持即时恢复与手动摘除 -->
+        <div v-if="isEdit" class="slot-body rule-section">
+          <div class="section-head">
+            <div>
+              <h3>当前摘除目标</h3>
+              <p>实时反映本规则下各供应商模型的健康状态（异常摘除 / 探活中）。数据来自网关运行时，操作即时生效。</p>
+            </div>
+            <el-button text type="primary" :loading="outageLoading" @click="refreshOutages">
+              <el-icon>
+                <Refresh/>
+              </el-icon>
+              刷新
+            </el-button>
+          </div>
+
+          <el-table v-if="outageItems.length" :data="outageItems" border size="small" class="outage-table">
+            <el-table-column prop="modelCode" label="模型" min-width="140" show-overflow-tooltip/>
+            <el-table-column label="状态" width="100" align="center">
+              <template #default="{ row }">
+                <el-tag :type="isEjected(row) ? 'danger' : 'warning'" size="small">
+                  {{ isEjected(row) ? "摘除中" : "探活中" }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="reason" label="原因" width="90" show-overflow-tooltip/>
+            <el-table-column label="窗口计数" width="120">
+              <template #default="{ row }">失败 {{ row.failures }} / 慢 {{ row.slows }}</template>
+            </el-table-column>
+            <el-table-column label="剩余冷却" width="110" align="center">
+              <template #default="{ row }">{{ formatCooldown(row) }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="80" align="center">
+              <template #default="{ row }">
+                <el-button link type="primary" :loading="row._acting" @click="releaseOutage(row)">恢复</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-empty v-else description="当前无摘除目标" :image-size="60"/>
+
+          <el-divider>手动摘除</el-divider>
+          <el-form :inline="true" class="outage-eject-form">
+            <el-form-item label="模型" required>
+              <el-select
+                v-model="ejectForm.modelCode"
+                placeholder="选择或输入模型 code"
+                filterable
+                allow-create
+                default-first-option
+                clearable
+                style="width: 220px"
+              >
+                <el-option v-for="code in targetModelCodes" :key="code" :label="code" :value="code"/>
+              </el-select>
+            </el-form-item>
+            <el-form-item label="冷却(秒)">
+              <el-input-number v-model="ejectForm.cooldownSec" :min="1" :max="3600" :step="10" style="width: 120px"/>
+            </el-form-item>
+            <el-form-item label="原因">
+              <el-input v-model="ejectForm.reason" placeholder="人工原因（可选）" style="width: 200px"/>
+            </el-form-item>
+            <el-form-item>
+              <el-button type="danger" :loading="ejecting" @click="submitEject">摘除</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
       </el-form>
     </el-scrollbar>
     <template #footer>
@@ -241,7 +309,7 @@
 import {type PropType, computed, reactive, ref, watch, type Ref} from "vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {ElMessage} from "element-plus";
-import {Delete} from "@element-plus/icons-vue";
+import {Delete, Refresh} from "@element-plus/icons-vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import RetryPolicySection from "../common/RetryPolicySection.vue";
@@ -259,6 +327,7 @@ import {
   type EjectionPolicy
 } from "@/utils/ejectionPolicy";
 import {createRoutingRule, updateRoutingRule, checkRoutingRuleCode} from "@/api/routing";
+import {listGatewayOutages, releaseGatewayOutage, ejectGatewayOutage, type GatewayOutageItem} from "@/api/gatewayOutage";
 import {listAppOptions, listLogicalModelOptions, listModelOptions, listModelPoolOptions, listRoutingConsumerOptions, listUserUsernameOptions} from "@/api/options";
 import {toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
@@ -521,6 +590,7 @@ watch(
     if (visible) {
       resetForm();
       loadOptions();
+      refreshOutages();
     }
   }
 );
@@ -699,6 +769,91 @@ async function submit() {
     saving.value = false;
   }
 }
+
+/* ===== B4 管理面：当前摘除目标（网关运行时实时健康态） ===== */
+type OutageRow = GatewayOutageItem & { _acting?: boolean };
+
+const outageItems = ref<OutageRow[]>([]);
+const outageLoading = ref(false);
+const ejecting = ref(false);
+const ejectForm = reactive({modelCode: "", cooldownSec: 60, reason: ""});
+
+/** 编辑态打开抽屉时拉取本规则下的摘除/探活目标。网关不可达时静默降级（不阻塞表单）。 */
+async function refreshOutages() {
+  if (!isEdit.value || !form.ruleCode) {
+    return;
+  }
+  outageLoading.value = true;
+  try {
+    const items = await listGatewayOutages({ruleCode: form.ruleCode});
+    outageItems.value = (items || []).map((item) => ({...item, _acting: false}));
+  } catch {
+    outageItems.value = [];
+  } finally {
+    outageLoading.value = false;
+  }
+}
+
+/** 处于摘除冷却期（ejectedUntil 未过期）视为「摘除中」，否则「探活中」。 */
+function isEjected(row: OutageRow): boolean {
+  return row.ejectedUntil > Date.now();
+}
+
+function formatCooldown(row: OutageRow): string {
+  const remain = Math.min(row.ejectedUntil, row.probeUntil) - Date.now();
+  if (remain <= 0) {
+    return "—";
+  }
+  const sec = Math.ceil(remain / 1000);
+  if (sec < 60) {
+    return `${sec}s`;
+  }
+  return `${Math.floor(sec / 60)}m${sec % 60}s`;
+}
+
+async function releaseOutage(row: OutageRow) {
+  row._acting = true;
+  try {
+    await releaseGatewayOutage({ruleCode: form.ruleCode, modelCode: row.modelCode});
+    ElMessage.success(`已恢复 ${row.modelCode}`);
+    await refreshOutages();
+  } catch {
+    /* 错误已由全局拦截器提示 */
+  } finally {
+    row._acting = false;
+  }
+}
+
+async function submitEject() {
+  if (!ejectForm.modelCode) {
+    ElMessage.warning("请选择或输入模型 code");
+    return;
+  }
+  ejecting.value = true;
+  try {
+    await ejectGatewayOutage({
+      ruleCode: form.ruleCode,
+      modelCode: ejectForm.modelCode,
+      cooldownSec: ejectForm.cooldownSec,
+      reason: ejectForm.reason || undefined
+    });
+    ElMessage.success(`已手动摘除 ${ejectForm.modelCode}`);
+    ejectForm.modelCode = "";
+    ejectForm.reason = "";
+    await refreshOutages();
+  } catch {
+    /* 错误已由全局拦截器提示 */
+  } finally {
+    ejecting.value = false;
+  }
+}
+
+/** 本规则绑定的「模型」类目标 code 列表，作为手动摘除候选。 */
+const targetModelCodes = computed(() =>
+  form.targets
+    .filter((t) => t.targetType === "MODEL" && t.targetCode)
+    .map((t) => String(t.targetCode))
+);
 </script>
 
 <style scoped>

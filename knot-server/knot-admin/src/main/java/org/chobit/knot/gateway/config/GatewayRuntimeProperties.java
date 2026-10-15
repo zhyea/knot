@@ -18,6 +18,12 @@ public class GatewayRuntimeProperties {
     private String baseUrl = "http://127.0.0.1:9090";
 
     /**
+     * 网关摘除管理面共享令牌：与网关侧 {@code knot.outage.admin-api.token} 同源（均绑定环境变量
+     * {@code KNOT_GATEWAY_ADMIN_TOKEN}）。空表示不下发令牌头，依赖网关 loopback 放行（同机部署场景）。
+     */
+    private String adminToken = "";
+
+    /**
      * Returns the requested value. Executes the public operation.
      */
     public String getBaseUrl() {
@@ -29,6 +35,20 @@ public class GatewayRuntimeProperties {
      */
     public void setBaseUrl(String baseUrl) {
         this.baseUrl = baseUrl;
+    }
+
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
+    public String getAdminToken() {
+        return adminToken;
+    }
+
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
+    public void setAdminToken(String adminToken) {
+        this.adminToken = adminToken;
     }
 
     /**

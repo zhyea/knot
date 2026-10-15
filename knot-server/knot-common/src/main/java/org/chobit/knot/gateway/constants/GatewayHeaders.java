@@ -25,6 +25,11 @@ public final class GatewayHeaders {
      * 真正调用上游的那个模型。异常路径不设置，头缺失即本次没有成功调用任何上游模型。
      */
     public static final String X_KNOT_MODEL = "X-Knot-Model";
+    /**
+     * 网关管理面共享令牌：访问 {@code /_admin/*} 端点时携带，与配置的令牌比对。
+     * 未配置令牌时仅放行 loopback 来源（见 {@code OutageAdminController}）。
+     */
+    public static final String X_KNOT_ADMIN_TOKEN = "X-Knot-Admin-Token";
     public static final String X_API_KEY = "x-api-key";
     public static final String ANTHROPIC_VERSION = "anthropic-version";
 

@@ -19,6 +19,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.util.Map;
+import java.util.function.LongConsumer;
 
 /**
  * Handles the incoming request flow. Executes the public operation.
@@ -91,9 +92,10 @@ public abstract class AbstractGatewayRequestTemplate {
             exchange.proxyResult(result);
             Object response = applyUsageAccounting(context, exchange);
             // 首 token 响应时间：非流式在此写头（响应体就绪即产出就绪，等价首 token）；
-            // 流式返回 StreamingResponseBody，由响应体在上游首行写出前自行写头
+            // 流式返回 StreamingResponseBody，由响应体在上游首行写出前自行写头。
+            // 观察者由子类按需提供（如慢信号摘除），两个出口共用同一钩子
             if (response != null && !(response instanceof StreamingResponseBody)) {
-                FirstTokenHeaderWriter.of(context).mark();
+                FirstTokenHeaderWriter.of(context, firstTokenObserver(context)).mark();
             }
             dispatchGatewayPlugin(context, exchange, PluginStageCode.GATEWAY_RESPONSE, response, null);
             return response;
@@ -109,6 +111,18 @@ public abstract class AbstractGatewayRequestTemplate {
     protected abstract ProxyResult proxy(GatewayRequestContext context, GatewayExchange exchange);
 
     protected abstract Object applyUsageAccounting(GatewayRequestContext context, GatewayExchange exchange);
+
+    /**
+     * 首 token 观察者钩子：把「首个可观测产出的耗时（毫秒）」暴露给子类的派生能力
+     * （如异常摘除的慢信号计数）。默认无观察者；返回非 null 时，
+     * {@link FirstTokenHeaderWriter#mark()} 首次触发即以耗时回调一次（先于写头）。
+     *
+     * <p>流式与非流式两个出口共用本钩子：流式由 {@code applyUsageAccounting} 构造
+     * 写头器时取用，非流式由模板在响应体就绪时取用。</p>
+     */
+    protected LongConsumer firstTokenObserver(GatewayRequestContext context) {
+        return null;
+    }
 
     /**
      * Validates header values after Spring MVC has checked required header presence.

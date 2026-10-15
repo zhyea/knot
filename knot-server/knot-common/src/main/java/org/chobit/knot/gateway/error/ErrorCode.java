@@ -5,7 +5,8 @@ public enum ErrorCode {
     VALIDATION_ERROR("GW-SYSTEM-400", "validation failed"),
     CONFLICT("GW-SYSTEM-409", "resource conflict"),
     UNAUTHORIZED("GW-SYSTEM-401", "unauthorized"),
-    FORBIDDEN("GW-SYSTEM-403", "forbidden");
+    FORBIDDEN("GW-SYSTEM-403", "forbidden"),
+    GATEWAY_UNAVAILABLE("GW-SYSTEM-503", "gateway unavailable");
 
     private final String code;
     private final String message;
