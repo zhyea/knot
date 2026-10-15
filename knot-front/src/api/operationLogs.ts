@@ -1,4 +1,4 @@
-import {postQuery, get} from "./http";
+import {postQuery} from "./http";
 import type {Dict, Row} from "@/types";
 
 /**

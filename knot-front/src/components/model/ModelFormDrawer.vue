@@ -313,7 +313,6 @@
 <script setup lang="ts">
 import {EnabledStatus} from "@/constants/status";
 import {type PropType, computed, reactive, ref, watch} from "vue";
-import type {Ref} from "vue";
 import {useRouter} from "vue-router";
 import {ElMessage} from "element-plus";
 import {QuestionFilled, RefreshRight} from "@element-plus/icons-vue";
@@ -340,7 +339,7 @@ import {
 } from "@/api/models";
 import {listBillingRules} from "@/api/billing";
 import {listBillingRuleOptions, listLogicalModelOptions} from "@/api/options";
-import {normalizeOptionList, resolveSelectedOption, toOptionsLoader} from "@/utils/options";
+import {normalizeOptionList, toOptionsLoader} from "@/utils/options";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 
 /** 模型 API 绑定行（表单内 uid 用于 :key 稳定渲染） */

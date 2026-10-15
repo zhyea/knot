@@ -144,7 +144,10 @@ public class ResourceTrafficPolicySupport {
         // 每层只落自己那一类策略：模型 / 路由规则只存限流，应用 / 供应商 / 消费者只存额度，
         // 传错方向的策略在这里被丢掉，避免绑定表里出现永不被判定的脏数据
         RateLimitPolicy effectiveRateLimit = supportsRateLimit(resourceType) ? rateLimit : null;
-        List<QuotaPolicy> effectiveQuotas = supportsQuota(resourceType) && quotas != null ? quotas : List.of();
+        // 与限流对称：整张空卡片（maxTokens<=0 且无成本上限）不落库，避免子表堆积"什么都不限"的脏策略
+        List<QuotaPolicy> effectiveQuotas = supportsQuota(resourceType) && quotas != null
+                ? quotas.stream().filter(q -> !isEmptyQuota(q)).toList()
+                : List.of();
 
         ResourceTrafficPolicyEntity binding = bindingMapper.getByResource(resourceType, resourceId);
         String rateCode = binding != null ? binding.getRateLimitPolicyCode() : null;

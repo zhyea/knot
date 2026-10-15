@@ -589,11 +589,6 @@ onMounted(() => {
   padding: 0;
 }
 
-.refresh-pill__label {
-  font-size: 12px;
-  color: #909399;
-}
-
 .refresh-pill__value {
   font-size: 14px;
   color: #303133;

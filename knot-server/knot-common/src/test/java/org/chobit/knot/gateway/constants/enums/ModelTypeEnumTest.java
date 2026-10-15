@@ -17,8 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ModelTypeEnumTest {
 
     @Test
-    void containsThirteenTypesWithCodeAndDisplayName() {
-        assertEquals(13, ModelTypeEnum.values().length);
+    void containsFourteenTypesWithCodeAndDisplayName() {
+        assertEquals(14, ModelTypeEnum.values().length);
 
         assertEquals("对话", ModelTypeEnum.CHAT.displayName());
         assertEquals("文本", ModelTypeEnum.TEXT.displayName());
@@ -33,6 +33,7 @@ class ModelTypeEnumTest {
         assertEquals("OCR", ModelTypeEnum.OCR.displayName());
         assertEquals("安全审核", ModelTypeEnum.MODERATION.displayName());
         assertEquals("工具辅助", ModelTypeEnum.UTILITY.displayName());
+        assertEquals("决策", ModelTypeEnum.DECISION.displayName());
 
         for (ModelTypeEnum type : ModelTypeEnum.values()) {
             assertFalse(type.code().isBlank());
@@ -45,7 +46,7 @@ class ModelTypeEnumTest {
     void sortedReturnsAllTypesBySortOrder() {
         List<ModelTypeEnum> sorted = ModelTypeEnum.sorted();
 
-        assertEquals(13, sorted.size());
+        assertEquals(14, sorted.size());
         assertEquals(List.of(
                 ModelTypeEnum.CHAT,
                 ModelTypeEnum.TEXT,
@@ -59,7 +60,8 @@ class ModelTypeEnumTest {
                 ModelTypeEnum.DOCUMENT,
                 ModelTypeEnum.OCR,
                 ModelTypeEnum.MODERATION,
-                ModelTypeEnum.UTILITY
+                ModelTypeEnum.UTILITY,
+                ModelTypeEnum.DECISION
         ), sorted);
         for (int i = 0; i < sorted.size(); i++) {
             assertEquals(i + 1, sorted.get(i).sortOrder());
@@ -110,6 +112,7 @@ class ModelTypeEnumTest {
         assertEquals(List.of("VIDEO_GENERATIONS", "CUSTOM"), ModelTypeEnum.VIDEO.supportedProtocolCodes());
         assertEquals(List.of("MODERATIONS", "CUSTOM"), ModelTypeEnum.MODERATION.supportedProtocolCodes());
         assertEquals(List.of("RERANK", "MODERATIONS", "CUSTOM"), ModelTypeEnum.UTILITY.supportedProtocolCodes());
+        assertEquals(List.of("DECISIONS", "CUSTOM"), ModelTypeEnum.DECISION.supportedProtocolCodes());
         assertEquals(
                 List.of("CHAT_COMPLETIONS", "RESPONSES", "MESSAGES", "CUSTOM"),
                 ModelTypeEnum.DOCUMENT.supportedProtocolCodes()
@@ -118,6 +121,10 @@ class ModelTypeEnumTest {
 
         assertFalse(ModelTypeEnum.EMBEDDING.supportsProtocol("CHAT_COMPLETIONS"));
         assertFalse(ModelTypeEnum.RERANK.supportsProtocol("MODERATIONS"));
+        // DECISIONS 是独立能力类型，不与工具辅助类型（rerank/moderations）互通
+        assertTrue(ModelTypeEnum.DECISION.supportsProtocol("DECISIONS"));
+        assertFalse(ModelTypeEnum.UTILITY.supportsProtocol("DECISIONS"));
+        assertFalse(ModelTypeEnum.DECISION.supportsProtocol("RERANK"));
         assertFalse(ModelTypeEnum.IMAGE.supportsProtocol("VIDEO_GENERATIONS"));
     }
 
@@ -171,6 +178,10 @@ class ModelTypeEnumTest {
         assertEquals(
                 Set.of(ModelApiProtocolEnum.RERANK, ModelApiProtocolEnum.MODERATIONS),
                 ModelTypeEnum.UTILITY.canonicalProtocols()
+        );
+        assertEquals(
+                Set.of(ModelApiProtocolEnum.DECISIONS),
+                ModelTypeEnum.DECISION.canonicalProtocols()
         );
     }
 

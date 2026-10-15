@@ -58,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import {UNIT_PRICE_PRECISION, UNIT_PRICE_STEP} from "@/utils/billingPrice";
+import {UNIT_PRICE_STEP} from "@/utils/billingPrice";
 
 defineProps({
   form: {type: Object, required: true}

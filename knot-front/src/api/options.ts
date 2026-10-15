@@ -2,7 +2,6 @@ import {postQuery} from "./http";
 import type {
   Dict,
   OptionItem,
-  OptionMeta,
   ProviderAccountMeta,
   LogicalModelMeta,
   ModelMeta,
@@ -10,8 +9,7 @@ import type {
   DepartmentOptionMeta,
   AppOptionMeta,
   RoutingConsumerOptionMeta,
-  RoleOptionMeta,
-  TestRequestPresetOptionMeta
+  RoleOptionMeta
 } from "@/types";
 
 /**
@@ -26,7 +24,6 @@ import type {
  */
 export type {
   OptionItem,
-  OptionMeta,
   ProviderAccountMeta,
   LogicalModelMeta,
   ModelMeta,
@@ -34,8 +31,7 @@ export type {
   DepartmentOptionMeta,
   AppOptionMeta,
   RoutingConsumerOptionMeta,
-  RoleOptionMeta,
-  TestRequestPresetOptionMeta
+  RoleOptionMeta
 } from "@/types";
 
 /** 下拉候选分页（与后端 OptionPage 对齐）。missingValues = 已选但不存在/无权限。 */

@@ -91,10 +91,6 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateModelPoolStatus
 });
 
-function modelTypeLabel(code: string) {
-  return labelOf("ModelTypeEnum", code, code || "-");
-}
-
 function strategyLabel(code: string) {
   return labelOf("ModelPoolSelectionStrategyEnum", code, code || "-");
 }

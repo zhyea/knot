@@ -15,9 +15,9 @@ class ModelServiceTest {
     void listModelTypesReturnsEveryTypeOrderedBySortOrder() {
         List<ModelTypeItem> items = modelService().listModelTypes();
 
-        assertEquals(13, items.size());
+        assertEquals(14, items.size());
         assertEquals(List.of("CHAT", "TEXT", "REASONING", "MULTIMODAL", "EMBEDDING", "RERANK",
-                "IMAGE", "AUDIO", "VIDEO", "DOCUMENT", "OCR", "MODERATION", "UTILITY"),
+                "IMAGE", "AUDIO", "VIDEO", "DOCUMENT", "OCR", "MODERATION", "UTILITY", "DECISION"),
                 items.stream().map(ModelTypeItem::code).toList());
         for (int i = 0; i < items.size(); i++) {
             assertEquals(i + 1, items.get(i).sortOrder());
@@ -41,6 +41,13 @@ class ModelServiceTest {
                 .orElseThrow();
         assertTrue(multimodal.supportedProtocols().contains("CHAT_COMPLETIONS"));
         assertTrue(multimodal.supportedProtocols().contains("VIDEO_GENERATIONS"));
+
+        // DECISIONS 协议经模型类型暴露给前端协议下拉，是新类型能被绑定的前提
+        ModelTypeItem decision = items.stream()
+                .filter(item -> "DECISION".equals(item.code()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(List.of("DECISIONS", "CUSTOM"), decision.supportedProtocols());
 
         items.forEach(item -> {
             assertTrue(item.supportedProtocols().contains("CUSTOM"), item.code());

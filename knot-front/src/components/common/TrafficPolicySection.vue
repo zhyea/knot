@@ -26,7 +26,7 @@
 
     <!-- 限额：应用 / 供应商账户 / 消费者层（多窗口卡列表） -->
     <template v-else>
-      <div v-for="(quota, index) in quotaList" :key="index" class="quota-card">
+      <div v-for="(_, index) in quotaList" :key="index" class="quota-card">
         <div class="quota-card__head">
           <span class="quota-card__title">窗口 {{ index + 1 }}</span>
           <el-button text type="danger" :icon="Delete" @click="removeQuota(index)">删除</el-button>

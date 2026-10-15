@@ -53,6 +53,7 @@
               <RemoteEntitySelect
                 v-model="form.logicalModelCode"
                 :load-function="loadLogicalModelOptions"
+                :selected-options="selectedLogicalModelOptions"
                 placeholder="请选择统一模型"
                 style="width: 100%"
                 @change="onLogicalModelChange"

@@ -306,7 +306,7 @@
 </template>
 
 <script setup lang="ts">
-import {type PropType, computed, reactive, ref, watch, type Ref} from "vue";
+import {type PropType, computed, reactive, ref, watch} from "vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {ElMessage} from "element-plus";
 import {Delete, Refresh} from "@element-plus/icons-vue";
@@ -460,7 +460,7 @@ const selectedTargetCodes = computed({
 const boundTargetRows = computed(() =>
   form.targets.map((item) => {
     const source = findTargetOption(item.targetType, item.targetCode);
-    item.targetCode = item.targetCode || targetOptionCode(item.targetType, source);
+    item.targetCode = item.targetCode || targetOptionCode(source);
     item.targetName = targetOptionName(source) || item.targetName;
     return item;
   })
@@ -491,7 +491,7 @@ function findTargetOption(type: string, code: unknown): Row | undefined {
   return options.find((item) => String(item.value) === String(code));
 }
 
-function targetOptionCode(type: string, option: Row | null | undefined): string {
+function targetOptionCode(option: Row | null | undefined): string {
   if (!option) return "";
   return String(option.value ?? "");
 }

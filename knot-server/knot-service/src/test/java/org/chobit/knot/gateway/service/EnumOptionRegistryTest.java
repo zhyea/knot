@@ -142,11 +142,12 @@ class EnumOptionRegistryTest {
     }
 
     @Test
-    void modelTypeEnumMatchesThirteenModelTypes() {
+    void modelTypeEnumMatchesFourteenModelTypes() {
         List<EnumOptionItem> options = optionsOf("ModelTypeEnum");
 
-        assertEquals(13, options.size());
+        assertEquals(14, options.size());
         assertLabel("ModelTypeEnum", "CHAT", "对话");
+        assertLabel("ModelTypeEnum", "DECISION", "决策");
         assertLabel("ModelTypeEnum", "UTILITY", "工具辅助");
     }
 

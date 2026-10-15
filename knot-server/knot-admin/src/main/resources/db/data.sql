@@ -745,7 +745,10 @@ INSERT IGNORE INTO kb_test_request_presets (
   '适用于文档重排接口。', 1),
 ('builtin-moderations-basic', '内容审核（Moderations）', 'MODERATIONS',
   '{"model":"model-name","input":"这是一段用于内容安全审核的示例文本。"}',
-  '适用于内容审核接口。', 1);
+  '适用于内容审核接口。', 1),
+('builtin-decisions-basic', '决策判定（Decisions）', 'DECISIONS',
+  '{"model":"model-name","state":{"customer_tier":"enterprise","ticket":"点击支付后结算页空白，换了两个浏览器都一样。"},"questions":{"is_bug":{"type":"noul","instructions":"客户是否在报告软件缺陷？","criteria":{"true":"客户描述了损坏或异常的产品行为。","false":"客户在提问或请求新功能。"}},"team":{"type":"choice","instructions":"这个工单应该由哪个团队负责？","criteria":{"account":"登录、权限或资料相关问题。","payments":"结算、账单或支付处理问题。"}},"urgency":{"type":"score","instructions":"这个工单有多紧急？","criteria":["可以等到下一个版本","本周内应修复","正在阻塞营收"]}}}',
+  '适用于 AlphaDecisions 决策接口（如 typesafe/jev）：入参为待评估 state 与 questions，出参为 answers 映射。questions 支持 noul（判定）/choice（单选）/score（有序评分）三类。', 1);
 
 -- =========================
 -- 计费规则

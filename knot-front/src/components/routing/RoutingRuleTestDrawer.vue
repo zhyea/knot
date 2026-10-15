@@ -414,7 +414,6 @@ const availableProtocols = computed(() => {
   return protocols.map((code: string) => ({code, label: protocolLabel(code)}));
 });
 const activeProtocol = computed(() => normalizeProtocolCode(testForm.protocol));
-const activeProtocolLabel = computed(() => protocolLabel(activeProtocol.value));
 const activeTemplateKey = computed(() => `${testForm.targetKey || "default"}::${activeProtocol.value || "default"}`);
 const filteredPresetOptions = computed(() => {
   const protocol = activeProtocol.value;
@@ -1324,13 +1323,6 @@ onBeforeUnmount(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.request-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 10px;
 }
 
 .test-form {

@@ -16,7 +16,8 @@ public class UtilityProtocolExecutor extends AbstractUpstreamProtocolExecutor {
 
     private static final Set<ModelApiProtocolEnum> PROTOCOLS = EnumSet.of(
             ModelApiProtocolEnum.RERANK,
-            ModelApiProtocolEnum.MODERATIONS
+            ModelApiProtocolEnum.MODERATIONS,
+            ModelApiProtocolEnum.DECISIONS
     );
 
     /**

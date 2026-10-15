@@ -17,7 +17,6 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.moderation.ModerationTerm;
 import org.chobit.knot.gateway.util.TextNormalizer;
 import org.chobit.knot.gateway.util.JsonKit;
-import org.chobit.knot.gateway.vo.moderation.ModerationWordItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

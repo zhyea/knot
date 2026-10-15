@@ -57,7 +57,6 @@ import type {Dict, Row} from "@/types";
 import {ref} from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
-import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import {useListQuery} from "@/composables/useListQuery";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
@@ -65,8 +64,7 @@ import RoutingRuleListPanel from "../../components/routing/RoutingRuleListPanel.
 import RoutingRuleFormDrawer from "../../components/routing/RoutingRuleFormDrawer.vue";
 import RoutingRuleTestDrawer from "../../components/routing/RoutingRuleTestDrawer.vue";
 import {listRoutingRuleOperationLogs} from "@/api/operationLogs";
-import {listRoutingConsumers, listRoutingRules, getRoutingConsumer} from "@/api/routing";
-import {normalizeOptionList} from "@/utils/options";
+import {listRoutingRules, getRoutingConsumer} from "@/api/routing";
 
 const {
   query,

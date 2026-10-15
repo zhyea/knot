@@ -21,6 +21,7 @@ public enum ModelApiProtocolEnum implements EnumOption {
     VIDEO_GENERATIONS("VIDEO_GENERATIONS", "Video Generations", "/v1/videos/generations", false),
     RERANK("RERANK", "Rerank", "/v1/rerank", false),
     MODERATIONS("MODERATIONS", "Moderations", "/v1/moderations", false),
+    DECISIONS("DECISIONS", "Decisions", "/v1/decisions", false),
     CUSTOM("CUSTOM", "自定义", null, false);
 
     private final String code;

@@ -8,7 +8,6 @@ import org.chobit.knot.gateway.dto.model.ExternalModelItemQuery;
 import org.chobit.knot.gateway.dto.model.ExternalModelSyncResult;
 import org.chobit.knot.gateway.dto.model.LogicalModelDto;
 import org.chobit.knot.gateway.constants.enums.LogicalModelPublishStatusEnum;
-import org.chobit.knot.gateway.constants.enums.LogicalModelVisibilityEnum;
 import org.chobit.knot.gateway.entity.ExternalModelItemEntity;
 import org.chobit.knot.gateway.entity.ExternalModelSourceEntity;
 import org.chobit.knot.gateway.error.BusinessException;

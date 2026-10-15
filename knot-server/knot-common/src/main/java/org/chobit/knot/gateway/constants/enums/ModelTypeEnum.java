@@ -85,7 +85,10 @@ public enum ModelTypeEnum implements EnumOption {
 
     UTILITY("UTILITY", "工具辅助", 13,
             ModelApiProtocolEnum.RERANK,
-            ModelApiProtocolEnum.MODERATIONS);
+            ModelApiProtocolEnum.MODERATIONS),
+
+    DECISION("DECISION", "决策", 14,
+            ModelApiProtocolEnum.DECISIONS);
 
     private final String code;
     private final String displayName;

@@ -101,9 +101,9 @@
 <script setup lang="ts">
 import type {Dict, Row, RowAction} from "@/types";
 import type {ButtonType} from "element-plus";
-import {computed, onMounted, ref} from "vue";
+import {onMounted, ref} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";
-import {Delete, Document, Download, Edit, RefreshLeft} from "@element-plus/icons-vue";
+import {Delete, Document, Edit, RefreshLeft} from "@element-plus/icons-vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";

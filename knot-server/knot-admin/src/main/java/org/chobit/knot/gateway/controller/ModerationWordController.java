@@ -7,7 +7,6 @@ import org.chobit.knot.gateway.dto.moderation.ModerationWordDto;
 import org.chobit.knot.gateway.dto.moderation.ModerationWordImportItem;
 import org.chobit.knot.gateway.dto.moderation.ModerationWordImportResult;
 import org.chobit.knot.gateway.model.PageQuery;
-import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.ModerationWordService;
 import org.chobit.knot.gateway.vo.common.CodeAvailability;
