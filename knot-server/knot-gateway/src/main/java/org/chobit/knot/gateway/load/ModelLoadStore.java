@@ -8,7 +8,7 @@ package org.chobit.knot.gateway.load;
  * 语义不同故不复用同一抽象，也不共用键空间。</p>
  *
  * <p>已提供两种实现：单节点走 {@code CaffeineModelLoadStore}，多节点走
- * {@code RedisModelLoadStore}，由 {@code knot.cache.load.store} 选择。多节点下 caffeine 只能看到
+ * {@code RedisModelLoadStore}，由 {@code knot.load.store} 选择。多节点下 caffeine 只能看到
  * 本节点在途，是<b>近似口径</b>；要真正的全局口径必须切 redis。</p>
  *
  * <p><b>故障口径：redis 档一律 fail-hard</b>（抛 {@code RedisUnavailableException} → 网关 503）。

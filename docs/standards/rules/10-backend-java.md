@@ -122,3 +122,16 @@ model       → 领域值对象（非表映射）
 
 - ⚠⚠ **JDK 25 + Mockito inline 不能 mock 任何具体类**（Byte Buddy 无法 instrument 类层级）。测试替身用**子类覆写**（先例 `CountingSnapshotCache`）；mock 接口不受影响。
 - 先写复现测试再改代码；改完反向验证。
+
+## 8. Lombok 应用规范（2026-10-15 立规，robin 拍板）
+
+**可用 Lombok 消除的样板**：
+
+- **数据载体（entity / dto / vo / `*Properties` 配置类）**：用 `@Getter` / `@Setter` / `@Data` / `@EqualsAndHashCode` / `@ToString`。`@ConfigurationProperties` 类用 `@Getter @Setter`（**不**用 `@Data`，避免无谓的 `equals/hashCode/toString`）。
+- **日志**：一律 `@Slf4j`（Lombok `lombok.extern.slf4j.Slf4j`），**不要**手写 `private static final Logger log = LoggerFactory.getLogger(Xxx.class);`。生成的字段名即 `log`，引用不变。
+- **全参构造器**：纯赋值构造器（构造体只有 `this.x = x;`）可用 `@AllArgsConstructor` / `@RequiredArgsConstructor` 取代。
+
+**其他约束**：
+
+- Lombok 注解写在类声明上方；删除手写样板后，**清理不再使用的 `import`**（`org.slf4j.Logger` / `org.slf4j.LoggerFactory` 等），import 顺序保持 `package` 之后首组。
+- 改动后跑门禁：`mvn -f knot-server/pom.xml test`（后端）+ `cd knot-front && npx vue-tsc --noEmit && npx vite build`（前端），确认零回归。

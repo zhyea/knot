@@ -39,41 +39,40 @@ knot:
   # 必须与 knot-admin 保持一致：凭证密文由该口令派生密钥加解密
   credential:
     encryption-key: ${KNOT_CREDENTIAL_ENCRYPTION_KEY:knot-dev-credential-encryption-key}
-  # ── 共享状态存储（2026-10-15）─────────────────────────────────────────────
-  # 两个需要跨节点共享的运行时存储（频控计数 / 在途负载）共用 Redis 门面 RedisCache，
-  # 配置收敛到 knot.cache.*；旧键（knot.traffic.store / knot.load.store）仍被读取并打 WARN，
-  # 归一逻辑见 RedisStoreModeResolver。
+  # ── 运行时存储选型（2026-10-15）─────────────────────────────────────────
+  # traffic / load 两个需要跨节点共享的运行时存储（频控计数 / 在途负载）各自持有
+  # store 选型（默认 caffeine；多节点全局口径切 redis），共用 Redis 门面 RedisCache。
+  # 存储选型是业务域自己的属性，配置直接挂在域下，不设独立的 cache 中间层；
+  # 模式归一见 StoreModeResolver（怪值启动失败，不静默按单节点跑）。
   #
   # 故障口径：redis 档一律 fail-hard —— Redis 不可用时抛 RedisUnavailableException
   # → 网关 503 + ERROR 日志报警，不静默降级到本地缓存（那会造成限额外发等看不见的损失）。
-  cache:
-    traffic:
-      # caffeine（单节点，默认）/ redis（多节点全局，fail-hard）
-      store: ${KNOT_TRAFFIC_STORE:caffeine}
-      # 键前缀：多环境共用同一 Redis 时用于隔离
-      key-prefix: ${KNOT_TRAFFIC_KEY_PREFIX:knot:traffic}
-      # 日 / 月额度窗口换算所用时区，多节点必须配置成同一个值
-      zone: ${KNOT_TRAFFIC_ZONE:Asia/Shanghai}
-      # caffeine 存储的最大条目数
-      maximum-size: ${KNOT_TRAFFIC_MAXIMUM_SIZE:200000}
-    load:
-      store: ${KNOT_LOAD_STORE:caffeine}
-      key-prefix: ${KNOT_LOAD_KEY_PREFIX:knot:load}
-      # 在途计数存活时间（秒）
-      ttl-seconds: ${KNOT_LOAD_TTL_SECONDS:300}
-      maximum-size: ${KNOT_LOAD_MAXIMUM_SIZE:20000}
-    # 异常摘除：纯进程内 Caffeine，无 store 开关。摘除是本节点自己的异常观察，
-    # 不需要跨节点共享；放 Redis 反而让 Redis 故障同时打掉网关的自我保护能力。
-    outage:
-      key-prefix: ${KNOT_OUTAGE_KEY_PREFIX:knot:outage}
-      # 条目自然回收宽限（毫秒）：追加在最晚的窗口/摘除/探活到期时刻之后
-      expire-grace-ms: ${KNOT_OUTAGE_EXPIRE_GRACE_MS:60000}
-      maximum-size: ${KNOT_OUTAGE_MAXIMUM_SIZE:20000}
+  traffic:
+    # caffeine（单节点，默认）/ redis（多节点全局，fail-hard）
+    store: ${KNOT_TRAFFIC_STORE:caffeine}
+    # 键前缀：多环境共用同一 Redis 时用于隔离
+    key-prefix: ${KNOT_TRAFFIC_KEY_PREFIX:knot:traffic}
+    # 日 / 月额度窗口换算所用时区，多节点必须配置成同一个值
+    zone: ${KNOT_TRAFFIC_ZONE:Asia/Shanghai}
+    # caffeine 存储的最大条目数
+    maximum-size: ${KNOT_TRAFFIC_MAXIMUM_SIZE:200000}
+  load:
+    store: ${KNOT_LOAD_STORE:caffeine}
+    key-prefix: ${KNOT_LOAD_KEY_PREFIX:knot:load}
+    # 在途计数存活时间（秒）
+    ttl-seconds: ${KNOT_LOAD_TTL_SECONDS:300}
+    maximum-size: ${KNOT_LOAD_MAXIMUM_SIZE:20000}
   gateway:
      cors:
       # 管理端流式调试直连网关时使用；生产环境请通过配置覆盖
       allowed-origins: ${KNOT_GATEWAY_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
   outage:
+    # 异常摘除：纯进程内 Caffeine，无 store 开关。摘除是本节点自己的异常观察，
+    # 不需要跨节点共享；放 Redis 反而让 Redis 故障同时打掉网关的自我保护能力。
+    key-prefix: ${KNOT_OUTAGE_KEY_PREFIX:knot:outage}
+    # 条目自然回收宽限（毫秒）：追加在最晚的窗口/摘除/探活到期时刻之后
+    expire-grace-ms: ${KNOT_OUTAGE_EXPIRE_GRACE_MS:60000}
+    maximum-size: ${KNOT_OUTAGE_MAXIMUM_SIZE:20000}
     admin-api:
       # 管理面 API（/_admin/outages*）总开关；false 时端点整体 404
       enabled: ${KNOT_OUTAGE_ADMIN_API_ENABLED:true}

@@ -76,8 +76,8 @@
 
 - ⭐ **Redis 访问只能走门面 `RedisCache`**（`gateway/redis/`）：统一异常分类（`RedisUnavailableException`）+ ERROR 日志节流。禁止在存储实现里直接注入 `StringRedisTemplate`。
 - ⭐ **`RedisCache` 是实现细节、非对外 API**：门面**不提供任何 fail-open 入口**（无 `*Or` 方法）。业务层只依赖各域存储接口，`*StoreConfiguration` 按配置装配。改动时勿让业务层直接依赖门面。
-- ⭐ **存量 `fallback` 配置必须启动失败**：`CacheStoreModeResolver` 只认 `caffeine` / `redis`，配了 `fallback` 抛 `IllegalStateException`——宁可启动失败也不静默忽略。
-- 配置契约：统一在 `knot.cache.*`（`traffic.store` / `load.store`）；⚠ 各域 Properties 的 `store` 字段**必须保持 `null` 默认值**——null 才代表「未显式设置」，归一器据此回落旧键 `knot.<domain>.store` 并打 WARN。旧键仍兼容，不静默失效。
+- ⭐ **存量 `fallback` 配置必须启动失败**：`StoreModeResolver` 只认 `caffeine` / `redis`，配了 `fallback` 抛 `IllegalStateException`——宁可启动失败也不静默忽略。
+- 配置契约：**业务域直接持有**，`knot.traffic.store` / `knot.load.store`（无 `cache` 中间层——cache 只是工具，traffic/load/outage 才是业务，新域直接 `knot.<域>.store` 接入）；⚠ 各域 Properties 的 `store` 字段**必须保持 `null` 默认值**——null 才代表「未显式设置」，归一器据此回落 `caffeine`。无旧键兼容层（本项目不做历史包袱）。
 - 模式值无法识别 → **启动失败**，不静默按单节点跑。
-- 命名：后缀限白名单（**没有 `Adapter` 后缀**）——门面 `RedisCache`、常量 `CacheStoreModes`、归一器 `CacheStoreModeResolver`。
-- ⚠ `RedisCache` / `Redis*Store` **无自动化单测**（本机无 testcontainers），只能靠真启冒烟；配置归一与 fail-hard 契约**有**单测（`CacheStoreModeResolverTest` / `RedisCacheFailHardTest`）。
+- 命名：后缀限白名单（**没有 `Adapter` 后缀）——门面 `RedisCache`、模式枚举 `StoreMode`、归一器 `StoreModeResolver`（`gateway/store/`，各域共用的选型词表，不构成独立 cache 层）。
+- ⚠ `RedisCache` / `Redis*Store` **无自动化单测**（本机无 testcontainers），只能靠真启冒烟；配置归一与 fail-hard 契约**有**单测（`StoreModeResolverTest` / `RedisCacheFailHardTest`）。

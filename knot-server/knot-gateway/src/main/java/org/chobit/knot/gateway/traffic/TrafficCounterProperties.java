@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.time.ZoneId;
 
 /**
- * 频控 / 额度计数配置（{@code knot.cache.traffic.*}）。
+ * 频控 / 额度计数配置（{@code knot.traffic.*}）。
  *
  * <p>{@code store} 决定用哪种存储实现：单节点 {@code caffeine}（默认），
  * 多节点 {@code redis}（全局口径）。两种实现共用同一套键与判定逻辑，切换只改这一项配置。</p>
@@ -18,14 +18,14 @@ import java.time.ZoneId;
  */
 @Getter
 @Setter
-@ConfigurationProperties(prefix = "knot.cache.traffic")
+@ConfigurationProperties(prefix = "knot.traffic")
 public class TrafficCounterProperties {
 
     /**
      * 计数存储实现：{@code caffeine}（单节点，默认）/ {@code redis}（多节点全局）。
      *
      * <p>⚠ <b>必须保持 {@code null} 默认值</b>：null 表示「未显式设置」，
-     * 归一时才回落旧键 {@code knot.traffic.store}；给了默认值就分不清显式配置与未配置。</p>
+     * 归一时回落 {@code caffeine}；给了默认值就分不清显式配置与未配置。</p>
      */
     private String store;
 

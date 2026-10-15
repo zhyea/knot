@@ -2,17 +2,17 @@ package org.chobit.knot.gateway.load;
 
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.redis.RedisCache;
-import org.chobit.knot.gateway.redis.CacheStoreModeResolver;
-import org.chobit.knot.gateway.redis.CacheStoreModes;
+import org.chobit.knot.gateway.store.StoreMode;
+import org.chobit.knot.gateway.store.StoreModeResolver;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * 在途计量存储装配：模式由 {@code knot.cache.load.store} 决定（默认 {@code caffeine}），
+ * 在途计量存储装配：模式由 {@code knot.load.store} 决定（默认 {@code caffeine}），
  * 两种模式共用同一个 {@link ModelLoadStore} 抽象，同一时刻只注册一个实现。
  *
- * <p>模式值统一由 {@link CacheStoreModeResolver} 归一（含旧键兼容），与频控同一套读法。</p>
+ * <p>模式值统一由 {@link StoreModeResolver} 归一，与频控同一套读法。</p>
  *
  * <p><b>故障口径：Redis 档fail-hard。</b>在途数是 {@code LEAST_LOAD} 选路的唯一数据源，
  * 静默按 0 处理会让所有模型被看成「不拥塞」，负载均衡退化成权重序——已过载的模型继续被加压。
@@ -41,19 +41,19 @@ public class ModelLoadStoreConfiguration {
      */
     @Bean
     public ModelLoadStore modelLoadStore(ModelLoadProperties properties,
-                                          RedisCache cache,
-                                          CacheStoreModeResolver modes) {
-        String mode = modes.modeOf(DOMAIN, properties.getStore());
+                                         RedisCache cache,
+                                         StoreModeResolver modes) {
+        StoreMode mode = modes.modeOf(DOMAIN, properties.getStore());
         switch (mode) {
-            case CacheStoreModes.CAFFEINE -> {
+            case CAFFEINE -> {
                 log.info("Model load store: caffeine (maximumSize={}, ttlSeconds={}); "
-                                + "cluster deployment should switch to 'redis' for a global view",
-                        properties.getMaximumSize(), properties.getTtlSeconds());
+                        + "cluster deployment should switch to 'redis' for a global view",
+                    properties.getMaximumSize(), properties.getTtlSeconds());
                 return new CaffeineModelLoadStore(properties.getMaximumSize(), properties.getTtlSeconds());
             }
-            case CacheStoreModes.REDIS -> {
+            case REDIS -> {
                 log.info("Model load store: redis (keyPrefix={}, ttlSeconds={}, failHard=true)",
-                        properties.getKeyPrefix(), properties.getTtlSeconds());
+                    properties.getKeyPrefix(), properties.getTtlSeconds());
                 return new RedisModelLoadStore(cache, properties.getTtlSeconds());
             }
             default -> throw new IllegalStateException("Unhandled load store mode: " + mode);

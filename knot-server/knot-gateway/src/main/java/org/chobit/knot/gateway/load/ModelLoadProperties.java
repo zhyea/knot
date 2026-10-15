@@ -4,7 +4,7 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 最空闲选模所需的在途并发计量配置（{@code knot.cache.load.*}）。
+ * 最空闲选模所需的在途并发计量配置（{@code knot.load.*}）。
  *
  * <p>{@code store} 决定用哪种存储实现：单节点 {@code caffeine}（默认，节点内近似），
  * 多节点 {@code redis}（全局口径）。两种实现共用同一套键，切换只改这一项配置。</p>
@@ -15,14 +15,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * Redis 不可用时抛异常 → 网关 503 + ERROR 报警。</p>
  */
 @Data
-@ConfigurationProperties(prefix = "knot.cache.load")
+@ConfigurationProperties(prefix = "knot.load")
 public class ModelLoadProperties {
 
     /**
      * 计量存储实现：{@code caffeine}（单节点，默认）/ {@code redis}（多节点全局）。
      *
      * <p>⚠ <b>必须保持 {@code null} 默认值</b>：null 表示「未显式设置」，
-     * 归一时才回落旧键 {@code knot.load.store}；给了默认值就分不清显式配置与未配置。</p>
+     * 归一时回落 {@code caffeine}；给了默认值就分不清显式配置与未配置。</p>
      * -- GETTER --
      * Returns the requested value.
      * -- SETTER --
