@@ -31,7 +31,9 @@ import java.util.List;
  * 自带保护——配置了令牌时校验请求头 {@code X-Knot-Admin-Token}；未配置时仅放行 loopback。
  * {@code knot.outage.admin-api.enabled=false} 时整体不注册（404）。</p>
  *
- * <p>多节点口径：redis / fallback 档下列表是全局视图；caffeine 档只反映被轮询到的实例。</p>
+ * <p><b>多节点口径</b>：摘除状态一律存进程内 Caffeine，因此本控制器的列表
+ * <b>只反映被轮询到的那个实例</b>——各节点各摘各的。这是 2026-10-15 的有意取舍：
+ * 摘除是本节点自己的异常观察，放 Redis 会让 Redis 故障同时打掉网关的自我保护能力。</p>
  */
 @Slf4j
 @RestController

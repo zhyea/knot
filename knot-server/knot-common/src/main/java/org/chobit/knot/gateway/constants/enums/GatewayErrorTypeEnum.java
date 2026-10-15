@@ -6,6 +6,12 @@ public enum GatewayErrorTypeEnum {
     RATE_LIMIT_ERROR("rate_limit_error"),
     QUOTA_ERROR("quota_error"),
     MODERATION_ERROR("moderation_error"),
+    /**
+     * 网关自身依赖不可用（当前只有共享状态存储 Redis）。与 {@link #UPSTREAM_ERROR} 分开：
+     * 上游不可用是「模型服务的问题」，本项是「网关自己的存储挂了」，
+     * 两者处置完全不同（一个可重试/换节点，一个必须先修 Redis），日志告警也需分别配规则。
+     */
+    STORAGE_UNAVAILABLE("storage_unavailable"),
     UPSTREAM_ERROR("upstream_error");
 
     private final String code;

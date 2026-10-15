@@ -69,6 +69,14 @@ class CaffeineTargetOutageStoreTest {
     }
 
     @Test
+    @DisplayName("普通成功保留慢计数（只清失败计数）")
+    void plainSuccessKeepsSlowCounters() {
+        store.recordAnomaly(KEY, POLICY, AnomalyKind.SLOW, NOW);
+        store.recordSuccess(KEY, false, NOW + 1);
+        assertEquals(1, store.state(KEY, NOW + 1).slows());
+    }
+
+    @Test
     @DisplayName("普通成功清零窗口计数")
     void plainSuccessClearsCounters() {
         fail(2, NOW);

@@ -1,7 +1,6 @@
 package org.chobit.knot.gateway.load;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.chobit.knot.gateway.redis.RedisCache;
 import org.springframework.data.redis.core.script.RedisScript;
 
 import java.util.List;
@@ -15,10 +14,15 @@ import java.util.concurrent.TimeUnit;
  * 且 {@code INCRBY} 与 {@code PEXPIRE} 必须在同一脚本里——拆成两条命令时进程在中间崩掉会留下
  * 永不过期的键。</p>
  *
- * <p>启用方式：{@code knot.load.store=redis}（并配好 {@code spring.data.redis.*}）。</p>
+ * <p>所有 Redis 访问经统一门面 {@link RedisCache}，本类只剩「脚本 + 在途语义」。</p>
+ *
+ * <p><b>故障口径：fail-hard。</b>Redis 不可用时抛 {@code RedisUnavailableException}
+ * → 网关 503。在途数是 {@code LEAST_LOAD} 选路的唯一数据源，静默按 0 处理会让所有模型
+ * 被看成「不拥塞」，负载均衡退化成权重序，已过载的模型继续被加压。</p>
  */
-@Slf4j
 public class RedisModelLoadStore implements ModelLoadStore {
+
+    private static final String DOMAIN = "load";
 
     /**
      * 在途 +1 并刷新存活时间。
@@ -44,21 +48,18 @@ public class RedisModelLoadStore implements ModelLoadStore {
             return current
             """, Long.class);
 
-    private final StringRedisTemplate redis;
+    private final RedisCache cache;
     private final long ttlMillis;
-    private final boolean failOpen;
 
     /**
      * Constructs a new instance.
      *
-     * @param redis      字符串模板（键与值都是计数，不需要序列化器）
+     * @param cache      统一 Redis 门面（内部统一 fail-hard 与 ERROR 日志）
      * @param ttlSeconds 在途计数存活时间（秒）
-     * @param failOpen   Redis 不可用时是否放行：{@code true} 记日志后按「在途为 0」处理
      */
-    public RedisModelLoadStore(StringRedisTemplate redis, long ttlSeconds, boolean failOpen) {
-        this.redis = redis;
+    public RedisModelLoadStore(RedisCache cache, long ttlSeconds) {
+        this.cache = cache;
         this.ttlMillis = TimeUnit.SECONDS.toMillis(ttlSeconds > 0L ? ttlSeconds : 300L);
-        this.failOpen = failOpen;
     }
 
     @Override
@@ -68,46 +69,30 @@ public class RedisModelLoadStore implements ModelLoadStore {
 
     @Override
     public long enter(String key) {
-        return execute(ENTER, key, Long.toString(ttlMillis));
+        Long result = cache.eval(DOMAIN, "enter", ENTER, List.of(key), Long.toString(ttlMillis));
+        // Lua 正常返回不会是 null；为 null 说明脚本行为异常，按 0 兜底并显式暴露问题
+        return result == null ? 0L : result;
     }
 
     @Override
     public long leave(String key) {
-        return execute(LEAVE, key);
+        Long result = cache.eval(DOMAIN, "leave", LEAVE, List.of(key));
+        return result == null ? 0L : result;
     }
 
     @Override
     public long inflight(String key) {
-        try {
-            String value = redis.opsForValue().get(key);
-            if (value == null) {
-                return 0L;
-            }
-            long parsed = Long.parseLong(value);
-            return parsed < 0L ? 0L : parsed;
-        } catch (RuntimeException ex) {
-            return onFailure(key, ex);
-        }
-    }
-
-    private long execute(RedisScript<Long> script, String key, String... args) {
-        try {
-            Long result = redis.execute(script, List.of(key), args);
-            return result == null ? 0L : result;
-        } catch (RuntimeException ex) {
-            return onFailure(key, ex);
-        }
-    }
-
-    /**
-     * Redis 故障时的处置：默认 fail-open（返回 {@code 0}，即「不拥塞」），
-     * 避免缓存层故障直接打挂网关选路。
-     */
-    private long onFailure(String key, RuntimeException ex) {
-        if (failOpen) {
-            log.warn("Model load store unavailable, fail-open for key={}: {}", key, ex.getMessage());
+        String value = cache.value(DOMAIN, "inflight", key);
+        if (value == null) {
             return 0L;
         }
-        throw ex;
+        long parsed;
+        try {
+            parsed = Long.parseLong(value.trim());
+        } catch (NumberFormatException ex) {
+            // 脏数据不是 Redis 故障：按「不拥塞」处理，不触发存储故障告警
+            return 0L;
+        }
+        return parsed < 0L ? 0L : parsed;
     }
 }

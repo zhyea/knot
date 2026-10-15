@@ -111,6 +111,31 @@ class OutageStateMachineTest {
     }
 
     @Test
+    @DisplayName("普通成功清零失败计数但保留慢计数（成功只能证明没失败，不能证明不慢）")
+    void successKeepsSlowCounters() {
+        OutageState state = OutageState.HEALTHY;
+        state = OutageStateMachine.recordAnomaly(state, POLICY, AnomalyKind.FAILURE, NOW);
+        state = OutageStateMachine.recordAnomaly(state, POLICY, AnomalyKind.SLOW, NOW + 1);
+        OutageState after = OutageStateMachine.recordSuccess(state, false, NOW + 2);
+        assertEquals(0, after.failures());
+        assertEquals(1, after.slows());
+    }
+
+    @Test
+    @DisplayName("慢信号跨多次成功请求累积达阈值（流式时序：请求线程成功先于异步慢信号）")
+    void slowAccumulatesAcrossSuccesses() {
+        OutageState state = OutageState.HEALTHY;
+        // 复刻流式请求的真实时序：请求线程先 recordSuccess，异步首 token 回调再 recordSlow
+        for (int i = 0; i < 3; i++) {
+            long t = NOW + i * 1000L;
+            state = OutageStateMachine.recordSuccess(state, false, t);
+            state = OutageStateMachine.recordAnomaly(state, POLICY, AnomalyKind.SLOW, t + 2000);
+        }
+        assertTrue(state.ejected(NOW + 4000));
+        assertEquals(3, state.slows());
+    }
+
+    @Test
     @DisplayName("SLOW 与 FAILURE 共用同一个计数器")
     void slowCountsTowardSameThreshold() {
         OutageState state = OutageState.HEALTHY;

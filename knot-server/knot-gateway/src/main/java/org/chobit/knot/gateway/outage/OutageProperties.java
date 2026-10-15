@@ -3,31 +3,23 @@ package org.chobit.knot.gateway.outage;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 异常摘除的运行时存储配置。
+ * 异常摘除的运行时配置（{@code knot.redis.outage.*}）。
  *
- * <p>{@code store} 决定用哪种实现：单节点 {@code caffeine}（默认，节点内视图），
- * 多节点 {@code redis}（全局视图）。两种实现共用同一套键与同一套状态语义，切换只改这一项。</p>
+ * <p><b>没有 {@code store} 开关</b>：摘除状态一律用进程内 Caffeine。
+ * 理由是摘除表达的是「<b>本节点自己观察到的异常</b>」（超时率 / 异常率 / 慢信号），
+ * 本就不需要跨节点共享；把它放 Redis 只会让 Redis 故障同时打掉网关的自我保护能力——
+ * 摘除失效意味着坏模型继续被加压，比摘除口径不全局严重得多。</p>
+ *
+ * <p>因此 {@code knot.redis.outage.store} 已废弃：显式配了 {@code redis} 或
+ * {@code fallback} 的部署需改回 {@code caffeine}（或直接删掉该项，默认即 Caffeine）。</p>
  */
-@ConfigurationProperties(prefix = "knot.outage")
+@ConfigurationProperties(prefix = "knot.redis.outage")
 public class OutageProperties {
 
     /**
-     * 存储实现：{@code caffeine}（单节点，默认）或 {@code redis}（多节点共享）。
-     *
-     * <p>{@code fallback}（多节点推荐）：Redis 优先，不可用时自动降级 Caffeine，恢复后回灌并切回。</p>
-     */
-    private String store = "caffeine";
-
-    /**
-     * 存储键前缀：多个环境共用同一 Redis 时用于隔离。
+     * 存储键前缀：多环境共用同一进程内的诊断输出时用于区分来源。
      */
     private String keyPrefix = "knot:outage";
-
-    /**
-     * {@code fallback} 档的恢复探测间隔（毫秒）：降级后每隔这么久尝试一次 Redis 探活。
-     * 太小会把「Redis 慢」放大成正反馈。
-     */
-    private long recoverProbeIntervalMs = 10_000L;
 
     /**
      * 条目的自然回收宽限（毫秒）：追加在「窗口 / 摘除 / 探活中最晚的到期时刻」之后，
@@ -41,25 +33,6 @@ public class OutageProperties {
     private long maximumSize = 20_000L;
 
     /**
-     * Redis 不可用时是否放行：{@code true} 记日志后按「健康」处理（不摘除）。
-     */
-    private boolean failOpen = true;
-
-    /**
-     * Returns the requested value.
-     */
-    public String getStore() {
-        return store;
-    }
-
-    /**
-     * Sets the provided value.
-     */
-    public void setStore(String store) {
-        this.store = store;
-    }
-
-    /**
      * Returns the requested value.
      */
     public String getKeyPrefix() {
@@ -71,20 +44,6 @@ public class OutageProperties {
      */
     public void setKeyPrefix(String keyPrefix) {
         this.keyPrefix = keyPrefix;
-    }
-
-    /**
-     * Returns the requested value.
-     */
-    public long getRecoverProbeIntervalMs() {
-        return recoverProbeIntervalMs;
-    }
-
-    /**
-     * Sets the provided value.
-     */
-    public void setRecoverProbeIntervalMs(long recoverProbeIntervalMs) {
-        this.recoverProbeIntervalMs = recoverProbeIntervalMs;
     }
 
     /**
@@ -113,19 +72,5 @@ public class OutageProperties {
      */
     public void setMaximumSize(long maximumSize) {
         this.maximumSize = maximumSize;
-    }
-
-    /**
-     * Returns the requested value.
-     */
-    public boolean isFailOpen() {
-        return failOpen;
-    }
-
-    /**
-     * Sets the provided value.
-     */
-    public void setFailOpen(boolean failOpen) {
-        this.failOpen = failOpen;
     }
 }

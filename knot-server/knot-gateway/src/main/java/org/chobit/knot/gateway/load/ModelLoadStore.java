@@ -8,10 +8,13 @@ package org.chobit.knot.gateway.load;
  * 语义不同故不复用同一抽象，也不共用键空间。</p>
  *
  * <p>已提供两种实现：单节点走 {@code CaffeineModelLoadStore}，多节点走
- * {@code RedisModelLoadStore}，由 {@code knot.load.store} 选择。多节点下 caffeine 只能看到
+ * {@code RedisModelLoadStore}，由 {@code knot.redis.load.store} 选择。多节点下 caffeine 只能看到
  * 本节点在途，是<b>近似口径</b>；要真正的全局口径必须切 redis。</p>
  *
- * <p>故障一律 fail-open：读不到在途数时按 {@code 0}（不拥塞）处理，绝不阻断选路。</p>
+ * <p><b>故障口径：redis 档一律 fail-hard</b>（抛 {@code RedisUnavailableException} → 网关 503）。
+ * 这里刻意<b>不</b> fail-open：按 {@code 0}（不拥塞）放行会让所有模型被看成不拥塞，
+ * {@code LEAST_LOAD} 退化成权重序，已过载的模型继续被加压——静默劣化比直接失败更糟。
+ * 键不存在返回 {@code 0} 是<b>正常语义</b>，与存储故障无关。</p>
  */
 public interface ModelLoadStore {
 

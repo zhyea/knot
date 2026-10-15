@@ -11,6 +11,7 @@ import org.chobit.knot.gateway.exception.GatewayTrafficRejectException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.GatewayErrorResponse;
 import org.chobit.knot.gateway.model.TrafficRejectDetail;
+import org.chobit.knot.gateway.redis.RedisUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -120,6 +121,29 @@ public class GatewayExceptionHandler {
     public GatewayErrorResponse handleGatewayUpstreamException(GatewayUpstreamException e) {
         log.warn("Gateway upstream exception: code={}, message={}", e.code(), e.getMessage());
         return gatewayError(e);
+    }
+
+    /**
+     * 共享状态存储（Redis）不可用：返回 503 + {@code storage_unavailable}。
+     *
+     * <p>刻意<b>不</b>复用 {@link GatewayUpstreamException}：上游不可用是「模型服务的问题」，
+     * 存储不可用是「网关自己的 Redis 挂了」，两者处置完全不同（一个可换节点/重试，
+     * 一个必须先修 Redis），日志告警也要分别配规则。</p>
+     *
+     * <p>这里打ERROR 是<b>刻意</b>的：ERROR 级日志是本项目的报警通道，
+     * 日志采集侧按 {@code Redis unavailable} 关键字配规则。{@link RedisCache} 已有
+     * 分钟级节流防刷屏，此处再打一次是为了覆盖非存储入口（如管理器扫描）的故障现场。</p>
+     */
+    @ResponseBody
+    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
+    @ExceptionHandler(RedisUnavailableException.class)
+    public GatewayErrorResponse handleRedisUnavailable(RedisUnavailableException e) {
+        log.error("Gateway storage unavailable: domain={}, operation={}, key={}",
+                e.getDomain(), e.getOperation(), e.getKey(), e);
+        return GatewayErrorResponse.of(
+                "Gateway shared storage unavailable, please retry later",
+                GatewayErrorTypeEnum.STORAGE_UNAVAILABLE.code()
+        );
     }
 
     /**

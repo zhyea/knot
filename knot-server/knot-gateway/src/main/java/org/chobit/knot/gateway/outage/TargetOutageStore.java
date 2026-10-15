@@ -7,17 +7,18 @@ import java.util.List;
 /**
  * 「规则 × 供应商模型」异常摘除状态的运行时存储。
  *
- * <p>与 {@link org.chobit.knot.gateway.load.ModelLoadStore} 同构：接口 + caffeine/redis 双实现 +
- * fail-open，由 {@code knot.outage.store} 二选一。不复用在途计量的原因是语义不同——
+ * <p>不复用在途计量接口（{@link org.chobit.knot.gateway.load.ModelLoadStore}）的原因是语义不同：
  * 那是可增可减的 gauge，这是带窗口与冷却的状态条目。</p>
  *
- * <p><b>故障一律 fail-open</b>：读不到状态时按「健康」处理（不摘除）。
- * 缓存故障绝不能演变成网关选路故障。</p>
+ * <p><b>只有进程内 Caffeine 一个实现</b>：摘除表达的是「本节点自己观察到的异常」，
+ * 本就不需要跨节点共享（原 Redis 实现与降级档已于 2026-10-15 下线）。
+ * 因此没有 {@code store} 开关，也不存在存储故障——
+ * 读不到条目就是「健康」（不摘除），不存在 fail-open 开关需要配。</p>
  */
 public interface TargetOutageStore {
 
     /**
-     * 存储实现标识，用于启动日志与排查（{@code caffeine} / {@code redis}）。
+     * 存储实现标识，用于启动日志与排查（固定 {@code caffeine}）。
      */
     String id();
 

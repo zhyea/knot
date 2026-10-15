@@ -1,7 +1,6 @@
 package org.chobit.knot.gateway.traffic;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.chobit.knot.gateway.redis.RedisCache;
 import org.springframework.data.redis.core.script.RedisScript;
 
 import java.util.List;
@@ -13,11 +12,16 @@ import java.util.List;
  * 累加与设置过期时刻由一段 Lua 完成，保证多节点并发下的原子性
  * （拆成 {@code INCRBY} + {@code PEXPIREAT} 两条命令时，进程在两条命令之间崩掉会留下永不过期的键）。</p>
  *
- * <p>启用方式：{@code knot.traffic.store=redis}（并配好 {@code spring.data.redis.*}）。
- * 存储层不感知业务语义，因此网关侧代码无需任何改动。</p>
+ * <p>所有 Redis 访问经统一门面 {@link RedisCache}，异常分类与 ERROR 日志都在门面内完成，
+ * 本类只剩「脚本 + 业务语义」。</p>
+ *
+ * <p><b>故障口径：fail-hard。</b>Redis 不可用时抛 {@code RedisUnavailableException}
+ * → 网关 503。频控承载全局额度口径，静默按「计0」放行会让多节点下的实际限额
+ * 悄悄涨到「配置值 × 节点数」，直接超发且无感知——宁可全拒并报警。</p>
  */
-@Slf4j
 public class RedisTrafficCounterStore implements TrafficCounterStore {
+
+    private static final String DOMAIN = "traffic";
 
     /**
      * 累加并设置绝对过期时刻；返回累加后的值。
@@ -28,18 +32,15 @@ public class RedisTrafficCounterStore implements TrafficCounterStore {
             return current
             """, Long.class);
 
-    private final StringRedisTemplate redis;
-    private final boolean failOpen;
+    private final RedisCache cache;
 
     /**
      * Constructs a new instance.
      *
-     * @param redis    字符串模板（键与值都是计数，不需要序列化器）
-     * @param failOpen Redis 不可用时是否放行：{@code true} 记日志后按「未超限」处理
+     * @param cache 统一 Redis 门面（内部统一 fail-hard 与 ERROR 日志）
      */
-    public RedisTrafficCounterStore(StringRedisTemplate redis, boolean failOpen) {
-        this.redis = redis;
-        this.failOpen = failOpen;
+    public RedisTrafficCounterStore(RedisCache cache) {
+        this.cache = cache;
     }
 
     @Override
@@ -49,34 +50,23 @@ public class RedisTrafficCounterStore implements TrafficCounterStore {
 
     @Override
     public long addAndGet(String key, long delta, long expireAtMillis) {
-        try {
-            Long result = redis.execute(ADD_AND_GET, List.of(key),
-                    Long.toString(delta), Long.toString(expireAtMillis));
-            return result == null ? delta : result;
-        } catch (RuntimeException ex) {
-            return onFailure(key, ex);
-        }
+        Long result = cache.eval(DOMAIN, "addAndGet", ADD_AND_GET, List.of(key),
+                Long.toString(delta), Long.toString(expireAtMillis));
+        // Lua 正常返回不会是 null；为 null 说明脚本行为异常，按增量兜底并显式暴露问题
+        return result == null ? delta : result;
     }
 
     @Override
     public long get(String key) {
-        try {
-            String value = redis.opsForValue().get(key);
-            return value == null ? 0L : Long.parseLong(value);
-        } catch (RuntimeException ex) {
-            return onFailure(key, ex);
-        }
-    }
-
-    /**
-     * Redis 故障时的处置：默认 fail-open（返回 {@code 0}，即「尚未产生用量」），
-     * 避免缓存层故障直接打挂网关流量。
-     */
-    private long onFailure(String key, RuntimeException ex) {
-        if (failOpen) {
-            log.warn("Traffic counter store unavailable, fail-open for key={}: {}", key, ex.getMessage());
+        String value = cache.value(DOMAIN, "get", key);
+        if (value == null) {
             return 0L;
         }
-        throw ex;
+        try {
+            return Long.parseLong(value.trim());
+        } catch (NumberFormatException ex) {
+            // 脏数据不是 Redis 故障：按「尚未产生用量」处理，不触发存储故障告警
+            return 0L;
+        }
     }
 }

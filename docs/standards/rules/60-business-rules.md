@@ -45,3 +45,39 @@
 
 - AOP + 拦截器双通道，强制记录增删改前后快照；`OperationLogService` 异步落库（`@Async`），查询同在此类（2026-10-15 由 `SystemService` 并入）。
 - 忽略快照字段：`updatedAt` / `updated_at` / `updateTime` / `update_time`。
+
+## 7. 运行时存储与 Redis 统一层（2026-10-15）
+
+跨节点共享的运行时存储——频控计数 `TrafficCounterStore`、在途负载 `ModelLoadStore`——**两档选型 + 统一故障口径**。
+
+| 档 | 语义 | 不切的后果 |
+|---|---|---|
+| `caffeine`（默认） | 进程内视图，单节点 | 频控实际限额 = 配置值 × 节点数；`LEAST_LOAD` 选路只看本节点在途 |
+| `redis` | 全局视图，**故障 fail-hard** | Redis 抖动即 503 + 报警 |
+
+**摘除状态 `TargetOutageStore` 不在这套词表内**：纯进程内 Caffeine，无 store 开关。摘除表达的是「本节点自己观察到的异常」，本就不需要跨节点共享。
+
+### 7.1 故障口径：fail-hard，绝不静默放行（红线）
+
+⭐ **Redis 不可用时一律抛 `RedisUnavailableException` → 网关 503 + ERROR 日志，没有例外。**
+
+依据（2026-10-15 决策，robin 拍板）：这三个存储承载的是**跨节点共享的全局口径**，静默按放行值处理会产生**看不见的损失**：
+
+| 存储 | 若按放行值静默处理 | 实际损失 |
+|---|---|---|
+| 频控计数 | 计 0（等于未产生用量） | 多节点实际限额悄悄涨到「配置值 × 节点数」，**直接超发且无感知** |
+| 在途负载 | 记 0（等于不拥塞） | 所有模型被看成不拥塞，`LEAST_LOAD` 退化成权重序，**已过载模型继续被加压** |
+
+结论：**宁可全拒 + 报警，人来决策；不可静默劣化。** 已下线的机制：`fail-open` 开关、`fallback` 降级档、`RedisFallbackSupport` 状态机、`RedisHealthResolver` 探针。
+
+**报警通道**：ERROR 级日志（`RedisCache` 分钟级节流，按 `domain`/`operation`/`key` 写进消息文本供采集侧配规则）。全仓**无** webhook / Notifier / 邮件设施，不要自己发明。
+
+### 7.2 结构约束
+
+- ⭐ **Redis 访问只能走门面 `RedisCache`**（`gateway/redis/`）：统一异常分类（`RedisUnavailableException`）+ ERROR 日志节流。禁止在存储实现里直接注入 `StringRedisTemplate`。
+- ⭐ **`RedisCache` 是实现细节、非对外 API**：门面**不提供任何 fail-open 入口**（无 `*Or` 方法）。业务层只依赖各域存储接口，`*StoreConfiguration` 按配置装配。改动时勿让业务层直接依赖门面。
+- ⭐ **存量 `fallback` 配置必须启动失败**：`RedisStoreModeResolver` 只认 `caffeine` / `redis`，配了 `fallback` 抛 `IllegalStateException`——宁可启动失败也不静默忽略。
+- 配置契约：统一在 `knot.redis.*`（`traffic.store` / `load.store`）；⚠ 各域 Properties 的 `store` 字段**必须保持 `null` 默认值**——null 才代表「未显式设置」，归一器据此回落旧键 `knot.<domain>.store` 并打 WARN。旧键仍兼容，不静默失效。
+- 模式值无法识别 → **启动失败**，不静默按单节点跑。
+- 命名：后缀限白名单（**没有 `Adapter` 后缀**）——门面 `RedisCache`、常量 `RedisStoreModes`、归一器 `RedisStoreModeResolver`。
+- ⚠ `RedisCache` / `Redis*Store` **无自动化单测**（本机无 testcontainers），只能靠真启冒烟；配置归一与 fail-hard 契约**有**单测（`RedisStoreModeResolverTest` / `RedisCacheFailHardTest`）。

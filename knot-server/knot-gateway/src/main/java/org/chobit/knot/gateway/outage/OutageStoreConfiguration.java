@@ -1,21 +1,19 @@
 package org.chobit.knot.gateway.outage;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.data.redis.core.RedisCallback;
-import org.springframework.data.redis.core.StringRedisTemplate;
 
 /**
- * 摘除状态存储装配：按 {@code knot.outage.store} 三选一，同一时刻只有一个 {@link TargetOutageStore}。
+ * 摘除状态存储装配：<b>只有进程内 Caffeine 一个实现</b>，无store 开关。
  *
- * <ul>
- *   <li>{@code caffeine}（默认）：单节点，进程内视图；</li>
- *   <li>{@code redis}：多节点，全局视图，Redis 故障时 fail-open（不摘除）；</li>
- *   <li>{@code fallback}（多节点推荐）：Redis 优先 + Caffeine 自动降级，恢复后回灌切回。</li>
- * </ul>
+ * <p>摘除统计表达的是「本节点自己观察到的异常」，不需要跨节点共享；
+ * 放 Redis 反而让 Redis 故障同时打掉网关的自我保护能力（摘除失效 = 坏模型继续被加压）。
+ * 因此 {@code RedisTargetOutageStore} 及其 Redis 键前缀、Lua 脚本已下线。</p>
+ *
+ * <p>代价是多节点下各节点各摘各的：某个节点摘掉的模型，其他节点可能仍在用。
+ * 这是有意的取舍——「摘除口径不全局」比「Redis 故障导致全链路无保护」安全得多。</p>
  */
 @Slf4j
 @Configuration
@@ -31,47 +29,13 @@ public class OutageStoreConfiguration {
     }
 
     /**
-     * 单节点实现：进程内 Caffeine，默认开启。
+     * 摘除状态存储：固定进程内 Caffeine。
      */
     @Bean
-    @ConditionalOnProperty(name = "knot.outage.store", havingValue = "caffeine", matchIfMissing = true)
-    public TargetOutageStore caffeineTargetOutageStore(OutageProperties properties) {
-        log.info("Target outage store: caffeine (maximumSize={}); "
-                        + "cluster deployment should switch to 'redis' or 'fallback' for a global view",
-                properties.getMaximumSize());
+    public TargetOutageStore targetOutageStore(OutageProperties properties) {
+        log.info("Target outage store: caffeine (maximumSize={}, expireGraceMs={}); "
+                        + "ejection state is node-local by design (no redis / fallback mode)",
+                properties.getMaximumSize(), properties.getExpireGraceMs());
         return new CaffeineTargetOutageStore(properties.getMaximumSize(), properties.getExpireGraceMs());
-    }
-
-    /**
-     * 多节点实现：Redis Hash + Lua，各节点共享同一份摘除状态。
-     */
-    @Bean
-    @ConditionalOnProperty(name = "knot.outage.store", havingValue = "redis")
-    public TargetOutageStore redisTargetOutageStore(StringRedisTemplate stringRedisTemplate,
-                                                    OutageProperties properties) {
-        log.info("Target outage store: redis (keyPrefix={}, failOpen={})",
-                properties.getKeyPrefix(), properties.isFailOpen());
-        return new RedisTargetOutageStore(stringRedisTemplate, properties.getExpireGraceMs(), properties.isFailOpen());
-    }
-
-    /**
-     * 多节点推荐档：Redis 优先，不可用时降级 Caffeine。
-     *
-     * <p>与纯 {@code redis} 档的差别就在 Redis 抖动时的行为：fail-open 会让摘除能力整体消失
-     * （坏目标重新吃流量），降级则保住「本地近似」的摘除。恢复时把本地仍摘除中的条目回灌 Redis。</p>
-     */
-    @Bean
-    @ConditionalOnProperty(name = "knot.outage.store", havingValue = "fallback")
-    public TargetOutageStore fallbackTargetOutageStore(StringRedisTemplate stringRedisTemplate,
-                                                       OutageProperties properties,
-                                                       OutageKeys outageKeys) {
-        TargetOutageStore redis = new RedisTargetOutageStore(stringRedisTemplate, properties.getExpireGraceMs(),
-                properties.isFailOpen());
-        TargetOutageStore caffeine = new CaffeineTargetOutageStore(properties.getMaximumSize(),
-                properties.getExpireGraceMs());
-        log.info("Target outage store: fallback (redis -> caffeine, recoverProbeIntervalMs={}, keyPrefix={})",
-                properties.getRecoverProbeIntervalMs(), properties.getKeyPrefix());
-        return new FallbackTargetOutageStore(redis, caffeine, outageKeys, properties.getRecoverProbeIntervalMs(),
-                () -> stringRedisTemplate.execute((RedisCallback<String>) connection -> connection.ping()));
     }
 }

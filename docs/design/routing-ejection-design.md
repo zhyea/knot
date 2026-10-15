@@ -293,14 +293,13 @@ public void release(@RequestBody ReleaseRequest request) { ... }
 
 1. 后端：`mvn -f knot-server/pom.xml test`（全 reactor）。
 2. 前端：`vue-tsc --noEmit` + `npx vite build`（build 后还原 `components.d.ts`）。
-3. 真启 jar 冒烟：
-   - 建一次性库 `knot_smoke_options`，admin（18092）+ gateway（19091，每场景重启，ModelEntity 缓存 10min），`KNOT_SQL_INIT_MODE=NEVER`。
-   - 假上游（`.workbuddy/audit/ttft_fake_upstream.py` 模板，已含 chunked 解析 + 首 chunk 延迟参数）：
-     - 场景 A：持续 500 → 连续请求验证「阈值内仍打、达阈值后跳过、日志出现 ejected」；
-     - 场景 B：首 chunk 延迟 > slowFirstTokenMs → 验证慢信号摘除；
-     - 场景 C：管理面 GET 列表可见、`release` 后流量回归；
-     - 场景 D：两候选全摘 → fail-open 仍 200。
-   - 冒烟后 DROP 库、停进程、零残留。
+3. 真启 jar 冒烟（已落地，脚本见 `.workbuddy/audit/`）：
+   - 驱动 `b5_smoke_run.sh`：建一次性库 `knot_smoke_options`（`ProbeBuildSmokeDb` + 种子 `B5Bind`）→ admin（18092）→ gateway（19091）→ 假上游（`eject_fake_upstream.py`，端口 19501，normal/error5xx/slow 三模式）→ 探针 `b5_smoke_probe.py` 驱动四场景 → 清理（kill + DROP 库，零残留）。`KNOT_SQL_INIT_MODE=NEVER`。
+   - 场景 A：持续 500（网关侧 502 BAD_GATEWAY 透出）→ failures=3 达阈值自动摘除（reason=FAILURE）；
+   - 场景 B：首 chunk 延迟 2s > slowFirstTokenMs=500ms → slows 累积达阈值自动摘除（reason=SLOW）；
+   - 场景 C：管理面 GET 列表可见、`release` 后流量回归 200；
+   - 场景 D：两候选全摘 → fail-open 仍 200。
+   - 冒烟后 DROP 库、停进程、零残留（2026-10-15 复核：三端口无监听、库不存在）。
 4. 全量 grep 残留（`RetryPolicy` 同款清单改 `EjectionPolicy`）；未经显式批准不 `git commit`。
 
 ## 14. 风险与限制
@@ -471,5 +470,42 @@ public void release(@RequestBody ReleaseRequest request) { ... }
 - 前端：`vue-tsc --noEmit` 0 错误；`vite build` 成功（含 `RoutingRuleView`）。
 - 后端：全 reactor `mvn -f knot-server/pom.xml test` BUILD SUCCESS；本次新增/相关 B4 用例：`GatewayOutageControllerTest` 4、`OutageAdminControllerTest` 7、`CaffeineTargetOutageStoreTest` 7、`FallbackTargetOutageStoreTest` 9、`OutageClassifierTest` 5、`OutageStateMachineTest` 10、`OutageTrackerTest` 5；全 reactor 总计 **Tests run: 149, Failures: 0, Errors: 0**。
 
-**未覆盖**：B5 真启 jar 冒烟（5xx / 慢首 token / release / 全摘 fail-open 四场景）尚未执行；`RedisTargetOutageStore` 本体仍无自动化单测（无 testcontainers），靠 B5 冒烟。
+**未覆盖（明确未验证）**：本批修改的 `RedisTargetOutageStore` SUCCESS Lua（`HSET f 0` 不动 s）**未经任何真启验证**——本机无 Redis，B5 冒烟全程 caffeine 档，对 Redis 实现零覆盖；语义正确性仅由 `OutageStateMachineTest`（纯函数层）锁定。上 Redis 档前须用真实 Redis 实例回归 SUCCESS/ANOMALY 两段脚本。`RedisTargetOutageStore` 本体仍无自动化单测（无 testcontainers）。详见 §17.4。
+
+### 17.4 B5 真启 jar 冒烟记录（2026-10-15）
+
+**结果：四场景 4/4 PASS**（A 5xx 自动摘除 / B 慢信号自动摘除 / C 管理面可见+release 恢复 / D 全摘 fail-open），冒烟后零残留（三端口无监听、`knot_smoke_options` 已 DROP）。全 reactor `mvn test` BUILD SUCCESS（9 模块 585 例，Failures 0 Errors 0）。
+
+**冒烟基建**（`.workbuddy/audit/`，纯标准库/一次性探针，不入交付）
+
+| 文件 | 说明 |
+|---|---|
+| `b5_smoke_run.sh` | 驱动：建库→种子→admin→探针 setup→gateway→四场景（每场景换假上游模式）→清理 |
+| `b5_smoke_probe.py` | 探针：admin API 建供应商/模型/规则 + 四场景断言；响应判定必须看 body `success` 字段（admin 全局异常处理器把 BusinessException 包成 HTTP 200 + success=false，只看状态码会全量误判成功） |
+| `eject_fake_upstream.py` | 假上游：normal / error5xx / slow 三模式，slow 首延迟默认 2s；自带 chunked 请求解析 |
+| `B5Bind.java` | 种子：`TOKEN_SMOKE` 计费规则（model_family=NULL 匹配任意统一模型）+ consumer 绑定兜底 |
+| `ProbeBuildSmokeDb.java` / `B5DropDb.java` | 一次性库建/删 |
+
+**种子要点**：种子计费规则 `TOKEN_GPT4O` 的 `model_family='gpt'` 与统一模型 `knot-chat-premium` 的 `model_family=NULL` 不匹配（`matchesNullableScope`：NULL 规则匹配所有族，但 NULL 模型只匹配 NULL 规则），建模型会被「计费规则与统一模型不匹配」拒绝——冒烟种子须用 NULL-family 规则（`TOKEN_SMOKE`）。探针建 API 绑定的协议 code 是 `CHAT_COMPLETIONS`（枚举无 `OPENAI_COMPATIBLE`）。
+
+**冒烟发现并修复的产品缺陷（慢信号计数被成功清零）**
+
+- **现象**：场景 B 四次慢请求（TTFT≈2s > 阈值 500ms）全部 200，但 slows 恒 0、永不摘除。
+- **定位链**：`X-Knot-First-Token-Time≈2000` 证明 mark() 与观察者已触发；落库 `ejection_policy` JSON 正确（countSlow=true）；最终锁定 `OutageStateMachine.recordSuccess` 清零 failures+slows——流式时序为「请求线程 recordSuccess（proxy 返回即记成功）→ 异步首 token recordSlow」，每次慢请求都是「清零→+1」，计数永远到不了阈值。失败路径无 recordSuccess，故场景 A 不受影响。
+- **修复口径**：成功只能证明「没失败」，不能证明「不慢」。`recordSuccess`（非探活）只清 failures、**保留 slows**；slows 的清除路径为窗口过期、探活成功（HEALTHY）、手动 release。三处同步：`OutageStateMachine.recordSuccess`、`RedisTargetOutageStore` SUCCESS Lua（`HSET f 0`，不动 s）、`CaffeineTargetOutageStore`（委托状态机，自动生效）。
+- **回归用例**：`OutageStateMachineTest.successKeepsSlowCounters` / `slowAccumulatesAcrossSuccesses`（复刻流式时序：success→slow 交替 3 次达阈值）、`CaffeineTargetOutageStoreTest.plainSuccessKeepsSlowCounters`。
+
+**冒烟脚本侧教训**
+
+1. `java X.java`（单文件源码模式）只在内存编译不落 `.class`，后续 `java -cp ... X` 会 ClassNotFoundException——探针类必须 `javac` 真编译。
+2. python urllib 默认走系统代理，网关进程死后代理回 502 伪装成网关响应；探针用 `ProxyHandler({})` 强制直连。
+3. 上游 5xx 经网关统一映射为 502 BAD_GATEWAY，探针按「任意 ≥500」判定打中上游失败。
+4. 真启前必须确认无遗留进程占端口：曾出现旧 gateway 进程在 19091 响应、新进程启动失败被"healthy"假象掩盖的场景。
+
+**门禁结果（B5 收尾）**
+
+- 全 reactor：`mvn -f knot-server/pom.xml test` BUILD SUCCESS —— knot-common 100 / plugin-api 3 / plugin 36 / adapter 84 / service 82 / admin 107 / gateway 173，合计 **585 例，Failures 0, Errors 0**。
+- 前端：本批（B5 + 慢信号修复）零前端改动，B4 收尾的 `vue-tsc --noEmit` + `vite build` 结论继续有效。
+- **明确未验证**：Redis SUCCESS Lua 修改未经真启验证（本机无 Redis，冒烟为 caffeine 档）；语义由状态机纯函数单测锁定。
+- 未批准不 commit（B1-B4 代码 + B5 脚本与本文档均未 commit）。
 

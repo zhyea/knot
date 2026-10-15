@@ -5,18 +5,25 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import java.time.ZoneId;
 
 /**
- * 频控 / 额度计数配置。
+ * 频控 / 额度计数配置（{@code knot.redis.traffic.*}）。
  *
  * <p>{@code store} 决定用哪种存储实现：单节点 {@code caffeine}（默认），
- * 多节点 {@code redis}。两种实现共用同一套键与判定逻辑，切换只改这一项配置。</p>
+ * 多节点 {@code redis}（全局口径）。两种实现共用同一套键与判定逻辑，切换只改这一项配置。</p>
+ *
+ * <p><b>故障口径：redis 档一律 fail-hard</b>，无fail-open 开关、无降级档
+ * （2026-10-15 决策）——频控承载全局额度口径，静默按「计 0」放行会让多节点实际限额
+ * 悄悄涨到「配置值 × 节点数」，超发且无感知。Redis 不可用时抛异常 → 网关 503 + ERROR 报警。</p>
  */
-@ConfigurationProperties(prefix = "knot.traffic")
+@ConfigurationProperties(prefix = "knot.redis.traffic")
 public class TrafficCounterProperties {
 
     /**
-     * 计数存储实现：{@code caffeine}（单节点，默认）或 {@code redis}（多节点共享）。
+     * 计数存储实现：{@code caffeine}（单节点，默认）/ {@code redis}（多节点全局）。
+     *
+     * <p>⚠ <b>必须保持 {@code null} 默认值</b>：null 表示「未显式设置」，
+     * 归一时才回落旧键 {@code knot.traffic.store}；给了默认值就分不清显式配置与未配置。</p>
      */
-    private String store = "caffeine";
+    private String store;
 
     /**
      * 存储键前缀：多个环境共用同一 Redis 时用于隔离。
@@ -32,11 +39,6 @@ public class TrafficCounterProperties {
      * Caffeine 存储的最大条目数，超过后按 LRU 淘汰。
      */
     private long maximumSize = 200_000L;
-
-    /**
-     * Redis 不可用时是否放行：{@code true} 记日志后按未超处理，{@code false} 直接抛错。
-     */
-    private boolean failOpen = true;
 
     /**
      * Returns the requested value.
@@ -99,19 +101,5 @@ public class TrafficCounterProperties {
      */
     public void setMaximumSize(long maximumSize) {
         this.maximumSize = maximumSize;
-    }
-
-    /**
-     * Returns the requested value.
-     */
-    public boolean isFailOpen() {
-        return failOpen;
-    }
-
-    /**
-     * Sets the provided value.
-     */
-    public void setFailOpen(boolean failOpen) {
-        this.failOpen = failOpen;
     }
 }
