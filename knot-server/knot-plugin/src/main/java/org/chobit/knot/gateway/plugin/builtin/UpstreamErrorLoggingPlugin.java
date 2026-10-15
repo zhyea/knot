@@ -1,18 +1,17 @@
 package org.chobit.knot.gateway.plugin.builtin;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.chobit.knot.gateway.plugin.*;
 import org.chobit.knot.gateway.plugin.log.PluginLogWriter;
 import org.chobit.knot.gateway.plugin.log.UpstreamErrorPayload;
 import org.chobit.knot.gateway.plugin.upstream.UpstreamPluginContext;
 import org.chobit.knot.gateway.util.JsonKit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class UpstreamErrorLoggingPlugin implements PluginHandler<UpstreamPluginContext> {
-
-    private static final Logger log = LoggerFactory.getLogger(UpstreamErrorLoggingPlugin.class);
 
     @Override
     public PluginDescriptor descriptor() {

@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.config;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
@@ -10,6 +12,8 @@ import java.time.Duration;
  * <p>默认 RestClient 走 JDK {@code HttpURLConnection}，既不复用连接也不设超时；
  * 这里统一改为 Apache HttpClient 5 的池化连接，并显式给出三类超时。</p>
  */
+@Getter
+@Setter
 @ConfigurationProperties(prefix = "knot.gateway.upstream")
 public class GatewayUpstreamClientProperties {
 
@@ -59,76 +63,4 @@ public class GatewayUpstreamClientProperties {
      * 且压缩过的 SSE 更容易被中间层攒包，与流式转发的低延迟目标冲突。
      */
     private boolean contentCompressionEnabled = false;
-
-    public Duration getConnectTimeout() {
-        return connectTimeout;
-    }
-
-    public void setConnectTimeout(Duration connectTimeout) {
-        this.connectTimeout = connectTimeout;
-    }
-
-    public Duration getConnectionRequestTimeout() {
-        return connectionRequestTimeout;
-    }
-
-    public void setConnectionRequestTimeout(Duration connectionRequestTimeout) {
-        this.connectionRequestTimeout = connectionRequestTimeout;
-    }
-
-    public Duration getReadTimeout() {
-        return readTimeout;
-    }
-
-    public void setReadTimeout(Duration readTimeout) {
-        this.readTimeout = readTimeout;
-    }
-
-    public Duration getTimeToLive() {
-        return timeToLive;
-    }
-
-    public void setTimeToLive(Duration timeToLive) {
-        this.timeToLive = timeToLive;
-    }
-
-    public Duration getValidateAfterInactivity() {
-        return validateAfterInactivity;
-    }
-
-    public void setValidateAfterInactivity(Duration validateAfterInactivity) {
-        this.validateAfterInactivity = validateAfterInactivity;
-    }
-
-    public int getMaxTotalConnections() {
-        return maxTotalConnections;
-    }
-
-    public void setMaxTotalConnections(int maxTotalConnections) {
-        this.maxTotalConnections = maxTotalConnections;
-    }
-
-    public int getMaxConnectionsPerRoute() {
-        return maxConnectionsPerRoute;
-    }
-
-    public void setMaxConnectionsPerRoute(int maxConnectionsPerRoute) {
-        this.maxConnectionsPerRoute = maxConnectionsPerRoute;
-    }
-
-    public int getStreamBufferSize() {
-        return streamBufferSize;
-    }
-
-    public void setStreamBufferSize(int streamBufferSize) {
-        this.streamBufferSize = streamBufferSize;
-    }
-
-    public boolean isContentCompressionEnabled() {
-        return contentCompressionEnabled;
-    }
-
-    public void setContentCompressionEnabled(boolean contentCompressionEnabled) {
-        this.contentCompressionEnabled = contentCompressionEnabled;
-    }
 }

@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.chobit.knot.gateway.constants.enums.GatewayErrorTypeEnum;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.GatewayBadRequestException;
@@ -12,8 +14,6 @@ import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.GatewayErrorResponse;
 import org.chobit.knot.gateway.model.TrafficRejectDetail;
 import org.chobit.knot.gateway.redis.RedisUnavailableException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -24,10 +24,9 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
+@Slf4j
 @ControllerAdvice(assignableTypes = GatewayControllerSupport.class)
 public class GatewayExceptionHandler {
-
-    private static final Logger log = LoggerFactory.getLogger(GatewayExceptionHandler.class);
 
     /**
      * Handles missing required gateway headers.

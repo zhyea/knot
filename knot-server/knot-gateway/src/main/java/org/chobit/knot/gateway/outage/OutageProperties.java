@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.outage;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -13,6 +15,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>因此 {@code knot.cache.outage.store} 已废弃：显式配了 {@code redis} 或
  * {@code fallback} 的部署需改回 {@code caffeine}（或直接删掉该项，默认即 Caffeine）。</p>
  */
+@Getter
+@Setter
 @ConfigurationProperties(prefix = "knot.cache.outage")
 public class OutageProperties {
 
@@ -31,46 +35,4 @@ public class OutageProperties {
      * Caffeine 存储的最大条目数，超过后按 LRU 淘汰。
      */
     private long maximumSize = 20_000L;
-
-    /**
-     * Returns the requested value.
-     */
-    public String getKeyPrefix() {
-        return keyPrefix;
-    }
-
-    /**
-     * Sets the provided value.
-     */
-    public void setKeyPrefix(String keyPrefix) {
-        this.keyPrefix = keyPrefix;
-    }
-
-    /**
-     * Returns the requested value.
-     */
-    public long getExpireGraceMs() {
-        return expireGraceMs;
-    }
-
-    /**
-     * Sets the provided value.
-     */
-    public void setExpireGraceMs(long expireGraceMs) {
-        this.expireGraceMs = expireGraceMs;
-    }
-
-    /**
-     * Returns the requested value.
-     */
-    public long getMaximumSize() {
-        return maximumSize;
-    }
-
-    /**
-     * Sets the provided value.
-     */
-    public void setMaximumSize(long maximumSize) {
-        this.maximumSize = maximumSize;
-    }
 }

@@ -1,14 +1,13 @@
 package org.chobit.knot.gateway.plugin.moderation;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.chobit.knot.gateway.constants.enums.ModerationActionEnum;
 import org.chobit.knot.gateway.constants.enums.ModerationScopeEnum;
 import org.chobit.knot.gateway.plugin.components.ModerationWordCache;
 import org.chobit.knot.gateway.plugin.gateway.GatewayPluginContext;
 import org.chobit.knot.gateway.plugin.gateway.GatewayRoutingSnapshot;
 import org.chobit.knot.gateway.util.TextNormalizer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -30,9 +29,8 @@ import java.util.List;
  *
  * <p>故障模式 <b>fail-open</b>：词库不可用（空词表）时放行，内容安全自身故障不挂全站。</p>
  */
+@Slf4j
 public class ModerationGuard {
-
-    private static final Logger log = LoggerFactory.getLogger(ModerationGuard.class);
 
     private static final String DIRECTION_REQUEST = ModerationScopeEnum.REQUEST.code();
     private static final String DIRECTION_RESPONSE = ModerationScopeEnum.RESPONSE.code();

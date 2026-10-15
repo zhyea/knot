@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.outage.admin;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -14,6 +16,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * <p>{@code enabled=false} 时控制器整体不注册（端点 404），用于彻底暴露面的部署。</p>
  */
+@Getter
+@Setter
 @ConfigurationProperties(prefix = "knot.outage.admin-api")
 public class OutageAdminProperties {
 
@@ -27,34 +31,6 @@ public class OutageAdminProperties {
      * 此时仅允许 loopback 访问。多节点部署必须配置，否则管理端只能到本机。
      */
     private String token = "";
-
-    /**
-     * Returns the requested value.
-     */
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    /**
-     * Sets the provided value.
-     */
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
-
-    /**
-     * Returns the requested value.
-     */
-    public String getToken() {
-        return token;
-    }
-
-    /**
-     * Sets the provided value.
-     */
-    public void setToken(String token) {
-        this.token = token;
-    }
 
     /**
      * 是否配置了非空令牌。

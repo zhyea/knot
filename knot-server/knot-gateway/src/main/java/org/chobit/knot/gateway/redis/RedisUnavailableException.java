@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.redis;
 
+import lombok.Getter;
+
 /**
  * 共享状态存储（Redis）不可用。
  *
@@ -15,6 +17,7 @@ package org.chobit.knot.gateway.redis;
  *
  * <p>因此本异常<b>不带放行值</b>，也没有 fail-open 开关。</p>
  */
+@Getter
 public class RedisUnavailableException extends RuntimeException {
 
     private static final long serialVersionUID = 1L;
@@ -37,26 +40,5 @@ public class RedisUnavailableException extends RuntimeException {
         this.domain = domain;
         this.operation = operation;
         this.key = key;
-    }
-
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
-    public String getDomain() {
-        return domain;
-    }
-
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
-    public String getOperation() {
-        return operation;
-    }
-
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
-    public String getKey() {
-        return key;
     }
 }

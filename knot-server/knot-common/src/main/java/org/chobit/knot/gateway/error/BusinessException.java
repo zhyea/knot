@@ -1,5 +1,8 @@
 package org.chobit.knot.gateway.error;
 
+import lombok.Getter;
+
+@Getter
 public class BusinessException extends RuntimeException {
     private final String code;
 
@@ -17,12 +20,5 @@ public class BusinessException extends RuntimeException {
     public BusinessException(ErrorCode errorCode, String message) {
         super(message);
         this.code = errorCode.code();
-    }
-
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
-    public String getCode() {
-        return code;
     }
 }

@@ -1,18 +1,17 @@
 package org.chobit.knot.gateway.auth;
 
+import lombok.extern.slf4j.Slf4j;
+
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
 
+@Slf4j
 public class JwtUtil {
-    private static final Logger log = LoggerFactory.getLogger(JwtUtil.class);
 
     private static final String CLAIM_USER_ID = "userId";
     private static final String CLAIM_ROLES = "roles";

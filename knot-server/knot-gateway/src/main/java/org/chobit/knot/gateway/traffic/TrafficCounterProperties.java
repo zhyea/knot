@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.traffic;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.ZoneId;
@@ -14,6 +16,8 @@ import java.time.ZoneId;
  * （2026-10-15 决策）——频控承载全局额度口径，静默按「计 0」放行会让多节点实际限额
  * 悄悄涨到「配置值 × 节点数」，超发且无感知。Redis 不可用时抛异常 → 网关 503 + ERROR 报警。</p>
  */
+@Getter
+@Setter
 @ConfigurationProperties(prefix = "knot.cache.traffic")
 public class TrafficCounterProperties {
 
@@ -42,65 +46,9 @@ public class TrafficCounterProperties {
     private long maximumSize = 200_000L;
 
     /**
-     * Returns the requested value.
-     */
-    public String getStore() {
-        return store;
-    }
-
-    /**
-     * Sets the provided value.
-     */
-    public void setStore(String store) {
-        this.store = store;
-    }
-
-    /**
-     * Returns the requested value.
-     */
-    public String getKeyPrefix() {
-        return keyPrefix;
-    }
-
-    /**
-     * Sets the provided value.
-     */
-    public void setKeyPrefix(String keyPrefix) {
-        this.keyPrefix = keyPrefix;
-    }
-
-    /**
-     * Returns the requested value.
-     */
-    public String getZone() {
-        return zone;
-    }
-
-    /**
-     * Sets the provided value.
-     */
-    public void setZone(String zone) {
-        this.zone = zone;
-    }
-
-    /**
      * 时区配置对应的 {@link ZoneId}。
      */
     public ZoneId zoneId() {
         return ZoneId.of(zone);
-    }
-
-    /**
-     * Returns the requested value.
-     */
-    public long getMaximumSize() {
-        return maximumSize;
-    }
-
-    /**
-     * Sets the provided value.
-     */
-    public void setMaximumSize(long maximumSize) {
-        this.maximumSize = maximumSize;
     }
 }

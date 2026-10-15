@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.rw;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.ArrayList;
@@ -8,6 +10,8 @@ import java.util.List;
 /**
  * 与 zhy-spring-boot-starter 中 {@code rw} 前缀配置对齐的包装配置项。
  */
+@Getter
+@Setter
 @ConfigurationProperties(prefix = "rw")
 public class RwProperties {
 
@@ -32,70 +36,9 @@ public class RwProperties {
     private List<String> tags = new ArrayList<>();
 
     /**
-     * Returns whether wrapping is enabled.
-     */
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    /**
-     * Updates whether wrapping is enabled.
-     */
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
-
-    /**
-     * Returns the success business code.
-     */
-    public int getSuccessCode() {
-        return successCode;
-    }
-
-    /**
-     * Updates the success business code.
-     */
-    public void setSuccessCode(int successCode) {
-        this.successCode = successCode;
-    }
-
-    /**
-     * Returns the default failure business code.
-     */
-    public int getFailCode() {
-        return failCode;
-    }
-
-    /**
-     * Updates the default failure business code.
-     */
-    public void setFailCode(int failCode) {
-        this.failCode = failCode;
-    }
-
-    /**
-     * Returns whether silent mode is enabled.
-     */
-    public boolean isSilentMode() {
-        return silentMode;
-    }
-
-    /**
-     * Updates whether silent mode is enabled.
-     */
-    public void setSilentMode(boolean silentMode) {
-        this.silentMode = silentMode;
-    }
-
-    /**
-     * Returns the default tags.
-     */
-    public List<String> getTags() {
-        return tags;
-    }
-
-    /**
      * Updates the default tags.
+     *
+     * <p>手写保留：null 入参归一为空列表， Lombok 生成的 setter 会原样置 null。
      */
     public void setTags(List<String> tags) {
         this.tags = tags == null ? new ArrayList<>() : tags;

@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.util;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -58,16 +60,10 @@ class JsonKitMaskingTest {
     }
 
     /** 模拟 Lombok {@code @Data} 实体：字段 + getter，无 @Sensitive 注解（验证名字兜底）。 */
+    @Getter
+    @AllArgsConstructor
     static class CredentialHolder {
         private final String passwordHash;
-
-        CredentialHolder(String passwordHash) {
-            this.passwordHash = passwordHash;
-        }
-
-        public String getPasswordHash() {
-            return passwordHash;
-        }
     }
 
     record PlainHolder(String name) {

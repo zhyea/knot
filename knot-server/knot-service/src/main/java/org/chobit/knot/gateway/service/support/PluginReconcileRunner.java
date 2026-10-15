@@ -1,12 +1,12 @@
 package org.chobit.knot.gateway.service.support;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.chobit.knot.gateway.entity.PluginInstanceEntity;
 import org.chobit.knot.gateway.mapper.PluginInstanceMapper;
 import org.chobit.knot.gateway.plugin.PluginDescriptor;
 import org.chobit.knot.gateway.plugin.PluginHandler;
 import org.chobit.knot.gateway.plugin.PluginTypeEnum;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
@@ -30,10 +30,9 @@ import java.util.stream.Collectors;
  * 仅处理 SYNC handler（其 {@link PluginDescriptor} 提供 capability/extension/stage 用于分发匹配）；
  * dispatcher 仅按 SYNC 分发，异步 sink 能力已移除。
  */
+@Slf4j
 @Component
 public class PluginReconcileRunner implements ApplicationRunner {
-
-    private static final Logger log = LoggerFactory.getLogger(PluginReconcileRunner.class);
 
     private final PluginInstanceMapper mapper;
     private final List<PluginHandler<?>> handlers;
