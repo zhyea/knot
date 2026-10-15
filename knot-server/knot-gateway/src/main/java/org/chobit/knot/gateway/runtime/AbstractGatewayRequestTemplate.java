@@ -4,7 +4,7 @@ import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
-import org.chobit.knot.gateway.service.ModerationWordResource;
+import org.chobit.knot.gateway.service.support.ModerationWordResource;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.gateway.plugin.PluginDispatcher;

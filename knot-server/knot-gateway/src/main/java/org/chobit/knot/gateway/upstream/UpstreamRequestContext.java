@@ -1,7 +1,10 @@
 package org.chobit.knot.gateway.upstream;
 
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.entity.*;
+import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
+import org.chobit.knot.gateway.entity.ModelEntity;
+import org.chobit.knot.gateway.entity.ProviderAccountEntity;
+import org.chobit.knot.gateway.entity.ProviderCredentialEntity;
 import org.springframework.http.MediaType;
 
 import java.util.LinkedHashMap;

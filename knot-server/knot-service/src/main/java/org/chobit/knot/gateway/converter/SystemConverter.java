@@ -1,8 +1,8 @@
 package org.chobit.knot.gateway.converter;
 
-import org.chobit.knot.gateway.dto.system.*;
-import org.chobit.knot.gateway.entity.*;
-import org.chobit.knot.gateway.vo.system.*;
+import org.chobit.knot.gateway.dto.system.OperationLogDto;
+import org.chobit.knot.gateway.entity.OperationLogEntity;
+import org.chobit.knot.gateway.vo.system.OperationLogItem;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 

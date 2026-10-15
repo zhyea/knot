@@ -34,7 +34,7 @@ public class AuthInterceptor implements HandlerInterceptor {
             throw new UnauthorizedException("未登录或 token 无效");
         }
         try {
-            Claims claims = JwtUtil.parseAccessToken(token);
+            Claims claims = JwtKit.parseAccessToken(token);
             request.setAttribute("userId", claims.get("userId", Long.class));
             request.setAttribute("username", claims.getSubject());
             List<String> roles = AuthRoles.fromClaim(claims.get("roles"));

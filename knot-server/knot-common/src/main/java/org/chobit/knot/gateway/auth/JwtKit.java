@@ -11,7 +11,7 @@ import java.util.Date;
 import java.util.List;
 
 @Slf4j
-public class JwtUtil {
+public class JwtKit {
 
     private static final String CLAIM_USER_ID = "userId";
     private static final String CLAIM_ROLES = "roles";
@@ -59,7 +59,7 @@ public class JwtUtil {
     private static final long EXPIRATION_MS = 24L * 60 * 60 * 1000;
     private static final long PASSWORD_CHANGE_EXPIRATION_MS = 10L * 60 * 1000;
 
-    private JwtUtil() {
+    private JwtKit() {
     }
 
     /**

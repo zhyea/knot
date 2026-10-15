@@ -1,9 +1,10 @@
-package org.chobit.knot.gateway.service;
+package org.chobit.knot.gateway.service.support;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.moderation.ModerationTerm;
+import org.chobit.knot.gateway.service.ModerationWordService;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;

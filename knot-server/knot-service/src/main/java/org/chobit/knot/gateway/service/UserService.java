@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.chobit.knot.gateway.auth.JwtUtil;
+import org.chobit.knot.gateway.auth.JwtKit;
 import org.chobit.knot.gateway.converter.UserConverter;
 import org.chobit.knot.gateway.dto.user.UserDto;
 import org.chobit.knot.gateway.entity.AdminRoleEntity;
@@ -82,7 +82,7 @@ public class UserService {
         userMapper.updateLastLoginTime(user.getId());
 
         List<String> roles = userMapper.listRoleCodesByUserId(user.getId());
-        String token = JwtUtil.generateToken(user.getId(), user.getUsername(), roles);
+        String token = JwtKit.generateToken(user.getId(), user.getUsername(), roles);
         return LoginResponse.access(token, user.getId(), user.getUsername(), user.getRealName(), roles);
     }
 
@@ -100,7 +100,7 @@ public class UserService {
         }
         Long userId;
         try {
-            userId = JwtUtil.parsePasswordChangeToken(passwordChangeToken).get("userId", Long.class);
+            userId = JwtKit.parsePasswordChangeToken(passwordChangeToken).get("userId", Long.class);
         } catch (Exception ex) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED, "改密凭证已失效，请重新登录");
         }
