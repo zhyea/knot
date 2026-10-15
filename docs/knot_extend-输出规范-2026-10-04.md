@@ -160,6 +160,11 @@ OutputTokens(long text, long image, long video, long reasoning, long unclassifie
 逐事件挑选用的 `UsageAccounting.totalTokens()`：优先取计费结果，
 无计费结果时退回内部计费输入的 token 总量——否则无规则场景下全部退化成 0，只能靠「取最后一个」碰运气。
 
+> 2026-10-15 补齐：Responses 协议 SSE 事件把完整响应包在 `response` 子对象里
+>（`response.completed` / `response.incomplete` 等），`usage` 随之嵌套在 `response.usage`。
+> `UsageRawReader.readUsage` 在顶层缺失时下钻该包装，`TokenBillingUsage.fromResponse` 同口径；
+> 修复前 Responses 流式/整包缓冲两条路径都提取不到用量，`knot_extend` 事件被静默跳过。
+
 ## 8. 数据流
 
 ```

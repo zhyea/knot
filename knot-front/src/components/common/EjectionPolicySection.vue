@@ -23,7 +23,7 @@
 
     <el-row :gutter="16">
       <el-col :span="12">
-        <el-form-item label="异常窗口(秒)" label-width="110px">
+        <el-form-item label="异常窗口(秒)" label-width="130px">
           <el-input-number
             v-model="draft.windowSec"
             :min="1"
@@ -35,7 +35,7 @@
         </el-form-item>
       </el-col>
       <el-col :span="12">
-        <el-form-item label="异常次数阈值" label-width="110px">
+        <el-form-item label="异常次数阈值" label-width="120px">
           <el-input-number
             v-model="draft.threshold"
             :min="1"
@@ -63,7 +63,7 @@
         </el-form-item>
       </el-col>
       <el-col :span="12">
-        <el-form-item label="冷却时长(ms)" label-width="110px">
+        <el-form-item label="冷却时长(ms)" label-width="120px">
           <el-input-number
             v-model="draft.cooldownMs"
             :min="EJECTION_COOLDOWN_MS_MIN"
@@ -79,17 +79,17 @@
 
     <template v-if="draft.mode === EJECTION_MODE_PROFESSIONAL">
       <el-row :gutter="16">
-        <el-col :span="8">
+        <el-col :span="4">
           <el-form-item label="统计失败" label-width="110px">
             <el-switch v-model="draft.countFailures" :disabled="!draft.enabled"/>
           </el-form-item>
         </el-col>
-        <el-col :span="8">
+        <el-col :span="4">
           <el-form-item label="统计慢响应" label-width="110px">
             <el-switch v-model="draft.countSlow" :disabled="!draft.enabled"/>
           </el-form-item>
         </el-col>
-        <el-col :span="8">
+        <el-col :span="4">
           <el-form-item label="全摘时放行" label-width="110px">
             <el-switch v-model="draft.failOpenWhenAllEjected" :disabled="!draft.enabled"/>
           </el-form-item>

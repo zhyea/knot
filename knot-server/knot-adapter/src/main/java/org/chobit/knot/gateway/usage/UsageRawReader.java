@@ -77,8 +77,29 @@ public final class UsageRawReader {
 
     /**
      * 取对象里的 {@code usage} 子对象，不存在或不是对象时返回 {@code null}。
+     *
+     * <p>Responses 协议兜底：SSE 事件把完整响应包在 {@code response} 子对象里
+     * （{@code response.completed} / {@code response.incomplete} 等），顶层没有 {@code usage}，
+     * 此时下钻 {@code response.usage}。</p>
      */
     public static Map<String, Object> readUsage(Map<String, Object> body) {
+        Map<String, Object> usage = usageOf(body);
+        if (usage != null) {
+            return usage;
+        }
+        if (body == null) {
+            return null;
+        }
+        Object response = body.get(AiPayloadFields.RESPONSE);
+        if (response instanceof Map<?, ?> map) {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> typed = (Map<String, Object>) map;
+            return usageOf(typed);
+        }
+        return null;
+    }
+
+    private static Map<String, Object> usageOf(Map<String, Object> body) {
         if (body == null || body.isEmpty()) {
             return null;
         }

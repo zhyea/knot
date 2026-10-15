@@ -2,7 +2,7 @@
   <el-drawer
     :model-value="modelValue"
     :title="isEdit ? '编辑供应商账户' : '新建供应商账户'"
-    size="50%"
+    size="900px"
     class="drawer-with-scrollbar"
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
@@ -10,23 +10,31 @@
   >
 
     <el-scrollbar max-height="calc(100vh - 140px)">
-      <el-form v-loading="detailLoading" :model="form" label-width="110px">
+      <el-form v-loading="detailLoading" :model="form" label-width="80px">
         <div class="slot-body">
-          <el-form-item label="编码" required :error="codeError">
-            <el-input
-              v-model="form.code"
-              placeholder="最长 32 位"
-              maxlength="32"
-              show-word-limit
-              :disabled="codeChecking"
-              @blur="validateCode"
-            />
-          </el-form-item>
-          <el-form-item label="Base URL">
-            <el-input v-model="form.baseUrl" placeholder="https://api.example.com"/>
-          </el-form-item>
+          <div class="section-head">
+            <div>
+              <h3>基础信息</h3>
+              <p>维护供应商账户编码、归属供应商、上游 Base URL 与认证凭证配置。</p>
+            </div>
+            <el-form-item label="启用" class="inline-switch">
+              <el-switch v-model="form.enabled"/>
+            </el-form-item>
+          </div>
           <el-row :gutter="16">
-            <el-col :span="12">
+            <el-col style="flex: 0 0 60%; max-width: 60%">
+              <el-form-item label="编码" required :error="codeError">
+                <el-input
+                  v-model="form.code"
+                  placeholder="最长 32 位"
+                  maxlength="32"
+                  show-word-limit
+                  :disabled="codeChecking"
+                  @blur="validateCode"
+                />
+              </el-form-item>
+            </el-col>
+            <el-col style="flex: 0 0 40%; max-width: 40%">
               <el-form-item label="供应商" required>
                 <RemoteEntitySelect
                   v-model="form.providerCode"
@@ -37,41 +45,45 @@
                 />
               </el-form-item>
             </el-col>
+          </el-row>
+          <el-form-item label="Base URL">
+            <el-input v-model="form.baseUrl" placeholder="https://api.example.com"/>
+          </el-form-item>
+          <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="启用">
-                <el-switch v-model="form.enabled"/>
+              <el-form-item label="认证类型" required>
+                <el-select
+                  v-model="form.credentialType"
+                  placeholder="请选择认证类型"
+                  style="width: 100%"
+                  @change="handleCredentialTypeChange"
+                >
+                  <el-option
+                    v-for="option in credentialTypeOptions"
+                    :key="option.code"
+                    :label="option.label"
+                    :value="option.code"
+                  />
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item v-if="form.credentialType" label="鉴权方式" required>
+                <el-select
+                  v-model="form.authApplier"
+                  placeholder="请选择鉴权方式"
+                  style="width: 100%"
+                >
+                  <el-option
+                    v-for="option in availableAuthAppliers"
+                    :key="option.code"
+                    :label="option.label"
+                    :value="option.code"
+                  />
+                </el-select>
               </el-form-item>
             </el-col>
           </el-row>
-          <el-form-item label="认证类型" required>
-            <el-select
-              v-model="form.credentialType"
-              placeholder="请选择认证类型"
-              style="width: 100%"
-              @change="handleCredentialTypeChange"
-            >
-              <el-option
-                v-for="option in credentialTypeOptions"
-                :key="option.code"
-                :label="option.label"
-                :value="option.code"
-              />
-            </el-select>
-          </el-form-item>
-          <el-form-item v-if="form.credentialType" label="鉴权方式" required>
-            <el-select
-              v-model="form.authApplier"
-              placeholder="请选择鉴权方式"
-              style="width: 100%"
-            >
-              <el-option
-                v-for="option in availableAuthAppliers"
-                :key="option.code"
-                :label="option.label"
-                :value="option.code"
-              />
-            </el-select>
-          </el-form-item>
           <el-form-item
             v-for="field in requiredCredentialFields"
             :key="field"
@@ -466,6 +478,35 @@ async function submit() {
 </script>
 
 <style scoped>
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.section-head h3 {
+  margin: 0 0 4px;
+  color: var(--knot-text, #303133);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.section-head p {
+  margin: 0;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.inline-switch {
+  flex: 0 0 auto;
+  margin-bottom: 0;
+}
+
 .auth-kv-editor {
   width: 100%;
 }

@@ -2,7 +2,7 @@
   <el-drawer
     :model-value="modelValue"
     :title="drawerTitle"
-    size="960px"
+    size="1000px"
     class="drawer-with-scrollbar routing-test-drawer"
     destroy-on-close
     @update:model-value="emit('update:modelValue', $event)"
@@ -43,12 +43,18 @@
               />
             </el-select>
             <div class="request-toolbar__url">{{ requestUrl }}</div>
-            <el-button v-if="!isStreaming" type="primary" :loading="loading" :disabled="!ruleId" @click="runTest">
-              发送请求
-            </el-button>
-            <el-button v-else type="danger" @click="stopStreaming">
-              停止请求
-            </el-button>
+            <el-tooltip v-if="!isStreaming" content="发送请求" placement="top">
+              <el-button
+                type="primary"
+                :icon="Promotion"
+                :loading="loading"
+                :disabled="!ruleId"
+                @click="runTest"
+              />
+            </el-tooltip>
+            <el-tooltip v-else content="停止请求" placement="top">
+              <el-button type="danger" :icon="CircleClose" @click="stopStreaming" />
+            </el-tooltip>
           </div>
 
           <el-form label-width="0px" class="test-form">
@@ -152,14 +158,14 @@
                       <div class="stream-block__head">
                         <span class="stream-block__index">#{{ block.id }}</span>
                         <span v-if="block.event" class="stream-block__event">event: {{ block.event }}</span>
+                        <el-button
+                          class="stream-block__copy"
+                          size="small"
+                          text
+                          type="primary"
+                          @click="copyBlock(block)"
+                        >{{ copiedBlockId === block.id ? "已复制" : "复制" }}</el-button>
                       </div>
-                      <el-button
-                        class="stream-block__copy"
-                        size="small"
-                        text
-                        type="primary"
-                        @click="copyBlock(block)"
-                      >{{ copiedBlockId === block.id ? "已复制" : "复制" }}</el-button>
                       <pre class="stream-block__code" v-html="highlightBlock(block.data)"></pre>
                     </div>
                     <div v-if="!streamBlocks.length" class="stream-blocks__empty">等待流式响应…</div>
@@ -190,6 +196,7 @@
 
 <script setup lang="ts">
 import {computed, nextTick, onBeforeUnmount, reactive, ref, watch, type PropType} from "vue";
+import {CircleClose, Promotion} from "@element-plus/icons-vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import ShellCodeBlock from "../common/ShellCodeBlock.vue";
 import {listRoutingRuleDebugProtocols, testRoutingRule, testRoutingRuleStream} from "@/api/routing";
@@ -1291,14 +1298,14 @@ onBeforeUnmount(() => {
   margin-bottom: 10px;
 }
 
-/* 顶部目标/协议选择下拉框：各占整体宽度的 22%，与 URL、发送按钮并列 */
+/* 顶部目标/协议选择下拉框：各占整体宽度的 15%，与 URL、发送按钮并列 */
 .request-toolbar__target {
-  flex: 0 0 22%;
+  flex: 0 0 15%;
   min-width: 0;
 }
 
 .request-toolbar__protocol {
-  flex: 0 0 22%;
+  flex: 0 0 15%;
   min-width: 0;
 }
 
@@ -1537,13 +1544,9 @@ onBeforeUnmount(() => {
   background: #1e1e1e;
 }
 
-/* 右上角悬浮复制按钮：与 CodeBlockView 深色面板同款观感（浅底蓝字），
-   !important 防止外部规则把 absolute 退化成流内元素挤占布局 */
+/* 头部行内复制按钮：margin-left:auto 靠右，flex 垂直居中与 #序号/event 文本对齐 */
 .stream-block__copy {
-  position: absolute !important;
-  top: 4px !important;
-  right: 8px !important;
-  z-index: 3;
+  margin-left: auto;
   min-height: 24px;
   padding: 4px 8px;
   background: #f5f7fa;
@@ -1561,8 +1564,6 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
   padding: 4px 10px;
-  /* 预留右侧空间，避免 event 文本伸到悬浮复制按钮下方被遮挡 */
-  padding-right: 60px;
   background: var(--el-fill-color-light);
   border-bottom: 1px solid var(--el-border-color-lighter);
   font-size: 11px;
