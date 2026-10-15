@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.model;
 
 import org.apache.commons.lang3.ObjectUtils;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
+import org.chobit.knot.gateway.usage.UsageRawReader;
 import org.chobit.knot.gateway.util.MapNumberUtils;
 
 import java.util.Map;
@@ -40,17 +41,16 @@ public record TokenBillingUsage(Long inputTokens,
 
     /**
      * 从上游响应体提取：取 {@code usage} 子对象解析，缺失或非对象时返回空用量。
+     *
+     * <p>{@code usage} 定位走 {@link UsageRawReader#readUsage}：除顶层外，也下钻
+     * Responses 协议事件的 {@code response.usage} 包装。</p>
      */
-    @SuppressWarnings("unchecked")
     public static TokenBillingUsage fromResponse(Map<String, Object> body) {
         if (body == null || body.isEmpty()) {
             return empty();
         }
-        Object usage = body.get(AiPayloadFields.USAGE);
-        if (usage instanceof Map<?, ?> map) {
-            return from((Map<String, Object>) map);
-        }
-        return empty();
+        Map<String, Object> usage = UsageRawReader.readUsage(body);
+        return usage == null ? empty() : from(usage);
     }
 
     public static TokenBillingUsage from(Map<String, Object> usage) {
