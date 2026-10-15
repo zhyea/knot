@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.redis;
 /**
  * 网关运行时存储的实现模式（<b>只有两档</b>）。
  *
- * <p>模式名即 {@code knot.redis.<domain>.store} 的取值域，对应
+ * <p>模式名即 {@code knot.cache.<domain>.store} 的取值域，对应
  * 「单节点用进程内 Caffeine / 多节点用 Redis」这条选型：</p>
  * <ul>
  *   <li>{@link #CAFFEINE}：进程内视图，不依赖 Redis。单节点默认档。</li>
@@ -17,7 +17,7 @@ package org.chobit.knot.gateway.redis;
  * 摘除是「本节点自己的异常观察」，不需要跨节点共享；放 Redis 反而让 Redis 故障
  * 直接打掉网关的自我保护能力。</p>
  */
-public final class RedisStoreModes {
+public final class CacheStoreModes {
 
     /**
      * 进程内 Caffeine：单节点视图，默认档，不依赖 Redis。
@@ -29,7 +29,7 @@ public final class RedisStoreModes {
      */
     public static final String REDIS = "redis";
 
-    private RedisStoreModes() {
+    private CacheStoreModes() {
     }
 
     /**

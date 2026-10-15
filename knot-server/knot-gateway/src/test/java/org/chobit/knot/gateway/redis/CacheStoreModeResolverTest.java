@@ -21,10 +21,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * ——存量配置若还写着 {@code knot.*.store=fallback}，必须启动失败让人看见，
  * 而不是被静默忽略。</p>
  */
-class RedisStoreModeResolverTest {
+class CacheStoreModeResolverTest {
 
-    private RedisStoreModeResolver resolverOf(MockEnvironment environment) {
-        return new RedisStoreModeResolver(environment);
+    private CacheStoreModeResolver resolverOf(MockEnvironment environment) {
+        return new CacheStoreModeResolver(environment);
     }
 
     @Test
@@ -32,11 +32,11 @@ class RedisStoreModeResolverTest {
     void newKeyWins() {
         MockEnvironment env = new MockEnvironment();
         env.setProperty("knot.traffic.store", "redis");
-        RedisStoreModeResolver resolver = resolverOf(env);
+        CacheStoreModeResolver resolver = resolverOf(env);
 
-        assertEquals(RedisStoreModes.REDIS, resolver.modeOf("traffic", null),
+        assertEquals(CacheStoreModes.REDIS, resolver.modeOf("traffic", null),
                 "新键未设置时应读旧键");
-        assertEquals(RedisStoreModes.REDIS, resolver.modeOf("load", " REDIS "),
+        assertEquals(CacheStoreModes.REDIS, resolver.modeOf("load", " REDIS "),
                 "显式值应做去空白 + 小写归一");
     }
 
@@ -46,19 +46,19 @@ class RedisStoreModeResolverTest {
         MockEnvironment env = new MockEnvironment();
         env.setProperty("knot.traffic.store", "redis");
         env.setProperty("knot.load.store", "redis");
-        RedisStoreModeResolver resolver = resolverOf(env);
+        CacheStoreModeResolver resolver = resolverOf(env);
 
-        assertEquals(RedisStoreModes.REDIS, resolver.modeOf("traffic", null));
-        assertEquals(RedisStoreModes.REDIS, resolver.modeOf("load", null));
+        assertEquals(CacheStoreModes.REDIS, resolver.modeOf("traffic", null));
+        assertEquals(CacheStoreModes.REDIS, resolver.modeOf("load", null));
     }
 
     @Test
     @DisplayName("新旧都未设置时取默认 caffeine")
     void defaultsToCaffeine() {
-        RedisStoreModeResolver resolver = resolverOf(new MockEnvironment());
+        CacheStoreModeResolver resolver = resolverOf(new MockEnvironment());
 
-        assertEquals(RedisStoreModes.CAFFEINE, resolver.modeOf("traffic", null));
-        assertEquals(RedisStoreModes.CAFFEINE, resolver.modeOf("load", null));
+        assertEquals(CacheStoreModes.CAFFEINE, resolver.modeOf("traffic", null));
+        assertEquals(CacheStoreModes.CAFFEINE, resolver.modeOf("load", null));
     }
 
     @Test
@@ -66,16 +66,16 @@ class RedisStoreModeResolverTest {
     void explicitCaffeineBeatsLegacy() {
         MockEnvironment env = new MockEnvironment();
         env.setProperty("knot.traffic.store", "redis");
-        RedisStoreModeResolver resolver = resolverOf(env);
+        CacheStoreModeResolver resolver = resolverOf(env);
 
-        assertEquals(RedisStoreModes.CAFFEINE, resolver.modeOf("traffic", RedisStoreModes.CAFFEINE),
+        assertEquals(CacheStoreModes.CAFFEINE, resolver.modeOf("traffic", CacheStoreModes.CAFFEINE),
                 "显式配 caffeine 是有效选择，不能被旧键顶掉");
     }
 
     @Test
     @DisplayName("无法识别的模式值直接启动失败，不静默按单节点跑")
     void unknownModeFailsFast() {
-        RedisStoreModeResolver resolver = resolverOf(new MockEnvironment());
+        CacheStoreModeResolver resolver = resolverOf(new MockEnvironment());
 
         IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> resolver.modeOf("traffic", "memcached"));
@@ -87,7 +87,7 @@ class RedisStoreModeResolverTest {
     void legacyFallbackFailsFast() {
         MockEnvironment env = new MockEnvironment();
         env.setProperty("knot.traffic.store", "fallback");
-        RedisStoreModeResolver resolver = resolverOf(env);
+        CacheStoreModeResolver resolver = resolverOf(env);
 
         IllegalStateException ex = assertThrows(IllegalStateException.class,
                 () -> resolver.modeOf("traffic", null));
@@ -98,11 +98,11 @@ class RedisStoreModeResolverTest {
     @Test
     @DisplayName("模式常量表：只有 caffeine / redis 两档")
     void modeConstants() {
-        assertEquals("redis", RedisStoreModes.normalize("  REDIS "));
-        assertNull(RedisStoreModes.normalize("  "));
-        assertTrue(RedisStoreModes.valid(RedisStoreModes.CAFFEINE));
-        assertTrue(RedisStoreModes.valid(RedisStoreModes.REDIS));
-        assertFalse(RedisStoreModes.valid("fallback"), "降级档已下线");
-        assertFalse(RedisStoreModes.valid("mysql"));
+        assertEquals("redis", CacheStoreModes.normalize("  REDIS "));
+        assertNull(CacheStoreModes.normalize("  "));
+        assertTrue(CacheStoreModes.valid(CacheStoreModes.CAFFEINE));
+        assertTrue(CacheStoreModes.valid(CacheStoreModes.REDIS));
+        assertFalse(CacheStoreModes.valid("fallback"), "降级档已下线");
+        assertFalse(CacheStoreModes.valid("mysql"));
     }
 }

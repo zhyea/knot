@@ -3,17 +3,17 @@ package org.chobit.knot.gateway.outage;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * 异常摘除的运行时配置（{@code knot.redis.outage.*}）。
+ * 异常摘除的运行时配置（{@code knot.cache.outage.*}）。
  *
  * <p><b>没有 {@code store} 开关</b>：摘除状态一律用进程内 Caffeine。
  * 理由是摘除表达的是「<b>本节点自己观察到的异常</b>」（超时率 / 异常率 / 慢信号），
  * 本就不需要跨节点共享；把它放 Redis 只会让 Redis 故障同时打掉网关的自我保护能力——
  * 摘除失效意味着坏模型继续被加压，比摘除口径不全局严重得多。</p>
  *
- * <p>因此 {@code knot.redis.outage.store} 已废弃：显式配了 {@code redis} 或
+ * <p>因此 {@code knot.cache.outage.store} 已废弃：显式配了 {@code redis} 或
  * {@code fallback} 的部署需改回 {@code caffeine}（或直接删掉该项，默认即 Caffeine）。</p>
  */
-@ConfigurationProperties(prefix = "knot.redis.outage")
+@ConfigurationProperties(prefix = "knot.cache.outage")
 public class OutageProperties {
 
     /**

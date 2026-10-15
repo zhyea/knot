@@ -5,7 +5,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 /**
- * 存储模式的<b>唯一归一处</b>：把 {@code knot.redis.<domain>.store}
+ * 存储模式的<b>唯一归一处</b>：把 {@code knot.cache.<domain>.store}
  * 与旧配置键（{@code knot.<domain>.store}）归一成一份运行时口径。
  *
  * <p>各域的装配类不再各写一套合法性判断，全来这里取归一后的值，保证多节点口径一致。</p>
@@ -20,14 +20,14 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
-public class RedisStoreModeResolver {
+public class CacheStoreModeResolver {
 
     private final Environment environment;
 
     /**
      * Constructs a new instance.
      */
-    public RedisStoreModeResolver(Environment environment) {
+    public CacheStoreModeResolver(Environment environment) {
         this.environment = environment;
     }
 
@@ -36,23 +36,23 @@ public class RedisStoreModeResolver {
      *
      * @param domain     存储域（traffic / load）
      * @param configured 该域 Properties 里的模式值，{@code null} 表示未显式设置
-     * @return {@link RedisStoreModes} 中的合法模式值
+     * @return {@link CacheStoreModes} 中的合法模式值
      * @throws IllegalStateException 模式值无法识别（宁可启动失败，也不要静默按单节点跑）
      */
     public String modeOf(String domain, String configured) {
-        String normalized = RedisStoreModes.normalize(configured);
+        String normalized = CacheStoreModes.normalize(configured);
         if (normalized == null) {
             String legacy = environment.getProperty("knot." + domain + ".store");
-            if (RedisStoreModes.normalize(legacy) != null) {
-                log.warn("Deprecated config key in use: knot.{}.store={}; migrate to knot.redis.{}.store",
+            if (CacheStoreModes.normalize(legacy) != null) {
+                log.warn("Deprecated config key in use: knot.{}.store={}; migrate to knot.cache.{}.store",
                         domain, legacy, domain);
-                normalized = RedisStoreModes.normalize(legacy);
+                normalized = CacheStoreModes.normalize(legacy);
             }
         }
         if (normalized == null) {
-            normalized = RedisStoreModes.CAFFEINE;
+            normalized = CacheStoreModes.CAFFEINE;
         }
-        if (!RedisStoreModes.valid(normalized)) {
+        if (!CacheStoreModes.valid(normalized)) {
             throw new IllegalStateException("Unknown store mode for domain " + domain + ": " + normalized
                     + "; expected one of caffeine / redis");
         }

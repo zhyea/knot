@@ -60,9 +60,9 @@ public class RedisCache {
      * 故障日志节流：命中即本窗口内不再重复打 ERROR（仅故障路径访问，正常路径零开销）。
      */
     private final Cache<String, Boolean> logThrottle = Caffeine.newBuilder()
-            .expireAfterWrite(ERROR_LOG_WINDOW)
-            .maximumSize(10_000L)
-            .build();
+        .expireAfterWrite(ERROR_LOG_WINDOW)
+        .maximumSize(10_000L)
+        .build();
 
     /**
      * Constructs a new instance.
@@ -118,6 +118,7 @@ public class RedisCache {
 
     /**
      * 节流错误日志：同一 {@code 域+操作+键} 在窗口内只打一条 ERROR。
+     * 主要作用是通过日志发出报警
      */
     private void logErrorOnce(String domain, String operation, String key, RuntimeException ex) {
         String slot = domain + '|' + operation + '|' + (key == null ? "-" : key);
@@ -126,6 +127,6 @@ public class RedisCache {
         }
         logThrottle.put(slot, Boolean.TRUE);
         log.error("Redis unavailable, request will fail: domain={}, operation={}, key={}, cause={}",
-                domain, operation, key, ex.getMessage(), ex);
+            domain, operation, key, ex.getMessage(), ex);
     }
 }

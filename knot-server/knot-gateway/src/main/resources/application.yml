@@ -41,12 +41,12 @@ knot:
     encryption-key: ${KNOT_CREDENTIAL_ENCRYPTION_KEY:knot-dev-credential-encryption-key}
   # ── 共享状态存储（2026-10-15）─────────────────────────────────────────────
   # 两个需要跨节点共享的运行时存储（频控计数 / 在途负载）共用 Redis 门面 RedisCache，
-  # 配置收敛到 knot.redis.*；旧键（knot.traffic.store / knot.load.store）仍被读取并打 WARN，
+  # 配置收敛到 knot.cache.*；旧键（knot.traffic.store / knot.load.store）仍被读取并打 WARN，
   # 归一逻辑见 RedisStoreModeResolver。
   #
   # 故障口径：redis 档一律 fail-hard —— Redis 不可用时抛 RedisUnavailableException
   # → 网关 503 + ERROR 日志报警，不静默降级到本地缓存（那会造成限额外发等看不见的损失）。
-  redis:
+  cache:
     traffic:
       # caffeine（单节点，默认）/ redis（多节点全局，fail-hard）
       store: ${KNOT_TRAFFIC_STORE:caffeine}
