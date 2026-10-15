@@ -33,7 +33,7 @@ mybatis:
 
 logging:
   pattern:
-    level: "%5p [traceId:%X{traceId:-} spanId:%X{spanId:-}]"
+    level: "%5p [%X{traceId:-}-%X{spanId:-}]"
 
 knot:
   # 必须与 knot-admin 保持一致：凭证密文由该口令派生密钥加解密
