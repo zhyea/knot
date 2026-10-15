@@ -15,6 +15,11 @@ public final class AiPayloadFields {
     public static final String INSTRUCTIONS = "instructions";
     public static final String PROMPT = "prompt";
     public static final String USAGE = "usage";
+    /**
+     * Responses 协议SSE事件（response.completed / response.incomplete 等）把完整响应包在
+     * {@code response} 子对象里，{@code usage} 随之嵌套在 {@code response.usage}。
+     */
+    public static final String RESPONSE = "response";
     public static final String STOP = "stop";
     public static final String STOP_SEQUENCES = "stop_sequences";
     public static final String MAX_TOKENS = "max_tokens";
