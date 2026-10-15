@@ -58,7 +58,15 @@
     <template v-if="draft.mode === RETRY_MODE_PROFESSIONAL">
       <el-row :gutter="16">
         <el-col :span="8">
-          <el-form-item label="退避基数(ms)" label-width="110px">
+          <el-form-item label-width="110px">
+            <template #label>
+              <span class="retry-policy__label">
+                退避基数(ms)
+                <el-tooltip :content="tips.backoffBaseMs" placement="top">
+                  <el-icon class="retry-policy__label-icon"><QuestionFilled/></el-icon>
+                </el-tooltip>
+              </span>
+            </template>
             <el-input-number
               v-model="draft.backoffBaseMs"
               :min="0"
@@ -71,7 +79,15 @@
           </el-form-item>
         </el-col>
         <el-col :span="8">
-          <el-form-item label="退避倍数" label-width="80px">
+          <el-form-item label-width="80px">
+            <template #label>
+              <span class="retry-policy__label">
+                退避倍数
+                <el-tooltip :content="tips.multiplier" placement="top">
+                  <el-icon class="retry-policy__label-icon"><QuestionFilled/></el-icon>
+                </el-tooltip>
+              </span>
+            </template>
             <el-input-number
               v-model="draft.multiplier"
               :min="1"
@@ -85,7 +101,15 @@
           </el-form-item>
         </el-col>
         <el-col :span="8">
-          <el-form-item label="退避上限(ms)" label-width="110px">
+          <el-form-item label-width="110px">
+            <template #label>
+              <span class="retry-policy__label">
+                退避上限(ms)
+                <el-tooltip :content="tips.backoffMaxMs" placement="top">
+                  <el-icon class="retry-policy__label-icon"><QuestionFilled/></el-icon>
+                </el-tooltip>
+              </span>
+            </template>
             <el-input-number
               v-model="draft.backoffMaxMs"
               :min="0"
@@ -101,12 +125,28 @@
 
       <el-row :gutter="16">
         <el-col :span="6">
-          <el-form-item label="退避抖动" label-width="110px">
+          <el-form-item label-width="110px">
+            <template #label>
+              <span class="retry-policy__label">
+                退避抖动
+                <el-tooltip :content="tips.jitter" placement="top">
+                  <el-icon class="retry-policy__label-icon"><QuestionFilled/></el-icon>
+                </el-tooltip>
+              </span>
+            </template>
             <el-switch v-model="draft.jitter" :disabled="!draft.enabled"/>
           </el-form-item>
         </el-col>
         <el-col :span="8">
-          <el-form-item label="服从Retry-After" label-width="110px">
+          <el-form-item label-width="110px">
+            <template #label>
+              <span class="retry-policy__label">
+                服从Retry-After
+                <el-tooltip :content="tips.respectRetryAfter" placement="top">
+                  <el-icon class="retry-policy__label-icon"><QuestionFilled/></el-icon>
+                </el-tooltip>
+              </span>
+            </template>
             <el-switch v-model="draft.respectRetryAfter" :disabled="!draft.enabled"/>
           </el-form-item>
         </el-col>
@@ -119,6 +159,7 @@
 
 <script setup lang="ts">
 import {computed} from "vue";
+import {QuestionFilled} from "@element-plus/icons-vue";
 import {useDraftModel} from "@/composables/useDraftModel";
 import {
   normalizeRetryPolicy,
@@ -149,6 +190,24 @@ const hint =
   + "默认重试 4xx 与 5xx 等瞬态失败，判定方式固定为白名单（命中才重试）；其余状态不重试。"
   + "流式请求只在首个字节之前失败才可重试，一旦开始转发即向调用方提交。"
   + "简单模式仅配置尝试次数与状态码；专业模式可微调退避基数/倍数/上限/抖动/Retry-After。";
+
+/** 深度模式字段说明：仅在展开「深度」模式后随字段一起出现，避免简单模式被长文案淹没 */
+const tips = {
+  backoffBaseMs:
+    "第 1 次重试前的等待时长基数，默认 200ms。实际等待 = min(退避上限, 基数 × 退避倍数^(第n次-1))，"
+    + "第 1 次失败的指数为 0，即首次等待就等于基数。",
+  multiplier:
+    "指数退避倍数（保留 1 位小数），取值 1.0–10.0，默认 1.0 表示每次等待都等于基数（恒定退避）。"
+    + "设为 2.0 则第 2、3 次等待按基数 ×2、×4 递增。",
+  backoffMaxMs:
+    "单次退避的封顶值，默认 5000ms。退避是同步阻塞请求线程的，所以它同时是本次重试的总预算上限。",
+  jitter:
+    "在 [0, 计算出的等待时长) 区间内随机取值，打散同一批失败目标的集中重试（重试尖峰），默认关闭。"
+    + "开启后实际等待可能小于预期值，适合上游是共享容量、怕被打同步冲击的场景。",
+  respectRetryAfter:
+    "上游响应带 Retry-After（常见于 429/503）时，取「计算值与该建议值的较大者」等待，默认开启；"
+    + "仍受退避上限约束——不把上游建议无上限地转嫁给调用方。"
+};
 
 /** 常用状态码预设（含通配符 4xx/5xx），仍可手动输入任意状态码或通配符 */
 const statusOptions = computed(() => ["4xx", "5xx", "429", "500", "502", "503", "504", "408", "409"]);
@@ -202,6 +261,24 @@ const draft = useDraftModel<RetryPolicy>(
 /* label 尽量不换行 */
 .retry-policy :deep(.el-form-item__label) {
   white-space: nowrap;
+}
+
+/* 深度模式字段的 hover 说明图标：与 label 基线对齐，不撑高表单行 */
+.retry-policy__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.retry-policy__label-icon {
+  color: #c0c4cc;
+  font-size: 13px;
+  cursor: help;
+  outline: none;
+}
+
+.retry-policy__label-icon:hover {
+  color: var(--el-color-primary, #409eff);
 }
 
 .retry-policy__hint {
