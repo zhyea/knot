@@ -153,6 +153,13 @@
                         <span class="stream-block__index">#{{ block.id }}</span>
                         <span v-if="block.event" class="stream-block__event">event: {{ block.event }}</span>
                       </div>
+                      <el-button
+                        class="stream-block__copy"
+                        size="small"
+                        text
+                        type="primary"
+                        @click="copyBlock(block)"
+                      >{{ copiedBlockId === block.id ? "已复制" : "复制" }}</el-button>
                       <pre class="stream-block__code" v-html="highlightBlock(block.data)"></pre>
                     </div>
                     <div v-if="!streamBlocks.length" class="stream-blocks__empty">等待流式响应…</div>
@@ -187,6 +194,7 @@ import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import ShellCodeBlock from "../common/ShellCodeBlock.vue";
 import {listRoutingRuleDebugProtocols, testRoutingRule, testRoutingRuleStream} from "@/api/routing";
 import {useDebugCapabilities} from "@/composables/useDebugCapabilities";
+import {useCopyToClipboard} from "@/composables/useCopyToClipboard";
 import {getTestRequestPreset, listTestRequestPresetOptions} from "@/api/routing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {formatJson, formatJsonText, parseJsonResult, stringifyJson, highlightJsonHtml} from "@/utils/format";
@@ -288,6 +296,27 @@ let blockFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
 interface ScrollbarLike {
   wrapRef?: HTMLElement;
+}
+
+/** 最近一次成功复制的区块 id，用于按钮瞬时反馈；由 copyResetTimer 延时复位 */
+const copiedBlockId = ref<number | null>(null);
+let copyResetTimer: ReturnType<typeof setTimeout> | null = null;
+const {copy} = useCopyToClipboard();
+
+/** 复制单个流式区块的原始 SSE data 文本 */
+async function copyBlock(block: StreamBlock) {
+  const ok = await copy(block.data, "该区块暂无内容");
+  if (!ok) {
+    return;
+  }
+  copiedBlockId.value = block.id;
+  if (copyResetTimer) {
+    clearTimeout(copyResetTimer);
+  }
+  copyResetTimer = setTimeout(() => {
+    copyResetTimer = null;
+    copiedBlockId.value = null;
+  }, 1200);
 }
 
 // ===================== 流式内容拼装（概览页展示完整 content / reasoning_content） =====================
@@ -1177,6 +1206,11 @@ function onClosed() {
     flushTimer = null;
   }
   clearBlockTimers();
+  if (copyResetTimer) {
+    clearTimeout(copyResetTimer);
+    copyResetTimer = null;
+  }
+  copiedBlockId.value = null;
   if (elapsedTimer) {
     clearInterval(elapsedTimer);
     elapsedTimer = null;
@@ -1200,6 +1234,10 @@ onBeforeUnmount(() => {
     flushTimer = null;
   }
   clearBlockTimers();
+  if (copyResetTimer) {
+    clearTimeout(copyResetTimer);
+    copyResetTimer = null;
+  }
   if (elapsedTimer) {
     clearInterval(elapsedTimer);
     elapsedTimer = null;
@@ -1492,10 +1530,30 @@ onBeforeUnmount(() => {
 }
 
 .stream-block {
+  position: relative;
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 6px;
   overflow: hidden;
   background: #1e1e1e;
+}
+
+/* 右上角悬浮复制按钮：与 CodeBlockView 深色面板同款观感（浅底蓝字），
+   !important 防止外部规则把 absolute 退化成流内元素挤占布局 */
+.stream-block__copy {
+  position: absolute !important;
+  top: 4px !important;
+  right: 8px !important;
+  z-index: 3;
+  min-height: 24px;
+  padding: 4px 8px;
+  background: #f5f7fa;
+  color: #2563eb;
+}
+
+.stream-block__copy:hover,
+.stream-block__copy:focus-visible {
+  background: #dbeafe;
+  color: #1d4ed8;
 }
 
 .stream-block__head {
@@ -1503,6 +1561,8 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
   padding: 4px 10px;
+  /* 预留右侧空间，避免 event 文本伸到悬浮复制按钮下方被遮挡 */
+  padding-right: 60px;
   background: var(--el-fill-color-light);
   border-bottom: 1px solid var(--el-border-color-lighter);
   font-size: 11px;
