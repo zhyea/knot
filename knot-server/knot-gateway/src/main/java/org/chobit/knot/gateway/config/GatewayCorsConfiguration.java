@@ -35,7 +35,10 @@ public class GatewayCorsConfiguration implements WebMvcConfigurer {
                 .allowedMethods("GET", "POST", "OPTIONS")
                 .allowedHeaders("Authorization", "Content-Type", "Accept", "Rule", "traceparent")
                 .exposedHeaders("Content-Type", "Cache-Control", "X-Accel-Buffering",
-                        GatewayHeaders.X_KNOT_FIRST_TOKEN_TIME, GatewayHeaders.X_KNOT_MODEL)
+                        GatewayHeaders.X_KNOT_FIRST_TOKEN_TIME, GatewayHeaders.X_KNOT_MODEL,
+                        // W3C 链路追踪：网关在响应头回写 traceparent，浏览器跨域场景必须显式暴露，
+                        // 否则前端拿不到该头（与日志里的 traceId/spanId 对不上）
+                        GatewayHeaders.TRACEPARENT)
                 .allowCredentials(false)
                 .maxAge(3600);
     }
