@@ -1499,6 +1499,12 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
+/* 表内文本框边框统一为浅灰 #AAAAAA（默认/悬浮态一致），聚焦仍保留主题色反馈 */
+.header-table :deep(.el-input__wrapper),
+.header-table :deep(.el-input__wrapper):hover {
+  box-shadow: 0 0 0 1px #AAAAAA inset;
+}
+
 .debug-collapse :deep(.el-collapse-item__header) {
   height: 34px;
   color: var(--el-text-color-regular);
