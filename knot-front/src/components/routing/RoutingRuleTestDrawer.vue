@@ -19,7 +19,7 @@
               class="request-toolbar__target"
               @change="onTargetChange"
             >
-              <el-option label="全部目标（所有协议）" :value="ALL_TARGETS_KEY" />
+              <el-option label="全部目标" :value="ALL_TARGETS_KEY" />
               <el-option
                 v-for="target in targetOptions"
                 :key="target.key"
@@ -87,6 +87,7 @@
                         v-model="currentTemplateText"
                         min-height="220px"
                         max-height="320px"
+                        height="320px"
                       />
                       <div v-if="protocolHint" class="request-template__hint">{{ protocolHint }}</div>
                     </div>
@@ -672,9 +673,8 @@ function normalizeTargetType(targetType: unknown): string {
 }
 
 function targetLabel(target: RoutingTarget): string {
-  const type = normalizeTargetType(target.targetType) === "MODEL_POOL" ? "模型池" : "模型";
   const name = target.targetName || target.targetCode || `#${target.targetId}`;
-  return target.primary ? `${type}：${name}（主）` : `${type}：${name}`;
+  return target.primary ? `${name}（主）` : `${name}`;
 }
 
 function protocolLabel(protocol: unknown): string {

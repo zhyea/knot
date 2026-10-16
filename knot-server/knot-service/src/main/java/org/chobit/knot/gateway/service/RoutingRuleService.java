@@ -102,7 +102,8 @@ public class RoutingRuleService {
             ModelApiProtocolEnum.AUDIO_SPEECH,
             ModelApiProtocolEnum.VIDEO_GENERATIONS,
             ModelApiProtocolEnum.RERANK,
-            ModelApiProtocolEnum.MODERATIONS
+            ModelApiProtocolEnum.MODERATIONS,
+            ModelApiProtocolEnum.DECISIONS
     );
 
     private final RoutingRuleMapper routingRuleMapper;
@@ -124,7 +125,8 @@ public class RoutingRuleService {
             Map.entry(ModelApiProtocolEnum.AUDIO_SPEECH, "适用于语音合成，通常使用 input 和 voice。"),
             Map.entry(ModelApiProtocolEnum.VIDEO_GENERATIONS, "适用于视频生成，通常使用 prompt。"),
             Map.entry(ModelApiProtocolEnum.RERANK, "适用于重排序，通常使用 query 和 documents。"),
-            Map.entry(ModelApiProtocolEnum.MODERATIONS, "适用于内容安全审核，通常使用 input。")
+            Map.entry(ModelApiProtocolEnum.MODERATIONS, "适用于内容安全审核，通常使用 input。"),
+            Map.entry(ModelApiProtocolEnum.DECISIONS, "适用于决策评估请求，通常使用 state 和 questions。")
     );
 
     private final RoutingRuleTargetMapper routingRuleTargetMapper;
@@ -652,6 +654,7 @@ public class RoutingRuleService {
             case VIDEO_GENERATIONS -> "/openai/v1/videos/generations";
             case RERANK -> "/v1/rerank";
             case MODERATIONS -> "/openai/v1/moderations";
+            case DECISIONS -> "/v1/decisions";
             default -> throw new BusinessException(ErrorCode.VALIDATION_ERROR, "当前调试暂不支持该接口协议");
         };
     }
