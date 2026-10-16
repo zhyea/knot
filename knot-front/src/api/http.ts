@@ -218,21 +218,19 @@ export async function postEventStream(
  * 以消费者 API Key 直接向网关发送一次性 JSON POST 请求。
  * 管理端 Axios 实例会自动覆盖 Authorization 为登录态 JWT，因此网关调试
  * 请求必须使用独立的 fetch 链路。
+ *
+ * <p>请求头由调用方完整组装（调试抽屉「Headers」表格即权威）：此处不再内置
+ * Authorization / Rule / Content-Type 等默认头，避免用户在表格里删改后默认头
+ * 仍旧静默发出、预览与实际请求不一致。</p>
  */
 export async function postGatewayJson<T = unknown>(
   url: string,
   data: unknown,
-  secretKey: string,
-  ruleCode: string
+  requestHeaders: Record<string, string>
 ): Promise<{status: number; data: T; headers: Record<string, string>}> {
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${secretKey}`,
-      Rule: ruleCode,
-      "Content-Type": "application/json",
-      Accept: "application/json"
-    },
+    headers: requestHeaders,
     body: JSON.stringify(data ?? {})
   });
 

@@ -1,3 +1,8 @@
+/* 全局默认字号 13px：压 Element Plus 基础字号变量，令表格/表单/抽屉/弹窗等组件正文统一为 13px */
+:root {
+    --el-font-size-base: 13px;
+}
+
 *,
 *::before,
 *::after {
@@ -9,6 +14,7 @@ body,
 #app {
     margin: 0;
     height: 100%;
+    font-size: 13px;
     font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
     background: var(--knot-bg, #f5f7fa);
 }

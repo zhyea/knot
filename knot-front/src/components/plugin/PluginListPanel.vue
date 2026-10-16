@@ -16,7 +16,6 @@
           <el-tag
             v-if="row.orphaned === 1"
             type="info"
-            size="small"
             effect="plain"
             class="plugin-orphan-tag"
           >已删除(代码移除)</el-tag>

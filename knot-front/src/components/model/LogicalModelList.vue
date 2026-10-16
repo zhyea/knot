@@ -15,7 +15,7 @@
       </el-table-column>
       <el-table-column label="类型" width="110" show-overflow-tooltip>
         <template #default="{ row }">
-          <el-tag v-if="modelTypeLabel(row.modelType) !== '-'" size="small" effect="plain">
+          <el-tag v-if="modelTypeLabel(row.modelType) !== '-'" effect="plain">
             {{ modelTypeLabel(row.modelType) }}
           </el-tag>
           <span v-else>-</span>

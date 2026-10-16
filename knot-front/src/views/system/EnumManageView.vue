@@ -26,7 +26,7 @@
           <template #default>
             <div class="code-enum-alert__head">
               <span>以下枚举由后端代码（EnumOptionRegistry）权威维护，不在 DB 字典中，禁止在上方重建。</span>
-              <el-button link type="primary" size="small" @click="codeEnumCollapsed = !codeEnumCollapsed">
+              <el-button link type="primary" @click="codeEnumCollapsed = !codeEnumCollapsed">
                 {{ codeEnumCollapsed ? "展开" : "收起" }}
               </el-button>
             </div>
@@ -37,7 +37,6 @@
                   <el-tag
                     v-for="(label, code) in options"
                     :key="code"
-                    size="small"
                     type="info"
                     class="code-enum-tag"
                   >{{ code }} = {{ label }}</el-tag>

@@ -1,6 +1,6 @@
 <template>
   <div>
-    <el-table v-loading="loading" :data="rows" stripe border size="small">
+    <el-table v-loading="loading" :data="rows" stripe border>
       <el-table-column prop="id" label="ID" width="70" />
       <el-table-column prop="code" label="编码" width="120" />
       <el-table-column prop="name" label="名称" />

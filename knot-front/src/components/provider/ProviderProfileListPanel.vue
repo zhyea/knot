@@ -7,7 +7,7 @@
       <el-table-column label="分类" min-width="22%">
         <template #default="{ row }">
           <template v-if="splitTags(row.tag).length">
-            <el-tag v-for="item in splitTags(row.tag)" :key="item" size="small" class="tag-item">
+            <el-tag v-for="item in splitTags(row.tag)" :key="item" class="tag-item">
               {{ item }}
             </el-tag>
           </template>

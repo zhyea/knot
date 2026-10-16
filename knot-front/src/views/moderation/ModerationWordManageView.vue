@@ -45,7 +45,7 @@
           </el-table-column>
           <el-table-column label="严重度" width="90" align="center">
             <template #default="{ row }">
-              <el-tag :type="severityTagType(row.severity)" size="small">
+              <el-tag :type="severityTagType(row.severity)">
                 {{ severityLabel(row.severity) }}
               </el-tag>
             </template>

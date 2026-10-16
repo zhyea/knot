@@ -8,15 +8,15 @@
       <el-table-column label="API Key" min-width="240">
         <template #default="{ row }">
           <div class="secret-cell">
-            <el-input :model-value="row.secretKey" readonly type="password" show-password size="small" />
-            <el-button size="small" :icon="CopyDocument" @click="emit('copy-secret', row.secretKey)" />
+            <el-input :model-value="row.secretKey" readonly type="password" show-password />
+            <el-button :icon="CopyDocument" @click="emit('copy-secret', row.secretKey)" />
           </div>
         </template>
       </el-table-column>
       <el-table-column prop="ruleCount" label="规则数" width="90" align="center" />
       <el-table-column label="消耗明细" width="100" align="center">
         <template #default="{ row }">
-          <el-tag size="small" :type="row.returnUsageDetail ? 'success' : 'info'">
+          <el-tag :type="row.returnUsageDetail ? 'success' : 'info'">
             {{ row.returnUsageDetail ? "返回" : "不返回" }}
           </el-tag>
         </template>

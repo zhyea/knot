@@ -20,7 +20,7 @@
       <el-button @click="load">刷新</el-button>
     </div>
 
-    <el-table v-loading="loading" :data="rows" stripe border size="small">
+    <el-table v-loading="loading" :data="rows" stripe border>
       <el-table-column prop="taskCode" label="任务编码" min-width="170" show-overflow-tooltip />
       <el-table-column prop="taskName" label="任务名称" min-width="160" show-overflow-tooltip />
       <el-table-column prop="nodeId" label="执行节点" min-width="170" show-overflow-tooltip />
@@ -29,7 +29,7 @@
       </el-table-column>
       <el-table-column prop="status" label="状态" width="90" align="center">
         <template #default="{ row }">
-          <el-tag :type="runStatusType(row.status)" size="small">{{ runStatusLabel(row.status) }}</el-tag>
+          <el-tag :type="runStatusType(row.status)">{{ runStatusLabel(row.status) }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="affectedRows" label="影响行数" width="100" align="right" />

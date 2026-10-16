@@ -56,30 +56,31 @@ export function checkRoutingRuleCode(code: string, excludeId: number | string | 
   });
 }
 
+/**
+ * 路由规则调试（非流式）：直接请求网关协议地址。
+ * 请求头由调试抽屉「Headers」表格组装后透传——Authorization / Rule / Content-Type
+ * 等一律以表格为准（用户删除的行即不发送），此处不再内置默认头。
+ */
 export function testRoutingRule(
   gatewayUrl: string,
   payload: Dict,
-  secretKey: string,
-  ruleCode: string
+  requestHeaders: Record<string, string>
 ) {
-  return postGatewayJson(gatewayUrl, payload, secretKey, ruleCode);
+  return postGatewayJson(gatewayUrl, payload, requestHeaders);
 }
 
 /**
  * 流式路由规则测试：直接请求网关协议地址，返回原始 Response 供增量解析。
  * 管理端只负责配置/选择目标；网关需要消费者 API Key 和 Rule 头，不能走 /api 管理接口。
+ * 请求头由调试抽屉「Headers」表格组装后透传（Authorization / Rule 等以表格为准）。
  */
 export function testRoutingRuleStream(
   gatewayUrl: string,
   payload: Dict,
-  secretKey: string,
-  ruleCode: string,
+  requestHeaders: Record<string, string>,
   signal?: AbortSignal
 ) {
-  return postEventStream(gatewayUrl, payload, signal, {
-    Authorization: `Bearer ${secretKey}`,
-    Rule: ruleCode
-  });
+  return postEventStream(gatewayUrl, payload, signal, requestHeaders);
 }
 
 /** 调试协议能力：gatewayPath / hint / promptField（默认请求体不再硬编码，改由预设请求维护） */

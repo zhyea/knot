@@ -31,7 +31,6 @@
             <el-segmented
               v-model="viewMode"
               :options="viewModeOptions"
-              size="small"
               @change="onViewModeChange"
             />
           </div>

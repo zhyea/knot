@@ -293,7 +293,7 @@ refreshAll();
 
 .tree-node__code {
   color: #909399;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .department-content {

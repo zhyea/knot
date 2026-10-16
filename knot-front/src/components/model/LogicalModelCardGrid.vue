@@ -16,7 +16,7 @@
             </div>
           </div>
           <div v-if="displayTags(row).length" class="tag-list">
-            <el-tag v-for="tag in displayTags(row)" :key="tag" size="small" effect="plain">
+            <el-tag v-for="tag in displayTags(row)" :key="tag" effect="plain">
               {{ tag }}
             </el-tag>
           </div>

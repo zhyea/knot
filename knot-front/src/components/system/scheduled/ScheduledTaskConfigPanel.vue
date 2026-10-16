@@ -1,20 +1,20 @@
 <template>
   <div>
-    <el-table v-loading="loading" :data="rows" stripe border size="small">
+    <el-table v-loading="loading" :data="rows" stripe border>
       <el-table-column prop="taskCode" label="任务编码" min-width="160" show-overflow-tooltip />
       <el-table-column prop="taskName" label="任务名称" min-width="170" show-overflow-tooltip />
       <el-table-column prop="handlerCode" label="处理器" min-width="170" show-overflow-tooltip />
       <el-table-column prop="cronExpression" label="Cron 表达式" width="120" />
       <el-table-column prop="executionMode" label="执行模式" width="100" align="center">
         <template #default="{ row }">
-          <el-tag :type="row.executionMode === 'SINGLE' ? 'warning' : 'success'" size="small">
+          <el-tag :type="row.executionMode === 'SINGLE' ? 'warning' : 'success'">
             {{ taskModeLabel(row.executionMode) }}
           </el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="80" align="center">
         <template #default="{ row }">
-          <el-tag :type="row.status === EnabledStatus.ENABLED ? 'success' : 'info'" size="small">
+          <el-tag :type="row.status === EnabledStatus.ENABLED ? 'success' : 'info'">
             {{ taskStatusLabel(row.status) }}
           </el-tag>
         </template>

@@ -8,7 +8,6 @@
     <el-table
       v-loading="loading"
       :data="rows"
-      size="small"
       stripe
       border
       highlight-current-row

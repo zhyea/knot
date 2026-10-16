@@ -47,7 +47,7 @@
       </div>
     </div>
 
-    <el-table v-loading="loading" :data="rows" stripe border size="small">
+    <el-table v-loading="loading" :data="rows" stripe border>
       <el-table-column
         v-for="column in columns"
         :key="column.prop || column.label"

@@ -5,7 +5,6 @@
       :data="rows"
       stripe
       border
-      size="small"
       @row-click="(row) => emit('row-click', row)"
     >
       <el-table-column prop="id" label="ID" width="70" />
@@ -19,7 +18,7 @@
       <el-table-column prop="ipAddress" label="IP 地址" width="140" />
       <el-table-column prop="status" label="状态" width="90">
         <template #default="{ row }">
-          <el-tag :type="row.status === OperationLogStatus.SUCCESS ? 'success' : 'danger'" size="small">
+          <el-tag :type="row.status === OperationLogStatus.SUCCESS ? 'success' : 'danger'">
             {{ statusLabel(row.status) }}
           </el-tag>
         </template>
@@ -63,7 +62,7 @@ const emit = defineEmits(["refresh", "row-click", "page-change", "size-change"])
 
 <style scoped>
 .hint {
-  font-size: 12px;
+  font-size: 13px;
   color: #909399;
   margin-top: 8px;
 }

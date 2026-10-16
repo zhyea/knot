@@ -1,6 +1,6 @@
 <template>
   <div>
-    <el-table v-loading="loading" :data="summaries" stripe border size="small">
+    <el-table v-loading="loading" :data="summaries" stripe border>
       <el-table-column prop="category" label="分类编码" min-width="140" show-overflow-tooltip />
       <el-table-column prop="categoryName" label="分类名称" min-width="120" show-overflow-tooltip />
       <el-table-column label="系统" width="72" align="center">

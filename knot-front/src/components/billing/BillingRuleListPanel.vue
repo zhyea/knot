@@ -1,6 +1,6 @@
 <template>
   <div>
-    <el-table v-loading="loading" :data="rows" stripe border size="small" style="width: 100%">
+    <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
       <el-table-column prop="code" label="规则编码" min-width="180" show-overflow-tooltip/>
       <el-table-column label="模型族" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">

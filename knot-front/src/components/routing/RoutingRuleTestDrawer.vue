@@ -92,7 +92,42 @@
                     </div>
                   </el-tab-pane>
                   <el-tab-pane label="Headers" name="headers">
-                    <JsonCodeEditor :model-value="requestHeadersText" readonly min-height="220px" max-height="320px"/>
+                    <div class="header-table-toolbar">
+                      <span class="header-table-toolbar__hint">表格即实际请求头：新增 / 编辑 / 删除后随请求发往网关，curl 预览同步更新</span>
+                      <el-button size="small" :icon="Plus" @click="addHeaderRow">新增 Header</el-button>
+                    </div>
+                    <el-table
+                      :data="headerRows"
+                      border
+                      size="small"
+                      class="header-table"
+                      empty-text="暂无请求头，点击右上角「新增 Header」添加"
+                    >
+                      <el-table-column label="名称" min-width="220">
+                        <template #default="{ row }">
+                          <el-input
+                            v-model="row.name"
+                            placeholder="如 X-Custom-Trace"
+                            size="small"
+                            @change="normalizeHeaderRow(row)"
+                          />
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="值" min-width="260">
+                        <template #default="{ row }">
+                          <el-input v-model="row.value" placeholder="Header 值" size="small"/>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="操作" width="70" align="center">
+                        <template #default="{ row }">
+                          <el-button link type="danger" @click="removeHeaderRow(row)">
+                            <el-icon>
+                              <Delete/>
+                            </el-icon>
+                          </el-button>
+                        </template>
+                      </el-table-column>
+                    </el-table>
                   </el-tab-pane>
                   <el-tab-pane label="curl" name="curl">
                     <ShellCodeBlock :code="displayCurl" language="bash" :copyable="true"/>
@@ -196,7 +231,8 @@
 
 <script setup lang="ts">
 import {computed, nextTick, onBeforeUnmount, reactive, ref, watch, type PropType} from "vue";
-import {CircleClose, Promotion} from "@element-plus/icons-vue";
+import {CircleClose, Delete, Plus, Promotion} from "@element-plus/icons-vue";
+import {ElMessage} from "element-plus";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import ShellCodeBlock from "../common/ShellCodeBlock.vue";
 import {listRoutingRuleDebugProtocols, testRoutingRule, testRoutingRuleStream} from "@/api/routing";
@@ -434,11 +470,93 @@ const currentTemplateText = computed({
 });
 
 const requestUrl = computed(() => `${normalizeBaseUrl()}${protocolPath(activeProtocol.value)}`);
-const requestHeadersText = computed(() => formatJson({
-  Authorization: `Bearer ${testForm.secretKey?.trim() || "sk-your-routing-secret-key"}`,
-  Rule: resolveRuleHeaderValue(),
-  "Content-Type": "application/json"
-}));
+
+// ===================== 请求头表格（Headers tab 即权威） =====================
+/** 请求头表格行：抽屉打开时按当前密钥 / 规则编码生成默认三行，之后以表格为准 */
+interface HeaderRow {
+  name: string;
+  value: string;
+}
+
+const headerRows = ref<HeaderRow[]>([]);
+
+/** 打开抽屉（或重置）时生成默认请求头：Authorization / Rule / Content-Type */
+function resetHeaderRows() {
+  headerRows.value = [
+    {name: "Authorization", value: `Bearer ${testForm.secretKey?.trim() || "sk-your-routing-secret-key"}`},
+    {name: "Rule", value: resolveRuleHeaderValue()},
+    {name: "Content-Type", value: "application/json"}
+  ];
+}
+
+function addHeaderRow() {
+  headerRows.value.push({name: "", value: ""});
+}
+
+function removeHeaderRow(row: HeaderRow) {
+  const index = headerRows.value.indexOf(row);
+  if (index >= 0) {
+    headerRows.value.splice(index, 1);
+  }
+}
+
+/** 名称失焦规范化：trim；重名即时警告（不阻断编辑，发送前还会硬校验） */
+function normalizeHeaderRow(row: HeaderRow) {
+  row.name = row.name.trim();
+  if (!row.name) {
+    return;
+  }
+  const duplicated = headerRows.value.some(
+    (item) => item !== row && item.name.trim().toLowerCase() === row.name.toLowerCase()
+  );
+  if (duplicated) {
+    ElMessage.warning(`请求头「${row.name}」已存在，重名只有最后一条会生效`);
+  }
+}
+
+/** 表格中是否已存在同名头（HTTP 头大小写不敏感） */
+function hasHeaderName(name: string): boolean {
+  const lower = name.toLowerCase();
+  return headerRows.value.some((row) => row.name.trim().toLowerCase() === lower);
+}
+
+/** 发送前校验：名称trim后不可重名（大小写不敏感），空名称行直接跳过 */
+function validateHeaderRows(): string | null {
+  const seen = new Set<string>();
+  for (const row of headerRows.value) {
+    const name = row.name.trim();
+    if (!name) {
+      continue;
+    }
+    const lower = name.toLowerCase();
+    if (seen.has(lower)) {
+      return `请求头「${name}」重名，请合并为一行`;
+    }
+    seen.add(lower);
+  }
+  return null;
+}
+
+/**
+ * 组装实际请求头：表格为权威（删除的行即不发送）；
+ * 协议必需头 Content-Type / Accept 仅在表格缺失时补默认，表格填了则以表格为准。
+ */
+function buildRequestHeaders(accept: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const row of headerRows.value) {
+    const name = row.name.trim();
+    if (name) {
+      headers[name] = row.value;
+    }
+  }
+  if (!hasHeaderName("Accept")) {
+    headers.Accept = accept;
+  }
+  if (!hasHeaderName("Content-Type")) {
+    headers["Content-Type"] = "application/json";
+  }
+  return headers;
+}
 const parsedTemplateBody = computed(() => safeParseTemplate(currentTemplateText.value));
 const curlPreview = computed(() => buildCurlCommand());
 const displayCurl = computed(() => testResult.value?.curl || curlPreview.value);
@@ -515,6 +633,7 @@ watch(
     responseTab.value = "summary";
     expandedPanels.value = ["preview"];
     testForm.secretKey = props.secretKey || "";
+    resetHeaderRows();
     initializeTargetSelection();
     await Promise.all([loadDebugCapabilities(), loadPresetOptions()]);
     await loadAllTargetProtocols();
@@ -757,14 +876,15 @@ function resolveRuleHeaderValue() {
 }
 
 function buildCurlCommand() {
-  const secretKey = testForm.secretKey?.trim() || "sk-your-routing-secret-key";
   const json = parsedTemplateBody.value.error ? currentTemplateText.value || "{}" : stringifyJson(parsedTemplateBody.value.value || {});
   const escapedJson = json.replace(/'/g, "'\\''");
+  // 请求头与「Headers」表格同源：用户在表格里的增删改即时反映到 curl 预览
+  const headerLines = Object.entries(buildRequestHeaders("application/json"))
+    .map(([name, value]) => `  -H '${name}: ${value.replace(/'/g, "'\\''")}'`)
+    .join(" \\\n");
   return (
     `curl -X POST '${requestUrl.value}' \\\n` +
-    `  -H 'Authorization: Bearer ${secretKey}' \\\n` +
-    `  -H 'Rule: ${resolveRuleHeaderValue()}' \\\n` +
-    `  -H 'Content-Type: application/json' \\\n` +
+    `${headerLines} \\\n` +
     `  -d '${escapedJson}'`
   );
 }
@@ -803,6 +923,11 @@ async function runTest() {
     validationError("当前目标没有可调试的接口协议");
     return;
   }
+  const headerError = validateHeaderRows();
+  if (headerError) {
+    validationError(headerError);
+    return;
+  }
   if (parsedTemplateBody.value.error) {
     responseTab.value = "summary";
     testResult.value = {
@@ -838,8 +963,7 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget | null, 
     const response = await testRoutingRule(
       requestUrl.value,
       stripModelField(requestBody),
-      testForm.secretKey.trim(),
-      resolveRuleHeaderValue()
+      buildRequestHeaders("application/json")
     );
     responseHeaders.value = response.headers || {};
     testResult.value = {
@@ -905,8 +1029,7 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget | null,
     const response = await testRoutingRuleStream(
       requestUrl.value,
       gatewayBody,
-      testForm.secretKey.trim(),
-      resolveRuleHeaderValue(),
+      buildRequestHeaders("text/event-stream"),
       controller.signal
     );
     // 采集网关原生响应头（SSE 首包即带），供「响应 Header」tab 展示
@@ -1230,6 +1353,7 @@ function onClosed() {
   streamStartedAt.value = null;
   testResult.value = null;
   responseHeaders.value = {};
+  headerRows.value = [];
   loading.value = false;
 }
 
@@ -1354,6 +1478,25 @@ onBeforeUnmount(() => {
 
 .debug-collapse {
   margin-top: 10px;
+}
+
+/* 请求头表格：工具栏（说明 + 新增按钮）与表格本体 */
+.header-table-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.header-table-toolbar__hint {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.header-table {
+  width: 100%;
 }
 
 .debug-collapse :deep(.el-collapse-item__header) {
