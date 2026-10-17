@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -238,6 +239,51 @@ class JevBillingJudgeTest {
         assertDegrade(503, "网关错误");
     }
 
+    /**
+     * 网关把所有上游非 2xx 统一回 502，但错误体携带 {@code error.upstreamStatus}。
+     * 裁判必须据此还原语义——否则 402/413 分支在本架构下不可达，管理员只能看到「网关错误 502」，
+     * 分不清「余额不足」与「真故障」（Batch4 冒烟场景 7 抓到的缺陷）。
+     */
+    @Test
+    void recoversUpstream402SemanticsFromGateway502() {
+        assertDegradeWithBody(502, gatewayErrorBody(402, "Insufficient credits"), "余额不足");
+    }
+
+    @Test
+    void recoversUpstream429SemanticsFromGateway502() {
+        assertDegradeWithBody(502, gatewayErrorBody(429, "Rate limit exceeded"), "限流");
+    }
+
+    @Test
+    void gateway502WithoutUpstreamStatusStillReportedAsGatewayError() {
+        assertDegradeWithBody(502, "{\"error\":{\"message\":\"boom\",\"type\":\"upstream_error\"}}", "网关错误");
+    }
+
+    private static String gatewayErrorBody(int upstreamStatus, String upstreamMessage) {
+        return "{\"error\":{\"message\":\"upstream failed\",\"type\":\"upstream_error\","
+                + "\"code\":\"UPSTREAM_ERROR\",\"upstreamStatus\":" + upstreamStatus
+                + ",\"upstreamMessage\":\"" + upstreamMessage + "\"}}";
+    }
+
+    private void assertDegradeWithBody(int status, String body, String expectFragment) {
+        JevJudgeProperties props = configuredProps();
+        RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
+        RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
+        when(cMock.getByCode("jev-judge-client")).thenReturn(enabledConsumer());
+        RoutingRuleEntity rule = new RoutingRuleEntity();
+        rule.setStatus(1);
+        when(rMock.getByRuleCode("jev-billing-judge")).thenReturn(rule);
+        FakeDecisionsTransport transport = new FakeDecisionsTransport();
+        transport.script(new Fail(status, body));
+
+        JevBillingJudge judge = new JevBillingJudge(props, cMock, rMock, transport, new ObjectMapper());
+        RoutingBillingVerdict v = judge.judge(sampleContext(2), "http://gw", "sid");
+
+        assertFalse(v.isAvailable());
+        assertTrue(v.getReason().contains(expectFragment), v.getReason());
+        assertEquals(1, transport.calls, "502 不经空缺重试路径");
+    }
+
     @Test
     void stateContentHonorsDoubleBlindAndTruncation() throws Exception {
         JevJudgeProperties props = configuredProps();
@@ -419,11 +465,20 @@ class JevBillingJudgeTest {
             if (next instanceof String s) {
                 return s;
             }
+            if (next instanceof Fail f) {
+                byte[] payload = f.body() == null ? new byte[0] : f.body().getBytes(StandardCharsets.UTF_8);
+                throw HttpClientErrorException.create(
+                        HttpStatus.valueOf(f.status()), "err", null, payload, StandardCharsets.UTF_8);
+            }
             if (next instanceof Integer code) {
                 throw HttpClientErrorException.create(
                         HttpStatus.valueOf(code), "err", null, new byte[0], null);
             }
             return GOOD_JSON;
         }
+    }
+
+    /** 带响应体的失败脚本项：用于模拟网关 502 且错误体含 upstreamStatus */
+    record Fail(int status, String body) {
     }
 }

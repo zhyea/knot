@@ -16,6 +16,7 @@ import org.chobit.knot.gateway.mapper.RoutingConsumerMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleMapper;
 import org.chobit.knot.gateway.vo.routing.JevAnswerItem;
 import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdict;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 
@@ -145,10 +146,46 @@ public class JevBillingJudge {
 
     // ---- 错误码映射（§6.5） ----
 
-    private RoutingBillingVerdict mapErrorStatus(int status, String respBody) {
+    /**
+     * 网关对上游非 2xx 一律回 502（错误码隔离），但响应体 {@code error.upstreamStatus} 携带了
+     * 上游原状态码。这里把它作为「有效状态码」参与映射——否则 402/413 分支在本架构下永远不可达，
+     * 管理员只能看到「网关错误 502」，分不清余额不足与真故障。
+     */
+    private Integer resolveEffectiveStatus(int httpStatus, String respBody) {
+        if (httpStatus != HttpStatus.BAD_GATEWAY.value()) {
+            return httpStatus;
+        }
+        Integer upstream = readUpstreamStatus(respBody);
+        return upstream != null ? upstream : httpStatus;
+    }
+
+    /** 从网关错误体 {@code {"error":{...,"upstreamStatus":402}}} 里读上游原状态码；读不到返回 null */
+    private Integer readUpstreamStatus(String respBody) {
+        if (respBody == null || respBody.isBlank()) {
+            return null;
+        }
+        try {
+            Map<String, Object> root = objectMapper.readValue(respBody, Map.class);
+            Object error = root == null ? null : root.get("error");
+            Object raw = error instanceof Map ? ((Map<?, ?>) error).get("upstreamStatus") : null;
+            if (raw instanceof Number n) {
+                return n.intValue();
+            }
+            return raw instanceof String s && s.matches("\\d{3}") ? Integer.valueOf(s) : null;
+        } catch (Exception ex) {
+            log.warn("网关错误体不含可解析的 upstreamStatus: {}", ex.getMessage());
+            return null;
+        }
+    }
+
+    private RoutingBillingVerdict mapErrorStatus(int httpStatus, String respBody) {
+        int status = resolveEffectiveStatus(httpStatus, respBody);
+        String fromUpstream = status != httpStatus ? "（经网关 502 透出）" : "";
         return switch (status) {
-            case 401, 403 -> unavailable("裁判凭据无权（HTTP " + status + "）");
-            case 402 -> unavailable("裁判余额不足（402），请充值裁判专用消费者");
+            case 401, 403 -> unavailable("裁判凭据无权（HTTP " + status + "）" + fromUpstream);
+            case 402 -> unavailable("裁判余额不足（402），请充值裁判专用消费者" + fromUpstream);
+            case 413 -> unavailable("裁判请求体过大（" + status + "）" + fromUpstream);
+            case 429 -> unavailable("裁判限流（429），请稍后重试" + fromUpstream);
             case 400 -> unavailable("裁判契约错误（400）：" + truncate(respBody, 200));
             default -> {
                 if (status >= 500) {
