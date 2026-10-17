@@ -28,6 +28,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 @ControllerAdvice(assignableTypes = GatewayControllerSupport.class)
 public class GatewayExceptionHandler {
 
+    /** 上游响应摘要长度上限：够放下 OpenRouter 的 {"error":{...}}，也不会把 HTML 错误页整页回透 */
+    private static final int UPSTREAM_BODY_LIMIT = 300;
+
     /**
      * Handles missing required gateway headers.
      */
@@ -118,8 +121,20 @@ public class GatewayExceptionHandler {
     @ResponseStatus(HttpStatus.BAD_GATEWAY)
     @ExceptionHandler(GatewayUpstreamException.class)
     public GatewayErrorResponse handleGatewayUpstreamException(GatewayUpstreamException e) {
-        log.warn("Gateway upstream exception: code={}, message={}", e.code(), e.getMessage());
-        return gatewayError(e);
+        log.warn("Gateway upstream exception: code={}, upstreamStatus={}, message={}",
+                e.code(), e.httpStatus(), e.getMessage());
+        // HTTP 状态码保持 502（错误码隔离），但把上游原状态码透进响应体，避免语义丢失
+        return GatewayErrorResponse.ofUpstream(e.getMessage(), e.type(), e.code(),
+                e.httpStatus(), truncateUpstreamBody(e.responseBody()));
+    }
+
+    /** 上游响应体可能很大（HTML 错误页等），只留诊断所需的短摘要 */
+    private static String truncateUpstreamBody(String body) {
+        if (body == null || body.isBlank()) {
+            return null;
+        }
+        String flat = body.trim();
+        return flat.length() <= UPSTREAM_BODY_LIMIT ? flat : flat.substring(0, UPSTREAM_BODY_LIMIT) + "…";
     }
 
     /**

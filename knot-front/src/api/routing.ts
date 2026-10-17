@@ -132,3 +132,120 @@ export function updateTestRequestPresetStatus(id: number | string, enabled: bool
 export function deleteTestRequestPreset(id: number | string) {
   return del(`/api/test-request-presets/${id}`);
 }
+
+// ===================== 路由测试·计费裁判（v7 三区双盲校验） =====================
+
+/** 自检项（七项，代码精确，权威；三态 PASS/FAIL/SKIP） */
+export type BillingCheckStatus = "PASS" | "FAIL" | "SKIP";
+export type BillingCheckCode =
+  | "USAGE_NOT_EMPTY"
+  | "TOTAL_TOKENS_CONSISTENT"
+  | "COST_FORMULA_MATCH"
+  | "GATEWAY_RECOMPUTE_MATCH"
+  | "RULE_MODE_MATCH"
+  | "RULE_SOURCE_EXPECTED"
+  | "UPSTREAM_COST_DEVIATION";
+
+export interface BillingCheckResult {
+  code: BillingCheckCode;
+  status: BillingCheckStatus;
+  /** FAIL/SKIP 的可读原因；PASS 为空 */
+  message?: string | null;
+}
+
+/** 计费明细行（与网关 NormalizedUsageDetail 同构，金额为十进制普通字符串） */
+export interface BillingFactAmountLine {
+  type?: string | null;
+  tokens?: number | null;
+  cost?: string | null;
+  /** 每百万单位单价 */
+  price?: string | null;
+}
+
+/** 一份计费账（被告账 / 影子重算账同型） */
+export interface BillingFactAmount {
+  totalTokens?: number | null;
+  totalCost?: string | null;
+  currency?: string | null;
+  details?: BillingFactAmountLine[] | null;
+}
+
+/** 计费规则快照（被告链依据） */
+export interface BillingFactRuleRef {
+  code?: string | null;
+  billingMode?: string | null;
+  unit?: string | null;
+  currency?: string | null;
+  pricingPlan?: string | null;
+  /** 命中层级（EXPLICIT / FALLBACK / MISSING ...） */
+  matchedBy?: string | null;
+  versionCode?: string | null;
+}
+
+/** 单条 JEV 裁判答案（noul / choice / score） */
+export interface JevAnswerItem {
+  key?: string | null;
+  type?: string | null;
+  value?: unknown;
+  confidence?: number | null;
+  legend?: string[] | null;
+  status?: "ANSWERED" | "NOT_RETURNED" | string | null;
+  note?: string | null;
+}
+
+/** JEV 计费裁判结论（available=false 时以 reason 表达降级） */
+export interface RoutingBillingVerdict {
+  available: boolean;
+  reason?: string | null;
+  summary?: string | null;
+  answers?: JevAnswerItem[] | null;
+  rawResponse?: string | null;
+}
+
+/** 端点聚合结果（三区一站式） */
+export interface RoutingBillingVerdictResult {
+  /** 被告用量：knot_extend.usage 原样 */
+  producedUsage: Dict;
+  /** 被告账：knot_extend.billing */
+  producedBilling: BillingFactAmount | null;
+  ruleRef: BillingFactRuleRef | null;
+  /** 上游 usage 原文（证据） */
+  upstreamUsage: Dict;
+  upstreamCost: string | null;
+  /** 影子重算账（仅计费事实区展示，不喂 JEV） */
+  shadowBilling: BillingFactAmount | null;
+  checks: BillingCheckResult[];
+  /** 影子链内部异常摘要（null = 影子链正常完成） */
+  shadowError: string | null;
+  verdict: RoutingBillingVerdict;
+}
+
+export interface RoutingBillingVerdictRequestPayload {
+  modelCode?: string | null;
+  targetCode?: string | null;
+  protocol?: string | null;
+  stream?: boolean;
+  /** 被告：knot_extend 整包（{usage, billing}） */
+  knotExtend: Dict;
+  /** 依据：上游原始 usage 原文 */
+  upstreamUsage?: Dict;
+  /** 依据：请求侧计费属性 */
+  requestBody?: Dict;
+  sessionId?: string | null;
+}
+
+/**
+ * 路由规则测试·计费裁判：测试响应到手后回传当次产出，做「被告账 + 影子重算 + 七项自检 + JEV 双盲」。
+ * 与 /test 同权限（routing:rule:test）；不阻塞主流程，失败降级由后端以 available=false 表达。
+ */
+export function testRoutingRuleBillingVerdict(
+  ruleId: number | string,
+  payload: RoutingBillingVerdictRequestPayload
+) {
+  // 判定含一次网关转发与 LLM 调用，放宽超时（不阻塞主流程，慢一点可接受）
+  return post<RoutingBillingVerdictResult>(
+    `/api/routing-rules/${ruleId}/test/billing-verdict`,
+    payload,
+    {timeout: 60000}
+  );
+}

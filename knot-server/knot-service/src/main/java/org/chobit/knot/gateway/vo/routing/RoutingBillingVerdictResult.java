@@ -25,6 +25,7 @@ import java.util.Map;
  * @param upstreamCost    上游返回的 cost（可空 → 前端显示「上游未返回」）
  * @param shadowBilling   影子重算账（可空：未命中规则）
  * @param checks          七项自检结果（三态 PASS / FAIL / SKIP）
+ * @param shadowError     影子链内部异常摘要（可空 = 影子链正常完成）
  * @param verdict         JEV 裁判结论
  */
 public record RoutingBillingVerdictResult(Map<String, Object> producedUsage,
@@ -34,5 +35,6 @@ public record RoutingBillingVerdictResult(Map<String, Object> producedUsage,
                                            String upstreamCost,
                                            BillingFactAmount shadowBilling,
                                            List<BillingCheckResult> checks,
+                                           String shadowError,
                                            RoutingBillingVerdict verdict) {
 }

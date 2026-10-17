@@ -88,6 +88,7 @@ class RoutingTestBillingVerdictServiceTest {
 
         assertNotNull(result.checks());
         assertTrue(result.verdict().isAvailable());
+        assertNull(result.shadowError(), "影子链正常时不得有 shadowError");
         assertEquals("0.00129", result.producedBilling().totalCost());
 
         // 验证 knot_extend.billing 经 toNormalizedUsage 正确传入影子链输入
@@ -174,6 +175,42 @@ class RoutingTestBillingVerdictServiceTest {
         assertEquals("IMAGE-BINDING", assembler.captured.extractorCode());
     }
 
+    @Test
+    void degradesWhenShadowChainThrows() {
+        // 影子链抛异常：端点不炸，降级返回并保留被告账供事实区展示
+        RoutingBillingVerdictRequest req = requestWithBilling("0.001", "USD", "CHAT_COMPLETIONS");
+        models.put("gpt-4", model(5L, "BR", "F", "OPENAI"));
+        bindings.put(5L, List.of());
+        assembler.failure = new IllegalStateException("db down");
+
+        RoutingBillingVerdictResult result = service.verdict(req, "http://gw", "s");
+
+        assertNotNull(result);
+        assertTrue(result.checks().isEmpty(), "影子链失败时无自检结果");
+        assertNull(result.shadowBilling(), "影子链失败时无重算账");
+        assertNotNull(result.shadowError(), "影子链异常须落在 shadowError 而非 verdict.reason");
+        assertTrue(result.shadowError().contains("计费校验内部异常"));
+        assertFalse(result.verdict().isAvailable());
+        assertTrue(result.verdict().getReason().contains("影子链未完成"), "区三不得误导成裁判自身故障");
+        assertEquals("0.001", result.producedBilling().totalCost(), "被告账仍应透出");
+    }
+
+    @Test
+    void degradesWhenJudgeThrows() {
+        // 判定层抛异常（理论上 JevBillingJudge 已兜底）：保留自检结果，仅裁判降级
+        RoutingBillingVerdictRequest req = requestWithBilling("0.001", "USD", "CHAT_COMPLETIONS");
+        models.put("gpt-4", model(6L, "BR", "F", "OPENAI"));
+        bindings.put(6L, List.of());
+        assembler.result = factWith(normalized("0.001", "USD", 5L));
+        judge.failure = new IllegalStateException("boom");
+
+        RoutingBillingVerdictResult result = service.verdict(req, "http://gw", "s");
+
+        assertNotNull(result.checks(), "判定失败不阻塞自检结果");
+        assertFalse(result.verdict().isAvailable());
+        assertTrue(result.verdict().getReason().contains("裁判内部异常"));
+    }
+
     // ---- helpers ----
 
     private static RoutingBillingVerdictRequest requestWithBilling(String totalCost, String currency, String protocol) {
@@ -256,6 +293,7 @@ class RoutingTestBillingVerdictServiceTest {
 
         BillingFact result;
         BillingFactAssemblyInput captured;
+        RuntimeException failure;
 
         StubAssembler() {
             super(null, null);
@@ -264,6 +302,9 @@ class RoutingTestBillingVerdictServiceTest {
         @Override
         public BillingFact assemble(BillingFactAssemblyInput input) {
             this.captured = input;
+            if (failure != null) {
+                throw failure;
+            }
             return result;
         }
     }
@@ -275,6 +316,7 @@ class RoutingTestBillingVerdictServiceTest {
         String capturedGatewayBaseUrl;
         String capturedSessionId;
         JevJudgeContext capturedContext;
+        RuntimeException failure;
 
         StubJudge() {
             super(null, null, null, null, null);
@@ -285,6 +327,9 @@ class RoutingTestBillingVerdictServiceTest {
             this.capturedContext = context;
             this.capturedGatewayBaseUrl = gatewayBaseUrl;
             this.capturedSessionId = sessionId;
+            if (failure != null) {
+                throw failure;
+            }
             return result;
         }
     }

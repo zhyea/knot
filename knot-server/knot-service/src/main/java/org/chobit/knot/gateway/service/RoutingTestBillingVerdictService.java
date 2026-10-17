@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.service;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.dto.routing.BillingCheckResult;
 import org.chobit.knot.gateway.dto.routing.BillingFact;
+import org.chobit.knot.gateway.dto.routing.BillingFactAmount;
 import org.chobit.knot.gateway.dto.routing.BillingFactAssemblyInput;
 import org.chobit.knot.gateway.service.support.BillingFactChecks;
 import org.chobit.knot.gateway.dto.routing.JevJudgeContext;
@@ -17,6 +18,8 @@ import org.chobit.knot.gateway.service.support.JevBillingJudge;
 import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdict;
 import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdictRequest;
 import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdictResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -37,6 +40,9 @@ import java.util.Map;
  */
 @Service
 public class RoutingTestBillingVerdictService {
+
+    /** 编排层内部异常以 ERROR 日志报警（全仓无 webhook/Notifier，ERROR 日志即唯一报警通道） */
+    private static final Logger log = LoggerFactory.getLogger(RoutingTestBillingVerdictService.class);
 
     /** 提取器码常量（与 knot-adapter 各 UsageExtractor.CODE 一致，避免跨模块常量依赖） */
     private static final String EXTRACTOR_DEFAULT_TOKEN = "DEFAULT-TOKEN";
@@ -69,29 +75,49 @@ public class RoutingTestBillingVerdictService {
 
         Map<String, Object> upstreamUsage = nonNullMap(req.upstreamUsage());
 
-        // 定位模型 → 计费规则 + 用量提取器
-        String modelKey = firstNonBlank(req.targetCode(), req.modelCode());
-        ModelEntity model = modelKey == null ? null : modelMapper.getByCode(modelKey);
-        String ruleCode = model == null ? null : model.getBillingRuleCode();
-        String familyCode = model == null ? null : model.getModelFamilyCode();
-        String extractorCode = resolveExtractorCode(model, req.protocol(), req.stream());
+        // 影子链 + 自检：任何运行时异常都降级返回（端点 500 无意义，抽屉已渲染主结果）
+        BillingFact fact;
+        List<BillingCheckResult> checks;
+        try {
+            // 定位模型 → 计费规则 + 用量提取器
+            String modelKey = firstNonBlank(req.targetCode(), req.modelCode());
+            ModelEntity model = modelKey == null ? null : modelMapper.getByCode(modelKey);
+            String ruleCode = model == null ? null : model.getBillingRuleCode();
+            String familyCode = model == null ? null : model.getModelFamilyCode();
+            String extractorCode = resolveExtractorCode(model, req.protocol(), req.stream());
 
-        // 影子链输入：upstreamRawBody 包成 {"usage": upstreamUsage}
-        // （默认 token 提取器经 UsageRawReader.readUsage 读 body.usage）
-        Map<String, Object> upstreamRawBody = Map.of("usage", upstreamUsage);
-        BillingFactAssemblyInput input = new BillingFactAssemblyInput(
-                modelKey, familyCode, ruleCode, extractorCode, req.protocol(), req.stream(),
-                upstreamRawBody, upstreamUsage, req.requestBody(),
-                gatewayBilling, upstreamUsage, Instant.now());
+            // 影子链输入：upstreamRawBody 包成 {"usage": upstreamUsage}
+            // （默认 token 提取器经 UsageRawReader.readUsage 读 body.usage）
+            Map<String, Object> upstreamRawBody = Map.of("usage", upstreamUsage);
+            BillingFactAssemblyInput input = new BillingFactAssemblyInput(
+                    modelKey, familyCode, ruleCode, extractorCode, req.protocol(), req.stream(),
+                    upstreamRawBody, upstreamUsage, req.requestBody(),
+                    gatewayBilling, upstreamUsage, Instant.now());
 
-        BillingFact fact = assembler.assemble(input);
-        List<BillingCheckResult> checks = BillingFactChecks.runAll(fact);
+            fact = assembler.assemble(input);
+            checks = BillingFactChecks.runAll(fact);
+        } catch (RuntimeException ex) {
+            // ERROR 即报警；不落 requestBody（可能含 prompt 等敏感内容）
+            log.error("计费校验影子链异常: targetCode={}, modelCode={}, {}",
+                    req.targetCode(), req.modelCode(), briefMessage(ex), ex);
+            // 异常归属影子链，不得写进 verdict.reason（否则区三误导成「裁判挂了」）
+            return new RoutingBillingVerdictResult(
+                    gatewayUsage, BillingFactAmount.from(gatewayBilling), null, upstreamUsage, null, null, List.of(),
+                    "计费校验内部异常：" + briefMessage(ex),
+                    RoutingBillingVerdict.unavailable("影子链未完成，未进入裁判环节"));
+        }
 
         // 判定层（双盲）：只喂被告账 + 底层依据，绝不喂影子/自检结论
-        JevJudgeContext ctx = new JevJudgeContext(
-                fact.subject(), gatewayUsage, fact.gatewayBilling(),
-                upstreamUsage, fact.upstreamCost(), fact.ruleRef(), req.requestBody());
-        RoutingBillingVerdict verdict = judge.judge(ctx, gatewayBaseUrl, sessionId);
+        RoutingBillingVerdict verdict;
+        try {
+            JevJudgeContext ctx = new JevJudgeContext(
+                    fact.subject(), gatewayUsage, fact.gatewayBilling(),
+                    upstreamUsage, fact.upstreamCost(), fact.ruleRef(), req.requestBody());
+            verdict = judge.judge(ctx, gatewayBaseUrl, sessionId);
+        } catch (RuntimeException ex) {
+            log.error("计费裁判判定层异常: targetCode={}, {}", req.targetCode(), briefMessage(ex), ex);
+            verdict = RoutingBillingVerdict.unavailable("裁判内部异常：" + briefMessage(ex));
+        }
 
         return new RoutingBillingVerdictResult(
                 gatewayUsage,
@@ -101,7 +127,17 @@ public class RoutingTestBillingVerdictService {
                 fact.upstreamCost() == null ? null : fact.upstreamCost().toPlainString(),
                 fact.shadowAmount(),
                 checks,
+                null,
                 verdict);
+    }
+
+    /** 异常摘要（截断，避免把超长 SQL/堆栈塞进返回体） */
+    private static String briefMessage(RuntimeException ex) {
+        String message = ex.getMessage();
+        if (message == null || message.isBlank()) {
+            return ex.getClass().getSimpleName();
+        }
+        return message.length() > 200 ? message.substring(0, 200) + "…" : message;
     }
 
     // ---- 提取器解析（镜像网关 UsageExtractorRegistry.resolveExtractorCode） ----
