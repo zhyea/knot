@@ -18,7 +18,9 @@
 
 - 分层（`TrafficResourceTypeEnum.supportsRateLimit/supportsQuota`）：模型 + 路由规则 = **只限流**；应用 + 供应商账户 + 消费者 = **只限额**。
 - RPM 事前 +1 判 `used > limit`；TPM 事后累加、额度判 `used >= limit`。
-- 成本纳元（1e-8）用 Long；换算只能用 `movePointRight(8).setScale(0, HALF_UP)`，`COST_SCALE` 恒为 8。
+- 成本计数用 Long；换算只能用 `movePointRight(COST_SCALE).setScale(0, HALF_UP)`，`COST_SCALE` 恒为 12（1e-12）。超出 long 可表示范围（约 922 万）由 `toScaledAmount` 明确抛 `BusinessException`，不静默溢出。
+- ⭐ 金额对外契约（`knot_extend.billing`）：`detail[].cost` / `detail[].price` / `totalCost` **一律十进制普通字符串**，不设小数位上限（单价常见 6 位小数，除百万量级需 12 位以上才不归零）。
+- ⭐ 所有计费单位基数都是 10 的幂（1 / 1e3 / 1e6；`PER_MINUTE=60` 已于 2026-10-17 退役）——「用量 × 单价 ÷ 基数」**恒定除尽**，不终止除法在这套单位体系里不可能出现；`DECIMAL128` 仅为未来非 10 的幂基数兜底（`BillingUnitEnumTest.everyUnitSizeIsPowerOfTen` 钉住该不变式）。新增单位若引入非 10 的幂基数，必须先在配置期把单价折算成基础单位价，不允许大基数进金额公式。
 - ⭐ 拒绝契约：限流与限额**同为 429**（`GatewayTrafficRejectException` 单一 handler，靠 `type` + `code` 区分）；`error.detail` 只暴露 `resourceCode`；带 `Retry-After` 头。
 - ⚠ `expireAtMillis()` 是**存储键 TTL**，`windowEndMillis()` 才是**重置时刻**，不要用错。
 
