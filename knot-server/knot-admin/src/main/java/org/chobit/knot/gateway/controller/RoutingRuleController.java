@@ -9,6 +9,7 @@ import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.RoutingRuleService;
+import org.chobit.knot.gateway.service.RoutingTestBillingVerdictService;
 import org.chobit.knot.gateway.dto.routing.RoutingTestPreparation;
 import org.chobit.knot.gateway.dto.routing.RoutingTestStreamHandle;
 import org.chobit.knot.gateway.util.JsonKit;
@@ -19,6 +20,8 @@ import org.chobit.knot.gateway.vo.routing.RoutingRule;
 import org.chobit.knot.gateway.vo.routing.RoutingRuleDebugProtocols;
 import org.chobit.knot.gateway.vo.routing.RoutingTestRequest;
 import org.chobit.knot.gateway.vo.routing.RoutingTestResult;
+import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdictRequest;
+import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdictResult;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -46,16 +49,19 @@ public class RoutingRuleController {
     private final RoutingRuleService routingRuleService;
     private final RoutingRuleConverter routingRuleConverter;
     private final GatewayRuntimeProperties gatewayRuntimeProperties;
+    private final RoutingTestBillingVerdictService routingTestBillingVerdictService;
 
     /**
      * Constructs a new instance.
      */
     public RoutingRuleController(RoutingRuleService routingRuleService,
                                  RoutingRuleConverter routingRuleConverter,
-                                 GatewayRuntimeProperties gatewayRuntimeProperties) {
+                                 GatewayRuntimeProperties gatewayRuntimeProperties,
+                                 RoutingTestBillingVerdictService routingTestBillingVerdictService) {
         this.routingRuleService = routingRuleService;
         this.routingRuleConverter = routingRuleConverter;
         this.gatewayRuntimeProperties = gatewayRuntimeProperties;
+        this.routingTestBillingVerdictService = routingTestBillingVerdictService;
     }
 
     /**
@@ -178,6 +184,19 @@ public class RoutingRuleController {
                 .header(HttpHeaders.CACHE_CONTROL, "no-cache")
                 .header("X-Accel-Buffering", "no")
                 .body(body);
+    }
+
+    /**
+     * 路由规则测试·计费裁判：抽屉在测试响应到手后自动回传当次调用产出，做双盲校验。
+     *
+     * <p>与 {@code /test} 同权限（routing:rule:test），不阻塞测试主流程；被告账缺失时
+     * 由前端短路、不发起本请求。编排层 {@link RoutingTestBillingVerdictService} 不抛异常炸链路。</p>
+     */
+    @PostMapping("/{id}/test/billing-verdict")
+    public RoutingBillingVerdictResult billingVerdict(@PathVariable Long id,
+                                                       @RequestBody RoutingBillingVerdictRequest request) {
+        return routingTestBillingVerdictService.verdict(request,
+                gatewayRuntimeProperties.normalizedBaseUrl(), request.sessionId());
     }
 
     /**

@@ -69,6 +69,16 @@
         limit 1
     </select>
 
+    <select id="getByRuleCode" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
+        select <include refid="RuleSelectColumns"/>
+        from kb_routing_rules r
+        left join kb_apps a on r.app_code = a.app_code
+        left join ks_users ur on r.username = ur.username and ur.is_deleted = 0
+        left join kb_logical_models lm on lm.model_code = r.logical_model_code and lm.is_deleted = 0
+        where r.rule_code = #{ruleCode}
+        limit 1
+    </select>
+
     <select id="countByRuleCode" resultType="java.lang.Long">
         select count(1) from kb_routing_rules
         where rule_code = #{ruleCode}

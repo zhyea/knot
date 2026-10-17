@@ -56,7 +56,8 @@ class RoutingRuleStreamControllerTest {
         service = new StubRoutingRuleService();
         mockMvc = MockMvcBuilders
                 // 转换器传 null：本测试只走流式调试端点，不会触达它（未使用依赖）
-                .standaloneSetup(new RoutingRuleController(service, null, new GatewayRuntimeProperties()))
+                // 计费裁判服务传 null：流式端点不触达它
+                .standaloneSetup(new RoutingRuleController(service, null, new GatewayRuntimeProperties(), null))
                 .setControllerAdvice(new ApiResponseWrapperAdvice(new RwProperties()),
                         new org.chobit.knot.gateway.GlobalExceptionHandler(new RwProperties()))
                 .build();

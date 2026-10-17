@@ -18,6 +18,13 @@ public interface RoutingRuleMapper {
     RoutingRuleEntity getEnabledByConsumerIdAndRuleCode(@org.apache.ibatis.annotations.Param("consumerId") Long consumerId,
                                                         @org.apache.ibatis.annotations.Param("ruleCode") String ruleCode);
 
+    /**
+     * 按规则业务码取规则（含 status）。
+     *
+     * <p>供裁判链路校验「裁判规则存在且启用」使用（v7 §6.1）。返回 null 表示规则不存在。</p>
+     */
+    RoutingRuleEntity getByRuleCode(@org.apache.ibatis.annotations.Param("ruleCode") String ruleCode);
+
     Long countByRuleCode(@org.apache.ibatis.annotations.Param("ruleCode") String ruleCode,
                          @org.apache.ibatis.annotations.Param("excludeId") Long excludeId);
 

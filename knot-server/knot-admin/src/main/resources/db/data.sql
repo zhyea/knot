@@ -420,6 +420,7 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (181, 99, 'POST', '/api/provider-accounts/options', 'ProviderController', 1),
 (182, 107, 'POST', '/api/routing-consumers/options', 'RoutingConsumerController', 1),
 (183, 113, 'POST', '/api/routing-rules/{id}/test/stream', 'RoutingRuleController', 1),
+(215, 116, 'POST', '/api/routing-rules/{id}/test/billing-verdict', 'RoutingRuleController', 1),
 (185, 128, 'GET', '/api/test-request-presets/{id}', 'TestRequestPresetController', 1),
 (186, 107, 'GET', '/api/routing-consumers/{id}', 'RoutingConsumerController', 1),
 (187, 66, 'POST', '/api/system/authorizations/roles/options', 'AuthorizationRoleController', 1),
