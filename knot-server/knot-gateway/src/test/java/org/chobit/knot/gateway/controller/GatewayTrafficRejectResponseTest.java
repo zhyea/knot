@@ -56,7 +56,7 @@ class GatewayTrafficRejectResponseTest {
     @Test
     void quotaRejectionAlsoReturns429() throws Exception {
         MvcResult result = perform(() -> reject(TrafficRejectReason.QUOTA_COST, "PROVIDER", "account-code",
-                1_000_000_000L, 1_200_000_000L, "USD"));
+                10_000_000_000_000L, 12_000_000_000_000L, "USD"));
 
         assertEquals(429, result.getResponse().getStatus(), "限额超支必须走 429，不能掉进兜底的 500");
         assertEquals("3600", result.getResponse().getHeader(HttpHeaders.RETRY_AFTER));

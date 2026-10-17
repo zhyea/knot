@@ -39,6 +39,13 @@
         where c.secret_key = #{secretKey}
     </select>
 
+    <select id="getByCode" resultType="org.chobit.knot.gateway.entity.RoutingConsumerEntity">
+        select <include refid="ConsumerSelectColumns"/>
+        from kb_routing_consumers c
+        left join ks_users u on c.user_username = u.username and u.is_deleted = 0
+        where c.consumer_code = #{consumerCode}
+    </select>
+
     <select id="countByConsumerCode" resultType="java.lang.Long">
         select count(1) from kb_routing_consumers
         where consumer_code = #{consumerCode}

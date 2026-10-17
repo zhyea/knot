@@ -37,7 +37,7 @@ public class SimpleBillingModeCalculator extends AbstractBillingModeCalculator {
                 : config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan()))
                         .resolveDefaultPrice(new BillingConfig.PricingContext(amount, context.occurredAt()), BigDecimal.ZERO);
         BigDecimal totalCost = cost(amount, unitPrice, unitSize);
-        return new NormalizedBillingAmount(
+        return NormalizedBillingAmount.of(
                 usage.tokenUsage().totalTokens(),
                 totalCost,
                 List.of(detail(normalizeDetailType(rule.getBillingMode(), mode), amount, totalCost, unitPrice, unitSize))

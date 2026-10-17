@@ -33,8 +33,8 @@ public record TrafficDecision(boolean allowed,
      * @param reason        被拒原因
      * @param resourceType  命中的资源类型
      * @param resourceCode  命中的资源业务码
-     * @param limit         限额（成本维度为纳元计数）
-     * @param used          当前用量（已含本次；成本维度为纳元计数）
+     * @param limit         限额（成本维度为 1e-12 计数）
+     * @param used          当前用量（已含本次；成本维度为 1e-12 计数）
      * @param resetAtMillis 计数重置时刻
      * @param currency      成本维度的币种，其余维度传 {@code null}
      */

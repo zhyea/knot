@@ -11,6 +11,7 @@ import org.chobit.knot.gateway.constants.enums.CurrencyCodeEnum;
 import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
 import org.chobit.knot.gateway.model.BillingConfig;
+import org.chobit.knot.gateway.model.NormalizedBillingAmount;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.pricing.HolidayCalendar;
@@ -38,7 +39,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.math.MathContext;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -57,6 +58,15 @@ import java.util.Map;
 
 @Service
 public class BillingService {
+
+    /**
+     * 金额除法的兜底精度：单位基数目前全是 10 的幂（1 / 1e3 / 1e6），「用量 × 单价 ÷ 基数」
+     * 恒定除尽，本上下文不会实际参与计算。保留它是为了未来——一旦新增非 10 的幂基数
+     * （如按小时 = 3600），无精度上下文的 divide 会抛 ArithmeticException 打断试算。
+     * PER_MINUTE（60 秒）已于 2026-10-17 退役：按分钟计费须在配置期折成每秒价，
+     * 不允许 60 进金额公式。同时不设小数位上限——单价常见 6 位小数，除千 / 百万量级会跌破 8 位。
+     */
+    private static final MathContext MONEY_DIVISION = MathContext.DECIMAL128;
 
     private final BillingRuleMapper billingRuleMapper;
     private final ModelMapper modelMapper;
@@ -473,7 +483,7 @@ public class BillingService {
                 cost(outputTokens, outputPrice, unitSize),
                 cost(cacheReadTokens, cacheReadPrice, unitSize),
                 cost(cacheWriteTokens, cacheWritePrice, unitSize));
-        return new BillingAmount(parts.toUsageMap(), parts.totalCost());
+        return new BillingAmount(parts.toUsageMap(), NormalizedBillingAmount.plainMoney(parts.totalCost()));
     }
 
     /** 非 TOKEN 计费（EMBEDDING / REQUEST / IMAGE / AUDIO / VIDEO 等）：按模式取用量，套默认单价计费。 */
@@ -496,16 +506,17 @@ public class BillingService {
                         .resolveDefaultPrice(BillingConfig.PricingContext.ofAmount(0L), BigDecimal.ZERO);
         Map<String, Object> parts = new LinkedHashMap<>();
         parts.put("amount", amount);
-        return new BillingAmount(parts, cost(amount, unitPrice, unitSize));
+        return new BillingAmount(parts, NormalizedBillingAmount.plainMoney(cost(amount, unitPrice, unitSize)));
     }
 
-    private record BillingAmount(Map<String, Object> usage, BigDecimal totalCost) {
+    private record BillingAmount(Map<String, Object> usage, String totalCost) {
     }
 
     /**
      * TOKEN 计费明细：输入 / 输出 / 缓存读 / 缓存写四类 token 与对应金额。
-     * 字段固定，用具名类型代替 Map + 字符串键；数量一律 {@code long}，金额一律 {@code BigDecimal}。
-     * 只在结果边界转成 Map，以兼容既有的对外 JSON 字段名。
+     * 字段固定，用具名类型代替 Map + 字符串键；数量一律 {@code long}，金额计算期一律 {@code BigDecimal}。
+     * 只在结果边界（{@code toUsageMap} 与汇总出口）经 {@link NormalizedBillingAmount#plainMoney}
+     * 转十进制普通字符串，与 {@code knot_extend.billing} 金额对外契约一致。
      */
     private static final class TokenBillingParts {
         private final long inputTokens;
@@ -555,10 +566,10 @@ public class BillingService {
             map.put("totalTokens", totalTokens);
             map.put("cacheReadTokens", cacheReadTokens);
             map.put("cacheWriteTokens", cacheWriteTokens);
-            map.put("inputCost", inputCost);
-            map.put("outputCost", outputCost);
-            map.put("cacheReadCost", cacheReadCost);
-            map.put("cacheWriteCost", cacheWriteCost);
+            map.put("inputCost", NormalizedBillingAmount.plainMoney(inputCost));
+            map.put("outputCost", NormalizedBillingAmount.plainMoney(outputCost));
+            map.put("cacheReadCost", NormalizedBillingAmount.plainMoney(cacheReadCost));
+            map.put("cacheWriteCost", NormalizedBillingAmount.plainMoney(cacheWriteCost));
             return map;
         }
     }
@@ -851,10 +862,10 @@ public class BillingService {
 
     private static BigDecimal cost(long amount, BigDecimal unitPrice, int unitSize) {
         if (amount <= 0 || unitPrice == null || unitPrice.signum() == 0) {
-            return BigDecimal.ZERO.setScale(8, RoundingMode.HALF_UP);
+            return BigDecimal.ZERO;
         }
         return BigDecimal.valueOf(amount)
                 .multiply(unitPrice)
-                .divide(BigDecimal.valueOf(Math.max(1, unitSize)), 8, RoundingMode.HALF_UP);
+                .divide(BigDecimal.valueOf(Math.max(1, unitSize)), MONEY_DIVISION);
     }
 }

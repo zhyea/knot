@@ -12,7 +12,6 @@ import org.chobit.knot.gateway.usage.NormalizedUsageContext;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 
 @Component
@@ -33,7 +32,7 @@ public class TokenBillingModeCalculator extends AbstractBillingModeCalculator {
         if (!(context.usage() instanceof TokenBillingUsage usage)) {
             // 非 token 用量（媒体记录）到达本计算器 = 提取器与规则模式错配：
             // 热路径不抛异常阻断响应，按零用量出账，交由计费规则配置侧修正
-            return new NormalizedBillingAmount(0L, BigDecimal.ZERO.setScale(8, RoundingMode.HALF_UP), List.of());
+            return NormalizedBillingAmount.of(0L, BigDecimal.ZERO, List.of());
         }
         return switch (context.pricingPlan()) {
             case FIXED -> calculateFixed(context, usage);
@@ -122,7 +121,7 @@ public class TokenBillingModeCalculator extends AbstractBillingModeCalculator {
                 detail(TokenUsageDetailKind.CACHED_READ, cacheReadTokens, cacheReadCost, cacheReadPrice, unitSize),
                 detail(TokenUsageDetailKind.CACHED_WRITE, cacheWriteTokens, cacheWriteCost, cacheWritePrice, unitSize),
                 detail(TokenUsageDetailKind.OUTPUT, outputTokens, outputCost, outputPrice, unitSize));
-        return new NormalizedBillingAmount(
+        return NormalizedBillingAmount.of(
                 totalTokens,
                 inputCost.add(outputCost)
                         .add(cacheReadCost)

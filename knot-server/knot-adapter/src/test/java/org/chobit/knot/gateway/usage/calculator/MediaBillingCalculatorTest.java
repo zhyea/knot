@@ -11,7 +11,6 @@ import org.chobit.knot.gateway.model.VideoBillingUsage;
 import org.chobit.knot.gateway.usage.NormalizedUsageContext;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
 
@@ -21,6 +20,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * 媒体用量记录进入计费计算器的行为：按模式摄取（张数 / 秒数）、
  * 视频分辨率价键由宽高推导、错配时零出账不抛异常。
+ *
+ * <p>金额断言用字符串全等：对外契约不设小数位上限，{@code compareTo} 会把
+ * {@code 1} 与 {@code 1.00} 判成相等，放过精度回退。</p>
  */
 class MediaBillingCalculatorTest {
 
@@ -38,7 +40,7 @@ class MediaBillingCalculatorTest {
                 rule("IMAGE", "PER_IMAGE", SIMPLE_CONFIG),
                 new ImageBillingUsage(TokenBillingUsage.empty(), 3L, 0L, 0L, 0L)));
 
-        assertEquals(0, new BigDecimal("1.5").compareTo(amount.totalCost()), "3 张 × 0.5");
+        assertEquals("1.5", amount.totalCost(), "3 张 × 0.5");
         NormalizedUsageDetail detail = amount.details().get(0);
         assertEquals("IMAGE", detail.type());
         assertEquals(3L, detail.tokens());
@@ -50,16 +52,16 @@ class MediaBillingCalculatorTest {
                 rule("IMAGE", "PER_IMAGE", SIMPLE_CONFIG),
                 ImageBillingUsage.empty()));
 
-        assertEquals(0, new BigDecimal("0.5").compareTo(amount.totalCost()), "上游未上报张数按 1 张兜底");
+        assertEquals("0.5", amount.totalCost(), "上游未上报张数按 1 张兜底");
     }
 
     @Test
-    void shouldBillAudioBySecondsPerMinute() {
+    void shouldBillAudioBySeconds() {
         NormalizedBillingAmount amount = simple.calculate(context(
-                rule("AUDIO", "PER_MINUTE", SIMPLE_CONFIG),
+                rule("AUDIO", "PER_SECOND", SIMPLE_CONFIG),
                 new AudioBillingUsage(TokenBillingUsage.empty(), 120L)));
 
-        assertEquals(0, new BigDecimal("1.0").compareTo(amount.totalCost()), "120 秒 / 60 × 0.5");
+        assertEquals("60.0", amount.totalCost(), "120 秒 × 0.5（PER_MINUTE 已于 2026-10-17 退役，音频统一按秒）");
         assertEquals("AUDIO", amount.details().get(0).type());
         assertEquals(120L, amount.details().get(0).tokens());
     }
@@ -70,7 +72,7 @@ class MediaBillingCalculatorTest {
                 rule("VIDEO", "PER_SECOND", SIMPLE_CONFIG),
                 new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 0L, 0L, 0L, false, false)));
 
-        assertEquals(0, new BigDecimal("5.0").compareTo(amount.totalCost()), "10 秒 × 0.5");
+        assertEquals("5.0", amount.totalCost(), "10 秒 × 0.5");
         assertEquals("VIDEO", amount.details().get(0).type());
     }
 
@@ -81,7 +83,7 @@ class MediaBillingCalculatorTest {
                 rule("VIDEO", "PER_SECOND", SIMPLE_CONFIG),
                 new TokenBillingUsage(0L, 0L, 0L, 0L, 0L, 0L, 0L)));
 
-        assertEquals(0, new BigDecimal("0.5").compareTo(amount.totalCost()), "1 秒 × 0.5");
+        assertEquals("0.5", amount.totalCost(), "1 秒 × 0.5");
     }
 
     @Test
@@ -90,7 +92,7 @@ class MediaBillingCalculatorTest {
                 rule("VIDEO", "PER_SECOND", VIDEO_CONFIG),
                 new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 921_600L, 1280L, 720L, false, false)));
 
-        assertEquals(0, new BigDecimal("0.5").compareTo(amount.totalCost()), "10 秒 × 720P 价 0.05");
+        assertEquals("0.50", amount.totalCost(), "10 秒 × 720P 价 0.05");
         NormalizedUsageDetail detail = amount.details().get(0);
         assertEquals("VIDEO:720P", detail.type());
     }
@@ -101,7 +103,7 @@ class MediaBillingCalculatorTest {
                 rule("VIDEO", "PER_SECOND", VIDEO_CONFIG),
                 new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 2_073_600L, 1920L, 1080L, true, true)));
 
-        assertEquals(0, new BigDecimal("1.0").compareTo(amount.totalCost()), "10 秒 × 1080P 价 0.1");
+        assertEquals("1.0", amount.totalCost(), "10 秒 × 1080P 价 0.1");
         assertEquals("VIDEO:1080P", amount.details().get(0).type());
     }
 
@@ -111,7 +113,7 @@ class MediaBillingCalculatorTest {
                 rule("VIDEO", "PER_SECOND", VIDEO_CONFIG),
                 new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 409_920L, 854L, 480L, false, false)));
 
-        assertEquals(0, new BigDecimal("0.2").compareTo(amount.totalCost()), "未配置分辨率 → 默认价 0.02");
+        assertEquals("0.20", amount.totalCost(), "未配置分辨率 → 默认价 0.02");
         assertEquals("VIDEO:854X480", amount.details().get(0).type());
     }
 
@@ -121,7 +123,7 @@ class MediaBillingCalculatorTest {
                 rule("VIDEO", "PER_SECOND", VIDEO_CONFIG),
                 new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 0L, 0L, 0L, false, false)));
 
-        assertEquals(0, new BigDecimal("0.2").compareTo(amount.totalCost()));
+        assertEquals("0.20", amount.totalCost());
         assertEquals("VIDEO", amount.details().get(0).type(), "无分辨率时 detail 不带后缀");
     }
 
@@ -132,7 +134,7 @@ class MediaBillingCalculatorTest {
                 rule("TOKEN", "1K_TOKENS", SIMPLE_CONFIG),
                 new ImageBillingUsage(TokenBillingUsage.empty(), 3L, 0L, 0L, 0L)));
 
-        assertEquals(0, BigDecimal.ZERO.compareTo(amount.totalCost()));
+        assertEquals("0", amount.totalCost());
         assertTrue(amount.details().isEmpty());
     }
 

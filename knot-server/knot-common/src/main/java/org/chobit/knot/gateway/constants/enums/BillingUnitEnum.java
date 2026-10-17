@@ -16,7 +16,6 @@ public enum BillingUnitEnum implements EnumOption {
     PER_TOKEN("PER_TOKEN", "单 Token"),
     PER_REQUEST("PER_REQUEST", "按请求"),
     PER_IMAGE("PER_IMAGE", "按图片"),
-    PER_MINUTE("PER_MINUTE", "按分钟"),
     PER_SECOND("PER_SECOND", "按秒"),
     CUSTOM("CUSTOM", "自定义");
 
@@ -43,16 +42,22 @@ public enum BillingUnitEnum implements EnumOption {
     }
 
     /**
-     * 单个计费单位对应的数量基数（如 1K_TOKENS=1000、PER_MINUTE=60 秒）。
+     * 单个计费单位对应的数量基数（如 1K_TOKENS=1000）。
      * 金额 = 用量 / unitSize * 单价。新增枚举必须显式给出基数，
      * 未覆盖时在运行期直接抛异常，避免静默按错误基数计费造成资损。
+     *
+     * <p>⭐ 所有基数都是 10 的幂（1 / 1e3 / 1e6）：金额 = 用量 × 单价 ÷ 基数
+     * 恒定除尽，不终止除法在这套单位体系里不可能出现。
+     * PER_MINUTE（60 秒）已于 2026-10-17 退役——它是唯一的非 10 的幂基数，
+     * 会逼出「秒 ÷ 60」的不终止除法；退役后 audio 与 video 统一按秒计费。
+     * 若未来确需按分钟计费，必须在配置期把单价折成每秒价，不要让 60 进金额公式
+     * （设计纪要见 docs/design/routing-test-drawer-billing-verify-design.md §6）。</p>
      */
     public int unitSize() {
         return switch (this) {
             case ONE_K_TOKENS -> 1_000;
             case ONE_M_TOKENS -> 1_000_000;
             case PER_TOKEN, PER_REQUEST, PER_IMAGE, PER_SECOND, CUSTOM -> 1;
-            case PER_MINUTE -> 60;
             default -> throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "billing unit not covered by unitSize: " + code);
         };

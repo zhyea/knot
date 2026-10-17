@@ -78,8 +78,11 @@ class EnumOptionRegistryTest {
         assertLabel("RouteTargetTypeEnum", "MODEL", "模型");
         assertLabel("RouteTargetTypeEnum", "MODEL_POOL", "模型池");
 
-        assertEquals(8, optionsOf("BillingUnitEnum").size());
+        assertEquals(7, optionsOf("BillingUnitEnum").size());
         assertLabel("BillingUnitEnum", "CUSTOM", "自定义");
+        // PER_MINUTE 已于 2026-10-17 退役：60 是唯一非 10 的幂基数，会逼出不终止除法；
+        // audio/video 统一按秒计费，前端不应再见到该选项
+        assertNull(labelOf(optionsOf("BillingUnitEnum"), "PER_MINUTE"));
 
         assertEquals(2, optionsOf("CurrencyCodeEnum").size());
         assertLabel("CurrencyCodeEnum", "CNY", "CNY");

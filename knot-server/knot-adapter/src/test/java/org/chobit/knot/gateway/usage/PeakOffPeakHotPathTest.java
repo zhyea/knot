@@ -6,7 +6,6 @@ import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.usage.calculator.TokenBillingModeCalculator;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -58,12 +57,13 @@ class PeakOffPeakHotPathTest {
         assertNotNull(peak);
         assertNotNull(offPeak);
 
-        assertEquals(0, new BigDecimal("5.4").compareTo(peak.totalCost()), "peak cost = base x 1.5");
-        assertEquals(0, new BigDecimal("1.8").compareTo(offPeak.totalCost()), "off-peak cost = base x 0.5");
+        assertEquals("5.4", peak.totalCost(), "peak cost = base x 1.5");
+        assertEquals("1.8", offPeak.totalCost(), "off-peak cost = base x 0.5");
 
         // 明细单价也要带上倍率（已换算成每百万）：input 2 -> 3 / 1
-        assertEquals(0, new BigDecimal("3000").compareTo(detailPrice(peak, "uncachedInput")));
-        assertEquals(0, new BigDecimal("1000").compareTo(detailPrice(offPeak, "uncachedInput")));
+        // 单价 2 × 倍率后 scale 为 1，每百万换算保留自然位数（3000.0 而非 3000）
+        assertEquals("3000.0", detailPrice(peak, "uncachedInput"));
+        assertEquals("1000.0", detailPrice(offPeak, "uncachedInput"));
     }
 
     /** FIXED 方案与时点无关：同一时刻改回固定价，金额必须是未打折的 3.6 */
@@ -71,8 +71,8 @@ class PeakOffPeakHotPathTest {
     void shouldKeepFixedPlanAmountUnchanged() {
         NormalizedUsage usage = normalize(PEAK, "FIXED");
         assertNotNull(usage);
-        assertEquals(0, new BigDecimal("3.6").compareTo(usage.totalCost()), "fixed cost");
-        assertEquals(0, new BigDecimal("2000").compareTo(detailPrice(usage, "uncachedInput")));
+        assertEquals("3.6", usage.totalCost(), "fixed cost");
+        assertEquals("2000", detailPrice(usage, "uncachedInput"));
     }
 
     private NormalizedUsage normalize(Instant occurredAt, String pricingPlan) {
@@ -82,7 +82,7 @@ class PeakOffPeakHotPathTest {
                 usage(), rule, null, occurredAt, new TokenBillingModeCalculator());
     }
 
-    private BigDecimal detailPrice(NormalizedUsage usage, String type) {
+    private String detailPrice(NormalizedUsage usage, String type) {
         return usage.detail().stream()
                 .filter(item -> type.equals(item.type()))
                 .findFirst()

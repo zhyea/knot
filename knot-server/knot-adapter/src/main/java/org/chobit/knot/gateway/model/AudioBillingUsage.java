@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.model;
 /**
  * AUDIO 模式计费输入：时长（秒）。
  *
- * <p>时长是主要计费量（按秒/按分钟计价）；后续若出现按字符等维度再扩字段。</p>
+ * <p>时长是主要计费量（按秒计价，PER_MINUTE 已于 2026-10-17 退役）；后续若出现按字符等维度再扩字段。</p>
  *
  * <p>{@code tokens} 内嵌上游可能同时上报的 token 用量（如转写类接口的
  * {@code usage.total_tokens}），TOKEN 类规则走它计费；纯音频响应为空用量。</p>

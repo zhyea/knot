@@ -55,6 +55,7 @@ class RoutingRuleStreamControllerTest {
         JsonKit.init(new com.fasterxml.jackson.databind.ObjectMapper());
         service = new StubRoutingRuleService();
         mockMvc = MockMvcBuilders
+                // 转换器传 null：本测试只走流式调试端点，不会触达它（未使用依赖）
                 .standaloneSetup(new RoutingRuleController(service, null, new GatewayRuntimeProperties()))
                 .setControllerAdvice(new ApiResponseWrapperAdvice(new RwProperties()),
                         new org.chobit.knot.gateway.GlobalExceptionHandler(new RwProperties()))

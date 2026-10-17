@@ -100,9 +100,11 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 (13, 'system:role:view', '查看角色', 'API', 1, 3, 1, 1, NULL),
 (14, 'system:log:page', '操作日志页面访问', 'PAGE', 1, 4, 1, 1, NULL),
 (15, 'system:log:view', '查看操作日志', 'API', 1, 4, 1, 1, NULL),
-(16, 'system:settings:page', '用户设置页面访问', 'PAGE', 1, 5, 1, 1, NULL),
-(17, 'system:settings:update', '更新用户设置', 'API', 1, 5, 1, 1, NULL),
-(18, 'system:settings:view', '查看当前用户设置与授权信息', 'API', 1, 5, 1, 1, NULL),
+-- 用户设置用 preference 关键字（robin 2026-10-17 定：settings 关键字留给「系统设置」，
+-- 免得两者撞名 —— ks_permissions.permission_code 有唯一键，撞名会被 INSERT IGNORE 静默丢弃）
+(16, 'system:preference:page', '用户设置页面访问', 'PAGE', 1, 5, 1, 1, NULL),
+(17, 'system:preference:update', '更新用户设置', 'API', 1, 5, 1, 1, NULL),
+(18, 'system:preference:view', '查看当前用户设置与授权信息', 'API', 1, 5, 1, 1, NULL),
 (19, 'model:provider:page', '供应商页面访问', 'PAGE', 2, 6, 1, 1, NULL),
 (20, 'model:model:page', '供应商模型页面访问', 'PAGE', 2, 7, 1, 1, NULL),
 (21, 'model:model-pool:page', '模型池页面访问', 'PAGE', 2, 8, 1, 1, NULL),

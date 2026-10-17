@@ -14,7 +14,7 @@ import java.time.format.DateTimeFormatter;
  * 限流 / 限额拒绝的结构化明细：告诉调用方「谁被限了、限的是哪个维度、上限与已用多少、什么时候恢复」。
  *
  * <p>随 429 响应体的 {@code error.detail} 返回。数值一律换算成<b>自然单位</b>再输出——
- * 成本维度内部按纳元（1e-8）计数，直接透给调用方是无法读的 {@code 1000000000}，
+ * 成本维度内部按 1e-12 计数，直接透给调用方是无法读的 {@code 1000000000000}，
  * 这里统一还原成金额（配合 {@link #unit} 给出币种）。</p>
  *
  * <p>资源一律按业务码 {@code resourceCode} 标识：主键 id 是部署相关的内部序号，
@@ -69,9 +69,9 @@ public record TrafficRejectDetail(String resourceType,
     }
 
     /**
-     * 纳元计数还原成金额；其余维度原样输出。
+     * 计数还原成金额；其余维度原样输出。
      *
-     * <p>保留 8 位小数不裁剪：JSON 里 {@code 12.00000000} 与内部计数精度一致，
+     * <p>保留 12 位小数不裁剪：JSON 里 {@code 12.000000000000} 与内部计数精度一致，
      * 只有 {@link #describe()} 的展示文本才去掉多余的零。</p>
      */
     private static BigDecimal amount(long value, boolean cost) {

@@ -49,6 +49,15 @@ class BillingModeEnumTest {
     }
 
     @Test
+    void audioBillsPerSecondAfterPerMinuteRetirement() {
+        // PER_MINUTE（唯一的非 10 的幂基数）于 2026-10-17 退役，音频与视频统一按秒计费。
+        // 若未来恢复按分钟，须先在配置期把单价折成每秒价，详见 BillingUnitEnumTest 的不变式。
+        assertEquals(BillingUnitEnum.PER_SECOND, BillingModeEnum.AUDIO.defaultUnit());
+        assertEquals(1, BillingModeEnum.AUDIO.supportedUnits().size());
+        assertFalse(BillingModeEnum.AUDIO.supportsUnit("PER_MINUTE"));
+    }
+
+    @Test
     void fromCodeIsCaseInsensitiveAndNullSafe() {
         assertEquals(BillingModeEnum.TOKEN, BillingModeEnum.fromCode(" token "));
         assertEquals(BillingModeEnum.IMAGE, BillingModeEnum.fromCode("IMAGE"));

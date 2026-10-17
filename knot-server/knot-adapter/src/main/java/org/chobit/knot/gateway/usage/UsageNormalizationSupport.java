@@ -44,6 +44,7 @@ public final class UsageNormalizationSupport {
         long totalTokens = token.totalTokens() > 0
                 ? token.totalTokens()
                 : token.inputTokens() + token.outputTokens();
+        // amount.totalCost() 已是最终对外文本（普通十进制、不设小数位上限），原样透传，不再二次转换
         return new NormalizedUsage(
                 totalTokens,
                 amount.totalCost(),

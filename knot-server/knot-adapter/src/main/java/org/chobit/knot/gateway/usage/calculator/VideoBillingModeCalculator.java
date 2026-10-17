@@ -51,7 +51,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         String detailType = resolution == null
                 ? normalizeDetailType(rule.getBillingMode(), BillingModeEnum.VIDEO)
                 : normalizeDetailType(rule.getBillingMode(), BillingModeEnum.VIDEO) + ":" + resolution;
-        return new NormalizedBillingAmount(
+        return NormalizedBillingAmount.of(
                 usage.tokenUsage().totalTokens(),
                 totalCost,
                 List.of(detail(detailType, amount, totalCost, unitPrice, unitSize))

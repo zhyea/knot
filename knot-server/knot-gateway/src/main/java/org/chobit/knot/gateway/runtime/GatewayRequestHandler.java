@@ -48,6 +48,7 @@ import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -346,8 +347,24 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         }
         NormalizedUsage normalized = usage.normalized();
         return TrafficUsage.of(usage.totalTokens(),
-                normalized == null ? null : normalized.totalCost(),
+                costOf(normalized),
                 normalized == null ? null : normalized.currency());
+    }
+
+    /**
+     * 计费结果的对外契约是十进制普通字符串（见 {@link NormalizedUsage#totalCost()}），
+     * 记账要的是 {@link BigDecimal}，在这里做唯一一次还原；空或非法文本按无成本处理，
+     * 与「上游没给 usage.cost」同一口径，不让脏数据炸掉记账链路。
+     */
+    private static BigDecimal costOf(NormalizedUsage normalized) {
+        if (normalized == null || StringUtils.isBlank(normalized.totalCost())) {
+            return null;
+        }
+        try {
+            return new BigDecimal(StringUtils.trim(normalized.totalCost()));
+        } catch (NumberFormatException invalid) {
+            return null;
+        }
     }
 
 

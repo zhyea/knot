@@ -29,15 +29,15 @@ class TrafficRejectDetailTest {
     }
 
     @Test
-    void costDetailConvertsNanoYuanBackToAmount() {
-        // 内部按纳元计数：10.00 → 10^8，直接透给调用方是无法读的 1000000000
+    void costDetailConvertsScaledCountsBackToAmount() {
+        // 内部按 1e-12 计数：10.00 → 10^12，直接透给调用方是无法读的 10000000000000
         TrafficRejectDetail detail = TrafficRejectDetail.of(decision(
                 TrafficRejectReason.QUOTA_COST, "PROVIDER", "account-code",
-                1_000_000_000L, 1_200_000_000L, NOW + 3_600_000L, "USD"), NOW);
+                10_000_000_000_000L, 12_000_000_000_000L, NOW + 3_600_000L, "USD"), NOW);
 
         assertEquals("USD", detail.unit(), "成本维度的单位就是策略币种");
-        assertEquals(0, new BigDecimal("10.00000000").compareTo(detail.limit()));
-        assertEquals(0, new BigDecimal("12.00000000").compareTo(detail.used()));
+        assertEquals(0, new BigDecimal("10.000000000000").compareTo(detail.limit()));
+        assertEquals(0, new BigDecimal("12.000000000000").compareTo(detail.used()));
         assertEquals(3600L, detail.resetAfterSeconds());
         assertEquals("Quota exceeded for PROVIDER#account-code: 12/10 USD. Resets in 3600s.", detail.describe());
     }
