@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.runtime;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -368,6 +369,36 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     }
 
 
+    /**
+     * 本次调用是否注入「返回消费详情」（{@code knot_extend}）：消费者配置开启，
+     * 或请求头 {@code X-Knot-Test-Return-Usage: true} 临时开启（管理面调试抽屉用），
+     * 二者其一即注入。非流式与流式两个注入点共用同一判定，避免两处口径漂移。
+     */
+    private boolean shouldReturnUsageDetail(ResolvedRouting routing) {
+        return routing != null && (routing.returnUsageDetail() || testReturnUsageRequested());
+    }
+
+    /**
+     * 读取管理面测试头。与 {@link #writeSelectedModelHeader} 同款请求属性入口
+     * （两个决策点都发生在请求线程）；取不到请求（非 web 场景）按未开启处理。
+     */
+    private boolean testReturnUsageRequested() {
+        RequestAttributes attributes = RequestContextHolder.getRequestAttributes();
+        if (!(attributes instanceof ServletRequestAttributes servletAttributes)) {
+            return false;
+        }
+        HttpServletRequest request = servletAttributes.getRequest();
+        return request != null && isTestReturnUsageHeader(request.getHeader(GatewayHeaders.X_KNOT_TEST_RETURN_USAGE));
+    }
+
+    /**
+     * 测试头值解析：仅 {@code true}（忽略大小写与首尾空白）生效，缺失或其他值按未开启。
+     * 包级可见供单测直接驱动。
+     */
+    static boolean isTestReturnUsageHeader(String headerValue) {
+        return Boolean.parseBoolean(StringUtils.trimToEmpty(headerValue));
+    }
+
     @Override
     protected Object applyUsageAccounting(GatewayRequestContext context, GatewayExchange exchange) {
         ProxyResult result = exchange.proxyResult();
@@ -381,7 +412,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         if (routing == null || result.responseBody() == null) {
             return result.responseBody();
         }
-        if (!routing.returnUsageDetail()) {
+        if (!shouldReturnUsageDetail(routing)) {
             return result.responseBody();
         }
         KnotExtendPayload payload = KnotExtendPayload.of(result.usage());
@@ -414,7 +445,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     private Object streamResponse(ProxyResult result, ResolvedRouting routing, GatewayRequestContext context) {
         UpstreamStreamResponse stream = result.streamResponse();
         prepareStreamingHeaders(stream.contentType());
-        boolean appendUsage = routing != null && routing.returnUsageDetail();
+        boolean appendUsage = shouldReturnUsageDetail(routing);
         // 在途计数在流写完时才释放（见 proxyWithFailover 的 deferredToStream）
         Runnable loadRelease = context.attribute(ATTR_LOAD_RELEASE);
         return new ProxyStreamingBody(stream, usageExtractorRegistry, appendUsage,

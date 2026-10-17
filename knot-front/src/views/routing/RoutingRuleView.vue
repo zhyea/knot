@@ -41,6 +41,7 @@
       :rule-name="testRuleName"
       :rule-code="testRuleCode"
       :secret-key="testSecretKey"
+      :consumer-return-usage-detail="testConsumerReturnUsageDetail"
       :targets="testTargets"
     />
 
@@ -88,6 +89,7 @@ const testRuleId = ref<number | null>(null);
 const testRuleName = ref("");
 const testRuleCode = ref("");
 const testSecretKey = ref("");
+const testConsumerReturnUsageDetail = ref(false);
 const testTargets = ref<Row[]>([]);
 const logDrawer = ref(false);
 const logRuleId = ref<number | string | null>(null);
@@ -111,23 +113,31 @@ async function openTest(row: Row) {
   testRuleId.value = row.id;
   testRuleName.value = row.name || row.ruleCode || "";
   testRuleCode.value = row.ruleCode || "";
-  testSecretKey.value = await loadConsumerSecretKey(row.consumerIds);
+  const consumer = await loadConsumerContext(row.consumerIds);
+  testSecretKey.value = consumer.secretKey;
+  testConsumerReturnUsageDetail.value = consumer.returnUsageDetail;
   testTargets.value = Array.isArray(row.targets) ? row.targets : [];
   testVisible.value = true;
 }
 
-async function loadConsumerSecretKey(consumerIds: Array<string | number>) {
+/**
+ * 取规则绑定消费者的密钥与「返回消费详情」开关：规则实际只绑一个消费者，
+ * 抽屉以首个（也是唯一一个）消费者的密钥发起测试，故两项都取它。
+ * 走详情端点而非全量列表（下拉候选用 POST /options，刻意不含 secretKey）。
+ */
+async function loadConsumerContext(consumerIds: Array<string | number>) {
   const ids = Array.isArray(consumerIds) ? consumerIds : [];
   if (!ids.length) {
-    return "";
+    return {secretKey: "", returnUsageDetail: false};
   }
-  // 按 id 精确取首个消费者的密钥：走详情端点而非全量列表
-  // （下拉候选用 POST /options，刻意不含 secretKey；密钥只在详情按需取）
   try {
     const detail = await getRoutingConsumer(ids[0]);
-    return detail?.secretKey || "";
+    return {
+      secretKey: detail?.secretKey || "",
+      returnUsageDetail: detail?.returnUsageDetail === true
+    };
   } catch {
-    return "";
+    return {secretKey: "", returnUsageDetail: false};
   }
 }
 

@@ -57,6 +57,11 @@
             </el-tooltip>
           </div>
 
+          <div v-if="showTestReturnUsageToggle" class="test-usage-toggle">
+            <el-checkbox v-model="testReturnUsage" size="small">测试时临时开启「返回消费详情」</el-checkbox>
+            <span class="test-usage-toggle__hint">该消费者未开启返回消费详情；勾选后仅本次测试请求生效，响应将附带 knot_extend（用量与网关计费明细）</span>
+          </div>
+
           <el-form label-width="0px" class="test-form">
             <el-collapse v-model="expandedPanels" class="debug-collapse">
               <el-collapse-item name="preview" title="请求预览">
@@ -247,6 +252,9 @@ import type {Dict} from "@/types";
 
 const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || "http://127.0.0.1:9090";
 
+/** 管理面测试头：勾选「测试时临时开启返回消费详情」后随请求发往网关（与后端 GatewayHeaders 同款常量） */
+const TEST_RETURN_USAGE_HEADER = "X-Knot-Test-Return-Usage";
+
 // 协议名称来自后端 ModelApiProtocolEnum（/api/common/enums），前端不再维护 code->label 映射
 const {labelOf: enumLabelOf} = useEnumOptions();
 
@@ -270,7 +278,9 @@ const props = defineProps({
   ruleName: {type: String, default: ""},
   ruleCode: {type: String, default: ""},
   secretKey: {type: String, default: ""},
-  targets: {type: Array as PropType<RoutingTarget[]>, default: (): RoutingTarget[] => []}
+  targets: {type: Array as PropType<RoutingTarget[]>, default: (): RoutingTarget[] => []},
+  /** 规则绑定消费者自身的「返回消费详情」开关：已开启时无需（也不显示）临时开启勾选 */
+  consumerReturnUsageDetail: {type: Boolean, default: false}
 });
 
 const emit = defineEmits(["update:modelValue"]);
@@ -423,6 +433,13 @@ const testForm = reactive({
   protocol: ""
 });
 
+/**
+ * 「测试时临时开启返回消费详情」勾选：仅当规则绑定消费者自身没开时才可见（先决条件），
+ * 默认勾选——抽屉存在的意义就是看到 knot_extend，让用户主动关而不是主动开。
+ */
+const testReturnUsage = ref(true);
+const showTestReturnUsageToggle = computed(() => !props.consumerReturnUsageDetail);
+
 const drawerTitle = computed(() => {
   const name = props.ruleName?.trim();
   return name ? `路由规则测试 — ${name}` : "路由规则测试";
@@ -541,6 +558,7 @@ function validateHeaderRows(): string | null {
 /**
  * 组装实际请求头：表格为权威（删除的行即不发送）；
  * 协议必需头 Content-Type / Accept 仅在表格缺失时补默认，表格填了则以表格为准。
+ * 勾选临时开启时补测试头（表格已手动填同名头则不覆盖，保持表格权威）。
  */
 function buildRequestHeaders(accept: string): Record<string, string> {
   const headers: Record<string, string> = {};
@@ -555,6 +573,9 @@ function buildRequestHeaders(accept: string): Record<string, string> {
   }
   if (!hasHeaderName("Content-Type")) {
     headers["Content-Type"] = "application/json";
+  }
+  if (showTestReturnUsageToggle.value && testReturnUsage.value && !hasHeaderName(TEST_RETURN_USAGE_HEADER)) {
+    headers[TEST_RETURN_USAGE_HEADER] = "true";
   }
   return headers;
 }
@@ -633,6 +654,7 @@ watch(
     requestTab.value = "preset";
     responseTab.value = "summary";
     expandedPanels.value = ["preview"];
+    testReturnUsage.value = true;
     testForm.secretKey = props.secretKey || "";
     resetHeaderRows();
     initializeTargetSelection();
@@ -1354,6 +1376,7 @@ function onClosed() {
   testResult.value = null;
   responseHeaders.value = {};
   headerRows.value = [];
+  testReturnUsage.value = true;
   loading.value = false;
 }
 
@@ -1451,6 +1474,20 @@ onBeforeUnmount(() => {
 
 .test-form {
   margin-bottom: 0;
+}
+
+/* 临时开启「返回消费详情」勾选行：仅消费者未开时显示 */
+.test-usage-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.test-usage-toggle__hint {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .request-template {
