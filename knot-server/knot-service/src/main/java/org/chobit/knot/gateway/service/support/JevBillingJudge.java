@@ -104,7 +104,10 @@ public class JevBillingJudge {
         } catch (HttpStatusCodeException ex) {
             int status = ex.getStatusCode().value();
             String respBody = safeBody(ex);
-            if (status == 413) {
+            // 重试策略按「有效状态码」判定：网关把上游 4xx 一律包成 502，若此处只看 HTTP 码，
+            // 经网关透出的 413/429 就永远走不到截断/退避重试（Batch4 冒烟场景 7 暴露）。
+            int effective = resolveEffectiveStatus(status, respBody);
+            if (effective == 413) {
                 // 触发 state 截断重试一次（minimal）：丢弃明细、只留汇总
                 try {
                     Map<String, Object> minimal = buildRequestBody(context, sessionId, true);
@@ -116,7 +119,7 @@ public class JevBillingJudge {
                     return unavailable("裁判请求体过大（413）截断重试失败：" + ex2.getMessage());
                 }
             }
-            if (status == 429) {
+            if (effective == 429) {
                 // 指数退避（此处退化为固定短退避）最多 1 次
                 try {
                     Thread.sleep(RETRY_BACKOFF_MS);

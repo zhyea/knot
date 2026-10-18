@@ -21,6 +21,7 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * 把上游响应边收边发给调用方：读完一行立刻写出并 flush，不在网关侧堆积整包响应。
@@ -50,37 +51,50 @@ public class ProxyStreamingBody implements StreamingResponseBody {
      * 构造时把 {@code null} 归一为降级实例，调用点无需判空。
      */
     private final FirstTokenHeaderWriter firstTokenWriter;
+    /**
+     * 流结束时的用量出口：把收尾时选出的「信息量最大」的一份用量交给观察方（数仓事件）。
+     *
+     * <p>流式请求的用量只能在流写完才知道，而请求线程早已返回；
+     * 发布点必须挂在响应体上，不能由模板在返回时刻发布——那时用量还没算出来。</p>
+     */
+    private final Consumer<UsageAccounting> usageSink;
 
     public ProxyStreamingBody(UpstreamStreamResponse stream,
                               UsageExtractorRegistry usageExtractorRegistry,
                               boolean appendUsage,
                               int bufferSize,
                               Runnable onComplete,
-                              FirstTokenHeaderWriter firstTokenWriter) {
+                              FirstTokenHeaderWriter firstTokenWriter,
+                              Consumer<UsageAccounting> usageSink) {
         this.stream = stream;
         this.usageExtractorRegistry = usageExtractorRegistry;
         this.appendUsage = appendUsage;
         this.bufferSize = bufferSize > 0 ? bufferSize : 8192;
         this.onComplete = onComplete;
         this.firstTokenWriter = firstTokenWriter == null ? FirstTokenHeaderWriter.noop() : firstTokenWriter;
+        this.usageSink = usageSink;
     }
 
     @Override
     public void writeTo(@NonNull OutputStream outputStream) throws IOException {
+        UsageAccounting usage = null;
         try (UpstreamStreamResponse ignored = stream) {
             if (stream.isEventStream()) {
-                pumpEventStream(outputStream);
+                usage = pumpEventStream(outputStream);
             } else {
                 pumpRaw(outputStream);
             }
         } finally {
+            if (usageSink != null) {
+                usageSink.accept(usage);
+            }
             if (onComplete != null) {
                 onComplete.run();
             }
         }
     }
 
-    private void pumpEventStream(OutputStream out) throws IOException {
+    private UsageAccounting pumpEventStream(OutputStream out) throws IOException {
         Writer writer = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8), bufferSize);
         UsageAccounting usage = null;
         boolean usageAppended = false;
@@ -109,6 +123,7 @@ public class ProxyStreamingBody implements StreamingResponseBody {
             }
             writer.flush();
         }
+        return usage;
     }
 
     private void pumpRaw(OutputStream out) throws IOException {

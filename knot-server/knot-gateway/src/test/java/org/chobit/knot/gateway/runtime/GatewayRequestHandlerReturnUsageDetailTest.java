@@ -37,8 +37,10 @@ class GatewayRequestHandlerReturnUsageDetailTest {
 
     @BeforeEach
     void setUp() {
-        // applyUsageAccounting 路径不触达任何协作者（仅读 exchange 与 context），故可全 null 构造
-        handler = new GatewayRequestHandler(null, null, null, null, null, null, null, null, null, null, null);
+        // applyUsageAccounting 路径不触达任何协作者（仅读 exchange 与 context），故可全 null 构造；
+        // 末尾两个参数是埋点业务侧维护的主题全名（本路径不发布事件，传 null 即可）
+        handler = new GatewayRequestHandler(null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null);
     }
 
     @AfterEach
@@ -155,7 +157,8 @@ class GatewayRequestHandlerReturnUsageDetailTest {
         exchange.proxyResult(new ProxyResult(RESPONSE_BODY, 1L, 2L, usage));
 
         GatewayRequestContext context = new GatewayRequestContext(
-                "Bearer sk-routing-key", "sk-routing-key", "rule-a", null, null, null);
+                "Bearer sk-routing-key", "rule-a", null, null, null);
+        context.apiKey("sk-routing-key");
         context.routing(routing);
         return handler.applyUsageAccounting(context, exchange);
     }

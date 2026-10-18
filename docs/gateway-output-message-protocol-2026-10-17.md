@@ -120,18 +120,29 @@
 
 ## 5. 错误响应协议
 
-统一信封 `GatewayErrorResponse{error:{message,type,code,detail?}}`（`model/GatewayErrorResponse.java:5-31`），`detail` 仅 429 携带：
+统一信封 `GatewayErrorResponse{error:{message,type,code,detail?,upstreamStatus?,upstreamMessage?}}`（`model/GatewayErrorResponse.java`），`detail` 仅 429 携带，`upstreamStatus/upstreamMessage` 仅上游异常（502）携带：
 
-| error.type | HTTP | 触发 | error.code | detail |
-|---|---|---|---|---|
-| `auth_error` | 401 | Authorization 无法提取 API key | — | — |
-| `invalid_request_error` | 400 | Rule 头缺失 / 请求体不可解析 / 参数校验失败 / 管理面 BusinessException | 可选业务码 | — |
-| `moderation_error` | 400 | 敏感词命中（插件抛 `ModerationRejectException`） | **分类 code**（唯一对外命中信息，不暴露词与词库） | — |
-| `rate_limit_error` | 429 | RPM / TPM 超限 | `RATE_LIMIT_EXCEEDED` | TrafficRejectDetail |
-| `quota_error` | 429 | token / 成本限额超限 | `QUOTA_EXCEEDED` | TrafficRejectDetail |
-| `upstream_error` | 502 | 上游异常终态 | `UPSTREAM_ERROR` 等 8 值 | — |
-| `storage_unavailable` | 503 | Redis 不可用（fail-hard 档） | — | — |
-| （兜底）`upstream_error` | 500 | 未预期异常 | — | — |
+| error.type | HTTP | 触发 | error.code | detail | upstreamStatus |
+|---|---|---|---|---|---|
+| `auth_error` | 401 | Authorization 无法提取 API key | — | — | — |
+| `invalid_request_error` | 400 | Rule 头缺失 / 请求体不可解析 / 参数校验失败 / 管理面 BusinessException | 可选业务码 | — | — |
+| `moderation_error` | 400 | 敏感词命中（插件抛 `ModerationRejectException`） | **分类 code**（唯一对外命中信息，不暴露词与词库） | — | — |
+| `rate_limit_error` | 429 | RPM / TPM 超限 | `RATE_LIMIT_EXCEEDED` | TrafficRejectDetail | — |
+| `quota_error` | 429 | token / 成本限额超限 | `QUOTA_EXCEEDED` | TrafficRejectDetail | — |
+| `upstream_error` | 502 | 上游异常终态 | `UPSTREAM_ERROR` 等 8 值 | — | **上游原状态码** |
+| `storage_unavailable` | 503 | Redis 不可用（fail-hard 档） | — | — | — |
+| （兜底）`upstream_error` | 500 | 未预期异常 | — | — | — |
+
+> **2026-10-17 增补（Batch4 冒烟场景 7 副产物）**：上游非 2xx 统一以 **502** 回给客户端（错误码隔离不变），
+> 但响应体 `error.upstreamStatus` 会带上**上游原状态码**、`error.upstreamMessage` 带上截断到 300 字符的
+> 上游响应摘要。原因：只回 502 会让调用方分不清「余额不足 402」「限流 429」与「真故障 5xx」——
+> 管理端计费裁判（`JevBillingJudge.resolveEffectiveStatus`）据此还原语义。
+> 上游响应体可能很大（HTML 错误页等），故摘要截断且有省略号标识。对既有调用方是纯新增字段，向后兼容。
+
+```json
+{ "error": { "message": "upstream failed", "type": "upstream_error", "code": "UPSTREAM_ERROR",
+             "upstreamStatus": 402, "upstreamMessage": "{\"error\":{\"message\":\"Insufficient credits\"}}" } }
+```
 
 `TrafficRejectDetail`（429 响应体 `error.detail`，`model/TrafficRejectDetail.java:24-32`）：
 

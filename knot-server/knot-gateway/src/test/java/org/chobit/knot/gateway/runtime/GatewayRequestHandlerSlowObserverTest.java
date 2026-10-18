@@ -38,7 +38,7 @@ class GatewayRequestHandlerSlowObserverTest {
     void setUp() {
         store = new CaffeineTargetOutageStore(1_000L, 60_000L);
         tracker = new OutageTracker(store, new OutageKeys("knot:outage"));
-        context = new GatewayRequestContext("Bearer key", "key", "rule-a", null, null, null);
+        context = new GatewayRequestContext("Bearer key", "rule-a", null, null, null);
     }
 
     @Test

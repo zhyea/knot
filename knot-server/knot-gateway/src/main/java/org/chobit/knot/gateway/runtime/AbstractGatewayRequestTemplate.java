@@ -15,6 +15,11 @@ import org.chobit.knot.gateway.plugin.gateway.GatewayRoutingSnapshot;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.request.GatewayModelRequest;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.model.UsageAccounting;
+import org.chobit.knot.gateway.kafka.CallTraceContext;
+import org.chobit.knot.gateway.kafka.KafkaPublisher;
+import org.chobit.knot.gateway.kafka.msg.RequestMsgDto;
+import org.chobit.knot.gateway.kafka.msg.ResponseMsgDto;
 import org.springframework.http.MediaType;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
@@ -35,10 +40,37 @@ public abstract class AbstractGatewayRequestTemplate {
      */
     private final ModerationWordResource moderationWordResource;
 
+    /**
+     * Kafka 投递器；<b>未开启 Kafka 事件输出时为 {@code null}</b>（{@code kafka.enabled=false}）。
+     *
+     * <p>埋点因此一律判空——旁路观测的开关不应改变请求链路的结构，
+     * 关闭时只是「不发布」，不是「走另一条链路」。</p>
+     *
+     * <p>主题常量由本类（埋点业务侧）维护， publish 时显式传入——投递器是纯管道，
+     * 不认识「请求层 / 响应层」这类业务概念。</p>
+     */
+    private final KafkaPublisher eventPublisher;
+
+    /**
+     * 请求层主题全名（埋点业务侧维护，取自 {@code kafka.topic-request}）。
+     */
+    private final String requestTopic;
+
+    /**
+     * 响应层主题全名（埋点业务侧维护，取自 {@code kafka.topic-response}）。
+     */
+    private final String responseTopic;
+
     protected AbstractGatewayRequestTemplate(PluginDispatcher pluginDispatcher,
-                                             ModerationWordResource moderationWordResource) {
+                                             ModerationWordResource moderationWordResource,
+                                             KafkaPublisher eventPublisher,
+                                             String requestTopic,
+                                             String responseTopic) {
         this.pluginDispatcher = pluginDispatcher;
         this.moderationWordResource = moderationWordResource;
+        this.eventPublisher = eventPublisher;
+        this.requestTopic = requestTopic;
+        this.responseTopic = responseTopic;
     }
 
     /**
@@ -77,15 +109,18 @@ public abstract class AbstractGatewayRequestTemplate {
                              Map<String, Object> requestBody,
                              ModelApiProtocolEnum protocol,
                              MediaType contentType) {
-        // Build request context once so later stages can reuse resolved metadata.
-        String apiKey = validateRequestHeaders(authorization, ruleCode);
+        // 上下文与载体先建出来，好让「入口即拒」也有一条响应层事件
+        // （头校验失败时不发，数仓就统计不到 401/400 的拒绝量）
         GatewayTraceContext traceContext = GatewayTraceContext.currentOrCreate(traceparent);
         GatewayRequestContext context = new GatewayRequestContext(
-                authorization, apiKey, ruleCode, traceContext, protocol, stickyKey);
+                authorization, ruleCode, traceContext, protocol, stickyKey);
         GatewayExchange exchange = new GatewayExchange(requestBody, contentType);
         try {
+            context.apiKey(validateRequestHeaders(authorization, ruleCode));
             ResolvedRouting routingInfo = resolveRouting(context);
             context.routing(routingInfo);
+            // 请求层：此刻「谁在调、走哪条规则、落到哪个应用/部门/用户」已定，结果一个都不知道
+            publishRequest(context, exchange, routingInfo);
             dispatchGatewayPlugin(context, exchange, PluginStageCode.GATEWAY_REQUEST, null, null);
 
             ProxyResult result = proxy(context, exchange);
@@ -94,15 +129,54 @@ public abstract class AbstractGatewayRequestTemplate {
             // 首 token 响应时间：非流式在此写头（响应体就绪即产出就绪，等价首 token）；
             // 流式返回 StreamingResponseBody，由响应体在上游首行写出前自行写头。
             // 观察者由子类按需提供（如慢信号摘除），两个出口共用同一钩子
+            FirstTokenHeaderWriter firstTokenWriter = null;
             if (response != null && !(response instanceof StreamingResponseBody)) {
-                FirstTokenHeaderWriter.of(context, firstTokenObserver(context)).mark();
+                firstTokenWriter = FirstTokenHeaderWriter.of(context, firstTokenObserver(context));
+                firstTokenWriter.mark();
             }
             dispatchGatewayPlugin(context, exchange, PluginStageCode.GATEWAY_RESPONSE, response, null);
+            // 流式不包括在此发布：响应体尚未写完，用量要等 ProxyStreamingBody 收尾才知道，
+            // 改由 GatewayRequestHandler 在流结束时发布（见 streamResponse）。
+            if (firstTokenWriter != null) {
+                ProxyResult proxied = exchange.proxyResult();
+                // 非流式：响应体已就绪，用量在此就是终态
+                publishResponse(context, proxied == null ? null : proxied.usage(),
+                        firstTokenWriter.elapsedMillis(), null);
+            }
             return response;
         } catch (RuntimeException ex) {
             dispatchGatewayPlugin(context, exchange, PluginStageCode.GATEWAY_ERROR, null, ex);
+            publishResponse(context, null, null, ex);
             throw ex;
         }
+    }
+
+    /**
+     * 发布请求层消息：数仓输出的旁路开关关闭时整体跳过。
+     */
+    private void publishRequest(GatewayRequestContext context,
+                                GatewayExchange exchange,
+                                ResolvedRouting routing) {
+        if (eventPublisher == null) {
+            return;
+        }
+        eventPublisher.publish(requestTopic,
+                RequestMsgDto.of(context, routing, exchange));
+    }
+
+    /**
+     * 发布响应层消息（失败路径携带异常 → 统一 error 结构）。
+     */
+    private void publishResponse(GatewayRequestContext context,
+                                 UsageAccounting usage,
+                                 Long ttftMs,
+                                 Throwable error) {
+        if (eventPublisher == null) {
+            return;
+        }
+        CallTraceContext trace = context.attribute(CallTraceContext.ATTRIBUTE);
+        eventPublisher.publish(responseTopic,
+                ResponseMsgDto.of(context, trace, ttftMs, usage, error));
     }
 
 

@@ -31,6 +31,20 @@ mybatis:
   configuration:
     map-underscore-to-camel-case: true
 
+# ── Kafka 事件输出（请求层 / 响应层，供数仓消费）──────────────────────────────
+# ⚠ 默认关闭：关闭时 gateway 不装配任何 Kafka 组件，行为与开启前逐字一致。
+# 开启后必须配 bootstrap-servers，否则启动失败（不允许出现“不知道往哪发”的静默管道）。
+# 生产者只写必需项（地址 + 序列化器 + 等待封顶），其余客户端参数一律走 Kafka 默认值。
+kafka:
+  enabled: ${KAFKA_ENABLED:false}
+  bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
+  # 主题写全名（不拼前缀）：契约版本在消息的 schema 字段里演进，主题名保持稳定
+  topic-request: ${KAFKA_TOPIC_REQUEST:knot-gateway-request-event}
+  topic-response: ${KAFKA_TOPIC_RESPONSE:knot-gateway-response-event}
+  # 投递失败时的本地死信文件（JSONL，append）；默认开启——直推失败即落盘，数据不能丢。
+  # 留空表示不落盘，只在日志里计数告警
+  dlq-path: ${KAFKA_DLQ_PATH:logs/kafka-dlq}
+
 logging:
   pattern:
     level: "%5p [%X{traceId:-}-%X{spanId:-}]"

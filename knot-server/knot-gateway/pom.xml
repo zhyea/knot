@@ -66,6 +66,12 @@
             <groupId>org.apache.httpcomponents.client5</groupId>
             <artifactId>httpclient5</artifactId>
         </dependency>
+        <!-- Kafka 事件输出（请求层 / 响应层，见顶层 kafka.* 配置）：默认关闭，
+             未开启时 KafkaTemplate / Publisher 均不装配，不建立任何连接 -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

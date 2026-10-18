@@ -60,8 +60,7 @@ class FirstTokenHeaderWriterTest {
     @Test
     void ofContextWithoutRequestAttributesDoesNotThrow() {
         // 非 web 场景（无请求属性）时拿不到 response，必须降级而非炸链路
-        GatewayRequestContext context = new GatewayRequestContext(
-                "Bearer key", "key", "rule-code", null, null, null);
+        GatewayRequestContext context = new GatewayRequestContext("Bearer key", "rule-code", null, null, null);
         FirstTokenHeaderWriter writer = FirstTokenHeaderWriter.of(context);
         writer.mark();
     }
@@ -72,8 +71,7 @@ class FirstTokenHeaderWriterTest {
         RequestContextHolder.setRequestAttributes(
                 new org.springframework.web.context.request.ServletRequestAttributes(
                         new org.springframework.mock.web.MockHttpServletRequest(), response));
-        GatewayRequestContext context = new GatewayRequestContext(
-                "Bearer key", "key", "rule-code", null, null, null);
+        GatewayRequestContext context = new GatewayRequestContext("Bearer key", "rule-code", null, null, null);
 
         FirstTokenHeaderWriter.of(context).mark();
 
@@ -85,8 +83,7 @@ class FirstTokenHeaderWriterTest {
     void ofContextResetsToNoHeaderWhenResponseMissing() {
         // 再次确认无请求属性时 of(context) 产出的写头器不写任何头
         MockHttpServletResponse response = new MockHttpServletResponse();
-        GatewayRequestContext context = new GatewayRequestContext(
-                "Bearer key", "key", "rule-code", null, null, null);
+        GatewayRequestContext context = new GatewayRequestContext("Bearer key", "rule-code", null, null, null);
         FirstTokenHeaderWriter.of(context).mark();
         assertNull(response.getHeader(GatewayHeaders.X_KNOT_FIRST_TOKEN_TIME));
     }

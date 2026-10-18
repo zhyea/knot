@@ -32,6 +32,11 @@ public final class FirstTokenHeaderWriter {
     private final HttpServletResponse response;
     private final LongConsumer observer;
     private boolean marked;
+    /**
+     * 首次 {@link #mark()} 时算出的耗时（毫秒）；未 mark 为 {@code null}
+     * ——数仓侧要区分「极快的首 token（0）」与「压根没有首 token（null）」。
+     */
+    private Long elapsedMillis;
 
     /**
      * @param receivedAtMillis 测量起点（{@link GatewayRequestContext#receivedAtMillis()}）
@@ -73,13 +78,20 @@ public final class FirstTokenHeaderWriter {
             return;
         }
         marked = true;
-        long elapsed = Math.max(0L, System.currentTimeMillis() - receivedAtMillis);
+        elapsedMillis = Math.max(0L, System.currentTimeMillis() - receivedAtMillis);
         if (observer != null) {
-            observer.accept(elapsed);
+            observer.accept(elapsedMillis);
         }
         if (response != null) {
-            response.setHeader(GatewayHeaders.X_KNOT_FIRST_TOKEN_TIME, Long.toString(elapsed));
+            response.setHeader(GatewayHeaders.X_KNOT_FIRST_TOKEN_TIME, Long.toString(elapsedMillis));
         }
+    }
+
+    /**
+     * 首 token 耗时（毫秒）；尚未标记过时返回 {@code null}。
+     */
+    public Long elapsedMillis() {
+        return elapsedMillis;
     }
 
     private static HttpServletResponse currentResponse() {

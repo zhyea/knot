@@ -251,7 +251,43 @@ class JevBillingJudgeTest {
 
     @Test
     void recoversUpstream429SemanticsFromGateway502() {
-        assertDegradeWithBody(502, gatewayErrorBody(429, "Rate limit exceeded"), "限流");
+        // 429 属可重试错误：透出后仍应走一次退避重试，失败才降级
+        assertDegradeWithBodyRepeated(502, gatewayErrorBody(429, "Rate limit exceeded"), "限流", 2);
+    }
+
+    @Test
+    void gateway502WithUpstream413TriggersTruncateRetry() {
+        // 413 必须触发「丢弃明细」的截断重试，否则透出场景下永远救不回来
+        assertDegradeWithBodyRepeated(502, gatewayErrorBody(413, "payload too large"), "413", 2);
+    }
+
+    @Test
+    void gateway502WithUpstream413SucceedsAfterTruncate() throws Exception {
+        JevJudgeProperties props = configuredProps();
+        RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
+        RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
+        when(cMock.getByCode("jev-judge-client")).thenReturn(enabledConsumer());
+        RoutingRuleEntity rule = new RoutingRuleEntity();
+        rule.setStatus(1);
+        when(rMock.getByRuleCode("jev-billing-judge")).thenReturn(rule);
+        FakeDecisionsTransport transport = new FakeDecisionsTransport();
+        transport.script(new Fail(502, gatewayErrorBody(413, "payload too large")), GOOD_JSON);
+
+        JevBillingJudge judge = new JevBillingJudge(props, cMock, rMock, transport, new ObjectMapper());
+        RoutingBillingVerdict v = judge.judge(sampleContext(25), "http://gw", "sid");
+
+        assertTrue(v.isAvailable(), "截断重试后应拿到结论");
+        assertEquals(2, transport.calls);
+        // 重试体必须是 minimal：billing.details 清空，只留汇总
+        @SuppressWarnings("unchecked")
+        Map<String, Object> state = (Map<String, Object>) transport.lastBody.get("state");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> produced = (Map<String, Object>) state.get("produced");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> billing = (Map<String, Object>) produced.get("billing");
+        @SuppressWarnings("unchecked")
+        List<Object> details = (List<Object>) billing.get("details");
+        assertTrue(details.isEmpty(), "413 重试必须丢弃明细");
     }
 
     @Test
@@ -266,6 +302,11 @@ class JevBillingJudgeTest {
     }
 
     private void assertDegradeWithBody(int status, String body, String expectFragment) {
+        assertDegradeWithBodyRepeated(status, body, expectFragment, 1);
+    }
+
+    /** 同一错误脚本重复 {@code expectedCalls} 次（可重试错误会被重试一次），断言降级原因与调用次数 */
+    private void assertDegradeWithBodyRepeated(int status, String body, String expectFragment, int expectedCalls) {
         JevJudgeProperties props = configuredProps();
         RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
         RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
@@ -274,14 +315,18 @@ class JevBillingJudgeTest {
         rule.setStatus(1);
         when(rMock.getByRuleCode("jev-billing-judge")).thenReturn(rule);
         FakeDecisionsTransport transport = new FakeDecisionsTransport();
-        transport.script(new Fail(status, body));
+        Object[] script = new Object[expectedCalls];
+        for (int i = 0; i < expectedCalls; i++) {
+            script[i] = new Fail(status, body);
+        }
+        transport.script(script);
 
         JevBillingJudge judge = new JevBillingJudge(props, cMock, rMock, transport, new ObjectMapper());
         RoutingBillingVerdict v = judge.judge(sampleContext(2), "http://gw", "sid");
 
         assertFalse(v.isAvailable());
         assertTrue(v.getReason().contains(expectFragment), v.getReason());
-        assertEquals(1, transport.calls, "502 不经空缺重试路径");
+        assertEquals(expectedCalls, transport.calls);
     }
 
     @Test

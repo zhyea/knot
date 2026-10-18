@@ -42,7 +42,7 @@ model       → 领域值对象（非表映射）
 `Service` `Support` `Source` `Resolver` `Registry` `Runner` `Provider` `Migrator`
 `Controller` `Converter` `Mapper` `Entity` `Dto` `Vo` `Item` `Request` `Response`
 `Properties` `Configuration` `Constants` `Enum` `Exception` `Cache` `Store`
-`Handler` `Dispatcher` `Descriptor` `Context` `Sink` `Writer` `Extractor` `Calculator` `Policy` `Template`
+`Handler` `Dispatcher` `Descriptor` `Context` `Sink` `Writer` `Extractor` `Calculator` `Policy` `Template` `Publisher`（2026-10-18 robin 拍板 `KafkaPublisher` 补入）
 
 ### 4.2 service 包纪律
 

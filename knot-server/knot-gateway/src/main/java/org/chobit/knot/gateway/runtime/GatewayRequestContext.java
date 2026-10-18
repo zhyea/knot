@@ -16,7 +16,14 @@ import java.util.Map;
 public class GatewayRequestContext {
 
     private final String authorization;
-    private final String apiKey;
+    /**
+     * API key（Bearer 提取结果）。
+     *
+     * <p>构造后才写入：<b>头校验失败时也要存在请求上下文</b>——入口即拒的请求同样要产出一条响应层事件
+     * （否则数仓统计不到 401/400 的拒绝量），此时 apiKey 保持 {@code null}。</p>
+     */
+    @Setter
+    private String apiKey;
     private final String ruleCode;
     private final GatewayTraceContext traceContext;
     private final ModelApiProtocolEnum protocol;
@@ -37,13 +44,11 @@ public class GatewayRequestContext {
     private ResolvedRouting routing;
 
     public GatewayRequestContext(String authorization,
-                                 String apiKey,
                                  String ruleCode,
                                  GatewayTraceContext traceContext,
                                  ModelApiProtocolEnum protocol,
                                  String stickyKey) {
         this.authorization = authorization;
-        this.apiKey = apiKey;
         this.ruleCode = ruleCode;
         this.traceContext = traceContext;
         this.protocol = protocol;

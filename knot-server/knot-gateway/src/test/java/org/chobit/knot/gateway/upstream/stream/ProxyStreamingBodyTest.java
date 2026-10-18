@@ -38,7 +38,7 @@ class ProxyStreamingBodyTest {
         AtomicInteger released = new AtomicInteger();
         String payload = "data: {\"choices\":[]}" + System.lineSeparator() + "data: [DONE]" + System.lineSeparator();
         ProxyStreamingBody body = new ProxyStreamingBody(
-                stream(payload, true), null, false, 8192, released::incrementAndGet, null);
+                stream(payload, true), null, false, 8192, released::incrementAndGet, null, null);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         body.writeTo(out);
@@ -51,7 +51,7 @@ class ProxyStreamingBodyTest {
     void releasesInflightAfterRawStreamFinished() throws IOException {
         AtomicInteger released = new AtomicInteger();
         ProxyStreamingBody body = new ProxyStreamingBody(
-                stream("hello-stream", false), null, false, 8192, released::incrementAndGet, null);
+                stream("hello-stream", false), null, false, 8192, released::incrementAndGet, null, null);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         body.writeTo(out);
@@ -71,7 +71,7 @@ class ProxyStreamingBodyTest {
         };
         ProxyStreamingBody body = new ProxyStreamingBody(
                 new UpstreamStreamResponse(failing, MediaType.TEXT_EVENT_STREAM, null, null, noopResponse()),
-                null, false, 8192, released::incrementAndGet, null);
+                null, false, 8192, released::incrementAndGet, null, null);
 
         try {
             body.writeTo(new ByteArrayOutputStream());
@@ -84,7 +84,7 @@ class ProxyStreamingBodyTest {
 
     @Test
     void tolerateMissingCompletionCallback() throws IOException {
-        ProxyStreamingBody body = new ProxyStreamingBody(stream("x", false), null, false, 8192, null, null);
+        ProxyStreamingBody body = new ProxyStreamingBody(stream("x", false), null, false, 8192, null, null, null);
         body.writeTo(new ByteArrayOutputStream());
         // 无回调时不应抛 NPE
     }
@@ -97,7 +97,7 @@ class ProxyStreamingBodyTest {
                 + "\n"
                 + "data: [DONE]\n";
         ProxyStreamingBody body = new ProxyStreamingBody(
-                stream(payload, true), stubRegistry(), true, 8192, null, null);
+                stream(payload, true), stubRegistry(), true, 8192, null, null, null);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         body.writeTo(out);
@@ -122,7 +122,7 @@ class ProxyStreamingBodyTest {
                 + "data: {\"type\":\"message_stop\",\"usage\":{\"input_tokens\":10,\"output_tokens\":5}}\n"
                 + "\n";
         ProxyStreamingBody body = new ProxyStreamingBody(
-                stream(payload, true), stubRegistry(), true, 8192, null, null);
+                stream(payload, true), stubRegistry(), true, 8192, null, null, null);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         body.writeTo(out);
@@ -142,7 +142,7 @@ class ProxyStreamingBodyTest {
                 + "\n"
                 + "data: [DONE]\n";
         ProxyStreamingBody body = new ProxyStreamingBody(
-                stream(payload, true), stubRegistry(), true, 8192, null, null);
+                stream(payload, true), stubRegistry(), true, 8192, null, null, null);
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         body.writeTo(out);
@@ -160,7 +160,7 @@ class ProxyStreamingBodyTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         FirstTokenHeaderWriter writer = new FirstTokenHeaderWriter(System.currentTimeMillis(), response, null);
         ProxyStreamingBody body = new ProxyStreamingBody(
-                slowStream(payload, true, 150), null, false, 8192, null, writer);
+                slowStream(payload, true, 150), null, false, 8192, null, writer, null);
 
         body.writeTo(new ByteArrayOutputStream());
 
@@ -176,7 +176,7 @@ class ProxyStreamingBodyTest {
         MockHttpServletResponse response = new MockHttpServletResponse();
         FirstTokenHeaderWriter writer = new FirstTokenHeaderWriter(System.currentTimeMillis(), response, null);
         ProxyStreamingBody body = new ProxyStreamingBody(
-                slowStream(payload, false, 100), null, false, 8192, null, writer);
+                slowStream(payload, false, 100), null, false, 8192, null, writer, null);
 
         body.writeTo(new ByteArrayOutputStream());
 
