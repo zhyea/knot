@@ -76,7 +76,7 @@ class GatewayRequestHandlerSlowObserverTest {
 
     private static RoutingRuleTargetDto target(String modelCode) {
         return new RoutingRuleTargetDto("MODEL", 1L, modelCode, modelCode, modelCode,
-                "CHAT", "provider-a", 1, true);
+                "CHAT", "provider-a", 1, true, null);
     }
 
     private String key(String modelCode) {

@@ -283,7 +283,7 @@ class RoutingRuleStreamControllerTest {
                             "PRIORITY", null, null),
                     secretKey,
                     new RoutingRuleTargetDto("MODEL", 10L, "gpt-4o-mini", "gpt-4o-mini",
-                            "模型A", "CHAT", "prov-1", 1, true),
+                            "模型A", "CHAT", "prov-1", 1, true, null),
                     ModelApiProtocolEnum.CHAT_COMPLETIONS,
                     "gpt-4o-mini",
                     Map.of("stream", true),

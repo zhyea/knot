@@ -252,7 +252,8 @@ public class RoutingResolver {
                         entity.getModelType(),
                         entity.getProviderAccountCode(),
                         entity.getPriority() != null ? entity.getPriority() : 100,
-                        Boolean.TRUE.equals(entity.getPrimary())
+                        Boolean.TRUE.equals(entity.getPrimary()),
+                        null
                 ))
                 .toList();
     }
@@ -273,7 +274,8 @@ public class RoutingResolver {
                     model.getModelType(),
                     model.getProviderAccountCode(),
                     target.priority(),
-                    target.primary()
+                    target.primary(),
+                    null
             ));
         }
         if (!RouteTargetTypeEnum.MODEL_POOL.code().equals(target.targetType())) {
@@ -317,7 +319,8 @@ public class RoutingResolver {
                         candidate.item().getModelType(),
                         candidate.item().getProviderAccountCode(),
                         target.priority(),
-                        target.primary()
+                        target.primary(),
+                        pool.getPoolCode()
                 ))
                 .toList();
     }

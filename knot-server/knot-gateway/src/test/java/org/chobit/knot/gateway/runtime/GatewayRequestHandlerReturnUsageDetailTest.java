@@ -40,7 +40,7 @@ class GatewayRequestHandlerReturnUsageDetailTest {
         // applyUsageAccounting 路径不触达任何协作者（仅读 exchange 与 context），故可全 null 构造；
         // 末尾两个参数是埋点业务侧维护的主题全名（本路径不发布事件，传 null 即可）
         handler = new GatewayRequestHandler(null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null);
+                null, null);
     }
 
     @AfterEach

@@ -211,7 +211,7 @@ class GatewayTrafficGuardTest {
      */
     private RoutingRuleTargetDto target() {
         return new RoutingRuleTargetDto(MODEL, MODEL_ID, "model-code", "upstream-model",
-                "模型", "CHAT", null, 1, true);
+                "模型", "CHAT", null, 1, true, null);
     }
 
     /**
@@ -220,6 +220,6 @@ class GatewayTrafficGuardTest {
      */
     private RoutingRuleTargetDto quotaTarget() {
         return new RoutingRuleTargetDto(PROVIDER, PROVIDER_ID, "account-code", "upstream-model",
-                "供应商账户", "CHAT", PROVIDER_CODE, 1, true);
+                "供应商账户", "CHAT", PROVIDER_CODE, 1, true, null);
     }
 }

@@ -18,8 +18,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.model.UsageAccounting;
 import org.chobit.knot.gateway.kafka.CallTraceContext;
 import org.chobit.knot.gateway.kafka.KafkaPublisher;
-import org.chobit.knot.gateway.kafka.msg.RequestMsgDto;
-import org.chobit.knot.gateway.kafka.msg.ResponseMsgDto;
+import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
 import org.springframework.http.MediaType;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
@@ -52,25 +51,21 @@ public abstract class AbstractGatewayRequestTemplate {
     private final KafkaPublisher eventPublisher;
 
     /**
-     * 请求层主题全名（埋点业务侧维护，取自 {@code kafka.topic-request}）。
+     * 流量事件主题全名（埋点业务侧维护，取自 {@code kafka.topic.traffic}）。
+     *
+     * <p>2026-10-18 合并：原请求层 / 响应层两个主题收敛为一个——数仓离线批处理，
+     * 不需要早期「实时流量入口」信号，单主题单消息在终态一次发出即可。</p>
      */
-    private final String requestTopic;
-
-    /**
-     * 响应层主题全名（埋点业务侧维护，取自 {@code kafka.topic-response}）。
-     */
-    private final String responseTopic;
+    private final String trafficTopic;
 
     protected AbstractGatewayRequestTemplate(PluginDispatcher pluginDispatcher,
                                              ModerationWordResource moderationWordResource,
                                              KafkaPublisher eventPublisher,
-                                             String requestTopic,
-                                             String responseTopic) {
+                                             String trafficTopic) {
         this.pluginDispatcher = pluginDispatcher;
         this.moderationWordResource = moderationWordResource;
         this.eventPublisher = eventPublisher;
-        this.requestTopic = requestTopic;
-        this.responseTopic = responseTopic;
+        this.trafficTopic = trafficTopic;
     }
 
     /**
@@ -119,12 +114,13 @@ public abstract class AbstractGatewayRequestTemplate {
             context.apiKey(validateRequestHeaders(authorization, ruleCode));
             ResolvedRouting routingInfo = resolveRouting(context);
             context.routing(routingInfo);
-            // 请求层：此刻「谁在调、走哪条规则、落到哪个应用/部门/用户」已定，结果一个都不知道
-            publishRequest(context, exchange, routingInfo);
             dispatchGatewayPlugin(context, exchange, PluginStageCode.GATEWAY_REQUEST, null, null);
 
             ProxyResult result = proxy(context, exchange);
             exchange.proxyResult(result);
+            // 合并后单条流量事件在终态发出（非流式即此处用量记账后；流式在响应体写完的
+            // finally；异常在 catch）。「真正请求的模型」= 候选循环落定的 hit target，
+            // 与处置结果同一条消息携带，不再分两层、不再需乱序修正。
             Object response = applyUsageAccounting(context, exchange);
             // 首 token 响应时间：非流式在此写头（响应体就绪即产出就绪，等价首 token）；
             // 流式返回 StreamingResponseBody，由响应体在上游首行写出前自行写头。
@@ -140,43 +136,37 @@ public abstract class AbstractGatewayRequestTemplate {
             if (firstTokenWriter != null) {
                 ProxyResult proxied = exchange.proxyResult();
                 // 非流式：响应体已就绪，用量在此就是终态
-                publishResponse(context, proxied == null ? null : proxied.usage(),
+                publishTraffic(context, exchange, proxied == null ? null : proxied.usage(),
                         firstTokenWriter.elapsedMillis(), null);
             }
             return response;
         } catch (RuntimeException ex) {
+            // 任意终态（含入口即拒）都发一条流量事件：路由未解析时 routing 为 null、
+            // error.stage=header_validate，一条记录即可表达，数仓无需 left join 识别。
             dispatchGatewayPlugin(context, exchange, PluginStageCode.GATEWAY_ERROR, null, ex);
-            publishResponse(context, null, null, ex);
+            publishTraffic(context, exchange, null, null, ex);
             throw ex;
         }
     }
 
     /**
-     * 发布请求层消息：数仓输出的旁路开关关闭时整体跳过。
+     * 发布流量事件：数仓输出的旁路开关关闭时整体跳过。
+     *
+     * <p>请求终态一次性发出——路由维度（入口 / 规则 / 应用 / 部门 / 用户）、真正请求的模型
+     * （hit target）、结果 / 用量 / 计费 / 错误 / 上游调用明细同一条消息携带。
+     * 入口即拒（路由未解析）照样发，只是 {@code routing} / {@code hit} 为 null、
+     * {@code error.stage=header_validate}。</p>
      */
-    private void publishRequest(GatewayRequestContext context,
-                                GatewayExchange exchange,
-                                ResolvedRouting routing) {
+    private void publishTraffic(GatewayRequestContext context,
+                               GatewayExchange exchange,
+                               UsageAccounting usage,
+                               Long ttftMs,
+                               Throwable error) {
         if (eventPublisher == null) {
             return;
         }
-        eventPublisher.publish(requestTopic,
-                RequestMsgDto.of(context, routing, exchange));
-    }
-
-    /**
-     * 发布响应层消息（失败路径携带异常 → 统一 error 结构）。
-     */
-    private void publishResponse(GatewayRequestContext context,
-                                 UsageAccounting usage,
-                                 Long ttftMs,
-                                 Throwable error) {
-        if (eventPublisher == null) {
-            return;
-        }
-        CallTraceContext trace = context.attribute(CallTraceContext.ATTRIBUTE);
-        eventPublisher.publish(responseTopic,
-                ResponseMsgDto.of(context, trace, ttftMs, usage, error));
+        eventPublisher.publish(trafficTopic,
+                GatewayTrafficMsgDto.of(context, exchange, usage, ttftMs, error));
     }
 
 

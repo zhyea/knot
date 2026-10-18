@@ -40,7 +40,7 @@ import org.chobit.knot.gateway.traffic.TrafficDecision;
 import org.chobit.knot.gateway.traffic.TrafficUsage;
 import org.chobit.knot.gateway.kafka.CallTraceContext;
 import org.chobit.knot.gateway.kafka.KafkaPublisher;
-import org.chobit.knot.gateway.kafka.msg.ResponseMsgDto;
+import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
 import org.chobit.knot.gateway.upstream.UpstreamProxyClient;
 import org.chobit.knot.gateway.upstream.stream.ProxyStreamingBody;
 import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
@@ -94,16 +94,15 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     private final KafkaPublisher eventPublisher;
 
     /**
-     * 响应层主题全名（埋点业务侧维护；流式终态发布用，请求层主题在模板内使用）。
+     * 流量事件主题全名（埋点业务侧维护；终态发布用，含流式 finally）。
      */
-    private final String responseTopic;
+    private final String trafficTopic;
 
     /**
      * Constructs a new instance.
      *
      * @param eventPublisher Kafka 投递器（未开启事件输出时为 {@code null}）
-     * @param requestTopic   请求层主题全名（埋点业务侧维护，取自 {@code kafka.topic-request}）
-     * @param responseTopic  响应层主题全名（埋点业务侧维护，取自 {@code kafka.topic-response}）
+     * @param trafficTopic   流量事件主题全名（埋点业务侧维护，取自 {@code kafka.topic.traffic}）
      */
     public GatewayRequestHandler(UpstreamProxyClient proxyService,
                                  RoutingResolver routingAuthService,
@@ -117,9 +116,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                                  OutageTracker outageTracker,
                                  OutageKeys outageKeys,
                                  KafkaPublisher eventPublisher,
-                                 @Value("${kafka.topic-request}") String requestTopic,
-                                 @Value("${kafka.topic-response}") String responseTopic) {
-        super(pluginDispatcher, moderationWordResource, eventPublisher, requestTopic, responseTopic);
+                                 @Value("${kafka.topic.traffic}") String trafficTopic) {
+        super(pluginDispatcher, moderationWordResource, eventPublisher, trafficTopic);
         this.proxyClient = proxyService;
         this.routingResolver = routingAuthService;
         this.trafficGuard = trafficGuard;
@@ -130,7 +128,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         this.outageTracker = outageTracker;
         this.outageKeys = outageKeys;
         this.eventPublisher = eventPublisher;
-        this.responseTopic = responseTopic;
+        this.trafficTopic = trafficTopic;
     }
 
     @Override
@@ -446,7 +444,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
             return null;
         }
         if (result.streamResponse() != null) {
-            return streamResponse(result, routing, context);
+            return streamResponse(result, routing, context, exchange);
         }
         if (routing == null || result.responseBody() == null) {
             return result.responseBody();
@@ -481,25 +479,25 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
      * Spring 依据返回值的运行时类型选择处理器，一旦用 {@code ResponseEntity} 包装就会退化成
      * 消息转换器查找，反而写不出去。</p>
      */
-    private Object streamResponse(ProxyResult result, ResolvedRouting routing, GatewayRequestContext context) {
+    private Object streamResponse(ProxyResult result, ResolvedRouting routing,
+                                  GatewayRequestContext context, GatewayExchange exchange) {
         UpstreamStreamResponse stream = result.streamResponse();
         prepareStreamingHeaders(stream.contentType());
         boolean appendUsage = shouldReturnUsageDetail(routing);
         // 在途计数在流写完时才释放（见 proxyWithFailover 的 deferredToStream）
         Runnable loadRelease = context.attribute(ATTR_LOAD_RELEASE);
         FirstTokenHeaderWriter firstTokenWriter = FirstTokenHeaderWriter.of(context, firstTokenObserver(context));
-        // 流式用量只能在流写完时定型：先落在容器里，由 onComplete 发布响应层事件
+        // 流式用量只能在流写完时定型：先落在容器里，由 onComplete 发布流量事件（终态一条）
         AtomicReference<UsageAccounting> terminalUsage = new AtomicReference<>();
         Runnable onComplete = loadRelease;
         if (eventPublisher != null) {
-            CallTraceContext callTrace = context.attribute(CallTraceContext.ATTRIBUTE);
             Runnable release = loadRelease;
             onComplete = () -> {
                 if (release != null) {
                     release.run();
                 }
-                eventPublisher.publish(responseTopic, ResponseMsgDto.of(context, callTrace,
-                    firstTokenWriter.elapsedMillis(), terminalUsage.get(), null));
+                eventPublisher.publish(trafficTopic, GatewayTrafficMsgDto.of(context, exchange,
+                    terminalUsage.get(), firstTokenWriter.elapsedMillis(), null));
             };
         }
         return new ProxyStreamingBody(stream, usageExtractorRegistry, appendUsage,

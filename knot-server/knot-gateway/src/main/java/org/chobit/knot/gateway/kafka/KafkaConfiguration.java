@@ -66,7 +66,7 @@ public class KafkaConfiguration {
 
     /**
      * 投递器：纯管道（不认识业务主题，topic 由调用方维护并传入 publish）；
-     * 启动期在此预热两个主题的元数据（装配域一次性使用配置里的主题名，
+     * 启动期在此预热流量事件主题的元数据（装配域一次性使用配置里的主题名，
      * 投递器本身不持有主题常量）。
      */
     @Bean
@@ -74,11 +74,10 @@ public class KafkaConfiguration {
                                          EventDeadLetterWriter eventDeadLetterWriter,
                                          KafkaProperties properties) {
         KafkaPublisher publisher = new KafkaPublisher(kafkaEventTemplate, eventDeadLetterWriter);
-        publisher.warmUp(properties.getTopicRequest(), properties.getTopicResponse());
-        log.info("Kafka event output enabled (kafka native async): bootstrapServers={}, topicRequest={}, "
-                        + "topicResponse={}, dlqPath={}",
-                properties.getBootstrapServers(), properties.getTopicRequest(),
-                properties.getTopicResponse(), properties.getDlqPath());
+        publisher.warmUp(properties.getTopic().getTraffic());
+        log.info("Kafka event output enabled (kafka native async): bootstrapServers={}, topic={}, "
+                        + "dlqPath={}",
+                properties.getBootstrapServers(), properties.getTopic().getTraffic(), properties.getDlqPath());
         return publisher;
     }
 }

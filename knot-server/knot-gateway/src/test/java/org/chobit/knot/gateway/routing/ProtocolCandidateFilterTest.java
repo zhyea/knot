@@ -83,7 +83,7 @@ class ProtocolCandidateFilterTest {
 
     @Test
     void nullTargetIdCannotMatch() {
-        RoutingRuleTargetDto noId = new RoutingRuleTargetDto(MODEL, null, "x", "upstream", "名称", "CHAT", null, 1, true);
+        RoutingRuleTargetDto noId = new RoutingRuleTargetDto(MODEL, null, "x", "upstream", "名称", "CHAT", null, 1, true, null);
 
         assertTrue(filter.filter(List.of(noId), ModelApiProtocolEnum.CHAT_COMPLETIONS).isEmpty(),
                 "派生 id 缺失（目标被删/JOIN 未命中）时不放行");
@@ -91,7 +91,7 @@ class ProtocolCandidateFilterTest {
 
     private static RoutingRuleTargetDto candidate(String code, Long modelId) {
         return new RoutingRuleTargetDto(MODEL, modelId, code, "upstream-" + code,
-                "名称-" + code, "CHAT", null, 1, true);
+                "名称-" + code, "CHAT", null, 1, true, null);
     }
 
     private static ModelApiBindingEntity binding(String protocol, int status) {

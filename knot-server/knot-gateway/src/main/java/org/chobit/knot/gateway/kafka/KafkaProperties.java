@@ -24,7 +24,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * （等待元数据 / 缓冲的最长时间，超时即本次发送失败），失败一律落死信文件；
  * 启动期 {@link KafkaPublisher#warmUp(String...)} 预热元数据，消化最常见的等待场景。</p>
  *
- * <p><b>topic 写全名</b>：不拼前缀，请求层 / 响应层各一个完整主题名；契约版本在消息的
+ * <p><b>topic 写全名</b>：不拼前缀，一条完整主题名；契约版本在消息的
  * {@code schema} 字段里演进，主题名保持稳定。</p>
  */
 @Getter
@@ -43,18 +43,32 @@ public class KafkaProperties {
     private String bootstrapServers = "";
 
     /**
-     * 请求层主题全名。
+     * 各用途 Kafka 主题全名（按业务语义分键，便于后续扩展更多主题）。
      */
-    private String topicRequest = "knot-gateway-request-event";
-
-    /**
-     * 响应层主题全名。
-     */
-    private String topicResponse = "knot-gateway-response-event";
+    private Topic topic = new Topic();
 
     /**
      * 本地死信文件路径（append 写入 JSONL）；<b>默认开启</b>：直推失败即落盘，
      * 留空表示不落盘，只在日志里计数告警。
      */
     private String dlqPath = "logs/kafka-dlq";
+
+    /**
+     * Kafka 主题命名（按用途分键）。
+     *
+     * <p>每个用途一个独立键（如 {@code traffic}），新增主题只加一个字段、不动既有键，
+     * 主题名写全名不拼前缀；契约版本在消息的 {@code schema} 字段里演进，主题名保持稳定。</p>
+     */
+    @Getter
+    @Setter
+    public static class Topic {
+
+        /**
+         * 流量事件主题全名（请求入口 + 处置结果合并为单条消息，终态一次发出）。
+         *
+         * <p>2026-10-18 合并：原请求层 / 响应层两个主题收敛为一个——数仓离线批处理，
+         * 不再需要早期「实时流量入口」信号，单主题单消息即可。</p>
+         */
+        private String traffic = "knot-gateway-traffic-event";
+    }
 }

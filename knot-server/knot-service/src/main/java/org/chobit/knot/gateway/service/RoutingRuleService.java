@@ -869,7 +869,8 @@ public class RoutingRuleService {
                 entity.getModelType(),
                 entity.getProviderAccountCode(),
                 entity.getPriority() != null ? entity.getPriority() : 100,
-                Boolean.TRUE.equals(entity.getPrimary())
+                Boolean.TRUE.equals(entity.getPrimary()),
+                null
         );
     }
 

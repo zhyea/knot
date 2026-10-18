@@ -1,9 +1,13 @@
 package org.chobit.knot.gateway.kafka;
 
 import org.apache.kafka.common.PartitionInfo;
+import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.gateway.exception.GatewayUpstreamException;
+import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
 import org.chobit.knot.gateway.kafka.msg.Msg;
-import org.chobit.knot.gateway.kafka.msg.RequestMsgDto;
-import org.chobit.knot.gateway.kafka.msg.ResponseMsgDto;
+import org.chobit.knot.gateway.runtime.GatewayRequestContext;
+import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
+import org.chobit.knot.gateway.runtime.GatewayTraceContext;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -24,12 +28,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Kafka 投递器的边界：<b>纯管道——topic 调用方传、key 取 msg.traceId()、
  * 双路失败落死信、预热绝不抛，任何情况下 publish 不抛</b>。
  *
+ * <p>合并后为单主题 {@code knot-gateway-traffic-event}，请求入口 + 处置结果一条消息带齐。</p>
+ *
  * <p>JDK25 + Mockito inline 不能 mock 具体类，{@link KafkaTemplate} 用子类假件驱动。</p>
  */
 class KafkaPublisherTest {
 
-    private static final String TOPIC_REQUEST = "knot-gateway-request-event";
-    private static final String TOPIC_RESPONSE = "knot-gateway-response-event";
+    private static final String TOPIC = "knot-gateway-traffic-event";
 
     @Test
     void publishesMsgWithTraceIdAsKey(@TempDir Path dir) {
@@ -37,17 +42,23 @@ class KafkaPublisherTest {
         KafkaPublisher publisher = new KafkaPublisher(template,
                 new EventDeadLetterWriter(dir.resolve("dlq").toString()));
 
-        publisher.publish(TOPIC_REQUEST, sampleRequest("trace-1"));
-        publisher.publish(TOPIC_RESPONSE, sampleResponse("trace-1"));
+        GatewayTrafficMsgDto m1 = sampleSuccess();
+        GatewayTrafficMsgDto m2 = sampleReject();
+        publisher.publish(TOPIC, m1);
+        publisher.publish(TOPIC, m2);
 
         // Kafka 原生 async：调用返回即已提交，无需等待后台线程
         assertEquals(2, template.sentCount());
-        assertEquals(TOPIC_REQUEST, template.sent(0).topic());
-        assertEquals(TOPIC_RESPONSE, template.sent(1).topic());
-        assertEquals("trace-1", template.sent(0).key(), "分区键取 msg.traceId()：两层消息必须同键同分区");
-        assertEquals("trace-1", template.sent(1).key());
-        assertTrue(template.sent(0).payload().contains("knot.gateway.request/1.0"));
-        assertTrue(template.sent(1).payload().contains("knot.gateway.response/1.0"));
+        assertEquals(TOPIC, template.sent(0).topic());
+        assertEquals(TOPIC, template.sent(1).topic());
+        assertEquals(m1.traceId(), template.sent(0).key(), "分区键取 msg.traceId()：合并后单主题单键");
+        assertEquals(m2.traceId(), template.sent(1).key());
+        assertTrue(template.sent(0).payload().contains("knot.gateway.traffic/1.0"));
+        assertTrue(template.sent(0).payload().contains("\"model_code\":\"gpt-4o\""),
+                "流量事件带真正请求的模型（统一模型 code）");
+        assertTrue(template.sent(0).payload().contains("\"upstream_model_code\":\"gpt-4o-2024-07-18\""),
+                "流量事件带真正请求的模型（供应商模型 code）");
+        assertTrue(template.sent(1).payload().contains("knot.gateway.traffic/1.0"));
         assertEquals(2, publisher.sent());
         assertEquals(0, publisher.dropped());
     }
@@ -60,15 +71,16 @@ class KafkaPublisherTest {
         template.throwOnSend = true;
         KafkaPublisher publisher = new KafkaPublisher(template, writer);
 
-        publisher.publish(TOPIC_RESPONSE, sampleResponse("trace-sync"));
+        GatewayTrafficMsgDto message = sampleSuccess();
+        publisher.publish(TOPIC, message);
 
         awaitFile(dlq);
         assertEquals(0, publisher.sent());
         assertEquals(1, publisher.dropped(), "同步失败 = 没进 Kafka，必须计数丢弃");
         assertEquals(1, writer.written());
         String line = Files.readAllLines(dlq).get(0);
-        assertTrue(line.contains(TOPIC_RESPONSE));
-        assertTrue(line.contains("trace-sync"), "死信里要能看出是哪条消息");
+        assertTrue(line.contains(TOPIC));
+        assertTrue(line.contains(message.traceId()), "死信里要能看出是哪条消息");
         assertTrue(line.contains("metadata unavailable"), "死信要带失败原因");
     }
 
@@ -80,7 +92,8 @@ class KafkaPublisherTest {
         template.future = CompletableFuture.failedFuture(new RuntimeException("broker down"));
         KafkaPublisher publisher = new KafkaPublisher(template, writer);
 
-        publisher.publish(TOPIC_RESPONSE, sampleResponse("trace-async"));
+        GatewayTrafficMsgDto message = sampleSuccess();
+        publisher.publish(TOPIC, message);
 
         awaitFile(dlq);
         // 异步失败在回调里才暴露：同步路径无异常，sent 照常 +1，兜底靠死信
@@ -88,8 +101,8 @@ class KafkaPublisherTest {
         assertEquals(0, publisher.dropped());
         assertEquals(1, writer.written());
         String line = Files.readAllLines(dlq).get(0);
-        assertTrue(line.contains("trace-async"));
-        assertTrue(line.contains("broker down"));
+        assertTrue(line.contains(message.traceId()));
+        assertTrue(line.contains("broker down"), "死信要带失败原因（异步回调暴露）");
     }
 
     @Test
@@ -99,20 +112,20 @@ class KafkaPublisherTest {
         template.future = CompletableFuture.failedFuture(new RuntimeException("broker down"));
         KafkaPublisher publisher = new KafkaPublisher(template, writer);
 
-        publisher.publish(TOPIC_RESPONSE, sampleResponse("trace-no-dlq"));
+        publisher.publish(TOPIC, sampleSuccess());
 
         assertEquals(0, writer.written());
         assertEquals(1, writer.lost(), "未配死信路径 = 真正的丢失，必须计数");
     }
 
     @Test
-    void warmUpPullsMetadataForEveryTopic() {
+    void warmUpPullsMetadataForTopic() {
         FakeKafkaTemplate template = new FakeKafkaTemplate();
         KafkaPublisher publisher = new KafkaPublisher(template, new EventDeadLetterWriter(""));
 
-        publisher.warmUp(TOPIC_REQUEST, TOPIC_RESPONSE);
+        publisher.warmUp(TOPIC);
 
-        assertEquals(List.of(TOPIC_REQUEST, TOPIC_RESPONSE), template.warmedTopics, "传入的主题都要预热");
+        assertEquals(List.of(TOPIC), template.warmedTopics, "传入的主题都要预热");
     }
 
     @Test
@@ -122,25 +135,34 @@ class KafkaPublisherTest {
         KafkaPublisher publisher = new KafkaPublisher(template, new EventDeadLetterWriter(""));
 
         // 启动时 broker 不可用不该拖垮网关：预热失败只降级
-        publisher.warmUp(TOPIC_REQUEST, TOPIC_RESPONSE);
+        publisher.warmUp(TOPIC);
     }
 
     @Test
     void msgNodeIdIsAutoDetected() {
-        assertNotNull(sampleRequest("trace-node").nodeId());
-        assertTrue(!sampleRequest("trace-node").nodeId().isBlank(),
+        assertNotNull(sampleSuccess().nodeId());
+        assertTrue(!sampleSuccess().nodeId().isBlank(),
                 "Msg.nodeId 按主机名自动探测，无配置项");
     }
 
-    private static RequestMsgDto sampleRequest(String traceId) {
-        return new RequestMsgDto("knot.gateway.request/1.0", traceId, "span-1", Msg.NODE_ID,
-                "2026-10-17T07:12:33+08:00", "CHAT_COMPLETIONS", Boolean.FALSE, null, null);
+    private static GatewayRequestContext context() {
+        return new GatewayRequestContext("Bearer key", "rule-a", GatewayTraceContext.fromTraceparent(null), null, null);
     }
 
-    private static ResponseMsgDto sampleResponse(String traceId) {
-        return new ResponseMsgDto("knot.gateway.response/1.0", traceId, "span-1", Msg.NODE_ID,
-                "2026-10-17T07:12:33+08:00", "2026-10-17T07:12:38+08:00", 5310L, "success", 200,
-                812L, null, List.of(), 0, 0, 0, false, null, null, null);
+    private static GatewayTrafficMsgDto sampleSuccess() {
+        GatewayRequestContext ctx = context();
+        ctx.putAttribute(GatewayRequestHandler.HIT_TARGET_ATTRIBUTE,
+                new RoutingRuleTargetDto("MODEL", 1L, "gpt-4o", "gpt-4o-2024-07-18", "gpt-4o",
+                        "CHAT", "PA-1", 1, true, null));
+        ctx.putAttribute(CallTraceContext.ATTRIBUTE, new CallTraceContext());
+        return GatewayTrafficMsgDto.of(ctx, null, null, 812L, null);
+    }
+
+    private static GatewayTrafficMsgDto sampleReject() {
+        GatewayRequestContext ctx = context();
+        ctx.putAttribute(CallTraceContext.ATTRIBUTE, new CallTraceContext());
+        return GatewayTrafficMsgDto.of(ctx, null, null, null,
+                new GatewayUpstreamException("upstream busy", "UPSTREAM_ERROR", 503, null, null));
     }
 
     private static void awaitFile(Path path) throws Exception {
