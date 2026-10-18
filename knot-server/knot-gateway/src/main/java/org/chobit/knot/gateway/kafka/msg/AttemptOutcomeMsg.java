@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.kafka;
+package org.chobit.knot.gateway.kafka.msg;
 
 /**
  * 一次上游调用的结局。

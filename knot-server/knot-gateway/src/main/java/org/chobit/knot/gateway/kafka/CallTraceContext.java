@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.kafka;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.kafka.msg.AttemptMsgDto;
+import org.chobit.knot.gateway.kafka.msg.AttemptOutcomeMsg;
 import org.chobit.knot.gateway.kafka.msg.UpstreamErrorMsgDto;
 import org.chobit.knot.gateway.outage.EjectionDecision;
 

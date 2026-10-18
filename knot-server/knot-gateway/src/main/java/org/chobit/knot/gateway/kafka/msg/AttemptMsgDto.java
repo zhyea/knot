@@ -3,7 +3,6 @@ package org.chobit.knot.gateway.kafka.msg;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import org.chobit.knot.gateway.kafka.AttemptOutcomeMsg;
 
 /**
  * 响应层 {@code attempts[]} 的一行：一次上游调用尝试。
