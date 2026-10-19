@@ -1536,7 +1536,7 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
-/* 表内文本框边框统一为浅灰 #AAAAAA（默认/悬浮态一致），聚焦仍保留主题色反馈 */
+/* 表内文本框边框统一为浅灰 #f6fffe（默认/悬浮态一致），聚焦仍保留主题色反馈 */
 .header-table :deep(.el-input__wrapper),
 .header-table :deep(.el-input__wrapper):hover {
   box-shadow: 0 0 0 1px #f6fffe inset;
