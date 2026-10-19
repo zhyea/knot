@@ -12,8 +12,10 @@ import java.util.concurrent.ThreadLocalRandom;
  * 若策略开启 {@code respectRetryAfter} 且上游给了 {@code Retry-After}，取两者较大值，
  * 但仍受 {@code backoffMaxMs} 约束——不把上游建议值无上限地转嫁给调用方。</p>
  *
- * <p>退避是<b>同步阻塞</b>请求线程的，因此 {@code backoffMaxMs} 同时是总预算上限；
- * 流式场景下重试只发生在首字节之前，线程仍为请求线程，阻塞可接受。</p>
+ * <p>退避时长仅由本方法计算并返回（毫秒）。实际的等待由调用方以
+ * {@link java.util.concurrent.CompletableFuture#delayedExecutor} 承载——退避期间<b>不阻塞任何线程</b>，
+ * 定时器到期后重试动作才回到 {@code gatewayAsyncExecutor} 执行。因此 {@code backoffMaxMs}
+ * 约束的是单次重试的最大退避，而非线程占用。</p>
  */
 public final class BackoffCalculator {
 

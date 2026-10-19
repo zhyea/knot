@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 public abstract class GatewayControllerSupport {
@@ -69,11 +70,15 @@ public abstract class GatewayControllerSupport {
     }
 
     /**
-     * 把同步的模板处理搬到专用异步线程池执行，并以 {@link DeferredResult} 暴露给 Spring：
-     * 异常时透传原始异常（解包 {@link CompletionException}），使 {@code GatewayExceptionHandler}
-     * 的既有分支（502/429/401/503…）继续按原异常类型命中。
+     * 把模板处理（现已返回 {@link CompletableFuture}）搬到专用异步线程池执行，并以
+     * {@link DeferredResult} 暴露给 Spring：异常时透传原始异常（解包 {@link CompletionException}），
+     * 使 {@code GatewayExceptionHandler} 的既有分支（502/429/401/503…）继续按原异常类型命中。
+     *
+     * <p>{@code task} 返回的是一个 future：模板内部会把重试 / failover 链挂到该 future 上，
+     * 退避延迟由定时器承载，全过程不阻塞本 {@code gatewayAsyncExecutor} 线程。
+     * 这里用 {@code thenCompose(identity)} 把「future 套 future」展平。</p>
      */
-    private DeferredResult<Object> dispatch(Supplier<Object> task) {
+    private DeferredResult<Object> dispatch(Supplier<CompletableFuture<Object>> task) {
         RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
         CompletableFuture<Object> future = CompletableFuture.supplyAsync(() -> {
             RequestContextHolder.setRequestAttributes(requestAttributes);
@@ -82,7 +87,7 @@ public abstract class GatewayControllerSupport {
             } finally {
                 RequestContextHolder.resetRequestAttributes();
             }
-        }, gatewayAsyncExecutor);
+        }, gatewayAsyncExecutor).thenCompose(Function.identity());
 
         DeferredResult<Object> deferred = new DeferredResult<>(upstreamProperties.getRequestBudget().toMillis());
         future.whenComplete((value, ex) -> {

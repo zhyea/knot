@@ -16,6 +16,7 @@ import org.chobit.knot.gateway.exception.GatewayRequestException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.load.ModelLoadKeys;
 import org.chobit.knot.gateway.load.ModelLoadStore;
+import org.chobit.knot.gateway.metrics.GatewayMetrics;
 import org.chobit.knot.gateway.service.support.ModerationWordResource;
 import org.chobit.knot.gateway.model.EjectionPolicy;
 import org.chobit.knot.gateway.model.NormalizedUsage;
@@ -46,6 +47,7 @@ import org.chobit.knot.gateway.upstream.stream.ProxyStreamingBody;
 import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.chobit.knot.gateway.util.JsonKit;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.lang.Nullable;
 import org.springframework.http.HttpHeaders;
@@ -58,7 +60,12 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
@@ -98,6 +105,18 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     private final OutageTracker outageTracker;
     private final OutageKeys outageKeys;
     /**
+     * 网关异步请求处理线程池（B1 异步化承载池）。重试退避通过
+     * {@link CompletableFuture#delayedExecutor} 把延迟交给定时器，重试动作仍回到本池执行，
+     * 退避期间不占用任何线程，彻底消除原先 {@code Thread.sleep} 在异步池线程上的阻塞。
+     */
+    private final Executor gatewayAsyncExecutor;
+    /**
+     * 网关域指标出口（限流 / 额度拒绝、摘除、上游失败、failover、代理耗时）。
+     * 非 Spring 单元测试构造本类时为 null，所有埋点一律判空——
+     * 与 {@code eventPublisher} 同款处理：观测开关不应改变请求链路的结构。
+     */
+    private final GatewayMetrics metrics;
+    /**
      * Kafka 投递器；未开启 Kafka 事件输出（{@code kafka.enabled=false}）时为 {@code null}。
      */
     private final KafkaPublisher eventPublisher;
@@ -124,8 +143,10 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                                  ModerationWordResource moderationWordResource,
                                  OutageTracker outageTracker,
                                  OutageKeys outageKeys,
+                                 @Qualifier("gatewayAsyncExecutor") Executor gatewayAsyncExecutor,
                                  @Nullable KafkaPublisher eventPublisher,
-                                 @Value("${kafka.topic.traffic}") String trafficTopic) {
+                                 @Value("${kafka.topic.traffic}") String trafficTopic,
+                                 @Nullable GatewayMetrics metrics) {
         super(pluginDispatcher, moderationWordResource, eventPublisher, trafficTopic);
         this.proxyClient = proxyService;
         this.routingResolver = routingAuthService;
@@ -136,8 +157,10 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         this.modelLoadKeys = modelLoadKeys;
         this.outageTracker = outageTracker;
         this.outageKeys = outageKeys;
+        this.gatewayAsyncExecutor = gatewayAsyncExecutor;
         this.eventPublisher = eventPublisher;
         this.trafficTopic = trafficTopic;
+        this.metrics = metrics;
     }
 
     @Override
@@ -146,11 +169,11 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     }
 
     @Override
-    protected ProxyResult proxy(GatewayRequestContext context, GatewayExchange exchange) {
-        return proxyWithFailover(context, exchange);
+    protected CompletableFuture<ProxyResult> proxy(GatewayRequestContext context, GatewayExchange exchange, RequestAttributes requestAttributes) {
+        return proxyWithFailover(context, exchange, requestAttributes);
     }
 
-    private ProxyResult proxyWithFailover(GatewayRequestContext context, GatewayExchange exchange) {
+    private CompletableFuture<ProxyResult> proxyWithFailover(GatewayRequestContext context, GatewayExchange exchange, RequestAttributes requestAttributes) {
         ResolvedRouting routing = context.routing();
         // 事件调用轨迹：候选循环里每次尝试都登记，终态时快照进响应层消息
         CallTraceContext callTrace = new CallTraceContext();
@@ -164,97 +187,138 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
 
         Map<String, Object> requestBody = exchange.requestBody();
         EjectionPolicy ejectionPolicy = routing.effectiveEjectionPolicy();
-        FailoverOutcome outcome = attemptCandidates(context, exchange, callTrace, requestBody, ejectionPolicy, false);
-        if (outcome.result() != null) {
-            return outcome.result();
-        }
-        if (outcome.hasAllowedTarget()) {
-            throw outcome.lastUpstreamException();
-        }
-        if (outcome.firstRejection() != null) {
-            throw reject(outcome.firstRejection());
-        }
-        // 候选被摘除一空：摘除是「少打坏目标」的优化，不能演变成整体不可用
-        if (outcome.ejectedSkipped() > 0 && ejectionPolicy.isFailOpenWhenAllEjected()) {
-            log.warn("All routing candidates are ejected, fail-open for rule={} (ejected={})",
-                routing.ruleCode(), outcome.ejectedSkipped());
-            callTrace.failOpen();
-            FailoverOutcome reopened = attemptCandidates(context, exchange, callTrace, requestBody, ejectionPolicy, true);
-            if (reopened.result() != null) {
-                return reopened.result();
-            }
-            if (reopened.firstRejection() != null) {
-                throw reject(reopened.firstRejection());
-            }
-            throw reopened.lastUpstreamException();
-        }
-        throw outcome.lastUpstreamException();
+        List<RoutingRuleTargetDto> candidates = routing.candidateModels();
+        TrafficCheckContext trafficContext = trafficGuard.newContext();
+        return attemptCandidates(context, exchange, callTrace, requestBody, ejectionPolicy, false,
+                requestAttributes, trafficContext, candidates, 0, new ScanState())
+            .thenCompose(outcome -> {
+                if (outcome.result() != null) {
+                    return CompletableFuture.completedFuture(outcome.result());
+                }
+                if (outcome.hasAllowedTarget()) {
+                    return CompletableFuture.failedFuture(outcome.lastUpstreamException());
+                }
+                if (outcome.firstRejection() != null) {
+                    return CompletableFuture.failedFuture(reject(outcome.firstRejection()));
+                }
+                // 候选被摘除一空：摘除是「少打坏目标」的优化，不能演变成整体不可用
+                if (outcome.ejectedSkipped() > 0 && ejectionPolicy.isFailOpenWhenAllEjected()) {
+                    log.warn("All routing candidates are ejected, fail-open for rule={} (ejected={})",
+                        routing.ruleCode(), outcome.ejectedSkipped());
+                    callTrace.failOpen();
+                    return attemptCandidates(context, exchange, callTrace, requestBody, ejectionPolicy, true,
+                            requestAttributes, trafficGuard.newContext(), candidates, 0, new ScanState())
+                        .thenCompose(reopened -> {
+                            if (reopened.result() != null) {
+                                return CompletableFuture.completedFuture(reopened.result());
+                            }
+                            if (reopened.firstRejection() != null) {
+                                return CompletableFuture.failedFuture(reject(reopened.firstRejection()));
+                            }
+                            return CompletableFuture.failedFuture(reopened.lastUpstreamException());
+                        });
+                }
+                return CompletableFuture.failedFuture(outcome.lastUpstreamException());
+            });
     }
 
     /**
-     * 遍历候选链取一次成功结果。
+     * 候选遍历过程中的可变累加状态：跨异步递归调用共享。单次请求内候选是<b>顺序</b>遍历的
+     * （一个候选成功/失败后才会进入下一个），因此状态更新不存在并发竞争。
+     */
+    private static final class ScanState {
+        GatewayUpstreamException lastUpstreamException =
+            new GatewayUpstreamException("No available routing target", ProxyErrorCodeEnum.NO_ROUTING_TARGET.code());
+        TrafficDecision firstRejection;
+        boolean hasAllowedTarget;
+        int ejectedSkipped;
+    }
+
+    /**
+     * 遍历候选链取一次成功结果（异步：整个 failover 链返回 {@link CompletableFuture}）。
      *
      * <p>摘除过滤发生在频控检查<b>之前</b>：被摘除的目标既不消耗该目标的频控/额度预算，
      * 也不写入「首个拒绝原因」——被摘除跳过不等于被限流，不能把 429 误报给客户端。</p>
      *
+     * <p>候选按索引顺序递归处理：上一个候选成功或彻底失败后才进入下一个，
+     * 保证「跨候选 failover」发生在「同候选重试」之后，也保证在途计数与摘除计数不会被并发放大。</p>
+     *
      * @param ignoreEjection true 时忽略摘除状态（候选被全部摘除后 fail-open 的第二轮）
      */
-    private FailoverOutcome attemptCandidates(GatewayRequestContext context,
-                                              GatewayExchange exchange,
-                                              CallTraceContext callTrace,
-                                              Map<String, Object> requestBody,
-                                              EjectionPolicy ejectionPolicy,
-                                              boolean ignoreEjection) {
+    private CompletableFuture<FailoverOutcome> attemptCandidates(GatewayRequestContext context,
+                                                                GatewayExchange exchange,
+                                                                CallTraceContext callTrace,
+                                                                Map<String, Object> requestBody,
+                                                                EjectionPolicy ejectionPolicy,
+                                                                boolean ignoreEjection,
+                                                                RequestAttributes requestAttributes,
+                                                                TrafficCheckContext trafficContext,
+                                                                List<RoutingRuleTargetDto> candidates,
+                                                                int index,
+                                                                ScanState state) {
+        if (index >= candidates.size()) {
+            return CompletableFuture.completedFuture(new FailoverOutcome(null, state.lastUpstreamException,
+                state.firstRejection, state.hasAllowedTarget, state.ejectedSkipped));
+        }
         ResolvedRouting routing = context.routing();
         ModelApiProtocolEnum protocol = context.protocol();
         String traceparent = context.traceparent();
-        TrafficCheckContext trafficContext = trafficGuard.newContext();
-        GatewayUpstreamException lastUpstreamException = new GatewayUpstreamException("No available routing target",
-            ProxyErrorCodeEnum.NO_ROUTING_TARGET.code()
-        );
-        TrafficDecision firstRejection = null;
-        boolean hasAllowedTarget = false;
-        int ejectedSkipped = 0;
         RetryPolicy retryPolicy = routing.effectiveRetryPolicy();
-        for (RoutingRuleTargetDto candidate : routing.candidateModels()) {
-            EjectionDecision decision = ignoreEjection
-                ? new EjectionDecision(outageKeys.of(routing.ruleCode(), candidate.targetCode()),
-                OutageState.HEALTHY, false, false, false)
-                : outageTracker.evaluate(ejectionPolicy, routing.ruleCode(), candidate.targetCode(),
-                System.currentTimeMillis());
-            CallTraceContext.AttemptDraft draft = callTrace.newAttempt(candidate, decision);
-            if (decision.skip()) {
-                ejectedSkipped++;
-                continue;
+        RoutingRuleTargetDto candidate = candidates.get(index);
+        EjectionDecision decision = ignoreEjection
+            ? new EjectionDecision(outageKeys.of(routing.ruleCode(), candidate.targetCode()),
+            OutageState.HEALTHY, false, false, false)
+            : outageTracker.evaluate(ejectionPolicy, routing.ruleCode(), candidate.targetCode(),
+            System.currentTimeMillis());
+        CallTraceContext.AttemptDraft draft = callTrace.newAttempt(candidate, decision);
+        if (decision.skip()) {
+            state.ejectedSkipped++;
+            if (metrics != null) {
+                metrics.ejectionSkip();
             }
-            // 检查目标模型的频控和额度控制
-            TrafficDecision targetDecision = trafficGuard.checkTarget(candidate, trafficContext);
-            if (!targetDecision.allowed()) {
-                draft.rejected(targetDecision.reason() == null ? null : targetDecision.reason().name());
-                if (firstRejection == null) {
-                    firstRejection = targetDecision;
-                }
-                continue;
+            return attemptCandidates(context, exchange, callTrace, requestBody, ejectionPolicy, ignoreEjection,
+                requestAttributes, trafficContext, candidates, index + 1, state);
+        }
+        // 检查目标模型的频控和额度控制
+        TrafficDecision targetDecision = trafficGuard.checkTarget(candidate, trafficContext);
+        if (!targetDecision.allowed()) {
+            draft.rejected(targetDecision.reason() == null ? null : targetDecision.reason().name());
+            if (state.firstRejection == null) {
+                state.firstRejection = targetDecision;
             }
-            hasAllowedTarget = true;
+            return attemptCandidates(context, exchange, callTrace, requestBody, ejectionPolicy, ignoreEjection,
+                requestAttributes, trafficContext, candidates, index + 1, state);
+        }
+        state.hasAllowedTarget = true;
 
-            // 在途 +1：最空闲选模（LEAST_LOAD）的负载来源，请求结束（含流式写完）才释放
-            final String loadKey = modelLoadKeys.model(candidate.targetCode());
-            modelLoadStore.enter(loadKey);
-            boolean deferredToStream = false;
-            // 调用上游服务；失败重试发生在本候选内部，频控检查不随重投次数累加
-            try {
-                ProxyResult result = invokeWithRetry(retryPolicy, candidate, draft, () -> proxyClient.proxy(
-                    // 客户端无需传 model：请求体 model 恒按路由目标的上游模型覆盖（kb_models.upstream_model）
-                    withTargetModel(requestBody, candidate),
-                    exchange.contentType(), candidate, protocol, traceparent));
+        // 在途 +1：最空闲选模（LEAST_LOAD）的负载来源，请求结束（含流式写完）才释放
+        final String loadKey = modelLoadKeys.model(candidate.targetCode());
+        modelLoadStore.enter(loadKey);
+        Supplier<ProxyResult> attempt = () -> proxyClient.proxy(
+            // 客户端无需传 model：请求体 model 恒按路由目标的上游模型覆盖（kb_models.upstream_model）
+            withTargetModel(requestBody, candidate),
+            exchange.contentType(), candidate, protocol, traceparent);
+        final long attemptStartedAt = System.nanoTime();
+        CompletableFuture<ProxyResult> retryFuture = invokeWithRetry(retryPolicy, candidate, draft, attempt, requestAttributes);
+        if (metrics != null) {
+            // 代理耗时含该候选内部的退避重试：观测的是「这个候选到底慢不慢」
+            retryFuture.whenComplete((ignored, ignoredEx) ->
+                metrics.proxyLatency(System.nanoTime() - attemptStartedAt, ignoredEx == null));
+        }
+        return retryFuture
+            .thenApply(result -> {
                 // 限额与 TPM 事后累计：上游成功才记账，失败重试与 failover 不重复扣减
                 trafficGuard.record(routing, candidate, usageOf(result), trafficContext);
                 outageTracker.recordSuccess(decision, System.currentTimeMillis());
                 // 供应商侧请求 id 一并留痕：数仓 attempt 级绑定 + 联合排查检索（不透客户端）
                 draft.succeeded(result.upstreamRequestId());
+                if (metrics != null && index > 0) {
+                    // 靠后的候选承接成功 = 前面排队的候选不可用，是上游健康度的重要预警信号
+                    metrics.failover();
+                }
+                boolean deferredToStream = false;
                 if (result.streamResponse() != null) {
-                    // 流式：请求线程马上返回，在途必须持续到响应流写完，交给响应体结束时释放
+                    // 流式：在途必须持续到响应流写完，交给响应体结束时释放
                     deferredToStream = true;
                     context.putAttribute(ATTR_LOAD_RELEASE, (Runnable) () -> modelLoadStore.leave(loadKey));
                 }
@@ -263,19 +327,45 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                 // 命中目标入上下文：首 token 观察者据此把慢信号归属到本候选（异常路径无首 token）
                 context.putAttribute(HIT_TARGET_ATTRIBUTE, candidate);
                 context.putAttribute(TRAFFIC_CONTEXT_ATTRIBUTE, trafficContext);
-                return new FailoverOutcome(result, null, null, true, ejectedSkipped);
-            } catch (GatewayUpstreamException e) {
-                lastUpstreamException = e;
-                draft.failed(e, OutageClassifier.countable(e, ejectionPolicy));
-                // 一次候选调用最多计一次异常：重试内部的单次失败不放大摘除计数
-                outageTracker.recordFailure(decision, ejectionPolicy, e, System.currentTimeMillis());
-            } finally {
-                if (!deferredToStream) {
-                    modelLoadStore.leave(loadKey);
+                return new SuccessCandidate(result, deferredToStream);
+            })
+            .exceptionally(ex -> {
+                Throwable cause = (ex instanceof CompletionException && ex.getCause() != null) ? ex.getCause() : ex;
+                if (cause instanceof GatewayUpstreamException e) {
+                    state.lastUpstreamException = e;
+                    draft.failed(e, OutageClassifier.countable(e, ejectionPolicy));
+                    // 一次候选调用最多计一次异常：重试内部的单次失败不放大摘除计数
+                    outageTracker.recordFailure(decision, ejectionPolicy, e, System.currentTimeMillis());
+                    if (metrics != null) {
+                        metrics.upstreamFailure(e.code());
+                    }
+                    return null;
                 }
-            }
-        }
-        return new FailoverOutcome(null, lastUpstreamException, firstRejection, hasAllowedTarget, ejectedSkipped);
+                // 非上游异常（网关自身缺陷/鉴权/频控等）不属于可重试上游失败，直接上抛终止本次请求
+                if (cause instanceof RuntimeException re) {
+                    throw re;
+                }
+                throw new RuntimeException(cause);
+            })
+            .thenCompose(success -> {
+                if (success != null) {
+                    if (!success.deferredToStream()) {
+                        modelLoadStore.leave(loadKey);
+                    }
+                    return CompletableFuture.completedFuture(
+                        new FailoverOutcome(success.result(), null, null, true, state.ejectedSkipped));
+                }
+                // 上游失败：释放在途并继续下一个候选
+                modelLoadStore.leave(loadKey);
+                return attemptCandidates(context, exchange, callTrace, requestBody, ejectionPolicy, ignoreEjection,
+                    requestAttributes, trafficContext, candidates, index + 1, state);
+            });
+    }
+
+    /**
+     * 单个候选成功时的瞬时结果：携带上游响应与是否把在途释放延迟到流式写完（{@code deferredToStream}）。
+     */
+    private record SuccessCandidate(ProxyResult result, boolean deferredToStream) {
     }
 
     /**
@@ -321,56 +411,78 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     }
 
     /**
-     * 对同一个路由目标按规则级策略做失败重试。
+     * 对同一个路由目标按规则级策略做失败重试（非阻塞异步版）。
      *
      * <p>重试位于「跨候选 failover」之前：同一目标的连续失败先在原地重投，次数耗尽或
-     * 命中不可重试口径时才抛出最后一个异常，由外层切到下一个候选。</p>
+     * 命中不可重试口径时才以最后一个异常完成 future，由外层切到下一个候选。</p>
      *
-     * <p>只捕获 {@link GatewayUpstreamException}：网关自身的异常（鉴权、频控、额度、代码缺陷）
-     * 不属于上游失败，不重试，直接上抛。</p>
+     * <p>只把 {@link GatewayUpstreamException} 当作可重试的上游失败；网关自身的异常
+     * （鉴权、频控、额度、代码缺陷）不属于上游失败，不重试，直接以原异常完成 future。</p>
+     *
+     * <p><b>非阻塞退避</b>：退避延迟由 {@link CompletableFuture#delayedExecutor} 的定时器承载，
+     * 延迟期间<b>不占用任何线程</b>；延迟结束后重试动作回到 {@code gatewayAsyncExecutor} 执行。
+     * 这彻底消除了原先 {@code Thread.sleep} 在异步池线程上阻塞、拖垮并发承载的问题。</p>
      *
      * <p>流式请求的失败只可能在「首个字节之前」抛到这里——一旦拿到带
      * {@code streamResponse} 的结果就已向调用方提交，无法再重投，这也正好是流式重试的安全边界。</p>
      */
-    private ProxyResult invokeWithRetry(RetryPolicy policy,
-                                        RoutingRuleTargetDto candidate,
-                                        CallTraceContext.AttemptDraft draft,
-                                        Supplier<ProxyResult> attempt) {
+    CompletableFuture<ProxyResult> invokeWithRetry(RetryPolicy policy,
+                                                          RoutingRuleTargetDto candidate,
+                                                          CallTraceContext.AttemptDraft draft,
+                                                          Supplier<ProxyResult> attempt,
+                                                          RequestAttributes requestAttributes) {
         int maxAttempts = Math.max(1, policy.maxAttempts());
-        for (int failed = 0; ; failed++) {
-            if (draft != null) {
-                draft.nextAttempt(maxAttempts);
-            }
-            try {
-                return attempt.get();
-            } catch (GatewayUpstreamException e) {
-                if (failed + 1 >= maxAttempts || !RetryableClassifier.retryable(e, policy)) {
-                    throw e;
-                }
-                long delayMs = BackoffCalculator.delayMillis(failed + 1, policy, e.retryAfterMs());
-                log.warn("Retry routing target after upstream failure: target={}, attempt={}/{}, status={}, code={}, delayMs={}",
-                    candidate.targetCode(), failed + 1, maxAttempts, e.httpStatus(), e.code(), delayMs);
-                if (!sleepQuietly(delayMs)) {
-                    Thread.currentThread().interrupt();
-                    throw e;
-                }
-            }
-        }
+        return retryOnce(policy, candidate, draft, attempt, requestAttributes, 0, maxAttempts);
     }
 
     /**
-     * 退避等待；被中断时返回 false，由调用方决定是否中止重试。
+     * 单次尝试 + 退避调度的递归实现（见 {@link #invokeWithRetry} 说明）。
      */
-    private static boolean sleepQuietly(long millis) {
-        if (millis <= 0) {
-            return true;
+    private CompletableFuture<ProxyResult> retryOnce(RetryPolicy policy,
+                                                    RoutingRuleTargetDto candidate,
+                                                    CallTraceContext.AttemptDraft draft,
+                                                    Supplier<ProxyResult> attempt,
+                                                    RequestAttributes requestAttributes,
+                                                    int failed,
+                                                    int maxAttempts) {
+        if (draft != null) {
+            draft.nextAttempt(maxAttempts);
         }
-        try {
-            Thread.sleep(millis);
-            return true;
-        } catch (InterruptedException e) {
-            return false;
-        }
+        CompletableFuture<ProxyResult> first = CompletableFuture.supplyAsync(
+            () -> withRequestContext(requestAttributes, attempt), gatewayAsyncExecutor);
+        CompletableFuture<ProxyResult> result = new CompletableFuture<>();
+        first.whenComplete((proxy, ex) -> {
+            if (ex == null) {
+                result.complete(proxy);
+                return;
+            }
+            Throwable cause = (ex instanceof CompletionException && ex.getCause() != null) ? ex.getCause() : ex;
+            if (!(cause instanceof GatewayUpstreamException e)) {
+                result.completeExceptionally(cause);
+                return;
+            }
+            if (failed + 1 >= maxAttempts || !RetryableClassifier.retryable(e, policy)) {
+                result.completeExceptionally(e);
+                return;
+            }
+            long delayMs = BackoffCalculator.delayMillis(failed + 1, policy, e.retryAfterMs());
+            log.warn("Retry routing target after upstream failure: target={}, attempt={}/{}, status={}, code={}, delayMs={}",
+                candidate.targetCode(), failed + 1, maxAttempts, e.httpStatus(), e.code(), delayMs);
+            // 非阻塞退避：定时器到期后再回到 gatewayAsyncExecutor 重试，期间无任何线程被占用
+            CompletableFuture.completedFuture(null)
+                .thenComposeAsync(ignored -> retryOnce(policy, candidate, draft, attempt, requestAttributes, failed + 1, maxAttempts),
+                    CompletableFuture.delayedExecutor(delayMs, TimeUnit.MILLISECONDS, gatewayAsyncExecutor))
+                .whenComplete((next, nextEx) -> {
+                    if (nextEx != null) {
+                        Throwable nextCause = (nextEx instanceof CompletionException && nextEx.getCause() != null)
+                            ? nextEx.getCause() : nextEx;
+                        result.completeExceptionally(nextCause);
+                    } else {
+                        result.complete(next);
+                    }
+                });
+        });
+        return result;
     }
 
     /**
@@ -379,6 +491,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     private GatewayRequestException reject(TrafficDecision decision) {
         TrafficRejectDetail detail = TrafficRejectDetail.of(decision, System.currentTimeMillis());
         String code = decision.reason().errorCode().code();
+        if (metrics != null) {
+            metrics.trafficReject(decision.reason() == null ? null : decision.reason().name());
+        }
         if (decision.reason().quota()) {
             return new GatewayQuotaException(detail.describe(), code, detail);
         }

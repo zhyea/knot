@@ -20,10 +20,15 @@ import org.chobit.knot.gateway.kafka.CallTraceContext;
 import org.chobit.knot.gateway.kafka.KafkaPublisher;
 import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
 import org.springframework.http.MediaType;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.LongConsumer;
+import java.util.function.Supplier;
 
 /**
  * Handles the incoming request flow. Executes the public operation.
@@ -74,7 +79,7 @@ public abstract class AbstractGatewayRequestTemplate {
      * resolve routing,
      * proxy the adapted request upstream, then apply post-response usage accounting.
      */
-    public final Object handle(String authorization,
+    public final CompletableFuture<Object> handle(String authorization,
                                String ruleCode,
                                String traceparent,
                                String stickyKey,
@@ -87,7 +92,7 @@ public abstract class AbstractGatewayRequestTemplate {
     /**
      * Gateway request template entrypoint for multipart requests.
      */
-    public final Object handleMultipart(String authorization,
+    public final CompletableFuture<Object> handleMultipart(String authorization,
                                         String ruleCode,
                                         String traceparent,
                                         String stickyKey,
@@ -97,7 +102,7 @@ public abstract class AbstractGatewayRequestTemplate {
                 requestBody, protocol, MediaType.MULTIPART_FORM_DATA);
     }
 
-    private Object handleMap(String authorization,
+    private CompletableFuture<Object> handleMap(String authorization,
                              String ruleCode,
                              String traceparent,
                              String stickyKey,
@@ -110,42 +115,81 @@ public abstract class AbstractGatewayRequestTemplate {
         GatewayRequestContext context = new GatewayRequestContext(
                 authorization, ruleCode, traceContext, protocol, stickyKey);
         GatewayExchange exchange = new GatewayExchange(requestBody, contentType);
+        // 请求上下文属性（RequestContextHolder）随异步链路传递：在首个异步回调里重新绑定，
+        // 保证流式响应头 / 首 token 响应头等在正确的请求线程上写出。
+        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
         try {
             context.apiKey(validateRequestHeaders(authorization, ruleCode));
             ResolvedRouting routingInfo = resolveRouting(context);
             context.routing(routingInfo);
             dispatchGatewayPlugin(context, exchange, PluginStageCode.GATEWAY_REQUEST, null, null);
 
-            ProxyResult result = proxy(context, exchange);
-            exchange.proxyResult(result);
-            // 合并后单条流量事件在终态发出（非流式即此处用量记账后；流式在响应体写完的
-            // finally；异常在 catch）。「真正请求的模型」= 候选循环落定的 hit target，
-            // 与处置结果同一条消息携带，不再分两层、不再需乱序修正。
-            Object response = applyUsageAccounting(context, exchange);
-            // 首 token 响应时间：非流式在此写头（响应体就绪即产出就绪，等价首 token）；
-            // 流式返回 StreamingResponseBody，由响应体在上游首行写出前自行写头。
-            // 观察者由子类按需提供（如慢信号摘除），两个出口共用同一钩子
-            FirstTokenHeaderWriter firstTokenWriter = null;
-            if (response != null && !(response instanceof StreamingResponseBody)) {
-                firstTokenWriter = FirstTokenHeaderWriter.of(context, firstTokenObserver(context));
-                firstTokenWriter.mark();
-            }
-            dispatchGatewayPlugin(context, exchange, PluginStageCode.GATEWAY_RESPONSE, response, null);
-            // 流式不包括在此发布：响应体尚未写完，用量要等 ProxyStreamingBody 收尾才知道，
-            // 改由 GatewayRequestHandler 在流结束时发布（见 streamResponse）。
-            if (firstTokenWriter != null) {
-                ProxyResult proxied = exchange.proxyResult();
-                // 非流式：响应体已就绪，用量在此就是终态
-                publishTraffic(context, exchange, proxied == null ? null : proxied.usage(),
-                        firstTokenWriter.elapsedMillis(), null);
-            }
-            return response;
+            // proxy 链（重试 + failover）全程异步，退避期间不阻塞任何线程
+            CompletableFuture<ProxyResult> proxyFuture = proxy(context, exchange, requestAttributes);
+            return proxyFuture.thenApply(result -> withRequestContext(requestAttributes, () -> {
+                exchange.proxyResult(result);
+                // 合并后单条流量事件在终态发出（非流式即此处用量记账后；流式在响应体写完的
+                // finally；异常在 catch）。「真正请求的模型」= 候选循环落定的 hit target，
+                // 与处置结果同一条消息携带，不再分两层、不再需乱序修正。
+                Object response = applyUsageAccounting(context, exchange);
+                // 首 token 响应时间：非流式在此写头（响应体就绪即产出就绪，等价首 token）；
+                // 流式返回 StreamingResponseBody，由响应体在上游首行写出前自行写头。
+                // 观察者由子类按需提供（如慢信号摘除），两个出口共用同一钩子
+                FirstTokenHeaderWriter firstTokenWriter = null;
+                if (response != null && !(response instanceof StreamingResponseBody)) {
+                    firstTokenWriter = FirstTokenHeaderWriter.of(context, firstTokenObserver(context));
+                    firstTokenWriter.mark();
+                }
+                dispatchGatewayPlugin(context, exchange, PluginStageCode.GATEWAY_RESPONSE, response, null);
+                // 流式不包括在此发布：响应体尚未写完，用量要等 ProxyStreamingBody 收尾才知道，
+                // 改由 GatewayRequestHandler 在流结束时发布（见 streamResponse）。
+                if (firstTokenWriter != null) {
+                    ProxyResult proxied = exchange.proxyResult();
+                    // 非流式：响应体已就绪，用量在此就是终态
+                    publishTraffic(context, exchange, proxied == null ? null : proxied.usage(),
+                            firstTokenWriter.elapsedMillis(), null);
+                }
+                return response;
+            })).exceptionally(ex -> {
+                // 任意终态（含入口即拒、上游失败、计费异常）都发一条流量事件：路由未解析时 routing 为 null、
+                // error.stage=header_validate，一条记录即可表达，数仓无需 left join 识别。
+                Throwable cause = (ex instanceof CompletionException && ex.getCause() != null) ? ex.getCause() : ex;
+                RequestAttributes previous = RequestContextHolder.getRequestAttributes();
+                RequestContextHolder.setRequestAttributes(requestAttributes);
+                try {
+                    dispatchGatewayPlugin(context, exchange, PluginStageCode.GATEWAY_ERROR, null, cause);
+                    publishTraffic(context, exchange, null, null, cause);
+                } finally {
+                    RequestContextHolder.setRequestAttributes(previous);
+                }
+                if (cause instanceof RuntimeException re) {
+                    throw re;
+                }
+                throw new RuntimeException(cause);
+            });
         } catch (RuntimeException ex) {
-            // 任意终态（含入口即拒）都发一条流量事件：路由未解析时 routing 为 null、
+            // 同步阶段（头校验 / 路由解析 / 插件）异常：路由未解析时 routing 为 null、
             // error.stage=header_validate，一条记录即可表达，数仓无需 left join 识别。
             dispatchGatewayPlugin(context, exchange, PluginStageCode.GATEWAY_ERROR, null, ex);
             publishTraffic(context, exchange, null, null, ex);
             throw ex;
+        }
+    }
+
+    /**
+     * 在指定请求上下文属性下执行任务，结束后还原调用线程原有的属性（可能为 null）。
+     *
+     * <p>异步重试 / failover 链会在不同线程上回调，而流式响应头、首 token 响应头、
+     * 用量测试头解析等都依赖 {@link RequestContextHolder} 的线程本地属性，
+     * 故每个异步回调都需先重新绑定请求属性再执行。</p>
+     */
+    protected static <T> T withRequestContext(RequestAttributes attributes, Supplier<T> task) {
+        RequestAttributes previous = RequestContextHolder.getRequestAttributes();
+        RequestContextHolder.setRequestAttributes(attributes);
+        try {
+            return task.get();
+        } finally {
+            RequestContextHolder.setRequestAttributes(previous);
         }
     }
 
@@ -172,7 +216,7 @@ public abstract class AbstractGatewayRequestTemplate {
 
     protected abstract ResolvedRouting resolveRouting(GatewayRequestContext context);
 
-    protected abstract ProxyResult proxy(GatewayRequestContext context, GatewayExchange exchange);
+    protected abstract CompletableFuture<ProxyResult> proxy(GatewayRequestContext context, GatewayExchange exchange, RequestAttributes requestAttributes);
 
     protected abstract Object applyUsageAccounting(GatewayRequestContext context, GatewayExchange exchange);
 

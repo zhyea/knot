@@ -78,6 +78,16 @@
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
         </dependency>
+        <!-- 可观测性：actuator 暴露 health/info/prometheus，micrometer 承接 HTTP 与网关域指标。
+             网关是「限流/摘除/重试」等高风险决策的唯一发生地，没有指标等于盲飞。 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
