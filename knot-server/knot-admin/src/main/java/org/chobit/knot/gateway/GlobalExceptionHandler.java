@@ -4,6 +4,7 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ForbiddenException;
+import org.chobit.knot.gateway.error.TooManyRequestsException;
 import org.chobit.knot.gateway.error.UnauthorizedException;
 import org.chobit.knot.gateway.rw.RwProperties;
 import org.springframework.http.HttpStatus;
@@ -48,6 +49,17 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ApiResponse<Void> handleForbidden(ForbiddenException e) {
         log.warn("Forbidden: code={}, message={}", e.getCode(), e.getMessage());
+        return ApiResponse.fail(rwProperties.getFailCode(), e.getMessage());
+    }
+
+    /**
+     * 请求频率超限（防爆破 / 防刷）：返回 429。比 {@link BusinessException} 更具体，
+     * Spring 会选择本处理器而非通用的 {@link #handleBusinessException(BusinessException)}。
+     */
+    @ExceptionHandler(TooManyRequestsException.class)
+    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
+    public ApiResponse<Void> handleTooManyRequests(TooManyRequestsException e) {
+        log.warn("Too many requests: code={}, message={}", e.getCode(), e.getMessage());
         return ApiResponse.fail(rwProperties.getFailCode(), e.getMessage());
     }
 

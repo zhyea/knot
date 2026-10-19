@@ -17,7 +17,7 @@ public class CredentialEncryption {
         if (properties.isDevDefaultKey()) {
             log.warn("[安全] 凭证加密密钥仍为开发默认值，生产环境必须通过环境变量 KNOT_CREDENTIAL_ENCRYPTION_KEY 注入");
         }
-        this.cipher = new AesGcmCipher(AesGcmCipher.deriveKey(properties.getEncryptionKey()));
+        this.cipher = new AesGcmCipher(properties.getEncryptionKey());
     }
 
     /**

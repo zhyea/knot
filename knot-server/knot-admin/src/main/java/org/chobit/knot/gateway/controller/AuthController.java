@@ -4,8 +4,12 @@ import jakarta.validation.Valid;
 import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.dto.auth.ForcePasswordChangeRequest;
 import org.chobit.knot.gateway.dto.auth.LoginRequest;
+import org.chobit.knot.gateway.error.BusinessException;
+import org.chobit.knot.gateway.error.TooManyRequestsException;
+import org.chobit.knot.gateway.security.BruteForceGuard;
 import org.chobit.knot.gateway.service.UserService;
 import org.chobit.knot.gateway.vo.auth.LoginResponse;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,12 +20,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final UserService userService;
+    private final BruteForceGuard loginBruteForceGuard;
 
     /**
      * Constructs a new instance.
      */
-    public AuthController(UserService userService) {
+    public AuthController(UserService userService,
+                         @Qualifier("loginBruteForceGuard") BruteForceGuard loginBruteForceGuard) {
         this.userService = userService;
+        this.loginBruteForceGuard = loginBruteForceGuard;
     }
 
     /**
@@ -34,7 +41,20 @@ public class AuthController {
             recordNewValue = false)
     @PostMapping("/login")
     public LoginResponse login(@RequestBody @Valid LoginRequest request) {
-        return userService.login(request.username(), request.password());
+        String username = request.username();
+        // 该用户名在窗口内失败次数已达封禁阈值：直接拒绝，抬高密码爆破成本。
+        if (loginBruteForceGuard.isBlocked(username)) {
+            throw new TooManyRequestsException("登录尝试过于频繁，请稍后再试");
+        }
+        try {
+            LoginResponse response = userService.login(username, request.password());
+            // 登录成功清零失败计数，避免累积误封。
+            loginBruteForceGuard.reset(username);
+            return response;
+        } catch (BusinessException e) {
+            loginBruteForceGuard.recordFailure(username);
+            throw e;
+        }
     }
 
     /**

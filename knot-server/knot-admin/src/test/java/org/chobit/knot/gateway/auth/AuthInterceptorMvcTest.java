@@ -2,12 +2,15 @@ package org.chobit.knot.gateway.auth;
 
 import org.chobit.knot.gateway.GlobalExceptionHandler;
 import org.chobit.knot.gateway.rw.RwProperties;
+import org.chobit.knot.gateway.security.BruteForceGuard;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.Duration;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -25,7 +28,7 @@ class AuthInterceptorMvcTest {
     void setUp() {
         mockMvc = MockMvcBuilders.standaloneSetup(new TestController())
                 .setControllerAdvice(new GlobalExceptionHandler(new RwProperties()))
-                .addInterceptors(new AuthInterceptor())
+                .addInterceptors(new AuthInterceptor(new BruteForceGuard(100, Duration.ofSeconds(60))))
                 .build();
     }
 

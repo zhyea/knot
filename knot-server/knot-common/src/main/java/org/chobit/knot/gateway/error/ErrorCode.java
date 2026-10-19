@@ -6,6 +6,7 @@ public enum ErrorCode {
     CONFLICT("GW-SYSTEM-409", "resource conflict"),
     UNAUTHORIZED("GW-SYSTEM-401", "unauthorized"),
     FORBIDDEN("GW-SYSTEM-403", "forbidden"),
+    TOO_MANY_REQUESTS("GW-SYSTEM-429", "too many requests"),
     GATEWAY_UNAVAILABLE("GW-SYSTEM-503", "gateway unavailable");
 
     private final String code;
