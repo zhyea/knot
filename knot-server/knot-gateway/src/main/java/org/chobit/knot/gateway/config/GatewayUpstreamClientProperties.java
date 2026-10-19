@@ -86,6 +86,29 @@ public class GatewayUpstreamClientProperties {
     private int streamBufferSize = 8192;
 
     /**
+     * 网关异步请求处理线程池大小（B1 异步化的承载池）：控制器返回 {@code DeferredResult} 后，
+     * 真正的上游代理链路——含失败重试的退避等待——在该专用线程池上执行，Tomcat worker 立即释放，
+     * 避免坏上游的重试/退避把 Web 容器线程吃干。
+     *
+     * <p>线程数决定并发在途的上游调用上限；默认与 Tomcat 默认 worker 数（200）对齐。
+     * 下限 {@code @Min(1)} 防止误配成 0 让请求无法被处理。若上游普遍偏慢或重试频繁，可调大。</p>
+     */
+    @Min(1)
+    private int asyncExecutorThreads = 200;
+
+    /**
+     * 单条网关请求的总预算（B2 全局请求 deadline）：从请求进入网关到响应完全就绪的最长时间。
+     *
+     * <p>覆盖「非流式同步路径零兜底、仅流式 600s async 兜底」的历史不一致，作为<b>唯一真总超时</b>。
+     * 以 {@code DeferredResult} 超时的形式作用于每条网关请求；到点即终止并返回 504，
+     * 防止极端重试/挂死上游无限占住线程。</p>
+     *
+     * <p>默认 600s 与既有流式 {@code spring.mvc.async.request-timeout} 对齐，长流式响应不被误伤；
+     * 若实测合法长任务（大音频/视频生成）被截断，调大本值。</p>
+     */
+    private Duration requestBudget = Duration.ofSeconds(600);
+
+    /**
      * 是否接受上游的 gzip/br 压缩响应。默认关闭：解压器会引入额外缓冲，
      * 且压缩过的 SSE 更容易被中间层攒包，与流式转发的低延迟目标冲突。
      */

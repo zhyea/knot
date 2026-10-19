@@ -102,6 +102,10 @@ knot:
     #   stream-buffer-size: ${KNOT_UPSTREAM_STREAM_BUF:8192}
     #   # 是否接受上游 gzip/br 压缩响应（默认关：与流式低延迟目标冲突）
     #   content-compression-enabled: ${KNOT_UPSTREAM_CONTENT_COMPRESSION:false}
+    #   # 异步化承载线程池大小（B1：控制器返回 DeferredResult 后，上游代理链路在此执行，Tomcat worker 立即释放；下限 1）
+    #   async-executor-threads: ${KNOT_UPSTREAM_ASYNC_THREADS:200}
+    #   # 全局请求预算 deadline（B2：唯一真总超时，流式/非流式统一；到点返回 504）
+    #   request-budget: ${KNOT_UPSTREAM_REQUEST_BUDGET:600s}
   outage:
     # 异常摘除：纯进程内 Caffeine，无 store 开关。摘除是本节点自己的异常观察，
     # 不需要跨节点共享；放 Redis 反而让 Redis 故障同时打掉网关的自我保护能力。

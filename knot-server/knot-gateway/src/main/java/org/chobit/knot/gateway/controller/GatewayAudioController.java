@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.async.DeferredResult;
 
 @RestController
 @RequestMapping("/openai/v1/audio")
@@ -24,12 +25,12 @@ public class GatewayAudioController extends GatewayControllerSupport {
      * Handles audio transcription requests.
      */
     @PostMapping("/transcriptions")
-    public Object transcriptions(
-            @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
-            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
-            @RequestBody AudioTranscriptionRequest requestBody) {
+    public DeferredResult<Object> transcriptions(
+        @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
+        @RequestHeader(value = GatewayHeaders.RULE) String rule,
+        @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+        @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
+        @RequestBody AudioTranscriptionRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS);
     }
 
@@ -37,12 +38,12 @@ public class GatewayAudioController extends GatewayControllerSupport {
      * Handles audio translation requests.
      */
     @PostMapping("/translations")
-    public Object translations(
-            @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
-            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
-            @RequestBody AudioTranslationRequest requestBody) {
+    public DeferredResult<Object> translations(
+        @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
+        @RequestHeader(value = GatewayHeaders.RULE) String rule,
+        @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+        @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
+        @RequestBody AudioTranslationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.AUDIO_TRANSLATIONS);
     }
 
@@ -50,12 +51,12 @@ public class GatewayAudioController extends GatewayControllerSupport {
      * Handles audio speech synthesis requests.
      */
     @PostMapping("/speech")
-    public Object speech(
-            @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
-            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
-            @RequestBody AudioSpeechRequest requestBody) {
+    public DeferredResult<Object> speech(
+        @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
+        @RequestHeader(value = GatewayHeaders.RULE) String rule,
+        @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+        @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
+        @RequestBody AudioSpeechRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.AUDIO_SPEECH);
     }
 }

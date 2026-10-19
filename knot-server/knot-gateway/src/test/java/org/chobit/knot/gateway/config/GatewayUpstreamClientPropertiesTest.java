@@ -33,6 +33,10 @@ class GatewayUpstreamClientPropertiesTest {
         assertEquals(200, properties.getMaxTotalConnections());
         assertEquals(50, properties.getMaxConnectionsPerRoute());
         assertEquals(8192, properties.getStreamBufferSize());
+        // B1 异步化承载池默认与 Tomcat 默认 worker 数对齐
+        assertEquals(200, properties.getAsyncExecutorThreads());
+        // B2 全局请求预算默认 600s，与既有流式 async 兜底对齐
+        assertEquals(Duration.ofSeconds(600), properties.getRequestBudget());
     }
 
     @Test
@@ -41,12 +45,14 @@ class GatewayUpstreamClientPropertiesTest {
         properties.setMaxTotalConnections(0);
         properties.setMaxConnectionsPerRoute(0);
         properties.setStreamBufferSize(0);
+        properties.setAsyncExecutorThreads(0);
 
         Set<ConstraintViolation<GatewayUpstreamClientProperties>> violations = validator.validate(properties);
-        assertFalse(violations.isEmpty(), "maxTotalConnections/maxConnectionsPerRoute/streamBufferSize=0 必须触发 @Min 校验");
+        assertFalse(violations.isEmpty(), "maxTotalConnections/maxConnectionsPerRoute/streamBufferSize/asyncExecutorThreads=0 必须触发 @Min 校验");
         assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("maxTotalConnections")));
         assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("maxConnectionsPerRoute")));
         assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("streamBufferSize")));
+        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("asyncExecutorThreads")));
     }
 
     @Test

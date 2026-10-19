@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.async.DeferredResult;
 
 @RestController
 @RequestMapping("/openai/v1")
@@ -22,12 +23,12 @@ public class GatewayEmbeddingController extends GatewayControllerSupport {
      * Handles embedding requests.
      */
     @PostMapping("/embeddings")
-    public Object embeddings(
-            @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
-            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
-            @RequestBody EmbeddingRequest requestBody) {
+    public DeferredResult<Object> embeddings(
+        @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
+        @RequestHeader(value = GatewayHeaders.RULE) String rule,
+        @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+        @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
+        @RequestBody EmbeddingRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.EMBEDDINGS);
     }
 }

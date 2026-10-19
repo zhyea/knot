@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.async.DeferredResult;
 
 @RestController
 @RequestMapping("/v1")
@@ -23,12 +24,12 @@ public class GatewayUtilityController extends GatewayControllerSupport {
      * Handles rerank requests.
      */
     @PostMapping("/rerank")
-    public Object rerank(
-            @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
-            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
-            @RequestBody RerankRequest requestBody) {
+    public DeferredResult<Object> rerank(
+        @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
+        @RequestHeader(value = GatewayHeaders.RULE) String rule,
+        @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+        @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
+        @RequestBody RerankRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.RERANK);
     }
 
@@ -36,12 +37,12 @@ public class GatewayUtilityController extends GatewayControllerSupport {
      * Handles moderation requests.
      */
     @PostMapping("/openai/v1/moderations")
-    public Object moderations(
-            @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
-            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
-            @RequestBody ModerationRequest requestBody) {
+    public DeferredResult<Object> moderations(
+        @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
+        @RequestHeader(value = GatewayHeaders.RULE) String rule,
+        @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+        @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
+        @RequestBody ModerationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.MODERATIONS);
     }
 }

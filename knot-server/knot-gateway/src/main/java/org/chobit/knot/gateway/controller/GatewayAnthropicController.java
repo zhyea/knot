@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.async.DeferredResult;
 
 @RestController
 @RequestMapping("/anthropic/v1")
@@ -22,12 +23,12 @@ public class GatewayAnthropicController extends GatewayControllerSupport {
      * Handles Anthropic-compatible messages requests.
      */
     @PostMapping("/messages")
-    public Object messages(
-            @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
-            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
-            @RequestBody MessageRequest requestBody) {
+    public DeferredResult<Object> messages(
+        @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
+        @RequestHeader(value = GatewayHeaders.RULE) String rule,
+        @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+        @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
+        @RequestBody MessageRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.MESSAGES);
     }
 }

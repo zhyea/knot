@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.async.DeferredResult;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.LinkedHashMap;
@@ -30,12 +31,12 @@ public class GatewayImageController extends GatewayControllerSupport {
      * Handles image generation requests.
      */
     @PostMapping("/generations")
-    public Object generations(
-            @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
-            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
-            @RequestBody ImageGenerationRequest requestBody) {
+    public DeferredResult<Object> generations(
+        @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
+        @RequestHeader(value = GatewayHeaders.RULE) String rule,
+        @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+        @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
+        @RequestBody ImageGenerationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.IMAGE_GENERATIONS);
     }
 
@@ -43,45 +44,45 @@ public class GatewayImageController extends GatewayControllerSupport {
      * Handles image edit requests.
      */
     @PostMapping(value = "/edits", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Object edits(
-            @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
-            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
-            @RequestPart("image") MultipartFile[] image,
-            @RequestPart(value = "mask", required = false) MultipartFile mask,
-            @RequestParam("prompt") String prompt,
-            @RequestParam(value = "background", required = false) String background,
-            @RequestParam(value = "input_fidelity", required = false) String inputFidelity,
-            @RequestParam(value = "model", required = false) String model,
-            @RequestParam(value = "n", required = false) Integer n,
-            @RequestParam(value = "output_compression", required = false) Integer outputCompression,
-            @RequestParam(value = "output_format", required = false) String outputFormat,
-            @RequestParam(value = "partial_images", required = false) Integer partialImages,
-            @RequestParam(value = "quality", required = false) String quality,
-            @RequestParam(value = "response_format", required = false) String responseFormat,
-            @RequestParam(value = "size", required = false) String size,
-            @RequestParam(value = "stream", required = false) Boolean stream,
-            @RequestParam(value = "user", required = false) String user) {
+    public DeferredResult<Object> edits(
+        @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
+        @RequestHeader(value = GatewayHeaders.RULE) String rule,
+        @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+        @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
+        @RequestPart("image") MultipartFile[] image,
+        @RequestPart(value = "mask", required = false) MultipartFile mask,
+        @RequestParam("prompt") String prompt,
+        @RequestParam(value = "background", required = false) String background,
+        @RequestParam(value = "input_fidelity", required = false) String inputFidelity,
+        @RequestParam(value = "model", required = false) String model,
+        @RequestParam(value = "n", required = false) Integer n,
+        @RequestParam(value = "output_compression", required = false) Integer outputCompression,
+        @RequestParam(value = "output_format", required = false) String outputFormat,
+        @RequestParam(value = "partial_images", required = false) Integer partialImages,
+        @RequestParam(value = "quality", required = false) String quality,
+        @RequestParam(value = "response_format", required = false) String responseFormat,
+        @RequestParam(value = "size", required = false) String size,
+        @RequestParam(value = "stream", required = false) Boolean stream,
+        @RequestParam(value = "user", required = false) String user) {
 
         Map<String, Object> body = imageEditBody(image, mask, prompt,
-                background, inputFidelity, model, n, outputCompression, outputFormat, partialImages,
-                quality, responseFormat, size, stream, user);
+            background, inputFidelity, model, n, outputCompression, outputFormat, partialImages,
+            quality, responseFormat, size, stream, user);
 
         return handleMultipartRequest(authorization, rule, traceparent, stickyKey, body,
-                ModelApiProtocolEnum.IMAGE_EDITS);
+            ModelApiProtocolEnum.IMAGE_EDITS);
     }
 
     /**
      * Handles image variation requests.
      */
     @PostMapping("/variations")
-    public Object variations(
-            @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
-            @RequestHeader(value = GatewayHeaders.RULE) String rule,
-            @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
-            @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
-            @RequestBody ImageVariationRequest requestBody) {
+    public DeferredResult<Object> variations(
+        @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
+        @RequestHeader(value = GatewayHeaders.RULE) String rule,
+        @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
+        @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
+        @RequestBody ImageVariationRequest requestBody) {
         return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.IMAGE_VARIATIONS);
     }
 

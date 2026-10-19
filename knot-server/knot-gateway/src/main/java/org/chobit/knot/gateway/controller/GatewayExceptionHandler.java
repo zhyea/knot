@@ -17,6 +17,7 @@ import org.chobit.knot.gateway.redis.RedisUnavailableException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
@@ -28,7 +29,9 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 @ControllerAdvice(assignableTypes = GatewayControllerSupport.class)
 public class GatewayExceptionHandler {
 
-    /** 上游响应摘要长度上限：够放下 OpenRouter 的 {"error":{...}}，也不会把 HTML 错误页整页回透 */
+    /**
+     * 上游响应摘要长度上限：够放下 OpenRouter 的 {"error":{...}}，也不会把 HTML 错误页整页回透
+     */
     private static final int UPSTREAM_BODY_LIMIT = 300;
 
     /**
@@ -39,8 +42,8 @@ public class GatewayExceptionHandler {
     @ExceptionHandler(MissingRequestHeaderException.class)
     public GatewayErrorResponse handleMissingRequestHeader(MissingRequestHeaderException e) {
         return GatewayErrorResponse.of(
-                "Missing required header: " + e.getHeaderName(),
-                GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code()
+            "Missing required header: " + e.getHeaderName(),
+            GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code()
         );
     }
 
@@ -53,8 +56,8 @@ public class GatewayExceptionHandler {
     public GatewayErrorResponse handleInvalidRequest(Exception e) {
         log.warn("Invalid gateway request", e);
         return GatewayErrorResponse.of(
-                "Invalid request body",
-                GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code()
+            "Invalid request body",
+            GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code()
         );
     }
 
@@ -122,13 +125,15 @@ public class GatewayExceptionHandler {
     @ExceptionHandler(GatewayUpstreamException.class)
     public GatewayErrorResponse handleGatewayUpstreamException(GatewayUpstreamException e) {
         log.warn("Gateway upstream exception: code={}, upstreamStatus={}, message={}",
-                e.code(), e.httpStatus(), e.getMessage());
+            e.code(), e.httpStatus(), e.getMessage());
         // HTTP 状态码保持 502（错误码隔离），但把上游原状态码透进响应体，避免语义丢失
         return GatewayErrorResponse.ofUpstream(e.getMessage(), e.type(), e.code(),
-                e.httpStatus(), truncateUpstreamBody(e.responseBody()));
+            e.httpStatus(), truncateUpstreamBody(e.responseBody()));
     }
 
-    /** 上游响应体可能很大（HTML 错误页等），只留诊断所需的短摘要 */
+    /**
+     * 上游响应体可能很大（HTML 错误页等），只留诊断所需的短摘要
+     */
     private static String truncateUpstreamBody(String body) {
         if (body == null || body.isBlank()) {
             return null;
@@ -153,10 +158,10 @@ public class GatewayExceptionHandler {
     @ExceptionHandler(RedisUnavailableException.class)
     public GatewayErrorResponse handleRedisUnavailable(RedisUnavailableException e) {
         log.error("Gateway storage unavailable: domain={}, operation={}, key={}",
-                e.getDomain(), e.getOperation(), e.getKey(), e);
+            e.getDomain(), e.getOperation(), e.getKey(), e);
         return GatewayErrorResponse.of(
-                "Gateway shared storage unavailable, please retry later",
-                GatewayErrorTypeEnum.STORAGE_UNAVAILABLE.code()
+            "Gateway shared storage unavailable, please retry later",
+            GatewayErrorTypeEnum.STORAGE_UNAVAILABLE.code()
         );
     }
 
@@ -169,9 +174,9 @@ public class GatewayExceptionHandler {
     public GatewayErrorResponse handleBusinessException(BusinessException e) {
         log.warn("Gateway business exception: code={}, message={}", e.getCode(), e.getMessage());
         return GatewayErrorResponse.of(
-                e.getMessage(),
-                GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code(),
-                e.getCode()
+            e.getMessage(),
+            GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code(),
+            e.getCode()
         );
     }
 
@@ -184,8 +189,27 @@ public class GatewayExceptionHandler {
     public GatewayErrorResponse handleException(Exception e) {
         log.error("Unexpected gateway error", e);
         return GatewayErrorResponse.of(
-                "Internal server error",
-                GatewayErrorTypeEnum.UPSTREAM_ERROR.code()
+            "Internal server error",
+            GatewayErrorTypeEnum.UPSTREAM_ERROR.code()
+        );
+    }
+
+    /**
+     * 处理异步请求预算超时（B2 全局请求 deadline）：请求在 {@code knot.gateway.upstream.request-budget}
+     * 内未就绪即被 {@link DeferredResult} 终止，返回 504。
+     *
+     * <p>这是「唯一真总超时」的出口——非流式路径此前零兜底、流式仅靠 {@code spring.mvc.async.request-timeout}
+     * 的历史不一致被统一到这一处。与 {@link #handleGatewayUpstreamException}（上游真的回了错误或挂死）
+     * 区分：本项表示「网关自己设定的总时限到了」，错误码 {@code timeout_error} 便于排查与限流策略区分。</p>
+     */
+    @ResponseBody
+    @ResponseStatus(HttpStatus.GATEWAY_TIMEOUT)
+    @ExceptionHandler(AsyncRequestTimeoutException.class)
+    public GatewayErrorResponse handleAsyncTimeout(AsyncRequestTimeoutException e) {
+        log.warn("Gateway request budget exceeded: {}", e.getMessage());
+        return GatewayErrorResponse.of(
+            "Gateway request timeout, please retry later",
+            GatewayErrorTypeEnum.TIMEOUT_ERROR.code()
         );
     }
 
