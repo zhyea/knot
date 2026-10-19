@@ -7,6 +7,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+import jakarta.validation.Valid;
+
 /**
  * 供应商账户详情：详情查询的响应，同时作为新建与更新的请求体。
  *
@@ -22,5 +24,5 @@ public record ProviderAccountDetail(Long id, String providerCode, String provide
                                     String credentialType,
                                     String authApplier,
                                     Map<String, Object> authConfig,
-                                    RateLimitPolicy rateLimitPolicy, List<QuotaPolicy> quotaPolicies) {
+                                    RateLimitPolicy rateLimitPolicy, @Valid List<QuotaPolicy> quotaPolicies) {
 }

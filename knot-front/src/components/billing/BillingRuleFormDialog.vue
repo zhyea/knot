@@ -701,7 +701,7 @@ async function submit() {
 .billing-base-card__title {
   margin-bottom: 12px;
   color: var(--el-text-color-primary);
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
   font-weight: 600;
 }
 

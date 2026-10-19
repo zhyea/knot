@@ -440,7 +440,7 @@ async function handleCommand(command: string | number | object): Promise<void> {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
   line-height: 20px;
   color: #1f2937;
 }
@@ -520,7 +520,7 @@ async function handleCommand(command: string | number | object): Promise<void> {
   gap: 6px;
   cursor: pointer;
   font-weight: 400;
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
 }
 
 .main {

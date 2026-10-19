@@ -7,6 +7,11 @@ public class GatewayUpstreamException extends GatewayRequestException {
     private final Integer httpStatus;
     private final String responseBody;
     private final Long retryAfterMs;
+    /**
+     * 上游供应商系统里这次请求的 id（响应头白名单归一，见 {@code UpstreamRequestIdResolver}）：
+     * 与供应商联合排查时对方唯一认的检索键。拿不到为 null（不是空串）。
+     */
+    private final String upstreamRequestId;
 
     /**
      * Constructs an upstream gateway error.
@@ -29,10 +34,23 @@ public class GatewayUpstreamException extends GatewayRequestException {
      */
     public GatewayUpstreamException(String message, String code, Integer httpStatus, String responseBody,
                                     Long retryAfterMs) {
+        this(message, code, httpStatus, responseBody, retryAfterMs, null);
+    }
+
+    /**
+     * Constructs an upstream gateway error with upstream response details, retry hint
+     * and the supplier-side request id.
+     *
+     * @param retryAfterMs     上游 {@code Retry-After} 换算的毫秒数；无该头或解析失败传 null
+     * @param upstreamRequestId 上游响应头归一的 request-id；无命中传 null
+     */
+    public GatewayUpstreamException(String message, String code, Integer httpStatus, String responseBody,
+                                    Long retryAfterMs, String upstreamRequestId) {
         super(message, GatewayErrorTypeEnum.UPSTREAM_ERROR.code(), code);
         this.httpStatus = httpStatus;
         this.responseBody = responseBody;
         this.retryAfterMs = retryAfterMs;
+        this.upstreamRequestId = upstreamRequestId;
     }
 
     public Integer httpStatus() {
@@ -51,5 +69,9 @@ public class GatewayUpstreamException extends GatewayRequestException {
      */
     public Long retryAfterMs() {
         return retryAfterMs;
+    }
+
+    public String upstreamRequestId() {
+        return upstreamRequestId;
     }
 }

@@ -1,7 +1,7 @@
 # knot-gateway 数仓消息协议（Kafka 单条流量事件）
 
 > 2026-10-17 起草，2026-10-18 多轮重构；**2026-10-18 当晚 robin 拍板「合并」**——原「请求层 + 响应层」两条 Kafka 消息收敛为**一条** `GatewayTrafficMsgDto`（schema `knot.gateway.traffic/1.0`），单 topic `knot-gateway-traffic-event`，终态一次发送。
-> **2026-10-18 深夜追加 attempt 级 `upstream_request_id` / `upstream_log_id`**：把上游供应商响应头里的 request-id 随流量事件一并入库，用于双向对账（提工单时供应商只认他们回的 id）。契约与 `docs/上游trace打通-双向对账设计-2026-10-17.md` §4「方案 B」对齐；**埋点取数依赖方案 B 的上游响应头捕获实现（网关出站链路三处抓取），本次仅定协议，代码字段待方案 B 一并落地**。
+> **2026-10-18 深夜追加 attempt 级 `upstream_request_id`（2026-10-19 晚定为 request-id 优先、log-id 兜底、单字段）**：把上游供应商响应头白名单归一后的 request-id 随流量事件一并入库，用于双向对账（提工单时供应商只认他们回的 id）。契约与 `docs/上游trace打通-双向对账设计-2026-10-17.md` §4「方案 B」对齐；**埋点取数依赖方案 B 的上游响应头捕获实现（网关出站链路三处抓取）——已于 2026-10-19 落地（全量 703 例 BUILD SUCCESS，log-id 兜底口径后重跑），实现与验证细节见该文档 §11**。
 > 合并理由（robin 拍板口径）：数仓是**离线批处理**，不需要请求层早期发出的「实时流量入口」信号（流式长连接期间入口维度延迟到终态才可见——可接受）；合并后**少一次发布、消除两层乱序、入口即拒不再需要 left join 识别**（一条记录即可表达：routing 为 null、hit 为 null、error.stage=header_validate）。
 > 本文取代 `docs/gateway-warehouse-data-model-2026-10-17.md` 的三事实表方案（request/attempt/usage_detail 三表 → **单条流量事件**），口径清单沿用并扩充。
 > 实施代码已落地（§7）；命名与配置按 robin 2026-10-18 拍板调整：消息类带 Msg 标识（`GatewayTrafficMsgDto` / `AttemptMsgDto` / …）、配置顶层 `kafka.*` 与 mybatis 平级、topic 写全名；投递形态按 robin 同日拍板定为 **Kafka 原生 async**（不建自建队列/投递线程，异步性由生产者客户端承担，启动期预热元数据）；真正请求的模型口径按 robin 同日拍板定为 **hit target**（候选循环落定后实际调用上游的那个，非候选链首位）。
@@ -66,12 +66,12 @@
       "outcome": "upstream_failure", "skipped_by_ejection": false, "probe_request": false,
       "attempt_no": 1, "max_attempts": 2, "traffic_rejected": false, "reject_reason": null,
       "upstream": { "http_status": 503, "error_code": "UPSTREAM_ERROR", "retry_after_ms": null },
-      "upstream_request_id": "req_abc123", "upstream_log_id": null,
+      "upstream_request_id": "req_abc123",
       "counted_for_ejection": true },
     { "seq": 2, "target_code": "gpt-4o-mini", "target_type": "MODEL", "priority": 2, "is_primary": false,
       "outcome": "success", "skipped_by_ejection": false, "probe_request": false,
       "attempt_no": 1, "max_attempts": 2, "traffic_rejected": false, "reject_reason": null,
-      "upstream": null, "upstream_request_id": "req_def456", "upstream_log_id": null,
+      "upstream": null, "upstream_request_id": "req_def456",
       "counted_for_ejection": false }
   ],
   "retry_total": 1, "failover_total": 1, "ejected_skipped": 0, "fail_open": false,
@@ -117,7 +117,7 @@
       "outcome": "traffic_rejected", "skipped_by_ejection": false, "probe_request": false,
       "attempt_no": 0, "max_attempts": 2, "traffic_rejected": true,
       "reject_reason": "RATE_LIMIT_TPM", "upstream": null,
-      "upstream_request_id": null, "upstream_log_id": null, "counted_for_ejection": false }
+      "upstream_request_id": null, "counted_for_ejection": false }
   ],
   "retry_total": 0, "failover_total": 0, "ejected_skipped": 0, "fail_open": false,
   "usage": null, "billing": null,
@@ -149,7 +149,7 @@
 | `status` | string | `success` / `rate_limited` / `quota_exceeded` / `upstream_error` / `gateway_error` |
 | `http_status` | int | 成功 200；失败取 error.httpStatus |
 | `ttft_ms` / `hit` | 可空 | 异常路径为 null，禁填 0（0 是合法值，null 是无数据） |
-| `attempts[]` / `retry_total` / `failover_total` / `ejected_skipped` / `fail_open` | — | 候选循环轨迹（`CallTraceContext`）；详见 §3 attempts 规则（含 attempt 级上游 `upstream_request_id` / `upstream_log_id`） |
+| `attempts[]` / `retry_total` / `failover_total` / `ejected_skipped` / `fail_open` | — | 候选循环轨迹（`CallTraceContext`）；详见 §3 attempts 规则（含 attempt 级上游 `upstream_request_id`） |
 | `usage` / `billing` | 可空 | 成功路径才有；`billing` 命中计费规则才非 null |
 | `error` | 可空 | 统一错误结构，**成功为 null**；详见 §3 |
 
@@ -206,8 +206,7 @@
 |---|---|
 | `attempts[]` | 有界数组：候选循环每次评估产出一条；`outcome` ∈ `success` / `upstream_failure` / `skipped`（摘除跳过）/ `traffic_rejected`（目标频控拒）；`attempt_no=0` 表示未发起调用就被拒 |
 | `upstream` | attempt 级上游异常三件套 `http_status` / `error_code`（ProxyErrorCodeEnum 8 值）/ `retry_after_ms`；成功为 null |
-| `upstream_request_id` | attempt 级**可空** string；上游供应商响应头白名单归一值（优先序：`x-request-id` → `request-id` → `apim-request-id` → `x-acs-request-id`，见 `docs/上游trace打通-双向对账设计-2026-10-17.md` §4.1）；**成功失败均带**（排障工单 90% 在错误场景，失败 attempt 的 id 最关键）；`attempt_no=0`（未发起调用即被频控/摘除跳过）或上游无匹配头时为 null |
-| `upstream_log_id` | attempt 级**可空** string；字节系 logid（`X-Tt-Logid` / `cf-ray` 等），与 request-id 是两套标识，均值得保留；非字节系厂商（OpenAI/Anthropic/百炼等）为 null |
+| `upstream_request_id` | attempt 级**可空** string；上游供应商响应头白名单归一值（request-id 类优先序：`x-request-id` → `request-id` → `apim-request-id` → `x-acs-request-id` → `x-tc-request-id` → `msh-request-id`，见 `docs/上游trace打通-双向对账设计-2026-10-17.md` §4.1）；**成功失败均带**（排障工单 90% 在错误场景，失败 attempt 的 id 最关键）；`attempt_no=0`（未发起调用即被频控/摘除跳过）或上游两类头均无匹配时为 null。**2026-10-19 晚口径：request-id 类全未命中时兜底取 log-id 类（`X-Tt-Logid` / `cf-ray`）并视为 request_id——单字段取其一，不并存两个字段** |
 | `counted_for_ejection` | 该次失败是否计入摘除判定（5xx/429 计；4xx 业务错与配置类错不计）——**上游失败率统计必须过滤此列** |
 
 ## 4. Kafka 输出设计（含埋点位置）
@@ -269,7 +268,8 @@
 | 轨迹 | `kafka/CallTraceContext`（attempt 草稿 → 记录，存请求上下文属性 `callTrace`） |
 | 消息 | `GatewayTrafficMsgDto` / `AttemptMsgDto` / `ErrorMsgDto` / `TrafficRejectMsgDto` / `UpstreamErrorMsgDto` / `BillingViewMsgDto` / `BillingDetailMsgDto` / `AttemptOutcomeMsg` / `RoutingSnapshot` / `HitSnapshot`（基础协议：Msg 标识、无业务前缀） |
 | 埋点 | 模板（非流式成功 / 失败 catch / 流式 onComplete 三处终态发布，主题由模板持有 `trafficTopic`）+ handler（候选轨迹 + 流式 onComplete）+ `ProxyStreamingBody.usageSink` |
-| 测试 | `KafkaPublisherTest`(7，publish 单主题/key 语义 + 同步失败死信与 dropped + 异步失败死信 + 未配路径 lost + 预热 + 预热失败不抛 + Msg.nodeId 自动探测；KafkaTemplate 用子类假件，规避 JDK25 Mockito 不可 mock 具体类) + `GatewayTrafficMsgDtoTest`(12，recordsActuallyRequestedModelFromHitTarget / hitFromPoolCarriesPoolCode / failoverHitIsNotFirstCandidate / noHitYieldsNullHit / nullRoutingYieldsNull / nodeIdComesFromMsgConstant / successCarriesUsageAndHitModel / upstreamFailureIsCarriedAsStructuredError / rateLimitRejectionCarriesRejectDetail / storageUnavailableIsNotUpstreamError / traceIsFlattenedIntoMessage / serializedJsonKeepsCostAsString) |
+| 测试 | `KafkaPublisherTest`(7，publish 单主题/key 语义 + 同步失败死信与 dropped + 异步失败死信 + 未配路径 lost + 预热 + 预热失败不抛 + Msg.nodeId 自动探测；KafkaTemplate 用子类假件，规避 JDK25 Mockito 不可 mock 具体类) + `GatewayTrafficMsgDtoTest`(16，recordsActuallyRequestedModelFromHitTarget / hitFromPoolCarriesPoolCode / failoverHitIsNotFirstCandidate / noHitYieldsNullHit / nullRoutingYieldsNull / nodeIdComesFromMsgConstant / successCarriesUsageAndHitModel / upstreamFailureIsCarriedAsStructuredError / rateLimitRejectionCarriesRejectDetail / storageUnavailableIsNotUpstreamError / traceIsFlattenedIntoMessage / failoverAttemptsCarryTheirOwnUpstreamIds / attemptWithoutUpstreamCallHasNullIds / serializedJsonCarriesUpstreamRequestId / serializedJsonOmitsNullUpstreamRequestId / serializedJsonKeepsCostAsString) |
+| 上游 id 捕获（2026-10-19 追加，2026-10-19 晚定为 request-id 优先 + log-id 兜底单字段） | `upstream/support/UpstreamRequestIdResolver`（双段白名单 + snapshot/requestId 归一，禁全量抓取）；`AbstractUpstreamProtocolExecutor.readBuffered`（非流式 `retrieve()`→`exchange()`，错误分支同构抛 `GatewayUpstreamException`）+ 流式快照 + catch 归一；`GatewayUpstreamException` 6 参构造带单 id；`UpstreamStreamResponse` 构造时快照（与连接生命周期解耦）；测试 `UpstreamRequestIdResolverTest`(18) + `AbstractUpstreamProtocolExecutorBufferedTest`(6) + `UpstreamStreamResponseTest`(4)；插件日志经 `UpstreamPluginContext.upstreamRequestId` 输出（三个 payload + 三个插件，`PluginLogPayloadSerializationTest` 加断言）。全量 703 例 BUILD SUCCESS + 必错探针复验，详见 `docs/上游trace打通-双向对账设计-2026-10-17.md` §11 |
 
 **两处结构性调整**（为使埋点成立，非为兼容）：
 
@@ -299,4 +299,4 @@
 6. **直推残留风险**（已向 robin 披露）：Kafka 持续故障且缓冲已满时，请求/流式收尾线程最多阻塞 `max.block.ms=1000`ms/事件；kafka-clients 3.7.2 已删除 `block.on.buffer.full`，无法做到「缓冲满立即失败而不阻塞」。
 7. **（合并衍生）数仓侧单表落地**：消费端由「两 topic 双表 + left join」改为「单 topic 单表 `dwd_gateway_traffic` + 内嵌 attempts/billing.detail」，upsert 按 `trace_id`；本仓仅产出消息，消费侧实现不在本仓。
 
-8. **`attempts[].upstream_request_id` / `upstream_log_id` 入消息（协议已定，代码待方案 B）**：本次仅把两字段编入协议（§2 示例 + §3 规则）+ 顶层 metadata 修订；**`AttemptMsgDto`（record）当前尚未含这两字段**，代码落地属于 `docs/上游trace打通-双向对账设计-2026-10-17.md` 的「方案 B」批次——捕获上游响应头白名单（executor 三处 + `GatewayUpstreamException`）+ `AttemptMsgDto` 加两可空 String 字段（SnakeCase 自动转 `upstream_request_id` / `upstream_log_id`）+ 埋点从 `CallTraceContext` 取数填充。**向后兼容追加，schema 仍为 `knot.gateway.traffic/1.0`，不触发主题名变更（§4 口径）**。两字段恒可空（未发起调用的 `attempt_no=0` 必为 null），下游消费按 `IS NULL` 区分，禁 truthy。
+8. ~~**`attempts[].upstream_request_id` 入消息（协议已定，代码待方案 B）**~~ —— **已落地（2026-10-19，2026-10-19 晚定为 request-id 优先 + log-id 兜底、单字段 `upstream_request_id`）**：`AttemptMsgDto` 含单字段 `upstream_request_id`，埋点经 `CallTraceContext.AttemptDraft`（成功取 `ProxyResult`、失败取 `GatewayUpstreamException`）填充；捕获侧（executor 三处 + 白名单归一 `UpstreamRequestIdResolver`）属设计文档「方案 B」批次，同批落地。**向后兼容追加，schema 仍为 `knot.gateway.traffic/1.0`，不触发主题名变更**。该字段恒可空（未发起调用的 `attempt_no=0` 必为 null），下游消费按 `IS NULL` 区分，禁 truthy。实现与验证细节见 `docs/上游trace打通-双向对账设计-2026-10-17.md` §11。

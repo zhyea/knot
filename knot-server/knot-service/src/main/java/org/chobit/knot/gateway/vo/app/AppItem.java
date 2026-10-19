@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.vo.app;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 
+import jakarta.validation.Valid;
 import java.util.List;
 
 public record AppItem(
@@ -16,6 +17,6 @@ public record AppItem(
         String ownerName,
         String remark,
         RateLimitPolicy rateLimitPolicy,
-        List<QuotaPolicy> quotaPolicies
+        @Valid List<QuotaPolicy> quotaPolicies
 ) {
 }

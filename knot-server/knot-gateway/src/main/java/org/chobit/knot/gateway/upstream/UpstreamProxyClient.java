@@ -191,9 +191,22 @@ public class UpstreamProxyClient {
                         context.requestBody(),
                         context.contentType(),
                         responseSnapshot(result),
-                        error
+                        error,
+                        upstreamRequestIdOf(result, error)
                 )
         );
+    }
+
+    /**
+     * 供应商侧请求 id：成功取自 {@link ProxyResult}，失败取自
+     * {@link GatewayUpstreamException}（两路都由 executor 从上游响应头归一）；
+     * UPSTREAM_REQUEST 阶段（result 与 error 均空）或非上游异常时为 null。
+     */
+    private String upstreamRequestIdOf(ProxyResult result, Throwable error) {
+        if (result != null) {
+            return result.upstreamRequestId();
+        }
+        return error instanceof GatewayUpstreamException upstream ? upstream.upstreamRequestId() : null;
     }
 
     private Map<String, Object> responseSnapshot(ProxyResult result) {

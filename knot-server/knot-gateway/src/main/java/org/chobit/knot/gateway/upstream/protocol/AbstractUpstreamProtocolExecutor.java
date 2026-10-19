@@ -10,6 +10,7 @@ import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
+import org.chobit.knot.gateway.upstream.support.UpstreamRequestIdResolver;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -74,7 +75,8 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                     ProxyErrorCodeEnum.UPSTREAM_ERROR.code(),
                     e.getStatusCode().value(),
                     e.getResponseBodyAsString(),
-                    retryAfterMs(e.getResponseHeaders())
+                    retryAfterMs(e.getResponseHeaders()),
+                    UpstreamRequestIdResolver.requestId(e.getResponseHeaders())
             );
         } catch (Exception e) {
             throw new GatewayUpstreamException(e.getMessage(), ProxyErrorCodeEnum.UPSTREAM_ERROR.code());
@@ -83,22 +85,62 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
 
     /**
      * 整包缓冲：把上游响应完整读成字符串后返回。适用于非流式请求。
+     *
+     * <p>走 {@code exchange} 而不是 {@code retrieve}：后者只给响应体，上游响应头
+     * （供应商侧请求标识）会整体丢弃，而联合排查时供应商只认他们回的 id。
+     * 非 2xx 在这里直接抛 {@link GatewayUpstreamException}（带头），与流式路径同构。</p>
      */
     private ProxyResult executeBuffered(UpstreamRequestContext context,
                                         UpstreamRequestAdapter adapter,
                                         String path,
                                         MediaType contentType) {
         RestClient.RequestBodySpec spec = requestSpec(context, adapter, path, contentType);
-        String responseBody = spec.body(buildRequestBody(context, adapter, contentType))
-                .retrieve()
-                .body(String.class);
-        String handledResponseBody = adapter.handleResponse(responseBody, context);
+        BufferedExchange exchange = spec.body(buildRequestBody(context, adapter, contentType))
+                .exchange((request, response) -> readBuffered(response), true);
+        String handledResponseBody = adapter.handleResponse(exchange.body(), context);
         return new ProxyResult(
                 handledResponseBody,
                 context.provider().getId(),
                 context.model().getId(),
-                usageExtractorRegistry.extract(handledResponseBody, context, adapter)
+                usageExtractorRegistry.extract(handledResponseBody, context, adapter),
+                null,
+                exchange.upstreamRequestId()
         );
+    }
+
+    /**
+     * 读整包响应：响应体字符串 + 上游响应头白名单快照（归一 request-id）。
+     *
+     * <p>非 2xx 读掉错误体后抛 {@link GatewayUpstreamException}：失败场景的供应商 id
+     * 恰恰是排障工单里最关键的检索键（详见设计文档 §4.2 捕获点三）。</p>
+     *
+     * <p>包级可见供单测直接驱动（{@code MockClientHttpResponse}），
+     * 不经端到端 RestClient——那要拖 UsageExtractorRegistry 整条依赖链。</p>
+     */
+    static BufferedExchange readBuffered(ClientHttpResponse response) throws IOException {
+        HttpStatusCode statusCode = response.getStatusCode();
+        HttpHeaders headers = response.getHeaders();
+        if (!statusCode.is2xxSuccessful()) {
+            String errorBody = StreamUtils.copyToString(response.getBody(), StandardCharsets.UTF_8);
+            throw new GatewayUpstreamException(
+                    "upstream responded with status " + statusCode.value(),
+                    ProxyErrorCodeEnum.UPSTREAM_ERROR.code(),
+                    statusCode.value(),
+                    errorBody,
+                    retryAfterMs(headers),
+                    UpstreamRequestIdResolver.requestId(headers)
+            );
+        }
+        return new BufferedExchange(
+                StreamUtils.copyToString(response.getBody(), StandardCharsets.UTF_8),
+                UpstreamRequestIdResolver.requestId(headers)
+        );
+    }
+
+    /**
+     * 整包交换结果：响应体 + 供应商侧请求标识（白名单归一，无命中为 null）。
+     */
+    record BufferedExchange(String body, String upstreamRequestId) {
     }
 
     /**
@@ -119,7 +161,8 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                 context.provider().getId(),
                 context.model().getId(),
                 null,
-                streamResponse
+                streamResponse,
+                streamResponse.upstreamRequestId()
         );
     }
 
@@ -134,15 +177,19 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                     ProxyErrorCodeEnum.UPSTREAM_ERROR.code(),
                     statusCode.value(),
                     errorBody,
-                    retryAfterMs(response.getHeaders())
+                    retryAfterMs(response.getHeaders()),
+                    UpstreamRequestIdResolver.requestId(response.getHeaders())
             );
         }
+        HttpHeaders headers = response.getHeaders();
         return new UpstreamStreamResponse(
                 response.getBody(),
-                response.getHeaders().getContentType(),
+                headers.getContentType(),
                 context,
                 adapter,
-                response
+                response,
+                UpstreamRequestIdResolver.snapshot(headers),
+                UpstreamRequestIdResolver.requestId(headers)
         );
     }
 

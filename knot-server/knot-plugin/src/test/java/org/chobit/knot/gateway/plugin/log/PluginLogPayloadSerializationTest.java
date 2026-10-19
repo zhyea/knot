@@ -74,7 +74,7 @@ class PluginLogPayloadSerializationTest {
     @Test
     void shouldTagUpstreamRequestPayload() throws Exception {
         PluginLogPayload payload = new UpstreamRequestPayload(
-                "OPENAI", "gpt-4o", "OPENAI", "OPENAI", "application/json",
+                "OPENAI", "gpt-4o", "OPENAI", "OPENAI", "application/json", null,
                 JsonKit.toTree(Map.of("stream", true)));
 
         JsonNode json = mapper.valueToTree(payload);
@@ -83,27 +83,33 @@ class PluginLogPayloadSerializationTest {
         assertEquals("gpt-4o", json.get("modelCode").asText());
         assertEquals("OPENAI", json.get("bindingProtocol").asText());
         assertTrue(json.get("requestBody").get("stream").asBoolean());
+        // UPSTREAM_REQUEST 阶段上游未响应，恒为 null——字段占位保三阶段格式一致
+        assertTrue(json.get("upstreamRequestId").isNull());
     }
 
     @Test
     void shouldTagUpstreamResponsePayload() throws Exception {
         PluginLogPayload payload = new UpstreamResponsePayload(
-                "OPENAI", "gpt-4o", "OPENAI", JsonKit.toTree(Map.of("usage", Map.of("total_tokens", 42))));
+                "OPENAI", "gpt-4o", "OPENAI", "req_abc123",
+                JsonKit.toTree(Map.of("usage", Map.of("total_tokens", 42))));
 
         JsonNode json = mapper.valueToTree(payload);
         assertEquals("provider-response", json.get("payloadType").asText());
         assertEquals(42, json.get("response").get("usage").get("total_tokens").asInt());
+        assertEquals("req_abc123", json.get("upstreamRequestId").asText());
     }
 
     @Test
     void shouldTagUpstreamErrorPayload() throws Exception {
         PluginLogPayload payload = new UpstreamErrorPayload(
-                "OPENAI", "gpt-4o", "OPENAI", "IllegalStateException", "boom",
+                "OPENAI", "gpt-4o", "OPENAI", "req_abc123", "IllegalStateException", "boom",
                 JsonKit.toTree(Map.of("model", "gpt-4o")));
 
         JsonNode json = mapper.valueToTree(payload);
         assertEquals("provider-error", json.get("payloadType").asText());
         assertEquals("IllegalStateException", json.get("errorType").asText());
         assertEquals("boom", json.get("errorMessage").asText());
+        // 排障工单 90% 在错误场景：失败日志的供应商 id 是最关键的检索键
+        assertEquals("req_abc123", json.get("upstreamRequestId").asText());
     }
 }

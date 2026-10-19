@@ -26,6 +26,8 @@ public class JwtKit {
     private static final String DEV_DEFAULT_SECRET =
             "knot-ai-gateway-jwt-secret-key-must-be-at-least-256-bits-long!";
 
+    private static boolean devDefaultInUse = false;
+
     private static final SecretKey KEY = buildKey();
 
     private static SecretKey buildKey() {
@@ -38,11 +40,20 @@ public class JwtKit {
             throw new IllegalStateException(
                     "JWT 签名密钥长度不足 256 bit，请通过环境变量 " + SECRET_ENV + " 注入足够长度的密钥");
         }
+        devDefaultInUse = devDefault;
         if (devDefault) {
             log.warn("[安全] JWT 签名密钥使用开发默认值，生产环境必须通过环境变量 {} 或系统属性 {} 注入",
                     SECRET_ENV, SECRET_PROPERTY);
         }
         return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * 是否正在使用开发默认 JWT 密钥（环境变量/系统属性均未注入时的回退值）。
+     * 供启动期安全守卫判断：生产 profile 下命中开发默认密钥应拒绝启动。
+     */
+    public static boolean isDevDefaultSecret() {
+        return devDefaultInUse;
     }
 
     private static String firstNonBlank(String... candidates) {

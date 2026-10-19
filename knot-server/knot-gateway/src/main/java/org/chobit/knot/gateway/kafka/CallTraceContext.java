@@ -124,6 +124,7 @@ public final class CallTraceContext {
         private Integer upstreamHttpStatus;
         private String upstreamErrorCode;
         private Long retryAfterMs;
+        private String upstreamRequestId;
         private boolean countedForEjection;
 
         private AttemptDraft(RoutingRuleTargetDto target) {
@@ -158,9 +159,12 @@ public final class CallTraceContext {
 
         /**
          * 本次候选调用成功。
+         *
+         * @param upstreamRequestId 供应商侧请求 id（响应头白名单归一）；无命中传 null
          */
-        public void succeeded() {
+        public void succeeded(String upstreamRequestId) {
             this.outcome = AttemptOutcomeMsg.SUCCESS;
+            this.upstreamRequestId = upstreamRequestId;
         }
 
         /**
@@ -175,6 +179,7 @@ public final class CallTraceContext {
                 this.upstreamHttpStatus = error.httpStatus();
                 this.upstreamErrorCode = error.code();
                 this.retryAfterMs = error.retryAfterMs();
+                this.upstreamRequestId = error.upstreamRequestId();
             }
         }
 
@@ -198,6 +203,7 @@ public final class CallTraceContext {
                 trafficRejected,
                 rejectReason,
                 upstream,
+                upstreamRequestId,
                 countedForEjection);
         }
     }

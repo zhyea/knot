@@ -153,7 +153,7 @@ function buildActions(row: Row): RowAction[] {
 }
 
 .auth-panel__title {
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
   color: #303133;
   font-weight: 600;
 }

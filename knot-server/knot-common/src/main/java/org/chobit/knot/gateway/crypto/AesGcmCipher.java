@@ -67,7 +67,8 @@ public final class AesGcmCipher {
         }
         try {
             byte[] iv = new byte[IV_LEN];
-            SecureRandom.getInstanceStrong().nextBytes(iv);
+            // GCM 的 12 字节 IV 不需要「强」随机；用非阻塞实现避免部分平台上 /dev/random 阻塞请求线程
+            new SecureRandom().nextBytes(iv);
             Cipher cipher = Cipher.getInstance(ALGORITHM);
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, new GCMParameterSpec(TAG_BITS, iv));
             byte[] encrypted = cipher.doFinal(plaintext.getBytes(StandardCharsets.UTF_8));

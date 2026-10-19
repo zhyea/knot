@@ -1426,7 +1426,7 @@ onBeforeUnmount(() => {
 .debug-panel__head h3 {
   margin: 0 0 4px;
   color: var(--el-text-color-primary);
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
   font-weight: 600;
 }
 

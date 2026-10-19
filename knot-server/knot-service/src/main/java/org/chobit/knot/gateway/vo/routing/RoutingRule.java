@@ -31,7 +31,7 @@ public record RoutingRule(
         boolean enabled,
         @Valid List<RoutingRuleTargetItem> targets,
         RateLimitPolicy rateLimitPolicy,
-        List<QuotaPolicy> quotaPolicies,
+        @Valid List<QuotaPolicy> quotaPolicies,
         /** 规则级失败重试策略；null 表示未配置，运行时按内置默认（开启）处理 */
         RetryPolicy retryPolicy,
         /** 规则级异常摘除策略；null 表示未配置，运行时按内置默认（关闭）处理 */

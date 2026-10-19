@@ -548,7 +548,7 @@ function windowError(index: number, windowIndex: number): string {
 }
 
 .phase-card__title {
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
   font-weight: 600;
 }
 
@@ -660,7 +660,7 @@ function windowError(index: number, windowIndex: number): string {
 }
 
 .peak-timeline__label {
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
   font-weight: 600;
 }
 

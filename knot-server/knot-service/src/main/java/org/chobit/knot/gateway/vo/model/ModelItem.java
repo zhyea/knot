@@ -3,11 +3,12 @@ package org.chobit.knot.gateway.vo.model;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 
+import jakarta.validation.Valid;
 import java.util.List;
 
 public record ModelItem(Long id, String modelCode, String upstreamModel, String providerAccountCode, String providerName, String providerCode, String modelType,
                         String version, String baseUrl, String remark, boolean enabled, String logicalModelCode, String billingRuleCode,
-                        RateLimitPolicy rateLimitPolicy, List<QuotaPolicy> quotaPolicies,
+                        RateLimitPolicy rateLimitPolicy, @Valid List<QuotaPolicy> quotaPolicies,
                         List<ModelApiBindingItem> apiBindings,
                         boolean deleted) {
 }

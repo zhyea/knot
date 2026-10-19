@@ -2,6 +2,9 @@ package org.chobit.knot.gateway.model;
 
 import java.math.BigDecimal;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Min;
+
 /**
  * 限额策略：只作用于<b>应用</b>、<b>供应商账户</b>与<b>路由消费者</b>三层。
  *
@@ -15,5 +18,8 @@ import java.math.BigDecimal;
  * @param window    统计窗口（MINUTE / HOUR / DAY / WEEK / MONTH），
  *                  空值或非法值按 {@code MONTH} 处理
  */
-public record QuotaPolicy(long maxTokens, BigDecimal costLimit, String currency, String window) {
+public record QuotaPolicy(@Min(0) long maxTokens,
+                          @DecimalMin("0") BigDecimal costLimit,
+                          String currency,
+                          String window) {
 }

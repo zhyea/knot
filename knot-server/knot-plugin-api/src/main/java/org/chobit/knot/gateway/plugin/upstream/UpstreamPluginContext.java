@@ -20,6 +20,12 @@ public class UpstreamPluginContext extends PluginDispatchContext {
     private final MediaType contentType;
     private final Map<String, Object> responseSnapshot;
     private final Throwable error;
+    /**
+     * 供应商侧请求 id（上游响应头白名单归一）：UPSTREAM_REQUEST 阶段恒为 null（上游未回），
+     * UPSTREAM_RESPONSE / UPSTREAM_ERROR 阶段有值；无命中为 null。供日志插件输出，
+     * 用途是网关与供应商联合排查（不透客户端，见 §1.1 设计）。
+     */
+    private final String upstreamRequestId;
 
     public UpstreamPluginContext(String traceId,
                                  String traceparent,
@@ -34,6 +40,24 @@ public class UpstreamPluginContext extends PluginDispatchContext {
                                  MediaType contentType,
                                  Map<String, Object> responseSnapshot,
                                  Throwable error) {
+        this(traceId, traceparent, stageCode, providerId, providerCode, modelId, modelCode,
+                protocol, bindingProtocol, requestBody, contentType, responseSnapshot, error, null);
+    }
+
+    public UpstreamPluginContext(String traceId,
+                                 String traceparent,
+                                 PluginStageCode stageCode,
+                                 Long providerId,
+                                 String providerCode,
+                                 Long modelId,
+                                 String modelCode,
+                                 String protocol,
+                                 String bindingProtocol,
+                                 Map<String, Object> requestBody,
+                                 MediaType contentType,
+                                 Map<String, Object> responseSnapshot,
+                                 Throwable error,
+                                 String upstreamRequestId) {
         super(traceId, traceparent);
         this.stageCode = stageCode;
         this.providerId = providerId;
@@ -46,6 +70,7 @@ public class UpstreamPluginContext extends PluginDispatchContext {
         this.contentType = contentType;
         this.responseSnapshot = responseSnapshot == null ? Map.of() : new LinkedHashMap<>(responseSnapshot);
         this.error = error;
+        this.upstreamRequestId = upstreamRequestId;
     }
 
     public PluginStageCode stageCode() {
@@ -90,5 +115,12 @@ public class UpstreamPluginContext extends PluginDispatchContext {
 
     public Throwable error() {
         return error;
+    }
+
+    /**
+     * 供应商侧请求 id（上游响应头白名单归一）；UPSTREAM_REQUEST 阶段或无命中为 null。
+     */
+    public String upstreamRequestId() {
+        return upstreamRequestId;
     }
 }

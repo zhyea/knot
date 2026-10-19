@@ -234,7 +234,7 @@ async function chooseTimezone(code: string | number) {
 
 .settings-choice__label {
   flex: 1;
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
 }
 
 .settings-choice__check {

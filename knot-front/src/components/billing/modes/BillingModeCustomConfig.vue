@@ -27,7 +27,7 @@ defineProps({
 .billing-mode-custom-config__label {
   margin-bottom: 8px;
   color: var(--knot-text-regular, #606266);
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
   line-height: 22px;
 }
 </style>

@@ -250,7 +250,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                 // 限额与 TPM 事后累计：上游成功才记账，失败重试与 failover 不重复扣减
                 trafficGuard.record(routing, candidate, usageOf(result), trafficContext);
                 outageTracker.recordSuccess(decision, System.currentTimeMillis());
-                draft.succeeded();
+                // 供应商侧请求 id 一并留痕：数仓 attempt 级绑定 + 联合排查检索（不透客户端）
+                draft.succeeded(result.upstreamRequestId());
                 if (result.streamResponse() != null) {
                     // 流式：请求线程马上返回，在途必须持续到响应流写完，交给响应体结束时释放
                     deferredToStream = true;

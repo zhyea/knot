@@ -138,7 +138,7 @@ function handleBackToLogin() {
 
 .password-change-subtitle {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
   line-height: 1.6;
   color: #606266;
 }

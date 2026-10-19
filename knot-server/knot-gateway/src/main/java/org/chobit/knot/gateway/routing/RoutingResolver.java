@@ -28,6 +28,9 @@ import org.chobit.knot.gateway.util.tools.RoutingSecretKeyGenerator;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -196,16 +199,23 @@ public class RoutingResolver {
                         .thenComparing(RoutingRuleTargetDto::targetCode)
                         .thenComparing(RoutingRuleTargetDto::targetType);
 
+        List<RoutingRuleTargetDto> rest = targets.stream()
+                .filter(target -> !sameTarget(target, first))
+                .toList();
         List<RoutingRuleTargetDto> ordered = new ArrayList<>();
         ordered.add(first);
-        Stream<RoutingRuleTargetDto> rest = targets.stream()
-                .filter(target -> !sameTarget(target, first));
         if (ModelPoolSelectionStrategyEnum.LEAST_LOAD == ModelPoolSelectionStrategyEnum.fromCode(strategyCode)) {
-            rest = rest.sorted(Comparator.comparingLong(this::targetLoad).thenComparing(byConfiguredOrder));
+            // 预计算在途负载，避免在 Comparator 内反复查询（Comparator 应无副作用；
+            // redis 档下还能把「每目标 N 次串行 GET」从 O(n log n) 降到 O(n)）。
+            Map<RoutingRuleTargetDto, Long> loadByTarget = rest.stream()
+                    .collect(Collectors.toMap(Function.identity(), this::targetLoad));
+            rest.stream()
+                    .sorted(Comparator.<RoutingRuleTargetDto>comparingLong(loadByTarget::get)
+                            .thenComparing(byConfiguredOrder))
+                    .forEach(ordered::add);
         } else {
-            rest = rest.sorted(byConfiguredOrder);
+            rest.stream().sorted(byConfiguredOrder).forEach(ordered::add);
         }
-        rest.forEach(ordered::add);
         return ordered;
     }
 

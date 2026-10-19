@@ -554,7 +554,7 @@ onMounted(() => {
 .dashboard-hero__desc {
   margin: 10px 0 0;
   max-width: 720px;
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
   line-height: 1.7;
   color: #606266;
 }
@@ -590,7 +590,7 @@ onMounted(() => {
 }
 
 .refresh-pill__value {
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
   color: #303133;
 }
 
@@ -816,7 +816,7 @@ onMounted(() => {
 }
 
 .overview-row__label {
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
   color: #606266;
 }
 

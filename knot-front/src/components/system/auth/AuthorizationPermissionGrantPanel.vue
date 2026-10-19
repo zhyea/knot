@@ -91,7 +91,7 @@ const emit = defineEmits(["save", "toggle", "keyword-change"]);
 }
 
 .auth-panel__title {
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
   color: #303133;
   font-weight: 600;
 }

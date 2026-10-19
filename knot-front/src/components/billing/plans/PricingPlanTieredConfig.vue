@@ -227,7 +227,7 @@ function fieldError(index: number, field: TierIssue["field"]): string {
 }
 
 .tier-card__seq {
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
   font-weight: 600;
 }
 

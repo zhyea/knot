@@ -194,7 +194,7 @@ class GatewayTrafficMsgDtoTest {
         first.failed(new GatewayUpstreamException("boom", "UPSTREAM_ERROR", 500, null, null), true);
         CallTraceContext.AttemptDraft second = trace.newAttempt(target("gpt-4o-mini", "upstream-gpt-4o-mini", 2, false), null);
         second.nextAttempt(2);
-        second.succeeded();
+        second.succeeded(null);
         context.putAttribute(CallTraceContext.ATTRIBUTE, trace);
 
         GatewayTrafficMsgDto message = GatewayTrafficMsgDto.of(context, null, null, 100L, null);
@@ -206,6 +206,74 @@ class GatewayTrafficMsgDtoTest {
         assertEquals("success", message.attempts().get(1).outcome());
         assertEquals(1, message.failoverTotal(), "成功前失败过一个候选");
         assertEquals(0, message.ejectedSkipped());
+    }
+
+    @Test
+    void failoverAttemptsCarryTheirOwnUpstreamIds() {
+        // 每个 attempt 打的是不同上游、拿回不同 id：二连 failover 下两行各带各自的 id，
+        // 挂 request 级会丢链（设计文档 §4.4）
+        GatewayRequestContext context = context();
+        CallTraceContext trace = new CallTraceContext();
+        CallTraceContext.AttemptDraft first = trace.newAttempt(target("gpt-4o", "upstream-gpt-4o", 1, true), null);
+        first.nextAttempt(2);
+        first.failed(new GatewayUpstreamException(
+                        "upstream responded with status 503", "UPSTREAM_ERROR", 503, "{}", null,
+                        "req_failed_4o"),
+                true);
+        CallTraceContext.AttemptDraft second = trace.newAttempt(target("gpt-4o-mini", "upstream-gpt-4o-mini", 2, false), null);
+        second.nextAttempt(2);
+        second.succeeded("req_ok_mini");
+        context.putAttribute(CallTraceContext.ATTRIBUTE, trace);
+
+        GatewayTrafficMsgDto message = GatewayTrafficMsgDto.of(context, null, null, 100L, null);
+
+        assertEquals("req_failed_4o", message.attempts().get(0).upstreamRequestId(),
+                "失败 attempt 的供应商 id 是工单里最关键的检索键");
+        assertEquals("req_ok_mini", message.attempts().get(1).upstreamRequestId());
+    }
+
+    @Test
+    void attemptWithoutUpstreamCallHasNullIds() {
+        // attempt_no=0：被频控拒绝，从未发起上游调用——没有响应头，两个 id 必须是 null
+        GatewayRequestContext context = context();
+        CallTraceContext trace = new CallTraceContext();
+        CallTraceContext.AttemptDraft draft = trace.newAttempt(target("gpt-4o-mini", "upstream-gpt-4o-mini", 1, true), null);
+        draft.rejected("RATE_LIMIT_TPM");
+        context.putAttribute(CallTraceContext.ATTRIBUTE, trace);
+
+        GatewayTrafficMsgDto message = GatewayTrafficMsgDto.of(context, null, null, null, null);
+
+        assertEquals(0, message.attempts().get(0).attempts());
+        assertNull(message.attempts().get(0).upstreamRequestId());
+    }
+
+    @Test
+    void serializedJsonCarriesUpstreamRequestId() {
+        GatewayRequestContext context = context();
+        CallTraceContext trace = new CallTraceContext();
+        CallTraceContext.AttemptDraft draft = trace.newAttempt(target("gpt-4o-mini", "upstream-gpt-4o-mini", 1, true), null);
+        draft.nextAttempt(2);
+        draft.succeeded("req_abc123");
+        context.putAttribute(CallTraceContext.ATTRIBUTE, trace);
+
+        String json = JsonKit.toJson(GatewayTrafficMsgDto.of(context, null, null, 1L, null));
+
+        assertTrue(json.contains("\"upstream_request_id\":\"req_abc123\""),
+                "供应商 id 必须落进序列化消息（snake_case 由 JsonNaming 转换）: " + json);
+    }
+
+    @Test
+    void serializedJsonOmitsNullUpstreamRequestId() {
+        GatewayRequestContext context = context();
+        CallTraceContext trace = new CallTraceContext();
+        CallTraceContext.AttemptDraft draft = trace.newAttempt(target("gpt-4o-mini", "upstream-gpt-4o-mini", 1, true), null);
+        draft.rejected("RATE_LIMIT_TPM");
+        context.putAttribute(CallTraceContext.ATTRIBUTE, trace);
+
+        String json = JsonKit.toJson(GatewayTrafficMsgDto.of(context, null, null, null, null));
+
+        assertTrue(!json.contains("upstream_request_id"),
+                "无数据的 id 不出现在消息里（NON_NULL）：下游按字段缺失识别，不是空串: " + json);
     }
 
     @Test

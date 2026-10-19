@@ -446,7 +446,7 @@ function percent(value: number): string {
 }
 
 .bv-zone__title {
-  font-size: 14px;
+  font-size: var(--el-font-size-base, 13px);
   font-weight: 600;
   color: var(--el-text-color-primary);
 }
