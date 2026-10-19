@@ -45,3 +45,17 @@ springdoc:
   packages-to-scan: org.chobit.knot.gateway.controller
   default-flat-param-object: true
 
+# ── 可观测性（Actuator）─────────────────────────────────────────────────────
+# 管理端需要 health 探针供编排/存活检查使用；同样只暴露最小端点集，避免泄漏配置。
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info,prometheus,metrics}
+  endpoint:
+    health:
+      show-details: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:never}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+

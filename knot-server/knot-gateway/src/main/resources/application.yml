@@ -118,3 +118,29 @@ knot:
       enabled: ${KNOT_OUTAGE_ADMIN_API_ENABLED:true}
       # 管理面共享令牌：未配置时仅允许 loopback 访问；多节点部署必须配置
       token: ${KNOT_GATEWAY_ADMIN_TOKEN:}
+
+# ── 可观测性（Actuator + Prometheus）────────────────────────────────────────
+# 网关是「限流 / 额度 / 摘除 / 重试 / failover」的唯一决策发生地，而这些决策在正常路径上
+# 全是静默的——没有指标等于线上盲飞：限流是否误伤、某个上游是否持续被摘除，都观测不到。
+#
+# ⚠ 默认只暴露 health / info / prometheus / metrics 四个端点：其余（env / beans /
+#   threaddump / heapdump 等）一律不暴露，避免泄漏配置、凭据与内部结构。
+# ⚠ 生产部署必须由反向代理限制 /actuator/* 仅内网（或监控采集器）可达。
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health,info,prometheus,metrics}
+  endpoint:
+    health:
+      # 默认不展开明细（含数据库/Redis 连接信息）；排障时可临时改为 when_authorized
+      show-details: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:never}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      # 代理耗时按直方图分桶，便于算 P95/P99；SLO 边界用于直接看达标率
+      percentiles-histogram:
+        knot.gateway.proxy.latency: ${KNOT_METRICS_PROXY_HISTOGRAM:true}
+      slo:
+        knot.gateway.proxy.latency: ${KNOT_METRICS_PROXY_SLO:1s,5s,30s}
