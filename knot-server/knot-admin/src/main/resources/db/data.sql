@@ -351,7 +351,6 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (107, 94, 'POST', '/api/notifications/templates/list', 'NotificationController', 1),
 (108, 95, 'POST', '/api/notifications/templates', 'NotificationController', 1),
 (109, 96, 'POST', '/api/notifications/send', 'NotificationController', 1),
-(110, 95, 'POST', '/api/notifications/policies', 'NotificationController', 1),
 (111, 97, 'POST', '/api/plugins', 'PluginController', 1),
 (112, 98, 'PUT', '/api/plugins/{id}/status', 'PluginController', 1),
 (113, 99, 'POST', '/api/provider-accounts/list', 'ProviderController', 1),
