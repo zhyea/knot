@@ -47,6 +47,7 @@ import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.lang.Nullable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -123,7 +124,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                                  ModerationWordResource moderationWordResource,
                                  OutageTracker outageTracker,
                                  OutageKeys outageKeys,
-                                 KafkaPublisher eventPublisher,
+                                 @Nullable KafkaPublisher eventPublisher,
                                  @Value("${kafka.topic.traffic}") String trafficTopic) {
         super(pluginDispatcher, moderationWordResource, eventPublisher, trafficTopic);
         this.proxyClient = proxyService;
