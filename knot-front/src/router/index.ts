@@ -91,8 +91,7 @@ const routes: RouteRecordRaw[] = [
     path: "/notifications",
     component: NestedView,
     children: [
-      { path: "templates", name: "notifications-templates", component: () => import("@/views/notifications/NotifyTemplateView.vue"), meta: { titleKey: "route.notificationsTemplates" } },
-      { path: "policy", name: "notifications-policy", component: () => import("@/views/notifications/NotifyPolicyView.vue"), meta: { titleKey: "route.notificationsPolicy" } }
+      { path: "templates", name: "notifications-templates", component: () => import("@/views/notifications/NotifyTemplateView.vue"), meta: { titleKey: "route.notificationsTemplates" } }
     ]
   },
   {

@@ -7,11 +7,8 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.converter.NotificationConverter;
 import org.chobit.knot.gateway.dto.notification.TemplateDto;
 import org.chobit.knot.gateway.service.NotificationService;
-import org.chobit.knot.gateway.vo.notification.NotifyPolicy;
 import org.chobit.knot.gateway.vo.notification.NotifyTemplate;
 import jakarta.validation.Valid;
-import org.chobit.knot.gateway.vo.notification.NotifyPolicy;
-import org.chobit.knot.gateway.vo.notification.NotifyTemplate;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -54,19 +51,6 @@ public class NotificationController {
                 notificationConverter.toTemplateDto(request)
         );
         return notificationConverter.toTemplateVO(created);
-    }
-
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
-    @OperationLog(module = "notification", operation = "CREATE", entityType = "NotifyPolicy",
-            entityName = "#request.eventType()",
-            description = "'新建通知策略'",
-            recordOldValue = false,
-            newValueSpel = "#result")
-    @PostMapping("/policies")
-    public NotifyPolicy createPolicy(@RequestBody @Valid NotifyPolicy request) {
-        return request;
     }
 
 }

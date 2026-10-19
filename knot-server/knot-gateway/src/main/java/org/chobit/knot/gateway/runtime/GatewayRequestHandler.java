@@ -79,6 +79,14 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
      */
     public static final String HIT_TARGET_ATTRIBUTE = "hitTarget";
 
+    /**
+     * 请求上下文属性：本次请求成功记账用的流量检查上下文（{@code TrafficCheckContext}）。
+     *
+     * <p>非流式在候选成功后同步记账；流式响应要在流写完后才拿到真实用量，
+     * 必须把检查上下文随请求上下文带出，供 {@code streamResponse} 的收尾回调补记。</p>
+     */
+    public static final String TRAFFIC_CONTEXT_ATTRIBUTE = "trafficContext";
+
     private final UpstreamProxyClient proxyClient;
     private final RoutingResolver routingResolver;
     private final GatewayTrafficGuard trafficGuard;
@@ -252,6 +260,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                 writeSelectedModelHeader(candidate);
                 // 命中目标入上下文：首 token 观察者据此把慢信号归属到本候选（异常路径无首 token）
                 context.putAttribute(HIT_TARGET_ATTRIBUTE, candidate);
+                context.putAttribute(TRAFFIC_CONTEXT_ATTRIBUTE, trafficContext);
                 return new FailoverOutcome(result, null, null, true, ejectedSkipped);
             } catch (GatewayUpstreamException e) {
                 lastUpstreamException = e;
@@ -489,19 +498,50 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         FirstTokenHeaderWriter firstTokenWriter = FirstTokenHeaderWriter.of(context, firstTokenObserver(context));
         // 流式用量只能在流写完时定型：先落在容器里，由 onComplete 发布流量事件（终态一条）
         AtomicReference<UsageAccounting> terminalUsage = new AtomicReference<>();
-        Runnable onComplete = loadRelease;
+        Runnable onComplete = () -> {
+            if (loadRelease != null) {
+                loadRelease.run();
+            }
+            // 补记流式真实用量：无论是否接 Kafka，频控/配额账都必须落到计数器
+            recordStreamingUsage(context, routing, terminalUsage.get());
+        };
         if (eventPublisher != null) {
-            Runnable release = loadRelease;
+            Runnable base = onComplete;
             onComplete = () -> {
-                if (release != null) {
-                    release.run();
-                }
+                base.run();
                 eventPublisher.publish(trafficTopic, GatewayTrafficMsgDto.of(context, exchange,
                     terminalUsage.get(), firstTokenWriter.elapsedMillis(), null));
             };
         }
         return new ProxyStreamingBody(stream, usageExtractorRegistry, appendUsage,
             clientProperties.getStreamBufferSize(), onComplete, firstTokenWriter, terminalUsage::set);
+    }
+
+    /**
+     * 流式响应写完后的补充记账：非流式在候选成功时已同步记过一次（当时用量未知、记为空），
+     * 这里用流结束时定型的最终用量把 TPM / token 配额 / 成本配额补全。
+     *
+     * <p>响应已写完，记账异常只记日志、不向上抛，也不影响上面已经完成的在途释放与事件发布。</p>
+     */
+    void recordStreamingUsage(GatewayRequestContext context,
+                              ResolvedRouting routing,
+                              UsageAccounting accounting) {
+        if (accounting == null || routing == null) {
+            return;
+        }
+        RoutingRuleTargetDto candidate = context.attribute(HIT_TARGET_ATTRIBUTE);
+        TrafficCheckContext trafficContext = context.attribute(TRAFFIC_CONTEXT_ATTRIBUTE);
+        if (candidate == null || trafficContext == null) {
+            return;
+        }
+        try {
+            NormalizedUsage normalized = accounting.normalized();
+            TrafficUsage usage = TrafficUsage.of(accounting.totalTokens(),
+                costOf(normalized), normalized == null ? null : normalized.currency());
+            trafficGuard.record(routing, candidate, usage, trafficContext);
+        } catch (Exception e) {
+            log.error("Failed to record streaming usage for rule={}", routing.ruleCode(), e);
+        }
     }
 
     /**

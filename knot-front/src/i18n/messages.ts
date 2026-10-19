@@ -78,7 +78,6 @@ export const messages = {
       billingReconciliation: "对账管理",
       notificationsTemplates: "通知模板",
       notificationsSend: "通知发送",
-      notificationsPolicy: "通知策略",
       notFound: "页面不存在"
     },
     header: {
@@ -223,7 +222,6 @@ export const messages = {
       billingReconciliation: "對帳管理",
       notificationsTemplates: "通知範本",
       notificationsSend: "通知發送",
-      notificationsPolicy: "通知策略",
       notFound: "頁面不存在"
     },
     header: {
@@ -367,7 +365,6 @@ export const messages = {
       billingReconciliation: "Reconciliation",
       notificationsTemplates: "Templates",
       notificationsSend: "Send",
-      notificationsPolicy: "Policy",
       notFound: "Page Not Found"
     },
     header: {
@@ -511,7 +508,6 @@ export const messages = {
       billingReconciliation: "Rapprochement",
       notificationsTemplates: "Modèles",
       notificationsSend: "Envoi",
-      notificationsPolicy: "Politique",
       notFound: "Page introuvable"
     },
     header: {
