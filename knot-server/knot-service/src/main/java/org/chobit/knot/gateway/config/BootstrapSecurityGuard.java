@@ -11,13 +11,15 @@ import java.util.Arrays;
 import java.util.Set;
 
 /**
- * 启动期安全守卫：生产 profile 下若仍使用开发默认密钥（JWT / 凭证加密），直接中断启动。
+ * 启动期安全守卫：使用开发默认密钥（JWT / 凭证加密）且未激活非生产 profile 时，直接中断启动（安全默认）。
  *
  * <p>两份密钥在环境变量缺失时回退到源码硬编码默认值，原先仅打印 WARN。
  * 但默认值随源码公开，生产一旦漏配即等于「JWT 可伪造 + 落库凭据可解密」。
- * 因此约定：生产必须以 {@code --spring.profiles.active=prod}（或含 prod 的 profile）启动，
- * 且注入 {@code KNOT_JWT_SECRET} / {@code KNOT_CREDENTIAL_ENCRYPTION_KEY}；
- * 二者任一未满足即拒绝启动。dev / test / local 等 profile 下不拦截（允许本地开发）。</p>
+ * 因此采用安全默认：只要仍在使用开发默认密钥，就必须显式激活非生产 profile
+ * （dev / test / local / development / dev-local / unit / integration / ci 之一），否则拒绝启动——
+ * 这样「未设任何 profile 直接启动」的生产部署也会因命中默认密钥而被拦断，逼出显式配置。
+ * 生产环境必须以 {@code --spring.profiles.active=prod}（或含 prod 的 profile）启动，
+ * 且注入 {@code KNOT_JWT_SECRET} / {@code KNOT_CREDENTIAL_ENCRYPTION_KEY}；二者任一未满足即拒绝启动。</p>
  */
 @Configuration
 public class BootstrapSecurityGuard {
@@ -46,12 +48,12 @@ public class BootstrapSecurityGuard {
                 + "KNOT_JWT_SECRET / KNOT_CREDENTIAL_ENCRYPTION_KEY 注入强密钥。", devDefaultJwt, devDefaultCredential);
         String[] active = environment.getActiveProfiles();
         boolean nonProd = Arrays.stream(active).anyMatch(p -> NON_PROD_PROFILES.contains(p.toLowerCase()));
-        boolean prodLike = Arrays.stream(active).anyMatch(p -> p.toLowerCase().contains("prod"));
-        if ((devDefaultCredential || devDefaultJwt) && !nonProd && prodLike) {
+        if (!nonProd) {
             throw new IllegalStateException(
-                    "检测到生产 profile 下仍使用开发默认密钥（JWT=" + devDefaultJwt + ", 凭证加密=" + devDefaultCredential
-                    + "），拒绝启动。请通过环境变量 KNOT_JWT_SECRET / KNOT_CREDENTIAL_ENCRYPTION_KEY 注入强密钥，"
-                    + "并以 prod（或含 prod 的）profile 启动。");
+                    "检测到使用开发默认密钥（JWT=" + devDefaultJwt + ", 凭证加密=" + devDefaultCredential
+                    + "）但未激活非生产 profile（当前 active profiles=" + Arrays.toString(active) + "）。为安全起见拒绝启动："
+                    + " 本地/测试环境请加 --spring.profiles.active=local（或 dev/test）；"
+                    + " 生产环境必须以 prod（或含 prod 的）profile 启动并注入 KNOT_JWT_SECRET / KNOT_CREDENTIAL_ENCRYPTION_KEY。");
         }
     }
 }

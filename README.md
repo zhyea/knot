@@ -16,8 +16,12 @@ AI 网关项目脚手架：
 3. 启动命令（在 `knot-server` 目录）：
 
 ```bash
-mvn spring-boot:run
+mvn spring-boot:run -Dspring-boot.run.profiles=local
 ```
+
+> 本地/测试环境必须带 `local`（或 `dev`/`test`）profile：启动期安全守卫 `BootstrapSecurityGuard`
+> 会在「使用开发默认密钥且未激活非生产 profile」时拒绝启动。生产以 `prod` profile 启动并注入
+> `KNOT_JWT_SECRET` / `KNOT_CREDENTIAL_ENCRYPTION_KEY`。
 
 默认地址：`http://127.0.0.1:8080`  
 健康检查：`GET /api/health`
