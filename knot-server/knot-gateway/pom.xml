@@ -46,6 +46,12 @@
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
         </dependency>
+        <!-- @ConfigurationProperties 的数值边界校验（@Validated + @Min）：连接池/超时等
+             配置误配成 0/负数会引发自我 DoS，启动时即 fail-fast -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
         <!-- 多节点部署时频控 / 额度计数切到 Redis（knot.traffic.store=redis），
              不切换时不会建立任何连接：RedisTemplate 由 Spring 惰性初始化 -->
         <dependency>

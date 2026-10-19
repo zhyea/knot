@@ -81,6 +81,27 @@ knot:
      cors:
       # 管理端流式调试直连网关时使用；生产环境请通过配置覆盖
       allowed-origins: ${KNOT_GATEWAY_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
+    # ── 上游调用：连接池与超时（默认集中在 GatewayUpstreamClientProperties）──────────
+    # 以下为可调上限的 env 覆盖示例；不写则走 Java 侧默认值。
+    # upstream:
+    #   # TCP + TLS 建连超时：上游不可达时快速失败并交给 failover
+    #   connect-timeout: ${KNOT_UPSTREAM_CONNECT_TIMEOUT:5s}
+    #   # 连接池耗尽时等待空闲连接的超时；超时即抛错，避免请求无限排队
+    #   connection-request-timeout: ${KNOT_UPSTREAM_CONN_REQ_TIMEOUT:5s}
+    #   # Socket 读超时：相邻数据包之间的最大静默时间（流式靠它卡静默，非完整响应时长）
+    #   read-timeout: ${KNOT_UPSTREAM_READ_TIMEOUT:120s}
+    #   # 总响应超时：整段交互上限，堵住「每 100s 滴 1B」的慢速滴流（流式只卡到响应头，安全）
+    #   response-timeout: ${KNOT_UPSTREAM_RESPONSE_TIMEOUT:120s}
+    #   # 单条连接最长存活时间
+    #   time-to-live: ${KNOT_UPSTREAM_TTL:5m}
+    #   # 连接池总连接数上限（下限 1，误配 0 启动即失败）
+    #   max-total-connections: ${KNOT_UPSTREAM_MAX_TOTAL:200}
+    #   # 单路由连接数上限（下限 1）
+    #   max-connections-per-route: ${KNOT_UPSTREAM_MAX_PER_ROUTE:50}
+    #   # 流式读写缓冲区大小（字节，下限 1）
+    #   stream-buffer-size: ${KNOT_UPSTREAM_STREAM_BUF:8192}
+    #   # 是否接受上游 gzip/br 压缩响应（默认关：与流式低延迟目标冲突）
+    #   content-compression-enabled: ${KNOT_UPSTREAM_CONTENT_COMPRESSION:false}
   outage:
     # 异常摘除：纯进程内 Caffeine，无 store 开关。摘除是本节点自己的异常观察，
     # 不需要跨节点共享；放 Redis 反而让 Redis 故障同时打掉网关的自我保护能力。

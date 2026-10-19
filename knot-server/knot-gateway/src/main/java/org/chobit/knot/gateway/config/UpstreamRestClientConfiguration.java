@@ -54,9 +54,11 @@ public class UpstreamRestClientConfiguration {
     @Bean(destroyMethod = "close")
     public CloseableHttpClient upstreamHttpClient(PoolingHttpClientConnectionManager connectionManager,
                                                   GatewayUpstreamClientProperties properties) {
-        // 建连与读超时都在 ConnectionConfig 上设置，这里只管连接池排队与内容压缩
+        // 建连与读超时都在 ConnectionConfig 上设置；这里管连接池排队、内容压缩，以及总响应超时。
+        // 总响应超时（responseTimeout）卡「整段交互」上限，堵住慢速滴流上游无限占住 worker 的最坏场景。
         RequestConfig requestConfig = RequestConfig.custom()
                 .setConnectionRequestTimeout(timeout(properties.getConnectionRequestTimeout()))
+                .setResponseTimeout(timeout(properties.getResponseTimeout()))
                 .setContentCompressionEnabled(properties.isContentCompressionEnabled())
                 .build();
         return HttpClientBuilder.create()

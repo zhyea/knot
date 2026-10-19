@@ -1,0 +1,60 @@
+package org.chobit.knot.gateway.config;
+
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validation;
+import jakarta.validation.Validator;
+import jakarta.validation.ValidatorFactory;
+import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * A 组（P6）落地验证：
+ * <ul>
+ *     <li>A1 默认值：总响应超时 responseTimeout = 120s。</li>
+ *     <li>A3 数值边界：连接池/缓冲区整数字段带 @Min(1)，误配 0 必须被 Validator 拒绝。</li>
+ * </ul>
+ */
+class GatewayUpstreamClientPropertiesTest {
+
+    private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
+
+    @Test
+    void defaults_includeResponseTimeout120s() {
+        GatewayUpstreamClientProperties properties = new GatewayUpstreamClientProperties();
+        assertEquals(Duration.ofSeconds(120), properties.getResponseTimeout());
+        assertEquals(Duration.ofSeconds(5), properties.getConnectTimeout());
+        assertEquals(Duration.ofSeconds(120), properties.getReadTimeout());
+        assertEquals(200, properties.getMaxTotalConnections());
+        assertEquals(50, properties.getMaxConnectionsPerRoute());
+        assertEquals(8192, properties.getStreamBufferSize());
+    }
+
+    @Test
+    void zeroConnectionPoolOrBuffer_rejectedByMinConstraint() {
+        GatewayUpstreamClientProperties properties = new GatewayUpstreamClientProperties();
+        properties.setMaxTotalConnections(0);
+        properties.setMaxConnectionsPerRoute(0);
+        properties.setStreamBufferSize(0);
+
+        Set<ConstraintViolation<GatewayUpstreamClientProperties>> violations = validator.validate(properties);
+        assertFalse(violations.isEmpty(), "maxTotalConnections/maxConnectionsPerRoute/streamBufferSize=0 必须触发 @Min 校验");
+        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("maxTotalConnections")));
+        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("maxConnectionsPerRoute")));
+        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("streamBufferSize")));
+    }
+
+    @Test
+    void validPositiveValues_passValidation() {
+        GatewayUpstreamClientProperties properties = new GatewayUpstreamClientProperties();
+        properties.setMaxTotalConnections(500);
+        properties.setMaxConnectionsPerRoute(100);
+        properties.setStreamBufferSize(16384);
+        assertTrue(validator.validate(properties).isEmpty(), "合法正值不应触发校验");
+    }
+}

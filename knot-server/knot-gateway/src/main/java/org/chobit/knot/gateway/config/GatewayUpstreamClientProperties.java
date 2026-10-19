@@ -1,8 +1,10 @@
 package org.chobit.knot.gateway.config;
 
+import jakarta.validation.constraints.Min;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
 
 import java.time.Duration;
 
@@ -11,9 +13,14 @@ import java.time.Duration;
  *
  * <p>默认 RestClient 走 JDK {@code HttpURLConnection}，既不复用连接也不设超时；
  * 这里统一改为 Apache HttpClient 5 的池化连接，并显式给出三类超时。</p>
+ *
+ * <p>所有数值均经 {@code @Min} 约束下限，避免被误配成 0/负数引发自我 DoS
+ * （连接池/缓冲区为 0 会让请求无限排队或每请求新建连接）。Duration 类字段不允许为负，
+ * 0 表示「不限制」（由 HC5 解释为禁用该超时）。</p>
  */
 @Getter
 @Setter
+@Validated
 @ConfigurationProperties(prefix = "knot.gateway.upstream")
 public class GatewayUpstreamClientProperties {
 
@@ -44,18 +51,38 @@ public class GatewayUpstreamClientProperties {
     private Duration validateAfterInactivity = Duration.ofSeconds(10);
 
     /**
+     * 总响应超时（HC5 {@code RequestConfig.setResponseTimeout}）：从请求发起、到收到
+     * <b>完整响应头</b>的最长时间，是「整段交互」的总时限，而非相邻数据包的静默超时。
+     *
+     * <p>与 {@link #readTimeout}（相邻数据包静默超时）互补：慢速滴流上游（如每 100s 只滴 1 字节）
+     * 的滴流间隔 < readTimeout，单靠 readTimeout 拦不住，worker 会被无限占住；总响应超时按
+     * 整段时长兜底，到点即断、释放 worker，堵住这个最坏场景。</p>
+     *
+     * <p>流式安全：流式转发只在 {@code exchange(...)} 内读取响应头，响应体由
+     * {@code ProxyStreamingBody} 在独立的 {@code StreamingResponseBody} 任务里惰性读取，
+     * 受 readTimeout（静默）约束——总响应超时只卡到「响应头到达」，<b>不会</b>因长流整体超限被误杀。
+     * 非流式（整包缓冲）则总响应超时覆盖完整响应体读取，正好用于拦慢速滴流。</p>
+     *
+     * <p>设 0 关闭（仅依赖 readTimeout）。若实测某合法长非流式响应被误伤，调大本值或置 0。</p>
+     */
+    private Duration responseTimeout = Duration.ofSeconds(120);
+
+    /**
      * 连接池总连接数上限。
      */
+    @Min(1)
     private int maxTotalConnections = 200;
 
     /**
      * 单个路由（协议 + 域名）的连接数上限。
      */
+    @Min(1)
     private int maxConnectionsPerRoute = 50;
 
     /**
      * 流式转发的读写缓冲区大小（字节）。
      */
+    @Min(1)
     private int streamBufferSize = 8192;
 
     /**
