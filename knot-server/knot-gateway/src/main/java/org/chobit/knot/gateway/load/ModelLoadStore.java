@@ -1,5 +1,8 @@
 package org.chobit.knot.gateway.load;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  * 模型「在途并发」计量存储：最空闲选模（{@code LEAST_LOAD}）的负载数据源。
  *
@@ -46,4 +49,19 @@ public interface ModelLoadStore {
      * 读取当前在途数，不存在则返回 {@code 0}；不创建条目。
      */
     long inflight(String key);
+
+    /**
+     * 批量读取当前在途数：一次返回多个键的当前值，缺失（不存在）的键返回 {@code 0}。
+     *
+     * <p>用于选路热路径：一个池 / 一批目标涉及的 N 个模型在途值，应<b>一次性批量读取</b>
+     * （Redis 档走 {@code MGET}，单次 RTT 取 N 个），替代对每个键各发一次同步 {@link #inflight}，
+     * 避免多节点部署下 N 次串行往返叠加在请求关键路径上（P8）。</p>
+     *
+     * <p>语义与 {@link #inflight} 一致：不存在 / 脏数据按 {@code 0} 处理，键集合为空返回空 Map。
+     * 返回的 Map 仅用于「读」，写入（{@link #enter}/{@link #leave}）仍走单键 Lua，不变。</p>
+     *
+     * @param keys 键集合（可空 / 空）
+     * @return 以入参键为键、当前在途数为值的 Map；缺失或脏数据对应值为 {@code 0}
+     */
+    Map<String, Long> inflightBatch(List<String> keys);
 }

@@ -28,7 +28,9 @@ import org.chobit.knot.gateway.util.tools.RoutingSecretKeyGenerator;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.Comparator;
@@ -205,10 +207,15 @@ public class RoutingResolver {
         List<RoutingRuleTargetDto> ordered = new ArrayList<>();
         ordered.add(first);
         if (ModelPoolSelectionStrategyEnum.LEAST_LOAD == ModelPoolSelectionStrategyEnum.fromCode(strategyCode)) {
-            // 预计算在途负载，避免在 Comparator 内反复查询（Comparator 应无副作用；
-            // redis 档下还能把「每目标 N 次串行 GET」从 O(n log n) 降到 O(n)）。
+            // 预取本批目标涉及的全部模型在途值到本地 Map（P8）：一次批量读替代 N 次串行 GET，
+            // 既消除 Comparator 副作用，又让 redis 档把「每目标 N 次串行 GET」合并为单次 MGET。
+            Set<String> modelCodes = new LinkedHashSet<>();
+            for (RoutingRuleTargetDto t : rest) {
+                collectModelLoadKeys(t, modelCodes);
+            }
+            Map<String, Long> inflightByModelCode = modelLoadStore.inflightBatch(new ArrayList<>(modelCodes));
             Map<RoutingRuleTargetDto, Long> loadByTarget = rest.stream()
-                    .collect(Collectors.toMap(Function.identity(), this::targetLoad));
+                    .collect(Collectors.toMap(Function.identity(), t -> targetLoad(t, inflightByModelCode)));
             rest.stream()
                     .sorted(Comparator.<RoutingRuleTargetDto>comparingLong(loadByTarget::get)
                             .thenComparing(byConfiguredOrder))
@@ -221,10 +228,11 @@ public class RoutingResolver {
 
     /**
      * 单个规则目标的在途并发：模型目标取自身；模型池目标取池内启用条目之和（整池压力）。
+     * 在途值从预取的 {@code inflightByModelCode} 读取（P8 批量预取，避免 N 次串行 GET）。
      */
-    private long targetLoad(RoutingRuleTargetDto target) {
+    private long targetLoad(RoutingRuleTargetDto target, Map<String, Long> inflightByModelCode) {
         if (RouteTargetTypeEnum.MODEL.code().equals(target.targetType())) {
-            return modelLoadStore.inflight(modelLoadKeys.model(target.targetCode()));
+            return inflightByModelCode.getOrDefault(modelLoadKeys.model(target.targetCode()), 0L);
         }
         if (!RouteTargetTypeEnum.MODEL_POOL.code().equals(target.targetType())) {
             return 0L;
@@ -232,10 +240,29 @@ public class RoutingResolver {
         long sum = 0L;
         for (ModelPoolItemEntity item : dataService.listModelPoolItemsByPoolCode(target.targetCode())) {
             if (EnabledStatusEnum.isEnabled(item.getStatus())) {
-                sum += modelLoadStore.inflight(modelLoadKeys.model(item.getModelCode()));
+                sum += inflightByModelCode.getOrDefault(modelLoadKeys.model(item.getModelCode()), 0L);
             }
         }
         return sum;
+    }
+
+    /**
+     * 收集单个目标涉及的在途计量键：模型目标取自身；模型池目标取池内启用条目之和。
+     * 与 {@link #targetLoad} 的键集合保持一致，保证预取覆盖选路所需的全部键。
+     */
+    private void collectModelLoadKeys(RoutingRuleTargetDto target, Set<String> modelCodes) {
+        if (RouteTargetTypeEnum.MODEL.code().equals(target.targetType())) {
+            modelCodes.add(modelLoadKeys.model(target.targetCode()));
+            return;
+        }
+        if (!RouteTargetTypeEnum.MODEL_POOL.code().equals(target.targetType())) {
+            return;
+        }
+        for (ModelPoolItemEntity item : dataService.listModelPoolItemsByPoolCode(target.targetCode())) {
+            if (EnabledStatusEnum.isEnabled(item.getStatus())) {
+                modelCodes.add(modelLoadKeys.model(item.getModelCode()));
+            }
+        }
     }
 
     /**
@@ -309,13 +336,19 @@ public class RoutingResolver {
                         && EnabledStatusEnum.isEnabled(candidate.model().getStatus()))
                 .toList();
         // 池内选中顺序由模型池的 selection_strategy 决定：首个即本次选中，其余为故障转移候选
+        // P8：池内 N 个模型在途值一次性批量预取（redis 档合并为单次 MGET），替代逐个串行 GET
+        List<String> poolModelCodes = available.stream()
+                .map(candidate -> modelLoadKeys.model(candidate.item().getModelCode()))
+                .distinct()
+                .toList();
+        Map<String, Long> inflightByModelCode = modelLoadStore.inflightBatch(poolModelCodes);
         List<PoolItemCandidate> ordered = modelPoolSelection.order(
                 available,
                 pool.getSelectionStrategy(),
                 candidate -> poolItemPriority(candidate.item()),
                 candidate -> poolItemWeight(candidate.item()),
                 candidate -> candidate.item().getId() != null ? candidate.item().getId() : 0L,
-                candidate -> modelLoadStore.inflight(modelLoadKeys.model(candidate.item().getModelCode()))
+                candidate -> inflightByModelCode.getOrDefault(modelLoadKeys.model(candidate.item().getModelCode()), 0L)
         );
         // 池内粘性：把一致性 hash 命中的候选置顶为首选，其余保持池策略原序作 failover 链
         List<PoolItemCandidate> stickyOrdered = applySticky(ordered, pool.getStickyPolicy(), stickyKey);

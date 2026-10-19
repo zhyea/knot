@@ -101,6 +101,27 @@ public class RedisCache {
     }
 
     /**
+     * 批量读字符串值（Redis {@code MGET}）；Redis 不可用时抛 {@link RedisUnavailableException}。
+     *
+     * <p>用于选路热路径一次性取多个在途键（P8），把 N 次 {@link #value} 串行往返合并为单次 RTT。
+     * 返回的列表与入参 {@code keys} 顺序一一对应；Redis 在某些情况下可能整体返回 {@code null}，
+     * 调用方须按缺失处理。</p>
+     *
+     * @param keys 键列表（非空时至少为 1 个）
+     * @return 与 {@code keys} 同序的值列表；key 不存在对应位置为 {@code null}
+     */
+    public List<String> multiValue(String domain, String operation, List<String> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return List.of();
+        }
+        try {
+            return template.opsForValue().multiGet(keys);
+        } catch (RuntimeException ex) {
+            throw failure(domain, operation, keys, ex);
+        }
+    }
+
+    /**
      * 统一异常包装：键列表取首个键用于定位。
      */
     private RedisUnavailableException failure(String domain, String operation, List<String> keys, RuntimeException ex) {

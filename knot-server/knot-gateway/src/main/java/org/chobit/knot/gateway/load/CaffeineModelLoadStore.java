@@ -6,6 +6,9 @@ import com.github.benmanes.caffeine.cache.Expiry;
 import com.github.benmanes.caffeine.cache.Ticker;
 
 import java.time.Clock;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -96,6 +99,18 @@ public class CaffeineModelLoadStore implements ModelLoadStore {
     public long inflight(String key) {
         Gauge gauge = cache.getIfPresent(key);
         return gauge == null ? 0L : gauge.value;
+    }
+
+    @Override
+    public Map<String, Long> inflightBatch(List<String> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Long> result = new HashMap<>(keys.size());
+        for (String key : keys) {
+            result.put(key, inflight(key));
+        }
+        return result;
     }
 
     /**

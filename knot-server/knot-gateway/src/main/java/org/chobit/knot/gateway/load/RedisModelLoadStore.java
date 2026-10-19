@@ -3,7 +3,9 @@ package org.chobit.knot.gateway.load;
 import org.chobit.knot.gateway.redis.RedisCache;
 import org.springframework.data.redis.core.script.RedisScript;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -82,17 +84,36 @@ public class RedisModelLoadStore implements ModelLoadStore {
 
     @Override
     public long inflight(String key) {
-        String value = cache.value(DOMAIN, "inflight", key);
+        return parseInflight(cache.value(DOMAIN, "inflight", key));
+    }
+
+    @Override
+    public Map<String, Long> inflightBatch(List<String> keys) {
+        if (keys == null || keys.isEmpty()) {
+            return Map.of();
+        }
+        List<String> values = cache.multiValue(DOMAIN, "inflightBatch", keys);
+        Map<String, Long> result = new HashMap<>(keys.size());
+        for (int i = 0; i < keys.size(); i++) {
+            String raw = values == null ? null : values.get(i);
+            result.put(keys.get(i), parseInflight(raw));
+        }
+        return result;
+    }
+
+    /**
+     * 解析在途值：{@code null} / 空 / 非数字 / 负数统一按 {@code 0}（不拥塞）处理。
+     * 脏数据不是 Redis 故障，不触发存储故障告警（与单键 {@link #inflight} 语义一致）。
+     */
+    private static long parseInflight(String value) {
         if (value == null) {
             return 0L;
         }
-        long parsed;
         try {
-            parsed = Long.parseLong(value.trim());
+            long parsed = Long.parseLong(value.trim());
+            return parsed < 0L ? 0L : parsed;
         } catch (NumberFormatException ex) {
-            // 脏数据不是 Redis 故障：按「不拥塞」处理，不触发存储故障告警
             return 0L;
         }
-        return parsed < 0L ? 0L : parsed;
     }
 }

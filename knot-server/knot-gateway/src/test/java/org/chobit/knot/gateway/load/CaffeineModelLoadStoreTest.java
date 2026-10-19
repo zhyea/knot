@@ -7,6 +7,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -104,6 +106,30 @@ class CaffeineModelLoadStoreTest {
             }
         }
         assertTrue(alive > 0L && alive <= 2L, "存活条目应被 maximumSize 限制在 2 以内，实际 " + alive);
+    }
+
+    @Test
+    void inflightBatchReturnsAllKeysWithMissingAsZero() {
+        CaffeineModelLoadStore store = new CaffeineModelLoadStore(100L, 300L);
+        String keyA = "knot:load:MODEL:a";
+        String keyB = "knot:load:MODEL:b";
+        String keyC = "knot:load:MODEL:c";
+
+        store.enter(keyA);
+        store.enter(keyB);
+        store.enter(keyB);
+
+        Map<String, Long> batch = store.inflightBatch(List.of(keyA, keyB, keyC));
+        assertEquals(1L, batch.get(keyA));
+        assertEquals(2L, batch.get(keyB));
+        assertEquals(0L, batch.get(keyC));
+    }
+
+    @Test
+    void inflightBatchOfEmptyOrNullReturnsEmptyMap() {
+        CaffeineModelLoadStore store = new CaffeineModelLoadStore(100L, 300L);
+        assertTrue(store.inflightBatch(List.of()).isEmpty());
+        assertTrue(store.inflightBatch(null).isEmpty());
     }
 
     private static void advance(AtomicLong millis, AtomicLong ticks, long deltaMillis) {
