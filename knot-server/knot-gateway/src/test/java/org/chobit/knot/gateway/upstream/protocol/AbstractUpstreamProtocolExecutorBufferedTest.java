@@ -3,10 +3,7 @@ package org.chobit.knot.gateway.upstream.protocol;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
-import org.springframework.mock.http.client.MockClientHttpResponse;
-
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import org.springframework.web.reactive.function.client.ClientResponse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -15,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 /**
  * 非流式路径的上游响应头捕获（executor 捕获点一）。
  *
- * <p>直接驱动 {@code readBuffered}：端到端 RestClient 会拖 UsageExtractorRegistry 整条
+ * <p>直接驱动 {@code readBuffered}：端到端 WebClient 会拖 UsageExtractorRegistry 整条
  * 依赖链（GatewayDataService / 计费规则查询），而这里要验的只是「body 与头分流」这一件事。</p>
  *
  * <p>对应设计文档 §4.2 捕获点三的兄弟分支：非流式失败同样要带供应商 id——
@@ -23,41 +20,44 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  */
 class AbstractUpstreamProtocolExecutorBufferedTest {
 
-    private static MockClientHttpResponse response(String body, HttpStatus status) {
-        return new MockClientHttpResponse(body.getBytes(StandardCharsets.UTF_8), status);
+    private static ClientResponse.Builder response(String body, HttpStatus status) {
+        return ClientResponse.create(status).body(body);
     }
 
     @Test
-    void successCarriesUpstreamRequestId() throws IOException {
-        MockClientHttpResponse response = response("{\"ok\":true}", HttpStatus.OK);
-        response.getHeaders().add("x-request-id", "req_openai");
+    void successCarriesUpstreamRequestId() {
+        ClientResponse response = response("{\"ok\":true}", HttpStatus.OK)
+                .header("x-request-id", "req_openai")
+                .build();
 
         AbstractUpstreamProtocolExecutor.BufferedExchange exchange =
-                AbstractUpstreamProtocolExecutor.readBuffered(response);
+                AbstractUpstreamProtocolExecutor.readBuffered(response).block();
 
         assertEquals("{\"ok\":true}", exchange.body());
         assertEquals("req_openai", exchange.upstreamRequestId());
     }
 
     @Test
-    void successWithoutWhitelistHeadersYieldsNullIds() throws IOException {
-        MockClientHttpResponse response = response("{\"ok\":true}", HttpStatus.OK);
-        response.getHeaders().add("set-cookie", "session=secret");
+    void successWithoutWhitelistHeadersYieldsNullIds() {
+        ClientResponse response = response("{\"ok\":true}", HttpStatus.OK)
+                .header("set-cookie", "session=secret")
+                .build();
 
         AbstractUpstreamProtocolExecutor.BufferedExchange exchange =
-                AbstractUpstreamProtocolExecutor.readBuffered(response);
+                AbstractUpstreamProtocolExecutor.readBuffered(response).block();
 
         assertNull(exchange.upstreamRequestId());
     }
 
     @Test
     void failureCarriesUpstreamRequestIdAndStatus() {
-        MockClientHttpResponse response = response("{\"error\":\"busy\"}", HttpStatus.SERVICE_UNAVAILABLE);
-        response.getHeaders().add("x-request-id", "req_failed");
-        response.getHeaders().add("Retry-After", "30");
+        ClientResponse response = response("{\"error\":\"busy\"}", HttpStatus.SERVICE_UNAVAILABLE)
+                .header("x-request-id", "req_failed")
+                .header("Retry-After", "30")
+                .build();
 
         GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
-                () -> AbstractUpstreamProtocolExecutor.readBuffered(response));
+                () -> AbstractUpstreamProtocolExecutor.readBuffered(response).block());
 
         assertEquals(503, error.httpStatus());
         assertEquals("{\"error\":\"busy\"}", error.responseBody());
@@ -68,10 +68,10 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
 
     @Test
     void failureWithoutWhitelistHeadersYieldsNullIds() {
-        MockClientHttpResponse response = response("{\"error\":\"boom\"}", HttpStatus.BAD_GATEWAY);
+        ClientResponse response = response("{\"error\":\"boom\"}", HttpStatus.BAD_GATEWAY).build();
 
         GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
-                () -> AbstractUpstreamProtocolExecutor.readBuffered(response));
+                () -> AbstractUpstreamProtocolExecutor.readBuffered(response).block());
 
         assertEquals(502, error.httpStatus());
         assertNull(error.upstreamRequestId());
@@ -79,11 +79,12 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
 
     @Test
     void clientErrorIsAlsoAnUpstreamFailureNotRetriedAsSuccess() {
-        MockClientHttpResponse response = response("{\"error\":\"bad request\"}", HttpStatus.BAD_REQUEST);
-        response.getHeaders().add("apim-request-id", "req_azure_400");
+        ClientResponse response = response("{\"error\":\"bad request\"}", HttpStatus.BAD_REQUEST)
+                .header("apim-request-id", "req_azure_400")
+                .build();
 
         GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
-                () -> AbstractUpstreamProtocolExecutor.readBuffered(response));
+                () -> AbstractUpstreamProtocolExecutor.readBuffered(response).block());
 
         assertEquals(400, error.httpStatus());
         assertEquals("req_azure_400", error.upstreamRequestId());
@@ -91,10 +92,10 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
 
     @Test
     void messageFormatMatchesStreamingPath() {
-        MockClientHttpResponse response = response("{}", HttpStatus.INTERNAL_SERVER_ERROR);
+        ClientResponse response = response("{}", HttpStatus.INTERNAL_SERVER_ERROR).build();
 
         GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
-                () -> AbstractUpstreamProtocolExecutor.readBuffered(response));
+                () -> AbstractUpstreamProtocolExecutor.readBuffered(response).block());
 
         assertEquals("upstream responded with status 500", error.getMessage());
     }

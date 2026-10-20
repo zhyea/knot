@@ -4,12 +4,14 @@ import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
 import org.chobit.knot.gateway.vo.request.VideoGenerationRequest;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.request.async.DeferredResult;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/openai/v1/videos")
@@ -23,12 +25,13 @@ public class GatewayVideoController extends GatewayControllerSupport {
      * Handles video generation requests.
      */
     @PostMapping("/generations")
-    public DeferredResult<Object> generations(
+    public Mono<ResponseEntity<Object>> generations(
         @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
         @RequestHeader(value = GatewayHeaders.RULE) String rule,
         @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
         @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
-        @RequestBody VideoGenerationRequest requestBody) {
-        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.VIDEO_GENERATIONS);
+        @RequestBody VideoGenerationRequest requestBody,
+        ServerWebExchange exchange) {
+        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.VIDEO_GENERATIONS, exchange);
     }
 }

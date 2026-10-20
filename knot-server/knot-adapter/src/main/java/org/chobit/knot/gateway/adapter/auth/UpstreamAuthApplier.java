@@ -2,7 +2,7 @@ package org.chobit.knot.gateway.adapter.auth;
 
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
-import org.springframework.web.client.RestClient;
+import org.springframework.http.HttpHeaders;
 
 import java.util.Set;
 
@@ -27,6 +27,10 @@ public interface UpstreamAuthApplier {
 
     /**
      * 把该供应商的鉴权头（含凭据与协议固定头）写入请求。缺少凭据时静默跳过。
+     *
+     * <p>只碰 {@link HttpHeaders} 而不碰任何 HTTP 客户端类型：鉴权策略属于协议知识，
+     * 不该被绑定在 RestClient / WebClient 某一种客户端实现上（2026-10-20 上游客户端
+     * 迁 WebClient 时据此解耦，knot-adapter 无需依赖 webflux）。</p>
      */
-    void apply(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context);
+    void apply(HttpHeaders headers, UpstreamRequestContext context);
 }

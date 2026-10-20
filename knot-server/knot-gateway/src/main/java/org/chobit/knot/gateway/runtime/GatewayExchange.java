@@ -15,6 +15,10 @@ public class GatewayExchange {
 
     private final Map<String, Object> requestBody;
     private final MediaType contentType;
+    /**
+     * HTTP 读写入口：随请求一起显式传递，链路不再依赖 {@code RequestContextHolder}。
+     */
+    private final GatewayHttpExchange http;
     @Setter
     private ProxyResult proxyResult;
 
@@ -29,8 +33,16 @@ public class GatewayExchange {
      * Constructs a new instance.
      */
     public GatewayExchange(Map<String, Object> requestBody, MediaType contentType) {
+        this(requestBody, contentType, GatewayHttpExchange.noop());
+    }
+
+    /**
+     * Constructs a new instance.
+     */
+    public GatewayExchange(Map<String, Object> requestBody, MediaType contentType, GatewayHttpExchange http) {
         this.requestBody = requestBody == null ? new LinkedHashMap<>() : new LinkedHashMap<>(requestBody);
         this.contentType = contentType == null ? MediaType.APPLICATION_JSON : contentType;
+        this.http = http == null ? GatewayHttpExchange.noop() : http;
     }
 
 }

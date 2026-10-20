@@ -4,6 +4,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplierCatalog;
 import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
+import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
@@ -12,20 +13,23 @@ import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
 import org.chobit.knot.gateway.upstream.support.UpstreamRequestIdResolver;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
-import org.springframework.core.io.Resource;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.MultipartBodyBuilder;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.util.MultiValueMap;
-import org.springframework.util.StreamUtils;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientResponseException;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.ClientResponse;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -34,19 +38,30 @@ import java.util.Map;
 
 /**
  * Executes the public operation. Executes the public operation.
+ *
+ * <p>2026-10-20：上游客户端由 {@code RestClient}（Apache HttpClient 5）迁到
+ * {@link WebClient}（reactor-netty）。两条路径的<b>阻塞边界不变</b>——仍然阻塞到「响应头就绪」
+ * 才返回，这样首字节之前的上游失败依旧能被 failover 捕获。</p>
  */
 public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtocolExecutor {
 
-    private final RestClient restClient;
+    private final WebClient webClient;
     private final UsageExtractorRegistry usageExtractorRegistry;
     private final UpstreamAuthApplierCatalog authApplierCatalog;
+    /**
+     * 上游客户端配置：取 {@code responseTimeout} 作为「到响应头就绪」的总超时，
+     * 取 {@code streamBufferSize} 作为流式桥接管道容量。
+     */
+    private final GatewayUpstreamClientProperties clientProperties;
 
-    protected AbstractUpstreamProtocolExecutor(RestClient restClient,
+    protected AbstractUpstreamProtocolExecutor(WebClient webClient,
                                                UsageExtractorRegistry usageExtractorRegistry,
-                                               UpstreamAuthApplierCatalog authApplierCatalog) {
-        this.restClient = restClient;
+                                               UpstreamAuthApplierCatalog authApplierCatalog,
+                                               GatewayUpstreamClientProperties clientProperties) {
+        this.webClient = webClient;
         this.usageExtractorRegistry = usageExtractorRegistry;
         this.authApplierCatalog = authApplierCatalog;
+        this.clientProperties = clientProperties;
     }
 
     /**
@@ -69,15 +84,9 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
             return executeBuffered(context, adapter, path, contentType);
         } catch (GatewayUpstreamException e) {
             throw e;
-        } catch (RestClientResponseException e) {
-            throw new GatewayUpstreamException(
-                    e.getMessage(),
-                    ProxyErrorCodeEnum.UPSTREAM_ERROR.code(),
-                    e.getStatusCode().value(),
-                    e.getResponseBodyAsString(),
-                    retryAfterMs(e.getResponseHeaders()),
-                    UpstreamRequestIdResolver.requestId(e.getResponseHeaders())
-            );
+        } catch (WebClientResponseException e) {
+            // 兜底：漏网的非 2xx（如 onStatus 未覆盖的重定向）也要带齐上游上下文
+            throw upstreamFailure(e.getStatusCode(), e.getHeaders(), e.getResponseBodyAsString());
         } catch (Exception e) {
             throw new GatewayUpstreamException(e.getMessage(), ProxyErrorCodeEnum.UPSTREAM_ERROR.code());
         }
@@ -86,25 +95,23 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     /**
      * 整包缓冲：把上游响应完整读成字符串后返回。适用于非流式请求。
      *
-     * <p>走 {@code exchange} 而不是 {@code retrieve}：后者只给响应体，上游响应头
-     * （供应商侧请求标识）会整体丢弃，而联合排查时供应商只认他们回的 id。
-     * 非 2xx 在这里直接抛 {@link GatewayUpstreamException}（带头），与流式路径同构。</p>
+     * <p>非 2xx 读掉错误体后抛 {@link GatewayUpstreamException}（带头），与流式路径同构。</p>
      */
     private ProxyResult executeBuffered(UpstreamRequestContext context,
                                         UpstreamRequestAdapter adapter,
                                         String path,
                                         MediaType contentType) {
-        RestClient.RequestBodySpec spec = requestSpec(context, adapter, path, contentType);
-        BufferedExchange exchange = spec.body(buildRequestBody(context, adapter, contentType))
-                .exchange((request, response) -> readBuffered(response), true);
-        String handledResponseBody = adapter.handleResponse(exchange.body(), context);
+        Mono<BufferedExchange> exchange = withBody(context, adapter, path, contentType)
+                .exchangeToMono(AbstractUpstreamProtocolExecutor::readBuffered);
+        BufferedExchange buffered = withResponseTimeout(exchange).block();
+        String handledResponseBody = adapter.handleResponse(buffered.body(), context);
         return new ProxyResult(
                 handledResponseBody,
                 context.provider().getId(),
                 context.model().getId(),
                 usageExtractorRegistry.extract(handledResponseBody, context, adapter),
                 null,
-                exchange.upstreamRequestId()
+                buffered.upstreamRequestId()
         );
     }
 
@@ -114,27 +121,23 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
      * <p>非 2xx 读掉错误体后抛 {@link GatewayUpstreamException}：失败场景的供应商 id
      * 恰恰是排障工单里最关键的检索键（详见设计文档 §4.2 捕获点三）。</p>
      *
-     * <p>包级可见供单测直接驱动（{@code MockClientHttpResponse}），
-     * 不经端到端 RestClient——那要拖 UsageExtractorRegistry 整条依赖链。</p>
+     * <p>返回 {@link Mono} 而不是直接读：本方法运行在 reactor-netty 的 event loop 线程上，
+     * 在这里 {@code block()} 会把 event loop 卡死。</p>
+     *
+     * <p>包级可见供单测直接驱动（{@code ClientResponse.create(...)}），
+     * 不经端到端 WebClient——那要拖 UsageExtractorRegistry 整条依赖链。</p>
      */
-    static BufferedExchange readBuffered(ClientHttpResponse response) throws IOException {
-        HttpStatusCode statusCode = response.getStatusCode();
-        HttpHeaders headers = response.getHeaders();
-        if (!statusCode.is2xxSuccessful()) {
-            String errorBody = StreamUtils.copyToString(response.getBody(), StandardCharsets.UTF_8);
-            throw new GatewayUpstreamException(
-                    "upstream responded with status " + statusCode.value(),
-                    ProxyErrorCodeEnum.UPSTREAM_ERROR.code(),
-                    statusCode.value(),
-                    errorBody,
-                    retryAfterMs(headers),
-                    UpstreamRequestIdResolver.requestId(headers)
-            );
-        }
-        return new BufferedExchange(
-                StreamUtils.copyToString(response.getBody(), StandardCharsets.UTF_8),
-                UpstreamRequestIdResolver.requestId(headers)
-        );
+    static Mono<BufferedExchange> readBuffered(ClientResponse response) {
+        HttpStatusCode statusCode = response.statusCode();
+        HttpHeaders headers = response.headers().asHttpHeaders();
+        return response.bodyToMono(String.class)
+                .defaultIfEmpty("")
+                .map(body -> {
+                    if (!statusCode.is2xxSuccessful()) {
+                        throw upstreamFailure(statusCode, headers, body);
+                    }
+                    return new BufferedExchange(body, UpstreamRequestIdResolver.requestId(headers));
+                });
     }
 
     /**
@@ -144,18 +147,32 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     }
 
     /**
-     * 流式转发：只读取响应头，响应体交给 {@link UpstreamStreamResponse} 边收边发。
+     * 流式转发：只阻塞等到响应头就绪，响应体交给 {@link UpstreamStreamResponse} 边收边发。
      *
      * <p>首字节之前的状态码错误、连接超时、读超时都会在这里抛出，
      * 因此 failover 仍然有效；一旦开始转发则无法再切换目标。</p>
+     *
+     * <p>{@code toEntityFlux} 是这里唯一可用的入口：{@code exchangeToMono} 会在转换函数
+     * 返回后调用 {@code releaseBody()}，把尚未消费的响应体整个吞掉。</p>
      */
     private ProxyResult executeStreaming(UpstreamRequestContext context,
-                                         UpstreamRequestAdapter adapter,
-                                         String path,
-                                         MediaType contentType) {
-        RestClient.RequestBodySpec spec = requestSpec(context, adapter, path, contentType);
-        UpstreamStreamResponse streamResponse = spec.body(buildRequestBody(context, adapter, contentType))
-                .exchange((request, response) -> toStreamResponse(context, adapter, response), false);
+                                        UpstreamRequestAdapter adapter,
+                                        String path,
+                                        MediaType contentType) {
+        Mono<ResponseEntity<Flux<DataBuffer>>> response = withBody(context, adapter, path, contentType)
+                .retrieve()
+                .onStatus(status -> !status.is2xxSuccessful(), this::upstreamFailureOf)
+                .toEntityFlux(DataBuffer.class);
+        ResponseEntity<Flux<DataBuffer>> entity = withResponseTimeout(response).block();
+        HttpHeaders headers = entity.getHeaders();
+        // 响应体 Flux 原样带出（批2：不再用管道桥接成 InputStream），订阅即转发、取消即归还连接
+        UpstreamStreamResponse streamResponse = new UpstreamStreamResponse(
+                entity.getBody(),
+                headers.getContentType(),
+                context,
+                adapter,
+                UpstreamRequestIdResolver.snapshot(headers),
+                UpstreamRequestIdResolver.requestId(headers));
         return new ProxyResult(
                 null,
                 context.provider().getId(),
@@ -166,29 +183,24 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
         );
     }
 
-    private UpstreamStreamResponse toStreamResponse(UpstreamRequestContext context,
-                                                    UpstreamRequestAdapter adapter,
-                                                    ClientHttpResponse response) throws IOException {
-        HttpStatusCode statusCode = response.getStatusCode();
-        if (!statusCode.is2xxSuccessful()) {
-            String errorBody = StreamUtils.copyToString(response.getBody(), StandardCharsets.UTF_8);
-            throw new GatewayUpstreamException(
-                    "upstream responded with status " + statusCode.value(),
-                    ProxyErrorCodeEnum.UPSTREAM_ERROR.code(),
-                    statusCode.value(),
-                    errorBody,
-                    retryAfterMs(response.getHeaders()),
-                    UpstreamRequestIdResolver.requestId(response.getHeaders())
-            );
-        }
-        HttpHeaders headers = response.getHeaders();
-        return new UpstreamStreamResponse(
-                response.getBody(),
-                headers.getContentType(),
-                context,
-                adapter,
-                response,
-                UpstreamRequestIdResolver.snapshot(headers),
+    /**
+     * 非 2xx 的统一映射：读掉错误体后抛出带齐上游上下文（状态码 / 错误体 / Retry-After / 供应商 id）的异常。
+     */
+    private Mono<Throwable> upstreamFailureOf(ClientResponse response) {
+        return response.bodyToMono(String.class)
+                .defaultIfEmpty("")
+                .map(body -> upstreamFailure(response.statusCode(), response.headers().asHttpHeaders(), body));
+    }
+
+    private static GatewayUpstreamException upstreamFailure(HttpStatusCode statusCode,
+                                                           HttpHeaders headers,
+                                                           String body) {
+        return new GatewayUpstreamException(
+                "upstream responded with status " + statusCode.value(),
+                ProxyErrorCodeEnum.UPSTREAM_ERROR.code(),
+                statusCode.value(),
+                body,
+                retryAfterMs(headers),
                 UpstreamRequestIdResolver.requestId(headers)
         );
     }
@@ -229,6 +241,18 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     }
 
     /**
+     * 总响应超时：只卡「到响应头就绪」这一段，长流式响应不会被整体误杀
+     * （响应体由 {@code ProxyStreamingFlux} 惰性读取，受 readTimeout 静默超时约束）。
+     */
+    private <T> Mono<T> withResponseTimeout(Mono<T> source) {
+        Duration timeout = clientProperties.getResponseTimeout();
+        if (timeout == null || timeout.isZero() || timeout.isNegative()) {
+            return source;
+        }
+        return source.timeout(timeout);
+    }
+
+    /**
      * 当前协议是否支持流式转发。默认关闭，由文本生成类协议打开。
      */
     protected boolean supportsStreaming(UpstreamRequestContext context) {
@@ -240,11 +264,11 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
         return body != null && Boolean.TRUE.equals(body.get(AiPayloadFields.STREAM));
     }
 
-    private RestClient.RequestBodySpec requestSpec(UpstreamRequestContext context,
-                                                   UpstreamRequestAdapter adapter,
-                                                   String path,
-                                                   MediaType contentType) {
-        RestClient.RequestBodySpec spec = restClient.post()
+    private WebClient.RequestBodySpec requestSpec(UpstreamRequestContext context,
+                                                  UpstreamRequestAdapter adapter,
+                                                  String path,
+                                                  MediaType contentType) {
+        WebClient.RequestBodySpec spec = webClient.post()
                 .uri(joinUrl(context.baseUrl(), path))
                 .contentType(contentType)
                 .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM);
@@ -252,56 +276,82 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
             spec.header(GatewayHeaders.TRACEPARENT, StringUtils.trim(context.traceparent()));
         }
         // 鉴权完全由供应商侧策略决定（auth_applier），与请求适配器无关
-        authApplierCatalog.resolve(context.authApplier()).apply(spec, context);
+        HttpHeaders authHeaders = new HttpHeaders();
+        authApplierCatalog.resolve(context.authApplier()).apply(authHeaders, context);
+        spec.headers(current -> current.addAll(authHeaders));
         return spec;
+    }
+
+    /**
+     * 装好请求体之后的可执行请求：multipart 走 {@code BodyInserters.fromMultipartData}，
+     * 其余按值序列化；空 body 显式落成空插入器（{@code bodyValue} 不接受 null）。
+     */
+    @SuppressWarnings("unchecked")
+    private WebClient.RequestHeadersSpec<?> withBody(UpstreamRequestContext context,
+                                                     UpstreamRequestAdapter adapter,
+                                                     String path,
+                                                     MediaType contentType) {
+        WebClient.RequestBodySpec spec = requestSpec(context, adapter, path, contentType);
+        Object body = adapter.buildRequestBody(context);
+        if (body == null) {
+            return spec.body(BodyInserters.empty());
+        }
+        if (MediaType.MULTIPART_FORM_DATA.includes(contentType) && body instanceof Map<?, ?> map) {
+            return spec.body(BodyInserters.fromMultipartData(toMultipartBody((Map<String, Object>) map)));
+        }
+        return spec.bodyValue(body);
     }
 
     protected String defaultPath(UpstreamRequestContext context) {
         return context.protocol().defaultPath();
     }
 
-    @SuppressWarnings("unchecked")
-    private Object buildRequestBody(UpstreamRequestContext context, UpstreamRequestAdapter adapter, MediaType contentType) {
-        Object body = adapter.buildRequestBody(context);
-        if (!MediaType.MULTIPART_FORM_DATA.includes(contentType) || !(body instanceof Map<?, ?> map)) {
-            return body;
-        }
-        return toMultipartBody((Map<String, Object>) map);
+    /**
+     * 组装 multipart 请求体。
+     *
+     * <p>2026-10-20（WebFlux 批2）：入参从 {@code MultipartFile}（Servlet 类型）换成
+     * {@link FilePart}。文件部分走 {@code asyncPart}——直接把上游收到的
+     * {@code Flux<DataBuffer>} 转给上游，<b>不落内存也不落盘</b>，
+     * 与旧实现里「读完整包再当 Resource 发」相比省掉一次全量复制。</p>
+     */
+    private MultiValueMap<String, HttpEntity<?>> toMultipartBody(Map<String, Object> source) {
+        MultipartBodyBuilder builder = new MultipartBodyBuilder();
+        source.forEach((key, value) -> addMultipartPart(builder, key, value));
+        return builder.build();
     }
 
-    private MultiValueMap<String, Object> toMultipartBody(Map<String, Object> source) {
-        MultiValueMap<String, Object> target = new LinkedMultiValueMap<>();
-        source.forEach((key, value) -> addMultipartPart(target, key, value));
-        return target;
-    }
-
-    private void addMultipartPart(MultiValueMap<String, Object> target, String key, Object value) {
+    private void addMultipartPart(MultipartBodyBuilder builder, String key, Object value) {
         if (value == null) {
             return;
         }
-        if (value instanceof MultipartFile file) {
-            addMultipartFile(target, key, file);
+        if (value instanceof FilePart filePart) {
+            addFilePart(builder, key, filePart);
             return;
         }
-        if (value instanceof MultipartFile[] files) {
-            for (MultipartFile file : files) {
-                addMultipartFile(target, key, file);
-            }
-            return;
-        }
+        // 多文件 part（如 /images/edits 的 image）由控制器以 List<FilePart> 形态下发；
+        // 不用 FilePart[] —— Spring 的 @RequestPart 解析器不支持数组形态（详见
+        // GatewayImageController#edits 的 javadoc），当年 Servlet 栈的 MultipartFile[]
+        // 由 MVC 专用 resolver 兜着，切 WebFlux 后没有对应分支
         if (value instanceof Collection<?> collection) {
-            collection.forEach(item -> addMultipartPart(target, key, item));
+            collection.forEach(item -> addMultipartPart(builder, key, item));
             return;
         }
-        target.add(key, value);
+        builder.part(key, value);
     }
 
-    private void addMultipartFile(MultiValueMap<String, Object> target, String key, MultipartFile file) {
-        if (file == null || file.isEmpty()) {
+    private void addFilePart(MultipartBodyBuilder builder, String key, FilePart filePart) {
+        if (filePart == null) {
             return;
         }
-        Resource resource = file.getResource();
-        target.add(key, resource);
+        MultipartBodyBuilder.PartBuilder part =
+                builder.asyncPart(key, filePart.content(), DataBuffer.class);
+        if (filePart.filename() != null) {
+            part.filename(filePart.filename());
+        }
+        MediaType contentType = filePart.headers().getContentType();
+        if (contentType != null) {
+            part.contentType(contentType);
+        }
     }
 
     private String joinUrl(String baseUrl, String path) {

@@ -4,12 +4,14 @@ import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
 import org.chobit.knot.gateway.vo.request.DecisionsRequest;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.request.async.DeferredResult;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
 
 /**
  * Decisions 协议入口（{@code POST /v1/decisions}）。
@@ -29,12 +31,13 @@ public class GatewayDecisionsController extends GatewayControllerSupport {
      * Handles decisions requests.
      */
     @PostMapping("/decisions")
-    public DeferredResult<Object> decisions(
+    public Mono<ResponseEntity<Object>> decisions(
         @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
         @RequestHeader(value = GatewayHeaders.RULE) String rule,
         @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
         @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
-        @RequestBody DecisionsRequest requestBody) {
-        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.DECISIONS);
+        @RequestBody DecisionsRequest requestBody,
+        ServerWebExchange exchange) {
+        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.DECISIONS, exchange);
     }
 }

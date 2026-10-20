@@ -2,36 +2,54 @@ package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.runtime.GatewayHttpExchange;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
+import org.chobit.knot.gateway.runtime.GatewayStreamingResponse;
+import org.chobit.knot.gateway.runtime.MdcContextSupport;
+import org.chobit.knot.gateway.runtime.ReactiveHttpExchange;
 import org.chobit.knot.gateway.vo.request.GatewayModelRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.web.context.request.RequestAttributes;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.async.DeferredResult;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.Executor;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
+/**
+ * 网关控制器的公共出口：把「一次网关请求」交给模板，再把模板的 {@link Mono} 接成 HTTP 响应。
+ *
+ * <p>2026-10-20（WebFlux 批2）：容器换成 Netty，返回类型从 {@code DeferredResult<Object>}
+ * 改为 {@code Mono<ResponseEntity<Object>>}。两处语义变化：</p>
+ * <ol>
+ *   <li><b>载体显式传参</b>：{@link ReactiveHttpExchange} 由控制器收到的
+ *       {@link ServerWebExchange} 包出来，随链路传递。不再有
+ *       {@code ServletHttpExchange.current()} 这种线程本地取法（Netty 上必然取不到）；</li>
+ *   <li><b>阻塞段换调度器</b>：路由解析（MyBatis/JDBC）与上游调用（内部 block）都是阻塞的，
+ *       全部落在 {@code gatewayBlockingScheduler} 上，event loop 线程只做 I/O 调度。
+ *       具体见 {@link MdcContextSupport#onBlockingScheduler}。</li>
+ * </ol>
+ */
 public abstract class GatewayControllerSupport {
 
     private final GatewayRequestHandler requestHandler;
 
     /**
-     * 网关异步请求处理线程池（B1 异步化承载池）：模板的同步处理链路在此执行，Tomcat worker 立即释放。
+     * 阻塞段调度器（{@code Schedulers.newBoundedElastic}）：任务永不回到提交线程执行。
      */
-    @Autowired
-    @Qualifier("gatewayAsyncExecutor")
-    private Executor gatewayAsyncExecutor;
+    @Autowired(required = false)
+    @Qualifier("gatewayBlockingScheduler")
+    private Scheduler blockingScheduler;
 
     /**
      * 上游客户端配置：取 {@code requestBudget} 作为单条请求的总预算（B2 全局 deadline）。
+     *
+     * <p>非 Spring 场景（WebTestClient 独立装配控制器）没有这个 bean，此时退化为
+     * <b>不加预算约束</b>——预算只是兜底，不影响请求链路的正确性。</p>
      */
-    @Autowired
+    @Autowired(required = false)
     private GatewayUpstreamClientProperties upstreamProperties;
 
     protected GatewayControllerSupport(GatewayRequestHandler requestHandler) {
@@ -41,64 +59,67 @@ public abstract class GatewayControllerSupport {
     /**
      * Delegates a typed gateway API request to the shared request template.
      *
-     * <p>B1 异步化：立即返回 {@link DeferredResult}，真正的上游代理链路（含失败重试的退避等待）在专用
-     * {@code gatewayAsyncExecutor} 线程池上执行，Tomcat worker 线程立即释放，避免坏上游的重试/退避把
-     * Web 容器线程吃干。请求上下文属性（{@link RequestContextHolder}）随异步任务传递，保证流式响应头、
-     * 首 token 响应头等仍能在正确线程上写出。</p>
+     * @param exchange 容器交换对象（由 WebFlux 作为控制器方法入参注入）
      */
-    protected DeferredResult<Object> handleRequest(String authorization,
-                                                   String rule,
-                                                   String traceparent,
-                                                   String stickyKey,
-                                                   GatewayModelRequest request,
-                                                   ModelApiProtocolEnum protocol) {
-        return dispatch(() -> requestHandler.handle(
-            authorization, rule, traceparent, stickyKey, request, protocol));
+    protected Mono<ResponseEntity<Object>> handleRequest(String authorization,
+                                                         String rule,
+                                                         String traceparent,
+                                                         String stickyKey,
+                                                         GatewayModelRequest request,
+                                                         ModelApiProtocolEnum protocol,
+                                                         ServerWebExchange exchange) {
+        return dispatch(exchange, http -> requestHandler.handle(
+                authorization, rule, traceparent, stickyKey, request, protocol, http));
     }
 
     /**
      * Delegates a multipart gateway API request to the shared request template.
      */
-    protected DeferredResult<Object> handleMultipartRequest(String authorization,
-                                                            String rule,
-                                                            String traceparent,
-                                                            String stickyKey,
-                                                            Map<String, Object> request,
-                                                            ModelApiProtocolEnum protocol) {
-        return dispatch(() -> requestHandler.handleMultipart(
-            authorization, rule, traceparent, stickyKey, request, protocol));
+    protected Mono<ResponseEntity<Object>> handleMultipartRequest(String authorization,
+                                                                  String rule,
+                                                                  String traceparent,
+                                                                  String stickyKey,
+                                                                  Map<String, Object> request,
+                                                                  ModelApiProtocolEnum protocol,
+                                                                  ServerWebExchange exchange) {
+        return dispatch(exchange, http -> requestHandler.handleMultipart(
+                authorization, rule, traceparent, stickyKey, request, protocol, http));
     }
 
     /**
-     * 把模板处理（现已返回 {@link CompletableFuture}）搬到专用异步线程池执行，并以
-     * {@link DeferredResult} 暴露给 Spring：异常时透传原始异常（解包 {@link CompletionException}），
-     * 使 {@code GatewayExceptionHandler} 的既有分支（502/429/401/503…）继续按原异常类型命中。
+     * 把模板的 {@link Mono} 接成 HTTP 响应。
      *
-     * <p>{@code task} 返回的是一个 future：模板内部会把重试 / failover 链挂到该 future 上，
-     * 退避延迟由定时器承载，全过程不阻塞本 {@code gatewayAsyncExecutor} 线程。
-     * 这里用 {@code thenCompose(identity)} 把「future 套 future」展平。</p>
+     * <p>{@code requestBudget} 只覆盖「响应就绪」这一段（超时抛 {@code TimeoutException} → 504）：
+     * 流式响应一旦开始写就是长连接，把总预算套在流上会在第 600 秒把正常的长回答掐断。</p>
+     *
+     * <p>异常原样透出（不在这里包一层），使 {@link GatewayExceptionHandler} 的既有分支
+     * （502/429/401/503/504…）继续按原异常类型命中。</p>
      */
-    private DeferredResult<Object> dispatch(Supplier<CompletableFuture<Object>> task) {
-        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
-        CompletableFuture<Object> future = CompletableFuture.supplyAsync(() -> {
-            RequestContextHolder.setRequestAttributes(requestAttributes);
-            try {
-                return task.get();
-            } finally {
-                RequestContextHolder.resetRequestAttributes();
-            }
-        }, gatewayAsyncExecutor).thenCompose(Function.identity());
+    private Mono<ResponseEntity<Object>> dispatch(ServerWebExchange exchange,
+                                                 Function<GatewayHttpExchange, Mono<Object>> task) {
+        ReactiveHttpExchange http = new ReactiveHttpExchange(exchange);
+        Mono<Object> work = Mono.defer(() -> task.apply(http));
+        GatewayUpstreamClientProperties properties = upstreamProperties;
+        if (properties != null && properties.getRequestBudget() != null) {
+            work = work.timeout(properties.getRequestBudget());
+        }
+        return MdcContextSupport.onBlockingScheduler(work, blockingScheduler)
+                .flatMap(result -> respond(exchange, result));
+    }
 
-        DeferredResult<Object> deferred = new DeferredResult<>(upstreamProperties.getRequestBudget().toMillis());
-        future.whenComplete((value, ex) -> {
-            if (ex != null) {
-                Throwable cause = (ex instanceof CompletionException && ex.getCause() != null)
-                    ? ex.getCause() : ex;
-                deferred.setErrorResult(cause);
-            } else {
-                deferred.setResult(value);
-            }
-        });
-        return deferred;
+    /**
+     * 响应写出：流式由本方法直接 {@code writeWith}（响应体是上游的 {@code Flux<DataBuffer>}，
+     * 不经过序列化层），非流式把对象交给框架序列化。
+     *
+     * <p>流式分支返回空 {@code Mono}：响应已经由 {@code writeWith} 提交并完成，
+     * 框架不要再往里写任何东西。</p>
+     */
+    private static Mono<ResponseEntity<Object>> respond(ServerWebExchange exchange, Object result) {
+        if (result instanceof GatewayStreamingResponse stream) {
+            return exchange.getResponse()
+                    .writeWith(stream.body())
+                    .then(Mono.empty());
+        }
+        return Mono.just(ResponseEntity.ok().body(result));
     }
 }

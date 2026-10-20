@@ -1,12 +1,13 @@
 package org.chobit.knot.gateway.upstream.protocol;
 
 import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplierCatalog;
+import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.EnumSet;
 import java.util.Set;
@@ -28,10 +29,11 @@ public class MediaProtocolExecutor extends AbstractUpstreamProtocolExecutor {
     /**
      * Constructs a new instance.
      */
-    public MediaProtocolExecutor(RestClient restClient,
+    public MediaProtocolExecutor(WebClient webClient,
                                  UsageExtractorRegistry usageExtractorRegistry,
-                                 UpstreamAuthApplierCatalog authApplierCatalog) {
-        super(restClient, usageExtractorRegistry, authApplierCatalog);
+                                 UpstreamAuthApplierCatalog authApplierCatalog,
+                                 GatewayUpstreamClientProperties clientProperties) {
+        super(webClient, usageExtractorRegistry, authApplierCatalog, clientProperties);
     }
 
     /**

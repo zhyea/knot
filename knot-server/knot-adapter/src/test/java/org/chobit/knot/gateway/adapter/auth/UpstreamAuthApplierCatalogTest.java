@@ -6,9 +6,7 @@ import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
-import org.springframework.web.client.RestClient;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -121,30 +119,14 @@ class UpstreamAuthApplierCatalogTest {
     }
 
     private HttpHeaders capture(UpstreamAuthApplier applier, Map<String, Object> authConfig) {
-        List<HttpHeaders> captured = new ArrayList<>();
-        RestClient client = RestClient.builder()
-                .requestInterceptor((request, body, execution) -> {
-                    captured.add(request.getHeaders());
-                    throw new AbortSignal();
-                })
-                .build();
+        HttpHeaders headers = new HttpHeaders();
         UpstreamRequestContext context = new UpstreamRequestContext(
                 ModelApiProtocolEnum.CHAT_COMPLETIONS,
                 new LinkedHashMap<>(),
                 null, null, null,
                 authConfig,
                 null, null, null);
-        RestClient.RequestBodySpec spec = client.post().uri("http://localhost/upstream");
-        applier.apply(spec, context);
-        try {
-            spec.body(Map.of()).retrieve().toBodilessEntity();
-        } catch (AbortSignal expected) {
-            // 截获到请求头即阻断
-        }
-        assertTrue(captured.size() >= 1, "未截获到请求头");
-        return captured.get(0);
-    }
-
-    private static final class AbortSignal extends RuntimeException {
+        applier.apply(headers, context);
+        return headers;
     }
 }

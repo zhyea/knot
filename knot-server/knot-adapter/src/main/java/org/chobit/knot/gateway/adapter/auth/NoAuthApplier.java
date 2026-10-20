@@ -3,8 +3,8 @@ package org.chobit.knot.gateway.adapter.auth;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
 import java.util.Set;
 
@@ -34,7 +34,7 @@ public class NoAuthApplier implements UpstreamAuthApplier {
     }
 
     @Override
-    public void apply(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
+    public void apply(HttpHeaders headers, UpstreamRequestContext context) {
         // 不注入任何鉴权头
     }
 }

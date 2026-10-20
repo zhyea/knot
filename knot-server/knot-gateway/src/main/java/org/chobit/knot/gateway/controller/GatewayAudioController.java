@@ -6,12 +6,14 @@ import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
 import org.chobit.knot.gateway.vo.request.AudioSpeechRequest;
 import org.chobit.knot.gateway.vo.request.AudioTranscriptionRequest;
 import org.chobit.knot.gateway.vo.request.AudioTranslationRequest;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.request.async.DeferredResult;
+import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Mono;
 
 @RestController
 @RequestMapping("/openai/v1/audio")
@@ -25,38 +27,41 @@ public class GatewayAudioController extends GatewayControllerSupport {
      * Handles audio transcription requests.
      */
     @PostMapping("/transcriptions")
-    public DeferredResult<Object> transcriptions(
+    public Mono<ResponseEntity<Object>> transcriptions(
         @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
         @RequestHeader(value = GatewayHeaders.RULE) String rule,
         @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
         @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
-        @RequestBody AudioTranscriptionRequest requestBody) {
-        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS);
+        @RequestBody AudioTranscriptionRequest requestBody,
+        ServerWebExchange exchange) {
+        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS, exchange);
     }
 
     /**
      * Handles audio translation requests.
      */
     @PostMapping("/translations")
-    public DeferredResult<Object> translations(
+    public Mono<ResponseEntity<Object>> translations(
         @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
         @RequestHeader(value = GatewayHeaders.RULE) String rule,
         @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
         @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
-        @RequestBody AudioTranslationRequest requestBody) {
-        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.AUDIO_TRANSLATIONS);
+        @RequestBody AudioTranslationRequest requestBody,
+        ServerWebExchange exchange) {
+        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.AUDIO_TRANSLATIONS, exchange);
     }
 
     /**
      * Handles audio speech synthesis requests.
      */
     @PostMapping("/speech")
-    public DeferredResult<Object> speech(
+    public Mono<ResponseEntity<Object>> speech(
         @RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
         @RequestHeader(value = GatewayHeaders.RULE) String rule,
         @RequestHeader(value = GatewayHeaders.TRACEPARENT, required = false) String traceparent,
         @RequestHeader(value = GatewayHeaders.X_KNOT_STICKY_KEY, required = false) String stickyKey,
-        @RequestBody AudioSpeechRequest requestBody) {
-        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.AUDIO_SPEECH);
+        @RequestBody AudioSpeechRequest requestBody,
+        ServerWebExchange exchange) {
+        return handleRequest(authorization, rule, traceparent, stickyKey, requestBody, ModelApiProtocolEnum.AUDIO_SPEECH, exchange);
     }
 }

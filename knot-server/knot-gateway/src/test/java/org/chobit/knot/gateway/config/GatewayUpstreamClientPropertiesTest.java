@@ -31,7 +31,10 @@ class GatewayUpstreamClientPropertiesTest {
         assertEquals(Duration.ofSeconds(5), properties.getConnectTimeout());
         assertEquals(Duration.ofSeconds(120), properties.getReadTimeout());
         assertEquals(200, properties.getMaxTotalConnections());
-        assertEquals(50, properties.getMaxConnectionsPerRoute());
+        // 2026-10-20：per-route 上限随 HC5 一起退役，reactor-netty 只有全局 maxConnections
+        assertFalse(hasProperty(properties, "maxConnectionsPerRoute"),
+                "per-route 上限已移除，不该再出现在配置类上");
+        assertEquals(Duration.ofSeconds(10), properties.getMaxIdleTime());
         assertEquals(8192, properties.getStreamBufferSize());
         // B1 异步化承载池默认与 Tomcat 默认 worker 数对齐
         assertEquals(200, properties.getAsyncExecutorThreads());
@@ -43,14 +46,12 @@ class GatewayUpstreamClientPropertiesTest {
     void zeroConnectionPoolOrBuffer_rejectedByMinConstraint() {
         GatewayUpstreamClientProperties properties = new GatewayUpstreamClientProperties();
         properties.setMaxTotalConnections(0);
-        properties.setMaxConnectionsPerRoute(0);
         properties.setStreamBufferSize(0);
         properties.setAsyncExecutorThreads(0);
 
         Set<ConstraintViolation<GatewayUpstreamClientProperties>> violations = validator.validate(properties);
-        assertFalse(violations.isEmpty(), "maxTotalConnections/maxConnectionsPerRoute/streamBufferSize/asyncExecutorThreads=0 必须触发 @Min 校验");
+        assertFalse(violations.isEmpty(), "maxTotalConnections/streamBufferSize/asyncExecutorThreads=0 必须触发 @Min 校验");
         assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("maxTotalConnections")));
-        assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("maxConnectionsPerRoute")));
         assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("streamBufferSize")));
         assertTrue(violations.stream().anyMatch(v -> v.getPropertyPath().toString().equals("asyncExecutorThreads")));
     }
@@ -59,8 +60,13 @@ class GatewayUpstreamClientPropertiesTest {
     void validPositiveValues_passValidation() {
         GatewayUpstreamClientProperties properties = new GatewayUpstreamClientProperties();
         properties.setMaxTotalConnections(500);
-        properties.setMaxConnectionsPerRoute(100);
         properties.setStreamBufferSize(16384);
         assertTrue(validator.validate(properties).isEmpty(), "合法正值不应触发校验");
+    }
+
+    private static boolean hasProperty(Object bean, String propertyName) {
+        return java.util.Arrays.stream(org.springframework.beans.BeanUtils
+                        .getPropertyDescriptors(bean.getClass()))
+                .anyMatch(descriptor -> propertyName.equals(descriptor.getName()));
     }
 }

@@ -7,8 +7,8 @@ import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
 import java.util.Set;
 
@@ -38,10 +38,10 @@ public class BearerAuthApplier implements UpstreamAuthApplier {
     }
 
     @Override
-    public void apply(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
+    public void apply(HttpHeaders headers, UpstreamRequestContext context) {
         String apiKey = AuthConfigSupport.apiKey(context.authConfig());
         if (StringUtils.isNotBlank(apiKey)) {
-            requestSpec.header(GatewayHeaders.AUTHORIZATION, AuthConstants.BEARER_PREFIX + apiKey);
+            headers.add(GatewayHeaders.AUTHORIZATION, AuthConstants.BEARER_PREFIX + apiKey);
         }
     }
 }

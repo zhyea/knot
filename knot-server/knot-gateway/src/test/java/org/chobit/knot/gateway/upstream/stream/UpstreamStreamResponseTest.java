@@ -1,52 +1,56 @@
 package org.chobit.knot.gateway.upstream.stream;
 
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.ClientHttpResponse;
+import reactor.core.publisher.Flux;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 流式响应的上游头快照契约：构造时抓取、close 后仍可读。
+ * 流式响应句柄的两条契约：<b>上游头快照</b>与<b>响应体生命周期</b>。
  *
- * <p>对应设计文档 §4.2 捕获点二与 §8 风险表「流式路径 close 后头失效」——
- * 快照必须与底层连接的生命周期解耦，否则流写完后（{@code ProxyStreamingBody} finally）
- * 再取供应商 id 只会拿到空。</p>
+ * <p>2026-10-20（WebFlux 批2）：句柄不再持有 {@code InputStream}、不再 {@code close()}。
+ * 批1 用管道把 {@code Flux} 泵成阻塞流，必须靠 {@code close()} 收尾、靠 {@code pumpError()}
+ * 补抛上游中断；现在响应体就是 {@code Flux<DataBuffer>}，取消由订阅方完成，
+ * 错误沿 {@code onError} 原样传播（对应行为断言在 {@link ProxyStreamingFluxTest}）。</p>
+ *
+ * <p>响应头快照仍然必须与连接生命周期解耦——数仓埋点在流写完后才读供应商请求 id。</p>
  */
 class UpstreamStreamResponseTest {
 
-    private static UpstreamStreamResponse stream(Map<String, String> headers,
-                                                 String requestId) {
+    private static final DefaultDataBufferFactory FACTORY = new DefaultDataBufferFactory();
+
+    private static UpstreamStreamResponse stream(Map<String, String> headers, String requestId) {
         return new UpstreamStreamResponse(
-                new ByteArrayInputStream("data: {}\n\n".getBytes(StandardCharsets.UTF_8)),
+                Flux.just(FACTORY.wrap("data: {}\n\n".getBytes(StandardCharsets.UTF_8))),
                 MediaType.TEXT_EVENT_STREAM,
-                null, null, noopResponse(),
+                null, null,
                 headers, requestId);
     }
 
     @Test
-    void snapshotIsReadableBeforeAndAfterClose() throws IOException {
+    @DisplayName("头快照构造时抓取，流消费完仍可读")
+    void snapshotIsReadableAfterBodyConsumed() {
         UpstreamStreamResponse response = stream(Map.of("x-request-id", "req_openai"), "req_openai");
 
         assertEquals("req_openai", response.upstreamRequestId());
-        response.close();
+        // 消费完整条流（模拟流式转发结束）
+        response.body().blockLast();
 
-        // close 之后快照依然可读：数仓埋点在流写完后才执行
-        assertEquals("req_openai", response.upstreamRequestId());
+        assertEquals("req_openai", response.upstreamRequestId(), "流写完后仍必须能取到供应商请求 id");
         assertEquals("req_openai", response.upstreamHeaders().get("x-request-id"));
     }
 
     @Test
+    @DisplayName("头快照为 null 时降级成空 map，不为 null")
     void nullSnapshotDegradesToEmptyMap() {
         UpstreamStreamResponse response = stream(null, null);
 
@@ -55,6 +59,7 @@ class UpstreamStreamResponseTest {
     }
 
     @Test
+    @DisplayName("头快照不可变")
     void snapshotIsUnmodifiable() {
         UpstreamStreamResponse response = stream(Map.of("x-request-id", "req_openai"), "req_openai");
 
@@ -63,41 +68,25 @@ class UpstreamStreamResponseTest {
     }
 
     @Test
-    void legacyConstructorLeavesIdsNull() throws IOException {
-        UpstreamStreamResponse legacy = new UpstreamStreamResponse(
-                new ByteArrayInputStream(new byte[0]),
-                MediaType.APPLICATION_JSON,
-                null, null, noopResponse());
+    @DisplayName("响应体为 null 时退化成空流，不是 NPE")
+    void nullBodyDegradesToEmptyFlux() {
+        UpstreamStreamResponse response = new UpstreamStreamResponse(
+                null, MediaType.APPLICATION_JSON, null, null, null, null);
 
-        assertTrue(legacy.upstreamHeaders().isEmpty());
-        assertEquals(null, legacy.upstreamRequestId());
+        assertEquals(0L, response.body().count().block());
     }
 
-    private static ClientHttpResponse noopResponse() {
-        return new ClientHttpResponse() {
-            @Override
-            public HttpStatusCode getStatusCode() {
-                return HttpStatus.OK;
-            }
+    @Test
+    @DisplayName("SSE 判定：text/event-stream 才逐行转发")
+    void detectsEventStream() {
+        assertTrue(stream(null, null).isEventStream(), "text/event-stream 必须判定为 SSE");
 
-            @Override
-            public String getStatusText() {
-                return "OK";
-            }
+        UpstreamStreamResponse json = new UpstreamStreamResponse(Flux.empty(),
+                MediaType.APPLICATION_JSON, null, null, null, null);
+        assertFalse(json.isEventStream(), "JSON 响应按字节原样转发");
 
-            @Override
-            public org.springframework.http.HttpHeaders getHeaders() {
-                return new org.springframework.http.HttpHeaders();
-            }
-
-            @Override
-            public InputStream getBody() {
-                return new ByteArrayInputStream(new byte[0]);
-            }
-
-            @Override
-            public void close() {
-            }
-        };
+        UpstreamStreamResponse noType = new UpstreamStreamResponse(Flux.empty(),
+                null, null, null, null, null);
+        assertFalse(noType.isEventStream(), "无 Content-Type 时保守按裸流处理");
     }
 }

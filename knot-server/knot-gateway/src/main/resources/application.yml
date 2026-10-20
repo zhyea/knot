@@ -4,10 +4,20 @@ server:
 spring:
   application:
     name: knot-gateway
-  mvc:
-    async:
-      # 流式转发走 Servlet 异步写，超时过小会直接掐断长流（容器默认仅 30s）
-      request-timeout: 600s
+  # ── 容器：Netty（2026-10-20 批2 起）──────────────────────────────────────
+  # 原来的 spring.mvc.async.request-timeout（600s）已删除：Servlet 栈的异步超时是
+  # 「流式长连接」的唯一兜底，换 Netty 后这条线改由两处承担：
+  #   ① 非流式 / 响应就绪前 → knot.gateway.upstream.request-budget（Mono.timeout → 504）
+  #   ② 流式响应体 → 客户端断连即自动取消，不受总预算约束（长回答不能被 600s 掐断）
+  webflux:
+    multipart:
+      # 多模态上传（图片 / 音频 / 视频）的解析上限。WebFlux 的 multipart 没有
+      # spring.servlet.multipart 那套 max-request-size，只有「单 part 阈值」：
+      # 内存内直通到该阈值，超出后落磁盘（不再整包读进内存）。
+      max-in-memory-size: 1MB
+      max-disk-usage-per-part: 10MB
+      max-parts: 16
+      max-headers-size: 8KB
   datasource:
     url: jdbc:mysql://127.0.0.1:3306/knot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -88,16 +98,17 @@ knot:
     #   connect-timeout: ${KNOT_UPSTREAM_CONNECT_TIMEOUT:5s}
     #   # 连接池耗尽时等待空闲连接的超时；超时即抛错，避免请求无限排队
     #   connection-request-timeout: ${KNOT_UPSTREAM_CONN_REQ_TIMEOUT:5s}
-    #   # Socket 读超时：相邻数据包之间的最大静默时间（流式靠它卡静默，非完整响应时长）
+    #   # 相邻两次网络读之间的最大静默时间（流式靠它卡静默，非完整响应时长）
     #   read-timeout: ${KNOT_UPSTREAM_READ_TIMEOUT:120s}
     #   # 总响应超时：整段交互上限，堵住「每 100s 滴 1B」的慢速滴流（流式只卡到响应头，安全）
     #   response-timeout: ${KNOT_UPSTREAM_RESPONSE_TIMEOUT:120s}
     #   # 单条连接最长存活时间
     #   time-to-live: ${KNOT_UPSTREAM_TTL:5m}
-    #   # 连接池总连接数上限（下限 1，误配 0 启动即失败）
+    #   # 池中连接最长空闲时间，超过即回收（下限无；0 表示不回收）
+    #   max-idle-time: ${KNOT_UPSTREAM_MAX_IDLE:10s}
+    #   # 连接池总连接数上限（下限 1，误配 0 启动即失败）。
+    #   # ⚠ 2026-10-20 迁移 reactor-netty 后不再有 per-route 上限：连接池按 host 分片但共享本总上限
     #   max-total-connections: ${KNOT_UPSTREAM_MAX_TOTAL:200}
-    #   # 单路由连接数上限（下限 1）
-    #   max-connections-per-route: ${KNOT_UPSTREAM_MAX_PER_ROUTE:50}
     #   # 流式读写缓冲区大小（字节，下限 1）
     #   stream-buffer-size: ${KNOT_UPSTREAM_STREAM_BUF:8192}
     #   # 是否接受上游 gzip/br 压缩响应（默认关：与流式低延迟目标冲突）

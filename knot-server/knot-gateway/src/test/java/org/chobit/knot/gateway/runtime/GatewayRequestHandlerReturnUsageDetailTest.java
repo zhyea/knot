@@ -6,13 +6,10 @@ import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.gateway.model.UsageAccounting;
 import org.chobit.knot.gateway.model.usage.KnotExtendPayload;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
+import org.springframework.http.MediaType;
 
 import java.util.List;
 import java.util.Map;
@@ -28,6 +25,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>测试头是管理端调试抽屉「消费者没开返回消费详情时临时开启」的落地机制：
  * 带头仅让本次调用多出自身用量账目，不改变正式流量形态。</p>
+ *
+ * <p>2026-10-20（WebFlux 批1-B）：测试头读取入口由 {@code RequestContextHolder}
+ * 改为 {@link GatewayHttpExchange} 显式载体——判定可能发生在异步线程上，
+ * 读线程本地的请求属性在那里必然为空。</p>
  */
 class GatewayRequestHandlerReturnUsageDetailTest {
 
@@ -38,14 +39,9 @@ class GatewayRequestHandlerReturnUsageDetailTest {
     @BeforeEach
     void setUp() {
         // applyUsageAccounting 路径不触达任何协作者（仅读 exchange 与 context），故可全 null 构造；
-        // 末尾两个参数是埋点业务侧维护的主题全名（本路径不发布事件，传 null 即可）
+        // 末尾参数是埋点业务侧维护的主题全名（本路径不发布事件，传 null 即可）
         handler = new GatewayRequestHandler(null, null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null);
-    }
-
-    @AfterEach
-    void clearRequestAttributes() {
-        RequestContextHolder.resetRequestAttributes();
+                null, null, null);
     }
 
     @Test
@@ -72,9 +68,7 @@ class GatewayRequestHandlerReturnUsageDetailTest {
     @Test
     @DisplayName("消费者未开 + 测试头 true：注入 knot_extend")
     void consumerOffWithTestHeaderInjects() {
-        bindTestHeader("true");
-
-        Object body = applyNonStreaming(false, null);
+        Object body = applyNonStreaming(false, "true");
 
         Map<?, ?> injected = assertInstanceOf(Map.class, body, "注入后应返回解析后的响应体 Map");
         assertTrue(injected.containsKey("knot_extend"), "测试头生效必须注入 knot_extend");
@@ -92,9 +86,7 @@ class GatewayRequestHandlerReturnUsageDetailTest {
     @Test
     @DisplayName("消费者已开 + 测试头 false：仍注入（配置优先，头不能关掉已开的配置）")
     void consumerOnWithFalseHeaderStillInjects() {
-        bindTestHeader("false");
-
-        Object body = applyNonStreaming(true, null);
+        Object body = applyNonStreaming(true, "false");
 
         Map<?, ?> injected = assertInstanceOf(Map.class, body);
         assertTrue(injected.containsKey("knot_extend"));
@@ -103,17 +95,15 @@ class GatewayRequestHandlerReturnUsageDetailTest {
     @Test
     @DisplayName("测试头非 true 值（含缺失）：不注入")
     void nonTrueHeaderValuesDoNotInject() {
-        bindTestHeader("enabled");
-
-        Object body = applyNonStreaming(false, null);
+        Object body = applyNonStreaming(false, "enabled");
 
         assertSame(RESPONSE_BODY, body, "非 true 的头值按未开启处理");
     }
 
     @Test
-    @DisplayName("无请求属性（非 web 场景）：测试头按未开启处理，不炸链路")
-    void withoutRequestAttributesDoesNotThrow() {
-        Object body = applyNonStreaming(false, null);
+    @DisplayName("无 HTTP 载体（非 web 场景）：测试头按未开启处理，不炸链路")
+    void withoutHttpCarrierDoesNotThrow() {
+        Object body = applyNonStreamingWithoutCarrier(false);
 
         assertSame(RESPONSE_BODY, body);
     }
@@ -121,9 +111,7 @@ class GatewayRequestHandlerReturnUsageDetailTest {
     @Test
     @DisplayName("注入内容含 usage 与 billing 两视图")
     void injectedPayloadCarriesBothViews() {
-        bindTestHeader("true");
-
-        Object body = applyNonStreaming(false, null);
+        Object body = applyNonStreaming(false, "true");
 
         Map<?, ?> injected = assertInstanceOf(Map.class, body);
         KnotExtendPayload extend = assertInstanceOf(KnotExtendPayload.class, injected.get("knot_extend"));
@@ -132,19 +120,32 @@ class GatewayRequestHandlerReturnUsageDetailTest {
         assertEquals("0.001", extend.billing().totalCost(), "金额契约为十进制普通字符串");
     }
 
-    private void bindTestHeader(String value) {
-        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/openai/v1/chat/completions");
-        request.addHeader(GatewayHeaders.X_KNOT_TEST_RETURN_USAGE, value);
-        RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
+    /**
+     * 请求头载体：模拟管理面调试抽屉带上 {@code X-Knot-Test-Return-Usage}（缺失时不加头）。
+     */
+    private static GatewayHttpExchange carrier(String testHeaderValue) {
+        RecordingHttpExchange carrier = new RecordingHttpExchange();
+        if (testHeaderValue != null) {
+            carrier.requestHeader(GatewayHeaders.X_KNOT_TEST_RETURN_USAGE, testHeaderValue);
+        }
+        return carrier;
     }
 
     /**
-     * 驱动非流式注入点：消费者开关 + 当前请求属性中的测试头 → 观察响应体是否被注入。
+     * 驱动非流式注入点：消费者开关 + 显式 HTTP 载体里的测试头 → 观察响应体是否被注入。
      */
     private Object applyNonStreaming(boolean consumerReturnUsageDetail, String testHeaderValue) {
-        if (testHeaderValue != null) {
-            bindTestHeader(testHeaderValue);
-        }
+        return apply(consumerReturnUsageDetail, carrier(testHeaderValue));
+    }
+
+    /**
+     * 无 HTTP 载体（{@link GatewayHttpExchange#noop()}）的降级路径。
+     */
+    private Object applyNonStreamingWithoutCarrier(boolean consumerReturnUsageDetail) {
+        return apply(consumerReturnUsageDetail, GatewayHttpExchange.noop());
+    }
+
+    private Object apply(boolean consumerReturnUsageDetail, GatewayHttpExchange http) {
         ResolvedRouting routing = new ResolvedRouting(
                 1L, "rule-a", 10L, "sk-routing-key", consumerReturnUsageDetail,
                 List.of(), null, null, null);
@@ -153,7 +154,7 @@ class GatewayRequestHandlerReturnUsageDetailTest {
                 null,
                 null,
                 new NormalizedUsage(5L, "0.001", "CNY", "v1", List.of()));
-        GatewayExchange exchange = new GatewayExchange(Map.of());
+        GatewayExchange exchange = new GatewayExchange(Map.of(), MediaType.APPLICATION_JSON, http);
         exchange.proxyResult(new ProxyResult(RESPONSE_BODY, 1L, 2L, usage));
 
         GatewayRequestContext context = new GatewayRequestContext(

@@ -18,7 +18,7 @@ class UtilityProtocolExecutorTest {
 
     @Test
     void supportsDecisionsAlongsideRerankAndModerations() {
-        UtilityProtocolExecutor executor = new UtilityProtocolExecutor(null, null, null);
+        UtilityProtocolExecutor executor = new UtilityProtocolExecutor(null, null, null, null);
 
         assertTrue(executor.supports(ModelApiProtocolEnum.DECISIONS));
         assertTrue(executor.supports(ModelApiProtocolEnum.RERANK));
@@ -30,7 +30,7 @@ class UtilityProtocolExecutorTest {
     @Test
     void registryResolvesDecisionsToUtilityExecutor() {
         UpstreamProtocolExecutorRegistry registry =
-                new UpstreamProtocolExecutorRegistry(List.of(new UtilityProtocolExecutor(null, null, null)));
+                new UpstreamProtocolExecutorRegistry(List.of(new UtilityProtocolExecutor(null, null, null, null)));
 
         assertTrue(registry.resolve(ModelApiProtocolEnum.DECISIONS) instanceof UtilityProtocolExecutor,
                 "DECISIONS 必须落到整包执行的 utility 执行器，不能落进流式文本执行器");

@@ -28,7 +28,7 @@ class GatewayUpstreamErrorResponseTest {
     @Test
     void upstreamFailureCarriesOriginalStatus() {
         GatewayErrorResponse response = handler.handleGatewayUpstreamException(new GatewayUpstreamException(
-                "upstream failed", "UPSTREAM_ERROR", 402, "{\"error\":{\"message\":\"Insufficient credits\"}}"));
+                "upstream failed", "UPSTREAM_ERROR", 402, "{\"error\":{\"message\":\"Insufficient credits\"}}")).getBody();
 
         assertEquals(402, response.error().upstreamStatus());
         assertEquals("{\"error\":{\"message\":\"Insufficient credits\"}}", response.error().upstreamMessage());
@@ -40,7 +40,7 @@ class GatewayUpstreamErrorResponseTest {
     void upstreamBodyTruncatedToBoundedSummary() {
         String huge = "x".repeat(5000);
         GatewayErrorResponse response = handler.handleGatewayUpstreamException(new GatewayUpstreamException(
-                "boom", "UPSTREAM_ERROR", 429, huge));
+                "boom", "UPSTREAM_ERROR", 429, huge)).getBody();
 
         assertEquals(429, response.error().upstreamStatus());
         String summary = response.error().upstreamMessage();
@@ -51,7 +51,7 @@ class GatewayUpstreamErrorResponseTest {
     @Test
     void upstreamFailureWithoutDetailKeepsNulls() {
         GatewayErrorResponse response = handler.handleGatewayUpstreamException(
-                new GatewayUpstreamException("boom", "UPSTREAM_ERROR"));
+                new GatewayUpstreamException("boom", "UPSTREAM_ERROR")).getBody();
 
         assertNull(response.error().upstreamStatus());
         assertNull(response.error().upstreamMessage());
@@ -62,7 +62,7 @@ class GatewayUpstreamErrorResponseTest {
     void serializedErrorBodyUsesCamelCaseUpstreamFields() throws Exception {
         // JevBillingJudge.readUpstreamStatus 依赖 error.upstreamStatus 这条路径，字段名必须与之一致
         GatewayErrorResponse response = handler.handleGatewayUpstreamException(new GatewayUpstreamException(
-                "upstream failed", "UPSTREAM_ERROR", 402, "boom"));
+                "upstream failed", "UPSTREAM_ERROR", 402, "boom")).getBody();
         Map<?, ?> json = new ObjectMapper().readValue(
                 new ObjectMapper().writeValueAsString(response), Map.class);
         Map<?, ?> error = (Map<?, ?>) json.get("error");
@@ -71,12 +71,14 @@ class GatewayUpstreamErrorResponseTest {
     }
 
     @Test
-    void httpStatusAnnotationRemainsBadGateway() throws Exception {
-        // 契约核心：HTTP 状态码保持 502 不变，语义只通过响应体新增字段传递
-        var method = GatewayExceptionHandler.class.getMethod(
-                "handleGatewayUpstreamException", GatewayUpstreamException.class);
-        var annotation = method.getAnnotation(org.springframework.web.bind.annotation.ResponseStatus.class);
-        assertEquals(org.springframework.http.HttpStatus.BAD_GATEWAY, annotation.value());
+    void httpStatusStaysBadGateway() {
+        // 契约核心：HTTP 状态码保持 502 不变，语义只通过响应体新增字段传递。
+        // 2026-10-20（WebFlux 批2）：状态码不再靠 @ResponseStatus 注解读，改由 ResponseEntity 带出。
+        var response = handler.handleGatewayUpstreamException(
+                new GatewayUpstreamException("upstream failed", "UPSTREAM_ERROR", 402, "boom"));
+
+        assertEquals(org.springframework.http.HttpStatus.BAD_GATEWAY, response.getStatusCode(),
+                "上游 402 仍然期望回 502：状态码隔离是既有约定，402 只进响应体");
     }
 
 }

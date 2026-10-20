@@ -7,7 +7,6 @@ import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.GatewayBadRequestException;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
-import jakarta.servlet.http.HttpServletResponse;
 import org.chobit.knot.gateway.exception.GatewayRequestException;
 import org.chobit.knot.gateway.exception.GatewayTrafficRejectException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
@@ -16,17 +15,32 @@ import org.chobit.knot.gateway.model.TrafficRejectDetail;
 import org.chobit.knot.gateway.redis.RedisUnavailableException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.MissingRequestHeaderException;
-import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ServerWebInputException;
 
+import java.util.concurrent.TimeoutException;
+
+/**
+ * 网关统一异常出口：把链路上的异常翻译成 OpenAI 兼容的错误响应。
+ *
+ * <p>2026-10-20（WebFlux 批2）：
+ * <ul>
+ *   <li>{@code @ControllerAdvice} + {@code @ResponseBody} + {@code @ResponseStatus}
+ *       改为 {@code @RestControllerAdvice} + {@link ResponseEntity}——Netty 栈没有
+ *       {@code HttpServletResponse} 可以就地改头，{@code Retry-After} 只能走响应实体；</li>
+ *   <li>{@code AsyncRequestTimeoutException}（Servlet 异步超时）换成
+ *       {@link TimeoutException}（Reactor 的 {@code Mono.timeout}）；</li>
+ *   <li>补 {@link ServerWebInputException}：WebFlux 把「请求体解析失败 / 缺 @RequestParam」
+ *       统一表达成它，Servlet 时代的 {@code HttpMessageNotReadableException} 不再出现。</li>
+ * </ul>
+ * </p>
+ */
 @Slf4j
-@ControllerAdvice(assignableTypes = GatewayControllerSupport.class)
+@RestControllerAdvice(assignableTypes = GatewayControllerSupport.class)
 public class GatewayExceptionHandler {
 
     /**
@@ -35,52 +49,44 @@ public class GatewayExceptionHandler {
     private static final int UPSTREAM_BODY_LIMIT = 300;
 
     /**
-     * Handles missing required gateway headers.
+     * Handles missing required gateway headers / unreadable request bodies.
+     *
+     * <p>2026-10-20（WebFlux 批2）：<b>不能再按 {@code MissingRequestHeaderException} 分支</b>——
+     * 该异常的父类链是 {@code MissingRequestValueException → ServletRequestBindingException →
+     * jakarta.servlet.ServletException}，Netty 栈上没有 Servlet API，一加载就
+     * {@code NoClassDefFoundError}（本类所有方法在 bean 后处理阶段被反射扫描，整类都建不起来）。
+     * WebFlux 缺头时抛的是 {@link ServerWebInputException}，原因文本里已带上头名。</p>
      */
-    @ResponseBody
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler(MissingRequestHeaderException.class)
-    public GatewayErrorResponse handleMissingRequestHeader(MissingRequestHeaderException e) {
-        return GatewayErrorResponse.of(
-            "Missing required header: " + e.getHeaderName(),
-            GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code()
-        );
-    }
-
-    /**
-     * Handles malformed gateway requests.
-     */
-    @ResponseBody
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentNotValidException.class})
-    public GatewayErrorResponse handleInvalidRequest(Exception e) {
-        log.warn("Invalid gateway request", e);
-        return GatewayErrorResponse.of(
-            "Invalid request body",
-            GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code()
-        );
+    @ExceptionHandler({HttpMessageNotReadableException.class,
+            MethodArgumentNotValidException.class,
+            ServerWebInputException.class})
+    public ResponseEntity<GatewayErrorResponse> handleInvalidRequest(Exception e) {
+        String reason = e instanceof ServerWebInputException input && input.getReason() != null
+                ? input.getReason()
+                : "Invalid request body";
+        log.warn("Invalid gateway request: {}", reason);
+        return status(HttpStatus.BAD_REQUEST, GatewayErrorResponse.of(
+                reason,
+                GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code()
+        ));
     }
 
     /**
      * Handles gateway authentication errors.
      */
-    @ResponseBody
-    @ResponseStatus(HttpStatus.UNAUTHORIZED)
     @ExceptionHandler(GatewayAuthException.class)
-    public GatewayErrorResponse handleGatewayAuthException(GatewayAuthException e) {
+    public ResponseEntity<GatewayErrorResponse> handleGatewayAuthException(GatewayAuthException e) {
         log.warn("Gateway authentication exception: message={}", e.getMessage());
-        return gatewayError(e);
+        return status(HttpStatus.UNAUTHORIZED, gatewayError(e));
     }
 
     /**
      * Handles gateway request validation errors.
      */
-    @ResponseBody
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(GatewayInvalidRequestException.class)
-    public GatewayErrorResponse handleGatewayInvalidRequestException(GatewayInvalidRequestException e) {
+    public ResponseEntity<GatewayErrorResponse> handleGatewayInvalidRequestException(GatewayInvalidRequestException e) {
         log.warn("Gateway request exception: message={}", e.getMessage());
-        return gatewayError(e);
+        return status(HttpStatus.BAD_REQUEST, gatewayError(e));
     }
 
     /**
@@ -89,12 +95,10 @@ public class GatewayExceptionHandler {
      * <p>400 rather than 429: 429 is reserved for rate limit and quota. Only the matched
      * category code is exposed — never the word itself, to prevent dictionary probing.</p>
      */
-    @ResponseBody
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(GatewayBadRequestException.class)
-    public GatewayErrorResponse handleGatewayBadRequestException(GatewayBadRequestException e) {
+    public ResponseEntity<GatewayErrorResponse> handleGatewayBadRequestException(GatewayBadRequestException e) {
         log.warn("Gateway bad request: type={}, code={}, message={}", e.errorType(), e.code(), e.getMessage());
-        return GatewayErrorResponse.of(e.getMessage(), e.errorType(), e.code());
+        return status(HttpStatus.BAD_REQUEST, GatewayErrorResponse.of(e.getMessage(), e.errorType(), e.code()));
     }
 
     /**
@@ -104,31 +108,27 @@ public class GatewayExceptionHandler {
      * carries a structured {@code detail} (resource, dimension, limit, used, reset time)
      * plus a {@code Retry-After} header telling when the window resets.</p>
      */
-    @ResponseBody
-    @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
     @ExceptionHandler(GatewayTrafficRejectException.class)
-    public GatewayErrorResponse handleGatewayTrafficRejectException(GatewayTrafficRejectException e,
-                                                                    HttpServletResponse response) {
+    public ResponseEntity<GatewayErrorResponse> handleGatewayTrafficRejectException(GatewayTrafficRejectException e) {
         log.warn("Gateway traffic rejected: type={}, code={}, message={}", e.type(), e.code(), e.getMessage());
         TrafficRejectDetail detail = e.detail();
+        ResponseEntity.BodyBuilder builder = ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS);
         if (detail != null && detail.resetAfterSeconds() > 0L) {
-            response.setHeader(HttpHeaders.RETRY_AFTER, Long.toString(detail.resetAfterSeconds()));
+            builder.header(HttpHeaders.RETRY_AFTER, Long.toString(detail.resetAfterSeconds()));
         }
-        return GatewayErrorResponse.ofRejection(e.getMessage(), e.type(), e.code(), detail);
+        return builder.body(GatewayErrorResponse.ofRejection(e.getMessage(), e.type(), e.code(), detail));
     }
 
     /**
      * Handles upstream gateway errors.
      */
-    @ResponseBody
-    @ResponseStatus(HttpStatus.BAD_GATEWAY)
     @ExceptionHandler(GatewayUpstreamException.class)
-    public GatewayErrorResponse handleGatewayUpstreamException(GatewayUpstreamException e) {
+    public ResponseEntity<GatewayErrorResponse> handleGatewayUpstreamException(GatewayUpstreamException e) {
         log.warn("Gateway upstream exception: code={}, upstreamStatus={}, message={}",
-            e.code(), e.httpStatus(), e.getMessage());
+                e.code(), e.httpStatus(), e.getMessage());
         // HTTP 状态码保持 502（错误码隔离），但把上游原状态码透进响应体，避免语义丢失
-        return GatewayErrorResponse.ofUpstream(e.getMessage(), e.type(), e.code(),
-            e.httpStatus(), truncateUpstreamBody(e.responseBody()));
+        return status(HttpStatus.BAD_GATEWAY, GatewayErrorResponse.ofUpstream(e.getMessage(), e.type(), e.code(),
+                e.httpStatus(), truncateUpstreamBody(e.responseBody())));
     }
 
     /**
@@ -149,68 +149,65 @@ public class GatewayExceptionHandler {
      * 存储不可用是「网关自己的 Redis 挂了」，两者处置完全不同（一个可换节点/重试，
      * 一个必须先修 Redis），日志告警也要分别配规则。</p>
      *
-     * <p>这里打ERROR 是<b>刻意</b>的：ERROR 级日志是本项目的报警通道，
-     * 日志采集侧按 {@code Redis unavailable} 关键字配规则。{@link RedisCache} 已有
+     * <p>这里打 ERROR 是<b>刻意</b>的：ERROR 级日志是本项目的报警通道，
+     * 日志采集侧按 {@code Redis unavailable} 关键字配规则。{@code RedisCache} 已有
      * 分钟级节流防刷屏，此处再打一次是为了覆盖非存储入口（如管理器扫描）的故障现场。</p>
      */
-    @ResponseBody
-    @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
     @ExceptionHandler(RedisUnavailableException.class)
-    public GatewayErrorResponse handleRedisUnavailable(RedisUnavailableException e) {
+    public ResponseEntity<GatewayErrorResponse> handleRedisUnavailable(RedisUnavailableException e) {
         log.error("Gateway storage unavailable: domain={}, operation={}, key={}",
-            e.getDomain(), e.getOperation(), e.getKey(), e);
-        return GatewayErrorResponse.of(
-            "Gateway shared storage unavailable, please retry later",
-            GatewayErrorTypeEnum.STORAGE_UNAVAILABLE.code()
-        );
+                e.getDomain(), e.getOperation(), e.getKey(), e);
+        return status(HttpStatus.SERVICE_UNAVAILABLE, GatewayErrorResponse.of(
+                "Gateway shared storage unavailable, please retry later",
+                GatewayErrorTypeEnum.STORAGE_UNAVAILABLE.code()
+        ));
     }
 
     /**
      * Handles unexpected business errors from gateway dependencies.
      */
-    @ResponseBody
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(BusinessException.class)
-    public GatewayErrorResponse handleBusinessException(BusinessException e) {
+    public ResponseEntity<GatewayErrorResponse> handleBusinessException(BusinessException e) {
         log.warn("Gateway business exception: code={}, message={}", e.getCode(), e.getMessage());
-        return GatewayErrorResponse.of(
-            e.getMessage(),
-            GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code(),
-            e.getCode()
-        );
+        return status(HttpStatus.BAD_REQUEST, GatewayErrorResponse.of(
+                e.getMessage(),
+                GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code(),
+                e.getCode()
+        ));
     }
 
     /**
      * Handles unexpected gateway failures.
      */
-    @ResponseBody
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     @ExceptionHandler(Exception.class)
-    public GatewayErrorResponse handleException(Exception e) {
+    public ResponseEntity<GatewayErrorResponse> handleException(Exception e) {
         log.error("Unexpected gateway error", e);
-        return GatewayErrorResponse.of(
-            "Internal server error",
-            GatewayErrorTypeEnum.UPSTREAM_ERROR.code()
-        );
+        return status(HttpStatus.INTERNAL_SERVER_ERROR, GatewayErrorResponse.of(
+                "Internal server error",
+                GatewayErrorTypeEnum.UPSTREAM_ERROR.code()
+        ));
     }
 
     /**
-     * 处理异步请求预算超时（B2 全局请求 deadline）：请求在 {@code knot.gateway.upstream.request-budget}
-     * 内未就绪即被 {@link DeferredResult} 终止，返回 504。
+     * 全局请求预算超时（B2 deadline）：请求在 {@code knot.gateway.upstream.request-budget}
+     * 内未就绪即被 {@code Mono.timeout} 终止，返回 504。
      *
-     * <p>这是「唯一真总超时」的出口——非流式路径此前零兜底、流式仅靠 {@code spring.mvc.async.request-timeout}
-     * 的历史不一致被统一到这一处。与 {@link #handleGatewayUpstreamException}（上游真的回了错误或挂死）
-     * 区分：本项表示「网关自己设定的总时限到了」，错误码 {@code timeout_error} 便于排查与限流策略区分。</p>
+     * <p>2026-10-20（WebFlux 批2）：触发源由 {@code DeferredResult} 的超时换成
+     * {@code reactor} 的 {@link TimeoutException}，语义不变——这是「唯一真总超时」的出口。
+     * 与 {@link #handleGatewayUpstreamException}（上游真的回了错误或挂死）区分：
+     * 本项表示「网关自己设定的总时限到了」，错误码 {@code timeout_error} 便于排查与限流策略区分。</p>
      */
-    @ResponseBody
-    @ResponseStatus(HttpStatus.GATEWAY_TIMEOUT)
-    @ExceptionHandler(AsyncRequestTimeoutException.class)
-    public GatewayErrorResponse handleAsyncTimeout(AsyncRequestTimeoutException e) {
+    @ExceptionHandler(TimeoutException.class)
+    public ResponseEntity<GatewayErrorResponse> handleRequestBudgetExceeded(TimeoutException e) {
         log.warn("Gateway request budget exceeded: {}", e.getMessage());
-        return GatewayErrorResponse.of(
-            "Gateway request timeout, please retry later",
-            GatewayErrorTypeEnum.TIMEOUT_ERROR.code()
-        );
+        return status(HttpStatus.GATEWAY_TIMEOUT, GatewayErrorResponse.of(
+                "Gateway request timeout, please retry later",
+                GatewayErrorTypeEnum.TIMEOUT_ERROR.code()
+        ));
+    }
+
+    private static ResponseEntity<GatewayErrorResponse> status(HttpStatus status, GatewayErrorResponse body) {
+        return ResponseEntity.status(status).body(body);
     }
 
     private static GatewayErrorResponse gatewayError(GatewayRequestException e) {

@@ -14,7 +14,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.http.server.reactive.ServerHttpRequest;
+
+import java.net.InetSocketAddress;
 import java.util.List;
 
 /**
@@ -66,7 +68,7 @@ public class OutageAdminController {
     @GetMapping
     public List<OutageAdminItem> list(@RequestParam(required = false) String ruleCode,
                                       @RequestParam(required = false) String modelCode,
-                                      HttpServletRequest request) {
+                                      ServerHttpRequest request) {
         authorize(request);
         long now = System.currentTimeMillis();
         return store.list(now).stream()
@@ -81,7 +83,7 @@ public class OutageAdminController {
      */
     @PostMapping("/release")
     public OutageAdminAck release(@RequestBody OutageAdminReleaseRequest body,
-                                  HttpServletRequest request) {
+                                  ServerHttpRequest request) {
         authorize(request);
         String ruleCode = requireText(body.ruleCode(), "ruleCode");
         String modelCode = requireText(body.modelCode(), "modelCode");
@@ -95,7 +97,7 @@ public class OutageAdminController {
      */
     @PostMapping("/eject")
     public OutageAdminAck eject(@RequestBody OutageAdminEjectRequest body,
-                                HttpServletRequest request) {
+                                ServerHttpRequest request) {
         authorize(request);
         String ruleCode = requireText(body.ruleCode(), "ruleCode");
         String modelCode = requireText(body.modelCode(), "modelCode");
@@ -110,25 +112,30 @@ public class OutageAdminController {
     /**
      * 准入：配了令牌就比对请求头；没配只放行 loopback。
      */
-    private void authorize(HttpServletRequest request) {
+    private void authorize(ServerHttpRequest request) {
         if (properties.hasToken()) {
-            String actual = request.getHeader(GatewayHeaders.X_KNOT_ADMIN_TOKEN);
+            String actual = request.getHeaders().getFirst(GatewayHeaders.X_KNOT_ADMIN_TOKEN);
             if (!properties.getToken().equals(actual)) {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "invalid or missing X-Knot-Admin-Token");
             }
             return;
         }
-        if (!isLoopback(request.getRemoteAddr())) {
+        if (!isLoopback(request.getRemoteAddress())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "outage admin api requires X-Knot-Admin-Token or loopback access");
         }
     }
 
-    private static boolean isLoopback(String remoteAddr) {
-        return "127.0.0.1".equals(remoteAddr)
-                || "0:0:0:0:0:0:0:1".equals(remoteAddr)
-                || "::1".equals(remoteAddr)
-                || "localhost".equals(remoteAddr);
+    /**
+     * loopback 判定：Netty 下拿不到字符串形式的对端地址，改为判定 {@link InetSocketAddress} 的地址本身
+     * （2026-10-20 WebFlux 批2；原实现比对 {@code 127.0.0.1}/{@code ::1}/localhost 三种字符串）。
+     * 无对端地址（如本地 in-process 调用）按非 loopback 处理——宁可拒绝也不放宽准入。
+     */
+    private static boolean isLoopback(InetSocketAddress remoteAddress) {
+        if (remoteAddress == null) {
+            return false;
+        }
+        return remoteAddress.getAddress() != null && remoteAddress.getAddress().isLoopbackAddress();
     }
 
     private static boolean isBlank(String value) {

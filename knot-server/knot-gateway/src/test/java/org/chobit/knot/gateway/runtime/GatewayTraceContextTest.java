@@ -66,10 +66,8 @@ class GatewayTraceContextTest {
     }
 
     @Test
-    void currentOrCreateFallsBackToGeneratedDefault() {
-        GatewayTraceContext.clearCurrent();
-        GatewayTraceContext ctx = GatewayTraceContext.currentOrCreate(null);
-        assertGeneratedDefault(ctx);
+    void fromNullGeneratesDefault() {
+        assertGeneratedDefault(GatewayTraceContext.fromTraceparent(null));
     }
 
     @Test

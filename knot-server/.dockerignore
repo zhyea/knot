@@ -1,0 +1,14 @@
+# Maven 构建上下文排除项（构建上下文 = knot-server 目录）
+#
+# 本地构建产物、IDE 与日志一律不带进镜像层：既缩小上下文，也避免把本地
+# target/ 里的旧 jar 与调试日志打进镜像。
+
+**/target/
+.git
+.gitignore
+.idea
+*.iml
+*.log
+**/logs/
+.workbuddy
+audit

@@ -6,8 +6,8 @@ import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
 import java.util.Set;
 
@@ -40,11 +40,11 @@ public class AnthropicApiKeyAuthApplier implements UpstreamAuthApplier {
     }
 
     @Override
-    public void apply(RestClient.RequestBodySpec requestSpec, UpstreamRequestContext context) {
+    public void apply(HttpHeaders headers, UpstreamRequestContext context) {
         String apiKey = AuthConfigSupport.apiKey(context.authConfig());
         if (StringUtils.isNotBlank(apiKey)) {
-            requestSpec.header(GatewayHeaders.X_API_KEY, apiKey);
+            headers.add(GatewayHeaders.X_API_KEY, apiKey);
         }
-        requestSpec.header(GatewayHeaders.ANTHROPIC_VERSION, ANTHROPIC_VERSION);
+        headers.add(GatewayHeaders.ANTHROPIC_VERSION, ANTHROPIC_VERSION);
     }
 }

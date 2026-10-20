@@ -2,60 +2,58 @@ package org.chobit.knot.gateway.upstream.stream;
 
 import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.ClientHttpResponse;
+import reactor.core.publisher.Flux;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.Collections;
 import java.util.Map;
 
 /**
- * 上游流式响应的句柄：持有尚未读取的响应体流，以及释放连接所需的原始响应对象。
+ * 上游流式响应的句柄：持有尚未消费的响应体 {@link Flux}，以及响应元数据快照。
  *
- * <p>必须在使用完毕后 {@link #close()}：Apache HttpClient 的响应关闭后连接才会归还连接池。</p>
+ * <p>2026-10-20（WebFlux 批2）：<b>不再需要 InputStream 桥接与 close()</b>。
+ * 批1 时代容器还是 Servlet，必须用 {@code PipedInputStream} 把 Flux 泵成阻塞流；
+ * 切到 Netty 后响应体直接以 {@code Flux<DataBuffer>} 交给容器写出，
+ * 取消 / 结束由 Reactor 自动完成，连接由 reactor-netty 在流终止时归还。</p>
+ *
+ * <p>附带收益：管道桥接会丢错误（写端出错只能关管道，读端只见 {@code -1}，看起来像正常结束），
+ * 批1 需要用 {@code pumpError()} 手工补抛；现在错误沿 {@code onError} 原样传播，
+ * 上游中途失败一定能被调用方看到。</p>
  *
  * <p>{@code upstreamHeaders} 是上游响应头的<b>白名单快照</b>（见
- * {@code UpstreamRequestIdResolver}），在构造时一次性抓取，与底层连接的关闭解耦——
- * 关闭之后依然可读，供数仓消息与日志在流写完后取供应商侧请求标识（只取 request-id，
- * 不取 log-id，详见设计文档 §4.1）。</p>
+ * {@code UpstreamRequestIdResolver}），构造时一次性抓取，与连接生命周期解耦——
+ * 流写完后取供应商侧请求标识（只取 request-id）依然可读。</p>
  */
-public final class UpstreamStreamResponse implements Closeable {
+public final class UpstreamStreamResponse {
 
-    private final InputStream body;
+    private final Flux<DataBuffer> body;
     private final MediaType contentType;
     private final UpstreamRequestContext context;
     private final UpstreamRequestAdapter adapter;
-    private final ClientHttpResponse response;
     private final Map<String, String> upstreamHeaders;
     private final String upstreamRequestId;
 
-    public UpstreamStreamResponse(InputStream body,
+    public UpstreamStreamResponse(Flux<DataBuffer> body,
                                   MediaType contentType,
                                   UpstreamRequestContext context,
                                   UpstreamRequestAdapter adapter,
-                                  ClientHttpResponse response) {
-        this(body, contentType, context, adapter, response, Collections.emptyMap(), null);
-    }
-
-    public UpstreamStreamResponse(InputStream body,
-                                  MediaType contentType,
-                                  UpstreamRequestContext context,
-                                  UpstreamRequestAdapter adapter,
-                                  ClientHttpResponse response,
                                   Map<String, String> upstreamHeaders,
                                   String upstreamRequestId) {
-        this.body = body;
+        this.body = body == null ? Flux.empty() : body;
         this.contentType = contentType;
         this.context = context;
         this.adapter = adapter;
-        this.response = response;
-        this.upstreamHeaders = upstreamHeaders == null ? Collections.emptyMap() : Collections.unmodifiableMap(upstreamHeaders);
+        this.upstreamHeaders = upstreamHeaders == null
+                ? Collections.emptyMap()
+                : Collections.unmodifiableMap(upstreamHeaders);
         this.upstreamRequestId = upstreamRequestId;
     }
 
-    public InputStream body() {
+    /**
+     * 上游响应体（懒消费）：订阅即开始从上游收数据，取消即停止并归还连接。
+     */
+    public Flux<DataBuffer> body() {
         return body;
     }
 
@@ -72,7 +70,7 @@ public final class UpstreamStreamResponse implements Closeable {
     }
 
     /**
-     * 上游响应头白名单快照（构造时抓取，close 后仍可读）；无命中为空 map，不为 null。
+     * 上游响应头白名单快照（构造时抓取）；无命中为空 map，不为 null。
      */
     public Map<String, String> upstreamHeaders() {
         return upstreamHeaders;
@@ -90,14 +88,5 @@ public final class UpstreamStreamResponse implements Closeable {
      */
     public boolean isEventStream() {
         return contentType != null && MediaType.TEXT_EVENT_STREAM.includes(contentType);
-    }
-
-    @Override
-    public void close() throws IOException {
-        try {
-            body.close();
-        } finally {
-            response.close();
-        }
     }
 }

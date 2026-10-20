@@ -89,7 +89,7 @@ public class UpstreamProxyClient {
                 providerCredentialSupport.toAuthConfig(credential),
                 binding,
                 traceparent,
-                currentTraceId(),
+                GatewayTraceContext.traceIdOf(traceparent),
                 providerCredentialSupport.authApplier(credential)
         );
     }
@@ -130,7 +130,7 @@ public class UpstreamProxyClient {
                 providerCredentialSupport.toAuthConfig(credential),
                 binding,
                 traceparent,
-                currentTraceId(),
+                GatewayTraceContext.traceIdOf(traceparent),
                 providerCredentialSupport.authApplier(credential)
         );
     }
@@ -219,10 +219,5 @@ public class UpstreamProxyClient {
         snapshot.put("responseBody", result.responseBody());
         snapshot.put("usage", result.usage());
         return snapshot;
-    }
-
-    private String currentTraceId() {
-        GatewayTraceContext current = GatewayTraceContext.currentOrCreate(null);
-        return current == null ? null : current.traceId();
     }
 }

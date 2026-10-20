@@ -53,7 +53,7 @@ class GatewayRequestHandlerStreamingTrafficTest {
                 new TrafficCounterKeys("test", ZoneId.of("Asia/Shanghai")));
         // 构造器第 3 个参数是 trafficGuard；其余依赖本测试路径不触达，传 null
         handler = new GatewayRequestHandler(null, null, guard, null, null, null, null, null,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null);
     }
 
     private RoutingRuleTargetDto target() {

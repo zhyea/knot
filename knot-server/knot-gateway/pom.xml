@@ -28,6 +28,18 @@
         <dependency>
             <groupId>org.chobit.knot</groupId>
             <artifactId>knot-service</artifactId>
+            <!-- ⚠ 2026-10-20（WebFlux 批2）：knot-service 为 admin 侧（Spring MVC）带进了
+                 spring-boot-starter-web，它会顺着依赖树把 spring-webmvc + Tomcat 拖进网关。
+                 Boot 的判定规则是「有 WebFlux 且没有 WebMvc 才算 REACTIVE」，
+                 于是网关会静默退回 SERVLET 容器——WebFilter、Mono 返回值、
+                 ServerWebExchange 入参同时失效，且编译期完全看不出来。
+                 这里显式排除，让网关只有 Netty 一套栈（GatewayWebStackTest 钉住）。 -->
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-web</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.chobit.knot</groupId>
@@ -37,10 +49,6 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
         <dependency>
             <groupId>com.github.ben-manes.caffeine</groupId>
@@ -67,10 +75,15 @@
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
         </dependency>
-        <!-- 上游调用改为 Apache HttpClient 5：连接池复用 + 显式 connect/read 超时 -->
+        <!-- 响应式栈：<b>本模块唯一的 Web 栈</b>（2026-10-20 批2 起）。
+             容器是 Netty（Spring Boot 依 classpath 判定为 REACTIVE），上游调用统一走
+             WebClient（reactor-netty 连接池 + 反压）。
+             ⚠ 不要再引入 spring-boot-starter-web：web + webflux 共存时 Boot 会静默退回
+             SERVLET 容器，届时 WebFilter / Mono 返回值 / ServerWebExchange 入参全部失效，
+             且编译期看不出来（GatewayWebStackTest 钉住这一条）。 -->
         <dependency>
-            <groupId>org.apache.httpcomponents.client5</groupId>
-            <artifactId>httpclient5</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
         <!-- Kafka 事件输出（请求层 / 响应层，见顶层 kafka.* 配置）：默认关闭，
              未开启时 KafkaTemplate / Publisher 均不装配，不建立任何连接 -->
@@ -87,6 +100,20 @@
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <!-- JWT 实现：knot-common 只声明了 jjwt-api（编译期够用），但启动守卫
+             BootstrapSecurityGuard 会真正解析/校验默认密钥，缺 impl 时启动即
+             ClassNotFoundException: io.jsonwebtoken.impl.security.KeysBridge。
+             admin 侧早已声明，gateway 此前漏了 —— 2026-10-20 真启冒烟暴露。 -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <scope>runtime</scope>
         </dependency>
     </dependencies>
 
