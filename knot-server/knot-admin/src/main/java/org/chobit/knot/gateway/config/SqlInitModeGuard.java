@@ -1,7 +1,6 @@
 package org.chobit.knot.gateway.config;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 
@@ -23,10 +22,9 @@ import java.util.Set;
  * {@code KNOT_SQL_INIT_MODE=NEVER} 并由独立的迁移脚本（docs/database/migration/）负责 schema 演进。
  * 非生产 profile 下 {@code ALWAYS} 是期望行为，放行。</p>
  */
+@Slf4j
 @Configuration
 public class SqlInitModeGuard {
-
-    private static final Logger log = LoggerFactory.getLogger(SqlInitModeGuard.class);
 
     private static final Set<String> NON_PROD_PROFILES = Set.of(
             "dev", "test", "local", "development", "dev-local", "unit", "integration", "ci");

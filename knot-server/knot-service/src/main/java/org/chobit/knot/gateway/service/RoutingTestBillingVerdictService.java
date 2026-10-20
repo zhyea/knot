@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.dto.routing.BillingCheckResult;
 import org.chobit.knot.gateway.dto.routing.BillingFact;
@@ -18,8 +19,6 @@ import org.chobit.knot.gateway.service.support.JevBillingJudge;
 import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdict;
 import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdictRequest;
 import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdictResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -37,12 +36,12 @@ import java.util.Map;
  *
  * <p>模型定位（{@code targetCode} 优先于 {@code modelCode}）用于确定计费规则与用量提取器，
  * 分支顺序镜像网关 {@code UsageExtractorRegistry.resolveExtractorCode}；定位失败仅降级，不抛异常。</p>
+ *
+ * <p>编排层内部异常以 ERROR 日志报警（全仓无 webhook/Notifier，ERROR 日志即唯一报警通道）。</p>
  */
+@Slf4j
 @Service
 public class RoutingTestBillingVerdictService {
-
-    /** 编排层内部异常以 ERROR 日志报警（全仓无 webhook/Notifier，ERROR 日志即唯一报警通道） */
-    private static final Logger log = LoggerFactory.getLogger(RoutingTestBillingVerdictService.class);
 
     /** 提取器码常量（与 knot-adapter 各 UsageExtractor.CODE 一致，避免跨模块常量依赖） */
     private static final String EXTRACTOR_DEFAULT_TOKEN = "DEFAULT-TOKEN";

@@ -1,8 +1,7 @@
 package org.chobit.knot.gateway.config;
 
+import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.auth.JwtKit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 
@@ -21,10 +20,9 @@ import java.util.Set;
  * 生产环境必须以 {@code --spring.profiles.active=prod}（或含 prod 的 profile）启动，
  * 且注入 {@code KNOT_JWT_SECRET} / {@code KNOT_CREDENTIAL_ENCRYPTION_KEY}；二者任一未满足即拒绝启动。</p>
  */
+@Slf4j
 @Configuration
 public class BootstrapSecurityGuard {
-
-    private static final Logger log = LoggerFactory.getLogger(BootstrapSecurityGuard.class);
 
     private static final Set<String> NON_PROD_PROFILES = Set.of(
             "dev", "test", "local", "development", "dev-local", "unit", "integration", "ci");

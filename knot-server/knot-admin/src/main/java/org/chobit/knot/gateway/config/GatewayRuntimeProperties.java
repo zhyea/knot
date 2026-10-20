@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.config;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
@@ -9,6 +11,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * 的测试转发）：网关基地址由 controller 读取本属性后作为参数透传，knot-service 不持有该配置，
  * 调试 API 与网关部署细节解耦。</p>
  */
+@Getter
+@Setter
 @ConfigurationProperties(prefix = "knot.gateway")
 public class GatewayRuntimeProperties {
 
@@ -22,34 +26,6 @@ public class GatewayRuntimeProperties {
      * {@code KNOT_GATEWAY_ADMIN_TOKEN}）。空表示不下发令牌头，依赖网关 loopback 放行（同机部署场景）。
      */
     private String adminToken = "";
-
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
-    public String getBaseUrl() {
-        return baseUrl;
-    }
-
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
-    public void setBaseUrl(String baseUrl) {
-        this.baseUrl = baseUrl;
-    }
-
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
-    public String getAdminToken() {
-        return adminToken;
-    }
-
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
-    public void setAdminToken(String adminToken) {
-        this.adminToken = adminToken;
-    }
 
     /**
      * 归一化后的网关基地址：空值回落缺省端口、剔除末尾斜杠，供调试转发直接拼接路径。

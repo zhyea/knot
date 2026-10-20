@@ -1,5 +1,8 @@
 package org.chobit.knot.gateway.vo.routing;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.util.List;
 
 /**
@@ -8,6 +11,8 @@ import java.util.List;
  * <p>统一原则（§6.5）：判定失败绝不阻塞——被告链、影子链与自检照常返回，本对象以
  * {@code available=false + reason} 表达降级，而非抛异常炸抽屉。</p>
  */
+@Getter
+@Setter
 public class RoutingBillingVerdict {
 
     /** 裁判是否可用（false = 未配置 / 未启用 / 调用失败降级） */
@@ -34,45 +39,5 @@ public class RoutingBillingVerdict {
         v.summary = summary;
         v.answers = answers;
         return v;
-    }
-
-    public boolean isAvailable() {
-        return available;
-    }
-
-    public void setAvailable(boolean available) {
-        this.available = available;
-    }
-
-    public String getReason() {
-        return reason;
-    }
-
-    public void setReason(String reason) {
-        this.reason = reason;
-    }
-
-    public String getSummary() {
-        return summary;
-    }
-
-    public void setSummary(String summary) {
-        this.summary = summary;
-    }
-
-    public List<JevAnswerItem> getAnswers() {
-        return answers;
-    }
-
-    public void setAnswers(List<JevAnswerItem> answers) {
-        this.answers = answers;
-    }
-
-    public String getRawResponse() {
-        return rawResponse;
-    }
-
-    public void setRawResponse(String rawResponse) {
-        this.rawResponse = rawResponse;
     }
 }

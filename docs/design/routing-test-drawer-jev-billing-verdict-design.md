@@ -192,7 +192,7 @@ POST /api/routing-rules/{id}/test/billing-verdict
 
 ### 6.3 调用加固参数（继承 v6 §5.5）
 
-`provider = { allow_fallbacks: false, only: ["TypeSafe"], data_collection: "deny" }`——**`allow_fallbacks:false` 最关键**：回退到普通聊天模型则 answers 形态崩坏；`data_collection:deny` 防计费数据被留存训练。`session_id` 串被测请求 id；`trace` 带 `trace_name:"knot-billing-verdict"`。不开 `require_parameters`。
+`provider = { data_collection: "deny" }`——只保留数据合规约束。上游 provider 白名单（`only`）与 `allow_fallbacks` 已于 2026-10-20 移除：上游 provider 选择无法从 knot 侧约束，且路由规则已锁定 DECISIONS 模型，无需重复表达。`session_id` 串被测请求 id；`trace` 带 `trace_name:"knot-billing-verdict"`。不开 `require_parameters`。
 
 ### 6.4 answers 防御式解析（继承 v6 §5.6）
 
@@ -312,7 +312,7 @@ knot:
 
 1. **裁判规则需人工预置**（§7.2）：缺任一步 → `available:false` + 可执行提示，不炸链路。
 2. **真实 OpenRouter 未验证**（继承）：需 management key，沙箱无凭据；冒烟走假上游。配真 key 后复核真实 answers 形态/耗时/缺失率。
-3. **`provider.only:["TypeSafe"]` 会合并账号级允许列表**：换供应商需改代码——建议抽成配置项（批次 2 落地时设为 `knot.jev.provider-only`，默认 `TypeSafe`）。
+3. ~~`provider.only:["TypeSafe"]` 会合并账号级允许列表、换供应商需改配置~~ **已移除（2026-10-20）**：上游 provider 白名单无法从 knot 侧约束，且路由规则已锁定 DECISIONS 模型；`knot.jev.provider-only` 配置项与 `allow_fallbacks` 下发一并删除。
 4. **LLM 判定是辅助非终裁**：概率浮动，抽屉保持「人读结论」。
 5. **边界演进**：某条 JEV 语义问题若被证明可确定性化，下沉自检层。
 6. **DB 遗留**（与本文档无关的存量）：dev 库 `ks_system_settings` 死表 + 死权限 154/155/156 + 死绑定 212/213/214（v6 拆除遗留）——本方案不新建表，建议单开一轮清理。

@@ -280,7 +280,7 @@ robin 纠正：「knot_extend 不是上游返回的」。代码实证：
 
 | 参数 | 取值建议 | 理由 |
 |---|---|---|
-| `provider` | `{ "allow_fallbacks": false, "only": ["TypeSafe"], "data_collection": "deny" }` | ⭐ **`allow_fallbacks:false` 最关键**：若回退到普通聊天模型，`answers` 形态不再符合四类 schema，解析会崩。限定 TypeSafe 保证拿到决策模型；`data_collection:deny` 防止计费/用量数据被留存训练 |
+| `provider` | `{ "data_collection": "deny" }` | 只保留数据合规约束。上游 provider 白名单（`only`）与 `allow_fallbacks` 已移除（2026-10-20）：上游 provider 选择无法从 knot 侧约束；`data_collection:deny` 防止计费/用量数据被留存训练 |
 | `provider.max_price` | `{ "prompt": "...", "completion": "..." }` | 可选，给裁判调用设价格上限做成本兜底 |
 | `session_id` | 本次被测请求的 trace/请求 id（≤256） | 把「被测请求」与「裁判调用」在观测侧串起来 |
 | `trace` | `{ "trace_id": ..., "trace_name":"knot-billing-verify", "generation_name":"judge-<被测模型码>" }` | 规范要求 known key 有特殊处理，可直接进入 Broadcast/日志关联 |
@@ -430,9 +430,9 @@ robin 纠正：「knot_extend 不是上游返回的」。代码实证：
 
 1. **裁判调用路径 —— 已定（robin 指令）**：走**网关 `/v1/decisions`**。全局配「consumer code + 路由规则 code」，裁判必经网关（复用鉴权/路由/观测，且 dogfooding）。原「admin 直连 OpenRouter」备选作废。
 2. **`return_usage_detail` 保证机制（v6 新增待确认）**：测试用的消费者若未开该开关，响应里没有 `knot_extend`，被告缺席。选项：a) 测试链路强制要求/代开；b) 专用调试消费者；c) 被告缺失时明确降级提示。倾向 a 或 b——否则校验核心场景不可用。
-3. **`provider.only:["TypeSafe"]` 是否过严**：会合并账号级允许列表；若将来换供应商需改配置。建议配置为可选项。
+3. ~~`provider.only:["TypeSafe"]` 是否过严~~ **已移除（2026-10-20）**：上游 provider 白名单无法从 knot 侧约束，路由规则已锁定模型；相关配置与下发一并删除。
 4. **避免递归**：judge 请求自身产生计费事件，**仅测试抽屉显式触发**，生产链路不调用。
-5. **`allow_fallbacks:false` 的代价**：TypeSafe 不可用时直接失败（不会拿到「错误的明文答案」）——**刻意选择**，宁可降级也不让非决策模型污染判定。
+5. ~~`allow_fallbacks:false` 的代价~~ **已移除（2026-10-20）**：不再下发该开关，上游 provider 选择交由上游自行决定。
 6. **真实 OpenRouter 未验证**（继承）：需 management key，沙箱无凭据；配真 key 后需复核真实 answers 形态、耗时与 answer 缺失率。
 7. **LLM 判定是辅助非终裁**：概率会浮动，抽屉保持「人读结论」，不自动阻断/改账。
 8. **边界演进**：某条 JEV 语义问题若被证明可确定性化，应下沉到自检层。
