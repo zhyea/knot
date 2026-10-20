@@ -1,0 +1,143 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+# 同一分支上的多次推送只保留最新一次，避免排队跑旧提交
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── 后端：Maven 全量单测 ──────────────────────────────────────────────────
+  # knot-admin 的三个 @SpringBootTest 会真实连库并执行 schema/data 初始化，
+  # 因此后端 job 必须挂数据库 service，否则这些用例连不上 127.0.0.1:3306/knot。
+  #
+  # 镜像取 mariadb:10.6 —— 与本机开发库（MariaDB 10.6.3）同版本：schema.sql 里有
+  # MariaDB 专有写法（如 MODIFY / 索引与列删除顺序），换成 MySQL 8 可能因方言差异
+  # 在初始化阶段就失败。保持与本地同构，CI 的结论才对本地有效。
+  backend:
+    name: Backend (JDK 21 + MariaDB)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      mariadb:
+        image: mariadb:10.6
+        env:
+          MYSQL_ROOT_PASSWORD: admin
+          MYSQL_DATABASE: knot
+          MYSQL_USER: admin
+          MYSQL_PASSWORD: admin
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      # 等端口真正可连再跑测试。用 /dev/tcp 而不是 mysql 客户端：
+      # runner 不保证装了客户端，而这里只需要确认端口与账号已就绪（service healthcheck
+      # 已保证实例初始化完成，端口开放即代表可连）。
+      - name: Wait for database
+        run: |
+          for i in $(seq 1 60); do
+            if (echo > /dev/tcp/127.0.0.1/3306) 2>/dev/null; then
+              echo "database port is open"; exit 0
+            fi
+            sleep 2
+          done
+          echo "database did not become ready in time" >&2
+          exit 1
+
+      # 全量单测（含 knot-admin 的 @SpringBootTest）。
+      # 注意：仓库根目录没有 pom，reactor 根是 knot-server，必须显式 -f。
+      - name: Run backend tests
+        run: mvn -B -ntp -f knot-server/pom.xml test
+        env:
+          KNOT_DB_USERNAME: admin
+          KNOT_DB_PASSWORD: admin
+
+      - name: Upload surefire reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: knot-server/**/target/surefire-reports/
+          if-no-files-found: ignore
+
+  # ── 前端：vue-tsc 类型检查 + vite 构建 ─────────────────────────────────────
+  frontend:
+    name: Frontend (Node 22)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: knot-front/package-lock.json
+
+      - name: Install dependencies
+        working-directory: knot-front
+        run: npm ci
+
+      # 两个门禁分开跑：类型检查失败与构建失败指向的问题完全不同，
+      # 合并成 npm run build 会让定位变慢。
+      - name: Type check (vue-tsc --noEmit)
+        working-directory: knot-front
+        run: npm run type-check
+
+      - name: Build (vite build)
+        working-directory: knot-front
+        run: npx vite build
+
+  # ── 镜像：确认两个 Dockerfile 能真正构建（不含运行验证）─────────────────
+  # 与单测并行：镜像构建用的是 -DskipTests，不依赖 MySQL。
+  docker:
+    name: Docker images
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - module: knot-admin
+            image: knot-admin
+          - module: knot-gateway
+            image: knot-gateway
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 构建上下文 = knot-server（reactor 根），Dockerfile 在模块目录下
+      - name: Build ${{ matrix.image }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: knot-server
+          file: knot-server/${{ matrix.module }}/Dockerfile
+          push: false
+          tags: ${{ matrix.image }}:ci
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
