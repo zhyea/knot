@@ -9,7 +9,6 @@ public record LogicalModelItem(
         String modelName,
         String modelType,
         String modelFamily,
-        String displayName,
         String description,
         List<String> tags,
         List<String> useCases,

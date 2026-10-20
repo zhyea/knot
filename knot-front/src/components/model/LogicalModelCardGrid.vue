@@ -11,7 +11,7 @@
           <div class="corner-ribbon" :class="ribbonClass(row)">{{ statusText(row) }}</div>
           <div class="card-top">
             <div class="model-main">
-              <div class="model-name">{{ row.displayName || row.modelName || "-" }}</div>
+              <div class="model-name">{{ row.modelName || "-" }}</div>
               <div class="model-code">{{ row.modelCode || "-" }}</div>
             </div>
           </div>

@@ -122,7 +122,6 @@ public class ExternalModelService {
                 item.getModelName(),
                 item.getModelType() != null ? item.getModelType() : "CHAT",
                 modelFamilyResolver.resolve(item.getModelId(), item.getModelName()),
-                item.getModelName(),
                 item.getDescription(),
                 readStringList(item.getTagsJson()),
                 List.of(),

@@ -358,7 +358,6 @@ CREATE TABLE IF NOT EXISTS kb_logical_models (
   model_name VARCHAR(128) NOT NULL,
   model_type VARCHAR(64) NOT NULL,
   model_family VARCHAR(64) DEFAULT NULL,
-  display_name VARCHAR(128) DEFAULT NULL,
   description TEXT DEFAULT NULL,
   tags_json JSON DEFAULT NULL,
   use_cases_json JSON DEFAULT NULL,
@@ -506,6 +505,7 @@ CREATE TABLE IF NOT EXISTS kb_routing_rules (
   app_scenario VARCHAR(128) DEFAULT NULL,
   app_code VARCHAR(64) DEFAULT NULL COMMENT '绑定应用业务码（kb_apps.app_code），非主键 id',
   username VARCHAR(64) DEFAULT NULL COMMENT '归属用户登录名（绑定 username，非主键 id）',
+  consumer_code VARCHAR(32) DEFAULT NULL COMMENT '绑定消费者业务码（kb_routing_consumers.consumer_code），一对一，非主键 id；空表示未绑定',
   logical_model_code VARCHAR(128) DEFAULT NULL COMMENT '统一模型 code（kb_logical_models.model_code），非必填；选中后路由目标选择器将该统一模型对应的供应商模型/模型池优先置前（仅排序，不过滤）',
   retry_policy TEXT DEFAULT NULL COMMENT '失败重试策略（JSON）；空表示走内置默认策略',
   ejection_policy TEXT DEFAULT NULL COMMENT '异常摘除策略（JSON）：窗口内反复异常（上游故障/首token过慢）的供应商模型临时移出候选链；空表示走内置默认策略（默认关闭）',
@@ -515,20 +515,8 @@ CREATE TABLE IF NOT EXISTS kb_routing_rules (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_routing_rules_code (rule_code),
-  KEY idx_routing_rules_app (app_code, status)
-);
-
-CREATE TABLE IF NOT EXISTS kb_routing_rule_consumers (
-  id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  rule_code VARCHAR(64) NOT NULL COMMENT '路由规则业务码（kb_routing_rules.rule_code），非主键 id',
-  consumer_code VARCHAR(32) NOT NULL COMMENT '消费者业务码（kb_routing_consumers.consumer_code），非主键 id',
-  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
-
-  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_routing_rule_consumer (rule_code, consumer_code),
-  KEY idx_rrc_consumer (consumer_code, status),
-  KEY idx_rrc_rule (rule_code, status)
+  KEY idx_routing_rules_app (app_code, status),
+  KEY idx_routing_rules_consumer (consumer_code, status)
 );
 
 CREATE TABLE IF NOT EXISTS kb_routing_rule_targets (

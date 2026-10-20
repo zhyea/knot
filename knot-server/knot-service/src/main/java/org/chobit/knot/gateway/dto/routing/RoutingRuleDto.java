@@ -23,7 +23,7 @@ public record RoutingRuleDto(
         String userRealName,
         /** 统一模型 code（kb_logical_models.model_code），非必填；选中后目标选择器优先置前对应项（仅排序，不过滤） */
         String logicalModelCode,
-        /** 统一模型展示名（由 join kb_logical_models 派生，不落库）：display_name 优先，回退 model_name */
+        /** 统一模型展示名（由 join kb_logical_models 派生，等于 model_name，不落库） */
         String logicalModelName,
         boolean enabled,
         List<RoutingRuleTargetDto> targets,

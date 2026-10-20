@@ -60,9 +60,6 @@
             </el-col>
           </el-row>
 
-          <el-form-item label="展示名称">
-            <el-input v-model="form.displayName" placeholder="统一模型展示名称"/>
-          </el-form-item>
           <el-form-item label="模型说明">
             <el-input v-model="form.description" type="textarea" :rows="3"/>
           </el-form-item>
@@ -245,7 +242,6 @@ interface LogicalModelForm {
   modelName: string;
   modelType: string;
   modelFamily: string;
-  displayName: string;
   description: string;
   tags: string[];
   useCases: string[];
@@ -270,7 +266,6 @@ function defaultForm(): LogicalModelForm {
     modelName: "",
     modelType: "CHAT",
     modelFamily: "",
-    displayName: "",
     description: "",
     tags: [],
     useCases: [],
@@ -352,7 +347,6 @@ function buildPayload() {
     ...form,
     modelCode: form.modelCode?.trim(),
     modelName: form.modelName?.trim(),
-    displayName: form.displayName?.trim() || form.modelName?.trim(),
     modelFamily: form.modelFamily?.trim() || null
   };
 }

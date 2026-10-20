@@ -11,7 +11,6 @@ public class LogicalModelEntity {
     private String modelName;
     private String modelType;
     private String modelFamily;
-    private String displayName;
     private String description;
     private String tagsJson;
     private String useCasesJson;

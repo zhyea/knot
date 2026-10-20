@@ -7,7 +7,7 @@
         r.app_code, a.id AS app_id, a.name AS app_name, r.username,
         ur.real_name AS user_real_name,
         r.logical_model_code,
-        COALESCE(NULLIF(lm.display_name, ''), lm.model_name) AS logical_model_name,
+        lm.model_name AS logical_model_name,
         r.retry_policy, r.ejection_policy, r.selection_strategy, r.status,
         r.created_at, r.updated_at
     </sql>

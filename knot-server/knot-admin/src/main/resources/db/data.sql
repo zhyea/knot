@@ -600,21 +600,19 @@ INSERT IGNORE INTO kb_model_pool_items (id, pool_code, model_code, weight, prior
 (4, 'chat-economy-pool', 'deepseek-chat', 40, 20, 1);
 
 INSERT IGNORE INTO kb_logical_models (
-  id, model_code, model_name, model_type, model_family, display_name, description,
+  id, model_code, model_name, model_type, model_family, description,
   tags_json, use_cases_json, context_window, max_output_tokens,
   input_modalities_json, output_modalities_json, languages_json,
   visibility, publish_status, status, sort_order, featured,
   remark
 ) VALUES
 (1, 'knot-chat-premium', 'Knot Chat Premium', 'CHAT', NULL,
-  'Knot Chat Premium',
   'A logical chat model that routes to premium provider models by policy.',
   JSON_ARRAY('chat', 'reasoning', 'premium'),
   JSON_ARRAY('knowledge assistant', 'research', 'complex analysis'),
   200000, 8192, JSON_ARRAY('text', 'image'), JSON_ARRAY('text'), JSON_ARRAY('zh-CN', 'en-US'),
   'PUBLIC', 2, 1, 10, 1, 'Premium provider route'),
 (2, 'knot-chat-economy', 'Knot Chat Economy', 'CHAT', NULL,
-  'Knot Chat Economy',
   'A logical chat model that routes to economical provider models.',
   JSON_ARRAY('chat', 'economy'),
   JSON_ARRAY('customer service', 'daily assistant'),
@@ -665,15 +663,10 @@ INSERT IGNORE INTO kb_routing_consumers (id, consumer_code, name, user_username,
 (2, 'consumer-research', '模型评测消费者', 'admin', 'sk-demo-claude-routing-key-002', 0, 1),
 (3, 'consumer-cs', '客服系统消费者', 'zhangsan', 'sk-demo-deepseek-routing-key-003', 0, 1);
 
-INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, app_code, username, status) VALUES
-(1, 'gpt4o-default', 'GPT-4o默认路由', '知识库问答', 'app_001', 'admin', 1),
-(2, 'claude-default', 'Claude默认路由', '模型评测', 'app_001', 'admin', 1),
-(3, 'deepseek-lowcost', 'DeepSeek低成本路由', '客服对话', 'app_002', 'zhangsan', 1);
-
-INSERT IGNORE INTO kb_routing_rule_consumers (id, rule_code, consumer_code) VALUES
-(1, 'gpt4o-default',    'consumer-internal-kb'),
-(2, 'claude-default',   'consumer-research'),
-(3, 'deepseek-lowcost', 'consumer-cs');
+INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, app_code, username, consumer_code, status) VALUES
+(1, 'gpt4o-default', 'GPT-4o默认路由', '知识库问答', 'app_001', 'admin', 'consumer-internal-kb', 1),
+(2, 'claude-default', 'Claude默认路由', '模型评测', 'app_001', 'admin', 'consumer-research', 1),
+(3, 'deepseek-lowcost', 'DeepSeek低成本路由', '客服对话', 'app_002', 'zhangsan', 'consumer-cs', 1);
 
 INSERT IGNORE INTO kb_routing_rule_targets (id, rule_code, target_type, target_code, priority, is_primary)
 SELECT 1, 'gpt4o-default',    'MODEL_POOL', mp.pool_code, 100, 1 FROM kb_model_pools mp WHERE mp.id = 1
@@ -712,19 +705,16 @@ INSERT IGNORE INTO kb_model_api_bindings (id, model_code, protocol, api_path, re
  'JEV 决策判定绑定；questions 支持 noul(判定)/choice(单选)/score(有序评分)');
 
 -- 4) 路由规则：裁判规则（配置 knot.jev.judge-rule-code 指向本rule_code）
-INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, app_code, username, status) VALUES
-(4, 'jev-billing-judge', 'JEV计费裁判规则', '计费校验辅助判定', NULL, 'admin', 1);
+INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, app_code, username, consumer_code, status) VALUES
+(4, 'jev-billing-judge', 'JEV计费裁判规则', '计费校验辅助判定', NULL, 'admin', 'jev-judge-client', 1);
 
 INSERT IGNORE INTO kb_routing_rule_targets (id, rule_code, target_type, target_code, priority, is_primary)
 SELECT 5, 'jev-billing-judge', 'MODEL', m.model_code, 100, 1 FROM kb_models m WHERE m.id = 11;
 
--- 5) 消费者：裁判专用（配置 knot.jev.judge-consumer-code 指向本consumer_code）
+-- 5) 消费者：裁判专用
 --    return_usage_detail=0：裁判响应是判定结论，不需要回传上游用量明细。
 INSERT IGNORE INTO kb_routing_consumers (id, consumer_code, name, user_username, secret_key, return_usage_detail, status) VALUES
 (4, 'jev-judge-client', 'JEV计费裁判消费者', 'admin', 'sk-demo-jev-judge-key-004', 0, 1);
-
-INSERT IGNORE INTO kb_routing_rule_consumers (id, rule_code, consumer_code) VALUES
-(4, 'jev-billing-judge', 'jev-judge-client');
 
 -- 路由调试预设请求用例
 -- 请求体中的 model 会由调试面板按所选目标覆盖；messages/input/prompt 等内容可直接编辑后测试。

@@ -22,7 +22,7 @@ public class RoutingRuleEntity {
     private String userRealName;
     /** 统一模型 code（kb_logical_models.model_code），非必填；选中后目标选择器优先置前对应项（仅排序，不过滤） */
     private String logicalModelCode;
-    /** 统一模型展示名（由 join kb_logical_models 派生，不落库）：display_name 优先，回退 model_name */
+    /** 统一模型展示名（由 join kb_logical_models 派生，等于 model_name，不落库） */
     private String logicalModelName;
     /** 规则级失败重试策略（JSON，RetryPolicy 序列化结果）；空表示走内置默认策略 */
     private String retryPolicy;
