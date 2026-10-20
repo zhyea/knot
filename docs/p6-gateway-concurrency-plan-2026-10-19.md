@@ -1,5 +1,12 @@
 # P6 网关并发 / IO 改造方案（清单）
 
+> ⚠ **B 组方案已被全量取代（2026-10-20）**：本文档 B1/B2 描述的 `DeferredResult` + `gatewayAsyncExecutor`
+> （async-servlet 路线）已随网关 WebFlux 切栈整体作废——控制器改返回 `Mono<ResponseEntity<Object>>`，
+> 线程池改 `gatewayBlockingScheduler`（boundedElastic），`DeferredResult` 超时改 `Mono.timeout`。
+> 详见 `docs/网关WebFlux切栈-2026-10-20.md`（含类名迁移对照表）。A 组（A1 的 HC5 总超时 → 现由
+> reactor-netty `responseTimeout` + `request-budget` 承担；A2/A3 的 `GatewayUpstreamClientProperties`
+> 继续有效）。本文作为历史方案存档保留。
+
 > 关联评审：`docs/性能与安全评审-2026-10-19.md` P6 / P7 / P8。
 > 配套批次状态：P10 / P4 / P2 本批次已落地并全量门禁通过（706 例 0 失败）；P8 用户排除；P5 / P7 不改。
 
