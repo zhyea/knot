@@ -3,6 +3,7 @@ import {ElMessage} from "element-plus";
 import {useAuth} from "@/composables/useAuth";
 import {touchIdleActivity} from "@/composables/idleActivity";
 import router from "../router";
+import {readEventStream, type SseEvent} from "../utils/sse";
 
 declare module "axios" {
   interface AxiosRequestConfig {
@@ -145,123 +146,292 @@ export function del<T = any>(url: string, config: AxiosRequestConfig = {}): Prom
 }
 
 /**
- * 以 `fetch` 发起 SSE 流式 POST 请求，返回原始 `Response` 供 `readEventStream` 增量读取。
+ * 解析 XHR `getAllResponseHeaders()` 的原始文本为键值对。
+ *
+ * <p>fetch 的 `Headers` 对象按规范会把所有头名统一小写，丢失服务端原始大小写；
+ * 调试抽屉的「响应 Header」tab 要求展示原值（如 {@code X-Knot-Model}），
+ * 因此网关直连请求走 XHR 通道，由本函数保留原始头名。</p>
+ */
+function parseRawResponseHeaders(raw: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const line of raw.split(/\r?\n/)) {
+    const index = line.indexOf(":");
+    // 首行状态行（如 "HTTP/1.1 200 OK"）无冒号，直接跳过
+    if (index <= 0) {
+      continue;
+    }
+    const name = line.slice(0, index).trim();
+    if (name) {
+      headers[name] = line.slice(index + 1).trim();
+    }
+  }
+  return headers;
+}
+
+/** 网关直连流式请求句柄：响应头原值 + SSE 增量读取 */
+export interface GatewayEventStream {
+  status: number;
+  /** 原始大小写的响应头（跨域时仍受 CORS 暴露头白名单约束） */
+  headers: Record<string, string>;
+  /** 增量消费 SSE 事件直到 EOF；abortSignal 用于用户主动停止 */
+  read(
+    onEvent: (event: SseEvent) => void,
+    options?: {abortSignal?: AbortSignal; idleTimeoutMs?: number}
+  ): Promise<void>;
+}
+
+/**
+ * 以 XHR 发起 SSE 流式 POST 请求，返回句柄供调用方增量读取事件。
  *
  * <p>不复用 Axios 实例：Axios 面向一次性 JSON 解包（`unwrapData` + 30s 超时），
- * 与「长连接 + ReadableStream」模型冲突。此处独立处理鉴权头与 401。</p>
+ * 与「长连接 + 增量推送」模型冲突。此处独立处理鉴权头与 401。</p>
+ *
+ * <p>选 XHR 而非 fetch 的唯一理由：`Headers` 对象会把响应头名统一小写，
+ * 调试面板需要原值展示；XHR 的 `getAllResponseHeaders()` 保留服务端原始大小写。</p>
  *
  * <p>注意：不设置总时长超时（流式响应本就可能很长），超时由调用方通过
  * `readEventStream` 的空闲超时与 `AbortSignal` 控制。</p>
+ *
+ * <p>⚠ 实测（Chrome headless，跨域 + 同源各测一遍）：`getAllResponseHeaders()`
+ * 返回的头名一律被浏览器小写化，<b>同源也不例外</b>。因此本函数的 XHR 通道
+ * 换不来「响应头原值」，调试面板展示的 `X-Knot-Model` 等实际是小写形式。
+ * 保留 XHR 的理由只剩「不经过 Axios 的 30s 超时与 ApiResponse 解包」。</p>
  */
 export async function postEventStream(
   url: string,
   data: unknown,
   signal?: AbortSignal,
   requestHeaders: Record<string, string> = {}
-): Promise<Response> {
+): Promise<GatewayEventStream> {
   const {token, clearAllAuthState} = useAuth();
   const usesAdminAuth = !requestHeaders.Authorization;
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    Accept: "text/event-stream"
-  };
-  if (token.value) {
-    headers.Authorization = `Bearer ${token.value}`;
-    touchIdleActivity();
-  }
-  // 调试网关流使用消费者 API Key 覆盖管理端 JWT，并附带 Rule 头。
-  // 普通管理端 SSE 调用不传该参数，仍沿用当前登录态。
-  Object.assign(headers, requestHeaders);
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(data ?? {}),
-    signal
-  });
-
-  if (response.ok) {
-    return response;
-  }
-
-  // 与 Axios 拦截器保持一致：只有当前会话的 401 才清理登录态
-  if (response.status === 401 && usesAdminAuth) {
-    clearAllAuthState();
-    if (router.currentRoute.value.path !== "/login") {
-      router.push("/login");
+  return new Promise<GatewayEventStream>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    for (const [name, value] of Object.entries(requestHeaders)) {
+      xhr.setRequestHeader(name, value);
     }
-    ElMessage.error("登录已过期，请重新登录");
-    throw new Error("登录已过期");
-  }
+    if (token.value) {
+      touchIdleActivity();
+    }
 
-  // 非 2xx：把 ApiResponse 结构转成与 Axios 一致的错误形态，便于复用 normalizeErrorResult
-  const raw = await response.text();
-  let body: unknown = raw;
-  try {
-    body = raw ? JSON.parse(raw) : null;
-  } catch {
-    // 非 JSON 响应（如容器网关的纯文本错误）保留原文
-  }
-  const message =
-    (body && typeof body === "object" && "message" in body
-      ? String((body as {message?: unknown}).message ?? "")
-      : "") || `请求失败（HTTP ${response.status}）`;
-  if (usesAdminAuth) {
-    ElMessage.error(message);
-  }
-  throw Object.assign(new Error(message), {
-    response: {status: response.status, data: body, headers: Object.fromEntries(response.headers)}
+    // 增量文本队列：onprogress 只推送新增部分，read() 按需拉取
+    const queue: string[] = [];
+    let wake: (() => void) | null = null;
+    let consumed = 0;
+    let closed = false;
+    let failure: Error | null = null;
+    let abandoned = false;
+    let settled = false;
+    let handleAbortBound = false;
+
+    const notify = () => {
+      if (wake) {
+        const resume = wake;
+        wake = null;
+        resume();
+      }
+    };
+    const enqueuePending = () => {
+      const text = xhr.responseText || "";
+      if (text.length > consumed) {
+        queue.push(text.slice(consumed));
+        consumed = text.length;
+        notify();
+      }
+    };
+    const finish = () => {
+      closed = true;
+      notify();
+    };
+    const breakWith = (error: Error) => {
+      failure = error;
+      finish();
+    };
+    const cleanupSignal = () => signal?.removeEventListener("abort", onAbort);
+    const onAbort = () => xhr.abort();
+    signal?.addEventListener("abort", onAbort);
+
+    const buildHandle = (status: number, headers: Record<string, string>): GatewayEventStream => ({
+      status,
+      headers,
+      read: (onEvent, options = {}) => {
+        // 句柄交付后调用方的 signal 仍须生效：抽屉的「停止」是在拿到句柄之后触发的，
+        // 若此前的 cleanupSignal() 已解绑，abort 将完全落空、流永不结束。
+        // 句柄只登记一次监听，重复 read 也不会叠加。
+        if (signal && !handleAbortBound) {
+          handleAbortBound = true;
+          signal.addEventListener("abort", onAbort);
+        }
+        return readEventStream(
+          {
+            next: async () => {
+              for (;;) {
+                if (queue.length) {
+                  return queue.shift() as string;
+                }
+                if (failure) {
+                  throw failure;
+                }
+                if (closed) {
+                  return null;
+                }
+                await new Promise<void>((resume) => {
+                  wake = resume;
+                });
+                // 被取消后优雅收尾：不再抛出，避免未处理的 Promise 拒绝
+                if (abandoned) {
+                  return null;
+                }
+              }
+            },
+            cancel: () => {
+              abandoned = true;
+              cleanupSignal();
+              xhr.abort();
+            }
+          },
+          onEvent,
+          options
+        );
+      }
+    });
+
+    xhr.onreadystatechange = () => {
+      // readyState 2 = 响应头到手：先交还句柄，正文经 onprogress 增量推送
+      if (xhr.readyState !== 2 || settled) {
+        return;
+      }
+      const headers = parseRawResponseHeaders(xhr.getAllResponseHeaders());
+      if (xhr.status >= 200 && xhr.status < 300) {
+        settled = true;
+        cleanupSignal();
+        resolve(buildHandle(xhr.status, headers));
+        enqueuePending();
+      }
+    };
+    xhr.onprogress = () => enqueuePending();
+    xhr.onload = () => {
+      if (settled) {
+        finish();
+        return;
+      }
+      // 未在 readyState 2 交还：2xx 兜底整体交付，非 2xx 按错误拒绝
+      const headers = parseRawResponseHeaders(xhr.getAllResponseHeaders());
+      const raw = xhr.responseText;
+      let body: unknown = raw;
+      try {
+        body = raw ? JSON.parse(raw) : null;
+      } catch {
+        // 非 JSON 响应（如容器网关的纯文本错误）保留原文
+      }
+      settled = true;
+      cleanupSignal();
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(buildHandle(xhr.status, headers));
+        enqueuePending();
+        finish();
+        return;
+      }
+      // 与 Axios 拦截器保持一致：只有当前会话的 401 才清理登录态
+      if (xhr.status === 401 && usesAdminAuth && token.value) {
+        clearAllAuthState();
+        if (router.currentRoute.value.path !== "/login") {
+          router.push("/login");
+        }
+        ElMessage.error("登录已过期，请重新登录");
+        reject(new Error("登录已过期"));
+        return;
+      }
+      // 非 2xx：把 ApiResponse 结构转成与 Axios 一致的错误形态，便于复用 normalizeErrorResult
+      const message =
+        (body && typeof body === "object" && "message" in body
+          ? String((body as {message?: unknown}).message ?? "")
+          : "") || `请求失败（HTTP ${xhr.status}）`;
+      if (usesAdminAuth) {
+        ElMessage.error(message);
+      }
+      reject(Object.assign(new Error(message), {
+        response: {status: xhr.status, data: body, headers}
+      }));
+    };
+    xhr.onerror = () => {
+      if (!settled) {
+        settled = true;
+        cleanupSignal();
+        reject(new Error("网络请求失败"));
+      }
+      breakWith(new Error("网关连接失败"));
+    };
+    xhr.onabort = () => {
+      // 响应头到手前被中止（如用户连接期即点停止）：必须拒绝，否则调用方永远挂起
+      if (!settled) {
+        settled = true;
+        cleanupSignal();
+        reject(new DOMException("Aborted", "AbortError"));
+      }
+      breakWith(new DOMException("Aborted", "AbortError"));
+    };
+    xhr.send(JSON.stringify(data ?? {}));
   });
 }
 
 /**
  * 以消费者 API Key 直接向网关发送一次性 JSON POST 请求。
  * 管理端 Axios 实例会自动覆盖 Authorization 为登录态 JWT，因此网关调试
- * 请求必须使用独立的 fetch 链路。
+ * 请求必须使用独立的请求链路。
  *
  * <p>请求头由调用方完整组装（调试抽屉「Headers」表格即权威）：此处不再内置
  * Authorization / Rule / Content-Type 等默认头，避免用户在表格里删改后默认头
  * 仍旧静默发出、预览与实际请求不一致。</p>
+ *
+ * <p>选 XHR 而非 fetch 的唯一理由：`Headers` 对象会把响应头名统一小写，
+ * 调试面板的「响应 Header」tab 需要展示原值。</p>
  */
 export async function postGatewayJson<T = unknown>(
   url: string,
   data: unknown,
   requestHeaders: Record<string, string>
 ): Promise<{status: number; data: T; headers: Record<string, string>}> {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: requestHeaders,
-    body: JSON.stringify(data ?? {})
-  });
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    for (const [name, value] of Object.entries(requestHeaders)) {
+      xhr.setRequestHeader(name, value);
+    }
+    xhr.onload = () => {
+      const raw = xhr.responseText;
+      let body: unknown = raw;
+      try {
+        body = raw ? JSON.parse(raw) : null;
+      } catch {
+        // 非 JSON 响应保留原文，便于调试网关返回的纯文本错误。
+      }
 
-  const raw = await response.text();
-  let body: unknown = raw;
-  try {
-    body = raw ? JSON.parse(raw) : null;
-  } catch {
-    // 非 JSON 响应保留原文，便于调试网关返回的纯文本错误。
-  }
+      // 采集响应头原值，供调试面板「响应 Header」tab 展示
+      const headers = parseRawResponseHeaders(xhr.getAllResponseHeaders());
 
-  // 采集响应头（多值按逗号拼接），供调试面板「响应 Header」tab 展示
-  const headers: Record<string, string> = {};
-  response.headers.forEach((value, key) => {
-    headers[key] = value;
-  });
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve({status: xhr.status, data: body as T, headers});
+        return;
+      }
 
-  if (response.ok) {
-    return {status: response.status, data: body as T, headers};
-  }
-
-  const message =
-    (body && typeof body === "object" && "message" in body
-      ? String((body as {message?: unknown}).message ?? "")
-      : "") ||
-    (body && typeof body === "object" && "error" in body
-      ? String((body as {error?: unknown}).error ?? "")
-      : "") ||
-    `请求失败（HTTP ${response.status}）`;
-  throw Object.assign(new Error(message), {
-    response: {status: response.status, data: body, headers}
+      const message =
+        (body && typeof body === "object" && "message" in body
+          ? String((body as {message?: unknown}).message ?? "")
+          : "") ||
+        (body && typeof body === "object" && "error" in body
+          ? String((body as {error?: unknown}).error ?? "")
+          : "") ||
+        `请求失败（HTTP ${xhr.status}）`;
+      reject(Object.assign(new Error(message), {
+        response: {status: xhr.status, data: body, headers}
+      }));
+    };
+    xhr.onerror = () => {
+      reject(new Error("网络请求失败"));
+    };
+    xhr.send(JSON.stringify(data ?? {}));
   });
 }
 

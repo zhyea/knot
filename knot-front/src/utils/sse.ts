@@ -2,12 +2,11 @@
  * 管理端 SSE 事件流解析。
  *
  * <p>与 `http.ts` 的 Axios 通道完全解耦：Axios 面向一次性 JSON 解包，
- * 而流式响应需要在 `ReadableStream` 上逐块解码，因此这里基于 `fetch` 的
- * `response.body.getReader()` 自行解析。</p>
+ * 而流式响应需要逐块增量解析，因此读取循环基于「解码文本块来源」抽象
+ * （{@link TextChunkSource}），XHR 与 fetch 两类传输适配同一套逻辑。</p>
  *
  * <p>覆盖的协议细节：</p>
  * <ul>
- *   <li>用 `TextDecoder(stream: true)` 增量解码，避免跨 chunk 的半个汉字变成乱码；</li>
  *   <li>同时兼容 `\n\n` 与 `\r\n\r\n` 两种事件分隔；</li>
  *   <li>支持一个事件包含多行 `data:`（按 SSE 规范用 `\n` 拼接）；</li>
  *   <li>EOF 时处理残留缓冲，不静默丢弃未闭合事件。</li>
@@ -97,40 +96,40 @@ function parseBlock(block: string): SseEvent | null {
 }
 
 /**
- * 读取一个 SSE 响应并逐事件回调。
+ * 解码文本块来源：屏蔽底层传输差异（XHR onprogress / fetch ReadableStream），
+ * 由 readEventStream 统一完成 SSE 解析、空闲超时与中止。
+ */
+export interface TextChunkSource {
+  /** 取下一段解码文本；返回 null 表示 EOF；抛错表示传输失败 */
+  next(): Promise<string | null>;
+  /** 中止底层传输（用户主动停止或读取结束） */
+  cancel(): void;
+}
+
+/**
+ * 读取一个 SSE 流并逐事件回调。
  *
- * @param response fetch 返回的原始响应
+ * @param source 解码文本块来源（XHR / fetch 适配器）
  * @param onEvent 每个事件的回调（同步调用）
  * @param options.abortSignal 供用户主动取消
  * @param options.idleTimeoutMs 相邻数据间隔超时，默认 120s
  */
 export async function readEventStream(
-  response: Response,
+  source: TextChunkSource,
   onEvent: (event: SseEvent) => void,
   options: {abortSignal?: AbortSignal; idleTimeoutMs?: number} = {}
 ): Promise<void> {
-  const body = response.body;
-  if (!body) {
-    throw new Error("响应不支持流式读取");
-  }
   const idleTimeoutMs = options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS;
-  const reader = body.getReader();
-  const decoder = new TextDecoder("utf-8");
   const parser = new SseEventParser();
   try {
     for (;;) {
-      const {done, value} = await withIdleTimeout(reader.read(), idleTimeoutMs, options.abortSignal);
-      if (done) {
+      const chunk = await withIdleTimeout(source.next(), idleTimeoutMs, options.abortSignal);
+      if (chunk == null) {
         break;
       }
-      // stream: true 保证跨 chunk 的多字节字符由解码器内部缓冲
-      for (const event of parser.push(decoder.decode(value, {stream: true}))) {
+      for (const event of parser.push(chunk)) {
         onEvent(event);
       }
-    }
-    // 补上解码器与解析器的尾部残留
-    for (const event of parser.push(decoder.decode())) {
-      onEvent(event);
     }
     // EOF 可能没有以空行结束，仍需把残留的完整事件交给调用方。
     const trailingEvent = parser.flush();
@@ -139,11 +138,7 @@ export async function readEventStream(
     }
   } finally {
     // 取消时释放底层连接；已结束时 cancel 也能安全忽略
-    try {
-      await reader.cancel();
-    } catch {
-      // 连接可能已断开，忽略
-    }
+    source.cancel();
   }
 }
 

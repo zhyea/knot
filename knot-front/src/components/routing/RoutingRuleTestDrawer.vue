@@ -163,7 +163,7 @@
 
           <el-skeleton v-if="loading && !isStreaming" :rows="5" animated/>
           <template v-else-if="testResult">
-            <el-tabs v-model="responseTab" class="debug-tabs debug-tabs--response">
+            <el-tabs v-model="responseTab" class="debug-tabs debug-tabs--response" @tab-click="onResponseTabClick">
               <el-tab-pane label="概览" name="summary">
                 <div v-if="summaryItems.length || displayReasoning || displayContent" class="result-meta">
                   <div v-for="item in summaryItems" :key="item.label" class="result-meta__item"
@@ -222,19 +222,19 @@
                 </div>
                 <el-empty v-else description="无响应头" :image-size="64"/>
               </el-tab-pane>
+              <!-- 计费校验（JEV 双盲）：测试响应后自动触发，三区展示，不阻塞上方结果（v7 §9） -->
+              <el-tab-pane v-if="verdictVisible" label="计费校验" name="verdict">
+                <RoutingBillingVerdictPanel
+                  :result="verdictResult"
+                  :loading="verdictLoading"
+                  :skipped="verdictSkipped"
+                  :error="verdictError"
+                />
+              </el-tab-pane>
             </el-tabs>
           </template>
           <el-empty v-else description="执行请求后在这里查看响应结果" :image-size="72"/>
         </section>
-
-        <!-- 计费校验（JEV 双盲）：测试响应后自动触发，三区展示，不阻塞上方结果（v7 §9） -->
-        <RoutingBillingVerdictPanel
-          v-if="verdictVisible"
-          :result="verdictResult"
-          :loading="verdictLoading"
-          :skipped="verdictSkipped"
-          :error="verdictError"
-        />
       </div>
     </el-scrollbar>
 
@@ -264,7 +264,7 @@ import {useCopyToClipboard} from "@/composables/useCopyToClipboard";
 import {getTestRequestPreset, listTestRequestPresetOptions} from "@/api/routing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {formatJson, formatJsonText, parseJsonResult, stringifyJson, highlightJsonHtml} from "@/utils/format";
-import {readEventStream, type SseEvent} from "@/utils/sse";
+import {type SseEvent} from "@/utils/sse";
 import type {Dict} from "@/types";
 
 const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || "http://127.0.0.1:9090";
@@ -354,6 +354,13 @@ let verdictToken = 0;
 const verdictVisible = computed(
   () => verdictLoading.value || verdictSkipped.value || verdictError.value !== "" || verdictResult.value !== null
 );
+/** 本轮测试用户是否手动切过响应 tab：切过则裁判结果到达时不抢焦点 */
+let verdictTabTouched = false;
+
+/** 响应 tab 手动点击：记录后裁判结果到达不再自动切入 */
+function onResponseTabClick() {
+  verdictTabTouched = true;
+}
 
 // ===================== 流式测试状态 =====================
 /** 正在进行的流式请求；非 null 时「发送请求」切换为「停止请求」 */
@@ -644,7 +651,11 @@ const displayContent = computed(() => {
     return "";
   }
   const parsed = parseJsonResult(body, null);
-  return parsed.error ? "" : extractField(parsed.value, "content");
+  if (parsed.error) {
+    return "";
+  }
+  // 主流对话形态取 content；legacy completions 的 choices[].text 兜底
+  return extractField(parsed.value, "content") || extractField(parsed.value, "text");
 });
 
 /** 概览页「思考过程」：reasoning_content，与 content 分开 */
@@ -695,6 +706,7 @@ function resetVerdictState() {
   verdictLoading.value = false;
   verdictSkipped.value = false;
   verdictError.value = "";
+  verdictTabTouched = false;
 }
 
 /**
@@ -755,6 +767,10 @@ async function triggerBillingVerdict(requestBody: Dict, stream: boolean) {
       return;
     }
     verdictResult.value = result;
+    // 裁判结果到达即切入「计费校验」tab；用户本轮已手动切 Tab 的不抢焦点
+    if (!verdictTabTouched) {
+      responseTab.value = "verdict";
+    }
   } catch (error) {
     if (token !== verdictToken) {
       return;
@@ -1110,6 +1126,9 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget | null, 
   testResult.value = null;
   responseHeaders.value = {};
   resetVerdictState();
+  // 清掉上一轮流式拼装内容，避免非流式概览复用残影
+  streamContent.value = "";
+  streamReasoning.value = "";
   try {
     const response = await testRoutingRule(
       requestUrl.value,
@@ -1122,7 +1141,8 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget | null, 
     testResult.value = {
       status: "SUCCESS",
       httpStatus: response.status,
-      modelCode: target?.targetCode ?? null,
+      // 「全部目标」下网关按规则实际路由，命中模型取响应头 X-Knot-Model
+      modelCode: target?.targetCode || servingModelCode(),
       protocol,
       curl: curlPreview.value,
       errorMessage: "",
@@ -1182,27 +1202,24 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget | null,
 
   try {
     const gatewayBody = stripModelField(requestBody);
-    const response = await testRoutingRuleStream(
+    const stream = await testRoutingRuleStream(
       requestUrl.value,
       gatewayBody,
       buildRequestHeaders("text/event-stream"),
       controller.signal
     );
-    // 采集网关原生响应头（SSE 首包即带），供「响应 Header」tab 展示
-    const streamHeaders: Record<string, string> = {};
-    response.headers.forEach((value, key) => {
-      streamHeaders[key] = value;
-    });
-    responseHeaders.value = streamHeaders;
+    // 采集网关原生响应头原值（SSE 首包即带），供「响应 Header」tab 展示
+    responseHeaders.value = stream.headers;
     if (testResult.value) {
       testResult.value = {
         ...testResult.value,
-        httpStatus: response.status,
-        modelCode: target?.targetCode || testResult.value.modelCode
+        httpStatus: stream.status,
+        // 「全部目标」下网关按规则实际路由，命中模型取响应头 X-Knot-Model
+        modelCode: target?.targetCode || servingModelCode()
       };
     }
 
-    await readEventStream(response, handleStreamEvent, {abortSignal: controller.signal});
+    await stream.read(handleStreamEvent, {abortSignal: controller.signal});
     flushStreamText();
     // EOF 可能发生在区块节流定时器触发前，必须先刷入最后一批区块及概览内容。
     flushBlocks();
@@ -1282,9 +1299,35 @@ function handleStreamEvent(event: SseEvent) {
 }
 
 /**
+ * 从 content 类字段值提取文本：字符串原样返回；块数组（Anthropic content blocks /
+ * Responses API output_text 等形态）拼接各块 text。
+ */
+function extractTextValue(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((block) => {
+        if (typeof block === "string") {
+          return block;
+        }
+        if (block && typeof block === "object") {
+          const text = (block as Dict).text;
+          return typeof text === "string" ? text : "";
+        }
+        return "";
+      })
+      .join("");
+  }
+  return "";
+}
+
+/**
  * 从上游响应（单个 SSE data 或完整响应体）深搜指定字段并拼接：
- * 兼容 chat 流式 `choices[].delta.content`、缓冲 `choices[].message.content`、completions `choices[].text` 及顶层 `content`。
- * 仅取字符串值，避免误抓无关同名字段造成的噪音（这里 content / reasoning_content 语义稳定）。
+ * 兼容 chat 流式 `choices[].delta.content`、缓冲 `choices[].message.content`、
+ * completions `choices[].text`、Responses/Anthropic 的 content 块数组及顶层 `content`。
+ * 仅取文本值，避免误抓无关同名字段造成的噪音（这里 content / reasoning_content 语义稳定）。
  */
 function extractField(node: unknown, key: string): string {
   if (node == null || typeof node !== "object") {
@@ -1300,8 +1343,14 @@ function extractField(node: unknown, key: string): string {
       return;
     }
     for (const [k, v] of Object.entries(current)) {
-      if (k === key && typeof v === "string" && v.length > 0) {
-        results.push(v);
+      if (k === key) {
+        const text = extractTextValue(v);
+        if (text) {
+          results.push(text);
+        } else if (v && typeof v === "object" && !Array.isArray(v)) {
+          // 对象形态的 content（少数厂商）：继续下钻找同名字段
+          visit(v);
+        }
       } else if (v && typeof v === "object") {
         visit(v);
       }

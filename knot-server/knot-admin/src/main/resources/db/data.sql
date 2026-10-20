@@ -684,6 +684,48 @@ SELECT 3, 'claude-default',   'MODEL', m.model_code, 100, 1 FROM kb_models m WHE
 UNION ALL
 SELECT 4, 'deepseek-lowcost', 'MODEL_POOL', mp.pool_code, 100, 1 FROM kb_model_pools mp WHERE mp.id = 2;
 
+-- =========================
+-- JEV 计费裁判预置（路由规则测试抽屉「计费校验」tab 的裁判链路）
+-- =========================
+-- 裁判专用链路，与被测规则完全隔离：独立账户 / 模型 / 绑定 / 规则 / 消费者。
+-- 缺任一项 → 裁判区 available:false + 可执行提示，不炸测试链路（设计稿 §12.1）。
+--
+-- ⚠ 凭证纪律（§6.1）：消费者 secret_key 是裁判唯一的 Bearer 凭据，
+--   仅经 Authorization 头进入 DecisionsTransport，不进请求体、不进日志、不下前端。
+--   占位密钥仅为本地/冒烟可跑；接真实 OpenRouter 须换成 management key
+--   （普通 key 调DECISIONS 端点会 403）。换钥在管理台「消费者」页改，无需动种子。
+
+-- 1) 供应商账户：OpenRouter 承载TypeSafe JEV 模型
+--    openrouter provider 已在供应商种子中（id=6），此处只补账户。
+INSERT IGNORE INTO kb_provider_accounts (id, provider_code, code, base_url, status) VALUES
+(5, 'openrouter', 'openrouter-jev', 'https://openrouter.ai/api/v1', 1);
+
+-- 2) 模型：DECISIONS 协议专用（JEV 只吃 decisions 入参，不参与对话路由）
+INSERT IGNORE INTO kb_models (id, provider_account_code, model_code, upstream_model, version, base_url, status, remark) VALUES
+(11, 'openrouter-jev', 'jev-billing-judge', 'typesafe/jev-1.13-20260917', '2026-09-17', 'https://openrouter.ai/api/v1', 1,
+ 'JEV 计费裁判专用模型；仅供 jev-billing-judge 规则使用');
+
+-- 3) 模型 API 绑定：DECISIONS 协议（入参 state/questions，出参 answers 映射）
+--    api_path 留空：走协议默认路径，由网关 DECISIONS 端点统一路由。
+INSERT IGNORE INTO kb_model_api_bindings (id, model_code, protocol, api_path, request_adapter, usage_extractor, status, remark) VALUES
+(9, 'jev-billing-judge', 'DECISIONS', NULL, 'PASSTHROUGH', 'DEFAULT-TOKEN', 1,
+ 'JEV 决策判定绑定；questions 支持 noul(判定)/choice(单选)/score(有序评分)');
+
+-- 4) 路由规则：裁判规则（配置 knot.jev.judge-rule-code 指向本rule_code）
+INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, app_code, username, status) VALUES
+(4, 'jev-billing-judge', 'JEV计费裁判规则', '计费校验辅助判定', NULL, 'admin', 1);
+
+INSERT IGNORE INTO kb_routing_rule_targets (id, rule_code, target_type, target_code, priority, is_primary)
+SELECT 5, 'jev-billing-judge', 'MODEL', m.model_code, 100, 1 FROM kb_models m WHERE m.id = 11;
+
+-- 5) 消费者：裁判专用（配置 knot.jev.judge-consumer-code 指向本consumer_code）
+--    return_usage_detail=0：裁判响应是判定结论，不需要回传上游用量明细。
+INSERT IGNORE INTO kb_routing_consumers (id, consumer_code, name, user_username, secret_key, return_usage_detail, status) VALUES
+(4, 'jev-judge-client', 'JEV计费裁判消费者', 'admin', 'sk-demo-jev-judge-key-004', 0, 1);
+
+INSERT IGNORE INTO kb_routing_rule_consumers (id, rule_code, consumer_code) VALUES
+(4, 'jev-billing-judge', 'jev-judge-client');
+
 -- 路由调试预设请求用例
 -- 请求体中的 model 会由调试面板按所选目标覆盖；messages/input/prompt 等内容可直接编辑后测试。
 -- 音频转录/翻译与图片编辑/变体需要本地文件，请将示例占位路径替换为实际文件路径。

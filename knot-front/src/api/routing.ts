@@ -70,9 +70,10 @@ export function testRoutingRule(
 }
 
 /**
- * 流式路由规则测试：直接请求网关协议地址，返回原始 Response 供增量解析。
+ * 流式路由规则测试：直接请求网关协议地址，返回句柄供增量解析 SSE 事件。
  * 管理端只负责配置/选择目标；网关需要消费者 API Key 和 Rule 头，不能走 /api 管理接口。
  * 请求头由调试抽屉「Headers」表格组装后透传（Authorization / Rule 等以表格为准）。
+ * XHR 通道：响应头名保留服务端原始大小写（fetch 的 Headers 会统一小写）。
  */
 export function testRoutingRuleStream(
   gatewayUrl: string,
