@@ -39,8 +39,8 @@
 
 ## 5. 流式 / knot_extend
 
-- Spring 6.2：`exchange(Class, boolean)` / `onStatus` 已移除；取原始响应用 `exchange((req, res) -> res, false)`，**不要**再链 `.retrieve()`。
-- MockMvc 测 `StreamingResponseBody` 必须 `asyncStarted()` + `getAsyncResult()`。前端 SSE 走 fetch（30s 超时）。
+- 上游流式（2026-10-20 批2 起，Netty 栈）：取流**只能** `retrieve().onStatus(...).toEntityFlux(DataBuffer.class)`。`exchangeToMono` 会在 handler 返回后调 `releaseBody()` 把未消费的响应体整个吞掉（`UpstreamWebClientStreamingTest` 钉住）。⚠ 旧规则「取原始响应用 `exchange((req,res)->res,false)`、不要再链 `.retrieve()`」作废——那是 Servlet 栈时期针对 RestClient 的写法，与现行 WebClient 实现矛盾，以代码为准。
+- 流式测试（2026-10-20 起）：**MockMvc 已不可用**（网关是 Netty 栈，无 Servlet）。流式契约靠 ① 直接调方法 + 反射注解契约检查（`WebTestClient.bindToController` 的 mock codec 管线跑不通 multipart，别走）；② 真启冒烟 s9（首字节 ≪ 总耗时、`knot_extend` 恰好 1 次且在 `[DONE]` 前）。前端 SSE 仍走 fetch（30s 超时）。
 - `knot_extend` = `{usage, billing}`，raw usage 不透传；整包作响应体字段，SSE 作独立 `data:` 事件（`[DONE]` 前插入）；**usage 用 snake_case，billing 用驼峰**。
 
 ## 6. 操作日志
