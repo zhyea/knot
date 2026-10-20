@@ -256,7 +256,6 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (10, 11, 'DELETE', '/api/system/departments/{id}', 'DepartmentController', 1),
 (11, 13, 'POST', '/api/system/roles', 'SystemController', 1),
 (12, 15, 'POST', '/api/system/operation-logs', 'SystemController', 1),
-(13, 15, 'POST', '/api/system/operation-logs/{id}', 'SystemController', 1),
 (14, 18, 'GET', '/api/user-settings/me', 'UserSettingController', 1),
 (15, 17, 'PUT', '/api/user-settings/me', 'UserSettingController', 1),
 (16, 18, 'GET', '/api/me/authorizations', 'CurrentUserController', 1),
@@ -350,8 +349,6 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (106, 93, 'POST', '/api/modules', 'ModuleCatalogController', 1),
 (107, 94, 'POST', '/api/notifications/templates/list', 'NotificationController', 1),
 (108, 95, 'POST', '/api/notifications/templates', 'NotificationController', 1),
-(109, 96, 'POST', '/api/notifications/send', 'NotificationController', 1),
-(111, 97, 'POST', '/api/plugins', 'PluginController', 1),
 (112, 98, 'PUT', '/api/plugins/{id}/status', 'PluginController', 1),
 (113, 99, 'POST', '/api/provider-accounts/list', 'ProviderController', 1),
 (114, 99, 'GET', '/api/provider-accounts/credential-types', 'ProviderController', 1),
@@ -361,9 +358,6 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (119, 100, 'POST', '/api/provider-accounts', 'ProviderController', 1),
 (120, 101, 'PUT', '/api/provider-accounts/{id}', 'ProviderController', 1),
 (121, 102, 'PUT', '/api/provider-accounts/{id}/status', 'ProviderController', 1),
-(122, 99, 'POST', '/api/provider-accounts/{id}/discount-policies/list', 'ProviderController', 1),
-(123, 100, 'POST', '/api/provider-accounts/{id}/discount-policies', 'ProviderController', 1),
-(124, 101, 'PUT', '/api/provider-accounts/{id}/discount-policies/{policyId}', 'ProviderController', 1),
 (125, 103, 'POST', '/api/provider-profiles/list', 'ProviderProfileController', 1),
 (126, 103, 'GET', '/api/provider-profiles/{id}', 'ProviderProfileController', 1),
 (127, 103, 'GET', '/api/provider-profiles/check-code', 'ProviderProfileController', 1),
@@ -418,10 +412,15 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (180, 88, 'POST', '/api/model-pools/options', 'ModelPoolController', 1),
 (181, 99, 'POST', '/api/provider-accounts/options', 'ProviderController', 1),
 (182, 107, 'POST', '/api/routing-consumers/options', 'RoutingConsumerController', 1),
-(183, 113, 'POST', '/api/routing-rules/{id}/test/stream', 'RoutingRuleController', 1),
+-- 流式测试与阻塞测试 / 计费裁判同属「路由规则测试」(routing:rule:test=116)，不再借创建权限(113)，
+-- 否则 DEVELOPER（持 116 不持 113）只能阻塞测试、流式测试被拒，语义不一致。
+(183, 116, 'POST', '/api/routing-rules/{id}/test/stream', 'RoutingRuleController', 1),
 (215, 116, 'POST', '/api/routing-rules/{id}/test/billing-verdict', 'RoutingRuleController', 1),
 (185, 128, 'GET', '/api/test-request-presets/{id}', 'TestRequestPresetController', 1),
 (186, 107, 'GET', '/api/routing-consumers/{id}', 'RoutingConsumerController', 1),
+-- 消费者详情（按业务码）：路由规则↔消费者 1:1 后，测试抽屉按规则的 consumerCode 取密钥，
+-- 走 routing:consumer:view(107)，与按 id 取详情同一权限粒度（两者都返回 secretKey）。
+(216, 107, 'GET', '/api/routing-consumers/code/{code}', 'RoutingConsumerController', 1),
 (187, 66, 'POST', '/api/system/authorizations/roles/options', 'AuthorizationRoleController', 1),
 (188, 103, 'POST', '/api/provider-profiles/options', 'ProviderProfileController', 1),
 (189, 142, 'DELETE', '/api/models/{id}', 'ModelController', 1),
