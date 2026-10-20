@@ -15,36 +15,11 @@ public class JevJudgeProperties {
     /** 裁判路由规则 code（指向 jev 模型的 DECISIONS 规则） */
     private String judgeRuleCode;
 
-    /** 裁判专用消费者 code（调用 /v1/decisions 时作为 Bearer 凭据来源，凭据不落地、不落日志） */
-    private String judgeConsumerCode;
-
-    /**
-     * 上游 provider 白名单：仅允许该 provider 承接裁判，避免回退到普通聊天模型导致 answers 形态崩坏。
-     * 换供应商时改此配置即可，无需动代码。
-     */
-    private String providerOnly = "TypeSafe";
-
     public String getJudgeRuleCode() {
         return judgeRuleCode;
     }
 
     public void setJudgeRuleCode(String judgeRuleCode) {
         this.judgeRuleCode = judgeRuleCode;
-    }
-
-    public String getJudgeConsumerCode() {
-        return judgeConsumerCode;
-    }
-
-    public void setJudgeConsumerCode(String judgeConsumerCode) {
-        this.judgeConsumerCode = judgeConsumerCode;
-    }
-
-    public String getProviderOnly() {
-        return providerOnly;
-    }
-
-    public void setProviderOnly(String providerOnly) {
-        this.providerOnly = providerOnly;
     }
 }

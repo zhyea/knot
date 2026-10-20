@@ -83,11 +83,11 @@ public interface OptionsMapper {
 
     List<OptionRow<String>> listModelPoolOptionsByValues(@Param("values") List<String> values);
 
-    // ---------- 路由消费者（value=id；永不返回 secret_key） ----------
-    List<OptionRow<Long>> listRoutingConsumerOptions(@Param("keyword") String keyword,
-                                                      @Param("enabledOnly") boolean enabledOnly);
+    // ---------- 路由消费者（value=consumer_code；永不返回 secret_key） ----------
+    List<OptionRow<String>> listRoutingConsumerOptions(@Param("keyword") String keyword,
+                                                       @Param("enabledOnly") boolean enabledOnly);
 
-    List<OptionRow<Long>> listRoutingConsumerOptionsByValues(@Param("values") List<String> values);
+    List<OptionRow<String>> listRoutingConsumerOptionsByValues(@Param("values") List<String> values);
 
     // ---------- 计费规则（value=code） ----------
     List<OptionRow<String>> listBillingRuleOptions(@Param("keyword") String keyword,

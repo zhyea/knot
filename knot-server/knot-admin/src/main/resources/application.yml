@@ -41,9 +41,6 @@ knot:
   # 配置缺失、规则未启用或消费者不存在时，裁判区 available:false + 可执行提示，不炸测试链路。
   jev:
     judge-rule-code: ${KNOT_JEV_JUDGE_RULE_CODE:jev-billing-judge}
-    judge-consumer-code: ${KNOT_JEV_JUDGE_CONSUMER_CODE:jev-judge-client}
-    # 上游 provider 白名单：避免裁判回退到普通聊天模型导致 answers 形态崩坏
-    provider-only: ${KNOT_JEV_PROVIDER_ONLY:TypeSafe}
 
 springdoc:
   api-docs:

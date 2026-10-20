@@ -79,13 +79,8 @@ public class JevBillingJudge {
      */
     public RoutingBillingVerdict judge(JevJudgeContext context, String gatewayBaseUrl, String sessionId) {
         String ruleCode = blankToNull(properties.getJudgeRuleCode());
-        String consumerCode = blankToNull(properties.getJudgeConsumerCode());
-        if (ruleCode == null || consumerCode == null) {
-            return unavailable("裁判未配置：knot.jev.judge-rule-code / judge-consumer-code 缺失");
-        }
-        RoutingConsumerEntity consumer = consumerMapper.getByCode(consumerCode);
-        if (consumer == null) {
-            return unavailable("裁判消费者不存在：" + consumerCode);
+        if (ruleCode == null) {
+            return unavailable("裁判未配置：knot.jev.judge-rule-code 缺失");
         }
         RoutingRuleEntity rule = ruleMapper.getByRuleCode(ruleCode);
         if (rule == null) {
@@ -93,6 +88,16 @@ public class JevBillingJudge {
         }
         if (!EnabledStatusEnum.isEnabled(rule.getStatus())) {
             return unavailable("裁判规则未启用：" + ruleCode);
+        }
+        // 消费者由裁判规则的业务码反查（收敛后 kb_routing_rules.consumer_code 承载绑定，
+        // 不再依赖 knot.jev.judge-consumer-code 配置项）
+        String consumerCode = blankToNull(rule.getConsumerCode());
+        if (consumerCode == null) {
+            return unavailable("裁判规则未绑定消费者：" + ruleCode);
+        }
+        RoutingConsumerEntity consumer = consumerMapper.getByCode(consumerCode);
+        if (consumer == null) {
+            return unavailable("裁判消费者不存在：" + consumerCode);
         }
 
         // 凭据仅用于鉴权头——本方法任何日志都不引用 secretKey
@@ -216,11 +221,14 @@ public class JevBillingJudge {
         return request;
     }
 
+    /**
+     * provider 段只保留下发数据合规约束。
+     *
+     * <p>上游 provider 白名单（{@code only}）与 {@code allow_fallbacks} 已移除（2026-10-20）：
+     * 上游 provider 选择无法从 knot 侧约束，且路由规则已锁定 DECISIONS 模型，无需重复表达。</p>
+     */
     private Map<String, Object> buildProvider() {
         Map<String, Object> provider = new LinkedHashMap<>();
-        // allow_fallbacks:false 最关键：回退到普通聊天模型则 answers 形态崩坏
-        provider.put("allow_fallbacks", false);
-        provider.put("only", List.of(properties.getProviderOnly()));
         // data_collection:deny 防计费数据被留存训练
         provider.put("data_collection", "deny");
         return provider;

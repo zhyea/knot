@@ -16,6 +16,11 @@ export function getRoutingConsumer(id: number | string) {
   return get<Dict>(`/api/routing-consumers/${id}`);
 }
 
+/** 消费者详情（含 secretKey）：路由测试按业务码取密钥，绑定收敛为 consumerCode 后使用。 */
+export function getRoutingConsumerByCode(code: string) {
+  return get<Dict>(`/api/routing-consumers/code/${code}`);
+}
+
 export function createRoutingConsumer(payload: Dict) {
   return post("/api/routing-consumers", payload);
 }

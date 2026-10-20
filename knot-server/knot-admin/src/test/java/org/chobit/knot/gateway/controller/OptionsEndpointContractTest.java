@@ -68,9 +68,9 @@ class OptionsEndpointContractTest {
     /**
      * 端点描述符：路径 + controller 工厂 + 打桩器 + 该资源样例 value + 是否有启用态过滤。
      *
-     * <p>{@code sample} 类型随资源的 value 语义：id 型资源为 {@link Long}（部门/应用/
-     * 路由消费者/角色），code 型为 {@link String}（用户按 username/供应商账户/统一模型/
-     * 供应商模型/模型池/计费规则/供应商信息）。泛型化后这一约定由编译器与运行期共同守护。</p>
+ * <p>{@code sample} 类型随资源的 value 语义：id 型资源为 {@link Long}（部门/应用/角色），
+ * code 型为 {@link String}（路由消费者按 consumerCode/用户按 username/供应商账户/统一模型/
+ * 供应商模型/模型池/计费规则/供应商信息）。泛型化后这一约定由编译器与运行期共同守护。</p>
      */
     private record Endpoint(String name, String path, Function<OptionsService, Object> factory,
                             Stubber stubber, Object sample, boolean hasEnabledOnly) {
@@ -137,7 +137,7 @@ class OptionsEndpointContractTest {
                             when(m.listRoutingConsumerOptions(any(), anyBoolean()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));
                             when(m.listRoutingConsumerOptionsByValues(anyList())).thenAnswer(inv -> e);
-                        }, 5L, true),
+                        }, "consumer-cs", true),
                 new Endpoint("计费规则", "/api/billing/options",
                         svc -> new BillingController(null, null, svc),
                         (m, s, e, c) -> {

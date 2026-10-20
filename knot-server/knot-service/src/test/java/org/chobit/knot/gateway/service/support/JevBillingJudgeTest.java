@@ -93,6 +93,7 @@ class JevBillingJudgeTest {
         RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
         RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
         when(cMock.getByCode("jev-judge-client")).thenReturn(null);
+        when(rMock.getByRuleCode("jev-billing-judge")).thenReturn(enabledRule());
         FakeDecisionsTransport transport = new FakeDecisionsTransport();
 
         JevBillingJudge judge = new JevBillingJudge(props, cMock, rMock, transport, new ObjectMapper());
@@ -143,8 +144,7 @@ class JevBillingJudgeTest {
         RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
         RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
         when(cMock.getByCode("jev-judge-client")).thenReturn(enabledConsumer());
-        RoutingRuleEntity rule = new RoutingRuleEntity();
-        rule.setStatus(1);
+        RoutingRuleEntity rule = enabledRule();
         when(rMock.getByRuleCode("jev-billing-judge")).thenReturn(rule);
         FakeDecisionsTransport transport = new FakeDecisionsTransport(); // 空脚本 → GOOD_JSON
 
@@ -165,8 +165,7 @@ class JevBillingJudgeTest {
         RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
         RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
         when(cMock.getByCode("jev-judge-client")).thenReturn(enabledConsumer());
-        RoutingRuleEntity rule = new RoutingRuleEntity();
-        rule.setStatus(1);
+        RoutingRuleEntity rule = enabledRule();
         when(rMock.getByRuleCode("jev-billing-judge")).thenReturn(rule);
         FakeDecisionsTransport transport = new FakeDecisionsTransport();
         transport.script(PARTIAL_JSON);
@@ -196,8 +195,7 @@ class JevBillingJudgeTest {
         RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
         RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
         when(cMock.getByCode("jev-judge-client")).thenReturn(enabledConsumer());
-        RoutingRuleEntity rule = new RoutingRuleEntity();
-        rule.setStatus(1);
+        RoutingRuleEntity rule = enabledRule();
         when(rMock.getByRuleCode("jev-billing-judge")).thenReturn(rule);
         FakeDecisionsTransport transport = new FakeDecisionsTransport();
         transport.script(413, 413); // 两次都 413
@@ -216,8 +214,7 @@ class JevBillingJudgeTest {
         RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
         RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
         when(cMock.getByCode("jev-judge-client")).thenReturn(enabledConsumer());
-        RoutingRuleEntity rule = new RoutingRuleEntity();
-        rule.setStatus(1);
+        RoutingRuleEntity rule = enabledRule();
         when(rMock.getByRuleCode("jev-billing-judge")).thenReturn(rule);
         FakeDecisionsTransport transport = new FakeDecisionsTransport();
         transport.script(413, GOOD_JSON); // 首次 413，截断重试成功
@@ -267,8 +264,7 @@ class JevBillingJudgeTest {
         RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
         RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
         when(cMock.getByCode("jev-judge-client")).thenReturn(enabledConsumer());
-        RoutingRuleEntity rule = new RoutingRuleEntity();
-        rule.setStatus(1);
+        RoutingRuleEntity rule = enabledRule();
         when(rMock.getByRuleCode("jev-billing-judge")).thenReturn(rule);
         FakeDecisionsTransport transport = new FakeDecisionsTransport();
         transport.script(new Fail(502, gatewayErrorBody(413, "payload too large")), GOOD_JSON);
@@ -311,8 +307,7 @@ class JevBillingJudgeTest {
         RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
         RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
         when(cMock.getByCode("jev-judge-client")).thenReturn(enabledConsumer());
-        RoutingRuleEntity rule = new RoutingRuleEntity();
-        rule.setStatus(1);
+        RoutingRuleEntity rule = enabledRule();
         when(rMock.getByRuleCode("jev-billing-judge")).thenReturn(rule);
         FakeDecisionsTransport transport = new FakeDecisionsTransport();
         Object[] script = new Object[expectedCalls];
@@ -335,8 +330,7 @@ class JevBillingJudgeTest {
         RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
         RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
         when(cMock.getByCode("jev-judge-client")).thenReturn(enabledConsumer());
-        RoutingRuleEntity rule = new RoutingRuleEntity();
-        rule.setStatus(1);
+        RoutingRuleEntity rule = enabledRule();
         when(rMock.getByRuleCode("jev-billing-judge")).thenReturn(rule);
         FakeDecisionsTransport transport = new FakeDecisionsTransport();
         // 25 条明细，验证 details 截断到 20
@@ -384,9 +378,10 @@ class JevBillingJudgeTest {
         assertTrue(risk.get("criteria") instanceof List);
         @SuppressWarnings("unchecked")
         Map<String, Object> provider = (Map<String, Object>) transport.lastBody.get("provider");
-        assertEquals(false, provider.get("allow_fallbacks"));
-        assertEquals(List.of("TypeSafe"), provider.get("only"));
         assertEquals("deny", provider.get("data_collection"));
+        // 上游 provider 白名单与 fallback 开关已移除，防止被误加回
+        assertFalse(provider.containsKey("allow_fallbacks"));
+        assertFalse(provider.containsKey("only"));
     }
 
     @Test
@@ -395,8 +390,7 @@ class JevBillingJudgeTest {
         RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
         RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
         when(cMock.getByCode("jev-judge-client")).thenReturn(enabledConsumer());
-        RoutingRuleEntity rule = new RoutingRuleEntity();
-        rule.setStatus(1);
+        RoutingRuleEntity rule = enabledRule();
         when(rMock.getByRuleCode("jev-billing-judge")).thenReturn(rule);
         FakeDecisionsTransport transport = new FakeDecisionsTransport();
 
@@ -428,8 +422,7 @@ class JevBillingJudgeTest {
         RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
         RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
         when(cMock.getByCode("jev-judge-client")).thenReturn(enabledConsumer());
-        RoutingRuleEntity rule = new RoutingRuleEntity();
-        rule.setStatus(1);
+        RoutingRuleEntity rule = enabledRule();
         when(rMock.getByRuleCode("jev-billing-judge")).thenReturn(rule);
         FakeDecisionsTransport transport = new FakeDecisionsTransport();
         transport.script(status, status); // 两次同码（402/429：429 重试一次；402 仅一次）
@@ -444,9 +437,14 @@ class JevBillingJudgeTest {
     private JevJudgeProperties configuredProps() {
         JevJudgeProperties props = new JevJudgeProperties();
         props.setJudgeRuleCode("jev-billing-judge");
-        props.setJudgeConsumerCode("jev-judge-client");
-        props.setProviderOnly("TypeSafe");
         return props;
+    }
+
+    private RoutingRuleEntity enabledRule() {
+        RoutingRuleEntity rule = new RoutingRuleEntity();
+        rule.setStatus(1);
+        rule.setConsumerCode("jev-judge-client");
+        return rule;
     }
 
     private RoutingConsumerEntity enabledConsumer() {

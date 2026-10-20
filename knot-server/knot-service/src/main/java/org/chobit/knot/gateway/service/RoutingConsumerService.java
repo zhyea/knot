@@ -81,6 +81,18 @@ public class RoutingConsumerService {
     }
 
     /**
+     * 按业务码取消费者详情（含 secretKey）。供路由规则测试抽屉按规则绑定的 consumerCode
+     * 取密钥，避免再经主键 id 建立关系。
+     */
+    public RoutingConsumerDto getByCode(String code) {
+        RoutingConsumerEntity entity = routingConsumerMapper.getByCode(code);
+        if (entity == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "消费者不存在");
+        }
+        return toDto(entity, trafficPolicySupport.load(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), entity.getId()));
+    }
+
+    /**
      * Returns whether the current condition is satisfied. Executes the public operation.
      */
     public boolean isConsumerCodeAvailable(String consumerCode, Long excludeId) {
@@ -220,7 +232,7 @@ public class RoutingConsumerService {
     }
 
     private RoutingConsumerDto toDto(RoutingConsumerEntity entity, TrafficPolicies traffic) {
-        Long ruleCount = routingConsumerMapper.countRulesByConsumerId(entity.getId());
+        Long ruleCount = routingConsumerMapper.countRulesByConsumerCode(entity.getConsumerCode());
         return new RoutingConsumerDto(
                 entity.getId(),
                 entity.getConsumerCode(),

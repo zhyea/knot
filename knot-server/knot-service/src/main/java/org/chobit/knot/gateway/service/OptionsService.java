@@ -160,7 +160,7 @@ public class OptionsService {
                 optionConverter::toModelPoolItems);
     }
 
-    // ==================== 路由消费者（value=id；meta=consumerCode；禁 secretKey） ====================
+    // ==================== 路由消费者（value=consumerCode；meta=consumerCode；禁 secretKey） ====================
     public OptionPage<OptionItem<RoutingConsumerOptionMeta>> listRoutingConsumerOptions(RoutingConsumerOptionQuery query) {
         OptionQuery base = query == null ? EMPTY : query.toBase();
         String kw = keyword(query == null ? null : query.keyword());

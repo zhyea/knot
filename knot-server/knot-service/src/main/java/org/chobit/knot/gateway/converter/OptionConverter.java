@@ -72,11 +72,11 @@ public class OptionConverter {
         return mapRows(rows, this::toAppItem);
     }
 
-    public OptionItem<RoutingConsumerOptionMeta> toRoutingConsumerItem(OptionRow<Long> row) {
+    public OptionItem<RoutingConsumerOptionMeta> toRoutingConsumerItem(OptionRow<String> row) {
         return build(row, parseMeta(row.getMeta(), RoutingConsumerOptionMeta.class));
     }
 
-    public List<OptionItem<RoutingConsumerOptionMeta>> toRoutingConsumerItems(List<OptionRow<Long>> rows) {
+    public List<OptionItem<RoutingConsumerOptionMeta>> toRoutingConsumerItems(List<OptionRow<String>> rows) {
         return mapRows(rows, this::toRoutingConsumerItem);
     }
 

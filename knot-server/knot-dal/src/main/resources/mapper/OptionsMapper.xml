@@ -245,9 +245,9 @@
     <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
   </select>
 
-  <!-- ==================== 路由消费者（value=id；meta=consumerCode；禁 secret_key） ==================== -->
+  <!-- ==================== 路由消费者（value=consumer_code；meta=consumerCode；禁 secret_key） ==================== -->
   <select id="listRoutingConsumerOptions" resultMap="optionRow">
-    select c.id as value,
+    select c.consumer_code as value,
     c.name as label,
     0 as disabled,
     json_object('consumerCode', c.consumer_code) as meta
@@ -262,12 +262,12 @@
   </select>
 
   <select id="listRoutingConsumerOptionsByValues" resultMap="optionRow">
-    select c.id as value,
+    select c.consumer_code as value,
     c.name as label,
     (case when c.status = 1 then 0 else 1 end) as disabled,
     json_object('consumerCode', c.consumer_code) as meta
     from kb_routing_consumers c
-    where cast(c.id as char) in
+    where c.consumer_code in
     <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
   </select>
 

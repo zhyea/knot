@@ -94,7 +94,7 @@ public class RoutingResolver {
         if (!EnabledStatusEnum.isEnabled(consumer.getStatus())) {
             throw new GatewayAuthException("Consumer is disabled");
         }
-        RoutingRuleEntity rule = dataService.getEnabledRuleByConsumerAndCode(consumer.getId(), StringUtils.trim(ruleCode));
+        RoutingRuleEntity rule = dataService.getEnabledRuleByConsumerCodeAndCode(consumer.getConsumerCode(), StringUtils.trim(ruleCode));
         if (rule == null) {
             throw new GatewayAuthException("Routing rule is not available for this consumer");
         }

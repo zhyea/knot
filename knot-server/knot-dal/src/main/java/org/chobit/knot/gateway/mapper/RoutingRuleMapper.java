@@ -13,10 +13,10 @@ public interface RoutingRuleMapper {
 
     RoutingRuleEntity getById(Long id);
 
-    List<RoutingRuleEntity> listEnabledByConsumerId(Long consumerId);
+    List<RoutingRuleEntity> listEnabledByConsumerCode(@org.apache.ibatis.annotations.Param("consumerCode") String consumerCode);
 
-    RoutingRuleEntity getEnabledByConsumerIdAndRuleCode(@org.apache.ibatis.annotations.Param("consumerId") Long consumerId,
-                                                        @org.apache.ibatis.annotations.Param("ruleCode") String ruleCode);
+    RoutingRuleEntity getEnabledByConsumerCodeAndRuleCode(@org.apache.ibatis.annotations.Param("consumerCode") String consumerCode,
+                                                          @org.apache.ibatis.annotations.Param("ruleCode") String ruleCode);
 
     /**
      * 按规则业务码取规则（含 status）。

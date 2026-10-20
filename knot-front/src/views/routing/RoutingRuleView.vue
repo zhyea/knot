@@ -65,7 +65,7 @@ import RoutingRuleListPanel from "../../components/routing/RoutingRuleListPanel.
 import RoutingRuleFormDrawer from "../../components/routing/RoutingRuleFormDrawer.vue";
 import RoutingRuleTestDrawer from "../../components/routing/RoutingRuleTestDrawer.vue";
 import {listRoutingRuleOperationLogs} from "@/api/operationLogs";
-import {listRoutingRules, getRoutingConsumer} from "@/api/routing";
+import {listRoutingRules, getRoutingConsumerByCode} from "@/api/routing";
 
 const {
   query,
@@ -113,7 +113,7 @@ async function openTest(row: Row) {
   testRuleId.value = row.id;
   testRuleName.value = row.name || row.ruleCode || "";
   testRuleCode.value = row.ruleCode || "";
-  const consumer = await loadConsumerContext(row.consumerIds);
+  const consumer = await loadConsumerContext(row.consumerCode);
   testSecretKey.value = consumer.secretKey;
   testConsumerReturnUsageDetail.value = consumer.returnUsageDetail;
   testTargets.value = Array.isArray(row.targets) ? row.targets : [];
@@ -121,17 +121,16 @@ async function openTest(row: Row) {
 }
 
 /**
- * 取规则绑定消费者的密钥与「返回消费详情」开关：规则实际只绑一个消费者，
- * 抽屉以首个（也是唯一一个）消费者的密钥发起测试，故两项都取它。
- * 走详情端点而非全量列表（下拉候选用 POST /options，刻意不含 secretKey）。
+ * 取规则绑定消费者的密钥与「返回消费详情」开关：规则实际只绑一个消费者（consumerCode），
+ * 抽屉以该消费者的密钥发起测试。走按业务码取详情端点（而非主键 id），
+ * 下拉候选用 POST /options，刻意不含 secretKey。
  */
-async function loadConsumerContext(consumerIds: Array<string | number>) {
-  const ids = Array.isArray(consumerIds) ? consumerIds : [];
-  if (!ids.length) {
+async function loadConsumerContext(consumerCode: string | null | undefined) {
+  if (!consumerCode) {
     return {secretKey: "", returnUsageDetail: false};
   }
   try {
-    const detail = await getRoutingConsumer(ids[0]);
+    const detail = await getRoutingConsumerByCode(consumerCode);
     return {
       secretKey: detail?.secretKey || "",
       returnUsageDetail: detail?.returnUsageDetail === true

@@ -183,11 +183,11 @@ class OptionsServiceTest {
     @Test
     void consumerOptionCarriesConsumerCodeMeta() {
         when(mapper.listRoutingConsumerOptions(any(), anyBoolean()))
-                .thenReturn(List.of(idRow(3L, "consumer-a", "{\"consumerCode\":\"ca\"}", 0)));
+                .thenReturn(List.of(codeRow("ca", "consumer-a", "{\"consumerCode\":\"ca\"}", 0)));
         OptionPage<OptionItem<RoutingConsumerOptionMeta>> page = service.listRoutingConsumerOptions(null);
         OptionItem<RoutingConsumerOptionMeta> item = page.list().get(0);
 
-        assertEquals(3L, item.value());
+        assertEquals("ca", item.value());
         assertNotNull(item.meta());
         assertEquals("ca", item.meta().consumerCode());
     }

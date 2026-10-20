@@ -20,6 +20,10 @@ public class RoutingRuleEntity {
     private String username;
     /** 归属用户真实姓名（由 join ks_users 派生，不落库）；列表展示用「姓名(用户名)」 */
     private String userRealName;
+    /** 绑定消费者业务码（kb_routing_consumers.consumer_code），一对一，非主键 id；落库列 */
+    private String consumerCode;
+    /** 消费者名称（由 join kb_routing_consumers 派生，不落库） */
+    private String consumerName;
     /** 统一模型 code（kb_logical_models.model_code），非必填；选中后目标选择器优先置前对应项（仅排序，不过滤） */
     private String logicalModelCode;
     /** 统一模型展示名（由 join kb_logical_models 派生，等于 model_name，不落库） */

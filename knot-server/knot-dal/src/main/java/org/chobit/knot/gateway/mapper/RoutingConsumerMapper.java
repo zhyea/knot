@@ -26,7 +26,7 @@ public interface RoutingConsumerMapper {
     Long countByConsumerCode(@Param("consumerCode") String consumerCode,
                              @Param("excludeId") Long excludeId);
 
-    Long countRulesByConsumerId(Long consumerId);
+    Long countRulesByConsumerCode(@Param("consumerCode") String consumerCode);
 
     int insert(RoutingConsumerEntity entity);
 

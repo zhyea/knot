@@ -17,7 +17,7 @@
       </el-table-column>
       <el-table-column label="消费者" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">
-          {{ consumerNamesLabel(row.consumerNames) }}
+          {{ consumerNameLabel(row.consumerName) }}
         </template>
       </el-table-column>
       <el-table-column label="更新时间" width="170" align="center" show-overflow-tooltip>
@@ -129,8 +129,8 @@ function targetsLabel(targets: unknown): string[] {
   });
 }
 
-function consumerNamesLabel(consumerNames: unknown) {
-  return Array.isArray(consumerNames) && consumerNames.length ? consumerNames.join("、") : "-";
+function consumerNameLabel(consumerName: unknown) {
+  return consumerName ? String(consumerName) : "-";
 }
 
 /** 归属用户展示为「姓名(用户名)」；真实姓名为空时回退纯用户名 */

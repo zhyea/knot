@@ -57,7 +57,7 @@ public class GatewayDataService {
 
     private final LoadingCache<Long, Optional<AppEntity>> appByIdCache;
     private final LoadingCache<String, Optional<RoutingConsumerEntity>> consumerBySecretKeyCache;
-    private final LoadingCache<Long, List<RoutingRuleEntity>> enabledRulesByConsumerIdCache;
+    private final LoadingCache<String, List<RoutingRuleEntity>> enabledRulesByConsumerCodeCache;
     private final LoadingCache<ConsumerRuleKey, Optional<RoutingRuleEntity>> enabledRuleByConsumerAndCodeCache;
     private final LoadingCache<String, List<RoutingRuleTargetEntity>> targetsByRuleIdCache;
     private final LoadingCache<Long, Optional<ModelEntity>> modelByIdCache;
@@ -91,9 +91,9 @@ public class GatewayDataService {
                               BillingRuleMapper billingRuleMapper) {
         this.appByIdCache = optionalCache(appMapper::getById);
         this.consumerBySecretKeyCache = optionalCache(routingConsumerMapper::getBySecretKey);
-        this.enabledRulesByConsumerIdCache = listCache(routingRuleMapper::listEnabledByConsumerId);
+        this.enabledRulesByConsumerCodeCache = listCache(routingRuleMapper::listEnabledByConsumerCode);
         this.enabledRuleByConsumerAndCodeCache = optionalCache(key ->
-                routingRuleMapper.getEnabledByConsumerIdAndRuleCode(key.consumerId(), key.ruleCode()));
+                routingRuleMapper.getEnabledByConsumerCodeAndRuleCode(key.consumerCode(), key.ruleCode()));
         this.targetsByRuleIdCache = listCache(routingRuleTargetMapper::listByRuleCode);
         this.modelByIdCache = optionalCache(modelMapper::getById);
         this.modelByCodeCache = optionalCache(modelMapper::getByCode);
@@ -127,15 +127,15 @@ public class GatewayDataService {
     /**
      * Lists matching results. Executes the public operation.
      */
-    public List<RoutingRuleEntity> listEnabledRulesByConsumerId(Long consumerId) {
-        return enabledRulesByConsumerIdCache.get(consumerId);
+    public List<RoutingRuleEntity> listEnabledRulesByConsumerCode(String consumerCode) {
+        return enabledRulesByConsumerCodeCache.get(consumerCode);
     }
 
     /**
      * Returns the requested value. Executes the public operation.
      */
-    public RoutingRuleEntity getEnabledRuleByConsumerAndCode(Long consumerId, String ruleCode) {
-        return enabledRuleByConsumerAndCodeCache.get(new ConsumerRuleKey(consumerId, ruleCode)).orElse(null);
+    public RoutingRuleEntity getEnabledRuleByConsumerCodeAndCode(String consumerCode, String ruleCode) {
+        return enabledRuleByConsumerAndCodeCache.get(new ConsumerRuleKey(consumerCode, ruleCode)).orElse(null);
     }
 
     /**
@@ -319,7 +319,7 @@ public class GatewayDataService {
                 .refreshAfterWrite(REFRESH_AFTER_WRITE);
     }
 
-    private record ConsumerRuleKey(Long consumerId, String ruleCode) {
+    private record ConsumerRuleKey(String consumerCode, String ruleCode) {
     }
 
     private record ResourceKey(String resourceType, Long resourceId) {

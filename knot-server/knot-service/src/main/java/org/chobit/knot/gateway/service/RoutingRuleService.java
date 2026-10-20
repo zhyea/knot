@@ -30,7 +30,6 @@ import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ModelPoolEntity;
 import org.chobit.knot.gateway.entity.RoutingConsumerEntity;
-import org.chobit.knot.gateway.entity.RoutingRuleConsumerEntity;
 import org.chobit.knot.gateway.entity.RoutingRuleEntity;
 import org.chobit.knot.gateway.entity.RoutingRuleTargetEntity;
 import org.chobit.knot.gateway.error.BusinessException;
@@ -41,7 +40,6 @@ import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.mapper.ModelPoolMapper;
 import org.chobit.knot.gateway.mapper.RoutingConsumerMapper;
-import org.chobit.knot.gateway.mapper.RoutingRuleConsumerMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleMapper;
 import org.chobit.knot.gateway.mapper.RoutingRuleTargetMapper;
 import org.chobit.knot.gateway.model.PageRequest;
@@ -130,7 +128,6 @@ public class RoutingRuleService {
     );
 
     private final RoutingRuleTargetMapper routingRuleTargetMapper;
-    private final RoutingRuleConsumerMapper routingRuleConsumerMapper;
     private final RoutingConsumerMapper routingConsumerMapper;
     private final ModelApiBindingMapper modelApiBindingMapper;
     private final ModelMapper modelMapper;
@@ -146,7 +143,6 @@ public class RoutingRuleService {
      */
     public RoutingRuleService(RoutingRuleMapper routingRuleMapper,
                               RoutingRuleTargetMapper routingRuleTargetMapper,
-                              RoutingRuleConsumerMapper routingRuleConsumerMapper,
                               RoutingConsumerMapper routingConsumerMapper,
                               ModelApiBindingMapper modelApiBindingMapper,
                               ModelMapper modelMapper,
@@ -157,7 +153,6 @@ public class RoutingRuleService {
                               ResourceTrafficPolicySupport trafficPolicySupport) {
         this.routingRuleMapper = routingRuleMapper;
         this.routingRuleTargetMapper = routingRuleTargetMapper;
-        this.routingRuleConsumerMapper = routingRuleConsumerMapper;
         this.routingConsumerMapper = routingConsumerMapper;
         this.modelApiBindingMapper = modelApiBindingMapper;
         this.modelMapper = modelMapper;
@@ -252,7 +247,6 @@ public class RoutingRuleService {
         RoutingRuleEntity entity = toEntity(normalized);
         entity.setStatus(EnabledStatusEnum.codeOf(normalized.enabled()));
         routingRuleMapper.insert(entity);
-        saveConsumers(entity.getId(), normalized.consumerIds());
         saveTargets(entity.getId(), normalized.targets());
         trafficPolicySupport.save(TrafficResourceTypeEnum.ROUTING_RULE.code(), entity.getId(),
                 normalized.rateLimitPolicy(), normalized.quotaPolicies());
@@ -272,7 +266,6 @@ public class RoutingRuleService {
         entity.setId(id);
         entity.setStatus(EnabledStatusEnum.codeOf(request.enabled()));
         routingRuleMapper.update(entity);
-        saveConsumers(id, request.consumerIds());
         saveTargets(id, request.targets());
         trafficPolicySupport.save(TrafficResourceTypeEnum.ROUTING_RULE.code(), id,
                 request.rateLimitPolicy(), request.quotaPolicies());
@@ -290,8 +283,8 @@ public class RoutingRuleService {
                 existing.ruleCode(),
                 existing.name(),
                 existing.appScenario(),
-                existing.consumerIds(),
-                existing.consumerNames(),
+                existing.consumerCode(),
+                existing.consumerName(),
                 existing.appId(),
                 existing.appName(),
                 existing.username(),
@@ -397,7 +390,7 @@ public class RoutingRuleService {
                                                          Long targetId,
                                                          Map<String, Object> requestBody) {
         RoutingRuleDto rule = getById(ruleId);
-        RoutingConsumerEntity consumer = findBoundConsumerBySecretKey(rule.consumerIds(), secretKey);
+        RoutingConsumerEntity consumer = findBoundConsumerBySecretKey(rule.consumerCode(), secretKey);
         if (consumer == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "消费者不存在或未启用");
         }
@@ -760,7 +753,6 @@ public class RoutingRuleService {
         }
         List<String> ruleCodes = entities.stream().map(RoutingRuleEntity::getRuleCode).toList();
         Map<String, List<RoutingRuleTargetDto>> targetsByRule = loadTargetsByRuleCodes(ruleCodes);
-        Map<String, List<RoutingRuleConsumerEntity>> consumersByRule = loadConsumersByRuleCodes(ruleCodes);
         Map<Long, TrafficPolicies> traffic =
                 trafficPolicySupport.loadBatch(TrafficResourceTypeEnum.ROUTING_RULE.code(),
                         entities.stream().map(RoutingRuleEntity::getId).toList());
@@ -769,7 +761,6 @@ public class RoutingRuleService {
             TrafficPolicies tp = traffic.get(entity.getId());
             result.add(toDto(
                     entity,
-                    consumersByRule.getOrDefault(entity.getRuleCode(), List.of()),
                     targetsByRule.getOrDefault(entity.getRuleCode(), List.of()),
                     tp
             ));
@@ -780,34 +771,25 @@ public class RoutingRuleService {
     private RoutingRuleDto enrich(RoutingRuleEntity entity) {
         Map<String, List<RoutingRuleTargetDto>> targetsByRule =
                 loadTargetsByRuleCodes(List.of(entity.getRuleCode()));
-        Map<String, List<RoutingRuleConsumerEntity>> consumersByRule =
-                loadConsumersByRuleCodes(List.of(entity.getRuleCode()));
         TrafficPolicies traffic =
                 trafficPolicySupport.load(TrafficResourceTypeEnum.ROUTING_RULE.code(), entity.getId());
         return toDto(entity,
-                consumersByRule.getOrDefault(entity.getRuleCode(), List.of()),
                 targetsByRule.getOrDefault(entity.getRuleCode(), List.of()),
                 traffic);
     }
 
     private RoutingRuleDto toDto(RoutingRuleEntity entity,
-                                 List<RoutingRuleConsumerEntity> consumers,
                                  List<RoutingRuleTargetDto> targets,
                                  TrafficPolicies traffic) {
         RateLimitPolicy rate = traffic != null ? traffic.rateLimitPolicy() : null;
         List<QuotaPolicy> quotas = traffic != null ? traffic.quotaPolicies() : List.of();
-        List<Long> consumerIds = consumers.stream().map(RoutingRuleConsumerEntity::getConsumerId).toList();
-        List<String> consumerNames = consumers.stream()
-                .map(this::consumerDisplayName)
-                .filter(name -> name != null && !name.isBlank())
-                .toList();
         return new RoutingRuleDto(
                 entity.getId(),
                 entity.getRuleCode(),
                 entity.getName(),
                 entity.getAppScenario(),
-                consumerIds,
-                consumerNames,
+                entity.getConsumerCode(),
+                entity.getConsumerName(),
                 entity.getAppId(),
                 entity.getAppName(),
                 entity.getUsername(),
@@ -835,17 +817,6 @@ public class RoutingRuleService {
     private static String normalizeSelectionStrategy(String code) {
         ModelPoolSelectionStrategyEnum strategy = ModelPoolSelectionStrategyEnum.fromCode(code);
         return strategy == null ? ModelPoolSelectionStrategyEnum.PRIORITY.code() : strategy.code();
-    }
-
-    private Map<String, List<RoutingRuleConsumerEntity>> loadConsumersByRuleCodes(List<String> ruleCodes) {
-        if (ruleCodes == null || ruleCodes.isEmpty()) {
-            return Map.of();
-        }
-        Map<String, List<RoutingRuleConsumerEntity>> result = new HashMap<>();
-        for (RoutingRuleConsumerEntity entity : routingRuleConsumerMapper.listByRuleCodes(ruleCodes)) {
-            result.computeIfAbsent(entity.getRuleCode(), k -> new ArrayList<>()).add(entity);
-        }
-        return result;
     }
 
     private Map<String, List<RoutingRuleTargetDto>> loadTargetsByRuleCodes(List<String> ruleCodes) {
@@ -920,33 +891,6 @@ public class RoutingRuleService {
         throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target code is required");
     }
 
-    private void saveConsumers(Long ruleId, List<Long> consumerIds) {
-        RoutingRuleEntity rule = routingRuleMapper.getById(ruleId);
-        if (rule == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "路由规则不存在");
-        }
-        String ruleCode = rule.getRuleCode();
-        routingRuleConsumerMapper.deleteByRuleCode(ruleCode);
-        if (consumerIds == null || consumerIds.isEmpty()) {
-            return;
-        }
-        Long consumerId = consumerIds.stream()
-                .filter(Objects::nonNull)
-                .findFirst()
-                .orElse(null);
-        if (consumerId == null) {
-            return;
-        }
-        RoutingConsumerEntity consumer = routingConsumerMapper.getById(consumerId);
-        if (consumer == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "消费者不存在");
-        }
-        RoutingRuleConsumerEntity entity = new RoutingRuleConsumerEntity();
-        entity.setRuleCode(ruleCode);
-        entity.setConsumerCode(consumer.getConsumerCode());
-        routingRuleConsumerMapper.insert(entity);
-    }
-
     private RoutingRuleDto ensureGeneratedFieldsForCreate(RoutingRuleDto request) {
         String ruleCode = normalizeRuleCode(request.ruleCode());
         if (!ruleCode.isEmpty()) {
@@ -957,8 +901,8 @@ public class RoutingRuleService {
                 generateUniqueRuleCode(),
                 request.name(),
                 request.appScenario(),
-                request.consumerIds(),
-                request.consumerNames(),
+                request.consumerCode(),
+                request.consumerName(),
                 request.appId(),
                 request.appName(),
                 request.username(),
@@ -1000,15 +944,13 @@ public class RoutingRuleService {
             throw new BusinessException(ErrorCode.CONFLICT,
                     "规则编码「" + ruleCode + "」已存在，请更换后重试");
         }
-        if (request.consumerIds() != null) {
-            for (Long consumerId : request.consumerIds().stream().distinct().toList()) {
-                RoutingConsumerEntity consumer = routingConsumerMapper.getById(consumerId);
-                if (consumer == null) {
-                    throw new BusinessException(ErrorCode.NOT_FOUND, "消费者不存在");
-                }
-                if (request.enabled() && !EnabledStatusEnum.isEnabled(consumer.getStatus())) {
-                    throw new BusinessException(ErrorCode.VALIDATION_ERROR, "消费者未启用");
-                }
+        if (request.consumerCode() != null && !request.consumerCode().isBlank()) {
+            RoutingConsumerEntity consumer = routingConsumerMapper.getByCode(request.consumerCode().trim());
+            if (consumer == null) {
+                throw new BusinessException(ErrorCode.NOT_FOUND, "消费者不存在");
+            }
+            if (request.enabled() && !EnabledStatusEnum.isEnabled(consumer.getStatus())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "消费者未启用");
             }
         }
         if (request.appId() != null) {
@@ -1037,7 +979,7 @@ public class RoutingRuleService {
     }
 
     private void validateEnabledRule(RoutingRuleDto request) {
-        if (request.consumerIds() == null || request.consumerIds().isEmpty()) {
+        if (request.consumerCode() == null || request.consumerCode().isBlank()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "启用规则前请选择消费者");
         }
         if (request.appId() == null) {
@@ -1117,6 +1059,8 @@ public class RoutingRuleService {
         }
         // 路由规则按 username 绑定用户（业务码，非主键 id）
         entity.setUsername(normalizeNullable(request.username()));
+        // 路由规则按消费者业务码绑定（kb_routing_consumers.consumer_code），一对一，非主键 id
+        entity.setConsumerCode(normalizeNullable(request.consumerCode()));
         // 统一模型非必填：未配置（null/空）落库为 NULL，仅作为目标选择器的优先排序上下文
         entity.setLogicalModelCode(normalizeNullable(request.logicalModelCode()));
         // 未配置（null）落库为 NULL，运行时按内置默认策略处理
@@ -1128,31 +1072,18 @@ public class RoutingRuleService {
         return entity;
     }
 
-    private RoutingConsumerEntity findBoundConsumerBySecretKey(List<Long> consumerIds, String secretKey) {
+    private RoutingConsumerEntity findBoundConsumerBySecretKey(String consumerCode, String secretKey) {
         String normalized = secretKey != null ? secretKey.trim() : "";
-        if (consumerIds == null || consumerIds.isEmpty() || normalized.isEmpty()) {
+        if (consumerCode == null || consumerCode.isBlank() || normalized.isEmpty()) {
             return null;
         }
-        for (Long consumerId : consumerIds) {
-            RoutingConsumerEntity consumer = routingConsumerMapper.getById(consumerId);
-            if (consumer != null
-                    && EnabledStatusEnum.isEnabled(consumer.getStatus())
-                    && normalized.equals(consumer.getSecretKey())) {
-                return consumer;
-            }
+        RoutingConsumerEntity consumer = routingConsumerMapper.getByCode(consumerCode.trim());
+        if (consumer != null
+                && EnabledStatusEnum.isEnabled(consumer.getStatus())
+                && normalized.equals(consumer.getSecretKey())) {
+            return consumer;
         }
         return null;
-    }
-
-    private String consumerDisplayName(RoutingRuleConsumerEntity entity) {
-        if (entity == null) {
-            return null;
-        }
-        String name = entity.getConsumerName();
-        if (name != null && !name.isBlank()) {
-            return name;
-        }
-        return entity.getConsumerCode();
     }
 
     private static String normalizeRuleCode(String ruleCode) {

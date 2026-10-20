@@ -16,8 +16,10 @@ public record RoutingRule(
         @Size(max = 32) String ruleCode,
         @NotBlank String name,
         @Size(max = 128) String appScenario,
-        List<Long> consumerIds,
-        List<String> consumerNames,
+        /** 绑定消费者业务码（kb_routing_consumers.consumer_code），一对一，非主键 id；尽量不通过 ID 建立关系 */
+        String consumerCode,
+        /** 消费者名称（由后端 join kb_routing_consumers 派生，仅展示用） */
+        String consumerName,
         Long appId,
         String appName,
         /** 归属用户登录名（业务码，非主键 id）；路由规则按 username 绑定用户 */

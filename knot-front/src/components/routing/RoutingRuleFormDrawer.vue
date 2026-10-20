@@ -382,7 +382,8 @@ interface RuleForm {
   ruleCode: string;
   name: string;
   appScenarios: string[];
-  consumerIds: Array<string | number>;
+  /** 绑定消费者业务码（kb_routing_consumers.consumer_code），一对一，非主键 id */
+  consumerCode: string | null;
   appId: number | string | null;
   /** 归属用户登录名（绑定 username，非 user.id） */
   username: string | null;
@@ -402,7 +403,7 @@ const form = reactive<RuleForm>({
   ruleCode: "",
   name: "",
   appScenarios: [],
-  consumerIds: [],
+  consumerCode: null,
   appId: null,
   username: null,
   logicalModelCode: null,
@@ -414,12 +415,13 @@ const form = reactive<RuleForm>({
   ejectionPolicy: defaultEjectionPolicy()
 });
 
-const selectedConsumers = computed(() =>
-  form.consumerIds.map((id, index) => {
-    const consumer = consumerOptions.value.find((item) => String(item.value) === String(id));
-    return consumer || {value: id, label: props.rule?.consumerNames?.[index] || `#${id}`};
-  })
-);
+const selectedConsumers = computed<Row[]>(() => {
+  if (!form.consumerCode) {
+    return [];
+  }
+  const consumer = consumerOptions.value.find((item) => String(item.value) === String(form.consumerCode));
+  return [consumer || {value: form.consumerCode, label: props.rule?.consumerName || `#${form.consumerCode}`}];
+});
 const selectedAppOptions = computed(() => {
   if (form.appId == null) {
     return [];
@@ -437,9 +439,9 @@ const selectedLogicalModelOptions = computed<Row[]>(() => {
   return [logical || {value: form.logicalModelCode, label: fallbackLabel}];
 });
 const selectedConsumerId = computed<string | number | null>({
-  get: () => (form.consumerIds.length ? form.consumerIds[0] : null),
+  get: () => form.consumerCode ?? null,
   set: (value) => {
-    form.consumerIds = value == null ? [] : [value];
+    form.consumerCode = value == null ? null : String(value);
   }
 });
 
@@ -544,7 +546,7 @@ function resetForm() {
     form.ruleCode = normalizeRuleCode(row.ruleCode);
     form.name = row.name || "";
     form.appScenarios = parseAppScenarioTags(row.appScenario);
-    form.consumerIds = Array.isArray(row.consumerIds) ? [...row.consumerIds] : [];
+    form.consumerCode = row.consumerCode || null;
     form.appId = row.appId ?? null;
     form.username = row.username || null;
     form.logicalModelCode = row.logicalModelCode ?? null;
@@ -568,7 +570,7 @@ function resetForm() {
     form.ruleCode = "";
     form.name = "";
     form.appScenarios = [];
-    form.consumerIds = [];
+    form.consumerCode = null;
     form.appId = null;
     form.username = null;
     form.logicalModelCode = null;
@@ -699,7 +701,7 @@ function buildSubmitPayload() {
     ruleCode: normalizeRuleCode(form.ruleCode),
     name: form.name?.trim(),
     appScenario: buildAppScenarioValue(),
-    consumerIds: [...form.consumerIds],
+    consumerCode: form.consumerCode || null,
     appId: form.appId,
     username: form.username || null,
     logicalModelCode: form.logicalModelCode || null,
@@ -731,7 +733,7 @@ async function submit() {
     return;
   }
   if (form.enabled) {
-    if (!form.consumerIds.length) {
+    if (!form.consumerCode) {
       ElMessage.warning("启用规则前请选择消费者");
       return;
     }
