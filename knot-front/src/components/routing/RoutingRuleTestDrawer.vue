@@ -226,6 +226,15 @@
           </template>
           <el-empty v-else description="执行请求后在这里查看响应结果" :image-size="72"/>
         </section>
+
+        <!-- 计费校验（JEV 双盲）：测试响应后自动触发，三区展示，不阻塞上方结果（v7 §9） -->
+        <RoutingBillingVerdictPanel
+          v-if="verdictVisible"
+          :result="verdictResult"
+          :loading="verdictLoading"
+          :skipped="verdictSkipped"
+          :error="verdictError"
+        />
       </div>
     </el-scrollbar>
 
@@ -241,7 +250,15 @@ import {CircleClose, Delete, Plus, Promotion} from "@element-plus/icons-vue";
 import {ElMessage} from "element-plus";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import ShellCodeBlock from "../common/ShellCodeBlock.vue";
-import {listRoutingRuleDebugProtocols, testRoutingRule, testRoutingRuleStream} from "@/api/routing";
+import RoutingBillingVerdictPanel from "./RoutingBillingVerdictPanel.vue";
+import {
+  listRoutingRuleDebugProtocols,
+  testRoutingRule,
+  testRoutingRuleBillingVerdict,
+  testRoutingRuleStream,
+  type RoutingBillingVerdictRequestPayload,
+  type RoutingBillingVerdictResult
+} from "@/api/routing";
 import {useDebugCapabilities} from "@/composables/useDebugCapabilities";
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard";
 import {getTestRequestPreset, listTestRequestPresetOptions} from "@/api/routing";
@@ -254,6 +271,12 @@ const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || "http://127.0.
 
 /** 管理面测试头：勾选「测试时临时开启返回消费详情」后随请求发往网关（与后端 GatewayHeaders 同款常量） */
 const TEST_RETURN_USAGE_HEADER = "X-Knot-Test-Return-Usage";
+/** 网关自产扩展字段：整包响应体顶层 / 流式 [DONE] 前独立 SSE 事件（与后端 AiPayloadFields.KNOT_EXTEND 对应） */
+const KNOT_EXTEND_FIELD = "knot_extend";
+/** 与 knot_extend 并列的上游原始 usage 透传字段名（后端 AiPayloadFields.RAW_USAGE，整包/流式同键） */
+const RAW_USAGE_FIELD = "usage";
+/** 实际承接模型响应头（fetch Headers 遍历统一小写；后端 GatewayHeaders.X_KNOT_MODEL） */
+const MODEL_RESPONSE_HEADER = "x-knot-model";
 
 // 协议名称来自后端 ModelApiProtocolEnum（/api/common/enums），前端不再维护 code->label 映射
 const {labelOf: enumLabelOf} = useEnumOptions();
@@ -313,6 +336,24 @@ const testResult = ref<RoutingTestResult | null>(null);
 const responseHeaders = ref<Record<string, string>>({});
 const targetProtocolMap = reactive<Dict>({});
 const templateStore = reactive<Dict>({});
+
+// ===================== 计费裁判（JEV 双盲校验，v7 §3.2 两步走） =====================
+/** 当次响应提取的 knot_extend 被告负载 {usage, billing}；null = 本次响应无消费详情 */
+const knotExtend = ref<Dict | null>(null);
+/** 与 knot_extend 并列的上游原始 usage 原文（裁判证据） */
+const upstreamUsage = ref<Dict | null>(null);
+const verdictResult = ref<RoutingBillingVerdictResult | null>(null);
+const verdictLoading = ref(false);
+/** 本次响应无 knot_extend：链路短路，未发起裁判（v7 §3.1 降级提示） */
+const verdictSkipped = ref(false);
+const verdictError = ref("");
+/** 裁判轮次令牌：新测试发起即自增，过期结果丢弃，避免连续测试结果串台 */
+let verdictToken = 0;
+
+/** 面板可见性：任一裁判态激活即渲染（skipped / error 也是设计内的展示态） */
+const verdictVisible = computed(
+  () => verdictLoading.value || verdictSkipped.value || verdictError.value !== "" || verdictResult.value !== null
+);
 
 // ===================== 流式测试状态 =====================
 /** 正在进行的流式请求；非 null 时「发送请求」切换为「停止请求」 */
@@ -643,6 +684,90 @@ const responseHeaderItems = computed(() =>
   Object.entries(responseHeaders.value).map(([label, value]) => ({label, value}))
 );
 
+// ===================== 计费裁判：被告提取与自动触发 =====================
+
+/** 重置裁判区：新测试 / 抽屉开关时调用，令牌自增使在途请求的结果作废 */
+function resetVerdictState() {
+  verdictToken += 1;
+  knotExtend.value = null;
+  upstreamUsage.value = null;
+  verdictResult.value = null;
+  verdictLoading.value = false;
+  verdictSkipped.value = false;
+  verdictError.value = "";
+}
+
+/**
+ * 提取 knot_extend 被告负载与并列的上游原始 usage（v7 §4.1）：
+ * 整包响应 = 响应体顶层字段；流式 = [DONE] 前网关注入的独立 SSE 事件（同构 JSON）。
+ * 无 knot_extend 字段时静默忽略（消费者未开返回消费详情且未勾选临时开启）。
+ */
+function captureKnotExtend(payload: unknown) {
+  if (!payload || typeof payload !== "object") {
+    return;
+  }
+  const dict = payload as Dict;
+  const extend = dict[KNOT_EXTEND_FIELD];
+  if (!extend || typeof extend !== "object") {
+    return;
+  }
+  knotExtend.value = extend as Dict;
+  const raw = dict[RAW_USAGE_FIELD];
+  upstreamUsage.value = raw && typeof raw === "object" ? (raw as Dict) : null;
+}
+
+/** 实际承接模型：优先响应头 X-Knot-Model，缺失回退当前所选目标（裁判据此前端定位规则与提取器） */
+function servingModelCode(): string | null {
+  const header = responseHeaders.value[MODEL_RESPONSE_HEADER] || responseHeaders.value["X-Knot-Model"];
+  const code = header?.trim();
+  return code || activeTarget.value?.targetCode || null;
+}
+
+/**
+ * 计费裁判第二步（v7 §3.2）：测试响应到手后自动发起，不阻塞主流程。
+ * knot_extend 缺席 → skipped 短路提示；请求失败 → error 降级展示；两者均不影响已渲染的测试结果。
+ * 不发第二次上游请求——被告就是已在抽屉里显示过的那次调用的产出（v7 §4.1 纪律）。
+ */
+async function triggerBillingVerdict(requestBody: Dict, stream: boolean) {
+  const token = verdictToken;
+  if (!props.ruleId) {
+    return;
+  }
+  if (!knotExtend.value) {
+    verdictSkipped.value = true;
+    return;
+  }
+  verdictLoading.value = true;
+  verdictError.value = "";
+  try {
+    const payload: RoutingBillingVerdictRequestPayload = {
+      modelCode: activeTarget.value?.targetCode ?? null,
+      targetCode: servingModelCode(),
+      protocol: activeProtocol.value || null,
+      stream,
+      knotExtend: knotExtend.value,
+      upstreamUsage: upstreamUsage.value ?? {},
+      requestBody,
+      sessionId: null
+    };
+    const result = await testRoutingRuleBillingVerdict(props.ruleId, payload);
+    if (token !== verdictToken) {
+      return;
+    }
+    verdictResult.value = result;
+  } catch (error) {
+    if (token !== verdictToken) {
+      return;
+    }
+    const err = error as Dict;
+    verdictError.value = String(err?.response?.data?.message || err?.message || "计费校验请求失败");
+  } finally {
+    if (token === verdictToken) {
+      verdictLoading.value = false;
+    }
+  }
+}
+
 watch(
   () => [props.modelValue, props.ruleId, props.secretKey],
   async ([visible]) => {
@@ -651,6 +776,7 @@ watch(
     }
     testResult.value = null;
     responseHeaders.value = {};
+    resetVerdictState();
     requestTab.value = "preset";
     responseTab.value = "summary";
     expandedPanels.value = ["preview"];
@@ -932,6 +1058,8 @@ function validationError(message: string): boolean {
 
 async function runTest() {
   if (!props.ruleId) return;
+  // 新测试一律清空上一轮裁判区：校验失败 / JSON 非法等早退分支同样不留残影
+  resetVerdictState();
   if (!testForm.secretKey?.trim()) {
     validationError("请填写 API Key");
     return;
@@ -981,6 +1109,7 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget | null, 
   loading.value = true;
   testResult.value = null;
   responseHeaders.value = {};
+  resetVerdictState();
   try {
     const response = await testRoutingRule(
       requestUrl.value,
@@ -988,6 +1117,8 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget | null, 
       buildRequestHeaders("application/json")
     );
     responseHeaders.value = response.headers || {};
+    // 被告提取：整包响应体顶层 knot_extend{usage, billing} + 并列 usage（上游原文）
+    captureKnotExtend(response.data);
     testResult.value = {
       status: "SUCCESS",
       httpStatus: response.status,
@@ -998,6 +1129,8 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget | null, 
       responseBody: serializeBody(response.data)
     };
     responseTab.value = "body";
+    // 裁判第二步：不阻塞上方测试结果的渲染
+    void triggerBillingVerdict(stripModelField(requestBody), false);
   } catch (error) {
     responseTab.value = "body";
     const err = error as Dict;
@@ -1020,6 +1153,7 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget | null,
   receivedBytes.value = 0;
   streamBody.value = "";
   responseHeaders.value = {};
+  resetVerdictState();
   pendingText = "";
   streamBlocks.value = [];
   pendingBlocks = [];
@@ -1076,6 +1210,12 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget | null,
     if (testResult.value?.status === "RUNNING") {
       finishStream("SUCCESS", "");
     }
+    // 裁判第二步（v7 §3.2）：流式下 knot_extend 为 [DONE] 前独立事件，EOF 时已到手
+    if (knotExtend.value) {
+      void triggerBillingVerdict(gatewayBody, true);
+    } else if (testResult.value?.status === "SUCCESS") {
+      verdictSkipped.value = true;
+    }
   } catch (error) {
     flushStreamText();
     // 网络错误或用户中止时也要保留已经收到但尚未节流刷新的内容。
@@ -1084,6 +1224,10 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget | null,
       // 用户主动停止：保留已收到内容，不弹全局网络错误
       if (testResult.value?.status === "RUNNING") {
         finishStream("STOPPED", "");
+      }
+      // 停止前若 knot_extend 已到手（[DONE] 已过）仍可判；否则无被告，不展示裁判区
+      if (knotExtend.value) {
+        void triggerBillingVerdict(stripModelField(requestBody), true);
       }
     } else {
       responseTab.value = "body";
@@ -1127,6 +1271,8 @@ function handleStreamEvent(event: SseEvent) {
     };
   }
   if (!parsed.error && parsed.value && typeof parsed.value === "object") {
+    // knot_extend 事件（[DONE] 前网关注入的独立 SSE 事件）：提取被告负载，供裁判第二步使用
+    captureKnotExtend(parsed.value);
     pendingContent += extractField(parsed.value, "content");
     pendingReasoning += extractField(parsed.value, "reasoning_content");
   }
@@ -1375,6 +1521,7 @@ function onClosed() {
   streamStartedAt.value = null;
   testResult.value = null;
   responseHeaders.value = {};
+  resetVerdictState();
   headerRows.value = [];
   testReturnUsage.value = true;
   loading.value = false;

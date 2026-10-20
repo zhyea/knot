@@ -242,10 +242,11 @@ export function testRoutingRuleBillingVerdict(
   ruleId: number | string,
   payload: RoutingBillingVerdictRequestPayload
 ) {
-  // 判定含一次网关转发与 LLM 调用，放宽超时（不阻塞主流程，慢一点可接受）
+  // 判定含一次网关转发与 LLM 调用，放宽超时（不阻塞主流程，慢一点可接受）；
+  // silentError：失败态由抽屉内「计费校验请求失败」区域自行展示，不再弹全局消息重复报警
   return post<RoutingBillingVerdictResult>(
     `/api/routing-rules/${ruleId}/test/billing-verdict`,
     payload,
-    {timeout: 60000}
+    {timeout: 60000, silentError: true}
   );
 }
