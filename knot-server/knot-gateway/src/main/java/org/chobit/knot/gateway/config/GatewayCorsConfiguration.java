@@ -40,7 +40,8 @@ public class GatewayCorsConfiguration {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Rule", "traceparent"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "Rule", "traceparent",
+                "X-Knot-Test-Return-Usage"));
         config.setExposedHeaders(List.of("Content-Type", "Cache-Control", "X-Accel-Buffering",
                 GatewayHeaders.X_KNOT_FIRST_TOKEN_TIME, GatewayHeaders.X_KNOT_MODEL,
                 // W3C 链路追踪：网关在响应头回写 traceparent，浏览器跨域场景必须显式暴露，
