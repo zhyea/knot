@@ -175,5 +175,9 @@ export function roundPrice(value: unknown, decimals = UNIT_PRICE_PRECISION): num
   if (value == null || value === "") return undefined;
   const n = Number(value);
   if (Number.isNaN(n)) return undefined;
-  return Math.round(n * 10 ** decimals) / 10 ** decimals;
+  const factor = 10 ** decimals;
+  // 二进制浮点表示误差会让 `1.005 * 100` 变成 `100.49999999999999`，
+  // 直接 Math.round 会得到 100（少算 0.005）。乘 `(1 + Number.EPSILON)` 把
+  // 「差一点点」拉回整数边界，不影响本就精确的值。
+  return Math.round(n * factor * (1 + Number.EPSILON)) / factor;
 }
