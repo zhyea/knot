@@ -1,9 +1,11 @@
 package org.chobit.knot.gateway.upstream.protocol;
 
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplier;
 import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplierCatalog;
 import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
+import org.chobit.knot.gateway.adapter.upstream.UpstreamSignableRequest;
 import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
@@ -11,6 +13,7 @@ import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.upstream.support.UpstreamRequestIdResolver;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -29,6 +32,8 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -77,11 +82,14 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
             );
         }
         MediaType contentType = adapter.resolveContentType(context);
+        // base URL 由适配器定夺：model.base_url 优先，AWS Bedrock 可按凭据里的 region/endpointType 推导
+        String baseUrl = adapter.resolveBaseUrl(context);
         try {
-            if (supportsStreaming(context) && isStreamRequest(context)) {
-                return executeStreaming(context, adapter, path, contentType);
+            // 适配器可自行关掉流式（AWS Bedrock 的流式是 EventStream 二进制帧，P1 走整包）
+            if (supportsStreaming(context) && adapter.streamSupported(context) && isStreamRequest(context)) {
+                return executeStreaming(context, adapter, path, contentType, baseUrl);
             }
-            return executeBuffered(context, adapter, path, contentType);
+            return executeBuffered(context, adapter, path, contentType, baseUrl);
         } catch (GatewayUpstreamException e) {
             throw e;
         } catch (WebClientResponseException e) {
@@ -100,8 +108,9 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     private ProxyResult executeBuffered(UpstreamRequestContext context,
                                         UpstreamRequestAdapter adapter,
                                         String path,
-                                        MediaType contentType) {
-        Mono<BufferedExchange> exchange = withBody(context, adapter, path, contentType)
+                                        MediaType contentType,
+                                        String baseUrl) {
+        Mono<BufferedExchange> exchange = withBody(context, adapter, path, contentType, baseUrl)
                 .exchangeToMono(AbstractUpstreamProtocolExecutor::readBuffered);
         BufferedExchange buffered = withResponseTimeout(exchange).block();
         String handledResponseBody = adapter.handleResponse(buffered.body(), context);
@@ -158,8 +167,9 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     private ProxyResult executeStreaming(UpstreamRequestContext context,
                                         UpstreamRequestAdapter adapter,
                                         String path,
-                                        MediaType contentType) {
-        Mono<ResponseEntity<Flux<DataBuffer>>> response = withBody(context, adapter, path, contentType)
+                                        MediaType contentType,
+                                        String baseUrl) {
+        Mono<ResponseEntity<Flux<DataBuffer>>> response = withBody(context, adapter, path, contentType, baseUrl)
                 .retrieve()
                 .onStatus(status -> !status.is2xxSuccessful(), this::upstreamFailureOf)
                 .toEntityFlux(DataBuffer.class);
@@ -264,12 +274,22 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
         return body != null && Boolean.TRUE.equals(body.get(AiPayloadFields.STREAM));
     }
 
+    /**
+     * 请求规格：URI + 内容类型 + 追踪头 + 鉴权静态头。
+     *
+     * @param encodedUri 为 {@code true} 时走 {@code uri(URI)}——Bedrock 的路径里含已编码的
+     *                   {@code %3A}（模型 ID 的 {@code :}），走 {@code uri(String)} 会被
+     *                   URI 模板解析再编一次，导致「签名覆盖的路径」与「实际发出的路径」不一致
+     */
     private WebClient.RequestBodySpec requestSpec(UpstreamRequestContext context,
-                                                  UpstreamRequestAdapter adapter,
                                                   String path,
-                                                  MediaType contentType) {
-        WebClient.RequestBodySpec spec = webClient.post()
-                .uri(joinUrl(context.baseUrl(), path))
+                                                  MediaType contentType,
+                                                  String baseUrl,
+                                                  boolean encodedUri) {
+        String url = joinUrl(baseUrl, path);
+        WebClient.RequestBodySpec spec = (encodedUri
+                ? webClient.post().uri(URI.create(url))
+                : webClient.post().uri(url))
                 .contentType(contentType)
                 .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM);
         if (StringUtils.isNotBlank(context.traceparent())) {
@@ -290,16 +310,31 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     private WebClient.RequestHeadersSpec<?> withBody(UpstreamRequestContext context,
                                                      UpstreamRequestAdapter adapter,
                                                      String path,
-                                                     MediaType contentType) {
-        WebClient.RequestBodySpec spec = requestSpec(context, adapter, path, contentType);
+                                                     MediaType contentType,
+                                                     String baseUrl) {
+        UpstreamAuthApplier applier = authApplierCatalog.resolve(context.authApplier());
         Object body = adapter.buildRequestBody(context);
         if (body == null) {
-            return spec.body(BodyInserters.empty());
+            return requestSpec(context, path, contentType, baseUrl, false).body(BodyInserters.empty());
         }
         if (MediaType.MULTIPART_FORM_DATA.includes(contentType) && body instanceof Map<?, ?> map) {
+            // multipart 不进签名路径（Bedrock 无 multipart 接口），保持原编码分支不变
+            WebClient.RequestBodySpec spec = requestSpec(context, path, contentType, baseUrl, false);
             return spec.body(BodyInserters.fromMultipartData(toMultipartBody((Map<String, Object>) map)));
         }
-        return spec.bodyValue(body);
+        if (!applier.signsRequestBody()) {
+            return requestSpec(context, path, contentType, baseUrl, false).bodyValue(body);
+        }
+        // 签名路径：先把请求体定稿成字节，签名覆盖这份字节，再以同一份字节发出（字节级一致 = 第一雷区）
+        String json = JsonKit.toJson(body);
+        byte[] payload = json == null ? new byte[0] : json.getBytes(StandardCharsets.UTF_8);
+        WebClient.RequestBodySpec spec = requestSpec(context, path, contentType, baseUrl, true);
+        HttpHeaders signed = new HttpHeaders();
+        applier.sign(UpstreamSignableRequest.of("POST", joinUrl(baseUrl, path), payload), signed, context);
+        if (!signed.isEmpty()) {
+            spec.headers(current -> current.addAll(signed));
+        }
+        return spec.body(BodyInserters.fromValue(payload));
     }
 
     protected String defaultPath(UpstreamRequestContext context) {
