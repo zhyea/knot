@@ -9,6 +9,7 @@ import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.ProviderProfileMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.provider.ProviderProfileItem;
 import org.springframework.stereotype.Service;
@@ -68,7 +69,10 @@ public class ProviderProfileService {
 
     @Transactional
     public ProviderProfileItem update(Long id, ProviderProfileItem request) {
-        getById(id);
+        ProviderProfileItem existing = getById(id);
+        // 供应商编码被账户按 provider_code 引用后不可改：改了会让存量账户掉绑供应商
+        CodeBindingSupport.requireCodeChangeAllowed(
+                existing.code(), request.code(), existing.boundCount(), "供应商编码");
         validateCode(request.code(), id);
         ProviderProfileEntity entity = toEntity(request);
         entity.setId(id);
@@ -154,6 +158,14 @@ public class ProviderProfileService {
 
     private ProviderProfileItem toItem(ProviderProfileEntity entity) {
         return new ProviderProfileItem(entity.getId(), entity.getCode(), entity.getName(), entity.getTag(),
-                entity.getRemark(), entity.getCreatedAt(), entity.getUpdatedAt());
+                entity.getRemark(), boundCount(entity.getCode()), entity.getCreatedAt(), entity.getUpdatedAt());
+    }
+
+    /**
+     * 供应商编码的绑定数（下属供应商账户数）：kb_provider_accounts 按 provider_code 引用本编码。
+     */
+    private Long boundCount(String providerCode) {
+        Long count = providerProfileMapper.countAccountsByProviderCode(providerCode);
+        return count == null ? 0L : count;
     }
 }

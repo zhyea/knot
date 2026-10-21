@@ -39,8 +39,10 @@
                 maxlength="64"
                 show-word-limit
                 placeholder="如 chat-premium-pool"
+                :disabled="codeLocked"
                 @blur="validatePoolCode"
               />
+              <div v-if="codeLocked" class="form-tip">{{ codeLockHint }}</div>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -178,6 +180,7 @@ import {listLogicalModelOptions, listModelOptions} from "@/api/options";
 import {defaultStickyPolicy, normalizeStickyPolicy, type StickyPolicy} from "@/utils/stickyPolicy";
 import {resolveSelectedOption, toOptionsLoader} from "@/utils/options";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
+import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -187,6 +190,9 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const isEdit = computed(() => props.pool != null);
+/** 编码引用处数（池内模型条目 + 路由规则目标）：后端在列表/详情里下发，>0 时编码不可改 */
+const boundCount = ref(0);
+const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => boundCount.value);
 const saving = ref(false);
 const poolCodeError = ref("");
 const poolSuffix = ref("");
@@ -283,6 +289,7 @@ function resetForm() {
   }));
   poolCodeError.value = "";
   poolSuffix.value = "";
+  boundCount.value = Number(row?.boundCount ?? 0);
 }
 
 watch(
@@ -522,6 +529,13 @@ async function submit() {
   color: #303133;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.form-tip {
+  width: 100%;
+  color: var(--el-color-warning);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 </style>

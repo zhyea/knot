@@ -51,4 +51,12 @@ public interface LogicalModelMapper {
     int restore(@Param("id") Long id);
 
     Long countMappingsByLogicalModelCode(@Param("logicalModelCode") String logicalModelCode);
+
+    /**
+     * 改码守卫：统计统一模型编码被外部按业务码引用的总处数。
+     *
+     * <p>四类引用：模型池归属、供应商模型映射、路由规则关联、调试预设归类。
+     * 前两类表可逻辑删除且可恢复（kb_model_pools），故不按 is_deleted 过滤。</p>
+     */
+    Long countBindingsByModelCode(@Param("modelCode") String modelCode);
 }

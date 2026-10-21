@@ -114,11 +114,18 @@
         </if>
     </select>
 
+    <!-- 绑定计数：kb_models 逻辑删除后可恢复，被删行仍持有 billing_rule_code，
+         恢复后必须还能解析到规则，故不按 is_deleted 过滤（2026-10-22 口径统一）。 -->
     <select id="countBoundModels" resultType="java.lang.Long">
         select count(1)
         from kb_models
         where billing_rule_code = #{code}
-          and is_deleted = 0
+    </select>
+
+    <select id="countVersionsByRuleCode" resultType="java.lang.Long">
+        select count(1)
+        from kb_billing_rule_versions
+        where rule_code = #{ruleCode}
     </select>
 
     <select id="getActiveByRuleCode" resultType="org.chobit.knot.gateway.entity.BillingRuleEntity">

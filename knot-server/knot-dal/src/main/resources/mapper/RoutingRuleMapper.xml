@@ -88,6 +88,24 @@
         </if>
     </select>
 
+    <!-- 改码守卫：kb_routing_rules 无 is_deleted 列，全部计入 -->
+    <select id="countByAppCode" resultType="java.lang.Long">
+        select count(1) from kb_routing_rules where app_code = #{appCode}
+    </select>
+
+    <select id="countByUsername" resultType="java.lang.Long">
+        select count(1) from kb_routing_rules where username = #{username}
+    </select>
+
+    <select id="countByLogicalModelCode" resultType="java.lang.Long">
+        select count(1) from kb_routing_rules where logical_model_code = #{logicalModelCode}
+    </select>
+
+    <!-- 规则编码自身的被引用行数（改码守卫）：路由目标按 rule_code 绑定 -->
+    <select id="countTargetsByRuleCode" resultType="java.lang.Long">
+        select count(1) from kb_routing_rule_targets where rule_code = #{ruleCode}
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into kb_routing_rules(rule_code, name, app_scenario, app_code,
                                      username, consumer_code,

@@ -27,9 +27,10 @@
               maxlength="32"
               show-word-limit
               placeholder="最长 32 位"
-              :readonly="!!props.consumer"
+              :disabled="codeLocked"
               @blur="validateConsumerCode"
             />
+            <div v-if="codeLocked" class="form-tip">{{ codeLockHint }}</div>
           </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -124,6 +125,7 @@ import {
 import {toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
+import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -139,6 +141,9 @@ const visible = computed({
 
 const saving = ref(false);
 const consumerCodeError = ref("");
+/** 编码引用处数（绑定的路由规则数，后端 ruleCount）：>0 时编码不可改 */
+const boundCount = ref(0);
+const {codeLocked, codeLockHint} = useCodeBindingLock(() => props.consumer != null, () => boundCount.value);
 
 const form = reactive({
   id: null,
@@ -179,6 +184,8 @@ function resetForm(row: Row | null = null) {
   form.returnUsageDetail = row?.returnUsageDetail === true;
   form.enabled = row?.enabled !== false;
   form.quotaPolicies = normalizeQuotaPolicies(row?.quotaPolicies);
+  // 规则数即消费者编码的引用处数：>0 时编码不可改（与后端 CodeBindingSupport 同源）
+  boundCount.value = Number(row?.ruleCount ?? 0);
   consumerCodeError.value = "";
 }
 
@@ -187,8 +194,8 @@ function onClosed() {
 }
 
 async function validateConsumerCode() {
-  // 编辑已有消费者时编码只读（身份码不可改），无需再校验唯一性
-  if (props.consumer) {
+  // 编码已锁（被路由规则绑定）时不校验唯一性：字段本就不可编辑
+  if (codeLocked.value) {
     consumerCodeError.value = "";
     return true;
   }
@@ -306,5 +313,12 @@ async function copySecretKey(secretKey: string | null | undefined) {
 
 .space-line {
   height: 14px;
+}
+
+.form-tip {
+  width: 100%;
+  color: var(--el-color-warning);
+  font-size: 12px;
+  line-height: 1.5;
 }
 </style>

@@ -213,4 +213,14 @@
         select count(1) from kb_provider_model_mappings where logical_model_code = #{logicalModelCode}
     </select>
 
+    <!-- 改码守卫：四类按业务码引用统一模型的表求总处数。
+         kb_model_pools 逻辑删除可恢复，被删行仍持有 logical_model_code，故不按 is_deleted 过滤。 -->
+    <select id="countBindingsByModelCode" resultType="java.lang.Long">
+        select
+        (select count(1) from kb_model_pools where logical_model_code = #{modelCode})
+        + (select count(1) from kb_provider_model_mappings where logical_model_code = #{modelCode})
+        + (select count(1) from kb_routing_rules where logical_model_code = #{modelCode})
+        + (select count(1) from kb_test_request_presets where logical_model_code = #{modelCode})
+    </select>
+
 </mapper>

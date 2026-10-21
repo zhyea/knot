@@ -16,4 +16,6 @@ public class DepartmentEntity {
     private Integer isDeleted;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    /** 只读派生：按 dept_code 绑定该部门的用户 + 应用数；0 表示可改机构编码 */
+    private Long boundCount;
 }

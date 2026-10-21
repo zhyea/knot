@@ -2,8 +2,16 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.gateway.mapper.DepartmentMapper">
 
+    <!-- 机构编码的绑定处数：用户 + 应用均按 dept_code 引用。两表逻辑删除后都没有恢复入口，
+         故只计 is_deleted = 0 的行。 -->
+    <sql id="DepartmentBoundCount">
+        (select count(1) from ks_users uu where uu.dept_code = ks_departments.dept_code and uu.is_deleted = 0)
+        + (select count(1) from kb_apps aa where aa.dept_code = ks_departments.dept_code and aa.is_deleted = 0)
+    </sql>
+
     <sql id="DepartmentSelectColumns">
-        id, dept_code, dept_name, parent_id, status, sort_order, remark, is_deleted, created_at, updated_at
+        id, dept_code, dept_name, parent_id, status, sort_order, remark, is_deleted, created_at, updated_at,
+        <include refid="DepartmentBoundCount"/> as bound_count
     </sql>
 
     <select id="list" resultType="org.chobit.knot.gateway.entity.DepartmentEntity">
@@ -53,9 +61,11 @@
         values(#{deptCode}, #{deptName}, #{parentId}, #{status}, #{sortOrder}, #{remark}, 0)
     </insert>
 
+    <!-- dept_code 可改（未被用户 / 应用引用时可改，服务层用 CodeBindingSupport 把守） -->
     <update id="update">
         update ks_departments
-        set dept_name = #{deptName},
+        set dept_code = #{deptCode},
+            dept_name = #{deptName},
             parent_id = #{parentId},
             status = #{status},
             sort_order = #{sortOrder},

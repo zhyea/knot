@@ -10,14 +10,18 @@
     :height="height"
   >
     <template #actions>
-      <el-button
-        v-if="!readonly"
-        class="json-editor__action-btn"
-        size="small"
-        text
-        type="primary"
-        @click="formatCurrentJson"
-      >格式化</el-button>
+      <el-tooltip v-if="!readonly" content="格式化" placement="top" :show-after="300">
+        <el-button
+          class="json-editor__action-btn"
+          size="small"
+          text
+          type="primary"
+          aria-label="格式化"
+          @click="formatCurrentJson"
+        >
+          <el-icon><MagicStick/></el-icon>
+        </el-button>
+      </el-tooltip>
     </template>
     <div
       class="json-editor__body"
@@ -41,6 +45,7 @@
 <script setup lang="ts">
 import {computed} from "vue";
 import {ElMessage} from "element-plus";
+import {MagicStick} from "@element-plus/icons-vue";
 import {escapeHtml, formatJsonText} from "@/utils/format";
 import CodeBlockView from "./CodeBlockView.vue";
 

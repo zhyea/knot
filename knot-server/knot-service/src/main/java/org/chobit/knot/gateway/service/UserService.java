@@ -16,6 +16,7 @@ import org.chobit.knot.gateway.mapper.DepartmentMapper;
 import org.chobit.knot.gateway.mapper.UserMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.vo.auth.LoginResponse;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.user.ResetPasswordResult;
@@ -225,8 +226,10 @@ public class UserService {
         if (entity == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "用户不存在");
         }
+        String username = resolveUsernameForUpdate(entity, request.username());
         DepartmentEntity department = validateDepartment(request.deptCode());
         List<Long> roleIds = normalizeRoleIds(request.roleIds());
+        entity.setUsername(username);
         entity.setRealName(request.realName());
         entity.setDeptCode(department != null ? department.getDeptCode() : null);
         entity.setDeptName(department != null ? department.getDeptName() : null);
@@ -234,6 +237,26 @@ public class UserService {
         userMapper.updateUser(entity);
         saveUserRoles(entity.getId(), roleIds);
         return loadUserDto(entity.getId());
+    }
+
+    /**
+     * 用户编码（登录名）改码：未绑定（应用负责人 / 消费者归属 / 路由规则归属）时可改，
+     * 已绑定直接 409；改码前做唯一性校验（uk_users_username 不区分 is_deleted，故含已删除行）。
+     *
+     * <p>入参 username 为空表示「不修改」，沿用库中现值——兼容只改资料的调用方。</p>
+     */
+    private String resolveUsernameForUpdate(UserEntity entity, String requested) {
+        String username = CodeBindingSupport.normalize(requested);
+        if (username.isEmpty()) {
+            return entity.getUsername();
+        }
+        CodeBindingSupport.requireCodeChangeAllowed(
+                entity.getUsername(), username, entity.getBoundCount(), "用户编码");
+        if (!CodeBindingSupport.isSameCode(entity.getUsername(), username)
+                && userMapper.getUserByUsername(username) != null) {
+            throw new BusinessException(ErrorCode.CONFLICT, "登录名「" + username + "」已被占用");
+        }
+        return username;
     }
 
     /**

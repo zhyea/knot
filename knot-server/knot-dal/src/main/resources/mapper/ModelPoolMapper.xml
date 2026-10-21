@@ -144,4 +144,9 @@
         select count(1) from kb_routing_rule_targets where target_type = 'MODEL_POOL' and target_code = #{poolCode}
     </select>
 
+    <!-- 改码守卫：池内条目（kb_model_pool_items 无 is_deleted 列，全部计入） -->
+    <select id="countItemsByPoolCode" resultType="java.lang.Long">
+        select count(1) from kb_model_pool_items where pool_code = #{poolCode}
+    </select>
+
 </mapper>

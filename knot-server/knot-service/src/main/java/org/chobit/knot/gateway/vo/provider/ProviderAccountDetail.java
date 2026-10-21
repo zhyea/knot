@@ -24,5 +24,7 @@ public record ProviderAccountDetail(Long id, String providerCode, String provide
                                     String credentialType,
                                     String authApplier,
                                     Map<String, Object> authConfig,
-                                    RateLimitPolicy rateLimitPolicy, @Valid List<QuotaPolicy> quotaPolicies) {
+                                    RateLimitPolicy rateLimitPolicy, @Valid List<QuotaPolicy> quotaPolicies,
+                                    /** 只读派生：账户编码的引用处数（挂载的供应商模型数）；0 表示可改编码 */
+                                    Long boundCount) {
 }

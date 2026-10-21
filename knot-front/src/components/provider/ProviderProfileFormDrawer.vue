@@ -11,7 +11,8 @@
     <el-scrollbar max-height="calc(100vh - 140px)">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="88px" class="drawer-form">
         <el-form-item label="编码" prop="code">
-          <el-input v-model="form.code" maxlength="32" placeholder="例如 openai" />
+          <el-input v-model="form.code" maxlength="32" placeholder="例如 openai" :disabled="codeLocked" />
+          <div v-if="codeLocked" class="form-tip">{{ codeLockHint }}</div>
         </el-form-item>
         <el-form-item label="名称" prop="name">
           <el-input v-model="form.name" maxlength="100" placeholder="例如 OpenAI" />
@@ -46,6 +47,7 @@ import {
   createProviderProfile,
   updateProviderProfile
 } from "@/api/providerProfiles";
+import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
 const props = defineProps({
   modelValue: Boolean,
@@ -58,6 +60,9 @@ const submitting = ref(false);
 const formRef = ref<FormInstance | null>(null);
 const form = reactive<{ code: string; name: string; tags: string[]; remark: string }>({ code: "", name: "", tags: [], remark: "" });
 const editing = ref<Dict | null>(null);
+/** 编码引用处数（下属供应商账户数）：后端在列表/详情里下发，>0 时编码不可改 */
+const boundCount = ref(0);
+const {codeLocked, codeLockHint} = useCodeBindingLock(() => Boolean(editing.value?.id), () => boundCount.value);
 
 const rules = {
   code: [
@@ -95,6 +100,7 @@ watch(
     form.name = row?.name || "";
     form.tags = splitTags(row?.tag);
     form.remark = row?.remark || "";
+    boundCount.value = Number(row?.boundCount ?? 0);
   },
   { immediate: true }
 );
@@ -133,5 +139,12 @@ async function submit() {
 <style scoped>
 .drawer-form {
   padding-right: 8px;
+}
+
+.form-tip {
+  width: 100%;
+  color: var(--el-color-warning);
+  font-size: 12px;
+  line-height: 1.5;
 }
 </style>

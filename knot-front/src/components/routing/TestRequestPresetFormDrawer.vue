@@ -88,11 +88,14 @@
             </div>
           </div>
           <el-form-item label-width="0" required :error="bodyError">
+            <!-- height 必须给固定值：只给 max-height 时 el-scrollbar 的 wrap 高度算不出来
+                 （其 height:100% 在无确定高度的父级上退化为 auto），超长请求体会被直接裁掉。 -->
             <JsonCodeEditor
               v-model="form.requestBody"
               :readonly="readonly"
               min-height="220px"
               max-height="420px"
+              height="420px"
             />
           </el-form-item>
         </div>

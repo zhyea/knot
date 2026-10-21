@@ -11,8 +11,8 @@
         <el-input :model-value="form.category" disabled />
       </el-form-item>
       <el-form-item label="编码" required>
-        <el-input v-if="isEdit" :model-value="form.itemCode" disabled />
-        <el-input v-else v-model="form.itemCode" placeholder="如 OPENAI" />
+        <el-input v-model="form.itemCode" :disabled="codeLocked" placeholder="如 OPENAI" />
+        <div v-if="codeLocked" class="form-tip">{{ codeLockHint }}</div>
       </el-form-item>
       <el-form-item label="显示名" required>
         <el-input v-model="form.itemLabel" placeholder="如 OpenAI" />
@@ -40,6 +40,7 @@ import {type PropType,  computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import {createEnumConfig, updateEnumConfig} from "@/api/enums";
 import {clearEnumCache} from "@/composables/useEnums";
+import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -63,6 +64,12 @@ const form = reactive({
 });
 
 const isEdit = computed(() => props.item != null);
+
+/**
+ * 编码口径同其它业务码：仅在「编辑态且已被引用」时锁定。
+ * boundCount 由后端列表 SQL 子查询一次带出（计费规则/统一模型的模型族 + 折扣类型 + 敏感词分类）。
+ */
+const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => props.item?.boundCount);
 
 function resetForm() {
   if (props.item) {
@@ -116,8 +123,17 @@ async function submit() {
     clearEnumCache();
     emit("update:modelValue", false);
     emit("saved");
-  } finally {
-    saving.value = false;
+    } finally {
+      saving.value = false;
+    }
   }
-}
 </script>
+
+<style scoped>
+.form-tip {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--el-text-color-secondary);
+}
+</style>

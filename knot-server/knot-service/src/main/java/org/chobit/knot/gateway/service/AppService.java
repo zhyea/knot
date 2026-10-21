@@ -18,6 +18,7 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Service;
@@ -110,7 +111,7 @@ public class AppService {
         validateDepartment(request.deptCode());
         AppEntity entity = appConverter.toEntity(request);
         entity.setId(id);
-        entity.setAppCode(existing.getAppCode());
+        entity.setAppCode(resolveAppCodeForUpdate(existing, request.appCode()));
         appMapper.update(entity);
         trafficPolicySupport.save(TrafficResourceTypeEnum.APP.code(), id,
                 request.rateLimitPolicy(), request.quotaPolicies());
@@ -130,6 +131,27 @@ public class AppService {
         if (rows == 0) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "应用不存在或已删除");
         }
+    }
+
+    /**
+     * 应用编码改码：未被路由规则引用时可改，已绑定直接 409；改码前做唯一性校验。
+     *
+     * <p>入参 appCode 为空表示「不修改」，沿用库中现值。</p>
+     */
+    private String resolveAppCodeForUpdate(AppEntity existing, String requested) {
+        String appCode = CodeBindingSupport.normalize(requested);
+        if (appCode.isEmpty()) {
+            return existing.getAppCode();
+        }
+        CodeBindingSupport.requireCodeChangeAllowed(
+                existing.getAppCode(), appCode, existing.getBoundCount(), "应用编码");
+        if (!CodeBindingSupport.isSameCode(existing.getAppCode(), appCode)) {
+            Long duplicated = appMapper.countByAppCode(appCode);
+            if (duplicated != null && duplicated > 0) {
+                throw new BusinessException(ErrorCode.CONFLICT, "应用编码「" + appCode + "」已存在");
+            }
+        }
+        return appCode;
     }
 
     private static String normalizeKeyword(String keyword) {
@@ -160,7 +182,7 @@ public class AppService {
         return new AppDto(
                 base.id(), base.appCode(), base.name(), base.deptCode(), base.deptName(),
                 base.ownerUsername(), base.ownerName(), base.remark(),
-                rate, quotas
+                rate, quotas, base.boundCount()
         );
     }
 

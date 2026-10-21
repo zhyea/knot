@@ -27,6 +27,8 @@ public record LogicalModelItem(
         String remark,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        List<ProviderModelMappingItem> mappings
+        List<ProviderModelMappingItem> mappings,
+        /** 只读派生：统一模型编码的引用处数；0 表示未绑定，可改编码 */
+        Long boundCount
 ) {
 }

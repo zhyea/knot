@@ -18,4 +18,6 @@ public class UserEntity {
     private List<String> roleNames;
     private LocalDateTime lastLoginTime;
     private LocalDateTime updatedAt;
+    /** 只读派生：按 username 绑定该用户的应用 / 消费者 / 路由规则处数；0 表示可改登录名 */
+    private Long boundCount;
 }

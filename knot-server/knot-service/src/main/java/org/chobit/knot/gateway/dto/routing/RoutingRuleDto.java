@@ -40,6 +40,11 @@ public record RoutingRuleDto(
         /** 创建时间 */
         LocalDateTime createdAt,
         /** 更新时间 */
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        /**
+         * 规则编码的绑定处数（路由目标行 + 限流绑定行）：&gt;0 时前端锁定「规则编码」输入框，
+         * 后端 {@code update} 亦按同一口径拒绝改码。派生字段，不落库。
+         */
+        Long boundCount
 ) {
 }

@@ -139,7 +139,8 @@ public class ExternalModelService {
                 "Imported from " + item.getSourceCode() + ": " + item.getModelId(),
                 null,
                 null,
-                List.of()
+                List.of(),
+                null
         ));
         externalModelMapper.updateItemLogicalModel(itemId, created.id());
         return created;

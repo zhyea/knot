@@ -79,6 +79,7 @@ public class UserController {
                 request.roleIds(),
                 null,
                 null,
+                null,
                 null
         ));
         return userConverter.toVO(created);
@@ -112,13 +113,15 @@ public class UserController {
     public UserItem updateUser(@PathVariable Long id, @RequestBody @Valid UserItem request) {
         UserDto updated = userService.updateUser(new UserDto(
                 id,
-                null,
+                // 登录名可改（未绑定引用时）；空值表示不修改
+                request.username(),
                 null,
                 request.realName(),
                 request.deptCode(),
                 null,
                 request.status(),
                 request.roleIds(),
+                null,
                 null,
                 null,
                 null

@@ -128,6 +128,7 @@ public class DepartmentController {
                     item.remark(),
                     item.createdAt(),
                     item.updatedAt(),
+                    item.boundCount(),
                     buildChildren(item.id(), childrenByParent)
             );
             result.add(node);

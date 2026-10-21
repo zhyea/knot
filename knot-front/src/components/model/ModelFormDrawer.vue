@@ -30,9 +30,10 @@
                   maxlength="128"
                   show-word-limit
                   :disabled="modelCodeChecking"
-                  :readonly="isEdit"
+                  :readonly="codeLocked"
                   @blur="onModelCodeBlur"
                 />
+                <div v-if="codeLocked" class="form-tip">{{ codeLockHint }}</div>
               </el-form-item>
             </el-col>
             <el-col :span="11">
@@ -341,6 +342,7 @@ import {listBillingRules} from "@/api/billing";
 import {listBillingRuleOptions, listLogicalModelOptions} from "@/api/options";
 import {normalizeOptionList, toOptionsLoader} from "@/utils/options";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
+import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
 /** 模型 API 绑定行（表单内 uid 用于 :key 稳定渲染） */
 interface ModelApiBinding {
@@ -418,6 +420,9 @@ const form = reactive<ModelFormState>({
 });
 
 const isEdit = computed(() => props.model?.id != null);
+/** 编码引用处数（路由目标 / 池条目 / 厂商映射 / API 绑定 / 折扣策略）：>0 时编码不可改 */
+const boundCount = ref(0);
+const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => boundCount.value);
 const selectedLogicalModel = computed(() => logicalModelOptions.value.find((item) => item.value === form.logicalModelCode));
 const metaOf = (row: Row | undefined): Row => (row?.meta as Row) ?? {};
 /** 计费规则按「模型族」过滤：模型族由绑定的统一模型派生（后端 br.model_family 存 item_code） */
@@ -561,6 +566,7 @@ function fillForm(row: Row) {
   form.enabled = row.enabled === true;
   form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
   form.apiBindings = normalizeApiBindings(row.apiBindings);
+  boundCount.value = Number(row.boundCount ?? 0);
   if (form.modelCode) {
     modelCodeValidated.value = true;
   }
@@ -645,6 +651,7 @@ async function resetForm() {
       form.enabled = false;
       form.rateLimitPolicy = emptyRateLimitPolicy();
       form.apiBindings = [];
+      boundCount.value = 0;
     }
   } finally {
     resettingForm.value = false;
@@ -1090,5 +1097,12 @@ async function submit() {
   .inline-switch {
     margin-top: 12px;
   }
+}
+
+.form-tip {
+  width: 100%;
+  color: var(--el-color-warning);
+  font-size: 12px;
+  line-height: 1.5;
 }
 </style>

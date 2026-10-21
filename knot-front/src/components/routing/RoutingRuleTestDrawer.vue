@@ -202,13 +202,22 @@
                       <div class="stream-block__head">
                         <span class="stream-block__index">#{{ block.id }}</span>
                         <span v-if="block.event" class="stream-block__event">event: {{ block.event }}</span>
-                        <el-button
-                          class="stream-block__copy"
-                          size="small"
-                          text
-                          type="primary"
-                          @click="copyBlock(block)"
-                        >{{ copiedBlockId === block.id ? "已复制" : "复制" }}</el-button>
+                        <el-tooltip
+                          :content="copiedBlockId === block.id ? '已复制' : '复制'"
+                          placement="top"
+                          :show-after="300"
+                        >
+                          <el-button
+                            class="stream-block__copy"
+                            size="small"
+                            text
+                            type="primary"
+                            :aria-label="copiedBlockId === block.id ? '已复制' : '复制'"
+                            @click="copyBlock(block)"
+                          >
+                            <el-icon><Select v-if="copiedBlockId === block.id"/><CopyDocument v-else/></el-icon>
+                          </el-button>
+                        </el-tooltip>
                       </div>
                       <pre class="stream-block__code" v-html="highlightBlock(block.data)"></pre>
                     </div>
@@ -249,7 +258,7 @@
 
 <script setup lang="ts">
 import {computed, nextTick, onBeforeUnmount, reactive, ref, watch, type PropType} from "vue";
-import {CircleClose, Delete, Plus, Promotion} from "@element-plus/icons-vue";
+import {CircleClose, CopyDocument, Delete, Plus, Promotion, Select} from "@element-plus/icons-vue";
 import {ElMessage} from "element-plus";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import ShellCodeBlock from "../common/ShellCodeBlock.vue";
@@ -2018,10 +2027,14 @@ onBeforeUnmount(() => {
 }
 
 /* 头部行内复制按钮：margin-left:auto 靠右，flex 垂直居中与 #序号/event 文本对齐 */
+/* 图标按钮：定宽定高 + 零内边距，避免文本按钮内边距把图标挤成胶囊 */
 .stream-block__copy {
   margin-left: auto;
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
   min-height: 24px;
-  padding: 4px 8px;
+  padding: 0;
   background: #f5f7fa;
   color: #2563eb;
 }

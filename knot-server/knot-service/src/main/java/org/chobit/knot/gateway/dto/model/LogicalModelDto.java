@@ -28,6 +28,11 @@ public record LogicalModelDto(
         String remark,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        List<ProviderModelMappingDto> mappings
+        List<ProviderModelMappingDto> mappings,
+        /**
+         * 只读派生：本统一模型编码被外部按业务码引用的总处数（模型池 / 供应商模型映射 /
+         * 路由规则 / 调试预设）。未绑定（0）时编码可改，>0 时后端拒绝改码、前端置灰输入框。
+         */
+        Long boundCount
 ) {
 }

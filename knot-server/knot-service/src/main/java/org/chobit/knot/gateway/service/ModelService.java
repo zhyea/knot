@@ -44,6 +44,7 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
 import org.chobit.knot.gateway.usage.extractor.DefaultTokenUsageExtractor;
 import org.chobit.knot.gateway.usage.extractor.UsageExtractorCatalog;
@@ -268,6 +269,9 @@ public class ModelService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "model not found");
         }
         String modelCode = normalizeModelCode(request.modelCode());
+        // 模型编码被路由目标 / 池条目 / 厂商映射 / API 绑定 / 折扣策略引用后不可改
+        CodeBindingSupport.requireCodeChangeAllowed(
+                existing.getModelCode(), modelCode, boundCount(existing.getModelCode()), "供应商模型编码");
         assertModelCodeAvailable(modelCode, id);
         String modelType = validateModelRequest(request);
         ModelEntity entity = modelConverter.toEntity(request);
@@ -312,7 +316,8 @@ public class ModelService {
                     existing.rateLimitPolicy(),
                     existing.quotaPolicies(),
                     existing.apiBindings(),
-                    existing.deleted()
+                    existing.deleted(),
+                    existing.boundCount()
             );
             validateModelRequest(request);
         }
@@ -458,9 +463,39 @@ public class ModelService {
         return getById(id);
     }
 
+    /**
+     * 单条详情补全：频控额度 + API 绑定 + 编码绑定数。
+     *
+     * <p>绑定数只在详情路径算（5 次 count），列表路径不带上——列表是分页的多行，
+     * 逐行算会变成 N×5 次查询，而列表页并不渲染这个字段。</p>
+     */
     private ModelDto enrich(ModelEntity entity) {
         TrafficPolicies traffic = trafficPolicySupport.load(TrafficResourceTypeEnum.MODEL.code(), entity.getId());
-        return enrich(modelConverter.toDto(entity), traffic, listApiBindings(entity.getId()));
+        ModelDto base = enrich(modelConverter.toDto(entity), traffic, listApiBindings(entity.getId()));
+        return withBoundCount(base, boundCount(entity.getModelCode()));
+    }
+
+    private ModelDto withBoundCount(ModelDto base, Long boundCount) {
+        return new ModelDto(
+                base.id(),
+                base.modelCode(),
+                base.upstreamModel(),
+                base.providerAccountCode(),
+                base.providerName(),
+                base.providerCode(),
+                base.modelType(),
+                base.version(),
+                base.baseUrl(),
+                base.remark(),
+                base.enabled(),
+                base.logicalModelCode(),
+                base.billingRuleCode(),
+                base.rateLimitPolicy(),
+                base.quotaPolicies(),
+                base.apiBindings(),
+                base.deleted(),
+                boundCount
+        );
     }
 
     private static String normalizeModelCode(String modelCode) {
@@ -519,8 +554,25 @@ public class ModelService {
                 rate,
                 quotas,
                 apiBindings == null ? listApiBindings(base.id()) : apiBindings,
-                base.deleted()
+                base.deleted(),
+                base.boundCount()
         );
+    }
+
+    /**
+     * 供应商模型编码的绑定数：路由目标 + 池内条目 + 厂商模型映射 + API 协议绑定 + 折扣策略
+     * + 频控绑定行（resource_type='MODEL' 存 model_code）。
+     * 前五类与 {@link #delete(Long)} 的引用拦截同源，第六类是改码守卫独有：
+     * 频控只落在 kb_resource_traffic_policies.resource_code 上，改码后多态 join 落空、限流失效。
+     */
+    private Long boundCount(String modelCode) {
+        long count = CodeBindingSupport.countOf(modelMapper.countRoutingTargetsByModelCode(modelCode))
+                + CodeBindingSupport.countOf(modelMapper.countPoolItemsByModelCode(modelCode))
+                + CodeBindingSupport.countOf(modelMapper.countProviderMappingsByModelCode(modelCode))
+                + CodeBindingSupport.countOf(modelMapper.countApiBindingsByModelCode(modelCode))
+                + CodeBindingSupport.countOf(discountPolicyMapper.countByModelCode(modelCode))
+                + trafficPolicySupport.countBindings(TrafficResourceTypeEnum.MODEL.code(), modelCode);
+        return count;
     }
 
     /**

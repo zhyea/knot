@@ -2,14 +2,18 @@
   <div class="code-block-view" :class="[`code-block-view--${theme}`]">
     <div v-if="copyable || $slots.actions" class="code-block-view__actions">
       <slot name="actions" />
-      <el-button
-        v-if="copyable"
-        class="code-block-view__copy"
-        size="small"
-        text
-        type="primary"
-        @click="onCopy"
-      >复制</el-button>
+      <el-tooltip v-if="copyable" content="复制" placement="top" :show-after="300">
+        <el-button
+          class="code-block-view__copy"
+          size="small"
+          text
+          type="primary"
+          aria-label="复制"
+          @click="onCopy"
+        >
+          <el-icon><CopyDocument/></el-icon>
+        </el-button>
+      </el-tooltip>
     </div>
     <el-scrollbar class="code-block-view__scrollbar" :style="scrollStyle">
       <div class="code-block-view__body">
@@ -21,6 +25,7 @@
 
 <script setup lang="ts">
 import {computed} from "vue";
+import {CopyDocument} from "@element-plus/icons-vue";
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard";
 
 const props = withDefaults(
@@ -112,9 +117,13 @@ async function onCopy() {
   color: #1d4ed8;
 }
 
+/* 图标按钮：定宽定高 + 零内边距，避免 Element 文本按钮的 8px 15px 内边距把图标挤成胶囊 */
 .code-block-view__copy {
+  width: 24px;
+  min-width: 24px;
+  height: 24px;
   min-height: 24px;
-  padding: 4px 8px;
+  padding: 0;
 }
 
 .code-block-view__scrollbar {

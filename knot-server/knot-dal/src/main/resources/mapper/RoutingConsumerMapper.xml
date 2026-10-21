@@ -55,8 +55,12 @@
     </select>
 
     <select id="countRulesByConsumerCode" resultType="java.lang.Long">
-        select count(1) from kb_routing_rules r
-        where r.consumer_code = #{consumerCode}
+        <!-- 消费者编码的绑定处数：路由规则（1:1）+ 频控/额度两表的 resource_type='ROUTING_CONSUMER' 绑定行 -->
+        select (select count(1) from kb_routing_rules r where r.consumer_code = #{consumerCode})
+             + (select count(1) from kb_resource_traffic_policies tp
+                  where tp.resource_type = 'ROUTING_CONSUMER' and tp.resource_code = #{consumerCode})
+             + (select count(1) from kb_resource_quota_bindings qb
+                  where qb.resource_type = 'ROUTING_CONSUMER' and qb.resource_code = #{consumerCode})
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">

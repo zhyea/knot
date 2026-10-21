@@ -44,4 +44,9 @@ public interface ModelPoolMapper {
 
     /** 引用检查按存储主键 code 统计（target_id 已于 10-06 迁移 DROP，仅剩 target_code） */
     Long countRoutingTargetsByPoolCode(@Param("poolCode") String poolCode);
+
+    /**
+     * 改码守卫：统计池内已挂载的供应商模型条目数（kb_model_pool_items 无逻辑删除列）。
+     */
+    Long countItemsByPoolCode(@Param("poolCode") String poolCode);
 }

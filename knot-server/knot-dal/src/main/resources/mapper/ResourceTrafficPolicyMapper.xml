@@ -84,4 +84,10 @@
     <delete id="deleteById">
         delete from kb_resource_traffic_policies where id = #{id}
     </delete>
+
+    <select id="countByResourceCode" resultType="java.lang.Long">
+        select count(1)
+        from kb_resource_traffic_policies
+        where resource_type = #{resourceType} and resource_code = #{resourceCode}
+    </select>
 </mapper>

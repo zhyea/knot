@@ -16,6 +16,7 @@ import org.chobit.knot.gateway.mapper.UserMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.tools.RoutingRuleCodeGenerator;
@@ -140,9 +141,10 @@ public class RoutingConsumerService {
      */
     @Transactional
     public RoutingConsumerDto update(Long id, RoutingConsumerDto request) {
-        if (routingConsumerMapper.getById(id) == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "消费者不存在");
-        }
+        RoutingConsumerDto existing = getById(id);
+        // 消费者编码被路由规则按 consumer_code 绑定后不可改（消费者 ↔ 规则 1:1）
+        CodeBindingSupport.requireCodeChangeAllowed(
+                existing.consumerCode(), request.consumerCode(), existing.ruleCount(), "消费者编码");
         validateForSave(request, id);
         RoutingConsumerEntity entity = toEntity(request);
         entity.setId(id);

@@ -28,9 +28,10 @@
                 placeholder="最长 64 位"
                 maxlength="64"
                 show-word-limit
-                :readonly="isEdit"
+                :readonly="codeLocked"
                 @blur="validateRuleCode"
               />
+              <div v-if="codeLocked" class="form-tip">{{ codeLockHint }}</div>
             </el-form-item>
             </el-col>
           </el-row>
@@ -332,6 +333,7 @@ import {listAppOptions, listLogicalModelOptions, listModelOptions, listModelPool
 import {toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
+import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -341,6 +343,12 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const isEdit = computed(() => props.rule != null);
+
+/**
+ * 规则编码口径同其它业务码：编辑态且已被引用（有路由目标或限流绑定）才锁定。
+ * boundCount 由后端在 DTO/VO 上派生（目标行数 + 限流绑定行）。
+ */
+const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => props.rule?.boundCount);
 
 const appOptions = ref<Row[]>([]);
 const logicalModelOptions = ref<Row[]>([]);
@@ -661,8 +669,8 @@ function resolvePrimaryTargetKey() {
 }
 
 async function validateRuleCode() {
-  // 编辑已有规则时编码只读（身份码不可改），无需再校验唯一性
-  if (isEdit.value) {
+  // 编码被引用后锁定（后端同口径 409 拦截），锁定态无需再校验唯一性
+  if (codeLocked.value) {
     ruleCodeError.value = "";
     return true;
   }
@@ -861,6 +869,13 @@ const targetModelCodes = computed(() =>
 <style scoped>
 .routing-rule-form {
   padding-bottom: 8px;
+}
+
+.form-tip {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--el-text-color-secondary);
 }
 
 .rule-section {

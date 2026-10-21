@@ -12,7 +12,8 @@
       <el-form :model="form" label-width="100px">
         <div class="slot-body">
           <el-form-item label="App Code" required>
-            <el-input v-model="form.appCode" :disabled="isEdit"/>
+            <el-input v-model="form.appCode" :disabled="codeLocked"/>
+            <div v-if="codeLocked" class="form-tip">{{ codeLockHint }}</div>
           </el-form-item>
           <el-row :gutter="16">
             <el-col :span="12">
@@ -82,6 +83,7 @@ import {listDepartmentOptions, listUserUsernameOptions} from "@/api/options";
 import {toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
+import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -105,6 +107,9 @@ const form = reactive({
 });
 
 const isEdit = computed(() => props.app != null);
+/** 应用编码引用处数（绑定该应用的路由规则数）：>0 时不可改 */
+const boundCount = ref(0);
+const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => boundCount.value);
 
 function fillFormFromRow(row: Row): void {
   form.id = row.id;
@@ -114,6 +119,7 @@ function fillFormFromRow(row: Row): void {
   form.ownerUsername = row.ownerUsername ?? null;
   form.remark = row.remark ?? "";
   form.quotaPolicies = normalizeQuotaPolicies(row.quotaPolicies);
+  boundCount.value = Number(row.boundCount ?? 0);
 }
 
 function resetForm() {
@@ -127,6 +133,7 @@ function resetForm() {
     form.ownerUsername = null;
     form.remark = "";
     form.quotaPolicies = emptyQuotaPolicies();
+    boundCount.value = 0;
   }
 }
 
@@ -186,3 +193,12 @@ async function submit() {
   }
 }
 </script>
+
+<style scoped>
+.form-tip {
+  width: 100%;
+  color: var(--el-color-warning);
+  font-size: 12px;
+  line-height: 1.5;
+}
+</style>

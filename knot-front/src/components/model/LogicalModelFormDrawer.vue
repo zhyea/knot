@@ -29,9 +29,10 @@
                   placeholder="如 knot-chat-premium"
                   maxlength="128"
                   show-word-limit
-                  :disabled="modelCodeChecking"
+                  :disabled="modelCodeChecking || codeLocked"
                   @blur="validateModelCode"
                 />
+                <div v-if="codeLocked" class="form-tip">{{ codeLockHint }}</div>
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -210,6 +211,7 @@
 import {type PropType, computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import type {Dict, Row} from "@/types";
+import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 import EnumControl from "../common/EnumControl.vue";
 import EnumSelect from "../common/EnumSelect.vue";
 import {
@@ -230,7 +232,10 @@ const saving = ref(false);
 const detailLoading = ref(false);
 const modelCodeChecking = ref(false);
 const modelCodeError = ref("");
+/** 编码引用处数（模型池 / 映射 / 路由规则 / 调试预设）：后端在详情里下发，>0 时编码不可改 */
+const boundCount = ref(0);
 const isEdit = computed(() => props.model != null);
+const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => boundCount.value);
 
 const form = reactive(defaultForm());
 const squareDisplayActive = ref<string[]>([]);
@@ -290,6 +295,7 @@ function fillForm(row: Row | null) {
   form.inputModalities = Array.isArray(row?.inputModalities) ? row.inputModalities : ["text"];
   form.outputModalities = Array.isArray(row?.outputModalities) ? row.outputModalities : ["text"];
   form.languages = Array.isArray(row?.languages) ? row.languages : ["zh-CN"];
+  boundCount.value = Number(row?.boundCount ?? 0);
 }
 
 watch(
@@ -473,5 +479,12 @@ async function submit() {
     max-width: 100%;
     flex: 0 0 100%;
   }
+}
+
+.form-tip {
+  width: 100%;
+  color: var(--el-color-warning);
+  font-size: 12px;
+  line-height: 1.5;
 }
 </style>

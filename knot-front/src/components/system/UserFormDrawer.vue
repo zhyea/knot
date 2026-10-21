@@ -11,7 +11,8 @@
       <el-form :model="form" label-width="90px">
         <div class="slot-body">
           <el-form-item label="用户名">
-            <el-input v-model="form.username" :disabled="isEdit" placeholder="请输入用户名"/>
+            <el-input v-model="form.username" :disabled="codeLocked" placeholder="请输入用户名"/>
+            <div v-if="codeLocked" class="form-tip">{{ codeLockHint }}</div>
           </el-form-item>
           <el-form-item label="姓名">
             <el-input v-model="form.realName" placeholder="请输入姓名"/>
@@ -72,6 +73,7 @@ import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import {toOptionsLoader} from "@/utils/options";
 import type {Dict} from "@/types";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
+import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -102,6 +104,9 @@ const form = reactive<UserFormState>({
 });
 
 const isEdit = computed(() => props.user != null);
+/** 登录名引用处数（应用负责人 / 消费者归属 / 路由规则归属）：>0 时不可改 */
+const boundCount = ref(0);
+const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => boundCount.value);
 
 function resetForm() {
   if (props.user) {
@@ -112,6 +117,7 @@ function resetForm() {
     form.deptCode = props.user.deptCode ?? null;
     form.roleIds = Array.isArray(props.user.roleIds) ? [...props.user.roleIds] : [];
     form.status = props.user.status ?? 1;
+    boundCount.value = Number(props.user.boundCount ?? 0);
     return;
   }
   form.id = null;
@@ -121,6 +127,7 @@ function resetForm() {
   form.deptCode = null;
   form.roleIds = [];
   form.status = 1;
+  boundCount.value = 0;
 }
 
 watch(
@@ -179,3 +186,12 @@ async function submit() {
   }
 }
 </script>
+
+<style scoped>
+.form-tip {
+  width: 100%;
+  color: var(--el-color-warning);
+  font-size: 12px;
+  line-height: 1.5;
+}
+</style>

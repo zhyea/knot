@@ -21,6 +21,7 @@ import org.chobit.knot.gateway.mapper.LogicalModelMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -108,7 +109,17 @@ public class LogicalModelService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "logical model not found");
         }
         LogicalModelDto base = logicalModelConverter.toDto(entity);
+        base = logicalModelConverter.withBoundCount(base, boundCount(entity.getModelCode()));
         return logicalModelConverter.withMappings(base, listMappings(entity.getModelCode()));
+    }
+
+    /**
+     * 统一模型编码的绑定数：模型池归属 + 供应商模型映射 + 路由规则关联 + 调试预设归类，
+     * 四类引用均按业务码绑定，改码会让存量引用整体掉绑。
+     */
+    private Long boundCount(String modelCode) {
+        Long count = logicalModelMapper.countBindingsByModelCode(modelCode);
+        return count == null ? 0L : count;
     }
 
     /**
@@ -150,6 +161,9 @@ public class LogicalModelService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "logical model not found");
         }
         String code = requireCode(request.modelCode());
+        // 统一模型编码被模型池 / 映射 / 路由规则 / 预设引用后不可改：改了会让存量引用整体掉绑
+        CodeBindingSupport.requireCodeChangeAllowed(
+                existing.getModelCode(), code, boundCount(existing.getModelCode()), "统一模型编码");
         assertModelCodeAvailable(code, id);
         LogicalModelEntity entity = logicalModelConverter.toEntity(request);
         entity.setId(id);

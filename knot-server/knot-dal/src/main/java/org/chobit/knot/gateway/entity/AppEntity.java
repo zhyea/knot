@@ -24,4 +24,6 @@ public class AppEntity {
     private Integer isDeleted;
     /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
     private Integer status;
+    /** 只读派生：按 app_code 绑定该应用的路由规则数；0 表示可改应用编码 */
+    private Long boundCount;
 }

@@ -43,6 +43,8 @@ public record RoutingRule(
         /** 创建时间 */
         LocalDateTime createdAt,
         /** 更新时间 */
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        /** 规则编码的绑定处数（路由目标 + 限流绑定）：&gt;0 时前端锁定规则编码输入框；派生字段，不落库 */
+        Long boundCount
 ) {
 }

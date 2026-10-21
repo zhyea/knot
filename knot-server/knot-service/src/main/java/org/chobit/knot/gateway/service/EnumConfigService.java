@@ -14,6 +14,7 @@ import org.chobit.knot.gateway.mapper.EnumCategoryMapper;
 import org.chobit.knot.gateway.mapper.EnumConfigMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.service.support.EnumOptionRegistry;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -173,7 +174,9 @@ public class EnumConfigService {
     }
 
     /**
-     * Updates the target resource. Executes the public operation.
+     * 更新枚举项。编码口径与其他业务码一致：没有任何引用时可改，一旦被引用（计费规则/统一模型的
+     * 模型族、折扣策略的折扣类型、敏感词条的分类）就拒绝改码——引用方存的都是 item_code，
+     * 改码等于让存量行掉绑（模型族掉绑会直接落不到计费规则上）。名称/排序/启用/备注始终可改。
      */
     @Transactional
     public EnumConfigEntity update(Long id, EnumConfigEntity request) {
@@ -181,11 +184,34 @@ public class EnumConfigService {
         if (existing.getIsSystem()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "系统内置分类下的枚举不可修改");
         }
+        String newCode = resolveItemCodeForUpdate(existing, request.getItemCode());
         request.setId(id);
         request.setCategory(existing.getCategory());
-        request.setItemCode(existing.getItemCode());
+        request.setItemCode(newCode);
         enumConfigMapper.update(request);
         return getById(id);
+    }
+
+    /**
+     * 解析改码请求：空值表示「不改编码」（只改名称等字段），否则归一 + 唯一性 + 引用拦截。
+     */
+    private String resolveItemCodeForUpdate(EnumConfigEntity existing, String requestedCode) {
+        String oldCode = CodeBindingSupport.normalize(existing.getItemCode());
+        if (requestedCode == null || requestedCode.isBlank()) {
+            return oldCode;
+        }
+        String newCode = CodeBindingSupport.normalize(requestedCode);
+        if (CodeBindingSupport.isSameCode(oldCode, newCode)) {
+            return oldCode;
+        }
+        EnumConfigEntity duplicated = enumConfigMapper.getByCategoryAndCode(existing.getCategory(), newCode);
+        if (duplicated != null && !duplicated.getId().equals(existing.getId())) {
+            throw new BusinessException(ErrorCode.CONFLICT,
+                    "枚举项 " + existing.getCategory() + "/" + newCode + " 已存在");
+        }
+        CodeBindingSupport.requireCodeChangeAllowed(oldCode, newCode,
+                enumConfigMapper.countItemCodeBindings(oldCode), "枚举项编码");
+        return newCode;
     }
 
     /**

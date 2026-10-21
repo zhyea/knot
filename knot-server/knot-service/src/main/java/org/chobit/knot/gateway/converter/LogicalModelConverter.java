@@ -49,7 +49,8 @@ public class LogicalModelConverter {
                 entity.getRemark(),
                 entity.getCreatedAt(),
                 entity.getUpdatedAt(),
-                List.of()
+                List.of(),
+                null
         );
     }
 
@@ -93,7 +94,25 @@ public class LogicalModelConverter {
                 base.inputModalities(), base.outputModalities(), base.languages(),
                 base.visibility(), base.publishStatus(), base.enabled(), base.deleted(), base.sortOrder(),
                 base.featured(), base.remark(), base.createdAt(), base.updatedAt(),
-                mappings != null ? mappings : List.of()
+                mappings != null ? mappings : List.of(), base.boundCount()
+        );
+    }
+
+    /**
+     * 补上只读派生字段「编码绑定数」：由调用方查得后回填，converter 不碰 mapper。
+     */
+    public LogicalModelDto withBoundCount(LogicalModelDto base, Long boundCount) {
+        if (base == null) {
+            return null;
+        }
+        return new LogicalModelDto(
+                base.id(), base.modelCode(), base.modelName(), base.modelType(), base.modelFamily(),
+                base.description(),
+                base.tags(), base.useCases(), base.contextWindow(), base.maxOutputTokens(),
+                base.inputModalities(), base.outputModalities(), base.languages(),
+                base.visibility(), base.publishStatus(), base.enabled(), base.deleted(), base.sortOrder(),
+                base.featured(), base.remark(), base.createdAt(), base.updatedAt(), base.mappings(),
+                boundCount
         );
     }
 
@@ -111,7 +130,8 @@ public class LogicalModelConverter {
                 dto.inputModalities(), dto.outputModalities(), dto.languages(),
                 dto.visibility(), dto.publishStatus(), dto.enabled(), dto.deleted(), dto.sortOrder(), dto.featured(),
                 dto.remark(), dto.createdAt(), dto.updatedAt(),
-                dto.mappings() == null ? List.of() : dto.mappings().stream().map(this::toMappingVO).toList()
+                dto.mappings() == null ? List.of() : dto.mappings().stream().map(this::toMappingVO).toList(),
+                dto.boundCount()
         );
     }
 
@@ -129,7 +149,8 @@ public class LogicalModelConverter {
                 item.enabled(), item.deleted(), item.sortOrder(), item.featured(),
                 item.remark(),
                 item.createdAt(), item.updatedAt(),
-                item.mappings() == null ? List.of() : item.mappings().stream().map(this::toMappingDto).toList()
+                item.mappings() == null ? List.of() : item.mappings().stream().map(this::toMappingDto).toList(),
+                null
         );
     }
 

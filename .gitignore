@@ -32,3 +32,4 @@ resources/.arch-internal-preview.css
 */*.d.ts
 db_p1
 audit
+.tmp

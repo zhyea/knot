@@ -26,7 +26,16 @@
 
         a.status,
 
-        COALESCE(NULLIF(u.real_name, ''), a.owner_username) AS owner_real_name
+        COALESCE(NULLIF(u.real_name, ''), a.owner_username) AS owner_real_name,
+
+        <!-- 应用编码的绑定处数：kb_routing_rules 按 app_code 引用（无逻辑删除列，全部计入）；
+             频控/额度两张绑定表的 resource_code 也存应用业务码（resource_type='APP'），
+             改码后多态 join 落空会让限流与额度静默失效，故一并计入 -->
+        (select count(1) from kb_routing_rules rr where rr.app_code = a.app_code)
+        + (select count(1) from kb_resource_traffic_policies tp
+             where tp.resource_type = 'APP' and tp.resource_code = a.app_code)
+        + (select count(1) from kb_resource_quota_bindings qb
+             where qb.resource_type = 'APP' and qb.resource_code = a.app_code) AS bound_count
 
     </sql>
 
@@ -96,7 +105,10 @@
 
         update kb_apps
 
-        set name = #{name},
+        <!-- app_code 可改（未被路由规则引用时可改，服务层用 CodeBindingSupport 把守） -->
+        set app_code = #{appCode},
+
+            name = #{name},
 
             dept_code = #{deptCode},
 

@@ -19,6 +19,7 @@ import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.mapper.ModelPoolMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -123,6 +124,9 @@ public class ModelPoolService {
                 && !modelPoolMapper.listItemsByPoolCode(existing.getPoolCode()).isEmpty()) {
             throw new BusinessException(ErrorCode.CONFLICT, "切换统一模型前请先清空池内模型");
         }
+        // 模型池编码被池内条目与路由目标按 pool_code 引用后不可改：改了会让存量引用整体掉绑
+        CodeBindingSupport.requireCodeChangeAllowed(
+                existing.getPoolCode(), request.poolCode(), boundCount(existing.getPoolCode()), "模型池编码");
         validateForSave(request, id);
         ModelPoolEntity entity = modelPoolConverter.toEntity(normalize(request));
         entity.setId(id);
@@ -149,7 +153,8 @@ public class ModelPoolService {
                 enabled,
                 existing.deleted(),
                 existing.remark(),
-                existing.items()
+                existing.items(),
+                existing.boundCount()
         );
         validateForSave(request, id);
         modelPoolMapper.updateStatus(id, EnabledStatusEnum.codeOf(enabled));
@@ -237,8 +242,18 @@ public class ModelPoolService {
                 dto.enabled(),
                 dto.deleted(),
                 dto.remark(),
-                items
+                items,
+                boundCount(dto.poolCode())
         );
+    }
+
+    /**
+     * 模型池编码的绑定数：池内模型条目 + 路由规则目标，两者均按 pool_code 引用。
+     */
+    private Long boundCount(String poolCode) {
+        Long items = modelPoolMapper.countItemsByPoolCode(poolCode);
+        Long targets = modelPoolMapper.countRoutingTargetsByPoolCode(poolCode);
+        return CodeBindingSupport.countOf(items) + CodeBindingSupport.countOf(targets);
     }
 
     private void saveItems(String poolCode, List<ModelPoolItemDto> items) {
@@ -341,7 +356,8 @@ public class ModelPoolService {
                 request.enabled(),
                 false,
                 normalizeNullable(request.remark()),
-                request.items()
+                request.items(),
+                request.boundCount()
         );
     }
 

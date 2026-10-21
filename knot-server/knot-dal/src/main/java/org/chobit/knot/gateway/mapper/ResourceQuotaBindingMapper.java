@@ -25,4 +25,11 @@ public interface ResourceQuotaBindingMapper {
      */
     int deleteByResource(@Param("resourceType") String resourceType,
                          @Param("resourceCode") String resourceCode);
+
+    /**
+     * 按资源类型 + 业务码统计额度绑定行数（改码守卫用，口径同
+     * {@link ResourceTrafficPolicyMapper#countByResourceCode(String, String)}）。
+     */
+    Long countByResourceCode(@Param("resourceType") String resourceType,
+                             @Param("resourceCode") String resourceCode);
 }

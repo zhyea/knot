@@ -30,7 +30,8 @@
           <el-row :gutter="16">
             <el-col :span="12">
               <el-form-item label="部门编码" required>
-                <el-input v-model="form.deptCode" :disabled="isEdit" maxlength="64" placeholder="请输入部门编码"/>
+                <el-input v-model="form.deptCode" :disabled="codeLocked" maxlength="64" placeholder="请输入部门编码"/>
+                <div v-if="codeLocked" class="form-tip">{{ codeLockHint }}</div>
               </el-form-item>
             </el-col>
             <el-col :span="12">
@@ -87,6 +88,7 @@ import {computed, reactive, ref, watch, type PropType} from "vue";
 import {ElMessage} from "element-plus";
 import {createDepartment, updateDepartment} from "@/api/departments";
 import type {Dict, Row} from "@/types";
+import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
 /** 上级部门下拉项：label 已拼好层级缩进路径 */
 interface ParentOption {
@@ -105,6 +107,9 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "saved"]);
 
 const isEdit = computed(() => props.department != null);
+/** 机构编码引用处数（部门下用户 + 应用数）：>0 时不可改 */
+const boundCount = ref(0);
+const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => boundCount.value);
 const saving = ref(false);
 interface DeptFormState {
   id: number | string | null;
@@ -152,6 +157,7 @@ function resetForm() {
     form.sortOrder = props.department.sortOrder ?? 0;
     form.status = props.department.status ?? 1;
     form.remark = props.department.remark || "";
+    boundCount.value = Number(props.department.boundCount ?? 0);
     return;
   }
   form.id = null;
@@ -161,6 +167,7 @@ function resetForm() {
   form.sortOrder = 0;
   form.status = 1;
   form.remark = "";
+  boundCount.value = 0;
 }
 
 watch(
@@ -313,5 +320,12 @@ async function submit() {
 
 .space-line {
   height: 14px;
+}
+
+.form-tip {
+  width: 100%;
+  color: var(--el-color-warning);
+  font-size: 12px;
+  line-height: 1.5;
 }
 </style>

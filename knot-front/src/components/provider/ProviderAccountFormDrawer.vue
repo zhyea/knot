@@ -29,9 +29,10 @@
                   placeholder="最长 48 位"
                   maxlength="48"
                   show-word-limit
-                  :disabled="codeChecking"
+                  :disabled="codeChecking || codeLocked"
                   @blur="validateCode"
                 />
+                <div v-if="codeLocked" class="form-tip">{{ codeLockHint }}</div>
               </el-form-item>
             </el-col>
             <el-col style="flex: 0 0 40%; max-width: 40%">
@@ -158,6 +159,7 @@ import {
   type QuotaPolicy
 } from "@/utils/trafficPolicy";
 import {useAuth} from "@/composables/useAuth";
+import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import {listProviderProfileOptions} from "@/api/options";
 import {toOptionsLoader} from "@/utils/options";
@@ -206,6 +208,9 @@ const emit = defineEmits(["update:modelValue", "saved"]);
 const {isAdmin} = useAuth();
 const saving = ref(false);
 const codeChecking = ref(false);
+/** 编码引用处数（账户下挂载的供应商模型数）：后端在详情里下发，>0 时编码不可改 */
+const boundCount = ref(0);
+const {codeLocked, codeLockHint} = useCodeBindingLock(() => isEdit.value, () => boundCount.value);
 const codeError = ref("");
 const codeValidated = ref(false);
 const detailLoading = ref(false);
@@ -316,6 +321,7 @@ function fillFormFromRow(row: Row) {
   form.credentialType = row.credentialType || null;
   form.authApplier = row.authApplier || defaultAuthApplierForType();
   form.authConfig = normalizeAuthConfig(row.authConfig);
+  boundCount.value = Number(row.boundCount ?? 0);
   // 初次加载：把存量 authConfig 里不属于当前类型的键拆到自定义编辑器，一次性完成
   syncCredentialParts();
   form.quotaPolicies = normalizeQuotaPolicies(row.quotaPolicies);
@@ -333,6 +339,7 @@ function clearForm() {
   form.credentialType = null;
   form.authApplier = null;
   form.authConfig = defaultAuthConfig();
+  boundCount.value = 0;
   syncCredentialParts();
   form.quotaPolicies = emptyQuotaPolicies();
 }
@@ -523,5 +530,12 @@ async function submit() {
 
 .auth-kv-editor {
   width: 100%;
+}
+
+.form-tip {
+  width: 100%;
+  color: var(--el-color-warning);
+  font-size: 12px;
+  line-height: 1.5;
 }
 </style>

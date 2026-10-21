@@ -13,6 +13,7 @@ import org.chobit.knot.gateway.mapper.DepartmentMapper;
 import org.chobit.knot.gateway.mapper.UserMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -86,6 +87,7 @@ public class DepartmentService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "department not found");
         }
         validateParentForUpdate(id, request.parentId());
+        existing.setDeptCode(resolveDeptCodeForUpdate(existing, request.deptCode()));
         existing.setDeptName(normalizeRequired(request.deptName(), "please input department name"));
         existing.setParentId(request.parentId());
         existing.setStatus(request.status() != null ? request.status() : existing.getStatus());
@@ -139,6 +141,25 @@ public class DepartmentService {
             return null;
         }
         return JsonKit.toMap(entity);
+    }
+
+    /**
+     * 机构编码改码：未被用户 / 应用按 dept_code 引用时可改，已绑定直接 409；改码前做唯一性校验。
+     *
+     * <p>入参 deptCode 为空表示「不修改」，沿用库中现值。</p>
+     */
+    private String resolveDeptCodeForUpdate(DepartmentEntity existing, String requested) {
+        String deptCode = CodeBindingSupport.normalize(requested);
+        if (deptCode.isEmpty()) {
+            return existing.getDeptCode();
+        }
+        CodeBindingSupport.requireCodeChangeAllowed(
+                existing.getDeptCode(), deptCode, existing.getBoundCount(), "机构编码");
+        if (!CodeBindingSupport.isSameCode(existing.getDeptCode(), deptCode)
+                && departmentMapper.getByCode(deptCode) != null) {
+            throw new BusinessException(ErrorCode.CONFLICT, "机构编码「" + deptCode + "」已存在");
+        }
+        return deptCode;
     }
 
     private static String normalizeKeyword(String keyword) {

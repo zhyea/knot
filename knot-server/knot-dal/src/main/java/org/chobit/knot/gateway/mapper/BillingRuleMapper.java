@@ -32,6 +32,9 @@ public interface BillingRuleMapper {
     /** 按业务码统计绑定了该规则的供应商模型数 */
     Long countBoundModels(@Param("code") String code);
 
+    /** 按规则业务码统计版本行数（kb_billing_rule_versions.rule_code 存业务码，改码会掉绑） */
+    Long countVersionsByRuleCode(@Param("ruleCode") String ruleCode);
+
     /** 计费路径：按规则业务码取当前生效版本 */
     BillingRuleEntity getActiveByRuleCode(@Param("ruleCode") String ruleCode,
                                           @Param("effectiveAt") LocalDateTime effectiveAt);

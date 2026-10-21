@@ -515,13 +515,18 @@ INSERT IGNORE INTO kb_providers (id, code, name, tag) VALUES
 (3, 'deepseek',     'DeepSeek',     '原厂'),
 (4, 'qwen',         'Qwen',         '原厂'),
 (5, 'zhipu',        'Zhipu',        '原厂'),
-(6, 'openrouter',   'OpenRouter',   '云厂商');
+(6, 'openrouter',   'OpenRouter',   '云厂商'),
+(7, 'aws',          'AWS Bedrock',  '云厂商');
 
 INSERT IGNORE INTO kb_provider_accounts (id, provider_code, code, status) VALUES
 (1, 'openai',    'openai-default',    1),
 (2, 'anthropic', 'anthropic-default', 1),
 (3, 'deepseek',  'deepseek-default',  1),
-(4, 'qwen',      'qwen-default',      1);
+(4, 'qwen',      'qwen-default',      1),
+-- Bedrock 两类端点各占一个账户：endpointType 挂在凭据上，而 host/SigV4 service 由它决定，
+-- 一个账户只能对应一种端点形态（runtime 走 Converse，mantle 走 OpenAI 兼容）
+(5, 'aws',       'aws-bedrock-runtime', 1),
+(6, 'aws',       'aws-bedrock-mantle',  1);
 
 -- 频控/额度策略（独立表 + 资源绑定）
 INSERT IGNORE INTO kb_rate_limit_policies (id, policy_code, policy_name, rpm, tpm, status) VALUES
@@ -564,7 +569,11 @@ INSERT IGNORE INTO kb_resource_quota_bindings (resource_type, resource_code, quo
 INSERT IGNORE INTO kb_provider_credentials (id, provider_account_code, credential_type, auth_applier, encrypted_config, status) VALUES
 (1, 'openai-default', 'api-key', 'BEARER', 'ENC:Gxdt09+Mk+BnH3+meLh03rvVO/lr/5vjxcjK0RNW0PgB0X/vYX0QzaixD9xPh/gKVYTC/0JSNl4lU7zy+g==', 1),
 (2, 'anthropic-default', 'api-key', 'ANTHROPIC_API_KEY', 'ENC:v3v8kgxDLYoAKyNICNxGKU655xOH3Sd1k2qtSS+bgYcvtq/fXGyufZ1gA+Qr2LMBT1eRTJ6teFCPY5r/OvTjqw==', 1),
-(3, 'deepseek-default', 'api-key', 'BEARER', 'ENC:pnMjBuMkVI19v432F8xRJ1U976XGPXwM19DakGTc8GoKMEvIy/6QcOMUbwwsRbXMJ4kqXsY+X+sKrnBuuijw', 1);
+(3, 'deepseek-default', 'api-key', 'BEARER', 'ENC:pnMjBuMkVI19v432F8xRJ1U976XGPXwM19DakGTc8GoKMEvIy/6QcOMUbwwsRbXMJ4kqXsY+X+sKrnBuuijw', 1),
+-- ⚠ 占位凭据：AK/SK 是假值，上线前必须在管理台换成真实密钥（密文由开发默认密钥加密，
+-- 同其它种子；生产环境换了 KNOT_CREDENTIAL_ENCRYPTION_KEY 后须重新生成）
+(4, 'aws-bedrock-runtime', 'aws-auth', 'AWS_SIGV4', 'ENC:v2:RBcQiZXA4xtu1JzdUeeUYK0N8McJfBysNTivpk84EbZtuX6w2y+og03WhpCBSMeOGRgSOQi3xrwLtD8QJvd8woJFeJU2Ywqk7VyCMzKb2DMTemI5TyHsr9sO3H3h23MwMBQpWnsc/ZTZ2cO5xyCcpZtpgQM+lENnniJKzWhJ8gFS1UayJqyFMpc15+dN+JpWJ59XhEE3FrM61/jLnDwwZYECvwTOI5A=', 1),
+(5, 'aws-bedrock-mantle', 'aws-auth', 'AWS_SIGV4', 'ENC:v2:i3tPFtFrDBtlI7tOb528ptatgvdcq146hlSMHrFP2hvjRktj64+md+piG6HQxP2w6WMLshEjAZe2G0Ja+S30mSf9uD9b1/XBYBykWm1q+UxVS/aBZFoV9spWbcwrSiAtn1bw4AFPH7q1FJSXZU542CHyH2s8zDDZhWkymGQxntEU79egcNHkdopmfqopvnrs65bv38fjSChprOWE+/LvrPOSqxWoHw==', 1);
 
 -- 折扣策略（绑定供应商模型业务码 kb_models.model_code）
 -- 折扣是模型级概念：同一供应商账户下的不同模型可以有不同折扣，故种子特意让
@@ -586,7 +595,11 @@ INSERT IGNORE INTO kb_models (id, provider_account_code, model_code, upstream_mo
 (7, 'deepseek-default', 'deepseek-reasoner', 'deepseek-reasoner', '2025-01-20', 'https://api.deepseek.com', 1),
 (8, 'qwen-default', 'qwen-image', 'qwen-image', '2025-08-01', 'https://dashscope.aliyuncs.com', 1),
 (9, 'qwen-default', 'qwen-image-edit', 'qwen-image-edit', '2025-08-01', 'https://dashscope.aliyuncs.com', 1),
-(10, 'openai-default', 'gpt-image-1', 'gpt-image-1', '2025-04-01', 'https://api.openai.com', 1);
+(10, 'openai-default', 'gpt-image-1', 'gpt-image-1', '2025-04-01', 'https://api.openai.com', 1),
+-- Bedrock：base_url 刻意留 NULL，host 由凭据里的 region + endpointType 推导
+-- （model.base_url 一旦填了就优先用它，会盖掉端点推导）
+(11, 'aws-bedrock-runtime', 'bedrock-claude-sonnet-4', 'anthropic.claude-sonnet-4-20250514-v1:0', '2025-05-14', NULL, 1),
+(12, 'aws-bedrock-mantle', 'bedrock-gpt56-luna', 'openai.gpt-5.6-luna', '2026-01-01', NULL, 1);
 
 INSERT IGNORE INTO kb_model_pools (id, pool_code, name, logical_model_code, selection_strategy, status, remark) VALUES
 (1, 'chat-premium-pool', 'Premium Chat Pool', 'knot-chat-premium', 'WEIGHTED', 1, 'Premium chat routing pool'),
@@ -641,7 +654,11 @@ INSERT IGNORE INTO kb_model_api_bindings (id, model_code, protocol, api_path, re
 (5, 'qwen-image', 'IMAGE_GENERATIONS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'DEFAULT-TOKEN', 1, 'Qwen Image Generation'),
 (6, 'qwen-image-edit', 'IMAGE_EDITS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'DEFAULT-TOKEN', 1, 'Qwen Image Edit'),
 (7, 'gpt-image-1', 'IMAGE_GENERATIONS', '/v1/images/generations', 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'OpenAI Image Generation'),
-(8, 'gpt-image-1', 'IMAGE_EDITS', '/v1/images/edits', 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'OpenAI Image Edit');
+(8, 'gpt-image-1', 'IMAGE_EDITS', '/v1/images/edits', 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'OpenAI Image Edit'),
+-- Bedrock runtime：api_path 留 NULL，由 BEDROCK_CONVERSE 适配器按 /model/{模型ID}/converse 推导（模型 ID 里的 : 会编码成 %3A）
+(9, 'bedrock-claude-sonnet-4', 'CHAT_COMPLETIONS', NULL, 'BEDROCK_CONVERSE', 'BEDROCK_CONVERSE', 1, 'Bedrock Converse（runtime 端点）'),
+-- Bedrock mantle：不支持 Converse，只暴露 OpenAI 兼容，故直接复用既有 OPENAI_COMPATIBLE 适配器（零新适配器代码）
+(10, 'bedrock-gpt56-luna', 'CHAT_COMPLETIONS', NULL, 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'Bedrock mantle OpenAI 兼容端点');
 
 -- =========================
 -- 应用管理

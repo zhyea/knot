@@ -11,6 +11,7 @@ import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ProviderAccountEntity;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
+import org.chobit.knot.gateway.mapper.DiscountPolicyMapper;
 import org.chobit.knot.gateway.mapper.LogicalModelMapper;
 import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
@@ -51,6 +52,7 @@ class ModelApiBindingSyncTest {
     private static final Long BINDING_ID = 10L;
 
     private final ModelMapper modelMapper = mock(ModelMapper.class);
+    private final DiscountPolicyMapper discountPolicyMapper = mock(DiscountPolicyMapper.class);
     private final ModelApiBindingMapper bindingMapper = mock(ModelApiBindingMapper.class);
     private final LogicalModelMapper logicalModelMapper = mock(LogicalModelMapper.class);
     private final BillingRuleMapper billingRuleMapper = mock(BillingRuleMapper.class);
@@ -66,10 +68,15 @@ class ModelApiBindingSyncTest {
         public TrafficPolicies load(String resourceType, Long resourceId) {
             return null;
         }
+
+        @Override
+        public long countBindings(String resourceType, String resourceCode) {
+            return 0L;
+        }
     };
 
     private final ModelService service = new ModelService(
-            modelMapper, null, bindingMapper, logicalModelMapper, billingRuleMapper, providerAccountMapper,
+            modelMapper, discountPolicyMapper, bindingMapper, logicalModelMapper, billingRuleMapper, providerAccountMapper,
             modelConverter, trafficPolicySupport, null, null);
 
     @BeforeEach
@@ -104,7 +111,7 @@ class ModelApiBindingSyncTest {
             ModelEntity source = invocation.getArgument(0);
             return new ModelDto(source.getId(), source.getModelCode(), source.getUpstreamModel(),
                     source.getProviderAccountCode(), null, null, null, "1.0.0", source.getBaseUrl(),
-                    null, true, "logical-gpt", "billing-1", null, null, List.of(), false);
+                    null, true, "logical-gpt", "billing-1", null, null, List.of(), false, null);
         });
         when(bindingMapper.listByModelId(MODEL_ID)).thenReturn(List.of());
     }
@@ -158,7 +165,7 @@ class ModelApiBindingSyncTest {
     private ModelDto request(List<ModelApiBindingDto> bindings) {
         return new ModelDto(MODEL_ID, "gpt-4o", "gpt-4o", "acct-1", null, null, "CHAT",
                 "1.0.0", "https://example.com", null, true, "logical-gpt", "billing-1",
-                null, null, bindings, false);
+                null, null, bindings, false, null);
     }
 
     private ModelApiBindingEntity existingBinding() {

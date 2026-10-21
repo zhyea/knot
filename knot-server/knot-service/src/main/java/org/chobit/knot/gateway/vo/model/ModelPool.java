@@ -20,6 +20,8 @@ public record ModelPool(
         boolean enabled,
         boolean deleted,
         @Size(max = 255) String remark,
-        @Valid List<ModelPoolItem> items
+        @Valid List<ModelPoolItem> items,
+        /** 只读派生：模型池编码的引用处数；0 表示未绑定，可改编码 */
+        Long boundCount
 ) {
 }

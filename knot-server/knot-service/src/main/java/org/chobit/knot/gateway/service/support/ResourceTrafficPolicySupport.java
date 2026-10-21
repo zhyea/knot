@@ -135,6 +135,26 @@ public class ResourceTrafficPolicySupport {
     }
 
     /**
+     * 统计某资源业务码上的频控 + 额度绑定行数。
+     *
+     * <p>改码守卫用：两张绑定表的 resource_code 存业务码，资源改码后行还在、join 落空，
+     * 限流与额度会静默失效（不报错、不生效），因此「有绑定就不许改码」。
+     * 注意 PROVIDER 层指向的是 {@code kb_provider_accounts.code}（供应商账户），不是供应商主表。</p>
+     */
+    public long countBindings(String resourceType, String resourceCode) {
+        if (resourceType == null || resourceCode == null || resourceCode.isBlank()) {
+            return 0L;
+        }
+        long traffic = nz(bindingMapper.countByResourceCode(resourceType, resourceCode));
+        long quota = nz(quotaBindingMapper.countByResourceCode(resourceType, resourceCode));
+        return traffic + quota;
+    }
+
+    private static long nz(Long value) {
+        return value == null ? 0L : value;
+    }
+
+    /**
      * 写入：限流与额度按资源分层收口。额度支持一个资源挂多套（按窗口）的额度策略。
      */
     public void save(String resourceType, Long resourceId, RateLimitPolicy rateLimit, List<QuotaPolicy> quotas) {

@@ -11,6 +11,8 @@ public record DepartmentDto(
         Integer sortOrder,
         String remark,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        /** 只读派生：机构编码被用户 / 应用引用的处数；0 表示未绑定，可改机构编码 */
+        Long boundCount
 ) {
 }

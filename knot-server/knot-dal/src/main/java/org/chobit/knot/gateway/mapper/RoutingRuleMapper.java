@@ -28,6 +28,26 @@ public interface RoutingRuleMapper {
     Long countByRuleCode(@org.apache.ibatis.annotations.Param("ruleCode") String ruleCode,
                          @org.apache.ibatis.annotations.Param("excludeId") Long excludeId);
 
+    /**
+     * 改码守卫：统计按应用业务码绑定该应用的路由规则数（kb_routing_rules 无逻辑删除列）。
+     */
+    Long countByAppCode(@Param("appCode") String appCode);
+
+    /**
+     * 改码守卫：统计按归属用户登录名绑定该用户的路由规则数。
+     */
+    Long countByUsername(@Param("username") String username);
+
+    /**
+     * 改码守卫：统计按统一模型编码关联该统一模型的路由规则数。
+     */
+    Long countByLogicalModelCode(@Param("logicalModelCode") String logicalModelCode);
+
+    /**
+     * 改码守卫：统计按规则业务码绑定的路由目标行数（kb_routing_rule_targets.rule_code）。
+     */
+    Long countTargetsByRuleCode(@Param("ruleCode") String ruleCode);
+
     int insert(RoutingRuleEntity entity);
 
     int update(RoutingRuleEntity entity);

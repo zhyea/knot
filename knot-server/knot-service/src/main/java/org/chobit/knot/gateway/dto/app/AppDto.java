@@ -16,6 +16,8 @@ public record AppDto(
         String ownerName,
         String remark,
         RateLimitPolicy rateLimitPolicy,
-        List<QuotaPolicy> quotaPolicies
+        List<QuotaPolicy> quotaPolicies,
+        /** 只读派生：应用编码被路由规则引用的处数；0 表示未绑定，可改应用编码 */
+        Long boundCount
 ) {
 }

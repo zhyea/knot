@@ -27,6 +27,7 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.service.support.ProviderCredentialSupport;
 import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
 import org.chobit.knot.gateway.util.JsonKit;
@@ -212,6 +213,9 @@ public class ProviderService {
         }
         assertProviderProfileCodeExists(request.providerCode());
         ProviderCredentialTypeEnum credentialType = validateCredential(request);
+        // 账户编码被供应商模型按 provider_account_code 引用后不可改：改了会让存量模型掉绑账户
+        CodeBindingSupport.requireCodeChangeAllowed(
+                existing.getCode(), request.code(), boundCount(existing.getCode()), "供应商账户编码");
         String code = resolveCodeForSave(request.code(), existing.getCode());
         assertCodeAvailable(code, id);
         ProviderAccountEntity entity = providerConverter.toEntity(request);
@@ -249,6 +253,20 @@ public class ProviderService {
                 traffic);
     }
 
+    /**
+     * 供应商账户编码的绑定处数，两类引用方：
+     * <ol>
+     *   <li>账户下挂载的供应商模型（kb_models.provider_account_code），逻辑删除可恢复故不按 is_deleted 过滤；</li>
+     *   <li>频控/额度绑定行（resource_type='PROVIDER' 指向的就是账户 code，不是供应商主表）——
+     *       改码后多态 join 落空，限流与额度会静默失效。</li>
+     * </ol>
+     */
+    private Long boundCount(String accountCode) {
+        Long count = providerAccountMapper.countModelsByAccountCode(accountCode);
+        long models = count == null ? 0L : count;
+        return models + trafficPolicySupport.countBindings(TrafficResourceTypeEnum.PROVIDER.code(), accountCode);
+    }
+
     private ProviderAccountDto enrich(ProviderAccountDto base,
                                       ProviderCredentialEntity credential,
                                       TrafficPolicies traffic) {
@@ -264,7 +282,7 @@ public class ProviderService {
                 base.createdAt(), base.updatedAt(),
                 credentialSupport.credentialType(credential),
                 credentialSupport.authApplier(credential),
-                auth, rate, quotas
+                auth, rate, quotas, boundCount(base.code())
         );
     }
 

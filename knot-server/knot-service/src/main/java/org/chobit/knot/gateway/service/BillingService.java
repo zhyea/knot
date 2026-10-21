@@ -27,6 +27,7 @@ import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
+import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.vo.billing.BillingCapabilities;
 import org.chobit.knot.gateway.vo.billing.BillingReportSummary;
 import org.chobit.knot.gateway.vo.billing.BillingRuleListItem;
@@ -724,19 +725,20 @@ public class BillingService {
     }
 
     /**
-     * 规则编码可改，但原编码一旦被供应商模型绑定就不许改：绑定存的是 code，改了会让存量模型掉绑。
+     * 规则编码可改，但原编码一旦被引用就不许改：绑定存的是 code，改码会让存量模型与版本行掉绑。
+     * 引用方两类——供应商模型（kb_models.billing_rule_code）与规则自身的版本行
+     * （kb_billing_rule_versions.rule_code，改码后版本表仍指旧码，判价直接落空）。
      * 未绑定（或编码未变）时放行；唯一性由 {@link #validateRule} 的 countByCode 保证。
      */
     private void assertCodeChangeAllowed(BillingRuleEntity existing, String newCode) {
         String oldCode = normalizeCode(existing.getCode());
-        if (oldCode.equals(newCode)) {
+        if (CodeBindingSupport.isSameCode(oldCode, newCode)) {
             return;
         }
-        Long count = billingRuleMapper.countBoundModels(oldCode);
-        if (count != null && count > 0) {
-            throw new BusinessException(ErrorCode.CONFLICT,
-                    "billing rule code is used by " + count + " provider models, cannot change");
-        }
+        Long models = billingRuleMapper.countBoundModels(oldCode);
+        Long versions = billingRuleMapper.countVersionsByRuleCode(oldCode);
+        long total = CodeBindingSupport.countOf(models) + CodeBindingSupport.countOf(versions);
+        CodeBindingSupport.requireCodeChangeAllowed(oldCode, newCode, total, "计费规则编码");
     }
 
     private static Integer statusFor(boolean enabled) {

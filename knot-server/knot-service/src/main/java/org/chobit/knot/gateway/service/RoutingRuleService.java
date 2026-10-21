@@ -49,6 +49,7 @@ import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.EjectionPolicy;
 import org.chobit.knot.gateway.model.RetryPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.tools.RoutingRuleCodeGenerator;
@@ -258,9 +259,10 @@ public class RoutingRuleService {
      */
     @Transactional
     public RoutingRuleDto update(Long id, RoutingRuleDto request) {
-        if (routingRuleMapper.getById(id) == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "路由规则不存在");
-        }
+        RoutingRuleDto existing = getById(id);
+        // 规则编码一旦被引用（有路由目标或限流绑定）就不许改：绑定列存 code，改码后目标与限流静默掉绑
+        CodeBindingSupport.requireCodeChangeAllowed(existing.ruleCode(), request.ruleCode(),
+                countCodeBindings(existing.ruleCode()), "路由规则编码");
         validateForSave(request, id);
         RoutingRuleEntity entity = toEntity(request);
         entity.setId(id);
@@ -299,7 +301,8 @@ public class RoutingRuleService {
                 existing.ejectionPolicy(),
                 existing.selectionStrategy(),
                 existing.createdAt(),
-                existing.updatedAt()
+                existing.updatedAt(),
+                existing.boundCount()
         );
         validateForSave(request, id);
         routingRuleMapper.updateStatus(id, EnabledStatusEnum.codeOf(enabled));
@@ -804,8 +807,29 @@ public class RoutingRuleService {
                 EjectionPolicy.parse(entity.getEjectionPolicy()),
                 normalizeSelectionStrategy(entity.getSelectionStrategy()),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt()
+                entity.getUpdatedAt(),
+                codeBoundCount(targets, rate)
         );
+    }
+
+    /**
+     * 规则编码的绑定处数：路由目标行（kb_routing_rule_targets.rule_code）+ 限流行（限流只落
+     * kb_resource_traffic_policies 聚合行，resource_type='ROUTING_RULE'，无额度子表）。
+     *
+     * <p>展示侧由已加载的行直接派生，不再单独发 count 查询（列表批量装配时避免 N+1）；
+     * 写路径的拦截以 {@link #countCodeBindings(String)} 的库内计数为准。</p>
+     */
+    private static long codeBoundCount(List<RoutingRuleTargetDto> targets, RateLimitPolicy rate) {
+        long targetCount = targets == null ? 0L : targets.size();
+        return targetCount + (rate != null ? 1L : 0L);
+    }
+
+    /**
+     * 库内真实计数：规则编码被多少行按 code 引用。改码守卫用（含已停用策略留下的聚合行）。
+     */
+    private long countCodeBindings(String ruleCode) {
+        return CodeBindingSupport.countOf(routingRuleMapper.countTargetsByRuleCode(ruleCode))
+                + trafficPolicySupport.countBindings(TrafficResourceTypeEnum.ROUTING_RULE.code(), ruleCode);
     }
 
     /**
@@ -917,7 +941,8 @@ public class RoutingRuleService {
                 request.ejectionPolicy(),
                 request.selectionStrategy(),
                 request.createdAt(),
-                request.updatedAt()
+                request.updatedAt(),
+                request.boundCount()
         );
     }
 
