@@ -185,10 +185,10 @@ POST /api/routing-rules/{id}/test/billing-verdict
 
 | key | 题型 | 判定 |
 |---|---|---|
-| `usage_parse_ok` | noul | 归一化是否完整正确覆盖上游计费维度 |
+| `usage_parse_ok` | choice | `CORRECT` / `INCORRECT` / `INSUFFICIENT_EVIDENCE`；依据上游原始 usage 与网关归一化用量逐项核对，父级总量与缓存/推理等子项不可重复相加；仅同口径明确矛盾判错。OpenAI 兼容字段按 `completion_tokens = output.text + output.reasoning`、`total_tokens = prompt_tokens + completion_tokens` 对照 |
 | `rule_match_ok` | choice | 命中规则是否合适（APPROPRIATE / FALLBACK_ONLY / MODE_MISMATCH / MISSING） |
-| `cost_plausible` | noul | **语义嗅探**：账与依据是否相称、场景是否荒谬（不算术复核） |
-| `risk_level` | score | 综合风险刻度（有序数组 criteria） |
+| `cost_plausible` | choice | `PLAUSIBLE` / `SUSPICIOUS` / `INSUFFICIENT_EVIDENCE`；**语义嗅探**金额、用量与价格依据是否相称，不做算术复核；上游 cost 缺失本身不构成证据不足 |
+| `risk_level` | choice | `LOW` / `MEDIUM` / `HIGH` 综合风险等级；不再使用难以解释的连续分数 |
 
 ### 6.3 调用加固参数（继承 v6 §5.5）
 
@@ -196,7 +196,7 @@ POST /api/routing-rules/{id}/test/billing-verdict
 
 ### 6.4 answers 防御式解析（继承 v6 §5.6）
 
-noul 只读 `noul` 值（无 confidence）；choice 的 confidence/probabilities schema 可选，缺失按「无置信度」展示；score 为连续 double、probabilities/legend 用字符串键；**缺某题答案 → 该题标「未返回」，不整体失败**。
+四题统一使用固定 `choice` 值，后端按各题 criteria 白名单解析并把选项说明映射到展示文案；`confidence` / `probabilities` 可选，缺少 confidence 时显示「无置信度」。未知 choice、缺答案或解析失败 → 该题标「未返回」，不整体失败。`usage_parse_ok` 与 `cost_plausible` 都提供 `INSUFFICIENT_EVIDENCE`，要求裁判区分判断结果与依据不足；risk_level 用 `LOW` / `MEDIUM` / `HIGH` 离散等级。
 
 ### 6.5 错误码映射与降级（继承 v6 §5.7）
 
@@ -269,7 +269,7 @@ knot:
 
 1. **计费事实区** — 上游 usage ↔ `knot_extend.usage` 对照；命中规则（matchedBy）；**被告账明细原样**；上游 cost 对照行（缺失显示「上游未返回」）；重算算式摊开（影子链，仅本区）。
 2. **自检区** — 七项 PASS/FAIL/**SKIP** 标签，FAIL 高亮 + 失败含义。
-3. **裁判结论区** — noul 概率条、choice 选中项 + 置信度（缺失标「无置信度」）、score 刻度 + legend；顶部 summary；`available:false` 显示原因（如「裁判未配置：knot.jev.judge-rule-code 缺失」「余额不足 402」）。
+3. **裁判结论区** — choice 选项翻译为中文结论并附置信度（缺失标「无置信度」）；顶部 summary；`available:false` 显示原因（如「裁判未配置：knot.jev.judge-rule-code 缺失」「余额不足 402」）。
 
 双盲提示（v6 §7 保留）：两区互不引用——JEV 没看过自检结论。两区同亮红灯 = 两个独立裁判同指问题，可信度远高于单边；仅一边亮 = 优先相信自检（代码精确），JEV 供语义参考。保留人工判断，不自动阻断。
 
@@ -279,7 +279,7 @@ knot:
 
 | 门 | 判据 |
 |---|---|
-| 后端 `mvn -f knot-server/pom.xml test` | BUILD SUCCESS。新增单测：① 事实组装正确（含被告账快照）；② 七项各态 + **cost 缺失→SKIP**；③ **`GATEWAY_RECOMPUTE_MATCH` 反向用例**（篡改被告金额 → FAIL 且不误伤其余项）；④ questions 模板契约合法（noul 必含 true/false、score 数组 minItems 1）；⑤ answers 防御式解析（缺 confidence/probabilities/legend 不报错、缺题标未返回）；⑥ 错误码→降级映射（含 402/413/429）；⑦ state 截断生效；⑧ **state 内容断言**（`computed`/`parsedUsage`/自检结论绝不出现）；⑨ 配置缺失/消费者不存在/规则未启用 → `available:false` 原因明确不抛异常；⑩ secretKey 不落日志 |
+| 后端 `mvn -f knot-server/pom.xml test` | BUILD SUCCESS。新增单测：① 事实组装正确（含被告账快照）；② 七项各态 + **cost 缺失→SKIP**；③ **`GATEWAY_RECOMPUTE_MATCH` 反向用例**（篡改被告金额 → FAIL 且不误伤其余项）；④ questions 四题固定 choice 值与说明契约；⑤ answers 防御式解析（confidence/probabilities 可缺、未知 choice 与缺题标未返回）；⑥ 错误码→降级映射（含 402/413/429）；⑦ state 截断生效；⑧ **state 内容断言**（`computed`/`parsedUsage`/自检结论绝不出现）；⑨ 配置缺失/消费者不存在/规则未启用 → `available:false` 原因明确不抛异常；⑩ secretKey 不落日志 |
 | 前端类型 / 构建 | `vue-tsc --noEmit` EXIT=0；`vite build` EXIT=0 |
 | 真启冒烟（一次性库 + admin 18092 + 假上游按真实四类 answers 返回） | 八场景见下 |
 | 清理 | 杀进程 / DROP 一次性库，零残留 |
@@ -290,8 +290,8 @@ knot:
 2. DECISIONS/jev 模型测试 → 同样三区；
 3. 故意解绑计费规则 → 自检 `RULE_SOURCE_EXPECTED` FAIL + 裁判 `FALLBACK_ONLY`；
 4. 抹掉 usage → `USAGE_NOT_EMPTY` FAIL；
-5. **篡改回传的 `knot_extend.billing` 金额 → `GATEWAY_RECOMPUTE_MATCH` FAIL + 裁判 `cost_plausible=false`/高风险（双盲两侧同时咬到）**；
-6. **规则单价配错 10 倍 + 上游未返回 cost → 自检全绿（重算两边同错不 FAIL、cost 偏离 SKIP），唯裁判 `cost_plausible=false`/高风险——证明 JEV 不可替代**；
+5. **篡改回传的 `knot_extend.billing` 金额 → `GATEWAY_RECOMPUTE_MATCH` FAIL + 裁判 `cost_plausible=SUSPICIOUS` / `risk_level=HIGH`（双盲两侧同时咬到）**；
+6. **规则单价配错 10 倍 + 上游未返回 cost → 自检全绿（重算两边同错不 FAIL、cost 偏离 SKIP），唯裁判 `cost_plausible=SUSPICIOUS` / `risk_level=HIGH`——证明 JEV 不可替代**；
 7. 假上游返回 402/429 → 裁判区降级且给出对应原因；
 8. 不配 `knot.jev.*` → 裁判区 `available:false` + 配置提示，事实/自检照出。
 
