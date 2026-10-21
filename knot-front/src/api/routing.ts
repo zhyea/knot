@@ -188,7 +188,7 @@ export interface BillingFactRuleRef {
   versionCode?: string | null;
 }
 
-/** 单条 JEV 裁判答案（noul / choice / score） */
+/** 单条 JEV 裁判答案（当前计费裁判四题统一使用 choice） */
 export interface JevAnswerItem {
   key?: string | null;
   type?: string | null;
