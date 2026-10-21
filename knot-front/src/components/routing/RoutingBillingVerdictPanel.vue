@@ -29,10 +29,10 @@
         <span>{{ result.shadowError }}</span>
       </div>
 
-      <!-- 区一：计费事实 -->
-      <div class="bv-zone bv-zone--first">
+      <!-- 计费事实 -->
+      <div class="bv-zone bv-zone--fact">
         <div class="bv-zone__head">
-          <span class="bv-zone__index">①</span>
+          <span class="bv-zone__index">③</span>
           <span class="bv-zone__title">计费事实</span>
           <span class="bv-zone__hint">上游依据 ↔ 网关被告账 ↔ 影子重算</span>
         </div>
@@ -141,10 +141,10 @@
         </div>
       </div>
 
-      <!-- 区二：自检七项 -->
-      <div class="bv-zone">
+      <!-- 自检七项 -->
+      <div class="bv-zone bv-zone--checks">
         <div class="bv-zone__head">
-          <span class="bv-zone__index">②</span>
+          <span class="bv-zone__index">①</span>
           <span class="bv-zone__title">自检（七项）</span>
           <span class="bv-zone__hint">算术正确性 · 代码精确 · SKIP 不充 PASS</span>
         </div>
@@ -163,10 +163,10 @@
         </ul>
       </div>
 
-      <!-- 区三：裁判结论 -->
-      <div class="bv-zone">
+      <!-- 裁判结论 -->
+      <div class="bv-zone bv-zone--verdict">
         <div class="bv-zone__head">
-          <span class="bv-zone__index">③</span>
+          <span class="bv-zone__index">②</span>
           <span class="bv-zone__title">裁判结论（JEV · 语义）</span>
           <span class="bv-zone__hint">未看自检结论 · 辅助非终裁</span>
         </div>
@@ -182,14 +182,20 @@
               v-for="(answer, answerIndex) in result.verdict.answers || []"
               :key="answer.key ?? answerIndex"
               class="bv-answer"
+              :class="`bv-answer--${answerSeverityClass(answer)}`"
             >
               <div class="bv-answer__head">
                 <span class="bv-answer__key">{{ answerLabel(answer.key) }}</span>
-                <span class="bv-answer__status" :class="{ 'bv-muted': answer.status === 'NOT_RETURNED' }">
+                <span
+                  class="bv-answer__status"
+                  :class="answer.status === 'NOT_RETURNED' ? 'bv-muted' : `bv-answer__status--${answerSeverityClass(answer)}`"
+                >
                   {{ answer.status === "NOT_RETURNED" ? "未返回" : "已返回" }}
                 </span>
               </div>
-              <div class="bv-answer__value">{{ answerText(answer) }}</div>
+              <div class="bv-answer__value" :class="`bv-answer__value--${answerSeverityClass(answer)}`">
+                {{ answerText(answer) }}
+              </div>
               <div v-if="answer.note" class="bv-answer__note">{{ answer.note }}</div>
             </div>
             <div v-if="!result.verdict.answers?.length" class="bv-empty">裁判未给出答案</div>
@@ -283,7 +289,31 @@ const ANSWER_LABELS: Record<string, string> = {
   usage_parse_ok: "用量解析是否完整正确",
   rule_match_ok: "命中规则是否合适",
   cost_plausible: "金额与依据是否相称",
-  risk_level: "综合风险刻度",
+  risk_level: "综合风险等级",
+};
+
+const CHOICE_VALUE_LABELS: Record<string, Record<string, string>> = {
+  usage_parse_ok: {
+    CORRECT: "正确",
+    INCORRECT: "错误",
+    INSUFFICIENT_EVIDENCE: "证据不足",
+  },
+  rule_match_ok: {
+    APPROPRIATE: "适用",
+    FALLBACK_ONLY: "仅命中兜底",
+    MODE_MISMATCH: "模式不匹配",
+    MISSING: "未命中规则",
+  },
+  cost_plausible: {
+    PLAUSIBLE: "相称",
+    SUSPICIOUS: "可疑",
+    INSUFFICIENT_EVIDENCE: "证据不足",
+  },
+  risk_level: {
+    LOW: "低风险",
+    MEDIUM: "中风险",
+    HIGH: "高风险",
+  },
 };
 
 function checkLabel(code?: string | null): string {
@@ -298,6 +328,37 @@ function answerLabel(key?: string | null): string {
     return "-";
   }
   return ANSWER_LABELS[key] || key;
+}
+
+type AnswerSeverity = "positive" | "caution" | "danger" | "muted" | "neutral";
+
+/** JEV 结论颜色只按已知枚举映射，未知值保留中性，避免误导。 */
+function answerSeverityClass(answer: JevAnswerItem): AnswerSeverity {
+  if (answer.status === "NOT_RETURNED") {
+    return "muted";
+  }
+  const key = String(answer.key || "");
+  const value = String(answer.value ?? "").toUpperCase();
+  if (answer.type === "noul") {
+    return answer.value === true ? "positive" : answer.value === false ? "danger" : "neutral";
+  }
+  if (answer.type === "score") {
+    const score = Number(answer.value);
+    return !Number.isFinite(score) ? "neutral" : score >= 0.67 ? "danger" : score >= 0.34 ? "caution" : "positive";
+  }
+  if (key === "usage_parse_ok") {
+    return value === "CORRECT" ? "positive" : value === "INCORRECT" ? "danger" : value === "INSUFFICIENT_EVIDENCE" ? "caution" : "neutral";
+  }
+  if (key === "rule_match_ok") {
+    return value === "APPROPRIATE" ? "positive" : value === "FALLBACK_ONLY" ? "caution" : ["MODE_MISMATCH", "MISSING"].includes(value) ? "danger" : "neutral";
+  }
+  if (key === "cost_plausible") {
+    return value === "PLAUSIBLE" ? "positive" : value === "SUSPICIOUS" ? "danger" : value === "INSUFFICIENT_EVIDENCE" ? "caution" : "neutral";
+  }
+  if (key === "risk_level") {
+    return value === "LOW" ? "positive" : value === "MEDIUM" ? "caution" : value === "HIGH" ? "danger" : "neutral";
+  }
+  return "neutral";
 }
 
 function money(value?: string | null): string {
@@ -334,8 +395,10 @@ function answerText(answer: JevAnswerItem): string {
     return `${value}${confidence}${legend}`;
   }
   // choice：选中项 + 置信度（缺失标「无置信度」）
+  const rawChoice = String(value);
+  const choice = CHOICE_VALUE_LABELS[answer.key || ""]?.[rawChoice] || rawChoice;
   const confidence = answer.confidence != null ? ` · 置信 ${percent(answer.confidence)}` : " · 无置信度";
-  return `${value}${confidence}`;
+  return `${choice}${confidence}`;
 }
 
 function percent(value: number): string {
@@ -350,6 +413,20 @@ function percent(value: number): string {
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 8px;
   background: var(--el-bg-color);
+  display: flex;
+  flex-direction: column;
+}
+
+.bv-zone--checks {
+  order: 1;
+}
+
+.bv-zone--verdict {
+  order: 2;
+}
+
+.bv-zone--fact {
+  order: 3;
 }
 
 .bv-head h3 {
@@ -621,6 +698,23 @@ function percent(value: number): string {
   padding: 8px 10px;
   border-radius: 6px;
   background: var(--el-fill-color-lighter);
+  border-left: 3px solid var(--el-border-color);
+}
+
+.bv-answer--positive {
+  border-left-color: var(--el-color-success);
+}
+
+.bv-answer--caution {
+  border-left-color: var(--el-color-warning);
+}
+
+.bv-answer--danger {
+  border-left-color: var(--el-color-danger);
+}
+
+.bv-answer--muted {
+  border-left-color: var(--el-text-color-placeholder);
 }
 
 .bv-answer__head {
@@ -640,6 +734,25 @@ function percent(value: number): string {
   margin-top: 4px;
   font-size: 13px;
   color: var(--el-text-color-regular);
+}
+
+.bv-answer__value--positive,
+.bv-answer__status--positive {
+  color: var(--el-color-success);
+}
+
+.bv-answer__value--caution,
+.bv-answer__status--caution {
+  color: var(--el-color-warning-dark-2);
+}
+
+.bv-answer__value--danger,
+.bv-answer__status--danger {
+  color: var(--el-color-danger);
+}
+
+.bv-answer__value--muted {
+  color: var(--el-text-color-placeholder);
 }
 
 .bv-answer__note {
