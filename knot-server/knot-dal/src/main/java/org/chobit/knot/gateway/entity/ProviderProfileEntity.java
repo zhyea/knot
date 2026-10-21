@@ -10,6 +10,7 @@ public class ProviderProfileEntity {
     private String code;
     private String name;
     private String tag;
+    private String remark;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

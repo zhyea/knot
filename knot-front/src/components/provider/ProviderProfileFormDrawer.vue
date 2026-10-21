@@ -22,6 +22,10 @@
             <el-option v-for="item in tagPreset" :key="item" :label="item" :value="item" />
           </el-select>
         </el-form-item>
+        <el-form-item label="备注" prop="remark">
+          <el-input v-model="form.remark" type="textarea" :rows="3" maxlength="255" show-word-limit
+            placeholder="选填，最多 255 字" />
+        </el-form-item>
       </el-form>
     </el-scrollbar>
     <template #footer>
@@ -52,7 +56,7 @@ const emit = defineEmits(["update:modelValue", "saved"]);
 const tagPreset = ["原厂", "云厂商", "代理"];
 const submitting = ref(false);
 const formRef = ref<FormInstance | null>(null);
-const form = reactive<{ code: string; name: string; tags: string[] }>({ code: "", name: "", tags: [] });
+const form = reactive<{ code: string; name: string; tags: string[]; remark: string }>({ code: "", name: "", tags: [], remark: "" });
 const editing = ref<Dict | null>(null);
 
 const rules = {
@@ -90,6 +94,7 @@ watch(
     form.code = row?.code || "";
     form.name = row?.name || "";
     form.tags = splitTags(row?.tag);
+    form.remark = row?.remark || "";
   },
   { immediate: true }
 );
@@ -111,7 +116,8 @@ async function submit() {
     const payload = {
       code: form.code.trim(),
       name: form.name.trim(),
-      tag: form.tags.map((item) => String(item).trim()).filter(Boolean).join(",")
+      tag: form.tags.map((item) => String(item).trim()).filter(Boolean).join(","),
+      remark: form.remark.trim() || null
     };
     if (editing.value?.id) await updateProviderProfile(editing.value.id, payload);
     else await createProviderProfile(payload);

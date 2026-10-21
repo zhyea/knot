@@ -11,6 +11,7 @@ public record ProviderProfileItem(
         @NotBlank @Size(max = 100) String name,
         // 供应商分类：可多选，多个用英文逗号分隔（如 "原厂,代理"），允许手工输入自定义项
         @NotBlank @Size(max = 255) String tag,
+        @Size(max = 255) String remark,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {

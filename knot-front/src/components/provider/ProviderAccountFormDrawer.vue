@@ -26,8 +26,8 @@
               <el-form-item label="编码" required :error="codeError">
                 <el-input
                   v-model="form.code"
-                  placeholder="最长 32 位"
-                  maxlength="32"
+                  placeholder="最长 48 位"
+                  maxlength="48"
                   show-word-limit
                   :disabled="codeChecking"
                   @blur="validateCode"
@@ -379,7 +379,7 @@ function onClosed() {
   form.id = null;
 }
 
-const CODE_MAX_LEN = 32;
+const CODE_MAX_LEN = 48;
 
 async function validateCode() {
   const code = form.code?.trim();

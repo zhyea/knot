@@ -6,7 +6,7 @@ package org.chobit.knot.gateway.util.tools;
 public final class ProviderCodes {
 
     public static final int DEFAULT_LENGTH = 8;
-    public static final int MAX_LENGTH = 32;
+    public static final int MAX_LENGTH = 48;
 
     /**
      * Generates a provider code.

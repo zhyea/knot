@@ -259,6 +259,7 @@ CREATE TABLE IF NOT EXISTS kb_providers (
   code VARCHAR(32) NOT NULL,
   name VARCHAR(100) NOT NULL,
   tag VARCHAR(255) NOT NULL COMMENT '供应商分类，可多选，多个用英文逗号分隔，如 原厂,代理',
+  remark VARCHAR(255) DEFAULT NULL COMMENT '备注',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_providers_code (code)
@@ -267,7 +268,7 @@ CREATE TABLE IF NOT EXISTS kb_providers (
 CREATE TABLE IF NOT EXISTS kb_provider_accounts (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   provider_code VARCHAR(32) NOT NULL COMMENT '所属供应商 code（kb_providers.code）',
-  code VARCHAR(32) NOT NULL,
+  code VARCHAR(48) NOT NULL,
   base_url VARCHAR(255) DEFAULT NULL,
   status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -278,7 +279,7 @@ CREATE TABLE IF NOT EXISTS kb_provider_accounts (
 
 CREATE TABLE IF NOT EXISTS kb_provider_credentials (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  provider_account_code VARCHAR(32) NOT NULL COMMENT '供应商账户业务码（kb_provider_accounts.code），非主键 id',
+  provider_account_code VARCHAR(48) NOT NULL COMMENT '供应商账户业务码（kb_provider_accounts.code），非主键 id',
   credential_type VARCHAR(32) NOT NULL,
   auth_applier VARCHAR(64) DEFAULT NULL COMMENT '鉴权策略编码（UpstreamAuthApplier code），空则回退默认 Bearer',
   encrypted_config TEXT DEFAULT NULL COMMENT '加密后的任意键值认证配置 JSON',
@@ -304,7 +305,7 @@ CREATE TABLE IF NOT EXISTS kb_provider_discount_policies (
 
 CREATE TABLE IF NOT EXISTS kb_models (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  provider_account_code VARCHAR(32) NOT NULL COMMENT '所属供应商账户 code（kb_provider_accounts.code）',
+  provider_account_code VARCHAR(48) NOT NULL COMMENT '所属供应商账户 code（kb_provider_accounts.code）',
   model_code VARCHAR(128) NOT NULL,
   upstream_model VARCHAR(128) NOT NULL COMMENT '上游模型标识：向上游发起请求时写入请求体 model 参数',
   version VARCHAR(64) NOT NULL,
@@ -383,7 +384,7 @@ CREATE TABLE IF NOT EXISTS kb_logical_models (
 CREATE TABLE IF NOT EXISTS kb_provider_model_mappings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   logical_model_code VARCHAR(128) NOT NULL COMMENT '统一模型 code（kb_logical_models.model_code）',
-  provider_account_code VARCHAR(32) NOT NULL COMMENT '供应商账户 code（kb_provider_accounts.code）',
+  provider_account_code VARCHAR(48) NOT NULL COMMENT '供应商账户 code（kb_provider_accounts.code）',
   model_code VARCHAR(128) NOT NULL COMMENT '供应商模型业务码（kb_models.model_code），非主键 id',
   provider_model_name VARCHAR(128) NOT NULL,
   status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',

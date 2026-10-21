@@ -20,6 +20,9 @@
       <el-table-column label="更新时间" min-width="18%" align="center" header-align="center">
         <template #default="{ row }">{{ formatTime(row.updatedAt) }}</template>
       </el-table-column>
+      <el-table-column label="备注" min-width="18%" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.remark || "-" }}</template>
+      </el-table-column>
       <el-table-column label="操作" width="170" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <RowActions

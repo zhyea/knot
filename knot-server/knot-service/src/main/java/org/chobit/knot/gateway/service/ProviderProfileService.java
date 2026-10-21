@@ -110,7 +110,18 @@ public class ProviderProfileService {
         entity.setCode(item.code().trim());
         entity.setName(item.name().trim());
         entity.setTag(normalizeTag(item.tag()));
+        entity.setRemark(normalizeRemark(item.remark()));
         return entity;
+    }
+
+    /**
+     * 备注归一化：去首尾空白，纯空白按"无备注"存 NULL，避免库里堆积空串。
+     */
+    private String normalizeRemark(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        return raw.trim();
     }
 
     /**
@@ -143,6 +154,6 @@ public class ProviderProfileService {
 
     private ProviderProfileItem toItem(ProviderProfileEntity entity) {
         return new ProviderProfileItem(entity.getId(), entity.getCode(), entity.getName(), entity.getTag(),
-                entity.getCreatedAt(), entity.getUpdatedAt());
+                entity.getRemark(), entity.getCreatedAt(), entity.getUpdatedAt());
     }
 }
