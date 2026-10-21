@@ -25,6 +25,7 @@ import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
@@ -52,10 +53,10 @@ class JevBillingJudgeTest {
     private static final String GOOD_JSON = """
             {
               "answers": {
-                "usage_parse_ok": {"noul": true},
+                "usage_parse_ok": {"choice": "CORRECT", "confidence": 0.96},
                 "rule_match_ok": {"choice": "APPROPRIATE", "confidence": 0.92, "probabilities": {"APPROPRIATE": 0.92, "FALLBACK_ONLY": 0.05}},
-                "cost_plausible": {"noul": true},
-                "risk_level": {"score": 1.0, "legend": ["低风险", "中风险", "高风险"]}
+                "cost_plausible": {"choice": "PLAUSIBLE", "confidence": 0.91},
+                "risk_level": {"choice": "LOW", "confidence": 0.90}
               }
             }
             """;
@@ -63,9 +64,9 @@ class JevBillingJudgeTest {
     private static final String PARTIAL_JSON = """
             {
               "answers": {
-                "usage_parse_ok": {"noul": true},
+                "usage_parse_ok": {"choice": "CORRECT"},
                 "rule_match_ok": {"choice": "FALLBACK_ONLY"},
-                "cost_plausible": {"noul": false}
+                "cost_plausible": {"choice": "SUSPICIOUS"}
               }
             }
             """;
@@ -155,8 +156,42 @@ class JevBillingJudgeTest {
         assertNull(v.getReason());
         assertNotNull(v.getSummary());
         assertEquals(4, v.getAnswers().size());
+        assertEquals("CORRECT", find(v, "usage_parse_ok").getValue());
+        assertEquals("归一化完整且与上游依据一致", find(v, "usage_parse_ok").getNote());
+        assertEquals(0.96, find(v, "usage_parse_ok").getConfidence(), 0.0001);
+        assertEquals("PLAUSIBLE", find(v, "cost_plausible").getValue());
+        assertEquals("LOW", find(v, "risk_level").getValue());
+        assertEquals("没有明显异常证据", find(v, "risk_level").getNote());
+        assertTrue(v.getSummary().contains("风险: 没有明显异常证据"));
         // 凭据仅进 Authorization 头
         assertEquals("Bearer " + SECRET, transport.lastAuthorization);
+    }
+
+    @Test
+    void parsesExplicitInsufficientEvidenceChoices() {
+        JevJudgeProperties props = configuredProps();
+        RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
+        RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
+        when(cMock.getByCode("jev-judge-client")).thenReturn(enabledConsumer());
+        when(rMock.getByRuleCode("jev-billing-judge")).thenReturn(enabledRule());
+        FakeDecisionsTransport transport = new FakeDecisionsTransport();
+        transport.script("""
+                {"answers":{
+                  "usage_parse_ok":{"choice":"INSUFFICIENT_EVIDENCE"},
+                  "cost_plausible":{"choice":"INSUFFICIENT_EVIDENCE"},
+                  "risk_level":{"choice":"MEDIUM"}
+                }}
+                """);
+
+        JevBillingJudge judge = new JevBillingJudge(props, cMock, rMock, transport, new ObjectMapper());
+        RoutingBillingVerdict verdict = judge.judge(sampleContext(2), "http://gw", "sid");
+
+        assertEquals("ANSWERED", find(verdict, "usage_parse_ok").getStatus());
+        assertEquals("INSUFFICIENT_EVIDENCE", find(verdict, "usage_parse_ok").getValue());
+        assertEquals("必要的上游原始 usage 字段缺失，无法核验", find(verdict, "usage_parse_ok").getNote());
+        assertEquals("ANSWERED", find(verdict, "cost_plausible").getStatus());
+        assertEquals("必要账单或用量依据缺失，无法判断", find(verdict, "cost_plausible").getNote());
+        assertEquals("MEDIUM", find(verdict, "risk_level").getValue());
     }
 
     @Test
@@ -181,7 +216,8 @@ class JevBillingJudgeTest {
         assertEquals("FALLBACK_ONLY", ruleMatch.getValue());
         assertEquals("只命中默认/兜底规则", ruleMatch.getNote());
         JevAnswerItem cost = find(v, "cost_plausible");
-        assertEquals(Boolean.FALSE, cost.getValue());
+        assertEquals("SUSPICIOUS", cost.getValue());
+        assertEquals("存在可证实的金额量级、币种或规则矛盾", cost.getNote());
     }
 
     @Test
@@ -363,19 +399,38 @@ class JevBillingJudgeTest {
         assertFalse(upU.containsKey("model"), "非数值键应被过滤");
         assertFalse(upU.containsKey("id"), "非数值键应被过滤");
         assertTrue(upU.containsKey("prompt_tokens"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> promptDetails = (Map<String, Object>) upU.get("prompt_tokens_details");
+        assertEquals(0, promptDetails.get("cached_tokens"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> completionDetails = (Map<String, Object>) upU.get("completion_tokens_details");
+        assertEquals(254, completionDetails.get("reasoning_tokens"));
         // requestAttributes 不含敏感键
         @SuppressWarnings("unchecked")
         Map<String, Object> reqAttr = (Map<String, Object>) evidence.get("requestAttributes");
         assertFalse(reqAttr.containsKey("messages"), "prompt 等敏感键不得进 state");
         assertTrue(reqAttr.containsKey("size"));
 
-        // 契约合法：questions 四条 + risk_level.criteria 为有序数组
+        // 契约合法：四题均使用明确 choice；风险等级和不确定态均可直接表达
         @SuppressWarnings("unchecked")
         Map<String, Object> questions = (Map<String, Object>) transport.lastBody.get("questions");
         assertEquals(4, questions.size());
         @SuppressWarnings("unchecked")
         Map<String, Object> risk = (Map<String, Object>) questions.get("risk_level");
-        assertTrue(risk.get("criteria") instanceof List);
+        assertEquals("choice", risk.get("type"));
+        @SuppressWarnings("unchecked")
+        Map<String, String> riskCriteria = (Map<String, String>) risk.get("criteria");
+        assertEquals(Set.of("LOW", "MEDIUM", "HIGH"), riskCriteria.keySet());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> usage = (Map<String, Object>) questions.get("usage_parse_ok");
+        assertEquals("choice", usage.get("type"));
+        assertTrue(((String) usage.get("instructions")).contains("INSUFFICIENT_EVIDENCE"));
+        assertTrue(((String) usage.get("instructions")).contains("reasoning_tokens 通常是 completion_tokens 的子集"));
+        assertTrue(((String) usage.get("instructions")).contains("completion_tokens 对应 output.tokens.text + output.tokens.reasoning"));
+        @SuppressWarnings("unchecked")
+        Map<String, Object> cost = (Map<String, Object>) questions.get("cost_plausible");
+        assertEquals("choice", cost.get("type"));
+        assertTrue(((String) cost.get("instructions")).contains("upstreamCost 缺失本身不代表证据不足"));
         @SuppressWarnings("unchecked")
         Map<String, Object> provider = (Map<String, Object>) transport.lastBody.get("provider");
         assertEquals("deny", provider.get("data_collection"));
@@ -475,6 +530,8 @@ class JevBillingJudgeTest {
         upstreamUsage.put("prompt_tokens", 1000);
         upstreamUsage.put("completion_tokens", 500);
         upstreamUsage.put("total_tokens", 1500);
+        upstreamUsage.put("prompt_tokens_details", Map.of("cached_tokens", 0));
+        upstreamUsage.put("completion_tokens_details", Map.of("reasoning_tokens", 254));
         upstreamUsage.put("model", "gpt-4o"); // 非数值键，应被过滤
         upstreamUsage.put("id", "chatcmpl-x"); // 非数值键，应被过滤
         Map<String, Object> requestBody = new LinkedHashMap<>();
