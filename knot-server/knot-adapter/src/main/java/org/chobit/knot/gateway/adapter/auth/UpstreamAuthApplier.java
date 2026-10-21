@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.adapter.auth;
 
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
+import org.chobit.knot.gateway.adapter.upstream.UpstreamSignableRequest;
 import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
 import org.springframework.http.HttpHeaders;
 
@@ -33,4 +34,25 @@ public interface UpstreamAuthApplier {
      * 迁 WebClient 时据此解耦，knot-adapter 无需依赖 webflux）。</p>
      */
     void apply(HttpHeaders headers, UpstreamRequestContext context);
+
+    /**
+     * 请求签名钩子：需要「对请求本身签名」的策略（AWS SigV4）覆写本方法，
+     * 把签名头写进 {@code headers}。默认空实现——静态头策略无需签名。
+     *
+     * <p>与 {@link #apply} 的分工：{@code apply} 只按凭据拼静态头，拿不到 URL 与请求体；
+     * SigV4 的签名覆盖「方法 + 路径 + host + 请求体哈希 + 时间戳」，必须由执行器在
+     * 请求体定稿后回调，且签名用的字节与实际发出的字节是同一份（第一雷区）。</p>
+     */
+    default void sign(UpstreamSignableRequest request,
+                      HttpHeaders headers,
+                      UpstreamRequestContext context) {
+    }
+
+    /**
+     * 该策略是否需要对请求体做签名。为 {@code true} 时执行器先把请求体序列化成字节、
+     * 算好哈希再回调 {@link #sign}，并以同一份字节发出。
+     */
+    default boolean signsRequestBody() {
+        return false;
+    }
 }

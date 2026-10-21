@@ -291,7 +291,7 @@ public class ProviderService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不支持的认证类型");
         }
         Map<String, Object> config = request.authConfig();
-        for (String field : type.requiredFields()) {
+        for (String field : type.requiredFieldNames()) {
             if (!hasText(config == null ? null : config.get(field))) {
                 throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                         "认证类型 " + type.code() + " 必须填写字段 " + field);

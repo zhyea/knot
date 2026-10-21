@@ -85,18 +85,35 @@
             </el-col>
           </el-row>
           <el-form-item
-            v-for="field in requiredCredentialFields"
-            :key="field"
-            :label="field"
-            required
+            v-for="field in credentialFieldDefs"
+            :key="field.name"
+            :label="credentialFieldLabel(field)"
+            :required="isCredentialFieldRequired(field)"
           >
+            <el-select
+              v-if="credentialInputType(field) === 'select'"
+              v-model="form.authConfig[field.name]"
+              :placeholder="field.placeholder || `请选择 ${credentialFieldLabel(field)}`"
+              filterable
+              allow-create
+              default-first-option
+              style="width: 100%"
+            >
+              <el-option
+                v-for="option in field.options || []"
+                :key="option.value"
+                :label="option.label || option.value"
+                :value="option.value"
+              />
+            </el-select>
             <el-input
-              v-model="form.authConfig[field]"
-              :type="credentialFieldType(field)"
-              :rows="field === 'account_json' ? 5 : undefined"
-              :show-password="isSecretCredentialField(field) && field !== 'account_json' && isAdmin"
+              v-else
+              v-model="form.authConfig[field.name]"
+              :type="credentialInputType(field)"
+              :rows="credentialInputType(field) === 'textarea' ? 5 : undefined"
+              :show-password="credentialInputType(field) === 'password' && isAdmin"
               autocomplete="off"
-              :placeholder="`请输入 ${field}`"
+              :placeholder="field.placeholder || `请输入 ${credentialFieldLabel(field)}`"
             />
           </el-form-item>
           <el-form-item>
@@ -154,12 +171,20 @@ import {
 } from "@/api/providers";
 import type {Dict, Row} from "@/types";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
+import {
+  buildCredentialValues,
+  credentialFieldLabel,
+  credentialInputType,
+  isCredentialFieldRequired,
+  normalizeCredentialFields,
+  type CredentialFieldDef
+} from "@/utils/credentialFields";
 
-/** 认证类型选项：code / label / requiredFields，由后端 ProviderCredentialTypeEnum 下发 */
+/** 认证类型选项：code / label / requiredFields（字段定义数组），由后端 ProviderCredentialTypeEnum 下发 */
 interface CredentialTypeOption {
   code: string;
   label: string;
-  requiredFields?: string[];
+  requiredFields?: unknown;
 }
 
 /** 鉴权策略选项：code / label，由后端 UpstreamAuthApplierCatalog 下发 */
@@ -222,10 +247,12 @@ function defaultAuthApplierForType(): string | null {
   return available[0]?.code || null;
 }
 
-const requiredCredentialFields = computed<string[]>(() => {
+// 当前认证类型的字段定义（后端下发，前端不再自带字段名/控件类型映射表）
+const credentialFieldDefs = computed<CredentialFieldDef[]>(() => {
   const matched = credentialTypeOptions.value.find((option) => option.code === form.credentialType);
-  return matched?.requiredFields || [];
+  return normalizeCredentialFields(matched?.requiredFields);
 });
+
 const customAuthConfig = ref<Dict>({});
 
 function defaultAuthConfig(): Dict {
@@ -254,10 +281,10 @@ async function loadAuthAppliers() {
 }
 
 function syncCredentialParts() {
-  const required = new Set(requiredCredentialFields.value);
+  const defNames = new Set(credentialFieldDefs.value.map((field) => field.name));
   const custom: Dict = {};
   Object.entries(form.authConfig || {}).forEach(([key, value]) => {
-    if (!required.has(key)) {
+    if (!defNames.has(key)) {
       custom[key] = value;
     }
   });
@@ -267,30 +294,17 @@ function syncCredentialParts() {
 function handleCredentialTypeChange() {
   // 切换认证类型后按新类型重置鉴权方式（取该类型下的默认可选项）
   form.authApplier = defaultAuthApplierForType();
-  const required = requiredCredentialFields.value;
-  const requiredSet = new Set(required);
-  const config: Dict = {};
-  // 新类型的必填字段：保留已填值（重叠字段如 accessKey/secretKey 不丢）
-  required.forEach((field) => {
-    config[field] = form.authConfig?.[field] ?? customAuthConfig.value[field] ?? "";
-  });
+  const defs = credentialFieldDefs.value;
+  const defNames = new Set(defs.map((field) => field.name));
+  // 新类型的字段：保留已填值（重叠字段如 accessKey/secretKey 不丢），空值用后端给的 default 预填
+  const config: Dict = buildCredentialValues(defs, form.authConfig, customAuthConfig.value);
   // 仅保留用户在自定义编辑器里显式添加的键，旧类型残留字段一律丢弃
   Object.entries(customAuthConfig.value).forEach(([key, value]) => {
-    if (!requiredSet.has(key)) {
+    if (!defNames.has(key)) {
       config[key] = value;
     }
   });
   form.authConfig = config;
-}
-
-function isSecretCredentialField(field: string): boolean {
-  return ["apiKey", "accessKey", "secretKey", "account_json"].includes(field);
-}
-
-function credentialFieldType(field: string): string {
-  return field === "account_json"
-    ? "textarea"
-    : isSecretCredentialField(field) ? "password" : "text";
 }
 
 function fillFormFromRow(row: Row) {
@@ -414,8 +428,8 @@ async function validateCode() {
 
 function buildPayload(): Dict {
   const authConfig: Dict = {...customAuthConfig.value};
-  requiredCredentialFields.value.forEach((field) => {
-    authConfig[field] = form.authConfig[field] ?? "";
+  credentialFieldDefs.value.forEach((field) => {
+    authConfig[field.name] = form.authConfig[field.name] ?? "";
   });
   Object.keys(authConfig).forEach((k) => {
     if (!k?.trim() || !String(authConfig[k] ?? "").trim()) delete authConfig[k];
@@ -450,9 +464,9 @@ async function submit() {
     ElMessage.warning("请选择鉴权方式");
     return;
   }
-  for (const field of requiredCredentialFields.value) {
-    if (!String(form.authConfig[field] ?? "").trim()) {
-      ElMessage.warning(`请填写 ${field}`);
+  for (const field of credentialFieldDefs.value) {
+    if (isCredentialFieldRequired(field) && !String(form.authConfig[field.name] ?? "").trim()) {
+      ElMessage.warning(`请填写 ${credentialFieldLabel(field)}`);
       return;
     }
   }
