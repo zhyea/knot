@@ -234,18 +234,25 @@ public class JevBillingJudge {
         return provider;
     }
 
-    /**
-     * 四条 questions（继承 v6 §5.4，契约合法）。题型判别键为 {@code type}；
-     * score 的 criteria 是有序数组（顺序即分值顺序，不能退化成 map）。
-     */
+    /** 四条 questions。裁判结论使用固定 choice，避免 noul/score 数值输出无法稳定解释。 */
     private static Map<String, Object> buildQuestions() {
         Map<String, Object> questions = new LinkedHashMap<>();
         questions.put("usage_parse_ok", Map.of(
-                "type", "noul",
-                "instructions", "上游返回了 usage，网关是否完整、正确地把它归一化成了计费维度"
-                        + "（输入/输出/缓存/合计）？",
-                "criteria", Map.of("true", "归一化完整且正确",
-                        "false", "归一化缺失或错误（维度遗漏/数值错位）")));
+                "type", "choice",
+                "instructions", "请只根据 state.evidence.upstreamUsage（上游原始 usage）与 "
+                        + "state.produced.usage（网关归一化 usage）逐项核对输入、输出、缓存、推理与总量。"
+                        + "注意：usage 的父级总量可能已包含缓存/推理等子项，子项是拆分说明，不可再与父级相加；"
+                        + "若 completion_tokens 与 reasoning_tokens 同时存在，reasoning_tokens 通常是 completion_tokens 的子集，"
+                        + "不能把二者相加；在这些字段存在时按以下关系核对：prompt_tokens 对应 input.tokens.text，"
+                        + "completion_tokens 对应 output.tokens.text + output.tokens.reasoning，"
+                        + "completion_tokens_details.reasoning_tokens 对应 output.tokens.reasoning，"
+                        + "total_tokens 对应 usage.total_tokens 且等于 prompt_tokens + completion_tokens。"
+                        + "缓存 token 是 prompt_tokens 的子集，不重复计入总量；只有归一化结果提供了对应维度时才比较缓存明细。"
+                        + "只有能够按同一口径明确对齐时才比较数值。"
+                        + "只有原始 usage 提供足够证据且维度和值一致时选 CORRECT；发现同口径下可证实的遗漏、错位或矛盾时选 INCORRECT；"
+                        + "字段未提供、维度口径不一致或无法确认父子关系时必须选 INSUFFICIENT_EVIDENCE，不得仅因细分字段缺失判 INCORRECT。"
+                        + "必须且只能返回一个 criteria 中的 choice。",
+                "criteria", usageParseCriteria()));
         questions.put("rule_match_ok", Map.of(
                 "type", "choice",
                 "instructions", "本次命中（见 evidence.billingRule.matchedBy）的计费规则是否适用于"
@@ -256,16 +263,42 @@ public class JevBillingJudge {
                         "MODE_MISMATCH", "计费模式与用量形态不匹配（如媒体用量套 token 规则）",
                         "MISSING", "完全未命中任何计费规则")));
         questions.put("cost_plausible", Map.of(
-                "type", "noul",
-                "instructions", "被告账 totalCost 与上游 cost（若有）、用量规模是否相称？"
-                        + "是否存在单价错配、数量级异常等语义荒谬？不算术复核。",
-                "criteria", Map.of("true", "相称，无异常",
-                        "false", "不相称 / 可疑（单价错配或数量级异常）")));
+                "type", "choice",
+                "instructions", "请依据 state.produced.billing 的 totalCost、details（tokens/cost/price）与 "
+                        + "state.evidence.billingRule、upstreamUsage、upstreamCost 判断金额的语义合理性，不做精确算术复核。"
+                        + "证据足以支持金额与用量/单价相称时选 PLAUSIBLE；证据足以确认规则、币种或金额量级明显矛盾时选 SUSPICIOUS；"
+                        + "必要账单或用量依据缺失、无法判断时选 INSUFFICIENT_EVIDENCE。upstreamCost 缺失本身不代表证据不足，"
+                        + "请继续使用账单明细和规则依据判断。必须且只能返回一个 criteria 中的 choice。",
+                "criteria", costPlausibleCriteria()));
         questions.put("risk_level", Map.of(
-                "type", "score",
-                "instructions", "综合风险刻度：越高越可能计费异常",
-                "criteria", List.of("低风险", "中风险", "高风险")));
+                "type", "choice",
+                "instructions", "综合 state.subject、state.produced 与 state.evidence 给出一个离散风险等级。"
+                        + "LOW 表示没有明显异常证据；MEDIUM 表示存在局部疑点或证据不完整，建议人工复核；"
+                        + "HIGH 表示存在明确且重大的计费/规则矛盾，需要优先排查。不得使用自检结论，"
+                        + "必须且只能返回一个 criteria 中的 choice。",
+                "criteria", riskLevelCriteria()));
         return questions;
+    }
+
+    private static Map<String, String> usageParseCriteria() {
+        return Map.of(
+                "CORRECT", "归一化完整且与上游依据一致",
+                "INCORRECT", "存在可证实的遗漏、错位或数值矛盾",
+                "INSUFFICIENT_EVIDENCE", "必要的上游原始 usage 字段缺失，无法核验");
+    }
+
+    private static Map<String, String> costPlausibleCriteria() {
+        return Map.of(
+                "PLAUSIBLE", "账单金额与用量、价格及规则依据相称",
+                "SUSPICIOUS", "存在可证实的金额量级、币种或规则矛盾",
+                "INSUFFICIENT_EVIDENCE", "必要账单或用量依据缺失，无法判断");
+    }
+
+    private static Map<String, String> riskLevelCriteria() {
+        return Map.of(
+                "LOW", "没有明显异常证据",
+                "MEDIUM", "存在局部疑点或证据不完整，建议人工复核",
+                "HIGH", "存在明确且重大的计费或规则矛盾，需优先排查");
     }
 
     /**
@@ -342,21 +375,47 @@ public class JevBillingJudge {
         return map;
     }
 
-    /** upstreamUsage 只保留数值键（§6.6），避免把上游原文整包塞进 state 撑大体积 */
+    /** upstreamUsage 只保留数值叶子（§6.6），保留嵌套 usage 维度并剔除文本原文 */
     private static Map<String, Object> filterNumericKeys(Map<String, Object> upstreamUsage) {
         if (upstreamUsage == null || upstreamUsage.isEmpty()) {
             return Map.of();
         }
+        return filterNumericMap(upstreamUsage);
+    }
+
+    private static Map<String, Object> filterNumericMap(Map<?, ?> values) {
         Map<String, Object> out = new LinkedHashMap<>();
-        for (Map.Entry<String, Object> e : upstreamUsage.entrySet()) {
-            Object v = e.getValue();
-            if (v instanceof Number) {
-                out.put(e.getKey(), v);
-            } else if (v instanceof String s && isNumeric(s)) {
-                out.put(e.getKey(), s);
+        for (Map.Entry<?, ?> entry : values.entrySet()) {
+            if (!(entry.getKey() instanceof String key)) {
+                continue;
+            }
+            Object filtered = filterNumericValue(entry.getValue());
+            if (filtered != null) {
+                out.put(key, filtered);
             }
         }
         return out;
+    }
+
+    private static Object filterNumericValue(Object value) {
+        if (value instanceof Number) {
+            return value;
+        }
+        if (value instanceof String s) {
+            return isNumeric(s) ? s : null;
+        }
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> filtered = filterNumericMap(map);
+            return filtered.isEmpty() ? null : filtered;
+        }
+        if (value instanceof List<?> list) {
+            List<Object> filtered = list.stream()
+                    .map(JevBillingJudge::filterNumericValue)
+                    .filter(v -> v != null)
+                    .toList();
+            return filtered.isEmpty() ? null : filtered;
+        }
+        return null;
     }
 
     private static Map<String, Object> extractRequestAttributes(Map<String, Object> requestBody) {
@@ -388,10 +447,10 @@ public class JevBillingJudge {
                     "FALLBACK_ONLY", "只命中默认/兜底规则",
                     "MODE_MISMATCH", "计费模式与用量不匹配",
                     "MISSING", "完全未命中规则");
-            answers.add(parseAnswer("usage_parse_ok", "noul", answersMap.get("usage_parse_ok"), null));
+            answers.add(parseAnswer("usage_parse_ok", "choice", answersMap.get("usage_parse_ok"), usageParseCriteria()));
             answers.add(parseAnswer("rule_match_ok", "choice", answersMap.get("rule_match_ok"), ruleCriteria));
-            answers.add(parseAnswer("cost_plausible", "noul", answersMap.get("cost_plausible"), null));
-            answers.add(parseAnswer("risk_level", "score", answersMap.get("risk_level"), null));
+            answers.add(parseAnswer("cost_plausible", "choice", answersMap.get("cost_plausible"), costPlausibleCriteria()));
+            answers.add(parseAnswer("risk_level", "choice", answersMap.get("risk_level"), riskLevelCriteria()));
         } catch (Exception ex) {
             log.warn("裁判响应解析失败，按未返回处理: {}", ex.getMessage());
             answers = defaultNotReturned();
@@ -402,7 +461,7 @@ public class JevBillingJudge {
     }
 
     @SuppressWarnings("unchecked")
-    private static JevAnswerItem parseAnswer(String key, String type, Object rawAnswer, Map<String, Object> criteria) {
+    private static JevAnswerItem parseAnswer(String key, String type, Object rawAnswer, Map<String, ?> criteria) {
         if (!(rawAnswer instanceof Map)) {
             return new JevAnswerItem(key, type, null, null, null, "NOT_RETURNED", null);
         }
@@ -417,9 +476,11 @@ public class JevBillingJudge {
                     Object v = ans.get("choice");
                     String selected = v == null ? null : v.toString();
                     Double confidence = readDouble(ans, "confidence");
-                    String note = (selected != null && criteria != null) ? (String) criteria.get(selected) : null;
-                    yield new JevAnswerItem(key, type, selected, confidence, null,
-                            selected != null ? "ANSWERED" : "NOT_RETURNED", note);
+                    Object description = (selected != null && criteria != null) ? criteria.get(selected) : null;
+                    String note = description == null ? null : description.toString();
+                    boolean recognized = selected != null && (criteria == null || criteria.containsKey(selected));
+                    yield new JevAnswerItem(key, type, recognized ? selected : null, confidence, null,
+                            recognized ? "ANSWERED" : "NOT_RETURNED", note);
                 }
                 case "score" -> {
                     Double v = readDouble(ans, "score");
@@ -499,6 +560,8 @@ public class JevBillingJudge {
                 val = b ? "OK" : "异常";
             } else if (a.getValue() instanceof Number n) {
                 val = String.valueOf(n);
+            } else if (a.getNote() != null) {
+                val = a.getNote();
             } else {
                 val = String.valueOf(a.getValue());
             }
@@ -509,10 +572,10 @@ public class JevBillingJudge {
 
     private static List<JevAnswerItem> defaultNotReturned() {
         return List.of(
-                new JevAnswerItem("usage_parse_ok", "noul", null, null, null, "NOT_RETURNED", null),
+                new JevAnswerItem("usage_parse_ok", "choice", null, null, null, "NOT_RETURNED", null),
                 new JevAnswerItem("rule_match_ok", "choice", null, null, null, "NOT_RETURNED", null),
-                new JevAnswerItem("cost_plausible", "noul", null, null, null, "NOT_RETURNED", null),
-                new JevAnswerItem("risk_level", "score", null, null, null, "NOT_RETURNED", null));
+                new JevAnswerItem("cost_plausible", "choice", null, null, null, "NOT_RETURNED", null),
+                new JevAnswerItem("risk_level", "choice", null, null, null, "NOT_RETURNED", null));
     }
 
     // ---- 工具 ----
