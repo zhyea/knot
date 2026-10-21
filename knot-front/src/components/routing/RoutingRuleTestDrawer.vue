@@ -103,7 +103,7 @@
                       <el-button size="small" :icon="Plus" @click="addHeaderRow">新增 Header</el-button>
                     </div>
                     <el-table
-                      :data="headerRows"
+                      :data="displayHeaderRows"
                       border
                       size="small"
                       class="header-table"
@@ -112,21 +112,24 @@
                       <el-table-column label="名称" min-width="220">
                         <template #default="{ row }">
                           <el-input
+                            v-if="!row.temporary"
                             v-model="row.name"
                             placeholder="如 X-Custom-Trace"
                             size="small"
                             @change="normalizeHeaderRow(row)"
                           />
+                          <span v-else>{{ row.name }}</span>
                         </template>
                       </el-table-column>
                       <el-table-column label="值" min-width="260">
                         <template #default="{ row }">
-                          <el-input v-model="row.value" placeholder="Header 值" size="small"/>
+                          <el-input v-if="!row.temporary" v-model="row.value" placeholder="Header 值" size="small"/>
+                          <span v-else>{{ row.value }}</span>
                         </template>
                       </el-table-column>
                       <el-table-column label="操作" width="70" align="center">
                         <template #default="{ row }">
-                          <el-button link type="danger" @click="removeHeaderRow(row)">
+                          <el-button link type="danger" :disabled="row.temporary" @click="removeHeaderRow(row)">
                             <el-icon>
                               <Delete/>
                             </el-icon>
@@ -163,7 +166,7 @@
 
           <el-skeleton v-if="loading && !isStreaming" :rows="5" animated/>
           <template v-else-if="testResult">
-            <el-tabs v-model="responseTab" class="debug-tabs debug-tabs--response" @tab-click="onResponseTabClick">
+            <el-tabs v-model="responseTab" class="debug-tabs debug-tabs--response">
               <el-tab-pane label="概览" name="summary">
                 <div v-if="summaryItems.length || displayReasoning || displayContent" class="result-meta">
                   <div v-for="item in summaryItems" :key="item.label" class="result-meta__item"
@@ -354,14 +357,6 @@ let verdictToken = 0;
 const verdictVisible = computed(
   () => verdictLoading.value || verdictSkipped.value || verdictError.value !== "" || verdictResult.value !== null
 );
-/** 本轮测试用户是否手动切过响应 tab：切过则裁判结果到达时不抢焦点 */
-let verdictTabTouched = false;
-
-/** 响应 tab 手动点击：记录后裁判结果到达不再自动切入 */
-function onResponseTabClick() {
-  verdictTabTouched = true;
-}
-
 // ===================== 流式测试状态 =====================
 /** 正在进行的流式请求；非 null 时「发送请求」切换为「停止请求」 */
 const streamAbortController = ref<AbortController | null>(null);
@@ -546,6 +541,18 @@ interface HeaderRow {
 
 const headerRows = ref<HeaderRow[]>([]);
 
+interface HeaderDisplayRow extends HeaderRow {
+  temporary?: boolean;
+}
+
+const displayHeaderRows = computed<HeaderDisplayRow[]>(() => {
+  const rows: HeaderDisplayRow[] = [...headerRows.value];
+  if (showTestReturnUsageToggle.value && testReturnUsage.value && !hasHeaderName(TEST_RETURN_USAGE_HEADER)) {
+    rows.push({name: TEST_RETURN_USAGE_HEADER, value: "true", temporary: true});
+  }
+  return rows;
+});
+
 /** 打开抽屉（或重置）时生成默认请求头：Authorization / Rule / Content-Type */
 function resetHeaderRows() {
   headerRows.value = [
@@ -559,24 +566,28 @@ function addHeaderRow() {
   headerRows.value.push({name: "", value: ""});
 }
 
-function removeHeaderRow(row: HeaderRow) {
-  const index = headerRows.value.indexOf(row);
+function removeHeaderRow(row: unknown) {
+  const index = headerRows.value.findIndex((item) => item === row);
   if (index >= 0) {
     headerRows.value.splice(index, 1);
   }
 }
 
 /** 名称失焦规范化：trim；重名即时警告（不阻断编辑，发送前还会硬校验） */
-function normalizeHeaderRow(row: HeaderRow) {
-  row.name = row.name.trim();
-  if (!row.name) {
+function normalizeHeaderRow(row: unknown) {
+  if (!row || typeof row !== "object" || !("name" in row) || typeof row.name !== "string") {
+    return;
+  }
+  const headerRow = row as HeaderRow;
+  headerRow.name = headerRow.name.trim();
+  if (!headerRow.name) {
     return;
   }
   const duplicated = headerRows.value.some(
-    (item) => item !== row && item.name.trim().toLowerCase() === row.name.toLowerCase()
+    (item) => item !== headerRow && item.name.trim().toLowerCase() === headerRow.name.toLowerCase()
   );
   if (duplicated) {
-    ElMessage.warning(`请求头「${row.name}」已存在，重名只有最后一条会生效`);
+    ElMessage.warning(`请求头「${headerRow.name}」已存在，重名只有最后一条会生效`);
   }
 }
 
@@ -706,7 +717,6 @@ function resetVerdictState() {
   verdictLoading.value = false;
   verdictSkipped.value = false;
   verdictError.value = "";
-  verdictTabTouched = false;
 }
 
 /**
@@ -715,17 +725,96 @@ function resetVerdictState() {
  * 无 knot_extend 字段时静默忽略（消费者未开返回消费详情且未勾选临时开启）。
  */
 function captureKnotExtend(payload: unknown) {
-  if (!payload || typeof payload !== "object") {
-    return;
-  }
-  const dict = payload as Dict;
-  const extend = dict[KNOT_EXTEND_FIELD];
-  if (!extend || typeof extend !== "object") {
+  const extend = findObjectField(payload, KNOT_EXTEND_FIELD);
+  if (!extend || typeof extend !== "object" || Array.isArray(extend)) {
     return;
   }
   knotExtend.value = extend as Dict;
-  const raw = dict[RAW_USAGE_FIELD];
+  const raw = findSiblingField(payload, KNOT_EXTEND_FIELD, RAW_USAGE_FIELD);
   upstreamUsage.value = raw && typeof raw === "object" ? (raw as Dict) : null;
+}
+
+/** 网关插入的 knot_extend 行可能与紧随其后的 [DONE] 共处一个 SSE 事件。 */
+function captureKnotExtendFromStreamData(data: string) {
+  const parsed = parseStreamJson(data);
+  if (!parsed.error && parsed.value && typeof parsed.value === "object") {
+    captureKnotExtend(parsed.value);
+    if (knotExtend.value) {
+      return;
+    }
+  }
+  for (const line of data.split(/\r?\n/)) {
+    const lineParsed = parseStreamJson(line);
+    if (!lineParsed.error && lineParsed.value && typeof lineParsed.value === "object") {
+      captureKnotExtend(lineParsed.value);
+      if (knotExtend.value) {
+        return;
+      }
+    }
+  }
+}
+
+function parseStreamJson(value: string) {
+  const text = value.trim();
+  const jsonText = text.startsWith("data:") ? text.slice("data:".length).trim() : text;
+  return parseJsonResult(jsonText, null);
+}
+
+/** 兼容 Responses 等协议把事件包在 response 子对象中的返回形态。 */
+function findObjectField(payload: unknown, field: string): unknown {
+  if (typeof payload === "string") {
+    const parsed = parseJsonResult(payload, null);
+    return parsed.error ? null : findObjectField(parsed.value, field);
+  }
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+  if (Array.isArray(payload)) {
+    for (const item of payload) {
+      const found = findObjectField(item, field);
+      if (found != null) {
+        return found;
+      }
+    }
+    return null;
+  }
+  const dict = payload as Dict;
+  if (Object.prototype.hasOwnProperty.call(dict, field)) {
+    return dict[field];
+  }
+  for (const value of Object.values(dict)) {
+    const found = findObjectField(value, field);
+    if (found != null) {
+      return found;
+    }
+  }
+  return null;
+}
+
+function findSiblingField(payload: unknown, anchorField: string, field: string): unknown {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+  if (Array.isArray(payload)) {
+    for (const item of payload) {
+      const found = findSiblingField(item, anchorField, field);
+      if (found != null) {
+        return found;
+      }
+    }
+    return null;
+  }
+  const dict = payload as Dict;
+  if (Object.prototype.hasOwnProperty.call(dict, anchorField)) {
+    return dict[field];
+  }
+  for (const value of Object.values(dict)) {
+    const found = findSiblingField(value, anchorField, field);
+    if (found != null) {
+      return found;
+    }
+  }
+  return null;
 }
 
 /** 实际承接模型：优先响应头 X-Knot-Model，缺失回退当前所选目标（裁判据此前端定位规则与提取器） */
@@ -767,10 +856,6 @@ async function triggerBillingVerdict(requestBody: Dict, stream: boolean) {
       return;
     }
     verdictResult.value = result;
-    // 裁判结果到达即切入「计费校验」tab；用户本轮已手动切 Tab 的不抢焦点
-    if (!verdictTabTouched) {
-      responseTab.value = "verdict";
-    }
   } catch (error) {
     if (token !== verdictToken) {
       return;
@@ -1223,6 +1308,7 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget | null,
     flushStreamText();
     // EOF 可能发生在区块节流定时器触发前，必须先刷入最后一批区块及概览内容。
     flushBlocks();
+    recoverKnotExtendFromStreamBlocks();
     // 直连网关读取的是原生模型 SSE，没有管理端包装的 complete 事件；EOF 即成功结束。
     if (testResult.value?.status === "RUNNING") {
       finishStream("SUCCESS", "");
@@ -1289,13 +1375,26 @@ function handleStreamEvent(event: SseEvent) {
   }
   if (!parsed.error && parsed.value && typeof parsed.value === "object") {
     // knot_extend 事件（[DONE] 前网关注入的独立 SSE 事件）：提取被告负载，供裁判第二步使用
-    captureKnotExtend(parsed.value);
     pendingContent += extractField(parsed.value, "content");
     pendingReasoning += extractField(parsed.value, "reasoning_content");
   }
+  captureKnotExtendFromStreamData(dataText);
   pendingBlocks.push({id: blockSeq++, event: event.event, data: dataText});
   scheduleBlockFlush();
   appendStreamText(formatUpstreamEvent(event));
+}
+
+/** SSE 区块是实际收到内容的留档；流结束时再核对一次，避免事件状态未及时进入裁判输入。 */
+function recoverKnotExtendFromStreamBlocks() {
+  if (knotExtend.value) {
+    return;
+  }
+  for (const block of streamBlocks.value) {
+    captureKnotExtendFromStreamData(block.data);
+    if (knotExtend.value) {
+      return;
+    }
+  }
 }
 
 /**
