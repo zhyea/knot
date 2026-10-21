@@ -74,6 +74,17 @@ public class AwsSigV4AuthApplier implements UpstreamAuthApplier {
 
     @Override
     public void sign(UpstreamSignableRequest request, HttpHeaders headers, UpstreamRequestContext context) {
+        sign(request, headers, context, Instant.now());
+    }
+
+    /**
+     * 带显式时钟的签名：{@code now} 固定后可与 botocore 的签名逐字符对拍
+     * （AWS 时间窗只有 5 分钟，用 {@link Instant#now()} 无法稳定断言）。
+     */
+    public void sign(UpstreamSignableRequest request,
+                     HttpHeaders headers,
+                     UpstreamRequestContext context,
+                     Instant now) {
         if (request == null || headers == null || context == null) {
             return;
         }
@@ -89,7 +100,6 @@ public class AwsSigV4AuthApplier implements UpstreamAuthApplier {
         String service = AwsBedrockEndpointResolver.serviceName(authConfig);
         String sessionToken = AuthConfigSupport.value(authConfig, SESSION_TOKEN);
 
-        Instant now = Instant.now();
         String amzDate = AwsSigV4Support.amzDate(now);
         String dateStamp = AwsSigV4Support.dateStamp(now);
         String host = hostHeader(uri);
