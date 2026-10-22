@@ -40,6 +40,7 @@ npx vite build          # 构建
 |---|---|
 | 下拉选项 | `POST /api/{resource}/options` → `OptionPage<OptionItem>`；`OptionItem(value/label/code/disabled/meta)`，meta 承载派生属性 |
 | 远程选择器 | `RemoteEntitySelect`（remote 模式，extraParams 变化自动清空重载） |
+| 树形两级下拉 | `TreeSelect`（纯本地组件：两级树、`leafOnly` 默认仅叶子可选、filterable 本地过滤+高亮、默认全展开、面板宽度自适应）；远程资源另写场景封装（加载+分组），如 `ProviderAccountTreeSelect`（供应商→账户） |
 | 列表查询 | `composables/useListQuery` |
 | 表单本地草稿 + 防回环 | `composables/useDraftModel.ts`（守卫：normalize 后 `JSON.stringify` 比较） |
 | 空闲登出 | `idleActivity.ts`（30 分钟） |

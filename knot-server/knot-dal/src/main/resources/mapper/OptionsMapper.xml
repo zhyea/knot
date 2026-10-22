@@ -185,7 +185,9 @@
     from kb_models m
     left join kb_provider_model_mappings pmm on pmm.model_code = m.model_code
     left join kb_logical_models lm on lm.model_code = pmm.logical_model_code and lm.is_deleted = 0
-    left join kb_providers p on p.code = m.provider_account_code
+    <!-- 账户码 ≠ 供应商码：必须经 kb_provider_accounts 中转，否则 p.name 恒空、providerName 退化成账户码 -->
+    left join kb_provider_accounts pa on pa.code = m.provider_account_code
+    left join kb_providers p on p.code = pa.provider_code
     where 1 = 1
     and m.is_deleted = 0
     <if test="enabledOnly">and m.status = 1</if>
@@ -214,7 +216,9 @@
     from kb_models m
     left join kb_provider_model_mappings pmm on pmm.model_code = m.model_code
     left join kb_logical_models lm on lm.model_code = pmm.logical_model_code and lm.is_deleted = 0
-    left join kb_providers p on p.code = m.provider_account_code
+    <!-- 账户码 ≠ 供应商码：必须经 kb_provider_accounts 中转，否则 p.name 恒空、providerName 退化成账户码 -->
+    left join kb_provider_accounts pa on pa.code = m.provider_account_code
+    left join kb_providers p on p.code = pa.provider_code
     where m.is_deleted = 0
     and m.model_code in
     <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>

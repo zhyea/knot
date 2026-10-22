@@ -3,7 +3,6 @@
     v-model:visible="dropdownVisible"
     trigger="click"
     placement="bottom-start"
-    :width="panelWidth"
     :hide-after="0"
     :show-arrow="false"
     popper-class="tree-select__popper"
@@ -48,7 +47,7 @@
       </div>
     </template>
 
-    <div class="tree-select__panel" v-loading="loading">
+    <div class="tree-select__panel" :style="panelStyle" v-loading="loading">
       <el-scrollbar max-height="288px">
         <div v-if="visibleParents.length === 0" class="tree-select__empty">暂无数据</div>
         <div v-for="row in visibleParents" :key="String(row.node.value)" class="tree-select__group">
@@ -104,7 +103,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onBeforeUnmount, onMounted, ref, type PropType} from "vue";
+import {computed, onBeforeUnmount, onMounted, ref, watch, type CSSProperties, type PropType} from "vue";
 import {ArrowDown, ArrowRight, Check, CircleClose} from "@element-plus/icons-vue";
 import type {TreeNodeOption} from "@/types";
 
@@ -136,12 +135,14 @@ const props = defineProps({
   filterable: {type: Boolean, default: false},
   /** 仅叶子可选（父级行只展开/折叠）。false 时父级也可直接选中 */
   leafOnly: {type: Boolean, default: true},
+  /** 默认展开全部父级（异步到达的 options 也会补展开）；用户可手动折叠 */
+  defaultExpandAll: {type: Boolean, default: true},
   clearable: {type: Boolean, default: false},
   disabled: {type: Boolean, default: false},
   loading: {type: Boolean, default: false},
   placeholder: {type: String, default: "请选择"},
   size: {type: String as PropType<"large" | "default" | "small">, default: undefined},
-  /** 面板宽度；缺省时自动对齐触发器宽度 */
+  /** 面板固定宽度；缺省时最小与触发器同宽、内容更宽时自适应撑开（上限 480px） */
   panelWidth: {type: [String, Number] as PropType<string | number>, default: undefined}
 });
 
@@ -153,11 +154,54 @@ const emit = defineEmits<{
 const dropdownVisible = ref(false);
 const keyword = ref("");
 const expandedKeys = ref<Set<string>>(new Set());
+/**
+ * 用户手动折叠过的父级：默认展开补集时跳过这些 key。
+ *
+ * <p>否则父组件异步刷新 options（如账户树回显项合并后 treeOptions 重算）会把用户刚折叠的组又强行展开。</p>
+ */
+const manuallyCollapsed = ref<Set<string>>(new Set());
 const referenceRef = ref<HTMLElement | null>(null);
 const measuredWidth = ref<number | undefined>(undefined);
 
-const panelWidth = computed(() => props.panelWidth ?? measuredWidth.value);
+/**
+ * 面板宽度策略：显式传 panelWidth 则固定；否则最小与触发器同宽、内容更宽时在 480px 内
+ * 自适应撑开——固定死绑触发器宽度会把 label 压成 ellipsis 省略号。
+ *
+ * <p>面板 teleported 到 body，组件根元素的 CSS 变量传不进去，故走内联 style（而非 popper-style）。</p>
+ */
+const panelStyle = computed<CSSProperties>(() => {
+  if (props.panelWidth) {
+    return {width: typeof props.panelWidth === "number" ? `${props.panelWidth}px` : String(props.panelWidth)};
+  }
+  return {
+    minWidth: measuredWidth.value ? `${measuredWidth.value}px` : undefined,
+    maxWidth: "480px"
+  };
+});
 const keywordTrim = computed(() => (props.filterable ? keyword.value.trim() : ""));
+
+/**
+ * 默认展开：options 常由父组件异步加载（如账户树 onMounted 翻页聚合），故不能只在挂载时
+ * 展开一次——改为侦听 options 引用变化，把新出现的父级补进展开集（用户已折叠的组除外）。
+ */
+watch(
+  () => props.options,
+  (options) => {
+    if (!props.defaultExpandAll) {
+      return;
+    }
+    const keys = new Set(expandedKeys.value);
+    for (const parent of options || []) {
+      const key = String(parent.value);
+      if (manuallyCollapsed.value.has(key)) {
+        continue;
+      }
+      keys.add(key);
+    }
+    expandedKeys.value = keys;
+  },
+  {immediate: true}
+);
 
 function currentValues(): (string | number)[] {
   const mv = props.modelValue;
@@ -300,12 +344,16 @@ function isParentSelectable(row: VisibleParentRow): boolean {
 function toggleExpand(parent: TreeNodeOption): void {
   const key = String(parent.value);
   const next = new Set(expandedKeys.value);
+  const collapsed = new Set(manuallyCollapsed.value);
   if (next.has(key)) {
     next.delete(key);
+    collapsed.add(key);
   } else {
     next.add(key);
+    collapsed.delete(key);
   }
   expandedKeys.value = next;
+  manuallyCollapsed.value = collapsed;
 }
 
 function onParentClick(row: VisibleParentRow): void {
@@ -422,9 +470,9 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
+  height: 28px;
   padding: 0 12px;
-  font-size: 14px;
+  font-size: 12px;
   color: var(--el-text-color-regular, #606266);
   cursor: pointer;
 }
@@ -485,6 +533,8 @@ onBeforeUnmount(() => {
 }
 
 .tree-select__label {
+  /* min-width:0 是 flex 子项 ellipsis 生效的前提；面板宽度自适应后正常不触发省略 */
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -502,7 +552,7 @@ onBeforeUnmount(() => {
 .tree-select__empty {
   padding: 16px 0;
   text-align: center;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--el-text-color-secondary, #909399);
 }
 
