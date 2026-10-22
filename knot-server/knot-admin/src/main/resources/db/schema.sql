@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS ks_users (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_users_username (username)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统用户';
 
 CREATE TABLE IF NOT EXISTS ks_departments (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS ks_departments (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_departments_code (dept_code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='组织部门';
 
 CREATE TABLE IF NOT EXISTS ks_user_settings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS ks_user_settings (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_user_settings_user_key (user_id, setting_key),
   KEY idx_user_settings_user (user_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户个人设置';
 
 CREATE TABLE IF NOT EXISTS ks_roles (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -56,13 +56,13 @@ CREATE TABLE IF NOT EXISTS ks_roles (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_roles_code (code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统角色';
 
 CREATE TABLE IF NOT EXISTS ks_user_roles (
   user_id BIGINT NOT NULL,
   role_id BIGINT NOT NULL,
   PRIMARY KEY (user_id, role_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户与角色关联';
 
 CREATE TABLE IF NOT EXISTS ks_modules (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS ks_modules (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_sys_modules_code (module_code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统功能模块';
 
 CREATE TABLE IF NOT EXISTS ks_menus (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS ks_menus (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_sys_menus_code (menu_code),
   KEY idx_sys_menus_module_parent (module_id, parent_id, sort_order)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统菜单';
 
 CREATE TABLE IF NOT EXISTS ks_permissions (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -111,14 +111,14 @@ CREATE TABLE IF NOT EXISTS ks_permissions (
   UNIQUE KEY uk_sys_permissions_code (permission_code),
   KEY idx_sys_permissions_module_type (module_id, permission_type, status),
   KEY idx_sys_permissions_menu (menu_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统权限定义';
 
 CREATE TABLE IF NOT EXISTS ks_role_permissions (
   role_id BIGINT NOT NULL,
   permission_id BIGINT NOT NULL,
   PRIMARY KEY (role_id, permission_id),
   KEY idx_sys_role_permissions_permission (permission_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='角色与权限关联';
 
 CREATE TABLE IF NOT EXISTS ks_api_permission_bindings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS ks_api_permission_bindings (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_sys_api_permission_binding (http_method, path_pattern),
   KEY idx_sys_api_permission_permission (permission_id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='API 接口与权限绑定';
 
 CREATE TABLE IF NOT EXISTS ks_operation_logs (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -156,7 +156,7 @@ CREATE TABLE IF NOT EXISTS ks_operation_logs (
   KEY idx_operator (operator_id),
   KEY idx_entity (entity_type, entity_id),
   KEY idx_created_at (created_at)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统操作日志';
 
 CREATE TABLE IF NOT EXISTS ks_scheduled_tasks (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -175,7 +175,7 @@ CREATE TABLE IF NOT EXISTS ks_scheduled_tasks (
   UNIQUE KEY uk_scheduled_tasks_code (task_code),
   KEY idx_scheduled_tasks_status (status),
   KEY idx_scheduled_tasks_handler (handler_code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='定时任务定义';
 
 CREATE TABLE IF NOT EXISTS ks_scheduled_task_runs (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS ks_scheduled_task_runs (
   KEY idx_task_runs_task_time (task_code, start_time),
   KEY idx_task_runs_status_time (status, start_time),
   KEY idx_task_runs_created_at (created_at)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='定时任务执行记录';
 
 -- =========================
 -- 频控与额度（独立策略 + 资源绑定）
@@ -212,7 +212,7 @@ CREATE TABLE IF NOT EXISTS kb_rate_limit_policies (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_rate_limit_policies_code (policy_code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='资源频率限制策略';
 
 CREATE TABLE IF NOT EXISTS kb_quota_policies (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -228,7 +228,7 @@ CREATE TABLE IF NOT EXISTS kb_quota_policies (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_quota_policies_code (policy_code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='资源额度策略';
 
 CREATE TABLE IF NOT EXISTS kb_resource_traffic_policies (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -239,7 +239,7 @@ CREATE TABLE IF NOT EXISTS kb_resource_traffic_policies (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_resource_traffic (resource_type, resource_code),
   KEY idx_resource_traffic_rate (rate_limit_policy_code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='资源与频控策略绑定';
 
 CREATE TABLE IF NOT EXISTS kb_resource_quota_bindings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -249,7 +249,7 @@ CREATE TABLE IF NOT EXISTS kb_resource_quota_bindings (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uk_rqb_resource_policy (resource_type, resource_code, quota_policy_code),
   KEY idx_rqb_policy (quota_policy_code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='资源与额度策略绑定';
 
 -- =========================
 -- 供应商与模型
@@ -263,7 +263,7 @@ CREATE TABLE IF NOT EXISTS kb_providers (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_providers_code (code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='模型供应商';
 
 CREATE TABLE IF NOT EXISTS kb_provider_accounts (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -275,7 +275,7 @@ CREATE TABLE IF NOT EXISTS kb_provider_accounts (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_provider_accounts_code (code),
   KEY idx_provider_accounts_provider (provider_code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='供应商账户配置';
 
 CREATE TABLE IF NOT EXISTS kb_provider_credentials (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -287,12 +287,12 @@ CREATE TABLE IF NOT EXISTS kb_provider_credentials (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_provider_credentials_account (provider_account_code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='供应商账户凭证配置';
 
 CREATE TABLE IF NOT EXISTS kb_provider_discount_policies (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   model_code VARCHAR(128) NOT NULL COMMENT '绑定的供应商模型业务码（kb_models.model_code），非主键 id',
-  discount_type VARCHAR(32) NOT NULL,
+  discount_type VARCHAR(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   discount_value DECIMAL(10,4) NOT NULL,
   effective_from DATETIME NOT NULL,
   effective_to DATETIME DEFAULT NULL,
@@ -301,7 +301,7 @@ CREATE TABLE IF NOT EXISTS kb_provider_discount_policies (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_provider_discount_model_time (model_code, effective_from, effective_to)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='供应商模型折扣策略';
 
 CREATE TABLE IF NOT EXISTS kb_models (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -321,7 +321,7 @@ CREATE TABLE IF NOT EXISTS kb_models (
   UNIQUE KEY uk_models_code (model_code),
   KEY idx_models_provider_account (provider_account_code),
   KEY idx_models_billing_rule (billing_rule_code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='供应商模型配置';
 
 CREATE TABLE IF NOT EXISTS kb_model_pools (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -337,7 +337,7 @@ CREATE TABLE IF NOT EXISTS kb_model_pools (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_model_pools_code (pool_code),
   KEY idx_model_pools_logical_status (logical_model_code, status)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='统一模型路由池';
 
 CREATE TABLE IF NOT EXISTS kb_model_pool_items (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -351,14 +351,14 @@ CREATE TABLE IF NOT EXISTS kb_model_pool_items (
   UNIQUE KEY uk_model_pool_item (pool_code, model_code),
   KEY idx_model_pool_items_pool (pool_code, status, priority),
   KEY idx_model_pool_items_model (model_code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='模型池中的供应商模型条目';
 
 CREATE TABLE IF NOT EXISTS kb_logical_models (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   model_code VARCHAR(128) NOT NULL,
   model_name VARCHAR(128) NOT NULL,
   model_type VARCHAR(64) NOT NULL,
-  model_family VARCHAR(64) DEFAULT NULL,
+  model_family VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   description TEXT DEFAULT NULL,
   tags_json JSON DEFAULT NULL,
   use_cases_json JSON DEFAULT NULL,
@@ -379,7 +379,7 @@ CREATE TABLE IF NOT EXISTS kb_logical_models (
   UNIQUE KEY uk_logical_models_code (model_code),
   KEY idx_logical_models_type_status (model_type, publish_status, status),
   KEY idx_logical_models_sort (featured, sort_order)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='统一逻辑模型目录';
 
 CREATE TABLE IF NOT EXISTS kb_provider_model_mappings (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -395,7 +395,7 @@ CREATE TABLE IF NOT EXISTS kb_provider_model_mappings (
   KEY idx_logical_provider_model (logical_model_code, provider_account_code, model_code),
   KEY idx_logical_model (logical_model_code, status),
   KEY idx_provider_account_model (provider_account_code, model_code, status)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='统一模型与供应商模型映射';
 
 CREATE TABLE IF NOT EXISTS kx_model_sources (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -409,7 +409,7 @@ CREATE TABLE IF NOT EXISTS kx_model_sources (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_external_model_sources_code (source_code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='外部模型数据源';
 
 CREATE TABLE IF NOT EXISTS kx_model_items (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -440,7 +440,7 @@ CREATE TABLE IF NOT EXISTS kx_model_items (
   KEY idx_external_model_created_time (model_created_at),
   KEY idx_external_model_ignored (ignored),
   KEY idx_external_model_sync_status (sync_status)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='外部模型目录条目';
 
 -- 供应商模型与 API 协议绑定（协议 + 消耗取值逻辑）
 CREATE TABLE IF NOT EXISTS kb_model_api_bindings (
@@ -458,7 +458,7 @@ CREATE TABLE IF NOT EXISTS kb_model_api_bindings (
   UNIQUE KEY uk_model_api_protocol (model_code, protocol),
   KEY idx_model_api_bindings_model (model_code),
   KEY idx_model_api_bindings_protocol (protocol)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='模型 API 协议与用量解析绑定';
 
 -- =========================
 -- 应用管理
@@ -478,7 +478,7 @@ CREATE TABLE IF NOT EXISTS kb_apps (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_apps_app_code (app_code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='接入应用配置';
 
 -- =========================
 -- 路由规则
@@ -497,7 +497,7 @@ CREATE TABLE IF NOT EXISTS kb_routing_consumers (
   UNIQUE KEY uk_routing_consumers_code (consumer_code),
   UNIQUE KEY uk_routing_consumers_secret (secret_key),
   KEY idx_routing_consumers_status (status)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='路由消费者及 API 凭证主体';
 
 CREATE TABLE IF NOT EXISTS kb_routing_rules (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -518,7 +518,7 @@ CREATE TABLE IF NOT EXISTS kb_routing_rules (
   UNIQUE KEY uk_routing_rules_code (rule_code),
   KEY idx_routing_rules_app (app_code, status),
   KEY idx_routing_rules_consumer (consumer_code, status)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='模型路由规则';
 
 CREATE TABLE IF NOT EXISTS kb_routing_rule_targets (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -530,7 +530,7 @@ CREATE TABLE IF NOT EXISTS kb_routing_rule_targets (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uk_routing_rule_target (rule_code, target_type, target_code),
   KEY idx_routing_rule_targets_rule (rule_code, priority)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='路由规则目标配置';
 
 -- =========================
 -- 计费与调用明细
@@ -538,7 +538,7 @@ CREATE TABLE IF NOT EXISTS kb_routing_rule_targets (
 CREATE TABLE IF NOT EXISTS kb_billing_rules (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   code VARCHAR(64) NOT NULL,
-  model_family VARCHAR(64) DEFAULT NULL COMMENT '模型族 code（ks_enum_configs.category=model_family 的 item_code）；为空表示默认规则，覆盖所有族',
+  model_family VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '模型族 code（ks_enum_configs.category=model_family 的 item_code）；为空表示默认规则，覆盖所有族',
   status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用；删除语义见 is_deleted',
   is_deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除：0-否 1-是；删除时同时置 status=0，恢复后保持停用',
   remark VARCHAR(255) DEFAULT NULL,
@@ -546,7 +546,7 @@ CREATE TABLE IF NOT EXISTS kb_billing_rules (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_billing_rules_code (code),
   KEY idx_billing_rules_match (model_family, status)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='计费规则主体';
 
 CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -565,7 +565,7 @@ CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
   UNIQUE KEY uk_billing_rule_version_code (rule_code, version_code),
   UNIQUE KEY uk_billing_rule_version_hash (rule_code, uniq_hash),
   KEY idx_billing_rule_versions_active (rule_code, status, effective_from, effective_to)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='计费规则版本及价格配置';
 
 -- =========================
 -- 可选扩展
@@ -602,7 +602,7 @@ CREATE TABLE IF NOT EXISTS kb_plugin_instances (
   KEY idx_plugin_instances_capability_status (capability_code, status),
   KEY idx_plugin_instances_type (plugin_type, status),
   KEY idx_plugin_instances_ext_stage_status (extension_point, stage_code, status, is_deleted)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='插件实例配置';
 
 -- 作用域绑定表已随单表收口删除（2026-10-13）。scope 维度按决策永久移除。
 
@@ -616,7 +616,7 @@ CREATE TABLE IF NOT EXISTS kb_notification_templates (
   status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
 
   UNIQUE KEY uk_notification_templates_code (code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='通知模板';
 
 -- =========================
 -- 敏感词库（内容安全）
@@ -627,7 +627,7 @@ CREATE TABLE IF NOT EXISTS kb_moderation_word_lists (
   id              BIGINT       PRIMARY KEY AUTO_INCREMENT,
   word            VARCHAR(255) NOT NULL COMMENT '原始词条（支持 emoji/全角）',
   normalized_word VARCHAR(255) NOT NULL COMMENT '归一化键（NFKC+小写+去零宽），判定走它、展示走 word',
-  category_code   VARCHAR(64)  NOT NULL COMMENT '绑分类（ks_enum_configs.item_code，category=moderation_category），非主键 id',
+  category_code   VARCHAR(64)  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '绑分类（ks_enum_configs.item_code，category=moderation_category），非主键 id',
   severity        TINYINT      NOT NULL DEFAULT 2 COMMENT '严重度：1-低 2-中 3-高；配合常量 SEVERITY_THRESHOLD 决定是否触发动作（见设计文档 §5.2）',
   lang            VARCHAR(8)   DEFAULT 'zh' COMMENT '语言/变体标识',
   status          TINYINT      NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
@@ -655,13 +655,13 @@ CREATE TABLE IF NOT EXISTS ks_enum_categories (
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_enum_category (category)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='枚举分类';
 
 -- 枚举配置表（移除category字段，改为category_id）
 CREATE TABLE IF NOT EXISTS ks_enum_configs (
     id          BIGINT PRIMARY KEY AUTO_INCREMENT,
     category_id BIGINT       NOT NULL COMMENT '分类ID',
-    item_code   VARCHAR(64)  NOT NULL COMMENT '枚举编码，如 OPENAI、WEB',
+    item_code   VARCHAR(64)  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '枚举编码，如 OPENAI、WEB',
     item_label  VARCHAR(128) NOT NULL COMMENT '显示名称，如 OpenAI、Web应用',
     sort_order  INT          NOT NULL DEFAULT 0 COMMENT '排序',
     is_enabled  TINYINT      NOT NULL DEFAULT 1 COMMENT '1=启用 0=禁用',
@@ -670,7 +670,7 @@ CREATE TABLE IF NOT EXISTS ks_enum_configs (
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_enum_category_code (category_id, item_code)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='枚举分类项';
 
 -- =========================
 -- 路由调试预设请求用例
@@ -690,4 +690,4 @@ CREATE TABLE IF NOT EXISTS kb_test_request_presets (
     updated_at    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_test_request_presets_code (code),
     KEY idx_test_request_presets_logical (logical_model_code)
-) COMMENT = '路由调试预设请求用例（替代硬编码默认请求体）';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT = '路由调试预设请求用例（替代硬编码默认请求体）';
