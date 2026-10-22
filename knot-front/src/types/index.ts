@@ -44,6 +44,10 @@ export interface OptionQuery {
 /** 供应商账户：上游网关 baseUrl（非凭据）。 */
 export interface ProviderAccountMeta {
   baseUrl: string;
+  /** 账户所属供应商编码：供前端按供应商分组渲染两级树（父行=供应商，选中值不包含它） */
+  providerCode?: string | null;
+  /** 账户所属供应商名（kb_providers.name，缺失时回退 provider_code） */
+  providerName?: string | null;
 }
 
 /** 统一模型：协议联动（modelType）与计费族过滤（modelFamily）、启用态。 */
@@ -123,6 +127,16 @@ export interface OptionItem<M = OptionMeta> {
   disabled?: boolean | null;
   /** 仅承载下拉确实需要的非敏感业务信息，强类型由 M 约束 */
   meta?: M | null;
+}
+
+/**
+ * 两级树形下拉候选项：在 {@link OptionItem} 扁平契约上追加子级。
+ *
+ * <p>与 RemoteEntitySelect / EnumSelect 共用 value/label/disabled/meta 语义
+ * （顶层无 code，业务码一律走 meta）；{@code children} 为 null/缺省时该节点即叶子。</p>
+ */
+export interface TreeNodeOption<M = OptionMeta> extends OptionItem<M> {
+  children?: TreeNodeOption<M>[] | null;
 }
 
 export interface OptionPage<T = OptionItem<OptionMeta>> {

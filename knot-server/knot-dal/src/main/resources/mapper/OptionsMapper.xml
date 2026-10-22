@@ -104,12 +104,14 @@
     <foreach collection="values" item="v" open="(" separator="," close=")">#{v}</foreach>
   </select>
 
-  <!-- ==================== 供应商账户（value=code；label=供应商/账户码；meta 承载 baseUrl，无凭据列） ==================== -->
+  <!-- ==================== 供应商账户（value=code；label=供应商/账户码；meta 承载 baseUrl + 供应商分组字段，无凭据列） ==================== -->
   <select id="listProviderAccountOptions" resultMap="optionRow">
     select pa.code as value,
     concat(COALESCE(p.name, pa.provider_code), ' / ', pa.code) as label,
     0 as disabled,
-    json_object('baseUrl', pa.base_url) as meta
+    json_object('baseUrl', pa.base_url,
+    'providerCode', pa.provider_code,
+    'providerName', COALESCE(p.name, pa.provider_code)) as meta
     from kb_provider_accounts pa
     left join kb_providers p on p.code = pa.provider_code
     where 1 = 1
@@ -126,7 +128,9 @@
     select pa.code as value,
     concat(COALESCE(p.name, pa.provider_code), ' / ', pa.code) as label,
     (case when pa.status = 1 then 0 else 1 end) as disabled,
-    json_object('baseUrl', pa.base_url) as meta
+    json_object('baseUrl', pa.base_url,
+    'providerCode', pa.provider_code,
+    'providerName', COALESCE(p.name, pa.provider_code)) as meta
     from kb_provider_accounts pa
     left join kb_providers p on p.code = pa.provider_code
     where pa.code in

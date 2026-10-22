@@ -50,7 +50,7 @@
           <el-row :gutter="16" class="form-grid">
             <el-col :span="13">
               <el-form-item label="供应商账户" required>
-                <ProviderAccountSelect
+                <ProviderAccountTreeSelect
                   v-model="form.providerAccountCode"
                   placeholder="请选择供应商账户"
                   style="width: 100%"
@@ -321,7 +321,7 @@ import type {Dict, Row, OptionItem, ProviderAccountMeta} from "@/types";
 import EnumControl from "../common/EnumControl.vue";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
-import ProviderAccountSelect from "../provider/ProviderAccountSelect.vue";
+import ProviderAccountTreeSelect from "../provider/ProviderAccountTreeSelect.vue";
 import {useModelTypes} from "@/composables/useModelTypes";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {
