@@ -37,7 +37,8 @@ import java.util.Map;
  * <ul>
  *   <li>提取器返回 {@code null} / 响应非法 JSON → 契约错误，抛异常；</li>
  *   <li>上游未上报 usage（或全零）→ 合法零用量，WARN 后正常出零账；</li>
- *   <li>上游回了非零 usage 却提取不出来 → 口径错配，ERROR 后抛异常。</li>
+ *   <li>上游回了非零 usage 却提取不出来 → 口径错配，ERROR 后抛异常
+ *       （提取器显式 {@code allowsEmptyUsage()} 声明允许全零的除外）。</li>
  * </ul>
  */
 @Slf4j
@@ -98,7 +99,8 @@ public class UsageExtractorRegistry {
         if (item == null || item.billing() == null) {
             throw new IllegalStateException("UsageExtractor returned no result: " + extractor.code());
         }
-        if (item.billing().isEmpty() && hasPositiveNumber(rawUsage)) {
+        // 能否为空由提取器声明，不在这里跨协议猜——未声明允许的，有正数却提取为空即口径错配
+        if (item.billing().isEmpty() && !extractor.allowsEmptyUsage() && hasPositiveNumber(rawUsage)) {
             // 上游回了非零用量却提取不出来：提取器口径配错，静默记零账会把问题推迟到对账
             log.error("usage extractor mismatch: extractor={} rawUsageKeys={}",
                     extractor.code(), rawUsage == null ? null : rawUsage.keySet());
@@ -106,8 +108,8 @@ public class UsageExtractorRegistry {
         }
         if (item.billing().isEmpty()) {
             // 上游没有上报用量（或全零）：合法零用量，告警但不失败
-            log.warn("upstream reported no usage: extractor={} protocol={}",
-                    extractor.code(), context.protocol());
+            log.warn("upstream reported no usage: extractor={} protocol={} allowsEmpty={}",
+                    extractor.code(), context.protocol(), extractor.allowsEmptyUsage());
         }
         return normalize(item, rawBody, rawUsage, billingRule, requestBody, occurredAt, extractor.calculator());
     }
@@ -131,6 +133,9 @@ public class UsageExtractorRegistry {
      *
      * <p>上游可能合法上报全零 usage（如 SSE 中间事件），此时不应判为口径错配；
      * 只有确实存在非零数值却被提取成空，才说明提取器配错。</p>
+     *
+     * <p>本方法只在提取器<b>未</b>声明 {@link UsageExtractor#allowsEmptyUsage()} 时充当门控：
+     * 声明了允许全零的提取器直接放行，不再据此判错——能不能空由提取器决定，不在这里猜。</p>
      */
     private static boolean hasPositiveNumber(Map<String, Object> usage) {
         if (usage == null || usage.isEmpty()) {
@@ -159,7 +164,7 @@ public class UsageExtractorRegistry {
                                       Instant occurredAt,
                                       BillingModeCalculator calculator) {
         NormalizedUsage normalized =
-                UsageNormalizationSupport.normalize(item.billing(), billingRule, requestBody, occurredAt, calculator);
+            UsageNormalizationSupport.normalize(item.billing(), billingRule, requestBody, occurredAt, calculator);
         return UsageAccounting.of(rawUsage, rawBody, item.billing(), item.usage(), normalized);
     }
 
@@ -185,22 +190,22 @@ public class UsageExtractorRegistry {
         // 已知特例：Anthropic 的缓存口径只在专用提取器里处理，未绑定时按 provider 兜到它。
         // 这与「配置驱动」原则相悖，彻底移除需改为绑定配置驱动，见方案 §12 第 4 项。
         if (context.provider() != null
-                && "ANTHROPIC".equals(StringUtils.upperCase(context.provider().getProviderCode()))) {
+            && "ANTHROPIC".equals(StringUtils.upperCase(context.provider().getProviderCode()))) {
             return AnthropicUsageExtractor.CODE;
         }
         if (context.protocol() != null) {
             ModelApiProtocolEnum protocol = context.protocol().canonical();
             if (protocol == ModelApiProtocolEnum.IMAGE_GENERATIONS
-                    || protocol == ModelApiProtocolEnum.IMAGE_EDITS
-                    || protocol == ModelApiProtocolEnum.IMAGE_VARIATIONS) {
+                || protocol == ModelApiProtocolEnum.IMAGE_EDITS
+                || protocol == ModelApiProtocolEnum.IMAGE_VARIATIONS) {
                 return ImageUsageExtractor.CODE;
             }
             if (protocol == ModelApiProtocolEnum.VIDEO_GENERATIONS) {
                 return VideoUsageExtractor.CODE;
             }
             if (protocol == ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS
-                    || protocol == ModelApiProtocolEnum.AUDIO_TRANSLATIONS
-                    || protocol == ModelApiProtocolEnum.AUDIO_SPEECH) {
+                || protocol == ModelApiProtocolEnum.AUDIO_TRANSLATIONS
+                || protocol == ModelApiProtocolEnum.AUDIO_SPEECH) {
                 return AudioUsageExtractor.CODE;
             }
         }
@@ -222,8 +227,8 @@ public class UsageExtractorRegistry {
             return null;
         }
         return dataService.getActiveBillingRule(
-                context.model().getBillingRuleCode(),
-                context.model().getModelFamilyCode()
+            context.model().getBillingRuleCode(),
+            context.model().getModelFamilyCode()
         );
     }
 }

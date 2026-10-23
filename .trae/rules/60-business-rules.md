@@ -14,12 +14,12 @@ alwaysApply: false
 - **三级回退**：模型 `billing_rule_code` → 模型族精确匹配 → `model_family IS NULL` 默认规则。
 - TOKEN 计算器：`NormalizedUsageContext.pricingPlan()` 派生访问器（空/未知 → FIXED）；`TokenBillingModeCalculator` switch fixed / tiered / peakOffPeak + 共用 assemble；**单价唯一来源 `BillingConfig.PricingPlan`**。
 - 缓存变长：命中 10min / 未命中 30s，key `(ruleCode, modelFamily)`。
-- 厂商语义差异：OpenAI `prompt_tokens` **含**缓存 token，Anthropic **不含**；`AnthropicUsageExtractor` 加回 cache 才是总量语义。
+- 厂商语义差异：OpenAI `prompt_tokens` **含**缓存 token，Anthropic **不含**；`AnthropicUsageExtractor` 加回 cache 才是总量语义。（口径归属与双视图纪律见 §8）
 - billingMode(8) × pricingPlan(3) **正交**；前端 `utils/billingTier.ts` / `utils/billingPrice.ts`，`UNIT_PRICE_PRECISION = 8`。
 - ⭐ `NormalizedUsageDetail.cost` 是 **String**（8 位小数 `toPlainString()`）——Jackson 默认序列化对 <1e-6 会输出科学计数法（`1E-8`）；唯一构造点 `AbstractBillingModeCalculator.detail()`。
 - ⚠ config_json 是 `{pricing:{...}}` **嵌套结构**，扁平写会被 ignoreUnknown 静默成 `pricing=null`。
 - ABSOLUTE 高低峰：`PhaseDecision` 四元组，取价走 `matchedRule().unitPrices()` **不乘倍率**；MULTIPLIER 模式不变。
-- BillingUsage 按模式拆分：sealed 接口 + Token / Image / Video / Audio 四实现；媒体内嵌 `TokenBillingUsage`，`tokenUsage()` 默认方法。`UsageExtractor<T>`：`empty()` + `extractUsage(body, requestBody)`。
+- BillingUsage 按模式拆分：sealed 接口 + Token / Image / Video / Audio 四实现；媒体内嵌 `TokenBillingUsage`，`tokenUsage()` 默认方法。`UsageExtractor<T>`：`empty()` / `extractUsage(body, requestBody)` 返回 **`UsageExtractItem<T>` 双视图**（`billing` 计费输入 + `usage` 统一用量视图），详见 §8。
 
 ## 2. 频控与额度
 
@@ -46,8 +46,8 @@ alwaysApply: false
 
 ## 5. 流式 / knot_extend
 
-- Spring 6.2：`exchange(Class, boolean)` / `onStatus` 已移除；取原始响应用 `exchange((req, res) -> res, false)`，**不要**再链 `.retrieve()`。
-- MockMvc 测 `StreamingResponseBody` 必须 `asyncStarted()` + `getAsyncResult()`。前端 SSE 走 fetch（30s 超时）。
+- 上游流式（2026-10-20 批2 起，Netty 栈）：取流**只能** `retrieve().onStatus(...).toEntityFlux(DataBuffer.class)`。`exchangeToMono` 会在 handler 返回后调 `releaseBody()` 把未消费的响应体整个吞掉（`UpstreamWebClientStreamingTest` 钉住）。⚠ 旧规则「取原始响应用 `exchange((req,res)->res,false)`、不要再链 `.retrieve()`」作废——那是 Servlet 栈时期针对 RestClient 的写法，与现行 WebClient 实现矛盾，以代码为准。
+- 流式测试（2026-10-20 起）：**MockMvc 已不可用**（网关是 Netty 栈，无 Servlet）。流式契约靠 ① 直接调方法 + 反射注解契约检查（`WebTestClient.bindToController` 的 mock codec 管线跑不通 multipart，别走）；② 真启冒烟 s9（首字节 ≪ 总耗时、`knot_extend` 恰好 1 次且在 `[DONE]` 前）。前端 SSE 仍走 fetch（30s 超时）。
 - `knot_extend` = `{usage, billing}`，raw usage 不透传；整包作响应体字段，SSE 作独立 `data:` 事件（`[DONE]` 前插入）；**usage 用 snake_case，billing 用驼峰**。
 
 ## 6. 操作日志
@@ -90,3 +90,74 @@ alwaysApply: false
 - 模式值无法识别 → **启动失败**，不静默按单节点跑。
 - 命名：后缀限白名单（**没有 `Adapter` 后缀）——门面 `RedisCache`、模式枚举 `StoreMode`、归一器 `StoreModeResolver`（`gateway/store/`，各域共用的选型词表，不构成独立 cache 层）。
 - ⚠ `RedisCache` / `Redis*Store` **无自动化单测**（本机无 testcontainers），只能靠真启冒烟；配置归一与 fail-hard 契约**有**单测（`StoreModeResolverTest` / `RedisCacheFailHardTest`）。
+
+## 8. 用量提取：双视图一次提取与口径单一来源（2026-10-23）
+
+上游用量有两类消费者：**计费**（按 sealed `BillingUsage` 分派计算器）与**对外展示**（`knot_extend.usage` 的 `ModelUsage`）。二者字段集不同（媒体计费的 `pixels`/`sound`/`reference` 不在 `ModelUsage`），**不可互相替代**，故一次提取同时产出双视图。
+
+### 8.1 契约
+
+- `UsageExtractor<T>` 返回 `UsageExtractItem<T>(T billing, ModelUsage usage)`；`empty()` / `extractUsage(...)` / `extractUsageBody(...)` / `extractEventStreamUsage(...)` 一律返回双视图。
+- `billing` 恒非空（无用量时用对应 `empty()`）；`usage` 可为 `null`（无可归一化用量）。
+- **不放原始 JSON**：原始 usage 仍由 `UsageAccounting.rawUsage` / `rawBody` 承载，供审计与 `upstreamUsage` 透出。
+
+### 8.2 口径归属（核心红线）
+
+⭐ **两侧 token 总量与缓存读写各档一律取自 `billing`**；只有「明细拆分」从原始 usage 补取（输入 image/video token、输出 reasoning token）与媒体计数兜底。唯一投影入口 `ModelUsageNormalizer.fromBilling(BillingUsage, rawBody)`。
+
+⭐ **禁止启发式猜协议语义**：不得按「字段名是否存在」推断缓存是否已含在输入总量里。历史教训——`ModelUsageNormalizer` 曾以「有 `prompt_tokens` 就认为输入已含缓存」判语义，与计费链分属两条解析链、别名表与语义判断各自维护，必然漂移。协议语义由**提取器在自己的边界内一次性决定**（Anthropic 走 `withCacheCountedInInput()`，Converse 走 `BedrockConverseUsageSupport`）。
+
+> 收益表述纪律：这套改造的价值是**消除口径分裂**（单一来源、只决策一次），**不是减少解析次数**——解析工作量仍在，别按性能收益来验收。
+
+### 8.3 协议口径表
+
+| 协议 | 输入总量是否已含缓存 | 处理 |
+|---|---|---|
+| OpenAI Chat Completions | 是 | 直接用上报的 `prompt_tokens` |
+| OpenAI Responses | 是（按 OpenAI 语义） | 直接用 `input_tokens`；usage 可能在 `response.usage`，用 `UsageRawReader` 定位 |
+| Anthropic Messages | 否 | `input_tokens + cacheRead + cacheWrite`（5m/1h 明细优先） |
+| AWS Bedrock Converse | 否 | `inputTokens + cacheReadInputTokens + cacheWriteInputTokens` |
+
+⭐ 协议差异的**消解点是 per-binding 提取器绑定**（`kb_model_api_bindings.usage_extractor` / `stream_usage_extractor`）。默认兜底 `DEFAULT-TOKEN` 按 OpenAI「已含缓存」语义。
+⚠ 任何**非 OpenAI 缓存语义**的模型必须**显式绑定**对应提取器，不能靠默认兜底——否则输入侧会少算缓存。
+
+### 8.4 输出层纪律与失败口径（以代码为准）
+
+- ⭐ 输出层（`KnotExtendPayload`）**只读 `accounting.usage()`**，禁止二次解析原始 usage，禁止再走 `fromSource` 一类入口。
+- ⭐ **没有兜底提取器**：`requireExtractor()` 预检到「显式配置了未知 extractor code」即在**响应头写出之前**抛 `IllegalStateException`；未配置而走默认提取器属**合法路径**，不抛。
+- ⭐ **口径错配 fail-fast**：上游回了非零用量、提取器却提取成空 → `log.error` + 抛 `IllegalStateException`。判据 `hasPositiveNumber(rawUsage)`（递归查非零数值）用来区分「提取器读不出来」与「上游合法报零」。
+  **绝不静默记零账**——零账会把问题推迟到对账才暴露，与 §7.1 的 fail-hard 同一哲学。
+- 上游未上报 / 全零 usage → `log.warn`，**合法零用量，不失败**。
+- 响应体非法 JSON → 抛 `IllegalStateException`，不静默降级成 `null`（否则「解析失败」与「上游没回 usage」无法区分）。
+
+> 历史沿革：本域曾有一条 `adapter.extractUsage` 兜底链（提取器缺失时回落适配器实现），**现已移除**——配置错即失败，不再静默回落。
+
+### 8.5 媒体计量
+
+- 媒体计量（张数 / 秒数）进 usage 视图，取自 `billing`。
+- ⭐ 双报模型（如 gpt-image-1 同时上报 token 与图片）**内嵌 token 必须保留**在 usage 视图，不得只出媒体计数（否则 `total_tokens` 从「有」变「无」）。
+- 媒体 `BillingUsage` 的 `pixels` / `width` / `height` / `sound` / `reference` 只服务计费，**不因 usage 视图而改**。
+
+### 8.6 SSE 合并
+
+- 双视图**一起**参与 merge / 选择，禁止后续重建。接口默认 `extractEventStreamUsage` 用 `UsageExtractItem.mergeMax`：billing 按分量取最大，usage 取累计 token 总量更大的完整视图。
+- ⚠ 生产 `ProxyStreamingFlux.UsageState.merge` 按 `totalTokens()` 选最大事件：**纯媒体响应 token=0 时会保首事件**（既有局限，已知，本批未改）。
+
+### 8.7 不变量与测试
+
+```
+billing.inputTokens  == usage.input.tokens.total()
+billing.outputTokens == usage.output.tokens.total()
+billing.totalTokens  >= billing.inputTokens + billing.outputTokens
+usage.totalTokens    >= usage.input.tokens.total() + usage.output.tokens.total()
+```
+
+`usage.input.tokens.total()` 含缓存读写与 unclassified；`usage.output.tokens.total()` 含 reasoning（reasoning 是 output 的组成部分，计费上计入 output 总量，展示才拆出）。
+
+新增协议 / 字段必须补三类测试：协议字段归一、双视图不变量、全链路（registry → accounting → payload）。
+
+### 8.8 契约变更纪律
+
+- ⭐ 一次性迁移，**不留旧返回类型的兼容重载**（项目不做历史包袱）。
+- 改前全量 grep 调用方，改后再 grep 残留。调用方清单必须含：**接口默认方法**、`UsageExtractorRegistry`（含 adapter 兜底）、影子链 `BillingFactAssembler`、路由判定、**所有提取器测试**与用到 `UsageAccounting.of(...)` 的测试构造点。
+- ⚠ 影子链只消费 `billing` 半边，不必强制其产出 usage；路由判定（`RoutingTestBillingVerdictService`）只镜像选 extractor code，真正解析委托影子链——**不存在第三条别名字链**。

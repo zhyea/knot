@@ -50,7 +50,10 @@ model       → 领域值对象（非表映射）
 `Service` `Support` `Source` `Resolver` `Registry` `Runner` `Provider` `Migrator`
 `Controller` `Converter` `Mapper` `Entity` `Dto` `Vo` `Item` `Request` `Response`
 `Properties` `Configuration` `Constants` `Enum` `Exception` `Cache` `Store`
-`Handler` `Dispatcher` `Descriptor` `Context` `Sink` `Writer` `Extractor` `Calculator` `Policy` `Template`
+`Handler` `Dispatcher` `Descriptor` `Context` `Sink` `Writer` `Extractor` `Calculator` `Policy` `Template` `Publisher`（2026-10-18 robin 拍板 `KafkaPublisher` 补入）
+
+> 判例（2026-10-23）：双视图载体命名评审**否决** `UsageExtractResult`——`Result` **不在白名单**；改用 `UsageExtractItem`（`Item` 在白名单内）。
+> 拿不准后缀时按此判例办：先查白名单，**不在即换名**，不要为了顺口自造。
 
 ### 4.2 service 包纪律
 

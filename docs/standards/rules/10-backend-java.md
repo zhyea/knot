@@ -44,6 +44,9 @@ model       → 领域值对象（非表映射）
 `Properties` `Configuration` `Constants` `Enum` `Exception` `Cache` `Store`
 `Handler` `Dispatcher` `Descriptor` `Context` `Sink` `Writer` `Extractor` `Calculator` `Policy` `Template` `Publisher`（2026-10-18 robin 拍板 `KafkaPublisher` 补入）
 
+> 判例（2026-10-23）：双视图载体命名评审**否决** `UsageExtractResult`——`Result` **不在白名单**；改用 `UsageExtractItem`（`Item` 在白名单内）。
+> 拿不准后缀时按此判例办：先查白名单，**不在即换名**，不要为了顺口自造。
+
 ### 4.2 service 包纪律
 
 - `org.chobit.knot.gateway.service` 包**顶层只允许 `@Service` 业务服务**（`XxxService`）。
@@ -107,7 +110,9 @@ model       → 领域值对象（非表映射）
 - **枚举双源不混用**：代码枚举经 `GET /api/common/enums` 下发；DB 只留 `scope_type` / `discount_type` / `channel` / `model_family`。
 - **可空绑定列的 mapper `<set>` 不能用 `<if>` 包**（会写出 `set` 空语法错误）。
 - `PageQuery` 加字段要连带改所有 `new PageQuery(null × n)`。
-- **JsonKit 收敛**：外部只用 `fromJson` / `toJson` / `parse`。
+- ⭐ **record 加语义字段优先补便利构造**：新增字段时提供一个旧参数列表的便利构造（新字段取默认值），让既有调用点与测试桩零改动。不要无脑要求所有调用点补参数（噪声大、易漏）。先例 `BillingFact`（加 `extractorFallback` / `usageAbsent` 时保留 6 参构造）。
+- **JsonKit 分两档，别用错**：`fromJson` / `toJson` / `parse` 是**吞异常**入口（失败 `log.error` 后返回 `null`）；`fromJsonOrThrow` / `toJsonOrThrow` / `parseOrThrow` 上抛受检 `JsonProcessingException`。
+  ⭐ 判据：**如果 `null` 会与「对端没给」混淆，就必须用 OrThrow 档**。计费、鉴权、任何影响正确性的热路径一律 OrThrow。先例 `UsageRawReader.readMap`（曾因吞异常把「响应非法 JSON」与「上游没回 usage」混为一谈，见 60 §8.4）。
 - **MapStruct 报 "Unmapped target" 常是真 bug**，不要无脑 `@Mapping(target = "x", ignore = true)`。
 - 无历史包袱：**字段变更全链路一次做干净，不留兼容兜底/冗余列，不写回填**；`schema.sql` + `data.sql` 即唯一权威。
 
@@ -122,6 +127,7 @@ model       → 领域值对象（非表映射）
 
 - ⚠⚠ **JDK 25 + Mockito inline 不能 mock 任何具体类**（Byte Buddy 无法 instrument 类层级）。测试替身用**子类覆写**（先例 `CountingSnapshotCache`）；mock 接口不受影响。
 - 先写复现测试再改代码；改完反向验证。
+- ⭐ **测试桩要传真实依赖，不为测试给生产代码加 null 防御**：桩里传 `null` 撞 NPE 时，修桩（换真实实现或最小可用实例），**不要**在生产代码加 `if (x == null)` 兜底——那等于把桩的缺陷固化进生产语义。先例 `UpstreamWebClientEndToEndTest` 的 `UsageExtractorRegistry` 桩改用真实 `UsageExtractorCatalog`。
 
 ## 8. Lombok 应用规范（2026-10-15 立规，robin 拍板）
 

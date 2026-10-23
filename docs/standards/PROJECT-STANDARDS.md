@@ -15,7 +15,7 @@ docs/standards/
 │   ├── 30-database-sql.md    表前缀、迁移、逻辑删除四必配
 │   ├── 40-plugin.md          插件架构与敏感词拓扑
 │   ├── 50-verification.md    三门禁、真启冒烟、测试纪律
-│   ├── 60-business-rules.md  计费/频控/重试/路由/流式
+│   ├── 60-business-rules.md  计费/用量提取/频控/重试/路由/流式
 │   └── 70-delivery.md        落盘位置、git 纪律、收口检查表
 └── generate-tool-rules.py    ← 生成器：把 rules/ 分发到各工具的规则目录
 ```

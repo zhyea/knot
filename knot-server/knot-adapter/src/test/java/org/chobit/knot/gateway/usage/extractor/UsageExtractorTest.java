@@ -64,6 +64,27 @@ class UsageExtractorTest {
                 "默认提取器只认 snake_case——这是 BEDROCK_CONVERSE 提取器存在的理由");
     }
 
+    private final EmptyAllowedTokenUsageExtractor emptyAllowedExtractor =
+            new EmptyAllowedTokenUsageExtractor(new TokenBillingModeCalculator());
+
+    @Test
+    void shouldDeclareEmptyAllowedOnTolerantExtractorOnly() {
+        assertFalse(defaultExtractor.allowsEmptyUsage(),
+                "默认提取器未声明允许 → 有正数却读不出应判口径错配");
+        assertTrue(emptyAllowedExtractor.allowsEmptyUsage(),
+                "容忍空用量的提取器必须显式声明，不能靠注册表全局猜");
+    }
+
+    @Test
+    void shouldShareTokenUsageSemanticsWithDefaultExtractor() {
+        Map<String, Object> body = Map.of("usage", Map.of(
+                "prompt_tokens", 700, "completion_tokens", 200, "total_tokens", 900));
+
+        assertEquals(defaultExtractor.extractUsage(body).billing(),
+                emptyAllowedExtractor.extractUsage(body).billing(),
+                "两者取量口径必须完全一致，差别只在是否允许空用量");
+    }
+
     // ---------- DEFAULT / ANTHROPIC：token 口径 ----------
 
     @Test

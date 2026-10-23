@@ -114,6 +114,18 @@ class UsageExtractorRegistryTest {
     }
 
     @Test
+    @DisplayName("提取器声明允许全零：即使上游 usage 有正数也放行")
+    void allowsEmptyUsageWhenExtractorDeclaresIt() {
+        UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem(), true));
+
+        UsageAccounting accounting = registry.extract(
+                "{\"usage\":{\"input_tokens\":120,\"output_tokens\":30}}", context(binding(STUB_CODE)));
+
+        assertNotNull(accounting, "允许全零由提取器声明，注册表不再据「有正数」跨协议判错");
+        assertTrue(accounting.billing().isEmpty());
+    }
+
+    @Test
     @DisplayName("camelCase usage 配默认提取器：属口径错配，必须失败")
     void failsOnCamelCaseUsageWithDefaultExtractor() {
         UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem()));
@@ -165,9 +177,20 @@ class UsageExtractorRegistryTest {
     private static final class StubExtractor implements UsageExtractor<TokenBillingUsage> {
 
         private final UsageExtractItem<TokenBillingUsage> result;
+        private final boolean emptyAllowed;
 
         private StubExtractor(UsageExtractItem<TokenBillingUsage> result) {
+            this(result, false);
+        }
+
+        private StubExtractor(UsageExtractItem<TokenBillingUsage> result, boolean emptyAllowed) {
             this.result = result;
+            this.emptyAllowed = emptyAllowed;
+        }
+
+        @Override
+        public boolean allowsEmptyUsage() {
+            return emptyAllowed;
         }
 
         @Override

@@ -44,6 +44,20 @@ public interface UsageExtractor<T extends BillingUsage> {
     }
 
     /**
+     * 该提取器是否允许「提取结果为空」——即使上游 {@code usage} 里存在正数。
+     *
+     * <p>默认 {@code false}：上游回了非零用量却提取不出来，视为口径错配并直接失败。
+     * 少数供应商的 {@code usage} 会带本提取器不消费的字段（如 {@code reasoning_tokens}、
+     * 媒体时长），此时提取出全零是<b>合法</b>的，必须由该提取器显式覆写为 {@code true} 声明。</p>
+     *
+     * <p>这是<b>提取器边界的一次性决策</b>，不是运行期启发式：能不能为空由绑定在本模型上的
+     * 提取器决定，注册表不再跨协议猜测「有正数就等于该提取器读得出来」。</p>
+     */
+    default boolean allowsEmptyUsage() {
+        return false;
+    }
+
+    /**
      * 该解析方案支持的计费模式：前端下拉按已绑计费规则的 {@code billingMode} 收敛候选，缩小筛选范围。
      *
      * <p>与泛型 {@code T} 一一对应：token 记录 ↔ TOKEN，各媒体记录 ↔ 各自的模式；
