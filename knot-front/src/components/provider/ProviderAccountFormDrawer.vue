@@ -10,7 +10,7 @@
   >
 
     <el-scrollbar max-height="calc(100vh - 140px)">
-      <el-form v-loading="detailLoading" :model="form" label-width="80px">
+      <el-form v-loading="detailLoading" :model="form" label-width="120px">
         <div class="slot-body">
           <div class="section-head">
             <div>
