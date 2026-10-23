@@ -22,6 +22,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * {@link ModelUsageNormalizer} 与 {@link ModelUsage} 的归一化行为测试。
  *
+ * <p>2026-10-23 双视图一次提取后，{@code fromBilling} 是唯一投影入口：两侧总量与缓存取
+ * {@code billing}，明细（reasoning / image / video token、媒体计数）从原始响应体补取。
+ * 测试通过 {@code TokenBillingUsage.from(...)}（Anthropic 再加 {@code withCacheCountedInInput}）
+ * 构造与生产一致的计费输入。</p>
+ *
  * <p>覆盖：OpenAI 字段别名、Anthropic 缓存 5m/1h 互斥、unclassified 推算、
  * 多模态张数兜底、空 usage、以及 JSON 输出的 omitempty 语义。</p>
  */
@@ -36,7 +41,8 @@ class ModelUsageNormalizerTest {
         raw.put("prompt_tokens_details", Map.of("cached_tokens", 100));
         raw.put("completion_tokens_details", Map.of("reasoning_tokens", 50));
 
-        ModelUsage usage = ModelUsageNormalizer.fromRaw(raw);
+        ModelUsage usage = ModelUsageNormalizer.fromBilling(
+                TokenBillingUsage.from(raw), Map.of("usage", raw));
 
         assertNotNull(usage);
         assertEquals(1200L, usage.totalTokens());
@@ -60,8 +66,9 @@ class ModelUsageNormalizerTest {
                 "ephemeral_5m_input_tokens", 20,
                 "ephemeral_1h_input_tokens", 10
         ));
+        TokenBillingUsage billing = TokenBillingUsage.from(raw).withCacheCountedInInput();
 
-        ModelUsage usage = ModelUsageNormalizer.fromRaw(raw);
+        ModelUsage usage = ModelUsageNormalizer.fromBilling(billing, Map.of("usage", raw));
 
         assertNotNull(usage);
         assertEquals(20L, usage.input().tokens().cacheWrite5m());
@@ -86,8 +93,9 @@ class ModelUsageNormalizerTest {
                 "ephemeral_5m_input_tokens", 400,
                 "ephemeral_1h_input_tokens", 100
         ));
+        TokenBillingUsage billing = TokenBillingUsage.from(raw).withCacheCountedInInput();
 
-        ModelUsage usage = ModelUsageNormalizer.fromRaw(raw);
+        ModelUsage usage = ModelUsageNormalizer.fromBilling(billing, Map.of("usage", raw));
 
         assertNotNull(usage);
         // 输入总量 = 700 + 300 + 400 + 100 = 1500；text = 1500 - (300 + 400 + 100) = 700
@@ -97,6 +105,7 @@ class ModelUsageNormalizerTest {
         assertEquals(100L, usage.input().tokens().cacheWrite1h());
         // 与 billing 视图（走 BillingUsage 总量语义）必须同口径，否则两视图会打架
         assertEquals(1700L, usage.totalTokens());
+        assertEquals(billing.inputTokens(), usage.input().tokens().total());
     }
 
     @Test
@@ -109,7 +118,8 @@ class ModelUsageNormalizerTest {
         raw.put("video_tokens", 15);
         raw.put("prompt_tokens_details", Map.of("cached_tokens", 30));
 
-        ModelUsage usage = ModelUsageNormalizer.fromRaw(raw);
+        ModelUsage usage = ModelUsageNormalizer.fromBilling(
+                TokenBillingUsage.from(raw), Map.of("usage", raw));
 
         assertNotNull(usage);
         assertEquals(10L, usage.input().tokens().text());
@@ -128,7 +138,7 @@ class ModelUsageNormalizerTest {
                 "data", List.of(Map.of("url", "a"), Map.of("url", "b"), Map.of("url", "c"))
         );
 
-        ModelUsage usage = ModelUsageNormalizer.fromSource(null, body, TokenBillingUsage.empty());
+        ModelUsage usage = ModelUsageNormalizer.fromBilling(TokenBillingUsage.empty(), body);
 
         assertNotNull(usage);
         assertEquals(3L, usage.output().imageCount());
@@ -147,7 +157,8 @@ class ModelUsageNormalizerTest {
         body.put("usage", raw);
         body.put("data", List.of(Map.of("b64_json", "x"), Map.of("b64_json", "y")));
 
-        ModelUsage usage = ModelUsageNormalizer.fromSource(raw, body, null);
+        ImageBillingUsage billing = new ImageBillingUsage(TokenBillingUsage.from(raw), 2L, 0L, 0L, 0L);
+        ModelUsage usage = ModelUsageNormalizer.fromBilling(billing, body);
 
         assertNotNull(usage);
         assertEquals(2L, usage.output().imageCount());
@@ -163,7 +174,7 @@ class ModelUsageNormalizerTest {
                 "prompt_tokens_details", Map.of("cached_tokens", 20)
         ));
 
-        ModelUsage usage = ModelUsageNormalizer.fromSource(null, null, billing);
+        ModelUsage usage = ModelUsageNormalizer.fromBilling(billing, null);
 
         assertNotNull(usage);
         assertEquals(140L, usage.totalTokens());
@@ -196,9 +207,9 @@ class ModelUsageNormalizerTest {
 
     @Test
     void shouldReturnNullWhenNothingToNormalize() {
-        assertNull(ModelUsageNormalizer.fromSource(null, null, TokenBillingUsage.empty()));
-        assertNull(ModelUsageNormalizer.fromSource(Map.of(), null, null));
-        assertNull(ModelUsageNormalizer.fromRaw(null));
+        assertNull(ModelUsageNormalizer.fromBilling(TokenBillingUsage.empty(), null));
+        assertNull(ModelUsageNormalizer.fromBilling(null, null));
+        assertNull(ModelUsageNormalizer.mediaOnly(null));
     }
 
     @Test
@@ -207,7 +218,8 @@ class ModelUsageNormalizerTest {
         raw.put("input_tokens", 100);
         raw.put("output_tokens", 50);
 
-        ModelUsage usage = ModelUsageNormalizer.fromRaw(raw);
+        ModelUsage usage = ModelUsageNormalizer.fromBilling(
+                TokenBillingUsage.from(raw), Map.of("usage", raw));
         String json = JsonKit.toJson(usage);
         JsonNode node = JsonKit.parse(json);
 

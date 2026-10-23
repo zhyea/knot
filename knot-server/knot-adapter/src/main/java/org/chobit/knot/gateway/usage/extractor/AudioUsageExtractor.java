@@ -3,6 +3,8 @@ package org.chobit.knot.gateway.usage.extractor;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.model.AudioBillingUsage;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
+import org.chobit.knot.gateway.model.usage.UsageExtractItem;
+import org.chobit.knot.gateway.usage.ModelUsageNormalizer;
 import org.chobit.knot.gateway.usage.calculator.BillingModeCalculator;
 import org.chobit.knot.gateway.usage.calculator.SimpleBillingModeCalculator;
 import org.springframework.stereotype.Component;
@@ -49,14 +51,15 @@ public class AudioUsageExtractor implements UsageExtractor<AudioBillingUsage> {
     }
 
     @Override
-    public AudioBillingUsage empty() {
-        return AudioBillingUsage.empty();
+    public UsageExtractItem<AudioBillingUsage> empty() {
+        return UsageExtractItem.of(AudioBillingUsage.empty());
     }
 
     @Override
-    public AudioBillingUsage extractUsage(Map<String, Object> body, Map<String, Object> requestBody) {
+    public UsageExtractItem<AudioBillingUsage> extractUsage(Map<String, Object> body, Map<String, Object> requestBody) {
         TokenBillingUsage tokens = TokenBillingUsage.fromResponse(body);
         long durationSeconds = MediaUsageReaders.durationSeconds(MediaUsageReaders.rawUsage(body), body);
-        return new AudioBillingUsage(tokens, durationSeconds);
+        AudioBillingUsage billing = new AudioBillingUsage(tokens, durationSeconds);
+        return UsageExtractItem.of(billing, ModelUsageNormalizer.fromBilling(billing, body));
     }
 }

@@ -3,7 +3,6 @@ package org.chobit.knot.gateway.model.usage;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import org.chobit.knot.gateway.model.NormalizedUsage;
 import org.chobit.knot.gateway.model.UsageAccounting;
-import org.chobit.knot.gateway.usage.ModelUsageNormalizer;
 
 /**
  * 网关向调用方输出的 {@code knot_extend} 负载：同一份用量给出两种视图。
@@ -27,18 +26,14 @@ public record KnotExtendPayload(ModelUsage usage,
     /**
      * 由账目组装输出负载。
      *
-     * <p>{@code usage} 走两级兜底：优先对上游原始 usage 做归一化；
-     * 上游未上报 usage 时退回计费输入视图推断（多模态场景靠此保留张数 / 秒数）。</p>
+     * <p>{@code usage} 直接取提取器产出的统一用量视图（与 {@code billing} 同口径），
+     * 输出层不再二次解析原始 usage。</p>
      */
     public static KnotExtendPayload of(UsageAccounting accounting) {
         if (accounting == null || accounting.isEmpty()) {
             return null;
         }
-        ModelUsage usage = ModelUsageNormalizer.fromSource(
-                accounting.rawUsage(),
-                accounting.rawBody(),
-                accounting.billing()
-        );
+        ModelUsage usage = accounting.usage();
         NormalizedUsage billing = accounting.normalized();
         if (usage == null && billing == null) {
             return null;

@@ -44,7 +44,7 @@ class DecisionsUsageTest {
         Map<String, Object> body = JsonKit.fromJson(RESPONSE, new TypeReference<>() {
         });
 
-        TokenBillingUsage usage = extractor.extractUsage(body);
+        TokenBillingUsage usage = extractor.extractUsage(body).billing();
 
         assertEquals(476L, usage.inputTokens());
         assertEquals(70L, usage.outputTokens());
@@ -55,7 +55,7 @@ class DecisionsUsageTest {
     @Test
     void readsUsageFromRawResponseBody() {
         BillingUsageHolder holder = new BillingUsageHolder();
-        holder.usage = extractor.extractUsageBody(RESPONSE, Map.of());
+        holder.usage = extractor.extractUsageBody(RESPONSE, Map.of()).billing();
 
         assertFalse(holder.usage.isEmpty());
         assertEquals(476L, holder.usage.tokenUsage().inputTokens());

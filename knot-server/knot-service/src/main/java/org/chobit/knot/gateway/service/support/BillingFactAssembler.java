@@ -14,6 +14,7 @@ import org.chobit.knot.gateway.model.ImageBillingUsage;
 import org.chobit.knot.gateway.model.NormalizedUsage;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.model.VideoBillingUsage;
+import org.chobit.knot.gateway.model.usage.UsageExtractItem;
 import org.chobit.knot.gateway.usage.UsageNormalizationSupport;
 import org.chobit.knot.gateway.usage.extractor.UsageExtractor;
 import org.chobit.knot.gateway.usage.extractor.UsageExtractorCatalog;
@@ -79,7 +80,9 @@ public class BillingFactAssembler {
     private BillingUsage extractUsage(UsageExtractor<?> extractor, BillingFactAssemblyInput input) {
         Map<String, Object> body = input.upstreamRawBody() == null ? Map.of() : input.upstreamRawBody();
         Map<String, Object> requestBody = input.requestBody() == null ? Map.of() : input.requestBody();
-        BillingUsage billing = extractor.extractUsage(body, requestBody);
+        // 影子链只消费计费半边：提取器返回双视图，这里取 billing
+        UsageExtractItem<?> item = extractor.extractUsage(body, requestBody);
+        BillingUsage billing = item == null ? null : item.billing();
         return billing == null ? TokenBillingUsage.empty() : billing;
     }
 

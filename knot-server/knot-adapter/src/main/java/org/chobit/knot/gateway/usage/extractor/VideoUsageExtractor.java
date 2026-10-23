@@ -3,6 +3,8 @@ package org.chobit.knot.gateway.usage.extractor;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.model.VideoBillingUsage;
+import org.chobit.knot.gateway.model.usage.UsageExtractItem;
+import org.chobit.knot.gateway.usage.ModelUsageNormalizer;
 import org.chobit.knot.gateway.usage.calculator.BillingModeCalculator;
 import org.chobit.knot.gateway.usage.calculator.VideoBillingModeCalculator;
 import org.springframework.stereotype.Component;
@@ -50,12 +52,12 @@ public class VideoUsageExtractor implements UsageExtractor<VideoBillingUsage> {
     }
 
     @Override
-    public VideoBillingUsage empty() {
-        return VideoBillingUsage.empty();
+    public UsageExtractItem<VideoBillingUsage> empty() {
+        return UsageExtractItem.of(VideoBillingUsage.empty());
     }
 
     @Override
-    public VideoBillingUsage extractUsage(Map<String, Object> body, Map<String, Object> requestBody) {
+    public UsageExtractItem<VideoBillingUsage> extractUsage(Map<String, Object> body, Map<String, Object> requestBody) {
         TokenBillingUsage tokens = TokenBillingUsage.fromResponse(body);
         long durationSeconds = MediaUsageReaders.durationSeconds(MediaUsageReaders.rawUsage(body), body);
         MediaUsageReaders.MediaSize size = MediaUsageReaders.sizeOf(requestBody);
@@ -63,7 +65,8 @@ public class VideoUsageExtractor implements UsageExtractor<VideoBillingUsage> {
                 "generate_audio", "with_audio", "enable_audio", "audio_enabled", "sound");
         boolean reference = MediaUsageReaders.flag(requestBody,
                 "input_reference", "reference", "reference_image", "reference_video", "reference_url", "reference_images");
-        return new VideoBillingUsage(tokens, durationSeconds,
+        VideoBillingUsage billing = new VideoBillingUsage(tokens, durationSeconds,
                 size.pixels(), size.width(), size.height(), sound, reference);
+        return UsageExtractItem.of(billing, ModelUsageNormalizer.fromBilling(billing, body));
     }
 }

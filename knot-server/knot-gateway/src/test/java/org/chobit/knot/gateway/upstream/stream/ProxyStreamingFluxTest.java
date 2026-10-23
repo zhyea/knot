@@ -8,6 +8,7 @@ import org.chobit.knot.gateway.model.UsageAccounting;
 import org.chobit.knot.gateway.runtime.FirstTokenHeaderWriter;
 import org.chobit.knot.gateway.runtime.RecordingHttpExchange;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
+import org.chobit.knot.gateway.usage.ModelUsageNormalizer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -261,8 +262,10 @@ class ProxyStreamingFluxTest {
                 int input = eventData.contains("_tokens\":30") ? 30 : 10;
                 int output = eventData.contains("output_tokens\":9") ? 9 : 5;
                 Map<String, Object> usage = Map.of("input_tokens", input, "output_tokens", output);
-                return UsageAccounting.of(usage, Map.of("usage", usage),
-                        TokenBillingUsage.from(usage), null);
+                TokenBillingUsage billing = TokenBillingUsage.from(usage);
+                // 双视图：提取器必须同时产出 usage 视图，否则 knot_extend 无法注入
+                return UsageAccounting.of(usage, Map.of("usage", usage), billing,
+                        ModelUsageNormalizer.fromBilling(billing, Map.of("usage", usage)), null);
             }
         };
     }

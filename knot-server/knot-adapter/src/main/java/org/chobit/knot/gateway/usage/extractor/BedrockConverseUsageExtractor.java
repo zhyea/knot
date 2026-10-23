@@ -3,6 +3,8 @@ package org.chobit.knot.gateway.usage.extractor;
 import org.chobit.knot.gateway.adapter.aws.BedrockConverseUsageSupport;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
+import org.chobit.knot.gateway.model.usage.UsageExtractItem;
+import org.chobit.knot.gateway.usage.ModelUsageNormalizer;
 import org.chobit.knot.gateway.usage.calculator.BillingModeCalculator;
 import org.chobit.knot.gateway.usage.calculator.TokenBillingModeCalculator;
 import org.springframework.stereotype.Component;
@@ -58,13 +60,14 @@ public class BedrockConverseUsageExtractor implements UsageExtractor<TokenBillin
     }
 
     @Override
-    public TokenBillingUsage empty() {
-        return TokenBillingUsage.empty();
+    public UsageExtractItem<TokenBillingUsage> empty() {
+        return UsageExtractItem.of(TokenBillingUsage.empty());
     }
 
     @Override
-    public TokenBillingUsage extractUsage(Map<String, Object> body, Map<String, Object> requestBody) {
-        return BedrockConverseUsageSupport.fromResponse(body);
+    public UsageExtractItem<TokenBillingUsage> extractUsage(Map<String, Object> body, Map<String, Object> requestBody) {
+        TokenBillingUsage billing = BedrockConverseUsageSupport.fromResponse(body);
+        return UsageExtractItem.of(billing, ModelUsageNormalizer.fromBilling(billing, body));
     }
 
     /**

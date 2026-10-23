@@ -4,8 +4,10 @@ import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.model.NormalizedUsage;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.model.ResolvedRouting;
+import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.model.UsageAccounting;
 import org.chobit.knot.gateway.model.usage.KnotExtendPayload;
+import org.chobit.knot.gateway.usage.ModelUsageNormalizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -149,10 +151,12 @@ class GatewayRequestHandlerReturnUsageDetailTest {
         ResolvedRouting routing = new ResolvedRouting(
                 1L, "rule-a", 10L, "sk-routing-key", consumerReturnUsageDetail,
                 List.of(), null, null, null);
+        Map<String, Object> rawUsage = Map.of("prompt_tokens", 3, "completion_tokens", 2, "total_tokens", 5);
         UsageAccounting usage = UsageAccounting.of(
-                Map.of("prompt_tokens", 3, "completion_tokens", 2, "total_tokens", 5),
+                rawUsage,
                 null,
                 null,
+                ModelUsageNormalizer.fromBilling(TokenBillingUsage.from(rawUsage), null),
                 new NormalizedUsage(5L, "0.001", "CNY", "v1", List.of()));
         GatewayExchange exchange = new GatewayExchange(Map.of(), MediaType.APPLICATION_JSON, http);
         exchange.proxyResult(new ProxyResult(RESPONSE_BODY, 1L, 2L, usage));

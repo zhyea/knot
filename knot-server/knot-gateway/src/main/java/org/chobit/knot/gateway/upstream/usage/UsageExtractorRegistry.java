@@ -8,8 +8,11 @@ import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.model.NormalizedUsage;
+import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.model.UsageAccounting;
+import org.chobit.knot.gateway.model.usage.UsageExtractItem;
 import org.chobit.knot.gateway.service.GatewayDataService;
+import org.chobit.knot.gateway.usage.ModelUsageNormalizer;
 import org.chobit.knot.gateway.usage.extractor.AnthropicUsageExtractor;
 import org.chobit.knot.gateway.usage.extractor.AudioUsageExtractor;
 import org.chobit.knot.gateway.usage.extractor.ImageUsageExtractor;
@@ -69,16 +72,22 @@ public class UsageExtractorRegistry {
         Instant occurredAt = Instant.now();
         if (extractor != null) {
             // 请求体一并给提取器：像素 / 是否有声音 / 是否有参考等计费属性只在请求侧
-            BillingUsage billing = extractor.extractUsageBody(body, requestBody);
-            if (!billing.isEmpty()) {
-                return normalize(billing, rawBody, rawUsage, billingRule, requestBody, occurredAt, extractor.calculator());
+            UsageExtractItem<?> item = extractor.extractUsageBody(body, requestBody);
+            if (!item.billing().isEmpty()) {
+                return normalize(item, rawBody, rawUsage, billingRule, requestBody, occurredAt, extractor.calculator());
             }
         }
         BillingUsage billing = adapter.extractUsage(body, context);
-        return normalize(billing, rawBody, rawUsage, billingRule, requestBody, occurredAt, fallbackCalculator(context));
+        if (billing == null) {
+            billing = TokenBillingUsage.empty();
+        }
+        // 兜底路径同样产出双视图，避免输出层退回二次解析原始 usage
+        UsageExtractItem<BillingUsage> fallback =
+                UsageExtractItem.of(billing, ModelUsageNormalizer.fromBilling(billing, rawBody));
+        return normalize(fallback, rawBody, rawUsage, billingRule, requestBody, occurredAt, fallbackCalculator(context));
     }
 
-    private UsageAccounting normalize(BillingUsage billing,
+    private UsageAccounting normalize(UsageExtractItem<?> item,
                                       Map<String, Object> rawBody,
                                       Map<String, Object> rawUsage,
                                       BillingRuleEntity billingRule,
@@ -86,8 +95,8 @@ public class UsageExtractorRegistry {
                                       Instant occurredAt,
                                       BillingModeCalculator calculator) {
         NormalizedUsage normalized =
-                UsageNormalizationSupport.normalize(billing, billingRule, requestBody, occurredAt, calculator);
-        return UsageAccounting.of(rawUsage, rawBody, billing, normalized);
+                UsageNormalizationSupport.normalize(item.billing(), billingRule, requestBody, occurredAt, calculator);
+        return UsageAccounting.of(rawUsage, rawBody, item.billing(), item.usage(), normalized);
     }
 
     private Map<String, Object> requestBody(UpstreamRequestContext context) {

@@ -10,6 +10,7 @@ import org.chobit.knot.gateway.model.NormalizedUsageDetail;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.model.TrafficRejectDetail;
 import org.chobit.knot.gateway.model.UsageAccounting;
+import org.chobit.knot.gateway.usage.ModelUsageNormalizer;
 import org.chobit.knot.gateway.redis.RedisUnavailableException;
 import org.chobit.knot.gateway.runtime.GatewayRequestContext;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
@@ -380,6 +381,9 @@ class GatewayTrafficMsgDtoTest {
         Map<String, Object> raw = Map.of("prompt_tokens", 3, "completion_tokens", 2, "total_tokens", 5);
         NormalizedUsage normalized = new NormalizedUsage(5L, "0.00150000", "CNY", "v1",
                 List.of(new NormalizedUsageDetail("output", 2L, "0.00150000", "4.00000000")));
-        return UsageAccounting.of(raw, null, TokenBillingUsage.from(raw), normalized);
+        TokenBillingUsage billing = TokenBillingUsage.from(raw);
+        // 双视图：流量事件的 usage 字段取提取器产出的统一用量视图
+        return UsageAccounting.of(raw, null, billing,
+                ModelUsageNormalizer.fromBilling(billing, Map.of("usage", raw)), normalized);
     }
 }

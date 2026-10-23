@@ -63,7 +63,7 @@ class GatewayRequestHandlerStreamingTrafficTest {
 
     private UsageAccounting accounting(long tokens) {
         return UsageAccounting.of(Map.of("total_tokens", tokens),
-                null, null, new NormalizedUsage(tokens, null, null, "v1", List.of()));
+                null, null, null, new NormalizedUsage(tokens, null, null, "v1", List.of()));
     }
 
     @Test

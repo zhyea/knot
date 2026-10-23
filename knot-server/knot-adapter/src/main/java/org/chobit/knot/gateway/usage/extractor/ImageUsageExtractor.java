@@ -3,6 +3,8 @@ package org.chobit.knot.gateway.usage.extractor;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.model.ImageBillingUsage;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
+import org.chobit.knot.gateway.model.usage.UsageExtractItem;
+import org.chobit.knot.gateway.usage.ModelUsageNormalizer;
 import org.chobit.knot.gateway.usage.calculator.BillingModeCalculator;
 import org.chobit.knot.gateway.usage.calculator.SimpleBillingModeCalculator;
 import org.chobit.knot.gateway.util.MapNumberUtils;
@@ -51,12 +53,12 @@ public class ImageUsageExtractor implements UsageExtractor<ImageBillingUsage> {
     }
 
     @Override
-    public ImageBillingUsage empty() {
-        return ImageBillingUsage.empty();
+    public UsageExtractItem<ImageBillingUsage> empty() {
+        return UsageExtractItem.of(ImageBillingUsage.empty());
     }
 
     @Override
-    public ImageBillingUsage extractUsage(Map<String, Object> body, Map<String, Object> requestBody) {
+    public UsageExtractItem<ImageBillingUsage> extractUsage(Map<String, Object> body, Map<String, Object> requestBody) {
         TokenBillingUsage tokens = TokenBillingUsage.fromResponse(body);
         Map<String, Object> usage = MediaUsageReaders.rawUsage(body);
         // 张数：响应体 data 数组优先，usage 里的别名字段兜底
@@ -65,6 +67,7 @@ public class ImageUsageExtractor implements UsageExtractor<ImageBillingUsage> {
             count = MapNumberUtils.firstLong(usage, "image_count", "images", "n", "num_images");
         }
         MediaUsageReaders.MediaSize size = MediaUsageReaders.sizeOf(requestBody);
-        return new ImageBillingUsage(tokens, count, size.pixels(), size.width(), size.height());
+        ImageBillingUsage billing = new ImageBillingUsage(tokens, count, size.pixels(), size.width(), size.height());
+        return UsageExtractItem.of(billing, ModelUsageNormalizer.fromBilling(billing, body));
     }
 }

@@ -2,6 +2,8 @@ package org.chobit.knot.gateway.usage.extractor;
 
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
+import org.chobit.knot.gateway.model.usage.UsageExtractItem;
+import org.chobit.knot.gateway.usage.ModelUsageNormalizer;
 import org.chobit.knot.gateway.usage.calculator.BillingModeCalculator;
 import org.chobit.knot.gateway.usage.calculator.TokenBillingModeCalculator;
 import org.springframework.stereotype.Component;
@@ -49,13 +51,14 @@ public class AnthropicUsageExtractor implements UsageExtractor<TokenBillingUsage
     }
 
     @Override
-    public TokenBillingUsage empty() {
-        return TokenBillingUsage.empty();
+    public UsageExtractItem<TokenBillingUsage> empty() {
+        return UsageExtractItem.of(TokenBillingUsage.empty());
     }
 
     @Override
-    public TokenBillingUsage extractUsage(Map<String, Object> body, Map<String, Object> requestBody) {
+    public UsageExtractItem<TokenBillingUsage> extractUsage(Map<String, Object> body, Map<String, Object> requestBody) {
         // Anthropic 口径：缓存读写加回输入侧总量（与 AnthropicRequestAdapter 同一出口）
-        return TokenBillingUsage.fromResponse(body).withCacheCountedInInput();
+        TokenBillingUsage billing = TokenBillingUsage.fromResponse(body).withCacheCountedInInput();
+        return UsageExtractItem.of(billing, ModelUsageNormalizer.fromBilling(billing, body));
     }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.model.BillingUsage;
+import org.chobit.knot.gateway.model.usage.UsageExtractItem;
 import org.chobit.knot.gateway.usage.calculator.BillingModeCalculator;
 import org.chobit.knot.gateway.util.JsonKit;
 
@@ -11,7 +12,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 上游响应用量提取器：按协议把响应体（连同本次请求体）转成对应计费模式的 {@link BillingUsage}。
+ * 上游响应用量提取器：按协议把响应体（连同本次请求体）一次解析成双视图
+ * {@link UsageExtractItem}——计费输入 {@code billing} 与对外统一用量 {@code usage}。
  *
  * <p>泛型 {@code T} 与计费模式一一对应：DEFAULT/ANTHROPIC 产出 {@code TokenBillingUsage}，
  * IMAGE/VIDEO/AUDIO 产出各自的多模态用量记录。计算器按 sealed 类型分摄取量，
@@ -52,22 +54,22 @@ public interface UsageExtractor<T extends BillingUsage> {
     BillingModeCalculator calculator();
 
     /** 空用量：SSE 逐事件合并的起点，也是无用量响应的兜底 */
-    T empty();
+    UsageExtractItem<T> empty();
 
     /**
-     * 从上游响应体提取计费用量。
+     * 从上游响应体一次提取双视图用量。
      *
      * @param body        上游响应体（整包或单个 SSE 事件）
      * @param requestBody 本次请求体，可为 {@code null}
      */
-    T extractUsage(Map<String, Object> body, Map<String, Object> requestBody);
+    UsageExtractItem<T> extractUsage(Map<String, Object> body, Map<String, Object> requestBody);
 
     /** 无请求体场景的便捷重载（如单测） */
-    default T extractUsage(Map<String, Object> body) {
+    default UsageExtractItem<T> extractUsage(Map<String, Object> body) {
         return extractUsage(body, Map.of());
     }
 
-    default BillingUsage extractUsageBody(String responseBody, Map<String, Object> requestBody) {
+    default UsageExtractItem<T> extractUsageBody(String responseBody, Map<String, Object> requestBody) {
         if (StringUtils.isBlank(responseBody)) {
             return empty();
         }
@@ -78,8 +80,8 @@ public interface UsageExtractor<T extends BillingUsage> {
         return body == null || body.isEmpty() ? empty() : extractUsage(body, requestBody);
     }
 
-    default BillingUsage extractEventStreamUsage(String responseBody, Map<String, Object> requestBody) {
-        BillingUsage usage = empty();
+    default UsageExtractItem<T> extractEventStreamUsage(String responseBody, Map<String, Object> requestBody) {
+        UsageExtractItem<T> usage = empty();
         for (String line : responseBody.split("\\R")) {
             String trimmed = StringUtils.trim(line);
             if (!StringUtils.startsWith(trimmed, "data:")) {

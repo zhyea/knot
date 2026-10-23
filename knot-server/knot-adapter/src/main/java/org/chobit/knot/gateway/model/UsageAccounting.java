@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.model;
 
+import org.chobit.knot.gateway.model.usage.ModelUsage;
+
 import java.util.Map;
 
 /**
@@ -9,36 +11,43 @@ import java.util.Map;
  * <ul>
  *   <li>{@code rawUsage} / {@code rawBody}：上游原文，只做透传与审计，不参与任何计算；</li>
  *   <li>{@code billing}：内部计费输入视图（扁平），由各 {@code UsageExtractor} 按厂商规则产出；</li>
+ *   <li>{@code usage}：对外统一用量视图，由提取器在同一份协议上下文下产出，与 {@code billing} 同口径；</li>
  *   <li>{@code normalized}：按计费规则算出的金额视图，网关对外输出用。</li>
  * </ul>
  *
- * @param rawUsage 上游原始 {@code usage} 对象，上游未上报时为 {@code null}
- * @param rawBody  承载 {@code rawUsage} 的那一层响应体（整包为响应体本身，流式为单个 SSE 事件），
- *                 用于多模态维度（图片张数、音视频秒数）在 usage 缺失时的兜底推断
- * @param billing  内部计费输入视图
+ * <p>{@code usage} 与 {@code billing} 同为提取器的双视图产物（2026-10-23 方案）：输出层直接消费，
+ * 不再二次解析原始 usage。</p>
+ *
+ * @param rawUsage   上游原始 {@code usage} 对象，上游未上报时为 {@code null}
+ * @param rawBody    承载 {@code rawUsage} 的那一层响应体（整包为响应体本身，流式为单个 SSE 事件），
+ *                   仅用于审计与 {@code upstreamUsage} 透出
+ * @param billing    内部计费输入视图
+ * @param usage      对外统一用量视图，可为 {@code null}
  * @param normalized 计费结果视图
  */
 public record UsageAccounting(Map<String, Object> rawUsage,
                               Map<String, Object> rawBody,
                               BillingUsage billing,
+                              ModelUsage usage,
                               NormalizedUsage normalized) {
 
     public static UsageAccounting empty() {
-        return new UsageAccounting(null, null, TokenBillingUsage.empty(), null);
+        return new UsageAccounting(null, null, TokenBillingUsage.empty(), null, null);
     }
 
     public static UsageAccounting of(Map<String, Object> rawUsage,
                                      Map<String, Object> rawBody,
                                      BillingUsage billing,
+                                     ModelUsage usage,
                                      NormalizedUsage normalized) {
-        return new UsageAccounting(rawUsage, rawBody, billing, normalized);
+        return new UsageAccounting(rawUsage, rawBody, billing, usage, normalized);
     }
 
     /**
-     * 是否没有任何可用用量：计费输入为空且没有计费结果。
+     * 是否没有任何可用用量：计费输入为空、且没有计费结果与用完视图。
      */
     public boolean isEmpty() {
-        return (billing == null || billing.isEmpty()) && normalized == null;
+        return (billing == null || billing.isEmpty()) && normalized == null && usage == null;
     }
 
     /**
