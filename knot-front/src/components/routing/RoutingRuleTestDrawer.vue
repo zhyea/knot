@@ -511,8 +511,8 @@ const testBillingVerify = ref(true);
 const consumerReturnsUsage = computed(() => props.consumerReturnUsageDetail);
 const billingVerifyHint = computed(() =>
   consumerReturnsUsage.value
-    ? "该消费者已默认返回消费详情（校验数据已具备）；勾选后响应自动发起 JEV 双盲计费校验。关闭则跳过校验，不展示「计费校验」页（响应仍正常返回）"
-    : "勾选后：本次请求自动附带 knot_extend（用量与网关计费明细），响应后发起 JEV 双盲计费校验；关闭则既不请求消费详情也不跑校验，不展示「计费校验」页（响应仍正常返回）"
+    ? "勾选后响应自动发起 JEV 双盲计费校验。关闭则跳过校验，不展示「计费校验」"
+    : "勾选后：本次请求自动附带 knot_extend（用量与网关计费明细），响应后发起 JEV 双盲计费校验"
 );
 
 const drawerTitle = computed(() => {
