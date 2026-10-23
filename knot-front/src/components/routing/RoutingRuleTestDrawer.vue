@@ -57,9 +57,16 @@
             </el-tooltip>
           </div>
 
-          <div v-if="showTestReturnUsageToggle" class="test-usage-toggle">
-            <el-checkbox v-model="testReturnUsage" size="small">测试时临时开启「返回消费详情」</el-checkbox>
-            <span class="test-usage-toggle__hint">该消费者未开启返回消费详情；勾选后仅本次测试请求生效，响应将附带 knot_extend（用量与网关计费明细）</span>
+          <div class="test-billing-verify-toggle">
+            <el-checkbox v-model="testBillingVerify" size="small">执行计费规则校验</el-checkbox>
+            <span class="test-billing-verify-toggle__hint">{{ billingVerifyHint }}</span>
+            <el-tag
+              v-if="consumerReturnsUsage"
+              size="small"
+              type="success"
+              effect="plain"
+              class="test-billing-verify-toggle__tag"
+            >消费者已默认返回消费详情</el-tag>
           </div>
 
           <el-form label-width="0px" class="test-form">
@@ -362,9 +369,11 @@ const verdictError = ref("");
 /** 裁判轮次令牌：新测试发起即自增，过期结果丢弃，避免连续测试结果串台 */
 let verdictToken = 0;
 
-/** 面板可见性：任一裁判态激活即渲染（skipped / error 也是设计内的展示态） */
+/** 面板可见性：开关开启且任一裁判态激活即渲染（skipped / error 也是设计内的展示态） */
 const verdictVisible = computed(
-  () => verdictLoading.value || verdictSkipped.value || verdictError.value !== "" || verdictResult.value !== null
+  () =>
+    testBillingVerify.value &&
+    (verdictLoading.value || verdictSkipped.value || verdictError.value !== "" || verdictResult.value !== null)
 );
 // ===================== 流式测试状态 =====================
 /** 正在进行的流式请求；非 null 时「发送请求」切换为「停止请求」 */
@@ -486,11 +495,25 @@ const testForm = reactive({
 });
 
 /**
- * 「测试时临时开启返回消费详情」勾选：仅当规则绑定消费者自身没开时才可见（先决条件），
- * 默认勾选——抽屉存在的意义就是看到 knot_extend，让用户主动关而不是主动开。
+ * 「执行计费规则校验」开关：合并了"测试时临时开启返回消费详情"——后者是前者的前提子集。
+ * 勾选后：① 若绑定消费者自身未开启返回消费详情，则本次请求自动附带 X-Knot-Test-Return-Usage（knot_extend 数据）；
+ *         ② 测试响应后自动发起 JEV 双盲计费校验。
+ * 关闭后：既不请求消费详情，也不跑校验，不渲染「计费校验」页，但响应照常返回。
+ * 默认开启——与抽屉既有行为一致。
  */
-const testReturnUsage = ref(true);
-const showTestReturnUsageToggle = computed(() => !props.consumerReturnUsageDetail);
+const testBillingVerify = ref(true);
+
+/**
+ * 区分「绑定消费者已默认返回消费详情」与「未开启」两类规则：
+ * - 已默认支持：knot_extend 本来就在响应里，开关只控制是否发起 JEV 校验；
+ * - 未开启：勾选开关时本次请求临时附带 X-Knot-Test-Return-Usage 以拿到校验数据。
+ */
+const consumerReturnsUsage = computed(() => props.consumerReturnUsageDetail);
+const billingVerifyHint = computed(() =>
+  consumerReturnsUsage.value
+    ? "该消费者已默认返回消费详情（校验数据已具备）；勾选后响应自动发起 JEV 双盲计费校验。关闭则跳过校验，不展示「计费校验」页（响应仍正常返回）"
+    : "勾选后：本次请求自动附带 knot_extend（用量与网关计费明细），响应后发起 JEV 双盲计费校验；关闭则既不请求消费详情也不跑校验，不展示「计费校验」页（响应仍正常返回）"
+);
 
 const drawerTitle = computed(() => {
   const name = props.ruleName?.trim();
@@ -556,7 +579,7 @@ interface HeaderDisplayRow extends HeaderRow {
 
 const displayHeaderRows = computed<HeaderDisplayRow[]>(() => {
   const rows: HeaderDisplayRow[] = [...headerRows.value];
-  if (showTestReturnUsageToggle.value && testReturnUsage.value && !hasHeaderName(TEST_RETURN_USAGE_HEADER)) {
+  if (testBillingVerify.value && !props.consumerReturnUsageDetail && !hasHeaderName(TEST_RETURN_USAGE_HEADER)) {
     rows.push({name: TEST_RETURN_USAGE_HEADER, value: "true", temporary: true});
   }
   return rows;
@@ -642,7 +665,7 @@ function buildRequestHeaders(accept: string): Record<string, string> {
   if (!hasHeaderName("Content-Type")) {
     headers["Content-Type"] = "application/json";
   }
-  if (showTestReturnUsageToggle.value && testReturnUsage.value && !hasHeaderName(TEST_RETURN_USAGE_HEADER)) {
+  if (testBillingVerify.value && !props.consumerReturnUsageDetail && !hasHeaderName(TEST_RETURN_USAGE_HEADER)) {
     headers[TEST_RETURN_USAGE_HEADER] = "true";
   }
   return headers;
@@ -890,7 +913,7 @@ watch(
     requestTab.value = "preset";
     responseTab.value = "summary";
     expandedPanels.value = ["preview"];
-    testReturnUsage.value = true;
+    testBillingVerify.value = true;
     testForm.secretKey = props.secretKey || "";
     resetHeaderRows();
     initializeTargetSelection();
@@ -1243,8 +1266,10 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget | null, 
       responseBody: serializeBody(response.data)
     };
     responseTab.value = "body";
-    // 裁判第二步：不阻塞上方测试结果的渲染
-    void triggerBillingVerdict(stripModelField(requestBody), false);
+    // 裁判第二步：不阻塞上方测试结果的渲染；开关关闭时跳过校验
+    if (testBillingVerify.value) {
+      void triggerBillingVerdict(stripModelField(requestBody), false);
+    }
   } catch (error) {
     responseTab.value = "body";
     const err = error as Dict;
@@ -1323,10 +1348,12 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget | null,
       finishStream("SUCCESS", "");
     }
     // 裁判第二步（v7 §3.2）：流式下 knot_extend 为 [DONE] 前独立事件，EOF 时已到手
-    if (knotExtend.value) {
-      void triggerBillingVerdict(gatewayBody, true);
-    } else if (testResult.value?.status === "SUCCESS") {
-      verdictSkipped.value = true;
+    if (testBillingVerify.value) {
+      if (knotExtend.value) {
+        void triggerBillingVerdict(gatewayBody, true);
+      } else if (testResult.value?.status === "SUCCESS") {
+        verdictSkipped.value = true;
+      }
     }
   } catch (error) {
     flushStreamText();
@@ -1338,7 +1365,7 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget | null,
         finishStream("STOPPED", "");
       }
       // 停止前若 knot_extend 已到手（[DONE] 已过）仍可判；否则无被告，不展示裁判区
-      if (knotExtend.value) {
+      if (testBillingVerify.value && knotExtend.value) {
         void triggerBillingVerdict(stripModelField(requestBody), true);
       }
     } else {
@@ -1680,7 +1707,7 @@ function onClosed() {
   responseHeaders.value = {};
   resetVerdictState();
   headerRows.value = [];
-  testReturnUsage.value = true;
+  testBillingVerify.value = true;
   loading.value = false;
 }
 
@@ -1765,7 +1792,7 @@ onBeforeUnmount(() => {
   height: 34px;
   padding: 0 12px;
   border: 1px solid var(--el-border-color);
-  border-radius: 6px;
+  border-radius: 0;
   background: var(--el-fill-color-extra-light);
   color: var(--el-text-color-regular);
   font-family: Consolas, "Courier New", monospace;
@@ -1780,18 +1807,23 @@ onBeforeUnmount(() => {
   margin-bottom: 0;
 }
 
-/* 临时开启「返回消费详情」勾选行：仅消费者未开时显示 */
-.test-usage-toggle {
+/* 执行计费规则校验勾选行：始终显示 */
+.test-billing-verify-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
 }
 
-.test-usage-toggle__hint {
+.test-billing-verify-toggle__hint {
   color: var(--el-text-color-secondary);
   font-size: 12px;
   line-height: 1.5;
+}
+
+.test-billing-verify-toggle__tag {
+  margin-left: 4px;
+  flex-shrink: 0;
 }
 
 .request-template {
