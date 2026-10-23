@@ -71,8 +71,10 @@
               </template>
             </span>
           </div>
-          <transition name="tree-select-expand">
-            <div v-show="row.expanded" class="tree-select__children">
+          <!-- 不用 <transition> 包裹 v-show：异步 options 多次到达（回显+全量）会打断 enter 过渡，
+               enter-from（max-height:0/opacity:0）类残留导致子级高度为 0 不可见（robin 2026-10-23 实测）。
+               展开动画改由 caret 旋转承担，children 容器直切。 -->
+          <div v-show="row.expanded" class="tree-select__children">
               <div
                 v-for="child in row.children"
                 :key="String(child.value)"
@@ -95,8 +97,7 @@
                 </span>
               </div>
             </div>
-          </transition>
-        </div>
+          </div>
       </el-scrollbar>
     </div>
   </el-popover>
@@ -549,23 +550,22 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
+/*
+ * 面板宽度自适应：EP scrollbar 的 wrap 是 overflow 容器，会切断内容宽度传播——
+ * 内容超宽时只在 wrap 内部横向滚动，撑不开 popper（子节点文本被横向截断）。
+ * 给 wrap 设 width:max-content 让内容宽反向撑开 popper；min-width:100% 防内容窄时塌缩。
+ */
+.tree-select__popper .el-scrollbar__wrap {
+  width: max-content;
+  min-width: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
 .tree-select__empty {
   padding: 16px 0;
   text-align: center;
   font-size: 12px;
   color: var(--el-text-color-secondary, #909399);
-}
-
-/* 两级展开动画：max-height 上限 600px，两级数据远不会触顶 */
-.tree-select-expand-enter-active,
-.tree-select-expand-leave-active {
-  transition: max-height 0.18s ease, opacity 0.18s ease;
-  max-height: 600px;
-}
-
-.tree-select-expand-enter-from,
-.tree-select-expand-leave-to {
-  max-height: 0;
-  opacity: 0;
 }
 </style>
