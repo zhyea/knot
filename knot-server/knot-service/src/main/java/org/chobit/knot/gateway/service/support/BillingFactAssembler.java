@@ -52,13 +52,16 @@ public class BillingFactAssembler {
         BillingRuleEntity rule = resolution.rule();
         BillingRuleSource matchedBy = resolution.matchedBy();
 
-        UsageExtractor<?> extractor = resolveExtractor(input.extractorCode());
-        BillingUsage billing = extractUsage(extractor, input);
+        ResolvedExtractor resolved = resolveExtractor(input.extractorCode());
+        BillingUsage billing = extractUsage(resolved.extractor(), input);
+        // 影子链不抛异常，但把「回落」与「空用量」原样带出，供裁判层/UI 判断是否告警
+        boolean usageAbsent = billing == null || billing.isEmpty();
         Instant occurredAt = input.occurredAt() == null ? java.time.Instant.now() : input.occurredAt();
 
-        NormalizedUsage shadow = (rule == null || billing == null || billing.isEmpty())
+        NormalizedUsage shadow = (rule == null || usageAbsent)
                 ? null
-                : UsageNormalizationSupport.normalize(billing, rule, input.requestBody(), occurredAt, extractor.calculator());
+                : UsageNormalizationSupport.normalize(billing, rule, input.requestBody(), occurredAt,
+                        resolved.extractor().calculator());
 
         BillingFactUsage usage = toUsage(billing);
         BillingFactRuleRef ruleRef = toRuleRef(rule, matchedBy);
@@ -69,12 +72,19 @@ public class BillingFactAssembler {
         BillingFactSubject subject = new BillingFactSubject(
                 input.modelCode(), input.protocol(), input.stream(), matchedBy);
 
-        return new BillingFact(subject, usage, ruleRef, shadowAmount, gatewayBilling, upstreamCost);
+        return new BillingFact(subject, usage, ruleRef, shadowAmount, gatewayBilling, upstreamCost,
+                resolved.fallback(), usageAbsent);
     }
 
-    private UsageExtractor<?> resolveExtractor(String extractorCode) {
+    /** 提取器解析结果：携带「是否回落」标记，让配置错误在影子链里可见而不炸链路。 */
+    private record ResolvedExtractor(UsageExtractor<?> extractor, boolean fallback) {
+    }
+
+    private ResolvedExtractor resolveExtractor(String extractorCode) {
         UsageExtractor<?> extractor = extractorCatalog.resolve(extractorCode);
-        return extractor != null ? extractor : extractorCatalog.defaultExtractor();
+        return extractor == null
+                ? new ResolvedExtractor(extractorCatalog.defaultExtractor(), true)
+                : new ResolvedExtractor(extractor, false);
     }
 
     private BillingUsage extractUsage(UsageExtractor<?> extractor, BillingFactAssemblyInput input) {

@@ -7,7 +7,6 @@ import org.chobit.knot.gateway.adapter.aws.BedrockConverseUsageSupport;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -185,11 +184,6 @@ public class BedrockConverseRequestAdapter implements UpstreamRequestAdapter {
         }
         String json = JsonKit.toJson(result);
         return json == null ? responseBody : json;
-    }
-
-    @Override
-    public BillingUsage extractUsageFromBody(Map<String, Object> body) {
-        return BedrockConverseUsageSupport.fromResponse(body);
     }
 
     /**

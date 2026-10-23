@@ -14,6 +14,9 @@ import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.model.UsageAccounting;
 import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
+import org.chobit.knot.gateway.usage.calculator.TokenBillingModeCalculator;
+import org.chobit.knot.gateway.usage.extractor.DefaultTokenUsageExtractor;
+import org.chobit.knot.gateway.usage.extractor.UsageExtractorCatalog;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -182,11 +185,13 @@ class UpstreamWebClientEndToEndTest {
         connectionProvider = configuration.upstreamConnectionProvider(properties);
         HttpClient httpClient = configuration.upstreamHttpClient(connectionProvider, properties);
         WebClient webClient = configuration.upstreamWebClient(WebClient.builder(), httpClient);
-        UsageExtractorRegistry registry = new UsageExtractorRegistry(null, null) {
+        // 流式路径会先做 extractor 预检，catalog 必须是真的（null 会在预检处 NPE）
+        UsageExtractorRegistry registry = new UsageExtractorRegistry(
+                new UsageExtractorCatalog(
+                        List.of(new DefaultTokenUsageExtractor(new TokenBillingModeCalculator()))), null) {
             @Override
             public UsageAccounting extract(String responseBody,
-                                           UpstreamRequestContext context,
-                                           UpstreamRequestAdapter adapter) {
+                                           UpstreamRequestContext context) {
                 return null;
             }
         };

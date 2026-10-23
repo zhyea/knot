@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -98,6 +99,9 @@ class BillingFactAssemblerTest {
         // 规则来源 EXPLICIT
         assertEquals(BillingRuleSource.EXPLICIT, fact.ruleRef().matchedBy());
         assertEquals("TOKEN", fact.ruleRef().billingMode());
+        // 正确配置不应被误标成回落或缺量
+        assertFalse(fact.extractorFallback());
+        assertFalse(fact.usageAbsent());
     }
 
     @Test
@@ -109,6 +113,34 @@ class BillingFactAssemblerTest {
         // extractorCode 为 null → 回落默认 DEFAULT-TOKEN，仍应正确重算
         BillingFact fact = assembler.assemble(input(tokenBody(1000, 500, 1500), RULE_CODE, null, null, null));
         assertEquals("0.004", fact.shadowAmount().totalCost());
+        assertTrue(fact.extractorFallback(), "回落过默认提取器必须标记出来，否则编码缺失在影子链里不可见");
+    }
+
+    @Test
+    void shouldFlagFallbackWhenExtractorCodeUnknown() {
+        BillingRuleMapper mapper = mock(BillingRuleMapper.class);
+        when(mapper.getActiveByRuleCode(eq(RULE_CODE), any(LocalDateTime.class))).thenReturn(rule());
+        BillingFactAssembler assembler = assembler(mapper);
+
+        BillingFact fact = assembler.assemble(
+                input(tokenBody(1000, 500, 1500), RULE_CODE, "NOT-A-REAL-EXTRACTOR", null, null));
+
+        assertTrue(fact.extractorFallback(), "未知 extractor 编码不再静默——影子链不抛异常，但必须标记");
+        assertFalse(fact.usageAbsent(), "回落到默认提取器后仍能算出用量，不应同时标成用量缺失");
+    }
+
+    @Test
+    void shouldFlagAbsentUsageWhenUpstreamReportsNothing() {
+        BillingRuleMapper mapper = mock(BillingRuleMapper.class);
+        when(mapper.getActiveByRuleCode(eq(RULE_CODE), any(LocalDateTime.class))).thenReturn(rule());
+        BillingFactAssembler assembler = assembler(mapper);
+
+        BillingFact fact = assembler.assemble(
+                input(Map.of("id", "1"), RULE_CODE, "DEFAULT-TOKEN", null, null));
+
+        assertTrue(fact.usageAbsent(), "提取为空必须标记——影子账不可信要能被裁判层看见");
+        assertNull(fact.shadowAmount(), "无用量不生成影子账");
+        assertFalse(fact.extractorFallback(), "提取器本身是可解析的，不应误标回落");
     }
 
     @Test

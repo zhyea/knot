@@ -4,8 +4,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.model.BillingUsage;
-import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
@@ -69,12 +67,6 @@ public class AnthropicRequestAdapter implements UpstreamRequestAdapter {
             return completionsToMessages(context.requestBody());
         }
         return context.requestBody();
-    }
-
-    @Override
-    public BillingUsage extractUsageFromBody(Map<String, Object> body) {
-        // Anthropic 口径：缓存读写加回输入侧总量（与 AnthropicUsageExtractor 同一出口）
-        return TokenBillingUsage.fromResponse(body).withCacheCountedInInput();
     }
 
     @SuppressWarnings("unchecked")

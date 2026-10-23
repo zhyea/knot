@@ -6,7 +6,6 @@ import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
-import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.junit.jupiter.api.Test;
 
@@ -118,21 +117,6 @@ class BedrockConverseRequestAdapterTest {
         // 非 Converse 响应（如 AWS 的 4xx 错误体）不能硬转成 OpenAI 形状，否则会把错误信息吞掉
         String error = "{\"message\":\"ValidationException\",\"__type\":\"ValidationException\"}";
         assertEquals(error, adapter.handleResponse(error, contextWithModel(Map.of())));
-    }
-
-    @Test
-    void shouldExtractCamelCaseUsage() {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put(AiPayloadFields.USAGE, Map.of(
-                "inputTokens", 120, "outputTokens", 30, "totalTokens", 150,
-                "cacheReadInputTokens", 10, "cacheWriteInputTokens", 5));
-
-        TokenBillingUsage usage = (TokenBillingUsage) adapter.extractUsageFromBody(body);
-        assertEquals(120L, usage.inputTokens());
-        assertEquals(30L, usage.outputTokens());
-        assertEquals(150L, usage.totalTokens());
-        assertEquals(10L, usage.cacheReadTokens());
-        assertEquals(5L, usage.cacheWriteTokens());
     }
 
     @Test

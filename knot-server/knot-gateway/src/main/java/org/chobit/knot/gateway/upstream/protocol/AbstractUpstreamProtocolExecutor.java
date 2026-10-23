@@ -160,7 +160,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                 handledResponseBody,
                 context.provider().getId(),
                 context.model().getId(),
-                usageExtractorRegistry.extract(handledResponseBody, context, adapter),
+                usageExtractorRegistry.extract(handledResponseBody, context),
                 null,
                 buffered.upstreamRequestId(),
                 upstreamUrl
@@ -214,6 +214,9 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     private ProxyResult executeStreaming(UpstreamRequestContext context,
                                         UpstreamRequestAdapter adapter,
                                         RequestTarget target) {
+        // 预检：extractor 配错必须在此失败——流一旦开始，响应头已写出，
+        // 配置错误就再也无法通过 HTTP 状态反馈给调用方，只能沉进日志。
+        usageExtractorRegistry.requireExtractor(true, context);
         Mono<ResponseEntity<Flux<DataBuffer>>> response = withBody(context, adapter, target)
                 .retrieve()
                                             .onStatus(status -> !status.is2xxSuccessful(),
@@ -226,7 +229,6 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                 entity.getBody(),
                 headers.getContentType(),
                 context,
-                adapter,
                 UpstreamRequestIdResolver.snapshot(headers, context.requestId()),
                 UpstreamRequestIdResolver.requestId(headers, context.requestId()));
         return new ProxyResult(

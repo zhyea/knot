@@ -17,17 +17,38 @@ import java.util.List;
  *
  * <p>自检层只比对结构内的数值，不触达生产热路径，也不读 JEV。</p>
  *
- * @param subject        主体
- * @param usage          影子用量视图
- * @param ruleRef        规则快照
- * @param shadowAmount   影子重算账（可空：未命中规则）
- * @param gatewayBilling 被告账（可空：响应未返回 knot_extend.billing）
- * @param upstreamCost   上游 cost（可空：上游未返回）
+ * <p><b>影子链不抛异常，但回落必须可见（2026-10-23 计费去兜底 Phase 4）</b>：
+ * 本结构是<b>离线复算</b>，语义是「尽力算出来给你对照」，不是生产计费闸门——
+ * 配置错误不该让路由测试抽屉直接报错、让用户看不到任何对照结果。
+ * 因此提取器回落与空用量不抛异常，改为在这里显式标记，交给裁判层/UI 判断是否告警。</p>
+ *
+ * @param subject           主体
+ * @param usage             影子用量视图
+ * @param ruleRef           规则快照
+ * @param shadowAmount      影子重算账（可空：未命中规则）
+ * @param gatewayBilling    被告账（可空：响应未返回 knot_extend.billing）
+ * @param upstreamCost      上游 cost（可空：上游未返回）
+ * @param extractorFallback 是否回落到默认提取器（编码缺失或未知）→ 配置错误信号
+ * @param usageAbsent       提取结果为空（用量缺失）→ 影子账不可信信号
  */
 public record BillingFact(BillingFactSubject subject,
                           BillingFactUsage usage,
                           BillingFactRuleRef ruleRef,
                           BillingFactAmount shadowAmount,
                           BillingFactAmount gatewayBilling,
-                          BigDecimal upstreamCost) {
+                          BigDecimal upstreamCost,
+                          boolean extractorFallback,
+                          boolean usageAbsent) {
+
+    /**
+     * 便利构造：无标记场景（生产链路直装、测试桩）。
+     */
+    public BillingFact(BillingFactSubject subject,
+                       BillingFactUsage usage,
+                       BillingFactRuleRef ruleRef,
+                       BillingFactAmount shadowAmount,
+                       BillingFactAmount gatewayBilling,
+                       BigDecimal upstreamCost) {
+        this(subject, usage, ruleRef, shadowAmount, gatewayBilling, upstreamCost, false, false);
+    }
 }

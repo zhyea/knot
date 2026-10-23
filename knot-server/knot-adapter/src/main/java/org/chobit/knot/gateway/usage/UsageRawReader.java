@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.usage;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
@@ -16,7 +17,8 @@ import java.util.Map;
  *   <li>整包响应：直接返回响应体本身；</li>
  *   <li>SSE 响应：逐事件解析，挑出携带 {@code usage} 且 token 总量最大的那个事件；
  *       全部事件都没有 {@code usage} 时返回最后一个事件（保住多模态场景的 data 数组兜底）；</li>
- *   <li>JSON 解析失败、响应体为空：返回 {@code null}。</li>
+ *   <li>JSON 解析失败：抛出 {@code JsonProcessingException}——<b>不再静默降级为 {@code null}</b>，
+ *       否则「上游没回 usage」与「网关解析不出来」无法区分；响应体为空返回 {@code null}。</li>
  * </ul>
  *
  * <p>本类只读原文，不做任何数值解析或单位换算。</p>
@@ -31,8 +33,10 @@ public final class UsageRawReader {
 
     /**
      * 从响应体（整包或 SSE）中取出信息量最大的那一层原始对象。
+     *
+     * @throws JsonProcessingException 响应体不是合法 JSON
      */
-    public static Map<String, Object> readBody(String responseBody) {
+    public static Map<String, Object> readBody(String responseBody) throws JsonProcessingException {
         if (StringUtils.isBlank(responseBody)) {
             return null;
         }
@@ -67,8 +71,10 @@ public final class UsageRawReader {
 
     /**
      * 从 SSE 单个 {@code data:} 载荷中取出原始对象。
+     *
+     * @throws JsonProcessingException 载荷不是合法 JSON
      */
-    public static Map<String, Object> readEvent(String data) {
+    public static Map<String, Object> readEvent(String data) throws JsonProcessingException {
         if (StringUtils.isBlank(data) || DONE_MARKER.equals(StringUtils.trim(data))) {
             return null;
         }
@@ -129,8 +135,8 @@ public final class UsageRawReader {
         return value.lines().anyMatch(line -> StringUtils.startsWith(StringUtils.trim(line), DATA_PREFIX));
     }
 
-    private static Map<String, Object> readMap(String json) {
-        return JsonKit.fromJson(json, new TypeReference<>() {
+    private static Map<String, Object> readMap(String json) throws JsonProcessingException {
+        return JsonKit.fromJsonOrThrow(json, new TypeReference<>() {
         });
     }
 }

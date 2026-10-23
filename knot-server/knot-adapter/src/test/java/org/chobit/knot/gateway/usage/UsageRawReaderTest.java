@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.usage;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.junit.jupiter.api.Test;
 
@@ -8,6 +9,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * {@link UsageRawReader} 的 usage 定位：顶层 {@code usage} 优先，
@@ -15,6 +17,12 @@ import static org.junit.jupiter.api.Assertions.assertNull;
  * 下钻 {@code response.usage} 包装。
  */
 class UsageRawReaderTest {
+
+    @Test
+    void throwsOnMalformedJsonInsteadOfReturningNull() {
+        assertThrows(JsonProcessingException.class, () -> UsageRawReader.readBody("{not-json-at-all"),
+                "解析失败曾被引擎吞成 null，与「上游没回 usage」无法区分");
+    }
 
     @Test
     void readsTopLevelUsageFirst() {
@@ -53,7 +61,7 @@ class UsageRawReaderTest {
     }
 
     @Test
-    void scoresResponsesEventAsBestBody() {
+    void scoresResponsesEventAsBestBody() throws Exception {
         String sse = "data: {\"type\":\"response.output_text.delta\",\"delta\":\"你\"}\n"
                 + "\n"
                 + "data: {\"type\":\"response.incomplete\",\"response\":{\"usage\":{\"input_tokens\":65,\"output_tokens\":256,\"total_tokens\":321}}}\n"

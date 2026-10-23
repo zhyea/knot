@@ -192,7 +192,7 @@ public final class ProxyStreamingFlux {
                 || !data.contains(USAGE_FIELD)) {
             return null;
         }
-        return registry.extractEvent(data, stream.context(), stream.adapter());
+        return registry.extractEvent(data, stream.context());
     }
 
     private static byte[] concat(byte[] left, byte[] right) {

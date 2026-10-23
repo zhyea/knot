@@ -36,6 +36,33 @@ class UsageExtractorTest {
     private final ImageUsageExtractor imageExtractor = new ImageUsageExtractor(new SimpleBillingModeCalculator());
     private final VideoUsageExtractor videoExtractor = new VideoUsageExtractor(new VideoBillingModeCalculator());
     private final AudioUsageExtractor audioExtractor = new AudioUsageExtractor(new SimpleBillingModeCalculator());
+    private final BedrockConverseUsageExtractor bedrockExtractor =
+            new BedrockConverseUsageExtractor(new TokenBillingModeCalculator());
+
+    @Test
+    void shouldExtractBedrockCamelCaseUsage() {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("usage", Map.of(
+                "inputTokens", 120, "outputTokens", 30, "totalTokens", 150,
+                "cacheReadInputTokens", 10, "cacheWriteInputTokens", 5));
+
+        TokenBillingUsage usage = bedrockExtractor.extractUsage(body).billing();
+
+        assertEquals(120L, usage.inputTokens());
+        assertEquals(30L, usage.outputTokens());
+        assertEquals(150L, usage.totalTokens());
+        assertEquals(10L, usage.cacheReadTokens());
+        assertEquals(5L, usage.cacheWriteTokens());
+        assertFalse(usage.isEmpty());
+    }
+
+    @Test
+    void shouldNotReadCamelCaseUsageByDefaultExtractor() {
+        Map<String, Object> body = Map.of("usage", Map.of("inputTokens", 120, "outputTokens", 30));
+
+        assertTrue(defaultExtractor.extractUsage(body).billing().isEmpty(),
+                "默认提取器只认 snake_case——这是 BEDROCK_CONVERSE 提取器存在的理由");
+    }
 
     // ---------- DEFAULT / ANTHROPIC：token 口径 ----------
 

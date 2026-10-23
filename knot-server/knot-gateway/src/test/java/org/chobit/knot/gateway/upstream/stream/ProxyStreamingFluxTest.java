@@ -1,6 +1,5 @@
 package org.chobit.knot.gateway.upstream.stream;
 
-import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
@@ -79,7 +78,7 @@ class ProxyStreamingFluxTest {
     void surfacesUpstreamAbortAndStillReleases() {
         AtomicInteger released = new AtomicInteger();
         UpstreamStreamResponse failing = new UpstreamStreamResponse(
-                Flux.error(new IOException("upstream reset")), MediaType.TEXT_EVENT_STREAM, null, null, null, null);
+                Flux.error(new IOException("upstream reset")), MediaType.TEXT_EVENT_STREAM, null, null, null);
 
         Flux<DataBuffer> body = ProxyStreamingFlux.wrap(failing, null, false, FACTORY, null, null,
                 released::incrementAndGet);
@@ -166,7 +165,7 @@ class ProxyStreamingFluxTest {
         byte[] tail = Arrays.copyOfRange(bytes, 4, bytes.length);
         Flux<DataBuffer> chunks = Flux.<DataBuffer>just(FACTORY.wrap(head), FACTORY.wrap(tail));
         UpstreamStreamResponse stream = new UpstreamStreamResponse(chunks, MediaType.TEXT_EVENT_STREAM,
-                null, null, null, null);
+                null, null, null);
 
         String out = collect(ProxyStreamingFlux.wrap(stream, null, false, FACTORY, null, null, null));
 
@@ -181,7 +180,7 @@ class ProxyStreamingFluxTest {
         UpstreamStreamResponse slow = new UpstreamStreamResponse(
                 Flux.just(FACTORY.wrap("hello".getBytes(StandardCharsets.UTF_8)))
                         .delayElements(Duration.ofMillis(100)),
-                MediaType.APPLICATION_JSON, null, null, null, null);
+                MediaType.APPLICATION_JSON, null, null, null);
 
         collect(ProxyStreamingFlux.wrap(slow, null, false, FACTORY, writer, null, null));
 
@@ -198,7 +197,7 @@ class ProxyStreamingFluxTest {
         UpstreamStreamResponse slow = new UpstreamStreamResponse(
                 Flux.just(FACTORY.wrap("data: a\ndata: [DONE]\n".getBytes(StandardCharsets.UTF_8)))
                         .delayElements(Duration.ofMillis(120)),
-                MediaType.TEXT_EVENT_STREAM, null, null, null, null);
+                MediaType.TEXT_EVENT_STREAM, null, null, null);
 
         collect(ProxyStreamingFlux.wrap(slow, null, false, FACTORY, writer, null, null));
 
@@ -249,15 +248,14 @@ class ProxyStreamingFluxTest {
         return new UpstreamStreamResponse(
                 Flux.just(FACTORY.wrap(payload.getBytes(StandardCharsets.UTF_8))),
                 eventStream ? MediaType.TEXT_EVENT_STREAM : MediaType.APPLICATION_JSON,
-                null, null, null, null);
+                null, null, null);
     }
 
     private static UsageExtractorRegistry stubRegistry() {
         return new UsageExtractorRegistry(null, null) {
             @Override
             public UsageAccounting extractEvent(String eventData,
-                                                UpstreamRequestContext context,
-                                                UpstreamRequestAdapter adapter) {
+                                                UpstreamRequestContext context) {
                 // 按事件内容返回不同 token 数，用于验证「取更大一份」的累计口径
                 int input = eventData.contains("_tokens\":30") ? 30 : 10;
                 int output = eventData.contains("output_tokens\":9") ? 9 : 5;

@@ -239,7 +239,7 @@ class ModelUsageNormalizerTest {
     }
 
     @Test
-    void shouldReadRawBodyFromEventStream() {
+    void shouldReadRawBodyFromEventStream() throws Exception {
         String sse = """
                 data: {"choices":[{"delta":{"content":"hi"}}]}
 
@@ -256,7 +256,7 @@ class ModelUsageNormalizerTest {
     }
 
     @Test
-    void shouldReadRawBodyFromBufferedResponse() {
+    void shouldReadRawBodyFromBufferedResponse() throws Exception {
         Map<String, Object> body = UsageRawReader.readBody("{\"id\":\"1\",\"usage\":{\"input_tokens\":7}}");
         Map<String, Object> rawUsage = UsageRawReader.readUsage(body);
 
