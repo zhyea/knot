@@ -312,6 +312,43 @@ class GatewayTrafficMsgDtoTest {
         assertTrue(json.contains("\"cost\":\"0.00150000\""));
     }
 
+    @Test
+    void hitCarriesUpstreamUrl() {
+        // 命中目标的上游完整请求地址随 HIT_TARGET_URL_ATTRIBUTE 落到 hit，排障能看出落点
+        GatewayRequestContext context = context();
+        context.putAttribute(GatewayRequestHandler.HIT_TARGET_ATTRIBUTE,
+                target("gpt-4o", "gpt-4o-2024-07-18", 1, true));
+        context.putAttribute(GatewayRequestHandler.HIT_TARGET_URL_ATTRIBUTE,
+                "https://openai.example/v1/chat/completions");
+        context.routing(routing(target("gpt-4o", "gpt-4o-2024-07-18", 1, true)));
+
+        GatewayTrafficMsgDto message = GatewayTrafficMsgDto.of(context, null, null, null, null);
+
+        assertEquals("https://openai.example/v1/chat/completions", message.hit().upstreamUrl(),
+                "命中目标带完整上游地址");
+    }
+
+    @Test
+    void attemptsCarryUpstreamUrl() {
+        // 每个 attempt 都带自己的上游地址：failover 排障能看出失败的是哪个端点
+        GatewayRequestContext context = context();
+        CallTraceContext trace = new CallTraceContext();
+        CallTraceContext.AttemptDraft first = trace.newAttempt(target("gpt-4o", "upstream-gpt-4o", 1, true), null);
+        first.nextAttempt(2);
+        first.failed(new GatewayUpstreamException("boom", "UPSTREAM_ERROR", 500, null, null), true);
+        first.setUpstreamUrl("https://openai.example/v1/chat/completions");
+        CallTraceContext.AttemptDraft second = trace.newAttempt(target("gpt-4o-mini", "upstream-gpt-4o-mini", 2, false), null);
+        second.nextAttempt(2);
+        second.succeeded("req_ok_mini");
+        second.setUpstreamUrl("https://openai.example/v1/chat/completions");
+        context.putAttribute(CallTraceContext.ATTRIBUTE, trace);
+
+        GatewayTrafficMsgDto message = GatewayTrafficMsgDto.of(context, null, null, 100L, null);
+
+        assertEquals("https://openai.example/v1/chat/completions", message.attempts().get(0).upstreamUrl());
+        assertEquals("https://openai.example/v1/chat/completions", message.attempts().get(1).upstreamUrl());
+    }
+
     private static GatewayRequestContext context() {
         return new GatewayRequestContext("Bearer key", "rule-a", GatewayTraceContext.fromTraceparent(null), null, null);
     }

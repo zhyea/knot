@@ -13,18 +13,22 @@ import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
  *
  * <p>{@code upstreamRequestId} 是供应商侧请求标识（响应头白名单归一），
  * 供数仓 attempt 级绑定与网关日志使用——用途是网关与供应商联合排查，不透客户端
- * （见 {@code docs/上游trace打通-双向对账设计-2026-10-17.md} §1.1）。流式路径由
- * {@link UpstreamStreamResponse} 的快照转填，非流式由执行器 exchange 时归一。</p>
+ * （见 {@code docs/上游trace打通-双向对账设计-2026-10-17.md} §1.1）。</p>
+ *
+ * <p>{@code upstreamUrl} 是本次上游调用的<b>完整请求地址</b>
+ * （{@code joinUrl(baseUrl, joinPath(model.base_path, protocolPath))}）：落 Kafka 流量事件
+ * 与上游日志，排障能直接看出请求打到了哪个供应商端点（含 scheme + host + path）。</p>
  */
 public record ProxyResult(String responseBody,
                           Long providerId,
                           Long modelId,
                           UsageAccounting usage,
                           UpstreamStreamResponse streamResponse,
-                          String upstreamRequestId) {
+                          String upstreamRequestId,
+                          String upstreamUrl) {
 
     public ProxyResult(String responseBody, Long providerId, Long modelId, UsageAccounting usage) {
-        this(responseBody, providerId, modelId, usage, null, null);
+        this(responseBody, providerId, modelId, usage, null, null, null);
     }
 
     public boolean streaming() {

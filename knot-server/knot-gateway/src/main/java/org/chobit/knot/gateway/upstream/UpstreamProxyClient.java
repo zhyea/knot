@@ -1,6 +1,10 @@
 package org.chobit.knot.gateway.upstream;
 
 import lombok.RequiredArgsConstructor;
+import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplier;
+import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplierCatalog;
+import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
+import org.chobit.knot.gateway.adapter.upstream.UpstreamAccess;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
@@ -22,6 +26,8 @@ import org.chobit.knot.gateway.service.support.ProviderCredentialSupport;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutor;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutorRegistry;
 import org.chobit.knot.gateway.upstream.request.UpstreamRequestAdapterRegistry;
+import org.chobit.knot.gateway.upstream.support.UpstreamUrlSupport;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
@@ -41,6 +47,7 @@ public class UpstreamProxyClient {
     private final UpstreamRequestAdapterRegistry requestAdapterRegistry;
     private final ProviderCredentialSupport providerCredentialSupport;
     private final PluginDispatcher pluginDispatcher;
+    private final UpstreamAuthApplierCatalog authApplierCatalog;
 
 
     /**
@@ -109,13 +116,14 @@ public class UpstreamProxyClient {
     public ProxyResult proxy(UpstreamRequestContext context) {
         UpstreamProtocolExecutor protocolExecutor = protocolExecutorRegistry.resolve(context.protocol());
         var requestAdapter = requestAdapterRegistry.resolve(context.requestAdapter());
-        dispatchPlugin(context, PluginStageCode.UPSTREAM_REQUEST, null, null);
+        String upstreamUrl = resolveUpstreamUrl(context, requestAdapter);
+        dispatchPlugin(context, PluginStageCode.UPSTREAM_REQUEST, null, null, upstreamUrl);
         try {
             ProxyResult result = protocolExecutor.execute(context, requestAdapter);
-            dispatchPlugin(context, PluginStageCode.UPSTREAM_RESPONSE, result, null);
+            dispatchPlugin(context, PluginStageCode.UPSTREAM_RESPONSE, result, null, upstreamUrl);
             return result;
         } catch (RuntimeException ex) {
-            dispatchPlugin(context, PluginStageCode.UPSTREAM_ERROR, null, ex);
+            dispatchPlugin(context, PluginStageCode.UPSTREAM_ERROR, null, ex, upstreamUrl);
             throw ex;
         }
     }
@@ -185,7 +193,8 @@ public class UpstreamProxyClient {
     private void dispatchPlugin(UpstreamRequestContext context,
                                 PluginStageCode stageCode,
                                 ProxyResult result,
-                                Throwable error) {
+                                Throwable error,
+                                String upstreamUrl) {
         pluginDispatcher.dispatch(
                 PluginExtensionPoint.UPSTREAM_EXCHANGE,
                 stageCode,
@@ -203,9 +212,24 @@ public class UpstreamProxyClient {
                         context.contentType(),
                         responseSnapshot(result),
                         error,
-                        upstreamRequestIdOf(result, error)
+                        upstreamRequestIdOf(result, error),
+                        upstreamUrl
                 )
         );
+    }
+
+    /**
+     * 解析本次上游调用的完整请求地址（scheme + host + path）：与执行器使用相同的
+     * {@code joinPath} / {@code joinUrl} 原语，在请求发起前即可算出，供三个阶段的日志统一呈现。
+     */
+    private String resolveUpstreamUrl(UpstreamRequestContext context, UpstreamRequestAdapter adapter) {
+        String protocolPath = adapter.resolvePath(context, context.protocol().defaultPath());
+        UpstreamAuthApplier applier = authApplierCatalog.resolve(context.authApplier());
+        UpstreamAccess access = applier == null ? null : applier.prepare(context);
+        String baseUrl = access == null ? null : StringUtils.trimToNull(access.baseUrl());
+        String path = UpstreamUrlSupport.joinPath(
+                context.model() == null ? null : context.model().getBasePath(), protocolPath);
+        return UpstreamUrlSupport.joinUrl(baseUrl, path);
     }
 
     /**

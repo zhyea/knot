@@ -26,6 +26,11 @@ public class UpstreamPluginContext extends PluginDispatchContext {
      * 用途是网关与供应商联合排查（不透客户端，见 §1.1 设计）。
      */
     private final String upstreamRequestId;
+    /**
+     * 本次上游调用的完整请求地址（scheme + host + path）：UPSTREAM_REQUEST 阶段（请求发起前已可算出）
+     * 与 UPSTREAM_RESPONSE / UPSTREAM_ERROR 阶段同值，供日志呈现「请求打到了哪个供应商端点」。
+     */
+    private final String upstreamUrl;
 
     public UpstreamPluginContext(String traceId,
                                  String traceparent,
@@ -39,9 +44,10 @@ public class UpstreamPluginContext extends PluginDispatchContext {
                                  Map<String, Object> requestBody,
                                  MediaType contentType,
                                  Map<String, Object> responseSnapshot,
-                                 Throwable error) {
+                                 Throwable error,
+                                 String upstreamUrl) {
         this(traceId, traceparent, stageCode, providerId, providerCode, modelId, modelCode,
-                protocol, bindingProtocol, requestBody, contentType, responseSnapshot, error, null);
+                protocol, bindingProtocol, requestBody, contentType, responseSnapshot, error, null, upstreamUrl);
     }
 
     public UpstreamPluginContext(String traceId,
@@ -57,7 +63,8 @@ public class UpstreamPluginContext extends PluginDispatchContext {
                                  MediaType contentType,
                                  Map<String, Object> responseSnapshot,
                                  Throwable error,
-                                 String upstreamRequestId) {
+                                 String upstreamRequestId,
+                                 String upstreamUrl) {
         super(traceId, traceparent);
         this.stageCode = stageCode;
         this.providerId = providerId;
@@ -71,6 +78,7 @@ public class UpstreamPluginContext extends PluginDispatchContext {
         this.responseSnapshot = responseSnapshot == null ? Map.of() : new LinkedHashMap<>(responseSnapshot);
         this.error = error;
         this.upstreamRequestId = upstreamRequestId;
+        this.upstreamUrl = upstreamUrl;
     }
 
     public PluginStageCode stageCode() {
@@ -122,5 +130,9 @@ public class UpstreamPluginContext extends PluginDispatchContext {
      */
     public String upstreamRequestId() {
         return upstreamRequestId;
+    }
+
+    public String upstreamUrl() {
+        return upstreamUrl;
     }
 }

@@ -12,19 +12,24 @@ public class GatewayUpstreamException extends GatewayRequestException {
      * 与供应商联合排查时对方唯一认的检索键。拿不到为 null（不是空串）。
      */
     private final String upstreamRequestId;
+    /**
+     * 本次上游调用的完整请求地址（scheme + host + path）：落 Kafka 流量事件与上游日志，
+     * 排障能直接看出请求打到了哪个供应商端点。配置缺失 / 请求未发起时为 null。
+     */
+    private final String upstreamUrl;
 
     /**
      * Constructs an upstream gateway error.
      */
     public GatewayUpstreamException(String message, String code) {
-        this(message, code, null, null, null);
+        this(message, code, null, null, null, null, null);
     }
 
     /**
      * Constructs an upstream gateway error with upstream response details.
      */
     public GatewayUpstreamException(String message, String code, Integer httpStatus, String responseBody) {
-        this(message, code, httpStatus, responseBody, null);
+        this(message, code, httpStatus, responseBody, null, null, null);
     }
 
     /**
@@ -34,7 +39,7 @@ public class GatewayUpstreamException extends GatewayRequestException {
      */
     public GatewayUpstreamException(String message, String code, Integer httpStatus, String responseBody,
                                     Long retryAfterMs) {
-        this(message, code, httpStatus, responseBody, retryAfterMs, null);
+        this(message, code, httpStatus, responseBody, retryAfterMs, null, null);
     }
 
     /**
@@ -46,11 +51,24 @@ public class GatewayUpstreamException extends GatewayRequestException {
      */
     public GatewayUpstreamException(String message, String code, Integer httpStatus, String responseBody,
                                     Long retryAfterMs, String upstreamRequestId) {
+        this(message, code, httpStatus, responseBody, retryAfterMs, upstreamRequestId, null);
+    }
+
+    /**
+     * 完整构造：携带上游响应状态、错误体、重试提示、供应商侧请求 id 与本次调用的完整请求地址。
+     *
+     * @param retryAfterMs     上游 {@code Retry-After} 换算的毫秒数；无该头或解析失败传 null
+     * @param upstreamRequestId 上游响应头归一的 request-id；无命中传 null
+     * @param upstreamUrl       本次上游调用的完整请求地址（scheme + host + path）；未发起调用传 null
+     */
+    public GatewayUpstreamException(String message, String code, Integer httpStatus, String responseBody,
+                                    Long retryAfterMs, String upstreamRequestId, String upstreamUrl) {
         super(message, GatewayErrorTypeEnum.UPSTREAM_ERROR.code(), code);
         this.httpStatus = httpStatus;
         this.responseBody = responseBody;
         this.retryAfterMs = retryAfterMs;
         this.upstreamRequestId = upstreamRequestId;
+        this.upstreamUrl = upstreamUrl;
     }
 
     public Integer httpStatus() {
@@ -73,5 +91,9 @@ public class GatewayUpstreamException extends GatewayRequestException {
 
     public String upstreamRequestId() {
         return upstreamRequestId;
+    }
+
+    public String upstreamUrl() {
+        return upstreamUrl;
     }
 }

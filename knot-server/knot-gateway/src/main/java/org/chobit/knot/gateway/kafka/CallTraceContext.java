@@ -126,6 +126,7 @@ public final class CallTraceContext {
         private Long retryAfterMs;
         private String upstreamRequestId;
         private boolean countedForEjection;
+        private String upstreamUrl;
 
         private AttemptDraft(RoutingRuleTargetDto target) {
             this.target = target;
@@ -180,7 +181,15 @@ public final class CallTraceContext {
                 this.upstreamErrorCode = error.code();
                 this.retryAfterMs = error.retryAfterMs();
                 this.upstreamRequestId = error.upstreamRequestId();
+                this.upstreamUrl = error.upstreamUrl();
             }
+        }
+
+        /**
+         * 成功路径回填上游完整请求地址（来自 {@link org.chobit.knot.gateway.model.ProxyResult#upstreamUrl()}）。
+         */
+        public void setUpstreamUrl(String upstreamUrl) {
+            this.upstreamUrl = upstreamUrl;
         }
 
         private AttemptMsgDto toRecord(int seq) {
@@ -204,7 +213,8 @@ public final class CallTraceContext {
                 rejectReason,
                 upstream,
                 upstreamRequestId,
-                countedForEjection);
+                countedForEjection,
+                upstreamUrl);
         }
     }
 }

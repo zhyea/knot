@@ -75,7 +75,7 @@ class PluginLogPayloadSerializationTest {
     void shouldTagUpstreamRequestPayload() throws Exception {
         PluginLogPayload payload = new UpstreamRequestPayload(
                 "OPENAI", "gpt-4o", "OPENAI", "OPENAI", "application/json", null,
-                JsonKit.toTree(Map.of("stream", true)));
+                JsonKit.toTree(Map.of("stream", true)), null);
 
         JsonNode json = mapper.valueToTree(payload);
         assertEquals("provider-request", json.get("payloadType").asText());
@@ -85,13 +85,16 @@ class PluginLogPayloadSerializationTest {
         assertTrue(json.get("requestBody").get("stream").asBoolean());
         // UPSTREAM_REQUEST 阶段上游未响应，恒为 null——字段占位保三阶段格式一致
         assertTrue(json.get("upstreamRequestId").isNull());
+        // 请求阶段已可算出上游地址，但本次测试不校验具体值，仅确认字段存在且为 null
+        assertTrue(json.get("upstreamUrl").isNull());
     }
 
     @Test
     void shouldTagUpstreamResponsePayload() throws Exception {
         PluginLogPayload payload = new UpstreamResponsePayload(
                 "OPENAI", "gpt-4o", "OPENAI", "req_abc123",
-                JsonKit.toTree(Map.of("usage", Map.of("total_tokens", 42))));
+                JsonKit.toTree(Map.of("usage", Map.of("total_tokens", 42))),
+                "https://openrouter.ai/api/v1/chat/completions");
 
         JsonNode json = mapper.valueToTree(payload);
         assertEquals("provider-response", json.get("payloadType").asText());
@@ -103,7 +106,8 @@ class PluginLogPayloadSerializationTest {
     void shouldTagUpstreamErrorPayload() throws Exception {
         PluginLogPayload payload = new UpstreamErrorPayload(
                 "OPENAI", "gpt-4o", "OPENAI", "req_abc123", "IllegalStateException", "boom",
-                JsonKit.toTree(Map.of("model", "gpt-4o")));
+                JsonKit.toTree(Map.of("model", "gpt-4o")),
+                "https://openrouter.ai/api/v1/chat/completions");
 
         JsonNode json = mapper.valueToTree(payload);
         assertEquals("provider-error", json.get("payloadType").asText());

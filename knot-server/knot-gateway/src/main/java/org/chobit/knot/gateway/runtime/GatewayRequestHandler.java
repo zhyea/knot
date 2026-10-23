@@ -79,6 +79,15 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     public static final String HIT_TARGET_ATTRIBUTE = "hitTarget";
 
     /**
+     * 请求上下文属性：本次请求实际命中目标的上游完整请求地址（{@code upstreamUrl}）。
+     *
+     * <p>与 {@link #HIT_TARGET_ATTRIBUTE} 同一写入点：候选成功后由
+     * {@code ProxyResult#upstreamUrl()} 取得，供数仓流量事件直接呈现请求落点。失败路径
+     * （无成功候选）不设置，{@code hit} 的 {@code upstreamUrl} 为 null。</p>
+     */
+    public static final String HIT_TARGET_URL_ATTRIBUTE = "hitTargetUrl";
+
+    /**
      * 请求上下文属性：本次请求成功记账用的流量检查上下文（{@code TrafficCheckContext}）。
      *
      * <p>非流式在候选成功后同步记账；流式响应要在流写完后才拿到真实用量，
@@ -306,6 +315,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                 outageTracker.recordSuccess(decision, System.currentTimeMillis());
                 // 供应商侧请求 id 一并留痕：数仓 attempt 级绑定 + 联合排查检索（不透客户端）
                 draft.succeeded(result.upstreamRequestId());
+                draft.setUpstreamUrl(result.upstreamUrl());
                 if (metrics != null && index > 0) {
                     // 靠后的候选承接成功 = 前面排队的候选不可用，是上游健康度的重要预警信号
                     metrics.failover();
@@ -320,6 +330,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                 writeSelectedModelHeader(candidate, exchange);
                 // 命中目标入上下文：首 token 观察者据此把慢信号归属到本候选（异常路径无首 token）
                 context.putAttribute(HIT_TARGET_ATTRIBUTE, candidate);
+                context.putAttribute(HIT_TARGET_URL_ATTRIBUTE, result.upstreamUrl());
                 context.putAttribute(TRAFFIC_CONTEXT_ATTRIBUTE, trafficContext);
                 return new SuccessCandidate(result, deferredToStream);
             })

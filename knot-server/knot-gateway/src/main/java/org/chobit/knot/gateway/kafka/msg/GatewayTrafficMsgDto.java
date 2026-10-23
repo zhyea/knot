@@ -121,7 +121,8 @@ public record GatewayTrafficMsgDto(String schema,
     public record HitSnapshot(String modelCode,
                               String upstreamModelCode,
                               String providerAccountCode,
-                              String poolCode) {
+                              String poolCode,
+                              String upstreamUrl) {
     }
 
     /**
@@ -184,7 +185,10 @@ public record GatewayTrafficMsgDto(String schema,
         if (hit == null) {
             return null;
         }
-        return new HitSnapshot(hit.targetCode(), hit.upstreamModelCode(), hit.providerAccountCode(), hit.poolCode());
+        String upstreamUrl = context == null ? null
+                : (String) context.attribute(GatewayRequestHandler.HIT_TARGET_URL_ATTRIBUTE);
+        return new HitSnapshot(hit.targetCode(), hit.upstreamModelCode(), hit.providerAccountCode(),
+                hit.poolCode(), upstreamUrl);
     }
 
     private static RoutingSnapshot routingSnapshot(ResolvedRouting routing) {

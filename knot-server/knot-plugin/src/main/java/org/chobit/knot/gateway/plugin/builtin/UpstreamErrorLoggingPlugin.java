@@ -72,7 +72,8 @@ public class UpstreamErrorLoggingPlugin implements PluginHandler<UpstreamPluginC
                 context.upstreamRequestId(),
                 error == null ? null : error.getClass().getSimpleName(),
                 error == null ? null : error.getMessage(),
-                JsonKit.toTree(context.requestBody()));
+                JsonKit.toTree(context.requestBody()),
+                context.upstreamUrl());
 
         PluginLogWriter.log(log, context.stageCode(), binding, context.traceId(), payload);
     }

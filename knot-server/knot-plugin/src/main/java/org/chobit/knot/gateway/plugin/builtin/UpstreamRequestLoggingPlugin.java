@@ -58,7 +58,8 @@ public class UpstreamRequestLoggingPlugin implements PluginHandler<UpstreamPlugi
             context.bindingProtocol(),
             context.contentType() == null ? null : context.contentType().toString(),
             context.upstreamRequestId(),
-            JsonKit.toTree(context.requestBody()));
+            JsonKit.toTree(context.requestBody()),
+            context.upstreamUrl());
 
         PluginLogWriter.log(log, context.stageCode(), binding, context.traceId(), payload);
     }

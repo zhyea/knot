@@ -110,7 +110,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
         } catch (WebClientResponseException e) {
             // 兜底：漏网的非 2xx（如 onStatus 未覆盖的重定向）也要带齐上游上下文
             throw upstreamFailure(e.getStatusCode(), e.getHeaders(), e.getResponseBodyAsString(),
-                    context.requestId());
+                    context.requestId(), target.url());
         } catch (Exception e) {
             throw new GatewayUpstreamException(e.getMessage(), ProxyErrorCodeEnum.UPSTREAM_ERROR.code());
         }
@@ -151,8 +151,9 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     private ProxyResult executeBuffered(UpstreamRequestContext context,
                                         UpstreamRequestAdapter adapter,
                                         RequestTarget target) {
+        String upstreamUrl = target.url();
         Mono<BufferedExchange> exchange = withBody(context, adapter, target)
-                .exchangeToMono(response -> readBuffered(response, context.requestId()));
+                .exchangeToMono(response -> readBuffered(response, context.requestId(), upstreamUrl));
         BufferedExchange buffered = withResponseTimeout(exchange).block();
         String handledResponseBody = adapter.handleResponse(buffered.body(), context);
         return new ProxyResult(
@@ -161,7 +162,8 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                 context.model().getId(),
                 usageExtractorRegistry.extract(handledResponseBody, context, adapter),
                 null,
-                buffered.upstreamRequestId()
+                buffered.upstreamRequestId(),
+                upstreamUrl
         );
     }
 
@@ -181,14 +183,14 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
      *                     {@code X-Request-Id} 回显回来的情况，防止它冒充
      *                     {@code upstream_request_id}（两者是不同系统的编号）
      */
-    static Mono<BufferedExchange> readBuffered(ClientResponse response, String ownRequestId) {
+    static Mono<BufferedExchange> readBuffered(ClientResponse response, String ownRequestId, String upstreamUrl) {
         HttpStatusCode statusCode = response.statusCode();
         HttpHeaders headers = response.headers().asHttpHeaders();
         return response.bodyToMono(String.class)
                 .defaultIfEmpty("")
                 .map(body -> {
                     if (!statusCode.is2xxSuccessful()) {
-                        throw upstreamFailure(statusCode, headers, body, ownRequestId);
+                        throw upstreamFailure(statusCode, headers, body, ownRequestId, upstreamUrl);
                     }
                     return new BufferedExchange(body, UpstreamRequestIdResolver.requestId(headers, ownRequestId));
                 });
@@ -214,8 +216,8 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                                         RequestTarget target) {
         Mono<ResponseEntity<Flux<DataBuffer>>> response = withBody(context, adapter, target)
                 .retrieve()
-                .onStatus(status -> !status.is2xxSuccessful(),
-                        failed -> upstreamFailureOf(failed, context.requestId()))
+                                            .onStatus(status -> !status.is2xxSuccessful(),
+                        failed -> upstreamFailureOf(failed, context.requestId(), target.url()))
                 .toEntityFlux(DataBuffer.class);
         ResponseEntity<Flux<DataBuffer>> entity = withResponseTimeout(response).block();
         HttpHeaders headers = entity.getHeaders();
@@ -233,7 +235,8 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                 context.model().getId(),
                 null,
                 streamResponse,
-                streamResponse.upstreamRequestId()
+                streamResponse.upstreamRequestId(),
+                target.url()
         );
     }
 
@@ -242,24 +245,26 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
      *
      * @param ownRequestId 我方 request_id，用于排除上游回显值（见 {@link UpstreamRequestIdResolver}）
      */
-    private Mono<Throwable> upstreamFailureOf(ClientResponse response, String ownRequestId) {
+    private Mono<Throwable> upstreamFailureOf(ClientResponse response, String ownRequestId, String upstreamUrl) {
         return response.bodyToMono(String.class)
                 .defaultIfEmpty("")
                 .map(body -> upstreamFailure(
-                        response.statusCode(), response.headers().asHttpHeaders(), body, ownRequestId));
+                        response.statusCode(), response.headers().asHttpHeaders(), body, ownRequestId, upstreamUrl));
     }
 
     private static GatewayUpstreamException upstreamFailure(HttpStatusCode statusCode,
                                                            HttpHeaders headers,
                                                            String body,
-                                                           String ownRequestId) {
+                                                           String ownRequestId,
+                                                           String upstreamUrl) {
         return new GatewayUpstreamException(
                 "upstream responded with status " + statusCode.value(),
                 ProxyErrorCodeEnum.UPSTREAM_ERROR.code(),
                 statusCode.value(),
                 body,
                 retryAfterMs(headers),
-                UpstreamRequestIdResolver.requestId(headers, ownRequestId)
+                UpstreamRequestIdResolver.requestId(headers, ownRequestId),
+                upstreamUrl
         );
     }
 

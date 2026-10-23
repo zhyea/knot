@@ -14,6 +14,8 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
  * @param countedForEjection 该次失败是否计入摘除判定；只有它为 true 的 5xx/429 才算「上游故障」
  * @param upstreamRequestId  供应商侧请求 id（响应头白名单归一）：成功失败均带，供联合排查检索；
  *                           {@code attempt_no=0}（未发起调用即被拒）或上游无匹配头为 null
+ * @param upstreamUrl        本次上游调用的完整请求地址（scheme + host + path）：成功失败均带，
+ *                           排障能直接看出这个候选打到了哪个供应商端点；未发起调用（频控拒绝）为 null
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
@@ -32,5 +34,6 @@ public record AttemptMsgDto(int seq,
                             String rejectReason,
                             UpstreamErrorMsgDto upstream,
                             String upstreamRequestId,
-                            boolean countedForEjection) {
+                            boolean countedForEjection,
+                            String upstreamUrl) {
 }

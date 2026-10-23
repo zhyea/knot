@@ -31,7 +31,7 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
                 .build();
 
         AbstractUpstreamProtocolExecutor.BufferedExchange exchange =
-                AbstractUpstreamProtocolExecutor.readBuffered(response, null).block();
+                AbstractUpstreamProtocolExecutor.readBuffered(response, null, "https://upstream.test/v1/chat/completions").block();
 
         assertEquals("{\"ok\":true}", exchange.body());
         assertEquals("req_openai", exchange.upstreamRequestId());
@@ -44,7 +44,7 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
                 .build();
 
         AbstractUpstreamProtocolExecutor.BufferedExchange exchange =
-                AbstractUpstreamProtocolExecutor.readBuffered(response, null).block();
+                AbstractUpstreamProtocolExecutor.readBuffered(response, null, "https://upstream.test/v1/chat/completions").block();
 
         assertNull(exchange.upstreamRequestId());
     }
@@ -57,7 +57,7 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
                 .build();
 
         GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
-                () -> AbstractUpstreamProtocolExecutor.readBuffered(response, null).block());
+                () -> AbstractUpstreamProtocolExecutor.readBuffered(response, null, "https://upstream.test/v1/chat/completions").block());
 
         assertEquals(503, error.httpStatus());
         assertEquals("{\"error\":\"busy\"}", error.responseBody());
@@ -71,7 +71,7 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
         ClientResponse response = response("{\"error\":\"boom\"}", HttpStatus.BAD_GATEWAY).build();
 
         GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
-                () -> AbstractUpstreamProtocolExecutor.readBuffered(response, null).block());
+                () -> AbstractUpstreamProtocolExecutor.readBuffered(response, null, "https://upstream.test/v1/chat/completions").block());
 
         assertEquals(502, error.httpStatus());
         assertNull(error.upstreamRequestId());
@@ -84,7 +84,7 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
                 .build();
 
         GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
-                () -> AbstractUpstreamProtocolExecutor.readBuffered(response, null).block());
+                () -> AbstractUpstreamProtocolExecutor.readBuffered(response, null, "https://upstream.test/v1/chat/completions").block());
 
         assertEquals(400, error.httpStatus());
         assertEquals("req_azure_400", error.upstreamRequestId());
@@ -95,7 +95,7 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
         ClientResponse response = response("{}", HttpStatus.INTERNAL_SERVER_ERROR).build();
 
         GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
-                () -> AbstractUpstreamProtocolExecutor.readBuffered(response, null).block());
+                () -> AbstractUpstreamProtocolExecutor.readBuffered(response, null, "https://upstream.test/v1/chat/completions").block());
 
         assertEquals("upstream responded with status 500", error.getMessage());
     }
@@ -112,7 +112,7 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
                 .build();
 
         AbstractUpstreamProtocolExecutor.BufferedExchange exchange =
-                AbstractUpstreamProtocolExecutor.readBuffered(response, own).block();
+                AbstractUpstreamProtocolExecutor.readBuffered(response, own, "https://upstream.test/v1/chat/completions").block();
 
         assertNull(exchange.upstreamRequestId(), "回显值不算上游 id");
     }

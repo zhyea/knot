@@ -63,7 +63,8 @@ public class UpstreamResponseLoggingPlugin implements PluginHandler<UpstreamPlug
                 context.modelCode(),
                 context.protocol(),
                 context.upstreamRequestId(),
-                JsonKit.toTree(context.responseSnapshot()));
+                JsonKit.toTree(context.responseSnapshot()),
+                context.upstreamUrl());
 
         PluginLogWriter.log(log, context.stageCode(), binding, context.traceId(), payload);
     }
