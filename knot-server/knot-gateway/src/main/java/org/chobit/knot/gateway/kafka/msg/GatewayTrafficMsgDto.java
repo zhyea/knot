@@ -43,12 +43,23 @@ import java.util.List;
  * <p>{@code hit}（真正请求的模型）取自候选循环落定后实际调用上游的那个候选（hit target，
  * 与旧请求层模型三字段同口径），不是候选链首位、也不是备选清单；池命中时带 {@code poolCode}
  * 供数仓归因到具体模型池。</p>
+ *
+ * <p><b>三个 id 语义分明，不可互相替代</b>（2026-10-23）：</p>
+ * <ul>
+ *   <li>{@code trace_id} —— W3C 追踪 id，可能<b>继承自调用方</b>的 traceparent，不保证是我方发的；</li>
+ *   <li>{@code request_id} —— 网关<b>入口生成</b>的请求编号（32 位 hex），已以 {@code X-Request-Id}
+ *       透传给上游，是对账时的「我方 id」；</li>
+ *   <li>{@code attempts[].upstream_request_id} —— 上游<b>返回</b>的编号，是「对方 id」。</li>
+ * </ul>
+ * <p>双向对账的检索路径：拿 {@code request_id} 去供应商侧查（他们日志里有这个头），
+ * 拿 {@code upstream_request_id} 去我们数仓查（它来自对方响应头）。</p>
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public record GatewayTrafficMsgDto(String schema,
                                    String traceId,
                                    String spanId,
+                                   String requestId,
                                    String nodeId,
                                    String receivedAt,
                                    String finishedAt,
@@ -135,6 +146,7 @@ public record GatewayTrafficMsgDto(String schema,
             SCHEMA,
             context == null ? null : context.traceId(),
             context == null ? null : context.spanId(),
+            context == null ? null : context.requestId(),
             Msg.NODE_ID,
             iso(receivedAtMillis),
             iso(finishedAtMillis),

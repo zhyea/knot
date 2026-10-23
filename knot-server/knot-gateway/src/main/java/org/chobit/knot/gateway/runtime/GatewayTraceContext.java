@@ -15,6 +15,12 @@ import java.util.regex.Pattern;
  * 无处安放（同一请求会跨多个线程），改为放进 <b>Reactor Context</b>
  * （{@link #CONTEXT_KEY}）：{@code GatewayTraceFilter} 在入口写入一次，
  * 模板用 {@code Mono.deferContextual} 读取，链路任何位置都能取到同一个 trace。</p>
+ *
+ * <p>2026-10-23：本上下文<b>同时承载网关自生成的 {@code request_id}</b>（{@link #requestId()}）。
+ * 它和 trace 一样是「每请求一个、随链路传递」的东西，因此共用一个载体、一次
+ * {@code contextWrite} 即可贯穿到上游请求头与数仓消息；但语义上它<b>不属于 W3C trace</b>——
+ * 不写进 traceparent、不受入站 traceparent 影响（外部 traceId 再长也是别人的 id）。
+ * 客户端传入的 request-id 类头一律忽略，网关是唯一权威。</p>
  */
 public final class GatewayTraceContext {
 
@@ -49,6 +55,13 @@ public final class GatewayTraceContext {
     private final String traceparent;
     private final String originalTraceparent;
     private final boolean generatedTraceId;
+    /**
+     * 网关自生成的请求标识（32 位小写 hex）：构造时固定，整条链路唯一。
+     *
+     * <p>与 traceId 的区别：traceId 可能来自<b>入站</b> traceparent（别人的链路 id），
+     * requestId 恒由网关生成，是「我方对这次请求的编号」，透传给上游后供应商侧可检索。</p>
+     */
+    private final String requestId;
 
     private GatewayTraceContext(String version,
                                 String traceId,
@@ -65,6 +78,7 @@ public final class GatewayTraceContext {
         this.originalTraceparent = originalTraceparent;
         this.generatedTraceId = generatedTraceId;
         this.traceparent = version + "-" + traceId + "-" + spanId + "-" + traceFlags;
+        this.requestId = newRequestId();
     }
 
     /**
@@ -130,6 +144,16 @@ public final class GatewayTraceContext {
         return traceparent;
     }
 
+    /**
+     * 网关自生成的请求标识（32 位小写 hex，非空）：透传给上游的 {@code X-Request-Id}，
+     * 也是数仓消息的 {@code request_id}。
+     *
+     * <p>⚠ 与 {@code upstream_request_id}（上游返回的 id）是两个东西，勿混用。</p>
+     */
+    public String requestId() {
+        return requestId;
+    }
+
     public String originalTraceparent() {
         return originalTraceparent;
     }
@@ -157,6 +181,17 @@ public final class GatewayTraceContext {
         MDC.remove(MDC_TRACE_ID);
         MDC.remove(MDC_SPAN_ID);
         MDC.remove(MDC_TRACEPARENT);
+    }
+
+    /**
+     * 生成一个新的网关请求标识：128 位随机数的 32 位小写 hex 形态（与 traceId 同格式）。
+     *
+     * <p>不用 UUID 带横线形态：项目内 traceId 已是 32 位 hex，日志检索与人工比对
+     * 统一一种形状更省事；这里也不复用 traceId——traceId 可能继承自入站
+     * traceparent（别人的 id），而 requestId 必须是我方自己的编号。</p>
+     */
+    public static String newRequestId() {
+        return randomHex(16);
     }
 
     private static GatewayTraceContext generated(String originalTraceparent) {

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.chobit.knot.gateway.adapter.request.RequestAdapterCatalog;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
@@ -59,6 +60,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class ModelService {
+
+    /** 模型级 Base Path 上限，与 kb_models.base_path 列宽一致。 */
+    private static final int BASE_PATH_MAX_LENGTH = 255;
+
+    /**
+     * 模型级 Base Path 允许的字符集：ASCII 路径安全字符。
+     *
+     * <p>刻意不含 {@code %}——Bedrock 的模型 ID 会编码成 {@code %3A} 出现在协议路径里，
+     * 若允许用户手写百分号，会与已编码路径混在一起难以区分「谁的编码」。</p>
+     */
+    private static final Pattern BASE_PATH_PATTERN = Pattern.compile("^/[A-Za-z0-9._~\\-/]*$");
+
     private final ModelMapper modelMapper;
     private final DiscountPolicyMapper discountPolicyMapper;
     private final ModelApiBindingMapper modelApiBindingMapper;
@@ -247,6 +260,7 @@ public class ModelService {
         ModelEntity entity = modelConverter.toEntity(request);
         entity.setModelCode(modelCode);
         entity.setUpstreamModel(request.upstreamModel().trim());
+        entity.setBasePath(normalizeBasePath(request.basePath()));
         modelMapper.insert(entity);
         trafficPolicySupport.save(
                 TrafficResourceTypeEnum.MODEL.code(),
@@ -278,6 +292,7 @@ public class ModelService {
         entity.setId(id);
         entity.setModelCode(modelCode);
         entity.setUpstreamModel(request.upstreamModel().trim());
+        entity.setBasePath(normalizeBasePath(request.basePath()));
         modelMapper.update(entity);
         trafficPolicySupport.save(
                 TrafficResourceTypeEnum.MODEL.code(),
@@ -308,7 +323,7 @@ public class ModelService {
                     existing.providerCode(),
                     existing.modelType(),
                     existing.version(),
-                    existing.baseUrl(),
+                    existing.basePath(),
                     existing.remark(),
                     enabled,
                     existing.logicalModelCode(),
@@ -485,7 +500,7 @@ public class ModelService {
                 base.providerCode(),
                 base.modelType(),
                 base.version(),
-                base.baseUrl(),
+                base.basePath(),
                 base.remark(),
                 base.enabled(),
                 base.logicalModelCode(),
@@ -546,7 +561,7 @@ public class ModelService {
                 base.providerCode(),
                 base.modelType(),
                 base.version(),
-                base.baseUrl(),
+                base.basePath(),
                 base.remark(),
                 base.enabled(),
                 base.logicalModelCode(),
@@ -595,7 +610,6 @@ public class ModelService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "只能绑定已启用的统一模型");
         }
         String modelType = ModelTypeEnum.requireCode(logicalModel.getModelType(), "绑定的统一模型缺少模型类型");
-        String baseUrl = blankToNull(request.baseUrl());
         if (request.billingRuleCode() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择计费规则");
         }
@@ -606,16 +620,60 @@ public class ModelService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "计费规则与统一模型不匹配");
         }
         if (request.enabled()) {
+            // 上游 host 由供应商账户提供，模型级只保留可选路径前缀，故这里不再校验 Base URL
             requireText(request.modelCode(), "请填写模型编码");
-            if (baseUrl == null) {
-                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请填写 Base URL");
-            }
         }
         return modelType;
     }
 
     private static boolean matchesNullableScope(String ruleScopeCode, String selectedCode) {
         return ruleScopeCode == null || ruleScopeCode.equals(selectedCode);
+    }
+
+    /**
+     * 归一化并校验模型级 Base Path。
+     *
+     * <p>空串表示「无模型级前缀」，这是绝大多数模型的常态——上游 host 一律由供应商账户提供。
+     * 只有供应商给每个模型分配独立路径段（如 Cloudsway 的 endpoint_id）时才需要填。</p>
+     *
+     * <p>刻意拒绝协议头 / query / fragment / 空格与中文：这些要么说明用户把 host 填错了位置，
+     * 要么会让 {@code WebClient.uri(String)} 当 URI 模板解析，导致实际请求地址与预期不符。</p>
+     *
+     * <p>包级可见：供单测直接驱动归一化规则，不必拖 ModelService 整条依赖链。</p>
+     */
+    static String normalizeBasePath(String basePath) {
+        String value = basePath == null ? "" : basePath.trim();
+        if (value.length() > BASE_PATH_MAX_LENGTH) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "模型 Base Path 不能超过 " + BASE_PATH_MAX_LENGTH + " 个字符");
+        }
+        if (value.contains("://")) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "模型 Base Path 只能填路径前缀，上游地址请配置在供应商账户上");
+        }
+        if (value.indexOf('?') >= 0 || value.indexOf('#') >= 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "模型 Base Path 不能包含 query 或 fragment");
+        }
+        String normalized = value;
+        while (normalized.length() > 1 && normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        // 空、空白、"/"、"//" 一律收敛成「无前缀」
+        if (normalized.isEmpty() || "/".equals(normalized)) {
+            return "";
+        }
+        if (normalized.charAt(0) != '/') {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "模型 Base Path 必须以 / 开头");
+        }
+        if (normalized.contains("//")) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "模型 Base Path 不能包含连续斜杠");
+        }
+        if (!BASE_PATH_PATTERN.matcher(normalized).matches()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "模型 Base Path 只能包含字母、数字与 - . _ ~ /");
+        }
+        return normalized;
     }
 
     private static String requireText(String value, String message) {

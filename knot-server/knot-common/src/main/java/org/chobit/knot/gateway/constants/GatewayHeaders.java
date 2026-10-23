@@ -9,6 +9,21 @@ public final class GatewayHeaders {
     public static final String RULE = "Rule";
     public static final String TRACEPARENT = "traceparent";
     /**
+     * 网关自生成的请求标识：请求进入网关时生成 32 位小写 hex，随请求头透传给上游，
+     * 让供应商侧日志里能直接检索到我方 id（提工单时双侧对得上）。
+     *
+     * <p><b>与 {@code upstream_request_id} 严格区分</b>：本头是我方<b>发出去的</b> id；
+     * {@code upstream_request_id} 是上游<b>回来的</b> id（见 {@code UpstreamRequestIdResolver}）。
+     * 二者是不同系统的两套 id，不可互相替代，也不可混为一列。</p>
+     *
+     * <p>选择通用头名而非 {@code X-Knot-Request-Id}：多数供应商与反代（nginx 等）会把它记进
+     * 访问日志，可检索性最好。代价是少数上游会原样回显，故采集上游 id 时必须排除本值
+     * （否则我方 id 会冒充上游 id 污染 {@code upstream_request_id}）。</p>
+     *
+     * <p>客户端传入的同名请求头<b>一律忽略</b>：网关是唯一权威，防伪造与串号。</p>
+     */
+    public static final String X_REQUEST_ID = "X-Request-Id";
+    /**
      * 粘性路由键：同一会话/终端用户多轮请求带上同一个值，网关据此把请求稳定落到
      * 模型池内的同一个上游，从而命中上游 prompt cache。默认头名与
      * {@code StickyPolicy.HEADER_NAME_DEFAULT} 一致（池级配置可改，但控制器固定读此头）。

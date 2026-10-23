@@ -8,7 +8,7 @@
     <sql id="modelFamilyExpr">(select lm2.model_family from kb_provider_model_mappings pm2 join kb_logical_models lm2 on lm2.model_code = pm2.logical_model_code where pm2.model_code = m.model_code and lm2.is_deleted = 0 order by pm2.id asc limit 1)</sql>
 
     <sql id="ModelSelectColumns">
-        m.id, m.provider_account_code, m.model_code, m.upstream_model, m.version, m.base_url, m.remark, m.billing_rule_code, m.status,
+        m.id, m.provider_account_code, m.model_code, m.upstream_model, m.version, m.base_path, m.remark, m.billing_rule_code, m.status,
         m.is_deleted,
         <include refid="logicalModelCodeExpr"/> AS logical_model_code,
         <include refid="modelTypeExpr"/> AS model_type,
@@ -73,8 +73,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_models(provider_account_code, model_code, upstream_model, version, base_url, remark, billing_rule_code, status)
-        values(#{providerAccountCode}, #{modelCode}, #{upstreamModel}, #{version}, #{baseUrl}, #{remark}, #{billingRuleCode}, #{status})
+        insert into kb_models(provider_account_code, model_code, upstream_model, version, base_path, remark, billing_rule_code, status)
+        values(#{providerAccountCode}, #{modelCode}, #{upstreamModel}, #{version}, #{basePath}, #{remark}, #{billingRuleCode}, #{status})
     </insert>
 
     <update id="update">
@@ -83,7 +83,7 @@
             model_code = #{modelCode},
             upstream_model = #{upstreamModel},
             version = #{version},
-            base_url = #{baseUrl},
+            base_path = #{basePath},
             remark = #{remark},
             billing_rule_code = #{billingRuleCode},
             status = #{status}

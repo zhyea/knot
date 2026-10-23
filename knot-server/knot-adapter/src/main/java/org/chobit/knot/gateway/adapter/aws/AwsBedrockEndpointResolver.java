@@ -104,9 +104,15 @@ public final class AwsBedrockEndpointResolver {
     }
 
     /**
-     * 从解密后的凭据配置推导 base URL（含 {@code https://} 前缀，与 {@code kb_models.base_url}
-     * 的既有口径一致——WebClient 的 {@code uri()} 只接受绝对 URI）；非 AWS 凭据
-     * （缺 region / endpointType）返回 {@code null}，由调用方沿用 {@code model.base_url}。
+     * 从解密后的凭据配置推导 base URL（含 {@code https://} 前缀——WebClient 的 {@code uri()}
+     * 只接受绝对 URI）。
+     *
+     * <p>仅供 AWS 接入策略（{@code AwsSigV4AuthApplier.baseUrl()}）调用：那里先看账户
+     * {@code kb_provider_accounts.base_url} 是否显式配置，为空才落到本方法。通用策略与
+     * 请求适配器都不该感知 AWS 端点推导。</p>
+     *
+     * @return 缺 {@code region} 时返回 {@code null}（{@code endpointType} 有默认值
+     * {@code bedrock-runtime}，不会因此返回 null），由调用方按「配置缺失」上报
      */
     public static String baseUrlFrom(Map<String, Object> authConfig) {
         String region = region(authConfig);

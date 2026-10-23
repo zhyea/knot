@@ -155,6 +155,36 @@ public class ProviderService {
         return StringUtils.trim(authApplier);
     }
 
+    /**
+     * 校验账户的上游地址：静态接入策略必须填写 base URL，可由凭据派生端点的策略允许为空。
+     *
+     * <p>判定依据是策略自己的能力声明
+     * {@link org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplier#requiresBaseUrl()}，
+     * 而不是供应商名字——「哪个供应商可以不给地址」属于供应商特例，留在策略里，
+     * 服务层不必认识 AWS，也就不会因为新增供应商而改这里。</p>
+     *
+     * <p>停用的账户放行（与模型侧 {@code if (request.enabled())} 的校验口径一致）：
+     * 允许先建停用账户、补全配置后再启用。</p>
+     */
+    private void validateBaseUrl(ProviderAccountDto request, String authApplierCode) {
+        if (!request.enabled()) {
+            return;
+        }
+        String baseUrl = StringUtils.trimToNull(request.baseUrl());
+        boolean required = StringUtils.isBlank(authApplierCode)
+                || authApplierCatalog.resolve(authApplierCode).requiresBaseUrl();
+        if (baseUrl == null) {
+            if (required) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请填写上游 Base URL");
+            }
+            return;
+        }
+        if (!StringUtils.startsWithAny(baseUrl, "http://", "https://")) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "上游 Base URL 必须以 http:// 或 https:// 开头");
+        }
+    }
+
     public boolean isCodeAvailable(String code, Long excludeId) {
         String normalized = normalizeCode(code);
         if (normalized.isEmpty()) {
@@ -189,13 +219,15 @@ public class ProviderService {
     public ProviderAccountDto create(ProviderAccountDto request) {
         assertProviderProfileCodeExists(request.providerCode());
         ProviderCredentialTypeEnum credentialType = validateCredential(request);
+        String authApplier = validateAuthApplier(request.authApplier(), credentialType);
+        validateBaseUrl(request, authApplier);
         String code = resolveCodeForSave(request.code(), null);
         assertCodeAvailable(code, null);
         ProviderAccountEntity entity = providerConverter.toEntity(request);
         entity.setCode(code);
         providerAccountMapper.insert(entity);
         credentialSupport.saveAuthConfig(entity.getId(), credentialType.code(),
-                validateAuthApplier(request.authApplier(), credentialType),
+                authApplier,
                 resolveAuthConfigForSave(null, request.authConfig()));
         trafficPolicySupport.save(TrafficResourceTypeEnum.PROVIDER.code(), entity.getId(),
                 request.rateLimitPolicy(), request.quotaPolicies());
@@ -213,6 +245,8 @@ public class ProviderService {
         }
         assertProviderProfileCodeExists(request.providerCode());
         ProviderCredentialTypeEnum credentialType = validateCredential(request);
+        String authApplier = validateAuthApplier(request.authApplier(), credentialType);
+        validateBaseUrl(request, authApplier);
         // 账户编码被供应商模型按 provider_account_code 引用后不可改：改了会让存量模型掉绑账户
         CodeBindingSupport.requireCodeChangeAllowed(
                 existing.getCode(), request.code(), boundCount(existing.getCode()), "供应商账户编码");
@@ -223,7 +257,7 @@ public class ProviderService {
         entity.setCode(code);
         providerAccountMapper.update(entity);
         credentialSupport.saveAuthConfig(id, credentialType.code(),
-                validateAuthApplier(request.authApplier(), credentialType),
+                authApplier,
                 resolveAuthConfigForSave(id, request.authConfig()));
         trafficPolicySupport.save(TrafficResourceTypeEnum.PROVIDER.code(), id,
                 request.rateLimitPolicy(), request.quotaPolicies());

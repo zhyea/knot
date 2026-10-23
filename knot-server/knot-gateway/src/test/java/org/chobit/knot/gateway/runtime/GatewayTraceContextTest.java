@@ -77,8 +77,48 @@ class GatewayTraceContextTest {
         assertNotEquals(a, b, "两次缺失都应生成不同的 traceparent");
     }
 
-    private static void assertGeneratedDefault(GatewayTraceContext ctx) {
-        assertNotNull(ctx);
+    // ---------------------------------------------------------------------
+    // 网关自生成的 request_id（2026-10-23）：与 traceId 是两个 id，不可互相替代
+    // ---------------------------------------------------------------------
+
+    @Test
+    void requestIdIsGeneratedAs32LowerHex() {
+        GatewayTraceContext ctx = GatewayTraceContext.fromTraceparent(null);
+
+        assertNotNull(ctx.requestId(), "入口必须生成 request_id");
+        assertTrue(ctx.requestId().matches("[0-9a-f]{32}"),
+                "请求标识统一 32 位小写 hex 形态: " + ctx.requestId());
+    }
+
+    @Test
+    void requestIdIsGatewayOwnEvenWhenInboundTraceparentPresent() {
+        // 入站 traceparent 的 traceId 属于调用方；requestId 必须是我方新生成的编号
+        String incoming = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+        GatewayTraceContext ctx = GatewayTraceContext.fromTraceparent(incoming);
+
+        assertEquals("4bf92f3577b34da6a3ce929d0e0e4736", ctx.traceId());
+        assertNotEquals(ctx.traceId(), ctx.requestId(),
+                "request_id 不得复用入站 traceId（那是别人的链路 id）");
+        assertTrue(ctx.requestId().matches("[0-9a-f]{32}"));
+    }
+
+    @Test
+    void requestIdIsUniquePerRequest() {
+        String first = GatewayTraceContext.fromTraceparent(null).requestId();
+        String second = GatewayTraceContext.fromTraceparent(null).requestId();
+
+        assertNotEquals(first, second, "两次请求必须拿到不同的 request_id");
+    }
+
+    @Test
+    void requestIdNeverLeaksIntoOutboundTraceparent() {
+        GatewayTraceContext ctx = GatewayTraceContext.fromTraceparent(null);
+
+        assertFalse(ctx.traceparent().contains(ctx.requestId()),
+                "request_id 不是 W3C 字段，不能混进 traceparent");
+    }
+
+    private static void assertGeneratedDefault(GatewayTraceContext ctx) {        assertNotNull(ctx);
         var m = W3C.matcher(ctx.traceparent());
         assertTrue(m.matches(), "生成的默认 traceparent 必须合规: " + ctx.traceparent());
         assertEquals("00", m.group(1));

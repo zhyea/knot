@@ -87,7 +87,7 @@ class ModelApiBindingSyncTest {
         entity.setUpstreamModel("gpt-4o");
         entity.setProviderAccountCode("acct-1");
         entity.setStatus(EnabledStatusEnum.ENABLED.code());
-        entity.setBaseUrl("https://example.com");
+        entity.setBasePath("/ep-1");
 
         when(modelMapper.getById(MODEL_ID)).thenReturn(entity);
         when(modelMapper.countByModelCode(any(), eq(MODEL_ID))).thenReturn(0L);
@@ -110,7 +110,7 @@ class ModelApiBindingSyncTest {
         when(modelConverter.toDto(any(ModelEntity.class))).thenAnswer(invocation -> {
             ModelEntity source = invocation.getArgument(0);
             return new ModelDto(source.getId(), source.getModelCode(), source.getUpstreamModel(),
-                    source.getProviderAccountCode(), null, null, null, "1.0.0", source.getBaseUrl(),
+                    source.getProviderAccountCode(), null, null, null, "1.0.0", source.getBasePath(),
                     null, true, "logical-gpt", "billing-1", null, null, List.of(), false, null);
         });
         when(bindingMapper.listByModelId(MODEL_ID)).thenReturn(List.of());
@@ -164,7 +164,7 @@ class ModelApiBindingSyncTest {
 
     private ModelDto request(List<ModelApiBindingDto> bindings) {
         return new ModelDto(MODEL_ID, "gpt-4o", "gpt-4o", "acct-1", null, null, "CHAT",
-                "1.0.0", "https://example.com", null, true, "logical-gpt", "billing-1",
+                "1.0.0", "/ep-1", null, true, "logical-gpt", "billing-1",
                 null, null, bindings, false, null);
     }
 

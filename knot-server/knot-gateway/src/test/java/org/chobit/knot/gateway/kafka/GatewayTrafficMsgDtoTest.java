@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -276,9 +277,33 @@ class GatewayTrafficMsgDtoTest {
                 "无数据的 id 不出现在消息里（NON_NULL）：下游按字段缺失识别，不是空串: " + json);
     }
 
+    /**
+     * 顶层 {@code request_id}（网关自生成）与 attempt 级 {@code upstream_request_id}
+     * （上游返回）必须同时存在且互不相等——这两个 id 是双向对账的两端，混用即失效。
+     */
     @Test
-    void serializedJsonKeepsCostAsString() {
+    void requestIdAndUpstreamRequestIdAreDistinctAndBothSerialized() {
         GatewayRequestContext context = context();
+        CallTraceContext trace = new CallTraceContext();
+        CallTraceContext.AttemptDraft draft = trace.newAttempt(target("gpt-4o-mini", "upstream-gpt-4o-mini", 1, true), null);
+        draft.nextAttempt(2);
+        draft.succeeded("req_upstream_side");
+        context.putAttribute(CallTraceContext.ATTRIBUTE, trace);
+
+        GatewayTrafficMsgDto message = GatewayTrafficMsgDto.of(context, null, null, 1L, null);
+        String json = JsonKit.toJson(message);
+
+        assertEquals(context.requestId(), message.requestId(), "顶层 request_id 取自请求上下文");
+        assertTrue(message.requestId().matches("[0-9a-f]{32}"), "32 位小写 hex: " + message.requestId());
+        assertTrue(json.contains("\"request_id\":\"" + context.requestId() + "\""),
+                "我方编号必须落进序列化消息: " + json);
+        assertTrue(json.contains("\"upstream_request_id\":\"req_upstream_side\""),
+                "上游编号仍保留在 attempt 级: " + json);
+        assertNotEquals(context.requestId(), "req_upstream_side");
+    }
+
+    @Test
+    void serializedJsonKeepsCostAsString() {        GatewayRequestContext context = context();
         GatewayTrafficMsgDto message = GatewayTrafficMsgDto.of(context, null, usage(), 1L, null);
 
         String json = JsonKit.toJson(message);

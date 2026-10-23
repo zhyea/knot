@@ -4,6 +4,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplier;
 import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplierCatalog;
 import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
+import org.chobit.knot.gateway.adapter.upstream.UpstreamAccess;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamSignableRequest;
 import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
@@ -15,6 +16,7 @@ import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.upstream.support.UpstreamRequestIdResolver;
+import org.chobit.knot.gateway.upstream.support.UpstreamUrlSupport;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpEntity;
@@ -74,30 +76,71 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
      */
     @Override
     public ProxyResult execute(UpstreamRequestContext context, UpstreamRequestAdapter adapter) {
-        String path = adapter.resolvePath(context, defaultPath(context));
-        if (StringUtils.isBlank(path)) {
+        String protocolPath = adapter.resolvePath(context, defaultPath(context));
+        if (StringUtils.isBlank(protocolPath)) {
             throw new GatewayUpstreamException(
                     "api protocol is not configured: " + context.protocol().code(),
                     ProxyErrorCodeEnum.API_PROTOCOL_NOT_CONFIGURED.code()
             );
         }
-        MediaType contentType = adapter.resolveContentType(context);
-        // base URL 由适配器定夺：model.base_url 优先，AWS Bedrock 可按凭据里的 region/endpointType 推导
-        String baseUrl = adapter.resolveBaseUrl(context);
+        // 接入策略每请求解析并准备一次：base URL 与静态鉴权头同源，构造、拼接与签名共用同一结果
+        UpstreamAuthApplier applier = authApplierCatalog.resolve(context.authApplier());
+        UpstreamAccess access = applier.prepare(context);
+        String baseUrl = StringUtils.trimToNull(access.baseUrl());
+        if (baseUrl == null) {
+            // 端点配置错误必须在请求前失败：放行 null 会拼出相对 URI，错误信息与真实原因脱节
+            throw new GatewayUpstreamException(
+                    "upstream endpoint is not configured: providerAccount=" + providerAccountCode(context),
+                    ProxyErrorCodeEnum.UPSTREAM_ENDPOINT_NOT_CONFIGURED.code()
+            );
+        }
+        // 模型级 base_path 只做 URL 前缀，由执行器统一拼接；适配器只负责协议路径
+        String path = UpstreamUrlSupport.joinPath(
+                context.model() == null ? null : context.model().getBasePath(), protocolPath);
+        RequestTarget target = new RequestTarget(
+                baseUrl, path, adapter.resolveContentType(context), access, applier);
         try {
             // 适配器可自行关掉流式（AWS Bedrock 的流式是 EventStream 二进制帧，P1 走整包）
             if (supportsStreaming(context) && adapter.streamSupported(context) && isStreamRequest(context)) {
-                return executeStreaming(context, adapter, path, contentType, baseUrl);
+                return executeStreaming(context, adapter, target);
             }
-            return executeBuffered(context, adapter, path, contentType, baseUrl);
+            return executeBuffered(context, adapter, target);
         } catch (GatewayUpstreamException e) {
             throw e;
         } catch (WebClientResponseException e) {
             // 兜底：漏网的非 2xx（如 onStatus 未覆盖的重定向）也要带齐上游上下文
-            throw upstreamFailure(e.getStatusCode(), e.getHeaders(), e.getResponseBodyAsString());
+            throw upstreamFailure(e.getStatusCode(), e.getHeaders(), e.getResponseBodyAsString(),
+                    context.requestId());
         } catch (Exception e) {
             throw new GatewayUpstreamException(e.getMessage(), ProxyErrorCodeEnum.UPSTREAM_ERROR.code());
         }
+    }
+
+    /**
+     * 单次上游请求的目标。
+     *
+     * <p>URL 只在这里算一次，请求构造与签名共用同一个字符串——签名覆盖的路径与
+     * 实际发出的路径必须逐字符一致（SigV4 的第二雷区）。</p>
+     *
+     * @param baseUrl     接入策略产出的生效 base URL
+     * @param path        已拼上模型 base_path 的最终路径
+     * @param contentType 请求内容类型
+     * @param access      接入策略的完整结果（含静态鉴权头）
+     * @param applier     解析出的接入策略，签名阶段复用，避免重复 resolve
+     */
+    private record RequestTarget(String baseUrl,
+                                 String path,
+                                 MediaType contentType,
+                                 UpstreamAccess access,
+                                 UpstreamAuthApplier applier) {
+
+        String url() {
+            return UpstreamUrlSupport.joinUrl(baseUrl, path);
+        }
+    }
+
+    private static String providerAccountCode(UpstreamRequestContext context) {
+        return context.provider() == null ? "<none>" : context.provider().getCode();
     }
 
     /**
@@ -107,11 +150,9 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
      */
     private ProxyResult executeBuffered(UpstreamRequestContext context,
                                         UpstreamRequestAdapter adapter,
-                                        String path,
-                                        MediaType contentType,
-                                        String baseUrl) {
-        Mono<BufferedExchange> exchange = withBody(context, adapter, path, contentType, baseUrl)
-                .exchangeToMono(AbstractUpstreamProtocolExecutor::readBuffered);
+                                        RequestTarget target) {
+        Mono<BufferedExchange> exchange = withBody(context, adapter, target)
+                .exchangeToMono(response -> readBuffered(response, context.requestId()));
         BufferedExchange buffered = withResponseTimeout(exchange).block();
         String handledResponseBody = adapter.handleResponse(buffered.body(), context);
         return new ProxyResult(
@@ -135,17 +176,21 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
      *
      * <p>包级可见供单测直接驱动（{@code ClientResponse.create(...)}），
      * 不经端到端 WebClient——那要拖 UsageExtractorRegistry 整条依赖链。</p>
+     *
+     * @param ownRequestId 我方本次请求的 request_id：用于排除上游把我方
+     *                     {@code X-Request-Id} 回显回来的情况，防止它冒充
+     *                     {@code upstream_request_id}（两者是不同系统的编号）
      */
-    static Mono<BufferedExchange> readBuffered(ClientResponse response) {
+    static Mono<BufferedExchange> readBuffered(ClientResponse response, String ownRequestId) {
         HttpStatusCode statusCode = response.statusCode();
         HttpHeaders headers = response.headers().asHttpHeaders();
         return response.bodyToMono(String.class)
                 .defaultIfEmpty("")
                 .map(body -> {
                     if (!statusCode.is2xxSuccessful()) {
-                        throw upstreamFailure(statusCode, headers, body);
+                        throw upstreamFailure(statusCode, headers, body, ownRequestId);
                     }
-                    return new BufferedExchange(body, UpstreamRequestIdResolver.requestId(headers));
+                    return new BufferedExchange(body, UpstreamRequestIdResolver.requestId(headers, ownRequestId));
                 });
     }
 
@@ -166,12 +211,11 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
      */
     private ProxyResult executeStreaming(UpstreamRequestContext context,
                                         UpstreamRequestAdapter adapter,
-                                        String path,
-                                        MediaType contentType,
-                                        String baseUrl) {
-        Mono<ResponseEntity<Flux<DataBuffer>>> response = withBody(context, adapter, path, contentType, baseUrl)
+                                        RequestTarget target) {
+        Mono<ResponseEntity<Flux<DataBuffer>>> response = withBody(context, adapter, target)
                 .retrieve()
-                .onStatus(status -> !status.is2xxSuccessful(), this::upstreamFailureOf)
+                .onStatus(status -> !status.is2xxSuccessful(),
+                        failed -> upstreamFailureOf(failed, context.requestId()))
                 .toEntityFlux(DataBuffer.class);
         ResponseEntity<Flux<DataBuffer>> entity = withResponseTimeout(response).block();
         HttpHeaders headers = entity.getHeaders();
@@ -181,8 +225,8 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                 headers.getContentType(),
                 context,
                 adapter,
-                UpstreamRequestIdResolver.snapshot(headers),
-                UpstreamRequestIdResolver.requestId(headers));
+                UpstreamRequestIdResolver.snapshot(headers, context.requestId()),
+                UpstreamRequestIdResolver.requestId(headers, context.requestId()));
         return new ProxyResult(
                 null,
                 context.provider().getId(),
@@ -195,23 +239,27 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
 
     /**
      * 非 2xx 的统一映射：读掉错误体后抛出带齐上游上下文（状态码 / 错误体 / Retry-After / 供应商 id）的异常。
+     *
+     * @param ownRequestId 我方 request_id，用于排除上游回显值（见 {@link UpstreamRequestIdResolver}）
      */
-    private Mono<Throwable> upstreamFailureOf(ClientResponse response) {
+    private Mono<Throwable> upstreamFailureOf(ClientResponse response, String ownRequestId) {
         return response.bodyToMono(String.class)
                 .defaultIfEmpty("")
-                .map(body -> upstreamFailure(response.statusCode(), response.headers().asHttpHeaders(), body));
+                .map(body -> upstreamFailure(
+                        response.statusCode(), response.headers().asHttpHeaders(), body, ownRequestId));
     }
 
     private static GatewayUpstreamException upstreamFailure(HttpStatusCode statusCode,
                                                            HttpHeaders headers,
-                                                           String body) {
+                                                           String body,
+                                                           String ownRequestId) {
         return new GatewayUpstreamException(
                 "upstream responded with status " + statusCode.value(),
                 ProxyErrorCodeEnum.UPSTREAM_ERROR.code(),
                 statusCode.value(),
                 body,
                 retryAfterMs(headers),
-                UpstreamRequestIdResolver.requestId(headers)
+                UpstreamRequestIdResolver.requestId(headers, ownRequestId)
         );
     }
 
@@ -275,30 +323,34 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     }
 
     /**
-     * 请求规格：URI + 内容类型 + 追踪头 + 鉴权静态头。
+     * 请求规格：URI + 内容类型 + 追踪头 + 接入策略的静态鉴权头。
      *
      * @param encodedUri 为 {@code true} 时走 {@code uri(URI)}——Bedrock 的路径里含已编码的
      *                   {@code %3A}（模型 ID 的 {@code :}），走 {@code uri(String)} 会被
      *                   URI 模板解析再编一次，导致「签名覆盖的路径」与「实际发出的路径」不一致
      */
     private WebClient.RequestBodySpec requestSpec(UpstreamRequestContext context,
-                                                  String path,
-                                                  MediaType contentType,
-                                                  String baseUrl,
-                                                  boolean encodedUri) {
-        String url = joinUrl(baseUrl, path);
+                                                 RequestTarget target,
+                                                 boolean encodedUri) {
+        String url = target.url();
         WebClient.RequestBodySpec spec = (encodedUri
                 ? webClient.post().uri(URI.create(url))
                 : webClient.post().uri(url))
-                .contentType(contentType)
+                .contentType(target.contentType())
                 .accept(MediaType.APPLICATION_JSON, MediaType.TEXT_EVENT_STREAM);
         if (StringUtils.isNotBlank(context.traceparent())) {
             spec.header(GatewayHeaders.TRACEPARENT, StringUtils.trim(context.traceparent()));
         }
-        // 鉴权完全由供应商侧策略决定（auth_applier），与请求适配器无关
-        HttpHeaders authHeaders = new HttpHeaders();
-        authApplierCatalog.resolve(context.authApplier()).apply(authHeaders, context);
-        spec.headers(current -> current.addAll(authHeaders));
+        // 网关自生成的请求标识：上游日志按它可检索到我方编号（与响应侧采集的
+        // upstream_request_id 是两个不同的 id，见 GatewayHeaders#X_REQUEST_ID）
+        String requestId = StringUtils.trimToNull(context.requestId());
+        if (requestId != null) {
+            spec.header(GatewayHeaders.X_REQUEST_ID, requestId);
+        }
+        // 静态鉴权头来自接入策略的 prepare 结果，与 base URL 同源（签名头在签名阶段追加）
+        if (!target.access().headers().isEmpty()) {
+            spec.headers(current -> current.addAll(target.access().headers()));
+        }
         return spec;
     }
 
@@ -309,28 +361,25 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     @SuppressWarnings("unchecked")
     private WebClient.RequestHeadersSpec<?> withBody(UpstreamRequestContext context,
                                                      UpstreamRequestAdapter adapter,
-                                                     String path,
-                                                     MediaType contentType,
-                                                     String baseUrl) {
-        UpstreamAuthApplier applier = authApplierCatalog.resolve(context.authApplier());
+                                                     RequestTarget target) {
         Object body = adapter.buildRequestBody(context);
         if (body == null) {
-            return requestSpec(context, path, contentType, baseUrl, false).body(BodyInserters.empty());
+            return requestSpec(context, target, false).body(BodyInserters.empty());
         }
-        if (MediaType.MULTIPART_FORM_DATA.includes(contentType) && body instanceof Map<?, ?> map) {
+        if (MediaType.MULTIPART_FORM_DATA.includes(target.contentType()) && body instanceof Map<?, ?> map) {
             // multipart 不进签名路径（Bedrock 无 multipart 接口），保持原编码分支不变
-            WebClient.RequestBodySpec spec = requestSpec(context, path, contentType, baseUrl, false);
+            WebClient.RequestBodySpec spec = requestSpec(context, target, false);
             return spec.body(BodyInserters.fromMultipartData(toMultipartBody((Map<String, Object>) map)));
         }
-        if (!applier.signsRequestBody()) {
-            return requestSpec(context, path, contentType, baseUrl, false).bodyValue(body);
+        if (!target.applier().requiresFinalizedPayload()) {
+            return requestSpec(context, target, false).bodyValue(body);
         }
         // 签名路径：先把请求体定稿成字节，签名覆盖这份字节，再以同一份字节发出（字节级一致 = 第一雷区）
         String json = JsonKit.toJson(body);
         byte[] payload = json == null ? new byte[0] : json.getBytes(StandardCharsets.UTF_8);
-        WebClient.RequestBodySpec spec = requestSpec(context, path, contentType, baseUrl, true);
+        WebClient.RequestBodySpec spec = requestSpec(context, target, true);
         HttpHeaders signed = new HttpHeaders();
-        applier.sign(UpstreamSignableRequest.of("POST", joinUrl(baseUrl, path), payload), signed, context);
+        target.applier().sign(UpstreamSignableRequest.of("POST", target.url(), payload), signed, context);
         if (!signed.isEmpty()) {
             spec.headers(current -> current.addAll(signed));
         }
@@ -387,17 +436,5 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
         if (contentType != null) {
             part.contentType(contentType);
         }
-    }
-
-    private String joinUrl(String baseUrl, String path) {
-        String base = StringUtils.trimToEmpty(baseUrl);
-        String p = StringUtils.trimToEmpty(path);
-        if (base.endsWith("/") && p.startsWith("/")) {
-            return base.substring(0, base.length() - 1) + p;
-        }
-        if (!base.endsWith("/") && !p.startsWith("/")) {
-            return base + "/" + p;
-        }
-        return base + p;
     }
 }

@@ -518,15 +518,18 @@ INSERT IGNORE INTO kb_providers (id, code, name, tag) VALUES
 (6, 'openrouter',   'OpenRouter',   '云厂商'),
 (7, 'aws',          'AWS Bedrock',  '云厂商');
 
-INSERT IGNORE INTO kb_provider_accounts (id, provider_code, code, status) VALUES
-(1, 'openai',    'openai-default',    1),
-(2, 'anthropic', 'anthropic-default', 1),
-(3, 'deepseek',  'deepseek-default',  1),
-(4, 'qwen',      'qwen-default',      1),
+-- base_url 是上游 host 的唯一来源；模型级只用 base_path 承载路径前缀。
+INSERT IGNORE INTO kb_provider_accounts (id, provider_code, code, base_url, status) VALUES
+(1, 'openai',    'openai-default',     'https://api.openai.com',         1),
+(2, 'anthropic', 'anthropic-default',  'https://api.anthropic.com',      1),
+(3, 'deepseek',  'deepseek-default',   'https://api.deepseek.com',       1),
+(4, 'qwen',      'qwen-default',       'https://dashscope.aliyuncs.com', 1),
 -- Bedrock 两类端点各占一个账户：endpointType 挂在凭据上，而 host/SigV4 service 由它决定，
--- 一个账户只能对应一种端点形态（runtime 走 Converse，mantle 走 OpenAI 兼容）
-(5, 'aws',       'aws-bedrock-runtime', 1),
-(6, 'aws',       'aws-bedrock-mantle',  1);
+-- 一个账户只能对应一种端点形态（runtime 走 Converse，mantle 走 OpenAI 兼容）。
+-- base_url 刻意留 NULL：host 由 AwsSigV4AuthApplier.baseUrl() 按 region + endpointType 派生；
+-- 需要走 VPC / 私有代理时，在此填 VPC 端点地址，派生逻辑自动让位于显式配置。
+(5, 'aws',       'aws-bedrock-runtime', NULL, 1),
+(6, 'aws',       'aws-bedrock-mantle',  NULL, 1);
 
 -- 频控/额度策略（独立表 + 资源绑定）
 INSERT IGNORE INTO kb_rate_limit_policies (id, policy_code, policy_name, rpm, tpm, status) VALUES
@@ -585,21 +588,22 @@ INSERT IGNORE INTO kb_provider_discount_policies (id, model_code, discount_type,
 (4, 'deepseek-chat',     'FIXED',      5.0000, NOW(), 1);
 
 -- 模型
-INSERT IGNORE INTO kb_models (id, provider_account_code, model_code, upstream_model, version, base_url, status) VALUES
-(1, 'openai-default', 'gpt-4o', 'gpt-4o', '2024-08-06', 'https://api.openai.com', 1),
-(2, 'openai-default', 'gpt-4o-mini', 'gpt-4o-mini', '2024-07-18', 'https://api.openai.com', 1),
-(3, 'openai-default', 'text-embedding-3-large', 'text-embedding-3-large', '2024-01-01', 'https://api.openai.com', 1),
-(4, 'anthropic-default', 'claude-sonnet-4-20250514', 'claude-sonnet-4-20250514', '2025-05-14', 'https://api.anthropic.com', 1),
-(5, 'anthropic-default', 'claude-haiku-3-5-20241022', 'claude-haiku-3-5-20241022', '2024-10-22', 'https://api.anthropic.com', 1),
-(6, 'deepseek-default', 'deepseek-chat', 'deepseek-chat', '2024-08-01', 'https://api.deepseek.com', 1),
-(7, 'deepseek-default', 'deepseek-reasoner', 'deepseek-reasoner', '2025-01-20', 'https://api.deepseek.com', 1),
-(8, 'qwen-default', 'qwen-image', 'qwen-image', '2025-08-01', 'https://dashscope.aliyuncs.com', 1),
-(9, 'qwen-default', 'qwen-image-edit', 'qwen-image-edit', '2025-08-01', 'https://dashscope.aliyuncs.com', 1),
-(10, 'openai-default', 'gpt-image-1', 'gpt-image-1', '2025-04-01', 'https://api.openai.com', 1),
--- Bedrock：base_url 刻意留 NULL，host 由凭据里的 region + endpointType 推导
--- （model.base_url 一旦填了就优先用它，会盖掉端点推导）
-(11, 'aws-bedrock-runtime', 'bedrock-claude-sonnet-4', 'anthropic.claude-sonnet-4-20250514-v1:0', '2025-05-14', NULL, 1),
-(12, 'aws-bedrock-mantle', 'bedrock-gpt56-luna', 'openai.gpt-5.6-luna', '2026-01-01', NULL, 1);
+-- 上游 host 一律来自 kb_provider_accounts.base_url；base_path 只放模型级路径前缀
+-- （如供应商给每个模型分配的 endpoint_id），空串表示无前缀。
+INSERT IGNORE INTO kb_models (id, provider_account_code, model_code, upstream_model, version, base_path, status) VALUES
+(1, 'openai-default', 'gpt-4o', 'gpt-4o', '2024-08-06', '', 1),
+(2, 'openai-default', 'gpt-4o-mini', 'gpt-4o-mini', '2024-07-18', '', 1),
+(3, 'openai-default', 'text-embedding-3-large', 'text-embedding-3-large', '2024-01-01', '', 1),
+(4, 'anthropic-default', 'claude-sonnet-4-20250514', 'claude-sonnet-4-20250514', '2025-05-14', '', 1),
+(5, 'anthropic-default', 'claude-haiku-3-5-20241022', 'claude-haiku-3-5-20241022', '2024-10-22', '', 1),
+(6, 'deepseek-default', 'deepseek-chat', 'deepseek-chat', '2024-08-01', '', 1),
+(7, 'deepseek-default', 'deepseek-reasoner', 'deepseek-reasoner', '2025-01-20', '', 1),
+(8, 'qwen-default', 'qwen-image', 'qwen-image', '2025-08-01', '', 1),
+(9, 'qwen-default', 'qwen-image-edit', 'qwen-image-edit', '2025-08-01', '', 1),
+(10, 'openai-default', 'gpt-image-1', 'gpt-image-1', '2025-04-01', '', 1),
+-- Bedrock：账户 base_url 留 NULL，host 由凭据里的 region + endpointType 派生
+(11, 'aws-bedrock-runtime', 'bedrock-claude-sonnet-4', 'anthropic.claude-sonnet-4-20250514-v1:0', '2025-05-14', '', 1),
+(12, 'aws-bedrock-mantle', 'bedrock-gpt56-luna', 'openai.gpt-5.6-luna', '2026-01-01', '', 1);
 
 INSERT IGNORE INTO kb_model_pools (id, pool_code, name, logical_model_code, selection_strategy, status, remark) VALUES
 (1, 'chat-premium-pool', 'Premium Chat Pool', 'knot-chat-premium', 'WEIGHTED', 1, 'Premium chat routing pool'),
@@ -697,6 +701,8 @@ SELECT 4, 'deepseek-lowcost', 'MODEL_POOL', mp.pool_code, 100, 1 FROM kb_model_p
 -- JEV 计费裁判预置（路由规则测试抽屉「计费校验」tab 的裁判链路）
 -- =========================
 -- 裁判专用链路，与被测规则完全隔离：独立账户 / 模型 / 绑定 / 规则 / 消费者。
+-- ⚠ id 隔离（2026-10-23 整理）：本段所有显式 id 必须避开户主块（供应商/模型/路由区）已占用的 id；
+--   否则 INSERT IGNORE 会把同 id 行静默跳过，导致裁判链路数据缺失。曾发生 id=5 / id=11 / id=9 撞主块的冲突。
 -- 缺任一项 → 裁判区 available:false + 可执行提示，不炸测试链路（设计稿 §12.1）。
 --
 -- ⚠ 凭证纪律（§6.1）：消费者 secret_key 是裁判唯一的 Bearer 凭据，
@@ -707,17 +713,17 @@ SELECT 4, 'deepseek-lowcost', 'MODEL_POOL', mp.pool_code, 100, 1 FROM kb_model_p
 -- 1) 供应商账户：OpenRouter 承载TypeSafe JEV 模型
 --    openrouter provider 已在供应商种子中（id=6），此处只补账户。
 INSERT IGNORE INTO kb_provider_accounts (id, provider_code, code, base_url, status) VALUES
-(5, 'openrouter', 'openrouter-jev', 'https://openrouter.ai/api/v1', 1);
+(7, 'openrouter', 'openrouter-jev', 'https://openrouter.ai/api/v1', 1);
 
 -- 2) 模型：DECISIONS 协议专用（JEV 只吃 decisions 入参，不参与对话路由）
-INSERT IGNORE INTO kb_models (id, provider_account_code, model_code, upstream_model, version, base_url, status, remark) VALUES
-(11, 'openrouter-jev', 'jev-billing-judge', 'typesafe/jev-1.13-20260917', '2026-09-17', 'https://openrouter.ai/api/v1', 1,
+INSERT IGNORE INTO kb_models (id, provider_account_code, model_code, upstream_model, version, base_path, status, remark) VALUES
+(13, 'openrouter-jev', 'jev-billing-judge', 'typesafe/jev-1.13-20260917', '2026-09-17', '', 1,
  'JEV 计费裁判专用模型；仅供 jev-billing-judge 规则使用');
 
 -- 3) 模型 API 绑定：DECISIONS 协议（入参 state/questions，出参 answers 映射）
 --    api_path 留空：走协议默认路径，由网关 DECISIONS 端点统一路由。
 INSERT IGNORE INTO kb_model_api_bindings (id, model_code, protocol, api_path, request_adapter, usage_extractor, status, remark) VALUES
-(9, 'jev-billing-judge', 'DECISIONS', NULL, 'PASSTHROUGH', 'DEFAULT-TOKEN', 1,
+(11, 'jev-billing-judge', 'DECISIONS', NULL, 'PASSTHROUGH', 'DEFAULT-TOKEN', 1,
  'JEV 决策判定绑定；questions 支持 noul(判定)/choice(单选)/score(有序评分)');
 
 -- 4) 路由规则：裁判规则（配置 knot.jev.judge-rule-code 指向本rule_code）
@@ -725,7 +731,7 @@ INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, app_code
 (4, 'jev-billing-judge', 'JEV计费裁判规则', '计费校验辅助判定', NULL, 'admin', 'jev-judge-client', 1);
 
 INSERT IGNORE INTO kb_routing_rule_targets (id, rule_code, target_type, target_code, priority, is_primary)
-SELECT 5, 'jev-billing-judge', 'MODEL', m.model_code, 100, 1 FROM kb_models m WHERE m.id = 11;
+SELECT 5, 'jev-billing-judge', 'MODEL', m.model_code, 100, 1 FROM kb_models m WHERE m.id = 13;
 
 -- 5) 消费者：裁判专用
 --    return_usage_detail=0：裁判响应是判定结论，不需要回传上游用量明细。

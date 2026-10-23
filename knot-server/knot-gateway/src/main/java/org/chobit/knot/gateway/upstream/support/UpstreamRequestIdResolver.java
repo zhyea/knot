@@ -24,6 +24,13 @@ import java.util.Map;
  * {@code request-id} / {@code apim-request-id} / {@code x-acs-request-id} /
  * {@code x-tc-request-id}（腾讯云 / 混元）/ {@code msh-request-id}（Moonshot 开放平台）；
  * log-id 类兜底 {@code x-tt-logid} / {@code cf-ray}。</p>
+ *
+ * <p><b>2026-10-23：必须排除「我方 id 的回显」</b>。网关会把自生成的 request_id 以
+ * {@code X-Request-Id} 发给上游，而部分上游 / 反代（APIM、网关类中间件）会把这个请求头
+ * <b>原样回显</b>到响应头里。若不排除，{@code upstream_request_id} 就会取到我方自己的 id，
+ * 冒充成供应商侧编号——提工单时对方查不到，数仓里两列变成同一个值，双向对账彻底失效。
+ * 因此两个入口都要求传入 {@code ownRequestId}：命中值与之相同即视为<b>未命中</b>，
+ * 继续按优先序往下找（而不是直接返回 null，避免连带丢掉后面真存在的上游 id）。</p>
  */
 public final class UpstreamRequestIdResolver {
 
@@ -61,15 +68,20 @@ public final class UpstreamRequestIdResolver {
      *
      * <p>值统一 trim 后存入；空值与未命中头一律跳过（返回的 map 可能为空，不为 null）。
      * 键为白名单声明名（小写），便于日志与数仓侧稳定解析。</p>
+     *
+     * <p>与 {@link #requestId(HttpHeaders, String)} 同口径排除我方 id 的回显：
+     * 快照里若留着「我发的 id 被上游回显」的那一条，读者会误以为它是上游编号。</p>
+     *
+     * @param ownRequestId 我方本次请求的 request_id（可为 null，表示不排除）
      */
-    public static Map<String, String> snapshot(HttpHeaders headers) {
+    public static Map<String, String> snapshot(HttpHeaders headers, String ownRequestId) {
         Map<String, String> snapshot = new LinkedHashMap<>();
         if (headers == null) {
             return snapshot;
         }
-        collect(snapshot, headers, REQUEST_ID_HEADERS);
-        collect(snapshot, headers, LOG_ID_HEADERS);
-        put(snapshot, headers, TRACEPARENT);
+        collect(snapshot, headers, ownRequestId, REQUEST_ID_HEADERS);
+        collect(snapshot, headers, ownRequestId, LOG_ID_HEADERS);
+        put(snapshot, headers, ownRequestId, TRACEPARENT);
         return snapshot;
     }
 
@@ -77,39 +89,63 @@ public final class UpstreamRequestIdResolver {
      * 归一 request-id：按 {@link #REQUEST_ID_HEADERS} 优先序取第一个非空命中；
      * request-id 类全部未命中时，兜底取 {@link #LOG_ID_HEADERS} 并视为 request_id。
      * 全部未命中返回 null（不是空串——null 表示无数据，数仓侧按 IS NULL 区分）。
+     *
+     * <p>命中值等于 {@code ownRequestId} 的一律跳过：那是上游把我方请求头回显回来的，
+     * 不是我方要采集的「供应商侧 id」。跳过而非返回 null，是为了不连带丢掉后面
+     * 真实存在的上游 id（例如回显了 {@code x-request-id} 但同时回了 {@code x-tc-request-id}）。</p>
+     *
+     * @param ownRequestId 我方本次请求的 request_id（可为 null，表示不排除）
      */
-    public static String requestId(HttpHeaders headers) {
-        String requestId = first(headers, REQUEST_ID_HEADERS);
+    public static String requestId(HttpHeaders headers, String ownRequestId) {
+        String requestId = first(headers, ownRequestId, REQUEST_ID_HEADERS);
         if (requestId != null) {
             return requestId;
         }
-        return first(headers, LOG_ID_HEADERS);
+        return first(headers, ownRequestId, LOG_ID_HEADERS);
     }
 
-    private static void collect(Map<String, String> target, HttpHeaders headers, String... names) {
+    private static void collect(Map<String, String> target,
+                                HttpHeaders headers,
+                                String ownRequestId,
+                                String... names) {
         for (String name : names) {
-            put(target, headers, name);
+            put(target, headers, ownRequestId, name);
         }
     }
 
-    private static void put(Map<String, String> target, HttpHeaders headers, String name) {
+    private static void put(Map<String, String> target,
+                            HttpHeaders headers,
+                            String ownRequestId,
+                            String name) {
         String value = headers.getFirst(name);
-        if (value == null || value.isBlank()) {
+        if (value == null || value.isBlank() || isEchoOfOwn(value, ownRequestId)) {
             return;
         }
         target.put(name, value.trim());
     }
 
-    private static String first(HttpHeaders headers, String... names) {
+    private static String first(HttpHeaders headers, String ownRequestId, String... names) {
         if (headers == null) {
             return null;
         }
         for (String name : names) {
             String value = headers.getFirst(name);
-            if (value != null && !value.isBlank()) {
+            if (value != null && !value.isBlank() && !isEchoOfOwn(value, ownRequestId)) {
                 return value.trim();
             }
         }
         return null;
+    }
+
+    /**
+     * 该响应头值是否只是我方 request_id 的回显（忽略大小写与首尾空白）。
+     *
+     * <p>忽略大小写：我方发小写 hex，但上游/中间件可能规范化为大写再回显。</p>
+     */
+    private static boolean isEchoOfOwn(String value, String ownRequestId) {
+        if (ownRequestId == null || ownRequestId.isBlank()) {
+            return false;
+        }
+        return ownRequestId.trim().equalsIgnoreCase(value.trim());
     }
 }

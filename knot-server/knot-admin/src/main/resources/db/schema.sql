@@ -309,7 +309,7 @@ CREATE TABLE IF NOT EXISTS kb_models (
   model_code VARCHAR(128) NOT NULL,
   upstream_model VARCHAR(128) NOT NULL COMMENT '上游模型标识：向上游发起请求时写入请求体 model 参数',
   version VARCHAR(64) NOT NULL,
-  base_url VARCHAR(255) DEFAULT NULL,
+  base_path VARCHAR(255) NOT NULL DEFAULT '' COMMENT '模型级路径前缀（如供应商 endpoint_id），空表示无前缀；不含 scheme/host/query/fragment',
   remark VARCHAR(255) DEFAULT NULL,
   billing_rule_code VARCHAR(64) DEFAULT NULL COMMENT '绑定计费规则 code（kb_billing_rules.code），非主键 id',
   status TINYINT NOT NULL DEFAULT 0 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',

@@ -21,7 +21,7 @@ public class ModelEntity {
     /** 派生字段：取自绑定的统一模型（kb_logical_models.model_family），供计费规则按族回退匹配 */
     private String modelFamilyCode;
     private String version;
-    private String baseUrl;
+    private String basePath;
     private String remark;
     /** 绑定计费规则业务码（kb_billing_rules.code），非主键 id */
     private String billingRuleCode;

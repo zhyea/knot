@@ -139,6 +139,7 @@
 | 字段 | 类型 | 来源 |
 |---|---|---|
 | `trace_id` / `span_id` | string | `GatewayTraceContext` |
+| `request_id` | string | `GatewayTraceContext.requestId()`：网关入口生成的 32 位小写 hex，已以 `X-Request-Id` 透传给上游（2026-10-23 新增） |
 | `node_id` | string | 部署实例标识（按主机名自动探测，无配置项） |
 | `received_at` / `finished_at` | ISO-8601 带偏移 | `GatewayRequestContext.receivedAtMillis` / `System.currentTimeMillis()` |
 | `duration_ms` | long | `finished_at - received_at`（≥0） |
@@ -154,6 +155,16 @@
 | `error` | 可空 | 统一错误结构，**成功为 null**；详见 §3 |
 
 **`routing`（RoutingSnapshot，14 字段）**：rule_code / rule_name / app_scenario / consumer_code / consumer_name / app_code / app_name / dept_code / dept_name / consumer_username / app_owner_username / return_usage_detail / target_type / candidate_count。`target_type` 按首个候选是否带来源池 code 还原 MODEL / MODEL_POOL（池展开后候选 targetType 被路由统一改写为 MODEL，规则维度的真实目标类型靠首个候选 poolCode 还原）。**全部为业务码 / username，无主键 id**。
+
+**三个 id 的语义边界**（2026-10-23 明确，混用即失去对账能力）：
+
+| 字段 | 谁生成 | 用途 | 检索方向 |
+|---|---|---|---|
+| `trace_id` | 可能来自调用方 traceparent | W3C 链路追踪，日志/MDC 关联 | 我方内部 |
+| `request_id` | **网关入口生成**（32 位 hex） | 提工单时的「我方编号」，已随 `X-Request-Id` 发上游 | **拿它去供应商日志里查** |
+| `attempts[].upstream_request_id` | **上游返回** | 供应商系统里的这次调用编号 | **拿它回我方数仓查** |
+
+> 上游若把我们的 `X-Request-Id` 原样回显，网关会**排除该值**，不会把它写进 `upstream_request_id`（否则两列变成同一个 id）。
 
 **`hit`（HitSnapshot，4 字段）= 真正请求的模型**（hit target，候选循环落定后实际调用上游的那个候选，非候选链首位）：
 

@@ -253,6 +253,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         ResolvedRouting routing = context.routing();
         ModelApiProtocolEnum protocol = context.protocol();
         String traceparent = context.traceparent();
+        // 网关自生成的请求标识：每次上游调用都带同一个值（X-Request-Id），重试/failover 不换号——
+        // 一个客户端请求对应一个我方编号，供应商侧按它检索才能看到完整重试链
+        String requestId = context.requestId();
         RetryPolicy retryPolicy = routing.effectiveRetryPolicy();
         RoutingRuleTargetDto candidate = candidates.get(index);
         EjectionDecision decision = ignoreEjection
@@ -287,7 +290,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         Supplier<ProxyResult> attempt = () -> proxyClient.proxy(
             // 客户端无需传 model：请求体 model 恒按路由目标的上游模型覆盖（kb_models.upstream_model）
             withTargetModel(requestBody, candidate),
-            exchange.contentType(), candidate, protocol, traceparent);
+            exchange.contentType(), candidate, protocol, traceparent, requestId);
         final long attemptStartedAt = System.nanoTime();
         Mono<ProxyResult> retryMono = invokeWithRetry(retryPolicy, candidate, draft, attempt);
         if (metrics != null) {

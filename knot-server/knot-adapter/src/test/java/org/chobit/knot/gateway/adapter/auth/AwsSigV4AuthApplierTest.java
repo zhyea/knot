@@ -1,8 +1,10 @@
 package org.chobit.knot.gateway.adapter.auth;
 
+import org.chobit.knot.gateway.adapter.upstream.UpstreamAccess;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamSignableRequest;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.entity.ProviderAccountEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 
@@ -11,6 +13,7 @@ import java.time.Instant;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -77,11 +80,58 @@ class AwsSigV4AuthApplierTest {
     }
 
     @Test
-    void shouldDeclareAwsAuthCredentialTypeAndBodySigning() {
+    void shouldDeclareAwsAuthCredentialTypeAndFinalizedPayload() {
         assertEquals("AWS_SIGV4", applier.code());
         assertTrue(applier.credentialTypes().contains(
                 org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum.AWS_AUTH));
-        assertTrue(applier.signsRequestBody(), "SigV4 必须先把请求体定稿成字节才能签名");
+        assertTrue(applier.requiresFinalizedPayload(), "SigV4 必须先把请求体定稿成字节才能签名");
+        assertFalse(applier.requiresBaseUrl(), "AWS 端点可由 region + endpointType 派生，账户 base URL 允许留空");
+    }
+
+    // ==================== baseUrl()：AWS 特例的唯一归属地 ====================
+
+    @Test
+    void baseUrlShouldPreferProviderAccountConfig() {
+        ProviderAccountEntity provider = new ProviderAccountEntity();
+        provider.setCode("aws-bedrock-runtime");
+        provider.setBaseUrl("https://vpce-0abc.bedrock-runtime.us-east-1.vpce.amazonaws.com");
+        UpstreamRequestContext context = context(Map.of(
+                "region", "us-east-1", "endpointType", "bedrock-runtime"), provider);
+
+        assertEquals("https://vpce-0abc.bedrock-runtime.us-east-1.vpce.amazonaws.com", applier.baseUrl(context),
+                "VPC / 私有代理场景：账户显式配置优先，派生逻辑让位");
+    }
+
+    @Test
+    void baseUrlShouldDeriveWhenProviderAccountIsBlank() {
+        ProviderAccountEntity provider = new ProviderAccountEntity();
+        provider.setCode("aws-bedrock-mantle");
+        UpstreamRequestContext context = context(Map.of(
+                "region", "ap-northeast-1", "endpointType", "bedrock-mantle"), provider);
+
+        assertEquals("https://bedrock-mantle.ap-northeast-1.api.aws", applier.baseUrl(context));
+    }
+
+    @Test
+    void baseUrlShouldBeNullWhenRegionMissingEvenIfAccountConfigured() {
+        ProviderAccountEntity provider = new ProviderAccountEntity();
+        provider.setCode("aws-bedrock-runtime");
+        provider.setBaseUrl("https://bedrock-runtime.us-east-1.amazonaws.com");
+        UpstreamRequestContext context = context(Map.of("endpointType", "bedrock-runtime"), provider);
+
+        assertNull(applier.baseUrl(context),
+                "缺 region 无论如何都签不出来，按配置缺失上报比让上游回 403 SignatureDoesNotMatch 更可诊断");
+    }
+
+    @Test
+    void prepareShouldCarryBaseUrlButNoStaticHeaders() {
+        ProviderAccountEntity provider = new ProviderAccountEntity();
+        provider.setCode("aws-bedrock-runtime");
+        UpstreamRequestContext context = context(Map.of("region", "us-east-1"), provider);
+
+        UpstreamAccess access = applier.prepare(context);
+        assertEquals("https://bedrock-runtime.us-east-1.amazonaws.com", access.baseUrl());
+        assertTrue(access.headers().isEmpty(), "SigV4 没有静态头，签名头在请求体定稿后追加");
     }
 
     private HttpHeaders sign(String url, String body, Map<String, Object> authConfig) {
@@ -94,7 +144,11 @@ class AwsSigV4AuthApplierTest {
     }
 
     private UpstreamRequestContext context(Map<String, Object> authConfig) {
+        return context(authConfig, null);
+    }
+
+    private UpstreamRequestContext context(Map<String, Object> authConfig, ProviderAccountEntity provider) {
         return new UpstreamRequestContext(ModelApiProtocolEnum.CHAT_COMPLETIONS, Map.of(), null,
-                null, null, authConfig, null, null, null);
+                null, provider, authConfig, null, null, null);
     }
 }

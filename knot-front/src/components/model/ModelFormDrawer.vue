@@ -72,8 +72,11 @@
 
           <el-row :gutter="16" class="form-grid">
             <el-col :span="24">
-              <el-form-item label="Base URL" required>
-                <el-input v-model="form.baseUrl" placeholder="https://api.example.com"/>
+              <el-form-item label="Base Path">
+                <el-input v-model="form.basePath" placeholder="/endpoint-id（可选，留空表示无前缀）"/>
+                <div v-if="accountBaseUrl" class="form-tip">
+                  上游地址：{{ accountBaseUrl }}（由供应商账户维护，此处只填模型专属路径前缀）
+                </div>
               </el-form-item>
             </el-col>
           </el-row>
@@ -384,6 +387,8 @@ const modelCodeChecking = ref(false);
 const modelCodeError = ref("");
 const modelCodeValidated = ref(false);
 const resettingForm = ref(false);
+/** 当前选中账户的上游地址（只读展示用；host 归账户所有，模型侧不保存） */
+const accountBaseUrl = ref("");
 
 const MODEL_CODE_MAX_LEN = 128;
 
@@ -392,7 +397,8 @@ interface ModelFormState {
   modelCode: string;
   /** 上游模型：向上游发起请求时写入请求体 model 参数，与 modelCode 可不同 */
   upstreamModel: string;
-  baseUrl: string;
+  /** 模型级路径前缀（如供应商 endpoint_id），空表示无前缀；上游 host 由供应商账户提供 */
+  basePath: string;
   remark: string;
   providerAccountCode: string | null;
   logicalModelCode: string | null;
@@ -408,7 +414,7 @@ const form = reactive<ModelFormState>({
   id: null,
   modelCode: "",
   upstreamModel: "",
-  baseUrl: "",
+  basePath: "",
   remark: "",
   providerAccountCode: null,
   logicalModelCode: null,
@@ -526,9 +532,9 @@ function requestAdapterLabel(item: Row): string {
   return item?.label || item?.code || "";
 }
 
-/** 选中供应商账户后回填上游 Base URL。后端把 baseUrl 放在 options 候选项的强类型 meta 里（非敏感地址）。 */
+/** 选中供应商账户后只读展示上游地址：host 归账户所有，模型侧不再回填、也不再允许覆盖。 */
 function onProviderAccountChange(account: OptionItem<ProviderAccountMeta> | null) {
-  form.baseUrl = account?.meta?.baseUrl ?? "";
+  accountBaseUrl.value = account?.meta?.baseUrl ?? "";
 }
 
 /** 新建时的默认版本：打开表单时的当前时间（小时级，如 v2026092910） */
@@ -557,7 +563,7 @@ function fillForm(row: Row) {
   form.id = row.id;
   form.modelCode = row.modelCode || "";
   form.upstreamModel = row.upstreamModel || "";
-  form.baseUrl = row.baseUrl || "";
+  form.basePath = row.basePath || "";
   form.remark = row.remark || "";
   form.providerAccountCode = row.providerAccountCode ?? null;
   form.logicalModelCode = row.logicalModelCode ?? null;
@@ -642,9 +648,10 @@ async function resetForm() {
       form.id = null;
       form.modelCode = "";
       form.upstreamModel = "";
-      form.baseUrl = "";
+      form.basePath = "";
       form.remark = "";
       form.providerAccountCode = null;
+      accountBaseUrl.value = "";
       form.logicalModelCode = null;
       form.billingRuleCode = null;
       form.version = defaultVersion();
@@ -736,7 +743,6 @@ function validateRequired(showMessage = true) {
   const checks: Array<[unknown, string]> = [
     [form.modelCode?.trim(), "请填写模型编码"],
     [form.upstreamModel?.trim(), "请填写上游模型"],
-    [form.baseUrl?.trim(), "请填写 Base URL"],
     [form.providerAccountCode, "请选择供应商账户"],
     [form.logicalModelCode, "请选择统一模型"],
     [form.billingRuleCode, "请选择计费规则"]
@@ -893,7 +899,7 @@ function buildPayload() {
   return {
     modelCode: form.modelCode?.trim(),
     upstreamModel: form.upstreamModel?.trim(),
-    baseUrl: form.baseUrl?.trim() || null,
+    basePath: form.basePath?.trim() || "",
     remark: form.remark?.trim() || null,
     providerAccountCode: form.providerAccountCode,
     logicalModelCode: form.logicalModelCode,

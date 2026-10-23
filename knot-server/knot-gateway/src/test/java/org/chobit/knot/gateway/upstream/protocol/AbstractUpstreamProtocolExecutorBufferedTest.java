@@ -31,7 +31,7 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
                 .build();
 
         AbstractUpstreamProtocolExecutor.BufferedExchange exchange =
-                AbstractUpstreamProtocolExecutor.readBuffered(response).block();
+                AbstractUpstreamProtocolExecutor.readBuffered(response, null).block();
 
         assertEquals("{\"ok\":true}", exchange.body());
         assertEquals("req_openai", exchange.upstreamRequestId());
@@ -44,7 +44,7 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
                 .build();
 
         AbstractUpstreamProtocolExecutor.BufferedExchange exchange =
-                AbstractUpstreamProtocolExecutor.readBuffered(response).block();
+                AbstractUpstreamProtocolExecutor.readBuffered(response, null).block();
 
         assertNull(exchange.upstreamRequestId());
     }
@@ -57,7 +57,7 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
                 .build();
 
         GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
-                () -> AbstractUpstreamProtocolExecutor.readBuffered(response).block());
+                () -> AbstractUpstreamProtocolExecutor.readBuffered(response, null).block());
 
         assertEquals(503, error.httpStatus());
         assertEquals("{\"error\":\"busy\"}", error.responseBody());
@@ -71,7 +71,7 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
         ClientResponse response = response("{\"error\":\"boom\"}", HttpStatus.BAD_GATEWAY).build();
 
         GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
-                () -> AbstractUpstreamProtocolExecutor.readBuffered(response).block());
+                () -> AbstractUpstreamProtocolExecutor.readBuffered(response, null).block());
 
         assertEquals(502, error.httpStatus());
         assertNull(error.upstreamRequestId());
@@ -84,7 +84,7 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
                 .build();
 
         GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
-                () -> AbstractUpstreamProtocolExecutor.readBuffered(response).block());
+                () -> AbstractUpstreamProtocolExecutor.readBuffered(response, null).block());
 
         assertEquals(400, error.httpStatus());
         assertEquals("req_azure_400", error.upstreamRequestId());
@@ -95,8 +95,25 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
         ClientResponse response = response("{}", HttpStatus.INTERNAL_SERVER_ERROR).build();
 
         GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
-                () -> AbstractUpstreamProtocolExecutor.readBuffered(response).block());
+                () -> AbstractUpstreamProtocolExecutor.readBuffered(response, null).block());
 
         assertEquals("upstream responded with status 500", error.getMessage());
+    }
+
+    /**
+     * 上游把我方 {@code X-Request-Id} 原样回显时，不得当成 {@code upstream_request_id}：
+     * 那是我们自己的编号，冒充供应商 id 会让工单检索与数仓对账双双失效。
+     */
+    @Test
+    void echoedOwnRequestIdIsNotTreatedAsUpstreamId() {
+        String own = "9f2c7d1e4b6a48c093e5f0a1b2c3d4e5";
+        ClientResponse response = response("{\"ok\":true}", HttpStatus.OK)
+                .header("x-request-id", own)
+                .build();
+
+        AbstractUpstreamProtocolExecutor.BufferedExchange exchange =
+                AbstractUpstreamProtocolExecutor.readBuffered(response, own).block();
+
+        assertNull(exchange.upstreamRequestId(), "回显值不算上游 id");
     }
 }

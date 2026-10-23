@@ -45,14 +45,20 @@ public class UpstreamProxyClient {
 
     /**
      * Proxies the request to the upstream provider. Executes the public operation.
+     *
+     * @param requestId 网关自生成的请求标识（{@code GatewayRequestContext#requestId()}）：
+     *                  以 {@code X-Request-Id} 头发给上游，供供应商侧检索。
+     *                  <b>不是</b> {@code upstream_request_id}（那个是上游回给我们的）
      */
     public ProxyResult proxy(Map<String, Object> requestBody,
                              MediaType contentType,
                              RoutingRuleTargetDto target,
                              ModelApiProtocolEnum protocol,
-                             String traceparent) {
+                             String traceparent,
+                             String requestId) {
 
-        UpstreamRequestContext context = buildRequestContext(requestBody, contentType, target, protocol, traceparent);
+        UpstreamRequestContext context =
+                buildRequestContext(requestBody, contentType, target, protocol, traceparent, requestId);
         return proxy(context);
     }
 
@@ -63,8 +69,9 @@ public class UpstreamProxyClient {
                                   MediaType contentType,
                                   Long modelId,
                                   ModelApiProtocolEnum protocol,
-                                  String traceparent) {
-        return proxy(buildModelRequestContext(requestBody, contentType, modelId, protocol, traceparent));
+                                  String traceparent,
+                                  String requestId) {
+        return proxy(buildModelRequestContext(requestBody, contentType, modelId, protocol, traceparent, requestId));
     }
 
     /**
@@ -74,7 +81,8 @@ public class UpstreamProxyClient {
                                                            MediaType contentType,
                                                            Long modelId,
                                                            ModelApiProtocolEnum protocol,
-                                                           String traceparent) {
+                                                           String traceparent,
+                                                           String requestId) {
         ModelEntity model = resolveModel(modelId);
         ProviderAccountEntity provider = resolveProvider(model, model.getModelCode());
         ModelApiProtocolEnum resolvedProtocol = resolveProtocol(protocol);
@@ -90,7 +98,8 @@ public class UpstreamProxyClient {
                 binding,
                 traceparent,
                 GatewayTraceContext.traceIdOf(traceparent),
-                providerCredentialSupport.authApplier(credential)
+                providerCredentialSupport.authApplier(credential),
+                requestId
         );
     }
 
@@ -115,7 +124,8 @@ public class UpstreamProxyClient {
                                                        MediaType contentType,
                                                        RoutingRuleTargetDto target,
                                                        ModelApiProtocolEnum protocol,
-                                                       String traceparent) {
+                                                       String traceparent,
+                                                       String requestId) {
         ModelEntity model = resolveModel(target);
         ProviderAccountEntity provider = resolveProvider(model, target == null ? null : target.targetCode());
         ModelApiProtocolEnum resolvedProtocol = resolveProtocol(protocol);
@@ -131,7 +141,8 @@ public class UpstreamProxyClient {
                 binding,
                 traceparent,
                 GatewayTraceContext.traceIdOf(traceparent),
-                providerCredentialSupport.authApplier(credential)
+                providerCredentialSupport.authApplier(credential),
+                requestId
         );
     }
 

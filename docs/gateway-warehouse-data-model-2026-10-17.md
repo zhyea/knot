@@ -60,7 +60,7 @@ ADS  看板：成本 TopN、成功率、P95 TTFT、限流命中率、缓存命�
 | 分组 | 列 | 类型 | 来源 |
 |---|---|---|---|
 | 键 | `trace_id` / `span_id` | string | GatewayTraceContext |
-| 键 | `request_id` | string | 网关生成（事件主键建议 trace_id+span_id） |
+| 键 | `request_id` | string | 网关入口生成的 32 位小写 hex（2026-10-23 落地）：已以 `X-Request-Id` 透传给上游，是向供应商提工单的「我方编号」。⚠ 与 attempt 表的 `upstream_request_id`（对方编号）是两列，不可互相替代 |
 | 时间 | `received_at` | datetime(3) | `GatewayRequestContext.receivedAtMillis`（本地时钟，见 §7） |
 | 时间 | `finished_at` | datetime(3) | 事件产出时刻 |
 | 度量 | `duration_ms` | bigint | finished - received |

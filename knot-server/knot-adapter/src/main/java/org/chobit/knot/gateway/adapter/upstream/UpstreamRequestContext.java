@@ -18,9 +18,10 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
                                      ModelApiBindingEntity binding,
                                      String traceparent,
                                      String traceId,
-                                     String authApplier) {
+                                     String authApplier,
+                                     String requestId) {
 
-    /** 便利构造：鉴权策略默认 null（由 UpstreamAuthApplierCatalog 回退默认策略 Bearer）。 */
+    /** 便利构造：鉴权策略与请求标识默认 null（前者回退 Bearer，后者不出站发 {@code X-Request-Id}）。 */
     public UpstreamRequestContext(ModelApiProtocolEnum protocol,
                                   Map<String, Object> requestBody,
                                   MediaType contentType,
@@ -30,7 +31,8 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
                                   ModelApiBindingEntity binding,
                                   String traceparent,
                                   String traceId) {
-        this(protocol, requestBody, contentType, model, provider, authConfig, binding, traceparent, traceId, null);
+        this(protocol, requestBody, contentType, model, provider, authConfig, binding,
+                traceparent, traceId, null, null);
     }
 
     public UpstreamRequestContext(ModelApiProtocolEnum protocol,
@@ -42,7 +44,8 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
                                   ModelApiBindingEntity binding,
                                   String traceparent,
                                   String traceId,
-                                  String authApplier) {
+                                  String authApplier,
+                                  String requestId) {
         this.protocol = protocol;
         this.requestBody = requestBody == null ? new LinkedHashMap<>() : new LinkedHashMap<>(requestBody);
         this.contentType = contentType == null ? MediaType.APPLICATION_JSON : contentType;
@@ -53,10 +56,7 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
         this.traceparent = traceparent;
         this.traceId = traceId;
         this.authApplier = authApplier;
-    }
-
-    public String baseUrl() {
-        return model == null ? null : model.getBaseUrl();
+        this.requestId = requestId;
     }
 
     public String requestAdapter() {

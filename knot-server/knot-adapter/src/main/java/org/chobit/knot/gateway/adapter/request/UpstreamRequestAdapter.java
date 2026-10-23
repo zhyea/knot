@@ -2,7 +2,6 @@ package org.chobit.knot.gateway.adapter.request;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.adapter.aws.AwsBedrockEndpointResolver;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.model.BillingUsage;
@@ -21,23 +20,15 @@ public interface UpstreamRequestAdapter {
 
     Set<ModelApiProtocolEnum> protocol();
 
+    /**
+     * 协议路径：优先绑定级 {@code api_path}，缺省走协议默认路径。
+     *
+     * <p>不处理模型级 {@code base_path}——那是 URL 前缀，由执行器统一拼接，
+     * 避免每个适配器重复实现同样的拼接逻辑。</p>
+     */
     default String resolvePath(UpstreamRequestContext context, String defaultPath) {
         String bindingPath = context.binding() == null ? null : context.binding().getApiPath();
         return StringUtils.defaultIfBlank(StringUtils.trim(bindingPath), defaultPath);
-    }
-
-    /**
-     * 上游 base URL：{@code model.base_url} 非空时优先（运营显式覆盖，如 VPC 端点 / 私有代理），
-     * 否则回落到「按凭据里的 region + endpointType 推导」的 AWS Bedrock 端点。
-     *
-     * <p>非 AWS 凭据（缺 region / endpointType）返回 {@code null}，行为与改造前一致。</p>
-     */
-    default String resolveBaseUrl(UpstreamRequestContext context) {
-        if (context == null) {
-            return null;
-        }
-        String base = StringUtils.trimToNull(context.baseUrl());
-        return base != null ? base : AwsBedrockEndpointResolver.baseUrlFrom(context.authConfig());
     }
 
     /**

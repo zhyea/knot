@@ -60,6 +60,38 @@ public class AwsSigV4AuthApplier implements UpstreamAuthApplier {
     }
 
     /**
+     * AWS 端点可由 {@code region + endpointType} 派生，账户 base URL 允许留空
+     * （VPC / 私有代理场景仍可显式填写，派生逻辑自动让位）。
+     */
+    @Override
+    public boolean requiresBaseUrl() {
+        return false;
+    }
+
+    /**
+     * AWS 专用的端点来源：账户 base URL 优先，为空时按凭据派生。
+     *
+     * <p><b>这里是 AWS 特例的唯一归属地</b>——通用接口与通用策略完全不知道 AWS 存在，
+     * 也就不会因为别的供应商凭据里恰好有 {@code region} / {@code endpointType} 而误命中。</p>
+     *
+     * <p>SigV4 的 credential scope 必须含 region（{@code AwsSigV4Support.credentialScope}），
+     * 缺 region 无论账户是否配了 host 都签不出来，故统一按「配置缺失」返回 {@code null}，
+     * 由执行器报 {@code UPSTREAM_ENDPOINT_NOT_CONFIGURED} —— 把问题挡在请求前，
+     * 而不是让上游回一个令人费解的 403 {@code SignatureDoesNotMatch}。</p>
+     */
+    @Override
+    public String baseUrl(UpstreamRequestContext context) {
+        if (context == null) {
+            return null;
+        }
+        if (StringUtils.isBlank(AwsBedrockEndpointResolver.region(context.authConfig()))) {
+            return null;
+        }
+        String explicit = StringUtils.trimToNull(UpstreamAuthApplier.super.baseUrl(context));
+        return explicit != null ? explicit : AwsBedrockEndpointResolver.baseUrlFrom(context.authConfig());
+    }
+
+    /**
      * SigV4 没有静态头可写：签名必须等请求体定稿后由执行器回调 {@link #sign}，
      * 因此这里刻意留空（与 {@code apply}「只写静态头」的职责保持一致）。
      */
@@ -68,7 +100,7 @@ public class AwsSigV4AuthApplier implements UpstreamAuthApplier {
     }
 
     @Override
-    public boolean signsRequestBody() {
+    public boolean requiresFinalizedPayload() {
         return true;
     }
 

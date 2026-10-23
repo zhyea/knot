@@ -7,7 +7,7 @@ import jakarta.validation.Valid;
 import java.util.List;
 
 public record ModelItem(Long id, String modelCode, String upstreamModel, String providerAccountCode, String providerName, String providerCode, String modelType,
-                        String version, String baseUrl, String remark, boolean enabled, String logicalModelCode, String billingRuleCode,
+                        String version, String basePath, String remark, boolean enabled, String logicalModelCode, String billingRuleCode,
                         RateLimitPolicy rateLimitPolicy, @Valid List<QuotaPolicy> quotaPolicies,
                         List<ModelApiBindingItem> apiBindings,
                         boolean deleted,

@@ -78,6 +78,17 @@ public class GatewayRequestContext {
     }
 
     /**
+     * 网关自生成的请求标识（32 位小写 hex）：上游请求头 {@code X-Request-Id} 与
+     * 数仓消息 {@code request_id} 的唯一来源。
+     *
+     * <p>⚠ 不要和 {@code upstream_request_id}（上游返回的 id）混用：前者是我方编号，
+     * 后者是供应商侧编号，二者共同构成一次请求的双向对账键。</p>
+     */
+    public String requestId() {
+        return traceContext.requestId();
+    }
+
+    /**
      * Returns the gateway span id generated for this request.
      */
     public String spanId() {

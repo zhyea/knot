@@ -56,6 +56,7 @@ public final class RetryableClassifier {
         return switch (code) {
             case "UPSTREAM_ERROR" -> true;
             case "MODEL_NOT_FOUND", "PROVIDER_NOT_FOUND", "API_PROTOCOL_NOT_CONFIGURED",
+                 "UPSTREAM_ENDPOINT_NOT_CONFIGURED",
                  "MISSING_MODEL", "NO_ROUTING_TARGET", "RATE_LIMIT_EXCEEDED", "QUOTA_EXCEEDED" -> false;
             default -> false;
         };
@@ -71,6 +72,7 @@ public final class RetryableClassifier {
         String code = error.code();
         return ProxyErrorCodeEnum.MODEL_NOT_FOUND.code().equals(code)
                 || ProxyErrorCodeEnum.PROVIDER_NOT_FOUND.code().equals(code)
-                || ProxyErrorCodeEnum.API_PROTOCOL_NOT_CONFIGURED.code().equals(code);
+                || ProxyErrorCodeEnum.API_PROTOCOL_NOT_CONFIGURED.code().equals(code)
+                || ProxyErrorCodeEnum.UPSTREAM_ENDPOINT_NOT_CONFIGURED.code().equals(code);
     }
 }
