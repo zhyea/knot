@@ -281,6 +281,7 @@ import {
 import {useDebugCapabilities} from "@/composables/useDebugCapabilities";
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard";
 import {useBillingVerdict} from "@/composables/useBillingVerdict";
+import {useStreamBuffer, type StreamBlock, type RoutingTestResult} from "@/composables/useStreamBuffer";
 import {getTestRequestPreset, listTestRequestPresetOptions} from "@/api/routing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {formatJson, formatJsonText, parseJsonResult, stringifyJson} from "@/utils/format";
@@ -349,55 +350,14 @@ const requestTab = ref("preset");
 const responseTab = ref("summary");
 const expandedPanels = ref<string[]>(["preview"]);
 
-interface RoutingTestResult {
-  curl?: string;
-  status: string;
-  httpStatus: number | string | null;
-  modelCode: string | null;
-  protocol: string | null;
-  errorMessage: string;
-  responseBody: string;
-}
-
 const testResult = ref<RoutingTestResult | null>(null);
 /** 最近一次响应的响应头，供「响应 Header」tab 展示 */
 const responseHeaders = ref<Record<string, string>>({});
 const targetProtocolMap = reactive<Dict>({});
 const templateStore = reactive<Dict>({});
 
-// ===================== 流式测试状态 =====================
-/** 正在进行的流式请求；非 null 时「发送请求」切换为「停止请求」 */
-const streamAbortController = ref<AbortController | null>(null);
-/** 流式累计接收的响应文本（原始顺序，不做中途格式化） */
-const streamBody = ref("");
-/** 已接收字节数，用于「正在接收」指示 */
-const receivedBytes = ref(0);
-/** 流开始时间戳，用于计算已用时 */
-const streamStartedAt = ref<number | null>(null);
-/** 触发重渲染的节流计时器：逐 token 直接改响应式属性会让高亮组件高频重算 */
-let flushTimer: ReturnType<typeof setTimeout> | null = null;
-/** 已收到但尚未刷入界面的片段 */
-let pendingText = "";
-/** 驱动「已用时」每秒重算的计时器 */
-let elapsedTimer: ReturnType<typeof setInterval> | null = null;
-const elapsedTick = ref(0);
-
-// ===================== 流式区块（每收到一个事件追加一个区块） =====================
-interface StreamBlock {
-  id: number;
-  event?: string;
-  data: string;
-}
-
-/** 流式区块列表：每个 SSE 事件独立成块，逐块动态追加到「流式响应」页 */
-const streamBlocks = ref<StreamBlock[]>([]);
 /** 区块滚动容器引用，用于追加后自动滚到底部 */
 const streamScrollbar = ref<ScrollbarLike | null>(null);
-/** 已生成尚未刷入界面的区块（节流） */
-let pendingBlocks: StreamBlock[] = [];
-let blockSeq = 0;
-/** 区块追加节流计时器，避免高频重排 */
-let blockFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
 interface ScrollbarLike {
   wrapRef?: HTMLElement;
@@ -423,17 +383,6 @@ async function copyBlock(block: StreamBlock) {
     copiedBlockId.value = null;
   }, 1200);
 }
-
-// ===================== 流式内容拼装（概览页展示完整 content / reasoning_content） =====================
-/** 流式拼装的完整 content（多包 delta.content 累加） */
-const streamContent = ref("");
-/** 流式拼装的完整 reasoning_content（思考过程，与 content 分开展示） */
-const streamReasoning = ref("");
-/** 已提取但尚未刷入界面的 content / reasoning 片段（复用区块节流计时器） */
-let pendingContent = "";
-let pendingReasoning = "";
-
-const isStreaming = computed(() => streamAbortController.value !== null);
 
 /** 请求模板是否声明 stream:true（非流式请求不展示「流式响应」tab） */
 const requestIsStreaming = computed(() => {
@@ -559,6 +508,50 @@ const {
 
 /** 面板可见性：开关开启且任一裁判态激活即渲染（skipped / error 也是设计内的展示态） */
 const verdictVisible = computed(() => testBillingVerify.value && verdictActive.value);
+
+/** 区块追加后滚到底部：DOM 动作留在抽屉，以回调注入缓冲 composable（直接摸元素 ref 就不可测了） */
+function scrollStreamToBottom() {
+  nextTick(() => {
+    const wrap = streamScrollbar.value?.wrapRef;
+    if (wrap) {
+      wrap.scrollTop = wrap.scrollHeight;
+    }
+  });
+}
+
+// 流式缓冲与节流状态机：只管「收到的字节怎么攒、何时刷进界面、怎么固化成终态」，
+// 发请求 / 判错误类型 / 触发裁判仍是本抽屉的编排职责。
+const {
+  streamAbortController,
+  streamBody,
+  receivedBytes,
+  streamStartedAt,
+  streamBlocks,
+  streamContent,
+  streamReasoning,
+  elapsedTick,
+  isStreaming,
+  beginStream,
+  endStream,
+  handleStreamEvent,
+  flushStreamText,
+  flushBlocks,
+  recoverKnotExtendFromStreamBlocks,
+  finishStream,
+  appendStreamError,
+  abortStreaming,
+  disposeStreamResources
+} = useStreamBuffer({
+  testResult,
+  knotExtend,
+  captureKnotExtendFromStreamData,
+  onScrollToBottom: scrollStreamToBottom
+});
+
+/** 用户点击「停止请求」 */
+function stopStreaming() {
+  abortStreaming();
+}
 
 const activeTemplateKey = computed(() => `${testForm.targetKey || "default"}::${activeProtocol.value || "default"}`);
 const filteredPresetOptions = computed(() => {
@@ -1119,26 +1112,11 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget | null,
   // 重复点击时先中止上一条，避免两个流同时写同一个缓冲区
   abortStreaming();
   const controller = new AbortController();
-  streamAbortController.value = controller;
-  streamStartedAt.value = Date.now();
-  receivedBytes.value = 0;
-  streamBody.value = "";
+  // 缓冲复位与「已用时」计时器由 composable 统一负责
+  beginStream(controller);
   responseHeaders.value = {};
   resetVerdictState();
-  pendingText = "";
-  streamBlocks.value = [];
-  pendingBlocks = [];
-  blockSeq = 0;
-  streamContent.value = "";
-  streamReasoning.value = "";
-  clearBlockTimers();
   loading.value = true;
-  if (elapsedTimer) {
-    clearInterval(elapsedTimer);
-  }
-  elapsedTimer = setInterval(() => {
-    elapsedTick.value += 1;
-  }, 1000);
   // 先切到「流式响应」页并建立 RUNNING 态，避免等待期间显示空 skeleton
   responseTab.value = "stream";
   testResult.value = {
@@ -1206,177 +1184,10 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget | null,
       appendStreamError(testResult.value);
     }
   } finally {
-    // 兜底处理所有结束路径，避免 finally 清理掉最后一批待刷数据。
-    flushStreamText();
-    flushBlocks();
-    if (flushTimer) {
-      clearTimeout(flushTimer);
-      flushTimer = null;
-    }
-    clearBlockTimers();
-    if (elapsedTimer) {
-      clearInterval(elapsedTimer);
-      elapsedTimer = null;
-    }
-    pendingText = "";
+    // 兜底处理所有结束路径：flush 掉最后一批待刷数据 + 释放三个计时器 + 结束流式态
+    endStream();
     loading.value = false;
-    streamAbortController.value = null;
-    streamStartedAt.value = null;
   }
-}
-
-function handleStreamEvent(event: SseEvent) {
-  // 流式测试现在直连网关，事件就是上游原生 SSE。
-  // 每个事件独立成块追加到「流式响应」页；同时从 data 反解出 content / reasoning_content 累加，供概览页展示完整内容。
-  const dataText = event.data ?? "";
-  const parsed = parseJsonResult(dataText, null);
-  if (event.event === "error" && testResult.value) {
-    const errorData = parsed.value && typeof parsed.value === "object" ? parsed.value as Dict : {};
-    const errorMessage = String(errorData.errorMessage || errorData.message || "网关请求失败");
-    testResult.value = {
-      ...testResult.value,
-      status: RoutingTestRunState.ERROR,
-      httpStatus: errorData.httpStatus ?? testResult.value.httpStatus,
-      errorMessage,
-      responseBody: String(errorData.responseBody || dataText)
-    };
-  }
-  if (!parsed.error && parsed.value && typeof parsed.value === "object") {
-    // knot_extend 事件（[DONE] 前网关注入的独立 SSE 事件）：提取被告负载，供裁判第二步使用
-    pendingContent += extractField(parsed.value, "content");
-    pendingReasoning += extractField(parsed.value, "reasoning_content");
-  }
-  captureKnotExtendFromStreamData(dataText);
-  pendingBlocks.push({id: blockSeq++, event: event.event, data: dataText});
-  scheduleBlockFlush();
-  appendStreamText(formatUpstreamEvent(event));
-}
-
-/** SSE 区块是实际收到内容的留档；流结束时再核对一次，避免事件状态未及时进入裁判输入。 */
-function recoverKnotExtendFromStreamBlocks() {
-  if (knotExtend.value) {
-    return;
-  }
-  for (const block of streamBlocks.value) {
-    captureKnotExtendFromStreamData(block.data);
-    if (knotExtend.value) {
-      return;
-    }
-  }
-}
-
-/** 节流刷入区块：逐事件直接改响应式数组会让 v-html 高频重排，统一 60ms 批处理 */
-function scheduleBlockFlush() {
-  if (blockFlushTimer) {
-    return;
-  }
-  blockFlushTimer = setTimeout(() => {
-    blockFlushTimer = null;
-    flushBlocks();
-  }, 60);
-}
-
-function flushBlocks() {
-  if (!pendingBlocks.length) {
-    return;
-  }
-  if (pendingContent) {
-    streamContent.value += pendingContent;
-    pendingContent = "";
-  }
-  if (pendingReasoning) {
-    streamReasoning.value += pendingReasoning;
-    pendingReasoning = "";
-  }
-  streamBlocks.value = [...streamBlocks.value, ...pendingBlocks];
-  pendingBlocks = [];
-  scrollStreamToBottom();
-}
-
-function clearBlockTimers() {
-  if (blockFlushTimer) {
-    clearTimeout(blockFlushTimer);
-    blockFlushTimer = null;
-  }
-  pendingBlocks = [];
-  pendingContent = "";
-  pendingReasoning = "";
-}
-
-function scrollStreamToBottom() {
-  nextTick(() => {
-    const wrap = streamScrollbar.value?.wrapRef;
-    if (wrap) {
-      wrap.scrollTop = wrap.scrollHeight;
-    }
-  });
-}
-
-/** 累积片段并节流刷新：逐 token 直接改响应式属性会让高亮组件高频重算 */
-function appendStreamText(text: string) {
-  if (!text) {
-    return;
-  }
-  pendingText += text;
-  receivedBytes.value += new TextEncoder().encode(text).length;
-  if (flushTimer) {
-    return;
-  }
-  flushTimer = setTimeout(() => {
-    flushTimer = null;
-    flushStreamText();
-  }, 50);
-}
-
-function flushStreamText() {
-  if (!pendingText) {
-    return;
-  }
-  streamBody.value += pendingText;
-  pendingText = "";
-}
-
-/** 结束流式态：把已收到的内容固化到 responseBody，并置终态 */
-function finishStream(status: string, errorMessage: string) {
-  if (testResult.value) {
-    testResult.value = {
-      ...testResult.value,
-      status,
-      errorMessage,
-      responseBody: streamBody.value
-    };
-  }
-}
-
-/** 用户点击「停止请求」或关闭抽屉时调用 */
-function abortStreaming() {
-  if (streamAbortController.value) {
-    streamAbortController.value.abort();
-  }
-}
-
-function stopStreaming() {
-  abortStreaming();
-}
-/** 流式请求在首个事件前失败时，同时填充 Body 和「流式响应」页。 */
-function appendStreamError(result: RoutingTestResult) {
-  const errorText = result.responseBody || result.errorMessage || "请求失败";
-  const errorData = stringifyJson({
-    status: result.status,
-    httpStatus: result.httpStatus,
-    errorMessage: result.errorMessage,
-    responseBody: errorText
-  });
-  streamBlocks.value = [
-    ...streamBlocks.value,
-    {id: blockSeq++, event: "error", data: errorData}
-  ];
-  // 保留已收到的上游片段，并把本次错误追加到 Body，便于复制完整诊断信息。
-  streamBody.value = streamBody.value
-    ? `${streamBody.value}\n\n[error] ${errorText}`
-    : errorText;
-  result.responseBody = streamBody.value;
-  responseTab.value = "stream";
 }
 
 /**
@@ -1391,21 +1202,12 @@ function appendStreamError(result: RoutingTestResult) {
  */
 function disposeTestResources() {
   // 关闭抽屉/卸载组件必须中止在途流，否则网关连接与异步线程一直被占用
-  abortStreaming();
-  if (flushTimer) {
-    clearTimeout(flushTimer);
-    flushTimer = null;
-  }
-  clearBlockTimers();
+  // 流式侧的四个资源（在途流 + 三个计时器 + 待刷缓冲）由 composable 统一释放
+  disposeStreamResources();
   if (copyResetTimer) {
     clearTimeout(copyResetTimer);
     copyResetTimer = null;
   }
-  if (elapsedTimer) {
-    clearInterval(elapsedTimer);
-    elapsedTimer = null;
-  }
-  pendingText = "";
 }
 
 function onClosed() {
