@@ -308,6 +308,7 @@
 
 <script setup lang="ts">
 import {type PropType, computed, reactive, ref, watch} from "vue";
+import {RouteTargetType} from "@/constants/status";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {ElMessage} from "element-plus";
 import {Delete, Refresh} from "@element-plus/icons-vue";
@@ -366,7 +367,7 @@ const primaryTargetKeyModel = computed<string | undefined>({
     primaryTargetKey.value = value ?? null;
   }
 });
-const targetType = ref("MODEL");
+const targetType = ref<string>(RouteTargetType.MODEL);
 
 // 路由目标类型：后端代码枚举 RouteTargetTypeEnum（/api/enum-options）
 const {optionsOf: rtEnumOptionsOf, labelOf: enumLabelOf} = useEnumOptions();
@@ -494,10 +495,10 @@ const loadUserUsernameOptions = toOptionsLoader(listUserUsernameOptions, userUse
 const loadModelOptions = toOptionsLoader(listModelOptions, modelOptions);
 const loadModelPoolOptions = toOptionsLoader(listModelPoolOptions, modelPoolOptions);
 const loadTargetOptions = (params: Dict) =>
-  (targetType.value === "MODEL_POOL" ? loadModelPoolOptions(params) : loadModelOptions(params));
+  (targetType.value === RouteTargetType.MODEL_POOL ? loadModelPoolOptions(params) : loadModelOptions(params));
 
 function findTargetOption(type: string, code: unknown): Row | undefined {
-  const options = type === "MODEL_POOL" ? modelPoolOptions.value : modelOptions.value;
+  const options = type === RouteTargetType.MODEL_POOL ? modelPoolOptions.value : modelOptions.value;
   return options.find((item) => String(item.value) === String(code));
 }
 
@@ -547,7 +548,7 @@ async function loadOptions() {
 }
 
 function resetForm() {
-  targetType.value = "MODEL";
+  targetType.value = RouteTargetType.MODEL;
   if (props.rule) {
     const row = props.rule;
     form.id = row.id;
@@ -565,7 +566,7 @@ function resetForm() {
     form.retryPolicy = normalizeRetryPolicy(row.retryPolicy);
     form.ejectionPolicy = normalizeEjectionPolicy(row.ejectionPolicy);
     form.targets = (row.targets || []).map((m: Dict) => ({
-      targetType: m.targetType || "MODEL",
+      targetType: m.targetType || RouteTargetType.MODEL,
       targetCode: m.targetCode,
       targetName: m.targetName || m.name,
       priority: m.priority ?? 100,
@@ -861,7 +862,7 @@ async function submitEject() {
 /** 本规则绑定的「模型」类目标 code 列表，作为手动摘除候选。 */
 const targetModelCodes = computed(() =>
   form.targets
-    .filter((t) => t.targetType === "MODEL" && t.targetCode)
+    .filter((t) => t.targetType === RouteTargetType.MODEL && t.targetCode)
     .map((t) => String(t.targetCode))
 );
 </script>

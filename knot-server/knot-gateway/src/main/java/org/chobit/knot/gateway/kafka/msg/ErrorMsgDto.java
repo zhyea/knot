@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import org.chobit.knot.gateway.constants.enums.GatewayErrorTypeEnum;
+import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.GatewayBadRequestException;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
@@ -109,7 +110,8 @@ public record ErrorMsgDto(String type,
             return Stage.ROUTING_TRAFFIC_CHECK.code();
         }
         String resourceType = detail.resourceType();
-        if ("MODEL".equals(resourceType) || "PROVIDER".equals(resourceType)) {
+        if (TrafficResourceTypeEnum.MODEL.code().equals(resourceType)
+            || TrafficResourceTypeEnum.PROVIDER.code().equals(resourceType)) {
             return Stage.TARGET_TRAFFIC_CHECK.code();
         }
         return Stage.ROUTING_TRAFFIC_CHECK.code();

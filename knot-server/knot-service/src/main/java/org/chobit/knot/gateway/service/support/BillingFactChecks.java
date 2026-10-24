@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.service.support;
 
+import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.dto.routing.BillingCheckCode;
 import org.chobit.knot.gateway.dto.routing.BillingCheckResult;
 import org.chobit.knot.gateway.dto.routing.BillingCheckStatus;
@@ -153,7 +154,9 @@ public final class BillingFactChecks {
         if (fact.ruleRef() == null || fact.ruleRef().missing()) {
             return BillingCheckResult.skip(BillingCheckCode.RULE_MODE_MATCH, "未命中计费规则，无法校验模式");
         }
-        boolean tokenRule = "TOKEN".equals(fact.ruleRef().billingMode());
+        // billingMode 落的是 BillingModeEnum 的 code，这里只判「是否 token 模式」，
+        // 其余模式（IMAGE/AUDIO/VIDEO/...）一律归为非 token 形态
+        boolean tokenRule = BillingModeEnum.TOKEN.code().equals(fact.ruleRef().billingMode());
         boolean tokenUsage = fact.usage().tokenBased();
         if (tokenRule == tokenUsage) {
             return BillingCheckResult.pass(BillingCheckCode.RULE_MODE_MATCH);

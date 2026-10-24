@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.outage;
 
+import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.EjectionPolicy;
 
@@ -48,11 +49,16 @@ public final class OutageClassifier {
      * 无 HTTP 状态时按错误码兜底：只有网络/传输层失败才说明目标可能坏了。
      *
      * <p>配置类错误（模型缺失、供应商缺失、协议未配置）与网关自身频控/额度拒绝都不计。</p>
+     *
+     * <p><b>注意码表归属</b>：入参是 {@link GatewayUpstreamException#code()}，走
+     * {@link ProxyErrorCodeEnum} 族（构造点见 {@code AbstractUpstreamProtocolExecutor}）；
+     * 与 {@link org.chobit.knot.gateway.constants.enums.GatewayErrorTypeEnum#UPSTREAM_ERROR}
+     * 只是字符串同名，属另一个码表，不可互换。</p>
      */
     private static boolean countableByCode(String code) {
         if (code == null) {
             return false;
         }
-        return "UPSTREAM_ERROR".equals(code);
+        return ProxyErrorCodeEnum.UPSTREAM_ERROR.code().equals(code);
     }
 }

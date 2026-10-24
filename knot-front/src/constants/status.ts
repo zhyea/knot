@@ -47,3 +47,9 @@ export const PluginPackageStatus = {
   DISABLED: 2,
   DEPRECATED: 3
 } as const;
+
+/** 路由目标类型（RouteTargetTypeEnum）：落库 code；label 走 enumLabelOf("RouteTargetTypeEnum", …) */
+export const RouteTargetType = {
+  MODEL: "MODEL",
+  MODEL_POOL: "MODEL_POOL"
+} as const;

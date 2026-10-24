@@ -137,6 +137,10 @@ model       → 领域值对象（非表映射）
 - ⭐⭐ **依赖方向红线（DIP，2026-10-24 实证违反）**：`knot-adapter` **禁止依赖 `knot-dal`**，禁止 import `org.chobit.knot.gateway.entity.*`。适配层是协议/计费语义层，只应依赖 `common` 与 `adapter` 内的抽象。
   现状违反：`knot-adapter/pom.xml` compile 依赖 `knot-dal`，`UpstreamRequestContext` / `NormalizedUsageContext` / `UsageNormalizationSupport` / 4 个 `BillingModeCalculator` 等 7 个主类 import entity。整改方向：把适配层真正需要的字段下沉为 `adapter` 自有 model/record，不让 entity 穿透到协议层。
 - ⭐ **新增"类型/状态/维度"前先 grep 是否已有枚举承载**；有就必须复用，禁止平行手写字面量。判例：`GatewayErrorTypeEnum` 已含 `TIMEOUT_ERROR`，而 `ErrorMsgDto` 手写 8 个错误码字符串——这是 B4 级违规（详见 80-code-review §3）。
+- ⭐⭐ **判断分支禁止裸 code 字面量（2026-10-24 立规，后端已清零）**：凡拿枚举 code 做 `equals` / `==` / `===` 判断，一律走 `XxxEnum.YYY.code()`，不许写 `"YYY"`；也**不许为已有枚举再造一个常量 Support/Constants 类**（判例：3.2 曾自造 `RoutingTargetTypeSupport` 重复 `RouteTargetTypeEnum`，已删）。
+  - ⚠⚠ **改前必须查调用方确认码表归属**：13 个 code **跨多族同名**——`SUCCESS`(OperationLog/RoutingTest/ScheduledTaskRun)、`FAILURE`(OperationLog/ScheduledTaskRun)、`MODEL`(RouteTargetType/TrafficResourceType)、`UPSTREAM_ERROR`(GatewayErrorType/**ProxyErrorCode**)、`REQUEST`(BillingMode/ModerationScope)、`CUSTOM`(4 族)、`IMAGE`/`VIDEO`/`AUDIO`/`EMBEDDING`/`RERANK`(BillingMode/ModelType)、`DISABLED`(EnabledStatus/PluginPackageStatus)。选错族**字符串相同、编译与单测全绿**，将来某族改名才静默失效。
+  - 判例：`OutageClassifier.countableByCode()` 判的是 `GatewayUpstreamException.code()`，属 **`ProxyErrorCodeEnum` 族**（构造点 `AbstractUpstreamProtocolExecutor:115/264`），与 `GatewayErrorTypeEnum.UPSTREAM_ERROR` 只是同名。
+  - 扫法：`.workbuddy/audit/` 下用「双向」正则——`equals("X")` 与 `"X".equals(...)` 都要覆盖，只写前者会漏（首次扫描就漏了 `BillingFactChecks`）。
 
 ## 6. 异常与鉴权
 
