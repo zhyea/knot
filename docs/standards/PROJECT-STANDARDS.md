@@ -16,7 +16,8 @@ docs/standards/
 │   ├── 40-plugin.md          插件架构与敏感词拓扑
 │   ├── 50-verification.md    三门禁、真启冒烟、测试纪律
 │   ├── 60-business-rules.md  计费/用量提取/频控/重试/路由/流式
-│   └── 70-delivery.md        落盘位置、git 纪律、收口检查表
+│   ├── 70-delivery.md        落盘位置、git 纪律、收口检查表
+│   └── 80-code-review.md     审查尺子（SOLID 主 + DRY/KISS/YAGNI + 工程判据辅）与分级检查清单
 └── generate-tool-rules.py    ← 生成器：把 rules/ 分发到各工具的规则目录
 ```
 
@@ -43,6 +44,7 @@ docs/standards/
 | `50-verification` | `description`（智能生效） | `trigger: model_decision` | 收口/验证任务 |
 | `60-business-rules` | `description`（智能生效） | `trigger: model_decision` | 计费/频控/路由/流式任务 |
 | `70-delivery` | `description`（智能生效） | `trigger: model_decision` | 交付/文档/git 任务 |
+| `80-code-review` | `description`（智能生效） | `trigger: model_decision` | 代码审查/质量判定/写新代码前 |
 
 > 只有 `00-core` 常驻。其余按文件或场景触发，避免规则过长被模型当背景噪音忽略。
 

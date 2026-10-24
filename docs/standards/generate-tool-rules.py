@@ -63,6 +63,11 @@ SPECS = {
         "knot 交付规范：产物落盘位置、git 纪律、变更收口检查表、沟通约定",
         [],
     ),
+    "80-code-review": (
+        "smart",
+        "knot 代码审查尺子与分级检查清单：SOLID 主尺 + DRY/KISS/YAGNI + 工程判据，写代码或评审前使用",
+        [],
+    ),
 }
 
 HEADER_NOTE = "> 本文件由 `docs/standards/generate-tool-rules.py` 自动生成，**勿手工编辑**。权威源：`docs/standards/rules/{src}`。\n"

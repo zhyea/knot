@@ -27,6 +27,9 @@ cd knot-front && npx vue-tsc --noEmit && npx vite build                # 前端�
 4. **断言"已写入"必须读回来核对。**
 5. **回复一律简体中文**（技术术语可保留英文）。
 6. 多会话会抢改：宣告完成前重跑最终门禁；被阻塞时用 `-pl` 定向并**如实标注**，不得伪称全量通过。
+7. **判定违反前先声明尺子**：SOLID 为主、DRY/KISS/YAGNI 为辅、5 条工程判据为辅（⚠E1–E5，**不属设计模式原则，不得混称**）。详见 `docs/standards/rules/80-code-review.md`。
+8. **规范与代码冲突以代码为准，并立即回来修订规范**（规范腐化有实证：`20-frontend-vue.md` 曾长期写「无测试框架」）。
+9. **未实测的列举不得写进实施清单**：待迁移/待删除项必须逐项 grep 实测，未核实的显式标注「未核实」。
 
 ## 红线速记
 
@@ -50,6 +53,7 @@ cd knot-front && npx vue-tsc --noEmit && npx vite build                # 前端�
 | 收口验证 / 冒烟 / 写测试 | `docs/standards/rules/50-verification.md` |
 | 计费 / 频控 / 重试 / 路由 / 流式 | `docs/standards/rules/60-business-rules.md` |
 | 交付 / 文档落盘 / git | `docs/standards/rules/70-delivery.md` |
+| 代码审查 / 质量判定 / 写新代码前 | `docs/standards/rules/80-code-review.md`（审查尺子 + 🔴🟡💭 分级清单 + 反模式台账） |
 
 ## 命名纪律（摘要，详见 10-backend-java §4）
 

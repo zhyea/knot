@@ -49,6 +49,8 @@ description: knot 业务域规则：计费、频控额度、重试、模型路�
 - 上游流式（2026-10-20 批2 起，Netty 栈）：取流**只能** `retrieve().onStatus(...).toEntityFlux(DataBuffer.class)`。`exchangeToMono` 会在 handler 返回后调 `releaseBody()` 把未消费的响应体整个吞掉（`UpstreamWebClientStreamingTest` 钉住）。⚠ 旧规则「取原始响应用 `exchange((req,res)->res,false)`、不要再链 `.retrieve()`」作废——那是 Servlet 栈时期针对 RestClient 的写法，与现行 WebClient 实现矛盾，以代码为准。
 - 流式测试（2026-10-20 起）：**MockMvc 已不可用**（网关是 Netty 栈，无 Servlet）。流式契约靠 ① 直接调方法 + 反射注解契约检查（`WebTestClient.bindToController` 的 mock codec 管线跑不通 multipart，别走）；② 真启冒烟 s9（首字节 ≪ 总耗时、`knot_extend` 恰好 1 次且在 `[DONE]` 前）。前端 SSE 仍走 fetch（30s 超时）。
 - `knot_extend` = `{usage, billing}`，raw usage 不透传；整包作响应体字段，SSE 作独立 `data:` 事件（`[DONE]` 前插入）；**usage 用 snake_case，billing 用驼峰**。
+- ⭐ **错误前置**：流一开始转发，响应头即已 commit，此后任何错误都无法再用 HTTP 状态反馈，只能沉进日志。因此**能预检的错误必须在建立上游连接 / 写出响应头之前暴露**（先例：`AbstractUpstreamProtocolExecutor.executeStreaming` 前的 `requireExtractor(true, context)`）。
+  ⚠ 预检必须与正式提取**共用同一套选择逻辑**。若做不到（如整包路径预检时尚无响应体、`isEventStream` 判不了），**宁可不预检，也不要传一个猜出来的标志位**——改在该路径如实标注「失败发生在提取阶段」。
 
 ## 6. 操作日志
 
@@ -125,8 +127,9 @@ description: knot 业务域规则：计费、频控额度、重试、模型路�
 
 - ⭐ 输出层（`KnotExtendPayload`）**只读 `accounting.usage()`**，禁止二次解析原始 usage，禁止再走 `fromSource` 一类入口。
 - ⭐ **没有兜底提取器**：`requireExtractor()` 预检到「显式配置了未知 extractor code」即在**响应头写出之前**抛 `IllegalStateException`；未配置而走默认提取器属**合法路径**，不抛。
-- ⭐ **口径错配 fail-fast**：上游回了非零用量、提取器却提取成空 → `log.error` + 抛 `IllegalStateException`。判据 `hasPositiveNumber(rawUsage)`（递归查非零数值）用来区分「提取器读不出来」与「上游合法报零」。
-  **绝不静默记零账**——零账会把问题推迟到对账才暴露，与 §7.1 的 fail-hard 同一哲学。
+- ⭐ **口径错配 fail-fast**：上游回了非零用量、提取器却提取成空 → `log.error` + 抛 `IllegalStateException`。判据 `hasPositiveNumber(rawUsage)`（递归查非零数值）只用来区分「提取器读不出来」与「上游合法报零」；**能否为空本身由提取器声明**，见 §8.9。
+  「静默记零账」是红线——零账会把问题推迟到对账才暴露，与 §7.1 的 fail-hard 同一哲学。
+  ⚠ 2026-10-24 补充：三处提取失败**收敛到唯一处置点**，是否中断由 `knot.gateway.usage.degrade-on-failure` 决定（默认 `false` = 中断），见 §8.11。
 - 上游未上报 / 全零 usage → `log.warn`，**合法零用量，不失败**。
 - 响应体非法 JSON → 抛 `IllegalStateException`，不静默降级成 `null`（否则「解析失败」与「上游没回 usage」无法区分）。
 
@@ -161,3 +164,76 @@ usage.totalTokens    >= usage.input.tokens.total() + usage.output.tokens.total()
 - ⭐ 一次性迁移，**不留旧返回类型的兼容重载**（项目不做历史包袱）。
 - 改前全量 grep 调用方，改后再 grep 残留。调用方清单必须含：**接口默认方法**、`UsageExtractorRegistry`（含 adapter 兜底）、影子链 `BillingFactAssembler`、路由判定、**所有提取器测试**与用到 `UsageAccounting.of(...)` 的测试构造点。
 - ⚠ 影子链只消费 `billing` 半边，不必强制其产出 usage；路由判定（`RoutingTestBillingVerdictService`）只镜像选 extractor code，真正解析委托影子链——**不存在第三条别名字链**。
+
+### 8.9 空用量语义的声明纪律（2026-10-24）
+
+⭐ **「能不能为空」由提取器声明，注册表不做全局启发式。**（§8.2「禁止启发式猜协议语义」在本域的具体化）
+
+- `UsageExtractor.allowsEmptyUsage()` 默认 `false`：上游 usage 存在正数却提取为空 → 口径错配，失败。
+- 少数供应商的 usage 带本提取器不消费的正数字段（如 `reasoning_tokens`、媒体时长），
+  导致 token 分项被读成全零——这属**合法**，由该提取器覆写为 `true` 声明放行。
+- 门控形式：`!extractor.allowsEmptyUsage() && hasPositiveNumber(rawUsage)`。
+  `hasPositiveNumber` 只负责**排除「上游合法报全零」**，不负责判断协议语义——两者职责不许合并。
+
+⚠ **禁止用实例类型特判放行**（如 `instanceof 某个提取器`）。新增容忍能力一律走
+「接口 default 声明 + 具体实现覆写」：语义与实现同处一处，不随类继承关系漂移，
+且管理端下拉能看到它、可按模型绑定。先例 `EmptyAllowedTokenUsageExtractor`（code `TOKEN_ALLOW_EMPTY`），
+取量口径与 `DEFAULT-TOKEN` 同一出口 `TokenBillingUsage.fromResponse`，唯一差别是声明允许全零。
+
+⚠⭐ **`DEFAULT-TOKEN` 不得打开 `allowsEmptyUsage()`**：它是通用的错配探针，
+一旦放行，「配错提取器」（如 camelCase 用默认提取器）就不再失败，§8.4 的 fail-fast 直接失守。
+
+**用法与边界**：供应商合法返回全零 token 时绑定 `TOKEN_ALLOW_EMPTY`；它是**显式配置而非兜底**，
+**不能**替代 §8.3 要求的专用提取器绑定（非 OpenAI 缓存语义、camelCase 仍须绑对应提取器）。
+
+**测试必检三项**：声明允许 → 有正数也放行；未声明 → 有正数即失败；新提取器与同类提取器取量口径必须完全相等。
+
+> 设计评审纪律：判定「某类错误能否提前暴露」时，先算清 fail-fast 的**真实触发面**。
+> 本域 `resolveExtractorCode` 末行恒回落 `DEFAULT-TOKEN`，因此预检只在「显式配了错误 code」时触发，
+> 未配置属合法路径——不要把「覆盖范围未配置」误写成「覆盖全部」。
+
+### 8.10 影子链（离线复算）的失败语义（2026-10-24）
+
+⭐ **影子链不是生产闸门，不抛异常——但回落必须可见。**
+
+- `BillingFactAssembler` 是管理端**离线复算**，语义是「尽力算出来给你对照」。
+  让它对配置错误（extractor 编码未知 / 缺失）抛异常，会让路由测试抽屉直接报错、用户看不到任何对照结果。
+- 正确做法：**保留回落**，在 `BillingFact` 上**显式标记**（`extractorFallback` / `usageAbsent`），
+  交给裁判层 / UI 判断是否告警。这同样满足「错误配置可见」，且不炸链路。
+- 对照：生产链路（§8.4）对同类错误是 **fail-fast 抛异常**。二者语义不同，**不许互相套用**。
+
+⚠ 判据：**这个错误会不会阻断用户看到结果？**
+会 → 用标记（影子链 / 离线复算）；不会、或本就该阻断错误请求 → 抛（生产热路径）。
+
+### 8.11 提取失败的中断开关（2026-10-24）
+
+⭐ **一处判定失败原因，一处处置。** 三处「提取不出用量」的失败（响应体非法 JSON / 提取器没产出结果 / 口径错配）
+在 `UsageExtractorRegistry` 里收敛成 `ExtractFailure` 枚举，由 `applyFailurePolicy` 这**唯一**入口决定抛出还是降级。
+
+| 项 | 值 |
+|---|---|
+| 配置 | `knot.gateway.usage.degrade-on-failure`（env `KNOT_GATEWAY_USAGE_DEGRADE_ON_FAILURE`） |
+| 取值 | 二元：`false`（默认，抛异常中断响应）/ `true`（降级放行） |
+| 归属 | `UsageExtractionProperties`（`knot-gateway` 的 `config` 包，`@EnableConfigurationProperties` 由 `UsageExtractionConfiguration` 开启） |
+
+- ⭐⭐ **默认必须不降级（`false`）**：静默零账 = 这笔上游消耗永远收不回，且只在对账时才暴露。这是 §7.1 fail-hard 口径在提取域的落地。
+- ⭐⭐ **开关的方向必须是「降级 = true」，不能写成「中断 = true」。**
+  布尔未配置时天然是 `false`，即安全档位，不依赖字段初始化那行代码；反过来写成 `interrupt=true`
+  就得靠显式 `= true` 兜底，漏一行、绑错一处就把红线放松了。**宽松行为一律让调用方显式打开**，
+  与 §7.1「不提供 fail-open 开关、不静默降级」的取向一致。
+- ⭐ 降级的语义是**放行 + 零账 + 保留上游原文**（`UsageAccounting.degraded(rawUsage, rawBody)`）：
+  `billing` 置空即不计费，但 `rawUsage` / `rawBody` **必须留**——原文是事后重算（影子链 / 对账）的唯一依据，
+  丢了就变成「无从追查的零账」。
+- 降级产出的账目形状**与「上游未上报 usage」完全一致**（`isEmpty()` 为 true、`knot_extend` 不输出 billing 块），
+  因此不引入任何下游新管道；区别只在日志级别（ERROR）与 `degrade=true` 标记。
+- ⚠⚠ **未知 extractor code 不受本开关影响，恒 fail-fast**：那是配置错误而非提取失败，
+  降级它等于让该绑定下的所有请求永久零账且无自愈路径。
+  判据：**这个错误会不会每次请求都重现、且不会自己好？** 会 → 不能降级。
+- 不论抛还是降，日志统一 `log.error`，固定带 `reason` / `extractor` / `protocol` / `rawUsageKeys` / `degrade` 五项——
+  降级不是正常路径，必须保留告警面（`degrade=true` 是给告警规则区分档位用的）。
+- **测试纪律**：处置只有一处，故**把开关两种取值各验一次**即可（`false` 一次、`true` 一次），
+  不必按失败原因逐个验；另需单独钉死「开启降级后未知 code 仍然抛」。默认值本身也要有一条断言钉住
+  （`assertFalse(new UsageExtractionProperties().isDegradeOnFailure())`），否则改默认值不会有测试报警。
+
+⚠ 反模式：在三处失败点各写一遍 `if (degrade) ... else throw ...`。
+新增失败情形就会漏改其中一处，且「抛还是降」的口径会随代码位置漂移。

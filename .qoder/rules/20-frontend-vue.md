@@ -12,14 +12,23 @@ glob: knot-front/src/**
 
 ## 1. 技术栈与脚本
 
-Vue 3 + Vite + Element Plus + TypeScript（`knot-front/`）。**无测试框架**，质量门只有两道：
+Vue 3 + Vite + Element Plus + TypeScript（`knot-front/`）。
+
+**测试已引入 vitest + @vue/test-utils（2026-10-21 起）**，`src/` 下已有 10 个 spec 文件
+（`StatusTag` / `TreeSelect` / `LogicalModelList` 组件挂测 + `sse` / `format` / `billingTier` 等纯逻辑测）。
+质量门**三道**：
 
 ```bash
-npx vue-tsc --noEmit    # 类型检查
-npx vite build          # 构建
+npm test                  # vitest run
+npx vue-tsc --noEmit      # 类型检查
+npx vite build            # 构建
 ```
 
-每次前端改动**两道都要过**，且顺序固定。
+每次前端改动**三道都要过**，且顺序固定。⚠ **CI 必须执行 `npm test`**——写了测试而 CI 不跑等于没写
+（`.github/workflows/ci.yml` 曾长期只跑 type-check + build）。
+
+> 历史订正：本文件 §1 曾写「无测试框架，质量门只有两道」，与代码实际情况脱节，2026-10-24 修订。
+> 这就是"规范腐化"的实例，教训见 `00-core.md` 铁律 9。
 
 ## 2. 已知陷阱
 
@@ -40,6 +49,10 @@ npx vite build          # 构建
 ## 4. 状态值与枚举
 
 - ⚠ **`status` 为 0 是合法值**（禁用）。禁止 `if (status)` / `status || 1` 这类 truthy 判断，一律写 `status === 1` 或判 `!= null`。
+- ⭐ **字符串默认值一律用 `??`，不要用 `||`**（2026-10-24 立规）。`||` 会把空串 `""`、`0`、`false` 一并当"没值"，而空串常是合法输入。
+  反例：`useAuthorizationManagement.ts:882` `row.status || "ENABLED"` —— 后端返回空串时被误置为启用态。
+  正例：`row.status ?? "ENABLED"`。
+  ⚠ 例外：**纯展示兜底**（`health.status || "--"`）与**非状态类默认值**（`action.type || 'primary'`、`field.placeholder || '请选择'`）可以用 `||`——它们不承载业务状态语义。
 - 枚举选项统一来自 `GET /api/common/enums`（与 DB 枚举不混用）。
 
 ## 5. 既定模式（沿用，不要另起炉灶）

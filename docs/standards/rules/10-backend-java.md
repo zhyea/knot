@@ -115,6 +115,9 @@ model       → 领域值对象（非表映射）
   ⭐ 判据：**如果 `null` 会与「对端没给」混淆，就必须用 OrThrow 档**。计费、鉴权、任何影响正确性的热路径一律 OrThrow。先例 `UsageRawReader.readMap`（曾因吞异常把「响应非法 JSON」与「上游没回 usage」混为一谈，见 60 §8.4）。
 - **MapStruct 报 "Unmapped target" 常是真 bug**，不要无脑 `@Mapping(target = "x", ignore = true)`。
 - 无历史包袱：**字段变更全链路一次做干净，不留兼容兜底/冗余列，不写回填**；`schema.sql` + `data.sql` 即唯一权威。
+- ⭐⭐ **依赖方向红线（DIP，2026-10-24 实证违反）**：`knot-adapter` **禁止依赖 `knot-dal`**，禁止 import `org.chobit.knot.gateway.entity.*`。适配层是协议/计费语义层，只应依赖 `common` 与 `adapter` 内的抽象。
+  现状违反：`knot-adapter/pom.xml` compile 依赖 `knot-dal`，`UpstreamRequestContext` / `NormalizedUsageContext` / `UsageNormalizationSupport` / 4 个 `BillingModeCalculator` 等 7 个主类 import entity。整改方向：把适配层真正需要的字段下沉为 `adapter` 自有 model/record，不让 entity 穿透到协议层。
+- ⭐ **新增"类型/状态/维度"前先 grep 是否已有枚举承载**；有就必须复用，禁止平行手写字面量。判例：`GatewayErrorTypeEnum` 已含 `TIMEOUT_ERROR`，而 `ErrorMsgDto` 手写 8 个错误码字符串——这是 B4 级违规（详见 80-code-review §3）。
 
 ## 6. 异常与鉴权
 
@@ -122,6 +125,16 @@ model       → 领域值对象（非表映射）
 - admin 接口**默认拒绝**：无权限绑定即 403；**新增接口必须补权限绑定**。
 - Spring 6.1+ `NoResourceFoundException` 转 404。
 - 删除端点成功返回 200 + 空响应体（验证删除用"二次删除确认法"）。
+- ⭐⭐ **错误出口单一来源（2026-10-24 立规）**：同一异常的 `type` / `code` / `httpStatus` / `stage` 必须由**唯一映射**决定，HTTP 响应体、Kafka 流量事件、结构化日志三个出口不许各写一棵异常类型树。
+  - 权威来源优先复用已有枚举（`GatewayErrorTypeEnum`），不要新造平行抽象。
+  - 改 `type`/`code` 取值时，**必须同步 grep 下游派生函数**（如 `GatewayTrafficMsgDto.statusOf()`、`httpStatusOf()`），否则新值会静默落 `default`。
+  - 判例：`TimeoutException` 在 `GatewayExceptionHandler:200` 是 `504/timeout_error`，在 `ErrorMsgDto:46-91` 却落 `500/upstream_error`——数仓把网关总超时记成"上游故障"。
+- **恒等抽象禁止**：`normalize(x)` / `canonical(x)` / `convert(x)` 这类名字宣称做了变换，方法体却 `return x` / `return this`。要么实现变换，要么改名（如 `identity()`）或删除。判例 `ModelApiProtocolEnum.canonical()`。
+  ⚠ 例外（**不算违规**，审查时勿报）：建造者/流式 API 的 `return this`、接口默认实现的"使用默认值"、测试替身的链式返回。
+- **审计快照模式（2026-10-24 立规）**：`@OperationLog(oldValueSpel = "@xxxService.snapshot(#p0)")` 的快照方法统一形态为
+  `try { dto = getById(id); return JsonKit.toMap(dto); } catch (BusinessException e) { return null; }`
+  （目标已删除时快照为 null，属合法语义，**不要**给它加日志噪音）。该模式目前复制于 8 个 Service，
+  后续新增 Service 需要快照时，优先复用/抽取公共 Support，不要再抄一遍。
 
 ## 7. 测试
 

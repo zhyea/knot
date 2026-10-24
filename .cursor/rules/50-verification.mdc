@@ -14,9 +14,14 @@ alwaysApply: false
 | 门 | 命令 | 通过判据 |
 |---|---|---|
 | 后端单测 | `mvn -f knot-server/pom.xml test`（或 `-pl` 定向） | 日志含 `BUILD SUCCESS`，且无 `Tests run:.*Failures: [1-9]` |
+| 前端测试 | `cd knot-front && npm test` | vitest 全绿，无 failed 用例 |
 | 前端类型 | `cd knot-front && npx vue-tsc --noEmit` | 无报错输出 |
 | 前端构建 | `npx vite build` | 构建成功，产物未被截断 |
 | 真启冒烟 | 起 admin jar 打真实接口 | 关键接口 200 且业务语义正确 |
+
+⚠ **测试必须进 CI**：`npm test` 已在 `package.json` 就绪，`.github/workflows/ci.yml` 的 frontend job
+必须显式执行它。只跑 type-check + build 会让新增测试文件形同虚设（2026-10-24 实证：前端已有 10 个
+spec 文件而 CI 从不执行）。
 
 ⚠ **后台 exit code 不可信**，一律 grep 日志：
 
