@@ -141,9 +141,12 @@ model       → 领域值对象（非表映射）
 - admin 接口**默认拒绝**：无权限绑定即 403；**新增接口必须补权限绑定**。
 - Spring 6.1+ `NoResourceFoundException` 转 404。
 - 删除端点成功返回 200 + 空响应体（验证删除用"二次删除确认法"）。
-- ⭐⭐ **错误出口单一来源（2026-10-24 立规）**：同一异常的 `type` / `code` / `httpStatus` / `stage` 必须由**唯一映射**决定，HTTP 响应体、Kafka 流量事件、结构化日志三个出口不许各写一棵异常类型树。
+- ⭐⭐ **错误出口单一来源（2026-10-24 立规，同日由 3.8 落地）**：同一异常的 `type` / `code` / `httpStatus` / `stage` 必须由**唯一映射**决定，HTTP 响应体、Kafka 流量事件、结构化日志三个出口不许各写一棵异常类型树。
+  - **唯一映射 = `GatewayErrorDescriptor.of(Throwable)`**（gateway `model` 包）。新增异常类型只改它一处；两侧出口都得取它，不许在出口侧写死状态码或 type。
+  - 阶段码走 `GatewayErrorStageEnum`（与 `GatewayErrorTypeEnum` 正交：type 答「什么性质」，stage 答「链路哪一段」）；只有数仓出口消费 stage。
   - 权威来源优先复用已有枚举（`GatewayErrorTypeEnum`），不要新造平行抽象。
   - 改 `type`/`code` 取值时，**必须同步 grep 下游派生函数**（如 `GatewayTrafficMsgDto.statusOf()`、`httpStatusOf()`），否则新值会静默落 `default`。
+  - 例外：Spring 框架异常（`ServerWebInputException` 等）只出现在 HTTP 入口、不进数仓，不存在两棵树问题，由 handler 自处理即可。
   - 判例：`TimeoutException` 在 `GatewayExceptionHandler:200` 是 `504/timeout_error`，在 `ErrorMsgDto:46-91` 却落 `500/upstream_error`——数仓把网关总超时记成"上游故障"。
 - **恒等抽象禁止**：`normalize(x)` / `canonical(x)` / `convert(x)` 这类名字宣称做了变换，方法体却 `return x` / `return this`。要么实现变换，要么改名（如 `identity()`）或删除。判例 `ModelApiProtocolEnum.canonical()`。
   ⚠ 例外（**不算违规**，审查时勿报）：建造者/流式 API 的 `return this`、接口默认实现的"使用默认值"、测试替身的链式返回。

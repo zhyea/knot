@@ -10,6 +10,7 @@ import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
 import org.chobit.knot.gateway.exception.GatewayRequestException;
 import org.chobit.knot.gateway.exception.GatewayTrafficRejectException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
+import org.chobit.knot.gateway.model.GatewayErrorDescriptor;
 import org.chobit.knot.gateway.model.GatewayErrorResponse;
 import org.chobit.knot.gateway.model.TrafficRejectDetail;
 import org.chobit.knot.gateway.redis.RedisUnavailableException;
@@ -77,7 +78,7 @@ public class GatewayExceptionHandler {
     @ExceptionHandler(GatewayAuthException.class)
     public ResponseEntity<GatewayErrorResponse> handleGatewayAuthException(GatewayAuthException e) {
         log.warn("Gateway authentication exception: message={}", e.getMessage());
-        return status(HttpStatus.UNAUTHORIZED, gatewayError(e));
+        return status(e, gatewayError(e));
     }
 
     /**
@@ -86,7 +87,7 @@ public class GatewayExceptionHandler {
     @ExceptionHandler(GatewayInvalidRequestException.class)
     public ResponseEntity<GatewayErrorResponse> handleGatewayInvalidRequestException(GatewayInvalidRequestException e) {
         log.warn("Gateway request exception: message={}", e.getMessage());
-        return status(HttpStatus.BAD_REQUEST, gatewayError(e));
+        return status(e, gatewayError(e));
     }
 
     /**
@@ -98,7 +99,8 @@ public class GatewayExceptionHandler {
     @ExceptionHandler(GatewayBadRequestException.class)
     public ResponseEntity<GatewayErrorResponse> handleGatewayBadRequestException(GatewayBadRequestException e) {
         log.warn("Gateway bad request: type={}, code={}, message={}", e.errorType(), e.code(), e.getMessage());
-        return status(HttpStatus.BAD_REQUEST, GatewayErrorResponse.of(e.getMessage(), e.errorType(), e.code()));
+        GatewayErrorDescriptor descriptor = GatewayErrorDescriptor.of(e);
+        return status(descriptor, GatewayErrorResponse.of(e.getMessage(), descriptor.type(), descriptor.code()));
     }
 
     /**
@@ -112,11 +114,12 @@ public class GatewayExceptionHandler {
     public ResponseEntity<GatewayErrorResponse> handleGatewayTrafficRejectException(GatewayTrafficRejectException e) {
         log.warn("Gateway traffic rejected: type={}, code={}, message={}", e.type(), e.code(), e.getMessage());
         TrafficRejectDetail detail = e.detail();
-        ResponseEntity.BodyBuilder builder = ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS);
+        GatewayErrorDescriptor descriptor = GatewayErrorDescriptor.of(e);
+        ResponseEntity.BodyBuilder builder = ResponseEntity.status(descriptor.httpStatus());
         if (detail != null && detail.resetAfterSeconds() > 0L) {
             builder.header(HttpHeaders.RETRY_AFTER, Long.toString(detail.resetAfterSeconds()));
         }
-        return builder.body(GatewayErrorResponse.ofRejection(e.getMessage(), e.type(), e.code(), detail));
+        return builder.body(GatewayErrorResponse.ofRejection(e.getMessage(), descriptor.type(), descriptor.code(), detail));
     }
 
     /**
@@ -127,7 +130,8 @@ public class GatewayExceptionHandler {
         log.warn("Gateway upstream exception: code={}, upstreamStatus={}, message={}",
                 e.code(), e.httpStatus(), e.getMessage());
         // HTTP 状态码保持 502（错误码隔离），但把上游原状态码透进响应体，避免语义丢失
-        return status(HttpStatus.BAD_GATEWAY, GatewayErrorResponse.ofUpstream(e.getMessage(), e.type(), e.code(),
+        GatewayErrorDescriptor descriptor = GatewayErrorDescriptor.of(e);
+        return status(descriptor, GatewayErrorResponse.ofUpstream(e.getMessage(), descriptor.type(), descriptor.code(),
                 e.httpStatus(), truncateUpstreamBody(e.responseBody())));
     }
 
@@ -157,10 +161,9 @@ public class GatewayExceptionHandler {
     public ResponseEntity<GatewayErrorResponse> handleRedisUnavailable(RedisUnavailableException e) {
         log.error("Gateway storage unavailable: domain={}, operation={}, key={}",
                 e.getDomain(), e.getOperation(), e.getKey(), e);
-        return status(HttpStatus.SERVICE_UNAVAILABLE, GatewayErrorResponse.of(
-                "Gateway shared storage unavailable, please retry later",
-                GatewayErrorTypeEnum.STORAGE_UNAVAILABLE.code()
-        ));
+        GatewayErrorDescriptor descriptor = GatewayErrorDescriptor.of(e);
+        return status(descriptor, GatewayErrorResponse.of(
+                "Gateway shared storage unavailable, please retry later", descriptor.type()));
     }
 
     /**
@@ -169,11 +172,8 @@ public class GatewayExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<GatewayErrorResponse> handleBusinessException(BusinessException e) {
         log.warn("Gateway business exception: code={}, message={}", e.getCode(), e.getMessage());
-        return status(HttpStatus.BAD_REQUEST, GatewayErrorResponse.of(
-                e.getMessage(),
-                GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code(),
-                e.getCode()
-        ));
+        GatewayErrorDescriptor descriptor = GatewayErrorDescriptor.of(e);
+        return status(descriptor, GatewayErrorResponse.of(e.getMessage(), descriptor.type(), descriptor.code()));
     }
 
     /**
@@ -182,10 +182,8 @@ public class GatewayExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<GatewayErrorResponse> handleException(Exception e) {
         log.error("Unexpected gateway error", e);
-        return status(HttpStatus.INTERNAL_SERVER_ERROR, GatewayErrorResponse.of(
-                "Internal server error",
-                GatewayErrorTypeEnum.UPSTREAM_ERROR.code()
-        ));
+        GatewayErrorDescriptor descriptor = GatewayErrorDescriptor.of(e);
+        return status(descriptor, GatewayErrorResponse.of("Internal server error", descriptor.type()));
     }
 
     /**
@@ -200,14 +198,28 @@ public class GatewayExceptionHandler {
     @ExceptionHandler(TimeoutException.class)
     public ResponseEntity<GatewayErrorResponse> handleRequestBudgetExceeded(TimeoutException e) {
         log.warn("Gateway request budget exceeded: {}", e.getMessage());
-        return status(HttpStatus.GATEWAY_TIMEOUT, GatewayErrorResponse.of(
-                "Gateway request timeout, please retry later",
-                GatewayErrorTypeEnum.TIMEOUT_ERROR.code()
-        ));
+        GatewayErrorDescriptor descriptor = GatewayErrorDescriptor.of(e);
+        return status(descriptor, GatewayErrorResponse.of(
+                "Gateway request timeout, please retry later", descriptor.type()));
     }
 
+    /** HTTP 状态码取自 {@link GatewayErrorDescriptor}，与数仓出口同一映射，不许在出口侧另写死值 */
+    private static ResponseEntity<GatewayErrorResponse> status(GatewayErrorDescriptor descriptor,
+                                                               GatewayErrorResponse body) {
+        return ResponseEntity.status(descriptor.httpStatus()).body(body);
+    }
+
+    /**
+     * Spring 框架异常专用：它们只出现在 HTTP 入口、不进数仓，没有对应的
+     * {@link GatewayErrorDescriptor} 映射，状态码只能在出口侧直接给。
+     */
     private static ResponseEntity<GatewayErrorResponse> status(HttpStatus status, GatewayErrorResponse body) {
         return ResponseEntity.status(status).body(body);
+    }
+
+    /** 异常实例重载：家族异常的 type / code 在构造时已取自枚举，此处直接透传 */
+    private static ResponseEntity<GatewayErrorResponse> status(Throwable error, GatewayErrorResponse body) {
+        return ResponseEntity.status(GatewayErrorDescriptor.of(error).httpStatus()).body(body);
     }
 
     private static GatewayErrorResponse gatewayError(GatewayRequestException e) {

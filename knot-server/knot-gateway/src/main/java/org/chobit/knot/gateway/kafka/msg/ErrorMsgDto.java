@@ -3,18 +3,9 @@ package org.chobit.knot.gateway.kafka.msg;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import org.chobit.knot.gateway.constants.enums.GatewayErrorTypeEnum;
-import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.GatewayBadRequestException;
-import org.chobit.knot.gateway.exception.GatewayAuthException;
-import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
 import org.chobit.knot.gateway.exception.GatewayTrafficRejectException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
-import org.chobit.knot.gateway.model.TrafficRejectDetail;
-import org.chobit.knot.gateway.redis.RedisUnavailableException;
-
-import java.util.concurrent.TimeoutException;
+import org.chobit.knot.gateway.model.GatewayErrorDescriptor;
 
 /**
  * 响应层的统一错误结构：<b>上游异常与网关异常同形状</b>，靠 {@code type} / {@code stage} / {@code upstream} 区分。
@@ -52,69 +43,23 @@ public record ErrorMsgDto(String type,
         if (error == null) {
             return null;
         }
-        // 请求预算超时（B2 deadline，Mono.timeout 抛 TimeoutException）：与 GatewayExceptionHandler
-        // 的 handleRequestBudgetExceeded 同一口径（504 + timeout_error + stage=timeout）。
-        // 这是「唯一真总超时」的终态，不是未预期异常——落进 500 兜底会让数仓把超时当成内部故障
-        if (error instanceof TimeoutException e) {
-            return new ErrorMsgDto(
-                GatewayErrorTypeEnum.TIMEOUT_ERROR.code(), null, 504, Stage.TIMEOUT.code(),
-                truncate(e.getMessage()), null, null);
-        }
+        // type / code / httpStatus / stage 全部取自唯一映射，本类只补数仓专属的两个附件
+        // （上游响应摘要、拒绝明细）——新增异常类型时改 GatewayErrorDescriptor 一处即可
+        GatewayErrorDescriptor descriptor = GatewayErrorDescriptor.of(error);
         if (error instanceof GatewayUpstreamException e) {
             return new ErrorMsgDto(
-                e.type(), e.code(), 502, Stage.UPSTREAM_CALL.code(), truncate(e.getMessage()), null,
+                descriptor.type(), descriptor.code(), descriptor.httpStatus(), descriptor.stage(),
+                truncate(e.getMessage()), null,
                 new UpstreamErrorMsgDto(e.httpStatus(), e.code(), e.retryAfterMs()));
         }
         if (error instanceof GatewayTrafficRejectException e) {
-            TrafficRejectDetail reject = e.detail();
             return new ErrorMsgDto(
-                e.type(), e.code(), 429, stageOfRejection(reject), truncate(e.getMessage()),
-                TrafficRejectMsgDto.of(reject), null);
+                descriptor.type(), descriptor.code(), descriptor.httpStatus(), descriptor.stage(),
+                truncate(e.getMessage()), TrafficRejectMsgDto.of(e.detail()), null);
         }
-        if (error instanceof RedisUnavailableException e) {
-            return new ErrorMsgDto(
-                GatewayErrorTypeEnum.STORAGE_UNAVAILABLE.code(), null, 503, Stage.STORAGE.code(),
-                truncate(e.getMessage()), null, null);
-        }
-        if (error instanceof GatewayAuthException e) {
-            return new ErrorMsgDto(
-                e.type(), e.code(), 401, Stage.HEADER_VALIDATE.code(), truncate(e.getMessage()), null, null);
-        }
-        if (error instanceof GatewayInvalidRequestException e) {
-            return new ErrorMsgDto(
-                e.type(), e.code(), 400, Stage.HEADER_VALIDATE.code(),
-                truncate(e.getMessage()), null, null);
-        }
-        if (error instanceof GatewayBadRequestException e) {
-            // 敏感词等信息：只带分类 code，不暴露命中词与词库原文
-            return new ErrorMsgDto(
-                e.errorType(), e.code(), 400, Stage.PLUGIN_MODERATION.code(),
-                truncate(e.getMessage()), null, null);
-        }
-        if (error instanceof BusinessException e) {
-            return new ErrorMsgDto(
-                GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code(), e.getCode(), 400, Stage.REQUEST_PARSE.code(),
-                truncate(e.getMessage()), null, null);
-        }
-        // 未预期异常：与 GatewayExceptionHandler 的兜底出口保持一致（500 + upstream_error）
         return new ErrorMsgDto(
-            GatewayErrorTypeEnum.UPSTREAM_ERROR.code(), null, 500, Stage.INTERNAL.code(),
+            descriptor.type(), descriptor.code(), descriptor.httpStatus(), descriptor.stage(),
             truncate(error.getMessage()), null, null);
-    }
-
-    /**
-     * 拒绝发生的阶段：规则级检查（应用 / 规则 / 消费者）与目标级检查（模型 / 供应商）分开。
-     */
-    private static String stageOfRejection(TrafficRejectDetail detail) {
-        if (detail == null) {
-            return Stage.ROUTING_TRAFFIC_CHECK.code();
-        }
-        String resourceType = detail.resourceType();
-        if (TrafficResourceTypeEnum.MODEL.code().equals(resourceType)
-            || TrafficResourceTypeEnum.PROVIDER.code().equals(resourceType)) {
-            return Stage.TARGET_TRAFFIC_CHECK.code();
-        }
-        return Stage.ROUTING_TRAFFIC_CHECK.code();
     }
 
     private static String truncate(String message) {
@@ -122,30 +67,5 @@ public record ErrorMsgDto(String type,
             return null;
         }
         return message.length() <= MAX_MESSAGE_LENGTH ? message : message.substring(0, MAX_MESSAGE_LENGTH);
-    }
-
-    /**
-     * 失败阶段：当前由异常类型推定，未来若异常家族自带阶段则以自带值为准。
-     */
-    private enum Stage {
-        HEADER_VALIDATE("header_validate"),
-        REQUEST_PARSE("request_parse"),
-        ROUTING_TRAFFIC_CHECK("routing_traffic_check"),
-        TARGET_TRAFFIC_CHECK("target_traffic_check"),
-        UPSTREAM_CALL("upstream_call"),
-        PLUGIN_MODERATION("plugin_moderation"),
-        STORAGE("storage"),
-        TIMEOUT("timeout"),
-        INTERNAL("internal");
-
-        private final String code;
-
-        Stage(String code) {
-            this.code = code;
-        }
-
-        public String code() {
-            return code;
-        }
     }
 }
