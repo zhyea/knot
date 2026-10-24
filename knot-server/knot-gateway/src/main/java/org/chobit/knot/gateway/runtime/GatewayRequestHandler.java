@@ -130,9 +130,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     /**
      * Constructs a new instance.
      *
-     * @param eventPublisher     Kafka 投递器（未开启事件输出时为 {@code null}）
-     * @param trafficTopic       流量事件主题全名（埋点业务侧维护，取自 {@code kafka.topic.traffic}）
-     * @param blockingScheduler  阻塞段调度器（单测可为 {@code null}）
+     * @param eventPublisher    Kafka 投递器（未开启事件输出时为 {@code null}）
+     * @param trafficTopic      流量事件主题全名（埋点业务侧维护，取自 {@code kafka.topic.traffic}）
+     * @param blockingScheduler 阻塞段调度器（单测可为 {@code null}）
      */
     public GatewayRequestHandler(UpstreamProxyClient proxyService,
                                  RoutingResolver routingAuthService,
@@ -190,7 +190,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         List<RoutingRuleTargetDto> candidates = routing.candidateModels();
         TrafficCheckContext trafficContext = trafficGuard.newContext();
         return attemptCandidates(context, exchange, callTrace, requestBody, ejectionPolicy, false,
-                trafficContext, candidates, 0, new ScanState())
+            trafficContext, candidates, 0, new ScanState())
             .flatMap(outcome -> {
                 if (outcome.result() != null) {
                     return Mono.just(outcome.result());
@@ -207,7 +207,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                         routing.ruleCode(), outcome.ejectedSkipped());
                     callTrace.failOpen();
                     return attemptCandidates(context, exchange, callTrace, requestBody, ejectionPolicy, true,
-                            trafficGuard.newContext(), candidates, 0, new ScanState())
+                        trafficGuard.newContext(), candidates, 0, new ScanState())
                         .flatMap(reopened -> {
                             if (reopened.result() != null) {
                                 return Mono.just(reopened.result());
@@ -246,15 +246,15 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
      * @param ignoreEjection true 时忽略摘除状态（候选被全部摘除后 fail-open 的第二轮）
      */
     private Mono<FailoverOutcome> attemptCandidates(GatewayRequestContext context,
-                                                   GatewayExchange exchange,
-                                                   CallTraceContext callTrace,
-                                                   Map<String, Object> requestBody,
-                                                   EjectionPolicy ejectionPolicy,
-                                                   boolean ignoreEjection,
-                                                   TrafficCheckContext trafficContext,
-                                                   List<RoutingRuleTargetDto> candidates,
-                                                   int index,
-                                                   ScanState state) {
+                                                    GatewayExchange exchange,
+                                                    CallTraceContext callTrace,
+                                                    Map<String, Object> requestBody,
+                                                    EjectionPolicy ejectionPolicy,
+                                                    boolean ignoreEjection,
+                                                    TrafficCheckContext trafficContext,
+                                                    List<RoutingRuleTargetDto> candidates,
+                                                    int index,
+                                                    ScanState state) {
         if (index >= candidates.size()) {
             return Mono.just(new FailoverOutcome(null, state.lastUpstreamException,
                 state.firstRejection, state.hasAllowedTarget, state.ejectedSkipped));
@@ -447,7 +447,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         // 上游调用是阻塞契约（executor 内部 block），必须在阻塞段调度器执行，不能占用 event loop；
         // 顺带在任务线程上重绑 MDC——本段是整条链路里日志最密集的地方（重试、摘除、计费）
         Mono<ProxyResult> first = MdcContextSupport.onBlockingScheduler(
-                Mono.fromCallable(attempt::get), blockingScheduler);
+            Mono.fromCallable(attempt::get), blockingScheduler);
         return first.onErrorResume(GatewayUpstreamException.class, e -> {
             if (failed + 1 >= maxAttempts || !RetryableClassifier.retryable(e, policy)) {
                 return Mono.error(e);
@@ -588,7 +588,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         // 在途计数在流写完时才释放（见 proxyWithFailover 的 deferredToStream）
         Runnable loadRelease = context.attribute(ATTR_LOAD_RELEASE);
         FirstTokenHeaderWriter firstTokenWriter = FirstTokenHeaderWriter.of(
-                context, exchange.http(), firstTokenObserver(context));
+            context, exchange.http(), firstTokenObserver(context));
         // 流式用量只能在流写完时定型：先落在容器里，由 onComplete 发布流量事件（终态一条）
         AtomicReference<UsageAccounting> terminalUsage = new AtomicReference<>();
         Runnable onComplete = () -> {

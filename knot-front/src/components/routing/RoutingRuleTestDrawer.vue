@@ -266,7 +266,6 @@
 <script setup lang="ts">
 import {computed, nextTick, onBeforeUnmount, reactive, ref, watch, type PropType} from "vue";
 import {CircleClose, CopyDocument, Delete, Plus, Promotion, Select} from "@element-plus/icons-vue";
-import {ElMessage} from "element-plus";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import ShellCodeBlock from "../common/ShellCodeBlock.vue";
 import RoutingBillingVerdictPanel from "./RoutingBillingVerdictPanel.vue";
@@ -279,15 +278,15 @@ import {
 import {useDebugCapabilities} from "@/composables/useDebugCapabilities";
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard";
 import {useBillingVerdict} from "@/composables/useBillingVerdict";
+import {useTestRequestComposition} from "@/composables/useTestRequestComposition";
 import {useStreamBuffer, type StreamBlock, type RoutingTestResult} from "@/composables/useStreamBuffer";
 import {getTestRequestPreset, listTestRequestPresetOptions} from "@/api/routing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
-import {formatJson, formatJsonText, parseJsonResult, stringifyJson} from "@/utils/format";
+import {parseJsonResult} from "@/utils/format";
 import {
   extractField,
   highlightBlock,
   isAbortError,
-  safeParseTemplate,
   stripModelField
 } from "@/utils/routingTestPayload";
 import {
@@ -296,11 +295,6 @@ import {
 } from "@/utils/routingTestError";
 import {RouteTargetType, RoutingTestRunState, RoutingTestStatus} from "@/constants/status";
 import type {Dict} from "@/types";
-
-const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || "http://127.0.0.1:9090";
-
-/** 管理面测试头：勾选「测试时临时开启返回消费详情」后随请求发往网关（与后端 GatewayHeaders 同款常量） */
-const TEST_RETURN_USAGE_HEADER = "X-Knot-Test-Return-Usage";
 
 // 协议名称来自后端 ModelApiProtocolEnum（/api/enum-options），前端不再维护 code->label 映射
 const {labelOf: enumLabelOf} = useEnumOptions();
@@ -349,7 +343,6 @@ const testResult = ref<RoutingTestResult | null>(null);
 /** 最近一次响应的响应头，供「响应 Header」tab 展示 */
 const responseHeaders = ref<Record<string, string>>({});
 const targetProtocolMap = reactive<Dict>({});
-const templateStore = reactive<Dict>({});
 
 /** 区块滚动容器引用，用于追加后自动滚到底部 */
 const streamScrollbar = ref<ScrollbarLike | null>(null);
@@ -418,10 +411,6 @@ const resultTagType = computed(() => {
   return testResult.value?.status === RoutingTestStatus.SUCCESS ? "success" : "danger";
 });
 
-/** 预设请求（按协议复用的完整请求体用例），调试面板下拉从接口载入 */
-const presetOptions = ref<Array<{ id: number; name: string; protocolCode: string }>>([]);
-const selectedPresetId = ref<number | string | null>(null);
-
 const testForm = reactive({
   secretKey: "",
   targetKey: "",
@@ -477,6 +466,42 @@ const availableProtocols = computed(() => {
   return protocols.map((code: string) => ({code, label: protocolLabel(code)}));
 });
 const activeProtocol = computed(() => canonicalOf(testForm.protocol));
+
+// 请求构造侧（协议路径 / URL / 请求头表格 / 模板 / 预设）全部由 composable 承载，
+// 抽屉只把「当前选择」与两个接口注入进去。同 3.6 的边界：**只抽状态，不抽编排**——
+// 发请求、判错误类型、触发裁判仍是本抽屉的职责。
+const {
+  requestUrl,
+  headerRows,
+  displayHeaderRows,
+  resetHeaderRows,
+  addHeaderRow,
+  removeHeaderRow,
+  normalizeHeaderRow,
+  validateHeaderRows,
+  buildRequestHeaders,
+  currentTemplateText,
+  parsedTemplateBody,
+  ensureTemplateForCurrentSelection,
+  resetCurrentTemplate,
+  selectedPresetId,
+  filteredPresetOptions,
+  loadPresetOptions,
+  onPresetChange,
+  curlPreview,
+  formatBody
+} = useTestRequestComposition({
+  secretKey: () => testForm.secretKey,
+  ruleCode: () => props.ruleCode,
+  targetKey: () => testForm.targetKey,
+  protocol: activeProtocol,
+  billingVerifyEnabled: testBillingVerify,
+  consumerReturnUsageDetail: () => props.consumerReturnUsageDetail,
+  canonicalOf,
+  gatewayPathOf,
+  listPresetOptions: listTestRequestPresetOptions,
+  loadPresetDetail: getTestRequestPreset
+});
 
 // 计费裁判（JEV 双盲校验 v7 §3.2 第二步）：状态与动作全部由 composable 承载，
 // 抽屉只负责把「当前选择」与裁判接口注入进去（接口注入而非直接 import，便于脱离 HTTP 单测）。
@@ -546,135 +571,8 @@ function stopStreaming() {
   abortStreaming();
 }
 
-const activeTemplateKey = computed(() => `${testForm.targetKey || "default"}::${activeProtocol.value || "default"}`);
-const filteredPresetOptions = computed(() => {
-  const protocol = activeProtocol.value;
-  if (!protocol) {
-    return [];
-  }
-  return presetOptions.value.filter((preset) => preset.protocolCode === protocol);
-});
 const protocolHint = computed(() => hintOf(activeProtocol.value));
 
-const currentTemplateText = computed({
-  get() {
-    return templateStore[activeTemplateKey.value] || "";
-  },
-  set(value) {
-    templateStore[activeTemplateKey.value] = value;
-  }
-});
-
-const requestUrl = computed(() => `${normalizeBaseUrl()}${protocolPath(activeProtocol.value)}`);
-
-// ===================== 请求头表格（Headers tab 即权威） =====================
-/** 请求头表格行：抽屉打开时按当前密钥 / 规则编码生成默认三行，之后以表格为准 */
-interface HeaderRow {
-  name: string;
-  value: string;
-}
-
-const headerRows = ref<HeaderRow[]>([]);
-
-interface HeaderDisplayRow extends HeaderRow {
-  temporary?: boolean;
-}
-
-const displayHeaderRows = computed<HeaderDisplayRow[]>(() => {
-  const rows: HeaderDisplayRow[] = [...headerRows.value];
-  if (testBillingVerify.value && !props.consumerReturnUsageDetail && !hasHeaderName(TEST_RETURN_USAGE_HEADER)) {
-    rows.push({name: TEST_RETURN_USAGE_HEADER, value: "true", temporary: true});
-  }
-  return rows;
-});
-
-/** 打开抽屉（或重置）时生成默认请求头：Authorization / Rule / Content-Type */
-function resetHeaderRows() {
-  headerRows.value = [
-    {name: "Authorization", value: `Bearer ${testForm.secretKey?.trim() || "sk-your-routing-secret-key"}`},
-    {name: "Rule", value: resolveRuleHeaderValue()},
-    {name: "Content-Type", value: "application/json"}
-  ];
-}
-
-function addHeaderRow() {
-  headerRows.value.push({name: "", value: ""});
-}
-
-function removeHeaderRow(row: unknown) {
-  const index = headerRows.value.findIndex((item) => item === row);
-  if (index >= 0) {
-    headerRows.value.splice(index, 1);
-  }
-}
-
-/** 名称失焦规范化：trim；重名即时警告（不阻断编辑，发送前还会硬校验） */
-function normalizeHeaderRow(row: unknown) {
-  if (!row || typeof row !== "object" || !("name" in row) || typeof row.name !== "string") {
-    return;
-  }
-  const headerRow = row as HeaderRow;
-  headerRow.name = headerRow.name.trim();
-  if (!headerRow.name) {
-    return;
-  }
-  const duplicated = headerRows.value.some(
-    (item) => item !== headerRow && item.name.trim().toLowerCase() === headerRow.name.toLowerCase()
-  );
-  if (duplicated) {
-    ElMessage.warning(`请求头「${headerRow.name}」已存在，重名只有最后一条会生效`);
-  }
-}
-
-/** 表格中是否已存在同名头（HTTP 头大小写不敏感） */
-function hasHeaderName(name: string): boolean {
-  const lower = name.toLowerCase();
-  return headerRows.value.some((row) => row.name.trim().toLowerCase() === lower);
-}
-
-/** 发送前校验：名称trim后不可重名（大小写不敏感），空名称行直接跳过 */
-function validateHeaderRows(): string | null {
-  const seen = new Set<string>();
-  for (const row of headerRows.value) {
-    const name = row.name.trim();
-    if (!name) {
-      continue;
-    }
-    const lower = name.toLowerCase();
-    if (seen.has(lower)) {
-      return `请求头「${name}」重名，请合并为一行`;
-    }
-    seen.add(lower);
-  }
-  return null;
-}
-
-/**
- * 组装实际请求头：表格为权威（删除的行即不发送）；
- * 协议必需头 Content-Type / Accept 仅在表格缺失时补默认，表格填了则以表格为准。
- * 勾选临时开启时补测试头（表格已手动填同名头则不覆盖，保持表格权威）。
- */
-function buildRequestHeaders(accept: string): Record<string, string> {
-  const headers: Record<string, string> = {};
-  for (const row of headerRows.value) {
-    const name = row.name.trim();
-    if (name) {
-      headers[name] = row.value;
-    }
-  }
-  if (!hasHeaderName("Accept")) {
-    headers.Accept = accept;
-  }
-  if (!hasHeaderName("Content-Type")) {
-    headers["Content-Type"] = "application/json";
-  }
-  if (testBillingVerify.value && !props.consumerReturnUsageDetail && !hasHeaderName(TEST_RETURN_USAGE_HEADER)) {
-    headers[TEST_RETURN_USAGE_HEADER] = "true";
-  }
-  return headers;
-}
-const parsedTemplateBody = computed(() => safeParseTemplate(currentTemplateText.value));
-const curlPreview = computed(() => buildCurlCommand());
 const displayCurl = computed(() => testResult.value?.curl || curlPreview.value);
 const resultBodyText = computed(() => {
   // 流式阶段用原始文本（半截 JSON 格式化会报错），结束后再走 formatBody
@@ -804,12 +702,6 @@ function protocolLabel(protocol: unknown): string {
   return enumLabelOf("ModelApiProtocolEnum", code, code);
 }
 
-function protocolPath(protocol: unknown): string {
-  // 网关调试路径由后端能力接口下发（与 RoutingRuleService.buildGatewayTestPath 同源）；
-  // 别名归一同样由后端能力接口的 canonicalCode 提供（原本地同名薄包装已并入调用点）
-  return gatewayPathOf(canonicalOf(protocol)) || "";
-}
-
 /** 当前选中目标（或「全部目标」并集）对应的协议列表 */
 function currentProtocolCodes(): string[] {
   if (testForm.targetKey === ALL_TARGETS_KEY) {
@@ -865,132 +757,6 @@ function clearProtocolMap() {
   for (const key of Object.keys(targetProtocolMap)) {
     delete targetProtocolMap[key];
   }
-}
-
-function ensureTemplateForCurrentSelection() {
-  const protocol = activeProtocol.value;
-  if (!protocol || !activeTemplateKey.value) {
-    return;
-  }
-  if (!templateStore[activeTemplateKey.value]) {
-    // 首次为该 (target, protocol) 生成模板：有可选项则默认选中第一个预设并载入其请求体
-    seedTemplateForProtocol();
-  } else if (selectedPresetId.value == null && filteredPresetOptions.value.length) {
-    // 模板已存在（多为预设未加载时的空白占位）：补选第一个预设
-    autoSelectFirstPreset();
-  }
-}
-
-/** 为该 (target, protocol) 首次生成模板：存在可选项时默认选中第一个预设并载入请求体，否则留空白默认 */
-function seedTemplateForProtocol() {
-  const first = filteredPresetOptions.value[0];
-  if (first) {
-    onPresetChange(first.id);
-  } else {
-    selectedPresetId.value = null;
-    // 无预设可用时的空白默认请求体；具体结构由「预设请求」用例（kb_test_request_presets）提供
-    templateStore[activeTemplateKey.value] = "{}";
-  }
-}
-
-/**
- * 预设请求下拉「默认选中第一个」：未选中且存在可选项时，自动选中过滤后的第一个。
- * 仅当模板仍为空白占位（未加载过预设 / 用户尚未编辑）才覆盖模板，避免清掉用户已输入的内容。
- */
-function autoSelectFirstPreset() {
-  if (selectedPresetId.value != null) {
-    return;
-  }
-  const first = filteredPresetOptions.value[0];
-  if (!first) {
-    return;
-  }
-  const current = templateStore[activeTemplateKey.value] || "";
-  const isBlank = !current.trim() || current.trim() === "{}";
-  if (isBlank) {
-    onPresetChange(first.id);
-  } else {
-    selectedPresetId.value = first.id;
-  }
-}
-
-function resetCurrentTemplate() {
-  if (!activeProtocol.value) {
-    return;
-  }
-  selectedPresetId.value = null;
-  templateStore[activeTemplateKey.value] = "{}";
-}
-
-async function loadPresetOptions() {
-  try {
-    const page = await listTestRequestPresetOptions();
-    // 统一 OptionPage 契约：value=id，label=name，接口协议走 meta.protocolCode；
-    // requestBody 选中时按 id 懒加载
-    presetOptions.value = (page?.list ?? []).map((item) => ({
-      id: Number(item.value),
-      name: item.label,
-      protocolCode: item.meta?.protocolCode ?? ""
-    }));
-  } catch {
-    presetOptions.value = [];
-  }
-  // 预设加载完成后，若当前未选中任何预设，默认选中过滤后的第一个（协议已确定时生效）
-  autoSelectFirstPreset();
-}
-
-async function onPresetChange(presetId: number | string | null) {
-  // 同步选中态：用户交互由 v-model 赋值，但程序化调用需在此显式设置
-  selectedPresetId.value = presetId;
-  if (!presetId) {
-    return;
-  }
-  const preset = presetOptions.value.find((item) => String(item.id) === String(presetId));
-  if (!preset) {
-    return;
-  }
-  // options 契约不承载 requestBody（大字段），选中后按 id 懒加载预设详情
-  let requestBody = "{}";
-  try {
-    const detail = await getTestRequestPreset(preset.id);
-    if (String(selectedPresetId.value) !== String(presetId)) {
-      return;
-    }
-    requestBody = detail?.requestBody || "{}";
-  } catch {
-    requestBody = "{}";
-  }
-  const parsed = safeParseTemplate(requestBody);
-  const base = parsed.error ? {} : parsed.value;
-  templateStore[activeTemplateKey.value] = formatJson(stripModelField(base));
-}
-
-function normalizeBaseUrl() {
-  const base = GATEWAY_BASE_URL.trim();
-  return base.endsWith("/") ? base.slice(0, -1) : base;
-}
-
-function resolveRuleHeaderValue() {
-  return props.ruleCode?.trim() || "your-rule-code";
-}
-
-function buildCurlCommand() {
-  const json = parsedTemplateBody.value.error ? currentTemplateText.value || "{}" : stringifyJson(parsedTemplateBody.value.value || {});
-  const escapedJson = json.replace(/'/g, "'\\''");
-  // 请求头与「Headers」表格同源：用户在表格里的增删改即时反映到 curl 预览
-  const headerLines = Object.entries(buildRequestHeaders("application/json"))
-    .map(([name, value]) => `  -H '${name}: ${value.replace(/'/g, "'\\''")}'`)
-    .join(" \\\n");
-  return (
-    `curl -X POST '${requestUrl.value}' \\\n` +
-    `${headerLines} \\\n` +
-    `  -d '${escapedJson}'`
-  );
-}
-
-function formatBody(body: unknown): string {
-  if (!body) return "";
-  return formatJsonText(body, 2, String(body));
 }
 
 /** 收集请求前置校验失败，统一的提示形态 */
