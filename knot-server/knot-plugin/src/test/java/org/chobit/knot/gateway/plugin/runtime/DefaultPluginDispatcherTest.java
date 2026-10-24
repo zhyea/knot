@@ -35,21 +35,27 @@ class DefaultPluginDispatcherTest {
     private static final PluginExtensionPoint GATEWAY = PluginExtensionPoint.GATEWAY_EXCHANGE;
     private static final PluginStageCode REQUEST = PluginStageCode.GATEWAY_REQUEST;
 
-    /** 测试用上下文：只要一个可辨识的具体子类即可 */
+    /**
+     * 测试用上下文：只要一个可辨识的具体子类即可
+     */
     private static final class TestContext extends PluginDispatchContext {
         private TestContext() {
             super("trace-1", "00-trace-1-01");
         }
     }
 
-    /** 另一种上下文：用于验证 contextType 不匹配时被跳过 */
+    /**
+     * 另一种上下文：用于验证 contextType 不匹配时被跳过
+     */
     private static final class OtherContext extends PluginDispatchContext {
         private OtherContext() {
             super("trace-2", null);
         }
     }
 
-    /** 记录被调次数与实参的 handler；descriptor / contextType 均可构造期指定 */
+    /**
+     * 记录被调次数与实参的 handler；descriptor / contextType 均可构造期指定
+     */
     private static final class RecordingHandler implements PluginHandler<PluginDispatchContext> {
 
         private final PluginDescriptor descriptor;
@@ -83,7 +89,9 @@ class DefaultPluginDispatcherTest {
         }
     }
 
-    /** 固定返回绑定列表的 provider，同时记录调用方传入的扩展点与阶段 */
+    /**
+     * 固定返回绑定列表的 provider，同时记录调用方传入的扩展点与阶段
+     */
     private static final class StubBindingProvider implements PluginBindingProvider {
 
         private final List<PluginBindingView> bindings;
@@ -104,23 +112,23 @@ class DefaultPluginDispatcherTest {
 
     private static PluginBindingView binding(long id, String capability, Integer orderNo) {
         return new PluginBindingView(id, "INST-" + id, "实例" + id, "PKG", "包",
-                capability, GATEWAY, REQUEST, orderNo, 3000);
+            capability, GATEWAY, REQUEST, orderNo, 3000);
     }
 
     @Test
     void dispatchesBindingsInOrderNoAscendingWithNullLast() {
         StubBindingProvider provider = new StubBindingProvider(
-                binding(1L, "CAP", 30),
-                binding(2L, "CAP", 10),
-                binding(3L, "CAP", null));
+            binding(1L, "CAP", 30),
+            binding(2L, "CAP", 10),
+            binding(3L, "CAP", null));
         RecordingHandler handler = new RecordingHandler("CAP", GATEWAY, REQUEST, TestContext.class);
         DefaultPluginDispatcher dispatcher = new DefaultPluginDispatcher(provider, List.of(handler));
 
         dispatcher.dispatch(GATEWAY, REQUEST, new TestContext());
 
         assertEquals(List.of(2L, 1L, 3L),
-                handler.receivedBindings.stream().map(PluginBindingView::bindingId).toList(),
-                "orderNo 升序执行，null 排最后");
+            handler.receivedBindings.stream().map(PluginBindingView::bindingId).toList(),
+            "orderNo 升序执行，null 排最后");
         assertSame(GATEWAY, provider.seenExtensionPoint.get());
         assertSame(REQUEST, provider.seenStageCode.get());
     }
@@ -166,7 +174,7 @@ class DefaultPluginDispatcherTest {
         StubBindingProvider provider = new StubBindingProvider(binding(1L, "CAP", 1));
         // handler 声明的是 UPSTREAM 扩展点 / UPSTREAM_REQUEST 阶段，与绑定不符
         RecordingHandler handler = new RecordingHandler("CAP",
-                PluginExtensionPoint.UPSTREAM_EXCHANGE, PluginStageCode.UPSTREAM_REQUEST, TestContext.class);
+            PluginExtensionPoint.UPSTREAM_EXCHANGE, PluginStageCode.UPSTREAM_REQUEST, TestContext.class);
         DefaultPluginDispatcher dispatcher = new DefaultPluginDispatcher(provider, List.of(handler));
 
         dispatcher.dispatch(GATEWAY, REQUEST, new TestContext());
@@ -188,15 +196,15 @@ class DefaultPluginDispatcherTest {
     @Test
     void keepsDispatchingRemainingBindingsWhenOneHasNoHandler() {
         StubBindingProvider provider = new StubBindingProvider(
-                binding(1L, "UNKNOWN", 10),
-                binding(2L, "CAP", 20));
+            binding(1L, "UNKNOWN", 10),
+            binding(2L, "CAP", 20));
         RecordingHandler handler = new RecordingHandler("CAP", GATEWAY, REQUEST, TestContext.class);
         DefaultPluginDispatcher dispatcher = new DefaultPluginDispatcher(provider, List.of(handler));
 
         dispatcher.dispatch(GATEWAY, REQUEST, new TestContext());
 
         assertEquals(List.of(2L), handler.receivedBindings.stream().map(PluginBindingView::bindingId).toList(),
-                "跳过无 handler 的绑定后，其余绑定照常执行");
+            "跳过无 handler 的绑定后，其余绑定照常执行");
     }
 
     @Test
@@ -221,7 +229,7 @@ class DefaultPluginDispatcherTest {
         DefaultPluginDispatcher dispatcher = new DefaultPluginDispatcher(provider, List.<PluginHandler<?>>of(failing));
 
         IllegalStateException ex = assertThrows(IllegalStateException.class,
-                () -> dispatcher.dispatch(GATEWAY, REQUEST, new TestContext()));
+            () -> dispatcher.dispatch(GATEWAY, REQUEST, new TestContext()));
         assertEquals("boom", ex.getMessage(), "dispatch 不吞异常：失败策略由调用方决定");
     }
 }

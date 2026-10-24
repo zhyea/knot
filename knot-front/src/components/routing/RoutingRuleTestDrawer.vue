@@ -282,8 +282,25 @@ import {useDebugCapabilities} from "@/composables/useDebugCapabilities";
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard";
 import {getTestRequestPreset, listTestRequestPresetOptions} from "@/api/routing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
-import {formatJson, formatJsonText, parseJsonResult, stringifyJson, highlightJsonHtml} from "@/utils/format";
+import {formatJson, formatJsonText, parseJsonResult, stringifyJson} from "@/utils/format";
+import {
+  extractField,
+  findObjectField,
+  findSiblingField,
+  formatUpstreamEvent,
+  highlightBlock,
+  isAbortError,
+  parseStreamJson,
+  safeParseTemplate,
+  stripModelField
+} from "@/utils/routingTestPayload";
+import {
+  normalizeErrorResult,
+  normalizeNetworkErrorMessage,
+  serializeBody
+} from "@/utils/routingTestError";
 import {type SseEvent} from "@/utils/sse";
+import {RouteTargetType} from "@/constants/status";
 import type {Dict} from "@/types";
 
 const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || "http://127.0.0.1:9090";
@@ -786,69 +803,6 @@ function captureKnotExtendFromStreamData(data: string) {
   }
 }
 
-function parseStreamJson(value: string) {
-  const text = value.trim();
-  const jsonText = text.startsWith("data:") ? text.slice("data:".length).trim() : text;
-  return parseJsonResult(jsonText, null);
-}
-
-/** 兼容 Responses 等协议把事件包在 response 子对象中的返回形态。 */
-function findObjectField(payload: unknown, field: string): unknown {
-  if (typeof payload === "string") {
-    const parsed = parseJsonResult(payload, null);
-    return parsed.error ? null : findObjectField(parsed.value, field);
-  }
-  if (!payload || typeof payload !== "object") {
-    return null;
-  }
-  if (Array.isArray(payload)) {
-    for (const item of payload) {
-      const found = findObjectField(item, field);
-      if (found != null) {
-        return found;
-      }
-    }
-    return null;
-  }
-  const dict = payload as Dict;
-  if (Object.prototype.hasOwnProperty.call(dict, field)) {
-    return dict[field];
-  }
-  for (const value of Object.values(dict)) {
-    const found = findObjectField(value, field);
-    if (found != null) {
-      return found;
-    }
-  }
-  return null;
-}
-
-function findSiblingField(payload: unknown, anchorField: string, field: string): unknown {
-  if (!payload || typeof payload !== "object") {
-    return null;
-  }
-  if (Array.isArray(payload)) {
-    for (const item of payload) {
-      const found = findSiblingField(item, anchorField, field);
-      if (found != null) {
-        return found;
-      }
-    }
-    return null;
-  }
-  const dict = payload as Dict;
-  if (Object.prototype.hasOwnProperty.call(dict, anchorField)) {
-    return dict[field];
-  }
-  for (const value of Object.values(dict)) {
-    const found = findSiblingField(value, anchorField, field);
-    if (found != null) {
-      return found;
-    }
-  }
-  return null;
-}
-
 /** 实际承接模型：优先响应头 X-Knot-Model，缺失回退当前所选目标（裁判据此前端定位规则与提取器） */
 function servingModelCode(): string | null {
   const header = responseHeaders.value[MODEL_RESPONSE_HEADER] || responseHeaders.value["X-Knot-Model"];
@@ -950,7 +904,7 @@ function targetKeyOf(target: RoutingTarget): string {
 }
 
 function normalizeTargetType(targetType: unknown): string {
-  return String(targetType || "MODEL").trim().toUpperCase();
+  return String(targetType || RouteTargetType.MODEL).trim().toUpperCase();
 }
 
 function targetLabel(target: RoutingTarget): string {
@@ -1048,7 +1002,8 @@ function seedTemplateForProtocol() {
     onPresetChange(first.id);
   } else {
     selectedPresetId.value = null;
-    templateStore[activeTemplateKey.value] = createDefaultTemplate(activeProtocol.value);
+    // 无预设可用时的空白默认请求体；具体结构由「预设请求」用例（kb_test_request_presets）提供
+    templateStore[activeTemplateKey.value] = "{}";
   }
 }
 
@@ -1078,7 +1033,7 @@ function resetCurrentTemplate() {
     return;
   }
   selectedPresetId.value = null;
-  templateStore[activeTemplateKey.value] = createDefaultTemplate(activeProtocol.value);
+  templateStore[activeTemplateKey.value] = "{}";
 }
 
 async function loadPresetOptions() {
@@ -1122,25 +1077,6 @@ async function onPresetChange(presetId: number | string | null) {
   const parsed = safeParseTemplate(requestBody);
   const base = parsed.error ? {} : parsed.value;
   templateStore[activeTemplateKey.value] = formatJson(stripModelField(base));
-}
-
-function createDefaultTemplate(protocol: unknown): string {
-  // 无预设可用时的空白默认请求体；具体结构由「预设请求」用例提供（替代原硬编码骨架）
-  void protocol;
-  return "{}";
-}
-
-/** 客户端无需传 model：请求体的 model 由网关按路由目标的上游模型覆盖，这里一律剔除 */
-function stripModelField(body: unknown): Dict {
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return {};
-  }
-  const {model: _ignored, ...rest} = body as Dict;
-  return rest;
-}
-
-function safeParseTemplate(text: unknown) {
-  return parseJsonResult(text, {});
 }
 
 function normalizeBaseUrl() {
@@ -1272,7 +1208,7 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget | null, 
     if (err?.response?.headers) {
       responseHeaders.value = err.response.headers as Record<string, string>;
     }
-    testResult.value = normalizeErrorResult(err) as RoutingTestResult;
+    testResult.value = normalizeErrorResult(err, activeProtocol.value) as RoutingTestResult;
   } finally {
     loading.value = false;
   }
@@ -1366,7 +1302,7 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget | null,
       }
     } else {
       responseTab.value = "body";
-      testResult.value = normalizeErrorResult(error as Dict) as RoutingTestResult;
+      testResult.value = normalizeErrorResult(error, activeProtocol.value) as RoutingTestResult;
       appendStreamError(testResult.value);
     }
   } finally {
@@ -1429,68 +1365,6 @@ function recoverKnotExtendFromStreamBlocks() {
   }
 }
 
-/**
- * 从 content 类字段值提取文本：字符串原样返回；块数组（Anthropic content blocks /
- * Responses API output_text 等形态）拼接各块 text。
- */
-function extractTextValue(value: unknown): string {
-  if (typeof value === "string") {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value
-      .map((block) => {
-        if (typeof block === "string") {
-          return block;
-        }
-        if (block && typeof block === "object") {
-          const text = (block as Dict).text;
-          return typeof text === "string" ? text : "";
-        }
-        return "";
-      })
-      .join("");
-  }
-  return "";
-}
-
-/**
- * 从上游响应（单个 SSE data 或完整响应体）深搜指定字段并拼接：
- * 兼容 chat 流式 `choices[].delta.content`、缓冲 `choices[].message.content`、
- * completions `choices[].text`、Responses/Anthropic 的 content 块数组及顶层 `content`。
- * 仅取文本值，避免误抓无关同名字段造成的噪音（这里 content / reasoning_content 语义稳定）。
- */
-function extractField(node: unknown, key: string): string {
-  if (node == null || typeof node !== "object") {
-    return "";
-  }
-  const results: string[] = [];
-  const visit = (current: unknown) => {
-    if (current == null || typeof current !== "object") {
-      return;
-    }
-    if (Array.isArray(current)) {
-      current.forEach(visit);
-      return;
-    }
-    for (const [k, v] of Object.entries(current)) {
-      if (k === key) {
-        const text = extractTextValue(v);
-        if (text) {
-          results.push(text);
-        } else if (v && typeof v === "object" && !Array.isArray(v)) {
-          // 对象形态的 content（少数厂商）：继续下钻找同名字段
-          visit(v);
-        }
-      } else if (v && typeof v === "object") {
-        visit(v);
-      }
-    }
-  };
-  visit(node);
-  return results.join("");
-}
-
 /** 节流刷入区块：逐事件直接改响应式数组会让 v-html 高频重排，统一 60ms 批处理 */
 function scheduleBlockFlush() {
   if (blockFlushTimer) {
@@ -1538,19 +1412,6 @@ function scrollStreamToBottom() {
   });
 }
 
-/** 区块内代码高亮：复用 JSON 高亮（内部已做 HTML 转义，无 XSS 风险） */
-function highlightBlock(data: string): string {
-  if (!data) {
-    return '<span class="sh-muted">（空）</span>';
-  }
-  return highlightJsonHtml(data);
-}
-
-function formatUpstreamEvent(event: SseEvent): string {
-  const eventLine = event.event && event.event !== "message" ? `event: ${event.event}\n` : "";
-  return `${eventLine}data: ${event.data}\n\n`;
-}
-
 /** 累积片段并节流刷新：逐 token 直接改响应式属性会让高亮组件高频重算 */
 function appendStreamText(text: string) {
   if (!text) {
@@ -1587,10 +1448,6 @@ function finishStream(status: string, errorMessage: string) {
   }
 }
 
-function isAbortError(error: unknown): boolean {
-  return (error as {name?: string})?.name === "AbortError";
-}
-
 /** 用户点击「停止请求」或关闭抽屉时调用 */
 function abortStreaming() {
   if (streamAbortController.value) {
@@ -1601,53 +1458,6 @@ function abortStreaming() {
 function stopStreaming() {
   abortStreaming();
 }
-
-function normalizeErrorResult(error: Dict): Dict {
-  const data = error?.response?.data;
-  if (data && typeof data === "object") {
-    if (typeof data.success === "boolean" && data.success === false) {
-      return {
-        status: "ERROR",
-        httpStatus: error?.response?.status ?? null,
-        modelCode: data.data?.modelCode ?? null,
-        protocol: data.data?.protocol ?? activeProtocol.value,
-        errorMessage: data.message || "请求失败",
-        responseBody: serializeBody(data.data ?? data)
-      };
-    }
-    return {
-      status: "ERROR",
-      httpStatus: error?.response?.status ?? null,
-      modelCode: data.modelCode ?? null,
-      protocol: data.protocol ?? activeProtocol.value,
-      errorMessage:
-        data.message ||
-        (typeof data.error === "object" ? data.error?.message : data.error) ||
-        error.message ||
-        "请求失败",
-      responseBody: serializeBody(data)
-    };
-  }
-  return {
-    status: "ERROR",
-    httpStatus: error?.response?.status ?? null,
-    modelCode: null,
-    protocol: activeProtocol.value || null,
-    errorMessage: normalizeNetworkErrorMessage(error?.message),
-    // fetch 网络失败没有 response body；仍把错误写入 Body，避免调试面板看起来像空响应。
-    responseBody: normalizeNetworkErrorMessage(error?.message)
-  };
-}
-
-/** 将 fetch 无响应错误转换成用户可操作的提示，避免只显示浏览器的英文 TypeError。 */
-function normalizeNetworkErrorMessage(message: unknown): string {
-  const raw = String(message || "").trim();
-  if (!raw || /failed to fetch|networkerror|load failed/i.test(raw)) {
-    return "无法连接 gateway 服务，请确认 gateway 已启动且地址可访问";
-  }
-  return `网络错误：${raw}`;
-}
-
 /** 流式请求在首个事件前失败时，同时填充 Body 和「流式响应」页。 */
 function appendStreamError(result: RoutingTestResult) {
   const errorText = result.responseBody || result.errorMessage || "请求失败";
@@ -1669,14 +1479,18 @@ function appendStreamError(result: RoutingTestResult) {
   responseTab.value = "stream";
 }
 
-function serializeBody(body: unknown): string {
-  if (body == null || body === "") return "";
-  if (typeof body === "string") return body;
-  return stringifyJson(body);
-}
-
-function onClosed() {
-  // 关闭抽屉必须中止在途流，否则网关连接与异步线程一直被占用
+/**
+ * 释放调试占用的所有外部资源：在途流、四个计时器、待刷缓冲。
+ *
+ * <p><b>唯一清理入口</b>——关闭抽屉与组件卸载都必须走这里。此前两处各抄一遍，
+ * 结果「新增计时器只改了一处」就会漏清理：在途请求不中止会一直占用网关连接，
+ * 计时器不清会对着已销毁的组件写响应式状态。</p>
+ *
+ * <p>只做资源释放，不碰展示数据——数据复位是 {@link onClosed} 的职责，
+ * 卸载路径不需要（也不应该）再动一次响应式状态。</p>
+ */
+function disposeTestResources() {
+  // 关闭抽屉/卸载组件必须中止在途流，否则网关连接与异步线程一直被占用
   abortStreaming();
   if (flushTimer) {
     clearTimeout(flushTimer);
@@ -1687,12 +1501,16 @@ function onClosed() {
     clearTimeout(copyResetTimer);
     copyResetTimer = null;
   }
-  copiedBlockId.value = null;
   if (elapsedTimer) {
     clearInterval(elapsedTimer);
     elapsedTimer = null;
   }
   pendingText = "";
+}
+
+function onClosed() {
+  disposeTestResources();
+  copiedBlockId.value = null;
   streamBody.value = "";
   streamBlocks.value = [];
   streamContent.value = "";
@@ -1707,22 +1525,7 @@ function onClosed() {
   loading.value = false;
 }
 
-onBeforeUnmount(() => {
-  abortStreaming();
-  if (flushTimer) {
-    clearTimeout(flushTimer);
-    flushTimer = null;
-  }
-  clearBlockTimers();
-  if (copyResetTimer) {
-    clearTimeout(copyResetTimer);
-    copyResetTimer = null;
-  }
-  if (elapsedTimer) {
-    clearInterval(elapsedTimer);
-    elapsedTimer = null;
-  }
-});
+onBeforeUnmount(disposeTestResources);
 </script>
 
 <style scoped>

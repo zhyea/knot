@@ -21,6 +21,7 @@
 2. 需 DB 的插件能力：网关直接依赖 `knot-service` 的类（先例 `ModerationWordService.loadEnabledTerms()`），不再另设词源接口。
 3. `PluginHandler` 实现放 knot-plugin，靠 service/gateway 的 runtime 依赖带进两个 app 的 IOC。
 4. 要抛网关 400 但不想下沉整套网关异常家族：在 common 建 400 父异常 `GatewayBadRequestException(message, errorType, code)`，插件异常继承它，`GatewayExceptionHandler` 用 `@ExceptionHandler(GatewayBadRequestException.class)` 统一转 400（先例 `ModerationRejectException`）。
+5. **契约模块不放运行时**：`knot-plugin-api` 只留接口、DTO 与枚举，不放 `@Component`。分发器实现 `DefaultPluginDispatcher` 归 `knot-plugin`（2026-10-24 迁出，见 3.12）；调用方只依赖接口 `PluginDispatcher`，因此迁移对 gateway 零改动。
 
 ## 4. 敏感词审核拓扑（2026-10-14 收官）
 

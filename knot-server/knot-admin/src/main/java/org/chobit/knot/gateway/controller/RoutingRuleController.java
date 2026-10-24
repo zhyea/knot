@@ -8,6 +8,7 @@ import org.chobit.knot.gateway.dto.routing.RoutingRuleDto;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.service.RoutingRuleDebugService;
 import org.chobit.knot.gateway.service.RoutingRuleService;
 import org.chobit.knot.gateway.service.RoutingTestBillingVerdictService;
 import org.chobit.knot.gateway.dto.routing.RoutingTestPreparation;
@@ -43,10 +44,13 @@ import java.util.Map;
 @RequestMapping("/api/routing-rules")
 public class RoutingRuleController {
 
-    /** 流式读取缓冲区：够小以保证首片段低延迟，够大以避免事件数过多 */
+    /**
+     * 流式读取缓冲区：够小以保证首片段低延迟，够大以避免事件数过多
+     */
     private static final int STREAM_BUFFER_SIZE = 8 * 1024;
 
     private final RoutingRuleService routingRuleService;
+    private final RoutingRuleDebugService routingRuleDebugService;
     private final RoutingRuleConverter routingRuleConverter;
     private final GatewayRuntimeProperties gatewayRuntimeProperties;
     private final RoutingTestBillingVerdictService routingTestBillingVerdictService;
@@ -55,10 +59,12 @@ public class RoutingRuleController {
      * Constructs a new instance.
      */
     public RoutingRuleController(RoutingRuleService routingRuleService,
+                                 RoutingRuleDebugService routingRuleDebugService,
                                  RoutingRuleConverter routingRuleConverter,
                                  GatewayRuntimeProperties gatewayRuntimeProperties,
                                  RoutingTestBillingVerdictService routingTestBillingVerdictService) {
         this.routingRuleService = routingRuleService;
+        this.routingRuleDebugService = routingRuleDebugService;
         this.routingRuleConverter = routingRuleConverter;
         this.gatewayRuntimeProperties = gatewayRuntimeProperties;
         this.routingTestBillingVerdictService = routingTestBillingVerdictService;
@@ -69,7 +75,7 @@ public class RoutingRuleController {
      */
     @GetMapping("/debug-capabilities")
     public List<ProtocolDebugCapabilityItem> debugCapabilities() {
-        return routingRuleService.listDebugCapabilities();
+        return routingRuleDebugService.listDebugCapabilities();
     }
 
     /**
@@ -77,7 +83,7 @@ public class RoutingRuleController {
      */
     @GetMapping("/{id}/debug-protocols")
     public RoutingRuleDebugProtocols debugProtocols(@PathVariable Long id) {
-        return routingRuleService.listDebugProtocols(id);
+        return routingRuleDebugService.listDebugProtocols(id);
     }
 
     /**
@@ -86,8 +92,8 @@ public class RoutingRuleController {
     @PostMapping("/list")
     public PageResult<RoutingRule> list(@RequestBody(required = false) PageQuery query) {
         PageResult<RoutingRuleDto> page = routingRuleService.list(
-                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
-                query == null ? null : query.keyword()
+            query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+            query == null ? null : query.keyword()
         );
         return page.mapList(routingRuleConverter::toVOList);
     }
@@ -105,10 +111,10 @@ public class RoutingRuleController {
      * Creates a routing rule.
      */
     @OperationLog(module = "routing", operation = "CREATE", entityType = "RoutingRule",
-            entityIdAfter = "#result.id()",
-            entityNameAfter = "#result.name()",
-            description = "'创建路由规则'",
-            newValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#result.id())")
+        entityIdAfter = "#result.id()",
+        entityNameAfter = "#result.name()",
+        description = "'创建路由规则'",
+        newValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#result.id())")
     @PostMapping
     public RoutingRule create(@RequestBody @Valid RoutingRule request) {
         RoutingRuleDto created = routingRuleService.create(routingRuleConverter.toDto(request));
@@ -119,11 +125,11 @@ public class RoutingRuleController {
      * Updates a routing rule.
      */
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingRule",
-            entityId = "#p0",
-            entityNameAfter = "#result.name()",
-            description = "'更新路由规则'",
-            oldValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)",
-            newValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)")
+        entityId = "#p0",
+        entityNameAfter = "#result.name()",
+        description = "'更新路由规则'",
+        oldValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)",
+        newValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     public RoutingRule update(@PathVariable Long id, @RequestBody @Valid RoutingRule request) {
         RoutingRuleDto updated = routingRuleService.update(id, routingRuleConverter.toDto(request));
@@ -134,11 +140,11 @@ public class RoutingRuleController {
      * Updates the routing rule enabled status.
      */
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingRule",
-            entityId = "#p0",
-            entityNameAfter = "#result.name()",
-            description = "'更新路由规则状态'",
-            oldValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)",
-            newValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)")
+        entityId = "#p0",
+        entityNameAfter = "#result.name()",
+        description = "'更新路由规则状态'",
+        oldValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)",
+        newValueSpel = "@routingRuleService.routingRuleAuditSnapshot(#p0)")
     @PutMapping("/{id}/status")
     public RoutingRule updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
         RoutingRuleDto updated = routingRuleService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
@@ -150,14 +156,14 @@ public class RoutingRuleController {
      */
     @PostMapping("/{id}/test")
     public RoutingTestResult test(@PathVariable Long id, @RequestBody @Valid RoutingTestRequest request) {
-        return routingRuleService.testInvoke(gatewayRuntimeProperties.normalizedBaseUrl(),
-                id,
-                request.secretKey(),
-                request.prompt(),
-                request.protocol(),
-                request.targetType(),
-                request.targetId(),
-                request.requestBody());
+        return routingRuleDebugService.testInvoke(gatewayRuntimeProperties.normalizedBaseUrl(),
+            id,
+            request.secretKey(),
+            request.prompt(),
+            request.protocol(),
+            request.targetType(),
+            request.targetId(),
+            request.requestBody());
     }
 
     /**
@@ -170,20 +176,20 @@ public class RoutingRuleController {
     @PostMapping(value = "/{id}/test/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public ResponseEntity<StreamingResponseBody> testStream(@PathVariable Long id,
                                                             @RequestBody @Valid RoutingTestRequest request) {
-        RoutingTestStreamHandle handle = routingRuleService.openTestStream(gatewayRuntimeProperties.normalizedBaseUrl(),
-                id,
-                request.secretKey(),
-                request.prompt(),
-                request.protocol(),
-                request.targetType(),
-                request.targetId(),
-                request.requestBody());
+        RoutingTestStreamHandle handle = routingRuleDebugService.openTestStream(gatewayRuntimeProperties.normalizedBaseUrl(),
+            id,
+            request.secretKey(),
+            request.prompt(),
+            request.protocol(),
+            request.targetType(),
+            request.targetId(),
+            request.requestBody());
         StreamingResponseBody body = out -> writeStream(out, handle);
         return ResponseEntity.ok()
-                .contentType(MediaType.TEXT_EVENT_STREAM)
-                .header(HttpHeaders.CACHE_CONTROL, "no-cache")
-                .header("X-Accel-Buffering", "no")
-                .body(body);
+            .contentType(MediaType.TEXT_EVENT_STREAM)
+            .header(HttpHeaders.CACHE_CONTROL, "no-cache")
+            .header("X-Accel-Buffering", "no")
+            .body(body);
     }
 
     /**
@@ -194,9 +200,9 @@ public class RoutingRuleController {
      */
     @PostMapping("/{id}/test/billing-verdict")
     public RoutingBillingVerdictResult billingVerdict(@PathVariable Long id,
-                                                       @RequestBody RoutingBillingVerdictRequest request) {
+                                                      @RequestBody RoutingBillingVerdictRequest request) {
         return routingTestBillingVerdictService.verdict(request,
-                gatewayRuntimeProperties.normalizedBaseUrl(), request.sessionId());
+            gatewayRuntimeProperties.normalizedBaseUrl(), request.sessionId());
     }
 
     /**
@@ -223,10 +229,10 @@ public class RoutingRuleController {
                 // 网关在首字节前就返回了 4xx/5xx：SSE 外层已是 200，真实状态由事件内的 httpStatus 承载
                 String errorBody = readAllText(handle.bodyStream());
                 writeEvent(out, "error", Map.of(
-                        "status", "FAILED",
-                        "httpStatus", upstreamStatus.value(),
-                        "errorMessage", "网关返回 HTTP " + upstreamStatus.value(),
-                        "responseBody", errorBody
+                    "status", "FAILED",
+                    "httpStatus", upstreamStatus.value(),
+                    "errorMessage", "网关返回 HTTP " + upstreamStatus.value(),
+                    "responseBody", errorBody
                 ));
                 return;
             }
@@ -240,18 +246,18 @@ public class RoutingRuleController {
                 while ((read = in.read(buffer)) != -1) {
                     bytes += read;
                     writeEvent(out, "chunk", textual
-                            ? Map.of("text", new String(buffer, 0, read, StandardCharsets.UTF_8))
-                            : Map.of("encoding", "base64",
-                                    "content", Base64.getEncoder().encodeToString(
-                                            Arrays.copyOfRange(buffer, 0, read)),
-                                    "contentType", contentType == null ? "" : contentType.toString()));
+                        ? Map.of("text", new String(buffer, 0, read, StandardCharsets.UTF_8))
+                        : Map.of("encoding", "base64",
+                        "content", Base64.getEncoder().encodeToString(
+                            Arrays.copyOfRange(buffer, 0, read)),
+                        "contentType", contentType == null ? "" : contentType.toString()));
                 }
             }
             writeEvent(out, "complete", Map.of(
-                    "status", "SUCCESS",
-                    "httpStatus", upstreamStatus.value(),
-                    "bytes", bytes,
-                    "durationMs", System.currentTimeMillis() - startedAt
+                "status", "SUCCESS",
+                "httpStatus", upstreamStatus.value(),
+                "bytes", bytes,
+                "durationMs", System.currentTimeMillis() - startedAt
             ));
         } catch (IOException | RuntimeException ex) {
             // 浏览器取消时写不出去属正常现象：此时只能保证资源已被 try-with-resources 释放
@@ -272,10 +278,10 @@ public class RoutingRuleController {
     private void writeErrorQuietly(OutputStream out, Exception ex) {
         try {
             writeEvent(out, "error", Map.of(
-                    "status", "FAILED",
-                    "httpStatus", 0,
-                    "errorMessage", String.valueOf(ex.getMessage()),
-                    "responseBody", ""
+                "status", "FAILED",
+                "httpStatus", 0,
+                "errorMessage", String.valueOf(ex.getMessage()),
+                "responseBody", ""
             ));
         } catch (IOException | RuntimeException ignored) {
             // 连接已断开（用户主动停止 / 上游异常），无法再向客户端补发错误事件
@@ -304,10 +310,10 @@ public class RoutingRuleController {
         }
         String subtype = contentType.getSubtype();
         return subtype == null
-                || subtype.endsWith("json")
-                || subtype.endsWith("+json")
-                || "x-ndjson".equalsIgnoreCase(subtype)
-                || "xml".equalsIgnoreCase(subtype);
+            || subtype.endsWith("json")
+            || subtype.endsWith("+json")
+            || "x-ndjson".equalsIgnoreCase(subtype)
+            || "xml".equalsIgnoreCase(subtype);
     }
 
     private String nullSafe(String value) {
