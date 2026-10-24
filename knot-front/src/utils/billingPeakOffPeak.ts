@@ -99,11 +99,6 @@ export const PEAK_WEEKDAYS: ReadonlyArray<{ value: number; label: string; short:
   { value: 7, label: "周日", short: "日" }
 ];
 
-/** 存量数据兼容解析：旧版 weekdays 存的是 ISO 枚举名（"MONDAY"），编辑保存时统一转数字 */
-const LEGACY_WEEKDAY_CODES: Record<string, number> = {
-  MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4, FRIDAY: 5, SATURDAY: 6, SUNDAY: 7
-};
-
 /** UTC 偏移列表；与后端 BillingConfig 的白名单保持一致。 */
 export const PEAK_TIMEZONE_OPTIONS: ReadonlyArray<{ value: string; label: string }> = Array.from(
   {length: 27},
@@ -290,8 +285,7 @@ export function parsePeakPricing(raw: unknown): PeakPricing | null {
             if (typeof item === "number" && Number.isInteger(item) && item >= 1 && item <= 7) {
               return item;
             }
-            // 存量数据是枚举名（"MONDAY"），读取时转数字；序列化只输出数字
-            return LEGACY_WEEKDAY_CODES[String(item || "").trim().toUpperCase()] ?? null;
+            return null;
           })
           .filter((value): value is number => value != null)
       : [];
@@ -314,7 +308,7 @@ export function parsePeakPricing(raw: unknown): PeakPricing | null {
   });
   return {
     rateMode: pricingRateModeOf(source.rateMode),
-    timezone: normalizeTimezone(String(source.timezone || "UTC+0").trim() || "UTC+0"),
+    timezone: String(source.timezone || "UTC+0").trim() || "UTC+0",
     phases
   };
 }
@@ -376,7 +370,7 @@ export function toPeakPayload(pricing: PeakPricing | null): Dict | null {
   });
   return {
     rateMode,
-    timezone: normalizeTimezone(pricing.timezone || "UTC+0"),
+    timezone: pricing.timezone || "UTC+0",
     phases
   };
 }
@@ -627,7 +621,7 @@ export function resolvePeakPhase(pricing: PeakPricing | null, date: string, time
 
 /** 将所选 UTC 偏移中的本地日期时间转换为瞬时点，供页面试算使用。 */
 function localDateTimeToInstant(date: string, time: string, timezone: string): Date | null {
-  const match = /^UTC([+-])(\d{1,2})$/.exec(normalizeTimezone(timezone));
+  const match = /^UTC([+-])(\d{1,2})$/.exec(timezone);
   if (!match) {
     return null;
   }
@@ -641,8 +635,4 @@ function localDateTimeToInstant(date: string, time: string, timezone: string): D
   }
   const offsetMinutes = (match[1] === "+" ? 1 : -1) * hours * 60;
   return new Date(naive.getTime() - offsetMinutes * 60_000);
-}
-
-function normalizeTimezone(value: string): string {
-  return value === "UTC" || value === "UTC-0" ? "UTC+0" : value;
 }

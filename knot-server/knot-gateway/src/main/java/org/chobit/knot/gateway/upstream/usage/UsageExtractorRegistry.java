@@ -166,14 +166,15 @@ public class UsageExtractorRegistry {
                                               Map<String, Object> rawUsage,
                                               Throwable cause) {
         // 降级也是故障：只在「抛 vs 放」上有区别，告警级别与可定位信息必须一致
+        boolean interrupt = properties.interruptOnFailure();
         log.error("usage extract failed: reason={} extractor={} protocol={} rawUsageKeys={} interrupt={}",
                 failure.code,
                 extractor.code(),
                 context == null ? null : context.protocol(),
                 rawUsage == null ? null : rawUsage.keySet(),
-                properties.interruptOnFailure(),
+                interrupt,
                 cause);
-        if (properties.interruptOnFailure()) {
+        if (interrupt) {
             throw new IllegalStateException(failure.detail + ": " + extractor.code(), cause);
         }
         // 降级：保留上游原文证据供事后重算，计费输入置空即零账

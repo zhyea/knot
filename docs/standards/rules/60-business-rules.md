@@ -121,7 +121,8 @@
 - ⭐ 输出层（`KnotExtendPayload`）**只读 `accounting.usage()`**，禁止二次解析原始 usage，禁止再走 `fromSource` 一类入口。
 - ⭐ **没有兜底提取器**：`requireExtractor()` 预检到「显式配置了未知 extractor code」即在**响应头写出之前**抛 `IllegalStateException`；未配置而走默认提取器属**合法路径**，不抛。
 - ⭐ **口径错配 fail-fast**：上游回了非零用量、提取器却提取成空 → `log.error` + 抛 `IllegalStateException`。判据 `hasPositiveNumber(rawUsage)`（递归查非零数值）只用来区分「提取器读不出来」与「上游合法报零」；**能否为空本身由提取器声明**，见 §8.9。
-  **绝不静默记零账**——零账会把问题推迟到对账才暴露，与 §7.1 的 fail-hard 同一哲学。
+  「静默记零账」是红线——零账会把问题推迟到对账才暴露，与 §7.1 的 fail-hard 同一哲学。
+  ⚠ 2026-10-24 补充：三处提取失败**收敛到唯一处置点**，是否中断由 `knot.gateway.usage.on-extract-failure` 决定（默认 `fail`），见 §8.11。
 - 上游未上报 / 全零 usage → `log.warn`，**合法零用量，不失败**。
 - 响应体非法 JSON → 抛 `IllegalStateException`，不静默降级成 `null`（否则「解析失败」与「上游没回 usage」无法区分）。
 
@@ -196,3 +197,31 @@ usage.totalTokens    >= usage.input.tokens.total() + usage.output.tokens.total()
 
 ⚠ 判据：**这个错误会不会阻断用户看到结果？**
 会 → 用标记（影子链 / 离线复算）；不会、或本就该阻断错误请求 → 抛（生产热路径）。
+
+### 8.11 提取失败的中断开关（2026-10-24）
+
+⭐ **一处判定失败原因，一处处置。** 三处「提取不出用量」的失败（响应体非法 JSON / 提取器没产出结果 / 口径错配）
+在 `UsageExtractorRegistry` 里收敛成 `ExtractFailure` 枚举，由 `applyFailurePolicy` 这**唯一**入口决定抛出还是降级。
+
+| 项 | 值 |
+|---|---|
+| 配置 | `knot.gateway.usage.on-extract-failure`（env `KNOT_GATEWAY_USAGE_ON_EXTRACT_FAILURE`） |
+| 取值 | `fail`（默认）/ `degrade`；写错值启动即失败 |
+| 归属 | `UsageExtractionProperties`（`knot-gateway` 的 `config` 包，`@EnableConfigurationProperties` 由 `UsageExtractionConfiguration` 开启） |
+
+- ⭐⭐ **默认必须 `fail`**：静默零账 = 这笔上游消耗永远收不回，且只在对账时才暴露。这是 §7.1 fail-hard 口径在提取域的落地。
+- ⭐ `degrade` 的语义是**放行 + 零账 + 保留上游原文**（`UsageAccounting.degraded(rawUsage, rawBody)`）：
+  `billing` 置空即不计费，但 `rawUsage` / `rawBody` **必须留**——原文是事后重算（影子链 / 对账）的唯一依据，
+  丢了就变成「无从追查的零账」。
+- 降级产出的账目形状**与「上游未上报 usage」完全一致**（`isEmpty()` 为 true、`knot_extend` 不输出 billing 块），
+  因此不引入任何下游新管道；区别只在日志级别（ERROR）与 `interrupt=false` 标记。
+- ⚠⚠ **未知 extractor code 不受本开关影响，恒 fail-fast**：那是配置错误而非提取失败，
+  降级它等于让该绑定下的所有请求永久零账且无自愈路径。
+  判据：**这个错误会不会每次请求都重现、且不会自己好？** 会 → 不能降级。
+- 不论抛还是降，日志统一 `log.error`，固定带 `reason` / `extractor` / `protocol` / `rawUsageKeys` / `interrupt` 五项——
+  降级不是正常路径，必须保留告警面（`interrupt=false` 是给告警规则区分档位用的）。
+- **测试纪律**：处置只有一处，故**逐档验证一次**即可（fail 一次、degrade 一次），不必按失败原因各验一遍；
+  另需单独钉死「degrade 档下未知 code 仍然抛」。
+
+⚠ 反模式：在三处失败点各写一遍 `if (degrade) ... else throw ...`。
+新增失败情形就会漏改其中一处，且「抛还是降」的口径会随代码位置漂移。

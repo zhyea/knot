@@ -88,7 +88,7 @@ knot:
     ttl-seconds: ${KNOT_LOAD_TTL_SECONDS:300}
     maximum-size: ${KNOT_LOAD_MAXIMUM_SIZE:20000}
   gateway:
-     cors:
+    cors:
       # 管理端流式调试直连网关时使用；生产环境请通过配置覆盖
       allowed-origins: ${KNOT_GATEWAY_CORS_ALLOWED_ORIGINS:http://localhost:5173,http://127.0.0.1:5173}
     # ── 上游调用：连接池与超时（默认集中在 GatewayUpstreamClientProperties）──────────

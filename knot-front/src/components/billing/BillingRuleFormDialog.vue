@@ -499,10 +499,9 @@ function applyConfig(config: Dict) {
   form.cacheWriteUnitPrice = Number(basePrices.cacheWrite ?? 0);
   form.cacheWrite5mUnitPrice = Number(basePrices.cacheWrite5m ?? 0);
   form.cacheWrite1hUnitPrice = Number(basePrices.cacheWrite1h ?? 0);
-  // cacheWriteMode 已落库（config.cacheWriteMode）；存量数据没有该字段时按分价字段推断
-  form.cacheWriteMode = config.cacheWriteMode === "ttl" || config.cacheWriteMode === "standard"
-    ? config.cacheWriteMode
-    : (basePrices.cacheWrite5m != null || basePrices.cacheWrite1h != null ? "ttl" : "standard");
+  // cacheWriteMode 直接取落库值；未写入的旧配置按 standard 显式化（后端 null 语义即 standard），
+  // 不做分价字段推断——本次保存后即为显式值
+  form.cacheWriteMode = config.cacheWriteMode === "ttl" ? "ttl" : "standard";
   form.videoPrice720p = config.resolutionPrices?.["720P"] != null ? Number(config.resolutionPrices["720P"]) : null;
   form.videoPrice1080p = config.resolutionPrices?.["1080P"] != null ? Number(config.resolutionPrices["1080P"]) : null;
   form.imageResolution = config.imageResolution || "";

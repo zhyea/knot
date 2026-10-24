@@ -27,7 +27,6 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: "users", name: "system-users", component: () => import("@/views/system/UserManageView.vue"), meta: { titleKey: "route.systemUsers" } },
       { path: "departments", name: "system-departments", component: () => import("@/views/system/DepartmentManageView.vue"), meta: { titleKey: "route.systemDepartments" } },
-      { path: "roles", redirect: { name: "system-role-authorizations" } },
       { path: "role-authorizations", name: "system-role-authorizations", component: () => import("@/views/system/RoleAuthorizationManageView.vue"), meta: { titleKey: "route.systemRoleAuthorizations" } },
       { path: "authorization-resources", name: "system-authorization-resources", component: () => import("@/views/system/AuthorizationResourceManageView.vue"), meta: { titleKey: "route.systemAuthorizationResources" } },
       { path: "logs", name: "system-logs", component: () => import("@/views/system/OperationLogView.vue"), meta: { titleKey: "route.systemLogs" } },
@@ -44,7 +43,6 @@ const routes: RouteRecordRaw[] = [
       { path: "model-pools", name: "model-management-model-pools", component: () => import("@/views/model/ModelPoolManageView.vue"), meta: { titleKey: "route.modelManagementModelPools" } },
       { path: "models", name: "model-management-models", component: () => import("@/views/model/ModelManageView.vue"), meta: { titleKey: "route.modelManagementModels" } },
       { path: "provider-accounts", name: "model-management-provider-accounts", component: () => import("@/views/model/ProviderManageView.vue"), meta: { titleKey: "route.providerAccounts" } },
-      { path: "providers", redirect: { name: "model-management-provider-accounts" } },
       { path: "provider-profiles", name: "model-management-provider-profiles", component: () => import("@/views/model/ProviderProfileManageView.vue"), meta: { titleKey: "route.providerProfiles" } },
       { path: "logical-models", name: "model-management-logical-models", component: () => import("@/views/model/LogicalModelMarketplaceView.vue"), meta: { titleKey: "route.modelManagementLogicalModels" } },
       { path: "external-models", name: "model-management-external-models", component: () => import("@/views/model/ExternalModelManageView.vue"), meta: { titleKey: "route.modelManagementExternalModels" } },
@@ -52,13 +50,6 @@ const routes: RouteRecordRaw[] = [
       { path: "usage-extractors", name: "model-management-usage-extractors", component: () => import("@/views/model/UsageExtractorView.vue"), meta: { titleKey: "route.usageExtractors" } }
     ]
   },
-  { path: "/providers", redirect: "/model-management/provider-accounts" },
-  { path: "/provider-accounts", redirect: "/model-management/provider-accounts" },
-  { path: "/provider-profiles", redirect: "/model-management/provider-profiles" },
-  { path: "/logical-models", redirect: "/model-management/logical-models" },
-  { path: "/models", redirect: "/model-management/models" },
-  { path: "/model-pools", redirect: "/model-management/model-pools" },
-  { path: "/model-families", redirect: "/model-management/model-families" },
   {
     path: "/apps",
     name: "apps",
@@ -84,9 +75,6 @@ const routes: RouteRecordRaw[] = [
       { path: "reconciliation", name: "billing-reconciliation", component: () => import("@/views/billing/ReconciliationView.vue"), meta: { titleKey: "route.billingReconciliation" } }
     ]
   },
-  { path: "/plugins", redirect: "/system/plugins" },
-  { path: "/moderation", redirect: "/routing/moderation-words" },
-  { path: "/moderation/words", redirect: "/routing/moderation-words" },
   {
     path: "/notifications",
     component: NestedView,
