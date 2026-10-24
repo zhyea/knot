@@ -35,6 +35,17 @@ public record UsageAccounting(Map<String, Object> rawUsage,
         return new UsageAccounting(null, null, TokenBillingUsage.empty(), null, null);
     }
 
+    /**
+     * 降级账目：用量提取失败、且配置允许放行时使用（零账 + 保留上游原文证据）。
+     *
+     * <p>与 {@link #empty()} 的差别只在<b>保留 {@code rawUsage} / {@code rawBody}</b>——
+     * 计费输入与计费结果一律为空，即这笔请求不计费。上游原文是事后重算（影子链 / 对账）的唯一
+     * 依据，降级不能把它一起丢掉，否则「零账」就变成「无从追查的零账」。</p>
+     */
+    public static UsageAccounting degraded(Map<String, Object> rawUsage, Map<String, Object> rawBody) {
+        return new UsageAccounting(rawUsage, rawBody, TokenBillingUsage.empty(), null, null);
+    }
+
     public static UsageAccounting of(Map<String, Object> rawUsage,
                                      Map<String, Object> rawBody,
                                      BillingUsage billing,

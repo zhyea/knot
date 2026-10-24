@@ -117,6 +117,16 @@ knot:
     #   async-executor-threads: ${KNOT_UPSTREAM_ASYNC_THREADS:200}
     #   # 全局请求预算 deadline（B2：唯一真总超时，流式/非流式统一；到点返回 504）
     #   request-budget: ${KNOT_UPSTREAM_REQUEST_BUDGET:600s}
+    # ── 用量提取失败口径（默认值集中在 UsageExtractionProperties）──────────────
+    # 只管「提取不出用量」时是中断响应还是放行出零账；提取口径本身由绑定在模型上的
+    # extractor 决定，不在这里配。
+    # fail（默认）：抛异常中断响应 —— 静默零账等于这笔上游消耗永远收不回，且只在对账时才暴露。
+    # degrade：记 ERROR 后放行、出零账，并保留上游原文供事后重算 —— 用计费准确性换可用性。
+    # ⚠ 未知 extractor code 不受本项影响，恒 fail-fast：那是配置错误而非提取失败，
+    #   降级它会让该绑定下的所有请求永久零账且没有自愈路径。
+    usage:
+      # fail / degrade（写错值启动即失败，不会静默按某个档位跑）
+      on-extract-failure: ${KNOT_GATEWAY_USAGE_ON_EXTRACT_FAILURE:fail}
   outage:
     # 异常摘除：纯进程内 Caffeine，无 store 开关。摘除是本节点自己的异常观察，
     # 不需要跨节点共享；放 Redis 反而让 Redis 故障同时打掉网关的自我保护能力。

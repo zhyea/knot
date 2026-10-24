@@ -104,7 +104,7 @@ class TokenBillingModeCalculatorTest {
                 {"defaultUnitPrice":0.01,
                  "basePrices":{"input":2,"output":8,"cacheRead":0.2,"cacheWrite":2.5,
                                "cacheWrite5m":2.5,"cacheWrite1h":5},
-                 "pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                 "pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                    {"phase":"PEAK","multiplier":1.5,
                     "condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]}},
                    {"phase":"OFF_PEAK","multiplier":0.5,"condition":{"type":"DEFAULT"}}]}}
@@ -126,7 +126,7 @@ class TokenBillingModeCalculatorTest {
     void peakOffPeakAbsoluteUsesPhaseOwnPrices() {
         String config = """
                 {"basePrices":{"input":4,"output":20},
-                 "pricing":{"rateMode":"ABSOLUTE","timezone":"UTC","phases":[
+                 "pricing":{"rateMode":"ABSOLUTE","timezone":"UTC+0","phases":[
                    {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                     "phase":"PEAK","unitPrices":{"input":10,"output":50}},
                    {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK",

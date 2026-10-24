@@ -54,21 +54,20 @@ public enum ModelPoolSelectionStrategyEnum implements EnumOption {
     }
 
     /**
-     * 解析策略，未知或空白回退到 WEIGHTED；仅用于存量数据兼容读取，写入口必须用 requireCode。
+     * 解析并校验策略编码，返回枚举实例；非法值直接拒绝。
      */
-    public static ModelPoolSelectionStrategyEnum fromCodeOrDefault(String code) {
+    public static ModelPoolSelectionStrategyEnum require(String code, String errorMessage) {
         ModelPoolSelectionStrategyEnum strategy = fromCode(code);
-        return strategy == null ? WEIGHTED : strategy;
+        if (strategy == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, errorMessage);
+        }
+        return strategy;
     }
 
     /**
      * 校验策略编码并返回规范大写形式，非法值直接拒绝。
      */
     public static String requireCode(String code, String errorMessage) {
-        ModelPoolSelectionStrategyEnum strategy = fromCode(code);
-        if (strategy == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, errorMessage);
-        }
-        return strategy.code();
+        return require(code, errorMessage).code();
     }
 }

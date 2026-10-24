@@ -136,10 +136,10 @@ class BillingConfigTest {
                 """;
         // 合法结构通过
         assertNull(BillingConfig.parse(
-                String.format(base, "MULTIPLIER", "UTC", validPhases)).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                String.format(base, "MULTIPLIER", "UTC+0", validPhases)).validate(PricingPlanEnum.PEAK_OFF_PEAK));
         // rateMode 仅允许 MULTIPLIER 或 ABSOLUTE
         assertEquals("pricing.rateMode must be MULTIPLIER or ABSOLUTE",
-                BillingConfig.parse(String.format(base, "FLAT", "UTC", validPhases))
+                BillingConfig.parse(String.format(base, "FLAT", "UTC+0", validPhases))
                         .validate(PricingPlanEnum.PEAK_OFF_PEAK));
         // 仅接受 UTC 偏移格式，+08:00 与 IANA 名称必须被拒
         assertEquals("pricing.timezone must be a valid UTC offset",
@@ -151,32 +151,32 @@ class BillingConfigTest {
         assertNull(BillingConfig.parse(String.format(base, "MULTIPLIER", "UTC+8", validPhases))
                 .validate(PricingPlanEnum.PEAK_OFF_PEAK));
         assertEquals("pricing.phases must be a non-empty array",
-                BillingConfig.parse("{\"pricing\":{\"rateMode\":\"MULTIPLIER\",\"timezone\":\"UTC\",\"phases\":[]}}")
+                BillingConfig.parse("{\"pricing\":{\"rateMode\":\"MULTIPLIER\",\"timezone\":\"UTC+0\",\"phases\":[]}}")
                         .validate(PricingPlanEnum.PEAK_OFF_PEAK));
        // 首项必须是高峰
         assertEquals("pricing.phases first item must be PEAK",
                 BillingConfig.parse("""
-                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
                         """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
         // 缺兜底低峰
         assertEquals("pricing.phases last item must be the DEFAULT off-peak fallback",
                 BillingConfig.parse("""
-                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                            "phase":"PEAK","multiplier":1}]}}
                         """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
         // 倍率越界：>1 与 <=0
         assertEquals("pricing.phases[1].multiplier cannot be greater than 1",
                 BillingConfig.parse("""
-                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                            "phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":1.2}]}}
                         """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
         assertEquals("pricing.phases[1].multiplier must be greater than 0",
                 BillingConfig.parse("""
-                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                            "phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0}]}}
@@ -184,21 +184,21 @@ class BillingConfigTest {
         // 空星期 / 空时段
         assertEquals("pricing.phases[0].condition.weekdays must not be empty",
                 BillingConfig.parse("""
-                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"windows":[{"start":"01:00","end":"04:00"}]},
                            "phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
                         """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
         assertEquals("pricing.phases[0].condition.windows must not be empty",
                 BillingConfig.parse("""
-                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1]},"phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
                         """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
         // 跨午夜时段必须拆成两段
         assertEquals("pricing.phases[0].condition.windows[0].start must be before end and cannot cross midnight",
                 BillingConfig.parse("""
-                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1],"windows":[{"start":"22:00","end":"02:00"}]},
                            "phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
@@ -206,7 +206,7 @@ class BillingConfigTest {
         // 同一 condition 内时段重叠
         assertEquals("pricing.phases[0].condition.windows[1] overlaps the previous window",
                 BillingConfig.parse("""
-                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1],
                                         "windows":[{"start":"01:00","end":"04:00"},
                                                    {"start":"03:00","end":"06:00"}]},
@@ -218,7 +218,7 @@ class BillingConfigTest {
     /** end=24:00 = 次日 0 点（数轴端点 1440）；start 不允许 24:00 */
     @Test
     void midnightEndIsAcceptedButMidnightStartIsNot() {
-        String template = "{\"pricing\":{\"rateMode\":\"MULTIPLIER\",\"timezone\":\"UTC\",\"phases\":["
+        String template = "{\"pricing\":{\"rateMode\":\"MULTIPLIER\",\"timezone\":\"UTC+0\",\"phases\":["
                 + "{\"condition\":{\"weekdays\":[1],\"windows\":[{\"start\":\"%s\",\"end\":\"%s\"}]},"
                 + "\"phase\":\"PEAK\",\"multiplier\":1},"
                 + "{\"condition\":{\"type\":\"DEFAULT\"},\"phase\":\"OFF_PEAK\",\"multiplier\":0.8}]}}";
@@ -235,7 +235,7 @@ class BillingConfigTest {
         // end=24:00 之后的下一段不能与之重叠
         assertEquals("pricing.phases[0].condition.windows[1] overlaps the previous window",
                 BillingConfig.parse("""
-                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1],
                                         "windows":[{"start":"01:00","end":"24:00"},
                                                    {"start":"23:00","end":"23:30"}]},
@@ -244,7 +244,7 @@ class BillingConfigTest {
                         """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
         // 24:00 当作 start 与 24:00 结尾可衔接（相邻不算重叠）
         assertNull(BillingConfig.parse("""
-                {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                   {"condition":{"weekdays":[1],
                                 "windows":[{"start":"00:00","end":"08:00"},
                                            {"start":"08:00","end":"24:00"}]},
@@ -259,7 +259,7 @@ class BillingConfigTest {
         // 不一致 -> 拒绝
         assertEquals("pricing.phases[1].condition.makeUpWorkdayPolicy must be identical across all peak rules",
                 BillingConfig.parse("""
-                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                        {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}],
                                         "makeUpWorkdayPolicy":"OFF_PEAK"},
                            "phase":"PEAK","multiplier":1},
@@ -270,7 +270,7 @@ class BillingConfigTest {
                         """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
         // 一致（显式相同）-> 通过
         assertNull(BillingConfig.parse("""
-                {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                   {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}],
                                 "makeUpWorkdayPolicy":"FOLLOW_WEEKDAY_WINDOWS"},
                    "phase":"PEAK","multiplier":1},
@@ -281,7 +281,7 @@ class BillingConfigTest {
                 """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
         // 一致（一条缺失按默认 OFF_PEAK，另一条显式 OFF_PEAK）-> 通过
         assertNull(BillingConfig.parse("""
-                {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                   {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                    "phase":"PEAK","multiplier":1},
                   {"condition":{"weekdays":[2],"windows":[{"start":"01:00","end":"04:00"}],
@@ -296,7 +296,7 @@ class BillingConfigTest {
     void midnightEndWindowCoversUntilEndOfDay() {
         BillingConfig config = BillingConfig.parse("""
                 {"basePrices":{"input":10},
-                 "pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                 "pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                    {"condition":{"weekdays":[3],
                                  "windows":[{"start":"01:00","end":"24:00"}]},
                     "phase":"PEAK","multiplier":1},
@@ -317,7 +317,7 @@ class BillingConfigTest {
     void peakOffPeakMultipliesModeBasePrice() {
         BillingConfig config = BillingConfig.parse("""
                 {"basePrices":{"input":4,"output":20},
-                 "pricing":{"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
+                 "pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                    {"condition":{"weekdays":[1,3],
                                  "windows":[{"start":"01:00","end":"04:00"}]},
                     "phase":"PEAK","multiplier":1},
@@ -342,7 +342,7 @@ class BillingConfigTest {
     void peakOffPeakAbsoluteUsesPhaseOwnPrice() {
         BillingConfig config = BillingConfig.parse("""
                 {"basePrices":{"input":4,"output":20},
-                 "pricing":{"rateMode":"ABSOLUTE","timezone":"UTC","phases":[
+                 "pricing":{"rateMode":"ABSOLUTE","timezone":"UTC+0","phases":[
                    {"condition":{"weekdays":[1,3],
                                  "windows":[{"start":"01:00","end":"04:00"}]},
                     "phase":"PEAK","unitPrices":{"input":10,"output":50}},
@@ -368,7 +368,7 @@ class BillingConfigTest {
     void peakOffPeakAbsoluteRejectsMissingUnitPrices() {
         // 缺 unitPrices 应通过方案级校验拦截
         BillingConfig missing = BillingConfig.parse("""
-                {"pricing":{"rateMode":"ABSOLUTE","timezone":"UTC","phases":[
+                {"pricing":{"rateMode":"ABSOLUTE","timezone":"UTC+0","phases":[
                    {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                     "phase":"PEAK"},
                    {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK"}]}}
@@ -377,7 +377,7 @@ class BillingConfigTest {
 
         // 带完整 unitPrices 应通过
         BillingConfig ok = BillingConfig.parse("""
-                {"pricing":{"rateMode":"ABSOLUTE","timezone":"UTC","phases":[
+                {"pricing":{"rateMode":"ABSOLUTE","timezone":"UTC+0","phases":[
                    {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                     "phase":"PEAK","unitPrices":{"input":10}},
                    {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","unitPrices":{"input":6}}]}}

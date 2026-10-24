@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.upstream.stream;
 
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
+import org.chobit.knot.gateway.config.UsageExtractionProperties;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.model.UsageAccounting;
@@ -252,7 +253,7 @@ class ProxyStreamingFluxTest {
     }
 
     private static UsageExtractorRegistry stubRegistry() {
-        return new UsageExtractorRegistry(null, null) {
+        return new UsageExtractorRegistry(null, null, new UsageExtractionProperties()) {
             @Override
             public UsageAccounting extractEvent(String eventData,
                                                 UpstreamRequestContext context) {

@@ -63,7 +63,7 @@ INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, rou
 (17, 1, NULL, 'system.apps', '应用管理', '/apps', 'AppManageView', 'Grid', 90, 1),
 (8, 2, NULL, 'model.model-pools', '模型池', '/model-management/model-pools', 'ModelPoolManageView', 'Cpu', 10, 1),
 (7, 2, NULL, 'model.models', '供应商模型', '/model-management/models', 'ModelManageView', 'Cpu', 20, 1),
-(6, 2, NULL, 'model.providers', '供应商账户', '/providers', 'ProviderManageView', 'Connection', 30, 1),
+(6, 2, NULL, 'model.providers', '供应商账户', '/model-management/provider-accounts', 'ProviderManageView', 'Connection', 30, 1),
 (9, 2, NULL, 'model.logical-models', '统一模型', '/model-management/logical-models', 'LogicalModelMarketplaceView', 'Cpu', 40, 1),
 (10, 2, NULL, 'model.external-models', '外部模型', '/model-management/external-models', 'ExternalModelManageView', 'Cpu', 50, 1),
 (19, 2, NULL, 'model.provider-profiles', '供应商信息', '/model-management/provider-profiles', 'ProviderProfileManageView', 'Connection', 60, 1),
@@ -570,9 +570,9 @@ INSERT IGNORE INTO kb_resource_quota_bindings (resource_type, resource_code, quo
 -- 注意：密文由 KNOT_CREDENTIAL_ENCRYPTION_KEY 派生密钥加密，更换密钥后必须重新生成（见
 -- docs/database/migration/2026-09-23-fix-provider-credential-config-format.sql 的生成说明）。
 INSERT IGNORE INTO kb_provider_credentials (id, provider_account_code, credential_type, auth_applier, encrypted_config, status) VALUES
-(1, 'openai-default', 'api-key', 'BEARER', 'ENC:Gxdt09+Mk+BnH3+meLh03rvVO/lr/5vjxcjK0RNW0PgB0X/vYX0QzaixD9xPh/gKVYTC/0JSNl4lU7zy+g==', 1),
-(2, 'anthropic-default', 'api-key', 'ANTHROPIC_API_KEY', 'ENC:v3v8kgxDLYoAKyNICNxGKU655xOH3Sd1k2qtSS+bgYcvtq/fXGyufZ1gA+Qr2LMBT1eRTJ6teFCPY5r/OvTjqw==', 1),
-(3, 'deepseek-default', 'api-key', 'BEARER', 'ENC:pnMjBuMkVI19v432F8xRJ1U976XGPXwM19DakGTc8GoKMEvIy/6QcOMUbwwsRbXMJ4kqXsY+X+sKrnBuuijw', 1),
+(1, 'openai-default', 'api-key', 'BEARER', 'ENC:v2:1na94bnxGhusl+EaNaQZSZneQAWMS1Cr6KU8ADFSxZlrrn6dYGvvAENb/SFRGeyPIyP4l2xJLCdMJIDy8ixFxF54BldGzycpz57QyXs=', 1),
+(2, 'anthropic-default', 'api-key', 'ANTHROPIC_API_KEY', 'ENC:v2:iLhkQvqvTW3/dlz82dKa2so3n9NNHdfWoj7MAI4FSnRoBJ0GcDyrr1SNeQHSwj6yBGH0Eudnq5cpsSVd7OSzVGvv175De8wvz15/gtKKW+k=', 1),
+(3, 'deepseek-default', 'api-key', 'BEARER', 'ENC:v2:Peyhq6iUxlogc923e8TG+uvHLyJgRm0iJNTusPvs/xVOwdBEBE9v4Qs3vN7/1Dx1lfxC1FpGfbL7S2EhTBePSLN6zemUGIIoYyvpt/r9gg==', 1),
 -- ⚠ 占位凭据：AK/SK 是假值，上线前必须在管理台换成真实密钥（密文由开发默认密钥加密，
 -- 同其它种子；生产环境换了 KNOT_CREDENTIAL_ENCRYPTION_KEY 后须重新生成）
 (4, 'aws-bedrock-runtime', 'aws-auth', 'AWS_SIGV4', 'ENC:v2:RBcQiZXA4xtu1JzdUeeUYK0N8McJfBysNTivpk84EbZtuX6w2y+og03WhpCBSMeOGRgSOQi3xrwLtD8QJvd8woJFeJU2Ywqk7VyCMzKb2DMTemI5TyHsr9sO3H3h23MwMBQpWnsc/ZTZ2cO5xyCcpZtpgQM+lENnniJKzWhJ8gFS1UayJqyFMpc15+dN+JpWJ59XhEE3FrM61/jLnDwwZYECvwTOI5A=', 1),

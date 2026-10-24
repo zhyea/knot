@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.upstream.usage;
 
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
+import org.chobit.knot.gateway.config.UsageExtractionProperties;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
@@ -21,6 +22,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -36,6 +38,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>上游没回 usage（或全零）→ 合法零用量，不失败；</li>
  *   <li>上游回了非零 usage 却提取不出来 → 口径错配，失败。</li>
  * </ol>
+ *
+ * <p>失败是否中断响应由 {@code knot.gateway.usage.on-extract-failure} 决定（默认 {@code fail}）：
+ * 三处提取失败收敛到同一个处置点，故只需逐档验证一次，不必按失败原因各验一遍。
+ * 但<b>提取器不存在不受开关影响</b>，单独钉住。</p>
  */
 class UsageExtractorRegistryTest {
 
@@ -148,10 +154,76 @@ class UsageExtractorRegistryTest {
         assertTrue(thrown.getMessage().contains("json"), thrown.getMessage());
     }
 
+    @Test
+    @DisplayName("配 degrade 后口径错配不再中断：出零账并保留上游原文证据")
+    void degradesInsteadOfFailingWhenConfigured() {
+        UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem()), degrade());
+
+        UsageAccounting accounting = registry.extract(
+                "{\"usage\":{\"input_tokens\":120,\"output_tokens\":30}}", context(binding(STUB_CODE)));
+
+        assertNotNull(accounting, "degrade 档下提取失败必须放行，否则响应还是被打断");
+        assertTrue(accounting.billing().isEmpty(), "放行不等于猜用量：计费输入必须为空（零账）");
+        assertNull(accounting.normalized(), "零账不应带计费结果");
+        assertEquals(120, accounting.rawUsage().get("input_tokens"),
+                "上游原文必须保留——它是事后重算的唯一依据，降级不能把它一起丢掉");
+    }
+
+    @Test
+    @DisplayName("配 degrade 后提取器返回 null 同样降级，不中断")
+    void degradesWhenExtractorReturnsNull() {
+        UsageExtractorRegistry registry = registry(new StubExtractor(null), degrade());
+
+        UsageAccounting accounting = registry.extract("{\"id\":\"1\"}", context(binding(STUB_CODE)));
+
+        assertNotNull(accounting, "契约错误在 degrade 档下同样只记 ERROR 不中断");
+        assertTrue(accounting.billing().isEmpty());
+    }
+
+    @Test
+    @DisplayName("配 degrade 后非法 JSON 也降级：原文读不出来，账目全空")
+    void degradesOnMalformedJson() {
+        UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem()), degrade());
+
+        UsageAccounting accounting = registry.extract("{not-json-at-all", context(binding(STUB_CODE)));
+
+        assertNotNull(accounting, "degrade 档下解析失败必须放行");
+        assertTrue(accounting.isEmpty(), "原文都读不出来，只能出全空账目");
+    }
+
+    @Test
+    @DisplayName("degrade 不放过未知 extractor 编码：配置错误恒 fail-fast")
+    void keepsFailingOnUnknownExtractorEvenWhenDegradeConfigured() {
+        ModelApiBindingEntity binding = new ModelApiBindingEntity();
+        binding.setUsageExtractor("NOT-A-REAL-EXTRACTOR");
+        UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem()), degrade());
+
+        assertThrows(IllegalStateException.class,
+                () -> registry.requireExtractor(false, context(binding)),
+                "未知 code 是配置错误而非提取失败，降级它等于该绑定永久零账且无自愈路径");
+    }
+
+    @Test
+    @DisplayName("不显式配置时默认 fail：提取失败必须中断响应")
+    void failsByDefaultWhenNotConfigured() {
+        assertTrue(new UsageExtractionProperties().interruptOnFailure(),
+                "出厂默认必须让失败可见——静默零账只在对账时才暴露");
+    }
+
     private static UsageExtractorRegistry registry(UsageExtractor<?> stub) {
+        return registry(stub, new UsageExtractionProperties());
+    }
+
+    private static UsageExtractorRegistry registry(UsageExtractor<?> stub, UsageExtractionProperties properties) {
         List<UsageExtractor<?>> extractors = List.of(
                 new DefaultTokenUsageExtractor(new TokenBillingModeCalculator()), stub);
-        return new UsageExtractorRegistry(new UsageExtractorCatalog(extractors), null);
+        return new UsageExtractorRegistry(new UsageExtractorCatalog(extractors), null, properties);
+    }
+
+    private static UsageExtractionProperties degrade() {
+        UsageExtractionProperties properties = new UsageExtractionProperties();
+        properties.setOnExtractFailure(UsageExtractionProperties.OnExtractFailure.DEGRADE);
+        return properties;
     }
 
     private static ModelApiBindingEntity binding(String extractorCode) {

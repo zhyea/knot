@@ -45,7 +45,8 @@ public final class ModelPoolSelection {
      * 按策略给出池内候选的选中顺序。
      *
      * @param candidates  可用候选，调用方需保证模型本身可用
-     * @param strategyCode 模型池的 selection_strategy，非法或空白按 WEIGHTED 处理
+     * @param strategyCode 模型池的 selection_strategy；非法或空白直接抛错，
+     *                     不做静默回退（写入入口已强校验，库中值保证合法）
      * @param priorityOf  候选优先级
      * @param weightOf    候选权重
      * @param tieBreakerOf 稳定兜底排序键（通常为候选主键）
@@ -63,7 +64,8 @@ public final class ModelPoolSelection {
         if (candidates.size() == 1) {
             return List.copyOf(candidates);
         }
-        ModelPoolSelectionStrategyEnum strategy = ModelPoolSelectionStrategyEnum.fromCodeOrDefault(strategyCode);
+        ModelPoolSelectionStrategyEnum strategy =
+                ModelPoolSelectionStrategyEnum.require(strategyCode, "unsupported selection strategy: " + strategyCode);
         return switch (strategy) {
             case PRIORITY -> orderByPriority(candidates, priorityOf, tieBreakerOf);
             case RANDOM -> shuffled(candidates);

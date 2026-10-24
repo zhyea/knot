@@ -71,20 +71,14 @@ public enum ProviderCredentialTypeEnum {
     }
 
     /**
-     * Accepts the new persisted codes and the legacy values used before the
-     * credential type became explicit in the API.
+     * 按持久化 code 解析认证类型；未声明（null / 空白）或未知值直接抛错——
+     * credential_type 是 NOT NULL 列，且创建入口必填，不做空值默认。
      */
     public static ProviderCredentialTypeEnum fromCode(String value) {
         if (value == null || value.isBlank()) {
-            return API_KEY;
+            throw new IllegalArgumentException("credential type is required");
         }
         String normalized = value.trim();
-        if ("API_KEY".equalsIgnoreCase(normalized)) {
-            return API_KEY;
-        }
-        if ("TOKEN".equalsIgnoreCase(normalized)) {
-            return CUSTOM;
-        }
         return Arrays.stream(values())
                 .filter(item -> item.code.equalsIgnoreCase(normalized)
                         || item.name().equalsIgnoreCase(normalized))

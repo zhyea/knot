@@ -72,18 +72,6 @@ public final class JsonKit {
     }
 
     /**
-     * 返回当前 mapper 的防御性副本。
-     *
-     * @deprecated 外部不应再直接持有 mapper。类型转换请用 {@link #fromJson}/{@link #toJson}/{@link #parse}；
-     *             需就解析失败做出反应（上抛领域异常）的场景用
-     *             {@link #fromJsonOrThrow}/{@link #toJsonOrThrow}/{@link #parseOrThrow}。
-     */
-    @Deprecated(since = "2026-09-30", forRemoval = true)
-    public static ObjectMapper mapper() {
-        return mapper.copy();
-    }
-
-    /**
      * Serializes an object to JSON.
      */
     public static <T> String toJson(T src) {

@@ -31,7 +31,7 @@ class BillingServicePreviewTest {
                              "cacheWrite5m": 2.5, "cacheWrite1h": 5},
               "pricing": {
                 "rateMode": "MULTIPLIER",
-                "timezone": "UTC",
+                "timezone": "UTC+0",
                 "phases": [
                   {"phase": "PEAK", "multiplier": 1.5,
                    "condition": {"type": "WEEKDAY_WINDOW", "weekdays": [1],
@@ -50,7 +50,7 @@ class BillingServicePreviewTest {
         assertEquals("PEAK", result.phase());
         assertEquals("PEAK_WINDOW", result.reason());
         assertEquals(0, new BigDecimal("1.5").compareTo(result.multiplier()));
-        assertEquals("UTC", result.timezone());
+        assertEquals("UTC+0", result.timezone());
         assertEquals("2026-09-28T02:30:00Z", result.occurredAt());
 
         // 基础价 x 1.5

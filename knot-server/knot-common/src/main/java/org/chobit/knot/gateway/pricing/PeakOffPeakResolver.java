@@ -176,9 +176,6 @@ public final class PeakOffPeakResolver {
      */
     private static ZonedDateTime localTime(Instant instant, String timezone) {
         String zoneId = timezone == null || timezone.isBlank() ? "UTC+0" : timezone.trim();
-        if ("UTC".equals(zoneId) || "UTC-0".equals(zoneId)) {
-            zoneId = "UTC+0";
-        }
         if (!BillingConfig.SUPPORTED_TIMEZONES.contains(zoneId)) {
             return null;
         }

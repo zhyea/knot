@@ -243,12 +243,12 @@ public class UserService {
      * 用户编码（登录名）改码：未绑定（应用负责人 / 消费者归属 / 路由规则归属）时可改，
      * 已绑定直接 409；改码前做唯一性校验（uk_users_username 不区分 is_deleted，故含已删除行）。
      *
-     * <p>入参 username 为空表示「不修改」，沿用库中现值——兼容只改资料的调用方。</p>
+     * <p>入参 username 为空一律拒绝：登录名是必填项，不做「不修改」特例。</p>
      */
     private String resolveUsernameForUpdate(UserEntity entity, String requested) {
         String username = CodeBindingSupport.normalize(requested);
         if (username.isEmpty()) {
-            return entity.getUsername();
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "登录名不能为空");
         }
         CodeBindingSupport.requireCodeChangeAllowed(
                 entity.getUsername(), username, entity.getBoundCount(), "用户编码");

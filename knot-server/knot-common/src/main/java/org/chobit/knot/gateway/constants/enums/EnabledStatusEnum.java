@@ -60,8 +60,7 @@ public enum EnabledStatusEnum implements NumericEnumOption {
     }
 
     /**
-     * 查询参数归一："1"/"0" 直接映射；历史字符串值（ENABLED/ACTIVE/DISABLED/INACTIVE）
-     * 在数字化过渡期容忍并归一；其余值返回 null（不过滤）。
+     * 查询参数归一：仅接受数字 "1"/"0"；其余值返回 null（不过滤）。
      */
     public static Integer parse(String text) {
         if (text == null) {
@@ -71,10 +70,10 @@ public enum EnabledStatusEnum implements NumericEnumOption {
         if (value.isEmpty()) {
             return null;
         }
-        if ("1".equals(value) || "ENABLED".equalsIgnoreCase(value) || "ACTIVE".equalsIgnoreCase(value)) {
+        if ("1".equals(value)) {
             return ENABLED.code();
         }
-        if ("0".equals(value) || "DISABLED".equalsIgnoreCase(value) || "INACTIVE".equalsIgnoreCase(value)) {
+        if ("0".equals(value)) {
             return DISABLED.code();
         }
         return null;

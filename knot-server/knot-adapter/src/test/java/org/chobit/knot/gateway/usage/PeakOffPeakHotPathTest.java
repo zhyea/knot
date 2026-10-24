@@ -28,7 +28,7 @@ class PeakOffPeakHotPathTest {
                              "cacheWrite5m": 2.5, "cacheWrite1h": 5},
               "pricing": {
                 "rateMode": "MULTIPLIER",
-                "timezone": "UTC",
+                "timezone": "UTC+0",
                 "phases": [
                   {"phase": "PEAK", "multiplier": 1.5,
                    "condition": {"type": "WEEKDAY_WINDOW", "weekdays": [1],

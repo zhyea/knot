@@ -833,14 +833,13 @@ public class RoutingRuleService {
     }
 
     /**
-     * 目标选择策略归一：空 / 未知值一律按 PRIORITY（与存量行为一致）。
+     * 目标选择策略归一：未知 / 空白一律抛错，不做静默回退。
      *
-     * <p>与模型池的 {@code WEIGHTED} 默认不同——路由规则的目标顺序原本就是「主目标 + 优先级」，
-     * 缺省必须保持该行为，不能因为新增策略就改变未配置规则的选路结果。</p>
+     * <p>{@code kb_routing_rules.selection_strategy} 为 NOT NULL DEFAULT 'PRIORITY'，
+     * 写入入口已强校验，库中值保证合法；与模型池的 WEIGHTED 默认由各自 schema 默认值表达。</p>
      */
     private static String normalizeSelectionStrategy(String code) {
-        ModelPoolSelectionStrategyEnum strategy = ModelPoolSelectionStrategyEnum.fromCode(code);
-        return strategy == null ? ModelPoolSelectionStrategyEnum.PRIORITY.code() : strategy.code();
+        return ModelPoolSelectionStrategyEnum.requireCode(code, "unsupported selection strategy: " + code);
     }
 
     private Map<String, List<RoutingRuleTargetDto>> loadTargetsByRuleCodes(List<String> ruleCodes) {
@@ -891,28 +890,15 @@ public class RoutingRuleService {
     }
 
     /**
-     * 解析路由目标的业务 code。优先使用提交方直传的 {@code targetCode}（前端 options loader 已改为返回 code）；
-     * 兼容仅传数字主键 {@code targetId} 的历史调用方，按目标类型反查 model_code / pool_code。
+     * 解析路由目标的业务 code：只接受提交方直传的 {@code targetCode}
+     * （前端 options loader 已改为返回 code）；缺失直接拒绝。
      */
     private String resolveTargetCode(RoutingRuleTargetDto target) {
-        if (target.targetCode() != null && !target.targetCode().isBlank()) {
-            return target.targetCode().trim();
+        String targetCode = target.targetCode();
+        if (targetCode == null || targetCode.isBlank()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target code is required");
         }
-        if (target.targetId() != null) {
-            String type = normalizeTargetType(target.targetType());
-            if ("MODEL".equals(type)) {
-                ModelEntity model = modelMapper.getById(target.targetId());
-                if (model != null) {
-                    return model.getModelCode();
-                }
-            } else if ("MODEL_POOL".equals(type)) {
-                ModelPoolEntity pool = modelPoolMapper.getById(target.targetId());
-                if (pool != null) {
-                    return pool.getPoolCode();
-                }
-            }
-        }
-        throw new BusinessException(ErrorCode.VALIDATION_ERROR, "routing target code is required");
+        return targetCode.trim();
     }
 
     private RoutingRuleDto ensureGeneratedFieldsForCreate(RoutingRuleDto request) {

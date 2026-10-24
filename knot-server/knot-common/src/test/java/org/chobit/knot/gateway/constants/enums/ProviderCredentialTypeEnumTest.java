@@ -127,11 +127,12 @@ class ProviderCredentialTypeEnumTest {
     }
 
     @Test
-    void fromCodeAcceptsNewCodesAndLegacyValues() {
+    void fromCodeAcceptsPersistedCodesOnly() {
         assertEquals(ProviderCredentialTypeEnum.API_KEY, ProviderCredentialTypeEnum.fromCode("api-key"));
         assertEquals(ProviderCredentialTypeEnum.API_KEY, ProviderCredentialTypeEnum.fromCode("API_KEY"));
-        assertEquals(ProviderCredentialTypeEnum.CUSTOM, ProviderCredentialTypeEnum.fromCode("TOKEN"));
-        assertEquals(ProviderCredentialTypeEnum.API_KEY, ProviderCredentialTypeEnum.fromCode(null));
+        assertThrows(IllegalArgumentException.class, () -> ProviderCredentialTypeEnum.fromCode(null));
+        assertThrows(IllegalArgumentException.class, () -> ProviderCredentialTypeEnum.fromCode("  "));
+        assertThrows(IllegalArgumentException.class, () -> ProviderCredentialTypeEnum.fromCode("TOKEN"));
         assertThrows(IllegalArgumentException.class, () -> ProviderCredentialTypeEnum.fromCode("NOPE"));
     }
 

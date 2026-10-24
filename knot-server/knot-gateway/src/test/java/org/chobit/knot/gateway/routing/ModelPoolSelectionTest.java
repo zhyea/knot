@@ -1,12 +1,13 @@
 package org.chobit.knot.gateway.routing;
 
+import org.chobit.knot.gateway.error.BusinessException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ModelPoolSelectionTest {
 
@@ -95,14 +96,15 @@ class ModelPoolSelectionTest {
     }
 
     @Test
-    void unknownStrategyFallsBackToWeighted() {
+    void unknownStrategyRejected() {
         List<Item> items = List.of(
                 new Item("a", 100, 100, 1L, 0L),
                 new Item("b", 100, 100, 2L, 0L)
         );
 
-        List<String> result = codes(order(selection, "NOT_A_STRATEGY", items));
-        assertEquals(2, result.size());
-        assertTrue(result.contains("a") && result.contains("b"));
+        // 非法策略直接抛错，不静默回退——写入入口已强校验，运行期不应出现
+        assertThrows(BusinessException.class, () -> order(selection, "NOT_A_STRATEGY", items));
+        assertThrows(BusinessException.class, () -> order(selection, null, items));
+        assertThrows(BusinessException.class, () -> order(selection, "  ", items));
     }
 }

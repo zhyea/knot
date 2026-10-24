@@ -6,6 +6,7 @@ import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
 import org.chobit.knot.gateway.config.UpstreamWebClientConfiguration;
+import org.chobit.knot.gateway.config.UsageExtractionProperties;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ProviderAccountEntity;
@@ -188,7 +189,8 @@ class UpstreamWebClientEndToEndTest {
         // 流式路径会先做 extractor 预检，catalog 必须是真的（null 会在预检处 NPE）
         UsageExtractorRegistry registry = new UsageExtractorRegistry(
                 new UsageExtractorCatalog(
-                        List.of(new DefaultTokenUsageExtractor(new TokenBillingModeCalculator()))), null) {
+                        List.of(new DefaultTokenUsageExtractor(new TokenBillingModeCalculator()))),
+                null, new UsageExtractionProperties()) {
             @Override
             public UsageAccounting extract(String responseBody,
                                            UpstreamRequestContext context) {

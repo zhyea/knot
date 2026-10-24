@@ -21,7 +21,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  */
 class PeakOffPeakResolverTest {
 
-    /** MONDAY/WEDNESDAY 01:00-04:00 与 06:00-10:00 为高峰，其余兜底 0.8 */
+    /** MONDAY/WEDNESDAY 01:00-04:00 与 06:00-10:00 为高峰，其余兜底 0.8；
+     * timezone 位的 "UTC" 是 pricingWithTimezoneAndPolicy 的 replace 占位符，非业务取值 */
     private static final String PRICING_JSON = """
             {"rateMode":"MULTIPLIER","timezone":"UTC","phases":[
               {"condition":{"weekdays":[1,3],
@@ -155,7 +156,7 @@ class PeakOffPeakResolverTest {
     @Test
     void absoluteModeExposesMatchedPhaseUnitPrices() {
         BillingConfig.Pricing pricing = BillingConfig.parse("""
-                {"pricing":{"rateMode":"ABSOLUTE","timezone":"UTC","phases":[
+                {"pricing":{"rateMode":"ABSOLUTE","timezone":"UTC+0","phases":[
                   {"condition":{"weekdays":[1,3],"windows":[{"start":"01:00","end":"04:00"}]},
                    "phase":"PEAK","unitPrices":{"input":10,"output":50}},
                   {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","unitPrices":{"input":6,"output":30}}]}}
@@ -172,7 +173,7 @@ class PeakOffPeakResolverTest {
     }
 
     private static BillingConfig.Pricing pricing(String makeUpPolicy) {
-        return pricingWithTimezoneAndPolicy("UTC", makeUpPolicy);
+        return pricingWithTimezoneAndPolicy("UTC+0", makeUpPolicy);
     }
 
     /** 用指定时区构造 pricing：UTC 外的值会被判定器视为不可用（不做峰谷调整） */

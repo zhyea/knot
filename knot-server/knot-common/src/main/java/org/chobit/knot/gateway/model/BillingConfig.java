@@ -35,7 +35,7 @@ import java.util.Set;
  *     { "condition": { "from": 1000001 },            "unitPrices": { "input": 2, "output": 10 } }
  *   ],
  *   "pricing": {                   // pricingPlan=PEAK_OFF_PEAK 时的高低峰倍率（不含 type，方案类型由版本列表达）
- *     "rateMode": "MULTIPLIER", "timezone": "UTC",
+ *     "rateMode": "MULTIPLIER", "timezone": "UTC+0",
  *     "phases": [
  *       { "condition": { "weekdays": [1], "windows": [{"start":"01:00","end":"04:00"}],
  *                        "holidayPolicy": "OFF_PEAK", "makeUpWorkdayPolicy": "OFF_PEAK" },
@@ -74,11 +74,9 @@ public record BillingConfig(
     /** 独立单价模式：命中相位自身携带 unitPrices，不再对模式层基础价做乘法 */
     private static final String RATE_MODE_ABSOLUTE = "ABSOLUTE";
 
-    /** UTC 偏移白名单，覆盖 UTC-12 至 UTC+14；UTC 为历史零偏移别名。 */
-    public static final Set<String> SUPPORTED_TIMEZONES = java.util.stream.Stream.concat(
-                    java.util.stream.Stream.of("UTC"),
-                    java.util.stream.IntStream.rangeClosed(-12, 14)
-                            .mapToObj(offset -> offset < 0 ? "UTC" + offset : "UTC+" + offset))
+    /** UTC 偏移白名单，覆盖 UTC-12 至 UTC+14。 */
+    public static final Set<String> SUPPORTED_TIMEZONES = java.util.stream.IntStream.rangeClosed(-12, 14)
+            .mapToObj(offset -> offset < 0 ? "UTC" + offset : "UTC+" + offset)
             .collect(java.util.stream.Collectors.toUnmodifiableSet());
 
     private static final String PHASE_PEAK = "PEAK";
