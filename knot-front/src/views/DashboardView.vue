@@ -22,6 +22,15 @@
       </div>
     </section>
 
+    <el-alert
+      v-if="failedSections.length"
+      type="warning"
+      show-icon
+      :closable="false"
+      :title="`部分数据加载失败：${failedSections.join('、')}`"
+      description="上述区块已按 0 / 空展示，数值不代表真实情况。请点击右上角刷新重试，或检查对应服务是否可用。"
+    />
+
     <section class="metric-grid">
       <article
         v-for="metric in metrics"
@@ -133,18 +142,18 @@
                 'status-hero__value--down': isHealthDown
               }"
             >
-              {{ health.status || "--" }}
+              {{ displayText(health.status) }}
             </span>
           </div>
 
           <div class="status-list">
             <div class="status-list__item">
               <span class="status-list__label">服务时间</span>
-              <strong class="status-list__value">{{ health.serverTime || "--" }}</strong>
+              <strong class="status-list__value">{{ displayText(health.serverTime) }}</strong>
             </div>
             <div class="status-list__item">
               <span class="status-list__label">数据库时间</span>
-              <strong class="status-list__value">{{ health.dbTime || "--" }}</strong>
+              <strong class="status-list__value">{{ displayText(health.dbTime) }}</strong>
             </div>
             <div class="status-list__item">
               <span class="status-list__label">模块目录</span>
@@ -196,13 +205,13 @@
               <span class="activity-list__main">
                 <span class="activity-list__title">
                   <span class="activity-list__module">{{ resolveModuleName(log.module) }}</span>
-                  <span class="activity-list__operation">{{ log.operation || "--" }}</span>
+                  <span class="activity-list__operation">{{ displayText(log.operation) }}</span>
                 </span>
-                <span class="activity-list__entity">{{ log.entityName || log.entityType || "--" }}</span>
+                <span class="activity-list__entity">{{ displayText(log.entityName || log.entityType) }}</span>
               </span>
               <span class="activity-list__meta">
                 <el-tag :type="log.status === OperationLogStatus.SUCCESS ? 'success' : 'danger'" size="small">
-                  {{ log.status || "--" }}
+                  {{ displayText(log.status) }}
                 </el-tag>
                 <span class="activity-list__time">{{ formatDateTime(log.createdAt) }}</span>
               </span>
@@ -244,7 +253,7 @@ import {listProviders} from "@/api/providers";
 import {listRoutingRules} from "@/api/routing";
 import {useAuth} from "@/composables/useAuth";
 import {useTimezone} from "@/composables/useTimezone";
-import {formatDateTime, formatDateTimeInTimezone} from "@/utils/format";
+import {displayText, EMPTY_PLACEHOLDER, formatDateTime, formatDateTimeInTimezone} from "@/utils/format";
 import type {Dict, Row} from "@/types";
 
 /** 模块目录条目（/api/modules 返回） */
@@ -274,10 +283,21 @@ const statTotals = reactive({
 const loading = ref(false);
 const lastUpdatedAt = ref("");
 const lastUpdatedAtText = computed(() =>
-  lastUpdatedAt.value ? formatDateTimeInTimezone(lastUpdatedAt.value, currentTimezone.value) : "--"
+  lastUpdatedAt.value
+    ? formatDateTimeInTimezone(lastUpdatedAt.value, currentTimezone.value)
+    : EMPTY_PLACEHOLDER
 );
 const moduleCatalog = ref<ModuleCatalogItem[]>([]);
 const recentLogs = ref<Row[]>([]);
+
+/**
+ * 本轮加载失败的区块名。
+ *
+ * <p>总览页的 7 个请求各自独立降级（一个接口抖动不该拖垮整页），但降级后的
+ * 展示值是 0 / 空——与「确实没有数据」无法区分，运维会把「接口挂了」读成
+ * 「一个应用都没接」。所以失败必须留痕并在页头提示，而不是静默吞掉。</p>
+ */
+const failedSections = ref<string[]>([]);
 
 const iconMap: Record<string, Component> = {
   Bell,
@@ -447,7 +467,7 @@ function resolveIcon(iconName: string) {
 }
 
 function resolveModuleName(code: string) {
-  return moduleNameMap.value[code] || fallbackModuleNameMap[code] || code || "--";
+  return displayText(moduleNameMap.value[code] || fallbackModuleNameMap[code] || code);
 }
 
 function normalizeTotal(result: Row) {
@@ -461,10 +481,20 @@ function normalizeTotal(result: Row) {
   return Array.isArray(result?.list) ? result.list.length : 0;
 }
 
-async function withFallback<T, F>(factory: () => Promise<T>, fallback: F): Promise<T | F> {
+/**
+ * 单区块降级：失败时返回 fallback **并登记失败区块**。
+ *
+ * <p>{@code label} 是给用户看的区块名（「应用总数」而不是接口路径），
+ * 它会出现在页头的失败提示里，因此必须写成业务语言。</p>
+ */
+async function withFallback<T, F>(label: string, factory: () => Promise<T>, fallback: F): Promise<T | F> {
   try {
     return await factory();
-  } catch {
+  } catch (error) {
+    if (!failedSections.value.includes(label)) {
+      failedSections.value.push(label);
+    }
+    console.warn(`[dashboard] 区块「${label}」加载失败，已按空值展示`, error);
     return fallback;
   }
 }
@@ -482,16 +512,17 @@ function goToRoute(path: string) {
 
 async function loadDashboard() {
   loading.value = true;
+  failedSections.value = [];
   try {
     const [healthResult, moduleResult, appsResult, providersResult, logicalModelsResult, routingRulesResult, logsResult] =
       await Promise.all([
-        withFallback(() => getHealth(), null),
-        withFallback(() => listModuleCatalog(), []),
-        withFallback(() => listApps({ pageNum: 1, pageSize: 1 }), { total: 0, list: [] }),
-        withFallback(() => listProviders({ pageNum: 1, pageSize: 1 }), { total: 0, list: [] }),
-        withFallback(() => listLogicalModels({ pageNum: 1, pageSize: 1 }), { total: 0, list: [] }),
-        withFallback(() => listRoutingRules({ pageNum: 1, pageSize: 1 }), { total: 0, list: [] }),
-        withFallback(() => listOperationLogs({ pageNum: 1, pageSize: 6 }), { list: [] })
+        withFallback("健康状态", () => getHealth(), null),
+        withFallback("功能模块", () => listModuleCatalog(), []),
+        withFallback("应用总数", () => listApps({ pageNum: 1, pageSize: 1 }), { total: 0, list: [] }),
+        withFallback("供应商总数", () => listProviders({ pageNum: 1, pageSize: 1 }), { total: 0, list: [] }),
+        withFallback("逻辑模型总数", () => listLogicalModels({ pageNum: 1, pageSize: 1 }), { total: 0, list: [] }),
+        withFallback("路由规则总数", () => listRoutingRules({ pageNum: 1, pageSize: 1 }), { total: 0, list: [] }),
+        withFallback("最近操作", () => listOperationLogs({ pageNum: 1, pageSize: 6 }), { list: [] })
       ]);
 
     health.status = healthResult?.status || "";

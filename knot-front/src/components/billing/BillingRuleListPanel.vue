@@ -8,7 +8,7 @@
         </template>
       </el-table-column>
       <el-table-column label="版本" width="90" align="center" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.versionCode || "-" }}</template>
+        <template #default="{ row }">{{ displayText(row.versionCode) }}</template>
       </el-table-column>
       <el-table-column label="计费模式" width="100">
         <template #default="{ row }">{{ billingModeLabel(row.billingMode) }}</template>
@@ -61,6 +61,7 @@
 </template>
 
 <script setup lang="ts">
+import {displayText} from "@/utils/format";
 import {type PropType} from "vue";
 import {DataAnalysis, Delete, Document, Edit} from "@element-plus/icons-vue";
 import type {Row} from "@/types";

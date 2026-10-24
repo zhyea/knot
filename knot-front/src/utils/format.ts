@@ -48,6 +48,30 @@ export function formatThousands(value: unknown, fallback = "—"): string {
   return Math.trunc(n).toLocaleString("en-US");
 }
 
+/**
+ * 展示层空值占位符：**全站唯一**，不要在模板里再散写 `"-"` / `"—"` 字面量。
+ *
+ * <p>此前 36 处 `{{ row.xxx || "-" }}` 用的是连字符，而本文件里的
+ * {@link formatDateTime} / {@link formatThousands} / {@link fmtMoney} 用的是破折号，
+ * 同一张表里两种占位符并存；且占位符想统一一次得改 36 处。</p>
+ */
+export const EMPTY_PLACEHOLDER = "—";
+
+/**
+ * 展示任意字段的文本：null / undefined / 纯空白 → {@link EMPTY_PLACEHOLDER}。
+ *
+ * <p><b>为什么不用 `value || "-"`</b>：</p>
+ * <p>① 字面量散落（见上），口径无法统一；</p>
+ * <p>② ⭐ `||` 会把**数字 0 和布尔 false 当成空值**——本项目「状态 0 是合法值」
+ * 是头号展示风险（0=停用 与 未填写 会被显示成同一个占位符）。本函数只把
+ * null / undefined / 空白字符串判为空，`0` 正常显示成 `"0"`、`false` 显示成 `"false"`。</p>
+ */
+export function displayText(value: unknown, fallback = EMPTY_PLACEHOLDER): string {
+  if (value == null) return fallback;
+  if (typeof value === "string") return value.trim() === "" ? fallback : value;
+  return String(value);
+}
+
 export function formatJson(obj: unknown): string {
   if (obj == null) return "";
   try {

@@ -11,8 +11,8 @@
           <div class="corner-ribbon" :class="ribbonClass(row)">{{ statusText(row) }}</div>
           <div class="card-top">
             <div class="model-main">
-              <div class="model-name">{{ row.modelName || "-" }}</div>
-              <div class="model-code">{{ row.modelCode || "-" }}</div>
+              <div class="model-name">{{ displayText(row.modelName) }}</div>
+              <div class="model-code">{{ displayText(row.modelCode) }}</div>
             </div>
           </div>
           <div v-if="displayTags(row).length" class="tag-list">
@@ -50,6 +50,7 @@
 </template>
 
 <script setup lang="ts">
+import {displayText} from "@/utils/format";
 import { LogicalModelPublishStatus } from "@/constants/status";
 import {Delete, Document, Edit, RefreshLeft} from "@element-plus/icons-vue";
 import {onMounted, type PropType} from "vue";

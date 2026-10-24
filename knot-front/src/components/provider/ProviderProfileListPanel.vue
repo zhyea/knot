@@ -21,7 +21,7 @@
         <template #default="{ row }">{{ formatTime(row.updatedAt) }}</template>
       </el-table-column>
       <el-table-column label="备注" min-width="18%" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.remark || "-" }}</template>
+        <template #default="{ row }">{{ displayText(row.remark) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="170" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
@@ -49,6 +49,7 @@
 </template>
 
 <script setup lang="ts">
+import {displayText} from "@/utils/format";
 import {Delete, Document, Edit} from "@element-plus/icons-vue";
 import type {PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";

@@ -43,6 +43,7 @@
 </template>
 
 <script setup lang="ts">
+import {displayText} from "@/utils/format";
 import type {FormInstance} from "element-plus";
 import {computed, reactive, ref} from "vue";
 import {useRouter} from "vue-router";
@@ -62,7 +63,7 @@ const form = reactive({
 });
 
 const displayName = computed(() => {
-  return forcePasswordChangeState.value?.realName || forcePasswordChangeState.value?.username || "-";
+  return displayText(forcePasswordChangeState.value?.realName || forcePasswordChangeState.value?.username);
 });
 
 const rules = computed(() => ({

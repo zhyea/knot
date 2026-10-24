@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "type-check": "vue-tsc --noEmit",
+    "type-check:strict": "vue-tsc --noEmit --noUnusedLocals",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",

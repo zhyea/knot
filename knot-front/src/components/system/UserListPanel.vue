@@ -10,7 +10,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="deptName" label="所属部门" min-width="12%">
-        <template #default="{ row }">{{ row.deptName || "-" }}</template>
+        <template #default="{ row }">{{ displayText(row.deptName) }}</template>
       </el-table-column>
       <el-table-column label="状态" min-width="12%">
         <template #default="{ row }">
@@ -58,6 +58,7 @@
 </template>
 
 <script setup lang="ts">
+import {displayText} from "@/utils/format";
 import type {PropType} from "vue";
 import type {Row} from "@/types";
 import {Document, Edit, Key} from "@element-plus/icons-vue";

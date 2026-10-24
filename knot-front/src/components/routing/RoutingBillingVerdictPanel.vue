@@ -44,15 +44,15 @@
           </div>
           <div class="bv-kv__item">
             <span class="bv-kv__label">命中层级</span>
-            <span class="bv-kv__value">{{ result.ruleRef?.matchedBy || "-" }}</span>
+            <span class="bv-kv__value">{{ displayText(result.ruleRef?.matchedBy) }}</span>
           </div>
           <div class="bv-kv__item">
             <span class="bv-kv__label">计费模式</span>
-            <span class="bv-kv__value">{{ result.ruleRef?.billingMode || "-" }}</span>
+            <span class="bv-kv__value">{{ displayText(result.ruleRef?.billingMode) }}</span>
           </div>
           <div class="bv-kv__item">
             <span class="bv-kv__label">计费单位</span>
-            <span class="bv-kv__value">{{ result.ruleRef?.unit || "-" }}</span>
+            <span class="bv-kv__value">{{ displayText(result.ruleRef?.unit) }}</span>
           </div>
           <div class="bv-kv__item">
             <span class="bv-kv__label">上游 cost</span>
@@ -101,10 +101,10 @@
             </thead>
             <tbody>
             <tr v-for="(line, index) in producedLines" :key="index">
-              <td>{{ line.type || "-" }}</td>
+              <td>{{ displayText(line.type) }}</td>
               <td class="bv-num">{{ line.tokens ?? 0 }}</td>
-              <td class="bv-num">{{ line.price || "-" }}</td>
-              <td class="bv-num">{{ line.cost || "-" }}</td>
+              <td class="bv-num">{{ displayText(line.price) }}</td>
+              <td class="bv-num">{{ displayText(line.cost) }}</td>
             </tr>
             <tr v-if="!producedLines.length">
               <td colspan="4" class="bv-empty">无计费明细</td>
@@ -126,10 +126,10 @@
             </thead>
             <tbody>
             <tr v-for="(line, index) in shadowLines" :key="index">
-              <td>{{ line.type || "-" }}</td>
+              <td>{{ displayText(line.type) }}</td>
               <td class="bv-num">{{ line.tokens ?? 0 }}</td>
-              <td class="bv-num">{{ line.price || "-" }}</td>
-              <td class="bv-num">{{ line.cost || "-" }}</td>
+              <td class="bv-num">{{ displayText(line.price) }}</td>
+              <td class="bv-num">{{ displayText(line.cost) }}</td>
             </tr>
             </tbody>
           </table>
@@ -207,6 +207,7 @@
 </template>
 
 <script setup lang="ts">
+import {displayText} from "@/utils/format";
 import {computed} from "vue";
 import type {
   BillingCheckCode,

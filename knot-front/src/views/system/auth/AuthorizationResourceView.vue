@@ -48,7 +48,7 @@
             @reset-filters="state.resetMenuFilters"
           >
             <template #parentLabel="{ row }">
-              <span>{{ state.resolveMenuName(row.parentId) || "-" }}</span>
+              <span>{{ displayText(state.resolveMenuName(row.parentId)) }}</span>
             </template>
             <template #statusSwitch="{ row }">
               <el-switch
@@ -127,6 +127,7 @@
 </template>
 
 <script setup lang="ts">
+import {displayText} from "@/utils/format";
 import { EnabledStatus } from "@/constants/status";
 import AuthorizationResourcePanel from "../../../components/system/auth/AuthorizationResourcePanel.vue";
 

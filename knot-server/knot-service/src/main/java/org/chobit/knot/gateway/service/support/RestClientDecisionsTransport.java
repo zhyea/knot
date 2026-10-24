@@ -2,7 +2,6 @@ package org.chobit.knot.gateway.service.support;
 
 import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -28,12 +27,7 @@ public class RestClientDecisionsTransport implements DecisionsTransport {
     private final RestClient restClient;
 
     public RestClientDecisionsTransport() {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(CONNECT_TIMEOUT_MS);
-        factory.setReadTimeout(READ_TIMEOUT_MS);
-        this.restClient = RestClient.builder()
-                .requestFactory(factory)
-                .build();
+        this.restClient = RestClientSupport.withTimeouts(CONNECT_TIMEOUT_MS, READ_TIMEOUT_MS);
     }
 
     @Override

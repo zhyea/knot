@@ -57,6 +57,7 @@
 </template>
 
 <script setup lang="ts">
+import {displayText} from "@/utils/format";
 import type {PropType} from "vue";
 import type {Row, RowAction} from "@/types";
 import {Delete, Document, Edit, RefreshLeft} from "@element-plus/icons-vue";
@@ -92,7 +93,7 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
 });
 
 function strategyLabel(code: string) {
-  return labelOf("ModelPoolSelectionStrategyEnum", code, code || "-");
+  return labelOf("ModelPoolSelectionStrategyEnum", code, displayText(code));
 }
 
 /** 已删除行：浅红底标识（排序已由后端 is_deleted asc 放到末尾） */

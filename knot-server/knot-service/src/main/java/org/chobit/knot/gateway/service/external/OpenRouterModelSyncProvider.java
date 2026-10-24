@@ -35,6 +35,16 @@ public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvid
     private static final String SOURCE_URL = "https://openrouter.ai/models";
     private static final String API_URL = "https://openrouter.ai/api/v1/models";
 
+    /**
+     * 外部目录同步专用客户端（JDK 同步 {@link HttpClient}）。
+     *
+     * <p><b>刻意不复用 {@code RestClientSupport}</b>（改进清单 4.3 判定）：那边服务的是
+     * 「管理面转发」，用的是 Spring {@link org.springframework.web.client.RestClient}；
+     * 这里是一次性拉取公开模型目录的低频链路，JDK 客户端一次 {@code send} 拿字符串就够，
+     * 且异常已在本类包成 {@link IllegalStateException}。硬统一属纯技术栈合并，
+     * 收益（少一条依赖）低于改异常语义与 BodyHandler 的风险。
+     * 若将来这里的调用形态变得复杂（重试 / 流式 / 鉴权），再考虑并到 {@code RestClientSupport}。</p>
+     */
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(15))
             .build();

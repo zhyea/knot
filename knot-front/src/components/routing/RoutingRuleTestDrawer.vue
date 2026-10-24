@@ -274,9 +274,7 @@ import {
   listRoutingRuleDebugProtocols,
   testRoutingRule,
   testRoutingRuleBillingVerdict,
-  testRoutingRuleStream,
-  type RoutingBillingVerdictRequestPayload,
-  type RoutingBillingVerdictResult
+  testRoutingRuleStream
 } from "@/api/routing";
 import {useDebugCapabilities} from "@/composables/useDebugCapabilities";
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard";
@@ -287,7 +285,6 @@ import {useEnumOptions} from "@/composables/useEnumOptions";
 import {formatJson, formatJsonText, parseJsonResult, stringifyJson} from "@/utils/format";
 import {
   extractField,
-  formatUpstreamEvent,
   highlightBlock,
   isAbortError,
   safeParseTemplate,
@@ -295,10 +292,8 @@ import {
 } from "@/utils/routingTestPayload";
 import {
   normalizeErrorResult,
-  normalizeNetworkErrorMessage,
   serializeBody
 } from "@/utils/routingTestError";
-import {type SseEvent} from "@/utils/sse";
 import {RouteTargetType, RoutingTestRunState, RoutingTestStatus} from "@/constants/status";
 import type {Dict} from "@/types";
 
@@ -487,7 +482,6 @@ const activeProtocol = computed(() => canonicalOf(testForm.protocol));
 // 抽屉只负责把「当前选择」与裁判接口注入进去（接口注入而非直接 import，便于脱离 HTTP 单测）。
 const {
   knotExtend,
-  upstreamUsage,
   verdictResult,
   verdictLoading,
   verdictSkipped,
@@ -522,7 +516,6 @@ function scrollStreamToBottom() {
 // 流式缓冲与节流状态机：只管「收到的字节怎么攒、何时刷进界面、怎么固化成终态」，
 // 发请求 / 判错误类型 / 触发裁判仍是本抽屉的编排职责。
 const {
-  streamAbortController,
   streamBody,
   receivedBytes,
   streamStartedAt,

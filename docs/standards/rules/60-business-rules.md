@@ -9,7 +9,9 @@
 - 缓存变长：命中 10min / 未命中 30s，key `(ruleCode, modelFamily)`。
 - 厂商语义差异：OpenAI `prompt_tokens` **含**缓存 token，Anthropic **不含**；`AnthropicUsageExtractor` 加回 cache 才是总量语义。（口径归属与双视图纪律见 §8）
 - billingMode(8) × pricingPlan(3) **正交**；前端 `utils/billingTier.ts` / `utils/billingPrice.ts`，`UNIT_PRICE_PRECISION = 8`。
-- ⭐ `NormalizedUsageDetail.cost` 是 **String**（8 位小数 `toPlainString()`）——Jackson 默认序列化对 <1e-6 会输出科学计数法（`1E-8`）；唯一构造点 `AbstractBillingModeCalculator.detail()`。
+- ⭐ `NormalizedUsageDetail.cost` / `.price` / `totalCost` 是 **String**——Jackson 默认序列化对 <1e-6 会输出科学计数法（`1E-8`）。**不设小数位上限、不做 8 位定标**（8 位会把「6 位小数单价 × 1 token ÷ 1e6」抹成 0）：唯一文本化出口 `NormalizedBillingAmount.plainMoney`，唯一构造点 `AbstractBillingModeCalculator.detail()`。
+- ⭐⭐ **计费单位归一化唯一出口 `BillingModeEnum.normalizeUnit(code)`**（2026-10-25，4.6 审查所修）：空白 / 非法编码 / 该模式不支持 → 一律取 `defaultUnit()`。**禁止**在计算器、Service、DB 默认值里各自写「兜底成 `1K_TOKENS`」——单位基数是金额公式的**分母**，`1K_TOKENS`(1000) 与 `PER_SECOND`(1) 差 1000 倍，而正确默认值随 `billing_mode` 变（VIDEO→PER_SECOND、TOKEN→1M_TOKENS），不存在万能默认值。判例：曾有「计算器热路径 / 管理端落库 / schema DEFAULT」三处都兜底成 `1K_TOKENS`，绕过表单写入即静默 1000 倍错价且全门禁绿灯。
+- ⚠ **折扣（`kb_provider_discount_policies.discount_value`）仅供展示，不参与任何计费逻辑**（robin 2026-10-25 明确）：不要把折扣接进金额计算，也不要为「将来可能接入」去改折扣链路（精度/校验/DTO 类型都不必为此铺路）。折扣值用 `BigDecimal`（对齐 `DECIMAL(10,4)`）仅为与库列同型与健壮性。
 - ⚠ config_json 是 `{pricing:{...}}` **嵌套结构**，扁平写会被 ignoreUnknown 静默成 `pricing=null`。
 - ABSOLUTE 高低峰：`PhaseDecision` 四元组，取价走 `matchedRule().unitPrices()` **不乘倍率**；MULTIPLIER 模式不变。
 - BillingUsage 按模式拆分：sealed 接口 + Token / Image / Video / Audio 四实现；媒体内嵌 `TokenBillingUsage`，`tokenUsage()` 默认方法。`UsageExtractor<T>`：`empty()` / `extractUsage(body, requestBody)` 返回 **`UsageExtractItem<T>` 双视图**（`billing` 计费输入 + `usage` 统一用量视图），详见 §8。

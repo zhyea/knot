@@ -9,7 +9,6 @@ import org.chobit.knot.gateway.error.ErrorCode;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
@@ -51,16 +50,7 @@ public class GatewayOutageRunner {
     private final RestClient restClient;
 
     public GatewayOutageRunner() {
-        this.restClient = createRestClient();
-    }
-
-    private static RestClient createRestClient() {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(CONNECT_TIMEOUT_MS);
-        factory.setReadTimeout(READ_TIMEOUT_MS);
-        return RestClient.builder()
-            .requestFactory(factory)
-            .build();
+        this.restClient = RestClientSupport.withTimeouts(CONNECT_TIMEOUT_MS, READ_TIMEOUT_MS);
     }
 
     /**

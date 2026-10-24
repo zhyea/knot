@@ -140,7 +140,7 @@
             >
               <el-table-column prop="code" label="规则编码" min-width="150" show-overflow-tooltip>
                 <template #default="{ row }">
-                  <span class="bind-list__text">{{ row.code || "-" }}</span>
+                  <span class="bind-list__text">{{ displayText(row.code) }}</span>
                 </template>
               </el-table-column>
               <el-table-column label="模型族" min-width="140" show-overflow-tooltip>
@@ -315,6 +315,7 @@
 </template>
 
 <script setup lang="ts">
+import {displayText} from "@/utils/format";
 import {EnabledStatus} from "@/constants/status";
 import {type PropType, computed, reactive, ref, watch} from "vue";
 import {useRouter} from "vue-router";
@@ -518,11 +519,11 @@ function isEnabledLogicalModel(model: Row): boolean {
 }
 
 function modeLabel(code: unknown): string {
-  return enumLabelOf("BillingModeEnum", code, String(code || "-"));
+  return enumLabelOf("BillingModeEnum", code, displayText(code));
 }
 
 function planLabel(code: unknown): string {
-  return enumLabelOf("PricingPlanEnum", code, String(code || "-"));
+  return enumLabelOf("PricingPlanEnum", code, displayText(code));
 }
 
 function usageExtractorLabel(item: Row): string {

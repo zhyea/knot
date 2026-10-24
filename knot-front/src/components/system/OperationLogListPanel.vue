@@ -13,7 +13,7 @@
       <el-table-column prop="entityType" label="实体类型" width="120" />
       <el-table-column prop="entityName" label="实体名称" min-width="150" />
       <el-table-column prop="operatorName" label="操作人" width="100">
-        <template #default="{ row }">{{ row.operatorName || "-" }}</template>
+        <template #default="{ row }">{{ displayText(row.operatorName) }}</template>
       </el-table-column>
       <el-table-column prop="ipAddress" label="IP 地址" width="140" />
       <el-table-column prop="status" label="状态" width="90">
@@ -42,6 +42,7 @@
 </template>
 
 <script setup lang="ts">
+import {displayText} from "@/utils/format";
 import { OperationLogStatus } from "@/constants/status";
 import type {PropType} from "vue";
 import type {Row} from "@/types";

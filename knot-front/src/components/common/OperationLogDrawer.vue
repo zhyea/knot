@@ -15,12 +15,12 @@
       <el-table-column prop="operation" label="操作" width="70" align="center" header-align="center"/>
       <el-table-column prop="operatorName" label="操作人" width="110" align="center" header-align="center">
         <template #default="{ row }">
-          {{ row.operatorName || "-" }}
+          {{ displayText(row.operatorName) }}
         </template>
       </el-table-column>
       <el-table-column prop="ipAddress" label="IP" width="130" align="center" header-align="center">
         <template #default="{ row }">
-          {{ row.ipAddress || "-" }}
+          {{ displayText(row.ipAddress) }}
         </template>
       </el-table-column>
       <el-table-column v-if="showEntityName" prop="entityName" label="对象" min-width="120" show-overflow-tooltip/>
@@ -40,6 +40,7 @@
 </template>
 
 <script setup lang="ts">
+import {displayText} from "@/utils/format";
 import { OperationLogStatus } from "@/constants/status";
 import {ref, watch} from "vue";
 import type {Row} from "@/types";

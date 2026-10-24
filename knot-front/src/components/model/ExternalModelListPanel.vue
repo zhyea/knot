@@ -14,17 +14,17 @@
       <el-table-column type="selection" width="48" fixed="left"/>
       <el-table-column prop="modelId" label="模型 ID" width="300">
         <template #default="{ row }">
-          <span class="cell-wrap">{{ row.modelId || "-" }}</span>
+          <span class="cell-wrap">{{ displayText(row.modelId) }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="modelName" label="模型名称" width="400">
         <template #default="{ row }">
-          <span class="cell-wrap">{{ row.modelName || "-" }}</span>
+          <span class="cell-wrap">{{ displayText(row.modelName) }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="providerName" label="供应商" width="150">
         <template #default="{ row }">
-          <span class="cell-wrap">{{ row.providerName || "-" }}</span>
+          <span class="cell-wrap">{{ displayText(row.providerName) }}</span>
         </template>
       </el-table-column>
       <el-table-column label="类型" width="160">
@@ -79,7 +79,7 @@ import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
-import {formatThousands} from "@/utils/format";
+import {formatThousands, displayText} from "@/utils/format";
 
 const {labelOf} = useEnumOptions();
 

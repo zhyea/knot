@@ -40,7 +40,7 @@
       <el-table-column prop="appName" label="应用" min-width="130" show-overflow-tooltip />
       <el-table-column label="应用场景" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">
-          {{ row.appScenario || "-" }}
+          {{ displayText(row.appScenario) }}
         </template>
       </el-table-column>
       <el-table-column label="归属用户" min-width="140" show-overflow-tooltip>
@@ -50,7 +50,7 @@
       </el-table-column>
       <el-table-column label="统一模型" min-width="140" show-overflow-tooltip>
         <template #default="{ row }">
-          {{ row.logicalModelName || row.logicalModelCode || "-" }}
+          {{ displayText(row.logicalModelName || row.logicalModelCode) }}
         </template>
       </el-table-column>
       <el-table-column label="创建时间" width="170" align="center" show-overflow-tooltip>
@@ -90,7 +90,7 @@ import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {updateRoutingRuleStatus} from "@/api/routing";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
-import {formatDateTime} from "@/utils/format";
+import {formatDateTime, displayText} from "@/utils/format";
 import type {PropType} from "vue";
 import type {Row} from "@/types";
 
@@ -140,7 +140,7 @@ function userLabel(row: Row): string {
   if (realName) {
     return `${realName}(${username})`;
   }
-  return username || "-";
+  return displayText(username);
 }
 
 function handleAction(action: string, row: Row) {

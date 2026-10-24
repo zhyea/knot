@@ -50,9 +50,9 @@
         <el-descriptions-item label="计费模式">{{ modeLabel(result.billingMode) }}</el-descriptions-item>
         <el-descriptions-item label="进阶方案">{{ planLabel(result.pricingPlan) }}</el-descriptions-item>
         <el-descriptions-item label="币种 / 单位">
-          {{ result.currency || "-" }} / {{ result.unit || "-" }}（{{ result.unitSize }}）
+          {{ displayText(result.currency) }} / {{ displayText(result.unit) }}（{{ result.unitSize }}）
         </el-descriptions-item>
-        <el-descriptions-item label="判定时刻">{{ result.occurredAt || "-" }}</el-descriptions-item>
+        <el-descriptions-item label="判定时刻">{{ displayText(result.occurredAt) }}</el-descriptions-item>
         <el-descriptions-item label="时区">{{ result.timezone || "不适用" }}</el-descriptions-item>
       </el-descriptions>
 
@@ -77,6 +77,7 @@
 </template>
 
 <script setup lang="ts">
+import {displayText} from "@/utils/format";
 import {computed, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import type {Dict, Row} from "@/types";
@@ -137,11 +138,11 @@ const reasonText = computed(() => {
 });
 
 function modeLabel(code: unknown): string {
-  return enumLabelOf("BillingModeEnum", code, String(code || "-"));
+  return enumLabelOf("BillingModeEnum", code, displayText(code));
 }
 
 function planLabel(code: unknown): string {
-  return enumLabelOf("PricingPlanEnum", code, String(code || "-"));
+  return enumLabelOf("PricingPlanEnum", code, displayText(code));
 }
 
 async function run() {

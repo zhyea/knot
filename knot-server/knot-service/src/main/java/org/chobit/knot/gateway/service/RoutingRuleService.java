@@ -330,6 +330,15 @@ public class RoutingRuleService {
         );
     }
 
+    /**
+     * 路由目标整表替换：按 {@code ruleCode} 先删后插。
+     *
+     * <p><b>刻意与 {@code ModelService#saveApiBindings} 的「按 id 增量 diff」不同，不要统一</b>
+     * （改进清单 4.7 决议）：目标列表的提交顺序不承载语义、行本身也没被按 id 外部引用，
+     * 全量替换一次落地最省心；反观 API 绑定的行 id 会进操作日志与后续引用，整批换 id 是噪音。
+     * 两者共用的是「编码改码守卫」这一份能力（{@link CodeBindingSupport}），
+     * 而不是明细保存策略。</p>
+     */
     private void saveTargets(Long ruleId, List<RoutingRuleTargetDto> targets) {
         RoutingRuleEntity rule = routingRuleMapper.getById(ruleId);
         if (rule == null) {

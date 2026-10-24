@@ -4,7 +4,6 @@ import java.util.Map;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpResponse;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -26,19 +25,7 @@ public class RoutingRuleDebugRunner {
     private final RestClient restClient;
 
     public RoutingRuleDebugRunner() {
-        this.restClient = createRestClient();
-    }
-
-    /**
-     * 调试链路专用客户端：显式设置连接超时与流式读取空闲超时。
-     */
-    private static RestClient createRestClient() {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(CONNECT_TIMEOUT_MS);
-        factory.setReadTimeout(READ_IDLE_TIMEOUT_MS);
-        return RestClient.builder()
-                .requestFactory(factory)
-                .build();
+        this.restClient = RestClientSupport.withTimeouts(CONNECT_TIMEOUT_MS, READ_IDLE_TIMEOUT_MS);
     }
 
     /**

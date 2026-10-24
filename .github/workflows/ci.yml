@@ -112,6 +112,14 @@ jobs:
         working-directory: knot-front
         run: npm run type-check
 
+      # 死代码门禁：tsconfig 里 noUnusedLocals 是 false（开发期不被未使用变量打断），
+      # 而 vite build 会把死代码 tree-shake 掉、构建永远绿——这个维度此前从未被守过。
+      # 用 CLI flag 临时打开，不改 tsconfig 本身（改配置会让开发期的编辑体验变差）。
+      # 2026-10-25 首次执行时扫出 7 处残留 import/解构名（3.6 拆 composable 的尾巴）。
+      - name: Dead code check (vue-tsc --noUnusedLocals)
+        working-directory: knot-front
+        run: npm run type-check:strict
+
       - name: Build (vite build)
         working-directory: knot-front
         run: npx vite build
