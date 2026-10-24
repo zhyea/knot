@@ -10,6 +10,7 @@ import org.chobit.knot.gateway.mapper.ProviderProfileMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.support.CodeBindingSupport;
+import org.chobit.knot.gateway.service.support.AuditSnapshotSupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.provider.ProviderProfileItem;
 import org.springframework.stereotype.Service;
@@ -146,14 +147,13 @@ public class ProviderProfileService {
     }
 
     /**
-     * 操作日志用的实体快照。
+     * 操作日志用的供应商档案快照：档案不存在时返回空 map（该域既有口径，保持不变）。
      */
     public Map<String, Object> providerProfileAuditSnapshot(Long id) {
-        ProviderProfileEntity entity = providerProfileMapper.getById(id);
-        if (entity == null) {
-            return Map.of();
-        }
-        return JsonKit.toMap(entity);
+        return AuditSnapshotSupport.capture(id, key -> {
+            ProviderProfileEntity entity = providerProfileMapper.getById(key);
+            return entity == null ? Map.of() : JsonKit.toMap(entity);
+        });
     }
 
     private ProviderProfileItem toItem(ProviderProfileEntity entity) {

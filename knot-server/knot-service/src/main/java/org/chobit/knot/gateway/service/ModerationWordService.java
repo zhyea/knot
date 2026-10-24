@@ -16,6 +16,7 @@ import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.moderation.ModerationTerm;
 import org.chobit.knot.gateway.util.TextNormalizer;
+import org.chobit.knot.gateway.service.support.AuditSnapshotSupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -311,20 +312,15 @@ public class ModerationWordService {
     }
 
     /**
-     * Builds the audit snapshot recorded by {@code @OperationLog}.
-     * Evaluated by the {@code @Around} aspect before the method body runs, so a logical
-     * delete still captures the full pre-delete state.
+     * 操作日志用的敏感词快照：{@code @OperationLog} 的 SpEL 在方法前后各取一次，
+     * 逻辑删除也能取到删除前的完整状态；词条不存在时返回 {@code null}。
      */
     public Map<String, Object> auditSnapshot(Long id) {
-        if (id == null) {
-            return null;
-        }
-        try {
-            ModerationWordEntity entity = wordMapper.getByIdIncludingDeleted(id);
+        // 含已删除：删除操作要取删除瞬间状态
+        return AuditSnapshotSupport.capture(id, key -> {
+            ModerationWordEntity entity = wordMapper.getByIdIncludingDeleted(key);
             return entity == null ? null : JsonKit.toMap(converter.toDto(entity));
-        } catch (BusinessException e) {
-            return null;
-        }
+        });
     }
 
     private Set<String> existingKeys() {

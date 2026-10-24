@@ -18,6 +18,7 @@ import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.vo.auth.LoginResponse;
+import org.chobit.knot.gateway.service.support.AuditSnapshotSupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.user.ResetPasswordResult;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -157,23 +158,22 @@ public class UserService {
     }
 
     /**
-     * Returns a user snapshot for operation log auditing.
-     * <p>
-     * 仅由 {@code @OperationLog} 的 SpEL 表达式（{@code @userService.userAuditSnapshot(...)}）反射调用，
-     * Java 侧无直接引用，IDE 会误报 unused。
+     * 操作日志用的用户快照：{@code @OperationLog} 的 SpEL 在方法前后各取一次，
+     * 用户不存在时返回 {@code null}。角色随快照一并带出，密码等敏感字段脱敏后落日志。
+     *
+     * <p>仅由 SpEL 反射调用，Java 侧无直接引用，IDE 会误报 unused。</p>
      */
     @SuppressWarnings("unused")
     public Map<String, Object> userAuditSnapshot(Long id) {
-        if (id == null) {
-            return null;
-        }
-        UserEntity entity = userMapper.getUserById(id);
-        if (entity == null) {
-            return null;
-        }
-        entity.setRoleIds(userMapper.listRoleIdsByUserId(id));
-        entity.setRoleNames(resolveRoleNames(entity.getRoleIds()));
-        return JsonKit.toMaskedMap(entity);
+        return AuditSnapshotSupport.capture(id, key -> {
+            UserEntity entity = userMapper.getUserById(key);
+            if (entity == null) {
+                return null;
+            }
+            entity.setRoleIds(userMapper.listRoleIdsByUserId(key));
+            entity.setRoleNames(resolveRoleNames(entity.getRoleIds()));
+            return JsonKit.toMaskedMap(entity);
+        });
     }
 
     /**

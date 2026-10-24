@@ -19,6 +19,7 @@ import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.mapper.ModelPoolMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.service.support.AuditSnapshotSupport;
 import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Service;
@@ -204,22 +205,15 @@ public class ModelPoolService {
     }
 
     /**
-     * Builds the audit snapshot recorded by {@code @OperationLog}.
-     * Evaluated by the {@code @Around} aspect before the method body runs, so a logical
-     * delete still captures the full pre-delete state. Returns null once the pool is gone
-     * (repeated delete) or the id is null.
+     * 操作日志用的模型池快照：{@code @OperationLog} 的 SpEL 在方法前后各取一次，
+     * 逻辑删除也能取到删除前的完整状态；实体不存在时返回 {@code null}。
      */
     public Map<String, Object> modelPoolAuditSnapshot(Long id) {
-        if (id == null) {
-            return null;
-        }
-        try {
-            // 含已删除：恢复操作要取删除前快照，删除操作要取删除瞬间状态
-            ModelPoolEntity entity = modelPoolMapper.getByIdIncludingDeleted(id);
+        // 含已删除：恢复操作要取删除前快照，删除操作要取删除瞬间状态
+        return AuditSnapshotSupport.capture(id, key -> {
+            ModelPoolEntity entity = modelPoolMapper.getByIdIncludingDeleted(key);
             return entity == null ? null : JsonKit.toMap(toDto(entity));
-        } catch (BusinessException e) {
-            return null;
-        }
+        });
     }
 
     private ModelPoolDto toDto(ModelPoolEntity entity) {

@@ -14,6 +14,7 @@ import org.chobit.knot.gateway.mapper.UserMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.service.support.CodeBindingSupport;
+import org.chobit.knot.gateway.service.support.AuditSnapshotSupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -132,15 +133,14 @@ public class DepartmentService {
         return departmentConverter.toDto(existing);
     }
 
+    /**
+     * 操作日志用的部门快照：部门不存在时返回 {@code null}。
+     */
     public Map<String, Object> departmentAuditSnapshot(Long id) {
-        if (id == null) {
-            return null;
-        }
-        DepartmentEntity entity = departmentMapper.getById(id);
-        if (entity == null) {
-            return null;
-        }
-        return JsonKit.toMap(entity);
+        return AuditSnapshotSupport.capture(id, key -> {
+            DepartmentEntity entity = departmentMapper.getById(key);
+            return entity == null ? null : JsonKit.toMap(entity);
+        });
     }
 
     /**

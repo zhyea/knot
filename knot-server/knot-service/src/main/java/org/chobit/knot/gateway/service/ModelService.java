@@ -45,6 +45,7 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.service.support.AuditSnapshotSupport;
 import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
 import org.chobit.knot.gateway.usage.extractor.DefaultTokenUsageExtractor;
@@ -164,18 +165,11 @@ public class ModelService {
     }
 
     /**
-     * Builds the model snapshot used by {@code @OperationLog} SpEL expressions.
-     * Returns {@code null} when the model no longer exists.
+     * 操作日志用的供应商模型快照：{@code @OperationLog} 的 SpEL 在方法前后各取一次，
+     * 模型不存在时返回 {@code null}。
      */
     public Map<String, Object> modelAuditSnapshot(Long id) {
-        if (id == null) {
-            return null;
-        }
-        try {
-            return JsonKit.toMap(getById(id));
-        } catch (BusinessException e) {
-            return null;
-        }
+        return AuditSnapshotSupport.capture(id, key -> JsonKit.toMap(getById(key)));
     }
 
     /**
@@ -408,12 +402,14 @@ public class ModelService {
         return toDiscountPolicyDto(entity);
     }
 
+    /**
+     * 操作日志用的折扣策略快照：策略不存在时返回 {@code null}。
+     */
     public Map<String, Object> discountPolicyAuditSnapshot(Long policyId) {
-        if (policyId == null) {
-            return null;
-        }
-        DiscountPolicyEntity entity = discountPolicyMapper.getById(policyId);
-        return entity == null ? null : JsonKit.toMap(entity);
+        return AuditSnapshotSupport.capture(policyId, key -> {
+            DiscountPolicyEntity entity = discountPolicyMapper.getById(key);
+            return entity == null ? null : JsonKit.toMap(entity);
+        });
     }
 
     /** 折扣策略按模型业务码绑定，模型必须存在且未删除。 */

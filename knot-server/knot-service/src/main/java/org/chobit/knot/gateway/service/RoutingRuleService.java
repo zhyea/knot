@@ -50,6 +50,7 @@ import org.chobit.knot.gateway.model.RetryPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
+import org.chobit.knot.gateway.service.support.AuditSnapshotSupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.tools.RoutingRuleCodeGenerator;
 import org.chobit.knot.gateway.vo.routing.ProtocolDebugCapabilityItem;
@@ -205,21 +206,11 @@ public class RoutingRuleService {
     }
 
     /**
-     * Returns the audit snapshot used by {@code @OperationLog} SpEL expressions.
-     *
-     * <p>The operation log aspect evaluates this method both before and after
-     * routing rule updates. A missing rule is treated as an empty snapshot so
-     * that audit collection never changes the outcome of the business request.</p>
+     * 操作日志用的路由规则快照：{@code @OperationLog} 的 SpEL 在方法前后各取一次，
+     * 规则不存在时返回 {@code null}——审计采集永远不得改变业务请求的结果。
      */
     public Map<String, Object> routingRuleAuditSnapshot(Long id) {
-        if (id == null) {
-            return null;
-        }
-        try {
-            return JsonKit.toMaskedMap(getById(id));
-        } catch (BusinessException e) {
-            return null;
-        }
+        return AuditSnapshotSupport.capture(id, key -> JsonKit.toMaskedMap(getById(key)));
     }
 
     /**

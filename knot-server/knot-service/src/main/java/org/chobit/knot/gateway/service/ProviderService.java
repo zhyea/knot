@@ -30,6 +30,7 @@ import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.service.support.ProviderCredentialSupport;
 import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
+import org.chobit.knot.gateway.service.support.AuditSnapshotSupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.tools.ProviderCodes;
 import org.chobit.knot.gateway.vo.provider.AuthApplierItem;
@@ -195,21 +196,15 @@ public class ProviderService {
     }
 
     /**
-     * Returns the audit snapshot used by operation logging.
+     * 操作日志用的供应商账户快照：{@code @OperationLog} 的 SpEL 在方法前后各取一次，
+     * 账户不存在时返回 {@code null}。凭证原文脱敏后才落日志。
      */
     public Map<String, Object> providerAuditSnapshot(Long id) {
-        if (id == null) {
-            return null;
-        }
-        ProviderAccountDto dto;
-        try {
-            dto = getById(id);
-        } catch (BusinessException e) {
-            return null;
-        }
-        Map<String, Object> m = JsonKit.toMap(dto);
-        m.put("authConfig", credentialSupport.maskAuthConfig(loadRawAuthConfig(id)));
-        return m;
+        return AuditSnapshotSupport.capture(id, key -> {
+            Map<String, Object> snapshot = JsonKit.toMap(getById(key));
+            snapshot.put("authConfig", credentialSupport.maskAuthConfig(loadRawAuthConfig(key)));
+            return snapshot;
+        });
     }
 
     /**

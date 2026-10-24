@@ -18,6 +18,7 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.service.support.AuditSnapshotSupport;
 import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
 import org.chobit.knot.gateway.util.JsonKit;
@@ -160,18 +161,11 @@ public class AppService {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * 操作日志用的应用快照：{@code @OperationLog} 的 SpEL 在方法前后各取一次，
+     * 实体不存在时返回 {@code null}（重复删除不改写业务结果）。
      */
     public Map<String, Object> appAuditSnapshot(Long id) {
-        if (id == null) {
-            return null;
-        }
-        try {
-            AppDto dto = getById(id);
-            return JsonKit.toMap(dto);
-        } catch (BusinessException e) {
-            return null;
-        }
+        return AuditSnapshotSupport.capture(id, key -> JsonKit.toMap(getById(key)));
     }
 
     private AppDto enrich(AppDto base, Long appId) {

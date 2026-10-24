@@ -14,6 +14,7 @@ import org.chobit.knot.gateway.mapper.LogicalModelMapper;
 import org.chobit.knot.gateway.mapper.RoutingTestPresetMapper;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.gateway.service.support.AuditSnapshotSupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -65,18 +66,14 @@ public class RoutingTestPresetService {
     }
 
     /**
-     * Builds the snapshot used by operation-log SpEL expressions.
-     *
-     * <p>The aspect evaluates this method before and after an update. Returning
-     * the current persisted row before the update gives the log a real old value
-     * and lets the aspect suppress no-op update logs.</p>
+     * 操作日志用的测试预设快照：{@code @OperationLog} 的 SpEL 在更新前后各取一次，
+     * 更新前取库中现值作为 old value，并让 aspect 借此抑制无变更的日志；预设不存在时返回 {@code null}。
      */
     public Map<String, Object> routingTestPresetAuditSnapshot(Long id) {
-        if (id == null) {
-            return null;
-        }
-        RoutingTestPresetEntity entity = presetMapper.getById(id);
-        return entity == null ? null : JsonKit.toMap(presetConverter.toDto(entity));
+        return AuditSnapshotSupport.capture(id, key -> {
+            RoutingTestPresetEntity entity = presetMapper.getById(key);
+            return entity == null ? null : JsonKit.toMap(presetConverter.toDto(entity));
+        });
     }
 
     @Transactional

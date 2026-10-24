@@ -22,6 +22,7 @@ import org.chobit.knot.gateway.entity.BillingRuleVersionEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
+import org.chobit.knot.gateway.service.support.AuditSnapshotSupport;
 import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.vo.billing.BillingCapabilities;
 import org.chobit.knot.gateway.vo.billing.BillingReportSummary;
@@ -74,10 +75,10 @@ public class BillingService {
                                                      Boolean includeDeleted) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<BillingRuleEntity> pageInfo = new PageInfo<>(
-                    billingRuleMapper.list(normalizeKeyword(keyword),
-                            normalizeModelFamily(modelFamilyCode),
-                            normalizeKeyword(code),
-                            includeDeleted)
+                billingRuleMapper.list(normalizeKeyword(keyword),
+                    normalizeModelFamily(modelFamilyCode),
+                    normalizeKeyword(code),
+                    includeDeleted)
             );
             return PageResult.fromPage(pageInfo, list -> list.stream().map(billingConverter::toRuleListItem).toList(), pageRequest);
         }
@@ -107,8 +108,8 @@ public class BillingService {
         BillingRuleDto rule = getRuleById(ruleId);
         Instant occurredAt = parseInstant(request == null ? null : request.occurredAt());
         long amount = request == null || request.usageAmount() == null || request.usageAmount() < 0
-                ? 0L
-                : request.usageAmount();
+            ? 0L
+            : request.usageAmount();
         String mode = normalizeBillingMode(rule.billingMode());
         BillingModeEnum modeEnum = BillingModeEnum.fromCode(mode);
         if (modeEnum == null) {
@@ -129,27 +130,29 @@ public class BillingService {
                 decision = PeakOffPeakResolver.resolve(config.pricing(), occurredAt, HolidayCalendar.EMPTY);
             }
             prices = BillingModeEnum.TOKEN == modeEnum
-                    ? tokenPricesOf(pricingPlan, context, zero)
-                    : Map.of("default", pricingPlan.resolveDefaultPrice(context, zero));
+                ? tokenPricesOf(pricingPlan, context, zero)
+                : Map.of("default", pricingPlan.resolveDefaultPrice(context, zero));
         }
         return new PricingPreviewResult(
-                rule.id(),
-                rule.code(),
-                modeEnum.code(),
-                plan == null ? PricingPlanEnum.FIXED.code() : plan.code(),
-                rule.currency(),
-                rule.unit(),
-                unitSize(rule.unit()),
-                occurredAt.toString(),
-                config == null || config.pricing() == null ? null : config.pricing().timezone(),
-                decision == null ? null : decision.phase().code(),
-                decision == null ? null : decision.reason().name(),
-                decision == null ? null : decision.multiplier(),
-                prices
+            rule.id(),
+            rule.code(),
+            modeEnum.code(),
+            plan == null ? PricingPlanEnum.FIXED.code() : plan.code(),
+            rule.currency(),
+            rule.unit(),
+            unitSize(rule.unit()),
+            occurredAt.toString(),
+            config == null || config.pricing() == null ? null : config.pricing().timezone(),
+            decision == null ? null : decision.phase().code(),
+            decision == null ? null : decision.reason().name(),
+            decision == null ? null : decision.multiplier(),
+            prices
         );
     }
 
-    /** TOKEN 模式四种单价一次性算齐；未填的价格记为 0，与既有 TOKEN 计算器口径一致 */
+    /**
+     * TOKEN 模式四种单价一次性算齐；未填的价格记为 0，与既有 TOKEN 计算器口径一致
+     */
     private Map<String, BigDecimal> tokenPricesOf(BillingConfig.PricingPlan pricingPlan,
                                                   BillingConfig.PricingContext context,
                                                   BigDecimal zero) {
@@ -161,7 +164,9 @@ public class BillingService {
         return prices;
     }
 
-    /** ISO-8601 时点解析：支持 {@code 2026-09-28T02:30:00Z} 与带偏移写法；空值取当前时间 */
+    /**
+     * ISO-8601 时点解析：支持 {@code 2026-09-28T02:30:00Z} 与带偏移写法；空值取当前时间
+     */
     private Instant parseInstant(String text) {
         String value = StringUtils.trimToNull(text);
         if (value == null) {
@@ -184,21 +189,21 @@ public class BillingService {
      */
     public BillingCapabilities listModeCapabilities() {
         List<BillingCapabilities.BillingModeCapability> modes = Arrays.stream(BillingModeEnum.values())
-                .map(mode -> new BillingCapabilities.BillingModeCapability(
-                        mode.code(),
-                        mode.supportedUnitCodes(),
-                        mode.defaultUnit().code(),
-                        Arrays.stream(PricingPlanEnum.values())
-                                .filter(PricingPlanEnum::isAvailable)
-                                .filter(plan -> plan.supports(mode))
-                                .map(PricingPlanEnum::code)
-                                .toList()
-                ))
-                .toList();
+            .map(mode -> new BillingCapabilities.BillingModeCapability(
+                mode.code(),
+                mode.supportedUnitCodes(),
+                mode.defaultUnit().code(),
+                Arrays.stream(PricingPlanEnum.values())
+                    .filter(PricingPlanEnum::isAvailable)
+                    .filter(plan -> plan.supports(mode))
+                    .map(PricingPlanEnum::code)
+                    .toList()
+            ))
+            .toList();
         List<BillingCapabilities.PricingPlanCapability> plans = Arrays.stream(PricingPlanEnum.values())
-                .filter(PricingPlanEnum::isAvailable)
-                .map(plan -> new BillingCapabilities.PricingPlanCapability(plan.code()))
-                .toList();
+            .filter(PricingPlanEnum::isAvailable)
+            .map(plan -> new BillingCapabilities.PricingPlanCapability(plan.code()))
+            .toList();
         return new BillingCapabilities(modes, plans);
     }
 
@@ -211,8 +216,8 @@ public class BillingService {
 
         long activeRules = rules.stream().filter(r -> isActive(r.getStatus())).count();
         long activeVersionRules = rules.stream()
-                .filter(r -> r.getVersionCode() != null && isActive(r.getVersionStatus()))
-                .count();
+            .filter(r -> r.getVersionCode() != null && isActive(r.getVersionStatus()))
+            .count();
 
         Map<String, BillingReportSummary.ModelFamilyDistribution> familyMap = new LinkedHashMap<>();
         Map<String, Long> modeMap = new LinkedHashMap<>();
@@ -226,11 +231,11 @@ public class BillingService {
             familyMap.compute(familyKey, (key, dist) -> {
                 if (dist == null) {
                     return new BillingReportSummary.ModelFamilyDistribution(
-                            rule.getModelFamilyCode(), rule.getModelFamilyName(), 1L, active ? 1L : 0L);
+                        rule.getModelFamilyCode(), rule.getModelFamilyName(), 1L, active ? 1L : 0L);
                 }
                 return new BillingReportSummary.ModelFamilyDistribution(
-                        dist.modelFamilyCode(), dist.modelFamilyName(), dist.ruleCount() + 1,
-                        dist.activeCount() + (active ? 1L : 0L));
+                    dist.modelFamilyCode(), dist.modelFamilyName(), dist.ruleCount() + 1,
+                    dist.activeCount() + (active ? 1L : 0L));
             });
 
             modeMap.merge(rule.getBillingMode() == null ? "" : rule.getBillingMode(), 1L, Long::sum);
@@ -241,15 +246,15 @@ public class BillingService {
         long modelCount = familyMap.keySet().stream().filter(key -> !key.isEmpty()).count();
 
         return new BillingReportSummary(
-                rules.size(),
-                activeRules,
-                rules.size() - activeRules,
-                activeVersionRules,
-                modelCount,
-                List.copyOf(familyMap.values()),
-                toCodeCounts(modeMap),
-                toCodeCounts(planMap),
-                toCodeCounts(currencyMap)
+            rules.size(),
+            activeRules,
+            rules.size() - activeRules,
+            activeVersionRules,
+            modelCount,
+            List.copyOf(familyMap.values()),
+            toCodeCounts(modeMap),
+            toCodeCounts(planMap),
+            toCodeCounts(currencyMap)
         );
     }
 
@@ -259,24 +264,17 @@ public class BillingService {
 
     private List<BillingReportSummary.CodeCount> toCodeCounts(Map<String, Long> map) {
         return map.entrySet().stream()
-                .map(entry -> new BillingReportSummary.CodeCount(
-                        entry.getKey().isEmpty() ? null : entry.getKey(), entry.getValue()))
-                .toList();
+            .map(entry -> new BillingReportSummary.CodeCount(
+                entry.getKey().isEmpty() ? null : entry.getKey(), entry.getValue()))
+            .toList();
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * 操作日志用的计费规则快照：{@code @OperationLog} 的 SpEL 在方法前后各取一次，
+     * 规则不存在时返回 {@code null}（重复删除不改写业务结果）。
      */
     public Map<String, Object> billingRuleAuditSnapshot(Long id) {
-        if (id == null) {
-            return null;
-        }
-        try {
-            BillingRuleDto dto = getRuleById(id);
-            return JsonKit.toMap(dto);
-        } catch (BusinessException e) {
-            return null;
-        }
+        return AuditSnapshotSupport.capture(id, key -> JsonKit.toMap(getRuleById(key)));
     }
 
     /**
@@ -420,19 +418,21 @@ public class BillingService {
     }
 
     /** 版本内容指纹：结构化计费字段（含 pricingPlan）+ 归一化 config_json 的 MD5 */
-    /** 包内可见：便于同包测试直接验证指纹兼容性与字段作用域。 */
+    /**
+     * 包内可见：便于同包测试直接验证指纹兼容性与字段作用域。
+     */
     String buildUniqHash(BillingRuleDto request) {
         BillingRuleDto normalized = request.withNormalizedPricing(
-                normalizeBillingMode(request.billingMode()),
-                normalizePricingPlan(request.pricingPlan()),
-                normalizeCurrency(request.currency()),
-                normalizeUnit(request.unit()));
+            normalizeBillingMode(request.billingMode()),
+            normalizePricingPlan(request.pricingPlan()),
+            normalizeCurrency(request.currency()),
+            normalizeUnit(request.unit()));
         BillingVersionFingerprint fingerprint = new BillingVersionFingerprint(
-                normalized.billingMode(),
-                normalized.pricingPlan(),
-                normalized.currency(),
-                normalized.unit(),
-                normalizeJsonText(normalized.configJson()));
+            normalized.billingMode(),
+            normalized.pricingPlan(),
+            normalized.currency(),
+            normalized.unit(),
+            normalizeJsonText(normalized.configJson()));
         try {
             return md5Hex(JsonKit.toJsonOrThrow(fingerprint));
         } catch (JsonProcessingException e) {
@@ -461,7 +461,7 @@ public class BillingService {
             throw new BusinessException(ErrorCode.CONFLICT, "billing rule code already exists");
         }
         CurrencyCodeEnum.requireCode(normalizeCurrency(request.currency()),
-                "unsupported currency: " + request.currency());
+            "unsupported currency: " + request.currency());
         PricingPlanEnum plan = PricingPlanEnum.fromCode(request.pricingPlan());
         if (plan == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "unsupported pricing plan: " + request.pricingPlan());
@@ -470,7 +470,7 @@ public class BillingService {
         BillingModeEnum mode = BillingModeEnum.fromCode(request.billingMode());
         if (!plan.supports(mode)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                    "pricing plan " + plan.code() + " is not supported by mode " + request.billingMode());
+                "pricing plan " + plan.code() + " is not supported by mode " + request.billingMode());
         }
         validateConfigJson(request.configJson(), plan);
     }
@@ -511,7 +511,7 @@ public class BillingService {
         String normalizedUnit = BillingUnitEnum.requireCode(unit, "unsupported billing unit: " + unit);
         if (!mode.supportsUnit(normalizedUnit)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                    "billing unit " + normalizedUnit + " is not supported by mode " + mode.code());
+                "billing unit " + normalizedUnit + " is not supported by mode " + mode.code());
         }
     }
 
@@ -543,7 +543,9 @@ public class BillingService {
         return EnabledStatusEnum.codeOf(enabled);
     }
 
-    /** 规则编码归一：仅去空白，不再强制大写（编码大小写由用户自定，唯一性按原值校验） */
+    /**
+     * 规则编码归一：仅去空白，不再强制大写（编码大小写由用户自定，唯一性按原值校验）
+     */
     private static String normalizeCode(String value) {
         return value == null ? "" : value.trim();
     }
@@ -575,7 +577,9 @@ public class BillingService {
         return normalized.isEmpty() ? CurrencyCodeEnum.USD.code() : normalized;
     }
 
-    /** 进阶定价方案归一：空值默认 FIXED（调用前已由 validateRule 保证非空合法） */
+    /**
+     * 进阶定价方案归一：空值默认 FIXED（调用前已由 validateRule 保证非空合法）
+     */
     private static String normalizePricingPlan(String value) {
         PricingPlanEnum plan = PricingPlanEnum.fromCode(value);
         return plan == null ? PricingPlanEnum.FIXED.code() : plan.code();
@@ -586,7 +590,9 @@ public class BillingService {
         return normalized.isEmpty() ? BillingUnitEnum.ONE_K_TOKENS.code() : normalized;
     }
 
-    /** 模型族 code 归一：小写；空值返回 null 表示默认规则（覆盖所有族） */
+    /**
+     * 模型族 code 归一：小写；空值返回 null 表示默认规则（覆盖所有族）
+     */
     private static String normalizeModelFamily(String value) {
         String normalized = value == null ? "" : value.trim().toLowerCase();
         return normalized.isEmpty() ? null : normalized;

@@ -150,10 +150,20 @@ model       → 领域值对象（非表映射）
   - 判例：`TimeoutException` 在 `GatewayExceptionHandler:200` 是 `504/timeout_error`，在 `ErrorMsgDto:46-91` 却落 `500/upstream_error`——数仓把网关总超时记成"上游故障"。
 - **恒等抽象禁止**：`normalize(x)` / `canonical(x)` / `convert(x)` 这类名字宣称做了变换，方法体却 `return x` / `return this`。要么实现变换，要么改名（如 `identity()`）或删除。判例 `ModelApiProtocolEnum.canonical()`。
   ⚠ 例外（**不算违规**，审查时勿报）：建造者/流式 API 的 `return this`、接口默认实现的"使用默认值"、测试替身的链式返回。
-- **审计快照模式（2026-10-24 立规）**：`@OperationLog(oldValueSpel = "@xxxService.snapshot(#p0)")` 的快照方法统一形态为
-  `try { dto = getById(id); return JsonKit.toMap(dto); } catch (BusinessException e) { return null; }`
-  （目标已删除时快照为 null，属合法语义，**不要**给它加日志噪音）。该模式目前复制于 8 个 Service，
-  后续新增 Service 需要快照时，优先复用/抽取公共 Support，不要再抄一遍。
+- **审计快照模式（2026-10-24 立规，同日收口）**：`@OperationLog(oldValueSpel = "@xxxService.snapshot(#p0)")` 的
+  Map 版快照方法**一律经 `AuditSnapshotSupport.capture(id, loader)`**（`service.support`，静态纯函数）：
+  ```java
+  public Map<String, Object> xxxAuditSnapshot(Long id) {
+      return AuditSnapshotSupport.capture(id, key -> JsonKit.toMap(getById(key)));
+  }
+  ```
+  骨架统一为「id 为空 → `null`；加载抛 `BusinessException`（含实体不存在、重复删除）→ `null`」——
+  目标已删除时快照为 null 属合法语义，**不要**给它加日志噪音。loader 里只放「加载 + 序列化」：
+  含已删除查询、`toMaskedMap` 脱敏、后处理（如 `authConfig` 脱敏）都放这里。
+  ⚠ **只吞 `BusinessException`**：其它 RuntimeException 必须冒出去——吞掉等于把转换器缺陷洗成「快照为空」。
+  ⚠ 实测口径（2026-10-24）：Map 版快照共 **14 处**已全部切换（旧文档写「8 个 Service」是未实测的估计）；
+  返回 Entity 的 authorization 域 5 处不走本骨架（无异常吞噬语义，形态不同，勿套用）。
+  新增 Service 需要快照时**不得再手抄** try/catch 骨架。
 
 ## 7. 测试
 

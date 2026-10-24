@@ -18,6 +18,7 @@ import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
+import org.chobit.knot.gateway.service.support.AuditSnapshotSupport;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.tools.RoutingRuleCodeGenerator;
 import org.chobit.knot.gateway.util.tools.RoutingSecretKeyGenerator;
@@ -106,18 +107,11 @@ public class RoutingConsumerService {
     }
 
     /**
-     * Returns the audit snapshot used by operation logging.
+     * 操作日志用的路由消费者快照：{@code @OperationLog} 的 SpEL 在方法前后各取一次，
+     * 消费者不存在时返回 {@code null}。密钥等敏感字段脱敏后落日志。
      */
     public Map<String, Object> consumerAuditSnapshot(Long id) {
-        if (id == null) {
-            return null;
-        }
-        try {
-            RoutingConsumerDto dto = getById(id);
-            return JsonKit.toMaskedMap(dto);
-        } catch (BusinessException e) {
-            return null;
-        }
+        return AuditSnapshotSupport.capture(id, key -> JsonKit.toMaskedMap(getById(key)));
     }
 
     /**
