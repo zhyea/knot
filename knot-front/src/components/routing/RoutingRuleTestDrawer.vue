@@ -300,7 +300,7 @@ import {
   serializeBody
 } from "@/utils/routingTestError";
 import {type SseEvent} from "@/utils/sse";
-import {RouteTargetType} from "@/constants/status";
+import {RouteTargetType, RoutingTestRunState, RoutingTestStatus} from "@/constants/status";
 import type {Dict} from "@/types";
 
 const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || "http://127.0.0.1:9090";
@@ -495,10 +495,10 @@ const elapsedLabel = computed(() => {
 });
 
 const resultTagType = computed(() => {
-  if (testResult.value?.status === "RUNNING") {
+  if (testResult.value?.status === RoutingTestRunState.RUNNING) {
     return "warning";
   }
-  return testResult.value?.status === "SUCCESS" ? "success" : "danger";
+  return testResult.value?.status === RoutingTestStatus.SUCCESS ? "success" : "danger";
 });
 
 /** 预设请求（按协议复用的完整请求体用例），调试面板下拉从接口载入 */
@@ -1111,7 +1111,7 @@ function formatBody(body: unknown): string {
 function validationError(message: string): boolean {
   responseTab.value = "summary";
   testResult.value = {
-    status: "ERROR",
+    status: RoutingTestRunState.ERROR,
     httpStatus: null,
     modelCode: null,
     protocol: activeProtocol.value || null,
@@ -1146,7 +1146,7 @@ async function runTest() {
   if (parsedTemplateBody.value.error) {
     responseTab.value = "summary";
     testResult.value = {
-      status: "ERROR",
+      status: RoutingTestRunState.ERROR,
       httpStatus: null,
       modelCode: null,
       protocol: activeProtocol.value,
@@ -1188,7 +1188,7 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget | null, 
     // 被告提取：整包响应体顶层 knot_extend{usage, billing} + 并列 usage（上游原文）
     captureKnotExtend(response.data);
     testResult.value = {
-      status: "SUCCESS",
+      status: RoutingTestStatus.SUCCESS,
       httpStatus: response.status,
       // 「全部目标」下网关按规则实际路由，命中模型取响应头 X-Knot-Model
       modelCode: target?.targetCode || servingModelCode(),
@@ -1242,7 +1242,7 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget | null,
   // 先切到「流式响应」页并建立 RUNNING 态，避免等待期间显示空 skeleton
   responseTab.value = "stream";
   testResult.value = {
-    status: "RUNNING",
+    status: RoutingTestRunState.RUNNING,
     httpStatus: null,
     modelCode: null,
     protocol,
@@ -1276,14 +1276,14 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget | null,
     flushBlocks();
     recoverKnotExtendFromStreamBlocks();
     // 直连网关读取的是原生模型 SSE，没有管理端包装的 complete 事件；EOF 即成功结束。
-    if (testResult.value?.status === "RUNNING") {
-      finishStream("SUCCESS", "");
+    if (testResult.value?.status === RoutingTestRunState.RUNNING) {
+      finishStream(RoutingTestStatus.SUCCESS, "");
     }
     // 裁判第二步（v7 §3.2）：流式下 knot_extend 为 [DONE] 前独立事件，EOF 时已到手
     if (testBillingVerify.value) {
       if (knotExtend.value) {
         void triggerBillingVerdict(gatewayBody, true);
-      } else if (testResult.value?.status === "SUCCESS") {
+      } else if (testResult.value?.status === RoutingTestStatus.SUCCESS) {
         verdictSkipped.value = true;
       }
     }
@@ -1293,8 +1293,8 @@ async function runStreamingTest(requestBody: Dict, target: RoutingTarget | null,
     flushBlocks();
     if (isAbortError(error)) {
       // 用户主动停止：保留已收到内容，不弹全局网络错误
-      if (testResult.value?.status === "RUNNING") {
-        finishStream("STOPPED", "");
+      if (testResult.value?.status === RoutingTestRunState.RUNNING) {
+        finishStream(RoutingTestRunState.STOPPED, "");
       }
       // 停止前若 knot_extend 已到手（[DONE] 已过）仍可判；否则无被告，不展示裁判区
       if (testBillingVerify.value && knotExtend.value) {
@@ -1335,7 +1335,7 @@ function handleStreamEvent(event: SseEvent) {
     const errorMessage = String(errorData.errorMessage || errorData.message || "网关请求失败");
     testResult.value = {
       ...testResult.value,
-      status: "ERROR",
+      status: RoutingTestRunState.ERROR,
       httpStatus: errorData.httpStatus ?? testResult.value.httpStatus,
       errorMessage,
       responseBody: String(errorData.responseBody || dataText)

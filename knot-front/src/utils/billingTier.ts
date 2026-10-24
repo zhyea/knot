@@ -1,4 +1,5 @@
 import type {Dict} from "@/types";
+import {BillingMode} from "@/constants/status";
 
 /**
  * 计费阶梯（tier）的领域模型：解析、序列化与校验。
@@ -257,7 +258,7 @@ const TOKEN_BASE_PRICE_FIELDS: Record<keyof TierPriceSet, string> = {
 
 /** 按计费模式取阶梯口径；未开放阶梯的模式回退通用口径（当前实际只有 TOKEN 走到分支一） */
 export function tierScope(mode: unknown): TierScope {
-  return String(mode || "").trim().toUpperCase() === "TOKEN"
+  return String(mode || "").trim().toUpperCase() === BillingMode.TOKEN
     ? { amountLabel: "本次请求总 Token", basePriceFields: TOKEN_BASE_PRICE_FIELDS }
     : { amountLabel: "本次请求用量", basePriceFields: null };
 }

@@ -140,7 +140,8 @@ model       → 领域值对象（非表映射）
 - ⭐⭐ **判断分支禁止裸 code 字面量（2026-10-24 立规，后端已清零）**：凡拿枚举 code 做 `equals` / `==` / `===` 判断，一律走 `XxxEnum.YYY.code()`，不许写 `"YYY"`；也**不许为已有枚举再造一个常量 Support/Constants 类**（判例：3.2 曾自造 `RoutingTargetTypeSupport` 重复 `RouteTargetTypeEnum`，已删）。
   - ⚠⚠ **改前必须查调用方确认码表归属**：13 个 code **跨多族同名**——`SUCCESS`(OperationLog/RoutingTest/ScheduledTaskRun)、`FAILURE`(OperationLog/ScheduledTaskRun)、`MODEL`(RouteTargetType/TrafficResourceType)、`UPSTREAM_ERROR`(GatewayErrorType/**ProxyErrorCode**)、`REQUEST`(BillingMode/ModerationScope)、`CUSTOM`(4 族)、`IMAGE`/`VIDEO`/`AUDIO`/`EMBEDDING`/`RERANK`(BillingMode/ModelType)、`DISABLED`(EnabledStatus/PluginPackageStatus)。选错族**字符串相同、编译与单测全绿**，将来某族改名才静默失效。
   - 判例：`OutageClassifier.countableByCode()` 判的是 `GatewayUpstreamException.code()`，属 **`ProxyErrorCodeEnum` 族**（构造点 `AbstractUpstreamProtocolExecutor:115/264`），与 `GatewayErrorTypeEnum.UPSTREAM_ERROR` 只是同名。
-  - 扫法：`.workbuddy/audit/` 下用「双向」正则——`equals("X")` 与 `"X".equals(...)` 都要覆盖，只写前者会漏（首次扫描就漏了 `BillingFactChecks`）。
+  - 扫法（**三次翻车的定稿口径**）：① 正则必须**双向**——`equals("X")` 与 `"X".equals(...)` 都要覆盖，只写前者会漏（首次扫描就漏了 `BillingFactChecks`）；② 候选 code 取「**枚举常量名** ∪ **构造第一个字符串参数**」的**并集**——只取其一必错：`PricingPlanEnum.code()` 返回 `name()`、第一个参数是 **label**（"固定价"），`BillingUnitEnum` 常量名 `ONE_K_TOKENS` 但 code 是 `"1K_TOKENS"`，`GatewayErrorTypeEnum` code 是**小写**（`upstream_error`）。③ 赋值处（`status: "ERROR"` / `unit: "1K_TOKENS"`）不在比较口径内，收口时须另行 grep。
+  - 前端同名规则见 `20-frontend-vue.md`。
 
 ## 6. 异常与鉴权
 

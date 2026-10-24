@@ -68,5 +68,9 @@ npx vite build            # 构建
 
 ## 6. 业务计算
 
+- ⭐ **枚举 code 一律走 `constants/status.ts` 的常量对象，禁止裸字面量比较**（2026-10-24 立规，全仓已清零）。现有：`EnabledStatus`/`OperationLogStatus`/`ScheduledTaskRunStatus`/`LogicalModelPublishStatus`/`ExternalModelSyncStatus`/`PluginPackageStatus`/`RouteTargetType`/`BillingMode`/`PricingPlan`/`BillingUnit`/`RoutingTestStatus`/`RoutingTestRunState`。
+  - ⚠ **两个易错点**：`PricingPlanEnum` 的 code 是 `name()`（`FIXED`/`TIERED`/`PEAK_OFF_PEAK`），构造第一个参数是 **label**（"固定价"），别拿 label 当 code；`BillingUnitEnum` 常量名 `ONE_K_TOKENS` 但 code 是 **`"1K_TOKENS"`**。
+  - ⚠ **自造态必须与后端枚举分开声明**：`RoutingTestStatus`（后端结论，仅 `SUCCESS`/`FAILED`）与 `RoutingTestRunState`（抽屉本地运行态 `RUNNING`/`STOPPED`/`ERROR`）分两个常量，javadoc 写明后者「一律按无结论处理」——**不要把前端自造态混进后端枚举常量里**，否则读代码的人会以为后端真会返回它。
+  - label 展示仍走 `enumLabelOf` / `useEnumOptions`，本文件只做字面量收口。
 - 计费相关前端工具：`utils/billingTier.ts` / `utils/billingPrice.ts`，精度常量 `UNIT_PRICE_PRECISION = 8`。
 - 计费金额字段是**字符串**（8 位小数），前端不要按 number 做四则运算。

@@ -1,4 +1,5 @@
 import type {Dict} from "@/types";
+import {BillingMode} from "@/constants/status";
 
 /**
  * 高低峰定价（pricingPlan=PEAK_OFF_PEAK）的领域模型：解析、序列化、校验、本地判定。
@@ -413,7 +414,7 @@ export function validatePeakPricing(pricing: PeakPricing | null, billingMode?: s
   }
   const rateMode = pricingRateModeOf(pricing.rateMode);
   const isAbsolute = rateMode === "ABSOLUTE";
-  const isTokenMode = billingMode === "TOKEN";
+  const isTokenMode = billingMode === BillingMode.TOKEN;
   const phases = pricing.phases || [];
   if (!phases.length) {
     return [{ index: -1, message: "至少需要配置 1 条相位规则" }];

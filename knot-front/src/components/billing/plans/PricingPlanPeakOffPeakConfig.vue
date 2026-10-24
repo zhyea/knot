@@ -306,6 +306,7 @@
 <script setup lang="ts">
 import {computed, ref, watch} from "vue";
 import type {Dict} from "@/types";
+import {BillingMode} from "@/constants/status";
 import {
   PEAK_MIDNIGHT_END,
   PEAK_PHASE_LABELS,
@@ -351,7 +352,7 @@ const issues = computed<PeakIssue[]>(() => validatePeakPricing(pricing.value, pr
 /** ABSOLUTE 模式：展示命中位相自身单价，倍率概念不适用 */
 const isAbsolute = computed(() => pricing.value.rateMode === "ABSOLUTE");
 /** 当前计费模式：TOKEN 要求 6 项分项单价，简单模式只要求 input */
-const isTokenMode = computed(() => props.form.billingMode === "TOKEN");
+const isTokenMode = computed(() => props.form.billingMode === BillingMode.TOKEN);
 /** ABSOLUTE 模式下要展示/校验的单价字段集（顺序即展示顺序）。
  *  TOKEN 模式随外部「缓存写方式」联动：standard 展示缓存写，ttl 展示缓存写(5m)/(1h)，
  *  与 BillingRuleFormDialog 的 cacheWriteMode 选择保持一致。 */

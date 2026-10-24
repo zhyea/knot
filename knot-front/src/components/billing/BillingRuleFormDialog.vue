@@ -77,7 +77,7 @@
                 />
               </el-form-item>
             </el-col>
-            <el-col v-if="form.billingMode !== 'FREE'" :span="12">
+            <el-col v-if="form.billingMode !== BillingMode.FREE" :span="12">
               <el-form-item label="计费单位" class="billing-strategy-label">
                 <EnumControl
                   v-model="form.unit"
@@ -87,7 +87,7 @@
                 />
               </el-form-item>
             </el-col>
-            <el-col v-if="form.billingMode === 'TOKEN'" :span="24">
+            <el-col v-if="form.billingMode === BillingMode.TOKEN" :span="24">
               <el-form-item label="缓存写方式" class="cache-write-label">
                 <el-radio-group v-model="form.cacheWriteMode">
                   <el-radio-button value="standard">缓存写</el-radio-button>
@@ -139,6 +139,7 @@ import {type PropType, computed, reactive, ref, watch} from "vue";
 import type {Component} from "vue";
 import {ElMessage} from "element-plus";
 import type {Dict, Row} from "@/types";
+import {BillingMode, BillingUnit, PricingPlan} from "@/constants/status";
 import EnumSelect from "../common/EnumSelect.vue";
 import EnumControl from "../common/EnumControl.vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
@@ -250,7 +251,7 @@ const form = reactive<BillingRuleFormState>({
   billingMode: "TOKEN",
   pricingPlan: "FIXED",
   currency: "USD",
-  unit: "1M_TOKENS",
+  unit: BillingUnit.ONE_M_TOKENS,
   unitPrice: 0.002,
   inputUnitPrice: 0.002,
   outputUnitPrice: 0.002,
@@ -320,7 +321,7 @@ function fillFormFromDetail(row: Dict) {
   form.pricingPlan = String(row.pricingPlan || "FIXED").trim().toUpperCase();
   form.currency = row.currency || "USD";
   form.unit = row.unit || modeDefaults(form.billingMode).unit;
-  form.customConfigJson = form.billingMode === "CUSTOM" ? row.configJson || "" : "";
+  form.customConfigJson = form.billingMode === BillingMode.CUSTOM ? row.configJson || "" : "";
   form.enabled = row.enabled !== false;
   form.remark = row.remark || "";
   applyConfig(parseJsonObject(row.configJson));
@@ -380,7 +381,7 @@ watch(
       return;
     }
     // 首次切到阶梯价时给一个起始档位，避免空白表格无从下手
-    if (plan === "TIERED" && !form.tiers.length) {
+    if (plan === PricingPlan.TIERED && !form.tiers.length) {
       form.tiers.push(
         createTierRow({
           from: 0,
@@ -389,7 +390,7 @@ watch(
       );
     }
     // 首次切到高低峰时补默认骨架（工作日高峰 + 兜底低峰）
-    if (plan === "PEAK_OFF_PEAK" && !form.peakPricing) {
+    if (plan === PricingPlan.PEAK_OFF_PEAK && !form.peakPricing) {
       form.peakPricing = createDefaultPeakPricing();
     }
   }
@@ -441,7 +442,7 @@ watch(activeTab, (tab, prev) => {
 function applyJsonTextToForm(): boolean {
   const text = configJsonText.value.trim();
   if (!text) {
-    if (form.billingMode === "CUSTOM") {
+    if (form.billingMode === BillingMode.CUSTOM) {
       form.customConfigJson = "";
       return true;
     }
@@ -454,7 +455,7 @@ function applyJsonTextToForm(): boolean {
   }
   const pretty = formatJsonText(text);
   configJsonText.value = pretty;
-  if (form.billingMode === "CUSTOM") {
+  if (form.billingMode === BillingMode.CUSTOM) {
     form.customConfigJson = pretty;
     return true;
   }
@@ -469,7 +470,7 @@ function resetForm() {
   form.billingMode = "TOKEN";
   form.pricingPlan = "FIXED";
   form.currency = "USD";
-  form.unit = "1M_TOKENS";
+  form.unit = BillingUnit.ONE_M_TOKENS;
   form.unitPrice = 0.002;
   form.inputUnitPrice = 0.002;
   form.outputUnitPrice = 0.002;
@@ -515,7 +516,7 @@ function applyConfig(config: Dict) {
 function modeDefaults(mode: string): { unit: string } {
   const matched = billingModes.value.find((item) => item.code === mode);
   return {
-    unit: matched?.defaultUnit || "1M_TOKENS"
+    unit: matched?.defaultUnit || BillingUnit.ONE_M_TOKENS
   };
 }
 
@@ -553,7 +554,7 @@ function normalizeMode(mode: unknown): string {
 
 /** 基础价格部分（模式组件产出）；进阶方案明细在此基础上合并 */
 function buildBaseConfig(): Dict | null {
-  if (form.billingMode === "TOKEN") {
+  if (form.billingMode === BillingMode.TOKEN) {
     return {
       cacheWriteMode: form.cacheWriteMode,
       basePrices: {
@@ -566,14 +567,14 @@ function buildBaseConfig(): Dict | null {
       }
     };
   }
-  if (form.billingMode === "IMAGE") {
+  if (form.billingMode === BillingMode.IMAGE) {
     return {
       defaultUnitPrice: form.unitPrice,
       imageResolution: form.imageResolution?.trim() || null,
       imageQuality: form.imageQuality?.trim() || null
     };
   }
-  if (form.billingMode === "VIDEO") {
+  if (form.billingMode === BillingMode.VIDEO) {
     const resolutionPrices: Dict = {};
     if (form.videoPrice720p != null) {
       resolutionPrices["720P"] = form.videoPrice720p;
@@ -586,28 +587,28 @@ function buildBaseConfig(): Dict | null {
       ...(Object.keys(resolutionPrices).length ? {resolutionPrices} : {})
     };
   }
-  if (form.billingMode === "EMBEDDING") {
+  if (form.billingMode === BillingMode.EMBEDDING) {
     return {defaultUnitPrice: form.inputUnitPrice};
   }
-  if (form.billingMode === "REQUEST" || form.billingMode === "AUDIO") {
+  if (form.billingMode === BillingMode.REQUEST || form.billingMode === BillingMode.AUDIO) {
     return {defaultUnitPrice: form.unitPrice};
   }
   return null;
 }
 
 function buildConfigJson() {
-  if (form.billingMode === "CUSTOM") {
+  if (form.billingMode === BillingMode.CUSTOM) {
     return form.customConfigJson?.trim() || null;
   }
   const base = buildBaseConfig();
-  if (form.pricingPlan === "TIERED") {
+  if (form.pricingPlan === PricingPlan.TIERED) {
     // 档位缺失项以 0 落库，满足后端「每档 6 项单价齐全」约束；保存前统一 2 空格格式化
     return stringifyJson({
       ...(base || {}),
       tier: toTierPayload(form.tiers)
     }, 2);
   }
-  if (form.pricingPlan === "PEAK_OFF_PEAK") {
+  if (form.pricingPlan === PricingPlan.PEAK_OFF_PEAK) {
     // 方案层只输出相位与倍率，价格本体来自上方基础价
     return stringifyJson({
       ...(base || {}),
@@ -629,7 +630,7 @@ function buildPayload() {
     billingMode: form.billingMode,
     pricingPlan: form.pricingPlan,
     currency: form.currency,
-    unit: form.billingMode === "FREE" ? "1K_TOKENS" : form.unit,
+    unit: form.billingMode === BillingMode.FREE ? BillingUnit.ONE_K_TOKENS : form.unit,
     configJson: buildConfigJson(),
     enabled: form.enabled,
     remark: form.remark?.trim() || null
@@ -650,17 +651,17 @@ async function submit() {
     ElMessage.warning(`规则编码已被 ${boundModelCount.value} 个供应商模型使用，请先解绑后再修改`);
     return;
   }
-  const tierIssues = form.pricingPlan === "TIERED" ? validateTierRows(form.tiers) : [];
+  const tierIssues = form.pricingPlan === PricingPlan.TIERED ? validateTierRows(form.tiers) : [];
   if (tierIssues.length) {
     ElMessage.warning(tierIssues[0].message);
     return;
   }
-  const peakIssues = form.pricingPlan === "PEAK_OFF_PEAK" ? validatePeakPricing(form.peakPricing, form.billingMode, form.cacheWriteMode) : [];
+  const peakIssues = form.pricingPlan === PricingPlan.PEAK_OFF_PEAK ? validatePeakPricing(form.peakPricing, form.billingMode, form.cacheWriteMode) : [];
   if (peakIssues.length) {
     ElMessage.warning(peakIssues[0].message);
     return;
   }
-  if (form.billingMode === "CUSTOM" && !validateJson(form.customConfigJson, "自定义配置")) {
+  if (form.billingMode === BillingMode.CUSTOM && !validateJson(form.customConfigJson, "自定义配置")) {
     return;
   }
   saving.value = true;
