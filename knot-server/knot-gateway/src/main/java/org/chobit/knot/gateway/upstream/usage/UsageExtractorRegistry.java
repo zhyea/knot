@@ -39,7 +39,7 @@ import java.util.Map;
  *   <li>上游未上报 usage（或全零）→ 合法零用量，WARN 后正常出零账；</li>
  *   <li>响应非法 JSON / 提取器返回 {@code null} / 上游有非零用量却提取为空（口径错配）
  *       → 三处失败收敛到同一个处置点，<b>默认抛异常中断响应</b>；</li>
- *   <li>{@code knot.gateway.usage.on-extract-failure=degrade} 时改为 ERROR 后放行出零账，
+ *   <li>{@code knot.gateway.usage.degrade-on-failure=true} 时改为 ERROR 后放行出零账，
  *       并保留上游原文供事后重算（见 {@link UsageAccounting#degraded}）。</li>
  * </ul>
  *
@@ -84,7 +84,7 @@ public class UsageExtractorRegistry {
      * <p>注意覆盖面：{@link #resolveExtractorCode} 末行恒回落到默认提取器，
      * 因此本方法<b>只在显式配了错误 code 时</b>抛异常；未配置走默认提取器，属合法路径。</p>
      *
-     * <p>本方法<b>恒 fail-fast，不受 {@code knot.gateway.usage.on-extract-failure} 影响</b>：
+     * <p>本方法<b>恒 fail-fast，不受 {@code knot.gateway.usage.degrade-on-failure} 影响</b>：
      * 未知 code 是配置错误而非提取失败，降级它只会让该绑定下的请求静默零账。</p>
      */
     public UsageExtractor<?> requireExtractor(boolean eventStream, UpstreamRequestContext context) {
@@ -154,7 +154,7 @@ public class UsageExtractorRegistry {
     }
 
     /**
-     * 提取失败的<b>唯一</b>处置点：按 {@code knot.gateway.usage.on-extract-failure} 决定抛出还是降级。
+     * 提取失败的<b>唯一</b>处置点：按 {@code knot.gateway.usage.degrade-on-failure} 决定抛出还是降级。
      *
      * <p>三处失败全部收敛到这里，新增失败原因只加 {@link ExtractFailure} 枚举项，
      * 处置逻辑不再分叉——否则每加一处失败就要在三个地方各写一遍开关判断。</p>
@@ -166,15 +166,15 @@ public class UsageExtractorRegistry {
                                               Map<String, Object> rawUsage,
                                               Throwable cause) {
         // 降级也是故障：只在「抛 vs 放」上有区别，告警级别与可定位信息必须一致
-        boolean interrupt = properties.interruptOnFailure();
-        log.error("usage extract failed: reason={} extractor={} protocol={} rawUsageKeys={} interrupt={}",
+        boolean degrade = properties.isDegradeOnFailure();
+        log.error("usage extract failed: reason={} extractor={} protocol={} rawUsageKeys={} degrade={}",
                 failure.code,
                 extractor.code(),
                 context == null ? null : context.protocol(),
                 rawUsage == null ? null : rawUsage.keySet(),
-                interrupt,
+                degrade,
                 cause);
-        if (interrupt) {
+        if (!degrade) {
             throw new IllegalStateException(failure.detail + ": " + extractor.code(), cause);
         }
         // 降级：保留上游原文证据供事后重算，计费输入置空即零账

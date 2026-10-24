@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -39,8 +40,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>上游回了非零 usage 却提取不出来 → 口径错配，失败。</li>
  * </ol>
  *
- * <p>失败是否中断响应由 {@code knot.gateway.usage.on-extract-failure} 决定（默认 {@code fail}）：
- * 三处提取失败收敛到同一个处置点，故只需逐档验证一次，不必按失败原因各验一遍。
+ * <p>失败是否中断响应由 {@code knot.gateway.usage.degrade-on-failure} 决定（默认 {@code false}）：
+ * 三处提取失败收敛到同一个处置点，故只需把两种取值各验一次，不必按失败原因逐个验。
  * 但<b>提取器不存在不受开关影响</b>，单独钉住。</p>
  */
 class UsageExtractorRegistryTest {
@@ -155,14 +156,14 @@ class UsageExtractorRegistryTest {
     }
 
     @Test
-    @DisplayName("配 degrade 后口径错配不再中断：出零账并保留上游原文证据")
+    @DisplayName("开启 degrade-on-failure 后口径错配不再中断：出零账并保留上游原文证据")
     void degradesInsteadOfFailingWhenConfigured() {
         UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem()), degrade());
 
         UsageAccounting accounting = registry.extract(
                 "{\"usage\":{\"input_tokens\":120,\"output_tokens\":30}}", context(binding(STUB_CODE)));
 
-        assertNotNull(accounting, "degrade 档下提取失败必须放行，否则响应还是被打断");
+        assertNotNull(accounting, "降级开启时提取失败必须放行，否则响应还是被打断");
         assertTrue(accounting.billing().isEmpty(), "放行不等于猜用量：计费输入必须为空（零账）");
         assertNull(accounting.normalized(), "零账不应带计费结果");
         assertEquals(120, accounting.rawUsage().get("input_tokens"),
@@ -170,7 +171,7 @@ class UsageExtractorRegistryTest {
     }
 
     @Test
-    @DisplayName("配 degrade 后提取器返回 null 同样降级，不中断")
+    @DisplayName("开启 degrade-on-failure 后提取器返回 null 同样降级，不中断")
     void degradesWhenExtractorReturnsNull() {
         UsageExtractorRegistry registry = registry(new StubExtractor(null), degrade());
 
@@ -181,13 +182,13 @@ class UsageExtractorRegistryTest {
     }
 
     @Test
-    @DisplayName("配 degrade 后非法 JSON 也降级：原文读不出来，账目全空")
+    @DisplayName("开启 degrade-on-failure 后非法 JSON 也降级：原文读不出来，账目全空")
     void degradesOnMalformedJson() {
         UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem()), degrade());
 
         UsageAccounting accounting = registry.extract("{not-json-at-all", context(binding(STUB_CODE)));
 
-        assertNotNull(accounting, "degrade 档下解析失败必须放行");
+        assertNotNull(accounting, "降级开启时解析失败必须放行");
         assertTrue(accounting.isEmpty(), "原文都读不出来，只能出全空账目");
     }
 
@@ -204,10 +205,11 @@ class UsageExtractorRegistryTest {
     }
 
     @Test
-    @DisplayName("不显式配置时默认 fail：提取失败必须中断响应")
+    @DisplayName("不显式配置时默认不降级：提取失败必须中断响应")
     void failsByDefaultWhenNotConfigured() {
-        assertTrue(new UsageExtractionProperties().interruptOnFailure(),
-                "出厂默认必须让失败可见——静默零账只在对账时才暴露");
+        assertFalse(new UsageExtractionProperties().isDegradeOnFailure(),
+                "出厂默认必须让失败可见——静默零账只在对账时才暴露；"
+                        + "宽松行为必须显式打开，不能靠字段初始化兜");
     }
 
     private static UsageExtractorRegistry registry(UsageExtractor<?> stub) {
@@ -222,7 +224,7 @@ class UsageExtractorRegistryTest {
 
     private static UsageExtractionProperties degrade() {
         UsageExtractionProperties properties = new UsageExtractionProperties();
-        properties.setOnExtractFailure(UsageExtractionProperties.OnExtractFailure.DEGRADE);
+        properties.setDegradeOnFailure(true);
         return properties;
     }
 
