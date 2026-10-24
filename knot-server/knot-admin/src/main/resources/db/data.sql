@@ -652,10 +652,12 @@ INSERT IGNORE INTO kb_model_api_bindings (id, model_code, protocol, api_path, re
 (2, 'gpt-4o-mini', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'GPT-4o Mini Chat Completions'),
 (3, 'claude-sonnet-4-20250514', 'MESSAGES', '/v1/messages', 'ANTHROPIC', 'ANTHROPIC', 1, 'Claude Sonnet Messages API'),
 (4, 'deepseek-chat', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'DeepSeek Chat'),
-(5, 'qwen-image', 'IMAGE_GENERATIONS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'DEFAULT-TOKEN', 1, 'Qwen Image Generation'),
-(6, 'qwen-image-edit', 'IMAGE_EDITS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'DEFAULT-TOKEN', 1, 'Qwen Image Edit'),
-(7, 'gpt-image-1', 'IMAGE_GENERATIONS', '/v1/images/generations', 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'OpenAI Image Generation'),
-(8, 'gpt-image-1', 'IMAGE_EDITS', '/v1/images/edits', 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'OpenAI Image Edit'),
+-- 图像家族绑定显式配 IMAGE 提取器（2026-10-24 改进清单 2.2b：删 protocol→extractor 猜测后，
+-- 这些行原先靠「IMAGE_* 协议猜 IMAGE 提取器」才走对计费口径，现改为显式配置，删猜测零行为变化）
+(5, 'qwen-image', 'IMAGE_GENERATIONS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'IMAGE', 1, 'Qwen Image Generation'),
+(6, 'qwen-image-edit', 'IMAGE_EDITS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'IMAGE', 1, 'Qwen Image Edit'),
+(7, 'gpt-image-1', 'IMAGE_GENERATIONS', '/v1/images/generations', 'OPENAI_COMPATIBLE', 'IMAGE', 1, 'OpenAI Image Generation'),
+(8, 'gpt-image-1', 'IMAGE_EDITS', '/v1/images/edits', 'OPENAI_COMPATIBLE', 'IMAGE', 1, 'OpenAI Image Edit'),
 -- Bedrock runtime：api_path 留 NULL，由 BEDROCK_CONVERSE 适配器按 /model/{模型ID}/converse 推导（模型 ID 里的 : 会编码成 %3A）
 (9, 'bedrock-claude-sonnet-4', 'CHAT_COMPLETIONS', NULL, 'BEDROCK_CONVERSE', 'BEDROCK_CONVERSE', 1, 'Bedrock Converse（runtime 端点）'),
 -- Bedrock mantle：不支持 Converse，只暴露 OpenAI 兼容，故直接复用既有 OPENAI_COMPATIBLE 适配器（零新适配器代码）

@@ -3,25 +3,20 @@ package org.chobit.knot.gateway.upstream.usage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.adapter.upstream.ModelApiBindingRef;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.config.UsageExtractionProperties;
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.model.NormalizedUsage;
 import org.chobit.knot.gateway.model.UsageAccounting;
 import org.chobit.knot.gateway.model.usage.UsageExtractItem;
 import org.chobit.knot.gateway.service.GatewayEntityCacheService;
 import org.chobit.knot.gateway.usage.BillingRuleRef;
+import org.chobit.knot.gateway.usage.UsageExtractorResolver;
 import org.chobit.knot.gateway.usage.UsageNormalizationSupport;
 import org.chobit.knot.gateway.usage.UsageRawReader;
 import org.chobit.knot.gateway.usage.calculator.BillingModeCalculator;
-import org.chobit.knot.gateway.usage.extractor.AnthropicUsageExtractor;
-import org.chobit.knot.gateway.usage.extractor.AudioUsageExtractor;
-import org.chobit.knot.gateway.usage.extractor.ImageUsageExtractor;
 import org.chobit.knot.gateway.usage.extractor.UsageExtractor;
 import org.chobit.knot.gateway.usage.extractor.UsageExtractorCatalog;
-import org.chobit.knot.gateway.usage.extractor.VideoUsageExtractor;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -262,38 +257,16 @@ public class UsageExtractorRegistry {
     }
 
     private String resolveExtractorCode(boolean eventStream, UpstreamRequestContext context) {
-        ModelApiBindingRef binding = context.binding();
-        if (binding != null) {
-            String streamExtractor = binding.streamUsageExtractor();
-            if (eventStream && StringUtils.isNotBlank(streamExtractor)) {
-                return streamExtractor;
-            }
-            if (StringUtils.isNotBlank(binding.usageExtractor())) {
-                return binding.usageExtractor();
-            }
+        // 绑定配置驱动（改进清单 3.4）：选择口径收敛到共享 UsageExtractorResolver，
+        // 与管理端裁判同源——「注释对齐」换成「实现对齐」，一侧改另一侧立刻可见
+        String configured = UsageExtractorResolver.fromBinding(context.binding(), eventStream);
+        if (configured != null) {
+            return configured;
         }
-        // 已知特例：Anthropic 的缓存口径只在专用提取器里处理，未绑定时按 provider 兜到它。
-        // 这与「配置驱动」原则相悖，彻底移除需改为绑定配置驱动，见方案 §12 第 4 项。
-        if (context.provider() != null
-            && "ANTHROPIC".equals(StringUtils.upperCase(context.provider().providerCode()))) {
-            return AnthropicUsageExtractor.CODE;
-        }
-        if (context.protocol() != null) {
-            ModelApiProtocolEnum protocol = context.protocol().canonical();
-            if (protocol == ModelApiProtocolEnum.IMAGE_GENERATIONS
-                || protocol == ModelApiProtocolEnum.IMAGE_EDITS
-                || protocol == ModelApiProtocolEnum.IMAGE_VARIATIONS) {
-                return ImageUsageExtractor.CODE;
-            }
-            if (protocol == ModelApiProtocolEnum.VIDEO_GENERATIONS) {
-                return VideoUsageExtractor.CODE;
-            }
-            if (protocol == ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS
-                || protocol == ModelApiProtocolEnum.AUDIO_TRANSLATIONS
-                || protocol == ModelApiProtocolEnum.AUDIO_SPEECH) {
-                return AudioUsageExtractor.CODE;
-            }
-        }
+        // 未配置（含未绑定）回落默认提取器。提取器选择一律由绑定配置驱动——
+        // ANTHROPIC provider 特例与 protocol→IMAGE/VIDEO/AUDIO 家族映射已于 2026-10-24 移除
+        // （改进清单 2.2b）：那是「配了 DEFAULT-TOKEN 实际走 IMAGE」的同类隐患，
+        // 图像等家族的提取器改由 kb_model_api_bindings.usage_extractor 显式配置。
         return usageExtractorCatalog.defaultExtractor().code();
     }
 

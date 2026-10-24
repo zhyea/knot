@@ -131,7 +131,10 @@ class RoutingTestBillingVerdictServiceTest {
     }
 
     @Test
-    void resolvesImageExtractorForImageProtocol() {
+    void doesNotGuessImageExtractorFromProtocol() {
+        // 2026-10-24 改进清单 2.2b：protocol→IMAGE 家族映射已移除。
+        // 该测试原名 resolvesImageExtractorForImageProtocol，钉的是被删除的猜测行为；
+        // 现改为钉新口径——协议不决定提取器，未配置一律回落默认。
         RoutingBillingVerdictRequest req = requestWithBilling("0.01", "USD", "IMAGE_GENERATIONS");
         models.put("gpt-4", model(2L, "BR", "F", "STABILITY"));
         bindings.put(2L, List.of());
@@ -140,7 +143,8 @@ class RoutingTestBillingVerdictServiceTest {
 
         service.verdict(req, "http://gw", "s");
 
-        assertEquals("IMAGE", assembler.captured.extractorCode());
+        assertEquals("DEFAULT-TOKEN", assembler.captured.extractorCode(),
+                "IMAGE 协议 + 未配置 → DEFAULT-TOKEN：图像计费靠绑定显式配 IMAGE，不靠协议猜");
     }
 
     @Test
@@ -173,6 +177,46 @@ class RoutingTestBillingVerdictServiceTest {
         service.verdict(req, "http://gw", "s");
 
         assertEquals("IMAGE-BINDING", assembler.captured.extractorCode());
+    }
+
+    @Test
+    void usesStreamExtractorFromBindingWhenStreamRequested() {
+        // 3.4 收敛后裁判与网关共用 UsageExtractorResolver：流式优先 stream_usage_extractor
+        RoutingBillingVerdictRequest req = streamRequestWithBilling("0.001", "USD", "CHAT_COMPLETIONS");
+        models.put("gpt-4", model(7L, "BR", "F", "OPENAI"));
+        ModelApiBindingEntity binding = new ModelApiBindingEntity();
+        binding.setProtocol("CHAT_COMPLETIONS");
+        binding.setUsageExtractor("DEFAULT-TOKEN");
+        binding.setStreamUsageExtractor("SSE-EXTRACTOR");
+        bindings.put(7L, List.of(binding));
+        assembler.result = factWith(normalized("0.001", "USD", 5L));
+        judge.result = RoutingBillingVerdict.available("s", List.of());
+
+        service.verdict(req, "http://gw", "s");
+
+        assertEquals("SSE-EXTRACTOR", assembler.captured.extractorCode(),
+                "流式请求必须优先取绑定的流式提取器（与网关同口径）");
+    }
+
+    @Test
+    void fallsBackToUsageExtractorWhenStreamExtractorBlank() {
+        // 3.4 收敛：流式提取器配空白串视为未配置，回落整包提取器（与网关同口径）。
+        // 收敛前裁判的私有遍历把「非 null 的空白串」当作已配置，连整包提取器一起跳过——
+        // 这个边界差只有共用同一实现后才不会再次分叉，故在此钉死。
+        RoutingBillingVerdictRequest req = streamRequestWithBilling("0.001", "USD", "CHAT_COMPLETIONS");
+        models.put("gpt-4", model(8L, "BR", "F", "OPENAI"));
+        ModelApiBindingEntity binding = new ModelApiBindingEntity();
+        binding.setProtocol("CHAT_COMPLETIONS");
+        binding.setUsageExtractor("WHOLE-BODY");
+        binding.setStreamUsageExtractor("  ");
+        bindings.put(8L, List.of(binding));
+        assembler.result = factWith(normalized("0.001", "USD", 5L));
+        judge.result = RoutingBillingVerdict.available("s", List.of());
+
+        service.verdict(req, "http://gw", "s");
+
+        assertEquals("WHOLE-BODY", assembler.captured.extractorCode(),
+                "流式提取器空白 = 未配置，回落整包提取器而非默认提取器");
     }
 
     @Test
@@ -221,6 +265,17 @@ class RoutingTestBillingVerdictServiceTest {
         Map<String, Object> knotExtend = Map.of("usage", Map.of(), "billing", billing);
         return new RoutingBillingVerdictRequest(
                 "gpt-4", "gpt-4", protocol, false, knotExtend, Map.of(), Map.of(), "sess-1");
+    }
+
+    /** 流式请求（stream=true）：验证流式提取器优先与空白回落 */
+    private static RoutingBillingVerdictRequest streamRequestWithBilling(String totalCost, String currency, String protocol) {
+        Map<String, Object> billing = Map.of(
+                "totalTokens", 100L,
+                "totalCost", totalCost,
+                "currency", currency);
+        Map<String, Object> knotExtend = Map.of("usage", Map.of(), "billing", billing);
+        return new RoutingBillingVerdictRequest(
+                "gpt-4", "gpt-4", protocol, true, knotExtend, Map.of(), Map.of(), "sess-1");
     }
 
     /** knot_extend 在场但 billing 省略（无规则命中）：被告账为 null 的降级路径 */

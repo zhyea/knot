@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.adapter.upstream.ModelApiBindingRef;
 import org.chobit.knot.gateway.dto.routing.BillingCheckResult;
 import org.chobit.knot.gateway.dto.routing.BillingFact;
 import org.chobit.knot.gateway.dto.routing.BillingFactAmount;
@@ -16,6 +16,7 @@ import org.chobit.knot.gateway.model.NormalizedUsage;
 import org.chobit.knot.gateway.model.NormalizedUsageDetail;
 import org.chobit.knot.gateway.service.support.BillingFactAssembler;
 import org.chobit.knot.gateway.service.support.JevBillingJudge;
+import org.chobit.knot.gateway.usage.UsageExtractorResolver;
 import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdict;
 import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdictRequest;
 import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdictResult;
@@ -35,7 +36,7 @@ import java.util.Map;
  * 判定层只看「被告账 + 底层依据」，绝不喂影子/自检结论。</p>
  *
  * <p>模型定位（{@code targetCode} 优先于 {@code modelCode}）用于确定计费规则与用量提取器，
- * 分支顺序镜像网关 {@code UsageExtractorRegistry.resolveExtractorCode}；定位失败仅降级，不抛异常。</p>
+ * 提取器选择与网关共用 {@code UsageExtractorResolver}（改进清单 3.4）；定位失败仅降级，不抛异常。</p>
  *
  * <p>编排层内部异常以 ERROR 日志报警（全仓无 webhook/Notifier，ERROR 日志即唯一报警通道）。</p>
  */
@@ -45,10 +46,6 @@ public class RoutingTestBillingVerdictService {
 
     /** 提取器码常量（与 knot-adapter 各 UsageExtractor.CODE 一致，避免跨模块常量依赖） */
     private static final String EXTRACTOR_DEFAULT_TOKEN = "DEFAULT-TOKEN";
-    private static final String EXTRACTOR_ANTHROPIC = "ANTHROPIC";
-    private static final String EXTRACTOR_IMAGE = "IMAGE";
-    private static final String EXTRACTOR_VIDEO = "VIDEO";
-    private static final String EXTRACTOR_AUDIO = "AUDIO";
 
     private final BillingFactAssembler assembler;
     private final JevBillingJudge judge;
@@ -139,37 +136,40 @@ public class RoutingTestBillingVerdictService {
         return message.length() > 200 ? message.substring(0, 200) + "…" : message;
     }
 
-    // ---- 提取器解析（镜像网关 UsageExtractorRegistry.resolveExtractorCode） ----
+    // ---- 提取器解析（改进清单 3.4，2026-10-24：与网关共用 UsageExtractorResolver，绑定配置驱动） ----
 
     private String resolveExtractorCode(ModelEntity model, String protocol, boolean stream) {
+        String configured = null;
         if (model != null && model.getId() != null) {
-            // MyBatis 正常返回空集合，但桩/异常路径可能给出 null，防御后再遍历
+            // MyBatis 正常返回空集合，但桩/异常路径可能给出 null，防御后再投影
             List<ModelApiBindingEntity> bindings = modelApiBindingMapper.listByModelId(model.getId());
-            if (bindings != null) {
-                for (ModelApiBindingEntity b : bindings) {
-                    if (protocol != null && protocol.equals(b.getProtocol())) {
-                        String ex = stream && b.getStreamUsageExtractor() != null
-                                ? b.getStreamUsageExtractor() : b.getUsageExtractor();
-                        if (ex != null && !ex.isBlank()) {
-                            return ex;
-                        }
-                    }
-                }
-            }
+            configured = UsageExtractorResolver.fromBindings(toBindingRefs(bindings), protocol, stream);
         }
-        if (model != null && "ANTHROPIC".equalsIgnoreCase(model.getProviderCode())) {
-            return EXTRACTOR_ANTHROPIC;
+        if (configured != null) {
+            return configured;
         }
-        ModelApiProtocolEnum p = protocol == null ? null : ModelApiProtocolEnum.fromCode(protocol);
-        if (p != null) {
-            return switch (p.canonical()) {
-                case IMAGE_GENERATIONS, IMAGE_EDITS, IMAGE_VARIATIONS -> EXTRACTOR_IMAGE;
-                case VIDEO_GENERATIONS -> EXTRACTOR_VIDEO;
-                case AUDIO_TRANSCRIPTIONS, AUDIO_TRANSLATIONS, AUDIO_SPEECH -> EXTRACTOR_AUDIO;
-                default -> EXTRACTOR_DEFAULT_TOKEN;
-            };
-        }
+        // 与网关同口径（改进清单 2.2b）：ANTHROPIC 供应商特例与 protocol→IMAGE/VIDEO/AUDIO
+        // 家族映射已移除，未配置一律回落默认提取器。
         return EXTRACTOR_DEFAULT_TOKEN;
+    }
+
+    /**
+     * 绑定实体 → 适配层投影（改进清单 2.5）：只带提取器选择消费的三个字段。
+     *
+     * <p>投影发生在 service 模块边界上，{@code apiPath}/{@code requestAdapter}
+     * 对提取器选择无意义，传 {@code null}。空白/未配置的提取器由
+     * {@link UsageExtractorResolver} 统一判定，本方法不做任何「猜配置」。</p>
+     */
+    private static List<ModelApiBindingRef> toBindingRefs(List<ModelApiBindingEntity> bindings) {
+        if (bindings == null) {
+            return null;
+        }
+        List<ModelApiBindingRef> refs = new ArrayList<>();
+        for (ModelApiBindingEntity b : bindings) {
+            refs.add(new ModelApiBindingRef(null, null, b.getProtocol(),
+                    b.getUsageExtractor(), b.getStreamUsageExtractor()));
+        }
+        return refs;
     }
 
     // ---- knot_extend.billing(Map) → NormalizedUsage（手动构造，规避 record 反序列化风险） ----

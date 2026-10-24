@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.upstream.usage;
 
+import org.chobit.knot.gateway.adapter.upstream.ProviderAccountRef;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.config.UsageExtractionProperties;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
@@ -250,14 +251,22 @@ class UsageExtractorRegistryTest {
 
         private final UsageExtractItem<TokenBillingUsage> result;
         private final boolean emptyAllowed;
+        private final String code;
 
         private StubExtractor(UsageExtractItem<TokenBillingUsage> result) {
             this(result, false);
         }
 
         private StubExtractor(UsageExtractItem<TokenBillingUsage> result, boolean emptyAllowed) {
+            this(result, emptyAllowed, STUB_CODE);
+        }
+
+        private StubExtractor(UsageExtractItem<TokenBillingUsage> result,
+                              boolean emptyAllowed,
+                              String code) {
             this.result = result;
             this.emptyAllowed = emptyAllowed;
+            this.code = code;
         }
 
         @Override
@@ -267,7 +276,7 @@ class UsageExtractorRegistryTest {
 
         @Override
         public String code() {
-            return STUB_CODE;
+            return code;
         }
 
         @Override
@@ -300,5 +309,50 @@ class UsageExtractorRegistryTest {
                                                                 Map<String, Object> requestBody) {
             return result;
         }
+    }
+
+    // ---- 提取器选择：绑定配置驱动，无供应商 / 协议猜测（改进清单 2.2b，2026-10-24） ----
+
+    @Test
+    @DisplayName("未配置 extractor 时不按协议猜：IMAGE 协议同样回落默认提取器")
+    void doesNotGuessExtractorFromProtocolWhenUnconfigured() {
+        UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem()));
+
+        assertEquals(DefaultTokenUsageExtractor.CODE,
+                registry.requireExtractor(false,
+                        context(ModelApiProtocolEnum.IMAGE_GENERATIONS, null, binding(null))).code(),
+                        "protocol→IMAGE 家族映射已移除：显式配置才生效，协议本身不决定提取器");
+    }
+
+    @Test
+    @DisplayName("未配置 extractor 时不按供应商猜：ANTHROPIC 同样回落默认提取器")
+    void doesNotGuessAnthropicExtractorFromProvider() {
+        UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem()));
+
+        assertEquals(DefaultTokenUsageExtractor.CODE,
+                registry.requireExtractor(false,
+                        context(ModelApiProtocolEnum.MESSAGES,
+                                new ProviderAccountRef(1L, "anthropic-default", null, "ANTHROPIC"),
+                                binding(null))).code(),
+                        "ANTHROPIC 供应商特例已移除：缓存口径由绑定的 ANTHROPIC 提取器显式配置");
+    }
+
+    @Test
+    @DisplayName("图像计费走绑定显式配置的 IMAGE 提取器（删猜测后口径不变）")
+    void usesBindingConfiguredImageExtractor() {
+        UsageExtractorRegistry registry =
+                registry(new StubExtractor(emptyItem(), false, "IMAGE"));
+
+        assertEquals("IMAGE",
+                registry.requireExtractor(false,
+                        context(ModelApiProtocolEnum.IMAGE_GENERATIONS, null, binding("IMAGE"))).code(),
+                        "种子数据里图像绑定已显式配 IMAGE，删 protocol 猜测后计费口径不变");
+    }
+
+    private static UpstreamRequestContext context(ModelApiProtocolEnum protocol,
+                                                  ProviderAccountRef provider,
+                                                  ModelApiBindingRef binding) {
+        return new UpstreamRequestContext(protocol, Map.of(),
+                null, null, provider, null, binding, null, null);
     }
 }
