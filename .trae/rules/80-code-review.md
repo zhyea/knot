@@ -95,6 +95,10 @@ alwaysApply: false
 | 兜底模式复制 | S3 | 8 个 Service 的 `snapshot()` 全是 `try { getById; return JsonKit.toMap } catch (BusinessException e) { return null; }` |
 | `\|\|` 兜底误用 | S6 | `useAuthorizationManagement.ts:882` `row.status \|\| "ENABLED"` |
 | 测试不进门禁 | E5 / B6 | `knot-front` 已有 10 个 spec 文件，`.github/workflows/ci.yml` 只跑 `vue-tsc` + `vite build` |
+| 核心链路零单测 | E5 / S8 | `RoutingResolver`（路由解析）与 `PluginDispatcher`（插件分发）均 0 个测试类；`knot-dal` 77 主类 0 测试 |
+| 业务类自建外部客户端 | D / B2 | `RoutingRuleService.java:175` 与 `GatewayOutageService.java:54` 自行 `RestClient.builder()`（对比：`RestClientDecisionsTransport` 在 `service.support`，是合理形态） |
+| 泛化主干名残留 | S7 | `SystemController` / `SystemMapper` / `SystemConverter` / `CommonController` / `CommonMappings` / `Base36` / `UtilityProtocolExecutor` 共 8 处仍在，而 `10-backend-java.md §4.4` 声称"既有孤例已整改"——**规范与事实不符** |
+| javadoc 与实现不符 | N1 | `canonical()` javadoc 宣称归一化实则恒等；`ModerationGuard` 的 MASK 语义与回落 FLAG 的实现不符 |
 | 规范自身腐化 | — | `20-frontend-vue.md:7` 写「无测试框架」，实际已引入 vitest + 10 spec 文件 |
 
 ---
@@ -110,6 +114,14 @@ alwaysApply: false
 | 建造者返回 this | `TokenBillingUsage.java:87` `tokenUsage(...) { return this; }` | 链式建造，**不是恒等抽象** |
 | 测试替身返回 this | `CaffeineModelLoadStoreTest.java:147` `withZone(...) { return this; }` | 同上 |
 | 接口默认 no-op 实现 | 4 个 Store 的 `expireAfterRead(...) { return currentDuration; }` | "使用默认值"的显式表达，**不是恒等抽象** |
+| 里氏替换干净 | 31 个主代码继承/实现全为策略族与框架扩展（`UsageExtractor` 7 / `PluginHandler` 8 / `AbstractUpstreamProtocolExecutor` 5 / `UpstreamRequestAdapter` 4 / `PluginDispatchContext` 6 / `GatewayControllerSupport` 7），替身全在 test 侧 | 无契约收窄 |
+| 窄接口 | `PluginDispatchContext` 仅 traceId / traceparent / attributes 三项 | "上下文字段多"**不是** ISP 违反，别误报 |
+| 魔法数字已提常量 | `EjectionPolicy` / `RetryPolicy` / `RestClientDecisionsTransport` 的超时与阈值均为 `static final` | 无散落字面量 |
+| 前端 TS 纪律 | `: any` / `as any` **0 处**；`console.*` 仅 1 处 | `20-frontend-vue.md §3` 执行到位 |
+
+> 首轮全仓审查结论（🔴5 / 🟡5 / ✅3）见 `docs/基础编码原则审查报告-2026-10-24.md`。
+> 该报告同时标注了**未覆盖项**（前端系统性审查、`knot-dal` 零测试的判定、计费/路由数值正确性），
+> 后续审查优先补这些，不要因为"已经审过一轮"就跳过。
 
 ---
 
