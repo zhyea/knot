@@ -3,7 +3,6 @@ package org.chobit.knot.gateway.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -380,7 +379,7 @@ public class ModelService {
         DiscountPolicyEntity entity = new DiscountPolicyEntity();
         entity.setModelCode(modelCode);
         entity.setDiscountType(request.discountType());
-        entity.setDiscountValue(BigDecimal.valueOf(request.discountValue()));
+        entity.setDiscountValue(request.discountValue());
         entity.setEffectiveFrom(LocalDateTime.now());
         entity.setStatus(request.status() != null ? request.status() : EnabledStatusEnum.ENABLED.code());
         discountPolicyMapper.insert(entity);
@@ -396,7 +395,7 @@ public class ModelService {
             throw new BusinessException(ErrorCode.NOT_FOUND, "折扣策略不存在");
         }
         entity.setDiscountType(request.discountType());
-        entity.setDiscountValue(BigDecimal.valueOf(request.discountValue()));
+        entity.setDiscountValue(request.discountValue());
         entity.setStatus(request.status());
         discountPolicyMapper.update(entity);
         return toDiscountPolicyDto(entity);
@@ -426,7 +425,7 @@ public class ModelService {
     private DiscountPolicyDto toDiscountPolicyDto(DiscountPolicyEntity e) {
         return new DiscountPolicyDto(
                 e.getId(),
-                e.getDiscountType(), e.getDiscountValue() != null ? e.getDiscountValue().doubleValue() : 0.0,
+                e.getDiscountType(), e.getDiscountValue(),
                 e.getStatus()
         );
     }
@@ -737,6 +736,14 @@ public class ModelService {
      * 未做任何调整，行 id 也会变化：一是产生无意义的物理变更，二是 {@code modelAuditSnapshot}
      * 会带出 binding id，导致前后快照不等而误记一条「更新模型」审计日志。改为 diff 后主键稳定，
      * 无实质变化时不写库、也不触发审计。</p>
+     */
+    /**
+     * API 绑定按主键做增量 diff：保留已有 id、未变更不写库、提交里消失的才删。
+     *
+     * <p><b>刻意与 {@code RoutingRuleService#saveTargets} 的「先删后插」不同，不要统一</b>
+     * （改进清单 4.7 决议）：绑定行 id 会进操作日志与后续引用，每次保存整批换 id 是噪音；
+     * 而路由目标的提交顺序不承载语义、也没被按 id 引用，全量替换更省心。
+     * 两者共用的只是「编码改码守卫」（{@link CodeBindingSupport}），不是明细保存策略。</p>
      */
     private void saveApiBindings(Long modelId, List<ModelApiBindingDto> bindings, String modelType) {
         List<ModelApiBindingEntity> desired = new ArrayList<>();

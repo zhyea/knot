@@ -31,8 +31,16 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
         return context.rule();
     }
 
-    protected int unitSize(BillingRuleRef rule) {
-        return BillingUnitEnum.unitSizeOf(normalizeUnit(rule.unit()));
+    /**
+     * 金额公式的分母：单位基数。
+     *
+     * <p>单位归一化一律经 {@link BillingModeEnum#normalizeUnit(String)}：
+     * 基数是分母，1K_TOKENS(1000) 与 PER_SECOND(1) 差 1000 倍，
+     * 「兜底成 1K_TOKENS」这种写法一旦脱离模式口径就是静默的 1000 倍错价。
+     * 各计算器必须传自己的 {@link BillingModeEnum#mode()}，不要用规则列的空值兜底。</p>
+     */
+    protected int unitSize(BillingRuleRef rule, BillingModeEnum mode) {
+        return BillingUnitEnum.unitSizeOf(mode.normalizeUnit(rule == null ? null : rule.unit()));
     }
 
     protected BigDecimal safeMoney(BigDecimal value) {
@@ -98,11 +106,6 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
             return StringUtils.trim(itemType);
         }
         return mode == null ? BillingModeEnum.CUSTOM.code() : mode.code();
-    }
-
-    protected String normalizeUnit(String value) {
-        String normalized = StringUtils.upperCase(StringUtils.trim(value));
-        return StringUtils.defaultIfBlank(normalized, BillingUnitEnum.ONE_K_TOKENS.code());
     }
 
     protected long firstAmount(long primary, long fallback) {

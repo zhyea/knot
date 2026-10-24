@@ -140,7 +140,7 @@ public class BillingService {
             plan == null ? PricingPlanEnum.FIXED.code() : plan.code(),
             rule.currency(),
             rule.unit(),
-            unitSize(rule.unit()),
+            unitSize(rule.unit(), modeEnum),
             occurredAt.toString(),
             config == null || config.pricing() == null ? null : config.pricing().timezone(),
             decision == null ? null : decision.phase().code(),
@@ -391,7 +391,7 @@ public class BillingService {
         latest.setBillingMode(normalizeBillingMode(request.billingMode()));
         latest.setPricingPlan(normalizePricingPlan(request.pricingPlan()));
         latest.setCurrency(normalizeCurrency(request.currency()));
-        latest.setUnit(normalizeUnit(request.unit()));
+        latest.setUnit(normalizeUnit(request.unit(), modeEnumOf(normalizeBillingMode(request.billingMode()))));
         latest.setConfigJson(blankToNull(request.configJson()));
         latest.setEffectiveFrom(request.effectiveFrom() == null ? LocalDateTime.now() : request.effectiveFrom());
         latest.setEffectiveTo(request.effectiveTo());
@@ -408,7 +408,7 @@ public class BillingService {
         version.setBillingMode(normalizeBillingMode(request.billingMode()));
         version.setPricingPlan(normalizePricingPlan(request.pricingPlan()));
         version.setCurrency(normalizeCurrency(request.currency()));
-        version.setUnit(normalizeUnit(request.unit()));
+        version.setUnit(normalizeUnit(request.unit(), modeEnumOf(normalizeBillingMode(request.billingMode()))));
         version.setConfigJson(blankToNull(request.configJson()));
         version.setEffectiveFrom(request.effectiveFrom() == null ? LocalDateTime.now() : request.effectiveFrom());
         version.setEffectiveTo(request.effectiveTo());
@@ -426,7 +426,7 @@ public class BillingService {
             normalizeBillingMode(request.billingMode()),
             normalizePricingPlan(request.pricingPlan()),
             normalizeCurrency(request.currency()),
-            normalizeUnit(request.unit()));
+            normalizeUnit(request.unit(), modeEnumOf(normalizeBillingMode(request.billingMode()))));
         BillingVersionFingerprint fingerprint = new BillingVersionFingerprint(
             normalized.billingMode(),
             normalized.pricingPlan(),
@@ -585,9 +585,24 @@ public class BillingService {
         return plan == null ? PricingPlanEnum.FIXED.code() : plan.code();
     }
 
-    private static String normalizeUnit(String value) {
-        String normalized = value == null ? "" : value.trim().toUpperCase();
-        return normalized.isEmpty() ? BillingUnitEnum.ONE_K_TOKENS.code() : normalized;
+    /**
+     * 计费单位归一化：空白 / 非法编码 / 该模式不支持时，取模式的默认单位。
+     *
+     * <p><b>必须带模式</b>：单位基数是金额公式的分母，{@code PER_SECOND}(1) 与
+     * {@code 1K_TOKENS}(1000) 差 1000 倍。此前这里不分模式一律兜底成 {@code 1K_TOKENS}，
+     * 于是「VIDEO 规则忘了给 unit」会落成每秒价再除 1000（少收 1000 倍），
+     * 「TOKEN 规则忘了给 unit」也拿不到 TOKEN 模式声明的 {@code 1M_TOKENS}。
+     * 口径在 {@link BillingModeEnum#normalizeUnit(String)} 里只有一份，
+     * 与管理端表单、与网关计算器的热路径同源。</p>
+     */
+    private static String normalizeUnit(String value, BillingModeEnum mode) {
+        return mode.normalizeUnit(value);
+    }
+
+    /** 模式枚举：未知编码按 {@link BillingModeEnum#CUSTOM} 处理（与预览链路同口径） */
+    private static BillingModeEnum modeEnumOf(String billingMode) {
+        BillingModeEnum mode = BillingModeEnum.fromCode(billingMode);
+        return mode == null ? BillingModeEnum.CUSTOM : mode;
     }
 
     /**
@@ -662,8 +677,8 @@ public class BillingService {
         }
     }
 
-    private static int unitSize(String unit) {
-        return BillingUnitEnum.unitSizeOf(normalizeUnit(unit));
+    private static int unitSize(String unit, BillingModeEnum mode) {
+        return BillingUnitEnum.unitSizeOf(mode.normalizeUnit(unit));
     }
 
 }

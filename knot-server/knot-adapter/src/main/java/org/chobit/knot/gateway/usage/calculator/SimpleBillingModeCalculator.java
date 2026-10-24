@@ -30,7 +30,7 @@ public class SimpleBillingModeCalculator extends AbstractBillingModeCalculator {
         BillingUsage usage = context.usage();
         BillingModeEnum mode = resolveMode(rule);
         long amount = billingAmount(usage, mode);
-        int unitSize = unitSize(rule);
+        int unitSize = unitSize(rule, mode);
         BillingConfig config = BillingConfig.fromJsonOrNull(rule.configJson());
         BigDecimal unitPrice = config == null
                 ? BigDecimal.ZERO

@@ -77,6 +77,17 @@ class MediaBillingCalculatorTest {
     }
 
     @Test
+    void shouldBillPerSecondWhenVideoRuleMissesUnit() {
+        // 回归：单位缺失时旧的兜底是 1K_TOKENS（分母 1000），每秒价会被再除 1000 少收三个数量级。
+        // 现在一律按模式默认单位（VIDEO -> PER_SECOND，分母 1）归一，与管理端表单同源。
+        NormalizedBillingAmount amount = simple.calculate(context(
+                rule("VIDEO", null, SIMPLE_CONFIG),
+                new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 0L, 0L, 0L, false, false)));
+
+        assertEquals("5.0", amount.totalCost(), "10 秒 × 0.5 ÷ 1（不是 ÷ 1000 的 0.005）");
+    }
+
+    @Test
     void shouldBillAtLeastOneSecondWhenTokenUsageMeetsVideoMode() {
         // 类型错配：token 用量没有秒数口径，按 1 秒兜底（atLeastOne）
         NormalizedBillingAmount amount = simple.calculate(context(

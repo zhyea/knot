@@ -556,7 +556,10 @@ CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
   billing_mode VARCHAR(32) NOT NULL,
   pricing_plan VARCHAR(32) NOT NULL DEFAULT 'FIXED' COMMENT '进阶定价方案（PricingPlanEnum）：FIXED/TIERED/PEAK_OFF_PEAK，决定“价”，不改变用量',
   currency VARCHAR(16) NOT NULL DEFAULT 'USD',
-  unit VARCHAR(32) NOT NULL DEFAULT '1K_TOKENS' COMMENT '计费单位（BillingUnitEnum code）',
+  -- 无 DEFAULT：单位是金额公式的分母（1K_TOKENS=1000 / PER_SECOND=1，差 1000 倍），
+  -- 且正确取值随 billing_mode 变（见 BillingModeEnum.defaultUnit），给不出"万能默认值"。
+  -- 漏给即插入失败，胜过静默落一个 1000 倍错的口径。
+  unit VARCHAR(32) NOT NULL COMMENT '计费单位（BillingUnitEnum code），由 BillingModeEnum.normalizeUnit 归一化后写入',
   config_json JSON DEFAULT NULL COMMENT '计费配置：defaultUnitPrice + basePrices + ladder + 模式扩展',
   status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
   effective_from DATETIME NOT NULL,

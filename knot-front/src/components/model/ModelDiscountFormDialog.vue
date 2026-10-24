@@ -16,7 +16,14 @@
         </el-radio-group>
       </el-form-item>
       <el-form-item label="折扣值">
-        <el-input-number v-model="form.discountValue" :step="0.01" style="width: 100%" />
+        <!-- precision 对齐库列 DECIMAL(10,4)：不加会让 0.01 步进的浮点尾数（0.9400000000000001）原样提交 -->
+        <el-input-number
+          v-model="form.discountValue"
+          :step="0.01"
+          :precision="4"
+          :min="0"
+          style="width: 100%"
+        />
       </el-form-item>
       <el-form-item label="状态">
         <el-switch

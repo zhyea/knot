@@ -84,7 +84,7 @@ public class TokenBillingModeCalculator extends AbstractBillingModeCalculator {
                                              TokenBillingUsage usage,
                                              BillingConfig.PricingPlan plan,
                                              BillingConfig.PricingContext pricingContext) {
-        int unitSize = unitSize(rule);
+        int unitSize = unitSize(rule, mode());
         BigDecimal zero = BigDecimal.ZERO;
         long inputTokens = usage.inputTokens();
         long outputTokens = usage.outputTokens();

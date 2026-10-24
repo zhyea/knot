@@ -46,7 +46,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         // 带发生时点传给方案层，简单价分支才能吃到相位倍率
         BillingConfig.PricingContext pricingContext = new BillingConfig.PricingContext(amount, context.occurredAt());
         BigDecimal unitPrice = resolveUnitPrice(rule, resolution, pricingContext);
-        int unitSize = unitSize(rule);
+        int unitSize = unitSize(rule, mode());
         BigDecimal totalCost = cost(amount, unitPrice, unitSize);
         String detailType = resolution == null
                 ? normalizeDetailType(rule.billingMode(), BillingModeEnum.VIDEO)
