@@ -1,6 +1,7 @@
 import {computed, ref} from "vue";
 import type {Row} from "@/types";
 import {listModelTypes} from "@/api/models";
+import {normalizeProtocolCode} from "@/utils/protocolCode";
 
 /**
  * 模型类型「协议规则」数据源（GET /api/models/types）
@@ -23,15 +24,11 @@ let defaultTypeCode = "";
 let loadedAt = 0;
 let inflight: Promise<void> | null = null;
 
-function normalizeCode(value: unknown): string {
-  return String(value ?? "").trim().toUpperCase();
-}
-
 function normalizeProtocols(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
   }
-  return Array.from(new Set(value.map(normalizeCode).filter(Boolean)));
+  return Array.from(new Set(value.map(normalizeProtocolCode).filter(Boolean)));
 }
 
 function applyList(list: Row[]): void {
@@ -75,7 +72,7 @@ export function useModelTypes() {
    * @param {string[]} [fallback] 未命中时的兜底协议，缺省空数组
    */
   function protocolsOf(code: unknown, fallback: string[] = []): string[] {
-    const protocols = protocolMap.value[normalizeCode(code)];
+    const protocols = protocolMap.value[normalizeProtocolCode(code)];
     return protocols?.length ? protocols : fallback;
   }
 

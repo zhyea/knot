@@ -542,7 +542,7 @@ const availableProtocols = computed(() => {
   }
   return protocols.map((code: string) => ({code, label: protocolLabel(code)}));
 });
-const activeProtocol = computed(() => normalizeProtocolCode(testForm.protocol));
+const activeProtocol = computed(() => canonicalOf(testForm.protocol));
 const activeTemplateKey = computed(() => `${testForm.targetKey || "default"}::${activeProtocol.value || "default"}`);
 const filteredPresetOptions = computed(() => {
   const protocol = activeProtocol.value;
@@ -959,19 +959,15 @@ function targetLabel(target: RoutingTarget): string {
 }
 
 function protocolLabel(protocol: unknown): string {
-  const code = normalizeProtocolCode(protocol);
+  const code = canonicalOf(protocol);
   if (!code) return "-";
   return enumLabelOf("ModelApiProtocolEnum", code, code);
 }
 
 function protocolPath(protocol: unknown): string {
-  // 网关调试路径由后端能力接口下发（与 RoutingRuleService.buildGatewayTestPath 同源）
-  return gatewayPathOf(normalizeProtocolCode(protocol)) || "";
-}
-
-function normalizeProtocolCode(protocol: unknown): string {
-  // 别名归一由后端能力接口的 canonicalCode 提供
-  return canonicalOf(protocol);
+  // 网关调试路径由后端能力接口下发（与 RoutingRuleService.buildGatewayTestPath 同源）；
+  // 别名归一同样由后端能力接口的 canonicalCode 提供（原本地同名薄包装已并入调用点）
+  return gatewayPathOf(canonicalOf(protocol)) || "";
 }
 
 /** 当前选中目标（或「全部目标」并集）对应的协议列表 */
@@ -985,7 +981,7 @@ function currentProtocolCodes(): string[] {
 /** 按当前协议列表校正已选协议并重载模板（切换目标后调用，协议已在打开抽屉时预加载） */
 function syncCurrentProtocol() {
   const protocols = currentProtocolCodes();
-  const normalized = normalizeProtocolCode(testForm.protocol);
+  const normalized = canonicalOf(testForm.protocol);
   testForm.protocol = protocols.includes(normalized) ? normalized : protocols[0] || "";
   ensureTemplateForCurrentSelection();
 }

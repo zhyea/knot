@@ -7,7 +7,7 @@ import org.chobit.knot.gateway.dto.outage.GatewayOutageAck;
 import org.chobit.knot.gateway.dto.outage.GatewayOutageEjectRequest;
 import org.chobit.knot.gateway.dto.outage.GatewayOutageItem;
 import org.chobit.knot.gateway.dto.outage.GatewayOutageReleaseRequest;
-import org.chobit.knot.gateway.service.GatewayOutageService;
+import org.chobit.knot.gateway.service.support.GatewayOutageRunner;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,22 +27,22 @@ import java.util.List;
  *   <li>{@code POST /api/gateway/outages/eject}：手动摘除（可带冷却与人工原因）。</li>
  * </ul>
  *
- * <p>实际 HTTP 调用在 {@link GatewayOutageService} 完成，本控制器只负责鉴权（接口级授权）、
+ * <p>实际 HTTP 调用在 {@link GatewayOutageRunner} 完成，本控制器只负责鉴权（接口级授权）、
  * 参数校验与操作日志。网关基地址 / 令牌由 {@link GatewayRuntimeProperties} 透传。</p>
  */
 @RestController
 @RequestMapping("/api/gateway/outages")
 public class GatewayOutageController {
 
-    private final GatewayOutageService gatewayOutageService;
+    private final GatewayOutageRunner gatewayOutageRunner;
     private final GatewayRuntimeProperties gatewayRuntimeProperties;
 
     /**
      * Constructs a new instance.
      */
-    public GatewayOutageController(GatewayOutageService gatewayOutageService,
+    public GatewayOutageController(GatewayOutageRunner gatewayOutageRunner,
                                    GatewayRuntimeProperties gatewayRuntimeProperties) {
-        this.gatewayOutageService = gatewayOutageService;
+        this.gatewayOutageRunner = gatewayOutageRunner;
         this.gatewayRuntimeProperties = gatewayRuntimeProperties;
     }
 
@@ -52,7 +52,7 @@ public class GatewayOutageController {
     @GetMapping
     public List<GatewayOutageItem> list(@RequestParam(required = false) String ruleCode,
                                         @RequestParam(required = false) String modelCode) {
-        return gatewayOutageService.listOutages(gatewayRuntimeProperties.normalizedBaseUrl(),
+        return gatewayOutageRunner.listOutages(gatewayRuntimeProperties.normalizedBaseUrl(),
                 gatewayRuntimeProperties.getAdminToken(), ruleCode, modelCode);
     }
 
@@ -66,7 +66,7 @@ public class GatewayOutageController {
             newValueSpel = "#p0")
     @PostMapping("/release")
     public GatewayOutageAck release(@RequestBody @Valid GatewayOutageReleaseRequest request) {
-        return gatewayOutageService.release(gatewayRuntimeProperties.normalizedBaseUrl(),
+        return gatewayOutageRunner.release(gatewayRuntimeProperties.normalizedBaseUrl(),
                 gatewayRuntimeProperties.getAdminToken(), request);
     }
 
@@ -80,7 +80,7 @@ public class GatewayOutageController {
             newValueSpel = "#p0")
     @PostMapping("/eject")
     public GatewayOutageAck eject(@RequestBody @Valid GatewayOutageEjectRequest request) {
-        return gatewayOutageService.eject(gatewayRuntimeProperties.normalizedBaseUrl(),
+        return gatewayOutageRunner.eject(gatewayRuntimeProperties.normalizedBaseUrl(),
                 gatewayRuntimeProperties.getAdminToken(), request);
     }
 }

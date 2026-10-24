@@ -13,8 +13,6 @@ public interface RoutingRuleMapper {
 
     RoutingRuleEntity getById(Long id);
 
-    List<RoutingRuleEntity> listEnabledByConsumerCode(@org.apache.ibatis.annotations.Param("consumerCode") String consumerCode);
-
     RoutingRuleEntity getEnabledByConsumerCodeAndRuleCode(@org.apache.ibatis.annotations.Param("consumerCode") String consumerCode,
                                                           @org.apache.ibatis.annotations.Param("ruleCode") String ruleCode);
 

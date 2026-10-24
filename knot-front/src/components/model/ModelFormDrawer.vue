@@ -344,6 +344,7 @@ import {
 import {listBillingRules} from "@/api/billing";
 import {listBillingRuleOptions, listLogicalModelOptions} from "@/api/options";
 import {normalizeOptionList, toOptionsLoader} from "@/utils/options";
+import {normalizeProtocolCode} from "@/utils/protocolCode";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
@@ -837,10 +838,6 @@ function firstAllowedProtocolCode() {
 
 function firstAvailableProtocolCode(usedProtocols = new Set()) {
   return allowedApiProtocolCodes.value.find((code) => !usedProtocols.has(code)) || firstAllowedProtocolCode();
-}
-
-function normalizeProtocolCode(protocol: string) {
-  return String(protocol || "").trim().toUpperCase();
 }
 
 function normalizeProtocolForModelType(protocol: string, usedProtocols = new Set<unknown>()) {

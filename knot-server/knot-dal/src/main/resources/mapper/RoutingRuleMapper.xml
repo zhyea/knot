@@ -44,18 +44,6 @@
         where r.id = #{id}
     </select>
 
-    <select id="listEnabledByConsumerCode" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
-        select <include refid="RuleSelectColumns"/>
-        from kb_routing_rules r
-        left join kb_apps a on r.app_code = a.app_code
-        left join ks_users ur on r.username = ur.username and ur.is_deleted = 0
-        left join kb_routing_consumers c on r.consumer_code = c.consumer_code
-        left join kb_logical_models lm on lm.model_code = r.logical_model_code and lm.is_deleted = 0
-        where r.consumer_code = #{consumerCode}
-          and r.status = 1
-        order by r.id desc
-    </select>
-
     <select id="getEnabledByConsumerCodeAndRuleCode" resultType="org.chobit.knot.gateway.entity.RoutingRuleEntity">
         select <include refid="RuleSelectColumns"/>
         from kb_routing_rules r

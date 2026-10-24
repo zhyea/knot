@@ -57,7 +57,6 @@ public class GatewayEntityCacheService {
 
     private final LoadingCache<Long, Optional<AppEntity>> appByIdCache;
     private final LoadingCache<String, Optional<RoutingConsumerEntity>> consumerBySecretKeyCache;
-    private final LoadingCache<String, List<RoutingRuleEntity>> enabledRulesByConsumerCodeCache;
     private final LoadingCache<ConsumerRuleKey, Optional<RoutingRuleEntity>> enabledRuleByConsumerAndCodeCache;
     private final LoadingCache<String, List<RoutingRuleTargetEntity>> targetsByRuleIdCache;
     private final LoadingCache<Long, Optional<ModelEntity>> modelByIdCache;
@@ -91,7 +90,6 @@ public class GatewayEntityCacheService {
                               BillingRuleMapper billingRuleMapper) {
         this.appByIdCache = optionalCache(appMapper::getById);
         this.consumerBySecretKeyCache = optionalCache(routingConsumerMapper::getBySecretKey);
-        this.enabledRulesByConsumerCodeCache = listCache(routingRuleMapper::listEnabledByConsumerCode);
         this.enabledRuleByConsumerAndCodeCache = optionalCache(key ->
                 routingRuleMapper.getEnabledByConsumerCodeAndRuleCode(key.consumerCode(), key.ruleCode()));
         this.targetsByRuleIdCache = listCache(routingRuleTargetMapper::listByRuleCode);
@@ -122,13 +120,6 @@ public class GatewayEntityCacheService {
      */
     public RoutingConsumerEntity getConsumerBySecretKey(String secretKey) {
         return consumerBySecretKeyCache.get(secretKey).orElse(null);
-    }
-
-    /**
-     * Lists matching results. Executes the public operation.
-     */
-    public List<RoutingRuleEntity> listEnabledRulesByConsumerCode(String consumerCode) {
-        return enabledRulesByConsumerCodeCache.get(consumerCode);
     }
 
     /**
@@ -306,6 +297,14 @@ public class GatewayEntityCacheService {
         return builder().build(key -> Optional.ofNullable(loader.apply(key)));
     }
 
+    /**
+     * 列表缓存：返回<b>不可变列表</b>，但<b>元素是缓存的共享实例</b>（改进清单 3.11）。
+     *
+     * <p>⚠ 调用方<b>禁止就地修改元素</b>（如 {@code entity.setStatus(...)}）——那会直接污染缓存，
+     * 且污染对所有并发请求立即可见，比一次错误查询难查得多。需要变更语义时先复制再改。
+     * 不做深拷贝是刻意的：本类全部消费点（{@code RoutingResolver} / {@code UpstreamProxyClient} /
+     * {@code ProtocolCandidateFilter}）只读遍历，深拷贝会把这部分搬进热路径而无收益。</p>
+     */
     private static <K, V> LoadingCache<K, List<V>> listCache(Function<K, List<V>> loader) {
         return builder().build(key -> {
             List<V> values = loader.apply(key);

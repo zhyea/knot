@@ -84,12 +84,12 @@
 | 下游派生漏改 | B7 | `GatewayTrafficMsgDto.java:242` `statusOf()` 只认 4 个 type，改 type 不升本函数会让新值落 `default` |
 | 适配层反向依赖数据层 | D / B2 | `knot-adapter/pom.xml` compile 依赖 `knot-dal`；7 个主类 import `org.chobit.knot.gateway.entity.*`（`UpstreamRequestContext`、`UsageNormalizationSupport`、4 个 `BillingModeCalculator`…） |
 | 契约模块承载运行时 | D | `DefaultPluginDispatcher.java:23` `@Component` 位于 `knot-plugin-api` |
-| 协议集合多处维护 | O / S2 | `RoutingRuleService.java:90` `DEBUGGABLE_PROTOCOLS`、`MediaProtocolExecutor.java:19`、`TextGenerationProtocolExecutor.java:19`、`UsageExtractorRegistry` if 链、`RoutingTestBillingVerdictService.java:144`、前端两处 `normalizeProtocolCode` |
-| 兜底模式复制 | S3 | 8 个 Service 的 `snapshot()` 全是 `try { getById; return JsonKit.toMap } catch (BusinessException e) { return null; }` |
+| 协议集合多处维护 | O / S2 | ~~`UsageExtractorRegistry` if 链~~、~~`RoutingTestBillingVerdictService.java:144`~~、~~前端两处 `normalizeProtocolCode`~~ → **2026-10-24 已整改**：前两处随批次三 2.2b 协议猜测移除消除；前端归一收敛为 `utils/protocolCode.ts`（实测是三份而非两份——`RoutingRuleTestDrawer` 的同名函数实为 canonical 别名薄包装，语义不同，已并入 `canonicalOf` 调用点）。**仍待办**：`RoutingRuleService.DEBUGGABLE_PROTOCOLS`、`MediaProtocolExecutor`、`TextGenerationProtocolExecutor` 三处协议集合 |
+| 兜底模式复制 | S3 | ~~8 个 Service 的 `snapshot()` 全是 `try { getById; return JsonKit.toMap } catch (BusinessException e) { return null; }`~~ → **2026-10-24 已整改**（批次三 3.5）：实测 **14 处** Map 版快照统一走 `AuditSnapshotSupport.capture(id, loader)`；authorization 域 5 处返回 Entity、无吞噬语义，不套用 |
 | `\|\|` 兜底误用 | S6 | ~~`useAuthorizationManagement.ts:882` `row.status \|\| "ENABLED"`~~ → **2026-10-24 批次一已改为 `??`** |
 | 测试不进门禁 | E5 / B6 | ~~`knot-front` 已有 10 个 spec 文件，`.github/workflows/ci.yml` 只跑 `vue-tsc` + `vite build`~~ → **2026-10-24 批次一已加 `npm test` 步骤**（排在 type-check 之前） |
 | 核心链路零单测 | E5 / S8 | `RoutingResolver`（路由解析）与 `PluginDispatcher`（插件分发）均 0 个测试类；`knot-dal` 77 主类 0 测试 |
-| 业务类自建外部客户端 | D / B2 | `RoutingRuleService.java:175` 与 `GatewayOutageService.java:54` 自行 `RestClient.builder()`（对比：`RestClientDecisionsTransport` 在 `service.support`，是合理形态） |
+| 业务类自建外部客户端 | D / B2 | ~~`GatewayOutageService.java:54` 自行 `RestClient.builder()`~~ → **2026-10-24 已整改**（批次三 3.3）：该类无编排职责，整体改名为 `service.support.GatewayOutageRunner`（`Runner` 后缀标识执行器角色），与 `RestClientDecisionsTransport` 同款形态，Controller 直接注入。**仍待办**：`RoutingRuleService.java:175`（随 3.2 拆分移出） |
 | 泛化主干名残留 | S7 | ~~`SystemController` / `SystemMapper` / `SystemConverter` / `CommonController` / `CommonMappings` / `Base36` / `UtilityProtocolExecutor` 共 8 处~~ → **2026-10-24 批次一已整改**：4 处真违规改名/删除（`SystemMapper` 并入 `OperationLogMapper`、`SystemConverter`→`OperationLogConverter`、`CommonController`→`EnumOptionsController`、`CommonMappings`→`SharedMappings`、`GatewayDataService`→`GatewayEntityCacheService`、`GatewayRoutingInfo`→`GatewayRoutingContext`）；`SystemController`（系统管理模块域）/ `Base36`（算法名）/ `UtilityProtocolExecutor`（辅助协议族）判定合规并写入 §4.4 判例表 |
 | javadoc 与实现不符 | N1 | `canonical()` javadoc 宣称归一化实则恒等（批次三待整改，与协议猜测清除一起动）；~~`ModerationGuard` 的 MASK 语义与回落 FLAG 的实现不符~~ → **2026-10-24 已消除**（MASK 随功能移除，不存在「语义与实现不符」的第三态） |
 | 规范自身腐化 | — | `20-frontend-vue.md:7` 写「无测试框架」，实际已引入 vitest + 10 spec 文件 |

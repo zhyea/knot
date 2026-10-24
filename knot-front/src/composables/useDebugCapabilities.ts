@@ -1,6 +1,7 @@
 import {computed, ref} from "vue";
 import type {Dict} from "@/types";
 import {listDebugCapabilities} from "@/api/routing";
+import {normalizeProtocolCode} from "@/utils/protocolCode";
 
 /**
  * 路由调试协议能力数据源（GET /api/routing-rules/debug-capabilities）
@@ -32,19 +33,15 @@ const capabilityMap = ref<Record<string, DebugCapability>>({});
 let loadedAt = 0;
 let inflight: Promise<void> | null = null;
 
-function normalizeCode(value: unknown): string {
-  return String(value ?? "").trim().toUpperCase();
-}
-
 function applyList(list: unknown): void {
   capabilityMap.value = Object.fromEntries(
     (Array.isArray(list) ? list : []).map((item) => {
-      const code = normalizeCode(item?.code);
+      const code = normalizeProtocolCode(item?.code);
       return [
         code,
         {
           code,
-          canonicalCode: normalizeCode(item?.canonicalCode || item?.code),
+          canonicalCode: normalizeProtocolCode(item?.canonicalCode || item?.code),
           gatewayPath: item?.gatewayPath || "",
           hint: item?.hint || "",
           promptField: item?.promptField || null
@@ -83,24 +80,24 @@ export function useDebugCapabilities() {
   const loaded = computed(() => Object.keys(capabilityMap.value).length > 0);
 
   function capabilityOf(code: unknown): DebugCapability | null {
-    return capabilityMap.value[normalizeCode(code)] || null;
+    return capabilityMap.value[normalizeProtocolCode(code)] || null;
   }
 
   function canonicalOf(code: unknown): string {
-    const normalized = normalizeCode(code);
+    const normalized = normalizeProtocolCode(code);
     return capabilityMap.value[normalized]?.canonicalCode || normalized;
   }
 
   function gatewayPathOf(code: unknown): string {
-    return capabilityMap.value[normalizeCode(code)]?.gatewayPath || "";
+    return capabilityMap.value[normalizeProtocolCode(code)]?.gatewayPath || "";
   }
 
   function hintOf(code: unknown): string {
-    return capabilityMap.value[normalizeCode(code)]?.hint || "";
+    return capabilityMap.value[normalizeProtocolCode(code)]?.hint || "";
   }
 
   function promptFieldOf(code: unknown): string | null {
-    return capabilityMap.value[normalizeCode(code)]?.promptField || null;
+    return capabilityMap.value[normalizeProtocolCode(code)]?.promptField || null;
   }
 
   return { loading, loadOptions, loaded, capabilityOf, canonicalOf, gatewayPathOf, hintOf, promptFieldOf };
