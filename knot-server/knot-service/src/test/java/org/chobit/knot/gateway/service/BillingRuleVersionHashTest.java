@@ -24,7 +24,7 @@ class BillingRuleVersionHashTest {
             {"basePrices": {"input": 2, "output": 8}, "defaultUnitPrice": 0.01}
             """;
 
-    private final BillingService service = new BillingService(mock(BillingRuleMapper.class), null, null);
+    private final BillingService service = new BillingService(mock(BillingRuleMapper.class), null);
 
     @Test
     void shouldIgnoreCaseAndWhitespaceDifferences() {

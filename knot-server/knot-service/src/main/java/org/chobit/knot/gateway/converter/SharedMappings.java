@@ -19,7 +19,7 @@ import java.util.Map;
  * Shared MapStruct mapping helpers for status flags and JSON-backed fields.
  */
 @Component
-public class CommonMappings {
+public class SharedMappings {
 
     // ==================== status(TINYINT) <-> enabled ====================
 

@@ -1,16 +1,14 @@
 package org.chobit.knot.gateway.converter;
 
 import org.chobit.knot.gateway.dto.billing.BillingRuleDto;
-import org.chobit.knot.gateway.dto.billing.ReconciliationResultDto;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.vo.billing.BillingRule;
 import org.chobit.knot.gateway.vo.billing.BillingRuleListItem;
-import org.chobit.knot.gateway.vo.billing.ReconciliationResult;
 import org.mapstruct.Mapper;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring", uses = CommonMappings.class)
+@Mapper(componentModel = "spring", uses = SharedMappings.class)
 public interface BillingConverter {
 
     @org.mapstruct.Mapping(source = "status", target = "enabled", qualifiedByName = "statusToEnabled")
@@ -27,8 +25,6 @@ public interface BillingConverter {
     BillingRuleListItem toRuleListItem(BillingRuleEntity entity);
 
     List<BillingRuleListItem> toRuleListItemList(List<BillingRuleEntity> entities);
-
-    ReconciliationResult toReconciliationVO(ReconciliationResultDto dto);
 
     BillingRuleDto toRuleDto(BillingRule vo);
 

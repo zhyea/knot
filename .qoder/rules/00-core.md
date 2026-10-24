@@ -3,7 +3,7 @@ trigger: always_on
 description: knot 项目总则、门禁命令与铁律，所有会话必读
 ---
 
-> 本文件由 `docs/standards/generate-tool-rules.py` 自动生成，**勿手工编辑**。权威源：`docs/standards/rules/rules/00-core.md`。
+> 本文件由 `docs/standards/generate-tool-rules.py` 自动生成，**勿手工编辑**。权威源：`docs/standards/rules/00-core.md`。
 
 # 00 · 项目总则与铁律
 

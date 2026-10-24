@@ -3,15 +3,16 @@ package org.chobit.knot.gateway.upstream.usage;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.upstream.ModelApiBindingRef;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.config.UsageExtractionProperties;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
-import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.model.NormalizedUsage;
 import org.chobit.knot.gateway.model.UsageAccounting;
 import org.chobit.knot.gateway.model.usage.UsageExtractItem;
-import org.chobit.knot.gateway.service.GatewayDataService;
+import org.chobit.knot.gateway.service.GatewayEntityCacheService;
+import org.chobit.knot.gateway.usage.BillingRuleRef;
 import org.chobit.knot.gateway.usage.UsageNormalizationSupport;
 import org.chobit.knot.gateway.usage.UsageRawReader;
 import org.chobit.knot.gateway.usage.calculator.BillingModeCalculator;
@@ -51,11 +52,11 @@ import java.util.Map;
 public class UsageExtractorRegistry {
 
     private final UsageExtractorCatalog usageExtractorCatalog;
-    private final GatewayDataService dataService;
+    private final GatewayEntityCacheService dataService;
     private final UsageExtractionProperties properties;
 
     public UsageExtractorRegistry(UsageExtractorCatalog usageExtractorCatalog,
-                                  GatewayDataService dataService,
+                                  GatewayEntityCacheService dataService,
                                   UsageExtractionProperties properties) {
         this.usageExtractorCatalog = usageExtractorCatalog;
         this.dataService = dataService;
@@ -99,7 +100,8 @@ public class UsageExtractorRegistry {
     private UsageAccounting extract(String body,
                                     boolean eventStream,
                                     UpstreamRequestContext context) {
-        BillingRuleEntity billingRule = resolveBillingRule(context);
+        // 适配层只见自有投影（改进清单 2.5）：实体到投影的转换发生在网关侧这一边界上
+        BillingRuleRef billingRule = ruleRef(resolveBillingRule(context));
         // 提取器不存在属配置错误，不受降级开关影响：没有提取器就无从产出用量，放行只会静默记零账
         UsageExtractor<?> extractor = requireExtractor(eventStream, context);
         Map<String, Object> requestBody = requestBody(context);
@@ -242,7 +244,7 @@ public class UsageExtractorRegistry {
     private UsageAccounting normalize(UsageExtractItem<?> item,
                                       Map<String, Object> rawBody,
                                       Map<String, Object> rawUsage,
-                                      BillingRuleEntity billingRule,
+                                      BillingRuleRef billingRule,
                                       Map<String, Object> requestBody,
                                       Instant occurredAt,
                                       BillingModeCalculator calculator) {
@@ -260,20 +262,20 @@ public class UsageExtractorRegistry {
     }
 
     private String resolveExtractorCode(boolean eventStream, UpstreamRequestContext context) {
-        ModelApiBindingEntity binding = context.binding();
+        ModelApiBindingRef binding = context.binding();
         if (binding != null) {
-            String streamExtractor = binding.getStreamUsageExtractor();
+            String streamExtractor = binding.streamUsageExtractor();
             if (eventStream && StringUtils.isNotBlank(streamExtractor)) {
                 return streamExtractor;
             }
-            if (StringUtils.isNotBlank(binding.getUsageExtractor())) {
-                return binding.getUsageExtractor();
+            if (StringUtils.isNotBlank(binding.usageExtractor())) {
+                return binding.usageExtractor();
             }
         }
         // 已知特例：Anthropic 的缓存口径只在专用提取器里处理，未绑定时按 provider 兜到它。
         // 这与「配置驱动」原则相悖，彻底移除需改为绑定配置驱动，见方案 §12 第 4 项。
         if (context.provider() != null
-            && "ANTHROPIC".equals(StringUtils.upperCase(context.provider().getProviderCode()))) {
+            && "ANTHROPIC".equals(StringUtils.upperCase(context.provider().providerCode()))) {
             return AnthropicUsageExtractor.CODE;
         }
         if (context.protocol() != null) {
@@ -310,8 +312,18 @@ public class UsageExtractorRegistry {
             return null;
         }
         return dataService.getActiveBillingRule(
-            context.model().getBillingRuleCode(),
-            context.model().getModelFamilyCode()
+            context.model().billingRuleCode(),
+            context.model().modelFamilyCode()
         );
+    }
+
+    /**
+     * 计费规则实体 → 适配层投影：只带计价消费的六个字段（改进清单 2.5）。
+     * 实体由 {@link GatewayEntityCacheService} 产出，投影发生在网关侧边界上。
+     */
+    private static BillingRuleRef ruleRef(BillingRuleEntity rule) {
+        return rule == null ? null : new BillingRuleRef(
+                rule.getBillingMode(), rule.getConfigJson(), rule.getCurrency(),
+                rule.getPricingPlan(), rule.getUnit(), rule.getVersionCode());
     }
 }

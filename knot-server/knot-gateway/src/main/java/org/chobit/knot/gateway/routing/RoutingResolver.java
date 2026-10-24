@@ -18,12 +18,12 @@ import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.load.ModelLoadKeys;
 import org.chobit.knot.gateway.load.ModelLoadStore;
-import org.chobit.knot.gateway.model.GatewayRoutingInfo;
+import org.chobit.knot.gateway.model.GatewayRoutingContext;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.gateway.model.StickyPolicy;
 import org.chobit.knot.gateway.model.EjectionPolicy;
 import org.chobit.knot.gateway.model.RetryPolicy;
-import org.chobit.knot.gateway.service.GatewayDataService;
+import org.chobit.knot.gateway.service.GatewayEntityCacheService;
 import org.chobit.knot.gateway.util.tools.RoutingSecretKeyGenerator;
 import org.springframework.stereotype.Component;
 
@@ -44,13 +44,13 @@ import java.util.stream.Stream;
 @Component
 public class RoutingResolver {
 
-    private final GatewayDataService dataService;
+    private final GatewayEntityCacheService dataService;
     private final ModelPoolSelection modelPoolSelection;
     private final ModelLoadStore modelLoadStore;
     private final ModelLoadKeys modelLoadKeys;
     private final StickyRouting stickyRouting;
     /**
-     * 协议候选过滤器：数据源适配自 {@link GatewayDataService}（库查询 + 10 分钟缓存）。
+     * 协议候选过滤器：数据源适配自 {@link GatewayEntityCacheService}（库查询 + 10 分钟缓存）。
      * 走 {@link ApiBindingSource} 函数接口而非直接依赖，是为了过滤逻辑可单测隔离。
      */
     private final ProtocolCandidateFilter protocolFilter;
@@ -58,7 +58,7 @@ public class RoutingResolver {
     /**
      * Constructs a new instance.
      */
-    public RoutingResolver(GatewayDataService dataService,
+    public RoutingResolver(GatewayEntityCacheService dataService,
                            ModelPoolSelection modelPoolSelection,
                            ModelLoadStore modelLoadStore,
                            ModelLoadKeys modelLoadKeys,
@@ -120,14 +120,14 @@ public class RoutingResolver {
                     ProxyErrorCodeEnum.NO_ROUTING_TARGET.code()
             );
         }
-        GatewayRoutingInfo routingInfo = buildRoutingInfo(rule, consumer, app);
+        GatewayRoutingContext routingContext = buildRoutingContext(rule, consumer, app);
         return new ResolvedRouting(rule.getId(),
                 rule.getRuleCode(),
                 consumer.getId(),
                 consumer.getSecretKey(),
                 Boolean.TRUE.equals(consumer.getReturnUsageDetail()),
                 candidates,
-                routingInfo,
+                routingContext,
                 RetryPolicy.parse(rule.getRetryPolicy()),
                 EjectionPolicy.parse(rule.getEjectionPolicy()));
     }
@@ -140,28 +140,28 @@ public class RoutingResolver {
         return protocolFilter.filter(candidates, protocol);
     }
 
-    private static GatewayRoutingInfo buildRoutingInfo(RoutingRuleEntity rule,
+    private static GatewayRoutingContext buildRoutingContext(RoutingRuleEntity rule,
                                                        RoutingConsumerEntity consumer,
                                                        AppEntity app) {
-        return new GatewayRoutingInfo(
-                new GatewayRoutingInfo.RuleInfo(
+        return new GatewayRoutingContext(
+                new GatewayRoutingContext.RuleSnapshot(
                         rule.getId(),
                         rule.getRuleCode(),
                         rule.getName(),
                         rule.getAppScenario(),
                         rule.getUsername()
                 ),
-                new GatewayRoutingInfo.ConsumerInfo(
+                new GatewayRoutingContext.ConsumerSnapshot(
                         consumer.getId(),
                         consumer.getConsumerCode(),
                         consumer.getName(),
                         consumer.getSecretKey(),
                         Boolean.TRUE.equals(consumer.getReturnUsageDetail())
                 ),
-                new GatewayRoutingInfo.AppInfo(app.getId(), app.getAppCode(), app.getName(), app.getDeptCode()),
-                new GatewayRoutingInfo.UserInfo(consumer.getUserUsername(), consumer.getUserRealName()),
-                new GatewayRoutingInfo.UserInfo(app.getOwnerUsername(), app.getOwnerRealName()),
-                new GatewayRoutingInfo.DepartmentInfo(app.getDeptCode(), null)
+                new GatewayRoutingContext.AppSnapshot(app.getId(), app.getAppCode(), app.getName(), app.getDeptCode()),
+                new GatewayRoutingContext.UserSnapshot(consumer.getUserUsername(), consumer.getUserRealName()),
+                new GatewayRoutingContext.UserSnapshot(app.getOwnerUsername(), app.getOwnerRealName()),
+                new GatewayRoutingContext.DepartmentSnapshot(app.getDeptCode(), null)
         );
     }
 

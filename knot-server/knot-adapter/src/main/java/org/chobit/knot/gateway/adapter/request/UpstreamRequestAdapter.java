@@ -22,7 +22,7 @@ public interface UpstreamRequestAdapter {
      * 避免每个适配器重复实现同样的拼接逻辑。</p>
      */
     default String resolvePath(UpstreamRequestContext context, String defaultPath) {
-        String bindingPath = context.binding() == null ? null : context.binding().getApiPath();
+        String bindingPath = context.binding() == null ? null : context.binding().apiPath();
         return StringUtils.defaultIfBlank(StringUtils.trim(bindingPath), defaultPath);
     }
 

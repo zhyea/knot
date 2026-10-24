@@ -147,7 +147,7 @@
 | `stream` | bool 可空 | 请求体 `stream` 字段 |
 | `sticky_key` | string 可空 | `X-Knot-Sticky-Key` 头 |
 | `routing` | object 可空 | `ResolvedRouting` + `GatewayRoutingInfo`；**全部为 code/username，无主键 id、无 secretKey**；入口即拒为 null |
-| `status` | string | `success` / `rate_limited` / `quota_exceeded` / `upstream_error` / `gateway_error` |
+| `status` | string | `success` / `rate_limited` / `quota_exceeded` / `upstream_error` / `timeout` / `gateway_error` |
 | `http_status` | int | 成功 200；失败取 error.httpStatus |
 | `ttft_ms` / `hit` | 可空 | 异常路径为 null，禁填 0（0 是合法值，null 是无数据） |
 | `attempts[]` / `retry_total` / `failover_total` / `ejected_skipped` / `fail_open` | — | 候选循环轨迹（`CallTraceContext`）；详见 §3 attempts 规则（含 attempt 级上游 `upstream_request_id`） |

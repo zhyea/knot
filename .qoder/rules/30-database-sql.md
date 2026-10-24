@@ -4,7 +4,7 @@ description: knot 数据库规范：表前缀、迁移脚本、逻辑删除四�
 glob: **/*.sql, **/db/**
 ---
 
-> 本文件由 `docs/standards/generate-tool-rules.py` 自动生成，**勿手工编辑**。权威源：`docs/standards/rules/rules/30-database-sql.md`。
+> 本文件由 `docs/standards/generate-tool-rules.py` 自动生成，**勿手工编辑**。权威源：`docs/standards/rules/30-database-sql.md`。
 
 # 30 · 数据库与迁移规范
 

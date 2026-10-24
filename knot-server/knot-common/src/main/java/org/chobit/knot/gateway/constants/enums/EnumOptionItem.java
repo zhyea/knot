@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.constants.enums;
 
 /**
- * {@code GET /api/common/enums} 的单个选项。
+ * {@code GET /api/enum-options} 的单个选项。
  *
  * <p>响应结构从 {@code code -> label} 的 map 改为数组，是因为 JSON object key 必然是字符串：
  * {@code {"1":"启用"}} 表达的数字在反序列化后与 {@code {"ENABLED":"启用"}} 无法区分类型，

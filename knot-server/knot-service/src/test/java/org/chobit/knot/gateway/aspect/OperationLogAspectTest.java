@@ -93,7 +93,7 @@ class OperationLogAspectTest {
     private OperationLogAspect aspectWith(AuditStub audit) {
         DefaultListableBeanFactory beanFactory = new DefaultListableBeanFactory();
         beanFactory.registerSingleton("snapshotSupport", audit);
-        return new OperationLogAspect(new OperationLogService(logMapper, null, null), beanFactory);
+        return new OperationLogAspect(new OperationLogService(logMapper, null), beanFactory);
     }
 
     private OperationLogEntity captureSavedLog() {

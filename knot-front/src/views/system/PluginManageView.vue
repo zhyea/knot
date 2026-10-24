@@ -70,7 +70,7 @@ import {listPlugins, updatePluginStatus, deletePlugin} from "@/api/plugins";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import {listOperationLogsByEntity} from "@/api/operationLogs";
 
-// 插件状态筛选：EnabledStatusEnum（代码枚举，/api/common/enums；1-启用 0-停用）
+// 插件状态筛选：EnabledStatusEnum（代码枚举，/api/enum-options；1-启用 0-停用）
 const {optionsOf: enumOptionsOf} = useEnumOptions();
 const pluginStatusOptions = computed(() =>
   enumOptionsOf("EnabledStatusEnum").map((item) => ({
@@ -79,7 +79,7 @@ const pluginStatusOptions = computed(() =>
   }))
 );
 
-// 插件类型筛选：PluginTypeEnum（代码枚举，/api/common/enums；SYNC-同步插件）
+// 插件类型筛选：PluginTypeEnum（代码枚举，/api/enum-options；SYNC-同步插件）
 const pluginTypeOptions = computed(() => enumOptionsOf("PluginTypeEnum"));
 
 const {

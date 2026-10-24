@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.usage.calculator;
 
 import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
-import org.chobit.knot.gateway.entity.BillingRuleEntity;
+import org.chobit.knot.gateway.usage.BillingRuleRef;
 import org.chobit.knot.gateway.model.NormalizedBillingAmount;
 import org.chobit.knot.gateway.model.NormalizedUsageDetail;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
@@ -228,31 +228,24 @@ class TokenBillingModeCalculatorTest {
                 context(rule("{}", "peak_off_peak"), new TokenBillingUsage(1L, 0L, 1L, 0L, 0L, 0L, 0L)).pricingPlan());
     }
 
-    private NormalizedBillingAmount calculate(BillingRuleEntity rule, TokenBillingUsage usage, Instant occurredAt) {
+    private NormalizedBillingAmount calculate(BillingRuleRef rule, TokenBillingUsage usage, Instant occurredAt) {
         return calculator.calculate(context(rule, usage, occurredAt));
     }
 
-    private NormalizedUsageContext context(BillingRuleEntity rule, TokenBillingUsage usage, Instant occurredAt) {
+    private NormalizedUsageContext context(BillingRuleRef rule, TokenBillingUsage usage, Instant occurredAt) {
         return new NormalizedUsageContext(rule, usage, java.util.Map.of(), occurredAt);
     }
 
-    private NormalizedUsageContext context(BillingRuleEntity rule, TokenBillingUsage usage) {
+    private NormalizedUsageContext context(BillingRuleRef rule, TokenBillingUsage usage) {
         return new NormalizedUsageContext(rule, usage, java.util.Map.of(), PEAK);
     }
 
-    private static BillingRuleEntity rule(String configJson, String pricingPlan) {
+    private static BillingRuleRef rule(String configJson, String pricingPlan) {
         return rule(configJson, pricingPlan, "1K_TOKENS");
     }
 
-    private static BillingRuleEntity rule(String configJson, String pricingPlan, String unit) {
-        BillingRuleEntity rule = new BillingRuleEntity();
-        rule.setBillingMode("TOKEN");
-        rule.setUnit(unit);
-        rule.setCurrency("USD");
-        rule.setVersionCode("v1");
-        rule.setPricingPlan(pricingPlan);
-        rule.setConfigJson(configJson);
-        return rule;
+    private static BillingRuleRef rule(String configJson, String pricingPlan, String unit) {
+        return new BillingRuleRef("TOKEN", configJson, "USD", pricingPlan, unit, "v1");
     }
 
     private static List<String> types(NormalizedBillingAmount amount) {

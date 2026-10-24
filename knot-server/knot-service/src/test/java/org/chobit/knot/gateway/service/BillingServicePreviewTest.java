@@ -98,7 +98,7 @@ class BillingServicePreviewTest {
         BillingConverter converter = mock(BillingConverter.class);
         when(converter.toRuleDto(entity)).thenReturn(dto);
 
-        BillingService service = new BillingService(mapper, null, converter);
+        BillingService service = new BillingService(mapper, converter);
         return service.previewPricing(7L, new PricingPreviewRequest(occurredAt, null));
     }
 

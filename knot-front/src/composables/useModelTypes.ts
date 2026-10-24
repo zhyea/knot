@@ -9,7 +9,7 @@ import {listModelTypes} from "@/api/models";
  *  - protocolsOf(code)  模型类型 -> 支持的协议 code 列表（含 CUSTOM）
  *  - defaultCode        后端列表首项，作为新建表单默认值
  *
- * 模型类型的名称与下拉选项统一来自 /api/common/enums（useEnumOptions / EnumControl），
+ * 模型类型的名称与下拉选项统一来自 /api/enum-options（useEnumOptions / EnumControl），
  * 不再走本 composable。
  *
  * 用法：

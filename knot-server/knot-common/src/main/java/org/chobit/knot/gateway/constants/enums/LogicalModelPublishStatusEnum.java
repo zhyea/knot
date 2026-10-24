@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * 统一模型发布状态：已从 ks_enum_configs（logical_model_publish_status 字典）迁出，
- * 通过 /api/common/enums 以 LogicalModelPublishStatusEnum 键下发前端。
+ * 通过 /api/enum-options 以 LogicalModelPublishStatusEnum 键下发前端。
  *
  * <p>发布状态只描述发布生命周期，不控制可用性：可用性由 enabled 决定，
  * 二者互不影响，避免「已发布但被停用」这类状态互相污染。</p>

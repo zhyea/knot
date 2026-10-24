@@ -1,7 +1,6 @@
 package org.chobit.knot.gateway.usage;
 
 import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
-import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.model.BillingUsage;
 
 import java.time.Instant;
@@ -20,12 +19,12 @@ import java.util.Map;
  * 计算器按方案分发到对应计费方法，不再各自解析规则列；空值或未知编码回落 {@code FIXED}，
  * 与 {@code BillingConfig} 构建方案领域对象时 null 视为 FIXED 的口径一致。
  */
-public record NormalizedUsageContext(BillingRuleEntity rule,
+public record NormalizedUsageContext(BillingRuleRef rule,
                                      BillingUsage usage,
                                      Map<String, Object> requestBody,
                                      Instant occurredAt) {
 
-    public NormalizedUsageContext(BillingRuleEntity rule,
+    public NormalizedUsageContext(BillingRuleRef rule,
                                   BillingUsage usage,
                                   Map<String, Object> requestBody,
                                   Instant occurredAt) {
@@ -37,7 +36,7 @@ public record NormalizedUsageContext(BillingRuleEntity rule,
 
     /** 定价方案：规则列解析，空或未知回落 FIXED */
     public PricingPlanEnum pricingPlan() {
-        PricingPlanEnum plan = PricingPlanEnum.fromCode(rule.getPricingPlan());
+        PricingPlanEnum plan = PricingPlanEnum.fromCode(rule.pricingPlan());
         return plan == null ? PricingPlanEnum.FIXED : plan;
     }
 }

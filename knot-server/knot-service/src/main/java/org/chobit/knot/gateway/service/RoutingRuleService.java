@@ -20,7 +20,6 @@ import org.chobit.knot.gateway.constants.enums.ModelPoolSelectionStrategyEnum;
 import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
 import org.chobit.knot.gateway.constants.enums.RoutingTestStatusEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
-import org.chobit.knot.gateway.converter.RoutingRuleConverter;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleDto;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.dto.routing.RoutingTestPreparation;
@@ -135,7 +134,6 @@ public class RoutingRuleService {
     private final ModelPoolMapper modelPoolMapper;
     private final AppMapper appMapper;
     private final LogicalModelMapper logicalModelMapper;
-    private final RoutingRuleConverter routingRuleConverter;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
     private final RestClient restClient;
 
@@ -150,7 +148,6 @@ public class RoutingRuleService {
                               ModelPoolMapper modelPoolMapper,
                               AppMapper appMapper,
                               LogicalModelMapper logicalModelMapper,
-                              RoutingRuleConverter routingRuleConverter,
                               ResourceTrafficPolicySupport trafficPolicySupport) {
         this.routingRuleMapper = routingRuleMapper;
         this.routingRuleTargetMapper = routingRuleTargetMapper;
@@ -160,7 +157,6 @@ public class RoutingRuleService {
         this.modelPoolMapper = modelPoolMapper;
         this.appMapper = appMapper;
         this.logicalModelMapper = logicalModelMapper;
-        this.routingRuleConverter = routingRuleConverter;
         this.trafficPolicySupport = trafficPolicySupport;
         this.restClient = createRestClient();
     }

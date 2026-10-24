@@ -3,11 +3,11 @@ package org.chobit.knot.gateway.usage.calculator;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
-import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.model.BillingConfig;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.model.NormalizedBillingAmount;
 import org.chobit.knot.gateway.model.VideoBillingUsage;
+import org.chobit.knot.gateway.usage.BillingRuleRef;
 import org.chobit.knot.gateway.usage.NormalizedUsageContext;
 import org.springframework.stereotype.Component;
 
@@ -27,7 +27,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
 
     @Override
     public NormalizedBillingAmount calculate(NormalizedUsageContext context) {
-        BillingRuleEntity rule = rule(context);
+        BillingRuleRef rule = rule(context);
         BillingUsage usage = context.usage();
         long amount;
         String resolution;
@@ -49,8 +49,8 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         int unitSize = unitSize(rule);
         BigDecimal totalCost = cost(amount, unitPrice, unitSize);
         String detailType = resolution == null
-                ? normalizeDetailType(rule.getBillingMode(), BillingModeEnum.VIDEO)
-                : normalizeDetailType(rule.getBillingMode(), BillingModeEnum.VIDEO) + ":" + resolution;
+                ? normalizeDetailType(rule.billingMode(), BillingModeEnum.VIDEO)
+                : normalizeDetailType(rule.billingMode(), BillingModeEnum.VIDEO) + ":" + resolution;
         return NormalizedBillingAmount.of(
                 usage.tokenUsage().totalTokens(),
                 totalCost,
@@ -65,10 +65,10 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
      * （方案文档 §八 风险 ①）。首期 PEAK_OFF_PEAK 仅支持 TOKEN 模式，VIDEO 拿不到该方案，
      * 故无实际影响；放开到非 TOKEN 前必须先处理这里。</p>
      */
-    private BigDecimal resolveUnitPrice(BillingRuleEntity rule,
+    private BigDecimal resolveUnitPrice(BillingRuleRef rule,
                                         String resolution,
                                         BillingConfig.PricingContext pricingContext) {
-        BillingConfig config = BillingConfig.fromJsonOrNull(rule.getConfigJson());
+        BillingConfig config = BillingConfig.fromJsonOrNull(rule.configJson());
         if (config == null || resolution == null) {
             return config == null ? BigDecimal.ZERO
                     : planOf(config, rule).resolveDefaultPrice(pricingContext, BigDecimal.ZERO);
@@ -85,8 +85,8 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         return matched == null ? fallback : matched;
     }
 
-    private static BillingConfig.PricingPlan planOf(BillingConfig config, BillingRuleEntity rule) {
-        return config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan()));
+    private static BillingConfig.PricingPlan planOf(BillingConfig config, BillingRuleRef rule) {
+        return config.pricingPlan(PricingPlanEnum.fromCode(rule.pricingPlan()));
     }
 
     /**

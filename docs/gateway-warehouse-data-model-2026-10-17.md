@@ -73,7 +73,7 @@ ADS  看板：成本 TopN、成功率、P95 TTFT、限流命中率、缓存命�
 | 模型维度 | `pool_or_model`（首个候选 targetType） | string | RouteTargetTypeEnum：MODEL / MODEL_POOL |
 | 模型维度 | `candidate_count` | int | routing.candidateModels.size() |
 | 模型维度 | `hit_model_code` / `hit_provider_code` | string **可空** | `X-Knot-Model` 头 + ProxyResult.providerId 反查；无成功上游调用为 NULL |
-| 结果 | `status` | string | success / rate_limited / quota_exceeded / upstream_error / gateway_error |
+| 结果 | `status` | string | success / rate_limited / quota_exceeded / upstream_error / timeout / gateway_error |
 | 结果 | `http_status` | int | 200/400/401/429/502/503/500 |
 | 结果 | `error_type` | string **可空** | GatewayErrorTypeEnum（7 值，见 §4.2） |
 | 结果 | `error_code` | string **可空** | ProxyErrorCodeEnum（8 值） |
@@ -161,7 +161,7 @@ ADS  看板：成本 TopN、成功率、P95 TTFT、限流命中率、缓存命�
 
 ### 4.2 网关异常（request 级）
 
-`GatewayErrorTypeEnum` 7 值（`constants/enums/GatewayErrorTypeEnum.java:4-15`）与 HTTP 映射（`controller/GatewayExceptionHandler.java`）：
+`GatewayErrorTypeEnum` 8 值（`constants/enums/GatewayErrorTypeEnum.java:4-21`）与 HTTP 映射（`controller/GatewayExceptionHandler.java`）：
 
 | error_type | HTTP | 触发 | 附加数据 |
 |---|---|---|---|
@@ -172,6 +172,7 @@ ADS  看板：成本 TopN、成功率、P95 TTFT、限流命中率、缓存命�
 | `moderation_error` | 400 | 敏感词命中（GatewayBadRequestException，只暴露分类 code 不暴露词本身） | 分类 code |
 | `storage_unavailable` | 503 | Redis 不可用（fail-hard 档） | `domain`/`operation`/`key`（ERROR 日志即报警通道） |
 | `upstream_error` | 502 | 上游异常终态 | 同 §4.1 |
+| `timeout_error` | 504 | 请求预算超时（B2 全局 deadline，`Mono.timeout` 抛 `TimeoutException`） | — |
 
 **429 结构化明细**（`model/TrafficRejectDetail.java:24-32`，随响应体 `error.detail` 返回）：`resourceType` / `resourceCode` / `reason`（RATE_LIMIT_RPM/RATE_LIMIT_TPM/QUOTA_TOKENS/QUOTA_COST）/ `dimension` / `unit` / `limit` / `used` / `resetAt`(ISO UTC) / `resetAfterSeconds`。成本维度内部按 **1e-12 缩放计数**，输出时还原金额——数仓存还原后金额 + currency，勿存缩放计数。
 

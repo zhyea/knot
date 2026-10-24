@@ -4,7 +4,6 @@ import jakarta.validation.Valid;
 import org.chobit.knot.gateway.annotation.OperationLog;
 import org.chobit.knot.gateway.converter.BillingConverter;
 import org.chobit.knot.gateway.dto.billing.BillingRuleDto;
-import org.chobit.knot.gateway.dto.billing.ReconciliationResultDto;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
@@ -14,8 +13,6 @@ import org.chobit.knot.gateway.vo.billing.BillingReportSummary;
 import org.chobit.knot.gateway.vo.billing.BillingRule;
 import org.chobit.knot.gateway.vo.billing.BillingRuleListItem;
 import org.chobit.knot.gateway.vo.common.EnabledStatusRequest;
-import org.chobit.knot.gateway.vo.billing.ReconciliationRequest;
-import org.chobit.knot.gateway.vo.billing.ReconciliationResult;
 import org.chobit.knot.gateway.vo.billing.PricingPreviewRequest;
 import org.chobit.knot.gateway.vo.billing.PricingPreviewResult;
 import org.chobit.knot.gateway.model.BillingRuleOptionQuery;
@@ -160,14 +157,5 @@ public class BillingController {
     public PricingPreviewResult previewRule(@PathVariable Long id,
                                             @RequestBody(required = false) PricingPreviewRequest request) {
         return billingService.previewPricing(id, request);
-    }
-
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
-    @PostMapping("/reconciliation")
-    public ReconciliationResult reconciliation(@RequestBody @Valid ReconciliationRequest request) {
-        ReconciliationResultDto result = billingService.reconcile(request.providerCode(), request.billDate());
-        return billingConverter.toReconciliationVO(result);
     }
 }

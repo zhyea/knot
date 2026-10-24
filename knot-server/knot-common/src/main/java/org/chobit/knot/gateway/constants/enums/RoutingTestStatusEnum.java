@@ -4,7 +4,7 @@ import java.util.Arrays;
 
 /**
  * 路由连通性测试结果：从 ks_enum_configs 的通用 status 字典中拆分出来的领域枚举，
- * 通过 /api/common/enums 以 RoutingTestStatusEnum 键下发前端。
+ * 通过 /api/enum-options 以 RoutingTestStatusEnum 键下发前端。
  *
  * <p>该领域历史上用 FAILED 表示未通过，与操作日志的 FAILURE 不是同一套取值，故独立成枚举。</p>
  */

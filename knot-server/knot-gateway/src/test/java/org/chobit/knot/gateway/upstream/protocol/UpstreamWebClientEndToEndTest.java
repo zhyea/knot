@@ -8,8 +8,8 @@ import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
 import org.chobit.knot.gateway.config.UpstreamWebClientConfiguration;
 import org.chobit.knot.gateway.config.UsageExtractionProperties;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.entity.ModelEntity;
-import org.chobit.knot.gateway.entity.ProviderAccountEntity;
+import org.chobit.knot.gateway.adapter.upstream.ModelRef;
+import org.chobit.knot.gateway.adapter.upstream.ProviderAccountRef;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.model.UsageAccounting;
@@ -206,11 +206,10 @@ class UpstreamWebClientEndToEndTest {
     }
 
     private UpstreamRequestContext context(String path, Map<String, Object> body, String basePath) {
-        ModelEntity model = new ModelEntity();
-        model.setBasePath(basePath);
-        // 上游地址归供应商账户（base_url 已从模型挪到账户，见 ProviderAccountEntity）
-        ProviderAccountEntity provider = new ProviderAccountEntity();
-        provider.setBaseUrl("http://127.0.0.1:" + server.port());
+        // 上游地址归供应商账户（base_url 已从模型挪到账户，见 ProviderAccountRef）
+        ModelRef model = new ModelRef(1L, "e2e-model", "e2e-model", basePath, null, null);
+        ProviderAccountRef provider = new ProviderAccountRef(1L, "e2e-account",
+                "http://127.0.0.1:" + server.port(), "OPENAI");
         return new UpstreamRequestContext(
                 ModelApiProtocolEnum.CHAT_COMPLETIONS,
                 body,

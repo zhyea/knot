@@ -72,7 +72,6 @@ INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, rou
 (12, 3, NULL, 'routing.consumers', '消费者', '/routing/consumers', 'routing/RoutingConsumerView', 'Share', 20, 1),
 (13, 4, NULL, 'billing.rules', '计费规则', '/billing/rules', 'billing/BillingRuleView', 'Coin', 10, 1),
 (20, 4, NULL, 'billing.reports', '计费报表', '/billing/reports', 'billing/BillingReportView', 'Odometer', 20, 1),
-(21, 4, NULL, 'billing.reconciliation', '计费对账', '/billing/reconciliation', 'billing/ReconciliationView', 'Document', 30, 1),
 (22, 3, NULL, 'routing.presets', '预设请求', '/routing/presets', 'routing/TestRequestPresetView', 'Share', 30, 1),
 (24, 3, NULL, 'moderation.words', '敏感词管理', '/routing/moderation-words', 'moderation/ModerationWordManageView', 'Warning', 40, 1);
 
@@ -210,7 +209,6 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 (123, 'model:external-model:ignore', '外部模型忽略', 'API', 2, 10, 1, 1, NULL),
 (124, 'billing:report:page', '计费报表页面访问', 'PAGE', 4, 20, 1, 1, NULL),
 (125, 'billing:report:view', '计费报表查看', 'API', 4, 20, 1, 1, NULL),
-(126, 'billing:reconciliation:page', '计费对账页面访问', 'PAGE', 4, 21, 1, 1, NULL),
 (127, 'billing:rule:preview', '计费规则方案试算', 'API', 4, 13, 1, 1, NULL),
 (128, 'routing:preset:view', '预设请求查看', 'API', 3, 22, 1, 1, NULL),
 (129, 'routing:preset:create', '预设请求创建', 'API', 3, 22, 1, 1, NULL),
@@ -305,7 +303,6 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (62, 69, 'PUT', '/api/billing/rules/{id}', 'BillingController', 1),
 (63, 70, 'PUT', '/api/billing/rules/{id}/status', 'BillingController', 1),
 (64, 71, 'DELETE', '/api/billing/rules/{id}', 'BillingController', 1),
-(65, 67, 'POST', '/api/billing/reconciliation', 'BillingController', 1),
 (66, 30, 'POST', '/api/system/enums/list', 'EnumConfigController', 1),
 (67, 30, 'POST', '/api/system/enums/category-summaries', 'EnumConfigController', 1),
 (68, 30, 'GET', '/api/system/enums/items/{category}', 'EnumConfigController', 1),
@@ -465,13 +462,13 @@ INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (2, 98), (2, 99), (2, 100), (2, 101), (2, 102), (2, 103), (2, 104), (2, 105),
 (2, 106), (2, 107), (2, 108), (2, 109), (2, 110), (2, 111), (2, 112), (2, 113),
 (2, 114), (2, 115), (2, 116), (2, 117), (2, 118), (2, 119), (2, 120), (2, 121),
-(2, 122), (2, 123), (2, 124), (2, 125), (2, 126), (2, 127), (2, 128), (2, 129),
+(2, 122), (2, 123), (2, 124), (2, 125), (2, 127), (2, 128), (2, 129),
 (2, 130), (2, 131), (2, 132), (2, 133), (2, 134), (2, 135), (2, 136), (2, 137), (2, 138), (2, 139),
 (2, 140), (2, 141), (3, 14), (3, 15), (3, 16), (3, 17), (3, 18),
 (3, 19), (3, 20), (3, 21), (3, 22), (3, 23), (3, 24), (3, 25), (3, 26),
 (3, 58), (3, 66), (3, 67), (3, 75), (3, 79), (3, 84), (3, 88), (3, 93),
 (3, 94), (3, 99), (3, 103), (3, 107), (3, 112), (3, 120), (3, 124), (3, 125),
-(3, 126), (3, 127), (3, 128), (3, 133), (3, 136), (3, 137),
+(3, 127), (3, 128), (3, 133), (3, 136), (3, 137),
 -- 网关摘除管理面（B4）：OPERATOR 全量（查看 + 管理），DEVELOPER 仅查看；ADMIN 由末尾权威块全量授予
 (2, 152), (2, 153), (3, 152);
 
@@ -890,7 +887,7 @@ INSERT IGNORE INTO kb_notification_templates (id, code, name, channel, title_tpl
 -- =========================
 -- 枚举字典
 -- =========================
--- 只有仍在 DB 维护的分类放这里；已迁代码枚举（/api/common/enums）的不再落库。
+-- 只有仍在 DB 维护的分类放这里；已迁代码枚举（/api/enum-options）的不再落库。
 
 -- 枚举分类（与 ks_enum_configs.category_id 对应；is_system=1 表示系统内置分类）
 -- 模型族枚举分类（category_id=28）：计费规则作用域与统一模型均引用该族 code（item_code）。
@@ -916,7 +913,7 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 -- 供应商类型（category 1）已移除：供应商品牌主数据以 kb_providers 表为唯一来源，
 -- 前端下拉/标签走 useProviderTypeOptions（/api/provider-profiles）
 -- 通用状态字典：仅保留运行态杂项（操作日志 SUCCESS/FAILURE 等）；
--- EntityStatusEnum（ENABLED/DISABLED/ACTIVE/INACTIVE/DELETED）已迁代码枚举 /api/common/enums
+-- EntityStatusEnum（ENABLED/DISABLED/ACTIVE/INACTIVE/DELETED）已迁代码枚举 /api/enum-options
 INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_order, is_enabled) VALUES
 (5, 'GLOBAL', '全局',   1, 1),
 (5, 'MODEL',  '按模型', 2, 1),

@@ -3,7 +3,7 @@ description: knot 交付规范：产物落盘位置、git 纪律、变更收口�
 alwaysApply: false
 ---
 
-> 本文件由 `docs/standards/generate-tool-rules.py` 自动生成，**勿手工编辑**。权威源：`docs/standards/rules/rules/70-delivery.md`。
+> 本文件由 `docs/standards/generate-tool-rules.py` 自动生成，**勿手工编辑**。权威源：`docs/standards/rules/70-delivery.md`。
 
 # 70 · 交付、文档与协作规范
 

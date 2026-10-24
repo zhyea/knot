@@ -9,7 +9,7 @@ package org.chobit.knot.gateway.plugin;
  * </ul>
  *
  * 与 {@code kb_plugin_instances.plugin_type} 口径一致：同一套 {@link PluginTypeEnum} 作唯一权威，
- * 接口层枚举值 == 数据层落库值 == 前端 /api/common/enums 下发值。
+ * 接口层枚举值 == 数据层落库值 == 前端 /api/enum-options 下发值。
  */
 public interface PluginContract {
 

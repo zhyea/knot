@@ -297,7 +297,7 @@ const RAW_USAGE_FIELD = "usage";
 /** 实际承接模型响应头（fetch Headers 遍历统一小写；后端 GatewayHeaders.X_KNOT_MODEL） */
 const MODEL_RESPONSE_HEADER = "x-knot-model";
 
-// 协议名称来自后端 ModelApiProtocolEnum（/api/common/enums），前端不再维护 code->label 映射
+// 协议名称来自后端 ModelApiProtocolEnum（/api/enum-options），前端不再维护 code->label 映射
 const {labelOf: enumLabelOf} = useEnumOptions();
 
 /** 「全部目标」哨兵 key：协议下拉展示所有目标协议的并集（否则仅展示所选目标的协议） */

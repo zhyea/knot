@@ -4,8 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
-import org.chobit.knot.gateway.entity.ModelEntity;
+import org.chobit.knot.gateway.adapter.upstream.ModelApiBindingRef;
+import org.chobit.knot.gateway.adapter.upstream.ModelRef;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.junit.jupiter.api.Test;
 
@@ -35,8 +35,8 @@ class BedrockConverseRequestAdapterTest {
 
     @Test
     void shouldPreferBindingApiPathOverride() {
-        ModelApiBindingEntity binding = new ModelApiBindingEntity();
-        binding.setApiPath("/model/custom-path/converse");
+        ModelApiBindingRef binding = new ModelApiBindingRef("/model/custom-path/converse",
+                null, null, null, null);
         assertEquals("/model/custom-path/converse",
                 adapter.resolvePath(contextWithModel(Map.of(), binding), null));
     }
@@ -136,9 +136,8 @@ class BedrockConverseRequestAdapterTest {
         return contextWithModel(body, null);
     }
 
-    private UpstreamRequestContext contextWithModel(Map<String, Object> body, ModelApiBindingEntity binding) {
-        ModelEntity model = new ModelEntity();
-        model.setUpstreamModel(MODEL_ID);
+    private UpstreamRequestContext contextWithModel(Map<String, Object> body, ModelApiBindingRef binding) {
+        ModelRef model = new ModelRef(1L, "claude-sonnet-4", MODEL_ID, null, null, null);
         return new UpstreamRequestContext(ModelApiProtocolEnum.CHAT_COMPLETIONS, body, null,
                 model, null, null, binding, null, null);
     }

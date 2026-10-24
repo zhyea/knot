@@ -4,7 +4,7 @@ import org.chobit.knot.gateway.adapter.upstream.UpstreamAccess;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamSignableRequest;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.entity.ProviderAccountEntity;
+import org.chobit.knot.gateway.adapter.upstream.ProviderAccountRef;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 
@@ -92,9 +92,8 @@ class AwsSigV4AuthApplierTest {
 
     @Test
     void baseUrlShouldPreferProviderAccountConfig() {
-        ProviderAccountEntity provider = new ProviderAccountEntity();
-        provider.setCode("aws-bedrock-runtime");
-        provider.setBaseUrl("https://vpce-0abc.bedrock-runtime.us-east-1.vpce.amazonaws.com");
+        ProviderAccountRef provider = new ProviderAccountRef(1L, "aws-bedrock-runtime",
+                "https://vpce-0abc.bedrock-runtime.us-east-1.vpce.amazonaws.com", "AWS");
         UpstreamRequestContext context = context(Map.of(
                 "region", "us-east-1", "endpointType", "bedrock-runtime"), provider);
 
@@ -104,8 +103,7 @@ class AwsSigV4AuthApplierTest {
 
     @Test
     void baseUrlShouldDeriveWhenProviderAccountIsBlank() {
-        ProviderAccountEntity provider = new ProviderAccountEntity();
-        provider.setCode("aws-bedrock-mantle");
+        ProviderAccountRef provider = new ProviderAccountRef(1L, "aws-bedrock-mantle", null, "AWS");
         UpstreamRequestContext context = context(Map.of(
                 "region", "ap-northeast-1", "endpointType", "bedrock-mantle"), provider);
 
@@ -114,9 +112,8 @@ class AwsSigV4AuthApplierTest {
 
     @Test
     void baseUrlShouldBeNullWhenRegionMissingEvenIfAccountConfigured() {
-        ProviderAccountEntity provider = new ProviderAccountEntity();
-        provider.setCode("aws-bedrock-runtime");
-        provider.setBaseUrl("https://bedrock-runtime.us-east-1.amazonaws.com");
+        ProviderAccountRef provider = new ProviderAccountRef(1L, "aws-bedrock-runtime",
+                "https://bedrock-runtime.us-east-1.amazonaws.com", "AWS");
         UpstreamRequestContext context = context(Map.of("endpointType", "bedrock-runtime"), provider);
 
         assertNull(applier.baseUrl(context),
@@ -125,8 +122,7 @@ class AwsSigV4AuthApplierTest {
 
     @Test
     void prepareShouldCarryBaseUrlButNoStaticHeaders() {
-        ProviderAccountEntity provider = new ProviderAccountEntity();
-        provider.setCode("aws-bedrock-runtime");
+        ProviderAccountRef provider = new ProviderAccountRef(1L, "aws-bedrock-runtime", null, "AWS");
         UpstreamRequestContext context = context(Map.of("region", "us-east-1"), provider);
 
         UpstreamAccess access = applier.prepare(context);
@@ -147,7 +143,7 @@ class AwsSigV4AuthApplierTest {
         return context(authConfig, null);
     }
 
-    private UpstreamRequestContext context(Map<String, Object> authConfig, ProviderAccountEntity provider) {
+    private UpstreamRequestContext context(Map<String, Object> authConfig, ProviderAccountRef provider) {
         return new UpstreamRequestContext(ModelApiProtocolEnum.CHAT_COMPLETIONS, Map.of(), null,
                 null, provider, authConfig, null, null, null);
     }

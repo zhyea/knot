@@ -56,8 +56,8 @@ public class OpenAiCompatibleRequestAdapter implements UpstreamRequestAdapter {
 
     @Override
     public String resolvePath(UpstreamRequestContext context, String defaultPath) {
-        if (context.binding() != null && StringUtils.isNotBlank(context.binding().getApiPath())) {
-            return StringUtils.trim(context.binding().getApiPath());
+        if (context.binding() != null && StringUtils.isNotBlank(context.binding().apiPath())) {
+            return StringUtils.trim(context.binding().apiPath());
         }
         if (ModelApiProtocolEnum.MESSAGES == context.protocol().canonical()) {
             return ModelApiProtocolEnum.CHAT_COMPLETIONS.defaultPath();

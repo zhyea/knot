@@ -173,7 +173,7 @@ knot:
 | `MAX_TEXT_LENGTH` | `65536`（单段文本参与检测的**字符数**上限） | `max-body-bytes` |
 | `SEVERITY_THRESHOLD` | `1`（全部命中触发动作） | `severity-threshold` |
 | fail-open | 词库不可用 → 放行 + 告警（内联行为，**未建枚举**：当前无分支使用） | `fail-mode` |
-| `MASK_CHAR` / `PENALTY_MULTIPLIER` | M2 随脱敏改写 / 惩罚性计费一并落地（提前声明即死代码） | `mask-char` / `penalty-multiplier` |
+| `MASK_CHAR` / `PENALTY_MULTIPLIER` | `MASK_CHAR` 随 MASK 功能一并移除（2026-10-24 robin 拍板：不做脱敏，`ModerationMasker` 已删）；`PENALTY_MULTIPLIER` 随惩罚性计费落地 | `mask-char` / `penalty-multiplier` |
 
 `penalty-enabled` **删除**（已确认）：`action=BLOCK` 已含惩罚语义，单独开关会制造"BLOCK 但无惩罚"的矛盾态。
 
@@ -332,13 +332,13 @@ knot:
 - 门禁：全量 `mvn test` 绿（8 模块，含 `CountingSnapshotCache` 子类集成），新增测试通过。
 
 **仍未做**
-- M2：MASK（需归一化→原文 offset 映射并在原 body 上改写）、流式出站增量检测（滑动窗口，只观测不改输出）、惩罚性计费。
+- M2 剩余：流式出站增量检测（滑动窗口，只观测不改输出）、惩罚性计费。⚠ **MASK 脱敏改写已移除**（2026-10-24 robin 拍板：当天实现完成并过门禁，随后决定不要该功能——代码/测试/枚举值/静默兜底全删，配置写 MASK 改为启动失败；M2 的脱敏子项从此不再计划）。
 - M4：高级归一化（繁简/leetspeak/谐音）+ 正则 PII。
 - 真启 jar 冒烟（网关侧定时刷新 e2e）：admin 侧 CRUD/授权/插件删除 403 修复已于 2026-10-14 真启验证（13/13）；定时刷新 + `refreshAfterWrite` 失效行为已由 `ModerationSnapshotCacheTest.scheduledRefreshPicksUpDeletedNonLatestWord` 单测覆盖，网关 e2e 10s 生效窗口（需假上游解析 chunked）待测。
 - ⚠ **既有库必须先跑迁移**：dev 库 `knot` 当前有 4 行指向同一份插件代码（id 7/8 旧 entrypoint orphaned=1 + id 9/10 reconcile 自动补的新 entrypoint），不跑迁移会导致同一 handler 被调用两次。
 
 **未落地**
-- M2：MASK（需归一化→原文 offset 映射并在原 body 上改写）、流式出站增量检测（滑动窗口，只观测不改输出）、惩罚性计费。
+- M2 剩余：流式出站增量检测（滑动窗口，只观测不改输出）、惩罚性计费。（MASK 脱敏改写已于 2026-10-24 落地。）
 - M4：高级归一化（繁简/leetspeak/谐音）+ 正则 PII。
 
 **plugin-api 契约层净化 + 引擎归位（2026-10-14 二次重构，robin 逐条驱动）**

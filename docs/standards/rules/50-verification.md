@@ -41,7 +41,7 @@ tr -d '\000' < build.log | grep -aE "BUILD SUCCESS|BUILD FAILURE|Tests run:.*Fai
 
 ## 4. 测试纪律
 
-- ⚠⚠ **JDK 25 + Mockito inline 不能 mock 任何具体类**（Byte Buddy 无法 instrument 类层级，连 `Object` 都 retransform 失败）。先例：`GatewayDataService` → 抽接口；`ModerationWordService` 同坑。测试替身改用**子类覆写**（`CountingSnapshotCache`）；mock 接口不受影响。
+- ⚠⚠ **JDK 25 + Mockito inline 不能 mock 任何具体类**（Byte Buddy 无法 instrument 类层级，连 `Object` 都 retransform 失败）。先例：`GatewayEntityCacheService` → 抽接口；`ModerationWordService` 同坑。测试替身改用**子类覆写**（`CountingSnapshotCache`）；mock 接口不受影响。
 - 先写复现测试再改代码，改完反向验证（把修复回滚确认测试变红）。
 - 改契约前全量 grep 依赖者；改完 grep 残留。
 

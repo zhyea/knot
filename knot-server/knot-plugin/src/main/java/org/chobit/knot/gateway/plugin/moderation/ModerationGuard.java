@@ -1,7 +1,5 @@
 package org.chobit.knot.gateway.plugin.moderation;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.chobit.knot.gateway.constants.enums.ModerationActionEnum;
 import org.chobit.knot.gateway.constants.enums.ModerationScopeEnum;
 import org.chobit.knot.gateway.plugin.components.ModerationWordCache;
@@ -29,7 +27,6 @@ import java.util.List;
  *
  * <p>故障模式 <b>fail-open</b>：词库不可用（空词表）时放行，内容安全自身故障不挂全站。</p>
  */
-@Slf4j
 public class ModerationGuard {
 
     private static final String DIRECTION_REQUEST = ModerationScopeEnum.REQUEST.code();
@@ -105,10 +102,6 @@ public class ModerationGuard {
             throw new ModerationRejectException(
                     "Content moderation blocked the " + direction.toLowerCase() + " by sensitive word",
                     top.categoryCode());
-        }
-        if (action == ModerationActionEnum.MASK) {
-            // MASK 需要归一化副本 → 原文的 offset 映射并在原 body 上改写，留 M2 与出站一起做
-            log.warn("MASK action is not implemented yet, falling back to FLAG");
         }
     }
 

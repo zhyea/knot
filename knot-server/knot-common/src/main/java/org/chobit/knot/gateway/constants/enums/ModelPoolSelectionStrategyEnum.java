@@ -7,7 +7,7 @@ import java.util.Arrays;
 
 /**
  * 模型池选择策略：已从 ks_enum_configs（model_pool_selection_strategy 字典）迁出，
- * 通过 /api/common/enums 以 ModelPoolSelectionStrategyEnum 键下发前端。
+ * 通过 /api/enum-options 以 ModelPoolSelectionStrategyEnum 键下发前端。
  * 四种策略在模型池选模处均有实际分支，见 ModelPoolSelection；
  * {@code LEAST_LOAD} 由模型在途并发（ModelLoadStore）驱动，路由规则目标级亦复用本枚举。
  */

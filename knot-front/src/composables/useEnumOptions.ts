@@ -3,7 +3,7 @@ import {listCommonEnums} from "@/api/enums";
 import type {Dict, SelectOption} from "@/types";
 
 /**
- * 代码枚举统一数据源（GET /api/common/enums）
+ * 代码枚举统一数据源（GET /api/enum-options）
  *
  * 响应结构为 **数组**：`{ 枚举键: [{code, label}, ...] }`。
  * 不再是 `code -> label` 的 map —— JSON object key 必然是字符串，用 map 会让数字 code

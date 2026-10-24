@@ -87,10 +87,10 @@ public class BedrockConverseRequestAdapter implements UpstreamRequestAdapter {
 
     @Override
     public String resolvePath(UpstreamRequestContext context, String defaultPath) {
-        if (context.binding() != null && StringUtils.isNotBlank(context.binding().getApiPath())) {
-            return StringUtils.trim(context.binding().getApiPath());
+        if (context.binding() != null && StringUtils.isNotBlank(context.binding().apiPath())) {
+            return StringUtils.trim(context.binding().apiPath());
         }
-        String modelId = context.model() == null ? null : context.model().getUpstreamModel();
+        String modelId = context.model() == null ? null : context.model().upstreamModel();
         if (StringUtils.isBlank(modelId)) {
             return UpstreamRequestAdapter.super.resolvePath(context, defaultPath);
         }
@@ -176,7 +176,7 @@ public class BedrockConverseRequestAdapter implements UpstreamRequestAdapter {
         result.put("id", "chatcmpl-" + UUID.randomUUID());
         result.put("object", "chat.completion");
         result.put("created", Instant.now().getEpochSecond());
-        result.put(AiPayloadFields.MODEL, context.model() == null ? null : context.model().getUpstreamModel());
+        result.put(AiPayloadFields.MODEL, context.model() == null ? null : context.model().upstreamModel());
         result.put("choices", List.of(choice));
         Map<String, Object> usage = BedrockConverseUsageSupport.toOpenAiUsage(converse.get(USAGE));
         if (usage != null) {

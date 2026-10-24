@@ -75,8 +75,8 @@
 
 | 反模式 | 违反 | 实证 |
 |---|---|---|
-| 假成功接口 | E1 / KISS | `BillingService.java:398` 返回 `0,0,"DONE"`；`ReconciliationStatusEnum.java:9` javadoc 自认是桩 |
-| 未实现功能静默降级 | E1 / E4 | `ModerationGuard.java:111` `log.warn("MASK action is not implemented yet, falling back to FLAG")` —— 用户配了 MASK，实际从未生效 |
+| 假成功接口 | E1 / KISS | ~~`BillingService.java:398` 返回 `0,0,"DONE"`；`ReconciliationStatusEnum.java:9` javadoc 自认是桩~~ → **2026-10-24 批次一已删除**（对账功能整体下线：接口/服务/DTO/VO/枚举 + 前端页面/路由/API + data.sql 菜单 id=21/权限 126/绑定 65 + `NumericStatusEnumContractTest` 清单项，共 8+3+3+1 处；PRD/技术方案同步订正） |
+| 未实现功能静默降级 | E1 / E4 | ~~`ModerationGuard.java:111` `log.warn("MASK action is not implemented yet, falling back to FLAG")` —— 用户配了 MASK，实际从未生效~~ → **2026-10-24 已根除（连同功能一起移除）**：robin 拍板不做 MASK，枚举值/`ofOrDefault` 静默兜底/`log.warn` 回落分支全部删除，`PluginProperties` 加 `@PostConstruct` 启动校验——写错 action（含 `MASK`）直接启动失败。**「删功能」和「删假成功」必须同时做，否则就是换个地方静默** |
 | 死配置 | E2 | `PluginBindingView.java:12` `timeoutMs` 经 4 层传到 `DefaultPluginDispatcher` 后无人消费 |
 | 恒等抽象 | E3 / KISS | `ModelApiProtocolEnum.java:75` `canonical()` 返回 `this`，8 处调用方误以为有别名归一 |
 | 错误出口分叉 | B3 / DRY | `GatewayExceptionHandler.java:200` 映射 `504/timeout_error`；`ErrorMsgDto.java:46-91` 无 timeout 分支，落 `500/upstream_error` |
@@ -86,12 +86,12 @@
 | 契约模块承载运行时 | D | `DefaultPluginDispatcher.java:23` `@Component` 位于 `knot-plugin-api` |
 | 协议集合多处维护 | O / S2 | `RoutingRuleService.java:90` `DEBUGGABLE_PROTOCOLS`、`MediaProtocolExecutor.java:19`、`TextGenerationProtocolExecutor.java:19`、`UsageExtractorRegistry` if 链、`RoutingTestBillingVerdictService.java:144`、前端两处 `normalizeProtocolCode` |
 | 兜底模式复制 | S3 | 8 个 Service 的 `snapshot()` 全是 `try { getById; return JsonKit.toMap } catch (BusinessException e) { return null; }` |
-| `\|\|` 兜底误用 | S6 | `useAuthorizationManagement.ts:882` `row.status \|\| "ENABLED"` |
-| 测试不进门禁 | E5 / B6 | `knot-front` 已有 10 个 spec 文件，`.github/workflows/ci.yml` 只跑 `vue-tsc` + `vite build` |
+| `\|\|` 兜底误用 | S6 | ~~`useAuthorizationManagement.ts:882` `row.status \|\| "ENABLED"`~~ → **2026-10-24 批次一已改为 `??`** |
+| 测试不进门禁 | E5 / B6 | ~~`knot-front` 已有 10 个 spec 文件，`.github/workflows/ci.yml` 只跑 `vue-tsc` + `vite build`~~ → **2026-10-24 批次一已加 `npm test` 步骤**（排在 type-check 之前） |
 | 核心链路零单测 | E5 / S8 | `RoutingResolver`（路由解析）与 `PluginDispatcher`（插件分发）均 0 个测试类；`knot-dal` 77 主类 0 测试 |
 | 业务类自建外部客户端 | D / B2 | `RoutingRuleService.java:175` 与 `GatewayOutageService.java:54` 自行 `RestClient.builder()`（对比：`RestClientDecisionsTransport` 在 `service.support`，是合理形态） |
-| 泛化主干名残留 | S7 | `SystemController` / `SystemMapper` / `SystemConverter` / `CommonController` / `CommonMappings` / `Base36` / `UtilityProtocolExecutor` 共 8 处仍在，而 `10-backend-java.md §4.4` 声称"既有孤例已整改"——**规范与事实不符** |
-| javadoc 与实现不符 | N1 | `canonical()` javadoc 宣称归一化实则恒等；`ModerationGuard` 的 MASK 语义与回落 FLAG 的实现不符 |
+| 泛化主干名残留 | S7 | ~~`SystemController` / `SystemMapper` / `SystemConverter` / `CommonController` / `CommonMappings` / `Base36` / `UtilityProtocolExecutor` 共 8 处~~ → **2026-10-24 批次一已整改**：4 处真违规改名/删除（`SystemMapper` 并入 `OperationLogMapper`、`SystemConverter`→`OperationLogConverter`、`CommonController`→`EnumOptionsController`、`CommonMappings`→`SharedMappings`、`GatewayDataService`→`GatewayEntityCacheService`、`GatewayRoutingInfo`→`GatewayRoutingContext`）；`SystemController`（系统管理模块域）/ `Base36`（算法名）/ `UtilityProtocolExecutor`（辅助协议族）判定合规并写入 §4.4 判例表 |
+| javadoc 与实现不符 | N1 | `canonical()` javadoc 宣称归一化实则恒等（批次三待整改，与协议猜测清除一起动）；~~`ModerationGuard` 的 MASK 语义与回落 FLAG 的实现不符~~ → **2026-10-24 已消除**（MASK 随功能移除，不存在「语义与实现不符」的第三态） |
 | 规范自身腐化 | — | `20-frontend-vue.md:7` 写「无测试框架」，实际已引入 vitest + 10 spec 文件 |
 
 ---

@@ -4,14 +4,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.BillingUnitEnum;
 import org.chobit.knot.gateway.constants.enums.CurrencyCodeEnum;
 import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
 import org.chobit.knot.gateway.model.BillingConfig;
-import org.chobit.knot.gateway.model.NormalizedBillingAmount;
 import org.chobit.knot.gateway.model.PageRequest;
 import org.chobit.knot.gateway.model.PageResult;
 import org.chobit.knot.gateway.pricing.HolidayCalendar;
@@ -19,14 +17,11 @@ import org.chobit.knot.gateway.pricing.PeakOffPeakResolver;
 import org.chobit.knot.gateway.pricing.PhaseDecision;
 import org.chobit.knot.gateway.converter.BillingConverter;
 import org.chobit.knot.gateway.dto.billing.BillingRuleDto;
-import org.chobit.knot.gateway.dto.billing.ReconciliationResultDto;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.entity.BillingRuleVersionEntity;
-import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
-import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.vo.billing.BillingCapabilities;
 import org.chobit.knot.gateway.vo.billing.BillingReportSummary;
@@ -34,13 +29,11 @@ import org.chobit.knot.gateway.vo.billing.BillingRuleListItem;
 import org.chobit.knot.gateway.vo.billing.PricingPreviewRequest;
 import org.chobit.knot.gateway.vo.billing.PricingPreviewResult;
 import org.chobit.knot.gateway.util.JsonKit;
-import org.chobit.knot.gateway.util.MapNumberUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -60,25 +53,14 @@ import java.util.Map;
 @Service
 public class BillingService {
 
-    /**
-     * 金额除法的兜底精度：单位基数目前全是 10 的幂（1 / 1e3 / 1e6），「用量 × 单价 ÷ 基数」
-     * 恒定除尽，本上下文不会实际参与计算。保留它是为了未来——一旦新增非 10 的幂基数
-     * （如按小时 = 3600），无精度上下文的 divide 会抛 ArithmeticException 打断试算。
-     * PER_MINUTE（60 秒）已于 2026-10-17 退役：按分钟计费须在配置期折成每秒价，
-     * 不允许 60 进金额公式。同时不设小数位上限——单价常见 6 位小数，除千 / 百万量级会跌破 8 位。
-     */
-    private static final MathContext MONEY_DIVISION = MathContext.DECIMAL128;
-
     private final BillingRuleMapper billingRuleMapper;
-    private final ModelMapper modelMapper;
     private final BillingConverter billingConverter;
 
     /**
      * Constructs a new instance.
      */
-    public BillingService(BillingRuleMapper billingRuleMapper, ModelMapper modelMapper, BillingConverter billingConverter) {
+    public BillingService(BillingRuleMapper billingRuleMapper, BillingConverter billingConverter) {
         this.billingRuleMapper = billingRuleMapper;
-        this.modelMapper = modelMapper;
         this.billingConverter = billingConverter;
     }
 
@@ -391,190 +373,6 @@ public class BillingService {
         return getRuleById(id);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
-    public ReconciliationResultDto reconcile(String providerCode, String billDate) {
-        return new ReconciliationResultDto(providerCode, billDate, 0, 0, "DONE");
-    }
-
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
-    public Map<String, Object> calculateUsageDetail(Long modelId, Map<String, Object> usage) {
-        if (modelId == null) {
-            return null;
-        }
-        ModelEntity model = modelMapper.getById(modelId);
-        if (model == null || model.getBillingRuleCode() == null) {
-            return null;
-        }
-        BillingRuleEntity rule = billingRuleMapper.getActiveByRuleCode(model.getBillingRuleCode(), LocalDateTime.now());
-        if (rule == null) {
-            return null;
-        }
-        Map<String, Object> normalizedUsage = usage == null ? Map.of() : usage;
-        BillingAmount amount = calculateAmount(rule, normalizedUsage);
-        Map<String, Object> detail = new LinkedHashMap<>();
-        detail.put("modelId", modelId);
-        detail.put("billingRuleId", rule.getId());
-        detail.put("billingRuleCode", rule.getCode());
-        detail.put("versionCode", rule.getVersionCode());
-        detail.put("billingMode", rule.getBillingMode());
-        detail.put("currency", rule.getCurrency());
-        detail.put("unit", rule.getUnit());
-        detail.put("unitSize", unitSize(rule.getUnit()));
-        detail.put("usage", amount.usage());
-        detail.put("totalCost", amount.totalCost());
-        return detail;
-    }
-
-    private BillingAmount calculateAmount(BillingRuleEntity rule, Map<String, Object> usage) {
-        int unitSize = unitSize(rule.getUnit());
-        BillingModeEnum modeEnum = BillingModeEnum.fromCode(normalizeBillingMode(rule.getBillingMode()));
-        if (modeEnum == null) {
-            modeEnum = BillingModeEnum.CUSTOM;
-        }
-        if (BillingModeEnum.TOKEN == modeEnum) {
-            return calculateTokenAmount(rule, usage, unitSize);
-        }
-        return calculateSimpleAmount(rule, usage, unitSize, modeEnum);
-    }
-
-    /** TOKEN 计费：input / output / cacheRead / cacheWrite 四类单价分别计费后汇总。 */
-    private BillingAmount calculateTokenAmount(BillingRuleEntity rule, Map<String, Object> usage, int unitSize) {
-        long inputTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS);
-        long outputTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.COMPLETION_TOKENS, AiPayloadFields.OUTPUT_TOKENS);
-        long totalTokens = MapNumberUtils.firstLong(usage, AiPayloadFields.TOTAL_TOKENS);
-        long cacheReadTokens = MapNumberUtils.nestedLong(usage, "prompt_tokens_details", "cached_tokens")
-                + MapNumberUtils.nestedLong(usage, "input_tokens_details", "cached_tokens");
-        long cacheWriteTokens = MapNumberUtils.nestedLong(usage, "prompt_tokens_details", "cache_creation_input_tokens")
-                + MapNumberUtils.nestedLong(usage, "input_tokens_details", "cache_creation_input_tokens")
-                + MapNumberUtils.firstLong(usage, "cache_creation_input_tokens", "cached_write_tokens",
-                "cache_write_input_tokens", "cache_write_tokens");
-        long ladderAmount = totalTokens > 0 ? totalTokens : inputTokens + outputTokens;
-        BillingConfig config = BillingConfig.fromJsonOrNull(rule.getConfigJson());
-        BigDecimal zero = BigDecimal.ZERO;
-        BigDecimal inputPrice;
-        BigDecimal outputPrice;
-        BigDecimal cacheReadPrice;
-        BigDecimal cacheWritePrice;
-        if (config == null) {
-            inputPrice = zero;
-            outputPrice = zero;
-            cacheReadPrice = zero;
-            cacheWritePrice = zero;
-        } else {
-            BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan()));
-            // 管理端离线试算无时间来源：显式构造无时点上下文（高低峰不调整）
-            BillingConfig.PricingContext pricingContext = BillingConfig.PricingContext.ofAmount(ladderAmount);
-            inputPrice = pricing.resolvePrice(BillingConfig.PriceKind.INPUT, pricingContext, zero);
-            outputPrice = pricing.resolvePrice(BillingConfig.PriceKind.OUTPUT, pricingContext, zero);
-            cacheReadPrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_READ, pricingContext, zero);
-            cacheWritePrice = pricing.resolvePrice(BillingConfig.PriceKind.CACHE_WRITE, pricingContext, zero);
-        }
-        TokenBillingParts parts = new TokenBillingParts(
-                inputTokens,
-                outputTokens,
-                totalTokens > 0 ? totalTokens : inputTokens + outputTokens,
-                cacheReadTokens,
-                cacheWriteTokens,
-                cost(TokenBillingParts.uncachedInput(inputTokens, cacheReadTokens, cacheWriteTokens),
-                        inputPrice, unitSize),
-                cost(outputTokens, outputPrice, unitSize),
-                cost(cacheReadTokens, cacheReadPrice, unitSize),
-                cost(cacheWriteTokens, cacheWritePrice, unitSize));
-        return new BillingAmount(parts.toUsageMap(), NormalizedBillingAmount.plainMoney(parts.totalCost()));
-    }
-
-    /** 非 TOKEN 计费（EMBEDDING / REQUEST / IMAGE / AUDIO / VIDEO 等）：按模式取用量，套默认单价计费。 */
-    private BillingAmount calculateSimpleAmount(BillingRuleEntity rule, Map<String, Object> usage, int unitSize, BillingModeEnum modeEnum) {
-        long amount = switch (modeEnum) {
-            case EMBEDDING -> MapNumberUtils.firstLong(usage, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS, AiPayloadFields.TOTAL_TOKENS);
-            case REQUEST -> 1L;
-            case IMAGE -> MapNumberUtils.firstLong(usage, "image_count", "images", "n");
-            case AUDIO -> MapNumberUtils.firstLong(usage, "duration_seconds", "audio_seconds", "seconds");
-            case VIDEO -> MapNumberUtils.firstLong(usage, "duration_seconds", "video_seconds", "seconds");
-            default -> MapNumberUtils.firstLong(usage, AiPayloadFields.TOTAL_TOKENS, AiPayloadFields.PROMPT_TOKENS, AiPayloadFields.INPUT_TOKENS);
-        };
-        if (amount <= 0 && (BillingModeEnum.IMAGE == modeEnum || BillingModeEnum.REQUEST == modeEnum)) {
-            amount = 1L;
-        }
-        BillingConfig config = BillingConfig.fromJsonOrNull(rule.getConfigJson());
-        BigDecimal unitPrice = config == null
-                ? BigDecimal.ZERO
-                : config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan()))
-                        .resolveDefaultPrice(BillingConfig.PricingContext.ofAmount(0L), BigDecimal.ZERO);
-        Map<String, Object> parts = new LinkedHashMap<>();
-        parts.put("amount", amount);
-        return new BillingAmount(parts, NormalizedBillingAmount.plainMoney(cost(amount, unitPrice, unitSize)));
-    }
-
-    private record BillingAmount(Map<String, Object> usage, String totalCost) {
-    }
-
-    /**
-     * TOKEN 计费明细：输入 / 输出 / 缓存读 / 缓存写四类 token 与对应金额。
-     * 字段固定，用具名类型代替 Map + 字符串键；数量一律 {@code long}，金额计算期一律 {@code BigDecimal}。
-     * 只在结果边界（{@code toUsageMap} 与汇总出口）经 {@link NormalizedBillingAmount#plainMoney}
-     * 转十进制普通字符串，与 {@code knot_extend.billing} 金额对外契约一致。
-     */
-    private static final class TokenBillingParts {
-        private final long inputTokens;
-        private final long outputTokens;
-        private final long totalTokens;
-        private final long cacheReadTokens;
-        private final long cacheWriteTokens;
-        private final BigDecimal inputCost;
-        private final BigDecimal outputCost;
-        private final BigDecimal cacheReadCost;
-        private final BigDecimal cacheWriteCost;
-
-        private TokenBillingParts(long inputTokens,
-                                  long outputTokens,
-                                  long totalTokens,
-                                  long cacheReadTokens,
-                                  long cacheWriteTokens,
-                                  BigDecimal inputCost,
-                                  BigDecimal outputCost,
-                                  BigDecimal cacheReadCost,
-                                  BigDecimal cacheWriteCost) {
-            this.inputTokens = inputTokens;
-            this.outputTokens = outputTokens;
-            this.totalTokens = totalTokens;
-            this.cacheReadTokens = cacheReadTokens;
-            this.cacheWriteTokens = cacheWriteTokens;
-            this.inputCost = inputCost;
-            this.outputCost = outputCost;
-            this.cacheReadCost = cacheReadCost;
-            this.cacheWriteCost = cacheWriteCost;
-        }
-
-        /** 可按普通输入单价计费的 token：扣除缓存读与缓存写，且不为负。 */
-        private static long uncachedInput(long inputTokens, long cacheReadTokens, long cacheWriteTokens) {
-            return Math.max(0L, inputTokens - cacheReadTokens - cacheWriteTokens);
-        }
-
-        private BigDecimal totalCost() {
-            return inputCost.add(outputCost).add(cacheReadCost).add(cacheWriteCost);
-        }
-
-        /** 结果边界：转成既有 JSON 字段名，保持对外形状稳定。 */
-        private Map<String, Object> toUsageMap() {
-            Map<String, Object> map = new LinkedHashMap<>();
-            map.put("inputTokens", inputTokens);
-            map.put("outputTokens", outputTokens);
-            map.put("totalTokens", totalTokens);
-            map.put("cacheReadTokens", cacheReadTokens);
-            map.put("cacheWriteTokens", cacheWriteTokens);
-            map.put("inputCost", NormalizedBillingAmount.plainMoney(inputCost));
-            map.put("outputCost", NormalizedBillingAmount.plainMoney(outputCost));
-            map.put("cacheReadCost", NormalizedBillingAmount.plainMoney(cacheReadCost));
-            map.put("cacheWriteCost", NormalizedBillingAmount.plainMoney(cacheWriteCost));
-            return map;
-        }
-    }
-
     private void applyRule(BillingRuleEntity entity, BillingRuleDto request) {
         entity.setCode(normalizeCode(request.code()));
         entity.setModelFamilyCode(normalizeModelFamily(request.modelFamilyCode()));
@@ -862,12 +660,4 @@ public class BillingService {
         return BillingUnitEnum.unitSizeOf(normalizeUnit(unit));
     }
 
-    private static BigDecimal cost(long amount, BigDecimal unitPrice, int unitSize) {
-        if (amount <= 0 || unitPrice == null || unitPrice.signum() == 0) {
-            return BigDecimal.ZERO;
-        }
-        return BigDecimal.valueOf(amount)
-                .multiply(unitPrice)
-                .divide(BigDecimal.valueOf(Math.max(1, unitSize)), MONEY_DIVISION);
-    }
 }

@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.usage;
 
-import org.chobit.knot.gateway.entity.BillingRuleEntity;
+import org.chobit.knot.gateway.usage.BillingRuleRef;
 import org.chobit.knot.gateway.model.NormalizedUsage;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.usage.calculator.TokenBillingModeCalculator;
@@ -76,8 +76,7 @@ class PeakOffPeakHotPathTest {
     }
 
     private NormalizedUsage normalize(Instant occurredAt, String pricingPlan) {
-        BillingRuleEntity rule = rule();
-        rule.setPricingPlan(pricingPlan);
+        BillingRuleRef rule = new BillingRuleRef("TOKEN", CONFIG, "USD", pricingPlan, "1K_TOKENS", "v1");
         return UsageNormalizationSupport.normalize(
                 usage(), rule, null, occurredAt, new TokenBillingModeCalculator());
     }
@@ -94,13 +93,4 @@ class PeakOffPeakHotPathTest {
         return new TokenBillingUsage(1_000L, 200L, 1_200L, 0L, 0L, 0L, 0L);
     }
 
-    private BillingRuleEntity rule() {
-        BillingRuleEntity rule = new BillingRuleEntity();
-        rule.setBillingMode("TOKEN");
-        rule.setUnit("1K_TOKENS");
-        rule.setCurrency("USD");
-        rule.setVersionCode("v1");
-        rule.setConfigJson(CONFIG);
-        return rule;
-    }
 }

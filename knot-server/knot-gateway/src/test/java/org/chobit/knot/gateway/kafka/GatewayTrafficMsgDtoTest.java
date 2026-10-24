@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -185,6 +186,22 @@ class GatewayTrafficMsgDtoTest {
         assertEquals(503, message.httpStatus());
         assertEquals("storage_unavailable", message.error().type());
         assertEquals("storage", message.error().stage());
+    }
+
+    @Test
+    void requestBudgetTimeoutIsNotInternalError() {
+        // B2 全局 deadline 超时（Mono.timeout 抛 TimeoutException）：数仓侧必须与 HTTP 出口
+        // （GatewayExceptionHandler.handleRequestBudgetExceeded → 504/timeout_error）同口径，
+        // 不能落进「未预期异常」兜底（500/upstream_error/internal）——那是排查口径的丢失
+        GatewayRequestContext context = context();
+
+        GatewayTrafficMsgDto message = GatewayTrafficMsgDto.of(context, null, null, null,
+                new TimeoutException("Did not observe any item or terminal signal within 10000ms"));
+
+        assertEquals("timeout", message.status());
+        assertEquals(504, message.httpStatus());
+        assertEquals("timeout_error", message.error().type());
+        assertEquals("timeout", message.error().stage());
     }
 
     @Test

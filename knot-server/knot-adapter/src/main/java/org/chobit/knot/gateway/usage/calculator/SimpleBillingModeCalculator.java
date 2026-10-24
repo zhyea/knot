@@ -2,7 +2,6 @@ package org.chobit.knot.gateway.usage.calculator;
 
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
-import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.model.BillingConfig;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.model.AudioBillingUsage;
@@ -10,6 +9,7 @@ import org.chobit.knot.gateway.model.ImageBillingUsage;
 import org.chobit.knot.gateway.model.NormalizedBillingAmount;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.model.VideoBillingUsage;
+import org.chobit.knot.gateway.usage.BillingRuleRef;
 import org.chobit.knot.gateway.usage.NormalizedUsageContext;
 import org.springframework.stereotype.Component;
 
@@ -26,21 +26,21 @@ public class SimpleBillingModeCalculator extends AbstractBillingModeCalculator {
 
     @Override
     public NormalizedBillingAmount calculate(NormalizedUsageContext context) {
-        BillingRuleEntity rule = rule(context);
+        BillingRuleRef rule = rule(context);
         BillingUsage usage = context.usage();
         BillingModeEnum mode = resolveMode(rule);
         long amount = billingAmount(usage, mode);
         int unitSize = unitSize(rule);
-        BillingConfig config = BillingConfig.fromJsonOrNull(rule.getConfigJson());
+        BillingConfig config = BillingConfig.fromJsonOrNull(rule.configJson());
         BigDecimal unitPrice = config == null
                 ? BigDecimal.ZERO
-                : config.pricingPlan(PricingPlanEnum.fromCode(rule.getPricingPlan()))
+                : config.pricingPlan(PricingPlanEnum.fromCode(rule.pricingPlan()))
                         .resolveDefaultPrice(new BillingConfig.PricingContext(amount, context.occurredAt()), BigDecimal.ZERO);
         BigDecimal totalCost = cost(amount, unitPrice, unitSize);
         return NormalizedBillingAmount.of(
                 usage.tokenUsage().totalTokens(),
                 totalCost,
-                List.of(detail(normalizeDetailType(rule.getBillingMode(), mode), amount, totalCost, unitPrice, unitSize))
+                List.of(detail(normalizeDetailType(rule.billingMode(), mode), amount, totalCost, unitPrice, unitSize))
         );
     }
 
@@ -88,8 +88,8 @@ public class SimpleBillingModeCalculator extends AbstractBillingModeCalculator {
         return amount > 0 ? amount : 1L;
     }
 
-    private BillingModeEnum resolveMode(BillingRuleEntity rule) {
-        BillingModeEnum modeEnum = BillingModeEnum.fromCode(rule == null ? null : rule.getBillingMode());
+    private BillingModeEnum resolveMode(BillingRuleRef rule) {
+        BillingModeEnum modeEnum = BillingModeEnum.fromCode(rule == null ? null : rule.billingMode());
         return modeEnum == null ? BillingModeEnum.CUSTOM : modeEnum;
     }
 }

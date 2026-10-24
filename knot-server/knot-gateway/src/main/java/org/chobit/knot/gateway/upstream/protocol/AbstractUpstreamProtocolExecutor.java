@@ -96,7 +96,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
         }
         // 模型级 base_path 只做 URL 前缀，由执行器统一拼接；适配器只负责协议路径
         String path = UpstreamUrlSupport.joinPath(
-                context.model() == null ? null : context.model().getBasePath(), protocolPath);
+                context.model() == null ? null : context.model().basePath(), protocolPath);
         RequestTarget target = new RequestTarget(
                 baseUrl, path, adapter.resolveContentType(context), access, applier);
         try {
@@ -140,7 +140,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
     }
 
     private static String providerAccountCode(UpstreamRequestContext context) {
-        return context.provider() == null ? "<none>" : context.provider().getCode();
+        return context.provider() == null ? "<none>" : context.provider().code();
     }
 
     /**
@@ -158,8 +158,8 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
         String handledResponseBody = adapter.handleResponse(buffered.body(), context);
         return new ProxyResult(
                 handledResponseBody,
-                context.provider().getId(),
-                context.model().getId(),
+                context.provider().id(),
+                context.model().id(),
                 usageExtractorRegistry.extract(handledResponseBody, context),
                 null,
                 buffered.upstreamRequestId(),
@@ -233,8 +233,8 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                 UpstreamRequestIdResolver.requestId(headers, context.requestId()));
         return new ProxyResult(
                 null,
-                context.provider().getId(),
-                context.model().getId(),
+                context.provider().id(),
+                context.model().id(),
                 null,
                 streamResponse,
                 streamResponse.upstreamRequestId(),

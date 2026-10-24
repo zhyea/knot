@@ -4,7 +4,7 @@ import org.chobit.knot.gateway.adapter.upstream.UpstreamAccess;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
-import org.chobit.knot.gateway.entity.ProviderAccountEntity;
+import org.chobit.knot.gateway.adapter.upstream.ProviderAccountRef;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -94,14 +94,11 @@ class UpstreamAuthApplierDefaultTest {
                 "UpstreamAccess 的头必须是只读快照");
     }
 
-    private static ProviderAccountEntity account(String baseUrl) {
-        ProviderAccountEntity provider = new ProviderAccountEntity();
-        provider.setCode("test-account");
-        provider.setBaseUrl(baseUrl);
-        return provider;
+    private static ProviderAccountRef account(String baseUrl) {
+        return new ProviderAccountRef(1L, "test-account", baseUrl, "OPENAI");
     }
 
-    private static UpstreamRequestContext context(ProviderAccountEntity provider, Map<String, Object> authConfig) {
+    private static UpstreamRequestContext context(ProviderAccountRef provider, Map<String, Object> authConfig) {
         return new UpstreamRequestContext(ModelApiProtocolEnum.CHAT_COMPLETIONS, Map.of(), null,
                 null, provider, authConfig, null, null, null);
     }

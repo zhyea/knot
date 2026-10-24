@@ -168,7 +168,7 @@
 | # | 缺口 | 现状 | 建议 |
 |---|---|---|---|
 | 1 | 异常不带阶段信息 | 错误信封无 `error.stage`，调用方无法区分「被网关拒」与「上游挂」的细分阶段 | 错误响应加 `stage` 字段（header_validate/routing_resolve/traffic_check/upstream_call） |
-| 2 | MASK 动作未实现 | 敏感词 MASK 回落 FLAG，仅记事件不改写（`ModerationGuard.java:109-112`） | M2 与出站审核一起做 |
+| 2 | ~~MASK 动作未实现~~ | **已移除（2026-10-24，robin 拍板）**：MASK 枚举值删除，配置写 `knot.plugin.moderation.action=MASK` 启动失败（`PluginProperties` 启动校验，不兜底不降级）；`ofOrDefault` 静默兜底同步删除。当前仅 BLOCK / FLAG 两个动作 | 无 |
 | 3 | audio/speech 流式无 `knot_extend` | 二进制分片不可插入事件，`returnUsageDetail` 开也拿不到用量 | 如需用量，改非流式或接受响应头旁路 |
 | 4 | 非 JSON 整包响应不注入 | 音频/二进制原样返回 | 同 3 |
 | 5 | 错误 message 为上游原文 | 502 的 message 来自上游异常文本，可能含内部信息 | 评估脱敏策略 |

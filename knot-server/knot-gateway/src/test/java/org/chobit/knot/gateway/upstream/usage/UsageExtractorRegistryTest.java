@@ -4,7 +4,7 @@ import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.config.UsageExtractionProperties;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
+import org.chobit.knot.gateway.adapter.upstream.ModelApiBindingRef;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.model.UsageAccounting;
 import org.chobit.knot.gateway.model.usage.UsageExtractItem;
@@ -51,8 +51,8 @@ class UsageExtractorRegistryTest {
     @Test
     @DisplayName("未知 extractor 编码立即失败，错误信息可定位到具体 code")
     void failsFastOnUnknownExtractorCode() {
-        ModelApiBindingEntity binding = new ModelApiBindingEntity();
-        binding.setUsageExtractor("NOT-A-REAL-EXTRACTOR");
+        ModelApiBindingRef binding = new ModelApiBindingRef(null, null, null,
+                "NOT-A-REAL-EXTRACTOR", null);
         UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem()));
 
         IllegalStateException thrown = assertThrows(IllegalStateException.class,
@@ -136,7 +136,7 @@ class UsageExtractorRegistryTest {
     @DisplayName("camelCase usage 配默认提取器：属口径错配，必须失败")
     void failsOnCamelCaseUsageWithDefaultExtractor() {
         UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem()));
-        ModelApiBindingEntity binding = binding(DefaultTokenUsageExtractor.CODE);
+        ModelApiBindingRef binding = binding(DefaultTokenUsageExtractor.CODE);
 
         assertThrows(IllegalStateException.class,
                 () -> registry.extract("{\"usage\":{\"inputTokens\":120}}", context(binding)),
@@ -195,8 +195,8 @@ class UsageExtractorRegistryTest {
     @Test
     @DisplayName("degrade 不放过未知 extractor 编码：配置错误恒 fail-fast")
     void keepsFailingOnUnknownExtractorEvenWhenDegradeConfigured() {
-        ModelApiBindingEntity binding = new ModelApiBindingEntity();
-        binding.setUsageExtractor("NOT-A-REAL-EXTRACTOR");
+        ModelApiBindingRef binding = new ModelApiBindingRef(null, null, null,
+                "NOT-A-REAL-EXTRACTOR", null);
         UsageExtractorRegistry registry = registry(new StubExtractor(emptyItem()), degrade());
 
         assertThrows(IllegalStateException.class,
@@ -228,13 +228,11 @@ class UsageExtractorRegistryTest {
         return properties;
     }
 
-    private static ModelApiBindingEntity binding(String extractorCode) {
-        ModelApiBindingEntity binding = new ModelApiBindingEntity();
-        binding.setUsageExtractor(extractorCode);
-        return binding;
+    private static ModelApiBindingRef binding(String extractorCode) {
+        return new ModelApiBindingRef(null, null, null, extractorCode, null);
     }
 
-    private static UpstreamRequestContext context(ModelApiBindingEntity binding) {
+    private static UpstreamRequestContext context(ModelApiBindingRef binding) {
         return new UpstreamRequestContext(ModelApiProtocolEnum.CHAT_COMPLETIONS, Map.of(),
                 null, null, null, null, binding, null, null);
     }

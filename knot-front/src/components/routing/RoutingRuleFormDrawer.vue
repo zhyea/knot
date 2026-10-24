@@ -368,7 +368,7 @@ const primaryTargetKeyModel = computed<string | undefined>({
 });
 const targetType = ref("MODEL");
 
-// 路由目标类型：后端代码枚举 RouteTargetTypeEnum（/api/common/enums）
+// 路由目标类型：后端代码枚举 RouteTargetTypeEnum（/api/enum-options）
 const {optionsOf: rtEnumOptionsOf, labelOf: enumLabelOf} = useEnumOptions();
 const targetTypeOptions = computed(() => rtEnumOptionsOf("RouteTargetTypeEnum"));
 /** 目标选择策略：复用池级枚举，但规则层只开放已实现的「优先级 / 最少负载」两种 */

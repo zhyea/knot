@@ -3,7 +3,7 @@ trigger: model_decision
 description: knot 业务域规则：计费、频控额度、重试、模型路由、流式与 knot_extend
 ---
 
-> 本文件由 `docs/standards/generate-tool-rules.py` 自动生成，**勿手工编辑**。权威源：`docs/standards/rules/rules/60-business-rules.md`。
+> 本文件由 `docs/standards/generate-tool-rules.py` 自动生成，**勿手工编辑**。权威源：`docs/standards/rules/60-business-rules.md`。
 
 # 60 · 业务域关键规则
 

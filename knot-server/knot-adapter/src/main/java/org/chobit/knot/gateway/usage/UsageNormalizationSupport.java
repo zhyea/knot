@@ -2,7 +2,6 @@ package org.chobit.knot.gateway.usage;
 
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
-import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.model.NormalizedBillingAmount;
 import org.chobit.knot.gateway.model.NormalizedUsage;
@@ -22,14 +21,14 @@ public final class UsageNormalizationSupport {
      * @param occurredAt 用量发生时点；null 由 {@link NormalizedUsageContext} 兜底成 {@code Instant.now()}
      */
     public static NormalizedUsage normalize(BillingUsage usage,
-                                            BillingRuleEntity rule,
+                                            BillingRuleRef rule,
                                             Map<String, Object> requestBody,
                                             Instant occurredAt,
                                             BillingModeCalculator calculator) {
         if (usage == null || usage.isEmpty() || rule == null) {
             return null;
         }
-        String mode = normalizeBillingMode(rule.getBillingMode());
+        String mode = normalizeBillingMode(rule.billingMode());
         BillingModeEnum modeEnum = BillingModeEnum.fromCode(mode);
         if (modeEnum == null) {
             modeEnum = BillingModeEnum.CUSTOM;
@@ -48,7 +47,7 @@ public final class UsageNormalizationSupport {
         return new NormalizedUsage(
                 totalTokens,
                 amount.totalCost(),
-                rule.getCurrency(),
+                rule.currency(),
                 billingVersion(rule),
                 amount.details()
         );
@@ -72,8 +71,8 @@ public final class UsageNormalizationSupport {
         );
     }
 
-    private static String billingVersion(BillingRuleEntity rule) {
-        return StringUtils.trimToNull(rule.getVersionCode());
+    private static String billingVersion(BillingRuleRef rule) {
+        return StringUtils.trimToNull(rule.versionCode());
     }
 
     private static String normalizeBillingMode(String value) {

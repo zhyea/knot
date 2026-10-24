@@ -5,7 +5,6 @@ import org.chobit.knot.gateway.dto.billing.BillingRuleDto;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
-import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 
@@ -31,10 +30,9 @@ import static org.mockito.Mockito.when;
 class BillingServiceRestoreTest {
 
     private final BillingRuleMapper billingRuleMapper = mock(BillingRuleMapper.class);
-    private final ModelMapper modelMapper = mock(ModelMapper.class);
     private final BillingConverter billingConverter = mock(BillingConverter.class);
     private final BillingService service =
-            new BillingService(billingRuleMapper, modelMapper, billingConverter);
+            new BillingService(billingRuleMapper, billingConverter);
 
     private BillingRuleEntity rule(Long id, String code, Integer isDeleted) {
         BillingRuleEntity entity = new BillingRuleEntity();

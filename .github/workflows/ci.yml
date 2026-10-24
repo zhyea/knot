@@ -100,6 +100,12 @@ jobs:
         working-directory: knot-front
         run: npm ci
 
+      # 单测排在类型检查之前：vitest 秒级完成，先跑能以最快速度暴露
+      # 逻辑回归；类型与构建门禁紧随其后，三者失败指向的问题互不重叠。
+      - name: Unit tests (vitest run)
+        working-directory: knot-front
+        run: npm test
+
       # 两个门禁分开跑：类型检查失败与构建失败指向的问题完全不同，
       # 合并成 npm run build 会让定位变慢。
       - name: Type check (vue-tsc --noEmit)

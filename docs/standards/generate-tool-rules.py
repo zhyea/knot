@@ -120,7 +120,7 @@ def main():
     for name in names:
         mode, desc, globs = SPECS[name]
         body = read_rule(name)
-        body = HEADER_NOTE.format(src="rules/%s.md" % name) + "\n" + body
+        body = HEADER_NOTE.format(src="%s.md" % name) + "\n" + body
 
         write(os.path.join(ROOT, ".cursor", "rules", name + ".mdc"),
               build_cursor(name, body, mode, desc, globs))

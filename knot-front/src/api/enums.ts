@@ -37,7 +37,7 @@ export function deleteEnumConfig(id: number | string) {
 }
 
 /**
- * 代码枚举全集：GET /api/common/enums，返回 { 枚举键: [{ code, label }, ...] }。
+ * 代码枚举全集：GET /api/enum-options，返回 { 枚举键: [{ code, label }, ...] }。
  *
  * ⚠ 响应是**数组**不是 map：JSON object key 必然是字符串，用 map 会让数字 code 退化成
  * 字符串 "1"，与字符串 code 无法区分（2026-10-07 改为数组结构，无 v1 兼容层）。
@@ -56,5 +56,5 @@ export function deleteEnumConfig(id: number | string) {
  *   plugin_fail_mode / plugin_result_status），见迁移脚本 2026-10-03-retire-orphan-enums.sql。
  */
 export function listCommonEnums() {
-  return get("/api/common/enums");
+  return get("/api/enum-options");
 }

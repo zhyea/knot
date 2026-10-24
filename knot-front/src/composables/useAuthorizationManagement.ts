@@ -879,7 +879,7 @@ export function useAuthorizationManagement() {
     if (!row?.id) {
       return;
     }
-    const previousStatus = row.status || "ENABLED";
+    const previousStatus = row.status ?? "ENABLED";
     const nextStatus = enabled ? "ENABLED" : "DISABLED";
     if (previousStatus === nextStatus) {
       return;

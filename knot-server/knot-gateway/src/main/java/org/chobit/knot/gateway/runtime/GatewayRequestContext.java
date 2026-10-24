@@ -5,7 +5,7 @@ import lombok.Setter;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.model.GatewayRoutingInfo;
+import org.chobit.knot.gateway.model.GatewayRoutingContext;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 
 import java.util.LinkedHashMap;
@@ -59,8 +59,8 @@ public class GatewayRequestContext {
     /**
      * Executes the public operation. Executes the public operation.
      */
-    public GatewayRoutingInfo routingInfo() {
-        return routing == null ? null : routing.routingInfo();
+    public GatewayRoutingContext routingContext() {
+        return routing == null ? null : routing.routingContext();
     }
 
     /**

@@ -8,7 +8,7 @@ import {getStorageItem, hasStorageItem, setStorageItem} from "@/utils/storage";
  *
  * 取值统一用 UTC 偏移（`UTC+08:00` 这类 code），选项由 DB 枚举表维护：
  * `ks_enum_configs` 分类 `timezone`，经 `GET /api/system/enums/items/timezone` 读取
- * （`useEnums` + `EnumSelect` 同一数据源，与代码枚举 `/api/common/enums` 无关）。
+ * （`useEnums` + `EnumSelect` 同一数据源，与代码枚举 `/api/enum-options` 无关）。
  * 选择结果以 `setting_key='timezone'` 落 `ks_user_settings`，与 locale / theme 同机制。
  *
  * 该偏好当前仅用于展示与存储，不参与业务逻辑分支。

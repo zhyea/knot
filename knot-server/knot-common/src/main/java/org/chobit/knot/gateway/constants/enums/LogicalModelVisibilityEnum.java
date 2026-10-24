@@ -7,7 +7,7 @@ import java.util.Arrays;
 
 /**
  * 统一模型可见性：已从 ks_enum_configs（logical_model_visibility 字典）迁出，
- * 通过 /api/common/enums 以 LogicalModelVisibilityEnum 键下发前端。
+ * 通过 /api/enum-options 以 LogicalModelVisibilityEnum 键下发前端。
  */
 public enum LogicalModelVisibilityEnum implements EnumOption {
     PUBLIC("PUBLIC", "公开"),

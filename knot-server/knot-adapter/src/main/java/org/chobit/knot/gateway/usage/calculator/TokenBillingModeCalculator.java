@@ -2,12 +2,12 @@ package org.chobit.knot.gateway.usage.calculator;
 
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.PricingPlanEnum;
-import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.model.BillingConfig;
 import org.chobit.knot.gateway.model.NormalizedBillingAmount;
 import org.chobit.knot.gateway.model.NormalizedUsageDetail;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.model.TokenUsageDetailKind;
+import org.chobit.knot.gateway.usage.BillingRuleRef;
 import org.chobit.knot.gateway.usage.NormalizedUsageContext;
 import org.springframework.stereotype.Component;
 
@@ -67,7 +67,7 @@ public class TokenBillingModeCalculator extends AbstractBillingModeCalculator {
 
     /** 方案领域对象：config_json 解析失败（null）时各分项价按 0 出账 */
     private static BillingConfig.PricingPlan planOf(NormalizedUsageContext context, PricingPlanEnum plan) {
-        BillingConfig config = BillingConfig.fromJsonOrNull(context.rule().getConfigJson());
+        BillingConfig config = BillingConfig.fromJsonOrNull(context.rule().configJson());
         return config == null ? null : config.pricingPlan(plan);
     }
 
@@ -80,7 +80,7 @@ public class TokenBillingModeCalculator extends AbstractBillingModeCalculator {
      * 三个方案共用的出账组装：解析六个分项单价 -> 算钱 -> 出明细。
      * 单价解析全部委托方案领域对象（{@link BillingConfig.PricingPlan}），此处不重复实现价逻辑。
      */
-    private NormalizedBillingAmount assemble(BillingRuleEntity rule,
+    private NormalizedBillingAmount assemble(BillingRuleRef rule,
                                              TokenBillingUsage usage,
                                              BillingConfig.PricingPlan plan,
                                              BillingConfig.PricingContext pricingContext) {

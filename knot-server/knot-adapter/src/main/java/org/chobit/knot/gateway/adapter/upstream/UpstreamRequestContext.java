@@ -1,9 +1,6 @@
 package org.chobit.knot.gateway.adapter.upstream;
 
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
-import org.chobit.knot.gateway.entity.ModelEntity;
-import org.chobit.knot.gateway.entity.ProviderAccountEntity;
 import org.springframework.http.MediaType;
 
 import java.util.LinkedHashMap;
@@ -12,10 +9,10 @@ import java.util.Map;
 public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
                                      Map<String, Object> requestBody,
                                      MediaType contentType,
-                                     ModelEntity model,
-                                     ProviderAccountEntity provider,
+                                     ModelRef model,
+                                     ProviderAccountRef provider,
                                      Map<String, Object> authConfig,
-                                     ModelApiBindingEntity binding,
+                                     ModelApiBindingRef binding,
                                      String traceparent,
                                      String traceId,
                                      String authApplier,
@@ -25,10 +22,10 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
     public UpstreamRequestContext(ModelApiProtocolEnum protocol,
                                   Map<String, Object> requestBody,
                                   MediaType contentType,
-                                  ModelEntity model,
-                                  ProviderAccountEntity provider,
+                                  ModelRef model,
+                                  ProviderAccountRef provider,
                                   Map<String, Object> authConfig,
-                                  ModelApiBindingEntity binding,
+                                  ModelApiBindingRef binding,
                                   String traceparent,
                                   String traceId) {
         this(protocol, requestBody, contentType, model, provider, authConfig, binding,
@@ -38,10 +35,10 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
     public UpstreamRequestContext(ModelApiProtocolEnum protocol,
                                   Map<String, Object> requestBody,
                                   MediaType contentType,
-                                  ModelEntity model,
-                                  ProviderAccountEntity provider,
+                                  ModelRef model,
+                                  ProviderAccountRef provider,
                                   Map<String, Object> authConfig,
-                                  ModelApiBindingEntity binding,
+                                  ModelApiBindingRef binding,
                                   String traceparent,
                                   String traceId,
                                   String authApplier,
@@ -60,6 +57,6 @@ public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
     }
 
     public String requestAdapter() {
-        return binding == null ? null : binding.getRequestAdapter();
+        return binding == null ? null : binding.requestAdapter();
     }
 }

@@ -3,16 +3,17 @@ package org.chobit.knot.gateway.kafka.msg;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import org.chobit.knot.gateway.constants.enums.GatewayErrorTypeEnum;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.GatewayBadRequestException;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
-import org.chobit.knot.gateway.exception.GatewayQuotaException;
-import org.chobit.knot.gateway.exception.GatewayRateLimitException;
 import org.chobit.knot.gateway.exception.GatewayTrafficRejectException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.TrafficRejectDetail;
 import org.chobit.knot.gateway.redis.RedisUnavailableException;
+
+import java.util.concurrent.TimeoutException;
 
 /**
  * 响应层的统一错误结构：<b>上游异常与网关异常同形状</b>，靠 {@code type} / {@code stage} / {@code upstream} 区分。
@@ -40,38 +41,47 @@ public record ErrorMsgDto(String type,
     /**
      * 由异常实例构建错误记录；{@code null} 入参返回 {@code null}（成功路径不带 error）。
      *
-     * <p>异常家族当前<b>不带阶段信息</b>，这里按抛出类型映射到固定的七个出口，
-     * 与 {@code AbstractGatewayRequestTemplate} 的埋点位置一一对应。</p>
+     * <p>错误类型单一来源：网关异常家族在构造时已把 {@link GatewayErrorTypeEnum} 的 code
+     * 写进 {@code type()}，这里直接取用，不再按异常类型二次推断——与
+     * {@code GatewayExceptionHandler} 的出口保持同一套语义，也不会出现两侧各写一份
+     * 字面量导致漂移。非家族异常（业务异常 / 存储不可用 / 未预期异常）没有 type，
+     * 按处置语义取枚举常量。</p>
      */
     public static ErrorMsgDto of(Throwable error) {
         if (error == null) {
             return null;
         }
+        // 请求预算超时（B2 deadline，Mono.timeout 抛 TimeoutException）：与 GatewayExceptionHandler
+        // 的 handleRequestBudgetExceeded 同一口径（504 + timeout_error + stage=timeout）。
+        // 这是「唯一真总超时」的终态，不是未预期异常——落进 500 兜底会让数仓把超时当成内部故障
+        if (error instanceof TimeoutException e) {
+            return new ErrorMsgDto(
+                GatewayErrorTypeEnum.TIMEOUT_ERROR.code(), null, 504, Stage.TIMEOUT.code(),
+                truncate(e.getMessage()), null, null);
+        }
         if (error instanceof GatewayUpstreamException e) {
             return new ErrorMsgDto(
-                "upstream_error", e.code(), 502, Stage.UPSTREAM_CALL.code(), truncate(e.getMessage()), null,
+                e.type(), e.code(), 502, Stage.UPSTREAM_CALL.code(), truncate(e.getMessage()), null,
                 new UpstreamErrorMsgDto(e.httpStatus(), e.code(), e.retryAfterMs()));
         }
         if (error instanceof GatewayTrafficRejectException e) {
-            boolean quota = error instanceof GatewayQuotaException;
-            boolean rateLimit = error instanceof GatewayRateLimitException;
-            String type = quota ? "quota_error" : rateLimit ? "rate_limit_error" : "rate_limit_error";
             TrafficRejectDetail reject = e.detail();
             return new ErrorMsgDto(
-                type, e.code(), 429, stageOfRejection(reject), truncate(e.getMessage()),
+                e.type(), e.code(), 429, stageOfRejection(reject), truncate(e.getMessage()),
                 TrafficRejectMsgDto.of(reject), null);
         }
         if (error instanceof RedisUnavailableException e) {
             return new ErrorMsgDto(
-                "storage_unavailable", null, 503, Stage.STORAGE.code(), truncate(e.getMessage()), null, null);
+                GatewayErrorTypeEnum.STORAGE_UNAVAILABLE.code(), null, 503, Stage.STORAGE.code(),
+                truncate(e.getMessage()), null, null);
         }
         if (error instanceof GatewayAuthException e) {
             return new ErrorMsgDto(
-                "auth_error", e.code(), 401, Stage.HEADER_VALIDATE.code(), truncate(e.getMessage()), null, null);
+                e.type(), e.code(), 401, Stage.HEADER_VALIDATE.code(), truncate(e.getMessage()), null, null);
         }
         if (error instanceof GatewayInvalidRequestException e) {
             return new ErrorMsgDto(
-                "invalid_request_error", e.code(), 400, Stage.HEADER_VALIDATE.code(),
+                e.type(), e.code(), 400, Stage.HEADER_VALIDATE.code(),
                 truncate(e.getMessage()), null, null);
         }
         if (error instanceof GatewayBadRequestException e) {
@@ -82,12 +92,13 @@ public record ErrorMsgDto(String type,
         }
         if (error instanceof BusinessException e) {
             return new ErrorMsgDto(
-                "invalid_request_error", e.getCode(), 400, Stage.REQUEST_PARSE.code(),
+                GatewayErrorTypeEnum.INVALID_REQUEST_ERROR.code(), e.getCode(), 400, Stage.REQUEST_PARSE.code(),
                 truncate(e.getMessage()), null, null);
         }
         // 未预期异常：与 GatewayExceptionHandler 的兜底出口保持一致（500 + upstream_error）
         return new ErrorMsgDto(
-            "upstream_error", null, 500, Stage.INTERNAL.code(), truncate(error.getMessage()), null, null);
+            GatewayErrorTypeEnum.UPSTREAM_ERROR.code(), null, 500, Stage.INTERNAL.code(),
+            truncate(error.getMessage()), null, null);
     }
 
     /**
@@ -122,6 +133,7 @@ public record ErrorMsgDto(String type,
         UPSTREAM_CALL("upstream_call"),
         PLUGIN_MODERATION("plugin_moderation"),
         STORAGE("storage"),
+        TIMEOUT("timeout"),
         INTERNAL("internal");
 
         private final String code;

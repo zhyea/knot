@@ -12,7 +12,7 @@ import java.util.Arrays;
  *   <li>{@code SYNC}（同步插件）：实现 {@link PluginHandler}，嵌入网关/上游请求链
  *       （{@link PluginExtensionPoint} + {@link PluginStageCode}）内联执行，可观测/改写请求与响应。</li>
  * </ul>
- * 已通过 /api/common/enums 以 PluginTypeEnum 键下发前端。code 与枚举名一致，落库与校验均使用该 code。
+ * 已通过 /api/enum-options 以 PluginTypeEnum 键下发前端。code 与枚举名一致，落库与校验均使用该 code。
  */
 public enum PluginTypeEnum implements EnumOption {
     SYNC("SYNC", "同步插件");

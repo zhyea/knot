@@ -6,7 +6,7 @@ import org.chobit.knot.gateway.error.ErrorCode;
 
 /**
  * 插件执行阶段：已从 ks_enum_configs（plugin_stage_code 字典）迁出，
- * 通过 /api/common/enums 以 PluginStageCode 键下发前端。
+ * 通过 /api/enum-options 以 PluginStageCode 键下发前端。
  */
 public enum PluginStageCode implements EnumOption {
     GATEWAY_REQUEST("GATEWAY_REQUEST", "网关请求阶段"),

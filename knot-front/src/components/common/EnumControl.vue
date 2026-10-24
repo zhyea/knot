@@ -58,7 +58,7 @@ import {useEnumOptions} from "@/composables/useEnumOptions";
 import type {SelectOption} from "@/types";
 
 /**
- * 后端代码枚举的统一控件（数据源 GET /api/common/enums，见 useEnumOptions）。
+ * 后端代码枚举的统一控件（数据源 GET /api/enum-options，见 useEnumOptions）。
  *
  * - display="select"   下拉框，multiple 控制单选/多选（默认）
  * - display="radio"    单选框组

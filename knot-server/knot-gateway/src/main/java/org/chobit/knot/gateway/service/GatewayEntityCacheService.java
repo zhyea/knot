@@ -37,7 +37,7 @@ import java.util.function.Function;
 
 
 @Service
-public class GatewayDataService {
+public class GatewayEntityCacheService {
 
     private static final Duration EXPIRE_AFTER_WRITE = Duration.ofMinutes(10);
     private static final Duration REFRESH_AFTER_WRITE = Duration.ofSeconds(30);
@@ -78,7 +78,7 @@ public class GatewayDataService {
     /**
      * Constructs a new instance.
      */
-    public GatewayDataService(AppMapper appMapper,
+    public GatewayEntityCacheService(AppMapper appMapper,
                               RoutingConsumerMapper routingConsumerMapper,
                               RoutingRuleMapper routingRuleMapper,
                               RoutingRuleTargetMapper routingRuleTargetMapper,

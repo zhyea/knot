@@ -7,7 +7,7 @@ import java.util.Arrays;
 
 /**
  * 计费币种：已从 ks_enum_configs（billing_currency 字典）迁出，
- * 通过 /api/common/enums 以 CurrencyCodeEnum 键下发前端。
+ * 通过 /api/enum-options 以 CurrencyCodeEnum 键下发前端。
  */
 public enum CurrencyCodeEnum implements EnumOption {
     USD("USD", "USD"),

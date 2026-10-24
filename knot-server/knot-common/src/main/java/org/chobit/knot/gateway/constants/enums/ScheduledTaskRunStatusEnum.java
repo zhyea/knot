@@ -7,7 +7,7 @@ import java.util.List;
 
 /**
  * 定时任务运行状态：从 ks_enum_configs 的通用 status 字典中拆分出来的领域枚举，
- * 通过 /api/common/enums 以 ScheduledTaskRunStatusEnum 键下发前端。
+ * 通过 /api/enum-options 以 ScheduledTaskRunStatusEnum 键下发前端。
  *
  * <p>RUNNING 是一次执行中的瞬时状态，SUCCESS / FAILURE 是终态。</p>
  */

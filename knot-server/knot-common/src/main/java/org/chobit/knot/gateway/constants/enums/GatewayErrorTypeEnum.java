@@ -27,7 +27,8 @@ public enum GatewayErrorTypeEnum {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * 错误类型码：HTTP 响应体（{@code GatewayErrorResponse}）与数仓消息（{@code ErrorMsgDto}）
+     * 共用的单一来源，两侧取值必须一致，不得各写字面量。
      */
     public String code() {
         return code;

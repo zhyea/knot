@@ -2,7 +2,7 @@ package org.chobit.knot.gateway.constants.enums;
 
 /**
  * 路由目标类型，已从硬编码/字典迁出，
- * 通过 /api/common/enums 以 RouteTargetTypeEnum 键下发前端。
+ * 通过 /api/enum-options 以 RouteTargetTypeEnum 键下发前端。
  */
 public enum RouteTargetTypeEnum implements EnumOption {
     MODEL("MODEL", "模型"),

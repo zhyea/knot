@@ -61,7 +61,7 @@ class ApiPermissionBindingCoverageTest {
             "/api/auth/logout",
             "/api/health",
             "/api/me/authorizations",
-            "/api/common/enums"
+            "/api/enum-options"
     );
 
     private final AntPathMatcher pathMatcher = new AntPathMatcher();

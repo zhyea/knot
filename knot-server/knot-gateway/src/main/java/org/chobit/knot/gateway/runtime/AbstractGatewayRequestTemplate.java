@@ -305,9 +305,9 @@ public abstract class AbstractGatewayRequestTemplate {
         }
         String appId = null;
         String department = null;
-        if (routing.routingInfo() != null) {
-            appId = routing.routingInfo().app() == null ? null : routing.routingInfo().app().appId();
-            department = routing.routingInfo().department() == null ? null : routing.routingInfo().department().name();
+        if (routing.routingContext() != null) {
+            appId = routing.routingContext().app() == null ? null : routing.routingContext().app().appId();
+            department = routing.routingContext().department() == null ? null : routing.routingContext().department().name();
         }
         return new GatewayRoutingSnapshot(
                 routing.ruleId(),

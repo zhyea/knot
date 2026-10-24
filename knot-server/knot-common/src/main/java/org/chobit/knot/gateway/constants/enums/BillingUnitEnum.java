@@ -7,7 +7,7 @@ import java.util.Arrays;
 
 /**
  * 计费单位：已从 ks_enum_configs（billing_unit 字典）迁出，
- * 通过 /api/common/enums 以 BillingUnitEnum 键下发前端。
+ * 通过 /api/enum-options 以 BillingUnitEnum 键下发前端。
  * 某个计费模式可用的单位集合由 {@link BillingModeEnum#supportedUnits()} 约束，本枚举只定义取值本身。
  */
 public enum BillingUnitEnum implements EnumOption {

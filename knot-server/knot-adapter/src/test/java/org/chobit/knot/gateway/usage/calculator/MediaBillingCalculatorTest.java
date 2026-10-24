@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.usage.calculator;
 
-import org.chobit.knot.gateway.entity.BillingRuleEntity;
+import org.chobit.knot.gateway.usage.BillingRuleRef;
 import org.chobit.knot.gateway.model.AudioBillingUsage;
 import org.chobit.knot.gateway.model.BillingUsage;
 import org.chobit.knot.gateway.model.ImageBillingUsage;
@@ -138,18 +138,11 @@ class MediaBillingCalculatorTest {
         assertTrue(amount.details().isEmpty());
     }
 
-    private NormalizedUsageContext context(BillingRuleEntity rule, BillingUsage usage) {
+    private NormalizedUsageContext context(BillingRuleRef rule, BillingUsage usage) {
         return new NormalizedUsageContext(rule, usage, Map.of(), Instant.parse("2026-10-12T02:30:00Z"));
     }
 
-    private BillingRuleEntity rule(String mode, String unit, String config) {
-        BillingRuleEntity rule = new BillingRuleEntity();
-        rule.setBillingMode(mode);
-        rule.setUnit(unit);
-        rule.setCurrency("USD");
-        rule.setVersionCode("v1");
-        rule.setPricingPlan("FIXED");
-        rule.setConfigJson(config);
-        return rule;
+    private BillingRuleRef rule(String mode, String unit, String config) {
+        return new BillingRuleRef(mode, config, "USD", "FIXED", unit, "v1");
     }
 }

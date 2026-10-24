@@ -4,7 +4,7 @@ description: knot 后端 Java 规范：模块依赖红线、分层、命名纪�
 glob: knot-server/**/*.java
 ---
 
-> 本文件由 `docs/standards/generate-tool-rules.py` 自动生成，**勿手工编辑**。权威源：`docs/standards/rules/rules/10-backend-java.md`。
+> 本文件由 `docs/standards/generate-tool-rules.py` 自动生成，**勿手工编辑**。权威源：`docs/standards/rules/10-backend-java.md`。
 
 # 10 · 后端 Java 规范
 
@@ -67,7 +67,18 @@ model       → 领域值对象（非表映射）
 
 ### 4.4 禁止泛化主干名
 
-`System` / `Common` / `Base` / `Manager` / `Util` / `Helper` / `Info` / `Data` / `Object` 不得作为类名主干。既有孤例已整改（`SystemService` 并入 `OperationLogService`）。
+`System` / `Common` / `Base` / `Manager` / `Util` / `Helper` / `Info` / `Data` / `Object` 不得作为类名主干。
+
+**合规判例（2026-10-24 批次一整改后口径，主干名审查以此为准）**：
+
+| 名称 | 判定 | 理由 |
+|---|---|---|
+| `SystemController` / `SystemLogItem` | ✅ 合规 | `System` = 系统管理模块域前缀（`ks_modules.code='system'`、左侧菜单「系统管理」），与 `Routing*` / `Billing*` 同级，非泛化主干 |
+| `Base36` / `ShortCode` | ✅ 合规 | 精确算法名（同 `Base64`），语义自明 |
+| `UtilityProtocolExecutor` / `GatewayUtilityController` | ✅ 合规 | `Utility` = 非生成式辅助协议族（RERANK / MODERATIONS / DECISIONS）的域术语，与 `TextGeneration` / `Embedding` / `Media` 家族并列；枚举集闭合 |
+| `AdminAuthorizationInfoResponse` / `MapNumberUtils` | ✅ 合规 | 主干是 `AdminAuthorization` / `MapNumber`，`Info` / `Utils` 是后缀非主干 |
+
+**已整改（2026-10-24）**：`SystemMapper` 删除（`listOperationLogs` 并入 `OperationLogMapper`）；`SystemConverter` → `OperationLogConverter`；`CommonController` → `EnumOptionsController`（路径同步 `/api/common/enums` → `/api/enum-options`）；`CommonMappings` → `SharedMappings`；`GatewayDataService` → `GatewayEntityCacheService`；`GatewayRoutingInfo`（含嵌套 `*Info`）→ `GatewayRoutingContext`（含 `*Snapshot`）。
 
 ### 4.6 重命名必检清单（2026-10-15 血泪补充）
 
@@ -115,7 +126,7 @@ model       → 领域值对象（非表映射）
 - **权限三表与所有 `ks_` / `kx_` 表结构默认不动**（改错全站 403）。
 - **逻辑删除表 + UNIQUE(code) 四必配**：`countByXxxCode` 物理行判；列表 `includeDeleted` + mapper `<if>` + 排序 `is_deleted asc, id desc`；恢复端点 `PUT /{id}/restore`；引用检查覆盖 inner join 方。样板：`kb_models` / `kb_model_pools` / `kb_logical_models`。
 - **状态枚举**：删除语义移 `is_deleted`（Integer）；`EntityStatusEnum` / `UserStatusEnum` 并入 `EnabledStatusEnum`。⚠ 前端 truthy（`if (status)`）是头号风险，**0 是合法值**。
-- **枚举双源不混用**：代码枚举经 `GET /api/common/enums` 下发；DB 只留 `scope_type` / `discount_type` / `channel` / `model_family`。
+- **枚举双源不混用**：代码枚举经 `GET /api/enum-options` 下发；DB 只留 `scope_type` / `discount_type` / `channel` / `model_family`。
 - **可空绑定列的 mapper `<set>` 不能用 `<if>` 包**（会写出 `set` 空语法错误）。
 - `PageQuery` 加字段要连带改所有 `new PageQuery(null × n)`。
 - ⭐ **record 加语义字段优先补便利构造**：新增字段时提供一个旧参数列表的便利构造（新字段取默认值），让既有调用点与测试桩零改动。不要无脑要求所有调用点补参数（噪声大、易漏）。先例 `BillingFact`（加 `extractorFallback` / `usageAbsent` 时保留 6 参构造）。

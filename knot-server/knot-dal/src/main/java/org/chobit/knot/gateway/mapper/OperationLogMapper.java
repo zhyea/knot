@@ -37,4 +37,7 @@ public interface OperationLogMapper {
     OperationLogEntity getById(Long id);
 
     int deleteByCreatedBefore(LocalDateTime beforeTime);
+
+    /** 最近操作日志（总览看板用）：无条件倒序取全量，由调用方截断 */
+    List<OperationLogEntity> listOperationLogs();
 }

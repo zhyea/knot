@@ -45,7 +45,3 @@ export function previewBillingRule(id: number | string, payload: Dict) {
 export function deleteBillingRule(id: number | string) {
   return del(`/api/billing/rules/${id}`);
 }
-
-export function runReconciliation(payload: Dict) {
-  return post("/api/billing/reconciliation", payload);
-}

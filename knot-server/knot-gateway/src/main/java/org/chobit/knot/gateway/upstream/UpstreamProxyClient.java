@@ -4,6 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplier;
 import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplierCatalog;
 import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
+import org.chobit.knot.gateway.adapter.upstream.ModelApiBindingRef;
+import org.chobit.knot.gateway.adapter.upstream.ModelRef;
+import org.chobit.knot.gateway.adapter.upstream.ProviderAccountRef;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamAccess;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
@@ -21,7 +24,7 @@ import org.chobit.knot.gateway.plugin.PluginExtensionPoint;
 import org.chobit.knot.gateway.plugin.PluginStageCode;
 import org.chobit.knot.gateway.plugin.upstream.UpstreamPluginContext;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
-import org.chobit.knot.gateway.service.GatewayDataService;
+import org.chobit.knot.gateway.service.GatewayEntityCacheService;
 import org.chobit.knot.gateway.service.support.ProviderCredentialSupport;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutor;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutorRegistry;
@@ -42,7 +45,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class UpstreamProxyClient {
 
-    private final GatewayDataService dataService;
+    private final GatewayEntityCacheService dataService;
     private final UpstreamProtocolExecutorRegistry protocolExecutorRegistry;
     private final UpstreamRequestAdapterRegistry requestAdapterRegistry;
     private final ProviderCredentialSupport providerCredentialSupport;
@@ -99,10 +102,12 @@ public class UpstreamProxyClient {
                 resolvedProtocol,
                 requestBody,
                 contentType,
-                model,
-                provider,
+                new ModelRef(model.getId(), model.getModelCode(), model.getUpstreamModel(),
+                        model.getBasePath(), model.getBillingRuleCode(), model.getModelFamilyCode()),
+                new ProviderAccountRef(provider.getId(), provider.getCode(), provider.getBaseUrl(),
+                        provider.getProviderCode()),
                 providerCredentialSupport.toAuthConfig(credential),
-                binding,
+                bindingRef(binding),
                 traceparent,
                 GatewayTraceContext.traceIdOf(traceparent),
                 providerCredentialSupport.authApplier(credential),
@@ -143,15 +148,27 @@ public class UpstreamProxyClient {
                 resolvedProtocol,
                 requestBody,
                 contentType,
-                model,
-                provider,
+                new ModelRef(model.getId(), model.getModelCode(), model.getUpstreamModel(),
+                        model.getBasePath(), model.getBillingRuleCode(), model.getModelFamilyCode()),
+                new ProviderAccountRef(provider.getId(), provider.getCode(), provider.getBaseUrl(),
+                        provider.getProviderCode()),
                 providerCredentialSupport.toAuthConfig(credential),
-                binding,
+                bindingRef(binding),
                 traceparent,
                 GatewayTraceContext.traceIdOf(traceparent),
                 providerCredentialSupport.authApplier(credential),
                 requestId
         );
+    }
+
+    /**
+     * 绑定投影：模型未绑该协议时实体为 null（{@code resolveBinding} 取不到即回落协议默认路径），
+     * 投影保持 null，由 {@link UpstreamRequestContext#requestAdapter()} 等消费方判空。
+     */
+    private static ModelApiBindingRef bindingRef(ModelApiBindingEntity binding) {
+        return binding == null ? null : new ModelApiBindingRef(
+                binding.getApiPath(), binding.getRequestAdapter(), binding.getProtocol(),
+                binding.getUsageExtractor(), binding.getStreamUsageExtractor());
     }
 
     private ModelEntity resolveModel(RoutingRuleTargetDto target) {
@@ -202,12 +219,12 @@ public class UpstreamProxyClient {
                         context.traceId(),
                         context.traceparent(),
                         stageCode,
-                        context.provider() == null ? null : context.provider().getId(),
-                        context.provider() == null ? null : context.provider().getCode(),
-                        context.model() == null ? null : context.model().getId(),
-                        context.model() == null ? null : context.model().getModelCode(),
+                        context.provider() == null ? null : context.provider().id(),
+                        context.provider() == null ? null : context.provider().code(),
+                        context.model() == null ? null : context.model().id(),
+                        context.model() == null ? null : context.model().modelCode(),
                         context.protocol() == null ? null : context.protocol().code(),
-                        context.binding() == null ? null : context.binding().getProtocol(),
+                        context.binding() == null ? null : context.binding().protocol(),
                         context.requestBody(),
                         context.contentType(),
                         responseSnapshot(result),
@@ -228,7 +245,7 @@ public class UpstreamProxyClient {
         UpstreamAccess access = applier == null ? null : applier.prepare(context);
         String baseUrl = access == null ? null : StringUtils.trimToNull(access.baseUrl());
         String path = UpstreamUrlSupport.joinPath(
-                context.model() == null ? null : context.model().getBasePath(), protocolPath);
+                context.model() == null ? null : context.model().basePath(), protocolPath);
         return UpstreamUrlSupport.joinUrl(baseUrl, path);
     }
 

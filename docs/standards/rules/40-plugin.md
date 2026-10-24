@@ -27,7 +27,7 @@
 - **网关缓存词库资源列表**（`ModerationWordResource`，Caffeine 单键，expire 10min / refresh 30s，fail-open：异常不缓存、逐次重试、空列表 + warn）。
 - **plugin 缓存编译自动机**（`ModerationWordCache.snapshotFor(words)`，按 `ModerationTerm.versionOf(words)` 去重编译，`@Scheduled` 防御性重建）。
 - 网关每请求经 `ModerationWordResource.currentWords()` 取词，随 `GatewayPluginContext.words` 下发——**这是网关唯一的审核职责**。
-- 词库**不进 `GatewayDataService`**（那是路由热路径数据层，16 个缓存全按实体键；词库是单例式全量资源）。
+- 词库**不进 `GatewayEntityCacheService`**（那是路由热路径数据层，16 个缓存全按实体键；词库是单例式全量资源）。
 - `ModerationGuard` 不持缓存/配置源、不碰持久层；空配置或空词表即放行（fail-open）。
 - 归属：`TextNormalizer` / `ModerationTerm`（record + 静态 `versionOf`）→ **common**；`AhoCorasickMatcher` / `ModerationSnapshot` → **knot-plugin**（引擎，外部禁 import）。
 - 对外只暴露 `categoryCode`，防词库探测。

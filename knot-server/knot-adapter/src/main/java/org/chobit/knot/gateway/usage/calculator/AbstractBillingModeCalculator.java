@@ -4,10 +4,10 @@ import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.BillingUnitEnum;
-import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.model.NormalizedBillingAmount;
 import org.chobit.knot.gateway.model.NormalizedUsageDetail;
 import org.chobit.knot.gateway.model.TokenUsageDetailKind;
+import org.chobit.knot.gateway.usage.BillingRuleRef;
 import org.chobit.knot.gateway.usage.NormalizedUsageContext;
 
 import java.math.BigDecimal;
@@ -27,12 +27,12 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
      */
     private static final MathContext MONEY_DIVISION = MathContext.DECIMAL128;
 
-    protected BillingRuleEntity rule(NormalizedUsageContext context) {
+    protected BillingRuleRef rule(NormalizedUsageContext context) {
         return context.rule();
     }
 
-    protected int unitSize(BillingRuleEntity rule) {
-        return BillingUnitEnum.unitSizeOf(normalizeUnit(rule.getUnit()));
+    protected int unitSize(BillingRuleRef rule) {
+        return BillingUnitEnum.unitSizeOf(normalizeUnit(rule.unit()));
     }
 
     protected BigDecimal safeMoney(BigDecimal value) {

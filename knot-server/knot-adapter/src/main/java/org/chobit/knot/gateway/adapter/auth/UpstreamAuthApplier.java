@@ -55,7 +55,7 @@ public interface UpstreamAuthApplier {
      * 以免 adapter 反向依赖 gateway 的异常类型。</p>
      */
     default String baseUrl(UpstreamRequestContext context) {
-        return context == null || context.provider() == null ? null : context.provider().getBaseUrl();
+        return context == null || context.provider() == null ? null : context.provider().baseUrl();
     }
 
     /**

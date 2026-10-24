@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class EnumConfigService {
 
     /**
-     * 已由后端代码枚举（GET /api/common/enums，EnumOptionRegistry）权威维护的 DB 分类编码。
+     * 已由后端代码枚举（GET /api/enum-options，EnumOptionRegistry）权威维护的 DB 分类编码。
      * 这些分类已在 data.sql 与迁移脚本 2026-10-02-retire-code-enums.sql 中退役，
      * 禁止在 DB 重新创建，否则会再次产生"双源漂移"。
      */

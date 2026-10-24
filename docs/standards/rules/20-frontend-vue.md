@@ -45,7 +45,7 @@ npx vite build            # 构建
   反例：`useAuthorizationManagement.ts:882` `row.status || "ENABLED"` —— 后端返回空串时被误置为启用态。
   正例：`row.status ?? "ENABLED"`。
   ⚠ 例外：**纯展示兜底**（`health.status || "--"`）与**非状态类默认值**（`action.type || 'primary'`、`field.placeholder || '请选择'`）可以用 `||`——它们不承载业务状态语义。
-- 枚举选项统一来自 `GET /api/common/enums`（与 DB 枚举不混用）。
+- 枚举选项统一来自 `GET /api/enum-options`（与 DB 枚举不混用）。
 
 ## 5. 既定模式（沿用，不要另起炉灶）
 

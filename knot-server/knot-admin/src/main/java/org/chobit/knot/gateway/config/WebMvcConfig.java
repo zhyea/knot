@@ -45,7 +45,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         // 否则用户一旦缺少其绑定权限，就永远拿不到自己的权限列表（自锁死）。
                         "/api/me/authorizations",
                         // 代码枚举字典：全站通用、无业务敏感性，任何已登录用户都需要。
-                        "/api/common/enums"
+                        "/api/enum-options"
                 );
     }
 }

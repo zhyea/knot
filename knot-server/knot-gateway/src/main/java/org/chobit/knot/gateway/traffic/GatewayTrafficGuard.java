@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.constants.enums.QuotaWindowEnum;
 import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
-import org.chobit.knot.gateway.model.GatewayRoutingInfo;
+import org.chobit.knot.gateway.model.GatewayRoutingContext;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.ResolvedRouting;
@@ -210,15 +210,15 @@ public class GatewayTrafficGuard {
         if (routing == null) {
             return refs;
         }
-        GatewayRoutingInfo info = routing.routingInfo();
+        GatewayRoutingContext info = routing.routingContext();
         if (info != null && info.app() != null && info.app().id() != null) {
-            // AppInfo.appId 装的是业务码 app_code（见 RoutingResolver 构造处），不是主键
+            // AppSnapshot.appId 装的是业务码 app_code（见 RoutingResolver 构造处），不是主键
             refs.add(new ResourceRef(TrafficResourceTypeEnum.APP.code(), info.app().id(), info.app().appId()));
         }
         if (routing.ruleId() != null) {
             refs.add(new ResourceRef(TrafficResourceTypeEnum.ROUTING_RULE.code(), routing.ruleId(), routing.ruleCode()));
         }
-        GatewayRoutingInfo.ConsumerInfo consumer = info == null ? null : info.consumer();
+        GatewayRoutingContext.ConsumerSnapshot consumer = info == null ? null : info.consumer();
         if (routing.consumerId() != null) {
             refs.add(new ResourceRef(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(),
                     routing.consumerId(), consumer == null ? null : consumer.code()));

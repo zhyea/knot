@@ -10,15 +10,18 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Common options shared by several front end modules.
+ * 代码枚举字典：全站下拉选项的统一数据源。
+ *
+ * <p>登录后各页面都需要它，且无业务敏感性，因此在 {@code WebMvcConfig} 白名单放行
+ * （认证即可访问，不走接口级授权）。</p>
  */
 @RestController
-@RequestMapping("/api/common")
-public class CommonController {
+@RequestMapping("/api/enum-options")
+public class EnumOptionsController {
 
     private final EnumOptionRegistry enumOptionRegistry;
 
-    public CommonController(EnumOptionRegistry enumOptionRegistry) {
+    public EnumOptionsController(EnumOptionRegistry enumOptionRegistry) {
         this.enumOptionRegistry = enumOptionRegistry;
     }
 
@@ -31,7 +34,7 @@ public class CommonController {
      * <p>Enums maintained in {@code ks_enum_configs} are not included here, use
      * {@code /api/system/enums/items/{category}} for those.</p>
      */
-    @GetMapping("/enums")
+    @GetMapping
     public Map<String, List<EnumOptionItem>> enums() {
         return enumOptionRegistry.enumMap();
     }

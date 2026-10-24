@@ -33,7 +33,7 @@ import java.util.Map;
 
 /**
  * Collects the enum options that are maintained in code and exposed to the front end through
- * {@code GET /api/common/enums}.
+ * {@code GET /api/enum-options}.
  *
  * <p>Only enums already migrated out of {@code ks_enum_configs} belong here. Enums still kept in the
  * database stay editable by administrators and are served by {@code /api/system/enums}.</p>

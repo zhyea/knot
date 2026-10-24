@@ -15,6 +15,7 @@ import org.chobit.knot.gateway.model.NormalizedUsage;
 import org.chobit.knot.gateway.model.TokenBillingUsage;
 import org.chobit.knot.gateway.model.VideoBillingUsage;
 import org.chobit.knot.gateway.model.usage.UsageExtractItem;
+import org.chobit.knot.gateway.usage.BillingRuleRef;
 import org.chobit.knot.gateway.usage.UsageNormalizationSupport;
 import org.chobit.knot.gateway.usage.extractor.UsageExtractor;
 import org.chobit.knot.gateway.usage.extractor.UsageExtractorCatalog;
@@ -60,7 +61,7 @@ public class BillingFactAssembler {
 
         NormalizedUsage shadow = (rule == null || usageAbsent)
                 ? null
-                : UsageNormalizationSupport.normalize(billing, rule, input.requestBody(), occurredAt,
+                : UsageNormalizationSupport.normalize(billing, toBillingRuleRef(rule), input.requestBody(), occurredAt,
                         resolved.extractor().calculator());
 
         BillingFactUsage usage = toUsage(billing);
@@ -118,6 +119,15 @@ public class BillingFactAssembler {
         }
         return new BillingFactRuleRef(rule.getCode(), rule.getBillingMode(), rule.getUnit(), rule.getCurrency(),
                 rule.getPricingPlan(), matchedBy, rule.getVersionCode());
+    }
+
+    /**
+     * 计费规则实体 → 适配层投影（改进清单 2.5）：与 {@link #toRuleRef} 是两份不同投影——
+     * 本份供计价计算器解析价格（必须带 configJson），那份供被告链结构化展示。
+     */
+    private static BillingRuleRef toBillingRuleRef(BillingRuleEntity rule) {
+        return new BillingRuleRef(rule.getBillingMode(), rule.getConfigJson(), rule.getCurrency(),
+                rule.getPricingPlan(), rule.getUnit(), rule.getVersionCode());
     }
 
     /**

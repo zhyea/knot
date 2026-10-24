@@ -5,7 +5,7 @@ import org.chobit.knot.gateway.model.TrafficPolicies;
 /**
  * 流量策略数据源：把「策略从哪来」与「计数存哪去」并列成两个可替换依赖。
  *
- * <p>网关运行时由 {@code GatewayDataService} 适配（走库 + 10 分钟缓存），
+ * <p>网关运行时由 {@code GatewayEntityCacheService} 适配（走库 + 10 分钟缓存），
  * 单测里可以直接给一份固定策略，不需要拉起数据源。</p>
  */
 public interface TrafficPolicySource {

@@ -4,7 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.entity.ProviderAccountEntity;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.redis.RedisCache;
-import org.chobit.knot.gateway.service.GatewayDataService;
+import org.chobit.knot.gateway.service.GatewayEntityCacheService;
 import org.chobit.knot.gateway.store.StoreMode;
 import org.chobit.knot.gateway.store.StoreModeResolver;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -31,10 +31,10 @@ public class TrafficCounterConfiguration {
     private static final String DOMAIN = "traffic";
 
     /**
-     * 策略数据源：走 GatewayDataService（库查询 + 10 分钟缓存），与计数存储相互独立。
+     * 策略数据源：走 GatewayEntityCacheService（库查询 + 10 分钟缓存），与计数存储相互独立。
      */
     @Bean
-    public TrafficPolicySource trafficPolicySource(GatewayDataService dataService) {
+    public TrafficPolicySource trafficPolicySource(GatewayEntityCacheService dataService) {
         return new TrafficPolicySource() {
 
             @Override

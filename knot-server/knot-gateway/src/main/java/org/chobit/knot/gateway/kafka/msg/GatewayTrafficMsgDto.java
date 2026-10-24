@@ -7,7 +7,7 @@ import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.RouteTargetTypeEnum;
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.kafka.CallTraceContext;
-import org.chobit.knot.gateway.model.GatewayRoutingInfo;
+import org.chobit.knot.gateway.model.GatewayRoutingContext;
 import org.chobit.knot.gateway.model.NormalizedUsage;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.gateway.model.UsageAccounting;
@@ -195,13 +195,13 @@ public record GatewayTrafficMsgDto(String schema,
         if (routing == null) {
             return null;
         }
-        GatewayRoutingInfo info = routing.routingInfo();
-        GatewayRoutingInfo.RuleInfo rule = info == null ? null : info.rule();
-        GatewayRoutingInfo.ConsumerInfo consumer = info == null ? null : info.consumer();
-        GatewayRoutingInfo.AppInfo app = info == null ? null : info.app();
-        GatewayRoutingInfo.DepartmentInfo dept = info == null ? null : info.department();
-        GatewayRoutingInfo.UserInfo consumerUser = info == null ? null : info.consumerUser();
-        GatewayRoutingInfo.UserInfo owner = info == null ? null : info.appOwner();
+        GatewayRoutingContext info = routing.routingContext();
+        GatewayRoutingContext.RuleSnapshot rule = info == null ? null : info.rule();
+        GatewayRoutingContext.ConsumerSnapshot consumer = info == null ? null : info.consumer();
+        GatewayRoutingContext.AppSnapshot app = info == null ? null : info.app();
+        GatewayRoutingContext.DepartmentSnapshot dept = info == null ? null : info.department();
+        GatewayRoutingContext.UserSnapshot consumerUser = info == null ? null : info.consumerUser();
+        GatewayRoutingContext.UserSnapshot owner = info == null ? null : info.appOwner();
         List<RoutingRuleTargetDto> candidates = routing.candidateModels();
         RoutingRuleTargetDto first =
                 candidates == null || candidates.isEmpty() ? null : candidates.get(0);
@@ -247,6 +247,7 @@ public record GatewayTrafficMsgDto(String schema,
             case "rate_limit_error" -> "rate_limited";
             case "quota_error" -> "quota_exceeded";
             case "upstream_error" -> "upstream_error";
+            case "timeout_error" -> "timeout";
             default -> "gateway_error";
         };
     }

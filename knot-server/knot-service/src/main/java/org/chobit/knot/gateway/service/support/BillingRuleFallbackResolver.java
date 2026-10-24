@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 
 /**
- * 计费规则三级回退解析（复用生产链路口径，见 {@code GatewayDataService.loadBillingRule}）：
+ * 计费规则三级回退解析（复用生产链路口径，见 {@code GatewayEntityCacheService.loadBillingRule}）：
  * <ol>
  *   <li>EXPLICIT —— 模型显式绑定的规则码（{@code getActiveByRuleCode}）；</li>
  *   <li>FAMILY —— 模型族精确匹配默认规则（{@code getActiveByModelFamily(family)}）；</li>

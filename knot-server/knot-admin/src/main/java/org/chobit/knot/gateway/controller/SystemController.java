@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.annotation.AuthCheck;
-import org.chobit.knot.gateway.converter.SystemConverter;
+import org.chobit.knot.gateway.converter.OperationLogConverter;
 import org.chobit.knot.gateway.dto.system.OperationLogDto;
 import org.chobit.knot.gateway.model.PageQuery;
 import org.chobit.knot.gateway.model.PageRequest;
@@ -18,14 +18,14 @@ import java.util.List;
 @RequestMapping("/api/system")
 public class SystemController {
     private final OperationLogService operationLogService;
-    private final SystemConverter systemConverter;
+    private final OperationLogConverter operationLogConverter;
 
     /**
      * Constructs a new instance.
      */
-    public SystemController(OperationLogService operationLogService, SystemConverter systemConverter) {
+    public SystemController(OperationLogService operationLogService, OperationLogConverter operationLogConverter) {
         this.operationLogService = operationLogService;
-        this.systemConverter = systemConverter;
+        this.operationLogConverter = operationLogConverter;
     }
 
     /**
@@ -69,6 +69,6 @@ public class SystemController {
         PageResult<OperationLogDto> page = operationLogService.listOperationLogs(
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest()
         );
-        return page.mapList(systemConverter::toOperationLogVOList);
+        return page.mapList(operationLogConverter::toOperationLogVOList);
     }
 }

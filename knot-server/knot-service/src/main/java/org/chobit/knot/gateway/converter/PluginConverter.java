@@ -7,7 +7,7 @@ import org.mapstruct.Mapper;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring", uses = CommonMappings.class)
+@Mapper(componentModel = "spring", uses = SharedMappings.class)
 public interface PluginConverter {
 
     PluginDto toDto(PluginInstanceEntity entity);

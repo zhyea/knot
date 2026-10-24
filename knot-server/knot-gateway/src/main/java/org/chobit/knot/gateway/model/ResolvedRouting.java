@@ -10,7 +10,7 @@ public record ResolvedRouting(Long ruleId,
                               String secretKey,
                               boolean returnUsageDetail,
                               List<RoutingRuleTargetDto> candidateModels,
-                              GatewayRoutingInfo routingInfo,
+                              GatewayRoutingContext routingContext,
                               /** 规则级失败重试策略；为 null 时运行时按 {@link RetryPolicy#DEFAULT} 处理 */
                               RetryPolicy retryPolicy,
                               /** 规则级异常摘除策略；为 null 时运行时按 {@link EjectionPolicy#DEFAULT} 处理 */

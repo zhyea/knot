@@ -8,7 +8,7 @@ import org.mapstruct.Mapping;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring", uses = CommonMappings.class)
+@Mapper(componentModel = "spring", uses = SharedMappings.class)
 public interface ModelConverter {
 
     // ==================== Entity ↔ DTO ====================
