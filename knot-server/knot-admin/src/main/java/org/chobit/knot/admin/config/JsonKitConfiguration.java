@@ -1,0 +1,20 @@
+package org.chobit.knot.admin.config;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.chobit.knot.common.util.JsonKit;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * 启动时将 Spring Boot 的 {@link ObjectMapper} 同步到 {@link JsonKit}，
+ * 保证工具类序列化结果与 MVC 请求/响应保持一致。
+ */
+@Configuration(proxyBeanMethods = false)
+public class JsonKitConfiguration {
+
+    /**
+     * Constructs a new instance.
+     */
+    public JsonKitConfiguration(ObjectMapper objectMapper) {
+        JsonKit.init(objectMapper);
+    }
+}

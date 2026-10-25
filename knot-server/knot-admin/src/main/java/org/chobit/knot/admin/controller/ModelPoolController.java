@@ -1,0 +1,149 @@
+package org.chobit.knot.admin.controller;
+
+import jakarta.validation.Valid;
+import org.chobit.knot.common.annotation.OperationLog;
+import org.chobit.knot.svc.converter.ModelPoolConverter;
+import org.chobit.knot.svc.dto.model.ModelPoolDto;
+import org.chobit.knot.common.model.PageQuery;
+import org.chobit.knot.common.model.PageRequest;
+import org.chobit.knot.common.model.PageResult;
+import org.chobit.knot.svc.service.ModelPoolService;
+import org.chobit.knot.svc.vo.common.CodeAvailability;
+import org.chobit.knot.svc.vo.common.EnabledStatusRequest;
+import org.chobit.knot.svc.vo.model.ModelPool;
+import org.chobit.knot.common.model.ModelPoolOptionQuery;
+import org.chobit.knot.svc.service.OptionsService;
+import org.chobit.knot.svc.vo.common.OptionItem;
+import org.chobit.knot.svc.vo.common.OptionPage;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/model-pools")
+public class ModelPoolController {
+
+    private final ModelPoolService modelPoolService;
+    private final ModelPoolConverter modelPoolConverter;
+    private final OptionsService optionsService;
+
+    /**
+     * Constructs a new instance.
+     */
+    public ModelPoolController(ModelPoolService modelPoolService, ModelPoolConverter modelPoolConverter, OptionsService optionsService) {
+        this.modelPoolService = modelPoolService;
+        this.modelPoolConverter = modelPoolConverter;
+        this.optionsService = optionsService;
+    }
+
+    @PostMapping("/options")
+    public OptionPage<OptionItem<Void>> listOptions(@RequestBody(required = false) ModelPoolOptionQuery query) {
+        return optionsService.listModelPoolOptions(query);
+    }
+
+    /**
+     * Checks whether the requested condition is satisfied. Executes the public operation.
+     */
+    @GetMapping("/check-code")
+    public CodeAvailability checkCode(@RequestParam String code,
+                                      @RequestParam(required = false) Long excludeId) {
+        return new CodeAvailability(modelPoolService.isPoolCodeAvailable(code, excludeId));
+    }
+
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
+    @GetMapping("/{id}")
+    public ModelPool get(@PathVariable Long id) {
+        return modelPoolConverter.toVO(modelPoolService.getById(id));
+    }
+
+    /**
+     * Lists matching results. Executes the public operation.
+     */
+    @PostMapping("/list")
+    public PageResult<ModelPool> list(@RequestBody(required = false) PageQuery query) {
+        PageResult<ModelPoolDto> page = modelPoolService.list(
+                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                query == null ? null : query.keyword(),
+                query == null ? null : query.modelTypes(),
+                query == null ? null : query.includeDeleted(),
+                query == null ? null : query.status()
+        );
+        return page.mapList(modelPoolConverter::toVOList);
+    }
+
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
+    @OperationLog(module = "model-pool", operation = "CREATE", entityType = "ModelPool",
+            entityIdAfter = "#result.id()",
+            entityNameAfter = "#result.name()",
+            description = "'新建模型池'",
+            newValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#result.id())")
+    @PostMapping
+    public ModelPool create(@RequestBody @Valid ModelPool request) {
+        return modelPoolConverter.toVO(modelPoolService.create(modelPoolConverter.toDto(request)));
+    }
+
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
+    @OperationLog(module = "model-pool", operation = "UPDATE", entityType = "ModelPool",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'更新模型池'",
+            oldValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)",
+            newValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)")
+    @PutMapping("/{id}")
+    public ModelPool update(@PathVariable Long id, @RequestBody @Valid ModelPool request) {
+        return modelPoolConverter.toVO(modelPoolService.update(id, modelPoolConverter.toDto(request)));
+    }
+
+    /**
+     * Updates the target resource status. Executes the public operation.
+     */
+    @OperationLog(module = "model-pool", operation = "UPDATE", entityType = "ModelPool",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'更新模型池状态'",
+            oldValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)",
+            newValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)")
+    @PutMapping("/{id}/status")
+    public ModelPool updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
+        return modelPoolConverter.toVO(modelPoolService.updateStatus(id, Boolean.TRUE.equals(request.enabled())));
+    }
+
+    /**
+     * Deletes the target resource. Executes the public operation.
+     */
+    @OperationLog(module = "model-pool", operation = "DELETE", entityType = "ModelPool",
+            entityId = "#p0",
+            description = "'删除模型池'",
+            oldValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)")
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        modelPoolService.delete(id);
+    }
+
+    /**
+     * 恢复已逻辑删除的模型池。编码唯一性按物理行判定，删除后同 pool_code 无法新建，
+     * 只能通过本接口恢复。
+     */
+    @OperationLog(module = "model-pool", operation = "UPDATE", entityType = "ModelPool",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'恢复模型池'",
+            oldValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)",
+            newValueSpel = "@modelPoolService.modelPoolAuditSnapshot(#p0)")
+    @PutMapping("/{id}/restore")
+    public ModelPool restore(@PathVariable Long id) {
+        return modelPoolConverter.toVO(modelPoolService.restore(id));
+    }
+}

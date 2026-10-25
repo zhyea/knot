@@ -1,0 +1,52 @@
+package org.chobit.knot.admin.controller;
+
+import org.chobit.knot.common.annotation.AuthCheck;
+import org.chobit.knot.common.annotation.OperationLog;
+import org.chobit.knot.svc.auth.CurrentAuth;
+import org.chobit.knot.svc.service.UserSettingService;
+import org.chobit.knot.svc.vo.user.UserSettingsRequest;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/user-settings")
+public class UserSettingController {
+
+    private final UserSettingService userSettingService;
+    private final CurrentAuth currentAuth;
+
+    /**
+     * Constructs a new instance.
+     */
+    public UserSettingController(UserSettingService userSettingService,
+                                 CurrentAuth currentAuth) {
+        this.userSettingService = userSettingService;
+        this.currentAuth = currentAuth;
+    }
+
+    /**
+     * Lists matching results. Executes the public operation.
+     */
+    @AuthCheck
+    @GetMapping("/me")
+    public Map<String, String> listMySettings() {
+        return userSettingService.listSettings(currentAuth.currentUserId());
+    }
+
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
+    @AuthCheck
+    @OperationLog(module = "user-setting", operation = "UPDATE", entityType = "UserSetting",
+            description = "'保存个人设置'",
+            newValueSpel = "#result")
+    @PutMapping("/me")
+    public Map<String, String> saveMySettings(@RequestBody UserSettingsRequest body) {
+        return userSettingService.saveSettings(currentAuth.currentUserId(), body == null ? null : body.settings());
+    }
+}

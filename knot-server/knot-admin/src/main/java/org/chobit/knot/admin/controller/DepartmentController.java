@@ -1,0 +1,138 @@
+package org.chobit.knot.admin.controller;
+
+import jakarta.validation.Valid;
+import org.chobit.knot.common.annotation.AuthCheck;
+import org.chobit.knot.common.annotation.OperationLog;
+import org.chobit.knot.svc.converter.DepartmentConverter;
+import org.chobit.knot.svc.dto.system.DepartmentDto;
+import org.chobit.knot.common.model.PageQuery;
+import org.chobit.knot.common.model.PageRequest;
+import org.chobit.knot.common.model.PageResult;
+import org.chobit.knot.svc.service.DepartmentService;
+import org.chobit.knot.svc.vo.system.DepartmentItem;
+import org.chobit.knot.svc.vo.system.UpdateDepartmentStatusRequest;
+import org.chobit.knot.common.model.DepartmentOptionQuery;
+import org.chobit.knot.svc.service.OptionsService;
+import org.chobit.knot.svc.vo.common.OptionItem;
+import org.chobit.knot.svc.vo.common.OptionPage;
+import org.chobit.knot.svc.vo.common.meta.DepartmentOptionMeta;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/system/departments")
+@AuthCheck
+public class DepartmentController {
+
+    private final DepartmentService departmentService;
+    private final DepartmentConverter departmentConverter;
+    private final OptionsService optionsService;
+
+    public DepartmentController(DepartmentService departmentService, DepartmentConverter departmentConverter, OptionsService optionsService) {
+        this.departmentService = departmentService;
+        this.departmentConverter = departmentConverter;
+        this.optionsService = optionsService;
+    }
+
+    @PostMapping("/options")
+    public OptionPage<OptionItem<DepartmentOptionMeta>> listOptions(@RequestBody(required = false) DepartmentOptionQuery query) {
+        return optionsService.listDepartmentOptions(query);
+    }
+
+    @PostMapping("/list")
+    public PageResult<DepartmentItem> list(@RequestBody(required = false) PageQuery query) {
+        PageResult<DepartmentDto> page = departmentService.list(
+                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                query == null ? null : query.keyword(),
+                query == null ? null : query.parentId()
+        );
+        return page.mapList(departmentConverter::toVOList);
+    }
+
+    @GetMapping("/tree")
+    public List<DepartmentItem> tree() {
+        return buildTree(departmentConverter.toVOList(departmentService.listAll()));
+    }
+
+    @OperationLog(module = "department", operation = "CREATE", entityType = "Department",
+            entityIdAfter = "#result.id()",
+            entityNameAfter = "#result.deptName()",
+            description = "'创建部门'",
+            newValueSpel = "@departmentService.departmentAuditSnapshot(#result.id())")
+    @PostMapping
+    public DepartmentItem create(@RequestBody @Valid DepartmentItem request) {
+        DepartmentDto created = departmentService.create(departmentConverter.toDto(request));
+        return departmentConverter.toVO(created);
+    }
+
+    @OperationLog(module = "department", operation = "UPDATE", entityType = "Department",
+            entityId = "#p0",
+            entityNameAfter = "#result.deptName()",
+            description = "'更新部门'",
+            oldValueSpel = "@departmentService.departmentAuditSnapshot(#p0)",
+            newValueSpel = "@departmentService.departmentAuditSnapshot(#p0)")
+    @PutMapping("/{id}")
+    public DepartmentItem update(@PathVariable Long id, @RequestBody @Valid DepartmentItem request) {
+        DepartmentDto updated = departmentService.update(id, departmentConverter.toDto(request));
+        return departmentConverter.toVO(updated);
+    }
+
+    @OperationLog(module = "department", operation = "UPDATE", entityType = "Department",
+            entityId = "#p0",
+            entityNameAfter = "#result.deptName()",
+            description = "'更新部门状态'",
+            oldValueSpel = "@departmentService.departmentAuditSnapshot(#p0)",
+            newValueSpel = "@departmentService.departmentAuditSnapshot(#p0)")
+    @PutMapping("/{id}/status")
+    public DepartmentItem updateStatus(@PathVariable Long id, @RequestBody @Valid UpdateDepartmentStatusRequest request) {
+        DepartmentDto updated = departmentService.updateStatus(id, request.status());
+        return departmentConverter.toVO(updated);
+    }
+
+    @OperationLog(module = "department", operation = "DELETE", entityType = "Department",
+            entityId = "#p0",
+            entityName = "@departmentService.departmentAuditSnapshot(#p0)['deptName']",
+            description = "'删除部门'",
+            oldValueSpel = "@departmentService.departmentAuditSnapshot(#p0)")
+    @DeleteMapping("/{id}")
+    public DepartmentItem delete(@PathVariable Long id) {
+        return departmentConverter.toVO(departmentService.deleteReturning(id));
+    }
+
+    private List<DepartmentItem> buildTree(List<DepartmentItem> items) {
+        Map<Long, List<DepartmentItem>> childrenByParent = new LinkedHashMap<>();
+        for (DepartmentItem item : items) {
+            childrenByParent.computeIfAbsent(item.parentId(), key -> new ArrayList<>()).add(item);
+        }
+        return buildChildren(null, childrenByParent);
+    }
+
+    private List<DepartmentItem> buildChildren(Long parentId, Map<Long, List<DepartmentItem>> childrenByParent) {
+        List<DepartmentItem> items = childrenByParent.get(parentId);
+        if (items == null || items.isEmpty()) {
+            return List.of();
+        }
+        List<DepartmentItem> result = new ArrayList<>(items.size());
+        for (DepartmentItem item : items) {
+            DepartmentItem node = new DepartmentItem(
+                    item.id(),
+                    item.deptCode(),
+                    item.deptName(),
+                    item.parentId(),
+                    item.status(),
+                    item.sortOrder(),
+                    item.remark(),
+                    item.createdAt(),
+                    item.updatedAt(),
+                    item.boundCount(),
+                    buildChildren(item.id(), childrenByParent)
+            );
+            result.add(node);
+        }
+        return result;
+    }
+}

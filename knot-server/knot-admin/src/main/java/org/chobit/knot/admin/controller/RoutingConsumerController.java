@@ -1,0 +1,152 @@
+package org.chobit.knot.admin.controller;
+
+import jakarta.validation.Valid;
+import org.chobit.knot.common.annotation.OperationLog;
+import org.chobit.knot.svc.dto.routing.RoutingConsumerDto;
+import org.chobit.knot.common.model.PageQuery;
+import org.chobit.knot.common.model.PageRequest;
+import org.chobit.knot.common.model.PageResult;
+import org.chobit.knot.svc.service.RoutingConsumerService;
+import org.chobit.knot.svc.vo.common.CodeAvailability;
+import org.chobit.knot.svc.vo.common.EnabledStatusRequest;
+import org.chobit.knot.svc.vo.routing.RoutingConsumer;
+import org.chobit.knot.common.model.RoutingConsumerOptionQuery;
+import org.chobit.knot.svc.service.OptionsService;
+import org.chobit.knot.svc.vo.common.OptionItem;
+import org.chobit.knot.svc.vo.common.OptionPage;
+import org.chobit.knot.svc.vo.common.meta.RoutingConsumerOptionMeta;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/routing-consumers")
+public class RoutingConsumerController {
+
+    private final RoutingConsumerService routingConsumerService;
+    private final OptionsService optionsService;
+
+    /**
+     * Constructs a new instance.
+     */
+    public RoutingConsumerController(RoutingConsumerService routingConsumerService, OptionsService optionsService) {
+        this.routingConsumerService = routingConsumerService;
+        this.optionsService = optionsService;
+    }
+
+    @PostMapping("/options")
+    public OptionPage<OptionItem<RoutingConsumerOptionMeta>> listOptions(@RequestBody(required = false) RoutingConsumerOptionQuery query) {
+        return optionsService.listRoutingConsumerOptions(query);
+    }
+
+    /**
+     * Lists matching results. Executes the public operation.
+     */
+    @PostMapping("/list")
+    public PageResult<RoutingConsumer> list(@RequestBody(required = false) PageQuery query) {
+        PageResult<RoutingConsumerDto> page =
+                routingConsumerService.list(
+                        query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                        query == null ? null : query.keyword()
+                );
+        return page.map(this::toVO);
+    }
+
+    /**
+     * 消费者详情：按 id 精确取（含 secretKey），供路由测试按需取密钥。
+     *
+     * <p>下拉候选用 {@code POST /options}（不含 secretKey）；密钥只在此详情按需返回，
+     * 避免列表接口把全部密钥批量下发到前端。</p>
+     */
+    @GetMapping("/{id}")
+    public RoutingConsumer get(@PathVariable Long id) {
+        return toVO(routingConsumerService.getById(id));
+    }
+
+    /**
+     * 消费者详情：按业务码精确取（含 secretKey），供路由规则测试抽屉按规则绑定的 consumerCode 取密钥。
+     *
+     * <p>路由规则↔消费者收敛为 1:1 且绑定走 consumerCode 后，测试抽屉不再经主键 id 取密钥。</p>
+     */
+    @GetMapping("/code/{code}")
+    public RoutingConsumer getByCode(@PathVariable String code) {
+        return toVO(routingConsumerService.getByCode(code));
+    }
+
+    /**
+     * Checks whether the requested condition is satisfied. Executes the public operation.
+     */
+    @GetMapping("/check-code")
+    public CodeAvailability checkCode(@RequestParam String code,
+                                      @RequestParam(required = false) Long excludeId) {
+        return new CodeAvailability(routingConsumerService.isConsumerCodeAvailable(code, excludeId));
+    }
+
+    /**
+     * Creates a new resource. Executes the public operation.
+     */
+    @OperationLog(module = "routing", operation = "CREATE", entityType = "RoutingConsumer",
+            entityIdAfter = "#result.id()",
+            entityNameAfter = "#result.name()",
+            description = "'创建消费者'",
+            newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#result.id())")
+    @PostMapping
+    public RoutingConsumer create(@RequestBody @Valid RoutingConsumer request) {
+        return toVO(routingConsumerService.create(toDto(request)));
+    }
+
+    /**
+     * Updates the target resource. Executes the public operation.
+     */
+    @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingConsumer",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'更新消费者'",
+            oldValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)",
+            newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)")
+    @PutMapping("/{id}")
+    public RoutingConsumer update(@PathVariable Long id, @RequestBody @Valid RoutingConsumer request) {
+        return toVO(routingConsumerService.update(id, toDto(request)));
+    }
+
+    /**
+     * Updates the target resource status. Executes the public operation.
+     */
+    @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingConsumer",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'更新消费者状态'",
+            oldValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)",
+            newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)")
+    @PutMapping("/{id}/status")
+    public RoutingConsumer updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
+        return toVO(routingConsumerService.updateStatus(id, Boolean.TRUE.equals(request.enabled())));
+    }
+
+    /**
+     * Executes the public operation. Executes the public operation.
+     */
+    @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingConsumer",
+            entityId = "#p0",
+            entityNameAfter = "#result.name()",
+            description = "'重置消费者 API Key'",
+            newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)")
+    @PostMapping("/{id}/rotate-secret")
+    public RoutingConsumer rotateSecret(@PathVariable Long id) {
+        return toVO(routingConsumerService.rotateSecretKey(id));
+    }
+
+    private RoutingConsumer toVO(RoutingConsumerDto dto) {
+        return new RoutingConsumer(
+                dto.id(), dto.consumerCode(), dto.name(), dto.userUsername(), dto.userName(),
+                dto.secretKey(), dto.returnUsageDetail(), dto.enabled(), dto.ruleCount(),
+                dto.rateLimitPolicy(), dto.quotaPolicies()
+        );
+    }
+
+    private RoutingConsumerDto toDto(RoutingConsumer vo) {
+        return new RoutingConsumerDto(
+                vo.id(), vo.consumerCode(), vo.name(), vo.userUsername(), vo.userName(),
+                vo.secretKey(), vo.returnUsageDetail(), vo.enabled(), vo.ruleCount(),
+                vo.rateLimitPolicy(), vo.quotaPolicies()
+        );
+    }
+}
