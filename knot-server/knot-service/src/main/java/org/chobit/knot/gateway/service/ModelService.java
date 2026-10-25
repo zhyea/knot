@@ -4,14 +4,9 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.chobit.knot.gateway.adapter.request.RequestAdapterCatalog;
@@ -27,7 +22,6 @@ import org.chobit.knot.gateway.dto.provider.DiscountPolicyDto;
 import org.chobit.knot.gateway.entity.BillingRuleEntity;
 import org.chobit.knot.gateway.entity.DiscountPolicyEntity;
 import org.chobit.knot.gateway.entity.LogicalModelEntity;
-import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.entity.ProviderAccountEntity;
 import org.chobit.knot.gateway.entity.ProviderModelMappingEntity;
@@ -36,7 +30,6 @@ import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.BillingRuleMapper;
 import org.chobit.knot.gateway.mapper.DiscountPolicyMapper;
 import org.chobit.knot.gateway.mapper.LogicalModelMapper;
-import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
 import org.chobit.knot.gateway.mapper.ProviderAccountMapper;
 import org.chobit.knot.gateway.model.PageRequest;
@@ -46,8 +39,8 @@ import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.service.support.AuditSnapshotSupport;
 import org.chobit.knot.gateway.service.support.CodeBindingSupport;
+import org.chobit.knot.gateway.service.support.ModelApiBindingSupport;
 import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
-import org.chobit.knot.gateway.usage.extractor.DefaultTokenUsageExtractor;
 import org.chobit.knot.gateway.usage.extractor.UsageExtractorCatalog;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.model.ModelApiProtocolItem;
@@ -74,7 +67,7 @@ public class ModelService {
 
     private final ModelMapper modelMapper;
     private final DiscountPolicyMapper discountPolicyMapper;
-    private final ModelApiBindingMapper modelApiBindingMapper;
+    private final ModelApiBindingSupport apiBindingSupport;
     private final LogicalModelMapper logicalModelMapper;
     private final BillingRuleMapper billingRuleMapper;
     private final ProviderAccountMapper providerAccountMapper;
@@ -88,7 +81,7 @@ public class ModelService {
      */
     public ModelService(ModelMapper modelMapper,
                         DiscountPolicyMapper discountPolicyMapper,
-                        ModelApiBindingMapper modelApiBindingMapper,
+                        ModelApiBindingSupport apiBindingSupport,
                         LogicalModelMapper logicalModelMapper,
                         BillingRuleMapper billingRuleMapper,
                         ProviderAccountMapper providerAccountMapper,
@@ -98,7 +91,7 @@ public class ModelService {
                         RequestAdapterCatalog requestAdapterCatalog) {
         this.modelMapper = modelMapper;
         this.discountPolicyMapper = discountPolicyMapper;
-        this.modelApiBindingMapper = modelApiBindingMapper;
+        this.apiBindingSupport = apiBindingSupport;
         this.logicalModelMapper = logicalModelMapper;
         this.billingRuleMapper = billingRuleMapper;
         this.providerAccountMapper = providerAccountMapper;
@@ -144,7 +137,7 @@ public class ModelService {
             List<Long> ids = entities.stream().map(ModelEntity::getId).toList();
             Map<Long, TrafficPolicies> trafficMap =
                     trafficPolicySupport.loadBatch(TrafficResourceTypeEnum.MODEL.code(), ids);
-            Map<Long, List<ModelApiBindingDto>> bindingMap = loadBindingMap(ids);
+            Map<Long, List<ModelApiBindingDto>> bindingMap = apiBindingSupport.mapByModelIds(ids);
             List<ModelDto> dtos = entities.stream()
                     .map(entity -> enrich(modelConverter.toDto(entity), trafficMap.get(entity.getId()), bindingMap.get(entity.getId())))
                     .collect(Collectors.toList());
@@ -262,7 +255,7 @@ public class ModelService {
                 request.quotaPolicies()
         );
         saveLogicalModelMapping(entity.getId(), request.logicalModelCode(), modelCode);
-        saveApiBindings(entity.getId(), request.apiBindings(), modelType);
+        apiBindingSupport.save(entity.getId(), modelCode, request.apiBindings(), modelType);
         return getById(entity.getId());
     }
 
@@ -295,7 +288,7 @@ public class ModelService {
         );
         saveLogicalModelMapping(id, request.logicalModelCode(), modelCode);
         if (request.apiBindings() != null) {
-            saveApiBindings(id, request.apiBindings(), modelType);
+            apiBindingSupport.save(id, modelCode, request.apiBindings(), modelType);
         }
         return getById(id);
     }
@@ -430,17 +423,6 @@ public class ModelService {
         );
     }
 
-    /**
-     * 把供应商模型主键解析为业务码：绑定列一律存 code 不存 id。
-     */
-    private String requireModelCode(Long modelId) {
-        ModelEntity model = modelMapper.getById(modelId);
-        if (model == null || model.getModelCode() == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "供应商模型不存在");
-        }
-        return model.getModelCode();
-    }
-
     private static void requireNoReference(Long count, String message) {
         if (count != null && count > 0) {
             throw new BusinessException(ErrorCode.CONFLICT, message);
@@ -481,7 +463,7 @@ public class ModelService {
      */
     private ModelDto enrich(ModelEntity entity) {
         TrafficPolicies traffic = trafficPolicySupport.load(TrafficResourceTypeEnum.MODEL.code(), entity.getId());
-        ModelDto base = enrich(modelConverter.toDto(entity), traffic, listApiBindings(entity.getId()));
+        ModelDto base = enrich(modelConverter.toDto(entity), traffic, apiBindingSupport.list(entity.getId()));
         return withBoundCount(base, boundCount(entity.getModelCode()));
     }
 
@@ -563,7 +545,7 @@ public class ModelService {
                 base.billingRuleCode(),
                 rate,
                 quotas,
-                apiBindings == null ? listApiBindings(base.id()) : apiBindings,
+                apiBindings == null ? apiBindingSupport.list(base.id()) : apiBindings,
                 base.deleted(),
                 base.boundCount()
         );
@@ -690,148 +672,5 @@ public class ModelService {
         mapping.setStatus(EnabledStatusEnum.ENABLED.code());
         mapping.setPriority(100);
         logicalModelMapper.insertMapping(mapping);
-    }
-
-    private Map<Long, List<ModelApiBindingDto>> loadBindingMap(List<Long> modelIds) {
-        if (modelIds == null || modelIds.isEmpty()) {
-            return Map.of();
-        }
-        return modelApiBindingMapper.listByModelIds(modelIds).stream()
-                .map(this::toApiBindingDto)
-                .collect(Collectors.groupingBy(
-                        ModelApiBindingDtoWithModelId::modelId,
-                        LinkedHashMap::new,
-                        Collectors.mapping(ModelApiBindingDtoWithModelId::dto, Collectors.toList())
-                ));
-    }
-
-    private List<ModelApiBindingDto> listApiBindings(Long modelId) {
-        if (modelId == null) {
-            return List.of();
-        }
-        return modelApiBindingMapper.listByModelId(modelId).stream()
-                .map(this::toApiBindingDto)
-                .map(ModelApiBindingDtoWithModelId::dto)
-                .toList();
-    }
-
-    private ModelApiBindingDtoWithModelId toApiBindingDto(ModelApiBindingEntity entity) {
-        ModelApiBindingDto dto = new ModelApiBindingDto(
-                entity.getId(),
-                entity.getProtocol(),
-                entity.getApiPath(),
-                entity.getRequestAdapter(),
-                entity.getUsageExtractor(),
-                entity.getStreamUsageExtractor(),
-                EnabledStatusEnum.isEnabled(entity.getStatus()),
-                entity.getRemark()
-        );
-        return new ModelApiBindingDtoWithModelId(entity.getModelId(), dto);
-    }
-
-    /**
-     * 按绑定行 id 做增量同步：命中已有行则原地更新，新增行插入，请求中缺失的行删除。
-     *
-     * <p>旧实现「先按 model_id 整表删除、再全量插入」会让每次保存都重排 binding 主键。即使用户
-     * 未做任何调整，行 id 也会变化：一是产生无意义的物理变更，二是 {@code modelAuditSnapshot}
-     * 会带出 binding id，导致前后快照不等而误记一条「更新模型」审计日志。改为 diff 后主键稳定，
-     * 无实质变化时不写库、也不触发审计。</p>
-     */
-    /**
-     * API 绑定按主键做增量 diff：保留已有 id、未变更不写库、提交里消失的才删。
-     *
-     * <p><b>刻意与 {@code RoutingRuleService#saveTargets} 的「先删后插」不同，不要统一</b>
-     * （改进清单 4.7 决议）：绑定行 id 会进操作日志与后续引用，每次保存整批换 id 是噪音；
-     * 而路由目标的提交顺序不承载语义、也没被按 id 引用，全量替换更省心。
-     * 两者共用的只是「编码改码守卫」（{@link CodeBindingSupport}），不是明细保存策略。</p>
-     */
-    private void saveApiBindings(Long modelId, List<ModelApiBindingDto> bindings, String modelType) {
-        List<ModelApiBindingEntity> desired = new ArrayList<>();
-        if (bindings != null && !bindings.isEmpty()) {
-            ModelTypeEnum type = ModelTypeEnum.fromCodeOrNull(modelType);
-            if (type == null) {
-                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不支持的模型类型，请重新选择");
-            }
-            String modelCode = requireModelCode(modelId);
-            for (ModelApiBindingDto binding : bindings) {
-                desired.add(toApiBindingEntity(modelCode, binding, type));
-            }
-        }
-        Map<Long, ModelApiBindingEntity> existingById = modelApiBindingMapper.listByModelId(modelId).stream()
-                .collect(Collectors.toMap(ModelApiBindingEntity::getId, entity -> entity,
-                        (left, right) -> left, LinkedHashMap::new));
-        Set<Long> retainedIds = new HashSet<>();
-        for (ModelApiBindingEntity desiredEntity : desired) {
-            Long id = desiredEntity.getId();
-            ModelApiBindingEntity existing = id == null ? null : existingById.get(id);
-            if (existing == null) {
-                desiredEntity.setId(null);
-                modelApiBindingMapper.insert(desiredEntity);
-                continue;
-            }
-            retainedIds.add(id);
-            if (apiBindingChanged(existing, desiredEntity)) {
-                modelApiBindingMapper.update(desiredEntity);
-            }
-        }
-        for (ModelApiBindingEntity existing : existingById.values()) {
-            if (!retainedIds.contains(existing.getId())) {
-                modelApiBindingMapper.deleteById(existing.getId());
-            }
-        }
-    }
-
-    /**
-     * 校验并构建单条 API 绑定实体（含请求带回来的行 id，用于 diff 命中已有行）。
-     */
-    private ModelApiBindingEntity toApiBindingEntity(String modelCode, ModelApiBindingDto binding, ModelTypeEnum type) {
-        String protocolCode = requireText(binding.protocol(), "请选择接口协议").toUpperCase();
-        ModelApiProtocolEnum protocol = ModelApiProtocolEnum.fromCode(protocolCode);
-        if (protocol == null) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "不支持的接口协议：" + protocolCode);
-        }
-        if (!type.supportsProtocol(protocol.code())) {
-            throw new BusinessException(
-                    ErrorCode.VALIDATION_ERROR,
-                    "模型类型“" + type.displayName() + "”不支持接口协议：" + protocolCode
-            );
-        }
-        ModelApiBindingEntity entity = new ModelApiBindingEntity();
-        entity.setId(binding.id());
-        entity.setModelCode(modelCode);
-        entity.setProtocol(protocol.code());
-        entity.setApiPath(blankToNull(binding.apiPath()));
-        entity.setRequestAdapter(blankToNull(binding.requestAdapter()));
-        entity.setUsageExtractor(blankToDefault(binding.usageExtractor(), DefaultTokenUsageExtractor.CODE));
-        entity.setStreamUsageExtractor(blankToNull(binding.streamUsageExtractor()));
-        entity.setStatus(EnabledStatusEnum.codeOf(binding.enabled()));
-        entity.setRemark(blankToNull(binding.remark()));
-        return entity;
-    }
-
-    /**
-     * 仅比较可编辑字段，判断已有行是否需要真正写库。
-     */
-    private static boolean apiBindingChanged(ModelApiBindingEntity existing, ModelApiBindingEntity desired) {
-        return !Objects.equals(existing.getProtocol(), desired.getProtocol())
-                || !Objects.equals(existing.getApiPath(), desired.getApiPath())
-                || !Objects.equals(existing.getRequestAdapter(), desired.getRequestAdapter())
-                || !Objects.equals(existing.getUsageExtractor(), desired.getUsageExtractor())
-                || !Objects.equals(existing.getStreamUsageExtractor(), desired.getStreamUsageExtractor())
-                || !Objects.equals(existing.getStatus(), desired.getStatus())
-                || !Objects.equals(existing.getRemark(), desired.getRemark());
-    }
-
-    private static String blankToNull(String value) {
-        String text = value == null ? "" : value.trim();
-        return text.isEmpty() ? null : text;
-    }
-
-    private static String blankToDefault(String value, String defaultValue) {
-        String text = blankToNull(value);
-        return text == null ? defaultValue : text;
-    }
-
-    private record ModelApiBindingDtoWithModelId(Long modelId, ModelApiBindingDto dto) {
     }
 }

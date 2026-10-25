@@ -19,6 +19,7 @@ import org.chobit.knot.gateway.mapper.ProviderAccountMapper;
 import org.chobit.knot.gateway.model.QuotaPolicy;
 import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.gateway.service.support.ModelApiBindingSupport;
 import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
 import org.chobit.knot.gateway.usage.extractor.DefaultTokenUsageExtractor;
 import org.junit.jupiter.api.BeforeEach;
@@ -76,7 +77,7 @@ class ModelApiBindingSyncTest {
     };
 
     private final ModelService service = new ModelService(
-            modelMapper, discountPolicyMapper, bindingMapper, logicalModelMapper, billingRuleMapper, providerAccountMapper,
+            modelMapper, discountPolicyMapper, new ModelApiBindingSupport(bindingMapper), logicalModelMapper, billingRuleMapper, providerAccountMapper,
             modelConverter, trafficPolicySupport, null, null);
 
     @BeforeEach
