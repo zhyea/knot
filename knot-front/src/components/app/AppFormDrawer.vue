@@ -195,10 +195,4 @@ async function submit() {
 </script>
 
 <style scoped>
-.form-tip {
-  width: 100%;
-  color: var(--el-color-warning);
-  font-size: 12px;
-  line-height: 1.5;
-}
 </style>

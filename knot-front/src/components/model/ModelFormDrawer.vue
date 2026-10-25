@@ -973,13 +973,6 @@ async function submit() {
   border-bottom: 1px solid #ebeef5;
 }
 
-.section-head h3 {
-  margin: 0 0 4px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--knot-text, #303133);
-}
-
 .section-head p {
   margin: 0;
   color: #909399;
@@ -987,10 +980,6 @@ async function submit() {
   line-height: 1.5;
 }
 
-.inline-switch {
-  flex: 0 0 auto;
-  margin-bottom: 0;
-}
 /* Usage 标签旁的说明链接：紧贴标签文字，弱化字号不抢控件视觉 */
 .usage-extractor-guide-link {
   margin-left: 6px;
@@ -1098,10 +1087,4 @@ async function submit() {
   }
 }
 
-.form-tip {
-  width: 100%;
-  color: var(--el-color-warning);
-  font-size: 12px;
-  line-height: 1.5;
-}
 </style>

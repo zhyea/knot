@@ -287,13 +287,6 @@ async function submit() {
   border-bottom: 1px solid #ebeef5;
 }
 
-.section-head h3 {
-  margin: 0 0 4px;
-  color: var(--knot-text, #303133);
-  font-size: 15px;
-  font-weight: 600;
-}
-
 .section-head p {
   margin: 0;
   color: #909399;
@@ -301,8 +294,4 @@ async function submit() {
   line-height: 1.5;
 }
 
-.inline-switch {
-  flex: 0 0 auto;
-  margin-bottom: 0;
-}
 </style>

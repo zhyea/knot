@@ -182,13 +182,6 @@ async function submitEject() {
   border-bottom: 1px solid #ebeef5;
 }
 
-.section-head h3 {
-  margin: 0;
-  color: #303133;
-  font-size: 15px;
-  font-weight: 600;
-}
-
 .section-head p {
   margin: 5px 0 0;
   color: #909399;

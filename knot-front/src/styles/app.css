@@ -265,6 +265,29 @@ body,
     height: 16px;
 }
 
+/* 以下三类原在各 FormDrawer 内重复定义，统一收口到全局（scoped 覆写仍优先，见 ⑮ 合并记录）：
+   - .form-tip 警告橙（10 处一致）；灰次要提示仍是各组件 scoped 覆写，不并入。
+   - .inline-switch 主变体（8 处一致：flex:0 0 auto;margin-bottom:0）；仅 margin-bottom:0 / margin-top:12px 的变体留在 scoped。
+   - .section-head h3（9 处，字面 #303133 与 var(--knot-text) 视觉等价，统一用 token 形式）。 */
+.form-tip {
+    width: 100%;
+    color: var(--el-color-warning);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.inline-switch {
+    flex: 0 0 auto;
+    margin-bottom: 0;
+}
+
+.section-head h3 {
+    margin: 0;
+    color: var(--knot-text, #303133);
+    font-size: 15px;
+    font-weight: 600;
+}
+
 /* 全局细滚动条（原生 overflow 区域） */
 :root {
     --knot-scrollbar-size: 4px; /* WebKit 最细可用宽度；Firefox 使用 scrollbar-width: thin */

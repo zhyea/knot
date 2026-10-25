@@ -141,10 +141,4 @@ async function submit() {
   padding-right: 8px;
 }
 
-.form-tip {
-  width: 100%;
-  color: var(--el-color-warning);
-  font-size: 12px;
-  line-height: 1.5;
-}
 </style>

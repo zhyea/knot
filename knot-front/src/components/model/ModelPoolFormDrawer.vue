@@ -441,23 +441,11 @@ async function submit() {
   border-bottom: 1px solid #ebeef5;
 }
 
-.section-head h3 {
-  margin: 0;
-  color: #303133;
-  font-size: 15px;
-  font-weight: 600;
-}
-
 .section-head p {
   margin: 5px 0 0;
   color: #909399;
   font-size: 12px;
   line-height: 1.5;
-}
-
-.inline-switch {
-  margin-bottom: 0;
-  flex: 0 0 auto;
 }
 
 .bind-block-item :deep(.el-form-item__label) {
@@ -529,13 +517,6 @@ async function submit() {
   color: #303133;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.form-tip {
-  width: 100%;
-  color: var(--el-color-warning);
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 </style>
