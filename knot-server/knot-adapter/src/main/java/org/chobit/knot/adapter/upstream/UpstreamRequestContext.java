@@ -1,0 +1,65 @@
+package org.chobit.knot.adapter.upstream;
+
+import org.chobit.knot.adapter.model.ref.ModelApiBindingRef;
+import org.chobit.knot.adapter.model.ref.ModelRef;
+import org.chobit.knot.adapter.model.ref.ProviderAccountRef;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
+import org.springframework.http.MediaType;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public record UpstreamRequestContext(ModelApiProtocolEnum protocol,
+                                     Map<String, Object> requestBody,
+                                     MediaType contentType,
+                                     ModelRef model,
+                                     ProviderAccountRef provider,
+                                     Map<String, Object> authConfig,
+                                     ModelApiBindingRef binding,
+                                     String traceparent,
+                                     String traceId,
+                                     String authApplier,
+                                     String requestId) {
+
+    /** 便利构造：鉴权策略与请求标识默认 null（前者回退 Bearer，后者不出站发 {@code X-Request-Id}）。 */
+    public UpstreamRequestContext(ModelApiProtocolEnum protocol,
+                                  Map<String, Object> requestBody,
+                                  MediaType contentType,
+                                  ModelRef model,
+                                  ProviderAccountRef provider,
+                                  Map<String, Object> authConfig,
+                                  ModelApiBindingRef binding,
+                                  String traceparent,
+                                  String traceId) {
+        this(protocol, requestBody, contentType, model, provider, authConfig, binding,
+                traceparent, traceId, null, null);
+    }
+
+    public UpstreamRequestContext(ModelApiProtocolEnum protocol,
+                                  Map<String, Object> requestBody,
+                                  MediaType contentType,
+                                  ModelRef model,
+                                  ProviderAccountRef provider,
+                                  Map<String, Object> authConfig,
+                                  ModelApiBindingRef binding,
+                                  String traceparent,
+                                  String traceId,
+                                  String authApplier,
+                                  String requestId) {
+        this.protocol = protocol;
+        this.requestBody = requestBody == null ? new LinkedHashMap<>() : new LinkedHashMap<>(requestBody);
+        this.contentType = contentType == null ? MediaType.APPLICATION_JSON : contentType;
+        this.model = model;
+        this.provider = provider;
+        this.authConfig = authConfig == null ? Map.of() : Map.copyOf(authConfig);
+        this.binding = binding;
+        this.traceparent = traceparent;
+        this.traceId = traceId;
+        this.authApplier = authApplier;
+        this.requestId = requestId;
+    }
+
+    public String requestAdapter() {
+        return binding == null ? null : binding.requestAdapter();
+    }
+}
