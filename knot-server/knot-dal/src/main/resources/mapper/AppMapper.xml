@@ -2,7 +2,7 @@
 
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="org.chobit.knot.gateway.dal.mapper.AppMapper">
+<mapper namespace="org.chobit.knot.dal.mapper.AppMapper">
 
 
 
@@ -41,7 +41,7 @@
 
 
 
-    <select id="list" resultType="org.chobit.knot.gateway.dal.entity.AppEntity">
+    <select id="list" resultType="org.chobit.knot.dal.entity.AppEntity">
 
         select <include refid="AppSelectColumns"/>
 
@@ -67,7 +67,7 @@
 
 
 
-    <select id="getById" resultType="org.chobit.knot.gateway.dal.entity.AppEntity">
+    <select id="getById" resultType="org.chobit.knot.dal.entity.AppEntity">
 
         select <include refid="AppSelectColumns"/>
 

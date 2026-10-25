@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.dal.mapper.ScheduledTaskMapper">
+<mapper namespace="org.chobit.knot.dal.mapper.ScheduledTaskMapper">
 
-    <select id="listTasks" resultType="org.chobit.knot.gateway.dal.entity.ScheduledTaskEntity">
+    <select id="listTasks" resultType="org.chobit.knot.dal.entity.ScheduledTaskEntity">
         select id, task_code, task_name, handler_code, cron_expression, execution_mode,
                status, description, last_fire_at, next_fire_at, created_at, updated_at
         from ks_scheduled_tasks
@@ -25,7 +25,7 @@
         order by id asc
     </select>
 
-    <select id="listEnabledTasks" resultType="org.chobit.knot.gateway.dal.entity.ScheduledTaskEntity">
+    <select id="listEnabledTasks" resultType="org.chobit.knot.dal.entity.ScheduledTaskEntity">
         select id, task_code, task_name, handler_code, cron_expression, execution_mode,
                status, description, last_fire_at, next_fire_at, created_at, updated_at
         from ks_scheduled_tasks
@@ -33,14 +33,14 @@
         order by id asc
     </select>
 
-    <select id="getTaskById" resultType="org.chobit.knot.gateway.dal.entity.ScheduledTaskEntity">
+    <select id="getTaskById" resultType="org.chobit.knot.dal.entity.ScheduledTaskEntity">
         select id, task_code, task_name, handler_code, cron_expression, execution_mode,
                status, description, last_fire_at, next_fire_at, created_at, updated_at
         from ks_scheduled_tasks
         where id = #{id}
     </select>
 
-    <select id="getTaskByCode" resultType="org.chobit.knot.gateway.dal.entity.ScheduledTaskEntity">
+    <select id="getTaskByCode" resultType="org.chobit.knot.dal.entity.ScheduledTaskEntity">
         select id, task_code, task_name, handler_code, cron_expression, execution_mode,
                status, description, last_fire_at, next_fire_at, created_at, updated_at
         from ks_scheduled_tasks
@@ -101,7 +101,7 @@
         where id = #{id}
     </update>
 
-    <select id="listRuns" resultType="org.chobit.knot.gateway.dal.entity.ScheduledTaskRunEntity">
+    <select id="listRuns" resultType="org.chobit.knot.dal.entity.ScheduledTaskRunEntity">
         select id, task_id, task_code, task_name, execution_mode, node_id, trigger_type,
                status, start_time, end_time, duration_ms, affected_rows, error_msg, created_at
         from ks_scheduled_task_runs

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.dal.mapper.PluginInstanceMapper">
+<mapper namespace="org.chobit.knot.dal.mapper.PluginInstanceMapper">
 
     <sql id="instanceColumns">
         pi.id,
@@ -24,7 +24,7 @@
         pi.orphaned
     </sql>
 
-    <select id="list" resultType="org.chobit.knot.gateway.dal.entity.PluginInstanceEntity">
+    <select id="list" resultType="org.chobit.knot.dal.entity.PluginInstanceEntity">
         select
         <include refid="instanceColumns"/>
         from kb_plugin_instances pi
@@ -48,7 +48,7 @@
         order by pi.id desc
     </select>
 
-    <select id="getById" resultType="org.chobit.knot.gateway.dal.entity.PluginInstanceEntity">
+    <select id="getById" resultType="org.chobit.knot.dal.entity.PluginInstanceEntity">
         select
         <include refid="instanceColumns"/>
         from kb_plugin_instances pi
@@ -109,7 +109,7 @@
         where id = #{id}
     </update>
 
-    <select id="listActiveBindings" resultType="org.chobit.knot.gateway.dal.entity.PluginInstanceEntity">
+    <select id="listActiveBindings" resultType="org.chobit.knot.dal.entity.PluginInstanceEntity">
         select
         <include refid="instanceColumns"/>
         from kb_plugin_instances pi
@@ -121,7 +121,7 @@
         order by pi.order_no asc, pi.id asc
     </select>
 
-        <select id="listAll" resultType="org.chobit.knot.gateway.dal.entity.PluginInstanceEntity">
+        <select id="listAll" resultType="org.chobit.knot.dal.entity.PluginInstanceEntity">
         select
         <include refid="instanceColumns"/>
         from kb_plugin_instances pi

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.dal.mapper.OperationLogMapper">
+<mapper namespace="org.chobit.knot.dal.mapper.OperationLogMapper">
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into ks_operation_logs(
@@ -16,7 +16,7 @@
         )
     </insert>
 
-    <select id="listByModule" resultType="org.chobit.knot.gateway.dal.entity.OperationLogEntity">
+    <select id="listByModule" resultType="org.chobit.knot.dal.entity.OperationLogEntity">
         select id, module, operation, entity_type, entity_id, entity_name,
                description, old_value, new_value,
                operator_id, operator_name, ip_address, user_agent,
@@ -39,7 +39,7 @@
         order by created_at desc
     </select>
 
-    <select id="list" resultType="org.chobit.knot.gateway.dal.entity.OperationLogEntity">
+    <select id="list" resultType="org.chobit.knot.dal.entity.OperationLogEntity">
         select id, module, operation, entity_type, entity_id, entity_name,
                description, old_value, new_value,
                operator_id, operator_name, ip_address, user_agent,
@@ -91,7 +91,7 @@
         order by operation asc
     </select>
 
-    <select id="listByModuleAndEntityNamePrefix" resultType="org.chobit.knot.gateway.dal.entity.OperationLogEntity">
+    <select id="listByModuleAndEntityNamePrefix" resultType="org.chobit.knot.dal.entity.OperationLogEntity">
         select id, module, operation, entity_type, entity_id, entity_name,
                description, old_value, new_value,
                operator_id, operator_name, ip_address, user_agent,
@@ -105,7 +105,7 @@
         order by created_at desc
     </select>
 
-    <select id="getById" resultType="org.chobit.knot.gateway.dal.entity.OperationLogEntity">
+    <select id="getById" resultType="org.chobit.knot.dal.entity.OperationLogEntity">
         select id, module, operation, entity_type, entity_id, entity_name,
                description, old_value, new_value,
                operator_id, operator_name, ip_address, user_agent,
@@ -119,7 +119,7 @@
         where created_at &lt; #{beforeTime}
     </delete>
 
-    <select id="listOperationLogs" resultType="org.chobit.knot.gateway.dal.entity.OperationLogEntity">
+    <select id="listOperationLogs" resultType="org.chobit.knot.dal.entity.OperationLogEntity">
         -- ks_operation_logs 的实际列是 module / operation / entity_id / status；
         -- 旧写法查 module_code / action_code / target_id / result_status 会直接 SQL 报错（Unknown column）
         select id, module, operation, entity_id, status

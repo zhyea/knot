@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.dal.mapper.ModelPoolMapper">
+<mapper namespace="org.chobit.knot.dal.mapper.ModelPoolMapper">
 
     <!-- 模型池按统一模型绑定：model_type / logical_model_name 均派生自 kb_logical_models -->
     <sql id="PoolSelectColumns">
@@ -16,7 +16,7 @@
         left join kb_logical_models lm on lm.model_code = mp.logical_model_code and lm.is_deleted = 0
     </sql>
 
-    <select id="list" resultType="org.chobit.knot.gateway.dal.entity.ModelPoolEntity">
+    <select id="list" resultType="org.chobit.knot.dal.entity.ModelPoolEntity">
         select <include refid="PoolSelectColumns"/>
         <include refid="PoolFromClause"/>
         <where>
@@ -44,7 +44,7 @@
         order by mp.is_deleted asc, mp.id desc
     </select>
 
-    <select id="getById" resultType="org.chobit.knot.gateway.dal.entity.ModelPoolEntity">
+    <select id="getById" resultType="org.chobit.knot.dal.entity.ModelPoolEntity">
         select <include refid="PoolSelectColumns"/>
         <include refid="PoolFromClause"/>
         where mp.id = #{id}
@@ -52,13 +52,13 @@
     </select>
 
     <!-- 含已删除：供「恢复」前的存在性判断与操作日志快照使用（管理端列表已删除行也要能取到） -->
-    <select id="getByIdIncludingDeleted" resultType="org.chobit.knot.gateway.dal.entity.ModelPoolEntity">
+    <select id="getByIdIncludingDeleted" resultType="org.chobit.knot.dal.entity.ModelPoolEntity">
         select <include refid="PoolSelectColumns"/>
         <include refid="PoolFromClause"/>
         where mp.id = #{id}
     </select>
 
-    <select id="getByCode" resultType="org.chobit.knot.gateway.dal.entity.ModelPoolEntity">
+    <select id="getByCode" resultType="org.chobit.knot.dal.entity.ModelPoolEntity">
         select <include refid="PoolSelectColumns"/>
         <include refid="PoolFromClause"/>
         where mp.pool_code = #{poolCode}
@@ -103,7 +103,7 @@
         delete from kb_model_pools where id = #{id} and is_deleted = 0
     </delete>
 
-    <select id="listItemsByPoolCode" resultType="org.chobit.knot.gateway.dal.entity.ModelPoolItemEntity">
+    <select id="listItemsByPoolCode" resultType="org.chobit.knot.dal.entity.ModelPoolItemEntity">
         select mpi.id,
                mpi.pool_code,
                mpi.model_code,

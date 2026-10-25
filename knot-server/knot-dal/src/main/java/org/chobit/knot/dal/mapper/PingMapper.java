@@ -1,0 +1,9 @@
+package org.chobit.knot.dal.mapper;
+
+import org.apache.ibatis.annotations.Mapper;
+
+@Mapper
+public interface PingMapper {
+
+    String selectNow();
+}

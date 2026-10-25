@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.dal.mapper.RoutingTestPresetMapper">
+<mapper namespace="org.chobit.knot.dal.mapper.RoutingTestPresetMapper">
 
     <!-- 统一模型维度为可选归类：logical_model_name 派生自 kb_logical_models -->
     <sql id="PresetSelectColumns">
@@ -14,7 +14,7 @@
         left join kb_logical_models lm on lm.model_code = p.logical_model_code and lm.is_deleted = 0
     </sql>
 
-    <select id="listPresets" resultType="org.chobit.knot.gateway.dal.entity.RoutingTestPresetEntity">
+    <select id="listPresets" resultType="org.chobit.knot.dal.entity.RoutingTestPresetEntity">
         select
         <include refid="PresetSelectColumns"/>
         <include refid="PresetFromClause"/>
@@ -33,14 +33,14 @@
         order by p.id desc
     </select>
 
-    <select id="getById" resultType="org.chobit.knot.gateway.dal.entity.RoutingTestPresetEntity">
+    <select id="getById" resultType="org.chobit.knot.dal.entity.RoutingTestPresetEntity">
         select
         <include refid="PresetSelectColumns"/>
         <include refid="PresetFromClause"/>
         where p.id = #{id}
     </select>
 
-    <select id="getByCode" resultType="org.chobit.knot.gateway.dal.entity.RoutingTestPresetEntity">
+    <select id="getByCode" resultType="org.chobit.knot.dal.entity.RoutingTestPresetEntity">
         select
         <include refid="PresetSelectColumns"/>
         <include refid="PresetFromClause"/>
@@ -86,7 +86,7 @@
         where id = #{id}
     </delete>
 
-    <select id="listActive" resultType="org.chobit.knot.gateway.dal.entity.RoutingTestPresetEntity">
+    <select id="listActive" resultType="org.chobit.knot.dal.entity.RoutingTestPresetEntity">
         select
         <include refid="PresetSelectColumns"/>
         <include refid="PresetFromClause"/>

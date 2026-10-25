@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.dal.mapper.ModelApiBindingMapper">
+<mapper namespace="org.chobit.knot.dal.mapper.ModelApiBindingMapper">
 
     <sql id="BindingSelectColumns">
         b.id, b.model_code, b.protocol, b.api_path, b.request_adapter, b.usage_extractor, b.stream_usage_extractor,
@@ -9,14 +9,14 @@
         m.provider_account_code
     </sql>
 
-    <select id="getById" resultType="org.chobit.knot.gateway.dal.entity.ModelApiBindingEntity">
+    <select id="getById" resultType="org.chobit.knot.dal.entity.ModelApiBindingEntity">
         select <include refid="BindingSelectColumns"/>
         from kb_model_api_bindings b
         inner join kb_models m on b.model_code = m.model_code and m.is_deleted = 0
         where b.id = #{id}
     </select>
 
-    <select id="listByModelId" resultType="org.chobit.knot.gateway.dal.entity.ModelApiBindingEntity">
+    <select id="listByModelId" resultType="org.chobit.knot.dal.entity.ModelApiBindingEntity">
         select <include refid="BindingSelectColumns"/>
         from kb_model_api_bindings b
         inner join kb_models m on b.model_code = m.model_code and m.is_deleted = 0
@@ -24,7 +24,7 @@
         order by b.id asc
     </select>
 
-    <select id="listByModelIds" resultType="org.chobit.knot.gateway.dal.entity.ModelApiBindingEntity">
+    <select id="listByModelIds" resultType="org.chobit.knot.dal.entity.ModelApiBindingEntity">
         select <include refid="BindingSelectColumns"/>
         from kb_model_api_bindings b
         inner join kb_models m on b.model_code = m.model_code and m.is_deleted = 0

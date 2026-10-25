@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.dal.mapper.RoutingRuleMapper">
+<mapper namespace="org.chobit.knot.dal.mapper.RoutingRuleMapper">
 
     <sql id="RuleSelectColumns">
         r.id, r.rule_code, r.name, r.app_scenario,
@@ -13,7 +13,7 @@
         r.created_at, r.updated_at
     </sql>
 
-    <select id="list" resultType="org.chobit.knot.gateway.dal.entity.RoutingRuleEntity">
+    <select id="list" resultType="org.chobit.knot.dal.entity.RoutingRuleEntity">
         select <include refid="RuleSelectColumns"/>
         from kb_routing_rules r
         left join kb_apps a on r.app_code = a.app_code
@@ -34,7 +34,7 @@
         order by r.id desc
     </select>
 
-    <select id="getById" resultType="org.chobit.knot.gateway.dal.entity.RoutingRuleEntity">
+    <select id="getById" resultType="org.chobit.knot.dal.entity.RoutingRuleEntity">
         select <include refid="RuleSelectColumns"/>
         from kb_routing_rules r
         left join kb_apps a on r.app_code = a.app_code
@@ -44,7 +44,7 @@
         where r.id = #{id}
     </select>
 
-    <select id="getEnabledByConsumerCodeAndRuleCode" resultType="org.chobit.knot.gateway.dal.entity.RoutingRuleEntity">
+    <select id="getEnabledByConsumerCodeAndRuleCode" resultType="org.chobit.knot.dal.entity.RoutingRuleEntity">
         select <include refid="RuleSelectColumns"/>
         from kb_routing_rules r
         left join kb_apps a on r.app_code = a.app_code
@@ -57,7 +57,7 @@
         limit 1
     </select>
 
-    <select id="getByRuleCode" resultType="org.chobit.knot.gateway.dal.entity.RoutingRuleEntity">
+    <select id="getByRuleCode" resultType="org.chobit.knot.dal.entity.RoutingRuleEntity">
         select <include refid="RuleSelectColumns"/>
         from kb_routing_rules r
         left join kb_apps a on r.app_code = a.app_code

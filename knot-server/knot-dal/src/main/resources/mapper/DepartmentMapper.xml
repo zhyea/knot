@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.dal.mapper.DepartmentMapper">
+<mapper namespace="org.chobit.knot.dal.mapper.DepartmentMapper">
 
     <!-- 机构编码的绑定处数：用户 + 应用均按 dept_code 引用。两表逻辑删除后都没有恢复入口，
          故只计 is_deleted = 0 的行。 -->
@@ -14,7 +14,7 @@
         <include refid="DepartmentBoundCount"/> as bound_count
     </sql>
 
-    <select id="list" resultType="org.chobit.knot.gateway.dal.entity.DepartmentEntity">
+    <select id="list" resultType="org.chobit.knot.dal.entity.DepartmentEntity">
         select <include refid="DepartmentSelectColumns"/>
         from ks_departments
         where is_deleted = 0
@@ -33,20 +33,20 @@
         order by sort_order asc, id asc
     </select>
 
-    <select id="listAll" resultType="org.chobit.knot.gateway.dal.entity.DepartmentEntity">
+    <select id="listAll" resultType="org.chobit.knot.dal.entity.DepartmentEntity">
         select <include refid="DepartmentSelectColumns"/>
         from ks_departments
         where is_deleted = 0
         order by sort_order asc, id asc
     </select>
 
-    <select id="getById" resultType="org.chobit.knot.gateway.dal.entity.DepartmentEntity">
+    <select id="getById" resultType="org.chobit.knot.dal.entity.DepartmentEntity">
         select <include refid="DepartmentSelectColumns"/>
         from ks_departments
         where id = #{id} and is_deleted = 0
     </select>
 
-    <select id="getByCode" resultType="org.chobit.knot.gateway.dal.entity.DepartmentEntity">
+    <select id="getByCode" resultType="org.chobit.knot.dal.entity.DepartmentEntity">
         select <include refid="DepartmentSelectColumns"/>
         from ks_departments
         where dept_code = #{deptCode} and is_deleted = 0

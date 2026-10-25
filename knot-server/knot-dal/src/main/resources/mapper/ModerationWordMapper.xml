@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.dal.mapper.ModerationWordMapper">
+<mapper namespace="org.chobit.knot.dal.mapper.ModerationWordMapper">
 
     <sql id="ModerationWordColumns">
         id,
@@ -16,7 +16,7 @@
         updated_at      AS updatedAt
     </sql>
 
-    <select id="listEnabled" resultType="org.chobit.knot.gateway.dal.entity.ModerationWordEntity">
+    <select id="listEnabled" resultType="org.chobit.knot.dal.entity.ModerationWordEntity">
         select <include refid="ModerationWordColumns"/>
         from kb_moderation_word_lists
         where is_deleted = 0
@@ -24,7 +24,7 @@
         order by id
     </select>
 
-    <select id="list" resultType="org.chobit.knot.gateway.dal.entity.ModerationWordEntity">
+    <select id="list" resultType="org.chobit.knot.dal.entity.ModerationWordEntity">
         select <include refid="ModerationWordColumns"/>
         from kb_moderation_word_lists
         <where>
@@ -43,21 +43,21 @@
         order by is_deleted asc, id desc
     </select>
 
-    <select id="listForExport" resultType="org.chobit.knot.gateway.dal.entity.ModerationWordEntity">
+    <select id="listForExport" resultType="org.chobit.knot.dal.entity.ModerationWordEntity">
         select <include refid="ModerationWordColumns"/>
         from kb_moderation_word_lists
         where is_deleted = 0
         order by category_code asc, id asc
     </select>
 
-    <select id="getById" resultType="org.chobit.knot.gateway.dal.entity.ModerationWordEntity">
+    <select id="getById" resultType="org.chobit.knot.dal.entity.ModerationWordEntity">
         select <include refid="ModerationWordColumns"/>
         from kb_moderation_word_lists
         where id = #{id}
           and is_deleted = 0
     </select>
 
-    <select id="getByIdIncludingDeleted" resultType="org.chobit.knot.gateway.dal.entity.ModerationWordEntity">
+    <select id="getByIdIncludingDeleted" resultType="org.chobit.knot.dal.entity.ModerationWordEntity">
         select <include refid="ModerationWordColumns"/>
         from kb_moderation_word_lists
         where id = #{id}

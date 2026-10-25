@@ -1,0 +1,22 @@
+package org.chobit.knot.dal.entity;
+
+import lombok.Data;
+
+@Data
+public class AdminMenuEntity {
+    private Long id;
+    private Long moduleId;
+    private String moduleCode;
+    private String moduleName;
+    private String moduleIcon;
+    private Integer moduleSortOrder;
+    private Long parentId;
+    private String menuCode;
+    private String menuName;
+    private String routePath;
+    private String componentKey;
+    private String icon;
+    private Integer sortOrder;
+    /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
+    private Integer status;
+}

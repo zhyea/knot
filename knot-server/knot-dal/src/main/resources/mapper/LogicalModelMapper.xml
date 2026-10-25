@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.dal.mapper.LogicalModelMapper">
+<mapper namespace="org.chobit.knot.dal.mapper.LogicalModelMapper">
 
     <sql id="LogicalModelColumns">
         id, model_code, model_name, model_type, model_family,
@@ -20,7 +20,7 @@
         pm.provider_model_name, pm.status, pm.priority, pm.created_at, pm.updated_at
     </sql>
 
-    <select id="list" resultType="org.chobit.knot.gateway.dal.entity.LogicalModelEntity">
+    <select id="list" resultType="org.chobit.knot.dal.entity.LogicalModelEntity">
         select <include refid="LogicalModelColumns"/>
         from kb_logical_models
         <where>
@@ -44,7 +44,7 @@
         order by is_deleted asc, sort_order asc, id desc, featured desc
     </select>
 
-    <select id="getById" resultType="org.chobit.knot.gateway.dal.entity.LogicalModelEntity">
+    <select id="getById" resultType="org.chobit.knot.dal.entity.LogicalModelEntity">
         select <include refid="LogicalModelColumns"/>
         from kb_logical_models
         where id = #{id}
@@ -52,13 +52,13 @@
     </select>
 
     <!-- 含已删除：供「恢复」前的存在性判断与操作日志快照使用 -->
-    <select id="getByIdIncludingDeleted" resultType="org.chobit.knot.gateway.dal.entity.LogicalModelEntity">
+    <select id="getByIdIncludingDeleted" resultType="org.chobit.knot.dal.entity.LogicalModelEntity">
         select <include refid="LogicalModelColumns"/>
         from kb_logical_models
         where id = #{id}
     </select>
 
-    <select id="getByCode" resultType="org.chobit.knot.gateway.dal.entity.LogicalModelEntity">
+    <select id="getByCode" resultType="org.chobit.knot.dal.entity.LogicalModelEntity">
         select <include refid="LogicalModelColumns"/>
         from kb_logical_models
         where model_code = #{modelCode}
@@ -132,7 +132,7 @@
           and is_deleted = 0
     </delete>
 
-    <select id="listMappings" resultType="org.chobit.knot.gateway.dal.entity.ProviderModelMappingEntity">
+    <select id="listMappings" resultType="org.chobit.knot.dal.entity.ProviderModelMappingEntity">
         select <include refid="MappingColumns"/>
         from kb_provider_model_mappings pm
         left join kb_logical_models lm on pm.logical_model_code = lm.model_code and lm.is_deleted = 0
@@ -143,7 +143,7 @@
         order by pm.priority asc, pm.id asc
     </select>
 
-    <select id="listMappingsByModelId" resultType="org.chobit.knot.gateway.dal.entity.ProviderModelMappingEntity">
+    <select id="listMappingsByModelId" resultType="org.chobit.knot.dal.entity.ProviderModelMappingEntity">
         select <include refid="MappingColumns"/>
         from kb_provider_model_mappings pm
         left join kb_logical_models lm on pm.logical_model_code = lm.model_code and lm.is_deleted = 0
@@ -154,7 +154,7 @@
         order by pm.priority asc, pm.id asc
     </select>
 
-    <select id="getMappingById" resultType="org.chobit.knot.gateway.dal.entity.ProviderModelMappingEntity">
+    <select id="getMappingById" resultType="org.chobit.knot.dal.entity.ProviderModelMappingEntity">
         select <include refid="MappingColumns"/>
         from kb_provider_model_mappings pm
         left join kb_logical_models lm on pm.logical_model_code = lm.model_code and lm.is_deleted = 0
