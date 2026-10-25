@@ -301,6 +301,15 @@ body,
     border-bottom: 1px solid var(--knot-border, #ebeef5);
 }
 
+/* .section-head p（标题下的描述副文本）：9 处规则体仅 margin 不同（0 vs 5px 0 0），其余一致。
+   基础（margin:0）收口到全局；4 处 margin:5px 0 0 改为仅 margin 覆写，其余继承全局。见 ⑮-3。 */
+.section-head p {
+    margin: 0;
+    color: #909399;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
 /* 全局细滚动条（原生 overflow 区域） */
 :root {
     --knot-scrollbar-size: 4px; /* WebKit 最细可用宽度；Firefox 使用 scrollbar-width: thin */

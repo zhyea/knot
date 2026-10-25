@@ -499,12 +499,6 @@ async function submit() {
 </script>
 
 <style scoped>
-.section-head p {
-  margin: 0;
-  color: #909399;
-  font-size: 12px;
-  line-height: 1.5;
-}
 
 .auth-kv-editor {
   width: 100%;

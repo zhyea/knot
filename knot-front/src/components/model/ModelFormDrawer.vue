@@ -963,13 +963,6 @@ async function submit() {
   margin-bottom: 14px;
 }
 
-.section-head p {
-  margin: 0;
-  color: #909399;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
 /* Usage 标签旁的说明链接：紧贴标签文字，弱化字号不抢控件视觉 */
 .usage-extractor-guide-link {
   margin-left: 6px;

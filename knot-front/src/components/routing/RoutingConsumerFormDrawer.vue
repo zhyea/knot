@@ -282,11 +282,4 @@ async function copySecretKey(secretKey: string | null | undefined) {
   border-color: #e4e7ed;
 }
 
-.section-head p {
-  margin: 0;
-  color: #909399;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
 </style>

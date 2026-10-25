@@ -433,9 +433,6 @@ async function submit() {
 
 .section-head p {
   margin: 5px 0 0;
-  color: #909399;
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 .bind-block-item :deep(.el-form-item__label) {

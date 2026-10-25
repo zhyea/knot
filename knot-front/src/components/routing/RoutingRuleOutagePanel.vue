@@ -174,9 +174,6 @@ async function submitEject() {
 /* `.rule-section` 的边框/阴影样式由父组件 scoped CSS 命中本组件根节点，无需重复定义 */
 .section-head p {
   margin: 5px 0 0;
-  color: #909399;
-  font-size: 12px;
-  line-height: 1.5;
 }
 
 @media (max-width: 900px) {
