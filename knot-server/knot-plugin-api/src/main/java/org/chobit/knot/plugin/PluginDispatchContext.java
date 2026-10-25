@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.plugin;
+package org.chobit.knot.plugin;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

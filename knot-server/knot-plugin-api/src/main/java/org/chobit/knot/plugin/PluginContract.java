@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.plugin;
+package org.chobit.knot.plugin;
 
 /**
  * 插件契约标记接口：插件系统的扩展点在此统一命名，通过具体子接口固定其执行类型

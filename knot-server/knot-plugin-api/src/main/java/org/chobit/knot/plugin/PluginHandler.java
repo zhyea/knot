@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.plugin;
+package org.chobit.knot.plugin;
 
 /**
  * 同步插件契约（{@link PluginTypeEnum#SYNC}）：嵌入网关/上游请求链路

@@ -1,8 +1,8 @@
-package org.chobit.knot.gateway.plugin.gateway;
+package org.chobit.knot.plugin.gateway;
 
 import org.chobit.knot.gateway.moderation.ModerationTerm;
-import org.chobit.knot.gateway.plugin.PluginDispatchContext;
-import org.chobit.knot.gateway.plugin.PluginStageCode;
+import org.chobit.knot.plugin.PluginDispatchContext;
+import org.chobit.knot.plugin.PluginStageCode;
 import org.springframework.http.MediaType;
 
 import java.util.LinkedHashMap;

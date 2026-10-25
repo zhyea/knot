@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.plugin;
+package org.chobit.knot.plugin;
 
 public record PluginDescriptor(String capabilityCode,
                                PluginExtensionPoint extensionPoint,

@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.plugin;
+package org.chobit.knot.plugin;
 
 import org.chobit.knot.gateway.constants.enums.EnumOption;
 import org.chobit.knot.gateway.error.BusinessException;

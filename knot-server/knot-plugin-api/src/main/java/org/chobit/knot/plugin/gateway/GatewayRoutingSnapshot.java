@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.plugin.gateway;
+package org.chobit.knot.plugin.gateway;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;

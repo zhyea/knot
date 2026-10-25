@@ -1,7 +1,7 @@
-package org.chobit.knot.gateway.plugin.upstream;
+package org.chobit.knot.plugin.upstream;
 
-import org.chobit.knot.gateway.plugin.PluginDispatchContext;
-import org.chobit.knot.gateway.plugin.PluginStageCode;
+import org.chobit.knot.plugin.PluginDispatchContext;
+import org.chobit.knot.plugin.PluginStageCode;
 import org.springframework.http.MediaType;
 
 import java.util.LinkedHashMap;
