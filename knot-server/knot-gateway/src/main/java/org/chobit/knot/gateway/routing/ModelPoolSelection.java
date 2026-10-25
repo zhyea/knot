@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.routing;
 
-import org.chobit.knot.gateway.constants.enums.ModelPoolSelectionStrategyEnum;
+import org.chobit.knot.common.constants.enums.ModelPoolSelectionStrategyEnum;
 
 import java.util.ArrayList;
 import java.util.Comparator;

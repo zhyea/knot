@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.outage;
 
-import org.chobit.knot.gateway.model.EjectionPolicy;
+import org.chobit.knot.common.model.EjectionPolicy;
 
 /**
  * 摘除状态机：所有状态转换的纯函数实现，不碰任何存储。

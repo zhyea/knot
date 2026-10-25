@@ -1,7 +1,8 @@
 package org.chobit.knot.gateway.moderation;
 
+import org.chobit.knot.common.moderation.ModerationTerm;
 import org.chobit.knot.gateway.service.support.ModerationWordResource;
-import org.chobit.knot.gateway.service.ModerationWordService;
+import org.chobit.knot.svc.service.ModerationWordService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.runtime;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.chobit.knot.gateway.constants.enums.GatewayErrorTypeEnum;
+import org.chobit.knot.common.constants.enums.GatewayErrorTypeEnum;
 import org.chobit.knot.gateway.model.GatewayErrorResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;

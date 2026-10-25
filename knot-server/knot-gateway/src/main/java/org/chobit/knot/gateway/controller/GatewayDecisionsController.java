@@ -1,9 +1,9 @@
 package org.chobit.knot.gateway.controller;
 
-import org.chobit.knot.gateway.constants.GatewayHeaders;
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.constants.GatewayHeaders;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
-import org.chobit.knot.gateway.vo.request.DecisionsRequest;
+import org.chobit.knot.gateway.model.vo.request.DecisionsRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

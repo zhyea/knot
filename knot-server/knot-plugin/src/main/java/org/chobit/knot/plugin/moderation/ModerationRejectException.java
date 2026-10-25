@@ -1,7 +1,7 @@
 package org.chobit.knot.plugin.moderation;
 
-import org.chobit.knot.gateway.constants.enums.GatewayErrorTypeEnum;
-import org.chobit.knot.gateway.error.GatewayBadRequestException;
+import org.chobit.knot.common.constants.enums.GatewayErrorTypeEnum;
+import org.chobit.knot.common.error.GatewayBadRequestException;
 
 /**
  * 敏感词命中拒绝信号：由 {@link ModerationGuard} 在同步插件内联抛出，打断链路。

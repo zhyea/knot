@@ -1,11 +1,10 @@
 package org.chobit.knot.svc.service;
 
 import org.chobit.knot.dal.entity.AdminApiPermissionBindingEntity;
-import org.chobit.knot.gateway.error.ForbiddenException;
-import org.chobit.knot.gateway.error.UnauthorizedException;
+import org.chobit.knot.common.error.ForbiddenException;
+import org.chobit.knot.common.error.UnauthorizedException;
 import org.chobit.knot.dal.mapper.AdminAuthorizationMapper;
 import org.chobit.knot.dal.mapper.UserMapper;
-import org.chobit.knot.svc.service.AuthorizationAccessService;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

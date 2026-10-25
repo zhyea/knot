@@ -1,7 +1,7 @@
 package org.chobit.knot.plugin.moderation;
 
-import org.chobit.knot.gateway.moderation.ModerationTerm;
-import org.chobit.knot.gateway.util.TextNormalizer;
+import org.chobit.knot.common.moderation.ModerationTerm;
+import org.chobit.knot.common.util.TextNormalizer;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;

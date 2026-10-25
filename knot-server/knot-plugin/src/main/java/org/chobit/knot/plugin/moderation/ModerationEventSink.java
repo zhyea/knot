@@ -2,7 +2,7 @@ package org.chobit.knot.plugin.moderation;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.chobit.knot.gateway.util.JsonKit;
+import org.chobit.knot.common.util.JsonKit;
 /**
  * 命中事件出口。<b>已确认：不必等 Kafka 就绪</b> —— 本期结构化日志先行，运维侧采集即用；
  * Kafka 配齐后在本类内切到 {@code ${prefix}.moderation.hits} topic，主链路无感。

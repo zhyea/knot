@@ -1,6 +1,6 @@
 package org.chobit.knot.svc.service.support;
 
-import org.chobit.knot.gateway.error.BusinessException;
+import org.chobit.knot.common.error.BusinessException;
 
 import java.util.Map;
 import java.util.function.Function;

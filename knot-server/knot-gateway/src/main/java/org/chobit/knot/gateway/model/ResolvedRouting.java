@@ -1,6 +1,8 @@
 package org.chobit.knot.gateway.model;
 
-import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.common.model.EjectionPolicy;
+import org.chobit.knot.common.model.RetryPolicy;
+import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 
 import java.util.List;
 

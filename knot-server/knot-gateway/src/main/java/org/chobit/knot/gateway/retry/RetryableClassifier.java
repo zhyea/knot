@@ -1,8 +1,8 @@
 package org.chobit.knot.gateway.retry;
 
-import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
+import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
-import org.chobit.knot.gateway.model.RetryPolicy;
+import org.chobit.knot.common.model.RetryPolicy;
 
 /**
  * 判断一次上游失败是否值得重试。

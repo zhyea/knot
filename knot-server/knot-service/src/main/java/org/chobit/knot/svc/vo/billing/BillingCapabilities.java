@@ -19,7 +19,7 @@ public record BillingCapabilities(List<BillingModeCapability> billingModes,
     }
 
     /**
-     * 进阶定价方案能力（仅 {@link org.chobit.knot.gateway.constants.enums.PricingPlanEnum#isAvailable()}
+     * 进阶定价方案能力（仅 {@link org.chobit.knot.common.constants.enums.PricingPlanEnum#isAvailable()}
      * 开放的方案；阶段三后三个方案全部开放）。
      */
     public record PricingPlanCapability(String code) {

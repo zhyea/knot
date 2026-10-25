@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.outage.admin;
 
-import org.chobit.knot.gateway.model.EjectionPolicy;
+import org.chobit.knot.common.model.EjectionPolicy;
 import org.chobit.knot.gateway.outage.AnomalyKind;
 import org.chobit.knot.gateway.outage.CaffeineTargetOutageStore;
 import org.chobit.knot.gateway.outage.OutageKeys;

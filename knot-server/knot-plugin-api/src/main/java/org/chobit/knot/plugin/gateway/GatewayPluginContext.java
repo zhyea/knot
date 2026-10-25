@@ -1,6 +1,6 @@
 package org.chobit.knot.plugin.gateway;
 
-import org.chobit.knot.gateway.moderation.ModerationTerm;
+import org.chobit.knot.common.moderation.ModerationTerm;
 import org.chobit.knot.plugin.PluginDispatchContext;
 import org.chobit.knot.plugin.PluginStageCode;
 import org.springframework.http.MediaType;

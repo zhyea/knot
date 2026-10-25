@@ -1,21 +1,22 @@
 package org.chobit.knot.gateway.kafka;
 
-import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.gateway.model.ResolvedRouting;
+import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.exception.GatewayRateLimitException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
 import org.chobit.knot.gateway.kafka.msg.Msg;
-import org.chobit.knot.gateway.adapter.model.usage.NormalizedUsage;
-import org.chobit.knot.gateway.adapter.model.usage.NormalizedUsageDetail;
-import org.chobit.knot.gateway.adapter.model.usage.TokenBillingUsage;
+import org.chobit.knot.adapter.model.usage.NormalizedUsage;
+import org.chobit.knot.adapter.model.usage.NormalizedUsageDetail;
+import org.chobit.knot.adapter.model.usage.TokenBillingUsage;
 import org.chobit.knot.gateway.model.TrafficRejectDetail;
-import org.chobit.knot.gateway.adapter.model.usage.UsageAccounting;
-import org.chobit.knot.gateway.adapter.usage.ModelUsageNormalizer;
+import org.chobit.knot.adapter.model.usage.UsageAccounting;
+import org.chobit.knot.adapter.usage.ModelUsageNormalizer;
 import org.chobit.knot.gateway.redis.RedisUnavailableException;
 import org.chobit.knot.gateway.runtime.GatewayRequestContext;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
-import org.chobit.knot.gateway.util.JsonKit;
+import org.chobit.knot.common.util.JsonKit;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -371,8 +372,8 @@ class GatewayTrafficMsgDtoTest {
         return new GatewayRequestContext("Bearer key", "rule-a", GatewayTraceContext.fromTraceparent(null), null, null);
     }
 
-    private static org.chobit.knot.gateway.model.ResolvedRouting routing(RoutingRuleTargetDto... targets) {
-        return new org.chobit.knot.gateway.model.ResolvedRouting(1L, "rule-a", 10L, "sk-routing-key", false,
+    private static ResolvedRouting routing(RoutingRuleTargetDto... targets) {
+        return new ResolvedRouting(1L, "rule-a", 10L, "sk-routing-key", false,
                 List.of(targets), null, null, null);
     }
 

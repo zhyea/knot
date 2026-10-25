@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.traffic;
 
-import org.chobit.knot.gateway.constants.enums.QuotaWindowEnum;
+import org.chobit.knot.common.constants.enums.QuotaWindowEnum;
 
 import java.time.Instant;
 import java.time.ZoneId;

@@ -1,8 +1,8 @@
 package org.chobit.knot.gateway.routing;
 
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
-import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.dal.entity.ModelApiBindingEntity;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;

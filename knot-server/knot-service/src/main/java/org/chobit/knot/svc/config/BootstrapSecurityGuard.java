@@ -1,7 +1,7 @@
 package org.chobit.knot.svc.config;
 
 import lombok.extern.slf4j.Slf4j;
-import org.chobit.knot.gateway.auth.JwtKit;
+import org.chobit.knot.common.auth.JwtKit;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 

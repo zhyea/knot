@@ -1,8 +1,8 @@
 package org.chobit.knot.plugin.log;
 
-import org.chobit.knot.gateway.plugin.PluginBindingView;
-import org.chobit.knot.gateway.plugin.PluginStageCode;
-import org.chobit.knot.gateway.util.JsonKit;
+import org.chobit.knot.plugin.PluginBindingView;
+import org.chobit.knot.plugin.PluginStageCode;
+import org.chobit.knot.common.util.JsonKit;
 import org.slf4j.Logger;
 
 /**

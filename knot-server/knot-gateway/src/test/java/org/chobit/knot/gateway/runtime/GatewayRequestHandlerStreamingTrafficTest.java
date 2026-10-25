@@ -1,14 +1,14 @@
 package org.chobit.knot.gateway.runtime;
 
-import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
-import org.chobit.knot.gateway.adapter.model.usage.NormalizedUsage;
+import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.adapter.model.usage.NormalizedUsage;
 import org.chobit.knot.gateway.model.ResolvedRouting;
-import org.chobit.knot.gateway.adapter.model.usage.UsageAccounting;
+import org.chobit.knot.adapter.model.usage.UsageAccounting;
 import org.chobit.knot.gateway.traffic.CaffeineTrafficCounterStore;
 import org.chobit.knot.gateway.traffic.GatewayTrafficGuard;
 import org.chobit.knot.gateway.traffic.TrafficCounterKeys;
-import org.chobit.knot.gateway.model.RateLimitPolicy;
-import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.common.model.RateLimitPolicy;
+import org.chobit.knot.svc.model.TrafficPolicies;
 import org.chobit.knot.gateway.traffic.TrafficPolicySource;
 import org.junit.jupiter.api.Test;
 

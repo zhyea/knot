@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.routing;
 
-import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
+import org.chobit.knot.dal.entity.ModelApiBindingEntity;
 
 import java.util.List;
 

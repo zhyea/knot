@@ -1,6 +1,6 @@
 package org.chobit.knot.svc.service.external;
 
-import org.chobit.knot.gateway.constants.enums.ExternalModelSyncStatusEnum;
+import org.chobit.knot.common.constants.enums.ExternalModelSyncStatusEnum;
 import org.chobit.knot.svc.dto.model.ExternalModelSyncResult;
 import org.chobit.knot.dal.entity.ExternalModelItemEntity;
 import org.chobit.knot.dal.entity.ExternalModelSourceEntity;

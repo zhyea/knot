@@ -1,8 +1,8 @@
 package org.chobit.knot.gateway.traffic;
 
 import lombok.extern.slf4j.Slf4j;
-import org.chobit.knot.gateway.entity.ProviderAccountEntity;
-import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.dal.entity.ProviderAccountEntity;
+import org.chobit.knot.svc.model.TrafficPolicies;
 import org.chobit.knot.gateway.redis.RedisCache;
 import org.chobit.knot.gateway.service.GatewayEntityCacheService;
 import org.chobit.knot.gateway.store.StoreMode;

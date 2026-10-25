@@ -1,13 +1,13 @@
 package org.chobit.knot.svc.converter;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.ErrorCode;
-import org.chobit.knot.gateway.model.QuotaPolicy;
-import org.chobit.knot.gateway.model.RateLimitPolicy;
-import org.chobit.knot.gateway.model.StickyPolicy;
-import org.chobit.knot.gateway.util.JsonKit;
+import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
+import org.chobit.knot.common.model.QuotaPolicy;
+import org.chobit.knot.common.model.RateLimitPolicy;
+import org.chobit.knot.common.model.StickyPolicy;
+import org.chobit.knot.common.util.JsonKit;
 import org.mapstruct.Named;
 import org.springframework.stereotype.Component;
 

@@ -1,9 +1,9 @@
 package org.chobit.knot.gateway.upstream.request;
 
-import org.chobit.knot.gateway.adapter.protocol.ChatCompletionsToMessagesUpstreamAdapter;
-import org.chobit.knot.gateway.adapter.protocol.MessagesToChatCompletionsUpstreamAdapter;
-import org.chobit.knot.gateway.adapter.protocol.PassthroughUpstreamAdapter;
-import org.chobit.knot.gateway.adapter.protocol.UpstreamAdapterCatalog;
+import org.chobit.knot.adapter.protocol.ChatCompletionsToMessagesUpstreamAdapter;
+import org.chobit.knot.adapter.protocol.MessagesToChatCompletionsUpstreamAdapter;
+import org.chobit.knot.adapter.protocol.PassthroughUpstreamAdapter;
+import org.chobit.knot.adapter.protocol.UpstreamAdapterCatalog;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

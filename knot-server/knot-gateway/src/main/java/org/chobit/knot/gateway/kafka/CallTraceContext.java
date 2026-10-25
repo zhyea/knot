@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.kafka;
 
-import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.gateway.model.ProxyResult;
+import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.kafka.msg.AttemptMsgDto;
 import org.chobit.knot.gateway.kafka.msg.AttemptOutcomeMsg;
@@ -186,7 +187,7 @@ public final class CallTraceContext {
         }
 
         /**
-         * 成功路径回填上游完整请求地址（来自 {@link org.chobit.knot.gateway.model.ProxyResult#upstreamUrl()}）。
+         * 成功路径回填上游完整请求地址（来自 {@link ProxyResult#upstreamUrl()}）。
          */
         public void setUpstreamUrl(String upstreamUrl) {
             this.upstreamUrl = upstreamUrl;

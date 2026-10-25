@@ -1,8 +1,7 @@
 package org.chobit.knot.svc.service.support;
 
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.ErrorCode;
-import org.chobit.knot.svc.service.support.CodeBindingSupport;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;

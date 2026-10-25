@@ -1,10 +1,10 @@
 package org.chobit.knot.gateway.traffic;
 
-import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.model.QuotaPolicy;
-import org.chobit.knot.gateway.model.RateLimitPolicy;
-import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.model.QuotaPolicy;
+import org.chobit.knot.common.model.RateLimitPolicy;
+import org.chobit.knot.svc.model.TrafficPolicies;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;

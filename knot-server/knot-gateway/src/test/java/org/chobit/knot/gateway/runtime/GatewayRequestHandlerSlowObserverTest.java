@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.runtime;
 
-import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
-import org.chobit.knot.gateway.model.EjectionPolicy;
+import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.common.model.EjectionPolicy;
 import org.chobit.knot.gateway.outage.CaffeineTargetOutageStore;
 import org.chobit.knot.gateway.outage.OutageKeys;
 import org.chobit.knot.gateway.outage.OutageTracker;

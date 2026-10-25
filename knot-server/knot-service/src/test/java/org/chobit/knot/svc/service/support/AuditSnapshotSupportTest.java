@@ -1,7 +1,6 @@
 package org.chobit.knot.svc.service.support;
 
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.svc.service.support.AuditSnapshotSupport;
+import org.chobit.knot.common.error.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -61,7 +60,7 @@ class AuditSnapshotSupportTest {
     @DisplayName("加载器抛 BusinessException（实体不存在）：吞成 null")
     void swallowsBusinessExceptionFromLoader() {
         Map<String, Object> snapshot = AuditSnapshotSupport.capture(7L, id -> {
-            throw new BusinessException(org.chobit.knot.gateway.error.ErrorCode.NOT_FOUND, "不存在");
+            throw new BusinessException(org.chobit.knot.common.error.ErrorCode.NOT_FOUND, "不存在");
         });
 
         assertEquals(null, snapshot, "重复删除等场景下实体已不存在，审计采集不得因此改变业务结果");

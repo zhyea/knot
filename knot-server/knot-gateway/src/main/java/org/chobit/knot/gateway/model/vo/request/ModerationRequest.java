@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.vo.request;
+package org.chobit.knot.gateway.model.vo.request;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 

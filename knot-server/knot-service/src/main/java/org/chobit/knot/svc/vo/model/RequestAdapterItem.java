@@ -1,6 +1,6 @@
 package org.chobit.knot.svc.vo.model;
 
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 
 import java.util.Set;
 

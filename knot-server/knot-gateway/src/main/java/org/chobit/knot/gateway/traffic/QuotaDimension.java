@@ -1,8 +1,8 @@
 package org.chobit.knot.gateway.traffic;
 
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.ErrorCode;
-import org.chobit.knot.gateway.model.QuotaPolicy;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
+import org.chobit.knot.common.model.QuotaPolicy;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -12,7 +12,7 @@ import java.util.List;
  * 限额维度：与 {@code kb_quota_policies} 的 {@code max_tokens} / {@code cost_limit} 一一对应。
  *
  * <p>两者都按策略指定的
- * {@link org.chobit.knot.gateway.constants.enums.QuotaWindowEnum 统计窗口}累计、窗口结束清零，
+ * {@link org.chobit.knot.common.constants.enums.QuotaWindowEnum 统计窗口}累计、窗口结束清零，
  * 且都在请求成功后才记账——上游失败与 failover 重试不消耗额度。</p>
  *
  * <p>成本维度以「1e-12」为单位存成整数计数：计费侧的成本字符串已不再限定小数位

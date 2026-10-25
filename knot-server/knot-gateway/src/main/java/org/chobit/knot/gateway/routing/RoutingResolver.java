@@ -1,18 +1,18 @@
 package org.chobit.knot.gateway.routing;
 
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.constants.enums.ModelPoolSelectionStrategyEnum;
-import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
-import org.chobit.knot.gateway.constants.enums.RouteTargetTypeEnum;
-import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
-import org.chobit.knot.gateway.entity.AppEntity;
-import org.chobit.knot.gateway.entity.ModelEntity;
-import org.chobit.knot.gateway.entity.ModelPoolEntity;
-import org.chobit.knot.gateway.entity.ModelPoolItemEntity;
-import org.chobit.knot.gateway.entity.RoutingConsumerEntity;
-import org.chobit.knot.gateway.entity.RoutingRuleEntity;
+import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.constants.enums.ModelPoolSelectionStrategyEnum;
+import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
+import org.chobit.knot.common.constants.enums.RouteTargetTypeEnum;
+import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.dal.entity.AppEntity;
+import org.chobit.knot.dal.entity.ModelEntity;
+import org.chobit.knot.dal.entity.ModelPoolEntity;
+import org.chobit.knot.dal.entity.ModelPoolItemEntity;
+import org.chobit.knot.dal.entity.RoutingConsumerEntity;
+import org.chobit.knot.dal.entity.RoutingRuleEntity;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
@@ -20,11 +20,11 @@ import org.chobit.knot.gateway.load.ModelLoadKeys;
 import org.chobit.knot.gateway.load.ModelLoadStore;
 import org.chobit.knot.gateway.model.GatewayRoutingContext;
 import org.chobit.knot.gateway.model.ResolvedRouting;
-import org.chobit.knot.gateway.model.StickyPolicy;
-import org.chobit.knot.gateway.model.EjectionPolicy;
-import org.chobit.knot.gateway.model.RetryPolicy;
+import org.chobit.knot.common.model.StickyPolicy;
+import org.chobit.knot.common.model.EjectionPolicy;
+import org.chobit.knot.common.model.RetryPolicy;
 import org.chobit.knot.gateway.service.GatewayEntityCacheService;
-import org.chobit.knot.gateway.util.tools.RoutingSecretKeyGenerator;
+import org.chobit.knot.common.util.tools.RoutingSecretKeyGenerator;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -36,7 +36,6 @@ import java.util.stream.Collectors;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 /**
  * 根据消费者 API Key 和路由规则编码解析本次网关请求的路由信息。

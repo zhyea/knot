@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.routing;
 
-import org.chobit.knot.gateway.model.StickyPolicy;
+import org.chobit.knot.common.model.StickyPolicy;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;

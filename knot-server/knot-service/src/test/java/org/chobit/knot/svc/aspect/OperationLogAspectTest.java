@@ -2,12 +2,11 @@ package org.chobit.knot.svc.aspect;
 
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.chobit.knot.gateway.annotation.OperationLog;
+import org.chobit.knot.common.annotation.OperationLog;
 import org.chobit.knot.dal.entity.OperationLogEntity;
 import org.chobit.knot.dal.mapper.OperationLogMapper;
-import org.chobit.knot.svc.aspect.OperationLogAspect;
 import org.chobit.knot.svc.service.OperationLogService;
-import org.chobit.knot.gateway.util.JsonKit;
+import org.chobit.knot.common.util.JsonKit;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;

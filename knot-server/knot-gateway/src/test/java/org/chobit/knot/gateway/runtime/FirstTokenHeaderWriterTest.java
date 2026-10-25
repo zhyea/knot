@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.runtime;
 
-import org.chobit.knot.gateway.constants.GatewayHeaders;
+import org.chobit.knot.common.constants.GatewayHeaders;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

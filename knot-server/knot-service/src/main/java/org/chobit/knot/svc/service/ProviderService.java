@@ -8,31 +8,32 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplierCatalog;
+import org.chobit.knot.adapter.auth.UpstreamAuthApplier;
+import org.chobit.knot.adapter.auth.UpstreamAuthApplierCatalog;
 import org.chobit.knot.svc.auth.CurrentAuth;
-import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
-import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
-import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
+import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.common.constants.enums.ProviderCredentialTypeEnum;
+import org.chobit.knot.common.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.svc.converter.ProviderConverter;
 import org.chobit.knot.svc.dto.provider.ProviderAccountDto;
 import org.chobit.knot.dal.entity.ProviderAccountEntity;
 import org.chobit.knot.dal.entity.ProviderCredentialEntity;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.dal.mapper.ProviderAccountMapper;
 import org.chobit.knot.dal.mapper.ProviderCredentialMapper;
 import org.chobit.knot.dal.mapper.ProviderProfileMapper;
-import org.chobit.knot.gateway.model.PageRequest;
-import org.chobit.knot.gateway.model.PageResult;
-import org.chobit.knot.gateway.model.QuotaPolicy;
-import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.common.model.PageRequest;
+import org.chobit.knot.common.model.PageResult;
+import org.chobit.knot.common.model.QuotaPolicy;
+import org.chobit.knot.common.model.RateLimitPolicy;
 import org.chobit.knot.svc.model.TrafficPolicies;
 import org.chobit.knot.svc.service.support.CodeBindingSupport;
 import org.chobit.knot.svc.service.support.ProviderCredentialSupport;
 import org.chobit.knot.svc.service.support.ResourceTrafficPolicySupport;
 import org.chobit.knot.svc.service.support.AuditSnapshotSupport;
-import org.chobit.knot.gateway.util.JsonKit;
-import org.chobit.knot.gateway.util.tools.ProviderCodes;
+import org.chobit.knot.common.util.JsonKit;
+import org.chobit.knot.common.util.tools.ProviderCodes;
 import org.chobit.knot.svc.vo.provider.AuthApplierItem;
 import org.chobit.knot.svc.vo.provider.CredentialTypeItem;
 import org.springframework.stereotype.Service;
@@ -160,7 +161,7 @@ public class ProviderService {
      * 校验账户的上游地址：静态接入策略必须填写 base URL，可由凭据派生端点的策略允许为空。
      *
      * <p>判定依据是策略自己的能力声明
-     * {@link org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplier#requiresBaseUrl()}，
+     * {@link UpstreamAuthApplier#requiresBaseUrl()}，
      * 而不是供应商名字——「哪个供应商可以不给地址」属于供应商特例，留在策略里，
      * 服务层不必认识 AWS，也就不会因为新增供应商而改这里。</p>
      *

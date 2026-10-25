@@ -1,10 +1,9 @@
 package org.chobit.knot.gateway.kafka;
 
 import org.apache.kafka.common.PartitionInfo;
-import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
-import org.chobit.knot.gateway.kafka.msg.Msg;
 import org.chobit.knot.gateway.runtime.GatewayRequestContext;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;

@@ -1,18 +1,18 @@
 package org.chobit.knot.svc.service.support;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.chobit.knot.gateway.auth.AuthRoles;
-import org.chobit.knot.gateway.constants.AuthConstants;
-import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
-import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
+import org.chobit.knot.common.auth.AuthRoles;
+import org.chobit.knot.common.constants.AuthConstants;
+import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.common.constants.enums.ProviderCredentialTypeEnum;
 import org.chobit.knot.svc.crypto.CredentialEncryption;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.dal.entity.ProviderAccountEntity;
 import org.chobit.knot.dal.entity.ProviderCredentialEntity;
 import org.chobit.knot.dal.mapper.ProviderAccountMapper;
 import org.chobit.knot.dal.mapper.ProviderCredentialMapper;
-import org.chobit.knot.gateway.util.JsonKit;
+import org.chobit.knot.common.util.JsonKit;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;

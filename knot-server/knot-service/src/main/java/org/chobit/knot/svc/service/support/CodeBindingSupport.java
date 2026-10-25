@@ -1,7 +1,7 @@
 package org.chobit.knot.svc.service.support;
 
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 
 /**
  * 业务编码改码守卫：编码在没有任何绑定前可改，一旦被其它实体按业务码引用就锁死。

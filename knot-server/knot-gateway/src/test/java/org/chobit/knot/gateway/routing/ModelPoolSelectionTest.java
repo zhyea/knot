@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.routing;
 
-import org.chobit.knot.gateway.error.BusinessException;
+import org.chobit.knot.common.error.BusinessException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

@@ -1,16 +1,12 @@
 package org.chobit.knot.plugin.moderation;
 
-import org.chobit.knot.gateway.constants.enums.ModerationActionEnum;
-import org.chobit.knot.gateway.constants.enums.ModerationScopeEnum;
-import org.chobit.knot.gateway.moderation.ModerationTerm;
-import org.chobit.knot.gateway.plugin.PluginStageCode;
+import org.chobit.knot.common.constants.enums.ModerationActionEnum;
+import org.chobit.knot.common.constants.enums.ModerationScopeEnum;
+import org.chobit.knot.common.moderation.ModerationTerm;
+import org.chobit.knot.plugin.PluginStageCode;
 import org.chobit.knot.plugin.components.ModerationWordCache;
-import org.chobit.knot.gateway.plugin.gateway.GatewayPluginContext;
-import org.chobit.knot.gateway.util.TextNormalizer;
-import org.chobit.knot.plugin.moderation.ModerationEventSink;
-import org.chobit.knot.plugin.moderation.ModerationGuard;
-import org.chobit.knot.plugin.moderation.ModerationRejectException;
-import org.chobit.knot.plugin.moderation.PluginProperties;
+import org.chobit.knot.plugin.gateway.GatewayPluginContext;
+import org.chobit.knot.common.util.TextNormalizer;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

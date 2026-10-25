@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.upstream.protocol;
 
 import lombok.RequiredArgsConstructor;
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

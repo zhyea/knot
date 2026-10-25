@@ -1,20 +1,20 @@
 package org.chobit.knot.svc.service.support;
 
-import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
-import org.chobit.knot.gateway.constants.enums.QuotaWindowEnum;
-import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
+import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.common.constants.enums.QuotaWindowEnum;
+import org.chobit.knot.common.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.dal.entity.QuotaPolicyEntity;
 import org.chobit.knot.dal.entity.RateLimitPolicyEntity;
 import org.chobit.knot.dal.entity.ResourceQuotaBindingEntity;
 import org.chobit.knot.dal.entity.ResourceTrafficPolicyEntity;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.dal.mapper.QuotaPolicyMapper;
 import org.chobit.knot.dal.mapper.RateLimitPolicyMapper;
 import org.chobit.knot.dal.mapper.ResourceQuotaBindingMapper;
 import org.chobit.knot.dal.mapper.ResourceTrafficPolicyMapper;
-import org.chobit.knot.gateway.model.QuotaPolicy;
-import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.common.model.QuotaPolicy;
+import org.chobit.knot.common.model.RateLimitPolicy;
 import org.chobit.knot.svc.model.TrafficPolicies;
 import org.springframework.stereotype.Component;
 

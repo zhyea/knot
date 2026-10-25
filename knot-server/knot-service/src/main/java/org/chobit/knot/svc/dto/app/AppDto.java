@@ -1,7 +1,7 @@
 package org.chobit.knot.svc.dto.app;
 
-import org.chobit.knot.gateway.model.QuotaPolicy;
-import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.common.model.QuotaPolicy;
+import org.chobit.knot.common.model.RateLimitPolicy;
 
 import java.util.List;
 

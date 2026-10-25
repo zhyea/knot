@@ -1,7 +1,7 @@
 package org.chobit.knot.svc.dto.system;
 
 import org.chobit.knot.dal.entity.OperationLogEntity;
-import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.common.model.PageResult;
 
 import java.util.List;
 

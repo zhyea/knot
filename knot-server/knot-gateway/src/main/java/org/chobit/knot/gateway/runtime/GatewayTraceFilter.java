@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.runtime;
 
-import org.chobit.knot.gateway.constants.GatewayHeaders;
+import org.chobit.knot.common.constants.GatewayHeaders;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;

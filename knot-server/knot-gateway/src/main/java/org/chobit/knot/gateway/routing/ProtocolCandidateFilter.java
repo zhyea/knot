@@ -1,9 +1,9 @@
 package org.chobit.knot.gateway.routing;
 
-import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
-import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
+import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.dal.entity.ModelApiBindingEntity;
 
 import java.util.List;
 import java.util.Objects;

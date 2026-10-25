@@ -3,14 +3,14 @@ package org.chobit.knot.plugin.runtime;
 import java.util.Comparator;
 import java.util.List;
 
-import org.chobit.knot.gateway.plugin.PluginBindingProvider;
-import org.chobit.knot.gateway.plugin.PluginBindingView;
-import org.chobit.knot.gateway.plugin.PluginDescriptor;
-import org.chobit.knot.gateway.plugin.PluginDispatchContext;
-import org.chobit.knot.gateway.plugin.PluginDispatcher;
-import org.chobit.knot.gateway.plugin.PluginExtensionPoint;
-import org.chobit.knot.gateway.plugin.PluginHandler;
-import org.chobit.knot.gateway.plugin.PluginStageCode;
+import org.chobit.knot.plugin.PluginBindingProvider;
+import org.chobit.knot.plugin.PluginBindingView;
+import org.chobit.knot.plugin.PluginDescriptor;
+import org.chobit.knot.plugin.PluginDispatchContext;
+import org.chobit.knot.plugin.PluginDispatcher;
+import org.chobit.knot.plugin.PluginExtensionPoint;
+import org.chobit.knot.plugin.PluginHandler;
+import org.chobit.knot.plugin.PluginStageCode;
 import org.springframework.stereotype.Component;
 
 /**

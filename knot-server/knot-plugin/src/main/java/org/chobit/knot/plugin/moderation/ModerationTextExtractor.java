@@ -1,8 +1,8 @@
 package org.chobit.knot.plugin.moderation;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.chobit.knot.gateway.constants.AiPayloadFields;
-import org.chobit.knot.gateway.util.JsonKit;
+import org.chobit.knot.common.constants.AiPayloadFields;
+import org.chobit.knot.common.util.JsonKit;
 
 import java.util.ArrayList;
 import java.util.List;

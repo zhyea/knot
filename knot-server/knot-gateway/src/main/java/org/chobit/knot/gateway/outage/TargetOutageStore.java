@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.outage;
 
-import org.chobit.knot.gateway.model.EjectionPolicy;
+import org.chobit.knot.common.model.EjectionPolicy;
 
 import java.util.List;
 

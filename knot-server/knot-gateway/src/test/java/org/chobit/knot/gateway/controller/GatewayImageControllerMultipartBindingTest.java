@@ -1,6 +1,5 @@
 package org.chobit.knot.gateway.controller;
 
-import org.chobit.knot.gateway.constants.GatewayHeaders;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -131,7 +130,7 @@ class GatewayImageControllerMultipartBindingTest {
     }
 
     /**
-     * 扫描 {@code org.chobit.knot.gateway.controller} 包下所有控制器，对每个
+     * 扫描 {@code org.chobit.knot.admin.controller} 包下所有控制器，对每个
      * {@code consumes=multipart/form-data} 的端点逐参数执行断言。
      */
     private void forEachMultipartEndpoint(MultipartEndpointParameterConsumer consumer) throws Exception {
@@ -268,7 +267,7 @@ class GatewayImageControllerMultipartBindingTest {
         protected Mono<ResponseEntity<Object>> handleMultipartRequest(
                 String authorization, String rule, String traceparent, String stickyKey,
                 Map<String, Object> request,
-                org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum protocol,
+                org.chobit.knot.common.constants.enums.ModelApiProtocolEnum protocol,
                 ServerWebExchange exchange) {
             this.capturedRule = rule;
             this.capturedBody = new LinkedHashMap<>(request);

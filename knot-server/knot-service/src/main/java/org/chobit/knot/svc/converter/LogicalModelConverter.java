@@ -1,14 +1,14 @@
 package org.chobit.knot.svc.converter;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
-import org.chobit.knot.gateway.constants.enums.LogicalModelPublishStatusEnum;
-import org.chobit.knot.gateway.constants.enums.LogicalModelVisibilityEnum;
+import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.common.constants.enums.LogicalModelPublishStatusEnum;
+import org.chobit.knot.common.constants.enums.LogicalModelVisibilityEnum;
 import org.chobit.knot.svc.dto.model.LogicalModelDto;
 import org.chobit.knot.svc.dto.model.ProviderModelMappingDto;
 import org.chobit.knot.dal.entity.LogicalModelEntity;
 import org.chobit.knot.dal.entity.ProviderModelMappingEntity;
-import org.chobit.knot.gateway.util.JsonKit;
+import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.svc.vo.model.LogicalModelItem;
 import org.chobit.knot.svc.vo.model.ProviderModelMappingItem;
 import org.springframework.stereotype.Component;

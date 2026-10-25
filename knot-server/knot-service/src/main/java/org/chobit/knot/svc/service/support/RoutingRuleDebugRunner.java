@@ -1,7 +1,7 @@
 package org.chobit.knot.svc.service.support;
 
 import java.util.Map;
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.stereotype.Component;

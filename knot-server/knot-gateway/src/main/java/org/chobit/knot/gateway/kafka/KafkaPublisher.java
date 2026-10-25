@@ -2,7 +2,7 @@ package org.chobit.knot.gateway.kafka;
 
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.kafka.msg.Msg;
-import org.chobit.knot.gateway.util.JsonKit;
+import org.chobit.knot.common.util.JsonKit;
 import org.springframework.kafka.core.KafkaTemplate;
 
 import java.util.concurrent.atomic.AtomicLong;

@@ -1,7 +1,6 @@
 package org.chobit.knot.svc.service;
 
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.svc.service.ModelService;
+import org.chobit.knot.common.error.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

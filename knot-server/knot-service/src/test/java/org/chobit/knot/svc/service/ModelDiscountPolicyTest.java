@@ -4,14 +4,13 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
-import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.svc.dto.provider.DiscountPolicyDto;
 import org.chobit.knot.dal.entity.DiscountPolicyEntity;
 import org.chobit.knot.dal.entity.ModelEntity;
-import org.chobit.knot.gateway.error.BusinessException;
+import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.dal.mapper.DiscountPolicyMapper;
 import org.chobit.knot.dal.mapper.ModelMapper;
-import org.chobit.knot.svc.service.ModelService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

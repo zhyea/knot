@@ -1,12 +1,12 @@
 package org.chobit.knot.svc.service.external;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
-import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
+import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.common.constants.enums.ModelTypeEnum;
 import org.chobit.knot.dal.entity.ExternalModelItemEntity;
 import org.chobit.knot.dal.entity.ExternalModelSourceEntity;
 import org.chobit.knot.dal.mapper.ExternalModelMapper;
-import org.chobit.knot.gateway.util.JsonKit;
+import org.chobit.knot.common.util.JsonKit;
 import org.springframework.stereotype.Component;
 
 import java.net.URI;

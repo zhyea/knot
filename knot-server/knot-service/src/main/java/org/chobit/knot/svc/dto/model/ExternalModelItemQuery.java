@@ -1,6 +1,6 @@
 package org.chobit.knot.svc.dto.model;
 
-import org.chobit.knot.gateway.model.PageRequest;
+import org.chobit.knot.common.model.PageRequest;
 
 import java.util.List;
 

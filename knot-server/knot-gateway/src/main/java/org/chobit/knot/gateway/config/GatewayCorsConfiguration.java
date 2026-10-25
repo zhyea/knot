@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.config;
 
-import org.chobit.knot.gateway.constants.GatewayHeaders;
+import org.chobit.knot.common.constants.GatewayHeaders;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

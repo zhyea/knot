@@ -3,9 +3,9 @@ package org.chobit.knot.gateway.kafka.msg;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import org.chobit.knot.gateway.adapter.model.usage.NormalizedUsage;
-import org.chobit.knot.gateway.adapter.model.usage.NormalizedUsageDetail;
-import org.chobit.knot.gateway.adapter.model.usage.TokenUsageDetailKind;
+import org.chobit.knot.adapter.model.usage.NormalizedUsage;
+import org.chobit.knot.adapter.model.usage.NormalizedUsageDetail;
+import org.chobit.knot.adapter.model.usage.TokenUsageDetailKind;
 
 import java.util.List;
 

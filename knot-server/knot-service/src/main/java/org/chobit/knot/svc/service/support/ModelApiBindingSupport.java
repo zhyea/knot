@@ -8,15 +8,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
+import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.constants.enums.ModelTypeEnum;
 import org.chobit.knot.svc.dto.model.ModelApiBindingDto;
 import org.chobit.knot.dal.entity.ModelApiBindingEntity;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.dal.mapper.ModelApiBindingMapper;
-import org.chobit.knot.gateway.adapter.usage.extractor.DefaultTokenUsageExtractor;
+import org.chobit.knot.adapter.usage.extractor.DefaultTokenUsageExtractor;
 import org.springframework.stereotype.Component;
 
 

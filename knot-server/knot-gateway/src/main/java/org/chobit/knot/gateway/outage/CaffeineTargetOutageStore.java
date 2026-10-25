@@ -4,7 +4,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.Expiry;
 import com.github.benmanes.caffeine.cache.Ticker;
-import org.chobit.knot.gateway.model.EjectionPolicy;
+import org.chobit.knot.common.model.EjectionPolicy;
 
 import java.time.Clock;
 import java.util.ArrayList;

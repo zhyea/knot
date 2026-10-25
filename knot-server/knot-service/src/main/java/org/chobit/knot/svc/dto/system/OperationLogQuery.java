@@ -1,6 +1,6 @@
 package org.chobit.knot.svc.dto.system;
 
-import org.chobit.knot.gateway.model.PageRequest;
+import org.chobit.knot.common.model.PageRequest;
 
 public record OperationLogQuery(
         Integer pageNum,

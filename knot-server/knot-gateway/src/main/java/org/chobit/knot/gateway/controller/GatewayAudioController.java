@@ -1,11 +1,11 @@
 package org.chobit.knot.gateway.controller;
 
-import org.chobit.knot.gateway.constants.GatewayHeaders;
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.constants.GatewayHeaders;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
-import org.chobit.knot.gateway.vo.request.AudioSpeechRequest;
-import org.chobit.knot.gateway.vo.request.AudioTranscriptionRequest;
-import org.chobit.knot.gateway.vo.request.AudioTranslationRequest;
+import org.chobit.knot.gateway.model.vo.request.AudioSpeechRequest;
+import org.chobit.knot.gateway.model.vo.request.AudioTranscriptionRequest;
+import org.chobit.knot.gateway.model.vo.request.AudioTranslationRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

@@ -1,10 +1,10 @@
 package org.chobit.knot.gateway.controller;
 
-import org.chobit.knot.gateway.constants.GatewayHeaders;
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.constants.GatewayHeaders;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
-import org.chobit.knot.gateway.vo.request.ImageGenerationRequest;
-import org.chobit.knot.gateway.vo.request.ImageVariationRequest;
+import org.chobit.knot.gateway.model.vo.request.ImageGenerationRequest;
+import org.chobit.knot.gateway.model.vo.request.ImageVariationRequest;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.multipart.FilePart;

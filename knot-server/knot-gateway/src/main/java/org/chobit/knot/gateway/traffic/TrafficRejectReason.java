@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.traffic;
 
-import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
+import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
 
 /**
  * 流量被拒绝的原因：决定网关返回给调用方的错误码，以及响应体里怎么描述这次拒绝。

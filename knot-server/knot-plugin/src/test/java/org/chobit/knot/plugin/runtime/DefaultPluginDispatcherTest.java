@@ -1,13 +1,12 @@
 package org.chobit.knot.plugin.runtime;
 
-import org.chobit.knot.gateway.plugin.PluginBindingProvider;
-import org.chobit.knot.gateway.plugin.PluginBindingView;
-import org.chobit.knot.gateway.plugin.PluginDescriptor;
-import org.chobit.knot.gateway.plugin.PluginDispatchContext;
-import org.chobit.knot.gateway.plugin.PluginExtensionPoint;
-import org.chobit.knot.gateway.plugin.PluginHandler;
-import org.chobit.knot.gateway.plugin.PluginStageCode;
-import org.chobit.knot.plugin.runtime.DefaultPluginDispatcher;
+import org.chobit.knot.plugin.PluginBindingProvider;
+import org.chobit.knot.plugin.PluginBindingView;
+import org.chobit.knot.plugin.PluginDescriptor;
+import org.chobit.knot.plugin.PluginDispatchContext;
+import org.chobit.knot.plugin.PluginExtensionPoint;
+import org.chobit.knot.plugin.PluginHandler;
+import org.chobit.knot.plugin.PluginStageCode;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;

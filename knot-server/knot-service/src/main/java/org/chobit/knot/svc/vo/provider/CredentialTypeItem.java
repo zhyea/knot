@@ -3,7 +3,7 @@ package org.chobit.knot.svc.vo.provider;
 import com.fasterxml.jackson.databind.JsonNode;
 
 /**
- * 供应商账户认证类型选项，由 {@link org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum}
+ * 供应商账户认证类型选项，由 {@link org.chobit.knot.common.constants.enums.ProviderCredentialTypeEnum}
  * 单一来源下发。
  *
  * <p>requiredFields 是认证字段定义数组（{@code {name,label,type,required,options,default,placeholder}}），

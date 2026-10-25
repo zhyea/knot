@@ -1,10 +1,10 @@
 package org.chobit.knot.svc.service;
 
 import java.util.List;
-import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.dal.entity.AdminPermissionEntity;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.svc.service.support.AuthorizationManageSupport;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

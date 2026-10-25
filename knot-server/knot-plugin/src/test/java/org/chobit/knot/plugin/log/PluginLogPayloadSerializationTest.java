@@ -3,9 +3,8 @@ package org.chobit.knot.plugin.log;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.chobit.knot.gateway.plugin.gateway.GatewayRoutingSnapshot;
-import org.chobit.knot.gateway.util.JsonKit;
-import org.chobit.knot.plugin.log.*;
+import org.chobit.knot.plugin.gateway.GatewayRoutingSnapshot;
+import org.chobit.knot.common.util.JsonKit;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;

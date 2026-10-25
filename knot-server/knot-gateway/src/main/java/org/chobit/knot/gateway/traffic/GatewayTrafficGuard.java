@@ -1,14 +1,14 @@
 package org.chobit.knot.gateway.traffic;
 
 import lombok.RequiredArgsConstructor;
-import org.chobit.knot.gateway.constants.enums.QuotaWindowEnum;
-import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
-import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.common.constants.enums.QuotaWindowEnum;
+import org.chobit.knot.common.constants.enums.TrafficResourceTypeEnum;
+import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.model.GatewayRoutingContext;
-import org.chobit.knot.gateway.model.QuotaPolicy;
-import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.common.model.QuotaPolicy;
+import org.chobit.knot.common.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.ResolvedRouting;
-import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.svc.model.TrafficPolicies;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;

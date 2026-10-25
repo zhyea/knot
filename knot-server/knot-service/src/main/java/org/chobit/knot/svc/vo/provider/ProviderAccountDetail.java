@@ -1,7 +1,7 @@
 package org.chobit.knot.svc.vo.provider;
 
-import org.chobit.knot.gateway.model.QuotaPolicy;
-import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.common.model.QuotaPolicy;
+import org.chobit.knot.common.model.RateLimitPolicy;
 
 import java.time.LocalDateTime;
 import java.util.List;

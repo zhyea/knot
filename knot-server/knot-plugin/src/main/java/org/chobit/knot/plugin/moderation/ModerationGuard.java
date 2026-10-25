@@ -1,11 +1,11 @@
 package org.chobit.knot.plugin.moderation;
 
-import org.chobit.knot.gateway.constants.enums.ModerationActionEnum;
-import org.chobit.knot.gateway.constants.enums.ModerationScopeEnum;
+import org.chobit.knot.common.constants.enums.ModerationActionEnum;
+import org.chobit.knot.common.constants.enums.ModerationScopeEnum;
 import org.chobit.knot.plugin.components.ModerationWordCache;
-import org.chobit.knot.gateway.plugin.gateway.GatewayPluginContext;
-import org.chobit.knot.gateway.plugin.gateway.GatewayRoutingSnapshot;
-import org.chobit.knot.gateway.util.TextNormalizer;
+import org.chobit.knot.plugin.gateway.GatewayPluginContext;
+import org.chobit.knot.plugin.gateway.GatewayRoutingSnapshot;
+import org.chobit.knot.common.util.TextNormalizer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;

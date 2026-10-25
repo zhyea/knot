@@ -1,6 +1,6 @@
 package org.chobit.knot.svc.service.support;
 
-import org.chobit.knot.gateway.constants.GatewayHeaders;
+import org.chobit.knot.common.constants.GatewayHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;

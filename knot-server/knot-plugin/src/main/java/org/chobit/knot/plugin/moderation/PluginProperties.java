@@ -2,8 +2,8 @@ package org.chobit.knot.plugin.moderation;
 
 import jakarta.annotation.PostConstruct;
 import lombok.Data;
-import org.chobit.knot.gateway.constants.enums.ModerationActionEnum;
-import org.chobit.knot.gateway.constants.enums.ModerationScopeEnum;
+import org.chobit.knot.common.constants.enums.ModerationActionEnum;
+import org.chobit.knot.common.constants.enums.ModerationScopeEnum;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**

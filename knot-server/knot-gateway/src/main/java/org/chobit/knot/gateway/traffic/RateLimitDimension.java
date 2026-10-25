@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.traffic;
 
-import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.common.model.RateLimitPolicy;
 
 import java.time.Duration;
 import java.util.List;

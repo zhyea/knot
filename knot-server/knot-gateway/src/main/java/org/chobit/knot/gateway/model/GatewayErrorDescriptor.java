@@ -1,10 +1,10 @@
 package org.chobit.knot.gateway.model;
 
-import org.chobit.knot.gateway.constants.enums.GatewayErrorStageEnum;
-import org.chobit.knot.gateway.constants.enums.GatewayErrorTypeEnum;
-import org.chobit.knot.gateway.constants.enums.TrafficResourceTypeEnum;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.GatewayBadRequestException;
+import org.chobit.knot.common.constants.enums.GatewayErrorStageEnum;
+import org.chobit.knot.common.constants.enums.GatewayErrorTypeEnum;
+import org.chobit.knot.common.constants.enums.TrafficResourceTypeEnum;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.GatewayBadRequestException;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
 import org.chobit.knot.gateway.exception.GatewayTrafficRejectException;

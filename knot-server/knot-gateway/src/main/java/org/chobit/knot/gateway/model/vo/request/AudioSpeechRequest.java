@@ -1,17 +1,17 @@
-package org.chobit.knot.gateway.vo.request;
+package org.chobit.knot.gateway.model.vo.request;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class AudioTranslationRequest extends GatewayModelRequest {
+public class AudioSpeechRequest extends GatewayModelRequest {
 
-    public Object file;
+    public String input;
 
-    public String prompt;
+    public String voice;
 
     @JsonProperty("response_format")
     public String responseFormat;
 
-    public Double temperature;
+    public Double speed;
 }

@@ -2,7 +2,7 @@ package org.chobit.knot.gateway.outage;
 
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
-import org.chobit.knot.gateway.model.EjectionPolicy;
+import org.chobit.knot.common.model.EjectionPolicy;
 import org.springframework.stereotype.Component;
 
 /**

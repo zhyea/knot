@@ -1,7 +1,7 @@
 package org.chobit.knot.dal.entity;
 
 import lombok.Data;
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 
 @Data
 public class ModelApiBindingEntity {

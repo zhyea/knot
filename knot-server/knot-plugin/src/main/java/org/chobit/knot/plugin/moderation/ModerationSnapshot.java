@@ -1,6 +1,6 @@
 package org.chobit.knot.plugin.moderation;
 
-import org.chobit.knot.gateway.moderation.ModerationTerm;
+import org.chobit.knot.common.moderation.ModerationTerm;
 
 import java.util.List;
 

@@ -1,7 +1,7 @@
 package org.chobit.knot.svc.service;
 
 import java.util.List;
-import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.svc.converter.ModelConverter;
 import org.chobit.knot.svc.dto.model.ModelApiBindingDto;
 import org.chobit.knot.svc.dto.model.ModelDto;
@@ -16,13 +16,12 @@ import org.chobit.knot.dal.mapper.LogicalModelMapper;
 import org.chobit.knot.dal.mapper.ModelApiBindingMapper;
 import org.chobit.knot.dal.mapper.ModelMapper;
 import org.chobit.knot.dal.mapper.ProviderAccountMapper;
-import org.chobit.knot.gateway.model.QuotaPolicy;
-import org.chobit.knot.gateway.model.RateLimitPolicy;
+import org.chobit.knot.common.model.QuotaPolicy;
+import org.chobit.knot.common.model.RateLimitPolicy;
 import org.chobit.knot.svc.model.TrafficPolicies;
-import org.chobit.knot.svc.service.ModelService;
 import org.chobit.knot.svc.service.support.ModelApiBindingSupport;
 import org.chobit.knot.svc.service.support.ResourceTrafficPolicySupport;
-import org.chobit.knot.gateway.adapter.usage.extractor.DefaultTokenUsageExtractor;
+import org.chobit.knot.adapter.usage.extractor.DefaultTokenUsageExtractor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

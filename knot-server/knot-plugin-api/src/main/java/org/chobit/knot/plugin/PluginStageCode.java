@@ -1,8 +1,8 @@
 package org.chobit.knot.plugin;
 
-import org.chobit.knot.gateway.constants.enums.EnumOption;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.common.constants.enums.EnumOption;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 
 /**
  * 插件执行阶段：已从 ks_enum_configs（plugin_stage_code 字典）迁出，

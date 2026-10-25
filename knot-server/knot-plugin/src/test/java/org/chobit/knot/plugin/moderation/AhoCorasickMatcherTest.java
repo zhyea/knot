@@ -1,8 +1,7 @@
 package org.chobit.knot.plugin.moderation;
 
-import org.chobit.knot.gateway.moderation.ModerationTerm;
-import org.chobit.knot.gateway.util.TextNormalizer;
-import org.chobit.knot.plugin.moderation.AhoCorasickMatcher;
+import org.chobit.knot.common.moderation.ModerationTerm;
+import org.chobit.knot.common.util.TextNormalizer;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

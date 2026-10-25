@@ -1,9 +1,9 @@
 package org.chobit.knot.gateway.upstream.request;
 
 import lombok.RequiredArgsConstructor;
-import org.chobit.knot.gateway.adapter.protocol.PassthroughUpstreamAdapter;
-import org.chobit.knot.gateway.adapter.protocol.UpstreamAdapterCatalog;
-import org.chobit.knot.gateway.adapter.protocol.UpstreamAdapter;
+import org.chobit.knot.adapter.protocol.PassthroughUpstreamAdapter;
+import org.chobit.knot.adapter.protocol.UpstreamAdapterCatalog;
+import org.chobit.knot.adapter.protocol.UpstreamAdapter;
 import org.springframework.stereotype.Component;
 
 @Component

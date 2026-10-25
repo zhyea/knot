@@ -3,9 +3,8 @@ package org.chobit.knot.svc.service;
 import org.chobit.knot.svc.converter.BillingConverter;
 import org.chobit.knot.svc.dto.billing.BillingRuleDto;
 import org.chobit.knot.dal.entity.BillingRuleEntity;
-import org.chobit.knot.gateway.error.BusinessException;
+import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.dal.mapper.BillingRuleMapper;
-import org.chobit.knot.svc.service.BillingService;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 

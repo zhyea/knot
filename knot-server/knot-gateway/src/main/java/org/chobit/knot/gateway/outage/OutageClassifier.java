@@ -1,8 +1,8 @@
 package org.chobit.knot.gateway.outage;
 
-import org.chobit.knot.gateway.constants.enums.ProxyErrorCodeEnum;
+import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
-import org.chobit.knot.gateway.model.EjectionPolicy;
+import org.chobit.knot.common.model.EjectionPolicy;
 
 /**
  * 判断一次上游失败是否算「这个模型本身的异常」，即是否计入摘除判定。
@@ -52,7 +52,7 @@ public final class OutageClassifier {
      *
      * <p><b>注意码表归属</b>：入参是 {@link GatewayUpstreamException#code()}，走
      * {@link ProxyErrorCodeEnum} 族（构造点见 {@code AbstractUpstreamProtocolExecutor}）；
-     * 与 {@link org.chobit.knot.gateway.constants.enums.GatewayErrorTypeEnum#UPSTREAM_ERROR}
+     * 与 {@link org.chobit.knot.common.constants.enums.GatewayErrorTypeEnum#UPSTREAM_ERROR}
      * 只是字符串同名，属另一个码表，不可互换。</p>
      */
     private static boolean countableByCode(String code) {

@@ -1,18 +1,18 @@
 package org.chobit.knot.gateway.upstream.stream;
 
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.adapter.protocol.StreamLineAdapter;
-import org.chobit.knot.gateway.adapter.protocol.UpstreamAdapter;
-import org.chobit.knot.gateway.adapter.support.SseLineSupport;
-import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
+import org.chobit.knot.adapter.protocol.StreamLineAdapter;
+import org.chobit.knot.adapter.protocol.UpstreamAdapter;
+import org.chobit.knot.adapter.support.SseLineSupport;
+import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.config.UsageExtractionProperties;
-import org.chobit.knot.gateway.constants.GatewayHeaders;
-import org.chobit.knot.gateway.adapter.model.usage.TokenBillingUsage;
-import org.chobit.knot.gateway.adapter.model.usage.UsageAccounting;
+import org.chobit.knot.common.constants.GatewayHeaders;
+import org.chobit.knot.adapter.model.usage.TokenBillingUsage;
+import org.chobit.knot.adapter.model.usage.UsageAccounting;
 import org.chobit.knot.gateway.runtime.FirstTokenHeaderWriter;
 import org.chobit.knot.gateway.runtime.RecordingHttpExchange;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
-import org.chobit.knot.gateway.adapter.usage.ModelUsageNormalizer;
+import org.chobit.knot.adapter.usage.ModelUsageNormalizer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -266,8 +266,8 @@ class ProxyStreamingFluxTest {
             }
 
             @Override
-            public Set<org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum> protocol() {
-                return Set.of(org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum.CHAT_COMPLETIONS);
+            public Set<org.chobit.knot.common.constants.enums.ModelApiProtocolEnum> protocol() {
+                return Set.of(org.chobit.knot.common.constants.enums.ModelApiProtocolEnum.CHAT_COMPLETIONS);
             }
 
             @Override
@@ -320,8 +320,8 @@ class ProxyStreamingFluxTest {
             }
 
             @Override
-            public Set<org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum> protocol() {
-                return Set.of(org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum.CHAT_COMPLETIONS);
+            public Set<org.chobit.knot.common.constants.enums.ModelApiProtocolEnum> protocol() {
+                return Set.of(org.chobit.knot.common.constants.enums.ModelApiProtocolEnum.CHAT_COMPLETIONS);
             }
 
             @Override
@@ -444,8 +444,8 @@ class ProxyStreamingFluxTest {
             }
 
             @Override
-            public Set<org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum> protocol() {
-                return Set.of(org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum.CHAT_COMPLETIONS);
+            public Set<org.chobit.knot.common.constants.enums.ModelApiProtocolEnum> protocol() {
+                return Set.of(org.chobit.knot.common.constants.enums.ModelApiProtocolEnum.CHAT_COMPLETIONS);
             }
 
             @Override
@@ -494,8 +494,8 @@ class ProxyStreamingFluxTest {
             }
 
             @Override
-            public Set<org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum> protocol() {
-                return Set.of(org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum.CHAT_COMPLETIONS);
+            public Set<org.chobit.knot.common.constants.enums.ModelApiProtocolEnum> protocol() {
+                return Set.of(org.chobit.knot.common.constants.enums.ModelApiProtocolEnum.CHAT_COMPLETIONS);
             }
 
             @Override

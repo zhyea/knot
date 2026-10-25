@@ -5,9 +5,9 @@ import org.chobit.knot.dal.entity.AdminMenuEntity;
 import org.chobit.knot.dal.entity.AdminModuleEntity;
 import org.chobit.knot.dal.entity.AdminPermissionEntity;
 import org.chobit.knot.dal.entity.AdminRoleEntity;
-import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.dal.mapper.AdminAuthorizationManageMapper;
 import org.springframework.stereotype.Component;
 

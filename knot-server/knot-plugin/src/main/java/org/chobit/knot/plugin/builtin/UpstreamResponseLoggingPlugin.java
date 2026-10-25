@@ -6,18 +6,18 @@ import lombok.extern.slf4j.Slf4j;
 
 
 
-import org.chobit.knot.gateway.plugin.PluginBindingView;
-import org.chobit.knot.gateway.plugin.PluginDescriptor;
-import org.chobit.knot.gateway.plugin.PluginExtensionPoint;
-import org.chobit.knot.gateway.plugin.PluginHandler;
-import org.chobit.knot.gateway.plugin.PluginStageCode;
+import org.chobit.knot.plugin.PluginBindingView;
+import org.chobit.knot.plugin.PluginDescriptor;
+import org.chobit.knot.plugin.PluginExtensionPoint;
+import org.chobit.knot.plugin.PluginHandler;
+import org.chobit.knot.plugin.PluginStageCode;
 import org.chobit.knot.plugin.log.PluginLogWriter;
 
 import org.chobit.knot.plugin.log.UpstreamResponsePayload;
 
-import org.chobit.knot.gateway.plugin.upstream.UpstreamPluginContext;
+import org.chobit.knot.plugin.upstream.UpstreamPluginContext;
 
-import org.chobit.knot.gateway.util.JsonKit;
+import org.chobit.knot.common.util.JsonKit;
 
 import org.springframework.stereotype.Component;
 

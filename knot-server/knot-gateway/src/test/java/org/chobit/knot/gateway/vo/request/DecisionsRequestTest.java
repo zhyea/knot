@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.vo.request;
 
-import org.chobit.knot.gateway.util.JsonKit;
+import org.chobit.knot.common.util.JsonKit;
+import org.chobit.knot.gateway.model.vo.request.DecisionsRequest;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

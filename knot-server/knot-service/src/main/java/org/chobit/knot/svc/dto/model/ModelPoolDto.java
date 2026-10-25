@@ -1,6 +1,6 @@
 package org.chobit.knot.svc.dto.model;
 
-import org.chobit.knot.gateway.model.StickyPolicy;
+import org.chobit.knot.common.model.StickyPolicy;
 
 import java.util.List;
 

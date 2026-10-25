@@ -5,10 +5,9 @@ import org.chobit.knot.svc.dto.moderation.ModerationWordDto;
 import org.chobit.knot.svc.dto.moderation.ModerationWordImportItem;
 import org.chobit.knot.svc.dto.moderation.ModerationWordImportResult;
 import org.chobit.knot.dal.entity.ModerationWordEntity;
-import org.chobit.knot.gateway.error.BusinessException;
+import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.dal.mapper.ModerationWordMapper;
-import org.chobit.knot.gateway.moderation.ModerationTerm;
-import org.chobit.knot.svc.service.ModerationWordService;
+import org.chobit.knot.common.moderation.ModerationTerm;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

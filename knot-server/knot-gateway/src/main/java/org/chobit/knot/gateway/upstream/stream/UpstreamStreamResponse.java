@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.upstream.stream;
 
-import org.chobit.knot.gateway.adapter.protocol.UpstreamAdapter;
-import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
+import org.chobit.knot.adapter.protocol.UpstreamAdapter;
+import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.MediaType;
 import reactor.core.publisher.Flux;

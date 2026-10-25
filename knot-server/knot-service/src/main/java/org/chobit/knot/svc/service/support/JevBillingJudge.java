@@ -3,7 +3,7 @@ package org.chobit.knot.svc.service.support;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.svc.config.JevJudgeProperties;
-import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.svc.dto.routing.BillingFactAmount;
 import org.chobit.knot.svc.dto.routing.BillingFactAmountLine;
 import org.chobit.knot.svc.dto.routing.BillingFactRuleRef;

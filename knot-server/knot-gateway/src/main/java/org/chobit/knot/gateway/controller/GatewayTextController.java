@@ -1,11 +1,11 @@
 package org.chobit.knot.gateway.controller;
 
-import org.chobit.knot.gateway.constants.GatewayHeaders;
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.constants.GatewayHeaders;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
-import org.chobit.knot.gateway.vo.request.ChatCompletionRequest;
-import org.chobit.knot.gateway.vo.request.CompletionRequest;
-import org.chobit.knot.gateway.vo.request.ResponseRequest;
+import org.chobit.knot.gateway.model.vo.request.ChatCompletionRequest;
+import org.chobit.knot.gateway.model.vo.request.CompletionRequest;
+import org.chobit.knot.gateway.model.vo.request.ResponseRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;

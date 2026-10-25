@@ -2,8 +2,8 @@ package org.chobit.knot.svc.service;
 
 import java.util.List;
 import java.util.Map;
-import org.chobit.knot.gateway.constants.enums.EnumOptionItem;
-import org.chobit.knot.gateway.constants.enums.ModelTypeEnum;
+import org.chobit.knot.common.constants.enums.EnumOptionItem;
+import org.chobit.knot.common.constants.enums.ModelTypeEnum;
 import org.chobit.knot.svc.service.support.EnumOptionRegistry;
 import org.junit.jupiter.api.Test;
 

@@ -1,7 +1,7 @@
 package org.chobit.knot.svc.converter;
 
 import org.chobit.knot.dal.entity.OptionRow;
-import org.chobit.knot.gateway.util.JsonKit;
+import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.svc.vo.common.OptionItem;
 import org.chobit.knot.svc.vo.common.meta.AppOptionMeta;
 import org.chobit.knot.svc.vo.common.meta.DepartmentOptionMeta;

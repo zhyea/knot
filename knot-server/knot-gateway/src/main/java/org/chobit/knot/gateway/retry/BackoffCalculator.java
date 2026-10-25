@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.retry;
 
-import org.chobit.knot.gateway.model.RetryPolicy;
+import org.chobit.knot.common.model.RetryPolicy;
 
 import java.util.concurrent.ThreadLocalRandom;
 

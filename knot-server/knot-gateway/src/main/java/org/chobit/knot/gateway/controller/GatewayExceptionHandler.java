@@ -2,9 +2,9 @@ package org.chobit.knot.gateway.controller;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.chobit.knot.gateway.constants.enums.GatewayErrorTypeEnum;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.GatewayBadRequestException;
+import org.chobit.knot.common.constants.enums.GatewayErrorTypeEnum;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.GatewayBadRequestException;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
 import org.chobit.knot.gateway.exception.GatewayRequestException;

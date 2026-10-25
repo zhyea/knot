@@ -3,7 +3,7 @@ package org.chobit.knot.svc.vo.model;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import org.chobit.knot.gateway.model.StickyPolicy;
+import org.chobit.knot.common.model.StickyPolicy;
 
 import java.util.List;
 

@@ -1,11 +1,10 @@
 package org.chobit.knot.svc.service;
 
 import org.chobit.knot.dal.entity.EnumConfigEntity;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.gateway.error.ErrorCode;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.dal.mapper.EnumCategoryMapper;
 import org.chobit.knot.dal.mapper.EnumConfigMapper;
-import org.chobit.knot.svc.service.EnumConfigService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

@@ -1,19 +1,19 @@
 package org.chobit.knot.gateway.upstream.usage;
 
-import org.chobit.knot.gateway.adapter.model.ref.ProviderAccountRef;
-import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
+import org.chobit.knot.adapter.model.ref.ProviderAccountRef;
+import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.config.UsageExtractionProperties;
-import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.adapter.model.ref.ModelApiBindingRef;
-import org.chobit.knot.gateway.adapter.model.usage.TokenBillingUsage;
-import org.chobit.knot.gateway.adapter.model.usage.UsageAccounting;
-import org.chobit.knot.gateway.adapter.usage.UsageExtractItem;
-import org.chobit.knot.gateway.adapter.usage.calculator.BillingModeCalculator;
-import org.chobit.knot.gateway.adapter.usage.calculator.TokenBillingModeCalculator;
-import org.chobit.knot.gateway.adapter.usage.extractor.DefaultTokenUsageExtractor;
-import org.chobit.knot.gateway.adapter.usage.extractor.UsageExtractor;
-import org.chobit.knot.gateway.adapter.usage.extractor.UsageExtractorCatalog;
+import org.chobit.knot.common.constants.enums.BillingModeEnum;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.adapter.model.ref.ModelApiBindingRef;
+import org.chobit.knot.adapter.model.usage.TokenBillingUsage;
+import org.chobit.knot.adapter.model.usage.UsageAccounting;
+import org.chobit.knot.adapter.usage.UsageExtractItem;
+import org.chobit.knot.adapter.usage.calculator.BillingModeCalculator;
+import org.chobit.knot.adapter.usage.calculator.TokenBillingModeCalculator;
+import org.chobit.knot.adapter.usage.extractor.DefaultTokenUsageExtractor;
+import org.chobit.knot.adapter.usage.extractor.UsageExtractor;
+import org.chobit.knot.adapter.usage.extractor.UsageExtractorCatalog;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

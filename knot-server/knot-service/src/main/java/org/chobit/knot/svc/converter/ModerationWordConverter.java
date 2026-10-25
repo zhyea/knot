@@ -1,6 +1,6 @@
 package org.chobit.knot.svc.converter;
 
-import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
+import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.svc.dto.moderation.ModerationWordDto;
 import org.chobit.knot.dal.entity.ModerationWordEntity;
 import org.chobit.knot.svc.vo.moderation.ModerationWordItem;

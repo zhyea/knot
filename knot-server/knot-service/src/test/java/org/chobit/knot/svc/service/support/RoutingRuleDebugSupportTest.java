@@ -1,8 +1,7 @@
 package org.chobit.knot.svc.service.support;
 
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.error.BusinessException;
-import org.chobit.knot.svc.service.support.RoutingRuleDebugSupport;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.error.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

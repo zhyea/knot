@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.traffic;
 
-import org.chobit.knot.gateway.model.TrafficPolicies;
+import org.chobit.knot.svc.model.TrafficPolicies;
 
 /**
  * 流量策略数据源：把「策略从哪来」与「计数存哪去」并列成两个可替换依赖。

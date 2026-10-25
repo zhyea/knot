@@ -3,7 +3,7 @@ package org.chobit.knot.svc.vo.model;
 import java.util.List;
 
 /**
- * Model type option maintained by {@link org.chobit.knot.gateway.constants.enums.ModelTypeEnum}.
+ * Model type option maintained by {@link org.chobit.knot.common.constants.enums.ModelTypeEnum}.
  */
 public record ModelTypeItem(String code,
                             String displayName,

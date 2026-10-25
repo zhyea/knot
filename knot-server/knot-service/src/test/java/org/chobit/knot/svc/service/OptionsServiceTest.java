@@ -2,13 +2,12 @@ package org.chobit.knot.svc.service;
 
 import org.chobit.knot.svc.converter.OptionConverter;
 import org.chobit.knot.dal.entity.OptionRow;
-import org.chobit.knot.gateway.error.BusinessException;
+import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.dal.mapper.OptionsMapper;
-import org.chobit.knot.gateway.model.BillingRuleOptionQuery;
-import org.chobit.knot.gateway.model.ModelPoolOptionQuery;
-import org.chobit.knot.gateway.model.RoutingConsumerOptionQuery;
-import org.chobit.knot.gateway.model.UserOptionQuery;
-import org.chobit.knot.svc.service.OptionsService;
+import org.chobit.knot.common.model.BillingRuleOptionQuery;
+import org.chobit.knot.common.model.ModelPoolOptionQuery;
+import org.chobit.knot.common.model.RoutingConsumerOptionQuery;
+import org.chobit.knot.common.model.UserOptionQuery;
 import org.chobit.knot.svc.vo.common.OptionItem;
 import org.chobit.knot.svc.vo.common.OptionPage;
 import org.chobit.knot.svc.vo.common.meta.ModelMeta;

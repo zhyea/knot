@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.upstream.protocol;
 
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

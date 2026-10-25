@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.routing;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.extern.slf4j.Slf4j;
-import org.chobit.knot.gateway.model.StickyPolicy;
+import org.chobit.knot.common.model.StickyPolicy;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;

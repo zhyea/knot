@@ -1,6 +1,6 @@
 package org.chobit.knot.svc.service.support;
 
-import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
+import org.chobit.knot.common.constants.enums.BillingModeEnum;
 import org.chobit.knot.svc.dto.routing.BillingCheckCode;
 import org.chobit.knot.svc.dto.routing.BillingCheckResult;
 import org.chobit.knot.svc.dto.routing.BillingCheckStatus;

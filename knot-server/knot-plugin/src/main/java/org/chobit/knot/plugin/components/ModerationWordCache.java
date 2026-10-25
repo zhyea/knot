@@ -1,6 +1,6 @@
 package org.chobit.knot.plugin.components;
 
-import org.chobit.knot.gateway.moderation.ModerationTerm;
+import org.chobit.knot.common.moderation.ModerationTerm;
 import org.chobit.knot.plugin.moderation.ModerationSnapshot;
 import org.springframework.stereotype.Component;
 

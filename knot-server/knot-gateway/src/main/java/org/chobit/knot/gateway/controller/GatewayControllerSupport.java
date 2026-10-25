@@ -1,13 +1,13 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
-import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.runtime.GatewayHttpExchange;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
 import org.chobit.knot.gateway.runtime.GatewayStreamingResponse;
 import org.chobit.knot.gateway.runtime.MdcContextSupport;
 import org.chobit.knot.gateway.runtime.ReactiveHttpExchange;
-import org.chobit.knot.gateway.vo.request.GatewayModelRequest;
+import org.chobit.knot.gateway.model.vo.request.GatewayModelRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
