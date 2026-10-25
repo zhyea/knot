@@ -599,7 +599,9 @@ public class BillingService {
         return mode.normalizeUnit(value);
     }
 
-    /** 模式枚举：未知编码按 {@link BillingModeEnum#CUSTOM} 处理（与预览链路同口径） */
+    /**
+     * 模式枚举：未知编码按 {@link BillingModeEnum#CUSTOM} 处理（与预览链路同口径）
+     */
     private static BillingModeEnum modeEnumOf(String billingMode) {
         BillingModeEnum mode = BillingModeEnum.fromCode(billingMode);
         return mode == null ? BillingModeEnum.CUSTOM : mode;
