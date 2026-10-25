@@ -285,16 +285,6 @@ async function submit() {
   border-color: #e4e7ed;
 }
 
-.section-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #ebeef5;
-}
-
 .section-head--compact {
   justify-content: flex-start;
 }

@@ -736,16 +736,6 @@ async function submit() {
   padding: 0 8px;
 }
 
-.section-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #ebeef5;
-}
-
 .inline-switch {
   margin-bottom: 0;
 }

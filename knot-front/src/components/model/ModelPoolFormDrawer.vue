@@ -431,16 +431,6 @@ async function submit() {
   box-shadow: 0 8px 24px rgba(31, 45, 61, 0.04);
 }
 
-.section-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #ebeef5;
-}
-
 .section-head p {
   margin: 5px 0 0;
   color: #909399;

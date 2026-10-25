@@ -172,16 +172,6 @@ async function submitEject() {
 
 <style scoped>
 /* `.rule-section` 的边框/阴影样式由父组件 scoped CSS 命中本组件根节点，无需重复定义 */
-.section-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #ebeef5;
-}
-
 .section-head p {
   margin: 5px 0 0;
   color: #909399;

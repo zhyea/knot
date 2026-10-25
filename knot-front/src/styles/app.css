@@ -288,6 +288,19 @@ body,
     font-weight: 600;
 }
 
+/* .section-head 容器：10 处 FormDrawer 完全一致（仅边框字面 #ebeef5 与 var(--knot-border) 视觉等价），
+   统一收口到全局；LogicalModelFormDrawer 原即用 token 形式。修饰符 .section-head--compact 与
+   .section-head p 仍是各组件 scoped 覆写，不并入。 */
+.section-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--knot-border, #ebeef5);
+}
+
 /* 全局细滚动条（原生 overflow 区域） */
 :root {
     --knot-scrollbar-size: 4px; /* WebKit 最细可用宽度；Firefox 使用 scrollbar-width: thin */
