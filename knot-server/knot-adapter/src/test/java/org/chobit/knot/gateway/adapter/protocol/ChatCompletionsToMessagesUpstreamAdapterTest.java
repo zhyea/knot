@@ -1,8 +1,10 @@
 package org.chobit.knot.gateway.adapter.protocol;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -100,6 +102,62 @@ class ChatCompletionsToMessagesUpstreamAdapterTest {
                 adapter.buildRequestBody(context(ModelApiProtocolEnum.CHAT_COMPLETIONS, source)));
 
         assertEquals(1024, result.get(AiPayloadFields.MAX_TOKENS), "缺失时补 Anthropic 要求的默认值");
+    }
+
+    @Test
+    void shouldConvertMessagesResponseToChatCompletion() {
+        Map<String, Object> result = readMap(adapter.handleResponse(messagesResponse("end_turn"),
+                context(ModelApiProtocolEnum.CHAT_COMPLETIONS, Map.of())));
+
+        assertEquals("chat.completion", result.get("object"));
+        Map<String, Object> choice = asMap(((List<?>) result.get("choices")).get(0));
+        Map<String, Object> message = asMap(choice.get("message"));
+        assertEquals("assistant", message.get(AiPayloadFields.ROLE));
+        assertEquals("Hello world", message.get(AiPayloadFields.CONTENT), "多个文本块应拼接");
+        assertEquals("stop", choice.get("finish_reason"));
+
+        Map<String, Object> usage = asMap(result.get(AiPayloadFields.USAGE));
+        assertEquals(12L, ((Number) usage.get(AiPayloadFields.PROMPT_TOKENS)).longValue(), "input_tokens → prompt_tokens");
+        assertEquals(7L, ((Number) usage.get(AiPayloadFields.COMPLETION_TOKENS)).longValue(), "output_tokens → completion_tokens");
+        assertEquals(19L, ((Number) usage.get(AiPayloadFields.TOTAL_TOKENS)).longValue(), "缺 total 时按两者之和补齐");
+        assertEquals(3L, ((Number) usage.get("cache_read_input_tokens")).longValue(), "缓存读独立携带");
+    }
+
+    @Test
+    void shouldMapAnthropicStopReasonToOpenAiFinishReason() {
+        assertEquals("length", finishReasonOf("max_tokens"));
+        assertEquals("tool_calls", finishReasonOf("tool_use"));
+        assertEquals("content_filter", finishReasonOf("refusal"));
+        assertEquals("stop", finishReasonOf("pause_turn"));
+        assertEquals("stop", finishReasonOf("something_unknown"), "未知原因不猜，按正常结束");
+    }
+
+    @Test
+    void shouldPassThroughNonMessagesResponses() {
+        String error = "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"bad\"}}";
+        Map<String, Object> body = Map.of();
+        assertEquals(error, adapter.handleResponse(error, context(ModelApiProtocolEnum.CHAT_COMPLETIONS, body)),
+                "错误体必须原样透传，绝不改写成成功形状");
+        assertEquals("not-json", adapter.handleResponse("not-json", context(ModelApiProtocolEnum.CHAT_COMPLETIONS, body)));
+        assertEquals("", adapter.handleResponse("", context(ModelApiProtocolEnum.CHAT_COMPLETIONS, body)));
+    }
+
+    private String finishReasonOf(String stopReason) {
+        Map<String, Object> result = readMap(adapter.handleResponse(messagesResponse(stopReason),
+                context(ModelApiProtocolEnum.CHAT_COMPLETIONS, Map.of())));
+        return (String) asMap(((List<?>) result.get("choices")).get(0)).get("finish_reason");
+    }
+
+    private String messagesResponse(String stopReason) {
+        return "{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4\","
+                + "\"content\":[{\"type\":\"text\",\"text\":\"Hello\"},{\"type\":\"text\",\"text\":\" world\"}],"
+                + "\"stop_reason\":\"" + stopReason + "\","
+                + "\"usage\":{\"input_tokens\":12,\"output_tokens\":7,\"cache_read_input_tokens\":3}}";
+    }
+
+    private Map<String, Object> readMap(String json) {
+        return JsonKit.fromJson(json, new TypeReference<>() {
+        });
     }
 
     private Map<String, Object> chatCompletionsBody() {

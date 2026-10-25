@@ -88,4 +88,32 @@ robin 追问「看下 `AuthConfig.value`」。判定：`value` 方法本身语�
 
 新立判据（§4.7）：**纯转发壳同样是冗余**——委托层不带知识增量时删掉、调用方直调（判例：`value` 合并后只剩一行转发，robin 指出后同批删除）。
 
+## 9. 响应侧适配补齐：4 个泛化适配器（同日，robin 指出）
+
+robin 指出「UpstreamAdapter 仅对请求做了处理，还没有对响应做适配」。核查：Bedrock 四个适配器有响应侧（converse→OpenAI）、Passthrough 本就双向透传，但**四个泛化适配器只有 `buildRequestBody`，`handleResponse` 走默认透传**——请求 chat.completions 的客户端会收到 Anthropic message JSON；更严重的是**计费提取吃的是 `handleResponse` 的产物**，错形状会连带算错账。
+
+### 落地
+
+新增 `adapter/support/anthropic/AnthropicMessagesResponseSupport`（协议级双向转换，与 `AnthropicMessagesRequestSupport` 对称），四个方法各服务一个适配器：
+
+| 方法 | 方向 |
+|---|---|
+| `messagesToChatCompletion` | Messages → `chat.completion`（choices[].message + finish_reason） |
+| `messagesToTextCompletion` | Messages → `text_completion`（旧版 completions，choices[].text） |
+| `messagesToResponses` | Messages → Responses `response` 对象（output[].content[].output_text + status） |
+| `chatCompletionToMessages` | `chat.completion` → Messages（content 文本块 + stop_reason） |
+
+约定：① **非目标形状原样透传**——错误体（`type:error`）、非 JSON、缺 `choices` 一律不改写，绝不把失败响应包装成「看起来成功」；② **usage 双向换算**（input/output ↔ prompt/completion/total）；③ 响应方向也保留缓存明细：Messages→OpenAI 沿用 `cache_read_input_tokens`/`cache_creation_input_tokens` 键，Messages→Responses 挂到 `input_tokens_details.cached_tokens`（Responses 的明细位，计费侧 `nestedLong` 正好读这里）；④ stop/finish 原因双向映射表**与 Converse 的表刻意不共用**——词表不同（Anthropic 有 `pause_turn`/`refusal`，Converse 有 `content_filtered`/`guardrail_intervened`），合并会把两个协议枚举混成一批；⑤ 缓存口径待实测（R2，见类注释）：反向不带缓存键——OpenAI 的 `prompt_tokens` 已含 `cached_tokens`，再携带会被加回型提取器二次计入。
+
+### 明确未做（记录在案）
+
+- **流式 `handleStreamEvent`**：4 个适配器仍未覆写。SSE 协议级转换需要改写/丢弃 `event:` 行、合成 `[DONE]`、按需插入 `message_start`/`content_block_*` 等新事件，而当前管线（`ProxyStreamingFlux`）只把 `data:` 行交给适配器、其余行原样透传，**无抑制/合成能力**——需先改管线，属独立设计决策，不在本批硬凑。
+- **工具调用块**：`tool_use` ↔ `tool_calls` 的块级转换未实现（请求侧 `tools` 同样未做 OpenAI/Anthropic 形状转换），工具场景下文本为空、finish 原因照实映射——两侧必须一起做才有意义。
+
+### 测试
+
++9 例（ChatCompletions 6→9、Completions 5→7、Messages→ChatCompletions 6→8、Responses 5→7）：转换形状 + usage 换算 + finish/stop 双向映射 + **错误体/非 JSON/异形响应原样透传**（反向断言，防止把失败包装成成功）。
+
+**门禁**：`mvn -f knot-server/pom.xml clean test` → 见下条；日志 `audit/response_adapt_gate.log`。
+
 **未 commit，待批准。**

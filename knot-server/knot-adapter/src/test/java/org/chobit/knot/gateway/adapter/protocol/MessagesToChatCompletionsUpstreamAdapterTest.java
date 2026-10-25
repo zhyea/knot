@@ -1,8 +1,10 @@
 package org.chobit.knot.gateway.adapter.protocol;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -99,6 +101,45 @@ class MessagesToChatCompletionsUpstreamAdapterTest {
         List<Map<String, Object>> messages = (List<Map<String, Object>>) result.get(AiPayloadFields.MESSAGES);
         assertEquals(1, messages.size(), "null system 不应产出 system 消息");
         assertEquals("user", messages.get(0).get(AiPayloadFields.ROLE));
+    }
+
+    @Test
+    void shouldConvertChatCompletionResponseToMessages() {
+        Map<String, Object> result = readMap(adapter.handleResponse(
+                "{\"id\":\"chatcmpl-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"gpt-x\","
+                        + "\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"Hi\"},"
+                        + "\"finish_reason\":\"length\"}],"
+                        + "\"usage\":{\"prompt_tokens\":12,\"completion_tokens\":7,\"total_tokens\":19,"
+                        + "\"prompt_tokens_details\":{\"cached_tokens\":3}}}",
+                context(ModelApiProtocolEnum.MESSAGES, Map.of())));
+
+        assertEquals("message", result.get("type"));
+        assertEquals("assistant", result.get(AiPayloadFields.ROLE));
+        assertEquals("max_tokens", result.get("stop_reason"), "length → max_tokens");
+        Map<String, Object> block = asMap(((List<?>) result.get(AiPayloadFields.CONTENT)).get(0));
+        assertEquals("text", block.get("type"));
+        assertEquals("Hi", block.get("text"));
+
+        Map<String, Object> usage = asMap(result.get(AiPayloadFields.USAGE));
+        assertEquals(12L, ((Number) usage.get(AiPayloadFields.INPUT_TOKENS)).longValue(), "prompt_tokens → input_tokens");
+        assertEquals(7L, ((Number) usage.get(AiPayloadFields.OUTPUT_TOKENS)).longValue(), "completion_tokens → output_tokens");
+        assertFalse(usage.containsKey("cache_read_input_tokens"),
+                "OpenAI 的 prompt_tokens 已含 cached_tokens，再带缓存键会被加回型提取器二次计入");
+    }
+
+    @Test
+    void shouldPassThroughNonChatCompletionResponses() {
+        String error = "{\"error\":{\"message\":\"bad\",\"type\":\"invalid_request_error\"}}";
+        assertEquals(error, adapter.handleResponse(error, context(ModelApiProtocolEnum.MESSAGES, Map.of())),
+                "错误体必须原样透传");
+        String responsesShape = "{\"id\":\"resp_1\",\"object\":\"response\",\"output\":[]}";
+        assertEquals(responsesShape, adapter.handleResponse(responsesShape, context(ModelApiProtocolEnum.MESSAGES, Map.of())),
+                "非 chat.completion 形状不改写");
+    }
+
+    private Map<String, Object> readMap(String json) {
+        return JsonKit.fromJson(json, new TypeReference<>() {
+        });
     }
 
     private Map<String, Object> anthropicStyleBody() {

@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.adapter.protocol;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.adapter.support.RequestFieldSupport;
+import org.chobit.knot.gateway.adapter.support.anthropic.AnthropicMessagesResponseSupport;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
@@ -18,8 +19,12 @@ import java.util.Set;
 /**
  * Anthropic Messages → OpenAI ChatCompletions 适配器（泛化转换，不隶属单一供应商）。
  *
- * <p><b>只服务 {@code MESSAGES} 一种入协议</b>：OpenAI 系其余协议（ChatCompletions / Embeddings /
- * Image 等）的请求与响应均为原样透传，由 {@link PassthroughUpstreamAdapter} 承担，不在本类重复。</p>
+ * <p><b>只服务 {@code MESSAGES} 一种入协议</b>：请求侧 system 折成首条 system 消息、
+ * {@code stop_sequences→stop}、移除 {@code top_k}；响应侧把上游的 {@code chat.completion}
+ * 翻回 Messages 形状（content 文本块 + stop_reason + usage，非 chat.completion 响应原样透传）。</p>
+ *
+ * <p>OpenAI 系其余协议（ChatCompletions / Embeddings / Image 等）的请求与响应均为原样透传，
+ * 由 {@link PassthroughUpstreamAdapter} 承担，不在本类重复。</p>
  */
 @Component
 @Order(100)
@@ -56,6 +61,12 @@ public class MessagesToChatCompletionsUpstreamAdapter implements UpstreamAdapter
     @Override
     public Object buildRequestBody(UpstreamRequestContext context) {
         return anthropicMessagesToChatCompletions(context.requestBody());
+    }
+
+    /** 响应侧：{@code chat.completion} → Messages（usage 换 Anthropic 口径，其余原样透传）。 */
+    @Override
+    public String handleResponse(String responseBody, UpstreamRequestContext context) {
+        return AnthropicMessagesResponseSupport.chatCompletionToMessages(responseBody, context);
     }
 
     @SuppressWarnings("unchecked")

@@ -1,8 +1,10 @@
 package org.chobit.knot.gateway.adapter.protocol;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.gateway.util.JsonKit;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -82,6 +84,34 @@ class CompletionsToMessagesUpstreamAdapterTest {
 
         assertTrue(source.containsKey(AiPayloadFields.PROMPT), "原始请求仍应保留 prompt");
         assertFalse(source.containsKey(AiPayloadFields.MESSAGES), "原始请求不应被写入 messages");
+    }
+
+    @Test
+    void shouldConvertMessagesResponseToTextCompletion() {
+        Map<String, Object> result = readMap(adapter.handleResponse(
+                "{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4\","
+                        + "\"content\":[{\"type\":\"text\",\"text\":\"Hello\"}],\"stop_reason\":\"max_tokens\","
+                        + "\"usage\":{\"input_tokens\":12,\"output_tokens\":7}}",
+                context(ModelApiProtocolEnum.COMPLETIONS, Map.of())));
+
+        assertEquals("text_completion", result.get("object"));
+        Map<String, Object> choice = asMap(((List<?>) result.get("choices")).get(0));
+        assertEquals("Hello", choice.get("text"));
+        assertEquals("length", choice.get("finish_reason"), "max_tokens → length");
+        Map<String, Object> usage = asMap(result.get(AiPayloadFields.USAGE));
+        assertEquals(12L, ((Number) usage.get(AiPayloadFields.PROMPT_TOKENS)).longValue());
+        assertEquals(19L, ((Number) usage.get(AiPayloadFields.TOTAL_TOKENS)).longValue());
+    }
+
+    @Test
+    void shouldPassThroughNonMessagesResponses() {
+        String error = "{\"type\":\"error\",\"error\":{\"type\":\"overloaded_error\",\"message\":\"busy\"}}";
+        assertEquals(error, adapter.handleResponse(error, context(ModelApiProtocolEnum.COMPLETIONS, Map.of())));
+    }
+
+    private Map<String, Object> readMap(String json) {
+        return JsonKit.fromJson(json, new TypeReference<>() {
+        });
     }
 
     private UpstreamRequestContext context(ModelApiProtocolEnum protocol, Map<String, Object> body) {

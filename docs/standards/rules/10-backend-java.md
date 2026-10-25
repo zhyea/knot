@@ -129,6 +129,8 @@ model       → 领域值对象（非表映射）
 
 上游适配器接口为 `UpstreamAdapter`（`adapter.protocol` 包），是**双向角色**：请求适配（`resolvePath` / `buildRequestBody` / `resolveContentType`）与响应适配（`handleResponse` 整包 / `handleStreamEvent` 流式）由同一实现持有。**不存在**「只适配请求」或「只适配响应」的拆分角色——一次协议转换的两个方向必须同源，拆开只会让两侧各漂移一份口径。
 
+⚠ **协议转换类适配器必须覆写 `handleResponse`**：默认透传只服务 `PassthroughUpstreamAdapter`（同协议）。只做请求侧转换会让客户端拿到上游协议形状（判例：四个泛化适配器 2026-10-25 前只有 `buildRequestBody`，chat.completions 请求收到的是 Anthropic JSON），且**计费提取吃的是转换后产物**——错形状会连带算错账。响应转换的约定：非目标形状（错误体、非 JSON）一律原样透传，绝不改写成成功形状；usage 必须双向换算。⚠ **流式 `handleStreamEvent` 目前只拿到 `data:` 行**（`event:` 行不经过适配器、无抑制/合成能力），SSE 协议级转换（改写事件类型、合成 `[DONE]`）需先改管线，勿在适配器里硬凑。
+
 命名规则：
 
 1. **结构** `<供应商>+<原协议>+<新协议>+UpstreamAdapter`，如 `AwsBedrockChatCompletionsToConverseUpstreamAdapter`；code = 类名去后缀 SCREAMING_SNAKE 化（`AWS_BEDROCK_CHAT_COMPLETIONS_TO_CONVERSE`），即 `kb_model_api_bindings.request_adapter` 的绑定值（列名不变）。
