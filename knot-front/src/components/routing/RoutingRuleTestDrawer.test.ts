@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { nextTick } from "vue";
-import { mount, flushPromises, type VueWrapper } from "@vue/test-utils";
-import { ElDrawer } from "element-plus";
+import { mount, flushPromises, enableAutoUnmount, type VueWrapper } from "@vue/test-utils";
+import { afterEach } from "vitest";
+import { ElDrawer, ElOption, ElSelect } from "element-plus";
 import RoutingRuleTestDrawer from "@/components/routing/RoutingRuleTestDrawer.vue";
 
 /**
@@ -102,10 +103,14 @@ vi.mock("@/api/routing", () => ({
 import {
   listRoutingRuleDebugProtocols,
   listTestRequestPresetOptions,
-  testRoutingRule
+  testRoutingRule,
+  testRoutingRuleStream
 } from "@/api/routing";
 
 const TARGETS = [{ targetType: "MODEL", targetId: 1, targetCode: "m1", modelType: "TOKEN" }];
+
+// 每条用例都挂一个抽屉：不卸载会累积到后续用例（曾让 fake timers 的用例卡住 5.9s 超时）
+enableAutoUnmount(afterEach);
 
 /** 打开抽屉必须走 setProps：抽屉的初始化挂在 watch(modelValue) 上，没有 immediate */
 async function openDrawer(props: Record<string, unknown> = {}): Promise<VueWrapper> {
@@ -136,6 +141,49 @@ function toolbarButton(wrapper: VueWrapper, modifier: string) {
   return found.exists() ? found : null;
 }
 
+/** 当前激活的结果页标题（Body / 概览 / Header / 流式响应） */
+function activeTabLabel(wrapper: VueWrapper): string {
+  return wrapper.find(".debug-tabs--response .el-tabs__item.is-active").text();
+}
+
+/** 抽屉里第 index 个 el-select（0=调试目标、1=接口协议） */
+function selectOf(wrapper: VueWrapper, index: number) {
+  const all = wrapper.findAllComponents(ElSelect);
+  if (!all[index]) {
+    throw new Error(`找不到第 ${index} 个 el-select`);
+  }
+  return all[index];
+}
+
+/** 协议下拉当前渲染出的选项值（读 el-option 组件实例——展开态 DOM 会 teleport 到 body） */
+function protocolOptionLabels(wrapper: VueWrapper): string[] {
+  return selectOf(wrapper, 1)
+    .findAllComponents(ElOption)
+    .map((node) => String(node.props("value")));
+}
+
+/** 通过 JsonCodeEditor 的 v-model 写入请求模板（stub 上 emit 即驱动真实 composable） */
+async function setTemplate(wrapper: VueWrapper, text: string) {
+  const editor = wrapper.findComponent({ name: "JsonCodeEditor" });
+  if (!editor.exists()) {
+    throw new Error("请求模板编辑器未渲染（先切到「预设请求」页）");
+  }
+  editor.vm.$emit("update:modelValue", text);
+  await flushPromises();
+}
+
+/** 点击结果区的某个 tab 标题 */
+async function openTab(wrapper: VueWrapper, label: string) {
+  const tab = wrapper
+    .findAll(".debug-tabs--response .el-tabs__item")
+    .find((node) => node.text() === label);
+  if (!tab) {
+    throw new Error(`找不到结果页签：${label}`);
+  }
+  await tab.trigger("click");
+  await flushPromises();
+}
+
 describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -147,7 +195,15 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     h.stream.streamStartedAt.value = null;
     h.verdict.verdictActive.value = false;
     h.verdict.verdictResult.value = null;
+    h.verdict.knotExtend.value = null;
     h.caps.loadOptions = vi.fn().mockResolvedValue(undefined);
+    // ⚠ `clearAllMocks` 只清调用记录，**不清 mockResolvedValue**：
+    // 上一条用例换过的返回数据会静默延续到下一条（曾让「单目标只有自己的协议」拿到并集）。
+    vi.mocked(listRoutingRuleDebugProtocols).mockResolvedValue({
+      targets: [{ targetType: "MODEL", targetId: 1, protocols: ["CHAT_COMPLETIONS"] }]
+    } as never);
+    vi.mocked(testRoutingRule).mockReset();
+    vi.mocked(testRoutingRuleStream).mockReset();
   });
 
   it("标题带规则名；无规则名时只显示固定标题", async () => {
@@ -211,12 +267,29 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     expect(h.stream.abortStreaming).toHaveBeenCalledTimes(1);
   });
 
-  it("密钥为空时点发送直接早退，不发请求", async () => {
+  it("缺消费者密钥：发送按钮禁用 + 界面写明原因（不再让人去填一个不存在的输入框）", async () => {
     const wrapper = await openDrawer({ secretKey: "" });
-    await toolbarButton(wrapper, "primary")!.trigger("click");
-    await flushPromises();
 
+    const send = toolbarButton(wrapper, "primary");
+    expect(send).not.toBeNull();
+    expect(send!.attributes("disabled")).toBeDefined();
+
+    // 原因必须可见：旧实现只有一句「请填写 API Key」，而界面上根本没有可填的地方
+    const tip = wrapper.find(".secret-missing-tip");
+    expect(tip.exists()).toBe(true);
+    expect(tip.text()).toContain("未绑定消费者");
+    expect(tip.text()).toContain("「消费者」页");
+
+    // 即便按钮被禁用，程序化触发也不能真的打请求（双保险）
+    await send!.trigger("click");
+    await flushPromises();
     expect(testRoutingRule).not.toHaveBeenCalled();
+  });
+
+  it("密钥就绪时不显示缺密钥提示", async () => {
+    const wrapper = await openDrawer();
+    expect(wrapper.find(".secret-missing-tip").exists()).toBe(false);
+    expect(toolbarButton(wrapper, "primary")!.attributes("disabled")).toBeUndefined();
   });
 
   it("非流式执行成功后：结果区出现，并自动发起计费裁判", async () => {
@@ -318,5 +391,242 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     const wrapper = await openDrawer();
     wrapper.unmount();
     expect(h.stream.disposeStreamResources).toHaveBeenCalledTimes(1);
+  });
+
+  // ==================== 失败路径与降级（内容级，非接线） ====================
+
+  it("非流式失败：结果区替换空态、tab 落到 Body、错误响应头回填 Header 页", async () => {
+    vi.mocked(testRoutingRule).mockRejectedValue({
+      response: {
+        status: 502,
+        headers: { "x-knot-trace": "trace-9" },
+        data: { message: "上游不可达" }
+      }
+    });
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    // 不能停在空态：失败也必须进结果区
+    expect(wrapper.text()).not.toContain("执行请求后在这里查看响应结果");
+    expect(activeTabLabel(wrapper)).toBe("Body");
+    // 失败响应的 header 同样要能在「Header」页看到
+    expect(wrapper.text()).toContain("trace-9");
+  });
+
+  it("流式被用户中止：标为 STOPPED、不弹网络错误，且 knot_extend 已到手时仍跑裁判", async () => {
+    h.verdict.knotExtend.value = { usage: { total_tokens: 1 } };
+    vi.mocked(testRoutingRuleStream).mockResolvedValue({
+      status: 200,
+      headers: {},
+      read: vi.fn().mockRejectedValue(Object.assign(new Error("aborted"), { name: "AbortError" }))
+    } as never);
+
+    const wrapper = await openDrawer();
+    await setTemplate(wrapper, '{"stream":true}');
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    // 主动停止不是失败：保留已收内容、状态落 STOPPED（不是 ERROR）
+    expect(h.stream.finishStream).toHaveBeenCalledWith("STOPPED", "");
+    expect(h.stream.appendStreamError).not.toHaveBeenCalled();
+    // [DONE] 前已拿到 knot_extend → 仍可判（流式第二个参数 true）
+    expect(h.verdict.triggerBillingVerdict).toHaveBeenCalledWith(expect.anything(), true);
+  });
+
+  it("流式遇到真实网络错误：切回 Body 并把错误写进流式区块，不误判成用户中止", async () => {
+    vi.mocked(testRoutingRuleStream).mockResolvedValue({
+      status: 200,
+      headers: {},
+      read: vi.fn().mockRejectedValue(new TypeError("Failed to fetch"))
+    } as never);
+
+    const wrapper = await openDrawer();
+    await setTemplate(wrapper, '{"stream":true}');
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    expect(h.stream.finishStream).not.toHaveBeenCalledWith("STOPPED", "");
+    expect(h.stream.appendStreamError).toHaveBeenCalledTimes(1);
+    expect(activeTabLabel(wrapper)).toBe("Body");
+  });
+
+  it("请求模板不是合法 JSON 时早退：不发请求，并把原文留在响应体里方便对照", async () => {
+    const wrapper = await openDrawer();
+    await setTemplate(wrapper, "{oops");
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    expect(testRoutingRule).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("请求模板不是合法 JSON");
+    // 原文留在响应体里（Body 页由 ShellCodeBlock 承载，文本不在 wrapper.text() 里）
+    const codes = wrapper
+      .findAllComponents({ name: "ShellCodeBlock" })
+      .map((node) => String(node.props("code") ?? ""));
+    expect(codes.some((code) => code.includes("{oops"))).toBe(true);
+  });
+
+  it("协议载入失败：协议下拉降级为空且禁用，不做本地兜底", async () => {
+    vi.mocked(listRoutingRuleDebugProtocols).mockRejectedValue(new Error("boom"));
+
+    const wrapper = await openDrawer();
+    const protocol = selectOf(wrapper, 1);
+
+    expect(protocol.findAll(".el-select__wrapper.is-disabled, .is-disabled").length).toBeGreaterThan(0);
+    expect(protocol.text()).not.toContain("CHAT_COMPLETIONS");
+  });
+
+  it("「全部目标」取协议并集，锁定单个目标后只留该目标自己的协议", async () => {
+    vi.mocked(listRoutingRuleDebugProtocols).mockResolvedValue({
+      targets: [
+        { targetType: "MODEL", targetId: 1, protocols: ["CHAT_COMPLETIONS"] },
+        { targetType: "MODEL", targetId: 2, protocols: ["RESPONSES"] }
+      ]
+    } as never);
+
+    const TWO_TARGETS = [
+      { targetType: "MODEL", targetId: 1, targetCode: "m1", targetName: "模型一", primary: true },
+      { targetType: "MODEL", targetId: 2, targetCode: "m2", targetName: "模型二" }
+    ];
+    const wrapper = await openDrawer({ targets: TWO_TARGETS });
+
+    expect(protocolOptionLabels(wrapper)).toEqual(["CHAT_COMPLETIONS", "RESPONSES"]);
+
+    // 切到次目标：只剩它自己的协议（并集必须随选择重算，不能沿用全部目标的结果）
+    selectOf(wrapper, 0).vm.$emit("update:modelValue", "MODEL:2");
+    await flushPromises();
+    expect(protocolOptionLabels(wrapper)).toEqual(["RESPONSES"]);
+  });
+
+  it("切到没有协议的目标：已选协议被清空而不是保留上一个目标的协议", async () => {
+    const TWO_TARGETS = [
+      { targetType: "MODEL", targetId: 1, targetCode: "m1", primary: true },
+      { targetType: "MODEL", targetId: 2, targetCode: "m2" }
+    ];
+    // 接口只给 target 1 协议，target 2 无协议
+    const wrapper = await openDrawer({ targets: TWO_TARGETS });
+    expect(protocolOptionLabels(wrapper)).toEqual(["CHAT_COMPLETIONS"]);
+    expect(selectOf(wrapper, 1).props("modelValue")).toBe("CHAT_COMPLETIONS");
+
+    selectOf(wrapper, 0).vm.$emit("update:modelValue", "MODEL:2");
+    await flushPromises();
+
+    // ⚠ 必须断言**状态里的 protocol**。只断言「下拉选项为空」抓不到：选项是派生视图，
+    // 状态没清时选项一样是空的（探针实证：删掉 watch 里的 syncCurrentProtocol，那种断言照样绿，
+    // 而真实后果是拿着上一个目标的协议发请求）。
+    expect(selectOf(wrapper, 1).props("modelValue")).toBe("");
+    expect(protocolOptionLabels(wrapper)).toEqual([]);
+  });
+
+  // ==================== 概览页取值（displayContent / displayReasoning） ====================
+
+  it("概览页：完整内容取 content、思考过程单独取 reasoning_content", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 200,
+      headers: {},
+      data: { choices: [{ message: { content: "回答正文", reasoning_content: "思考正文" } }] }
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+    await openTab(wrapper, "概览");
+
+    const text = wrapper.text();
+    expect(text).toContain("回答正文");
+    expect(text).toContain("思考正文");
+  });
+
+  it("概览页：没有 content 时用 legacy completions 的 choices[].text 兜底", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 200,
+      headers: {},
+      data: { choices: [{ text: "legacy 正文" }] }
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+    await openTab(wrapper, "概览");
+
+    expect(wrapper.text()).toContain("legacy 正文");
+  });
+
+  it("概览页：content 与 legacy text 同时存在时优先 content（兜底顺序不能反）", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 200,
+      headers: {},
+      data: { choices: [{ message: { content: "新式正文" }, text: "旧式正文" }] }
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+    await openTab(wrapper, "概览");
+
+    const text = wrapper.text();
+    expect(text).toContain("新式正文");
+    expect(text).not.toContain("旧式正文");
+  });
+
+  it("概览页：流式拼装内容优先于响应体反解", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 200,
+      headers: {},
+      data: { choices: [{ message: { content: "非流式正文" } }] }
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    h.stream.streamContent.value = "流式正文";
+    await nextTick();
+    await openTab(wrapper, "概览");
+
+    const text = wrapper.text();
+    expect(text).toContain("流式正文");
+    expect(text).not.toContain("非流式正文");
+  });
+
+  it("请求区外壳：.test-form 挂在折叠面板上（无表单项的 el-form 空壳已移除）", async () => {
+    const wrapper = await openDrawer();
+    expect(wrapper.find(".el-collapse.test-form").exists()).toBe(true);
+    expect(wrapper.find("form").exists()).toBe(false);
+  });
+
+  it("复制流式区块：按钮瞬时反馈成「已复制」，1.2s 后复位", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(testRoutingRule).mockResolvedValue({
+        status: 200,
+        headers: {},
+        data: { id: "x" }
+      } as never);
+
+      const wrapper = await openDrawer();
+      await toolbarButton(wrapper, "primary")!.trigger("click");
+      await flushPromises();
+
+      h.stream.isStreaming.value = true;
+      h.stream.streamBlocks.value = [{ id: 7, data: "data: hi" }];
+      await nextTick();
+
+      await openTab(wrapper, "流式响应");
+      const copy = wrapper.find(".stream-block__copy");
+      expect(copy.exists()).toBe(true);
+      expect(copy.attributes("aria-label")).toBe("复制");
+
+      await copy.trigger("click");
+      await flushPromises();
+      expect(wrapper.find(".stream-block__copy").attributes("aria-label")).toBe("已复制");
+
+      vi.advanceTimersByTime(1300);
+      await nextTick();
+      expect(wrapper.find(".stream-block__copy").attributes("aria-label")).toBe("复制");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -17,7 +17,6 @@
               placeholder="选择调试目标"
               filterable
               class="request-toolbar__target"
-              @change="onTargetChange"
             >
               <el-option label="全部目标" :value="ALL_TARGETS_KEY" />
               <el-option
@@ -43,18 +42,23 @@
               />
             </el-select>
             <div class="request-toolbar__url">{{ requestUrl }}</div>
-            <el-tooltip v-if="!isStreaming" content="发送请求" placement="top">
+            <el-tooltip v-if="!isStreaming" :content="secretKeyReady ? '发送请求' : '缺少消费者密钥，无法发送'" placement="top">
               <el-button
                 type="primary"
                 :icon="Promotion"
                 :loading="loading"
-                :disabled="!ruleId"
+                :disabled="!ruleId || !secretKeyReady"
                 @click="runTest"
               />
             </el-tooltip>
             <el-tooltip v-else content="停止请求" placement="top">
               <el-button type="danger" :icon="CircleClose" @click="stopStreaming" />
             </el-tooltip>
+          </div>
+
+          <div v-if="!secretKeyReady" class="secret-missing-tip">
+            <el-icon><WarningFilled/></el-icon>
+            <span>{{ MISSING_SECRET_MESSAGE }}</span>
           </div>
 
           <div class="test-billing-verify-toggle">
@@ -69,89 +73,87 @@
             >消费者已默认返回消费详情</el-tag>
           </div>
 
-          <el-form label-width="0px" class="test-form">
-            <el-collapse v-model="expandedPanels" class="debug-collapse">
-              <el-collapse-item name="preview" title="请求预览">
-                <el-tabs v-model="requestTab" class="debug-tabs debug-tabs--preview">
-                  <el-tab-pane label="预设请求" name="preset">
-                    <div class="preset-row">
-                      <el-select
-                        v-model="selectedPresetId"
-                        :disabled="filteredPresetOptions.length === 0"
-                        placeholder="从预设请求载入请求模板"
-                        clearable
-                        filterable
-                        class="preset-select"
-                        @change="onPresetChange"
-                      >
-                        <el-option
-                          v-for="preset in filteredPresetOptions"
-                          :key="preset.id"
-                          :label="preset.name"
-                          :value="preset.id"
-                        />
-                      </el-select>
-                      <el-button size="small" @click="resetCurrentTemplate">重置模板</el-button>
-                    </div>
-
-                    <div class="request-template">
-                      <JsonCodeEditor
-                        v-model="currentTemplateText"
-                        min-height="220px"
-                        max-height="320px"
-                        height="320px"
-                      />
-                      <div v-if="protocolHint" class="request-template__hint">{{ protocolHint }}</div>
-                    </div>
-                  </el-tab-pane>
-                  <el-tab-pane label="Headers" name="headers">
-                    <div class="header-table-toolbar">
-                      <span class="header-table-toolbar__hint">表格即实际请求头：新增 / 编辑 / 删除后随请求发往网关，curl 预览同步更新</span>
-                      <el-button size="small" :icon="Plus" @click="addHeaderRow">新增 Header</el-button>
-                    </div>
-                    <el-table
-                      :data="displayHeaderRows"
-                      border
-                      size="small"
-                      class="header-table"
-                      empty-text="暂无请求头，点击右上角「新增 Header」添加"
+          <el-collapse v-model="expandedPanels" class="debug-collapse test-form">
+            <el-collapse-item name="preview" title="请求预览">
+              <el-tabs v-model="requestTab" class="debug-tabs debug-tabs--preview">
+                <el-tab-pane label="预设请求" name="preset">
+                  <div class="preset-row">
+                    <el-select
+                      v-model="selectedPresetId"
+                      :disabled="filteredPresetOptions.length === 0"
+                      placeholder="从预设请求载入请求模板"
+                      clearable
+                      filterable
+                      class="preset-select"
+                      @change="onPresetChange"
                     >
-                      <el-table-column label="名称" min-width="220">
-                        <template #default="{ row }">
-                          <el-input
-                            v-if="!row.temporary"
-                            v-model="row.name"
-                            placeholder="如 X-Custom-Trace"
-                            size="small"
-                            @change="normalizeHeaderRow(row)"
-                          />
-                          <span v-else>{{ row.name }}</span>
-                        </template>
-                      </el-table-column>
-                      <el-table-column label="值" min-width="260">
-                        <template #default="{ row }">
-                          <el-input v-if="!row.temporary" v-model="row.value" placeholder="Header 值" size="small"/>
-                          <span v-else>{{ row.value }}</span>
-                        </template>
-                      </el-table-column>
-                      <el-table-column label="操作" width="70" align="center">
-                        <template #default="{ row }">
-                          <el-button link type="danger" :disabled="row.temporary" @click="removeHeaderRow(row)">
-                            <el-icon>
-                              <Delete/>
-                            </el-icon>
-                          </el-button>
-                        </template>
-                      </el-table-column>
-                    </el-table>
-                  </el-tab-pane>
-                  <el-tab-pane label="curl" name="curl">
-                    <ShellCodeBlock :code="displayCurl" language="bash" :copyable="true"/>
-                  </el-tab-pane>
-                </el-tabs>
-              </el-collapse-item>
-            </el-collapse>
-          </el-form>
+                      <el-option
+                        v-for="preset in filteredPresetOptions"
+                        :key="preset.id"
+                        :label="preset.name"
+                        :value="preset.id"
+                      />
+                    </el-select>
+                    <el-button size="small" @click="resetCurrentTemplate">重置模板</el-button>
+                  </div>
+
+                  <div class="request-template">
+                    <JsonCodeEditor
+                      v-model="currentTemplateText"
+                      min-height="220px"
+                      max-height="320px"
+                      height="320px"
+                    />
+                    <div v-if="protocolHint" class="request-template__hint">{{ protocolHint }}</div>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="Headers" name="headers">
+                  <div class="header-table-toolbar">
+                    <span class="header-table-toolbar__hint">表格即实际请求头：新增 / 编辑 / 删除后随请求发往网关，curl 预览同步更新</span>
+                    <el-button size="small" :icon="Plus" @click="addHeaderRow">新增 Header</el-button>
+                  </div>
+                  <el-table
+                    :data="displayHeaderRows"
+                    border
+                    size="small"
+                    class="header-table"
+                    empty-text="暂无请求头，点击右上角「新增 Header」添加"
+                  >
+                    <el-table-column label="名称" min-width="220">
+                      <template #default="{ row }">
+                        <el-input
+                          v-if="!row.temporary"
+                          v-model="row.name"
+                          placeholder="如 X-Custom-Trace"
+                          size="small"
+                          @change="normalizeHeaderRow(row)"
+                        />
+                        <span v-else>{{ row.name }}</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="值" min-width="260">
+                      <template #default="{ row }">
+                        <el-input v-if="!row.temporary" v-model="row.value" placeholder="Header 值" size="small"/>
+                        <span v-else>{{ row.value }}</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="操作" width="70" align="center">
+                      <template #default="{ row }">
+                        <el-button link type="danger" :disabled="row.temporary" @click="removeHeaderRow(row)">
+                          <el-icon>
+                            <Delete/>
+                          </el-icon>
+                        </el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </el-tab-pane>
+                <el-tab-pane label="curl" name="curl">
+                  <ShellCodeBlock :code="displayCurl" language="bash" :copyable="true"/>
+                </el-tab-pane>
+              </el-tabs>
+            </el-collapse-item>
+          </el-collapse>
         </section>
 
         <section class="debug-panel debug-panel--response">
@@ -265,7 +267,7 @@
 
 <script setup lang="ts">
 import {computed, nextTick, onBeforeUnmount, reactive, ref, watch, type PropType} from "vue";
-import {CircleClose, CopyDocument, Delete, Plus, Promotion, Select} from "@element-plus/icons-vue";
+import {CircleClose, CopyDocument, Delete, Plus, Promotion, Select, WarningFilled} from "@element-plus/icons-vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import ShellCodeBlock from "../common/ShellCodeBlock.vue";
 import RoutingBillingVerdictPanel from "./RoutingBillingVerdictPanel.vue";
@@ -342,7 +344,8 @@ const expandedPanels = ref<string[]>(["preview"]);
 const testResult = ref<RoutingTestResult | null>(null);
 /** 最近一次响应的响应头，供「响应 Header」tab 展示 */
 const responseHeaders = ref<Record<string, string>>({});
-const targetProtocolMap = reactive<Dict>({});
+/** 目标 key → 该目标可调试的协议 code；清空就是整体换一个空对象（比逐个 delete key 更省心） */
+const targetProtocolMap = ref<Record<string, string[]>>({});
 
 /** 区块滚动容器引用，用于追加后自动滚到底部 */
 const streamScrollbar = ref<ScrollbarLike | null>(null);
@@ -412,10 +415,26 @@ const resultTagType = computed(() => {
 });
 
 const testForm = reactive({
-  secretKey: "",
   targetKey: "",
   protocol: ""
 });
+
+/**
+ * 密钥缺失的唯一文案：工具栏提示与 `runTest` 的拦截面共用同一句，
+ * 避免"界面说 A、报错说 B"（旧实现界面无提示、报错却说「请填写 API Key」）。
+ */
+const MISSING_SECRET_MESSAGE =
+  "该规则未绑定消费者，或取不到消费者密钥，无法发起测试。请到「消费者」页确认后重新打开本抽屉。";
+
+/**
+ * 消费者密钥是否可用。
+ *
+ * <p>抽屉**不提供密钥录入**：测试用的是规则所绑消费者的密钥，由父组件按 `consumerCode` 取详情后传入。
+ * 取不到（规则未绑消费者 / 接口失败）时父组件传空串——此时必须禁用发送并说明原因，
+ * 否则用户会看到「请填写 API Key」却没有任何地方能填（曾经就是这条死路：校验拦住了，
+ * 界面不给出口，提示还让人去"填写"）。</p>
+ */
+const secretKeyReady = computed(() => !!props.secretKey?.trim());
 
 /**
  * 「执行计费规则校验」开关：合并了"测试时临时开启返回消费详情"——后者是前者的前提子集。
@@ -454,17 +473,10 @@ const targetOptions = computed(() =>
 );
 
 const activeTarget = computed(() => targetOptions.value.find((item) => item.key === testForm.targetKey) || null);
-const availableProtocols = computed(() => {
-  // 「全部目标」= 所有目标协议并集；选定单一目标 = 该目标协议。多目标规则下各目标协议可能不同
-  // （如主目标 CHAT_COMPLETIONS、次目标 RESPONSES），只取主目标会漏掉后者。
-  let protocols: string[];
-  if (testForm.targetKey === ALL_TARGETS_KEY) {
-    protocols = Array.from(new Set(Object.values(targetProtocolMap).flat() as string[]));
-  } else {
-    protocols = (targetProtocolMap[testForm.targetKey] as string[]) || [];
-  }
-  return protocols.map((code: string) => ({code, label: protocolLabel(code)}));
-});
+const availableProtocols = computed(() =>
+  // 与 syncCurrentProtocol 同一口径：这里只负责加 label，协议集合只由 currentProtocolCodes 决定
+  currentProtocolCodes().map((code) => ({code, label: protocolLabel(code)}))
+);
 const activeProtocol = computed(() => canonicalOf(testForm.protocol));
 
 // 请求构造侧（协议路径 / URL / 请求头表格 / 模板 / 预设）全部由 composable 承载，
@@ -491,7 +503,7 @@ const {
   curlPreview,
   formatBody
 } = useTestRequestComposition({
-  secretKey: () => testForm.secretKey,
+  secretKey: () => props.secretKey,
   ruleCode: () => props.ruleCode,
   targetKey: () => testForm.targetKey,
   protocol: activeProtocol,
@@ -585,11 +597,11 @@ const resultBodyText = computed(() => {
   return formatBody(testResult.value.responseBody);
 });
 
-/** 概览页「完整内容」：优先用流式拼装的 content，否则从非流式响应体反解 */
-const displayContent = computed(() => {
-  if (streamContent.value) {
-    return streamContent.value;
-  }
+/**
+ * 从非流式响应体里按优先级取顶层字段（一次解析、多字段兜底）。
+ * 流式阶段的值优先由调用方各自处理——两者的「流式优先」语义不同，不在这里合并。
+ */
+function fieldsFromResponseBody(names: string[]): string {
   const body = testResult.value?.responseBody;
   if (!body) {
     return "";
@@ -598,22 +610,24 @@ const displayContent = computed(() => {
   if (parsed.error) {
     return "";
   }
-  // 主流对话形态取 content；legacy completions 的 choices[].text 兜底
-  return extractField(parsed.value, "content") || extractField(parsed.value, "text");
-});
+  for (const name of names) {
+    const found = extractField(parsed.value, name);
+    if (found) {
+      return found;
+    }
+  }
+  return "";
+}
+
+/** 概览页「完整内容」：优先用流式拼装的 content，否则从非流式响应体反解 */
+const displayContent = computed(() =>
+  streamContent.value || fieldsFromResponseBody(["content", "text"])
+);
 
 /** 概览页「思考过程」：reasoning_content，与 content 分开 */
-const displayReasoning = computed(() => {
-  if (streamReasoning.value) {
-    return streamReasoning.value;
-  }
-  const body = testResult.value?.responseBody;
-  if (!body) {
-    return "";
-  }
-  const parsed = parseJsonResult(body, null);
-  return parsed.error ? "" : extractField(parsed.value, "reasoning_content");
-});
+const displayReasoning = computed(() =>
+  streamReasoning.value || fieldsFromResponseBody(["reasoning_content"])
+);
 const summaryItems = computed(() => {
   if (!testResult.value) {
     return [];
@@ -652,7 +666,6 @@ watch(
     responseTab.value = "summary";
     expandedPanels.value = ["preview"];
     testBillingVerify.value = true;
-    testForm.secretKey = props.secretKey || "";
     resetHeaderRows();
     initializeTargetSelection();
     await Promise.all([loadDebugCapabilities(), loadPresetOptions()]);
@@ -666,7 +679,8 @@ watch(
     if (!props.modelValue || !value || value === oldValue) {
       return;
     }
-    onTargetChange();
+    // 唯一的目标切换入口：模板不再挂 @change（两条路径会各跑一次 syncCurrentProtocol）
+    syncCurrentProtocol();
   }
 );
 
@@ -704,23 +718,22 @@ function protocolLabel(protocol: unknown): string {
 
 /** 当前选中目标（或「全部目标」并集）对应的协议列表 */
 function currentProtocolCodes(): string[] {
+  // 「全部目标」= 所有目标协议并集；选定单一目标 = 该目标协议。多目标规则下各目标协议可能不同
+  // （如主目标 CHAT_COMPLETIONS、次目标 RESPONSES），只取主目标会漏掉后者。
   if (testForm.targetKey === ALL_TARGETS_KEY) {
-    return Array.from(new Set(Object.values(targetProtocolMap).flat() as string[]));
+    return Array.from(new Set(Object.values(targetProtocolMap.value).flat()));
   }
-  return (targetProtocolMap[testForm.targetKey] as string[]) || [];
+  return targetProtocolMap.value[testForm.targetKey] || [];
 }
 
 /** 按当前协议列表校正已选协议并重载模板（切换目标后调用，协议已在打开抽屉时预加载） */
 function syncCurrentProtocol() {
   const protocols = currentProtocolCodes();
   const normalized = canonicalOf(testForm.protocol);
+  // 原协议不在新目标的可调试集合里就必须换掉：留着它会让下拉显示一个本次根本不允许的值，
+  // 而 runTest 只校验「非空」，于是拿着无效协议发出去
   testForm.protocol = protocols.includes(normalized) ? normalized : protocols[0] || "";
   ensureTemplateForCurrentSelection();
-}
-
-/** 目标切换回调：协议已预加载，只需同步选中协议 */
-function onTargetChange() {
-  syncCurrentProtocol();
 }
 
 /**
@@ -731,36 +744,32 @@ function onTargetChange() {
 async function loadAllTargetProtocols() {
   protocolLoading.value = true;
   try {
-    clearProtocolMap();
+    targetProtocolMap.value = {};
     if (props.ruleId == null) {
       syncCurrentProtocol();
       return;
     }
     const detail = await listRoutingRuleDebugProtocols(props.ruleId);
+    const next: Record<string, string[]> = {};
     for (const item of detail?.targets || []) {
       if (item?.targetId == null) {
         continue;
       }
-      targetProtocolMap[`${normalizeTargetType(item.targetType)}:${item.targetId}`] = item.protocols || [];
+      next[`${normalizeTargetType(item.targetType)}:${item.targetId}`] = item.protocols || [];
     }
+    targetProtocolMap.value = next;
     syncCurrentProtocol();
   } catch {
     // 载入失败保持空表：协议下拉随之置空，不做本地兜底，避免下拉出后端实际不放行的协议
-    clearProtocolMap();
+    targetProtocolMap.value = {};
     syncCurrentProtocol();
   } finally {
     protocolLoading.value = false;
   }
 }
 
-function clearProtocolMap() {
-  for (const key of Object.keys(targetProtocolMap)) {
-    delete targetProtocolMap[key];
-  }
-}
-
-/** 收集请求前置校验失败，统一的提示形态 */
-function validationError(message: string): boolean {
+/** 收集请求前置校验失败，统一的提示形态（无返回值：4 处调用都是「设完就 return」） */
+function validationError(message: string): void {
   responseTab.value = "summary";
   testResult.value = {
     status: RoutingTestRunState.ERROR,
@@ -770,15 +779,14 @@ function validationError(message: string): boolean {
     errorMessage: message,
     responseBody: ""
   };
-  return false;
 }
 
 async function runTest() {
   if (!props.ruleId) return;
   // 新测试一律清空上一轮裁判区：校验失败 / JSON 非法等早退分支同样不留残影
   resetVerdictState();
-  if (!testForm.secretKey?.trim()) {
-    validationError("请填写 API Key");
+  if (!secretKeyReady.value) {
+    validationError(MISSING_SECRET_MESSAGE);
     return;
   }
   // 「全部目标」是合法选择（协议取并集，由网关按规则路由），无需具体目标
@@ -1065,6 +1073,26 @@ onBeforeUnmount(disposeTestResources);
 
 .test-form {
   margin-bottom: 0;
+}
+
+/* 缺密钥警示条：发送按钮被禁用的原因必须写在界面上，不能让用户对着禁用按钮猜 */
+.secret-missing-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--el-color-warning-light-5);
+  border-radius: 4px;
+  background: var(--el-color-warning-light-9);
+  color: var(--el-color-warning-dark-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.secret-missing-tip .el-icon {
+  margin-top: 2px;
+  flex: 0 0 auto;
 }
 
 /* 执行计费规则校验勾选行：始终显示 */
