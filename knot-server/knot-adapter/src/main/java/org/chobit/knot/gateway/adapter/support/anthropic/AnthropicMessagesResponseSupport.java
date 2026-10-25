@@ -10,6 +10,7 @@ import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.util.MapNumberUtils;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,8 +35,10 @@ import java.util.UUID;
  *       {@code ANTHROPIC} 提取器加回后口径正确）；反向不带缓存键——OpenAI 的
  *       {@code prompt_tokens} 已含 {@code cached_tokens}，再携带会被加回提取器二次计入。
  *       真实环境实测后再统一两侧口径；</li>
- *   <li><b>只保证文本与用量</b>：{@code tool_use} / {@code tool_calls} 的块级转换未实现
- *       （请求侧 {@code tools} 也未做形状转换），工具调用场景下文本为空、finish 原因照实映射。</li>
+ *   <li><b>文本与工具块都转</b>：文本走 {@link PayloadTextSupport#textOf}，
+ *       {@code tool_use} 块 ↔ {@code tool_calls} / {@code function_call} 走
+ *       {@link AnthropicToolSupport}（工具语义的唯一所有者）；本类只负责把它们装进各协议的
+ *       响应外壳里（{@code chat.completion} / {@code text_completion} / {@code response}）。</li>
  * </ul>
  */
 public final class AnthropicMessagesResponseSupport {
@@ -101,9 +104,15 @@ public final class AnthropicMessagesResponseSupport {
         if (message == null) {
             return responseBody;
         }
+        Map<String, Object> assistant = assistantMessage(PayloadTextSupport.textOf(message.get(CONTENT)));
+        List<Map<String, Object>> toolCalls = AnthropicToolSupport.toolCallsOf(message.get(CONTENT));
+        if (!toolCalls.isEmpty()) {
+            assistant.put(AiPayloadFields.TOOL_CALLS, toolCalls);
+        }
+
         Map<String, Object> choice = new LinkedHashMap<>();
         choice.put(INDEX, 0);
-        choice.put(CHOICE_MESSAGE, assistantMessage(PayloadTextSupport.textOf(message.get(CONTENT))));
+        choice.put(CHOICE_MESSAGE, assistant);
         choice.put(FINISH_REASON, finishReason(message.get(STOP_REASON)));
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -143,17 +152,16 @@ public final class AnthropicMessagesResponseSupport {
         if (message == null) {
             return responseBody;
         }
-        Map<String, Object> outputText = new LinkedHashMap<>();
-        outputText.put(TYPE, OUTPUT_TEXT);
-        outputText.put(TEXT, PayloadTextSupport.textOf(message.get(CONTENT)));
-        outputText.put(ANNOTATIONS, List.of());
+        String text = PayloadTextSupport.textOf(message.get(CONTENT));
+        List<Map<String, Object>> functionCalls = AnthropicToolSupport.functionCallsOf(message.get(CONTENT));
 
-        Map<String, Object> outputMessage = new LinkedHashMap<>();
-        outputMessage.put(TYPE, MESSAGE);
-        outputMessage.put("id", "msg_" + UUID.randomUUID());
-        outputMessage.put(AiPayloadFields.ROLE, ASSISTANT);
-        outputMessage.put(STATUS, COMPLETED);
-        outputMessage.put(CONTENT, List.of(outputText));
+        List<Object> output = new ArrayList<>();
+        // 纯工具调用轮次没有文本，此时不硬塞一个空 output_text；两者都无时仍留一条空消息，
+        // 保持与「文本轮次」同构的响应骨架
+        if (!text.isEmpty() || functionCalls.isEmpty()) {
+            output.add(outputMessage(text));
+        }
+        output.addAll(functionCalls);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", "resp_" + UUID.randomUUID());
@@ -161,9 +169,24 @@ public final class AnthropicMessagesResponseSupport {
         result.put(CREATED_AT, Instant.now().getEpochSecond());
         result.put(AiPayloadFields.MODEL, modelOf(context));
         result.put(STATUS, COMPLETED);
-        result.put(OUTPUT, List.of(outputMessage));
+        result.put(OUTPUT, output);
         putResponsesUsage(result, message.get(AiPayloadFields.USAGE));
         return jsonOrOriginal(result, responseBody);
+    }
+
+    private static Map<String, Object> outputMessage(String text) {
+        Map<String, Object> outputText = new LinkedHashMap<>();
+        outputText.put(TYPE, OUTPUT_TEXT);
+        outputText.put(TEXT, text);
+        outputText.put(ANNOTATIONS, List.of());
+
+        Map<String, Object> message = new LinkedHashMap<>();
+        message.put(TYPE, MESSAGE);
+        message.put("id", "msg_" + UUID.randomUUID());
+        message.put(AiPayloadFields.ROLE, ASSISTANT);
+        message.put(STATUS, COMPLETED);
+        message.put(CONTENT, List.of(outputText));
+        return message;
     }
 
     /** OpenAI {@code chat.completion} → Messages 响应；非 chat.completion 响应原样返回。 */
@@ -177,16 +200,23 @@ public final class AnthropicMessagesResponseSupport {
         Map<String, Object> message = choice.get(CHOICE_MESSAGE) instanceof Map<?, ?> raw
                 ? PayloadMapSupport.cast(raw) : Map.of();
 
-        Map<String, Object> contentBlock = new LinkedHashMap<>();
-        contentBlock.put(TYPE, TEXT);
-        contentBlock.put(TEXT, PayloadTextSupport.textOf(message.get(CONTENT)));
+        String text = PayloadTextSupport.textOf(message.get(CONTENT));
+        List<Map<String, Object>> blocks = new ArrayList<>();
+        if (!text.isEmpty()) {
+            blocks.add(textBlock(text));
+        }
+        blocks.addAll(AnthropicToolSupport.toolUseBlocksOf(message.get(AiPayloadFields.TOOL_CALLS)));
+        if (blocks.isEmpty()) {
+            // 既无文本也无工具：保留一个空文本块，与「有文本」时同构的 Messages 骨架
+            blocks.add(textBlock(""));
+        }
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", "msg_" + UUID.randomUUID());
         result.put(TYPE, MESSAGE);
         result.put(AiPayloadFields.ROLE, ASSISTANT);
         result.put(AiPayloadFields.MODEL, modelOf(context));
-        result.put(CONTENT, List.of(contentBlock));
+        result.put(CONTENT, blocks);
         result.put(STOP_REASON, stopReason(choice.get(FINISH_REASON)));
         Map<String, Object> usage = anthropicUsage(completion.get(AiPayloadFields.USAGE));
         if (!usage.isEmpty()) {
@@ -200,6 +230,13 @@ public final class AnthropicMessagesResponseSupport {
         assistant.put(AiPayloadFields.ROLE, ASSISTANT);
         assistant.put(CONTENT, text);
         return assistant;
+    }
+
+    private static Map<String, Object> textBlock(String text) {
+        Map<String, Object> block = new LinkedHashMap<>();
+        block.put(TYPE, TEXT);
+        block.put(TEXT, text);
+        return block;
     }
 
     /**
@@ -323,12 +360,19 @@ public final class AnthropicMessagesResponseSupport {
         }
     }
 
-    private static String finishReason(Object stopReason) {
+    /**
+     * Anthropic {@code stop_reason} → OpenAI {@code finish_reason}。
+     *
+     * <p>公开给流式转换复用（{@code AnthropicStreamSupport}）：同一张词表只能有一个所有者——
+     * 流式与整包各抄一份是「跨类逐字重复」的直接来源。</p>
+     */
+    public static String finishReason(Object stopReason) {
         String raw = StringUtils.trimToEmpty(PayloadMapSupport.stringOf(stopReason));
         return FINISH_REASONS.getOrDefault(raw, "stop");
     }
 
-    private static String stopReason(Object finishReason) {
+    /** OpenAI {@code finish_reason} → Anthropic {@code stop_reason}（反向；流式同用本表）。 */
+    public static String stopReason(Object finishReason) {
         String raw = StringUtils.trimToEmpty(PayloadMapSupport.stringOf(finishReason));
         return STOP_REASONS.getOrDefault(raw, "end_turn");
     }

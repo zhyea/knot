@@ -4,6 +4,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.adapter.support.RequestFieldSupport;
 import org.chobit.knot.gateway.adapter.support.anthropic.AnthropicMessagesRequestSupport;
 import org.chobit.knot.gateway.adapter.support.anthropic.AnthropicMessagesResponseSupport;
+import org.chobit.knot.gateway.adapter.support.anthropic.AnthropicStreamSupport;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
@@ -65,6 +66,12 @@ public class CompletionsToMessagesUpstreamAdapter implements UpstreamAdapter {
         return AnthropicMessagesResponseSupport.messagesToTextCompletion(responseBody, context);
     }
 
+    /** 流式：Messages SSE → {@code text_completion} chunk（旧协议无 role / 工具概念）。 */
+    @Override
+    public StreamLineAdapter streamAdapter(UpstreamRequestContext context) {
+        return AnthropicStreamSupport.messagesToTextCompletionChunks(context);
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> completionsToMessages(Map<String, Object> source) {
         Map<String, Object> body = new LinkedHashMap<>(source);
@@ -79,6 +86,9 @@ public class CompletionsToMessagesUpstreamAdapter implements UpstreamAdapter {
         body.remove("presence_penalty");
         body.remove("frequency_penalty");
         body.remove("logit_bias");
+        // 旧版 Completions 协议本身没有工具概念：调用方硬传的 tools 不能原样带给 Anthropic
+        body.remove(AiPayloadFields.TOOLS);
+        body.remove(AiPayloadFields.TOOL_CHOICE);
         AnthropicMessagesRequestSupport.ensureMaxTokens(body);
         return body;
     }

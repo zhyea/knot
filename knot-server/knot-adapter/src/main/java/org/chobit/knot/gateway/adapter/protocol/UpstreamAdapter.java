@@ -10,7 +10,8 @@ import java.util.Set;
 /**
  * 上游适配器：把网关侧请求发往上游所需的<b>双向适配</b>角色——同时负责
  * <b>请求适配</b>（{@link #resolvePath} 协议路径 / {@link #buildRequestBody} 请求体转换 /
- * {@link #resolveContentType} 内容类型）与<b>响应适配</b>（{@link #handleResponse} 响应体转换）。
+ * {@link #resolveContentType} 内容类型）与<b>响应适配</b>（{@link #handleResponse} 整包响应体转换 /
+ * {@link #streamAdapter} 流式逐行转换）。
  *
  * <p>不存在「只适配请求」或「只适配响应」的拆分角色：一次协议转换的两个方向必须由同一个
  * 实现持有（如 Bedrock Converse：请求侧 chat→converse、响应侧 converse→chat，口径才能对齐），
@@ -65,18 +66,22 @@ public interface UpstreamAdapter {
     }
 
     /**
-     * 流式响应适配：把上游单个 SSE 事件数据转换成网关侧形状。默认原样透传。
+     * 流式响应适配器：把上游 SSE 逐行转换成网关侧（客户端）形状。
      *
      * <p>与 {@link #handleResponse} 按执行路径分工：后者只服务整包路径，本方法只服务流式
      * 逐事件路径——两条路径的转换产物都同时喂给客户端转发与用量提取（同构：提取吃的
      * 永远是转换后的数据）。声明 {@link #streamSupported} 为 {@code false} 的适配器
      * （如 Bedrock，上游是 EventStream 二进制帧）永远不走本方法。</p>
      *
-     * <p>默认实现直接返回原串：不覆写时零解析、零序列化，流式转发行为逐字节不变。
-     * 入参是 {@code data:} 之后的事件数据（与用量提取同粒度），不含 SSE 行格式。</p>
+     * <p><b>每次请求新建实例</b>：流式转换天然有跨事件状态（{@code message_start} 只许合成一次、
+     * chunk id 必须全程一致、工具块序号要连续），而适配器本身是单例 Bean——状态挂在适配器上
+     * 会被并发请求互相污染。默认返回 {@link StreamLineAdapter#PASSTHROUGH}：不覆写时零解析、
+     * 零序列化，流式转发逐字节不变。</p>
+     *
+     * @param context 本次请求的上下文（可为 {@code null}，实现需自担空判断）
      */
-    default String handleStreamEvent(String eventData, UpstreamRequestContext context) {
-        return eventData;
+    default StreamLineAdapter streamAdapter(UpstreamRequestContext context) {
+        return StreamLineAdapter.PASSTHROUGH;
     }
 
 }

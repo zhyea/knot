@@ -26,7 +26,7 @@ import java.util.Map;
  * 流写完后取供应商侧请求标识（只取 request-id）依然可读。</p>
  *
  * <p>2026-10-25：重新持有 {@link UpstreamAdapter}（2026-10-23 计费去兜底时曾移除）——
- * 理由与计费无关：流式路径的响应适配（{@link UpstreamAdapter#handleStreamEvent}）
+ * 理由与计费无关：流式路径的响应适配（{@link UpstreamAdapter#streamAdapter}）
  * 需要适配器在场，与整包路径的 {@code handleResponse} 对称。为 {@code null} 时
  * 流式响应按透传处理。</p>
  */

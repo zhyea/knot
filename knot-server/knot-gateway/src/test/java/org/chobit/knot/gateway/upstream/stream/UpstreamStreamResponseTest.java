@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>响应头快照仍然必须与连接生命周期解耦——数仓埋点在流写完后才读供应商请求 id。</p>
  *
  * <p>2026-10-25：重新持有 {@code UpstreamAdapter}（2026-10-23 计费去兜底时曾移除）——
- * 流式路径的响应适配（{@code UpstreamAdapter#handleStreamEvent}）需要适配器在场，
+ * 流式路径的响应适配（{@code UpstreamAdapter#streamAdapter}）需要适配器在场，
  * 与整包路径的 {@code handleResponse} 对称；为 {@code null} 时按透传处理。</p>
  */
 class UpstreamStreamResponseTest {

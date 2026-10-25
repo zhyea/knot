@@ -5,6 +5,7 @@ import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.util.JsonKit;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -119,6 +121,42 @@ class ResponsesToMessagesUpstreamAdapterTest {
         String error = "{\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"bad\"}}";
         assertEquals(error, adapter.handleResponse(error, context(ModelApiProtocolEnum.RESPONSES, Map.of())));
         assertEquals("not-json", adapter.handleResponse("not-json", context(ModelApiProtocolEnum.RESPONSES, Map.of())));
+    }
+
+    @Test
+    @DisplayName("Responses 扁平形状 tools 也能转（它没有 chat 的 function 包装）")
+    void shouldConvertFlatToolsToAnthropicShape() {
+        Map<String, Object> source = new LinkedHashMap<>();
+        source.put(AiPayloadFields.INPUT, "杭州天气");
+        source.put(AiPayloadFields.TOOLS, List.of(Map.of(
+                AiPayloadFields.TYPE, AiPayloadFields.FUNCTION,
+                AiPayloadFields.NAME, "get_weather",
+                AiPayloadFields.PARAMETERS, Map.of("type", "object"))));
+        source.put(AiPayloadFields.TOOL_CHOICE, Map.of(
+                AiPayloadFields.TYPE, AiPayloadFields.FUNCTION,
+                AiPayloadFields.NAME, "get_weather"));
+
+        Map<String, Object> result = asMap(
+                adapter.buildRequestBody(context(ModelApiProtocolEnum.RESPONSES, source)));
+
+        Map<String, Object> tool = asMap(((List<?>) result.get(AiPayloadFields.TOOLS)).get(0));
+        assertEquals("get_weather", tool.get(AiPayloadFields.NAME));
+        assertEquals(Map.of("type", "object"), tool.get(AiPayloadFields.INPUT_SCHEMA));
+        assertEquals(Map.of(AiPayloadFields.TYPE, "tool", AiPayloadFields.NAME, "get_weather"),
+                result.get(AiPayloadFields.TOOL_CHOICE));
+    }
+
+    @Test
+    @DisplayName("流式走 Responses 事件流转换器（非默认透传）")
+    void shouldProvideResponsesEventStreamAdapter() {
+        StreamLineAdapter streamAdapter = adapter.streamAdapter(
+                context(ModelApiProtocolEnum.RESPONSES, Map.of()));
+
+        assertNotSame(StreamLineAdapter.PASSTHROUGH, streamAdapter);
+        assertEquals(List.of(), streamAdapter.adapt("event: message_start"), "event 行应被抑制");
+        assertTrue(streamAdapter.adapt("data: {\"type\":\"message_start\",\"message\":{}}")
+                        .contains("event: response.created"),
+                "首个事件必须合成 Responses 响应骨架");
     }
 
     private Map<String, Object> readMap(String json) {

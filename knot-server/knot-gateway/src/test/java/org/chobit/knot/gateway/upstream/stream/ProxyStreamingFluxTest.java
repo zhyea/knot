@@ -1,6 +1,9 @@
 package org.chobit.knot.gateway.upstream.stream;
 
+import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.protocol.StreamLineAdapter;
 import org.chobit.knot.gateway.adapter.protocol.UpstreamAdapter;
+import org.chobit.knot.gateway.adapter.support.SseLineSupport;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.config.UsageExtractionProperties;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
@@ -48,8 +51,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>跨 chunk 的多字节字符不能被劈开（行切分只在换行处解码）。</li>
  * </ol>
  *
- * <p>2026-10-25（流式响应适配）：SSE 数据行一律经 {@code UpstreamAdapter.handleStreamEvent}
- * 转换后再转发与提取（默认透传零变化），与整包路径的 {@code handleResponse} 同构。</p>
+ * <p>2026-10-25（流式响应适配）：SSE 行一律经 {@code UpstreamAdapter.streamAdapter} 转换后再转发与提取
+ * （默认透传零变化），与整包路径的 {@code handleResponse} 同构；适配器可抑制行、也可把一行合成多行。</p>
  */
 class ProxyStreamingFluxTest {
 
@@ -273,8 +276,15 @@ class ProxyStreamingFluxTest {
             }
 
             @Override
-            public String handleStreamEvent(String eventData, UpstreamRequestContext ctx) {
-                return eventData.replace("inputTokens", "input_tokens");
+            public StreamLineAdapter streamAdapter(UpstreamRequestContext ctx) {
+                return line -> {
+                    String data = SseLineSupport.dataOf(line);
+                    if (data == null) {
+                        return List.of(line);
+                    }
+                    String adapted = data.replace("inputTokens", "input_tokens");
+                    return adapted.equals(data) ? List.of(line) : List.of(SseLineSupport.data(adapted));
+                };
             }
         };
         UsageExtractorRegistry registry = new UsageExtractorRegistry(null, null, new UsageExtractionProperties()) {
@@ -320,8 +330,15 @@ class ProxyStreamingFluxTest {
             }
 
             @Override
-            public String handleStreamEvent(String eventData, UpstreamRequestContext ctx) {
-                return eventData.replace("\"hi\"", "\"HI\"");
+            public StreamLineAdapter streamAdapter(UpstreamRequestContext ctx) {
+                return line -> {
+                    String data = SseLineSupport.dataOf(line);
+                    if (data == null) {
+                        return List.of(line);
+                    }
+                    String adapted = data.replace("\"hi\"", "\"HI\"");
+                    return adapted.equals(data) ? List.of(line) : List.of(SseLineSupport.data(adapted));
+                };
             }
         };
 
@@ -331,8 +348,169 @@ class ProxyStreamingFluxTest {
         assertTrue(out.contains("\"HI\""), "appendUsage=false 时转换仍须生效，实际：" + out);
     }
 
-    private static String collect(Flux<DataBuffer> body) {
-        return body.map(buffer -> buffer.toString(StandardCharsets.UTF_8))
+    @Test
+    @DisplayName("适配器可抑制行（event: 行不下发，空行仍保留作分隔符）")
+    void adapterCanSuppressLines() {
+        String payload = "event: message_start\ndata: {\"type\":\"message_start\"}\n\n";
+        UpstreamAdapter suppressing = stubAdapter(ctx -> line -> {
+            if (SseLineSupport.isEvent(line)) {
+                return List.of();
+            }
+            if (StringUtils.isBlank(line)) {
+                return List.of(SseLineSupport.BLANK);
+            }
+            return List.of(SseLineSupport.data("{\"type\":\"converted\"}"));
+        });
+
+        String out = collect(ProxyStreamingFlux.wrap(stream(payload, true, suppressing), null, false, FACTORY,
+                null, null, null));
+
+        assertFalse(out.contains("event:"), "被抑制的行不应出现在下游，实际：" + out);
+        assertTrue(out.contains("data: {\"type\":\"converted\"}"), "其余行照常转换，实际：" + out);
+        assertTrue(out.contains("\n\n"), "空行是 SSE 事件分隔符，必须保留，实际：" + out);
+    }
+
+    @Test
+    @DisplayName("适配器可把一行合成多行（data 行 + 配套 event 行）")
+    void adapterCanExpandLineIntoMultiple() {
+        String payload = "data: {\"text\":\"hi\"}\n";
+        UpstreamAdapter expanding = stubAdapter(ctx -> line -> {
+            String data = SseLineSupport.dataOf(line);
+            if (data == null) {
+                return List.of(line);
+            }
+            return List.of(SseLineSupport.event("content_block_delta"), SseLineSupport.data(data),
+                    SseLineSupport.BLANK);
+        });
+
+        String out = collect(ProxyStreamingFlux.wrap(stream(payload, true, expanding), null, false, FACTORY,
+                null, null, null));
+
+        assertEquals("event: content_block_delta\ndata: {\"text\":\"hi\"}\n\n", out,
+                "一行应合成出 event 行 + data 行 + 分隔空行");
+    }
+
+    @Test
+    @DisplayName("适配器合成的 [DONE] 同样触发 knot_extend 插在其之前")
+    void injectsUsageBeforeSynthesizedDone() {
+        // 上游是 Anthropic 形状（收尾是 message_stop，没有 [DONE]），由适配器合成 [DONE]；
+        // 用量照 Anthropic 的位置：input 在 message_start、output 在 message_delta
+        String payload = "event: message_start\n"
+                + "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\","
+                + "\"usage\":{\"input_tokens\":10}}}\n"
+                + "\n"
+                + "event: message_delta\n"
+                + "data: {\"type\":\"message_delta\",\"usage\":{\"output_tokens\":5}}\n"
+                + "\n"
+                + "event: message_stop\n"
+                + "data: {\"type\":\"message_stop\"}\n"
+                + "\n";
+        UpstreamAdapter synthesizing = stubAdapter(ctx -> line -> {
+            String data = SseLineSupport.dataOf(line);
+            if (data == null) {
+                return SseLineSupport.isEvent(line) ? List.of() : List.of(line);
+            }
+            if (data.contains("\"message_stop\"")) {
+                return List.of(SseLineSupport.data(SseLineSupport.doneMarker()));
+            }
+            return List.of(line);
+        });
+
+        String out = collect(ProxyStreamingFlux.wrap(stream(payload, true, synthesizing), stubRegistry(), true,
+                FACTORY, null, null, null));
+        List<String> lines = out.lines().toList();
+
+        assertEquals(1, lines.stream().filter(line -> line.startsWith("data: {\"knot_extend\"")).count(),
+                "knot_extend 只注入一次，实际：" + out);
+        String extendEvent = lines.stream()
+                .filter(line -> line.startsWith("data: {\"knot_extend\"")).findFirst().orElseThrow();
+        assertEquals("data: [DONE]", lines.get(lines.indexOf(extendEvent) + 1),
+                "插入位置必须按适配后的 [DONE] 判断，否则客户端已不认这个位置");
+    }
+
+    @Test
+    @DisplayName("流式适配器按请求新建：跨请求状态互不污染")
+    void createsAdapterPerRequest() {
+        AtomicInteger created = new AtomicInteger();
+        UpstreamAdapter stateful = new UpstreamAdapter() {
+            @Override
+            public String code() {
+                return "STUB_STATEFUL";
+            }
+
+            @Override
+            public String label() {
+                return "stub";
+            }
+
+            @Override
+            public Set<org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum> protocol() {
+                return Set.of(org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum.CHAT_COMPLETIONS);
+            }
+
+            @Override
+            public Object buildRequestBody(UpstreamRequestContext ctx) {
+                return ctx.requestBody();
+            }
+
+            @Override
+            public StreamLineAdapter streamAdapter(UpstreamRequestContext ctx) {
+                created.incrementAndGet();
+                // 有状态：首行标记为 first，其余为 next
+                AtomicReference<Boolean> seen = new AtomicReference<>(false);
+                return line -> {
+                    if (StringUtils.isBlank(line)) {
+                        return List.of(SseLineSupport.BLANK);
+                    }
+                    boolean first = seen.compareAndSet(false, true);
+                    return List.of(SseLineSupport.data((first ? "first" : "next") + ":" + SseLineSupport.dataOf(line)));
+                };
+            }
+        };
+        String payload = "data: a\ndata: b\n";
+
+        String firstRun = collect(ProxyStreamingFlux.wrap(stream(payload, true, stateful), null, false, FACTORY,
+                null, null, null));
+        String secondRun = collect(ProxyStreamingFlux.wrap(stream(payload, true, stateful), null, false, FACTORY,
+                null, null, null));
+
+        assertEquals(2, created.get(), "每次请求都必须新建适配器实例");
+        assertEquals("data: first:a\ndata: next:b\n", firstRun,
+                "首次请求必须从 fresh 状态开始（实际=" + firstRun.replace("\n", "|") + "）");
+        assertEquals(firstRun, secondRun, "第二次请求必须从 fresh 状态开始，不能被上一请求污染");
+    }
+
+    private static UpstreamAdapter stubAdapter(
+            java.util.function.Function<UpstreamRequestContext, StreamLineAdapter> factory) {
+        return new UpstreamAdapter() {
+            @Override
+            public String code() {
+                return "STUB_STREAM";
+            }
+
+            @Override
+            public String label() {
+                return "stub";
+            }
+
+            @Override
+            public Set<org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum> protocol() {
+                return Set.of(org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum.CHAT_COMPLETIONS);
+            }
+
+            @Override
+            public Object buildRequestBody(UpstreamRequestContext ctx) {
+                return ctx.requestBody();
+            }
+
+            @Override
+            public StreamLineAdapter streamAdapter(UpstreamRequestContext ctx) {
+                return factory.apply(ctx);
+            }
+        };
+    }
+
+    private static String collect(Flux<DataBuffer> body) {        return body.map(buffer -> buffer.toString(StandardCharsets.UTF_8))
                 .collectList()
                 .map(parts -> String.join("", parts))
                 .block();

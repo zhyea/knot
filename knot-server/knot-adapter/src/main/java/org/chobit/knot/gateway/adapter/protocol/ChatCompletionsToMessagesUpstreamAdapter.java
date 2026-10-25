@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.adapter.protocol;
 import org.chobit.knot.gateway.adapter.support.RequestFieldSupport;
 import org.chobit.knot.gateway.adapter.support.anthropic.AnthropicMessagesRequestSupport;
 import org.chobit.knot.gateway.adapter.support.anthropic.AnthropicMessagesResponseSupport;
+import org.chobit.knot.gateway.adapter.support.anthropic.AnthropicStreamSupport;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
@@ -65,6 +66,12 @@ public class ChatCompletionsToMessagesUpstreamAdapter implements UpstreamAdapter
         return AnthropicMessagesResponseSupport.messagesToChatCompletion(responseBody, context);
     }
 
+    /** 流式：Messages SSE → {@code chat.completion.chunk}（抑制 {@code event:} 行与被转换的收尾事件）。 */
+    @Override
+    public StreamLineAdapter streamAdapter(UpstreamRequestContext context) {
+        return AnthropicStreamSupport.messagesToChatCompletionChunks(context);
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> chatCompletionsToMessages(Map<String, Object> source) {
         Map<String, Object> body = new LinkedHashMap<>(source);
@@ -93,6 +100,7 @@ public class ChatCompletionsToMessagesUpstreamAdapter implements UpstreamAdapter
         body.remove("logit_bias");
         body.remove("response_format");
         AnthropicMessagesRequestSupport.ensureMaxTokens(body);
+        AnthropicMessagesRequestSupport.applyToolShape(body);
         return body;
     }
 }

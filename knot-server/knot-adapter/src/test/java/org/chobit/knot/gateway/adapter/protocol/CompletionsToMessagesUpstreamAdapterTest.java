@@ -5,6 +5,7 @@ import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.util.JsonKit;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -107,6 +109,32 @@ class CompletionsToMessagesUpstreamAdapterTest {
     void shouldPassThroughNonMessagesResponses() {
         String error = "{\"type\":\"error\",\"error\":{\"type\":\"overloaded_error\",\"message\":\"busy\"}}";
         assertEquals(error, adapter.handleResponse(error, context(ModelApiProtocolEnum.COMPLETIONS, Map.of())));
+    }
+
+    @Test
+    @DisplayName("旧版 Completions 没有工具概念：调用方硬传的 tools 必须剔除")
+    void shouldDropToolsForLegacyCompletions() {
+        Map<String, Object> source = new LinkedHashMap<>();
+        source.put(AiPayloadFields.PROMPT, "你好");
+        source.put(AiPayloadFields.TOOLS, List.of(Map.of(AiPayloadFields.NAME, "get_weather")));
+        source.put(AiPayloadFields.TOOL_CHOICE, "auto");
+
+        Map<String, Object> result = asMap(
+                adapter.buildRequestBody(context(ModelApiProtocolEnum.COMPLETIONS, source)));
+
+        assertFalse(result.containsKey(AiPayloadFields.TOOLS), "原样带给 Anthropic 会 400");
+        assertFalse(result.containsKey(AiPayloadFields.TOOL_CHOICE));
+    }
+
+    @Test
+    @DisplayName("流式走 text_completion chunk 转换器（非默认透传）")
+    void shouldProvideTextCompletionStreamAdapter() {
+        StreamLineAdapter streamAdapter = adapter.streamAdapter(
+                context(ModelApiProtocolEnum.COMPLETIONS, Map.of()));
+
+        assertNotSame(StreamLineAdapter.PASSTHROUGH, streamAdapter);
+        assertEquals(List.of(), streamAdapter.adapt("event: content_block_start"), "event 行应被抑制");
+        assertEquals(List.of("data: [DONE]"), streamAdapter.adapt("data: {\"type\":\"message_stop\"}"));
     }
 
     private Map<String, Object> readMap(String json) {

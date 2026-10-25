@@ -127,18 +127,26 @@ model       → 领域值对象（非表映射）
 
 ⚠ **`gateway.model` 同名包跨 4 模块**（common / gateway / service / adapter 各有一份）：跨模块引用这些包的类**必须显式 import 全 FQCN**，禁止依赖「classpath 同名包可见性」用短名（判例：本次整理中 `knot-gateway` 的 `ProxyResult` 曾因此断编）。
 
-上游适配器接口为 `UpstreamAdapter`（`adapter.protocol` 包），是**双向角色**：请求适配（`resolvePath` / `buildRequestBody` / `resolveContentType`）与响应适配（`handleResponse` 整包 / `handleStreamEvent` 流式）由同一实现持有。**不存在**「只适配请求」或「只适配响应」的拆分角色——一次协议转换的两个方向必须同源，拆开只会让两侧各漂移一份口径。
+上游适配器接口为 `UpstreamAdapter`（`adapter.protocol` 包），是**双向角色**：请求适配（`resolvePath` / `buildRequestBody` / `resolveContentType`）与响应适配（`handleResponse` 整包 / `streamAdapter` 流式）由同一实现持有。**不存在**「只适配请求」或「只适配响应」的拆分角色——一次协议转换的两个方向必须同源，拆开只会让两侧各漂移一份口径。
 
-⚠ **协议转换类适配器必须覆写 `handleResponse`**：默认透传只服务 `PassthroughUpstreamAdapter`（同协议）。只做请求侧转换会让客户端拿到上游协议形状（判例：四个泛化适配器 2026-10-25 前只有 `buildRequestBody`，chat.completions 请求收到的是 Anthropic JSON），且**计费提取吃的是转换后产物**——错形状会连带算错账。响应转换的约定：非目标形状（错误体、非 JSON）一律原样透传，绝不改写成成功形状；usage 必须双向换算。⚠ **流式 `handleStreamEvent` 目前只拿到 `data:` 行**（`event:` 行不经过适配器、无抑制/合成能力），SSE 协议级转换（改写事件类型、合成 `[DONE]`）需先改管线，勿在适配器里硬凑。
+⚠ **协议转换类适配器必须同时覆写 `handleResponse` 与 `streamAdapter`**：默认透传只服务 `PassthroughUpstreamAdapter`（同协议）。只做请求侧转换会让客户端拿到上游协议形状（判例：四个泛化适配器 2026-10-25 前只有 `buildRequestBody`，chat.completions 请求收到的是 Anthropic JSON），且**计费提取吃的是转换后产物**——错形状会连带算错账。响应转换的约定：非目标形状（错误体、非 JSON）一律原样透传，绝不改写成成功形状；usage 必须双向换算。
 
 命名规则：
 
 1. **结构** `<供应商>+<原协议>+<新协议>+UpstreamAdapter`，如 `AwsBedrockChatCompletionsToConverseUpstreamAdapter`；code = 类名去后缀 SCREAMING_SNAKE 化（`AWS_BEDROCK_CHAT_COMPLETIONS_TO_CONVERSE`），即 `kb_model_api_bindings.request_adapter` 的绑定值（列名不变）。
 2. **泛化转换免供应商段**：不隶属单一供应商的协议转换（如 ChatCompletions→Messages）直接 `<原协议>To<新协议>UpstreamAdapter`。
 3. **透传豁免**：`PassthroughUpstreamAdapter`（code `PASSTHROUGH`）是唯一多协议适配器；**除透传外，一个适配器只服务一种协议**（`protocol()` 返回单元素集）。
-4. **共享逻辑抽 Support，按归属分两层**：**无供应商语义的通用原语**收 `adapter.support.XxxSupport`（`RequestFieldSupport.move` 字段搬迁、`PayloadMapSupport` 的 `cast`/`nested`/`firstPresent`/`stringOf`/`putLong`、`PayloadTextSupport.textOf` 跨协议 content 折文本）；**供应商特有语义**收 `adapter.support.<供应商>.XxxSupport`（如 `support.aws.AwsBedrockConverseSupport` Bedrock 全族、`support.anthropic.AnthropicMessagesRequestSupport` 的 `max_tokens` 兜底）；适配器类只做协议分发与口径注释。⚠ **通用能力不住供应商专用类**（判例：`move` 曾住 `AnthropicMessagesRequestSupport`、`textOf` 等 6 个读写原语曾住 `AwsBedrockConverseSupport`，均 2026-10-25 拆出）；⚠ **跨类逐字重复是归属错误的直接后果**——见到两份逐字相同的私有实现，先怀疑其中一份住错了地方，而不是先合并（判例：`textOf` 住进 AWS 专用类后，`AwsBedrockMessagesToConverseUpstreamAdapter` 被迫复制了一份私有副本；authConfig 读取力学也曾有 `AuthConfigSupport.value` 与 `AwsBedrockEndpointResolver.read` 两份，2026-10-25 合并至 `PayloadMapSupport.text`）；⚠ **纯转发壳同样是冗余**——委托层不带知识增量时删掉，调用方直调（判例：`value` 合并后曾短暂保留为一行委托，同批删除）；⚠ Support 静态方法必须 `public`——从同包子类化细节改为跨子包调用时，包私有方法会静默变成编译错误（判例：本次整理 `AnthropicMessagesRequestSupport` 两方法补 public）。
+4. **共享逻辑抽 Support，按归属分两层**：**无供应商语义的通用原语**收 `adapter.support.XxxSupport`（`RequestFieldSupport.move` 字段搬迁、`PayloadMapSupport` 的 `cast`/`nested`/`firstPresent`/`stringOf`/`text`/`putLong`、`PayloadTextSupport.textOf` 跨协议 content 折文本、`SseLineSupport` SSE 行语法读写——**SSE 是 HTTP 传输层语法，与供应商和 AI 协议都无关**，故住 support 根而非 `support.anthropic`）；**供应商特有语义**收 `adapter.support.<供应商>.XxxSupport`（如 `support.aws.AwsBedrockConverseSupport` Bedrock 全族、`support.anthropic.AnthropicMessagesRequestSupport` 的 `max_tokens` 兜底与工具字段换形编排、`AnthropicMessagesResponseSupport` 的整包双向转换、`AnthropicToolSupport` 的工具语义、`AnthropicStreamSupport` 的流式双向转换）；适配器类只做协议分发与口径注释。⚠ **通用能力不住供应商专用类**（判例：`move` 曾住 `AnthropicMessagesRequestSupport`、`textOf` 等 6 个读写原语曾住 `AwsBedrockConverseSupport`，均 2026-10-25 拆出）；⚠ **跨类逐字重复是归属错误的直接后果**——见到两份逐字相同的私有实现，先怀疑其中一份住错了地方，而不是先合并（判例：`textOf` 住进 AWS 专用类后，`AwsBedrockMessagesToConverseUpstreamAdapter` 被迫复制了一份私有副本；authConfig 读取力学也曾有 `AuthConfigSupport.value` 与 `AwsBedrockEndpointResolver.read` 两份，2026-10-25 合并至 `PayloadMapSupport.text`）；⚠ **纯转发壳同样是冗余**——委托层不带知识增量时删掉，调用方直调（判例：`value` 合并后曾短暂保留为一行委托，同批删除）；⚠ **同一张词表只能有一个所有者**——`stop_reason`↔`finish_reason` 表归 `AnthropicMessagesResponseSupport` 并以 `public static` 暴露给流式复用，流式侧再抄一份就是跨类重复（判例：2026-10-25 `AnthropicStreamSupport` 直接调那两个方法，不复制映射表）；⚠ Support 静态方法必须 `public`——从同包子类化细节改为跨子包调用时，包私有方法会静默变成编译错误（判例：本次整理 `AnthropicMessagesRequestSupport` 两方法补 public）。
 
-流式契约：`handleStreamEvent` 与 `handleResponse` 按执行路径分工（前者只服务流式逐事件、后者只服务整包），两条路径的转换产物都同时喂客户端转发与用量提取（同构：提取吃的永远是转换后的数据）。默认透传实现零解析、零序列化。**响应适配是协议正确性，不受 `appendUsage`（计费注入开关）gate**——data 行一律过适配器，是否提取用量才看开关。
+流式契约：`streamAdapter(context)` 与 `handleResponse` 按执行路径分工（前者只服务流式逐行、后者只服务整包），两条路径的转换产物都同时喂客户端转发与用量提取（同构：提取吃的永远是转换后的数据）。默认透传实现零解析、零序列化。**响应适配是协议正确性，不受 `appendUsage`（计费注入开关）gate**——行一律过适配器，是否提取用量才看开关。
+
+流式钩子返回 **`StreamLineAdapter`（行级、0..N 行）而非 `data` 载荷级**，三个理由缺一不可：
+1. **抑制**：Anthropic 的 `event:` 行对 OpenAI 客户端是噪音、`ping` 事件无对应物，必须能「不发这一行」；
+2. **合成**：反向（chat chunk → Messages）必须为一个 `data` 行补出配套的 `event:` 行，甚至一个上游事件合成多个下游事件（`message_start` → `response.created` + `output_item.added` + `content_part.added`）；
+3. **状态**：chunk id 全程一致、`message_start` 只合成一次、tool 块序号连续——这些状态**挂不得在适配器上**（适配器是单例 Bean，会被并发请求互相污染），故 `streamAdapter` **每请求返回新实例**。
+⚠ 返回列表语义：空列表 = 抑制、单元素 = 改写、多元素 = 合成。⚠ 空白行（SSE 事件分隔符）**必须保留**，丢了两个事件会黏成一条。⚠ `knot_extend` 的插入位置按**适配后**的 `[DONE]` 判断——协议转换会把上游收尾事件合成 `[DONE]`，按原始行判断会插在客户端已不认的位置。
+
+工具语义（`tools` / `tool_choice` / `tool_calls`↔`tool_use`↔`tool_result`）是**跨请求声明、消息载体、响应产物三类载体的同一份语义**，必须收在一个 Support 里（`support.anthropic.AnthropicToolSupport`），禁止三个适配器各写一段。三条硬约束：① **形状不认识就不动**（返回 `null` 表示保留原值），不猜第三方自定义形状；② **不丢内容**——消息里出现未知 content 块类型时整条原样保留，半懂比不懂更危险；③ **两协议工具参数编码不同**：Anthropic `input` 是对象、OpenAI `arguments` 是 JSON 文本，反向解析失败退化为空对象（`input` 必须是对象，退化成空好过整个请求 400）。⚠ OpenAI 侧 `tools` 有**两种规范形状**（chat 的 `{type,function:{...}}` 包装与 Responses 的扁平 `{type,name,parameters}`），识别判据是「读得到 `name`」，不是「有没有 `function`」。
 
 配套命名（同批落地）：目录 `UpstreamAdapterCatalog` / `UpstreamAdapterDefinition`（随接口在 `adapter.protocol`），网关侧 `upstream.request.UpstreamAdapterRegistry`（未知 code 或留空回落透传）。
 

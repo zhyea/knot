@@ -5,6 +5,7 @@ import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.util.JsonKit;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -14,6 +15,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -140,6 +142,61 @@ class MessagesToChatCompletionsUpstreamAdapterTest {
     private Map<String, Object> readMap(String json) {
         return JsonKit.fromJson(json, new TypeReference<>() {
         });
+    }
+
+    @Test
+    @DisplayName("工具语义反向换形：tools 加 function 包装、tool_use 折 tool_calls、tool_result 拆 tool 消息")
+    void shouldConvertToolFieldsToOpenAiShape() {
+        Map<String, Object> source = anthropicStyleBody();
+        source.put(AiPayloadFields.TOOLS, List.of(Map.of(
+                AiPayloadFields.NAME, "get_weather",
+                AiPayloadFields.INPUT_SCHEMA, Map.of("type", "object"))));
+        source.put(AiPayloadFields.TOOL_CHOICE, Map.of(AiPayloadFields.TYPE, "any"));
+        source.put(AiPayloadFields.MESSAGES, new ArrayList<>(List.of(
+                Map.of(AiPayloadFields.ROLE, "assistant", AiPayloadFields.CONTENT, List.of(
+                        Map.of(AiPayloadFields.TYPE, AiPayloadFields.TOOL_USE,
+                                AiPayloadFields.ID, "toolu_1",
+                                AiPayloadFields.NAME, "get_weather",
+                                AiPayloadFields.INPUT, Map.of("city", "杭州")))),
+                Map.of(AiPayloadFields.ROLE, "user", AiPayloadFields.CONTENT, List.of(
+                        Map.of(AiPayloadFields.TYPE, AiPayloadFields.TOOL_RESULT,
+                                AiPayloadFields.TOOL_USE_ID, "toolu_1",
+                                AiPayloadFields.CONTENT, "晴"))))));
+
+        Map<String, Object> result = asMap(
+                adapter.buildRequestBody(context(ModelApiProtocolEnum.MESSAGES, source)));
+
+        Map<String, Object> tool = asMap(((List<?>) result.get(AiPayloadFields.TOOLS)).get(0));
+        assertEquals(AiPayloadFields.FUNCTION, tool.get(AiPayloadFields.TYPE));
+        assertEquals(Map.of("type", "object"),
+                asMap(tool.get(AiPayloadFields.FUNCTION)).get(AiPayloadFields.PARAMETERS),
+                "input_schema → parameters");
+        assertEquals("required", result.get(AiPayloadFields.TOOL_CHOICE), "Anthropic 的 any 对应 OpenAI 的 required");
+
+        // system 提升成首条消息，其后是 assistant(tool_calls) 与 tool 结果
+        List<?> messages = (List<?>) result.get(AiPayloadFields.MESSAGES);
+        assertEquals(3, messages.size(), "system + assistant + tool（纯 tool_result 不再留空 user）");
+        Map<String, Object> assistant = asMap(messages.get(1));
+        Map<String, Object> call = asMap(((List<?>) assistant.get(AiPayloadFields.TOOL_CALLS)).get(0));
+        assertEquals("toolu_1", call.get(AiPayloadFields.ID));
+        assertEquals("{\"city\":\"杭州\"}",
+                asMap(call.get(AiPayloadFields.FUNCTION)).get(AiPayloadFields.ARGUMENTS),
+                "input 对象必须序列化成 arguments 文本");
+
+        Map<String, Object> toolMessage = asMap(messages.get(2));
+        assertEquals(AiPayloadFields.TOOL, toolMessage.get(AiPayloadFields.ROLE));
+        assertEquals("toolu_1", toolMessage.get(AiPayloadFields.TOOL_CALL_ID));
+    }
+
+    @Test
+    @DisplayName("流式走 Messages 事件转换器（合成 event 行与收尾事件）")
+    void shouldProvideMessagesEventStreamAdapter() {
+        StreamLineAdapter streamAdapter = adapter.streamAdapter(
+                context(ModelApiProtocolEnum.MESSAGES, Map.of()));
+
+        assertNotSame(StreamLineAdapter.PASSTHROUGH, streamAdapter);
+        assertTrue(streamAdapter.adapt("data: [DONE]").contains("event: message_stop"),
+                "OpenAI 的 [DONE] 必须换成品类收尾事件");
     }
 
     private Map<String, Object> anthropicStyleBody() {

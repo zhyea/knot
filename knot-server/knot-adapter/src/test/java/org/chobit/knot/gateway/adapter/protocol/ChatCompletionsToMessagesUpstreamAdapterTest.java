@@ -5,6 +5,7 @@ import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.util.JsonKit;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -14,6 +15,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -140,6 +142,64 @@ class ChatCompletionsToMessagesUpstreamAdapterTest {
                 "错误体必须原样透传，绝不改写成成功形状");
         assertEquals("not-json", adapter.handleResponse("not-json", context(ModelApiProtocolEnum.CHAT_COMPLETIONS, body)));
         assertEquals("", adapter.handleResponse("", context(ModelApiProtocolEnum.CHAT_COMPLETIONS, body)));
+    }
+
+    @Test
+    @DisplayName("工具字段随请求换形：tools 去包装、tool_choice 换档、tool_calls 折块")
+    void shouldConvertToolFieldsToAnthropicShape() {
+        Map<String, Object> source = chatCompletionsBody();
+        source.put(AiPayloadFields.TOOLS, List.of(Map.of(
+                AiPayloadFields.TYPE, AiPayloadFields.FUNCTION,
+                AiPayloadFields.FUNCTION, Map.of(
+                        AiPayloadFields.NAME, "get_weather",
+                        AiPayloadFields.PARAMETERS, Map.of("type", "object")))));
+        source.put(AiPayloadFields.TOOL_CHOICE, "required");
+        source.put(AiPayloadFields.MESSAGES, new ArrayList<>(List.of(
+                Map.of(AiPayloadFields.ROLE, AiPayloadFields.USER, AiPayloadFields.CONTENT, "杭州天气"),
+                Map.of(AiPayloadFields.ROLE, "assistant", AiPayloadFields.TOOL_CALLS, List.of(Map.of(
+                        AiPayloadFields.ID, "call_1",
+                        AiPayloadFields.TYPE, AiPayloadFields.FUNCTION,
+                        AiPayloadFields.FUNCTION, Map.of(
+                                AiPayloadFields.NAME, "get_weather",
+                                AiPayloadFields.ARGUMENTS, "{\"city\":\"杭州\"}")))),
+                Map.of(AiPayloadFields.ROLE, AiPayloadFields.TOOL,
+                        AiPayloadFields.TOOL_CALL_ID, "call_1", AiPayloadFields.CONTENT, "晴"))));
+
+        Map<String, Object> result = asMap(
+                adapter.buildRequestBody(context(ModelApiProtocolEnum.CHAT_COMPLETIONS, source)));
+
+        Map<String, Object> tool = asMap(((List<?>) result.get(AiPayloadFields.TOOLS)).get(0));
+        assertEquals("get_weather", tool.get(AiPayloadFields.NAME), "Anthropic 的 tools 没有 function 包装");
+        assertFalse(tool.containsKey(AiPayloadFields.FUNCTION));
+        assertEquals(Map.of("type", "object"), tool.get(AiPayloadFields.INPUT_SCHEMA));
+        assertEquals(Map.of(AiPayloadFields.TYPE, "any"), result.get(AiPayloadFields.TOOL_CHOICE),
+                "OpenAI 的 required 对应 Anthropic 的 any");
+
+        List<?> messages = (List<?>) result.get(AiPayloadFields.MESSAGES);
+        assertEquals(3, messages.size(), "user + assistant + tool_result");
+        Map<String, Object> assistant = asMap(messages.get(1));
+        assertFalse(assistant.containsKey(AiPayloadFields.TOOL_CALLS), "OpenAI 载体字段必须移除");
+        Map<String, Object> toolUse = asMap(((List<?>) assistant.get(AiPayloadFields.CONTENT)).get(0));
+        assertEquals(AiPayloadFields.TOOL_USE, toolUse.get(AiPayloadFields.TYPE));
+        assertEquals(Map.of("city", "杭州"), toolUse.get(AiPayloadFields.INPUT));
+
+        Map<String, Object> toolResult = asMap(messages.get(2));
+        assertEquals("user", toolResult.get(AiPayloadFields.ROLE), "tool 结果必须换成 user 角色");
+        Map<String, Object> resultBlock = asMap(((List<?>) toolResult.get(AiPayloadFields.CONTENT)).get(0));
+        assertEquals(AiPayloadFields.TOOL_RESULT, resultBlock.get(AiPayloadFields.TYPE));
+        assertEquals("call_1", resultBlock.get(AiPayloadFields.TOOL_USE_ID));
+    }
+
+    @Test
+    @DisplayName("流式走 chat chunk 转换器（非默认透传）")
+    void shouldProvideChatChunkStreamAdapter() {
+        StreamLineAdapter streamAdapter = adapter.streamAdapter(
+                context(ModelApiProtocolEnum.CHAT_COMPLETIONS, Map.of()));
+
+        assertNotSame(StreamLineAdapter.PASSTHROUGH, streamAdapter, "协议转换类适配器必须覆写流式适配");
+        assertEquals(List.of(), streamAdapter.adapt("event: message_start"), "event 行应被抑制");
+        assertEquals(List.of("data: [DONE]"), streamAdapter.adapt("data: {\"type\":\"message_stop\"}"),
+                "message_stop 应合成 [DONE]");
     }
 
     private String finishReasonOf(String stopReason) {

@@ -4,6 +4,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.adapter.support.RequestFieldSupport;
 import org.chobit.knot.gateway.adapter.support.anthropic.AnthropicMessagesRequestSupport;
 import org.chobit.knot.gateway.adapter.support.anthropic.AnthropicMessagesResponseSupport;
+import org.chobit.knot.gateway.adapter.support.anthropic.AnthropicStreamSupport;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
@@ -66,6 +67,12 @@ public class ResponsesToMessagesUpstreamAdapter implements UpstreamAdapter {
         return AnthropicMessagesResponseSupport.messagesToResponses(responseBody, context);
     }
 
+    /** 流式：Messages SSE → Responses 事件流（需合成 {@code event:} 行，故走行级适配器）。 */
+    @Override
+    public StreamLineAdapter streamAdapter(UpstreamRequestContext context) {
+        return AnthropicStreamSupport.messagesToResponsesEvents(context);
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> responsesToMessages(Map<String, Object> source) {
         Map<String, Object> body = new LinkedHashMap<>(source);
@@ -89,6 +96,7 @@ public class ResponsesToMessagesUpstreamAdapter implements UpstreamAdapter {
         body.remove("reasoning");
         body.remove("store");
         AnthropicMessagesRequestSupport.ensureMaxTokens(body);
+        AnthropicMessagesRequestSupport.applyToolShape(body);
         return body;
     }
 }

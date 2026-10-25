@@ -22,6 +22,36 @@ public final class AiPayloadFields {
     public static final String RESPONSE = "response";
     public static final String STOP = "stop";
     public static final String STOP_SEQUENCES = "stop_sequences";
+
+    /** 工具定义数组：OpenAI 为 {@code [{type,function:{...}}]}，Anthropic 为 {@code [{name,description,input_schema}]}。 */
+    public static final String TOOLS = "tools";
+    /** OpenAI 工具选择的字符串档位（{@code auto/none/required}）；对象档位见 {@link #TOOL_CHOICE_FUNCTION}。 */
+    public static final String TOOL_CHOICE = "tool_choice";
+    /** OpenAI {@code tool_choice} 的对象档位：{@code {type:function, function:{name}}}，Anthropic 对应 {@code {type:tool,name}}。 */
+    public static final String TOOL_CHOICE_FUNCTION = "function";
+    /** OpenAI 函数式工具的外壳名，也是 {@code tool_choice} 内层包装名。 */
+    public static final String FUNCTION = "function";
+    /** OpenAI assistant 消息上的工具调用数组。 */
+    public static final String TOOL_CALLS = "tool_calls";
+    /** OpenAI 回传工具结果的消息角色与配套 id 字段。 */
+    public static final String TOOL = "tool";
+    public static final String TOOL_CALL_ID = "tool_call_id";
+    /** Anthropic content block 类型：工具调用块 / 工具结果块。 */
+    public static final String TOOL_USE = "tool_use";
+    public static final String TOOL_RESULT = "tool_result";
+    public static final String TOOL_USE_ID = "tool_use_id";
+    /** Anthropic 工具参数 JSON Schema 的键名（对应 OpenAI 的 {@link #PARAMETERS}）。 */
+    public static final String INPUT_SCHEMA = "input_schema";
+    /** OpenAI 工具参数 JSON Schema 的键名。 */
+    public static final String PARAMETERS = "parameters";
+    /** Responses 协议里工具调用的 output 项类型。 */
+    public static final String FUNCTION_CALL = "function_call";
+    /** OpenAI 工具调用的 JSON 参数字符串（流式时逐片到达）。 */
+    public static final String ARGUMENTS = "arguments";
+
+    /** 工具名 / 工具描述（两协议同名，收在此处避免各适配器散落字面量）。 */
+    public static final String NAME = "name";
+    public static final String DESCRIPTION = "description";
     public static final String MAX_TOKENS = "max_tokens";
     public static final String MAX_COMPLETION_TOKENS = "max_completion_tokens";
     public static final String MAX_OUTPUT_TOKENS = "max_output_tokens";
@@ -51,6 +81,17 @@ public final class AiPayloadFields {
      */
     public static final String RAW_USAGE = "usage";
     public static final String STREAM = "stream";
+
+    /** 载荷类型判别字段：Anthropic 事件 {@code type}、Responses output 项 {@code type} 共用。 */
+    public static final String TYPE = "type";
+    /** 载荷标识字段：消息 / 事件 / 工具调用 id。 */
+    public static final String ID = "id";
+    /** 流式增量字段（OpenAI chunk 与 Anthropic 事件同名）。 */
+    public static final String DELTA = "delta";
+    /** 候选序号（OpenAI choices 与 Anthropic content block 同名）。 */
+    public static final String INDEX = "index";
+    /** 文本载体：Anthropic text 块类型与其 {@code text} 字段同名（OpenAI 裸串侧无此键）。 */
+    public static final String TEXT = "text";
 
     private AiPayloadFields() {
     }

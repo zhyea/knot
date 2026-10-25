@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.adapter.support.RequestFieldSupport;
 import org.chobit.knot.gateway.adapter.support.anthropic.AnthropicMessagesResponseSupport;
+import org.chobit.knot.gateway.adapter.support.anthropic.AnthropicStreamSupport;
+import org.chobit.knot.gateway.adapter.support.anthropic.AnthropicToolSupport;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
@@ -69,6 +71,12 @@ public class MessagesToChatCompletionsUpstreamAdapter implements UpstreamAdapter
         return AnthropicMessagesResponseSupport.chatCompletionToMessages(responseBody, context);
     }
 
+    /** 流式：{@code chat.completion.chunk} → Messages SSE（需合成 {@code event:} 行与收尾三事件）。 */
+    @Override
+    public StreamLineAdapter streamAdapter(UpstreamRequestContext context) {
+        return AnthropicStreamSupport.chatChunksToMessages(context);
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> anthropicMessagesToChatCompletions(Map<String, Object> source) {
         Map<String, Object> body = new LinkedHashMap<>(source);
@@ -86,7 +94,16 @@ public class MessagesToChatCompletionsUpstreamAdapter implements UpstreamAdapter
             }
         }
         if (!messages.isEmpty()) {
-            body.put(AiPayloadFields.MESSAGES, messages);
+            // 工具载体换向：tool_use 块 → assistant.tool_calls，tool_result 块 → role:tool 消息
+            body.put(AiPayloadFields.MESSAGES, AnthropicToolSupport.messagesToOpenAi(messages));
+        }
+        Object tools = AnthropicToolSupport.toolsToOpenAi(source.get(AiPayloadFields.TOOLS));
+        if (tools != null) {
+            body.put(AiPayloadFields.TOOLS, tools);
+        }
+        Object toolChoice = AnthropicToolSupport.toolChoiceToOpenAi(source.get(AiPayloadFields.TOOL_CHOICE));
+        if (toolChoice != null) {
+            body.put(AiPayloadFields.TOOL_CHOICE, toolChoice);
         }
         RequestFieldSupport.move(body, AiPayloadFields.STOP_SEQUENCES, AiPayloadFields.STOP);
         body.remove(AiPayloadFields.SYSTEM);

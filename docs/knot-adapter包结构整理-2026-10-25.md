@@ -117,3 +117,84 @@ robin 指出「UpstreamAdapter 仅对请求做了处理，还没有对响应做�
 **门禁**：`mvn -f knot-server/pom.xml clean test` → 见下条；日志 `audit/response_adapt_gate.log`。
 
 **未 commit，待批准。**
+
+## 10. 流式适配与工具调用块（同日，robin 要求补完 §9 的两项遗留）
+
+§9 明确记录了两项「未做」，robin 要求都补上。核查后发现问题比记录里更实：
+
+- **请求侧工具字段是原样透传给 Anthropic 的**——`tools` 是 OpenAI 形状（`{type,function:{name,parameters}}`），Anthropic 要 `{name,description,input_schema}`，**上游必然 400**。三个向 Messages 转换的适配器都中招。
+- **流式缺的不是适配器而是管线能力**——`ProxyStreamingFlux.transform` 只对 `data:` 行做 1:1 变换，`event:` 行原样透传。这意味着：抑制做不到（Anthropic 的 `event: message_start` 在 OpenAI 客户端眼里是噪音）、合成也做不到（反向要为一个 data 行补出配套 `event:` 行，甚至一个上游事件合成三个下游事件）。
+
+### 10.1 管线改造：`handleStreamEvent` → `streamAdapter` + `StreamLineAdapter`
+
+废弃 `String handleStreamEvent(String eventData, ctx)`，改由 `streamAdapter(context)` 返回 **`StreamLineAdapter`（行级、0..N 行）**：
+
+| 返回 | 语义 |
+|---|---|
+| 空列表 | 抑制该行（`event:` 行、`ping` 事件） |
+| 单元素 | 改写（data 行换形状） |
+| 多元素 | 合成（data 行 + 配套 event 行 + 分隔空行） |
+
+三个关键决定：
+
+1. **按请求新建实例**：流式转换有跨事件状态（chunk id 全程一致、`message_start` 只合成一次、tool 块序号连续），而适配器是单例 Bean——状态挂实例上会被并发请求互相污染。测试 `createsAdapterPerRequest` 专门盯这一点（同一适配器两次请求必须同输出）。
+2. **`transform` 顺序改为「先适配、后判 DONE」**：协议转换会把上游收尾事件合成 `[DONE]`（Anthropic `message_stop` → `data: [DONE]`），按原始行判断会让 `knot_extend` 插在客户端已不认的位置。测试 `injectsUsageBeforeSynthesizedDone` 盯这个。
+3. **空白行必须保留**：SSE 事件分隔符，丢了两个事件会黏成一条。
+
+### 10.2 两个新类
+
+| 类 | 归属 | 职责 |
+|---|---|---|
+| `support.SseLineSupport` | support 根（**通用**） | SSE 行语法：`data:`/`event:` 前缀读写、`[DONE]` 判定。SSE 是 HTTP 传输层语法，与供应商和 AI 协议都无关，**不住 `support.anthropic`** |
+| `support.anthropic.AnthropicToolSupport` | anthropic 子包 | 工具语义双向：`tools`/`tool_choice` 声明、消息载体（`tool_calls`↔`tool_use`↔`tool_result`）、响应产物（`tool_calls`/`function_call`） |
+| `support.anthropic.AnthropicStreamSupport` | anthropic 子包 | 流式双向：四个工厂方法各服务一个适配器，内部四个 per-request 有状态实现 |
+
+`AnthropicMessagesResponseSupport` 的 `finishReason`/`stopReason` 改为 `public` 供流式复用——**同一张词表只能有一个所有者**，流式再抄一份就是跨类重复。
+
+### 10.3 流式四方向
+
+| 方向 | 服务适配器 | 关键转换 |
+|---|---|---|
+| Messages SSE → `chat.completion.chunk` | ChatCompletionsToMessages | 抑制 `event:`/`ping`/`content_block_stop`；`message_stop`→`[DONE]`；`tool_use` 块 + `input_json_delta` → `delta.tool_calls` 增量 |
+| Messages SSE → `text_completion` chunk | CompletionsToMessages | 只转文本增量与 finish（旧协议无 role/工具） |
+| Messages SSE → Responses 事件 | ResponsesToMessages | `message_start` 合成 `response.created` + `output_item.added` + `content_part.added` 三组；`message_stop` 合成 `output_text.done` + `output_item.done` + `response.completed` |
+| `chat.completion.chunk` → Messages SSE | MessagesToChatCompletions | 首个 chunk 合成 `message_start`；**text 块延迟开**（纯工具轮次不留空 text 块）；`[DONE]` 补 `content_block_stop` + `message_delta` + `message_stop` |
+
+共同约定：非 JSON / 未知事件 / `error` 事件**原样透传**；`thinking_delta`/`signature_delta` 丢弃（OpenAI 系无承载位）。
+
+### 10.4 工具调用的三条硬约束
+
+1. **形状不认识就不动**：`toolsToAnthropic` 等返回 `null` 表示「调用方保留原值」，不猜第三方自定义形状；已是目标形状时幂等。
+2. **不丢内容**：消息里出现未知 content 块类型（`image` 等）时**整条消息原样保留**——半懂的转换比不改更危险。
+3. **两协议参数编码不同**：Anthropic `input` 是对象、OpenAI `arguments` 是 JSON 文本。反向解析失败退化为空对象（`input` 必须是对象，退化成空好过整个请求 400）。
+
+另有一条易错点：**OpenAI 侧 `tools` 有两种规范形状**——chat 的 `{type,function:{...}}` 包装与 Responses 的扁平 `{type,name,parameters}`。识别判据取「读得到 `name`」（而非「有没有 `function`」），两种都吃。
+
+### 10.5 测试 +33 例
+
+| 测试类 | 例数 | 覆盖面 |
+|---|---|---|
+| `AnthropicToolSupportTest` | 13 | 两套 tools 形状、`tool_choice` 四档、消息载体双向、`arguments`↔`input` 编解码、未知块原样 |
+| `AnthropicStreamSupportTest` | 8 | 四方向流式、event 抑制、空行保留、`[DONE]` 合成、tool 增量、纯工具轮次无空 text 块 |
+| `ProxyStreamingFluxTest` | 14→18 | 抑制行、一行合成多行、适配后 `[DONE]` 触发 `knot_extend`、per-request 状态隔离 |
+| 四个适配器测试 | 各 +2 | 请求侧工具换形、`streamAdapter` 非透传 |
+
+### 10.6 门禁
+
+`mvn -f knot-server/pom.xml clean test` → **BUILD SUCCESS / 1047 例**，0 failures / 0 errors。
+
+| 模块 | 1014 基线 | 本轮 | 差 |
+|---|---|---|---|
+| knot-adapter | 201 | **230** | +29 |
+| knot-gateway | 348 | **352** | +4 |
+| 其余六模块 | 127/3/44/4/177/110 | 同 | 0 |
+
+日志 `audit/tool_stream_gate2.log`。
+
+### 10.7 仍未覆盖（记录在案）
+
+- **Bedrock EventStream 流式**：`streamSupported=false`，二进制帧不走 SSE 管线，本批不涉。
+- **`thinking` / 扩展推理块**：Anthropic 的 `thinking_delta` 在 OpenAI 系无承载位，丢弃而非降级成文本——降级会污染正文。
+- **缓存口径 R2**：仍需真实环境实测（§9 遗留，与流式无关）。
+
+**未 commit，待批准。**

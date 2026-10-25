@@ -2,7 +2,9 @@ package org.chobit.knot.gateway.upstream.stream;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.protocol.StreamLineAdapter;
 import org.chobit.knot.gateway.adapter.protocol.UpstreamAdapter;
+import org.chobit.knot.gateway.adapter.support.SseLineSupport;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.adapter.model.usage.UsageAccounting;
 import org.chobit.knot.gateway.adapter.usage.KnotExtendPayload;
@@ -15,8 +17,10 @@ import org.springframework.core.io.buffer.DataBufferUtils;
 import reactor.core.publisher.Flux;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -35,7 +39,6 @@ import java.util.function.Consumer;
 @Slf4j
 public final class ProxyStreamingFlux {
 
-    private static final String DATA_PREFIX = "data:";
     private static final String DONE_MARKER = "[DONE]";
     private static final String USAGE_FIELD = "usage";
     private static final byte NEW_LINE = (byte) '\n';
@@ -70,8 +73,11 @@ public final class ProxyStreamingFlux {
                                         Runnable onComplete) {
         FirstTokenHeaderWriter firstTokenWriter = writer == null ? FirstTokenHeaderWriter.noop() : writer;
         UsageState state = new UsageState();
+        // 流式适配器按请求新建：EE 有跨事件状态（chunk id、message_start 只发一次），
+        // 而适配器本身是单例 Bean，状态不能挂在那边
+        StreamLineAdapter adapter = streamAdapter(stream);
         Flux<DataBuffer> body = stream.isEventStream()
-                ? eventStream(stream, registry, appendUsage, factory, firstTokenWriter, state)
+                ? eventStream(stream, adapter, registry, appendUsage, factory, firstTokenWriter, state)
                 : rawStream(stream, firstTokenWriter);
         return body
                 // 上游中途失败：错误沿 onError 传播（批1 的管道桥接会把它变成静默截断）
@@ -94,16 +100,17 @@ public final class ProxyStreamingFlux {
     }
 
     /**
-     * SSE：按行拆分 → 逐行累计/注入用量 → 重新编码为 {@code DataBuffer}。
+     * SSE：按行拆分 → 逐行适配（可抑制 / 可合成多行）→ 累计/注入用量 → 重新编码为 {@code DataBuffer}。
      */
     private static Flux<DataBuffer> eventStream(UpstreamStreamResponse stream,
+                                                StreamLineAdapter adapter,
                                                 UsageExtractorRegistry registry,
                                                 boolean appendUsage,
                                                 DataBufferFactory factory,
                                                 FirstTokenHeaderWriter writer,
                                                 UsageState state) {
         Flux<String> outbound = lines(stream.body())
-                .concatMap(line -> transform(line, stream, registry, appendUsage, writer, state))
+                .concatMap(line -> transform(line, stream, adapter, registry, appendUsage, writer, state))
                 // 上游不发 [DONE]（Anthropic 以 event: message_stop 收尾）时在流结束处兜底注入，
                 // 否则调用方永远拿不到 knot_extend
                 .concatWith(Flux.defer(() -> {
@@ -117,50 +124,63 @@ public final class ProxyStreamingFlux {
     }
 
     /**
-     * 单行处理：{@code [DONE]} 之前插入用量事件，其余 SSE 数据行经流式响应适配后转发（同时累计用量）。
+     * 单行处理：先过适配器（0..N 行），再对适配后的行做 {@code [DONE]} 插入与用量累计。
      *
-     * <p>与整包路径同构：适配器转换后的数据既喂用量提取，也喂客户端转发；默认透传
-     * （不覆写 {@code handleStreamEvent}）时短掉重组，原行逐字节发出。</p>
+     * <p>顺序不能反过来：协议转换类适配器会把上游的收尾事件<b>合成</b>成 {@code [DONE]}
+     * （Anthropic 的 {@code message_stop} → {@code data: [DONE]}），所以要按适配后的行判断流末尾，
+     * 否则 {@code knot_extend} 会插在客户端已经不认的位置。</p>
      *
      * <p>响应适配是协议正确性，不受 {@code appendUsage}（计费注入开关）影响——
      * 该开关只 gate 用量提取与 {@code knot_extend} 注入。</p>
      */
     private static Flux<String> transform(String line,
                                           UpstreamStreamResponse stream,
+                                          StreamLineAdapter adapter,
                                           UsageExtractorRegistry registry,
                                           boolean appendUsage,
                                           FirstTokenHeaderWriter writer,
                                           UsageState state) {
         // 首行数据到达即首 token：写出前记录端到端耗时（响应头此刻尚未 commit，仍可写）
         writer.mark();
-        String trimmed = StringUtils.trim(line);
-        if (appendUsage && !state.appended() && isDoneEvent(trimmed)) {
-            state.appended(true);
-            String usageLine = state.usageLine();
-            return usageLine == null ? Flux.just(line) : Flux.just(usageLine, line);
+        List<String> adapted = adaptedLines(adapter, stream, line);
+        if (!appendUsage) {
+            return Flux.fromIterable(adapted);
         }
-        if (trimmed.startsWith(DATA_PREFIX)) {
-            // [DONE] 检测用原始数据（协议级标记），提取与转发用适配后的数据
-            String data = StringUtils.trim(trimmed.substring(DATA_PREFIX.length()));
-            String adapted = adaptStreamEvent(stream, data);
-            if (appendUsage) {
-                state.merge(extractUsage(stream, registry, adapted));
+        List<String> output = new ArrayList<>(adapted.size() + 1);
+        for (String current : adapted) {
+            if (!state.appended() && SseLineSupport.isDone(current)) {
+                state.appended(true);
+                String usageLine = state.usageLine();
+                if (usageLine != null) {
+                    output.add(usageLine);
+                }
             }
-            return Flux.just(adapted.equals(data) ? line : DATA_PREFIX + " " + adapted);
+            String data = SseLineSupport.dataOf(current);
+            if (data != null && !SseLineSupport.isDone(current)) {
+                state.merge(extractUsage(stream, registry, data));
+            }
+            output.add(current);
         }
-        return Flux.just(line);
+        return Flux.fromIterable(output);
     }
 
-    /**
-     * 流式响应适配：默认透传零成本（无适配器或未覆写钩子时原串返回，不过 JSON）。
-     */
-    private static String adaptStreamEvent(UpstreamStreamResponse stream, String data) {
+    /** 单行适配：无适配器 / 适配器返回 {@code null} 时原样透传（零成本路径）。 */
+    private static List<String> adaptedLines(StreamLineAdapter adapter, UpstreamStreamResponse stream, String line) {
+        if (adapter == null) {
+            return List.of(line);
+        }
+        List<String> adapted = adapter.adapt(line);
+        return adapted == null ? List.of(line) : adapted;
+    }
+
+    /** 本次请求的流式适配器：无适配器时取透传实现。 */
+    private static StreamLineAdapter streamAdapter(UpstreamStreamResponse stream) {
         UpstreamAdapter adapter = stream.adapter();
         if (adapter == null) {
-            return data;
+            return StreamLineAdapter.PASSTHROUGH;
         }
-        String adapted = adapter.handleStreamEvent(data, stream.context());
-        return adapted == null ? data : adapted;
+        StreamLineAdapter resolved = adapter.streamAdapter(stream.context());
+        return resolved == null ? StreamLineAdapter.PASSTHROUGH : resolved;
     }
 
     /**
@@ -196,13 +216,6 @@ public final class ProxyStreamingFlux {
         buffer.read(bytes);
         DataBufferUtils.release(buffer);
         return bytes;
-    }
-
-    private static boolean isDoneEvent(String trimmedLine) {
-        if (!trimmedLine.startsWith(DATA_PREFIX)) {
-            return false;
-        }
-        return DONE_MARKER.equals(StringUtils.trim(trimmedLine.substring(DATA_PREFIX.length())));
     }
 
     /**
@@ -296,7 +309,7 @@ public final class ProxyStreamingFlux {
             if (rawUsage != null && !rawUsage.isEmpty()) {
                 event.put(AiPayloadFields.RAW_USAGE, rawUsage);
             }
-            return DATA_PREFIX + " " + JsonKit.toJson(event);
+            return SseLineSupport.data(JsonKit.toJson(event));
         }
     }
 }
