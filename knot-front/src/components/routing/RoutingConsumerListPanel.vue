@@ -9,7 +9,7 @@
         <template #default="{ row }">
           <div class="secret-cell">
             <el-input :model-value="row.secretKey" readonly type="password" show-password />
-            <el-button :icon="CopyDocument" @click="emit('copy-secret', row.secretKey)" />
+            <el-button :icon="CopyDocument" aria-label="复制消费者密钥" @click="emit('copy-secret', row.secretKey)" />
           </div>
         </template>
       </el-table-column>

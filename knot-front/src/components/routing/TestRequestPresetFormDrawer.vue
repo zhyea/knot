@@ -305,8 +305,4 @@ async function submit() {
   flex: 0 0 auto;
   margin-bottom: 0;
 }
-
-.space-line {
-  height: 14px;
-}
 </style>

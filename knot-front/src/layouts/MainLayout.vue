@@ -75,6 +75,7 @@
             <el-button
               type="primary"
               :icon="asideCollapsed ? Expand : Fold"
+              :aria-label="asideCollapsed ? t('header.expandSidebar') : t('header.collapseSidebar')"
               class="header-collapse"
               size="small"
               plain

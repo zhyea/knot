@@ -13,6 +13,7 @@
                 link
                 :type="action.type || 'primary'"
                 :icon="action.icon"
+                :aria-label="action.label"
                 :disabled="action.disabled"
                 class="row-action-button"
               />
@@ -26,6 +27,7 @@
           link
           :type="action.type || 'primary'"
           :icon="action.icon"
+          :aria-label="action.label"
           :disabled="action.disabled"
           class="row-action-button"
           @click="emit('action', action.key)"

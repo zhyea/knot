@@ -756,11 +756,6 @@ async function submit() {
 .inline-switch {
   margin-bottom: 0;
 }
-
-.space-line {
-  height: 14px;
-}
-
 .form-tip {
   width: 100%;
   color: var(--el-color-warning);

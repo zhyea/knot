@@ -317,11 +317,6 @@ async function submit() {
   flex: 0 0 auto;
   margin-bottom: 0;
 }
-
-.space-line {
-  height: 14px;
-}
-
 .form-tip {
   width: 100%;
   color: var(--el-color-warning);

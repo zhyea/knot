@@ -15,6 +15,7 @@
         <el-button
           class="refresh-button"
           :icon="RefreshRight"
+          aria-label="刷新看板数据"
           type="primary"
           plain
           @click="loadDashboard"

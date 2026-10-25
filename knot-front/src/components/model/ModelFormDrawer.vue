@@ -40,7 +40,7 @@
               <el-form-item label="版本">
                 <el-input v-model="form.version" placeholder="如 v2026092910 或 1.0.0" @focus="fillVersionOnFocus">
                   <template #append>
-                    <el-button :icon="RefreshRight" title="生成最新版本" @click="refreshVersion"/>
+                    <el-button :icon="RefreshRight" aria-label="生成最新版本" title="生成最新版本" @click="refreshVersion"/>
                   </template>
                 </el-input>
               </el-form-item>
@@ -991,11 +991,6 @@ async function submit() {
   flex: 0 0 auto;
   margin-bottom: 0;
 }
-
-.space-line {
-  height: 14px;
-}
-
 /* Usage 标签旁的说明链接：紧贴标签文字，弱化字号不抢控件视觉 */
 .usage-extractor-guide-link {
   margin-left: 6px;

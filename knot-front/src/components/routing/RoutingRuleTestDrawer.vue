@@ -52,7 +52,7 @@
               />
             </el-tooltip>
             <el-tooltip v-else content="停止请求" placement="top">
-              <el-button type="danger" :icon="CircleClose" @click="stopStreaming" />
+              <el-button type="danger" :icon="CircleClose" aria-label="停止请求" @click="stopStreaming" />
             </el-tooltip>
           </div>
 
