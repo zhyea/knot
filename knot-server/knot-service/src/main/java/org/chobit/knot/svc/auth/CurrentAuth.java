@@ -1,5 +1,6 @@
 package org.chobit.knot.svc.auth;
 
+import org.chobit.knot.common.auth.AuthRoles;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;

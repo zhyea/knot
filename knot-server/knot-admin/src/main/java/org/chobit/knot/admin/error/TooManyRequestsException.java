@@ -1,5 +1,7 @@
 package org.chobit.knot.admin.error;
 
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
