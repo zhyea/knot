@@ -580,7 +580,7 @@ CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
 CREATE TABLE IF NOT EXISTS kb_plugin_instances (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   plugin_code VARCHAR(64) NOT NULL COMMENT '插件包业务码（反范式冗余，原 kb_plugin_packages.plugin_code）',
-  instance_code VARCHAR(64) NOT NULL COMMENT '实例 code（唯一业务码）',
+  instance_code VARCHAR(128) NOT NULL COMMENT '实例 code（唯一业务码；reconcile 自动派生的是 capability-extension-stage 三段拼接，实测可达 65 字符，故不按 64 起）',
   instance_name VARCHAR(100) NOT NULL COMMENT '实例名称',
   plugin_name VARCHAR(100) DEFAULT NULL COMMENT '插件名称（反范式冗余，原 packages.plugin_name）',
   entrypoint VARCHAR(255) NOT NULL COMMENT '插件实现类全限定名（IOC 稳定键，启动期 reconcile 按此匹配）',

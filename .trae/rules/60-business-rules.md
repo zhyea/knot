@@ -16,7 +16,9 @@ alwaysApply: false
 - 缓存变长：命中 10min / 未命中 30s，key `(ruleCode, modelFamily)`。
 - 厂商语义差异：OpenAI `prompt_tokens` **含**缓存 token，Anthropic **不含**；`AnthropicUsageExtractor` 加回 cache 才是总量语义。（口径归属与双视图纪律见 §8）
 - billingMode(8) × pricingPlan(3) **正交**；前端 `utils/billingTier.ts` / `utils/billingPrice.ts`，`UNIT_PRICE_PRECISION = 8`。
-- ⭐ `NormalizedUsageDetail.cost` 是 **String**（8 位小数 `toPlainString()`）——Jackson 默认序列化对 <1e-6 会输出科学计数法（`1E-8`）；唯一构造点 `AbstractBillingModeCalculator.detail()`。
+- ⭐ `NormalizedUsageDetail.cost` / `.price` / `totalCost` 是 **String**——Jackson 默认序列化对 <1e-6 会输出科学计数法（`1E-8`）。**不设小数位上限、不做 8 位定标**（8 位会把「6 位小数单价 × 1 token ÷ 1e6」抹成 0）：唯一文本化出口 `NormalizedBillingAmount.plainMoney`，唯一构造点 `AbstractBillingModeCalculator.detail()`。
+- ⭐⭐ **计费单位归一化唯一出口 `BillingModeEnum.normalizeUnit(code)`**（2026-10-25，4.6 审查所修）：空白 / 非法编码 / 该模式不支持 → 一律取 `defaultUnit()`。**禁止**在计算器、Service、DB 默认值里各自写「兜底成 `1K_TOKENS`」——单位基数是金额公式的**分母**，`1K_TOKENS`(1000) 与 `PER_SECOND`(1) 差 1000 倍，而正确默认值随 `billing_mode` 变（VIDEO→PER_SECOND、TOKEN→1M_TOKENS），不存在万能默认值。判例：曾有「计算器热路径 / 管理端落库 / schema DEFAULT」三处都兜底成 `1K_TOKENS`，绕过表单写入即静默 1000 倍错价且全门禁绿灯。
+- ⚠ **折扣（`kb_provider_discount_policies.discount_value`）仅供展示，不参与任何计费逻辑**（robin 2026-10-25 明确）：不要把折扣接进金额计算，也不要为「将来可能接入」去改折扣链路（精度/校验/DTO 类型都不必为此铺路）。折扣值用 `BigDecimal`（对齐 `DECIMAL(10,4)`）仅为与库列同型与健壮性。
 - ⚠ config_json 是 `{pricing:{...}}` **嵌套结构**，扁平写会被 ignoreUnknown 静默成 `pricing=null`。
 - ABSOLUTE 高低峰：`PhaseDecision` 四元组，取价走 `matchedRule().unitPrices()` **不乘倍率**；MULTIPLIER 模式不变。
 - BillingUsage 按模式拆分：sealed 接口 + Token / Image / Video / Audio 四实现；媒体内嵌 `TokenBillingUsage`，`tokenUsage()` 默认方法。`UsageExtractor<T>`：`empty()` / `extractUsage(body, requestBody)` 返回 **`UsageExtractItem<T>` 双视图**（`billing` 计费输入 + `usage` 统一用量视图），详见 §8。
@@ -107,7 +109,7 @@ alwaysApply: false
 
 ⭐ **两侧 token 总量与缓存读写各档一律取自 `billing`**；只有「明细拆分」从原始 usage 补取（输入 image/video token、输出 reasoning token）与媒体计数兜底。唯一投影入口 `ModelUsageNormalizer.fromBilling(BillingUsage, rawBody)`。
 
-⭐ **禁止启发式猜协议语义**：不得按「字段名是否存在」推断缓存是否已含在输入总量里。历史教训——`ModelUsageNormalizer` 曾以「有 `prompt_tokens` 就认为输入已含缓存」判语义，与计费链分属两条解析链、别名表与语义判断各自维护，必然漂移。协议语义由**提取器在自己的边界内一次性决定**（Anthropic 走 `withCacheCountedInInput()`，Converse 走 `BedrockConverseUsageSupport`）。
+⭐ **禁止启发式猜协议语义**：不得按「字段名是否存在」推断缓存是否已含在输入总量里。历史教训——`ModelUsageNormalizer` 曾以「有 `prompt_tokens` 就认为输入已含缓存」判语义，与计费链分属两条解析链、别名表与语义判断各自维护，必然漂移。协议语义由**一个明确的所有者一次性决定**：Anthropic 由 `ANTHROPIC` 提取器走 `withCacheCountedInInput()`；AWS Bedrock Converse 由 Bedrock 适配器族的响应转换（`AwsBedrockConverseSupport.handleConverseResponse` 的 `toOpenAiUsage`，经 `AwsBedrockChatCompletionsToConverseUpstreamAdapter` 等四个适配器分发）一次决定——整包路径上用量提取吃的是 `handleResponse` 的产物，转换后客户端响应与计费读取**同形**，无需第二套解析（2026-10-25 删 `BedrockConverseUsageExtractor` / `BedrockConverseUsageSupport` 的依据）。
 
 > 收益表述纪律：这套改造的价值是**消除口径分裂**（单一来源、只决策一次），**不是减少解析次数**——解析工作量仍在，别按性能收益来验收。
 
@@ -118,7 +120,7 @@ alwaysApply: false
 | OpenAI Chat Completions | 是 | 直接用上报的 `prompt_tokens` |
 | OpenAI Responses | 是（按 OpenAI 语义） | 直接用 `input_tokens`；usage 可能在 `response.usage`，用 `UsageRawReader` 定位 |
 | Anthropic Messages | 否 | `input_tokens + cacheRead + cacheWrite`（5m/1h 明细优先） |
-| AWS Bedrock Converse | 否 | `inputTokens + cacheReadInputTokens + cacheWriteInputTokens` |
+| AWS Bedrock Converse | 是（转换后按 OpenAI 语义） | Bedrock 适配器族 `toOpenAiUsage`（`AwsBedrockConverseSupport`）把 camelCase usage 转成 OpenAI 形状（原样上报，不加回输入侧）；计费侧读转换产物，走 `DEFAULT-TOKEN`。**待实测（R2）**：`inputTokens` 是否已含缓存读写，当前按「不含」处理 |
 
 ⭐ 协议差异的**消解点是 per-binding 提取器绑定**（`kb_model_api_bindings.usage_extractor` / `stream_usage_extractor`）。默认兜底 `DEFAULT-TOKEN` 按 OpenAI「已含缓存」语义。
 ⚠ 任何**非 OpenAI 缓存语义**的模型必须**显式绑定**对应提取器，不能靠默认兜底——否则输入侧会少算缓存。

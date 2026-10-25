@@ -847,6 +847,10 @@ INSERT IGNORE INTO ks_scheduled_tasks (
 -- 插件管理已单表收口（2026-10-13）：packages / capabilities / bindings 三表删除，
 -- 展示信息与执行阶段已反范式冗余进 kb_plugin_instances。status 改为 EnabledStatusEnum(1/0)，
 -- orphaned/is_deleted 初始均为 0（启动期 PluginReconcileRunner 按 entrypoint 校正）。
+-- ⚠ 本段是 INSERT IGNORE + 显式 id：**改了已有行的列值对既有库无效**（主键冲突即静默跳过）。
+--   entrypoint 是「IOC 稳定键」，插件实现类换包/改名时必须另写 docs/database/migration/ 脚本
+--   UPDATE 存量行，否则启动期 reconcile 全部匹配失败 → 整屏 orphaned + 重复插入。
+--   判例：2026-10-25 包结构迁移（2026-10-25-plugin-entrypoint-package-migration.sql）。
 INSERT IGNORE INTO kb_plugin_instances (
   id, plugin_code, instance_code, instance_name, plugin_name, entrypoint, source_type, version,
   capability_code, capability_name, extension_point, stage_code, order_no,

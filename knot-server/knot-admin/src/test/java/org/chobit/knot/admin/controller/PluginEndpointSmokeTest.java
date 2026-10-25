@@ -3,13 +3,14 @@ package org.chobit.knot.admin.controller;
 import java.util.ArrayList;
 import java.util.List;
 import org.chobit.knot.admin.GlobalExceptionHandler;
-import org.chobit.knot.gateway.converter.PluginConverterImpl;
 import org.chobit.knot.dal.entity.PluginInstanceEntity;
 import org.chobit.knot.dal.mapper.PluginInstanceMapper;
 import org.chobit.knot.admin.rw.RwProperties;
+import org.chobit.knot.svc.converter.PluginConverter;
 import org.chobit.knot.svc.service.PluginService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mapstruct.factory.Mappers;
 import org.mockito.Mockito;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -70,8 +71,11 @@ class PluginEndpointSmokeTest {
             return null;
         }).when(mapper).updateDeleted(anyLong(), anyInt());
 
-        PluginService service = new PluginService(mapper, new PluginConverterImpl());
-        PluginController controller = new PluginController(service, new PluginConverterImpl());
+        // 转换器直接取 MapStruct 生成的实现：本测试刻意不启 Spring 上下文，
+        // 但通过 Mappers 工厂按接口取名，避免把生成的 Impl 类名（及其包名）写死在测试里。
+        PluginConverter converter = Mappers.getMapper(PluginConverter.class);
+        PluginService service = new PluginService(mapper, converter);
+        PluginController controller = new PluginController(service, converter);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler(new RwProperties()))
                 .build();

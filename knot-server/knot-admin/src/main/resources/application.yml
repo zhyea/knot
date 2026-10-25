@@ -49,7 +49,10 @@ springdoc:
     path: /swagger-ui.html
     tags-sorter: alpha
     operations-sorter: alpha
-  packages-to-scan: org.chobit.knot.gateway.controller
+  # 管理端 HTTP 契约只由本模块 controller 定义（svc/adapter/plugin 均无端点）。
+  # 包迁移时此字符串不参与编译校验，指错会让 /api/docs/openapi.json 变成空文档——
+  # 该失败是可见的（文档为空），由真启冒烟核对 paths 数量兜住。
+  packages-to-scan: org.chobit.knot.admin.controller
   default-flat-param-object: true
 
 # ── 可观测性（Actuator）─────────────────────────────────────────────────────

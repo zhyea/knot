@@ -16,6 +16,34 @@ reactor 8 模块：`common` / `plugin-api` / `plugin` / `adapter` / `dal` / `ser
 
 > 教训（2026-10-14）：曾有会话把 `knot-plugin` 换成 `knot-plugin-api`，编译+单测全绿，但插件 bean 不在 classpath，分发器 IOC 空转——**此类回归只有真启 jar 冒烟能发现**。
 
+### 1.1 模块 ↔ 顶级包映射（2026-10-25 包结构迁移，robin 拍板）
+
+一个模块 = 一个顶级包，**模块名与顶级包不再同名**，查代码位置按此表：
+
+| 模块 | 顶级包 | 说明 |
+|---|---|---|
+| `knot-common` | `org.chobit.knot.common` | 通用原语（api/error/model/constants/crypto/pricing/util/annotation/auth/moderation） |
+| `knot-plugin-api` | `org.chobit.knot.plugin` | 插件契约（根包，只有接口/枚举/上下文） |
+| `knot-plugin` | `org.chobit.knot.plugin.<子包>` | 插件实现（`builtin` / `moderation` / `components` / `runtime` / `gateway`） |
+| `knot-adapter` | `org.chobit.knot.adapter` | 上游协议适配单域，见 §4.7 |
+| `knot-dal` | `org.chobit.knot.dal` | `entity` + `mapper`（XML 在 `knot-dal/src/main/resources/mapper`） |
+| `knot-service` | `org.chobit.knot.svc` | 业务编排、MapStruct converter（含 `service.support`） |
+| `knot-admin` | `org.chobit.knot.admin` | 管理端启动类 + controller/security/rw/config |
+| `knot-gateway` | `org.chobit.knot.gateway` | 网关启动类 + controller/routing/store/traffic/... |
+
+**启动类必须在 `scanBasePackages` 上提到 `org.chobit.knot`**（两个 app 都是）。原因：组件分布在 `.admin`/`.svc`/`.adapter`/`.plugin` 四个**平行**顶级包，而 `@SpringBootApplication` 默认只扫启动类所在包及子包——不上提则 svc/adapter/plugin 的 bean 一个都注册不上。上提到 root 而非逐项列举，是因为 root 包名不随模块增删漂移。
+
+⚠ **字符串形式包名是包迁移的唯一致命风险类型**（编译期不报错、运行期才炸）。迁移后实测踩到的四处：
+
+| 形式 | 症状 | 修法 |
+|---|---|---|
+| `@MapperScan("...")` | 一个 Mapper 都注册不上，编译全绿 | 改 `@MapperScan(basePackageClasses = AppMapper.class)`，**类引用参与编译校验** |
+| `springdoc.packages-to-scan` | `/api/docs/openapi.json` 变成空文档 | 明确写 `org.chobit.knot.admin.controller`，由冒烟核对 paths 数量 |
+| 测试里写死的源码路径 / 包名字面量 | 扫描目录不存在 → 断言「空跑也通过」 | 由测试自身包名反推（判例：`MapperStatementCoverageTest`），或保留「防空跑」守卫断言 |
+| 测试 import MapStruct 生成类 | 生成类随 `@Mapper` 接口所在包走，跨模块引用即断编 | 只引接口 + `Mappers.getMapper(XxxConverter.class)` |
+
+> ⚠ 反向纪律：包迁移后必须跑一次「全量 `package` 声明 vs 磁盘路径」比对 + 跨模块重复 FQCN 检查。两条都是纯静态可判，一条命令出结果，不要靠人眼。
+
 ## 2. 归属判例
 
 - **管理端专属配置放 `knot-admin`**（如 `GatewayRuntimeProperties` / `GatewayConfiguration`）；controller 注入 properties，把 baseUrl 当参数透传给 service，**service 不持有管理端概念**。
@@ -49,7 +77,7 @@ model       → 领域值对象（非表映射）
 
 ### 4.2 service 包纪律
 
-- `org.chobit.knot.gateway.service` 包**顶层只允许 `@Service` 业务服务**（`XxxService`）。
+- `org.chobit.knot.svc.service` 包**顶层只允许 `@Service` 业务服务**（`XxxService`）。
 - 非 `@Service` 的协作者组件（Support/Source/Resolver/Registry/Runner/Migrator）一律进 **`service.support` 子包**。
 - **数据类型不进 service 包**：record DTO 归 `dto.<域>`，资源句柄/上下文随所属链路的 dto 或 model 包。
 
@@ -114,7 +142,7 @@ model       → 领域值对象（非表映射）
 
 ### 4.7 UpstreamAdapter 命名与职责条款（2026-10-25 立规，robin 拍板）
 
-**knot-adapter 模块 = `org.chobit.knot.gateway.adapter` 单域**（2026-10-25 包结构整理，robin 拍板）：顶级域只留 `adapter` 一个，其余全部收为其子包——
+**knot-adapter 模块 = `org.chobit.knot.adapter` 单域**（2026-10-25 包结构整理，robin 拍板）：顶级域只留 `adapter` 一个，其余全部收为其子包——
 
 | 子包 | 内容 |
 |---|---|
@@ -125,7 +153,7 @@ model       → 领域值对象（非表映射）
 | `adapter.model` / `adapter.model.ref` | 计费/用量数据模型；跨域引用句柄 `*Ref`（`ModelRef` / `ProviderAccountRef` / `ModelApiBindingRef` / `BillingRuleRef`） |
 | `adapter.usage` / `.calculator` / `.extractor` | 用量域：归一化行为 + 计费计算器族 + 用量提取器族 |
 
-⚠ **`gateway.model` 同名包跨 4 模块**（common / gateway / service / adapter 各有一份）：跨模块引用这些包的类**必须显式 import 全 FQCN**，禁止依赖「classpath 同名包可见性」用短名（判例：本次整理中 `knot-gateway` 的 `ProxyResult` 曾因此断编）。
+⚠ **同名子包 `model` 仍遍布各模块**（`common.model` / `gateway.model` / `svc.model` / `adapter.model`）：**全限定名已各不相同**（2026-10-25 迁移前 `org.chobit.knot.gateway.model` 曾同时存在于 4 个模块，靠 classpath 同名包可见性才能用短名，`ProxyResult` 因此断编）。现在跨模块引用这些包**仍必须显式 import 全 FQCN**——理由从「躲重名」变成「短名不可读、看不出住哪个模块」，且**绝不允许再让同一个 FQCN 出现在两个模块里**（包迁移后须跑一次跨模块重复 FQCN 检查，见 §1.1）。
 
 上游适配器接口为 `UpstreamAdapter`（`adapter.protocol` 包），是**双向角色**：请求适配（`resolvePath` / `buildRequestBody` / `resolveContentType`）与响应适配（`handleResponse` 整包 / `streamAdapter` 流式）由同一实现持有。**不存在**「只适配请求」或「只适配响应」的拆分角色——一次协议转换的两个方向必须同源，拆开只会让两侧各漂移一份口径。
 

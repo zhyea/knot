@@ -45,9 +45,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class MapperStatementCoverageTest {
 
-    private static final Path JAVA_DIR = Path.of("src/main/java/org/chobit/knot/gateway/mapper");
+    /**
+     * 本测试与被测 Mapper 接口<b>同包</b>，因此包名由自身反推、源码目录再由包名推导。
+     *
+     * <p>曾写死成 {@code org.chobit.knot.gateway.mapper}，包迁移后常量不参与编译校验，
+     * 扫描目录不存在 → 前三个断言「空跑也通过」；靠下面
+     * {@code doesNotSilentlySkipBecauseOfEmptyScan} 才炸出来。改成反推后，测试随包一起迁移，
+     * 无需人工维护第二个包名字面量。</p>
+     */
+    private static final String MAPPER_PACKAGE = MapperStatementCoverageTest.class.getPackageName();
+    private static final Path JAVA_DIR = Path.of("src/main/java", MAPPER_PACKAGE.replace('.', '/'));
     private static final Path XML_DIR = Path.of("src/main/resources/mapper");
-    private static final String MAPPER_PACKAGE = "org.chobit.knot.gateway.mapper";
 
     private static final Pattern NAMESPACE = Pattern.compile("<mapper\\s[^>]*namespace=\"([^\"]+)\"");
     private static final Pattern STATEMENT =

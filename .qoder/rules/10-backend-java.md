@@ -24,6 +24,34 @@ reactor 8 模块：`common` / `plugin-api` / `plugin` / `adapter` / `dal` / `ser
 
 > 教训（2026-10-14）：曾有会话把 `knot-plugin` 换成 `knot-plugin-api`，编译+单测全绿，但插件 bean 不在 classpath，分发器 IOC 空转——**此类回归只有真启 jar 冒烟能发现**。
 
+### 1.1 模块 ↔ 顶级包映射（2026-10-25 包结构迁移，robin 拍板）
+
+一个模块 = 一个顶级包，**模块名与顶级包不再同名**，查代码位置按此表：
+
+| 模块 | 顶级包 | 说明 |
+|---|---|---|
+| `knot-common` | `org.chobit.knot.common` | 通用原语（api/error/model/constants/crypto/pricing/util/annotation/auth/moderation） |
+| `knot-plugin-api` | `org.chobit.knot.plugin` | 插件契约（根包，只有接口/枚举/上下文） |
+| `knot-plugin` | `org.chobit.knot.plugin.<子包>` | 插件实现（`builtin` / `moderation` / `components` / `runtime` / `gateway`） |
+| `knot-adapter` | `org.chobit.knot.adapter` | 上游协议适配单域，见 §4.7 |
+| `knot-dal` | `org.chobit.knot.dal` | `entity` + `mapper`（XML 在 `knot-dal/src/main/resources/mapper`） |
+| `knot-service` | `org.chobit.knot.svc` | 业务编排、MapStruct converter（含 `service.support`） |
+| `knot-admin` | `org.chobit.knot.admin` | 管理端启动类 + controller/security/rw/config |
+| `knot-gateway` | `org.chobit.knot.gateway` | 网关启动类 + controller/routing/store/traffic/... |
+
+**启动类必须在 `scanBasePackages` 上提到 `org.chobit.knot`**（两个 app 都是）。原因：组件分布在 `.admin`/`.svc`/`.adapter`/`.plugin` 四个**平行**顶级包，而 `@SpringBootApplication` 默认只扫启动类所在包及子包——不上提则 svc/adapter/plugin 的 bean 一个都注册不上。上提到 root 而非逐项列举，是因为 root 包名不随模块增删漂移。
+
+⚠ **字符串形式包名是包迁移的唯一致命风险类型**（编译期不报错、运行期才炸）。迁移后实测踩到的四处：
+
+| 形式 | 症状 | 修法 |
+|---|---|---|
+| `@MapperScan("...")` | 一个 Mapper 都注册不上，编译全绿 | 改 `@MapperScan(basePackageClasses = AppMapper.class)`，**类引用参与编译校验** |
+| `springdoc.packages-to-scan` | `/api/docs/openapi.json` 变成空文档 | 明确写 `org.chobit.knot.admin.controller`，由冒烟核对 paths 数量 |
+| 测试里写死的源码路径 / 包名字面量 | 扫描目录不存在 → 断言「空跑也通过」 | 由测试自身包名反推（判例：`MapperStatementCoverageTest`），或保留「防空跑」守卫断言 |
+| 测试 import MapStruct 生成类 | 生成类随 `@Mapper` 接口所在包走，跨模块引用即断编 | 只引接口 + `Mappers.getMapper(XxxConverter.class)` |
+
+> ⚠ 反向纪律：包迁移后必须跑一次「全量 `package` 声明 vs 磁盘路径」比对 + 跨模块重复 FQCN 检查。两条都是纯静态可判，一条命令出结果，不要靠人眼。
+
 ## 2. 归属判例
 
 - **管理端专属配置放 `knot-admin`**（如 `GatewayRuntimeProperties` / `GatewayConfiguration`）；controller 注入 properties，把 baseUrl 当参数透传给 service，**service 不持有管理端概念**。
@@ -57,7 +85,7 @@ model       → 领域值对象（非表映射）
 
 ### 4.2 service 包纪律
 
-- `org.chobit.knot.gateway.service` 包**顶层只允许 `@Service` 业务服务**（`XxxService`）。
+- `org.chobit.knot.svc.service` 包**顶层只允许 `@Service` 业务服务**（`XxxService`）。
 - 非 `@Service` 的协作者组件（Support/Source/Resolver/Registry/Runner/Migrator）一律进 **`service.support` 子包**。
 - **数据类型不进 service 包**：record DTO 归 `dto.<域>`，资源句柄/上下文随所属链路的 dto 或 model 包。
 
@@ -119,6 +147,44 @@ model       → 领域值对象（非表映射）
 **上下文证据**：`AppControllerTest`（`@SpringBootTest`，无 mock）完整启动 `AdminApplication` 成功 → `service.support` 子包在组件扫描范围内，且改名后的 Mapper XML 被 MyBatis 正常解析。
 
 **follow-up**：① 真启 jar 冒烟未跑（并行会话活跃），待补；② 前端 `TestRequestPreset` 类型名 / `TestRequestPresetFormDrawer.vue` / `TestRequestPresetView.vue` 是否同步改名待定（API 路径 `/api/test-request-presets` 与 `entityType` 业务串不动）。
+
+### 4.7 UpstreamAdapter 命名与职责条款（2026-10-25 立规，robin 拍板）
+
+**knot-adapter 模块 = `org.chobit.knot.adapter` 单域**（2026-10-25 包结构整理，robin 拍板）：顶级域只留 `adapter` 一个，其余全部收为其子包——
+
+| 子包 | 内容 |
+|---|---|
+| `adapter.protocol` | 协议适配族：`UpstreamAdapter` 接口 + 9 实现 + `UpstreamAdapterCatalog` / `UpstreamAdapterDefinition` |
+| `adapter.support.<供应商>` | 跨适配器复用的供应商级共享支持：`support.aws`（Converse / Endpoint / SigV4）、`support.anthropic`（Messages 请求字段搬迁） |
+| `adapter.auth` | 上游鉴权策略族：`UpstreamAuthApplier` + 4 实现 + Catalog / Definition + `AuthConfigSupport` |
+| `adapter.upstream` | 上游调用上下文：`UpstreamRequestContext` / `UpstreamAccess` / `UpstreamSignableRequest` |
+| `adapter.model` / `adapter.model.ref` | 计费/用量数据模型；跨域引用句柄 `*Ref`（`ModelRef` / `ProviderAccountRef` / `ModelApiBindingRef` / `BillingRuleRef`） |
+| `adapter.usage` / `.calculator` / `.extractor` | 用量域：归一化行为 + 计费计算器族 + 用量提取器族 |
+
+⚠ **同名子包 `model` 仍遍布各模块**（`common.model` / `gateway.model` / `svc.model` / `adapter.model`）：**全限定名已各不相同**（2026-10-25 迁移前 `org.chobit.knot.gateway.model` 曾同时存在于 4 个模块，靠 classpath 同名包可见性才能用短名，`ProxyResult` 因此断编）。现在跨模块引用这些包**仍必须显式 import 全 FQCN**——理由从「躲重名」变成「短名不可读、看不出住哪个模块」，且**绝不允许再让同一个 FQCN 出现在两个模块里**（包迁移后须跑一次跨模块重复 FQCN 检查，见 §1.1）。
+
+上游适配器接口为 `UpstreamAdapter`（`adapter.protocol` 包），是**双向角色**：请求适配（`resolvePath` / `buildRequestBody` / `resolveContentType`）与响应适配（`handleResponse` 整包 / `streamAdapter` 流式）由同一实现持有。**不存在**「只适配请求」或「只适配响应」的拆分角色——一次协议转换的两个方向必须同源，拆开只会让两侧各漂移一份口径。
+
+⚠ **协议转换类适配器必须同时覆写 `handleResponse` 与 `streamAdapter`**：默认透传只服务 `PassthroughUpstreamAdapter`（同协议）。只做请求侧转换会让客户端拿到上游协议形状（判例：四个泛化适配器 2026-10-25 前只有 `buildRequestBody`，chat.completions 请求收到的是 Anthropic JSON），且**计费提取吃的是转换后产物**——错形状会连带算错账。响应转换的约定：非目标形状（错误体、非 JSON）一律原样透传，绝不改写成成功形状；usage 必须双向换算。
+
+命名规则：
+
+1. **结构** `<供应商>+<原协议>+<新协议>+UpstreamAdapter`，如 `AwsBedrockChatCompletionsToConverseUpstreamAdapter`；code = 类名去后缀 SCREAMING_SNAKE 化（`AWS_BEDROCK_CHAT_COMPLETIONS_TO_CONVERSE`），即 `kb_model_api_bindings.request_adapter` 的绑定值（列名不变）。
+2. **泛化转换免供应商段**：不隶属单一供应商的协议转换（如 ChatCompletions→Messages）直接 `<原协议>To<新协议>UpstreamAdapter`。
+3. **透传豁免**：`PassthroughUpstreamAdapter`（code `PASSTHROUGH`）是唯一多协议适配器；**除透传外，一个适配器只服务一种协议**（`protocol()` 返回单元素集）。
+4. **共享逻辑抽 Support，按归属分两层**：**无供应商语义的通用原语**收 `adapter.support.XxxSupport`（`RequestFieldSupport.move` 字段搬迁、`PayloadMapSupport` 的 `cast`/`nested`/`firstPresent`/`stringOf`/`text`/`putLong`、`PayloadTextSupport.textOf` 跨协议 content 折文本、`SseLineSupport` SSE 行语法读写——**SSE 是 HTTP 传输层语法，与供应商和 AI 协议都无关**，故住 support 根而非 `support.anthropic`）；**供应商特有语义**收 `adapter.support.<供应商>.XxxSupport`（如 `support.aws.AwsBedrockConverseSupport` Bedrock 全族、`support.anthropic.AnthropicMessagesRequestSupport` 的 `max_tokens` 兜底与工具字段换形编排、`AnthropicMessagesResponseSupport` 的整包双向转换、`AnthropicToolSupport` 的工具语义、`AnthropicStreamSupport` 的流式双向转换）；适配器类只做协议分发与口径注释。⚠ **通用能力不住供应商专用类**（判例：`move` 曾住 `AnthropicMessagesRequestSupport`、`textOf` 等 6 个读写原语曾住 `AwsBedrockConverseSupport`，均 2026-10-25 拆出）；⚠ **跨类逐字重复是归属错误的直接后果**——见到两份逐字相同的私有实现，先怀疑其中一份住错了地方，而不是先合并（判例：`textOf` 住进 AWS 专用类后，`AwsBedrockMessagesToConverseUpstreamAdapter` 被迫复制了一份私有副本；authConfig 读取力学也曾有 `AuthConfigSupport.value` 与 `AwsBedrockEndpointResolver.read` 两份，2026-10-25 合并至 `PayloadMapSupport.text`）；⚠ **纯转发壳同样是冗余**——委托层不带知识增量时删掉，调用方直调（判例：`value` 合并后曾短暂保留为一行委托，同批删除）；⚠ **同一张词表只能有一个所有者**——`stop_reason`↔`finish_reason` 表归 `AnthropicMessagesResponseSupport` 并以 `public static` 暴露给流式复用，流式侧再抄一份就是跨类重复（判例：2026-10-25 `AnthropicStreamSupport` 直接调那两个方法，不复制映射表）；⚠ Support 静态方法必须 `public`——从同包子类化细节改为跨子包调用时，包私有方法会静默变成编译错误（判例：本次整理 `AnthropicMessagesRequestSupport` 两方法补 public）。
+
+流式契约：`streamAdapter(context)` 与 `handleResponse` 按执行路径分工（前者只服务流式逐行、后者只服务整包），两条路径的转换产物都同时喂客户端转发与用量提取（同构：提取吃的永远是转换后的数据）。默认透传实现零解析、零序列化。**响应适配是协议正确性，不受 `appendUsage`（计费注入开关）gate**——行一律过适配器，是否提取用量才看开关。
+
+流式钩子返回 **`StreamLineAdapter`（行级、0..N 行）而非 `data` 载荷级**，三个理由缺一不可：
+1. **抑制**：Anthropic 的 `event:` 行对 OpenAI 客户端是噪音、`ping` 事件无对应物，必须能「不发这一行」；
+2. **合成**：反向（chat chunk → Messages）必须为一个 `data` 行补出配套的 `event:` 行，甚至一个上游事件合成多个下游事件（`message_start` → `response.created` + `output_item.added` + `content_part.added`）；
+3. **状态**：chunk id 全程一致、`message_start` 只合成一次、tool 块序号连续——这些状态**挂不得在适配器上**（适配器是单例 Bean，会被并发请求互相污染），故 `streamAdapter` **每请求返回新实例**。
+⚠ 返回列表语义：空列表 = 抑制、单元素 = 改写、多元素 = 合成。⚠ 空白行（SSE 事件分隔符）**必须保留**，丢了两个事件会黏成一条。⚠ `knot_extend` 的插入位置按**适配后**的 `[DONE]` 判断——协议转换会把上游收尾事件合成 `[DONE]`，按原始行判断会插在客户端已不认的位置。
+
+工具语义（`tools` / `tool_choice` / `tool_calls`↔`tool_use`↔`tool_result`）是**跨请求声明、消息载体、响应产物三类载体的同一份语义**，必须收在一个 Support 里（`support.anthropic.AnthropicToolSupport`），禁止三个适配器各写一段。三条硬约束：① **形状不认识就不动**（返回 `null` 表示保留原值），不猜第三方自定义形状；② **不丢内容**——消息里出现未知 content 块类型时整条原样保留，半懂比不懂更危险；③ **两协议工具参数编码不同**：Anthropic `input` 是对象、OpenAI `arguments` 是 JSON 文本，反向解析失败退化为空对象（`input` 必须是对象，退化成空好过整个请求 400）。⚠ OpenAI 侧 `tools` 有**两种规范形状**（chat 的 `{type,function:{...}}` 包装与 Responses 的扁平 `{type,name,parameters}`），识别判据是「读得到 `name`」，不是「有没有 `function`」。
+
+配套命名（同批落地）：目录 `UpstreamAdapterCatalog` / `UpstreamAdapterDefinition`（随接口在 `adapter.protocol`），网关侧 `upstream.request.UpstreamAdapterRegistry`（未知 code 或留空回落透传）。
 
 ## 5. 编码细节
 
