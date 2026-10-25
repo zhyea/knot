@@ -32,9 +32,12 @@ public class SensitiveWordResponsePlugin implements PluginHandler<GatewayPluginC
     @Override
     public PluginDescriptor descriptor() {
         return new PluginDescriptor(
+                "sensitive-word-response-check",
+                "敏感词出站检测插件",
                 "sensitive-word-moderation",
                 PluginExtensionPoint.GATEWAY_EXCHANGE,
-                PluginStageCode.GATEWAY_RESPONSE
+                PluginStageCode.GATEWAY_RESPONSE,
+                200
         );
     }
 

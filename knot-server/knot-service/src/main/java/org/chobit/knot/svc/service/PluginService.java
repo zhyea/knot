@@ -103,8 +103,6 @@ public class PluginService implements PluginBindingProvider {
                 entity.getId(),
                 entity.getCode(),
                 entity.getName(),
-                entity.getPackageCode(),
-                entity.getPackageName(),
                 entity.getCapabilityCode(),
                 point,
                 stage,

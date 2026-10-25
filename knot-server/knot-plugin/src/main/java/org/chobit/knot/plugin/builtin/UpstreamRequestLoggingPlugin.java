@@ -32,9 +32,12 @@ public class UpstreamRequestLoggingPlugin implements PluginHandler<UpstreamPlugi
     public PluginDescriptor descriptor() {
 
         return new PluginDescriptor(
+            "provider-request-log",
+            "上游请求日志插件",
             "provider-request-response-log",
             PluginExtensionPoint.UPSTREAM_EXCHANGE,
-            PluginStageCode.UPSTREAM_REQUEST
+            PluginStageCode.UPSTREAM_REQUEST,
+            100
         );
 
     }

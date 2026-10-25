@@ -3,8 +3,6 @@ package org.chobit.knot.svc.vo.plugin;
 public record PluginItem(Long id,
                          String code,
                          String name,
-                         String packageCode,
-                         String packageName,
                          String capabilityCode,
                          String extensionPoint,
                          String stageCode,
@@ -12,6 +10,5 @@ public record PluginItem(Long id,
                          Integer status,
                          Integer timeoutMs,
                          String pluginType,
-                         String configJson,
                          Integer orphaned) {
 }

@@ -67,7 +67,13 @@ class DefaultPluginDispatcherTest {
                                  PluginExtensionPoint extensionPoint,
                                  PluginStageCode stageCode,
                                  Class<? extends PluginDispatchContext> contextType) {
-            this.descriptor = new PluginDescriptor(capabilityCode, extensionPoint, stageCode);
+            this.descriptor = new PluginDescriptor(
+                    capabilityCode + "-" + stageCode.code(),
+                    capabilityCode + "@" + stageCode.code(),
+                    capabilityCode,
+                    extensionPoint,
+                    stageCode,
+                    100);
             this.contextType = contextType;
         }
 
@@ -111,7 +117,7 @@ class DefaultPluginDispatcherTest {
     }
 
     private static PluginBindingView binding(long id, String capability, Integer orderNo) {
-        return new PluginBindingView(id, "INST-" + id, "实例" + id, "PKG", "包",
+        return new PluginBindingView(id, "INST-" + id, "实例" + id,
             capability, GATEWAY, REQUEST, orderNo, 3000);
     }
 
@@ -213,7 +219,7 @@ class DefaultPluginDispatcherTest {
         PluginHandler<TestContext> failing = new PluginHandler<>() {
             @Override
             public PluginDescriptor descriptor() {
-                return new PluginDescriptor("CAP", GATEWAY, REQUEST);
+                return new PluginDescriptor("CAP-REQUEST", "CAP@REQUEST", "CAP", GATEWAY, REQUEST, 100);
             }
 
             @Override

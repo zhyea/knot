@@ -15,7 +15,11 @@ public interface PluginInstanceMapper {
 
     PluginInstanceEntity getById(Long id);
 
-    int insert(PluginInstanceEntity entity);
+    /**
+     * 启动期 reconcile 的幂等写入口：以 {@code entrypoint} 为稳定键 upsert。
+     * 只覆盖 descriptor 投影列，{@code status} / {@code is_deleted} 由运维持有、不被覆盖。
+     */
+    int upsert(PluginInstanceEntity entity);
 
     int updateStatus(@Param("id") Long id, @Param("status") Integer status);
 

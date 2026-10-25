@@ -13,14 +13,21 @@ description: knot 插件架构与敏感词审核拓扑：涉及 plugin、敏感�
 
 - ⭐⭐ **插件只有 SYNC 一种类型**（`PluginTypeEnum` 现仅 SYNC）。原 ASYNC 异步链（`PluginEventSink` / `PluginEvent` / `CompositePluginEventSink` / `LoggingPluginEventSink` / `KafkaPlaceholderPluginEventSink` / `PluginSinkProperties`）已于 2026-10-14 **整条删除**。
 - ⭐⭐ **同步插件能拦截**：SYNC handler 在请求线程内联执行，`DefaultPluginDispatcher.dispatch` **无 try/catch** —— handler 抛异常直接冒泡打断链路。需要拦截/改写一律走同步插件。
-- 实例行由 `PluginReconcileRunner`（`ApplicationRunner`）按 entrypoint 自动补。敏感词 `order_no=200` > 审计日志 `100`，保证被拦的请求先落审计。
+- 实例行由 `PluginReconcileRunner`（`ApplicationRunner`）**以 `entrypoint` 为键幂等 upsert** 生成，`data.sql` 不再预置插件种子。执行顺序 `order_no` 随 `PluginDescriptor` 声明：敏感词 `200` > 审计日志 `100`，保证被拦的请求先落审计。
 - 同步日志插件统一出口 `PluginLogWriter`（Slf4j 结构化日志，含 stage / instance / capability / traceId / payload）。
 
 ## 2. 单表与状态
 
-- 单表收口 `kb_plugin_instances`（`entrypoint` / `source_type` / `order_no` / `config_json` / `is_deleted` / `orphaned`），**scope 维度已移除**。
-- Runner 按 IOC 中的 `PluginHandler` 校正：代码有则清 orphaned，代码新增则插入，代码移除则标 `orphaned=1`（前端浅红展示 + 逻辑删除按钮）。
+- 单表收口 `kb_plugin_instances`，**scope 维度已移除**（2026-10-13）、**插件包维度也已移除**（2026-10-25）。剩余两层是「能力族 `capability_code` → 插件实例 `instance_code`」。
+- ⭐⭐ **表的定位是「`PluginDescriptor` 的物化 + 运维开关」，权威边界必须分清**：
+  - **代码权威**（descriptor 投影）：`instance_code` / `instance_name` / `capability_code` / `extension_point` / `stage_code` / `order_no` / `timeout_ms` / `version` / `plugin_type` —— reconcile 每次启动**全覆盖写**，代码改了重启即跟随。
+  - **运维权威**：`status` / `is_deleted` —— reconcile **永不覆盖**（用户停用过的插件不能被重启重新打开）。
+  - `orphaned` 是派生标记，每次启动重算。
+- ⭐⭐ **插件元数据只能写在 `PluginDescriptor` 里**：`code` / `name` / `capabilityCode` / `extensionPoint` / `stageCode` / `orderNo`。**禁止**在 `data.sql` 写插件种子、**禁止**在 reconcile 里从能力码反推展示名（判例：`deriveInstanceCode` 拼 `capability-extension-stage`、`firstSegment` 取能力码首段拼 `plugin_code`，两条启发式产出的值与手写种子不等价 → 同一列两套口径，且最长一条 65 字符超过当时列宽 64，启动期 `DataTruncation` 直接打挂上下文，2026-10-25 全删）。
+- 启动期写库前校验三项：`code` 非空、全局唯一、不超过 `instance_code` 列宽。这三类错误原先只能在插库时由 MySQL 报出来，现在提前到启动第二秒指名报错（报错信息带 entrypoint）。
+- Runner 按 IOC 中的 `PluginHandler` 校正：代码有则 upsert + 清 orphaned，代码移除则标 `orphaned=1`（前端浅红展示 + 逻辑删除按钮）。
 - 管理面只做：开关、逻辑删除、孤儿标记展示。
+
 
 ## 3. 模块归属红线
 

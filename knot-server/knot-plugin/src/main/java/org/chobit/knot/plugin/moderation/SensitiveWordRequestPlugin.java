@@ -33,9 +33,12 @@ public class SensitiveWordRequestPlugin implements PluginHandler<GatewayPluginCo
     @Override
     public PluginDescriptor descriptor() {
         return new PluginDescriptor(
+                "sensitive-word-request-check",
+                "敏感词入站检测插件",
                 "sensitive-word-moderation",
                 PluginExtensionPoint.GATEWAY_EXCHANGE,
-                PluginStageCode.GATEWAY_REQUEST
+                PluginStageCode.GATEWAY_REQUEST,
+                200
         );
     }
 

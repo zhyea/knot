@@ -6,20 +6,15 @@
         pi.id,
         pi.instance_code as code,
         pi.instance_name as name,
-        pi.plugin_code as package_code,
-        pi.plugin_name as package_name,
         pi.capability_code,
-        pi.capability_name,
         pi.extension_point,
         pi.stage_code,
+        pi.order_no,
         pi.version,
         pi.entrypoint,
-        pi.source_type,
-        pi.order_no,
         pi.status,
         pi.timeout_ms,
         pi.plugin_type,
-        pi.config_json,
         pi.is_deleted,
         pi.orphaned
     </sql>
@@ -34,7 +29,6 @@
                 and (
                     pi.instance_code like concat('%', #{keyword}, '%')
                     or pi.instance_name like concat('%', #{keyword}, '%')
-                    or pi.plugin_code like concat('%', #{keyword}, '%')
                     or pi.capability_code like concat('%', #{keyword}, '%')
                 )
             </if>
@@ -55,46 +49,57 @@
         where pi.id = #{id}
     </select>
 
-    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+    <!--
+        启动期 reconcile 的唯一写入口：以 entrypoint（uk_plugin_instances_entrypoint）为稳定键做幂等 upsert。
+
+        两段式语义刻意区分：
+          * on duplicate key update 只覆盖「代码权威」列（descriptor 投影）——代码改了重启即跟随；
+          * status / is_deleted 一个都不出现在 update 段——用户停用或逻辑删除过的插件，重启不能被重新打开。
+
+        status / is_deleted / orphaned 在 values 段写死字面量（新行默认启用、未删除、非孤儿），
+        因为这三个值不属于 descriptor，让实体字段跑空值进 SQL 反而要额外兜底。
+    -->
+    <insert id="upsert">
         insert into kb_plugin_instances(
-            plugin_code,
             instance_code,
             instance_name,
-            plugin_name,
             entrypoint,
-            source_type,
             version,
             capability_code,
-            capability_name,
             extension_point,
             stage_code,
             order_no,
-            status,
             timeout_ms,
-            concurrency_limit,
             plugin_type,
+            status,
             is_deleted,
             orphaned
         ) values(
-            #{packageCode},
             #{code},
             #{name},
-            #{packageName},
             #{entrypoint},
-            #{sourceType},
             #{version},
             #{capabilityCode},
-            #{capabilityName},
             #{extensionPoint},
             #{stageCode},
             #{orderNo},
-            #{status},
             #{timeoutMs},
-            0,
             #{pluginType},
+            1,
             0,
             0
         )
+        on duplicate key update
+            instance_code = values(instance_code),
+            instance_name = values(instance_name),
+            version = values(version),
+            capability_code = values(capability_code),
+            extension_point = values(extension_point),
+            stage_code = values(stage_code),
+            order_no = values(order_no),
+            timeout_ms = values(timeout_ms),
+            plugin_type = values(plugin_type),
+            orphaned = 0
     </insert>
 
     <update id="updateStatus">
@@ -121,7 +126,7 @@
         order by pi.order_no asc, pi.id asc
     </select>
 
-        <select id="listAll" resultType="org.chobit.knot.dal.entity.PluginInstanceEntity">
+    <select id="listAll" resultType="org.chobit.knot.dal.entity.PluginInstanceEntity">
         select
         <include refid="instanceColumns"/>
         from kb_plugin_instances pi

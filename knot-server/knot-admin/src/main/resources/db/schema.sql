@@ -573,39 +573,35 @@ CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
 -- =========================
 -- 可选扩展
 -- =========================
--- 插件管理已单表收口（2026-10-13）：packages / capabilities / bindings 三表删除，
--- 其展示信息与作用域维度已反范式冗余进 kb_plugin_instances；scope 维度按决策永久移除，
--- 动态 jar 插件（source_type=JAR）确认不支持。
+-- 插件管理已单表收口（2026-10-13）：packages / capabilities / bindings 三表删除。
+-- 2026-10-25 二次收口：连「插件包」这一层分组也删了（plugin_code / plugin_name / capability_name /
+-- source_type / config_json / concurrency_limit 六列全量删除，均零读取方），并把表定位钉死为
+-- 「PluginDescriptor 的物化 + 运维开关」：派生列每次启动由启动期 reconcile 全覆盖写，
+-- status / is_deleted 由运维持有、不被覆盖。插件定义唯一来源是 PluginDescriptor，
+-- 不再由 data.sql 预置种子（种子 + INSERT IGNORE 是 entrypoint 漂移的根源）。
 
 CREATE TABLE IF NOT EXISTS kb_plugin_instances (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  plugin_code VARCHAR(64) NOT NULL COMMENT '插件包业务码（反范式冗余，原 kb_plugin_packages.plugin_code）',
-  instance_code VARCHAR(128) NOT NULL COMMENT '实例 code（唯一业务码；reconcile 自动派生的是 capability-extension-stage 三段拼接，实测可达 65 字符，故不按 64 起）',
-  instance_name VARCHAR(100) NOT NULL COMMENT '实例名称',
-  plugin_name VARCHAR(100) DEFAULT NULL COMMENT '插件名称（反范式冗余，原 packages.plugin_name）',
-  entrypoint VARCHAR(255) NOT NULL COMMENT '插件实现类全限定名（IOC 稳定键，启动期 reconcile 按此匹配）',
-  source_type VARCHAR(32) NOT NULL DEFAULT 'BUILTIN' COMMENT '来源类型（BUILTIN/JAR，当前仅 BUILTIN）',
-  version VARCHAR(32) DEFAULT NULL COMMENT '版本（反范式冗余，原 packages.version）',
-  capability_code VARCHAR(64) NOT NULL COMMENT '能力 code（反范式冗余，原 capabilities.capability_code）',
-  capability_name VARCHAR(100) DEFAULT NULL COMMENT '能力名称（反范式冗余，原 capabilities.capability_name）',
-  extension_point VARCHAR(64) NOT NULL COMMENT '扩展点（反范式冗余，原 capabilities.extension_point）',
-  stage_code VARCHAR(64) NOT NULL COMMENT '执行阶段（反范式冗余，原 capabilities.stage_code / bindings.stage_code）',
-  order_no INT NOT NULL DEFAULT 100 COMMENT '同阶段执行顺序（反范式冗余，原 bindings.order_no）',
-  config_json JSON DEFAULT NULL COMMENT '预留：运行期实例配置（后续外置 Nacos，暂保留列）',
-  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用',
-  timeout_ms INT NOT NULL DEFAULT 3000,
-  concurrency_limit INT NOT NULL DEFAULT 0,
+  instance_code VARCHAR(64) NOT NULL COMMENT '实例业务码（PluginDescriptor.code；启动期 reconcile 校验不超此列宽）',
+  instance_name VARCHAR(100) NOT NULL COMMENT '实例名称（PluginDescriptor.name）',
+  entrypoint VARCHAR(255) NOT NULL COMMENT '插件实现类全限定名（IOC 稳定键；reconcile 的唯一匹配键，且是 upsert 的唯一键之一）',
+  version VARCHAR(32) DEFAULT NULL COMMENT '版本（内置插件统一由 reconcile 写入）',
+  capability_code VARCHAR(64) NOT NULL COMMENT '能力族码（PluginDescriptor.capabilityCode；多个插件可共享同一能力）',
+  extension_point VARCHAR(64) NOT NULL COMMENT '扩展点（PluginDescriptor.extensionPoint）',
+  stage_code VARCHAR(64) NOT NULL COMMENT '执行阶段（PluginDescriptor.stageCode）',
+  order_no INT NOT NULL DEFAULT 100 COMMENT '同扩展点+阶段的执行顺序（PluginDescriptor.orderNo，升序）',
+  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用；运维权威，reconcile 不覆盖',
+  timeout_ms INT NOT NULL DEFAULT 3000 COMMENT '插件超时（毫秒）；分发器尚未读取该列，超时治理属待办',
   plugin_type VARCHAR(32) NOT NULL DEFAULT 'SYNC' COMMENT '插件执行类型（PluginTypeEnum）：SYNC-同步插件（嵌入请求链内联执行）',
-  is_deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除（死行不展示）：1-已删除 0-未删除',
-  orphaned TINYINT(1) NOT NULL DEFAULT 0 COMMENT '代码已移除标记（reconcile 检出 IOC 无此插件）：1-孤儿 0-正常',
+  is_deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除（死行不展示）：1-已删除 0-未删除；运维权威，reconcile 不覆盖',
+  orphaned TINYINT(1) NOT NULL DEFAULT 0 COMMENT '代码已移除标记（reconcile 每次启动重算）：1-孤儿 0-正常',
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uk_plugin_instances_code (instance_code),
-  KEY idx_plugin_instances_package_status (plugin_code, status),
-  KEY idx_plugin_instances_capability_status (capability_code, status),
+  UNIQUE KEY uk_plugin_instances_entrypoint (entrypoint),
   KEY idx_plugin_instances_type (plugin_type, status),
   KEY idx_plugin_instances_ext_stage_status (extension_point, stage_code, status, is_deleted)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='插件实例配置';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='插件实例配置（PluginDescriptor 的物化 + 运维开关）';
 
 -- 作用域绑定表已随单表收口删除（2026-10-13）。scope 维度按决策永久移除。
 

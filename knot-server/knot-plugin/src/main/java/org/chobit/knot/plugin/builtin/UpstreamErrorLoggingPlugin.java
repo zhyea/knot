@@ -36,13 +36,12 @@ public class UpstreamErrorLoggingPlugin implements PluginHandler<UpstreamPluginC
     public PluginDescriptor descriptor() {
 
         return new PluginDescriptor(
-
+                "provider-error-log",
+                "上游异常日志插件",
                 "provider-request-response-log",
-
                 PluginExtensionPoint.UPSTREAM_EXCHANGE,
-
-                PluginStageCode.UPSTREAM_ERROR
-
+                PluginStageCode.UPSTREAM_ERROR,
+                100
         );
 
     }

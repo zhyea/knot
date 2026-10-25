@@ -844,51 +844,13 @@ INSERT IGNORE INTO ks_scheduled_tasks (
 (3, 'openrouter-model-sync', 'OpenRouter 模型同步', 'OPENROUTER_MODEL_SYNC', '0 0 4 * * ?', 'SINGLE', 0, '同步 OpenRouter 模型到外部模型库');
 
 -- 插件
--- 插件管理已单表收口（2026-10-13）：packages / capabilities / bindings 三表删除，
--- 展示信息与执行阶段已反范式冗余进 kb_plugin_instances。status 改为 EnabledStatusEnum(1/0)，
--- orphaned/is_deleted 初始均为 0（启动期 PluginReconcileRunner 按 entrypoint 校正）。
--- ⚠ 本段是 INSERT IGNORE + 显式 id：**改了已有行的列值对既有库无效**（主键冲突即静默跳过）。
---   entrypoint 是「IOC 稳定键」，插件实现类换包/改名时必须另写 docs/database/migration/ 脚本
---   UPDATE 存量行，否则启动期 reconcile 全部匹配失败 → 整屏 orphaned + 重复插入。
---   判例：2026-10-25 包结构迁移（2026-10-25-plugin-entrypoint-package-migration.sql）。
-INSERT IGNORE INTO kb_plugin_instances (
-  id, plugin_code, instance_code, instance_name, plugin_name, entrypoint, source_type, version,
-  capability_code, capability_name, extension_point, stage_code, order_no,
-  config_json, status, timeout_ms, concurrency_limit, plugin_type, is_deleted, orphaned
-) VALUES
-(1, 'builtin-gateway-audit', 'gateway-request-log', '网关请求日志插件', '网关请求响应审计插件',
-  'org.chobit.knot.plugin.builtin.GatewayRequestLoggingPlugin', 'BUILTIN', '1.0.0',
-  'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_REQUEST', 100,
-  NULL, 1, 3000, 0, 'SYNC', 0, 0),
-(2, 'builtin-gateway-audit', 'gateway-response-log', '网关响应日志插件', '网关请求响应审计插件',
-  'org.chobit.knot.plugin.builtin.GatewayResponseLoggingPlugin', 'BUILTIN', '1.0.0',
-  'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_RESPONSE', 100,
-  NULL, 1, 3000, 0, 'SYNC', 0, 0),
-(3, 'builtin-gateway-audit', 'gateway-error-log', '网关异常日志插件', '网关请求响应审计插件',
-  'org.chobit.knot.plugin.builtin.GatewayErrorLoggingPlugin', 'BUILTIN', '1.0.0',
-  'gateway-request-response-log', '网关请求响应日志', 'GATEWAY_EXCHANGE', 'GATEWAY_ERROR', 100,
-  NULL, 1, 3000, 0, 'SYNC', 0, 0),
-(4, 'builtin-provider-audit', 'provider-request-log', '上游请求日志插件', '上游请求响应审计插件',
-  'org.chobit.knot.plugin.builtin.UpstreamRequestLoggingPlugin', 'BUILTIN', '1.0.0',
-  'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_REQUEST', 100,
-  NULL, 1, 3000, 0, 'SYNC', 0, 0),
-(5, 'builtin-provider-audit', 'provider-response-log', '上游响应日志插件', '上游请求响应审计插件',
-  'org.chobit.knot.plugin.builtin.UpstreamResponseLoggingPlugin', 'BUILTIN', '1.0.0',
-  'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_RESPONSE', 100,
-  NULL, 1, 3000, 0, 'SYNC', 0, 0),
-(6, 'builtin-provider-audit', 'provider-error-log', '上游异常日志插件', '上游请求响应审计插件',
-  'org.chobit.knot.plugin.builtin.UpstreamErrorLoggingPlugin', 'BUILTIN', '1.0.0',
-  'provider-request-response-log', '上游请求响应日志', 'UPSTREAM_EXCHANGE', 'UPSTREAM_ERROR', 100,
-  NULL, 1, 3000, 0, 'SYNC', 0, 0),
--- 敏感词审核（order_no=200 > 审计日志 100：被拦截的请求/响应也先落审计，再由本插件抛 400）
-(7, 'builtin-moderation', 'sensitive-word-request-check', '敏感词入站检测插件', '敏感词审核插件',
-  'org.chobit.knot.plugin.moderation.SensitiveWordRequestPlugin', 'BUILTIN', '1.0.0',
-  'sensitive-word-moderation', '敏感词审核', 'GATEWAY_EXCHANGE', 'GATEWAY_REQUEST', 200,
-  NULL, 1, 3000, 0, 'SYNC', 0, 0),
-(8, 'builtin-moderation', 'sensitive-word-response-check', '敏感词出站检测插件', '敏感词审核插件',
-  'org.chobit.knot.plugin.moderation.SensitiveWordResponsePlugin', 'BUILTIN', '1.0.0',
-  'sensitive-word-moderation', '敏感词审核', 'GATEWAY_EXCHANGE', 'GATEWAY_RESPONSE', 200,
-  NULL, 1, 3000, 0, 'SYNC', 0, 0);
+-- 2026-10-25 起插件实例**不再预置种子**：kb_plugin_instances 是 PluginDescriptor 的物化，
+-- 由启动期 PluginReconcileRunner 以 entrypoint 为键幂等 upsert 生成/刷新。
+-- 删掉种子的理由（不是风格问题，是缺陷）：原种子是 INSERT IGNORE + 显式 id，既有库主键冲突即
+-- 静默跳过 → 插件实现类一换包，DB 里的旧 entrypoint 永远刷不成新值 → reconcile 全部匹配失败
+-- → 重复插入 + 整屏 orphaned；同时手写码与 reconcile 派生码是两套命名口径（判例：派生码
+-- 65 字符超过当时的 VARCHAR(64)，上下文直接起不来）。单一来源后，这一类风险整体消失。
+-- 插件 code / name / orderNo 见各自的 PluginDescriptor 声明。
 
 -- 通知模板
 INSERT IGNORE INTO kb_notification_templates (id, code, name, channel, title_tpl, content_tpl, status) VALUES

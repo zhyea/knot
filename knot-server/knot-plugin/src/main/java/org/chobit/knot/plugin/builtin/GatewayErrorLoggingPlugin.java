@@ -20,9 +20,12 @@ public class GatewayErrorLoggingPlugin implements PluginHandler<GatewayPluginCon
     @Override
     public PluginDescriptor descriptor() {
         return new PluginDescriptor(
+                "gateway-error-log",
+                "网关异常日志插件",
                 "gateway-request-response-log",
                 PluginExtensionPoint.GATEWAY_EXCHANGE,
-                PluginStageCode.GATEWAY_ERROR
+                PluginStageCode.GATEWAY_ERROR,
+                100
         );
     }
 
