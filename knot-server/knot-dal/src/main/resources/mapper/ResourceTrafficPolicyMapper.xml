@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.mapper.ResourceTrafficPolicyMapper">
+<mapper namespace="org.chobit.knot.gateway.dal.mapper.ResourceTrafficPolicyMapper">
 
     <!-- 资源业务码 -> 资源主键（多态 join：按 resource_type 决定关联哪张资源表） -->
     <sql id="resourceJoin">
@@ -28,14 +28,14 @@
         p.rate_limit_policy_code
     </sql>
 
-    <select id="getByResource" resultType="org.chobit.knot.gateway.entity.ResourceTrafficPolicyEntity">
+    <select id="getByResource" resultType="org.chobit.knot.gateway.dal.entity.ResourceTrafficPolicyEntity">
         select <include refid="Columns"/>
         from kb_resource_traffic_policies p
         <include refid="resourceJoin"/>
         where p.resource_type = #{resourceType} and r.id = #{resourceId}
     </select>
 
-    <select id="listByResources" resultType="org.chobit.knot.gateway.entity.ResourceTrafficPolicyEntity">
+    <select id="listByResources" resultType="org.chobit.knot.gateway.dal.entity.ResourceTrafficPolicyEntity">
         select <include refid="Columns"/>
         from kb_resource_traffic_policies p
         <include refid="resourceJoin"/>

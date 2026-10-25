@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.mapper.ModelFamilyMapper">
+<mapper namespace="org.chobit.knot.gateway.dal.mapper.ModelFamilyMapper">
 
     <!--
       模型族 = ks_enum_configs(category='model_family')，与枚举管理页同源。
@@ -26,7 +26,7 @@
           and c.category = 'model_family'
     </sql>
 
-    <select id="list" resultType="org.chobit.knot.gateway.entity.ModelFamilyEntity">
+    <select id="list" resultType="org.chobit.knot.gateway.dal.entity.ModelFamilyEntity">
         select <include refid="ModelFamilyColumns"/>
         <include refid="ModelFamilyFrom"/>
         <if test="keyword != null and keyword != ''">
@@ -39,13 +39,13 @@
         order by ec.sort_order, ec.id
     </select>
 
-    <select id="getById" resultType="org.chobit.knot.gateway.entity.ModelFamilyEntity">
+    <select id="getById" resultType="org.chobit.knot.gateway.dal.entity.ModelFamilyEntity">
         select <include refid="ModelFamilyColumns"/>
         <include refid="ModelFamilyFrom"/>
         and ec.id = #{id}
     </select>
 
-    <select id="getByCode" resultType="org.chobit.knot.gateway.entity.ModelFamilyEntity">
+    <select id="getByCode" resultType="org.chobit.knot.gateway.dal.entity.ModelFamilyEntity">
         select <include refid="ModelFamilyColumns"/>
         <include refid="ModelFamilyFrom"/>
         and ec.item_code = #{code}

@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.mapper.ResourceQuotaBindingMapper">
+<mapper namespace="org.chobit.knot.gateway.dal.mapper.ResourceQuotaBindingMapper">
 
     <sql id="Columns">
         id, resource_type, resource_code, quota_policy_code, created_at
     </sql>
 
-    <select id="listByResources" resultType="org.chobit.knot.gateway.entity.ResourceQuotaBindingEntity">
+    <select id="listByResources" resultType="org.chobit.knot.gateway.dal.entity.ResourceQuotaBindingEntity">
         select <include refid="Columns"/>
         from kb_resource_quota_bindings
         where resource_type = #{resourceType}

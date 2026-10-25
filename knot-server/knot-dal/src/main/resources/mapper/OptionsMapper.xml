@@ -11,9 +11,9 @@
   敏感字段隔离：路由消费者、供应商账户相关 select 绝不包含 secret_key / encrypted_config。
   baseUrl 不单独占列，已并入供应商账户的 meta。
 -->
-<mapper namespace="org.chobit.knot.gateway.mapper.OptionsMapper">
+<mapper namespace="org.chobit.knot.gateway.dal.mapper.OptionsMapper">
 
-  <resultMap id="optionRow" type="org.chobit.knot.gateway.entity.OptionRow">
+  <resultMap id="optionRow" type="org.chobit.knot.gateway.dal.entity.OptionRow">
     <result column="value" property="value"/>
     <result column="label" property="label"/>
     <result column="disabled" property="disabled"/>

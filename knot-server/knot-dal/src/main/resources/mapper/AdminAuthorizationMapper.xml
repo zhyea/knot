@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.mapper.AdminAuthorizationMapper">
+<mapper namespace="org.chobit.knot.gateway.dal.mapper.AdminAuthorizationMapper">
 
     <select id="listPermissionCodesByUserId" resultType="java.lang.String">
         select distinct p.permission_code
@@ -12,7 +12,7 @@
           and p.status = 1
     </select>
 
-    <select id="getApiPermissionBinding" resultType="org.chobit.knot.gateway.entity.AdminApiPermissionBindingEntity">
+    <select id="getApiPermissionBinding" resultType="org.chobit.knot.gateway.dal.entity.AdminApiPermissionBindingEntity">
         select b.id,
                b.permission_id,
                p.permission_code,
@@ -29,7 +29,7 @@
         limit 1
     </select>
 
-    <select id="listMenusByUserId" resultType="org.chobit.knot.gateway.entity.AdminMenuEntity">
+    <select id="listMenusByUserId" resultType="org.chobit.knot.gateway.dal.entity.AdminMenuEntity">
         select distinct m.id,
                m.module_id,
                sm.module_code,

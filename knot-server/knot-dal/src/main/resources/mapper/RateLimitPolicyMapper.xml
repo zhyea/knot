@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.mapper.RateLimitPolicyMapper">
+<mapper namespace="org.chobit.knot.gateway.dal.mapper.RateLimitPolicyMapper">
 
     <sql id="Columns">
         id, policy_code, policy_name, rpm, tpm, status, remark
     </sql>
 
-    <select id="getById" resultType="org.chobit.knot.gateway.entity.RateLimitPolicyEntity">
+    <select id="getById" resultType="org.chobit.knot.gateway.dal.entity.RateLimitPolicyEntity">
         select <include refid="Columns"/> from kb_rate_limit_policies where id = #{id}
     </select>
 
-    <select id="listByIds" resultType="org.chobit.knot.gateway.entity.RateLimitPolicyEntity">
+    <select id="listByIds" resultType="org.chobit.knot.gateway.dal.entity.RateLimitPolicyEntity">
         select <include refid="Columns"/> from kb_rate_limit_policies
         where id in
         <foreach collection="ids" item="id" open="(" separator="," close=")">
@@ -18,11 +18,11 @@
         </foreach>
     </select>
 
-    <select id="getByCode" resultType="org.chobit.knot.gateway.entity.RateLimitPolicyEntity">
+    <select id="getByCode" resultType="org.chobit.knot.gateway.dal.entity.RateLimitPolicyEntity">
         select <include refid="Columns"/> from kb_rate_limit_policies where policy_code = #{policyCode}
     </select>
 
-    <select id="listByCodes" resultType="org.chobit.knot.gateway.entity.RateLimitPolicyEntity">
+    <select id="listByCodes" resultType="org.chobit.knot.gateway.dal.entity.RateLimitPolicyEntity">
         select <include refid="Columns"/> from kb_rate_limit_policies
         where policy_code in
         <foreach collection="codes" item="code" open="(" separator="," close=")">

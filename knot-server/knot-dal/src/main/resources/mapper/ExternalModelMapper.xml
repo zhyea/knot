@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="org.chobit.knot.gateway.mapper.ExternalModelMapper">
+<mapper namespace="org.chobit.knot.gateway.dal.mapper.ExternalModelMapper">
 
     <sql id="SourceColumns">
         id, source_code, source_name, source_url, api_url, source_type, status,
@@ -23,13 +23,13 @@
         logical_model_id, ignored
     </sql>
 
-    <select id="listSources" resultType="org.chobit.knot.gateway.entity.ExternalModelSourceEntity">
+    <select id="listSources" resultType="org.chobit.knot.gateway.dal.entity.ExternalModelSourceEntity">
         select <include refid="SourceColumns"/>
         from kx_model_sources
         order by id asc
     </select>
 
-    <select id="getSourceByCode" resultType="org.chobit.knot.gateway.entity.ExternalModelSourceEntity">
+    <select id="getSourceByCode" resultType="org.chobit.knot.gateway.dal.entity.ExternalModelSourceEntity">
         select <include refid="SourceColumns"/>
         from kx_model_sources
         where source_code = #{sourceCode}
@@ -46,7 +46,7 @@
         where source_code = #{sourceCode}
     </update>
 
-    <select id="listItems" resultType="org.chobit.knot.gateway.entity.ExternalModelItemEntity">
+    <select id="listItems" resultType="org.chobit.knot.gateway.dal.entity.ExternalModelItemEntity">
         select <include refid="ItemListColumns"/>
         from kx_model_items
         <where>
@@ -77,13 +77,13 @@
         order by ignored asc, coalesce(model_created_at, created_at) desc, id desc
     </select>
 
-    <select id="getItemById" resultType="org.chobit.knot.gateway.entity.ExternalModelItemEntity">
+    <select id="getItemById" resultType="org.chobit.knot.gateway.dal.entity.ExternalModelItemEntity">
         select <include refid="ItemColumns"/>
         from kx_model_items
         where id = #{id}
     </select>
 
-    <select id="getItemBySourceKey" resultType="org.chobit.knot.gateway.entity.ExternalModelItemEntity">
+    <select id="getItemBySourceKey" resultType="org.chobit.knot.gateway.dal.entity.ExternalModelItemEntity">
         select <include refid="ItemColumns"/>
         from kx_model_items
         where source_code = #{sourceCode}
