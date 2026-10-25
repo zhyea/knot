@@ -12,7 +12,7 @@ import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
-import org.chobit.knot.gateway.model.NormalizedUsage;
+import org.chobit.knot.gateway.adapter.model.usage.NormalizedUsage;
 import org.chobit.knot.gateway.service.support.BillingFactAssembler;
 import org.chobit.knot.gateway.service.support.JevBillingJudge;
 import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdict;

@@ -3,9 +3,9 @@ package org.chobit.knot.gateway.kafka.msg;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import org.chobit.knot.gateway.model.NormalizedUsage;
-import org.chobit.knot.gateway.model.NormalizedUsageDetail;
-import org.chobit.knot.gateway.model.TokenUsageDetailKind;
+import org.chobit.knot.gateway.adapter.model.usage.NormalizedUsage;
+import org.chobit.knot.gateway.adapter.model.usage.NormalizedUsageDetail;
+import org.chobit.knot.gateway.adapter.model.usage.TokenUsageDetailKind;
 
 import java.util.List;
 
@@ -88,7 +88,7 @@ public record BillingViewMsgDto(String ruleCode,
         /**
          * 由内部明细行构建；{@code null} 返回 {@code null}。
          */
-        public static BillingDetailMsgDto of(org.chobit.knot.gateway.model.NormalizedUsageDetail detail) {
+        public static BillingDetailMsgDto of(NormalizedUsageDetail detail) {
             if (detail == null) {
                 return null;
             }

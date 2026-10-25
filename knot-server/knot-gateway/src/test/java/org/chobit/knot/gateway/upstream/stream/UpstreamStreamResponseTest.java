@@ -11,6 +11,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -24,8 +25,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p>响应头快照仍然必须与连接生命周期解耦——数仓埋点在流写完后才读供应商请求 id。</p>
  *
- * <p>2026-10-23（计费去兜底）：句柄不再持有 {@code UpstreamRequestAdapter}——
- * 适配器已退出计费链路，只为「提取器没结果时回落」而存在的依赖一并删除。</p>
+ * <p>2026-10-25：重新持有 {@code UpstreamAdapter}（2026-10-23 计费去兜底时曾移除）——
+ * 流式路径的响应适配（{@code UpstreamAdapter#handleStreamEvent}）需要适配器在场，
+ * 与整包路径的 {@code handleResponse} 对称；为 {@code null} 时按透传处理。</p>
  */
 class UpstreamStreamResponseTest {
 
@@ -35,6 +37,7 @@ class UpstreamStreamResponseTest {
         return new UpstreamStreamResponse(
                 Flux.just(FACTORY.wrap("data: {}\n\n".getBytes(StandardCharsets.UTF_8))),
                 MediaType.TEXT_EVENT_STREAM,
+                null,
                 null,
                 headers, requestId);
     }
@@ -58,7 +61,7 @@ class UpstreamStreamResponseTest {
         UpstreamStreamResponse response = stream(null, null);
 
         assertTrue(response.upstreamHeaders().isEmpty());
-        assertEquals(null, response.upstreamRequestId());
+        assertNull(response.upstreamRequestId());
     }
 
     @Test
@@ -74,7 +77,7 @@ class UpstreamStreamResponseTest {
     @DisplayName("响应体为 null 时退化成空流，不是 NPE")
     void nullBodyDegradesToEmptyFlux() {
         UpstreamStreamResponse response = new UpstreamStreamResponse(
-                null, MediaType.APPLICATION_JSON, null, null, null);
+                null, MediaType.APPLICATION_JSON, null, null, null, null);
 
         assertEquals(0L, response.body().count().block());
     }
@@ -85,11 +88,17 @@ class UpstreamStreamResponseTest {
         assertTrue(stream(null, null).isEventStream(), "text/event-stream 必须判定为 SSE");
 
         UpstreamStreamResponse json = new UpstreamStreamResponse(Flux.empty(),
-                MediaType.APPLICATION_JSON, null, null, null);
+                MediaType.APPLICATION_JSON, null, null, null, null);
         assertFalse(json.isEventStream(), "JSON 响应按字节原样转发");
 
         UpstreamStreamResponse noType = new UpstreamStreamResponse(Flux.empty(),
-                null, null, null, null);
+                null, null, null, null, null);
         assertFalse(noType.isEventStream(), "无 Content-Type 时保守按裸流处理");
+    }
+
+    @Test
+    @DisplayName("adapter 可为 null（流式响应按透传处理）")
+    void adapterMayBeNull() {
+        assertNull(stream(null, null).adapter());
     }
 }

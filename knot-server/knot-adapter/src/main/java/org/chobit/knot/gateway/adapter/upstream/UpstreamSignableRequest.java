@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.adapter.upstream;
 
-import org.chobit.knot.gateway.adapter.aws.AwsSigV4Support;
+import org.chobit.knot.gateway.adapter.support.aws.AwsSigV4Support;
 
 /**
  * 交给鉴权策略签名的请求摘要：只有「签名需要知道的三件事」。

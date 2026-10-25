@@ -15,7 +15,7 @@ import org.chobit.knot.gateway.plugin.gateway.GatewayRoutingSnapshot;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.request.GatewayModelRequest;
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.model.UsageAccounting;
+import org.chobit.knot.gateway.adapter.model.usage.UsageAccounting;
 import org.chobit.knot.gateway.kafka.KafkaPublisher;
 import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
 import org.springframework.http.MediaType;

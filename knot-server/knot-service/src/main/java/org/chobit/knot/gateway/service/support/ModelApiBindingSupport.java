@@ -16,7 +16,7 @@ import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.error.BusinessException;
 import org.chobit.knot.gateway.error.ErrorCode;
 import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
-import org.chobit.knot.gateway.usage.extractor.DefaultTokenUsageExtractor;
+import org.chobit.knot.gateway.adapter.usage.extractor.DefaultTokenUsageExtractor;
 import org.springframework.stereotype.Component;
 
 

@@ -1,14 +1,15 @@
 package org.chobit.knot.gateway.upstream.stream;
 
+import org.chobit.knot.gateway.adapter.protocol.UpstreamAdapter;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.config.UsageExtractionProperties;
 import org.chobit.knot.gateway.constants.GatewayHeaders;
-import org.chobit.knot.gateway.model.TokenBillingUsage;
-import org.chobit.knot.gateway.model.UsageAccounting;
+import org.chobit.knot.gateway.adapter.model.usage.TokenBillingUsage;
+import org.chobit.knot.gateway.adapter.model.usage.UsageAccounting;
 import org.chobit.knot.gateway.runtime.FirstTokenHeaderWriter;
 import org.chobit.knot.gateway.runtime.RecordingHttpExchange;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
-import org.chobit.knot.gateway.usage.ModelUsageNormalizer;
+import org.chobit.knot.gateway.adapter.usage.ModelUsageNormalizer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -24,7 +25,9 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -44,6 +47,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li>上游中断<b>沿 onError 传播</b>——批1 的管道桥接会把它退化成静默截断；</li>
  *   <li>跨 chunk 的多字节字符不能被劈开（行切分只在换行处解码）。</li>
  * </ol>
+ *
+ * <p>2026-10-25（流式响应适配）：SSE 数据行一律经 {@code UpstreamAdapter.handleStreamEvent}
+ * 转换后再转发与提取（默认透传零变化），与整包路径的 {@code handleResponse} 同构。</p>
  */
 class ProxyStreamingFluxTest {
 
@@ -79,7 +85,7 @@ class ProxyStreamingFluxTest {
     void surfacesUpstreamAbortAndStillReleases() {
         AtomicInteger released = new AtomicInteger();
         UpstreamStreamResponse failing = new UpstreamStreamResponse(
-                Flux.error(new IOException("upstream reset")), MediaType.TEXT_EVENT_STREAM, null, null, null);
+                Flux.error(new IOException("upstream reset")), MediaType.TEXT_EVENT_STREAM, null, null, null, null);
 
         Flux<DataBuffer> body = ProxyStreamingFlux.wrap(failing, null, false, FACTORY, null, null,
                 released::incrementAndGet);
@@ -166,7 +172,7 @@ class ProxyStreamingFluxTest {
         byte[] tail = Arrays.copyOfRange(bytes, 4, bytes.length);
         Flux<DataBuffer> chunks = Flux.<DataBuffer>just(FACTORY.wrap(head), FACTORY.wrap(tail));
         UpstreamStreamResponse stream = new UpstreamStreamResponse(chunks, MediaType.TEXT_EVENT_STREAM,
-                null, null, null);
+                null, null, null, null);
 
         String out = collect(ProxyStreamingFlux.wrap(stream, null, false, FACTORY, null, null, null));
 
@@ -181,7 +187,7 @@ class ProxyStreamingFluxTest {
         UpstreamStreamResponse slow = new UpstreamStreamResponse(
                 Flux.just(FACTORY.wrap("hello".getBytes(StandardCharsets.UTF_8)))
                         .delayElements(Duration.ofMillis(100)),
-                MediaType.APPLICATION_JSON, null, null, null);
+                MediaType.APPLICATION_JSON, null, null, null, null);
 
         collect(ProxyStreamingFlux.wrap(slow, null, false, FACTORY, writer, null, null));
 
@@ -198,7 +204,7 @@ class ProxyStreamingFluxTest {
         UpstreamStreamResponse slow = new UpstreamStreamResponse(
                 Flux.just(FACTORY.wrap("data: a\ndata: [DONE]\n".getBytes(StandardCharsets.UTF_8)))
                         .delayElements(Duration.ofMillis(120)),
-                MediaType.TEXT_EVENT_STREAM, null, null, null);
+                MediaType.TEXT_EVENT_STREAM, null, null, null, null);
 
         collect(ProxyStreamingFlux.wrap(slow, null, false, FACTORY, writer, null, null));
 
@@ -238,6 +244,93 @@ class ProxyStreamingFluxTest {
         assertFalse(out.contains("knot_extend"));
     }
 
+    @Test
+    @DisplayName("流式事件经适配器转换后转发，用量提取吃转换后的数据")
+    void adaptsStreamEventBeforeForwardAndExtraction() {
+        AtomicReference<String> extracted = new AtomicReference<>();
+        String payload = "data: {\"choices\":[],\"usage\":{\"inputTokens\":10,\"output_tokens\":5}}\n"
+                + "data: [DONE]\n";
+        // camelCase 别名转 snake_case 的 stub：模拟「上游流式口径与网关不同」的适配器
+        UpstreamAdapter adapter = new UpstreamAdapter() {
+            @Override
+            public String code() {
+                return "STUB_CAMEL_TO_SNAKE";
+            }
+
+            @Override
+            public String label() {
+                return "stub";
+            }
+
+            @Override
+            public Set<org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum> protocol() {
+                return Set.of(org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum.CHAT_COMPLETIONS);
+            }
+
+            @Override
+            public Object buildRequestBody(UpstreamRequestContext ctx) {
+                return ctx.requestBody();
+            }
+
+            @Override
+            public String handleStreamEvent(String eventData, UpstreamRequestContext ctx) {
+                return eventData.replace("inputTokens", "input_tokens");
+            }
+        };
+        UsageExtractorRegistry registry = new UsageExtractorRegistry(null, null, new UsageExtractionProperties()) {
+            @Override
+            public UsageAccounting extractEvent(String eventData, UpstreamRequestContext context) {
+                extracted.set(eventData);
+                return null;
+            }
+        };
+
+        String out = collect(ProxyStreamingFlux.wrap(stream(payload, true, adapter), registry, true, FACTORY,
+                null, null, null));
+
+        assertTrue(out.contains("\"input_tokens\":10"), "客户端必须收到转换后的事件，实际：" + out);
+        assertFalse(out.contains("inputTokens"), "上游 camelCase 不应出现在转发数据里");
+        assertEquals("{\"choices\":[],\"usage\":{\"input_tokens\":10,\"output_tokens\":5}}", extracted.get(),
+                "用量提取必须吃转换后的数据（与整包路径同构）");
+    }
+
+    @Test
+    @DisplayName("响应适配不受 appendUsage 开关影响（协议正确性不依赖计费注入）")
+    void adaptsStreamEventEvenWithoutUsageInjection() {
+        String payload = "data: {\"text\":\"hi\"}\n";
+        UpstreamAdapter upper = new UpstreamAdapter() {
+            @Override
+            public String code() {
+                return "STUB_UPPER";
+            }
+
+            @Override
+            public String label() {
+                return "stub";
+            }
+
+            @Override
+            public Set<org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum> protocol() {
+                return Set.of(org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum.CHAT_COMPLETIONS);
+            }
+
+            @Override
+            public Object buildRequestBody(UpstreamRequestContext ctx) {
+                return ctx.requestBody();
+            }
+
+            @Override
+            public String handleStreamEvent(String eventData, UpstreamRequestContext ctx) {
+                return eventData.replace("\"hi\"", "\"HI\"");
+            }
+        };
+
+        String out = collect(ProxyStreamingFlux.wrap(stream(payload, true, upper), null, false, FACTORY,
+                null, null, null));
+
+        assertTrue(out.contains("\"HI\""), "appendUsage=false 时转换仍须生效，实际：" + out);
+    }
+
     private static String collect(Flux<DataBuffer> body) {
         return body.map(buffer -> buffer.toString(StandardCharsets.UTF_8))
                 .collectList()
@@ -249,7 +342,14 @@ class ProxyStreamingFluxTest {
         return new UpstreamStreamResponse(
                 Flux.just(FACTORY.wrap(payload.getBytes(StandardCharsets.UTF_8))),
                 eventStream ? MediaType.TEXT_EVENT_STREAM : MediaType.APPLICATION_JSON,
-                null, null, null);
+                null, null, null, null);
+    }
+
+    private static UpstreamStreamResponse stream(String payload, boolean eventStream, UpstreamAdapter adapter) {
+        return new UpstreamStreamResponse(
+                Flux.just(FACTORY.wrap(payload.getBytes(StandardCharsets.UTF_8))),
+                eventStream ? MediaType.TEXT_EVENT_STREAM : MediaType.APPLICATION_JSON,
+                null, adapter, null, null);
     }
 
     private static UsageExtractorRegistry stubRegistry() {

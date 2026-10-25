@@ -4,7 +4,7 @@ import org.chobit.knot.gateway.adapter.upstream.UpstreamAccess;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamSignableRequest;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.gateway.adapter.upstream.ProviderAccountRef;
+import org.chobit.knot.gateway.adapter.model.ref.ProviderAccountRef;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
 
@@ -134,7 +134,7 @@ class AwsSigV4AuthApplierTest {
         HttpHeaders headers = new HttpHeaders();
         UpstreamRequestContext context = context(authConfig);
         applier.sign(new UpstreamSignableRequest("POST", url,
-                org.chobit.knot.gateway.adapter.aws.AwsSigV4Support.payloadHash(
+                org.chobit.knot.gateway.adapter.support.aws.AwsSigV4Support.payloadHash(
                         body.getBytes(StandardCharsets.UTF_8))), headers, context, NOW);
         return headers;
     }

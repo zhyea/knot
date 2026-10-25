@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.dto.routing;
 
-import org.chobit.knot.gateway.model.NormalizedUsage;
+import org.chobit.knot.gateway.adapter.model.usage.NormalizedUsage;
 
 import java.time.Instant;
 import java.util.Map;

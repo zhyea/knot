@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.dto.routing;
 
-import org.chobit.knot.gateway.model.NormalizedUsageDetail;
+import org.chobit.knot.gateway.adapter.model.usage.NormalizedUsageDetail;
 
 /**
  * 计费明细行（与网关 {@link NormalizedUsageDetail} 同构，金额为十进制普通字符串契约）。

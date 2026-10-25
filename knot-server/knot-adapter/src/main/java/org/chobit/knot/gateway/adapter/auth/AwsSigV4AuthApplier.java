@@ -1,9 +1,9 @@
 package org.chobit.knot.gateway.adapter.auth;
 
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.adapter.AuthConfigSupport;
-import org.chobit.knot.gateway.adapter.aws.AwsBedrockEndpointResolver;
-import org.chobit.knot.gateway.adapter.aws.AwsSigV4Support;
+import org.chobit.knot.gateway.adapter.auth.AuthConfigSupport;
+import org.chobit.knot.gateway.adapter.support.aws.AwsBedrockEndpointResolver;
+import org.chobit.knot.gateway.adapter.support.aws.AwsSigV4Support;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamSignableRequest;
 import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;

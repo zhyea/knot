@@ -3,10 +3,10 @@ package org.chobit.knot.gateway.upstream;
 import lombok.RequiredArgsConstructor;
 import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplier;
 import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplierCatalog;
-import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
-import org.chobit.knot.gateway.adapter.upstream.ModelApiBindingRef;
-import org.chobit.knot.gateway.adapter.upstream.ModelRef;
-import org.chobit.knot.gateway.adapter.upstream.ProviderAccountRef;
+import org.chobit.knot.gateway.adapter.protocol.UpstreamAdapter;
+import org.chobit.knot.gateway.adapter.model.ref.ModelApiBindingRef;
+import org.chobit.knot.gateway.adapter.model.ref.ModelRef;
+import org.chobit.knot.gateway.adapter.model.ref.ProviderAccountRef;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamAccess;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
@@ -28,7 +28,7 @@ import org.chobit.knot.gateway.service.GatewayEntityCacheService;
 import org.chobit.knot.gateway.service.support.ProviderCredentialSupport;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutor;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutorRegistry;
-import org.chobit.knot.gateway.upstream.request.UpstreamRequestAdapterRegistry;
+import org.chobit.knot.gateway.upstream.request.UpstreamAdapterRegistry;
 import org.chobit.knot.gateway.upstream.support.UpstreamUrlSupport;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.MediaType;
@@ -47,7 +47,7 @@ public class UpstreamProxyClient {
 
     private final GatewayEntityCacheService dataService;
     private final UpstreamProtocolExecutorRegistry protocolExecutorRegistry;
-    private final UpstreamRequestAdapterRegistry requestAdapterRegistry;
+    private final UpstreamAdapterRegistry requestAdapterRegistry;
     private final ProviderCredentialSupport providerCredentialSupport;
     private final PluginDispatcher pluginDispatcher;
     private final UpstreamAuthApplierCatalog authApplierCatalog;
@@ -239,7 +239,7 @@ public class UpstreamProxyClient {
      * 解析本次上游调用的完整请求地址（scheme + host + path）：与执行器使用相同的
      * {@code joinPath} / {@code joinUrl} 原语，在请求发起前即可算出，供三个阶段的日志统一呈现。
      */
-    private String resolveUpstreamUrl(UpstreamRequestContext context, UpstreamRequestAdapter adapter) {
+    private String resolveUpstreamUrl(UpstreamRequestContext context, UpstreamAdapter adapter) {
         String protocolPath = adapter.resolvePath(context, context.protocol().defaultPath());
         UpstreamAuthApplier applier = authApplierCatalog.resolve(context.authApplier());
         UpstreamAccess access = applier == null ? null : applier.prepare(context);

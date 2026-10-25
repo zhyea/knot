@@ -2,9 +2,10 @@ package org.chobit.knot.gateway.upstream.stream;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.protocol.UpstreamAdapter;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
-import org.chobit.knot.gateway.model.UsageAccounting;
-import org.chobit.knot.gateway.model.usage.KnotExtendPayload;
+import org.chobit.knot.gateway.adapter.model.usage.UsageAccounting;
+import org.chobit.knot.gateway.adapter.usage.KnotExtendPayload;
 import org.chobit.knot.gateway.runtime.FirstTokenHeaderWriter;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.chobit.knot.gateway.util.JsonKit;
@@ -116,7 +117,13 @@ public final class ProxyStreamingFlux {
     }
 
     /**
-     * 单行处理：{@code [DONE]} 之前插入用量事件，其余行原样透传（同时累计用量）。
+     * 单行处理：{@code [DONE]} 之前插入用量事件，其余 SSE 数据行经流式响应适配后转发（同时累计用量）。
+     *
+     * <p>与整包路径同构：适配器转换后的数据既喂用量提取，也喂客户端转发；默认透传
+     * （不覆写 {@code handleStreamEvent}）时短掉重组，原行逐字节发出。</p>
+     *
+     * <p>响应适配是协议正确性，不受 {@code appendUsage}（计费注入开关）影响——
+     * 该开关只 gate 用量提取与 {@code knot_extend} 注入。</p>
      */
     private static Flux<String> transform(String line,
                                           UpstreamStreamResponse stream,
@@ -132,10 +139,28 @@ public final class ProxyStreamingFlux {
             String usageLine = state.usageLine();
             return usageLine == null ? Flux.just(line) : Flux.just(usageLine, line);
         }
-        if (appendUsage && trimmed.startsWith(DATA_PREFIX)) {
-            state.merge(extractUsage(stream, registry, StringUtils.trim(trimmed.substring(DATA_PREFIX.length()))));
+        if (trimmed.startsWith(DATA_PREFIX)) {
+            // [DONE] 检测用原始数据（协议级标记），提取与转发用适配后的数据
+            String data = StringUtils.trim(trimmed.substring(DATA_PREFIX.length()));
+            String adapted = adaptStreamEvent(stream, data);
+            if (appendUsage) {
+                state.merge(extractUsage(stream, registry, adapted));
+            }
+            return Flux.just(adapted.equals(data) ? line : DATA_PREFIX + " " + adapted);
         }
         return Flux.just(line);
+    }
+
+    /**
+     * 流式响应适配：默认透传零成本（无适配器或未覆写钩子时原串返回，不过 JSON）。
+     */
+    private static String adaptStreamEvent(UpstreamStreamResponse stream, String data) {
+        UpstreamAdapter adapter = stream.adapter();
+        if (adapter == null) {
+            return data;
+        }
+        String adapted = adapter.handleStreamEvent(data, stream.context());
+        return adapted == null ? data : adapted;
     }
 
     /**

@@ -84,7 +84,7 @@
 | 下游派生漏改 | B7 | `GatewayTrafficMsgDto.java:242` `statusOf()` 只认 4 个 type，改 type 不升本函数会让新值落 `default` |
 | 适配层反向依赖数据层 | D / B2 | `knot-adapter/pom.xml` compile 依赖 `knot-dal`；7 个主类 import `org.chobit.knot.gateway.entity.*`（`UpstreamRequestContext`、`UsageNormalizationSupport`、4 个 `BillingModeCalculator`…） |
 | 契约模块承载运行时 | D | ~~`DefaultPluginDispatcher.java:23` `@Component` 位于 `knot-plugin-api`~~ → **2026-10-24 已整改**（批次三 3.12）：`DefaultPluginDispatcher` + 其 8 例单测整体迁到 `knot-plugin`（`git mv`，FQCN 保持不变 → 全仓零 import 改动、`plugin-api` 侧不留空包）。调用方只依赖接口 `PluginDispatcher`（仅 gateway 三处注入），admin 对 `knot-plugin` 无依赖也无 dispatcher 引用，故迁移对 IOC 无影响。规则写入 `40-plugin.md` §3.5 |
-| 协议集合多处维护 | O / S2 | ~~`UsageExtractorRegistry` if 链~~、~~`RoutingTestBillingVerdictService.java:144`~~、~~前端两处 `normalizeProtocolCode`~~ → **2026-10-24 已整改**：前两处随批次三 2.2b 协议猜测移除消除；前端归一收敛为 `utils/protocolCode.ts`（实测是三份而非两份——`RoutingRuleTestDrawer` 的同名函数实为 canonical 别名薄包装，语义不同，已并入 `canonicalOf` 调用点）。**仍待办**：`RoutingRuleDebugSupport.DEBUGGABLE_PROTOCOLS`（批次三 3.2 从 `RoutingRuleService` 迁出，集合本身未与 `OpenAiCompatibleRequestAdapter.PROTOCOLS` 合源）、`MediaProtocolExecutor`、`TextGenerationProtocolExecutor` 三处协议集合 |
+| 协议集合多处维护 | O / S2 | ~~`UsageExtractorRegistry` if 链~~、~~`RoutingTestBillingVerdictService.java:144`~~、~~前端两处 `normalizeProtocolCode`~~ → **2026-10-24 已整改**：前两处随批次三 2.2b 协议猜测移除消除；前端归一收敛为 `utils/protocolCode.ts`（实测是三份而非两份——`RoutingRuleTestDrawer` 的同名函数实为 canonical 别名薄包装，语义不同，已并入 `canonicalOf` 调用点）。**仍待办**：`RoutingRuleDebugSupport.DEBUGGABLE_PROTOCOLS`（批次三 3.2 从 `RoutingRuleService` 迁出，集合本身未与 `PassthroughUpstreamAdapter.PROTOCOLS` 合源——2026-10-25 适配器拆分后协议集合已按适配器收敛，全集基准即透传适配器）、`MediaProtocolExecutor`、`TextGenerationProtocolExecutor` 三处协议集合 |
 | 兜底模式复制 | S3 | ~~8 个 Service 的 `snapshot()` 全是 `try { getById; return JsonKit.toMap } catch (BusinessException e) { return null; }`~~ → **2026-10-24 已整改**（批次三 3.5）：实测 **14 处** Map 版快照统一走 `AuditSnapshotSupport.capture(id, loader)`；authorization 域 5 处返回 Entity、无吞噬语义，不套用 |
 | `\|\|` 兜底误用 | S6 | ~~`useAuthorizationManagement.ts:882` `row.status \|\| "ENABLED"`~~ → **2026-10-24 批次一已改为 `??`** |
 | 测试不进门禁 | E5 / B6 | ~~`knot-front` 已有 10 个 spec 文件，`.github/workflows/ci.yml` 只跑 `vue-tsc` + `vite build`~~ → **2026-10-24 批次一已加 `npm test` 步骤**（排在 type-check 之前） |
@@ -107,7 +107,7 @@
 | 建造者返回 this | `TokenBillingUsage.java:87` `tokenUsage(...) { return this; }` | 链式建造，**不是恒等抽象** |
 | 测试替身返回 this | `CaffeineModelLoadStoreTest.java:147` `withZone(...) { return this; }` | 同上 |
 | 接口默认 no-op 实现 | 4 个 Store 的 `expireAfterRead(...) { return currentDuration; }` | "使用默认值"的显式表达，**不是恒等抽象** |
-| 里氏替换干净 | 31 个主代码继承/实现全为策略族与框架扩展（`UsageExtractor` 7 / `PluginHandler` 8 / `AbstractUpstreamProtocolExecutor` 5 / `UpstreamRequestAdapter` 4 / `PluginDispatchContext` 6 / `GatewayControllerSupport` 7），替身全在 test 侧 | 无契约收窄 |
+| 里氏替换干净 | 36 个主代码继承/实现全为策略族与框架扩展（`UsageExtractor` 6 / `PluginHandler` 8 / `AbstractUpstreamProtocolExecutor` 5 / `UpstreamAdapter` 9 / `PluginDispatchContext` 6 / `GatewayControllerSupport` 8），替身全在 test 侧 | 无契约收窄 |
 | 窄接口 | `PluginDispatchContext` 仅 traceId / traceparent / attributes 三项 | "上下文字段多"**不是** ISP 违反，别误报 |
 | 魔法数字已提常量 | `EjectionPolicy` / `RetryPolicy` / `RestClientDecisionsTransport` 的超时与阈值均为 `static final` | 无散落字面量 |
 | 前端 TS 纪律 | `: any` / `as any` **0 处**；`console.*` 仅 1 处 | `20-frontend-vue.md §3` 执行到位 |

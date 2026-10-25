@@ -1,9 +1,9 @@
 package org.chobit.knot.gateway.runtime;
 
 import org.chobit.knot.gateway.dto.routing.RoutingRuleTargetDto;
-import org.chobit.knot.gateway.model.NormalizedUsage;
+import org.chobit.knot.gateway.adapter.model.usage.NormalizedUsage;
 import org.chobit.knot.gateway.model.ResolvedRouting;
-import org.chobit.knot.gateway.model.UsageAccounting;
+import org.chobit.knot.gateway.adapter.model.usage.UsageAccounting;
 import org.chobit.knot.gateway.traffic.CaffeineTrafficCounterStore;
 import org.chobit.knot.gateway.traffic.GatewayTrafficGuard;
 import org.chobit.knot.gateway.traffic.TrafficCounterKeys;

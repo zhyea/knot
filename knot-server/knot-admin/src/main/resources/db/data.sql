@@ -646,22 +646,28 @@ INSERT IGNORE INTO kx_model_sources (
 (1, 'OPENROUTER', 'OpenRouter Models', 'https://openrouter.ai/models',
   'https://openrouter.ai/api/v1/models', 'MODEL_CATALOG', 1);
 
--- 模型 API 协议绑定（usage_extractor 为 Usage 解析器编码或类名）
+-- 模型 API 协议绑定（usage_extractor 为 Usage 解析器编码或类名；request_adapter 为 UpstreamAdapter code）
+-- ⚠ 2026-10-25 适配器重命名：OPENAI_COMPATIBLE/ANTHROPIC/BEDROCK_CONVERSE 三个旧 code 已废弃，
+--   新值见 docs/database/migration/2026-10-25-upstream-adapter-rename.sql（新库直接用新值播种）
 INSERT IGNORE INTO kb_model_api_bindings (id, model_code, protocol, api_path, request_adapter, usage_extractor, status, remark) VALUES
-(1, 'gpt-4o', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'GPT-4o Chat Completions'),
-(2, 'gpt-4o-mini', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'GPT-4o Mini Chat Completions'),
-(3, 'claude-sonnet-4-20250514', 'MESSAGES', '/v1/messages', 'ANTHROPIC', 'ANTHROPIC', 1, 'Claude Sonnet Messages API'),
-(4, 'deepseek-chat', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'DeepSeek Chat'),
+(1, 'gpt-4o', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'PASSTHROUGH', 'DEFAULT-TOKEN', 1, 'GPT-4o Chat Completions'),
+(2, 'gpt-4o-mini', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'PASSTHROUGH', 'DEFAULT-TOKEN', 1, 'GPT-4o Mini Chat Completions'),
+-- claude-sonnet-4 上游即 Anthropic Messages 端点：请求体与响应都无需协议转换，绑 PASSTHROUGH
+-- （旧 ANTHROPIC 适配器在 MESSAGES 协议下同样是纯透传，行为等价；转换职责归 ChatCompletionsToMessages 一族）
+(3, 'claude-sonnet-4-20250514', 'MESSAGES', '/v1/messages', 'PASSTHROUGH', 'ANTHROPIC', 1, 'Claude Sonnet Messages API'),
+(4, 'deepseek-chat', 'CHAT_COMPLETIONS', '/v1/chat/completions', 'PASSTHROUGH', 'DEFAULT-TOKEN', 1, 'DeepSeek Chat'),
 -- 图像家族绑定显式配 IMAGE 提取器（2026-10-24 改进清单 2.2b：删 protocol→extractor 猜测后，
 -- 这些行原先靠「IMAGE_* 协议猜 IMAGE 提取器」才走对计费口径，现改为显式配置，删猜测零行为变化）
 (5, 'qwen-image', 'IMAGE_GENERATIONS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'IMAGE', 1, 'Qwen Image Generation'),
 (6, 'qwen-image-edit', 'IMAGE_EDITS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'IMAGE', 1, 'Qwen Image Edit'),
-(7, 'gpt-image-1', 'IMAGE_GENERATIONS', '/v1/images/generations', 'OPENAI_COMPATIBLE', 'IMAGE', 1, 'OpenAI Image Generation'),
-(8, 'gpt-image-1', 'IMAGE_EDITS', '/v1/images/edits', 'OPENAI_COMPATIBLE', 'IMAGE', 1, 'OpenAI Image Edit'),
--- Bedrock runtime：api_path 留 NULL，由 BEDROCK_CONVERSE 适配器按 /model/{模型ID}/converse 推导（模型 ID 里的 : 会编码成 %3A）
-(9, 'bedrock-claude-sonnet-4', 'CHAT_COMPLETIONS', NULL, 'BEDROCK_CONVERSE', 'BEDROCK_CONVERSE', 1, 'Bedrock Converse（runtime 端点）'),
--- Bedrock mantle：不支持 Converse，只暴露 OpenAI 兼容，故直接复用既有 OPENAI_COMPATIBLE 适配器（零新适配器代码）
-(10, 'bedrock-gpt56-luna', 'CHAT_COMPLETIONS', NULL, 'OPENAI_COMPATIBLE', 'DEFAULT-TOKEN', 1, 'Bedrock mantle OpenAI 兼容端点');
+(7, 'gpt-image-1', 'IMAGE_GENERATIONS', '/v1/images/generations', 'PASSTHROUGH', 'IMAGE', 1, 'OpenAI Image Generation'),
+(8, 'gpt-image-1', 'IMAGE_EDITS', '/v1/images/edits', 'PASSTHROUGH', 'IMAGE', 1, 'OpenAI Image Edit'),
+-- Bedrock runtime：api_path 留 NULL，由 AWS_BEDROCK_CHAT_COMPLETIONS_TO_CONVERSE 适配器按 /model/{模型ID}/converse 推导（模型 ID 里的 : 会编码成 %3A）
+--   usage_extractor 走 DEFAULT-TOKEN：整包路径的用量提取吃的是 handleResponse 的产物，
+--   usage 已被适配器转成 OpenAI snake_case 形状，通用提取器别名表可直接读出（2026-10-25 删专用提取器）
+(9, 'bedrock-claude-sonnet-4', 'CHAT_COMPLETIONS', NULL, 'AWS_BEDROCK_CHAT_COMPLETIONS_TO_CONVERSE', 'DEFAULT-TOKEN', 1, 'Bedrock Converse（runtime 端点）'),
+-- Bedrock mantle：不支持 Converse，只暴露 OpenAI 兼容，故直接复用 PASSTHROUGH 适配器（零新适配器代码）
+(10, 'bedrock-gpt56-luna', 'CHAT_COMPLETIONS', NULL, 'PASSTHROUGH', 'DEFAULT-TOKEN', 1, 'Bedrock mantle OpenAI 兼容端点');
 
 -- =========================
 -- 应用管理

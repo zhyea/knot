@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.upstream.protocol;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplier;
 import org.chobit.knot.gateway.adapter.auth.UpstreamAuthApplierCatalog;
-import org.chobit.knot.gateway.adapter.request.UpstreamRequestAdapter;
+import org.chobit.knot.gateway.adapter.protocol.UpstreamAdapter;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamAccess;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamSignableRequest;
@@ -75,7 +75,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
      * Executes the public operation. Executes the public operation.
      */
     @Override
-    public ProxyResult execute(UpstreamRequestContext context, UpstreamRequestAdapter adapter) {
+    public ProxyResult execute(UpstreamRequestContext context, UpstreamAdapter adapter) {
         String protocolPath = adapter.resolvePath(context, defaultPath(context));
         if (StringUtils.isBlank(protocolPath)) {
             throw new GatewayUpstreamException(
@@ -149,7 +149,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
      * <p>非 2xx 读掉错误体后抛 {@link GatewayUpstreamException}（带头），与流式路径同构。</p>
      */
     private ProxyResult executeBuffered(UpstreamRequestContext context,
-                                        UpstreamRequestAdapter adapter,
+                                        UpstreamAdapter adapter,
                                         RequestTarget target) {
         String upstreamUrl = target.url();
         Mono<BufferedExchange> exchange = withBody(context, adapter, target)
@@ -212,7 +212,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
      * 返回后调用 {@code releaseBody()}，把尚未消费的响应体整个吞掉。</p>
      */
     private ProxyResult executeStreaming(UpstreamRequestContext context,
-                                        UpstreamRequestAdapter adapter,
+                                        UpstreamAdapter adapter,
                                         RequestTarget target) {
         // 预检：extractor 配错必须在此失败——流一旦开始，响应头已写出，
         // 配置错误就再也无法通过 HTTP 状态反馈给调用方，只能沉进日志。
@@ -229,6 +229,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                 entity.getBody(),
                 headers.getContentType(),
                 context,
+                adapter,
                 UpstreamRequestIdResolver.snapshot(headers, context.requestId()),
                 UpstreamRequestIdResolver.requestId(headers, context.requestId()));
         return new ProxyResult(
@@ -367,7 +368,7 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
      */
     @SuppressWarnings("unchecked")
     private WebClient.RequestHeadersSpec<?> withBody(UpstreamRequestContext context,
-                                                     UpstreamRequestAdapter adapter,
+                                                     UpstreamAdapter adapter,
                                                      RequestTarget target) {
         Object body = adapter.buildRequestBody(context);
         if (body == null) {

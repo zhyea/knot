@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import org.chobit.knot.gateway.adapter.request.RequestAdapterCatalog;
+import org.chobit.knot.gateway.adapter.protocol.UpstreamAdapterCatalog;
 import org.chobit.knot.gateway.constants.enums.BillingModeEnum;
 import org.chobit.knot.gateway.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
@@ -41,7 +41,7 @@ import org.chobit.knot.gateway.service.support.AuditSnapshotSupport;
 import org.chobit.knot.gateway.service.support.CodeBindingSupport;
 import org.chobit.knot.gateway.service.support.ModelApiBindingSupport;
 import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
-import org.chobit.knot.gateway.usage.extractor.UsageExtractorCatalog;
+import org.chobit.knot.gateway.adapter.usage.extractor.UsageExtractorCatalog;
 import org.chobit.knot.gateway.util.JsonKit;
 import org.chobit.knot.gateway.vo.model.ModelApiProtocolItem;
 import org.chobit.knot.gateway.vo.model.ModelTypeItem;
@@ -74,7 +74,7 @@ public class ModelService {
     private final ModelConverter modelConverter;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
     private final UsageExtractorCatalog usageExtractorCatalog;
-    private final RequestAdapterCatalog requestAdapterCatalog;
+    private final UpstreamAdapterCatalog requestAdapterCatalog;
 
     /**
      * Constructs a new instance.
@@ -88,7 +88,7 @@ public class ModelService {
                         ModelConverter modelConverter,
                         ResourceTrafficPolicySupport trafficPolicySupport,
                         UsageExtractorCatalog usageExtractorCatalog,
-                        RequestAdapterCatalog requestAdapterCatalog) {
+                        UpstreamAdapterCatalog requestAdapterCatalog) {
         this.modelMapper = modelMapper;
         this.discountPolicyMapper = discountPolicyMapper;
         this.apiBindingSupport = apiBindingSupport;

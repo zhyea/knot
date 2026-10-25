@@ -102,7 +102,7 @@
 
 ⭐ **两侧 token 总量与缓存读写各档一律取自 `billing`**；只有「明细拆分」从原始 usage 补取（输入 image/video token、输出 reasoning token）与媒体计数兜底。唯一投影入口 `ModelUsageNormalizer.fromBilling(BillingUsage, rawBody)`。
 
-⭐ **禁止启发式猜协议语义**：不得按「字段名是否存在」推断缓存是否已含在输入总量里。历史教训——`ModelUsageNormalizer` 曾以「有 `prompt_tokens` 就认为输入已含缓存」判语义，与计费链分属两条解析链、别名表与语义判断各自维护，必然漂移。协议语义由**提取器在自己的边界内一次性决定**（Anthropic 走 `withCacheCountedInInput()`，Converse 走 `BedrockConverseUsageSupport`）。
+⭐ **禁止启发式猜协议语义**：不得按「字段名是否存在」推断缓存是否已含在输入总量里。历史教训——`ModelUsageNormalizer` 曾以「有 `prompt_tokens` 就认为输入已含缓存」判语义，与计费链分属两条解析链、别名表与语义判断各自维护，必然漂移。协议语义由**一个明确的所有者一次性决定**：Anthropic 由 `ANTHROPIC` 提取器走 `withCacheCountedInInput()`；AWS Bedrock Converse 由 Bedrock 适配器族的响应转换（`AwsBedrockConverseSupport.handleConverseResponse` 的 `toOpenAiUsage`，经 `AwsBedrockChatCompletionsToConverseUpstreamAdapter` 等四个适配器分发）一次决定——整包路径上用量提取吃的是 `handleResponse` 的产物，转换后客户端响应与计费读取**同形**，无需第二套解析（2026-10-25 删 `BedrockConverseUsageExtractor` / `BedrockConverseUsageSupport` 的依据）。
 
 > 收益表述纪律：这套改造的价值是**消除口径分裂**（单一来源、只决策一次），**不是减少解析次数**——解析工作量仍在，别按性能收益来验收。
 
@@ -113,7 +113,7 @@
 | OpenAI Chat Completions | 是 | 直接用上报的 `prompt_tokens` |
 | OpenAI Responses | 是（按 OpenAI 语义） | 直接用 `input_tokens`；usage 可能在 `response.usage`，用 `UsageRawReader` 定位 |
 | Anthropic Messages | 否 | `input_tokens + cacheRead + cacheWrite`（5m/1h 明细优先） |
-| AWS Bedrock Converse | 否 | `inputTokens + cacheReadInputTokens + cacheWriteInputTokens` |
+| AWS Bedrock Converse | 是（转换后按 OpenAI 语义） | Bedrock 适配器族 `toOpenAiUsage`（`AwsBedrockConverseSupport`）把 camelCase usage 转成 OpenAI 形状（原样上报，不加回输入侧）；计费侧读转换产物，走 `DEFAULT-TOKEN`。**待实测（R2）**：`inputTokens` 是否已含缓存读写，当前按「不含」处理 |
 
 ⭐ 协议差异的**消解点是 per-binding 提取器绑定**（`kb_model_api_bindings.usage_extractor` / `stream_usage_extractor`）。默认兜底 `DEFAULT-TOKEN` 按 OpenAI「已含缓存」语义。
 ⚠ 任何**非 OpenAI 缓存语义**的模型必须**显式绑定**对应提取器，不能靠默认兜底——否则输入侧会少算缓存。

@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.service;
 
 import lombok.extern.slf4j.Slf4j;
-import org.chobit.knot.gateway.adapter.upstream.ModelApiBindingRef;
+import org.chobit.knot.gateway.adapter.model.ref.ModelApiBindingRef;
 import org.chobit.knot.gateway.dto.routing.BillingCheckResult;
 import org.chobit.knot.gateway.dto.routing.BillingFact;
 import org.chobit.knot.gateway.dto.routing.BillingFactAmount;
@@ -12,17 +12,16 @@ import org.chobit.knot.gateway.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.entity.ModelEntity;
 import org.chobit.knot.gateway.mapper.ModelApiBindingMapper;
 import org.chobit.knot.gateway.mapper.ModelMapper;
-import org.chobit.knot.gateway.model.NormalizedUsage;
-import org.chobit.knot.gateway.model.NormalizedUsageDetail;
+import org.chobit.knot.gateway.adapter.model.usage.NormalizedUsage;
+import org.chobit.knot.gateway.adapter.model.usage.NormalizedUsageDetail;
 import org.chobit.knot.gateway.service.support.BillingFactAssembler;
 import org.chobit.knot.gateway.service.support.JevBillingJudge;
-import org.chobit.knot.gateway.usage.UsageExtractorResolver;
+import org.chobit.knot.gateway.adapter.usage.UsageExtractorResolver;
 import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdict;
 import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdictRequest;
 import org.chobit.knot.gateway.vo.routing.RoutingBillingVerdictResult;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;

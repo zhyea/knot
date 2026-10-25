@@ -112,6 +112,34 @@ model       → 领域值对象（非表映射）
 
 **follow-up**：① 真启 jar 冒烟未跑（并行会话活跃），待补；② 前端 `TestRequestPreset` 类型名 / `TestRequestPresetFormDrawer.vue` / `TestRequestPresetView.vue` 是否同步改名待定（API 路径 `/api/test-request-presets` 与 `entityType` 业务串不动）。
 
+### 4.7 UpstreamAdapter 命名与职责条款（2026-10-25 立规，robin 拍板）
+
+**knot-adapter 模块 = `org.chobit.knot.gateway.adapter` 单域**（2026-10-25 包结构整理，robin 拍板）：顶级域只留 `adapter` 一个，其余全部收为其子包——
+
+| 子包 | 内容 |
+|---|---|
+| `adapter.protocol` | 协议适配族：`UpstreamAdapter` 接口 + 9 实现 + `UpstreamAdapterCatalog` / `UpstreamAdapterDefinition` |
+| `adapter.support.<供应商>` | 跨适配器复用的供应商级共享支持：`support.aws`（Converse / Endpoint / SigV4）、`support.anthropic`（Messages 请求字段搬迁） |
+| `adapter.auth` | 上游鉴权策略族：`UpstreamAuthApplier` + 4 实现 + Catalog / Definition + `AuthConfigSupport` |
+| `adapter.upstream` | 上游调用上下文：`UpstreamRequestContext` / `UpstreamAccess` / `UpstreamSignableRequest` |
+| `adapter.model` / `adapter.model.ref` | 计费/用量数据模型；跨域引用句柄 `*Ref`（`ModelRef` / `ProviderAccountRef` / `ModelApiBindingRef` / `BillingRuleRef`） |
+| `adapter.usage` / `.calculator` / `.extractor` | 用量域：归一化行为 + 计费计算器族 + 用量提取器族 |
+
+⚠ **`gateway.model` 同名包跨 4 模块**（common / gateway / service / adapter 各有一份）：跨模块引用这些包的类**必须显式 import 全 FQCN**，禁止依赖「classpath 同名包可见性」用短名（判例：本次整理中 `knot-gateway` 的 `ProxyResult` 曾因此断编）。
+
+上游适配器接口为 `UpstreamAdapter`（`adapter.protocol` 包），是**双向角色**：请求适配（`resolvePath` / `buildRequestBody` / `resolveContentType`）与响应适配（`handleResponse` 整包 / `handleStreamEvent` 流式）由同一实现持有。**不存在**「只适配请求」或「只适配响应」的拆分角色——一次协议转换的两个方向必须同源，拆开只会让两侧各漂移一份口径。
+
+命名规则：
+
+1. **结构** `<供应商>+<原协议>+<新协议>+UpstreamAdapter`，如 `AwsBedrockChatCompletionsToConverseUpstreamAdapter`；code = 类名去后缀 SCREAMING_SNAKE 化（`AWS_BEDROCK_CHAT_COMPLETIONS_TO_CONVERSE`），即 `kb_model_api_bindings.request_adapter` 的绑定值（列名不变）。
+2. **泛化转换免供应商段**：不隶属单一供应商的协议转换（如 ChatCompletions→Messages）直接 `<原协议>To<新协议>UpstreamAdapter`。
+3. **透传豁免**：`PassthroughUpstreamAdapter`（code `PASSTHROUGH`）是唯一多协议适配器；**除透传外，一个适配器只服务一种协议**（`protocol()` 返回单元素集）。
+4. **共享逻辑抽 Support，按归属分两层**：**无供应商语义的通用原语**收 `adapter.support.XxxSupport`（如 `RequestFieldSupport.move` 字段搬迁）；**供应商特有语义**收 `adapter.support.<供应商>.XxxSupport`（如 `support.aws.AwsBedrockConverseSupport` Bedrock 全族、`support.anthropic.AnthropicMessagesRequestSupport` 的 `max_tokens` 兜底）；适配器类只做协议分发与口径注释。⚠ **通用能力不住供应商专用类**（判例：`move` 曾住 `AnthropicMessagesRequestSupport`，2026-10-25 拆出）；⚠ Support 静态方法必须 `public`——从同包子类化细节改为跨子包调用时，包私有方法会静默变成编译错误（判例：本次整理 `AnthropicMessagesRequestSupport` 两方法补 public）。
+
+流式契约：`handleStreamEvent` 与 `handleResponse` 按执行路径分工（前者只服务流式逐事件、后者只服务整包），两条路径的转换产物都同时喂客户端转发与用量提取（同构：提取吃的永远是转换后的数据）。默认透传实现零解析、零序列化。**响应适配是协议正确性，不受 `appendUsage`（计费注入开关）gate**——data 行一律过适配器，是否提取用量才看开关。
+
+配套命名（同批落地）：目录 `UpstreamAdapterCatalog` / `UpstreamAdapterDefinition`（随接口在 `adapter.protocol`），网关侧 `upstream.request.UpstreamAdapterRegistry`（未知 code 或留空回落透传）。
+
 ## 5. 编码细节
 
 - **跨模块绑定一律存 code 不存 id**（残留例外：`kx_model_items.logical_model_id`）。

@@ -1,0 +1,95 @@
+package org.chobit.knot.gateway.adapter.protocol;
+
+import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
+import org.chobit.knot.gateway.constants.AiPayloadFields;
+import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
+import org.junit.jupiter.api.Test;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Completions → Messages 适配器回归测试（仅服务 COMPLETIONS 入协议）。
+ *
+ * <p>盯四件事：① {@code prompt} 折成单条 user 消息；② null prompt 按空串处理；
+ * ③ {@code stop→stop_sequences}、Completions 专有字段移除；④ 不原地改写用户请求。</p>
+ */
+class CompletionsToMessagesUpstreamAdapterTest {
+
+    private final CompletionsToMessagesUpstreamAdapter adapter = new CompletionsToMessagesUpstreamAdapter();
+
+    @Test
+    void shouldExposeStableCodeAndLabel() {
+        assertEquals("COMPLETIONS_TO_MESSAGES", adapter.code());
+        assertEquals("Completions 转 Messages", adapter.label());
+    }
+
+    @Test
+    void shouldDeclareCompletionsProtocolOnly() {
+        assertEquals(1, adapter.protocol().size(), "一适配器一协议：仅服务 COMPLETIONS");
+        assertTrue(adapter.protocol().contains(ModelApiProtocolEnum.COMPLETIONS));
+    }
+
+    @Test
+    void shouldFoldPromptIntoUserMessage() {
+        Map<String, Object> source = new LinkedHashMap<>();
+        source.put(AiPayloadFields.PROMPT, "你好");
+        source.put(AiPayloadFields.STOP, List.of("###"));
+        source.put("max_tokens", 512);
+
+        Map<String, Object> result = asMap(
+                adapter.buildRequestBody(context(ModelApiProtocolEnum.COMPLETIONS, source)));
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> messages = (List<Map<String, Object>>) result.get(AiPayloadFields.MESSAGES);
+        assertEquals(1, messages.size());
+        assertEquals("user", messages.get(0).get(AiPayloadFields.ROLE));
+        assertEquals("你好", messages.get(0).get(AiPayloadFields.CONTENT));
+
+        assertEquals(List.of("###"), result.get(AiPayloadFields.STOP_SEQUENCES));
+        assertFalse(result.containsKey(AiPayloadFields.PROMPT));
+        assertFalse(result.containsKey("suffix"));
+        assertFalse(result.containsKey("logprobs"));
+        assertEquals(512, result.get(AiPayloadFields.MAX_TOKENS), "已有 max_tokens 不被兜底覆盖");
+    }
+
+    @Test
+    void shouldUseEmptyContentWhenPromptIsNull() {
+        Map<String, Object> source = new LinkedHashMap<>();
+        source.put(AiPayloadFields.PROMPT, null);
+
+        Map<String, Object> result = asMap(
+                adapter.buildRequestBody(context(ModelApiProtocolEnum.COMPLETIONS, source)));
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> messages = (List<Map<String, Object>>) result.get(AiPayloadFields.MESSAGES);
+        assertEquals(1, messages.size());
+        assertEquals("", messages.get(0).get(AiPayloadFields.CONTENT), "null prompt 按空串处理，不产出 null");
+        assertFalse(result.containsKey(AiPayloadFields.PROMPT));
+    }
+
+    @Test
+    void shouldNotMutateOriginalRequestBody() {
+        Map<String, Object> source = new LinkedHashMap<>();
+        source.put(AiPayloadFields.PROMPT, "你好");
+
+        adapter.buildRequestBody(context(ModelApiProtocolEnum.COMPLETIONS, source));
+
+        assertTrue(source.containsKey(AiPayloadFields.PROMPT), "原始请求仍应保留 prompt");
+        assertFalse(source.containsKey(AiPayloadFields.MESSAGES), "原始请求不应被写入 messages");
+    }
+
+    private UpstreamRequestContext context(ModelApiProtocolEnum protocol, Map<String, Object> body) {
+        return new UpstreamRequestContext(protocol, body, null, null, null, null, null, null, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> asMap(Object value) {
+        return (Map<String, Object>) value;
+    }
+}

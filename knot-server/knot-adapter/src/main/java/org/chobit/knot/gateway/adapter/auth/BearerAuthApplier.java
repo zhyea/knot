@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.adapter.auth;
 
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.adapter.AuthConfigSupport;
+import org.chobit.knot.gateway.adapter.auth.AuthConfigSupport;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AuthConstants;
 import org.chobit.knot.gateway.constants.GatewayHeaders;

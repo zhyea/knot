@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.model;
 
+import org.chobit.knot.gateway.adapter.model.usage.UsageAccounting;
 import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
 
 /**

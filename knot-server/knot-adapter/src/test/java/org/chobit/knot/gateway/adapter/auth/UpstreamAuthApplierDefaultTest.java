@@ -4,7 +4,7 @@ import org.chobit.knot.gateway.adapter.upstream.UpstreamAccess;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.constants.enums.ProviderCredentialTypeEnum;
-import org.chobit.knot.gateway.adapter.upstream.ProviderAccountRef;
+import org.chobit.knot.gateway.adapter.model.ref.ProviderAccountRef;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;

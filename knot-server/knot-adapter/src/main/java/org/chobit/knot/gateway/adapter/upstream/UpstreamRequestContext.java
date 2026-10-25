@@ -1,5 +1,8 @@
 package org.chobit.knot.gateway.adapter.upstream;
 
+import org.chobit.knot.gateway.adapter.model.ref.ModelApiBindingRef;
+import org.chobit.knot.gateway.adapter.model.ref.ModelRef;
+import org.chobit.knot.gateway.adapter.model.ref.ProviderAccountRef;
 import org.chobit.knot.gateway.constants.enums.ModelApiProtocolEnum;
 import org.springframework.http.MediaType;
 

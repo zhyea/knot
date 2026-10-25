@@ -1,13 +1,13 @@
 package org.chobit.knot.gateway.runtime;
 
 import org.chobit.knot.gateway.constants.GatewayHeaders;
-import org.chobit.knot.gateway.model.NormalizedUsage;
+import org.chobit.knot.gateway.adapter.model.usage.NormalizedUsage;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.model.ResolvedRouting;
-import org.chobit.knot.gateway.model.TokenBillingUsage;
-import org.chobit.knot.gateway.model.UsageAccounting;
-import org.chobit.knot.gateway.model.usage.KnotExtendPayload;
-import org.chobit.knot.gateway.usage.ModelUsageNormalizer;
+import org.chobit.knot.gateway.adapter.model.usage.TokenBillingUsage;
+import org.chobit.knot.gateway.adapter.model.usage.UsageAccounting;
+import org.chobit.knot.gateway.adapter.usage.KnotExtendPayload;
+import org.chobit.knot.gateway.adapter.usage.ModelUsageNormalizer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

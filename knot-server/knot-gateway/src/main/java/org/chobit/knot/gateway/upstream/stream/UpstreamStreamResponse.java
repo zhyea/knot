@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.upstream.stream;
 
+import org.chobit.knot.gateway.adapter.protocol.UpstreamAdapter;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.MediaType;
@@ -24,26 +25,30 @@ import java.util.Map;
  * {@code UpstreamRequestIdResolver}），构造时一次性抓取，与连接生命周期解耦——
  * 流写完后取供应商侧请求标识（只取 request-id）依然可读。</p>
  *
- * <p>2026-10-23（计费去兜底）：<b>不再持有 {@code UpstreamRequestAdapter}</b>。
- * 原先仅为「提取器没结果时回落到适配器解析」而传递，该兜底已删除；
- * 用量提取只走 {@code UsageExtractorRegistry}，适配器不再进入计费链路。</p>
+ * <p>2026-10-25：重新持有 {@link UpstreamAdapter}（2026-10-23 计费去兜底时曾移除）——
+ * 理由与计费无关：流式路径的响应适配（{@link UpstreamAdapter#handleStreamEvent}）
+ * 需要适配器在场，与整包路径的 {@code handleResponse} 对称。为 {@code null} 时
+ * 流式响应按透传处理。</p>
  */
 public final class UpstreamStreamResponse {
 
     private final Flux<DataBuffer> body;
     private final MediaType contentType;
     private final UpstreamRequestContext context;
+    private final UpstreamAdapter adapter;
     private final Map<String, String> upstreamHeaders;
     private final String upstreamRequestId;
 
     public UpstreamStreamResponse(Flux<DataBuffer> body,
                                   MediaType contentType,
                                   UpstreamRequestContext context,
+                                  UpstreamAdapter adapter,
                                   Map<String, String> upstreamHeaders,
                                   String upstreamRequestId) {
         this.body = body == null ? Flux.empty() : body;
         this.contentType = contentType;
         this.context = context;
+        this.adapter = adapter;
         this.upstreamHeaders = upstreamHeaders == null
                 ? Collections.emptyMap()
                 : Collections.unmodifiableMap(upstreamHeaders);
@@ -63,6 +68,13 @@ public final class UpstreamStreamResponse {
 
     public UpstreamRequestContext context() {
         return context;
+    }
+
+    /**
+     * 本次请求选定的上游适配器；为 {@code null} 时流式响应适配按透传处理。
+     */
+    public UpstreamAdapter adapter() {
+        return adapter;
     }
 
     /**

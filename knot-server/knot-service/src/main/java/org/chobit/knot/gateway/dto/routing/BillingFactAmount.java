@@ -1,7 +1,6 @@
 package org.chobit.knot.gateway.dto.routing;
 
-import org.chobit.knot.gateway.dto.routing.BillingFactAmountLine;
-import org.chobit.knot.gateway.model.NormalizedUsage;
+import org.chobit.knot.gateway.adapter.model.usage.NormalizedUsage;
 
 import java.util.List;
 

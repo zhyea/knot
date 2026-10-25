@@ -21,7 +21,7 @@ import org.chobit.knot.gateway.model.RateLimitPolicy;
 import org.chobit.knot.gateway.model.TrafficPolicies;
 import org.chobit.knot.gateway.service.support.ModelApiBindingSupport;
 import org.chobit.knot.gateway.service.support.ResourceTrafficPolicySupport;
-import org.chobit.knot.gateway.usage.extractor.DefaultTokenUsageExtractor;
+import org.chobit.knot.gateway.adapter.usage.extractor.DefaultTokenUsageExtractor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
