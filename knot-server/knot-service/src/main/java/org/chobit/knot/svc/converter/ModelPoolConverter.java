@@ -1,0 +1,38 @@
+package org.chobit.knot.svc.converter;
+
+import org.chobit.knot.svc.dto.model.ModelPoolDto;
+import org.chobit.knot.svc.dto.model.ModelPoolItemDto;
+import org.chobit.knot.dal.entity.ModelPoolEntity;
+import org.chobit.knot.dal.entity.ModelPoolItemEntity;
+import org.chobit.knot.svc.vo.model.ModelPool;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+
+import java.util.List;
+
+@Mapper(componentModel = "spring", uses = SharedMappings.class)
+public interface ModelPoolConverter {
+
+    @Mapping(source = "status", target = "enabled", qualifiedByName = "statusToEnabled")
+    @Mapping(source = "isDeleted", target = "deleted", qualifiedByName = "deletedFlag")
+    @Mapping(source = "stickyPolicy", target = "stickyPolicy", qualifiedByName = "jsonToSticky")
+    @Mapping(target = "items", ignore = true)
+    ModelPoolDto toDto(ModelPoolEntity entity);
+
+    @Mapping(source = "enabled", target = "status", qualifiedByName = "enabledToStatus")
+    @Mapping(source = "stickyPolicy", target = "stickyPolicy", qualifiedByName = "stickyToJson")
+    // logicalModelName / modelType 派生自绑定统一模型，不允许从请求写回；deleted 只能通过恢复接口翻转
+    @Mapping(target = "logicalModelName", ignore = true)
+    @Mapping(target = "modelType", ignore = true)
+    @Mapping(target = "isDeleted", ignore = true)
+    ModelPoolEntity toEntity(ModelPoolDto dto);
+
+    @Mapping(source = "status", target = "enabled", qualifiedByName = "statusToEnabled")
+    ModelPoolItemDto toItemDto(ModelPoolItemEntity entity);
+
+    ModelPool toVO(ModelPoolDto dto);
+
+    ModelPoolDto toDto(ModelPool vo);
+
+    List<ModelPool> toVOList(List<ModelPoolDto> dtos);
+}

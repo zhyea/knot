@@ -1,0 +1,34 @@
+package org.chobit.knot.svc.dto.system;
+
+import org.chobit.knot.dal.entity.OperationLogEntity;
+import org.chobit.knot.gateway.model.PageResult;
+
+import java.util.List;
+
+public record OperationLogListResult(
+        List<OperationLogEntity> list,
+        long total,
+        int pageNum,
+        int pageSize,
+        int pages,
+        List<String> moduleOptions,
+        List<String> operationOptions,
+        /** 执行结果（OperationLogStatusEnum）：1-成功 2-失败 */
+        List<Integer> statusOptions
+) {
+    public static OperationLogListResult of(PageResult<OperationLogEntity> page,
+                                            List<String> moduleOptions,
+                                            List<String> operationOptions,
+                                            List<Integer> statusOptions) {
+        return new OperationLogListResult(
+                page.list(),
+                page.total(),
+                page.pageNum(),
+                page.pageSize(),
+                page.pages(),
+                moduleOptions,
+                operationOptions,
+                statusOptions
+        );
+    }
+}

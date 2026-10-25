@@ -1,0 +1,219 @@
+package org.chobit.knot.svc.service;
+
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
+import com.github.pagehelper.PageInfo;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import lombok.extern.slf4j.Slf4j;
+import org.chobit.knot.gateway.constants.enums.OperationLogStatusEnum;
+import org.chobit.knot.dal.entity.OperationLogEntity;
+import org.chobit.knot.svc.converter.OperationLogConverter;
+import org.chobit.knot.svc.dto.system.OperationLogDto;
+import org.chobit.knot.gateway.model.PageRequest;
+import org.chobit.knot.gateway.model.PageResult;
+import org.chobit.knot.dal.mapper.OperationLogMapper;
+import org.chobit.knot.gateway.util.JsonKit;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
+
+@Slf4j
+@Service
+public class OperationLogService {
+
+    private static final Set<String> IGNORED_SNAPSHOT_FIELDS = Set.of(
+            "updatedAt", "updated_at", "updateTime", "update_time");
+
+    private final OperationLogMapper operationLogMapper;
+    private final OperationLogConverter operationLogConverter;
+
+    /**
+     * Constructs a new instance.
+     */
+    public OperationLogService(OperationLogMapper operationLogMapper,
+                               OperationLogConverter operationLogConverter) {
+        this.operationLogMapper = operationLogMapper;
+        this.operationLogConverter = operationLogConverter;
+    }
+
+    /**
+     * 系统侧操作日志分页（原 SystemService 职责，2026-10-15 并入）。
+     */
+    public PageResult<OperationLogDto> listOperationLogs(PageRequest pageRequest) {
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<OperationLogEntity> pageInfo = new PageInfo<>(operationLogMapper.listOperationLogs());
+            return PageResult.fromPage(pageInfo, operationLogConverter::toOperationLogDtoList, pageRequest);
+        }
+    }
+
+    /**
+     * 异步保存日志，不阻塞主流程。
+     */
+    @Async
+    public void saveAsync(OperationLogEntity entity) {
+        try {
+            operationLogMapper.insert(entity);
+        } catch (Exception e) {
+            log.warn("Failed to save operation log: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 同步保存日志。
+     */
+    public void save(OperationLogEntity entity) {
+        operationLogMapper.insert(entity);
+    }
+
+    /**
+     * Lists matching results. Executes the public operation.
+     */
+    public List<OperationLogEntity> listByModule(String module, String entityType, Long entityId, Long operatorId) {
+        List<OperationLogEntity> list = operationLogMapper.listByModule(module, entityType, entityId, operatorId);
+        list.forEach(this::retainOnlyChangedJsonFields);
+        return list;
+    }
+
+    public PageResult<OperationLogEntity> list(PageRequest pageRequest, String module, String operation, String status,
+                                               String keyword, String entityType, Long entityId) {
+        try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
+            PageInfo<OperationLogEntity> pageInfo = new PageInfo<>(operationLogMapper.list(
+                    normalizeValue(module),
+                    normalizeValue(operation),
+                    normalizeValue(status),
+                    normalizeValue(keyword),
+                    normalizeValue(entityType),
+                    entityId
+            ));
+            List<OperationLogEntity> list = new ArrayList<>(pageInfo.getList());
+            list.forEach(this::retainOnlyChangedJsonFields);
+            return PageResult.of(list, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+        }
+    }
+
+    public List<String> listModules() {
+        return operationLogMapper.listDistinctModules();
+    }
+
+    public List<String> listOperations() {
+        return operationLogMapper.listDistinctOperations();
+    }
+
+    public List<Integer> listStatuses() {
+        return OperationLogStatusEnum.codes();
+    }
+
+    /**
+     * Returns the requested value. Executes the public operation.
+     */
+    public OperationLogEntity getById(Long id) {
+        OperationLogEntity entity = operationLogMapper.getById(id);
+        if (entity != null) {
+            retainOnlyChangedJsonFields(entity);
+        }
+        return entity;
+    }
+
+    /**
+     * Deletes the target resource. Executes the public operation.
+     */
+    @Transactional
+    public int deleteBefore(LocalDateTime beforeTime) {
+        // ks_operation_log_details 明细表已随废弃表清理下线，无需再级联清理明细
+        return operationLogMapper.deleteByCreatedBefore(beforeTime);
+    }
+
+    /**
+     * 查询某个枚举分类下相关的操作日志。
+     */
+    public List<OperationLogEntity> listForEnumCategory(String category) {
+        if (category == null || category.isBlank()) {
+            return List.of();
+        }
+        List<OperationLogEntity> list = operationLogMapper.listByModuleAndEntityNamePrefix("enum", category.trim());
+        list.forEach(this::retainOnlyChangedJsonFields);
+        return list;
+    }
+
+    /**
+     * 如果 oldValue 和 newValue 都是 JSON 对象，则仅保留发生变化的字段，便于列表展示。
+     */
+    private void retainOnlyChangedJsonFields(OperationLogEntity e) {
+        String oldV = e.getOldValue();
+        String newV = e.getNewValue();
+        if (oldV == null || oldV.isBlank() || newV == null || newV.isBlank()) {
+            return;
+        }
+        try {
+            JsonNode oldRoot = JsonKit.parse(oldV);
+            JsonNode newRoot = JsonKit.parse(newV);
+            if (oldRoot == null && newRoot == null) {
+                return;
+            }
+            if (oldRoot != null) {
+                removeIgnoredSnapshotFields(oldRoot);
+                e.setOldValue(JsonKit.toJson(oldRoot));
+            }
+            if (newRoot != null) {
+                removeIgnoredSnapshotFields(newRoot);
+                e.setNewValue(JsonKit.toJson(newRoot));
+            }
+            if (oldRoot == null || newRoot == null || !oldRoot.isObject() || !newRoot.isObject()) {
+                return;
+            }
+            ObjectNode oldOut = JsonKit.createObjectNode();
+            ObjectNode newOut = JsonKit.createObjectNode();
+            SortedSet<String> keys = new TreeSet<>();
+            oldRoot.fieldNames().forEachRemaining(keys::add);
+            newRoot.fieldNames().forEachRemaining(keys::add);
+            for (String k : keys) {
+                JsonNode ov = oldRoot.path(k);
+                JsonNode nv = newRoot.path(k);
+                if (ov.equals(nv)) {
+                    continue;
+                }
+                if (!ov.isMissingNode()) {
+                    oldOut.set(k, oldRoot.get(k));
+                }
+                if (!nv.isMissingNode()) {
+                    newOut.set(k, newRoot.get(k));
+                }
+            }
+            if (oldOut.isEmpty() && newOut.isEmpty()) {
+                e.setOldValue(null);
+                e.setNewValue(null);
+            } else {
+                e.setOldValue(oldOut.isEmpty() ? null : JsonKit.toJson(oldOut));
+                e.setNewValue(newOut.isEmpty() ? null : JsonKit.toJson(newOut));
+            }
+        } catch (Exception ex) {
+            log.debug("Skip old/new diff trim for operation log: {}", ex.toString());
+        }
+    }
+
+    private void removeIgnoredSnapshotFields(JsonNode node) {
+        if (node instanceof ObjectNode objectNode) {
+            IGNORED_SNAPSHOT_FIELDS.forEach(objectNode::remove);
+            objectNode.elements().forEachRemaining(this::removeIgnoredSnapshotFields);
+        } else if (node instanceof ArrayNode arrayNode) {
+            arrayNode.elements().forEachRemaining(this::removeIgnoredSnapshotFields);
+        }
+    }
+
+    private String normalizeValue(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+}
