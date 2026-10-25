@@ -2,6 +2,8 @@ package org.chobit.knot.gateway.adapter.support.aws;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.support.PayloadMapSupport;
+import org.chobit.knot.gateway.adapter.support.PayloadTextSupport;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
 import org.chobit.knot.gateway.util.JsonKit;
@@ -12,7 +14,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -26,6 +27,11 @@ import java.util.UUID;
  *
  * <p>各适配器只负责把各自协议的入形状归一成 OpenAI chat 形状，协议路径（模型 ID 的 {@code :}
  * 编码成 {@code %3A}）与流式声明（EventStream 二进制帧，P1 恒整包）亦在此收口。</p>
+ *
+ * <p>⚠ 通用读写原语（{@code cast} / {@code nested} / {@code firstPresent} / {@code stringOf} /
+ * {@code putLong}）归 {@code adapter.support.PayloadMapSupport}，跨协议 content 折文本归
+ * {@code adapter.support.PayloadTextSupport}——通用能力不住本类（判例：上述辅助曾作为私有
+ * 方法住在这里，2026-10-25 拆出）。</p>
  */
 public final class AwsBedrockConverseSupport {
 
@@ -93,7 +99,7 @@ public final class AwsBedrockConverseSupport {
         List<Map<String, Object>> systemBlocks = new ArrayList<>();
         Object system = source.get(SYSTEM);
         if (system != null) {
-            systemBlocks.add(Map.of(TEXT, stringOf(system)));
+            systemBlocks.add(Map.of(TEXT, PayloadMapSupport.stringOf(system)));
         }
 
         List<Map<String, Object>> messages = new ArrayList<>();
@@ -103,15 +109,15 @@ public final class AwsBedrockConverseSupport {
                 if (!(item instanceof Map<?, ?> raw)) {
                     continue;
                 }
-                Map<String, Object> message = cast(raw);
+                Map<String, Object> message = PayloadMapSupport.cast(raw);
                 Object role = message.get(AiPayloadFields.ROLE);
                 if (AiPayloadFields.SYSTEM.equals(role)) {
-                    systemBlocks.add(Map.of(TEXT, textOf(message.get(CONTENT))));
+                    systemBlocks.add(Map.of(TEXT, PayloadTextSupport.textOf(message.get(CONTENT))));
                     continue;
                 }
                 Map<String, Object> converted = new LinkedHashMap<>();
                 converted.put(AiPayloadFields.ROLE, role == null ? AiPayloadFields.USER : role);
-                converted.put(CONTENT, List.of(Map.of(TEXT, textOf(message.get(CONTENT)))));
+                converted.put(CONTENT, List.of(Map.of(TEXT, PayloadTextSupport.textOf(message.get(CONTENT)))));
                 messages.add(converted);
             }
         }
@@ -123,9 +129,9 @@ public final class AwsBedrockConverseSupport {
         body.put(AiPayloadFields.MESSAGES, messages);
         body.put(INFERENCE_CONFIG, inferenceConfig(source));
 
-        Object stop = firstPresent(source, AiPayloadFields.STOP_SEQUENCES, AiPayloadFields.STOP);
+        Object stop = PayloadMapSupport.firstPresent(source, AiPayloadFields.STOP_SEQUENCES, AiPayloadFields.STOP);
         if (stop != null) {
-            body.put(STOP_SEQUENCES, stop instanceof List<?> list ? List.copyOf(list) : List.of(stringOf(stop)));
+            body.put(STOP_SEQUENCES, stop instanceof List<?> list ? List.copyOf(list) : List.of(PayloadMapSupport.stringOf(stop)));
         }
         Object topK = source.get("top_k");
         if (topK != null) {
@@ -147,12 +153,13 @@ public final class AwsBedrockConverseSupport {
         if (StringUtils.isBlank(responseBody)) {
             return responseBody;
         }
-        Map<String, Object> converse = readMap(responseBody);
+        Map<String, Object> converse = JsonKit.fromJson(responseBody, new TypeReference<>() {
+        });
         if (converse == null || !converse.containsKey(OUTPUT)) {
             return responseBody;
         }
-        Map<String, Object> message = nested(converse, OUTPUT, MESSAGE);
-        String text = message == null ? "" : textOf(message.get(CONTENT));
+        Map<String, Object> message = PayloadMapSupport.nested(converse, OUTPUT, MESSAGE);
+        String text = message == null ? "" : PayloadTextSupport.textOf(message.get(CONTENT));
 
         Map<String, Object> assistant = new LinkedHashMap<>();
         assistant.put(AiPayloadFields.ROLE, "assistant");
@@ -179,7 +186,7 @@ public final class AwsBedrockConverseSupport {
 
     private static Map<String, Object> inferenceConfig(Map<String, Object> source) {
         Map<String, Object> config = new LinkedHashMap<>();
-        Object maxTokens = firstPresent(source,
+        Object maxTokens = PayloadMapSupport.firstPresent(source,
                 AiPayloadFields.MAX_COMPLETION_TOKENS, AiPayloadFields.MAX_TOKENS, AiPayloadFields.MAX_OUTPUT_TOKENS);
         config.put(MAX_TOKENS, maxTokens == null ? DEFAULT_MAX_TOKENS : maxTokens);
         Object temperature = source.get(TEMPERATURE);
@@ -210,80 +217,19 @@ public final class AwsBedrockConverseSupport {
             }
         });
         Map<String, Object> usage = new LinkedHashMap<>();
-        putLong(usage, AiPayloadFields.PROMPT_TOKENS, MapNumberUtils.firstLong(source, INPUT_TOKENS));
-        putLong(usage, AiPayloadFields.COMPLETION_TOKENS, MapNumberUtils.firstLong(source, OUTPUT_TOKENS));
+        PayloadMapSupport.putLong(usage, AiPayloadFields.PROMPT_TOKENS, MapNumberUtils.firstLong(source, INPUT_TOKENS));
+        PayloadMapSupport.putLong(usage, AiPayloadFields.COMPLETION_TOKENS, MapNumberUtils.firstLong(source, OUTPUT_TOKENS));
         long total = MapNumberUtils.firstLong(source, TOTAL_TOKENS);
-        putLong(usage, AiPayloadFields.TOTAL_TOKENS,
+        PayloadMapSupport.putLong(usage, AiPayloadFields.TOTAL_TOKENS,
                 total > 0 ? total
                         : MapNumberUtils.firstLong(source, INPUT_TOKENS) + MapNumberUtils.firstLong(source, OUTPUT_TOKENS));
-        putLong(usage, "cache_read_input_tokens", MapNumberUtils.firstLong(source, CACHE_READ));
-        putLong(usage, "cache_write_input_tokens", MapNumberUtils.firstLong(source, CACHE_WRITE));
+        PayloadMapSupport.putLong(usage, "cache_read_input_tokens", MapNumberUtils.firstLong(source, CACHE_READ));
+        PayloadMapSupport.putLong(usage, "cache_write_input_tokens", MapNumberUtils.firstLong(source, CACHE_WRITE));
         return usage;
     }
 
-    private static void putLong(Map<String, Object> target, String key, long value) {
-        target.put(key, Math.max(0L, value));
-    }
-
     private static String finishReason(Object stopReason) {
-        String raw = StringUtils.trimToEmpty(String.valueOf(stopReason == null ? "" : stopReason));
+        String raw = StringUtils.trimToEmpty(PayloadMapSupport.stringOf(stopReason));
         return FINISH_REASONS.getOrDefault(raw, "stop");
-    }
-
-    /** 文本内容：既吃 OpenAI 的裸字符串，也吃 Anthropic / Converse 的 {@code [{text: ...}]}。 */
-    private static String textOf(Object content) {
-        if (content == null) {
-            return "";
-        }
-        if (content instanceof String value) {
-            return value;
-        }
-        if (content instanceof List<?> list) {
-            StringBuilder builder = new StringBuilder();
-            for (Object item : list) {
-                if (item instanceof Map<?, ?> raw) {
-                    Object text = cast(raw).get(TEXT);
-                    if (text != null) {
-                        builder.append(text);
-                    }
-                }
-            }
-            return builder.toString();
-        }
-        return String.valueOf(content);
-    }
-
-    private static String stringOf(Object value) {
-        return value == null ? "" : String.valueOf(value);
-    }
-
-    private static Object firstPresent(Map<String, Object> source, String... keys) {
-        for (String key : keys) {
-            Object value = source.get(key);
-            if (value != null) {
-                return value;
-            }
-        }
-        return null;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> nested(Map<String, Object> body, String outer, String inner) {
-        Object node = body.get(outer);
-        if (!(node instanceof Map<?, ?> raw)) {
-            return null;
-        }
-        Object child = cast(raw).get(inner);
-        return child instanceof Map<?, ?> map ? cast(map) : null;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static Map<String, Object> cast(Map<?, ?> raw) {
-        return (Map<String, Object>) raw;
-    }
-
-    private static Map<String, Object> readMap(String json) {
-        return JsonKit.fromJson(json, new TypeReference<>() {
-        });
     }
 }

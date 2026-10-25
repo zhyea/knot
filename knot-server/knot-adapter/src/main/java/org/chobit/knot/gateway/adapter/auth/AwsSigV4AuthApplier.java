@@ -1,7 +1,7 @@
 package org.chobit.knot.gateway.adapter.auth;
 
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.gateway.adapter.auth.AuthConfigSupport;
+import org.chobit.knot.gateway.adapter.support.PayloadMapSupport;
 import org.chobit.knot.gateway.adapter.support.aws.AwsBedrockEndpointResolver;
 import org.chobit.knot.gateway.adapter.support.aws.AwsSigV4Support;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
@@ -121,8 +121,8 @@ public class AwsSigV4AuthApplier implements UpstreamAuthApplier {
             return;
         }
         Map<String, Object> authConfig = context.authConfig();
-        String accessKey = AuthConfigSupport.value(authConfig, ACCESS_KEY);
-        String secretKey = AuthConfigSupport.value(authConfig, SECRET_KEY);
+        String accessKey = PayloadMapSupport.text(authConfig, ACCESS_KEY);
+        String secretKey = PayloadMapSupport.text(authConfig, SECRET_KEY);
         String region = AwsBedrockEndpointResolver.region(authConfig);
         if (StringUtils.isAnyBlank(accessKey, secretKey, region)) {
             // 缺凭据静默跳过：与 apply 的既有约定一致，上游会以明确的 403 回敬
@@ -130,7 +130,7 @@ public class AwsSigV4AuthApplier implements UpstreamAuthApplier {
         }
         URI uri = toUri(request.url());
         String service = AwsBedrockEndpointResolver.serviceName(authConfig);
-        String sessionToken = AuthConfigSupport.value(authConfig, SESSION_TOKEN);
+        String sessionToken = PayloadMapSupport.text(authConfig, SESSION_TOKEN);
 
         String amzDate = AwsSigV4Support.amzDate(now);
         String dateStamp = AwsSigV4Support.dateStamp(now);

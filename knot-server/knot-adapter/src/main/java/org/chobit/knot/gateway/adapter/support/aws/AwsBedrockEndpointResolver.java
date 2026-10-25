@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.adapter.support.aws;
 
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.support.PayloadMapSupport;
 
 import java.util.Locale;
 import java.util.Map;
@@ -124,25 +125,17 @@ public final class AwsBedrockEndpointResolver {
     }
 
     public static String region(Map<String, Object> authConfig) {
-        return read(authConfig, REGION_KEY);
+        return PayloadMapSupport.text(authConfig, REGION_KEY);
     }
 
     /** 凭据里的端点类型；缺省按 {@link #DEFAULT_ENDPOINT_TYPE}（bedrock-runtime）处理。 */
     public static String endpointType(Map<String, Object> authConfig) {
-        String value = read(authConfig, ENDPOINT_TYPE_KEY);
+        String value = PayloadMapSupport.text(authConfig, ENDPOINT_TYPE_KEY);
         return StringUtils.isBlank(value) ? DEFAULT_ENDPOINT_TYPE : value;
     }
 
     public static String serviceName(Map<String, Object> authConfig) {
         return serviceName(endpointType(authConfig));
-    }
-
-    private static String read(Map<String, Object> authConfig, String key) {
-        if (authConfig == null) {
-            return null;
-        }
-        Object value = authConfig.get(key);
-        return StringUtils.trimToNull(value == null ? null : String.valueOf(value));
     }
 
     private static boolean isEuropeanSovereign(String region) {

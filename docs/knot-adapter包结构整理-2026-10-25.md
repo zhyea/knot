@@ -14,6 +14,8 @@ gateway.adapter/
 ├── protocol/      ← UpstreamAdapter 接口 + 9 实现 + Catalog + Definition（原 adapter.request，request 化石名清除）
 ├── support/
 │   ├── RequestFieldSupport.java ← 通用字段搬迁原语（无供应商语义）
+│   ├── PayloadMapSupport.java   ← payload Map 通用读写原语（cast/nested/firstPresent/stringOf/putLong）
+│   ├── PayloadTextSupport.java  ← 跨协议 content 折文本（textOf）
 │   ├── aws/       ← AwsBedrockConverseSupport + AwsBedrockEndpointResolver + AwsSigV4Support（原 adapter.aws）
 │   └── anthropic/ ← AnthropicMessagesRequestSupport（仅 max_tokens 兜底；move 已拆至根，见 §4 坑 4）
 ├── auth/          ← UpstreamAuthApplier 族 7 + AuthConfigSupport 归位（位置不变，仅吸收孤类）
@@ -48,5 +50,42 @@ gateway.adapter/
 ## 6. 门禁
 
 `mvn -f knot-server/pom.xml clean test` → **BUILD SUCCESS**，八模块（127/3/44/182/4/177/110/348）合计 **995 例，0 failures，0 errors**——与整理前逐一相等（纯移动零行为变化，账目吻合）。日志 `audit/adapter_pkg_gate.log`。前端零改动不涉及。
+
+## 7. 追加批次：textOf 与 5 个读写原语拆出（同日，robin 指出）
+
+robin 追问「`AwsBedrockConverseSupport` 下的方法是否也有类似情况」。逐方法审查 289 行里约 150 行私有辅助，判定**6 个公开/转换方法（resolvePath / buildConverseBody / handleConverseResponse / inferenceConfig / toOpenAiUsage / finishReason）是 Converse 特有语义、归属正确**；其余 7 个私有辅助全是通用能力：
+
+| 拆出方法 | 新归属 | 原问题 |
+|---|---|---|
+| `cast` / `nested` / `firstPresent` / `stringOf` / `putLong` | `adapter.support.PayloadMapSupport`（新建） | 零供应商语义的读写原语住 AWS 专用类（与 `move` 同款） |
+| `textOf` | `adapter.support.PayloadTextSupport`（新建） | 跨 OpenAI/Anthropic/Converse 三协议的 content 折文本，无供应商语义 |
+| `readMap` | 删除，调用点内联 `JsonKit.fromJson` | `JsonKit:120` 已有宽容入口（失败返 null），纯间接层 |
+
+**比 `move` 更严重的形态**：`textOf` 还导致 `AwsBedrockMessagesToConverseUpstreamAdapter` 复制了一份**逐字相同的私有副本**（适配器 96-116 行 vs Support 234-254 行，仅 cast 写法差异）——「通用能力住了供应商专用类」的直接后果就是调用方被迫复制。副本已删，改调通用款。
+
+**方案选择**（robin 拍板 A）：通用原语拆两个类而非合一——`PayloadMapSupport`（「怎么安全读写一个 payload Map」的语法层）与 `PayloadTextSupport`（「三种协议 content 形状怎么折文本」的协议层），抽象层级不同，合并会让类 javadoc 同时解释两件事。
+
+**契约测试**：新增 `PayloadMapSupportTest`（6 例：cast 同一性 / nested 分层缺失 / firstPresent 认 0 与空集合 / stringOf null 兜底 / putLong 负值钳 0）与 `PayloadTextSupportTest`（3 例：裸串透传 / block 按序拼接跳非文本 block / null·数字·空列表兜底），合计 9 例。`firstPresent` 与 `MapNumberUtils.firstLong` 的语义差异（认任意非 null vs 只认正数）以测试固化。
+
+**门禁**：`mvn -f knot-server/pom.xml clean test` → **BUILD SUCCESS**，八模块合计 **1004 例**（995 + 新增 9），0 failures，0 errors——重构前 995 例逐一相等（行为零变化），新增 9 例即契约测试账目。日志 `audit/adapter_support_split2_gate.log`。前端零改动不涉及。
+
+## 8. 追加批次：authConfig 读取力学去重（同日，robin 追问 AuthConfig.value）
+
+robin 追问「看下 `AuthConfig.value`」。判定：`value` 方法本身语义干净（null map / 空白键 → null；`trimToNull(String.valueOf)` 空白=未配置），但周边两个问题——**① `token()` 死代码**（全仓零调用，且 `"token"` 裸字符串 vs `apiKey()` 走 `AuthConstants.API_KEY`）；**② `AwsBedrockEndpointResolver.read`（support/aws:140-146）是 `value` 的逐字重复**（只差一个 blank-key guard，`region()` / `endpointType()` 都在用它）——正是 §7 立规的「跨类逐字重复 = 归属错误信号」。
+
+修法（robin 批准）：读取力学下沉到通用层，**避免 support.aws → auth 的包级环**（`auth.AwsSigV4AuthApplier` 已 import support.aws 两个类，反向再依赖就成环）：
+
+| 改动 | 内容 |
+|---|---|
+| `PayloadMapSupport.text(Map, key)`（第 6 个原语） | `trimToNull(stringOf(get(key)))` + 双 guard；与 `stringOf` 的分工写进 javadoc（本方法带 trim 与「空白=未配置」，是凭据/配置类 map 的读取入口） |
+| `AuthConfigSupport` | 删死方法 `token()`；**删 `value`**（robin 指出「明明是冗余的」——合并后它只剩一行转发，零知识增量，只是同一操作的两个名字）；`apiKey()` 直调 `PayloadMapSupport.text` |
+| `AwsSigV4AuthApplier` | 3 处 `AuthConfigSupport.value(...)` → `PayloadMapSupport.text(...)`；顺手删同包自引用 import |
+| `AwsBedrockEndpointResolver` | 删私有 `read`；`region()` / `endpointType()` 直调 `PayloadMapSupport.text`（support.aws → support 根的边在上批已存在，无新包级依赖） |
+
+语义逐字等价验证：`read` 与 `value` 对 null map / 缺失键 / 空白值 / 带空白串值的返回值完全一致（`trimToNull(stringOf(v))` 与 `trimToNull(v == null ? null : String.valueOf(v))` 同解）。新增 `text` 契约测试 1 例（null map / 空白键 / 缺失 / 空白值 / trim）。
+
+**门禁**：`mvn -f knot-server/pom.xml clean test` → **BUILD SUCCESS**，八模块合计 **1005 例**（1004 + 1），0 failures，0 errors。日志 `audit/adapter_support_split3_gate.log`；删 `value` 后复跑 `audit/adapter_support_split3b_gate.log` 同样 **1005 例** 0 failures，账目与上轮逐字相等（`AwsSigV4AuthApplierTest` 8 例 / `AwsBedrockEndpointResolverTest` 6 例 / `PayloadMapSupportTest` 7 例实跑确认）。前端零改动不涉及。
+
+新立判据（§4.7）：**纯转发壳同样是冗余**——委托层不带知识增量时删掉、调用方直调（判例：`value` 合并后只剩一行转发，robin 指出后同批删除）。
 
 **未 commit，待批准。**

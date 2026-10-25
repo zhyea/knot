@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.adapter.protocol;
 
+import org.chobit.knot.gateway.adapter.support.PayloadTextSupport;
 import org.chobit.knot.gateway.adapter.support.aws.AwsBedrockConverseSupport;
 import org.chobit.knot.gateway.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.constants.AiPayloadFields;
@@ -74,7 +75,7 @@ public class AwsBedrockMessagesToConverseUpstreamAdapter implements UpstreamAdap
         List<Map<String, Object>> messages = new ArrayList<>();
         Object system = source.get(AiPayloadFields.SYSTEM);
         if (system != null) {
-            body.put(AiPayloadFields.SYSTEM, textOf(system));
+            body.put(AiPayloadFields.SYSTEM, PayloadTextSupport.textOf(system));
         }
         Object sourceMessages = source.get(AiPayloadFields.MESSAGES);
         if (sourceMessages instanceof List<?> list) {
@@ -84,34 +85,11 @@ public class AwsBedrockMessagesToConverseUpstreamAdapter implements UpstreamAdap
                 }
                 Map<String, Object> message = (Map<String, Object>) raw;
                 Map<String, Object> converted = new LinkedHashMap<>(message);
-                converted.put(AiPayloadFields.CONTENT, textOf(message.get(AiPayloadFields.CONTENT)));
+                converted.put(AiPayloadFields.CONTENT, PayloadTextSupport.textOf(message.get(AiPayloadFields.CONTENT)));
                 messages.add(converted);
             }
         }
         body.put(AiPayloadFields.MESSAGES, messages);
         return body;
-    }
-
-    /** content blocks（{@code [{text: ...}]}）折成裸文本；已是字符串则原样。 */
-    private static String textOf(Object content) {
-        if (content == null) {
-            return "";
-        }
-        if (content instanceof String value) {
-            return value;
-        }
-        if (content instanceof List<?> list) {
-            StringBuilder builder = new StringBuilder();
-            for (Object item : list) {
-                if (item instanceof Map<?, ?> raw) {
-                    Object text = ((Map<String, Object>) raw).get("text");
-                    if (text != null) {
-                        builder.append(text);
-                    }
-                }
-            }
-            return builder.toString();
-        }
-        return String.valueOf(content);
     }
 }

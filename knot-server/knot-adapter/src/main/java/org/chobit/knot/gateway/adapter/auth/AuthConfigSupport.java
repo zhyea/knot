@@ -1,28 +1,24 @@
 package org.chobit.knot.gateway.adapter.auth;
 
-import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.gateway.adapter.support.PayloadMapSupport;
 import org.chobit.knot.gateway.constants.AuthConstants;
 
 import java.util.Map;
 
+/**
+ * authConfig（解密后的供应商凭据 Map）的域键名知识：只回答「API Key 存在哪个键」。
+ *
+ * <p>读取力学（trim / 空白 = 未配置）归 {@link PayloadMapSupport#text}，本类不再转发一层——
+ * 转发的壳没有知识增量，只是同一操作的两个名字（判例：{@code value} 曾在此委托 {@code text}，
+ * 2026-10-25 删除；它的原实现还与 {@code support.aws.AwsBedrockEndpointResolver.read}
+ * 逐字重复）。</p>
+ */
 public final class AuthConfigSupport {
 
     private AuthConfigSupport() {
     }
 
     public static String apiKey(Map<String, Object> authConfig) {
-        return value(authConfig, AuthConstants.API_KEY);
-    }
-
-    public static String token(Map<String, Object> authConfig) {
-        return value(authConfig, "token");
-    }
-
-    public static String value(Map<String, Object> authConfig, String key) {
-        if (authConfig == null || StringUtils.isBlank(key)) {
-            return null;
-        }
-        Object value = authConfig.get(key);
-        return StringUtils.trimToNull(value == null ? null : String.valueOf(value));
+        return PayloadMapSupport.text(authConfig, AuthConstants.API_KEY);
     }
 }
