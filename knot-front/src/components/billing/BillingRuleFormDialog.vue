@@ -135,7 +135,7 @@
 </template>
 
 <script setup lang="ts">
-import {type PropType, computed, reactive, ref, watch} from "vue";
+import {type PropType, computed, nextTick, reactive, ref, watch} from "vue";
 import type {Component} from "vue";
 import {ElMessage} from "element-plus";
 import type {Dict, Row} from "@/types";
@@ -278,6 +278,8 @@ const activeTab = ref<"form" | "json">("form");
 const configJsonText = ref("");
 /** 重新打开抽屉时置位：跳过上一次停留 json 页遗留文本的回写，避免历史内容污染新表单 */
 let suppressJsonApplyBack = false;
+/** 回写失败被弹回 json 页时置位：跳过「用表单重建文本」，保住用户正在修的非法内容 */
+let suppressJsonRebuild = false;
 /** 只读派生：绑定了该编码的供应商模型数（详情接口带出） */
 const boundModelCount = computed(() => Number(detail.value?.boundModelCount ?? 0));
 /** 编辑且编码已被使用时不允许改码：绑定存的是 code，改了存量模型会掉绑 */
@@ -345,7 +347,8 @@ watch(
   }
 );
 
-// 计费项精度：输入框不做 6 位补零显示，确认后收敛到 6 位小数（后端不校验 scale，这里统一兜底）
+// 计费项精度：输入框不做补零显示，确认后收敛到全站单价精度（`roundPrice` → `UNIT_PRICE_PRECISION`
+// = 8 位，见 utils/billingPrice.ts：与后端 setScale(8, HALF_UP) 对齐，额度计数按 1e-8 缩放）
 const PRICE_FIELDS = [
   "unitPrice",
   "inputUnitPrice",
@@ -424,6 +427,12 @@ async function loadDetailAndCapabilities() {
 /** 切到 json 页展示配置文本（与 JsonCodeEditor「格式化」按钮同口径）；切回表单页时回写编辑内容 */
 watch(activeTab, (tab, prev) => {
   if (tab === "json") {
+    if (suppressJsonRebuild) {
+      // 一次性：从「回写失败被弹回」这条路返回时，不能重建文本，
+      // 否则会把用户正在修的非法 JSON 冲掉（弹回即等于「帮你清空」）
+      suppressJsonRebuild = false;
+      return;
+    }
     const built = buildConfigJson();
     configJsonText.value = built ? formatJsonText(built) : "";
     return;
@@ -433,8 +442,15 @@ watch(activeTab, (tab, prev) => {
     return;
   }
   if (prev === "json" && !applyJsonTextToForm()) {
-    // 回写失败（非法 JSON 等）：留在 json 页让用户继续修
-    activeTab.value = "json";
+    // 回写失败（非法 JSON 等）：留在 json 页让用户继续修。
+    // ⚠ 必须跨一次 flush 再重设：与用户点击的 prop 变化同批设置会被父组件的一次性渲染「抵消」
+    // （modelValue 先变 form 又变回 json、净变化为空），el-tabs 内部 currentName 不跟随
+    // （element-plus/es/components/tabs/src/tabs.mjs:115 的 watch 依赖从未触发），
+    // 结果是状态停在 json 页、界面停在表单页，保存时静默拒绝并弹一句与当前界面无关的警告。
+    suppressJsonRebuild = true;
+    nextTick(() => {
+      activeTab.value = "json";
+    });
   }
 });
 
