@@ -2,127 +2,133 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+  <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>org.chobit.knot</groupId>
-        <artifactId>knot-server</artifactId>
-        <version>0.0.1-SNAPSHOT</version>
-    </parent>
+  <parent>
+    <groupId>org.chobit.knot</groupId>
+    <artifactId>knot-server</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+  </parent>
 
-    <artifactId>knot-gateway</artifactId>
-    <name>knot-gateway</name>
-    <description>AI Gateway runtime</description>
+  <artifactId>knot-gateway</artifactId>
+  <name>knot-gateway</name>
+  <description>AI Gateway runtime</description>
 
-    <dependencies>
-        <dependency>
-            <groupId>org.chobit.knot</groupId>
-            <artifactId>knot-plugin-api</artifactId>
-        </dependency>
-        <!-- 插件 bean 进 IOC（分发器按 PluginHandler 注入）：仅运行时需要，编译期禁止 import knot-plugin 的类 -->
-        <dependency>
-            <groupId>org.chobit.knot</groupId>
-            <artifactId>knot-plugin</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.chobit.knot</groupId>
-            <artifactId>knot-service</artifactId>
-            <!-- ⚠ 2026-10-20（WebFlux 批2）：knot-service 为 admin 侧（Spring MVC）带进了
-                 spring-boot-starter-web，它会顺着依赖树把 spring-webmvc + Tomcat 拖进网关。
-                 Boot 的判定规则是「有 WebFlux 且没有 WebMvc 才算 REACTIVE」，
-                 于是网关会静默退回 SERVLET 容器——WebFilter、Mono 返回值、
-                 ServerWebExchange 入参同时失效，且编译期完全看不出来。
-                 这里显式排除，让网关只有 Netty 一套栈（GatewayWebStackTest 钉住）。 -->
-            <exclusions>
-                <exclusion>
-                    <groupId>org.springframework.boot</groupId>
-                    <artifactId>spring-boot-starter-web</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.chobit.knot</groupId>
-            <artifactId>knot-adapter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.github.ben-manes.caffeine</groupId>
-            <artifactId>caffeine</artifactId>
-        </dependency>
-        <!-- @ConfigurationProperties 的数值边界校验（@Validated + @Min）：连接池/超时等
-             配置误配成 0/负数会引发自我 DoS，启动时即 fail-fast -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
-        </dependency>
-        <!-- 多节点部署时频控 / 额度计数切到 Redis（knot.traffic.store=redis），
-             不切换时不会建立任何连接：RedisTemplate 由 Spring 惰性初始化 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-        </dependency>
-        <!-- 响应式栈：<b>本模块唯一的 Web 栈</b>（2026-10-20 批2 起）。
-             容器是 Netty（Spring Boot 依 classpath 判定为 REACTIVE），上游调用统一走
-             WebClient（reactor-netty 连接池 + 反压）。
-             ⚠ 不要再引入 spring-boot-starter-web：web + webflux 共存时 Boot 会静默退回
-             SERVLET 容器，届时 WebFilter / Mono 返回值 / ServerWebExchange 入参全部失效，
-             且编译期看不出来（GatewayWebStackTest 钉住这一条）。 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
-        </dependency>
-        <!-- Kafka 事件输出（请求层 / 响应层，见顶层 kafka.* 配置）：默认关闭，
-             未开启时 KafkaTemplate / Publisher 均不装配，不建立任何连接 -->
-        <dependency>
-            <groupId>org.springframework.kafka</groupId>
-            <artifactId>spring-kafka</artifactId>
-        </dependency>
-        <!-- 可观测性：actuator 暴露 health/info/prometheus，micrometer 承接 HTTP 与网关域指标。
-             网关是「限流/摘除/重试」等高风险决策的唯一发生地，没有指标等于盲飞。 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-registry-prometheus</artifactId>
-        </dependency>
-        <!-- JWT 实现：knot-common 只声明了 jjwt-api（编译期够用），但启动守卫
-             BootstrapSecurityGuard 会真正解析/校验默认密钥，缺 impl 时启动即
-             ClassNotFoundException: io.jsonwebtoken.impl.security.KeysBridge。
-             admin 侧早已声明，gateway 此前漏了 —— 2026-10-20 真启冒烟暴露。 -->
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-impl</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.jsonwebtoken</groupId>
-            <artifactId>jjwt-jackson</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-    </dependencies>
+  <dependencies>
+    <dependency>
+      <groupId>org.chobit.knot</groupId>
+      <artifactId>knot-plugin-api</artifactId>
+    </dependency>
+    <!-- 插件 bean 进 IOC（分发器按 PluginHandler 注入）：仅运行时需要，编译期禁止 import knot-plugin 的类 -->
+    <dependency>
+      <groupId>org.chobit.knot</groupId>
+      <artifactId>knot-plugin</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.chobit.knot</groupId>
+      <artifactId>knot-service</artifactId>
+      <!-- ⚠ 2026-10-20（WebFlux 批2）：knot-service 为 admin 侧（Spring MVC）带进了
+           spring-boot-starter-web，它会顺着依赖树把 spring-webmvc + Tomcat 拖进网关。
+           Boot 的判定规则是「有 WebFlux 且没有 WebMvc 才算 REACTIVE」，
+           于是网关会静默退回 SERVLET 容器——WebFilter、Mono 返回值、
+           ServerWebExchange 入参同时失效，且编译期完全看不出来。
+           这里显式排除，让网关只有 Netty 一套栈（GatewayWebStackTest 钉住）。 -->
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-web</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.chobit.knot</groupId>
+      <artifactId>knot-adapter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
+    <!-- @ConfigurationProperties 的数值边界校验（@Validated + @Min）：连接池/超时等
+         配置误配成 0/负数会引发自我 DoS，启动时即 fail-fast -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <!-- 多节点部署时频控 / 额度计数切到 Redis（knot.traffic.store=redis），
+         不切换时不会建立任何连接：RedisTemplate 由 Spring 惰性初始化 -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+    </dependency>
+    <!-- 响应式栈：<b>本模块唯一的 Web 栈</b>（2026-10-20 批2 起）。
+         容器是 Netty（Spring Boot 依 classpath 判定为 REACTIVE），上游调用统一走
+         WebClient（reactor-netty 连接池 + 反压）。
+         ⚠ 不要再引入 spring-boot-starter-web：web + webflux 共存时 Boot 会静默退回
+         SERVLET 容器，届时 WebFilter / Mono 返回值 / ServerWebExchange 入参全部失效，
+         且编译期看不出来（GatewayWebStackTest 钉住这一条）。 -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webflux</artifactId>
+    </dependency>
+    <!-- Kafka 事件输出（请求层 / 响应层，见顶层 kafka.* 配置）：默认关闭，
+         未开启时 KafkaTemplate / Publisher 均不装配，不建立任何连接 -->
+    <dependency>
+      <groupId>org.springframework.kafka</groupId>
+      <artifactId>spring-kafka</artifactId>
+    </dependency>
+    <!-- 可观测性：actuator 暴露 health/info/prometheus，micrometer 承接 HTTP 与网关域指标。
+         网关是「限流/摘除/重试」等高风险决策的唯一发生地，没有指标等于盲飞。 -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-resolver-dns-native-macos</artifactId>
+      <classifier>osx-aarch_64</classifier>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.micrometer</groupId>
+      <artifactId>micrometer-registry-prometheus</artifactId>
+    </dependency>
+    <!-- JWT 实现：knot-common 只声明了 jjwt-api（编译期够用），但启动守卫
+         BootstrapSecurityGuard 会真正解析/校验默认密钥，缺 impl 时启动即
+         ClassNotFoundException: io.jsonwebtoken.impl.security.KeysBridge。
+         admin 侧早已声明，gateway 此前漏了 —— 2026-10-20 真启冒烟暴露。 -->
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-impl</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.jsonwebtoken</groupId>
+      <artifactId>jjwt-jackson</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+  </dependencies>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
 </project>
