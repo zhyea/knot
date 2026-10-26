@@ -33,11 +33,12 @@
           />
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="130" align="center" header-align="center" fixed="right">
+      <el-table-column label="操作" width="170" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <RowActions
             :actions="[
               { key: 'edit', label: '编辑', icon: Edit },
+              { key: 'copy', label: '复制', icon: CopyDocument },
               { key: 'preview', label: '试算', icon: DataAnalysis },
               { key: 'log', label: '日志', icon: Document },
               { key: 'delete', label: '删除', icon: Delete, type: 'danger', confirm: '删除后不可在列表中查看，确认删除？' }
@@ -63,7 +64,7 @@
 <script setup lang="ts">
 import {displayText} from "@/utils/format";
 import {type PropType} from "vue";
-import {DataAnalysis, Delete, Document, Edit} from "@element-plus/icons-vue";
+import {CopyDocument, DataAnalysis, Delete, Document, Edit} from "@element-plus/icons-vue";
 import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
@@ -82,6 +83,7 @@ defineProps({
 const emit = defineEmits([
   "create",
   "edit",
+  "copy",
   "log",
   "preview",
   "delete",

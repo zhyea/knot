@@ -1,7 +1,7 @@
 <template>
   <el-drawer
     v-model="visible"
-    :title="isEdit ? '编辑计费规则' : '新建计费规则'"
+    :title="isEdit ? '编辑计费规则' : isCopy ? '复制计费规则' : '新建计费规则'"
     direction="rtl"
     size="960px"
     class="drawer-with-scrollbar"
@@ -178,6 +178,8 @@ const props = defineProps({
   modelValue: {type: Boolean, default: false},
   /** 编辑目标的规则 id；null 表示新建。全量记录由抽屉打开时向后端获取，不走列表行数据 */
   ruleId: {type: Number as PropType<number | null>, default: null},
+  /** 克隆源规则 id：非空时按 id 取全量记录预填表单（编码留空），保存为新建规则 */
+  copyFromId: {type: Number as PropType<number | null>, default: null},
   /** 模型族下拉仅展示 itemCode */
   codeOnly: {type: Boolean, default: false}
 });
@@ -313,6 +315,8 @@ const form = reactive<BillingRuleFormState>({
 });
 
 const isEdit = computed(() => props.ruleId != null);
+/** 克隆模式：按 copyFromId 预填源规则，保存为新建规则（ruleId 为 null，故 isEdit 为 false） */
+const isCopy = computed(() => props.copyFromId != null);
 
 /** 抽屉内 Tab：form=表单编辑，json=config_json 原文查看/编辑 */
 const activeTab = ref<"form" | "json">("form");
@@ -455,7 +459,11 @@ watch(
     activeTab.value = "form";
     detail.value = null;
     resetForm();
-    loadDetailAndCapabilities();
+    if (props.copyFromId != null) {
+      loadCopySource();
+    } else {
+      loadDetailAndCapabilities();
+    }
   }
 );
 
@@ -464,6 +472,34 @@ async function loadDetailAndCapabilities() {
   await Promise.all([loadModeCapabilities(), loadDetail()]);
   capabilitiesLoaded.value = true;
   applyModeDefaults(form.billingMode);
+}
+
+/**
+ * 克隆源规则：按 id 取全量记录并预填表单，再清空 id 与编码，使其成为一条待保存的新建规则。
+ * detail 保持 null，避免触发「编码被绑定」只读与改码校验（克隆走新建分支）。
+ */
+async function loadCopySource() {
+  detailLoading.value = true;
+  try {
+    const row = await getBillingRule(props.copyFromId!);
+    if (!row) {
+      ElMessage.error("未找到源计费规则");
+      visible.value = false;
+      return;
+    }
+    fillFormFromDetail(row as Dict);
+    form.id = null;
+    form.code = "";
+  } catch {
+    ElMessage.error("加载源计费规则失败，请重试");
+    visible.value = false;
+  } finally {
+    detailLoading.value = false;
+    // 能力矩阵仍需加载：约束下拉选项并兜底方案回退
+    await loadModeCapabilities();
+    capabilitiesLoaded.value = true;
+    applyModeDefaults(form.billingMode);
+  }
 }
 
 /** 切到 json 页展示配置文本（与 JsonCodeEditor「格式化」按钮同口径）；切回表单页时回写编辑内容 */

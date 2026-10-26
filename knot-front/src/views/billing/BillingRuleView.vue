@@ -33,6 +33,7 @@
           :toggling-id="togglingId"
           :show-refresh="false"
           @edit="openEdit"
+          @copy="openCopy"
           @log="openChangeLog"
           @preview="openPreview"
           @delete="handleDelete"
@@ -43,7 +44,7 @@
       </section>
     </div>
 
-    <BillingRuleFormDialog v-model="ruleDlg" :rule-id="currentRuleId" @saved="resetPage" />
+    <BillingRuleFormDialog v-model="ruleDlg" :rule-id="currentRuleId" :copy-from-id="copyFromId" @saved="resetPage" />
 
     <PricingPreviewDrawer v-model="previewDrawer" :rule="previewRule" />
 
@@ -95,6 +96,8 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
 const ruleDlg = ref(false);
 /** 编辑目标规则 id：编辑抽屉打开时按 id 从后端取全量记录（列表行是轻量 VO） */
 const currentRuleId = ref<number | null>(null);
+/** 克隆源规则 id：非空时抽屉按 id 取全量记录并预填，保存为新建规则（编码留空） */
+const copyFromId = ref<number | null>(null);
 const logDrawer = ref(false);
 const logRuleId = ref<number | string | null>(null);
 const logRuleName = ref("");
@@ -103,11 +106,19 @@ const previewRule = ref<Row | null>(null);
 
 function openCreate() {
   currentRuleId.value = null;
+  copyFromId.value = null;
   ruleDlg.value = true;
 }
 
 function openEdit(row: Row) {
   currentRuleId.value = Number(row.id);
+  copyFromId.value = null;
+  ruleDlg.value = true;
+}
+
+function openCopy(row: Row) {
+  currentRuleId.value = null;
+  copyFromId.value = Number(row.id);
   ruleDlg.value = true;
 }
 
