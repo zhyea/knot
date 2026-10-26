@@ -25,11 +25,16 @@ export function useEnums(category: string, enabledOnly = true) {
   const options = ref<Row[]>([]);
   const loading = ref(false);
 
-  async function loadOptions() {
+  /**
+   * 加载枚举选项
+   * @param {boolean} force 是否忽略缓存强制回源。表单下拉/抽屉每次打开都应传 true，
+   *   否则会命中模块级缓存拿到编辑前的旧值（DB 压力由后端 Caffeine 吸收）。
+   */
+  async function loadOptions(force = false) {
     loading.value = true;
     try {
       const cached = CACHE[category];
-      if (!isExpired(cached)) {
+      if (!force && !isExpired(cached)) {
         options.value = filter(cached.data, enabledOnly);
         return;
       }

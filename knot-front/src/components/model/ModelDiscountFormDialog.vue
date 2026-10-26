@@ -62,7 +62,7 @@ const emit = defineEmits(["update:modelValue", "saved"]);
 const saving = ref(false);
 /** 折扣类型（DB 枚举 category=discount_type）：PERCENTAGE / FIXED，单选框展示 */
 const {options: discountTypeOptions, loadOptions} = useEnums("discount_type");
-onMounted(loadOptions);
+onMounted(() => loadOptions(true));
 
 const form = reactive({
   id: null,

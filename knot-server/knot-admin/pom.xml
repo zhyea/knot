@@ -61,6 +61,12 @@
             <groupId>com.github.ben-manes.caffeine</groupId>
             <artifactId>caffeine</artifactId>
         </dependency>
+        <!-- Spring Cache 抽象：DB 枚举项（/api/system/enums/items/{category}）用 @Cacheable + Caffeine
+             吸收前端每次打开抽屉的回源请求，避免在 DB 侧放大读压力 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
         <!-- 可观测性：管理端同样需要 health 探针（编排/存活检查），并暴露 Prometheus 指标 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

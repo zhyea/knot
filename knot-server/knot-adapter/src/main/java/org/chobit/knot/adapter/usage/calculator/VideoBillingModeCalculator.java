@@ -85,9 +85,12 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
             return legacy(context, rule, config, unitSize);
         }
 
-        // VENDOR_MINIMAX 走专属多分量口径（输出/输入视频同档位、图片前 N 张免费、音频免费）
+        // 厂商定制方案走专属口径：两家价表的结构（分量拆分方式 / 「有输入」的表达位置）通用路径都表达不了
         if (context.pricingPlan() == PricingPlanEnum.VENDOR_MINIMAX) {
             return calculateVendorMiniMax(context, rule, config, video, unitSize);
+        }
+        if (context.pricingPlan() == PricingPlanEnum.VENDOR_KLING) {
+            return calculateVendorKling(context, rule, config, video, unitSize);
         }
 
         BillingConfig.VideoConfig videoConfig = config == null ? null : config.video();
@@ -218,6 +221,58 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         }
 
         // 音频输入免费：MiniMax 不收取附加费，故无分量 4
+        return NormalizedBillingAmount.of(video.tokenUsage().totalTokens(), total, details);
+    }
+
+    /**
+     * VENDOR_KLING 专属口径：档位单价把「有无输入视频」编码进去，输入秒<b>不单独成价</b>。
+     *
+     * <pre>
+     * 总价   = 计费量 × 档位单价
+     * 计费量 = 输出秒                       （在线模型：3.0 / 3.0 Turbo / Omni / O1 / 2.6 / 2.5 Turbo）
+     *        = 输出秒 + max(输入秒, 输出秒)   （Kling 4.0，见 VideoConfig.QUANTITY_OUTPUT_PLUS_MAX）
+     * 档位单价 = resolutionPrices[ 档位 ] / [ 档位:AUDIO ] / [ 档位:REFERENCE ] / [ 档位:REFERENCE:AUDIO ]
+     * </pre>
+     *
+     * <p><b>与通用分量路径的两点差异——这两点就是本方法存在的理由：</b></p>
+     * <ol>
+     *   <li><b>「有输入视频」的判据取 {@code inputDurationSeconds > 0}，并上请求侧的 reference 标志。</b>
+     *       提取器的 reference 只认 {@code input_reference} / {@code reference_*} 这类请求体键，
+     *       而 Kling 的图生视频 / 视频续写传的是 {@code image} / {@code video} / {@code video_url}，
+     *       一个都命不中。若沿用通用路径的 {@code video.reference()}，Kling 4.0 的「有输入视频」
+     *       优惠档位价<b>永远取不到</b>：既按「无输入」的高价计，又乘上折叠后的双倍量，双重多收。</li>
+     *   <li><b>绝不按输入秒 / 输入张另行开分量，也不收附加费。</b> Kling 价表已把「有输入」折进
+     *       档位单价，再开一条输入分量就是重复计费；官方价表无任何附加费档。</li>
+     * </ol>
+     *
+     * <p>计费量复用 {@link BillingConfig.VideoConfig#quantity}：Kling 4.0 的
+     * 「无输入→输出 / 输入≤输出→输出×2 / 输入&gt;输出→输入+输出」正是
+     * {@code OUTPUT_PLUS_MAX} 一条公式覆盖的三档，不另写一份算式。
+     * 口径本身由 {@code video.quantityMode} 显式声明，配置侧校验兜底（见
+     * {@code BillingConfig#validateVendorKling}）。</p>
+     */
+    private NormalizedBillingAmount calculateVendorKling(NormalizedUsageContext context,
+                                                         BillingRuleRef rule,
+                                                         BillingConfig config,
+                                                         VideoBillingUsage video,
+                                                         int unitSize) {
+        BillingConfig.VideoConfig videoConfig = config == null ? null : config.video();
+        BillingConfig.PricingPlan plan = config == null ? null : planOf(config, rule);
+        String resolution = resolutionOf(video, context);
+
+        // 「有输入视频」= 上游确实回传了输入时长，或请求侧声明了参考输入（参考图同样落 Kling 的有参考档）
+        boolean hasInput = video.inputDurationSeconds() > 0 || video.reference();
+        List<String> outputKeys = dimensionKeys(resolution, hasInput, video.sound());
+
+        // 量纲仍由单位声明（与通用路径同口径）：token 单位取内嵌 token 量，否则按秒并走合成量公式
+        long amount = tokenQuantity(rule, mode())
+                ? tokenAmount(video.tokenUsage())
+                : quantity(video.durationSeconds(), video.inputDurationSeconds(), videoConfig);
+        BigDecimal price = componentUnitPrice(plan, outputKeys, amount, unitSize, context, config);
+        BigDecimal total = componentCost(plan, outputKeys, amount, unitSize, context, config);
+
+        List<NormalizedUsageDetail> details = new ArrayList<>();
+        details.add(detail(detailType(resolution, config), amount, total, price, unitSize));
         return NormalizedBillingAmount.of(video.tokenUsage().totalTokens(), total, details);
     }
 

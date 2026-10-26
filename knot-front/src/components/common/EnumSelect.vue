@@ -69,7 +69,9 @@ function optionLabel(item: Row): string {
   return item.itemLabel;
 }
 
-watch(() => props.category, () => loadOptions());
+// 下拉每次挂载都强制回源：宿主抽屉/弹窗是 destroy-on-close，挂载即"打开"，
+// 不强制就会命中 useEnums 的模块级缓存而拿不到刚编辑过的枚举值。
+watch(() => props.category, () => loadOptions(true));
 
-onMounted(() => loadOptions());
+onMounted(() => loadOptions(true));
 </script>

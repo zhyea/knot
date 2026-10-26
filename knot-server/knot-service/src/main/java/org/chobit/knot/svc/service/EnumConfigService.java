@@ -15,12 +15,19 @@ import org.chobit.knot.dal.mapper.EnumConfigMapper;
 import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.support.CodeBindingSupport;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 
 @Service
 public class EnumConfigService {
+
+    /**
+     * DB 枚举项缓存名（管理端 CacheConfiguration 以同名注册 Caffeine 缓存）。
+     */
+    public static final String ENUM_ITEMS_CACHE = "enumItems";
 
     /**
      * 已由后端代码枚举（GET /api/enum-options，EnumOptionRegistry）权威维护的 DB 分类编码。
@@ -94,8 +101,12 @@ public class EnumConfigService {
     }
 
     /**
-     * Lists matching results. Executes the public operation.
+     * 按分类读取枚举项（缓存 {@link #ENUM_ITEMS_CACHE}，单参数方法默认 key 即 category）。
+     *
+     * <p>前端下拉改为每次打开强制回源后，这里用短 TTL 的本地缓存吸收重复请求、避免 DB 读放大；
+     * 一致性由 create/update/delete 的整表失效兜底。
      */
+    @Cacheable(cacheNames = ENUM_ITEMS_CACHE)
     public List<EnumConfigEntity> listByCategory(String category) {
         EnumCategoryEntity cat = enumCategoryMapper.selectByCategory(category);
         if (cat == null) {
@@ -145,6 +156,7 @@ public class EnumConfigService {
     /**
      * Creates a new resource. Executes the public operation.
      */
+    @CacheEvict(cacheNames = ENUM_ITEMS_CACHE, allEntries = true)
     @Transactional
     public EnumConfigEntity create(EnumConfigEntity request) {
         if (request.getCategory() == null || request.getCategory().isBlank()) {
@@ -177,6 +189,7 @@ public class EnumConfigService {
      * 模型族、折扣策略的折扣类型、敏感词条的分类）就拒绝改码——引用方存的都是 item_code，
      * 改码等于让存量行掉绑（模型族掉绑会直接落不到计费规则上）。名称/排序/启用/备注始终可改。
      */
+    @CacheEvict(cacheNames = ENUM_ITEMS_CACHE, allEntries = true)
     @Transactional
     public EnumConfigEntity update(Long id, EnumConfigEntity request) {
         EnumConfigEntity existing = getById(id);
@@ -216,6 +229,7 @@ public class EnumConfigService {
     /**
      * Deletes the target resource. Executes the public operation.
      */
+    @CacheEvict(cacheNames = ENUM_ITEMS_CACHE, allEntries = true)
     @Transactional
     public EnumConfigEntity deleteReturning(Long id) {
         EnumConfigEntity existing = getById(id);

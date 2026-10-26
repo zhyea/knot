@@ -19,6 +19,8 @@
       </el-col>
     </el-row>
 
+    <!-- Kling：档位表是「档位 × 有声 × 含参考」三维整表，由方案组件托管，此处让位 -->
+    <template v-if="!isVendorKling">
     <el-divider v-if="!tokenPriced" content-position="left">
       <span class="video-config__group">分辨率档位（{{ unitLabel }}）</span>
     </el-divider>
@@ -102,11 +104,12 @@
       <el-button @click="fillCommon">填入常用档位</el-button>
       <span class="video-config__tip">档位名留空的行不会保存</span>
     </div>
+    </template>
 
-    <el-divider v-if="!tokenPriced && !isVendorMiniMax" content-position="left">
+    <el-divider v-if="!tokenPriced && !isVendorMiniMax && !isVendorKling" content-position="left">
       <span class="video-config__group">计费量口径</span>
     </el-divider>
-    <el-row v-if="!tokenPriced && !isVendorMiniMax" :gutter="16">
+    <el-row v-if="!tokenPriced && !isVendorMiniMax && !isVendorKling" :gutter="16">
       <el-col :span="8">
         <el-form-item label="合成量模式">
           <el-select v-model="form.videoQuantityMode" style="width: 100%">
@@ -121,10 +124,10 @@
       </el-col>
     </el-row>
 
-    <el-divider v-if="!tokenPriced && !isVendorMiniMax" content-position="left">
+    <el-divider v-if="!tokenPriced && !isVendorMiniMax && !isVendorKling" content-position="left">
       <span class="video-config__group">输入侧分量（可选，留空不计费）</span>
     </el-divider>
-    <div v-if="!tokenPriced && !isVendorMiniMax" class="input-charge-grid">
+    <div v-if="!tokenPriced && !isVendorMiniMax && !isVendorKling" class="input-charge-grid">
       <el-form-item label="输入视频 每秒">
           <el-input-number v-model="form.videoInputVideoPerSecond"
                            :min="0"
@@ -169,6 +172,8 @@
 import {computed} from "vue";
 import {Delete} from "@element-plus/icons-vue";
 import {UNIT_PRICE_STEP} from "@/utils/billingPrice";
+import {createResolutionRow} from "@/utils/billingResolution";
+import type {ResolutionRow} from "@/utils/billingResolution";
 import {BillingUnit} from "@/constants/status";
 
 const props = defineProps({
@@ -206,6 +211,13 @@ const tokenPriced = computed(() => {
 const isVendorMiniMax = computed(() => String(props.form.pricingPlan || "").toUpperCase() === "VENDOR_MINIMAX");
 
 /**
+ * Kling 方案（VENDOR_KLING）：单价是「档位 × 有声 × 含参考」三维，通用档位表只有两列表达不了，
+ * 故整表交给方案组件（PricingPlanVendorKlingConfig），本组件在该方案下只保留「默认单价」
+ * 与 token 量纲提示，档位表 / 计费量口径 / 输入侧分量三块全部让位，避免同一字段被两个组件重复编辑。
+ */
+const isVendorKling = computed(() => String(props.form.pricingPlan || "").toUpperCase() === "VENDOR_KLING");
+
+/**
  * 常用档位快捷选项：**只是下拉建议，不是合法值白名单**。
  *
  * <p>厂商档位不可枚举——MiniMax 用 768P、Vidu 用 540P、豆包用 480p/720p/1080p，
@@ -216,15 +228,9 @@ const RESOLUTION_OPTIONS = ["480P", "540P", "720P", "768P", "1080P", "2K", "4K"]
 
 /**
  * 单行分辨率档位：档位名 + 单价 + 含参考输入时的单价 + 输入视频每秒单价（仅 MiniMax 用）。
- * <p>{@code inputPrice} 对应 {@code resolutionPrices["INPUT_VIDEO:档位"]}，留空表示同档位输出价。</p>
+ * <p>字段集见 {@link ResolutionRow}（与 Kling 方案组件、config_json 回显共用同一份契约）；
+ * {@code inputPrice} 对应 {@code resolutionPrices["INPUT_VIDEO:档位"]}，留空表示同档位输出价。</p>
  */
-interface ResolutionRow {
-  uid?: string;
-  key: string;
-  price: number | null;
-  referencePrice: number | null;
-  inputPrice: number | null;
-}
 
 /**
  * 合成量口径：一条公式覆盖 Kling 三档条件，与后端 VideoConfig.quantity 同口径。
@@ -255,7 +261,7 @@ function nextUid(): string {
 }
 
 function append() {
-  rows.value.push({uid: nextUid(), key: "", price: null, referencePrice: null, inputPrice: null});
+  rows.value.push(createResolutionRow("", nextUid()));
 }
 
 function remove(index: number) {
@@ -296,7 +302,7 @@ function fillCommon() {
   const existing = new Set(rows.value.map((row) => row.key.toUpperCase()));
   for (const key of RESOLUTION_OPTIONS) {
     if (!existing.has(key)) {
-      rows.value.push({uid: nextUid(), key, price: null, referencePrice: null, inputPrice: null});
+      rows.value.push(createResolutionRow(key, nextUid()));
     }
   }
 }

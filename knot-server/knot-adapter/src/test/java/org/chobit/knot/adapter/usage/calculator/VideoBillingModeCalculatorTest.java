@@ -447,6 +447,138 @@ class VideoBillingModeCalculatorTest {
         assertEquals("4.00", amount.totalCost(), "输出 2.50 + 输入 1.50");
     }
 
+    // ==================== VENDOR_KLING 专属口径（Kling 官方价表） ====================
+    //
+    // 官方规则（klingai.com/document-api/pricing/base/video.md，2026-10）：
+    //   在线模型（3.0 / 3.0 Turbo / 3.0 Omni / O1 / 2.6 / 2.5 Turbo）：总时长 = 输出时长，
+    //     单价按「档位 × 无声/有声/含参考」分档（如 3.0 无声 0.6/0.8、有声 0.9/1.2、4K 3.0）
+    //   Kling 4.0（即将上线）：无输入视频 -> 总量=输出，720P 1.0 / 1080P 1.5；
+    //     有输入视频 -> 总量=输出×2（输入>输出时=输入+输出），720P 0.6 / 1080P 0.9
+
+    /** Kling 4.0：计费量折输入秒（OUTPUT_PLUS_MAX），档位价区分有无输入视频 */
+    private static final String KLING_4_0 = """
+            {
+              "defaultUnitPrice": 1.0,
+              "resolutionPrices": {"720P": 1.0, "720P:REFERENCE": 0.6,
+                                   "1080P": 1.5, "1080P:REFERENCE": 0.9},
+              "video": {"quantityMode": "OUTPUT_PLUS_MAX"}
+            }
+            """;
+
+    @Test
+    void vendorKlingShouldBillOutputOnlyWhenNoInputVideo() {
+        // 无输入视频：计费量 = 输出 5 秒，单价取 720P 无参考档 1.0
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule(KLING_4_0, "VENDOR_KLING"),
+                video(5L, 0L, 0L, 1280L, 720L, false, false)));
+
+        assertEquals("5.0", amount.totalCost(), "5 秒 × 1.0（无输入不折量）");
+        assertEquals(1, amount.details().size());
+        assertEquals("VIDEO:720P", amount.details().get(0).type());
+        assertEquals(5L, amount.details().get(0).tokens(), "计费量就是输出秒");
+    }
+
+    @Test
+    void vendorKlingShouldDoubleQuantityAndUseCheaperTierWhenInputShorter() {
+        // ⭐ 主探针：输入 3 ≤ 输出 5 -> 计费量 = 输出×2 = 10，单价取 720P:REFERENCE 0.6 -> 6.0
+        // 若「有输入视频」判据误取 reference 标志（本例为 false），会算成 10 × 1.0 = 10.0（多收 67%）
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule(KLING_4_0, "VENDOR_KLING"),
+                video(5L, 3L, 0L, 1280L, 720L, false, false)));
+
+        assertEquals(10L, amount.details().get(0).tokens(), "输入≤输出 -> 输出×2");
+        assertEquals("6.0", amount.totalCost(), "10 × 0.6（有输入优惠档）");
+    }
+
+    @Test
+    void vendorKlingShouldSumInputAndOutputWhenInputLonger() {
+        // 输入 8 > 输出 5 -> 计费量 = 5 + 8 = 13，单价仍取有输入档 0.6 -> 7.8
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule(KLING_4_0, "VENDOR_KLING"),
+                video(5L, 8L, 0L, 1280L, 720L, false, false)));
+
+        assertEquals(13L, amount.details().get(0).tokens(), "输入>输出 -> 输入+输出");
+        assertEquals("7.8", amount.totalCost(), "13 × 0.6");
+    }
+
+    @Test
+    void vendorKlingOnlineModelShouldPriceBySoundTierWithOutputOnlyQuantity() {
+        // 在线模型（3.0 有声）：计费量 = 输出时长，有声档 720P:AUDIO 0.9
+        String config = """
+                {
+                  "defaultUnitPrice": 0.6,
+                  "resolutionPrices": {"720P": 0.6, "720P:AUDIO": 0.9},
+                  "video": {"quantityMode": "OUTPUT"}
+                }
+                """;
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule(config, "VENDOR_KLING"),
+                video(10L, 0L, 0L, 1280L, 720L, true, false)));
+
+        assertEquals(10L, amount.details().get(0).tokens(), "在线模型绝不折叠输入秒");
+        assertEquals("9.0", amount.totalCost(), "10 秒 × 有声档 0.9");
+    }
+
+    @Test
+    void vendorKlingShouldPreferMostSpecificReferenceAudioTier() {
+        // 3.0 Omni 四档共存：含参考+有声必须命中组合键，不能退化成有声档或含参考档
+        String config = """
+                {
+                  "defaultUnitPrice": 0.8,
+                  "resolutionPrices": {"1080P": 0.8, "1080P:AUDIO": 1.2,
+                                       "1080P:REFERENCE": 0.9, "1080P:REFERENCE:AUDIO": 1.5},
+                  "video": {"quantityMode": "OUTPUT"}
+                }
+                """;
+        NormalizedBillingAmount both = calculator.calculate(context(
+                rule(config, "VENDOR_KLING"),
+                video(10L, 4L, 0L, 1920L, 1080L, true, false)));
+        assertEquals("15.0", both.totalCost(), "10 秒 × 含参考+有声 1.5");
+
+        // 参考输入但无声：命中 1080P:REFERENCE 0.9
+        NormalizedBillingAmount referenceOnly = calculator.calculate(context(
+                rule(config, "VENDOR_KLING"),
+                video(10L, 0L, 0L, 1920L, 1080L, false, true)));
+        assertEquals("9.0", referenceOnly.totalCost(), "10 秒 × 含参考 0.9");
+    }
+
+    @Test
+    void vendorKlingShouldNeverBillInputAsSeparateComponent() {
+        // 误配 video.inputVideoPerSecond 也不得另开输入分量：Kling 已把它折进档位价，再开一条就是重复计费
+        String config = """
+                {
+                  "defaultUnitPrice": 1.0,
+                  "resolutionPrices": {"720P": 1.0},
+                  "video": {"quantityMode": "OUTPUT", "inputVideoPerSecond": 2.0, "inputImagePerImage": 0.2}
+                }
+                """;
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule(config, "VENDOR_KLING"),
+                video(5L, 3L, 8L, 1280L, 720L, false, false)));
+
+        assertEquals("5.0", amount.totalCost(), "只有输出一条分量：5 秒 × 1.0");
+        assertEquals(1, amount.details().size(), "无输入视频 / 输入图片明细");
+    }
+
+    @Test
+    void vendorKlingShouldNotChargeAnySurcharge() {
+        // Kling 价表无附加费档：配了 AUDIO 附加费也不收
+        String config = """
+                {
+                  "defaultUnitPrice": 1.0,
+                  "resolutionPrices": {"720P": 1.0},
+                  "video": {"quantityMode": "OUTPUT"},
+                  "surcharges": [{"code": "AUDIO", "trigger": "AUDIO", "amount": 0.3}]
+                }
+                """;
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule(config, "VENDOR_KLING"),
+                video(5L, 0L, 0L, 1280L, 720L, true, false)));
+
+        assertEquals("5.0", amount.totalCost(), "音频档价已含在单价里，不再加 0.3");
+        assertEquals(1, amount.details().size(), "无附加费明细");
+    }
+
     // ==================== S2 PROGRESSIVE 分段累加（Vidu Q2） ====================
 
     /** Vidu Q2-turbo 720P：第 1 秒 8，第 2 秒 10，第 3 秒起 +10/秒 */

@@ -506,62 +506,22 @@ public record BillingConfig(
         BigDecimal resolveProgressiveSum(PriceKind kind, long amount, PricingContext context, BigDecimal fallback);
     }
 
-    /** 固定价：基础价格直出 */
-    private record FixedPricing(PriceSet basePrices,
+    /**
+     * 固定价：基础价格直出（无阶梯、无相位倍率）。
+     *
+     * <p>{@code plan} 由构建入口按版本列传入，只作<b>分类标签与校验锚点</b>。取价语义与
+     * {@link PricingPlanEnum#FIXED} 完全一致，故所有「语义等同固定价」的方案共用这一份实现——
+     * MiniMax 与 Kling 两家的多分量编排都在计算器侧，方案值不作为独立的价格算法。
+     * 此前 MiniMax 单独复制了一份逐字重复的 record，2026-10-26 加 Kling 时收敛掉。</p>
+     */
+    private record FixedPricing(PricingPlanEnum plan,
+                                PriceSet basePrices,
                                 BigDecimal defaultUnitPrice,
                                 Map<String, BigDecimal> dimensionPrices) implements PricingPlan {
 
         @Override
         public PricingPlanEnum plan() {
-            return PricingPlanEnum.FIXED;
-        }
-
-        @Override
-        public BigDecimal resolvePrice(PriceKind kind, PricingContext context, BigDecimal fallback) {
-            BigDecimal fromBase = basePrices == null ? null : basePrices.valueOf(kind);
-            if (fromBase != null) {
-                return fromBase;
-            }
-            return defaultUnitPrice != null ? defaultUnitPrice : fallback;
-        }
-
-        @Override
-        public BigDecimal resolveDefaultPrice(PricingContext context, BigDecimal fallback) {
-            return defaultUnitPrice != null ? defaultUnitPrice : fallback;
-        }
-
-        @Override
-        public BigDecimal resolveDimensionPrice(List<String> candidateKeys, PricingContext context, BigDecimal fallback) {
-            BigDecimal matched = dimensionPrice(candidateKeys, dimensionPrices);
-            return matched != null ? matched : resolveDefaultPrice(context, fallback);
-        }
-
-        @Override
-        public BigDecimal resolveComponentPrice(List<String> candidateKeys,
-                                                BigDecimal componentDefault,
-                                                PricingContext context,
-                                                BigDecimal fallback) {
-            BigDecimal matched = dimensionPrice(candidateKeys, dimensionPrices);
-            if (matched != null) {
-                return matched;
-            }
-            return componentDefault != null ? componentDefault : resolveDefaultPrice(context, fallback);
-        }
-
-        @Override
-        public BigDecimal resolveProgressiveSum(PriceKind kind, long amount, PricingContext context, BigDecimal fallback) {
-            return null;
-        }
-    }
-
-    /** 厂商定制（MiniMax 特例）计费规则：取价语义与固定价完全一致（无阶梯、无相位倍率），仅 plan() 不同，作分类标签与校验锚点 */
-    private record VendorMiniMaxPricing(PriceSet basePrices,
-                                        BigDecimal defaultUnitPrice,
-                                        Map<String, BigDecimal> dimensionPrices) implements PricingPlan {
-
-        @Override
-        public PricingPlanEnum plan() {
-            return PricingPlanEnum.VENDOR_MINIMAX;
+            return plan == null ? PricingPlanEnum.FIXED : plan;
         }
 
         @Override
@@ -857,10 +817,12 @@ public record BillingConfig(
         PricingPlanEnum resolved = plan == null ? PricingPlanEnum.FIXED : plan;
         HolidayCalendar effective = calendar == null ? HolidayCalendar.EMPTY : calendar;
         return switch (resolved) {
-            case FIXED -> new FixedPricing(basePrices, defaultUnitPrice, resolutionPrices);
+            // 厂商定制方案（MiniMax / Kling）的取价语义与固定价完全一致：多分量编排在计算器侧，
+            // 方案值只承担分类标签与校验锚点，故共用同一实现
+            case FIXED, VENDOR_MINIMAX, VENDOR_KLING ->
+                    new FixedPricing(resolved, basePrices, defaultUnitPrice, resolutionPrices);
             case TIERED -> new TieredPricing(basePrices, defaultUnitPrice, tier, progressive(), resolutionPrices);
             case PEAK_OFF_PEAK -> new PeakOffPeakPricing(basePrices, defaultUnitPrice, pricing, effective, resolutionPrices);
-            case VENDOR_MINIMAX -> new VendorMiniMaxPricing(basePrices, defaultUnitPrice, resolutionPrices);
         };
     }
 
@@ -974,6 +936,9 @@ public record BillingConfig(
         if (resolved == PricingPlanEnum.VENDOR_MINIMAX) {
             return validateVendorMiniMax();
         }
+        if (resolved == PricingPlanEnum.VENDOR_KLING) {
+            return validateVendorKling();
+        }
         // tierMode 只在 TIERED 下有意义：非阶梯方案配了它说明配置意图与方案不一致，拒绝保存
         if (blankToNull(tierMode) != null) {
             return "tierMode is only allowed for TIERED plan";
@@ -998,6 +963,33 @@ public record BillingConfig(
         // 音频输入免费，故只有图片单价是必须显式配置的分量单价
         if (video == null || video.inputImagePerImage() == null) {
             return "VENDOR_MINIMAX requires video.inputImagePerImage (per-image price)";
+        }
+        return null;
+    }
+
+    /**
+     * VENDOR_KLING 专属：计费量口径必须显式声明，且不接受 {@code SUM}。
+     *
+     * <p>⭐ 为什么这条约束必须存在：Kling 的档位价把「有无输入视频」编码进了单价
+     * （无输入 1.0/1.5，有输入 0.6/0.9），而「输入秒要不要折进计费量」是<b>另一根轴</b>，
+     * 两种口径下同名档位都存在，<b>无法从价表反推</b>：</p>
+     * <pre>
+     * 在线模型（3.0 / 3.0 Turbo / Omni / O1 / 2.6 / 2.5 Turbo）：计费量 = 输出秒
+     * Kling 4.0：计费量 = 输出 + max(输入, 输出)（输入≤输出时即输出×2）
+     * </pre>
+     *
+     * <p>静默按 {@code OUTPUT} 处理会给 4.0 少收一半，静默按 {@code OUTPUT_PLUS_MAX} 处理
+     * 会让在线模型多收一倍——两侧都是量级资损，故宁可拒绝保存也不猜。</p>
+     *
+     * <p>{@code SUM} 被排除：它只在「输入 &gt; 输出」这一档与 Kling 一致，
+     * 「输入 ≤ 输出」档会少收一半（官方是输出×2，不是输出+输入）。</p>
+     */
+    private String validateVendorKling() {
+        if (video == null || blankToNull(video.quantityMode()) == null) {
+            return "VENDOR_KLING requires video.quantityMode (OUTPUT for online models, OUTPUT_PLUS_MAX for Kling 4.0)";
+        }
+        if (VideoConfig.QUANTITY_SUM.equals(video.quantityMode().trim().toUpperCase())) {
+            return "VENDOR_KLING does not support video.quantityMode=SUM (input seconds are never a flat component)";
         }
         return null;
     }

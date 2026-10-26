@@ -439,7 +439,69 @@ class BillingConfigTest {
                 pricing.resolveDimensionPrice(List.of("2K"), BillingConfig.PricingContext.ofAmount(1), ZERO)));
     }
 
-    private static Instant instant(int year, int month, int day, int hour, int minute) {        return ZonedDateTime.of(year, month, day, hour, minute, 0, 0, ZoneOffset.UTC).toInstant();
+    @Test
+    void vendorKlingRequiresExplicitQuantityMode() {
+        // Kling 的计费量口径无法从价表反推（在线模型=输出，4.0=输出+max(输入,输出)），必须显式声明
+        BillingConfig bare = BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,
+                 "resolutionPrices":{"720P":1.0,"1080P":1.5}}
+                """);
+        String error = bare.validate(PricingPlanEnum.VENDOR_KLING);
+        assertNotNull(error);
+        assertTrue(error.contains("VENDOR_KLING requires video.quantityMode"));
+
+        // 只有视频分量价、没声明口径 -> 仍拒存
+        BillingConfig componentOnly = BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,
+                 "resolutionPrices":{"720P":1.0},
+                 "video":{"inputImagePerImage":0.2}}
+                """);
+        assertNotNull(componentOnly.validate(PricingPlanEnum.VENDOR_KLING));
+
+        // SUM 会漏收「输入≤输出」档（官方是输出×2，不是输出+输入）-> 拒存
+        BillingConfig sum = BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,
+                 "resolutionPrices":{"720P":1.0},
+                 "video":{"quantityMode":"SUM"}}
+                """);
+        String sumError = sum.validate(PricingPlanEnum.VENDOR_KLING);
+        assertNotNull(sumError);
+        assertTrue(sumError.contains("does not support video.quantityMode=SUM"));
+
+        // 在线模型口径（仅输出时长）-> 通过
+        assertNull(BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,
+                 "resolutionPrices":{"720P":1.0,"1080P":1.5},
+                 "video":{"quantityMode":"OUTPUT"}}
+                """).validate(PricingPlanEnum.VENDOR_KLING));
+
+        // Kling 4.0 口径 -> 通过
+        assertNull(BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,
+                 "resolutionPrices":{"720P":1.0,"720P:REFERENCE":0.6},
+                 "video":{"quantityMode":"OUTPUT_PLUS_MAX"}}
+                """).validate(PricingPlanEnum.VENDOR_KLING));
+    }
+
+    @Test
+    void vendorKlingResolvesLikeFixed() {
+        // 取价语义与 FIXED 一致：无阶梯、无相位倍率，组合键照常查表
+        BillingConfig config = BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,
+                 "resolutionPrices":{"720P":1.0,"720P:REFERENCE":0.6,"1080P:AUDIO":1.2},
+                 "video":{"quantityMode":"OUTPUT_PLUS_MAX"}}
+                """);
+        BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.VENDOR_KLING);
+        assertEquals(PricingPlanEnum.VENDOR_KLING, pricing.plan());
+        assertEquals(0, new BigDecimal("1.0").compareTo(
+                pricing.resolveDefaultPrice(BillingConfig.PricingContext.ofAmount(1), ZERO)));
+        assertEquals(0, new BigDecimal("0.6").compareTo(
+                pricing.resolveDimensionPrice(List.of("720P:REFERENCE", "720P"),
+                        BillingConfig.PricingContext.ofAmount(1), ZERO)));
+    }
+
+    private static Instant instant(int year, int month, int day, int hour, int minute) {
+        return ZonedDateTime.of(year, month, day, hour, minute, 0, 0, ZoneOffset.UTC).toInstant();
     }
 
     @Test

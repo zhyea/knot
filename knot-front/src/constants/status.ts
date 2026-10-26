@@ -71,7 +71,8 @@ export const PricingPlan = {
   FIXED: "FIXED",
   TIERED: "TIERED",
   PEAK_OFF_PEAK: "PEAK_OFF_PEAK",
-  VENDOR_MINIMAX: "VENDOR_MINIMAX"
+  VENDOR_MINIMAX: "VENDOR_MINIMAX",
+  VENDOR_KLING: "VENDOR_KLING"
 } as const;
 
 /** 计费单位（BillingUnitEnum）：⚠ code 是 "1K_TOKENS" 这类，常量名是 ONE_K_TOKENS，两者不同 */

@@ -95,7 +95,8 @@ const {togglingId, onEnabledChange} = useEnabledToggle({
 });
 
 const {options: familyOptions, loadOptions: loadFamilyOptions} = useEnums("model_family");
-onMounted(loadFamilyOptions);
+/** 与抽屉下拉同一口径：强制回源，避免列表标签停在旧值而下拉已是新值 */
+onMounted(() => loadFamilyOptions(true));
 
 function modelTypeLabel(code: unknown): string {
   if (!code) return "-";

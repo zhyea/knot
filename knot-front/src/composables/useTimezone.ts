@@ -93,7 +93,7 @@ export function useTimezone() {
     label: currentTimezoneLabel,
     options,
     loading: optionsLoading,
-    loadOptions,
+    loadOptions: () => loadOptions(true),
     setTimezone,
     loadTimezonePreference
   };
