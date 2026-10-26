@@ -32,9 +32,6 @@ public interface BillingRuleMapper {
     /** 按业务码统计绑定了该规则的供应商模型数 */
     Long countBoundModels(@Param("code") String code);
 
-    /** 按规则业务码统计版本行数（kb_billing_rule_versions.rule_code 存业务码，改码会掉绑） */
-    Long countVersionsByRuleCode(@Param("ruleCode") String ruleCode);
-
     /** 计费路径：按规则业务码取当前生效版本 */
     BillingRuleEntity getActiveByRuleCode(@Param("ruleCode") String ruleCode,
                                           @Param("effectiveAt") LocalDateTime effectiveAt);
@@ -60,13 +57,14 @@ public interface BillingRuleMapper {
     /** 恢复：is_deleted = 0，status 保持 0（是否启用由调用方显式决定） */
     int restore(Long id);
 
-    BillingRuleVersionEntity getLatestVersion(@Param("ruleCode") String ruleCode);
+    /** 按规则主键取该规则最近生效的版本（版本行按 rule_id 归属，与规则编码无关） */
+    BillingRuleVersionEntity getLatestVersion(@Param("ruleId") Long ruleId);
 
     /** 原地更新版本配置内容（计费字段 + config_json + 生效期 + 状态），不生成新版本 */
     int updateVersionContent(BillingRuleVersionEntity entity);
 
     /** 同一规则下历史版本号的最大序号（version_code 形如 v{n}），用于生成初始 version_code（max+1） */
-    int maxVersionSeq(@Param("ruleCode") String ruleCode);
+    int maxVersionSeq(@Param("ruleId") Long ruleId);
 
     int insertVersion(BillingRuleVersionEntity entity);
 

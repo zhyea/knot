@@ -287,7 +287,7 @@ public class BillingService {
         applyRule(e, request);
         e.setStatus(EnabledStatusEnum.codeOf(request.enabled()));
         billingRuleMapper.insert(e);
-        createVersion(e.getCode(), request, request.enabled());
+        createVersion(e.getId(), request, request.enabled());
         return billingConverter.toRuleDto(billingRuleMapper.getById(e.getId()));
     }
 
@@ -309,7 +309,8 @@ public class BillingService {
         applyRule(existing, request);
         existing.setId(id);
         existing.setStatus(EnabledStatusEnum.codeOf(request.enabled()));
-        syncVersion(existing.getCode(), request, request.enabled());
+        // 版本按规则主键归属，改码不影响版本行：此处用 id 同步，不存在「按新码查不到旧版本」的失配
+        syncVersion(id, request, request.enabled());
         billingRuleMapper.update(existing);
         return billingConverter.toRuleDto(billingRuleMapper.getById(id));
     }
@@ -327,7 +328,7 @@ public class BillingService {
             assertRuleNotBound(existing.getCode(), "billing rule is bound by provider models, cannot disable");
         }
         billingRuleMapper.updateStatus(id, EnabledStatusEnum.codeOf(enabled));
-        BillingRuleVersionEntity latest = billingRuleMapper.getLatestVersion(existing.getCode());
+        BillingRuleVersionEntity latest = billingRuleMapper.getLatestVersion(id);
         if (latest != null) {
             billingRuleMapper.updateVersionStatus(latest.getId(), statusFor(enabled));
         }
@@ -380,11 +381,14 @@ public class BillingService {
     /**
      * 更新规则时同步其唯一版本：原地覆盖配置内容（计费字段 + config_json + 生效期 + 状态），
      * 不生成新版本、不复用历史版本。版本仅占位预留，无实际迭代语义（见 MEMORY.md §七）。
+     *
+     * <p>按 {@code ruleId} 定位版本行（不按 code）：版本是主体的从属明细，
+     * code 改动不该让版本查询落空、更不该在改码时另起一条版本行。</p>
      */
-    private void syncVersion(String ruleCode, BillingRuleDto request, boolean enabled) {
-        BillingRuleVersionEntity latest = billingRuleMapper.getLatestVersion(ruleCode);
+    private void syncVersion(Long ruleId, BillingRuleDto request, boolean enabled) {
+        BillingRuleVersionEntity latest = billingRuleMapper.getLatestVersion(ruleId);
         if (latest == null) {
-            createVersion(ruleCode, request, enabled);
+            createVersion(ruleId, request, enabled);
             return;
         }
         latest.setUniqHash(buildUniqHash(request));
@@ -399,10 +403,10 @@ public class BillingService {
         billingRuleMapper.updateVersionContent(latest);
     }
 
-    private BillingRuleVersionEntity createVersion(String ruleCode, BillingRuleDto request, boolean active) {
-        String versionCode = "v" + (billingRuleMapper.maxVersionSeq(ruleCode) + 1);
+    private BillingRuleVersionEntity createVersion(Long ruleId, BillingRuleDto request, boolean active) {
+        String versionCode = "v" + (billingRuleMapper.maxVersionSeq(ruleId) + 1);
         BillingRuleVersionEntity version = new BillingRuleVersionEntity();
-        version.setRuleCode(ruleCode);
+        version.setRuleId(ruleId);
         version.setVersionCode(versionCode);
         version.setUniqHash(buildUniqHash(request));
         version.setBillingMode(normalizeBillingMode(request.billingMode()));
@@ -523,10 +527,14 @@ public class BillingService {
     }
 
     /**
-     * 规则编码可改，但原编码一旦被引用就不许改：绑定存的是 code，改码会让存量模型与版本行掉绑。
-     * 引用方两类——供应商模型（kb_models.billing_rule_code）与规则自身的版本行
-     * （kb_billing_rule_versions.rule_code，改码后版本表仍指旧码，判价直接落空）。
-     * 未绑定（或编码未变）时放行；唯一性由 {@link #validateRule} 的 countByCode 保证。
+     * 规则编码可改，但原编码一旦被引用就不许改：模型绑定存的是 code，改码会让存量模型掉绑。
+     *
+     * <p><b>版本行不是引用方</b>：{@code kb_billing_rule_versions} 按 {@code rule_id}（规则主键）
+     * 归属主体，与 code 无关。此前按 code 关联，导致每条规则恒有版本行 → 改码守卫恒判「已引用」，
+     * 规则编码实际永远改不了；且改码后 {@code syncVersion} 按新码查不到旧版本行，会另起一条
+     * {@code v1} 并把旧行留成孤儿（旧码永久占用）。改为按主键绑定后这两个问题一并消失。</p>
+     *
+     * <p>唯一性由 {@link #validateRule} 的 countByCode 保证。</p>
      */
     private void assertCodeChangeAllowed(BillingRuleEntity existing, String newCode) {
         String oldCode = normalizeCode(existing.getCode());
@@ -534,9 +542,7 @@ public class BillingService {
             return;
         }
         Long models = billingRuleMapper.countBoundModels(oldCode);
-        Long versions = billingRuleMapper.countVersionsByRuleCode(oldCode);
-        long total = CodeBindingSupport.countOf(models) + CodeBindingSupport.countOf(versions);
-        CodeBindingSupport.requireCodeChangeAllowed(oldCode, newCode, total, "计费规则编码");
+        CodeBindingSupport.requireCodeChangeAllowed(oldCode, newCode, models, "计费规则编码");
     }
 
     private static Integer statusFor(boolean enabled) {

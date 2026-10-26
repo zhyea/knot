@@ -817,6 +817,7 @@ INSERT IGNORE INTO kb_test_request_presets (
 
 -- 两表模型：规则主体只存身份与绑定；价格配置全部进版本 config_json
 -- model_family 取 ks_enum_configs(category='model_family') 的 item_code；NULL = 默认规则，覆盖所有族
+-- 版本行按 rule_id（规则主键）绑定，不按 code：规则编码允许修改，改码不得让版本行掉绑
 INSERT IGNORE INTO kb_billing_rules (id, code, model_family, status) VALUES
 (1, 'TOKEN_GPT4O',      'gpt',      1),
 (2, 'TOKEN_GPT4O_MINI', 'gpt',      1),
@@ -824,12 +825,12 @@ INSERT IGNORE INTO kb_billing_rules (id, code, model_family, status) VALUES
 (4, 'TOKEN_DEEPSEEK',   'deepseek', 1),
 (5, 'EMBEDDING',        NULL,       1);
 
-INSERT IGNORE INTO kb_billing_rule_versions (id, rule_code, version_code, uniq_hash, billing_mode, pricing_plan, currency, unit, config_json, status, effective_from) VALUES
-(1, 'TOKEN_GPT4O',      'v1', 'seed-token-gpt4o-v1',      'TOKEN',     'FIXED', 'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.00125,"cacheWrite":0.005,"input":0.005,"output":0.015}}', 1, NOW()),
-(2, 'TOKEN_GPT4O_MINI', 'v1', 'seed-token-gpt4o-mini-v1', 'TOKEN',     'FIXED', 'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.000025,"cacheWrite":0.00015,"input":0.00015,"output":0.0006}}', 1, NOW()),
-(3, 'TOKEN_CLAUDE_S4',  'v1', 'seed-token-claude-s4-v1',  'TOKEN',     'FIXED', 'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.0003,"cacheWrite":0.00375,"input":0.003,"output":0.015}}', 1, NOW()),
-(4, 'TOKEN_DEEPSEEK',   'v1', 'seed-token-deepseek-v1',   'TOKEN',     'FIXED', 'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.000014,"cacheWrite":0.00014,"input":0.00014,"output":0.00028}}', 1, NOW()),
-(5, 'EMBEDDING',        'v1', 'seed-embedding-v1',        'EMBEDDING', 'FIXED', 'USD', '1K_TOKENS', '{"defaultUnitPrice":0.00013}', 1, NOW());
+INSERT IGNORE INTO kb_billing_rule_versions (id, rule_id, version_code, uniq_hash, billing_mode, pricing_plan, currency, unit, config_json, status, effective_from) VALUES
+(1, 1, 'v1', 'seed-token-gpt4o-v1',      'TOKEN',     'FIXED', 'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.00125,"cacheWrite":0.005,"input":0.005,"output":0.015}}', 1, NOW()),
+(2, 2, 'v1', 'seed-token-gpt4o-mini-v1', 'TOKEN',     'FIXED', 'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.000025,"cacheWrite":0.00015,"input":0.00015,"output":0.0006}}', 1, NOW()),
+(3, 3, 'v1', 'seed-token-claude-s4-v1',  'TOKEN',     'FIXED', 'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.0003,"cacheWrite":0.00375,"input":0.003,"output":0.015}}', 1, NOW()),
+(4, 4, 'v1', 'seed-token-deepseek-v1',   'TOKEN',     'FIXED', 'USD', '1K_TOKENS', '{"basePrices":{"cacheRead":0.000014,"cacheWrite":0.00014,"input":0.00014,"output":0.00028}}', 1, NOW()),
+(5, 5, 'v1', 'seed-embedding-v1',        'EMBEDDING', 'FIXED', 'USD', '1K_TOKENS', '{"defaultUnitPrice":0.00013}', 1, NOW());
 
 -- =========================
 -- 扩展能力

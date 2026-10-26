@@ -2,11 +2,12 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.dal.mapper.BillingRuleMapper">
 
-    <!-- 当前版本 = 规则下优先取启用、再取最近生效的版本（展示用；计费路径见 getActiveByRuleCode） -->
+    <!-- 当前版本 = 规则下优先取启用、再取最近生效的版本（展示用；计费路径见 getActiveByRuleCode）
+         版本行按 rule_id 归属（规则主键），与规则编码解耦：改 code 不影响版本绑定 -->
     <sql id="VersionJoin">
         left join kb_billing_rule_versions bv on bv.id = (
             select v.id from kb_billing_rule_versions v
-            where v.rule_code = br.code
+            where v.rule_id = br.id
             order by (v.status = 1) desc, v.effective_from desc, v.id desc
             limit 1
         )
@@ -122,16 +123,14 @@
         where billing_rule_code = #{code}
     </select>
 
-    <select id="countVersionsByRuleCode" resultType="java.lang.Long">
-        select count(1)
-        from kb_billing_rule_versions
-        where rule_code = #{ruleCode}
-    </select>
+    <!-- 版本行不再是「改码引用方」：版本按 rule_id 归属，规则编码改动不涉及版本表，
+         故不提供「按编码统计版本行」语句（原 countVersionsByRuleCode 随本次改造删除）。 -->
 
+    <!-- 计费路径：模型绑定的是规则 code，入口按 code 查主体；版本按 rule_id 关联 -->
     <select id="getActiveByRuleCode" resultType="org.chobit.knot.dal.entity.BillingRuleEntity">
         select <include refid="RuleColumns"/>
         from kb_billing_rules br
-        inner join kb_billing_rule_versions bv on br.code = bv.rule_code
+        inner join kb_billing_rule_versions bv on br.id = bv.rule_id
         <include refid="FamilyJoin"/>
         where br.code = #{ruleCode}
           and br.is_deleted = 0
@@ -150,7 +149,7 @@
     <select id="getActiveByModelFamily" resultType="org.chobit.knot.dal.entity.BillingRuleEntity">
         select <include refid="RuleColumns"/>
         from kb_billing_rules br
-        inner join kb_billing_rule_versions bv on br.code = bv.rule_code
+        inner join kb_billing_rule_versions bv on br.id = bv.rule_id
         <include refid="FamilyJoin"/>
         where br.is_deleted = 0
           and br.status = 1
@@ -197,10 +196,10 @@
     </update>
 
     <select id="getLatestVersion" resultType="org.chobit.knot.dal.entity.BillingRuleVersionEntity">
-        select id, rule_code, version_code, uniq_hash, billing_mode, pricing_plan, currency, unit,
+        select id, rule_id, version_code, uniq_hash, billing_mode, pricing_plan, currency, unit,
                config_json, status, effective_from, effective_to
         from kb_billing_rule_versions
-        where rule_code = #{ruleCode}
+        where rule_id = #{ruleId}
         order by effective_from desc, id desc
         limit 1
     </select>
@@ -208,13 +207,13 @@
     <select id="maxVersionSeq" resultType="java.lang.Integer">
         select coalesce(max(cast(substring(version_code, 2) as unsigned)), 0)
         from kb_billing_rule_versions
-        where rule_code = #{ruleCode} and version_code like 'v%'
+        where rule_id = #{ruleId} and version_code like 'v%'
     </select>
 
     <insert id="insertVersion" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_billing_rule_versions(rule_code, version_code, uniq_hash, billing_mode, pricing_plan,
+        insert into kb_billing_rule_versions(rule_id, version_code, uniq_hash, billing_mode, pricing_plan,
                                              currency, unit, config_json, status, effective_from, effective_to)
-        values(#{ruleCode}, #{versionCode}, #{uniqHash}, #{billingMode}, #{pricingPlan},
+        values(#{ruleId}, #{versionCode}, #{uniqHash}, #{billingMode}, #{pricingPlan},
                #{currency}, #{unit}, #{configJson}, #{status}, #{effectiveFrom}, #{effectiveTo})
     </insert>
 

@@ -550,9 +550,9 @@ CREATE TABLE IF NOT EXISTS kb_billing_rules (
 
 CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-  rule_code VARCHAR(64) NOT NULL COMMENT '计费规则业务码（kb_billing_rules.code），非主键 id',
+  rule_id BIGINT NOT NULL COMMENT '计费规则主键（kb_billing_rules.id）：版本是规则主体的从属，按主键绑定，规则编码可自由修改',
   version_code VARCHAR(32) NOT NULL COMMENT '规则内人工可读版本号（v1/v2/2026-01）',
-  uniq_hash VARCHAR(64) NOT NULL COMMENT '版本配置内容指纹（MD5），同一 rule_code 内唯一，防止重复版本',
+  uniq_hash VARCHAR(64) NOT NULL COMMENT '版本配置内容指纹（MD5），同一 rule_id 内唯一，防止重复版本',
   billing_mode VARCHAR(32) NOT NULL,
   pricing_plan VARCHAR(32) NOT NULL DEFAULT 'FIXED' COMMENT '进阶定价方案（PricingPlanEnum）：FIXED/TIERED/PEAK_OFF_PEAK，决定“价”，不改变用量',
   currency VARCHAR(16) NOT NULL DEFAULT 'USD',
@@ -565,9 +565,9 @@ CREATE TABLE IF NOT EXISTS kb_billing_rule_versions (
   effective_from DATETIME NOT NULL,
   effective_to DATETIME DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_billing_rule_version_code (rule_code, version_code),
-  UNIQUE KEY uk_billing_rule_version_hash (rule_code, uniq_hash),
-  KEY idx_billing_rule_versions_active (rule_code, status, effective_from, effective_to)
+  UNIQUE KEY uk_billing_rule_version_code (rule_id, version_code),
+  UNIQUE KEY uk_billing_rule_version_hash (rule_id, uniq_hash),
+  KEY idx_billing_rule_versions_active (rule_id, status, effective_from, effective_to)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='计费规则版本及价格配置';
 
 -- =========================

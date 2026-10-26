@@ -180,7 +180,7 @@ model       → 领域值对象（非表映射）
 
 ## 5. 编码细节
 
-- **跨模块绑定一律存 code 不存 id**（残留例外：`kx_model_items.logical_model_id`）。
+- **跨模块绑定一律存 code 不存 id**（残留例外：`kx_model_items.logical_model_id`）。⚠ **反向澄清（2026-10-26）**：**同一聚合内的从属明细按主体主键绑定**——判据是「是否跨聚合 / 能否独立存在」，不是「是不是两张表」。先例 `kb_billing_rule_versions.rule_id → kb_billing_rules.id`：版本是规则主体的从属明细，此前用 `rule_code` 关联，导致每条规则恒有版本行 → 改码守卫恒判「已引用」，规则编码实际不可改；且改码时按新码查不到旧版本行，会另起一条 `v1` 并把旧行留成孤儿。用 code 承载内部外键 = 把「可改的业务标识」升级成主键语义，必被改码反向咬住。
 - **权限三表与所有 `ks_` / `kx_` 表结构默认不动**（改错全站 403）。
 - **逻辑删除表 + UNIQUE(code) 四必配**：`countByXxxCode` 物理行判；列表 `includeDeleted` + mapper `<if>` + 排序 `is_deleted asc, id desc`；恢复端点 `PUT /{id}/restore`；引用检查覆盖 inner join 方。样板：`kb_models` / `kb_model_pools` / `kb_logical_models`。
 - **状态枚举**：删除语义移 `is_deleted`（Integer）；`EntityStatusEnum` / `UserStatusEnum` 并入 `EnabledStatusEnum`。⚠ 前端 truthy（`if (status)`）是头号风险，**0 是合法值**。
