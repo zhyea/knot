@@ -3,117 +3,117 @@
     v-model="visible"
     :title="isEdit ? '编辑计费规则' : '新建计费规则'"
     direction="rtl"
-    size="55%"
+    size="960px"
     class="drawer-with-scrollbar"
     destroy-on-close
   >
     <el-scrollbar v-loading="detailLoading" max-height="calc(100vh - 140px)">
       <el-tabs v-model="activeTab" type="border-card">
         <el-tab-pane label="表单编辑" name="form">
-          <el-form :model="form" label-width="90px" class="billing-rule-form">
-        <div class="slot-body form-section">
-          <div class="section-head">
-            <h3>基础信息</h3>
-            <el-form-item label="启用" class="inline-switch">
-              <el-switch v-model="form.enabled"/>
-            </el-form-item>
-          </div>
-          <el-row :gutter="16">
-            <el-col :span="12">
-              <el-form-item label="规则编码" required>
-                <el-input
-                  v-model="form.code"
-                  placeholder="如 TOKEN_GPT4O"
-                  maxlength="64"
-                  :readonly="codeBlockedByBinding"
-                />
-                <div v-if="codeBlockedByBinding" class="form-tip">
-                  已被 {{ boundModelCount }} 个供应商模型使用，需先解绑才能修改
-                </div>
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="模型族">
-                <EnumSelect
-                  v-model="form.modelFamilyCode"
-                  category="model_family"
-                  :code-only="codeOnly"
-                  clearable
-                  filterable
-                  placeholder="不选则作为默认规则"
-                  style="width: 100%"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="币种">
-                <EnumControl v-model="form.currency" enum-name="CurrencyCodeEnum"/>
-              </el-form-item>
-            </el-col>
-          </el-row>
-        </div>
-        <div class="space-line"/>
+          <el-form :model="form" label-width="120px" class="billing-rule-form">
+            <div class="slot-body form-section">
+              <div class="section-head">
+                <h3>基础信息</h3>
+                <el-form-item label="启用" class="inline-switch">
+                  <el-switch v-model="form.enabled"/>
+                </el-form-item>
+              </div>
+              <el-row :gutter="16">
+                <el-col :span="12">
+                  <el-form-item label="规则编码" required>
+                    <el-input
+                      v-model="form.code"
+                      placeholder="如 TOKEN_GPT4O"
+                      maxlength="64"
+                      :readonly="codeBlockedByBinding"
+                    />
+                    <div v-if="codeBlockedByBinding" class="form-tip">
+                      已被 {{ boundModelCount }} 个供应商模型使用，需先解绑才能修改
+                    </div>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="模型族">
+                    <EnumSelect
+                      v-model="form.modelFamilyCode"
+                      category="model_family"
+                      :code-only="codeOnly"
+                      clearable
+                      filterable
+                      placeholder="不选则作为默认规则"
+                      style="width: 100%"
+                    />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="币种">
+                    <EnumControl v-model="form.currency" enum-name="CurrencyCodeEnum"/>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </div>
+            <div class="space-line"/>
 
-        <div class="slot-body form-section">
-          <div class="section-head">
-            <h3>计费策略</h3>
-          </div>
-          <el-row :gutter="16">
-            <el-col :span="12">
-              <el-form-item label="计费模式" class="billing-strategy-label">
-                <EnumControl
-                  v-model="form.billingMode"
-                  enum-name="BillingModeEnum"
-                />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="进阶方案" class="billing-strategy-label">
-                <EnumControl
-                  v-model="form.pricingPlan"
-                  enum-name="PricingPlanEnum"
-                  :include-codes="planCodes"
-                  show-code
-                />
-              </el-form-item>
-            </el-col>
-            <el-col v-if="form.billingMode !== BillingMode.FREE" :span="12">
-              <el-form-item label="计费单位" class="billing-strategy-label">
-                <EnumControl
-                  v-model="form.unit"
-                  enum-name="BillingUnitEnum"
-                  :include-codes="unitCodes"
-                  show-code
-                />
-              </el-form-item>
-            </el-col>
-            <el-col v-if="form.billingMode === BillingMode.TOKEN" :span="24">
-              <el-form-item label="缓存写方式" class="cache-write-label">
-                <el-radio-group v-model="form.cacheWriteMode">
-                  <el-radio-button value="standard">缓存写</el-radio-button>
-                  <el-radio-button value="ttl">缓存写(5m)/(1h)</el-radio-button>
-                </el-radio-group>
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <!-- 第一层：模式组件（用量与基础价格）；第二层：方案组件（进阶定价明细） -->
-          <div class="billing-base-card">
-            <div class="billing-base-card__title">基础计费规则</div>
-            <component :is="modeComponent" :form="form"/>
-          </div>
-          <component :is="planComponent" :form="form"/>
-        </div>
+            <div class="slot-body form-section">
+              <div class="section-head">
+                <h3>计费策略</h3>
+              </div>
+              <el-row :gutter="16">
+                <el-col :span="12">
+                  <el-form-item label="计费模式" class="billing-strategy-label">
+                    <EnumControl
+                      v-model="form.billingMode"
+                      enum-name="BillingModeEnum"
+                    />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="进阶方案" class="billing-strategy-label">
+                    <EnumControl
+                      v-model="form.pricingPlan"
+                      enum-name="PricingPlanEnum"
+                      :include-codes="planCodes"
+                      show-code
+                    />
+                  </el-form-item>
+                </el-col>
+                <el-col v-if="form.billingMode !== BillingMode.FREE" :span="12">
+                  <el-form-item label="计费单位" class="billing-strategy-label">
+                    <EnumControl
+                      v-model="form.unit"
+                      enum-name="BillingUnitEnum"
+                      :include-codes="unitCodes"
+                      show-code
+                    />
+                  </el-form-item>
+                </el-col>
+                <el-col v-if="form.billingMode === BillingMode.TOKEN" :span="24">
+                  <el-form-item label="缓存写方式" class="cache-write-label">
+                    <el-radio-group v-model="form.cacheWriteMode">
+                      <el-radio-button value="standard">缓存写</el-radio-button>
+                      <el-radio-button value="ttl">缓存写(5m)/(1h)</el-radio-button>
+                    </el-radio-group>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <!-- 第一层：模式组件（用量与基础价格）；第二层：方案组件（进阶定价明细） -->
+              <div class="billing-base-card">
+                <div class="billing-base-card__title">基础计费规则</div>
+                <component :is="modeComponent" :form="form"/>
+              </div>
+              <component :is="planComponent" :form="form"/>
+            </div>
 
-        <div class="space-line"/>
+            <div class="space-line"/>
 
-        <div class="slot-body form-section">
-          <div class="section-head">
-            <h3>备注</h3>
-          </div>
-          <el-form-item label-width="0">
-            <el-input v-model="form.remark" type="textarea" :rows="4" maxlength="500" show-word-limit/>
-          </el-form-item>
-        </div>
+            <div class="slot-body form-section">
+              <div class="section-head">
+                <h3>备注</h3>
+              </div>
+              <el-form-item label-width="0">
+                <el-input v-model="form.remark" type="textarea" :rows="4" maxlength="500" show-word-limit/>
+              </el-form-item>
+            </div>
           </el-form>
         </el-tab-pane>
         <el-tab-pane label="config_json" name="json">
@@ -156,9 +156,22 @@ import PricingPlanTieredConfig from "./plans/PricingPlanTieredConfig.vue";
 import PricingPlanPeakOffPeakConfig from "./plans/PricingPlanPeakOffPeakConfig.vue";
 import {createBillingRule, updateBillingRule, listModeCapabilities, getBillingRule} from "@/api/billing";
 import {formatJsonText, isValidJsonText, parseJsonObject, roundPrice, stringifyJson} from "@/utils/format";
-import {basePricesOf, createTierPriceSet, createTierRow, parseTierRows, toNumberOrNull, toTierPayload, validateTierRows} from "@/utils/billingTier";
+import {
+  basePricesOf,
+  createTierPriceSet,
+  createTierRow,
+  parseTierRows,
+  toNumberOrNull,
+  toTierPayload,
+  validateTierRows
+} from "@/utils/billingTier";
 import type {TierRow} from "@/utils/billingTier";
-import {createDefaultPeakPricing, parsePeakPricing, toPeakPayload, validatePeakPricing} from "@/utils/billingPeakOffPeak";
+import {
+  createDefaultPeakPricing,
+  parsePeakPricing,
+  toPeakPayload,
+  validatePeakPricing
+} from "@/utils/billingPeakOffPeak";
 import type {PeakPricing} from "@/utils/billingPeakOffPeak";
 
 const props = defineProps({
@@ -565,7 +578,7 @@ function parseResolutionRows(raw: unknown): Dict[] {
     if (!base) {
       continue;
     }
-    const row = rows.get(base) || { key: base, price: null, referencePrice: null };
+    const row = rows.get(base) || {key: base, price: null, referencePrice: null};
     if (isReference) {
       row.referencePrice = price;
     } else {
