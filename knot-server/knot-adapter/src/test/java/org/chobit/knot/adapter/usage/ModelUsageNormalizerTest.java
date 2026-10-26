@@ -196,7 +196,7 @@ class ModelUsageNormalizerTest {
         assertEquals(0L, image.input().tokenTotal());
 
         ModelUsage video = ModelUsageNormalizer.fromBilling(
-                new VideoBillingUsage(TokenBillingUsage.empty(), 12L, 921_600L, 1280L, 720L, true, false), null);
+                new VideoBillingUsage(TokenBillingUsage.empty(), 12L, 0L, 0L, 921_600L, 1280L, 720L, true, false), null);
         assertNotNull(video);
         assertEquals(12L, video.output().videoSeconds());
         assertEquals(0L, video.output().imageCount());

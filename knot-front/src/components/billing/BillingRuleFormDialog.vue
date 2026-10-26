@@ -156,7 +156,7 @@ import PricingPlanTieredConfig from "./plans/PricingPlanTieredConfig.vue";
 import PricingPlanPeakOffPeakConfig from "./plans/PricingPlanPeakOffPeakConfig.vue";
 import {createBillingRule, updateBillingRule, listModeCapabilities, getBillingRule} from "@/api/billing";
 import {formatJsonText, isValidJsonText, parseJsonObject, roundPrice, stringifyJson} from "@/utils/format";
-import {basePricesOf, createTierPriceSet, createTierRow, parseTierRows, toTierPayload, validateTierRows} from "@/utils/billingTier";
+import {basePricesOf, createTierPriceSet, createTierRow, parseTierRows, toNumberOrNull, toTierPayload, validateTierRows} from "@/utils/billingTier";
 import type {TierRow} from "@/utils/billingTier";
 import {createDefaultPeakPricing, parsePeakPricing, toPeakPayload, validatePeakPricing} from "@/utils/billingPeakOffPeak";
 import type {PeakPricing} from "@/utils/billingPeakOffPeak";
@@ -231,12 +231,34 @@ interface BillingRuleFormState {
   cacheWrite5mUnitPrice: number;
   cacheWrite1hUnitPrice: number;
   cacheWriteMode: "standard" | "ttl";
-  videoPrice720p: number | null;
-  videoPrice1080p: number | null;
+  /**
+   * 分辨率档位行：档位名可自由填写（厂商档位不可枚举，MiniMax 用 768P、Vidu 用 540P）。
+   * 序列化时 price -> {@code resolutionPrices[档位名]}，
+   * referencePrice -> {@code resolutionPrices[档位名:REFERENCE]}。
+   */
+  videoResolutionRows: Dict[];
+  /** 视频合成量口径：OUTPUT / SUM / OUTPUT_PLUS_MAX */
+  videoQuantityMode: string;
+  videoInputVideoPerSecond: number | null;
+  videoInputImagePerImage: number | null;
+  videoFreeInputImages: number | null;
+  videoAudioSurcharge: number | null;
+  /**
+   * 附加费里表单未托管的条目（如 REFERENCE / ALWAYS 触发），原样保留并回写。
+   *
+   * <p>表单只编辑「音频直出」一条，而后端 {@code surcharges} 是数组且参与计价——
+   * 重建数组时丢掉未托管条目，等于管理员打开规则点一次保存就静默删掉别人的配置。</p>
+   */
+  videoExtraSurcharges: Dict[];
   imageResolution: string;
   imageQuality: string;
   /** 阶梯档位（pricingPlan=TIERED），保存时由 {@link toTierPayload} 并入 configJson.tier */
   tiers: TierRow[];
+  /**
+   * 阶梯累计方式（pricingPlan=TIERED）：PER_REQUEST 整笔落一档 / PROGRESSIVE 逐单位累加。
+   * 后者是 Vidu Q2「首秒阶梯」那种分段函数，与「总量落一档」是两套算法。
+   */
+  tierMode: string;
   /** 高低峰配置（pricingPlan=PEAK_OFF_PEAK），保存时由 {@link toPeakPayload} 并入 configJson.pricing */
   peakPricing: PeakPricing | null;
   customConfigJson: string;
@@ -260,11 +282,17 @@ const form = reactive<BillingRuleFormState>({
   cacheWrite5mUnitPrice: 0,
   cacheWrite1hUnitPrice: 0,
   cacheWriteMode: "standard",
-  videoPrice720p: null,
-  videoPrice1080p: null,
+  videoResolutionRows: [],
+  videoQuantityMode: "OUTPUT",
+  videoInputVideoPerSecond: null,
+  videoInputImagePerImage: null,
+  videoFreeInputImages: null,
+  videoAudioSurcharge: null,
+  videoExtraSurcharges: [],
   imageResolution: "",
   imageQuality: "",
   tiers: [],
+  tierMode: "PER_REQUEST",
   peakPricing: null,
   customConfigJson: "",
   enabled: true,
@@ -357,8 +385,9 @@ const PRICE_FIELDS = [
   "cacheWriteUnitPrice",
   "cacheWrite5mUnitPrice",
   "cacheWrite1hUnitPrice",
-  "videoPrice720p",
-  "videoPrice1080p"
+  "videoInputVideoPerSecond",
+  "videoInputImagePerImage",
+  "videoAudioSurcharge"
 ] as const;
 for (const field of PRICE_FIELDS) {
   watch(
@@ -495,15 +524,56 @@ function resetForm() {
   form.cacheWrite5mUnitPrice = 0;
   form.cacheWrite1hUnitPrice = 0;
   form.cacheWriteMode = "standard";
-  form.videoPrice720p = null;
-  form.videoPrice1080p = null;
+  form.videoResolutionRows = [];
+  form.videoQuantityMode = "OUTPUT";
+  form.videoInputVideoPerSecond = null;
+  form.videoInputImagePerImage = null;
+  form.videoFreeInputImages = null;
+  form.videoAudioSurcharge = null;
+  form.videoExtraSurcharges = [];
   form.imageResolution = "";
   form.imageQuality = "";
   form.tiers = [];
+  form.tierMode = "PER_REQUEST";
   form.peakPricing = null;
   form.customConfigJson = "";
   form.enabled = true;
   form.remark = "";
+}
+
+/**
+ * resolutionPrices -> 行列表：{@code 档位名} 与 {@code 档位名:REFERENCE} 归到同一行。
+ *
+ * <p>不做档位名白名单过滤——MiniMax 的 768P、Vidu 的 540P 都不在常用档位里，
+ * 过滤掉就等于丢配置。同一档位出现多种大小写写法时合并到最后一次出现的值。</p>
+ */
+function parseResolutionRows(raw: unknown): Dict[] {
+  if (!raw || typeof raw !== "object") {
+    return [];
+  }
+  const source = raw as Dict;
+  const REFERENCE_SUFFIX = ":REFERENCE";
+  const rows = new Map<string, Dict>();
+  for (const key of Object.keys(source)) {
+    const name = key.trim().toUpperCase();
+    const price = toNumberOrNull(source[key]);
+    if (price == null) {
+      continue;
+    }
+    const isReference = name.endsWith(REFERENCE_SUFFIX);
+    const base = isReference ? name.slice(0, -REFERENCE_SUFFIX.length) : name;
+    if (!base) {
+      continue;
+    }
+    const row = rows.get(base) || { key: base, price: null, referencePrice: null };
+    if (isReference) {
+      row.referencePrice = price;
+    } else {
+      row.price = price;
+    }
+    rows.set(base, row);
+  }
+  return [...rows.values()];
 }
 
 /** config 结构映射回表单字段（编辑回显与 config_json 页回写共用同一份映射） */
@@ -519,11 +589,25 @@ function applyConfig(config: Dict) {
   // cacheWriteMode 直接取落库值；未写入的旧配置按 standard 显式化（后端 null 语义即 standard），
   // 不做分价字段推断——本次保存后即为显式值
   form.cacheWriteMode = config.cacheWriteMode === "ttl" ? "ttl" : "standard";
-  form.videoPrice720p = config.resolutionPrices?.["720P"] != null ? Number(config.resolutionPrices["720P"]) : null;
-  form.videoPrice1080p = config.resolutionPrices?.["1080P"] != null ? Number(config.resolutionPrices["1080P"]) : null;
+  // 分辨率档位：键空间完全由配置决定（厂商档位不可枚举，不做白名单过滤）。
+  // {档位名} 与 {档位名}:REFERENCE 共用一张表，回显时按后缀拆到同一行的不同列。
+  form.videoResolutionRows = parseResolutionRows(config.resolutionPrices);
+  const video = (config.video && typeof config.video === "object") ? config.video : {};
+  form.videoQuantityMode = String(video.quantityMode || "OUTPUT").trim().toUpperCase() || "OUTPUT";
+  form.videoInputVideoPerSecond = toNumberOrNull(video.inputVideoPerSecond);
+  form.videoInputImagePerImage = toNumberOrNull(video.inputImagePerImage);
+  form.videoFreeInputImages = toNumberOrNull(video.freeInputImages);
+  const surcharges = Array.isArray(config.surcharges) ? config.surcharges : [];
+  const audioSurcharge = surcharges.find((item: Dict) => String(item?.trigger || "").toUpperCase() === "AUDIO");
+  form.videoAudioSurcharge = toNumberOrNull(audioSurcharge?.amount);
+  // 其余触发条件（REFERENCE / ALWAYS）表单不编辑，原样带回去，避免保存时被重建数组吞掉
+  form.videoExtraSurcharges = surcharges.filter((item: Dict) => item !== audioSurcharge);
   form.imageResolution = config.imageResolution || "";
   form.imageQuality = config.imageQuality || "";
   form.tiers = parseTierRows(config.tier);
+  form.tierMode = String(config.tierMode || "PER_REQUEST").trim().toUpperCase() === "PROGRESSIVE"
+    ? "PROGRESSIVE"
+    : "PER_REQUEST";
   // 高低峰回显：存过的用原配置，没有（或结构缺失）则给一份默认骨架
   form.peakPricing = parsePeakPricing(config.pricing) || createDefaultPeakPricing();
 }
@@ -592,15 +676,44 @@ function buildBaseConfig(): Dict | null {
   }
   if (form.billingMode === BillingMode.VIDEO) {
     const resolutionPrices: Dict = {};
-    if (form.videoPrice720p != null) {
-      resolutionPrices["720P"] = form.videoPrice720p;
+    for (const row of form.videoResolutionRows || []) {
+      const key = String(row?.key || "").trim().toUpperCase();
+      if (!key) {
+        continue;
+      }
+      const price = toNumberOrNull(row.price);
+      if (price != null) {
+        resolutionPrices[key] = price;
+      }
+      const referencePrice = toNumberOrNull(row.referencePrice);
+      if (referencePrice != null) {
+        resolutionPrices[`${key}:REFERENCE`] = referencePrice;
+      }
     }
-    if (form.videoPrice1080p != null) {
-      resolutionPrices["1080P"] = form.videoPrice1080p;
+    // video 段只在有实质配置时才落库：默认的「仅输出秒数」不需要写进 JSON
+    // （写了会污染老配置的 config_json，也让「默认行为」在库里多一份可漂移的副本）
+    const video: Dict = {};
+    if (form.videoQuantityMode && form.videoQuantityMode !== "OUTPUT") {
+      video.quantityMode = form.videoQuantityMode;
+    }
+    if (form.videoInputVideoPerSecond != null) {
+      video.inputVideoPerSecond = form.videoInputVideoPerSecond;
+    }
+    if (form.videoInputImagePerImage != null) {
+      video.inputImagePerImage = form.videoInputImagePerImage;
+    }
+    if (form.videoFreeInputImages != null) {
+      video.freeInputImages = form.videoFreeInputImages;
+    }
+    const surcharges: Dict[] = [...(form.videoExtraSurcharges || [])];
+    if (form.videoAudioSurcharge != null) {
+      surcharges.push({code: "AUDIO", trigger: "AUDIO", amount: form.videoAudioSurcharge});
     }
     return {
       defaultUnitPrice: form.unitPrice,
-      ...(Object.keys(resolutionPrices).length ? {resolutionPrices} : {})
+      ...(Object.keys(resolutionPrices).length ? {resolutionPrices} : {}),
+      ...(Object.keys(video).length ? {video} : {}),
+      ...(surcharges.length ? {surcharges} : {})
     };
   }
   if (form.billingMode === BillingMode.EMBEDDING) {
@@ -619,8 +732,11 @@ function buildConfigJson() {
   const base = buildBaseConfig();
   if (form.pricingPlan === PricingPlan.TIERED) {
     // 档位缺失项以 0 落库，满足后端「每档 6 项单价齐全」约束；保存前统一 2 空格格式化
+    // tierMode 仅在 TIERED 下写入——非 TIERED 配了它会被后端 validate 拒绝
+    const mode = String(form.tierMode || "PER_REQUEST").trim().toUpperCase();
     return stringifyJson({
       ...(base || {}),
+      tierMode: mode === "PROGRESSIVE" ? "PROGRESSIVE" : "PER_REQUEST",
       tier: toTierPayload(form.tiers)
     }, 2);
   }

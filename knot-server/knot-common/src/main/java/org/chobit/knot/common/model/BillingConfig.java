@@ -60,13 +60,28 @@ public record BillingConfig(
         BigDecimal defaultUnitPrice,
         PriceSet basePrices,
         List<TierRule> tier,
+        /**
+         * 阶梯累计方式（仅 pricingPlan=TIERED 时生效）：
+         * {@code PER_REQUEST}（默认）整笔用量落一档、全量按该档单价；
+         * {@code PROGRESSIVE} 逐单位判定所属档位、单价逐单位累加（Vidu Q2 首秒阶梯）。
+         */
+        String tierMode,
         Map<String, BigDecimal> resolutionPrices,
+        /** 视频模式扩展：合成量口径 + 多分量单价 + 免费额度；null 时退化为「仅按输出秒数」 */
+        VideoConfig video,
+        /** 附加费：与用量无关的常数项，命中触发条件即加进总价 */
+        List<Surcharge> surcharges,
         Pricing pricing,
         /** 缓存写方式（TOKEN 模式）：standard=单字段缓存写，ttl=5m/1h 分字段；null 视为 standard */
         String cacheWriteMode) {
 
     /** cacheWriteMode 合法取值 */
     public static final Set<String> SUPPORTED_CACHE_WRITE_MODES = Set.of("standard", "ttl");
+
+    /** tierMode 合法取值 */
+    public static final String TIER_MODE_PER_REQUEST = "PER_REQUEST";
+    public static final String TIER_MODE_PROGRESSIVE = "PROGRESSIVE";
+    public static final Set<String> SUPPORTED_TIER_MODES = Set.of(TIER_MODE_PER_REQUEST, TIER_MODE_PROGRESSIVE);
 
     /** 首期唯一的计价方式：在模式层基础单价上乘相位倍率 */
     private static final String RATE_MODE_MULTIPLIER = "MULTIPLIER";
@@ -140,6 +155,111 @@ public record BillingConfig(
     /** 阶梯区间：from 必填（含），to 可空（含，空表示上不封顶） */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Condition(BigDecimal from, BigDecimal to) {
+    }
+
+    // ==================== 视频模式扩展（2026-10-25） ====================
+
+    /**
+     * 视频模式扩展配置：合成量口径 + 输入侧分量单价 + 输入图片免费额度。
+     *
+     * <p>业界三种「量」的口径（设计文档 §3.2 / §3.4）：
+     * <ul>
+     *   <li>{@code OUTPUT}（默认）：量 = 输出视频秒数。Vidu Q3/Q4、豆包走这条。</li>
+     *   <li>{@code SUM}：量 = 输入秒 + 输出秒。MiniMax 输入视频按秒走这条。</li>
+     *   <li>{@code OUTPUT_PLUS_MAX}：量 = 输出秒 + max(输入秒, 输出秒)，<b>输入为 0 时即输出秒</b>。
+     *       一条公式覆盖 Kling 三档条件——无输入=输出；输入≤输出=输出×2；输入&gt;输出=输入+输出。</li>
+     * </ul>
+     *
+     * <p>输入侧分量（{@code inputVideoPerSecond} / {@code inputImagePerImage}）非空时才启用对应分量，
+     * 各分量独立计价后求和（MiniMax「输出秒 + 输入秒 + 输入图片张」三路）。
+     * 分量单价同样走维度键分档（键前缀 {@link #INPUT_VIDEO_PREFIX} / {@link #INPUT_IMAGE_PREFIX}），
+     * 未配置时回落 {@code defaultUnitPrice}。</p>
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record VideoConfig(String quantityMode,
+                              BigDecimal inputVideoPerSecond,
+                              BigDecimal inputImagePerImage,
+                              Integer freeInputImages) {
+
+        public static final String QUANTITY_OUTPUT = "OUTPUT";
+        public static final String QUANTITY_SUM = "SUM";
+        public static final String QUANTITY_OUTPUT_PLUS_MAX = "OUTPUT_PLUS_MAX";
+        public static final Set<String> SUPPORTED_QUANTITY_MODES =
+                Set.of(QUANTITY_OUTPUT, QUANTITY_SUM, QUANTITY_OUTPUT_PLUS_MAX);
+
+        /** 输入视频分量的维度键前缀 */
+        public static final String INPUT_VIDEO_PREFIX = "INPUT_VIDEO:";
+        /** 输入图片分量的维度键前缀 */
+        public static final String INPUT_IMAGE_PREFIX = "INPUT_IMAGE:";
+
+        /**
+         * 合成量：把输入秒按口径折进输出秒，产出单一计费量。
+         *
+         * <p>⚠ {@code OUTPUT_PLUS_MAX} 的「无输入视频」必须显式判 {@code inputSeconds > 0}：
+         * 写成 {@code 输出 + max(输入, 输出)} 时，输入为 0 会算出 {@code 输出 + 输出}，
+         * 把 Kling 的「无输入=输出时长」错算成双倍。Kling 三档验算：</p>
+         * <pre>
+         * 输入 0、输出 5  -> 5              （无输入 = 输出时长）
+         * 输入 3、输出 5  -> 5 + 5  = 10    （输入 ≤ 输出 = 输出×2）
+         * 输入 8、输出 5  -> 5 + 8  = 13    （输入 > 输出 = 输入+输出）
+         * </pre>
+         */
+        public long quantity(long outputSeconds, long inputSeconds) {
+            String mode = blankToNull(quantityMode) == null ? QUANTITY_OUTPUT : quantityMode.trim().toUpperCase();
+            if (outputSeconds <= 0) {
+                return Math.max(outputSeconds, 0L);
+            }
+            return switch (mode) {
+                case QUANTITY_SUM -> outputSeconds + Math.max(inputSeconds, 0L);
+                case QUANTITY_OUTPUT_PLUS_MAX -> inputSeconds > 0
+                        ? outputSeconds + Math.max(inputSeconds, outputSeconds)
+                        : outputSeconds;
+                default -> outputSeconds;
+            };
+        }
+
+        /** 输入图片计费张数：扣掉免费额度后剩余；免费额度未配置时为全部 */
+        public long billableImageCount(long imageCount) {
+            long free = freeInputImages == null || freeInputImages < 0 ? 0L : freeInputImages;
+            return Math.max(imageCount - free, 0L);
+        }
+
+        /** 是否启用输入视频分量 */
+        public boolean billsInputVideo() {
+            return inputVideoPerSecond != null;
+        }
+
+        /** 是否启用输入图片分量 */
+        public boolean billsInputImage() {
+            return inputImagePerImage != null;
+        }
+    }
+
+    /**
+     * 附加费：与用量无关的常数项（Vidu 音频直出 +15 积分 / 微调推理 +40 积分）。
+     *
+     * <p>{@code trigger} 决定何时收取：{@code ALWAYS}（恒收）/ {@code AUDIO}（请求侧要了声音）/
+     * {@code REFERENCE}（请求侧带了参考输入）。未识别的触发码视为 {@code ALWAYS}——
+     * 附加费是「配了就该收」，宁可多收被对账发现，也不要静默漏收。</p>
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Surcharge(String code, String trigger, BigDecimal amount) {
+
+        public static final String TRIGGER_ALWAYS = "ALWAYS";
+        public static final String TRIGGER_AUDIO = "AUDIO";
+        public static final String TRIGGER_REFERENCE = "REFERENCE";
+        public static final Set<String> SUPPORTED_TRIGGERS =
+                Set.of(TRIGGER_ALWAYS, TRIGGER_AUDIO, TRIGGER_REFERENCE);
+
+        /** 该附加费是否在本次请求上触发 */
+        public boolean triggered(boolean sound, boolean reference) {
+            String mode = blankToNull(trigger) == null ? TRIGGER_ALWAYS : trigger.trim().toUpperCase();
+            return switch (mode) {
+                case TRIGGER_AUDIO -> sound;
+                case TRIGGER_REFERENCE -> reference;
+                default -> true;
+            };
+        }
     }
 
     // ==================== 高低峰定价（pricingPlan=PEAK_OFF_PEAK） ====================
@@ -310,6 +430,31 @@ public record BillingConfig(
         return resolutionPrices == null ? null : resolutionPrices.get(resolution);
     }
 
+    /** PROGRESSIVE 阶梯是否启用：tierMode 显式为 PROGRESSIVE 且配了档位 */
+    public boolean progressive() {
+        return TIER_MODE_PROGRESSIVE.equalsIgnoreCase(blankToNull(tierMode)) && tier != null && !tier.isEmpty();
+    }
+
+    /**
+     * 命中本次请求的附加费总额：触发条件成立即累加。
+     *
+     * <p>{@code sound} / {@code reference} 来自请求侧生成属性；附加费不随用量变化，
+     * 也不参与阶梯与高低峰——它是常数项，与「价」层正交。</p>
+     */
+    public BigDecimal surchargeTotal(boolean sound, boolean reference) {
+        if (surcharges == null || surcharges.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal total = BigDecimal.ZERO;
+        for (Surcharge item : surcharges) {
+            if (item == null || item.amount() == null || !item.triggered(sound, reference)) {
+                continue;
+            }
+            total = total.add(item.amount());
+        }
+        return total;
+    }
+
     // ==================== 进阶方案领域层 ====================
 
     /**
@@ -326,10 +471,45 @@ public record BillingConfig(
 
         /** 简单模式/兜底单价：defaultUnitPrice -&gt; fallback，再乘相位倍率 */
         BigDecimal resolveDefaultPrice(PricingContext context, BigDecimal fallback);
+
+        /**
+         * 维度键取价（媒体模式的分档单价）：候选键顺序命中 -&gt; defaultUnitPrice -&gt; fallback，再乘相位倍率。
+         *
+         * <p>⭐ 这是「分辨率价」唯一的正规入口（2026-10-25）。此前 {@code VideoBillingModeCalculator}
+         * 命中 {@code resolutionPrices} 后直接 return，**绕过整个方案层**，导致视频拿不到错峰与阶梯
+         * （代码注释自标「风险 ①」）。分档价与基础价必须过同一条倍率链，否则「配了错峰却不生效」
+         * 与「错峰只对错了一半的分量生效」两种资损都无从察觉。</p>
+         */
+        BigDecimal resolveDimensionPrice(List<String> candidateKeys, PricingContext context, BigDecimal fallback);
+
+        /**
+         * 多分量场景下单分量的取价：候选键 -&gt; 分量自带默认价 -&gt; fallback，再乘相位倍率。
+         *
+         * <p>⭐ 与 {@link #resolveDimensionPrice} 的区别在「维度键未命中时谁兜底」：
+         * 主分量（输出视频）回落规则的 {@code defaultUnitPrice}；而输入视频 / 输入图片这类
+         * <b>自带分量价</b>的分量必须回落到自己的 {@code video.inputVideoPerSecond} /
+         * {@code inputImagePerImage}，<b>不能</b>被 {@code defaultUnitPrice} 抢先——
+         * 那会把「输入图片 0.20/张」静默算成「输出视频 0.50/秒」的价（2026-10-25 实测：
+         * MiniMax 三路求和被多算 1.5）。两个取价入口因此分开声明，不共用一条回落链。</p>
+         */
+        BigDecimal resolveComponentPrice(List<String> candidateKeys,
+                                         BigDecimal componentDefault,
+                                         PricingContext context,
+                                         BigDecimal fallback);
+
+        /**
+         * PROGRESSIVE 阶梯的单价累加和：{@code Σ(i=1..amount) 第 i 个单位所属档位单价}。
+         *
+         * <p>只在 {@link #progressive()} 为真时有意义，其余情况返回 {@code null}，
+         * 由调用方回退到「量 × 单价」。返回的是<b>单价域</b>的和，单位基数换算仍在计算器侧。</p>
+         */
+        BigDecimal resolveProgressiveSum(PriceKind kind, long amount, PricingContext context, BigDecimal fallback);
     }
 
     /** 固定价：基础价格直出 */
-    private record FixedPricing(PriceSet basePrices, BigDecimal defaultUnitPrice) implements PricingPlan {
+    private record FixedPricing(PriceSet basePrices,
+                                BigDecimal defaultUnitPrice,
+                                Map<String, BigDecimal> dimensionPrices) implements PricingPlan {
 
         @Override
         public PricingPlanEnum plan() {
@@ -349,11 +529,37 @@ public record BillingConfig(
         public BigDecimal resolveDefaultPrice(PricingContext context, BigDecimal fallback) {
             return defaultUnitPrice != null ? defaultUnitPrice : fallback;
         }
+
+        @Override
+        public BigDecimal resolveDimensionPrice(List<String> candidateKeys, PricingContext context, BigDecimal fallback) {
+            BigDecimal matched = dimensionPrice(candidateKeys, dimensionPrices);
+            return matched != null ? matched : resolveDefaultPrice(context, fallback);
+        }
+
+        @Override
+        public BigDecimal resolveComponentPrice(List<String> candidateKeys,
+                                                BigDecimal componentDefault,
+                                                PricingContext context,
+                                                BigDecimal fallback) {
+            BigDecimal matched = dimensionPrice(candidateKeys, dimensionPrices);
+            if (matched != null) {
+                return matched;
+            }
+            return componentDefault != null ? componentDefault : resolveDefaultPrice(context, fallback);
+        }
+
+        @Override
+        public BigDecimal resolveProgressiveSum(PriceKind kind, long amount, PricingContext context, BigDecimal fallback) {
+            return null;
+        }
     }
 
     /** 阶梯价：按用量命中档位单价，未命中回退基础价格 */
-    private record TieredPricing(PriceSet basePrices, BigDecimal defaultUnitPrice, List<TierRule> tier)
-            implements PricingPlan {
+    private record TieredPricing(PriceSet basePrices,
+                                 BigDecimal defaultUnitPrice,
+                                 List<TierRule> tier,
+                                 boolean progressive,
+                                 Map<String, BigDecimal> dimensionPrices) implements PricingPlan {
 
         @Override
         public PricingPlanEnum plan() {
@@ -376,6 +582,59 @@ public record BillingConfig(
         @Override
         public BigDecimal resolveDefaultPrice(PricingContext context, BigDecimal fallback) {
             return defaultUnitPrice != null ? defaultUnitPrice : fallback;
+        }
+
+        @Override
+        public BigDecimal resolveDimensionPrice(List<String> candidateKeys, PricingContext context, BigDecimal fallback) {
+            BigDecimal matched = dimensionPrice(candidateKeys, dimensionPrices);
+            return matched != null ? matched : resolveDefaultPrice(context, fallback);
+        }
+
+        /**
+         * PROGRESSIVE：把用量拆成 {@code amount} 个单位，逐单位判定档位后累加单价。
+         *
+         * <p>与 {@link #resolveFromTier} 共用一个「按数值命中档位」的判定，
+         * 区别只在代入的是<b>单位序号 i</b> 而不是<b>本笔总用量</b>：</p>
+         * <pre>
+         * Vidu Q2-turbo 720P（第1秒 8，第2秒 10，第3秒起 +10），8 秒：
+         *   8 + 10 + 10×6 = 78
+         * </pre>
+         */
+        @Override
+        public BigDecimal resolveProgressiveSum(PriceKind kind, long amount, PricingContext context, BigDecimal fallback) {
+            if (!progressive || amount <= 0) {
+                return null;
+            }
+            BigDecimal total = BigDecimal.ZERO;
+            for (long unit = 1; unit <= amount; unit++) {
+                BigDecimal price = tierPriceAt(kind, unit);
+                if (price == null) {
+                    price = resolveDefaultPrice(context, fallback);
+                }
+                if (price != null) {
+                    total = total.add(price);
+                }
+            }
+            return total;
+        }
+
+        @Override
+        public BigDecimal resolveComponentPrice(List<String> candidateKeys,
+                                                BigDecimal componentDefault,
+                                                PricingContext context,
+                                                BigDecimal fallback) {
+            BigDecimal matched = dimensionPrice(candidateKeys, dimensionPrices);
+            if (matched != null) {
+                return matched;
+            }
+            return componentDefault != null ? componentDefault : resolveDefaultPrice(context, fallback);
+        }
+
+        private BigDecimal tierPriceAt(PriceKind kind, long unitIndex) {
+            if (tier == null) {
+                return null;
+            }
+            return resolveFromTier(kind, unitIndex);
         }
 
         private BigDecimal resolveFromTier(PriceKind kind, long usageAmount) {
@@ -414,7 +673,8 @@ public record BillingConfig(
     private record PeakOffPeakPricing(PriceSet basePrices,
                                       BigDecimal defaultUnitPrice,
                                       Pricing pricing,
-                                      HolidayCalendar calendar) implements PricingPlan {
+                                      HolidayCalendar calendar,
+                                      Map<String, BigDecimal> dimensionPrices) implements PricingPlan {
 
         private boolean absolute() {
             return RATE_MODE_ABSOLUTE.equals(blankToNull(pricing == null ? null : pricing.rateMode()));
@@ -458,6 +718,81 @@ public record BillingConfig(
             BigDecimal price = rule.unitPrices().valueOf(kind);
             return price != null ? price : fallback;
         }
+
+        /**
+         * 维度价 × 相位倍率。
+         *
+         * <p>ABSOLUTE 模式下相位自带单价，维度分档价<b>不</b>参与（相位价已是最终价，
+         * 再叠维度价会双重计价）；MULTIPLIER 模式下维度价与普通单价一样乘倍率。</p>
+         */
+        @Override
+        public BigDecimal resolveDimensionPrice(List<String> candidateKeys, PricingContext context, BigDecimal fallback) {
+            PhaseDecision decision = PeakOffPeakResolver.resolve(
+                    pricing, context == null ? null : context.occurredAt(), calendar);
+            if (absolute()) {
+                BillingConfig.PhaseRule rule = decision.matchedRule();
+                BigDecimal price = rule != null && rule.unitPrices() != null ? rule.unitPrices().input() : null;
+                return price != null ? price : fallback;
+            }
+            BigDecimal matched = dimensionPrice(candidateKeys, dimensionPrices);
+            BigDecimal base = matched != null ? matched : (defaultUnitPrice != null ? defaultUnitPrice : fallback);
+            return base == null ? null : base.multiply(decision.multiplier());
+        }
+
+        /**
+         * 分量价 × 相位倍率；ABSOLUTE 模式下取相位自带价（叠加分量默认价会双重计价）。
+         */
+        @Override
+        public BigDecimal resolveComponentPrice(List<String> candidateKeys,
+                                                BigDecimal componentDefault,
+                                                PricingContext context,
+                                                BigDecimal fallback) {
+            PhaseDecision decision = PeakOffPeakResolver.resolve(
+                    pricing, context == null ? null : context.occurredAt(), calendar);
+            if (absolute()) {
+                BillingConfig.PhaseRule rule = decision.matchedRule();
+                BigDecimal price = rule != null && rule.unitPrices() != null ? rule.unitPrices().input() : null;
+                return price != null ? price : fallback;
+            }
+            BigDecimal matched = dimensionPrice(candidateKeys, dimensionPrices);
+            BigDecimal base = matched != null ? matched
+                    : (componentDefault != null ? componentDefault
+                    : (defaultUnitPrice != null ? defaultUnitPrice : fallback));
+            return base == null ? null : base.multiply(decision.multiplier());
+        }
+
+        @Override
+        public BigDecimal resolveProgressiveSum(PriceKind kind, long amount, PricingContext context, BigDecimal fallback) {
+            return null;
+        }
+    }
+
+    /**
+     * 维度键取价的唯一实现：按候选键顺序返回第一个命中的价格。
+     *
+     * <p>三个方案共用，保证「分档价」在固定价 / 阶梯价 / 高低峰价下走同一条查表口径；
+     * 大小写三种写法（原样 / 全大写 / 全小写）都试一次，与旧实现同款宽容度。</p>
+     */
+    private static BigDecimal dimensionPrice(List<String> candidateKeys, Map<String, BigDecimal> dimensionPrices) {
+        if (dimensionPrices == null || candidateKeys == null) {
+            return null;
+        }
+        for (String key : candidateKeys) {
+            if (key == null) {
+                continue;
+            }
+            BigDecimal price = dimensionPrices.get(key);
+            if (price == null) {
+                price = dimensionPrices.get(key.toUpperCase());
+            }
+            if (price == null) {
+                price = dimensionPrices.get(key.toLowerCase());
+            }
+            if (price != null) {
+                return price;
+            }
+        }
+        return null;
     }
 
     /**
@@ -474,9 +809,9 @@ public record BillingConfig(
         PricingPlanEnum resolved = plan == null ? PricingPlanEnum.FIXED : plan;
         HolidayCalendar effective = calendar == null ? HolidayCalendar.EMPTY : calendar;
         return switch (resolved) {
-            case FIXED -> new FixedPricing(basePrices, defaultUnitPrice);
-            case TIERED -> new TieredPricing(basePrices, defaultUnitPrice, tier);
-            case PEAK_OFF_PEAK -> new PeakOffPeakPricing(basePrices, defaultUnitPrice, pricing, effective);
+            case FIXED -> new FixedPricing(basePrices, defaultUnitPrice, resolutionPrices);
+            case TIERED -> new TieredPricing(basePrices, defaultUnitPrice, tier, progressive(), resolutionPrices);
+            case PEAK_OFF_PEAK -> new PeakOffPeakPricing(basePrices, defaultUnitPrice, pricing, effective, resolutionPrices);
         };
     }
 
@@ -509,7 +844,61 @@ public record BillingConfig(
                 }
             }
         }
-        return validateTier(tier);
+        String videoError = validateVideo(video);
+        if (videoError != null) {
+            return videoError;
+        }
+        String tierError = validateTier(tier);
+        if (tierError != null) {
+            return tierError;
+        }
+        return validateSurcharges(surcharges);
+    }
+
+    /** 视频扩展校验：合成量口径合法、分量单价与免费额度非负 */
+    private static String validateVideo(VideoConfig video) {
+        if (video == null) {
+            return null;
+        }
+        String mode = blankToNull(video.quantityMode());
+        if (mode != null && !VideoConfig.SUPPORTED_QUANTITY_MODES.contains(mode.trim().toUpperCase())) {
+            return "video.quantityMode must be OUTPUT, SUM or OUTPUT_PLUS_MAX";
+        }
+        if (video.inputVideoPerSecond() != null && video.inputVideoPerSecond().signum() < 0) {
+            return "video.inputVideoPerSecond cannot be negative";
+        }
+        if (video.inputImagePerImage() != null && video.inputImagePerImage().signum() < 0) {
+            return "video.inputImagePerImage cannot be negative";
+        }
+        if (video.freeInputImages() != null && video.freeInputImages() < 0) {
+            return "video.freeInputImages cannot be negative";
+        }
+        return null;
+    }
+
+    /** 附加费校验：金额必填非负、触发码合法 */
+    private static String validateSurcharges(List<Surcharge> items) {
+        if (items == null || items.isEmpty()) {
+            return null;
+        }
+        for (int index = 0; index < items.size(); index++) {
+            Surcharge item = items.get(index);
+            String path = "surcharges[" + index + "]";
+            if (item == null) {
+                return path + " must not be null";
+            }
+            if (item.amount() == null) {
+                return path + ".amount is required";
+            }
+            if (item.amount().signum() < 0) {
+                return path + ".amount cannot be negative";
+            }
+            String trigger = blankToNull(item.trigger());
+            if (trigger != null && !Surcharge.SUPPORTED_TRIGGERS.contains(trigger.trim().toUpperCase())) {
+                return path + ".trigger must be ALWAYS, AUDIO or REFERENCE";
+            }
+        }
+        return null;
     }
 
     /**
@@ -527,12 +916,28 @@ public record BillingConfig(
             return baseError;
         }
         if (resolved == PricingPlanEnum.TIERED) {
-            return validateTierComplete(tier);
+            String modeError = validateTierMode();
+            return modeError != null ? modeError : validateTierComplete(tier);
         }
         if (resolved == PricingPlanEnum.PEAK_OFF_PEAK) {
             return validatePricing(pricing);
         }
+        // tierMode 只在 TIERED 下有意义：非阶梯方案配了它说明配置意图与方案不一致，拒绝保存
+        if (blankToNull(tierMode) != null) {
+            return "tierMode is only allowed for TIERED plan";
+        }
         return null;
+    }
+
+    /** TIERED 专属追加：tierMode 合法（缺省视为 PER_REQUEST） */
+    private String validateTierMode() {
+        String mode = blankToNull(tierMode);
+        if (mode == null) {
+            return null;
+        }
+        return SUPPORTED_TIER_MODES.contains(mode.toUpperCase())
+                ? null
+                : "tierMode must be PER_REQUEST or PROGRESSIVE";
     }
 
     /** TIERED 专属：tier 必须为非空数组，每项 condition 完整、unitPrices 完整保留全部 6 个价格字段 */

@@ -6,6 +6,7 @@ import org.chobit.knot.common.constants.enums.BillingModeEnum;
 import org.chobit.knot.common.constants.enums.BillingUnitEnum;
 import org.chobit.knot.adapter.model.usage.NormalizedBillingAmount;
 import org.chobit.knot.adapter.model.usage.NormalizedUsageDetail;
+import org.chobit.knot.adapter.model.usage.TokenBillingUsage;
 import org.chobit.knot.adapter.model.usage.TokenUsageDetailKind;
 import org.chobit.knot.adapter.model.ref.BillingRuleRef;
 import org.chobit.knot.adapter.usage.NormalizedUsageContext;
@@ -25,7 +26,7 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
      * 所需的 12 位。PER_MINUTE（60 秒）曾是唯一的非 10 的幂基数，已于 2026-10-17 退役——
      * 按分钟计费必须在配置期把单价折成每秒价，不允许 60 进金额公式。</p>
      */
-    private static final MathContext MONEY_DIVISION = MathContext.DECIMAL128;
+    protected static final MathContext MONEY_DIVISION = MathContext.DECIMAL128;
 
     protected BillingRuleRef rule(NormalizedUsageContext context) {
         return context.rule();
@@ -110,5 +111,31 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
 
     protected long firstAmount(long primary, long fallback) {
         return primary > 0 ? primary : fallback;
+    }
+
+    /**
+     * 本次是否按 token 计量：由规则单位声明（{@link BillingUnitEnum#tokenBased()}）。
+     *
+     * <p>单位一律先过 {@link BillingModeEnum#normalizeUnit(String)}——空白 / 非法 / 本模式不支持时
+     * 取模式默认（VIDEO → PER_SECOND），与管理端表单同源，计算器里不另写一套兜底。</p>
+     *
+     * <p>⭐ 必须由<b>所有</b>计算器共用：VIDEO 规则绑 VideoBillingModeCalculator
+     * 与走通用兜底（SimpleBillingModeCalculator）是两条并存的路径，
+     * 各写一份判断就会漂移——同一条规则换个提取器绑定即换一套量纲，且编译与单测全绿。</p>
+     */
+    protected boolean tokenQuantity(BillingRuleRef rule, BillingModeEnum mode) {
+        String unitCode = mode == null ? null : mode.normalizeUnit(rule == null ? null : rule.unit());
+        BillingUnitEnum unit = BillingUnitEnum.fromCode(unitCode);
+        return unit != null && unit.tokenBased();
+    }
+
+    /**
+     * token 计费量：总量优先，其次输出量——与 {@code TokenBillingModeCalculator} 同口径。
+     *
+     * <p>视频模型上报的 token 语义由协议侧决定，这里不做启发式猜测（见 60-business-rules §8.2）；
+     * 总量缺失时回落<b>输出</b>而非输入——「出了多少内容」比「喂了多少」更接近所有已知厂商口径。</p>
+     */
+    protected long tokenAmount(TokenBillingUsage tokens) {
+        return firstAmount(tokens.totalTokens(), tokens.outputTokens());
     }
 }

@@ -15,7 +15,16 @@ public enum BillingModeEnum implements EnumOption {
     REQUEST("REQUEST", "请求", units(BillingUnitEnum.PER_REQUEST), BillingUnitEnum.PER_REQUEST),
     IMAGE("IMAGE", "图片", units(BillingUnitEnum.PER_IMAGE), BillingUnitEnum.PER_IMAGE),
     AUDIO("AUDIO", "音频", units(BillingUnitEnum.PER_SECOND), BillingUnitEnum.PER_SECOND),
-    VIDEO("VIDEO", "视频", units(BillingUnitEnum.PER_SECOND), BillingUnitEnum.PER_SECOND),
+    /**
+     * 视频：默认按秒（{@code PER_SECOND}）；token 三档供「视频模型按 token 计价」的厂商使用
+     * （豆包 Seedance 是 {@code 元/百万token}）。量纲由单位本身声明——
+     * 选了 {@code 1M_TOKENS} 就取内嵌 token 量，选 {@code PER_SECOND} 就取秒，
+     * 不再另设 {@code quantitySource} 字段（同一件事写两遍必然漂移）。
+     *
+     * <p>分辨率与「是否含视频输入」在这两种量纲下都仍是<b>分档键</b>，不是计费量。</p>
+     */
+    VIDEO("VIDEO", "视频", units(BillingUnitEnum.PER_SECOND, BillingUnitEnum.PER_TOKEN,
+            BillingUnitEnum.ONE_K_TOKENS, BillingUnitEnum.ONE_M_TOKENS), BillingUnitEnum.PER_SECOND),
     EMBEDDING("EMBEDDING", "Embedding", units(BillingUnitEnum.PER_TOKEN, BillingUnitEnum.ONE_K_TOKENS, BillingUnitEnum.ONE_M_TOKENS),
             BillingUnitEnum.ONE_M_TOKENS),
     FREE("FREE", "免费", units(BillingUnitEnum.ONE_K_TOKENS), BillingUnitEnum.ONE_K_TOKENS),

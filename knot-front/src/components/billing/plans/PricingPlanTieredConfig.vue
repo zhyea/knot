@@ -4,13 +4,29 @@
       <template #title>
         <div class="tier-editor__hint-body">
           <span>
-            按{{ scope.amountLabel }}命中<strong>唯一档位</strong>计价，不跨档拆段；未命中任何档位时回退上方基础价。
-            起始用量与截止用量均为闭区间，截止用量留空 = 上不封顶，<strong>该档只能是最后一档</strong>。
+            <template v-if="isProgressive">
+              按<strong>单位序号</strong>逐档累加：第 N 个单位落在哪一档就取该档单价，逐单位求和（Vidu Q2「首秒阶梯」）。
+              档位区间填的是<strong>第几个单位</strong>（如第 1 秒填 1~1、第 2 秒填 2~2），不是本笔总用量。
+            </template>
+            <template v-else>
+              按{{ scope.amountLabel }}命中<strong>唯一档位</strong>计价，不跨档拆段；未命中任何档位时回退上方基础价。
+              起始用量与截止用量均为闭区间，截止用量留空 = 上不封顶，<strong>该档只能是最后一档</strong>。
+            </template>
           </span>
           <span class="tier-editor__hint-unit">阶梯档位基准：{{ scope.amountLabel }}</span>
         </div>
       </template>
     </el-alert>
+
+    <el-form-item v-if="supportsProgressive" label="累计方式" class="tier-editor__mode">
+      <el-radio-group v-model="form.tierMode">
+        <el-radio-button value="PER_REQUEST">整笔落一档</el-radio-button>
+        <el-radio-button value="PROGRESSIVE">逐单位累加</el-radio-button>
+      </el-radio-group>
+      <span class="tier-editor__tip">
+        {{ isProgressive ? "分段函数：各段单价逐单位求和，总价不与「量×单价」成简单乘算关系" : "单价 × 用量" }}
+      </span>
+    </el-form-item>
 
     <div v-for="(row, index) in rows" :key="row.uid || `tier-${index}`" class="tier-card">
       <div class="tier-card__head">
@@ -101,6 +117,14 @@ const props = defineProps({
  */
 const rows = computed<TierRow[]>(() => (Array.isArray(props.form.tiers) ? props.form.tiers : []));
 const issues = computed<TierIssue[]>(() => validateTierRows(rows.value));
+/**
+ * 逐单位累加（PROGRESSIVE）只在「按秒/按张」这类可拆成离散单位的模式上有意义：
+ * TOKEN 模式整笔落一档即可，放开只会让配置语义变模糊。
+ */
+const supportsProgressive = computed(() => ["VIDEO", "AUDIO", "IMAGE"].includes(props.form.billingMode));
+const isProgressive = computed(
+  () => supportsProgressive.value && String(props.form.tierMode || "PER_REQUEST").toUpperCase() === "PROGRESSIVE"
+);
 /** 用量口径与基础价映射由计费模式决定；方案层不感知具体模式 */
 const scope = computed(() => tierScope(props.form.billingMode));
 const canFillFromBase = computed(() => scope.value.basePriceFields != null);

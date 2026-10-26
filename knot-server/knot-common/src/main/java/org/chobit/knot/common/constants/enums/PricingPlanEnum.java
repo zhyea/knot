@@ -15,14 +15,27 @@ public enum PricingPlanEnum implements EnumOption {
     /** 基础价格直出（默认方案），支持全部计费模式 */
     FIXED("固定价"),
 
-    /** 阶梯价：按约定用量（首期=本次请求总 Token）命中价格档位；首期仅 TOKEN */
-    TIERED("阶梯价", BillingModeEnum.TOKEN),
+    /**
+     * 阶梯价：按约定用量命中价格档位（首期=本次请求总 Token）。
+     *
+     * <p>2026-10-25 放开到媒体模式（IMAGE / AUDIO / VIDEO）：Vidu Q2 的「首秒阶梯」
+     * 正是按秒分档的现实需求，且放开的前置条件——分档价收进方案层（{@code resolveDimensionPrice}）——
+     * 已随同批修复落地（此前命中分辨率价直接 return，绕过整个方案层）。</p>
+     *
+     * <p>媒体模式下的档位基准是该模式的计费量（IMAGE=张数、AUDIO/VIDEO=秒数），
+     * 整笔落一档（默认）或逐单位累加（{@code tierMode=PROGRESSIVE}）。</p>
+     */
+    TIERED("阶梯价", BillingModeEnum.TOKEN, BillingModeEnum.IMAGE, BillingModeEnum.AUDIO, BillingModeEnum.VIDEO),
 
     /**
-     * 高低峰价：按发生时点所处相位打折，相位判定见 {@code PeakOffPeakResolver}；首期仅 TOKEN。
-     * 已随阶段三落地与本方案一并开放（原 `this != PEAK_OFF_PEAK` 的排除条件已移除）。
+     * 高低峰价：按发生时点所处相位打折，相位判定见 {@code PeakOffPeakResolver}。
+     *
+     * <p>已随阶段三落地开放；2026-10-25 再放开到媒体模式（IMAGE / AUDIO / VIDEO）——
+     * Vidu 的错峰半价是这套机制在视频域的直接对应物。⚠ 前提是分档价必须过方案层，
+     * 否则「配了错峰但分辨率价不打折」会静默只对部分分量生效。</p>
      */
-    PEAK_OFF_PEAK("高低峰价", BillingModeEnum.TOKEN);
+    PEAK_OFF_PEAK("高低峰价", BillingModeEnum.TOKEN, BillingModeEnum.IMAGE, BillingModeEnum.AUDIO,
+            BillingModeEnum.VIDEO);
 
     private final String label;
     private final List<BillingModeEnum> supportedBillingModes;

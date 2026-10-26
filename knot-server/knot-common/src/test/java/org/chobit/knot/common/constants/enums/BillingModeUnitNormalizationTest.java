@@ -37,7 +37,22 @@ class BillingModeUnitNormalizationTest {
     void unknownUnitCodeFallsBackToModeDefault() {
         // 常量名 ONE_K_TOKENS 不是合法 code（合法是 1K_TOKENS）——写错时不能按字面接受
         assertEquals(BillingUnitEnum.ONE_M_TOKENS.code(), BillingModeEnum.TOKEN.normalizeUnit("ONE_K_TOKENS"));
-        assertEquals(BillingUnitEnum.PER_SECOND.code(), BillingModeEnum.VIDEO.normalizeUnit("1K_TOKENS"));
+        // VIDEO 不支持按张 / 按请求，写错时回落每秒
+        assertEquals(BillingUnitEnum.PER_SECOND.code(), BillingModeEnum.VIDEO.normalizeUnit("PER_IMAGE"));
+        assertEquals(BillingUnitEnum.PER_SECOND.code(), BillingModeEnum.VIDEO.normalizeUnit("ONE_K_TOKENS"));
+    }
+
+    @Test
+    void videoSupportsTokenUnitsForTokenPricedVideoModels() {
+        // 2026-10-26：豆包 Seedance 是「视频模型按 token 计价」（元/百万token），
+        // VIDEO 模式必须能选 token 单位，否则只能按秒计、对不上厂商口径。
+        // ⚠ 这条也钉住「量纲由单位声明」——不要再去加 quantitySource 一类平行字段。
+        assertEquals(BillingUnitEnum.ONE_M_TOKENS.code(), BillingModeEnum.VIDEO.normalizeUnit("1M_TOKENS"));
+        assertEquals(BillingUnitEnum.ONE_K_TOKENS.code(), BillingModeEnum.VIDEO.normalizeUnit("1K_TOKENS"));
+        assertEquals(BillingUnitEnum.PER_TOKEN.code(), BillingModeEnum.VIDEO.normalizeUnit("PER_TOKEN"));
+        // 默认仍是按秒：未显式选单位的存量规则行为不变
+        assertEquals(BillingUnitEnum.PER_SECOND.code(), BillingModeEnum.VIDEO.normalizeUnit("PER_SECOND"));
+        assertEquals(BillingUnitEnum.PER_SECOND.code(), BillingModeEnum.VIDEO.normalizeUnit(null));
     }
 
     @Test

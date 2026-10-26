@@ -64,6 +64,20 @@ public enum BillingUnitEnum implements EnumOption {
     }
 
     /**
+     * 该单位是否是「按 token 计」的量纲。
+     *
+     * <p>⭐ 量纲由单位本身声明，不需要另设 {@code quantitySource} 一类字段：
+     * 「一单位收多少钱」的分母是什么，就已经回答了「按什么收」。
+     * 再开一个字段等于把同一件事写两遍，两处必然漂移（2026-10-26 对齐豆包口径时确立）。</p>
+     *
+     * <p>用途：VIDEO 模式默认按秒（{@code PER_SECOND}），但豆包 Seedance 这类
+     * 「视频模型按 token 计价」的厂商要选 {@code 1M_TOKENS}，计算器据此改取 token 量。</p>
+     */
+    public boolean tokenBased() {
+        return this == PER_TOKEN || this == ONE_K_TOKENS || this == ONE_M_TOKENS;
+    }
+
+    /**
      * 按编码解析计费单位并返回数量基数，无法识别的编码直接拒绝。
      */
     public static int unitSizeOf(String code) {

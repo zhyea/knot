@@ -68,7 +68,7 @@ const CAPABILITIES = {
       supportedUnits: ["1M_TOKENS", "1K_TOKENS", "PER_TOKEN"],
       supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK"]
     },
-    {code: "VIDEO", defaultUnit: "PER_SECOND", supportedUnits: ["PER_SECOND"], supportedPricingPlans: ["FIXED"]},
+    {code: "VIDEO", defaultUnit: "PER_SECOND", supportedUnits: ["PER_SECOND"], supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK"]},
     {code: "CUSTOM", defaultUnit: "CUSTOM", supportedUnits: ["CUSTOM"], supportedPricingPlans: ["FIXED"]},
     {code: "FREE", defaultUnit: "PER_REQUEST", supportedUnits: ["PER_REQUEST"], supportedPricingPlans: ["FIXED"]}
   ]
@@ -519,7 +519,9 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     );
 
     const wrapper = await openDialog({ruleId: RULE_ID});
-    expect(formOf(wrapper, BillingModeVideoConfig).videoPrice720p).toBe(0.2);
+    expect(formOf(wrapper, BillingModeVideoConfig).videoResolutionRows).toEqual([
+      { key: "720P", price: 0.2, referencePrice: null }
+    ]);
     await save(wrapper);
 
     expect(configOf(updatePayload())).toEqual({defaultUnitPrice: 0.1, resolutionPrices: {"720P": 0.2}});
@@ -573,6 +575,134 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
   });
 
   // ==================== 保存成功 ====================
+
+  // ==================== 视频计费规则（2026-10-25） ====================
+
+  it("VIDEO 含参考输入的分档价单独回显，不与纯分辨率价混用", async () => {
+    // 豆包 Seedance 口径：同一分辨率下「是否含视频输入」是两套价（720P=70 / 720P:REFERENCE=42）
+    vi.mocked(getBillingRule).mockResolvedValue(
+      detailRow({
+        billingMode: "VIDEO",
+        unit: "PER_SECOND",
+        configJson: JSON.stringify({
+          defaultUnitPrice: 70,
+          resolutionPrices: {"720P": 70, "720P:REFERENCE": 42, "1080P": 77}
+        })
+      }) as never
+    );
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper, BillingModeVideoConfig);
+    // 分辨率档位由行列表承载：档位名不受白名单限制，参考价归到同一行的另一列
+    expect(form.videoResolutionRows).toEqual([
+      { key: "720P", price: 70, referencePrice: 42 },
+      { key: "1080P", price: 77, referencePrice: null }
+    ]);
+  });
+
+  it("VIDEO 分辨率档位名不受白名单限制，自定义档可保存", async () => {
+    // MiniMax 用 768P / 2K，都不在常用档位里——档位名必须可自由填写，
+    // 固定 6 档会让这类厂商永远配不上价（2026-10-26 修的就是这个）
+    vi.mocked(getBillingRule).mockResolvedValue(
+      detailRow({
+        billingMode: "VIDEO",
+        unit: "PER_SECOND",
+        configJson: JSON.stringify({defaultUnitPrice: 9, resolutionPrices: {"768P": 0.5, "768P:REFERENCE": 0.3}})
+      }) as never
+    );
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper, BillingModeVideoConfig);
+    // 回显：自定义档位不被过滤，参考价归到同一行
+    expect(form.videoResolutionRows).toEqual([{key: "768P", price: 0.5, referencePrice: 0.3}]);
+
+    form.videoResolutionRows.push({key: "2K", price: 0.8, referencePrice: null});
+    await save(wrapper);
+
+    expect(configOf(updatePayload())).toEqual({
+      defaultUnitPrice: 9,
+      resolutionPrices: {"768P": 0.5, "768P:REFERENCE": 0.3, "2K": 0.8}
+    });
+  });
+
+  it("VIDEO 分量配置与附加费并入 configJson", async () => {
+    vi.mocked(getBillingRule).mockResolvedValue(
+      detailRow({billingMode: "VIDEO", unit: "PER_SECOND", configJson: "{\"defaultUnitPrice\": 0.5}"}) as never
+    );
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper, BillingModeVideoConfig);
+    form.videoQuantityMode = "OUTPUT_PLUS_MAX";
+    form.videoInputVideoPerSecond = 0.5;
+    form.videoInputImagePerImage = 0.2;
+    form.videoFreeInputImages = 5;
+    form.videoAudioSurcharge = 15;
+    await save(wrapper);
+
+    expect(configOf(updatePayload())).toEqual({
+      defaultUnitPrice: 0.5,
+      video: {
+        quantityMode: "OUTPUT_PLUS_MAX",
+        inputVideoPerSecond: 0.5,
+        inputImagePerImage: 0.2,
+        freeInputImages: 5
+      },
+      surcharges: [{code: "AUDIO", trigger: "AUDIO", amount: 15}]
+    });
+  });
+
+  it("VIDEO 附加费里未托管的触发条件不被保存吞掉", async () => {
+    // 表单只编辑「音频直出」一条，而 surcharges 是数组且参与计价——
+    // 重建数组时丢掉 REFERENCE / ALWAYS 条目，等于管理员点一次保存就静默删掉别人的配置
+    vi.mocked(getBillingRule).mockResolvedValue(
+      detailRow({
+        billingMode: "VIDEO",
+        unit: "PER_SECOND",
+        configJson: JSON.stringify({
+          defaultUnitPrice: 0.5,
+          surcharges: [
+            {code: "AUDIO", trigger: "AUDIO", amount: 15},
+            {code: "REFERENCE", trigger: "REFERENCE", amount: 40}
+          ]
+        })
+      }) as never
+    );
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    // 音频那条仍回显到表单
+    expect(formOf(wrapper, BillingModeVideoConfig).videoAudioSurcharge).toBe(15);
+    await save(wrapper);
+
+    expect(configOf(updatePayload()).surcharges).toEqual([
+      {code: "REFERENCE", trigger: "REFERENCE", amount: 40},
+      {code: "AUDIO", trigger: "AUDIO", amount: 15}
+    ]);
+  });
+
+  it("VIDEO 阶梯写 tierMode，逐单位累加与整笔落档可区分", async () => {
+    vi.mocked(getBillingRule).mockResolvedValue(
+      detailRow({
+        billingMode: "VIDEO",
+        unit: "PER_SECOND",
+        pricingPlan: "TIERED",
+        configJson: JSON.stringify({
+          defaultUnitPrice: 2,
+          tierMode: "PROGRESSIVE",
+          tier: [
+            {condition: {from: 1, to: 1}, unitPrices: {input: 8, output: 0, cacheRead: 0, cacheWrite: 0, cacheWrite5m: 0, cacheWrite1h: 0}},
+            {condition: {from: 2}, unitPrices: {input: 10, output: 0, cacheRead: 0, cacheWrite: 0, cacheWrite5m: 0, cacheWrite1h: 0}}
+          ]
+        })
+      }) as never
+    );
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    await save(wrapper);
+
+    const config = configOf(updatePayload());
+    expect(config.tierMode).toBe("PROGRESSIVE");
+    expect(config.tier).toHaveLength(2);
+  });
 
   it("保存成功后关闭抽屉并抛出 saved", async () => {
     const wrapper = await openDialog({ruleId: RULE_ID});

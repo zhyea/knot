@@ -38,6 +38,50 @@ final class MediaUsageReaders {
                 "duration_seconds", "audio_seconds", "video_seconds", "seconds", "duration");
     }
 
+    /**
+     * 请求侧输入视频时长（秒）：合成量（Kling 式）与「输入视频按秒」分量都靠它。
+     *
+     * <p>与 {@link #durationSeconds} 同口径（数值直取），但只读请求体——
+     * 输入时长是调用方声明的，上游不会在 usage 里回传。</p>
+     */
+    static long inputDurationSeconds(Map<String, Object> requestBody) {
+        return MapNumberUtils.firstLong(requestBody,
+                "input_duration_seconds", "input_video_seconds", "input_duration", "input_video_duration",
+                "source_duration", "source_video_seconds");
+    }
+
+    /**
+     * 请求侧输入图片张数：数组长度优先，其次显式计数字段。
+     *
+     * <p>MiniMax 的「输入图片每张」按张计费，故这里要的是<b>元素个数</b>而不是布尔——
+     * 与 {@code flag()} 的「有没有」是两种口径，不能混用。</p>
+     */
+    static long imageCount(Map<String, Object> requestBody) {
+        if (requestBody == null) {
+            return 0L;
+        }
+        for (String key : new String[]{"images", "input_images", "reference_images", "image_urls", "frames"}) {
+            long count = countElements(requestBody.get(key));
+            if (count > 0) {
+                return count;
+            }
+        }
+        return MapNumberUtils.firstLong(requestBody,
+                "image_count", "input_image_count", "num_images", "n_images");
+    }
+
+    /** 数组 / 集合的元素个数；非集合返回 0 */
+    private static long countElements(Object value) {
+        if (value instanceof Iterable<?> iterable) {
+            long count = 0L;
+            for (Object ignored : iterable) {
+                count++;
+            }
+            return count;
+        }
+        return 0L;
+    }
+
     /** 响应体 {@code data} 数组长度：图像类接口用它表示产出张数 */
     static long countData(Map<String, Object> body) {
         if (body == null) {
