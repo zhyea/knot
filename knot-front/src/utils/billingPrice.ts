@@ -13,4 +13,4 @@
 export const UNIT_PRICE_PRECISION = 8;
 
 /** 单价输入步长：10^-4 只是起步增量，不影响可输入的精度（precision 才是硬约束） */
-export const UNIT_PRICE_STEP = 0.0001;
+export const UNIT_PRICE_STEP = 0.01;
