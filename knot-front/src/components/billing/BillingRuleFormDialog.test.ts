@@ -7,6 +7,7 @@ import BillingRuleFormDialog from "@/components/billing/BillingRuleFormDialog.vu
 import BillingModeTokenConfig from "@/components/billing/modes/BillingModeTokenConfig.vue";
 import BillingModeVideoConfig from "@/components/billing/modes/BillingModeVideoConfig.vue";
 import BillingModeCustomConfig from "@/components/billing/modes/BillingModeCustomConfig.vue";
+import PricingPlanVendorMiniMaxConfig from "@/components/billing/plans/PricingPlanVendorMiniMaxConfig.vue";
 import type {Dict} from "@/types";
 
 /**
@@ -68,7 +69,7 @@ const CAPABILITIES = {
       supportedUnits: ["1M_TOKENS", "1K_TOKENS", "PER_TOKEN"],
       supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK"]
     },
-    {code: "VIDEO", defaultUnit: "PER_SECOND", supportedUnits: ["PER_SECOND"], supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK"]},
+    {code: "VIDEO", defaultUnit: "PER_SECOND", supportedUnits: ["PER_SECOND"], supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK", "VENDOR_MINIMAX"]},
     {code: "CUSTOM", defaultUnit: "CUSTOM", supportedUnits: ["CUSTOM"], supportedPricingPlans: ["FIXED"]},
     {code: "FREE", defaultUnit: "PER_REQUEST", supportedUnits: ["PER_REQUEST"], supportedPricingPlans: ["FIXED"]}
   ]
@@ -520,7 +521,7 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
 
     const wrapper = await openDialog({ruleId: RULE_ID});
     expect(formOf(wrapper, BillingModeVideoConfig).videoResolutionRows).toEqual([
-      { key: "720P", price: 0.2, referencePrice: null }
+      { key: "720P", price: 0.2, referencePrice: null, inputPrice: null }
     ]);
     await save(wrapper);
 
@@ -595,8 +596,8 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     const form = formOf(wrapper, BillingModeVideoConfig);
     // 分辨率档位由行列表承载：档位名不受白名单限制，参考价归到同一行的另一列
     expect(form.videoResolutionRows).toEqual([
-      { key: "720P", price: 70, referencePrice: 42 },
-      { key: "1080P", price: 77, referencePrice: null }
+      { key: "720P", price: 70, referencePrice: 42, inputPrice: null },
+      { key: "1080P", price: 77, referencePrice: null, inputPrice: null }
     ]);
   });
 
@@ -614,9 +615,9 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     const wrapper = await openDialog({ruleId: RULE_ID});
     const form = formOf(wrapper, BillingModeVideoConfig);
     // 回显：自定义档位不被过滤，参考价归到同一行
-    expect(form.videoResolutionRows).toEqual([{key: "768P", price: 0.5, referencePrice: 0.3}]);
+    expect(form.videoResolutionRows).toEqual([{key: "768P", price: 0.5, referencePrice: 0.3, inputPrice: null}]);
 
-    form.videoResolutionRows.push({key: "2K", price: 0.8, referencePrice: null});
+    form.videoResolutionRows.push({key: "2K", price: 0.8, referencePrice: null, inputPrice: null});
     await save(wrapper);
 
     expect(configOf(updatePayload())).toEqual({
@@ -702,6 +703,76 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     const config = configOf(updatePayload());
     expect(config.tierMode).toBe("PROGRESSIVE");
     expect(config.tier).toHaveLength(2);
+  });
+
+  it("VENDOR_MINIMAX：独立方案组件渲染，落官方三分量配置且不写合成量/附加费", async () => {
+    vi.mocked(getBillingRule).mockResolvedValue(
+      detailRow({
+        billingMode: "VIDEO",
+        unit: "PER_SECOND",
+        pricingPlan: "VENDOR_MINIMAX",
+        configJson: JSON.stringify({
+          defaultUnitPrice: 0.5,
+          resolutionPrices: {"768P": 0.5, "INPUT_VIDEO:768P": 0.3},
+          video: {inputImagePerImage: 0.2, freeInputImages: 5}
+        })
+      }) as never
+    );
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    // 独立 MiniMax 方案组件已渲染（不是 FIXED 的说明壳）
+    expect(wrapper.findComponent(PricingPlanVendorMiniMaxConfig).exists()).toBe(true);
+
+    const form = formOf(wrapper, BillingModeVideoConfig);
+    expect(form.videoInputImagePerImage).toBe(0.2);
+    expect(form.videoFreeInputImages).toBe(5);
+    // 档位输入价与输出价归到同一行
+    expect(form.videoResolutionRows).toEqual([
+      {key: "768P", price: 0.5, referencePrice: null, inputPrice: 0.3}
+    ]);
+
+    await save(wrapper);
+    expect(updatePayload().pricingPlan).toBe("VENDOR_MINIMAX");
+    expect(configOf(updatePayload())).toEqual({
+      defaultUnitPrice: 0.5,
+      resolutionPrices: {"768P": 0.5, "INPUT_VIDEO:768P": 0.3},
+      video: {inputImagePerImage: 0.2, freeInputImages: 5}
+    });
+  });
+
+  it("VENDOR_MINIMAX：输入价等于输出价时不落 INPUT_VIDEO 键，缺图片价则拦截保存", async () => {
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    // 同一 reactive form：切模式后子组件换了，但引用不变
+    const form = formOf(wrapper);
+    form.billingMode = "VIDEO";
+    await flushPromises();
+    form.pricingPlan = "VENDOR_MINIMAX";
+    await flushPromises();
+
+    // 切到 MiniMax 时补官方默认：图片 0.20 / 免费 5 张
+    expect(wrapper.findComponent(BillingModeVideoConfig).exists()).toBe(true);
+    expect(form.videoInputImagePerImage).toBe(0.2);
+    expect(form.videoFreeInputImages).toBe(5);
+
+    // 档位价 = 0.5，输入价留空 -> 落库只有纯档位价
+    form.videoResolutionRows.push({key: "768P", price: 0.5, referencePrice: null, inputPrice: null});
+    await save(wrapper);
+    const config = configOf(updatePayload());
+    expect(config.resolutionPrices).toEqual({"768P": 0.5});
+    expect(config.video).toEqual({inputImagePerImage: 0.2, freeInputImages: 5});
+    expect(config.video.quantityMode).toBeUndefined();
+    expect(config.surcharges).toBeUndefined();
+
+    // 清空图片单价 -> 保存被拦截并提示
+    const wrapper2 = await openDialog({ruleId: RULE_ID});
+    const form2 = formOf(wrapper2);
+    form2.billingMode = "VIDEO";
+    await flushPromises();
+    form2.pricingPlan = "VENDOR_MINIMAX";
+    await flushPromises();
+    form2.videoInputImagePerImage = null;
+    await save(wrapper2);
+    expect(warned().some((message) => message.includes("输入图片"))).toBe(true);
   });
 
   it("保存成功后关闭抽屉并抛出 saved", async () => {

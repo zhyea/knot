@@ -38,6 +38,8 @@ public class TokenBillingModeCalculator extends AbstractBillingModeCalculator {
             case FIXED -> calculateFixed(context, usage);
             case TIERED -> calculateTiered(context, usage);
             case PEAK_OFF_PEAK -> calculatePeakOffPeak(context, usage);
+            // VENDOR_MINIMAX 取价语义与 FIXED 完全一致（仅 VIDEO 模式可用，不会经 TOKEN 计算器分发，此处保底）
+            case VENDOR_MINIMAX -> calculateFixed(context, usage);
         };
     }
 

@@ -554,6 +554,54 @@ public record BillingConfig(
         }
     }
 
+    /** 厂商定制（MiniMax 特例）计费规则：取价语义与固定价完全一致（无阶梯、无相位倍率），仅 plan() 不同，作分类标签与校验锚点 */
+    private record VendorMiniMaxPricing(PriceSet basePrices,
+                                        BigDecimal defaultUnitPrice,
+                                        Map<String, BigDecimal> dimensionPrices) implements PricingPlan {
+
+        @Override
+        public PricingPlanEnum plan() {
+            return PricingPlanEnum.VENDOR_MINIMAX;
+        }
+
+        @Override
+        public BigDecimal resolvePrice(PriceKind kind, PricingContext context, BigDecimal fallback) {
+            BigDecimal fromBase = basePrices == null ? null : basePrices.valueOf(kind);
+            if (fromBase != null) {
+                return fromBase;
+            }
+            return defaultUnitPrice != null ? defaultUnitPrice : fallback;
+        }
+
+        @Override
+        public BigDecimal resolveDefaultPrice(PricingContext context, BigDecimal fallback) {
+            return defaultUnitPrice != null ? defaultUnitPrice : fallback;
+        }
+
+        @Override
+        public BigDecimal resolveDimensionPrice(List<String> candidateKeys, PricingContext context, BigDecimal fallback) {
+            BigDecimal matched = dimensionPrice(candidateKeys, dimensionPrices);
+            return matched != null ? matched : resolveDefaultPrice(context, fallback);
+        }
+
+        @Override
+        public BigDecimal resolveComponentPrice(List<String> candidateKeys,
+                                                BigDecimal componentDefault,
+                                                PricingContext context,
+                                                BigDecimal fallback) {
+            BigDecimal matched = dimensionPrice(candidateKeys, dimensionPrices);
+            if (matched != null) {
+                return matched;
+            }
+            return componentDefault != null ? componentDefault : resolveDefaultPrice(context, fallback);
+        }
+
+        @Override
+        public BigDecimal resolveProgressiveSum(PriceKind kind, long amount, PricingContext context, BigDecimal fallback) {
+            return null;
+        }
+    }
+
     /** 阶梯价：按用量命中档位单价，未命中回退基础价格 */
     private record TieredPricing(PriceSet basePrices,
                                  BigDecimal defaultUnitPrice,
@@ -812,6 +860,7 @@ public record BillingConfig(
             case FIXED -> new FixedPricing(basePrices, defaultUnitPrice, resolutionPrices);
             case TIERED -> new TieredPricing(basePrices, defaultUnitPrice, tier, progressive(), resolutionPrices);
             case PEAK_OFF_PEAK -> new PeakOffPeakPricing(basePrices, defaultUnitPrice, pricing, effective, resolutionPrices);
+            case VENDOR_MINIMAX -> new VendorMiniMaxPricing(basePrices, defaultUnitPrice, resolutionPrices);
         };
     }
 
@@ -922,6 +971,9 @@ public record BillingConfig(
         if (resolved == PricingPlanEnum.PEAK_OFF_PEAK) {
             return validatePricing(pricing);
         }
+        if (resolved == PricingPlanEnum.VENDOR_MINIMAX) {
+            return validateVendorMiniMax();
+        }
         // tierMode 只在 TIERED 下有意义：非阶梯方案配了它说明配置意图与方案不一致，拒绝保存
         if (blankToNull(tierMode) != null) {
             return "tierMode is only allowed for TIERED plan";
@@ -938,6 +990,16 @@ public record BillingConfig(
         return SUPPORTED_TIER_MODES.contains(mode.toUpperCase())
                 ? null
                 : "tierMode must be PER_REQUEST or PROGRESSIVE";
+    }
+
+    /** VENDOR_MINIMAX 专属：必须带厂商定制分量形状（输入视频秒 / 输入图片张数 / 附加费之一），否则配置与类型自相矛盾 */
+    private String validateVendorMiniMax() {
+        // MiniMax H3 的识别特征是「输入图片按张计费」：视频输入价可由输出档位价回落、免费额度默认 5、
+        // 音频输入免费，故只有图片单价是必须显式配置的分量单价
+        if (video == null || video.inputImagePerImage() == null) {
+            return "VENDOR_MINIMAX requires video.inputImagePerImage (per-image price)";
+        }
+        return null;
     }
 
     /** TIERED 专属：tier 必须为非空数组，每项 condition 完整、unitPrices 完整保留全部 6 个价格字段 */

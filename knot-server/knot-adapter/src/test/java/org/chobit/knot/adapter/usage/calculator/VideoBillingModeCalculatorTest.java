@@ -337,6 +337,116 @@ class VideoBillingModeCalculatorTest {
         assertEquals(1, amount.details().size());
     }
 
+    // ==================== VENDOR_MINIMAX 专属口径（MiniMax H3 官方价表） ====================
+    //
+    // 官方规则（2026-10 截图）：
+    //   输出视频每秒 = 输入视频每秒（同档位成对相等，如 768P 都是 0.50、2K 都是 0.80）
+    //   输入图片每张固定价（H3/H3-Highspeed 0.20、Lite 0.13），不随分辨率变，前 5 张免费
+    //   视频输入按输入时长及所选模型的输出分辨率计费；音频输入免费
+
+    private static final String MINIMAX_H3 = """
+            {
+              "defaultUnitPrice": 0.50,
+              "resolutionPrices": {"2K": 0.80, "768P": 0.50},
+              "video": {"inputImagePerImage": 0.20, "freeInputImages": 5}
+            }
+            """;
+
+    @Test
+    void vendorMiniMaxShouldSumThreeComponentsOnOfficialPrices() {
+        // 输出 10 秒 × 0.50 = 5.00；输入 4 秒 × 0.50（同档位输出价回落）= 2.00；
+        // 图片 (8-5) 张 × 0.20 = 0.60  => 7.60
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule(MINIMAX_H3, "VENDOR_MINIMAX"),
+                video(10L, 4L, 8L, 1366L, 768L, false, false)));
+
+        assertEquals("7.60", amount.totalCost(), "5.00 + 2.00 + 0.60");
+        assertEquals(3, amount.details().size(), "输出 / 输入视频 / 输入图片 各一条");
+        assertEquals("VIDEO:768P", amount.details().get(0).type());
+        assertEquals("VIDEO_INPUT_VIDEO", amount.details().get(1).type());
+        assertEquals("VIDEO_INPUT_IMAGE", amount.details().get(2).type());
+        assertEquals(3L, amount.details().get(2).tokens(), "8 张扣 5 张免费 -> 计费 3 张");
+    }
+
+    @Test
+    void vendorMiniMaxShouldPickTierPriceByOutputResolution() {
+        // 2K 档：输出 10 秒 × 0.80 = 8.00；输入 4 秒 × 0.80 = 3.20；图片 0 张 => 11.20
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule(MINIMAX_H3, "VENDOR_MINIMAX"),
+                video(10L, 4L, 0L, 2560L, 1440L, false, false)));
+
+        assertEquals("11.20", amount.totalCost(), "2K 档输出/输入均 0.80");
+        assertEquals("VIDEO:2K", amount.details().get(0).type(), "2560x1440 归一到 2K");
+    }
+
+    @Test
+    void vendorMiniMaxShouldHonorInputVideoPriceOverride() {
+        // INPUT_VIDEO:768P 单配 0.30：输出 10×0.50=5.00 + 输入 4×0.30=1.20 => 6.20
+        String config = """
+                {
+                  "defaultUnitPrice": 0.50,
+                  "resolutionPrices": {"768P": 0.50, "INPUT_VIDEO:768P": 0.30},
+                  "video": {"inputImagePerImage": 0.20, "freeInputImages": 5}
+                }
+                """;
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule(config, "VENDOR_MINIMAX"),
+                video(10L, 4L, 0L, 1366L, 768L, false, false)));
+
+        assertEquals("6.20", amount.totalCost(), "输入价覆盖生效，不是回落输出价 5.00+2.00");
+    }
+
+    @Test
+    void vendorMiniMaxShouldDefaultFreeImagesToFive() {
+        // 未配 freeInputImages -> 按 MiniMax 默认 5 张免费：3 张全免、8 张只收 3 张
+        String config = """
+                {"defaultUnitPrice": 0.50, "video": {"inputImagePerImage": 0.13}}
+                """;
+        NormalizedBillingAmount threeImages = calculator.calculate(context(
+                rule(config, "VENDOR_MINIMAX"),
+                video(10L, 0L, 3L, 1366L, 768L, false, false)));
+        assertEquals("5.00", threeImages.totalCost(), "3 张未超 5 张免费额度");
+        assertEquals(1, threeImages.details().size(), "无图片明细");
+
+        NormalizedBillingAmount eightImages = calculator.calculate(context(
+                rule(config, "VENDOR_MINIMAX"),
+                video(10L, 0L, 8L, 1366L, 768L, false, false)));
+        assertEquals("5.39", eightImages.totalCost(), "输出 5.00 + 图片 3×0.13=0.39");
+    }
+
+    @Test
+    void vendorMiniMaxShouldNotChargeAnySurchargeForAudio() {
+        // 配了 AUDIO 附加费也不收：MiniMax 音频输入免费
+        String config = """
+                {
+                  "defaultUnitPrice": 0.50,
+                  "video": {"inputImagePerImage": 0.20},
+                  "surcharges": [{"code": "AUDIO", "trigger": "AUDIO", "amount": 0.30}]
+                }
+                """;
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule(config, "VENDOR_MINIMAX"),
+                video(10L, 0L, 0L, 1366L, 768L, true, false)));
+
+        assertEquals("5.00", amount.totalCost(), "只有输出分量，音频免费不加 0.30");
+        assertEquals(1, amount.details().size(), "无附加费明细");
+    }
+
+    @Test
+    void vendorMiniMaxShouldNeverFoldInputSecondsIntoOutput() {
+        // 即使配了 quantityMode=SUM，也不得把输入秒折进输出量（否则与输入视频分量重复计费）
+        String config = """
+                {"defaultUnitPrice": 0.50, "video": {"quantityMode": "SUM", "inputImagePerImage": 0.20}}
+                """;
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule(config, "VENDOR_MINIMAX"),
+                video(5L, 3L, 0L, 1366L, 768L, false, false)));
+
+        assertEquals(5L, amount.details().get(0).tokens(), "输出分量仍是 5 秒，没有被 SUM 折成 8");
+        assertEquals(3L, amount.details().get(1).tokens(), "输入秒单独作为分量");
+        assertEquals("4.00", amount.totalCost(), "输出 2.50 + 输入 1.50");
+    }
+
     // ==================== S2 PROGRESSIVE 分段累加（Vidu Q2） ====================
 
     /** Vidu Q2-turbo 720P：第 1 秒 8，第 2 秒 10，第 3 秒起 +10/秒 */

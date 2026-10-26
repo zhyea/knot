@@ -65,6 +65,9 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
     private static final String TYPE_INPUT_IMAGE = "VIDEO_INPUT_IMAGE";
     private static final String TYPE_SURCHARGE = "VIDEO_SURCHARGE";
 
+    /** MiniMax 图片免费张数默认值：官方「每次任务前 5 张免费」，配置未显式声明时按此兜底 */
+    private static final long MINIMAX_FREE_INPUT_IMAGES = 5L;
+
     @Override
     public BillingModeEnum mode() {
         return BillingModeEnum.VIDEO;
@@ -80,6 +83,11 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         if (!(usage instanceof VideoBillingUsage video)) {
             // 类型错配：用量不是 VIDEO 提取器产出——秒数无从取，按 1 秒兜底，分辨率仍取请求体
             return legacy(context, rule, config, unitSize);
+        }
+
+        // VENDOR_MINIMAX 走专属多分量口径（输出/输入视频同档位、图片前 N 张免费、音频免费）
+        if (context.pricingPlan() == PricingPlanEnum.VENDOR_MINIMAX) {
+            return calculateVendorMiniMax(context, rule, config, video, unitSize);
         }
 
         BillingConfig.VideoConfig videoConfig = config == null ? null : config.video();
@@ -141,6 +149,76 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         }
 
         return NormalizedBillingAmount.of(usage.tokenUsage().totalTokens(), total, details);
+    }
+
+    /**
+     * VENDOR_MINIMAX 专属口径：MiniMax H3 系列「三分量求和」。
+     *
+     * <pre>
+     * 总价 = 输出秒数 × 档位输出单价
+     *      + 输入秒数 × 档位输入单价（未单独配置 INPUT_VIDEO:档位 时回落到同档位输出单价）
+     *      + max(0, 输入图片张数 − 免费张数) × 每张固定单价
+     * </pre>
+     *
+     * <p><b>与通用分量路径的三点差异</b>（这三点就是本方法存在的理由，不是转发壳）：</p>
+     * <ol>
+     *   <li><b>输出量只取输出秒，绝不折叠输入秒</b>：MiniMax 把输入秒当独立分量计费，
+     *       若再走 {@code quantity(SUM/OUTPUT_PLUS_MAX)} 就会与分量 2 重复计费。</li>
+     *   <li><b>输入视频单价默认回落同档位输出单价</b>：官方「视频输入按输入时长及所选模型的输出分辨率计费」；
+     *       {@code INPUT_VIDEO:档位} 可单独覆盖（未来某档不同价）。</li>
+     *   <li><b>图片单价不随分辨率变化 + 免费额度默认 5 + 音频输入免费</b>：图片按张走固定标量价，
+     *       官方文档明确音频输入免费，故不收取任何附加费。</li>
+     * </ol>
+     */
+    private NormalizedBillingAmount calculateVendorMiniMax(NormalizedUsageContext context,
+                                                           BillingRuleRef rule,
+                                                           BillingConfig config,
+                                                           VideoBillingUsage video,
+                                                           int unitSize) {
+        BillingConfig.VideoConfig videoConfig = config == null ? null : config.video();
+        BillingConfig.PricingPlan plan = config == null ? null : planOf(config, rule);
+        String resolution = resolutionOf(video, context);
+        // MiniMax 无 reference / audio 折扣档，维度键只取纯档位名
+        List<String> outputKeys = dimensionKeys(resolution, false, false);
+
+        List<NormalizedUsageDetail> details = new ArrayList<>();
+        BigDecimal total = BigDecimal.ZERO;
+
+        // ---- 分量 1：输出视频 —— 仅输出秒（不折叠输入秒，输入秒是独立分量） ----
+        long outputAmount = Math.max(video.durationSeconds(), 1L);
+        BigDecimal outputPrice = componentUnitPrice(plan, outputKeys, outputAmount, unitSize, context, config);
+        BigDecimal outputCost = componentCost(plan, outputKeys, outputAmount, unitSize, context, config);
+        total = total.add(outputCost);
+        details.add(detail(detailType(resolution, config), outputAmount, outputCost, outputPrice, unitSize));
+
+        // ---- 分量 2：输入视频 —— 输入秒 × 档位输入单价，未单配时回落同档位输出单价 ----
+        long inputAmount = video.inputDurationSeconds();
+        if (inputAmount > 0) {
+            List<String> inputKeys = dimensionKeys(
+                    componentKey(BillingConfig.VideoConfig.INPUT_VIDEO_PREFIX, resolution), false, false);
+            BigDecimal inputPrice = firstDimensionPrice(plan, inputKeys, context, outputPrice);
+            BigDecimal inputCost = cost(inputAmount, inputPrice, unitSize);
+            total = total.add(inputCost);
+            details.add(detail(TYPE_INPUT_VIDEO, inputAmount, inputCost, inputPrice, unitSize));
+        }
+
+        // ---- 分量 3：输入图片 —— 超出免费额度的张数 × 固定每张价（不随分辨率变） ----
+        if (videoConfig != null && video.imageCount() > 0) {
+            long free = videoConfig.freeInputImages() == null
+                    ? MINIMAX_FREE_INPUT_IMAGES
+                    : Math.max(videoConfig.freeInputImages(), 0L);
+            long billable = Math.max(video.imageCount() - free, 0L);
+            if (billable > 0) {
+                BigDecimal imagePrice = videoConfig.inputImagePerImage() == null
+                        ? BigDecimal.ZERO : videoConfig.inputImagePerImage();
+                BigDecimal imageCost = cost(billable, imagePrice, unitSize);
+                total = total.add(imageCost);
+                details.add(detail(TYPE_INPUT_IMAGE, billable, imageCost, imagePrice, unitSize));
+            }
+        }
+
+        // 音频输入免费：MiniMax 不收取附加费，故无分量 4
+        return NormalizedBillingAmount.of(video.tokenUsage().totalTokens(), total, details);
     }
 
     /**

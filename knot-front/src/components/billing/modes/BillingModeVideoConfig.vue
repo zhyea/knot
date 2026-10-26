@@ -32,7 +32,7 @@
 
     <div class="resolution-list">
       <el-row v-for="(row, index) in rows" :key="row.uid || `res-${index}`" :gutter="12" class="res-row">
-        <el-col :xs="24" :sm="7">
+        <el-col :xs="24" :sm="isVendorMiniMax ? 7 : 7">
         <el-form-item label="档位名" class="res-row__name" label-width="70px">
               <el-select
                 :model-value="row.key"
@@ -46,8 +46,8 @@
               </el-select>
         </el-form-item>
         </el-col>
-        <el-col :xs="24" :sm="7">
-        <el-form-item label="单价" class="res-row__price" label-width="60px">
+        <el-col :xs="24" :sm="isVendorMiniMax ? 7 : 7">
+        <el-form-item :label="isVendorMiniMax ? '输出每秒' : '单价'" class="res-row__price" :label-width="isVendorMiniMax ? 76 : 60">
               <el-input-number
                 :model-value="row.price"
                 :min="0"
@@ -57,7 +57,20 @@
               />
         </el-form-item>
         </el-col>
-        <el-col :xs="24" :sm="8">
+        <!-- MiniMax：第三列是「输入每秒」，留空表示同档位输出价；非 MiniMax：第三列是「含参考输入」 -->
+        <el-col v-if="isVendorMiniMax" :xs="24" :sm="8">
+        <el-form-item label="输入每秒" class="res-row__price" label-width="76px">
+              <el-input-number
+                :model-value="row.inputPrice"
+                :min="0"
+                :step="UNIT_PRICE_STEP"
+                controls-position="right"
+                placeholder="留空同输出"
+                @update:model-value="(value: number | undefined | null) => setInputPrice(index, value)"
+              />
+        </el-form-item>
+        </el-col>
+        <el-col v-else :xs="24" :sm="8">
         <el-form-item label="含参考输入" class="res-row__price" label-width="100px">
               <el-input-number
                 :model-value="row.referencePrice"
@@ -90,10 +103,10 @@
       <span class="video-config__tip">档位名留空的行不会保存</span>
     </div>
 
-    <el-divider v-if="!tokenPriced" content-position="left">
+    <el-divider v-if="!tokenPriced && !isVendorMiniMax" content-position="left">
       <span class="video-config__group">计费量口径</span>
     </el-divider>
-    <el-row v-if="!tokenPriced" :gutter="16">
+    <el-row v-if="!tokenPriced && !isVendorMiniMax" :gutter="16">
       <el-col :span="8">
         <el-form-item label="合成量模式">
           <el-select v-model="form.videoQuantityMode" style="width: 100%">
@@ -108,10 +121,10 @@
       </el-col>
     </el-row>
 
-    <el-divider v-if="!tokenPriced" content-position="left">
+    <el-divider v-if="!tokenPriced && !isVendorMiniMax" content-position="left">
       <span class="video-config__group">输入侧分量（可选，留空不计费）</span>
     </el-divider>
-    <div v-if="!tokenPriced" class="input-charge-grid">
+    <div v-if="!tokenPriced && !isVendorMiniMax" class="input-charge-grid">
       <el-form-item label="输入视频 每秒">
           <el-input-number v-model="form.videoInputVideoPerSecond"
                            :min="0"
@@ -141,11 +154,11 @@
                            style="width: 100%"/>
       </el-form-item>
     </div>
-    <el-alert v-if="!tokenPriced" type="info" :closable="false" class="video-config__hint">
+    <el-alert v-if="!tokenPriced && !isVendorMiniMax" type="info" :closable="false" class="video-config__hint">
       <template #title>
         <span>
-          输入侧分量按「输出秒 + 输入秒 + 输入图片」三路各自计价后求和（MiniMax Hailuo 口径）；
-          分量单价独立于上方分辨率档，不会被默认单价顶替。附加费是与用量无关的常数项（Vidu 直出音频 +15）。
+          输入侧分量按「输出秒 + 输入秒 + 输入图片」三路各自计价后求和；
+          分量单价独立于上方分辨率档，不会被默认单价顶替。附加费是与用量无关的常数项（如 Vidu 直出音频 +15）。
         </span>
       </template>
     </el-alert>
@@ -155,7 +168,7 @@
 <script setup lang="ts">
 import {computed} from "vue";
 import {Delete} from "@element-plus/icons-vue";
-import {UNIT_PRICE_PRECISION, UNIT_PRICE_STEP} from "@/utils/billingPrice";
+import {UNIT_PRICE_STEP} from "@/utils/billingPrice";
 import {BillingUnit} from "@/constants/status";
 
 const props = defineProps({
@@ -185,6 +198,14 @@ const tokenPriced = computed(() => {
 });
 
 /**
+ * MiniMax 方案（VENDOR_MINIMAX）走独立的「档位输出价 + 档位输入价」两列结构：
+ * 输入视频每秒价默认取同档位输出价（可单独覆盖），图片单价/免费张数由 MiniMax 方案组件托管，
+ * 音频输入免费。故本模式组件在 MiniMax 下不再渲染「合成量口径」与「输入侧分量」两块，
+ * 避免与方案组件重复编辑同一字段。
+ */
+const isVendorMiniMax = computed(() => String(props.form.pricingPlan || "").toUpperCase() === "VENDOR_MINIMAX");
+
+/**
  * 常用档位快捷选项：**只是下拉建议，不是合法值白名单**。
  *
  * <p>厂商档位不可枚举——MiniMax 用 768P、Vidu 用 540P、豆包用 480p/720p/1080p，
@@ -193,12 +214,16 @@ const tokenPriced = computed(() => {
  */
 const RESOLUTION_OPTIONS = ["480P", "540P", "720P", "768P", "1080P", "2K", "4K"];
 
-/** 单行分辨率档位：档位名 + 单价 + 含参考输入时的单价 */
+/**
+ * 单行分辨率档位：档位名 + 单价 + 含参考输入时的单价 + 输入视频每秒单价（仅 MiniMax 用）。
+ * <p>{@code inputPrice} 对应 {@code resolutionPrices["INPUT_VIDEO:档位"]}，留空表示同档位输出价。</p>
+ */
 interface ResolutionRow {
   uid?: string;
   key: string;
   price: number | null;
   referencePrice: number | null;
+  inputPrice: number | null;
 }
 
 /**
@@ -230,7 +255,7 @@ function nextUid(): string {
 }
 
 function append() {
-  rows.value.push({uid: nextUid(), key: "", price: null, referencePrice: null});
+  rows.value.push({uid: nextUid(), key: "", price: null, referencePrice: null, inputPrice: null});
 }
 
 function remove(index: number) {
@@ -258,12 +283,20 @@ function setReferencePrice(index: number, value: number | undefined | null) {
   }
 }
 
+/** MiniMax 输入视频每秒价：留空表示沿用同档位输出价 */
+function setInputPrice(index: number, value: number | undefined | null) {
+  const row = rows.value[index];
+  if (row) {
+    row.inputPrice = value == null ? null : value;
+  }
+}
+
 /** 一键铺开常用档位（只补不存在的，不覆盖已填价格） */
 function fillCommon() {
   const existing = new Set(rows.value.map((row) => row.key.toUpperCase()));
   for (const key of RESOLUTION_OPTIONS) {
     if (!existing.has(key)) {
-      rows.value.push({uid: nextUid(), key, price: null, referencePrice: null});
+      rows.value.push({uid: nextUid(), key, price: null, referencePrice: null, inputPrice: null});
     }
   }
 }

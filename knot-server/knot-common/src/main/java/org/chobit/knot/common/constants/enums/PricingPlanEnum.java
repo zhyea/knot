@@ -35,7 +35,19 @@ public enum PricingPlanEnum implements EnumOption {
      * 否则「配了错峰但分辨率价不打折」会静默只对部分分量生效。</p>
      */
     PEAK_OFF_PEAK("高低峰价", BillingModeEnum.TOKEN, BillingModeEnum.IMAGE, BillingModeEnum.AUDIO,
-            BillingModeEnum.VIDEO);
+            BillingModeEnum.VIDEO),
+
+    /**
+     * 厂商定制计费规则（进阶定价方案家族中的特例，旗舰 = MiniMax）；仅 VIDEO 模式可用。
+     *
+     * <p>专属口径由 {@code VideoBillingModeCalculator#calculateVendorMiniMax} 实现：
+     * 输出秒 × 档位输出价 + 输入秒 × 档位输入价（默认回落同档位输出价）
+     * + max(0, 图片张数 − 免费张数) × 每张固定价；音频输入免费、不折输入秒、无阶梯/错峰。</p>
+     *
+     * <p>方案层 {@code VendorMiniMaxPricing} 的取价语义与 {@link #FIXED} 一致——它只负责
+     * 「按档位键取单价」，多分量的编排在计算器，方案值不作为独立的价格算法。</p>
+     */
+    VENDOR_MINIMAX("厂商定制(MiniMax)", BillingModeEnum.VIDEO);
 
     private final String label;
     private final List<BillingModeEnum> supportedBillingModes;

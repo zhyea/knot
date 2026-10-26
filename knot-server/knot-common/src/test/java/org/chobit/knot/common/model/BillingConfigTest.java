@@ -7,12 +7,14 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 契约测试：config_json 描述类的解析、结构/方案级校验与价格解析链
@@ -383,6 +385,58 @@ class BillingConfigTest {
                    {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","unitPrices":{"input":6}}]}}
                 """);
         assertNull(ok.validate(PricingPlanEnum.PEAK_OFF_PEAK));
+    }
+
+    @Test
+    void vendorMiniMaxRequiresComponentFields() {
+        // MiniMax H3 识别特征 = 输入图片按张计费：缺 video.inputImagePerImage 一律拒存
+        BillingConfig bare = BillingConfig.parse("""
+                {"defaultUnitPrice":0.5,
+                 "resolutionPrices":{"768P":0.5,"2K":0.8}}
+                """);
+        String error = bare.validate(PricingPlanEnum.VENDOR_MINIMAX);
+        assertNotNull(error);
+        assertTrue(error.contains("VENDOR_MINIMAX requires video.inputImagePerImage"));
+
+        // 只有输入视频价、没有图片价 -> 仍拒存（图片计费是 MiniMax 的必需分量）
+        BillingConfig videoOnly = BillingConfig.parse("""
+                {"defaultUnitPrice":0.5,
+                 "resolutionPrices":{"768P":0.5,"2K":0.8},
+                 "video":{"inputVideoPerSecond":0.5}}
+                """);
+        assertNotNull(videoOnly.validate(PricingPlanEnum.VENDOR_MINIMAX));
+
+        // 只有附加费、没有图片价 -> 仍拒存
+        BillingConfig surchargeOnly = BillingConfig.parse("""
+                {"defaultUnitPrice":0.5,
+                 "resolutionPrices":{"768P":0.5,"2K":0.8},
+                 "surcharges":[{"code":"AUDIO","trigger":"AUDIO","amount":0.3}]}
+                """);
+        assertNotNull(surchargeOnly.validate(PricingPlanEnum.VENDOR_MINIMAX));
+
+        // 带图片每张价 -> 通过
+        BillingConfig withInputImage = BillingConfig.parse("""
+                {"defaultUnitPrice":0.5,
+                 "resolutionPrices":{"768P":0.5,"2K":0.8},
+                 "video":{"inputImagePerImage":0.2,"freeInputImages":5}}
+                """);
+        assertNull(withInputImage.validate(PricingPlanEnum.VENDOR_MINIMAX));
+    }
+
+    @Test
+    void vendorMiniMaxResolvesLikeFixed() {
+        // 取价语义与 FIXED 一致：单价直接来自 defaultUnitPrice / resolutionPrices，无阶梯/相位倍率
+        BillingConfig config = BillingConfig.parse("""
+                {"defaultUnitPrice":0.5,
+                 "resolutionPrices":{"768P":0.5,"2K":0.8},
+                 "video":{"inputVideoPerSecond":0.5}}
+                """);
+        BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.VENDOR_MINIMAX);
+        assertEquals(PricingPlanEnum.VENDOR_MINIMAX, pricing.plan());
+        assertEquals(0, new BigDecimal("0.5").compareTo(
+                pricing.resolveDefaultPrice(BillingConfig.PricingContext.ofAmount(1), ZERO)));
+        assertEquals(0, new BigDecimal("0.8").compareTo(
+                pricing.resolveDimensionPrice(List.of("2K"), BillingConfig.PricingContext.ofAmount(1), ZERO)));
     }
 
     private static Instant instant(int year, int month, int day, int hour, int minute) {        return ZonedDateTime.of(year, month, day, hour, minute, 0, 0, ZoneOffset.UTC).toInstant();

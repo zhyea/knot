@@ -154,6 +154,7 @@ import BillingModeVideoConfig from "./modes/BillingModeVideoConfig.vue";
 import PricingPlanFixedConfig from "./plans/PricingPlanFixedConfig.vue";
 import PricingPlanTieredConfig from "./plans/PricingPlanTieredConfig.vue";
 import PricingPlanPeakOffPeakConfig from "./plans/PricingPlanPeakOffPeakConfig.vue";
+import PricingPlanVendorMiniMaxConfig from "./plans/PricingPlanVendorMiniMaxConfig.vue";
 import {createBillingRule, updateBillingRule, listModeCapabilities, getBillingRule} from "@/api/billing";
 import {formatJsonText, isValidJsonText, parseJsonObject, roundPrice, stringifyJson} from "@/utils/format";
 import {
@@ -202,7 +203,8 @@ const componentsByMode: Record<string, Component> = {
 const componentsByPlan: Record<string, Component> = {
   FIXED: PricingPlanFixedConfig,
   TIERED: PricingPlanTieredConfig,
-  PEAK_OFF_PEAK: PricingPlanPeakOffPeakConfig
+  PEAK_OFF_PEAK: PricingPlanPeakOffPeakConfig,
+  VENDOR_MINIMAX: PricingPlanVendorMiniMaxConfig
 };
 
 const visible = computed({
@@ -442,6 +444,15 @@ watch(
     if (plan === PricingPlan.PEAK_OFF_PEAK && !form.peakPricing) {
       form.peakPricing = createDefaultPeakPricing();
     }
+    // 首次切到 MiniMax 时补官方默认：图片每张 0.20（H3/H3-Highspeed 价）、前 5 张免费
+    if (plan === PricingPlan.VENDOR_MINIMAX) {
+      if (form.videoInputImagePerImage == null) {
+        form.videoInputImagePerImage = 0.2;
+      }
+      if (form.videoFreeInputImages == null) {
+        form.videoFreeInputImages = 5;
+      }
+    }
   }
 );
 
@@ -602,6 +613,7 @@ function parseResolutionRows(raw: unknown): Dict[] {
   }
   const source = raw as Dict;
   const REFERENCE_SUFFIX = ":REFERENCE";
+  const INPUT_VIDEO_PREFIX = "INPUT_VIDEO:";
   const rows = new Map<string, Dict>();
   for (const key of Object.keys(source)) {
     const name = key.trim().toUpperCase();
@@ -609,12 +621,23 @@ function parseResolutionRows(raw: unknown): Dict[] {
     if (price == null) {
       continue;
     }
+    // MiniMax 输入视频档位价：INPUT_VIDEO:档位 -> 同一行的 inputPrice（与输出档位共用一行）
+    if (name.startsWith(INPUT_VIDEO_PREFIX)) {
+      const base = name.slice(INPUT_VIDEO_PREFIX.length);
+      if (!base) {
+        continue;
+      }
+      const row = rows.get(base) || {key: base, price: null, referencePrice: null, inputPrice: null};
+      row.inputPrice = price;
+      rows.set(base, row);
+      continue;
+    }
     const isReference = name.endsWith(REFERENCE_SUFFIX);
     const base = isReference ? name.slice(0, -REFERENCE_SUFFIX.length) : name;
     if (!base) {
       continue;
     }
-    const row = rows.get(base) || {key: base, price: null, referencePrice: null};
+    const row = rows.get(base) || {key: base, price: null, referencePrice: null, inputPrice: null};
     if (isReference) {
       row.referencePrice = price;
     } else {
@@ -724,6 +747,7 @@ function buildBaseConfig(): Dict | null {
     };
   }
   if (form.billingMode === BillingMode.VIDEO) {
+    const isMiniMax = form.pricingPlan === PricingPlan.VENDOR_MINIMAX;
     const resolutionPrices: Dict = {};
     for (const row of form.videoResolutionRows || []) {
       const key = String(row?.key || "").trim().toUpperCase();
@@ -734,18 +758,28 @@ function buildBaseConfig(): Dict | null {
       if (price != null) {
         resolutionPrices[key] = price;
       }
-      const referencePrice = toNumberOrNull(row.referencePrice);
-      if (referencePrice != null) {
-        resolutionPrices[`${key}:REFERENCE`] = referencePrice;
+      if (isMiniMax) {
+        // MiniMax 输入视频档位价：留空或等于输出价时不落库（后端回落同档位输出价）
+        const inputPrice = toNumberOrNull(row.inputPrice);
+        if (inputPrice != null && inputPrice !== price) {
+          resolutionPrices[`INPUT_VIDEO:${key}`] = inputPrice;
+        }
+      } else {
+        const referencePrice = toNumberOrNull(row.referencePrice);
+        if (referencePrice != null) {
+          resolutionPrices[`${key}:REFERENCE`] = referencePrice;
+        }
       }
     }
     // video 段只在有实质配置时才落库：默认的「仅输出秒数」不需要写进 JSON
     // （写了会污染老配置的 config_json，也让「默认行为」在库里多一份可漂移的副本）
     const video: Dict = {};
-    if (form.videoQuantityMode && form.videoQuantityMode !== "OUTPUT") {
+    // MiniMax 输入秒是独立分量，绝不折叠进输出量：不落 quantityMode
+    if (!isMiniMax && form.videoQuantityMode && form.videoQuantityMode !== "OUTPUT") {
       video.quantityMode = form.videoQuantityMode;
     }
-    if (form.videoInputVideoPerSecond != null) {
+    // 非 MiniMax 的输入视频价走标量字段；MiniMax 用分辨率表里的 INPUT_VIDEO:档位
+    if (!isMiniMax && form.videoInputVideoPerSecond != null) {
       video.inputVideoPerSecond = form.videoInputVideoPerSecond;
     }
     if (form.videoInputImagePerImage != null) {
@@ -754,8 +788,9 @@ function buildBaseConfig(): Dict | null {
     if (form.videoFreeInputImages != null) {
       video.freeInputImages = form.videoFreeInputImages;
     }
-    const surcharges: Dict[] = [...(form.videoExtraSurcharges || [])];
-    if (form.videoAudioSurcharge != null) {
+    // MiniMax 音频输入免费，不落任何附加费；其余视频方案保留表单托管 + 未托管条目
+    const surcharges: Dict[] = isMiniMax ? [] : [...(form.videoExtraSurcharges || [])];
+    if (!isMiniMax && form.videoAudioSurcharge != null) {
       surcharges.push({code: "AUDIO", trigger: "AUDIO", amount: form.videoAudioSurcharge});
     }
     return {
@@ -840,6 +875,11 @@ async function submit() {
   const peakIssues = form.pricingPlan === PricingPlan.PEAK_OFF_PEAK ? validatePeakPricing(form.peakPricing, form.billingMode, form.cacheWriteMode) : [];
   if (peakIssues.length) {
     ElMessage.warning(peakIssues[0].message);
+    return;
+  }
+  // MiniMax 的识别分量是「输入图片按张计费」：缺图片单价与后端 validate 同口径，前置拦截给出明确提示
+  if (form.pricingPlan === PricingPlan.VENDOR_MINIMAX && form.videoInputImagePerImage == null) {
+    ElMessage.warning("MiniMax 方案请填写「输入图片 每张」单价");
     return;
   }
   if (form.billingMode === BillingMode.CUSTOM && !validateJson(form.customConfigJson, "自定义配置")) {
