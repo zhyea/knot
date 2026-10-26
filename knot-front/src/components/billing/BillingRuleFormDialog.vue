@@ -759,9 +759,11 @@ function buildBaseConfig(): Dict | null {
         resolutionPrices[key] = price;
       }
       if (isMiniMax) {
-        // MiniMax 输入视频档位价：留空或等于输出价时不落库（后端回落同档位输出价）
+        // MiniMax 输入视频档位价：只要用户显式填了就落库（不再按「等于输出价」隐式去重——
+        // MiniMax 官方价表输出价与输入价本就相等，去重会让用户刚填的值在 config_json 里凭空消失，
+        // 重开抽屉也回显不出来）。留空则不下发 INPUT_VIDEO 键，由后端回落到同档位输出价。
         const inputPrice = toNumberOrNull(row.inputPrice);
-        if (inputPrice != null && inputPrice !== price) {
+        if (inputPrice != null) {
           resolutionPrices[`INPUT_VIDEO:${key}`] = inputPrice;
         }
       } else {

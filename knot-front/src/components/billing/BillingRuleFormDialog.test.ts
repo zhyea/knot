@@ -740,7 +740,7 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     });
   });
 
-  it("VENDOR_MINIMAX：输入价等于输出价时不落 INPUT_VIDEO 键，缺图片价则拦截保存", async () => {
+  it("VENDOR_MINIMAX：输入价填了就落 INPUT_VIDEO 键（哪怕等于输出价），留空则回落后端同档位价", async () => {
     const wrapper = await openDialog({ruleId: RULE_ID});
     // 同一 reactive form：切模式后子组件换了，但引用不变
     const form = formOf(wrapper);
@@ -754,11 +754,13 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     expect(form.videoInputImagePerImage).toBe(0.2);
     expect(form.videoFreeInputImages).toBe(5);
 
-    // 档位价 = 0.5，输入价留空 -> 落库只有纯档位价
-    form.videoResolutionRows.push({key: "768P", price: 0.5, referencePrice: null, inputPrice: null});
+    // 768P：输出 0.5、输入也填 0.5（与官方价表一致，输入==输出也要落库，回归曾静默丢值）
+    form.videoResolutionRows.push({key: "768P", price: 0.5, referencePrice: null, inputPrice: 0.5});
+    // 2K：输入价留空 -> 不落 INPUT_VIDEO 键，后端回落同档位输出价
+    form.videoResolutionRows.push({key: "2K", price: 0.8, referencePrice: null, inputPrice: null});
     await save(wrapper);
     const config = configOf(updatePayload());
-    expect(config.resolutionPrices).toEqual({"768P": 0.5});
+    expect(config.resolutionPrices).toEqual({"768P": 0.5, "INPUT_VIDEO:768P": 0.5, "2K": 0.8});
     expect(config.video).toEqual({inputImagePerImage: 0.2, freeInputImages: 5});
     expect(config.video.quantityMode).toBeUndefined();
     expect(config.surcharges).toBeUndefined();
