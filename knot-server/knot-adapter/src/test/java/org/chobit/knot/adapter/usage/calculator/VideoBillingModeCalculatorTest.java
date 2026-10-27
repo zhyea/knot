@@ -8,6 +8,8 @@ import org.chobit.knot.adapter.model.usage.VideoBillingUsage;
 import org.chobit.knot.adapter.usage.NormalizedUsageContext;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
 import java.time.Instant;
 import java.util.Map;
 
@@ -525,6 +527,9 @@ class VideoBillingModeCalculatorTest {
         assertEquals("35", amount.totalCost(), "10 秒 × 2 + 音频附加费 15");
         assertEquals("VIDEO_SURCHARGE", amount.details().get(1).type());
         assertEquals("15", amount.details().get(1).cost());
+        // price 是「每百万单位单价」，不是总额：15 × 1e6，复算 1 × price ÷ 1e6 才回到 15
+        assertEquals("15000000", amount.details().get(1).price(),
+                "附加费行也必须遵守统一单价口径，否则下游按 tokens×price÷1e6 复算差 1e6 倍");
     }
 
     @Test
@@ -717,6 +722,42 @@ class VideoBillingModeCalculatorTest {
         assertEquals("12.0", calculator.calculate(context(
                 rule(config, "DIMENSION_TIERED"),
                 video(10L, 3L, 0L, "720P", false, false))).totalCost());
+    }
+
+    // ==================== 明细行契约守门 ====================
+
+    @Test
+    void everyDetailRowShouldSatisfyAmountTimesPriceFormula() {
+        // 契约：每行都满足 cost = tokens × price ÷ 1e6（price 是「每百万单位单价」）。
+        // 用全行遍历而不是逐行断言：SURCHARGE 曾把总额直接塞进 price，该行 type/cost 全对，
+        // 肉眼与静态检查都看不出，只有复算式能抓住；遍历写法让未来新增的明细行自动被覆盖。
+        // 此处比较用 compareTo 而非字符串全等——这是数值恒等式（除法会改变 scale），
+        // 与「对外金额文本全等」是两件事。
+        String config = """
+                {
+                  "defaultUnitPrice": 2,
+                  "video": {"inputVideoPerSecond": 0.5, "inputImagePerImage": 0.1, "freeInputImages": 1},
+                  "surcharges": [{"code": "AUDIO", "trigger": "AUDIO", "amount": 15}]
+                }
+                """;
+
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule(config, "FIXED"),
+                video(10L, 4L, 3L, "720P", true, true)));
+
+        assertEquals(4, amount.details().size(), "输出 + 输入视频 + 输入图片 + 附加费");
+        BigDecimal sum = BigDecimal.ZERO;
+        for (NormalizedUsageDetail row : amount.details()) {
+            BigDecimal recalculated = BigDecimal.valueOf(row.tokens())
+                    .multiply(new BigDecimal(row.price()))
+                    .divide(BigDecimal.valueOf(1_000_000L), MathContext.DECIMAL128);
+            assertEquals(0, recalculated.compareTo(new BigDecimal(row.cost())),
+                    "明细行 " + row.type() + " 复算不闭合：tokens×price÷1e6 = "
+                            + recalculated.toPlainString() + "，但 cost = " + row.cost());
+            sum = sum.add(new BigDecimal(row.cost()));
+        }
+        assertEquals(0, sum.compareTo(new BigDecimal(amount.totalCost())),
+                "总价必须等于明细行 cost 之和");
     }
 
     // ==================== helpers ====================
