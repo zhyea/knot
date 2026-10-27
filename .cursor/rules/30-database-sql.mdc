@@ -50,6 +50,7 @@ alwaysApply: false
 
 - **无历史包袱**：字段变更全链路一次做干净，不留兼容兜底、不留冗余列、**不写回填**。
 - 跨表绑定一律存 **code 不存 id**（残留例外：`kx_model_items.logical_model_id`）。
+  ⚠ **例外口径（2026-10-26 补充）**：**聚合内从属明细按主体主键绑定**，如 `kb_billing_rule_versions.rule_id`。判据是「是否跨聚合 / 能否独立存在」——从属明细（版本、明细行、快照）与主体同生命周期，用 code 关联会让改码被反向锁死（详见 `10-backend-java.md` §5）。
 - schema + data 改列 → 幂等迁移 → 全链路代码 → grep 残留 → `mvn test` + `vue-tsc` → 真启 jar 冒烟 → 清理临时库。
 
 ## 6. 冒烟库

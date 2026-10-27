@@ -244,6 +244,7 @@ model       → 领域值对象（非表映射）
 - **数据载体（entity / dto / vo / `*Properties` 配置类）**：用 `@Getter` / `@Setter` / `@Data` / `@EqualsAndHashCode` / `@ToString`。`@ConfigurationProperties` 类用 `@Getter @Setter`（**不**用 `@Data`，避免无谓的 `equals/hashCode/toString`）。
 - **日志**：一律 `@Slf4j`（Lombok `lombok.extern.slf4j.Slf4j`），**不要**手写 `private static final Logger log = LoggerFactory.getLogger(Xxx.class);`。生成的字段名即 `log`，引用不变。
 - **全参构造器**：纯赋值构造器（构造体只有 `this.x = x;`）可用 `@AllArgsConstructor` / `@RequiredArgsConstructor` 取代。
+- **构建器**：参数多且同类型相邻的载体（`record` / DTO / 计费用量模型）用 `@Builder`，调用方走链式；**归一逻辑留在规范构造器 / 紧凑构造器里**，不搬进 builder——`build()` 调用的仍是规范构造器，搬走等于让 `empty()` 与 builder 两条路径口径分叉。
 
 **其他约束**：
 

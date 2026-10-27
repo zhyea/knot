@@ -87,9 +87,11 @@ class VideoBillingModeCalculatorTest {
     @Test
     void doubaoShouldBillByTokenQuantityWhenUnitIsMillionTokens() {
         // 100 万 token、720P、输入不含视频 -> 70 元/百万token
-        VideoBillingUsage usage = new VideoBillingUsage(
-                new TokenBillingUsage(800_000L, 200_000L, 1_000_000L, 0L, 0L, 0L, 0L),
-                5_000L, 0L, 0L, "720P", false, false);
+        VideoBillingUsage usage = VideoBillingUsage.builder()
+                .tokens(new TokenBillingUsage(800_000L, 200_000L, 1_000_000L, 0L, 0L, 0L, 0L))
+                .outputVideoMillis(5_000L)
+                .outputResolution("720P")
+                .build();
 
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(DOUBAO, "FIXED", "1M_TOKENS"), usage));
@@ -100,9 +102,13 @@ class VideoBillingModeCalculatorTest {
     @Test
     void doubaoShouldApplyReferenceTierUnderTokenQuantity() {
         // 同量，输入含视频 -> 720P:REFERENCE 42 元/百万token
-        VideoBillingUsage usage = new VideoBillingUsage(
-                new TokenBillingUsage(800_000L, 200_000L, 1_000_000L, 0L, 0L, 0L, 0L),
-                5_000L, 3_000L, 0L, "720P", false, true);
+        VideoBillingUsage usage = VideoBillingUsage.builder()
+                .tokens(new TokenBillingUsage(800_000L, 200_000L, 1_000_000L, 0L, 0L, 0L, 0L))
+                .outputVideoMillis(5_000L)
+                .inputVideoMillis(3_000L)
+                .outputResolution("720P")
+                .referenceVideo(true)
+                .build();
 
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(DOUBAO, "FIXED", "1M_TOKENS"), usage));
@@ -119,9 +125,13 @@ class VideoBillingModeCalculatorTest {
                   "video": {"inputVideoPerSecond": 0.5, "inputImagePerImage": 0.2, "freeInputImages": 5}
                 }
                 """;
-        VideoBillingUsage usage = new VideoBillingUsage(
-                new TokenBillingUsage(800_000L, 200_000L, 1_000_000L, 0L, 0L, 0L, 0L),
-                5_000L, 4_000L, 8L, "720P", false, false);
+        VideoBillingUsage usage = VideoBillingUsage.builder()
+                .tokens(new TokenBillingUsage(800_000L, 200_000L, 1_000_000L, 0L, 0L, 0L, 0L))
+                .outputVideoMillis(5_000L)
+                .inputVideoMillis(4_000L)
+                .inputImageCount(8L)
+                .outputResolution("720P")
+                .build();
 
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(config, "FIXED", "1M_TOKENS"), usage));
@@ -133,9 +143,11 @@ class VideoBillingModeCalculatorTest {
     @Test
     void shouldStillBillBySecondsWhenUnitIsPerSecond() {
         // 同一份豆包配置，单位改回 PER_SECOND 就按秒——量纲完全由单位决定
-        VideoBillingUsage usage = new VideoBillingUsage(
-                new TokenBillingUsage(800_000L, 200_000L, 1_000_000L, 0L, 0L, 0L, 0L),
-                5_000L, 0L, 0L, "720P", false, false);
+        VideoBillingUsage usage = VideoBillingUsage.builder()
+                .tokens(new TokenBillingUsage(800_000L, 200_000L, 1_000_000L, 0L, 0L, 0L, 0L))
+                .outputVideoMillis(5_000L)
+                .outputResolution("720P")
+                .build();
 
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(DOUBAO, "FIXED", "PER_SECOND"), usage));
@@ -146,9 +158,11 @@ class VideoBillingModeCalculatorTest {
     @Test
     void shouldFallbackToSecondsWhenUnitMissing() {
         // 单位缺失 -> 模式默认 PER_SECOND（不是 1K_TOKENS），与管理端表单同源
-        VideoBillingUsage usage = new VideoBillingUsage(
-                new TokenBillingUsage(800_000L, 200_000L, 1_000_000L, 0L, 0L, 0L, 0L),
-                5_000L, 0L, 0L, "720P", false, false);
+        VideoBillingUsage usage = VideoBillingUsage.builder()
+                .tokens(new TokenBillingUsage(800_000L, 200_000L, 1_000_000L, 0L, 0L, 0L, 0L))
+                .outputVideoMillis(5_000L)
+                .outputResolution("720P")
+                .build();
 
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(DOUBAO, "FIXED", null), usage));
@@ -292,7 +306,9 @@ class VideoBillingModeCalculatorTest {
 
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(config, "FIXED"),
-                new VideoBillingUsage(TokenBillingUsage.empty(), 10_000L, 4_000L, 2L, "", false, false)));
+                VideoBillingUsage.builder()
+                        .outputVideoMillis(10_000L).inputVideoMillis(4_000L).inputImageCount(2L)
+                        .build()));
 
         assertEquals("6.4", amount.totalCost(),
                 "输出 10×0.5 + 输入视频 4×0.3(INPUT_VIDEO) + 输入图片 2×0.1(INPUT_IMAGE)，不是分量默认价 0.9 / 0.7");
@@ -595,8 +611,9 @@ class VideoBillingModeCalculatorTest {
     @Test
     void shouldCeilFractionalSecondsInsteadOfTruncating() {
         // 毫秒精度的意义：5.9 秒不再被截成 5 秒（少收 15%），按秒向上取整为 6
-        VideoBillingUsage usage = new VideoBillingUsage(
-                TokenBillingUsage.empty(), 5_900L, 0L, 0L, "", false, false);
+        VideoBillingUsage usage = VideoBillingUsage.builder()
+                .outputVideoMillis(5_900L)
+                .build();
 
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule("{\"defaultUnitPrice\": 0.5}", "FIXED"), usage));
@@ -710,8 +727,14 @@ class VideoBillingModeCalculatorTest {
                                     String resolution,
                                     boolean sound,
                                     boolean reference) {
-        return new VideoBillingUsage(TokenBillingUsage.empty(),
-                outputSeconds * 1_000L, inputSeconds * 1_000L, imageCount, resolution, sound, reference);
+        return VideoBillingUsage.builder()
+                .outputVideoMillis(outputSeconds * 1_000L)
+                .inputVideoMillis(inputSeconds * 1_000L)
+                .inputImageCount(imageCount)
+                .outputResolution(resolution)
+                .sound(sound)
+                .referenceVideo(reference)
+                .build();
     }
 
     private NormalizedUsageContext context(BillingRuleRef rule, VideoBillingUsage usage) {

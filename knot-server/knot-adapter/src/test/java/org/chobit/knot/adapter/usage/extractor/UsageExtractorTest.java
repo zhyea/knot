@@ -266,6 +266,45 @@ class UsageExtractorTest {
     }
 
     @Test
+    void shouldCountVideosArrayAsOutputVideoCount() {
+        // Veo 把产物放在 videos 数组：条数是按条计价的乘数
+        Map<String, Object> body = Map.of("videos", List.of(Map.of("url", "a.mp4"), Map.of("url", "b.mp4")));
+
+        assertEquals(2L, videoExtractor.extractUsage(body, Map.of()).billing().outputVideoCount());
+    }
+
+    @Test
+    void shouldCountSingleVideoObjectAsOne() {
+        // 单条视频对象不是数组：读成 0 会让整单算成 0 元，计为 1 条
+        Map<String, Object> body = Map.of("data", Map.of("url", "a.mp4"));
+
+        assertEquals(1L, videoExtractor.extractUsage(body, Map.of()).billing().outputVideoCount());
+    }
+
+    @Test
+    void shouldLeaveVendorSpecificDimensionsBlankByDefault() {
+        // 画幅 / 模式 / 音色是厂商价目表档名，通用层不认识，未声明时留空（取价回落默认档）
+        VideoBillingUsage usage = videoExtractor.extractUsage(
+                Map.of("duration_seconds", 5), Map.of("prompt", "a cat")).billing();
+
+        assertEquals("", usage.outputAspectRatio());
+        assertEquals("", usage.outputMode());
+        assertFalse(usage.voiceSpecified());
+    }
+
+    @Test
+    void shouldExtractDeclaredDimensionsFromRequest() {
+        // 通用键表能读到的三个维度：aspect_ratio / video_mode / voice_id
+        VideoBillingUsage usage = videoExtractor.extractUsage(
+                Map.of("duration_seconds", 5),
+                Map.of("aspect_ratio", "16:9", "video_mode", "wan-pro", "voice_id", "male-qn-qingse")).billing();
+
+        assertEquals("16:9", usage.outputAspectRatio());
+        assertEquals("wan-pro", usage.outputMode(), "原样保存厂商写法，归一在 Calculator");
+        assertTrue(usage.voiceSpecified(), "音色 id 是字符串，必须走存在性语义");
+    }
+
+    @Test
     void shouldHonorOverriddenHooksInVendorSubclass() {
         // 抽象层接线探针：厂商子类只覆写差异钩子，组装出的仍是同一份 VideoBillingUsage。
         // 若覆写不生效，下面的 7L / sound=true 会退回通用键表的结果（0 / false）而变红。

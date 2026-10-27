@@ -276,7 +276,60 @@ final class MediaUsageReaders {
         };
     }
 
-    private static String firstText(Map<String, Object> source, String... keys) {
+    /**
+     * 请求体声明的画幅：只认语义明确的 {@code aspect_ratio}。
+     *
+     * <p>{@code size} / {@code ratio} 语义含糊（可能是像素尺寸或宽高比字符串），交给厂商子类
+     * 按实际请求参数覆写，不在通用键表里猜。</p>
+     */
+    private static final String[] ASPECT_RATIO_KEYS = {"aspect_ratio"};
+
+    /** 请求体声明的画幅（如 {@code 16:9}）：{@code null} 表示没有声明 */
+    static String aspectRatio(Map<String, Object> requestBody) {
+        return requestBody == null ? null : firstText(requestBody, ASPECT_RATIO_KEYS);
+    }
+
+    /**
+     * 请求体声明的模式 / 功能档：{@code wan-std} / {@code wan-pro} / {@code ONLINE} / {@code OFFLINE}
+     * 以及 Kling 的动作控制。
+     *
+     * <p>原样返回厂商写法，ASCII slug 归一与 {@code MODE=} 键前缀由厂商子类 / Calculator 负责——
+     * 通用层不认识任何一家的枚举。</p>
+     */
+    private static final String[] OUTPUT_MODE_KEYS = {"video_mode", "output_mode", "mode"};
+
+    /** 请求体声明的模式 / 功能档：{@code null} 表示没有声明 */
+    static String outputMode(Map<String, Object> requestBody) {
+        return requestBody == null ? null : firstText(requestBody, OUTPUT_MODE_KEYS);
+    }
+
+    private static final String[] VIDEO_COUNT_KEYS = {"data", "videos"};
+
+    /**
+     * 产出条数：{@code data} / {@code videos} 数组长度，单个视频对象（Map）计 1 条。
+     *
+     * <p>Veo 把结果放在 {@code videos}，OpenAI 风格放在 {@code data}；两者都是零个或多个。
+     * 单个 Map 视为「一条视频的对象」——这是按条计价的乘数，读不出条数时返回 0，
+     * 由 {@code VideoBillingUsage#billedVideoCount()} 兜成 1 条（不在这里猜）。</p>
+     */
+    static long outputVideoCount(Map<String, Object> body) {
+        if (body == null) {
+            return 0L;
+        }
+        for (String key : VIDEO_COUNT_KEYS) {
+            Object value = body.get(key);
+            if (value instanceof Map<?, ?>) {
+                return 1L;
+            }
+            long count = countElements(value);
+            if (count > 0) {
+                return count;
+            }
+        }
+        return 0L;
+    }
+
+    static String firstText(Map<String, Object> source, String... keys) {
         for (String key : keys) {
             Object value = source.get(key);
             if (value instanceof String text && !text.isBlank()) {
