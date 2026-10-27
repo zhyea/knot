@@ -156,7 +156,7 @@ public final class ModelUsageNormalizer {
      */
     private static ModelUsage mergeMediaCounters(ModelUsage base, BillingUsage billing) {
         long imageCount = billing instanceof ImageBillingUsage image ? image.count() : 0L;
-        long videoSeconds = billing instanceof VideoBillingUsage video ? video.durationSeconds() : 0L;
+        long videoSeconds = billing instanceof VideoBillingUsage video ? video.outputSeconds() : 0L;
         long audioSeconds = billing instanceof AudioBillingUsage audio ? audio.durationSeconds() : 0L;
         if (imageCount <= 0 && videoSeconds <= 0 && audioSeconds <= 0) {
             return base;

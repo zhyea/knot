@@ -6,15 +6,19 @@ import org.chobit.knot.adapter.model.usage.ImageBillingUsage;
 import org.chobit.knot.adapter.model.usage.TokenBillingUsage;
 import org.chobit.knot.adapter.model.usage.VideoBillingUsage;
 import org.chobit.knot.adapter.usage.UsageExtractItem;
+import org.chobit.knot.adapter.usage.calculator.BillingModeCalculator;
 import org.chobit.knot.adapter.usage.calculator.SimpleBillingModeCalculator;
 import org.chobit.knot.adapter.usage.calculator.TokenBillingModeCalculator;
 import org.chobit.knot.adapter.usage.calculator.VideoBillingModeCalculator;
 import org.chobit.knot.adapter.usage.extractor.*;
+import org.chobit.knot.common.constants.enums.BillingModeEnum;
 import org.junit.jupiter.api.Test;
 
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -187,23 +191,32 @@ class UsageExtractorTest {
 
         VideoBillingUsage usage = videoExtractor.extractUsage(body, request).billing();
 
-        assertEquals(10L, usage.durationSeconds());
-        assertEquals(1280L, usage.width());
-        assertEquals(720L, usage.height());
-        assertEquals(921_600L, usage.pixels());
+        assertEquals(10L, usage.outputSeconds());
+        assertEquals("720P", usage.outputResolution(), "1280x720 归一化为档位名 720P");
         assertTrue(usage.sound());
-        assertTrue(usage.reference());
+        assertTrue(usage.referenceVideo());
     }
 
     @Test
-    void shouldPreferUsageAliasesForVideoDuration() {
-        Map<String, Object> body = new LinkedHashMap<>();
+    void shouldNormalizeDeclaredResolutionCaseAndSeparators() {
+        // 厂商写法五花八门：768p / 768P / "768 P" / 768-P / 768_p 都应落到同一个档位键。
+        // 归一化只在这里做一遍——计算器直接消费归一化后的档位名，不重复解析。
+        for (String raw : new String[]{"768p", "768P", "768 P", "768-P", "768_p"}) {
+            VideoBillingUsage usage = videoExtractor.extractUsage(
+                    Map.of("duration_seconds", 5), Map.of("resolution", raw)).billing();
+
+            assertEquals("768P", usage.outputResolution(), "写法 " + raw + " 应归一到 768P");
+        }
+    }
+
+    @Test
+    void shouldPreferUsageAliasesForVideoDuration() {        Map<String, Object> body = new LinkedHashMap<>();
         body.put("usage", Map.of("seconds", 8));
         body.put("duration_seconds", 99);
 
         VideoBillingUsage usage = videoExtractor.extractUsage(body, Map.of()).billing();
 
-        assertEquals(8L, usage.durationSeconds(), "usage 里的秒数优先于响应体顶层");
+        assertEquals(8L, usage.outputSeconds(), "usage 里的秒数优先于响应体顶层");
     }
 
     @Test
@@ -211,9 +224,96 @@ class UsageExtractorTest {
         VideoBillingUsage usage = videoExtractor.extractUsage(
                 Map.of("video_seconds", 5), Map.of("prompt", "a cat")).billing();
 
-        assertEquals(5L, usage.durationSeconds());
+        assertEquals(5L, usage.outputSeconds());
         assertFalse(usage.sound());
-        assertFalse(usage.reference());
+        assertFalse(usage.referenceVideo());
+    }
+
+    @Test
+    void shouldTreatAudioFlagAsSound() {
+        // 阿里云万相用 audio 声明有声输出，旧键表（generate_audio / with_audio / … / sound）命中不了
+        VideoBillingUsage usage = videoExtractor.extractUsage(
+                Map.of("duration_seconds", 5), Map.of("audio", true)).billing();
+
+        assertTrue(usage.sound());
+    }
+
+    @Test
+    void shouldNotTreatReferenceImageAsInputVideo() {
+        // 参考图走输入图片张数口径，不进「有无输入视频」这一维（robin 2026-10-26 拍板）
+        VideoBillingUsage usage = videoExtractor.extractUsage(
+                Map.of("duration_seconds", 5),
+                Map.of("reference_images", List.of("a.png", "b.png"))).billing();
+
+        assertFalse(usage.referenceVideo(), "参考图不得计入「有无输入视频」");
+        assertEquals(2L, usage.inputImageCount(), "参考图仍按输入图片张数计量");
+    }
+
+    @Test
+    void shouldTreatVideoUrlAsInputVideo() {
+        // Kling 视频生视频 / 续写把输入视频放在 video / video_url，旧键表一个都不命中
+        assertTrue(videoExtractor.extractUsage(Map.of("duration_seconds", 5),
+                Map.of("video_url", "https://cdn.example.com/in.mp4")).billing().referenceVideo());
+        assertTrue(videoExtractor.extractUsage(Map.of("duration_seconds", 5),
+                Map.of("video", "https://cdn.example.com/in.mp4")).billing().referenceVideo());
+    }
+
+    @Test
+    void shouldIgnoreAmbiguousReferenceKeysForInputVideo() {
+        // reference / reference_url 语义不明（可能指向图片），不猜
+        assertFalse(videoExtractor.extractUsage(Map.of("duration_seconds", 5),
+                Map.of("reference_url", "https://cdn.example.com/a.png")).billing().referenceVideo());
+    }
+
+    @Test
+    void shouldHonorOverriddenHooksInVendorSubclass() {
+        // 抽象层接线探针：厂商子类只覆写差异钩子，组装出的仍是同一份 VideoBillingUsage。
+        // 若覆写不生效，下面的 7L / sound=true 会退回通用键表的结果（0 / false）而变红。
+        class VendorExtractor extends AbstractVideoUsageExtractor {
+            @Override
+            public String code() {
+                return "VIDEO-VENDOR";
+            }
+
+            @Override
+            public String label() {
+                return "Vendor";
+            }
+
+            @Override
+            public String description() {
+                return "Vendor";
+            }
+
+            @Override
+            public BillingModeCalculator calculator() {
+                return new VideoBillingModeCalculator();
+            }
+
+            @Override
+            public Set<BillingModeEnum> billingModes() {
+                return EnumSet.of(BillingModeEnum.VIDEO);
+            }
+
+            @Override
+            protected long inputMillis(Map<String, Object> requestBody) {
+                return 7_000L;
+            }
+
+            @Override
+            protected boolean soundEnabled(Map<String, Object> requestBody) {
+                return true;
+            }
+        }
+
+        // 通用键表里没有任何一个键，全部靠覆写
+        VideoBillingUsage usage = new VendorExtractor()
+                .extractUsage(Map.of("duration_seconds", 5), Map.of("prompt", "a cat")).billing();
+
+        assertEquals(5L, usage.outputSeconds(), "未覆写的钩子仍走通用实现");
+        assertEquals(7L, usage.inputSeconds(), "覆写后应生效");
+        assertTrue(usage.sound(), "覆写后应生效");
+        assertFalse(usage.referenceVideo(), "未覆写时走通用键表，无参考视频");
     }
 
     // ---------- AUDIO：时长 ----------
@@ -284,9 +384,8 @@ class UsageExtractorTest {
 
         assertInstanceOf(VideoBillingUsage.class, merged);
         VideoBillingUsage video = (VideoBillingUsage) merged;
-        assertEquals(11L, video.durationSeconds());
-        assertEquals(1920L, video.width());
-        assertEquals(1080L, video.height());
+        assertEquals(11L, video.outputSeconds());
+        assertEquals("1080P", video.outputResolution());
     }
 
     // ---------- 空响应兜底 ----------

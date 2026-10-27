@@ -95,7 +95,7 @@ public class SimpleBillingModeCalculator extends AbstractBillingModeCalculator {
      */
     private long mediaSeconds(BillingUsage usage) {
         if (usage instanceof VideoBillingUsage video) {
-            return video.durationSeconds();
+            return video.outputSeconds();
         }
         if (usage instanceof AudioBillingUsage audio) {
             return audio.durationSeconds();

@@ -73,7 +73,7 @@ class MediaBillingCalculatorTest {
     void shouldBillVideoBySecondsFromVideoUsage() {
         NormalizedBillingAmount amount = simple.calculate(context(
                 rule("VIDEO", "PER_SECOND", SIMPLE_CONFIG),
-                new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 0L, 0L, 0L, 0L, 0L, false, false)));
+                new VideoBillingUsage(TokenBillingUsage.empty(), 10_000L, 0L, 0L, "", false, false)));
 
         assertEquals("5.0", amount.totalCost(), "10 秒 × 0.5");
         assertEquals("VIDEO", amount.details().get(0).type());
@@ -85,7 +85,7 @@ class MediaBillingCalculatorTest {
         // 现在一律按模式默认单位（VIDEO -> PER_SECOND，分母 1）归一，与管理端表单同源。
         NormalizedBillingAmount amount = simple.calculate(context(
                 rule("VIDEO", null, SIMPLE_CONFIG),
-                new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 0L, 0L, 0L, 0L, 0L, false, false)));
+                new VideoBillingUsage(TokenBillingUsage.empty(), 10_000L, 0L, 0L, "", false, false)));
 
         assertEquals("5.0", amount.totalCost(), "10 秒 × 0.5 ÷ 1（不是 ÷ 1000 的 0.005）");
     }
@@ -104,7 +104,7 @@ class MediaBillingCalculatorTest {
     void shouldUseResolutionPriceDerivedFromVideoSize() {
         NormalizedBillingAmount amount = videoCalculator.calculate(context(
                 rule("VIDEO", "PER_SECOND", VIDEO_CONFIG),
-                new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 0L, 0L, 921_600L, 1280L, 720L, false, false)));
+                new VideoBillingUsage(TokenBillingUsage.empty(), 10_000L, 0L, 0L, "720P", false, false)));
 
         assertEquals("0.50", amount.totalCost(), "10 秒 × 720P 价 0.05");
         NormalizedUsageDetail detail = amount.details().get(0);
@@ -115,7 +115,7 @@ class MediaBillingCalculatorTest {
     void shouldUse1080PPriceForFullHdVideo() {
         NormalizedBillingAmount amount = videoCalculator.calculate(context(
                 rule("VIDEO", "PER_SECOND", VIDEO_CONFIG),
-                new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 0L, 0L, 2_073_600L, 1920L, 1080L, true, true)));
+                new VideoBillingUsage(TokenBillingUsage.empty(), 10_000L, 0L, 0L, "1080P", true, true)));
 
         assertEquals("1.0", amount.totalCost(), "10 秒 × 1080P 价 0.1");
         assertEquals("VIDEO:1080P", amount.details().get(0).type());
@@ -125,7 +125,7 @@ class MediaBillingCalculatorTest {
     void shouldFallBackToDefaultPriceForUnknownResolution() {
         NormalizedBillingAmount amount = videoCalculator.calculate(context(
                 rule("VIDEO", "PER_SECOND", VIDEO_CONFIG),
-                new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 0L, 0L, 409_920L, 854L, 480L, false, false)));
+                new VideoBillingUsage(TokenBillingUsage.empty(), 10_000L, 0L, 0L, "480P", false, false)));
 
         assertEquals("0.20", amount.totalCost(), "未配置分辨率 → 默认价 0.02");
         // 2026-10-25：854x480 归一成 480P（480P 是业界标准档位，豆包/Vidu/MiniMax 都有这一档），
@@ -138,7 +138,7 @@ class MediaBillingCalculatorTest {
     void shouldUseDefaultPriceWhenSizeMissing() {
         NormalizedBillingAmount amount = videoCalculator.calculate(context(
                 rule("VIDEO", "PER_SECOND", VIDEO_CONFIG),
-                new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 0L, 0L, 0L, 0L, 0L, false, false)));
+                new VideoBillingUsage(TokenBillingUsage.empty(), 10_000L, 0L, 0L, "", false, false)));
 
         assertEquals("0.20", amount.totalCost());
         assertEquals("VIDEO", amount.details().get(0).type(), "无分辨率时 detail 不带后缀");
@@ -155,7 +155,7 @@ class MediaBillingCalculatorTest {
     void videoTokenRuleShouldBillSameAmountOnBothCalculatorPaths() {
         VideoBillingUsage usage = new VideoBillingUsage(
                 new TokenBillingUsage(0L, 1_000_000L, 0L, 0L, 0L, 0L, 0L),
-                5L, 0L, 0L, 921_600L, 1280L, 720L, false, false);
+                5_000L, 0L, 0L, "720P", false, false);
         BillingRuleRef rule = rule("VIDEO", "1M_TOKENS", "{\"defaultUnitPrice\": 70}");
 
         NormalizedBillingAmount viaVideo = videoCalculator.calculate(context(rule, usage));

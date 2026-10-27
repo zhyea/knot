@@ -9,6 +9,7 @@ import BillingModeVideoConfig from "@/components/billing/modes/BillingModeVideoC
 import BillingModeCustomConfig from "@/components/billing/modes/BillingModeCustomConfig.vue";
 import PricingPlanVendorMiniMaxConfig from "@/components/billing/plans/PricingPlanVendorMiniMaxConfig.vue";
 import PricingPlanVendorKlingConfig from "@/components/billing/plans/PricingPlanVendorKlingConfig.vue";
+import PricingPlanDimensionTieredConfig from "@/components/billing/plans/PricingPlanDimensionTieredConfig.vue";
 import type {Dict} from "@/types";
 
 /**
@@ -70,7 +71,7 @@ const CAPABILITIES = {
       supportedUnits: ["1M_TOKENS", "1K_TOKENS", "PER_TOKEN"],
       supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK"]
     },
-    {code: "VIDEO", defaultUnit: "PER_SECOND", supportedUnits: ["PER_SECOND"], supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK", "VENDOR_MINIMAX", "VENDOR_KLING"]},
+    {code: "VIDEO", defaultUnit: "PER_SECOND", supportedUnits: ["PER_SECOND"], supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK", "VENDOR_MINIMAX", "VENDOR_KLING", "DIMENSION_TIERED"]},
     {code: "CUSTOM", defaultUnit: "CUSTOM", supportedUnits: ["CUSTOM"], supportedPricingPlans: ["FIXED"]},
     {code: "FREE", defaultUnit: "PER_REQUEST", supportedUnits: ["PER_REQUEST"], supportedPricingPlans: ["FIXED"]}
   ]
@@ -862,6 +863,111 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     expect(form.videoQuantityMode).toBe("OUTPUT");
     await save(wrapper);
     expect(configOf(updatePayload()).video).toEqual({quantityMode: "OUTPUT"});
+  });
+
+  it("DIMENSION_TIERED：独立方案组件渲染四维档位表，config_json 原样往返", async () => {
+    // 键空间与 Kling 同形（档位 × 有声 × 含参考），故共用同一张整表与同一套行契约
+    const configJson = JSON.stringify({
+      defaultUnitPrice: 0.5,
+      resolutionPrices: {
+        "720P": 0.15,
+        "720P:AUDIO": 0.3,
+        "720P:REFERENCE": 0.08,
+        "720P:REFERENCE:AUDIO": 0.16
+      },
+      video: {quantityMode: "SUM"}
+    });
+    vi.mocked(getBillingRule).mockResolvedValue(
+      detailRow({
+        billingMode: "VIDEO",
+        unit: "PER_SECOND",
+        pricingPlan: "DIMENSION_TIERED",
+        configJson: configJson
+      }) as never
+    );
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    expect(wrapper.findComponent(PricingPlanDimensionTieredConfig).exists()).toBe(true);
+    // 档位表让位给方案组件：视频模式组件仍渲染（默认单价与计费量口径仍需编辑）
+    expect(wrapper.findComponent(BillingModeVideoConfig).exists()).toBe(true);
+    expect(wrapper.find(".resolution-list").exists()).toBe(false);
+
+    const form = formOf(wrapper, BillingModeVideoConfig);
+    expect(form.videoResolutionRows).toEqual([
+      {key: "720P", price: 0.15, audioPrice: 0.3, referencePrice: 0.08, referenceAudioPrice: 0.16, inputPrice: null}
+    ]);
+
+    await save(wrapper);
+    expect(updatePayload().pricingPlan).toBe("DIMENSION_TIERED");
+    // 回显→保存必须零漂移：四个维度键与口径都原样写回
+    expect(configOf(updatePayload())).toEqual({
+      defaultUnitPrice: 0.5,
+      resolutionPrices: {
+        "720P": 0.15,
+        "720P:AUDIO": 0.3,
+        "720P:REFERENCE": 0.08,
+        "720P:REFERENCE:AUDIO": 0.16
+      },
+      video: {quantityMode: "SUM"}
+    });
+  });
+
+  it("DIMENSION_TIERED：输入侧分量与附加费照常落库（本方案只决定单价取哪一档）", async () => {
+    // ⭐ 与 Kling 的关键差异：Kling 把「有输入」折进档位价，故一律不落输入分量与附加费；
+    // 维度分档只决定单价取哪一档，输入秒独立成价（口径为「仅输出」时）依然合法
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper);
+    form.billingMode = "VIDEO";
+    await flushPromises();
+    form.pricingPlan = "DIMENSION_TIERED";
+    await flushPromises();
+
+    form.videoInputVideoPerSecond = 0.5;
+    form.videoInputImagePerImage = 0.2;
+    form.videoFreeInputImages = 5;
+    form.videoAudioSurcharge = 15;
+    form.videoResolutionRows.push(
+      {key: "720P", price: 0.15, audioPrice: null, referencePrice: null, referenceAudioPrice: null, inputPrice: null}
+    );
+    await save(wrapper);
+
+    const config = configOf(updatePayload());
+    expect(config.resolutionPrices).toEqual({"720P": 0.15});
+    // 口径仍是默认的「仅输出」时不落 quantityMode（与历史行为一致）
+    expect(config.video).toEqual({inputVideoPerSecond: 0.5, inputImagePerImage: 0.2, freeInputImages: 5});
+    expect(config.surcharges).toEqual([{code: "AUDIO", trigger: "AUDIO", amount: 15}]);
+  });
+
+  it("DIMENSION_TIERED：档位表为空时拒绝保存（退化成固定价与本方案自相矛盾）", async () => {
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper);
+    form.billingMode = "VIDEO";
+    await flushPromises();
+    form.pricingPlan = "DIMENSION_TIERED";
+    await flushPromises();
+
+    await save(wrapper);
+    expect(warned().some((message) => message.includes("档位"))).toBe(true);
+    expect(vi.mocked(updateBillingRule)).not.toHaveBeenCalled();
+  });
+
+  it("DIMENSION_TIERED：口径折入输入秒时拒绝再填输入视频单价（同一批秒不收两遍）", async () => {
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper);
+    form.billingMode = "VIDEO";
+    await flushPromises();
+    form.pricingPlan = "DIMENSION_TIERED";
+    await flushPromises();
+
+    form.videoQuantityMode = "SUM";
+    form.videoInputVideoPerSecond = 0.5;
+    form.videoResolutionRows.push(
+      {key: "720P", price: 0.15, audioPrice: null, referencePrice: null, referenceAudioPrice: null, inputPrice: null}
+    );
+    await save(wrapper);
+
+    expect(warned().some((message) => message.includes("输入视频"))).toBe(true);
+    expect(vi.mocked(updateBillingRule)).not.toHaveBeenCalled();
   });
 
   it("保存成功后关闭抽屉并抛出 saved", async () => {

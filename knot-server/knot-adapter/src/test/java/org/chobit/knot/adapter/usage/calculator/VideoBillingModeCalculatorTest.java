@@ -54,7 +54,7 @@ class VideoBillingModeCalculatorTest {
         // 输入不含视频：720P -> 70；10 秒 × 70
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(DOUBAO, "FIXED"),
-                video(10L, 0L, 0L, 1280L, 720L, false, false)));
+                video(10L, 0L, 0L, "720P", false, false)));
 
         assertEquals("700", amount.totalCost(), "10 秒 × 720P 无参考输入价 70");
     }
@@ -64,7 +64,7 @@ class VideoBillingModeCalculatorTest {
         // 输入含视频：720P:REFERENCE -> 42；10 秒 × 42
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(DOUBAO, "FIXED"),
-                video(10L, 0L, 0L, 1280L, 720L, false, true)));
+                video(10L, 0L, 0L, "720P", false, true)));
 
         assertEquals("420", amount.totalCost(), "组合键 720P:REFERENCE 命中 42，而不是 720P 的 70");
     }
@@ -73,7 +73,7 @@ class VideoBillingModeCalculatorTest {
     void doubao1080PShouldBillByItsOwnTier() {
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(DOUBAO, "FIXED"),
-                video(10L, 0L, 0L, 1920L, 1080L, false, true)));
+                video(10L, 0L, 0L, "1080P", false, true)));
 
         assertEquals("460", amount.totalCost(), "1080P:REFERENCE -> 46");
     }
@@ -89,7 +89,7 @@ class VideoBillingModeCalculatorTest {
         // 100 万 token、720P、输入不含视频 -> 70 元/百万token
         VideoBillingUsage usage = new VideoBillingUsage(
                 new TokenBillingUsage(800_000L, 200_000L, 1_000_000L, 0L, 0L, 0L, 0L),
-                5L, 0L, 0L, 921_600L, 1280L, 720L, false, false);
+                5_000L, 0L, 0L, "720P", false, false);
 
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(DOUBAO, "FIXED", "1M_TOKENS"), usage));
@@ -102,7 +102,7 @@ class VideoBillingModeCalculatorTest {
         // 同量，输入含视频 -> 720P:REFERENCE 42 元/百万token
         VideoBillingUsage usage = new VideoBillingUsage(
                 new TokenBillingUsage(800_000L, 200_000L, 1_000_000L, 0L, 0L, 0L, 0L),
-                5L, 3L, 0L, 921_600L, 1280L, 720L, false, true);
+                5_000L, 3_000L, 0L, "720P", false, true);
 
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(DOUBAO, "FIXED", "1M_TOKENS"), usage));
@@ -121,7 +121,7 @@ class VideoBillingModeCalculatorTest {
                 """;
         VideoBillingUsage usage = new VideoBillingUsage(
                 new TokenBillingUsage(800_000L, 200_000L, 1_000_000L, 0L, 0L, 0L, 0L),
-                5L, 4L, 8L, 921_600L, 1280L, 720L, false, false);
+                5_000L, 4_000L, 8L, "720P", false, false);
 
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(config, "FIXED", "1M_TOKENS"), usage));
@@ -135,7 +135,7 @@ class VideoBillingModeCalculatorTest {
         // 同一份豆包配置，单位改回 PER_SECOND 就按秒——量纲完全由单位决定
         VideoBillingUsage usage = new VideoBillingUsage(
                 new TokenBillingUsage(800_000L, 200_000L, 1_000_000L, 0L, 0L, 0L, 0L),
-                5L, 0L, 0L, 921_600L, 1280L, 720L, false, false);
+                5_000L, 0L, 0L, "720P", false, false);
 
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(DOUBAO, "FIXED", "PER_SECOND"), usage));
@@ -148,7 +148,7 @@ class VideoBillingModeCalculatorTest {
         // 单位缺失 -> 模式默认 PER_SECOND（不是 1K_TOKENS），与管理端表单同源
         VideoBillingUsage usage = new VideoBillingUsage(
                 new TokenBillingUsage(800_000L, 200_000L, 1_000_000L, 0L, 0L, 0L, 0L),
-                5L, 0L, 0L, 921_600L, 1280L, 720L, false, false);
+                5_000L, 0L, 0L, "720P", false, false);
 
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(DOUBAO, "FIXED", null), usage));
@@ -160,62 +160,33 @@ class VideoBillingModeCalculatorTest {
 
     /**
      * MiniMax Hailuo 的档位是 768P / 2K / 480P——不在标准尺寸表里。
-     * 回归意义：分辨率键必须优先取<b>请求体声明的档位名</b>，
-     * 靠宽高反推只能认标准尺寸，768P 会退化成裸串或空值，配了价也吃不到。
+     * 回归意义：维度键取的是<b>提取器归一化好的档位名</b>（{@code outputResolution}），不是宽高。
+     * 宽高是「由档位名反推」的中间产物，768P 这类非标档反推不出来，配了价也吃不到。
      */
     @Test
-    void shouldUseDeclaredResolutionNameFromRequest() {
+    void shouldUseResolutionTierNameAsDimensionKey() {
         String config = """
                 {"defaultUnitPrice": 9, "resolutionPrices": {"768P": 0.50, "2K": 0.80}}
                 """;
-        NormalizedUsageContext ctx = new NormalizedUsageContext(
-                rule(config, "FIXED"),
-                new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 0L, 0L, 0L, 0L, 0L, false, false),
-                Map.of("resolution", "768P"), OCCURRED_AT);
 
-        NormalizedBillingAmount amount = calculator.calculate(ctx);
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule(config, "FIXED"), video(10L, 0L, 0L, "768P", false, false)));
 
         assertEquals("5.00", amount.totalCost(), "10 秒 × 768P 价 0.50（不是默认价 9）");
         assertEquals("VIDEO:768P", amount.details().get(0).type());
     }
 
     @Test
-    void shouldNormalizeDeclaredResolutionCaseAndSeparators() {
-        // 厂商写法五花八门：768p / 768P / "768 P" / 768-P 都应落到同一个键
+    void shouldDegradeToDefaultPriceWhenResolutionMissing() {
+        // 档位名缺失 -> 没有任何档位键可命中 -> 回落 defaultUnitPrice。
+        // 归一化（768p / "768 P" / 768-P -> 768P）在提取层完成，不在计算器里做二遍。
         String config = "{\"defaultUnitPrice\": 9, \"resolutionPrices\": {\"768P\": 0.50}}";
-        for (String raw : new String[]{"768p", "768P", "768 P", "768-P", "768_p"}) {
-            NormalizedUsageContext ctx = new NormalizedUsageContext(
-                    rule(config, "FIXED"),
-                    new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 0L, 0L, 0L, 0L, 0L, false, false),
-                    Map.of("resolution", raw), OCCURRED_AT);
 
-            assertEquals("5.00", calculator.calculate(ctx).totalCost(), "写法 " + raw + " 应归一到 768P");
-        }
-    }
-
-    @Test
-    void shouldFallBackToWidthHeightWhenResolutionNotDeclared() {
-        // 没有文本声明时才由宽高反推（1366x768 -> 768P）
-        String config = "{\"defaultUnitPrice\": 9, \"resolutionPrices\": {\"768P\": 0.50}}";
         NormalizedBillingAmount amount = calculator.calculate(context(
-                rule(config, "FIXED"),
-                new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 0L, 0L,
-                        1_049_088L, 1366L, 768L, false, false)));
+                rule(config, "FIXED"), video(10L, 0L, 0L, "", false, false)));
 
-        assertEquals("5.00", amount.totalCost(), "宽高反推 1366x768 -> 768P");
-    }
-
-    @Test
-    void declaredResolutionWinsOverWidthHeight() {
-        // 请求体声明优先于宽高：声明 2K 时即便宽高是 768 也按 2K 计价
-        String config = "{\"defaultUnitPrice\": 9, \"resolutionPrices\": {\"768P\": 0.50, \"2K\": 0.80}}";
-        NormalizedUsageContext ctx = new NormalizedUsageContext(
-                rule(config, "FIXED"),
-                new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 0L, 0L,
-                        1_049_088L, 1366L, 768L, false, false),
-                Map.of("resolution", "2K"), OCCURRED_AT);
-
-        assertEquals("8.00", calculator.calculate(ctx).totalCost(), "声明的 2K 优先于宽高反推的 768P");
+        assertEquals("90", amount.totalCost(), "无档位名时按默认价 9 × 10 秒");
+        assertEquals("VIDEO", amount.details().get(0).type(), "无档位时分档类型不带后缀");
     }
 
     @Test
@@ -224,7 +195,7 @@ class VideoBillingModeCalculatorTest {
         String legacy = "{\"defaultUnitPrice\": 0.02, \"resolutionPrices\": {\"720P\": 0.05, \"1080P\": 0.1}}";
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(legacy, "FIXED"),
-                video(10L, 0L, 0L, 1280L, 720L, true, true)));
+                video(10L, 0L, 0L, "720P", true, true)));
 
         assertEquals("0.50", amount.totalCost(), "组合键未配置时逐级降级到 720P（老配置零改动）");
     }
@@ -238,7 +209,7 @@ class VideoBillingModeCalculatorTest {
         // 无视频输入：总时长 = 输出时长
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(KLING, "FIXED"),
-                video(5L, 0L, 0L, 1920L, 1080L, false, false)));
+                video(5L, 0L, 0L, "1080P", false, false)));
 
         assertEquals("5.0", amount.totalCost(), "无输入 -> 输出 5 秒（不是 5+5=10）");
     }
@@ -248,7 +219,7 @@ class VideoBillingModeCalculatorTest {
         // 输入 3 ≤ 输出 5：总时长 = 输出 × 2 = 10
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(KLING, "FIXED"),
-                video(5L, 3L, 0L, 1920L, 1080L, false, false)));
+                video(5L, 3L, 0L, "1080P", false, false)));
 
         assertEquals("10.0", amount.totalCost(), "输入 ≤ 输出 -> 输出×2 = 10");
     }
@@ -258,7 +229,7 @@ class VideoBillingModeCalculatorTest {
         // 输入 8 > 输出 5：总时长 = 输入 + 输出 = 13
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(KLING, "FIXED"),
-                video(5L, 8L, 0L, 1920L, 1080L, false, false)));
+                video(5L, 8L, 0L, "1080P", false, false)));
 
         assertEquals("13.0", amount.totalCost(), "输入 > 输出 -> 输入+输出 = 13");
     }
@@ -268,7 +239,7 @@ class VideoBillingModeCalculatorTest {
         String sum = "{\"defaultUnitPrice\": 0.5, \"video\": {\"quantityMode\": \"SUM\"}}";
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(sum, "FIXED"),
-                video(10L, 4L, 0L, 1280L, 720L, false, false)));
+                video(10L, 4L, 0L, "720P", false, false)));
 
         assertEquals("7.0", amount.totalCost(), "(10+4) 秒 × 0.5");
     }
@@ -294,7 +265,7 @@ class VideoBillingModeCalculatorTest {
         // 输出 10 秒 × 0.50 = 5.0；输入视频 4 秒 × 0.50 = 2.0；输入图片 (8-5) 张 × 0.20 = 0.6
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(MINIMAX, "FIXED"),
-                video(10L, 4L, 8L, 1280L, 720L, false, false)));
+                video(10L, 4L, 8L, "720P", false, false)));
 
         assertEquals("7.60", amount.totalCost(), "5.00 + 2.00 + 0.60");
         assertEquals(3, amount.details().size(), "三个分量各出一条明细");
@@ -321,7 +292,7 @@ class VideoBillingModeCalculatorTest {
 
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(config, "FIXED"),
-                new VideoBillingUsage(TokenBillingUsage.empty(), 10L, 4L, 2L, 0L, 0L, 0L, false, false)));
+                new VideoBillingUsage(TokenBillingUsage.empty(), 10_000L, 4_000L, 2L, "", false, false)));
 
         assertEquals("6.4", amount.totalCost(),
                 "输出 10×0.5 + 输入视频 4×0.3(INPUT_VIDEO) + 输入图片 2×0.1(INPUT_IMAGE)，不是分量默认价 0.9 / 0.7");
@@ -331,7 +302,7 @@ class VideoBillingModeCalculatorTest {
     void minimaxShouldNotBillInputVideoWhenAbsent() {
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(MINIMAX, "FIXED"),
-                video(10L, 0L, 0L, 1280L, 720L, false, false)));
+                video(10L, 0L, 0L, "720P", false, false)));
 
         assertEquals("5.00", amount.totalCost(), "无输入时只剩输出分量");
         assertEquals(1, amount.details().size());
@@ -358,7 +329,7 @@ class VideoBillingModeCalculatorTest {
         // 图片 (8-5) 张 × 0.20 = 0.60  => 7.60
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(MINIMAX_H3, "VENDOR_MINIMAX"),
-                video(10L, 4L, 8L, 1366L, 768L, false, false)));
+                video(10L, 4L, 8L, "768P", false, false)));
 
         assertEquals("7.60", amount.totalCost(), "5.00 + 2.00 + 0.60");
         assertEquals(3, amount.details().size(), "输出 / 输入视频 / 输入图片 各一条");
@@ -373,7 +344,7 @@ class VideoBillingModeCalculatorTest {
         // 2K 档：输出 10 秒 × 0.80 = 8.00；输入 4 秒 × 0.80 = 3.20；图片 0 张 => 11.20
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(MINIMAX_H3, "VENDOR_MINIMAX"),
-                video(10L, 4L, 0L, 2560L, 1440L, false, false)));
+                video(10L, 4L, 0L, "2K", false, false)));
 
         assertEquals("11.20", amount.totalCost(), "2K 档输出/输入均 0.80");
         assertEquals("VIDEO:2K", amount.details().get(0).type(), "2560x1440 归一到 2K");
@@ -391,7 +362,7 @@ class VideoBillingModeCalculatorTest {
                 """;
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(config, "VENDOR_MINIMAX"),
-                video(10L, 4L, 0L, 1366L, 768L, false, false)));
+                video(10L, 4L, 0L, "768P", false, false)));
 
         assertEquals("6.20", amount.totalCost(), "输入价覆盖生效，不是回落输出价 5.00+2.00");
     }
@@ -404,13 +375,13 @@ class VideoBillingModeCalculatorTest {
                 """;
         NormalizedBillingAmount threeImages = calculator.calculate(context(
                 rule(config, "VENDOR_MINIMAX"),
-                video(10L, 0L, 3L, 1366L, 768L, false, false)));
+                video(10L, 0L, 3L, "768P", false, false)));
         assertEquals("5.00", threeImages.totalCost(), "3 张未超 5 张免费额度");
         assertEquals(1, threeImages.details().size(), "无图片明细");
 
         NormalizedBillingAmount eightImages = calculator.calculate(context(
                 rule(config, "VENDOR_MINIMAX"),
-                video(10L, 0L, 8L, 1366L, 768L, false, false)));
+                video(10L, 0L, 8L, "768P", false, false)));
         assertEquals("5.39", eightImages.totalCost(), "输出 5.00 + 图片 3×0.13=0.39");
     }
 
@@ -426,7 +397,7 @@ class VideoBillingModeCalculatorTest {
                 """;
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(config, "VENDOR_MINIMAX"),
-                video(10L, 0L, 0L, 1366L, 768L, true, false)));
+                video(10L, 0L, 0L, "768P", true, false)));
 
         assertEquals("5.00", amount.totalCost(), "只有输出分量，音频免费不加 0.30");
         assertEquals(1, amount.details().size(), "无附加费明细");
@@ -440,7 +411,7 @@ class VideoBillingModeCalculatorTest {
                 """;
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(config, "VENDOR_MINIMAX"),
-                video(5L, 3L, 0L, 1366L, 768L, false, false)));
+                video(5L, 3L, 0L, "768P", false, false)));
 
         assertEquals(5L, amount.details().get(0).tokens(), "输出分量仍是 5 秒，没有被 SUM 折成 8");
         assertEquals(3L, amount.details().get(1).tokens(), "输入秒单独作为分量");
@@ -470,7 +441,7 @@ class VideoBillingModeCalculatorTest {
         // 无输入视频：计费量 = 输出 5 秒，单价取 720P 无参考档 1.0
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(KLING_4_0, "VENDOR_KLING"),
-                video(5L, 0L, 0L, 1280L, 720L, false, false)));
+                video(5L, 0L, 0L, "720P", false, false)));
 
         assertEquals("5.0", amount.totalCost(), "5 秒 × 1.0（无输入不折量）");
         assertEquals(1, amount.details().size());
@@ -484,7 +455,7 @@ class VideoBillingModeCalculatorTest {
         // 若「有输入视频」判据误取 reference 标志（本例为 false），会算成 10 × 1.0 = 10.0（多收 67%）
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(KLING_4_0, "VENDOR_KLING"),
-                video(5L, 3L, 0L, 1280L, 720L, false, false)));
+                video(5L, 3L, 0L, "720P", false, false)));
 
         assertEquals(10L, amount.details().get(0).tokens(), "输入≤输出 -> 输出×2");
         assertEquals("6.0", amount.totalCost(), "10 × 0.6（有输入优惠档）");
@@ -495,7 +466,7 @@ class VideoBillingModeCalculatorTest {
         // 输入 8 > 输出 5 -> 计费量 = 5 + 8 = 13，单价仍取有输入档 0.6 -> 7.8
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(KLING_4_0, "VENDOR_KLING"),
-                video(5L, 8L, 0L, 1280L, 720L, false, false)));
+                video(5L, 8L, 0L, "720P", false, false)));
 
         assertEquals(13L, amount.details().get(0).tokens(), "输入>输出 -> 输入+输出");
         assertEquals("7.8", amount.totalCost(), "13 × 0.6");
@@ -513,7 +484,7 @@ class VideoBillingModeCalculatorTest {
                 """;
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(config, "VENDOR_KLING"),
-                video(10L, 0L, 0L, 1280L, 720L, true, false)));
+                video(10L, 0L, 0L, "720P", true, false)));
 
         assertEquals(10L, amount.details().get(0).tokens(), "在线模型绝不折叠输入秒");
         assertEquals("9.0", amount.totalCost(), "10 秒 × 有声档 0.9");
@@ -532,13 +503,13 @@ class VideoBillingModeCalculatorTest {
                 """;
         NormalizedBillingAmount both = calculator.calculate(context(
                 rule(config, "VENDOR_KLING"),
-                video(10L, 4L, 0L, 1920L, 1080L, true, false)));
+                video(10L, 4L, 0L, "1080P", true, false)));
         assertEquals("15.0", both.totalCost(), "10 秒 × 含参考+有声 1.5");
 
         // 参考输入但无声：命中 1080P:REFERENCE 0.9
         NormalizedBillingAmount referenceOnly = calculator.calculate(context(
                 rule(config, "VENDOR_KLING"),
-                video(10L, 0L, 0L, 1920L, 1080L, false, true)));
+                video(10L, 0L, 0L, "1080P", false, true)));
         assertEquals("9.0", referenceOnly.totalCost(), "10 秒 × 含参考 0.9");
     }
 
@@ -554,7 +525,7 @@ class VideoBillingModeCalculatorTest {
                 """;
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(config, "VENDOR_KLING"),
-                video(5L, 3L, 8L, 1280L, 720L, false, false)));
+                video(5L, 3L, 8L, "720P", false, false)));
 
         assertEquals("5.0", amount.totalCost(), "只有输出一条分量：5 秒 × 1.0");
         assertEquals(1, amount.details().size(), "无输入视频 / 输入图片明细");
@@ -573,7 +544,7 @@ class VideoBillingModeCalculatorTest {
                 """;
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(config, "VENDOR_KLING"),
-                video(5L, 0L, 0L, 1280L, 720L, true, false)));
+                video(5L, 0L, 0L, "720P", true, false)));
 
         assertEquals("5.0", amount.totalCost(), "音频档价已含在单价里，不再加 0.3");
         assertEquals(1, amount.details().size(), "无附加费明细");
@@ -598,7 +569,7 @@ class VideoBillingModeCalculatorTest {
         // 8 秒 -> 8 + 10 + 10×6 = 78
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(VIDU_Q2_TURBO_720P, "TIERED"),
-                video(8L, 0L, 0L, 1280L, 720L, false, false)));
+                video(8L, 0L, 0L, "720P", false, false)));
 
         assertEquals("78", amount.totalCost(), "第1秒8 + 第2秒10 + 第3~8秒各10 = 78");
     }
@@ -607,7 +578,7 @@ class VideoBillingModeCalculatorTest {
     void viduProgressiveOneSecondOnlyChargesFirstTier() {
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(VIDU_Q2_TURBO_720P, "TIERED"),
-                video(1L, 0L, 0L, 1280L, 720L, false, false)));
+                video(1L, 0L, 0L, "720P", false, false)));
 
         assertEquals("8", amount.totalCost(), "1 秒只走第 1 档");
     }
@@ -617,7 +588,7 @@ class VideoBillingModeCalculatorTest {
         // PROGRESSIVE 下没有唯一单价：明细报本笔单位均价，type 带 :PROGRESSIVE 提示下游别按「量×单价」复算
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(VIDU_Q2_TURBO_720P, "TIERED"),
-                video(8L, 0L, 0L, 1280L, 720L, false, false)));
+                video(8L, 0L, 0L, "720P", false, false)));
 
         NormalizedUsageDetail detail = amount.details().get(0);
         assertEquals("VIDEO:720P:PROGRESSIVE", detail.type());
@@ -638,7 +609,7 @@ class VideoBillingModeCalculatorTest {
                 """;
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(config, "TIERED"),
-                video(5L, 0L, 0L, 1280L, 720L, false, false)));
+                video(5L, 0L, 0L, "720P", false, false)));
 
         assertEquals("55", amount.totalCost(), "第1秒15 + 第2~5秒各10 = 55");
     }
@@ -648,7 +619,7 @@ class VideoBillingModeCalculatorTest {
         // tierMode 只在 TIERED 下生效（校验层已拒绝该组合保存），计算层不因它改道
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule("{\"defaultUnitPrice\": 2}", "FIXED"),
-                video(8L, 0L, 0L, 1280L, 720L, false, false)));
+                video(8L, 0L, 0L, "720P", false, false)));
 
         assertEquals("16", amount.totalCost(), "FIXED 下按量×单价");
     }
@@ -665,7 +636,7 @@ class VideoBillingModeCalculatorTest {
                 """;
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(config, "FIXED"),
-                video(10L, 0L, 0L, 1280L, 720L, true, false)));
+                video(10L, 0L, 0L, "720P", true, false)));
 
         assertEquals("35", amount.totalCost(), "10 秒 × 2 + 音频附加费 15");
         assertEquals("VIDEO_SURCHARGE", amount.details().get(1).type());
@@ -682,7 +653,7 @@ class VideoBillingModeCalculatorTest {
                 """;
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(config, "FIXED"),
-                video(10L, 0L, 0L, 1280L, 720L, false, false)));
+                video(10L, 0L, 0L, "720P", false, false)));
 
         assertEquals("20", amount.totalCost(), "没要声音就不收附加费");
         assertEquals(1, amount.details().size());
@@ -712,7 +683,7 @@ class VideoBillingModeCalculatorTest {
         // 回归意义：此前命中 resolutionPrices 后直接 return，绕过方案层，错峰对视频完全不生效
         NormalizedBillingAmount amount = calculator.calculate(context(
                 rule(PEAK_OFF_PEAK, "PEAK_OFF_PEAK"),
-                video(10L, 0L, 0L, 1280L, 720L, false, false)));
+                video(10L, 0L, 0L, "720P", false, false)));
 
         assertEquals("0.250", amount.totalCost(), "10 秒 × (0.05 × 0.5)");
     }
@@ -723,7 +694,7 @@ class VideoBillingModeCalculatorTest {
         Instant mondayPeak = Instant.parse("2026-10-19T02:30:00Z");
         NormalizedBillingAmount amount = calculator.calculate(new NormalizedUsageContext(
                 rule(PEAK_OFF_PEAK, "PEAK_OFF_PEAK"),
-                video(10L, 0L, 0L, 1280L, 720L, false, false),
+                video(10L, 0L, 0L, "720P", false, false),
                 Map.of(), mondayPeak));
 
         assertEquals("0.50", amount.totalCost(), "10 秒 × 0.05 × 1");
@@ -741,14 +712,126 @@ class VideoBillingModeCalculatorTest {
     }
 
     @Test
-    void shouldFallbackToRequestBodySizeWhenUsageIsNotVideo() {
+    void shouldNotChargeWhenUsageIsNotVideo() {
+        // 类型错配（VIDEO 规则绑到了非视频提取器）：量无从取，**不出账**。
+        // v1 会按 1 秒硬计 + 用请求体 size 取档位价——那是第四条静默多收路径。
         NormalizedBillingAmount amount = calculator.calculate(new NormalizedUsageContext(
                 rule("{\"defaultUnitPrice\": 0.02, \"resolutionPrices\": {\"720P\": 0.05}}", "FIXED"),
                 new TokenBillingUsage(0L, 0L, 0L, 0L, 0L, 0L, 0L),
                 Map.of("size", "1280x720"), OCCURRED_AT));
 
-        assertEquals("0.05", amount.totalCost(), "类型错配：按 1 秒计，分辨率仍取请求体 size");
-        assertTrue(amount.details().get(0).type().startsWith("VIDEO:720P"));
+        assertEquals("0", amount.totalCost(), "不知道量就不收钱");
+        assertTrue(amount.details().isEmpty(), "无计费依据时明细留空，便于对账识别");
+    }
+
+    @Test
+    void shouldCeilFractionalSecondsInsteadOfTruncating() {
+        // 毫秒精度的意义：5.9 秒不再被截成 5 秒（少收 15%），按秒向上取整为 6
+        VideoBillingUsage usage = new VideoBillingUsage(
+                TokenBillingUsage.empty(), 5_900L, 0L, 0L, "", false, false);
+
+        NormalizedBillingAmount amount = calculator.calculate(context(
+                rule("{\"defaultUnitPrice\": 0.5}", "FIXED"), usage));
+
+        assertEquals("3.0", amount.totalCost(), "6 秒 × 0.5（v1 会算成 5 秒 → 2.5）");
+    }
+
+    // ==================== 维度分档价（DIMENSION_TIERED） ====================
+
+    /**
+     * 阿里云万相 wan2.6-i2v-flash「图生视频-基于首帧」：输出分辨率 × 是否输出声音，仅按输出秒计费
+     * （首帧图完全不计费）。有声 720P 0.3 / 1080P 0.5，无声 720P 0.15 / 1080P 0.25。
+     */
+    private static final String WANXIANG_I2V = """
+            {
+              "defaultUnitPrice": 0.30,
+              "resolutionPrices": {
+                "720P": 0.15,
+                "720P:AUDIO": 0.30,
+                "1080P": 0.25,
+                "1080P:AUDIO": 0.50
+              }
+            }
+            """;
+
+    @Test
+    void dimensionTieredShouldPriceByResolutionAndSoundTier() {
+        // 10 秒 720P 有声 -> 720P:AUDIO 0.3
+        assertEquals("3.00", calculator.calculate(context(
+                rule(WANXIANG_I2V, "DIMENSION_TIERED"),
+                video(10L, 0L, 0L, "720P", true, false))).totalCost());
+        // 10 秒 720P 无声 -> 720P 0.15
+        assertEquals("1.50", calculator.calculate(context(
+                rule(WANXIANG_I2V, "DIMENSION_TIERED"),
+                video(10L, 0L, 0L, "720P", false, false))).totalCost());
+        // 10 秒 1080P 有声 -> 1080P:AUDIO 0.5
+        assertEquals("5.00", calculator.calculate(context(
+                rule(WANXIANG_I2V, "DIMENSION_TIERED"),
+                video(10L, 0L, 0L, "1080P", true, false))).totalCost());
+    }
+
+    @Test
+    void dimensionTieredShouldFallBackToDefaultPriceForUnconfiguredTier() {
+        // 厂商档位不可枚举，总有配不到的档：未命中必须回落 defaultUnitPrice，而不是 0 元出账
+        assertEquals("3.00", calculator.calculate(context(
+                rule(WANXIANG_I2V, "DIMENSION_TIERED"),
+                video(10L, 0L, 0L, "4K", true, false))).totalCost(),
+                "4K:AUDIO / 4K 都没配 -> 回落默认价 0.3");
+    }
+
+    @Test
+    void dimensionTieredShouldTreatReportedInputSecondsAsReferenceTier() {
+        // ⭐ 主探针：请求体没带 reference_* 键（Kling 传 video / image），但上游回传了输入时长 3 秒。
+        // 若「有输入视频」只看 reference 标志，:REFERENCE 档位价恒不命中 —— 每条请求都按高价多收。
+        String config = """
+                {
+                  "defaultUnitPrice": 1.0,
+                  "resolutionPrices": {"720P": 1.0, "720P:REFERENCE": 0.6}
+                }
+                """;
+        assertEquals("6.0", calculator.calculate(context(
+                rule(config, "DIMENSION_TIERED"),
+                video(10L, 3L, 0L, "720P", false, false))).totalCost(),
+                "输入时长 3 秒即「有输入视频」：10 秒 × 720P:REFERENCE 0.6，而不是 720P 的 1.0");
+    }
+
+    @Test
+    void dimensionTieredShouldPreferMostSpecificReferenceAudioTier() {
+        String config = """
+                {
+                  "defaultUnitPrice": 1.0,
+                  "resolutionPrices": {"720P": 1.0, "720P:AUDIO": 1.2,
+                                       "720P:REFERENCE": 0.6, "720P:REFERENCE:AUDIO": 0.9}
+                }
+                """;
+        assertEquals("9.0", calculator.calculate(context(
+                rule(config, "DIMENSION_TIERED"),
+                video(10L, 3L, 0L, "720P", true, false))).totalCost(),
+                "含输入 + 有声 -> 命中最具体的 720P:REFERENCE:AUDIO 0.9");
+        assertEquals("6.0", calculator.calculate(context(
+                rule(config, "DIMENSION_TIERED"),
+                video(10L, 3L, 0L, "720P", false, false))).totalCost(),
+                "含输入 + 无声 -> 720P:REFERENCE 0.6");
+        assertEquals("12.0", calculator.calculate(context(
+                rule(config, "DIMENSION_TIERED"),
+                video(10L, 0L, 0L, "720P", true, false))).totalCost(),
+                "无输入 + 有声 -> 720P:AUDIO 1.2");
+    }
+
+    @Test
+    void dimensionTieredShouldFoldInputSecondsWhenQuantityModeSaysSo() {
+        // 声档与量纲是两根独立的轴：有无输入决定「取哪一档价」，口径决定「量是多少」
+        String config = """
+                {
+                  "defaultUnitPrice": 1.0,
+                  "resolutionPrices": {"720P": 1.0, "720P:REFERENCE": 0.6},
+                  "video": {"quantityMode": "OUTPUT_PLUS_MAX"}
+                }
+                """;
+        // 输入 3 ≤ 输出 10 -> 量 = 10 + max(3,10) = 20，单价 0.6 -> 12.0
+        assertEquals("12.0", calculator.calculate(context(
+                rule(config, "DIMENSION_TIERED"),
+                video(10L, 3L, 0L, "720P", false, false))).totalCost());
     }
 
     // ==================== helpers ====================
@@ -756,12 +839,11 @@ class VideoBillingModeCalculatorTest {
     private VideoBillingUsage video(long outputSeconds,
                                     long inputSeconds,
                                     long imageCount,
-                                    long width,
-                                    long height,
+                                    String resolution,
                                     boolean sound,
                                     boolean reference) {
-        return new VideoBillingUsage(TokenBillingUsage.empty(), outputSeconds, inputSeconds, imageCount,
-                width * height, width, height, sound, reference);
+        return new VideoBillingUsage(TokenBillingUsage.empty(),
+                outputSeconds * 1_000L, inputSeconds * 1_000L, imageCount, resolution, sound, reference);
     }
 
     private NormalizedUsageContext context(BillingRuleRef rule, VideoBillingUsage usage) {

@@ -69,12 +69,13 @@ class EnumOptionRegistryTest {
         assertLabel("BillingModeEnum", "TOKEN", "Token");
         assertLabel("BillingModeEnum", "FREE", "免费");
 
-        assertEquals(5, optionsOf("PricingPlanEnum").size());
+        assertEquals(6, optionsOf("PricingPlanEnum").size());
         assertLabel("PricingPlanEnum", "FIXED", "固定价");
         assertLabel("PricingPlanEnum", "TIERED", "阶梯价");
         assertLabel("PricingPlanEnum", "PEAK_OFF_PEAK", "高低峰价");
         assertLabel("PricingPlanEnum", "VENDOR_MINIMAX", "厂商定制(MiniMax)");
         assertLabel("PricingPlanEnum", "VENDOR_KLING", "厂商定制(Kling)");
+        assertLabel("PricingPlanEnum", "DIMENSION_TIERED", "维度分档价");
 
         assertEquals(2, optionsOf("RouteTargetTypeEnum").size());
         assertLabel("RouteTargetTypeEnum", "MODEL", "模型");

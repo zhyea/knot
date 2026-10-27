@@ -63,7 +63,32 @@ public enum PricingPlanEnum implements EnumOption {
      * <p>计费量口径由 {@code video.quantityMode} 显式声明——它无法从价表反推（两种口径下同名档位
      * 都存在），静默按任一侧兜底都会产生两倍量级的资损，故本方案强制显式声明。</p>
      */
-    VENDOR_KLING("厂商定制(Kling)", BillingModeEnum.VIDEO);
+    VENDOR_KLING("厂商定制(Kling)", BillingModeEnum.VIDEO),
+
+    /**
+     * 维度分档价：按「请求属性」分档取价（分辨率 × 是否输出声音 × 有无输入/参考视频）；仅 VIDEO 模式可用。
+     *
+     * <p>与 {@link #TIERED}（按<b>用量</b>分档）、{@link #PEAK_OFF_PEAK}（按<b>时间</b>分档）
+     * 构成三根正交的轴：本方案决定单价取自哪个属性组合，另两根分别决定「量落在哪档」与「时点打几折」。
+     * 三者可叠加——分档价一律过方案层倍率链（{@code resolveDimensionPrice}），正是为此。</p>
+     *
+     * <p><b>键空间</b>（每个档位 4 个组合键，按顺序逐级去尾降级）：</p>
+     * <pre>
+     * 档位:REFERENCE:AUDIO   有声 + 有输入视频
+     * 档位:REFERENCE         无声 + 有输入视频
+     * 档位:AUDIO             有声 + 无输入视频
+     * 档位                   无声 + 无输入视频
+     * </pre>
+     *
+     * <p>⚠ 「有无输入视频」≡「有无参考视频」（robin 2026-10-26 定调）：视频生成里传进去的那个视频
+     * 既是计费时长来源也是内容参考，二者不需要拆成两维；参考<b>图</b>不属于这一维，
+     * 走图片张数口径（MiniMax 那种「按张计费」是另一回事，见 {@link #VENDOR_MINIMAX}）。</p>
+     *
+     * <p>取价语义与 {@link #FIXED} 一致（无阶梯、无相位倍率），本方案真正的增量是<b>保存期的强校验</b>：
+     * 维度键拼错（{@code 720P:SOUND}、{@code 720P:AUDIO:REFERENCE}、空档位名）在 FIXED 下会
+     * <b>静默回落默认价</b>——配置看着生效、实际从未命中，本方案直接拒绝保存。</p>
+     */
+    DIMENSION_TIERED("维度分档价", BillingModeEnum.VIDEO);
 
     private final String label;
     private final List<BillingModeEnum> supportedBillingModes;

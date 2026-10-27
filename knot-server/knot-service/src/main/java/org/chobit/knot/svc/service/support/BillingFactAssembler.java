@@ -105,7 +105,7 @@ public class BillingFactAssembler {
         TokenBillingUsage embedded = billing.tokenUsage();
         long generic = switch (billing) {
             case ImageBillingUsage i -> i.count();
-            case VideoBillingUsage v -> v.durationSeconds();
+            case VideoBillingUsage v -> v.outputSeconds();
             case AudioBillingUsage a -> a.durationSeconds();
             default -> 0L;
         };

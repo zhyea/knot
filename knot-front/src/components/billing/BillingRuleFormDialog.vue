@@ -156,6 +156,7 @@ import PricingPlanTieredConfig from "./plans/PricingPlanTieredConfig.vue";
 import PricingPlanPeakOffPeakConfig from "./plans/PricingPlanPeakOffPeakConfig.vue";
 import PricingPlanVendorMiniMaxConfig from "./plans/PricingPlanVendorMiniMaxConfig.vue";
 import PricingPlanVendorKlingConfig from "./plans/PricingPlanVendorKlingConfig.vue";
+import PricingPlanDimensionTieredConfig from "./plans/PricingPlanDimensionTieredConfig.vue";
 import {createBillingRule, updateBillingRule, listModeCapabilities, getBillingRule} from "@/api/billing";
 import {formatJsonText, isValidJsonText, parseJsonObject, roundPrice, stringifyJson} from "@/utils/format";
 import {
@@ -208,7 +209,8 @@ const componentsByPlan: Record<string, Component> = {
   TIERED: PricingPlanTieredConfig,
   PEAK_OFF_PEAK: PricingPlanPeakOffPeakConfig,
   VENDOR_MINIMAX: PricingPlanVendorMiniMaxConfig,
-  VENDOR_KLING: PricingPlanVendorKlingConfig
+  VENDOR_KLING: PricingPlanVendorKlingConfig,
+  DIMENSION_TIERED: PricingPlanDimensionTieredConfig
 };
 
 const visible = computed({
@@ -729,6 +731,13 @@ function normalizeMode(mode: unknown): string {
   return String(mode || "").trim().toUpperCase() || "TOKEN";
 }
 
+/** 是否存在至少一个「档位名 + 单价」都填了的行：维度分档价的存在前提（与后端 validate 同口径） */
+function hasTierRow(): boolean {
+  return (form.videoResolutionRows || []).some((row) =>
+    String(row?.key || "").trim() !== "" && toNumberOrNull(row?.price) != null
+  );
+}
+
 /** 基础价格部分（模式组件产出）；进阶方案明细在此基础上合并 */
 function buildBaseConfig(): Dict | null {
   if (form.billingMode === BillingMode.TOKEN) {
@@ -754,6 +763,7 @@ function buildBaseConfig(): Dict | null {
   if (form.billingMode === BillingMode.VIDEO) {
     const isMiniMax = form.pricingPlan === PricingPlan.VENDOR_MINIMAX;
     const isKling = form.pricingPlan === PricingPlan.VENDOR_KLING;
+    const isDimensionTiered = form.pricingPlan === PricingPlan.DIMENSION_TIERED;
     const resolutionPrices: Dict = {};
     for (const row of form.videoResolutionRows || []) {
       const key = String(row?.key || "").trim().toUpperCase();
@@ -777,8 +787,8 @@ function buildBaseConfig(): Dict | null {
       if (referencePrice != null) {
         resolutionPrices[`${key}:REFERENCE`] = referencePrice;
       }
-      if (isKling) {
-        // Kling 的单价是「档位 × 有声 × 含参考」三维：两列各写一个后缀键，留空则不下发，
+      if (isKling || isDimensionTiered) {
+        // 单价是「档位 × 有声 × 含参考」三维：两列各写一个后缀键，留空则不下发，
         // 由后端 dimensionKeys 的逐级降级取更宽泛的档位价
         const audioPrice = toNumberOrNull(row.audioPrice);
         if (audioPrice != null) {
@@ -904,6 +914,18 @@ async function submit() {
   // MiniMax 的识别分量是「输入图片按张计费」：缺图片单价与后端 validate 同口径，前置拦截给出明确提示
   if (form.pricingPlan === PricingPlan.VENDOR_MINIMAX && form.videoInputImagePerImage == null) {
     ElMessage.warning("MiniMax 方案请填写「输入图片 每张」单价");
+    return;
+  }
+  // 维度分档价：一张档位表都没有 = 退化成固定价，与后端 validate 同口径前置拦截
+  if (form.pricingPlan === PricingPlan.DIMENSION_TIERED && !hasTierRow()) {
+    ElMessage.warning("维度分档价请至少填写一个档位名及其单价");
+    return;
+  }
+  // 输入秒被计费量口径折进输出量后，再按分量单独收一次就是同一批秒收两遍
+  if (form.pricingPlan === PricingPlan.DIMENSION_TIERED
+      && form.videoInputVideoPerSecond != null
+      && String(form.videoQuantityMode || "OUTPUT").toUpperCase() !== "OUTPUT") {
+    ElMessage.warning("维度分档价：计费量口径已折入输入秒，请勿再填写「输入视频 每秒」单价");
     return;
   }
   if (form.billingMode === BillingMode.CUSTOM && !validateJson(form.customConfigJson, "自定义配置")) {

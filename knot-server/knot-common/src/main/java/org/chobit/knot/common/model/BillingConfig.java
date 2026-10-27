@@ -104,6 +104,24 @@ public record BillingConfig(
     /** 调休策略：整日低峰，或按所调休星期的高峰窗口判定 */
     private static final Set<String> SUPPORTED_MAKE_UP_POLICIES = Set.of("OFF_PEAK", "FOLLOW_WEEKDAY_WINDOWS");
 
+    /** 维度分档键的两个维度后缀（大小写不敏感、顺序固定） */
+    private static final String DIMENSION_REFERENCE = "REFERENCE";
+    private static final String DIMENSION_AUDIO = "AUDIO";
+
+    /**
+     * DIMENSION_TIERED 合法的维度后缀：{@code 档位} / {@code 档位:AUDIO} /
+     * {@code 档位:REFERENCE} / {@code 档位:REFERENCE:AUDIO} 四种。
+     *
+     * <p>顺序不能自由排列——计算器按「逐级去尾」生成候选链（见
+     * {@code VideoBillingModeCalculator#dimensionKeys}），{@code :AUDIO:REFERENCE}
+     * 这种写法永远进不了候选链，配了等于没配。</p>
+     */
+    private static final Set<String> SUPPORTED_DIMENSION_SUFFIXES = Set.of(
+            "",
+            ":" + DIMENSION_AUDIO,
+            ":" + DIMENSION_REFERENCE,
+            ":" + DIMENSION_REFERENCE + ":" + DIMENSION_AUDIO);
+
     /** 价格种类：对应 config_json 中的具名价格字段 */
     public enum PriceKind {
         INPUT, OUTPUT, CACHE_READ, CACHE_WRITE, CACHE_WRITE_5M, CACHE_WRITE_1H
@@ -817,9 +835,9 @@ public record BillingConfig(
         PricingPlanEnum resolved = plan == null ? PricingPlanEnum.FIXED : plan;
         HolidayCalendar effective = calendar == null ? HolidayCalendar.EMPTY : calendar;
         return switch (resolved) {
-            // 厂商定制方案（MiniMax / Kling）的取价语义与固定价完全一致：多分量编排在计算器侧，
-            // 方案值只承担分类标签与校验锚点，故共用同一实现
-            case FIXED, VENDOR_MINIMAX, VENDOR_KLING ->
+            // DIMENSION_TIERED 与厂商定制方案（MiniMax / Kling）的取价语义都与固定价完全一致：
+            // 多分量编排与维度键拼装在计算器侧，方案值只承担分类标签与校验锚点，故共用同一实现
+            case FIXED, DIMENSION_TIERED, VENDOR_MINIMAX, VENDOR_KLING ->
                     new FixedPricing(resolved, basePrices, defaultUnitPrice, resolutionPrices);
             case TIERED -> new TieredPricing(basePrices, defaultUnitPrice, tier, progressive(), resolutionPrices);
             case PEAK_OFF_PEAK -> new PeakOffPeakPricing(basePrices, defaultUnitPrice, pricing, effective, resolutionPrices);
@@ -939,6 +957,9 @@ public record BillingConfig(
         if (resolved == PricingPlanEnum.VENDOR_KLING) {
             return validateVendorKling();
         }
+        if (resolved == PricingPlanEnum.DIMENSION_TIERED) {
+            return validateDimensionTiered();
+        }
         // tierMode 只在 TIERED 下有意义：非阶梯方案配了它说明配置意图与方案不一致，拒绝保存
         if (blankToNull(tierMode) != null) {
             return "tierMode is only allowed for TIERED plan";
@@ -992,6 +1013,81 @@ public record BillingConfig(
             return "VENDOR_KLING does not support video.quantityMode=SUM (input seconds are never a flat component)";
         }
         return null;
+    }
+
+    /**
+     * DIMENSION_TIERED 专属：把「维度键拼错」从<b>静默回落</b>变成<b>拒绝保存</b>。
+     *
+     * <p>⭐ 本方案的取价算法与 {@link PricingPlanEnum#FIXED} 完全一致（都在
+     * {@code FixedPricing}），真正的增量就是这条校验。原因：维度键是<b>自由文本</b>，
+     * 而取价是「逐级去尾找第一个命中的键」——键拼错时不会报错，而是悄悄退回
+     * {@code defaultUnitPrice}，界面上看配置生效了、实际那档价从未命中过。</p>
+     *
+     * <p>四类拦截：</p>
+     * <ol>
+     *   <li><b>档位表不能空</b>：本方案存在的意义就是按档位取价，一张表没有等于退化成固定价。</li>
+     *   <li><b>键形状必须合法</b>：{@code 720P:SOUND}（拼错维度名）、{@code 720P:AUDIO:REFERENCE}
+     *       （顺序颠倒，永远进不了候选链）、{@code :AUDIO}（空档位名）一律拒绝。</li>
+     *   <li><b>默认单价必填</b>：档位未命中时的兜底（厂商档位不可枚举，总有配不到的档）。
+     *       缺它就是「识别不了的请求免费出账」，是资损。</li>
+     *   <li><b>输入秒不得双计</b>：{@code quantityMode=SUM/OUTPUT_PLUS_MAX} 已经把输入秒折进
+     *       计费量，再配 {@code video.inputVideoPerSecond} 会同一批秒收两次。</li>
+     * </ol>
+     */
+    private String validateDimensionTiered() {
+        if (resolutionPrices == null || resolutionPrices.isEmpty()) {
+            return "DIMENSION_TIERED requires resolutionPrices (at least one tier key)";
+        }
+        boolean tiered = false;
+        for (String rawKey : resolutionPrices.keySet()) {
+            String key = blankToNull(rawKey);
+            if (key == null) {
+                return "DIMENSION_TIERED resolution key must not be blank";
+            }
+            // 输入侧分量键（INPUT_VIDEO: / INPUT_IMAGE:）同样是合法的分档键，剥掉前缀后按同一形状校验
+            String name = key.trim();
+            String prefix = "";
+            if (upper(name).startsWith(VideoConfig.INPUT_VIDEO_PREFIX)) {
+                prefix = VideoConfig.INPUT_VIDEO_PREFIX;
+            } else if (upper(name).startsWith(VideoConfig.INPUT_IMAGE_PREFIX)) {
+                prefix = VideoConfig.INPUT_IMAGE_PREFIX;
+            }
+            String body = name.substring(prefix.length());
+            int colon = body.indexOf(':');
+            if (blankToNull(colon < 0 ? body : body.substring(0, colon)) == null) {
+                return "DIMENSION_TIERED resolution key must start with a tier name: " + key;
+            }
+            String suffix = colon < 0 ? "" : body.substring(colon);
+            if (!SUPPORTED_DIMENSION_SUFFIXES.contains(upper(suffix))) {
+                return "DIMENSION_TIERED resolution key suffix must be empty, :AUDIO, :REFERENCE"
+                        + " or :REFERENCE:AUDIO: " + key;
+            }
+            tiered = tiered || prefix.isEmpty();
+        }
+        if (!tiered) {
+            return "DIMENSION_TIERED requires at least one tier price (without INPUT_VIDEO:/INPUT_IMAGE: prefix)";
+        }
+        if (defaultUnitPrice == null) {
+            return "DIMENSION_TIERED requires defaultUnitPrice (fallback when no dimension key matches)";
+        }
+        return validateInputSecondsNotDoubleCounted();
+    }
+
+    /** 输入秒既折进计费量又单独成价 = 同一批秒收两次 */
+    private String validateInputSecondsNotDoubleCounted() {
+        if (video == null || video.inputVideoPerSecond() == null || blankToNull(video.quantityMode()) == null) {
+            return null;
+        }
+        String mode = upper(video.quantityMode());
+        if (VideoConfig.QUANTITY_SUM.equals(mode) || VideoConfig.QUANTITY_OUTPUT_PLUS_MAX.equals(mode)) {
+            return "DIMENSION_TIERED: video.inputVideoPerSecond conflicts with video.quantityMode="
+                    + mode + " (input seconds would be billed twice)";
+        }
+        return null;
+    }
+
+    private static String upper(String value) {
+        return value == null ? "" : value.trim().toUpperCase();
     }
 
     /** TIERED 专属：tier 必须为非空数组，每项 condition 完整、unitPrices 完整保留全部 6 个价格字段 */

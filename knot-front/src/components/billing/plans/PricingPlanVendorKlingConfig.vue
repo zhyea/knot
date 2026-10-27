@@ -30,73 +30,7 @@
       <span class="vendor-kling-config__group">分辨率档位（每秒）</span>
     </el-divider>
 
-    <div class="kling-res">
-      <div class="kling-res__head">
-        <span>档位名</span>
-        <span>无声</span>
-        <span>有声</span>
-        <span>含参考</span>
-        <span>含参考 + 有声</span>
-        <span/>
-      </div>
-      <div v-for="(row, index) in rows" :key="row.uid || `kling-res-${index}`" class="kling-res__row">
-        <el-select
-          :model-value="row.key"
-          filterable
-          allow-create
-          default-first-option
-          placeholder="如 720P / 4K"
-          @update:model-value="(value: string) => setKey(index, value)"
-        >
-          <el-option v-for="item in RESOLUTION_OPTIONS" :key="item" :label="item" :value="item"/>
-        </el-select>
-        <el-input-number
-          :model-value="row.price"
-          :min="0"
-          :step="UNIT_PRICE_STEP"
-          controls-position="right"
-          @update:model-value="(value: number | undefined | null) => setPrice(index, 'price', value)"
-        />
-        <el-input-number
-          :model-value="row.audioPrice"
-          :min="0"
-          :step="UNIT_PRICE_STEP"
-          controls-position="right"
-          placeholder="留空同无声"
-          @update:model-value="(value: number | undefined | null) => setPrice(index, 'audioPrice', value)"
-        />
-        <el-input-number
-          :model-value="row.referencePrice"
-          :min="0"
-          :step="UNIT_PRICE_STEP"
-          controls-position="right"
-          placeholder="留空同无声"
-          @update:model-value="(value: number | undefined | null) => setPrice(index, 'referencePrice', value)"
-        />
-        <el-input-number
-          :model-value="row.referenceAudioPrice"
-          :min="0"
-          :step="UNIT_PRICE_STEP"
-          controls-position="right"
-          placeholder="留空逐级回落"
-          @update:model-value="(value: number | undefined | null) => setPrice(index, 'referenceAudioPrice', value)"
-        />
-        <el-button
-          link
-          type="danger"
-          :icon="Delete"
-          aria-label="删除分辨率档位"
-          title="删除分辨率档位"
-          @click="remove(index)"
-        />
-      </div>
-    </div>
-
-    <div class="vendor-kling-config__actions">
-      <el-button @click="append">新增档位</el-button>
-      <el-button @click="fillCommon">填入常用档位</el-button>
-      <span class="vendor-kling-config__tip">档位名留空的行不会保存</span>
-    </div>
+    <ResolutionTierTable :rows="rows" uid-prefix="kling-res"/>
 
     <el-divider content-position="left">
       <span class="vendor-kling-config__group">非视频计费项（只作参考，需另建规则）</span>
@@ -122,23 +56,22 @@
 
 <script setup lang="ts">
 import {computed} from "vue";
-import {Delete} from "@element-plus/icons-vue";
-import {UNIT_PRICE_STEP} from "@/utils/billingPrice";
-import {createResolutionRow} from "@/utils/billingResolution";
-import type {ResolutionPriceField, ResolutionRow} from "@/utils/billingResolution";
+import ResolutionTierTable from "../ResolutionTierTable.vue";
+import type {ResolutionRow} from "@/utils/billingResolution";
 
 /**
  * Kling 专属计费组件（方案轴：pricingPlan = VENDOR_KLING）。
  *
- * <p>⭐ 为什么整张档位表由本组件承担，而不是复用视频模式组件的档位表：Kling 的单价是
+ * <p>⭐ 为什么档位表不让视频模式组件来渲染：Kling 的单价是
  * <b>「档位 × 有声 × 含参考」三维</b>（3.0 Omni 四档共存、4.0 再按有无输入视频分档），
  * 通用表只有「档位 + 含参考」两列，表达不了有声轴；把它硬塞进通用表会出现
- * 「同一档位只有一个价」的静默丢配置。故本组件渲染 5 列整表，
+ * 「同一档位只有一个价」的静默丢配置。故本方案渲染 5 列整表（委托
+ * {@link ResolutionTierTable}，与 DIMENSION_TIERED 共用同一份行编辑逻辑），
  * 视频模式组件在该方案下隐藏自己的档位表与输入侧分量（见 BillingModeVideoConfig 的 isVendorKling 分支）。</p>
  *
  * <p>行数据仍然共用 {@code form.videoResolutionRows}——它是 {@code config_json.resolutionPrices}
  * 的唯一表单映射，序列化与回显都在 BillingRuleFormDialog 的 parseResolutionRows / buildBaseConfig，
- * 本组件只负责编辑行字段，不各自维护一套档位数据（否则保存时两套数据会互相覆盖）。</p>
+ * 本组件只负责呈现与口径选择，不各自维护一套档位数据（否则保存时两套数据会互相覆盖）。</p>
  */
 const props = defineProps({
   form: {type: Object, required: true}
@@ -162,56 +95,15 @@ const quantityHint = computed(
   () => QUANTITY_MODES.find((item) => item.value === props.form.videoQuantityMode)?.hint ?? ""
 );
 
-/** 常用档位只是下拉建议，不是合法值白名单（厂商档位不可枚举，档位名可自由输入） */
-const RESOLUTION_OPTIONS = ["720P", "1080P", "4K"];
-
 /**
  * 行字段与 {@code resolutionPrices} 的键一一对应（契约见 utils/billingResolution）：
  * price → {@code 档位}、audioPrice → {@code 档位:AUDIO}、
  * referencePrice → {@code 档位:REFERENCE}、referenceAudioPrice → {@code 档位:REFERENCE:AUDIO}。
+ * 表的增删改查在 {@link ResolutionTierTable}（与 DIMENSION_TIERED 共用）。
  */
 const rows = computed<ResolutionRow[]>(() =>
   Array.isArray(props.form.videoResolutionRows) ? props.form.videoResolutionRows : []
 );
-
-let sequence = 0;
-
-function nextUid(): string {
-  sequence += 1;
-  return `kling-res-${Date.now()}-${sequence}`;
-}
-
-function append() {
-  rows.value.push(createResolutionRow("", nextUid()));
-}
-
-function remove(index: number) {
-  rows.value.splice(index, 1);
-}
-
-function setKey(index: number, value: string) {
-  const row = rows.value[index];
-  if (row) {
-    row.key = String(value || "").trim().toUpperCase();
-  }
-}
-
-function setPrice(index: number, field: ResolutionPriceField, value: number | undefined | null) {
-  const row = rows.value[index];
-  if (row) {
-    row[field] = value == null ? null : value;
-  }
-}
-
-/** 一键铺开常用档位（只补不存在的，不覆盖已填价格） */
-function fillCommon() {
-  const existing = new Set(rows.value.map((row) => row.key.toUpperCase()));
-  for (const key of RESOLUTION_OPTIONS) {
-    if (!existing.has(key)) {
-      rows.value.push(createResolutionRow(key, nextUid()));
-    }
-  }
-}
 
 /**
  * 非视频计费项官方价（klingai.com/document-api/pricing/base/video.md，2026-10）。
@@ -271,60 +163,8 @@ const NON_VIDEO_ITEMS = [
   line-height: 20px;
 }
 
-.vendor-kling-config__actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 4px;
-}
-
-.vendor-kling-config__tip {
-  color: var(--el-text-color-secondary);
-  font-size: 12px;
-}
-
 .vendor-kling-config__hint {
   margin-top: 10px;
 }
 
-.kling-res {
-  width: 100%;
-}
-
-.kling-res__head,
-.kling-res__row {
-  display: grid;
-  grid-template-columns: 1.3fr 1fr 1fr 1fr 1.3fr 34px;
-  gap: 8px;
-  align-items: center;
-}
-
-.kling-res__head {
-  padding: 0 12px 6px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-}
-
-.kling-res__row {
-  padding: 10px 12px;
-  margin-bottom: 8px;
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
-  background: var(--el-fill-color-extra-light);
-}
-
-.kling-res__row :deep(.el-input-number) {
-  width: 100%;
-}
-
-@media (max-width: 900px) {
-  .kling-res__head {
-    display: none;
-  }
-
-  .kling-res__row {
-    grid-template-columns: 1fr;
-  }
-}
 </style>

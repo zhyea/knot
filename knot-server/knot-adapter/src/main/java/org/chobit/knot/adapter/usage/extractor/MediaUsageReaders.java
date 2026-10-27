@@ -1,7 +1,10 @@
 package org.chobit.knot.adapter.usage.extractor;
 
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.util.MapNumberUtils;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Locale;
 import java.util.Map;
 
@@ -38,16 +41,61 @@ final class MediaUsageReaders {
                 "duration_seconds", "audio_seconds", "video_seconds", "seconds", "duration");
     }
 
+    /** 时长字段名：输出侧统一用这一份，避免毫秒口径与秒口径的键表漂移 */
+    private static final String[] DURATION_KEYS = {
+            "duration_seconds", "audio_seconds", "video_seconds", "seconds", "duration"};
+
     /**
-     * 请求侧输入视频时长（秒）：合成量（Kling 式）与「输入视频按秒」分量都靠它。
+     * 时长（毫秒）：{@code usage} 别名优先、响应体顶层兜底，<b>保留小数精度</b>。
      *
-     * <p>与 {@link #durationSeconds} 同口径（数值直取），但只读请求体——
-     * 输入时长是调用方声明的，上游不会在 usage 里回传。</p>
+     * <p>⭐ 为什么不复用 {@link #durationSeconds}：后者走 {@code firstLong}，
+     * {@code 5.9} 会被 {@code Number.longValue()} 截成 {@code 5}（少收 15%），
+     * {@code 0.5} 直接截成 {@code 0}（再被「至少一秒」兜成 1 秒，多收 100%）。
+     * 本方法按「秒 → 毫秒」放大三位并四舍五入，精度只到毫秒为止。</p>
+     *
+     * <p>⚠ 键表全是秒语义（{@code *_seconds} / {@code seconds} / {@code duration}）。
+     * 若某厂商把毫秒写进这些键，会得到 1000 倍用量——这类厂商须在自己的提取器里覆写
+     * {@code outputMillis} 钩子，不要放宽本方法的键表。</p>
      */
-    static long inputDurationSeconds(Map<String, Object> requestBody) {
-        return MapNumberUtils.firstLong(requestBody,
+    static long durationMillis(Map<String, Object> usage, Map<String, Object> body) {
+        long fromUsage = firstMillis(usage, DURATION_KEYS);
+        return fromUsage > 0 ? fromUsage : firstMillis(body, DURATION_KEYS);
+    }
+
+    /** 请求侧输入视频时长（毫秒），口径同 {@link #durationMillis} */
+    static long inputDurationMillis(Map<String, Object> requestBody) {
+        return firstMillis(requestBody,
                 "input_duration_seconds", "input_video_seconds", "input_duration", "input_video_duration",
                 "source_duration", "source_video_seconds");
+    }
+
+    /** 按给定键序取第一个大于 0 的秒数，并放大成毫秒 */
+    private static long firstMillis(Map<String, Object> source, String... keys) {
+        if (source == null || keys == null) {
+            return 0L;
+        }
+        for (String key : keys) {
+            long millis = secondsToMillis(source.get(key));
+            if (millis > 0) {
+                return millis;
+            }
+        }
+        return 0L;
+    }
+
+    /** 秒值 → 毫秒；不可解析或非正数返回 0 */
+    private static long secondsToMillis(Object value) {
+        if (value == null) {
+            return 0L;
+        }
+        try {
+            BigDecimal seconds = value instanceof Number number
+                    ? new BigDecimal(number.toString())
+                    : new BigDecimal(String.valueOf(value).trim());
+            return seconds.movePointRight(3).setScale(0, RoundingMode.HALF_UP).longValue();
+        } catch (NumberFormatException ignored) {
+            return 0L;
+        }
     }
 
     /**
@@ -99,10 +147,14 @@ final class MediaUsageReaders {
     }
 
     /**
-     * 请求侧布尔属性（是否有声音 / 是否有参考）：任一枚叶为真即为真。
+     * 请求侧布尔属性（是否有声音）：任一枚叶为真即为真。
      *
      * <p>Boolean 直接取值；字符串按 {@code true} 解析；非 0 数字为真；
      * 其余非 null 值（文件、URL 等对象）视为「已提供」。</p>
+     *
+     * <p>⚠ <b>只用于布尔开关语义</b>（如 {@code generate_audio}）。判断「有没有提供某个素材」
+     * 必须用 {@link #present}：本方法对字符串走 {@code Boolean.parseBoolean}，
+     * 一个 URL 字符串会被判成 {@code false}。</p>
      */
     static boolean flag(Map<String, Object> source, String... keys) {
         if (source == null || keys == null) {
@@ -114,6 +166,48 @@ final class MediaUsageReaders {
             }
         }
         return false;
+    }
+
+    /**
+     * 请求侧「是否提供了某物」（存在性语义）：任一枚叶非空即为真。
+     *
+     * <p>与 {@link #flag} 的分工是硬性的：{@code video_url} / {@code reference_url} 这类键的值是
+     * URL 字符串，走 {@code flag} 会被 {@code Boolean.parseBoolean("https://…")} 判成 {@code false}，
+     * 于是「有输入视频」永远识别不到。空串、空集合、空对象、显式 {@code "false"} 视为未提供。</p>
+     */
+    static boolean present(Map<String, Object> source, String... keys) {
+        if (source == null || keys == null) {
+            return false;
+        }
+        for (String key : keys) {
+            if (isPresent(source.get(key))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isPresent(Object value) {
+        if (value == null) {
+            return false;
+        }
+        if (value instanceof String text) {
+            String trimmed = text.trim();
+            return !trimmed.isEmpty() && !"false".equalsIgnoreCase(trimmed);
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.doubleValue() != 0d;
+        }
+        if (value instanceof Iterable<?> iterable) {
+            return iterable.iterator().hasNext();
+        }
+        if (value instanceof Map<?, ?> map) {
+            return !map.isEmpty();
+        }
+        return true;
     }
 
     /** 请求体里的尺寸：{@code size} / {@code resolution} 文本，或显式 {@code width} / {@code height} */
@@ -128,6 +222,58 @@ final class MediaUsageReaders {
         return MediaSize.ofDimensions(
                 MapNumberUtils.firstLong(requestBody, "width"),
                 MapNumberUtils.firstLong(requestBody, "height"));
+    }
+
+    /** 声明分辨率的字段名，按优先级排列（与 {@link #sizeOf} 同口径） */
+    private static final String[] RESOLUTION_KEYS = {"resolution", "size", "dimensions"};
+
+    /**
+     * 请求体声明的分辨率档位名：{@code null} 表示没有声明。
+     *
+     * <p>⭐ 计费分档键要的就是这个字符串，<b>不要用宽高反推</b>：厂商的档位名不可枚举
+     * （MiniMax 用 768P、Vidu 用 540P、豆包用 480p/720p/1080p，还有 2K、4K 各种写法），
+     * 从宽高反推只认标准尺寸表，{@code 768P} 这类非标档会退化成裸串或空值，配了价也吃不到。
+     * 厂商自己声明的写法才是最权威的键。</p>
+     */
+    static String resolution(Map<String, Object> requestBody) {
+        if (requestBody == null) {
+            return null;
+        }
+        for (String key : RESOLUTION_KEYS) {
+            String normalized = normalizeResolution(requestBody.get(key));
+            if (normalized != null) {
+                return normalized;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 分辨率文本归一化：标准尺寸映射到档位名，**未识别的写法原样大写返回**。
+     *
+     * <p>原样返回是刻意的——档位名不可枚举（768P、540P、2K、4K 及各厂商自造名），
+     * 硬塞进白名单只会让新档位配不上价。{@code auto} 之类的非档位值会落成 {@code AUTO}，
+     * 配不上就自然回落默认价，不会误命中。</p>
+     */
+    static String normalizeResolution(Object value) {
+        String text = value == null ? null : StringUtils.trimToNull(String.valueOf(value));
+        if (text == null) {
+            return null;
+        }
+        String normalized = StringUtils.lowerCase(text)
+                .replace(" ", "")
+                .replace("_", "")
+                .replace("-", "");
+        return switch (normalized) {
+            case "480", "480p", "854x480" -> "480P";
+            case "540", "540p", "960x540" -> "540P";
+            case "720", "720p", "1280x720" -> "720P";
+            case "768", "768p", "1366x768", "1024x768" -> "768P";
+            case "1080", "1080p", "1920x1080" -> "1080P";
+            case "1440", "1440p", "2k", "qhd", "2560x1440" -> "2K";
+            case "2160", "2160p", "4k", "uhd", "3840x2160" -> "4K";
+            default -> StringUtils.upperCase(text);
+        };
     }
 
     private static String firstText(Map<String, Object> source, String... keys) {

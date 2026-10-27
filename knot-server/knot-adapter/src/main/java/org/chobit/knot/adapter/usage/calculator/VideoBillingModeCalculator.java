@@ -11,6 +11,7 @@ import org.chobit.knot.adapter.model.usage.VideoBillingUsage;
 import org.chobit.knot.adapter.model.ref.BillingRuleRef;
 import org.chobit.knot.adapter.usage.NormalizedUsageContext;
 import org.springframework.stereotype.Component;
+import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -44,18 +45,9 @@ import java.util.Map;
  *       按单位序号逐秒落档累加，与「总量落一档」是两套算法，混用会算错钱。</li>
  * </ol>
  */
+@Slf4j
 @Component
 public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
-
-    /**
-     * 请求体里声明分辨率的字段名，按优先级排列（与 {@code MediaUsageReaders.sizeOf} 同口径）。
-     *
-     * <p>⭐ 为什么计算器要自己读一遍请求体：厂商的分辨率档位名<b>不可枚举</b>——
-     * MiniMax 用 768P，Vidu 用 540P，豆包用 480p/720p/1080p，还有 2K、4K 各种写法。
-     * 「从宽高反推档位名」只能覆盖标准尺寸（1280x720→720P），遇到 768P 这类非标档
-     * 会退化成裸尺寸串或空值，配了价也吃不到。厂商自己声明的档位名才是最权威的键。</p>
-     */
-    private static final List<String> REQUEST_SIZE_KEYS = List.of("resolution", "size", "dimensions");
 
     /** 无分辨率键时用于查表的空候选（退化到默认价） */
     private static final List<String> NO_DIMENSION = List.of();
@@ -81,8 +73,9 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         int unitSize = unitSize(rule, mode());
 
         if (!(usage instanceof VideoBillingUsage video)) {
-            // 类型错配：用量不是 VIDEO 提取器产出——秒数无从取，按 1 秒兜底，分辨率仍取请求体
-            return legacy(context, rule, config, unitSize);
+            // 类型错配：VIDEO 规则绑到了非视频提取器。量无从取——不出账并留下告警，
+            // 不再按 1 秒硬计（那是第四条静默多收路径）。
+            return noCharge("VIDEO 规则吃到非视频用量，已跳过计费：" + usage.getClass().getSimpleName());
         }
 
         // 厂商定制方案走专属口径：两家价表的结构（分量拆分方式 / 「有输入」的表达位置）通用路径都表达不了
@@ -94,8 +87,8 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         }
 
         BillingConfig.VideoConfig videoConfig = config == null ? null : config.video();
-        String resolution = resolutionOf(video, context);
-        List<String> outputKeys = dimensionKeys(resolution, video.reference(), video.sound());
+        String resolution = video.outputResolution();
+        List<String> outputKeys = dimensionKeys(resolution, video.hasInputVideo(), video.sound());
         BillingConfig.PricingPlan plan = config == null ? null : planOf(config, rule);
         // 量纲由单位声明：1M_TOKENS 等 token 单位取内嵌 token 量（豆包 Seedance 口径），
         // PER_SECOND 取秒（并可走合成量公式）
@@ -107,7 +100,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         // ---- 分量 1：输出视频（合成量 + 维度分档价 + 可选 PROGRESSIVE） ----
         long outputAmount = tokenQuantity
                 ? tokenAmount(video.tokenUsage())
-                : quantity(video.durationSeconds(), video.inputDurationSeconds(), videoConfig);
+                : outputAmountSeconds(video, videoConfig);
         BigDecimal outputCost = componentCost(plan, outputKeys, outputAmount, unitSize, context, config);
         BigDecimal outputPrice = componentUnitPrice(plan, outputKeys, outputAmount, unitSize, context, config);
         total = total.add(outputCost);
@@ -116,24 +109,24 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         // ---- 分量 2：输入视频（按秒，独立分档键前缀） ----
         // ⚠ token 量纲下不启用：一条规则只有一个单位基数（分母），秒/张分量会被同一个分母除错
         if (!tokenQuantity && videoConfig != null && videoConfig.billsInputVideo()
-                && video.inputDurationSeconds() > 0) {
+                && video.inputSeconds() > 0) {
             List<String> inputKeys = dimensionKeys(
                     componentKey(BillingConfig.VideoConfig.INPUT_VIDEO_PREFIX, resolution),
-                    video.reference(), video.sound());
+                    video.hasInputVideo(), video.sound());
             BigDecimal fallbackPrice = videoConfig.inputVideoPerSecond();
             BigDecimal price = firstDimensionPrice(plan, inputKeys, context, fallbackPrice);
-            BigDecimal cost = cost(video.inputDurationSeconds(), price, unitSize);
+            BigDecimal cost = cost(video.inputSeconds(), price, unitSize);
             total = total.add(cost);
-            details.add(detail(TYPE_INPUT_VIDEO, video.inputDurationSeconds(), cost, price, unitSize));
+            details.add(detail(TYPE_INPUT_VIDEO, video.inputSeconds(), cost, price, unitSize));
         }
 
         // ---- 分量 3：输入图片（按张，扣免费额度）；同 token 量纲下不启用 ----
         if (!tokenQuantity && videoConfig != null && videoConfig.billsInputImage()) {
-            long billable = videoConfig.billableImageCount(video.imageCount());
+            long billable = videoConfig.billableImageCount(video.inputImageCount());
             if (billable > 0) {
                 List<String> imageKeys = dimensionKeys(
                         componentKey(BillingConfig.VideoConfig.INPUT_IMAGE_PREFIX, resolution),
-                        video.reference(), video.sound());
+                        video.hasInputVideo(), video.sound());
                 BigDecimal fallbackPrice = videoConfig.inputImagePerImage();
                 BigDecimal price = firstDimensionPrice(plan, imageKeys, context, fallbackPrice);
                 BigDecimal cost = cost(billable, price, unitSize);
@@ -143,7 +136,9 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         }
 
         // ---- 附加费：与用量无关的常数项 ----
-        BigDecimal surcharge = config == null ? BigDecimal.ZERO : config.surchargeTotal(video.sound(), video.reference());
+        BigDecimal surcharge = config == null
+                ? BigDecimal.ZERO
+                : config.surchargeTotal(video.sound(), video.hasInputVideo());
         if (surcharge.signum() != 0) {
             total = total.add(surcharge);
             details.add(new NormalizedUsageDetail(TYPE_SURCHARGE, 1L,
@@ -180,7 +175,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
                                                            int unitSize) {
         BillingConfig.VideoConfig videoConfig = config == null ? null : config.video();
         BillingConfig.PricingPlan plan = config == null ? null : planOf(config, rule);
-        String resolution = resolutionOf(video, context);
+        String resolution = video.outputResolution();
         // MiniMax 无 reference / audio 折扣档，维度键只取纯档位名
         List<String> outputKeys = dimensionKeys(resolution, false, false);
 
@@ -188,14 +183,14 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         BigDecimal total = BigDecimal.ZERO;
 
         // ---- 分量 1：输出视频 —— 仅输出秒（不折叠输入秒，输入秒是独立分量） ----
-        long outputAmount = Math.max(video.durationSeconds(), 1L);
+        long outputAmount = firstAmount(video.outputSeconds(), 1L);
         BigDecimal outputPrice = componentUnitPrice(plan, outputKeys, outputAmount, unitSize, context, config);
         BigDecimal outputCost = componentCost(plan, outputKeys, outputAmount, unitSize, context, config);
         total = total.add(outputCost);
         details.add(detail(detailType(resolution, config), outputAmount, outputCost, outputPrice, unitSize));
 
         // ---- 分量 2：输入视频 —— 输入秒 × 档位输入单价，未单配时回落同档位输出单价 ----
-        long inputAmount = video.inputDurationSeconds();
+        long inputAmount = video.inputSeconds();
         if (inputAmount > 0) {
             List<String> inputKeys = dimensionKeys(
                     componentKey(BillingConfig.VideoConfig.INPUT_VIDEO_PREFIX, resolution), false, false);
@@ -206,11 +201,11 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         }
 
         // ---- 分量 3：输入图片 —— 超出免费额度的张数 × 固定每张价（不随分辨率变） ----
-        if (videoConfig != null && video.imageCount() > 0) {
+        if (videoConfig != null && video.inputImageCount() > 0) {
             long free = videoConfig.freeInputImages() == null
                     ? MINIMAX_FREE_INPUT_IMAGES
                     : Math.max(videoConfig.freeInputImages(), 0L);
-            long billable = Math.max(video.imageCount() - free, 0L);
+            long billable = Math.max(video.inputImageCount() - free, 0L);
             if (billable > 0) {
                 BigDecimal imagePrice = videoConfig.inputImagePerImage() == null
                         ? BigDecimal.ZERO : videoConfig.inputImagePerImage();
@@ -236,10 +231,10 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
      *
      * <p><b>与通用分量路径的两点差异——这两点就是本方法存在的理由：</b></p>
      * <ol>
-     *   <li><b>「有输入视频」的判据取 {@code inputDurationSeconds > 0}，并上请求侧的 reference 标志。</b>
+     *   <li><b>「有输入视频」的判据取 {@code inputVideoMillis > 0}，并上请求侧的参考视频标志。</b>
      *       提取器的 reference 只认 {@code input_reference} / {@code reference_*} 这类请求体键，
      *       而 Kling 的图生视频 / 视频续写传的是 {@code image} / {@code video} / {@code video_url}，
-     *       一个都命不中。若沿用通用路径的 {@code video.reference()}，Kling 4.0 的「有输入视频」
+     *       一个都命不中。若沿用通用路径的 {@code video.referenceVideo()}，Kling 4.0 的「有输入视频」
      *       优惠档位价<b>永远取不到</b>：既按「无输入」的高价计，又乘上折叠后的双倍量，双重多收。</li>
      *   <li><b>绝不按输入秒 / 输入张另行开分量，也不收附加费。</b> Kling 价表已把「有输入」折进
      *       档位单价，再开一条输入分量就是重复计费；官方价表无任何附加费档。</li>
@@ -258,16 +253,14 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
                                                          int unitSize) {
         BillingConfig.VideoConfig videoConfig = config == null ? null : config.video();
         BillingConfig.PricingPlan plan = config == null ? null : planOf(config, rule);
-        String resolution = resolutionOf(video, context);
+        String resolution = video.outputResolution();
 
-        // 「有输入视频」= 上游确实回传了输入时长，或请求侧声明了参考输入（参考图同样落 Kling 的有参考档）
-        boolean hasInput = video.inputDurationSeconds() > 0 || video.reference();
-        List<String> outputKeys = dimensionKeys(resolution, hasInput, video.sound());
+        List<String> outputKeys = dimensionKeys(resolution, video.hasInputVideo(), video.sound());
 
         // 量纲仍由单位声明（与通用路径同口径）：token 单位取内嵌 token 量，否则按秒并走合成量公式
         long amount = tokenQuantity(rule, mode())
                 ? tokenAmount(video.tokenUsage())
-                : quantity(video.durationSeconds(), video.inputDurationSeconds(), videoConfig);
+                : outputAmountSeconds(video, videoConfig);
         BigDecimal price = componentUnitPrice(plan, outputKeys, amount, unitSize, context, config);
         BigDecimal total = componentCost(plan, outputKeys, amount, unitSize, context, config);
 
@@ -277,27 +270,14 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
     }
 
     /**
-     * 类型错配时的兜底：秒数取不到，按 1 秒计，分辨率从请求体文本解析。
+     * 不出账：用量不足以支撑计价时的统一出口（规则与提取器类型错配）。
      *
-     * <p>与旧实现行为一致（VIDEO 规则吃到 token 用量不抛异常、按 1 秒出账），
-     * 只是单价改走方案层。</p>
+     * <p>返回<b>零额 + 空明细</b>，不再按 1 秒硬计——不知道量就不该收钱。明细留空让对账侧
+     * 一眼看出「这笔没有计费依据」，告警带原因，避免静默。</p>
      */
-    private NormalizedBillingAmount legacy(NormalizedUsageContext context,
-                                           BillingRuleRef rule,
-                                           BillingConfig config,
-                                           int unitSize) {
-        String resolution = declaredResolution(context.requestBody());
-        long amount = 1L;
-        BillingConfig.PricingContext pricingContext = new BillingConfig.PricingContext(amount, context.occurredAt());
-        List<String> keys = dimensionKeys(resolution, false, false);
-        BigDecimal unitPrice = config == null ? BigDecimal.ZERO
-                : planOf(config, rule).resolveDimensionPrice(keys, pricingContext, BigDecimal.ZERO);
-        BigDecimal totalCost = cost(amount, unitPrice, unitSize);
-        return NormalizedBillingAmount.of(
-                0L,
-                totalCost,
-                List.of(detail(detailType(resolution, config), amount, totalCost, unitPrice, unitSize))
-        );
+    private NormalizedBillingAmount noCharge(String reason) {
+        log.warn("VIDEO 计费跳过：{}", reason);
+        return NormalizedBillingAmount.of(0L, BigDecimal.ZERO, List.of());
     }
 
     // ==================== 分量取价 ====================
@@ -410,84 +390,31 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
     // ==================== 合成量 ====================
 
     /**
-     * 输出分量的计费量：按 {@code video.quantityMode} 把输入秒折进输出秒。
+     * 输出分量的计费量（秒）：按 {@code video.quantityMode} 把输入秒折进输出秒。
      *
      * <p>默认 {@code OUTPUT}（仅输出秒）与历史行为完全一致，未配 {@code video} 的配置不受影响。</p>
+     *
+     * <p>⭐ <b>「至少一秒」兜底收口在这里</b>：v1 它在两处各写一遍（通用路径与 MiniMax 分支），
+     * 改一处漏一处。语义是「<b>确实出片了但时长字段缺失</b>」（提取器给出了档位名或 token 量），
+     * 此时按 1 秒计合理；连档位名都没有的用量由 {@code VideoBillingUsage#isEmpty()} 表达，
+     * 那是另一条链路的口径，不在本方法里判。
+     * 另：毫秒精度下 {@code 0.5s} 不再被截成 0 再兜成 1 秒——它经 {@code outputSeconds()}
+     * 向上取整为 1 秒，与旧值恰好一致，但 {@code 5.9s} 会正确计 6 秒而非 5 秒。</p>
      */
-    private long quantity(long outputSeconds, long inputSeconds, BillingConfig.VideoConfig videoConfig) {
-        long output = outputSeconds > 0 ? outputSeconds : 1L;
-        return videoConfig == null ? output : videoConfig.quantity(output, inputSeconds);
+    private long outputAmountSeconds(VideoBillingUsage video, BillingConfig.VideoConfig videoConfig) {
+        long output = firstAmount(video.outputSeconds(), 1L);
+        return videoConfig == null ? output : videoConfig.quantity(output, video.inputSeconds());
     }
 
     // ==================== 明细类型 ====================
 
     private String detailType(String resolution, BillingConfig config) {
         String base = normalizeDetailType("", BillingModeEnum.VIDEO);
-        String type = resolution == null ? base : base + ":" + resolution;
+        String type = StringUtils.isBlank(resolution) ? base : base + ":" + resolution;
         return config != null && config.progressive() ? type + SUFFIX_PROGRESSIVE : type;
     }
 
     private static BillingConfig.PricingPlan planOf(BillingConfig config, BillingRuleRef rule) {
         return config.pricingPlan(PricingPlanEnum.fromCode(rule.pricingPlan()));
-    }
-
-    /**
-     * 分辨率键：**请求体声明的档位名优先**，其次由用量宽高推导。
-     *
-     * <p>顺序不能反：{@code resolution: "768P"} 是厂商自己的档位名，最权威；
-     * 而宽高反推只认标准尺寸表，MiniMax 的 768P 反推不出来（会退化成裸串或空值）。
-     * 两者都没有时返回 {@code null}，计默认价。</p>
-     */
-    private String resolutionOf(VideoBillingUsage video, NormalizedUsageContext context) {
-        String declared = declaredResolution(context.requestBody());
-        if (declared != null) {
-            return declared;
-        }
-        if (video.width() <= 0 || video.height() <= 0) {
-            return null;
-        }
-        return normalizeResolution(video.width() + "x" + video.height());
-    }
-
-    /** 请求体里声明的分辨率文本：任一字段命中即用，空值继续找下一个 */
-    private String declaredResolution(Map<String, Object> requestBody) {
-        if (requestBody == null) {
-            return null;
-        }
-        for (String key : REQUEST_SIZE_KEYS) {
-            String normalized = normalizeResolution(requestBody.get(key));
-            if (normalized != null) {
-                return normalized;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 分辨率文本归一化：标准尺寸映射到档位名，**未识别的写法原样大写返回**。
-     *
-     * <p>原样返回是刻意的——档位名不可枚举（768P、540P、2K、4K 及各厂商自造名），
-     * 硬塞进白名单只会让新档位配不上价。{@code auto} 之类的非档位值会落成 {@code AUTO}，
-     * 配不上就自然回落默认价，不会误命中。</p>
-     */
-    private String normalizeResolution(Object value) {
-        String text = value == null ? null : StringUtils.trimToNull(String.valueOf(value));
-        if (text == null) {
-            return null;
-        }
-        String normalized = StringUtils.lowerCase(text)
-                .replace(" ", "")
-                .replace("_", "")
-                .replace("-", "");
-        return switch (normalized) {
-            case "480", "480p", "854x480" -> "480P";
-            case "540", "540p", "960x540" -> "540P";
-            case "720", "720p", "1280x720" -> "720P";
-            case "768", "768p", "1366x768", "1024x768" -> "768P";
-            case "1080", "1080p", "1920x1080" -> "1080P";
-            case "1440", "1440p", "2k", "qhd", "2560x1440" -> "2K";
-            case "2160", "2160p", "4k", "uhd", "3840x2160" -> "4K";
-            default -> StringUtils.upperCase(text);
-        };
     }
 }

@@ -19,8 +19,8 @@
       </el-col>
     </el-row>
 
-    <!-- Kling：档位表是「档位 × 有声 × 含参考」三维整表，由方案组件托管，此处让位 -->
-    <template v-if="!isVendorKling">
+    <!-- Kling / 维度分档：档位表是「档位 × 有声 × 含参考」三维整表，由方案组件托管，此处让位 -->
+    <template v-if="!isVendorKling && !isDimensionTiered">
     <el-divider v-if="!tokenPriced" content-position="left">
       <span class="video-config__group">分辨率档位（{{ unitLabel }}）</span>
     </el-divider>
@@ -106,6 +106,7 @@
     </div>
     </template>
 
+    <!-- 计费量口径是「量」的轴，按两轴分工留在本组件（维度分档只接管「价」那一半的档位表） -->
     <el-divider v-if="!tokenPriced && !isVendorMiniMax && !isVendorKling" content-position="left">
       <span class="video-config__group">计费量口径</span>
     </el-divider>
@@ -128,7 +129,7 @@
       <span class="video-config__group">输入侧分量（可选，留空不计费）</span>
     </el-divider>
     <div v-if="!tokenPriced && !isVendorMiniMax && !isVendorKling" class="input-charge-grid">
-      <el-form-item label="输入视频 每秒">
+      <el-form-item v-if="!inputVideoFolded" label="输入视频 每秒">
           <el-input-number v-model="form.videoInputVideoPerSecond"
                            :min="0"
                            :step="UNIT_PRICE_STEP"
@@ -171,10 +172,9 @@
 <script setup lang="ts">
 import {computed} from "vue";
 import {Delete} from "@element-plus/icons-vue";
-import {UNIT_PRICE_STEP} from "@/utils/billingPrice";
-import {createResolutionRow} from "@/utils/billingResolution";
+import {UNIT_PRICE_STEP, isTokenPricedUnit, unitLabelOf} from "@/utils/billingPrice";
+import {COMMON_RESOLUTION_OPTIONS, createResolutionRow} from "@/utils/billingResolution";
 import type {ResolutionRow} from "@/utils/billingResolution";
-import {BillingUnit} from "@/constants/status";
 
 const props = defineProps({
   form: {type: Object, required: true}
@@ -184,23 +184,13 @@ const props = defineProps({
  * 量纲由规则单位声明：选 1M_TOKENS 就是「视频模型按 token 计价」（豆包 Seedance 口径），
  * 选 PER_SECOND 就是按秒。文案必须跟着变，否则用户会按秒的直觉去填百万 token 单价。
  */
-const UNIT_LABELS: Record<string, string> = {
-  [BillingUnit.PER_SECOND]: "每秒单价",
-  [BillingUnit.ONE_M_TOKENS]: "每百万 Token 单价",
-  [BillingUnit.ONE_K_TOKENS]: "每千 Token 单价",
-  [BillingUnit.PER_TOKEN]: "每 Token 单价"
-};
-
-const unitLabel = computed(() => UNIT_LABELS[String(props.form.unit || BillingUnit.PER_SECOND)] || "每秒单价");
+const unitLabel = computed(() => unitLabelOf(props.form.unit));
 
 /**
  * token 量纲下输入侧分量不参与计费：一条规则只有一个单位基数（分母），
  * 秒 / 张分量会被同一个分母除错（2026-10-26 对齐豆包口径时确立）。
  */
-const tokenPriced = computed(() => {
-  const unit = String(props.form.unit || BillingUnit.PER_SECOND);
-  return unit === BillingUnit.ONE_M_TOKENS || unit === BillingUnit.ONE_K_TOKENS || unit === BillingUnit.PER_TOKEN;
-});
+const tokenPriced = computed(() => isTokenPricedUnit(props.form.unit));
 
 /**
  * MiniMax 方案（VENDOR_MINIMAX）走独立的「档位输出价 + 档位输入价」两列结构：
@@ -218,13 +208,25 @@ const isVendorMiniMax = computed(() => String(props.form.pricingPlan || "").toUp
 const isVendorKling = computed(() => String(props.form.pricingPlan || "").toUpperCase() === "VENDOR_KLING");
 
 /**
- * 常用档位快捷选项：**只是下拉建议，不是合法值白名单**。
- *
- * <p>厂商档位不可枚举——MiniMax 用 768P、Vidu 用 540P、豆包用 480p/720p/1080p，
- * 还有各种自造名。硬编码成固定档位会让新档位永远配不上价（2026-10-26 修的就是这个），
- * 故档位名可自由输入（el-select allow-create）。</p>
+ * 维度分档价（DIMENSION_TIERED）：档位表是「档位 × 有声 × 含参考」三维整表，
+ * 与 Kling 同一张表、同一套键契约，故同样交给方案组件（PricingPlanDimensionTieredConfig）托管，
+ * 本组件只让位<b>档位表</b>；计费量口径与输入侧分量仍然保留——
+ * 本方案只规定「单价取哪一档」，不否认输入秒独立成价（口径为「仅输出」时二者并存是合法的）。
  */
-const RESOLUTION_OPTIONS = ["480P", "540P", "720P", "768P", "1080P", "2K", "4K"];
+const isDimensionTiered = computed(() => String(props.form.pricingPlan || "").toUpperCase() === "DIMENSION_TIERED");
+
+/**
+ * 输入秒是否已被计费量口径折进输出量。
+ *
+ * <p>折进去之后再按 {@code 输入视频 每秒} 单独收一次，同一批秒会收两遍；
+ * 后端 {@code BillingConfig#validateDimensionTiered} 同口径拒存，这里直接不给填。</p>
+ */
+const inputVideoFolded = computed(
+  () => isDimensionTiered.value && String(props.form.videoQuantityMode || "OUTPUT").toUpperCase() !== "OUTPUT"
+);
+
+/** 常用档位建议（与维度分档方案组件共用同一份，见 utils/billingResolution） */
+const RESOLUTION_OPTIONS = COMMON_RESOLUTION_OPTIONS;
 
 /**
  * 单行分辨率档位：档位名 + 单价 + 含参考输入时的单价 + 输入视频每秒单价（仅 MiniMax 用）。

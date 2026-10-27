@@ -500,6 +500,90 @@ class BillingConfigTest {
                         BillingConfig.PricingContext.ofAmount(1), ZERO)));
     }
 
+    @Test
+    void dimensionTieredRejectsMalformedDimensionKeys() {
+        // 维度键是自由文本，拼错在 FIXED 下只会静默回落默认价——本方案把它变成拒绝保存
+        assertTrue(BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,"resolutionPrices":{"720P:SOUND":1.2}}
+                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("suffix must be"));
+
+        // 顺序颠倒的键永远进不了「逐级去尾」的候选链，配了等于没配
+        assertTrue(BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,"resolutionPrices":{"720P:AUDIO:REFERENCE":1.2}}
+                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("suffix must be"));
+
+        assertTrue(BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,"resolutionPrices":{":AUDIO":1.2}}
+                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("must start with a tier name"));
+
+        assertTrue(BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,"resolutionPrices":{"   ":1.2}}
+                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("must not be blank"));
+
+        // 一张档位表都没有 = 退化成固定价，不是维度分档
+        assertTrue(BillingConfig.parse("{\"defaultUnitPrice\":1.0}")
+                .validate(PricingPlanEnum.DIMENSION_TIERED).contains("requires resolutionPrices"));
+        assertTrue(BillingConfig.parse("{\"defaultUnitPrice\":1.0,\"resolutionPrices\":{}}")
+                .validate(PricingPlanEnum.DIMENSION_TIERED).contains("requires resolutionPrices"));
+
+        // 只有输入侧分量键，没有输出档位键
+        assertTrue(BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,"resolutionPrices":{"INPUT_VIDEO:720P":0.5}}
+                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("requires at least one tier price"));
+    }
+
+    @Test
+    void dimensionTieredRequiresDefaultUnitPrice() {
+        // 厂商档位不可枚举，总有配不到的档；缺兜底价等于「识别不了的请求免费出账」
+        assertTrue(BillingConfig.parse("""
+                {"resolutionPrices":{"720P":1.0,"720P:AUDIO":1.2}}
+                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("requires defaultUnitPrice"));
+    }
+
+    @Test
+    void dimensionTieredRejectsDoubleCountedInputSeconds() {
+        // 输入秒既折进计费量、又按分量单独成价 = 同一批秒收两次
+        assertTrue(BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,
+                 "resolutionPrices":{"720P":1.0,"720P:REFERENCE":0.6},
+                 "video":{"quantityMode":"SUM","inputVideoPerSecond":0.5}}
+                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("billed twice"));
+
+        assertTrue(BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,
+                 "resolutionPrices":{"720P":1.0,"720P:REFERENCE":0.6},
+                 "video":{"quantityMode":"OUTPUT_PLUS_MAX","inputVideoPerSecond":0.5}}
+                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("billed twice"));
+
+        // 口径为「仅输出」时输入秒不折进量，单独成价是合法的（MiniMax 那种结构）
+        assertNull(BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,
+                 "resolutionPrices":{"720P":1.0,"720P:REFERENCE":0.6},
+                 "video":{"quantityMode":"OUTPUT","inputVideoPerSecond":0.5}}
+                """).validate(PricingPlanEnum.DIMENSION_TIERED));
+    }
+
+    @Test
+    void dimensionTieredAcceptsFullKeySpaceAndResolvesLikeFixed() {
+        BillingConfig config = BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,
+                 "resolutionPrices":{"720P":1.0,"720P:AUDIO":1.2,"720P:REFERENCE":0.6,
+                                     "720P:REFERENCE:AUDIO":1.5,"INPUT_VIDEO:720P":0.8}}
+                """);
+        assertNull(config.validate(PricingPlanEnum.DIMENSION_TIERED));
+
+        // 取价与 FIXED 完全一致（无阶梯、无相位倍率），增量只在保存期校验
+        BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.DIMENSION_TIERED);
+        assertEquals(PricingPlanEnum.DIMENSION_TIERED, pricing.plan());
+        assertEquals(0, new BigDecimal("1.5").compareTo(
+                pricing.resolveDimensionPrice(List.of("720P:REFERENCE:AUDIO", "720P:REFERENCE", "720P"),
+                        BillingConfig.PricingContext.ofAmount(1), ZERO)));
+        // 未命中任何维度键时回落默认价（不是 0）
+        assertEquals(0, new BigDecimal("1.0").compareTo(
+                pricing.resolveDimensionPrice(List.of("4K:REFERENCE:AUDIO", "4K"),
+                        BillingConfig.PricingContext.ofAmount(1), ZERO)));
+    }
+
     private static Instant instant(int year, int month, int day, int hour, int minute) {
         return ZonedDateTime.of(year, month, day, hour, minute, 0, 0, ZoneOffset.UTC).toInstant();
     }
