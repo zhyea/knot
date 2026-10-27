@@ -125,3 +125,13 @@ describe("TreeSelect 交互契约", () => {
     expect(visibleChildLabels()).toEqual(["openai-main", "openai-backup"]);
   });
 });
+
+describe("TreeSelect 面板宽度", () => {
+  it("弹层由内容自适应，不被 el-popover 默认 150px 固定", async () => {
+    const wrapper = mountTree({options: TREE});
+    await openDropdown(wrapper);
+    const popper = document.querySelector<HTMLElement>(".tree-select__popper");
+    expect(popper).not.toBeNull();
+    expect(popper!.style.width).toBe("auto");
+  });
+});
