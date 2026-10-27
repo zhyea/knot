@@ -835,9 +835,9 @@ public record BillingConfig(
         PricingPlanEnum resolved = plan == null ? PricingPlanEnum.FIXED : plan;
         HolidayCalendar effective = calendar == null ? HolidayCalendar.EMPTY : calendar;
         return switch (resolved) {
-            // DIMENSION_TIERED 与厂商定制方案（MiniMax / Kling）的取价语义都与固定价完全一致：
+            // DIMENSION_TIERED 与厂商定制方案（MiniMax）的取价语义都与固定价完全一致：
             // 多分量编排与维度键拼装在计算器侧，方案值只承担分类标签与校验锚点，故共用同一实现
-            case FIXED, DIMENSION_TIERED, VENDOR_MINIMAX, VENDOR_KLING ->
+            case FIXED, DIMENSION_TIERED, VENDOR_MINIMAX ->
                     new FixedPricing(resolved, basePrices, defaultUnitPrice, resolutionPrices);
             case TIERED -> new TieredPricing(basePrices, defaultUnitPrice, tier, progressive(), resolutionPrices);
             case PEAK_OFF_PEAK -> new PeakOffPeakPricing(basePrices, defaultUnitPrice, pricing, effective, resolutionPrices);
@@ -954,9 +954,6 @@ public record BillingConfig(
         if (resolved == PricingPlanEnum.VENDOR_MINIMAX) {
             return validateVendorMiniMax();
         }
-        if (resolved == PricingPlanEnum.VENDOR_KLING) {
-            return validateVendorKling();
-        }
         if (resolved == PricingPlanEnum.DIMENSION_TIERED) {
             return validateDimensionTiered();
         }
@@ -984,33 +981,6 @@ public record BillingConfig(
         // 音频输入免费，故只有图片单价是必须显式配置的分量单价
         if (video == null || video.inputImagePerImage() == null) {
             return "VENDOR_MINIMAX requires video.inputImagePerImage (per-image price)";
-        }
-        return null;
-    }
-
-    /**
-     * VENDOR_KLING 专属：计费量口径必须显式声明，且不接受 {@code SUM}。
-     *
-     * <p>⭐ 为什么这条约束必须存在：Kling 的档位价把「有无输入视频」编码进了单价
-     * （无输入 1.0/1.5，有输入 0.6/0.9），而「输入秒要不要折进计费量」是<b>另一根轴</b>，
-     * 两种口径下同名档位都存在，<b>无法从价表反推</b>：</p>
-     * <pre>
-     * 在线模型（3.0 / 3.0 Turbo / Omni / O1 / 2.6 / 2.5 Turbo）：计费量 = 输出秒
-     * Kling 4.0：计费量 = 输出 + max(输入, 输出)（输入≤输出时即输出×2）
-     * </pre>
-     *
-     * <p>静默按 {@code OUTPUT} 处理会给 4.0 少收一半，静默按 {@code OUTPUT_PLUS_MAX} 处理
-     * 会让在线模型多收一倍——两侧都是量级资损，故宁可拒绝保存也不猜。</p>
-     *
-     * <p>{@code SUM} 被排除：它只在「输入 &gt; 输出」这一档与 Kling 一致，
-     * 「输入 ≤ 输出」档会少收一半（官方是输出×2，不是输出+输入）。</p>
-     */
-    private String validateVendorKling() {
-        if (video == null || blankToNull(video.quantityMode()) == null) {
-            return "VENDOR_KLING requires video.quantityMode (OUTPUT for online models, OUTPUT_PLUS_MAX for Kling 4.0)";
-        }
-        if (VideoConfig.QUANTITY_SUM.equals(video.quantityMode().trim().toUpperCase())) {
-            return "VENDOR_KLING does not support video.quantityMode=SUM (input seconds are never a flat component)";
         }
         return null;
     }

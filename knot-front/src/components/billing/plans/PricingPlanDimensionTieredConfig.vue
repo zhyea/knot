@@ -64,7 +64,7 @@ import ResolutionTierTable from "../ResolutionTierTable.vue";
  * 键拼错时固定价会<b>静默回落默认价</b>（配置看着生效、那档价从未命中），
  * 本方案在 {@code BillingConfig#validateDimensionTiered} 直接拒绝保存。</p>
  *
- * <p>档位表与 Kling 共用 {@link ResolutionTierTable}（同一套键契约）；
+ * <p>档位表共用 {@link ResolutionTierTable}（同一套键契约，原 Kling 方案组件亦用此表）；
  * 计费量口径与输入侧分量留在视频模式组件——它们是「量」的轴，按两轴分工不属于本方案。</p>
  */
 const props = defineProps({
@@ -78,7 +78,7 @@ const unitLabel = computed(() => unitLabelOf(props.form.unit));
  * 行字段与 {@code resolutionPrices} 的键一一对应（契约见 utils/billingResolution）：
  * price → {@code 档位}、audioPrice → {@code 档位:AUDIO}、
  * referencePrice → {@code 档位:REFERENCE}、referenceAudioPrice → {@code 档位:REFERENCE:AUDIO}。
- * 表的增删改查在 {@link ResolutionTierTable}（与 VENDOR_KLING 共用）。
+ * 表的增删改查在 {@link ResolutionTierTable}（维度分档价与已移除的 VENDOR_KLING 方案共用同一套契约）。
  */
 const rows = computed<ResolutionRow[]>(() =>
   Array.isArray(props.form.videoResolutionRows) ? props.form.videoResolutionRows : []

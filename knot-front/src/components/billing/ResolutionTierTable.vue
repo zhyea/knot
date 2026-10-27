@@ -75,9 +75,9 @@ import {createResolutionRow} from "@/utils/billingResolution";
 import type {ResolutionPriceField, ResolutionRow} from "@/utils/billingResolution";
 
 /**
- * 「档位 × 有声 × 含参考」五列整表（VENDOR_KLING / DIMENSION_TIERED 共用）。
+ * 「档位 × 有声 × 含参考」五列整表（维度分档价 DIMENSION_TIERED 使用）。
  *
- * <p>⭐ 为什么从 Kling 方案组件里抽出来：维度分档价（DIMENSION_TIERED）用的是<b>同一张表、同一套
+ * <p>⭐ 该表最初从 Kling 方案组件里抽出：维度分档价（DIMENSION_TIERED）用的是<b>同一张表、同一套
  * 键契约</b>（{@code 档位} / {@code 档位:AUDIO} / {@code 档位:REFERENCE} / {@code 档位:REFERENCE:AUDIO}），
  * 再抄一份就会出现「同一档位行有两套创建逻辑」——2026-10-26 加 {@code inputPrice} 时漏一处、
  * 输入价保存后回显不出来的那类缺陷，正是这么来的。表的编辑动作收在这里，

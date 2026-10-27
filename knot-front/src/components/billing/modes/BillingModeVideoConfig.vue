@@ -19,8 +19,8 @@
       </el-col>
     </el-row>
 
-    <!-- Kling / 维度分档：档位表是「档位 × 有声 × 含参考」三维整表，由方案组件托管，此处让位 -->
-    <template v-if="!isVendorKling && !isDimensionTiered">
+    <!-- 维度分档：档位表是「档位 × 有声 × 含参考」三维整表，由方案组件托管，此处让位 -->
+    <template v-if="!isDimensionTiered">
     <el-divider v-if="!tokenPriced" content-position="left">
       <span class="video-config__group">分辨率档位（{{ unitLabel }}）</span>
     </el-divider>
@@ -107,10 +107,10 @@
     </template>
 
     <!-- 计费量口径是「量」的轴，按两轴分工留在本组件（维度分档只接管「价」那一半的档位表） -->
-    <el-divider v-if="!tokenPriced && !isVendorMiniMax && !isVendorKling" content-position="left">
+    <el-divider v-if="!tokenPriced && !isVendorMiniMax" content-position="left">
       <span class="video-config__group">计费量口径</span>
     </el-divider>
-    <el-row v-if="!tokenPriced && !isVendorMiniMax && !isVendorKling" :gutter="16">
+    <el-row v-if="!tokenPriced && !isVendorMiniMax" :gutter="16">
       <el-col :span="8">
         <el-form-item label="合成量模式">
           <el-select v-model="form.videoQuantityMode" style="width: 100%">
@@ -125,10 +125,10 @@
       </el-col>
     </el-row>
 
-    <el-divider v-if="!tokenPriced && !isVendorMiniMax && !isVendorKling" content-position="left">
+    <el-divider v-if="!tokenPriced && !isVendorMiniMax" content-position="left">
       <span class="video-config__group">输入侧分量（可选，留空不计费）</span>
     </el-divider>
-    <div v-if="!tokenPriced && !isVendorMiniMax && !isVendorKling" class="input-charge-grid">
+    <div v-if="!tokenPriced && !isVendorMiniMax" class="input-charge-grid">
       <el-form-item v-if="!inputVideoFolded" label="输入视频 每秒">
           <el-input-number v-model="form.videoInputVideoPerSecond"
                            :min="0"
@@ -201,15 +201,8 @@ const tokenPriced = computed(() => isTokenPricedUnit(props.form.unit));
 const isVendorMiniMax = computed(() => String(props.form.pricingPlan || "").toUpperCase() === "VENDOR_MINIMAX");
 
 /**
- * Kling 方案（VENDOR_KLING）：单价是「档位 × 有声 × 含参考」三维，通用档位表只有两列表达不了，
- * 故整表交给方案组件（PricingPlanVendorKlingConfig），本组件在该方案下只保留「默认单价」
- * 与 token 量纲提示，档位表 / 计费量口径 / 输入侧分量三块全部让位，避免同一字段被两个组件重复编辑。
- */
-const isVendorKling = computed(() => String(props.form.pricingPlan || "").toUpperCase() === "VENDOR_KLING");
-
-/**
  * 维度分档价（DIMENSION_TIERED）：档位表是「档位 × 有声 × 含参考」三维整表，
- * 与 Kling 同一张表、同一套键契约，故同样交给方案组件（PricingPlanDimensionTieredConfig）托管，
+ * 与已移除的 VENDOR_KLING 方案同一张表、同一套键契约，故同样交给方案组件（PricingPlanDimensionTieredConfig）托管，
  * 本组件只让位<b>档位表</b>；计费量口径与输入侧分量仍然保留——
  * 本方案只规定「单价取哪一档」，不否认输入秒独立成价（口径为「仅输出」时二者并存是合法的）。
  */
@@ -230,20 +223,20 @@ const RESOLUTION_OPTIONS = COMMON_RESOLUTION_OPTIONS;
 
 /**
  * 单行分辨率档位：档位名 + 单价 + 含参考输入时的单价 + 输入视频每秒单价（仅 MiniMax 用）。
- * <p>字段集见 {@link ResolutionRow}（与 Kling 方案组件、config_json 回显共用同一份契约）；
+ * <p>字段集见 {@link ResolutionRow}（与维度分档方案组件、config_json 回显共用同一份契约）；
  * {@code inputPrice} 对应 {@code resolutionPrices["INPUT_VIDEO:档位"]}，留空表示同档位输出价。</p>
  */
 
 /**
- * 合成量口径：一条公式覆盖 Kling 三档条件，与后端 VideoConfig.quantity 同口径。
+ * 合成量口径：一条公式覆盖「输入≤输出时输出×2、输入>输出时输入+输出」三档条件，与后端 VideoConfig.quantity 同口径。
  */
 const QUANTITY_MODES = [
   {value: "OUTPUT", label: "仅输出时长（默认）", hint: "计费量 = 输出秒数。Vidu、豆包走这条。"},
   {value: "SUM", label: "输出 + 输入", hint: "计费量 = 输出秒 + 输入秒。MiniMax 输入视频按秒走这条。"},
   {
     value: "OUTPUT_PLUS_MAX",
-    label: "Kling 口径（输出 + max(输入,输出)）",
-    hint: "无输入=输出；输入≤输出=输出×2；输入>输出=输入+输出。一条公式覆盖 Kling 三档。"
+    label: "输出 + max(输入,输出)",
+    hint: "无输入=输出；输入≤输出=输出×2；输入>输出=输入+输出。一条公式覆盖三档。"
   }
 ] as const;
 

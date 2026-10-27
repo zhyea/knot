@@ -8,7 +8,6 @@ import BillingModeTokenConfig from "@/components/billing/modes/BillingModeTokenC
 import BillingModeVideoConfig from "@/components/billing/modes/BillingModeVideoConfig.vue";
 import BillingModeCustomConfig from "@/components/billing/modes/BillingModeCustomConfig.vue";
 import PricingPlanVendorMiniMaxConfig from "@/components/billing/plans/PricingPlanVendorMiniMaxConfig.vue";
-import PricingPlanVendorKlingConfig from "@/components/billing/plans/PricingPlanVendorKlingConfig.vue";
 import PricingPlanDimensionTieredConfig from "@/components/billing/plans/PricingPlanDimensionTieredConfig.vue";
 import type {Dict} from "@/types";
 
@@ -71,7 +70,7 @@ const CAPABILITIES = {
       supportedUnits: ["1M_TOKENS", "1K_TOKENS", "PER_TOKEN"],
       supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK"]
     },
-    {code: "VIDEO", defaultUnit: "PER_SECOND", supportedUnits: ["PER_SECOND"], supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK", "VENDOR_MINIMAX", "VENDOR_KLING", "DIMENSION_TIERED"]},
+    {code: "VIDEO", defaultUnit: "PER_SECOND", supportedUnits: ["PER_SECOND"], supportedPricingPlans: ["FIXED", "TIERED", "PEAK_OFF_PEAK", "VENDOR_MINIMAX", "DIMENSION_TIERED"]},
     {code: "CUSTOM", defaultUnit: "CUSTOM", supportedUnits: ["CUSTOM"], supportedPricingPlans: ["FIXED"]},
     {code: "FREE", defaultUnit: "PER_REQUEST", supportedUnits: ["PER_REQUEST"], supportedPricingPlans: ["FIXED"]}
   ]
@@ -781,88 +780,6 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     form2.videoInputImagePerImage = null;
     await save(wrapper2);
     expect(warned().some((message) => message.includes("输入图片"))).toBe(true);
-  });
-
-  it("VENDOR_KLING：独立方案组件渲染四维档位表，config_json 原样往返", async () => {
-    const configJson = JSON.stringify({
-      defaultUnitPrice: 1.0,
-      resolutionPrices: {
-        "720P": 1.0,
-        "720P:AUDIO": 1.2,
-        "720P:REFERENCE": 0.6,
-        "720P:REFERENCE:AUDIO": 1.5
-      },
-      video: {quantityMode: "OUTPUT_PLUS_MAX"}
-    });
-    vi.mocked(getBillingRule).mockResolvedValue(
-      detailRow({billingMode: "VIDEO", unit: "PER_SECOND", pricingPlan: "VENDOR_KLING", configJson: configJson}) as never
-    );
-
-    const wrapper = await openDialog({ruleId: RULE_ID});
-    expect(wrapper.findComponent(PricingPlanVendorKlingConfig).exists()).toBe(true);
-    // 档位表让位给方案组件：视频模式组件仍渲染（默认单价仍需编辑），但不再有自己那套两列档位表
-    expect(wrapper.findComponent(BillingModeVideoConfig).exists()).toBe(true);
-    expect(wrapper.find(".resolution-list").exists()).toBe(false);
-
-    // 同一档位的四个维度价归到同一行的四列
-    const form = formOf(wrapper, BillingModeVideoConfig);
-    expect(form.videoResolutionRows).toEqual([
-      {key: "720P", price: 1.0, audioPrice: 1.2, referencePrice: 0.6, referenceAudioPrice: 1.5, inputPrice: null}
-    ]);
-
-    await save(wrapper);
-    expect(updatePayload().pricingPlan).toBe("VENDOR_KLING");
-    // 回显→保存必须零漂移：四维键与口径都原样写回
-    expect(configOf(updatePayload())).toEqual({
-      defaultUnitPrice: 1.0,
-      resolutionPrices: {
-        "720P": 1.0,
-        "720P:AUDIO": 1.2,
-        "720P:REFERENCE": 0.6,
-        "720P:REFERENCE:AUDIO": 1.5
-      },
-      video: {quantityMode: "OUTPUT_PLUS_MAX"}
-    });
-  });
-
-  it("VENDOR_KLING：输入侧分量与附加费一律不落库（「含输入」已折进档位价）", async () => {
-    const wrapper = await openDialog({ruleId: RULE_ID});
-    const form = formOf(wrapper);
-    form.billingMode = "VIDEO";
-    await flushPromises();
-    form.pricingPlan = "VENDOR_KLING";
-    await flushPromises();
-
-    // 误填输入侧分量与附加费：Kling 已把它们折进档位价，再落库就是重复计费
-    form.videoInputVideoPerSecond = 0.5;
-    form.videoInputImagePerImage = 0.2;
-    form.videoFreeInputImages = 5;
-    form.videoAudioSurcharge = 15;
-    form.videoResolutionRows.push(
-      {key: "720P", price: 1.0, audioPrice: null, referencePrice: 0.6, referenceAudioPrice: null, inputPrice: null}
-    );
-    await save(wrapper);
-
-    const config = configOf(updatePayload());
-    expect(config.resolutionPrices).toEqual({"720P": 1.0, "720P:REFERENCE": 0.6});
-    expect(config.surcharges).toBeUndefined();
-    // 口径显式落库（连默认的 OUTPUT 也照写），输入侧分量全部不写
-    expect(config.video).toEqual({quantityMode: "OUTPUT"});
-  });
-
-  it("VENDOR_KLING：切到该方案时把 SUM 口径归一成 OUTPUT（Kling 无 SUM）", async () => {
-    const wrapper = await openDialog({ruleId: RULE_ID});
-    const form = formOf(wrapper);
-    form.billingMode = "VIDEO";
-    await flushPromises();
-    form.videoQuantityMode = "SUM";
-    form.pricingPlan = "VENDOR_KLING";
-    await flushPromises();
-
-    // SUM 只在「输入>输出」档与 Kling 一致，「输入≤输出」档会少收一半，故直接归一
-    expect(form.videoQuantityMode).toBe("OUTPUT");
-    await save(wrapper);
-    expect(configOf(updatePayload()).video).toEqual({quantityMode: "OUTPUT"});
   });
 
   it("DIMENSION_TIERED：独立方案组件渲染四维档位表，config_json 原样往返", async () => {

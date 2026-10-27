@@ -1,5 +1,12 @@
 # VENDOR_KLING 计费方案（技术方案 + 落地记录）
 
+> ⚠️ **已移除（2026-10-27）**：`PricingPlanEnum.VENDOR_KLING` 枚举值、`VideoBillingModeCalculator#calculateVendorKling`、
+> 前端 `PricingPlanVendorKlingConfig.vue` 及相关校验 `BillingConfig#validateVendorKling` 已整体删除。
+> Kling 类计费（在线模型=输出秒、4.0=输出+max(输入,输出)、档位价区分有无输入视频）现由通用
+> `FIXED`/`DIMENSION_TIERED` 路径表达：计费量口径走 `video.quantityMode`（OUTPUT / OUTPUT_PLUS_MAX），
+> 维度键走 `resolutionPrices` 的 `档位`/`档位:AUDIO`/`档位:REFERENCE`/`档位:REFERENCE:AUDIO` 组合键。
+> 本文件仅作历史记录保留。
+
 > 2026-10-26。系列第 2 个厂商定制方案，参照 `VENDOR_MINIMAX`（见 `docs/视频计费规则类型化方案-2026-10-26.md` §8）。
 > 价表来源：<https://klingai.com/document-api/pricing/base/video.md>（2026-10 抓取）。
 

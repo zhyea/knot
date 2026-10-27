@@ -50,22 +50,6 @@ public enum PricingPlanEnum implements EnumOption {
     VENDOR_MINIMAX("厂商定制(MiniMax)", BillingModeEnum.VIDEO),
 
     /**
-     * 厂商定制计费规则（进阶定价方案家族中的特例，旗舰 = Kling）；仅 VIDEO 模式可用。
-     *
-     * <p>与 {@link #VENDOR_MINIMAX} 的结构性差异：Kling 把「有无输入视频」直接编码进档位单价
-     * （无输入更贵、有输入更便宜），输入秒<b>不单独成价</b>，而是按口径折进计费量。故专属口径由
-     * {@code VideoBillingModeCalculator#calculateVendorKling} 实现：</p>
-     * <pre>
-     * 在线模型（3.0 / Omni / O1 / 2.6 / 2.5）：计费量 = 输出秒，单价 = 档位:有声/含参考组合键
-     * Kling 4.0：计费量 = 输出 + max(输入, 输出)，单价 = 档位（无输入）/ 档位:REFERENCE（有输入）
-     * </pre>
-     *
-     * <p>计费量口径由 {@code video.quantityMode} 显式声明——它无法从价表反推（两种口径下同名档位
-     * 都存在），静默按任一侧兜底都会产生两倍量级的资损，故本方案强制显式声明。</p>
-     */
-    VENDOR_KLING("厂商定制(Kling)", BillingModeEnum.VIDEO),
-
-    /**
      * 维度分档价：按「请求属性」分档取价（分辨率 × 是否输出声音 × 有无输入/参考视频）；仅 VIDEO 模式可用。
      *
      * <p>与 {@link #TIERED}（按<b>用量</b>分档）、{@link #PEAK_OFF_PEAK}（按<b>时间</b>分档）

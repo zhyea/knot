@@ -7,13 +7,13 @@
  *
  * <pre>
  * 档位                 -> price                无声价 / 通用单价
- * 档位:AUDIO           -> audioPrice           Kling 有声价
- * 档位:REFERENCE       -> referencePrice       Kling 含参考价 / 通用「含参考输入」价
- * 档位:REFERENCE:AUDIO -> referenceAudioPrice  Kling 含参考+有声价
+ * 档位:AUDIO           -> audioPrice           有声价（维度分档键）
+ * 档位:REFERENCE       -> referencePrice       含参考输入价（维度分档键）
+ * 档位:REFERENCE:AUDIO -> referenceAudioPrice  含参考+有声价（维度分档键最具体档）
  * INPUT_VIDEO:档位     -> inputPrice           MiniMax 输入视频价
  * </pre>
  *
- * <p>⭐ 为什么要有这个模块：行的创建分散在「视频模式组件」「Kling 方案组件」「config_json 回显」
+ * <p>⭐ 为什么要有这个模块：行的创建分散在「视频模式组件」「维度分档方案组件」「config_json 回显」
  * 三处，各自写字面量会让新增字段只补到其中一两处——2026-10-26 加 {@code inputPrice} 时就漏了一处，
  * 结果是 MiniMax 输入视频价保存后回显不出来。字段集与工厂函数收在一处，新增维度只改这个文件。</p>
  */

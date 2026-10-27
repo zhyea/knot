@@ -155,7 +155,6 @@ import PricingPlanFixedConfig from "./plans/PricingPlanFixedConfig.vue";
 import PricingPlanTieredConfig from "./plans/PricingPlanTieredConfig.vue";
 import PricingPlanPeakOffPeakConfig from "./plans/PricingPlanPeakOffPeakConfig.vue";
 import PricingPlanVendorMiniMaxConfig from "./plans/PricingPlanVendorMiniMaxConfig.vue";
-import PricingPlanVendorKlingConfig from "./plans/PricingPlanVendorKlingConfig.vue";
 import PricingPlanDimensionTieredConfig from "./plans/PricingPlanDimensionTieredConfig.vue";
 import {createBillingRule, updateBillingRule, listModeCapabilities, getBillingRule} from "@/api/billing";
 import {formatJsonText, isValidJsonText, parseJsonObject, roundPrice, stringifyJson} from "@/utils/format";
@@ -209,7 +208,6 @@ const componentsByPlan: Record<string, Component> = {
   TIERED: PricingPlanTieredConfig,
   PEAK_OFF_PEAK: PricingPlanPeakOffPeakConfig,
   VENDOR_MINIMAX: PricingPlanVendorMiniMaxConfig,
-  VENDOR_KLING: PricingPlanVendorKlingConfig,
   DIMENSION_TIERED: PricingPlanDimensionTieredConfig
 };
 
@@ -458,10 +456,6 @@ watch(
       if (form.videoFreeInputImages == null) {
         form.videoFreeInputImages = 5;
       }
-    }
-    // Kling 不提供 SUM 口径（「输入≤输出」档会少收一半），从别的方案带过来的 SUM 归一成 OUTPUT
-    if (plan === PricingPlan.VENDOR_KLING && form.videoQuantityMode === "SUM") {
-      form.videoQuantityMode = "OUTPUT";
     }
   }
 );
@@ -762,7 +756,6 @@ function buildBaseConfig(): Dict | null {
   }
   if (form.billingMode === BillingMode.VIDEO) {
     const isMiniMax = form.pricingPlan === PricingPlan.VENDOR_MINIMAX;
-    const isKling = form.pricingPlan === PricingPlan.VENDOR_KLING;
     const isDimensionTiered = form.pricingPlan === PricingPlan.DIMENSION_TIERED;
     const resolutionPrices: Dict = {};
     for (const row of form.videoResolutionRows || []) {
@@ -787,7 +780,7 @@ function buildBaseConfig(): Dict | null {
       if (referencePrice != null) {
         resolutionPrices[`${key}:REFERENCE`] = referencePrice;
       }
-      if (isKling || isDimensionTiered) {
+      if (isDimensionTiered) {
         // 单价是「档位 × 有声 × 含参考」三维：两列各写一个后缀键，留空则不下发，
         // 由后端 dimensionKeys 的逐级降级取更宽泛的档位价
         const audioPrice = toNumberOrNull(row.audioPrice);
@@ -803,28 +796,23 @@ function buildBaseConfig(): Dict | null {
     // video 段只在有实质配置时才落库：默认的「仅输出秒数」不需要写进 JSON
     // （写了会污染老配置的 config_json，也让「默认行为」在库里多一份可漂移的副本）
     const video: Dict = {};
-    if (isKling) {
-      // ⚠ Kling 例外：计费量口径是本方案的核心声明（在线模型=输出 / 4.0 折输入秒），
-      // 无法从价表反推，后端 validate 要求显式落库，故连 OUTPUT 也照写不省
-      video.quantityMode = form.videoQuantityMode === "OUTPUT_PLUS_MAX" ? "OUTPUT_PLUS_MAX" : "OUTPUT";
-    } else if (!isMiniMax && form.videoQuantityMode && form.videoQuantityMode !== "OUTPUT") {
+    if (!isMiniMax && form.videoQuantityMode && form.videoQuantityMode !== "OUTPUT") {
       // MiniMax 输入秒是独立分量，绝不折叠进输出量：不落 quantityMode
       video.quantityMode = form.videoQuantityMode;
     }
-    // 输入侧分量单价：MiniMax 用分辨率表里的 INPUT_VIDEO:档位；Kling 的「含输入」已折进档位价，
-    // 再落输入分量就是重复计费，故两者都不写标量输入价
-    if (!isMiniMax && !isKling && form.videoInputVideoPerSecond != null) {
+    // 输入侧分量单价：MiniMax 用分辨率表里的 INPUT_VIDEO:档位；其余视频方案按表单显式值落库
+    if (!isMiniMax && form.videoInputVideoPerSecond != null) {
       video.inputVideoPerSecond = form.videoInputVideoPerSecond;
     }
-    if (!isKling && form.videoInputImagePerImage != null) {
+    if (form.videoInputImagePerImage != null) {
       video.inputImagePerImage = form.videoInputImagePerImage;
     }
-    if (!isKling && form.videoFreeInputImages != null) {
+    if (form.videoFreeInputImages != null) {
       video.freeInputImages = form.videoFreeInputImages;
     }
-    // MiniMax 音频输入免费、Kling 无附加费档：两者都不落任何附加费；其余视频方案保留托管 + 未托管条目
-    const surcharges: Dict[] = isMiniMax || isKling ? [] : [...(form.videoExtraSurcharges || [])];
-    if (!isMiniMax && !isKling && form.videoAudioSurcharge != null) {
+    // MiniMax 音频输入免费：不落任何附加费；其余视频方案保留托管 + 未托管条目
+    const surcharges: Dict[] = isMiniMax ? [] : [...(form.videoExtraSurcharges || [])];
+    if (!isMiniMax && form.videoAudioSurcharge != null) {
       surcharges.push({code: "AUDIO", trigger: "AUDIO", amount: form.videoAudioSurcharge});
     }
     return {

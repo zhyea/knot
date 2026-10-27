@@ -35,9 +35,9 @@ public class TokenBillingModeCalculator extends AbstractBillingModeCalculator {
             return NormalizedBillingAmount.of(0L, BigDecimal.ZERO, List.of());
         }
         return switch (context.pricingPlan()) {
-            // 维度分档价与厂商定制方案（MiniMax / Kling）的取价语义都与 FIXED 完全一致
-            // （三者仅 VIDEO 模式可用，不会经 TOKEN 计算器分发，此处保底）
-            case FIXED, DIMENSION_TIERED, VENDOR_MINIMAX, VENDOR_KLING -> calculateFixed(context, usage);
+            // 维度分档价与厂商定制方案（MiniMax）的取价语义都与 FIXED 完全一致
+            // （两者仅 VIDEO 模式可用，不会经 TOKEN 计算器分发，此处保底）
+            case FIXED, DIMENSION_TIERED, VENDOR_MINIMAX -> calculateFixed(context, usage);
             case TIERED -> calculateTiered(context, usage);
             case PEAK_OFF_PEAK -> calculatePeakOffPeak(context, usage);
         };
