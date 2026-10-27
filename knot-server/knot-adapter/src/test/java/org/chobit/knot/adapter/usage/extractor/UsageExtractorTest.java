@@ -427,6 +427,27 @@ class UsageExtractorTest {
         assertEquals("1080P", video.outputResolution());
     }
 
+    @Test
+    void shouldMergeUsageViewAlongsideBillingAcrossEvents() {
+        // 秒数只出现在第一个事件、token 只出现在第二个：两个视图必须由同一套合并语义推出，
+        // 否则会出现「计费 4 秒、展示 0 秒」的分叉
+        String sse = """
+                data: {"duration_seconds":4}
+
+                data: {"usage":{"prompt_tokens":30,"completion_tokens":9,"total_tokens":39}}
+
+                data: [DONE]
+                """;
+
+        UsageExtractItem<VideoBillingUsage> item = videoExtractor.extractUsageBody(sse, Map.of("size", "1080p"));
+
+        assertNotNull(item.usage());
+        assertEquals(4L, item.usage().output().videoSeconds());
+        assertEquals(39L, item.usage().totalTokens());
+        assertEquals(item.billing().outputSeconds(), item.usage().output().videoSeconds());
+        assertEquals(item.billing().tokenUsage().totalTokens(), item.usage().totalTokens());
+    }
+
     // ---------- 空响应兜底 ----------
 
     @Test

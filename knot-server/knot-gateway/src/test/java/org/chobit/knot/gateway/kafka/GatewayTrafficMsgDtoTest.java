@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.kafka;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.exception.GatewayRateLimitException;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -366,6 +368,40 @@ class GatewayTrafficMsgDtoTest {
 
         assertEquals("https://openai.example/v1/chat/completions", message.attempts().get(0).upstreamUrl());
         assertEquals("https://openai.example/v1/chat/completions", message.attempts().get(1).upstreamUrl());
+    }
+
+    // ---------- 用量三视图：上游原文 / 归一化 / 价格 ----------
+
+    @Test
+    void upstreamUsageIsCarriedAsSiblingOfNormalizedUsage() {
+        GatewayTrafficMsgDto message = GatewayTrafficMsgDto.of(context(), null, usage(), 1L, null);
+        String json = JsonKit.toJson(message);
+        JsonNode node = JsonKit.parse(json);
+
+        // 原文只透传：保留厂商键名，数仓可据此回溯归一化口径
+        assertEquals(3, ((Number) message.upstreamUsage().get("prompt_tokens")).intValue());
+        assertEquals(5, ((Number) message.upstreamUsage().get("total_tokens")).intValue());
+        // 与 usage 同级，不是嵌进 usage 里
+        assertTrue(node.has("upstream_usage"), json);
+        assertTrue(node.has("usage"), json);
+        assertFalse(node.get("usage").has("upstream_usage"), json);
+        assertTrue(node.get("upstream_usage").has("prompt_tokens"), "原文键名不被归一化改写: " + json);
+        assertTrue(node.get("usage").has("input"), "归一化视图用自己的键空间: " + json);
+    }
+
+    @Test
+    void missingUpstreamUsageIsOmittedNotEmptied() {
+        // 失败路径没有用量账目
+        GatewayTrafficMsgDto failed = GatewayTrafficMsgDto.of(context(), null, null, null,
+                new GatewayUpstreamException("boom", "UPSTREAM_ERROR", 503, "{}", null));
+        assertNull(failed.upstreamUsage());
+        assertFalse(JsonKit.toJson(failed).contains("upstream_usage"),
+                "字段缺席即「上游没报」，不留空壳对象");
+
+        // 上游回了空 usage 对象：同样省略
+        GatewayTrafficMsgDto emptyRaw = GatewayTrafficMsgDto.of(context(), null,
+                UsageAccounting.degraded(Map.of(), null), null, null);
+        assertNull(emptyRaw.upstreamUsage());
     }
 
     private static GatewayRequestContext context() {

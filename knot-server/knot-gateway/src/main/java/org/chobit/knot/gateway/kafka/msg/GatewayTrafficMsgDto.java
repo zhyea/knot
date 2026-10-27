@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * <b>网关流量事件（单条消息）</b>：一次客户端请求从入口到终态的完整事实。
@@ -43,6 +44,12 @@ import java.util.List;
  * <p>{@code hit}（真正请求的模型）取自候选循环落定后实际调用上游的那个候选（hit target，
  * 与旧请求层模型三字段同口径），不是候选链首位、也不是备选清单；池命中时带 {@code poolCode}
  * 供数仓归因到具体模型池。</p>
+ *
+ * <p><b>用量三视图，单向派生</b>（2026-10-27）：{@code upstream_usage}（上游 {@code usage} 原文，
+ * 只透传不加工）→ {@code usage}（归一化用量 + 本次请求的计费属性）→ {@code billing}（本网关按规则算出的价格）。
+ * 三者并列下发是因为下游要能<b>自行复算</b>（转卖 token、成本分摊、毛利核算）：
+ * 归一化口径若有争议，靠 {@code upstream_usage} 可回溯；网关<b>不下发计费规则内容</b>，
+ * 所以复算所需的分档键（分辨率 / 画幅 / 模式 / 有声…）必须随 {@code usage.attributes} 一起给出。</p>
  *
  * <p><b>三个 id 语义分明，不可互相替代</b>（2026-10-23）：</p>
  * <ul>
@@ -77,6 +84,7 @@ public record GatewayTrafficMsgDto(String schema,
                                    int failoverTotal,
                                    int ejectedSkipped,
                                    boolean failOpen,
+                                   Map<String, Object> upstreamUsage,
                                    ModelUsage usage,
                                    BillingViewMsgDto billing,
                                    ErrorMsgDto error) implements Msg {
@@ -165,9 +173,22 @@ public record GatewayTrafficMsgDto(String schema,
             trace == null ? 0 : trace.failoverTotal(),
             trace == null ? 0 : trace.ejectedSkipped(),
             trace != null && trace.failOpenApplied(),
+            upstreamUsageOf(usage),
             payload == null ? null : payload.usage(),
             billingView(usage),
             errorRecord);
+    }
+
+    /**
+     * 上游 {@code usage} 原文；空对象归一成 {@code null}，让 {@code NON_NULL} 整段省略——
+     * 数仓侧「字段缺席」与「上游没报」应是同一件事，不留空壳对象。
+     */
+    private static Map<String, Object> upstreamUsageOf(UsageAccounting usage) {
+        if (usage == null) {
+            return null;
+        }
+        Map<String, Object> rawUsage = usage.rawUsage();
+        return rawUsage == null || rawUsage.isEmpty() ? null : rawUsage;
     }
 
     /**

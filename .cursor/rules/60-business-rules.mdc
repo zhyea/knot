@@ -50,7 +50,8 @@ alwaysApply: false
 
 - 上游流式（2026-10-20 批2 起，Netty 栈）：取流**只能** `retrieve().onStatus(...).toEntityFlux(DataBuffer.class)`。`exchangeToMono` 会在 handler 返回后调 `releaseBody()` 把未消费的响应体整个吞掉（`UpstreamWebClientStreamingTest` 钉住）。⚠ 旧规则「取原始响应用 `exchange((req,res)->res,false)`、不要再链 `.retrieve()`」作废——那是 Servlet 栈时期针对 RestClient 的写法，与现行 WebClient 实现矛盾，以代码为准。
 - 流式测试（2026-10-20 起）：**MockMvc 已不可用**（网关是 Netty 栈，无 Servlet）。流式契约靠 ① 直接调方法 + 反射注解契约检查（`WebTestClient.bindToController` 的 mock codec 管线跑不通 multipart，别走）；② 真启冒烟 s9（首字节 ≪ 总耗时、`knot_extend` 恰好 1 次且在 `[DONE]` 前）。前端 SSE 仍走 fetch（30s 超时）。
-- `knot_extend` = `{usage, billing}`，raw usage 不透传；整包作响应体字段，SSE 作独立 `data:` 事件（`[DONE]` 前插入）；**usage 用 snake_case，billing 用驼峰**。
+- `knot_extend` = `{usage, billing}`；整包作响应体字段（`body.knot_extend`），SSE 作独立 `data:` 事件（`[DONE]` 前插入）；**usage 用 snake_case，billing 用驼峰**。
+- 上游 usage **原文**在 SSE 事件里以并列的 `usage` 字段透出（`{knot_extend, usage}`，与 `knot_extend` 同级；`return_usage_detail` 关闭或无原文时不出现）。⚠ 整包（非流式）路径目前**只回 `knot_extend`**，不含原文——两条路径的这一差异是现状，改前先确认下游是否依赖。
 - ⭐ **错误前置**：流一开始转发，响应头即已 commit，此后任何错误都无法再用 HTTP 状态反馈，只能沉进日志。因此**能预检的错误必须在建立上游连接 / 写出响应头之前暴露**（先例：`AbstractUpstreamProtocolExecutor.executeStreaming` 前的 `requireExtractor(true, context)`）。
   ⚠ 预检必须与正式提取**共用同一套选择逻辑**。若做不到（如整包路径预检时尚无响应体、`isEventStream` 判不了），**宁可不预检，也不要传一个猜出来的标志位**——改在该路径如实标注「失败发生在提取阶段」。
 
@@ -97,7 +98,10 @@ alwaysApply: false
 
 ## 8. 用量提取：双视图一次提取与口径单一来源（2026-10-23）
 
-上游用量有两类消费者：**计费**（按 sealed `BillingUsage` 分派计算器）与**对外展示**（`knot_extend.usage` 的 `ModelUsage`）。二者字段集不同（媒体计费的 `pixels`/`sound`/`reference` 不在 `ModelUsage`），**不可互相替代**，故一次提取同时产出双视图。
+上游用量有两类消费者：**计费**（按 sealed `BillingUsage` 分派计算器）与**对外**（`knot_extend.usage` / Kafka `usage` 的 `ModelUsage`）。两者**形状不同但事实同源**：
+`ModelUsage` 是 `BillingUsage` 的**无损投影**（2026-10-27 扩容后，媒体维度经 `attributes` 全量透出），
+判据见 §8.12。它们仍然**不可互相替代**——`BillingUsage` 按模式分型、承载计费语义，`ModelUsage` 是对外稳定契约，
+故一次提取同时产出双视图。
 
 ### 8.1 契约
 
@@ -139,14 +143,15 @@ alwaysApply: false
 
 ### 8.5 媒体计量
 
-- 媒体计量（张数 / 秒数）进 usage 视图，取自 `billing`。
+- 媒体计量（张数 / 秒数 / 条数）进 usage 视图，取自 `billing`：输出侧 `output.image_count` / `audio_seconds` / `video_seconds` / `video_count`，**输入侧同样有** `input.image_count` / `audio_seconds` / `video_seconds`。
 - ⭐ 双报模型（如 gpt-image-1 同时上报 token 与图片）**内嵌 token 必须保留**在 usage 视图，不得只出媒体计数（否则 `total_tokens` 从「有」变「无」）。
-- 媒体 `BillingUsage` 的 `pixels` / `width` / `height` / `sound` / `reference` 只服务计费，**不因 usage 视图而改**。
+- ⭐ 媒体 `BillingUsage` 的计费属性（2026-10-27 起：`resolution` / `aspectRatio` / `mode` / `width` / `height` / `pixels` / `sound` / `voiceSpecified` / `referenceVideo`）经 **`ModelUsage.attributes`** 透出——它们是价目表的分档键，下游自算价必须拿到。值**原样保留厂商写法**，不做键空间归一。
+- ⚠ 视频响应的 `data` 数组装的是**视频**，禁止回填进 `output.image_count`（会把条数错标成张数）；条数只走 `output.video_count`。`withBodyMedia` 对 `VIDEO` 一律跳过。
 
 ### 8.6 SSE 合并
 
-- 双视图**一起**参与 merge / 选择，禁止后续重建。接口默认 `extractEventStreamUsage` 用 `UsageExtractItem.mergeMax`：billing 按分量取最大，usage 取累计 token 总量更大的完整视图。
-- ⚠ 生产 `ProxyStreamingFlux.UsageState.merge` 按 `totalTokens()` 选最大事件：**纯媒体响应 token=0 时会保首事件**（既有局限，已知，本批未改）。
+- 双视图**一起**参与 merge / 选择，禁止后续重建。`UsageExtractItem.mergeMax` 的两侧**都逐字段合并**（2026-10-27 起）：token 明细取总量更大的**一整份**（明细必须自洽，不能跨事件按字段拼），媒体计量取 max，`attributes` 取先出现的非空值 / 布尔取或。规则与 `BillingUsage#mergeMax` 一致——两视图必须由同一套合并语义推出，否则「计费按合并后的量、展示按某一个事件的量」。
+- ⚠ 生产 `ProxyStreamingFlux.UsageState.merge` 仍在**账目层整份选择**（`totalTokens` 更大者胜，相等后者覆盖），不逐字段合并：纯媒体事件 `totalTokens` 恒 0，会永久输给任一 token>0 的事件。这是**已知遗留**，与 `UsageExtractItem` 已修的口径不同层；修它要连 `UsageAccounting` 的合并语义一起定，未在 2026-10-27 批次内。
 
 ### 8.7 不变量与测试
 
@@ -239,3 +244,24 @@ usage.totalTokens    >= usage.input.tokens.total() + usage.output.tokens.total()
 
 ⚠ 反模式：在三处失败点各写一遍 `if (degrade) ... else throw ...`。
 新增失败情形就会漏改其中一处，且「抛还是降」的口径会随代码位置漂移。
+
+### 8.12 对外用量视图是计费事实的无损投影（2026-10-27）
+
+⭐⭐ **`ModelUsage` 必须能从 `BillingUsage` 无损重建**：计费事实每加一个字段，
+`ModelUsage` 就要有对应出口，否则下游「只凭消息自己算钱」的能力静默丢失。
+
+- 判据（加字段时逐条自查）：**这个字段影响价格吗？** 影响 → 必须在 `ModelUsage` 有出口
+  （新增 `input` / `output` 计量，或进 `attributes`）；不影响 → 不进。
+- 投影必须用 **sealed `switch` 穷尽分派**（`ModelUsageNormalizer.projectFacts`），不得用 `instanceof` 链：
+  新增一种 `BillingUsage` 时编译器会强制回来补投影。
+- `attributes` 只装**本次请求声明的计费属性**（分辨率 / 画幅 / 模式 / 宽高像素 / 有声 / 音色 / 参考视频），
+  来源是**请求体**而非上游 usage。值**原样保留厂商写法**，键空间归一是 Calculator 的内部动作。
+- 「缺席即默认」：`@JsonInclude(NON_DEFAULT)` + 空串归一成 `null`（紧凑构造器做），
+  读不到某一维度 ≡ 未按该维度分档，与取价回落默认档同口径。
+- **用量三视图，单向派生**：`upstream_usage`（上游原文，只透传）→ `usage`（`ModelUsage`）
+  → `billing`（金额，规则内容不下发）。Kafka 消息三者并列同级；`upstream_usage` 空对象归 `null` 整段省略。
+- 守门测试：`ModelUsageNormalizerTest` 的「字段对齐」用例逐字段断言 `VideoBillingUsage` 的 11 个事实都有出口。
+  **加计费字段必须同步扩这条用例**，否则「有损失败」不会被任何断言发现。
+- ⚠ 反面判例（2026-10-27 修复）：`videoCount` 无出口、输入侧三字段是死字段、视频 `data` 被误标成
+  `output.image_count`、SSE 下两视图用不同合并语义（计费 5 秒 / 展示 0 秒）——四个缺陷都是「投影有损」
+  的不同形态，且当时**没有任何测试报警**。

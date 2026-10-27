@@ -273,7 +273,9 @@ public final class ProxyStreamingFlux {
             if (candidate == null) {
                 return;
             }
-            // 逐事件取 token 数更大的一份，与整包提取的 mergeMax 语义对齐
+            // 整份选择（不是逐字段合并）：取 token 总量更大的一份，相等时后者覆盖前者。
+            // 纯媒体事件的 totalTokens 恒 0，会永久输给任一 token>0 的事件 —— 已知遗留，
+            // 与 UsageExtractItem.mergeMax 的逐字段口径不同层（见 60-business-rules §8.6）
             if (value == null || candidate.totalTokens() >= value.totalTokens()) {
                 value = candidate;
             }

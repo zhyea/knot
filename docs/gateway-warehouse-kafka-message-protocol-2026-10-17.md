@@ -6,6 +6,8 @@
 > 本文取代 `docs/gateway-warehouse-data-model-2026-10-17.md` 的三事实表方案（request/attempt/usage_detail 三表 → **单条流量事件**），口径清单沿用并扩充。
 > 实施代码已落地（§7）；命名与配置按 robin 2026-10-18 拍板调整：消息类带 Msg 标识（`GatewayTrafficMsgDto` / `AttemptMsgDto` / …）、配置顶层 `kafka.*` 与 mybatis 平级、topic 写全名；投递形态按 robin 同日拍板定为 **Kafka 原生 async**（不建自建队列/投递线程，异步性由生产者客户端承担，启动期预热元数据）；真正请求的模型口径按 robin 同日拍板定为 **hit target**（候选循环落定后实际调用上游的那个，非候选链首位）。
 
+> **2026-10-27 追加用量三视图**（robin 拍板）：顶层新增 `upstream_usage`（上游 `usage` 原文，与 `usage` **同级**）；`usage`（`ModelUsage`）扩容为「归一化用量 + `attributes` 计费属性」，输出侧新增 `video_count`。动机：下游要能**只凭消息自行复算价格**（转卖 token / 成本分摊 / 毛利核算），而网关**不下发计费规则内容**，故量与分档键必须齐备，原文用于回溯口径。schema 仍为 `knot.gateway.traffic/1.0`（加字段向后兼容）。设计与实施记录见 `docs/统一视频用量模型-2026-10-27.md` §五之六。
+
 ## 1. 模型总览
 
 ```
@@ -75,6 +77,10 @@
       "counted_for_ejection": false }
   ],
   "retry_total": 1, "failover_total": 1, "ejected_skipped": 0, "fail_open": false,
+  "upstream_usage": {
+    "prompt_tokens": 1200, "completion_tokens": 380, "total_tokens": 1580,
+    "prompt_tokens_details": { "cached_tokens": 1024 }
+  },
   "usage": {
     "input":  { "tokens": { "text": 176, "image": 0, "video": 0, "cache_read": 1024, "cache_write": 0, "cache_write_5m": 0, "cache_write_1h": 0, "unclassified": 0 }, "image_count": 0, "audio_seconds": 0, "video_seconds": 0 },
     "output": { "tokens": { "text": 380, "image": 0, "video": 0, "reasoning": 0, "unclassified": 0 }, "image_count": 0, "audio_seconds": 0, "video_seconds": 0 },
@@ -120,7 +126,7 @@
       "upstream_request_id": null, "counted_for_ejection": false }
   ],
   "retry_total": 0, "failover_total": 0, "ejected_skipped": 0, "fail_open": false,
-  "usage": null, "billing": null,
+  "upstream_usage": null, "usage": null, "billing": null,
   "error": {
     "type": "rate_limit_error", "code": "RATE_LIMIT_EXCEEDED", "http_status": 429,
     "stage": "target_traffic_check",
@@ -132,7 +138,7 @@
 }
 ```
 
-**入口即拒**（鉴权 / Rule 头校验失败）：`routing`=null、`hit`=null、`usage`=null、`billing`=null、`error.stage`=`header_validate`、`http_status`=401/400。
+**入口即拒**（鉴权 / Rule 头校验失败）：`routing`=null、`hit`=null、`upstream_usage`=null、`usage`=null、`billing`=null、`error.stage`=`header_validate`、`http_status`=401/400。
 
 ### 字段规则
 
@@ -151,7 +157,7 @@
 | `http_status` | int | 成功 200；失败取 error.httpStatus |
 | `ttft_ms` / `hit` | 可空 | 异常路径为 null，禁填 0（0 是合法值，null 是无数据） |
 | `attempts[]` / `retry_total` / `failover_total` / `ejected_skipped` / `fail_open` | — | 候选循环轨迹（`CallTraceContext`）；详见 §3 attempts 规则（含 attempt 级上游 `upstream_request_id`） |
-| `usage` / `billing` | 可空 | 成功路径才有；`billing` 命中计费规则才非 null |
+| `upstream_usage` / `usage` / `billing` | 可空 | 成功路径才有；`billing` 命中计费规则才非 null。**用量三视图**，见下方专段（2026-10-27 新增 `upstream_usage`） |
 | `error` | 可空 | 统一错误结构，**成功为 null**；详见 §3 |
 
 **`routing`（RoutingSnapshot，14 字段）**：rule_code / rule_name / app_scenario / consumer_code / consumer_name / app_code / app_name / dept_code / dept_name / consumer_username / app_owner_username / return_usage_detail / target_type / candidate_count。`target_type` 按首个候选是否带来源池 code 还原 MODEL / MODEL_POOL（池展开后候选 targetType 被路由统一改写为 MODEL，规则维度的真实目标类型靠首个候选 poolCode 还原）。**全部为业务码 / username，无主键 id**。
@@ -177,7 +183,38 @@
 
 拒绝 / 全失败路径无 hit，`hit` 为 null（尝试过哪些模型看 `attempts[]`）。
 
-**`usage`（ModelUsage）**：input / output 两组 token 拆解 + `total_tokens`；媒体类 `image_count` / `audio_seconds` / `video_seconds` 独立口径，token 可为 0 但张数/秒数非 0。
+**用量三视图（2026-10-27 定稿）**：单向派生，三者并列下发。
+
+```
+upstream_usage（上游原文，只透传不加工）
+      ↓ 归一化 + 补本次请求的计费属性
+usage（ModelUsage：input / output / attributes / total_tokens）
+      ↓ 按本网关规则计价（规则内容不下发）
+billing（NormalizedUsage：金额与明细）
+```
+
+| 字段 | 内容 | 为什么下发 |
+|---|---|---|
+| `upstream_usage` | 上游响应里那个 `usage` 对象原样（`UsageAccounting.rawUsage()`），**保留厂商键名**（`prompt_tokens` / `input_tokens` / `prompt_tokens_details.cached_tokens`…）；上游没报或报空对象时**整段缺席** | 归一化口径若有争议可回溯；数仓不必再自行解析响应体 |
+| `usage` | 归一化用量 + `attributes`（计费属性） | 下游要能**只凭这一份自己算钱**（转卖 token / 成本分摊 / 毛利核算） |
+| `billing` | 本网关按规则算出的金额与明细 | 对账基准；**不含规则内容**（无 `config_json`），下游复算靠量 + 分档键 |
+
+**`usage`（ModelUsage）**：
+
+- `input` / `output` 两组 token 拆解 + `total_tokens`；非 token 计量与 token 明细**平级**：
+  `image_count` / `audio_seconds` / `video_seconds`，输出侧另有 `video_count`（按条计价，如 Veo）。
+- 输入侧同样有 `image_count` / `audio_seconds` / `video_seconds`：图生视频的首帧图、
+  参考视频时长走这里（MiniMax「输出秒 + 输入秒 + 输入图张」多分量计价要靠它复算）。
+- `attributes`：**本次请求声明的**计费属性（不是上游 usage 报的），9 项 ——
+  `resolution` / `aspect_ratio` / `mode` / `width` / `height` / `pixels` / `sound` /
+  `voice_specified` / `reference_video`。值一律**原样保留厂商写法**（`768P` / `16:9` / `wan-pro` /
+  `MOTION_CONTROL`），键空间归一是下游自己的事。
+- 全 0 值与空串按 `NON_DEFAULT` **省略**；`attributes` 全空时整段缺席。
+  **缺席即默认**：读不到 `attributes.resolution` 等价于「未按分辨率分档」，与网关取价回落默认档同口径。
+
+> ⚠ 视频响应的 `data` 数组装的是视频，**不会**被回填进 `output.image_count`；
+> 视频条数只出现在 `output.video_count`（2026-10-27 修）。
+
 
 **`billing`（BillingViewMsgDto）**：rule_code / rule_version / billing_mode / pricing_plan / total_tokens / total_cost / currency + `detail[]`（逐类用量金额行：type / tokens / cost / price，金额十进制普通字符串、不设小数位上限）；「免费」与「没配置计费」靠 billing 是否为 null 区分（两件事）。
 

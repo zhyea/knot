@@ -5,6 +5,7 @@ import org.chobit.knot.adapter.model.usage.BillingUsage;
 import org.chobit.knot.adapter.model.usage.ImageBillingUsage;
 import org.chobit.knot.adapter.model.usage.TokenBillingUsage;
 import org.chobit.knot.adapter.model.usage.VideoBillingUsage;
+import org.chobit.knot.adapter.usage.ModelUsage.Attributes;
 import org.chobit.knot.adapter.usage.ModelUsage.Input;
 import org.chobit.knot.adapter.usage.ModelUsage.InputTokens;
 import org.chobit.knot.adapter.usage.ModelUsage.Output;
@@ -58,8 +59,8 @@ public final class ModelUsageNormalizer {
         }
         Map<String, Object> rawUsage = UsageRawReader.readUsage(rawBody);
         ModelUsage base = tokenModel(billing.tokenUsage(), rawUsage);
-        ModelUsage withMedia = mergeMediaCounters(base, billing);
-        return withBodyMedia(withMedia, rawBody);
+        ModelUsage withFacts = projectFacts(base, billing);
+        return withBodyMedia(withFacts, rawBody, billing);
     }
 
     /**
@@ -152,23 +153,95 @@ public final class ModelUsageNormalizer {
     }
 
     /**
-     * 媒体计量从计费输入视图取（张数 / 秒数）；{@code token} 视图保持不变。
+     * 把计费事实投影成对外用量视图：两侧计量 + 计费属性。
+     *
+     * <p>⭐ 用 sealed {@code switch} 而不是 {@code instanceof} 链：新增一种
+     * {@link BillingUsage} 时编译器会强制回来补投影，否则「加字段忘了投影」只会静默丢量。</p>
      */
-    private static ModelUsage mergeMediaCounters(ModelUsage base, BillingUsage billing) {
-        long imageCount = billing instanceof ImageBillingUsage image ? image.count() : 0L;
-        long videoSeconds = billing instanceof VideoBillingUsage video ? video.outputSeconds() : 0L;
-        long audioSeconds = billing instanceof AudioBillingUsage audio ? audio.durationSeconds() : 0L;
-        if (imageCount <= 0 && videoSeconds <= 0 && audioSeconds <= 0) {
-            return base;
-        }
-        Output output = base.output() == null ? Output.of(emptyOutputTokens()) : base.output();
-        Output merged = Output.of(
-                output.tokens(),
-                Math.max(output.imageCount(), imageCount),
-                Math.max(output.audioSeconds(), audioSeconds),
-                Math.max(output.videoSeconds(), videoSeconds)
+    private static ModelUsage projectFacts(ModelUsage base, BillingUsage billing) {
+        return switch (billing) {
+            case TokenBillingUsage ignored -> base;
+            case ImageBillingUsage image -> projectImage(base, image);
+            case VideoBillingUsage video -> projectVideo(base, video);
+            case AudioBillingUsage audio -> projectAudio(base, audio);
+        };
+    }
+
+    private static ModelUsage projectImage(ModelUsage base, ImageBillingUsage image) {
+        Output output = outputOf(base);
+        return new ModelUsage(
+                base.input(),
+                Output.builder()
+                        .tokens(output.tokens())
+                        .imageCount(image.count())
+                        .audioSeconds(output.audioSeconds())
+                        .videoSeconds(output.videoSeconds())
+                        .videoCount(output.videoCount())
+                        .build(),
+                Attributes.builder()
+                        .width(image.width())
+                        .height(image.height())
+                        .pixels(image.pixels())
+                        .build(),
+                base.totalTokens()
         );
-        return ModelUsage.of(base.input(), merged, base.totalTokens());
+    }
+
+    /**
+     * VIDEO 事实投影：输入侧（张数 / 秒数）与输出侧（秒数 / 条数）都要落，
+     * 否则「按输入秒 + 输入图收费」（MiniMax）与「按条收费」（Veo）在对外用量里无从体现。
+     */
+    private static ModelUsage projectVideo(ModelUsage base, VideoBillingUsage video) {
+        Input input = inputOf(base);
+        Output output = outputOf(base);
+        return new ModelUsage(
+                Input.builder()
+                        .tokens(input.tokens())
+                        .imageCount(video.inputImageCount())
+                        .audioSeconds(input.audioSeconds())
+                        .videoSeconds(video.inputSeconds())
+                        .build(),
+                Output.builder()
+                        .tokens(output.tokens())
+                        .imageCount(output.imageCount())
+                        .audioSeconds(output.audioSeconds())
+                        .videoSeconds(video.outputSeconds())
+                        .videoCount(video.outputVideoCount())
+                        .build(),
+                Attributes.builder()
+                        .resolution(video.outputResolution())
+                        .aspectRatio(video.outputAspectRatio())
+                        .mode(video.outputMode())
+                        .sound(video.sound())
+                        .voiceSpecified(video.voiceSpecified())
+                        .referenceVideo(video.referenceVideo())
+                        .build(),
+                base.totalTokens()
+        );
+    }
+
+    private static ModelUsage projectAudio(ModelUsage base, AudioBillingUsage audio) {
+        Output output = outputOf(base);
+        return new ModelUsage(
+                base.input(),
+                Output.builder()
+                        .tokens(output.tokens())
+                        .imageCount(output.imageCount())
+                        .audioSeconds(audio.durationSeconds())
+                        .videoSeconds(output.videoSeconds())
+                        .videoCount(output.videoCount())
+                        .build(),
+                base.attributes(),
+                base.totalTokens()
+        );
+    }
+
+    private static Input inputOf(ModelUsage base) {
+        return base.input() == null ? Input.of(emptyInputTokens()) : base.input();
+    }
+
+    private static Output outputOf(ModelUsage base) {
+        return base.output() == null ? Output.of(emptyOutputTokens()) : base.output();
     }
 
     private static long cacheWriteTotal(Map<String, Object> raw) {
@@ -201,6 +274,10 @@ public final class ModelUsageNormalizer {
 
     /**
      * 只有响应体、连计费输入视图都没有时用：例如图像接口只回 {@code data} 数组。
+     *
+     * <p>⚠ 视频不会走到这里：只要响应体里有 {@code data} / {@code videos} 或任何时长字段，
+     * {@code VideoBillingUsage} 就不是空用量（条数与档位名都算量）。因此本方法把 {@code data}
+     * 当图片张数是安全的——它服务的是图像类接口的兜底。</p>
      */
     public static ModelUsage mediaOnly(Map<String, Object> rawBody) {
         if (rawBody == null || rawBody.isEmpty()) {
@@ -211,26 +288,36 @@ public final class ModelUsageNormalizer {
         if (imageCount <= 0 && videoSeconds <= 0) {
             return null;
         }
-        return ModelUsage.of(Input.of(new InputTokens(0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L)),
-                Output.of(new OutputTokens(0L, 0L, 0L, 0L, 0L), imageCount, 0L, videoSeconds),
+        return ModelUsage.of(Input.of(emptyInputTokens()),
+                Output.builder()
+                        .tokens(emptyOutputTokens())
+                        .imageCount(imageCount)
+                        .videoSeconds(videoSeconds)
+                        .build(),
                 0L);
     }
 
     /**
      * 用响应体补齐「usage 里没写的多模态维度」：只在 usage 侧对应字段仍为 0 时回填。
+     *
+     * <p>⚠ VIDEO 一律跳过：视频响应的 {@code data} 数组装的是<b>视频</b>，回填进
+     * {@code output.image_count} 会把条数错标成图片张数；而视频的各项事实已由
+     * {@link #projectVideo} 从计费视图完整投影，不需要响应体兜底。</p>
      */
-    private static ModelUsage withBodyMedia(ModelUsage usage, Map<String, Object> rawBody) {
-        if (usage == null || rawBody == null || rawBody.isEmpty()) {
+    private static ModelUsage withBodyMedia(ModelUsage usage, Map<String, Object> rawBody, BillingUsage billing) {
+        if (usage == null || rawBody == null || rawBody.isEmpty() || billing instanceof VideoBillingUsage) {
             return usage;
         }
         Output output = usage.output();
-        Output filled = output == null ? null : Output.of(
-                output.tokens(),
-                positive(output.imageCount(), countData(rawBody)),
-                positive(output.audioSeconds(), flat(rawBody, "input_audio_seconds", "audio_seconds")),
-                positive(output.videoSeconds(), flat(rawBody, "duration_seconds", "video_seconds", "seconds", "duration"))
-        );
-        return ModelUsage.of(usage.input(), filled, usage.totalTokens());
+        Output filled = output == null ? null : Output.builder()
+                .tokens(output.tokens())
+                .imageCount(positive(output.imageCount(), countData(rawBody)))
+                .audioSeconds(positive(output.audioSeconds(), flat(rawBody, "input_audio_seconds", "audio_seconds")))
+                .videoSeconds(positive(output.videoSeconds(),
+                        flat(rawBody, "duration_seconds", "video_seconds", "seconds", "duration")))
+                .videoCount(output.videoCount())
+                .build();
+        return new ModelUsage(usage.input(), filled, usage.attributes(), usage.totalTokens());
     }
 
     /**
