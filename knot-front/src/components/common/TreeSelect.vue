@@ -6,6 +6,7 @@
     :hide-after="0"
     :show-arrow="false"
     popper-class="tree-select__popper"
+    :width="panelWidth ?? 'auto'"
     @hide="onDropdownHide"
   >
     <template #reference>
