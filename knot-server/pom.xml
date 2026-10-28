@@ -31,6 +31,8 @@
         <mapstruct.version>1.6.3</mapstruct.version>
         <lombok.version>1.18.38</lombok.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <!-- 异步任务档案里的取值 / 终态判定表达式（knot-gateway 专用） -->
+        <mvel.version>2.5.2.Final</mvel.version>
     </properties>
 
     <modules>

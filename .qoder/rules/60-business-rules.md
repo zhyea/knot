@@ -267,3 +267,119 @@ usage.totalTokens    >= usage.input.tokens.total() + usage.output.tokens.total()
 - ⚠ 反面判例（2026-10-27 修复）：`videoCount` 无出口、输入侧三字段是死字段、视频 `data` 被误标成
   `output.image_count`、SSE 下两视图用不同合并语义（计费 5 秒 / 展示 0 秒）——四个缺陷都是「投影有损」
   的不同形态，且当时**没有任何测试报警**。
+
+### 8.13 媒体档位事实的取数入口：一个类、一次解析（2026-10-28）
+
+⭐⭐ **媒体用量的「档位事实」由一个记录承载、一次解析取齐**：
+`AbstractVideoUsageExtractor#facts` → `VideoUsageFacts`（10 个分量：输出时长/条数/分辨率/画幅/模式、
+输入时长/图张数、有声/音色/参考视频）。**禁止再按档位加 `protected` 钩子**。
+
+判据（为什么不能一档一个方法）：
+
+- **同一份输入被反复扫**：十个钩子 = 请求体键表扫十遍、`usage` 子对象查十遍；
+- **维度清单散在签名里**：加一维要动基类 + 每个子类 + 组装点，**漏任一处的表现是少一路钱且不报错**
+  （只在月结对账时显形）。聚成记录后加一维 = 记录加一分量 + `of()` 加一行 + 投影加一行。
+
+厂商差异的唯一写法：覆写 `facts()`，用 `VideoUsageFacts.of(body, requestBody).toBuilder()` 只改自己那几项。
+
+- ⚠⚠ **禁止在子类里重新 `new VideoUsageFacts(...)` / `builder()` 从零构造**：那会把通用解析的结论全部丢弃。
+  判例（2026-10-28 探针）：Kling 改为从零构造后，分辨率、输入图张数、输出条数三处同时变红——
+  若只在生产上发生，就是「档位回落默认价 + 少收分量」。
+- ⚠ **解析层不做兜底**：未声明给空（字符串 `null`、数值 0、布尔 false），归一与兜底归模型/计费
+  （`VideoBillingUsage` 的紧凑构造器与 `billedVideoCount()`）。兜底是计费语义，不是解析语义。
+- ⚠ **不要拿 `VideoBillingUsage` 当解析载体**：它是计费模型，受「明细行 = 量 × 价」与
+  `ModelUsage` 无损投影约束；事实里允许存在**只记录不进计费**的观察值，那种字段不该进模型。
+  边界：**事实类认识键表，模型只认识自己**。
+- 守门测试：`VideoUsageFactsTest`（① 10 项一次取齐；② `toBuilder` 只改指定项；③ `usage` 优先于顶层；
+  ④ `present`/`flag` 两种语义不被合并）。新增一维必须扩第一例，否则漏解析不会被任何断言发现。
+
+### 8.14 异步任务档案的表达式：语义进配置，失败口径分两类（2026-10-28）
+
+⭐⭐ `kb_async_task_profiles` 里 **三个 `*_path`（`task_id_path` / `status_path` / `result_path`）是
+MVEL 取值表达式，三个 `status_*` 是 MVEL 布尔表达式**（变量 `status` = `status_path` 取到的文本、
+`body` = 整个查询响应）。求值的**唯一出口**是 `AsyncTaskExpressionSupport`（`text` / `test`），
+禁止各处自行 `MVEL.eval`。
+**规则形态的判据**：旧的自研 JSON 路径语法只能表达「取某个节点」，而终态判定本质不是「取值相等」，
+于是状态语义被迫一半在配置（逗号列表）、一半在 Java（字符串比较）；每加一种写法都要改代码发版。
+**路径语法的适用边界是「知道结构」，表达式的适用边界是「知道意图」**——档案要的是后者。
+
+⭐⭐ **两类求值的失败口径刻意不同，不许统一**：
+
+- **取值失败 → `null`**：上游还没出字段、数组越界、上层为 null 都是常态，调用方解释成「还没出结果」。
+  判 null 比判死任务安全。
+- **判定失败 → 必须抛**（`IllegalStateException`，并指路迁移脚本）：旧值 `succeeded,failed` 在 MVEL 下
+  是变量名，**能编译、求值期才抛**。若宽容成 `false`，任务会永远 RUNNING 直到超时结单——
+  **配置错被伪装成上游慢，是最难查的一类事故**。
+- ⚠ 编译与求值必须分开：`compiled()` 抛的也是 `RuntimeException`，若放在取值的 `catch` 里，
+  「档案写错」会被当成「取不到」静静吞掉（判例：本条款落地时实测发现该缺陷，`text()` 已把编译提到 try 外）。
+
+⚠ **MVEL 语法坑（实测，不是文档抄的）**：
+
+- **没有 `in (...)` 元组语法**（`CompileException`），多值写 **`['a','b'] contains status`**；
+- 裸标识符（`succeed`）编译通过、求值抛 `unresolvable property or identifier`；
+- 缺失键 / 越界抛 `PropertyAccessException` / `StringIndexOutOfBoundsException`，**不返回 null**。
+
+⚠ **表达式区分大小写**：旧实现是 Java 侧 `equalsIgnoreCase`，改表达式后按**所列字形**精确匹配；
+需要宽匹配就在档案里写 `lower(status) == 'succeeded'`。**不要再把比较逻辑搬回 Java**。
+
+⚠ **判定必须返回布尔**：返字符串/数字/null 一律抛。`status_running` 为空 = 除成功/失败外一律非终态；
+配了却谁都不匹配 → 回 `RUNNING`（不判死）但 `log.warn`，否则上游新增状态会被当成正常轮询直到超时。
+
+- 安全边界：表达式只由管理端/运维脚本写入（与 SQL 同权限级），求值时**只绑定数据**，
+  不绑定 bean、不绑类加载器。
+- 编译缓存 `ConcurrentHashMap<表达式原文, Serializable>`：改档案自然过期，无失效逻辑。
+- 守门测试：`AsyncTaskExpressionSupportTest`（10 例，含「旧逗号列表必须抛且消息指路迁移脚本」探针）。
+  双向探针实测：取值改上抛 → 3 例红；判定改宽容 `false` → 逗号列表那例红。
+
+## 9. 上游适配器职责边界（2026-10-28）
+
+### 9.1 视频适配器只做透传（红线）
+
+⭐⭐ **视频 `UpstreamAdapter` 的 `buildRequestBody` 只做两件事：原样透传 + 剥掉客户端回推地址。
+除此之外一律不做**——不转换请求形状、不按白名单校验、不代厂商补默认值、不注入任何
+`external_task_id` 之类自己发明的字段。
+
+判据一句话：**请求错误由调用方自己承担**。请求体该长什么样由客户端按上游文档自己写，
+写错了让上游 400 原路返回。网关是代理，不是转译层。
+
+为什么这条是红线（两个后果都已在真机上出过事）：
+
+- **形状转换必然与上游文档漂移**：每家厂商的字段语义要在网关里重新实现一遍
+  （prompt 放顶层还是 `contents`、参数进 `settings` 还是平铺、大小写归一……），
+  上游一改文档网关就是一份过期副本，且错误在出站时才显形。
+- **「顺手做兜底」会把错参静默吞掉**：判例——分辨率白名单之外的取值被折成裸串后
+  **静默回落默认价**，一次错价要等月末对账才发现；`n>1` 被「纠正」成 1 等于收一次钱交一份货。
+  拦（抛 400）与纠正（改成合法值）都不行：前者让网关承担了本属上游的校验口径，
+  后者更糟，直接改写了客户端的意图。
+
+✅ 正确形态（`KlingVideoUpstreamAdapter#buildRequestBody` 现在就是这个）：
+`return VideoRequestSupport.passthroughBody(context);`
+
+### 9.2 唯一必须做的事：剥 callback_url / webhook_url
+
+⭐⭐ **客户端的回推地址绝不能漏给供应商**。所有视频适配器（含 `PassthroughUpstreamAdapter`
+落到视频协议时的兜底路径）都必须剥，且必须**递归剥**。
+
+- 判据不是「整洁」，是**计费完整性**：漏了它，供应商直接把终态推给客户端 → 客户端拿到产物
+  却没经过 knot 的轮询与终态结算 → 那笔用量既查不到也收不回。
+- 它同时是一个**可被客户端指定目标的出站地址**，安全面不该由客户端决定。
+- **必须递归**：Kling 放 `options.callback_url`，Luma / MiniMax 放顶层。只扫一层等于只挡住一半厂商，
+  **漏一家的表现是完全静默的**（没有任何运行期信号）。
+- 字段名归一化后比较（忽略大小写与 `_` / `-`），名单唯一出口 `VideoRequestSupport.CALLBACK_FIELDS`；
+  新增一家用了别的名字（如 `notify_url`）只在那里加一项。
+- **不能原地改** `UpstreamRequestContext.requestBody()`：异步任务要拿它落 `request_json`
+  供终态计费复现。故「无命中返回同一实例（零拷贝），有命中返回浅拷贝」。
+- 兜底路径同样要守：**越是「没配适配器」的绑定越容易漏**。
+
+### 9.3 归属：通用原语 vs 供应商私有
+
+- 与供应商无关的（本节的剥 callback）住 `adapter/support/VideoRequestSupport`；
+  供应商特有的（如 Bedrock 的 SigV4、Converse 的字段改写）住 `adapter/support/<供应商>/`。
+- ⚠ 别把厂商特有的「特殊情况」往 `VideoRequestSupport` 里加：那是 9.1 明令禁止的形状转换，
+  只是换了个文件放。真要转换，说明该厂商确实特殊，写进它自己的 Support 并在此处留判例理由。
+- 流式与否**不在适配器上声明**：协议枚举（`ModelApiProtocolEnum.streamSupported`）+
+  执行器（`MediaProtocolExecutor` 只放行 `AUDIO_SPEECH`）两道已挡住视频。适配器再覆写一遍
+  只会让人以为「是这个适配器关掉了流式」，改协议时找不到真正的地儿。
+- 守门测试：`KlingVideoUpstreamAdapterTest`（透传/不校验/不注入/剥 callback 三路径）、
+  `VideoRequestSupportTest`（递归、List、归一化、近似字段不误伤、零拷贝）、
+  `PassthroughUpstreamAdapterTest#shouldStripCallbackFieldsForVideoProtocol`。

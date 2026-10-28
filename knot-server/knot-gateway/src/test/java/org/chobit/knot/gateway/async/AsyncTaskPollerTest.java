@@ -3,8 +3,8 @@ package org.chobit.knot.gateway.async;
 import org.chobit.knot.adapter.model.usage.UsageAccounting;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.dal.entity.AsyncTaskEntity;
-import org.chobit.knot.gateway.archive.VideoArchiveStore;
-import org.chobit.knot.gateway.archive.VideoAsset;
+import org.chobit.knot.gateway.archive.ArchiveAsset;
+import org.chobit.knot.gateway.archive.ArchiveStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -69,13 +69,13 @@ class AsyncTaskPollerTest {
     @Test
     @DisplayName("终态成功：计费 → 落 SUCCEEDED → 发一条终态事件")
     void successSettlesAndPublishesOnce() {
-        when(store.complete(anyLong(), any(), eq("SUCCEEDED"), any(), isNull(), isNull())).thenReturn(true);
+        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), isNull(), isNull())).thenReturn(true);
         AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
         queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://x/a.mp4\"}]}]}";
 
         assertTrue(poller.process(task));
 
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq("SUCCEEDED"), any(), isNull(), isNull());
+        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), isNull(), isNull());
         assertEquals(1, completion.accounted, "终态必须且只能计一次费");
         assertEquals(1, completion.published, "终态必须且只能发一条事件");
         assertEquals(1, completion.terminalSeq, "首次查询就拿到终态，seq 应为 1");
@@ -86,7 +86,7 @@ class AsyncTaskPollerTest {
     @Test
     @DisplayName("终态成功：产物转储一次，落库的是转储后的地址")
     void successArchivesOnce() {
-        when(store.complete(anyLong(), any(), eq("SUCCEEDED"), any(), isNull(), isNull())).thenReturn(true);
+        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), isNull(), isNull())).thenReturn(true);
         AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
         queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://up/a.mp4\"}]}]}";
         archiveStore.result = "https://s3/a.mp4";
@@ -94,13 +94,13 @@ class AsyncTaskPollerTest {
         assertTrue(poller.process(task));
 
         assertEquals(1, archiveStore.archived.size(), "终态只搬一次，不能在中间态尝试");
-        VideoAsset asset = archiveStore.archived.get(0);
+        ArchiveAsset asset = archiveStore.archived.get(0);
         assertEquals("tc-1", asset.taskCode(), "taskCode 是实现方做幂等键的唯一依据");
         assertEquals("up-1", asset.upstreamTaskId());
         assertEquals("https://up/a.mp4", asset.sourceUrl(), "转储吃的是供应商地址，不是我们自己的");
         assertEquals("kling-3", asset.modelCode());
         assertEquals("rule-1", asset.ruleCode());
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq("SUCCEEDED"),
+        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.SUCCEEDED.code()),
                 eq("{\"result_url\":\"https://s3/a.mp4\"}"), isNull(), isNull());
         assertEquals(1, completion.accounted);
     }
@@ -108,14 +108,14 @@ class AsyncTaskPollerTest {
     @Test
     @DisplayName("⭐ 转储失败回退供应商地址：任务照样成功、照样计费")
     void archiveFailureFallsBackToUpstreamUrl() {
-        when(store.complete(anyLong(), any(), eq("SUCCEEDED"), any(), isNull(), isNull())).thenReturn(true);
+        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), isNull(), isNull())).thenReturn(true);
         AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
         queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://up/a.mp4\"}]}]}";
         archiveStore.error = new IllegalStateException("s3 down");
 
         assertTrue(poller.process(task));
 
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq("SUCCEEDED"),
+        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.SUCCEEDED.code()),
                 eq("{\"result_url\":\"https://up/a.mp4\"}"), isNull(), isNull());
         assertEquals(1, completion.accounted, "转储是旁路，不能因为搬文件失败就不算钱");
         assertEquals(1, completion.published, "终态事件也不能少发——否则数仓看不到这笔成功");
@@ -124,21 +124,21 @@ class AsyncTaskPollerTest {
     @Test
     @DisplayName("转储返回空白按失败处理：不把空 URL 交给客户端")
     void blankArchivedUrlFallsBack() {
-        when(store.complete(anyLong(), any(), eq("SUCCEEDED"), any(), isNull(), isNull())).thenReturn(true);
+        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), isNull(), isNull())).thenReturn(true);
         AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
         queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://up/a.mp4\"}]}]}";
         archiveStore.result = "   ";
 
         assertTrue(poller.process(task));
 
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq("SUCCEEDED"),
+        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.SUCCEEDED.code()),
                 eq("{\"result_url\":\"https://up/a.mp4\"}"), isNull(), isNull());
     }
 
     @Test
     @DisplayName("上游失败不转储：没有产物可搬")
     void failedTaskNeverArchives() {
-        when(store.complete(anyLong(), any(), eq("FAILED"), any(), eq("UPSTREAM_TASK_FAILED"), any()))
+        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.FAILED.code()), any(), eq("UPSTREAM_TASK_FAILED"), any()))
                 .thenReturn(true);
         AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
         queryClient.body = "{\"data\":[{\"status\":\"failed\"}],\"message\":\"prompt rejected\"}";
@@ -151,14 +151,14 @@ class AsyncTaskPollerTest {
     @Test
     @DisplayName("上游任务失败：按 FAILED 落终态，不计费")
     void upstreamFailureNeverBills() {
-        when(store.complete(anyLong(), any(), eq("FAILED"), any(), eq("UPSTREAM_TASK_FAILED"), any()))
+        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.FAILED.code()), any(), eq("UPSTREAM_TASK_FAILED"), any()))
                 .thenReturn(true);
         AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
         queryClient.body = "{\"data\":[{\"status\":\"failed\"}],\"message\":\"prompt rejected\"}";
 
         assertTrue(poller.process(task));
 
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq("FAILED"), any(), eq("UPSTREAM_TASK_FAILED"), any());
+        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.FAILED.code()), any(), eq("UPSTREAM_TASK_FAILED"), any());
         assertEquals(0, completion.accounted, "上游失败不计费");
         assertEquals(1, completion.published, "失败也要发终态事件（观测链路不能断）");
     }
@@ -166,14 +166,14 @@ class AsyncTaskPollerTest {
     @Test
     @DisplayName("成功但取不到产物：按失败落终态，不计费（钱收了没有货）")
     void successWithoutResultIsFailure() {
-        when(store.complete(anyLong(), any(), eq("FAILED"), any(), eq("UPSTREAM_RESULT_MISSING"), any()))
+        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.FAILED.code()), any(), eq("UPSTREAM_RESULT_MISSING"), any()))
                 .thenReturn(true);
         AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
         queryClient.body = "{\"data\":[{\"status\":\"succeed\"}]}";
 
         assertTrue(poller.process(task));
 
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq("FAILED"), any(), eq("UPSTREAM_RESULT_MISSING"), any());
+        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.FAILED.code()), any(), eq("UPSTREAM_RESULT_MISSING"), any());
         assertEquals(0, completion.accounted, "没有产物绝不能计入金额");
     }
 
@@ -187,7 +187,7 @@ class AsyncTaskPollerTest {
         assertFalse(poller.process(task));
 
         verify(store).scheduleNext(eq(7L), eq(CLAIM_ID), any());
-        verify(store, never()).complete(anyLong(), any(), any(), any(), any(), any());
+        verify(store, never()).complete(anyLong(), any(), anyInt(), any(), any(), any());
         assertEquals(0, completion.accounted);
         assertEquals(0, completion.published, "还没到终态，不能发终态事件");
         assertEquals(List.of(1), completion.querySeqs,
@@ -218,7 +218,7 @@ class AsyncTaskPollerTest {
         poller.process(task(0, JsonKit.toJson(spec), JsonKit.toJson(context())));
         poller.process(task(1, JsonKit.toJson(spec), JsonKit.toJson(context())));
 
-        when(store.complete(anyLong(), any(), eq("SUCCEEDED"), any(), isNull(), isNull())).thenReturn(true);
+        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), isNull(), isNull())).thenReturn(true);
         queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://x/a.mp4\"}]}]}";
         poller.process(task(2, JsonKit.toJson(spec), JsonKit.toJson(context())));
 
@@ -241,7 +241,7 @@ class AsyncTaskPollerTest {
         verify(store).scheduleNext(eq(7L), eq(CLAIM_ID), next.capture());
         assertTrue(next.getValue().isAfter(LocalDateTime.now().minusSeconds(1)),
                 "退避后的下一次轮询必须在未来，否则会变成忙等");
-        verify(store, never()).complete(anyLong(), any(), any(), any(), any(), any());
+        verify(store, never()).complete(anyLong(), any(), anyInt(), any(), any(), any());
         assertEquals(List.of(1), completion.querySeqs,
                 "失败那次也真实打了上游，不能因为没拿到响应就不记");
     }
@@ -249,14 +249,14 @@ class AsyncTaskPollerTest {
     @Test
     @DisplayName("轮询次数用尽：转 EXPIRED，不再打上游")
     void attemptsExhaustedExpires() {
-        when(store.complete(anyLong(), any(), eq("EXPIRED"), any(), eq("TASK_TIMEOUT"), any())).thenReturn(true);
+        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.EXPIRED.code()), any(), eq("TASK_TIMEOUT"), any())).thenReturn(true);
         AsyncTaskSpec spec = spec();
         AsyncTaskEntity task = task(spec.maxAttempts(), JsonKit.toJson(spec), JsonKit.toJson(context()));
 
         assertTrue(poller.process(task));
 
         assertEquals(0, queryClient.calls, "次数用尽后不应再消耗上游查询额度");
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq("EXPIRED"), any(), eq("TASK_TIMEOUT"), any());
+        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.EXPIRED.code()), any(), eq("TASK_TIMEOUT"), any());
         verify(store, never()).scheduleNext(anyLong(), any(), any());
         assertEquals(0, completion.queries, "没打出这次查询，就不能凭空记一条");
         assertEquals(spec.maxAttempts(), completion.terminalSeq,
@@ -266,18 +266,18 @@ class AsyncTaskPollerTest {
     @Test
     @DisplayName("快照不可解析：按失败落终态，不静默留在在途态")
     void unreadableSnapshotFails() {
-        when(store.complete(anyLong(), any(), eq("FAILED"), any(), eq("TASK_SNAPSHOT_INVALID"), any()))
+        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.FAILED.code()), any(), eq("TASK_SNAPSHOT_INVALID"), any()))
                 .thenReturn(true);
         AsyncTaskEntity task = task(0, "{oops", JsonKit.toJson(context()));
 
         assertTrue(poller.process(task));
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq("FAILED"), any(), eq("TASK_SNAPSHOT_INVALID"), any());
+        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.FAILED.code()), any(), eq("TASK_SNAPSHOT_INVALID"), any());
     }
 
     @Test
     @DisplayName("终态 CAS 抢不到：不发事件（一条任务一条终态消息）")
     void alreadySettledSkipsEvent() {
-        when(store.complete(anyLong(), any(), eq("SUCCEEDED"), any(), any(), any())).thenReturn(false);
+        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), any(), any())).thenReturn(false);
         AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
         queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://x/a.mp4\"}]}]}";
 
@@ -302,7 +302,7 @@ class AsyncTaskPollerTest {
         AsyncTaskEntity expiredTask = task(2, JsonKit.toJson(spec()), JsonKit.toJson(context()));
         expiredTask.setClaimId("claim-expired");
         when(store.claimExpired(any(), any(), anyInt())).thenReturn(List.of(expiredTask));
-        when(store.complete(eq(7L), eq("claim-expired"), eq("EXPIRED"), any(), eq("TASK_TIMEOUT"), any()))
+        when(store.complete(eq(7L), eq("claim-expired"), eq(AsyncTaskStatusEnum.EXPIRED.code()), any(), eq("TASK_TIMEOUT"), any()))
                 .thenReturn(true);
 
         poller.tick();
@@ -311,7 +311,7 @@ class AsyncTaskPollerTest {
         verify(store).claimExpired(any(), ttl.capture(), eq(properties.getExpireBatchSize()));
         assertEquals(Duration.ofMillis(properties.getClaimTtlMs()), ttl.getValue(),
                 "超时回收同样要按「一次处理的预算」占位，不能把租约压成 0");
-        verify(store).complete(eq(7L), eq("claim-expired"), eq("EXPIRED"), any(), eq("TASK_TIMEOUT"), any());
+        verify(store).complete(eq(7L), eq("claim-expired"), eq(AsyncTaskStatusEnum.EXPIRED.code()), any(), eq("TASK_TIMEOUT"), any());
         assertEquals(0, completion.accounted, "超时不计费");
         assertEquals(1, completion.published,
                 "超时也是一次状态转移，不补发终态事件的话这笔任务在数仓里就完全不存在");
@@ -324,7 +324,7 @@ class AsyncTaskPollerTest {
 
         poller.tick();
 
-        verify(store, never()).complete(anyLong(), any(), any(), any(), any(), any());
+        verify(store, never()).complete(anyLong(), any(), anyInt(), any(), any(), any());
     }
 
     @Test
@@ -350,7 +350,7 @@ class AsyncTaskPollerTest {
     void tickProcessesClaimed() {
         AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
         when(store.claim(any(), any(), anyInt())).thenReturn(List.of(task));
-        when(store.complete(anyLong(), any(), eq("SUCCEEDED"), any(), any(), any())).thenReturn(true);
+        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), any(), any())).thenReturn(true);
         queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://x/a.mp4\"}]}]}";
 
         poller.tick();
@@ -420,8 +420,9 @@ class AsyncTaskPollerTest {
     }
 
     private static AsyncTaskSpec spec() {
-        return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", null, "data[0].status",
-                "succeed", "failed", null, "data[0].outputs[0].url",
+        return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", "data[0].status",
+                "['succeed','SUCCEEDED'] contains status", "status == 'failed'", null,
+                "data[0].outputs[0].url",
                 7, 5000, 1000, 30000, 360, 1_800_000L);
     }
 
@@ -440,7 +441,7 @@ class AsyncTaskPollerTest {
         task.setTaskCode("tc-1");
         task.setProfileCode("KLING_TASK");
         task.setUpstreamTaskId("up-1");
-        task.setStatus("PENDING");
+        task.setStatus(AsyncTaskStatusEnum.PENDING.code());
         task.setAttempts(attempts);
         task.setClaimId(CLAIM_ID);
         task.setPollSpecJson(specJson);
@@ -455,14 +456,14 @@ class AsyncTaskPollerTest {
      * <p>默认行为与生产默认实现（{@code passthrough}）一致——原样返回 {@code sourceUrl}，
      * 于是没显式设置 {@code result} 的用例都在验「没配转储时的行为」。</p>
      */
-    private static final class RecordingArchiveStore implements VideoArchiveStore {
+    private static final class RecordingArchiveStore implements ArchiveStore {
 
-        private final java.util.List<VideoAsset> archived = new java.util.ArrayList<>();
+        private final java.util.List<ArchiveAsset> archived = new java.util.ArrayList<>();
         private String result;
         private RuntimeException error;
 
         @Override
-        public String archive(VideoAsset asset) {
+        public String archive(ArchiveAsset asset) {
             archived.add(asset);
             if (error != null) {
                 throw error;
@@ -484,7 +485,7 @@ class AsyncTaskPollerTest {
 
         @Override
         public String query(AsyncTaskContext context, AsyncTaskSpec spec, String upstreamTaskId,
-                            String externalTaskId, String traceparent) {
+                            String traceparent) {
             calls++;
             if (error != null) {
                 throw error;

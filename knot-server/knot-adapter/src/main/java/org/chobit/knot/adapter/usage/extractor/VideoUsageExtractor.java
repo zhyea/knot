@@ -11,8 +11,9 @@ import java.util.Set;
 /**
  * 通用 VIDEO 用量提取器：{@link AbstractVideoUsageExtractor} 的默认实现。
  *
- * <p>本类只声明身份（编码 / 名称 / 说明 / 计算器 / 计费模式），<b>不覆写任何取数钩子</b>——
- * 通用键表就是基类的默认值。某供应商的字段与通用键表对不上时，另建子类覆写差异钩子；
+ * <p>本类只声明身份（编码 / 名称 / 说明 / 计算器 / 计费模式），<b>不覆写取数入口</b>——
+ * 通用键表就是 {@link VideoUsageFacts#of} 的默认值。某供应商的字段与通用键表对不上时，
+ * 另建子类覆写 {@code facts()} 并用 {@code toBuilder()} 只改差异项；
  * 不要往这里继续堆厂商键，那会让它随接入厂商线性膨胀。</p>
  */
 @Component
@@ -42,7 +43,7 @@ public class VideoUsageExtractor extends AbstractVideoUsageExtractor {
                 + "上游响应不回传，全部从请求体解析后随用量带入计价——它们既参与维度分档键，"
                 + "也支撑合成量与多分量求和两种业界口径。参考图不计入「有无输入视频」这一维。"
                 + "token 分项内嵌保留。仅服务 VIDEO 计费模式。"
-                + "字段名对不上的厂商请继承 AbstractVideoUsageExtractor 覆写差异钩子，勿改动本类。";
+                + "字段名对不上的厂商请继承 AbstractVideoUsageExtractor 覆写 facts()（用 toBuilder 只改差异项），勿改动本类。";
     }
 
     @Override

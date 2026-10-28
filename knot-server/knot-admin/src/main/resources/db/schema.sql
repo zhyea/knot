@@ -465,20 +465,19 @@ CREATE TABLE IF NOT EXISTS kb_model_api_bindings (
 -- 异步任务（提交 + 轮询拉取；通用，不限于视频）
 -- =========================
 -- 「怎么查上游」的模板：一家异步上游 = 一行档案，任务实例按 profile_code 引用。
--- 查询路径支持 {task_id} / {external_task_id} 占位，可出现在 path 段或 query 段。
+-- 查询路径支持 {task_id} 占位，可出现在 path 段或 query 段。
 CREATE TABLE IF NOT EXISTS kb_async_task_profiles (
   id BIGINT PRIMARY KEY AUTO_INCREMENT,
   profile_code VARCHAR(64) NOT NULL COMMENT '异步任务档案编码（绑定引用，非主键 id）',
   protocol VARCHAR(64) NOT NULL COMMENT '所属 API 协议编码（ModelApiProtocolEnum），用于绑定一致性校验',
   query_method VARCHAR(8) NOT NULL DEFAULT 'GET' COMMENT '查询方法',
-  query_path VARCHAR(255) NOT NULL COMMENT '查询路径模板；{task_id}/{external_task_id} 可出现在 path 段或 query 段',
-  task_id_path VARCHAR(255) NOT NULL COMMENT '创建响应中取上游任务 ID 的 JSON 路径（如 data.id）',
-  external_task_field VARCHAR(128) DEFAULT NULL COMMENT '创建请求体中填自定义任务 ID 的字段路径；为空表示上游不支持',
-  status_path VARCHAR(255) NOT NULL COMMENT '查询响应中取任务状态的 JSON 路径（如 data[0].status）',
-  status_succeeded VARCHAR(128) NOT NULL COMMENT '终态成功取值，逗号分隔多值',
-  status_failed VARCHAR(128) NOT NULL COMMENT '终态失败取值，逗号分隔多值',
-  status_running VARCHAR(128) DEFAULT NULL COMMENT '非终态取值；为空表示「除成功/失败外一律视为非终态」',
-  result_path VARCHAR(255) DEFAULT NULL COMMENT '终态产物 URL 的 JSON 路径（如 data[0].outputs[0].url）',
+  query_path VARCHAR(255) NOT NULL COMMENT '查询路径模板；{task_id} 可出现在 path 段或 query 段',
+  task_id_path VARCHAR(255) NOT NULL COMMENT '创建响应取上游任务 ID 的 MVEL 表达式（如 data.id）',
+  status_path VARCHAR(255) NOT NULL COMMENT '查询响应取任务状态的 MVEL 表达式（如 data[0].status）',
+  status_succeeded VARCHAR(512) NOT NULL COMMENT '成功判定 MVEL 布尔表达式，变量 status/body（如 [''succeed'',''SUCCEEDED''] contains status）',
+  status_failed VARCHAR(512) NOT NULL COMMENT '失败判定 MVEL 布尔表达式，变量 status/body（如 status == ''failed''）',
+  status_running VARCHAR(512) DEFAULT NULL COMMENT '进行中判定 MVEL 布尔表达式；为空表示「除成功/失败外一律视为非终态」',
+  result_path VARCHAR(255) DEFAULT NULL COMMENT '终态产物 URL 的 MVEL 表达式（如 data[0].outputs[0].url）',
   result_expires_days INT DEFAULT NULL COMMENT '上游产物有效期（天），用于 result_expires_at 与客户端提示',
   poll_interval_ms INT NOT NULL DEFAULT 5000 COMMENT '首次轮询后的基准间隔',
   poll_backoff_base_ms INT NOT NULL DEFAULT 1000 COMMENT '退避基数，与 BackoffCalculator 同口径',
@@ -501,8 +500,7 @@ CREATE TABLE IF NOT EXISTS kb_async_tasks (
   profile_code VARCHAR(64) NOT NULL COMMENT '异步任务档案编码（当时口径见 poll_spec_json）',
   protocol VARCHAR(64) NOT NULL COMMENT 'API 协议编码，决定结果解析与计费分派',
   upstream_task_id VARCHAR(128) DEFAULT NULL COMMENT '上游任务 ID',
-  external_task_id VARCHAR(128) DEFAULT NULL COMMENT '自定义任务 ID；上游支持时填 knot 句柄，供反查恢复',
-  status VARCHAR(24) NOT NULL COMMENT '任务状态（AsyncTaskStatusEnum）：PENDING-待首次轮询 POLLING-轮询中 SUCCEEDED-成功 FAILED-失败 EXPIRED-超时 CANCELLED-已取消',
+  status TINYINT NOT NULL COMMENT '任务状态（AsyncTaskStatusEnum.code）：0-待首次轮询 1-轮询中 2-成功 3-上游失败 4-超时 5-已取消',
   attempts INT NOT NULL DEFAULT 0 COMMENT '已轮询次数',
   next_poll_at DATETIME(3) DEFAULT NULL COMMENT '下次轮询时刻；NULL 表示终态不再轮询',
   claim_id VARCHAR(64) DEFAULT NULL COMMENT '轮询占位标识（nodeId-uuid），防多节点重复处理',
@@ -526,7 +524,6 @@ CREATE TABLE IF NOT EXISTS kb_async_tasks (
   KEY idx_async_tasks_due (status, next_poll_at),
   KEY idx_async_tasks_claim (claim_id),
   KEY idx_async_tasks_upstream (upstream_task_id),
-  KEY idx_async_tasks_external (external_task_id),
   KEY idx_async_tasks_profile (profile_code),
   KEY idx_async_tasks_created (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='异步任务实例（提交 + 轮询拉取）';

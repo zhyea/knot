@@ -10,6 +10,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <p>⚠ 这里只放「扫描节拍」级别的旋钮：<b>单个任务多久查一次由行上的 {@code next_poll_at} 决定</b>，
  * 而后者来自档案的 {@code poll_interval_ms} 与退避参数。于是调轮询节奏不需要重启，
  * 不同任务也能有不同的退避节奏。</p>
+ *
+ * <p>⭐ 字段默认值统一取自 {@link AsyncTaskDefaults}（档案级与扫描级默认值的唯一出处），
+ * 本类不再写裸字面量——否则「退避上限」与「查询超时」这类同值不同义的数迟早会被改串。</p>
  */
 @Getter
 @Setter
@@ -17,7 +20,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class AsyncTaskProperties {
 
     /** 总开关；关闭时不扫描（已提交的任务保留在表里，开启后继续） */
-    private boolean enabled = true;
+    private boolean enabled = AsyncTaskDefaults.ENABLED;
 
     /**
      * 扫描节拍（cron，默认每分钟整点一次）：只决定「多久扫一次表」，
@@ -40,10 +43,10 @@ public class AsyncTaskProperties {
      * 但注意单拍是全等的：{@code blockLast} 会等这一批（{@code concurrency} 路并发）跑完才进下一拍，
      * 所以节拍只是「多久起一次批」，真正的吞吐由 {@code batch-size} × {@code concurrency} 决定。</p>
      */
-    private String tickCron = "0 * * * * *";
+    private String tickCron = AsyncTaskDefaults.TICK_CRON;
 
     /** 单批抢占上限：控制一次 tick 的吞吐 */
-    private int batchSize = 100;
+    private int batchSize = AsyncTaskDefaults.BATCH_SIZE;
 
     /**
      * 单批内并发处理上限。
@@ -51,7 +54,7 @@ public class AsyncTaskProperties {
      * <p>并发是「同时发多少个上游查询」，不是「同时占多少线程」：任务一律提交到
      * {@code boundedElastic}，池满时排队，不会为此额外起线程。</p>
      */
-    private int concurrency = 8;
+    private int concurrency = AsyncTaskDefaults.CONCURRENCY;
 
     /**
      * 单次上游查询的超时（毫秒）。
@@ -67,7 +70,7 @@ public class AsyncTaskProperties {
      * 那是给生成型请求的（等模型吐字），而查一次任务状态是个亚秒级 GET。
      * 复用的直接后果就是超时（120s）比占位（60s）还长，<b>默认配置本身就是错的</b>。</p>
      */
-    private long queryTimeoutMs = 30_000L;
+    private long queryTimeoutMs = AsyncTaskDefaults.QUERY_TIMEOUT_MS;
 
     /**
      * 占位有效期（毫秒）：节点宕机后多久可被其它节点回收。
@@ -81,23 +84,23 @@ public class AsyncTaskProperties {
      * <p>压得太大的代价是「节点崩溃后孤儿行的回收变慢」——对分钟级的视频任务无所谓，
      * 所以宁可留足余量。</p>
      */
-    private long claimTtlMs = 180_000L;
+    private long claimTtlMs = AsyncTaskDefaults.CLAIM_TTL_MS;
 
     /** 单批超时回收上限 */
-    private int expireBatchSize = 200;
+    private int expireBatchSize = AsyncTaskDefaults.EXPIRE_BATCH_SIZE;
 
     /** 终态行保留天数，超过由归档任务清理 */
-    private int retentionDays = 30;
+    private int retentionDays = AsyncTaskDefaults.RETENTION_DAYS;
 
     /**
      * 归档扫描节拍（cron，默认每小时整点）：终态行清理是后台家务，不需要与轮询同频。
      *
      * <p>同样有重叠守卫——表大时单批删除可能超过一拍。</p>
      */
-    private String cleanupCron = "0 0 * * * *";
+    private String cleanupCron = AsyncTaskDefaults.CLEANUP_CRON;
 
     /** 单批清理上限：大表删除分批，避免长事务 */
-    private int cleanupBatchSize = 500;
+    private int cleanupBatchSize = AsyncTaskDefaults.CLEANUP_BATCH_SIZE;
 
     /** 节点标识（占位号前缀，便于排查是谁抢到了任务）；为空时取本机主机名 */
     private String nodeId;

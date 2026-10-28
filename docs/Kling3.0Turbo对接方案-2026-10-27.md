@@ -14,7 +14,7 @@
 |---|---|
 | 1 | **计费侧零代码改动**。3.0 Turbo 的「有声 · 按输出秒 · 720P ¥0.8/秒 · 1080P ¥1.0/秒」正好落在通用路径上：`VIDEO` + `PER_SECOND` + `quantityMode=OUTPUT` + `resolutionPrices{720P:0.8, 1080P:1.0}`。`VENDOR_KLING` 已于 2026-10-27 整体删除，**不要再走厂商定制方案**。 |
 | 2 | **链路侧缺一大块，且是资损**：Kling 是「提交任务 + 轮询」异步模型，而异步轮询方案（`docs/视频异步任务轮询拉取技术方案-2026-10-26.md`）**尚未实施**——全仓 grep `async_task` / `task_query_path` 零命中（实测）。不实施就接 Kling = 提交回执被「至少一秒」兜成 1 秒（盘点 A2，`VideoBillingModeCalculatorTest` 已钉住该行为）。**Kling 应作为该方案第一个落地场景同批做。** |
-| 3 | **只需新增两个组件**，不碰任何通用类：`KlingVideoUpstreamAdapter`（协议转换）+ `KlingVideoUsageExtractor`（提取器子类，覆写 4 个钩子）。 |
+| 3 | **只需新增两个组件**，不碰任何通用类：`KlingVideoUpstreamAdapter`（纯透传 + 剥 callback）+ `KlingVideoUsageExtractor`（提取器子类，覆写 `facts()` 一处、`toBuilder` 改 4 项）。 |
 | 4 | **前端零改动**：`DIMENSION_TIERED` 的档位表（`ResolutionTierTable`）只填「档位/单价」两列即可表达本价表。 |
 | 5 | **三个待拍板**：① `defaultUnitPrice` 取多少；② 非标分辨率是 400 拒绝还是静默回落；③ 是否做官方 `billing.amount` 影子对账。见 §7。 |
 
@@ -40,8 +40,8 @@
 | `settings.resolution` | string | `720p` | ⭐ **分档键**（`720p` / `1080p`） |
 | `settings.duration` | int | `5` | 声明时长（3–15）。**不是计费量**，计费量是产物实际时长 |
 | `settings.aspect_ratio` | string | `16:9`（仅文生） | 本价表不分画幅 → 不进键 |
-| `options.external_task_id` | string | - | ⭐ 建议填 knot 任务句柄，供对账/恢复 |
-| `options.callback_url` | string | - | 本方案**不下发**（轮询模式） |
+| `options.external_task_id` | string | - | **不使用**（2026-10-28 拍板废除，见 §3.1） |
+| `options.callback_url` | string | - | **必须剥掉**（不论客户端怎么填，见 §3.2） |
 | `options.watermark_info.enabled` | bool | false | 与计费无关，不下发 |
 
 ### 1.3 响应体
@@ -90,21 +90,27 @@ UsageExtractItem<?> item = extractor.extractUsageBody(body, requestBody);
 → **提取器看到的是客户端原始 `VideoGenerationRequest`（`{prompt, image, duration, size, quality, n, user}`）**，不是 Kling 的 `{contents, settings, options}`。
 → 因此**键表必须按 knot 对外契约写，不能按 Kling 上游体写**（写成 `settings.resolution` 会一个都命不中）。
 
-### 2.2 通用钩子命中矩阵（`AbstractVideoUsageExtractor` / `MediaUsageReaders`）
+### 2.2 通用解析命中矩阵（`VideoUsageFacts.of` / `MediaUsageReaders`）
 
-| 钩子 | 默认行为 | 对 3.0 Turbo 是否命中 | 处置 |
+> **2026-10-28 更新**：本节原按「每个档位一个钩子」列矩阵。`AbstractVideoUsageExtractor` 已改为
+> **一个取数入口 `facts()` + 一次解析的 `VideoUsageFacts`**（见 `60-business-rules.md` §8.13），
+> 下表从「覆写哪个钩子」改成「哪一项与通用解析不符」，处置列统一落到
+> `VideoUsageFacts.of(...).toBuilder()...build()`。
+
+| 事实（`VideoUsageFacts` 分量） | 通用解析 | 对 3.0 Turbo 是否命中 | 处置 |
 |---|---|---|---|
-| `outputMillis` | 读 `usage.*` / 顶层 `duration_seconds|video_seconds|seconds|duration`（`MediaUsageReaders:45,60`） | ❌ 产物时长在 `data[0].outputs[0].duration`，且是字符串 | **必须覆写** |
-| `outputResolution` | 读顶层 `resolution`/`size`/`dimensions`（`RESOLUTION_KEYS:228`） | ✅ `size` 在键表内；`"720p"→720P`、`"1280x720"→720P`（`normalizeResolution:267-276`） | 不覆写；**约定 `size` 语义 = 档位名**（见 §3.2） |
+| `outputVideoMillis` | 读 `usage.*` / 顶层 `duration_seconds|video_seconds|seconds|duration`（`MediaUsageReaders:45,60`） | ❌ 产物时长在 `data[0].outputs[0].duration`，且是字符串 | **必须改** |
+| `outputResolution` | 读顶层 `resolution`/`size`/`dimensions`（`RESOLUTION_KEYS:228`） | ✅ `size` 在键表内；`"720p"→720P`、`"1280x720"→720P`（`normalizeResolution:267-276`） | 不改；**约定 `size` 语义 = 档位名**（见 §3.2） |
 | `outputAspectRatio` | 读顶层 `aspect_ratio` | ❌ 客户端体无此字段 | 不接（价不分画幅） |
-| `outputVideoCount` | `data`/`videos` 数组长度，Map 计 1（`:315`） | ✅ query 体 `data` 是长度 1 的数组 → 1 | 不覆写（**不要批量查询**，否则数成 N） |
-| `inputMillis` | 读 `input_duration_seconds` 等 | ❌（3.0 Turbo 无输入视频）恒 0 | 不覆写 |
-| `inputImageCount` | 读 `images`/`input_images`/… 数组或计数字段（`:111`） | ❌ 客户端是单值 `image` | 可选覆写（记 1 张首帧图，仅作事实展示，不计费） |
-| `soundEnabled` | `flag` 布尔开关键表（`:34`） | ❌ 请求体无音频开关 | **覆写恒 `true`**（模型事实，见 §5.2） |
-| `referenceVideoProvided` | `present` 存在性键表（`:45`） | ❌（客户端无 `video`/`video_url`） | **覆写恒 `false`**（声明该模型无参考视频能力） |
+| `outputVideoCount` | `data`/`videos` 数组长度，Map 计 1（`:315`） | ✅ query 体 `data` 是长度 1 的数组 → 1 | 不改（**不要批量查询**，否则数成 N） |
+| `inputVideoMillis` | 读 `input_duration_seconds` 等 | ❌（3.0 Turbo 无输入视频）恒 0 | 不改 |
+| `inputImageCount` | 读 `images`/`input_images`/… 数组或计数字段（`:111`） | ❌ 客户端是单值 `image` | 改（记 1 张首帧图，仅作事实展示，不计费） |
+| `sound` | `flag` 布尔开关键表（`:34`） | ❌ 请求体无音频开关 | **改恒 `true`**（模型事实，见 §5.2） |
+| `referenceVideo` | `present` 存在性键表（`:45`） | ❌（客户端无 `video`/`video_url`） | **改恒 `false`**（声明该模型无参考视频能力） |
 | `outputMode` | 读 `video_mode`/`output_mode`/`mode` | ❌ | 不接 |
 
-**净结论：新增 `KlingVideoUsageExtractor`，覆写 3 个钩子（`outputMillis` / `soundEnabled` / `referenceVideoProvided`）+ 1 个可选（`inputImageCount`）。**
+**净结论：新增 `KlingVideoUsageExtractor`，覆写 `facts()` 一处，在其中用 `toBuilder()` 改 4 项
+（`outputVideoMillis` / `inputImageCount` / `sound` / `referenceVideo`）。**
 
 ### 2.3 三类已有红线，本方案必须落在其上
 
@@ -133,31 +139,51 @@ UsageExtractItem<?> item = extractor.extractUsageBody(body, requestBody);
 
 三条本方案新增的约定：
 
-1. **`external_task_id` 填 knot 任务句柄**：`options.external_task_id = <knotTaskId>`（上游声明「单用户下需保证唯一」，knot 句柄天然唯一）。收益：节点重启/Redis 丢失后可用 `GET /tasks?external_task_ids=<knotTaskId>` 反查上游任务，恢复宽限从「存储可靠性」扩到「上游可反查」。
+1. ~~**`external_task_id` 填 knot 任务句柄**~~ —— **2026-10-28 作废**。当初的理由是「重启后可用 `GET /tasks?external_task_ids=` 反查上游」，但反查能力换不来什么：任务行本身在 `kb_async_tasks`，DB 就是唯一真相源，丢失场景只剩「DB 也丢了」，那时反查也没有可回填的行。为上这条发明了一个上游不要求、网关也不消费的字段，属于自己给自己加转换逻辑（违反 §9.1「视频适配器只做透传」）。`external_task_field` / `external_task_id` 整条管线（档案列、任务列、spec 字段、`{external_task_id}` 占位）已全部删除。
 2. **不做批量查询**：`?task_ids=a,b,c` 会让 `outputVideoCount` 把任务数当成视频条数（§2.2），且部分成功/部分失败语义复杂。一 knot 任务 = 一上游任务，单查。
-3. **`callback_url` 不下发**：webhook 会把计费触发点打散到外部网络（原方案 §1 已定「轮询为主、webhook 未来增强」），保持该决策。
+3. **`callback_url` / `webhook_url` 一律剥掉**：不论客户端怎么填都不下发（§3.2）。
 
 计费时机：`create`（202）**不发**流量事件；poller 在 `succeeded`/`failed`/`expired` 终态发**一条**（原方案 §5.7）。
 `succeeded` 但 `outputs` 为空/无 `type=video` 产物 → **按 failed 处理，不进计费**（分层原则：「该不该出账」由异步层判定，不塞进用量模型 —— 与 robin 2026-10-27「阶段不进计费模型」的判定一致）。
 
 ### 3.2 `KlingVideoUpstreamAdapter`（新增，`adapter/protocol`）
 
-对外契约不变（`POST /openai/v1/videos/generations`，`VideoGenerationRequest`），转换到 Kling 形态：
+对外契约不变（`POST /openai/v1/videos/generations`），**实现只有一行**：
 
-| 客户端字段 | → Kling 字段 | 规则 |
-|---|---|---|
-| `prompt` | `prompt`（文生） / `contents[].{type:prompt,text}`（图生） | 图生时按 `contents` 组装 |
-| `image` | `contents[].{type:first_frame,url}` | 非空即图生视频；仅首帧（官方明确不支持尾帧） |
-| `size` | `settings.resolution` | ⭐ **原样透传档位名**（`"720p"`/`"1080p"`），**不做宽高反推**（红线） |
-| `duration` | `settings.duration` | 整数秒，3–15；越界由上游报错，knot 不代校验 |
-| `quality` | 忽略 | 本模型无质量档 |
-| `n` | — | `n > 1` → **400 明确拒绝**（一次任务只出一个视频，静默忽略等于收一次钱交一份货） |
-| —（新增） | `options.external_task_id` | 恒填 knot 任务句柄（§3.1） |
-| —（新增） | `options.callback_url` / `watermark_info` | 恒不下发 |
+```java
+@Override
+public Object buildRequestBody(UpstreamRequestContext context) {
+    return VideoRequestSupport.passthroughBody(context);
+}
+```
 
-**⚠ 分辨率白名单（本方案建议新增的防资损动作，对应盘点 D2）**：
-`normalizeResolution` 对不识别的写法原样大写返回（`"2k"→2K`），配不上价就静默回落 `defaultUnitPrice`，**全程无日志**。3.0 Turbo 只认 `720p`/`1080p`，故适配器对 `settings.resolution` 做**白名单校验**：不在 `{720p, 1080p}` 内 → 400 明确拒绝（而不是让它在下游静默错价）。
-`handleResponse`：异步路径下 create 响应不再直接回客户端，由网关改发 202 信封（原方案 §5.2）。
+**⭐ 2026-10-28 修正：本节原写的「字段映射表 + 分辨率白名单 + `n>1` 拒绝 + `external_task_id` 注入」全部删除。**
+网关是代理不是转译层——请求体该长什么样由客户端按上游文档自己写，写错了让上游 400 原路返回。
+规范条款见 `60-business-rules.md` §9.1「视频适配器只做透传」，两个后果都已在真机上出过事：
+
+| 曾经的「转换」 | 为什么删 |
+|---|---|
+| `prompt` → `contents[].{type:prompt}`（图生拆分） | 形状在网关里重实现一遍，上游一改文档这里就是过期副本；且客户端本可以自己按文档写对 |
+| `size` → `settings.resolution`（含大小写归一） | 同上。真正的读取点是**计费 Calculator**，它读请求体里的原始档位名，不需要适配器搬家 |
+| 分辨率白名单 → 400 | 网关替上游承担校验口径；上游本来就会拒。**注意**：原担心「白名单外静默回落默认价」仍然成立，但根治点在计费侧的维度取价告警，不在适配器拦请求 |
+| `n>1` → 400 | 同属替上游校验。`n` 的语义由上游定义，网关拦住反而掩盖了客户端的真实意图 |
+| 注入 `options.external_task_id` | 上游不要求、网关不消费，纯自造字段（§3.1 第 1 条已废除） |
+
+**唯一保留且必须做的**：剥掉客户端的 `callback_url` / `webhook_url`（含 `options.callback_url` 这种嵌套位置），
+实现见 `adapter/support/VideoRequestSupport`。
+
+- 判据不是「整洁」，是**计费完整性**：漏给供应商，供应商直接把终态推给客户端 → 客户端拿到产物却没经过
+  knot 的轮询与终态结算 → 那笔用量既查不到也收不回。
+- **必须递归**：Kling 放 `options.callback_url`，Luma / MiniMax 放顶层，只扫一层等于只挡住一半厂商。
+- 字段名归一化比较（忽略大小写与 `_` / `-`），名单唯一出口 `VideoRequestSupport.CALLBACK_FIELDS`。
+- **不能原地改** `requestBody()`：异步任务要拿它落 `request_json` 供终态复现计费，故「无命中返回同一实例、
+  有命中返回浅拷贝」。
+- 兜底路径同守：`PassthroughUpstreamAdapter` 落到 `VIDEO_GENERATIONS` 时也走 `passthroughBody`
+  （**越是没配适配器的绑定越容易漏**）。
+- 流式不必覆写 `streamSupported`：协议枚举已是 `streamSupported=false`，`MediaProtocolExecutor` 又只放行
+  `AUDIO_SPEECH`，适配器再声明一遍只会误导后来人。
+
+`handleResponse`：异步路径下 create 响应不再直接回客户端，由网关改发 202 信封（原方案 §5.2）。适配器不覆写它。
 
 ### 3.3 `KlingVideoUsageExtractor`（新增，`adapter/usage/extractor`，与 `AbstractVideoUsageExtractor` **同包**）
 
@@ -166,15 +192,29 @@ UsageExtractItem<?> item = extractor.extractUsageBody(body, requestBody);
 public class KlingVideoUsageExtractor extends AbstractVideoUsageExtractor {
     public static final String CODE = "KLING_VIDEO";
     // 构造器注入 VideoBillingModeCalculator（同 VideoUsageExtractor）
+
+    @Override
+    protected VideoUsageFacts facts(Map<String, Object> body, Map<String, Object> requestBody) {
+        return VideoUsageFacts.of(body, requestBody).toBuilder()   // 通用解析打底，只改 4 项
+                .outputVideoMillis(productMillis(body))
+                .inputImageCount(firstFrameCount(requestBody))
+                .sound(true)
+                .referenceVideo(false)
+                .build();
+    }
 }
 ```
 
-| 钩子 | 实现 | 为什么 |
+| 改的项 | 实现 | 为什么 |
 |---|---|---|
-| `outputMillis(Map body)` | 取 `data[0].outputs[]` 中 `type=video` 的 `duration`（**字符串秒**）→ 经 `MediaUsageReaders`-级秒→毫秒换算 | 默认键表只扫 `usage` 与顶层，Kling 的产物时长在二层数组里，且是字符串。⚠ 不要把它塞进通用 `DURATION_KEYS` |
-| `soundEnabled(Map requestBody)` | 恒 `true` | 官方价表只有「有声」一档，请求体无音频开关。这是**模型事实**，不是请求声明；写在这里比让调用方传更可靠 |
-| `referenceVideoProvided(Map requestBody)` | 恒 `false` | 3.0 Turbo 无参考视频能力；图生视频的首帧是**图片**不是视频（红线：图走张数口径）。显式关掉，避免日后通用键表扩容时被 `image`/`url` 类键误命中 |
-| `inputImageCount(Map requestBody)`（可选） | `image` 非空 → 1 | 记录事实（`ModelUsage.input.imageCount`），**规则侧不配 `inputImagePerImage` 就不会产生分量** |
+| `outputVideoMillis` | 取 `data[0].outputs[]` 中 `type=video` 的 `duration`（**字符串秒**）→ 经 `MediaUsageReaders`-级秒→毫秒换算 | 通用键表只扫 `usage` 与顶层，Kling 的产物时长在二层数组里，且是字符串。⚠ 不要把它塞进通用 `DURATION_KEYS` |
+| `sound` | 恒 `true` | 官方价表只有「有声」一档，请求体无音频开关。这是**模型事实**，不是请求声明；写在这里比让调用方传更可靠 |
+| `referenceVideo` | 恒 `false` | 3.0 Turbo 无参考视频能力；图生视频的首帧是**图片**不是视频（红线：图走张数口径）。显式关掉，避免日后通用键表扩容时被 `image`/`url` 类键误命中 |
+| `inputImageCount` | `image` 非空 → 1 | 记录事实（`ModelUsage.input.imageCount`），**规则侧不配 `inputImagePerImage` 就不会产生分量** |
+
+⚠ **用 `toBuilder()` 而不是重新 `new VideoUsageFacts(...)`**：后者会把通用解析的分辨率 / 条数 /
+输入时长全部丢成默认值（2026-10-28 探针实测：分辨率、张数、条数三处同时变红），
+且日后基类新增维度本类不会跟上。规范条款见 `60-business-rules.md` §8.13。
 
 身份声明：`code=KLING_VIDEO`、label/description、`calculator()=VideoBillingModeCalculator`、`billingModes()=EnumSet.of(VIDEO)`。
 `allowsEmptyUsage()` 维持默认。
@@ -226,7 +266,7 @@ public class KlingVideoUsageExtractor extends AbstractVideoUsageExtractor {
 |---|---|
 | 供应商 / 账户 | 新增供应商 + 账户，凭据类型 `API_KEY`，鉴权策略 `BEARER`（默认，无需新增 applier） |
 | 模型 | 新增两个 model_code：`kling-3.0-turbo-t2v` / `kling-3.0-turbo-i2v`（同族，可共用族默认规则） |
-| 异步档案（`kb_async_task_profiles`） | 新增一行 `KLING_TASK`（文生/图生两条绑定共用，因为查询端点都是 `/tasks`）：`protocol=VIDEO_GENERATIONS`、`query_path=/tasks?task_ids={task_id}`、`task_id_path=data.id`、`external_task_field=options.external_task_id`、`status_path=data[0].status`、`status_succeeded=succeeded`、`status_failed=failed`、`status_running=submitted,processing`、`result_path=data[0].outputs[0].url`、`result_expires_days=30`（完整 INSERT 见通用方案 §6） |
+| 异步档案（`kb_async_task_profiles`） | 新增一行 `KLING_TASK`（文生/图生两条绑定共用，因为查询端点都是 `/tasks`）：`protocol=VIDEO_GENERATIONS`、`query_path=/tasks?task_ids={task_id}`、`task_id_path=data.id`、`status_path=data[0].status`、`status_succeeded=['succeed','SUCCEEDED'] contains status`、`status_failed=['failed','FAILED'] contains status`、`status_running=['submitted','processing'] contains status`、`result_path=data[0].outputs[0].url`、`result_expires_days=30`（⚠ 三个 `*_path` 与三个 `status_*` 都是 **MVEL 表达式**，2026-10-28 起；完整 INSERT 见通用方案 §6）。⚠ `external_task_field` 列已删（§3.1） |
 | 绑定（`kb_model_api_bindings`） | `protocol=VIDEO_GENERATIONS`；`api_path=/text-to-video/kling-3.0-turbo` 与 `/image-to-video/kling-3.0-turbo`；`request_adapter=KLING_VIDEO`；`usage_extractor=KLING_VIDEO`；`async_profile_code=KLING_TASK` |
 | 计费规则 | 见 §3.4（文生/图生同价，可共用一条规则 + 版本） |
 | 权限 | 新增查询端点须登记权限绑定（红线：漏 = 运行期 403） |
@@ -244,7 +284,8 @@ public class KlingVideoUsageExtractor extends AbstractVideoUsageExtractor {
 |---|---|---|
 | 试算 | 管理端 `previewBillingRule` + `PricingPreviewDrawer` 过 4 组样本（720P×5s / 720P×10s / 1080P×10s / 未传 size） | 金额 = 秒 × 档位价；未传 size 落到 `defaultUnitPrice` 且**可见告警** |
 | 单测（新增） | `KlingVideoUsageExtractorTest`：① `data[0].outputs[0].duration="10"` → 10000ms；② duration 为字符串小数（推断）→ 向上取整秒；③ `outputs` 为空 → 0ms（不兜 1 秒）；④ `size=1280x720` → `720P`；⑤ sound 恒 true / reference 恒 false | 全绿 |
-| 单测（新增） | `KlingVideoUpstreamAdapterTest`：① prompt → `prompt`；② image → `contents[first_frame]`；③ `n=2` → 拒绝；④ 非标 `size=2k` → 拒绝 | 全绿 |
+| 单测（新增） | `KlingVideoUpstreamAdapterTest`：① 请求体逐字透传（不拼 `contents`、不造 `settings`、不改大小写）；② 错参（`size=2k` / `duration="ten"` / `n=2`）原样放行；③ 不注入 `options`；④ 顶层与嵌套 `callback_url`、`webhook_url` 全部剥掉；⑤ 快照不被改写、无命中零拷贝 | 全绿（10 例，2026-10-28 重写） |
+| 单测（新增） | `VideoRequestSupportTest`：递归（Map / List / 混嵌）、字段名归一化、近似字段不误伤、零拷贝 | 全绿（9 例） |
 | 单测（复用） | 用真实 query 体跑一遍 `VideoBillingModeCalculator`，断言单分量、金额、明细行自检式 | 明细行数 = 1，`cost = tokens × price ÷ 1e6` |
 | 门禁 | `mvn -f knot-server/pom.xml test` / `vue-tsc --noEmit` / `vite build` | 真跑，grep `BUILD SUCCESS` |
 | 真启冒烟 | 本机无 Redis → `store=caffeine` 档跑通 create→poll→终态计费 | Kafka 终态事件携带真实用量与金额 |
@@ -258,7 +299,7 @@ public class KlingVideoUsageExtractor extends AbstractVideoUsageExtractor {
 | 风险 | 应对 |
 |---|---|
 | 异步方案未落地就接 Kling → 提交回执按 1 秒计费（A2） | **门禁项**：`async_task` 未生效时该绑定不允许启用（P1 退出的硬条件） |
-| 分辨率键不识别 → 静默回落默认价（D2） | 适配器白名单 400 拒绝（§3.2）+ `DIMENSION_TIERED` 键校验 |
+| 分辨率键不识别 → 静默回落默认价（D2） | ⚠ 原方案写「适配器白名单 400」，**2026-10-28 撤回**（网关不替上游校验，§3.2）。根治点改在**计费侧**：`DIMENSION_TIERED` 的键校验 + 未命中分档要**可见告警**。今天仍存在的缺口是「回落默认价无日志」，见 §7 ② |
 | 产物时长异常（如 1000 秒）照单计费（D3） | 建议加「单笔最大可计费秒数」上限（可配，默认 15s + 容差），超限告警**并按上限计**（是否按上限计待拍板） |
 | 产物 URL 30 天后清理 | 透传 + 文档提示；转存对象存储列未来增强 |
 | 官方 `billing.amount` 与 knot 计算值不一致 | 见 §7 ③ |
@@ -272,8 +313,8 @@ public class KlingVideoUsageExtractor extends AbstractVideoUsageExtractor {
 | 阶段 | 内容 | 状态 |
 |---|---|---|
 | P0 | 异步链路（已改由 `docs/异步任务表与通用轮询方案-2026-10-27.md` 承接） | ✅ 2026-10-28 落地，见该文档 §7 |
-| P1 | `KlingVideoUpstreamAdapter`（含分辨率白名单、`n>1` 拒绝、`external_task_id` 注入） | ✅ 2026-10-28 落地，单测 11 例 |
-| P2 | `KlingVideoUsageExtractor`（4 个钩子） | ✅ 2026-10-28 落地，单测 13 例 |
+| P1 | `KlingVideoUpstreamAdapter`（透传 + 剥 `callback_url`/`webhook_url`） | ✅ 2026-10-28 落地；同日改成纯透传，单测 10 例（原 11 例的转换断言全作废） |
+| P2 | `KlingVideoUsageExtractor`（覆写 `facts()`，`toBuilder` 改 4 项） | ✅ 2026-10-28 落地，单测 13 例 |
 | P3 | 供应商/账户/模型/绑定/计费规则落库 + 试算 4 组样本 | ⏳ 待真实 API Key（凭据要加密落库，不能凭空造） |
 | P4 | 全量门禁 + 真启冒烟 | ✅ 门禁全绿 + 上下文真启成功；**真实调用仍待 P3** |
 
@@ -282,13 +323,16 @@ public class KlingVideoUsageExtractor extends AbstractVideoUsageExtractor {
 ```sql
 -- 1) 异步档案（文生/图生共用：查询端点都是 /tasks）
 INSERT IGNORE INTO kb_async_task_profiles
-  (profile_code, protocol, query_method, query_path, task_id_path, external_task_field,
+  (profile_code, protocol, query_method, query_path, task_id_path,
    status_path, status_succeeded, status_failed, status_running, result_path,
    result_expires_days, poll_interval_ms, poll_backoff_base_ms, poll_backoff_max_ms,
    max_attempts, timeout_ms, status, remark)
 VALUES
   ('KLING_TASK', 'VIDEO_GENERATIONS', 'GET', '/tasks?task_ids={task_id}', 'data.id',
-   'options.external_task_id', 'data[0].status', 'succeeded', 'failed', 'submitted,processing',
+   'data[0].status',
+   '[''succeed'',''SUCCEEDED''] contains status',
+   '[''failed'',''FAILED''] contains status',
+   '[''submitted'',''processing''] contains status',
    'data[0].outputs[0].url', 30, 5000, 1000, 30000, 360, 1800000, 1, '可灵 3.0 Turbo 异步任务档案');
 
 -- 2) 绑定（两条：文生 / 图生，各自 api_path 不同）
@@ -314,7 +358,7 @@ VALUES
 | # | 决策点 | 选项 | 建议 |
 |---|---|---|---|
 | 1 | `defaultUnitPrice` | `1.0`（1080P 价） / `0.8`（720P 价） | **1.0**：档位未命中时不漏收；漏收是资损且事后追不回 |
-| 2 | 非标分辨率（`2k` 等） | 400 拒绝 / 静默回落默认价 | **400 拒绝**：3.0 Turbo 档位可枚举，把 D2 消灭在入口；代价是客户端写错会直接失败（可接受） |
+| 2 | 非标分辨率（`2k` 等） | ~~400 拒绝~~ → 已拍板**不在适配器拦**（2026-10-28：请求错误由调用方承担），改由计费侧未命中分档告警兜 | 适配器侧已撤回；剩下要做的是给「回落 `defaultUnitPrice`」加日志/告警，否则 D2 仍然静默 |
 | 3 | 官方 `billing.amount` 对账 | 影子记录 + 偏差告警 / 不接 | **影子记录**：不作为计费输入（口径不同：含折扣、资源包、币种），但存进任务 result 供账实核对 |
 | 4 | 鉴权实测 | 文档 Bearer API Key / 实际需 JWT | 上线前用真实 key 打一次 create+query 确认；若需 JWT，P1 追加动态 token applier |
 | 5 | 产物时长上限熔断 | 加 / 不加 | 加（默认 15s + 容差），超限告警并按上限计 |
@@ -327,34 +371,39 @@ VALUES
 
 | 文件 | 说明 |
 |---|---|
-| `knot-adapter/.../protocol/KlingVideoUpstreamAdapter.java` | 首个 `VIDEO_GENERATIONS` 适配器；`@Order(120)`，`CODE=KLING_VIDEO`，`streamSupported=false`。逻辑全在 Support 里 |
-| `knot-adapter/.../support/kling/KlingVideoSupport.java` | 请求体转换 + 分辨率白名单 + `n>1` 拒绝 + `external_task_id` 注入 |
-| `knot-adapter/.../usage/extractor/KlingVideoUsageExtractor.java` | 覆写 `outputMillis` / `soundEnabled` / `referenceVideoProvided` / `inputImageCount`；与 `AbstractVideoUsageExtractor` **同包**（依赖包私有 `MediaUsageReaders`） |
-| 两个测试共 24 例 | `KlingVideoUpstreamAdapterTest` 11 / `KlingVideoUsageExtractorTest` 13 |
+| `knot-adapter/.../protocol/KlingVideoUpstreamAdapter.java` | 首个 `VIDEO_GENERATIONS` 适配器；`@Order(120)`，`CODE=KLING_VIDEO`。`buildRequestBody` 只有一行：`VideoRequestSupport.passthroughBody(context)` |
+| `knot-adapter/.../support/VideoRequestSupport.java` | **与供应商无关**的透传原语：递归剥掉 `callback_url` / `webhook_url`，无命中零拷贝 |
+| `knot-adapter/.../usage/extractor/KlingVideoUsageExtractor.java` | 只覆写 `facts()`，用 `toBuilder()` 改 `outputVideoMillis` / `inputImageCount` / `sound` / `referenceVideo`；与 `AbstractVideoUsageExtractor` **同包**（依赖包私有 `MediaUsageReaders`） |
+| `knot-adapter/.../usage/extractor/VideoUsageFacts.java` | **2026-10-28 新增**：十个档位事实一次解析的载体（`of` + `toBuilder`），取代原来的十个 `protected` 钩子 |
+| ~~`support/kling/KlingVideoSupport.java`~~ | **已删**（2026-10-28）。它做的形状转换 / 白名单 / `n>1` / `external_task_id` 全属越界，见 §3.2 |
+| 三个测试共 32 例 | `KlingVideoUpstreamAdapterTest` 10 / `VideoRequestSupportTest` 9 / `KlingVideoUsageExtractorTest` 13 |
 
-### 8.2 与方案的偏差（一处，必须知晓）
+### 8.2 与方案的偏差（两处，必须知晓）
 
-**`options.external_task_id` 填的是网关 requestId，不是 knot 任务句柄。**
+**① `external_task_id` 整条管线已删除（2026-10-28 拍板）。**
 
-方案 §3.1 写「恒填 knot 任务句柄」，实施时发现顺序不成立：任务句柄要等上游返回 `task_id`
-**之后**才由 `AsyncTaskSupport.submitIfAsync` 生成，而写 `external_task_id` 的
-`buildRequestBody` 在**出站之前**执行——那时句柄还不存在。
-requestId 同样是每请求唯一的 32 位 hex，`GET /tasks?external_task_ids=<requestId>` 反查能力一致。
+方案 §3.1 原本要「恒填 knot 任务句柄」；实施时发现顺序不成立（句柄要等上游返回 `task_id` 之后才生成，
+而 `buildRequestBody` 在出站之前执行），当时退而填 requestId。**现在连 requestId 也不填了**：
+反查能力换不来什么——任务行本来就在 `kb_async_tasks`，唯一丢失场景是「DB 也丢了」，那时反查也没有可回填的行。
+为它发明的上游不要求、网关也不消费的字段，本身就是 §9.1 禁止的转换。
 
-配套改动：`AsyncTaskSpec` 增加 `externalTaskField`（由 `kb_async_task_profiles.external_task_field` 投影），
-`AsyncTaskSupport.externalTaskIdOf(spec, context)` 在档案声明了该字段时回填 `context.requestId()`。
-两侧注释互相指向，改一处必须改另一处。
+已清除：`kb_async_task_profiles.external_task_field`、`kb_async_tasks.external_task_id`、
+`AsyncTaskSpec.externalTaskField`、`{external_task_id}` 占位、`AsyncTaskSupport.externalTaskIdOf`。
+⚠ 档案里再写 `{external_task_id}` 会在拼路径时**直接抛**（不是静默查不到），守门用例
+`AsyncTaskSpecTest#externalTaskIdPlaceholderIsGone`。
 
-副作用边界：若档案配了 `external_task_field` 但绑定上的适配器没写同名字段，反查会查空——
-**不错账**，只是「节点全丢后靠上游恢复」这条路失效。
+**② 从「转换 + 校验」改成「纯透传 + 剥 callback」（2026-10-28，robin 指令）。**
+
+原 P1 记录里的「分辨率白名单 400 / `n>1` 拒绝 / 字段映射」全部撤回，理由与后果逐条见 §3.2。
+判据：网关是代理，不是转译层；请求错误由调用方承担。
 
 ### 8.3 门禁实测
 
 | 项 | 结果 |
 |---|---|
-| `mvn -f knot-server/pom.xml test` | **BUILD SUCCESS，1202 例**（上一轮 1178 + 本次 24） |
+| `mvn -f knot-server/pom.xml test` | **BUILD SUCCESS**。2026-10-28 透传改造后：1264 例（common 134 / plugin-api 3 / plugin 44 / adapter 334 / dal 4 / service 185 / admin 110 / gateway 450） |
 | 真启 | `knot-gateway` 完整上下文启动成功；两个 catalog 均按 code 建索引，重复 code 会启动即抛——`KLING_VIDEO` 在适配器与提取器两个命名空间各注册一次，无冲突 |
-| 探针 | ① 去掉分辨率白名单 → 适配器测试红 1 例；② `soundEnabled` 改 false → 提取器测试红 2 例。改回即绿 |
+| 探针 | ① 去掉分辨率白名单 → 适配器测试红 1 例（该用例已随改造删除）；② `soundEnabled` 改 false → 提取器测试红 2 例；③ **`isCallbackField` 恒 false → 9 例红**（直接调用 5 / Kling 3 / 兜底透传 1）；④ **Kling 适配器改回 `return context.requestBody()` → 3 红 + 1 NPE**。改回即绿 |
 
 ### 8.4 一个必须记住的坑
 

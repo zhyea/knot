@@ -23,7 +23,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -96,8 +95,7 @@ public class AsyncTaskSupport {
         entity.setProfileCode(creation.profileCode());
         entity.setProtocol(creation.protocol() == null ? null : creation.protocol().code());
         entity.setUpstreamTaskId(creation.upstreamTaskId());
-        entity.setExternalTaskId(creation.externalTaskId());
-        entity.setStatus(AsyncTaskStatusEnum.PENDING.name());
+        entity.setStatus(AsyncTaskStatusEnum.PENDING.code());
         entity.setAttempts(0);
         entity.setNextPollAt(now.plusNanos(Math.max(1L, spec.pollIntervalMs()) * 1_000_000L));
         entity.setRequestJson(JsonKit.toJson(creation.requestBody()));
@@ -176,7 +174,7 @@ public class AsyncTaskSupport {
         AsyncTaskEntity task = build(new AsyncTaskCreation(
                 taskCode, profileCode, spec, context.protocol(),
                 exchange == null ? Map.of() : exchange.requestBody(),
-                taskContext, upstreamTaskId, externalTaskIdOf(spec, context),
+                taskContext, upstreamTaskId,
                 rule == null ? null : rule.getCode(), rule == null ? null : rule.getVersionCode(),
                 LocalDateTime.now()));
         store.insert(task);
@@ -193,60 +191,60 @@ public class AsyncTaskSupport {
     }
 
     /**
-     * 我方任务标识：档案声明了 {@code external_task_field} 时取网关 requestId。
-     *
-     * <p>⚠ 为什么不是任务句柄：句柄在拿到上游 {@code task_id} <b>之后</b>才生成，
-     * 而写 {@code external_task_id} 的那一步在<b>出站之前</b>——那时句柄还不存在。
-     * 于是退到 requestId（同样每请求唯一），反查能力一致：
-     * {@code GET /tasks?external_task_ids=<requestId>} 一样能捞回上游任务。
-     * 写入侧见 {@code KlingVideoSupport#buildRequestBody}，两侧必须同值。</p>
-     */
-    public String externalTaskIdOf(AsyncTaskSpec spec, GatewayRequestContext context) {
-        if (spec == null || StringUtils.isBlank(spec.externalTaskField()) || context == null) {
-            return null;
-        }
-        return StringUtils.trimToNull(context.requestId());
-    }
-
-    /**
      * 从创建响应里取上游任务 ID；取不到返回 null。
      *
-     * <p>⚠ 用的是档案的 {@code task_id_path}，与拼查询 URL 的 {@code query_path} 是两条不同的路径
-     * （一个读创建响应、一个拼请求地址）。混用会让「取不到 ID」表现为「查不到任务」，排查方向整个偏掉。</p>
+     * <p>⚠ 用的是档案的 {@code task_id_path}（MVEL 取值表达式），与拼查询 URL 的
+     * {@code query_path} 是两条不同的路径（一个读创建响应、一个拼请求地址）。
+     * 混用会让「取不到 ID」表现为「查不到任务」，排查方向整个偏掉。</p>
      */
     public String upstreamTaskIdOf(Map<String, Object> createBody, AsyncTaskSpec spec) {
-        return AsyncTaskJsonPath.text(createBody, spec.taskIdPath());
+        return AsyncTaskExpressionSupport.text(createBody, spec.taskIdPath());
     }
 
     /** 查询路径占位替换：委托 {@link AsyncTaskSpec#resolvePath}，保留入口便于单测与调用方统一取用 */
-    public String resolveQueryPath(AsyncTaskSpec spec, String upstreamTaskId, String externalTaskId) {
-        return spec.resolvePath(upstreamTaskId, externalTaskId);
+    public String resolveQueryPath(AsyncTaskSpec spec, String upstreamTaskId) {
+        return spec.resolvePath(upstreamTaskId);
     }
 
     /**
      * 终态判定：成功 / 失败 / 仍在进行。
      *
-     * <p>取不到状态时按「仍在进行」处理：上游瞬时抖动、响应体尚未成形都不该把任务判死。
-     * 但连续取不到会被 {@code max_attempts} / 超时兜住，不会无限轮询。</p>
+     * <p>判定口径全部来自档案里的三条 MVEL 表达式（{@code status_succeeded} / {@code status_failed} /
+     * {@code status_running}），变量是 {@code status}（{@link AsyncTaskSpec#statusPath()} 取到的文本）
+     * 与 {@code body}（整个查询响应，供「成功态与失败原因不在同一层」这类档案使用）。</p>
+     *
+     * <p>顺序即优先级：成功 → 失败 → 进行。<b>取不到状态时按「仍在进行」处理</b>：
+     * 上游瞬时抖动、响应体尚未成形都不该把任务判死；连续取不到会被 {@code max_attempts} / 超时兜住。</p>
      */
     public Terminal terminalOf(Map<String, Object> queryBody, AsyncTaskSpec spec) {
-        String status = AsyncTaskJsonPath.text(queryBody, spec.statusPath());
+        String status = AsyncTaskExpressionSupport.text(queryBody, spec.statusPath());
         if (status == null) {
             return Terminal.RUNNING;
         }
-        if (spec.succeeded(status)) {
+        Map<String, Object> vars = Map.of("status", status, "body", queryBody);
+        if (AsyncTaskExpressionSupport.test(vars, spec.statusSucceeded())) {
             return Terminal.SUCCEEDED;
         }
-        if (spec.failed(status)) {
+        if (AsyncTaskExpressionSupport.test(vars, spec.statusFailed())) {
             return Terminal.FAILED;
         }
-        // 不在成功/失败集合内的一律视为「仍在进行」：上游新增中间态不需要改配置
+        if (StringUtils.isBlank(spec.statusRunning())) {
+            // 没配 = 「除成功/失败外一律非终态」：上游新增中间态（queued 等）不需要改档案
+            return Terminal.RUNNING;
+        }
+        if (AsyncTaskExpressionSupport.test(vars, spec.statusRunning())) {
+            return Terminal.RUNNING;
+        }
+        // 配了运行态却不匹配：上游多了一个谁都不认识的状态。仍然按「进行」处理（不判死），
+        // 但必须留下信号——否则这个状态会一直被当成正常轮询，直到超时才显形。
+        log.warn("Async task status matched neither terminal nor running expression: status={} profile={}",
+                status, spec.statusRunning());
         return Terminal.RUNNING;
     }
 
-    /** 终态产物 URL；取不到返回 null（成功但无产物由调用方按失败处理） */
+    /** 终态产物 URL（MVEL 取值表达式）；取不到返回 null（成功但无产物由调用方按失败处理） */
     public String resultUrlOf(Map<String, Object> queryBody, AsyncTaskSpec spec) {
-        return AsyncTaskJsonPath.text(queryBody, spec.resultPath());
+        return AsyncTaskExpressionSupport.text(queryBody, spec.resultPath());
     }
 
     /**
@@ -262,14 +260,6 @@ public class AsyncTaskSupport {
         return Math.max(spec.pollIntervalMs(), Math.min(spec.pollBackoffMaxMs(), delay));
     }
 
-    /** 终态取值集合解析（逗号分隔）供日志与校验使用 */
-    public static List<String> splitValues(String candidates) {
-        if (StringUtils.isBlank(candidates)) {
-            return List.of();
-        }
-        return List.of(candidates.split(","));
-    }
-
     /**
      * 创建一条异步任务的输入（一次性打包，避免七、八个同类型参数排在一起被传错顺序）。
      */
@@ -280,7 +270,6 @@ public class AsyncTaskSupport {
                                     Map<String, Object> requestBody,
                                     AsyncTaskContext context,
                                     String upstreamTaskId,
-                                    String externalTaskId,
                                     String billingRuleCode,
                                     String billingRuleVersionCode,
                                     LocalDateTime now) {

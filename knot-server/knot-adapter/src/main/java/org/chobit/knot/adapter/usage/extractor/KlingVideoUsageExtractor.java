@@ -13,7 +13,16 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 可灵（Kling）视频用量提取器：覆写通用键表对不上的 4 个钩子。
+ * 可灵（Kling）视频用量提取器：只覆写 {@link #facts} 一处，用 {@code toBuilder()} 改 4 项。
+ *
+ * <p>改的 4 项分两类，都不是「键名对不上」那种小差异：</p>
+ * <ol>
+ *   <li><b>输出时长在两层数组里</b>（{@code data[0].outputs[]} 中 {@code type=video} 的
+ *       {@code duration}，官方给字符串秒）——通用键表只扫 {@code usage} 与顶层，取不到；</li>
+ *   <li><b>另外三项是模型事实，不是解析结果</b>：有声恒 {@code true}（价表只有有声一档）、
+ *       参考视频恒 {@code false}（没有该能力，首帧是图片不是视频）、输入图按 {@code image} 记 1 张。
+ *       写成常量而不是读请求体，是为了让「本模型的事实」只有一处定义。</li>
+ * </ol>
  *
  * <p>⭐ <b>两个入参不是一个东西</b>：响应体是 Kling 的查询响应，请求体则是<b>客户端原始体</b>
  * （{@code prompt / image / duration / size}），不是 Kling 的 {@code settings.resolution} —— 提取器永远看客户端契约这一份
@@ -65,14 +74,29 @@ public class KlingVideoUsageExtractor extends AbstractVideoUsageExtractor {
     }
 
     /**
-     * 输出时长：{@code data[0].outputs[]} 里第一个 {@code type=video} 的 {@code duration}（字符串秒）。
+     * 一次取齐：通用解析打底，只改 4 项。
+     *
+     * <p>用 {@code toBuilder()} 而不是重新 {@code new VideoUsageFacts(...)}：后者会把通用解析的
+     * 分辨率 / 画幅 / 模式 / 条数 / 输入时长全部丢弃，且日后基类新增维度本类不会跟上。</p>
+     */
+    @Override
+    protected VideoUsageFacts facts(Map<String, Object> body, Map<String, Object> requestBody) {
+        return VideoUsageFacts.of(body, requestBody).toBuilder()
+                .outputVideoMillis(productMillis(body))
+                .inputImageCount(firstFrameCount(requestBody))
+                .sound(true)
+                .referenceVideo(false)
+                .build();
+    }
+
+    /**
+     * 产物时长：{@code data[0].outputs[]} 里第一个 {@code type=video} 的 {@code duration}（字符串秒）。
      *
      * <p>⚠ 绝不回退到通用键表：那条键表是「顶层 / usage」语义，Kling 的时长在两层数组里。
      * 更要紧的是不能<b>兜底成 1 秒</b>——没有产物时长就是 0，由异步层判定为失败；
      * 让「没生成出来」表现为「少收 1 秒」是资损且事后查不出来。</p>
      */
-    @Override
-    protected long outputMillis(Map<String, Object> body) {
+    private static long productMillis(Map<String, Object> body) {
         Map<String, Object> task = firstTask(body == null ? null : body.get("data"));
         if (task == null) {
             return 0L;
@@ -95,37 +119,12 @@ public class KlingVideoUsageExtractor extends AbstractVideoUsageExtractor {
     }
 
     /**
-     * 恒 {@code true}：官方价表只有「有声」一档，请求体里也没有音频开关。
-     *
-     * <p>写成模型事实而不是读请求体，是因为读请求体时缺字段会退化成 {@code false}，
-     * 而 {@code false} 会去查另一组键（{@code 720P} 而非 {@code 720P:AUDIO}）——
-     * 本模型两者都指向同一档价，但日后出现无声档时就是另一路钱。</p>
-     */
-    @Override
-    protected boolean soundEnabled(Map<String, Object> requestBody) {
-        return true;
-    }
-
-    /**
-     * 恒 {@code false}：3.0 Turbo 没有参考视频能力，图生视频的首帧是<b>图片</b>不是视频
-     * （红线：参考图走图片张数口径，不计入「有无输入视频」这一维）。
-     *
-     * <p>显式关掉还挡住另一回事：通用 {@code DEFAULT_REFERENCE_VIDEO_KEYS} 里有 {@code video / video_url}，
-     * 日后客户端多传一个同名字段就会把这一维点亮，凭空多出一路钱。</p>
-     */
-    @Override
-    protected boolean referenceVideoProvided(Map<String, Object> requestBody) {
-        return false;
-    }
-
-    /**
      * 输入图片张数：请求体 {@code image} 非空记 1（Kling 只吃一张首帧）。
      *
      * <p>只是<b>事实记录</b>（进 {@code ModelUsage.input.imageCount}），
      * 规则侧不配 {@code inputImagePerImage} 就不会产生任何金额分量。</p>
      */
-    @Override
-    protected long inputImageCount(Map<String, Object> requestBody) {
+    private static long firstFrameCount(Map<String, Object> requestBody) {
         if (requestBody == null) {
             return 0L;
         }

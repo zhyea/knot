@@ -121,8 +121,8 @@ class AsyncTaskSubmitStampTest {
 
         @Override
         public AsyncTaskSpec loadSpec(String profileCode) {
-            return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", null, "data.status",
-                    "succeed", "failed", null, "data.url",
+            return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", "data.status",
+                    "status == 'succeed'", "status == 'failed'", null, "data.url",
                     7, 5000, 1000, 30000, 360, 1_800_000L);
         }
     }
@@ -179,7 +179,7 @@ class AsyncTaskSubmitStampTest {
         }
 
         @Override
-        public boolean complete(Long id, String claimId, String status, String resultJson,
+        public boolean complete(Long id, String claimId, int status, String resultJson,
                                 String errorCode, String errorMessage) {
             return false;
         }

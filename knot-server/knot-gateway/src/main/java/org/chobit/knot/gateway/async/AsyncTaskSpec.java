@@ -9,26 +9,30 @@ import org.chobit.knot.dal.entity.AsyncTaskProfileEntity;
  * <b>提交时</b>的口径轮询与计费 —— 否则改一次地址/终态取值，就会让一批在途任务
  * 查不到或判错终态，且金额无法复现。这是「同一笔任务无论何时完成，算法可复现」的落地方式。</p>
  *
- * <p>路径里的 {@code {task_id}} / {@code {external_task_id}} 占位由
- * {@link AsyncTaskSupport#resolveQueryPath} 在查询时替换。</p>
+ * <p>⭐ <b>本记录是纯数据，不含任何求值逻辑</b>（2026-10-28）：{@code taskIdPath} /
+ * {@code statusPath} / {@code resultPath} 是 <b>MVEL 取值表达式</b>；
+ * {@code statusSucceeded} / {@code statusFailed} / {@code statusRunning} 是
+ * <b>MVEL 布尔表达式</b>（可用变量 {@code status} 与 {@code body}）。
+ * 求值统一走 {@link AsyncTaskExpressionSupport}，判定语义统一在
+ * {@link AsyncTaskSupport#terminalOf}——三处各写一份比较逻辑必然漂移
+ * （旧版把「逗号分隔取值是否包含」写在记录里，正是本次被替换的形态）。</p>
+ *
+ * <p>{@code queryPath} 里的 {@code {task_id}} 是 <b>URL 模板占位</b>，与上面的 MVEL 表达式
+ * 不是一回事（一个拼地址、一个读响应），由 {@link AsyncTaskSupport#resolveQueryPath} 替换。</p>
  */
 public record AsyncTaskSpec(String queryMethod,
                             String queryPath,
-                            /** 创建响应中取上游任务 ID 的路径（只在创建时用一次，一并快照以便复现） */
+                            /** 创建响应中取上游任务 ID 的 MVEL 表达式（只在创建时用一次，一并快照以便复现） */
                             String taskIdPath,
-                            /**
-                             * 创建请求体中承载「我方任务标识」的字段路径（如 {@code options.external_task_id}）；
-                             * 为空表示上游不支持，或该绑定未启用反查。
-                             *
-                             * <p>⚠ 取值约定：由请求适配层（如 {@code KlingVideoSupport}）在出站前写入，
-                             * 异步层<b>不回头读上游体</b>，两侧同取 {@code context.requestId()}。
-                             * 若配了字段但适配层没写同名字段，反查会查空——不错账，只是恢复失效。</p>
-                             */
-                            String externalTaskField,
+                            /** 查询响应中取状态文本的 MVEL 表达式 */
                             String statusPath,
+                            /** 判断「状态 = 成功」的 MVEL 布尔表达式，如 {@code status == 'succeeded'} */
                             String statusSucceeded,
+                            /** 判断「状态 = 失败」的 MVEL 布尔表达式 */
                             String statusFailed,
+                            /** 判断「状态 = 进行中」的 MVEL 布尔表达式；空 = 除成功/失败外一律非终态 */
                             String statusRunning,
+                            /** 查询响应中取产物 URL 的 MVEL 表达式 */
                             String resultPath,
                             Integer resultExpiresDays,
                             int pollIntervalMs,
@@ -37,81 +41,49 @@ public record AsyncTaskSpec(String queryMethod,
                             int maxAttempts,
                             long timeoutMs) {
 
-    /** 由档案实体投影：档案改了不影响已快照的任务 */
+    /**
+     * 由档案实体投影：档案改了不影响已快照的任务。
+     *
+     * <p>档案列缺失或非正时按 {@link AsyncTaskDefaults} 兜底（与 {@link AsyncTaskProperties} 同一个出处），
+     * 本方法不再写裸字面量。</p>
+     */
     public static AsyncTaskSpec of(AsyncTaskProfileEntity profile) {
         if (profile == null) {
             return null;
         }
         return new AsyncTaskSpec(
-                defaultText(profile.getQueryMethod(), "GET"),
+                defaultText(profile.getQueryMethod(), AsyncTaskDefaults.QUERY_METHOD),
                 profile.getQueryPath(),
                 profile.getTaskIdPath(),
-                profile.getExternalTaskField(),
                 profile.getStatusPath(),
                 profile.getStatusSucceeded(),
                 profile.getStatusFailed(),
                 profile.getStatusRunning(),
                 profile.getResultPath(),
                 profile.getResultExpiresDays(),
-                positive(profile.getPollIntervalMs(), 5000),
-                positive(profile.getPollBackoffBaseMs(), 1000),
-                positive(profile.getPollBackoffMaxMs(), 30000),
-                positive(profile.getMaxAttempts(), 360),
-                profile.getTimeoutMs() == null ? 1_800_000L : Math.max(1L, profile.getTimeoutMs()));
+                positive(profile.getPollIntervalMs(), AsyncTaskDefaults.POLL_INTERVAL_MS),
+                positive(profile.getPollBackoffBaseMs(), AsyncTaskDefaults.POLL_BACKOFF_BASE_MS),
+                positive(profile.getPollBackoffMaxMs(), AsyncTaskDefaults.POLL_BACKOFF_MAX_MS),
+                positive(profile.getMaxAttempts(), AsyncTaskDefaults.MAX_ATTEMPTS),
+                profile.getTimeoutMs() == null ? AsyncTaskDefaults.TASK_TIMEOUT_MS
+                        : Math.max(1L, profile.getTimeoutMs()));
     }
 
     /**
-     * 查询路径占位替换：{@code {task_id}} / {@code {external_task_id}}。
+     * 查询路径占位替换：{@code {task_id}}。
      *
      * <p>替换不完（还有 {@code {}）就直接抛：拼出来的是一个查不到东西的 URL，
      * 表现为「任务永远查不到」，远比一次明确的失败难排查。</p>
      */
-    public String resolvePath(String upstreamTaskId, String externalTaskId) {
-        String path = queryPath == null ? null : queryPath;
-        if (path == null) {
+    public String resolvePath(String upstreamTaskId) {
+        if (queryPath == null) {
             throw new IllegalStateException("async task query path is not configured");
         }
-        String resolved = path.replace("{task_id}", upstreamTaskId == null ? "" : upstreamTaskId.trim())
-                .replace("{external_task_id}", externalTaskId == null ? "" : externalTaskId.trim());
+        String resolved = queryPath.replace("{task_id}", upstreamTaskId == null ? "" : upstreamTaskId.trim());
         if (resolved.contains("{")) {
             throw new IllegalStateException("async task query path has unresolved placeholder: " + resolved);
         }
         return resolved;
-    }
-
-    /** 终态取值是否在成功集合内（逗号分隔多值，忽略大小写与空白） */
-    public boolean succeeded(String status) {
-        return contains(statusSucceeded, status);
-    }
-
-    public boolean failed(String status) {
-        return contains(statusFailed, status);
-    }
-
-    /**
-     * 是否明确声明为非终态。
-     *
-     * <p>{@code statusRunning} 为空表示「除成功/失败外一律视为非终态」——
-     * 上游新增一个中间态（如 {@code queued}）时不需要改配置。</p>
-     */
-    public boolean running(String status) {
-        if (statusRunning == null || statusRunning.isBlank()) {
-            return true;
-        }
-        return contains(statusRunning, status);
-    }
-
-    private static boolean contains(String candidates, String status) {
-        if (candidates == null || candidates.isBlank() || status == null) {
-            return false;
-        }
-        String normalized = status.trim();
-        for (String candidate : candidates.split(",")) {
-            if (candidate.trim().equalsIgnoreCase(normalized)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static int positive(Integer value, int fallback) {

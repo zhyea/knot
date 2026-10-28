@@ -127,12 +127,13 @@ knot:
     usage:
       # true = 降级放行 / false = 中断响应（宽松行为必须显式打开）
       degrade-on-failure: ${KNOT_GATEWAY_USAGE_DEGRADE_ON_FAILURE:false}
-    # ── 异步任务轮询（默认值集中在 AsyncTaskProperties）────────────────────────
+    # ── 异步任务轮询（默认值集中在一处：AsyncTaskDefaults）──────────────────────
     # 待办集合就是 kb_async_tasks 这张表：cron 只决定「多久扫一次」，单个任务多久查一次
     # 由行上的 next_poll_at 决定（来自档案的 poll_interval_ms 与退避参数）。
+    # 下面这段整体注释掉是刻意的：不配置就走代码默认值，需要改动时再放开。
     # ⚠ 多节点并发靠 DB 占位（claim_id + claim_expires_at），不引分布式锁。
     #   claim-ttl-ms 是「一轮处理的时间预算上限」，必须大于 query-timeout-ms 且覆盖
-    #   「查询 + 视频转储 + 落终态」：不满足时启动即失败（AsyncTaskPoller#init）。
+    #   「查询 + 产物转储 + 落终态」：不满足时启动即失败（AsyncTaskPoller#init）。
     #   压小了不会丢数据（终态 CAS 仍唯一），但会让上游调用被算两遍、退避跳档。
     # async-task:
     #   enabled: ${KNOT_ASYNC_TASK_ENABLED:true}

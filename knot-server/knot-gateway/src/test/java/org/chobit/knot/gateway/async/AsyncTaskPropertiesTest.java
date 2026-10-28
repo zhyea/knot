@@ -28,6 +28,27 @@ class AsyncTaskPropertiesTest {
 
     private final AsyncTaskProperties properties = new AsyncTaskProperties();
 
+    /**
+     * ⭐ 这里的字面量是<b>故意的第二份</b>，不是重复：生产代码已统一收敛到 {@link AsyncTaskDefaults}，
+     * 若测试也引用那些常量，改常量的值不会有任何一处变红——护栏就白装了。
+     *
+     * <p>另外 {@code batch-size} / {@code concurrency} 是写进容量承诺里的数
+     * （吞吐 ≈ batch-size / 分钟），{@code retention-days} 关系到对客「产物可回看多久」，
+     * 改它们必须同步改文档，所以逐个钉死。</p>
+     */
+    @Test
+    @DisplayName("扫描层默认值：一批 100 / 并发 8 / 预算 30s+180s / 回收 200 / 保留 30 天 / 清理 500")
+    void scanningDefaultsArePinned() {
+        assertEquals(100, properties.getBatchSize());
+        assertEquals(8, properties.getConcurrency());
+        assertEquals(30_000L, properties.getQueryTimeoutMs());
+        assertEquals(180_000L, properties.getClaimTtlMs());
+        assertEquals(200, properties.getExpireBatchSize());
+        assertEquals(30, properties.getRetentionDays());
+        assertEquals(500, properties.getCleanupBatchSize());
+        assertTrue(properties.isEnabled(), "默认启用：不配就该跑起来");
+    }
+
     @Test
     @DisplayName("默认查询超时必须严格小于占位有效期")
     void queryTimeoutFitsInClaimTtl() {

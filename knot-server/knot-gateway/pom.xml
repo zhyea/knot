@@ -121,6 +121,14 @@
       <artifactId>jjwt-jackson</artifactId>
       <scope>runtime</scope>
     </dependency>
+    <!-- 异步任务档案（kb_async_task_profiles）里的表达式求值：task_id_path / status_path /
+         result_path 取值，status_succeeded / status_failed / status_running 判定。
+         只在本模块用（档案的运行时消费方只有网关），故不进 knot-common。 -->
+    <dependency>
+      <groupId>org.mvel</groupId>
+      <artifactId>mvel2</artifactId>
+      <version>${mvel.version}</version>
+    </dependency>
   </dependencies>
 
   <build>

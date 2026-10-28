@@ -60,7 +60,6 @@ public class AsyncTaskQueryClient {
     public String query(AsyncTaskContext context,
                         AsyncTaskSpec spec,
                         String upstreamTaskId,
-                        String externalTaskId,
                         String traceparent) {
         ModelEntity model = dataService.getModelByCode(context.modelCode());
         if (model == null) {
@@ -91,7 +90,7 @@ public class AsyncTaskQueryClient {
         if (access == null || access.baseUrl() == null) {
             throw new IllegalStateException("async task upstream endpoint not configured: " + context.modelCode());
         }
-        String path = spec == null ? null : spec.resolvePath(upstreamTaskId, externalTaskId);
+        String path = spec == null ? null : spec.resolvePath(upstreamTaskId);
         String url = UpstreamUrlSupport.joinUrl(access.baseUrl(),
                 UpstreamUrlSupport.joinPath(model.getBasePath(), path));
         return exchange(url, access, spec == null ? HttpMethod.GET : HttpMethod.valueOf(spec.queryMethod().toUpperCase()));

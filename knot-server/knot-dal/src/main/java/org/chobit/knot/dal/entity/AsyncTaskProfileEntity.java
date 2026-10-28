@@ -5,11 +5,15 @@ import lombok.Data;
 /**
  * 异步任务查询口径档案（{@code kb_async_task_profiles}）：描述「怎么查上游」，一家异步上游一行。
  *
- * <p>与任务实例表分离是通用性的根：查询路径、终态取值、产物位置、产物时效逐家不同，
+ * <p>与任务实例表分离是通用性的根：查询路径、终态判定、产物位置、产物时效逐家不同，
  * 塞进任务行会无法复用。新增一家异步上游 = 加一行档案 + 绑定引用，不改表、不改代码。</p>
  *
- * <p>路径模板里的 {@code {task_id}} / {@code {external_task_id}} 占位可出现在 path 段或 query 段
+ * <p>路径模板里的 {@code {task_id}} 占位可出现在 path 段或 query 段
  * （可灵是 {@code /tasks?task_ids={task_id}}，MiniMax 是 {@code /v2/query/video_generation/{task_id}}）。</p>
+ *
+ * <p>⚠ 2026-10-28 起：三个 {@code *Path} 是 <b>MVEL 取值表达式</b>，三个 {@code status*} 是
+ * <b>MVEL 布尔表达式</b>（变量 {@code status} / {@code body}）。求值口径见
+ * {@code AsyncTaskExpressionSupport}；判定语义见规范 {@code 60-business-rules.md} §8.14。</p>
  */
 @Data
 public class AsyncTaskProfileEntity {
@@ -21,19 +25,17 @@ public class AsyncTaskProfileEntity {
     private String protocol;
     private String queryMethod;
     private String queryPath;
-    /** 创建响应中取上游任务 ID 的 JSON 路径，如 {@code data.id} */
+    /** 创建响应取上游任务 ID 的 MVEL 表达式，如 {@code data.id} */
     private String taskIdPath;
-    /** 创建请求体中填自定义任务 ID 的字段路径，为空表示上游不支持 */
-    private String externalTaskField;
-    /** 查询响应中取状态的 JSON 路径，如 {@code data[0].status} */
+    /** 查询响应取状态文本的 MVEL 表达式，如 {@code data[0].status} */
     private String statusPath;
-    /** 终态成功取值，逗号分隔多值 */
+    /** 成功判定 MVEL 布尔表达式，如 {@code ['succeed','SUCCEEDED'] contains status} */
     private String statusSucceeded;
-    /** 终态失败取值，逗号分隔多值 */
+    /** 失败判定 MVEL 布尔表达式，如 {@code status == 'failed'} */
     private String statusFailed;
-    /** 非终态取值，为空表示「除成功/失败外一律视为非终态」 */
+    /** 进行中判定 MVEL 布尔表达式；为空表示「除成功/失败外一律视为非终态」 */
     private String statusRunning;
-    /** 终态产物 URL 的 JSON 路径 */
+    /** 终态产物 URL 的 MVEL 表达式，如 {@code data[0].outputs[0].url} */
     private String resultPath;
     /** 上游产物有效期（天） */
     private Integer resultExpiresDays;

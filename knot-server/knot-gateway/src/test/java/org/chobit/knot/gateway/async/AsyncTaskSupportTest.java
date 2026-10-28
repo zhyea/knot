@@ -29,8 +29,9 @@ class AsyncTaskSupportTest {
     private final AsyncTaskSupport support = new AsyncTaskSupport(null, null, null);
 
     private static AsyncTaskSpec spec() {
-        return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", null, "data[0].status",
-                "succeed", "failed", null, "data[0].outputs[0].url",
+        return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", "data[0].status",
+                "['succeed','SUCCEEDED'] contains status", "status == 'failed'", null,
+                "data[0].outputs[0].url",
                 7, 5000, 1000, 30000, 360, 1_800_000L);
     }
 
@@ -54,8 +55,9 @@ class AsyncTaskSupportTest {
         assertEquals("up-1", support.upstreamTaskIdOf(createBody, spec()));
         // 探针：若误用 query_path（含占位）去取 ID，这里就会取到空——两者是不同路径
         assertNull(support.upstreamTaskIdOf(createBody,
-                new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.task_id", null, "data.status",
-                        "succeed", "failed", null, "data.url", null, 5000, 1000, 30000, 360, 1_800_000L)),
+                new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.task_id", "data.status",
+                        "status == 'succeed'", "status == 'failed'", null, "data.url",
+                        null, 5000, 1000, 30000, 360, 1_800_000L)),
                 "task_id_path 填错必须取不到，不得回落到 query_path");
     }
 
@@ -73,6 +75,38 @@ class AsyncTaskSupportTest {
         assertSame(AsyncTaskSupport.Terminal.FAILED, support.terminalOf(failed, spec));
         assertSame(AsyncTaskSupport.Terminal.RUNNING, support.terminalOf(empty, spec),
                 "取不到状态时按进行中处理：上游抖动不该把任务判死（由 max_attempts / 超时兜底）");
+    }
+
+    @Test
+    @DisplayName("判定表达式多值用 contains（MVEL 没有 in 元组语法），大小写由表达式自己负责")
+    void succeededExpressionIsCaseSensitive() {
+        AsyncTaskSpec spec = spec();
+        assertSame(AsyncTaskSupport.Terminal.SUCCEEDED,
+                support.terminalOf(Map.of("data", java.util.List.of(Map.of("status", "SUCCEEDED"))), spec));
+        assertSame(AsyncTaskSupport.Terminal.RUNNING,
+                support.terminalOf(Map.of("data", java.util.List.of(Map.of("status", "Succeed"))), spec),
+                "旧实现自动忽略大小写与空白；现在由表达式决定，未声明的写法不判成功");
+    }
+
+    @Test
+    @DisplayName("判定表达式可读整个响应体：状态在 data[0].status，成功标志在别处也能配")
+    void testExpressionCanReadWholeBody() {
+        AsyncTaskSpec spec = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data[0].status",
+                "body.data[0].code == 0", "status == 'failed'", null, "data[0].url",
+                null, 5000, 1000, 30000, 360, 1_800_000L);
+        assertSame(AsyncTaskSupport.Terminal.SUCCEEDED,
+                support.terminalOf(Map.of("data", java.util.List.of(Map.of("status", "ok", "code", 0))), spec));
+    }
+
+    @Test
+    @DisplayName("配了 status_running 却谁都不匹配：仍回 RUNNING（不判死），但必须留 warn 信号")
+    void unmatchedStatusStaysRunning() {
+        AsyncTaskSpec spec = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data.status",
+                "status == 'succeed'", "status == 'failed'", "status == 'queued'", "data.url",
+                null, 5000, 1000, 30000, 360, 1_800_000L);
+        assertSame(AsyncTaskSupport.Terminal.RUNNING,
+                support.terminalOf(Map.of("data", Map.of("status", "brand-new-state")), spec),
+                "上游新增状态不应被当终态，也不应被当成「正常进行中」而静默吞掉");
     }
 
     @Test
@@ -106,13 +140,15 @@ class AsyncTaskSupportTest {
                 Map.of("prompt", "a cat"),
                 new AsyncTaskContext("tc-1", "rule-1", null, null, "req-1",
                         "VIDEO_GENERATIONS", "kling-3", "kling-3-turbo", "kling", "pool-1", "https://x/videos"),
-                "up-1", null, "RULE-1", "V1", now);
+                "up-1", "RULE-1", "V1", now);
         AsyncTaskEntity task = support.build(creation);
 
         assertEquals("tc-1", task.getTaskCode());
         assertEquals("KLING_TASK", task.getProfileCode());
         assertEquals("up-1", task.getUpstreamTaskId());
-        assertEquals("PENDING", task.getStatus());
+        // ⭐ 这里写裸数字 0 而不是 PENDING.code()，是为了钉住「落库的 wire 值」：
+        //    若改成引用常量，有人把 PENDING 的 code 改成 6 也不会有任何一处变红。
+        assertEquals(0, task.getStatus());
         assertEquals(0, task.getAttempts());
         assertEquals(now.plusNanos(5_000_000_000L), task.getNextPollAt());
         assertEquals(now.plusNanos(1_800_000_000_000L), task.getExpiresAt());
@@ -129,11 +165,12 @@ class AsyncTaskSupportTest {
     @Test
     @DisplayName("产物时效未配置时不写 result_expires_at")
     void noResultTtl() {
-        AsyncTaskSpec noTtl = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", null, "data.status",
-                "succeed", "failed", null, "data.url", null, 5000, 1000, 30000, 360, 1_800_000L);
+        AsyncTaskSpec noTtl = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data.status",
+                "status == 'succeed'", "status == 'failed'", null, "data.url",
+                null, 5000, 1000, 30000, 360, 1_800_000L);
         AsyncTaskEntity task = support.build(new AsyncTaskCreation("tc", "P", noTtl, null,
                 Map.of(), new AsyncTaskContext("tc", "r", null, null, "req", null, "m", null, null, null, null),
-                "up", null, null, null, LocalDateTime.now()));
+                "up", null, null, LocalDateTime.now()));
         assertNull(task.getResultExpiresAt());
     }
 
@@ -152,12 +189,5 @@ class AsyncTaskSupportTest {
         assertEquals(32, code.length());
         assertTrue(code.matches("[0-9a-f]{32}"), code);
         assertFalse(code.contains("-"));
-    }
-
-    @Test
-    @DisplayName("终态取值集合解析供日志与校验使用")
-    void splitsCandidates() {
-        assertEquals(java.util.List.of("a", "b"), AsyncTaskSupport.splitValues("a,b"));
-        assertTrue(AsyncTaskSupport.splitValues(" ").isEmpty());
     }
 }

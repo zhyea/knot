@@ -2,12 +2,22 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.dal.mapper.AsyncTaskMapper">
 
+    <!-- status 存的是 AsyncTaskStatusEnum.code() 的整型码（0-PENDING 1-POLLING 2-SUCCEEDED
+         3-FAILED 4-EXPIRED 5-CANCELLED）。
+         ⚠ 下面所有「在途态」谓词都用 inFlightCodes 参数，不写字面量：写死 in (0,1) 时，
+         将来往枚举里加一个在途态不会有人来改这里，症状是「新状态的任务永远扫不到」。
+         dal 不认识状态语义，这是刻意的——语义在 gateway 的枚举里。 -->
+
     <sql id="TaskColumns">
-        id, task_code, profile_code, protocol, upstream_task_id, external_task_id, status, attempts,
+        id, task_code, profile_code, protocol, upstream_task_id, status, attempts,
         next_poll_at, claim_id, claim_expires_at, last_polled_at,
         request_json, poll_spec_json, context_json, result_json, error_code, error_message,
         billing_rule_code, billing_rule_version_code,
         submitted_at, completed_at, expires_at, result_expires_at, created_at, updated_at
+    </sql>
+
+    <sql id="InFlight">
+        <foreach collection="inFlightCodes" item="code" open="(" separator="," close=")">#{code}</foreach>
     </sql>
 
     <select id="getById" resultType="org.chobit.knot.dal.entity.AsyncTaskEntity">
@@ -29,12 +39,12 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_async_tasks(task_code, profile_code, protocol, upstream_task_id, external_task_id,
+        insert into kb_async_tasks(task_code, profile_code, protocol, upstream_task_id,
                                    status, attempts, next_poll_at, claim_id, claim_expires_at, last_polled_at,
                                    request_json, poll_spec_json, context_json, result_json,
                                    error_code, error_message, billing_rule_code, billing_rule_version_code,
                                    submitted_at, completed_at, expires_at, result_expires_at)
-        values(#{taskCode}, #{profileCode}, #{protocol}, #{upstreamTaskId}, #{externalTaskId},
+        values(#{taskCode}, #{profileCode}, #{protocol}, #{upstreamTaskId},
                #{status}, #{attempts}, #{nextPollAt}, #{claimId}, #{claimExpiresAt}, #{lastPolledAt},
                #{requestJson}, #{pollSpecJson}, #{contextJson}, #{resultJson},
                #{errorCode}, #{errorMessage}, #{billingRuleCode}, #{billingRuleVersionCode},
@@ -42,7 +52,7 @@
     </insert>
 
     <!-- 原子抢占：一条 UPDATE 借行锁完成，再按 claim_id 回查（见 getByClaimId）。
-         只抢在途态（PENDING / POLLING）、已到期、尚未超时（expires_at 未到）、且未被有效占位的行。
+         只抢在途态、已到期、尚未超时（expires_at 未到）、且未被有效占位的行。
          expires_at > now(3) 不是为了「顺手」，而是为了让本轮抢到的行一定不会同时被
          claimExpired 挑中：一条行只走一条路，不必依赖两个节拍的先后顺序。 -->
     <update id="claim">
@@ -50,7 +60,7 @@
         set claim_id = #{claimId},
             claim_expires_at = #{claimExpires},
             last_polled_at = now(3)
-        where status in ('PENDING', 'POLLING')
+        where status in <include refid="InFlight"/>
           and next_poll_at &lt;= now(3)
           and expires_at &gt; now(3)
           and (claim_id is null or claim_expires_at &lt; now(3))
@@ -65,7 +75,7 @@
         update kb_async_tasks
         set claim_id = #{claimId},
             claim_expires_at = #{claimExpires}
-        where status in ('PENDING', 'POLLING')
+        where status in <include refid="InFlight"/>
           and expires_at &lt;= now(3)
           and (claim_id is null or claim_expires_at &lt; now(3))
         order by expires_at asc
@@ -77,7 +87,7 @@
          数仓按 (task_code, task_phase, task_query_seq) 去重后会把两次真实上游调用压成一条。 -->
     <update id="scheduleNext">
         update kb_async_tasks
-        set status = 'POLLING',
+        set status = #{nextStatus},
             attempts = attempts + 1,
             next_poll_at = #{nextPollAt},
             last_polled_at = #{lastPolledAt},
@@ -85,7 +95,7 @@
             claim_expires_at = null
         where id = #{id}
           and claim_id = #{claimId}
-          and status in ('PENDING', 'POLLING')
+          and status in <include refid="InFlight"/>
     </update>
 
     <!-- 终态 CAS：在途态 + 仍持有占位才落终态，影响行数 = 1 才发终态事件。
@@ -104,12 +114,13 @@
             claim_expires_at = null
         where id = #{id}
           and claim_id = #{claimId}
-          and status in ('PENDING', 'POLLING')
+          and status in <include refid="InFlight"/>
     </update>
 
+    <!-- 终态 = 不在在途集合里。用 not in 而不是逐个列终态码：将来加在途态时这里自动正确。 -->
     <delete id="deleteCompletedBefore">
         delete from kb_async_tasks
-        where status not in ('PENDING', 'POLLING')
+        where status not in <include refid="InFlight"/>
           and completed_at &lt; #{before}
         limit #{limit}
     </delete>

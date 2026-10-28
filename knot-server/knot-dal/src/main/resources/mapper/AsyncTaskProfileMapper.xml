@@ -3,7 +3,7 @@
 <mapper namespace="org.chobit.knot.dal.mapper.AsyncTaskProfileMapper">
 
     <sql id="ProfileColumns">
-        id, profile_code, protocol, query_method, query_path, task_id_path, external_task_field,
+        id, profile_code, protocol, query_method, query_path, task_id_path,
         status_path, status_succeeded, status_failed, status_running, result_path, result_expires_days,
         poll_interval_ms, poll_backoff_base_ms, poll_backoff_max_ms, max_attempts, timeout_ms,
         status, remark, created_at, updated_at
@@ -24,12 +24,12 @@
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into kb_async_task_profiles(profile_code, protocol, query_method, query_path, task_id_path,
-                                           external_task_field, status_path, status_succeeded, status_failed,
+                                           status_path, status_succeeded, status_failed,
                                            status_running, result_path, result_expires_days,
                                            poll_interval_ms, poll_backoff_base_ms, poll_backoff_max_ms,
                                            max_attempts, timeout_ms, status, remark)
         values(#{profileCode}, #{protocol}, #{queryMethod}, #{queryPath}, #{taskIdPath},
-               #{externalTaskField}, #{statusPath}, #{statusSucceeded}, #{statusFailed},
+               #{statusPath}, #{statusSucceeded}, #{statusFailed},
                #{statusRunning}, #{resultPath}, #{resultExpiresDays},
                #{pollIntervalMs}, #{pollBackoffBaseMs}, #{pollBackoffMaxMs},
                #{maxAttempts}, #{timeoutMs}, #{status}, #{remark})
@@ -41,7 +41,6 @@
             query_method = #{queryMethod},
             query_path = #{queryPath},
             task_id_path = #{taskIdPath},
-            external_task_field = #{externalTaskField},
             status_path = #{statusPath},
             status_succeeded = #{statusSucceeded},
             status_failed = #{statusFailed},

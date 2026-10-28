@@ -55,7 +55,7 @@ final class MediaUsageReaders {
      *
      * <p>⚠ 键表全是秒语义（{@code *_seconds} / {@code seconds} / {@code duration}）。
      * 若某厂商把毫秒写进这些键，会得到 1000 倍用量——这类厂商须在自己的提取器里覆写
-     * {@code outputMillis} 钩子，不要放宽本方法的键表。</p>
+     * {@code facts()} 自行换算，不要放宽本方法的键表。</p>
      */
     static long durationMillis(Map<String, Object> usage, Map<String, Object> body) {
         long fromUsage = firstMillis(usage, DURATION_KEYS);

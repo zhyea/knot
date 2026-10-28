@@ -1,14 +1,14 @@
 package org.chobit.knot.gateway.archive;
 
 /**
- * 视频转储：把供应商给的临时下载地址，换成我们可控位置上的长期地址。
+ * 转储：把供应商给的临时下载地址，换成我们可控位置上的长期地址。
  *
- * <p><b>为什么要有这一层</b>：视频产物有两处硬伤——供应商地址<b>带有效期</b>（过期就是 404），
+ * <p><b>为什么要有这一层</b>：产物地址有两处硬伤——供应商地址<b>带有效期</b>（过期就是 404），
  * 且常在境外、跨域、限速。今天能用是因为交付后立刻就消费掉了；一旦要给客户回看历史、
  * 或者供应商换了域名/下线了模型，旧地址就成了一堆死链。有条件时（S3 / OSS / MinIO）
  * 应该在拿到产物的那一刻就搬到自己这边。</p>
  *
- * <p><b>默认实现是直通</b>（{@link PassthroughVideoArchiveStore}）：没有对象存储时，
+ * <p><b>默认实现是直通</b>（{@link PassthroughArchiveStore}）：没有对象存储时，
  * 供应商地址本来就是唯一可用的地址。这时假装转储（比如复制一份到本地磁盘再对外发）比诚实直连更糟——
  * 它把「我们其实没有归档能力」这件事藏了起来。</p>
  *
@@ -30,20 +30,21 @@ package org.chobit.knot.gateway.archive;
  *
  * <p>⚠ <b>为什么不放 {@code knot-adapter}</b>：转储与厂商协议无关。Kling 之外的厂商、
  * 乃至图片/音频产物，走的都是同一套「临时地址 → 长期地址」。放进某个 adapter 子包，
- * 第二个厂商就会复制一份。</p>
+ * 第二个厂商就会复制一份。⭐ 名字里不带 {@code Video} 是刻意的（2026-10-28 由
+ * {@code VideoArchiveStore} 改名）：**任何人看到 {@code Video} 前缀都会以为图片/音频不适用**。</p>
  *
- * <p>实现选择走配置：{@code knot.gateway.video-archive.type}（默认 {@code passthrough}）。
+ * <p>实现选择走配置：{@code knot.gateway.archive.type}（默认 {@code passthrough}）。
  * 新增 S3 实现时给它 {@code havingValue = "s3"} 且<b>不要</b>写 {@code matchIfMissing}，
  * 两者天然互斥，不需要额外的 catalog 或优先级注解。</p>
  */
-public interface VideoArchiveStore {
+public interface ArchiveStore {
 
     /**
-     * 转储一个视频，返回客户端可直接下载的最终地址。
+     * 转储一个产物，返回客户端可直接下载的最终地址。
      *
-     * @param asset 待转储的视频（供应商地址与任务维度）
+     * @param asset 待转储的产物（供应商地址与任务维度）
      * @return 非空白的最终下载地址
-     * @throws RuntimeException 转储失败；调用方会回退到 {@link VideoAsset#sourceUrl()} 并记 ERROR
+     * @throws RuntimeException 转储失败；调用方会回退到 {@link ArchiveAsset#sourceUrl()} 并记 ERROR
      */
-    String archive(VideoAsset asset);
+    String archive(ArchiveAsset asset);
 }

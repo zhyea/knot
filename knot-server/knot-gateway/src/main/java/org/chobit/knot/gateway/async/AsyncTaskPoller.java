@@ -8,8 +8,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.adapter.model.usage.UsageAccounting;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.dal.entity.AsyncTaskEntity;
-import org.chobit.knot.gateway.archive.VideoArchiveStore;
-import org.chobit.knot.gateway.archive.VideoAsset;
+import org.chobit.knot.gateway.archive.ArchiveAsset;
+import org.chobit.knot.gateway.archive.ArchiveStore;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.springframework.lang.Nullable;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -72,13 +72,13 @@ public class AsyncTaskPoller {
     private final Scheduler blockingScheduler;
 
     /**
-     * 视频转储；单测可为 {@code null}，此时直接用供应商地址（与 {@code passthrough} 同效）。
+     * 产物转储；单测可为 {@code null}，此时直接用供应商地址（与 {@code passthrough} 同效）。
      *
-     * <p>⚠ 生产环境不会是 null：默认实现由 {@code PassthroughVideoArchiveStore} 兜底。
+     * <p>⚠ 生产环境不会是 null：默认实现由 {@code PassthroughArchiveStore} 兜底。
      * 这里允许 null 只是为了不让单测被迫构造一个转储器。</p>
      */
     @Nullable
-    private final VideoArchiveStore archiveStore;
+    private final ArchiveStore archiveStore;
 
     private String nodeId;
 
@@ -126,8 +126,9 @@ public class AsyncTaskPoller {
      * <p>⚠ 这里会 {@code blockLast} 等待本批完成（阻塞的是调度线程池的线程，不是 Netty event loop）。
      * 因为耗时不可控，cron 下一拍可能已经到点——此时由 {@link #ticking} 直接把该拍丢掉。</p>
      *
-     * <p>⚠ 这里的默认值与 {@link AsyncTaskProperties#getTickCron()} 是<b>同一个事实的第二份</b>
-     * （Spring 的 {@code @Scheduled} 只吃字面量/占位符，读不到 bean 字段）。两份漂移的后果是
+     * <p>⚠ 这里的默认值与 {@link AsyncTaskDefaults#TICK_CRON}（即 {@link AsyncTaskProperties#getTickCron()}）是
+     * <b>同一个事实的第二份</b>，且<b>合并不了</b>：Spring 的 {@code @Scheduled} 要吃 {@code ${key:默认值}}
+     * 占位符才支持 yml 覆盖，而占位符里只能是字面量，放不进常量。两份漂移的后果是
      * 「yml 里没配的时候跑的是哪一份」说不清，故由 {@code AsyncTaskPropertiesTest} 比对两边，
      * 删掉任一份都编译得过、但测试会红。</p>
      */
@@ -250,8 +251,7 @@ public class AsyncTaskPoller {
         }
         String body;
         try {
-            body = queryClient.query(context, spec, task.getUpstreamTaskId(), task.getExternalTaskId(),
-                    context.traceparent());
+            body = queryClient.query(context, spec, task.getUpstreamTaskId(), context.traceparent());
         } catch (RuntimeException e) {
             // 瞬时失败（网络 / 5xx / 限流）：退避后重试，不判终态
             log.warn("Async task query failed, will retry: taskCode={} attempts={}", task.getTaskCode(), attempts, e);
@@ -370,7 +370,7 @@ public class AsyncTaskPoller {
             return sourceUrl;
         }
         try {
-            String archived = archiveStore.archive(new VideoAsset(
+            String archived = archiveStore.archive(new ArchiveAsset(
                     task.getTaskCode(),
                     task.getUpstreamTaskId(),
                     sourceUrl,
@@ -443,7 +443,7 @@ public class AsyncTaskPoller {
                         String errorCode,
                         String errorMessage,
                         UsageAccounting usage) {
-        boolean settled = store.complete(task.getId(), task.getClaimId(), status.name(),
+        boolean settled = store.complete(task.getId(), task.getClaimId(), status.code(),
                 resultJson(resultUrl), errorCode, errorMessage);
         if (!settled) {
             log.warn("Async task not settled by this node (already settled or claim lost), "

@@ -12,16 +12,16 @@ import org.springframework.stereotype.Component;
  *
  * <p>之所以仍要有一个 bean 而不是让调用方判空：判空会让「没配存储」与「配了但注入失败」
  * 变成同一个分支，后者是启动期缺陷却被静默当成正常状态。有实现就有确定行为，
- * 要换存储只需换 bean（见 {@link VideoArchiveStore} 关于配置切换的说明）。</p>
+ * 要换存储只需换 bean（见 {@link ArchiveStore} 关于配置切换的说明）。</p>
  */
 @Slf4j
 @Component
-@ConditionalOnProperty(prefix = "knot.gateway.video-archive", name = "type",
+@ConditionalOnProperty(prefix = "knot.gateway.archive", name = "type",
         havingValue = "passthrough", matchIfMissing = true)
-public class PassthroughVideoArchiveStore implements VideoArchiveStore {
+public class PassthroughArchiveStore implements ArchiveStore {
 
     @Override
-    public String archive(VideoAsset asset) {
+    public String archive(ArchiveAsset asset) {
         return asset.sourceUrl();
     }
 }

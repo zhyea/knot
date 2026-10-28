@@ -29,9 +29,15 @@ public class AsyncTaskEntity {
     private String profileCode;
     private String protocol;
     private String upstreamTaskId;
-    private String externalTaskId;
-    /** 任务状态（AsyncTaskStatusEnum）：PENDING / POLLING / SUCCEEDED / FAILED / EXPIRED / CANCELLED */
-    private String status;
+    /**
+     * 任务状态（{@code AsyncTaskStatusEnum.code()}）：0-PENDING 1-POLLING 2-SUCCEEDED
+     * 3-FAILED 4-EXPIRED 5-CANCELLED。
+     *
+     * <p>⚠ 实体故意<b>不</b>声明成枚举类型：dal 不依赖 gateway（枚举在那边），
+     * 若在这里建一个同形态的副本枚举，就成了「同一个状态集的两份定义」，必然漂移。
+     * 需要枚举语义时由 gateway 侧 {@code AsyncTaskStatusEnum.fromCode} 转换。</p>
+     */
+    private Integer status;
     private Integer attempts;
     /** 下次轮询时刻；终态为 null，天然退出扫描集 */
     private LocalDateTime nextPollAt;

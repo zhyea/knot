@@ -305,9 +305,10 @@ class UsageExtractorTest {
     }
 
     @Test
-    void shouldHonorOverriddenHooksInVendorSubclass() {
-        // 抽象层接线探针：厂商子类只覆写差异钩子，组装出的仍是同一份 VideoBillingUsage。
-        // 若覆写不生效，下面的 7L / sound=true 会退回通用键表的结果（0 / false）而变红。
+    void shouldHonorOverriddenFactsInVendorSubclass() {
+        // 抽象层接线探针：厂商子类只覆写 facts() 一处，组装出的仍是同一份 VideoBillingUsage。
+        // 若覆写不生效，下面的 7L / sound=true 会退回通用解析的结果（0 / false）而变红；
+        // 若子类改成重新 new 一份完整记录，未覆写的 outputSeconds 会掉成 0 —— 同一例同时守两侧。
         class VendorExtractor extends AbstractVideoUsageExtractor {
             @Override
             public String code() {
@@ -335,13 +336,11 @@ class UsageExtractorTest {
             }
 
             @Override
-            protected long inputMillis(Map<String, Object> requestBody) {
-                return 7_000L;
-            }
-
-            @Override
-            protected boolean soundEnabled(Map<String, Object> requestBody) {
-                return true;
+            protected VideoUsageFacts facts(Map<String, Object> body, Map<String, Object> requestBody) {
+                return VideoUsageFacts.of(body, requestBody).toBuilder()
+                        .inputVideoMillis(7_000L)
+                        .sound(true)
+                        .build();
             }
         }
 
@@ -349,7 +348,7 @@ class UsageExtractorTest {
         VideoBillingUsage usage = new VendorExtractor()
                 .extractUsage(Map.of("duration_seconds", 5), Map.of("prompt", "a cat")).billing();
 
-        assertEquals(5L, usage.outputSeconds(), "未覆写的钩子仍走通用实现");
+        assertEquals(5L, usage.outputSeconds(), "未覆写的维度仍走通用解析");
         assertEquals(7L, usage.inputSeconds(), "覆写后应生效");
         assertTrue(usage.sound(), "覆写后应生效");
         assertFalse(usage.referenceVideo(), "未覆写时走通用键表，无参考视频");
