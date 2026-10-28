@@ -36,7 +36,7 @@ public class DbAsyncTaskStore implements AsyncTaskStore {
     @Override
     public List<AsyncTaskEntity> claim(String claimId, Duration claimTtl, int limit) {
         LocalDateTime expires = LocalDateTime.now().plus(claimTtl);
-        int claimed = mapper.claim(claimId, expires, limit);
+        int claimed = mapper.claim(claimId, expires, limit, AsyncTaskStatusEnum.inFlightCodes());
         if (claimed <= 0) {
             return List.of();
         }
@@ -46,7 +46,7 @@ public class DbAsyncTaskStore implements AsyncTaskStore {
     @Override
     public List<AsyncTaskEntity> claimExpired(String claimId, Duration claimTtl, int limit) {
         LocalDateTime expires = LocalDateTime.now().plus(claimTtl);
-        int claimed = mapper.claimExpired(claimId, expires, limit);
+        int claimed = mapper.claimExpired(claimId, expires, limit, AsyncTaskStatusEnum.inFlightCodes());
         if (claimed <= 0) {
             return List.of();
         }
@@ -56,15 +56,16 @@ public class DbAsyncTaskStore implements AsyncTaskStore {
     @Override
     public boolean scheduleNext(Long id, String claimId, LocalDateTime nextPollAt) {
         requireClaimId(claimId);
-        return mapper.scheduleNext(id, claimId, nextPollAt, LocalDateTime.now()) > 0;
+        return mapper.scheduleNext(id, claimId, nextPollAt, LocalDateTime.now(),
+                AsyncTaskStatusEnum.POLLING.code(), AsyncTaskStatusEnum.inFlightCodes()) > 0;
     }
 
     @Override
-    public boolean complete(Long id, String claimId, String status, String resultJson,
+    public boolean complete(Long id, String claimId, int status, String resultJson,
                             String errorCode, String errorMessage) {
         requireClaimId(claimId);
         return mapper.complete(id, claimId, status, resultJson, errorCode, errorMessage,
-                LocalDateTime.now()) > 0;
+                LocalDateTime.now(), AsyncTaskStatusEnum.inFlightCodes()) > 0;
     }
 
     /**
@@ -82,6 +83,6 @@ public class DbAsyncTaskStore implements AsyncTaskStore {
 
     @Override
     public int cleanup(LocalDateTime before, int limit) {
-        return mapper.deleteCompletedBefore(before, limit);
+        return mapper.deleteCompletedBefore(before, limit, AsyncTaskStatusEnum.inFlightCodes());
     }
 }

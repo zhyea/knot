@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.controller;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.dal.entity.AsyncTaskEntity;
 import org.chobit.knot.gateway.async.AsyncTaskContext;
+import org.chobit.knot.gateway.async.AsyncTaskStatusEnum;
 import org.chobit.knot.gateway.async.AsyncTaskStore;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
@@ -57,7 +58,7 @@ class GatewayTaskControllerTest {
     @Test
     @DisplayName("鉴权交给 RoutingResolver，且传的是去掉 Bearer 前缀的裸 key")
     void delegatesAuthorization() {
-        when(store.getByTaskCode("tc-1")).thenReturn(task("PENDING", "rule-1", null, null));
+        when(store.getByTaskCode("tc-1")).thenReturn(task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
         controller.get("Bearer sk-abc", "rule-1", "tc-1").block();
         assertEquals("sk-abc", resolver.seenSecretKey);
         assertEquals("rule-1", resolver.seenRuleCode);
@@ -84,7 +85,7 @@ class GatewayTaskControllerTest {
         when(store.getByTaskCode("missing")).thenReturn(null);
         assertEquals(HttpStatus.NOT_FOUND, controller.get("Bearer sk-abc", "rule-1", "missing").block().getStatusCode());
 
-        when(store.getByTaskCode("tc-1")).thenReturn(task("PENDING", "rule-1", null, null));
+        when(store.getByTaskCode("tc-1")).thenReturn(task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
         assertEquals(HttpStatus.NOT_FOUND, controller.get("Bearer sk-abc", "rule-other", "tc-1").block().getStatusCode(),
                 "跨规则查询必须 404：403 会确认句柄存在");
     }
@@ -92,7 +93,7 @@ class GatewayTaskControllerTest {
     @Test
     @DisplayName("上下文缺失时按不匹配处理：宁可查不到，不可越权可见")
     void missingContextIsNotFound() {
-        AsyncTaskEntity task = task("PENDING", null, null, null);
+        AsyncTaskEntity task = task(AsyncTaskStatusEnum.PENDING, null, null, null);
         task.setContextJson(null);
         when(store.getByTaskCode("tc-1")).thenReturn(task);
         assertEquals(HttpStatus.NOT_FOUND, controller.get("Bearer sk-abc", "rule-1", "tc-1").block().getStatusCode());
@@ -101,17 +102,17 @@ class GatewayTaskControllerTest {
     @Test
     @DisplayName("在途任务：对外状态 queued / processing")
     void inFlightStatusMapping() {
-        when(store.getByTaskCode("tc-1")).thenReturn(task("PENDING", "rule-1", null, null));
+        when(store.getByTaskCode("tc-1")).thenReturn(task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
         assertEquals("queued", statusOf("tc-1"));
 
-        when(store.getByTaskCode("tc-2")).thenReturn(task("POLLING", "rule-1", null, null));
+        when(store.getByTaskCode("tc-2")).thenReturn(task(AsyncTaskStatusEnum.POLLING, "rule-1", null, null));
         assertEquals("processing", statusOf("tc-2"));
     }
 
     @Test
     @DisplayName("终态：completed 带产物对象（不是 JSON 字符串），failed 带错误码")
     void terminalStatusMapping() {
-        AsyncTaskEntity done = task("SUCCEEDED", "rule-1", "{\"result_url\":\"https://x/a.mp4\"}", null);
+        AsyncTaskEntity done = task(AsyncTaskStatusEnum.SUCCEEDED, "rule-1", "{\"result_url\":\"https://x/a.mp4\"}", null);
         when(store.getByTaskCode("tc-1")).thenReturn(done);
         ResponseEntity<Object> response = controller.get("Bearer sk-abc", "rule-1", "tc-1").block();
         assertEquals(HttpStatus.OK, response.getStatusCode());
@@ -121,7 +122,7 @@ class GatewayTaskControllerTest {
         assertEquals(Map.of("result_url", "https://x/a.mp4"), body.get("result"));
         assertNull(body.get("error"));
 
-        AsyncTaskEntity failed = task("FAILED", "rule-1", null, "UPSTREAM_TASK_FAILED");
+        AsyncTaskEntity failed = task(AsyncTaskStatusEnum.FAILED, "rule-1", null, "UPSTREAM_TASK_FAILED");
         failed.setErrorMessage("prompt rejected");
         when(store.getByTaskCode("tc-2")).thenReturn(failed);
         ResponseEntity<Object> failResponse = controller.get("Bearer sk-abc", "rule-1", "tc-2").block();
@@ -134,7 +135,7 @@ class GatewayTaskControllerTest {
     @Test
     @DisplayName("探针：规则名带前后空格应视为同一条规则，不得因空格而查不到")
     void ruleIsTrimmed() {
-        when(store.getByTaskCode("tc-1")).thenReturn(task("PENDING", "rule-1", null, null));
+        when(store.getByTaskCode("tc-1")).thenReturn(task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
         assertEquals(HttpStatus.OK, controller.get("Bearer sk-abc", " rule-1 ", "tc-1").block().getStatusCode());
     }
 
@@ -143,10 +144,10 @@ class GatewayTaskControllerTest {
         return (String) ((Map<?, ?>) response.getBody()).get("status");
     }
 
-    private static AsyncTaskEntity task(String status, String ruleCode, String resultJson, String errorCode) {
+    private static AsyncTaskEntity task(AsyncTaskStatusEnum status, String ruleCode, String resultJson, String errorCode) {
         AsyncTaskEntity task = new AsyncTaskEntity();
         task.setTaskCode("tc");
-        task.setStatus(status);
+        task.setStatus(status.code());
         task.setResultJson(resultJson);
         task.setErrorCode(errorCode);
         if (ruleCode != null) {

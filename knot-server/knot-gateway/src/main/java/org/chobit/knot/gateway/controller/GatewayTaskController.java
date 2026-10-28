@@ -103,11 +103,20 @@ public class GatewayTaskController {
         return body;
     }
 
-    /** 对外状态沿用业界习惯：POLLING 归为 processing，PENDING 为 queued */
-    private String displayStatus(String status) {
+    /**
+     * 对外状态沿用业界习惯：POLLING 归为 processing，PENDING 为 queued。
+     *
+     * <p>⭐ <b>对外协议与落库取值是两件事</b>：库里存 0~5 的码，客户端看到的是
+     * {@code queued/processing/completed/failed}。所以把 status 改成整型<b>没有</b>改动任何对外契约——
+     * 这里由枚举 switch 产生字符串，而不是把 DB 值直接透出去。</p>
+     *
+     * <p>无法识别的码（理论上不该出现，DB 有 CHECK 拦）落成 {@code unknown}：
+     * 宁可让客户端看到一个陌生值，也不要把内部码 {@code 3} 当成状态文本发出去。</p>
+     */
+    private String displayStatus(Integer status) {
         AsyncTaskStatusEnum parsed = AsyncTaskStatusEnum.fromCode(status);
         if (parsed == null) {
-            return status;
+            return "unknown";
         }
         return switch (parsed) {
             case PENDING -> "queued";

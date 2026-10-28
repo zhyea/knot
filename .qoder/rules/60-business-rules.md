@@ -331,6 +331,40 @@ MVEL 取值表达式，三个 `status_*` 是 MVEL 布尔表达式**（变量 `st
 - 守门测试：`AsyncTaskExpressionSupportTest`（10 例，含「旧逗号列表必须抛且消息指路迁移脚本」探针）。
   双向探针实测：取值改上抛 → 3 例红；判定改宽容 `false` → 逗号列表那例红。
 
+### 8.15 枚举落库用整型码：显式声明 + 只增不改 + SQL 不走魔法数字（2026-10-28）
+
+⭐⭐ **状态类枚举落库存 `TINYINT` 码，不存名字**。可读性不是反对整型的理由（展示层翻译即可），
+**真正的风险是「撞码」**：两个常量拿到同一个整型码，写进去的数据就**不可区分、不可恢复**；
+而字符串撞不了名。**对付撞码靠下面四道护栏，不靠小心**。
+
+1. **码必须显式声明**（`PENDING(0)` … `CANCELLED(5)`），**禁止用 `ordinal()`** ——
+   靠声明顺序取值时「往中间插一个状态」会静默平移后面所有码，存量数据立刻错位。
+2. **测试钉死 wire 数值**（`AsyncTaskStatusEnumTest`：`codesArePinned` / `codesAreUnique` /
+   `codeIsNotOrdinal` / `fromCode` / `inFlightCodes`）。⚠ **断言里写裸数字，不许引常量**：
+   测试也引常量的话，改常量一处都不会红，护栏等于没装。
+3. **码只增不改、不复用废号**：删掉的号留空，新状态取新号。
+4. **DB 加 `CHECK (status BETWEEN 0 AND 5)`** 兜住应用层之外的写入（脚本、人工修数）。
+
+⭐⭐ **SQL 里不许写状态码字面量**：在途态谓词一律由调用方传 `inFlightCodes` 参数、
+XML 用 `<foreach>` 展开。写死 `in (0,1)` 时，将来往枚举加一个在途态**不会有人回改 XML**，
+症状是「新状态的任务永远扫不到」——静默、且要等积压才显形。
+终态清理同理用 `status not in (在途集合)`，不要逐个列终态码。
+
+⚠ **dal 不认识状态语义，也不该认识**：实体字段写 `Integer status` 而不是枚举
+（dal 不依赖 gateway，建副本枚举 = 同一状态集两份定义，必然漂移）。
+⚠ **对外不吐内部码**：无法识别的码翻译成 `unknown`，不要把裸码 `3` 当状态文本发给客户端。
+
+⚠⚠ **迁移顺序不可颠倒（资损级）**：直接 `MODIFY status TINYINT` 会把非数字字符串按
+**前导数字截断成 0** → `SUCCEEDED` 变回在途 → 被重新轮询 → **重复计费**，且全程静默。
+必须是：开严格模式 → 加 CHECK → **先把名字 UPDATE 成数字字符串**（判据 `NOT REGEXP '^[0-9]+$'`）→ 再 MODIFY。
+
+⭐ **`<foreach>` 等动态节点可以无数据库验证**（此前一直以为只能靠真库）：
+**mybatis 3.5.x 自带 shaded 的 `org.apache.ibatis.ognl`**（外部 ognl 是 `optional` 依赖、不传递），
+所以 `Configuration` + `XMLMapperBuilder` 解析 XML 后取 `MappedStatement#getBoundSql(params)`
+就能拿到展开后的 SQL——不需要连库、不需要连接池。判例 `AsyncTaskMapperSqlTest`。
+⚠ 断言要**只盯 `status in (...)` 那对括号**：写成「整条 SQL 不许出现数字」会被 `now(3)`（毫秒精度）误报。
+ℹ 仍然判不了的（列名、join、`now(3)` 时区口径、`order by ... limit` 方言合法性）仍归 `schema.sql` + 真库冒烟。
+
 ## 9. 上游适配器职责边界（2026-10-28）
 
 ### 9.1 视频适配器只做透传（红线）

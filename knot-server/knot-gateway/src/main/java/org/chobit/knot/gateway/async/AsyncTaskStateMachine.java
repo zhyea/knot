@@ -27,7 +27,7 @@ import static org.chobit.knot.gateway.async.AsyncTaskTransition.Action.SETTLE_BI
  * 异步任务状态机：{@code 当前状态 × 事件 → 下一状态 + 动作}。
  *
  * <p>⭐ <b>为什么必须有这一层</b>：改动前"合法转移"这件事散在四个地方——枚举上的
- * {@link AsyncTaskStatusEnum#inFlight()}、三条 SQL 里各写一遍的 {@code status IN ('PENDING','POLLING')}、
+ * {@link AsyncTaskStatusEnum#inFlight()}、三条 SQL 里各写一遍的「在途态」谓词、
  * 以及 {@code AsyncTaskPoller#process} 的 if 链。想回答"哪些事件会落终态"要顺着 40 行读一遍，
  * 加一个事件（比如取消）则要同时改判断、改码、改话术，漏一处没有任何编译期提示。</p>
  *
@@ -36,7 +36,7 @@ import static org.chobit.knot.gateway.async.AsyncTaskTransition.Action.SETTLE_BI
  * <p><b>两条硬规则</b>：</p>
  * <ol>
  *   <li><b>终态冻结</b>：{@code from} 不是在途态（含 null）一律 {@code REJECT}。这条与 SQL 的
- *       终态 CAS（{@code WHERE status IN ('PENDING','POLLING')}）是同一事实的两层执行：
+ *       终态 CAS（{@code WHERE status IN (在途码集合)}）是同一事实的两层执行：
  *       状态机负责"不该发这个事件"，CAS 负责"两节点同时发时只有一个赢"。</li>
  *   <li><b>只有成功计费</b>：{@code SETTLE_BILLED} 只挂在 {@link AsyncTaskEvent#POLL_SUCCEEDED} 上。
  *       任何其它事件走到计费都是资损，由 {@code AsyncTaskStateMachineTest} 穷举守门。</li>

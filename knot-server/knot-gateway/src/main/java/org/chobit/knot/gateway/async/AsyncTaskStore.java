@@ -53,10 +53,11 @@ public interface AsyncTaskStore {
      * 落终态：CAS，只有在途态<b>且仍持有占位</b>才更新。
      *
      * @param claimId 本次处理持有的占位号
+     * @param status  终态码（{@link AsyncTaskStatusEnum#code()}）；非终态不得传
      * @return 是否由本调用落定；false 表示已被别的节点落过（或占位已易主），
      * 调用方不得再发终态事件——终态事件的口径是「一条任务一条」，由真正落定的人发
      */
-    boolean complete(Long id, String claimId, String status, String resultJson,
+    boolean complete(Long id, String claimId, int status, String resultJson,
                      String errorCode, String errorMessage);
 
     /** 清理归档窗口之前的终态行 */
