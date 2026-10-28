@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.dal.mapper.AsyncTaskProfileMapper">
+
+    <sql id="ProfileColumns">
+        id, profile_code, protocol, query_method, query_path, task_id_path, external_task_field,
+        status_path, status_succeeded, status_failed, status_running, result_path, result_expires_days,
+        poll_interval_ms, poll_backoff_base_ms, poll_backoff_max_ms, max_attempts, timeout_ms,
+        status, remark, created_at, updated_at
+    </sql>
+
+    <select id="getByProfileCode" resultType="org.chobit.knot.dal.entity.AsyncTaskProfileEntity">
+        select <include refid="ProfileColumns"/>
+        from kb_async_task_profiles
+        where profile_code = #{profileCode}
+    </select>
+
+    <select id="listEnabled" resultType="org.chobit.knot.dal.entity.AsyncTaskProfileEntity">
+        select <include refid="ProfileColumns"/>
+        from kb_async_task_profiles
+        where status = 1
+        order by profile_code asc
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into kb_async_task_profiles(profile_code, protocol, query_method, query_path, task_id_path,
+                                           external_task_field, status_path, status_succeeded, status_failed,
+                                           status_running, result_path, result_expires_days,
+                                           poll_interval_ms, poll_backoff_base_ms, poll_backoff_max_ms,
+                                           max_attempts, timeout_ms, status, remark)
+        values(#{profileCode}, #{protocol}, #{queryMethod}, #{queryPath}, #{taskIdPath},
+               #{externalTaskField}, #{statusPath}, #{statusSucceeded}, #{statusFailed},
+               #{statusRunning}, #{resultPath}, #{resultExpiresDays},
+               #{pollIntervalMs}, #{pollBackoffBaseMs}, #{pollBackoffMaxMs},
+               #{maxAttempts}, #{timeoutMs}, #{status}, #{remark})
+    </insert>
+
+    <update id="update">
+        update kb_async_task_profiles
+        set protocol = #{protocol},
+            query_method = #{queryMethod},
+            query_path = #{queryPath},
+            task_id_path = #{taskIdPath},
+            external_task_field = #{externalTaskField},
+            status_path = #{statusPath},
+            status_succeeded = #{statusSucceeded},
+            status_failed = #{statusFailed},
+            status_running = #{statusRunning},
+            result_path = #{resultPath},
+            result_expires_days = #{resultExpiresDays},
+            poll_interval_ms = #{pollIntervalMs},
+            poll_backoff_base_ms = #{pollBackoffBaseMs},
+            poll_backoff_max_ms = #{pollBackoffMaxMs},
+            max_attempts = #{maxAttempts},
+            timeout_ms = #{timeoutMs},
+            status = #{status},
+            remark = #{remark}
+        where profile_code = #{profileCode}
+    </update>
+
+    <delete id="deleteByProfileCode">
+        delete from kb_async_task_profiles where profile_code = #{profileCode}
+    </delete>
+
+</mapper>

@@ -43,7 +43,7 @@ class GatewayRequestHandlerInvokeWithRetryTest {
     private GatewayRequestHandler handler() {
         // 仅 invokeWithRetry 路径使用 blockingScheduler；其余字段本测试不触达，传 null
         return new GatewayRequestHandler(null, null, null, null, null, null, null, null,
-                null, null, null, null, null, directScheduler);
+                null, null, null, null, null, directScheduler, null);
     }
 
     private RoutingRuleTargetDto candidate() {

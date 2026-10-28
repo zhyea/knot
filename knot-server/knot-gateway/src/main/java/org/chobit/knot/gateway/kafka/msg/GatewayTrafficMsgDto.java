@@ -60,6 +60,22 @@ import java.util.Map;
  * </ul>
  * <p>双向对账的检索路径：拿 {@code request_id} 去供应商侧查（他们日志里有这个头），
  * 拿 {@code upstream_request_id} 去我们数仓查（它来自对方响应头）。</p>
+ *
+ * <p><b>异步任务是「1 次提交 + N 次查询」，不是「1 次请求」</b>（2026-10-28 改口径）：
+ * 一次异步调用的真实上游开销是 {@code create} 一次 + {@code query} N 次（N 由产物耗时与轮询间隔决定，
+ * 视频任务可达数百）。所以这类请求<b>发 1 + N 条事件</b>，靠 {@code task_code} 归到同一笔任务，
+ * 用 {@code task_phase}（{@code submit} / {@code query}）与 {@code task_terminal} 区分每条的身份。</p>
+ *
+ * <p>⚠ <b>数仓聚合必须带口径，否则每条都会算错</b>：</p>
+ * <ul>
+ *   <li>客户端请求数 —— {@code where task_phase is null or task_phase = 'submit'}</li>
+ *   <li>上游调用数 —— 不加条件（同步 1 条 = 1 次调用；异步 1 + N 条 = 1 + N 次调用）</li>
+ *   <li>计费金额 —— {@code where task_phase is null or task_terminal = true}（同步事件不带
+ *       {@code task_phase}，天然全计）</li>
+ *   <li>失败率 —— <b>必须</b>加 {@code where task_phase is null or task_terminal = true}：
+ *       中间查询的失败（上游 5xx 后重试成功）会各自发一条带 {@code error} 的事件，
+ *       不过滤就会把「重试 5 次后成功」算成 5 次失败</li>
+ * </ul>
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
@@ -87,9 +103,55 @@ public record GatewayTrafficMsgDto(String schema,
                                    Map<String, Object> upstreamUsage,
                                    ModelUsage usage,
                                    BillingViewMsgDto billing,
+                                   String taskCode,
+                                   String taskPhase,
+                                   Boolean taskTerminal,
+                                   Integer taskQuerySeq,
                                    ErrorMsgDto error) implements Msg {
 
-    private static final String SCHEMA = "knot.gateway.traffic/1.0";
+    /**
+     * 契约版本。
+     *
+     * <p>⭐ <b>1.0 → 1.1 不是加字段，是改基数</b>（2026-10-28）：异步请求从「1 次请求 1 条事件」
+     * 变成「1 次提交 + N 次查询 = 1 + N 条事件」。字段层面完全向后兼容，但
+     * <b>任何按「一条消息 = 一次请求」写的消费逻辑都会静默多算</b>——这正是 {@code schema}
+     * 存在的意义，所以必须升版本，而不是沿用 1.0 只加字段。</p>
+     */
+    private static final String SCHEMA = "knot.gateway.traffic/1.1";
+
+    /**
+     * 异步任务身份：本次事件属于<b>哪一笔任务、哪个阶段</b>。
+     *
+     * <p>走 context 属性传递（{@link #ATTRIBUTE}）而不是给 {@link #of} 加参数：{@code of} 有三个调用点，
+     * 加参数要么改三处签名，要么让其中两处传 {@code null}。属性方案下模板层<b>完全不需要知道异步的存在</b>——
+     * 它照常发事件，事件自己带着身份走。这是与「抑制创建事件」路线的根本差别：
+     * 抑制丢掉了「提交」这次上游调用，而它确实发生过。</p>
+     *
+     * @param phase    {@link #PHASE_SUBMIT}（create 调用）或 {@link #PHASE_QUERY}（查询上游任务状态）
+     * @param terminal 该阶段是否已落终态；{@code submit} 恒 {@code false}
+     * @param querySeq 第几次查询，从 1 开始；{@code submit} 为 {@code null}。
+     *                 有它才能算出「第几次查询才拿到产物」，是异步任务延迟分布的唯一来源
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    public record TaskTrace(String taskCode, String phase, boolean terminal, Integer querySeq) {
+
+        /** context 属性名：由提交路径写入，{@link GatewayTrafficMsgDto#of} 读取 */
+        public static final String ATTRIBUTE = "asyncTaskTrace";
+
+        public static final String PHASE_SUBMIT = "submit";
+        public static final String PHASE_QUERY = "query";
+
+        /** 提交阶段：上游只回了 task_id，钱还没发生 */
+        public static TaskTrace submit(String taskCode) {
+            return new TaskTrace(taskCode, PHASE_SUBMIT, false, null);
+        }
+
+        /** 查询阶段：{@code terminal} 表示这次查询是否拿到的就是终态 */
+        public static TaskTrace query(String taskCode, int querySeq, boolean terminal) {
+            return new TaskTrace(taskCode, PHASE_QUERY, terminal, querySeq);
+        }
+    }
 
     /**
      * 路由维度快照：供多维统计直接切片。
@@ -151,6 +213,7 @@ public record GatewayTrafficMsgDto(String schema,
         ErrorMsgDto errorRecord = ErrorMsgDto.of(error);
         KnotExtendPayload payload = usage == null ? null : KnotExtendPayload.of(usage);
         CallTraceContext trace = context == null ? null : context.attribute(CallTraceContext.ATTRIBUTE);
+        TaskTrace task = taskTraceOf(context);
         return new GatewayTrafficMsgDto(
             SCHEMA,
             context == null ? null : context.traceId(),
@@ -176,7 +239,22 @@ public record GatewayTrafficMsgDto(String schema,
             upstreamUsageOf(usage),
             payload == null ? null : payload.usage(),
             billingView(usage),
+            task == null ? null : task.taskCode(),
+            task == null ? null : task.phase(),
+            task == null ? null : task.terminal(),
+            task == null ? null : task.querySeq(),
             errorRecord);
+    }
+
+    /**
+     * 异步任务身份；同步请求为 {@code null}，四个 {@code task_*} 字段随 {@code NON_NULL} 整段省略。
+     *
+     * <p>⚠ 同步事件<b>不带</b> {@code task_terminal}，所以数仓口径写的是
+     * {@code task_phase is null or ...} 而不是 {@code task_terminal = true}——
+     * 后者会把全部同步请求过滤掉。这条口径在类 javadoc 里也写了一遍，两处必须一致。</p>
+     */
+    private static TaskTrace taskTraceOf(GatewayRequestContext context) {
+        return context == null ? null : context.attribute(TaskTrace.ATTRIBUTE);
     }
 
     /**

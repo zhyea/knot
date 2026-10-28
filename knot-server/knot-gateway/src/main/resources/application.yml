@@ -127,6 +127,30 @@ knot:
     usage:
       # true = 降级放行 / false = 中断响应（宽松行为必须显式打开）
       degrade-on-failure: ${KNOT_GATEWAY_USAGE_DEGRADE_ON_FAILURE:false}
+    # ── 异步任务轮询（默认值集中在 AsyncTaskProperties）────────────────────────
+    # 待办集合就是 kb_async_tasks 这张表：cron 只决定「多久扫一次」，单个任务多久查一次
+    # 由行上的 next_poll_at 决定（来自档案的 poll_interval_ms 与退避参数）。
+    # ⚠ 多节点并发靠 DB 占位（claim_id + claim_expires_at），不引分布式锁。
+    #   claim-ttl-ms 是「一轮处理的时间预算上限」，必须大于 query-timeout-ms 且覆盖
+    #   「查询 + 视频转储 + 落终态」：不满足时启动即失败（AsyncTaskPoller#init）。
+    #   压小了不会丢数据（终态 CAS 仍唯一），但会让上游调用被算两遍、退避跳档。
+    # async-task:
+    #   enabled: ${KNOT_ASYNC_TASK_ENABLED:true}
+    #   # 扫描节拍（cron）：默认每分钟整点扫一次，不决定单个任务的查询间隔。
+    #   # 档案里的 poll_interval_ms 受它压制：节拍是下限，写 5s 也得等下一个整分才查。
+    #   tick-cron: ${KNOT_ASYNC_TASK_TICK_CRON:0 * * * * *}
+    #   # 单批抢占上限 / 单批内并发上游查询数（并发是「同时发几个查询」，不是占线程）
+    #   batch-size: ${KNOT_ASYNC_TASK_BATCH_SIZE:100}
+    #   concurrency: ${KNOT_ASYNC_TASK_CONCURRENCY:8}
+    #   # 单次「查任务状态」的超时；不要复用 upstream.response-timeout（那是生成型请求的 120s）
+    #   query-timeout-ms: ${KNOT_ASYNC_TASK_QUERY_TIMEOUT_MS:30000}
+    #   # 占位有效期 = 一轮处理的时间预算上限，必须严格大于 query-timeout-ms
+    #   claim-ttl-ms: ${KNOT_ASYNC_TASK_CLAIM_TTL_MS:180000}
+    #   # 超时回收 / 清理的单批上限与终态行保留天数
+    #   expire-batch-size: ${KNOT_ASYNC_TASK_EXPIRE_BATCH_SIZE:200}
+    #   retention-days: ${KNOT_ASYNC_TASK_RETENTION_DAYS:30}
+    #   # 节点标识（占位号前缀，便于查是哪个节点抢走了任务）；默认取主机名
+    #   node-id: ${KNOT_ASYNC_TASK_NODE_ID:}
   outage:
     # 异常摘除：纯进程内 Caffeine，无 store 开关。摘除是本节点自己的异常观察，
     # 不需要跨节点共享；放 Redis 反而让 Redis 故障同时打掉网关的自我保护能力。

@@ -52,12 +52,12 @@ class KafkaPublisherTest {
         assertEquals(TOPIC, template.sent(1).topic());
         assertEquals(m1.traceId(), template.sent(0).key(), "分区键取 msg.traceId()：合并后单主题单键");
         assertEquals(m2.traceId(), template.sent(1).key());
-        assertTrue(template.sent(0).payload().contains("knot.gateway.traffic/1.0"));
+        assertTrue(template.sent(0).payload().contains("knot.gateway.traffic/1.1"));
         assertTrue(template.sent(0).payload().contains("\"model_code\":\"gpt-4o\""),
                 "流量事件带真正请求的模型（统一模型 code）");
         assertTrue(template.sent(0).payload().contains("\"upstream_model_code\":\"gpt-4o-2024-07-18\""),
                 "流量事件带真正请求的模型（供应商模型 code）");
-        assertTrue(template.sent(1).payload().contains("knot.gateway.traffic/1.0"));
+        assertTrue(template.sent(1).payload().contains("knot.gateway.traffic/1.1"));
         assertEquals(2, publisher.sent());
         assertEquals(0, publisher.dropped());
     }

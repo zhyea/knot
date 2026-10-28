@@ -151,6 +151,44 @@ class RoutingResolverTest {
         assertEquals("Bound app is disabled", error.getMessage());
     }
 
+    // ---------- requireRuleAccess：不解析候选、只做「key × 规则」鉴权 ----------
+
+    @Test
+    void requireRuleAccessPassesForUsablePair() {
+        baselineConsumerAndRule();
+        // 探针：鉴权不解析候选模型，故「没有任何可用目标」不影响它放行
+        resolver().requireRuleAccess(SECRET_KEY, RULE_CODE);
+    }
+
+    @Test
+    void requireRuleAccessSharesEveryRejectionWithResolveByRule() {
+        baselineConsumerAndRule();
+        assertThrows(GatewayAuthException.class, () -> resolver().requireRuleAccess("bad-key", RULE_CODE));
+        assertThrows(GatewayInvalidRequestException.class, () -> resolver().requireRuleAccess(SECRET_KEY, "  "));
+
+        baselineConsumerAndRule();
+        cache.consumer = null;
+        assertThrows(GatewayAuthException.class, () -> resolver().requireRuleAccess(SECRET_KEY, RULE_CODE));
+
+        baselineConsumerAndRule();
+        cache.consumer.setStatus(0);
+        assertThrows(GatewayAuthException.class, () -> resolver().requireRuleAccess(SECRET_KEY, RULE_CODE));
+
+        baselineConsumerAndRule();
+        cache.rule = null;
+        assertThrows(GatewayAuthException.class, () -> resolver().requireRuleAccess(SECRET_KEY, RULE_CODE));
+
+        baselineConsumerAndRule();
+        cache.app = null;
+        assertThrows(GatewayAuthException.class, () -> resolver().requireRuleAccess(SECRET_KEY, RULE_CODE));
+
+        baselineConsumerAndRule();
+        cache.app.setStatus(0);
+        GatewayAuthException error = assertThrows(GatewayAuthException.class,
+                () -> resolver().requireRuleAccess(SECRET_KEY, RULE_CODE));
+        assertEquals("Bound app is disabled", error.getMessage());
+    }
+
     @Test
     void rejectsWhenNoEnabledTargetAvailable() {
         baselineConsumerAndRule();

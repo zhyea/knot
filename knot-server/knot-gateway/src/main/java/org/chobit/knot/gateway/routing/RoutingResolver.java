@@ -80,6 +80,55 @@ public class RoutingResolver {
      * @param protocol  本次请求的接口协议；为 null（未识别协议）时不作过滤，沿用原有候选链
      */
     public ResolvedRouting resolveByRule(String secretKey, String ruleCode, String stickyKey, ModelApiProtocolEnum protocol) {
+        RuleAccess access = resolveAccess(secretKey, ruleCode);
+        RoutingRuleEntity rule = access.rule();
+        List<RoutingRuleTargetDto> candidates =
+                resolveCandidateModels(rule.getRuleCode(), stickyKey, rule.getSelectionStrategy());
+        if (candidates.isEmpty()) {
+            throw new GatewayUpstreamException(
+                    "No enabled routing target is available",
+                    ProxyErrorCodeEnum.NO_ROUTING_TARGET.code()
+            );
+        }
+        candidates = filterByProtocol(candidates, protocol);
+        if (candidates.isEmpty()) {
+            throw new GatewayUpstreamException(
+                    "No routing target supports protocol " + protocol.canonical().code(),
+                    ProxyErrorCodeEnum.NO_ROUTING_TARGET.code()
+            );
+        }
+        GatewayRoutingContext routingContext = buildRoutingContext(rule, access.consumer(), access.app());
+        return new ResolvedRouting(rule.getId(),
+                rule.getRuleCode(),
+                access.consumer().getId(),
+                access.consumer().getSecretKey(),
+                Boolean.TRUE.equals(access.consumer().getReturnUsageDetail()),
+                candidates,
+                routingContext,
+                RetryPolicy.parse(rule.getRetryPolicy()),
+                EjectionPolicy.parse(rule.getEjectionPolicy()));
+    }
+
+    /**
+     * 校验「API Key × 规则编码」是否是一对可用组合；不解析候选模型、不做池内选择。
+     *
+     * <p>供不发起上游调用、但需要同一个鉴权口径的端点使用（异步任务查询端点）。</p>
+     *
+     * @throws GatewayAuthException        键无效、消费者不可用、或该消费者无权使用这条规则
+     * @throws GatewayInvalidRequestException 规则编码为空
+     */
+    public void requireRuleAccess(String secretKey, String ruleCode) {
+        resolveAccess(secretKey, ruleCode);
+    }
+
+    /**
+     * 「API Key × 规则」鉴权的<b>唯一实现</b>。
+     *
+     * <p>⭐ 抽成单一方法而不是两处各写一遍：这份判定的任何一条
+     * （key 形态 / 消费者存在且启用 / 规则属于该消费者 / 应用存在且启用）漏在另一处，
+     * 就等于开了一个绕开鉴权的旁路，而编译期完全看不出来。</p>
+     */
+    private RuleAccess resolveAccess(String secretKey, String ruleCode) {
         if (!RoutingSecretKeyGenerator.isRoutingSecretKey(secretKey)) {
             throw new GatewayAuthException("Invalid consumer API key");
         }
@@ -104,31 +153,11 @@ public class RoutingResolver {
         if (!EnabledStatusEnum.isEnabled(app.getStatus())) {
             throw new GatewayAuthException("Bound app is disabled");
         }
-        List<RoutingRuleTargetDto> candidates =
-                resolveCandidateModels(rule.getRuleCode(), stickyKey, rule.getSelectionStrategy());
-        if (candidates.isEmpty()) {
-            throw new GatewayUpstreamException(
-                    "No enabled routing target is available",
-                    ProxyErrorCodeEnum.NO_ROUTING_TARGET.code()
-            );
-        }
-        candidates = filterByProtocol(candidates, protocol);
-        if (candidates.isEmpty()) {
-            throw new GatewayUpstreamException(
-                    "No routing target supports protocol " + protocol.canonical().code(),
-                    ProxyErrorCodeEnum.NO_ROUTING_TARGET.code()
-            );
-        }
-        GatewayRoutingContext routingContext = buildRoutingContext(rule, consumer, app);
-        return new ResolvedRouting(rule.getId(),
-                rule.getRuleCode(),
-                consumer.getId(),
-                consumer.getSecretKey(),
-                Boolean.TRUE.equals(consumer.getReturnUsageDetail()),
-                candidates,
-                routingContext,
-                RetryPolicy.parse(rule.getRetryPolicy()),
-                EjectionPolicy.parse(rule.getEjectionPolicy()));
+        return new RuleAccess(consumer, rule, app);
+    }
+
+    /** 一次鉴权通过后的三元组，供解析链路继续用（避免调用方再查一遍） */
+    private record RuleAccess(RoutingConsumerEntity consumer, RoutingRuleEntity rule, AppEntity app) {
     }
 
     /**

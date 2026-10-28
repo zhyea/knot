@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.chobit.knot.dal.mapper.AsyncTaskMapper">
+
+    <sql id="TaskColumns">
+        id, task_code, profile_code, protocol, upstream_task_id, external_task_id, status, attempts,
+        next_poll_at, claim_id, claim_expires_at, last_polled_at,
+        request_json, poll_spec_json, context_json, result_json, error_code, error_message,
+        billing_rule_code, billing_rule_version_code,
+        submitted_at, completed_at, expires_at, result_expires_at, created_at, updated_at
+    </sql>
+
+    <select id="getById" resultType="org.chobit.knot.dal.entity.AsyncTaskEntity">
+        select <include refid="TaskColumns"/>
+        from kb_async_tasks
+        where id = #{id}
+    </select>
+
+    <select id="getByTaskCode" resultType="org.chobit.knot.dal.entity.AsyncTaskEntity">
+        select <include refid="TaskColumns"/>
+        from kb_async_tasks
+        where task_code = #{taskCode}
+    </select>
+
+    <select id="getByClaimId" resultType="org.chobit.knot.dal.entity.AsyncTaskEntity">
+        select <include refid="TaskColumns"/>
+        from kb_async_tasks
+        where claim_id = #{claimId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into kb_async_tasks(task_code, profile_code, protocol, upstream_task_id, external_task_id,
+                                   status, attempts, next_poll_at, claim_id, claim_expires_at, last_polled_at,
+                                   request_json, poll_spec_json, context_json, result_json,
+                                   error_code, error_message, billing_rule_code, billing_rule_version_code,
+                                   submitted_at, completed_at, expires_at, result_expires_at)
+        values(#{taskCode}, #{profileCode}, #{protocol}, #{upstreamTaskId}, #{externalTaskId},
+               #{status}, #{attempts}, #{nextPollAt}, #{claimId}, #{claimExpiresAt}, #{lastPolledAt},
+               #{requestJson}, #{pollSpecJson}, #{contextJson}, #{resultJson},
+               #{errorCode}, #{errorMessage}, #{billingRuleCode}, #{billingRuleVersionCode},
+               #{submittedAt}, #{completedAt}, #{expiresAt}, #{resultExpiresAt})
+    </insert>
+
+    <!-- 原子抢占：一条 UPDATE 借行锁完成，再按 claim_id 回查（见 getByClaimId）。
+         只抢在途态（PENDING / POLLING）、已到期、尚未超时（expires_at 未到）、且未被有效占位的行。
+         expires_at > now(3) 不是为了「顺手」，而是为了让本轮抢到的行一定不会同时被
+         claimExpired 挑中：一条行只走一条路，不必依赖两个节拍的先后顺序。 -->
+    <update id="claim">
+        update kb_async_tasks
+        set claim_id = #{claimId},
+            claim_expires_at = #{claimExpires},
+            last_polled_at = now(3)
+        where status in ('PENDING', 'POLLING')
+          and next_poll_at &lt;= now(3)
+          and expires_at &gt; now(3)
+          and (claim_id is null or claim_expires_at &lt; now(3))
+        order by next_poll_at asc
+        limit #{limit}
+    </update>
+
+    <!-- 超时回收的抢占：与 claim 互补，只挑已过 knot 侧超时的行。
+         同样要求「未被有效占位」——读到就改会让本节点用过期结论覆盖别人正在处理的行。
+         不写 last_polled_at：这一轮没有真的查上游。 -->
+    <update id="claimExpired">
+        update kb_async_tasks
+        set claim_id = #{claimId},
+            claim_expires_at = #{claimExpires}
+        where status in ('PENDING', 'POLLING')
+          and expires_at &lt;= now(3)
+          and (claim_id is null or claim_expires_at &lt; now(3))
+        order by expires_at asc
+        limit #{limit}
+    </update>
+
+    <!-- 非终态推进：claim_id 条件是「租约」的兑付口。占位已易主（本节点处理超时、被别的节点回收）
+         时影响行数为 0，调用方据此不再发查询事件——否则同一个 task_query_seq 会出现两条，
+         数仓按 (task_code, task_phase, task_query_seq) 去重后会把两次真实上游调用压成一条。 -->
+    <update id="scheduleNext">
+        update kb_async_tasks
+        set status = 'POLLING',
+            attempts = attempts + 1,
+            next_poll_at = #{nextPollAt},
+            last_polled_at = #{lastPolledAt},
+            claim_id = null,
+            claim_expires_at = null
+        where id = #{id}
+          and claim_id = #{claimId}
+          and status in ('PENDING', 'POLLING')
+    </update>
+
+    <!-- 终态 CAS：在途态 + 仍持有占位才落终态，影响行数 = 1 才发终态事件。
+         少掉 claim_id 条件时的现象是「两个节点各发一条终态事件」：后者的 status 条件此时
+         已经过不了，但如果它抢在 CAS 之前读了行，就可能带着旧的 attempts 发出第二条——
+         租约条件把「谁有权说话」也从「状态没变」升级成「确实是我在负责」。 -->
+    <update id="complete">
+        update kb_async_tasks
+        set status = #{status},
+            result_json = #{resultJson},
+            error_code = #{errorCode},
+            error_message = #{errorMessage},
+            completed_at = #{completedAt},
+            next_poll_at = null,
+            claim_id = null,
+            claim_expires_at = null
+        where id = #{id}
+          and claim_id = #{claimId}
+          and status in ('PENDING', 'POLLING')
+    </update>
+
+    <delete id="deleteCompletedBefore">
+        delete from kb_async_tasks
+        where status not in ('PENDING', 'POLLING')
+          and completed_at &lt; #{before}
+        limit #{limit}
+    </delete>
+
+</mapper>

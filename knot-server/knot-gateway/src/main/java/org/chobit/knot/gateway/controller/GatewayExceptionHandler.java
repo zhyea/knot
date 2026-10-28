@@ -40,8 +40,14 @@ import java.util.concurrent.TimeoutException;
  * </ul>
  * </p>
  */
+/**
+ * 覆盖范围显式列出，不用默认（全局）：管理面与网关的控制器同在一个容器里，
+ * 默认全局会把其它模块的异常也吞进来，错误形状跟着网关走就错了。
+ * 异步任务查询端点（{@link GatewayTaskController}）不继承 {@link GatewayControllerSupport}
+ * ——它不发起代理请求，但必须共用同一套错误翻译，故单独列出。
+ */
 @Slf4j
-@RestControllerAdvice(assignableTypes = GatewayControllerSupport.class)
+@RestControllerAdvice(assignableTypes = {GatewayControllerSupport.class, GatewayTaskController.class})
 public class GatewayExceptionHandler {
 
     /**

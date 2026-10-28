@@ -27,6 +27,13 @@ public class ModelApiBindingEntity {
      */
     private String usageExtractor;
     private String streamUsageExtractor;
+    /**
+     * 异步任务档案编码（{@code kb_async_task_profiles.profile_code}）；为空表示同步链路。
+     *
+     * <p>⭐ 异步与否是「绑定」的属性，不是协议的属性：同为 {@code VIDEO_GENERATIONS}，
+     * 可灵 / MiniMax 是异步（提交 + 轮询），其它模型可能同步。判异步一律看本列有没有值。</p>
+     */
+    private String asyncProfileCode;
     /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
     private Integer status;
     private String remark;

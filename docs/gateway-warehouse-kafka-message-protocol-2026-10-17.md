@@ -8,6 +8,10 @@
 
 > **2026-10-27 追加用量三视图**（robin 拍板）：顶层新增 `upstream_usage`（上游 `usage` 原文，与 `usage` **同级**）；`usage`（`ModelUsage`）扩容为「归一化用量 + `attributes` 计费属性」，输出侧新增 `video_count`。动机：下游要能**只凭消息自行复算价格**（转卖 token / 成本分摊 / 毛利核算），而网关**不下发计费规则内容**，故量与分档键必须齐备，原文用于回溯口径。schema 仍为 `knot.gateway.traffic/1.0`（加字段向后兼容）。设计与实施记录见 `docs/统一视频用量模型-2026-10-27.md` §五之六。
 
+> **2026-10-28 异步任务改为 1 + N 条，schema 升 1.1**（robin 拍板：改路 B）。此前异步提交时**抑制**创建事件，只由轮询器发一条终态——等于把「1 次提交 + N 次查询」压成「1 条事件」，提交那次上游调用与中间每一次查询在数仓里全部消失，上游成本、产物延迟分布、「重试 5 次才成功」全部算不出来。
+> 现在**不抑制**，改为给每条事件打身份：顶层新增 `task_code` / `task_phase` / `task_terminal` / `task_query_seq` 四个字段（同步请求不带，`NON_NULL` 整段省略）。
+> **升版本的理由**：字段层面纯追加，但消息基数从「1 请求 1 条」变成「1 + N 条」——按 `count(*)` 当请求数写的消费逻辑会静默放大，这属于破坏性变更，不能用「加字段向后兼容」搪塞。**数仓聚合必须按下表加口径**（§2.1）。
+
 ## 1. 模型总览
 
 ```
@@ -21,11 +25,21 @@
                          status/ttft/usage/billing/error/attempts）
 ```
 
+> **2026-10-28 破例：异步任务是 1 + N 条，不是 1 条**（robin 拍板改路 B）。异步请求在上游的真实开销是
+> **1 次 create + N 次 query**（N 由产物耗时与轮询间隔决定，视频任务可达数百），所以这类请求**发 1 + N 条事件**，
+> 靠 `task_code` 归到同一笔任务，用 `task_phase`（`submit` / `query`）与 `task_terminal` 区分每条的身份。
+> schema 升 `knot.gateway.traffic/1.1`：字段层面纯追加，但**消息基数变了**，
+> 「一条消息 = 一次请求」的假设不再成立。同步请求仍然严格 1 条，且不带任何 `task_*` 字段。
+
 | 消息 | Topic | 发送时机 | 内容 |
 |---|---|---|---|
-| 流量事件（单条） | `knot-gateway-traffic-event` | **请求终态**：非流式在用量记账后发；流式在响应体写完的 finally 发；异常路径（含入口即拒）在 catch 发 | 入口维度快照（routing）+ **真正请求的模型**（hit）+ 处置结果（status/ttft/usage/billing/error/attempts），一条记录表达一次请求的完整事实 |
+| 流量事件（同步 1 条） | `knot-gateway-traffic-event` | **请求终态**：非流式在用量记账后发；流式在响应体写完的 finally 发；异常路径（含入口即拒）在 catch 发 | 入口维度快照（routing）+ **真正请求的模型**（hit）+ 处置结果（status/ttft/usage/billing/error/attempts），一条记录表达一次请求的完整事实 |
+| 流量事件（异步 1 + N 条） | 同上 | 提交时 1 条（`task_phase=submit`）；**每次查询上游任务状态发 1 条**（`task_phase=query`），其中拿到终态那次 `task_terminal=true` 并带用量与计费 | 同上；中间查询那条 `usage` / `billing` 为 null，只带 `task_query_seq` 与（若失败）`error` |
 
 **自关联键**：`trace_id`（W3C traceparent 派生）。消息内 `received_at` / `finished_at` / `duration_ms` 由网关自己填，数仓按 `trace_id` 幂等 upsert（at-least-once）。**入口即拒（鉴权 / Rule 头校验失败）同样发一条**：`routing` 为 null、`hit` 为 null、`error.stage`=header_validate——这是设计口径，单条记录即可表达，**无需请求层/响应层 left join**。
+
+⚠ 异步任务**不能**按 `trace_id` 去重：1 + N 条共用同一个 trace **与同一个 span**（同一次客户端请求），
+去重键必须是 `(task_code, task_phase, task_query_seq)` 三元组；同步记录该三元组全 null，退回 `trace_id` 幂等。
 
 **与旧三表方案的差异（打平说明）**：
 
@@ -40,7 +54,7 @@
 
 ```json
 {
-  "schema": "knot.gateway.traffic/1.0",
+  "schema": "knot.gateway.traffic/1.1",
   "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
   "span_id": "00f067aa0ba902b7",
   "node_id": "gw-01",
@@ -103,7 +117,7 @@
 
 ```json
 {
-  "schema": "knot.gateway.traffic/1.0",
+  "schema": "knot.gateway.traffic/1.1",
   "trace_id": "ab12...", "span_id": "00f0...", "node_id": "gw-01",
   "received_at": "2026-10-17T07:12:33.412+08:00", "finished_at": "2026-10-17T07:12:33.455+08:00",
   "duration_ms": 43, "protocol": "CHAT_COMPLETIONS", "stream": false, "sticky_key": null,
@@ -144,7 +158,7 @@
 
 | 字段 | 类型 | 来源 |
 |---|---|---|
-| `trace_id` / `span_id` | string | `GatewayTraceContext` |
+| `trace_id` / `span_id` | string | `GatewayTraceContext`。⚠ 异步的 1 + N 条**两者都相同**（`replay` 保住提交那次的 span），区分查询靠 `task_query_seq` |
 | `request_id` | string | `GatewayTraceContext.requestId()`：网关入口生成的 32 位小写 hex，已以 `X-Request-Id` 透传给上游（2026-10-23 新增） |
 | `node_id` | string | 部署实例标识（按主机名自动探测，无配置项） |
 | `received_at` / `finished_at` | ISO-8601 带偏移 | `GatewayRequestContext.receivedAtMillis` / `System.currentTimeMillis()` |
@@ -158,7 +172,11 @@
 | `ttft_ms` / `hit` | 可空 | 异常路径为 null，禁填 0（0 是合法值，null 是无数据） |
 | `attempts[]` / `retry_total` / `failover_total` / `ejected_skipped` / `fail_open` | — | 候选循环轨迹（`CallTraceContext`）；详见 §3 attempts 规则（含 attempt 级上游 `upstream_request_id`） |
 | `upstream_usage` / `usage` / `billing` | 可空 | 成功路径才有；`billing` 命中计费规则才非 null。**用量三视图**，见下方专段（2026-10-27 新增 `upstream_usage`） |
-| `error` | 可空 | 统一错误结构，**成功为 null**；详见 §3 |
+| `task_code` | string 可空 | 异步任务句柄；**同步请求为 null**。同一笔任务的 1 + N 条事件共用它（2026-10-28 新增） |
+| `task_phase` | string 可空 | `submit`（create 调用）/ `query`（查询上游任务状态）；同步为 null |
+| `task_terminal` | bool 可空 | 该阶段是否已落终态。`submit` 恒 false；`query` 中拿到产物/失败/超时那次为 true。**计费与失败率只看这一个字段** |
+| `task_query_seq` | int 可空 | 第几次查询，从 1 开始；`submit` 为 null（不是 0——0 会被误读成「查了 0 次」）。异步任务的延迟分布只能靠它 |
+| `error` | 可空 | 统一错误结构，**成功为 null**；详见 §3。⚠ 异步任务的中间查询失败也会带 `error`（`code=UPSTREAM_QUERY_ERROR`），统计失败率必须过滤 `task_terminal`，见 §2.1 |
 
 **`routing`（RoutingSnapshot，14 字段）**：rule_code / rule_name / app_scenario / consumer_code / consumer_name / app_code / app_name / dept_code / dept_name / consumer_username / app_owner_username / return_usage_detail / target_type / candidate_count。`target_type` 按首个候选是否带来源池 code 还原 MODEL / MODEL_POOL（池展开后候选 targetType 被路由统一改写为 MODEL，规则维度的真实目标类型靠首个候选 poolCode 还原）。**全部为业务码 / username，无主键 id**。
 
@@ -218,6 +236,76 @@ billing（NormalizedUsage：金额与明细）
 
 **`billing`（BillingViewMsgDto）**：rule_code / rule_version / billing_mode / pricing_plan / total_tokens / total_cost / currency + `detail[]`（逐类用量金额行：type / tokens / cost / price，金额十进制普通字符串、不设小数位上限）；「免费」与「没配置计费」靠 billing 是否为 null 区分（两件事）。
 
+### 2.1 异步任务：1 + N 条事件与聚合口径（2026-10-28）
+
+一笔异步任务（`VIDEO_GENERATIONS` 这类「提交即返回 task_id」的协议）产生 **1 + N 条事件**：
+
+```json
+// ① 提交（客户端拿 202）：task_phase=submit，没有用量
+{ "schema": "knot.gateway.traffic/1.1", "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736", "span_id": "00f067aa0ba902b7", "request_id": "9f2a...",
+  "protocol": "VIDEO_GENERATIONS", "status": "success", "http_status": 202,
+  "task_code": "a3f1c9e0b7d24a5f8c6e1b0d9a7f3e2c", "task_phase": "submit",
+  "task_terminal": false, "usage": null, "billing": null, "error": null }
+
+// ② 中间查询第 5 次：还在跑，没有用量
+{ "schema": "knot.gateway.traffic/1.1", "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736", "span_id": "00f067aa0ba902b7",
+  "protocol": "VIDEO_GENERATIONS", "status": "success", "http_status": 200,
+  "task_code": "a3f1c9e0b7d24a5f8c6e1b0d9a7f3e2c", "task_phase": "query",
+  "task_terminal": false, "task_query_seq": 5, "usage": null, "billing": null }
+
+// ③ 中间查询第 9 次：上游 5xx，要重试 —— 带 error，但仍是中间态
+{ "schema": "knot.gateway.traffic/1.1", "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736", "span_id": "00f067aa0ba902b7",
+  "protocol": "VIDEO_GENERATIONS", "status": "upstream_error", "http_status": 502,
+  "task_code": "a3f1c9e0b7d24a5f8c6e1b0d9a7f3e2c", "task_phase": "query",
+  "task_terminal": false, "task_query_seq": 9, "usage": null, "billing": null,
+  "error": { "type": "upstream_error", "code": "UPSTREAM_QUERY_ERROR", "http_status": 502, "stage": "upstream" } }
+
+// ④ 第 14 次查询拿到产物：终态，带用量与计费
+{ "schema": "knot.gateway.traffic/1.1", "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736", "span_id": "00f067aa0ba902b7",
+  "protocol": "VIDEO_GENERATIONS", "status": "success", "http_status": 200,
+  "task_code": "a3f1c9e0b7d24a5f8c6e1b0d9a7f3e2c", "task_phase": "query",
+  "task_terminal": true, "task_query_seq": 14,
+  "usage": { ... }, "billing": { ... }, "error": null }
+```
+
+**数仓聚合口径（必须带，否则每条都会算错）**：
+
+```sql
+-- 客户端请求数：同步全算，异步只算提交那条
+where task_phase is null or task_phase = 'submit'
+
+-- 上游调用数：不加条件。同步 1 条 = 1 次调用；异步 1 + N 条 = 1 + N 次真实调用
+-- （这正是本次改路 B 保住的唯一事实——旧口径把 N-1 次查询全抹掉了）
+
+-- 计费金额：同步全算，异步只算终态
+where task_phase is null or task_terminal = true
+
+-- 失败率：⚠ 必须同样过滤，否则「重试 5 次后成功」会被算成 5 次失败
+where task_phase is null or task_terminal = true
+
+-- 产物延迟分布（异步独有）：提交时间 → 终态的 finished_at - 提交的 finished_at
+--   task_query_seq 就是「等了几次轮询」，两者一起才解释得了延迟
+```
+
+**幂等键**：同步记录按 `trace_id`；异步必须按 `(task_code, task_phase, task_query_seq)`——
+1 + N 条共用一个 trace（同一次客户端请求），只按 trace 去重会把 14 条压成 1 条。
+
+**追踪坐标**：同一笔任务的 1 + N 条消息**共用同一个 `trace_id` 和同一个 `span_id`**（2026-10-28 定）。
+N 次上游查询实际发出的 `traceparent` 头也是提交那一个，于是供应商侧的链路视图里
+「一次提交 + N 次查询」是同一父 span 下的 N 个子调用，与我们的数仓口径对得上。
+要区分第几次查询看 `task_query_seq`，**不要指望 span_id 区分**——它被刻意做成不变量。
+
+> 实现上的一个坑（已修）：`GatewayTraceContext.fromTraceparent` 的语义是
+> 「解析入站 trace + 为**本次**请求生成新 span」，用它重建已发生过的那次请求，
+> trace_id 对得上但 span_id 每次都变 → 数仓按 `(trace_id, span_id)` 聚不到一组。
+> 轮询侧必须走 `GatewayTraceContext.replay(traceparent, requestId)`：沿用第 3 段作为本次 span，
+> 并复用提交时的 `request_id`。守门测试 `AsyncTaskCompletionTraceTest`——
+> 它跑的是真实 `publish()`，把 `replay` 换回 `fromTraceparent` 必备（且只它会变红，
+> 单测 `GatewayTraceContextTest` 全绿，因为它碰不到 `publish`）。
+
+**已知边界**：中间查询的 `usage` / `billing` 恒为 null。若某家上游**对查询接口本身计费**，
+这个成本当前不计入（提取器口径是产物口径）——需要时另开事件类型，不在本条消息里硬塞。
+
 ## 3. 错误信息（error 对象）
 
 统一 error 对象，上游异常与网关异常同形状，靠 `type` / `stage` / `upstream` 区分：
@@ -263,23 +351,27 @@ billing（NormalizedUsage：金额与明细）
 |---|---|
 | Broker 依赖 | spring-kafka 已落 knot-gateway pom（§7）；knot-common 保持纯净，事件类不提权供插件用 |
 | Topic | `knot-gateway-traffic-event`（配置里写全名，不拼前缀）；契约版本在消息 `schema` 字段里演进，主题名保持稳定；不兼容变更才换主题名（显式改配置） |
-| Key | `trace_id`（同请求同 key → 同分区保序，消费者可按 `trace_id` 幂等 upsert） |
+| Key | `trace_id`（同请求同 key → 同分区保序，消费者可按 `trace_id` 幂等 upsert）。⚠ 异步任务的 1 + N 条同 key 同分区 → **天然保序**，提交在前、查询在后，数仓不会先看到终态再看到提交 |
 | 序列化 | JSON（复用现有 `JsonKit`，cost 为十进制普通字符串、不设小数位上限） |
 | 生产端 | **Kafka 原生 async**（robin 2026-10-18 拍板「是 kafka 的 async」）：调用线程 `kafkaTemplate.send()` 提交即返回，不等 ack（同步等 ack 会把 broker RTT 算进 TTFT，是请求链路红线）；投递异步性完全由生产者客户端承担（accumulator 缓冲 + sender 后台线程），**不建自建队列、不起投递线程**；`KafkaPublisher.warmUp(...)` 在启动期预热主题的元数据，消化「首次发送时元数据未就绪」这个最常见的 `max.block.ms` 等待场景 |
-| 投递语义 | at-least-once（Kafka 默认）；重复消费由数仓侧按 `trace_id` 幂等（单条消息即请求终态，upsert 直接） |
+| 投递语义 | at-least-once（Kafka 默认）；重复消费由数仓侧幂等：同步按 `trace_id`（单条即终态，upsert 直接），异步按 `(task_code, task_phase, task_query_seq)`（1 + N 条共用一个 trace，只按 trace 去重会压成 1 条） |
 | 失败兜底 | 同步异常（`max.block.ms` 超时等，send 调用点抛出）与异步回调失败（broker 拒收/网络抖动，回调里才暴露）**两路统一落死信文件**（`kafka.dlq-path`，默认 `logs/kafka-dlq` **开启**——数据不丢是设计目标）；计数：publisher 的 sent/dropped + writer 的 written/lost；**绝不让消息失败影响请求主链路** |
 | 消息体积 | attempts≤~10 + billing.detail≤6 + 扁平字段，整体 < 8KB；上游 responseBody / 原始请求体**绝不入消息** |
-| 乱序 | 单条消息，无两层乱序；多节点到达序以 `received_at` 为准修正即可（不再需要 left join / 窗口关联） |
+| 乱序 | 同步单条，无两层乱序；异步 1 + N 条同 key 同分区，天然保序（提交必在查询之前）。多节点到达序以 `received_at` 为准修正即可（不再需要 left join / 窗口关联） |
 
-### 埋点位置（终态三处发布）
+### 埋点位置（同步 3 处 + 异步 2 处）
 
 | 消息 | 埋点 | 代码位置 |
 |---|---|---|
 | traffic（非流式成功） | `applyUsageAccounting` 返回后、`GATEWAY_RESPONSE` 插件前 | `AbstractGatewayRequestTemplate.java`（`trafficTopic` 由模板持有） |
 | traffic（失败 / 入口即拒） | catch 块内、`GATEWAY_ERROR` 插件派发前后均可（建议前，保证插件改写也被记录）；入口即拒照发（去掉旧的 `if (routing != null)` 判定） | `AbstractGatewayRequestTemplate.java` |
 | traffic（流式） | `ProxyStreamingBody.writeTo` 的 finally（流写完/断连）——usage 与 TTFT 此时才齐 | `ProxyStreamingBody.java` |
+| traffic（异步提交，`task_phase=submit`） | 走上面第 1 处（**不再抑制**）；`GatewayRequestHandler.applyUsageAccounting` 在任务行落库后往 context 写 `TaskTrace.submit(taskCode)`，事件构造时读取 | `GatewayRequestHandler.java` → `GatewayTrafficMsgDto.of` |
+| traffic（异步每次查询，`task_phase=query`） | 轮询器 `apply()` 的 `RESCHEDULE` 分支发中间事件、`finish()` 发终态事件；两者共用 `AsyncTaskCompletion.publish(...)` 一处装配 | `AsyncTaskPoller.java` → `AsyncTaskCompletion.java` |
 
 > 合并后发布点由原先 4 处（proxy 后发请求层 + 成功发响应层 + catch 发响应层 + 流式 finally 发响应层）收敛为 **3 处终态**（均发同一条 `GatewayTrafficMsgDto`）：非流式成功、异常、流式完成。入口即拒路径同样发一条（routing/hit 为 null），不再依赖请求层独立消息。
+>
+> **2026-10-28 补：异步任务在第 1 处之外另有 1 处（轮询器），合计 2 个"物理发布点"**。这三处仍然是 `publishTraffic` 的**唯一出口**（`protected final`），轮询器侧不是走它而是自己的 `AsyncTaskCompletion`——因为它拿不到请求线程的 context，只能按任务快照重建。两处装配必须用同一份 `GatewayTrafficMsgDto.of`，否则字段口径会漂。⚠ 曾经为了让异步"只发一条"而在 `publishTraffic` 里挂抑制钩子，**已整体废除**：抑制掉的是真实发生过的上游调用。
 
 ## 5. 数仓消费与维表（不变部分）
 
@@ -299,9 +391,9 @@ billing（NormalizedUsage：金额与明细）
 8. **多节点**：消息必带 `node_id`（按主机名自动探测，无配置项——admin 侧 `NodeIdentity` 同路线）；Redis 计数器才是全局口径。
 9. **脱敏**：`secretKey` 禁入消息；`error.message` 截断 ≤512；上游响应体禁入。
 10. **媒体类** token 可为 0 但张数/秒数非 0，勿只看 token。
-11. **（Kafka 新增）重复**：at-least-once，按 `trace_id` 幂等 upsert（单条消息即终态，upsert 直接、无需 left join）。
+11. **（Kafka 新增）重复**：at-least-once，按 `trace_id` 幂等 upsert（同步单条即终态，upsert 直接、无需 left join）；异步任务改按 `(task_code, task_phase, task_query_seq)` 去重（2026-10-28）。
 12. **（Kafka 新增）丢失**：直推失败 → 死信文件（默认开启）+ written/lost 计数；**不丢数据是设计目标**，唯一丢失窗口是死信文件本身写不进去（磁盘满 / 权限），此时 ERROR 日志即报警（全仓无 webhook/Notifier）。
-13. **（Kafka 新增）乱序**：单条消息模型已消除「两层消息到达序 ≠ 发生序」问题；多节点到达仍以 `received_at` 修正，勿假设到达序 = 发生序（但不再需要窗口关联 / left join）。
+13. **（Kafka 新增）乱序**：单条消息模型已消除「两层消息到达序 ≠ 发生序」问题；多节点到达仍以 `received_at` 修正，勿假设到达序 = 发生序（但不再需要窗口关联 / left join）。异步 1 + N 条同 key 同分区保序，前提是**不要给异步事件换 key**。
 14. **（Kafka 新增）直推阻塞边界**：`max.block.ms=1000` 封顶「拿元数据 / 等 accumulator 缓冲」的等待；Kafka 持续故障且 32MB 缓冲也满时请求/流式收尾线程最多阻塞 1s/事件——已向 robin 如实披露的有界残留风险；`warmUp()` 预热已把最常见触发场景（启动后首次发送）提前消化，运行期元数据过期刷新仍可能撞上。
 
 ## 7. 落地状态（2026-10-17 起草；2026-10-18 多轮重构 + 当晚「合并」拍板，代码未 commit）

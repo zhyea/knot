@@ -7,6 +7,8 @@ import org.chobit.knot.common.constants.GatewayHeaders;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
+import org.chobit.knot.gateway.async.AsyncTaskAccepted;
+import org.chobit.knot.gateway.async.AsyncTaskSupport;
 import org.chobit.knot.gateway.exception.GatewayQuotaException;
 import org.chobit.knot.gateway.exception.GatewayRateLimitException;
 import org.chobit.knot.gateway.exception.GatewayRequestException;
@@ -38,7 +40,6 @@ import org.chobit.knot.gateway.traffic.TrafficDecision;
 import org.chobit.knot.gateway.traffic.TrafficUsage;
 import org.chobit.knot.gateway.kafka.CallTraceContext;
 import org.chobit.knot.gateway.kafka.KafkaPublisher;
-import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
 import org.chobit.knot.gateway.upstream.UpstreamProxyClient;
 import org.chobit.knot.gateway.upstream.stream.ProxyStreamingFlux;
 import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
@@ -106,18 +107,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     /**
      * 网关域指标出口（限流 / 额度拒绝、摘除、上游失败、failover、代理耗时）。
      * 非 Spring 单元测试构造本类时为 null，所有埋点一律判空——
-     * 与 {@code eventPublisher} 同款处理：观测开关不应改变请求链路的结构。
+     * 与父类的 {@code eventPublisher} 同款处理：观测开关不应改变请求链路的结构。
      */
     private final GatewayMetrics metrics;
-    /**
-     * Kafka 投递器；未开启 Kafka 事件输出（{@code kafka.enabled=false}）时为 {@code null}。
-     */
-    private final KafkaPublisher eventPublisher;
-
-    /**
-     * 流量事件主题全名（埋点业务侧维护；终态发布用，含流式 finally）。
-     */
-    private final String trafficTopic;
 
     /**
      * 阻塞段调度器（{@code gatewayBlockingScheduler}）：上游调用是阻塞契约，必须离开 event loop 执行。
@@ -128,11 +120,17 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     private final Scheduler blockingScheduler;
 
     /**
+     * 异步任务支持（提交 + 轮询）；非 Spring 单测构造本类时为 {@code null}，此时全部请求走同步链路。
+     */
+    private final AsyncTaskSupport asyncTaskSupport;
+
+    /**
      * Constructs a new instance.
      *
      * @param eventPublisher    Kafka 投递器（未开启事件输出时为 {@code null}）
      * @param trafficTopic      流量事件主题全名（埋点业务侧维护，取自 {@code kafka.topic.traffic}）
      * @param blockingScheduler 阻塞段调度器（单测可为 {@code null}）
+     * @param asyncTaskSupport  异步任务支持（单测可为 {@code null}）
      */
     public GatewayRequestHandler(UpstreamProxyClient proxyService,
                                  RoutingResolver routingAuthService,
@@ -147,7 +145,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                                  @Nullable KafkaPublisher eventPublisher,
                                  @Value("${kafka.topic.traffic}") String trafficTopic,
                                  @Nullable GatewayMetrics metrics,
-                                 @Nullable Scheduler blockingScheduler) {
+                                 @Nullable Scheduler blockingScheduler,
+                                 @Nullable AsyncTaskSupport asyncTaskSupport) {
         super(pluginDispatcher, moderationWordResource, eventPublisher, trafficTopic);
         this.proxyClient = proxyService;
         this.routingResolver = routingAuthService;
@@ -157,10 +156,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         this.modelLoadKeys = modelLoadKeys;
         this.outageTracker = outageTracker;
         this.outageKeys = outageKeys;
-        this.eventPublisher = eventPublisher;
-        this.trafficTopic = trafficTopic;
         this.metrics = metrics;
         this.blockingScheduler = blockingScheduler;
+        this.asyncTaskSupport = asyncTaskSupport;
     }
 
     @Override
@@ -549,6 +547,16 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         if (routing == null || result.responseBody() == null) {
             return result.responseBody();
         }
+        // 异步任务：本次响应只是「任务已提交」，不是终态。落一条待轮询任务并回 202 信封，
+        // 请求线程到此为止——用量与计费等轮询器拿到终态再做。
+        // ⭐ 本类不再为这次提交做任何埋点：事件里那条 task 标记由 submitIfAsync 自己写，
+        // 与轮询侧的事务同源。请求链路只回答「是不是异步」，不参与事件格式。
+        if (asyncTaskSupport != null) {
+            Map<String, Object> envelope = asyncTaskSupport.submitIfAsync(context, exchange, result);
+            if (envelope != null) {
+                return new AsyncTaskAccepted(envelope);
+            }
+        }
         if (!shouldReturnUsageDetail(routing, exchange)) {
             return result.responseBody();
         }
@@ -598,14 +606,13 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
             // 补记流式真实用量：无论是否接 Kafka，频控/配额账都必须落到计数器
             recordStreamingUsage(context, routing, terminalUsage.get());
         };
-        if (eventPublisher != null) {
-            Runnable base = onComplete;
-            onComplete = () -> {
-                base.run();
-                eventPublisher.publish(trafficTopic, GatewayTrafficMsgDto.of(context, exchange,
-                    terminalUsage.get(), firstTokenWriter.elapsedMillis(), null));
-            };
-        }
+        Runnable base = onComplete;
+        onComplete = () -> {
+            base.run();
+            // 走父类的唯一发布出口：投递器判空在那里，本类不必再各判一次；
+            // 也让「终态事件从哪发」只有一处可数（非流式 / 终态异常 / 流式收尾）
+            publishTraffic(context, exchange, terminalUsage.get(), firstTokenWriter.elapsedMillis(), null);
+        };
         Flux<DataBuffer> body = ProxyStreamingFlux.wrap(stream, usageExtractorRegistry, appendUsage,
             exchange.http().bufferFactory(), firstTokenWriter, terminalUsage::set, onComplete);
         return new GatewayStreamingResponse(stream.contentType(), body);

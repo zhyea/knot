@@ -211,16 +211,26 @@ public abstract class AbstractGatewayRequestTemplate {
     /**
      * 发布流量事件：数仓输出的旁路开关关闭时整体跳过。
      *
-     * <p>请求终态一次性发出——路由维度（入口 / 规则 / 应用 / 部门 / 用户）、真正请求的模型
-     * （hit target）、结果 / 用量 / 计费 / 错误 / 上游调用明细同一条消息携带。
+     * <p>⭐ 本方法是<b>全类唯一的发布出口</b>：非流式成功（{@link #onProxyResult}）、
+     * 终态异常（{@link #onTerminalError}）、流式收尾（子类 {@code streamResponse} 的 onComplete）
+     * 三处都走这里，{@code final} 防的就是再长出第四个出口。</p>
+     *
+     * <p><b>本层不判断「该不该发」，只负责发</b>：一次请求在上游真实发生了几次调用就发几条，
+     * 「哪条是终态、哪条是中间过程」由事件自带的 {@code task_*} 字段表达、由数仓聚合、
+     * 语义留在数据里而不留在网关的分支里。⚠ 反例见 2026-10-28 的路 A/B 取舍：
+     * 曾用子类钩子把异步提交事件整体丢掉，等于把「1 次提交 + N 次查询」压成「1 条终态」，
+     * 上游成本与延迟分布全部算不出来（`docs/异步任务表与通用轮询方案-2026-10-27.md` §3.2）。</p>
+     *
+     * <p>事件内容：路由维度（入口 / 规则 / 应用 / 部门 / 用户）、真正请求的模型（hit target）、
+     * 结果 / 用量 / 计费 / 错误 / 上游调用明细同一条消息携带。
      * 入口即拒（路由未解析）照样发，只是 {@code routing} / {@code hit} 为 null、
      * {@code error.stage=header_validate}。</p>
      */
-    private void publishTraffic(GatewayRequestContext context,
-                                GatewayExchange exchange,
-                                UsageAccounting usage,
-                                Long ttftMs,
-                                Throwable error) {
+    protected final void publishTraffic(GatewayRequestContext context,
+                                        GatewayExchange exchange,
+                                        UsageAccounting usage,
+                                        Long ttftMs,
+                                        Throwable error) {
         if (eventPublisher == null) {
             return;
         }

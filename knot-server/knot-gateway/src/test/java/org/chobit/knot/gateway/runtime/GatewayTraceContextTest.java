@@ -118,6 +118,61 @@ class GatewayTraceContextTest {
                 "request_id 不是 W3C 字段，不能混进 traceparent");
     }
 
+    // ---------------------------------------------------------------------
+    // replay：同一逻辑请求的后续阶段（异步任务 N 次查询）必须沿用同一坐标
+    // ---------------------------------------------------------------------
+
+    @Test
+    void replayKeepsTraceSpanAndRequestId() {
+        String incoming = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+        GatewayTraceContext submit = GatewayTraceContext.fromTraceparent(incoming);
+
+        // 模拟异步任务：提交时快照 traceparent + requestId，之后每次查询都按快照重放
+        GatewayTraceContext first = GatewayTraceContext.replay(submit.traceparent(), submit.requestId());
+        GatewayTraceContext fifth = GatewayTraceContext.replay(submit.traceparent(), submit.requestId());
+
+        assertEquals(submit.traceId(), first.traceId());
+        assertEquals(submit.spanId(), first.spanId(), "replay 必须沿用提交那次的 span，而不是新生成");
+        assertEquals(submit.requestId(), first.requestId(), "request_id 是「我方对这次请求的编号」，N 次查询共用");
+        assertEquals(submit.traceparent(), first.traceparent(),
+                "traceparent 三段全同 → 对下游与数仓都是同一个坐标");
+        assertEquals(first.spanId(), fifth.spanId(), "第 1 次与第 5 次查询的 span 也必须相同");
+        assertEquals(first.requestId(), fifth.requestId());
+    }
+
+    @Test
+    void replayDiffersFromFromTraceparentOnSpan() {
+        String incoming = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01";
+        GatewayTraceContext submit = GatewayTraceContext.fromTraceparent(incoming);
+
+        // 探针性质的反例：用 fromTraceparent 重建会把 span 换掉（这正是修之前的行为）
+        GatewayTraceContext wrong = GatewayTraceContext.fromTraceparent(submit.traceparent());
+        GatewayTraceContext right = GatewayTraceContext.replay(submit.traceparent(), submit.requestId());
+
+        assertEquals(submit.traceId(), wrong.traceId(), "traceId 本来就对得上，所以这个 bug 很隐蔽");
+        assertNotEquals(submit.spanId(), wrong.spanId(), "fromTraceparent 每次生成新 span —— 这就是要修的点");
+        assertEquals(submit.spanId(), right.spanId());
+    }
+
+    @Test
+    void replayFallsBackWhenTraceparentIsUnreadable() {
+        // 脏数据：traceparent 解析不出 → 无法回到原链路，但仍要沿用 requestId
+        GatewayTraceContext ctx = GatewayTraceContext.replay("not-a-traceparent", "0123456789abcdef0123456789abcdef");
+
+        assertTrue(ctx.generatedTraceId(), "不可解析时只能生成新链路");
+        assertEquals("0123456789abcdef0123456789abcdef", ctx.requestId(),
+                "request_id 与 traceparent 合法性无关，必须沿用");
+        assertTrue(W3C.matcher(ctx.traceparent()).matches());
+    }
+
+    @Test
+    void replayGeneratesRequestIdWhenAbsent() {
+        GatewayTraceContext ctx = GatewayTraceContext.replay(null, null);
+
+        assertNotNull(ctx.requestId(), "快照缺失时兜底生成，不能返回 null");
+        assertTrue(ctx.requestId().matches("[0-9a-f]{32}"));
+    }
+
     private static void assertGeneratedDefault(GatewayTraceContext ctx) {        assertNotNull(ctx);
         var m = W3C.matcher(ctx.traceparent());
         assertTrue(m.matches(), "生成的默认 traceparent 必须合规: " + ctx.traceparent());

@@ -69,7 +69,8 @@ public final class GatewayTraceContext {
                                 String spanId,
                                 String traceFlags,
                                 String originalTraceparent,
-                                boolean generatedTraceId) {
+                                boolean generatedTraceId,
+                                String requestId) {
         this.version = version;
         this.traceId = traceId;
         this.parentId = parentId;
@@ -78,7 +79,8 @@ public final class GatewayTraceContext {
         this.originalTraceparent = originalTraceparent;
         this.generatedTraceId = generatedTraceId;
         this.traceparent = version + "-" + traceId + "-" + spanId + "-" + traceFlags;
-        this.requestId = newRequestId();
+        // 传 null 表示「这是一次新请求，生成新的」；传值表示「沿用同一次逻辑请求的编号」
+        this.requestId = requestId == null ? newRequestId() : requestId;
     }
 
     /**
@@ -100,7 +102,36 @@ public final class GatewayTraceContext {
         if ("ff".equals(version) || isZero(traceId) || isZero(parentId)) {
             return generated(trimmed);
         }
-        return new GatewayTraceContext(version, traceId, parentId, randomHex(8), traceFlags, trimmed, false);
+        return new GatewayTraceContext(version, traceId, parentId, randomHex(8), traceFlags, trimmed, false, null);
+    }
+
+    /**
+     * 按既有 traceparent <b>原样重放</b>同一次逻辑请求的追踪上下文：沿用它的 span，并复用给定 requestId。
+     *
+     * <p>⭐ <b>为什么需要这个入口</b>：{@link #fromTraceparent} 的语义是「解析入站 trace + 为<b>本次</b>请求
+     * 生成一个新 span」（{@code spanId = randomHex(8)}）。用它去重建<b>已经发生过的那次请求</b>，
+     * traceId 虽然对得上，spanId 与 requestId 每次都会变 —— 异步任务的 N 次查询各发一条流量事件，
+     * 就会变成「同一笔任务、N 个不同 span」，数仓按 {@code (trace_id, span_id)} 找不到一组。</p>
+     *
+     * <p>语义澄清（避免误读成 bug）：这里 spanId 取 traceparent 的第 3 段，而 {@link #parentId()} 也叫这个名字。
+     * <b>不是笔误</b>——W3C traceparent 的第 3 段本就是「发起这次调用的父 span」，把它复用为本次的 span，
+     * 正是「回到同一次请求」这个动作。异步任务的 1 + N 条事件共用这一个坐标，
+     * 代价是它们不再是 N 个可区分 span（要区分用流量事件里的 {@code task_query_seq}）。</p>
+     *
+     * @param traceparent 提交时快照下来的 traceparent（含提交那次的 span）
+     * @param requestId   提交时的网关请求编号；{@code null}/空则新生成（脏数据兜底）
+     */
+    public static GatewayTraceContext replay(String traceparent, String requestId) {
+        GatewayTraceContext base = fromTraceparent(traceparent);
+        String inheritedRequestId = StringUtils.trimToNull(requestId);
+        if (base.generatedTraceId) {
+            // traceparent 不可解析（空/格式错/全零）：无法回到原 span，退化为一个全新的
+            // 链路，但 requestId 仍沿用——它是「我方对这次请求的编号」，与 traceparent 是否合法无关
+            return new GatewayTraceContext(base.version, base.traceId, base.parentId, base.spanId,
+                    base.traceFlags, base.originalTraceparent, true, inheritedRequestId);
+        }
+        return new GatewayTraceContext(base.version, base.traceId, base.parentId, base.parentId,
+                base.traceFlags, base.originalTraceparent, false, inheritedRequestId);
     }
 
     /**
@@ -195,7 +226,7 @@ public final class GatewayTraceContext {
     }
 
     private static GatewayTraceContext generated(String originalTraceparent) {
-        return new GatewayTraceContext("00", randomHex(16), null, randomHex(8), "01", originalTraceparent, true);
+        return new GatewayTraceContext("00", randomHex(16), null, randomHex(8), "01", originalTraceparent, true, null);
     }
 
     private static String lower(String value) {

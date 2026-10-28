@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.controller;
 
+import org.chobit.knot.gateway.async.AsyncTaskAccepted;
 import org.chobit.knot.gateway.config.GatewayUpstreamClientProperties;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.gateway.runtime.GatewayHttpExchange;
@@ -119,6 +120,10 @@ public abstract class GatewayControllerSupport {
             return exchange.getResponse()
                     .writeWith(stream.body())
                     .then(Mono.empty());
+        }
+        // 异步任务提交回执：202 —— 客户端据此进入轮询，而不是把这份回应当成结果
+        if (result instanceof AsyncTaskAccepted accepted) {
+            return Mono.just(ResponseEntity.accepted().body(accepted.envelope()));
         }
         return Mono.just(ResponseEntity.ok().body(result));
     }

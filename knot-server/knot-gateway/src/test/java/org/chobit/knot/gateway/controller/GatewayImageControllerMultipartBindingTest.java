@@ -260,7 +260,7 @@ class GatewayImageControllerMultipartBindingTest {
         CapturingImageController() {
             // 14 个参数全部为 null：本用例只关心入站参数绑定与 body 组装，不会走到 handler
             super(new GatewayRequestHandler(null, null, null, null, null, null, null, null,
-                    null, null, null, null, null, null));
+                    null, null, null, null, null, null, null));
         }
 
         @Override

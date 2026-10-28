@@ -4,7 +4,7 @@
 
     <sql id="BindingSelectColumns">
         b.id, b.model_code, b.protocol, b.api_path, b.request_adapter, b.usage_extractor, b.stream_usage_extractor,
-        b.status, b.remark,
+        b.async_profile_code, b.status, b.remark,
         m.id AS model_id,
         m.provider_account_code
     </sql>
@@ -36,8 +36,8 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
-        insert into kb_model_api_bindings(model_code, protocol, api_path, request_adapter, usage_extractor, stream_usage_extractor, status, remark)
-        values(#{modelCode}, #{protocol}, #{apiPath}, #{requestAdapter}, #{usageExtractor}, #{streamUsageExtractor}, #{status}, #{remark})
+        insert into kb_model_api_bindings(model_code, protocol, api_path, request_adapter, usage_extractor, stream_usage_extractor, async_profile_code, status, remark)
+        values(#{modelCode}, #{protocol}, #{apiPath}, #{requestAdapter}, #{usageExtractor}, #{streamUsageExtractor}, #{asyncProfileCode}, #{status}, #{remark})
     </insert>
 
     <update id="update">
@@ -47,6 +47,7 @@
             request_adapter = #{requestAdapter},
             usage_extractor = #{usageExtractor},
             stream_usage_extractor = #{streamUsageExtractor},
+            async_profile_code = #{asyncProfileCode},
             status = #{status},
             remark = #{remark}
         where id = #{id}
