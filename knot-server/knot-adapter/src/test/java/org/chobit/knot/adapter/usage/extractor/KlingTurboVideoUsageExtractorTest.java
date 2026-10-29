@@ -132,7 +132,7 @@ class KlingTurboVideoUsageExtractorTest {
     @Test
     @DisplayName("身份：CODE / 计算器 / 计费模式 / 空用量不放行")
     void identity() {
-        assertEquals("KLING_VIDEO", extractor.code());
+        assertEquals("KLING_TURBO_VIDEO", extractor.code());
         assertTrue(extractor.calculator() instanceof VideoBillingModeCalculator);
         assertEquals(1, extractor.billingModes().size());
         assertFalse(extractor.allowsEmptyUsage(), "维持默认：上游有正数却提取为空应判定为口径错配");
