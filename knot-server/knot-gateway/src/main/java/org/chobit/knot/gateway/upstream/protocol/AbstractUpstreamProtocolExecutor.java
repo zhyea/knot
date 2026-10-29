@@ -420,10 +420,10 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
             addFilePart(builder, key, filePart);
             return;
         }
-        // 多文件 part（如 /images/edits 的 image）由控制器以 List<FilePart> 形态下发；
-        // 不用 FilePart[] —— Spring 的 @RequestPart 解析器不支持数组形态（详见
-        // GatewayImageController#edits 的 javadoc），当年 Servlet 栈的 MultipartFile[]
-        // 由 MVC 专用 resolver 兜着，切 WebFlux 后没有对应分支
+        // 多文件 part 由调用方以 List<FilePart> 形态下发；不用 FilePart[] ——
+        // Spring 的 @RequestPart 解析器不支持数组形态（WebFlux 只认单值 / 集合 /
+        // 反应式包装），当年 Servlet 栈的 MultipartFile[] 由 MVC 专用 resolver 兜着，
+        // 切 WebFlux 后没有对应分支
         if (value instanceof Collection<?> collection) {
             collection.forEach(item -> addMultipartPart(builder, key, item));
             return;

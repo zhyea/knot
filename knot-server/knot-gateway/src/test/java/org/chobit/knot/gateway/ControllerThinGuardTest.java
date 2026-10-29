@@ -57,14 +57,14 @@ class ControllerThinGuardTest {
     /**
      * ⚠ <b>存量违规登记（2026-10-29 立规当天），不是永久豁免</b>。
      *
-     * <p>{@code GatewayImageController} 在 controller 里把 12 个 multipart 参数逐条
-     * {@code put} 进 Map 再交给模板——字段名、空值处理、顺序都是业务，应搬进
-     * {@code controller.support} 的请求体组装器。改动面涉及 multipart 绑定测试，单独排期。</p>
-     *
      * <p>⭐ 名单会自我失效：{@link #registeredOffendersStillOffend} 断言每一项<b>现在确实还在违规</b>，
      * 改干净后立刻变红并要求删除名单——不会变成永久避难所。</p>
+     *
+     * <p>网关侧曾登记的 {@code GatewayImageController}（edits 端点把 14 个 multipart 参数逐条
+     * {@code put} 进 Map 再交给模板）已于 2026-10-30 随 edits 端点一并移除——网关不再支持图片上传，
+     * 组装用的 {@code ImageEditBodySupport} 同步删除，Controller 只保留「绑定 + 委托」，已从本名单移除。</p>
      */
-    private static final List<String> KNOWN_OFFENDERS = List.of("GatewayImageController.java");
+    private static final List<String> KNOWN_OFFENDERS = List.of();
 
     @Test
     void noBusinessInControllers() throws IOException {

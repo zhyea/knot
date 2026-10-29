@@ -8,6 +8,9 @@ import BillingModeTokenConfig from "@/components/billing/modes/BillingModeTokenC
 import BillingModeVideoConfig from "@/components/billing/modes/BillingModeVideoConfig.vue";
 import BillingModeCustomConfig from "@/components/billing/modes/BillingModeCustomConfig.vue";
 import PricingPlanVendorMiniMaxConfig from "@/components/billing/plans/PricingPlanVendorMiniMaxConfig.vue";
+import {ElInputNumber, ElSelect} from "element-plus";
+import ResolutionTierPicker from "@/components/billing/ResolutionTierPicker.vue";
+import ResolutionTierTable from "@/components/billing/ResolutionTierTable.vue";
 import PricingPlanDimensionTieredConfig from "@/components/billing/plans/PricingPlanDimensionTieredConfig.vue";
 import type {Dict} from "@/types";
 
@@ -168,6 +171,28 @@ function activeTabLabel(wrapper: VueWrapper): string {
 
 async function setJsonText(wrapper: VueWrapper, text: string) {
   await wrapper.find(".json-stub").setValue(text);
+  await flushPromises();
+}
+
+/** 两步式第一步：在档位选择器里勾选若干档位（等价于用户多选下拉里的选择） */
+async function selectTiers(wrapper: VueWrapper, keys: string[]): Promise<void> {
+  const select = wrapper.findComponent(ResolutionTierPicker).findComponent(ElSelect);
+  if (!select.exists()) {
+    throw new Error("当前方案下没有档位选择器");
+  }
+  await select.vm.$emit("update:modelValue", keys);
+  await flushPromises();
+}
+
+/**
+ * 两步式第二步：按顺序填价格表的输入项（顺序 = 行顺序 × 列顺序，列集由方案决定：
+ * 通用方案「单价 / 含参考输入」两列，维度分档价四列）。
+ */
+async function fillTierPrices(wrapper: VueWrapper, values: (number | null)[]): Promise<void> {
+  const inputs = wrapper.findComponent(ResolutionTierTable).findAllComponents(ElInputNumber);
+  for (let index = 0; index < values.length; index += 1) {
+    await inputs[index].vm.$emit("update:modelValue", values[index]);
+  }
   await flushPromises();
 }
 
@@ -885,6 +910,84 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
 
     expect(warned().some((message) => message.includes("输入视频"))).toBe(true);
     expect(vi.mocked(updateBillingRule)).not.toHaveBeenCalled();
+  });
+
+  it("VIDEO 两步式：先选档位再填价，取消勾选的档位不落库", async () => {
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper);
+    form.billingMode = "VIDEO";
+    await flushPromises();
+
+    await selectTiers(wrapper, ["720P", "1080P"]);
+    // 价格表只渲染选中档位：两档 × BASE 两列（单价 / 含参考输入）
+    expect(wrapper.findComponent(ResolutionTierTable).findAllComponents(ElInputNumber)).toHaveLength(4);
+    await fillTierPrices(wrapper, [0.2, null, 0.5, null]);
+
+    // 取消 720P：该档位连同刚填的单价一起消失，不是藏在某个隐藏行里
+    await selectTiers(wrapper, ["1080P"]);
+    await save(wrapper);
+
+    expect(configOf(updatePayload()).resolutionPrices).toEqual({"1080P": 0.5});
+  });
+
+  it("VIDEO 两步式：取消勾选后保存，该档位价不留在 config_json 里", async () => {
+    // 界面上看不见、计费时却会命中的价是静默收费：未勾选 = 该档位不存在，保存侧必须一致
+    vi.mocked(getBillingRule).mockResolvedValue(
+      detailRow({
+        billingMode: "VIDEO",
+        unit: "PER_SECOND",
+        configJson: JSON.stringify({defaultUnitPrice: 0.1, resolutionPrices: {"720P": 0.2, "1080P": 0.5}})
+      }) as never
+    );
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    await selectTiers(wrapper, ["720P"]);
+    await save(wrapper);
+
+    expect(configOf(updatePayload()).resolutionPrices).toEqual({"720P": 0.2});
+  });
+
+  it("DIMENSION_TIERED 两步式：选中档位按四列填价，维度键各归其位", async () => {
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper);
+    form.billingMode = "VIDEO";
+    await flushPromises();
+    form.pricingPlan = "DIMENSION_TIERED";
+    await flushPromises();
+
+    await selectTiers(wrapper, ["720P"]);
+    await fillTierPrices(wrapper, [0.15, 0.3, 0.08, 0.16]);
+    await save(wrapper);
+
+    expect(configOf(updatePayload()).resolutionPrices).toEqual({
+      "720P": 0.15,
+      "720P:AUDIO": 0.3,
+      "720P:REFERENCE": 0.08,
+      "720P:REFERENCE:AUDIO": 0.16
+    });
+  });
+
+  it("两步式：未选档位时价格表给出引导，不渲染空输入项", async () => {
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper);
+    form.billingMode = "VIDEO";
+    await flushPromises();
+
+    expect(wrapper.findComponent(ResolutionTierTable).findAllComponents(ElInputNumber)).toHaveLength(0);
+    expect(wrapper.text()).toContain("请先在上方选择支持的分辨率档位");
+  });
+
+  it("MiniMax 厂商定制方案不参与两步式：仍是单行档位编辑", async () => {
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper);
+    form.billingMode = "VIDEO";
+    await flushPromises();
+    form.pricingPlan = "VENDOR_MINIMAX";
+    await flushPromises();
+
+    expect(wrapper.findComponent(ResolutionTierPicker).exists()).toBe(false);
+    expect(wrapper.findComponent(ResolutionTierTable).exists()).toBe(false);
+    expect(wrapper.find(".resolution-list").exists()).toBe(true);
   });
 
   it("保存成功后关闭抽屉并抛出 saved", async () => {

@@ -21,6 +21,8 @@
 
     <!-- 维度分档：档位表是「档位 × 有声 × 含参考」三维整表，由方案组件托管，此处让位 -->
     <template v-if="!isDimensionTiered">
+      <!-- 厂商定制（MiniMax）：档位与输入价同行录入，保持原有单行编辑，不参与两步式 -->
+      <template v-if="isVendorMiniMax">
     <el-divider v-if="!tokenPriced" content-position="left">
       <span class="video-config__group">分辨率档位（{{ unitLabel }}）</span>
     </el-divider>
@@ -34,7 +36,7 @@
 
     <div class="resolution-list">
       <el-row v-for="(row, index) in rows" :key="row.uid || `res-${index}`" :gutter="12" class="res-row">
-        <el-col :xs="24" :sm="isVendorMiniMax ? 7 : 7">
+        <el-col :xs="24" :sm="7">
         <el-form-item label="档位名" class="res-row__name" label-width="70px">
               <el-select
                 :model-value="row.key"
@@ -48,8 +50,8 @@
               </el-select>
         </el-form-item>
         </el-col>
-        <el-col :xs="24" :sm="isVendorMiniMax ? 7 : 7">
-        <el-form-item :label="isVendorMiniMax ? '输出每秒' : '单价'" class="res-row__price" :label-width="isVendorMiniMax ? 76 : 60">
+        <el-col :xs="24" :sm="7">
+        <el-form-item label="输出每秒" class="res-row__price" label-width="76px">
               <el-input-number
                 :model-value="row.price"
                 :min="0"
@@ -59,8 +61,8 @@
               />
         </el-form-item>
         </el-col>
-        <!-- MiniMax：第三列是「输入每秒」，留空表示同档位输出价；非 MiniMax：第三列是「含参考输入」 -->
-        <el-col v-if="isVendorMiniMax" :xs="24" :sm="8">
+        <!-- MiniMax：第三列是「输入每秒」，留空表示同档位输出价 -->
+        <el-col :xs="24" :sm="8">
         <el-form-item label="输入每秒" class="res-row__price" label-width="76px">
               <el-input-number
                 :model-value="row.inputPrice"
@@ -69,18 +71,6 @@
                 controls-position="right"
                 placeholder="留空同输出"
                 @update:model-value="(value: number | undefined | null) => setInputPrice(index, value)"
-              />
-        </el-form-item>
-        </el-col>
-        <el-col v-else :xs="24" :sm="8">
-        <el-form-item label="含参考输入" class="res-row__price" label-width="100px">
-              <el-input-number
-                :model-value="row.referencePrice"
-                :min="0"
-                :step="UNIT_PRICE_STEP"
-                controls-position="right"
-                placeholder="留空同价"
-                @update:model-value="(value: number | undefined | null) => setReferencePrice(index, value)"
               />
         </el-form-item>
         </el-col>
@@ -99,11 +89,30 @@
       </el-row>
     </div>
 
-    <div class="video-config__actions">
-      <el-button @click="append">新增档位</el-button>
-      <el-button @click="fillCommon">填入常用档位</el-button>
-      <span class="video-config__tip">档位名留空的行不会保存</span>
-    </div>
+        <div class="video-config__actions">
+          <el-button @click="append">新增档位</el-button>
+          <el-button @click="fillCommon">填入常用档位</el-button>
+          <span class="video-config__tip">档位名留空的行不会保存</span>
+        </div>
+      </template>
+      <!-- 通用视频方案：先选支持哪些档位，再只为选中的档位定单价 -->
+      <template v-else>
+        <el-divider v-if="!tokenPriced" content-position="left">
+          <span class="video-config__group">支持的分辨率档位</span>
+        </el-divider>
+        <el-alert type="info" :closable="false" class="video-config__hint">
+          <template #title>
+            <span>
+              档位名取自请求体的 <code>resolution</code> / <code>size</code> 字段，与后端归一化后的键严格一致。
+            </span>
+          </template>
+        </el-alert>
+        <ResolutionTierPicker :rows="rows" tip="取消勾选即删除该档位（含已填单价）"/>
+        <el-divider content-position="left">
+          <span class="video-config__group">档位单价（{{ unitLabel }}）</span>
+        </el-divider>
+        <ResolutionTierTable :rows="rows" :columns="RESOLUTION_PRICE_COLUMNS.BASE"/>
+      </template>
     </template>
 
     <!-- 计费量口径是「量」的轴，按两轴分工留在本组件（维度分档只接管「价」那一半的档位表） -->
@@ -173,8 +182,15 @@
 import {computed} from "vue";
 import {Delete} from "@element-plus/icons-vue";
 import {UNIT_PRICE_STEP, isTokenPricedUnit, unitLabelOf} from "@/utils/billingPrice";
-import {COMMON_RESOLUTION_OPTIONS, createResolutionRow} from "@/utils/billingResolution";
+import {
+  COMMON_RESOLUTION_OPTIONS,
+  RESOLUTION_PRICE_COLUMNS,
+  createResolutionRow,
+  normalizeTierKey
+} from "@/utils/billingResolution";
 import type {ResolutionRow} from "@/utils/billingResolution";
+import ResolutionTierPicker from "../ResolutionTierPicker.vue";
+import ResolutionTierTable from "../ResolutionTierTable.vue";
 
 const props = defineProps({
   form: {type: Object, required: true}
@@ -222,9 +238,11 @@ const inputVideoFolded = computed(
 const RESOLUTION_OPTIONS = COMMON_RESOLUTION_OPTIONS;
 
 /**
- * 单行分辨率档位：档位名 + 单价 + 含参考输入时的单价 + 输入视频每秒单价（仅 MiniMax 用）。
- * <p>字段集见 {@link ResolutionRow}（与维度分档方案组件、config_json 回显共用同一份契约）；
- * {@code inputPrice} 对应 {@code resolutionPrices["INPUT_VIDEO:档位"]}，留空表示同档位输出价。</p>
+ * 下方的 append/remove/setKey/setPrice/setInputPrice 只服务 <b>MiniMax 定制方案</b>的单行档位编辑。
+ *
+ * <p>通用视频方案的档位增删已移到 {@link ResolutionTierPicker}（先选支持哪些档位、再为选中档位填价），
+ * MiniMax 是厂商定制口径（档位输出价与档位输入价同行录入），不在两步式范围内，
+ * 故这批函数与 {@code .resolution-list} 块一并保留。</p>
  */
 
 /**
@@ -266,7 +284,7 @@ function remove(index: number) {
 function setKey(index: number, value: string) {
   const row = rows.value[index];
   if (row) {
-    row.key = String(value || "").trim().toUpperCase();
+    row.key = normalizeTierKey(value);
   }
 }
 
@@ -274,13 +292,6 @@ function setPrice(index: number, value: number | undefined | null) {
   const row = rows.value[index];
   if (row) {
     row.price = value == null ? null : value;
-  }
-}
-
-function setReferencePrice(index: number, value: number | undefined | null) {
-  const row = rows.value[index];
-  if (row) {
-    row.referencePrice = value == null ? null : value;
   }
 }
 
@@ -294,7 +305,7 @@ function setInputPrice(index: number, value: number | undefined | null) {
 
 /** 一键铺开常用档位（只补不存在的，不覆盖已填价格） */
 function fillCommon() {
-  const existing = new Set(rows.value.map((row) => row.key.toUpperCase()));
+  const existing = new Set(rows.value.map((row) => normalizeTierKey(row.key)));
   for (const key of RESOLUTION_OPTIONS) {
     if (!existing.has(key)) {
       rows.value.push(createResolutionRow(key, nextUid()));

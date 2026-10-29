@@ -33,6 +33,47 @@ export type ResolutionRow = {
 export type ResolutionPriceField = "price" | "audioPrice" | "referencePrice" | "referenceAudioPrice" | "inputPrice";
 
 /**
+ * 档位名归一：**落库键必须是大写无空白**。
+ *
+ * <p>四处各写一遍 `{@code trim().toUpperCase()}` 时，漏一处就出现「保存时是 720P、回显成 720p」的
+ * 静默漂移（键空间是自由文本，后端不做归一）。</p>
+ */
+export function normalizeTierKey(value: unknown): string {
+  return String(value ?? "").trim().toUpperCase();
+}
+
+/** 价格表的一列：档位行的某个价格字段 + 表头文案 + 留空提示 */
+export type ResolutionPriceColumn = {
+  field: ResolutionPriceField;
+  label: string;
+  /** 留空时的输入提示：留空 = 不下发该后缀键，由后端逐级回落（与后端 dimensionKeys 同口径） */
+  placeholder: string;
+};
+
+/**
+ * 两套列集：**列集由方案决定，不是每档都填四格**。
+ *
+ * <p>{@code BASE}（固定价等通用视频方案）：档位 × 「单价 / 含参考输入」两列——
+ * 通用方案没有「按 audio 分档」这回事，给四列等于让管理员对着永不生效的格子发呆。</p>
+ *
+ * <p>{@code DIMENSION}（维度分档价）：档位 × 「无声 / 有声 / 含参考 / 含参考+有声」四列，
+ * 与后端 {@code 档位} / {@code 档位:AUDIO} / {@code 档位:REFERENCE} / {@code 档位:REFERENCE:AUDIO}
+ * 四个键一一对应。</p>
+ */
+export const RESOLUTION_PRICE_COLUMNS: Record<"BASE" | "DIMENSION", ResolutionPriceColumn[]> = {
+  BASE: [
+    {field: "price", label: "单价", placeholder: "必填"},
+    {field: "referencePrice", label: "含参考输入", placeholder: "留空同价"}
+  ],
+  DIMENSION: [
+    {field: "price", label: "无声", placeholder: "必填"},
+    {field: "audioPrice", label: "有声", placeholder: "留空同无声"},
+    {field: "referencePrice", label: "含参考", placeholder: "留空同无声"},
+    {field: "referenceAudioPrice", label: "含参考 + 有声", placeholder: "留空逐级回落"}
+  ]
+};
+
+/**
  * 后缀键 -> 行字段的映射，**按后缀长度降序**排列。
  *
  * <p>顺序不能乱：{@code :REFERENCE:AUDIO} 必须先于 {@code :REFERENCE} 命中，

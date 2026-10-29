@@ -13,10 +13,16 @@
     </el-alert>
 
     <el-divider content-position="left">
-      <span class="dimension-tiered-config__group">分辨率档位（{{ unitLabel }}）</span>
+      <span class="dimension-tiered-config__group">支持的分辨率档位</span>
     </el-divider>
 
-    <ResolutionTierTable :rows="rows" :options="COMMON_RESOLUTION_OPTIONS" uid-prefix="dim-tiered"/>
+    <ResolutionTierPicker :rows="rows" tip="取消勾选即删除该档位（含已填单价）"/>
+
+    <el-divider content-position="left">
+      <span class="dimension-tiered-config__group">档位单价（{{ unitLabel }}）</span>
+    </el-divider>
+
+    <ResolutionTierTable :rows="rows" :columns="RESOLUTION_PRICE_COLUMNS.DIMENSION"/>
 
     <el-alert type="warning" :closable="false" class="dimension-tiered-config__hint">
       <template #title>
@@ -47,8 +53,9 @@
 <script setup lang="ts">
 import {computed} from "vue";
 import {unitLabelOf} from "@/utils/billingPrice";
-import {COMMON_RESOLUTION_OPTIONS} from "@/utils/billingResolution";
+import {RESOLUTION_PRICE_COLUMNS} from "@/utils/billingResolution";
 import type {ResolutionRow} from "@/utils/billingResolution";
+import ResolutionTierPicker from "../ResolutionTierPicker.vue";
 import ResolutionTierTable from "../ResolutionTierTable.vue";
 
 /**
@@ -64,7 +71,9 @@ import ResolutionTierTable from "../ResolutionTierTable.vue";
  * 键拼错时固定价会<b>静默回落默认价</b>（配置看着生效、那档价从未命中），
  * 本方案在 {@code BillingConfig#validateDimensionTiered} 直接拒绝保存。</p>
  *
- * <p>档位表共用 {@link ResolutionTierTable}（同一套键契约，原 Kling 方案组件亦用此表）；
+ * <p>档位价分两步配：先在 {@link ResolutionTierPicker} 选「支持哪些档位」，
+ * 再由 {@link ResolutionTierTable} 按「档位 × 有声 × 含参考」四列填价——
+ * 与通用视频方案共用同一张表、同一套键契约，只是列集更宽（通用方案只要「单价 / 含参考输入」两列）。
  * 计费量口径与输入侧分量留在视频模式组件——它们是「量」的轴，按两轴分工不属于本方案。</p>
  */
 const props = defineProps({
@@ -78,7 +87,7 @@ const unitLabel = computed(() => unitLabelOf(props.form.unit));
  * 行字段与 {@code resolutionPrices} 的键一一对应（契约见 utils/billingResolution）：
  * price → {@code 档位}、audioPrice → {@code 档位:AUDIO}、
  * referencePrice → {@code 档位:REFERENCE}、referenceAudioPrice → {@code 档位:REFERENCE:AUDIO}。
- * 表的增删改查在 {@link ResolutionTierTable}（维度分档价与已移除的 VENDOR_KLING 方案共用同一套契约）。
+ * 行的增删在 {@link ResolutionTierPicker}，价格录入在 {@link ResolutionTierTable}（两者共用本契约）。
  */
 const rows = computed<ResolutionRow[]>(() =>
   Array.isArray(props.form.videoResolutionRows) ? props.form.videoResolutionRows : []
