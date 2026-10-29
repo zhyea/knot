@@ -1,6 +1,7 @@
-package org.chobit.knot.gateway.async;
+package org.chobit.knot.gateway.config;
 
 import org.chobit.knot.gateway.archive.ArchiveStore;
+import org.chobit.knot.gateway.async.*;
 import org.chobit.knot.svc.service.AsyncTaskService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

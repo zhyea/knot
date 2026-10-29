@@ -17,7 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 契约测试：轮询器的<b>节拍</b>（{@link AsyncTaskPoller}）。
+ * 契约测试：轮询器的<b>节拍</b>（{@link AsyncTaskScheduledPoller}）。
  *
  * <p>⭐ 2026-10-29 拆分：原来这个类同时测「怎么扫」和「扫到之后做什么」。编排抽出成
  * {@code AsyncTaskRunner} 之后，业务断言整体搬到 {@code AsyncTaskRunnerTest}，
@@ -32,14 +32,14 @@ class AsyncTaskPollerTest {
 
     private AsyncTaskProperties properties;
     private RecordingService service;
-    private AsyncTaskPoller poller;
+    private AsyncTaskScheduledPoller poller;
 
     @BeforeEach
     void setUp() {
         properties = new AsyncTaskProperties();
         properties.setNodeId("node-test");
         service = new RecordingService();
-        poller = new AsyncTaskPoller(properties, service, null);
+        poller = new AsyncTaskScheduledPoller(properties, service, null);
         poller.init();
     }
 

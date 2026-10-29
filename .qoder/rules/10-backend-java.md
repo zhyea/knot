@@ -60,7 +60,7 @@ reactor 8 模块：`common` / `plugin-api` / `plugin` / `adapter` / `dal` / `ser
 ## 3. 分层
 
 ```
-controller  → 参数校验、权限、请求追踪
+controller  → 参数绑定、委托、HTTP 状态/响应体出口（禁业务，见 §3.3）
 service     → 业务编排、事务边界
 converter   → MapStruct 实体 ⇄ DTO/VO
 mapper      → MyBatis SQL（XML 在 knot-dal）
@@ -189,6 +189,88 @@ admin 那份还额外把 9 个仍直接 import `dal.entity` 的 controller 列�
 
 ⚠ **首版条文（同日被推翻）写的是「编排必须进 svc」，教训不是「别分层」，而是判据要可验证**：
 「svc 退化成 DAO」是感受，「admin 引用 0 处」是数字。可验证的判据才能被一条命令复查。
+
+### 3.3 Controller 必须薄：入口只做绑定、委托与状态映射（2026-10-29 立规，robin 拍板）
+
+⭐⭐ **controller 方法体只允许三类语句**：
+
+1. **参数绑定**——`@RequestMapping` / `@RequestBody` / `@RequestHeader` / `@PathVariable`，**原样透传**；
+2. **委托**——一次调用交给协作方（`Runner` / `Service` / `Support`）；
+3. **HTTP 语义**——状态码、响应头、把「查不到」翻成 404 这类**框架关切**。
+
+禁止出现在 controller 的五类（归口栏是它该去的地方）：
+
+| # | 禁项 | 为什么 | 归口 |
+|---|---|---|---|
+| 1 | 查库 / 调上游 / 任何远程调用 | 数据访问与事务边界只能在一层 | `svc`（§3.1）+ 域的 `Runner` |
+| 2 | JSON 解析/序列化（`JsonKit.`） | 解上游 payload、解库里的 JSON 列都是业务 | `Runner` / `Support` |
+| 3 | 字段级响应体拼装（`new LinkedHashMap` + `put`） | 对外字段集必须由类型声明（§5.1） | `model.vo.response` 的 record |
+| 4 | 状态/枚举 → 对外文案映射（`switch` / if-else） | 对外协议不该藏在 HTTP 入口——测试得靠起 MVC 才触达 | `Runner`（映射方法私有） |
+| 5 | 归属、权限、可用性等业务判断 | 「这条任务是不是你的」是实现约束，不是参数校验 | `Runner` / `Service` |
+
+⭐ **判据不是行数**，是这两问（第一问可以落成命令，第二问只是复核时的口头检查）：
+
+- **「换掉 HTTP 框架，这段逻辑还要不要？」** 要 → 它不属于 controller；
+- **「这个类的一句话职责，需不需要提业务名词？」** 需要 → 它已经是编排层。
+
+🚫 **反例**：`GatewayExceptionHandler` 234 行**合法**——整类只做「异常 → 状态码/错误体」映射，
+是 HTTP 出口的本职，不查库、不拼业务字段；而 `GatewayTaskController` 改前的 135 行**违规**——
+同一个类里做了验 key、查库、归属比对、状态文案映射、响应体拼装五件事。
+⚠ 推论：错误映射的**取值**仍只能来自 `GatewayErrorDescriptor`（单一来源），
+不要在 handler 里新长一棵 `switch`——这也正是守门把 `switch` 列为禁项的原因之一。
+
+⚠ **controller 不做入参「顺手加工」**（`trim()`、去 `Bearer ` 前缀、补默认值）：
+这些是业务预处理，散回 controller 会让第 1/5 条违规立刻长回来。
+`GatewayTaskControllerTest#passesArgumentsThrough` 专门守着「原样传，加工在 Runner」。
+
+#### 3.3.1 判例：异步任务查询（2026-10-29）
+
+| 项 | 改前 | 改后 |
+|---|---|---|
+| 入口 | `GatewayTaskController` 135 行 | **67 行**（均为立规当天实测，行数会随代码浮动，判据仍看「有没有业务」）：`query()` 一句 `switchIfEmpty` 策略 + `notFound()` |
+| 业务 | 全在 controller（5 件事） | `gateway.async.AsyncTaskLookupRunner`（验 key → 查库 → 归属比对 → 投影） |
+| 响应体 | `LinkedHashMap` 手拼 7 个键 + 嵌套 `Map.of("code","message")` | `AsyncTaskQueryResponse` / `AsyncTaskFailureResponse` / `AsyncTaskNotFoundResponse` |
+| 测试 | 9 例全打在 controller 上 | 业务 9 例搬进 `AsyncTaskLookupRunnerTest`；controller 3 例只守委托与 200/404 |
+
+⭐ **能力搬家时测试必须跟着搬家**：留在原处的测试会退化成「透过壳测实现」——改实现要动两处，
+而壳那侧的断言多半恒真。搬完要能指出「这条断言现在打在承载它的类上」。
+
+⭐ **「查不到」用空 `Mono` 表达，不用 `ResponseEntity`**：Runner 只表达「有没有这个任务」，
+200/404 由 controller 决定。让 Runner 返回 `ResponseEntity` 等于把 HTTP 关切搬回业务层
+（同 `GatewayRequestHandler` 返回 `Mono<Object>`、由 `GatewayControllerSupport` 定 200/202 的先例）。
+
+⭐⭐ **业务搬进 Runner，线程模型的责任也跟着搬**（2026-10-29 同日补）：原 controller 若靠
+`GatewayControllerSupport` 切了阻塞调度器，搬到 Runner 时**最容易丢的就是这一层**——
+丢了的症状不是报错，而是「慢 SQL 把 Netty event loop 卡死」这种只在压力下出现的故障。
+判据一句话：**Runner 里有没有阻塞调用（JDBC / HTTP / 文件）？有就必须
+`MdcContextSupport.onBlockingScheduler(work, blockingScheduler)` 包住**，调度器
+`@Nullable` 构造器注入（单测传 `null` 退化 `boundedElastic`）。
+⚠ 这会改变异常时序：**同步抛出变成订阅后的 onError**，原有的 `assertThrows` 要改成
+`assertThrows(.., () -> runner.xxx(..).block())`，别把它当成行为回归。
+守门写法：注入一个 `Schedulers.newSingle("probe-xxx")`，记录阻塞段实际线程名并断言前缀
+（判例 `AsyncTaskLookupRunnerTest#blockingSectionLeavesCallerThread`）——
+只断言「结果对」是不够的，结果对不代表没卡在 event loop 上。
+
+⚠ **NotFound 的形状本次刻意没统一**：`{"error":"task not found: x"}` 与
+`GatewayErrorDescriptor` 的 `{"error":{message,type,code}}` 是两种形状，但**换形状是契约决策**，
+不能夹在「controller 瘦身」里顺手做。同理，record 化的**唯一** wire 差异是 `result_json` 字面为
+`null` 时该键由 `{"result":null}` 变缺省（语义都是「无产物」）——
+**别把「换个载体」当成「契约不变」的保证**，每次都要把差异逐条数出来写进类注释。
+
+⭐ **不新开 `biz` / `action` / `activity` 这类命名层**：本项目没有这些层，业务归口就是
+**域包内的 `Runner` / `Service` / `Support`**（gateway：`gateway.async` / `gateway.runtime` /
+`gateway.routing`；admin：`admin.service`）。新开一层等于让「同一件事在哪」再没有单点答案——
+判据同 §3.2：先问这件事有几个消费方，再问它该进既有域的哪个角色类。
+
+#### 3.3.2 守门
+
+`knot-gateway/.../ControllerThinGuardTest` 与 `knot-admin/.../ControllerThinGuardTest`（各一份，
+判据同源，各扫自己模块的 `controller` 包）：命中 `JsonKit.` / `new LinkedHashMap<` / `switch (` 即红。
+存量违规用**棘轮清单**登记（只许减不许增，且反向断言「登记项确实仍违规」，改干净立刻要求删名单）。
+
+规则表刻意只放三条：`Map.of(..)` 在文档类 controller（`ApiDocController` 的 OpenAPI 静态数据）是合法的，
+机械禁止会制造误报。**宁少一条，也不让守门变成噪声**——一旦有人开始在名单里加「被迫接受」的例外，
+这条约束就等于没有。
 
 ## 4. 命名纪律（2026-10-15 立规，robin 拍板）
 

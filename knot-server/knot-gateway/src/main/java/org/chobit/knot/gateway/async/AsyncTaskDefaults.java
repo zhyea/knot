@@ -16,7 +16,7 @@ package org.chobit.knot.gateway.async;
  *       少写一个零就差十倍，而两者都叫「超时」。前者是节点宕机后的占位回收窗口，后者是 knot 侧任务寿命。</li>
  * </ul>
  *
- * <p>⚠ <b>cron 的两处写法合并不了</b>：{@link AsyncTaskPoller} 的 {@code @Scheduled} 为了支持 yml 覆盖，
+ * <p>⚠ <b>cron 的两处写法合并不了</b>：{@link AsyncTaskScheduledPoller} 的 {@code @Scheduled} 为了支持 yml 覆盖，
  * 写的是 {@code ${key:默认值}} 占位符，而占位符里只能是字面量。于是 {@link #TICK_CRON} /
  * {@link #CLEANUP_CRON} 与本类之间天然存在第二份拷贝，由 {@code AsyncTaskPropertiesTest} 比对守门。</p>
  *

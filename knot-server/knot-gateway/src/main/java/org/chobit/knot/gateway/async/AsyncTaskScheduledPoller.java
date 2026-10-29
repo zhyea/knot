@@ -50,7 +50,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AsyncTaskPoller {
+public class AsyncTaskScheduledPoller {
 
     private final AsyncTaskProperties properties;
     private final AsyncTaskRunner runner;

@@ -1,36 +1,26 @@
 package org.chobit.knot.gateway.controller;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.common.constants.AuthConstants;
 import org.chobit.knot.common.constants.GatewayHeaders;
-import org.chobit.knot.gateway.async.AsyncTaskContext;
-import org.chobit.knot.svc.dto.async.AsyncTaskDto;
-import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
-import org.chobit.knot.svc.service.AsyncTaskService;
-import org.chobit.knot.gateway.exception.GatewayAuthException;
+import org.chobit.knot.gateway.async.AsyncTaskLookupRunner;
 import org.chobit.knot.gateway.model.vo.response.AsyncTaskAcceptedResponse;
-import org.chobit.knot.gateway.routing.RoutingResolver;
-import org.chobit.knot.common.util.JsonKit;
+import org.chobit.knot.gateway.model.vo.response.AsyncTaskNotFoundResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
-import java.util.LinkedHashMap;
-import java.util.Map;
 /**
  * 异步任务查询端点（通用，不限于视频）。
  *
  * <p>客户端轮询 knot 而不是供应商：供应商地址与凭据不外泄、计费集中可控、
  * 未来换供应商客户端无感。路径刻意不挂 {@code /videos} —— 提交 + 轮询是一类通用能力，
  * 视频只是第一个使用者。</p>
+ *
+ * <p>⭐ <b>本类只做三件事</b>（{@code 10-backend-java.md §3.3}）：绑定入参、委托给
+ * {@link AsyncTaskLookupRunner}、把「查不到」翻译成 404。鉴权、查库、归属比对、
+ * 状态文案映射、响应体投影全部在 Runner 里——controller 出现 {@code if} / {@code switch} /
+ * {@code Map#put} 就是分层错位。</p>
  *
  * <p><b>鉴权</b>：与网关主链路同一套头部（{@code Authorization} + {@code Rule}），
  * 且规则码必须与任务归属一致。不匹配一律 404（而不是 403）——
@@ -42,94 +32,27 @@ import java.util.Map;
  * 这条查询现在确实只读，但契约一旦以 GET 发出去，将来要加副作用（推进轮询态、计数）就改不回来了；
  * 而 POST 的代价只是客户端换个方法名。全文零 GET，见 {@code GatewayHttpMethodGuardTest}。</p>
  */
-@Slf4j
 @RestController
 @RequestMapping(AsyncTaskAcceptedResponse.TASKS_PATH)
 @RequiredArgsConstructor
 public class GatewayTaskController {
 
-    private final AsyncTaskService taskService;
-    private final RoutingResolver routingResolver;
+    private final AsyncTaskLookupRunner lookupRunner;
 
     /**
      * 查询一个异步任务（{@code POST}，无请求体：句柄是寻址信息，留在路径上客户端可直接
      * POST 回执里的 {@code query_url}，不必拼 body）。
      *
-     * <p>⭐ 鉴权走 {@code RoutingResolver#requireRuleAccess}，与主链路<b>同一份</b>实现：
-     * 只看 {@code Authorization} 是不是 {@code Bearer xxx} 是不够的——那样任何字符串都能查，
-     * 任务句柄一泄露就是「谁都能读到别人的任务」。</p>
-     *
-     * <p>顺序是「先验 key，再查任务」：凭证不对直接 401，不进库。</p>
+     * <p>200 / 404 的判定在这里，是因为<b>状态码是 HTTP 关切</b>：Runner 只表达
+     * 「有没有这个任务」，把 404 塞进业务层会让它认识 {@code ResponseEntity}。</p>
      */
     @PostMapping("/{taskCode}")
     public Mono<ResponseEntity<Object>> query(@RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
                                               @RequestHeader(value = GatewayHeaders.RULE) String rule,
                                               @PathVariable("taskCode") String taskCode) {
-        if (!StringUtils.startsWith(authorization, AuthConstants.BEARER_PREFIX)) {
-            throw new GatewayAuthException("Invalid consumer API key");
-        }
-        routingResolver.requireRuleAccess(authorization.substring(AuthConstants.BEARER_PREFIX.length()), rule);
-        AsyncTaskDto task = StringUtils.isBlank(taskCode) ? null : taskService.getByTaskCode(taskCode.trim());
-        if (task == null || !ruleMatches(task, rule)) {
-            return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("error", "task not found: " + taskCode)));
-        }
-        return Mono.just(ResponseEntity.ok(body(task)));
-    }
-
-    /**
-     * 规则归属校验：任务归属的路由规则在 {@code context_json} 里，解析后比对，
-     * 不做字符串包含匹配（序列化格式变了就会静默失配）。上下文缺失时按「不匹配」处理 ——
-     * 宁可查不到，不可越权可见。
-     */
-    private boolean ruleMatches(AsyncTaskDto task, String rule) {
-        if (StringUtils.isBlank(task.contextJson()) || StringUtils.isBlank(rule)) {
-            return false;
-        }
-        AsyncTaskContext context = JsonKit.fromJson(task.contextJson(), AsyncTaskContext.class);
-        return context != null && StringUtils.equals(rule.trim(), context.ruleCode());
-    }
-
-    private Map<String, Object> body(AsyncTaskDto task) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("task_id", task.taskCode());
-        body.put("status", displayStatus(task.status()));
-        body.put("created_at", task.submittedAt());
-        body.put("completed_at", task.completedAt());
-        body.put("result_expires_at", task.resultExpiresAt());
-        if (StringUtils.isNotBlank(task.resultJson())) {
-            // 反序列化后回填：直接塞原文会变成「一个 JSON 字符串」，客户端还得再解一次
-            body.put("result", JsonKit.fromJson(task.resultJson(),
-                    new TypeReference<Map<String, Object>>() {
-                    }));
-        }
-        if (StringUtils.isNotBlank(task.errorCode())) {
-            body.put("error", Map.of("code", task.errorCode(),
-                    "message", StringUtils.defaultString(task.errorMessage())));
-        }
-        return body;
-    }
-
-    /**
-     * 对外状态沿用业界习惯：POLLING 归为 processing，PENDING 为 queued。
-     *
-     * <p>⭐ <b>对外协议与落库取值是两件事</b>：库里存 0~5 的码，客户端看到的是
-     * {@code queued/processing/completed/failed}。所以把 status 改成整型<b>没有</b>改动任何对外契约——
-     * 这里由枚举 switch 产生字符串，而不是把 DB 值直接透出去。</p>
-     *
-     * <p>无法识别的码（理论上不该出现，DB 有 CHECK 拦）落成 {@code unknown}：
-     * 宁可让客户端看到一个陌生值，也不要把内部码 {@code 3} 当成状态文本发出去。</p>
-     */
-    private String displayStatus(Integer status) {
-        AsyncTaskStatusEnum parsed = AsyncTaskStatusEnum.fromCode(status);
-        if (parsed == null) {
-            return "unknown";
-        }
-        return switch (parsed) {
-            case PENDING -> "queued";
-            case POLLING -> "processing";
-            case SUCCEEDED -> "completed";
-            case FAILED, EXPIRED, CANCELLED -> "failed";
-        };
+        return lookupRunner.lookup(authorization, rule, taskCode)
+                .<ResponseEntity<Object>>map(ResponseEntity::ok)
+                .switchIfEmpty(Mono.fromSupplier(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(AsyncTaskNotFoundResponse.of(taskCode))));
     }
 }

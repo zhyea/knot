@@ -104,7 +104,7 @@ class AsyncTaskPropertiesTest {
 
     /** 从 {@code ${key:default}} 里抠出 default；没写兜底说明本类断言的前提就不成立。 */
     private static String cronFallbackOf(String methodName) throws Exception {
-        Scheduled scheduled = AsyncTaskPoller.class.getMethod(methodName).getAnnotation(Scheduled.class);
+        Scheduled scheduled = AsyncTaskScheduledPoller.class.getMethod(methodName).getAnnotation(Scheduled.class);
         String cron = scheduled.cron();
         assertTrue(cron.startsWith("${") && cron.endsWith("}"), "cron 必须写成占位符形式: " + cron);
         assertTrue(cron.contains(":"), "缺少兜底默认值，去掉 yml 配置就会启动失败: " + cron);
