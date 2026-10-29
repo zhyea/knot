@@ -47,7 +47,7 @@ class GatewayTaskControllerTest {
     @Test
     @DisplayName("非 Bearer 凭据直接 401，不查库")
     void rejectsNonBearer() {
-        assertThrows(GatewayAuthException.class, () -> controller.get("Basic abc", "rule-1", "tc-1"));
+        assertThrows(GatewayAuthException.class, () -> controller.query("Basic abc", "rule-1", "tc-1"));
         assertNull(resolver.seenSecretKey, "鉴权没过就不该往下走");
         assertEquals(0, taskService.lookups, "不该进库查任务");
     }
@@ -56,7 +56,7 @@ class GatewayTaskControllerTest {
     @DisplayName("鉴权交给 RoutingResolver，且传的是去掉 Bearer 前缀的裸 key")
     void delegatesAuthorization() {
         taskService.put("tc-1", task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
-        controller.get("Bearer sk-abc", "rule-1", "tc-1").block();
+        controller.query("Bearer sk-abc", "rule-1", "tc-1").block();
         assertEquals("sk-abc", resolver.seenSecretKey);
         assertEquals("rule-1", resolver.seenRuleCode);
     }
@@ -65,7 +65,7 @@ class GatewayTaskControllerTest {
     @DisplayName("key 无效 / 规则不属于该消费者：401，且不进库查任务")
     void unauthorizedKeyIsRejected() {
         resolver.error = new GatewayAuthException("Consumer API key not found");
-        assertThrows(GatewayAuthException.class, () -> controller.get("Bearer sk-bad", "rule-1", "tc-1"));
+        assertThrows(GatewayAuthException.class, () -> controller.query("Bearer sk-bad", "rule-1", "tc-1"));
         assertEquals(0, taskService.lookups, "不该进库查任务");
     }
 
@@ -73,17 +73,17 @@ class GatewayTaskControllerTest {
     @DisplayName("规则头为空：400（与主链路同口径，不是 404）")
     void blankRuleIsBadRequest() {
         resolver.error = new GatewayInvalidRequestException("Rule header must not be blank");
-        assertThrows(GatewayInvalidRequestException.class, () -> controller.get("Bearer sk-abc", " ", "tc-1"));
+        assertThrows(GatewayInvalidRequestException.class, () -> controller.query("Bearer sk-abc", " ", "tc-1"));
     }
 
     @Test
     @DisplayName("任务不存在或规则不匹配一律 404（不泄漏句柄是否存在）")
     void unknownOrForeignTaskIsNotFound() {
         taskService.put("missing", null);
-        assertEquals(HttpStatus.NOT_FOUND, controller.get("Bearer sk-abc", "rule-1", "missing").block().getStatusCode());
+        assertEquals(HttpStatus.NOT_FOUND, controller.query("Bearer sk-abc", "rule-1", "missing").block().getStatusCode());
 
         taskService.put("tc-1", task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
-        assertEquals(HttpStatus.NOT_FOUND, controller.get("Bearer sk-abc", "rule-other", "tc-1").block().getStatusCode(),
+        assertEquals(HttpStatus.NOT_FOUND, controller.query("Bearer sk-abc", "rule-other", "tc-1").block().getStatusCode(),
                 "跨规则查询必须 404：403 会确认句柄存在");
     }
 
@@ -92,7 +92,7 @@ class GatewayTaskControllerTest {
     void missingContextIsNotFound() {
         AsyncTaskDto task = task(AsyncTaskStatusEnum.PENDING, null, null, null);
         taskService.put("tc-1", task);
-        assertEquals(HttpStatus.NOT_FOUND, controller.get("Bearer sk-abc", "rule-1", "tc-1").block().getStatusCode());
+        assertEquals(HttpStatus.NOT_FOUND, controller.query("Bearer sk-abc", "rule-1", "tc-1").block().getStatusCode());
     }
 
     @Test
@@ -110,7 +110,7 @@ class GatewayTaskControllerTest {
     void terminalStatusMapping() {
         AsyncTaskDto done = task(AsyncTaskStatusEnum.SUCCEEDED, "rule-1", "{\"result_url\":\"https://x/a.mp4\"}", null);
         taskService.put("tc-1", done);
-        ResponseEntity<Object> response = controller.get("Bearer sk-abc", "rule-1", "tc-1").block();
+        ResponseEntity<Object> response = controller.query("Bearer sk-abc", "rule-1", "tc-1").block();
         assertEquals(HttpStatus.OK, response.getStatusCode());
         Map<?, ?> body = (Map<?, ?>) response.getBody();
         assertEquals("completed", body.get("status"));
@@ -120,7 +120,7 @@ class GatewayTaskControllerTest {
 
         AsyncTaskDto failed = task(AsyncTaskStatusEnum.FAILED, "rule-1", null, "UPSTREAM_TASK_FAILED", "prompt rejected");
         taskService.put("tc-2", failed);
-        ResponseEntity<Object> failResponse = controller.get("Bearer sk-abc", "rule-1", "tc-2").block();
+        ResponseEntity<Object> failResponse = controller.query("Bearer sk-abc", "rule-1", "tc-2").block();
         Map<?, ?> failBody = (Map<?, ?>) failResponse.getBody();
         assertEquals("failed", failBody.get("status"));
         assertEquals(Map.of("code", "UPSTREAM_TASK_FAILED", "message", "prompt rejected"), failBody.get("error"));
@@ -131,11 +131,11 @@ class GatewayTaskControllerTest {
     @DisplayName("探针：规则名带前后空格应视为同一条规则，不得因空格而查不到")
     void ruleIsTrimmed() {
         taskService.put("tc-1", task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
-        assertEquals(HttpStatus.OK, controller.get("Bearer sk-abc", " rule-1 ", "tc-1").block().getStatusCode());
+        assertEquals(HttpStatus.OK, controller.query("Bearer sk-abc", " rule-1 ", "tc-1").block().getStatusCode());
     }
 
     private String statusOf(String taskCode) {
-        ResponseEntity<Object> response = controller.get("Bearer sk-abc", "rule-1", taskCode).block();
+        ResponseEntity<Object> response = controller.query("Bearer sk-abc", "rule-1", taskCode).block();
         return (String) ((Map<?, ?>) response.getBody()).get("status");
     }
 

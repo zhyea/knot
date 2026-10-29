@@ -374,6 +374,33 @@ admin 那份还额外把 9 个仍直接 import `dal.entity` 的 controller 列�
   - 扫法（**三次翻车的定稿口径**）：① 正则必须**双向**——`equals("X")` 与 `"X".equals(...)` 都要覆盖，只写前者会漏（首次扫描就漏了 `BillingFactChecks`）；② 候选 code 取「**枚举常量名** ∪ **构造第一个字符串参数**」的**并集**——只取其一必错：`PricingPlanEnum.code()` 返回 `name()`、第一个参数是 **label**（"固定价"），`BillingUnitEnum` 常量名 `ONE_K_TOKENS` 但 code 是 `"1K_TOKENS"`，`GatewayErrorTypeEnum` code 是**小写**（`upstream_error`）。③ 赋值处（`status: "ERROR"` / `unit: "1K_TOKENS"`）不在比较口径内，收口时须另行 grep。
   - 前端同名规则见 `20-frontend-vue.md`。
 
+### 5.2 HTTP 方法：对外接口默认 POST，GET 需举证（2026-10-29 立规，robin 拍板）
+
+⭐⭐ **结论：新写的对外接口一律 `@PostMapping`。** 用 `@GetMapping` 必须在注释里写出理由，且只能落在下表三类；
+其余场景——尤其**带业务句柄 / 凭据 / 用户输入的查询**——一律 POST。句柄留在路径上即可，
+**POST 允许无请求体**，不要为了「POST 得有 body」把 `/{taskCode}` 改造成 `body`。
+
+| 允许 GET（须注释举证） | 例 |
+|---|---|
+| 需要能直接打开、可收藏可刷新的只读资源 | 静态资源、文件下载、报表导出 |
+| 探活与静态元数据 | health、`GET /api/enum-options` |
+| admin 后台列表 / 详情（纯内部、无凭据类参数，可贴链接给同事） | admin 的 `GET /api/xxx/page` |
+
+**为什么（不是风格偏好，四条都会真出事故）**：
+
+1. **入参全进 URL**：句柄、手机号、token 会落进浏览器历史、反代与 CDN 的 access log、`Referer`；日志通常比库更久、更不设防。
+2. **会被中间层「善意」重放**：浏览器预取、爬虫、企业代理预取把「查一次」变成 N 次；查询一旦带副作用（推进轮询态、计数、下发一次性凭证）就是事故。
+3. **语义会漂移，而契约收不回**：以 GET 发出去之后想加副作用就得破坏客户端；一开始用 POST，后续加幂等键、加签名体、加请求体参数都不动 URL。
+4. **GET 的好处在这里是零**：对外接口都要带 `Authorization` + `Rule` 头，本就进不了共享缓存，「可缓存 / 可 CDN」用不上，只剩上面三条代价。
+
+**判据（怎么报）**：
+
+- gateway 对外接口出现 GET → 直接 🟡，无举证即改 POST。守门 **`GatewayHttpMethodGuardTest`**：扫 `gateway.controller` 全包（含类级 `@RequestMapping(method = GET)`，只看 `@GetMapping` 会漏），扫不到控制器也判失败。
+- 路径变量 / query 里出现业务句柄（`taskCode` / `orderNo` / 手机号 / email）→ 一律 POST。
+- **存量 GET 不做无收益的批量改造**（admin 后台保持现状），改造到那个接口时顺手改 POST；**新写的一律按本条**。
+
+判例：`GatewayTaskController` 的异步任务查询原为 `GET /openai/v1/tasks/{taskCode}`，2026-10-29 改 `POST`——路径与 `query_url` 不变，只换方法。`gateway.controller` 包（对外入口）至此零 GET；运维管理面 `gateway.outage.admin.OutageAdminController` 的只读列表仍为 GET，属上表第三类，**不在守门范围**（守门只扫对外 controller 包）。
+
 ## 6. 异常与鉴权
 
 - `BusinessException` **无 `@ResponseStatus`** → 返回 HTTP 200 + `success:false`，前端按业务码处理。

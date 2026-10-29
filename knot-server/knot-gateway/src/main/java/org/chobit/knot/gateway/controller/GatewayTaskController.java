@@ -16,8 +16,8 @@ import org.chobit.knot.gateway.routing.RoutingResolver;
 import org.chobit.knot.common.util.JsonKit;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,6 +35,12 @@ import java.util.Map;
  * <p><b>鉴权</b>：与网关主链路同一套头部（{@code Authorization} + {@code Rule}），
  * 且规则码必须与任务归属一致。不匹配一律 404（而不是 403）——
  * 不泄漏「这个任务句柄是否存在」，避免跨规则枚举。</p>
+ *
+ * <p><b>为什么查询用 POST 而不是 GET</b>（2026-10-29 robin 拍板，规范见 {@code 10-backend-java.md §5.2}）：
+ * 任务句柄在 URL 里，GET 会把它写进浏览器历史、代理与 CDN 的 access log、{@code Referer}，
+ * 还会被中间层当成「可缓存、可预取、可重放」的只读请求自行代打（预取一次就是一次真实的库查询）。
+ * 这条查询现在确实只读，但契约一旦以 GET 发出去，将来要加副作用（推进轮询态、计数）就改不回来了；
+ * 而 POST 的代价只是客户端换个方法名。全文零 GET，见 {@code GatewayHttpMethodGuardTest}。</p>
  */
 @Slf4j
 @RestController
@@ -46,7 +52,8 @@ public class GatewayTaskController {
     private final RoutingResolver routingResolver;
 
     /**
-     * 查询一个异步任务。
+     * 查询一个异步任务（{@code POST}，无请求体：句柄是寻址信息，留在路径上客户端可直接
+     * POST 回执里的 {@code query_url}，不必拼 body）。
      *
      * <p>⭐ 鉴权走 {@code RoutingResolver#requireRuleAccess}，与主链路<b>同一份</b>实现：
      * 只看 {@code Authorization} 是不是 {@code Bearer xxx} 是不够的——那样任何字符串都能查，
@@ -54,10 +61,10 @@ public class GatewayTaskController {
      *
      * <p>顺序是「先验 key，再查任务」：凭证不对直接 401，不进库。</p>
      */
-    @GetMapping("/{taskCode}")
-    public Mono<ResponseEntity<Object>> get(@RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
-                                            @RequestHeader(value = GatewayHeaders.RULE) String rule,
-                                            @PathVariable("taskCode") String taskCode) {
+    @PostMapping("/{taskCode}")
+    public Mono<ResponseEntity<Object>> query(@RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
+                                              @RequestHeader(value = GatewayHeaders.RULE) String rule,
+                                              @PathVariable("taskCode") String taskCode) {
         if (!StringUtils.startsWith(authorization, AuthConstants.BEARER_PREFIX)) {
             throw new GatewayAuthException("Invalid consumer API key");
         }

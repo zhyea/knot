@@ -24,7 +24,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param taskCode knot 生成的任务句柄（32 位 hex），对外字段名 {@code task_id}；
  *                 ⚠ 不是上游任务 ID，上游 ID 不外泄
  * @param status   对外状态，提交成功这里恒为 {@link #STATUS_QUEUED}
- * @param queryUrl 轮询地址，由 {@link #TASKS_PATH} 拼出，与 {@code GatewayTaskController} 同源
+ * @param queryUrl 轮询地址，由 {@link #TASKS_PATH} 拼出，与 {@code GatewayTaskController} 同源；
+ *                 ⚠ 客户端须用 <b>POST</b> 打这个地址（无请求体，句柄在路径上），GET 会 405
+ *                 —— 见 {@code 10-backend-java.md §5.2}
  */
 public record AsyncTaskAcceptedResponse(@JsonProperty("task_id") String taskCode,
                                        String status,

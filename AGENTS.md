@@ -40,6 +40,8 @@ cd knot-front && npx vue-tsc --noEmit && npx vite build                # 前端�
 - **`status` 为 0 是合法值**，前端禁用 truthy 判断。
 - **跨表绑定一律存 code 不存 id。**
 - **对外契约不许用 `Map` 拼装**：键由本项目定义的请求/响应体、固定字段集返回值、跨模块消息一律 `record` + `@JsonProperty`；只有上游动态 payload / `knot_extend` / 审计快照可用 `Map`（`10-backend-java.md §5.1`）。
+- **对外接口默认 POST，GET 需举证**：带句柄 / 凭据 / 用户输入的查询一律 POST（句柄留路径上，POST 允许无 body），
+  守门 `GatewayHttpMethodGuardTest`，详见 `10-backend-java.md §5.2`。
 - 无历史包袱：字段变更一次做干净，**不留兼容兜底、不写回填**。
 
 ## 规范索引（按任务查）
