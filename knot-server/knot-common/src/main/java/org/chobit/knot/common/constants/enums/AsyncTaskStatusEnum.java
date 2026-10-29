@@ -1,4 +1,7 @@
-package org.chobit.knot.gateway.async;
+package org.chobit.knot.common.constants.enums;
+
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 
 import java.util.Arrays;
 import java.util.List;
@@ -16,6 +19,14 @@ import java.util.List;
  *       同一个库里两种状态存法，读代码的人要记两套规则。</li>
  * </ul>
  *
+ * <p>⭐ <b>为什么住在 {@code common}（2026-10-29 二次搬迁）</b>：这套状态码有<b>三个互不依赖的消费方</b>
+ * ——gateway 的编排与状态机、svc 的 SQL 在途态谓词（{@link #inFlightCodes()}）、admin 的任务查看页
+ * （要 {@link #label()} 渲染）。放在任何一端都会让另外两端「反向依赖」或「复制一份枚举」，
+ * 后者是同一状态集两份定义，必然漂移。common 是三者唯一的共同祖先。</p>
+ *
+ * <p>⚠ 由此它也进入 {@link NumericEnumOption} 的统一契约名单（{@code NumericStatusEnumContractTest}）：
+ * {@code fromCode} / {@code requireCode} / {@code codes} 三件套必须齐备且与邻枚举行为一致。</p>
+ *
  * <p>⭐ <b>代价与对策（整型真正危险的地方不是「不可读」，是「撞 code」）</b>：</p>
  * <ul>
  *   <li>两个常量给同一个 code，数据写进去就<b>不可区分、不可恢复</b>——信息已经丢了。
@@ -24,38 +35,48 @@ import java.util.List;
  *       整体错位，且没有任何编译信号。只认 {@link #code()}。</li>
  *   <li>数值本身就是<b>落库 wire format</b>：由 {@code AsyncTaskStatusEnumTest} 逐个钉死，
  *       改动即红。别处一律用枚举常量，不写裸数字。</li>
- *   <li>可读性靠列注释（{@code schema.sql} 里写全 0~5 映射）与 {@code CHECK} 约束补，
- *       不再靠「存字符串」。</li>
+ *   <li>可读性靠 {@link #label()}（管理端展示）与列注释（{@code schema.sql} 里写全 0~5 映射）
+ *       加 {@code CHECK} 约束补，不再靠「存字符串」。</li>
  * </ul>
  *
  * <p>{@code PENDING} 与 {@code POLLING} 分开是刻意的：运维要能一眼分辨「创建后从未被轮询过」
  * （poller 没接手 / 抢占失败）与「正在轮询中」，两者处置方式完全不同。</p>
  */
-public enum AsyncTaskStatusEnum {
+public enum AsyncTaskStatusEnum implements NumericEnumOption {
 
     /** 上游创建成功，尚未发起首次查询 */
-    PENDING(0),
+    PENDING(0, "待处理"),
     /** 已查询过至少一次，仍在等待终态 */
-    POLLING(1),
+    POLLING(1, "轮询中"),
     /** 终态：成功，已计费 */
-    SUCCEEDED(2),
+    SUCCEEDED(2, "成功"),
     /** 终态：上游失败，不计费 */
-    FAILED(3),
+    FAILED(3, "失败"),
     /** 终态：超过 knot 侧超时仍未出结果，不计费 */
-    EXPIRED(4),
+    EXPIRED(4, "已超时"),
     /** 终态：主动取消（本轮未启用，语义先留） */
-    CANCELLED(5);
+    CANCELLED(5, "已取消");
 
     /** 落库值。⚠ 只增不改、不复用废号，见类注释 */
     private final int code;
 
-    AsyncTaskStatusEnum(int code) {
+    /** 管理端展示名（{@code /api/enum-options} 与任务列表都用它） */
+    private final String label;
+
+    AsyncTaskStatusEnum(int code, String label) {
         this.code = code;
+        this.label = label;
     }
 
     /** 落库值（{@code kb_async_tasks.status} 存的就是它） */
+    @Override
     public int code() {
         return code;
+    }
+
+    @Override
+    public String label() {
+        return label;
     }
 
     /** 是否在途：只有这两个状态会被扫描与抢占 */
@@ -76,13 +97,21 @@ public enum AsyncTaskStatusEnum {
 
     /** 按落库值反查；未知值返回 {@code null}（由调用方决定是兜底还是报错，不在这里静默给默认值） */
     public static AsyncTaskStatusEnum fromCode(Integer code) {
-        if (code == null) {
-            return null;
+        return NumericEnumOption.fromCode(values(), code);
+    }
+
+    /** 全部状态 code，供管理端查询下拉与批量校验使用 */
+    public static List<Integer> codes() {
+        return NumericEnumOption.codes(values());
+    }
+
+    /** 校验状态编码并返回其数字值，非法值直接拒绝（Service / Controller 边界用这个） */
+    public static int requireCode(Integer code, String errorMessage) {
+        AsyncTaskStatusEnum status = fromCode(code);
+        if (status == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, errorMessage);
         }
-        return Arrays.stream(values())
-                .filter(item -> item.code == code)
-                .findFirst()
-                .orElse(null);
+        return status.code();
     }
 
     private static final List<Integer> IN_FLIGHT_CODES = Arrays.stream(values())

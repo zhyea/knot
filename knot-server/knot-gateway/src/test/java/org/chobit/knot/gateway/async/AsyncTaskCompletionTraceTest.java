@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.async;
 
-import org.chobit.knot.dal.entity.AsyncTaskEntity;
+import org.chobit.knot.svc.dto.async.AsyncTaskDto;
 import org.chobit.knot.dal.mapper.AppMapper;
 import org.chobit.knot.dal.mapper.BillingRuleMapper;
 import org.chobit.knot.dal.mapper.ModelApiBindingMapper;
@@ -60,12 +60,12 @@ class AsyncTaskCompletionTraceTest {
         // 提交那次的追踪上下文：网关解析入站 traceparent 后为本次请求生成了自己的 span
         GatewayTraceContext submit = GatewayTraceContext.fromTraceparent(SUBMIT_TRACEPARENT);
         AsyncTaskContext context = contextOf(submit);
-        AsyncTaskEntity task = taskOf("tk_share");
+        AsyncTaskDto task = taskOf("tk_share");
 
         completion.publishQuery(task, context, 1, null);
         completion.publishQuery(task, context, 2, null);
         completion.publishQuery(task, context, 3, "UPSTREAM_QUERY_ERROR");
-        completion.publishTerminal(task, context, 4, null, null);
+        completion.publishTerminal(task, context, 4, null, null, null);
 
         assertEquals(4, publisher.messages.size(), "1 次提交之外，2 次成功查询 + 1 次失败查询 + 终态共 4 条");
         for (GatewayTrafficMsgDto msg : publisher.messages) {
@@ -87,7 +87,7 @@ class AsyncTaskCompletionTraceTest {
     void querySeqIsWhatDistinguishesQueries() {
         GatewayTraceContext submit = GatewayTraceContext.fromTraceparent(SUBMIT_TRACEPARENT);
         AsyncTaskContext context = contextOf(submit);
-        AsyncTaskEntity task = taskOf("tk_seq");
+        AsyncTaskDto task = taskOf("tk_seq");
 
         completion.publishQuery(task, context, 1, null);
         completion.publishQuery(task, context, 2, null);
@@ -109,10 +109,10 @@ class AsyncTaskCompletionTraceTest {
     @Test
     void terminalFlagSeparatesRetryFromFailure() {
         AsyncTaskContext context = contextOf(GatewayTraceContext.fromTraceparent(SUBMIT_TRACEPARENT));
-        AsyncTaskEntity task = taskOf("tk_terminal");
+        AsyncTaskDto task = taskOf("tk_terminal");
 
         completion.publishQuery(task, context, 1, "UPSTREAM_QUERY_ERROR");
-        completion.publishTerminal(task, context, 2, null, null);
+        completion.publishTerminal(task, context, 2, null, null, null);
 
         GatewayTrafficMsgDto retried = publisher.messages.get(0);
         assertNotEquals(Boolean.TRUE, retried.taskTerminal(), "中间查询失败不是终态");
@@ -132,7 +132,7 @@ class AsyncTaskCompletionTraceTest {
         AsyncTaskContext context = new AsyncTaskContext("tk_dirty", null, null,
                 "not-a-traceparent", "0123456789abcdef0123456789abcdef",
                 "VIDEO_GENERATIONS", "m", "up", "p", "pool", "https://x");
-        AsyncTaskEntity task = taskOf("tk_dirty");
+        AsyncTaskDto task = taskOf("tk_dirty");
 
         completion.publishQuery(task, context, 1, null);
         completion.publishQuery(task, context, 2, null);
@@ -149,11 +149,11 @@ class AsyncTaskCompletionTraceTest {
                 "https://upstream.example/v1/videos");
     }
 
-    private static AsyncTaskEntity taskOf(String taskCode) {
-        AsyncTaskEntity task = new AsyncTaskEntity();
-        task.setTaskCode(taskCode);
-        task.setRequestJson("{\"model\":\"kling-v3\",\"prompt\":\"x\"}");
-        return task;
+    private static AsyncTaskDto taskOf(String taskCode) {
+        return new AsyncTaskDto(null, taskCode, null, null, null,
+                null, null, null, null,
+                "{\"model\":\"kling-v3\",\"prompt\":\"x\"}", null, null,
+                null, null, null, null, null, null, null, null, null);
     }
 
     /**

@@ -1,10 +1,10 @@
 package org.chobit.knot.gateway.async;
 
 import org.chobit.knot.common.util.JsonKit;
-import org.chobit.knot.dal.entity.AsyncTaskEntity;
 import org.chobit.knot.dal.entity.ModelApiBindingEntity;
 import org.chobit.knot.gateway.async.AsyncTaskSupport.AsyncTaskCreation;
 import org.chobit.knot.gateway.model.ProxyResult;
+import org.chobit.knot.svc.dto.async.AsyncTaskDraftDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -15,14 +15,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 契约测试：异步任务的映射与判定（{@link AsyncTaskSupport}）。
+ * 契约测试：异步任务的<b>提交侧</b>（{@link AsyncTaskSupport}）。
  *
- * <p>本类是唯一的厂商知识边界，判定错了的表现是「永远查不到」或「提前判死」，
- * 两类都只在生产环境、几分钟后才显现，故逐条钉死。</p>
+ * <p>⭐ 判定、产物取值、退避三组用例已随代码搬到 {@code AsyncTaskSpecRulesTest}
+ * （2026-10-29）。这里只剩「提交那一刻」才成立的事实：异步与否看绑定、任务行怎么组装、
+ * 非异步时如何回退同步。回退错了的表现是「同步调用被当成异步挂住」，客户端一直拿不到结果。</p>
  */
 class AsyncTaskSupportTest {
 
@@ -48,91 +48,7 @@ class AsyncTaskSupportTest {
     }
 
     @Test
-    @DisplayName("上游任务 ID 按 task_id_path 取，不是按 query_path")
-    void upstreamTaskIdUsesTaskIdPath() {
-        Map<String, Object> createBody = Map.of("data", Map.of("id", "up-1",
-                "status", "submitted"));
-        assertEquals("up-1", support.upstreamTaskIdOf(createBody, spec()));
-        // 探针：若误用 query_path（含占位）去取 ID，这里就会取到空——两者是不同路径
-        assertNull(support.upstreamTaskIdOf(createBody,
-                new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.task_id", "data.status",
-                        "status == 'succeed'", "status == 'failed'", null, "data.url",
-                        null, 5000, 1000, 30000, 360, 1_800_000L)),
-                "task_id_path 填错必须取不到，不得回落到 query_path");
-    }
-
-    @Test
-    @DisplayName("终态判定：成功 / 失败 / 未声明状态一律非终态 / 取不到状态不判死")
-    void terminalClassification() {
-        AsyncTaskSpec spec = spec();
-        Map<String, Object> running = Map.of("data", java.util.List.of(Map.of("status", "processing")));
-        Map<String, Object> done = Map.of("data", java.util.List.of(Map.of("status", "succeed",
-                "outputs", java.util.List.of(Map.of("url", "https://x/a.mp4")))));
-        Map<String, Object> failed = Map.of("data", java.util.List.of(Map.of("status", "failed")));
-        Map<String, Object> empty = Map.of("data", java.util.List.of(Map.of()));
-        assertSame(AsyncTaskSupport.Terminal.RUNNING, support.terminalOf(running, spec));
-        assertSame(AsyncTaskSupport.Terminal.SUCCEEDED, support.terminalOf(done, spec));
-        assertSame(AsyncTaskSupport.Terminal.FAILED, support.terminalOf(failed, spec));
-        assertSame(AsyncTaskSupport.Terminal.RUNNING, support.terminalOf(empty, spec),
-                "取不到状态时按进行中处理：上游抖动不该把任务判死（由 max_attempts / 超时兜底）");
-    }
-
-    @Test
-    @DisplayName("判定表达式多值用 contains（MVEL 没有 in 元组语法），大小写由表达式自己负责")
-    void succeededExpressionIsCaseSensitive() {
-        AsyncTaskSpec spec = spec();
-        assertSame(AsyncTaskSupport.Terminal.SUCCEEDED,
-                support.terminalOf(Map.of("data", java.util.List.of(Map.of("status", "SUCCEEDED"))), spec));
-        assertSame(AsyncTaskSupport.Terminal.RUNNING,
-                support.terminalOf(Map.of("data", java.util.List.of(Map.of("status", "Succeed"))), spec),
-                "旧实现自动忽略大小写与空白；现在由表达式决定，未声明的写法不判成功");
-    }
-
-    @Test
-    @DisplayName("判定表达式可读整个响应体：状态在 data[0].status，成功标志在别处也能配")
-    void testExpressionCanReadWholeBody() {
-        AsyncTaskSpec spec = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data[0].status",
-                "body.data[0].code == 0", "status == 'failed'", null, "data[0].url",
-                null, 5000, 1000, 30000, 360, 1_800_000L);
-        assertSame(AsyncTaskSupport.Terminal.SUCCEEDED,
-                support.terminalOf(Map.of("data", java.util.List.of(Map.of("status", "ok", "code", 0))), spec));
-    }
-
-    @Test
-    @DisplayName("配了 status_running 却谁都不匹配：仍回 RUNNING（不判死），但必须留 warn 信号")
-    void unmatchedStatusStaysRunning() {
-        AsyncTaskSpec spec = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data.status",
-                "status == 'succeed'", "status == 'failed'", "status == 'queued'", "data.url",
-                null, 5000, 1000, 30000, 360, 1_800_000L);
-        assertSame(AsyncTaskSupport.Terminal.RUNNING,
-                support.terminalOf(Map.of("data", Map.of("status", "brand-new-state")), spec),
-                "上游新增状态不应被当终态，也不应被当成「正常进行中」而静默吞掉");
-    }
-
-    @Test
-    @DisplayName("产物 URL 取不到返回 null，由调用方判为「成功但无货」")
-    void resultUrlMissingYieldsNull() {
-        Map<String, Object> body = Map.of("data", java.util.List.of(Map.of("status", "succeed")));
-        assertNull(support.resultUrlOf(body, spec()));
-        Map<String, Object> ok = Map.of("data", java.util.List.of(Map.of("status", "succeed",
-                "outputs", java.util.List.of(Map.of("url", "https://x/a.mp4")))));
-        assertEquals("https://x/a.mp4", support.resultUrlOf(ok, spec()));
-    }
-
-    @Test
-    @DisplayName("退避：指数增长、受上限封顶、且不低于基准间隔")
-    void backoffIsCappedAndFloored() {
-        AsyncTaskSpec spec = spec();
-        assertEquals(5000, support.nextDelayMs(1, spec), "首次退避不应低于基准轮询间隔");
-        assertEquals(5000, support.nextDelayMs(2, spec));
-        assertEquals(8000, support.nextDelayMs(4, spec));
-        assertEquals(30000, support.nextDelayMs(20, spec), "退避必须封顶，否则越查越慢直到超时");
-        // 探针：若忘记取 min(cap, ...)，第 20 次会算成 1000×2^19 ≈ 5.2e8 ms
-        assertTrue(support.nextDelayMs(20, spec) <= 30000);
-    }
-
-    @Test
-    @DisplayName("任务行组装：在途态、0 次、三个 JSON 段齐全、产物时效按天")
+    @DisplayName("任务行组装：三个 JSON 段齐全、产物时效按天、下一次轮询与寿命按档案")
     void buildsPendingRow() {
         LocalDateTime now = LocalDateTime.of(2026, 10, 27, 12, 0, 0);
         AsyncTaskCreation creation = new AsyncTaskCreation(
@@ -141,25 +57,25 @@ class AsyncTaskSupportTest {
                 new AsyncTaskContext("tc-1", "rule-1", null, null, "req-1",
                         "VIDEO_GENERATIONS", "kling-3", "kling-3-turbo", "kling", "pool-1", "https://x/videos"),
                 "up-1", "RULE-1", "V1", now);
-        AsyncTaskEntity task = support.build(creation);
+        AsyncTaskDraftDto task = support.build(creation);
 
-        assertEquals("tc-1", task.getTaskCode());
-        assertEquals("KLING_TASK", task.getProfileCode());
-        assertEquals("up-1", task.getUpstreamTaskId());
-        // ⭐ 这里写裸数字 0 而不是 PENDING.code()，是为了钉住「落库的 wire 值」：
-        //    若改成引用常量，有人把 PENDING 的 code 改成 6 也不会有任何一处变红。
-        assertEquals(0, task.getStatus());
-        assertEquals(0, task.getAttempts());
-        assertEquals(now.plusNanos(5_000_000_000L), task.getNextPollAt());
-        assertEquals(now.plusNanos(1_800_000_000_000L), task.getExpiresAt());
-        assertEquals(now.plusDays(7), task.getResultExpiresAt());
-        assertEquals("RULE-1", task.getBillingRuleCode());
-        assertEquals("V1", task.getBillingRuleVersionCode());
-        assertNotNull(task.getRequestJson());
-        assertNotNull(task.getPollSpecJson());
-        assertNotNull(task.getContextJson());
+        assertEquals("tc-1", task.taskCode());
+        assertEquals("KLING_TASK", task.profileCode());
+        assertEquals("up-1", task.upstreamTaskId());
+        // ⭐ 「新任务必定是 PENDING、查询次数必定是 0」这两条不在这里断言了：
+        //    初值的赋予权随数据访问一起搬到了 svc 的 AsyncTaskConverter，
+        //    钉 wire 值的断言也随之搬进 AsyncTaskConverterTest（能力搬家，测试必须跟着搬，
+        //    否则删了能力测试还绿，等于没测）。草稿里根本没有这两个字段。
+        assertEquals(now.plusNanos(5_000_000_000L), task.nextPollAt());
+        assertEquals(now.plusNanos(1_800_000_000_000L), task.expiresAt());
+        assertEquals(now.plusDays(7), task.resultExpiresAt());
+        assertEquals("RULE-1", task.billingRuleCode());
+        assertEquals("V1", task.billingRuleVersionCode());
+        assertNotNull(task.requestJson());
+        assertNotNull(task.pollSpecJson());
+        assertNotNull(task.contextJson());
         // 探针：快照必须能反序列化回同样的口径，否则「改档案不影响在途任务」是空话
-        assertEquals(spec(), JsonKit.fromJson(task.getPollSpecJson(), AsyncTaskSpec.class));
+        assertEquals(spec(), JsonKit.fromJson(task.pollSpecJson(), AsyncTaskSpec.class));
     }
 
     @Test
@@ -168,10 +84,10 @@ class AsyncTaskSupportTest {
         AsyncTaskSpec noTtl = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data.status",
                 "status == 'succeed'", "status == 'failed'", null, "data.url",
                 null, 5000, 1000, 30000, 360, 1_800_000L);
-        AsyncTaskEntity task = support.build(new AsyncTaskCreation("tc", "P", noTtl, null,
+        AsyncTaskDraftDto task = support.build(new AsyncTaskCreation("tc", "P", noTtl, null,
                 Map.of(), new AsyncTaskContext("tc", "r", null, null, "req", null, "m", null, null, null, null),
                 "up", null, null, LocalDateTime.now()));
-        assertNull(task.getResultExpiresAt());
+        assertNull(task.resultExpiresAt());
     }
 
     @Test

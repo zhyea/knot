@@ -1,16 +1,9 @@
 package org.chobit.knot.dal.mapper;
 
-import org.apache.ibatis.builder.xml.XMLMapperBuilder;
-import org.apache.ibatis.io.Resources;
 import org.apache.ibatis.mapping.BoundSql;
-import org.apache.ibatis.mapping.MappedStatement;
-import org.apache.ibatis.session.Configuration;
 import org.junit.jupiter.api.Test;
 
-import java.io.InputStream;
-import java.lang.reflect.Modifier;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 或「有人把参数改回硬编码 {@code in (0, 1)}」这两件事，在 456 例 gateway 单测 + 真启之后
  * 仍然可以是坏的，且第一次显形是线上积压。</p>
  *
- * <p><b>它判什么</b>：用真实 {@link Configuration} 解析 XML 并取 {@link BoundSql}，
+ * <p><b>它判什么</b>：用真实 {@code Configuration} 解析 XML 并取 {@link BoundSql}，
  * 断言「在途态谓词确实由 {@code inFlightCodes} 参数展开成两个占位符」。
  * 这一步不需要数据库——mybatis 自带 shaded 的 {@code org.apache.ibatis.ognl}，
  * 动态节点求值不依赖外部 ognl jar，所以可以在纯单测里跑。</p>
@@ -46,9 +39,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AsyncTaskMapperSqlTest {
 
-    private static final String NAMESPACE = "org.chobit.knot.dal.mapper.AsyncTaskMapper";
-    private static final String RESOURCE = "mapper/AsyncTaskMapper.xml";
-
     /** 在途态：写死裸值，不引 gateway 枚举（dal 不认识状态语义，也不该认识） */
     private static final List<Integer> IN_FLIGHT = List.of(0, 1);
 
@@ -61,21 +51,6 @@ class AsyncTaskMapperSqlTest {
 
     /** 括号里只允许占位符、逗号、空白 */
     private static final Pattern PLACEHOLDERS_ONLY = Pattern.compile("[\\s?,]+");
-
-    private static Configuration parse() {
-        Configuration configuration = new Configuration();
-        try (InputStream in = Resources.getResourceAsStream(RESOURCE)) {
-            new XMLMapperBuilder(in, configuration, RESOURCE, configuration.getSqlFragments()).parse();
-        } catch (Exception e) {
-            throw new IllegalStateException("解析 " + RESOURCE + " 失败", e);
-        }
-        return configuration;
-    }
-
-    private static String sqlOf(Configuration configuration, String id, Map<String, Object> params) {
-        MappedStatement statement = configuration.getMappedStatement(NAMESPACE + "." + id);
-        return statement.getBoundSql(params).getSql().replaceAll("\\s+", " ").trim();
-    }
 
     /** 扫描类语句（claim / claimExpired）的入参：在途码 + 分批处理需要的边界值 */
     private static Map<String, Object> scanning() {
@@ -123,8 +98,7 @@ class AsyncTaskMapperSqlTest {
 
     @Test
     void claimExpandsInFlightCodesToTwoPlaceholders() {
-        Configuration configuration = parse();
-        String claim = sqlOf(configuration, "claim", paramsOf("claim"));
+        String claim = MapperDynamicSql.of(AsyncTaskMapper.class).sql("claim", paramsOf("claim"));
         assertTrue(claim.contains("status in"),
                 "claim 里没有在途态谓词，status 条件可能被整段删掉了：\n  " + claim);
 
@@ -142,10 +116,10 @@ class AsyncTaskMapperSqlTest {
      */
     @Test
     void everyInFlightPredicateContainsOnlyPlaceholders() {
-        Configuration configuration = parse();
+        MapperDynamicSql mapper = MapperDynamicSql.of(AsyncTaskMapper.class);
 
         for (String id : IN_FLIGHT_STATEMENTS) {
-            String sql = sqlOf(configuration, id, paramsOf(id));
+            String sql = mapper.sql(id, paramsOf(id));
             Matcher predicate = IN_FLIGHT_PREDICATE.matcher(sql);
             assertTrue(predicate.find(), id + " 里找不到在途态谓词：\n  " + sql);
             String inside = predicate.group(2);
@@ -159,8 +133,8 @@ class AsyncTaskMapperSqlTest {
 
     @Test
     void deleteCompletedBeforeNegatesTheInFlightSet() {
-        Configuration configuration = parse();
-        String sql = sqlOf(configuration, "deleteCompletedBefore", paramsOf("deleteCompletedBefore"));
+        String sql = MapperDynamicSql.of(AsyncTaskMapper.class)
+                .sql("deleteCompletedBefore", paramsOf("deleteCompletedBefore"));
         assertTrue(sql.contains("status not in"),
                 "终态清理必须用 not in 在途集合，逐个列终态码会在加状态时漏行：\n  " + sql);
     }
@@ -168,17 +142,6 @@ class AsyncTaskMapperSqlTest {
     /** XML 没被解析到时，上面所有断言都会「空跑通过」，所以这里显式钉住解析结果 */
     @Test
     void doesNotSilentlySkipBecauseNothingWasParsed() {
-        Configuration configuration = parse();
-        long expected = Arrays.stream(AsyncTaskMapper.class.getDeclaredMethods())
-                .filter(method -> !method.isSynthetic()
-                        && !Modifier.isStatic(method.getModifiers())
-                        && !method.isDefault())
-                .count();
-        long actual = configuration.getMappedStatementNames().stream()
-                .filter(name -> name.startsWith(NAMESPACE + "."))
-                .count();
-        assertEquals(expected, actual,
-                "AsyncTaskMapper 解析出的 statement 数与接口抽象方法数不一致——"
-                        + "XML 没被解析到（或接口加了方法没写语句）");
+        MapperDynamicSql.of(AsyncTaskMapper.class).assertParsedEveryInterfaceMethod();
     }
 }

@@ -355,7 +355,11 @@ XML 用 `<foreach>` 展开。写死 `in (0,1)` 时，将来往枚举加一个在
 **mybatis 3.5.x 自带 shaded 的 `org.apache.ibatis.ognl`**（外部 ognl 是 `optional` 依赖、不传递），
 所以 `Configuration` + `XMLMapperBuilder` 解析 XML 后取 `MappedStatement#getBoundSql(params)`
 就能拿到展开后的 SQL——不需要连库、不需要连接池。判例 `AsyncTaskMapperSqlTest`。
+取数脚手架统一走 `MapperDynamicSql`（`knot-dal` 测试包）：`of(接口类)` 反推 namespace 与 XML 路径
+（**不留第二个包名/文件名字面量**）、`sql(id, params)` 取展开结果、`equalTo(列)` 生成 `where|and 列 = ?` 判据、
+`assertParsedEveryInterfaceMethod()` 堵住「XML 没解析到 → 零命中 → 空跑绿灯」。
 ⚠ 断言要**只盯 `status in (...)` 那对括号**：写成「整条 SQL 不许出现数字」会被 `now(3)`（毫秒精度）误报。
+⚠ `where|and` 两种前缀都得接受：`<where>` 会把紧跟其后的首个 `and` 剥掉，只写 `and` 会让「修好 XML 后测试仍然红」。
 ℹ 仍然判不了的（列名、join、`now(3)` 时区口径、`order by ... limit` 方言合法性）仍归 `schema.sql` + 真库冒烟。
 
 ## 9. 上游适配器职责边界（2026-10-28）

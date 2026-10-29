@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.async;
+package org.chobit.knot.common.constants.enums;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

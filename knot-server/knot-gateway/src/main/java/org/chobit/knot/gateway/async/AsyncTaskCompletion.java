@@ -6,7 +6,7 @@ import org.chobit.knot.adapter.model.usage.UsageAccounting;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.common.util.JsonKit;
-import org.chobit.knot.dal.entity.AsyncTaskEntity;
+import org.chobit.knot.svc.dto.async.AsyncTaskDto;
 import org.chobit.knot.dal.entity.ModelEntity;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.kafka.KafkaPublisher;
@@ -37,7 +37,7 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-public class AsyncTaskCompletion {
+public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
 
     private final UsageExtractorRegistry usageExtractorRegistry;
     private final UpstreamProxyClient proxyClient;
@@ -63,13 +63,14 @@ public class AsyncTaskCompletion {
      * <p>请求体取自任务快照（<b>客户端原始体</b>）——提取器读的就是这一份，
      * 与同步链路完全一致（转换后的上游体只用于发请求，从不回灌给提取器）。</p>
      */
-    public UsageAccounting account(AsyncTaskEntity task, AsyncTaskContext context, String queryBody) {
+    @Override
+    public UsageAccounting charge(AsyncTaskDto task, AsyncTaskContext context, String queryBody) {
         ModelEntity model = dataService.getModelByCode(context.modelCode());
         if (model == null) {
             log.error("Async task billing skipped: model not found: {}", context.modelCode());
             return null;
         }
-        Map<String, Object> requestBody = JsonKit.fromJson(task.getRequestJson(),
+        Map<String, Object> requestBody = JsonKit.fromJson(task.requestJson(),
                 new TypeReference<Map<String, Object>>() {
                 });
         UpstreamRequestContext upstreamContext = proxyClient.buildModelRequestContext(
@@ -92,8 +93,9 @@ public class AsyncTaskCompletion {
      * @param querySeq  第几次查询（从 1 开始，对应行上的 {@code attempts}）
      * @param errorCode 本次查询是否出错（{@code QUERY_ERROR} 时为错误码；拿到有效响应时为 null）
      */
-    public void publishQuery(AsyncTaskEntity task, AsyncTaskContext context, int querySeq, String errorCode) {
-        publish(task, context, TaskTrace.query(task.getTaskCode(), querySeq, false), null, errorCode, null);
+    @Override
+    public void publishQuery(AsyncTaskDto task, AsyncTaskContext context, int querySeq, String errorCode) {
+        publish(task, context, TaskTrace.query(task.taskCode(), querySeq, false), null, errorCode, null);
     }
 
     /**
@@ -107,9 +109,10 @@ public class AsyncTaskCompletion {
      *
      * @param error 失败/超时原因；成功路径为 {@code null}
      */
-    public void publishTerminal(AsyncTaskEntity task, AsyncTaskContext context,
-                                int querySeq, UsageAccounting usage, Throwable error) {
-        publish(task, context, TaskTrace.query(task.getTaskCode(), querySeq, true), usage, null, error);
+    @Override
+    public void publishTerminal(AsyncTaskDto task, AsyncTaskContext context,
+                                int querySeq, UsageAccounting usage, String errorCode, String errorMessage) {
+        publish(task, context, TaskTrace.query(task.taskCode(), querySeq, true), usage, errorCode, errorMessage);
     }
 
     /**
@@ -118,8 +121,8 @@ public class AsyncTaskCompletion {
      * <p>路由维度与 hit 快照的重建只在<b>这一处</b>：两份实现必然漂移，而漂移的表现是
      * 「终态事件有模型、中间查询事件没有」，数仓 join 时静默丢行。</p>
      */
-    private void publish(AsyncTaskEntity task, AsyncTaskContext context, TaskTrace trace,
-                         UsageAccounting usage, String errorCode, Throwable error) {
+    private void publish(AsyncTaskDto task, AsyncTaskContext context, TaskTrace trace,
+                         UsageAccounting usage, String errorCode, String errorMessage) {
         if (eventPublisher == null) {
             return;
         }
@@ -138,20 +141,26 @@ public class AsyncTaskCompletion {
         requestContext.putAttribute(GatewayRequestHandler.HIT_TARGET_ATTRIBUTE, target);
         requestContext.putAttribute(GatewayRequestHandler.HIT_TARGET_URL_ATTRIBUTE, context.upstreamUrl());
         requestContext.putAttribute(TaskTrace.ATTRIBUTE, trace);
-        Map<String, Object> requestBody = JsonKit.fromJson(task.getRequestJson(),
+        Map<String, Object> requestBody = JsonKit.fromJson(task.requestJson(),
                 new TypeReference<Map<String, Object>>() {
                 });
         GatewayExchange exchange = new GatewayExchange(requestBody, MediaType.APPLICATION_JSON);
         eventPublisher.publish(trafficTopic, GatewayTrafficMsgDto.of(requestContext, exchange, usage, null,
-                error != null ? error : errorOf(errorCode)));
+                errorOf(errorCode, errorMessage)));
     }
 
     /**
-     * 只有错误码时构造一个可下发的异常：中间查询的失败可能连上游响应都没有（超时 / 连接重置），
+     * 构造一个可下发的异常：中间查询的失败可能连上游响应都没有（超时 / 连接重置），
      * 但事件里必须有 {@code error.stage} 才能被数仓归因。
+     *
+     * <p>调用方传的是「码 + 话术」而不是一个现成的异常：编排层（svc）不该为了发一条事件
+     * 去 import 网关的异常类型——那是把两个 app 的类型系统绑在一起。</p>
      */
-    private static Throwable errorOf(String errorCode) {
-        return errorCode == null ? null
-                : new GatewayUpstreamException(errorCode, errorCode);
+    private static Throwable errorOf(String errorCode, String errorMessage) {
+        if (errorCode == null && errorMessage == null) {
+            return null;
+        }
+        String code = errorCode == null ? "ASYNC_TASK_FAILED" : errorCode;
+        return new GatewayUpstreamException(errorMessage == null ? code : errorMessage, code);
     }
 }

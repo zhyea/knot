@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.async;
 
-import org.chobit.knot.dal.entity.AsyncTaskProfileEntity;
+import org.chobit.knot.svc.dto.async.AsyncTaskProfileDto;
 
 /**
  * 查询口径快照（落 {@code kb_async_tasks.poll_spec_json}）。
@@ -14,11 +14,11 @@ import org.chobit.knot.dal.entity.AsyncTaskProfileEntity;
  * {@code statusSucceeded} / {@code statusFailed} / {@code statusRunning} 是
  * <b>MVEL 布尔表达式</b>（可用变量 {@code status} 与 {@code body}）。
  * 求值统一走 {@link AsyncTaskExpressionSupport}，判定语义统一在
- * {@link AsyncTaskSupport#terminalOf}——三处各写一份比较逻辑必然漂移
+ * {@link AsyncTaskSpecRules#terminalOf}——三处各写一份比较逻辑必然漂移
  * （旧版把「逗号分隔取值是否包含」写在记录里，正是本次被替换的形态）。</p>
  *
  * <p>{@code queryPath} 里的 {@code {task_id}} 是 <b>URL 模板占位</b>，与上面的 MVEL 表达式
- * 不是一回事（一个拼地址、一个读响应），由 {@link AsyncTaskSupport#resolveQueryPath} 替换。</p>
+ * 不是一回事（一个拼地址、一个读响应），由 {@link #resolvePath(String)} 替换。</p>
  */
 public record AsyncTaskSpec(String queryMethod,
                             String queryPath,
@@ -47,26 +47,26 @@ public record AsyncTaskSpec(String queryMethod,
      * <p>档案列缺失或非正时按 {@link AsyncTaskDefaults} 兜底（与 {@link AsyncTaskProperties} 同一个出处），
      * 本方法不再写裸字面量。</p>
      */
-    public static AsyncTaskSpec of(AsyncTaskProfileEntity profile) {
+    public static AsyncTaskSpec of(AsyncTaskProfileDto profile) {
         if (profile == null) {
             return null;
         }
         return new AsyncTaskSpec(
-                defaultText(profile.getQueryMethod(), AsyncTaskDefaults.QUERY_METHOD),
-                profile.getQueryPath(),
-                profile.getTaskIdPath(),
-                profile.getStatusPath(),
-                profile.getStatusSucceeded(),
-                profile.getStatusFailed(),
-                profile.getStatusRunning(),
-                profile.getResultPath(),
-                profile.getResultExpiresDays(),
-                positive(profile.getPollIntervalMs(), AsyncTaskDefaults.POLL_INTERVAL_MS),
-                positive(profile.getPollBackoffBaseMs(), AsyncTaskDefaults.POLL_BACKOFF_BASE_MS),
-                positive(profile.getPollBackoffMaxMs(), AsyncTaskDefaults.POLL_BACKOFF_MAX_MS),
-                positive(profile.getMaxAttempts(), AsyncTaskDefaults.MAX_ATTEMPTS),
-                profile.getTimeoutMs() == null ? AsyncTaskDefaults.TASK_TIMEOUT_MS
-                        : Math.max(1L, profile.getTimeoutMs()));
+                defaultText(profile.queryMethod(), AsyncTaskDefaults.QUERY_METHOD),
+                profile.queryPath(),
+                profile.taskIdPath(),
+                profile.statusPath(),
+                profile.statusSucceeded(),
+                profile.statusFailed(),
+                profile.statusRunning(),
+                profile.resultPath(),
+                profile.resultExpiresDays(),
+                positive(profile.pollIntervalMs(), AsyncTaskDefaults.POLL_INTERVAL_MS),
+                positive(profile.pollBackoffBaseMs(), AsyncTaskDefaults.POLL_BACKOFF_BASE_MS),
+                positive(profile.pollBackoffMaxMs(), AsyncTaskDefaults.POLL_BACKOFF_MAX_MS),
+                positive(profile.maxAttempts(), AsyncTaskDefaults.MAX_ATTEMPTS),
+                profile.timeoutMs() == null ? AsyncTaskDefaults.TASK_TIMEOUT_MS
+                        : Math.max(1L, profile.timeoutMs()));
     }
 
     /**

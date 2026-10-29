@@ -27,7 +27,7 @@ package org.chobit.knot.gateway.async;
  * <p>⚠ 测试里<b>故意</b>再写一遍字面量（见 {@code AsyncTaskSpecTest} / {@code AsyncTaskPropertiesTest}）：
  * 那是探针，不是重复。若测试改成引用本类常量，改常量就不会有任何一处变红，等于把护栏拆了。</p>
  */
-final class AsyncTaskDefaults {
+public final class AsyncTaskDefaults {
 
     private AsyncTaskDefaults() {
     }
@@ -55,32 +55,32 @@ final class AsyncTaskDefaults {
     // ───────────────────────── 扫描级：多久扫一次表 ─────────────────────────
 
     /** 总开关默认开；关掉只是不扫描，已提交的任务留在表里等开启 */
-    static final boolean ENABLED = true;
+    public static final boolean ENABLED = true;
 
     /** 轮询扫描节拍（cron）：每分钟整点一次。⚠ 与 {@code @Scheduled} 里的兜底字面量是两份，见类注释 */
-    static final String TICK_CRON = "0 * * * * *";
+    public static final String TICK_CRON = "0 * * * * *";
 
     /** 单批抢占上限：控制一次 tick 的吞吐 */
-    static final int BATCH_SIZE = 100;
+    public static final int BATCH_SIZE = 100;
 
     /** 单批内并发上游查询数（并发是「同时发几个查询」，不是占多少线程） */
-    static final int CONCURRENCY = 8;
+    public static final int CONCURRENCY = 8;
 
     /** 单次查询上游的超时（毫秒）。⚠ 与 {@link #POLL_BACKOFF_MAX_MS} 同值不同义 */
-    static final long QUERY_TIMEOUT_MS = 30_000L;
+    public static final long QUERY_TIMEOUT_MS = 30_000L;
 
     /** 占位有效期（毫秒）：一轮处理的时间预算上限，必须严格大于 {@link #QUERY_TIMEOUT_MS} */
-    static final long CLAIM_TTL_MS = 180_000L;
+    public static final long CLAIM_TTL_MS = 180_000L;
 
     /** 单批超时回收上限 */
-    static final int EXPIRE_BATCH_SIZE = 200;
+    public static final int EXPIRE_BATCH_SIZE = 200;
 
     /** 终态行保留天数，超过由归档任务清理 */
-    static final int RETENTION_DAYS = 30;
+    public static final int RETENTION_DAYS = 30;
 
     /** 归档扫描节拍（cron）：每小时整点。⚠ 与 {@code @Scheduled} 里的兜底字面量是两份 */
-    static final String CLEANUP_CRON = "0 0 * * * *";
+    public static final String CLEANUP_CRON = "0 0 * * * *";
 
     /** 单批清理上限：大表删除分批，避免长事务 */
-    static final int CLEANUP_BATCH_SIZE = 500;
+    public static final int CLEANUP_BATCH_SIZE = 500;
 }

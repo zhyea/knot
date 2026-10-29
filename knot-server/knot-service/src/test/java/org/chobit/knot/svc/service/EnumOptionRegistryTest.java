@@ -40,7 +40,7 @@ class EnumOptionRegistryTest {
     void exposesOnlyMigratedEnums() {
         Map<String, List<EnumOptionItem>> map = registry.enumMap();
 
-        assertEquals(20, map.size());
+        assertEquals(21, map.size());
         assertTrue(map.containsKey("ModelTypeEnum"));
         assertTrue(map.containsKey("ModelApiProtocolEnum"));
         assertTrue(map.containsKey("BillingModeEnum"));
@@ -58,9 +58,21 @@ class EnumOptionRegistryTest {
         assertTrue(map.containsKey("PluginTypeEnum"));
         assertTrue(map.containsKey("OperationLogStatusEnum"));
         assertTrue(map.containsKey("ScheduledTaskRunStatusEnum"));
+        assertTrue(map.containsKey("AsyncTaskStatusEnum"));
         assertTrue(map.containsKey("RoutingTestStatusEnum"));
         assertTrue(map.containsKey("LogicalModelVisibilityEnum"));
         assertTrue(map.containsKey("LogicalModelPublishStatusEnum"));
+    }
+
+    @Test
+    void asyncTaskStatusExposesNumericLabels() {
+        // 管理端「异步任务」列表按 code 渲染文案。⚠ 0（待处理）必须能取到 label——
+        // 前端若写 if (status) 判断，状态 0 会被当假值整行不渲染，这是本库的头号风险
+        assertEquals(6, optionsOf("AsyncTaskStatusEnum").size());
+        assertLabel("AsyncTaskStatusEnum", 0, "待处理");
+        assertLabel("AsyncTaskStatusEnum", 1, "轮询中");
+        assertLabel("AsyncTaskStatusEnum", 2, "成功");
+        assertLabel("AsyncTaskStatusEnum", 5, "已取消");
     }
 
     @Test

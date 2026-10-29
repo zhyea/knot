@@ -1,6 +1,6 @@
 package org.chobit.knot.gateway.async;
 
-import org.chobit.knot.dal.entity.AsyncTaskProfileEntity;
+import org.chobit.knot.svc.dto.async.AsyncTaskProfileDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -61,12 +61,10 @@ class AsyncTaskSpecTest {
     @Test
     @DisplayName("档案投影：表达式原样带过去（不在这里解析），空值走默认，非法值（0/负）走默认")
     void projectionDefaults() {
-        AsyncTaskProfileEntity profile = new AsyncTaskProfileEntity();
-        profile.setQueryPath("/v1/tasks/{task_id}");
-        profile.setTaskIdPath("data.id");
-        profile.setStatusPath("data.status");
-        profile.setStatusSucceeded("status == 'succeed'");
-        profile.setStatusFailed("status == 'failed'");
+        AsyncTaskProfileDto profile = new AsyncTaskProfileDto("P", "VIDEO_GENERATIONS", null,
+                "/v1/tasks/{task_id}", "data.id", "data.status",
+                "status == 'succeed'", "status == 'failed'", null, null,
+                null, null, null, null, null, null);
         AsyncTaskSpec spec = AsyncTaskSpec.of(profile);
         assertEquals("GET", spec.queryMethod(), "未配方法时默认 GET");
         assertEquals("status == 'succeed'", spec.statusSucceeded(),
@@ -77,10 +75,11 @@ class AsyncTaskSpecTest {
         assertEquals(360, spec.maxAttempts());
         assertEquals(1_800_000L, spec.timeoutMs());
 
-        profile.setPollIntervalMs(0);
-        profile.setPollBackoffMaxMs(-1);
-        profile.setTimeoutMs(0L);
-        AsyncTaskSpec sanitized = AsyncTaskSpec.of(profile);
+        AsyncTaskProfileDto dirty = new AsyncTaskProfileDto("P", "VIDEO_GENERATIONS", null,
+                "/v1/tasks/{task_id}", "data.id", "data.status",
+                "status == 'succeed'", "status == 'failed'", null, null,
+                null, 0, null, -1, null, 0L);
+        AsyncTaskSpec sanitized = AsyncTaskSpec.of(dirty);
         assertEquals(5000, sanitized.pollIntervalMs(), "0 不是合法间隔");
         assertEquals(30000, sanitized.pollBackoffMaxMs(), "负数不是合法上限");
         assertEquals(1L, sanitized.timeoutMs(), "超时必须为正，否则任务一提交就过期");

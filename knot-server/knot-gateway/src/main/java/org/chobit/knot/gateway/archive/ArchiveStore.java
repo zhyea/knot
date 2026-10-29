@@ -8,9 +8,15 @@ package org.chobit.knot.gateway.archive;
  * 或者供应商换了域名/下线了模型，旧地址就成了一堆死链。有条件时（S3 / OSS / MinIO）
  * 应该在拿到产物的那一刻就搬到自己这边。</p>
  *
- * <p><b>默认实现是直通</b>（{@link PassthroughArchiveStore}）：没有对象存储时，
+ * <p><b>默认实现是直通</b>（gateway 侧 {@code PassthroughArchiveStore}）：没有对象存储时，
  * 供应商地址本来就是唯一可用的地址。这时假装转储（比如复制一份到本地磁盘再对外发）比诚实直连更糟——
  * 它把「我们其实没有归档能力」这件事藏了起来。</p>
+ *
+ * <p>⭐ <b>为什么在 gateway（2026-10-29 定稿，中间曾在 svc 待过）</b>：这套东西不碰数据库、
+ * 不碰事务，只在<b>终态那一步</b>被调用一次，admin 从不使用。它一度被放进 svc，理由是
+ * 「成功的产物要不要搬、搬失败算不算失败」听着像业务口径——但判据是<b>谁执行</b>而不是措辞：
+ * 搬到哪个桶、用哪套凭据、区域怎么选，全是部署事实（{@code knot.gateway.archive.type}）；
+ * 编排方只是「算完钱之后顺手调一下」。放在共享层会让一个纯部署决策长在所有人身上。</p>
  *
  * <h3>实现契约</h3>
  * <ol>
@@ -20,11 +26,11 @@ package org.chobit.knot.gateway.archive;
  *       后者要报到 ERROR 日志与告警，前者是正常状态。</li>
  *   <li><b>同一 {@code taskCode} 重复调用应返回同一地址</b>（幂等）。终态重放、手动补搬、
  *       节点在 finish 前宕机后重查，都会让同一个任务被搬第二次——按 {@code taskCode} 定对象键就不会产生副本。</li>
- *   <li><b>实现必须线程安全</b>：轮询器按 {@code concurrency} 并发处理一批任务，同一个实例会被同时调用。</li>
+ *   <li><b>实现必须线程安全</b>：编排方按 {@code concurrency} 并发处理一批任务，同一个实例会被同时调用。</li>
  * </ol>
  *
  * <h3>调用时机与失败代价</h3>
- * <p>只在 {@code AsyncTaskPoller} 的 {@code SETTLE_BILLED} 分支调用一次——也就是「上游说成功且产物齐全」
+ * <p>只在 {@code AsyncTaskRunner} 的 {@code SETTLE_BILLED} 分支调用一次——也就是「上游说成功且产物齐全」
  * 的那一刻。因此转储<b>不是交付的前置条件</b>：它失败时任务照样落 {@code SUCCEEDED}、照样计费、
  * 客户端照样拿到供应商地址。代价是这条 URL 会随供应商策略失效，日志里留下 ERROR 供事后补搬。</p>
  *
@@ -32,10 +38,6 @@ package org.chobit.knot.gateway.archive;
  * 乃至图片/音频产物，走的都是同一套「临时地址 → 长期地址」。放进某个 adapter 子包，
  * 第二个厂商就会复制一份。⭐ 名字里不带 {@code Video} 是刻意的（2026-10-28 由
  * {@code VideoArchiveStore} 改名）：**任何人看到 {@code Video} 前缀都会以为图片/音频不适用**。</p>
- *
- * <p>实现选择走配置：{@code knot.gateway.archive.type}（默认 {@code passthrough}）。
- * 新增 S3 实现时给它 {@code havingValue = "s3"} 且<b>不要</b>写 {@code matchIfMissing}，
- * 两者天然互斥，不需要额外的 catalog 或优先级注解。</p>
  */
 public interface ArchiveStore {
 

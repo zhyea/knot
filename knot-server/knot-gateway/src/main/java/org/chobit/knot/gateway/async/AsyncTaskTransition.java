@@ -1,5 +1,7 @@
 package org.chobit.knot.gateway.async;
 
+import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
+
 /**
  * 一次状态转移的结果：{@code from × event → to}，外加调用方要执行的动作。
  *

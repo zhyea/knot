@@ -1,11 +1,11 @@
 package org.chobit.knot.gateway.controller;
 
 import org.chobit.knot.common.util.JsonKit;
-import org.chobit.knot.dal.entity.AsyncTaskEntity;
-import org.chobit.knot.gateway.async.AsyncTaskContext;
-import org.chobit.knot.gateway.async.AsyncTaskStatusEnum;
-import org.chobit.knot.gateway.async.AsyncTaskStore;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
+import org.chobit.knot.gateway.async.AsyncTaskContext;
+import org.chobit.knot.svc.dto.async.AsyncTaskDto;
+import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
+import org.chobit.knot.svc.service.AsyncTaskService;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
 import org.chobit.knot.gateway.routing.RoutingResolver;
 import org.chobit.knot.gateway.service.GatewayEntityCacheService;
@@ -20,9 +20,6 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 
 /**
  * 契约测试：异步任务查询端点（{@link GatewayTaskController}）。
@@ -36,15 +33,15 @@ import static org.mockito.Mockito.when;
  */
 class GatewayTaskControllerTest {
 
-    private AsyncTaskStore store;
+    private RecordingTaskService taskService;
     private RecordingRoutingResolver resolver;
     private GatewayTaskController controller;
 
     @BeforeEach
     void setUp() {
-        store = mock(AsyncTaskStore.class);
+        taskService = new RecordingTaskService();
         resolver = new RecordingRoutingResolver();
-        controller = new GatewayTaskController(store, resolver);
+        controller = new GatewayTaskController(taskService, resolver);
     }
 
     @Test
@@ -52,13 +49,13 @@ class GatewayTaskControllerTest {
     void rejectsNonBearer() {
         assertThrows(GatewayAuthException.class, () -> controller.get("Basic abc", "rule-1", "tc-1"));
         assertNull(resolver.seenSecretKey, "鉴权没过就不该往下走");
-        verifyNoInteractions(store);
+        assertEquals(0, taskService.lookups, "不该进库查任务");
     }
 
     @Test
     @DisplayName("鉴权交给 RoutingResolver，且传的是去掉 Bearer 前缀的裸 key")
     void delegatesAuthorization() {
-        when(store.getByTaskCode("tc-1")).thenReturn(task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
+        taskService.put("tc-1", task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
         controller.get("Bearer sk-abc", "rule-1", "tc-1").block();
         assertEquals("sk-abc", resolver.seenSecretKey);
         assertEquals("rule-1", resolver.seenRuleCode);
@@ -69,7 +66,7 @@ class GatewayTaskControllerTest {
     void unauthorizedKeyIsRejected() {
         resolver.error = new GatewayAuthException("Consumer API key not found");
         assertThrows(GatewayAuthException.class, () -> controller.get("Bearer sk-bad", "rule-1", "tc-1"));
-        verifyNoInteractions(store);
+        assertEquals(0, taskService.lookups, "不该进库查任务");
     }
 
     @Test
@@ -82,10 +79,10 @@ class GatewayTaskControllerTest {
     @Test
     @DisplayName("任务不存在或规则不匹配一律 404（不泄漏句柄是否存在）")
     void unknownOrForeignTaskIsNotFound() {
-        when(store.getByTaskCode("missing")).thenReturn(null);
+        taskService.put("missing", null);
         assertEquals(HttpStatus.NOT_FOUND, controller.get("Bearer sk-abc", "rule-1", "missing").block().getStatusCode());
 
-        when(store.getByTaskCode("tc-1")).thenReturn(task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
+        taskService.put("tc-1", task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
         assertEquals(HttpStatus.NOT_FOUND, controller.get("Bearer sk-abc", "rule-other", "tc-1").block().getStatusCode(),
                 "跨规则查询必须 404：403 会确认句柄存在");
     }
@@ -93,27 +90,26 @@ class GatewayTaskControllerTest {
     @Test
     @DisplayName("上下文缺失时按不匹配处理：宁可查不到，不可越权可见")
     void missingContextIsNotFound() {
-        AsyncTaskEntity task = task(AsyncTaskStatusEnum.PENDING, null, null, null);
-        task.setContextJson(null);
-        when(store.getByTaskCode("tc-1")).thenReturn(task);
+        AsyncTaskDto task = task(AsyncTaskStatusEnum.PENDING, null, null, null);
+        taskService.put("tc-1", task);
         assertEquals(HttpStatus.NOT_FOUND, controller.get("Bearer sk-abc", "rule-1", "tc-1").block().getStatusCode());
     }
 
     @Test
     @DisplayName("在途任务：对外状态 queued / processing")
     void inFlightStatusMapping() {
-        when(store.getByTaskCode("tc-1")).thenReturn(task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
+        taskService.put("tc-1", task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
         assertEquals("queued", statusOf("tc-1"));
 
-        when(store.getByTaskCode("tc-2")).thenReturn(task(AsyncTaskStatusEnum.POLLING, "rule-1", null, null));
+        taskService.put("tc-2", task(AsyncTaskStatusEnum.POLLING, "rule-1", null, null));
         assertEquals("processing", statusOf("tc-2"));
     }
 
     @Test
     @DisplayName("终态：completed 带产物对象（不是 JSON 字符串），failed 带错误码")
     void terminalStatusMapping() {
-        AsyncTaskEntity done = task(AsyncTaskStatusEnum.SUCCEEDED, "rule-1", "{\"result_url\":\"https://x/a.mp4\"}", null);
-        when(store.getByTaskCode("tc-1")).thenReturn(done);
+        AsyncTaskDto done = task(AsyncTaskStatusEnum.SUCCEEDED, "rule-1", "{\"result_url\":\"https://x/a.mp4\"}", null);
+        taskService.put("tc-1", done);
         ResponseEntity<Object> response = controller.get("Bearer sk-abc", "rule-1", "tc-1").block();
         assertEquals(HttpStatus.OK, response.getStatusCode());
         Map<?, ?> body = (Map<?, ?>) response.getBody();
@@ -122,9 +118,8 @@ class GatewayTaskControllerTest {
         assertEquals(Map.of("result_url", "https://x/a.mp4"), body.get("result"));
         assertNull(body.get("error"));
 
-        AsyncTaskEntity failed = task(AsyncTaskStatusEnum.FAILED, "rule-1", null, "UPSTREAM_TASK_FAILED");
-        failed.setErrorMessage("prompt rejected");
-        when(store.getByTaskCode("tc-2")).thenReturn(failed);
+        AsyncTaskDto failed = task(AsyncTaskStatusEnum.FAILED, "rule-1", null, "UPSTREAM_TASK_FAILED", "prompt rejected");
+        taskService.put("tc-2", failed);
         ResponseEntity<Object> failResponse = controller.get("Bearer sk-abc", "rule-1", "tc-2").block();
         Map<?, ?> failBody = (Map<?, ?>) failResponse.getBody();
         assertEquals("failed", failBody.get("status"));
@@ -135,7 +130,7 @@ class GatewayTaskControllerTest {
     @Test
     @DisplayName("探针：规则名带前后空格应视为同一条规则，不得因空格而查不到")
     void ruleIsTrimmed() {
-        when(store.getByTaskCode("tc-1")).thenReturn(task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
+        taskService.put("tc-1", task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
         assertEquals(HttpStatus.OK, controller.get("Bearer sk-abc", " rule-1 ", "tc-1").block().getStatusCode());
     }
 
@@ -144,17 +139,51 @@ class GatewayTaskControllerTest {
         return (String) ((Map<?, ?>) response.getBody()).get("status");
     }
 
-    private static AsyncTaskEntity task(AsyncTaskStatusEnum status, String ruleCode, String resultJson, String errorCode) {
-        AsyncTaskEntity task = new AsyncTaskEntity();
-        task.setTaskCode("tc");
-        task.setStatus(status.code());
-        task.setResultJson(resultJson);
-        task.setErrorCode(errorCode);
-        if (ruleCode != null) {
-            task.setContextJson(JsonKit.toJson(new AsyncTaskContext("tc", ruleCode, null, null, "req",
-                    "VIDEO_GENERATIONS", "m", "up", "p", "pool", "https://x")));
+    private static AsyncTaskDto task(AsyncTaskStatusEnum status, String ruleCode, String resultJson, String errorCode) {
+        return task(status, ruleCode, resultJson, errorCode, null);
+    }
+
+    /** {@code errorMessage} 与「有没有上下文」都是显式参数：record 造完不能改，用例得一次说清 */
+    private static AsyncTaskDto task(AsyncTaskStatusEnum status, String ruleCode, String resultJson,
+                                        String errorCode, String errorMessage) {
+        String contextJson = ruleCode == null ? null
+                : JsonKit.toJson(new AsyncTaskContext("tc", ruleCode, null, null, "req",
+                "VIDEO_GENERATIONS", "m", "up", "p", "pool", "https://x"));
+        return new AsyncTaskDto(null, "tc", null, null, null,
+                status.code(), null, null, null,
+                null, null, contextJson, resultJson, errorCode, errorMessage,
+                null, null, null, null, null, null);
+    }
+
+    /**
+     * 任务表桩：{@link AsyncTaskService} 是具体类（直连 Mapper），故子类覆写而非 mock。
+     *
+     * <p>⚠ 本机 JDK 25 下 Mockito 的 inline mock maker 无法 instrument 具体类
+     * （{@code Byte Buddy could not instrument all classes within the mock's type hierarchy}），
+     * 同 {@link RecordingRoutingResolver} 的处理方式。</p>
+     *
+     * <p>{@code lookups} 不是为了好看：{@code verifyNoInteractions} 的语义是「鉴权没过就别查库」，
+     * 换过来必须有一个计数才守得住——少了它就是「测了鉴权、没测不查库」。</p>
+     */
+    private static final class RecordingTaskService extends AsyncTaskService {
+
+        private final Map<String, AsyncTaskDto> tasks = new java.util.HashMap<>();
+        private int lookups;
+
+        private RecordingTaskService() {
+            // 覆写掉的 getByTaskCode 不碰 Mapper，传 null 安全
+            super(null);
         }
-        return task;
+
+        private void put(String taskCode, AsyncTaskDto task) {
+            tasks.put(taskCode, task);
+        }
+
+        @Override
+        public AsyncTaskDto getByTaskCode(String taskCode) {
+            lookups++;
+            return tasks.get(taskCode);
+        }
     }
 
     /**

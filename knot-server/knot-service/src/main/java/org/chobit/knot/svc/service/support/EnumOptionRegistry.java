@@ -1,5 +1,6 @@
 package org.chobit.knot.svc.service.support;
 
+import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.chobit.knot.common.constants.enums.BillingModeEnum;
 import org.chobit.knot.common.constants.enums.BillingUnitEnum;
 import org.chobit.knot.common.constants.enums.CurrencyCodeEnum;
@@ -63,6 +64,8 @@ public class EnumOptionRegistry {
         put(map, PluginTypeEnum.class.getSimpleName(), PluginTypeEnum.values());
         putNumeric(map, OperationLogStatusEnum.class.getSimpleName(), OperationLogStatusEnum.values());
         putNumeric(map, ScheduledTaskRunStatusEnum.class.getSimpleName(), ScheduledTaskRunStatusEnum.values());
+        // 管理端「异步任务」列表要展示 待处理/轮询中/成功… 的文案，故与运行记录同样下发
+        putNumeric(map, AsyncTaskStatusEnum.class.getSimpleName(), AsyncTaskStatusEnum.values());
         put(map, RoutingTestStatusEnum.class.getSimpleName(), RoutingTestStatusEnum.values());
         put(map, LogicalModelVisibilityEnum.class.getSimpleName(), LogicalModelVisibilityEnum.values());
         putNumeric(map, LogicalModelPublishStatusEnum.class.getSimpleName(), LogicalModelPublishStatusEnum.values());

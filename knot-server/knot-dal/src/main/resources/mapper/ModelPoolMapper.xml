@@ -37,7 +37,7 @@
                     #{type}
                 </foreach>
             </if>
-            <if test="status != null and status != ''">
+            <if test="status != null">
                 and mp.status = #{status}
             </if>
         </where>

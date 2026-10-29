@@ -3,24 +3,20 @@ package org.chobit.knot.gateway.async;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
+
 import java.util.EnumSet;
 import java.util.Set;
 
-import static org.chobit.knot.gateway.async.AsyncTaskEvent.ATTEMPTS_EXHAUSTED;
-import static org.chobit.knot.gateway.async.AsyncTaskEvent.CANCEL;
-import static org.chobit.knot.gateway.async.AsyncTaskEvent.POLL_FAILED;
 import static org.chobit.knot.gateway.async.AsyncTaskEvent.POLL_RUNNING;
 import static org.chobit.knot.gateway.async.AsyncTaskEvent.POLL_SUCCEEDED;
 import static org.chobit.knot.gateway.async.AsyncTaskEvent.QUERY_ERROR;
-import static org.chobit.knot.gateway.async.AsyncTaskEvent.RESULT_MISSING;
-import static org.chobit.knot.gateway.async.AsyncTaskEvent.SNAPSHOT_INVALID;
-import static org.chobit.knot.gateway.async.AsyncTaskEvent.TIMEOUT;
-import static org.chobit.knot.gateway.async.AsyncTaskStatusEnum.CANCELLED;
-import static org.chobit.knot.gateway.async.AsyncTaskStatusEnum.EXPIRED;
-import static org.chobit.knot.gateway.async.AsyncTaskStatusEnum.FAILED;
-import static org.chobit.knot.gateway.async.AsyncTaskStatusEnum.PENDING;
-import static org.chobit.knot.gateway.async.AsyncTaskStatusEnum.POLLING;
-import static org.chobit.knot.gateway.async.AsyncTaskStatusEnum.SUCCEEDED;
+import static org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum.CANCELLED;
+import static org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum.EXPIRED;
+import static org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum.FAILED;
+import static org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum.PENDING;
+import static org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum.POLLING;
+import static org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum.SUCCEEDED;
 import static org.chobit.knot.gateway.async.AsyncTaskTransition.Action.REJECT;
 import static org.chobit.knot.gateway.async.AsyncTaskTransition.Action.RESCHEDULE;
 import static org.chobit.knot.gateway.async.AsyncTaskTransition.Action.SETTLE;

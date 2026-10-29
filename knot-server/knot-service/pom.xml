@@ -62,6 +62,17 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!--
+          异步任务档案的六个表达式列（task_id_path / status_path / result_path 等）由 MVEL 求值，
+          AsyncTaskExpressionSupport 随 AsyncTaskService 一起住在 svc，故依赖下沉到这里。
+          ⚠ 与 gateway 的同名依赖是两处声明而非传递：gateway 自己也要用它拼上游请求，
+          谁用谁声明，别指望经 svc 传递（scope/版本一改就悄悄失去编译期检查）。
+        -->
+        <dependency>
+            <groupId>org.mvel</groupId>
+            <artifactId>mvel2</artifactId>
+            <version>${mvel.version}</version>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>

@@ -44,7 +44,7 @@ import java.util.Map;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class AsyncTaskQueryClient {
+public class AsyncTaskQueryClient implements AsyncTaskQueryPort {
 
     private final WebClient webClient;
     private final AsyncTaskProperties properties;
@@ -57,10 +57,11 @@ public class AsyncTaskQueryClient {
      *
      * @return 响应体原文；查询失败抛异常，由调用方按退避处理（不在这里吞）
      */
+
+    @Override
     public String query(AsyncTaskContext context,
                         AsyncTaskSpec spec,
-                        String upstreamTaskId,
-                        String traceparent) {
+                        String upstreamTaskId) {
         ModelEntity model = dataService.getModelByCode(context.modelCode());
         if (model == null) {
             throw new IllegalStateException("async task model not found: " + context.modelCode());
@@ -81,8 +82,8 @@ public class AsyncTaskQueryClient {
                         provider.getProviderCode()),
                 credentialSupport.toAuthConfig(credential),
                 null,
-                traceparent,
-                GatewayTraceContext.traceIdOf(traceparent),
+                context.traceparent(),
+                GatewayTraceContext.traceIdOf(context.traceparent()),
                 credentialSupport.authApplier(credential),
                 context.requestId());
         UpstreamAuthApplier applier = authApplierCatalog.resolve(upstreamContext.authApplier());

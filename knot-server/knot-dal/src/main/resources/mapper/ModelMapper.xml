@@ -44,7 +44,7 @@
             <if test="logicalModelCode != null and logicalModelCode != ''">
                 and <include refid="logicalModelCodeExpr"/> = #{logicalModelCode}
             </if>
-            <if test="status != null and status != ''">
+            <if test="status != null">
                 and m.status = #{status}
             </if>
         </where>

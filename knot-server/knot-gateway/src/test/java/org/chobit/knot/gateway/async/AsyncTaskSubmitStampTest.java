@@ -1,7 +1,8 @@
 package org.chobit.knot.gateway.async;
 
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.dal.entity.AsyncTaskEntity;
+import org.chobit.knot.svc.dto.async.AsyncTaskDraftDto;
+import org.chobit.knot.svc.service.AsyncTaskService;
 import org.chobit.knot.dal.entity.ModelApiBindingEntity;
 import org.chobit.knot.dal.mapper.AppMapper;
 import org.chobit.knot.dal.mapper.BillingRuleMapper;
@@ -22,8 +23,6 @@ import org.chobit.knot.svc.service.support.ResourceTrafficPolicySupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -108,7 +107,7 @@ class AsyncTaskSubmitStampTest {
      */
     private static final class StubSupport extends AsyncTaskSupport {
 
-        private StubSupport(AsyncTaskStore store) {
+        private StubSupport(AsyncTaskService store) {
             super(null, new StubEntityCache(), store);
         }
 
@@ -148,45 +147,25 @@ class AsyncTaskSubmitStampTest {
         }
     }
 
-    /** 存储桩：只记下 {@code insert} 的任务，其余方法不会被本类触达 */
-    private static final class RecordingStore implements AsyncTaskStore {
+    /**
+     * 存储桩：只记下 {@code insert} 的任务，其余方法不会被本类触达。
+     *
+     * <p>⭐ 用<b>继承覆写</b>而不是实现接口：svc 合并后 {@code AsyncTaskService} 是具体类
+     * （与 {@code BillingService} 同构，直连 Mapper），单实现接口那一层已经拆掉了。
+     * 传 {@code null} 给构造器是安全的——被覆写的 {@code insert} 不碰 Mapper，
+     * 其余方法本用例不触达。</p>
+     */
+    private static final class RecordingStore extends AsyncTaskService {
 
-        private final List<AsyncTaskEntity> inserted = new ArrayList<>();
+        private final List<AsyncTaskDraftDto> inserted = new ArrayList<>();
+
+        private RecordingStore() {
+            super(null);
+        }
 
         @Override
-        public void insert(AsyncTaskEntity task) {
+        public void insert(AsyncTaskDraftDto task) {
             inserted.add(task);
-        }
-
-        @Override
-        public AsyncTaskEntity getByTaskCode(String taskCode) {
-            return null;
-        }
-
-        @Override
-        public List<AsyncTaskEntity> claim(String claimId, Duration claimTtl, int limit) {
-            return List.of();
-        }
-
-        @Override
-        public List<AsyncTaskEntity> claimExpired(String claimId, Duration claimTtl, int limit) {
-            return List.of();
-        }
-
-        @Override
-        public boolean scheduleNext(Long id, String claimId, LocalDateTime nextPollAt) {
-            return false;
-        }
-
-        @Override
-        public boolean complete(Long id, String claimId, int status, String resultJson,
-                                String errorCode, String errorMessage) {
-            return false;
-        }
-
-        @Override
-        public int cleanup(LocalDateTime before, int limit) {
-            return 0;
         }
     }
 

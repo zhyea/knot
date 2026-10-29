@@ -1,17 +1,12 @@
 package org.chobit.knot.gateway.async;
 
-import org.chobit.knot.adapter.model.usage.UsageAccounting;
-import org.chobit.knot.common.util.JsonKit;
-import org.chobit.knot.dal.entity.AsyncTaskEntity;
-import org.chobit.knot.gateway.archive.ArchiveAsset;
-import org.chobit.knot.gateway.archive.ArchiveStore;
+import org.chobit.knot.svc.dto.async.AsyncTaskDto;
+import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -20,311 +15,43 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
- * 契约测试：轮询器的单次处理（{@link AsyncTaskPoller#process}）。
+ * 契约测试：轮询器的<b>节拍</b>（{@link AsyncTaskPoller}）。
  *
- * <p>⭐ 这里守的是「一条任务一条终态、且不重复计费」：终态 CAS 失败不发事件、
- * 非终态不落终态、成功但无产物按失败处理。三条任一失守都会直接变成资损或对不上账。</p>
+ * <p>⭐ 2026-10-29 拆分：原来这个类同时测「怎么扫」和「扫到之后做什么」。编排抽出成
+ * {@code AsyncTaskRunner} 之后，业务断言整体搬到 {@code AsyncTaskRunnerTest}，
+ * 这里只留<b>部署语义</b>——开关、启动期预算校验、拍点重叠时跳过而不是排队、并发扇出。
+ * 一条都没删：拆的是归属，不是覆盖率。</p>
  *
- * <p>⭐ 多节点那一半守在「占位号必须跟着每一次写」：{@code scheduleNext} / {@code complete}
- * 都带 {@code claim-1}，写不进去就不报数。这些断言没法证明并发正确（那要靠 SQL 的行锁），
- * 能证明的是<b>调用方没把租约丢掉</b>——租约条件漏在调用方这一侧是最常见的失守方式。</p>
+ * <p>⚠ 编排层用<b>子类覆写</b>而不是 mock：{@code AsyncTaskRunner} 是具体类，
+ * 且在 JDK 25 + 当前 Mockito 组合下 mock 具体类不可靠；子类覆写既稳定又直白
+ * （它与 {@code RecordingQueryClient} 等既有桩同一种做法）。</p>
  */
 class AsyncTaskPollerTest {
 
-    private static final String CLAIM_ID = "claim-1";
-
     private AsyncTaskProperties properties;
-    private AsyncTaskStore store;
-    private AsyncTaskSupport support;
-    private RecordingQueryClient queryClient;
-    private RecordingCompletion completion;
-    private RecordingArchiveStore archiveStore;
+    private RecordingService service;
     private AsyncTaskPoller poller;
 
     @BeforeEach
     void setUp() {
         properties = new AsyncTaskProperties();
         properties.setNodeId("node-test");
-        store = mock(AsyncTaskStore.class);
-        support = new AsyncTaskSupport(null, null, store);
-        queryClient = new RecordingQueryClient();
-        completion = new RecordingCompletion();
-        archiveStore = new RecordingArchiveStore();
-        poller = new AsyncTaskPoller(properties, store, support, queryClient, completion, null, archiveStore);
+        service = new RecordingService();
+        poller = new AsyncTaskPoller(properties, service, null);
         poller.init();
-    }
-
-    @Test
-    @DisplayName("终态成功：计费 → 落 SUCCEEDED → 发一条终态事件")
-    void successSettlesAndPublishesOnce() {
-        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), isNull(), isNull())).thenReturn(true);
-        AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
-        queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://x/a.mp4\"}]}]}";
-
-        assertTrue(poller.process(task));
-
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), isNull(), isNull());
-        assertEquals(1, completion.accounted, "终态必须且只能计一次费");
-        assertEquals(1, completion.published, "终态必须且只能发一条事件");
-        assertEquals(1, completion.terminalSeq, "首次查询就拿到终态，seq 应为 1");
-        assertEquals(0, completion.queries, "落终态那一拍不该再单独发中间事件（同一次查询只发一条）");
-        verify(store, never()).scheduleNext(anyLong(), any(), any());
-    }
-
-    @Test
-    @DisplayName("终态成功：产物转储一次，落库的是转储后的地址")
-    void successArchivesOnce() {
-        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), isNull(), isNull())).thenReturn(true);
-        AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
-        queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://up/a.mp4\"}]}]}";
-        archiveStore.result = "https://s3/a.mp4";
-
-        assertTrue(poller.process(task));
-
-        assertEquals(1, archiveStore.archived.size(), "终态只搬一次，不能在中间态尝试");
-        ArchiveAsset asset = archiveStore.archived.get(0);
-        assertEquals("tc-1", asset.taskCode(), "taskCode 是实现方做幂等键的唯一依据");
-        assertEquals("up-1", asset.upstreamTaskId());
-        assertEquals("https://up/a.mp4", asset.sourceUrl(), "转储吃的是供应商地址，不是我们自己的");
-        assertEquals("kling-3", asset.modelCode());
-        assertEquals("rule-1", asset.ruleCode());
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.SUCCEEDED.code()),
-                eq("{\"result_url\":\"https://s3/a.mp4\"}"), isNull(), isNull());
-        assertEquals(1, completion.accounted);
-    }
-
-    @Test
-    @DisplayName("⭐ 转储失败回退供应商地址：任务照样成功、照样计费")
-    void archiveFailureFallsBackToUpstreamUrl() {
-        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), isNull(), isNull())).thenReturn(true);
-        AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
-        queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://up/a.mp4\"}]}]}";
-        archiveStore.error = new IllegalStateException("s3 down");
-
-        assertTrue(poller.process(task));
-
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.SUCCEEDED.code()),
-                eq("{\"result_url\":\"https://up/a.mp4\"}"), isNull(), isNull());
-        assertEquals(1, completion.accounted, "转储是旁路，不能因为搬文件失败就不算钱");
-        assertEquals(1, completion.published, "终态事件也不能少发——否则数仓看不到这笔成功");
-    }
-
-    @Test
-    @DisplayName("转储返回空白按失败处理：不把空 URL 交给客户端")
-    void blankArchivedUrlFallsBack() {
-        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), isNull(), isNull())).thenReturn(true);
-        AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
-        queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://up/a.mp4\"}]}]}";
-        archiveStore.result = "   ";
-
-        assertTrue(poller.process(task));
-
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.SUCCEEDED.code()),
-                eq("{\"result_url\":\"https://up/a.mp4\"}"), isNull(), isNull());
-    }
-
-    @Test
-    @DisplayName("上游失败不转储：没有产物可搬")
-    void failedTaskNeverArchives() {
-        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.FAILED.code()), any(), eq("UPSTREAM_TASK_FAILED"), any()))
-                .thenReturn(true);
-        AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
-        queryClient.body = "{\"data\":[{\"status\":\"failed\"}],\"message\":\"prompt rejected\"}";
-
-        assertTrue(poller.process(task));
-
-        assertEquals(0, archiveStore.archived.size(), "没有产物时不该调用转储");
-    }
-
-    @Test
-    @DisplayName("上游任务失败：按 FAILED 落终态，不计费")
-    void upstreamFailureNeverBills() {
-        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.FAILED.code()), any(), eq("UPSTREAM_TASK_FAILED"), any()))
-                .thenReturn(true);
-        AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
-        queryClient.body = "{\"data\":[{\"status\":\"failed\"}],\"message\":\"prompt rejected\"}";
-
-        assertTrue(poller.process(task));
-
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.FAILED.code()), any(), eq("UPSTREAM_TASK_FAILED"), any());
-        assertEquals(0, completion.accounted, "上游失败不计费");
-        assertEquals(1, completion.published, "失败也要发终态事件（观测链路不能断）");
-    }
-
-    @Test
-    @DisplayName("成功但取不到产物：按失败落终态，不计费（钱收了没有货）")
-    void successWithoutResultIsFailure() {
-        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.FAILED.code()), any(), eq("UPSTREAM_RESULT_MISSING"), any()))
-                .thenReturn(true);
-        AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
-        queryClient.body = "{\"data\":[{\"status\":\"succeed\"}]}";
-
-        assertTrue(poller.process(task));
-
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.FAILED.code()), any(), eq("UPSTREAM_RESULT_MISSING"), any());
-        assertEquals(0, completion.accounted, "没有产物绝不能计入金额");
-    }
-
-    @Test
-    @DisplayName("非终态：安排下一次轮询，不落终态、不计费，但要发一条中间查询事件")
-    void runningSchedulesNextOnly() {
-        when(store.scheduleNext(anyLong(), any(), any())).thenReturn(true);
-        AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
-        queryClient.body = "{\"data\":[{\"status\":\"processing\"}]}";
-
-        assertFalse(poller.process(task));
-
-        verify(store).scheduleNext(eq(7L), eq(CLAIM_ID), any());
-        verify(store, never()).complete(anyLong(), any(), anyInt(), any(), any(), any());
-        assertEquals(0, completion.accounted);
-        assertEquals(0, completion.published, "还没到终态，不能发终态事件");
-        assertEquals(List.of(1), completion.querySeqs,
-                "这次查询确实打到了上游，必须留一条 task_phase=query 的事件");
-    }
-
-    @Test
-    @DisplayName("⭐ 占位已易主：写不进下一次轮询，就不报这一条查询事件")
-    void lostClaimSkipsQueryEvent() {
-        // mock 默认返回 false，正是「行已被别的节点回收」的形态
-        AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
-        queryClient.body = "{\"data\":[{\"status\":\"processing\"}]}";
-
-        assertFalse(poller.process(task));
-
-        assertEquals(1, queryClient.calls, "上游确实被调了一次（成本已发生，只是记不到这一行上）");
-        assertEquals(0, completion.queries,
-                "这一行的 query_seq 已归新主人报：两边都报会让数仓无从判断哪条才是真的");
-    }
-
-    @Test
-    @DisplayName("⭐ 一次异步任务 = 1 次提交 + N 次查询：每查一次发一条，seq 单调递增，终态那条带 terminal")
-    void eachQueryLeavesOneEvent() {
-        AsyncTaskSpec spec = spec();
-        when(store.scheduleNext(anyLong(), any(), any())).thenReturn(true);
-        queryClient.body = "{\"data\":[{\"status\":\"processing\"}]}";
-
-        poller.process(task(0, JsonKit.toJson(spec), JsonKit.toJson(context())));
-        poller.process(task(1, JsonKit.toJson(spec), JsonKit.toJson(context())));
-
-        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), isNull(), isNull())).thenReturn(true);
-        queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://x/a.mp4\"}]}]}";
-        poller.process(task(2, JsonKit.toJson(spec), JsonKit.toJson(context())));
-
-        assertEquals(List.of(1, 2), completion.querySeqs,
-                "两次非终态查询各留一条，且 seq 从 1 开始递增");
-        assertEquals(1, completion.published);
-        assertEquals(3, completion.terminalSeq, "第三次查询才拿到产物，终态事件必须自报 seq=3");
-    }
-
-    @Test
-    @DisplayName("查询瞬时失败：退避后重试，不判终态，但中间事件要带上错误码")
-    void queryErrorRetriesWithBackoff() {
-        when(store.scheduleNext(anyLong(), any(), any())).thenReturn(true);
-        AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
-        queryClient.error = new IllegalStateException("connection reset");
-
-        assertFalse(poller.process(task));
-
-        ArgumentCaptor<LocalDateTime> next = ArgumentCaptor.forClass(LocalDateTime.class);
-        verify(store).scheduleNext(eq(7L), eq(CLAIM_ID), next.capture());
-        assertTrue(next.getValue().isAfter(LocalDateTime.now().minusSeconds(1)),
-                "退避后的下一次轮询必须在未来，否则会变成忙等");
-        verify(store, never()).complete(anyLong(), any(), anyInt(), any(), any(), any());
-        assertEquals(List.of(1), completion.querySeqs,
-                "失败那次也真实打了上游，不能因为没拿到响应就不记");
-    }
-
-    @Test
-    @DisplayName("轮询次数用尽：转 EXPIRED，不再打上游")
-    void attemptsExhaustedExpires() {
-        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.EXPIRED.code()), any(), eq("TASK_TIMEOUT"), any())).thenReturn(true);
-        AsyncTaskSpec spec = spec();
-        AsyncTaskEntity task = task(spec.maxAttempts(), JsonKit.toJson(spec), JsonKit.toJson(context()));
-
-        assertTrue(poller.process(task));
-
-        assertEquals(0, queryClient.calls, "次数用尽后不应再消耗上游查询额度");
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.EXPIRED.code()), any(), eq("TASK_TIMEOUT"), any());
-        verify(store, never()).scheduleNext(anyLong(), any(), any());
-        assertEquals(0, completion.queries, "没打出这次查询，就不能凭空记一条");
-        assertEquals(spec.maxAttempts(), completion.terminalSeq,
-                "终态事件要如实报「一共查了几次」，不能因为最后一次没查就归零");
-    }
-
-    @Test
-    @DisplayName("快照不可解析：按失败落终态，不静默留在在途态")
-    void unreadableSnapshotFails() {
-        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.FAILED.code()), any(), eq("TASK_SNAPSHOT_INVALID"), any()))
-                .thenReturn(true);
-        AsyncTaskEntity task = task(0, "{oops", JsonKit.toJson(context()));
-
-        assertTrue(poller.process(task));
-        verify(store).complete(eq(7L), eq(CLAIM_ID), eq(AsyncTaskStatusEnum.FAILED.code()), any(), eq("TASK_SNAPSHOT_INVALID"), any());
-    }
-
-    @Test
-    @DisplayName("终态 CAS 抢不到：不发事件（一条任务一条终态消息）")
-    void alreadySettledSkipsEvent() {
-        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), any(), any())).thenReturn(false);
-        AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
-        queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://x/a.mp4\"}]}]}";
-
-        assertTrue(poller.process(task));
-
-        assertEquals(1, completion.accounted, "计费照做：金额是这一笔的账，与事件是否发出无关");
-        assertEquals(0, completion.published, "已被别的节点落定的任务不得再发一条终态事件");
     }
 
     @Test
     @DisplayName("总开关关闭时一轮扫描什么都不做")
     void disabledTickDoesNothing() {
         properties.setEnabled(false);
-        poller.tick();
-        verify(store, never()).claim(any(), any(), anyInt());
-        verify(store, never()).claimExpired(any(), any(), anyInt());
-    }
-
-    @Test
-    @DisplayName("⭐ 超时回收先占位：用本轮的占位号落 EXPIRED，并补发一条终态事件")
-    void expireTimedOutClaimsThenSettles() {
-        AsyncTaskEntity expiredTask = task(2, JsonKit.toJson(spec()), JsonKit.toJson(context()));
-        expiredTask.setClaimId("claim-expired");
-        when(store.claimExpired(any(), any(), anyInt())).thenReturn(List.of(expiredTask));
-        when(store.complete(eq(7L), eq("claim-expired"), eq(AsyncTaskStatusEnum.EXPIRED.code()), any(), eq("TASK_TIMEOUT"), any()))
-                .thenReturn(true);
 
         poller.tick();
 
-        ArgumentCaptor<Duration> ttl = ArgumentCaptor.forClass(Duration.class);
-        verify(store).claimExpired(any(), ttl.capture(), eq(properties.getExpireBatchSize()));
-        assertEquals(Duration.ofMillis(properties.getClaimTtlMs()), ttl.getValue(),
-                "超时回收同样要按「一次处理的预算」占位，不能把租约压成 0");
-        verify(store).complete(eq(7L), eq("claim-expired"), eq(AsyncTaskStatusEnum.EXPIRED.code()), any(), eq("TASK_TIMEOUT"), any());
-        assertEquals(0, completion.accounted, "超时不计费");
-        assertEquals(1, completion.published,
-                "超时也是一次状态转移，不补发终态事件的话这笔任务在数仓里就完全不存在");
-    }
-
-    @Test
-    @DisplayName("没有超时任务时不落任何终态")
-    void expireWithoutCandidatesWritesNothing() {
-        when(store.claimExpired(any(), any(), anyInt())).thenReturn(List.of());
-
-        poller.tick();
-
-        verify(store, never()).complete(anyLong(), any(), anyInt(), any(), any(), any());
+        assertEquals(0, service.expiredCalls, "关掉开关就不该去抢超时任务的租约");
+        assertEquals(0, service.claimCalls, "关掉开关就不该扫表");
     }
 
     @Test
@@ -346,29 +73,24 @@ class AsyncTaskPollerTest {
     }
 
     @Test
-    @DisplayName("扫描一轮：抢占到的任务逐个处理，空闲时零查询")
+    @DisplayName("一轮扫描：先回收超时、再抢占，抢到的逐个交给编排层处理")
     void tickProcessesClaimed() {
-        AsyncTaskEntity task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
-        when(store.claim(any(), any(), anyInt())).thenReturn(List.of(task));
-        when(store.complete(anyLong(), any(), eq(AsyncTaskStatusEnum.SUCCEEDED.code()), any(), any(), any())).thenReturn(true);
-        queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://x/a.mp4\"}]}]}";
+        service.due = List.of(task());
 
         poller.tick();
 
-        verify(store).claim(any(), any(), eq(properties.getBatchSize()));
-        assertEquals(1, queryClient.calls);
-        assertEquals(1, completion.published);
+        assertEquals(1, service.expiredCalls, "每拍都要先回收超时任务，不能只扫待办");
+        assertEquals(1, service.claimCalls);
+        assertEquals(1, service.processed.size(), "抢到几条就处理几条");
+        assertEquals("tc-1", service.processed.get(0).taskCode());
     }
 
     @Test
-    @DisplayName("归档清理按保留窗口删除，关闭开关时不跑")
-    void archiveRemovesBeforeRetention() {
-        properties.setRetentionDays(30);
-        when(store.cleanup(any(), anyInt())).thenReturn(3);
+    @DisplayName("归档节拍只调清理入口（保留窗口的口径在编排层，不在这里）")
+    void archiveCallsCleanup() {
         poller.archive();
-        ArgumentCaptor<LocalDateTime> before = ArgumentCaptor.forClass(LocalDateTime.class);
-        verify(store).cleanup(before.capture(), eq(properties.getCleanupBatchSize()));
-        assertTrue(before.getValue().isBefore(LocalDateTime.now().minusDays(29)));
+
+        assertEquals(1, service.cleanupCalls);
     }
 
     @Test
@@ -376,19 +98,16 @@ class AsyncTaskPollerTest {
     void tickSkipsOverlappingBeat() throws Exception {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        when(store.claim(any(), any(), anyInt())).thenAnswer(invocation -> {
-            entered.countDown();
-            release.await(5, TimeUnit.SECONDS);
-            return List.of();
-        });
+        service.enterClaim = entered;
+        service.holdClaim = release;
 
         Thread worker = new Thread(poller::tick);
         worker.start();
-        assertTrue(entered.await(5, TimeUnit.SECONDS), "第一拍必须已经进到 claim");
+        assertTrue(entered.await(5, TimeUnit.SECONDS), "第一拍必须已经进到抢占");
 
         poller.tick();
 
-        verify(store, times(1)).claim(any(), any(), anyInt());
+        assertEquals(1, service.claimCalls, "第二拍应被守卫直接丢掉，而不是排队");
 
         release.countDown();
         worker.join(5000);
@@ -400,11 +119,8 @@ class AsyncTaskPollerTest {
     void archiveSkipsOverlappingBeat() throws Exception {
         CountDownLatch entered = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        when(store.cleanup(any(), anyInt())).thenAnswer(invocation -> {
-            entered.countDown();
-            release.await(5, TimeUnit.SECONDS);
-            return 0;
-        });
+        service.enterCleanup = entered;
+        service.holdCleanup = release;
 
         Thread worker = new Thread(poller::archive);
         worker.start();
@@ -412,118 +128,79 @@ class AsyncTaskPollerTest {
 
         poller.archive();
 
-        verify(store, times(1)).cleanup(any(), anyInt());
+        assertEquals(1, service.cleanupCalls);
 
         release.countDown();
         worker.join(5000);
         assertFalse(worker.isAlive());
     }
 
-    private static AsyncTaskSpec spec() {
-        return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", "data[0].status",
-                "['succeed','SUCCEEDED'] contains status", "status == 'failed'", null,
-                "data[0].outputs[0].url",
-                7, 5000, 1000, 30000, 360, 1_800_000L);
-    }
-
-    private static AsyncTaskContext context() {
-        return new AsyncTaskContext("tc-1", "rule-1", null, null, "req-1",
-                "VIDEO_GENERATIONS", "kling-3", "kling-3-turbo", "kling", "pool-1", "https://x/videos");
+    private static AsyncTaskDto task() {
+        return new AsyncTaskDto(7L, "tc-1", "KLING_TASK", null, "up-1",
+                AsyncTaskStatusEnum.PENDING.code(), 0, null, "claim-1",
+                "{}", "{}", "{}",
+                null, null, null, null, null, null, null, null, null);
     }
 
     /**
-     * 带占位号的行：生产里 {@code claim} 回查出来的行一定带着它，
-     * 桩里也照此造——否则测出来的「写库成功」在真实环境根本不会发生。
-     */
-    private static AsyncTaskEntity task(int attempts, String specJson, String contextJson) {
-        AsyncTaskEntity task = new AsyncTaskEntity();
-        task.setId(7L);
-        task.setTaskCode("tc-1");
-        task.setProfileCode("KLING_TASK");
-        task.setUpstreamTaskId("up-1");
-        task.setStatus(AsyncTaskStatusEnum.PENDING.code());
-        task.setAttempts(attempts);
-        task.setClaimId(CLAIM_ID);
-        task.setPollSpecJson(specJson);
-        task.setContextJson(contextJson);
-        task.setRequestJson("{\"prompt\":\"a cat\"}");
-        return task;
-    }
-
-    /**
-     * 转储桩：记录被搬过的素材，按测试意愿返回新地址 / 抛错 / 返回空白。
+     * 编排层桩：只记「被叫了几次 / 交给我几条」，不做任何业务判断。
      *
-     * <p>默认行为与生产默认实现（{@code passthrough}）一致——原样返回 {@code sourceUrl}，
-     * 于是没显式设置 {@code result} 的用例都在验「没配转储时的行为」。</p>
+     * <p>⚠ 两个 latch 用于「拍点重叠」用例：把 {@code claimDue} / {@code cleanup} 卡住，
+     * 才能造出「上一拍还没跑完」的时序。放进桩而不是用 sleep，是避免用例变成靠时序碰运气。</p>
      */
-    private static final class RecordingArchiveStore implements ArchiveStore {
+    private static final class RecordingService extends AsyncTaskRunner {
 
-        private final java.util.List<ArchiveAsset> archived = new java.util.ArrayList<>();
-        private String result;
-        private RuntimeException error;
+        private static final AsyncTaskRunPolicy POLICY = new AsyncTaskRunPolicy(100, 200, 180_000L, 30, 500);
+
+        private List<AsyncTaskDto> due = List.of();
+        private int expiredCalls;
+        private int claimCalls;
+        private int cleanupCalls;
+        private final List<AsyncTaskDto> processed = new ArrayList<>();
+        private CountDownLatch enterClaim;
+        private CountDownLatch holdClaim;
+        private CountDownLatch enterCleanup;
+        private CountDownLatch holdCleanup;
+
+        private RecordingService() {
+            super(null, null, null, null, POLICY);
+        }
 
         @Override
-        public String archive(ArchiveAsset asset) {
-            archived.add(asset);
-            if (error != null) {
-                throw error;
+        public void expireTimedOut(String claimId) {
+            expiredCalls++;
+        }
+
+        @Override
+        public List<AsyncTaskDto> claimDue(String claimId) {
+            claimCalls++;
+            awaitIfNeeded(enterClaim, holdClaim);
+            return due;
+        }
+
+        @Override
+        public boolean process(AsyncTaskDto task) {
+            processed.add(task);
+            return true;
+        }
+
+        @Override
+        public int cleanup() {
+            cleanupCalls++;
+            awaitIfNeeded(enterCleanup, holdCleanup);
+            return 0;
+        }
+
+        private static void awaitIfNeeded(CountDownLatch entered, CountDownLatch release) {
+            if (entered == null || release == null) {
+                return;
             }
-            return result == null ? asset.sourceUrl() : result;
-        }
-    }
-
-    /** 只记录调用与返回固定响应体：查询客户端是具体类，用子类覆写而非 mock。 */
-    private static final class RecordingQueryClient extends AsyncTaskQueryClient {
-
-        private String body = "{}";
-        private RuntimeException error;
-        private int calls;
-
-        private RecordingQueryClient() {
-            super(null, null, null, null, null);
-        }
-
-        @Override
-        public String query(AsyncTaskContext context, AsyncTaskSpec spec, String upstreamTaskId,
-                            String traceparent) {
-            calls++;
-            if (error != null) {
-                throw error;
+            entered.countDown();
+            try {
+                release.await(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
-            return body;
-        }
-    }
-
-    /** 同理由子类覆写：只数「计了几次费 / 发了几条终态事件 / 发了几条中间查询事件」。 */
-    private static final class RecordingCompletion extends AsyncTaskCompletion {
-
-        private int accounted;
-        private int published;
-        private int queries;
-        private final java.util.List<Integer> querySeqs = new java.util.ArrayList<>();
-        private int terminalSeq = -1;
-
-        private RecordingCompletion() {
-            super(null, null, null, null, "traffic");
-        }
-
-        @Override
-        public UsageAccounting account(AsyncTaskEntity task, AsyncTaskContext context, String queryBody) {
-            accounted++;
-            return UsageAccounting.empty();
-        }
-
-        @Override
-        public void publishQuery(AsyncTaskEntity task, AsyncTaskContext context, int querySeq, String errorCode) {
-            queries++;
-            querySeqs.add(querySeq);
-        }
-
-        @Override
-        public void publishTerminal(AsyncTaskEntity task, AsyncTaskContext context,
-                                    int querySeq, UsageAccounting usage, Throwable error) {
-            published++;
-            terminalSeq = querySeq;
         }
     }
 }

@@ -14,15 +14,15 @@ import static org.chobit.knot.gateway.async.AsyncTaskEvent.QUERY_ERROR;
 import static org.chobit.knot.gateway.async.AsyncTaskEvent.RESULT_MISSING;
 import static org.chobit.knot.gateway.async.AsyncTaskEvent.SNAPSHOT_INVALID;
 import static org.chobit.knot.gateway.async.AsyncTaskEvent.TIMEOUT;
-import static org.chobit.knot.gateway.async.AsyncTaskStatusEnum.CANCELLED;
-import static org.chobit.knot.gateway.async.AsyncTaskStatusEnum.EXPIRED;
-import static org.chobit.knot.gateway.async.AsyncTaskStatusEnum.FAILED;
-import static org.chobit.knot.gateway.async.AsyncTaskStatusEnum.POLLING;
-import static org.chobit.knot.gateway.async.AsyncTaskStatusEnum.SUCCEEDED;
+import static org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum.CANCELLED;
+import static org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum.EXPIRED;
+import static org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum.FAILED;
+import static org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum.POLLING;
+import static org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum.SUCCEEDED;
 import static org.chobit.knot.gateway.async.AsyncTaskTransition.Action.RESCHEDULE;
 import static org.chobit.knot.gateway.async.AsyncTaskTransition.Action.SETTLE;
 import static org.chobit.knot.gateway.async.AsyncTaskTransition.Action.SETTLE_BILLED;
-
+import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 /**
  * 异步任务状态机：{@code 当前状态 × 事件 → 下一状态 + 动作}。
  *

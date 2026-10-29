@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.archive;
 
+import org.chobit.knot.gateway.archive.ArchiveAsset;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

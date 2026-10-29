@@ -15,7 +15,7 @@
                     or description like concat('%', #{keyword}, '%')
                 )
             </if>
-            <if test="status != null and status != ''">
+            <if test="status != null">
                 and status = #{status}
             </if>
             <if test="handlerCode != null and handlerCode != ''">
@@ -109,7 +109,7 @@
             <if test="taskCode != null and taskCode != ''">
                 and task_code = #{taskCode}
             </if>
-            <if test="status != null and status != ''">
+            <if test="status != null">
                 and status = #{status}
             </if>
             <if test="triggerType != null and triggerType != ''">

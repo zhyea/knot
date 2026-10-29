@@ -6,10 +6,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.AuthConstants;
 import org.chobit.knot.common.constants.GatewayHeaders;
-import org.chobit.knot.dal.entity.AsyncTaskEntity;
 import org.chobit.knot.gateway.async.AsyncTaskContext;
-import org.chobit.knot.gateway.async.AsyncTaskStore;
-import org.chobit.knot.gateway.async.AsyncTaskStatusEnum;
+import org.chobit.knot.svc.dto.async.AsyncTaskDto;
+import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
+import org.chobit.knot.svc.service.AsyncTaskService;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.routing.RoutingResolver;
 import org.chobit.knot.common.util.JsonKit;
@@ -24,7 +24,6 @@ import reactor.core.publisher.Mono;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-
 /**
  * 异步任务查询端点（通用，不限于视频）。
  *
@@ -42,7 +41,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class GatewayTaskController {
 
-    private final AsyncTaskStore store;
+    private final AsyncTaskService taskService;
     private final RoutingResolver routingResolver;
 
     /**
@@ -62,7 +61,7 @@ public class GatewayTaskController {
             throw new GatewayAuthException("Invalid consumer API key");
         }
         routingResolver.requireRuleAccess(authorization.substring(AuthConstants.BEARER_PREFIX.length()), rule);
-        AsyncTaskEntity task = StringUtils.isBlank(taskCode) ? null : store.getByTaskCode(taskCode.trim());
+        AsyncTaskDto task = StringUtils.isBlank(taskCode) ? null : taskService.getByTaskCode(taskCode.trim());
         if (task == null || !ruleMatches(task, rule)) {
             return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", "task not found: " + taskCode)));
@@ -75,30 +74,30 @@ public class GatewayTaskController {
      * 不做字符串包含匹配（序列化格式变了就会静默失配）。上下文缺失时按「不匹配」处理 ——
      * 宁可查不到，不可越权可见。
      */
-    private boolean ruleMatches(AsyncTaskEntity task, String rule) {
-        if (StringUtils.isBlank(task.getContextJson()) || StringUtils.isBlank(rule)) {
+    private boolean ruleMatches(AsyncTaskDto task, String rule) {
+        if (StringUtils.isBlank(task.contextJson()) || StringUtils.isBlank(rule)) {
             return false;
         }
-        AsyncTaskContext context = JsonKit.fromJson(task.getContextJson(), AsyncTaskContext.class);
+        AsyncTaskContext context = JsonKit.fromJson(task.contextJson(), AsyncTaskContext.class);
         return context != null && StringUtils.equals(rule.trim(), context.ruleCode());
     }
 
-    private Map<String, Object> body(AsyncTaskEntity task) {
+    private Map<String, Object> body(AsyncTaskDto task) {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("task_id", task.getTaskCode());
-        body.put("status", displayStatus(task.getStatus()));
-        body.put("created_at", task.getSubmittedAt());
-        body.put("completed_at", task.getCompletedAt());
-        body.put("result_expires_at", task.getResultExpiresAt());
-        if (StringUtils.isNotBlank(task.getResultJson())) {
+        body.put("task_id", task.taskCode());
+        body.put("status", displayStatus(task.status()));
+        body.put("created_at", task.submittedAt());
+        body.put("completed_at", task.completedAt());
+        body.put("result_expires_at", task.resultExpiresAt());
+        if (StringUtils.isNotBlank(task.resultJson())) {
             // 反序列化后回填：直接塞原文会变成「一个 JSON 字符串」，客户端还得再解一次
-            body.put("result", JsonKit.fromJson(task.getResultJson(),
+            body.put("result", JsonKit.fromJson(task.resultJson(),
                     new TypeReference<Map<String, Object>>() {
                     }));
         }
-        if (StringUtils.isNotBlank(task.getErrorCode())) {
-            body.put("error", Map.of("code", task.getErrorCode(),
-                    "message", StringUtils.defaultString(task.getErrorMessage())));
+        if (StringUtils.isNotBlank(task.errorCode())) {
+            body.put("error", Map.of("code", task.errorCode(),
+                    "message", StringUtils.defaultString(task.errorMessage())));
         }
         return body;
     }

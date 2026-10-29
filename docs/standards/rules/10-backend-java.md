@@ -27,7 +27,7 @@ reactor 8 模块：`common` / `plugin-api` / `plugin` / `adapter` / `dal` / `ser
 | `knot-plugin` | `org.chobit.knot.plugin.<子包>` | 插件实现（`builtin` / `moderation` / `components` / `runtime` / `gateway`） |
 | `knot-adapter` | `org.chobit.knot.adapter` | 上游协议适配单域，见 §4.7 |
 | `knot-dal` | `org.chobit.knot.dal` | `entity` + `mapper`（XML 在 `knot-dal/src/main/resources/mapper`） |
-| `knot-service` | `org.chobit.knot.svc` | 业务编排、MapStruct converter（含 `service.support`） |
+| `knot-service` | `org.chobit.knot.svc` | 数据访问（`svc.service` 的 `XxxService`）、MapStruct converter（含 `service.support`）、两 app 共用的业务服务；**全项目唯一能碰 Mapper 的模块**，见 §3.1。⚠ 只有一个 app 用的编排留在该 app，判据见 §3.2 |
 | `knot-admin` | `org.chobit.knot.admin` | 管理端启动类 + controller/security/rw/config |
 | `knot-gateway` | `org.chobit.knot.gateway` | 网关启动类 + controller/routing/store/traffic/... |
 
@@ -61,6 +61,127 @@ dto / vo    → 入参 / 出参
 model       → 领域值对象（非表映射）
 ```
 
+### 3.1 数据访问的归属：只有 `knot-service` 能碰 Mapper（2026-10-28 立规，robin 拍板）
+
+⭐⭐ **`knot-admin` / `knot-gateway` 不得注入、调用任何 `org.chobit.knot.dal.mapper.*`**。
+数据库读写与事务边界一律收在 `org.chobit.knot.svc`（`knot-service`），
+两个 app 通过 svc 暴露的接口/服务间接用库。
+
+⚠ **本条只约束「谁碰表」，不约束「编排放哪」**：编排按 §3.2 跟随使用方。
+2026-10-29 的判例里，`AsyncTaskService`（碰表）在 svc、`AsyncTaskRunner`（编排）在 gateway，
+两者分居两个模块而互不违反——把它们塞进同一层才是违规（Mapper 进 app，或 gateway 专用语义进共享层）。
+
+**判据不是「代码放哪好看」，是「同一件事有几个入口」**：
+
+- Mapper 散在 app 层时，「这张表谁能改」没有单点答案；加一张表要先决定放哪个模块，
+  而两个模块都能放 → 迟早两边各写一份（判例：`ScheduledTask` 的 DTO 在 svc、实现却在
+  admin 直连 mapper，读代码的人要跨两个模块才知道一次任务执行写了什么。
+  ✅ 2026-10-29 已改完：数据访问收进 `svc.service.ScheduledTaskService`，
+  4 个原本各注入一次 mapper 的类全部改走它）。
+- svc 是 admin 与 gateway **共用的层**（两个 app 的 pom 都已依赖它）。放在这里，
+  「管理端改配置」与「网关读配置」走的是同一份代码，口径不可能漂移；
+  放在各自的 app 里，两边各写一遍只是时间问题。
+
+配套纪律：
+
+- ⭐ **svc 对外出自己的模型（record DTO），不裸传 `dal.entity`**：把实体原样吐给 app，
+  红线就从「禁止碰 Mapper」退化成「禁止碰 Mapper 但可以碰 Entity」，
+  等于给 dal 留了后门——下次有人把实体塞进另一个 mapper 调用，没有编译信号。
+  svc 内部 58 个文件用 entity 是允许的：**边界在「跨模块出去的那一刻」**。
+- ⭐ **状态/语义枚举：一方写库就跟着写库那方走；三方都用就进 `common`**。
+  `AsyncTaskStatusEnum` 最终住在 `knot-common`：svc 用它的 `inFlightCodes()` 拼 SQL 谓词，
+  gateway 编排用它判迁移，admin 展示用它出文案——放任何一端都会逼另两端反向依赖或复制，
+  而复制一份就是「同一状态集两份定义」，必然漂移。
+- **实体转换收敛到一个 Converter**：全模块只有它允许 import `dal.entity`，
+  于是「有没有实体漏出去」是一条 grep 就能出结果的事。
+  加实体字段时 Converter 必须同步——漏一个字段编译不报错，
+  表现是「新字段读出来恒为 null」，靠逐字段断言钉住（判例 `AsyncTaskConverterTest`）。
+- **启动类的 `@MapperScan(basePackageClasses = AppMapper.class)` 是唯一豁免**：
+  它注册 bean，不执行 SQL；且规范强制要求用类字面量形式（§1.1），必然要 import 一个 mapper。
+
+⭐ **这条红线由测试守住，不停在文档里**（两个 app 各一份，别只守一边）：
+`knot-gateway/.../LayeringGuardTest` 与 `knot-admin/.../LayeringGuardTest` 都扫描 `src/main/java`
+断言「除豁免项外无 `dal.mapper` import」，并带防空跑守卫。
+admin 那份还额外把 9 个仍直接 import `dal.entity` 的 controller 列入**只许降不许升的棘轮清单**
+（新增一个就红，清掉一个也红并要求删名单）。
+理由是纯静态可判的约束都不该靠 review 记住——第一个赶时间的人破例之后，
+第二个人看到「这里已经有一处了」就会再加一处。
+
+⚠ **存量违规用「会自我失效的名单」登记，不用注释 TODO**：名单里每一项都被另一条断言
+要求「现在确实还在违规」，改干净了那条就红并提示删名单。TODO 会静默腐烂，这条会响。
+当前登记项：`GatewayEntityCacheService`（10 张配置表预热成本地缓存，改动面大、单独排期）。
+⚠ 判据当前只禁 `dal.mapper`、不禁 `dal.entity`，是因为上面这条存量违规还没清；
+**清完之后判据应当收紧到整个 `org.chobit.knot.dal`**。
+
+### 3.2 编排跟随使用方：数据访问归 svc，编排归用它的 app（2026-10-29 三轮定稿，robin 拍板）
+
+⭐⭐ **「谁能碰表」与「这段编排放哪」是两个问题，不许用一个答案糊过去**。分开答：
+
+| 问题 | 判据 | 结论 |
+|---|---|---|
+| 谁碰 Mapper / 表 | 保留唯一入口（见 §3.1） | **只能 `knot-service`** |
+| 编排放哪 | **有几个 app 用** | 两端共用 → `svc`；只有一个 app 用 → 留在那个 app |
+
+**为什么「只有一个 app 用」就该留在 app**：把只服务一端的编排放进共享层，共享层会长出那一端的
+专用语义（traceparent 重放、Kafka 事件、渠道凭据、计费管线），另一个 app 永远用不到，
+却要跟着它一起改、一起发版。
+
+⚠ **判例（2026-10-29，一天内改过三次方向；过程比结论更值得记）**：
+
+1. `AsyncTaskService`（编排）先被抽进 `svc.async`，理由是「svc 只剩 Store 就是 DAO」；
+2. 随即搬回 `knot-gateway`——因为量了一个事实：**`knot-admin` 对异步任务能力的引用是 0 处**，
+   全部消费方只有 gateway。判据由此从「凭感觉分层」改成「数消费方」；
+3. 再一轮回头看 svc 里剩下的四个 `Store`：`AsyncTaskProfileStore` 是 17 行接口 + 24 行实现、
+   方法体一行转发，`ScheduledTaskStore` 与 `ScheduledTaskRunStore` 甚至**注入同一个 Mapper**。
+   于是四个 `Store` + 四个 `Db*Store` 收成两个 `@Service`。
+
+最终形态：
+
+- `svc.service`：`AsyncTaskService`（`kb_async_tasks` 读写）/ `AsyncTaskProfileService`（档案读取）/
+  `ScheduledTaskService`（定义 + 流水）——**直连 Mapper，与 `BillingService` 同构**
+- `svc.dto.async` / `svc.dto.system`：数据载体（`AsyncTask*Dto` / `ScheduledTask*Dto`，record）
+- `svc.converter`：`AsyncTaskConverter` / `ScheduledTaskConverter`（与既有 15 个 Converter 同包）
+- `gateway.async`：`AsyncTaskRunner`（编排）/ 状态机四件套 / `AsyncTaskSpecRules` / 两个端口 /
+  `AsyncTaskContext`（提交快照）
+- `gateway.archive`：`ArchiveStore` / `ArchiveAsset`（不碰库、admin 零引用，只被终态那一步调用一次）
+- `common.constants.enums`：`AsyncTaskStatusEnum`（三方共用：gateway 编排、svc 的 SQL 在途态谓词、admin 展示）
+
+⭐⭐ **判据：单实现接口 = 纯转发壳，不抽**。抽接口的前提是「要换实现」——全仓其余 `*Store`
+（Caffeine/Redis、Passthrough/S3）都是 1 接口 + ≥2 实现；没有第二个实现、也没有换的预期时，
+接口只是把「一个 Mapper 上的方法」按表切成两个类型，外加两个 `Db*` 壳。svc 的 30 个 `XxxService`
+（含 692 行的 `BillingService`）全部直连 Mapper，`AsyncTaskService` 与它们同构，
+才不会让「svc 里怎么访问数据」出现两种写法。
+
+⚠ 收成同名类会撞车，改名是收敛的必然副产品：`svc.async.AsyncTaskService` 与 gateway 的编排类
+同名 → 编排类叫 `AsyncTaskRunner`（它跑一轮、推进一行，不持有任何表）；admin 原有的
+`ScheduledTaskService`（管理面校验 + Quartz 重排期）→ `ScheduledTaskAdminService`。
+**svc 侧拿正名、编排侧改名**——因为 svc 侧那个才是「XxxService 就该直连表」的通例。
+
+**判断顺序**：先数消费方（`grep` 各 app 的 import），再看它依赖什么。别凭「类名像服务」拍。
+
+判据细则：
+
+- **业务判断**（什么算成功/失败、要不要计费、退避多久、终态怎么落）→ 跟编排走，不单独留一份。
+- **部署决策**（跑不跑定时、并发几路、批量多大）→ 各 app，且**用值对象传进去**而不是让另一层读配置前缀
+  （判例 `AsyncTaskRunPolicy`；否则 `knot.gateway.*` 会变成两个 app 的隐式契约）。
+- **传输细节**（HTTP 客户端、签名、URL 拼装）→ `adapter`，编排层只定义端口
+  （判例 `AsyncTaskQueryPort` / `AsyncTaskSettlementPort`）。
+- **纯部署能力**（对象存储桶、凭据、区域）→ 留在 app，哪怕它看起来像「业务口径」。
+- **共享词汇**（状态码、枚举）→ 三方都用时进 `common`，不能放在其中一端的包里：
+  否则另两端只能「反向依赖」或复制一份，后者是同一状态集两份定义，必然漂移。
+
+⚠ 端口化的收益不只是解耦，**测试也不用再继承带 5 个构造参数的网关类**（判例：
+`AsyncTaskRunnerTest` 的 `RecordingQueryClient` 从 extends 改成 implements 之后就干净了）。
+
+⚠ 判例 `AsyncTaskPoller` → `AsyncTaskRunner`（2026-10-29）：轮询器原本 496 行，
+判定的、计费的、转储的、调度的全在一处。拆完只剩「什么时候扫 + 同时扫几个」约 200 行，
+测试也随之拆成 `AsyncTaskRunnerTest`（编排，17 例）/ `AsyncTaskPollerTest`（节拍，7 例）
+——**能力搬家时测试必须跟着搬，一条都不能删**。两者最终同在一个模块，但这不改变结论：
+**拆的判据是抽象层级，不是模块**。
+
+⚠ **首版条文（同日被推翻）写的是「编排必须进 svc」，教训不是「别分层」，而是判据要可验证**：
+「svc 退化成 DAO」是感受，「admin 引用 0 处」是数字。可验证的判据才能被一条命令复查。
+
 ## 4. 命名纪律（2026-10-15 立规，robin 拍板）
 
 ### 4.1 角色后缀白名单
@@ -74,6 +195,15 @@ model       → 领域值对象（非表映射）
 
 > 判例（2026-10-23）：双视图载体命名评审**否决** `UsageExtractResult`——`Result` **不在白名单**；改用 `UsageExtractItem`（`Item` 在白名单内）。
 > 拿不准后缀时按此判例办：先查白名单，**不在即换名**，不要为了顺口自造。
+
+⚠ 判例（2026-10-29）：`AsyncTaskRecord` / `AsyncTaskProfileRecord` / `AsyncTaskDraft` / `ScheduledTaskRecord` /
+`ScheduledTaskRunRecord` 全数改名——**`Record` 与 `Draft` 都不在白名单**。诱因值得记：把 **Java 的 `record` 关键字
+当成了角色**。两者是两件事——`Dto` 是角色，`record` 是实现方式；项目里 46/50 的 Dto 本身就是 record。
+改名后为 `AsyncTaskDto` / `AsyncTaskProfileDto` / `AsyncTaskDraftDto` / `ScheduledTaskDto` / `ScheduledTaskRunDto`
+（`Dto` 作后缀、`Draft` 降为中缀，同 `RequestMsgDto` 的先例）。
+⭐ **自造的包会替自造的后缀打掩护**：这批类当时住在新建的 `svc.async` / `svc.schedule` 里，
+与既有 `dto.*` / `converter.*` 无从对照，于是 5 个不合规后缀躲过了 4 轮 review。
+判据：**全仓同名后缀一起数**——`find . -name "*Xxx.java" | wc -l`，只有自己造的那几个就是信号。
 
 ### 4.2 service 包纪律
 
@@ -184,6 +314,10 @@ model       → 领域值对象（非表映射）
 - **权限三表与所有 `ks_` / `kx_` 表结构默认不动**（改错全站 403）。
 - **逻辑删除表 + UNIQUE(code) 四必配**：`countByXxxCode` 物理行判；列表 `includeDeleted` + mapper `<if>` + 排序 `is_deleted asc, id desc`；恢复端点 `PUT /{id}/restore`；引用检查覆盖 inner join 方。样板：`kb_models` / `kb_model_pools` / `kb_logical_models`。
 - **状态枚举**：删除语义移 `is_deleted`（Integer）；`EntityStatusEnum` / `UserStatusEnum` 并入 `EnabledStatusEnum`。⚠ 前端 truthy（`if (status)`）是头号风险，**0 是合法值**。
+- ⭐⭐ **数字列的 `<if test>` 只判 `!= null`，禁写 `x != ''`（2026-10-29 第三次撞车后立规）**：OGNL 把 `''` 当数字 0 比较，于是 `Integer status = 0` 时整个 `<if>` 被判 **false 并静默丢弃**——筛选返回全量、不报错、不告警、日志无痕，前端还以为筛选生效了。`!= ''` 只对 `String` 筛选列（`keyword` / `xxxCode`）正确，那是挡空串的，别一起删掉（删了「传空串」会变成「按空串精确匹配」）。
+  - 判例连撞三处同一形态：`ScheduledTaskMapper`（`listTasks` / `listRuns`）、`ModelMapper`、`ModelPoolMapper`——而 0 恰是「停用 / 运行中」这类最常用筛选，必踩。
+  - 守门 **`MapperBlankStringPredicateTest`**：全库扫 XML 的 `<if test>`，按接口 `@Param`（退到实体同名字段）反射出**真实入参类型**，非 `String` 即失败；**判不出类型也失败**，不许跳过（跳过正是这类 bug 活下来的方式）。
+  - 单点测试不够用：同一事实散在 70+ 个 XML 里，逐个补必漏 → 这类「口径一致性」问题写**全库扫描判据**，不写单点。
 - **枚举双源不混用**：代码枚举经 `GET /api/enum-options` 下发；DB 只留 `scope_type` / `discount_type` / `channel` / `model_family`。
 - **可空绑定列的 mapper `<set>` 不能用 `<if>` 包**（会写出 `set` 空语法错误）。
 - `PageQuery` 加字段要连带改所有 `new PageQuery(null × n)`。
