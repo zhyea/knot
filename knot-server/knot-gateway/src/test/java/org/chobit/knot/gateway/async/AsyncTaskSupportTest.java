@@ -26,12 +26,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AsyncTaskSupportTest {
 
-    private final AsyncTaskSupport support = new AsyncTaskSupport(null, null, null);
+    private final AsyncTaskSupport support = new AsyncTaskSupport(null, null, null, null);
 
     private static AsyncTaskSpec spec() {
         return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", "data[0].status",
                 "['succeed','SUCCEEDED'] contains status", "status == 'failed'", null,
-                "data[0].outputs[0].url",
+                "data[0].outputs[0].url", null, null,
                 7, 5000, 1000, 30000, 360, 1_800_000L);
     }
 
@@ -56,7 +56,7 @@ class AsyncTaskSupportTest {
                 Map.of("prompt", "a cat"),
                 new AsyncTaskContext("tc-1", "rule-1", null, null, "req-1",
                         "VIDEO_GENERATIONS", "kling-3", "kling-3-turbo", "kling", "pool-1", "https://x/videos"),
-                "up-1", "RULE-1", "V1", now);
+                "up-1", "RULE-1", "V1", now, "https://client.example/callback");
         AsyncTaskDraftDto task = support.build(creation);
 
         assertEquals("tc-1", task.taskCode());
@@ -71,6 +71,8 @@ class AsyncTaskSupportTest {
         assertEquals(now.plusDays(7), task.resultExpiresAt());
         assertEquals("RULE-1", task.billingRuleCode());
         assertEquals("V1", task.billingRuleVersionCode());
+        assertEquals("https://client.example/callback", task.callbackUrl(),
+                "回调地址必须原样落到草稿：它是终态时投递的唯一目标");
         assertNotNull(task.requestJson());
         assertNotNull(task.pollSpecJson());
         assertNotNull(task.contextJson());
@@ -82,11 +84,11 @@ class AsyncTaskSupportTest {
     @DisplayName("产物时效未配置时不写 result_expires_at")
     void noResultTtl() {
         AsyncTaskSpec noTtl = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data.status",
-                "status == 'succeed'", "status == 'failed'", null, "data.url",
+                "status == 'succeed'", "status == 'failed'", null, "data.url", null, null,
                 null, 5000, 1000, 30000, 360, 1_800_000L);
         AsyncTaskDraftDto task = support.build(new AsyncTaskCreation("tc", "P", noTtl, null,
                 Map.of(), new AsyncTaskContext("tc", "r", null, null, "req", null, "m", null, null, null, null),
-                "up", null, null, LocalDateTime.now()));
+                "up", null, null, LocalDateTime.now(), null));
         assertNull(task.resultExpiresAt());
     }
 

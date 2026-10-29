@@ -83,4 +83,35 @@ public final class AsyncTaskDefaults {
 
     /** 单批清理上限：大表删除分批，避免长事务 */
     public static final int CLEANUP_BATCH_SIZE = 500;
+
+    // ───────────────────────── 交付级：回调怎么送 ─────────────────────────
+
+    /** 回调总开关；关掉只是不投递，已武装的待回调行留在表里等开启 */
+    public static final boolean DELIVERY_ENABLED = true;
+
+    /** 交付扫描节拍（cron）：每分钟整点。⚠ 与 {@code @Scheduled} 里的兜底字面量是两份 */
+    public static final String DELIVERY_CRON = "0 * * * * *";
+
+    /** 单批抢占待投递上限 */
+    public static final int DELIVERY_BATCH_SIZE = 100;
+
+    /**
+     * 交付最大尝试次数（含首次）。
+     *
+     * <p>⭐ 对齐业界 webhook 惯例（3 次）。到上限后落 {@code delivery_status=FAILED}，
+     * 但<b>不代表任务失败</b>——客户仍可用任务句柄轮询到真实结果。</p>
+     */
+    public static final int DELIVERY_MAX_ATTEMPTS = 3;
+
+    /** 交付退避基数（毫秒）：与轮询同公式 {@code min(cap, base × 2^(n-1))} */
+    public static final int DELIVERY_BACKOFF_BASE_MS = 5_000;
+
+    /** 交付退避封顶（毫秒）。⚠ 与 {@link #DELIVERY_TIMEOUT_MS} 同数量级但不同义 */
+    public static final int DELIVERY_BACKOFF_MAX_MS = 300_000;
+
+    /** 单次回调 HTTP 超时（毫秒）；必须显著小于 {@link #DELIVERY_CLAIM_TTL_MS} */
+    public static final long DELIVERY_TIMEOUT_MS = 10_000L;
+
+    /** 交付占位有效期（毫秒）：必须严格大于 {@link #DELIVERY_TIMEOUT_MS} */
+    public static final long DELIVERY_CLAIM_TTL_MS = 60_000L;
 }

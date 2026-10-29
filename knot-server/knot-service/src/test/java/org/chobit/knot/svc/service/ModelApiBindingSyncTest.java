@@ -19,6 +19,7 @@ import org.chobit.knot.dal.mapper.ProviderAccountMapper;
 import org.chobit.knot.common.model.QuotaPolicy;
 import org.chobit.knot.common.model.RateLimitPolicy;
 import org.chobit.knot.svc.model.TrafficPolicies;
+import org.chobit.knot.dal.mapper.AsyncTaskProfileMapper;
 import org.chobit.knot.svc.service.support.ModelApiBindingSupport;
 import org.chobit.knot.svc.service.support.ResourceTrafficPolicySupport;
 import org.chobit.knot.adapter.usage.extractor.DefaultTokenUsageExtractor;
@@ -55,6 +56,7 @@ class ModelApiBindingSyncTest {
     private final ModelMapper modelMapper = mock(ModelMapper.class);
     private final DiscountPolicyMapper discountPolicyMapper = mock(DiscountPolicyMapper.class);
     private final ModelApiBindingMapper bindingMapper = mock(ModelApiBindingMapper.class);
+    private final AsyncTaskProfileMapper asyncTaskProfileMapper = mock(AsyncTaskProfileMapper.class);
     private final LogicalModelMapper logicalModelMapper = mock(LogicalModelMapper.class);
     private final BillingRuleMapper billingRuleMapper = mock(BillingRuleMapper.class);
     private final ProviderAccountMapper providerAccountMapper = mock(ProviderAccountMapper.class);
@@ -77,7 +79,8 @@ class ModelApiBindingSyncTest {
     };
 
     private final ModelService service = new ModelService(
-            modelMapper, discountPolicyMapper, new ModelApiBindingSupport(bindingMapper), logicalModelMapper, billingRuleMapper, providerAccountMapper,
+            modelMapper, discountPolicyMapper, new ModelApiBindingSupport(bindingMapper, asyncTaskProfileMapper),
+            logicalModelMapper, billingRuleMapper, providerAccountMapper,
             modelConverter, trafficPolicySupport, null, null);
 
     @BeforeEach
@@ -134,7 +137,7 @@ class ModelApiBindingSyncTest {
         when(bindingMapper.listByModelId(MODEL_ID)).thenReturn(List.of(existingBinding()));
 
         service.update(MODEL_ID, request(List.of(new ModelApiBindingDto(BINDING_ID, "CHAT_COMPLETIONS",
-                "/v1/chat/completions", null, DefaultTokenUsageExtractor.CODE, null, true, "人工备注"))));
+                "/v1/chat/completions", null, DefaultTokenUsageExtractor.CODE, null, true, "人工备注", null))));
 
         ArgumentCaptor<ModelApiBindingEntity> captor = ArgumentCaptor.forClass(ModelApiBindingEntity.class);
         verify(bindingMapper).update(captor.capture());
@@ -146,7 +149,7 @@ class ModelApiBindingSyncTest {
     @Test
     void addedBindingIsInserted() {
         service.update(MODEL_ID, request(List.of(new ModelApiBindingDto(null, "CHAT_COMPLETIONS",
-                null, null, DefaultTokenUsageExtractor.CODE, null, true, null))));
+                null, null, DefaultTokenUsageExtractor.CODE, null, true, null, null))));
 
         ArgumentCaptor<ModelApiBindingEntity> captor = ArgumentCaptor.forClass(ModelApiBindingEntity.class);
         verify(bindingMapper).insert(captor.capture());
@@ -182,6 +185,6 @@ class ModelApiBindingSyncTest {
 
     private ModelApiBindingDto existingBindingDto() {
         return new ModelApiBindingDto(BINDING_ID, "CHAT_COMPLETIONS", "/v1/chat/completions",
-                null, DefaultTokenUsageExtractor.CODE, null, true, null);
+                null, DefaultTokenUsageExtractor.CODE, null, true, null, null);
     }
 }

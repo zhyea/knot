@@ -30,5 +30,13 @@ public record AsyncTaskDraftDto(String taskCode,
                              String billingRuleVersionCode,
                              LocalDateTime submittedAt,
                              LocalDateTime expiresAt,
-                             LocalDateTime resultExpiresAt) {
+                             LocalDateTime resultExpiresAt,
+                             /**
+                              * 客户端回推地址；{@code null} 表示本次任务不回调。
+                              *
+                              * <p>⚠ 它从<b>客户端原始请求体</b>里提取（提交侧），
+                              * 但绝不会跟着请求体转发给上游——上游一旦直接推终态给客户端，
+                              * 这笔用量就绕过了轮询结算。</p>
+                              */
+                             String callbackUrl) {
 }

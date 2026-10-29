@@ -30,8 +30,12 @@ public record AsyncTaskProfileDto(String profileCode,
                                      String statusFailed,
                                      /** MVEL 布尔表达式：算不算仍在进行；空串 = 除成功/失败外一律非终态 */
                                      String statusRunning,
-                                     /** MVEL 取值表达式：终态产物位置 */
+                                     /** MVEL 取值表达式：终态产物位置（标量 = 单个，数组 = 多个） */
                                      String resultPath,
+                                     /** 产物是对象数组时取哪个字段作为地址；空 = 元素必须是标量 */
+                                     String resultUrlField,
+                                     /** MVEL 取值表达式：失败原因；空 = 沿用上游顶层 message */
+                                     String errorMessagePath,
                                      Integer resultExpiresDays,
                                      Integer pollIntervalMs,
                                      Integer pollBackoffBaseMs,

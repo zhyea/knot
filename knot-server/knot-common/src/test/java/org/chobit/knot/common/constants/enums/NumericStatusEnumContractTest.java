@@ -35,7 +35,8 @@ class NumericStatusEnumContractTest {
             OperationLogStatusEnum.class,
             ScheduledTaskRunStatusEnum.class,
             ExternalModelSyncStatusEnum.class,
-            HealthStatusEnum.class
+            HealthStatusEnum.class,
+            AsyncTaskDeliveryStatusEnum.class
     );
 
     private static Object[] valuesOf(Class<?> clazz) throws Exception {

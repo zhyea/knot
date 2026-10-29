@@ -2,35 +2,67 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="org.chobit.knot.dal.mapper.AsyncTaskProfileMapper">
 
+    <!-- 列清单带表别名 p：三处查询统一给它起别名，才能在不复制列清单的前提下挂派生列 -->
     <sql id="ProfileColumns">
-        id, profile_code, protocol, query_method, query_path, task_id_path,
-        status_path, status_succeeded, status_failed, status_running, result_path, result_expires_days,
-        poll_interval_ms, poll_backoff_base_ms, poll_backoff_max_ms, max_attempts, timeout_ms,
-        status, remark, created_at, updated_at
+        p.id, p.profile_code, p.protocol, p.query_method, p.query_path, p.task_id_path,
+        p.status_path, p.status_succeeded, p.status_failed, p.status_running, p.result_path,
+        p.error_message_path, p.result_url_field, p.result_expires_days,
+        p.poll_interval_ms, p.poll_backoff_base_ms, p.poll_backoff_max_ms, p.max_attempts, p.timeout_ms,
+        p.status, p.remark, p.created_at, p.updated_at
     </sql>
 
     <select id="getByProfileCode" resultType="org.chobit.knot.dal.entity.AsyncTaskProfileEntity">
         select <include refid="ProfileColumns"/>
-        from kb_async_task_profiles
-        where profile_code = #{profileCode}
+        from kb_async_task_profiles p
+        where p.profile_code = #{profileCode}
+    </select>
+
+    <select id="getEnabledByProfileCode" resultType="org.chobit.knot.dal.entity.AsyncTaskProfileEntity">
+        select <include refid="ProfileColumns"/>
+        from kb_async_task_profiles p
+        where p.profile_code = #{profileCode}
+          and p.status = 1
     </select>
 
     <select id="listEnabled" resultType="org.chobit.knot.dal.entity.AsyncTaskProfileEntity">
         select <include refid="ProfileColumns"/>
-        from kb_async_task_profiles
-        where status = 1
-        order by profile_code asc
+        from kb_async_task_profiles p
+        where p.status = 1
+        order by p.profile_code asc
+    </select>
+
+    <select id="search" resultType="org.chobit.knot.dal.entity.AsyncTaskProfileEntity">
+        select <include refid="ProfileColumns"/>,
+               (select count(*)
+                from kb_model_api_bindings b
+                         inner join kb_models m on b.model_code = m.model_code and m.is_deleted = 0
+                where b.async_profile_code = p.profile_code) as binding_count
+        from kb_async_task_profiles p
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (p.profile_code like concat('%', #{keyword}, '%')
+                     or p.remark like concat('%', #{keyword}, '%'))
+            </if>
+            <if test="protocol != null and protocol != ''">
+                and p.protocol = #{protocol}
+            </if>
+            <if test="status != null">
+                and p.status = #{status}
+            </if>
+        </where>
+        order by p.profile_code asc
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         insert into kb_async_task_profiles(profile_code, protocol, query_method, query_path, task_id_path,
                                            status_path, status_succeeded, status_failed,
-                                           status_running, result_path, result_expires_days,
+                                           status_running, result_path, error_message_path, result_url_field,
+                                           result_expires_days,
                                            poll_interval_ms, poll_backoff_base_ms, poll_backoff_max_ms,
                                            max_attempts, timeout_ms, status, remark)
         values(#{profileCode}, #{protocol}, #{queryMethod}, #{queryPath}, #{taskIdPath},
                #{statusPath}, #{statusSucceeded}, #{statusFailed},
-               #{statusRunning}, #{resultPath}, #{resultExpiresDays},
+               #{statusRunning}, #{resultPath}, #{errorMessagePath}, #{resultUrlField}, #{resultExpiresDays},
                #{pollIntervalMs}, #{pollBackoffBaseMs}, #{pollBackoffMaxMs},
                #{maxAttempts}, #{timeoutMs}, #{status}, #{remark})
     </insert>
@@ -46,6 +78,8 @@
             status_failed = #{statusFailed},
             status_running = #{statusRunning},
             result_path = #{resultPath},
+            error_message_path = #{errorMessagePath},
+            result_url_field = #{resultUrlField},
             result_expires_days = #{resultExpiresDays},
             poll_interval_ms = #{pollIntervalMs},
             poll_backoff_base_ms = #{pollBackoffBaseMs},

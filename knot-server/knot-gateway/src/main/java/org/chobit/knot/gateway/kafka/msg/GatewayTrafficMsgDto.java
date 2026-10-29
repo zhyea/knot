@@ -107,6 +107,7 @@ public record GatewayTrafficMsgDto(String schema,
                                    String taskPhase,
                                    Boolean taskTerminal,
                                    Integer taskQuerySeq,
+                                   Integer taskRetryRound,
                                    ErrorMsgDto error) implements Msg {
 
     /**
@@ -131,10 +132,17 @@ public record GatewayTrafficMsgDto(String schema,
      * @param terminal 该阶段是否已落终态；{@code submit} 恒 {@code false}
      * @param querySeq 第几次查询，从 1 开始；{@code submit} 为 {@code null}。
      *                 有它才能算出「第几次查询才拿到产物」，是异步任务延迟分布的唯一来源
+     * @param retryRound 重试轮次，0 = 从未被管理端重试。
+     *                 ⚠ <b>它进的是去重键</b>：管理端重试会把 {@code attempts} 归零，
+     *                 于是 {@code task_query_seq} 从 1 重来，与上一轮完全同键。
+     *                 数仓按 {@code (task_code, task_phase, task_query_seq)} 去重时必须再带上
+     *                 {@code task_retry_round}，否则两轮真实上游调用会被压成一条（方向是少记，
+     *                 事后无从还原）
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-    public record TaskTrace(String taskCode, String phase, boolean terminal, Integer querySeq) {
+    public record TaskTrace(String taskCode, String phase, boolean terminal, Integer querySeq,
+                            Integer retryRound) {
 
         /** context 属性名：由提交路径写入，{@link GatewayTrafficMsgDto#of} 读取 */
         public static final String ATTRIBUTE = "asyncTaskTrace";
@@ -142,14 +150,14 @@ public record GatewayTrafficMsgDto(String schema,
         public static final String PHASE_SUBMIT = "submit";
         public static final String PHASE_QUERY = "query";
 
-        /** 提交阶段：上游只回了 task_id，钱还没发生 */
+        /** 提交阶段：上游只回了 task_id，钱还没发生。轮次恒 0（还没被重试过） */
         public static TaskTrace submit(String taskCode) {
-            return new TaskTrace(taskCode, PHASE_SUBMIT, false, null);
+            return new TaskTrace(taskCode, PHASE_SUBMIT, false, null, 0);
         }
 
         /** 查询阶段：{@code terminal} 表示这次查询是否拿到的就是终态 */
-        public static TaskTrace query(String taskCode, int querySeq, boolean terminal) {
-            return new TaskTrace(taskCode, PHASE_QUERY, terminal, querySeq);
+        public static TaskTrace query(String taskCode, int retryRound, int querySeq, boolean terminal) {
+            return new TaskTrace(taskCode, PHASE_QUERY, terminal, querySeq, retryRound);
         }
     }
 
@@ -243,11 +251,12 @@ public record GatewayTrafficMsgDto(String schema,
             task == null ? null : task.phase(),
             task == null ? null : task.terminal(),
             task == null ? null : task.querySeq(),
+            task == null ? null : task.retryRound(),
             errorRecord);
     }
 
     /**
-     * 异步任务身份；同步请求为 {@code null}，四个 {@code task_*} 字段随 {@code NON_NULL} 整段省略。
+     * 异步任务身份；同步请求为 {@code null}，五个 {@code task_*} 字段随 {@code NON_NULL} 整段省略。
      *
      * <p>⚠ 同步事件<b>不带</b> {@code task_terminal}，所以数仓口径写的是
      * {@code task_phase is null or ...} 而不是 {@code task_terminal = true}——

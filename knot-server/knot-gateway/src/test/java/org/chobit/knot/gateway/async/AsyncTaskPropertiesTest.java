@@ -58,6 +58,18 @@ class AsyncTaskPropertiesTest {
     }
 
     @Test
+    @DisplayName("交付层默认值：3 次上限 / 10s 超时 / 60s 租约 / 一批 100，且超时小于租约")
+    void deliveryDefaultsArePinned() {
+        assertTrue(properties.isDeliveryEnabled(), "默认启用：不配就该投递");
+        assertEquals(100, properties.getDeliveryBatchSize());
+        assertEquals(3, properties.getDeliveryMaxAttempts());
+        assertEquals(10_000L, properties.getDeliveryTimeoutMs());
+        assertEquals(60_000L, properties.getDeliveryClaimTtlMs());
+        assertTrue(properties.getDeliveryClaimTtlMs() > properties.getDeliveryTimeoutMs(),
+                "交付占位必须长于回调超时，否则同一笔结果会被重复回调");
+    }
+
+    @Test
     @DisplayName("占位还要留够余量给转储与落终态，不能只比查询超时大 1ms")
     void claimTtlLeavesRoomForArchiveAndSettle() {
         long slack = properties.getClaimTtlMs() - properties.getQueryTimeoutMs();
@@ -84,13 +96,15 @@ class AsyncTaskPropertiesTest {
     void annotationFallbackMatchesPropertiesDefault() throws Exception {
         assertEquals(properties.getTickCron(), cronFallbackOf("tick"));
         assertEquals(properties.getCleanupCron(), cronFallbackOf("archive"));
+        assertEquals(properties.getDeliveryCron(), cronFallbackOf("deliver"));
     }
 
     @Test
-    @DisplayName("两个默认 cron 都能被 Spring 解析（写错只在启动期炸，CI 拦更便宜）")
+    @DisplayName("三个默认 cron 都能被 Spring 解析（写错只在启动期炸，CI 拦更便宜）")
     void defaultCronsAreParseable() {
         CronExpression.parse(properties.getTickCron());
         CronExpression.parse(properties.getCleanupCron());
+        CronExpression.parse(properties.getDeliveryCron());
     }
 
     @Test

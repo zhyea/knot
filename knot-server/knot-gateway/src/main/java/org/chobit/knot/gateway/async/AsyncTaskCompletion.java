@@ -95,7 +95,8 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
      */
     @Override
     public void publishQuery(AsyncTaskDto task, AsyncTaskContext context, int querySeq, String errorCode) {
-        publish(task, context, TaskTrace.query(task.taskCode(), querySeq, false), null, errorCode, null);
+        publish(task, context, TaskTrace.query(task.taskCode(), roundOf(task), querySeq, false),
+                null, errorCode, null);
     }
 
     /**
@@ -112,7 +113,18 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
     @Override
     public void publishTerminal(AsyncTaskDto task, AsyncTaskContext context,
                                 int querySeq, UsageAccounting usage, String errorCode, String errorMessage) {
-        publish(task, context, TaskTrace.query(task.taskCode(), querySeq, true), usage, errorCode, errorMessage);
+        publish(task, context, TaskTrace.query(task.taskCode(), roundOf(task), querySeq, true),
+                usage, errorCode, errorMessage);
+    }
+
+    /**
+     * 重试轮次：库里的 {@code retry_round} 可能是 null（历史行在加列前就已存在，
+     * 加列时默认 0，但手工插入的测试数据仍可能为 null）→ 归一成 0。
+     *
+     * <p>⚠ 不要在这里做「第一次查询」之类的推断：轮次只有一个来源，就是行上的值。</p>
+     */
+    private static int roundOf(AsyncTaskDto task) {
+        return task.retryRound() == null ? 0 : task.retryRound();
     }
 
     /**

@@ -4,6 +4,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.util.List;
+
 /**
  * 异步任务轮询配置（{@code knot.gateway.async-task.*}）。
  *
@@ -101,6 +103,57 @@ public class AsyncTaskProperties {
 
     /** 单批清理上限：大表删除分批，避免长事务 */
     private int cleanupBatchSize = AsyncTaskDefaults.CLEANUP_BATCH_SIZE;
+
+    // ───────────────────────── 交付级：回调怎么送 ─────────────────────────
+
+    /**
+     * 回调总开关。
+     *
+     * <p>关掉只是<b>不投递</b>：已武装的待回调行仍留在表里（{@code delivery_status=1}），
+     * 重新打开后继续投递。这与 {@link #enabled} 分开，因为「轮询上游」与「回推客户端」
+     * 是两条独立的对外链路，一方出问题时不该连带停掉另一方。</p>
+     */
+    private boolean deliveryEnabled = AsyncTaskDefaults.DELIVERY_ENABLED;
+
+    /**
+     * 交付扫描节拍（cron，默认每分钟整点）。
+     *
+     * <p>与 {@link #tickCron} 同形：cron 只决定「多久扫一次待投递表」，
+     * 单条任务的下一次投递时刻由行上的 {@code next_delivery_at}（退避）决定。</p>
+     */
+    private String deliveryCron = AsyncTaskDefaults.DELIVERY_CRON;
+
+    /** 单批抢占待投递上限 */
+    private int deliveryBatchSize = AsyncTaskDefaults.DELIVERY_BATCH_SIZE;
+
+    /** 交付最大尝试次数（含首次）；到上限落 {@code delivery_status=FAILED}（不代表任务失败） */
+    private int deliveryMaxAttempts = AsyncTaskDefaults.DELIVERY_MAX_ATTEMPTS;
+
+    /** 交付退避基数（毫秒） */
+    private int deliveryBackoffBaseMs = AsyncTaskDefaults.DELIVERY_BACKOFF_BASE_MS;
+
+    /** 交付退避封顶（毫秒） */
+    private int deliveryBackoffMaxMs = AsyncTaskDefaults.DELIVERY_BACKOFF_MAX_MS;
+
+    /** 单次回调 HTTP 超时（毫秒）。⚠ 必须严格小于 {@link #deliveryClaimTtlMs} */
+    private long deliveryTimeoutMs = AsyncTaskDefaults.DELIVERY_TIMEOUT_MS;
+
+    /**
+     * 交付占位有效期（毫秒）：必须严格大于 {@link #deliveryTimeoutMs}。
+     *
+     * <p>否则占位会在回调请求返回前过期，另一节点把同一行重新领走，
+     * 同一笔结果被投递两次——客户侧看到重复回调，且没有任何本地报错。</p>
+     */
+    private long deliveryClaimTtlMs = AsyncTaskDefaults.DELIVERY_CLAIM_TTL_MS;
+
+    /**
+     * 回调地址主机白名单（后缀匹配，空 = 不限制主机）。
+     *
+     * <p>⭐ 无论白名单是否为空，回环 / 私网 / 链路本地 IP 一律拦截（SSRF 守卫）：
+     * {@code callback_url} 是客户端指定的<b>出站地址</b>，若不加限制，任何人都能让网关
+     * 向内部服务发起带业务数据的 POST。</p>
+     */
+    private List<String> callbackAllowedHosts = List.of();
 
     /** 节点标识（占位号前缀，便于排查是谁抢到了任务）；为空时取本机主机名 */
     private String nodeId;

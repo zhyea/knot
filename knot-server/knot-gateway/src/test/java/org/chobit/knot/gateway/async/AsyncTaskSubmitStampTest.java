@@ -79,7 +79,7 @@ class AsyncTaskSubmitStampTest {
     @DisplayName("非异步：不写任何标记，同步事件保持 task_phase 为空")
     void syncLeavesNoStamp() {
         GatewayRequestContext context = context();
-        AsyncTaskSupport syncOnly = new AsyncTaskSupport(null, null, store) {
+        AsyncTaskSupport syncOnly = new AsyncTaskSupport(null, null, store, new AsyncTaskProperties()) {
             @Override
             public ModelApiBindingEntity bindingOf(Long modelId, ModelApiProtocolEnum protocol) {
                 return new ModelApiBindingEntity();
@@ -108,7 +108,8 @@ class AsyncTaskSubmitStampTest {
     private static final class StubSupport extends AsyncTaskSupport {
 
         private StubSupport(AsyncTaskService store) {
-            super(null, new StubEntityCache(), store);
+            // properties 必须是真的：submitIfAsync 会读回调白名单（即使本次没有 callback_url）
+            super(null, new StubEntityCache(), store, new AsyncTaskProperties());
         }
 
         @Override
@@ -119,9 +120,9 @@ class AsyncTaskSubmitStampTest {
         }
 
         @Override
-        public AsyncTaskSpec loadSpec(String profileCode) {
+        public AsyncTaskSpec loadSpec(String profileCode, ModelApiProtocolEnum protocol) {
             return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", "data.status",
-                    "status == 'succeed'", "status == 'failed'", null, "data.url",
+                    "status == 'succeed'", "status == 'failed'", null, "data.url", null, null,
                     7, 5000, 1000, 30000, 360, 1_800_000L);
         }
     }

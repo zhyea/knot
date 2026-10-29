@@ -1,4 +1,4 @@
-package org.chobit.knot.gateway.async;
+package org.chobit.knot.svc.service.support;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -133,5 +133,31 @@ class AsyncTaskExpressionSupportTest {
         root.put("status", "succeed");
         assertTrue(AsyncTaskExpressionSupport.test(root, "status == 'succeed'"),
                 "生产里响应体来自 Jackson，是 LinkedHashMap 而非不可变 Map");
+    }
+
+    @Test
+    @DisplayName("取值（多值）：标量得单元素、数组得全集、结构跳过")
+    void textsReadsScalarAndArray() {
+        Map<String, Object> videos = Map.of("data", Map.of("videos", List.of(
+                Map.of("url", "https://x/1.mp4"), Map.of("url", "https://x/2.mp4"))));
+
+        assertEquals(List.of("succeed"), AsyncTaskExpressionSupport.texts(body(), "data[0].status"));
+        assertEquals(List.of("https://x/1.mp4", "https://x/2.mp4"),
+                AsyncTaskExpressionSupport.texts(videos, "data.videos", "url"),
+                "对象数组必须按字段名取：MVEL 2.5.2 的投影 .![url] 在本路径下不可用（实测 PropertyAccessException）");
+        assertTrue(AsyncTaskExpressionSupport.texts(videos, "data.videos").isEmpty(),
+                "不给字段名时元素是对象 → 不是标量，不许把整段 JSON 当地址");
+        assertEquals(List.of("https://x/1.mp4", "https://x/2.mp4"),
+                AsyncTaskExpressionSupport.texts(Map.of("urls", List.of("https://x/1.mp4", "https://x/2.mp4")),
+                        "urls"), "元素本身就是标量时，字段名留空即可");
+    }
+
+    @Test
+    @DisplayName("取值（多值）：取不到回空列表，语法错仍然抛")
+    void textsMissAndSyntaxError() {
+        assertTrue(AsyncTaskExpressionSupport.texts(body(), "data[9].videos").isEmpty());
+        assertTrue(AsyncTaskExpressionSupport.texts(body(), null).isEmpty());
+        assertThrows(IllegalStateException.class,
+                () -> AsyncTaskExpressionSupport.texts(body(), "data["));
     }
 }

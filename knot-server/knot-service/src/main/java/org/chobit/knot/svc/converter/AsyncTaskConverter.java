@@ -2,10 +2,13 @@ package org.chobit.knot.svc.converter;
 
 import org.chobit.knot.dal.entity.AsyncTaskEntity;
 import org.chobit.knot.dal.entity.AsyncTaskProfileEntity;
+import org.chobit.knot.common.constants.enums.AsyncTaskDeliveryStatusEnum;
 import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.chobit.knot.svc.dto.async.AsyncTaskDraftDto;
 import org.chobit.knot.svc.dto.async.AsyncTaskDto;
 import org.chobit.knot.svc.dto.async.AsyncTaskProfileDto;
+import org.chobit.knot.svc.dto.async.AsyncTaskProfileSaveDto;
+import org.chobit.knot.svc.vo.async.AsyncTaskProfileDetailVo;
 
 /**
  * {@code AsyncTaskEntity} / {@code AsyncTaskProfileEntity} ⇄ {@code svc.dto.async} 的 record 模型转换。
@@ -39,6 +42,7 @@ public final class AsyncTaskConverter {
                 entity.getUpstreamTaskId(),
                 entity.getStatus(),
                 entity.getAttempts(),
+                entity.getRetryRound(),
                 entity.getNextPollAt(),
                 entity.getClaimId(),
                 entity.getRequestJson(),
@@ -52,7 +56,13 @@ public final class AsyncTaskConverter {
                 entity.getSubmittedAt(),
                 entity.getCompletedAt(),
                 entity.getExpiresAt(),
-                entity.getResultExpiresAt());
+                entity.getResultExpiresAt(),
+                entity.getCallbackUrl(),
+                entity.getDeliveryStatus(),
+                entity.getDeliveryAttempts(),
+                entity.getNextDeliveryAt(),
+                entity.getDeliveredAt(),
+                entity.getDeliveryError());
     }
 
     /**
@@ -77,6 +87,13 @@ public final class AsyncTaskConverter {
         entity.setSubmittedAt(draft.submittedAt());
         entity.setExpiresAt(draft.expiresAt());
         entity.setResultExpiresAt(draft.resultExpiresAt());
+        // 交付维度的初值同样只在这里定：有回推地址 = 待回调，否则 = 无需回调。
+        // 与 status/attempts 一样，调用方没有机会把一条新任务直接建成「已交付」。
+        entity.setCallbackUrl(draft.callbackUrl());
+        entity.setDeliveryStatus(draft.callbackUrl() == null
+                ? AsyncTaskDeliveryStatusEnum.NONE.code()
+                : AsyncTaskDeliveryStatusEnum.PENDING.code());
+        entity.setDeliveryAttempts(0);
         return entity;
     }
 
@@ -95,11 +112,80 @@ public final class AsyncTaskConverter {
                 entity.getStatusFailed(),
                 entity.getStatusRunning(),
                 entity.getResultPath(),
+                entity.getResultUrlField(),
+                entity.getErrorMessagePath(),
                 entity.getResultExpiresDays(),
                 entity.getPollIntervalMs(),
                 entity.getPollBackoffBaseMs(),
                 entity.getPollBackoffMaxMs(),
                 entity.getMaxAttempts(),
                 entity.getTimeoutMs());
+    }
+
+    /**
+     * 写入载体 → 实体（新建与更新共用）。
+     *
+     * <p>⚠ 不含 {@code created_at} / {@code updated_at} / {@code binding_count}：
+     * 前两个由 DB 维护，第三个是查询期派生列。写进去的后果是「新建时把创建时间写成 null」——
+     * 列有 NOT NULL DEFAULT，严格模式下会被直接拒。</p>
+     */
+    public static AsyncTaskProfileEntity toProfileEntity(AsyncTaskProfileSaveDto dto) {
+        if (dto == null) {
+            return null;
+        }
+        AsyncTaskProfileEntity entity = new AsyncTaskProfileEntity();
+        entity.setProfileCode(dto.profileCode());
+        entity.setProtocol(dto.protocol());
+        entity.setQueryMethod(dto.queryMethod());
+        entity.setQueryPath(dto.queryPath());
+        entity.setTaskIdPath(dto.taskIdPath());
+        entity.setStatusPath(dto.statusPath());
+        entity.setStatusSucceeded(dto.statusSucceeded());
+        entity.setStatusFailed(dto.statusFailed());
+        entity.setStatusRunning(dto.statusRunning());
+        entity.setResultPath(dto.resultPath());
+        entity.setResultUrlField(dto.resultUrlField());
+        entity.setErrorMessagePath(dto.errorMessagePath());
+        entity.setResultExpiresDays(dto.resultExpiresDays());
+        entity.setPollIntervalMs(dto.pollIntervalMs());
+        entity.setPollBackoffBaseMs(dto.pollBackoffBaseMs());
+        entity.setPollBackoffMaxMs(dto.pollBackoffMaxMs());
+        entity.setMaxAttempts(dto.maxAttempts());
+        entity.setTimeoutMs(dto.timeoutMs());
+        entity.setStatus(dto.status());
+        entity.setRemark(dto.remark());
+        return entity;
+    }
+
+    /** 实体 → 管理面视图（含被引用行数与时间戳） */
+    public static AsyncTaskProfileDetailVo toProfileDetailVo(AsyncTaskProfileEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        return new AsyncTaskProfileDetailVo(
+                entity.getId(),
+                entity.getProfileCode(),
+                entity.getProtocol(),
+                entity.getQueryMethod(),
+                entity.getQueryPath(),
+                entity.getTaskIdPath(),
+                entity.getStatusPath(),
+                entity.getStatusSucceeded(),
+                entity.getStatusFailed(),
+                entity.getStatusRunning(),
+                entity.getResultPath(),
+                entity.getResultUrlField(),
+                entity.getErrorMessagePath(),
+                entity.getResultExpiresDays(),
+                entity.getPollIntervalMs(),
+                entity.getPollBackoffBaseMs(),
+                entity.getPollBackoffMaxMs(),
+                entity.getMaxAttempts(),
+                entity.getTimeoutMs(),
+                entity.getStatus(),
+                entity.getRemark(),
+                entity.getBindingCount(),
+                entity.getCreatedAt(),
+                entity.getUpdatedAt());
     }
 }

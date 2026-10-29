@@ -40,7 +40,7 @@ class EnumOptionRegistryTest {
     void exposesOnlyMigratedEnums() {
         Map<String, List<EnumOptionItem>> map = registry.enumMap();
 
-        assertEquals(21, map.size());
+        assertEquals(22, map.size());
         assertTrue(map.containsKey("ModelTypeEnum"));
         assertTrue(map.containsKey("ModelApiProtocolEnum"));
         assertTrue(map.containsKey("BillingModeEnum"));
@@ -59,6 +59,7 @@ class EnumOptionRegistryTest {
         assertTrue(map.containsKey("OperationLogStatusEnum"));
         assertTrue(map.containsKey("ScheduledTaskRunStatusEnum"));
         assertTrue(map.containsKey("AsyncTaskStatusEnum"));
+        assertTrue(map.containsKey("AsyncTaskDeliveryStatusEnum"));
         assertTrue(map.containsKey("RoutingTestStatusEnum"));
         assertTrue(map.containsKey("LogicalModelVisibilityEnum"));
         assertTrue(map.containsKey("LogicalModelPublishStatusEnum"));
@@ -73,6 +74,17 @@ class EnumOptionRegistryTest {
         assertLabel("AsyncTaskStatusEnum", 1, "轮询中");
         assertLabel("AsyncTaskStatusEnum", 2, "成功");
         assertLabel("AsyncTaskStatusEnum", 5, "已取消");
+    }
+
+    @Test
+    void asyncTaskDeliveryStatusExposesNumericLabels() {
+        // 详情抽屉的「回调交付」段单独渲染这个维度。⭐ 同样必须能取到 0（无需回调）的 label：
+        // 它是合法值，前端写 if (code) 会把「无需回调」整段吞掉
+        assertEquals(4, optionsOf("AsyncTaskDeliveryStatusEnum").size());
+        assertLabel("AsyncTaskDeliveryStatusEnum", 0, "无需回调");
+        assertLabel("AsyncTaskDeliveryStatusEnum", 1, "待回调");
+        assertLabel("AsyncTaskDeliveryStatusEnum", 2, "回调成功");
+        assertLabel("AsyncTaskDeliveryStatusEnum", 3, "回调失败");
     }
 
     @Test

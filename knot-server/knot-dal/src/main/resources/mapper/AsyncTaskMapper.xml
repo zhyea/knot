@@ -9,15 +9,44 @@
          dal 不认识状态语义，这是刻意的——语义在 gateway 的枚举里。 -->
 
     <sql id="TaskColumns">
-        id, task_code, profile_code, protocol, upstream_task_id, status, attempts,
+        id, task_code, profile_code, protocol, upstream_task_id, status, attempts, retry_round,
         next_poll_at, claim_id, claim_expires_at, last_polled_at,
         request_json, poll_spec_json, context_json, result_json, error_code, error_message,
         billing_rule_code, billing_rule_version_code,
-        submitted_at, completed_at, expires_at, result_expires_at, created_at, updated_at
+        submitted_at, completed_at, expires_at, result_expires_at,
+        callback_url, delivery_status, delivery_attempts, next_delivery_at, delivered_at, delivery_error,
+        delivery_claim_id, delivery_claim_expires_at,
+        created_at, updated_at
+    </sql>
+
+    <!-- 列表页的投影：故意不含四个 JSON 段与占位字段。
+         一页 20 行 × 四段 JSON（单段可达数十 KB）= MB 级无用传输，而列表一个都不展示。
+         ⚠ 由此实体里 requestJson 等字段是 null，含义是「本次没查」，不是「库里为空」——
+         要看它们必须走 getByTaskCode（全列）。 -->
+    <sql id="SummaryColumns">
+        id, task_code, profile_code, protocol, upstream_task_id, status, attempts, retry_round,
+        next_poll_at, error_code, error_message,
+        billing_rule_code, billing_rule_version_code,
+        submitted_at, completed_at, expires_at, result_expires_at,
+        callback_url, delivery_status, delivery_attempts, next_delivery_at, delivered_at, delivery_error,
+        created_at, updated_at
     </sql>
 
     <sql id="InFlight">
         <foreach collection="inFlightCodes" item="code" open="(" separator="," close=")">#{code}</foreach>
+    </sql>
+
+    <!-- 可重试状态码集合：与 InFlight 分开是为了让「谁在展开哪个集合」在 XML 里一眼可辨。
+         ⚠ 不许合并成一个「状态集合」参数：两者语义相反（在途 vs 可重开的终态），
+         合并后调用处传错集合编译器毫无信号。 -->
+    <sql id="Retryable">
+        <foreach collection="retryableCodes" item="code" open="(" separator="," close=")">#{code}</foreach>
+    </sql>
+
+    <!-- 待投递状态码集合（正向包含）。与 InFlight 同理：加一个待投递态时这里自动生效，
+         不写字面量，也不用「排除成功/失败」这种负向口径。 -->
+    <sql id="Deliverable">
+        <foreach collection="deliverableCodes" item="code" open="(" separator="," close=")">#{code}</foreach>
     </sql>
 
     <select id="getById" resultType="org.chobit.knot.dal.entity.AsyncTaskEntity">
@@ -43,12 +72,14 @@
                                    status, attempts, next_poll_at, claim_id, claim_expires_at, last_polled_at,
                                    request_json, poll_spec_json, context_json, result_json,
                                    error_code, error_message, billing_rule_code, billing_rule_version_code,
-                                   submitted_at, completed_at, expires_at, result_expires_at)
+                                   submitted_at, completed_at, expires_at, result_expires_at,
+                                   callback_url, delivery_status, delivery_attempts)
         values(#{taskCode}, #{profileCode}, #{protocol}, #{upstreamTaskId},
                #{status}, #{attempts}, #{nextPollAt}, #{claimId}, #{claimExpiresAt}, #{lastPolledAt},
                #{requestJson}, #{pollSpecJson}, #{contextJson}, #{resultJson},
                #{errorCode}, #{errorMessage}, #{billingRuleCode}, #{billingRuleVersionCode},
-               #{submittedAt}, #{completedAt}, #{expiresAt}, #{resultExpiresAt})
+               #{submittedAt}, #{completedAt}, #{expiresAt}, #{resultExpiresAt},
+               #{callbackUrl}, #{deliveryStatus}, #{deliveryAttempts})
     </insert>
 
     <!-- 原子抢占：一条 UPDATE 借行锁完成，再按 claim_id 回查（见 getByClaimId）。
@@ -101,7 +132,12 @@
     <!-- 终态 CAS：在途态 + 仍持有占位才落终态，影响行数 = 1 才发终态事件。
          少掉 claim_id 条件时的现象是「两个节点各发一条终态事件」：后者的 status 条件此时
          已经过不了，但如果它抢在 CAS 之前读了行，就可能带着旧的 attempts 发出第二条——
-         租约条件把「谁有权说话」也从「状态没变」升级成「确实是我在负责」。 -->
+         租约条件把「谁有权说话」也从「状态没变」升级成「确实是我在负责」。
+
+         ⭐ 回调交付在这里原子武装：落终态的那一条 SQL 顺手把 delivery_status 置回待回调、
+         next_delivery_at 置为此刻。放进同一条 UPDATE 而不是「落终态后再写一次」，是因为
+         中间崩溃会留下「任务已终态、却永远不会回调」的行——而那一行没有任何报错。
+         无 callback_url 的行（delivery_status = 0）五个字段全部保持原样，不制造空转。 -->
     <update id="complete">
         update kb_async_tasks
         set status = #{status},
@@ -111,18 +147,157 @@
             completed_at = #{completedAt},
             next_poll_at = null,
             claim_id = null,
-            claim_expires_at = null
+            claim_expires_at = null,
+            delivery_status = case when callback_url is null then delivery_status else #{deliveryPendingCode} end,
+            delivery_attempts = case when callback_url is null then delivery_attempts else 0 end,
+            next_delivery_at = case when callback_url is null then next_delivery_at else #{completedAt} end,
+            delivered_at = case when callback_url is null then delivered_at else null end,
+            delivery_error = case when callback_url is null then delivery_error else null end
         where id = #{id}
           and claim_id = #{claimId}
           and status in <include refid="InFlight"/>
     </update>
 
-    <!-- 终态 = 不在在途集合里。用 not in 而不是逐个列终态码：将来加在途态时这里自动正确。 -->
+    <!-- 终态 = 不在在途集合里。用 not in 而不是逐个列终态码：将来加在途态时这里自动正确。
+         ⚠ 还要再排掉「待回调」的行：它已经终态、可以进清理，但客户端还没拿到结果。
+         只看 status 就删，会把「已生成成功、回调还在退避重试」的行连同 result_json 一起抹掉，
+         客户端既收不到回调、也查不到轮询——一次静默的数据丢失，且没有任何报错。
+         判据必须落在交付维度上，与 status 无关。 -->
     <delete id="deleteCompletedBefore">
         delete from kb_async_tasks
         where status not in <include refid="InFlight"/>
+          and delivery_status not in <include refid="Deliverable"/>
           and completed_at &lt; #{before}
         limit #{limit}
     </delete>
+
+    <!-- 管理端分页检索。关键字同时模糊匹配任务句柄与上游任务号：
+         运维手里可能只有一个上游 id（从供应商后台看到的），没有 knot 句柄。
+         ⚠ 前置 % 走不了索引，管理端可接受——它是人工排查入口，不是在线链路。 -->
+    <select id="search" resultType="org.chobit.knot.dal.entity.AsyncTaskEntity">
+        select <include refid="SummaryColumns"/>
+        from kb_async_tasks
+        <where>
+            <if test="keyword != null and keyword != ''">
+                and (task_code like concat('%', #{keyword}, '%')
+                     or upstream_task_id like concat('%', #{keyword}, '%'))
+            </if>
+            <if test="profileCode != null and profileCode != ''">
+                and profile_code = #{profileCode}
+            </if>
+            <if test="protocol != null and protocol != ''">
+                and protocol = #{protocol}
+            </if>
+            <!-- status 是 Integer：只判 null，绝不写 status != ''（OGNL 把 '' 当 0，status=0 时条件会被静默丢弃） -->
+            <if test="status != null">
+                and status = #{status}
+            </if>
+            <if test="submittedFrom != null">
+                and submitted_at &gt;= #{submittedFrom}
+            </if>
+            <if test="submittedTo != null">
+                and submitted_at &lt;= #{submittedTo}
+            </if>
+        </where>
+        order by submitted_at desc, id desc
+    </select>
+
+    <!-- 管理端「手动终止」的抢占：按 id 定位、不要求到期，其余条件与 claim 同味。
+         抢占失败（0 行）表示「这行现在不归我处置」：要么已终态，要么被有效占位
+         （另一个节点正在查上游）。调用方据此回冲突，不要重试到成功——
+         重试成功的那一刻，等于把人家的在途查询变成一次白跑的调用。 -->
+    <update id="claimById">
+        update kb_async_tasks
+        set claim_id = #{claimId},
+            claim_expires_at = #{claimExpires}
+        where id = #{id}
+          and status in <include refid="InFlight"/>
+          and (claim_id is null or claim_expires_at &lt; now(3))
+    </update>
+
+    <!-- 管理端「重试」：把可重开的终态行重新打开。
+         一次 UPDATE 完成全部复位——分两步（先改状态再清字段）会让中间态被别的节点抢到：
+         状态已是在途、completed_at 还在，那一拍扫到就会按旧 attempts 继续退避。
+         ⚠ expires_at 必须由调用方重算（dal 读不到档案的超时配置），
+         否则三天前超时的任务重开后会被 claimExpired 立刻收掉，表现为「重试没反应」。
+         ⚠ 交付维度必须一起复位成「无需回调」（callback_url 保留，它是任务固有属性）：
+         若行停在待回调（delivery_status=1）就被重开，交付节拍会拿着已清空的 result_json
+         回调一次；等新终态到了再武装，同一个任务就被回调两次，而客户端按 task_id 幂等
+         也没用——第一次推的是空结果。必须在同一条 UPDATE 里归零，不能留给后续清理。 -->
+    <update id="reopen">
+        update kb_async_tasks
+        set status = #{nextStatus},
+            retry_round = retry_round + 1,
+            attempts = 0,
+            next_poll_at = #{nextPollAt},
+            expires_at = #{expiresAt},
+            claim_id = null,
+            claim_expires_at = null,
+            last_polled_at = null,
+            completed_at = null,
+            result_json = null,
+            error_code = null,
+            error_message = null,
+            delivery_status = #{deliveryNoneCode},
+            delivery_attempts = 0,
+            next_delivery_at = null,
+            delivered_at = null,
+            delivery_error = null,
+            delivery_claim_id = null,
+            delivery_claim_expires_at = null
+        where id = #{id}
+          and status in <include refid="Retryable"/>
+    </update>
+    <!-- ======================= 回调交付（与轮询正交） ======================= -->
+
+    <select id="getByDeliveryClaimId" resultType="org.chobit.knot.dal.entity.AsyncTaskEntity">
+        select <include refid="TaskColumns"/>
+        from kb_async_tasks
+        where delivery_claim_id = #{claimId}
+    </select>
+
+    <!-- 交付抢占：与轮询的 claim 是两条独立的租约。
+         只挑「待回调 + 已到期 + 未被有效占位」的行，用 delivery_claim_id 而不是 claim_id：
+         交付发生在终态之后，轮询租约此时已释放（claim_id 为 null），复用会让
+         「这一行的投递由谁负责」与「这一行的轮询由谁负责」两个事实混在一个字段里。 -->
+    <update id="claimDeliveries">
+        update kb_async_tasks
+        set delivery_claim_id = #{claimId},
+            delivery_claim_expires_at = #{claimExpires}
+        where delivery_status in <include refid="Deliverable"/>
+          and next_delivery_at &lt;= now(3)
+          and (delivery_claim_id is null or delivery_claim_expires_at &lt; now(3))
+        order by next_delivery_at asc
+        limit #{limit}
+    </update>
+
+    <!-- 交付落定（成功 / 最终放弃）：CAS —— 只有仍待投递<b>且仍持有交付占位</b>的行才被更新。
+         影响行数为 0 表示租约已易主（本节点投递超时被回收），调用方不得当自己成功。 -->
+    <update id="completeDelivery">
+        update kb_async_tasks
+        set delivery_status = #{status},
+            delivery_attempts = #{attempts},
+            delivered_at = #{deliveredAt},
+            delivery_error = #{error},
+            next_delivery_at = null,
+            delivery_claim_id = null,
+            delivery_claim_expires_at = null
+        where id = #{id}
+          and delivery_claim_id = #{claimId}
+          and delivery_status in <include refid="Deliverable"/>
+    </update>
+
+    <!-- 交付失败但未到上限：退避后重试。同样以交付占位号兑付，防止租约过期后原节点继续改写。 -->
+    <update id="rescheduleDelivery">
+        update kb_async_tasks
+        set delivery_attempts = #{attempts},
+            next_delivery_at = #{nextDeliveryAt},
+            delivery_error = #{error},
+            delivery_claim_id = null,
+            delivery_claim_expires_at = null
+        where id = #{id}
+          and delivery_claim_id = #{claimId}
+          and delivery_status in <include refid="Deliverable"/>
+    </update>
 
 </mapper>

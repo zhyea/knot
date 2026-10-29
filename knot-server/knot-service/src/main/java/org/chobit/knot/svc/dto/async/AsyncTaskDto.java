@@ -30,6 +30,15 @@ public record AsyncTaskDto(Long id,
                               /** 落库状态码，见 {@link AsyncTaskStatusEnum#code()} */
                               Integer status,
                               Integer attempts,
+                              /**
+                               * 重试轮次（0 = 从未被管理端重试）。
+                               *
+                               * <p>⚠ 它只出现在<b>详情 / 终态事件</b>里，轮询编排不用它：
+                               * 状态机只认状态码。存在的理由是「重试会把 attempts 归零」，
+                               * 于是 {@code task_query_seq} 从 1 重来，与上一轮同键——
+                               * 轮次是数仓区分两轮的唯一坐标。</p>
+                               */
+                              Integer retryRound,
                               /** 下次轮询时刻；终态为 null，天然退出扫描集 */
                               LocalDateTime nextPollAt,
                               /** 轮询占位标识（nodeId-uuid）；写操作必须带着它，见 {@link org.chobit.knot.svc.service.AsyncTaskService} */
@@ -45,5 +54,23 @@ public record AsyncTaskDto(Long id,
                               LocalDateTime submittedAt,
                               LocalDateTime completedAt,
                               LocalDateTime expiresAt,
-                              LocalDateTime resultExpiresAt) {
+                              LocalDateTime resultExpiresAt,
+                              // ───────────── 回调交付维度（与 status 正交） ─────────────
+                              /**
+                               * 客户端回推地址；{@code null} 表示不回调。
+                               *
+                               * <p>⚠ 与 {@code status} 是两个维度：{@code SUCCEEDED} 只说明生成成功，
+                               * 不代表这个地址已经收到过结果。</p>
+                               */
+                              String callbackUrl,
+                              /** 交付状态码（{@link org.chobit.knot.common.constants.enums.AsyncTaskDeliveryStatusEnum#code()}） */
+                              Integer deliveryStatus,
+                              /** 已尝试投递次数（含失败重试） */
+                              Integer deliveryAttempts,
+                              /** 下一次投递时刻；{@code null} 表示不在待投递集（未终态 / 已交付 / 已放弃） */
+                              LocalDateTime nextDeliveryAt,
+                              /** 成功送达时刻；未送达为 {@code null} */
+                              LocalDateTime deliveredAt,
+                              /** 最近一次投递失败原因（对端响应或连接错误摘要） */
+                              String deliveryError) {
 }

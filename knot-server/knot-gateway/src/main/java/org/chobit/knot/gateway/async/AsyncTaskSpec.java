@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.async;
 
 import org.chobit.knot.svc.dto.async.AsyncTaskProfileDto;
+import org.chobit.knot.svc.service.support.AsyncTaskExpressions;
 
 /**
  * 查询口径快照（落 {@code kb_async_tasks.poll_spec_json}）。
@@ -10,12 +11,16 @@ import org.chobit.knot.svc.dto.async.AsyncTaskProfileDto;
  * 查不到或判错终态，且金额无法复现。这是「同一笔任务无论何时完成，算法可复现」的落地方式。</p>
  *
  * <p>⭐ <b>本记录是纯数据，不含任何求值逻辑</b>（2026-10-28）：{@code taskIdPath} /
- * {@code statusPath} / {@code resultPath} 是 <b>MVEL 取值表达式</b>；
+ * {@code statusPath} / {@code resultPath} / {@code errorMessagePath} 是 <b>MVEL 取值表达式</b>；
  * {@code statusSucceeded} / {@code statusFailed} / {@code statusRunning} 是
- * <b>MVEL 布尔表达式</b>（可用变量 {@code status} 与 {@code body}）。
- * 求值统一走 {@link AsyncTaskExpressionSupport}，判定语义统一在
- * {@link AsyncTaskSpecRules#terminalOf}——三处各写一份比较逻辑必然漂移
- * （旧版把「逗号分隔取值是否包含」写在记录里，正是本次被替换的形态）。</p>
+ * <b>MVEL 布尔表达式</b>（可用变量 {@code status} 与 {@code body}）。求值统一走
+ * {@code AsyncTaskExpressionSupport}，判定语义统一在 {@code AsyncTaskTerminalSupport#verdict}
+ * ——三处各写一份比较逻辑必然漂移（旧版把「逗号分隔取值是否包含」写在记录里，正是被替换的形态）。</p>
+ *
+ * <p>⚠ <b>2026-10-29 加 {@code errorMessagePath}</b>：失败原因原先写死取响应体顶层
+ * {@code message}，而视频协议普遍把它放在
+ * {@code data.task_status_msg}（可灵）或 {@code error.message}（即梦），失败任务只能落通用文案。
+ * 旧快照反序列化时该字段为 {@code null}，运行时按老行为兜底——不改写在途任务的判定。</p>
  *
  * <p>{@code queryPath} 里的 {@code {task_id}} 是 <b>URL 模板占位</b>，与上面的 MVEL 表达式
  * 不是一回事（一个拼地址、一个读响应），由 {@link #resolvePath(String)} 替换。</p>
@@ -32,8 +37,12 @@ public record AsyncTaskSpec(String queryMethod,
                             String statusFailed,
                             /** 判断「状态 = 进行中」的 MVEL 布尔表达式；空 = 除成功/失败外一律非终态 */
                             String statusRunning,
-                            /** 查询响应中取产物 URL 的 MVEL 表达式 */
+                            /** 查询响应中取产物地址的 MVEL 表达式（标量 = 单个，数组 = 多个） */
                             String resultPath,
+                            /** 产物是对象数组时取哪个字段作为地址；空 = 元素必须是标量 */
+                            String resultUrlField,
+                            /** 查询响应中取失败原因的 MVEL 表达式；空 = 沿用顶层 {@code message} */
+                            String errorMessagePath,
                             Integer resultExpiresDays,
                             int pollIntervalMs,
                             int pollBackoffBaseMs,
@@ -60,6 +69,8 @@ public record AsyncTaskSpec(String queryMethod,
                 profile.statusFailed(),
                 profile.statusRunning(),
                 profile.resultPath(),
+                profile.resultUrlField(),
+                profile.errorMessagePath(),
                 profile.resultExpiresDays(),
                 positive(profile.pollIntervalMs(), AsyncTaskDefaults.POLL_INTERVAL_MS),
                 positive(profile.pollBackoffBaseMs(), AsyncTaskDefaults.POLL_BACKOFF_BASE_MS),
@@ -67,6 +78,17 @@ public record AsyncTaskSpec(String queryMethod,
                 positive(profile.maxAttempts(), AsyncTaskDefaults.MAX_ATTEMPTS),
                 profile.timeoutMs() == null ? AsyncTaskDefaults.TASK_TIMEOUT_MS
                         : Math.max(1L, profile.timeoutMs()));
+    }
+
+    /**
+     * 六条求值表达式的视图：交给 {@code AsyncTaskTerminalSupport} 判定。
+     *
+     * <p>快照与档案都投影成同一个值对象，判定的实现因此只有一处；
+     * 若网关按快照判、管理端按草稿判各写一份，试跑通过而线上判错是必然结果。</p>
+     */
+    public AsyncTaskExpressions expressions() {
+        return new AsyncTaskExpressions(statusPath, statusSucceeded, statusFailed,
+                statusRunning, resultPath, resultUrlField, errorMessagePath);
     }
 
     /**

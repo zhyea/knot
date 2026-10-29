@@ -42,6 +42,18 @@ class AsyncTaskConverterTest {
         assertEquals(0, entity.getStatus(),
                 "新任务必须落成 PENDING：让调用方能指定状态，就等于允许一条新任务直接建成终态");
         assertEquals(0, entity.getAttempts());
+        assertEquals(0, entity.getDeliveryAttempts());
+        assertEquals(1, entity.getDeliveryStatus(),
+                "有 callback_url 的新任务必须落成「待回调」(1)，否则终态时不会被武装投递");
+    }
+
+    @Test
+    @DisplayName("没有 callback_url 的新任务：交付维度落成「无需回调」(0)，永不进入扫描集")
+    void draftWithoutCallbackIsNotDeliverable() {
+        AsyncTaskEntity entity = AsyncTaskConverter.toEntity(draft(null));
+
+        assertEquals(0, entity.getDeliveryStatus());
+        assertNull(entity.getCallbackUrl());
     }
 
     @Test
@@ -62,6 +74,7 @@ class AsyncTaskConverterTest {
         assertEquals(NOW, entity.getSubmittedAt());
         assertEquals(NOW.plusMinutes(30), entity.getExpiresAt());
         assertEquals(NOW.plusDays(7), entity.getResultExpiresAt());
+        assertEquals("https://client.example/callback", entity.getCallbackUrl());
     }
 
     @Test
@@ -74,6 +87,11 @@ class AsyncTaskConverterTest {
         entity.setErrorCode("UPSTREAM_TASK_FAILED");
         entity.setErrorMessage("prompt rejected");
         entity.setCompletedAt(NOW.plusMinutes(1));
+        entity.setDeliveryStatus(2);
+        entity.setDeliveryAttempts(1);
+        entity.setNextDeliveryAt(NOW.plusMinutes(2));
+        entity.setDeliveredAt(NOW.plusMinutes(1));
+        entity.setDeliveryError("connection reset");
 
         AsyncTaskDto record = AsyncTaskConverter.toRecord(entity);
 
@@ -91,6 +109,12 @@ class AsyncTaskConverterTest {
         assertEquals("V1", record.billingRuleVersionCode());
         assertEquals(NOW.plusMinutes(1), record.completedAt());
         assertEquals(NOW.plusDays(7), record.resultExpiresAt());
+        assertEquals("https://client.example/callback", record.callbackUrl());
+        assertEquals(2, record.deliveryStatus());
+        assertEquals(1, record.deliveryAttempts());
+        assertEquals(NOW.plusMinutes(2), record.nextDeliveryAt());
+        assertEquals(NOW.plusMinutes(1), record.deliveredAt());
+        assertEquals("connection reset", record.deliveryError());
     }
 
     @Test
@@ -100,10 +124,15 @@ class AsyncTaskConverterTest {
     }
 
     private static AsyncTaskDraftDto draft() {
+        return draft("https://client.example/callback");
+    }
+
+    private static AsyncTaskDraftDto draft(String callbackUrl) {
         return new AsyncTaskDraftDto("tc-1", "KLING_TASK", "VIDEO_GENERATIONS", "up-1",
                 NOW.plusSeconds(5),
                 "{\"prompt\":\"a\"}", "{}", "{\"ruleCode\":\"r\"}",
                 "RULE-1", "V1",
-                NOW, NOW.plusMinutes(30), NOW.plusDays(7));
+                NOW, NOW.plusMinutes(30), NOW.plusDays(7),
+                callbackUrl);
     }
 }

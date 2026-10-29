@@ -62,6 +62,12 @@ public class AsyncTaskScheduledPoller {
     @Nullable
     private final Scheduler blockingScheduler;
 
+    /**
+     * 回调交付编排。与 {@link #runner} 平级但独立：轮询把任务推到终态并武装交付，
+     * 交付在终态之后单独跑一拍。分两个节拍，是为了让「上游慢」与「客户端慢」互不拖累。
+     */
+    private final AsyncTaskDeliveryRunner deliveryRunner;
+
     private String nodeId;
 
     /**
@@ -72,6 +78,9 @@ public class AsyncTaskScheduledPoller {
 
     /** 归档节拍守卫，同 {@link #ticking} */
     private final AtomicBoolean archiving = new AtomicBoolean();
+
+    /** 交付节拍守卫，同 {@link #ticking} */
+    private final AtomicBoolean delivering = new AtomicBoolean();
 
     @PostConstruct
     public void init() {
@@ -100,6 +109,16 @@ public class AsyncTaskScheduledPoller {
             throw new IllegalStateException("knot.gateway.async-task 配置不合法: claim-ttl-ms=" + claimTtl
                     + " 必须大于 query-timeout-ms=" + queryTimeout + "，且 query-timeout-ms 必须为正数。"
                     + "否则占位会在查询返回前过期，别的节点会重领同一行（重复上游调用、事件口径失真）");
+        }
+        // 交付是一条独立预算链：回调超时必须严格小于交付占位，理由与上面同——
+        // 占位先过期会让同一笔结果被两个节点各投一次，客户看到重复回调且本地无报错。
+        long deliveryTimeout = properties.getDeliveryTimeoutMs();
+        long deliveryClaimTtl = properties.getDeliveryClaimTtlMs();
+        if (properties.isDeliveryEnabled()
+                && (deliveryTimeout <= 0 || deliveryClaimTtl <= deliveryTimeout)) {
+            throw new IllegalStateException("knot.gateway.async-task 配置不合法: delivery-claim-ttl-ms="
+                    + deliveryClaimTtl + " 必须大于 delivery-timeout-ms=" + deliveryTimeout
+                    + "，且 delivery-timeout-ms 必须为正数。否则同一笔结果会被重复回调给客户端");
         }
     }
 
@@ -154,6 +173,46 @@ public class AsyncTaskScheduledPoller {
             log.error("Async task cleanup failed", e);
         } finally {
             archiving.set(false);
+        }
+    }
+
+    /**
+     * 回调交付节拍：抢占到期待投递任务 → 并发投递。
+     *
+     * <p>⭐ 与 {@link #tick()} / {@link #archive()} 各用各的守卫：一个慢客户端引发的回调重试
+     * 不该让「轮询上游」那一拍停摆——两者是两条独立的对外承诺。</p>
+     *
+     * <p>⚠ 投递进度（{@code delivery_attempts / next_delivery_at}）全在库里，所以本拍崩溃后
+     * 下一拍会重新抢占续投；这正是「交付可崩溃恢复」的落点，不需要额外补偿任务。</p>
+     */
+    @Scheduled(cron = "${knot.gateway.async-task.delivery-cron:0 * * * * *}")
+    public void deliver() {
+        if (!properties.isEnabled() || !properties.isDeliveryEnabled()) {
+            return;
+        }
+        if (!delivering.compareAndSet(false, true)) {
+            log.debug("Previous async delivery tick is still running, skip this beat");
+            return;
+        }
+        try {
+            String claimId = newClaimId();
+            List<AsyncTaskDto> claimed = deliveryRunner.claimDue(claimId);
+            if (claimed.isEmpty()) {
+                return;
+            }
+            Scheduler scheduler = blockingScheduler == null ? Schedulers.boundedElastic() : blockingScheduler;
+            Flux.fromIterable(claimed)
+                    .flatMap(task -> Mono.fromCallable(() -> deliveryRunner.deliver(task, claimId))
+                            .subscribeOn(scheduler)
+                            .onErrorResume(error -> {
+                                log.error("Async task delivery failed: taskCode={}", task.taskCode(), error);
+                                return Mono.empty();
+                            }), properties.getConcurrency())
+                    .blockLast();
+        } catch (RuntimeException e) {
+            log.error("Async task delivery tick failed", e);
+        } finally {
+            delivering.set(false);
         }
     }
 

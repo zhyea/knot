@@ -201,6 +201,7 @@
                       filterable
                       placeholder="请选择接口协议"
                       :include-codes="allowedApiProtocolCodes"
+                      @update:model-value="(code) => onProtocolChange(binding, code)"
                     />
                   </el-form-item>
                 </el-col>
@@ -231,7 +232,35 @@
               </el-row>
 
               <el-row :gutter="12" class="api-binding-card__row">
-                <el-col :span="24">
+                <el-col :span="9">
+                  <el-form-item label="任务协议">
+                    <el-select
+                      :model-value="binding.asyncProfileCode"
+                      :disabled="!binding.protocol"
+                      :placeholder="binding.protocol ? '同步（提交即终态）' : '先选择接口协议'"
+                      clearable
+                      filterable
+                      style="width: 100%"
+                      @update:model-value="(value) => onAsyncProfileChange(binding, value)"
+                    >
+                      <el-option
+                        v-for="item in asyncProfileOptionsOf(binding.protocol)"
+                        :key="String(item.value)"
+                        :label="String(item.label ?? item.value)"
+                        :value="String(item.value)"
+                        :disabled="item.disabled === true"
+                      />
+                    </el-select>
+                    <div
+                      v-if="binding.asyncProfileCode"
+                      class="async-profile-hint"
+                      :class="{ 'async-profile-hint--warn': isAsyncProfileMissing(binding) }"
+                    >
+                      {{ asyncProfileHintOf(binding) }}
+                    </div>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="15">
                   <el-form-item label="上游路径">
                     <el-input v-model="binding.apiPath" placeholder="为空时使用协议默认路径"/>
                   </el-form-item>
@@ -343,6 +372,7 @@ import {
   updateModel
 } from "@/api/models";
 import {listBillingRules} from "@/api/billing";
+import {listAsyncTaskProfileOptions} from "@/api/asyncTaskProfiles";
 import {listBillingRuleOptions, listLogicalModelOptions} from "@/api/options";
 import {normalizeOptionList, toOptionsLoader} from "@/utils/options";
 import {normalizeProtocolCode} from "@/utils/protocolCode";
@@ -354,6 +384,13 @@ interface ModelApiBinding {
   uid: string;
   id: number | null;
   protocol: string;
+  /**
+   * 任务协议（异步查询口径档案编码，`kb_async_task_profiles.profile_code`）。
+   *
+   * <p>空串 = 同步：该协议提交即终态，网关不建任务行。非空时网关把「提交 → 轮询 → 回推」
+   * 交给档案描述的口径，档案里写错一个表达式就只影响这一条绑定。</p>
+   */
+  asyncProfileCode: string;
   apiPath: string;
   requestAdapter: string;
   usageExtractor: string;
@@ -383,6 +420,14 @@ const logicalModelOptions = ref<Row[]>([]);
 const boundBillingRule = ref<Row | null>(null);
 const usageExtractorOptions = ref<Row[]>([]);
 const requestAdapterOptions = ref<Row[]>([]);
+/**
+ * 任务协议候选（只含<b>启用</b>档案；流式协议的项由后端标 {@code disabled}）。
+ *
+ * <p>⚠ 后端只返回启用档案，不返回「停用了但 disabled」的项：选中一个必然被保存接口
+ * 拒绝的选项毫无意义。因此这里的「找不到」既可能是停用也可能是删除，
+ * 提示文案不再细分原因，只要求人重选。</p>
+ */
+const asyncProfileOptions = ref<Row[]>([]);
 const saving = ref(false);
 const detailLoading = ref(false);
 const modelCodeChecking = ref(false);
@@ -507,6 +552,22 @@ async function loadRequestAdapters() {
   requestAdapterOptions.value = Array.isArray(data) ? data : [];
   normalizeApiBindingRequestAdapters();
   return data;
+}
+
+/**
+ * 加载任务协议候选。
+ *
+ * <p>⚠ 这里的 {@code catch} 是有意的：这条链路是可选增强，它挂了不该连带取消
+ * {@code Promise.all} 之后的协议归一与计费规则回显——那会让整张表单停在一份半成品状态。
+ * 错误提示已由请求拦截器弹出，这里不再重复。</p>
+ */
+async function loadAsyncTaskProfileOptions() {
+  try {
+    const data = await listAsyncTaskProfileOptions();
+    asyncProfileOptions.value = normalizeOptionList(data);
+  } catch {
+    // 候选为空时任务协议下拉不可选，同步配置照常可存；回显不依赖候选（见 asyncProfileHintOf）
+  }
 }
 
 function isEnabledLogicalModel(model: Row): boolean {
@@ -677,7 +738,9 @@ watch(
         loadLogicalModelOptions({values: form.logicalModelCode ? [form.logicalModelCode] : []}),
         loadModelTypes(),
         loadUsageExtractors(),
-        loadRequestAdapters()
+        loadRequestAdapters(),
+        // 任务协议候选必须在协议归一之前就绪：归一里会按候选剔除「协议已不匹配」的旧绑定
+        loadAsyncTaskProfileOptions()
       ]);
       // 表单重置后按已绑定码取回那一条规则（watch 在同值时不触发，这里显式补一次）
       await loadBoundBillingRule(form.billingRuleCode);
@@ -777,6 +840,7 @@ function createApiBinding(source: Dict = {}): ModelApiBinding {
     uid: source.uid || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     id: source.id ?? null,
     protocol: normalizeProtocolForModelType(source.protocol),
+    asyncProfileCode: String(source.asyncProfileCode ?? "").trim(),
     apiPath: source.apiPath || "",
     requestAdapter: normalizeRequestAdapterCode(source.requestAdapter),
     usageExtractor: source.usageExtractor || firstUsageExtractorCode(),
@@ -817,6 +881,11 @@ function validateApiBindings() {
     protocols.add(binding.protocol);
     if (!binding.usageExtractor?.trim()) {
       ElMessage.warning(`Usage 解析器必填：${binding.protocol}`);
+      return false;
+    }
+    // 档案被删/停用后，老绑定的编码会留在表单里：前端先说清是哪一条，别让人对着后端 400 猜
+    if (binding.asyncProfileCode && !asyncProfileOption(binding.asyncProfileCode)) {
+      ElMessage.warning(`任务协议已停用或不存在：${binding.asyncProfileCode}（${binding.protocol}）`);
       return false;
     }
   }
@@ -860,6 +929,118 @@ function normalizeApiBindingProtocols() {
     binding.protocol = normalizeProtocolForModelType(binding.protocol, usedProtocols);
     usedProtocols.add(binding.protocol);
   }
+  pruneAsyncProfileCodes();
+}
+
+/** 候选里的档案行（按 {@code value} = 档案编码匹配；找不到返回 undefined） */
+function asyncProfileOption(profileCode: unknown): Row | undefined {
+  const code = String(profileCode ?? "").trim();
+  if (!code) {
+    return undefined;
+  }
+  return asyncProfileOptions.value.find((item) => String(item.value ?? "") === code);
+}
+
+/**
+ * 任务协议候选按<b>绑定自己的接口协议</b>过滤。
+ *
+ * <p>⭐ 档案与协议是绑定的（后端保存时校验两者一致），所以这里只给同一协议的档案：
+ * 跨协议选进来必然存不进去。流式协议的项后端标 {@code disabled}，界面上置灰而不是隐藏——
+ * 藏起来会让人以为「这个协议没有档案」。</p>
+ */
+function asyncProfileOptionsOf(protocol: unknown): Row[] {
+  const code = normalizeProtocolCode(protocol);
+  if (!code) {
+    return [];
+  }
+  return asyncProfileOptions.value.filter((item) => normalizeProtocolCode(metaOf(item).protocol) === code);
+}
+
+/** 已绑定档案在候选里找不到：要么被停用、要么被删除（后端保存时会拒） */
+function isAsyncProfileMissing(binding: ModelApiBinding): boolean {
+  return Boolean(binding.asyncProfileCode) && !asyncProfileOption(binding.asyncProfileCode);
+}
+
+/** 毫秒转粗粒度可读时长（仅界面提示，不参与任何判断） */
+function humanDuration(ms: unknown): string {
+  const value = Number(ms);
+  if (!Number.isFinite(value) || value <= 0) {
+    return "未配置";
+  }
+  if (value % 3600000 === 0) {
+    return `${value / 3600000} 小时`;
+  }
+  if (value % 60000 === 0) {
+    return `${value / 60000} 分钟`;
+  }
+  if (value % 1000 === 0) {
+    return `${value / 1000} 秒`;
+  }
+  return `${value} 毫秒`;
+}
+
+/**
+ * 已绑定档案的只读口径提示。
+ *
+ * <p>不打开档案页也能确认「这个模型到底怎么轮询」。信息全部来自 options 的 {@code meta}，
+ * 不额外发请求——档案管理页才是改口径的地方。</p>
+ */
+function asyncProfileHintOf(binding: ModelApiBinding): string {
+  const option = asyncProfileOption(binding.asyncProfileCode);
+  if (!option) {
+    return `档案 ${binding.asyncProfileCode} 已停用或不存在，保存会被拒绝`;
+  }
+  const meta = metaOf(option);
+  return `${displayText(meta.queryMethod)} ${displayText(meta.queryPath)}`
+    + ` · 轮询间隔 ${humanDuration(meta.pollIntervalMs)} · 超时 ${humanDuration(meta.timeoutMs)}`;
+}
+
+/** 选中任务协议（空值 = 同步） */
+function onAsyncProfileChange(binding: ModelApiBinding, value: unknown) {
+  binding.asyncProfileCode = String(value ?? "").trim();
+}
+
+/**
+ * 切换接口协议时清掉不再适用的任务协议。
+ *
+ * <p>⚠ 不静默清空：绑定的档案属于另一家上游，悄悄清掉会让人以为「上次选的那个还在」。</p>
+ *
+ * <p>⚠ 用参数里的新协议判断，<b>不读</b> {@code binding.protocol}——{@code v-model} 与
+ * 本监听同时挂在 {@code update:model-value} 上，两者执行顺序不保证，读绑定值可能读到旧值。</p>
+ */
+function onProtocolChange(binding: ModelApiBinding, protocol: unknown) {
+  const next = normalizeProtocolCode(protocol);
+  const current = String(binding.asyncProfileCode ?? "").trim();
+  if (!current) {
+    return;
+  }
+  const option = asyncProfileOption(current);
+  if (option && normalizeProtocolCode(metaOf(option).protocol) === next) {
+    return;
+  }
+  binding.asyncProfileCode = "";
+  ElMessage.warning(`已切换接口协议，任务协议「${current}」不再适用，请重新选择`);
+}
+
+/**
+ * 剔除与所属协议不匹配的任务协议（加载/联动归一后调用）。
+ *
+ * <p>只在候选已就绪时判定：候选为空（加载失败或一条启用档案都没有）时无从判断，
+ * 此时保留原值比清空安全——清空会静默把异步配置降级成同步。</p>
+ */
+function pruneAsyncProfileCodes() {
+  if (asyncProfileOptions.value.length === 0) {
+    return;
+  }
+  for (const binding of form.apiBindings) {
+    const option = asyncProfileOption(binding.asyncProfileCode);
+    if (!option) {
+      continue;
+    }
+    if (normalizeProtocolCode(metaOf(option).protocol) !== normalizeProtocolCode(binding.protocol)) {
+      binding.asyncProfileCode = "";
+    }
+  }
 }
 
 /** 请求适配器下拉首项（后端以 @Order(0) 保证「透传」排第一），与网关运行时兜底一致 */
@@ -884,6 +1065,8 @@ function buildApiBindingsPayload() {
   return form.apiBindings.map((binding) => ({
     id: binding.id,
     protocol: binding.protocol,
+    // 空串统一收敛成 null：后端把「未选」与「空编码」当同一件事，两种形状并存会多一条脏分支
+    asyncProfileCode: binding.asyncProfileCode?.trim() || null,
     apiPath: binding.apiPath?.trim() || null,
     requestAdapter: binding.requestAdapter?.trim() || null,
     usageExtractor: binding.usageExtractor?.trim() || firstUsageExtractorCode(),
@@ -1049,6 +1232,20 @@ async function submit() {
 
 .api-binding-card__row + .api-binding-card__row {
   margin-top: 4px;
+}
+
+/* 任务协议口径提示：贴在下拉下方，不占表单行高 */
+.async-profile-hint {
+  width: 100%;
+  margin-top: 2px;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.async-profile-hint--warn {
+  color: #e6a23c;
 }
 
 .empty-api-binding {

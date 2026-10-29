@@ -84,6 +84,31 @@ public enum AsyncTaskStatusEnum implements NumericEnumOption {
         return this == PENDING || this == POLLING;
     }
 
+    /** 是否终态：{@code !inFlight()}。终态行不再被扫描，但仍可被「重试」重新打开 */
+    public boolean terminal() {
+        return !inFlight();
+    }
+
+    /**
+     * 是否可被管理端「重试」重新打开。
+     *
+     * <p>⭐ <b>只放两种：{@link #FAILED} 与 {@link #EXPIRED}</b>——它们的共同点是
+     * 「没出货、也没计费」。{@link #SUCCEEDED} 已经算过钱，重开会让同一笔任务二次计费；
+     * {@link #CANCELLED} 是人工作出的终止决定，重开会把运维的判断悄悄推翻。
+     * 判据不是「哪些状态看起来能重试」，而是<b>重开之后会不会产生第二笔钱或违背人的意志</b>。</p>
+     *
+     * <p>真实收益场景：上游瞬时 5xx 把查询次数耗光、或 knot 侧超时先到，而上游其实已出产物——
+     * 重试能把「已经发生的上游成本」捞回成可计费的终态。</p>
+     */
+    public boolean retryable() {
+        return this == FAILED || this == EXPIRED;
+    }
+
+    /** 可重试状态码集合，供 SQL 的 {@code status IN (...)} 使用（同 {@link #inFlightCodes()} 的理由：不写字面量） */
+    public static List<Integer> retryableCodes() {
+        return RETRYABLE_CODES;
+    }
+
     /**
      * 在途状态码集合，供 SQL 的 {@code status IN (...)} 使用。
      *
@@ -116,6 +141,11 @@ public enum AsyncTaskStatusEnum implements NumericEnumOption {
 
     private static final List<Integer> IN_FLIGHT_CODES = Arrays.stream(values())
             .filter(AsyncTaskStatusEnum::inFlight)
+            .map(AsyncTaskStatusEnum::code)
+            .toList();
+
+    private static final List<Integer> RETRYABLE_CODES = Arrays.stream(values())
+            .filter(AsyncTaskStatusEnum::retryable)
             .map(AsyncTaskStatusEnum::code)
             .toList();
 }

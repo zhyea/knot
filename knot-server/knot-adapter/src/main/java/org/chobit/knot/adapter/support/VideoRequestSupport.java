@@ -1,13 +1,12 @@
 package org.chobit.knot.adapter.support;
 
 import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
+import org.chobit.knot.common.util.CallbackFieldSupport;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * 视频请求体的透传原语：<b>剥掉客户端回推地址后原样转发</b>。
@@ -25,15 +24,6 @@ import java.util.Set;
  * {@code adapter.support.<供应商>.XxxSupport}，不要往这里加。</p>
  */
 public final class VideoRequestSupport {
-
-    /**
-     * 客户端回推地址的字段名（归一化后比较，见 {@link #isCallbackField}）。
-     *
-     * <p>覆盖 {@code callback_url} 与 {@code webhook_url} 两种业界叫法及驼峰写法。
-     * 新增一家用到别的名字（如 {@code notify_url}）时只在这里加一项——
-     * 缺一项的表现是「那家客户的回调地址照旧漏出去」，没有任何运行期信号。</p>
-     */
-    private static final Set<String> CALLBACK_FIELDS = Set.of("callbackurl", "webhookurl");
 
     private VideoRequestSupport() {
     }
@@ -106,13 +96,15 @@ public final class VideoRequestSupport {
         return copy == null ? castList(source) : copy;
     }
 
-    /** 字段名归一化后比较：忽略大小写与 {@code _} / {@code -}（{@code callback_url} / {@code callbackUrl} 同义） */
+    /**
+     * 字段名是否代表客户端回推地址。
+     *
+     * <p>⭐ 判据收敛到 {@link CallbackFieldSupport}：同一套字段名还要给
+     * {@code AsyncTaskSupport} 用来<b>提取</b>地址（而非剥除）。两处各写一份，
+     * 迟早一家客户在这条链上被剥掉、在那条链上又取不到。</p>
+     */
     private static boolean isCallbackField(String key) {
-        if (key == null) {
-            return false;
-        }
-        String normalized = key.toLowerCase(Locale.ROOT).replace("_", "").replace("-", "");
-        return CALLBACK_FIELDS.contains(normalized);
+        return CallbackFieldSupport.isCallbackField(key);
     }
 
     @SuppressWarnings("unchecked")

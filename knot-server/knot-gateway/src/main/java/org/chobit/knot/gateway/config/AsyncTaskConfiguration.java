@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.config;
 
 import org.chobit.knot.gateway.archive.ArchiveStore;
 import org.chobit.knot.gateway.async.*;
+import org.chobit.knot.gateway.async.admin.AsyncTaskAdminProperties;
 import org.chobit.knot.svc.service.AsyncTaskService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -26,7 +27,7 @@ import org.springframework.context.annotation.Configuration;
  * 它没有部署参数，也就没有需要在这里注入的理由。</p>
  */
 @Configuration
-@EnableConfigurationProperties(AsyncTaskProperties.class)
+@EnableConfigurationProperties({AsyncTaskProperties.class, AsyncTaskAdminProperties.class})
 public class AsyncTaskConfiguration {
 
     /**
@@ -53,5 +54,26 @@ public class AsyncTaskConfiguration {
                         properties.getClaimTtlMs(),
                         properties.getRetentionDays(),
                         properties.getCleanupBatchSize()));
+    }
+
+    /**
+     * 装配回调交付编排：策略同样取自本 app 的配置，投递实现（{@code AsyncTaskCallbackClient}）
+     * 是 {@code @Component}，按端口注入。
+     *
+     * <p>⚠ 与 {@link AsyncTaskRunner} 分开成两个 bean 而不是合成一个：轮询与交付是两条独立的
+     * 对外链路（「问上游」vs「推客户」），合成一个类会让两套预算/退避/并发挤在一处，
+     * 改一边必然碰到另一边。</p>
+     */
+    @Bean
+    public AsyncTaskDeliveryRunner asyncTaskDeliveryRunner(AsyncTaskService taskService,
+                                                           AsyncTaskCallbackPort callbackPort,
+                                                           AsyncTaskProperties properties) {
+        return new AsyncTaskDeliveryRunner(taskService, callbackPort,
+                new AsyncTaskDeliveryPolicy(
+                        properties.getDeliveryBatchSize(),
+                        properties.getDeliveryClaimTtlMs(),
+                        properties.getDeliveryMaxAttempts(),
+                        properties.getDeliveryBackoffBaseMs(),
+                        properties.getDeliveryBackoffMaxMs()));
     }
 }

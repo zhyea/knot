@@ -1,5 +1,6 @@
 package org.chobit.knot.svc.service.support;
 
+import org.chobit.knot.common.constants.enums.AsyncTaskDeliveryStatusEnum;
 import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.chobit.knot.common.constants.enums.BillingModeEnum;
 import org.chobit.knot.common.constants.enums.BillingUnitEnum;
@@ -66,6 +67,9 @@ public class EnumOptionRegistry {
         putNumeric(map, ScheduledTaskRunStatusEnum.class.getSimpleName(), ScheduledTaskRunStatusEnum.values());
         // 管理端「异步任务」列表要展示 待处理/轮询中/成功… 的文案，故与运行记录同样下发
         putNumeric(map, AsyncTaskStatusEnum.class.getSimpleName(), AsyncTaskStatusEnum.values());
+        // 详情抽屉的「回调交付」段要单独展示交付维度（待回调/回调成功/回调失败）。
+        // ⚠ 与上面那个是两套码：合成一个枚举后「生成成功 + 回调失败」会无状态可表达
+        putNumeric(map, AsyncTaskDeliveryStatusEnum.class.getSimpleName(), AsyncTaskDeliveryStatusEnum.values());
         put(map, RoutingTestStatusEnum.class.getSimpleName(), RoutingTestStatusEnum.values());
         put(map, LogicalModelVisibilityEnum.class.getSimpleName(), LogicalModelVisibilityEnum.values());
         putNumeric(map, LogicalModelPublishStatusEnum.class.getSimpleName(), LogicalModelPublishStatusEnum.values());

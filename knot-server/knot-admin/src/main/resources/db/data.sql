@@ -69,6 +69,13 @@ INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, rou
 (19, 2, NULL, 'model.provider-profiles', '供应商信息', '/model-management/provider-profiles', 'ProviderProfileManageView', 'Connection', 60, 1),
 (23, 2, NULL, 'model.model-families', '模型族', '/model-management/model-families', 'ModelFamilyView', 'Cpu', 70, 1),
 (11, 3, NULL, 'routing.rules', '路由规则', '/routing/rules', 'routing/RoutingRuleView', 'Share', 10, 1),
+-- 异步任务实例（提交 + 轮询）的运维视图：位置贴在「路由规则」下面（sort 15），
+-- 因为一条异步任务就是某条路由规则下的一次调用，排查路径是「规则 → 任务」。
+(25, 3, NULL, 'routing.async-tasks', '异步任务', '/routing/async-tasks', 'routing/AsyncTaskView', 'Timer', 15, 1),
+-- 异步任务档案（「怎么查上游」的模板）：紧贴任务实例之后（sort 18）。
+-- 排查顺序是「任务 → 当时用的档案 → 口径写错了没」，所以两者相邻；
+-- 但它是系统级配置（改错会把所有在途任务带偏），权限与任务实例分开登记。
+(26, 3, NULL, 'routing.async-task-profiles', '异步任务档案', '/routing/async-task-profiles', 'routing/AsyncTaskProfileView', 'Setting', 18, 1),
 (12, 3, NULL, 'routing.consumers', '消费者', '/routing/consumers', 'routing/RoutingConsumerView', 'Share', 20, 1),
 (13, 4, NULL, 'billing.rules', '计费规则', '/billing/rules', 'billing/BillingRuleView', 'Coin', 10, 1),
 (20, 4, NULL, 'billing.reports', '计费报表', '/billing/reports', 'billing/BillingReportView', 'Odometer', 20, 1),
@@ -238,7 +245,20 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 (151, 'system:plugin:delete', '插件删除', 'API', 1, 16, 1, 1, NULL),
 -- 网关摘除管理面（B4）：路由目标摘除查看 / 管理（恢复 + 手动摘除），模块 3 / 菜单 11（路由规则组）
 (152, 'routing:target:outage:view', '路由目标摘除查看', 'API', 3, 11, 1, 1, NULL),
-(153, 'routing:target:outage:manage', '路由目标摘除管理', 'API', 3, 11, 1, 1, NULL);
+(153, 'routing:target:outage:manage', '路由目标摘除管理', 'API', 3, 11, 1, 1, NULL),
+-- 异步任务管理面（模块 3 / 菜单 25）：查看走 select，三个写动作分开登记 ——
+-- 「能看」与「能终止别人的在途任务」不是一个风险等级，合成一个权限就没法只授前者。
+(154, 'routing:async-task:page', '异步任务页面访问', 'PAGE', 3, 25, 1, 1, NULL),
+(155, 'routing:async-task:view', '异步任务查看', 'API', 3, 25, 1, 1, NULL),
+(156, 'routing:async-task:cancel', '异步任务终止', 'API', 3, 25, 1, 1, NULL),
+(157, 'routing:async-task:retry', '异步任务重试', 'API', 3, 25, 1, 1, NULL),
+(158, 'routing:async-task:cleanup', '异步任务清理', 'API', 3, 25, 1, 1, NULL),
+-- 异步任务档案管理面（模块 3 / 菜单 26）：写动作与只读分开 ——
+-- 改一条档案会让所有引用它的模型换口径，这和「看任务列表」不是一个风险等级。
+(159, 'routing:async-task-profile:page', '异步任务档案页面访问', 'PAGE', 3, 26, 1, 1, NULL),
+(160, 'routing:async-task-profile:view', '异步任务档案查看', 'API', 3, 26, 1, 1, NULL),
+(161, 'routing:async-task-profile:save', '异步任务档案保存', 'API', 3, 26, 1, 1, NULL),
+(162, 'routing:async-task-profile:delete', '异步任务档案删除', 'API', 3, 26, 1, 1, NULL);
 
 -- API 权限绑定（默认拒绝：未绑定接口一律 403；由 .workbuddy/audit/gen_api_bindings.py 生成）
 INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
@@ -444,7 +464,22 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 -- 网关摘除管理面（B4）：查看 / 恢复 / 手动摘除
 (209, 152, 'GET', '/api/gateway/outages', 'GatewayOutageController', 1),
 (210, 153, 'POST', '/api/gateway/outages/release', 'GatewayOutageController', 1),
-(211, 153, 'POST', '/api/gateway/outages/eject', 'GatewayOutageController', 1);
+(211, 153, 'POST', '/api/gateway/outages/eject', 'GatewayOutageController', 1),
+-- 异步任务管理面：查看（列表 / 详情）与三个写动作
+(217, 155, 'POST', '/api/routing/async-tasks/list', 'AsyncTaskController', 1),
+(218, 155, 'GET', '/api/routing/async-tasks/{taskCode}', 'AsyncTaskController', 1),
+(219, 156, 'POST', '/api/routing/async-tasks/{taskCode}/cancel', 'AsyncTaskController', 1),
+(220, 157, 'POST', '/api/routing/async-tasks/{taskCode}/retry', 'AsyncTaskController', 1),
+(221, 158, 'POST', '/api/routing/async-tasks/cleanup', 'AsyncTaskController', 1),
+-- 异步任务档案管理面：只读（列表 / 选项 / 详情 / 试跑）与两个写动作。
+-- ⚠ /options 也走 view：模型表单里那个「任务协议」下拉要读它，能给模型绑档案的人才能看到候选；
+--   试跑只做表达式求值、不落库，风险等级与查看相同。
+(222, 160, 'POST', '/api/system/async-task-profiles/list', 'AsyncTaskProfileController', 1),
+(223, 160, 'POST', '/api/system/async-task-profiles/options', 'AsyncTaskProfileController', 1),
+(224, 160, 'GET', '/api/system/async-task-profiles/{profileCode}', 'AsyncTaskProfileController', 1),
+(225, 160, 'POST', '/api/system/async-task-profiles/dry-run', 'AsyncTaskProfileController', 1),
+(226, 161, 'POST', '/api/system/async-task-profiles/save', 'AsyncTaskProfileController', 1),
+(227, 162, 'POST', '/api/system/async-task-profiles/delete/{profileCode}', 'AsyncTaskProfileController', 1);
 
 -- 角色授权（OPERATOR 全量 / DEVELOPER 只读；ADMIN 由文件末尾权威块全量授予）
 INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
@@ -471,6 +506,31 @@ INSERT IGNORE INTO ks_role_permissions (role_id, permission_id) VALUES
 (3, 127), (3, 128), (3, 133), (3, 136), (3, 137),
 -- 网关摘除管理面（B4）：OPERATOR 全量（查看 + 管理），DEVELOPER 仅查看；ADMIN 由末尾权威块全量授予
 (2, 152), (2, 153), (3, 152);
+
+-- 异步任务管理面补给内置角色（按 permission_code 关联，不硬编码 id）：
+--   OPERATOR  全量（查看 + 终止 + 重试 + 清理）—— 值班要能救「上游已出结果但被超时收掉」的任务
+--   DEVELOPER 仅只读（page + view）—— 排查自己的调用够用，动别人的在途任务不该是开发者的默认能力
+--   ADMIN     由文件末尾权威授权块全量授予，不依赖本句
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM ks_roles r
+  CROSS JOIN ks_permissions p
+WHERE r.code IN ('OPERATOR', 'DEVELOPER')
+  AND p.permission_code LIKE 'routing:async-task:%'
+  AND (r.code = 'OPERATOR' OR p.permission_code IN ('routing:async-task:page', 'routing:async-task:view'));
+
+-- 异步任务档案管理面补给内置角色（按 permission_code 关联，不硬编码 id）：
+--   OPERATOR  全量（查看 + 保存 + 删除）—— 值班要能改口径止损（如上游改了状态字段）
+--   DEVELOPER 仅只读（page + view + 试跑所在的那一份）—— 联调要能看候选、能试跑，但改档案会波及所有模型
+--   ADMIN     由文件末尾权威授权块全量授予，不依赖本句
+INSERT IGNORE INTO ks_role_permissions (role_id, permission_id)
+SELECT r.id, p.id
+FROM ks_roles r
+  CROSS JOIN ks_permissions p
+WHERE r.code IN ('OPERATOR', 'DEVELOPER')
+  AND p.permission_code LIKE 'routing:async-task-profile:%'
+  AND (r.code = 'OPERATOR'
+       OR p.permission_code IN ('routing:async-task-profile:page', 'routing:async-task-profile:view'));
 
 -- 存量库修补：把「授权资源页面访问」补给已持有「角色授权页面访问」(id=12) 的角色。
 -- 注意：ADMIN 的 55 由文件末尾的权威授权块保证，不依赖本句。

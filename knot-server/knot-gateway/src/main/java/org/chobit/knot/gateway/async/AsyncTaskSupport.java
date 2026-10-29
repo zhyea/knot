@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.util.CallbackFieldSupport;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.dal.entity.BillingRuleEntity;
 import org.chobit.knot.dal.entity.ModelApiBindingEntity;
@@ -47,6 +48,9 @@ public class AsyncTaskSupport {
     private final GatewayEntityCacheService dataService;
     private final AsyncTaskService taskService;
 
+    /** 读回调主机白名单（{@code callback-allowed-hosts}）；提交时用于 SSRF 守卫 */
+    private final AsyncTaskProperties properties;
+
     /**
      * 该绑定是否为异步任务模型：只看绑定上的 {@code async_profile_code} 有没有值。
      *
@@ -74,14 +78,36 @@ public class AsyncTaskSupport {
                 .orElse(null);
     }
 
-    /** 读档案并投影为不可变快照；档案缺失返回 null（由调用方判为「配置不完整」） */
-    public AsyncTaskSpec loadSpec(String profileCode) {
+    /**
+     * 读档案并投影为不可变快照；档案不可用时返回 null（由调用方判为「配置不完整」→ 回落同步）。
+     *
+     * <p>⭐ <b>运行时两道防线</b>（{@code 任务协议绑定方案 §4.6}）：管理面保存绑定时会校验
+     * 「档案存在且启用、协议一致」，但<b>迁移脚本与手写 SQL 是合法写入路径</b>，
+     * 所以运行时必须再判一次。判据不同：管理面回答「能不能存」，这里回答「现在能不能用」。</p>
+     *
+     * <p>⚠ 回落而不是抛错：请求本身没坏（上游已成功、响应体在手上），只是这次不计费为异步。
+     * 抛 500 会把一个纯配置错误变成用户可见故障；但日志必须是 {@code error} 且带齐三方信息，
+     * 否则运维只能猜。</p>
+     *
+     * @param protocol 绑定行上的协议；用于与档案所属协议比对（{@code null} 表示不做比对）
+     */
+    public AsyncTaskSpec loadSpec(String profileCode, ModelApiProtocolEnum protocol) {
         if (StringUtils.isBlank(profileCode)) {
             return null;
         }
-        AsyncTaskProfileDto profile = profileService.getByProfileCode(profileCode.trim());
+        String code = profileCode.trim();
+        AsyncTaskProfileDto profile = profileService.getByProfileCode(code);
         if (profile == null) {
-            log.error("Async task profile not found: {}", profileCode);
+            log.error("Async task profile not found, fallback to sync: profile={}", code);
+            return null;
+        }
+        if (profileService.getEnabledByProfileCode(code) == null) {
+            log.error("Async task profile is disabled but referenced by a binding, fallback to sync: profile={}", code);
+            return null;
+        }
+        if (protocol != null && !protocol.matches(profile.protocol())) {
+            log.error("Async task profile protocol mismatch, fallback to sync: profile={} profileProtocol={} bindingProtocol={}",
+                    code, profile.protocol(), protocol.code());
             return null;
         }
         return AsyncTaskSpec.of(profile);
@@ -110,7 +136,8 @@ public class AsyncTaskSupport {
                 creation.billingRuleVersionCode(),
                 now,
                 now.plusNanos(Math.max(1L, spec.timeoutMs()) * 1_000_000L),
-                days == null || days <= 0 ? null : now.plusDays(days));
+                days == null || days <= 0 ? null : now.plusDays(days),
+                creation.callbackUrl());
     }
 
     /** 生成对外任务句柄：32 位小写 hex，与网关 requestId 同形态，不暴露上游 ID */
@@ -146,7 +173,7 @@ public class AsyncTaskSupport {
         if (profileCode == null) {
             return null;
         }
-        AsyncTaskSpec spec = loadSpec(profileCode);
+        AsyncTaskSpec spec = loadSpec(profileCode, context.protocol());
         if (spec == null) {
             return null;
         }
@@ -180,7 +207,7 @@ public class AsyncTaskSupport {
                 exchange == null ? Map.of() : exchange.requestBody(),
                 taskContext, upstreamTaskId,
                 rule == null ? null : rule.getCode(), rule == null ? null : rule.getVersionCode(),
-                LocalDateTime.now()));
+                LocalDateTime.now(), resolveCallbackUrl(exchange)));
         taskService.insert(task);
         // ⭐ 提交那条流量事件要带 task 标记（它是 1 + N 里的那个 1），但「事件长什么样」是
         // 本包的事，不是请求链路的事。写在这里而不是 GatewayRequestHandler 里，
@@ -188,6 +215,26 @@ public class AsyncTaskSupport {
         context.putAttribute(GatewayTrafficMsgDto.TaskTrace.ATTRIBUTE,
                 GatewayTrafficMsgDto.TaskTrace.submit(taskCode));
         return AsyncTaskAcceptedResponse.queued(taskCode);
+    }
+
+    /**
+     * 从客户端原始请求体里取回调地址并做安全校验。
+     *
+     * <p>⭐ <b>取的是 {@code exchange.requestBody()}（原始体），不是转发给上游的那份</b>：
+     * 上游请求体里的回推字段已被 {@code VideoRequestSupport} 剥掉（防止上游绕过结算直推客户端），
+     * 所以提取必须发生在剥除之前——这一步在提交侧，剥除在适配器侧，天然满足。</p>
+     *
+     * <p>⚠ 校验不过时<b>只丢回调、不失败提交</b>：回调是增强能力，客户仍可轮询拿结果；
+     * 为一个不安全的地址把整条视频任务判死，代价远大于少一次回调。但必须留 WARN，
+     * 否则「我配了 callback_url 却没收到」会变成无从排查的黑洞。</p>
+     */
+    private String resolveCallbackUrl(GatewayExchange exchange) {
+        String raw = CallbackFieldSupport.callbackUrlOf(exchange == null ? Map.of() : exchange.requestBody());
+        String safe = AsyncTaskCallbackUrlSupport.normalize(raw, properties.getCallbackAllowedHosts());
+        if (raw != null && safe == null) {
+            log.warn("Async task callback url rejected by safety guard, callback disabled: url={}", raw);
+        }
+        return safe;
     }
 
     /**
@@ -202,7 +249,15 @@ public class AsyncTaskSupport {
                                     String upstreamTaskId,
                                     String billingRuleCode,
                                     String billingRuleVersionCode,
-                                    LocalDateTime now) {
+                                    LocalDateTime now,
+                                    /**
+                                     * 已校验的回调地址；{@code null} 表示不回调。
+                                     *
+                                     * <p>⚠ 只在这里（提交那一刻）从原始请求体提取一次并快照，
+                                     * 之后不再回看请求体：档案/请求体都可能在途变化，而「这批任务回调到哪」
+                                     * 必须是一个确定事实。</p>
+                                     */
+                                    String callbackUrl) {
     }
 
 }

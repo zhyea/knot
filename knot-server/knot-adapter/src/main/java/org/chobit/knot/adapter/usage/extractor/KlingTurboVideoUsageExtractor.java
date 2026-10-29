@@ -33,13 +33,13 @@ import java.util.Set;
  * 且「某个键属于哪家」再也说不清。厂商差异一律独立成类。</p>
  */
 @Component
-public class KlingVideoUsageExtractor extends AbstractVideoUsageExtractor {
+public class KlingTurboVideoUsageExtractor extends AbstractVideoUsageExtractor {
 
-    public static final String CODE = "KLING_VIDEO";
+    public static final String CODE = "KLING_TURBO_VIDEO";
 
     private final VideoBillingModeCalculator calculator;
 
-    public KlingVideoUsageExtractor(VideoBillingModeCalculator calculator) {
+    public KlingTurboVideoUsageExtractor(VideoBillingModeCalculator calculator) {
         this.calculator = calculator;
     }
 

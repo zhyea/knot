@@ -1,13 +1,10 @@
 package org.chobit.knot.gateway.async;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.AuthConstants;
-import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
-import org.chobit.knot.gateway.model.vo.response.AsyncTaskFailureResponse;
 import org.chobit.knot.gateway.model.vo.response.AsyncTaskQueryResponse;
 import org.chobit.knot.gateway.routing.RoutingResolver;
 import org.chobit.knot.gateway.runtime.MdcContextSupport;
@@ -17,8 +14,6 @@ import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
-
-import java.util.Map;
 
 /**
  * 异步任务查询的<b>完整业务</b>：验 key → 查库 → 归属比对 → 投影成对外视图。
@@ -117,55 +112,8 @@ public class AsyncTaskLookupRunner {
     }
 
     private static AsyncTaskQueryResponse toResponse(AsyncTaskDto task) {
-        return new AsyncTaskQueryResponse(task.taskCode(),
-                displayStatus(task.status()),
-                task.submittedAt(),
-                task.completedAt(),
-                task.resultExpiresAt(),
-                resultOf(task),
-                failureOf(task));
+        // 投影收敛到 AsyncTaskViewSupport：回调推送与轮询响应必须同形，见该类注释
+        return AsyncTaskViewSupport.toResponse(task);
     }
 
-    /**
-     * 产物反序列化后回填：直接塞 {@code resultJson} 原文会变成「一个 JSON 字符串」，
-     * 客户端还得再解一次。解析不出来（理论上不该发生）时回 null 而不是让查询失败 ——
-     * 任务状态本身是准确的，产物缺一块比拿不到状态好。
-     */
-    private static Map<String, Object> resultOf(AsyncTaskDto task) {
-        if (StringUtils.isBlank(task.resultJson())) {
-            return null;
-        }
-        return JsonKit.fromJson(task.resultJson(), new TypeReference<Map<String, Object>>() {
-        });
-    }
-
-    private static AsyncTaskFailureResponse failureOf(AsyncTaskDto task) {
-        if (StringUtils.isBlank(task.errorCode())) {
-            return null;
-        }
-        return AsyncTaskFailureResponse.of(task.errorCode(), task.errorMessage());
-    }
-
-    /**
-     * 对外状态沿用业界习惯：POLLING 归为 processing，PENDING 为 queued。
-     *
-     * <p>⭐ <b>对外协议与落库取值是两件事</b>：库里存 0~5 的码，客户端看到的是
-     * {@code queued/processing/completed/failed}。所以把 status 改成整型<b>没有</b>改动任何对外契约——
-     * 这里由枚举 switch 产生字符串，而不是把 DB 值直接透出去。</p>
-     *
-     * <p>无法识别的码（理论上不该出现，DB 有 CHECK 拦）落成 {@code unknown}：
-     * 宁可让客户端看到一个陌生值，也不要把内部码 {@code 3} 当成状态文本发出去。</p>
-     */
-    private static String displayStatus(Integer status) {
-        AsyncTaskStatusEnum parsed = AsyncTaskStatusEnum.fromCode(status);
-        if (parsed == null) {
-            return "unknown";
-        }
-        return switch (parsed) {
-            case PENDING -> "queued";
-            case POLLING -> "processing";
-            case SUCCEEDED -> "completed";
-            case FAILED, EXPIRED, CANCELLED -> "failed";
-        };
-    }
 }

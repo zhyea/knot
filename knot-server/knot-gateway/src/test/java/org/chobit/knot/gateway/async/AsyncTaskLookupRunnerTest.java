@@ -180,8 +180,9 @@ class AsyncTaskLookupRunnerTest {
                 : JsonKit.toJson(new AsyncTaskContext("tc", ruleCode, null, null, "req",
                 "VIDEO_GENERATIONS", "m", "up", "p", "pool", "https://x"));
         return new AsyncTaskDto(null, "tc", null, null, null,
-                status.code(), null, null, null,
+                status.code(), null, null, null, null,
                 null, null, contextJson, resultJson, errorCode, errorMessage,
+                null, null, null, null, null, null,
                 null, null, null, null, null, null);
     }
 

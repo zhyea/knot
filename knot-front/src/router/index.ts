@@ -62,6 +62,8 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: "consumers", name: "routing-consumers", component: () => import("@/views/routing/RoutingConsumerView.vue"), meta: { titleKey: "route.routingConsumers" } },
       { path: "rules", name: "routing-rules", component: () => import("@/views/routing/RoutingRuleView.vue"), meta: { titleKey: "route.routingRules" } },
+      { path: "async-tasks", name: "routing-async-tasks", component: () => import("@/views/routing/AsyncTaskView.vue"), meta: { titleKey: "route.routingAsyncTasks" } },
+      { path: "async-task-profiles", name: "routing-async-task-profiles", component: () => import("@/views/routing/AsyncTaskProfileView.vue"), meta: { titleKey: "route.routingAsyncTaskProfiles" } },
       { path: "presets", name: "routing-presets", component: () => import("@/views/routing/TestRequestPresetView.vue"), meta: { titleKey: "route.presetRequests" } },
       { path: "moderation-words", name: "routing-moderation-words", component: () => import("@/views/moderation/ModerationWordManageView.vue"), meta: { titleKey: "route.moderationWords" } }
     ]

@@ -24,7 +24,7 @@ class AsyncTaskSpecTest {
     private static AsyncTaskSpec spec(String queryPath) {
         return new AsyncTaskSpec("GET", queryPath, "data.id", "data[0].status",
                 "['succeed','SUCCEEDED'] contains status", "status == 'failed'", null,
-                "data[0].outputs[0].url",
+                "data[0].outputs[0].url", null, null,
                 7, 5000, 1000, 30000, 360, 1_800_000L);
     }
 
@@ -63,8 +63,8 @@ class AsyncTaskSpecTest {
     void projectionDefaults() {
         AsyncTaskProfileDto profile = new AsyncTaskProfileDto("P", "VIDEO_GENERATIONS", null,
                 "/v1/tasks/{task_id}", "data.id", "data.status",
-                "status == 'succeed'", "status == 'failed'", null, null,
-                null, null, null, null, null, null);
+                "status == 'succeed'", "status == 'failed'", null, null, null,
+                null, null, null, null, null, null, null);
         AsyncTaskSpec spec = AsyncTaskSpec.of(profile);
         assertEquals("GET", spec.queryMethod(), "未配方法时默认 GET");
         assertEquals("status == 'succeed'", spec.statusSucceeded(),
@@ -77,8 +77,8 @@ class AsyncTaskSpecTest {
 
         AsyncTaskProfileDto dirty = new AsyncTaskProfileDto("P", "VIDEO_GENERATIONS", null,
                 "/v1/tasks/{task_id}", "data.id", "data.status",
-                "status == 'succeed'", "status == 'failed'", null, null,
-                null, 0, null, -1, null, 0L);
+                "status == 'succeed'", "status == 'failed'", null, null, null,
+                null, null, 0, null, -1, null, 0L);
         AsyncTaskSpec sanitized = AsyncTaskSpec.of(dirty);
         assertEquals(5000, sanitized.pollIntervalMs(), "0 不是合法间隔");
         assertEquals(30000, sanitized.pollBackoffMaxMs(), "负数不是合法上限");

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.adapter.model.usage.UsageAccounting;
+import org.chobit.knot.common.constants.enums.AsyncTaskDeliveryStatusEnum;
 import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.gateway.archive.ArchiveAsset;
@@ -13,6 +14,7 @@ import org.chobit.knot.svc.service.AsyncTaskService;
 import org.springframework.lang.Nullable;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -149,6 +151,32 @@ public class AsyncTaskRunner {
     }
 
     /**
+     * 在<b>已持有租约</b>的行上施加一个事件并落终态（运维动作的唯一执行口）。
+     *
+     * <p>⭐ <b>为什么运维动作也走这里，而不是让管理端直接 UPDATE 状态</b>：落终态不只是改一行，
+     * 它还要（a）过状态机确认这个事件在当前离线语义下合法、（b）通过 {@code claim_id} 的 CAS 确认
+     * 写入权、（c）发 {@code task_terminal=true} 的终态事件。管理端自己改库会跳过 (c)，
+     * 于是这笔任务在数仓里<b>永远没有终态那条</b>——按终态口径算的计费与成功率都会漏掉它，
+     * 而库里看起来一切正常。这条边界与 {@code expireTimedOut} 拒绝批量 UPDATE 的理由是同一条。</p>
+     *
+     * <p>⚠ <b>不查上游、不算钱</b>：{@link AsyncTaskEvent#CANCEL} 在状态机里是
+     * {@code SETTLE}（不计费），这里也不该出现查询调用——运维终止的语义是「到此为止」，
+     * 不是「再确认一次」。耗时与失败口径都由 {@code finish} 统一处理。</p>
+     *
+     * @param task  已经由 {@code claimById} / {@code claim} 抢到租约的行（其 {@code claimId} 必须是本次的）
+     * @param event 要施加的事件；只接受会落终态的那几种，其他事件会在这里被判成 REJECT
+     * @return 是否真的由本调用落定（{@code false} 表示租约已易主或行已终态）
+     */
+    public boolean settle(AsyncTaskDto task, AsyncTaskEvent event) {
+        AsyncTaskContext context = StringUtils.isBlank(task.contextJson())
+                ? null
+                : JsonKit.fromJson(task.contextJson(), AsyncTaskContext.class);
+        // 与 expireTimedOut 同口径：这次没有真的查上游，querySeq 取行上已有的次数而不是 0
+        int querySeq = Math.max(0, task.attempts() == null ? 0 : task.attempts());
+        return apply(new Polling(task, context, null, querySeq, null, null), event);
+    }
+
+    /**
      * 处理一个任务：取数 → 判定事件 → 交给状态机 → 按动作执行副作用。
      *
      * <p>⭐ 这里只做两件事：<b>把事实取出来</b>（快照、次数、上游响应），
@@ -237,17 +265,19 @@ public class AsyncTaskRunner {
                 yield false;
             }
             case SETTLE_BILLED -> {
-                String sourceUrl = AsyncTaskSpecRules.resultUrlOf(polling.queryBody(), polling.spec());
+                List<String> resultUrls = AsyncTaskSpecRules.resultUrlsOf(polling.queryBody(), polling.spec());
+                String sourceUrl = resultUrls.isEmpty() ? null : resultUrls.get(0);
                 UsageAccounting usage = settlementPort.charge(task, polling.context(), polling.rawBody());
                 // 先算钱再搬文件：搬是旁路，算钱是主账。两者互不依赖，但顺序反了会出现
                 // 「文件已搬、计费抛异常、下次重查又搬一遍」——虽然按 taskCode 幂等不该产生副本，
                 // 也没必要给实现方出这种题
                 finish(task, polling.context(), transition.to(), polling.attempts(),
-                        archive(task, polling.context(), sourceUrl), null, null, usage);
+                        deliveredUrls(resultUrls, archive(task, polling.context(), sourceUrl)),
+                        null, null, usage);
                 yield true;
             }
             case SETTLE -> {
-                finish(task, polling.context(), transition.to(), polling.attempts(), null,
+                finish(task, polling.context(), transition.to(), polling.attempts(), List.of(),
                         event.errorCode(), messageOf(polling, event), null);
                 yield true;
             }
@@ -324,8 +354,13 @@ public class AsyncTaskRunner {
      */
     private String messageOf(Polling polling, AsyncTaskEvent event) {
         return switch (event) {
+            // 档案配了 error_message_path 就按它取（视频协议常把原因放在 data.task_status_msg /
+            // error.message，顶层 message 取不到）；没配或取不到再回落到顶层 message
             case POLL_FAILED -> StringUtils.defaultIfBlank(
-                    upstreamMessage(polling.queryBody()), event.defaultMessage());
+                    StringUtils.defaultIfBlank(
+                            AsyncTaskSpecRules.errorMessageOf(polling.queryBody(), polling.spec()),
+                            upstreamMessage(polling.queryBody())),
+                    event.defaultMessage());
             case ATTEMPTS_EXHAUSTED -> event.defaultMessage() + ": " + polling.spec().maxAttempts();
             default -> event.defaultMessage();
         };
@@ -361,12 +396,13 @@ public class AsyncTaskRunner {
                         AsyncTaskContext context,
                         AsyncTaskStatusEnum status,
                         int querySeq,
-                        String resultUrl,
+                        List<String> resultUrls,
                         String errorCode,
                         String errorMessage,
                         UsageAccounting usage) {
         boolean settled = taskService.complete(task.id(), task.claimId(), status.code(),
-                resultJson(resultUrl), errorCode, errorMessage);
+                resultJson(resultUrls), errorCode, errorMessage,
+                AsyncTaskDeliveryStatusEnum.PENDING.code());
         if (!settled) {
             log.warn("Async task not settled by this node (already settled or claim lost), "
                             + "terminal event skipped: taskCode={} status={} claimId={}",
@@ -384,10 +420,35 @@ public class AsyncTaskRunner {
         }
     }
 
-    private String resultJson(String resultUrl) {
+    /**
+     * 终态产物 JSON。
+     *
+     * <p>⚠ <b>两个键不是冗余</b>：{@code result_url} 是既有对外契约（客户端按它取产物，
+     * 归档替换后的地址也写在这里），{@code result_urls} 是 2026-10-29 新增的多产物全集
+     * （视频协议一次生成 N 个）。只写数组会破既有客户端，只写单值会丢产物——
+     * 少交付一个视频比多一个键严重得多。</p>
+     */
+    private String resultJson(List<String> resultUrls) {
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("result_url", resultUrl);
+        resultUrls.stream().findFirst().ifPresent(url -> result.put("result_url", url));
+        result.put("result_urls", resultUrls);
         return JsonKit.toJson(result);
+    }
+
+    /**
+     * 首个产物换成归档地址（其余保留上游地址）；归档未启用时原样返回。
+     *
+     * <p>只换第一个是因为 {@code ArchiveStore} 是单产物旁路：它按任务号搬一个文件，
+     * 把第 2..N 个也传进去会让同一个 taskCode 产生多个归档副本，而归档本身是按任务号幂等的。</p>
+     */
+    private static List<String> deliveredUrls(List<String> resultUrls, String archivedUrl) {
+        if (resultUrls.isEmpty() || StringUtils.isBlank(archivedUrl)
+                || StringUtils.equals(archivedUrl, resultUrls.get(0))) {
+            return resultUrls;
+        }
+        List<String> delivered = new ArrayList<>(resultUrls);
+        delivered.set(0, archivedUrl);
+        return List.copyOf(delivered);
     }
 
     private String upstreamMessage(Map<String, Object> queryBody) {

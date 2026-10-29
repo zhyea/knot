@@ -54,6 +54,9 @@ vi.mock("@/api/models", () => ({
 
 vi.mock("@/api/billing", () => ({listBillingRules: vi.fn()}));
 
+// 任务协议候选：选项接口在打开抽屉时会调一次，必须挡住，否则 jsdom 会真发 XHR
+vi.mock("@/api/asyncTaskProfiles", () => ({listAsyncTaskProfileOptions: vi.fn()}));
+
 vi.mock("@/api/options", () => ({
   listBillingRuleOptions: vi.fn(),
   listLogicalModelOptions: vi.fn()
@@ -61,6 +64,7 @@ vi.mock("@/api/options", () => ({
 
 import {checkModelCode, createModel, getModel, listRequestAdapters, listUsageExtractors, updateModel} from "@/api/models";
 import {listBillingRules} from "@/api/billing";
+import {listAsyncTaskProfileOptions} from "@/api/asyncTaskProfiles";
 import {listBillingRuleOptions, listLogicalModelOptions} from "@/api/options";
 
 const MODEL_ID = 7;
@@ -81,6 +85,37 @@ const EXTRACTORS = [
 const ADAPTERS = [
   {code: "passthrough", label: "透传"},
   {code: "openai.chat", label: "OpenAI Chat"}
+];
+
+/**
+ * 任务协议候选：`value` 是档案编码，`meta.protocol` 决定它出现在哪个协议的下拉里。
+ * 与真实接口一致——只返回启用档案，流式协议的项由后端标 `disabled`。
+ */
+const ASYNC_PROFILES = [
+  {
+    value: "KLING_TASK",
+    label: "KLING_TASK",
+    disabled: false,
+    meta: {
+      protocol: "CHAT_COMPLETIONS",
+      queryMethod: "GET",
+      queryPath: "/v1/videos/{task_id}",
+      pollIntervalMs: 5000,
+      timeoutMs: 1800000
+    }
+  },
+  {
+    value: "RESPONSES_TASK",
+    label: "RESPONSES_TASK",
+    disabled: true,
+    meta: {
+      protocol: "RESPONSES",
+      queryMethod: "GET",
+      queryPath: "/v1/responses/{task_id}",
+      pollIntervalMs: 3000,
+      timeoutMs: 600000
+    }
+  }
 ];
 
 const EnumControlStub = {
@@ -122,6 +157,7 @@ function editModel(overrides: Record<string, unknown> = {}) {
       {
         id: 11,
         protocol: "CHAT_COMPLETIONS",
+        asyncProfileCode: null,
         apiPath: "/v1/chat/completions",
         requestAdapter: "OPENAI_CHAT",
         usageExtractor: "openai.usage",
@@ -184,6 +220,7 @@ describe("ModelFormDrawer 供应商模型表单", () => {
     } as never);
     vi.mocked(listUsageExtractors).mockResolvedValue(EXTRACTORS as never);
     vi.mocked(listRequestAdapters).mockResolvedValue(ADAPTERS as never);
+    vi.mocked(listAsyncTaskProfileOptions).mockResolvedValue(ASYNC_PROFILES as never);
     vi.mocked(getModel).mockResolvedValue(null);
     vi.mocked(checkModelCode).mockResolvedValue({available: true} as never);
     vi.mocked(createModel).mockResolvedValue({});
@@ -199,7 +236,7 @@ describe("ModelFormDrawer 供应商模型表单", () => {
 
   // ==================== 打开与回填 ====================
 
-  it("新建：标题为新建态，加载四类候选且不拉详情", async () => {
+  it("新建：标题为新建态，加载五类候选且不拉详情", async () => {
     const wrapper = await openDrawer();
 
     expect(wrapper.findComponent(ElDrawer).props("title")).toBe("新建供应商模型");
@@ -207,6 +244,7 @@ describe("ModelFormDrawer 供应商模型表单", () => {
     expect(listLogicalModelOptions).toHaveBeenCalledTimes(1);
     expect(listUsageExtractors).toHaveBeenCalledTimes(1);
     expect(listRequestAdapters).toHaveBeenCalledTimes(1);
+    expect(listAsyncTaskProfileOptions).toHaveBeenCalledTimes(1);
     expect(getModel).not.toHaveBeenCalled();
     // 新建默认版本：v + 年(yyyy)月日时
     expect((wrapper.find('input[placeholder^="如 v"]').element as HTMLInputElement).value).toMatch(/^v\d{10}$/);
@@ -402,6 +440,7 @@ describe("ModelFormDrawer 供应商模型表单", () => {
       {
         id: 11,
         protocol: "CHAT_COMPLETIONS",
+        asyncProfileCode: null,
         apiPath: null,
         requestAdapter: "PASSTHROUGH",
         usageExtractor: "openai.usage",
@@ -497,5 +536,92 @@ describe("ModelFormDrawer 供应商模型表单", () => {
 
     expect(billingSelect.props("extraParams")).toEqual({modelFamilyCode: "openai"});
     expect(billingSelect.props("disabled")).toBe(false);
+  });
+
+  // ==================== 任务协议（异步档案绑定） ====================
+
+  it("任务协议原样回填并随绑定一起提交（空值归一成 null）", async () => {
+    const wrapper = await openDrawer({
+      model: editModel({
+        apiBindings: [
+          {
+            id: 11,
+            protocol: "CHAT_COMPLETIONS",
+            asyncProfileCode: "KLING_TASK",
+            requestAdapter: "OPENAI_CHAT",
+            usageExtractor: "openai.usage",
+            enabled: true
+          }
+        ]
+      })
+    });
+
+    // 只读口径提示：不点开档案页也能确认「怎么轮询」
+    expect(wrapper.text()).toContain("/v1/videos/{task_id}");
+    expect(wrapper.text()).toContain("轮询间隔 5 秒");
+
+    await saveButton(wrapper).trigger("click");
+    await flushPromises();
+
+    const [, payload] = vi.mocked(updateModel).mock.calls[0];
+    expect(payload.apiBindings[0].asyncProfileCode).toBe("KLING_TASK");
+  });
+
+  it("切换接口协议时清空不匹配的任务协议并提示，不静默丢配置", async () => {
+    const wrapper = await openDrawer({
+      model: editModel({
+        apiBindings: [
+          {
+            id: 11,
+            protocol: "CHAT_COMPLETIONS",
+            asyncProfileCode: "KLING_TASK",
+            requestAdapter: "OPENAI_CHAT",
+            usageExtractor: "openai.usage",
+            enabled: true
+          }
+        ]
+      })
+    });
+
+    // KLING_TASK 属于 CHAT_COMPLETIONS；切到 RESPONSES 后它不再适用
+    await wrapper.findComponent(EnumControlStub).vm.$emit("update:modelValue", "RESPONSES");
+    await flushPromises();
+
+    expect(warned().some((text) => text.includes("KLING_TASK"))).toBe(true);
+    expect(wrapper.text()).not.toContain("/v1/videos/{task_id}");
+
+    await saveButton(wrapper).trigger("click");
+    await flushPromises();
+
+    const [, payload] = vi.mocked(updateModel).mock.calls[0];
+    expect(payload.apiBindings[0].asyncProfileCode).toBeNull();
+  });
+
+  it("已绑定档案被停用/删除时拦在提交前，并指出是哪一条", async () => {
+    vi.mocked(listAsyncTaskProfileOptions).mockResolvedValue([] as never);
+
+    const wrapper = await openDrawer({
+      model: editModel({
+        apiBindings: [
+          {
+            id: 11,
+            protocol: "CHAT_COMPLETIONS",
+            asyncProfileCode: "GONE_TASK",
+            requestAdapter: "OPENAI_CHAT",
+            usageExtractor: "openai.usage",
+            enabled: true
+          }
+        ]
+      })
+    });
+
+    // 候选为空时不做归一剔除（无从判断），只提示；清空与否由人决定
+    expect(wrapper.text()).toContain("已停用或不存在");
+
+    await saveButton(wrapper).trigger("click");
+    await flushPromises();
+
+    expect(warned()).toContain("任务协议已停用或不存在：GONE_TASK（CHAT_COMPLETIONS）");
+    expect(updateModel).not.toHaveBeenCalled();
   });
 });

@@ -39,7 +39,7 @@ class AsyncTaskPollerTest {
         properties = new AsyncTaskProperties();
         properties.setNodeId("node-test");
         service = new RecordingService();
-        poller = new AsyncTaskScheduledPoller(properties, service, null);
+        poller = new AsyncTaskScheduledPoller(properties, service, null, new RecordingDelivery());
         poller.init();
     }
 
@@ -137,9 +137,10 @@ class AsyncTaskPollerTest {
 
     private static AsyncTaskDto task() {
         return new AsyncTaskDto(7L, "tc-1", "KLING_TASK", null, "up-1",
-                AsyncTaskStatusEnum.PENDING.code(), 0, null, "claim-1",
+                AsyncTaskStatusEnum.PENDING.code(), 0, 0, null, "claim-1",
                 "{}", "{}", "{}",
-                null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null);
     }
 
     /**
@@ -201,6 +202,27 @@ class AsyncTaskPollerTest {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
+        }
+    }
+
+    /**
+     * 交付编排桩：本类只测「轮询节拍」，「交付节拍」不在这条链路上。
+     *
+     * <p>⚠ 保留它是因为 {@link AsyncTaskScheduledPoller} 现在同时持有两条编排——
+     * 传 {@code null} 会在 {@code deliver()} 被意外触发时 NPE，掩盖真正的断言失败。</p>
+     */
+    private static final class RecordingDelivery extends AsyncTaskDeliveryRunner {
+
+        private static final AsyncTaskDeliveryPolicy POLICY =
+                new AsyncTaskDeliveryPolicy(100, 60_000L, 3, 5_000, 300_000);
+
+        private RecordingDelivery() {
+            super(null, null, POLICY);
+        }
+
+        @Override
+        public List<AsyncTaskDto> claimDue(String claimId) {
+            return List.of();
         }
     }
 }

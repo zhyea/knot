@@ -12,16 +12,16 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 契约测试：可灵视频用量提取（{@link KlingVideoUsageExtractor}）。
+ * 契约测试：可灵视频用量提取（{@link KlingTurboVideoUsageExtractor}）。
  *
  * <p>⭐ 守的核心：<b>取不到产物时长就是 0，绝不兜成 1 秒</b>。
  * 「少收 1 秒」看着像保守，实则是把「上游没生成出来」记成「生成了但很短」，
  * 事后既查不出来也追不回。这类兜底在异步链路上尤其致命，因为没人盯着响应体看。</p>
  */
-class KlingVideoUsageExtractorTest {
+class KlingTurboVideoUsageExtractorTest {
 
-    private final KlingVideoUsageExtractor extractor =
-            new KlingVideoUsageExtractor(new VideoBillingModeCalculator());
+    private final KlingTurboVideoUsageExtractor extractor =
+            new KlingTurboVideoUsageExtractor(new VideoBillingModeCalculator());
 
     /** 真实查询响应的形状：data 是数组，outputs 在数组第一项里，duration 是字符串秒 */
     private static Map<String, Object> body(String status, List<Map<String, Object>> outputs) {

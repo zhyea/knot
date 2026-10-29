@@ -1,5 +1,6 @@
 package org.chobit.knot.gateway.async;
 
+import org.chobit.knot.svc.service.support.AsyncTaskTerminalSupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -27,7 +28,7 @@ class AsyncTaskSpecRulesTest {
     private static AsyncTaskSpec spec() {
         return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", "data[0].status",
                 "['succeed','SUCCEEDED'] contains status", "status == 'failed'", null,
-                "data[0].outputs[0].url",
+                "data[0].outputs[0].url", null, null,
                 7, 5000, 1000, 30000, 360, 1_800_000L);
     }
 
@@ -40,7 +41,7 @@ class AsyncTaskSpecRulesTest {
         // 探针：若误用 query_path（含占位）去取 ID，这里就会取到空——两者是不同路径
         assertNull(AsyncTaskSpecRules.upstreamTaskIdOf(createBody,
                 new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.task_id", "data.status",
-                        "status == 'succeed'", "status == 'failed'", null, "data.url",
+                        "status == 'succeed'", "status == 'failed'", null, "data.url", null, null,
                         null, 5000, 1000, 30000, 360, 1_800_000L)),
                 "task_id_path 填错必须取不到，不得回落到 query_path");
     }
@@ -54,10 +55,10 @@ class AsyncTaskSpecRulesTest {
                 "outputs", List.of(Map.of("url", "https://x/a.mp4")))));
         Map<String, Object> failed = Map.of("data", List.of(Map.of("status", "failed")));
         Map<String, Object> empty = Map.of("data", List.of(Map.of()));
-        assertSame(AsyncTaskSpecRules.Terminal.RUNNING, AsyncTaskSpecRules.terminalOf(running, spec));
-        assertSame(AsyncTaskSpecRules.Terminal.SUCCEEDED, AsyncTaskSpecRules.terminalOf(done, spec));
-        assertSame(AsyncTaskSpecRules.Terminal.FAILED, AsyncTaskSpecRules.terminalOf(failed, spec));
-        assertSame(AsyncTaskSpecRules.Terminal.RUNNING, AsyncTaskSpecRules.terminalOf(empty, spec),
+        assertSame(AsyncTaskTerminalSupport.Terminal.RUNNING, AsyncTaskSpecRules.terminalOf(running, spec));
+        assertSame(AsyncTaskTerminalSupport.Terminal.SUCCEEDED, AsyncTaskSpecRules.terminalOf(done, spec));
+        assertSame(AsyncTaskTerminalSupport.Terminal.FAILED, AsyncTaskSpecRules.terminalOf(failed, spec));
+        assertSame(AsyncTaskTerminalSupport.Terminal.RUNNING, AsyncTaskSpecRules.terminalOf(empty, spec),
                 "取不到状态时按进行中处理：上游抖动不该把任务判死（由 max_attempts / 超时兜底）");
     }
 
@@ -65,9 +66,9 @@ class AsyncTaskSpecRulesTest {
     @DisplayName("判定表达式多值用 contains（MVEL 没有 in 元组语法），大小写由表达式自己负责")
     void succeededExpressionIsCaseSensitive() {
         AsyncTaskSpec spec = spec();
-        assertSame(AsyncTaskSpecRules.Terminal.SUCCEEDED,
+        assertSame(AsyncTaskTerminalSupport.Terminal.SUCCEEDED,
                 AsyncTaskSpecRules.terminalOf(Map.of("data", List.of(Map.of("status", "SUCCEEDED"))), spec));
-        assertSame(AsyncTaskSpecRules.Terminal.RUNNING,
+        assertSame(AsyncTaskTerminalSupport.Terminal.RUNNING,
                 AsyncTaskSpecRules.terminalOf(Map.of("data", List.of(Map.of("status", "Succeed"))), spec),
                 "旧实现自动忽略大小写与空白；现在由表达式决定，未声明的写法不判成功");
     }
@@ -76,9 +77,9 @@ class AsyncTaskSpecRulesTest {
     @DisplayName("判定表达式可读整个响应体：状态在 data[0].status，成功标志在别处也能配")
     void testExpressionCanReadWholeBody() {
         AsyncTaskSpec spec = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data[0].status",
-                "body.data[0].code == 0", "status == 'failed'", null, "data[0].url",
+                "body.data[0].code == 0", "status == 'failed'", null, "data[0].url", null, null,
                 null, 5000, 1000, 30000, 360, 1_800_000L);
-        assertSame(AsyncTaskSpecRules.Terminal.SUCCEEDED,
+        assertSame(AsyncTaskTerminalSupport.Terminal.SUCCEEDED,
                 AsyncTaskSpecRules.terminalOf(Map.of("data", List.of(Map.of("status", "ok", "code", 0))), spec));
     }
 
@@ -86,9 +87,9 @@ class AsyncTaskSpecRulesTest {
     @DisplayName("配了 status_running 却谁都不匹配：仍回 RUNNING（不判死），但必须留 warn 信号")
     void unmatchedStatusStaysRunning() {
         AsyncTaskSpec spec = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data.status",
-                "status == 'succeed'", "status == 'failed'", "status == 'queued'", "data.url",
+                "status == 'succeed'", "status == 'failed'", "status == 'queued'", "data.url", null, null,
                 null, 5000, 1000, 30000, 360, 1_800_000L);
-        assertSame(AsyncTaskSpecRules.Terminal.RUNNING,
+        assertSame(AsyncTaskTerminalSupport.Terminal.RUNNING,
                 AsyncTaskSpecRules.terminalOf(Map.of("data", Map.of("status", "brand-new-state")), spec),
                 "上游新增状态不应被当终态，也不应被当成「正常进行中」而静默吞掉");
     }

@@ -15,6 +15,21 @@
         </template>
       </el-table-column>
       <el-table-column prop="version" label="版本" min-width="110" show-overflow-tooltip />
+      <el-table-column label="异步任务" width="96" align="center" header-align="center">
+        <template #default="{ row }">
+          <!--
+            ⚠ 判据是 `!= null` 而不是 truthy：空编码即同步，这里只标「有」；
+            档案编码本身在模型表单里看，列表页不重复展示细节。
+          -->
+          <el-tooltip
+            v-if="asyncProfileCodes(row).length"
+            :content="asyncProfileCodes(row).join('、')"
+            placement="top"
+          >
+            <el-tag type="warning" size="small" effect="plain">任务</el-tag>
+          </el-tooltip>
+        </template>
+      </el-table-column>
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch
@@ -79,6 +94,19 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
 function modelTypeLabel(code: string) {
   if (!code) return "-";
   return labelOf("ModelTypeEnum", code, code);
+}
+
+/**
+ * 该模型已绑定的任务协议编码（列表页「异步任务」标记用）。
+ *
+ * <p>数据来自列表返回的 {@code apiBindings}（后端按整页一次装载，不额外发请求）。
+ * 一个模型可以为不同协议各绑一条档案，所以这里是数组而不是单值。</p>
+ */
+function asyncProfileCodes(row: Row): string[] {
+  const bindings = Array.isArray(row.apiBindings) ? (row.apiBindings as Row[]) : [];
+  return bindings
+    .map((binding) => String(binding.asyncProfileCode ?? "").trim())
+    .filter((code) => code !== "");
 }
 
 /** 已删除行：浅红底标识（排序已由后端 is_deleted asc 放到末尾） */

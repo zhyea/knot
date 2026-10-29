@@ -74,6 +74,8 @@ class AsyncTaskRunnerTest {
         assertEquals(AsyncTaskStatusEnum.SUCCEEDED.code(), settled.status());
         assertNull(settled.errorCode());
         assertNull(settled.errorMessage());
+        assertEquals(1, settled.deliveryPendingCode(),
+                "终态落库时必须把交付武装成「待回调」——由那条 SQL 决定是否真的有 callback_url");
         assertEquals(1, settlement.charged, "终态必须且只能计一次费");
         assertEquals(1, settlement.published, "终态必须且只能发一条事件");
         assertEquals(1, settlement.terminalSeq, "首次查询就拿到终态，seq 应为 1");
@@ -100,7 +102,7 @@ class AsyncTaskRunnerTest {
         assertEquals("rule-1", asset.ruleCode());
         CompleteCall settled = taskService.onlyComplete();
         assertEquals(AsyncTaskStatusEnum.SUCCEEDED.code(), settled.status());
-        assertEquals("{\"result_url\":\"https://s3/a.mp4\"}", settled.resultJson(),
+        assertEquals("{\"result_url\":\"https://s3/a.mp4\",\"result_urls\":[\"https://s3/a.mp4\"]}", settled.resultJson(),
                 "落库的必须是转储后的地址");
         assertNull(settled.errorCode());
         assertEquals(1, settlement.charged);
@@ -118,7 +120,7 @@ class AsyncTaskRunnerTest {
 
         CompleteCall settled = taskService.onlyComplete();
         assertEquals(AsyncTaskStatusEnum.SUCCEEDED.code(), settled.status());
-        assertEquals("{\"result_url\":\"https://up/a.mp4\"}", settled.resultJson(),
+        assertEquals("{\"result_url\":\"https://up/a.mp4\",\"result_urls\":[\"https://up/a.mp4\"]}", settled.resultJson(),
                 "回退到供应商地址也必须落库");
         assertEquals(1, settlement.charged, "转储是旁路，不能因为搬文件失败就不算钱");
         assertEquals(1, settlement.published, "终态事件也不能少发——否则数仓看不到这笔成功");
@@ -136,7 +138,7 @@ class AsyncTaskRunnerTest {
 
         CompleteCall settled = taskService.onlyComplete();
         assertEquals(AsyncTaskStatusEnum.SUCCEEDED.code(), settled.status());
-        assertEquals("{\"result_url\":\"https://up/a.mp4\"}", settled.resultJson(),
+        assertEquals("{\"result_url\":\"https://up/a.mp4\",\"result_urls\":[\"https://up/a.mp4\"]}", settled.resultJson(),
                 "回退到供应商地址也必须落库");
     }
 
@@ -398,8 +400,9 @@ class AsyncTaskRunnerTest {
 
         @Override
         public boolean complete(Long id, String claimId, int status, String resultJson,
-                               String errorCode, String errorMessage) {
-            completes.add(new CompleteCall(id, claimId, status, resultJson, errorCode, errorMessage));
+                               String errorCode, String errorMessage, int deliveryPendingCode) {
+            completes.add(new CompleteCall(id, claimId, status, resultJson, errorCode, errorMessage,
+                    deliveryPendingCode));
             return completeResult;
         }
 
@@ -422,7 +425,7 @@ class AsyncTaskRunnerTest {
     }
 
     private record CompleteCall(Long id, String claimId, int status, String resultJson,
-                                String errorCode, String errorMessage) {
+                                String errorCode, String errorMessage, int deliveryPendingCode) {
     }
 
     private record ScheduleCall(Long id, String claimId, LocalDateTime nextPollAt) {
@@ -437,7 +440,7 @@ class AsyncTaskRunnerTest {
     private static AsyncTaskSpec spec() {
         return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", "data[0].status",
                 "['succeed','SUCCEEDED'] contains status", "status == 'failed'", null,
-                "data[0].outputs[0].url",
+                "data[0].outputs[0].url", null, null,
                 7, 5000, 1000, 30000, 360, 1_800_000L);
     }
 
@@ -461,9 +464,10 @@ class AsyncTaskRunnerTest {
      */
     private static AsyncTaskDto task(int attempts, String specJson, String contextJson, String claimId) {
         return new AsyncTaskDto(7L, "tc-1", "KLING_TASK", null, "up-1",
-                AsyncTaskStatusEnum.PENDING.code(), attempts, null, claimId,
+                AsyncTaskStatusEnum.PENDING.code(), attempts, 0, null, claimId,
                 "{\"prompt\":\"a cat\"}", specJson, contextJson,
-                null, null, null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null);
     }
 
     /**

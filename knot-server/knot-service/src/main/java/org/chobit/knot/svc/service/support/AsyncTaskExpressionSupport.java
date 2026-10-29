@@ -1,10 +1,12 @@
-package org.chobit.knot.gateway.async;
+package org.chobit.knot.svc.service.support;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.mvel2.MVEL;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -122,6 +124,77 @@ public final class AsyncTaskExpressionSupport {
                 throw new IllegalStateException("异步任务档案的表达式无法编译: 【" + key + "】", e);
             }
         });
+    }
+
+    /**
+     * 取值（多值）：表达式返回标量时得到单元素列表，返回数组时逐个取标量，其余一律空列表。
+     *
+     * <p>⭐ <b>为什么需要它</b>（2026-10-29）：视频协议一次生成 N 个产物（可灵
+     * {@code data.task_result.videos[*].url}、即梦 {@code content.videos[*]}），而
+     * {@link #text} 只认标量、遇数组回 {@code null}。让「一条表达式既能表达单产物也能表达多产物」
+     * 比再加一列 {@code result_paths} 更省：档案作者只学一种写法。</p>
+     *
+     * <p>与 {@link #text} 同一套失败口径：语法错抛、取不到回空列表；列表里的非标量元素
+     * （嵌套对象）直接跳过，不把整段 JSON 当 URL。</p>
+     */
+    public static List<String> texts(Map<String, Object> root, String expression) {
+        return texts(root, expression, null);
+    }
+
+    /**
+     * 取值（多值，带元素字段名）：数组元素是对象时，按 {@code itemField} 取每个对象的那个字段。
+     *
+     * <p>⭐⭐ <b>为什么需要 {@code itemField} 而不是一条纯表达式</b>（2026-10-29 实测）：MVEL 2.5.2
+     * 在本项目的求值路径下<b>不支持投影/选择</b>——{@code videos.![url]} 抛
+     * {@code could not access: !}、{@code videos.?[url != null]} 抛 {@code could not access: [url}、
+     * lambda 与 {@code stream().map(...)} 全部 {@code CompileException}。而视频协议恰好都是
+     * 「数组里套对象」（可灵 {@code data.task_result.videos[].url}、即梦 {@code content.videos[].url}），
+     * 纯表达式只能取到 {@code [0]}，n>1 的产物会被静默丢掉。</p>
+     *
+     * <p>所以把它拆成两个<b>都能试跑验证</b>的事实：{@code result_path} 指向数组
+     * （{@code data.task_result.videos}），{@code result_url_field} 指定字段名（{@code url}）。
+     * 这比在 Java 里猜字段名（尝试 url/video_url/file_url…）可解释得多——猜错的后果是
+     * 「产物为空 → RESULT_MISSING → 不计费」。</p>
+     */
+    public static List<String> texts(Map<String, Object> root, String expression, String itemField) {
+        if (root == null || StringUtils.isBlank(expression)) {
+            return List.of();
+        }
+        Serializable compiled = compiled(expression);
+        Object value;
+        try {
+            value = MVEL.executeExpression(compiled, root);
+        } catch (RuntimeException e) {
+            log.debug("Async task expression read miss: expression={} cause={}", expression, e.toString());
+            return List.of();
+        }
+        if (value instanceof Iterable<?> iterable) {
+            List<String> values = new ArrayList<>();
+            for (Object item : iterable) {
+                String text = item instanceof Map<?, ?> map && StringUtils.isNotBlank(itemField)
+                        ? scalar(map.get(itemField))
+                        : scalar(item);
+                if (text != null) {
+                    values.add(text);
+                }
+            }
+            return List.copyOf(values);
+        }
+        String text = scalar(value);
+        return text == null ? List.of() : List.of(text);
+    }
+
+    /**
+     * 只做编译校验，不求值（管理面保存档案 / 试跑前的静态检查）。
+     *
+     * <p>⚠ <b>能编译 ≠ 能求值</b>：裸标识符（{@code succeed}）编译通过、求值才抛，判定表达式
+     * 返回非布尔也是求值期才发现。所以保存时用它挡语法错，语义错必须靠试跑
+     * （{@code AsyncTaskProfileService#dryRun}）暴露。</p>
+     */
+    public static void validate(String expression) {
+        if (StringUtils.isNotBlank(expression)) {
+            compiled(expression);
+        }
     }
 
     /** 只要标量：结构（Map / List）不是「取到的值」，按取不到处理，避免把整包 JSON 当成 URL */

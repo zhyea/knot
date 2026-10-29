@@ -77,7 +77,7 @@ class AsyncTaskTrafficEventTest {
     @DisplayName("中间查询事件：terminal=false 且 seq 递增")
     void queryStamp() {
         GatewayTrafficMsgDto msg = GatewayTrafficMsgDto.of(
-                context(GatewayTrafficMsgDto.TaskTrace.query("task-1", 7, false)), exchange(), null, null, null);
+                context(GatewayTrafficMsgDto.TaskTrace.query("task-1", 0, 7, false)), exchange(), null, null, null);
 
         assertEquals("query", msg.taskPhase());
         assertFalse(msg.taskTerminal());
@@ -88,7 +88,7 @@ class AsyncTaskTrafficEventTest {
     @DisplayName("终态事件：terminal=true —— 计费与失败率统计只看这一个字段")
     void terminalStamp() {
         GatewayTrafficMsgDto msg = GatewayTrafficMsgDto.of(
-                context(GatewayTrafficMsgDto.TaskTrace.query("task-1", 12, true)), exchange(), null, null, null);
+                context(GatewayTrafficMsgDto.TaskTrace.query("task-1", 0, 12, true)), exchange(), null, null, null);
 
         assertEquals("query", msg.taskPhase(), "终态也是一次查询，phase 不该另造一个值");
         assertTrue(msg.taskTerminal());
@@ -151,7 +151,7 @@ class AsyncTaskTrafficEventTest {
 
         GatewayRequestContext context = context(null);
         context.putAttribute(GatewayTrafficMsgDto.TaskTrace.ATTRIBUTE,
-                GatewayTrafficMsgDto.TaskTrace.query("task-1", 3, true));
+                GatewayTrafficMsgDto.TaskTrace.query("task-1", 0, 3, true));
         GatewayExchange exchange = new GatewayExchange(Map.of("model", "x"),
                 MediaType.APPLICATION_JSON, new RecordingHttpExchange());
         exchange.proxyResult(new ProxyResult(null, 1L, 2L, null,

@@ -80,4 +80,28 @@ class AsyncTaskStatusEnumTest {
         // ⭐ 这个集合直接进 SQL 的 IN 谓词：漏一个在途态 = 新状态的任务永远扫不到
         assertEquals(List.of(0, 1), AsyncTaskStatusEnum.inFlightCodes());
     }
+
+    @Test
+    @DisplayName("可重试状态只有 FAILED / EXPIRED：SUCCEEDED 重开会二次计费，CANCELLED 重开会推翻人的判断")
+    void retryableCodes() {
+        assertTrue(AsyncTaskStatusEnum.FAILED.retryable());
+        assertTrue(AsyncTaskStatusEnum.EXPIRED.retryable());
+        assertFalse(AsyncTaskStatusEnum.SUCCEEDED.retryable(),
+                "已成功即已计费，重开必然产生第二笔钱");
+        assertFalse(AsyncTaskStatusEnum.CANCELLED.retryable(),
+                "人工终止是一个决定，不是一个待重试的意外");
+        assertFalse(AsyncTaskStatusEnum.PENDING.retryable(), "在途任务用不上重试，它已经在队列里");
+        assertFalse(AsyncTaskStatusEnum.POLLING.retryable());
+        // 与 inFlightCodes 同口径写死裸值：改集合就等于改线上行为，这条应当红
+        assertEquals(List.of(3, 4), AsyncTaskStatusEnum.retryableCodes());
+    }
+
+    @Test
+    @DisplayName("终态判定与在途判定互补：不存在既在途又终态、也不存在两者都不是的状态")
+    void terminalIsComplementOfInFlight() {
+        for (AsyncTaskStatusEnum status : AsyncTaskStatusEnum.values()) {
+            assertTrue(status.terminal() != status.inFlight(),
+                    status + " 的在途/终态判定不互补——两条 SQL 谓词会各说各话");
+        }
+    }
 }

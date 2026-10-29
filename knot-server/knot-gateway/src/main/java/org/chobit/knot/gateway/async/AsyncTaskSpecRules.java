@@ -1,8 +1,9 @@
 package org.chobit.knot.gateway.async;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.svc.service.support.AsyncTaskExpressionSupport;
+import org.chobit.knot.svc.service.support.AsyncTaskTerminalSupport;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -10,15 +11,12 @@ import java.util.Map;
  *
  * <p>⭐ <b>本类是异步能力唯一的厂商知识边界</b>：查询路径、终态取值、产物位置全部来自档案
  * （{@code kb_async_task_profiles}）的配置值，新增一家异步上游 = 加一行档案，<b>不改变这里任何一行</b>。
- * 所以它是纯函数（无 state、无 Spring、无 IO），只依赖 {@code AsyncTaskExpressionSupport} 求值。</p>
+ * 所以它是纯函数（无 state、无 Spring、无 IO）。</p>
  *
- * <p>⭐ <b>为什么从 {@code AsyncTaskSupport} 里单独拆出来</b>（2026-10-29）：不是搬家，是<b>分层</b>。
- * 那个类管提交侧（读绑定 → 读档案 → 建任务行），依赖模型/绑定/计费规则与本地缓存；本类只对
- * <b>已有快照求值</b>，输入是 {@code Map} 与 {@link AsyncTaskSpec}，无 state、无 IO、无 Spring。
- * 两种抽象层级混在一个类里，结果是「改退避算法」和「改绑定解析」看起来是同一件事，
- * 而前者其实可以被单测穷举、后者必须起上下文。</p>
+ * <p>⭐ <b>判定与求值已下沉 {@code svc}</b>（2026-10-29）：{@code AsyncTaskTerminalSupport#verdict}
+ * 现在同时服务网关（按快照判在途任务）与管理端试跑（按草稿判）。本类只留「快照视角的适配」——
+ * 从这里仍能一眼看出「一次轮询要问上游什么」，但比较逻辑不再有两份。</p>
  */
-@Slf4j
 public final class AsyncTaskSpecRules {
 
     private AsyncTaskSpecRules() {
@@ -38,42 +36,35 @@ public final class AsyncTaskSpecRules {
     /**
      * 终态判定：成功 / 失败 / 仍在进行。
      *
-     * <p>判定口径全部来自档案里的三条 MVEL 表达式（{@code status_succeeded} / {@code status_failed} /
-     * {@code status_running}），变量是 {@code status}（{@link AsyncTaskSpec#statusPath()} 取到的文本）
-     * 与 {@code body}（整个查询响应，供「成功态与失败原因不在同一层」这类档案使用）。</p>
-     *
-     * <p>顺序即优先级：成功 → 失败 → 进行。<b>取不到状态时按「仍在进行」处理</b>：
-     * 上游瞬时抖动、响应体尚未成形都不该把任务判死；连续取不到会被 {@code max_attempts} / 超时兜住。</p>
+     * <p>判定口径全部来自档案里的三条 MVEL 表达式，变量是 {@code status} 与整个 {@code body}。
+     * 顺序即优先级（成功 → 失败 → 进行），实现在 {@link AsyncTaskTerminalSupport#verdict}。</p>
      */
-    public static Terminal terminalOf(Map<String, Object> queryBody, AsyncTaskSpec spec) {
-        String status = AsyncTaskExpressionSupport.text(queryBody, spec.statusPath());
-        if (status == null) {
-            return Terminal.RUNNING;
-        }
-        Map<String, Object> vars = Map.of("status", status, "body", queryBody);
-        if (AsyncTaskExpressionSupport.test(vars, spec.statusSucceeded())) {
-            return Terminal.SUCCEEDED;
-        }
-        if (AsyncTaskExpressionSupport.test(vars, spec.statusFailed())) {
-            return Terminal.FAILED;
-        }
-        if (StringUtils.isBlank(spec.statusRunning())) {
-            // 没配 = 「除成功/失败外一律非终态」：上游新增中间态（queued 等）不需要改档案
-            return Terminal.RUNNING;
-        }
-        if (AsyncTaskExpressionSupport.test(vars, spec.statusRunning())) {
-            return Terminal.RUNNING;
-        }
-        // 配了运行态却不匹配：上游多了一个谁都不认识的状态。仍然按「进行」处理（不判死），
-        // 但必须留下信号——否则这个状态会一直被当成正常轮询，直到超时才显形。
-        log.warn("Async task status matched neither terminal nor running expression: status={} profile={}",
-                status, spec.statusRunning());
-        return Terminal.RUNNING;
+    public static AsyncTaskTerminalSupport.Terminal terminalOf(Map<String, Object> queryBody, AsyncTaskSpec spec) {
+        return AsyncTaskTerminalSupport.verdict(queryBody, spec.expressions()).terminal();
     }
 
-    /** 终态产物 URL（MVEL 取值表达式）；取不到返回 null（成功但无产物由调用方按失败处理） */
+    /**
+     * 终态产物地址（可能多个）：视频协议一次生成 N 个产物时全部保留。
+     *
+     * <p>⚠ 归档只搬第一个（{@code ArchiveStore} 是单产物旁路），但<b>结果 JSON 里要存全部</b>：
+     * 客户端拿到的是完整结果，少存就是少交付。</p>
+     */
+    public static List<String> resultUrlsOf(Map<String, Object> queryBody, AsyncTaskSpec spec) {
+        return AsyncTaskExpressionSupport.texts(queryBody, spec.resultPath(), spec.resultUrlField());
+    }
+
+    /** 首个产物地址；没有产物返回 null（成功但无产物由调用方按失败处理） */
     public static String resultUrlOf(Map<String, Object> queryBody, AsyncTaskSpec spec) {
-        return AsyncTaskExpressionSupport.text(queryBody, spec.resultPath());
+        List<String> urls = resultUrlsOf(queryBody, spec);
+        return urls.isEmpty() ? null : urls.get(0);
+    }
+
+    /**
+     * 失败原因原文（仅失败终态有意义）；档案没配 {@code error_message_path} 时返回 null，
+     * 由调用方回落到「顶层 {@code message}」这个既有行为。
+     */
+    public static String errorMessageOf(Map<String, Object> queryBody, AsyncTaskSpec spec) {
+        return AsyncTaskExpressionSupport.text(queryBody, spec.errorMessagePath());
     }
 
     /**
@@ -87,10 +78,5 @@ public final class AsyncTaskSpecRules {
         int exponent = Math.max(0, attempts - 1);
         long delay = (long) (spec.pollBackoffBaseMs() * Math.pow(2, Math.min(exponent, 10)));
         return Math.max(spec.pollIntervalMs(), Math.min(spec.pollBackoffMaxMs(), delay));
-    }
-
-    /** 单次查询的判定结果 */
-    public enum Terminal {
-        RUNNING, SUCCEEDED, FAILED
     }
 }

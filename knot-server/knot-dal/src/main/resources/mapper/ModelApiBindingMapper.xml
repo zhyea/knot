@@ -57,6 +57,22 @@
         delete from kb_model_api_bindings where id = #{id}
     </delete>
 
+    <select id="countByAsyncProfileCode" resultType="int">
+        select count(*)
+        from kb_model_api_bindings b
+        inner join kb_models m on b.model_code = m.model_code and m.is_deleted = 0
+        where b.async_profile_code = #{profileCode}
+    </select>
+
+    <select id="listModelCodesByAsyncProfileCode" resultType="string">
+        select b.model_code
+        from kb_model_api_bindings b
+        inner join kb_models m on b.model_code = m.model_code and m.is_deleted = 0
+        where b.async_profile_code = #{profileCode}
+        order by b.model_code asc
+        limit 5
+    </select>
+
     <delete id="deleteByModelId">
         delete b
         from kb_model_api_bindings b
