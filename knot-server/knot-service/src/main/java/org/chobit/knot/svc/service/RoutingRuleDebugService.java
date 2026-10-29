@@ -84,7 +84,7 @@ public class RoutingRuleDebugService {
             gatewayBaseUrl, ruleId, secretKey, prompt, protocolCode, targetType, targetId, requestBody);
         try {
             String responseBody = debugRunner.invoke(prep.baseUrl(), prep.gatewayPath(), prep.secretKey(),
-                prep.rule().ruleCode(), prep.protocol(), prep.body());
+                prep.rule().ruleCode(), prep.body());
             return buildTestResult(prep, RoutingTestStatusEnum.SUCCESS.code(), 200, responseBody, null);
         } catch (HttpStatusCodeException ex) {
             return buildTestResult(prep, RoutingTestStatusEnum.FAILED.code(), ex.getStatusCode().value(),
@@ -188,7 +188,7 @@ public class RoutingRuleDebugService {
 
         String gatewayPath = RoutingRuleDebugSupport.buildGatewayTestPath(protocol);
         String curl = RoutingRuleDebugSupport.buildTestCurl(
-            gatewayBaseUrl, gatewayPath, secretKey, rule.ruleCode(), protocol, body);
+            gatewayBaseUrl, gatewayPath, secretKey, rule.ruleCode(), body);
         return new RoutingTestPreparation(rule, secretKey, selectedTarget, protocol, model,
             body, gatewayBaseUrl, gatewayPath, curl);
     }

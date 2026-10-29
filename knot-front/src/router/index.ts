@@ -47,7 +47,8 @@ const routes: RouteRecordRaw[] = [
       { path: "logical-models", name: "model-management-logical-models", component: () => import("@/views/model/LogicalModelMarketplaceView.vue"), meta: { titleKey: "route.modelManagementLogicalModels" } },
       { path: "external-models", name: "model-management-external-models", component: () => import("@/views/model/ExternalModelManageView.vue"), meta: { titleKey: "route.modelManagementExternalModels" } },
       { path: "model-families", name: "model-management-model-families", component: () => import("@/views/model/ModelFamilyView.vue"), meta: { titleKey: "route.modelFamilies" } },
-      { path: "usage-extractors", name: "model-management-usage-extractors", component: () => import("@/views/model/UsageExtractorView.vue"), meta: { titleKey: "route.usageExtractors" } }
+      { path: "usage-extractors", name: "model-management-usage-extractors", component: () => import("@/views/model/UsageExtractorView.vue"), meta: { titleKey: "route.usageExtractors" } },
+      { path: "async-task-profiles", name: "model-management-async-task-profiles", component: () => import("@/views/model/AsyncTaskProfileView.vue"), meta: { titleKey: "route.modelManagementAsyncTaskProfiles" } }
     ]
   },
   {
@@ -63,7 +64,6 @@ const routes: RouteRecordRaw[] = [
       { path: "consumers", name: "routing-consumers", component: () => import("@/views/routing/RoutingConsumerView.vue"), meta: { titleKey: "route.routingConsumers" } },
       { path: "rules", name: "routing-rules", component: () => import("@/views/routing/RoutingRuleView.vue"), meta: { titleKey: "route.routingRules" } },
       { path: "async-tasks", name: "routing-async-tasks", component: () => import("@/views/routing/AsyncTaskView.vue"), meta: { titleKey: "route.routingAsyncTasks" } },
-      { path: "async-task-profiles", name: "routing-async-task-profiles", component: () => import("@/views/routing/AsyncTaskProfileView.vue"), meta: { titleKey: "route.routingAsyncTaskProfiles" } },
       { path: "presets", name: "routing-presets", component: () => import("@/views/routing/TestRequestPresetView.vue"), meta: { titleKey: "route.presetRequests" } },
       { path: "moderation-words", name: "routing-moderation-words", component: () => import("@/views/moderation/ModerationWordManageView.vue"), meta: { titleKey: "route.moderationWords" } }
     ]

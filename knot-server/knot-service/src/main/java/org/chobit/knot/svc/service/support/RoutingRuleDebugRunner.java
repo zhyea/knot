@@ -1,7 +1,6 @@
 package org.chobit.knot.svc.service.support;
 
 import java.util.Map;
-import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.stereotype.Component;
@@ -36,19 +35,12 @@ public class RoutingRuleDebugRunner {
                          String gatewayPath,
                          String secretKey,
                          String ruleCode,
-                         ModelApiProtocolEnum protocol,
                          Map<String, Object> body) {
         RestClient.RequestBodySpec request = restClient.post()
                 .uri(baseUrl + gatewayPath)
                 .header("Authorization", "Bearer " + secretKey)
                 .header("Rule", ruleCode)
                 .header("traceparent", RoutingRuleDebugSupport.TRACEPARENT);
-        if (ModelApiProtocolEnum.IMAGE_EDITS == protocol) {
-            return request.contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(RoutingRuleDebugSupport.toMultipartBody(body))
-                    .retrieve()
-                    .body(String.class);
-        }
         return request.contentType(MediaType.APPLICATION_JSON)
                 .body(body)
                 .retrieve()

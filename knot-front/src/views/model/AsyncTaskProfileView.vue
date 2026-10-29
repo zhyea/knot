@@ -134,7 +134,7 @@ import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import ListPagination from "../../components/common/ListPagination.vue";
-import AsyncTaskProfileFormDrawer from "../../components/routing/async/AsyncTaskProfileFormDrawer.vue";
+import AsyncTaskProfileFormDrawer from "../../components/model/async/AsyncTaskProfileFormDrawer.vue";
 import {deleteAsyncTaskProfile, listAsyncTaskProfiles} from "@/api/asyncTaskProfiles";
 import {useListQuery} from "@/composables/useListQuery";
 import {useEnumOptions} from "@/composables/useEnumOptions";

@@ -4,10 +4,7 @@ import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.common.error.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -16,7 +13,6 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -110,38 +106,11 @@ class RoutingRuleDebugSupportTest {
     void jsonCurlEscapesSingleQuote() {
         String curl = RoutingRuleDebugSupport.buildTestCurl(
             "http://gw:8080", "/openai/v1/chat/completions", "sk-x", "rule-a",
-            ModelApiProtocolEnum.CHAT_COMPLETIONS,
             Map.of("messages", List.of(Map.of("role", "user", "content", "it's"))));
 
         assertTrue(curl.contains("-H 'Rule: rule-a'"), curl);
         assertTrue(curl.contains("-H 'traceparent: " + RoutingRuleDebugSupport.TRACEPARENT + "'"), curl);
         assertTrue(curl.contains("it'\\''s"), "单引号必须转义为 '\\''：" + curl);
-    }
-
-    @Test
-    @DisplayName("图像编辑 curl 走 multipart：存在的本地文件用 @ 引用")
-    void multipartCurlUsesFileReferenceForExistingPath(@TempDir Path dir) throws Exception {
-        Path image = dir.resolve("in.png");
-        Files.writeString(image, "x");
-
-        String curl = RoutingRuleDebugSupport.buildTestCurl(
-            "http://gw:8080", "/openai/v1/images/edits", "sk-x", "rule-a",
-            ModelApiProtocolEnum.IMAGE_EDITS,
-            Map.of("prompt", PROMPT, "image", image.toString()));
-
-        assertTrue(curl.contains("-F 'image=@" + image.toString().replace("\\", "/") + "'"),
-            "存在的文件必须用 @ 引用：" + curl);
-        assertTrue(curl.contains("-F 'prompt=" + PROMPT + "'"), curl);
-        assertFalse(curl.contains("Content-Type: application/json"), "multipart 不应带 JSON 头：" + curl);
-    }
-
-    @Test
-    @DisplayName("图像字段指向不存在的路径：拒绝而非静默发空文件")
-    void multipartRejectsMissingFile() {
-        BusinessException ex = assertThrows(BusinessException.class,
-            () -> RoutingRuleDebugSupport.toMultipartBody(Map.of("image", "/no/such/file.png")));
-
-        assertTrue(ex.getMessage().contains("image"), ex.getMessage());
     }
 
     /**

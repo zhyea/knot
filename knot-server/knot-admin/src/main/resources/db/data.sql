@@ -68,14 +68,14 @@ INSERT IGNORE INTO ks_menus (id, module_id, parent_id, menu_code, menu_name, rou
 (10, 2, NULL, 'model.external-models', '外部模型', '/model-management/external-models', 'ExternalModelManageView', 'Cpu', 50, 1),
 (19, 2, NULL, 'model.provider-profiles', '供应商信息', '/model-management/provider-profiles', 'ProviderProfileManageView', 'Connection', 60, 1),
 (23, 2, NULL, 'model.model-families', '模型族', '/model-management/model-families', 'ModelFamilyView', 'Cpu', 70, 1),
+-- 异步任务档案（「怎么查上游」的口径模板）：挂在模型模块末尾（sort 80）。
+-- 归模型管理的理由：档案唯一的消费方是模型绑定（模型表单里的「任务协议」下拉），
+-- 配一条档案 = 给某个模型定口径；异步任务实例页仍留在路由管理（排查顺序是「规则 → 任务 → 档案」）。
+(26, 2, NULL, 'model.async-task-profiles', '异步任务档案', '/model-management/async-task-profiles', 'AsyncTaskProfileView', 'Setting', 80, 1),
 (11, 3, NULL, 'routing.rules', '路由规则', '/routing/rules', 'routing/RoutingRuleView', 'Share', 10, 1),
 -- 异步任务实例（提交 + 轮询）的运维视图：位置贴在「路由规则」下面（sort 15），
 -- 因为一条异步任务就是某条路由规则下的一次调用，排查路径是「规则 → 任务」。
 (25, 3, NULL, 'routing.async-tasks', '异步任务', '/routing/async-tasks', 'routing/AsyncTaskView', 'Timer', 15, 1),
--- 异步任务档案（「怎么查上游」的模板）：紧贴任务实例之后（sort 18）。
--- 排查顺序是「任务 → 当时用的档案 → 口径写错了没」，所以两者相邻；
--- 但它是系统级配置（改错会把所有在途任务带偏），权限与任务实例分开登记。
-(26, 3, NULL, 'routing.async-task-profiles', '异步任务档案', '/routing/async-task-profiles', 'routing/AsyncTaskProfileView', 'Setting', 18, 1),
 (12, 3, NULL, 'routing.consumers', '消费者', '/routing/consumers', 'routing/RoutingConsumerView', 'Share', 20, 1),
 (13, 4, NULL, 'billing.rules', '计费规则', '/billing/rules', 'billing/BillingRuleView', 'Coin', 10, 1),
 (20, 4, NULL, 'billing.reports', '计费报表', '/billing/reports', 'billing/BillingReportView', 'Odometer', 20, 1),
@@ -255,10 +255,10 @@ INSERT IGNORE INTO ks_permissions (id, permission_code, permission_name, permiss
 (158, 'routing:async-task:cleanup', '异步任务清理', 'API', 3, 25, 1, 1, NULL),
 -- 异步任务档案管理面（模块 3 / 菜单 26）：写动作与只读分开 ——
 -- 改一条档案会让所有引用它的模型换口径，这和「看任务列表」不是一个风险等级。
-(159, 'routing:async-task-profile:page', '异步任务档案页面访问', 'PAGE', 3, 26, 1, 1, NULL),
-(160, 'routing:async-task-profile:view', '异步任务档案查看', 'API', 3, 26, 1, 1, NULL),
-(161, 'routing:async-task-profile:save', '异步任务档案保存', 'API', 3, 26, 1, 1, NULL),
-(162, 'routing:async-task-profile:delete', '异步任务档案删除', 'API', 3, 26, 1, 1, NULL);
+(159, 'model:async-task-profile:page', '异步任务档案页面访问', 'PAGE', 2, 26, 1, 1, NULL),
+(160, 'model:async-task-profile:view', '异步任务档案查看', 'API', 2, 26, 1, 1, NULL),
+(161, 'model:async-task-profile:save', '异步任务档案保存', 'API', 2, 26, 1, 1, NULL),
+(162, 'model:async-task-profile:delete', '异步任务档案删除', 'API', 2, 26, 1, 1, NULL);
 
 -- API 权限绑定（默认拒绝：未绑定接口一律 403；由 .workbuddy/audit/gen_api_bindings.py 生成）
 INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, path_pattern, controller_class, status) VALUES
@@ -528,9 +528,9 @@ SELECT r.id, p.id
 FROM ks_roles r
   CROSS JOIN ks_permissions p
 WHERE r.code IN ('OPERATOR', 'DEVELOPER')
-  AND p.permission_code LIKE 'routing:async-task-profile:%'
+  AND p.permission_code LIKE 'model:async-task-profile:%'
   AND (r.code = 'OPERATOR'
-       OR p.permission_code IN ('routing:async-task-profile:page', 'routing:async-task-profile:view'));
+       OR p.permission_code IN ('model:async-task-profile:page', 'model:async-task-profile:view'));
 
 -- 存量库修补：把「授权资源页面访问」补给已持有「角色授权页面访问」(id=12) 的角色。
 -- 注意：ADMIN 的 55 由文件末尾的权威授权块保证，不依赖本句。
