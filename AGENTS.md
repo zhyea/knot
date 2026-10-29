@@ -39,6 +39,7 @@ cd knot-front && npx vue-tsc --noEmit && npx vite build                # 前端�
 - **JDK 25 + Mockito 不能 mock 具体类**，测试替身用子类覆写。
 - **`status` 为 0 是合法值**，前端禁用 truthy 判断。
 - **跨表绑定一律存 code 不存 id。**
+- **对外契约不许用 `Map` 拼装**：键由本项目定义的请求/响应体、固定字段集返回值、跨模块消息一律 `record` + `@JsonProperty`；只有上游动态 payload / `knot_extend` / 审计快照可用 `Map`（`10-backend-java.md §5.1`）。
 - 无历史包袱：字段变更一次做干净，**不留兼容兜底、不写回填**。
 
 ## 规范索引（按任务查）

@@ -11,6 +11,7 @@ import org.chobit.knot.svc.dto.async.AsyncTaskDto;
 import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.chobit.knot.svc.service.AsyncTaskService;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
+import org.chobit.knot.gateway.model.vo.response.AsyncTaskAcceptedResponse;
 import org.chobit.knot.gateway.routing.RoutingResolver;
 import org.chobit.knot.common.util.JsonKit;
 import org.springframework.http.HttpStatus;
@@ -37,7 +38,7 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
-@RequestMapping("/openai/v1/tasks")
+@RequestMapping(AsyncTaskAcceptedResponse.TASKS_PATH)
 @RequiredArgsConstructor
 public class GatewayTaskController {
 

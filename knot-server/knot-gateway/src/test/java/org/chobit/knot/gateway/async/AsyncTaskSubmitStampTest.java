@@ -16,6 +16,7 @@ import org.chobit.knot.dal.mapper.RoutingRuleMapper;
 import org.chobit.knot.dal.mapper.RoutingRuleTargetMapper;
 import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto.TaskTrace;
 import org.chobit.knot.gateway.model.ProxyResult;
+import org.chobit.knot.gateway.model.vo.response.AsyncTaskAcceptedResponse;
 import org.chobit.knot.gateway.runtime.GatewayRequestContext;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
 import org.chobit.knot.gateway.service.GatewayEntityCacheService;
@@ -25,7 +26,6 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -54,18 +54,18 @@ class AsyncTaskSubmitStampTest {
      * 丢了它，提交事件在数仓里就没有 {@code task_code}，1 + N 会被拆成「1 个孤儿 + N 个一组」。</p>
      */
     @Test
-    @DisplayName("提交成功：context 上带 phase=submit 标记，task_code 与信封一致")
+    @DisplayName("提交成功：context 上带 phase=submit 标记，task_code 与回执一致")
     void submitStampsContext() {
         GatewayRequestContext context = context();
-        Map<String, Object> envelope = support.submitIfAsync(context, null, createResult());
+        AsyncTaskAcceptedResponse accepted = support.submitIfAsync(context, null, createResult());
 
-        assertNotNull(envelope, "档案齐全 + 上游返回 task_id，应判定为异步");
+        assertNotNull(accepted, "档案齐全 + 上游返回 task_id，应判定为异步");
         TaskTrace trace = context.attribute(TaskTrace.ATTRIBUTE);
         assertNotNull(trace, "提交事件必须带任务标记，否则数仓无法把它归入这笔任务");
         assertEquals(TaskTrace.PHASE_SUBMIT, trace.phase());
         assertEquals(false, trace.terminal());
         assertNull(trace.querySeq(), "提交还没有查询过，序号必须是空而不是 0");
-        assertEquals(envelope.get("task_id"), trace.taskCode(), "标记里的 task_code 必须与回给客户端的信封同一个");
+        assertEquals(accepted.taskCode(), trace.taskCode(), "标记里的 task_code 必须与回给客户端的回执同一个");
         assertEquals(1, store.inserted.size());
     }
 

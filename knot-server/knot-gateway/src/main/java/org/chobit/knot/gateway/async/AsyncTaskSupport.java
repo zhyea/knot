@@ -11,6 +11,7 @@ import org.chobit.knot.dal.entity.ModelApiBindingEntity;
 import org.chobit.knot.dal.entity.ModelEntity;
 import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
 import org.chobit.knot.gateway.model.ProxyResult;
+import org.chobit.knot.gateway.model.vo.response.AsyncTaskAcceptedResponse;
 import org.chobit.knot.gateway.runtime.GatewayExchange;
 import org.chobit.knot.gateway.runtime.GatewayRequestContext;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
@@ -23,7 +24,6 @@ import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 /**
@@ -32,7 +32,8 @@ import java.util.UUID;
  * <p>⚠ <b>判定与退避不在本类了</b>（2026-10-29 拆到同包的 {@link AsyncTaskSpecRules}）：
  * 「什么算成功、多久再看一眼」是纯函数，输入只有响应 {@code Map} 与快照，
  * 与「读绑定、读档案、建任务行」不是同一抽象层。本类留下的都是<b>提交那一刻</b>才需要的东西——
- * 模型/绑定/计费规则这些实体与本地缓存，以及 202 信封的形状。</p>
+ * 模型/绑定/计费规则这些实体与本地缓存，以及判定链本身。⭐ 回执体的形状<b>不在这里</b>，
+ * 归 {@link AsyncTaskAcceptedResponse}（对外契约住 {@code model.vo.response}）。</p>
  *
  * <p>本类不含任何厂商名称：查询路径、终态取值、产物位置全部来自档案
  * （{@code kb_async_task_profiles}）的配置值，新增一家异步上游 = 加一行档案，<b>不改本类</b>。</p>
@@ -118,7 +119,7 @@ public class AsyncTaskSupport {
     }
 
     /**
-     * 判定本次上游结果是否为「异步任务创建成功」，是则落一条待轮询任务并返回 202 信封。
+     * 判定本次上游结果是否为「异步任务创建成功」，是则落一条待轮询任务并给出 202 回执。
      *
      * <p>判定链（任一环不成立即返回 {@code null}，回退同步链路）：</p>
      * <ol>
@@ -130,11 +131,12 @@ public class AsyncTaskSupport {
      * <p>第 3 步取不到 ID 时回退同步（并 ERROR 日志）：没有任务 ID 就无从轮询，
      * 与其落一条永远查不到的任务，不如明确走同步路径让问题立刻暴露。</p>
      *
-     * @return 202 响应信封；非异步任务或配置不完整时为 {@code null}
+     * @return 202 回执体（非 {@code null} 本身即表示「已判定为异步」）；
+     *         非异步任务或配置不完整时为 {@code null}
      */
-    public Map<String, Object> submitIfAsync(GatewayRequestContext context,
-                                             GatewayExchange exchange,
-                                             ProxyResult result) {
+    public AsyncTaskAcceptedResponse submitIfAsync(GatewayRequestContext context,
+                                                   GatewayExchange exchange,
+                                                   ProxyResult result) {
         if (result == null || StringUtils.isBlank(result.responseBody())) {
             return null;
         }
@@ -185,11 +187,7 @@ public class AsyncTaskSupport {
         // 是为了让同步链路对事件格式零感知——它只负责「异步就回 202」。
         context.putAttribute(GatewayTrafficMsgDto.TaskTrace.ATTRIBUTE,
                 GatewayTrafficMsgDto.TaskTrace.submit(taskCode));
-        Map<String, Object> envelope = new LinkedHashMap<>();
-        envelope.put("task_id", taskCode);
-        envelope.put("status", "queued");
-        envelope.put("query_url", "/openai/v1/tasks/" + taskCode);
-        return envelope;
+        return AsyncTaskAcceptedResponse.queued(taskCode);
     }
 
     /**

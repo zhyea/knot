@@ -51,6 +51,7 @@ alwaysApply: false
 | B5 | 安全相关静默放行 | 频控/限额/审核在故障时返回"通过/0/无"而非 fail-hard |
 | B6 | 测试未进 CI | 新增测试文件但 CI 门禁不执行它 |
 | B7 | 契约改动漏同步 | 改枚举取值/消息字段但没同步协议文档与下游派生函数 |
+| B8 | 契约靠 Map 拼装 | 键由本项目定义（对外响应/请求体、固定字段集的返回值、跨模块消息）却用 `Map<String, Object>` 表达，字段名只存在于字符串字面量。判据与例外见 `10-backend-java.md §5.1` |
 
 ### 🟡 Suggestion（应当处理，可带债提交）
 
@@ -100,6 +101,7 @@ alwaysApply: false
 | 泛化主干名残留 | S7 | ~~`SystemController` / `SystemMapper` / `SystemConverter` / `CommonController` / `CommonMappings` / `Base36` / `UtilityProtocolExecutor` 共 8 处~~ → **2026-10-24 批次一已整改**：4 处真违规改名/删除（`SystemMapper` 并入 `OperationLogMapper`、`SystemConverter`→`OperationLogConverter`、`CommonController`→`EnumOptionsController`、`CommonMappings`→`SharedMappings`、`GatewayDataService`→`GatewayEntityCacheService`、`GatewayRoutingInfo`→`GatewayRoutingContext`）；`SystemController`（系统管理模块域）/ `Base36`（算法名）/ `UtilityProtocolExecutor`（辅助协议族）判定合规并写入 §4.4 判例表 |
 | javadoc 与实现不符 | N1 | `canonical()` javadoc 宣称归一化实则恒等（批次三待整改，与协议猜测清除一起动）；~~`ModerationGuard` 的 MASK 语义与回落 FLAG 的实现不符~~ → **2026-10-24 已消除**（MASK 随功能移除，不存在「语义与实现不符」的第三态） |
 | 规范自身腐化 | — | `20-frontend-vue.md:7` 写「无测试框架」，实际已引入 vitest + 10 spec 文件 |
+| 契约靠 Map 拼装 | B8 | ~~`AsyncTaskAccepted.java:14` `record AsyncTaskAccepted(Map<String, Object> envelope)`，`task_id`/`status`/`query_url` 三个键由 `AsyncTaskSupport` 手写 put~~ → **2026-10-29 已整改**：改为 `model.vo.response.AsyncTaskAcceptedResponse`（record + `@JsonProperty` + `queued(code)` 工厂），路径前缀 `TASKS_PATH` 与 `GatewayTaskController` 映射同源，补守门 `AsyncTaskAcceptedResponseTest`（断言序列化键名）。**同类待办**：`GatewayTaskController.body()` 的查询响应仍是 Map（`result` 属上游动态 payload 可留，`error` 的 `{code,message}` 应收成类型） |
 
 ---
 

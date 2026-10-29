@@ -310,6 +310,37 @@ admin 那份还额外把 9 个仍直接 import `dal.entity` 的 controller 列�
 
 ## 5. 编码细节
 
+### 5.1 慎用 `Map`（2026-10-29 立规，robin 拍板）
+
+⭐⭐ **判据只有一条：Map 的键是「契约」还是「数据」。**
+键由**本项目**定义、调用方按名取值 → **契约，必须用类型**；键由**外部**决定（供应商响应、插件自定义字段）→ 数据，可以用 `Map`。
+
+**禁止用 `Map<String, Object>` 表达的三类东西**：
+
+| 场景 | 为什么必须用类型 | 正确形态 |
+|---|---|---|
+| 对外 HTTP 请求体 / 响应体 | 客户端按字段名解析，键名只活在字符串字面量里 | `record` + `@JsonProperty` 钉 wire 名，代码放 `model.vo.response` / `model.vo.request` |
+| 有**固定字段集**的方法返回值（「返回 Map 装 3 个已知字段」） | 等于把字段检查从编译期推到联调期 | `record`；取值关系固定的再给静态工厂（判例 `AsyncTaskAcceptedResponse.queued(code)`） |
+| 跨模块 / 跨线程传递的结构化数据（事件、消息、缓存值） | 消费方按字符串取值，改名即静默 `null` | `record`（先例 `GatewayTrafficMsgDto` 家族） |
+
+**可以用 `Map` 的场景（审查时勿报）**：供应商原始 payload 的透传与留存（`request_json` / `result_json` 这类字段由上游决定）、
+`knot_extend` 这类**可扩展槽**、审计快照（`AuditSnapshotSupport`）、MyBatis 动态 SQL 入参。
+
+**为什么值得立成红线（三类静默故障，不是风格偏好）**：
+
+1. **键名拼错** → 值恒 `null`，不报错不告警（`map.put("taskId", …)` 而客户端读 `task_id`）；
+2. **漏字段** → 契约悄悄变窄，联调才发现；
+3. **多塞字段** → 上游响应里同名字段顺手透出，内部信息泄露给客户端。
+
+三条都没有编译信号，且错的那一侧往往是已上线的客户端代码。
+
+**守门方式**：对外契约断言**序列化后的结果**（键名集合 + 取值），**不要断言 Java 字段名/组件名**——
+字段名对了不代表 JSON 名对。判例 `AsyncTaskAcceptedResponseTest`（删掉任一 `@JsonProperty` 必红）。
+⚠ 只有一个字段、且值需要按「是否为空」驱动控制流时，也不要塞 Map 当旗标。
+
+⚠ **允许**一个类型同时承担「响应体形状」与「控制信号」（控制器据 `instanceof` 决定 200 / 202）：
+两者本就不可分——能序列化出这个 body 的场合只有一种，就是提交被接受。别为了「单一职责」再包一层空壳 record。
+
 - **跨模块绑定一律存 code 不存 id**（残留例外：`kx_model_items.logical_model_id`）。⚠ **反向澄清（2026-10-26）**：**同一聚合内的从属明细按主体主键绑定**——判据是「是否跨聚合 / 能否独立存在」，不是「是不是两张表」。先例 `kb_billing_rule_versions.rule_id → kb_billing_rules.id`：版本是规则主体的从属明细，此前用 `rule_code` 关联，导致每条规则恒有版本行 → 改码守卫恒判「已引用」，规则编码实际不可改；且改码时按新码查不到旧版本行，会另起一条 `v1` 并把旧行留成孤儿。用 code 承载内部外键 = 把「可改的业务标识」升级成主键语义，必被改码反向咬住。
 - **权限三表与所有 `ks_` / `kx_` 表结构默认不动**（改错全站 403）。
 - **逻辑删除表 + UNIQUE(code) 四必配**：`countByXxxCode` 物理行判；列表 `includeDeleted` + mapper `<if>` + 排序 `is_deleted asc, id desc`；恢复端点 `PUT /{id}/restore`；引用检查覆盖 inner join 方。样板：`kb_models` / `kb_model_pools` / `kb_logical_models`。

@@ -7,7 +7,7 @@ import org.chobit.knot.common.constants.GatewayHeaders;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
-import org.chobit.knot.gateway.async.AsyncTaskAccepted;
+import org.chobit.knot.gateway.model.vo.response.AsyncTaskAcceptedResponse;
 import org.chobit.knot.gateway.async.AsyncTaskSupport;
 import org.chobit.knot.gateway.exception.GatewayQuotaException;
 import org.chobit.knot.gateway.exception.GatewayRateLimitException;
@@ -552,9 +552,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         // ⭐ 本类不再为这次提交做任何埋点：事件里那条 task 标记由 submitIfAsync 自己写，
         // 与轮询侧的事务同源。请求链路只回答「是不是异步」，不参与事件格式。
         if (asyncTaskSupport != null) {
-            Map<String, Object> envelope = asyncTaskSupport.submitIfAsync(context, exchange, result);
-            if (envelope != null) {
-                return new AsyncTaskAccepted(envelope);
+            AsyncTaskAcceptedResponse accepted = asyncTaskSupport.submitIfAsync(context, exchange, result);
+            if (accepted != null) {
+                return accepted;
             }
         }
         if (!shouldReturnUsageDetail(routing, exchange)) {
