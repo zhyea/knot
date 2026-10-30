@@ -114,6 +114,8 @@
                 <el-input v-model="form.remark" type="textarea" :rows="4" maxlength="500" show-word-limit/>
               </el-form-item>
             </div>
+            
+            <BillingModeVideoUsageConfig :form="form"/> 
           </el-form>
         </el-tab-pane>
         <el-tab-pane label="config_json" name="json">
@@ -151,6 +153,7 @@ import BillingModeImageConfig from "./modes/BillingModeImageConfig.vue";
 import BillingModeRequestConfig from "./modes/BillingModeRequestConfig.vue";
 import BillingModeTokenConfig from "./modes/BillingModeTokenConfig.vue";
 import BillingModeVideoConfig from "./modes/BillingModeVideoConfig.vue";
+import BillingModeVideoUsageConfig from "./modes/BillingModeVideoUsageConfig.vue";
 import PricingPlanFixedConfig from "./plans/PricingPlanFixedConfig.vue";
 import PricingPlanTieredConfig from "./plans/PricingPlanTieredConfig.vue";
 import PricingPlanPeakOffPeakConfig from "./plans/PricingPlanPeakOffPeakConfig.vue";
