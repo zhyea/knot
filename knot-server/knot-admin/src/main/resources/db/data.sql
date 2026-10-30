@@ -721,7 +721,9 @@ INSERT IGNORE INTO kb_model_api_bindings (id, model_code, protocol, api_path, re
 (5, 'qwen-image', 'IMAGE_GENERATIONS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'IMAGE', 1, 'Qwen Image Generation'),
 (6, 'qwen-image-edit', 'IMAGE_EDITS', '/api/v1/services/aigc/multimodal-generation/generation', 'QWEN', 'IMAGE', 1, 'Qwen Image Edit'),
 (7, 'gpt-image-1', 'IMAGE_GENERATIONS', '/v1/images/generations', 'PASSTHROUGH', 'IMAGE', 1, 'OpenAI Image Generation'),
-(8, 'gpt-image-1', 'IMAGE_EDITS', '/v1/images/edits', 'PASSTHROUGH', 'IMAGE', 1, 'OpenAI Image Edit'),
+-- 注：原 id=8（gpt-image-1 / IMAGE_EDITS / /v1/images/edits / PASSTHROUGH）已摘除：
+-- 网关 /images/edits 改为 JSON 透传，而 OpenAI 原生 edits 端点只收 multipart，透传 JSON 会被上游拒。
+-- 存量库清理见 docs/database/migration/2026-10-30-drop-gpt-image-1-image-edits-binding.sql
 -- Bedrock runtime：api_path 留 NULL，由 AWS_BEDROCK_CHAT_COMPLETIONS_TO_CONVERSE 适配器按 /model/{模型ID}/converse 推导（模型 ID 里的 : 会编码成 %3A）
 --   usage_extractor 走 DEFAULT-TOKEN：整包路径的用量提取吃的是 handleResponse 的产物，
 --   usage 已被适配器转成 OpenAI snake_case 形状，通用提取器别名表可直接读出（2026-10-25 删专用提取器）
@@ -841,8 +843,8 @@ INSERT IGNORE INTO kb_test_request_presets (
   '{"model":"model-name","prompt":"一只坐在窗边读书的橘猫，柔和自然光，简洁插画风格","n":1,"size":"1024x1024"}',
   '适用于文生图接口。', 1),
 ('builtin-image-edits-file', '图片编辑（Image Edits）', 'IMAGE_EDITS',
-  '{"model":"model-name","prompt":"将背景替换为晴朗的蓝天","image":"/tmp/knot-example.png","size":"1024x1024"}',
-  '请将 image 替换为可访问的本地图片路径；调试请求会以 multipart 发送。', 1),
+  '{"model":"model-name","prompt":"将背景替换为晴朗的蓝天","image":"https://example.com/input.png","size":"1024x1024"}',
+  '请将 image 替换为可公开访问的图片 URL 或 data URL；网关按 JSON 原样透传给上游。', 1),
 ('builtin-image-variations-file', '图片变体（Image Variations）', 'IMAGE_VARIATIONS',
   '{"model":"model-name","image":"/tmp/knot-example.png","n":1,"size":"1024x1024"}',
   '请将 image 替换为可访问的本地图片路径。', 1),

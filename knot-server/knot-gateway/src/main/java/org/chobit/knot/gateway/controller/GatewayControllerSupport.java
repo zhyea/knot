@@ -88,6 +88,24 @@ public abstract class GatewayControllerSupport {
     }
 
     /**
+     * Delegates a raw JSON gateway API request to the shared request template.
+     *
+     * <p>与 {@link #handleRequest} 的差别：入参是客户端原始 JSON 的 {@code Map} 而不是
+     * 类型化 VO，用于「网关不认识字段、只负责转发」的端点（见
+     * {@code AbstractGatewayRequestTemplate#handleJson}）。</p>
+     */
+    protected Mono<ResponseEntity<Object>> handleJsonRequest(String authorization,
+                                                             String rule,
+                                                             String traceparent,
+                                                             String stickyKey,
+                                                             Map<String, Object> request,
+                                                             ModelApiProtocolEnum protocol,
+                                                             ServerWebExchange exchange) {
+        return dispatch(exchange, http -> requestHandler.handleJson(
+                authorization, rule, traceparent, stickyKey, request, protocol, http));
+    }
+
+    /**
      * 把模板的 {@link Mono} 接成 HTTP 响应。
      *
      * <p>{@code requestBudget} 只覆盖「响应就绪」这一段（超时抛 {@code TimeoutException} → 504）：

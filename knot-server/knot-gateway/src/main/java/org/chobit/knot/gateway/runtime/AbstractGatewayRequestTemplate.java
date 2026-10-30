@@ -112,6 +112,26 @@ public abstract class AbstractGatewayRequestTemplate {
     }
 
     /**
+     * Gateway request template entrypoint for raw JSON passthrough requests.
+     *
+     * <p>与 {@link #handle} 的差别只是入参形态：{@code handle} 收类型化
+     * {@link GatewayModelRequest}（字段集由本项目定义），本方法收客户端原始 JSON 反序列化成的
+     * {@code Map}——用于「网关不认识字段、只负责转发」的端点（如 {@code /images/edits}）；
+     * 上游字段增减不需要同步改本项目的 VO，也不会因为漏绑某个字段而把它丢掉。</p>
+     */
+    public final Mono<Object> handleJson(String authorization,
+                                        String ruleCode,
+                                        String traceparent,
+                                        String stickyKey,
+                                        Map<String, Object> requestBody,
+                                        ModelApiProtocolEnum protocol,
+                                        GatewayHttpExchange http) {
+        return Mono.deferContextual(view -> Mono.defer(() -> handleMap(authorization, ruleCode,
+                traceOf(view, traceparent), stickyKey,
+                requestBody, protocol, MediaType.APPLICATION_JSON, http)));
+    }
+
+    /**
      * 追踪上下文：优先取 Reactor Context 里 {@code GatewayTraceFilter} 写好的那一份，
      * 取不到（非 web 入口 / 单测）才按 traceparent 自建。
      *

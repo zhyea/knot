@@ -30,6 +30,7 @@ public final class RoutingRuleDebugSupport {
             ModelApiProtocolEnum.COMPLETIONS,
             ModelApiProtocolEnum.EMBEDDINGS,
             ModelApiProtocolEnum.IMAGE_GENERATIONS,
+            ModelApiProtocolEnum.IMAGE_EDITS,
             ModelApiProtocolEnum.IMAGE_VARIATIONS,
             ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS,
             ModelApiProtocolEnum.AUDIO_TRANSLATIONS,
@@ -50,6 +51,7 @@ public final class RoutingRuleDebugSupport {
             Map.entry(ModelApiProtocolEnum.COMPLETIONS, "适用于传统文本补全协议，通常使用 prompt。"),
             Map.entry(ModelApiProtocolEnum.EMBEDDINGS, "适用于向量化请求，通常使用 input。"),
             Map.entry(ModelApiProtocolEnum.IMAGE_GENERATIONS, "适用于文生图，通常使用 prompt。"),
+            Map.entry(ModelApiProtocolEnum.IMAGE_EDITS, "适用于图像编辑，通常需要 prompt 和 image。image 可先用 URL、data URL 或占位值维护模板。"),
             Map.entry(ModelApiProtocolEnum.IMAGE_VARIATIONS, "适用于图像变体生成，通常需要 image。"),
             Map.entry(ModelApiProtocolEnum.AUDIO_TRANSCRIPTIONS, "适用于语音转录，通常需要 file。"),
             Map.entry(ModelApiProtocolEnum.AUDIO_TRANSLATIONS, "适用于语音翻译，通常需要 file。"),
@@ -81,6 +83,7 @@ public final class RoutingRuleDebugSupport {
             case COMPLETIONS -> "/openai/v1/completions";
             case EMBEDDINGS -> "/openai/v1/embeddings";
             case IMAGE_GENERATIONS -> "/openai/v1/images/generations";
+            case IMAGE_EDITS -> "/openai/v1/images/edits";
             case IMAGE_VARIATIONS -> "/openai/v1/images/variations";
             case AUDIO_TRANSCRIPTIONS -> "/openai/v1/audio/transcriptions";
             case AUDIO_TRANSLATIONS -> "/openai/v1/audio/translations";
@@ -101,7 +104,7 @@ public final class RoutingRuleDebugSupport {
         return switch (protocol) {
             case CHAT_COMPLETIONS, MESSAGES -> "messages[0].content";
             case RESPONSES, EMBEDDINGS, AUDIO_SPEECH, MODERATIONS -> "input";
-            case COMPLETIONS, IMAGE_GENERATIONS, VIDEO_GENERATIONS -> "prompt";
+            case COMPLETIONS, IMAGE_GENERATIONS, IMAGE_EDITS, VIDEO_GENERATIONS -> "prompt";
             case RERANK -> "query";
             default -> null;
         };
@@ -135,7 +138,7 @@ public final class RoutingRuleDebugSupport {
                 }
             }
             case RESPONSES, EMBEDDINGS, AUDIO_SPEECH, MODERATIONS -> body.putIfAbsent("input", prompt);
-            case COMPLETIONS, IMAGE_GENERATIONS, VIDEO_GENERATIONS -> body.putIfAbsent("prompt", prompt);
+            case COMPLETIONS, IMAGE_GENERATIONS, IMAGE_EDITS, VIDEO_GENERATIONS -> body.putIfAbsent("prompt", prompt);
             case RERANK -> {
                 body.putIfAbsent("query", prompt);
                 body.putIfAbsent("documents", List.of("文档 1", "文档 2"));
@@ -147,7 +150,7 @@ public final class RoutingRuleDebugSupport {
     }
 
     /**
-     * 生成可复制的 curl 文本：统一走 JSON。
+     * 生成可复制的 curl 文本：统一走 JSON（/images/edits 已改为 JSON 透传，不再 multipart）。
      */
     public static String buildTestCurl(String baseUrl,
                                        String gatewayPath,
