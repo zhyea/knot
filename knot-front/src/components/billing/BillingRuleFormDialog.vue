@@ -175,8 +175,8 @@ import {
   validatePeakPricing
 } from "@/utils/billingPeakOffPeak";
 import type {PeakPricing} from "@/utils/billingPeakOffPeak";
-import {createResolutionRow, RESOLUTION_SUFFIX_FIELDS} from "@/utils/billingResolution";
-import type {ResolutionRow} from "@/utils/billingResolution";
+import {createResolutionRow, RESOLUTION_SUFFIX_FIELDS, DEFAULT_COMBOS, isAllCombos, normalizeCombos} from "@/utils/billingResolution";
+import type {ResolutionComboCode, ResolutionRow} from "@/utils/billingResolution";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -258,6 +258,8 @@ interface BillingRuleFormState {
    * referencePrice -> {@code resolutionPrices[档位名:REFERENCE]}。
    */
   videoResolutionRows: Dict[];
+  /** 预设的计费组合（决定档位表列集）；默认全选，非全选时才落库 */
+  videoDimensionCombos: ResolutionComboCode[];
   /** 视频合成量口径：OUTPUT / SUM / OUTPUT_PLUS_MAX */
   videoQuantityMode: string;
   videoInputVideoPerSecond: number | null;
@@ -304,6 +306,7 @@ const form = reactive<BillingRuleFormState>({
   cacheWrite1hUnitPrice: 0,
   cacheWriteMode: "standard",
   videoResolutionRows: [],
+  videoDimensionCombos: [...DEFAULT_COMBOS],
   videoQuantityMode: "OUTPUT",
   videoInputVideoPerSecond: null,
   videoInputImagePerImage: null,
@@ -589,6 +592,7 @@ function resetForm() {
   form.cacheWrite1hUnitPrice = 0;
   form.cacheWriteMode = "standard";
   form.videoResolutionRows = [];
+  form.videoDimensionCombos = [...DEFAULT_COMBOS];
   form.videoQuantityMode = "OUTPUT";
   form.videoInputVideoPerSecond = null;
   form.videoInputImagePerImage = null;
@@ -666,6 +670,10 @@ function applyConfig(config: Dict) {
   // {档位名} 与 {档位名}:REFERENCE 共用一张表，回显时按后缀拆到同一行的不同列。
   form.videoResolutionRows = parseResolutionRows(config.resolutionPrices);
   const video = (config.video && typeof config.video === "object") ? config.video : {};
+  // 计费组合回显：非全选时才落库；无字段即默认全选（与旧配置的四列展示一致）
+  form.videoDimensionCombos = Array.isArray(video.dimensionCombos)
+    ? normalizeCombos(video.dimensionCombos)
+    : [...DEFAULT_COMBOS];
   form.videoQuantityMode = String(video.quantityMode || "OUTPUT").trim().toUpperCase() || "OUTPUT";
   form.videoInputVideoPerSecond = toNumberOrNull(video.inputVideoPerSecond);
   form.videoInputImagePerImage = toNumberOrNull(video.inputImagePerImage);
@@ -756,8 +764,8 @@ function buildBaseConfig(): Dict | null {
   }
   if (form.billingMode === BillingMode.VIDEO) {
     const isMiniMax = form.pricingPlan === PricingPlan.VENDOR_MINIMAX;
-    const isDimensionTiered = form.pricingPlan === PricingPlan.DIMENSION_TIERED;
     const resolutionPrices: Dict = {};
+    const comboSet = new Set(normalizeCombos(form.videoDimensionCombos));
     for (const row of form.videoResolutionRows || []) {
       const key = String(row?.key || "").trim().toUpperCase();
       if (!key) {
@@ -775,18 +783,22 @@ function buildBaseConfig(): Dict | null {
         if (inputPrice != null) {
           resolutionPrices[`INPUT_VIDEO:${key}`] = inputPrice;
         }
+        continue;
       }
-      const referencePrice = toNumberOrNull(row.referencePrice);
-      if (referencePrice != null) {
-        resolutionPrices[`${key}:REFERENCE`] = referencePrice;
+      // 通用视频：只落「已勾选组合」的键——界面看不见的价不能进库（静默收费）
+      if (comboSet.has("REFERENCE")) {
+        const referencePrice = toNumberOrNull(row.referencePrice);
+        if (referencePrice != null) {
+          resolutionPrices[`${key}:REFERENCE`] = referencePrice;
+        }
       }
-      if (isDimensionTiered) {
-        // 单价是「档位 × 有声 × 含参考」三维：两列各写一个后缀键，留空则不下发，
-        // 由后端 dimensionKeys 的逐级降级取更宽泛的档位价
+      if (comboSet.has("AUDIO")) {
         const audioPrice = toNumberOrNull(row.audioPrice);
         if (audioPrice != null) {
           resolutionPrices[`${key}:AUDIO`] = audioPrice;
         }
+      }
+      if (comboSet.has("REFERENCE_AUDIO")) {
         const referenceAudioPrice = toNumberOrNull(row.referenceAudioPrice);
         if (referenceAudioPrice != null) {
           resolutionPrices[`${key}:REFERENCE:AUDIO`] = referenceAudioPrice;
@@ -796,6 +808,11 @@ function buildBaseConfig(): Dict | null {
     // video 段只在有实质配置时才落库：默认的「仅输出秒数」不需要写进 JSON
     // （写了会污染老配置的 config_json，也让「默认行为」在库里多一份可漂移的副本）
     const video: Dict = {};
+    // 计费组合只在非全选时落库：全选是默认值（回显无字段即全选），不污染 config_json
+    const comboList = normalizeCombos(form.videoDimensionCombos);
+    if (!isMiniMax && !isAllCombos(comboList)) {
+      video.dimensionCombos = comboList;
+    }
     if (!isMiniMax && form.videoQuantityMode && form.videoQuantityMode !== "OUTPUT") {
       // MiniMax 输入秒是独立分量，绝不折叠进输出量：不落 quantityMode
       video.quantityMode = form.videoQuantityMode;

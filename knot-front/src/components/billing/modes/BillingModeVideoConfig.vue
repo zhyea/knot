@@ -19,10 +19,8 @@
       </el-col>
     </el-row>
 
-    <!-- 维度分档：档位表是「档位 × 有声 × 含参考」三维整表，由方案组件托管，此处让位 -->
+    <!-- 维度分档：档位表是「档位 × 计费组合」整表，由方案组件托管，此处让位 -->
     <template v-if="!isDimensionTiered">
-      <!-- 厂商定制（MiniMax）：档位与输入价同行录入，保持原有单行编辑，不参与两步式 -->
-      <template v-if="isVendorMiniMax">
     <el-divider v-if="!tokenPriced" content-position="left">
       <span class="video-config__group">分辨率档位（{{ unitLabel }}）</span>
     </el-divider>
@@ -34,6 +32,8 @@
       </template>
     </el-alert>
 
+    <!-- MiniMax 定制：档位 × 输出/输入两列，不参与「计费组合」预设 -->
+    <template v-if="isVendorMiniMax">
     <div class="resolution-list">
       <el-row v-for="(row, index) in rows" :key="row.uid || `res-${index}`" :gutter="12" class="res-row">
         <el-col :xs="24" :sm="7">
@@ -61,7 +61,6 @@
               />
         </el-form-item>
         </el-col>
-        <!-- MiniMax：第三列是「输入每秒」，留空表示同档位输出价 -->
         <el-col :xs="24" :sm="8">
         <el-form-item label="输入每秒" class="res-row__price" label-width="76px">
               <el-input-number
@@ -89,30 +88,18 @@
       </el-row>
     </div>
 
-        <div class="video-config__actions">
-          <el-button @click="append">新增档位</el-button>
-          <el-button @click="fillCommon">填入常用档位</el-button>
-          <span class="video-config__tip">档位名留空的行不会保存</span>
-        </div>
-      </template>
-      <!-- 通用视频方案：先选支持哪些档位，再只为选中的档位定单价 -->
-      <template v-else>
-        <el-divider v-if="!tokenPriced" content-position="left">
-          <span class="video-config__group">支持的分辨率档位</span>
-        </el-divider>
-        <el-alert type="info" :closable="false" class="video-config__hint">
-          <template #title>
-            <span>
-              档位名取自请求体的 <code>resolution</code> / <code>size</code> 字段，与后端归一化后的键严格一致。
-            </span>
-          </template>
-        </el-alert>
-        <ResolutionTierPicker :rows="rows" tip="取消勾选即删除该档位（含已填单价）"/>
-        <el-divider content-position="left">
-          <span class="video-config__group">档位单价（{{ unitLabel }}）</span>
-        </el-divider>
-        <ResolutionTierTable :rows="rows" :columns="RESOLUTION_PRICE_COLUMNS.BASE"/>
-      </template>
+    <div class="video-config__actions">
+      <el-button @click="append">新增档位</el-button>
+      <el-button @click="fillCommon">填入常用档位</el-button>
+      <span class="video-config__tip">档位名留空的行不会保存</span>
+    </div>
+    </template>
+
+    <!-- 通用视频：先定计费组合，档位只显示已选组合的价格列 -->
+    <template v-else>
+      <ResolutionComboPicker :model-value="combos" :disabled="comboLocked" @update:model-value="onCombosChange"/>
+      <ResolutionTierTable :rows="rows" :options="RESOLUTION_OPTIONS" :combos="combos" uid-prefix="video"/>
+    </template>
     </template>
 
     <!-- 计费量口径是「量」的轴，按两轴分工留在本组件（维度分档只接管「价」那一半的档位表） -->
@@ -182,14 +169,9 @@
 import {computed} from "vue";
 import {Delete} from "@element-plus/icons-vue";
 import {UNIT_PRICE_STEP, isTokenPricedUnit, unitLabelOf} from "@/utils/billingPrice";
-import {
-  COMMON_RESOLUTION_OPTIONS,
-  RESOLUTION_PRICE_COLUMNS,
-  createResolutionRow,
-  normalizeTierKey
-} from "@/utils/billingResolution";
-import type {ResolutionRow} from "@/utils/billingResolution";
-import ResolutionTierPicker from "../ResolutionTierPicker.vue";
+import {COMMON_RESOLUTION_OPTIONS, RESOLUTION_COMBOS, createResolutionRow, normalizeCombos} from "@/utils/billingResolution";
+import type {ResolutionComboCode, ResolutionRow} from "@/utils/billingResolution";
+import ResolutionComboPicker from "../ResolutionComboPicker.vue";
 import ResolutionTierTable from "../ResolutionTierTable.vue";
 
 const props = defineProps({
@@ -217,8 +199,7 @@ const tokenPriced = computed(() => isTokenPricedUnit(props.form.unit));
 const isVendorMiniMax = computed(() => String(props.form.pricingPlan || "").toUpperCase() === "VENDOR_MINIMAX");
 
 /**
- * 维度分档价（DIMENSION_TIERED）：档位表是「档位 × 有声 × 含参考」三维整表，
- * 与已移除的 VENDOR_KLING 方案同一张表、同一套键契约，故同样交给方案组件（PricingPlanDimensionTieredConfig）托管，
+ * 维度分档价（DIMENSION_TIERED）：档位表由方案组件（PricingPlanDimensionTieredConfig）托管，
  * 本组件只让位<b>档位表</b>；计费量口径与输入侧分量仍然保留——
  * 本方案只规定「单价取哪一档」，不否认输入秒独立成价（口径为「仅输出」时二者并存是合法的）。
  */
@@ -236,14 +217,6 @@ const inputVideoFolded = computed(
 
 /** 常用档位建议（与维度分档方案组件共用同一份，见 utils/billingResolution） */
 const RESOLUTION_OPTIONS = COMMON_RESOLUTION_OPTIONS;
-
-/**
- * 下方的 append/remove/setKey/setPrice/setInputPrice 只服务 <b>MiniMax 定制方案</b>的单行档位编辑。
- *
- * <p>通用视频方案的档位增删已移到 {@link ResolutionTierPicker}（先选支持哪些档位、再为选中档位填价），
- * MiniMax 是厂商定制口径（档位输出价与档位输入价同行录入），不在两步式范围内，
- * 故这批函数与 {@code .resolution-list} 块一并保留。</p>
- */
 
 /**
  * 合成量口径：一条公式覆盖「输入≤输出时输出×2、输入>输出时输入+输出」三档条件，与后端 VideoConfig.quantity 同口径。
@@ -266,6 +239,30 @@ const rows = computed<ResolutionRow[]>(() =>
   Array.isArray(props.form.videoResolutionRows) ? props.form.videoResolutionRows : []
 );
 
+/** 当前预设的计费组合（决定档位表列集）；默认全选 */
+const combos = computed<ResolutionComboCode[]>(() => normalizeCombos(props.form.videoDimensionCombos));
+
+/** 是否已有档位：任一档位行填了名字即锁定组合（改组合会让已填价格错位到别的键） */
+const comboLocked = computed(() => rows.value.some((row) => String(row.key || "").trim() !== ""));
+
+/**
+ * 组合变更：同步到 form，并清掉「被取消组合」在所有行上的价格。
+ *
+ * <p>不清的话，取消勾选只是让列消失，价格仍留在行里 → 保存时写进 resolutionPrices，
+ * 成为界面上看不见、计费却会命中的价（静默收费）。</p>
+ */
+function onCombosChange(codes: ResolutionComboCode[]) {
+  const normalized = normalizeCombos(codes);
+  props.form.videoDimensionCombos = normalized;
+  for (const combo of RESOLUTION_COMBOS) {
+    if (!normalized.includes(combo.code)) {
+      for (const row of rows.value) {
+        row[combo.field] = null;
+      }
+    }
+  }
+}
+
 let sequence = 0;
 
 function nextUid(): string {
@@ -284,10 +281,11 @@ function remove(index: number) {
 function setKey(index: number, value: string) {
   const row = rows.value[index];
   if (row) {
-    row.key = normalizeTierKey(value);
+    row.key = String(value || "").trim().toUpperCase();
   }
 }
 
+/** MiniMax 输出每秒价（通用视频的单价列由 ResolutionTierTable 内部维护） */
 function setPrice(index: number, value: number | undefined | null) {
   const row = rows.value[index];
   if (row) {
@@ -305,7 +303,7 @@ function setInputPrice(index: number, value: number | undefined | null) {
 
 /** 一键铺开常用档位（只补不存在的，不覆盖已填价格） */
 function fillCommon() {
-  const existing = new Set(rows.value.map((row) => normalizeTierKey(row.key)));
+  const existing = new Set(rows.value.map((row) => row.key.toUpperCase()));
   for (const key of RESOLUTION_OPTIONS) {
     if (!existing.has(key)) {
       rows.value.push(createResolutionRow(key, nextUid()));

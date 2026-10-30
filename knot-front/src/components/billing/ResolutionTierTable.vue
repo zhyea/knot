@@ -1,71 +1,123 @@
 <template>
   <div class="res-table">
-    <div v-if="visibleRows.length" class="res-table__head" :style="gridStyle">
-      <span>档位</span>
-      <span v-for="column in columns" :key="column.field">{{ column.label }}</span>
+    <div class="res-table__head" :style="gridStyle">
+      <span>档位名</span>
+      <span v-for="combo in columns" :key="combo.code">{{ combo.label }}</span>
+      <span/>
     </div>
-    <div v-for="row in visibleRows" :key="row.uid || `res-table-${row.key}`" class="res-table__row" :style="gridStyle">
-      <span class="res-table__name">{{ row.key }}</span>
+    <div v-for="(row, index) in rows" :key="row.uid || `${uidPrefix}-${index}`" class="res-table__row" :style="gridStyle">
+      <el-select
+        :model-value="row.key"
+        filterable
+        allow-create
+        default-first-option
+        placeholder="如 720P / 4K"
+        @update:model-value="(value: string) => setKey(index, value)"
+      >
+        <el-option v-for="item in options" :key="item" :label="item" :value="item"/>
+      </el-select>
       <el-input-number
-        v-for="column in columns"
-        :key="column.field"
-        :model-value="row[column.field]"
+        v-for="combo in columns"
+        :key="combo.code"
+        :model-value="row[combo.field]"
         :min="0"
         :step="UNIT_PRICE_STEP"
-        :placeholder="column.placeholder"
         controls-position="right"
-        @update:model-value="(value: number | undefined | null) => setPrice(row, column.field, value)"
+        :placeholder="combo.placeholder || undefined"
+        @update:model-value="(value: number | undefined | null) => setPrice(index, combo.field, value)"
+      />
+      <el-button
+        link
+        type="danger"
+        :icon="Delete"
+        aria-label="删除分辨率档位"
+        title="删除分辨率档位"
+        @click="remove(index)"
       />
     </div>
-    <div v-if="!visibleRows.length" class="res-table__empty">
-      {{ emptyText }}
+    <div class="res-table__actions">
+      <el-button @click="append">新增档位</el-button>
+      <el-button @click="fillCommon">填入常用档位</el-button>
+      <span class="res-table__tip">档位名留空的行不会保存</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import {type PropType, computed} from "vue";
+import {Delete} from "@element-plus/icons-vue";
 import {UNIT_PRICE_STEP} from "@/utils/billingPrice";
-import {normalizeTierKey} from "@/utils/billingResolution";
-import type {ResolutionPriceColumn, ResolutionPriceField, ResolutionRow} from "@/utils/billingResolution";
+import {DEFAULT_COMBOS, RESOLUTION_COMBOS, createResolutionRow, normalizeCombos} from "@/utils/billingResolution";
+import type {ResolutionComboCode, ResolutionPriceField, ResolutionRow} from "@/utils/billingResolution";
 
 /**
- * 档位 × 定价维度价格表（两步式的第二步：只为「已选档位」填价）。
+ * 「档位 × 计费组合」价格表（视频计费的档位表，通用视频与维度分档价共用）。
  *
- * <p>⭐ 该表最初从 Kling 方案组件里抽出：维度分档价（DIMENSION_TIERED）用的是<b>同一套键契约</b>
- * （{@code 档位} / {@code 档位:AUDIO} / {@code 档位:REFERENCE} / {@code 档位:REFERENCE:AUDIO}）。
- * 现在固定价等通用视频方案也用这张表，只是<b>列集不同</b>（{@code RESOLUTION_PRICE_COLUMNS.BASE}
- * 只要「单价 / 含参考输入」两列）——列集由方案决定，行契约共用一份，
- * 抄成两张表就会出现「同一档位行有两套创建逻辑」，加字段时必漏一处。</p>
+ * <p>⭐ 列的组成由 {@code combos} 决定（契约见 utils/billingResolution 的 RESOLUTION_COMBOS）：
+ * 勾了哪几个组合就渲染哪几列，没勾的组合连列都不出现。这取代了此前「固定四列硬编码」的做法——
+ * 硬编码会让「只要无声 + 含参考」的方案被迫面对两列永远填不上的有声价，
+ * 也让「有声/参考」这两列在 FIXED 方案里明明后端取价链认、界面却填不了。</p>
  *
- * <p>⭐ 表的增删移到 {@link ResolutionTierPicker}：两步式下「档位」是选择出来的，
- * 价格表只负责填价，不再有「档位名留空的僵尸行」参与保存判断。
- * 行数据的创建也因此不必留在本组件。</p>
- *
- * <p>行数据仍然是宿主传进来的 {@code form.videoResolutionRows}（真实对象引用），
- * 本组件直接改行字段，不在内部另存一份——否则保存时会互相覆盖。</p>
+ * <p>行数据是宿主传进来的真实对象（{@code form.videoResolutionRows}），本组件直接改行字段，
+ * 不在内部另存一份——否则保存时会互相覆盖。</p>
  */
 const props = defineProps({
-  /** 已选档位行（由 ResolutionTierPicker 对齐过：有名字、按选择顺序、无重复） */
-  rows: {type: Array as PropType<ResolutionRow[]>, default: (): ResolutionRow[] => []},
-  /** 要渲染的价格列：决定「档位 × 哪些定价维度」，见 RESOLUTION_PRICE_COLUMNS */
-  columns: {type: Array as PropType<ResolutionPriceColumn[]>, required: true},
-  /** 未选任何档位时的引导文案 */
-  emptyText: {type: String, default: "请先在上方选择支持的分辨率档位"}
+  rows: {type: Array as PropType<ResolutionRow[]>, required: true},
+  /** 常用档位下拉建议：只是建议，不是合法值白名单（厂商档位不可枚举） */
+  options: {type: Array as PropType<string[]>, default: (): string[] => ["720P", "1080P", "4K"]},
+  /** 要渲染的计费组合；列顺序恒按 RESOLUTION_COMBOS 固定，不随勾选顺序漂移 */
+  combos: {type: Array as PropType<ResolutionComboCode[]>, default: () => [...DEFAULT_COMBOS]},
+  /** v-for key 前缀：同一抽屉内两张表并存时避免 key 相撞 */
+  uidPrefix: {type: String, default: "res-table"}
 });
 
-/** 列数决定栅格：档位名占较宽的一格，价格列等宽 */
-const gridStyle = computed(
-  () => ({gridTemplateColumns: `minmax(96px, 1.2fr) repeat(${props.columns.length}, minmax(0, 1fr))`})
+/** 列集：按固定顺序过滤，保证列顺序稳定 */
+const columns = computed(() =>
+  RESOLUTION_COMBOS.filter((combo) => normalizeCombos(props.combos).includes(combo.code))
 );
 
-/** 兜底：未命名行不渲染也不落库（键空间里空名不是合法档位） */
-const visibleRows = computed<ResolutionRow[]>(() =>
-  props.rows.filter((row) => normalizeTierKey(row.key) !== "")
-);
+/** 网格列宽：档位名 1.3fr + 每列 1fr + 删除按钮 34px */
+const gridStyle = computed(() => ({
+  gridTemplateColumns: `1.3fr repeat(${columns.value.length}, 1fr) 34px`
+}));
 
-function setPrice(row: ResolutionRow, field: ResolutionPriceField, value: number | undefined | null) {
-  row[field] = value == null ? null : value;
+let sequence = 0;
+
+function nextUid(): string {
+  sequence += 1;
+  return `${props.uidPrefix}-${Date.now()}-${sequence}`;
+}
+
+function append() {
+  props.rows.push(createResolutionRow("", nextUid()));
+}
+
+function remove(index: number) {
+  props.rows.splice(index, 1);
+}
+
+function setKey(index: number, value: string) {
+  const row = props.rows[index];
+  if (row) {
+    row.key = String(value || "").trim().toUpperCase();
+  }
+}
+
+function setPrice(index: number, field: ResolutionPriceField, value: number | undefined | null) {
+  const row = props.rows[index];
+  if (row) {
+    row[field] = value == null ? null : value;
+  }
+}
+
+/** 一键铺开常用档位（只补不存在的，不覆盖已填价格） */
+function fillCommon() {
+  const existing = new Set(props.rows.map((row) => row.key.toUpperCase()));
+  for (const key of props.options) {
+    if (!existing.has(key)) {
+      props.rows.push(createResolutionRow(key, nextUid()));
+    }
+  }
 }
 </script>
 
@@ -99,18 +151,26 @@ function setPrice(row: ResolutionRow, field: ResolutionPriceField, value: number
   width: 100%;
 }
 
-.res-table__name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
+.res-table__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
 }
 
-.res-table__empty {
-  padding: 18px 12px;
-  border: 1px dashed var(--el-border-color);
-  border-radius: 6px;
-  text-align: center;
+.res-table__tip {
   color: var(--el-text-color-secondary);
   font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .res-table__head {
+    display: none;
+  }
+
+  .res-table__row {
+    grid-template-columns: 1fr !important;
+  }
 }
 </style>

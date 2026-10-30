@@ -33,47 +33,6 @@ export type ResolutionRow = {
 export type ResolutionPriceField = "price" | "audioPrice" | "referencePrice" | "referenceAudioPrice" | "inputPrice";
 
 /**
- * 档位名归一：**落库键必须是大写无空白**。
- *
- * <p>四处各写一遍 `{@code trim().toUpperCase()}` 时，漏一处就出现「保存时是 720P、回显成 720p」的
- * 静默漂移（键空间是自由文本，后端不做归一）。</p>
- */
-export function normalizeTierKey(value: unknown): string {
-  return String(value ?? "").trim().toUpperCase();
-}
-
-/** 价格表的一列：档位行的某个价格字段 + 表头文案 + 留空提示 */
-export type ResolutionPriceColumn = {
-  field: ResolutionPriceField;
-  label: string;
-  /** 留空时的输入提示：留空 = 不下发该后缀键，由后端逐级回落（与后端 dimensionKeys 同口径） */
-  placeholder: string;
-};
-
-/**
- * 两套列集：**列集由方案决定，不是每档都填四格**。
- *
- * <p>{@code BASE}（固定价等通用视频方案）：档位 × 「单价 / 含参考输入」两列——
- * 通用方案没有「按 audio 分档」这回事，给四列等于让管理员对着永不生效的格子发呆。</p>
- *
- * <p>{@code DIMENSION}（维度分档价）：档位 × 「无声 / 有声 / 含参考 / 含参考+有声」四列，
- * 与后端 {@code 档位} / {@code 档位:AUDIO} / {@code 档位:REFERENCE} / {@code 档位:REFERENCE:AUDIO}
- * 四个键一一对应。</p>
- */
-export const RESOLUTION_PRICE_COLUMNS: Record<"BASE" | "DIMENSION", ResolutionPriceColumn[]> = {
-  BASE: [
-    {field: "price", label: "单价", placeholder: "必填"},
-    {field: "referencePrice", label: "含参考输入", placeholder: "留空同价"}
-  ],
-  DIMENSION: [
-    {field: "price", label: "无声", placeholder: "必填"},
-    {field: "audioPrice", label: "有声", placeholder: "留空同无声"},
-    {field: "referencePrice", label: "含参考", placeholder: "留空同无声"},
-    {field: "referenceAudioPrice", label: "含参考 + 有声", placeholder: "留空逐级回落"}
-  ]
-};
-
-/**
  * 后缀键 -> 行字段的映射，**按后缀长度降序**排列。
  *
  * <p>顺序不能乱：{@code :REFERENCE:AUDIO} 必须先于 {@code :REFERENCE} 命中，
@@ -105,4 +64,81 @@ export function createResolutionRow(key = "", uid?: string): ResolutionRow {
     referenceAudioPrice: null,
     inputPrice: null
   };
+}
+
+// ============================================================================
+// 计费组合：决定档位表显示哪些价格列（不是决定「有哪些档位」）
+// ============================================================================
+
+/**
+ * 计费组合码：{@code BASE}（无声）恒在，其余是「请求侧带不带这个维度」的组合。
+ *
+ * <p>与档位是两根完全不同的轴：档位（720P / 1080P…）是逐行自由新增的；组合是**先定下来、
+ * 一旦有档位就锁死**的维度配置。组合决定列集与落键后缀，档位决定每行填多少价。</p>
+ */
+export type ResolutionComboCode = "BASE" | "AUDIO" | "REFERENCE" | "REFERENCE_AUDIO";
+
+export interface ResolutionCombo {
+  code: ResolutionComboCode;
+  /** 复选框 / 列标题文案 */
+  label: string;
+  /** 对应行字段 */
+  field: ResolutionPriceField;
+  /** 拼进 resolutionPrices 键的后缀（BASE 为空串） */
+  suffix: string;
+  /** 该列留空时的占位提示 */
+  placeholder: string;
+}
+
+/**
+ * 四种组合，**顺序即列顺序**；BASE（无声）恒在首位且不可取消。
+ *
+ * <p>后端 {@code BillingConfig.SUPPORTED_DIMENSION_SUFFIXES} 只放行这四种后缀，
+ * 且取价链按「含参考+有声 → 含参考 → 有声 → 无声」逐级去尾回落——BASE 是回落链的终点，
+ * 没有它，「无声请求」将无价可取。</p>
+ */
+export const RESOLUTION_COMBOS: ResolutionCombo[] = [
+  {code: "BASE", label: "无声", field: "price", suffix: "", placeholder: ""},
+  {code: "AUDIO", label: "有声", field: "audioPrice", suffix: ":AUDIO", placeholder: "留空同无声"},
+  {code: "REFERENCE", label: "含参考", field: "referencePrice", suffix: ":REFERENCE", placeholder: "留空同无声"},
+  {
+    code: "REFERENCE_AUDIO",
+    label: "含参考 + 有声",
+    field: "referenceAudioPrice",
+    suffix: ":REFERENCE:AUDIO",
+    placeholder: "留空逐级回落"
+  }
+];
+
+/** 默认全选：与「档位表默认展示全部组合」的旧行为一致（全选时不落库，回显按默认全选处理） */
+export const DEFAULT_COMBOS: ResolutionComboCode[] = RESOLUTION_COMBOS.map((combo) => combo.code);
+
+/** 组合码 -> 定义（未知码返回 undefined，供回显容错） */
+export function comboOf(code: string): ResolutionCombo | undefined {
+  const normalized = String(code || "").trim().toUpperCase();
+  return RESOLUTION_COMBOS.find((combo) => combo.code === normalized);
+}
+
+/**
+ * 归一组合码集合：过滤未知码、去重、**恒定补齐 BASE**、按 {@link RESOLUTION_COMBOS} 顺序输出。
+ *
+ * <p>补 BASE 不是防御性兜底而是语义要求：无声价是逐级回落链的终点，
+ * 没有 BASE 的价表在「无声请求」上无价可取（等价于该请求免费出账）。</p>
+ */
+export function normalizeCombos(codes: unknown): ResolutionComboCode[] {
+  const picked = new Set<ResolutionComboCode>(["BASE"]);
+  if (Array.isArray(codes)) {
+    for (const raw of codes) {
+      const matched = comboOf(String(raw ?? ""));
+      if (matched) {
+        picked.add(matched.code);
+      }
+    }
+  }
+  return RESOLUTION_COMBOS.filter((combo) => picked.has(combo.code)).map((combo) => combo.code);
+}
+
+/** 是否全选：全选是默认值，不必写进 config_json（回显无字段即按全选处理） */
+export function isAllCombos(codes: ResolutionComboCode[]): boolean {
+  return normalizeCombos(codes).length === RESOLUTION_COMBOS.length;
 }
