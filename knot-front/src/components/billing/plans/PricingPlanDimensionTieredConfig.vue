@@ -7,7 +7,7 @@
         <div class="dimension-tiered-config__formula-note">
           档位单价按「分辨率 × 是否输出声音 × 有无输入/参考视频」取值，逐级去尾回落：
           含参考 + 有声 → 含参考 → 有声 → 无声 → 默认单价。
-          计费量口径与输入侧分量在上方「基础计费规则」里配，本方案只决定<b>单价取哪一档</b>。
+          计费量口径与输入侧分量在表单最下方配置，本方案只决定<b>单价取哪一档</b>。
         </div>
       </template>
     </el-alert>
@@ -67,7 +67,7 @@ import ResolutionTierTable from "../ResolutionTierTable.vue";
  * 本方案在 {@code BillingConfig#validateDimensionTiered} 直接拒绝保存。</p>
  *
  * <p>档位表共用 {@link ResolutionTierTable}；列集与落键后缀由 {@link ResolutionComboPicker}
- * 预设的计费组合决定。计费量口径与输入侧分量留在视频模式组件——它们是「量」的轴，
+ * 预设的计费组合决定。计费量口径与输入侧分量由表单末尾的视频用量区块托管——它们是「量」的轴，
  * 按两轴分工不属于本方案。</p>
  */
 const props = defineProps({
