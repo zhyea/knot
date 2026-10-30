@@ -5,8 +5,8 @@
         <div class="dimension-tiered-config__formula-title">维度分档价</div>
         <div class="dimension-tiered-config__formula-body">总价 = 计费量 × 档位单价 + 输入侧分量 + 附加费</div>
         <div class="dimension-tiered-config__formula-note">
-          档位单价按「分辨率 × 是否输出声音 × 有无输入/参考视频」取值，逐级去尾回落：
-          含参考 + 有声 → 含参考 → 有声 → 无声 → 默认单价。
+          档位单价按「分辨率 × 是否单独定价声音 × 有无输入/参考视频」取值，逐级去尾回落：
+          含参考 + 有声 → 含参考 → 有声 → 基础价 → 默认单价。
           计费量口径与输入侧分量在表单最下方配置，本方案只决定<b>单价取哪一档</b>。
         </div>
       </template>
@@ -23,8 +23,8 @@
       <template #title>
         <span>
           默认单价必填——厂商档位不可枚举，配不到的档会回落到它；留空等于「识别不了的请求免费出账」。
-          「有声」组合只在模型真的能直出音频时才勾（阿里云万相按 <code>audio</code> 分档），
-          留空即与无声同价。
+          「基础价」列必含，它同时是「请求未声明音频开关」的价格（多数模型默认带声音）；
+          只有模型真能按音频分档（如阿里云万相按 <code>audio</code> 分档）才开「有声单独定价」，多出来的列留空即与基础价同价。
         </span>
       </template>
     </el-alert>
@@ -34,7 +34,7 @@
     </el-divider>
     <el-table :data="REFERENCE_ITEMS" size="small" border class="dimension-tiered-config__reference">
       <el-table-column prop="model" label="模型" min-width="150"/>
-      <el-table-column prop="silent" label="无声" min-width="130"/>
+      <el-table-column prop="silent" label="基础价" min-width="130"/>
       <el-table-column prop="sound" label="有声" min-width="130"/>
       <el-table-column prop="note" label="备注" min-width="180"/>
     </el-table>
@@ -47,9 +47,10 @@
 
 <script setup lang="ts">
 import {computed} from "vue";
+import {ElMessage} from "element-plus";
 import {unitLabelOf} from "@/utils/billingPrice";
-import {COMMON_RESOLUTION_OPTIONS, RESOLUTION_COMBOS, normalizeCombos} from "@/utils/billingResolution";
-import type {ResolutionComboCode, ResolutionRow} from "@/utils/billingResolution";
+import {COMMON_RESOLUTION_OPTIONS, applyCombosChange, normalizeCombos} from "@/utils/billingResolution";
+import type {CombosFormSlice, ResolutionComboCode, ResolutionRow} from "@/utils/billingResolution";
 import ResolutionComboPicker from "../ResolutionComboPicker.vue";
 import ResolutionTierTable from "../ResolutionTierTable.vue";
 
@@ -86,30 +87,21 @@ const rows = computed<ResolutionRow[]>(() =>
   Array.isArray(props.form.videoResolutionRows) ? props.form.videoResolutionRows : []
 );
 
-/** 当前预设的计费组合（决定档位表列集）；默认全选 */
+/** 当前预设的计费组合（决定档位表列集）；新建默认只有基础价 */
 const combos = computed<ResolutionComboCode[]>(() => normalizeCombos(props.form.videoDimensionCombos));
 
 /** 是否已有档位：任一档位行填了名字即锁定组合 */
 const comboLocked = computed(() => rows.value.some((row) => String(row.key || "").trim() !== ""));
 
 /**
- * 组合变更：同步到 form，并清掉「被取消组合」在所有行上的价格——
- * 否则取消勾选只是列消失，价格仍会被保存成界面上看不见的计费条目。
+ * 组合变更：统一走 {@link applyCombosChange}（与视频模式组件同一份实现），
+ * 负责归一、清掉被取消组合的行内价格、无「含参考」时回落量口径，
+ * 并在勾上有声单列时清空音频直出附加费（两者同一件事，并存即双收）。
  */
 function onCombosChange(codes: ResolutionComboCode[]) {
-  const normalized = normalizeCombos(codes);
-  props.form.videoDimensionCombos = normalized;
-  // 不含「含参考」组合时合成量口径无意义（没有输入秒要折进计费量）：固定回落「仅输出」，
-  // 否则界面上已隐藏的下拉会以残留值落库，形成看不见的量口径。
-  if (!normalized.includes("REFERENCE") && !normalized.includes("REFERENCE_AUDIO")) {
-    props.form.videoQuantityMode = "OUTPUT";
-  }
-  for (const combo of RESOLUTION_COMBOS) {
-    if (!normalized.includes(combo.code)) {
-      for (const row of rows.value) {
-        row[combo.field] = null;
-      }
-    }
+  const {clearedAudioSurcharge} = applyCombosChange(props.form as CombosFormSlice, codes);
+  if (clearedAudioSurcharge) {
+    ElMessage.warning("已清除「音频直出附加费」：有声已按单价计费，同一项不重复收");
   }
 }
 

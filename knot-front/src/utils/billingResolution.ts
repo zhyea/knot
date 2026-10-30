@@ -71,10 +71,16 @@ export function createResolutionRow(key = "", uid?: string): ResolutionRow {
 // ============================================================================
 
 /**
- * 计费组合码：{@code BASE}（无声）恒在，其余是「请求侧带不带这个维度」的组合。
+ * 计费组合码：{@code BASE}（基础价）恒在，其余是「请求侧带不带这个维度」的组合。
  *
  * <p>与档位是两根完全不同的轴：档位（720P / 1080P…）是逐行自由新增的；组合是**先定下来、
  * 一旦有档位就锁死**的维度配置。组合决定列集与落键后缀，档位决定每行填多少价。</p>
+ *
+ * <p>⚠ 代码里的 {@code BASE} 就是界面上的「基础价」，它<b>不是「无声专用价」</b>：
+ * {@code VideoUsageFacts} 判「有无声」靠请求体的 {@code generate_audio} / {@code audio} 等开关，
+ * <b>字段缺失即判为无</b>；默认带声音的模型（大多数视频模型）客户端不传这个键，
+ * 命中就是 {@code BASE}。所以它是<b>主力价 + 回落链终点</b>，叫「无声」会误导配置者
+ * 把便宜的无声音价填进主力列（2026-10-30 更名）。</p>
  */
 export type ResolutionComboCode = "BASE" | "AUDIO" | "REFERENCE" | "REFERENCE_AUDIO";
 
@@ -91,16 +97,16 @@ export interface ResolutionCombo {
 }
 
 /**
- * 四种组合，**顺序即列顺序**；BASE（无声）恒在首位且不可取消。
+ * 四种组合，**顺序即列顺序**；BASE（基础价）恒在首位且不可取消。
  *
  * <p>后端 {@code BillingConfig.SUPPORTED_DIMENSION_SUFFIXES} 只放行这四种后缀，
- * 且取价链按「含参考+有声 → 含参考 → 有声 → 无声」逐级去尾回落——BASE 是回落链的终点，
- * 没有它，「无声请求」将无价可取。</p>
+ * 且取价链按「含参考+有声 → 含参考 → 有声 → 基础价」逐级去尾回落——BASE 是回落链的终点，
+ * 没有它，未声明音频开关的请求将无价可取。</p>
  */
 export const RESOLUTION_COMBOS: ResolutionCombo[] = [
-  {code: "BASE", label: "无声", field: "price", suffix: "", placeholder: ""},
-  {code: "AUDIO", label: "有声", field: "audioPrice", suffix: ":AUDIO", placeholder: "留空同无声"},
-  {code: "REFERENCE", label: "含参考", field: "referencePrice", suffix: ":REFERENCE", placeholder: "留空同无声"},
+  {code: "BASE", label: "基础价", field: "price", suffix: "", placeholder: "留空用默认单价"},
+  {code: "AUDIO", label: "有声", field: "audioPrice", suffix: ":AUDIO", placeholder: "留空同基础价"},
+  {code: "REFERENCE", label: "含参考", field: "referencePrice", suffix: ":REFERENCE", placeholder: "留空同基础价"},
   {
     code: "REFERENCE_AUDIO",
     label: "含参考 + 有声",
@@ -110,8 +116,23 @@ export const RESOLUTION_COMBOS: ResolutionCombo[] = [
   }
 ];
 
-/** 默认全选：与「档位表默认展示全部组合」的旧行为一致（全选时不落库，回显按默认全选处理） */
-export const DEFAULT_COMBOS: ResolutionComboCode[] = RESOLUTION_COMBOS.map((combo) => combo.code);
+/**
+ * 新建规则的默认组合：**只有基础价**。
+ *
+ * <p>⭐ 不再预设成四列全开（2026-10-30 改）：多数模型的价格表只有一个价，
+ * 预设出「有声 / 含参考」的空列会让配置者以为这两维必须填，也会诱导把有声价填错列。
+ * 只有把某个维度**单独卖更贵**时才勾上对应开关，列才出现。</p>
+ */
+export const DEFAULT_COMBOS: ResolutionComboCode[] = ["BASE"];
+
+/**
+ * 存量配置缺 {@code video.dimensionCombos} 字段时的回显口径：**全选**。
+ *
+ * <p>⚠ 这个常量不可改、不可与 {@link DEFAULT_COMBOS} 合并：老配置库里是一张四列价表，
+ * 若把「无字段」重新解释成「仅基础价」，有声价 / 参考价就会变成后端仍命中、
+ * 界面上却看不见的静默收费（改配置时更容易把它们一并抹掉）。</p>
+ */
+export const LEGACY_COMBOS: ResolutionComboCode[] = RESOLUTION_COMBOS.map((combo) => combo.code);
 
 /** 组合码 -> 定义（未知码返回 undefined，供回显容错） */
 export function comboOf(code: string): ResolutionCombo | undefined {
@@ -141,4 +162,109 @@ export function normalizeCombos(codes: unknown): ResolutionComboCode[] {
 /** 是否全选：全选是默认值，不必写进 config_json（回显无字段即按全选处理） */
 export function isAllCombos(codes: ResolutionComboCode[]): boolean {
   return normalizeCombos(codes).length === RESOLUTION_COMBOS.length;
+}
+
+// ============================================================================
+// 组合轴：把四码的笛卡尔积换成「两个独立开关」
+// ============================================================================
+
+/**
+ * 组合轴。界面上一轴一个开关，**默认都关**（只基础价）：
+ * 关 = 该维度与基础价同价，开 = 该维度单独定价。
+ *
+ * <p>⭐ 这样表达才贴合真实语义：不是「哪些档位要出现」，而是「哪个维度要卖更贵」。
+ * 四码仍是落库与列渲染的契约（后端只认这四种后缀），轴只是它的界面投影。</p>
+ */
+export type ResolutionComboAxis = "AUDIO" | "REFERENCE";
+
+/**
+ * 该轴当前是否已单独定价。{@code REFERENCE_AUDIO} 同时属于两轴。
+ *
+ * <p>⚠ 存量配置存在非完整状态（如只有 {@code REFERENCE_AUDIO} 没有 {@code AUDIO}：
+ * 只在「含参考」时给有声加价）。这种状态界面上无法逐码表达，故按「该轴已开」显示；
+ * 用户一旦改动任一开关，就按完整笛卡尔积归一——不主动改动则原样保留、原样保存。</p>
+ */
+export function hasComboAxis(codes: unknown, axis: ResolutionComboAxis): boolean {
+  const normalized = normalizeCombos(codes);
+  return axis === "AUDIO"
+    ? normalized.includes("AUDIO") || normalized.includes("REFERENCE_AUDIO")
+    : normalized.includes("REFERENCE") || normalized.includes("REFERENCE_AUDIO");
+}
+
+/**
+ * 是否任一声价档已单列（{@code :AUDIO} / {@code :REFERENCE:AUDIO}）。
+ *
+ * <p>⭐ 音频直出附加费（{@code surcharges[trigger=AUDIO]}）与它是**同一件事的两种表达**，
+ * 后端两处都加（附加费在分量求和后 add），同时配就是双收。判据只认这两个键。</p>
+ */
+export function hasAudioPriceTier(codes: unknown): boolean {
+  const normalized = normalizeCombos(codes);
+  return normalized.includes("AUDIO") || normalized.includes("REFERENCE_AUDIO");
+}
+
+/**
+ * 切换一轴后重算组合：开则补齐该轴（含参考时连带 REFERENCE_AUDIO），关则该轴两码一起去掉。
+ *
+ * <p>两轴都开必然补 {@code REFERENCE_AUDIO}：取价链按「最具体优先」命中，
+ * 「有声 + 含参考」的请求不会把两个维度相加，只会命中 {@code :REFERENCE:AUDIO}
+ * （缺它则回落到 {@code :REFERENCE}，有声那一档白配）。</p>
+ */
+export function withComboAxis(codes: unknown, axis: ResolutionComboAxis, on: boolean): ResolutionComboCode[] {
+  const audio = axis === "AUDIO" ? on : hasComboAxis(codes, "AUDIO");
+  const reference = axis === "REFERENCE" ? on : hasComboAxis(codes, "REFERENCE");
+  const picked: ResolutionComboCode[] = ["BASE"];
+  if (audio) {
+    picked.push("AUDIO");
+  }
+  if (reference) {
+    picked.push("REFERENCE");
+  }
+  if (audio && reference) {
+    picked.push("REFERENCE_AUDIO");
+  }
+  return normalizeCombos(picked);
+}
+
+/**
+ * 组合变更后的最小表单切片：结构化类型而不是表单类型，避免 utils 反向依赖业务表单。
+ */
+export interface CombosFormSlice {
+  videoDimensionCombos: ResolutionComboCode[];
+  videoQuantityMode: string;
+  videoAudioSurcharge: number | null;
+  videoResolutionRows: ResolutionRow[];
+}
+
+/**
+ * 组合变更的统一落地（两个宿主共用：视频模式组件与维度分档方案组件）。
+ *
+ * <p>三步，缺任一步都会留下「界面上看不见、计费却会命中」的配置：</p>
+ * <ol>
+ *   <li>归一后写回表单（恒补 BASE）；</li>
+ *   <li>清掉被取消组合在**所有行**上的价格——只让列消失、价留在行里，保存就写进
+ *       {@code resolutionPrices}，成为看不见的收费项；</li>
+ *   <li>无「含参考」组合时把合成量口径回落 {@code OUTPUT}——否则已隐藏的下拉会以残留值落库。</li>
+ * </ol>
+ *
+ * <p>勾上有声单列时<strong>清空音频直出附加费</strong>：两者是同一件事，并存即双收。
+ * 清空会通过返回值告诉宿主去提示，不做无声改动。</p>
+ */
+export function applyCombosChange(form: CombosFormSlice, codes: unknown): {clearedAudioSurcharge: boolean} {
+  const normalized = normalizeCombos(codes);
+  form.videoDimensionCombos = normalized;
+  if (!normalized.includes("REFERENCE") && !normalized.includes("REFERENCE_AUDIO")) {
+    form.videoQuantityMode = "OUTPUT";
+  }
+  for (const combo of RESOLUTION_COMBOS) {
+    if (!normalized.includes(combo.code)) {
+      for (const row of form.videoResolutionRows) {
+        row[combo.field] = null;
+      }
+    }
+  }
+  if (hasAudioPriceTier(normalized) && form.videoAudioSurcharge != null) {
+    form.videoAudioSurcharge = null;
+    return {clearedAudioSurcharge: true};
+  }
+  return {clearedAudioSurcharge: false};
 }

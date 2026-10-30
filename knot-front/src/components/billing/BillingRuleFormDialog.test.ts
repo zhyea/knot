@@ -786,8 +786,8 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     const wrapper = await openDialog({ruleId: RULE_ID});
     const form = formOf(wrapper, BillingModeVideoConfig);
     expect(form.videoDimensionCombos).toEqual(["BASE", "REFERENCE"]);
-    // 只勾了 2 项（无声 + 含参考），有声 / 含参考+有声 不勾
-    expect(wrapper.findComponent(ResolutionComboPicker).findAll(".el-checkbox.is-checked")).toHaveLength(2);
+    // 两个正交开关只有「含参考输入单独定价」是开的（基础价是恒含项，不是复选框）
+    expect(wrapper.findComponent(ResolutionComboPicker).findAll(".el-checkbox.is-checked")).toHaveLength(1);
   });
 
   it("VIDEO 合成量口径：无「含参考」组合时隐藏，且不落 quantityMode", async () => {
@@ -801,10 +801,10 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     const form = formOf(wrapper, BillingModeVideoConfig);
     const picker = wrapper.findComponent(ResolutionComboPicker);
 
-    // 默认全选（含参考）→ 显示
+    // 历史配置没有 dimensionCombos 字段 → 按 LEGACY 口径回显成四列全开（含参考）→ 显示
     expect(wrapper.text()).toContain("合成量模式");
 
-    // 只留 无声 + 有声（取消含参考的两个组合）
+    // 只留 基础价 + 有声（关掉含参考那一轴）
     await picker.vm.$emit("update:modelValue", ["BASE", "AUDIO"]);
     await flushPromises();
     expect(wrapper.text()).not.toContain("合成量模式");
@@ -872,7 +872,7 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     expect((configOf(updatePayload()).video as Dict).quantityMode).toBe("OUTPUT_PLUS_MAX");
   });
 
-  it("VIDEO 计费组合：全选是默认值，不写入 dimensionCombos（不污染 config_json）", async () => {
+  it("VIDEO 计费组合：历史配置无字段 → 按四列全开回显，保存时仍不写 dimensionCombos", async () => {
     vi.mocked(getBillingRule).mockResolvedValue(
       detailRow({billingMode: "VIDEO", unit: "PER_SECOND", pricingPlan: "DIMENSION_TIERED", configJson: JSON.stringify({defaultUnitPrice: 0.5})}) as never
     );
@@ -885,9 +885,82 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     await save(wrapper);
 
     const config = configOf(updatePayload());
-    // 全选默认 → 无 video.dimensionCombos 字段（回显时按全选处理）
+    // 全选是历史回显口径 → 无 video.dimensionCombos 字段（回显时按全选处理）
     expect(config.video).toBeUndefined();
     expect(config.resolutionPrices).toEqual({"720P": 0.2});
+  });
+
+  it("VIDEO 计费组合：新建规则默认只用基础价，落 dimensionCombos [BASE] 而不是四列空价", async () => {
+    // ⭐ 2026-10-30 定调：默认不预设「有声 / 含参考」两列。BASE 是「请求未声明音频开关」的价
+    // （多数模型默认带声音），把主力价做成一个默认勾上的「无声」选项会诱导填错列。
+    const wrapper = await openDialog();
+    const form = formOf(wrapper);
+    form.code = "VIDEO_NEW";
+    form.billingMode = "VIDEO";
+    await flushPromises();
+    form.pricingPlan = "DIMENSION_TIERED";
+    await flushPromises();
+
+    const picker = wrapper.findComponent(ResolutionComboPicker);
+    expect(picker.exists()).toBe(true);
+    // 两个开关都关 —— 不是「默认勾上无声」
+    expect(picker.findAll(".el-checkbox.is-checked")).toHaveLength(0);
+    expect(form.videoDimensionCombos).toEqual(["BASE"]);
+
+    form.videoResolutionRows.push(
+      {key: "720P", price: 0.15, audioPrice: 0.9, referencePrice: 0.3, referenceAudioPrice: null, inputPrice: null}
+    );
+    await save(wrapper);
+
+    const config = configOf(vi.mocked(createBillingRule).mock.calls[0][0] as Dict);
+    // 未开的组合连键都不能落（界面上看不见的价进库就是静默收费）
+    expect(config.resolutionPrices).toEqual({"720P": 0.15});
+    expect((config.video as Dict).dimensionCombos).toEqual(["BASE"]);
+  });
+
+  it("VIDEO 有声加价：勾上「有声单独定价」时清空音频直出附加费并提示", async () => {
+    // 两条路径是两笔钱：:AUDIO 单价（按秒）+ AUDIO 附加费（常数），后端在求和后 add 附加费
+    vi.mocked(getBillingRule).mockResolvedValue(
+      detailRow({
+        billingMode: "VIDEO",
+        unit: "PER_SECOND",
+        pricingPlan: "DIMENSION_TIERED",
+        configJson: JSON.stringify({defaultUnitPrice: 0.5, surcharges: [{code: "AUDIO", trigger: "AUDIO", amount: 15}]})
+      }) as never
+    );
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper, BillingModeVideoConfig);
+    expect(form.videoAudioSurcharge).toBe(15);
+
+    await wrapper.findComponent(ResolutionComboPicker).vm.$emit("update:modelValue", ["BASE", "AUDIO"]);
+    await flushPromises();
+
+    expect(form.videoDimensionCombos).toEqual(["BASE", "AUDIO"]);
+    expect(form.videoAudioSurcharge).toBeNull();
+    expect(warned().some((message) => message.includes("音频直出附加费"))).toBe(true);
+  });
+
+  it("VIDEO 有声加价：历史配置两条并存时拒绝保存（不让同一项收两遍）", async () => {
+    vi.mocked(getBillingRule).mockResolvedValue(
+      detailRow({
+        billingMode: "VIDEO",
+        unit: "PER_SECOND",
+        pricingPlan: "DIMENSION_TIERED",
+        configJson: JSON.stringify({
+          defaultUnitPrice: 0.5,
+          video: {dimensionCombos: ["BASE", "AUDIO"]},
+          resolutionPrices: {"720P": 0.15, "720P:AUDIO": 0.3},
+          surcharges: [{code: "AUDIO", trigger: "AUDIO", amount: 15}]
+        })
+      }) as never
+    );
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    await save(wrapper);
+
+    expect(warned().some((message) => message.includes("音频直出附加费"))).toBe(true);
+    expect(vi.mocked(updateBillingRule)).not.toHaveBeenCalled();
   });
 
   it("VIDEO 阶梯写 tierMode，逐单位累加与整笔落档可区分", async () => {
@@ -1055,8 +1128,15 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
 
     const config = configOf(updatePayload());
     expect(config.resolutionPrices).toEqual({"720P": 0.15});
-    // 口径仍是默认的「仅输出」时不落 quantityMode（与历史行为一致）
-    expect(config.video).toEqual({inputVideoPerSecond: 0.5, inputImagePerImage: 0.2, freeInputImages: 5});
+    // 口径仍是默认的「仅输出」时不落 quantityMode（与历史行为一致）；
+    // dimensionCombos 必须落：这份表单是 TOKEN 规则切过来的，组合是新建默认的「仅基础价」，
+    // 不落字段回显就会按历史四列全开（比实际配置多出两列空价）
+    expect(config.video).toEqual({
+      dimensionCombos: ["BASE"],
+      inputVideoPerSecond: 0.5,
+      inputImagePerImage: 0.2,
+      freeInputImages: 5
+    });
     expect(config.surcharges).toEqual([{code: "AUDIO", trigger: "AUDIO", amount: 15}]);
   });
 

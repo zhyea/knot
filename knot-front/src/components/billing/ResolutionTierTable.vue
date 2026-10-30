@@ -47,7 +47,7 @@
 import {type PropType, computed} from "vue";
 import {Delete} from "@element-plus/icons-vue";
 import {UNIT_PRICE_STEP} from "@/utils/billingPrice";
-import {DEFAULT_COMBOS, RESOLUTION_COMBOS, createResolutionRow, normalizeCombos} from "@/utils/billingResolution";
+import {LEGACY_COMBOS, RESOLUTION_COMBOS, createResolutionRow, normalizeCombos} from "@/utils/billingResolution";
 import type {ResolutionComboCode, ResolutionPriceField, ResolutionRow} from "@/utils/billingResolution";
 
 /**
@@ -65,8 +65,13 @@ const props = defineProps({
   rows: {type: Array as PropType<ResolutionRow[]>, required: true},
   /** 常用档位下拉建议：只是建议，不是合法值白名单（厂商档位不可枚举） */
   options: {type: Array as PropType<string[]>, default: (): string[] => ["720P", "1080P", "4K"]},
-  /** 要渲染的计费组合；列顺序恒按 RESOLUTION_COMBOS 固定，不随勾选顺序漂移 */
-  combos: {type: Array as PropType<ResolutionComboCode[]>, default: () => [...DEFAULT_COMBOS]},
+  /**
+   * 要渲染的计费组合；列顺序恒按 RESOLUTION_COMBOS 固定，不随勾选顺序漂移。
+   *
+   * <p>默认用 {@code LEGACY_COMBOS}（四列全开）而不是新建默认的「仅基础价」：
+   * 本组件是纯展示层，宿主不声明列集时保守渲染全部，避免把已填的价格藏起来。</p>
+   */
+  combos: {type: Array as PropType<ResolutionComboCode[]>, default: () => [...LEGACY_COMBOS]},
   /** v-for key 前缀：同一抽屉内两张表并存时避免 key 相撞 */
   uidPrefix: {type: String, default: "res-table"}
 });

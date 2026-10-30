@@ -49,7 +49,7 @@
                          controls-position="right"
                          style="width: 100%"/>
       </el-form-item>
-      <el-form-item label="音频直出附加费">
+      <el-form-item label="音频直出附加费" :error="audioConflictHint">
         <el-input-number v-model="form.videoAudioSurcharge"
                          :min="0"
                          :step="UNIT_PRICE_STEP"
@@ -62,6 +62,7 @@
         <span>
           输入侧分量按「输出秒 + 输入秒 + 输入图片」三路各自计价后求和；
           分量单价独立于上方分辨率档，不会被默认单价顶替。附加费是与用量无关的常数项（如 Vidu 直出音频 +15）。
+          它与「有声单独定价」是同一件事的两种表达，<b>只能二选一</b>：有声按秒定价就别再收常量附加费。
         </span>
       </template>
     </el-alert>
@@ -72,7 +73,7 @@
 import {computed} from "vue";
 import {PricingPlan} from "@/constants/status";
 import {UNIT_PRICE_STEP, isTokenPricedUnit} from "@/utils/billingPrice";
-import {normalizeCombos} from "@/utils/billingResolution";
+import {hasAudioPriceTier, normalizeCombos} from "@/utils/billingResolution";
 
 const props = defineProps({
   form: {type: Object, required: true}
@@ -95,6 +96,22 @@ const isFixedPlan = computed(() => {
 });
 
 const combos = computed(() => normalizeCombos(props.form.videoDimensionCombos));
+
+/**
+ * 有声是否已按单价计费（{@code :AUDIO} / {@code :REFERENCE:AUDIO} 任一存在）。
+ *
+ * <p>此时音频直出附加费不能再用：后端把附加费在分量求和之后 add，
+ * 与维度键的有声价是两笔钱，同时存在就是同一件事收两遍。</p>
+ */
+const audioPriced = computed(() => hasAudioPriceTier(props.form.videoDimensionCombos));
+
+/** 冲突态：有声已单列且附加费仍有值。只可能来自历史配置回显——勾开关时会先清空并提示 */
+const audioConflict = computed(() => audioPriced.value && props.form.videoAudioSurcharge != null);
+
+/** 交给 el-form-item 的 error：同时得到红框与红字，且不禁用输入框（禁用会让用户无法清空，卡死） */
+const audioConflictHint = computed(() =>
+  audioConflict.value ? "有声已按单价计费，附加费会重复收取，请二选一" : ""
+);
 
 /**
  * 是否含「含参考」组合：Kling 4.0 那类「有输入视频 → 量=输出×2」的价表靠它触发。

@@ -175,7 +175,15 @@ import {
   validatePeakPricing
 } from "@/utils/billingPeakOffPeak";
 import type {PeakPricing} from "@/utils/billingPeakOffPeak";
-import {createResolutionRow, RESOLUTION_SUFFIX_FIELDS, DEFAULT_COMBOS, isAllCombos, normalizeCombos} from "@/utils/billingResolution";
+import {
+  createResolutionRow,
+  RESOLUTION_SUFFIX_FIELDS,
+  DEFAULT_COMBOS,
+  LEGACY_COMBOS,
+  hasAudioPriceTier,
+  isAllCombos,
+  normalizeCombos
+} from "@/utils/billingResolution";
 import type {ResolutionComboCode, ResolutionRow} from "@/utils/billingResolution";
 
 const props = defineProps({
@@ -670,10 +678,13 @@ function applyConfig(config: Dict) {
   // {档位名} 与 {档位名}:REFERENCE 共用一张表，回显时按后缀拆到同一行的不同列。
   form.videoResolutionRows = parseResolutionRows(config.resolutionPrices);
   const video = (config.video && typeof config.video === "object") ? config.video : {};
-  // 计费组合回显：非全选时才落库；无字段即默认全选（与旧配置的四列展示一致）
+  // 计费组合回显：有字段按字段；**视频规则**无字段才是历史口径的「四列全开」
+  // （LEGACY_COMBOS，语义不可变——若解释成「仅基础价」，老配置的有声价就变成界面上看不见、
+  // 后端仍命中的静默收费）。非视频规则的 config 里没有 video 段，不该被塞上四列默认值：
+  // 那样把 TOKEN 规则切成 VIDEO 后会残留四列，连「音频附加费冲突」都跟着误判。
   form.videoDimensionCombos = Array.isArray(video.dimensionCombos)
     ? normalizeCombos(video.dimensionCombos)
-    : [...DEFAULT_COMBOS];
+    : form.billingMode === BillingMode.VIDEO ? [...LEGACY_COMBOS] : [...DEFAULT_COMBOS];
   form.videoQuantityMode = String(video.quantityMode || "OUTPUT").trim().toUpperCase() || "OUTPUT";
   form.videoInputVideoPerSecond = toNumberOrNull(video.inputVideoPerSecond);
   form.videoInputImagePerImage = toNumberOrNull(video.inputImagePerImage);
@@ -939,6 +950,21 @@ async function submit() {
       && form.videoInputVideoPerSecond != null
       && String(form.videoQuantityMode || "OUTPUT").toUpperCase() !== "OUTPUT") {
     ElMessage.warning("维度分档价：计费量口径已折入输入秒，请勿再填写「输入视频 每秒」单价");
+    return;
+  }
+  // 有声加价的两条路径只能走一条：分量明细里 :AUDIO 单价与 AUDIO 附加费是两笔钱，
+  // 后端在求和后 add 附加费（不是互斥），同时存在就是同一件事收两遍。
+  // 勾开关时 applyCombosChange 已清空并提示，这里兜住「历史配置回显后未处理就保存」的场景。
+  // ⚠ 只在计费组合开关可见的方案下拦：固定价（含空方案）不呈现档位表也不落 resolutionPrices，
+  // 拦下来会让用户面对一个界面上根本没有、也无法关闭的「有声单列」。
+  const videoPlanCode = String(form.pricingPlan || "").toUpperCase();
+  if (form.billingMode === BillingMode.VIDEO
+      && videoPlanCode !== ""
+      && videoPlanCode !== PricingPlan.FIXED
+      && videoPlanCode !== PricingPlan.VENDOR_MINIMAX
+      && hasAudioPriceTier(form.videoDimensionCombos)
+      && form.videoAudioSurcharge != null) {
+    ElMessage.warning("有声已按单价计费，请清空「音频直出附加费」——同一项不能收两遍");
     return;
   }
   if (form.billingMode === BillingMode.CUSTOM && !validateJson(form.customConfigJson, "自定义配置")) {
