@@ -8,6 +8,18 @@ import {safeParseTemplate, stripModelField} from "@/utils/routingTestPayload";
 const GATEWAY_BASE_URL = import.meta.env.VITE_GATEWAY_BASE_URL || "http://127.0.0.1:9090";
 
 /**
+ * 网关基址（已去尾斜杠）。
+ *
+ * <p>⭐ 异步任务轮询必须走这里：202 回执里的 {@code query_url} 是<b>相对路径</b>
+ * （后端按端点前缀拼出，见 `AsyncTaskAcceptedResponse`），只有网关基址能把它补成可请求的地址。
+ * 自己再读一次 env 就会得到第二份基址——改端口时只改一处，另一处静默指向旧地址。</p>
+ */
+export function gatewayBaseUrl(): string {
+  const base = GATEWAY_BASE_URL.trim();
+  return base.endsWith("/") ? base.slice(0, -1) : base;
+}
+
+/**
  * 管理面测试头：勾选「测试时临时开启返回消费详情」后随请求发往网关。
  * 与后端 `GatewayHeaders` 同款常量——两端必须一致，改一处即改另一处。
  */
@@ -80,8 +92,7 @@ export function useTestRequestComposition(ctx: TestRequestCompositionContext) {
   }
 
   function normalizeBaseUrl(): string {
-    const base = GATEWAY_BASE_URL.trim();
-    return base.endsWith("/") ? base.slice(0, -1) : base;
+    return gatewayBaseUrl();
   }
 
   const requestUrl = computed(() => `${normalizeBaseUrl()}${protocolPath(ctx.protocol.value)}`);

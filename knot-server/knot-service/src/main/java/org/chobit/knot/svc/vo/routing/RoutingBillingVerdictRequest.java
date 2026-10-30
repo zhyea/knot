@@ -19,6 +19,10 @@ import java.util.Map;
  * @param upstreamUsage 上游 usage 原文（证据）
  * @param requestBody   请求体（证据：size 等计费属性）
  * @param sessionId     被测请求 id（串 trace，可空）
+ * @param upstreamBody  上游<b>响应体原文</b>（异步任务取网关查询响应的 {@code upstream_body}）。
+ *                      ⭐ 视频类提取器从响应取输出时长与产物数，<b>只给 {@code upstreamUsage}
+ *                      不够</b>；为空时退回「把 upstreamUsage 包成 {usage}」的同步口径
+ * @param taskStatus    异步任务终态词（{@code completed} / {@code failed} / 在途词）；同步链路为空
  */
 public record RoutingBillingVerdictRequest(String modelCode,
                                            String targetCode,
@@ -27,5 +31,7 @@ public record RoutingBillingVerdictRequest(String modelCode,
                                            Map<String, Object> knotExtend,
                                            Map<String, Object> upstreamUsage,
                                            Map<String, Object> requestBody,
-                                           String sessionId) {
+                                           String sessionId,
+                                           Map<String, Object> upstreamBody,
+                                           String taskStatus) {
 }

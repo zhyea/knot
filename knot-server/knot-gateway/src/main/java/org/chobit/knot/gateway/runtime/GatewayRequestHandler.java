@@ -531,7 +531,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
      * 包级可见供单测直接驱动。
      */
     static boolean isTestReturnUsageHeader(String headerValue) {
-        return Boolean.parseBoolean(StringUtils.trimToEmpty(headerValue));
+        return GatewayHeaders.testReturnUsageRequested(headerValue);
     }
 
     @Override

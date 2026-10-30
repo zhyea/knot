@@ -3,6 +3,7 @@ package org.chobit.knot.svc.service.support;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.svc.config.JevJudgeProperties;
+import org.chobit.knot.common.constants.enums.BillingModeEnum;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.svc.dto.routing.BillingFactAmount;
 import org.chobit.knot.svc.dto.routing.BillingFactAmountLine;
@@ -46,9 +47,25 @@ public class JevBillingJudge {
     private static final long RETRY_BACKOFF_MS = 200;
     /** 可观测 trace 名称 */
     private static final String DECISIONS_TRACE_NAME = "knot-billing-verdict";
-    /** evidence.requestAttributes 白名单：只透传计费相关请求属性，避免泄露 prompt 等敏感内容 */
-    private static final List<String> REQUEST_ATTR_KEYS = List.of(
+    /**
+     * evidence.requestAttributes 白名单（通用）：只透传计费相关请求属性，避免泄露 prompt 等敏感内容。
+     *
+     * <p>⚠ 白名单是<b>键</b>维度的，不是「全部标量」：{@code prompt} 也是字符串，靠类型过滤挡不住。</p>
+     */
+    private static final List<String> COMMON_REQUEST_ATTR_KEYS = List.of(
             "size", "width", "height", "duration_seconds", "duration");
+    /**
+     * 视频额外放行的档位键（§4.5）。
+     *
+     * <p>⭐ 分辨率与「生成声音」开关是价目表的分档键，裁判看不到它们就只能猜。而
+     * {@code video} / {@code image} 这类键<b>刻意不给</b>：它们的值是带签名的产物地址，
+     * 放进来等于把上游 URL 送进第三方模型。「有没有输入视频」这条事实的权威在
+     * {@code state.produced.usage.input.video_seconds}（由 `VideoUsageFacts` 统一推导），
+     * 不在这里再算第二遍。</p>
+     */
+    private static final List<String> VIDEO_REQUEST_ATTR_KEYS = List.of(
+            "resolution", "dimensions", "seconds",
+            "generate_audio", "with_audio", "enable_audio", "audio_enabled", "sound");
 
     private final JevJudgeProperties properties;
     private final RoutingConsumerMapper consumerMapper;
@@ -207,9 +224,10 @@ public class JevBillingJudge {
     // ---- 请求体构建 ----
 
     private Map<String, Object> buildRequestBody(JevJudgeContext context, String sessionId, boolean minimal) {
+        String billingMode = billingModeOf(context);
         Map<String, Object> request = new LinkedHashMap<>();
         request.put("state", buildState(context, minimal));
-        request.put("questions", buildQuestions());
+        request.put("questions", buildQuestions(billingMode));
         request.put("provider", buildProvider());
         if (sessionId != null && !sessionId.isBlank()) {
             request.put("session_id", sessionId);
@@ -218,6 +236,22 @@ public class JevBillingJudge {
         trace.put("trace_name", DECISIONS_TRACE_NAME);
         request.put("trace", trace);
         return request;
+    }
+
+    /**
+     * 计费模式码（题组分族的唯一依据）。
+     *
+     * <p>⭐ <b>不按协议分族</b>：{@code VIDEO_GENERATIONS} 协议下也可能命中一条 TOKEN 规则的错误配置，
+     * 那时该问的是「这条规则配错了」，而不是「视频用量对不对」。按 {@code billingMode} 分族，
+     * 问的才是「按这套规则算的钱对不对」。</p>
+     */
+    private static String billingModeOf(JevJudgeContext context) {
+        BillingFactRuleRef ref = context.ruleRef();
+        return ref == null ? null : ref.billingMode();
+    }
+
+    private static boolean isVideoMode(String billingMode) {
+        return BillingModeEnum.VIDEO.code().equals(billingMode);
     }
 
     /**
@@ -233,24 +267,23 @@ public class JevBillingJudge {
         return provider;
     }
 
-    /** 四条 questions。裁判结论使用固定 choice，避免 noul/score 数值输出无法稳定解释。 */
-    private static Map<String, Object> buildQuestions() {
+    /**
+     * 四题，按计费模式分族（§4.5）。
+     *
+     * <p>⭐ <b>为什么必须分族</b>：四题原本是按 token 写的（{@code usage_parse_ok} 里逐项对照
+     * {@code prompt_tokens} / {@code completion_tokens}），而视频上游多数<b>根本不报 usage</b>——
+     * 拿这套题去问，裁判只能回「依据不足」，看起来像裁判不灵。真正的事实是「视频的计费量是
+     * 输出时长 × 档位，没有 token 这回事」。</p>
+     *
+     * <p>选项键（{@code CORRECT} / {@code INCORRECT} / {@code INSUFFICIENT_EVIDENCE} 等）两族一致：
+     * 变化只在 {@code instructions}（让裁判知道该看哪些字段），这样响应解析与摘要生成不分叉。</p>
+     */
+    private static Map<String, Object> buildQuestions(String billingMode) {
+        boolean video = isVideoMode(billingMode);
         Map<String, Object> questions = new LinkedHashMap<>();
         questions.put("usage_parse_ok", Map.of(
                 "type", "choice",
-                "instructions", "请只根据 state.evidence.upstreamUsage（上游原始 usage）与 "
-                        + "state.produced.usage（网关归一化 usage）逐项核对输入、输出、缓存、推理与总量。"
-                        + "注意：usage 的父级总量可能已包含缓存/推理等子项，子项是拆分说明，不可再与父级相加；"
-                        + "若 completion_tokens 与 reasoning_tokens 同时存在，reasoning_tokens 通常是 completion_tokens 的子集，"
-                        + "不能把二者相加；在这些字段存在时按以下关系核对：prompt_tokens 对应 input.tokens.text，"
-                        + "completion_tokens 对应 output.tokens.text + output.tokens.reasoning，"
-                        + "completion_tokens_details.reasoning_tokens 对应 output.tokens.reasoning，"
-                        + "total_tokens 对应 usage.total_tokens 且等于 prompt_tokens + completion_tokens。"
-                        + "缓存 token 是 prompt_tokens 的子集，不重复计入总量；只有归一化结果提供了对应维度时才比较缓存明细。"
-                        + "只有能够按同一口径明确对齐时才比较数值。"
-                        + "只有原始 usage 提供足够证据且维度和值一致时选 CORRECT；发现同口径下可证实的遗漏、错位或矛盾时选 INCORRECT；"
-                        + "字段未提供、维度口径不一致或无法确认父子关系时必须选 INSUFFICIENT_EVIDENCE，不得仅因细分字段缺失判 INCORRECT。"
-                        + "必须且只能返回一个 criteria 中的 choice。",
+                "instructions", video ? videoUsageParseInstructions() : tokenUsageParseInstructions(),
                 "criteria", usageParseCriteria()));
         questions.put("rule_match_ok", Map.of(
                 "type", "choice",
@@ -263,11 +296,7 @@ public class JevBillingJudge {
                         "MISSING", "完全未命中任何计费规则")));
         questions.put("cost_plausible", Map.of(
                 "type", "choice",
-                "instructions", "请依据 state.produced.billing 的 totalCost、details（tokens/cost/price）与 "
-                        + "state.evidence.billingRule、upstreamUsage、upstreamCost 判断金额的语义合理性，不做精确算术复核。"
-                        + "证据足以支持金额与用量/单价相称时选 PLAUSIBLE；证据足以确认规则、币种或金额量级明显矛盾时选 SUSPICIOUS；"
-                        + "必要账单或用量依据缺失、无法判断时选 INSUFFICIENT_EVIDENCE。upstreamCost 缺失本身不代表证据不足，"
-                        + "请继续使用账单明细和规则依据判断。必须且只能返回一个 criteria 中的 choice。",
+                "instructions", video ? videoCostPlausibleInstructions() : tokenCostPlausibleInstructions(),
                 "criteria", costPlausibleCriteria()));
         questions.put("risk_level", Map.of(
                 "type", "choice",
@@ -277,6 +306,74 @@ public class JevBillingJudge {
                         + "必须且只能返回一个 criteria 中的 choice。",
                 "criteria", riskLevelCriteria()));
         return questions;
+    }
+
+    /** TOKEN / EMBEDDING 题组：逐项对照 token 口径（原文不动） */
+    private static String tokenUsageParseInstructions() {
+        return "请只根据 state.evidence.upstreamUsage（上游原始 usage）与 "
+                + "state.produced.usage（网关归一化 usage）逐项核对输入、输出、缓存、推理与总量。"
+                + "注意：usage 的父级总量可能已包含缓存/推理等子项，子项是拆分说明，不可再与父级相加；"
+                + "若 completion_tokens 与 reasoning_tokens 同时存在，reasoning_tokens 通常是 completion_tokens 的子集，"
+                + "不能把二者相加；在这些字段存在时按以下关系核对：prompt_tokens 对应 input.tokens.text，"
+                + "completion_tokens 对应 output.tokens.text + output.tokens.reasoning，"
+                + "completion_tokens_details.reasoning_tokens 对应 output.tokens.reasoning，"
+                + "total_tokens 对应 usage.total_tokens 且等于 prompt_tokens + completion_tokens。"
+                + "缓存 token 是 prompt_tokens 的子集，不重复计入总量；只有归一化结果提供了对应维度时才比较缓存明细。"
+                + "只有能够按同一口径明确对齐时才比较数值。"
+                + "只有原始 usage 提供足够证据且维度和值一致时选 CORRECT；发现同口径下可证实的遗漏、错位或矛盾时选 INCORRECT；"
+                + "字段未提供、维度口径不一致或无法确认父子关系时必须选 INSUFFICIENT_EVIDENCE，不得仅因细分字段缺失判 INCORRECT。"
+                + "必须且只能返回一个 criteria 中的 choice。";
+    }
+
+    /**
+     * VIDEO 题组：核对「输出时长 / 产物条数 / 档位」，<b>不套 token 公式</b>。
+     *
+     * <p>视频上游普遍不报 {@code usage}，把 token 题摆到它面前只会得到「依据不足」。
+     * 真正的计费量在 {@code state.produced.usage.output.video_seconds}（按秒计费，向上取整）、
+     * {@code output.video_count}（按条计费），档位在 {@code attributes}（分辨率 / 有无声音 / 是否指定音色）。</p>
+     */
+    private static String videoUsageParseInstructions() {
+        return "这是<b>视频生成</b>调用，计费量是输出时长与产物条数，不是 token——"
+                + "不要把视频核对套成 prompt_tokens / completion_tokens / total_tokens 那一套。"
+                + "请核对 state.produced.usage 与 state.evidence.upstreamUsage 中与视频相关的量："
+                + "output.video_seconds（输出时长，计费按秒向上取整）、output.video_count（产物条数）、"
+                + "input.video_seconds（输入视频时长）、input.image_count（参考图张数）；"
+                + "档位看 attributes（resolution 分辨率、sound 是否生成声音、voice_specified 是否指定音色）。"
+                + "核对关系：output.video_seconds 应等于产物实际时长（上游若给出 duration，须一致；"
+                + "上游未给时长时，请求体声明的 duration 与产物时长一致也算有依据）；"
+                + "output.video_count 应等于产物数组长度；input.video_seconds 与 input.image_count 只统计真实提供的输入。"
+                + "原始 usage 为空（视频上游常见）不构成 INCORRECT：此时以产物与请求声明的档位为准。"
+                + "只有证据明确指向「量或档位与产物不符」时选 INCORRECT；"
+                + "产物与请求都缺失、无从确认时选 INSUFFICIENT_EVIDENCE。"
+                + "必须且只能返回一个 criteria 中的 choice。";
+    }
+
+    /** TOKEN 题组的费用合理性说明（原文不动） */
+    private static String tokenCostPlausibleInstructions() {
+        return "请依据 state.produced.billing 的 totalCost、details（tokens/cost/price）与 "
+                + "state.evidence.billingRule、upstreamUsage、upstreamCost 判断金额的语义合理性，不做精确算术复核。"
+                + "证据足以支持金额与用量/单价相称时选 PLAUSIBLE；证据足以确认规则、币种或金额量级明显矛盾时选 SUSPICIOUS；"
+                + "必要账单或用量依据缺失、无法判断时选 INSUFFICIENT_EVIDENCE。upstreamCost 缺失本身不代表证据不足，"
+                + "请继续使用账单明细和规则依据判断。必须且只能返回一个 criteria 中的 choice。";
+    }
+
+    /**
+     * VIDEO 题组的费用合理性说明：看「时长 × 分辨率 × 声音档位」与账是否相称。
+     *
+     * <p>⚠ 只做<b>语义嗅探</b>，不复算：档位价由规则决定，裁判手里没有价目表，让它算单价只会得到编造的数字。</p>
+     */
+    private static String videoCostPlausibleInstructions() {
+        return "请依据 state.produced.billing 的 totalCost、details 与 state.evidence.billingRule 判断视频账单是否<b>语义相称</b>，"
+                + "不做精确算术复核（你没有价目表，不要试图反推或编造单价）。"
+                + "视频账单通常由「输出时长（秒）× 档位单价」构成，附加费（如音频直出）会单列一行；"
+                + "档位键包括分辨率（attributes.resolution）与是否生成声音（attributes.sound）。"
+                + "核对要点：① details 的行数与档位是否对得上（单档位一行；命中分档维度时按维度各一行）；"
+                + "② 时长量级与产物时长是否同一数量级；③ 币种与规则 currency 一致；"
+                + "④ 账上出现时长加成而产物时长为 0、或档位键与请求声明相反，都属可证实的矛盾。"
+                + "证据足以支持金额与「时长 × 档位」相称时选 PLAUSIBLE；"
+                + "证据足以确认档位、币种或量级明显矛盾时选 SUSPICIOUS；"
+                + "必要账单或档位依据缺失、无法判断时选 INSUFFICIENT_EVIDENCE。"
+                + "upstreamCost 缺失本身不代表证据不足。必须且只能返回一个 criteria 中的 choice。";
     }
 
     private static Map<String, String> usageParseCriteria() {
@@ -322,7 +419,7 @@ public class JevBillingJudge {
         evidence.put("upstreamUsage", filterNumericKeys(context.upstreamUsage()));
         evidence.put("upstreamCost", context.upstreamCost() == null ? null : context.upstreamCost().toPlainString());
         evidence.put("billingRule", toRuleRefMap(context.ruleRef()));
-        evidence.put("requestAttributes", extractRequestAttributes(context.requestBody()));
+        evidence.put("requestAttributes", extractRequestAttributes(context.requestBody(), billingModeOf(context)));
 
         Map<String, Object> state = new LinkedHashMap<>();
         state.put("subject", subjectMap);
@@ -417,15 +514,29 @@ public class JevBillingJudge {
         return null;
     }
 
-    private static Map<String, Object> extractRequestAttributes(Map<String, Object> requestBody) {
+    /**
+     * 请求侧计费属性：只取白名单键（§6.6 体积纪律）。
+     *
+     * <p>视频多放行分辨率与「生成声音」开关——它们是价目表的分档键；而不放产物地址类键
+     * （{@code video} / {@code image}），那些值带签名，等于把上游 URL 送给第三方模型。</p>
+     */
+    private static Map<String, Object> extractRequestAttributes(Map<String, Object> requestBody, String billingMode) {
         if (requestBody == null || requestBody.isEmpty()) {
             return Map.of();
         }
         Map<String, Object> out = new LinkedHashMap<>();
-        for (String key : REQUEST_ATTR_KEYS) {
+        for (String key : COMMON_REQUEST_ATTR_KEYS) {
             Object v = requestBody.get(key);
             if (v != null) {
                 out.put(key, v);
+            }
+        }
+        if (isVideoMode(billingMode)) {
+            for (String key : VIDEO_REQUEST_ATTR_KEYS) {
+                Object v = requestBody.get(key);
+                if (v != null) {
+                    out.put(key, v);
+                }
             }
         }
         return out;

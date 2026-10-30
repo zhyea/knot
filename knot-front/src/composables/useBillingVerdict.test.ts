@@ -56,6 +56,29 @@ describe("useBillingVerdict 前置条件与短路", () => {
     expect(v.verdictLoading.value).toBe(false);
     expect(v.verdictSkipped.value).toBe(false);
   });
+
+  it("异步证据随请求回传：upstreamBody 与 taskStatus 都进 payload", async () => {
+    const {ctx, calls} = makeCtx();
+    const v = useBillingVerdict(ctx);
+    v.captureKnotExtend({knot_extend: {billing: {totalCost: "0.5"}}});
+    const upstreamBody = {data: {task_result: {videos: [{duration: "5"}]}}};
+
+    await v.triggerBillingVerdict({}, false, {upstreamBody, taskStatus: "completed"});
+
+    expect(calls[0].payload.upstreamBody).toEqual(upstreamBody);
+    expect(calls[0].payload.taskStatus).toBe("completed");
+  });
+
+  it("同步链路不传证据：两字段显式为 null（不是 undefined，后端按 null 判「没有」）", async () => {
+    const {ctx, calls} = makeCtx();
+    const v = useBillingVerdict(ctx);
+    v.captureKnotExtend({knot_extend: {billing: {totalCost: "1"}}});
+
+    await v.triggerBillingVerdict({}, false);
+
+    expect(calls[0].payload.upstreamBody).toBeNull();
+    expect(calls[0].payload.taskStatus).toBeNull();
+  });
 });
 
 describe("useBillingVerdict 被告提取", () => {

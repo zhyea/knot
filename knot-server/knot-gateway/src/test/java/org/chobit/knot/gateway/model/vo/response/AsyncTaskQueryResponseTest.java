@@ -5,12 +5,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.chobit.knot.adapter.model.usage.NormalizedUsage;
+import org.chobit.knot.adapter.usage.KnotExtendPayload;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -53,7 +56,8 @@ class AsyncTaskQueryResponseTest {
                 LocalDateTime.of(2026, 10, 29, 12, 0, 5),
                 LocalDateTime.of(2026, 10, 30, 12, 0, 0),
                 Map.of("result_url", "https://x/a.mp4"),
-                new AsyncTaskFailureResponse("UPSTREAM_TASK_FAILED", "boom"));
+                new AsyncTaskFailureResponse("UPSTREAM_TASK_FAILED", "boom"),
+                null, null);
 
         JsonNode json = toWire(body);
 
@@ -71,25 +75,59 @@ class AsyncTaskQueryResponseTest {
         assertEquals(Set.of("code", "message"), fieldNames(json.get("error")));
     }
 
+    /**
+     * 测试头下多出来的两个证据键。
+     *
+     * <p>⭐ 这两键<b>不带测试头时必须缺键</b>（见 {@link #nullFieldsAreOmitted}）：
+     * 它们是排障用的内部证据（结算账 + 上游原文），常规客户端不该看见，
+     * 也不该被当成对外契约的一部分去解析。</p>
+     */
+    @Test
+    @DisplayName("带测试头：多出 knot_extend / upstream_body 两键，形状分别是账目与上游原文")
+    void evidenceKeysAppearOnlyWithTestHead() {
+        NormalizedUsage billing = new NormalizedUsage(1500L, "0.004", "USD", "v1", List.of());
+        AsyncTaskQueryResponse body = new AsyncTaskQueryResponse("tc-1", "completed",
+                LocalDateTime.of(2026, 10, 29, 12, 0, 0),
+                LocalDateTime.of(2026, 10, 29, 12, 0, 5),
+                LocalDateTime.of(2026, 10, 30, 12, 0, 0),
+                Map.of("videos", List.of(Map.of("duration", "5"))),
+                null,
+                new KnotExtendPayload(null, billing),
+                Map.of("data", Map.of("task_status", "succeed")));
+
+        JsonNode json = toWire(body);
+
+        assertTrue(json.has("knot_extend"), "结算账必须能读出来，否则异步计费无从复核");
+        assertEquals("0.004", json.get("knot_extend").get("billing").get("totalCost").asText());
+        assertTrue(json.has("upstream_body"), "上游终态原文是离线重算的唯一输入");
+        assertEquals("succeed",
+                json.get("upstream_body").get("data").get("task_status").asText());
+    }
+
     @Test
     @DisplayName("在途任务：result / error 缺键，但 completed_at 保留为 null")
     void nullFieldsAreOmitted() {
         JsonNode json = toWire(new AsyncTaskQueryResponse("tc-1", "processing",
-                LocalDateTime.of(2026, 10, 29, 12, 0, 0), null, null, null, null));
+                LocalDateTime.of(2026, 10, 29, 12, 0, 0), null, null, null, null, null, null));
 
         assertFalse(json.has("result"), "在途不该出现 result：null 会被客户端当结果读");
         assertFalse(json.has("error"), "在途不该出现 error");
         assertTrue(json.has("completed_at"), "completed_at 缺键与值为 null 是两条客户端解析路径，旧契约一直在发 null");
         assertTrue(json.get("completed_at").isNull());
         assertTrue(json.has("result_expires_at"));
+        // 证据两键同样 NON_NULL：没给就没有，绝不输出 "knot_extend": null
+        assertFalse(json.has("knot_extend"));
+        assertFalse(json.has("upstream_body"));
     }
 
     @Test
     @DisplayName("驼峰名一个都不许漏出去（注解被删的信号）")
     void camelCaseFieldsAreAbsent() {
-        JsonNode json = toWire(new AsyncTaskQueryResponse("tc-1", "queued", null, null, null, null, null));
+        JsonNode json = toWire(new AsyncTaskQueryResponse("tc-1", "queued", null, null, null,
+                null, null, new KnotExtendPayload(null, null), Map.of("k", "v")));
 
-        for (String camel : Set.of("taskCode", "createdAt", "completedAt", "resultExpiresAt")) {
+        for (String camel : Set.of("taskCode", "createdAt", "completedAt", "resultExpiresAt",
+                "knotExtend", "upstreamBody")) {
             assertFalse(json.has(camel), "wire 上出现了 Java 字段名 " + camel + "：@JsonProperty 掉了");
         }
     }

@@ -11,7 +11,8 @@
     <sql id="TaskColumns">
         id, task_code, profile_code, protocol, upstream_task_id, status, attempts, retry_round,
         next_poll_at, claim_id, claim_expires_at, last_polled_at,
-        request_json, poll_spec_json, context_json, result_json, error_code, error_message,
+        request_json, poll_spec_json, context_json, result_json, terminal_body, settlement_json,
+        error_code, error_message,
         billing_rule_code, billing_rule_version_code,
         submitted_at, completed_at, expires_at, result_expires_at,
         callback_url, delivery_status, delivery_attempts, next_delivery_at, delivered_at, delivery_error,
@@ -19,10 +20,12 @@
         created_at, updated_at
     </sql>
 
-    <!-- 列表页的投影：故意不含四个 JSON 段与占位字段。
-         一页 20 行 × 四段 JSON（单段可达数十 KB）= MB 级无用传输，而列表一个都不展示。
+    <!-- 列表页的投影：故意不含 JSON 段与占位字段。
+         一页 20 行 × 多段 JSON（单段可达数十 KB）= MB 级无用传输，而列表一个都不展示。
          ⚠ 由此实体里 requestJson 等字段是 null，含义是「本次没查」，不是「库里为空」——
-         要看它们必须走 getByTaskCode（全列）。 -->
+         要看它们必须走 getByTaskCode（全列）。
+         ⚠ terminal_body / settlement_json 同理不进这里：前者是上游原文、后者是内部账，
+         都属于「详情才看」的大字段；列表只要状态与时间。 -->
     <sql id="SummaryColumns">
         id, task_code, profile_code, protocol, upstream_task_id, status, attempts, retry_round,
         next_poll_at, error_code, error_message,
@@ -137,11 +140,16 @@
          ⭐ 回调交付在这里原子武装：落终态的那一条 SQL 顺手把 delivery_status 置回待回调、
          next_delivery_at 置为此刻。放进同一条 UPDATE 而不是「落终态后再写一次」，是因为
          中间崩溃会留下「任务已终态、却永远不会回调」的行——而那一行没有任何报错。
-         无 callback_url 的行（delivery_status = 0）五个字段全部保持原样，不制造空转。 -->
+         无 callback_url 的行（delivery_status = 0）五个字段全部保持原样，不制造空转。
+
+         ⭐ terminal_body / settlement_json 同理必须在这条 SQL 里写：终态一旦落下，
+             行就不再进在途集合，后续任何一次 UPDATE 都没有入口——账没写上就永远没有。 -->
     <update id="complete">
         update kb_async_tasks
         set status = #{status},
             result_json = #{resultJson},
+            terminal_body = #{terminalBody},
+            settlement_json = #{settlementJson},
             error_code = #{errorCode},
             error_message = #{errorMessage},
             completed_at = #{completedAt},

@@ -89,6 +89,22 @@ export function testRoutingRuleStream(
   return postEventStream(gatewayUrl, payload, signal, requestHeaders);
 }
 
+/**
+ * 异步任务查询（轮询）：直接 POST 网关任务端点。
+ *
+ * <p>句柄在路径上、无请求体——回执里的 {@code query_url} 客户端可原样使用。
+ * ⚠ 必须 POST：网关侧按 POST 注册，GET 会 405（见 `10-backend-java.md §5.2`）。</p>
+ *
+ * @param signal 关抽屉 / 发起新测试时中止在途查询，别让「已停止」只停留在文案上
+ */
+export function queryGatewayTask(
+  url: string,
+  requestHeaders: Record<string, string>,
+  signal?: AbortSignal
+) {
+  return postGatewayJson(url, {}, requestHeaders, signal);
+}
+
 /** 调试协议能力：gatewayPath / hint / promptField（默认请求体不再硬编码，改由预设请求维护） */
 export function listDebugCapabilities() {
   return get("/api/routing-rules/debug-capabilities");
@@ -141,7 +157,7 @@ export function deleteTestRequestPreset(id: number | string) {
 
 // ===================== 路由测试·计费裁判（v7 三区双盲校验） =====================
 
-/** 自检项（七项，代码精确，权威；三态 PASS/FAIL/SKIP） */
+/** 自检项（八项，代码精确，权威；三态 PASS/FAIL/SKIP） */
 export type BillingCheckStatus = "PASS" | "FAIL" | "SKIP";
 export type BillingCheckCode =
   | "USAGE_NOT_EMPTY"
@@ -150,7 +166,8 @@ export type BillingCheckCode =
   | "GATEWAY_RECOMPUTE_MATCH"
   | "RULE_MODE_MATCH"
   | "RULE_SOURCE_EXPECTED"
-  | "UPSTREAM_COST_DEVIATION";
+  | "UPSTREAM_COST_DEVIATION"
+  | "ASYNC_SETTLEMENT_CONSISTENCY";
 
 export interface BillingCheckResult {
   code: BillingCheckCode;
@@ -238,10 +255,19 @@ export interface RoutingBillingVerdictRequestPayload {
   /** 依据：请求侧计费属性 */
   requestBody?: Dict;
   sessionId?: string | null;
+  /**
+   * 依据：上游**响应体原文**。
+   *
+   * <p>⭐ 异步视频必须有它：视频提取器从响应里取输出时长与产物数，只给 {@code upstreamUsage}
+   * 那一段 usage 算不出分档。同步链路不必传（后端会退回 {@code {usage}} 口径）。</p>
+   */
+  upstreamBody?: Dict | null;
+  /** 异步任务终态词（{@code completed} / {@code failed} / 在途词）；同步链路为空 */
+  taskStatus?: string | null;
 }
 
 /**
- * 路由规则测试·计费裁判：测试响应到手后回传当次产出，做「被告账 + 影子重算 + 七项自检 + JEV 双盲」。
+ * 路由规则测试·计费裁判：测试响应到手后回传当次产出，做「被告账 + 影子重算 + 八项自检 + JEV 双盲」。
  * 与 /test 同权限（routing:rule:test）；不阻塞主流程，失败降级由后端以 available=false 表达。
  */
 export function testRoutingRuleBillingVerdict(

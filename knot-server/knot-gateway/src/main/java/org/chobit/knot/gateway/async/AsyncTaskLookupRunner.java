@@ -3,6 +3,7 @@ package org.chobit.knot.gateway.async;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.AuthConstants;
+import org.chobit.knot.common.constants.GatewayHeaders;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.model.vo.response.AsyncTaskQueryResponse;
@@ -70,17 +71,21 @@ public class AsyncTaskLookupRunner {
      * @param authorization 客户端原始 {@code Authorization} 头（含 {@code Bearer } 前缀）
      * @param rule          客户端声明的规则码，必须与任务归属一致
      * @param taskCode      任务句柄（路径参数）
+     * @param testReturnUsage {@code X-Knot-Test-Return-Usage} 原文；为 {@code true} 时响应额外带
+     *                       结算账（{@code knot_extend}）与上游终态原文（{@code upstream_body}）
      * @return 命中时是响应体；查不到 / 不属于该规则时是空 {@link Mono}（调用方映射成 404）
      * @throws GatewayAuthException 凭据缺失或无效（401）；⚠ {@code requireRuleAccess} 抛的那类
      *                              以 onError 形式在订阅后到达，见类注释
      */
-    public Mono<AsyncTaskQueryResponse> lookup(String authorization, String rule, String taskCode) {
+    public Mono<AsyncTaskQueryResponse> lookup(String authorization, String rule, String taskCode,
+                                               String testReturnUsage) {
         if (!StringUtils.startsWith(authorization, AuthConstants.BEARER_PREFIX)) {
             throw new GatewayAuthException("Invalid consumer API key");
         }
         // supplier 返回 null → 空 Mono（Reactor 契约），正好表达「查不到」，不必再造 Optional
         return MdcContextSupport.onBlockingScheduler(
-                Mono.fromSupplier(() -> lookupBlocking(authorization, rule, taskCode)),
+                Mono.fromSupplier(() -> lookupBlocking(authorization, rule, taskCode,
+                        GatewayHeaders.testReturnUsageRequested(testReturnUsage))),
                 blockingScheduler);
     }
 
@@ -89,13 +94,14 @@ public class AsyncTaskLookupRunner {
      *
      * @return 命中时是响应体；查不到返回 {@code null}（由上层翻译成空 {@code Mono}）
      */
-    private AsyncTaskQueryResponse lookupBlocking(String authorization, String rule, String taskCode) {
+    private AsyncTaskQueryResponse lookupBlocking(String authorization, String rule, String taskCode,
+                                                  boolean withEvidence) {
         routingResolver.requireRuleAccess(authorization.substring(AuthConstants.BEARER_PREFIX.length()), rule);
         AsyncTaskDto task = StringUtils.isBlank(taskCode) ? null : taskService.getByTaskCode(taskCode.trim());
         if (task == null || !ruleMatches(task, rule)) {
             return null;
         }
-        return toResponse(task);
+        return AsyncTaskViewSupport.toResponse(task, withEvidence);
     }
 
     /**
@@ -109,11 +115,6 @@ public class AsyncTaskLookupRunner {
         }
         AsyncTaskContext context = JsonKit.fromJson(task.contextJson(), AsyncTaskContext.class);
         return context != null && StringUtils.equals(rule.trim(), context.ruleCode());
-    }
-
-    private static AsyncTaskQueryResponse toResponse(AsyncTaskDto task) {
-        // 投影收敛到 AsyncTaskViewSupport：回调推送与轮询响应必须同形，见该类注释
-        return AsyncTaskViewSupport.toResponse(task);
     }
 
 }

@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -57,7 +58,7 @@ class AsyncTaskLookupRunnerTest {
     @Test
     @DisplayName("非 Bearer 凭据直接 401，不查库")
     void rejectsNonBearer() {
-        assertThrows(GatewayAuthException.class, () -> runner.lookup("Basic abc", "rule-1", "tc-1"));
+        assertThrows(GatewayAuthException.class, () -> runner.lookup("Basic abc", "rule-1", "tc-1", null));
         assertNull(resolver.seenSecretKey, "鉴权没过就不该往下走");
         assertEquals(0, taskService.lookups, "不该进库查任务");
     }
@@ -66,7 +67,7 @@ class AsyncTaskLookupRunnerTest {
     @DisplayName("鉴权交给 RoutingResolver，且传的是去掉 Bearer 前缀的裸 key")
     void delegatesAuthorization() {
         taskService.put("tc-1", task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
-        runner.lookup("Bearer sk-abc", "rule-1", "tc-1").block();
+        runner.lookup("Bearer sk-abc", "rule-1", "tc-1", null).block();
         assertEquals("sk-abc", resolver.seenSecretKey);
         assertEquals("rule-1", resolver.seenRuleCode);
     }
@@ -77,7 +78,7 @@ class AsyncTaskLookupRunnerTest {
         resolver.error = new GatewayAuthException("Consumer API key not found");
         // ⚠ 鉴权段现在跑在调度器线程上，异常以 onError 形式到达 → 必须 block() 才拿得到
         assertThrows(GatewayAuthException.class,
-                () -> runner.lookup("Bearer sk-bad", "rule-1", "tc-1").block());
+                () -> runner.lookup("Bearer sk-bad", "rule-1", "tc-1", null).block());
         assertEquals(0, taskService.lookups, "不该进库查任务");
     }
 
@@ -86,7 +87,7 @@ class AsyncTaskLookupRunnerTest {
     void blankRuleIsBadRequest() {
         resolver.error = new GatewayInvalidRequestException("Rule header must not be blank");
         assertThrows(GatewayInvalidRequestException.class,
-                () -> runner.lookup("Bearer sk-abc", " ", "tc-1").block());
+                () -> runner.lookup("Bearer sk-abc", " ", "tc-1", null).block());
     }
 
     @Test
@@ -97,7 +98,7 @@ class AsyncTaskLookupRunnerTest {
             AsyncTaskLookupRunner offloaded = new AsyncTaskLookupRunner(taskService, resolver, probe);
             taskService.put("tc-1", task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
 
-            offloaded.lookup("Bearer sk-abc", "rule-1", "tc-1").block();
+            offloaded.lookup("Bearer sk-abc", "rule-1", "tc-1", null).block();
 
             assertTrue(resolver.seenThreadName != null && resolver.seenThreadName.startsWith("probe-blocking"),
                     "鉴权（查库）仍留在调用线程上：" + resolver.seenThreadName);
@@ -112,11 +113,11 @@ class AsyncTaskLookupRunnerTest {
     @DisplayName("任务不存在或规则不匹配：一律空 Mono（由 controller 翻成同一个 404）")
     void unknownOrForeignTaskIsEmpty() {
         taskService.put("missing", null);
-        assertTrue(runner.lookup("Bearer sk-abc", "rule-1", "missing").blockOptional().isEmpty(),
+        assertTrue(runner.lookup("Bearer sk-abc", "rule-1", "missing", null).blockOptional().isEmpty(),
                 "查不到必须回空 Mono，不能回 null 值让调用方自己猜");
 
         taskService.put("tc-1", task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
-        assertTrue(runner.lookup("Bearer sk-abc", "rule-other", "tc-1").blockOptional().isEmpty(),
+        assertTrue(runner.lookup("Bearer sk-abc", "rule-other", "tc-1", null).blockOptional().isEmpty(),
                 "跨规则查询必须同样查不到：区分「存在但无权」会泄漏句柄存在性");
     }
 
@@ -124,7 +125,7 @@ class AsyncTaskLookupRunnerTest {
     @DisplayName("上下文缺失时按不匹配处理：宁可查不到，不可越权可见")
     void missingContextIsEmpty() {
         taskService.put("tc-1", task(AsyncTaskStatusEnum.PENDING, null, null, null));
-        assertTrue(runner.lookup("Bearer sk-abc", "rule-1", "tc-1").blockOptional().isEmpty());
+        assertTrue(runner.lookup("Bearer sk-abc", "rule-1", "tc-1", null).blockOptional().isEmpty());
     }
 
     @Test
@@ -142,7 +143,7 @@ class AsyncTaskLookupRunnerTest {
     void terminalStatusMapping() {
         taskService.put("tc-1", task(AsyncTaskStatusEnum.SUCCEEDED, "rule-1",
                 "{\"result_url\":\"https://x/a.mp4\"}", null));
-        AsyncTaskQueryResponse done = runner.lookup("Bearer sk-abc", "rule-1", "tc-1").block();
+        AsyncTaskQueryResponse done = runner.lookup("Bearer sk-abc", "rule-1", "tc-1", null).block();
 
         assertEquals("completed", done.status());
         // 产物必须是对象：塞原文会让客户端再解一次字符串
@@ -151,7 +152,7 @@ class AsyncTaskLookupRunnerTest {
 
         taskService.put("tc-2", task(AsyncTaskStatusEnum.FAILED, "rule-1", null,
                 "UPSTREAM_TASK_FAILED", "prompt rejected"));
-        AsyncTaskQueryResponse failed = runner.lookup("Bearer sk-abc", "rule-1", "tc-2").block();
+        AsyncTaskQueryResponse failed = runner.lookup("Bearer sk-abc", "rule-1", "tc-2", null).block();
 
         assertEquals("failed", failed.status());
         assertEquals(new AsyncTaskFailureResponse("UPSTREAM_TASK_FAILED", "prompt rejected"), failed.error());
@@ -162,11 +163,54 @@ class AsyncTaskLookupRunnerTest {
     @DisplayName("探针：规则名带前后空格应视为同一条规则，不得因空格而查不到")
     void ruleIsTrimmed() {
         taskService.put("tc-1", task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
-        assertTrue(runner.lookup("Bearer sk-abc", " rule-1 ", "tc-1").blockOptional().isPresent());
+        assertTrue(runner.lookup("Bearer sk-abc", " rule-1 ", "tc-1", null).blockOptional().isPresent());
     }
 
     private String statusOf(String taskCode) {
-        return runner.lookup("Bearer sk-abc", "rule-1", taskCode).block().status();
+        return runner.lookup("Bearer sk-abc", "rule-1", taskCode, null).block().status();
+    }
+
+    // ─────────────── 测试头：结算证据只在明确要求时出  ───────────────
+
+    @Test
+    @DisplayName("不带测试头：结算账与上游原文都不出（内部证据不进常规契约）")
+    void evidenceHiddenWithoutTestHead() {
+        taskService.put("tc-1", terminalTaskWithEvidence());
+
+        AsyncTaskQueryResponse done = runner.lookup("Bearer sk-abc", "rule-1", "tc-1", null).block();
+
+        assertNull(done.knotExtend(), "常规轮询不该看到自己的账：它不是对外契约的一部分");
+        assertNull(done.upstreamBody(), "上游原文同理，只有排障时才给");
+    }
+
+    @Test
+    @DisplayName("⭐ 带测试头：结算账与上游原文都出，账目按 knot_extend 同形解析")
+    void evidenceReturnedWithTestHead() {
+        taskService.put("tc-1", terminalTaskWithEvidence());
+
+        AsyncTaskQueryResponse done = runner.lookup("Bearer sk-abc", "rule-1", "tc-1", "true").block();
+
+        assertNotNull(done.knotExtend(), "异步任务的账没有别的出口，这里不给就等于查不到");
+        assertEquals("0.004", done.knotExtend().billing().totalCost());
+        assertEquals("succeed", done.upstreamBody().get("task_status"),
+                "上游原文必须原样透出：离线重算视频时长只能从它取");
+    }
+
+    @Test
+    @DisplayName("测试头解析口径统一：>true< 之外的写法一律不带证据")
+    void evidenceFollowsSharedHeaderParsing() {
+        taskService.put("tc-1", terminalTaskWithEvidence());
+
+        assertNull(runner.lookup("Bearer sk-abc", "rule-1", "tc-1", "1").block().knotExtend());
+        assertNull(runner.lookup("Bearer sk-abc", "rule-1", "tc-1", "false").block().knotExtend());
+        assertNotNull(runner.lookup("Bearer sk-abc", "rule-1", "tc-1", " TRUE ").block().knotExtend());
+    }
+
+    /** 已结算的终态任务：上游原文 + 与同步链路同形的结算快照 */
+    private static AsyncTaskDto terminalTaskWithEvidence() {
+        String settlement = "{\"billing\":{\"totalTokens\":1500,\"totalCost\":\"0.004\",\"currency\":\"USD\"}}";
+        return task(AsyncTaskStatusEnum.SUCCEEDED, "rule-1", "{\"result_url\":\"https://x/a.mp4\"}",
+                null, null, "{\"task_status\":\"succeed\"}", settlement);
     }
 
     private static AsyncTaskDto task(AsyncTaskStatusEnum status, String ruleCode, String resultJson, String errorCode) {
@@ -176,12 +220,19 @@ class AsyncTaskLookupRunnerTest {
     /** {@code errorMessage} 与「有没有上下文」都是显式参数：record 造完不能改，用例得一次说清 */
     private static AsyncTaskDto task(AsyncTaskStatusEnum status, String ruleCode, String resultJson,
                                      String errorCode, String errorMessage) {
+        return task(status, ruleCode, resultJson, errorCode, errorMessage, null, null);
+    }
+
+    private static AsyncTaskDto task(AsyncTaskStatusEnum status, String ruleCode, String resultJson,
+                                     String errorCode, String errorMessage,
+                                     String terminalBody, String settlementJson) {
         String contextJson = ruleCode == null ? null
                 : JsonKit.toJson(new AsyncTaskContext("tc", ruleCode, null, null, "req",
                 "VIDEO_GENERATIONS", "m", "up", "p", "pool", "https://x"));
         return new AsyncTaskDto(null, "tc", null, null, null,
                 status.code(), null, null, null, null,
-                null, null, contextJson, resultJson, errorCode, errorMessage,
+                null, null, contextJson, resultJson, terminalBody, settlementJson,
+                errorCode, errorMessage,
                 null, null, null, null, null, null,
                 null, null, null, null, null, null);
     }

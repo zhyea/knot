@@ -141,7 +141,7 @@ class AsyncTaskDeliveryRunnerTest {
         return new AsyncTaskDto(7L, "tc-1", "KLING_TASK", null, "up-1",
                 AsyncTaskStatusEnum.SUCCEEDED.code(), 1, 0, null, null,
                 "{\"prompt\":\"a cat\"}", "{}", "{}", "{\"result_url\":\"https://x/a.mp4\"}",
-                null, null, null, null,
+                null, null, null, null, null, null,
                 LocalDateTime.of(2026, 10, 29, 12, 0), completed,
                 LocalDateTime.of(2026, 10, 29, 12, 30), LocalDateTime.of(2026, 11, 5, 12, 0),
                 callbackUrl, AsyncTaskDeliveryStatusEnum.PENDING.code(), deliveryAttempts,

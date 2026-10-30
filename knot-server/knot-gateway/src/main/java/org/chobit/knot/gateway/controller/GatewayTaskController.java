@@ -31,6 +31,10 @@ import reactor.core.publisher.Mono;
  * 还会被中间层当成「可缓存、可预取、可重放」的只读请求自行代打（预取一次就是一次真实的库查询）。
  * 这条查询现在确实只读，但契约一旦以 GET 发出去，将来要加副作用（推进轮询态、计数）就改不回来了；
  * 而 POST 的代价只是客户端换个方法名。全文零 GET，见 {@code GatewayHttpMethodGuardTest}。</p>
+ *
+ * <p><b>测试头</b>：{@code X-Knot-Test-Return-Usage: true} 时响应额外带结算账
+ * （{@code knot_extend}）与上游终态原文（{@code upstream_body}），供管理端调试抽屉做计费校验。
+ * 这里只把原始头透传给 Runner，判定与投影都在 Runner/Support —— 控制器不知道「什么是证据」。</p>
  */
 @RestController
 @RequestMapping(AsyncTaskAcceptedResponse.TASKS_PATH)
@@ -49,8 +53,10 @@ public class GatewayTaskController {
     @PostMapping("/{taskCode}")
     public Mono<ResponseEntity<Object>> query(@RequestHeader(value = GatewayHeaders.AUTHORIZATION) String authorization,
                                               @RequestHeader(value = GatewayHeaders.RULE) String rule,
-                                              @PathVariable("taskCode") String taskCode) {
-        return lookupRunner.lookup(authorization, rule, taskCode)
+                                              @PathVariable("taskCode") String taskCode,
+                                              @RequestHeader(value = GatewayHeaders.X_KNOT_TEST_RETURN_USAGE, required = false)
+                                              String testReturnUsage) {
+        return lookupRunner.lookup(authorization, rule, taskCode, testReturnUsage)
                 .<ResponseEntity<Object>>map(ResponseEntity::ok)
                 .switchIfEmpty(Mono.fromSupplier(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(AsyncTaskNotFoundResponse.of(taskCode))));

@@ -153,7 +153,7 @@ class AsyncTaskCompletionTraceTest {
         return new AsyncTaskDto(null, taskCode, null, null, null,
                 null, null, null, null, null,
                 "{\"model\":\"kling-v3\",\"prompt\":\"x\"}", null, null,
-                null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null);
     }
 

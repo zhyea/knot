@@ -23,6 +23,8 @@ import java.util.Map;
  * @param gatewayBilling     被告账：网关实际注入的 knot_extend.billing（可空）
  * @param upstreamUsage      上游 usage 原文（用于抽取上游 cost；可为 upstreamRawUsage 本身）
  * @param occurredAt         发生时点（高低峰判定；可空 → 取当前）
+ * @param taskStatus         异步任务终态词（{@code completed} / {@code failed} / 在途词）；同步链路为
+ *                           {@code null}。只用于「成功必有账、失败不得有账」那一条自检
  */
 public record BillingFactAssemblyInput(String modelCode,
                                        String modelFamilyCode,
@@ -35,5 +37,6 @@ public record BillingFactAssemblyInput(String modelCode,
                                        Map<String, Object> requestBody,
                                        NormalizedUsage gatewayBilling,
                                        Map<String, Object> upstreamUsage,
-                                       Instant occurredAt) {
+                                       Instant occurredAt,
+                                       String taskStatus) {
 }

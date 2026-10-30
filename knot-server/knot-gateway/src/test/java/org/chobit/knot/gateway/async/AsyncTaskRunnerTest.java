@@ -1,11 +1,14 @@
 package org.chobit.knot.gateway.async;
 
+import org.chobit.knot.adapter.model.usage.NormalizedUsage;
 import org.chobit.knot.adapter.model.usage.UsageAccounting;
+import org.chobit.knot.adapter.usage.KnotExtendPayload;
 import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.gateway.archive.ArchiveAsset;
 import org.chobit.knot.gateway.archive.ArchiveStore;
 import org.chobit.knot.svc.dto.async.AsyncTaskDto;
+import org.chobit.knot.svc.dto.async.AsyncTaskTerminalDto;
 import org.chobit.knot.svc.service.AsyncTaskService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +21,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -39,6 +43,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class AsyncTaskRunnerTest {
 
     private static final String CLAIM_ID = "claim-1";
+
+    /** 一份「算出了钱」的账目：结算快照断言需要非空 {@code normalized}，空账会被 {@code of()} 折成 null */
+    private static final NormalizedUsage BILLING_0_004 =
+            new NormalizedUsage(1500L, "0.004", "USD", "v1", List.of());
 
     /** 策略取值与生产默认值同口径（裸字面量：改 {@code AsyncTaskDefaults} 不该让这里静默跟着变） */
     private static final AsyncTaskRunPolicy POLICY =
@@ -81,6 +89,59 @@ class AsyncTaskRunnerTest {
         assertEquals(1, settlement.terminalSeq, "首次查询就拿到终态，seq 应为 1");
         assertEquals(0, settlement.queries, "落终态那一拍不该再单独发中间事件（同一次查询只发一条）");
         assertEquals(0, taskService.schedules.size(), "落终态那一拍不该再安排下一次轮询");
+    }
+
+    @Test
+    @DisplayName("⭐ 终态证据与终态同一条 UPDATE 落库：上游原文 + 结算快照都在")
+    void terminalEvidencePersistsWithTerminal() {
+        taskService.completeResult = true;
+        settlement.chargeResult = UsageAccounting.of(null, null, null, null, BILLING_0_004);
+        AsyncTaskDto task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
+        queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://x/a.mp4\"}]}]}";
+
+        assertTrue(service.process(task));
+
+        AsyncTaskTerminalDto terminal = taskService.onlyComplete().terminal();
+        assertEquals(queryClient.body, terminal.terminalBody(),
+                "上游原文必须是这一拍查询的原始响应——离线重算视频时长就靠它");
+        assertNotNull(terminal.settlementJson(), "成功终态必须留账，否则事后无从复核");
+        KnotExtendPayload payload = JsonKit.fromJson(terminal.settlementJson(), KnotExtendPayload.class);
+        assertEquals("0.004", payload.billing().totalCost(), "落的必须是与同步链路同形的 {usage, billing}");
+    }
+
+    @Test
+    @DisplayName("失败终态：上游原文照落，结算段为空（不是 0 元账）")
+    void failedTerminalKeepsBodyButNoSettlement() {
+        taskService.completeResult = true;
+        AsyncTaskDto task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
+        queryClient.body = "{\"data\":[{\"status\":\"failed\"}],\"message\":\"prompt rejected\"}";
+
+        assertTrue(service.process(task));
+
+        AsyncTaskTerminalDto terminal = taskService.onlyComplete().terminal();
+        assertEquals(queryClient.body, terminal.terminalBody(),
+                "失败也有上游原文，它是「为什么失败」的唯一证据");
+        assertNull(terminal.settlementJson(), "不收费的终态不写账：0 元账会被读成「算出来是 0」");
+    }
+
+    /**
+     * 空账不能落字面量 {@code "null"}。
+     *
+     * <p>⭐ {@code JsonKit.toJson(null)} 输出的是 4 个字符的字符串，塞进 JSON 列后读出来是
+     * 「有账目字段、内容为 null」，而事实是「这笔没有账目」。这个差别直接决定
+     * {@code ASYNC_SETTLEMENT_CONSISTENCY} 判「漏收」还是判「不算钱」。</p>
+     */
+    @Test
+    @DisplayName("空账落 SQL NULL，不落字面量 null")
+    void emptyAccountingWritesSqlNull() {
+        taskService.completeResult = true;
+        settlement.chargeResult = UsageAccounting.empty();
+        AsyncTaskDto task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
+        queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://x/a.mp4\"}]}]}";
+
+        assertTrue(service.process(task));
+
+        assertNull(taskService.onlyComplete().terminal().settlementJson());
     }
 
     @Test
@@ -400,8 +461,9 @@ class AsyncTaskRunnerTest {
 
         @Override
         public boolean complete(Long id, String claimId, int status, String resultJson,
-                               String errorCode, String errorMessage, int deliveryPendingCode) {
-            completes.add(new CompleteCall(id, claimId, status, resultJson, errorCode, errorMessage,
+                               AsyncTaskTerminalDto terminal, String errorCode, String errorMessage,
+                               int deliveryPendingCode) {
+            completes.add(new CompleteCall(id, claimId, status, resultJson, terminal, errorCode, errorMessage,
                     deliveryPendingCode));
             return completeResult;
         }
@@ -425,7 +487,8 @@ class AsyncTaskRunnerTest {
     }
 
     private record CompleteCall(Long id, String claimId, int status, String resultJson,
-                                String errorCode, String errorMessage, int deliveryPendingCode) {
+                                AsyncTaskTerminalDto terminal, String errorCode, String errorMessage,
+                                int deliveryPendingCode) {
     }
 
     private record ScheduleCall(Long id, String claimId, LocalDateTime nextPollAt) {
@@ -466,7 +529,7 @@ class AsyncTaskRunnerTest {
         return new AsyncTaskDto(7L, "tc-1", "KLING_TASK", null, "up-1",
                 AsyncTaskStatusEnum.PENDING.code(), attempts, 0, null, claimId,
                 "{\"prompt\":\"a cat\"}", specJson, contextJson,
-                null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null);
     }
 
@@ -520,13 +583,15 @@ class AsyncTaskRunnerTest {
         private int charged;
         private int published;
         private int queries;
+        /** 默认空账（= 不计费）；需要断言结算快照的用例显式给一份非空账目 */
+        private UsageAccounting chargeResult = UsageAccounting.empty();
         private final List<Integer> querySeqs = new java.util.ArrayList<>();
         private int terminalSeq = -1;
 
         @Override
         public UsageAccounting charge(AsyncTaskDto task, AsyncTaskContext context, String queryBody) {
             charged++;
-            return UsageAccounting.empty();
+            return chargeResult;
         }
 
         @Override

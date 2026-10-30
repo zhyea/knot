@@ -9,6 +9,7 @@ import org.chobit.knot.svc.converter.AsyncTaskConverter;
 import org.chobit.knot.svc.dto.async.AsyncTaskDraftDto;
 import org.chobit.knot.svc.dto.async.AsyncTaskDto;
 import org.chobit.knot.svc.dto.async.AsyncTaskQuery;
+import org.chobit.knot.svc.dto.async.AsyncTaskTerminalDto;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -162,15 +163,20 @@ public class AsyncTaskService {
      *
      * @param claimId            本次处理持有的占位号
      * @param status             终态码（{@link AsyncTaskStatusEnum#code()}）；非终态不得传
+     * @param terminal           终态证据（上游原文 + 结算快照）；无证据传 {@link AsyncTaskTerminalDto#EMPTY}
      * @param deliveryPendingCode 待回调状态码（{@link AsyncTaskDeliveryStatusEnum#PENDING}），
      *                           仅当行上有 {@code callback_url} 时生效
      * @return 是否由本调用落定；false 表示已被别的节点落过（或占位已易主），
      * 调用方不得再发终态事件——终态事件的口径是「一条任务一条」，由真正落定的人发
      */
     public boolean complete(Long id, String claimId, int status, String resultJson,
+                            AsyncTaskTerminalDto terminal,
                             String errorCode, String errorMessage, int deliveryPendingCode) {
         requireClaimId(claimId);
-        return mapper.complete(id, claimId, status, resultJson, errorCode, errorMessage,
+        AsyncTaskTerminalDto evidence = terminal == null ? AsyncTaskTerminalDto.EMPTY : terminal;
+        return mapper.complete(id, claimId, status, resultJson,
+                evidence.terminalBody(), evidence.settlementJson(),
+                errorCode, errorMessage,
                 LocalDateTime.now(), deliveryPendingCode, AsyncTaskStatusEnum.inFlightCodes()) > 0;
     }
 

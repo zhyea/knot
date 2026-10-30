@@ -193,6 +193,15 @@
                   </div>
                 </div>
                 <el-empty v-else description="无结果信息" :image-size="64"/>
+                <!-- 视频协议却没拿到任务句柄：这是「按同步返回了」的唯一可执行指路 -->
+                <div v-if="asyncHandleMissing" class="async-handle-missing">
+                  <el-icon><WarningFilled/></el-icon>
+                  <span>
+                    本次未生成任务句柄，请求按同步返回。检查：① 模型该协议的绑定是否选了任务协议
+                    （async_profile_code）；② 档案的 task_id_path 是否能在上游创建响应里取到 ID
+                    （可在「异步任务档案 → 试跑」验证）。
+                  </span>
+                </div>
               </el-tab-pane>
               <el-tab-pane label="Body" name="body" class="response-body-pane">
                 <ShellCodeBlock
@@ -243,6 +252,59 @@
                 </div>
                 <el-empty v-else description="无响应头" :image-size="64"/>
               </el-tab-pane>
+              <!-- 异步任务：仅当本次提交被 202 接受时出现（网关已把任务接走，结果要轮询才拿到） -->
+              <el-tab-pane v-if="asyncVisible" label="异步任务" name="async" class="response-async-pane">
+                <div class="async-status">
+                  <el-tag :type="asyncStatusTagType" size="small">{{ asyncStatusText }}</el-tag>
+                  <span class="async-status__meta">
+                    已用 {{ asyncElapsedLabel }} · 本次调试查询 {{ pollCount }} 次
+                  </span>
+                  <span class="async-status__actions">
+                    <el-button size="small" :disabled="!asyncPolling" @click="pollNow">立即查询</el-button>
+                    <el-button size="small" :disabled="!asyncPolling" @click="stopAsyncPolling">停止</el-button>
+                  </span>
+                </div>
+                <p v-if="taskCode" class="async-handle">
+                  任务句柄 <code>{{ taskCode }}</code>
+                  <el-button size="small" text type="primary" @click="copyAsyncHandle">复制轮询 curl</el-button>
+                </p>
+
+                <ul v-if="asyncTimeline.length" class="async-timeline">
+                  <li v-for="(item, index) in asyncTimeline" :key="index" class="async-timeline__item">
+                    <span class="async-timeline__index">#{{ index + 1 }}</span>
+                    <span class="async-timeline__status">{{ asyncStatusLabel(item.status) }}</span>
+                    <span class="async-timeline__elapsed">{{ (item.elapsedMs / 1000).toFixed(1) }}s</span>
+                    <span v-if="item.error" class="async-timeline__error">{{ item.error }}</span>
+                  </li>
+                </ul>
+
+                <div v-if="asyncResultUrls.length" class="async-result">
+                  <video v-if="asyncResultUrl" class="async-result__video" :src="asyncResultUrl" controls/>
+                  <div v-for="(url, index) in asyncResultUrls" :key="url + index" class="async-result__url">
+                    <span class="async-result__url-index">#{{ index + 1 }}</span>
+                    <a class="async-result__url-text" :href="url" target="_blank" rel="noreferrer">{{ url }}</a>
+                  </div>
+                </div>
+
+                <div v-if="asyncError" class="async-failure">
+                  <p class="async-failure__code">{{ asyncError.code || "任务失败" }}</p>
+                  <p class="async-failure__message">{{ asyncError.message || "上游未给出原因" }}</p>
+                  <p class="async-failure__no-billing">本任务不计费：失败 / 超时 / 取消都不产生结算账目。</p>
+                </div>
+
+                <p v-if="asyncLocalTimeout" class="async-degraded">
+                  任务仍在运行，计费在终态才发生，暂无法校验。可稍后在「异步任务」页按句柄查看。
+                </p>
+                <p v-else-if="asyncStopped" class="async-degraded">
+                  已停止轮询。任务仍在网关侧运行，终态与计费会照常发生——重新提交一次才会继续观察。
+                </p>
+                <p v-else-if="asyncLastError" class="async-degraded">
+                  最近一次查询失败：{{ asyncLastError }}（将按退避自动重试）
+                </p>
+                <p v-if="asyncEvidenceMissing" class="async-degraded">
+                  本次响应未返回结算账目（任务早于本版上线 / 关闭了「临时返回消费详情」），计费校验不可用。
+                </p>
+              </el-tab-pane>
               <!-- 计费校验（JEV 双盲）：测试响应后自动触发，三区展示，不阻塞上方结果（v7 §9） -->
               <el-tab-pane v-if="verdictVisible" label="计费校验" name="verdict">
                 <RoutingBillingVerdictPanel
@@ -273,6 +335,7 @@ import ShellCodeBlock from "../common/ShellCodeBlock.vue";
 import RoutingBillingVerdictPanel from "./RoutingBillingVerdictPanel.vue";
 import {
   listRoutingRuleDebugProtocols,
+  queryGatewayTask,
   testRoutingRule,
   testRoutingRuleBillingVerdict,
   testRoutingRuleStream
@@ -280,8 +343,12 @@ import {
 import {useDebugCapabilities} from "@/composables/useDebugCapabilities";
 import {useCopyToClipboard} from "@/composables/useCopyToClipboard";
 import {useBillingVerdict} from "@/composables/useBillingVerdict";
-import {useTestRequestComposition} from "@/composables/useTestRequestComposition";
+import {gatewayBaseUrl, useTestRequestComposition} from "@/composables/useTestRequestComposition";
 import {useStreamBuffer, type StreamBlock, type RoutingTestResult} from "@/composables/useStreamBuffer";
+import {
+  useAsyncTaskPolling,
+  type AsyncTaskTerminalPayload
+} from "@/composables/useAsyncTaskPolling";
 import {getTestRequestPreset, listTestRequestPresetOptions} from "@/api/routing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {parseJsonResult} from "@/utils/format";
@@ -289,6 +356,7 @@ import {
   extractField,
   highlightBlock,
   isAbortError,
+  parseAsyncTaskAccepted,
   stripModelField
 } from "@/utils/routingTestPayload";
 import {
@@ -583,6 +651,167 @@ function stopStreaming() {
   abortStreaming();
 }
 
+// ===================== 异步任务（202 → 轮询） =====================
+
+/** 视频协议 code：只在「协议是它却没拿到句柄」时给指路提示，不参与异步判定 */
+const VIDEO_PROTOCOL = "VIDEO_GENERATIONS";
+
+/** 本次提交是否被 202 接受（决定「异步任务」tab 出不出现） */
+const asyncSubmitted = ref(false);
+/** 回执里的轮询地址原值（相对路径），拼轮询 curl 用 */
+const asyncQueryUrl = ref("");
+/** 本次提交给网关的原始请求体：终态触发计费校验时作为 requestBody 回传 */
+const asyncRequestBody = ref<Dict>({});
+
+const {
+  taskCode,
+  taskStatus,
+  pollCount,
+  timeline: asyncTimeline,
+  result: asyncResult,
+  error: asyncError,
+  localTimeout: asyncLocalTimeout,
+  stopped: asyncStopped,
+  polling: asyncPolling,
+  lastError: asyncLastError,
+  elapsedLabel: asyncElapsedLabel,
+  start: startAsyncPolling,
+  stop: stopAsyncPolling,
+  pollNow,
+  resetAsyncState,
+  disposeAsyncPolling
+} = useAsyncTaskPolling({
+  // 与发送请求同一份头（Headers 表格即权威）：测试头在轮询里同样需要，否则拿不到结算证据
+  buildHeaders: () => buildRequestHeaders("application/json"),
+  queryTask: (url, headers, signal) => queryGatewayTask(url, headers, signal),
+  onTerminal: (payload) => onAsyncTerminal(payload)
+});
+
+/** 对外状态词 → 中文短语。不建码表：五个词就是对外的全部取值 */
+const ASYNC_STATUS_LABELS: Record<string, string> = {
+  queued: "已入队",
+  processing: "生成中",
+  completed: "已完成",
+  failed: "已失败",
+  unknown: "未知"
+};
+
+function asyncStatusLabel(status: string): string {
+  return ASYNC_STATUS_LABELS[status] || status || "未知";
+}
+
+const asyncStatusText = computed(() => asyncStatusLabel(taskStatus.value));
+const asyncStatusTagType = computed(() => {
+  if (taskStatus.value === "completed") return "success";
+  if (taskStatus.value === "failed") return "danger";
+  return "warning";
+});
+
+/** 产物地址全集：优先多产物数组，回退单值（两者都在对外 result 里） */
+const asyncResultUrls = computed(() => {
+  const value = asyncResult.value;
+  if (!value) {
+    return [] as string[];
+  }
+  const list = value.result_urls;
+  if (Array.isArray(list)) {
+    const urls = list.filter((item): item is string => typeof item === "string" && !!item);
+    if (urls.length) {
+      return urls;
+    }
+  }
+  return typeof value.result_url === "string" && value.result_url ? [value.result_url] : [];
+});
+const asyncResultUrl = computed(() => asyncResultUrls.value[0] || "");
+
+const asyncVisible = computed(() => asyncSubmitted.value);
+
+/** 视频协议却没拿到句柄：同步链路下这是最常见的配置错误，必须能指路 */
+const asyncHandleMissing = computed(() => {
+  if (!testResult.value || asyncSubmitted.value) {
+    return false;
+  }
+  return canonicalOf(testResult.value.protocol) === VIDEO_PROTOCOL;
+});
+
+/** 终态成功但响应里没有结算账：三态降级中的第一种，文案与「校验请求失败」严格区分 */
+const asyncEvidenceMissing = computed(() => taskStatus.value === "completed" && !knotExtend.value);
+
+const asyncCurlPreview = computed(() => {
+  if (!asyncQueryUrl.value) {
+    return "";
+  }
+  const headerLines = Object.entries(buildRequestHeaders("application/json"))
+    .map(([name, value]) => `  -H '${name}: ${value.replace(/'/g, "'\\''")}'`)
+    .join(" \\\n");
+  return `curl -X POST '${gatewayBaseUrl()}${asyncQueryUrl.value}' \\\n${headerLines}`;
+});
+
+async function copyAsyncHandle(): Promise<void> {
+  await copy(asyncCurlPreview.value, "暂无轮询地址");
+}
+
+/**
+ * 终态处理：把「终态响应」当成当次调用的产出，交给与同步链路同一套提取与裁判。
+ *
+ * <p>⭐ 不做第二次上游请求：终态响应本身就是结果，重整一份就是「抽屉里看到的账」
+ * 与「真正的账」两个来源。</p>
+ */
+function onAsyncTerminal(payload: AsyncTaskTerminalPayload): void {
+  captureKnotExtend(payload.body);
+  const base: RoutingTestResult = testResult.value ?? {
+    curl: curlPreview.value,
+    status: RoutingTestStatus.SUCCESS,
+    httpStatus: null,
+    modelCode: activeTarget.value?.targetCode || null,
+    protocol: activeProtocol.value || null,
+    errorMessage: "",
+    responseBody: ""
+  };
+  testResult.value = {
+    ...base,
+    status: payload.status === "failed" ? RoutingTestStatus.FAILED : RoutingTestStatus.SUCCESS,
+    // 轮询响应的状态码恒为 200（查询本身成功），任务成败由 status 字段表达
+    httpStatus: 200,
+    errorMessage: payload.status === "failed" ? asyncFailureMessage(payload.body) : "",
+    responseBody: serializeBody(payload.body)
+  };
+  // failed 不发起校验：本就不计费，硬跑只会得到一条「无被告」的噪音
+  if (payload.status !== "completed" || !testBillingVerify.value) {
+    return;
+  }
+  void triggerBillingVerdict(asyncRequestBody.value, false, {
+    upstreamBody: upstreamBodyOf(payload.body),
+    taskStatus: payload.status
+  });
+}
+
+function asyncFailureMessage(body: Dict): string {
+  const error = body.error;
+  if (error && typeof error === "object" && !Array.isArray(error)) {
+    const dict = error as Dict;
+    const code = typeof dict.code === "string" ? dict.code : "";
+    const message = typeof dict.message === "string" ? dict.message : "";
+    return [code, message].filter(Boolean).join(" · ") || "任务失败";
+  }
+  return "任务失败";
+}
+
+/** 终态响应里的上游原文；缺失 / 形状不对一律 null（后端会退回 {usage} 口径） */
+function upstreamBodyOf(body: Dict): Dict | null {
+  const raw = body.upstream_body;
+  return raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Dict) : null;
+}
+
+/** 复位异步任务区：新测试与关抽屉都必须走它，否则上一轮的句柄与时间线会留在界面上 */
+function resetAsyncSection(): void {
+  disposeAsyncPolling();
+  resetAsyncState();
+  asyncSubmitted.value = false;
+  asyncQueryUrl.value = "";
+  asyncRequestBody.value = {};
+}
+
 const protocolHint = computed(() => hintOf(activeProtocol.value));
 
 const displayCurl = computed(() => testResult.value?.curl || curlPreview.value);
@@ -783,8 +1012,10 @@ function validationError(message: string): void {
 
 async function runTest() {
   if (!props.ruleId) return;
-  // 新测试一律清空上一轮裁判区：校验失败 / JSON 非法等早退分支同样不留残影
+  // 新测试一律清空上一轮裁判区与异步任务区：校验失败 / JSON 非法等早退分支同样不留残影，
+  // 更要紧的是**停掉上一轮的轮询**——否则它会继续对着上一个句柄查询并往新界面写状态
   resetVerdictState();
+  resetAsyncSection();
   if (!secretKeyReady.value) {
     validationError(MISSING_SECRET_MESSAGE);
     return;
@@ -845,8 +1076,8 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget | null, 
       buildRequestHeaders("application/json")
     );
     responseHeaders.value = response.headers || {};
-    // 被告提取：整包响应体顶层 knot_extend{usage, billing} + 并列 usage（上游原文）
-    captureKnotExtend(response.data);
+    const gatewayBody = stripModelField(requestBody);
+    const accepted = parseAsyncTaskAccepted(response.status, response.data);
     testResult.value = {
       status: RoutingTestStatus.SUCCESS,
       httpStatus: response.status,
@@ -857,10 +1088,22 @@ async function runBufferedTest(requestBody: Dict, target: RoutingTarget | null, 
       errorMessage: "",
       responseBody: serializeBody(response.data)
     };
+    if (accepted) {
+      // 202 = 任务已被网关接走，结果要轮询才拿到。此刻起**不再有 knot_extend**：
+      // 提交响应早于结算（结算发生在终态那一拍），所以这里不触发裁判。
+      asyncSubmitted.value = true;
+      asyncQueryUrl.value = accepted.queryUrl;
+      asyncRequestBody.value = gatewayBody;
+      responseTab.value = "async";
+      startAsyncPolling(accepted);
+      return;
+    }
+    // 被告提取：整包响应体顶层 knot_extend{usage, billing} + 并列 usage（上游原文）
+    captureKnotExtend(response.data);
     responseTab.value = "body";
     // 裁判第二步：不阻塞上方测试结果的渲染；开关关闭时跳过校验
     if (testBillingVerify.value) {
-      void triggerBillingVerdict(stripModelField(requestBody), false);
+      void triggerBillingVerdict(gatewayBody, false);
     }
   } catch (error) {
     responseTab.value = "body";
@@ -971,6 +1214,8 @@ function disposeTestResources() {
   // 关闭抽屉/卸载组件必须中止在途流，否则网关连接与异步线程一直被占用
   // 流式侧的四个资源（在途流 + 三个计时器 + 待刷缓冲）由 composable 统一释放
   disposeStreamResources();
+  // 异步轮询同理：定时器不停会对着已关闭的抽屉继续查上游，在途查询也要 abort
+  disposeAsyncPolling();
   if (copyResetTimer) {
     clearTimeout(copyResetTimer);
     copyResetTimer = null;
@@ -989,6 +1234,11 @@ function onClosed() {
   testResult.value = null;
   responseHeaders.value = {};
   resetVerdictState();
+  // 展示态复位：句柄 / 时间线 / 产物都不该活过这一次开关
+  resetAsyncState();
+  asyncSubmitted.value = false;
+  asyncQueryUrl.value = "";
+  asyncRequestBody.value = {};
   headerRows.value = [];
   testBillingVerify.value = true;
   loading.value = false;
@@ -1424,6 +1674,146 @@ onBeforeUnmount(disposeTestResources);
   text-align: center;
   color: var(--el-text-color-secondary);
   font-size: 12px;
+}
+
+/* ===================== 异步任务页 ===================== */
+
+.async-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.async-status__meta {
+  flex: 1;
+}
+
+.async-status__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.async-handle {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.async-handle code {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--el-fill-color-light);
+  font-family: var(--el-font-family-mono, monospace);
+  color: var(--el-text-color-primary);
+}
+
+.async-timeline {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+
+.async-timeline__item {
+  display: flex;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--el-border-color-lighter);
+}
+
+.async-timeline__index {
+  min-width: 32px;
+  color: var(--el-text-color-placeholder);
+}
+
+.async-timeline__status {
+  min-width: 72px;
+  color: var(--el-text-color-primary);
+}
+
+.async-timeline__elapsed {
+  min-width: 56px;
+  color: var(--el-text-color-secondary);
+}
+
+.async-timeline__error {
+  color: var(--el-color-warning);
+}
+
+.async-result {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.async-result__video {
+  width: 100%;
+  max-height: 320px;
+  border-radius: 6px;
+  background: #000;
+}
+
+.async-result__url {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.async-result__url-index {
+  color: var(--el-text-color-placeholder);
+}
+
+.async-result__url-text {
+  color: var(--el-color-primary);
+  word-break: break-all;
+}
+
+.async-failure {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--el-color-danger-light-5);
+  border-radius: 6px;
+  background: var(--el-color-danger-light-9);
+  font-size: 12px;
+}
+
+.async-failure__code {
+  margin: 0;
+  font-weight: 600;
+  color: var(--el-color-danger);
+}
+
+.async-failure__message {
+  margin: 4px 0 0;
+  color: var(--el-text-color-primary);
+}
+
+.async-failure__no-billing {
+  margin: 6px 0 0;
+  color: var(--el-text-color-secondary);
+}
+
+.async-degraded {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.async-handle-missing {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--el-color-warning-light-5);
+  border-radius: 6px;
+  background: var(--el-color-warning-light-9);
+  font-size: 12px;
+  color: var(--el-text-color-primary);
 }
 
 @media (max-width: 900px) {

@@ -387,15 +387,28 @@ export async function postEventStream(
  *
  * <p>选 XHR 而非 fetch 的唯一理由：`Headers` 对象会把响应头名统一小写，
  * 调试面板的「响应 Header」tab 需要展示原值。</p>
+ *
+ * @param signal 可选中止信号。异步任务轮询在关抽屉时必须能停掉在途请求——
+ *               否则「已停止」只是界面文案，网关上仍有一串查询在跑
  */
 export async function postGatewayJson<T = unknown>(
   url: string,
   data: unknown,
-  requestHeaders: Record<string, string>
+  requestHeaders: Record<string, string>,
+  signal?: AbortSignal
 ): Promise<{status: number; data: T; headers: Record<string, string>}> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", url);
+    if (signal) {
+      if (signal.aborted) {
+        reject(new DOMException("Aborted", "AbortError"));
+        return;
+      }
+      signal.addEventListener("abort", () => xhr.abort(), {once: true});
+    }
+    // 中止不是失败：抛 AbortError 让调用方按「用户主动停止」处理（同 SSE 通道口径）
+    xhr.onabort = () => reject(new DOMException("Aborted", "AbortError"));
     for (const [name, value] of Object.entries(requestHeaders)) {
       xhr.setRequestHeader(name, value);
     }

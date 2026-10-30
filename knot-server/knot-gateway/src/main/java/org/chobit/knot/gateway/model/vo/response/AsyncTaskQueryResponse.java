@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.model.vo.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.chobit.knot.adapter.usage.KnotExtendPayload;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -48,5 +49,23 @@ public record AsyncTaskQueryResponse(@JsonProperty("task_id") String taskCode,
                                      @JsonProperty("completed_at") LocalDateTime completedAt,
                                      @JsonProperty("result_expires_at") LocalDateTime resultExpiresAt,
                                      @JsonInclude(JsonInclude.Include.NON_NULL) Map<String, Object> result,
-                                     @JsonInclude(JsonInclude.Include.NON_NULL) AsyncTaskFailureResponse error) {
+                                     @JsonInclude(JsonInclude.Include.NON_NULL) AsyncTaskFailureResponse error,
+                                     /**
+                                      * 终态结算账目（与同步链路 {@code knot_extend} 同形）；
+                                      * 仅当请求带 {@code X-Knot-Test-Return-Usage: true} 且该任务已结算时出现。
+                                      *
+                                      * <p>⭐ 这是「异步任务的账」唯一的可读出口：它在终态结算时产生，
+                                      * 不随提交响应返回（202 信封早于结算），也不写进对外 {@code result}。</p>
+                                      */
+                                     @JsonInclude(JsonInclude.Include.NON_NULL)
+                                     @JsonProperty("knot_extend") KnotExtendPayload knotExtend,
+                                     /**
+                                      * 上游终态查询响应原文；仅测试头下出现。
+                                      *
+                                      * <p>用 {@code Map} 而不是类型：它是<b>上游动态 payload</b>，
+                                      * 形状由供应商决定（{@code data.task_result.videos[]} 之类），
+                                      * 属 {@code 10-backend-java.md §5.1} 允许的三类场景。</p>
+                                      */
+                                     @JsonInclude(JsonInclude.Include.NON_NULL)
+                                     @JsonProperty("upstream_body") Map<String, Object> upstreamBody) {
 }

@@ -284,6 +284,7 @@ const CHECK_LABELS: Record<BillingCheckCode, string> = {
   RULE_MODE_MATCH: "模式匹配",
   RULE_SOURCE_EXPECTED: "规则来源",
   UPSTREAM_COST_DEVIATION: "上游偏离",
+  ASYNC_SETTLEMENT_CONSISTENCY: "异步结算一致",
 };
 
 const ANSWER_LABELS: Record<string, string> = {

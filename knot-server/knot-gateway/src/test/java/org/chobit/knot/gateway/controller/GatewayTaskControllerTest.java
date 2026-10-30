@@ -39,10 +39,10 @@ class GatewayTaskControllerTest {
     @DisplayName("命中：原样返回 200 + Runner 给出的响应体（不二次包装）")
     void returnsOkWithRunnerResult() {
         AsyncTaskQueryResponse body = new AsyncTaskQueryResponse("tc-1", "queued",
-                null, null, null, null, null);
+                null, null, null, null, null, null, null);
         runner.result = Mono.just(body);
 
-        ResponseEntity<Object> response = controller.query("Bearer sk-abc", "rule-1", "tc-1").block();
+        ResponseEntity<Object> response = controller.query("Bearer sk-abc", "rule-1", "tc-1", null).block();
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertSame(body, response.getBody(), "响应体必须原样透出，controller 不再加工字段");
@@ -53,7 +53,7 @@ class GatewayTaskControllerTest {
     void mapsEmptyToNotFound() {
         runner.result = Mono.empty();
 
-        ResponseEntity<Object> response = controller.query("Bearer sk-abc", "rule-1", "tc-1").block();
+        ResponseEntity<Object> response = controller.query("Bearer sk-abc", "rule-1", "tc-1", null).block();
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
         assertEquals(new AsyncTaskNotFoundResponse("task not found: tc-1"), response.getBody());
@@ -64,11 +64,28 @@ class GatewayTaskControllerTest {
     void passesArgumentsThrough() {
         runner.result = Mono.empty();
 
-        controller.query("Bearer sk-abc", "rule-1", " tc-1 ").block();
+        controller.query("Bearer sk-abc", "rule-1", " tc-1 ", null).block();
 
         assertEquals("Bearer sk-abc", runner.seenAuthorization, "去 Bearer 前缀是业务，不该在壳里做");
         assertEquals("rule-1", runner.seenRule);
         assertEquals(" tc-1 ", runner.seenTaskCode, "trim 属于业务（Runner 里做），壳原样传");
+    }
+
+    /**
+     * 测试头原样透传。
+     *
+     * <p>⚠ 守的是「解析口径唯一」：解析在 {@code GatewayHeaders.testReturnUsageRequested}，
+     * 壳这里如果顺手 {@code Boolean.parseBoolean} 一遍，同步链路与异步链路就有了两份口径，
+     * 其中一份早晚会被改歪（{@code "TRUE "} / {@code "1"} 之类）。</p>
+     */
+    @Test
+    @DisplayName("测试头原样透传：是否附带证据由 Runner 按统一口径解析")
+    void passesTestReturnUsageThrough() {
+        runner.result = Mono.empty();
+
+        controller.query("Bearer sk-abc", "rule-1", "tc-1", " true ").block();
+
+        assertEquals(" true ", runner.seenTestReturnUsage, "解析口径在 GatewayHeaders，壳不再二次加工");
     }
 
     /**
@@ -81,16 +98,19 @@ class GatewayTaskControllerTest {
         private String seenAuthorization;
         private String seenRule;
         private String seenTaskCode;
+        private String seenTestReturnUsage;
 
         private RecordingLookupRunner() {
             super(null, null, null);
         }
 
         @Override
-        public Mono<AsyncTaskQueryResponse> lookup(String authorization, String rule, String taskCode) {
+        public Mono<AsyncTaskQueryResponse> lookup(String authorization, String rule, String taskCode,
+                                                   String testReturnUsage) {
             this.seenAuthorization = authorization;
             this.seenRule = rule;
             this.seenTaskCode = taskCode;
+            this.seenTestReturnUsage = testReturnUsage;
             return result;
         }
     }

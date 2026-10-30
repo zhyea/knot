@@ -4,12 +4,14 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.adapter.model.usage.UsageAccounting;
+import org.chobit.knot.adapter.usage.KnotExtendPayload;
 import org.chobit.knot.common.constants.enums.AsyncTaskDeliveryStatusEnum;
 import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.gateway.archive.ArchiveAsset;
 import org.chobit.knot.gateway.archive.ArchiveStore;
 import org.chobit.knot.svc.dto.async.AsyncTaskDto;
+import org.chobit.knot.svc.dto.async.AsyncTaskTerminalDto;
 import org.chobit.knot.svc.service.AsyncTaskService;
 import org.springframework.lang.Nullable;
 
@@ -273,12 +275,12 @@ public class AsyncTaskRunner {
                 // 也没必要给实现方出这种题
                 finish(task, polling.context(), transition.to(), polling.attempts(),
                         deliveredUrls(resultUrls, archive(task, polling.context(), sourceUrl)),
-                        null, null, usage);
+                        null, null, usage, polling.rawBody());
                 yield true;
             }
             case SETTLE -> {
                 finish(task, polling.context(), transition.to(), polling.attempts(), List.of(),
-                        event.errorCode(), messageOf(polling, event), null);
+                        event.errorCode(), messageOf(polling, event), null, polling.rawBody());
                 yield true;
             }
         };
@@ -391,6 +393,8 @@ public class AsyncTaskRunner {
      *
      * @param querySeq 本次任务一共查了几次上游；写进终态事件的 {@code task_query_seq}，
      *                 它是「产物要等多久」的唯一量化口径（与提交事件配对即得延迟分布）
+     * @param upstreamBody 本次查询拿到的上游响应原文；没有发出查询（超时 / 快照不可读）时为
+     *                 {@code null}。与结算快照一起落库，理由见 {@link AsyncTaskTerminalDto}
      */
     private void finish(AsyncTaskDto task,
                         AsyncTaskContext context,
@@ -399,9 +403,11 @@ public class AsyncTaskRunner {
                         List<String> resultUrls,
                         String errorCode,
                         String errorMessage,
-                        UsageAccounting usage) {
+                        UsageAccounting usage,
+                        String upstreamBody) {
         boolean settled = taskService.complete(task.id(), task.claimId(), status.code(),
-                resultJson(resultUrls), errorCode, errorMessage,
+                resultJson(resultUrls), terminalEvidenceOf(upstreamBody, usage),
+                errorCode, errorMessage,
                 AsyncTaskDeliveryStatusEnum.PENDING.code());
         if (!settled) {
             log.warn("Async task not settled by this node (already settled or claim lost), "
@@ -418,6 +424,27 @@ public class AsyncTaskRunner {
             // 事件发布失败不影响任务终态：钱已经算过了，事件是旁路观测
             log.error("Async task terminal event publish failed: taskCode={}", task.taskCode(), e);
         }
+    }
+
+    /**
+     * 终态证据：上游原文 + 结算快照，与终态<b>同一条 UPDATE</b> 落库。
+     *
+     * <p>⭐ 结算快照直接复用 {@link KnotExtendPayload}（同步链路 {@code knot_extend} 的同一类型），
+     * 于是「异步的账」与「同步的账」在存储层就是同一种形状：读取侧、离线重算、裁判 state
+     * 都不必为异步单独分叉。自己另拼一份 {@code {usage, billing}} 的 Map 等于制造第二种口径。</p>
+     *
+     * <p>⚠ 不计费的终态（失败 / 超时 / 取消）{@code usage == null} → 结算段为 {@code null}，
+     * <b>不写零账</b>：零账会被读成「这次算出来是 0 元」，而事实是「这次不该收钱」。</p>
+     */
+    private static AsyncTaskTerminalDto terminalEvidenceOf(String upstreamBody, UsageAccounting usage) {
+        if (usage == null) {
+            return new AsyncTaskTerminalDto(upstreamBody, null);
+        }
+        KnotExtendPayload payload = KnotExtendPayload.of(usage);
+        // ⚠ 空账（isEmpty）时 of() 返回 null，此时必须落 SQL NULL 而不是 JsonKit.toJson(null)
+        // ——后者会把字面量 "null" 写进 settlement_json，读出来是「有账目、内容为 null」，
+        // 而事实是「这次没有账目」。两者在「成功必有账」那条自检里的结论正好相反。
+        return new AsyncTaskTerminalDto(upstreamBody, payload == null ? null : JsonKit.toJson(payload));
     }
 
     /**

@@ -81,13 +81,17 @@ public class RoutingTestBillingVerdictService {
             String familyCode = model == null ? null : model.getModelFamilyCode();
             String extractorCode = resolveExtractorCode(model, req.protocol(), req.stream());
 
-            // 影子链输入：upstreamRawBody 包成 {"usage": upstreamUsage}
-            // （默认 token 提取器经 UsageRawReader.readUsage 读 body.usage）
-            Map<String, Object> upstreamRawBody = Map.of("usage", upstreamUsage);
+            // 影子链输入：同步链路把 upstreamUsage 包成 {"usage": upstreamUsage}
+            // （默认 token 提取器经 UsageRawReader.readUsage 读 body.usage）；
+            // 异步任务直接给上游响应整包——视频类提取器要从响应取输出时长与产物数，
+            // 只给 usage 子对象会让「时长」永远是 0（少收一路钱且不报错）。
+            Map<String, Object> upstreamRawBody = req.upstreamBody() != null
+                    ? req.upstreamBody()
+                    : Map.of("usage", upstreamUsage);
             BillingFactAssemblyInput input = new BillingFactAssemblyInput(
                     modelKey, familyCode, ruleCode, extractorCode, req.protocol(), req.stream(),
                     upstreamRawBody, upstreamUsage, req.requestBody(),
-                    gatewayBilling, upstreamUsage, Instant.now());
+                    gatewayBilling, upstreamUsage, Instant.now(), req.taskStatus());
 
             fact = assembler.assemble(input);
             checks = BillingFactChecks.runAll(fact);

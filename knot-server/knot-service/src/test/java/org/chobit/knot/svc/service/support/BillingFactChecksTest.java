@@ -20,7 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 计费自检七项逐态覆盖：每项 PASS / FAIL / SKIP 明确，含篡改金额反向用例与 cost 缺失 SKIP。
+ * 计费自检八项逐态覆盖：每项 PASS / FAIL / SKIP 明确，含篡改金额反向用例与 cost 缺失 SKIP。
  *
  * <p>纯函数测试：直接构造 {@link BillingFact}，不依赖 Spring / 数据库。</p>
  */
@@ -48,8 +48,19 @@ class BillingFactChecksTest {
 
     private static BillingFact standard(BillingFactUsage usage, BillingFactAmount shadow, BillingFactAmount gateway,
                                         BigDecimal upstream, BillingRuleSource source) {
+        return standard(usage, shadow, gateway, upstream, source, null);
+    }
+
+    /**
+     * 带异步终态词的版本。
+     *
+     * <p>{@code taskStatus} 为空 = 同步链路，第 ⑧ 项（异步结算一致性）合法地 SKIP；
+     * 给了 {@code completed} / {@code failed} 才进入「成功必有账、失败不得有账」的判定。</p>
+     */
+    private static BillingFact standard(BillingFactUsage usage, BillingFactAmount shadow, BillingFactAmount gateway,
+                                        BigDecimal upstream, BillingRuleSource source, String taskStatus) {
         BillingFactRuleRef ruleRef = new BillingFactRuleRef("r1", "TOKEN", "1M_TOKENS", "USD", "FIXED", source, "v1");
-        return new BillingFact(new BillingFactSubject("m1", "OPENAI", false, source),
+        return new BillingFact(new BillingFactSubject("m1", "OPENAI", false, source, taskStatus),
                 usage, ruleRef, shadow, gateway, upstream);
     }
 
@@ -62,9 +73,57 @@ class BillingFactChecksTest {
     void shouldPassAllOnStandardTokenScenario() {
         BillingFact fact = standard(STANDARD_USAGE, STANDARD_AMOUNT, STANDARD_AMOUNT, new BigDecimal("0.0039"), BillingRuleSource.EXPLICIT);
         for (BillingCheckCode code : BillingCheckCode.values()) {
+            if (code == BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY) {
+                // 同步链路没有异步终态可判，合法 SKIP——不是漏判
+                assertEquals(BillingCheckStatus.SKIP, result(fact, code).status());
+                continue;
+            }
             assertEquals(BillingCheckStatus.PASS, result(fact, code).status(),
                     "应全 PASS，但 " + code + " 为 " + result(fact, code));
         }
+    }
+
+    // ─────────────── ⑧ 异步结算一致性：四态 ───────────────
+
+    @Test
+    void asyncSettlementShouldPassWhenCompletedAndSettled() {
+        BillingFact fact = standard(STANDARD_USAGE, STANDARD_AMOUNT, STANDARD_AMOUNT, null,
+                BillingRuleSource.EXPLICIT, "completed");
+        assertEquals(BillingCheckStatus.PASS, result(fact, BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY).status());
+    }
+
+    @Test
+    void asyncSettlementShouldFailWhenCompletedButNoAccount() {
+        BillingFact fact = standard(STANDARD_USAGE, STANDARD_AMOUNT, null, null,
+                BillingRuleSource.EXPLICIT, "completed");
+        BillingCheckResult r = result(fact, BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY);
+        assertEquals(BillingCheckStatus.FAIL, r.status(), "成功没账 = 漏收，必须判死");
+        assertTrue(r.message().contains("漏收"));
+    }
+
+    @Test
+    void asyncSettlementShouldPassWhenFailedWithoutAccount() {
+        BillingFact fact = standard(STANDARD_USAGE, STANDARD_AMOUNT, null, null,
+                BillingRuleSource.EXPLICIT, "failed");
+        assertEquals(BillingCheckStatus.PASS, result(fact, BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY).status());
+    }
+
+    @Test
+    void asyncSettlementShouldFailWhenFailedButSettled() {
+        BillingFact fact = standard(STANDARD_USAGE, STANDARD_AMOUNT, STANDARD_AMOUNT, null,
+                BillingRuleSource.EXPLICIT, "failed");
+        BillingCheckResult r = result(fact, BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY);
+        assertEquals(BillingCheckStatus.FAIL, r.status(), "失败了还记账 = 错收，必须判死");
+        assertTrue(r.message().contains("错收"));
+    }
+
+    @Test
+    void asyncSettlementShouldSkipWhileInFlight() {
+        BillingFact fact = standard(STANDARD_USAGE, STANDARD_AMOUNT, null, null,
+                BillingRuleSource.EXPLICIT, "processing");
+        BillingCheckResult r = result(fact, BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY);
+        assertEquals(BillingCheckStatus.SKIP, r.status(), "在途任务结算本就没发生，不能充 PASS");
+        assertTrue(r.message().contains("processing"));
     }
 
     @Test
@@ -112,7 +171,8 @@ class BillingFactChecksTest {
         // TOKEN 规则但非 token 用量（媒体形态）
         BillingFactRuleRef mediaRuleRef = new BillingFactRuleRef("r1", "TOKEN", "1M_TOKENS", "USD", "FIXED",
                 BillingRuleSource.EXPLICIT, "v1");
-        BillingFact fact = new BillingFact(new BillingFactSubject("m1", "OPENAI", false, BillingRuleSource.EXPLICIT),
+        BillingFact fact = new BillingFact(new BillingFactSubject("m1", "OPENAI", false,
+                BillingRuleSource.EXPLICIT, null),
                 MEDIA_USAGE, mediaRuleRef, STANDARD_AMOUNT, STANDARD_AMOUNT, null);
         assertEquals(BillingCheckStatus.FAIL, result(fact, BillingCheckCode.RULE_MODE_MATCH).status());
     }

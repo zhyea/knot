@@ -57,6 +57,18 @@ public final class GatewayHeaders {
     public static final String X_API_KEY = "x-api-key";
     public static final String ANTHROPIC_VERSION = "anthropic-version";
 
+    /**
+     * {@link #X_KNOT_TEST_RETURN_USAGE} 的取值解析：仅 {@code true}（忽略大小写与首尾空白）生效。
+     *
+     * <p>⭐ <b>解析口径必须只有一份</b>：同步响应注入（{@code GatewayRequestHandler}）与
+     * 异步任务查询端点（{@code AsyncTaskLookupRunner}）用的是同一个开关，两处各写一次
+     * {@code Boolean.parseBoolean} 迟早出现「同步认 TRUE、异步不认」这种只在调试时暴露的差异。
+     * 语义归头的定义处，调用方只问结论。</p>
+     */
+    public static boolean testReturnUsageRequested(String headerValue) {
+        return headerValue != null && Boolean.parseBoolean(headerValue.trim());
+    }
+
     private GatewayHeaders() {
     }
 }

@@ -139,7 +139,7 @@ class AsyncTaskPollerTest {
         return new AsyncTaskDto(7L, "tc-1", "KLING_TASK", null, "up-1",
                 AsyncTaskStatusEnum.PENDING.code(), 0, 0, null, "claim-1",
                 "{}", "{}", "{}",
-                null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null, null, null);
     }
 

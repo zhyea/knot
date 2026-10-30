@@ -441,9 +441,127 @@ class JevBillingJudgeTest {
         assertFalse(provider.containsKey("only"));
     }
 
+    // ==================== 题组按计费模式分族（§4.5） ====================
+
+    /**
+     * ⭐ 视频题组：问「时长 / 产物数 / 档位」，不问 token。
+     *
+     * <p>反向探针：把 {@code buildQuestions} 改回单一口径，这条必红（instructions 里会出现
+     * prompt_tokens 那套）。它守的不是文案，是「裁判被问了什么」——问错题得到的答案
+     * 只会是「依据不足」，然后被误读成「裁判不灵」。</p>
+     */
     @Test
-    void secretKeyNeverLoggedOrInBody() {
-        JevJudgeProperties props = configuredProps();
+    void videoModeAsksAboutDurationAndTiersNotTokens() {
+        FakeDecisionsTransport transport = new FakeDecisionsTransport();
+        JevBillingJudge judge = configuredJudge(transport);
+
+        judge.judge(videoContext(), "http://gw", "sid");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> questions = (Map<String, Object>) transport.lastBody.get("questions");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> usage = (Map<String, Object>) questions.get("usage_parse_ok");
+        String usageText = (String) usage.get("instructions");
+        assertTrue(usageText.contains("video_seconds"), "视频题组必须点名输出时长");
+        assertTrue(usageText.contains("video_count"), "视频题组必须点名产物条数");
+        assertTrue(usageText.contains("attributes"), "档位在 attributes 里，题面得指路");
+        assertTrue(usageText.contains("不要把视频核对套成"), "必须明确禁止套 token 口径");
+        assertFalse(usageText.contains("prompt_tokens 对应 input.tokens.text"),
+                "视频题组不得再要求逐项核对 token 映射");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> cost = (Map<String, Object>) questions.get("cost_plausible");
+        String costText = (String) cost.get("instructions");
+        assertTrue(costText.contains("档位"), "费用相称必须落到档位上");
+        assertTrue(costText.contains("分辨率"), "分辨率是分档键");
+        assertTrue(costText.contains("不要试图反推或编造单价"), "没有价目表就不许算单价（防编数字）");
+
+        // 选项键两族一致：解析与摘要不分叉
+        @SuppressWarnings("unchecked")
+        Map<String, String> criteria = (Map<String, String>) usage.get("criteria");
+        assertEquals(Set.of("CORRECT", "INCORRECT", "INSUFFICIENT_EVIDENCE"), criteria.keySet());
+    }
+
+    /** 视频档位键要进 requestAttributes；产物地址类键绝不进（带签名，等于泄露上游 URL） */
+    @Test
+    void videoRequestAttributesCarryTiersButNeverAssetUrls() {
+        FakeDecisionsTransport transport = new FakeDecisionsTransport();
+        JevBillingJudge judge = configuredJudge(transport);
+
+        judge.judge(videoContext(), "http://gw", "sid");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> state = (Map<String, Object>) transport.lastBody.get("state");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> evidence = (Map<String, Object>) state.get("evidence");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> attrs = (Map<String, Object>) evidence.get("requestAttributes");
+        assertEquals("720x1280", attrs.get("resolution"));
+        assertEquals(true, attrs.get("sound"));
+        assertFalse(attrs.containsKey("video"), "输入视频的地址是带签名的，不许进 state");
+        assertFalse(attrs.containsKey("image"), "参考图地址同理");
+        assertFalse(attrs.containsKey("prompt"), "prompt 不是计费维度");
+    }
+
+    /** TOKEN 题组不受影响：仍是原来那套 token 逐项核对 */
+    @Test
+    void tokenModeKeepsTokenQuestions() {
+        FakeDecisionsTransport transport = new FakeDecisionsTransport();
+        JevBillingJudge judge = configuredJudge(transport);
+
+        judge.judge(sampleContext(1), "http://gw", "sid");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> questions = (Map<String, Object>) transport.lastBody.get("questions");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> usage = (Map<String, Object>) questions.get("usage_parse_ok");
+        String usageText = (String) usage.get("instructions");
+        assertTrue(usageText.contains("prompt_tokens 对应 input.tokens.text"));
+        assertFalse(usageText.contains("video_seconds"), "token 题组不该出现视频字段");
+        // TOKEN 模式不放行视频档位键：白名单按模式收，避免 state 无谓膨胀
+        @SuppressWarnings("unchecked")
+        Map<String, Object> state = (Map<String, Object>) transport.lastBody.get("state");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> evidence = (Map<String, Object>) state.get("evidence");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> attrs = (Map<String, Object>) evidence.get("requestAttributes");
+        assertFalse(attrs.containsKey("resolution"));
+    }
+
+    private JevBillingJudge configuredJudge(FakeDecisionsTransport transport) {
+        RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
+        RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
+        when(cMock.getByCode("jev-judge-client")).thenReturn(enabledConsumer());
+        when(rMock.getByRuleCode("jev-billing-judge")).thenReturn(enabledRule());
+        return new JevBillingJudge(configuredProps(), cMock, rMock, transport, new ObjectMapper());
+    }
+
+    /** 视频上下文：账按秒计，档位在请求体里（分辨率 / 生成声音），并带一个产物地址当诱饵 */
+    private JevJudgeContext videoContext() {
+        BillingFactSubject subject = new BillingFactSubject(
+                "kling-v3", "VIDEO_GENERATIONS", false, BillingRuleSource.EXPLICIT, "completed");
+        Map<String, Object> gatewayUsage = Map.of(
+                "output", Map.of("video_seconds", 5, "video_count", 1),
+                "attributes", Map.of("resolution", "720x1280", "sound", true));
+        List<BillingFactAmountLine> details = List.of(
+                new BillingFactAmountLine("BASE", 5L, "0.5", "0.1"));
+        BillingFactAmount billing = new BillingFactAmount(5L, "0.5", "USD", details);
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("resolution", "720x1280");
+        requestBody.put("sound", true);
+        requestBody.put("duration", 5);
+        requestBody.put("prompt", "a cat walks");            // 非计费维度，应被过滤
+        requestBody.put("video", "https://signed.example/in.mp4");  // 敏感，应被过滤
+        requestBody.put("image", "https://signed.example/ref.png"); // 敏感，应被过滤
+        BillingFactRuleRef ruleRef = new BillingFactRuleRef(
+                "br-video", "VIDEO", "PER_SECOND", "USD", "DIMENSION_TIERED",
+                BillingRuleSource.EXPLICIT, "v1");
+        return new JevJudgeContext(subject, gatewayUsage, billing, Map.of(),
+                null, ruleRef, requestBody);
+    }
+
+    @Test
+    void secretKeyNeverLoggedOrInBody() {        JevJudgeProperties props = configuredProps();
         RoutingConsumerMapper cMock = mock(RoutingConsumerMapper.class);
         RoutingRuleMapper rMock = mock(RoutingRuleMapper.class);
         when(cMock.getByCode("jev-judge-client")).thenReturn(enabledConsumer());
@@ -520,7 +638,7 @@ class JevBillingJudgeTest {
 
     private JevJudgeContext sampleContext(int detailCount) {
         BillingFactSubject subject = new BillingFactSubject(
-                "gpt-4o", "OPENAI_CHAT", false, BillingRuleSource.EXPLICIT);
+                "gpt-4o", "OPENAI_CHAT", false, BillingRuleSource.EXPLICIT, null);
         Map<String, Object> gatewayUsage = Map.of(
                 "prompt_tokens", 1000, "completion_tokens", 500, "total_tokens", 1500);
         List<BillingFactAmountLine> details = new ArrayList<>();

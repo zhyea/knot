@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.async;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.adapter.usage.KnotExtendPayload;
 import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.gateway.model.vo.response.AsyncTaskFailureResponse;
@@ -31,13 +32,42 @@ final class AsyncTaskViewSupport {
 
     /** 把一条任务投影成对外视图（轮询响应体与回调 body 共用） */
     static AsyncTaskQueryResponse toResponse(AsyncTaskDto task) {
+        return toResponse(task, false);
+    }
+
+    /**
+     * 带证据投影：{@code withEvidence} 为 true 时额外带上结算账与上游原文。
+     *
+     * <p>⭐ <b>两段只走测试头</b>：它们是内部账与上游原文，普通客户端不该看到（也不需要）。
+     * 回调投递恒传 {@code false}——回推 body 与轮询 body 必须同形，多一个键就会让客户端
+     * 「轮询拿到什么、回调收到什么」出现分叉，而那条契约是刻意收敛过的。</p>
+     */
+    static AsyncTaskQueryResponse toResponse(AsyncTaskDto task, boolean withEvidence) {
         return new AsyncTaskQueryResponse(task.taskCode(),
                 displayStatus(task.status()),
                 task.submittedAt(),
                 task.completedAt(),
                 task.resultExpiresAt(),
                 resultOf(task),
-                failureOf(task));
+                failureOf(task),
+                withEvidence ? settlementOf(task) : null,
+                withEvidence ? upstreamBodyOf(task) : null);
+    }
+
+    /**
+     * 结算快照 → {@code knot_extend}；未结算（失败/超时/老任务）返回 null。
+     *
+     * <p>反序列化失败时 {@code JsonKit.fromJson} 自身记 ERROR 并返回 null，这里不再兜一层：
+     * 多一层 catch 只会让「脏数据」与「本来没有」在日志里长得一样。</p>
+     */
+    private static KnotExtendPayload settlementOf(AsyncTaskDto task) {
+        return JsonKit.fromJson(task.settlementJson(), KnotExtendPayload.class);
+    }
+
+    /** 上游终态响应原文 → 对象；无原文返回 null（在途任务、超时、老任务） */
+    private static Map<String, Object> upstreamBodyOf(AsyncTaskDto task) {
+        return JsonKit.fromJson(task.terminalBody(), new TypeReference<Map<String, Object>>() {
+        });
     }
 
     /**

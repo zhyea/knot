@@ -71,7 +71,7 @@ public class BillingFactAssembler {
         BigDecimal upstreamCost = extractUpstreamCost(input.upstreamUsage());
 
         BillingFactSubject subject = new BillingFactSubject(
-                input.modelCode(), input.protocol(), input.stream(), matchedBy);
+                input.modelCode(), input.protocol(), input.stream(), matchedBy, input.taskStatus());
 
         return new BillingFact(subject, usage, ruleRef, shadowAmount, gatewayBilling, upstreamCost,
                 resolved.fallback(), usageAbsent);

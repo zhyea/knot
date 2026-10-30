@@ -108,6 +108,8 @@ class AsyncTaskMapperSqlTest {
                 params.put("id", 1L);
                 params.put("status", 2);
                 params.put("resultJson", "{}");
+                params.put("terminalBody", "{\"output\":{\"duration\":5}}");
+                params.put("settlementJson", null);
                 params.put("errorCode", null);
                 params.put("errorMessage", null);
                 params.put("completedAt", LocalDateTime.now());

@@ -62,6 +62,26 @@ public class AsyncTaskEntity {
     private String pollSpecJson;
     private String contextJson;
     private String resultJson;
+    /**
+     * 上游<b>终态查询响应原文</b>（原样，不解析、不裁剪）。
+     *
+     * <p>⭐ 存在的理由是「计费必须可复现」：视频类提取器从<b>响应</b>取输出时长与产物数，
+     * 请求体只提供分辨率/声音/参考图等维度。这份响应原先用完即弃（只进 Kafka 流量事件），
+     * 于是管理端离线重算没有任何输入——「重算对照」只能恒 SKIP。
+     * 落库后它同时是排障第一现场：换供应商、上游字段漂移时不必再翻 Kafka。</p>
+     *
+     * <p>⚠ 与 {@code resultJson} 分开：后者是对外契约（客户端轮询/回调原样读 {@code result}），
+     * 上游原文不能混进去。</p>
+     */
+    private String terminalBody;
+    /**
+     * 终态<b>结算快照</b>，与同步链路 {@code knot_extend} 同形（{@code {usage, billing}}）。
+     *
+     * <p>⭐ 网关对这次调用算出的账此前只存在于流量事件里，任何接口都查不到；
+     * 落库后异步任务的「被告账」才存在，离线校验与人工排障才有对象。
+     * 失败/超时/取消不计费 → 恒为 {@code null}（不写零账，零账会被读成「算了 0 元」）。</p>
+     */
+    private String settlementJson;
     private String errorCode;
     private String errorMessage;
     private String billingRuleCode;

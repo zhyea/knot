@@ -47,6 +47,18 @@ public record AsyncTaskDto(Long id,
                               String pollSpecJson,
                               String contextJson,
                               String resultJson,
+                              /**
+                               * 上游终态查询响应原文；未到终态或无响应时为 {@code null}。
+                               *
+                               * <p>⭐ 它是管理端离线重算<b>唯一</b>的上游输入（视频类提取器从响应取
+                               * 输出时长与产物数）。与 {@code resultJson} 分开：后者是对外契约。</p>
+                               */
+                              String terminalBody,
+                              /**
+                               * 终态结算快照（{@code knot_extend} 同形 {@code {usage, billing}}）；
+                               * 失败/超时/取消不计费 → {@code null}。
+                               */
+                              String settlementJson,
                               String errorCode,
                               String errorMessage,
                               String billingRuleCode,

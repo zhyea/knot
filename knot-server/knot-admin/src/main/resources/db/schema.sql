@@ -513,6 +513,8 @@ CREATE TABLE IF NOT EXISTS kb_async_tasks (
   poll_spec_json JSON NOT NULL COMMENT '提交时快照的查询口径（路径 / 终态取值 / 轮询参数）',
   context_json JSON NOT NULL COMMENT '重建计费上下文：路由快照 / 命中快照 / 追踪信息',
   result_json JSON DEFAULT NULL COMMENT '终态产物与用量摘要',
+  terminal_body LONGTEXT DEFAULT NULL COMMENT '上游终态查询响应原文（计费复现与排障依据；失败/超时没有响应时为空）',
+  settlement_json JSON DEFAULT NULL COMMENT '终态结算快照（knot_extend 同形 usage+billing；失败/超时不计费故为空）',
   error_code VARCHAR(64) DEFAULT NULL COMMENT '失败/超时错误码',
   error_message VARCHAR(1000) DEFAULT NULL COMMENT '失败/超时原因（上游 message 原文）',
   billing_rule_code VARCHAR(64) DEFAULT NULL COMMENT '计费规则业务码（计费复现用；不与 context_json 重复存放）',

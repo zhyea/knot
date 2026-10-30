@@ -172,3 +172,47 @@ export function formatUpstreamEvent(event: SseEvent): string {
 export function isAbortError(error: unknown): boolean {
   return (error as { name?: string })?.name === "AbortError";
 }
+
+/** 202 回执里的两个必需字段（异步任务的全部寻址信息） */
+export interface AsyncTaskAcceptedHandle {
+  /** knot 的任务句柄，对外字段名 `task_id` */
+  taskCode: string;
+  /** 轮询地址（相对路径），对外字段名 `query_url` */
+  queryUrl: string;
+}
+
+/**
+ * 从一个响应里认出「这是异步任务提交回执」，并取出句柄与轮询地址。
+ *
+ * <p>⭐ <b>判据只有「HTTP 202 + 两个字段都在」</b>，不猜上游、不看协议、不看模型类型：</p>
+ * <ul>
+ *   <li>不按协议判（例如「协议是 VIDEO 就当异步」）：同一协议既有同步也有异步实现，
+ *       协议只说明端点路径，说明不了这条调用怎么回。按协议猜会把同步视频响应误当回执，
+ *       于是抽屉对着一份真结果去轮询一个不存在的任务。</li>
+ *   <li>不按字段名宽松匹配（`taskId` / `queryUrl` / 上游自己的 `task_id`）：契约就是蛇形三字段
+ *       （见后端 `AsyncTaskAcceptedResponse`），宽容匹配等于给「网关拼错键名」这类事故
+ *       留下一条永远发现不了的路径。</li>
+ * </ul>
+ *
+ * @param status 实际 HTTP 状态码（XHR 通道原值）
+ * @param body   已解析的响应体
+ * @returns 两个字段都非空时返回句柄；否则 null（调用方按同步链路继续）
+ */
+export function parseAsyncTaskAccepted(
+  status: number | null | undefined,
+  body: unknown
+): AsyncTaskAcceptedHandle | null {
+  if (status !== 202) {
+    return null;
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return null;
+  }
+  const dict = body as Dict;
+  const taskCode = typeof dict.task_id === "string" ? dict.task_id.trim() : "";
+  const queryUrl = typeof dict.query_url === "string" ? dict.query_url.trim() : "";
+  if (!taskCode || !queryUrl) {
+    return null;
+  }
+  return {taskCode, queryUrl};
+}

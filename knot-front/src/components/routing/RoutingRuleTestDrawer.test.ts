@@ -26,6 +26,7 @@ import RoutingRuleTestDrawer from "@/components/routing/RoutingRuleTestDrawer.vu
 const h = vi.hoisted(() => ({
   stream: {} as Record<string, any>,
   verdict: {} as Record<string, any>,
+  async: {} as Record<string, any>,
   caps: {} as Record<string, any>
 }));
 
@@ -72,6 +73,30 @@ vi.mock("@/composables/useBillingVerdict", async () => {
   return { useBillingVerdict: () => h.verdict };
 });
 
+vi.mock("@/composables/useAsyncTaskPolling", async () => {
+  const { ref } = await import("vue");
+  h.async = {
+    taskCode: ref<string | null>(null),
+    taskStatus: ref(""),
+    pollCount: ref(0),
+    timeline: ref<unknown[]>([]),
+    result: ref<unknown>(null),
+    error: ref<unknown>(null),
+    localTimeout: ref(false),
+    stopped: ref(false),
+    polling: ref(false),
+    lastError: ref(""),
+    elapsedLabel: ref("0.0s"),
+    start: vi.fn(),
+    stop: vi.fn(),
+    pollNow: vi.fn(),
+    resetAsyncState: vi.fn(),
+    disposeAsyncPolling: vi.fn()
+  };
+  // 捕获得抽屉注入的 ctx：终态回调只有从外部触发，「终态 → 计费校验」才测得出来
+  return { useAsyncTaskPolling: (ctx: unknown) => { h.async.ctx = ctx; return h.async; } };
+});
+
 vi.mock("@/composables/useDebugCapabilities", () => ({
   useDebugCapabilities: () => ({
     loadOptions: h.caps.loadOptions,
@@ -95,6 +120,7 @@ vi.mock("@/api/routing", () => ({
   }),
   listTestRequestPresetOptions: vi.fn().mockResolvedValue({ list: [] }),
   getTestRequestPreset: vi.fn().mockResolvedValue(null),
+  queryGatewayTask: vi.fn(),
   testRoutingRule: vi.fn(),
   testRoutingRuleStream: vi.fn(),
   testRoutingRuleBillingVerdict: vi.fn()
@@ -196,6 +222,16 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     h.verdict.verdictActive.value = false;
     h.verdict.verdictResult.value = null;
     h.verdict.knotExtend.value = null;
+    h.async.taskCode.value = null;
+    h.async.taskStatus.value = "";
+    h.async.pollCount.value = 0;
+    h.async.timeline.value = [];
+    h.async.result.value = null;
+    h.async.error.value = null;
+    h.async.localTimeout.value = false;
+    h.async.stopped.value = false;
+    h.async.polling.value = false;
+    h.async.lastError.value = "";
     h.caps.loadOptions = vi.fn().mockResolvedValue(undefined);
     // ⚠ `clearAllMocks` 只清调用记录，**不清 mockResolvedValue**：
     // 上一条用例换过的返回数据会静默延续到下一条（曾让「单目标只有自己的协议」拿到并集）。
@@ -594,6 +630,165 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     const wrapper = await openDrawer();
     expect(wrapper.find(".el-collapse.test-form").exists()).toBe(true);
     expect(wrapper.find("form").exists()).toBe(false);
+  });
+
+  // ==================== 异步任务（202 → 轮询 → 终态） ====================
+
+  /** 202 回执：三字段就是全部寻址信息 */
+  const ACCEPTED_BODY = {
+    task_id: "tc-abc",
+    status: "queued",
+    query_url: "/openai/v1/tasks/tc-abc"
+  };
+
+  it("⭐ 202 回执：出现「异步任务」tab 并开始轮询，且此刻不发起计费校验", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 202,
+      headers: {},
+      data: ACCEPTED_BODY
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    expect(tabLabels(wrapper)).toContain("异步任务");
+    // 自动停在异步页：结果还没出来，停在 Body 会让人以为「就这样了」
+    expect(activeTabLabel(wrapper)).toBe("异步任务");
+    expect(h.async.start).toHaveBeenCalledWith({
+      taskCode: "tc-abc",
+      queryUrl: "/openai/v1/tasks/tc-abc"
+    });
+    // 提交响应早于结算，此刻没有 knot_extend；硬跑校验只会得到「无被告」
+    expect(h.verdict.triggerBillingVerdict).not.toHaveBeenCalled();
+  });
+
+  it("200 响应不出现异步 tab（同步链路不受影响）", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 200,
+      headers: {},
+      data: { id: "chatcmpl-1" }
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    expect(tabLabels(wrapper)).not.toContain("异步任务");
+    expect(h.async.start).not.toHaveBeenCalled();
+  });
+
+  it("⭐ 终态 completed：证据来自终态响应本身，裁判按异步口径发起", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 202,
+      headers: {},
+      data: ACCEPTED_BODY
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    const terminalBody = {
+      task_id: "tc-abc",
+      status: "completed",
+      result: { result_url: "https://x/a.mp4", result_urls: ["https://x/a.mp4"] },
+      knot_extend: { billing: { totalCost: "0.5" } },
+      upstream_body: { data: { task_result: { videos: [{ duration: "5" }] } } }
+    };
+    h.async.ctx.onTerminal({ status: "completed", body: terminalBody });
+    await flushPromises();
+
+    // 终态响应体整体交给被告提取（与同步链路同一套）
+    expect(h.verdict.captureKnotExtend).toHaveBeenCalledWith(terminalBody);
+    // 关键：upstreamBody 来自 upstream_body、taskStatus 来自 status——视频分档只认这两样
+    expect(h.verdict.triggerBillingVerdict).toHaveBeenCalledWith(
+      {},
+      false,
+      {
+        upstreamBody: { data: { task_result: { videos: [{ duration: "5" }] } } },
+        taskStatus: "completed"
+      }
+    );
+  });
+
+  it("终态 failed：写上失败原因，但不发起计费校验（本就不计费）", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 202,
+      headers: {},
+      data: ACCEPTED_BODY
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    h.async.ctx.onTerminal({
+      status: "failed",
+      body: { status: "failed", error: { code: "UPSTREAM_TASK_FAILED", message: "boom" } }
+    });
+    // 真实 composable 会把 status / error 写进自己的 ref；这里同步驱动桩状态
+    h.async.taskStatus.value = "failed";
+    h.async.error.value = { code: "UPSTREAM_TASK_FAILED", message: "boom" };
+    await flushPromises();
+
+    expect(h.verdict.triggerBillingVerdict).not.toHaveBeenCalled();
+    expect(wrapper.text()).toContain("UPSTREAM_TASK_FAILED");
+    // 失败页必须写清「不计费」：否则用户会以为失败也要付钱
+    expect(wrapper.text()).toContain("本任务不计费");
+  });
+
+  it("关闭抽屉：停止轮询并释放资源", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 202,
+      headers: {},
+      data: ACCEPTED_BODY
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    wrapper.findComponent(ElDrawer).vm.$emit("closed");
+    await nextTick();
+
+    expect(h.async.disposeAsyncPolling).toHaveBeenCalled();
+    expect(h.async.resetAsyncState).toHaveBeenCalled();
+  });
+
+  it("视频协议却按同步返回：概览页给出「未生成任务句柄」的指路文案", async () => {
+    vi.mocked(listRoutingRuleDebugProtocols).mockResolvedValue({
+      targets: [{ targetType: "MODEL", targetId: 1, protocols: ["VIDEO_GENERATIONS"] }]
+    } as never);
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 200,
+      headers: {},
+      data: { data: [{ status: "succeed" }] }
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+    await openTab(wrapper, "概览");
+
+    expect(wrapper.find(".async-handle-missing").exists()).toBe(true);
+    expect(wrapper.text()).toContain("未生成任务句柄");
+    expect(wrapper.text()).toContain("async_profile_code");
+  });
+
+  it("非视频协议不给「未生成句柄」提示（不猜别的协议该不该异步）", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 200,
+      headers: {},
+      data: { id: "x" }
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+    await openTab(wrapper, "概览");
+
+    expect(wrapper.find(".async-handle-missing").exists()).toBe(false);
   });
 
   it("复制流式区块：按钮瞬时反馈成「已复制」，1.2s 后复位", async () => {

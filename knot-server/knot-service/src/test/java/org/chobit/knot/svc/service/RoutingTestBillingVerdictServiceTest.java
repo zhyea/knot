@@ -257,6 +257,49 @@ class RoutingTestBillingVerdictServiceTest {
 
     // ---- helpers ----
 
+    /**
+     * ⭐ 异步视频：上游原文直接进影子链，终态词一并透传。
+     *
+     * <p>这是「异步任务的账能复核」的前提：视频提取器从<b>响应</b>取输出时长与产物数，
+     * 只给 {@code upstreamUsage}（那么一小段 usage 对象）根本算不出分档。</p>
+     */
+    @Test
+    void asyncUpstreamBodyFeedsShadowChainAsIs() {
+        Map<String, Object> upstreamBody = Map.of("data", Map.of("task_status", "succeed",
+                "task_result", Map.of("videos", List.of(Map.of("duration", "5")))));
+        RoutingBillingVerdictRequest req = new RoutingBillingVerdictRequest(
+                "kling-v3", "kling-v3-turbo", "VIDEO_GENERATIONS", false,
+                Map.of("usage", Map.of(), "billing", Map.of("totalCost", "0.5", "currency", "USD")),
+                Map.of(), Map.of(), "sess-1", upstreamBody, "completed");
+        models.put("kling-v3", model(20L, "BR-V", "FAM-V", "KLING"));
+        bindings.put(20L, List.of());
+        assembler.result = factWith(normalized("0.5", "USD", 0L));
+        judge.result = RoutingBillingVerdict.available("s", List.of());
+
+        service.verdict(req, "http://gw", "sess-1");
+
+        assertEquals(upstreamBody, assembler.captured.upstreamRawBody(),
+                "上游原文必须原样进影子链，不能只丢一段 usage");
+        assertEquals("completed", assembler.captured.taskStatus(),
+                "终态词是「成功必有账」那条自检的唯一依据");
+    }
+
+    @Test
+    void blankUpstreamBodyFallsBackToUsageOnlyShape() {
+        // 同步链路不发 upstreamBody：退回「把 upstreamUsage 包成 {usage}」的既有口径
+        RoutingBillingVerdictRequest req = requestWithBilling("0.001", "USD", "CHAT_COMPLETIONS");
+        models.put("gpt-4", model(21L, "BR", "F", "OPENAI"));
+        bindings.put(21L, List.of());
+        assembler.result = factWith(normalized("0.001", "USD", 5L));
+        judge.result = RoutingBillingVerdict.available("s", List.of());
+
+        service.verdict(req, "http://gw", "s");
+
+        assertEquals(Map.of("usage", Map.of()), assembler.captured.upstreamRawBody(),
+                "缺上游原文时不得把 upstreamRawBody 传成 null——提取器会当场空指针");
+        assertNull(assembler.captured.taskStatus(), "同步链路没有异步终态");
+    }
+
     private static RoutingBillingVerdictRequest requestWithBilling(String totalCost, String currency, String protocol) {
         Map<String, Object> billing = Map.of(
                 "totalTokens", 100L,
@@ -264,7 +307,7 @@ class RoutingTestBillingVerdictServiceTest {
                 "currency", currency);
         Map<String, Object> knotExtend = Map.of("usage", Map.of(), "billing", billing);
         return new RoutingBillingVerdictRequest(
-                "gpt-4", "gpt-4", protocol, false, knotExtend, Map.of(), Map.of(), "sess-1");
+                "gpt-4", "gpt-4", protocol, false, knotExtend, Map.of(), Map.of(), "sess-1", null, null);
     }
 
     /** 流式请求（stream=true）：验证流式提取器优先与空白回落 */
@@ -275,14 +318,14 @@ class RoutingTestBillingVerdictServiceTest {
                 "currency", currency);
         Map<String, Object> knotExtend = Map.of("usage", Map.of(), "billing", billing);
         return new RoutingBillingVerdictRequest(
-                "gpt-4", "gpt-4", protocol, true, knotExtend, Map.of(), Map.of(), "sess-1");
+                "gpt-4", "gpt-4", protocol, true, knotExtend, Map.of(), Map.of(), "sess-1", null, null);
     }
 
     /** knot_extend 在场但 billing 省略（无规则命中）：被告账为 null 的降级路径 */
     private static RoutingBillingVerdictRequest requestWithoutBilling(String protocol) {
         Map<String, Object> knotExtend = Map.of("usage", Map.of());
         return new RoutingBillingVerdictRequest(
-                "gpt-4", "gpt-4", protocol, false, knotExtend, Map.of(), Map.of(), "sess-1");
+                "gpt-4", "gpt-4", protocol, false, knotExtend, Map.of(), Map.of(), "sess-1", null, null);
     }
 
     private static ModelEntity model(Long id, String ruleCode, String family, String provider) {
@@ -300,7 +343,8 @@ class RoutingTestBillingVerdictServiceTest {
 
     private static BillingFact factWith(NormalizedUsage gatewayBilling) {
         BillingFactAmount amount = BillingFactAmount.from(gatewayBilling);
-        BillingFactSubject subject = new BillingFactSubject("gpt-4", "CHAT_COMPLETIONS", false, BillingRuleSource.EXPLICIT);
+        BillingFactSubject subject = new BillingFactSubject("gpt-4", "CHAT_COMPLETIONS", false,
+                BillingRuleSource.EXPLICIT, null);
         BillingFactUsage usage = new BillingFactUsage(true, 0L, 0L, 0L, 0L, 0L, 0L);
         BillingFactRuleRef ruleRef = new BillingFactRuleRef("BR-1", "TOKEN", "1M_TOKENS", "USD",
                 "FIXED", BillingRuleSource.EXPLICIT, "v1");

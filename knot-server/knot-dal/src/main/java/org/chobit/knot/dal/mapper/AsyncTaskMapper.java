@@ -84,11 +84,21 @@ public interface AsyncTaskMapper {
     /**
      * 终态落定：CAS —— 只有仍处于在途态<b>且仍持有占位</b>的行才被更新，
      * 影响行数为 1 才允许发终态事件，「一条任务一条终态消息」由此保证。
+     *
+     * <p>⭐ <b>{@code terminalBody} / {@code settlementJson} 必须走同一条 UPDATE</b>：
+     * 拆成「先落终态、再补写证据」时，两次写之间崩溃会留下「任务已终态、账却永远没有」的行，
+     * 而重试也不会补（终态不在在途集合里，不会再进这里）。这一列的缺失方向是资损+
+     * 计费不可复现，比多两个入参严重得多。</p>
+     *
+     * @param terminalBody   上游终态查询响应原文；无响应（超时/快照不可读）传 {@code null}
+     * @param settlementJson 结算快照（{@code knot_extend} 同形）；不计费路径传 {@code null}
      */
     int complete(@Param("id") Long id,
                  @Param("claimId") String claimId,
                  @Param("status") int status,
                  @Param("resultJson") String resultJson,
+                 @Param("terminalBody") String terminalBody,
+                 @Param("settlementJson") String settlementJson,
                  @Param("errorCode") String errorCode,
                  @Param("errorMessage") String errorMessage,
                  @Param("completedAt") LocalDateTime completedAt,

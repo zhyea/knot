@@ -116,8 +116,15 @@ export function useBillingVerdict(ctx: BillingVerdictContext) {
    *
    * @param requestBody 本次发给网关的请求体（裁判据此重算用量）
    * @param stream      本次是否为流式调用（影响提取器口径）
+   * @param evidence    异步链路的补充证据：终态响应里的上游原文与终态词。
+   *                    ⭐ 视频的用量在<b>响应</b>里（输出时长 / 产物数），只给 requestBody 与
+   *                    upstreamUsage 是算不出分档的；终态词则是「成功必有账」那条自检的唯一依据
    */
-  async function triggerBillingVerdict(requestBody: Dict, stream: boolean): Promise<void> {
+  async function triggerBillingVerdict(
+    requestBody: Dict,
+    stream: boolean,
+    evidence?: { upstreamBody?: Dict | null; taskStatus?: string | null }
+  ): Promise<void> {
     const token = verdictToken;
     const ruleId = ctx.ruleId();
     if (!ruleId) {
@@ -138,7 +145,9 @@ export function useBillingVerdict(ctx: BillingVerdictContext) {
         knotExtend: knotExtend.value,
         upstreamUsage: upstreamUsage.value ?? {},
         requestBody,
-        sessionId: null
+        sessionId: null,
+        upstreamBody: evidence?.upstreamBody ?? null,
+        taskStatus: evidence?.taskStatus ?? null
       };
       const result = await ctx.requestVerdict(ruleId, payload);
       // 令牌已变 = 期间又发起了新测试，本次结果作废

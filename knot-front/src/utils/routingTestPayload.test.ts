@@ -7,6 +7,7 @@ import {
   formatUpstreamEvent,
   highlightBlock,
   isAbortError,
+  parseAsyncTaskAccepted,
   parseStreamJson,
   safeParseTemplate,
   stripModelField
@@ -149,5 +150,52 @@ describe("isAbortError", () => {
     expect(isAbortError(new DOMException("x", "AbortError"))).toBe(true);
     expect(isAbortError({name: "TypeError"})).toBe(false);
     expect(isAbortError(null)).toBe(false);
+  });
+});
+
+describe("parseAsyncTaskAccepted（202 回执识别）", () => {
+  const ACCEPTED = {
+    task_id: "tc-abc123",
+    status: "queued",
+    query_url: "/openai/v1/tasks/tc-abc123"
+  };
+
+  it("202 + 两个字段都在 → 取出句柄与轮询地址", () => {
+    expect(parseAsyncTaskAccepted(202, ACCEPTED)).toEqual({
+      taskCode: "tc-abc123",
+      queryUrl: "/openai/v1/tasks/tc-abc123"
+    });
+  });
+
+  it("状态码不是 202 一律不认（哪怕 body 长得一模一样）", () => {
+    for (const status of [200, 201, 204, 400, 500, null, undefined]) {
+      expect(parseAsyncTaskAccepted(status, ACCEPTED)).toBeNull();
+    }
+  });
+
+  it("缺 task_id 或 query_url → 不认（宁可走同步链路，也不对着半截回执去轮询）", () => {
+    expect(parseAsyncTaskAccepted(202, {query_url: "/openai/v1/tasks/x"})).toBeNull();
+    expect(parseAsyncTaskAccepted(202, {task_id: "x"})).toBeNull();
+    expect(parseAsyncTaskAccepted(202, {task_id: "x", query_url: "   "})).toBeNull();
+  });
+
+  it("驼峰名不认：wire 契约是蛇形，宽容匹配会掩盖网关拼错键名", () => {
+    expect(parseAsyncTaskAccepted(202, {
+      taskId: "x",
+      queryUrl: "/openai/v1/tasks/x"
+    })).toBeNull();
+  });
+
+  it("非对象 body（字符串 / 数组 / null）不认", () => {
+    expect(parseAsyncTaskAccepted(202, "queued")).toBeNull();
+    expect(parseAsyncTaskAccepted(202, [ACCEPTED])).toBeNull();
+    expect(parseAsyncTaskAccepted(202, null)).toBeNull();
+  });
+
+  it("字段两端空白被裁掉（路径不能带空格去请求）", () => {
+    expect(parseAsyncTaskAccepted(202, {
+      task_id: "  tc-1  ",
+      query_url: "  /openai/v1/tasks/tc-1  "
+    })).toEqual({taskCode: "tc-1", queryUrl: "/openai/v1/tasks/tc-1"});
   });
 });

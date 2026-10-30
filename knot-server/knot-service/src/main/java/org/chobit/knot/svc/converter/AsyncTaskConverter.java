@@ -49,6 +49,8 @@ public final class AsyncTaskConverter {
                 entity.getPollSpecJson(),
                 entity.getContextJson(),
                 entity.getResultJson(),
+                entity.getTerminalBody(),
+                entity.getSettlementJson(),
                 entity.getErrorCode(),
                 entity.getErrorMessage(),
                 entity.getBillingRuleCode(),

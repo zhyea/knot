@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 计费自检层（代码精确，权威）：七项纯函数，对 {@link BillingFact} 做确定性校验。
+ * 计费自检层（代码精确，权威）：八项纯函数，对 {@link BillingFact} 做确定性校验。
  *
  * <p>判定域 = 算术正确性（可确定性）：明细公式、汇总一致、单位换算、网关账与重算账全等。
  * 三态纪律（v7 §5）：判不了的一律 {@link BillingCheckStatus#SKIP} 并说明原因，绝不充 PASS。</p>
@@ -46,6 +46,7 @@ public final class BillingFactChecks {
         results.add(ruleModeMatch(fact));
         results.add(ruleSourceExpected(fact));
         results.add(upstreamCostDeviation(fact));
+        results.add(asyncSettlementConsistency(fact));
         return List.copyOf(results);
     }
 
@@ -199,6 +200,31 @@ public final class BillingFactChecks {
                     "knot 费用与上游 cost 相差超过 2 个数量级（ratio=" + ratio.toPlainString() + "）");
         }
         return BillingCheckResult.pass(BillingCheckCode.UPSTREAM_COST_DEVIATION);
+    }
+
+    // ⑧ 异步结算一致性：成功必有账、失败不得有账（同步链路 → SKIP）
+    private static BillingCheckResult asyncSettlementConsistency(BillingFact fact) {
+        String status = fact.subject() == null ? null : fact.subject().taskStatus();
+        if (status == null || status.isBlank()) {
+            return BillingCheckResult.skip(BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY,
+                    "同步链路，无异步任务终态可校验");
+        }
+        boolean settled = fact.gatewayBilling() != null;
+        if ("completed".equals(status)) {
+            return settled
+                    ? BillingCheckResult.pass(BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY)
+                    : BillingCheckResult.fail(BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY,
+                            "任务终态成功但没有结算账目（漏收）");
+        }
+        if ("failed".equals(status)) {
+            return settled
+                    ? BillingCheckResult.fail(BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY,
+                            "任务终态失败却落了结算账目（错收）")
+                    : BillingCheckResult.pass(BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY);
+        }
+        // queued / processing / unknown：还没到终态，结算本就没发生——判不了，不充 PASS
+        return BillingCheckResult.skip(BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY,
+                "任务未到终态（" + status + "），结算尚未发生");
     }
 
     /** 明细行金额复算：tokens × price(每百万) ÷ 1e6；缺字段时返回 null（跳过该行） */

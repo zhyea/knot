@@ -63,7 +63,7 @@ class BillingFactAssemblerTest {
                                            NormalizedUsage gatewayBilling, Map<String, Object> upstreamUsage) {
         Map<String, Object> usage = body == null ? Map.of() : (Map<String, Object>) body.getOrDefault("usage", body);
         return new BillingFactAssemblyInput("m1", "fam1", ruleCode, extractorCode, "OPENAI", false,
-                body, usage, Map.of(), gatewayBilling, upstreamUsage, Instant.now());
+                body, usage, Map.of(), gatewayBilling, upstreamUsage, Instant.now(), null);
     }
 
     private Map<String, Object> tokenBody(long input, long output, long total) {
