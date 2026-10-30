@@ -10,6 +10,7 @@ import BillingModeCustomConfig from "@/components/billing/modes/BillingModeCusto
 import PricingPlanVendorMiniMaxConfig from "@/components/billing/plans/PricingPlanVendorMiniMaxConfig.vue";
 import PricingPlanDimensionTieredConfig from "@/components/billing/plans/PricingPlanDimensionTieredConfig.vue";
 import ResolutionComboPicker from "@/components/billing/ResolutionComboPicker.vue";
+import ResolutionTierTable from "@/components/billing/ResolutionTierTable.vue";
 import type {Dict} from "@/types";
 
 /**
@@ -517,6 +518,7 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
       detailRow({
         billingMode: "VIDEO",
         unit: "PER_SECOND",
+        pricingPlan: "DIMENSION_TIERED",
         configJson: JSON.stringify({defaultUnitPrice: 0.1, resolutionPrices: {"720P": 0.2}})
       }) as never
     );
@@ -579,6 +581,35 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
 
   // ==================== 保存成功 ====================
 
+
+  it("VIDEO 固定价不呈现档位：无档位表/组合选择器/量口径，config 也不写 resolutionPrices", async () => {
+    // 2026-10-30 定调：档位表只属于维度分档价。固定价语义是「一个单价直出」，
+    // 而取价对两者是同一份实现（FixedPricing 按 resolutionPrices 命中）——
+    // 界面上看不见的价一旦进库就是静默收费，所以呈现层与写入侧要一起收。
+    vi.mocked(getBillingRule).mockResolvedValue(
+      detailRow({
+        billingMode: "VIDEO",
+        unit: "PER_SECOND",
+        configJson: JSON.stringify({defaultUnitPrice: 0.1})
+      }) as never
+    );
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    expect(wrapper.text()).not.toContain("分辨率档位");
+    expect(wrapper.findComponent(ResolutionTierTable).exists()).toBe(false);
+    expect(wrapper.findComponent(ResolutionComboPicker).exists()).toBe(false);
+    // 合成量口径随「含参考档位」一起消失（要让输入秒同价计费，填「输入视频 每秒」即可）
+    expect(wrapper.text()).not.toContain("合成量模式");
+
+    // 切换方案/手工赋值可能留下档位行——残留值同样不许落库
+    const form = formOf(wrapper, BillingModeVideoConfig);
+    form.videoResolutionRows.push(
+      {key: "720P", price: 0.2, audioPrice: 0.9, referencePrice: 0.3, referenceAudioPrice: 0.8, inputPrice: null}
+    );
+    await save(wrapper);
+
+    expect(configOf(updatePayload())).toEqual({defaultUnitPrice: 0.1});
+  });
   // ==================== 视频计费规则（2026-10-25） ====================
 
   it("VIDEO 含参考输入的分档价单独回显，不与纯分辨率价混用", async () => {
@@ -587,6 +618,7 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
       detailRow({
         billingMode: "VIDEO",
         unit: "PER_SECOND",
+        pricingPlan: "DIMENSION_TIERED",
         configJson: JSON.stringify({
           defaultUnitPrice: 70,
           resolutionPrices: {"720P": 70, "720P:REFERENCE": 42, "1080P": 77}
@@ -610,6 +642,7 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
       detailRow({
         billingMode: "VIDEO",
         unit: "PER_SECOND",
+        pricingPlan: "DIMENSION_TIERED",
         configJson: JSON.stringify({defaultUnitPrice: 9, resolutionPrices: {"768P": 0.5, "768P:REFERENCE": 0.3}})
       }) as never
     );
@@ -632,13 +665,16 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     });
   });
 
-  it("VIDEO 分量配置与附加费并入 configJson", async () => {
+  it("VIDEO 分量配置与附加费并入 configJson（固定价不写量口径）", async () => {
     vi.mocked(getBillingRule).mockResolvedValue(
       detailRow({billingMode: "VIDEO", unit: "PER_SECOND", configJson: "{\"defaultUnitPrice\": 0.5}"}) as never
     );
 
     const wrapper = await openDialog({ruleId: RULE_ID});
     const form = formOf(wrapper, BillingModeVideoConfig);
+    // 固定价没有档位表 →「参考视频影响单价」不存在 → 合成量口径无语义（UI 已隐藏）。
+    // 这里故意写残留值，钉住「隐藏的量口径不许进库」——顺带保证 payload 不会同时带
+    // quantityMode 与 inputVideoPerSecond（同一批输入秒收两遍，后端会拒）。
     form.videoQuantityMode = "OUTPUT_PLUS_MAX";
     form.videoInputVideoPerSecond = 0.5;
     form.videoInputImagePerImage = 0.2;
@@ -649,7 +685,6 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     expect(configOf(updatePayload())).toEqual({
       defaultUnitPrice: 0.5,
       video: {
-        quantityMode: "OUTPUT_PLUS_MAX",
         inputVideoPerSecond: 0.5,
         inputImagePerImage: 0.2,
         freeInputImages: 5
@@ -692,7 +727,7 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     // robin 定的规则：预设的是「要哪些组合」，不是「要哪些档位」——档位仍逐行自由新增。
     // 没勾的组合连键都不能落：界面看不见的价进库就是静默收费。
     vi.mocked(getBillingRule).mockResolvedValue(
-      detailRow({billingMode: "VIDEO", unit: "PER_SECOND", configJson: JSON.stringify({defaultUnitPrice: 0.5})}) as never
+      detailRow({billingMode: "VIDEO", unit: "PER_SECOND", pricingPlan: "DIMENSION_TIERED", configJson: JSON.stringify({defaultUnitPrice: 0.5})}) as never
     );
 
     const wrapper = await openDialog({ruleId: RULE_ID});
@@ -723,6 +758,7 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
       detailRow({
         billingMode: "VIDEO",
         unit: "PER_SECOND",
+        pricingPlan: "DIMENSION_TIERED",
         configJson: JSON.stringify({defaultUnitPrice: 0.5, resolutionPrices: {"720P": 0.2}})
       }) as never
     );
@@ -737,6 +773,7 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
       detailRow({
         billingMode: "VIDEO",
         unit: "PER_SECOND",
+        pricingPlan: "DIMENSION_TIERED",
         configJson: JSON.stringify({
           defaultUnitPrice: 0.5,
           video: {dimensionCombos: ["BASE", "REFERENCE"]},
@@ -752,9 +789,65 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     expect(wrapper.findComponent(ResolutionComboPicker).findAll(".el-checkbox.is-checked")).toHaveLength(2);
   });
 
+  it("VIDEO 合成量口径：无「含参考」组合时隐藏，且不落 quantityMode", async () => {
+    // 合成量口径只对「输入秒要折进计费量」的价表有语义（Kling 4.0 有输入视频 = 量×2）。
+    // 没有含参考档位时，它与「输入侧分量」表达的是同一件事的两种口径，必须收敛掉。
+    vi.mocked(getBillingRule).mockResolvedValue(
+      detailRow({billingMode: "VIDEO", unit: "PER_SECOND", pricingPlan: "DIMENSION_TIERED", configJson: JSON.stringify({defaultUnitPrice: 0.5})}) as never
+    );
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper, BillingModeVideoConfig);
+    const picker = wrapper.findComponent(ResolutionComboPicker);
+
+    // 默认全选（含参考）→ 显示
+    expect(wrapper.text()).toContain("合成量模式");
+
+    // 只留 无声 + 有声（取消含参考的两个组合）
+    await picker.vm.$emit("update:modelValue", ["BASE", "AUDIO"]);
+    await flushPromises();
+    expect(wrapper.text()).not.toContain("合成量模式");
+    // 口径被强制回落，避免隐藏的下拉带着残留值
+    expect(form.videoQuantityMode).toBe("OUTPUT");
+
+    // 即使外部残留 SUM，保存也不落库（无参考档位下它没有意义）
+    form.videoQuantityMode = "SUM";
+    form.videoResolutionRows.push(
+      {key: "720P", price: 0.2, audioPrice: 0.3, referencePrice: null, referenceAudioPrice: null, inputPrice: null}
+    );
+    await save(wrapper);
+
+    const config = configOf(updatePayload());
+    expect((config.video as Dict).quantityMode).toBeUndefined();
+    expect((config.video as Dict).dimensionCombos).toEqual(["BASE", "AUDIO"]);
+  });
+  it("VIDEO 合成量口径：维度分档价下有「含参考」组合时落库", async () => {
+    // 与上一条互为反面：含参考档位存在 → 输入秒要折进计费量 → 口径必须落库
+    vi.mocked(getBillingRule).mockResolvedValue(
+      detailRow({
+        billingMode: "VIDEO",
+        unit: "PER_SECOND",
+        pricingPlan: "DIMENSION_TIERED",
+        configJson: JSON.stringify({defaultUnitPrice: 0.5})
+      }) as never
+    );
+
+    const wrapper = await openDialog({ruleId: RULE_ID});
+    const form = formOf(wrapper, BillingModeVideoConfig);
+    expect(wrapper.text()).toContain("合成量模式");
+
+    form.videoQuantityMode = "OUTPUT_PLUS_MAX";
+    form.videoResolutionRows.push(
+      {key: "720P", price: 0.2, audioPrice: null, referencePrice: 0.3, referenceAudioPrice: null, inputPrice: null}
+    );
+    await save(wrapper);
+
+    expect((configOf(updatePayload()).video as Dict).quantityMode).toBe("OUTPUT_PLUS_MAX");
+  });
+
   it("VIDEO 计费组合：全选是默认值，不写入 dimensionCombos（不污染 config_json）", async () => {
     vi.mocked(getBillingRule).mockResolvedValue(
-      detailRow({billingMode: "VIDEO", unit: "PER_SECOND", configJson: JSON.stringify({defaultUnitPrice: 0.5})}) as never
+      detailRow({billingMode: "VIDEO", unit: "PER_SECOND", pricingPlan: "DIMENSION_TIERED", configJson: JSON.stringify({defaultUnitPrice: 0.5})}) as never
     );
 
     const wrapper = await openDialog({ruleId: RULE_ID});

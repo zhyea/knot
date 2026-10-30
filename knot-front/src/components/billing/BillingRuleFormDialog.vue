@@ -764,9 +764,13 @@ function buildBaseConfig(): Dict | null {
   }
   if (form.billingMode === BillingMode.VIDEO) {
     const isMiniMax = form.pricingPlan === PricingPlan.VENDOR_MINIMAX;
+    // 固定价不呈现档位：档位表只属于维度分档价（TIERED / PEAK_OFF_PEAK 仍可叠加属性档位）。
+    // 这里不靠「界面没渲染所以行为空」兜底——切换方案时残留的行照样会被循环读到，
+    // 一旦落库就是界面上看不见、取价却会命中的价。
+    const isFixedPlan = form.pricingPlan === PricingPlan.FIXED;
     const resolutionPrices: Dict = {};
     const comboSet = new Set(normalizeCombos(form.videoDimensionCombos));
-    for (const row of form.videoResolutionRows || []) {
+    for (const row of isFixedPlan ? [] : form.videoResolutionRows || []) {
       const key = String(row?.key || "").trim().toUpperCase();
       if (!key) {
         continue;
@@ -810,10 +814,14 @@ function buildBaseConfig(): Dict | null {
     const video: Dict = {};
     // 计费组合只在非全选时落库：全选是默认值（回显无字段即全选），不污染 config_json
     const comboList = normalizeCombos(form.videoDimensionCombos);
-    if (!isMiniMax && !isAllCombos(comboList)) {
+    if (!isMiniMax && !isFixedPlan && !isAllCombos(comboList)) {
       video.dimensionCombos = comboList;
     }
-    if (!isMiniMax && form.videoQuantityMode && form.videoQuantityMode !== "OUTPUT") {
+    // 合成量口径只在「含参考」组合存在时有语义（输入秒折进计费量）；无参考档位一律按仅输出落库。
+    // 固定价没有档位表 → 参考视频不改变单价 → 同样不落库（否则是看不见的量口径）。
+    const hasReferenceCombo = !isFixedPlan
+        && (comboList.includes("REFERENCE") || comboList.includes("REFERENCE_AUDIO"));
+    if (!isMiniMax && hasReferenceCombo && form.videoQuantityMode && form.videoQuantityMode !== "OUTPUT") {
       // MiniMax 输入秒是独立分量，绝不折叠进输出量：不落 quantityMode
       video.quantityMode = form.videoQuantityMode;
     }

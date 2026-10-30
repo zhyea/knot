@@ -503,6 +503,109 @@ class BillingConfigTest {
     }
 
     @Test
+    void fixedAlsoRejectsDoubleCountedInputSeconds() {
+        // 这条校验此前只挂在 DIMENSION_TIERED 上：FIXED 下配 SUM + 独立输入秒单价，
+        // 同一批输入秒会被收两次且保存不报错（静默资损）。
+        assertTrue(BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,
+                 "video":{"quantityMode":"SUM","inputVideoPerSecond":0.5}}
+                """).validate(PricingPlanEnum.FIXED).contains("billed twice"));
+
+        assertTrue(BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,
+                 "video":{"quantityMode":"OUTPUT_PLUS_MAX","inputVideoPerSecond":0.5}}
+                """).validate(PricingPlanEnum.FIXED).contains("billed twice"));
+
+        // 仅输出 + 独立分量合法（MiniMax 那种「输入秒单独成价」的结构）
+        assertNull(BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,
+                 "video":{"quantityMode":"OUTPUT","inputVideoPerSecond":0.5}}
+                """).validate(PricingPlanEnum.FIXED));
+    }
+
+    @Test
+    void tierModeIsRejectedForEveryNonTieredPlan() {
+        // tierMode 原本只在 validate() 末尾检查，而 DIMENSION_TIERED / VENDOR_MINIMAX /
+        // PEAK_OFF_PEAK 三个分支各自直接 return —— 僵尸字段能静默存进 config_json。
+        // 前端只在 TIERED 下写它，所以命中者只会是手工改配置或历史迁移，
+        // 但「配置意图与方案不一致」不该被静默接受。
+        assertEquals("tierMode is only allowed for TIERED plan",
+                BillingConfig.parse("""
+                        {"defaultUnitPrice":1.0,
+                         "resolutionPrices":{"720P":1.0},
+                         "tierMode":"PROGRESSIVE"}
+                        """).validate(PricingPlanEnum.DIMENSION_TIERED));
+
+        assertEquals("tierMode is only allowed for TIERED plan",
+                BillingConfig.parse("""
+                        {"defaultUnitPrice":1.0,
+                         "resolutionPrices":{"720P":1.0},
+                         "video":{"inputImagePerImage":0.2},
+                         "tierMode":"PROGRESSIVE"}
+                        """).validate(PricingPlanEnum.VENDOR_MINIMAX));
+
+        // pricing 本身合法，证明拦截来自 tierMode 而不是别的校验先命中
+        assertEquals("tierMode is only allowed for TIERED plan",
+                BillingConfig.parse("""
+                        {"defaultUnitPrice":1.0,
+                         "pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+8","phases":[
+                           {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
+                            "phase":"PEAK","multiplier":1},
+                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]},
+                         "tierMode":"PROGRESSIVE"}
+                        """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+
+        // FIXED 原本就走末尾检查，这里是回归保护
+        assertEquals("tierMode is only allowed for TIERED plan",
+                BillingConfig.parse("{\"defaultUnitPrice\":1.0,\"tierMode\":\"PROGRESSIVE\"}")
+                        .validate(PricingPlanEnum.FIXED));
+
+        // plan 缺省按 FIXED 处理，同一个僵尸字段照样拒绝
+        assertEquals("tierMode is only allowed for TIERED plan",
+                BillingConfig.parse("{\"defaultUnitPrice\":1.0,\"tierMode\":\"PER_REQUEST\"}")
+                        .validate(null));
+
+        // TIERED 下 PROGRESSIVE 是正常配置，不能被误伤
+        assertNull(BillingConfig.parse("""
+                {"basePrices":{"input":4,"output":20},
+                 "tierMode":"PROGRESSIVE",
+                 "tier":[{"condition":{"from":0},
+                   "unitPrices":{"input":4,"output":20,"cacheRead":0.2,"cacheWrite":5,
+                                 "cacheWrite5m":5,"cacheWrite1h":5}}]}
+                """).validate(PricingPlanEnum.TIERED));
+    }
+
+    @Test
+    void fixedPlanRejectsResolutionPrices() {
+        // 固定价不呈现档位：界面上没有这张表，库里就不该有——
+        // 否则取价按 {@code resolutionPrices} 命中，而没有任何界面能看见或改它。
+        assertEquals("FIXED plan does not accept resolutionPrices; use DIMENSION_TIERED instead",
+                BillingConfig.parse("""
+                        {"defaultUnitPrice":1.0,"resolutionPrices":{"720P":1.0}}
+                        """).validate(PricingPlanEnum.FIXED));
+
+        // plan 缺省按 FIXED 处理（PricingPlanEnum.fromCode 同口径），一样拒绝
+        assertEquals("FIXED plan does not accept resolutionPrices; use DIMENSION_TIERED instead",
+                BillingConfig.parse("""
+                        {"defaultUnitPrice":1.0,"resolutionPrices":{"720P":1.0}}
+                        """).validate(null));
+
+        // 维度分档价照旧接受同一张表（本方案的立身之本）
+        assertNull(BillingConfig.parse("""
+                {"defaultUnitPrice":1.0,"resolutionPrices":{"720P":1.0}}
+                """).validate(PricingPlanEnum.DIMENSION_TIERED));
+
+        // TIERED 仍可叠加属性档位（阶梯与属性分档是两根正交的轴），不能被这次收紧误伤
+        assertNull(BillingConfig.parse("""
+                {"basePrices":{"input":4,"output":20},
+                 "resolutionPrices":{"720P":1.0},
+                 "tier":[{"condition":{"from":0},
+                   "unitPrices":{"input":4,"output":20,"cacheRead":0.2,"cacheWrite":5,
+                                 "cacheWrite5m":5,"cacheWrite1h":5}}]}
+                """).validate(PricingPlanEnum.TIERED));
+    }
+
+    @Test
     void dimensionTieredAcceptsFullKeySpaceAndResolvesLikeFixed() {
         BillingConfig config = BillingConfig.parse("""
                 {"defaultUnitPrice":1.0,

@@ -884,7 +884,7 @@ public record BillingConfig(
         return validateSurcharges(surcharges);
     }
 
-    /** 视频扩展校验：合成量口径合法、分量单价与免费额度非负 */
+    /** 视频扩展校验：合成量口径合法、输入秒不双计、分量单价与免费额度非负 */
     private static String validateVideo(VideoConfig video) {
         if (video == null) {
             return null;
@@ -895,6 +895,16 @@ public record BillingConfig(
         }
         if (video.inputVideoPerSecond() != null && video.inputVideoPerSecond().signum() < 0) {
             return "video.inputVideoPerSecond cannot be negative";
+        }
+        // 输入秒不得双计：SUM/OUTPUT_PLUS_MAX 已把输入秒折进计费量，再配独立分量 = 同一批秒收两次。
+        // ⚠ 这条此前只挂在 DIMENSION_TIERED 上，FIXED/TIERED/PEAK_OFF_PEAK 能静默配出双计（资损且无报错）。
+        if (video.inputVideoPerSecond() != null && mode != null) {
+            String normalizedMode = mode.trim().toUpperCase();
+            if (VideoConfig.QUANTITY_SUM.equals(normalizedMode)
+                    || VideoConfig.QUANTITY_OUTPUT_PLUS_MAX.equals(normalizedMode)) {
+                return "video.inputVideoPerSecond conflicts with video.quantityMode=" + normalizedMode
+                        + " (input seconds would be billed twice)";
+            }
         }
         if (video.inputImagePerImage() != null && video.inputImagePerImage().signum() < 0) {
             return "video.inputImagePerImage cannot be negative";
@@ -933,7 +943,8 @@ public record BillingConfig(
     /**
      * 方案级校验：按 pricingPlan 追加约束。
      * TIERED 要求 tier 非空且每项 unitPrices 完整保留全部价格字段（价格非负）；
-     * PEAK_OFF_PEAK 属阶段三，暂不接受保存。
+     * tierMode 只属于 TIERED，其它方案配了它一律拒绝（见方法内注释）；
+     * FIXED 不接受 {@code resolutionPrices}——档位表只属于维度分档价。
      */
     public String validate(PricingPlanEnum plan) {
         PricingPlanEnum resolved = plan == null ? PricingPlanEnum.FIXED : plan;
@@ -943,6 +954,18 @@ public record BillingConfig(
         String baseError = validate();
         if (baseError != null) {
             return baseError;
+        }
+        // tierMode 只在 TIERED 下有意义：其它方案配了它说明配置意图与方案不一致，拒绝保存。
+        // ⚠ 必须在下面几个分支之前判：DIMENSION_TIERED / VENDOR_MINIMAX / PEAK_OFF_PEAK 各自
+        //   直接 return，写在末尾会被整体跳过，僵尸字段静默进 config_json（前端也只在 TIERED 下写它）。
+        if (resolved != PricingPlanEnum.TIERED && blankToNull(tierMode) != null) {
+            return "tierMode is only allowed for TIERED plan";
+        }
+        // 固定价不呈现档位（2026-10-30 定调）：档位表是「按请求属性分档」的数据，只归维度分档价。
+        // 前端在固定价下已不渲染这张表，后端若仍放行，手工改 config_json 就能配出「界面上无处可见、
+        // 取价却会命中」的价表（FixedPricing 的维度命中对两者是同一份实现）。
+        if (resolved == PricingPlanEnum.FIXED && resolutionPrices != null && !resolutionPrices.isEmpty()) {
+            return "FIXED plan does not accept resolutionPrices; use DIMENSION_TIERED instead";
         }
         if (resolved == PricingPlanEnum.TIERED) {
             String modeError = validateTierMode();
@@ -956,10 +979,6 @@ public record BillingConfig(
         }
         if (resolved == PricingPlanEnum.DIMENSION_TIERED) {
             return validateDimensionTiered();
-        }
-        // tierMode 只在 TIERED 下有意义：非阶梯方案配了它说明配置意图与方案不一致，拒绝保存
-        if (blankToNull(tierMode) != null) {
-            return "tierMode is only allowed for TIERED plan";
         }
         return null;
     }
@@ -1000,8 +1019,9 @@ public record BillingConfig(
      *       （顺序颠倒，永远进不了候选链）、{@code :AUDIO}（空档位名）一律拒绝。</li>
      *   <li><b>默认单价必填</b>：档位未命中时的兜底（厂商档位不可枚举，总有配不到的档）。
      *       缺它就是「识别不了的请求免费出账」，是资损。</li>
-     *   <li><b>输入秒不得双计</b>：{@code quantityMode=SUM/OUTPUT_PLUS_MAX} 已经把输入秒折进
-     *       计费量，再配 {@code video.inputVideoPerSecond} 会同一批秒收两次。</li>
+     *   <li><b>输入秒不得双计</b>（已上移到所有视频方案的基础校验 {@code validateVideo}）：
+     *       {@code quantityMode=SUM/OUTPUT_PLUS_MAX} 已把输入秒折进计费量，再配
+     *       {@code video.inputVideoPerSecond} 会同一批秒收两次；本方案不再重复校验。</li>
      * </ol>
      */
     private String validateDimensionTiered() {
@@ -1039,19 +1059,6 @@ public record BillingConfig(
         }
         if (defaultUnitPrice == null) {
             return "DIMENSION_TIERED requires defaultUnitPrice (fallback when no dimension key matches)";
-        }
-        return validateInputSecondsNotDoubleCounted();
-    }
-
-    /** 输入秒既折进计费量又单独成价 = 同一批秒收两次 */
-    private String validateInputSecondsNotDoubleCounted() {
-        if (video == null || video.inputVideoPerSecond() == null || blankToNull(video.quantityMode()) == null) {
-            return null;
-        }
-        String mode = upper(video.quantityMode());
-        if (VideoConfig.QUANTITY_SUM.equals(mode) || VideoConfig.QUANTITY_OUTPUT_PLUS_MAX.equals(mode)) {
-            return "DIMENSION_TIERED: video.inputVideoPerSecond conflicts with video.quantityMode="
-                    + mode + " (input seconds would be billed twice)";
         }
         return null;
     }

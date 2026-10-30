@@ -99,6 +99,11 @@ const comboLocked = computed(() => rows.value.some((row) => String(row.key || ""
 function onCombosChange(codes: ResolutionComboCode[]) {
   const normalized = normalizeCombos(codes);
   props.form.videoDimensionCombos = normalized;
+  // 不含「含参考」组合时合成量口径无意义（没有输入秒要折进计费量）：固定回落「仅输出」，
+  // 否则界面上已隐藏的下拉会以残留值落库，形成看不见的量口径。
+  if (!normalized.includes("REFERENCE") && !normalized.includes("REFERENCE_AUDIO")) {
+    props.form.videoQuantityMode = "OUTPUT";
+  }
   for (const combo of RESOLUTION_COMBOS) {
     if (!normalized.includes(combo.code)) {
       for (const row of rows.value) {

@@ -20,7 +20,8 @@
     </el-row>
 
     <!-- 维度分档：档位表是「档位 × 计费组合」整表，由方案组件托管，此处让位 -->
-    <template v-if="!isDimensionTiered">
+    <!-- 固定价：档位表同样不呈现——固定价语义是「一个单价直出」，见 isFixedPlan 注释 -->
+    <template v-if="!isDimensionTiered && !isFixedPlan">
     <el-divider v-if="!tokenPriced" content-position="left">
       <span class="video-config__group">分辨率档位（{{ unitLabel }}）</span>
     </el-divider>
@@ -102,11 +103,12 @@
     </template>
     </template>
 
-    <!-- 计费量口径是「量」的轴，按两轴分工留在本组件（维度分档只接管「价」那一半的档位表） -->
-    <el-divider v-if="!tokenPriced && !isVendorMiniMax" content-position="left">
+    <!-- 合成量口径是「量」的轴：只有存在「含参考」组合（输入秒要折进量）时才有语义，
+         否则固定为「仅输出」并隐藏——它与「输入侧分量」表达的是同一件事的两种口径 -->
+    <el-divider v-if="!tokenPriced && !isVendorMiniMax && hasReferenceCombo" content-position="left">
       <span class="video-config__group">计费量口径</span>
     </el-divider>
-    <el-row v-if="!tokenPriced && !isVendorMiniMax" :gutter="16">
+    <el-row v-if="!tokenPriced && !isVendorMiniMax && hasReferenceCombo" :gutter="16">
       <el-col :span="8">
         <el-form-item label="合成量模式">
           <el-select v-model="form.videoQuantityMode" style="width: 100%">
@@ -206,6 +208,21 @@ const isVendorMiniMax = computed(() => String(props.form.pricingPlan || "").toUp
 const isDimensionTiered = computed(() => String(props.form.pricingPlan || "").toUpperCase() === "DIMENSION_TIERED");
 
 /**
+ * 固定价（FIXED）不呈现档位（2026-10-30 定调）：档位表属于「按请求属性分档」，只归维度分档价。
+ *
+ * <p>理由：固定价语义是「一个单价直出」；档位表一旦存在就必然参与取价（{@code FixedPricing} 同一份
+ * 实现按 {@code resolutionPrices} 命中），而固定价下界面上没有它的位置——
+ * 看得见的价格和库里会命中的价格必须是同一张表，否则就是静默收费。</p>
+ *
+ * <p>空方案按固定价处理（与后端 {@code PricingPlanEnum.fromCode} 同口径）：漏配时宁可少显示档位，
+ * 也不能让一张看不见的表悄悄生效。</p>
+ */
+const isFixedPlan = computed(() => {
+  const plan = String(props.form.pricingPlan || "").toUpperCase();
+  return plan === "" || plan === "FIXED";
+});
+
+/**
  * 输入秒是否已被计费量口径折进输出量。
  *
  * <p>折进去之后再按 {@code 输入视频 每秒} 单独收一次，同一批秒会收两遍；
@@ -242,6 +259,17 @@ const rows = computed<ResolutionRow[]>(() =>
 /** 当前预设的计费组合（决定档位表列集）；默认全选 */
 const combos = computed<ResolutionComboCode[]>(() => normalizeCombos(props.form.videoDimensionCombos));
 
+/**
+ * 是否含「含参考」组合：Kling 4.0 那类「有输入视频 → 量=输出×2」的价表靠它触发。
+ * 没有含参考档位时，输入秒要么不计费、要么走独立的「输入视频每秒」，合成量口径无语义。
+ * 固定价没有档位表 → 参考视频不改变单价 → 同样没有语义；要让输入秒同价计费，
+ * 直接在「输入侧分量」里把「输入视频 每秒」填成与默认单价相同即可。
+ */
+const hasReferenceCombo = computed(
+  () => !isFixedPlan.value
+    && (combos.value.includes("REFERENCE") || combos.value.includes("REFERENCE_AUDIO"))
+);
+
 /** 是否已有档位：任一档位行填了名字即锁定组合（改组合会让已填价格错位到别的键） */
 const comboLocked = computed(() => rows.value.some((row) => String(row.key || "").trim() !== ""));
 
@@ -254,6 +282,11 @@ const comboLocked = computed(() => rows.value.some((row) => String(row.key || ""
 function onCombosChange(codes: ResolutionComboCode[]) {
   const normalized = normalizeCombos(codes);
   props.form.videoDimensionCombos = normalized;
+  // 不含「含参考」组合时合成量口径无意义（没有输入秒要折进计费量）：固定回落「仅输出」，
+  // 否则界面上已隐藏的下拉会以残留值落库，形成看不见的量口径。
+  if (!normalized.includes("REFERENCE") && !normalized.includes("REFERENCE_AUDIO")) {
+    props.form.videoQuantityMode = "OUTPUT";
+  }
   for (const combo of RESOLUTION_COMBOS) {
     if (!normalized.includes(combo.code)) {
       for (const row of rows.value) {
