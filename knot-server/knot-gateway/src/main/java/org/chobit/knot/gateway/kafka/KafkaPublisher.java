@@ -2,6 +2,7 @@ package org.chobit.knot.gateway.kafka;
 
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.gateway.kafka.msg.Msg;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import org.chobit.knot.common.util.JsonKit;
 import org.springframework.kafka.core.KafkaTemplate;
 
@@ -21,7 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * （队列化要么满即丢弃 = 丢数据、要么无界堆积 = OOM、要么反压请求线程 = 拖慢 TTFT）。</p>
  *
  * <h3>契约：绝不抛</h3>
- * <p>序列化失败（这条消息废了）→ {@code dropped} + debug；
+ * <p>序列化失败（这条消息废了）→ {@code dropped} + warn（必须可见，理由见 {@link #publish}）；
  * send 同步抛异常（如 {@code max.block.ms} 超时）→ {@code dropped} + 节流 WARN + 死信；
  * 异步回调失败（broker 拒收 / 网络抖动，回调里才暴露）→ 死信（written/lost 计数）。
  * <b>任何情况下异常都不穿透到请求链路。</b></p>
@@ -62,10 +63,18 @@ public class KafkaPublisher {
     public void publish(String topic, Msg msg) {
         String payload;
         try {
-            payload = JsonKit.toJson(msg);
-        } catch (RuntimeException e) {
-            // 序列化失败只是这条消息废了，绝不影响请求链路
-            log.debug("Kafka message serialization failed, message dropped", e);
+            payload = JsonKit.toJsonOrThrow(msg);
+        } catch (JsonProcessingException e) {
+            // ⚠ 旧实现用 toJson：序列化失败只 log 后返回 null，catch (RuntimeException) 永远抓不到，
+            // 于是 send(topic, key, null) 发出 tombstone（compacted topic 上等于删掉同 key 消息），
+            // sent 照常递增、死信不写——「绝不丢消息」的契约被静默打破。故改用受检异常版本。
+            log.warn("Kafka message serialization failed, message dropped", e);
+            dropped.incrementAndGet();
+            return;
+        }
+        if (payload == null) {
+            // msg 本身为 null：同样不能把 null 当 payload 发出去
+            log.warn("Kafka message is null, message dropped");
             dropped.incrementAndGet();
             return;
         }

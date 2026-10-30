@@ -1,6 +1,7 @@
 package org.chobit.knot.plugin.log;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 /**
  * 上游（供应商）请求日志 payload：固定字段 + 原始请求 JSON。
@@ -17,6 +18,6 @@ public record UpstreamRequestPayload(String providerCode,
                                      String bindingProtocol,
                                      String contentType,
                                      String upstreamRequestId,
-                                     JsonNode requestBody,
+                                     @JsonSerialize(using = PluginLogBodySerializer.class) JsonNode requestBody,
                                      String upstreamUrl) implements PluginLogPayload {
 }

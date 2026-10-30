@@ -58,6 +58,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
@@ -70,6 +71,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
      * 请求上下文属性：流式响应写完时释放本请求在途计数的回调（{@code Runnable}）。
      */
     private static final String ATTR_LOAD_RELEASE = "loadRelease";
+
+    /** 记账失败日志节流：每 N 次打一条，避免 Redis 故障时把日志打爆 */
+    private static final int USAGE_FAILURE_LOG_EVERY = 100;
 
     /**
      * 请求上下文属性：本次请求实际命中的路由目标（{@code RoutingRuleTargetDto}）。
@@ -104,6 +108,9 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     private final ModelLoadKeys modelLoadKeys;
     private final OutageTracker outageTracker;
     private final OutageKeys outageKeys;
+
+    /** 流式用量记账失败计数：配额 / 成本被跳过的次数——必须可计量，不能只靠翻日志。 */
+    private final AtomicLong usageRecordFailures = new AtomicLong();
     /**
      * 网关域指标出口（限流 / 额度拒绝、摘除、上游失败、failover、代理耗时）。
      * 非 Spring 单元测试构造本类时为 null，所有埋点一律判空——
@@ -624,6 +631,13 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
      *
      * <p>响应已写完，记账异常只记日志、不向上抛，也不影响上面已经完成的在途释放与事件发布。</p>
      */
+    /**
+     * 流式用量记账失败次数（监控面）：非 0 即意味着有请求绕过了配额 / 成本记账。
+     */
+    public long usageRecordFailures() {
+        return usageRecordFailures.get();
+    }
+
     void recordStreamingUsage(GatewayRequestContext context,
                               ResolvedRouting routing,
                               UsageAccounting accounting) {
@@ -635,13 +649,20 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         if (candidate == null || trafficContext == null) {
             return;
         }
+        long tokens = accounting.totalTokens();
         try {
             NormalizedUsage normalized = accounting.normalized();
-            TrafficUsage usage = TrafficUsage.of(accounting.totalTokens(),
+            TrafficUsage usage = TrafficUsage.of(tokens,
                 costOf(normalized), normalized == null ? null : normalized.currency());
             trafficGuard.record(routing, candidate, usage, trafficContext);
         } catch (Exception e) {
-            log.error("Failed to record streaming usage for rule={}", routing.ruleCode(), e);
+            // ⚠ 流式响应已提交：这里抛异常只会破坏已开始的响应流，所以不抛。
+            // 但「配额 / 频控被静默绕过」是真实风险，必须计数 + 打点让监控能发现。
+            long total = usageRecordFailures.incrementAndGet();
+            if (total % USAGE_FAILURE_LOG_EVERY == 1) {
+                log.error("Streaming usage accounting failed, quota/cost skipped: rule={} tokens={} total={}",
+                        routing.ruleCode(), tokens, total, e);
+            }
         }
     }
 

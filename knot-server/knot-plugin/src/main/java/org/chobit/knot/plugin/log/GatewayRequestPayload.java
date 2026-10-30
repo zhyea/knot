@@ -1,6 +1,7 @@
 package org.chobit.knot.plugin.log;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import org.chobit.knot.plugin.gateway.GatewayRoutingSnapshot;
 
@@ -10,6 +11,6 @@ import org.chobit.knot.plugin.gateway.GatewayRoutingSnapshot;
 public record GatewayRequestPayload(String ruleCode,
                                     String protocol,
                                     String contentType,
-                                    JsonNode requestBody,
+                                    @JsonSerialize(using = PluginLogBodySerializer.class) JsonNode requestBody,
                                     GatewayRoutingSnapshot routing) implements PluginLogPayload {
 }

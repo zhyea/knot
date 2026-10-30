@@ -4,6 +4,7 @@ import org.apache.kafka.common.PartitionInfo;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
+import org.chobit.knot.gateway.kafka.msg.Msg;
 import org.chobit.knot.gateway.runtime.GatewayRequestContext;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
@@ -21,6 +22,7 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -138,6 +140,22 @@ class KafkaPublisherTest {
     }
 
     @Test
+    void serializationFailureDropsWithoutSendingNullPayload(@TempDir Path dir) {
+        FakeKafkaTemplate template = new FakeKafkaTemplate();
+        EventDeadLetterWriter writer = new EventDeadLetterWriter(dir.resolve("dlq").toString());
+        KafkaPublisher publisher = new KafkaPublisher(template, writer);
+
+        publisher.publish(TOPIC, new ExplodingMsg("trace-1"));
+
+        assertEquals(0, template.sentCount(),
+                "序列化失败绝不能发出 null payload：compacted topic 上等于删除同 key 消息");
+        assertEquals(1, publisher.dropped(),
+                "旧实现 sent 照常递增、死信不写；改造后必须计入 dropped");
+        assertEquals(0, publisher.sent());
+        assertEquals(0, writer.written(), "序列化失败是消息本身废了，不是投递失败，不该落死信");
+    }
+
+    @Test
     void msgNodeIdIsAutoDetected() {
         assertNotNull(sampleSuccess().nodeId());
         assertTrue(!sampleSuccess().nodeId().isBlank(),
@@ -226,6 +244,18 @@ class KafkaPublisherTest {
         @Override
         public org.apache.kafka.clients.producer.Producer<String, String> createProducer() {
             return null;
+        }
+    }
+
+    /**
+     * 不可序列化的 {@link Msg}：Jackson 会反射调用 public getter，{@code getBoom()} 必抛。
+     * 旧实现用 {@code JsonKit.toJson}（吞异常后返回 null）会走到 {@code send(topic, key, null)}，
+     * 本假件就是为了让那条路径重新可见。
+     */
+    private record ExplodingMsg(String traceId) implements Msg {
+
+        public String getBoom() {
+            throw new IllegalStateException("cannot serialize");
         }
     }
 

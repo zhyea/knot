@@ -2,6 +2,7 @@ package org.chobit.knot.adapter.usage.calculator;
 
 import org.chobit.knot.adapter.usage.calculator.TokenBillingModeCalculator;
 import org.chobit.knot.common.constants.enums.PricingPlanEnum;
+import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.adapter.model.ref.BillingRuleRef;
 import org.chobit.knot.adapter.model.usage.NormalizedBillingAmount;
 import org.chobit.knot.adapter.model.usage.NormalizedUsageDetail;
@@ -14,6 +15,8 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * TOKEN 计算器按定价方案分发的计费行为：固定价 / 阶梯价 / 高低峰各自一条计费路径，
@@ -227,6 +230,25 @@ class TokenBillingModeCalculatorTest {
                 context(rule("{}", "GARBAGE"), new TokenBillingUsage(1L, 0L, 1L, 0L, 0L, 0L, 0L)).pricingPlan());
         assertEquals(PricingPlanEnum.PEAK_OFF_PEAK,
                 context(rule("{}", "peak_off_peak"), new TokenBillingUsage(1L, 0L, 1L, 0L, 0L, 0L, 0L)).pricingPlan());
+    }
+
+    @Test
+    void invalidConfigJsonIsRejectedInsteadOfBillingZero() {
+        // 旧实现 fromJsonOrNull 把非法 JSON 吞成 null -> 各分项价按 0 出账且无任何痕迹（静默资损）
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> calculate(rule("not-json", "FIXED"),
+                        new TokenBillingUsage(1_000L, 200L, 1_200L, 0L, 0L, 0L, 0L), PEAK));
+
+        assertTrue(ex.getMessage().contains("config_json 非法"), ex.getMessage());
+    }
+
+    @Test
+    void blankConfigJsonStillMeansNoPriceConfigured() {
+        // 收紧只对「非法 JSON」生效：空配置仍是合法的「未配置价格」状态，不能误伤
+        NormalizedBillingAmount amount = calculate(rule("   ", "FIXED"),
+                new TokenBillingUsage(1_000L, 200L, 1_200L, 0L, 0L, 0L, 0L), PEAK);
+
+        assertEquals("0", amount.totalCost());
     }
 
     private NormalizedBillingAmount calculate(BillingRuleRef rule, TokenBillingUsage usage, Instant occurredAt) {

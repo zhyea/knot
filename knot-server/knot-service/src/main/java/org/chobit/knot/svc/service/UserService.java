@@ -47,6 +47,9 @@ public class UserService {
     /** BCrypt 输入上限：超过 72 字节的部分会被截断，入库前显式拒绝。 */
     private static final int MAX_PASSWORD_BYTES = 72;
 
+    /** 口令下限：与前端 ForcePasswordChangeView 的 {@code min: 8} 同一口径，服务端必须自己守住 */
+    private static final int MIN_PASSWORD_LENGTH = 8;
+
     private final UserMapper userMapper;
     private final DepartmentMapper departmentMapper;
     private final AdminAuthorizationManageMapper roleMapper;
@@ -93,13 +96,7 @@ public class UserService {
      */
     @Transactional
     public void forcePasswordChange(String passwordChangeToken, String newPassword) {
-        String password = newPassword == null ? "" : newPassword.trim();
-        if (password.isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "新密码不能为空");
-        }
-        if (passwordTooLong(password)) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "密码长度不能超过 72 字节");
-        }
+        String password = requirePassword(newPassword, "新密码");
         Long userId;
         try {
             userId = JwtKit.parsePasswordChangeToken(passwordChangeToken).get("userId", Long.class);
@@ -183,13 +180,7 @@ public class UserService {
     public UserDto createUser(UserDto request) {
         DepartmentEntity department = validateDepartment(request.deptCode());
         List<Long> roleIds = normalizeRoleIds(request.roleIds());
-        String password = request.password() == null ? "" : request.password().trim();
-        if (password.isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "密码不能为空");
-        }
-        if (passwordTooLong(password)) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "密码长度不能超过 72 字节");
-        }
+        String password = requirePassword(request.password(), "密码");
 
         UserEntity entity = new UserEntity();
         entity.setUsername(request.username());
@@ -345,6 +336,27 @@ public class UserService {
 
     private static boolean isDisabled(Integer status) {
         return status == null || status != STATUS_ENABLED;
+    }
+
+    /**
+     * 口令策略收口在服务端：前端只做即时反馈，绕过前端直接调 API 一样要被拦住
+     * （旧实现只校验非空，API 直调可创建 1 位密码）。
+     *
+     * <p>上限 72 字节是 BCrypt 的硬边界：超过会被静默截断，等于缩短用户口令。</p>
+     */
+    private static String requirePassword(String raw, String label) {
+        String password = raw == null ? "" : raw.trim();
+        if (password.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, label + "不能为空");
+        }
+        if (password.length() < MIN_PASSWORD_LENGTH) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    label + "至少 " + MIN_PASSWORD_LENGTH + " 位");
+        }
+        if (passwordTooLong(password)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "密码长度不能超过 72 字节");
+        }
+        return password;
     }
 
     private static boolean passwordTooLong(String password) {

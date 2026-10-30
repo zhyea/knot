@@ -1,6 +1,7 @@
 import {computed, reactive, ref, type Ref} from "vue";
 import {ElMessage} from "element-plus";
 import type {Dict, ResourceField, ResourceSubmitter, Row, RowAction} from "@/types";
+import {EnabledStatus} from "@/constants/status";
 import {useAutoQuery} from "./useAutoQuery";
 import {usePageList} from "./usePageList";
 import {
@@ -644,6 +645,8 @@ export function useAuthorizationManagement() {
       deleteAuthorizationModule(row.id).then(async () => {
         ElMessage.success("删除成功");
         await Promise.all([loadModules(), loadModuleCatalog()]);
+      }).catch(() => {
+        ElMessage.error("删除失败");
       });
     }
   }
@@ -697,6 +700,8 @@ export function useAuthorizationManagement() {
       deleteAuthorizationMenu(row.id).then(async () => {
         ElMessage.success("删除成功");
         await Promise.all([loadMenus(), loadMenuCatalog(), loadPermissions(), loadPermissionCatalog()]);
+      }).catch(() => {
+        ElMessage.error("删除失败");
       });
     }
   }
@@ -770,6 +775,8 @@ export function useAuthorizationManagement() {
         if (selectedRole.value?.id) {
           await loadRoleSnapshot(selectedRole.value.id);
         }
+      }).catch(() => {
+        ElMessage.error("删除失败");
       });
     }
   }
@@ -827,6 +834,8 @@ export function useAuthorizationManagement() {
       deleteAuthorizationApiBinding(row.id).then(async () => {
         ElMessage.success("删除成功");
         await loadApiBindings();
+      }).catch(() => {
+        ElMessage.error("删除失败");
       });
     }
   }
@@ -879,8 +888,11 @@ export function useAuthorizationManagement() {
     if (!row?.id) {
       return;
     }
-    const previousStatus = row.status ?? "ENABLED";
-    const nextStatus = enabled ? "ENABLED" : "DISABLED";
+    // ⚠ status 是后端 Integer（1/0），0 是合法值：一律用数字常量比较。
+    // 旧实现写字符串 "ENABLED"/"DISABLED"，与视图的 === EnabledStatus.ENABLED 永不相等：
+    // 开关乐观更新后视觉回弹，且上面的幂等短路成了死代码（重复切换会重复发请求）。
+    const previousStatus = row.status ?? EnabledStatus.DISABLED;
+    const nextStatus = enabled ? EnabledStatus.ENABLED : EnabledStatus.DISABLED;
     if (previousStatus === nextStatus) {
       return;
     }

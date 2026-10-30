@@ -1,6 +1,7 @@
 package org.chobit.knot.plugin.log;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 /**
  * 上游（供应商）错误日志 payload：固定字段（含错误信息）+ 原始请求 JSON。
@@ -17,6 +18,6 @@ public record UpstreamErrorPayload(String providerCode,
                                    String upstreamRequestId,
                                    String errorType,
                                    String errorMessage,
-                                   JsonNode requestBody,
+                                   @JsonSerialize(using = PluginLogBodySerializer.class) JsonNode requestBody,
                                    String upstreamUrl) implements PluginLogPayload {
 }

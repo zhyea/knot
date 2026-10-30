@@ -432,17 +432,6 @@ public record BillingConfig(
         }
     }
 
-    /**
-     * 宽松解析：空串或非法 JSON 均返回 null（供计费热路径用，解析失败按无配置计费）。
-     */
-    public static BillingConfig fromJsonOrNull(String json) {
-        try {
-            return parse(json);
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
-    }
-
     /** 视频分辨率单价：resolutionPrices[resolution]，未配置返回 null */
     public BigDecimal resolutionPrice(String resolution) {
         return resolutionPrices == null ? null : resolutionPrices.get(resolution);

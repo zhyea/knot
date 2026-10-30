@@ -1,5 +1,6 @@
 package org.chobit.knot.svc.service.support;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.chobit.knot.common.auth.AuthRoles;
 import org.chobit.knot.common.constants.AuthConstants;
@@ -196,10 +197,22 @@ public class ProviderCredentialSupport {
         return s != null && !s.isBlank();
     }
 
+    /**
+     * 凭据正文加密：序列化失败<b>必须抛</b>，不能返回 null。
+     *
+     * <p>旧实现用 {@code JsonKit.toJson}（失败只 log 后返回 null），null 一路落到
+     * {@code setEncryptedConfig(null)}：接口照样返回「保存成功」，凭据其实没落库——
+     * 既是资损又完全不可见。空结果同理。</p>
+     */
     private String encryptConfig(Map<String, Object> authConfig) {
-        String json = JsonKit.toJson(authConfig);
+        String json;
+        try {
+            json = JsonKit.toJsonOrThrow(authConfig);
+        } catch (JsonProcessingException e) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "凭据配置无法序列化，未保存");
+        }
         if (!hasText(json)) {
-            return null;
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "凭据配置为空，未保存");
         }
         return credentialEncryption.encrypt(json);
     }

@@ -116,7 +116,9 @@ public class BillingService {
             modeEnum = BillingModeEnum.CUSTOM;
         }
         PricingPlanEnum plan = PricingPlanEnum.fromCode(rule.pricingPlan());
-        BillingConfig config = BillingConfig.fromJsonOrNull(rule.configJson());
+        BillingConfig config = rule.configJson() == null || rule.configJson().isBlank()
+                ? null
+                : parseConfigOrThrow(rule.configJson());
         BillingConfig.PricingContext context = new BillingConfig.PricingContext(amount, occurredAt);
         BigDecimal zero = BigDecimal.ZERO;
 
@@ -568,6 +570,16 @@ public class BillingService {
     private static String blankToNull(String value) {
         String normalized = trimToEmpty(value);
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    /** 预览同样不许把非法配置静默映射为零价（60-business-rules §8）。 */
+    private static BillingConfig parseConfigOrThrow(String json) {
+        try {
+            return BillingConfig.parse(json);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "计费规则 config_json 非法: " + e.getMessage());
+        }
     }
 
     private static String normalizeBillingMode(String value) {

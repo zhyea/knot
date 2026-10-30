@@ -1,10 +1,13 @@
 package org.chobit.knot.gateway.async;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.common.util.CallbackFieldSupport;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.dal.entity.BillingRuleEntity;
@@ -129,15 +132,31 @@ public class AsyncTaskSupport {
                 creation.protocol() == null ? null : creation.protocol().code(),
                 creation.upstreamTaskId(),
                 now.plusNanos(Math.max(1L, spec.pollIntervalMs()) * 1_000_000L),
-                JsonKit.toJson(creation.requestBody()),
-                JsonKit.toJson(spec),
-                JsonKit.toJson(creation.context()),
+                jsonOrThrow(creation.requestBody()),
+                jsonOrThrow(spec),
+                jsonOrThrow(creation.context()),
                 creation.billingRuleCode(),
                 creation.billingRuleVersionCode(),
                 now,
                 now.plusNanos(Math.max(1L, spec.timeoutMs()) * 1_000_000L),
                 days == null || days <= 0 ? null : now.plusDays(days),
                 creation.callbackUrl());
+    }
+
+    /**
+     * 落库字段序列化：<b>失败必须抛</b>。
+     *
+     * <p>旧实现用 {@code JsonKit.toJson}（失败只 log 后返回 null），requestBody / spec / context
+     * 会以 NULL 落库，界面照样显示「已提交」，轮询时却无从重建上下文。
+     * 宁可拒绝提交，也不能留下一个假任务。</p>
+     */
+    private static String jsonOrThrow(Object value) {
+        try {
+            return JsonKit.toJsonOrThrow(value);
+        } catch (JsonProcessingException e) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "异步任务字段序列化失败，未提交: " + e.getMessage());
+        }
     }
 
     /** 生成对外任务句柄：32 位小写 hex，与网关 requestId 同形态，不暴露上游 ID */

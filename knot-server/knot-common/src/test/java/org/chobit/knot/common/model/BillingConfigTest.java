@@ -28,7 +28,6 @@ class BillingConfigTest {
     void parseHandlesBlankInvalidAndObject() {
         assertNull(BillingConfig.parse(null));
         assertNull(BillingConfig.parse("  "));
-        assertNull(BillingConfig.fromJsonOrNull("not-json"));
         assertThrows(IllegalArgumentException.class, () -> BillingConfig.parse("not-json"));
         assertThrows(IllegalArgumentException.class, () -> BillingConfig.parse("[1,2]"));
         assertNotNull(BillingConfig.parse("{}"));

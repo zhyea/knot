@@ -10,6 +10,9 @@ import org.chobit.knot.adapter.model.usage.TokenBillingUsage;
 import org.chobit.knot.adapter.model.usage.TokenUsageDetailKind;
 import org.chobit.knot.adapter.model.ref.BillingRuleRef;
 import org.chobit.knot.adapter.usage.NormalizedUsageContext;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
+import org.chobit.knot.common.model.BillingConfig;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -137,5 +140,28 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
      */
     protected long tokenAmount(TokenBillingUsage tokens) {
         return firstAmount(tokens.totalTokens(), tokens.outputTokens());
+    }
+
+    /**
+     * 规则定价配置解析：<b>非法 config_json 必须抛，不许静默按 0 出账</b>
+     * （60-business-rules §8 红线：静默记零账 = 静默资损）。
+     *
+     * <p>旧实现 {@code BillingConfig.fromJsonOrNull} 把非法 JSON 吞成 null，各分项价随即按 0 计算，
+     * 没有日志也没有标记——历史脏数据、直接改库、迁移错误、模式与提取器错配都会走到这里。
+     * 现在一律上抛 {@link BusinessException}，让调用链显式失败。</p>
+     *
+     * <p>空 / 空白仍返回 null：「未配置价格」是合法的规则状态，各计算器按既有语义出账。</p>
+     */
+    protected static BillingConfig configOf(BillingRuleRef rule) {
+        String json = rule == null ? null : rule.configJson();
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return BillingConfig.parse(json);
+        } catch (IllegalArgumentException e) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "计费规则 config_json 非法，已中止计费: " + e.getMessage());
+        }
     }
 }

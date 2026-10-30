@@ -69,7 +69,7 @@ public class TokenBillingModeCalculator extends AbstractBillingModeCalculator {
 
     /** 方案领域对象：config_json 解析失败（null）时各分项价按 0 出账 */
     private static BillingConfig.PricingPlan planOf(NormalizedUsageContext context, PricingPlanEnum plan) {
-        BillingConfig config = BillingConfig.fromJsonOrNull(context.rule().configJson());
+        BillingConfig config = configOf(context.rule());
         return config == null ? null : config.pricingPlan(plan);
     }
 

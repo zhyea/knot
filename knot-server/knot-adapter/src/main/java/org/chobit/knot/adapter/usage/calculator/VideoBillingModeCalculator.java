@@ -69,7 +69,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
     public NormalizedBillingAmount calculate(NormalizedUsageContext context) {
         BillingRuleRef rule = rule(context);
         BillingUsage usage = context.usage();
-        BillingConfig config = BillingConfig.fromJsonOrNull(rule.configJson());
+        BillingConfig config = configOf(rule);
         int unitSize = unitSize(rule, mode());
 
         if (!(usage instanceof VideoBillingUsage video)) {

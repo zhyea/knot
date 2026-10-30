@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 网关侧词库资源缓存：全量启用词条的单一供给点（方案 B，robin 2026-10-14 拍板）。
@@ -39,6 +40,16 @@ public class ModerationWordResource {
 
     private final LoadingCache<String, List<ModerationTerm>> cache;
 
+    /** fail-open 累计次数：非 0 即意味着有请求是在「无敏感词过滤」状态下被放行的 */
+    private final AtomicLong failOpenCount = new AtomicLong();
+
+    /** 持续 fail-open 的起始毫秒时间戳；0 表示当前正常 */
+    private volatile long failOpenSinceMillis;
+
+    /** 最近一次成功取词的词库版本与规模：fail-open 期间保持上一次的值，便于判断陈旧程度 */
+    private volatile String lastVersion;
+    private volatile int lastWordCount;
+
     /**
      * Constructs a new instance.
      */
@@ -57,10 +68,44 @@ public class ModerationWordResource {
      */
     public List<ModerationTerm> currentWords() {
         try {
-            return cache.get(ENABLED_KEY);
+            List<ModerationTerm> terms = cache.get(ENABLED_KEY);
+            failOpenSinceMillis = 0L;
+            if (terms != null) {
+                lastWordCount = terms.size();
+                lastVersion = String.valueOf(ModerationTerm.versionOf(terms));
+            }
+            return terms;
         } catch (RuntimeException e) {
-            log.warn("Moderation word resource unavailable, fail-open with empty list: {}", e.getMessage());
+            // fail-open 语义不变（40-plugin.md 已登记），但必须可计量：
+            // 只在日志里可见 = 内容安全能力被摘除而无人知晓。
+            long total = failOpenCount.incrementAndGet();
+            if (failOpenSinceMillis == 0L) {
+                failOpenSinceMillis = System.currentTimeMillis();
+            }
+            log.warn("Moderation word resource unavailable, fail-open with empty list "
+                            + "(total={}, since={}, lastVersion={}): {}",
+                    total, failOpenSinceMillis, lastVersion, e.getMessage());
             return List.of();
         }
+    }
+
+    /** fail-open 累计次数（监控面）。 */
+    public long failOpenCount() {
+        return failOpenCount.get();
+    }
+
+    /** 持续 fail-open 的起始毫秒时间戳（0 = 当前正常）。 */
+    public long failOpenSinceMillis() {
+        return failOpenSinceMillis;
+    }
+
+    /** 最近一次成功取词的词库版本；null 表示至今没成功过。 */
+    public String lastVersion() {
+        return lastVersion;
+    }
+
+    /** 最近一次成功取词的词条规模。 */
+    public int lastWordCount() {
+        return lastWordCount;
     }
 }
