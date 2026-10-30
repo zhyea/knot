@@ -56,8 +56,9 @@
           * on duplicate key update 只覆盖「代码权威」列（descriptor 投影）——代码改了重启即跟随；
           * status / is_deleted 一个都不出现在 update 段——用户停用或逻辑删除过的插件，重启不能被重新打开。
 
-        status / is_deleted / orphaned 在 values 段写死字面量（新行默认启用、未删除、非孤儿），
+        status / is_deleted / orphaned 在 values 段写死字面量（新行默认停用、未删除、非孤儿），
         因为这三个值不属于 descriptor，让实体字段跑空值进 SQL 反而要额外兜底。
+        插件采用 opt-in：新物化的实例默认停用，由运维在管理端按需启用。
     -->
     <insert id="upsert">
         insert into kb_plugin_instances(
@@ -85,7 +86,7 @@
             #{orderNo},
             #{timeoutMs},
             #{pluginType},
-            1,
+            0,
             0,
             0
         )

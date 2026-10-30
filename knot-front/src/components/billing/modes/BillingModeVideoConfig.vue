@@ -103,6 +103,9 @@
     </template>
     </template>
 
+    <!-- 计费量与输入侧分量：视频模式「量」的另一半，与上面的档位价同属本组件职责，
+         不能外挂到 BillingRuleFormDialog——否则容器层要知道视频模式的内部构成 -->
+    <BillingModeVideoUsageConfig :form="form"/>
   </div>
 </template>
 
@@ -114,6 +117,7 @@ import {COMMON_RESOLUTION_OPTIONS, RESOLUTION_COMBOS, createResolutionRow, norma
 import type {ResolutionComboCode, ResolutionRow} from "@/utils/billingResolution";
 import ResolutionComboPicker from "../ResolutionComboPicker.vue";
 import ResolutionTierTable from "../ResolutionTierTable.vue";
+import BillingModeVideoUsageConfig from "./BillingModeVideoUsageConfig.vue";
 
 const props = defineProps({
   form: {type: Object, required: true}
@@ -134,13 +138,13 @@ const tokenPriced = computed(() => isTokenPricedUnit(props.form.unit));
 /**
  * MiniMax 方案（VENDOR_MINIMAX）走独立的「档位输出价 + 档位输入价」两列结构：
  * 输入视频每秒价默认取同档位输出价（可单独覆盖），图片单价/免费张数由 MiniMax 方案组件托管，
- * 音频输入免费。计量字段统一由 BillingModeVideoUsageConfig 托管，本组件不重复渲染。
+ * 音频输入免费。计量字段统一由下方 BillingModeVideoUsageConfig 托管，本组件不重复渲染。
  */
 const isVendorMiniMax = computed(() => String(props.form.pricingPlan || "").toUpperCase() === "VENDOR_MINIMAX");
 
 /**
  * 维度分档价（DIMENSION_TIERED）：档位表由方案组件（PricingPlanDimensionTieredConfig）托管，
- * 本组件只让位<b>档位表</b>；计费量口径与输入侧分量由表单末尾的用量区块托管。
+ * 本组件只让位<b>档位表</b>；计费量口径与输入侧分量由本组件末尾的用量区块托管。
  */
 const isDimensionTiered = computed(() => String(props.form.pricingPlan || "").toUpperCase() === "DIMENSION_TIERED");
 

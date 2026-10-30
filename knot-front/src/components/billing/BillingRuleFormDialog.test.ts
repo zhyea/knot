@@ -823,7 +823,7 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     expect((config.video as Dict).dimensionCombos).toEqual(["BASE", "AUDIO"]);
   });
 
-  it("VIDEO：计费量口径与输入侧分量独立于基础计费规则，并置于表单最下方", async () => {
+  it("VIDEO：计费量与输入侧分量由模式组件托管，容器层不再外挂", async () => {
     const wrapper = await openDialog();
     const form = formOf(wrapper);
     form.billingMode = "VIDEO";
@@ -831,14 +831,21 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     form.pricingPlan = "DIMENSION_TIERED";
     await flushPromises();
 
-    expect(wrapper.findComponent(BillingModeVideoUsageConfig).exists()).toBe(true);
-    const baseCardText = wrapper.find(".billing-base-card").text();
-    expect(baseCardText).not.toContain("计费量口径");
-    expect(baseCardText).not.toContain("输入侧分量");
+    // 归属：用量区块必须是视频模式组件的后代，而不是被容器层直接渲染
+    const modeComponent = wrapper.findComponent(BillingModeVideoConfig);
+    expect(modeComponent.exists()).toBe(true);
+    expect(modeComponent.findComponent(BillingModeVideoUsageConfig).exists()).toBe(true);
 
+    // 位置：与档位价同处「基础计费规则」卡片，位于备注之前
+    const baseCardText = wrapper.find(".billing-base-card").text();
+    expect(baseCardText).toContain("视频计费量与输入侧分量");
     const text = wrapper.text();
-    expect(text).toContain("视频计费量与输入侧分量");
-    expect(text.indexOf("备注")).toBeLessThan(text.indexOf("视频计费量与输入侧分量"));
+    expect(text.indexOf("视频计费量与输入侧分量")).toBeLessThan(text.indexOf("备注"));
+
+    // 反向探针：非视频模式不得出现用量区块——卸载责任在模式组件，不靠容器层 v-if 兜底
+    form.billingMode = "TOKEN";
+    await flushPromises();
+    expect(wrapper.findComponent(BillingModeVideoUsageConfig).exists()).toBe(false);
   });
 
   it("VIDEO 合成量口径：维度分档价下有「含参考」组合时落库", async () => {

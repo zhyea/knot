@@ -1,81 +1,76 @@
 <template>
   <div v-if="showUsage" class="video-usage-config">
-    <div class="space-line"/>
-    <div class="slot-body form-section">
-      <div class="section-head">
-        <h3>视频计费量与输入侧分量</h3>
-      </div>
+    <div class="video-usage-config__title">视频计费量与输入侧分量</div>
 
-      <!-- 合成量口径是「量」的轴：只有存在「含参考」组合（输入秒要折进量）时才有语义，
-           否则固定为「仅输出」并隐藏——它与「输入侧分量」表达的是同一件事的两种口径 -->
-      <template v-if="showQuantity">
-        <el-divider content-position="left">
-          <span class="video-usage-config__group">计费量口径</span>
-        </el-divider>
-        <el-row :gutter="16">
-          <el-col :span="8">
-            <el-form-item label="合成量模式">
-              <el-select v-model="form.videoQuantityMode" style="width: 100%">
-                <el-option v-for="item in QUANTITY_MODES" :key="item.value" :label="item.label" :value="item.value"/>
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="16">
-            <el-form-item label="口径说明">
-              <span class="video-usage-config__readonly">{{ quantityHint }}</span>
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </template>
-
+    <!-- 合成量口径是「量」的轴：只有存在「含参考」组合（输入秒要折进量）时才有语义，
+         否则固定为「仅输出」并隐藏——它与「输入侧分量」表达的是同一件事的两种口径 -->
+    <template v-if="showQuantity">
       <el-divider content-position="left">
-        <span class="video-usage-config__group">输入侧分量（可选，留空不计费）</span>
+        <span class="video-usage-config__group">计费量口径</span>
       </el-divider>
-      <div class="input-charge-grid">
-        <el-form-item v-if="!inputVideoFolded" label="输入视频 每秒">
-          <el-input-number v-model="form.videoInputVideoPerSecond"
-                           :min="0"
-                           :step="UNIT_PRICE_STEP"
-                           controls-position="right"
-                           style="width: 100%"/>
-        </el-form-item>
-        <el-form-item label="输入图片 每张">
-          <el-input-number v-model="form.videoInputImagePerImage"
-                           :min="0"
-                           :step="UNIT_PRICE_STEP"
-                           controls-position="right"
-                           style="width: 100%"/>
-        </el-form-item>
-        <el-form-item label="图片免费张数">
-          <el-input-number v-model="form.videoFreeInputImages"
-                           :min="0"
-                           :step="1"
-                           controls-position="right"
-                           style="width: 100%"/>
-        </el-form-item>
-        <el-form-item label="音频直出附加费">
-          <el-input-number v-model="form.videoAudioSurcharge"
-                           :min="0"
-                           :step="UNIT_PRICE_STEP"
-                           controls-position="right"
-                           style="width: 100%"/>
-        </el-form-item>
-      </div>
-      <el-alert type="info" :closable="false" class="video-usage-config__hint">
-        <template #title>
-          <span>
-            输入侧分量按「输出秒 + 输入秒 + 输入图片」三路各自计价后求和；
-            分量单价独立于上方分辨率档，不会被默认单价顶替。附加费是与用量无关的常数项（如 Vidu 直出音频 +15）。
-          </span>
-        </template>
-      </el-alert>
+      <el-row :gutter="16">
+        <el-col :span="8">
+          <el-form-item label="合成量模式">
+            <el-select v-model="form.videoQuantityMode" style="width: 100%">
+              <el-option v-for="item in QUANTITY_MODES" :key="item.value" :label="item.label" :value="item.value"/>
+            </el-select>
+          </el-form-item>
+        </el-col>
+        <el-col :span="16">
+          <el-form-item label="口径说明">
+            <span class="video-usage-config__readonly">{{ quantityHint }}</span>
+          </el-form-item>
+        </el-col>
+      </el-row>
+    </template>
+
+    <el-divider content-position="left">
+      <span class="video-usage-config__group">输入侧分量（可选，留空不计费）</span>
+    </el-divider>
+    <div class="input-charge-grid">
+      <el-form-item v-if="!inputVideoFolded" label="输入视频 每秒">
+        <el-input-number v-model="form.videoInputVideoPerSecond"
+                         :min="0"
+                         :step="UNIT_PRICE_STEP"
+                         controls-position="right"
+                         style="width: 100%"/>
+      </el-form-item>
+      <el-form-item label="输入图片 每张">
+        <el-input-number v-model="form.videoInputImagePerImage"
+                         :min="0"
+                         :step="UNIT_PRICE_STEP"
+                         controls-position="right"
+                         style="width: 100%"/>
+      </el-form-item>
+      <el-form-item label="图片免费张数">
+        <el-input-number v-model="form.videoFreeInputImages"
+                         :min="0"
+                         :step="1"
+                         controls-position="right"
+                         style="width: 100%"/>
+      </el-form-item>
+      <el-form-item label="音频直出附加费">
+        <el-input-number v-model="form.videoAudioSurcharge"
+                         :min="0"
+                         :step="UNIT_PRICE_STEP"
+                         controls-position="right"
+                         style="width: 100%"/>
+      </el-form-item>
     </div>
+    <el-alert type="info" :closable="false" class="video-usage-config__hint">
+      <template #title>
+        <span>
+          输入侧分量按「输出秒 + 输入秒 + 输入图片」三路各自计价后求和；
+          分量单价独立于上方分辨率档，不会被默认单价顶替。附加费是与用量无关的常数项（如 Vidu 直出音频 +15）。
+        </span>
+      </template>
+    </el-alert>
   </div>
 </template>
 
 <script setup lang="ts">
 import {computed} from "vue";
-import {BillingMode, PricingPlan} from "@/constants/status";
+import {PricingPlan} from "@/constants/status";
 import {UNIT_PRICE_STEP, isTokenPricedUnit} from "@/utils/billingPrice";
 import {normalizeCombos} from "@/utils/billingResolution";
 
@@ -83,17 +78,16 @@ const props = defineProps({
   form: {type: Object, required: true}
 });
 
-/** token 量纲与 MiniMax 方案由各自组件托管计量字段，本区块不重复渲染。 */
+/**
+ * 只在视频模式组件（{@link BillingModeVideoConfig}）内部渲染，模式本身由调用方决定，
+ * 这里只判「这份量由谁托管」：token 量纲与 MiniMax 方案各有归属，本区块让位。
+ */
 const tokenPriced = computed(() => isTokenPricedUnit(props.form.unit));
 const isVendorMiniMax = computed(
   () => String(props.form.pricingPlan || "").toUpperCase() === PricingPlan.VENDOR_MINIMAX
 );
 
-const showUsage = computed(
-  () => String(props.form.billingMode || "").toUpperCase() === BillingMode.VIDEO
-    && !tokenPriced.value
-    && !isVendorMiniMax.value
-);
+const showUsage = computed(() => !tokenPriced.value && !isVendorMiniMax.value);
 
 const isFixedPlan = computed(() => {
   const plan = String(props.form.pricingPlan || "").toUpperCase();
@@ -140,10 +134,19 @@ const quantityHint = computed(
 <style scoped>
 .video-usage-config {
   width: 100%;
+  margin-top: 4px;
 }
 
-.form-section {
-  border-color: #e4e7ed;
+/* 嵌在「基础计费规则」卡片内，与外层卡片标题（13px/600/primary）拉开一级层次 */
+.video-usage-config__title {
+  margin-bottom: 4px;
+  color: var(--el-text-color-regular);
+  font-size: var(--el-font-size-base, 13px);
+  font-weight: 600;
+}
+
+.video-usage-config :deep(.el-divider--horizontal) {
+  margin: 14px 0 12px;
 }
 
 .video-usage-config__group {

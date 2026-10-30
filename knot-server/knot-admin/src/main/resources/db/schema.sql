@@ -670,7 +670,7 @@ CREATE TABLE IF NOT EXISTS kb_plugin_instances (
   extension_point VARCHAR(64) NOT NULL COMMENT '扩展点（PluginDescriptor.extensionPoint）',
   stage_code VARCHAR(64) NOT NULL COMMENT '执行阶段（PluginDescriptor.stageCode）',
   order_no INT NOT NULL DEFAULT 100 COMMENT '同扩展点+阶段的执行顺序（PluginDescriptor.orderNo，升序）',
-  status TINYINT NOT NULL DEFAULT 1 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用；运维权威，reconcile 不覆盖',
+  status TINYINT NOT NULL DEFAULT 0 COMMENT '启用状态（EnabledStatusEnum）：1-启用 0-停用；默认停用（opt-in），运维权威，reconcile 不覆盖',
   timeout_ms INT NOT NULL DEFAULT 3000 COMMENT '插件超时（毫秒）；分发器尚未读取该列，超时治理属待办',
   plugin_type VARCHAR(32) NOT NULL DEFAULT 'SYNC' COMMENT '插件执行类型（PluginTypeEnum）：SYNC-同步插件（嵌入请求链内联执行）',
   is_deleted TINYINT(1) NOT NULL DEFAULT 0 COMMENT '逻辑删除（死行不展示）：1-已删除 0-未删除；运维权威，reconcile 不覆盖',
