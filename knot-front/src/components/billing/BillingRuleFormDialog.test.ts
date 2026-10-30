@@ -6,6 +6,7 @@ import {ElDrawer, ElMessage} from "element-plus";
 import BillingRuleFormDialog from "@/components/billing/BillingRuleFormDialog.vue";
 import BillingModeTokenConfig from "@/components/billing/modes/BillingModeTokenConfig.vue";
 import BillingModeVideoConfig from "@/components/billing/modes/BillingModeVideoConfig.vue";
+import BillingModeVideoUsageConfig from "@/components/billing/modes/BillingModeVideoUsageConfig.vue";
 import BillingModeCustomConfig from "@/components/billing/modes/BillingModeCustomConfig.vue";
 import PricingPlanVendorMiniMaxConfig from "@/components/billing/plans/PricingPlanVendorMiniMaxConfig.vue";
 import PricingPlanDimensionTieredConfig from "@/components/billing/plans/PricingPlanDimensionTieredConfig.vue";
@@ -821,6 +822,25 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     expect((config.video as Dict).quantityMode).toBeUndefined();
     expect((config.video as Dict).dimensionCombos).toEqual(["BASE", "AUDIO"]);
   });
+
+  it("VIDEO：计费量口径与输入侧分量独立于基础计费规则，并置于表单最下方", async () => {
+    const wrapper = await openDialog();
+    const form = formOf(wrapper);
+    form.billingMode = "VIDEO";
+    await flushPromises();
+    form.pricingPlan = "DIMENSION_TIERED";
+    await flushPromises();
+
+    expect(wrapper.findComponent(BillingModeVideoUsageConfig).exists()).toBe(true);
+    const baseCardText = wrapper.find(".billing-base-card").text();
+    expect(baseCardText).not.toContain("计费量口径");
+    expect(baseCardText).not.toContain("输入侧分量");
+
+    const text = wrapper.text();
+    expect(text).toContain("视频计费量与输入侧分量");
+    expect(text.indexOf("备注")).toBeLessThan(text.indexOf("视频计费量与输入侧分量"));
+  });
+
   it("VIDEO 合成量口径：维度分档价下有「含参考」组合时落库", async () => {
     // 与上一条互为反面：含参考档位存在 → 输入秒要折进计费量 → 口径必须落库
     vi.mocked(getBillingRule).mockResolvedValue(
