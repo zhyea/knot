@@ -7,7 +7,7 @@
         <div class="dimension-tiered-config__formula-note">
           档位单价按「分辨率 × 是否单独定价声音 × 有无输入/参考视频」取值，逐级去尾回落：
           含参考 + 有声 → 含参考 → 有声 → 基础价 → 默认单价。
-          计费量口径与输入侧分量在表单最下方配置，本方案只决定<b>单价取哪一档</b>。
+          计费量口径与输入侧分量紧跟下方档位表配置，本方案只决定<b>单价取哪一档</b>。
         </div>
       </template>
     </el-alert>
@@ -28,6 +28,10 @@
         </span>
       </template>
     </el-alert>
+
+    <!-- 「量」的另一半紧贴它所配的档位表：计费量口径决定档位单价乘什么，
+         输入侧分量决定档位之外还要加什么，两者都只在看懂档位表之后才有语义 -->
+    <BillingModeVideoUsageConfig :form="form"/>
 
     <el-divider content-position="left">
       <span class="dimension-tiered-config__group">参考样例（阿里云百炼 · 万相图生视频）</span>
@@ -53,6 +57,7 @@ import {COMMON_RESOLUTION_OPTIONS, applyCombosChange, normalizeCombos} from "@/u
 import type {CombosFormSlice, ResolutionComboCode, ResolutionRow} from "@/utils/billingResolution";
 import ResolutionComboPicker from "../ResolutionComboPicker.vue";
 import ResolutionTierTable from "../ResolutionTierTable.vue";
+import BillingModeVideoUsageConfig from "../modes/BillingModeVideoUsageConfig.vue";
 
 /**
  * 维度分档价组件（方案轴：pricingPlan = DIMENSION_TIERED）。
@@ -68,8 +73,11 @@ import ResolutionTierTable from "../ResolutionTierTable.vue";
  * 本方案在 {@code BillingConfig#validateDimensionTiered} 直接拒绝保存。</p>
  *
  * <p>档位表共用 {@link ResolutionTierTable}；列集与落键后缀由 {@link ResolutionComboPicker}
- * 预设的计费组合决定。计费量口径与输入侧分量由表单末尾的视频用量区块托管——它们是「量」的轴，
- * 按两轴分工不属于本方案。</p>
+ * 预设的计费组合决定。</p>
+ *
+ * <p>⭐ 计费量口径与输入侧分量（{@link BillingModeVideoUsageConfig}）本就渲染在本组件的档位表下方，
+ * 而不是留在「基础计费规则」卡片里：档位表是本方案的价格主体，量口径要照着档位表才填得明白
+ * （「含参考」档位存在时才能选合成量）。模式组件在 DIMENSION_TIERED 下只保留默认单价。</p>
  */
 const props = defineProps({
   form: {type: Object, required: true}

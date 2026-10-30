@@ -80,8 +80,9 @@ const props = defineProps({
 });
 
 /**
- * 只在视频模式组件（{@link BillingModeVideoConfig}）内部渲染，模式本身由调用方决定，
- * 这里只判「这份量由谁托管」：token 量纲与 MiniMax 方案各有归属，本区块让位。
+ * 由<b>渲染档位表的那一方</b>挂载：FIXED/TIERED/PEAK_OFF_PEAK 在视频模式组件末尾，
+ * DIMENSION_TIERED 在方案组件（{@link PricingPlanDimensionTieredConfig}）的档位表下方。
+ * 模式本身由调用方决定，这里只判「这份量由谁托管」：token 量纲与 MiniMax 方案各有归属，本区块让位。
  */
 const tokenPriced = computed(() => isTokenPricedUnit(props.form.unit));
 const isVendorMiniMax = computed(
@@ -154,7 +155,8 @@ const quantityHint = computed(
   margin-top: 4px;
 }
 
-/* 嵌在「基础计费规则」卡片内，与外层卡片标题（13px/600/primary）拉开一级层次 */
+/* 挂在档位表之后（模式组件或维度分档方案组件，取决于档位表归谁渲染），
+   与外层区块标题（13px/600/primary）拉开一级层次 */
 .video-usage-config__title {
   margin-bottom: 4px;
   color: var(--el-text-color-regular);

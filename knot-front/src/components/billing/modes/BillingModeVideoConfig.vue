@@ -103,9 +103,12 @@
     </template>
     </template>
 
-    <!-- 计费量与输入侧分量：视频模式「量」的另一半，与上面的档位价同属本组件职责，
+    <!-- 计费量与输入侧分量：视频模式「量」的另一半，与档位价成对出现。
+         ⭐ 归属跟<b>档位表</b>走：档位表在本组件（FIXED/TIERED/PEAK_OFF_PEAK）时挂在这里；
+         DIMENSION_TIERED 档位表让位给方案组件，用量区块随之搬过去——
+         「价」在卡片外、「量」留在基础卡片内，等于把同一条价表拆成两个区域看。
          不能外挂到 BillingRuleFormDialog——否则容器层要知道视频模式的内部构成 -->
-    <BillingModeVideoUsageConfig :form="form"/>
+    <BillingModeVideoUsageConfig v-if="!isDimensionTiered" :form="form"/>
   </div>
 </template>
 
@@ -144,8 +147,8 @@ const tokenPriced = computed(() => isTokenPricedUnit(props.form.unit));
 const isVendorMiniMax = computed(() => String(props.form.pricingPlan || "").toUpperCase() === "VENDOR_MINIMAX");
 
 /**
- * 维度分档价（DIMENSION_TIERED）：档位表由方案组件（PricingPlanDimensionTieredConfig）托管，
- * 本组件只让位<b>档位表</b>；计费量口径与输入侧分量由本组件末尾的用量区块托管。
+ * 维度分档价（DIMENSION_TIERED）：档位表与用量区块一并让位给方案组件（PricingPlanDimensionTieredConfig）——
+ * 后者是「量」的轴，必须紧贴它所配的档位表，不能留在基础卡片里。本组件在此方案下只留默认单价。
  */
 const isDimensionTiered = computed(() => String(props.form.pricingPlan || "").toUpperCase() === "DIMENSION_TIERED");
 
