@@ -103,67 +103,6 @@
     </template>
     </template>
 
-    <!-- 合成量口径是「量」的轴：只有存在「含参考」组合（输入秒要折进量）时才有语义，
-         否则固定为「仅输出」并隐藏——它与「输入侧分量」表达的是同一件事的两种口径 -->
-    <el-divider v-if="!tokenPriced && !isVendorMiniMax && hasReferenceCombo" content-position="left">
-      <span class="video-config__group">计费量口径</span>
-    </el-divider>
-    <el-row v-if="!tokenPriced && !isVendorMiniMax && hasReferenceCombo" :gutter="16">
-      <el-col :span="8">
-        <el-form-item label="合成量模式">
-          <el-select v-model="form.videoQuantityMode" style="width: 100%">
-            <el-option v-for="item in QUANTITY_MODES" :key="item.value" :label="item.label" :value="item.value"/>
-          </el-select>
-        </el-form-item>
-      </el-col>
-      <el-col :span="16">
-        <el-form-item label="口径说明">
-          <span class="video-config__readonly">{{ quantityHint }}</span>
-        </el-form-item>
-      </el-col>
-    </el-row>
-
-    <el-divider v-if="!tokenPriced && !isVendorMiniMax" content-position="left">
-      <span class="video-config__group">输入侧分量（可选，留空不计费）</span>
-    </el-divider>
-    <div v-if="!tokenPriced && !isVendorMiniMax" class="input-charge-grid">
-      <el-form-item v-if="!inputVideoFolded" label="输入视频 每秒">
-          <el-input-number v-model="form.videoInputVideoPerSecond"
-                           :min="0"
-                           :step="UNIT_PRICE_STEP"
-                           controls-position="right"
-                           style="width: 100%"/>
-      </el-form-item>
-      <el-form-item label="输入图片 每张">
-          <el-input-number v-model="form.videoInputImagePerImage"
-                           :min="0"
-                           :step="UNIT_PRICE_STEP"
-                           controls-position="right"
-                           style="width: 100%"/>
-      </el-form-item>
-      <el-form-item label="图片免费张数">
-          <el-input-number v-model="form.videoFreeInputImages"
-                           :min="0"
-                           :step="1"
-                           controls-position="right"
-                           style="width: 100%"/>
-      </el-form-item>
-      <el-form-item label="音频直出附加费">
-          <el-input-number v-model="form.videoAudioSurcharge"
-                           :min="0"
-                           :step="UNIT_PRICE_STEP"
-                           controls-position="right"
-                           style="width: 100%"/>
-      </el-form-item>
-    </div>
-    <el-alert v-if="!tokenPriced && !isVendorMiniMax" type="info" :closable="false" class="video-config__hint">
-      <template #title>
-        <span>
-          输入侧分量按「输出秒 + 输入秒 + 输入图片」三路各自计价后求和；
-          分量单价独立于上方分辨率档，不会被默认单价顶替。附加费是与用量无关的常数项（如 Vidu 直出音频 +15）。
-        </span>
-      </template>
-    </el-alert>
   </div>
 </template>
 
@@ -195,15 +134,13 @@ const tokenPriced = computed(() => isTokenPricedUnit(props.form.unit));
 /**
  * MiniMax 方案（VENDOR_MINIMAX）走独立的「档位输出价 + 档位输入价」两列结构：
  * 输入视频每秒价默认取同档位输出价（可单独覆盖），图片单价/免费张数由 MiniMax 方案组件托管，
- * 音频输入免费。故本模式组件在 MiniMax 下不再渲染「合成量口径」与「输入侧分量」两块，
- * 避免与方案组件重复编辑同一字段。
+ * 音频输入免费。计量字段统一由 BillingModeVideoUsageConfig 托管，本组件不重复渲染。
  */
 const isVendorMiniMax = computed(() => String(props.form.pricingPlan || "").toUpperCase() === "VENDOR_MINIMAX");
 
 /**
  * 维度分档价（DIMENSION_TIERED）：档位表由方案组件（PricingPlanDimensionTieredConfig）托管，
- * 本组件只让位<b>档位表</b>；计费量口径与输入侧分量仍然保留——
- * 本方案只规定「单价取哪一档」，不否认输入秒独立成价（口径为「仅输出」时二者并存是合法的）。
+ * 本组件只让位<b>档位表</b>；计费量口径与输入侧分量由表单末尾的用量区块托管。
  */
 const isDimensionTiered = computed(() => String(props.form.pricingPlan || "").toUpperCase() === "DIMENSION_TIERED");
 
@@ -222,35 +159,8 @@ const isFixedPlan = computed(() => {
   return plan === "" || plan === "FIXED";
 });
 
-/**
- * 输入秒是否已被计费量口径折进输出量。
- *
- * <p>折进去之后再按 {@code 输入视频 每秒} 单独收一次，同一批秒会收两遍；
- * 后端 {@code BillingConfig#validateDimensionTiered} 同口径拒存，这里直接不给填。</p>
- */
-const inputVideoFolded = computed(
-  () => isDimensionTiered.value && String(props.form.videoQuantityMode || "OUTPUT").toUpperCase() !== "OUTPUT"
-);
-
 /** 常用档位建议（与维度分档方案组件共用同一份，见 utils/billingResolution） */
 const RESOLUTION_OPTIONS = COMMON_RESOLUTION_OPTIONS;
-
-/**
- * 合成量口径：一条公式覆盖「输入≤输出时输出×2、输入>输出时输入+输出」三档条件，与后端 VideoConfig.quantity 同口径。
- */
-const QUANTITY_MODES = [
-  {value: "OUTPUT", label: "仅输出时长（默认）", hint: "计费量 = 输出秒数。Vidu、豆包走这条。"},
-  {value: "SUM", label: "输出 + 输入", hint: "计费量 = 输出秒 + 输入秒。MiniMax 输入视频按秒走这条。"},
-  {
-    value: "OUTPUT_PLUS_MAX",
-    label: "输出 + max(输入,输出)",
-    hint: "无输入=输出；输入≤输出=输出×2；输入>输出=输入+输出。一条公式覆盖三档。"
-  }
-] as const;
-
-const quantityHint = computed(
-  () => QUANTITY_MODES.find((item) => item.value === props.form.videoQuantityMode)?.hint ?? ""
-);
 
 const rows = computed<ResolutionRow[]>(() =>
   Array.isArray(props.form.videoResolutionRows) ? props.form.videoResolutionRows : []
@@ -258,17 +168,6 @@ const rows = computed<ResolutionRow[]>(() =>
 
 /** 当前预设的计费组合（决定档位表列集）；默认全选 */
 const combos = computed<ResolutionComboCode[]>(() => normalizeCombos(props.form.videoDimensionCombos));
-
-/**
- * 是否含「含参考」组合：Kling 4.0 那类「有输入视频 → 量=输出×2」的价表靠它触发。
- * 没有含参考档位时，输入秒要么不计费、要么走独立的「输入视频每秒」，合成量口径无语义。
- * 固定价没有档位表 → 参考视频不改变单价 → 同样没有语义；要让输入秒同价计费，
- * 直接在「输入侧分量」里把「输入视频 每秒」填成与默认单价相同即可。
- */
-const hasReferenceCombo = computed(
-  () => !isFixedPlan.value
-    && (combos.value.includes("REFERENCE") || combos.value.includes("REFERENCE_AUDIO"))
-);
 
 /** 是否已有档位：任一档位行填了名字即锁定组合（改组合会让已填价格错位到别的键） */
 const comboLocked = computed(() => rows.value.some((row) => String(row.key || "").trim() !== ""));
@@ -408,15 +307,4 @@ function fillCommon() {
   font-size: 12px;
 }
 
-.input-charge-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0 16px;
-}
-
-@media (max-width: 760px) {
-  .input-charge-grid {
-    grid-template-columns: 1fr;
-  }
-}
 </style>
