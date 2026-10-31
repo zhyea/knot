@@ -89,10 +89,11 @@ public record RetryPolicy(
      */
     public RetryPolicy {
         enabled = enabled == null ? Boolean.TRUE : enabled;
-        maxAttempts = clampInt(maxAttempts, MAX_ATTEMPTS_DEFAULT, 1, MAX_ATTEMPTS_LIMIT);
-        backoffBaseMs = clampInt(backoffBaseMs, BACKOFF_BASE_MS_DEFAULT, 0, BACKOFF_LIMIT_MS);
-        backoffMaxMs = clampInt(backoffMaxMs, BACKOFF_MAX_MS_DEFAULT, 0, BACKOFF_LIMIT_MS);
-        multiplier = roundToOneDecimal(clampDouble(multiplier, MULTIPLIER_DEFAULT, 1.0, MULTIPLIER_LIMIT));
+        maxAttempts = PolicyNumberSupport.clampInt(maxAttempts, MAX_ATTEMPTS_DEFAULT, 1, MAX_ATTEMPTS_LIMIT);
+        backoffBaseMs = PolicyNumberSupport.clampInt(backoffBaseMs, BACKOFF_BASE_MS_DEFAULT, 0, BACKOFF_LIMIT_MS);
+        backoffMaxMs = PolicyNumberSupport.clampInt(backoffMaxMs, BACKOFF_MAX_MS_DEFAULT, 0, BACKOFF_LIMIT_MS);
+        multiplier = PolicyNumberSupport.roundToOneDecimal(
+                PolicyNumberSupport.clampDouble(multiplier, MULTIPLIER_DEFAULT, 1.0, MULTIPLIER_LIMIT));
         jitter = jitter == null ? Boolean.FALSE : jitter;
         respectRetryAfter = respectRetryAfter == null ? Boolean.TRUE : respectRetryAfter;
         retryOnMode = normalizeRetryOnMode(retryOnMode);
@@ -231,24 +232,5 @@ public record RetryPolicy(
             return prefix + "xx";
         }
         return null;
-    }
-
-    private static int clampInt(Integer value, int fallback, int min, int max) {
-        if (value == null) {
-            return fallback;
-        }
-        return Math.min(max, Math.max(min, value));
-    }
-
-    private static double clampDouble(Double value, double fallback, double min, double max) {
-        if (value == null || value.isNaN() || value.isInfinite()) {
-            return fallback;
-        }
-        return Math.min(max, Math.max(min, value));
-    }
-
-    /** 退避倍数归一化为 1 位小数（四舍五入），避免 2.67 这类过长小数污染配置 */
-    private static double roundToOneDecimal(double value) {
-        return Math.round(value * 10.0) / 10.0;
     }
 }

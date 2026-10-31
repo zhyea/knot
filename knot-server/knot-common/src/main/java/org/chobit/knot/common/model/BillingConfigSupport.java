@@ -103,6 +103,49 @@ public final class BillingConfigSupport {
         return validateSurcharges(config.surcharges());
     }
 
+    /**
+     * 方案级校验：按 pricingPlan 追加约束。
+     * TIERED 要求 tier 非空且每项 unitPrices 完整保留全部价格字段（价格非负）；
+     * tierMode 只属于 TIERED，其它方案配了它一律拒绝（见方法内注释）；
+     * FIXED 不接受 {@code resolutionPrices}——档位表只属于维度分档价。
+     */
+    public static String validate(BillingConfig config, PricingPlanEnum plan) {
+        PricingPlanEnum resolved = plan == null ? PricingPlanEnum.FIXED : plan;
+        if (!resolved.isAvailable()) {
+            return "pricing plan not supported yet: " + resolved.code();
+        }
+        String baseError = validate(config);
+        if (baseError != null) {
+            return baseError;
+        }
+        // config.tierMode() 只在 TIERED 下有意义：其它方案配了它说明配置意图与方案不一致，拒绝保存。
+        // ⚠ 必须在下面几个分支之前判：DIMENSION_TIERED / VENDOR_MINIMAX / PEAK_OFF_PEAK 各自
+        //   直接 return，写在末尾会被整体跳过，僵尸字段静默进 config_json（前端也只在 TIERED 下写它）。
+        if (resolved != PricingPlanEnum.TIERED && BillingConfig.blankToNull(config.tierMode()) != null) {
+            return "tierMode is only allowed for TIERED plan";
+        }
+        // 固定价不呈现档位（2026-10-30 定调）：档位表是「按请求属性分档」的数据，只归维度分档价。
+        // 前端在固定价下已不渲染这张表，后端若仍放行，手工改 config_json 就能配出「界面上无处可见、
+        // 取价却会命中」的价表（FixedPricePolicy 的维度命中对两者是同一份实现）。
+        if (resolved == PricingPlanEnum.FIXED && config.resolutionPrices() != null && !config.resolutionPrices().isEmpty()) {
+            return "FIXED plan does not accept resolutionPrices; use DIMENSION_TIERED instead";
+        }
+        if (resolved == PricingPlanEnum.TIERED) {
+            String modeError = validateTierMode(config);
+            return modeError != null ? modeError : validateTierComplete(config.tier());
+        }
+        if (resolved == PricingPlanEnum.PEAK_OFF_PEAK) {
+            return validatePricing(config.pricing());
+        }
+        if (resolved == PricingPlanEnum.VENDOR_MINIMAX) {
+            return validateVendorMiniMax(config);
+        }
+        if (resolved == PricingPlanEnum.DIMENSION_TIERED) {
+            return validateDimensionTiered(config);
+        }
+        return null;
+    }
+
     /** 视频扩展校验：合成量口径合法、输入秒不双计、分量单价与免费额度非负 */
     private static String validateVideo(VideoConfig video) {
         if (video == null) {
@@ -155,49 +198,6 @@ public final class BillingConfigSupport {
             if (trigger != null && !Surcharge.SUPPORTED_TRIGGERS.contains(trigger.trim().toUpperCase())) {
                 return path + ".trigger must be ALWAYS, AUDIO or REFERENCE";
             }
-        }
-        return null;
-    }
-
-    /**
-     * 方案级校验：按 pricingPlan 追加约束。
-     * TIERED 要求 tier 非空且每项 unitPrices 完整保留全部价格字段（价格非负）；
-     * tierMode 只属于 TIERED，其它方案配了它一律拒绝（见方法内注释）；
-     * FIXED 不接受 {@code resolutionPrices}——档位表只属于维度分档价。
-     */
-    public static String validate(BillingConfig config, PricingPlanEnum plan) {
-        PricingPlanEnum resolved = plan == null ? PricingPlanEnum.FIXED : plan;
-        if (!resolved.isAvailable()) {
-            return "pricing plan not supported yet: " + resolved.code();
-        }
-        String baseError = validate(config);
-        if (baseError != null) {
-            return baseError;
-        }
-        // config.tierMode() 只在 TIERED 下有意义：其它方案配了它说明配置意图与方案不一致，拒绝保存。
-        // ⚠ 必须在下面几个分支之前判：DIMENSION_TIERED / VENDOR_MINIMAX / PEAK_OFF_PEAK 各自
-        //   直接 return，写在末尾会被整体跳过，僵尸字段静默进 config_json（前端也只在 TIERED 下写它）。
-        if (resolved != PricingPlanEnum.TIERED && BillingConfig.blankToNull(config.tierMode()) != null) {
-            return "tierMode is only allowed for TIERED plan";
-        }
-        // 固定价不呈现档位（2026-10-30 定调）：档位表是「按请求属性分档」的数据，只归维度分档价。
-        // 前端在固定价下已不渲染这张表，后端若仍放行，手工改 config_json 就能配出「界面上无处可见、
-        // 取价却会命中」的价表（FixedPricePolicy 的维度命中对两者是同一份实现）。
-        if (resolved == PricingPlanEnum.FIXED && config.resolutionPrices() != null && !config.resolutionPrices().isEmpty()) {
-            return "FIXED plan does not accept resolutionPrices; use DIMENSION_TIERED instead";
-        }
-        if (resolved == PricingPlanEnum.TIERED) {
-            String modeError = validateTierMode(config);
-            return modeError != null ? modeError : validateTierComplete(config.tier());
-        }
-        if (resolved == PricingPlanEnum.PEAK_OFF_PEAK) {
-            return validatePricing(config.pricing());
-        }
-        if (resolved == PricingPlanEnum.VENDOR_MINIMAX) {
-            return validateVendorMiniMax(config);
-        }
-        if (resolved == PricingPlanEnum.DIMENSION_TIERED) {
-            return validateDimensionTiered(config);
         }
         return null;
     }

@@ -41,6 +41,7 @@ import org.chobit.knot.svc.model.TrafficPolicies;
 import org.chobit.knot.svc.service.support.AuditSnapshotSupport;
 import org.chobit.knot.svc.service.support.CodeBindingSupport;
 import org.chobit.knot.svc.service.support.ModelApiBindingSupport;
+import org.chobit.knot.svc.service.support.RequiredTextSupport;
 import org.chobit.knot.svc.service.support.ResourceTrafficPolicySupport;
 import org.chobit.knot.adapter.usage.extractor.UsageExtractorCatalog;
 import org.chobit.knot.common.util.JsonKit;
@@ -574,7 +575,7 @@ public class ModelService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择统一模型");
         }
         // 上游模型必填：向上游发起请求时写入请求体 model 参数，为空则上游必然拒单
-        requireText(request.upstreamModel(), "请填写上游模型");
+        RequiredTextSupport.require(request.upstreamModel(), "请填写上游模型");
         LogicalModelEntity logicalModel = logicalModelMapper.getByCode(request.logicalModelCode());
         if (logicalModel == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "请选择统一模型");
@@ -594,7 +595,7 @@ public class ModelService {
         }
         if (request.enabled()) {
             // 上游 host 由供应商账户提供，模型级只保留可选路径前缀，故这里不再校验 Base URL
-            requireText(request.modelCode(), "请填写模型编码");
+            RequiredTextSupport.require(request.modelCode(), "请填写模型编码");
         }
         return modelType;
     }
@@ -647,14 +648,6 @@ public class ModelService {
                     "模型 Base Path 只能包含字母、数字与 - . _ ~ /");
         }
         return normalized;
-    }
-
-    private static String requireText(String value, String message) {
-        String text = value != null ? value.trim() : "";
-        if (text.isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, message);
-        }
-        return text;
     }
 
     private void saveLogicalModelMapping(Long modelId, String logicalModelCode, String modelCode) {

@@ -95,16 +95,16 @@ public record EjectionPolicy(
      */
     public EjectionPolicy {
         enabled = enabled == null ? Boolean.FALSE : enabled;
-        windowSec = clampInt(windowSec, WINDOW_SEC_DEFAULT, 1, WINDOW_SEC_LIMIT);
-        threshold = clampInt(threshold, THRESHOLD_DEFAULT, 1, THRESHOLD_LIMIT);
+        windowSec = PolicyNumberSupport.clampInt(windowSec, WINDOW_SEC_DEFAULT, 1, WINDOW_SEC_LIMIT);
+        threshold = PolicyNumberSupport.clampInt(threshold, THRESHOLD_DEFAULT, 1, THRESHOLD_LIMIT);
         countSlow = countSlow == null ? Boolean.TRUE : countSlow;
-        slowFirstTokenMs = clampInt(slowFirstTokenMs, SLOW_FIRST_TOKEN_MS_DEFAULT, 1, SLOW_FIRST_TOKEN_MS_LIMIT);
-        cooldownMs = clampInt(cooldownMs, COOLDOWN_MS_DEFAULT, 1_000, COOLDOWN_MS_LIMIT);
+        slowFirstTokenMs = PolicyNumberSupport.clampInt(slowFirstTokenMs, SLOW_FIRST_TOKEN_MS_DEFAULT, 1, SLOW_FIRST_TOKEN_MS_LIMIT);
+        cooldownMs = PolicyNumberSupport.clampInt(cooldownMs, COOLDOWN_MS_DEFAULT, 1_000, COOLDOWN_MS_LIMIT);
         countFailures = countFailures == null ? Boolean.TRUE : countFailures;
-        cooldownMultiplier = roundToOneDecimal(
-                clampDouble(cooldownMultiplier, COOLDOWN_MULTIPLIER_DEFAULT, 1.0, COOLDOWN_MULTIPLIER_LIMIT));
-        maxCooldownMs = clampInt(maxCooldownMs, MAX_COOLDOWN_MS_DEFAULT, cooldownMs, COOLDOWN_MS_LIMIT);
-        probeTimeoutMs = clampInt(probeTimeoutMs, PROBE_TIMEOUT_MS_DEFAULT, 1_000, PROBE_TIMEOUT_MS_LIMIT);
+        cooldownMultiplier = PolicyNumberSupport.roundToOneDecimal(
+                PolicyNumberSupport.clampDouble(cooldownMultiplier, COOLDOWN_MULTIPLIER_DEFAULT, 1.0, COOLDOWN_MULTIPLIER_LIMIT));
+        maxCooldownMs = PolicyNumberSupport.clampInt(maxCooldownMs, MAX_COOLDOWN_MS_DEFAULT, cooldownMs, COOLDOWN_MS_LIMIT);
+        probeTimeoutMs = PolicyNumberSupport.clampInt(probeTimeoutMs, PROBE_TIMEOUT_MS_DEFAULT, 1_000, PROBE_TIMEOUT_MS_LIMIT);
         failOpenWhenAllEjected = failOpenWhenAllEjected == null ? Boolean.TRUE : failOpenWhenAllEjected;
         mode = normalizeConfigMode(mode);
     }
@@ -185,23 +185,5 @@ public record EjectionPolicy(
         }
         String normalized = mode.trim().toLowerCase(Locale.ROOT);
         return MODE_PROFESSIONAL.equals(normalized) ? MODE_PROFESSIONAL : MODE_SIMPLE;
-    }
-
-    private static int clampInt(Integer value, int fallback, int min, int max) {
-        if (value == null) {
-            return fallback;
-        }
-        return Math.min(max, Math.max(min, value));
-    }
-
-    private static double clampDouble(Double value, double fallback, double min, double max) {
-        if (value == null || value.isNaN() || value.isInfinite()) {
-            return fallback;
-        }
-        return Math.min(max, Math.max(min, value));
-    }
-
-    private static double roundToOneDecimal(double value) {
-        return Math.round(value * 10.0) / 10.0;
     }
 }

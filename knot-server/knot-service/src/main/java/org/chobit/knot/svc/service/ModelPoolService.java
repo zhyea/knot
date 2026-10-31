@@ -22,6 +22,7 @@ import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.support.AuditSnapshotSupport;
 import org.chobit.knot.svc.service.support.CodeBindingSupport;
+import org.chobit.knot.svc.service.support.RequiredTextSupport;
 import org.chobit.knot.common.util.JsonKit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -118,7 +119,7 @@ public class ModelPoolService {
         }
         // 改绑统一模型的前置检查先于逐项校验：池内非空时先给出「请先清空」的准确提示，
         // 否则会被「池内模型必须属于同一统一模型」盖住。
-        String logicalModelCode = requireText(
+        String logicalModelCode = RequiredTextSupport.require(
                 normalizeLogicalModelCode(request.logicalModelCode()),
                 "please select logical model"
         );
@@ -269,13 +270,13 @@ public class ModelPoolService {
 
     private void validateForSave(ModelPoolDto request, Long excludeId) {
         String poolCode = normalizePoolCode(request.poolCode());
-        requireText(poolCode, "please input pool code");
+        RequiredTextSupport.require(poolCode, "please input pool code");
         // 新建模型池强制 pool 前缀约定；编辑既有池（历史数据可能为 -pool 后缀）豁免
         if (excludeId == null && !poolCode.toLowerCase().startsWith("pool")) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "model pool code must start with 'pool'");
         }
-        requireText(request.name(), "please input pool name");
-        String logicalModelCode = requireText(
+        RequiredTextSupport.require(request.name(), "please input pool name");
+        String logicalModelCode = RequiredTextSupport.require(
                 normalizeLogicalModelCode(request.logicalModelCode()),
                 "please select logical model"
         );
@@ -374,14 +375,6 @@ public class ModelPoolService {
                 .distinct()
                 .toList();
         return result.isEmpty() ? null : result;
-    }
-
-    private static String requireText(String value, String message) {
-        String text = normalizeText(value);
-        if (text.isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, message);
-        }
-        return text;
     }
 
     private static String normalizeText(String value) {

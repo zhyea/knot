@@ -24,6 +24,7 @@ import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.support.AuditSnapshotSupport;
 import org.chobit.knot.svc.service.support.CodeBindingSupport;
+import org.chobit.knot.svc.service.support.RequiredTextSupport;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -140,7 +141,7 @@ public class LogicalModelService {
         assertModelCodeAvailable(code, null);
         LogicalModelEntity entity = logicalModelConverter.toEntity(request);
         entity.setModelCode(code);
-        entity.setModelName(requireText(request.modelName(), "model name is required"));
+        entity.setModelName(RequiredTextSupport.require(request.modelName(), "model name is required"));
         entity.setModelType(ModelTypeEnum.requireCode(request.modelType(), "unsupported model type"));
         entity.setVisibility(resolveVisibility(request.visibility()));
         entity.setPublishStatus(resolvePublishStatus(request.publishStatus()));
@@ -165,7 +166,7 @@ public class LogicalModelService {
         LogicalModelEntity entity = logicalModelConverter.toEntity(request);
         entity.setId(id);
         entity.setModelCode(code);
-        entity.setModelName(requireText(request.modelName(), "model name is required"));
+        entity.setModelName(RequiredTextSupport.require(request.modelName(), "model name is required"));
         entity.setModelType(ModelTypeEnum.requireCode(request.modelType(), "unsupported model type"));
         entity.setVisibility(resolveVisibility(request.visibility()));
         entity.setPublishStatus(resolvePublishStatus(request.publishStatus()));
@@ -341,14 +342,6 @@ public class LogicalModelService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "model code length must be <= 128");
         }
         return code;
-    }
-
-    private static String requireText(String value, String message) {
-        String text = value != null ? value.trim() : "";
-        if (text.isEmpty()) {
-            throw new BusinessException(ErrorCode.VALIDATION_ERROR, message);
-        }
-        return text;
     }
 
     /**
