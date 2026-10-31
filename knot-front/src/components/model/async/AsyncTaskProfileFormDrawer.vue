@@ -18,7 +18,7 @@
         <span class="profile-form__hint">{{ templateHint }}</span>
       </div>
 
-      <el-form label-width="120px" label-position="right" size="default">
+      <el-form label-width="108px" label-position="right" size="default">
         <el-divider content-position="left">基本信息</el-divider>
         <el-form-item label="档案编码" required>
           <el-input v-model="form.profileCode" :disabled="!isCreate" placeholder="大写字母开头，如 KLING_TASK" />
