@@ -10,6 +10,7 @@ import org.chobit.knot.common.constants.enums.CurrencyCodeEnum;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.constants.enums.PricingPlanEnum;
 import org.chobit.knot.common.model.BillingConfig;
+import org.chobit.knot.common.model.BillingConfigSupport;
 import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.common.pricing.HolidayCalendar;
@@ -496,7 +497,7 @@ public class BillingService {
         } catch (IllegalArgumentException e) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "config_json must be a valid JSON object");
         }
-        String error = config == null ? null : config.validate(plan);
+        String error = config == null ? null : BillingConfigSupport.validate(config, plan);
         if (error != null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "config_json invalid: " + error);
         }

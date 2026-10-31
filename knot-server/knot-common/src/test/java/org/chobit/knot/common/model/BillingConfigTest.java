@@ -24,6 +24,14 @@ class BillingConfigTest {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;
 
+    private static String validate(String json) {
+        return BillingConfigSupport.validate(BillingConfig.parse(json));
+    }
+
+    private static String validate(String json, PricingPlanEnum plan) {
+        return BillingConfigSupport.validate(BillingConfig.parse(json), plan);
+    }
+
     @Test
     void parseHandlesBlankInvalidAndObject() {
         assertNull(BillingConfig.parse(null));
@@ -75,56 +83,56 @@ class BillingConfigTest {
 
     @Test
     void validateRejectsNegativePricesAndBadTier() {
-        assertNull(BillingConfig.parse("{\"defaultUnitPrice\":0.5}").validate());
+        assertNull(validate("{\"defaultUnitPrice\":0.5}"));
         assertEquals("defaultUnitPrice cannot be negative",
-                BillingConfig.parse("{\"defaultUnitPrice\":-1}").validate());
+                validate("{\"defaultUnitPrice\":-1}"));
         assertEquals("base price cannot be negative: input",
-                BillingConfig.parse("{\"basePrices\":{\"input\":-0.1}}").validate());
+                validate("{\"basePrices\":{\"input\":-0.1}}"));
         assertEquals("resolution price cannot be negative: 720P",
-                BillingConfig.parse("{\"resolutionPrices\":{\"720P\":-1}}").validate());
+                validate("{\"resolutionPrices\":{\"720P\":-1}}"));
         assertEquals("tier price cannot be negative: input",
-                BillingConfig.parse("{\"tier\":[{\"condition\":{\"from\":0},\"unitPrices\":{\"input\":-1}}]}").validate());
+                validate("{\"tier\":[{\"condition\":{\"from\":0},\"unitPrices\":{\"input\":-1}}]}"));
         assertEquals("tier item.condition.from is required",
-                BillingConfig.parse("{\"tier\":[{\"condition\":{\"to\":10}}]}").validate());
+                validate("{\"tier\":[{\"condition\":{\"to\":10}}]}"));
         assertEquals("tier item.condition.from cannot be greater than to",
-                BillingConfig.parse("{\"tier\":[{\"condition\":{\"from\":10,\"to\":1}}]}").validate());
+                validate("{\"tier\":[{\"condition\":{\"from\":10,\"to\":1}}]}"));
         assertEquals("tier intervals overlap",
-                BillingConfig.parse("""
+                validate("""
                         {"tier":[
                           {"condition":{"from":0,"to":100}},
                           {"condition":{"from":100,"to":200}}
                         ]}
-                        """).validate());
+                        """));
         assertEquals("tier intervals overlap: an open-ended interval must be the last one",
-                BillingConfig.parse("""
+                validate("""
                         {"tier":[
                           {"condition":{"from":0}},
                           {"condition":{"from":10}}
                         ]}
-                        """).validate());
+                        """));
     }
 
     @Test
     void tieredPlanRequiresCompleteUnitPrices() {
         // tier 缺失
         assertEquals("tier must be a non-empty array for TIERED plan",
-                BillingConfig.parse("{\"basePrices\":{\"input\":1}}").validate(PricingPlanEnum.TIERED));
+                validate("{\"basePrices\":{\"input\":1}}", PricingPlanEnum.TIERED));
         // unitPrices 缺字段（cacheWrite5m 缺失即不完整）
         assertEquals("tier item.unitPrices must contain complete price fields, missing: cacheWrite5m",
-                BillingConfig.parse("""
+                validate("""
                         {"tier":[{"condition":{"from":0},
                           "unitPrices":{"input":1,"output":1,"cacheRead":1,"cacheWrite":1,"cacheWrite1h":1}}]}
-                        """).validate(PricingPlanEnum.TIERED));
+                        """, PricingPlanEnum.TIERED));
         // 完整结构通过
-        assertNull(BillingConfig.parse("""
+        assertNull(validate("""
                 {"basePrices":{"input":4,"output":20},
                  "tier":[{"condition":{"from":0},
                    "unitPrices":{"input":4,"output":20,"cacheRead":0.2,"cacheWrite":5,
                                  "cacheWrite5m":5,"cacheWrite1h":5}}]}
-                """).validate(PricingPlanEnum.TIERED));
+                """, PricingPlanEnum.TIERED));
         // PEAK_OFF_PEAK 已随阶段三开放：方案是否可用不再由 plan 维度拒绝，改为校验 pricing 契约
         assertEquals("pricing is required for PEAK_OFF_PEAK plan",
-                BillingConfig.parse("{}").validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                validate("{}", PricingPlanEnum.PEAK_OFF_PEAK));
     }
 
     @Test
@@ -136,84 +144,79 @@ class BillingConfigTest {
                  {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]
                 """;
         // 合法结构通过
-        assertNull(BillingConfig.parse(
-                String.format(base, "MULTIPLIER", "UTC+0", validPhases)).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+        assertNull(validate(
+                String.format(base, "MULTIPLIER", "UTC+0", validPhases), PricingPlanEnum.PEAK_OFF_PEAK));
         // rateMode 仅允许 MULTIPLIER 或 ABSOLUTE
         assertEquals("pricing.rateMode must be MULTIPLIER or ABSOLUTE",
-                BillingConfig.parse(String.format(base, "FLAT", "UTC+0", validPhases))
-                        .validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                validate(String.format(base, "FLAT", "UTC+0", validPhases), PricingPlanEnum.PEAK_OFF_PEAK));
         // 仅接受 UTC 偏移格式，+08:00 与 IANA 名称必须被拒
         assertEquals("pricing.timezone must be a valid UTC offset",
-                BillingConfig.parse(String.format(base, "MULTIPLIER", "+08:00", validPhases))
-                        .validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                validate(String.format(base, "MULTIPLIER", "+08:00", validPhases), PricingPlanEnum.PEAK_OFF_PEAK));
         assertEquals("pricing.timezone must be a valid UTC offset",
-                BillingConfig.parse(String.format(base, "MULTIPLIER", "Asia/Shanghai", validPhases))
-                        .validate(PricingPlanEnum.PEAK_OFF_PEAK));
-        assertNull(BillingConfig.parse(String.format(base, "MULTIPLIER", "UTC+8", validPhases))
-                .validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                validate(String.format(base, "MULTIPLIER", "Asia/Shanghai", validPhases), PricingPlanEnum.PEAK_OFF_PEAK));
+        assertNull(validate(String.format(base, "MULTIPLIER", "UTC+8", validPhases), PricingPlanEnum.PEAK_OFF_PEAK));
         assertEquals("pricing.phases must be a non-empty array",
-                BillingConfig.parse("{\"pricing\":{\"rateMode\":\"MULTIPLIER\",\"timezone\":\"UTC+0\",\"phases\":[]}}")
-                        .validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                validate("{\"pricing\":{\"rateMode\":\"MULTIPLIER\",\"timezone\":\"UTC+0\",\"phases\":[]}}", PricingPlanEnum.PEAK_OFF_PEAK));
        // 首项必须是高峰
         assertEquals("pricing.phases first item must be PEAK",
-                BillingConfig.parse("""
+                validate("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
-                        """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                        """, PricingPlanEnum.PEAK_OFF_PEAK));
         // 缺兜底低峰
         assertEquals("pricing.phases last item must be the DEFAULT off-peak fallback",
-                BillingConfig.parse("""
+                validate("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                            "phase":"PEAK","multiplier":1}]}}
-                        """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                        """, PricingPlanEnum.PEAK_OFF_PEAK));
         // 倍率越界：>1 与 <=0
         assertEquals("pricing.phases[1].multiplier cannot be greater than 1",
-                BillingConfig.parse("""
+                validate("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                            "phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":1.2}]}}
-                        """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                        """, PricingPlanEnum.PEAK_OFF_PEAK));
         assertEquals("pricing.phases[1].multiplier must be greater than 0",
-                BillingConfig.parse("""
+                validate("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                            "phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0}]}}
-                        """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                        """, PricingPlanEnum.PEAK_OFF_PEAK));
         // 空星期 / 空时段
         assertEquals("pricing.phases[0].condition.weekdays must not be empty",
-                BillingConfig.parse("""
+                validate("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"windows":[{"start":"01:00","end":"04:00"}]},
                            "phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
-                        """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                        """, PricingPlanEnum.PEAK_OFF_PEAK));
         assertEquals("pricing.phases[0].condition.windows must not be empty",
-                BillingConfig.parse("""
+                validate("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1]},"phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
-                        """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                        """, PricingPlanEnum.PEAK_OFF_PEAK));
         // 跨午夜时段必须拆成两段
         assertEquals("pricing.phases[0].condition.windows[0].start must be before end and cannot cross midnight",
-                BillingConfig.parse("""
+                validate("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1],"windows":[{"start":"22:00","end":"02:00"}]},
                            "phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
-                        """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                        """, PricingPlanEnum.PEAK_OFF_PEAK));
         // 同一 condition 内时段重叠
         assertEquals("pricing.phases[0].condition.windows[1] overlaps the previous window",
-                BillingConfig.parse("""
+                validate("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1],
                                         "windows":[{"start":"01:00","end":"04:00"},
                                                    {"start":"03:00","end":"06:00"}]},
                            "phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
-                        """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                        """, PricingPlanEnum.PEAK_OFF_PEAK));
     }
 
     /** end=24:00 = 次日 0 点（数轴端点 1440）；start 不允许 24:00 */
@@ -224,34 +227,31 @@ class BillingConfigTest {
                 + "\"phase\":\"PEAK\",\"multiplier\":1},"
                 + "{\"condition\":{\"type\":\"DEFAULT\"},\"phase\":\"OFF_PEAK\",\"multiplier\":0.8}]}}";
         // 覆盖到午夜：合法
-        assertNull(BillingConfig.parse(String.format(template, "01:00", "24:00"))
-                .validate(PricingPlanEnum.PEAK_OFF_PEAK));
+        assertNull(validate(String.format(template, "01:00", "24:00"), PricingPlanEnum.PEAK_OFF_PEAK));
         // 全天 00:00-24:00：合法
-        assertNull(BillingConfig.parse(String.format(template, "00:00", "24:00"))
-                .validate(PricingPlanEnum.PEAK_OFF_PEAK));
+        assertNull(validate(String.format(template, "00:00", "24:00"), PricingPlanEnum.PEAK_OFF_PEAK));
         // start=24:00 不合法（数轴上与 end 不可比且语义无意义）
         assertEquals("pricing.phases[0].condition.windows[0] must use HH:mm clock format (end may also be 24:00)",
-                BillingConfig.parse(String.format(template, "24:00", "24:00"))
-                        .validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                validate(String.format(template, "24:00", "24:00"), PricingPlanEnum.PEAK_OFF_PEAK));
         // end=24:00 之后的下一段不能与之重叠
         assertEquals("pricing.phases[0].condition.windows[1] overlaps the previous window",
-                BillingConfig.parse("""
+                validate("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1],
                                         "windows":[{"start":"01:00","end":"24:00"},
                                                    {"start":"23:00","end":"23:30"}]},
                            "phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
-                        """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                        """, PricingPlanEnum.PEAK_OFF_PEAK));
         // 24:00 当作 start 与 24:00 结尾可衔接（相邻不算重叠）
-        assertNull(BillingConfig.parse("""
+        assertNull(validate("""
                 {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                   {"condition":{"weekdays":[1],
                                 "windows":[{"start":"00:00","end":"08:00"},
                                            {"start":"08:00","end":"24:00"}]},
                    "phase":"PEAK","multiplier":1},
                   {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
-                """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                """, PricingPlanEnum.PEAK_OFF_PEAK));
     }
 
     /** 调休策略各条必须一致：判定器只读第一条，不一致必须拒绝保存而非静默忽略 */
@@ -259,7 +259,7 @@ class BillingConfigTest {
     void makeUpWorkdayPolicyMustBeIdenticalAcrossPeakRules() {
         // 不一致 -> 拒绝
         assertEquals("pricing.phases[1].condition.makeUpWorkdayPolicy must be identical across all peak rules",
-                BillingConfig.parse("""
+                validate("""
                         {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                           {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}],
                                         "makeUpWorkdayPolicy":"OFF_PEAK"},
@@ -268,9 +268,9 @@ class BillingConfigTest {
                                         "makeUpWorkdayPolicy":"FOLLOW_WEEKDAY_WINDOWS"},
                            "phase":"PEAK","multiplier":1},
                           {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
-                        """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                        """, PricingPlanEnum.PEAK_OFF_PEAK));
         // 一致（显式相同）-> 通过
-        assertNull(BillingConfig.parse("""
+        assertNull(validate("""
                 {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                   {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}],
                                 "makeUpWorkdayPolicy":"FOLLOW_WEEKDAY_WINDOWS"},
@@ -279,9 +279,9 @@ class BillingConfigTest {
                                 "makeUpWorkdayPolicy":"FOLLOW_WEEKDAY_WINDOWS"},
                    "phase":"PEAK","multiplier":1},
                   {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
-                """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                """, PricingPlanEnum.PEAK_OFF_PEAK));
         // 一致（一条缺失按默认 OFF_PEAK，另一条显式 OFF_PEAK）-> 通过
-        assertNull(BillingConfig.parse("""
+        assertNull(validate("""
                 {"pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+0","phases":[
                   {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                    "phase":"PEAK","multiplier":1},
@@ -289,7 +289,7 @@ class BillingConfigTest {
                                 "makeUpWorkdayPolicy":"OFF_PEAK"},
                    "phase":"PEAK","multiplier":1},
                   {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]}}
-                """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                """, PricingPlanEnum.PEAK_OFF_PEAK));
     }
 
     /** 24:00 端点必须真的覆盖到当日最后一刻，而不是把 23:59 之后的每分钟都漏给低峰 */
@@ -374,7 +374,7 @@ class BillingConfigTest {
                     "phase":"PEAK"},
                    {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK"}]}}
                 """);
-        assertNotNull(missing.validate(PricingPlanEnum.PEAK_OFF_PEAK));
+        assertNotNull(BillingConfigSupport.validate(missing, PricingPlanEnum.PEAK_OFF_PEAK));
 
         // 带完整 unitPrices 应通过
         BillingConfig ok = BillingConfig.parse("""
@@ -383,7 +383,7 @@ class BillingConfigTest {
                     "phase":"PEAK","unitPrices":{"input":10}},
                    {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","unitPrices":{"input":6}}]}}
                 """);
-        assertNull(ok.validate(PricingPlanEnum.PEAK_OFF_PEAK));
+        assertNull(BillingConfigSupport.validate(ok, PricingPlanEnum.PEAK_OFF_PEAK));
     }
 
     @Test
@@ -393,7 +393,7 @@ class BillingConfigTest {
                 {"defaultUnitPrice":0.5,
                  "resolutionPrices":{"768P":0.5,"2K":0.8}}
                 """);
-        String error = bare.validate(PricingPlanEnum.VENDOR_MINIMAX);
+        String error = BillingConfigSupport.validate(bare, PricingPlanEnum.VENDOR_MINIMAX);
         assertNotNull(error);
         assertTrue(error.contains("VENDOR_MINIMAX requires video.inputImagePerImage"));
 
@@ -403,7 +403,7 @@ class BillingConfigTest {
                  "resolutionPrices":{"768P":0.5,"2K":0.8},
                  "video":{"inputVideoPerSecond":0.5}}
                 """);
-        assertNotNull(videoOnly.validate(PricingPlanEnum.VENDOR_MINIMAX));
+        assertNotNull(BillingConfigSupport.validate(videoOnly, PricingPlanEnum.VENDOR_MINIMAX));
 
         // 只有附加费、没有图片价 -> 仍拒存
         BillingConfig surchargeOnly = BillingConfig.parse("""
@@ -411,7 +411,7 @@ class BillingConfigTest {
                  "resolutionPrices":{"768P":0.5,"2K":0.8},
                  "surcharges":[{"code":"AUDIO","trigger":"AUDIO","amount":0.3}]}
                 """);
-        assertNotNull(surchargeOnly.validate(PricingPlanEnum.VENDOR_MINIMAX));
+        assertNotNull(BillingConfigSupport.validate(surchargeOnly, PricingPlanEnum.VENDOR_MINIMAX));
 
         // 带图片每张价 -> 通过
         BillingConfig withInputImage = BillingConfig.parse("""
@@ -419,7 +419,7 @@ class BillingConfigTest {
                  "resolutionPrices":{"768P":0.5,"2K":0.8},
                  "video":{"inputImagePerImage":0.2,"freeInputImages":5}}
                 """);
-        assertNull(withInputImage.validate(PricingPlanEnum.VENDOR_MINIMAX));
+        assertNull(BillingConfigSupport.validate(withInputImage, PricingPlanEnum.VENDOR_MINIMAX));
     }
 
     @Test
@@ -441,85 +441,83 @@ class BillingConfigTest {
     @Test
     void dimensionTieredRejectsMalformedDimensionKeys() {
         // 维度键是自由文本，拼错在 FIXED 下只会静默回落默认价——本方案把它变成拒绝保存
-        assertTrue(BillingConfig.parse("""
+        assertTrue(validate("""
                 {"defaultUnitPrice":1.0,"resolutionPrices":{"720P:SOUND":1.2}}
-                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("suffix must be"));
+                """, PricingPlanEnum.DIMENSION_TIERED).contains("suffix must be"));
 
         // 顺序颠倒的键永远进不了「逐级去尾」的候选链，配了等于没配
-        assertTrue(BillingConfig.parse("""
+        assertTrue(validate("""
                 {"defaultUnitPrice":1.0,"resolutionPrices":{"720P:AUDIO:REFERENCE":1.2}}
-                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("suffix must be"));
+                """, PricingPlanEnum.DIMENSION_TIERED).contains("suffix must be"));
 
-        assertTrue(BillingConfig.parse("""
+        assertTrue(validate("""
                 {"defaultUnitPrice":1.0,"resolutionPrices":{":AUDIO":1.2}}
-                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("must start with a tier name"));
+                """, PricingPlanEnum.DIMENSION_TIERED).contains("must start with a tier name"));
 
-        assertTrue(BillingConfig.parse("""
+        assertTrue(validate("""
                 {"defaultUnitPrice":1.0,"resolutionPrices":{"   ":1.2}}
-                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("must not be blank"));
+                """, PricingPlanEnum.DIMENSION_TIERED).contains("must not be blank"));
 
         // 一张档位表都没有 = 退化成固定价，不是维度分档
-        assertTrue(BillingConfig.parse("{\"defaultUnitPrice\":1.0}")
-                .validate(PricingPlanEnum.DIMENSION_TIERED).contains("requires resolutionPrices"));
-        assertTrue(BillingConfig.parse("{\"defaultUnitPrice\":1.0,\"resolutionPrices\":{}}")
-                .validate(PricingPlanEnum.DIMENSION_TIERED).contains("requires resolutionPrices"));
+        assertTrue(validate("{\"defaultUnitPrice\":1.0}", PricingPlanEnum.DIMENSION_TIERED).contains("requires resolutionPrices"));
+        assertTrue(validate("{\"defaultUnitPrice\":1.0,\"resolutionPrices\":{}}", PricingPlanEnum.DIMENSION_TIERED).contains("requires resolutionPrices"));
 
         // 只有输入侧分量键，没有输出档位键
-        assertTrue(BillingConfig.parse("""
+        assertTrue(validate("""
                 {"defaultUnitPrice":1.0,"resolutionPrices":{"INPUT_VIDEO:720P":0.5}}
-                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("requires at least one tier price"));
+                """, PricingPlanEnum.DIMENSION_TIERED).contains("requires at least one tier price"));
     }
 
     @Test
     void dimensionTieredRequiresDefaultUnitPrice() {
         // 厂商档位不可枚举，总有配不到的档；缺兜底价等于「识别不了的请求免费出账」
-        assertTrue(BillingConfig.parse("""
+        assertTrue(validate("""
                 {"resolutionPrices":{"720P":1.0,"720P:AUDIO":1.2}}
-                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("requires defaultUnitPrice"));
+                """, PricingPlanEnum.DIMENSION_TIERED).contains("requires defaultUnitPrice"));
     }
 
     @Test
     void dimensionTieredRejectsDoubleCountedInputSeconds() {
         // 输入秒既折进计费量、又按分量单独成价 = 同一批秒收两次
-        assertTrue(BillingConfig.parse("""
+        assertTrue(validate("""
                 {"defaultUnitPrice":1.0,
                  "resolutionPrices":{"720P":1.0,"720P:REFERENCE":0.6},
                  "video":{"quantityMode":"SUM","inputVideoPerSecond":0.5}}
-                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("billed twice"));
+                """, PricingPlanEnum.DIMENSION_TIERED).contains("billed twice"));
 
-        assertTrue(BillingConfig.parse("""
+        assertTrue(validate("""
                 {"defaultUnitPrice":1.0,
                  "resolutionPrices":{"720P":1.0,"720P:REFERENCE":0.6},
                  "video":{"quantityMode":"OUTPUT_PLUS_MAX","inputVideoPerSecond":0.5}}
-                """).validate(PricingPlanEnum.DIMENSION_TIERED).contains("billed twice"));
+                """, PricingPlanEnum.DIMENSION_TIERED).contains("billed twice"));
 
         // 口径为「仅输出」时输入秒不折进量，单独成价是合法的（MiniMax 那种结构）
-        assertNull(BillingConfig.parse("""
+        assertNull(validate("""
                 {"defaultUnitPrice":1.0,
                  "resolutionPrices":{"720P":1.0,"720P:REFERENCE":0.6},
                  "video":{"quantityMode":"OUTPUT","inputVideoPerSecond":0.5}}
-                """).validate(PricingPlanEnum.DIMENSION_TIERED));
+                """, PricingPlanEnum.DIMENSION_TIERED));
     }
 
     @Test
     void fixedAlsoRejectsDoubleCountedInputSeconds() {
         // 这条校验此前只挂在 DIMENSION_TIERED 上：FIXED 下配 SUM + 独立输入秒单价，
         // 同一批输入秒会被收两次且保存不报错（静默资损）。
-        assertTrue(BillingConfig.parse("""
+        assertTrue(validate("""
                 {"defaultUnitPrice":1.0,
                  "video":{"quantityMode":"SUM","inputVideoPerSecond":0.5}}
-                """).validate(PricingPlanEnum.FIXED).contains("billed twice"));
+                """, PricingPlanEnum.FIXED).contains("billed twice"));
 
-        assertTrue(BillingConfig.parse("""
+        assertTrue(validate("""
                 {"defaultUnitPrice":1.0,
                  "video":{"quantityMode":"OUTPUT_PLUS_MAX","inputVideoPerSecond":0.5}}
-                """).validate(PricingPlanEnum.FIXED).contains("billed twice"));
+                """, PricingPlanEnum.FIXED).contains("billed twice"));
 
         // 仅输出 + 独立分量合法（MiniMax 那种「输入秒单独成价」的结构）
-        assertNull(BillingConfig.parse("""
+        assertNull(validate("""
                 {"defaultUnitPrice":1.0,
                  "video":{"quantityMode":"OUTPUT","inputVideoPerSecond":0.5}}
-                """).validate(PricingPlanEnum.FIXED));
+                """, PricingPlanEnum.FIXED));
     }
 
     @Test
@@ -529,49 +527,47 @@ class BillingConfigTest {
         // 前端只在 TIERED 下写它，所以命中者只会是手工改配置或历史迁移，
         // 但「配置意图与方案不一致」不该被静默接受。
         assertEquals("tierMode is only allowed for TIERED plan",
-                BillingConfig.parse("""
+                validate("""
                         {"defaultUnitPrice":1.0,
                          "resolutionPrices":{"720P":1.0},
                          "tierMode":"PROGRESSIVE"}
-                        """).validate(PricingPlanEnum.DIMENSION_TIERED));
+                        """, PricingPlanEnum.DIMENSION_TIERED));
 
         assertEquals("tierMode is only allowed for TIERED plan",
-                BillingConfig.parse("""
+                validate("""
                         {"defaultUnitPrice":1.0,
                          "resolutionPrices":{"720P":1.0},
                          "video":{"inputImagePerImage":0.2},
                          "tierMode":"PROGRESSIVE"}
-                        """).validate(PricingPlanEnum.VENDOR_MINIMAX));
+                        """, PricingPlanEnum.VENDOR_MINIMAX));
 
         // pricing 本身合法，证明拦截来自 tierMode 而不是别的校验先命中
         assertEquals("tierMode is only allowed for TIERED plan",
-                BillingConfig.parse("""
+                validate("""
                         {"defaultUnitPrice":1.0,
                          "pricing":{"rateMode":"MULTIPLIER","timezone":"UTC+8","phases":[
                            {"condition":{"weekdays":[1],"windows":[{"start":"01:00","end":"04:00"}]},
                             "phase":"PEAK","multiplier":1},
                            {"condition":{"type":"DEFAULT"},"phase":"OFF_PEAK","multiplier":0.8}]},
                          "tierMode":"PROGRESSIVE"}
-                        """).validate(PricingPlanEnum.PEAK_OFF_PEAK));
+                        """, PricingPlanEnum.PEAK_OFF_PEAK));
 
         // FIXED 原本就走末尾检查，这里是回归保护
         assertEquals("tierMode is only allowed for TIERED plan",
-                BillingConfig.parse("{\"defaultUnitPrice\":1.0,\"tierMode\":\"PROGRESSIVE\"}")
-                        .validate(PricingPlanEnum.FIXED));
+                validate("{\"defaultUnitPrice\":1.0,\"tierMode\":\"PROGRESSIVE\"}", PricingPlanEnum.FIXED));
 
         // plan 缺省按 FIXED 处理，同一个僵尸字段照样拒绝
         assertEquals("tierMode is only allowed for TIERED plan",
-                BillingConfig.parse("{\"defaultUnitPrice\":1.0,\"tierMode\":\"PER_REQUEST\"}")
-                        .validate(null));
+                validate("{\"defaultUnitPrice\":1.0,\"tierMode\":\"PER_REQUEST\"}", null));
 
         // TIERED 下 PROGRESSIVE 是正常配置，不能被误伤
-        assertNull(BillingConfig.parse("""
+        assertNull(validate("""
                 {"basePrices":{"input":4,"output":20},
                  "tierMode":"PROGRESSIVE",
                  "tier":[{"condition":{"from":0},
                    "unitPrices":{"input":4,"output":20,"cacheRead":0.2,"cacheWrite":5,
                                  "cacheWrite5m":5,"cacheWrite1h":5}}]}
-                """).validate(PricingPlanEnum.TIERED));
+                """, PricingPlanEnum.TIERED));
     }
 
     @Test
@@ -579,29 +575,29 @@ class BillingConfigTest {
         // 固定价不呈现档位：界面上没有这张表，库里就不该有——
         // 否则取价按 {@code resolutionPrices} 命中，而没有任何界面能看见或改它。
         assertEquals("FIXED plan does not accept resolutionPrices; use DIMENSION_TIERED instead",
-                BillingConfig.parse("""
+                validate("""
                         {"defaultUnitPrice":1.0,"resolutionPrices":{"720P":1.0}}
-                        """).validate(PricingPlanEnum.FIXED));
+                        """, PricingPlanEnum.FIXED));
 
         // plan 缺省按 FIXED 处理（PricingPlanEnum.fromCode 同口径），一样拒绝
         assertEquals("FIXED plan does not accept resolutionPrices; use DIMENSION_TIERED instead",
-                BillingConfig.parse("""
+                validate("""
                         {"defaultUnitPrice":1.0,"resolutionPrices":{"720P":1.0}}
-                        """).validate(null));
+                        """, null));
 
         // 维度分档价照旧接受同一张表（本方案的立身之本）
-        assertNull(BillingConfig.parse("""
+        assertNull(validate("""
                 {"defaultUnitPrice":1.0,"resolutionPrices":{"720P":1.0}}
-                """).validate(PricingPlanEnum.DIMENSION_TIERED));
+                """, PricingPlanEnum.DIMENSION_TIERED));
 
         // TIERED 仍可叠加属性档位（阶梯与属性分档是两根正交的轴），不能被这次收紧误伤
-        assertNull(BillingConfig.parse("""
+        assertNull(validate("""
                 {"basePrices":{"input":4,"output":20},
                  "resolutionPrices":{"720P":1.0},
                  "tier":[{"condition":{"from":0},
                    "unitPrices":{"input":4,"output":20,"cacheRead":0.2,"cacheWrite":5,
                                  "cacheWrite5m":5,"cacheWrite1h":5}}]}
-                """).validate(PricingPlanEnum.TIERED));
+                """, PricingPlanEnum.TIERED));
     }
 
     @Test
@@ -611,7 +607,7 @@ class BillingConfigTest {
                  "resolutionPrices":{"720P":1.0,"720P:AUDIO":1.2,"720P:REFERENCE":0.6,
                                      "720P:REFERENCE:AUDIO":1.5,"INPUT_VIDEO:720P":0.8}}
                 """);
-        assertNull(config.validate(PricingPlanEnum.DIMENSION_TIERED));
+        assertNull(BillingConfigSupport.validate(config, PricingPlanEnum.DIMENSION_TIERED));
 
         // 取价与 FIXED 完全一致（无阶梯、无相位倍率），增量只在保存期校验
         BillingConfig.PricingPlan pricing = config.pricingPlan(PricingPlanEnum.DIMENSION_TIERED);
