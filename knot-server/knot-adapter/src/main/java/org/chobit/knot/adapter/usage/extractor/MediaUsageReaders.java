@@ -1,7 +1,6 @@
 package org.chobit.knot.adapter.usage.extractor;
 
 import org.apache.commons.lang3.StringUtils;
-import org.chobit.knot.common.constants.enums.ResolutionTierEnum;
 import org.chobit.knot.common.util.MapNumberUtils;
 
 import java.math.BigDecimal;
@@ -250,20 +249,24 @@ final class MediaUsageReaders {
     }
 
     /**
-     * 分辨率文本归一化：已知写法收敛到标准档位名，**未识别的写法原样大写返回**。
+     * 分辨率文本归一化：**去首尾空白 + 转大写**，就这两步。
      *
-     * <p>⭐ 别名表（{@code 480} / {@code 854x480} / {@code 720p} …）只在
-     * {@link ResolutionTierEnum} 维护一处：后端归一、前端建议下拉、测试断言取同一份，
-     * 避免两边各记一份再慢慢分叉。</p>
+     * <p>⭐ 刻意<b>不做任何别名推断</b>（2026-10-31 robin 拍板）：{@code 1280x720} 不会变成
+     * {@code 720P}、{@code 720} 不会变成 {@code 720P}、{@code qhd} 也不会变成 {@code 2K}。
+     * 「480P 这个档位只认 {@code 480p} 和 {@code 480P}」——大小写不敏感就到顶了。</p>
      *
-     * <p>⚠ 未识别时原样大写返回仍是刻意的——档位名不可枚举（768P、540P、2K、4K 及厂商自造名），
-     * 硬塞进白名单只会让新档位配不上价。注意后果与 2026-10-25 时不同了：
-     * 规则<b>配了档位表</b>而本次档位（如 {@code AUTO}）不在表里，计费会<b>拒绝</b>而不是回落默认价
-     * （见 {@code VideoBillingModeCalculator} 的严格取价）。</p>
+     * <p>为什么敢砍掉别名：别名推断等于让网关<b>猜</b>上游的字符串语义。猜对了是巧合，
+     * 猜错了在严格取价下就是请求报错；而配置侧本就允许自由填档位名，多配一行比猜更可控。
+     * 档位清单（供配置界面下拉建议）改由 DB 枚举 {@code video_resolution} 维护，
+     * <b>不参与这里的匹配</b>——清单是给运营看的，不是给代码认的。</p>
+     *
+     * <p>⚠ 后果：{@code size: "1280x720"} 这类宽高写法归一出 {@code 1280X720}。
+     * 规则配了档位表而没配这个键，计费会<b>拒绝</b>（严格取价），不会回落默认价。
+     * 需要按宽高计价的厂商，约定由请求侧统一传标准档位名（见 {@code Kling3.0Turbo对接方案}）。</p>
      */
     static String normalizeResolution(Object value) {
         String text = value == null ? null : StringUtils.trimToNull(String.valueOf(value));
-        return text == null ? null : ResolutionTierEnum.canonical(text);
+        return text == null ? null : text.toUpperCase(Locale.ROOT);
     }
 
     /**

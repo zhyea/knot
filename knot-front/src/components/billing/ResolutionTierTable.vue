@@ -44,11 +44,11 @@
 </template>
 
 <script setup lang="ts">
-import {type PropType, computed} from "vue";
+import {type PropType, computed, onMounted} from "vue";
 import {Delete} from "@element-plus/icons-vue";
 import {UNIT_PRICE_STEP} from "@/utils/billingPrice";
 import {LEGACY_COMBOS, RESOLUTION_COMBOS, createResolutionRow, normalizeCombos} from "@/utils/billingResolution";
-import {useResolutionTiers} from "@/composables/useResolutionTiers";
+import {useEnums} from "@/composables/useEnums";
 import type {ResolutionComboCode, ResolutionPriceField, ResolutionRow} from "@/utils/billingResolution";
 
 /**
@@ -75,8 +75,23 @@ const props = defineProps({
   uidPrefix: {type: String, default: "res-table"}
 });
 
-/** 档位建议来自后端 ResolutionTierEnum（不是白名单，控件仍允许自由输入） */
-const {tierOptions} = useResolutionTiers();
+/**
+ * 档位建议来自 DB 枚举 video_resolution：运营在「枚举配置」界面自己加，加一档不用发版。
+ *
+ * <p>⚠ 只是建议不是白名单：控件仍 filterable + allow-create，配置侧可填任意档位名。
+ * 网关归一不做别名推断，所以档位名必须逐字（除大小写）对上配置键。</p>
+ */
+const {options: tierRows, loadOptions: loadTierOptions} = useEnums("video_resolution");
+
+const tierOptions = computed<string[]>(() =>
+  tierRows.value.map((row) => String(row.itemCode ?? "")).filter((code) => code.length > 0)
+);
+
+onMounted(() => {
+  // 档位建议拉不到不影响填价：后端归一只做大写，清单不参与匹配，手工输档位名照样能存。
+  // 失败就让下拉空着，不向上抛（否则每个挂载本组件的页面都会多一个 unhandled rejection）。
+  void loadTierOptions(true).catch(() => undefined);
+});
 
 /** 列集：按固定顺序过滤，保证列顺序稳定 */
 const columns = computed(() =>

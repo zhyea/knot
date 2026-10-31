@@ -185,27 +185,50 @@ class UsageExtractorTest {
     void shouldExtractVideoDurationFromBodyAndAttributesFromRequest() {
         Map<String, Object> body = Map.of("duration_seconds", 10);
         Map<String, Object> request = new LinkedHashMap<>();
-        request.put("size", "1280x720");
+        request.put("size", "720p");
         request.put("generate_audio", true);
         request.put("input_reference", Map.of("file_id", "f-1"));
 
         VideoBillingUsage usage = videoExtractor.extractUsage(body, request).billing();
 
         assertEquals(10L, usage.outputSeconds());
-        assertEquals("720P", usage.outputResolution(), "1280x720 归一化为档位名 720P");
+        assertEquals("720P", usage.outputResolution(), "720p 转大写归一为档位名 720P（大小写不敏感是唯一的宽容）");
         assertTrue(usage.sound());
         assertTrue(usage.referenceVideo());
     }
 
     @Test
-    void shouldNormalizeDeclaredResolutionCaseAndSeparators() {
-        // 厂商写法五花八门：768p / 768P / "768 P" / 768-P / 768_p 都应落到同一个档位键。
-        // 归一化只在这里做一遍——计算器直接消费归一化后的档位名，不重复解析。
-        for (String raw : new String[]{"768p", "768P", "768 P", "768-P", "768_p"}) {
+    void shouldUppercaseResolutionWithoutGuessingDimensions() {
+        // ⭐ 2026-10-31 拍板：归一只有「去首尾空白 + 转大写」，**不做任何别名推断**。
+        // 1280x720 不再被猜成 720P —— 猜对了是巧合，猜错了在严格取价下就是请求报错。
+        // 档位清单由 DB 枚举 video_resolution 维护，只供配置界面下拉建议，不参与匹配。
+        VideoBillingUsage usage = videoExtractor.extractUsage(
+                Map.of("duration_seconds", 5), Map.of("size", "1280x720")).billing();
+
+        assertEquals("1280X720", usage.outputResolution(), "宽高写法原样大写，不反推档位");
+    }
+
+    @Test
+    void shouldNormalizeDeclaredResolutionCaseOnly() {
+        // 2026-10-31 拍板：归一只有「去首尾空白 + 转大写」，**分隔符不再清洗**。
+        // 只认 480p 与 480P —— 大小写不敏感就是唯一的宽容。
+        for (String raw : new String[]{"768p", "768P", "  768p  "}) {
             VideoBillingUsage usage = videoExtractor.extractUsage(
                     Map.of("duration_seconds", 5), Map.of("resolution", raw)).billing();
 
             assertEquals("768P", usage.outputResolution(), "写法 " + raw + " 应归一到 768P");
+        }
+    }
+
+    @Test
+    void shouldKeepSeparatorsBecauseNoAliasInferenceHappens() {
+        // ⚠ 刻意不等价："768 P" / "768-P" 原样大写保留分隔符。
+        // 别把它们「修好」——那会重新引入别名推断，猜错时是请求报错而非取错价。
+        for (String raw : new String[]{"768 P", "768-P", "768_p"}) {
+            VideoBillingUsage usage = videoExtractor.extractUsage(
+                    Map.of("duration_seconds", 5), Map.of("resolution", raw)).billing();
+
+            assertEquals(raw.toUpperCase(), usage.outputResolution(), "分隔符原样保留：" + raw);
         }
     }
 

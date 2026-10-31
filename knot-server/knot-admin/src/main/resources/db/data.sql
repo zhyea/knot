@@ -861,10 +861,10 @@ INSERT IGNORE INTO kb_test_request_presets (
   '{"model":"model-name","input":"你好，这是一段语音合成测试。","voice":"alloy","response_format":"mp3","stream":false}',
   '适用于语音合成接口。', 1),
 ('builtin-video-generations-basic', '视频生成（Video Generations）', 'VIDEO_GENERATIONS',
-  '{"model":"model-name","prompt":"一条小路穿过春天的森林，镜头缓慢向前推进","size":"1280x720","duration":5}',
+  '{"model":"model-name","prompt":"一条小路穿过春天的森林，镜头缓慢向前推进","size":"720p","duration":5}',
   '适用于视频生成接口。', 1),
 ('builtin-video-generations-kling', '视频生成（Kling 文生视频，带计费档位）', 'VIDEO_GENERATIONS',
-  '{"model":"model-name","prompt":"一条小路穿过春天的森林，镜头缓慢向前推进","duration":5,"size":"1280x720","sound":false}',
+  '{"model":"model-name","prompt":"一条小路穿过春天的森林，镜头缓慢向前推进","duration":5,"size":"720p","sound":false}',
   'Kling 文生视频：duration / size / sound 是视频计费的分档键，网关按它们取档位价。加 image 字段即变为图生视频（参考图张数进计费输入）。', 1),
 ('builtin-rerank-basic', '文档重排（Rerank）', 'RERANK',
   '{"model":"model-name","query":"网关如何选择上游模型？","documents":["网关根据路由规则选择模型。","计费规则负责计算调用成本。","预设请求用于快速调试接口。"],"top_n":2,"return_documents":true}',
@@ -938,7 +938,8 @@ INSERT IGNORE INTO ks_enum_categories (id, category, category_name, is_system, i
 (10, 'channel', '通知渠道', 0, 1),
 (28, 'model_family', '模型族', 0, 1),
 (29, 'timezone', '时区', 0, 1),
-(30, 'moderation_category', '敏感词分类', 1, 1);
+(30, 'moderation_category', '敏感词分类', 1, 1),
+(31, 'video_resolution', '视频分辨率档位', 0, 1);
 
 -- 敏感词分类（category_id=30）：kb_moderation_word_lists.category_code 引用 item_code。
 -- is_system=1 的分类其下枚举项不可删改（词条行已引用该 code）。
@@ -949,6 +950,18 @@ INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_ord
 (30, 'AD',       '广告推广', 4, 1),
 (30, 'ABUSE',    '侮辱辱骂', 5, 1),
 (30, 'CUSTOM',   '自定义',  6, 1);
+
+-- 视频分辨率档位（category 31）：**仅供计费配置界面的档位名下拉建议**，网关不拿它做匹配。
+-- ⚠ 归一只有「去首尾空白 + 转大写」，没有任何别名推断：480P 只认 480p / 480P，
+--    remark 里的写法只给人看，代码不读（2026-10-31 拍板）。厂商新增档位在这里加一项即可，不用发版。
+INSERT IGNORE INTO ks_enum_configs (category_id, item_code, item_label, sort_order, is_enabled, remark) VALUES
+(31, '480P',  '480P（854×480）',   1, 1, '其他常见写法：480 / 480p / 854x480（仅备注）'),
+(31, '540P',  '540P（960×540）',   2, 1, '其他常见写法：540 / 540p / 960x540（仅备注）'),
+(31, '720P',  '720P（1280×720）',  3, 1, '其他常见写法：720 / 720p / 1280x720（仅备注）'),
+(31, '768P',  '768P（1366×768）',  4, 1, '其他常见写法：768 / 768p / 1366x768 / 1024x768（仅备注）'),
+(31, '1080P', '1080P（1920×1080）', 5, 1, '其他常见写法：1080 / 1080p / 1920x1080（仅备注）'),
+(31, '2K',    '2K（2560×1440）',   6, 1, '其他常见写法：1440 / 1440p / 2k / qhd / 2560x1440（仅备注）'),
+(31, '4K',    '4K（3840×2160）',   7, 1, '其他常见写法：2160 / 2160p / 4k / uhd / 3840x2160（仅备注）');
 
 -- 供应商类型（category 1）已移除：供应商品牌主数据以 kb_providers 表为唯一来源，
 -- 前端下拉/标签走 useProviderTypeOptions（/api/provider-profiles）

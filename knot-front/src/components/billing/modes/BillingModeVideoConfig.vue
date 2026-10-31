@@ -113,12 +113,12 @@
 </template>
 
 <script setup lang="ts">
-import {computed} from "vue";
+import {computed, onMounted} from "vue";
 import {ElMessage} from "element-plus";
 import {Delete} from "@element-plus/icons-vue";
 import {UNIT_PRICE_STEP, isTokenPricedUnit, unitLabelOf} from "@/utils/billingPrice";
 import {applyCombosChange, createResolutionRow, normalizeCombos} from "@/utils/billingResolution";
-import {useResolutionTiers} from "@/composables/useResolutionTiers";
+import {useEnums} from "@/composables/useEnums";
 import type {CombosFormSlice, ResolutionComboCode, ResolutionRow} from "@/utils/billingResolution";
 import ResolutionComboPicker from "../ResolutionComboPicker.vue";
 import ResolutionTierTable from "../ResolutionTierTable.vue";
@@ -168,8 +168,20 @@ const isFixedPlan = computed(() => {
   return plan === "" || plan === "FIXED";
 });
 
-/** 档位建议来自后端 ResolutionTierEnum（不是白名单，下拉仍允许自由输入） */
-const {tierOptions} = useResolutionTiers();
+/**
+ * 档位建议来自 DB 枚举 video_resolution：运营在「枚举配置」界面自己加，加一档不用发版。
+ * ⚠ 只是建议不是白名单，下拉仍 filterable + allow-create；网关归一**不**做别名推断，档位名必须逐字（除大小写）对上配置键。
+ */
+const {options: tierRows, loadOptions: loadTierOptions} = useEnums("video_resolution");
+
+const tierOptions = computed<string[]>(() =>
+  tierRows.value.map((row) => String(row.itemCode ?? "")).filter((code) => code.length > 0)
+);
+
+onMounted(() => {
+  // 同上：档位建议是输入辅助，拉不到就空着，不阻断表单。
+  void loadTierOptions(true).catch(() => undefined);
+});
 
 const rows = computed<ResolutionRow[]>(() =>
   Array.isArray(props.form.videoResolutionRows) ? props.form.videoResolutionRows : []

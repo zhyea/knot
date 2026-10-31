@@ -100,7 +100,7 @@ UsageExtractItem<?> item = extractor.extractUsageBody(body, requestBody);
 | 事实（`VideoUsageFacts` 分量） | 通用解析 | 对 3.0 Turbo 是否命中 | 处置 |
 |---|---|---|---|
 | `outputVideoMillis` | 读 `usage.*` / 顶层 `duration_seconds|video_seconds|seconds|duration`（`MediaUsageReaders:45,60`） | ❌ 产物时长在 `data[0].outputs[0].duration`，且是字符串 | **必须改** |
-| `outputResolution` | 读顶层 `resolution`/`size`/`dimensions`（`RESOLUTION_KEYS:228`） | ✅ `size` 在键表内；`"720p"→720P`、`"1280x720"→720P`（`normalizeResolution:267-276`） | 不改；**约定 `size` 语义 = 档位名**（见 §3.2） |
+| `outputResolution` | 读顶层 `resolution`/`size`/`dimensions`（`RESOLUTION_KEYS:228`） | ✅ `size` 在键表内；`"720p"→720P`（`normalizeResolution`，**只做大写，不做别名/宽高推断**） | 不改；**约定 `size` 语义 = 档位名**（见 §3.2）——`1280x720` 这类宽高写法会归一出 `1280X720`，配了 `720P` 价的规则会**拒绝取价**（2026-10-31 收紧，原「宽高反推」已移除） |
 | `outputAspectRatio` | 读顶层 `aspect_ratio` | ❌ 客户端体无此字段 | 不接（价不分画幅） |
 | `outputVideoCount` | `data`/`videos` 数组长度，Map 计 1（`:315`） | ✅ query 体 `data` 是长度 1 的数组 → 1 | 不改（**不要批量查询**，否则数成 N） |
 | `inputVideoMillis` | 读 `input_duration_seconds` 等 | ❌（3.0 Turbo 无输入视频）恒 0 | 不改 |
@@ -283,7 +283,7 @@ public class KlingVideoUsageExtractor extends AbstractVideoUsageExtractor {
 | 层 | 动作 | 判据 |
 |---|---|---|
 | 试算 | 管理端 `previewBillingRule` + `PricingPreviewDrawer` 过 4 组样本（720P×5s / 720P×10s / 1080P×10s / 未传 size） | 金额 = 秒 × 档位价；未传 size 落到 `defaultUnitPrice` 且**可见告警** |
-| 单测（新增） | `KlingVideoUsageExtractorTest`：① `data[0].outputs[0].duration="10"` → 10000ms；② duration 为字符串小数（推断）→ 向上取整秒；③ `outputs` 为空 → 0ms（不兜 1 秒）；④ `size=1280x720` → `720P`；⑤ sound 恒 true / reference 恒 false | 全绿 |
+| 单测（新增） | `KlingVideoUsageExtractorTest`：① `data[0].outputs[0].duration="10"` → 10000ms；② duration 为字符串小数（推断）→ 向上取整秒；③ `outputs` 为空 → 0ms（不兜 1 秒）；④ `size=720p` → `720P`（大小写归一；`1280x720` 不反推，见 `UsageExtractorTest#shouldUppercaseResolutionWithoutGuessingDimensions`）；⑤ sound 恒 true / reference 恒 false | 全绿 |
 | 单测（新增） | `KlingVideoUpstreamAdapterTest`：① 请求体逐字透传（不拼 `contents`、不造 `settings`、不改大小写）；② 错参（`size=2k` / `duration="ten"` / `n=2`）原样放行；③ 不注入 `options`；④ 顶层与嵌套 `callback_url`、`webhook_url` 全部剥掉；⑤ 快照不被改写、无命中零拷贝 | 全绿（10 例，2026-10-28 重写） |
 | 单测（新增） | `VideoRequestSupportTest`：递归（Map / List / 混嵌）、字段名归一化、近似字段不误伤、零拷贝 | 全绿（9 例） |
 | 单测（复用） | 用真实 query 体跑一遍 `VideoBillingModeCalculator`，断言单分量、金额、明细行自检式 | 明细行数 = 1，`cost = tokens × price ÷ 1e6` |

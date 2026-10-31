@@ -96,10 +96,10 @@ class KlingTurboVideoUsageExtractorTest {
     }
 
     @Test
-    @DisplayName("分辨率走通用键表：size 是档位名（不是 Kling 的 settings.resolution）")
+    @DisplayName("分辨率走通用键表：size 按档位名解析（不反推宽高，也不是 Kling 的 settings.resolution）")
     void resolutionFromClientContract() {
         assertEquals("720P",
-                extractor.extractUsage(Map.of(), Map.of("size", "1280x720")).billing().outputResolution());
+                extractor.extractUsage(Map.of(), Map.of("size", "720p")).billing().outputResolution());
         assertEquals("1080P",
                 extractor.extractUsage(Map.of(), Map.of("size", "1080p")).billing().outputResolution());
     }
