@@ -44,15 +44,6 @@ export const RESOLUTION_SUFFIX_FIELDS: {suffix: string; field: ResolutionPriceFi
   {suffix: ":AUDIO", field: "audioPrice"}
 ];
 
-/**
- * 常用档位快捷选项：**只是下拉建议，不是合法值白名单**。
- *
- * <p>厂商档位不可枚举——MiniMax 用 768P、Vidu 用 540P、豆包用 480p/720p/1080p，
- * 还有各种自造名。硬编码成固定档位会让新档位永远配不上价，故档位名可自由输入
- * （el-select allow-create）。</p>
- */
-export const COMMON_RESOLUTION_OPTIONS = ["480P", "540P", "720P", "768P", "1080P", "2K", "4K"];
-
 /** 建一行空档位：所有价格列一律 null，由各方案组件填自己那几列 */
 export function createResolutionRow(key = "", uid?: string): ResolutionRow {
   return {

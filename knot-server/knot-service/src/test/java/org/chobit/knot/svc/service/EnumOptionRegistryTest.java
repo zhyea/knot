@@ -40,7 +40,7 @@ class EnumOptionRegistryTest {
     void exposesOnlyMigratedEnums() {
         Map<String, List<EnumOptionItem>> map = registry.enumMap();
 
-        assertEquals(22, map.size());
+        assertEquals(23, map.size());
         assertTrue(map.containsKey("ModelTypeEnum"));
         assertTrue(map.containsKey("ModelApiProtocolEnum"));
         assertTrue(map.containsKey("BillingModeEnum"));
@@ -63,6 +63,7 @@ class EnumOptionRegistryTest {
         assertTrue(map.containsKey("RoutingTestStatusEnum"));
         assertTrue(map.containsKey("LogicalModelVisibilityEnum"));
         assertTrue(map.containsKey("LogicalModelPublishStatusEnum"));
+        assertTrue(map.containsKey("ResolutionTierEnum"));
     }
 
     @Test

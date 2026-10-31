@@ -1,20 +1,22 @@
 package org.chobit.knot.common.model;
 
+import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import org.chobit.knot.common.constants.enums.PricingPlanEnum;
+import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.model.BillingConfig.PriceKind;
 import org.chobit.knot.common.model.BillingConfig.PriceSet;
 import org.chobit.knot.common.model.BillingConfig.PricingContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 固定价方案的单元测试（2026-10-31 从 {@code BillingConfig} 的私有嵌套 record 拆出后新增）。
@@ -54,25 +56,47 @@ class FixedPricePolicyTest {
     }
 
     @Test
-    @DisplayName("维度键查表依次试 原样 / 全大写 / 全小写：宽容的是请求侧写法，配置侧键要写规范大写")
-    void dimensionLookupTriesVerbatimThenUpperThenLower() {
+    @DisplayName("维度键查表两侧都按大写比对：配置侧写 720p / Input_Video:768p 也能被配置侧大写请求命中")
+    void dimensionLookupIsCaseInsensitiveOnBothSides() {
         Map<String, BigDecimal> prices = Map.of(
                 "720P", new BigDecimal("1.5"),
                 "INPUT_VIDEO:768P", new BigDecimal("0.8"));
         FixedPricePolicy pricing = new FixedPricePolicy(PricingPlanEnum.FIXED, null, new BigDecimal("1.0"), prices);
 
-        // ① 原样命中
+        // ① 两侧写法一致：原样命中
         assertPrice("1.5", pricing.resolveDimensionPrice(List.of("720P"), context(1), ZERO));
         assertPrice("0.8", pricing.resolveDimensionPrice(List.of("INPUT_VIDEO:768P"), context(1), ZERO));
-        // ② 请求侧写成小写 -> 试全大写时命中（上游给的分辨率写法不可控，这里必须宽容）
+        // ② 请求侧写成小写（上游给的分辨率写法不可控，这里必须宽容）
         assertPrice("1.5", pricing.resolveDimensionPrice(List.of("720p"), context(1), ZERO));
         assertPrice("0.8", pricing.resolveDimensionPrice(List.of("input_video:768p"), context(1), ZERO));
-        // ③ 配置侧若是小写，请求侧给大写也要能命中 —— 走的是「试全小写」那一次
+        // ③ 配置侧小写
         FixedPricePolicy lowerCased = new FixedPricePolicy(PricingPlanEnum.FIXED, null, ZERO,
                 Map.of("1080p", new BigDecimal("2")));
         assertPrice("2", lowerCased.resolveDimensionPrice(List.of("1080P"), context(1), ZERO));
+        // ④ ⭐ 配置侧**混合**大小写：旧实现只对查询键试三种写法，这类键三种全落空、静默回落默认价
+        FixedPricePolicy mixedCased = new FixedPricePolicy(PricingPlanEnum.FIXED, null, ZERO,
+                Map.of("Input_Video:768p", new BigDecimal("0.9")));
+        assertPrice("0.9", mixedCased.resolveDimensionPrice(List.of("INPUT_VIDEO:768P"), context(1), ZERO));
         // 一个都没命中 -> 回落 defaultUnitPrice（不是 0，也不能是 null）
         assertPrice("1.0", pricing.resolveDimensionPrice(List.of("4K"), context(1), ZERO));
+    }
+
+    @Test
+    @DisplayName("严格取价：档位表非空但未命中 -> 抛；档位表为空 -> 返回 null 交调用方用默认价")
+    void strictDimensionPriceRejectsUnconfiguredTier() {
+        FixedPricePolicy pricing = new FixedPricePolicy(PricingPlanEnum.FIXED, null, new BigDecimal("1.0"),
+                Map.of("720P", new BigDecimal("1.5")));
+
+        assertPrice("1.5", pricing.resolveDimensionPriceStrict(List.of("720P"), context(1), "output video"));
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> pricing.resolveDimensionPriceStrict(List.of("1080P"), context(1), "output video"));
+        assertTrue(ex.getMessage().contains("1080P"), ex.getMessage());
+
+        // 没配档位表 = 不分档的合法形态，不是「未命中」，绝不抛
+        assertNull(new FixedPricePolicy(PricingPlanEnum.FIXED, null, new BigDecimal("1.0"), null)
+                .resolveDimensionPriceStrict(List.of("720P"), context(1), "output video"));
+        // 没声明档位名（如视频未带 resolution）同样不算未命中
+        assertNull(pricing.resolveDimensionPriceStrict(List.of(), context(1), "output video"));
     }
 
     @Test

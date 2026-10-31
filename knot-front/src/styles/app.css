@@ -276,6 +276,16 @@ body,
     line-height: 1.5;
 }
 
+/* .form-tip 的「灰次要提示」变体：RoutingRuleFormDrawer 与 EnumItemFormDialog 各抄过一份
+   逐字相同的规则体（编码锁定提示），收口到这里。主变体是警告橙，两者只差颜色与行高，
+   所以做成修饰符而不是第二个基类。 */
+.form-tip--secondary {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--el-text-color-secondary);
+}
+
 .inline-switch {
     flex: 0 0 auto;
     margin-bottom: 0;

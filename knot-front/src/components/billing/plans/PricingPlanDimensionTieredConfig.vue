@@ -6,7 +6,9 @@
         <div class="dimension-tiered-config__formula-body">总价 = 计费量 × 档位单价 + 输入侧分量 + 附加费</div>
         <div class="dimension-tiered-config__formula-note">
           档位单价按「分辨率 × 是否单独定价声音 × 有无输入/参考视频」取值，逐级去尾回落：
-          含参考 + 有声 → 含参考 → 有声 → 基础价 → 默认单价。
+          含参考 + 有声 → 含参考 → 有声 → 基础价。
+          档位名一个都配不到时<b>计价直接报错</b>，不再静默按默认单价出账；
+          只有「请求根本没带分辨率」才用默认单价。
           计费量口径与输入侧分量紧跟下方档位表配置，本方案只决定<b>单价取哪一档</b>。
         </div>
       </template>
@@ -17,12 +19,12 @@
     </el-divider>
 
     <ResolutionComboPicker :model-value="combos" :disabled="comboLocked" @update:model-value="onCombosChange"/>
-    <ResolutionTierTable :rows="rows" :options="COMMON_RESOLUTION_OPTIONS" :combos="combos" uid-prefix="dim-tiered"/>
+    <ResolutionTierTable :rows="rows" :combos="combos" uid-prefix="dim-tiered"/>
 
     <el-alert type="warning" :closable="false" class="dimension-tiered-config__hint">
       <template #title>
         <span>
-          默认单价必填——厂商档位不可枚举，配不到的档会回落到它；留空等于「识别不了的请求免费出账」。
+          默认单价必填——它是「请求未声明分辨率」这类无档位请求的价。档位表里<b>配不到</b>的档不会回落到它，而是<b>计价直接报错</b>（静默回落等于悄悄少收或多收）。
           「基础价」列必含，它同时是「请求未声明音频开关」的价格（多数模型默认带声音）；
           只有模型真能按音频分档（如阿里云万相按 <code>audio</code> 分档）才开「有声单独定价」，多出来的列留空即与基础价同价。
         </span>
@@ -53,7 +55,7 @@
 import {computed} from "vue";
 import {ElMessage} from "element-plus";
 import {unitLabelOf} from "@/utils/billingPrice";
-import {COMMON_RESOLUTION_OPTIONS, applyCombosChange, normalizeCombos} from "@/utils/billingResolution";
+import {applyCombosChange, normalizeCombos} from "@/utils/billingResolution";
 import type {CombosFormSlice, ResolutionComboCode, ResolutionRow} from "@/utils/billingResolution";
 import ResolutionComboPicker from "../ResolutionComboPicker.vue";
 import ResolutionTierTable from "../ResolutionTierTable.vue";
@@ -69,7 +71,7 @@ import BillingModeVideoUsageConfig from "../modes/BillingModeVideoUsageConfig.vu
  *
  * <p><b>本方案的真正增量是保存期的强校验，不是新的取价算法</b>——取价与固定价完全一致
  * （都走 {@code FixedPricing}），但维度键是自由文本、取价是「逐级去尾找第一个命中」，
- * 键拼错时固定价会<b>静默回落默认价</b>（配置看着生效、那档价从未命中），
+ * 键拼错时固定价以前会<b>静默回落默认价</b>（配置看着生效、那档价从未命中），现在两边都改成<b>计价直接报错</b>；
  * 本方案在 {@code BillingConfig#validateDimensionTiered} 直接拒绝保存。</p>
  *
  * <p>档位表共用 {@link ResolutionTierTable}；列集与落键后缀由 {@link ResolutionComboPicker}

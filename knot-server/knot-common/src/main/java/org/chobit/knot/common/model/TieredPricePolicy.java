@@ -119,4 +119,12 @@ record TieredPricePolicy(PriceSet basePrices,
         }
         return null;
     }
+    /**
+     * 严格维度取价：档位表非空但未命中即抛；固定价没有相位倍率，命中价原样返回。
+     */
+    @Override
+    public BigDecimal resolveDimensionPriceStrict(List<String> candidateKeys, PricingContext context, String label) {
+        return BillingConfig.requireDimensionPrice(candidateKeys, dimensionPrices, label);
+    }
+
 }

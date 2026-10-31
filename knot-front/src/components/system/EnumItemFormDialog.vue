@@ -12,7 +12,7 @@
       </el-form-item>
       <el-form-item label="编码" required>
         <el-input v-model="form.itemCode" :disabled="codeLocked" placeholder="如 OPENAI" />
-        <div v-if="codeLocked" class="form-tip">{{ codeLockHint }}</div>
+        <div v-if="codeLocked" class="form-tip form-tip--secondary">{{ codeLockHint }}</div>
       </el-form-item>
       <el-form-item label="显示名" required>
         <el-input v-model="form.itemLabel" placeholder="如 OpenAI" />
@@ -128,12 +128,3 @@ async function submit() {
     }
   }
 </script>
-
-<style scoped>
-.form-tip {
-  margin-top: 4px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--el-text-color-secondary);
-}
-</style>

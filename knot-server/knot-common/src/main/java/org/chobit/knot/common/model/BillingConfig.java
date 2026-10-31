@@ -3,6 +3,8 @@ package org.chobit.knot.common.model;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.chobit.knot.common.constants.enums.PricingPlanEnum;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.common.pricing.HolidayCalendar;
 import org.chobit.knot.common.pricing.PeakOffPeakResolver;
 import org.chobit.knot.common.util.JsonKit;
@@ -10,6 +12,7 @@ import org.chobit.knot.common.util.JsonKit;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -479,6 +482,23 @@ public record BillingConfig(
          * 由调用方回退到「量 × 单价」。返回的是<b>单价域</b>的和，单位基数换算仍在计算器侧。</p>
          */
         BigDecimal resolveProgressiveSum(PriceKind kind, long amount, PricingContext context, BigDecimal fallback);
+
+        /**
+         * 维度分档价的<b>严格</b>取价：规则配了档位表 → 命中价（已乘相位倍率）；未命中 → 抛。
+         * 规则<b>没配</b>档位表 → 返回 {@code null}，调用方按「不分档」用默认价。
+         *
+         * <p>⭐ 与 {@link #resolveDimensionPrice} 的差别只有一处：<b>不回落 defaultUnitPrice</b>。
+         * 判据是「配了档位表 = 已声明按档位分价」，缺这一档就是配置漏项；静默回落默认价
+         * 会让单笔账目算错且无人察觉（2026-10-31 robin 拍板「任何未命中都抛」）。</p>
+         *
+         * <p>ABSOLUTE 高低峰返回相位自带价——该模式下维度价本就不参与；相位缺
+         * {@code unitPrices} 同样视为配置漏项而抛。</p>
+         *
+         * @param label 维度标识，只进错误文案（便于定位是哪一档缺失）
+         * @throws BusinessException 档位表非空但候选键全部未命中
+         */
+        BigDecimal resolveDimensionPriceStrict(List<String> candidateKeys, PricingContext context, String label);
+
     }
 
     /**
@@ -496,14 +516,19 @@ public record BillingConfig(
                 continue;
             }
             BigDecimal price = dimensionPrices.get(key);
-            if (price == null) {
-                price = dimensionPrices.get(key.toUpperCase());
-            }
-            if (price == null) {
-                price = dimensionPrices.get(key.toLowerCase());
-            }
             if (price != null) {
                 return price;
+            }
+            String upper = key.toUpperCase(Locale.ROOT);
+            price = dimensionPrices.get(upper);
+            if (price != null) {
+                return price;
+            }
+            for (Map.Entry<String, BigDecimal> entry : dimensionPrices.entrySet()) {
+                String configuredKey = entry.getKey();
+                if (configuredKey != null && configuredKey.toUpperCase(Locale.ROOT).equals(upper)) {
+                    return entry.getValue();
+                }
             }
         }
         return null;
@@ -553,6 +578,33 @@ public record BillingConfig(
             return componentDefault;
         }
         return defaultUnitPrice != null ? defaultUnitPrice : fallback;
+    }
+
+    /**
+     * 严格维度取价：档位表为空返回 {@code null}（调用方按「不分档」处理），
+     * 档位表非空但候选键全部未命中则<b>抛</b>。
+     *
+     * <p>为什么「档位表为空」不抛：那不叫「未命中某一档」，而是这条规则压根没声明按档位分价
+     * （视频只按秒 / 按次计价是常见形态）。把它也判成未命中，等于所有固定价视频规则一起失效。</p>
+     */
+    static BigDecimal requireDimensionPrice(List<String> candidateKeys,
+                                            Map<String, BigDecimal> dimensionPrices,
+                                            String label) {
+        if (dimensionPrices == null || dimensionPrices.isEmpty()) {
+            return null;
+        }
+        if (candidateKeys == null || candidateKeys.isEmpty()) {
+            // 请求没声明档位（如视频未带 resolution）→ 没有可比对的档位，不是「档位未命中」
+            return null;
+        }
+        BigDecimal matched = dimensionPrice(candidateKeys, dimensionPrices);
+        if (matched != null) {
+            return matched;
+        }
+        String first = candidateKeys.get(0);
+        throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                "no dimension price configured for " + label + ": " + first
+                        + " (configure the tier price or remove the tier table)");
     }
 
     /**

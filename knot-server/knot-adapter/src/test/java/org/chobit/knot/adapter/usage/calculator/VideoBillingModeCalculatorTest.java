@@ -13,7 +13,9 @@ import java.math.MathContext;
 import java.time.Instant;
 import java.util.Map;
 
+import org.chobit.knot.common.error.BusinessException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -661,12 +663,13 @@ class VideoBillingModeCalculatorTest {
     }
 
     @Test
-    void dimensionTieredShouldFallBackToDefaultPriceForUnconfiguredTier() {
-        // 厂商档位不可枚举，总有配不到的档：未命中必须回落 defaultUnitPrice，而不是 0 元出账
-        assertEquals("3.00", calculator.calculate(context(
+    void dimensionTieredShouldRejectUnconfiguredTier() {
+        // 2026-10-31 口径反转（robin 拍板「任何未命中都抛」）：配了档位表却缺这一档 = 配置漏项。
+        // 旧行为是回落 defaultUnitPrice 0.3 —— 「配了分档价却按默认价出账」，账面上看不出来。
+        BusinessException ex = assertThrows(BusinessException.class, () -> calculator.calculate(context(
                 rule(WANXIANG_I2V, "DIMENSION_TIERED"),
-                video(10L, 0L, 0L, "4K", true, false))).totalCost(),
-                "4K:AUDIO / 4K 都没配 -> 回落默认价 0.3");
+                video(10L, 0L, 0L, "4K", true, false))));
+        assertTrue(ex.getMessage().contains("4K:AUDIO"), ex.getMessage());
     }
 
     @Test

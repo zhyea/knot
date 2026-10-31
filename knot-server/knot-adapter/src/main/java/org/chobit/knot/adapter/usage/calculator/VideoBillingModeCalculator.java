@@ -3,6 +3,8 @@ package org.chobit.knot.adapter.usage.calculator;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.BillingModeEnum;
 import org.chobit.knot.common.constants.enums.PricingPlanEnum;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.common.model.BillingConfig;
 import org.chobit.knot.adapter.model.usage.BillingUsage;
 import org.chobit.knot.adapter.model.usage.NormalizedBillingAmount;
@@ -251,7 +253,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
             // 逐单位累加和已是「单价域」的总额，除以单位基数即得金额（amount=1 代入复用同一公式）
             return cost(1L, progressiveSum, unitSize);
         }
-        return cost(amount, plan.resolveDimensionPrice(keys, pricingContext, BigDecimal.ZERO), unitSize);
+        return cost(amount, strictOutputPrice(plan, keys, pricingContext, config), unitSize);
     }
 
     /**
@@ -275,15 +277,43 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
                 return sum.divide(BigDecimal.valueOf(amount), MONEY_DIVISION);
             }
         }
-        return plan.resolveDimensionPrice(keys, pricingContext, BigDecimal.ZERO);
+        return strictOutputPrice(plan, keys, pricingContext, config);
+    }
+
+    /**
+     * 输出视频分量的单价：<b>严格</b>取档位价。
+     *
+     * <p>规则配了档位表 → 必须命中，否则抛（2026-10-31 robin 拍板「任何未命中都抛」）；
+     * 没配档位表 → 按「不分档」处理，用 {@code defaultUnitPrice}；两者都没有 → 也抛。
+     * 旧实现把最终 fallback 写成 {@code BigDecimal.ZERO}，缺价时静默算 0 元、无人察觉。</p>
+     */
+    private BigDecimal strictOutputPrice(BillingConfig.PricingPlan plan,
+                                         List<String> keys,
+                                         BillingConfig.PricingContext pricingContext,
+                                         BillingConfig config) {
+        BigDecimal strict = plan.resolveDimensionPriceStrict(keys, pricingContext, "output video");
+        if (strict != null) {
+            return strict;
+        }
+        BigDecimal fallback = config == null ? null : config.defaultUnitPrice();
+        if (fallback == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "video rule has neither tier price nor defaultUnitPrice configured");
+        }
+        return fallback;
     }
 
     /**
      * 输入侧分量的单价：分档键 -&gt; 分量自带默认价。
      *
-     * <p>走 {@code resolveComponentPrice} 而不是 {@code resolveDimensionPrice}：后者在键未命中时
+     * <p>⭐ 走 {@code resolveComponentPrice} 而不是 {@code resolveDimensionPrice}：后者在键未命中时
      * 会回落到规则的 {@code defaultUnitPrice}（那是<b>输出视频</b>的价），
      * 把「输入图片 0.20/张」算成「输出视频 0.50/秒」。</p>
+     *
+     * <p>⚠ <b>本分量刻意不参与严格化</b>（2026-10-31）：{@code componentDefault} 在这里不是
+     * 「容错兜底」而是<b>业务口径</b>——MiniMax 官方就是「输入视频没单配价时按同档位输出价」、
+     * 「输入图片按张固定价」。把它判成「维度未命中」会把官方三路求和的配置直接判成缺配。
+     * 严格化只作用于输出视频主分量，判据见 {@link #strictOutputPrice}。</p>
      */
     private BigDecimal firstDimensionPrice(BillingConfig.PricingPlan plan,
                                            List<String> keys,

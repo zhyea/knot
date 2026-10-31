@@ -1,6 +1,8 @@
 package org.chobit.knot.common.model;
 
 import org.chobit.knot.common.constants.enums.PricingPlanEnum;
+import org.chobit.knot.common.error.BusinessException;
+import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.common.model.BillingConfig.PhaseRule;
 import org.chobit.knot.common.model.BillingConfig.PriceKind;
 import org.chobit.knot.common.model.BillingConfig.PriceSet;
@@ -127,4 +129,25 @@ record PeakOffPeakPricePolicy(PriceSet basePrices,
         BigDecimal price = rule.unitPrices().valueOf(kind);
         return price != null ? price : fallback;
     }
+    /**
+     * 严格维度取价：档位表非空但未命中即抛；命中价照常乘相位倍率。
+     *
+     * <p>ABSOLUTE 模式下维度价不参与，取相位自带价；相位缺 {@code unitPrices} 同样按配置漏项抛——
+     * 否则「配了错峰却没填相位价」会静默算出 0。</p>
+     */
+    @Override
+    public BigDecimal resolveDimensionPriceStrict(List<String> candidateKeys, PricingContext context, String label) {
+        PhaseDecision decision = decide(context);
+        if (absolute()) {
+            BigDecimal phasePrice = absolutePrice(decision.matchedRule(), PriceKind.INPUT, null);
+            if (phasePrice == null) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "no ABSOLUTE unit price configured for the matched phase of " + label);
+            }
+            return phasePrice;
+        }
+        BigDecimal base = BillingConfig.requireDimensionPrice(candidateKeys, dimensionPrices, label);
+        return base == null ? null : base.multiply(decision.multiplier());
+    }
+
 }

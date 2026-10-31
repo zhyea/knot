@@ -1,6 +1,7 @@
 package org.chobit.knot.adapter.usage.extractor;
 
 import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.common.constants.enums.ResolutionTierEnum;
 import org.chobit.knot.common.util.MapNumberUtils;
 
 import java.math.BigDecimal;
@@ -249,31 +250,20 @@ final class MediaUsageReaders {
     }
 
     /**
-     * 分辨率文本归一化：标准尺寸映射到档位名，**未识别的写法原样大写返回**。
+     * 分辨率文本归一化：已知写法收敛到标准档位名，**未识别的写法原样大写返回**。
      *
-     * <p>原样返回是刻意的——档位名不可枚举（768P、540P、2K、4K 及各厂商自造名），
-     * 硬塞进白名单只会让新档位配不上价。{@code auto} 之类的非档位值会落成 {@code AUTO}，
-     * 配不上就自然回落默认价，不会误命中。</p>
+     * <p>⭐ 别名表（{@code 480} / {@code 854x480} / {@code 720p} …）只在
+     * {@link ResolutionTierEnum} 维护一处：后端归一、前端建议下拉、测试断言取同一份，
+     * 避免两边各记一份再慢慢分叉。</p>
+     *
+     * <p>⚠ 未识别时原样大写返回仍是刻意的——档位名不可枚举（768P、540P、2K、4K 及厂商自造名），
+     * 硬塞进白名单只会让新档位配不上价。注意后果与 2026-10-25 时不同了：
+     * 规则<b>配了档位表</b>而本次档位（如 {@code AUTO}）不在表里，计费会<b>拒绝</b>而不是回落默认价
+     * （见 {@code VideoBillingModeCalculator} 的严格取价）。</p>
      */
     static String normalizeResolution(Object value) {
         String text = value == null ? null : StringUtils.trimToNull(String.valueOf(value));
-        if (text == null) {
-            return null;
-        }
-        String normalized = StringUtils.lowerCase(text)
-                .replace(" ", "")
-                .replace("_", "")
-                .replace("-", "");
-        return switch (normalized) {
-            case "480", "480p", "854x480" -> "480P";
-            case "540", "540p", "960x540" -> "540P";
-            case "720", "720p", "1280x720" -> "720P";
-            case "768", "768p", "1366x768", "1024x768" -> "768P";
-            case "1080", "1080p", "1920x1080" -> "1080P";
-            case "1440", "1440p", "2k", "qhd", "2560x1440" -> "2K";
-            case "2160", "2160p", "4k", "uhd", "3840x2160" -> "4K";
-            default -> StringUtils.upperCase(text);
-        };
+        return text == null ? null : ResolutionTierEnum.canonical(text);
     }
 
     /**

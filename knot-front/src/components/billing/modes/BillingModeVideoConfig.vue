@@ -47,7 +47,7 @@
                 placeholder="如 768P / 2K"
                 @update:model-value="(value: string) => setKey(index, value)"
               >
-                <el-option v-for="item in RESOLUTION_OPTIONS" :key="item" :label="item" :value="item"/>
+                <el-option v-for="item in tierOptions" :key="item" :label="item" :value="item"/>
               </el-select>
         </el-form-item>
         </el-col>
@@ -99,7 +99,7 @@
     <!-- 通用视频：先定计费组合，档位只显示已选组合的价格列 -->
     <template v-else>
       <ResolutionComboPicker :model-value="combos" :disabled="comboLocked" @update:model-value="onCombosChange"/>
-      <ResolutionTierTable :rows="rows" :options="RESOLUTION_OPTIONS" :combos="combos" uid-prefix="video"/>
+      <ResolutionTierTable :rows="rows" :combos="combos" uid-prefix="video"/>
     </template>
     </template>
 
@@ -117,7 +117,8 @@ import {computed} from "vue";
 import {ElMessage} from "element-plus";
 import {Delete} from "@element-plus/icons-vue";
 import {UNIT_PRICE_STEP, isTokenPricedUnit, unitLabelOf} from "@/utils/billingPrice";
-import {COMMON_RESOLUTION_OPTIONS, applyCombosChange, createResolutionRow, normalizeCombos} from "@/utils/billingResolution";
+import {applyCombosChange, createResolutionRow, normalizeCombos} from "@/utils/billingResolution";
+import {useResolutionTiers} from "@/composables/useResolutionTiers";
 import type {CombosFormSlice, ResolutionComboCode, ResolutionRow} from "@/utils/billingResolution";
 import ResolutionComboPicker from "../ResolutionComboPicker.vue";
 import ResolutionTierTable from "../ResolutionTierTable.vue";
@@ -167,8 +168,8 @@ const isFixedPlan = computed(() => {
   return plan === "" || plan === "FIXED";
 });
 
-/** 常用档位建议（与维度分档方案组件共用同一份，见 utils/billingResolution） */
-const RESOLUTION_OPTIONS = COMMON_RESOLUTION_OPTIONS;
+/** 档位建议来自后端 ResolutionTierEnum（不是白名单，下拉仍允许自由输入） */
+const {tierOptions} = useResolutionTiers();
 
 const rows = computed<ResolutionRow[]>(() =>
   Array.isArray(props.form.videoResolutionRows) ? props.form.videoResolutionRows : []
@@ -235,7 +236,7 @@ function setInputPrice(index: number, value: number | undefined | null) {
 /** 一键铺开常用档位（只补不存在的，不覆盖已填价格） */
 function fillCommon() {
   const existing = new Set(rows.value.map((row) => row.key.toUpperCase()));
-  for (const key of RESOLUTION_OPTIONS) {
+  for (const key of tierOptions.value) {
     if (!existing.has(key)) {
       rows.value.push(createResolutionRow(key, nextUid()));
     }

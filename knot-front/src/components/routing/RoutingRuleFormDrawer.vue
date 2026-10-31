@@ -31,7 +31,7 @@
                 :readonly="codeLocked"
                 @blur="validateRuleCode"
               />
-              <div v-if="codeLocked" class="form-tip">{{ codeLockHint }}</div>
+              <div v-if="codeLocked" class="form-tip form-tip--secondary">{{ codeLockHint }}</div>
             </el-form-item>
             </el-col>
           </el-row>
@@ -739,13 +739,6 @@ const targetModelCodes = computed(() =>
 <style scoped>
 .routing-rule-form {
   padding-bottom: 8px;
-}
-
-.form-tip {
-  margin-top: 4px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--el-text-color-secondary);
 }
 
 .rule-section {

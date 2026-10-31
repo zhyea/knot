@@ -1026,7 +1026,4 @@ async function submit() {
   padding: 0 8px;
 }
 
-.inline-switch {
-  margin-bottom: 0;
-}
 </style>

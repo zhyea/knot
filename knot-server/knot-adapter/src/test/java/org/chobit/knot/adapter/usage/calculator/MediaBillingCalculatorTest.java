@@ -17,7 +17,9 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 import java.util.Map;
 
+import org.chobit.knot.common.error.BusinessException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -124,16 +126,14 @@ class MediaBillingCalculatorTest {
     }
 
     @Test
-    void shouldFallBackToDefaultPriceForUnknownResolution() {
-        NormalizedBillingAmount amount = videoCalculator.calculate(context(
+    void shouldRejectUnconfiguredResolutionTier() {
+        // 2026-10-31 口径反转（robin 拍板「任何未命中都抛」）：配了档位表却缺这一档 = 配置漏项。
+        // 旧行为是回落 defaultUnitPrice 0.02 —— 「配了分档价却按默认价出账」，账面上看不出来。
+        BusinessException ex = assertThrows(BusinessException.class, () -> videoCalculator.calculate(context(
                 rule("VIDEO", "PER_SECOND", VIDEO_CONFIG),
-                VideoBillingUsage.builder().outputVideoMillis(10_000L).outputResolution("480P").build()));
-
-        assertEquals("0.20", amount.totalCost(), "未配置分辨率 → 默认价 0.02");
-        // 2026-10-25：854x480 归一成 480P（480P 是业界标准档位，豆包/Vidu/MiniMax 都有这一档），
-        // 此前会落成裸尺寸串 854X480，导致 480P 档位永远配不上、只能吃默认价。
-        // 配置里仍只有 720P/1080P，故这里依旧回落默认价，变的只是 detail 上的键名。
-        assertEquals("VIDEO:480P", amount.details().get(0).type());
+                VideoBillingUsage.builder().outputVideoMillis(10_000L).outputResolution("480P").build())));
+        // 顺带钉住 2026-10-25 的归一：报错里必须是 480P，不是裸尺寸串 854X480
+        assertTrue(ex.getMessage().contains("480P"), ex.getMessage());
     }
 
     @Test

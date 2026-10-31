@@ -14,7 +14,7 @@
         placeholder="如 720P / 4K"
         @update:model-value="(value: string) => setKey(index, value)"
       >
-        <el-option v-for="item in options" :key="item" :label="item" :value="item"/>
+        <el-option v-for="item in tierOptions" :key="item" :label="item" :value="item"/>
       </el-select>
       <el-input-number
         v-for="combo in columns"
@@ -48,6 +48,7 @@ import {type PropType, computed} from "vue";
 import {Delete} from "@element-plus/icons-vue";
 import {UNIT_PRICE_STEP} from "@/utils/billingPrice";
 import {LEGACY_COMBOS, RESOLUTION_COMBOS, createResolutionRow, normalizeCombos} from "@/utils/billingResolution";
+import {useResolutionTiers} from "@/composables/useResolutionTiers";
 import type {ResolutionComboCode, ResolutionPriceField, ResolutionRow} from "@/utils/billingResolution";
 
 /**
@@ -63,8 +64,6 @@ import type {ResolutionComboCode, ResolutionPriceField, ResolutionRow} from "@/u
  */
 const props = defineProps({
   rows: {type: Array as PropType<ResolutionRow[]>, required: true},
-  /** 常用档位下拉建议：只是建议，不是合法值白名单（厂商档位不可枚举） */
-  options: {type: Array as PropType<string[]>, default: (): string[] => ["720P", "1080P", "4K"]},
   /**
    * 要渲染的计费组合；列顺序恒按 RESOLUTION_COMBOS 固定，不随勾选顺序漂移。
    *
@@ -75,6 +74,9 @@ const props = defineProps({
   /** v-for key 前缀：同一抽屉内两张表并存时避免 key 相撞 */
   uidPrefix: {type: String, default: "res-table"}
 });
+
+/** 档位建议来自后端 ResolutionTierEnum（不是白名单，控件仍允许自由输入） */
+const {tierOptions} = useResolutionTiers();
 
 /** 列集：按固定顺序过滤，保证列顺序稳定 */
 const columns = computed(() =>
@@ -118,7 +120,7 @@ function setPrice(index: number, field: ResolutionPriceField, value: number | un
 /** 一键铺开常用档位（只补不存在的，不覆盖已填价格） */
 function fillCommon() {
   const existing = new Set(props.rows.map((row) => row.key.toUpperCase()));
-  for (const key of props.options) {
+  for (const key of tierOptions.value) {
     if (!existing.has(key)) {
       props.rows.push(createResolutionRow(key, nextUid()));
     }

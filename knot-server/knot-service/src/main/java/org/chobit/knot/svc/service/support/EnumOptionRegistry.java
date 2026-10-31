@@ -18,6 +18,7 @@ import org.chobit.knot.common.constants.enums.ModelTypeEnum;
 import org.chobit.knot.common.constants.enums.NumericEnumOption;
 import org.chobit.knot.common.constants.enums.PricingPlanEnum;
 import org.chobit.knot.common.constants.enums.QuotaWindowEnum;
+import org.chobit.knot.common.constants.enums.ResolutionTierEnum;
 import org.chobit.knot.common.constants.enums.RouteTargetTypeEnum;
 import org.chobit.knot.common.constants.enums.RoutingTestStatusEnum;
 import org.chobit.knot.common.constants.enums.ScheduledTaskRunStatusEnum;
@@ -57,6 +58,7 @@ public class EnumOptionRegistry {
         put(map, CurrencyCodeEnum.class.getSimpleName(), CurrencyCodeEnum.values());
         put(map, QuotaWindowEnum.class.getSimpleName(), QuotaWindowEnum.values());
         put(map, PricingPlanEnum.class.getSimpleName(), PricingPlanEnum.values());
+        put(map, ResolutionTierEnum.class.getSimpleName(), ResolutionTierEnum.values());
         putNumeric(map, EnabledStatusEnum.class.getSimpleName(), EnabledStatusEnum.values());
         put(map, RouteTargetTypeEnum.class.getSimpleName(), RouteTargetTypeEnum.values());
         put(map, ModelPoolSelectionStrategyEnum.class.getSimpleName(), ModelPoolSelectionStrategyEnum.values());
