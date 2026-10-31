@@ -20,10 +20,6 @@ export function listEnumOperationLogs(category: string) {
   return get(`/api/system/enums/operation-logs/${encodeURIComponent(category)}`);
 }
 
-export function listEnumCategories() {
-  return postQuery("/api/system/enums/categories", {});
-}
-
 export function createEnumConfig(payload: Dict) {
   return post("/api/system/enums", payload);
 }

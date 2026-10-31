@@ -1,13 +1,17 @@
 import {ref} from "vue";
 import type {Dict, Row} from "@/types";
-import {listEnumItemsByCategory, listEnumCategories} from "@/api/enums";
+import {listEnumItemsByCategory} from "@/api/enums";
 
 /**
  * 枚举数据缓存 composable
  *
  * 用法：
- *   const { options, loadOptions } = useEnums("model_family");
+ *   const { options, error, loadOptions } = useEnums("model_family");
  *   // options.value → [{ itemCode: "gpt", itemLabel: "GPT（OpenAI）" }, ...]
+ *
+ * <p>⚠⚠ {@code loadOptions} <b>永不 reject</b>：失败只写 {@code error}，不向上抛。
+ * 全站调用点都是 {@code onMounted(() => loadOptions(true))} 这种不接 Promise 的写法，
+ * 抛出去就是 unhandled rejection（曾一次性冒出 43 个）。需要提示的宿主读 {@code error} 自行处理。</p>
  */
 const CACHE: Record<string, { data: unknown; ts: number }> = {};
 const TTL = 5 * 60 * 1000; // 5 分钟缓存
@@ -24,6 +28,8 @@ function isExpired(entry: { data: unknown; ts: number } | undefined): boolean {
 export function useEnums(category: string, enabledOnly = true) {
   const options = ref<Row[]>([]);
   const loading = ref(false);
+  /** 最近一次加载的失败原因；成功即清空。调用方据此决定要不要提示，默认不弹 */
+  const error = ref<unknown>(null);
 
   /**
    * 加载枚举选项
@@ -32,6 +38,7 @@ export function useEnums(category: string, enabledOnly = true) {
    */
   async function loadOptions(force: boolean = false) {
     loading.value = true;
+    error.value = null;
     try {
       const cached = CACHE[category];
       if (!force && !isExpired(cached)) {
@@ -41,6 +48,13 @@ export function useEnums(category: string, enabledOnly = true) {
       const data = await listEnumItemsByCategory(category);
       CACHE[category] = {data, ts: Date.now()};
       options.value = filter(data, enabledOnly);
+    } catch (e) {
+      // 枚举下拉是「输入辅助」，加载失败不该把异常甩给调用方：全站调用点都是
+      // `onMounted(() => loadOptions(true))` 这种不接 Promise 的写法，抛出去就是
+      // unhandled rejection（曾一次性冒出 43 个）。失败只记录，由调用方按需提示。
+      error.value = e;
+      // 刻意不清空 options：force 重载失败时保留上一次成功的选项，
+      // 让用户至少还能选，比突然变空更可用。
     } finally {
       loading.value = false;
     }
@@ -56,27 +70,7 @@ export function useEnums(category: string, enabledOnly = true) {
     delete CACHE[category];
   }
 
-  return {options, loading, loadOptions, invalidate};
-}
-
-/**
- * 获取所有分类列表
- */
-export function useEnumCategories() {
-  const categories = ref<Row[]>([]);
-  const loading = ref(false);
-
-  async function loadCategories() {
-    loading.value = true;
-    try {
-      const data = await listEnumCategories();
-      categories.value = Array.isArray(data) ? data : [];
-    } finally {
-      loading.value = false;
-    }
-  }
-
-  return {categories, loading, loadCategories};
+  return {options, loading, error, loadOptions, invalidate};
 }
 
 /** 清除全部枚举缓存 */

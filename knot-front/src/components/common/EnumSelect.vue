@@ -9,6 +9,7 @@
     :collapse-tags="collapseTags"
     :collapse-tags-tooltip="collapseTagsTooltip"
     :style="selectStyle"
+    :no-data-text="error ? '选项加载失败，请关闭重开' : '暂无数据'"
     @update:model-value="emit('update:modelValue', $event)"
   >
     <el-option
@@ -48,7 +49,7 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
-const {options, loadOptions} = useEnums(props.category, props.enabledOnly);
+const {options, error, loadOptions} = useEnums(props.category, props.enabledOnly);
 
 const filteredOptions = computed(() => {
   let list = options.value;
@@ -69,6 +70,8 @@ function optionLabel(item: Row): string {
   return item.itemLabel;
 }
 
+// 加载失败不再向上抛（见 useEnums），这里只用 error 换掉空态文案——
+// 不新增 DOM：本控件被 8 个宿主放在各种 el-col / 表单栅格里，多一层元素会撑破对齐。
 // 下拉每次挂载都强制回源：宿主抽屉/弹窗是 destroy-on-close，挂载即"打开"，
 // 不强制就会命中 useEnums 的模块级缓存而拿不到刚编辑过的枚举值。
 watch(() => props.category, () => loadOptions(true));
