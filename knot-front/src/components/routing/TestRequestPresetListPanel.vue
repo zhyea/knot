@@ -13,7 +13,7 @@
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch
-            :model-value="row.status === 1"
+            :model-value="row.status === EnabledStatus.ENABLED"
             :loading="togglingId === row.id"
             inline-prompt
             active-text="启用"
@@ -56,6 +56,7 @@ import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
+import {EnabledStatus} from "@/constants/status";
 
 defineProps({
   rows: {type: Array as PropType<Row[]>, default: (): Row[] => []},
@@ -79,6 +80,6 @@ const emit = defineEmits([
 const {labelOf} = useEnumOptions();
 
 function protocolLabel(code: unknown): string {
-  return labelOf("ModelApiProtocolEnum", code, String(code ?? "-"));
+  return labelOf("ModelApiProtocolEnum", code);
 }
 </script>

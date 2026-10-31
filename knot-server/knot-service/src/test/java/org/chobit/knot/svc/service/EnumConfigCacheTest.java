@@ -15,6 +15,8 @@ import org.chobit.knot.dal.entity.EnumCategoryEntity;
 import org.chobit.knot.dal.entity.EnumConfigEntity;
 import org.chobit.knot.dal.mapper.EnumCategoryMapper;
 import org.chobit.knot.dal.mapper.EnumConfigMapper;
+import org.chobit.knot.svc.converter.EnumConfigConverter;
+import org.chobit.knot.svc.vo.system.EnumConfigItem;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -103,9 +105,8 @@ class EnumConfigCacheTest {
         when(enumConfigMapper.listByCategoryId(CATEGORY_ID)).thenReturn(List.of(item("gpt")));
         assertEquals(1, service.listByCategory(CATEGORY).size());
 
-        EnumConfigEntity request = new EnumConfigEntity();
-        request.setCategory(CATEGORY);
-        request.setItemCode("claude");
+        EnumConfigItem request = new EnumConfigItem(
+                null, null, CATEGORY, "claude", null, null, null, null, null, null, null);
         when(enumConfigMapper.getByCategoryAndCode(CATEGORY, "claude")).thenReturn(null);
         when(enumCategoryMapper.selectIdByCategory(CATEGORY)).thenReturn(CATEGORY_ID);
         when(enumConfigMapper.insert(any(EnumConfigEntity.class))).thenReturn(1);
@@ -132,8 +133,8 @@ class EnumConfigCacheTest {
         when(enumConfigMapper.getById(11L)).thenReturn(existing);
         when(enumConfigMapper.countItemCodeBindings(anyString())).thenReturn(0L);
 
-        EnumConfigEntity request = new EnumConfigEntity();
-        request.setItemLabel("GPT 新版显示名");
+        EnumConfigItem request = new EnumConfigItem(
+                null, null, null, null, "GPT 新版显示名", null, null, null, null, null, null);
         service.update(11L, request);
 
         when(enumConfigMapper.listByCategoryId(CATEGORY_ID)).thenReturn(List.of(item("gpt")));
@@ -181,9 +182,17 @@ class EnumConfigCacheTest {
         }
 
         @Bean
+        EnumConfigConverter enumConfigConverter() {
+            // 用手工的 MapStruct 实现而不是 mock：本测试要验的是「缓存命中/失效」，
+            // 转换器跟着一起 mock 会让 Item 恒为 null，断言仍然绿但没测到真链路。
+            return org.mapstruct.factory.Mappers.getMapper(EnumConfigConverter.class);
+        }
+
+        @Bean
         EnumConfigService enumConfigService(EnumConfigMapper enumConfigMapper,
-                                            EnumCategoryMapper enumCategoryMapper) {
-            return new EnumConfigService(enumConfigMapper, enumCategoryMapper);
+                                            EnumCategoryMapper enumCategoryMapper,
+                                            EnumConfigConverter enumConfigConverter) {
+            return new EnumConfigService(enumConfigMapper, enumCategoryMapper, enumConfigConverter);
         }
 
         @Bean

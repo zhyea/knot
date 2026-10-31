@@ -41,8 +41,8 @@ public class NotificationController {
      * Creates a new resource. Executes the public operation.
      */
     @OperationLog(module = "notification", operation = "CREATE", entityType = "NotifyTemplate",
-            entityIdAfter = "#result.id",
-            entityNameAfter = "#result.name",
+            entityIdAfter = "#result.id()",
+            entityNameAfter = "#result.name()",
             description = "'新建通知模板'",
             newValueSpel = "#result")
     @PostMapping("/templates")

@@ -5,6 +5,8 @@ import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.dal.mapper.EnumCategoryMapper;
 import org.chobit.knot.dal.mapper.EnumConfigMapper;
+import org.chobit.knot.svc.converter.EnumConfigConverter;
+import org.chobit.knot.svc.vo.system.EnumConfigItem;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -28,7 +30,9 @@ class EnumConfigServiceUpdateTest {
 
     private final EnumConfigMapper enumConfigMapper = mock(EnumConfigMapper.class);
     private final EnumCategoryMapper enumCategoryMapper = mock(EnumCategoryMapper.class);
-    private final EnumConfigService service = new EnumConfigService(enumConfigMapper, enumCategoryMapper);
+    private final EnumConfigConverter converter =
+            org.mapstruct.factory.Mappers.getMapper(EnumConfigConverter.class);
+    private final EnumConfigService service = new EnumConfigService(enumConfigMapper, enumCategoryMapper, converter);
 
     private EnumConfigEntity existing(String itemCode, Boolean isSystem) {
         EnumConfigEntity entity = new EnumConfigEntity();
@@ -43,14 +47,12 @@ class EnumConfigServiceUpdateTest {
         return entity;
     }
 
-    private EnumConfigEntity request(String itemCode) {
-        EnumConfigEntity entity = new EnumConfigEntity();
-        entity.setItemCode(itemCode);
-        entity.setItemLabel("新名称");
-        entity.setSortOrder(2);
-        entity.setIsEnabled(false);
-        entity.setRemark("r");
-        return entity;
+    /**
+     * 改码请求：只带「用户能改的字段」，id/category 由 svc 从库里的既有行补齐——
+     * 入参是 {@link EnumConfigItem}（record），置 null 就表示「这次不动它」。
+     */
+    private EnumConfigItem request(String itemCode) {
+        return new EnumConfigItem(null, null, null, itemCode, "新名称", 2, null, false, null, "r", null);
     }
 
     @Test

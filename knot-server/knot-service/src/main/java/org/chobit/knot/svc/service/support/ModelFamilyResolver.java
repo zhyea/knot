@@ -2,8 +2,8 @@ package org.chobit.knot.svc.service.support;
 
 import java.util.List;
 import java.util.Locale;
-import org.chobit.knot.dal.entity.EnumConfigEntity;
 import org.chobit.knot.svc.service.EnumConfigService;
+import org.chobit.knot.svc.vo.system.EnumConfigItem;
 import org.springframework.stereotype.Component;
 
 
@@ -61,7 +61,7 @@ public class ModelFamilyResolver {
     private List<String> loadCodes() {
         try {
             return enumConfigService.listByCategory(CATEGORY).stream()
-                    .map(EnumConfigEntity::getItemCode)
+                    .map(EnumConfigItem::itemCode)
                     .filter(c -> c != null && !c.isBlank())
                     .toList();
         } catch (Exception ignored) {

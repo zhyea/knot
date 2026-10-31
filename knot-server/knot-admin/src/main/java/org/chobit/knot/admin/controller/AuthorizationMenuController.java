@@ -2,7 +2,7 @@ package org.chobit.knot.admin.controller;
 
 import org.chobit.knot.common.annotation.AuthCheck;
 import org.chobit.knot.common.annotation.OperationLog;
-import org.chobit.knot.dal.entity.AdminMenuEntity;
+import org.chobit.knot.svc.vo.auth.AdminMenuDetailItem;
 import org.chobit.knot.svc.service.AuthorizationMenuService;
 import org.chobit.knot.svc.vo.common.EnabledStatusRequest;
 import jakarta.validation.Valid;
@@ -39,7 +39,7 @@ public class AuthorizationMenuController {
      * Lists menus.
      */
     @GetMapping
-    public List<AdminMenuEntity> listMenus(@RequestParam(required = false) String keyword,
+    public List<AdminMenuDetailItem> listMenus(@RequestParam(required = false) String keyword,
                                            @RequestParam(required = false) Long moduleId,
                                            @RequestParam(required = false) Long parentId) {
         return menuService.listMenus(keyword, moduleId, parentId);
@@ -49,12 +49,12 @@ public class AuthorizationMenuController {
      * Creates a menu.
      */
     @OperationLog(module = "authorization", operation = "CREATE", entityType = "Menu",
-            entityIdAfter = "#result.id",
-            entityNameAfter = "#result.menuName",
+            entityIdAfter = "#result.id()",
+            entityNameAfter = "#result.menuName()",
             description = "'新建菜单'",
             newValueSpel = "#result")
     @PostMapping
-    public AdminMenuEntity createMenu(@RequestBody AdminMenuEntity request) {
+    public AdminMenuDetailItem createMenu(@RequestBody AdminMenuDetailItem request) {
         return menuService.createMenu(request);
     }
 
@@ -63,12 +63,12 @@ public class AuthorizationMenuController {
      */
     @OperationLog(module = "authorization", operation = "UPDATE", entityType = "Menu",
             entityId = "#p0",
-            entityNameAfter = "#result.menuName",
+            entityNameAfter = "#result.menuName()",
             description = "'更新菜单'",
             oldValueSpel = "@authorizationMenuService.menuAuditSnapshot(#p0)",
             newValueSpel = "#result")
     @PutMapping("/{id}")
-    public AdminMenuEntity updateMenu(@PathVariable Long id, @RequestBody AdminMenuEntity request) {
+    public AdminMenuDetailItem updateMenu(@PathVariable Long id, @RequestBody AdminMenuDetailItem request) {
         return menuService.updateMenu(id, request);
     }
 
@@ -77,12 +77,12 @@ public class AuthorizationMenuController {
      */
     @OperationLog(module = "authorization", operation = "UPDATE", entityType = "Menu",
             entityId = "#p0",
-            entityNameAfter = "#result.menuName",
+            entityNameAfter = "#result.menuName()",
             description = "'更新菜单状态'",
             oldValueSpel = "@authorizationMenuService.menuAuditSnapshot(#p0)",
             newValueSpel = "#result")
     @PutMapping("/{id}/status")
-    public AdminMenuEntity updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
+    public AdminMenuDetailItem updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
         return menuService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
     }
 
@@ -91,12 +91,12 @@ public class AuthorizationMenuController {
      */
     @OperationLog(module = "authorization", operation = "DELETE", entityType = "Menu",
             entityId = "#p0",
-            entityNameAfter = "#result.menuName",
+            entityNameAfter = "#result.menuName()",
             description = "'删除菜单'",
             oldValueSpel = "@authorizationMenuService.menuAuditSnapshot(#p0)",
             recordNewValue = false)
     @DeleteMapping("/{id}")
-    public AdminMenuEntity deleteMenu(@PathVariable Long id) {
+    public AdminMenuDetailItem deleteMenu(@PathVariable Long id) {
         return menuService.deleteMenu(id);
     }
 }

@@ -1,13 +1,13 @@
 package org.chobit.knot.admin.controller;
 
 import org.chobit.knot.common.annotation.OperationLog;
-import org.chobit.knot.dal.entity.ModelFamilyEntity;
 import org.chobit.knot.common.model.PageQuery;
 import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.ModelFamilyService;
 import org.chobit.knot.svc.vo.common.CodeAvailability;
 import org.chobit.knot.svc.vo.common.EnabledStatusRequest;
+import org.chobit.knot.svc.vo.model.ModelFamilyItem;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -50,7 +50,7 @@ public class ModelFamilyController {
      * Returns the requested value. Executes the public operation.
      */
     @GetMapping("/{id}")
-    public ModelFamilyEntity get(@PathVariable Long id) {
+    public ModelFamilyItem get(@PathVariable Long id) {
         return modelFamilyService.getById(id);
     }
 
@@ -58,7 +58,7 @@ public class ModelFamilyController {
      * Lists matching results. Executes the public operation.
      */
     @PostMapping("/list")
-    public PageResult<ModelFamilyEntity> list(@RequestBody(required = false) PageQuery query) {
+    public PageResult<ModelFamilyItem> list(@RequestBody(required = false) PageQuery query) {
         return modelFamilyService.list(
                 query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
                 query == null ? null : query.keyword()
@@ -69,12 +69,12 @@ public class ModelFamilyController {
      * Creates a new resource. Executes the public operation.
      */
     @OperationLog(module = "model-family", operation = "CREATE", entityType = "ModelFamily",
-            entityIdAfter = "#result.id",
-            entityNameAfter = "#result.name",
+            entityIdAfter = "#result.id()",
+            entityNameAfter = "#result.name()",
             description = "'新建模型族'",
             newValueSpel = "#result")
     @PostMapping
-    public ModelFamilyEntity create(@RequestBody ModelFamilyEntity request) {
+    public ModelFamilyItem create(@RequestBody ModelFamilyItem request) {
         return modelFamilyService.create(request);
     }
 
@@ -83,12 +83,12 @@ public class ModelFamilyController {
      */
     @OperationLog(module = "model-family", operation = "UPDATE", entityType = "ModelFamily",
             entityId = "#p0",
-            entityNameAfter = "#result.name",
+            entityNameAfter = "#result.name()",
             description = "'更新模型族'",
             oldValueSpel = "@modelFamilyService.getById(#p0)",
             newValueSpel = "#result")
     @PutMapping("/{id}")
-    public ModelFamilyEntity update(@PathVariable Long id, @RequestBody ModelFamilyEntity request) {
+    public ModelFamilyItem update(@PathVariable Long id, @RequestBody ModelFamilyItem request) {
         return modelFamilyService.update(id, request);
     }
 
@@ -97,12 +97,12 @@ public class ModelFamilyController {
      */
     @OperationLog(module = "model-family", operation = "UPDATE", entityType = "ModelFamily",
             entityId = "#p0",
-            entityNameAfter = "#result.name",
+            entityNameAfter = "#result.name()",
             description = "'更新模型族状态'",
             oldValueSpel = "@modelFamilyService.getById(#p0)",
             newValueSpel = "#result")
     @PutMapping("/{id}/status")
-    public ModelFamilyEntity updateStatus(@PathVariable Long id, @RequestBody EnabledStatusRequest request) {
+    public ModelFamilyItem updateStatus(@PathVariable Long id, @RequestBody EnabledStatusRequest request) {
         return modelFamilyService.updateStatus(id, request.enabled() != null && request.enabled());
     }
 

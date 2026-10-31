@@ -3,6 +3,7 @@ package org.chobit.knot.svc.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.svc.converter.ModerationWordConverter;
 import org.chobit.knot.svc.dto.moderation.ModerationWordDto;
@@ -74,7 +75,7 @@ public class ModerationWordService {
                                               Boolean includeDeleted) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<ModerationWordEntity> pageInfo = new PageInfo<>(
-                    wordMapper.list(normalizeKeyword(keyword), normalizeCategory(categoryCode), includeDeleted)
+                    wordMapper.list(StringUtils.trimToNull(keyword), normalizeCategory(categoryCode), includeDeleted)
             );
             List<ModerationWordDto> list = pageInfo.getList().stream()
                     .map(converter::toDto)
@@ -383,11 +384,6 @@ public class ModerationWordService {
 
     private static String defaultLang(String lang) {
         return lang == null || lang.isBlank() ? "zh" : lang.trim();
-    }
-
-    private static String normalizeKeyword(String keyword) {
-        String value = keyword != null ? keyword.trim() : "";
-        return value.isEmpty() ? null : value;
     }
 
     private static String normalizeCategory(String categoryCode) {

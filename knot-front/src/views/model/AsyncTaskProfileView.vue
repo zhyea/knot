@@ -72,8 +72,8 @@
           <el-table-column label="状态" width="90" align="center">
             <template #default="{ row }">
               <!-- ⚠ status 是数字，0 合法：必须显式比较，不能 truthy -->
-              <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
-                {{ row.status === 1 ? "启用" : "停用" }}
+              <el-tag :type="row.status === EnabledStatus.ENABLED ? 'success' : 'info'" size="small">
+                {{ row.status === EnabledStatus.ENABLED ? "启用" : "停用" }}
               </el-tag>
             </template>
           </el-table-column>
@@ -140,6 +140,7 @@ import {useListQuery} from "@/composables/useListQuery";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import type {Row} from "@/types";
 import {displayText, formatDateTime} from "@/utils/format";
+import {EnabledStatus} from "@/constants/status";
 
 const {
   query,

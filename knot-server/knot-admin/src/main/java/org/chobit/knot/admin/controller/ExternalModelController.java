@@ -4,10 +4,10 @@ import org.chobit.knot.common.annotation.OperationLog;
 import org.chobit.knot.svc.dto.model.ExternalModelItemQuery;
 import org.chobit.knot.svc.dto.model.ExternalModelSyncResult;
 import org.chobit.knot.svc.dto.model.LogicalModelDto;
-import org.chobit.knot.dal.entity.ExternalModelItemEntity;
-import org.chobit.knot.dal.entity.ExternalModelSourceEntity;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.ExternalModelService;
+import org.chobit.knot.svc.vo.model.ExternalModelItem;
+import org.chobit.knot.svc.vo.model.ExternalModelSourceItem;
 import org.chobit.knot.svc.vo.model.LogicalModelItem;
 import org.chobit.knot.svc.converter.LogicalModelConverter;
 import org.springframework.web.bind.annotation.*;
@@ -34,7 +34,7 @@ public class ExternalModelController {
      * Executes the public operation. Executes the public operation.
      */
     @GetMapping("/sources")
-    public List<ExternalModelSourceEntity> sources() {
+    public List<ExternalModelSourceItem> sources() {
         return externalModelService.listSources();
     }
 
@@ -42,7 +42,7 @@ public class ExternalModelController {
      * Executes the public operation. Executes the public operation.
      */
     @PostMapping("/items/list")
-    public PageResult<ExternalModelItemEntity> items(@RequestBody(required = false) ExternalModelItemQuery query) {
+    public PageResult<ExternalModelItem> items(@RequestBody(required = false) ExternalModelItemQuery query) {
         return externalModelService.listItems(query);
     }
 
@@ -50,7 +50,7 @@ public class ExternalModelController {
      * Executes the public operation. Executes the public operation.
      */
     @GetMapping("/items/{id}")
-    public ExternalModelItemEntity item(@PathVariable Long id) {
+    public ExternalModelItem item(@PathVariable Long id) {
         return externalModelService.getItem(id);
     }
 
@@ -72,7 +72,7 @@ public class ExternalModelController {
      */
     @OperationLog(module = "external-model", operation = "CREATE", entityType = "LogicalModel",
             entityId = "#p0",
-            entityNameAfter = "#result.modelName",
+            entityNameAfter = "#result.modelName()",
             description = "'从外部模型创建统一模型'",
             oldValueSpel = "@externalModelService.getItem(#p0)",
             newValueSpel = "#result")

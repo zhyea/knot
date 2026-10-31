@@ -44,6 +44,9 @@ public interface UserMapper {
 
     List<Long> listRoleIdsByUserId(@Param("userId") Long userId);
 
+    /** 批量版：一页用户的角色 ID 一次查回，避免逐条打库（N+1）。 */
+    List<Map<String, Object>> listRoleIdsByUserIds(@Param("userIds") List<Long> userIds);
+
     int deleteUserRoles(@Param("userId") Long userId);
 
     int insertUserRoles(@Param("userId") Long userId, @Param("roleIds") List<Long> roleIds);

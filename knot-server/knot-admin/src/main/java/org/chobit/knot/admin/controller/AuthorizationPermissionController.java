@@ -2,7 +2,7 @@ package org.chobit.knot.admin.controller;
 
 import org.chobit.knot.common.annotation.AuthCheck;
 import org.chobit.knot.common.annotation.OperationLog;
-import org.chobit.knot.dal.entity.AdminPermissionEntity;
+import org.chobit.knot.svc.vo.auth.AdminPermissionItem;
 import org.chobit.knot.svc.service.AuthorizationPermissionService;
 import org.chobit.knot.svc.vo.common.EnabledStatusRequest;
 import jakarta.validation.Valid;
@@ -39,7 +39,7 @@ public class AuthorizationPermissionController {
      * Lists permissions.
      */
     @GetMapping
-    public List<AdminPermissionEntity> listPermissions(@RequestParam(required = false) String keyword,
+    public List<AdminPermissionItem> listPermissions(@RequestParam(required = false) String keyword,
                                                        @RequestParam(required = false) Long moduleId,
                                                        @RequestParam(required = false) Long menuId,
                                                        @RequestParam(required = false) String permissionType) {
@@ -50,12 +50,12 @@ public class AuthorizationPermissionController {
      * Creates a permission.
      */
     @OperationLog(module = "authorization", operation = "CREATE", entityType = "Permission",
-            entityIdAfter = "#result.id",
-            entityNameAfter = "#result.permissionName",
+            entityIdAfter = "#result.id()",
+            entityNameAfter = "#result.permissionName()",
             description = "'新建权限'",
             newValueSpel = "#result")
     @PostMapping
-    public AdminPermissionEntity createPermission(@RequestBody AdminPermissionEntity request) {
+    public AdminPermissionItem createPermission(@RequestBody AdminPermissionItem request) {
         return permissionService.createPermission(request);
     }
 
@@ -64,12 +64,12 @@ public class AuthorizationPermissionController {
      */
     @OperationLog(module = "authorization", operation = "UPDATE", entityType = "Permission",
             entityId = "#p0",
-            entityNameAfter = "#result.permissionName",
+            entityNameAfter = "#result.permissionName()",
             description = "'更新权限'",
             oldValueSpel = "@authorizationPermissionService.permissionAuditSnapshot(#p0)",
             newValueSpel = "#result")
     @PutMapping("/{id}")
-    public AdminPermissionEntity updatePermission(@PathVariable Long id, @RequestBody AdminPermissionEntity request) {
+    public AdminPermissionItem updatePermission(@PathVariable Long id, @RequestBody AdminPermissionItem request) {
         return permissionService.updatePermission(id, request);
     }
 
@@ -78,12 +78,12 @@ public class AuthorizationPermissionController {
      */
     @OperationLog(module = "authorization", operation = "UPDATE", entityType = "Permission",
             entityId = "#p0",
-            entityNameAfter = "#result.permissionName",
+            entityNameAfter = "#result.permissionName()",
             description = "'更新权限状态'",
             oldValueSpel = "@authorizationPermissionService.permissionAuditSnapshot(#p0)",
             newValueSpel = "#result")
     @PutMapping("/{id}/status")
-    public AdminPermissionEntity updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
+    public AdminPermissionItem updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
         return permissionService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
     }
 
@@ -92,12 +92,12 @@ public class AuthorizationPermissionController {
      */
     @OperationLog(module = "authorization", operation = "DELETE", entityType = "Permission",
             entityId = "#p0",
-            entityNameAfter = "#result.permissionName",
+            entityNameAfter = "#result.permissionName()",
             description = "'删除权限'",
             oldValueSpel = "@authorizationPermissionService.permissionAuditSnapshot(#p0)",
             recordNewValue = false)
     @DeleteMapping("/{id}")
-    public AdminPermissionEntity deletePermission(@PathVariable Long id) {
+    public AdminPermissionItem deletePermission(@PathVariable Long id) {
         return permissionService.deletePermission(id);
     }
 }

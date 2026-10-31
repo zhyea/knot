@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.adapter.protocol.UpstreamAdapterCatalog;
 import org.chobit.knot.common.constants.enums.BillingModeEnum;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
@@ -130,7 +131,7 @@ public class ModelService {
                                      Boolean includeDeleted) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<ModelEntity> pageInfo = new PageInfo<>(
-                    modelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes),
+                    modelMapper.list(StringUtils.trimToNull(keyword), normalizeModelTypes(modelTypes),
                             normalizeTextToNull(logicalModelCode), EnabledStatusEnum.parse(status), includeDeleted)
             );
             List<ModelEntity> entities = pageInfo.getList();
@@ -502,11 +503,6 @@ public class ModelService {
         if (!isModelCodeAvailable(modelCode, excludeId)) {
             throw new BusinessException(ErrorCode.CONFLICT, "模型编码“" + modelCode + "”已存在，请更换后重试");
         }
-    }
-
-    private static String normalizeKeyword(String keyword) {
-        String value = keyword != null ? keyword.trim() : "";
-        return value.isEmpty() ? null : value;
     }
 
     private static String normalizeTextToNull(String value) {

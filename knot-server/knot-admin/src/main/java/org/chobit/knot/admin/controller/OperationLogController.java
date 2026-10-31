@@ -3,8 +3,8 @@ package org.chobit.knot.admin.controller;
 import org.chobit.knot.common.annotation.AuthCheck;
 import org.chobit.knot.svc.dto.system.OperationLogListResult;
 import org.chobit.knot.svc.dto.system.OperationLogQuery;
-import org.chobit.knot.dal.entity.OperationLogEntity;
 import org.chobit.knot.svc.service.OperationLogService;
+import org.chobit.knot.svc.vo.system.OperationLogDetailItem;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -53,7 +53,7 @@ public class OperationLogController {
      * 根据 ID 查询操作日志详情。
      */
     @GetMapping("/{id}")
-    public OperationLogEntity getById(@PathVariable Long id) {
+    public OperationLogDetailItem getById(@PathVariable Long id) {
         return operationLogService.getById(id);
     }
 
@@ -61,7 +61,7 @@ public class OperationLogController {
      * 根据模块查询操作日志。
      */
     @GetMapping("/module/{module}")
-    public List<OperationLogEntity> getByModule(
+    public List<OperationLogDetailItem> getByModule(
             @PathVariable String module,
             @RequestParam(required = false) String entityType,
             @RequestParam(required = false) Long entityId,
@@ -73,7 +73,7 @@ public class OperationLogController {
      * 根据操作人查询操作日志。
      */
     @GetMapping("/operator/{operatorId}")
-    public List<OperationLogEntity> getByOperator(
+    public List<OperationLogDetailItem> getByOperator(
             @PathVariable Long operatorId,
             @RequestParam(required = false) String module) {
         return operationLogService.listByModule(module, null, null, operatorId);
@@ -83,7 +83,7 @@ public class OperationLogController {
      * 根据实体查询操作日志。
      */
     @GetMapping("/entity/{entityType}/{entityId}")
-    public List<OperationLogEntity> getByEntity(
+    public List<OperationLogDetailItem> getByEntity(
             @PathVariable String entityType,
             @PathVariable Long entityId,
             @RequestParam(required = false) String module) {

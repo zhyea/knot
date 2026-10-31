@@ -2,6 +2,7 @@ package org.chobit.knot.svc.converter;
 
 import org.chobit.knot.svc.dto.system.OperationLogDto;
 import org.chobit.knot.dal.entity.OperationLogEntity;
+import org.chobit.knot.svc.vo.system.OperationLogDetailItem;
 import org.chobit.knot.svc.vo.system.OperationLogItem;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -28,5 +29,18 @@ public interface OperationLogConverter {
     OperationLogItem toOperationLogVO(OperationLogDto dto);
 
     List<OperationLogItem> toOperationLogVOList(List<OperationLogDto> dtos);
+
+    // ==================== Entity → VO（完整行，跳过 Dto） ====================
+
+    /**
+     * 日志页 / 实体操作记录抽屉用的完整行。
+     *
+     * <p>⭐ <b>刻意跳过 Dto</b>：{@link OperationLogDetailItem} 与实体的字段逐字同名，
+     * 中间那层 Dto 的唯一作用是把 4 个字段改别名（那是看板瘦投影的口径），对完整行毫无意义。
+     * 硬插一层就是纯拷贝——判据同 {@code AuthorizationConverter} 的类注释。</p>
+     */
+    OperationLogDetailItem toDetailItem(OperationLogEntity entity);
+
+    List<OperationLogDetailItem> toDetailItemList(List<OperationLogEntity> entities);
 
 }

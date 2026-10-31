@@ -121,7 +121,7 @@ const logStatusOptions = computed(() =>
 );
 
 function statusLabel(code: number) {
-  return labelOf("OperationLogStatusEnum", code, String(code ?? "-"));
+  return labelOf("OperationLogStatusEnum", code);
 }
 
 async function fetchOperationLogs(params: Dict) {

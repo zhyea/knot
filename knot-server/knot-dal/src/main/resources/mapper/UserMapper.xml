@@ -134,6 +134,17 @@
         order by role_id asc
     </select>
 
+    <select id="listRoleIdsByUserIds" resultType="java.util.HashMap">
+        select user_id as userId,
+               role_id as roleId
+        from ks_user_roles
+        where user_id in
+        <foreach collection="userIds" item="userId" open="(" separator="," close=")">
+            #{userId}
+        </foreach>
+        order by user_id asc, role_id asc
+    </select>
+
     <delete id="deleteUserRoles">
         delete from ks_user_roles
         where user_id = #{userId}

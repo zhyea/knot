@@ -3,6 +3,7 @@ package org.chobit.knot.admin.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
@@ -66,20 +67,12 @@ public class ScheduledTaskAdminService {
         PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<ScheduledTaskDto> pageInfo = new PageInfo<>(taskService.listTasks(
-                    query != null ? normalizeKeyword(query.keyword()) : null,
+                    query != null ? StringUtils.trimToNull(query.keyword()) : null,
                     query != null ? query.status() : null,
                     query != null ? query.handlerCode() : null
             ));
             return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
         }
-    }
-
-    private String normalizeKeyword(String keyword) {
-        if (keyword == null) {
-            return null;
-        }
-        String normalized = keyword.trim();
-        return normalized.isEmpty() ? null : normalized;
     }
 
     /**

@@ -83,7 +83,7 @@ public class ProviderService {
     public PageResult<ProviderAccountDto> list(PageRequest pageRequest, String keyword, Boolean enabled) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<ProviderAccountEntity> pageInfo = new PageInfo<>(
-                    providerAccountMapper.list(normalizeKeyword(keyword), toStatus(enabled)));
+                    providerAccountMapper.list(StringUtils.trimToNull(keyword), toStatus(enabled)));
             List<ProviderAccountDto> dtos = pageInfo.getList().stream()
                     .map(providerConverter::toDto)
                     .collect(Collectors.toList());
@@ -354,11 +354,6 @@ public class ProviderService {
 
     private static boolean hasText(Object value) {
         return value != null && !String.valueOf(value).trim().isEmpty();
-    }
-
-    private static String normalizeKeyword(String keyword) {
-        String value = keyword != null ? keyword.trim() : "";
-        return value.isEmpty() ? null : value;
     }
 
     private static String resolveCodeForSave(String requested, String fallback) {

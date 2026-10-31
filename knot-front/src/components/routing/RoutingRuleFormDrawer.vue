@@ -171,7 +171,7 @@
             </el-table-column>
             <el-table-column prop="targetCode" label="目标编码" min-width="150" show-overflow-tooltip>
               <template #default="{ row }">
-                <span class="bind-list__text">{{ row.targetCode || "—" }}</span>
+                <span class="bind-list__text">{{ displayText(row.targetCode) }}</span>
               </template>
             </el-table-column>
             <el-table-column label="优先级" width="160" align="center">
@@ -275,6 +275,7 @@ import {createRoutingRule, updateRoutingRule, checkRoutingRuleCode} from "@/api/
 import {listAppOptions, listLogicalModelOptions, listModelOptions, listModelPoolOptions, listRoutingConsumerOptions, listUserUsernameOptions} from "@/api/options";
 import {toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
+import {displayText} from "@/utils/format";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
@@ -803,11 +804,7 @@ const targetModelCodes = computed(() =>
 }
 
 .bind-list__text {
-  overflow: hidden;
-  color: #303133;
   font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .field-tip {

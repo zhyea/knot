@@ -3,6 +3,7 @@ package org.chobit.knot.svc.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.auth.JwtKit;
 import org.chobit.knot.svc.converter.UserConverter;
 import org.chobit.knot.svc.dto.user.UserDto;
@@ -119,15 +120,10 @@ public class UserService {
      */
     public PageResult<UserDto> listUsers(PageRequest pageRequest, String keyword) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
-            PageInfo<UserEntity> pageInfo = new PageInfo<>(userMapper.listUsers(normalizeKeyword(keyword)));
+            PageInfo<UserEntity> pageInfo = new PageInfo<>(userMapper.listUsers(StringUtils.trimToNull(keyword)));
             attachRoleBindings(pageInfo.getList());
             return PageResult.fromPage(pageInfo, userConverter::toDtoList, pageRequest);
         }
-    }
-
-    private static String normalizeKeyword(String keyword) {
-        String value = keyword != null ? keyword.trim() : "";
-        return value.isEmpty() ? null : value;
     }
 
     private void attachRoleBindings(List<UserEntity> users) {
@@ -148,8 +144,16 @@ public class UserService {
                         LinkedHashMap::new,
                         Collectors.mapping(item -> String.valueOf(item.get("roleName")), Collectors.toList())
                 ));
+        Map<Long, List<Long>> roleIdsByUserId = userMapper.listRoleIdsByUserIds(userIds).stream()
+                .filter(item -> item.get("userId") != null && item.get("roleId") != null)
+                .collect(Collectors.groupingBy(
+                        item -> ((Number) item.get("userId")).longValue(),
+                        LinkedHashMap::new,
+                        Collectors.mapping(item -> ((Number) item.get("roleId")).longValue(),
+                                Collectors.toList())
+                ));
         users.forEach(user -> {
-            user.setRoleIds(userMapper.listRoleIdsByUserId(user.getId()));
+            user.setRoleIds(roleIdsByUserId.getOrDefault(user.getId(), List.of()));
             user.setRoleNames(roleNamesByUserId.getOrDefault(user.getId(), List.of()));
         });
     }

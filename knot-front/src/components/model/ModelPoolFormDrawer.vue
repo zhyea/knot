@@ -125,12 +125,12 @@
         >
           <el-table-column prop="modelCode" label="模型编码" min-width="160" show-overflow-tooltip>
             <template #default="{ row }">
-              <span class="bind-list__text">{{ row.modelCode || "—" }}</span>
+              <span class="bind-list__text">{{ displayText(row.modelCode) }}</span>
             </template>
           </el-table-column>
           <el-table-column label="供应商" min-width="120" show-overflow-tooltip>
             <template #default="{ row }">
-              <span class="bind-list__text">{{ row.providerName || (row.providerAccountCode ? `#${row.providerAccountCode}` : "—") }}</span>
+              <span class="bind-list__text">{{ displayText(row.providerName || (row.providerAccountCode ? `#${row.providerAccountCode}` : "")) }}</span>
             </template>
           </el-table-column>
           <el-table-column label="权重" width="150" align="center">
@@ -170,6 +170,7 @@
 <script setup lang="ts">
 import type {PropType} from "vue";
 import type {Dict, Row} from "@/types";
+import {displayText} from "@/utils/format";
 import {computed, reactive, ref, watch} from "vue";
 import {Delete} from "@element-plus/icons-vue";
 import {ElMessage} from "element-plus";
@@ -499,11 +500,5 @@ async function submit() {
   font-size: 12px;
 }
 
-.bind-list__text {
-  overflow: hidden;
-  color: #303133;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 </style>

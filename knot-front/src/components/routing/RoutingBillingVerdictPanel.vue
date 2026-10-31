@@ -62,7 +62,7 @@
           </div>
           <div class="bv-kv__item">
             <span class="bv-kv__label">被告总额</span>
-            <span class="bv-kv__value bv-strong">{{ money(result.producedBilling?.totalCost) }}
+            <span class="bv-kv__value bv-strong">{{ displayText(result.producedBilling?.totalCost) }}
               <em v-if="result.producedBilling?.currency">{{ result.producedBilling?.currency }}</em>
             </span>
           </div>
@@ -136,7 +136,7 @@
         </div>
 
         <div class="bv-shadow">
-          影子重算总额：<b>{{ money(result.shadowBilling?.totalCost) }}</b>
+          影子重算总额：<b>{{ displayText(result.shadowBilling?.totalCost) }}</b>
           <span v-if="shadowDiffText" class="bv-shadow__diff">{{ shadowDiffText }}</span>
         </div>
       </div>
@@ -361,10 +361,6 @@ function answerSeverityClass(answer: JevAnswerItem): AnswerSeverity {
     return value === "LOW" ? "positive" : value === "MEDIUM" ? "caution" : value === "HIGH" ? "danger" : "neutral";
   }
   return "neutral";
-}
-
-function money(value?: string | null): string {
-  return value == null || value === "" ? "-" : value;
 }
 
 function formatNumber(value: number): string {

@@ -78,7 +78,7 @@ const emit = defineEmits(["view", "action", "refresh", "page-change", "size-chan
 const {labelOf} = useEnumOptions();
 
 function statusLabel(status: unknown): string {
-  return labelOf("AsyncTaskStatusEnum", status, String(status ?? "-"));
+  return labelOf("AsyncTaskStatusEnum", status);
 }
 
 /**

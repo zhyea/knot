@@ -75,6 +75,7 @@ import {
   updateTestRequestPresetStatus
 } from "@/api/routing";
 import {listTestRequestPresetOperationLogs} from "@/api/operationLogs";
+import {EnabledStatus} from "@/constants/status";
 
 const {
   query,
@@ -154,10 +155,10 @@ async function handleEnabledChange(row: Row, enabled: boolean | string | number)
   const flag = enabled !== false && enabled !== 0 && enabled !== "false";
   const prevStatus = row.status;
   // 数字状态：1-启用 0-停用；0 是合法值，不能写 truthy 判断
-  if (flag === (prevStatus === 1)) {
+  if (flag === (prevStatus === EnabledStatus.ENABLED)) {
     return;
   }
-  const nextStatus = flag ? 1 : 0;
+  const nextStatus = flag ? EnabledStatus.ENABLED : EnabledStatus.DISABLED;
   row.status = nextStatus;
   togglingId.value = row.id;
   try {

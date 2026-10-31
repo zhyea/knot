@@ -2,7 +2,7 @@ package org.chobit.knot.admin.controller;
 
 import org.chobit.knot.common.annotation.AuthCheck;
 import org.chobit.knot.common.annotation.OperationLog;
-import org.chobit.knot.dal.entity.AdminApiPermissionBindingEntity;
+import org.chobit.knot.svc.vo.auth.AdminApiBindingItem;
 import org.chobit.knot.svc.service.AuthorizationApiBindingService;
 import org.chobit.knot.svc.vo.common.EnabledStatusRequest;
 import jakarta.validation.Valid;
@@ -39,7 +39,7 @@ public class AuthorizationApiBindingController {
      * Lists api permission bindings.
      */
     @GetMapping
-    public List<AdminApiPermissionBindingEntity> listApiBindings(@RequestParam(required = false) String keyword,
+    public List<AdminApiBindingItem> listApiBindings(@RequestParam(required = false) String keyword,
                                                                  @RequestParam(required = false) String httpMethod,
                                                                  @RequestParam(required = false) Long permissionId) {
         return apiBindingService.listApiPermissionBindings(keyword, httpMethod, permissionId);
@@ -49,12 +49,12 @@ public class AuthorizationApiBindingController {
      * Creates an api permission binding.
      */
     @OperationLog(module = "authorization", operation = "CREATE", entityType = "ApiPermissionBinding",
-            entityIdAfter = "#result.id",
-            entityNameAfter = "#result.pathPattern",
+            entityIdAfter = "#result.id()",
+            entityNameAfter = "#result.pathPattern()",
             description = "'新建接口权限绑定'",
             newValueSpel = "#result")
     @PostMapping
-    public AdminApiPermissionBindingEntity createApiBinding(@RequestBody AdminApiPermissionBindingEntity request) {
+    public AdminApiBindingItem createApiBinding(@RequestBody AdminApiBindingItem request) {
         return apiBindingService.createApiPermissionBinding(request);
     }
 
@@ -63,13 +63,13 @@ public class AuthorizationApiBindingController {
      */
     @OperationLog(module = "authorization", operation = "UPDATE", entityType = "ApiPermissionBinding",
             entityId = "#p0",
-            entityNameAfter = "#result.pathPattern",
+            entityNameAfter = "#result.pathPattern()",
             description = "'更新接口权限绑定'",
             oldValueSpel = "@authorizationApiBindingService.apiBindingAuditSnapshot(#p0)",
             newValueSpel = "#result")
     @PutMapping("/{id}")
-    public AdminApiPermissionBindingEntity updateApiBinding(@PathVariable Long id,
-                                                            @RequestBody AdminApiPermissionBindingEntity request) {
+    public AdminApiBindingItem updateApiBinding(@PathVariable Long id,
+                                                            @RequestBody AdminApiBindingItem request) {
         return apiBindingService.updateApiPermissionBinding(id, request);
     }
 
@@ -78,12 +78,12 @@ public class AuthorizationApiBindingController {
      */
     @OperationLog(module = "authorization", operation = "UPDATE", entityType = "ApiPermissionBinding",
             entityId = "#p0",
-            entityNameAfter = "#result.pathPattern",
+            entityNameAfter = "#result.pathPattern()",
             description = "'更新接口权限绑定状态'",
             oldValueSpel = "@authorizationApiBindingService.apiBindingAuditSnapshot(#p0)",
             newValueSpel = "#result")
     @PutMapping("/{id}/status")
-    public AdminApiPermissionBindingEntity updateStatus(@PathVariable Long id,
+    public AdminApiBindingItem updateStatus(@PathVariable Long id,
                                                         @RequestBody @Valid EnabledStatusRequest request) {
         return apiBindingService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
     }
@@ -93,12 +93,12 @@ public class AuthorizationApiBindingController {
      */
     @OperationLog(module = "authorization", operation = "DELETE", entityType = "ApiPermissionBinding",
             entityId = "#p0",
-            entityNameAfter = "#result.pathPattern",
+            entityNameAfter = "#result.pathPattern()",
             description = "'删除接口权限绑定'",
             oldValueSpel = "@authorizationApiBindingService.apiBindingAuditSnapshot(#p0)",
             recordNewValue = false)
     @DeleteMapping("/{id}")
-    public AdminApiPermissionBindingEntity deleteApiBinding(@PathVariable Long id) {
+    public AdminApiBindingItem deleteApiBinding(@PathVariable Long id) {
         return apiBindingService.deleteApiPermissionBinding(id);
     }
 }

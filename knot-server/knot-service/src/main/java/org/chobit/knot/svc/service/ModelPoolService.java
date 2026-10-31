@@ -3,6 +3,7 @@ package org.chobit.knot.svc.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.constants.enums.ModelPoolSelectionStrategyEnum;
 import org.chobit.knot.svc.converter.ModelPoolConverter;
@@ -62,7 +63,7 @@ public class ModelPoolService {
                                          String status) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<ModelPoolEntity> pageInfo = new PageInfo<>(modelPoolMapper.list(
-                    normalizeKeyword(keyword), normalizeModelTypes(modelTypes), includeDeleted,
+                    StringUtils.trimToNull(keyword), normalizeModelTypes(modelTypes), includeDeleted,
                     EnabledStatusEnum.parse(status)));
             List<ModelPoolDto> dtos = pageInfo.getList().stream()
                     .map(entity -> enrich(modelPoolConverter.toDto(entity)))
@@ -361,11 +362,6 @@ public class ModelPoolService {
 
     private static String normalizePoolCode(String poolCode) {
         return normalizeText(poolCode);
-    }
-
-    private static String normalizeKeyword(String keyword) {
-        String value = normalizeText(keyword);
-        return value.isEmpty() ? null : value;
     }
 
     private static List<String> normalizeModelTypes(List<String> modelTypes) {

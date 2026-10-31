@@ -75,9 +75,9 @@ public class BillingService {
                                                      Boolean includeDeleted) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<BillingRuleEntity> pageInfo = new PageInfo<>(
-                billingRuleMapper.list(normalizeKeyword(keyword),
+                billingRuleMapper.list(StringUtils.trimToNull(keyword),
                     normalizeModelFamily(modelFamilyCode),
-                    normalizeKeyword(code),
+                    StringUtils.trimToNull(code),
                     includeDeleted)
             );
             return PageResult.fromPage(pageInfo, list -> list.stream().map(billingConverter::toRuleListItem).toList(), pageRequest);
@@ -560,11 +560,6 @@ public class BillingService {
 
     private static String trimToEmpty(String value) {
         return value == null ? "" : value.trim();
-    }
-
-    private static String normalizeKeyword(String keyword) {
-        String value = trimToEmpty(keyword);
-        return value.isEmpty() ? null : value;
     }
 
     private static String blankToNull(String value) {

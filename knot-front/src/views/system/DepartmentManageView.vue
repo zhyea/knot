@@ -84,6 +84,7 @@ import DepartmentListPanel from "../../components/system/DepartmentListPanel.vue
 import {useListQuery} from "@/composables/useListQuery";
 import {deleteDepartment, getDepartmentTree, listDepartments, updateDepartmentStatus} from "@/api/departments";
 import {listDepartmentOperationLogs} from "@/api/operationLogs";
+import {EnabledStatus} from "@/constants/status";
 
 const {
   query,
@@ -177,7 +178,9 @@ async function onStatusChange(row: Row, status: string | number | boolean) {
     ElMessage.success("状态已更新");
     await refreshAll();
   } catch {
-    row.status = status === 1 ? 0 : 1;
+    row.status = status === EnabledStatus.ENABLED
+        ? EnabledStatus.DISABLED
+        : EnabledStatus.ENABLED;
   }
 }
 

@@ -5,13 +5,16 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import java.util.Locale;
 import java.util.regex.Pattern;
-import org.chobit.knot.dal.entity.EnumConfigEntity;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.dal.entity.ModelFamilyEntity;
 import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.dal.mapper.ModelFamilyMapper;
+import org.chobit.knot.svc.converter.ModelFamilyConverter;
 import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
+import org.chobit.knot.svc.vo.model.ModelFamilyItem;
+import org.chobit.knot.svc.vo.system.EnumConfigItem;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>模型族是模型域概念，但主数据仍落在枚举表 {@code ks_enum_configs}
  * （category={@value #CATEGORY}），与「系统管理 / 枚举管理」同源；本服务只是把它按模型域
  * 单独暴露一套受权限控制的接口，避免为了维护模型族而开放全量枚举的读写权限。</p>
+ *
+ * <p>⭐ 对外只吐 {@link ModelFamilyItem}。实体仍在内部用（{@code EnumConfigEntity} 出现在
+ * <b>私有逻辑</b>里是正常的）：红线管的是「跨模块出去的那一刻」，不是「svc 里能不能出现 entity」。</p>
  */
 @Service
 public class ModelFamilyService {
@@ -34,34 +40,35 @@ public class ModelFamilyService {
 
     private final ModelFamilyMapper modelFamilyMapper;
     private final EnumConfigService enumConfigService;
+    private final ModelFamilyConverter converter;
 
     /**
      * Constructs a new instance.
      */
-    public ModelFamilyService(ModelFamilyMapper modelFamilyMapper, EnumConfigService enumConfigService) {
+    public ModelFamilyService(ModelFamilyMapper modelFamilyMapper,
+                              EnumConfigService enumConfigService,
+                              ModelFamilyConverter converter) {
         this.modelFamilyMapper = modelFamilyMapper;
         this.enumConfigService = enumConfigService;
+        this.converter = converter;
     }
 
     /**
      * Lists matching results. Executes the public operation.
      */
-    public PageResult<ModelFamilyEntity> list(PageRequest pageRequest, String keyword) {
+    public PageResult<ModelFamilyItem> list(PageRequest pageRequest, String keyword) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
-            PageInfo<ModelFamilyEntity> pageInfo = new PageInfo<>(modelFamilyMapper.list(normalizeKeyword(keyword)));
-            return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+            PageInfo<ModelFamilyEntity> pageInfo = new PageInfo<>(modelFamilyMapper.list(StringUtils.trimToNull(keyword)));
+            return PageResult.of(converter.toItemList(pageInfo.getList()), pageInfo.getTotal(),
+                    pageRequest.pageNum(), pageRequest.pageSize());
         }
     }
 
     /**
      * Returns the requested value. Executes the public operation.
      */
-    public ModelFamilyEntity getById(Long id) {
-        ModelFamilyEntity entity = modelFamilyMapper.getById(id);
-        if (entity == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "模型族不存在");
-        }
-        return entity;
+    public ModelFamilyItem getById(Long id) {
+        return converter.toItem(requireEntity(id));
     }
 
     /**
@@ -80,8 +87,8 @@ public class ModelFamilyService {
      * Creates a new resource. Executes the public operation.
      */
     @Transactional
-    public ModelFamilyEntity create(ModelFamilyEntity request) {
-        String code = normalizeCode(request.getCode());
+    public ModelFamilyItem create(ModelFamilyItem request) {
+        String code = normalizeCode(request.code());
         if (code == null) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "模型族编码不能为空");
         }
@@ -89,41 +96,37 @@ public class ModelFamilyService {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "模型族编码只能由小写字母、数字、- 与 _ 组成，且以字母或数字开头");
         }
-        String name = request.getName() == null ? "" : request.getName().trim();
+        String name = request.name() == null ? "" : request.name().trim();
         if (name.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "模型族名称不能为空");
         }
 
-        EnumConfigEntity entity = new EnumConfigEntity();
-        entity.setCategory(CATEGORY);
-        entity.setItemCode(code);
-        entity.setItemLabel(name);
-        entity.setSortOrder(request.getSortOrder() == null ? 0 : request.getSortOrder());
-        entity.setIsEnabled(request.getEnabled() == null || request.getEnabled());
-        entity.setRemark(request.getRemark());
-
-        EnumConfigEntity created = enumConfigService.create(entity);
-        return getById(created.getId());
+        // 只回填会被写入的字段；id / categoryId / isSystem / boundCount 由枚举服务侧决定
+        EnumConfigItem created = enumConfigService.create(new EnumConfigItem(
+                null, null, CATEGORY, code, name,
+                request.sortOrder() == null ? 0 : request.sortOrder(),
+                null, request.enabled() == null || request.enabled(), null,
+                request.remark(), null));
+        return getById(created.id());
     }
 
     /**
      * Updates the target resource. Executes the public operation.
      */
     @Transactional
-    public ModelFamilyEntity update(Long id, ModelFamilyEntity request) {
-        ModelFamilyEntity existing = getById(id);
-        String name = request.getName() == null ? "" : request.getName().trim();
+    public ModelFamilyItem update(Long id, ModelFamilyItem request) {
+        ModelFamilyEntity existing = requireEntity(id);
+        String name = request.name() == null ? "" : request.name().trim();
         if (name.isEmpty()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "模型族名称不能为空");
         }
 
-        EnumConfigEntity entity = new EnumConfigEntity();
-        entity.setItemLabel(name);
-        entity.setSortOrder(request.getSortOrder() == null ? existing.getSortOrder() : request.getSortOrder());
-        entity.setIsEnabled(request.getEnabled() == null || request.getEnabled());
-        entity.setRemark(request.getRemark());
-
-        enumConfigService.update(id, entity);
+        // itemCode 传 null = 「不改码」：模型族改码会让存量引用掉绑，这里刻意不支持
+        enumConfigService.update(id, new EnumConfigItem(
+                null, null, null, null, name,
+                request.sortOrder() == null ? existing.getSortOrder() : request.sortOrder(),
+                null, request.enabled() == null || request.enabled(), null,
+                request.remark(), null));
         return getById(id);
     }
 
@@ -131,15 +134,11 @@ public class ModelFamilyService {
      * Updates the target resource status. Executes the public operation.
      */
     @Transactional
-    public ModelFamilyEntity updateStatus(Long id, boolean enabled) {
-        ModelFamilyEntity existing = getById(id);
-        EnumConfigEntity entity = new EnumConfigEntity();
-        entity.setItemLabel(existing.getName());
-        entity.setSortOrder(existing.getSortOrder());
-        entity.setIsEnabled(enabled);
-        entity.setRemark(existing.getRemark());
-
-        enumConfigService.update(id, entity);
+    public ModelFamilyItem updateStatus(Long id, boolean enabled) {
+        ModelFamilyEntity existing = requireEntity(id);
+        enumConfigService.update(id, new EnumConfigItem(
+                null, null, null, null, existing.getName(), existing.getSortOrder(),
+                null, enabled, null, existing.getRemark(), null));
         return getById(id);
     }
 
@@ -148,7 +147,7 @@ public class ModelFamilyService {
      */
     @Transactional
     public void delete(Long id) {
-        ModelFamilyEntity existing = getById(id);
+        ModelFamilyEntity existing = requireEntity(id);
         int usage = existing.getUsageCount() == null ? 0 : existing.getUsageCount();
         if (usage > 0) {
             throw new BusinessException(ErrorCode.CONFLICT,
@@ -157,19 +156,22 @@ public class ModelFamilyService {
         enumConfigService.deleteReturning(id);
     }
 
+    /**
+     * 内部取实体：对外一律走 {@link #getById}（吐 Item），需要实体做校验/拼装时才用这个。
+     */
+    private ModelFamilyEntity requireEntity(Long id) {
+        ModelFamilyEntity entity = modelFamilyMapper.getById(id);
+        if (entity == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "模型族不存在");
+        }
+        return entity;
+    }
+
     private String normalizeCode(String code) {
         if (code == null) {
             return null;
         }
         String normalized = code.trim().toLowerCase(Locale.ROOT);
-        return normalized.isEmpty() ? null : normalized;
-    }
-
-    private String normalizeKeyword(String keyword) {
-        if (keyword == null) {
-            return null;
-        }
-        String normalized = keyword.trim();
         return normalized.isEmpty() ? null : normalized;
     }
 }

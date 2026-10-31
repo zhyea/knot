@@ -2,6 +2,7 @@ package org.chobit.knot.admin.service.support;
 
 import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
+import org.chobit.knot.svc.service.support.GatewayCallSupport;
 import org.chobit.knot.svc.dto.async.AsyncTaskOperationResponse;
 import org.chobit.knot.svc.service.support.RestClientSupport;
 import org.springframework.http.HttpStatusCode;
@@ -45,21 +46,21 @@ public class GatewayAsyncTaskRunner {
 
     /** 终止一条在途任务（网关侧落 {@code CANCELLED} 并发终态事件） */
     public AsyncTaskOperationResponse cancel(String gatewayBaseUrl, String adminToken, String taskCode) {
-        return call(() -> post(gatewayBaseUrl, adminToken, "/" + taskCode + "/cancel")
+        return GatewayCallSupport.call(() -> post(gatewayBaseUrl, adminToken, "/" + taskCode + "/cancel")
                 .retrieve()
                 .body(AsyncTaskOperationResponse.class), "终止异步任务");
     }
 
     /** 重开一条失败 / 超时的任务（网关侧 CAS 到 {@code PENDING}） */
     public AsyncTaskOperationResponse retry(String gatewayBaseUrl, String adminToken, String taskCode) {
-        return call(() -> post(gatewayBaseUrl, adminToken, "/" + taskCode + "/retry")
+        return GatewayCallSupport.call(() -> post(gatewayBaseUrl, adminToken, "/" + taskCode + "/retry")
                 .retrieve()
                 .body(AsyncTaskOperationResponse.class), "重试异步任务");
     }
 
     /** 立即执行一次「按保留窗口清理终态行」，返回删除行数 */
     public int cleanup(String gatewayBaseUrl, String adminToken) {
-        Integer removed = call(() -> post(gatewayBaseUrl, adminToken, "/cleanup")
+        Integer removed = GatewayCallSupport.call(() -> post(gatewayBaseUrl, adminToken, "/cleanup")
                 .retrieve()
                 .body(Integer.class), "清理异步任务终态行");
         return removed == null ? 0 : removed;
@@ -78,37 +79,5 @@ public class GatewayAsyncTaskRunner {
                 : base;
     }
 
-    /**
-     * 统一异常翻译：网关 4xx 复用既有错误码；连接失败 / 5xx 归为网关不可用（503）。
-     *
-     * <p>⭐ 404 在这里是<b>真实语义</b>（任务不存在），会原样变成 {@code NOT_FOUND} 抛给前端——
-     * 不要把它并进「网关不可用」，那会让「任务已被清理」看起来像网关挂了。</p>
-     */
-    private static <T> T call(ThrowingSupplier<T> action, String op) {
-        try {
-            return action.get();
-        } catch (HttpStatusCodeException ex) {
-            HttpStatusCode status = ex.getStatusCode();
-            ErrorCode code = switch (status.value()) {
-                case 400 -> ErrorCode.VALIDATION_ERROR;
-                case 401 -> ErrorCode.UNAUTHORIZED;
-                case 403 -> ErrorCode.FORBIDDEN;
-                case 404 -> ErrorCode.NOT_FOUND;
-                default -> ErrorCode.GATEWAY_UNAVAILABLE;
-            };
-            throw new BusinessException(code,
-                    op + " 失败：网关返回 HTTP " + status.value() + " " + ex.getResponseBodyAsString());
-        } catch (Exception ex) {
-            throw new BusinessException(ErrorCode.GATEWAY_UNAVAILABLE,
-                    op + " 失败：无法连接网关（" + ex.getMessage() + "）");
-        }
-    }
 
-    /**
-     * 受检异常包装（RestClient 的调用可能抛受检异常）。
-     */
-    @FunctionalInterface
-    private interface ThrowingSupplier<T> {
-        T get() throws Exception;
-    }
 }

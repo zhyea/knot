@@ -73,7 +73,7 @@ public class GatewayOutageRunner {
         RestClient.RequestHeadersSpec<?> base = restClient.get().uri(uri);
         RestClient.RequestHeadersSpec<?> req = adminToken != null && !adminToken.isBlank()
             ? base.header(ADMIN_TOKEN_HEADER, adminToken.trim()) : base;
-        return call(() -> req.retrieve()
+        return GatewayCallSupport.call(() -> req.retrieve()
             .body(new ParameterizedTypeReference<List<GatewayOutageItem>>() {
             }), "查询摘除目标列表");
     }
@@ -88,7 +88,7 @@ public class GatewayOutageRunner {
             .uri(gatewayBaseUrl + "/_admin/outages/release");
         RestClient.RequestBodySpec req = adminToken != null && !adminToken.isBlank()
             ? base.header(ADMIN_TOKEN_HEADER, adminToken.trim()) : base;
-        return call(() -> req.contentType(MediaType.APPLICATION_JSON)
+        return GatewayCallSupport.call(() -> req.contentType(MediaType.APPLICATION_JSON)
             .body(request)
             .retrieve()
             .body(GatewayOutageAck.class), "手动恢复摘除目标");
@@ -104,44 +104,15 @@ public class GatewayOutageRunner {
             .uri(gatewayBaseUrl + "/_admin/outages/eject");
         RestClient.RequestBodySpec req = adminToken != null && !adminToken.isBlank()
             ? base.header(ADMIN_TOKEN_HEADER, adminToken.trim()) : base;
-        return call(() -> req.contentType(MediaType.APPLICATION_JSON)
+        return GatewayCallSupport.call(() -> req.contentType(MediaType.APPLICATION_JSON)
             .body(request)
             .retrieve()
             .body(GatewayOutageAck.class), "手动摘除目标");
     }
 
-    /**
-     * 统一异常翻译：网关 4xx 复用既有错误码；连接/5xx 归为网关不可用（503）。
-     */
-    private static <T> T call(ThrowingSupplier<T> action, String op) {
-        try {
-            return action.get();
-        } catch (HttpStatusCodeException ex) {
-            HttpStatusCode status = ex.getStatusCode();
-            ErrorCode code = switch (status.value()) {
-                case 400 -> ErrorCode.VALIDATION_ERROR;
-                case 401 -> ErrorCode.UNAUTHORIZED;
-                case 403 -> ErrorCode.FORBIDDEN;
-                case 404 -> ErrorCode.NOT_FOUND;
-                default -> ErrorCode.GATEWAY_UNAVAILABLE;
-            };
-            throw new BusinessException(code,
-                op + " 失败：网关返回 HTTP " + status.value() + " " + ex.getResponseBodyAsString());
-        } catch (Exception ex) {
-            throw new BusinessException(ErrorCode.GATEWAY_UNAVAILABLE,
-                op + " 失败：无法连接网关（" + ex.getMessage() + "）");
-        }
-    }
 
     private static String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    /**
-     * 受检异常包装的函数式接口，供 {@link #call} 内统一翻译网关调用异常。
-     */
-    @FunctionalInterface
-    private interface ThrowingSupplier<T> {
-        T get() throws Exception;
-    }
 }

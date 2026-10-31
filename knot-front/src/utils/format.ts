@@ -140,7 +140,7 @@ export function formatJsonText(
 
 export function formatJsonArray(
   value: unknown,
-  fallback = "—",
+  fallback = EMPTY_PLACEHOLDER,
   separator = " / "
 ): string {
   if (value == null || value === "") return fallback;
@@ -183,7 +183,7 @@ export function highlightJsonHtml(value: unknown): string {
  * 4 位会把 0.00000001 显示成 0.0000，看起来像「没花钱」。</p>
  */
 export function fmtMoney(v: unknown): string {
-  if (v == null || v === "") return "—";
+  if (v == null || v === "") return EMPTY_PLACEHOLDER;
   const n = Number(v);
   if (Number.isNaN(n)) return String(v);
   return n.toFixed(UNIT_PRICE_PRECISION);

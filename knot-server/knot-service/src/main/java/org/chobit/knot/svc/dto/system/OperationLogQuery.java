@@ -7,7 +7,7 @@ public record OperationLogQuery(
         Integer pageSize,
         String module,
         String operation,
-        String status,
+        Integer status,
         String keyword,
         String entityType,
         Long entityId

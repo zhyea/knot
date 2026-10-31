@@ -5,6 +5,7 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import java.util.List;
 import java.util.Map;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.constants.enums.TrafficResourceTypeEnum;
 import org.chobit.knot.svc.dto.routing.RoutingConsumerDto;
@@ -58,17 +59,12 @@ public class RoutingConsumerService {
      */
     public PageResult<RoutingConsumerDto> list(PageRequest pageRequest, String keyword) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
-            PageInfo<RoutingConsumerEntity> pageInfo = new PageInfo<>(routingConsumerMapper.list(normalizeKeyword(keyword)));
+            PageInfo<RoutingConsumerEntity> pageInfo = new PageInfo<>(routingConsumerMapper.list(StringUtils.trimToNull(keyword)));
             List<RoutingConsumerDto> dtos = pageInfo.getList().stream().map(entity ->
                     toDto(entity, trafficPolicySupport.load(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), entity.getId()))
             ).toList();
             return PageResult.of(dtos, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
         }
-    }
-
-    private static String normalizeKeyword(String keyword) {
-        String value = keyword != null ? keyword.trim() : "";
-        return value.isEmpty() ? null : value;
     }
 
     /**

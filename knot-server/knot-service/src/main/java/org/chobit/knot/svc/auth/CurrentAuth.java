@@ -33,7 +33,6 @@ import java.util.List;
 public class CurrentAuth {
 
     private static final String ATTR_USER_ID = "userId";
-    private static final String ATTR_USERNAME = "username";
     private static final String ATTR_ROLES = "roles";
 
     /**
@@ -55,14 +54,6 @@ public class CurrentAuth {
             return number.longValue();
         }
         return null;
-    }
-
-    /**
-     * Returns the current authenticated username.
-     */
-    public String currentUsername() {
-        Object value = currentRequestAttribute(ATTR_USERNAME);
-        return value != null ? String.valueOf(value) : null;
     }
 
     /**

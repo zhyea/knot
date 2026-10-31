@@ -45,7 +45,7 @@ public class PluginController {
      */
     @OperationLog(module = "plugin", operation = "DELETE", entityType = "Plugin",
             entityId = "#p0",
-            entityNameAfter = "#result.name",
+            entityNameAfter = "#result.name()",
             description = "'逻辑删除插件'",
             oldValueSpel = "@pluginService.getById(#p0)")
     @DeleteMapping("/{id}")
@@ -59,7 +59,7 @@ public class PluginController {
      */
     @OperationLog(module = "plugin", operation = "UPDATE", entityType = "Plugin",
             entityId = "#p0",
-            entityNameAfter = "#result.name",
+            entityNameAfter = "#result.name()",
             description = "'更新插件状态'",
             oldValueSpel = "@pluginService.getById(#p0)",
             newValueSpel = "#result")

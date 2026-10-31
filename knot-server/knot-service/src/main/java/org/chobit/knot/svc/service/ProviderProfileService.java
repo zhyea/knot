@@ -3,6 +3,7 @@ package org.chobit.knot.svc.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.dal.entity.ProviderProfileEntity;
 import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
@@ -31,20 +32,12 @@ public class ProviderProfileService {
 
     public PageResult<ProviderProfileItem> list(String keyword, String tag, PageRequest pageRequest) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
-            List<ProviderProfileItem> rows = providerProfileMapper.list(normalizeKeyword(keyword), normalizeKeyword(tag)).stream()
+            List<ProviderProfileItem> rows = providerProfileMapper.list(StringUtils.trimToNull(keyword), StringUtils.trimToNull(tag)).stream()
                     .map(this::toItem)
                     .toList();
             PageInfo<ProviderProfileItem> page = new PageInfo<>(rows);
             return PageResult.of(page.getList(), page.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
         }
-    }
-
-    private String normalizeKeyword(String keyword) {
-        if (keyword == null) {
-            return null;
-        }
-        String normalized = keyword.trim();
-        return normalized.isEmpty() ? null : normalized;
     }
 
     public ProviderProfileItem getById(Long id) {

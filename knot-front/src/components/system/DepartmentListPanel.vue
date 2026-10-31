@@ -17,8 +17,8 @@
         <template #default="{ row }">
           <el-switch
               v-model="row.status"
-              :active-value="1"
-              :inactive-value="0"
+              :active-value="EnabledStatus.ENABLED"
+              :inactive-value="EnabledStatus.DISABLED"
               active-text="启用"
               inactive-text="禁用"
               inline-prompt
@@ -62,6 +62,7 @@ import type {PropType} from "vue";
 import type {Dict, Row} from "@/types";
 import {Delete, Document, Edit} from "@element-plus/icons-vue";
 import RowActions from "../common/RowActions.vue";
+import {EnabledStatus} from "@/constants/status";
 
 defineProps({
   rows: {type: Array as PropType<Row[]>, default: (): Row[] => []},

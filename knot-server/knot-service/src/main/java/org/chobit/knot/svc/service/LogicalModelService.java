@@ -3,6 +3,7 @@ package org.chobit.knot.svc.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.constants.enums.LogicalModelPublishStatusEnum;
 import org.chobit.knot.common.constants.enums.LogicalModelVisibilityEnum;
@@ -75,18 +76,13 @@ public class LogicalModelService {
                                             Boolean includeDeleted) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<LogicalModelEntity> pageInfo = new PageInfo<>(
-                    logicalModelMapper.list(normalizeKeyword(keyword), normalizeModelTypes(modelTypes), includeDeleted)
+                    logicalModelMapper.list(StringUtils.trimToNull(keyword), normalizeModelTypes(modelTypes), includeDeleted)
             );
             List<LogicalModelDto> list = pageInfo.getList().stream()
                     .map(logicalModelConverter::toDto)
                     .toList();
             return PageResult.of(list, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
         }
-    }
-
-    private static String normalizeKeyword(String keyword) {
-        String value = keyword != null ? keyword.trim() : "";
-        return value.isEmpty() ? null : value;
     }
 
     private static List<String> normalizeModelTypes(List<String> modelTypes) {

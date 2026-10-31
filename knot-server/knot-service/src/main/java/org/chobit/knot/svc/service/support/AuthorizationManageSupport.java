@@ -1,5 +1,6 @@
 package org.chobit.knot.svc.service.support;
 
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.dal.entity.AdminApiPermissionBindingEntity;
 import org.chobit.knot.dal.entity.AdminMenuEntity;
 import org.chobit.knot.dal.entity.AdminModuleEntity;
@@ -226,14 +227,6 @@ public class AuthorizationManageSupport {
     /**
      * Normalizes a keyword value for fuzzy query usage.
      */
-    public String normalizeKeyword(String keyword) {
-        if (keyword == null) {
-            return null;
-        }
-        String value = keyword.trim();
-        return value.isEmpty() ? null : value;
-    }
-
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }

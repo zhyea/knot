@@ -12,7 +12,7 @@
       <el-table-column prop="poolCode" label="模型池编码" min-width="200" show-overflow-tooltip />
       <el-table-column label="统一模型" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">
-          <span class="bind-list__text">{{ row.logicalModelCode || row.logicalModelName || "—" }}</span>
+          <span class="bind-list__text">{{ displayText(row.logicalModelCode || row.logicalModelName) }}</span>
         </template>
       </el-table-column>
       <el-table-column label="选择策略" min-width="70">
@@ -123,12 +123,6 @@ async function handleEnabledChange(row: Row, enabled: string | number | boolean)
 </script>
 
 <style scoped>
-.bind-list__text {
-  overflow: hidden;
-  color: #303133;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 /* 已逻辑删除的行：浅红底 + 文字降透明度，与正常行一眼可分 */
 :deep(.el-table__row.row-deleted > td) {

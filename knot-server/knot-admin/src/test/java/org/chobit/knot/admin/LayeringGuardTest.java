@@ -62,27 +62,21 @@ class LayeringGuardTest {
     private static final List<String> KNOWN_MAPPER_OFFENDERS = List.of();
 
     /**
-     * {@code dal.entity} 的存量清单（2026-10-28 盘点：9 个 controller）。
+     * {@code dal.entity} 的存量清单：<b>已清零（2026-10-31）</b>。
      *
      * <p>⚠ <b>这不是豁免，是债务盘点 + 只许降不许升的棘轮</b>。
-     * 这些 controller 直接把实体当响应体返回（{@code PageResult<XxxEntity>}），
-     * 属于同一族红线的另一半：Mapper 决定「谁执行 SQL」，实体决定「层边界在哪」。
-     * 本轮范围只到 Mapper（robin 明确的「admin/gateway 层不宜出现 Mapper 直接调用」），
-     * 但<b>不让它继续变多</b>：新加一个就得先删掉一个。</p>
+     * 原先登记 9 个 controller，它们直接把实体当响应体返回（{@code PageResult<XxxEntity>}），
+     * 属于同一族红线的另一半：Mapper 决定「谁执行 SQL」，实体决定「层边界在哪」。</p>
      *
-     * <p>为什么这些还没收：把实体换成 svc 的 record 会改动对外 JSON 契约（字段收窄、
-     * record 的 SpEL 访问器写法），9 个 controller 逐个要过前端，属于单独立项。</p>
+     * <p><b>清零靠的是「字段逐字平移到 record」而不是重新设计契约</b>：那 9 个 controller 的
+     * 响应体字段与实体字段一一同名，换载体的同时保持 JSON 字段集合不变，所以前端零改动。
+     * 代价是 record 的 SpEL 必须改用访问器形式（{@code #result.id()}）——这一步漏了不会报错，
+     * 只会让审计日志的 entityId 变空，见 {@code ScheduledTaskController} 的类注释。</p>
+     *
+     * <p>名字保留（而不是把 {@code KNOWN_ENTITY_IMPORTS} 直接删掉）是为了让棘轮还能转：
+     * 今后任何新出现的实体外泄都会直接变红，而「登记进名单」这条后门需要有人显式加一行。</p>
      */
-    private static final List<String> KNOWN_ENTITY_IMPORTS = List.of(
-            "src/main/java/org/chobit/knot/admin/controller/AuthorizationApiBindingController.java",
-            "src/main/java/org/chobit/knot/admin/controller/AuthorizationMenuController.java",
-            "src/main/java/org/chobit/knot/admin/controller/AuthorizationModuleController.java",
-            "src/main/java/org/chobit/knot/admin/controller/AuthorizationPermissionController.java",
-            "src/main/java/org/chobit/knot/admin/controller/AuthorizationRoleController.java",
-            "src/main/java/org/chobit/knot/admin/controller/EnumConfigController.java",
-            "src/main/java/org/chobit/knot/admin/controller/ExternalModelController.java",
-            "src/main/java/org/chobit/knot/admin/controller/ModelFamilyController.java",
-            "src/main/java/org/chobit/knot/admin/controller/OperationLogController.java");
+    private static final List<String> KNOWN_ENTITY_IMPORTS = List.of();
 
     @Test
     void noMapperImportOutsideTheScanConfiguration() throws Exception {

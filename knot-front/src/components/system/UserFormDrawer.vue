@@ -46,8 +46,8 @@
           <el-form-item label="状态">
             <el-switch
               v-model="form.status"
-              :active-value="1"
-              :inactive-value="0"
+              :active-value="EnabledStatus.ENABLED"
+              :inactive-value="EnabledStatus.DISABLED"
               active-text="启用"
               inactive-text="禁用"
               inline-prompt
@@ -74,6 +74,7 @@ import {toOptionsLoader} from "@/utils/options";
 import type {Dict} from "@/types";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
+import {EnabledStatus} from "@/constants/status";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},

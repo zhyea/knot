@@ -4,16 +4,19 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.svc.dto.model.ExternalModelItemQuery;
 import org.chobit.knot.svc.dto.model.ExternalModelSyncResult;
 import org.chobit.knot.svc.dto.model.LogicalModelDto;
 import org.chobit.knot.common.constants.enums.LogicalModelPublishStatusEnum;
 import org.chobit.knot.dal.entity.ExternalModelItemEntity;
-import org.chobit.knot.dal.entity.ExternalModelSourceEntity;
 import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.dal.mapper.ExternalModelMapper;
+import org.chobit.knot.svc.converter.ExternalModelConverter;
 import org.chobit.knot.svc.service.support.ModelFamilyResolver;
+import org.chobit.knot.svc.vo.model.ExternalModelItem;
+import org.chobit.knot.svc.vo.model.ExternalModelSourceItem;
 import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.external.ExternalModelSyncProvider;
@@ -34,6 +37,7 @@ public class ExternalModelService {
     private final LogicalModelService logicalModelService;
     private final Map<String, ExternalModelSyncProvider> providers;
     private final ModelFamilyResolver modelFamilyResolver;
+    private final ExternalModelConverter converter;
 
     /**
      * Constructs a new instance.
@@ -41,42 +45,61 @@ public class ExternalModelService {
     public ExternalModelService(ExternalModelMapper externalModelMapper,
                                 LogicalModelService logicalModelService,
                                 List<ExternalModelSyncProvider> providers,
-                                ModelFamilyResolver modelFamilyResolver) {
+                                ModelFamilyResolver modelFamilyResolver,
+                                ExternalModelConverter converter) {
         this.externalModelMapper = externalModelMapper;
         this.logicalModelService = logicalModelService;
         this.providers = providers.stream().collect(Collectors.toMap(ExternalModelSyncProvider::sourceCode, Function.identity()));
         this.modelFamilyResolver = modelFamilyResolver;
+        this.converter = converter;
     }
 
     /**
      * Lists matching results. Executes the public operation.
      */
-    public List<ExternalModelSourceEntity> listSources() {
-        return externalModelMapper.listSources();
+    public List<ExternalModelSourceItem> listSources() {
+        return converter.toSourceItemList(externalModelMapper.listSources());
     }
 
     /**
      * Lists matching results. Executes the public operation.
      */
-    public PageResult<ExternalModelItemEntity> listItems(ExternalModelItemQuery query) {
+    public PageResult<ExternalModelItem> listItems(ExternalModelItemQuery query) {
         PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<ExternalModelItemEntity> pageInfo = new PageInfo<>(externalModelMapper.listItems(
                     query != null ? query.sourceCode() : null,
                     query != null ? query.syncStatus() : null,
-                    normalizeKeyword(query != null ? query.keyword() : null),
-                    normalizeKeyword(query != null ? query.modelType() : null),
+                    StringUtils.trimToNull(query != null ? query.keyword() : null),
+                    StringUtils.trimToNull(query != null ? query.modelType() : null),
                     query != null ? query.ids() : null
             ));
-            return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+            return PageResult.fromPage(pageInfo, converter::toItemList, pageRequest);
         }
     }
 
     /**
-     * Returns the requested value. Executes the public operation.
+     * 对外投影：条目的 {@code rawJson} / {@code description} / {@code contextLength} 可能由供应商
+     * 详情接口补全，{@link #requireEntity} 已经把补全结果落库，这里只负责换载体。
+     *
+     * <p>同时被 {@code @OperationLog(oldValueSpel = "@externalModelService.getItem(#p0)")} 使用，
+     * 所以老值快照也是这个 record——新旧快照同载体，审计里不会出现「一半实体一半 record」。</p>
      */
     @Transactional
-    public ExternalModelItemEntity getItem(Long id) {
+    public ExternalModelItem getItem(Long id) {
+        return converter.toItem(requireEntity(id));
+    }
+
+    /**
+     * 内部取实体：缺失即 404，且命中供应商 provider 时把 enrich 出来的详情回写数据库。
+     *
+     * <p>⚠ 这是唯一允许吐 {@code ExternalModelItemEntity} 的出口，且只在 svc 内部用——
+     * 谁要往外传，必须走 {@link #getItem}。</p>
+     *
+     * <p>⚠ 这里<b>不标</b> {@code @Transactional}：它是内部自调用，Spring 代理不会介入，标了也只是
+     * 一个假的承诺。事务由两个调用方（{@link #getItem} / {@link #createLogicalModel}）提供。</p>
+     */
+    private ExternalModelItemEntity requireEntity(Long id) {
         ExternalModelItemEntity item = externalModelMapper.getItemById(id);
         if (item == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "external model item not found");
@@ -114,7 +137,7 @@ public class ExternalModelService {
      */
     @Transactional
     public LogicalModelDto createLogicalModel(Long itemId) {
-        ExternalModelItemEntity item = getItem(itemId);
+        ExternalModelItemEntity item = requireEntity(itemId);
         String code = generateModelCode(item);
         LogicalModelDto created = logicalModelService.create(new LogicalModelDto(
                 null,
@@ -250,10 +273,5 @@ public class ExternalModelService {
 
     private boolean same(Integer a, Integer b) {
         return a == null ? b == null : a.equals(b);
-    }
-
-    private static String normalizeKeyword(String value) {
-        String text = value == null ? "" : value.trim();
-        return text.isEmpty() ? null : text;
     }
 }

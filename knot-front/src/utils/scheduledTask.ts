@@ -1,4 +1,5 @@
 import { EnabledStatus, ScheduledTaskRunStatus } from "@/constants/status";
+import {EMPTY_PLACEHOLDER} from "@/utils/format";
 
 export function taskModeLabel(value: unknown): string {
   return value === "BROADCAST" ? "广播" : "单节点";
@@ -14,7 +15,7 @@ export function runStatusLabel(value: unknown): string {
     [ScheduledTaskRunStatus.SUCCESS]: "成功",
     [ScheduledTaskRunStatus.FAILURE]: "失败"
   };
-  return map[Number(value)] || String(value ?? "-");
+  return map[Number(value)] ?? (value == null ? EMPTY_PLACEHOLDER : String(value));
 }
 
 export function runStatusType(value: unknown): "primary" | "success" | "warning" | "info" | "danger" {

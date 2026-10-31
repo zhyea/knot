@@ -2,7 +2,7 @@ package org.chobit.knot.admin.controller;
 
 import org.chobit.knot.common.annotation.AuthCheck;
 import org.chobit.knot.common.annotation.OperationLog;
-import org.chobit.knot.dal.entity.AdminRoleEntity;
+import org.chobit.knot.svc.vo.auth.AdminRoleItem;
 import org.chobit.knot.common.model.PageQuery;
 import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
@@ -47,7 +47,7 @@ public class AuthorizationRoleController {
      * Lists roles.
      */
     @PostMapping("/list")
-    public PageResult<AdminRoleEntity> listRoles(@RequestBody(required = false) PageQuery query) {
+    public PageResult<AdminRoleItem> listRoles(@RequestBody(required = false) PageQuery query) {
         PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
         return roleService.listRoles(pageRequest, query == null ? null : query.keyword());
     }
@@ -72,12 +72,12 @@ public class AuthorizationRoleController {
      * Creates a role.
      */
     @OperationLog(module = "authorization", operation = "CREATE", entityType = "Role",
-            entityIdAfter = "#result.id",
-            entityNameAfter = "#result.name",
+            entityIdAfter = "#result.id()",
+            entityNameAfter = "#result.name()",
             description = "'新建角色'",
             newValueSpel = "#result")
     @PostMapping
-    public AdminRoleEntity createRole(@RequestBody AdminRoleEntity request) {
+    public AdminRoleItem createRole(@RequestBody AdminRoleItem request) {
         return roleService.createRole(request);
     }
 
@@ -86,12 +86,12 @@ public class AuthorizationRoleController {
      */
     @OperationLog(module = "authorization", operation = "UPDATE", entityType = "Role",
             entityId = "#p0",
-            entityNameAfter = "#result.name",
+            entityNameAfter = "#result.name()",
             description = "'更新角色'",
             oldValueSpel = "@authorizationRoleService.roleAuditSnapshot(#p0)",
             newValueSpel = "#result")
     @PutMapping("/{id}")
-    public AdminRoleEntity updateRole(@PathVariable Long id, @RequestBody AdminRoleEntity request) {
+    public AdminRoleItem updateRole(@PathVariable Long id, @RequestBody AdminRoleItem request) {
         return roleService.updateRole(id, request);
     }
 
@@ -100,12 +100,12 @@ public class AuthorizationRoleController {
      */
     @OperationLog(module = "authorization", operation = "DELETE", entityType = "Role",
             entityId = "#p0",
-            entityNameAfter = "#result.name",
+            entityNameAfter = "#result.name()",
             description = "'删除角色'",
             oldValueSpel = "@authorizationRoleService.roleAuditSnapshot(#p0)",
             recordNewValue = false)
     @DeleteMapping("/{id}")
-    public AdminRoleEntity deleteRole(@PathVariable Long id) {
+    public AdminRoleItem deleteRole(@PathVariable Long id) {
         return roleService.deleteRole(id);
     }
 

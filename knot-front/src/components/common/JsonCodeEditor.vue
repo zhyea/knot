@@ -46,7 +46,7 @@
 import {computed} from "vue";
 import {ElMessage} from "element-plus";
 import {MagicStick} from "@element-plus/icons-vue";
-import {escapeHtml, formatJsonText} from "@/utils/format";
+import {displayText, escapeHtml, formatJsonText} from "@/utils/format";
 import CodeBlockView from "./CodeBlockView.vue";
 
 const props = withDefaults(
@@ -71,14 +71,14 @@ const emit = defineEmits(["update:modelValue"]);
 
 const JSON_TOKEN_REGEX = /("(?:\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g;
 
-const displayText = computed(() => {
+const displayValue = computed(() => {
   if (props.readonly) {
-    return formatJsonText(props.modelValue) || "—";
+    return displayText(formatJsonText(props.modelValue));
   }
   return props.modelValue || "";
 });
 
-const highlightedJson = computed(() => renderHighlightedJson(displayText.value));
+const highlightedJson = computed(() => renderHighlightedJson(displayValue.value));
 
 function formatCurrentJson() {
   const formatted = formatJsonText(props.modelValue);

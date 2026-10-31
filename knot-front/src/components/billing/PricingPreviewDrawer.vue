@@ -125,7 +125,7 @@ const priceRows = computed(() => {
   return Object.keys(prices).map((key) => ({
     key,
     label: PRICE_LABELS[key] || key,
-    price: String(prices[key] ?? "-")
+    price: displayText(prices[key])
   }));
 });
 

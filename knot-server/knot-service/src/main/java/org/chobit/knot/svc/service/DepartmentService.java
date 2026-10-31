@@ -3,6 +3,7 @@ package org.chobit.knot.svc.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.svc.converter.DepartmentConverter;
 import org.chobit.knot.svc.dto.system.DepartmentDto;
 import org.chobit.knot.dal.entity.DepartmentEntity;
@@ -46,7 +47,7 @@ public class DepartmentService {
 
     public PageResult<DepartmentDto> list(PageRequest pageRequest, String keyword, Long parentId) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
-            PageInfo<DepartmentEntity> pageInfo = new PageInfo<>(departmentMapper.list(normalizeKeyword(keyword), parentId));
+            PageInfo<DepartmentEntity> pageInfo = new PageInfo<>(departmentMapper.list(StringUtils.trimToNull(keyword), parentId));
             return PageResult.fromPage(pageInfo, departmentConverter::toDtoList, pageRequest);
         }
     }
@@ -160,11 +161,6 @@ public class DepartmentService {
             throw new BusinessException(ErrorCode.CONFLICT, "机构编码「" + deptCode + "」已存在");
         }
         return deptCode;
-    }
-
-    private static String normalizeKeyword(String keyword) {
-        String value = keyword != null ? keyword.trim() : "";
-        return value.isEmpty() ? null : value;
     }
 
     private static String normalizeRequired(String value, String message) {

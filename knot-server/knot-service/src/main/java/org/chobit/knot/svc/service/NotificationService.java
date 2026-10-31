@@ -3,6 +3,7 @@ package org.chobit.knot.svc.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
@@ -40,7 +41,7 @@ public class NotificationService {
      */
     public PageResult<TemplateDto> listTemplates(PageRequest pageRequest, String keyword) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
-            PageInfo<NotifyTemplateEntity> pageInfo = new PageInfo<>(notificationMapper.listTemplates(normalizeKeyword(keyword)));
+            PageInfo<NotifyTemplateEntity> pageInfo = new PageInfo<>(notificationMapper.listTemplates(StringUtils.trimToNull(keyword)));
             return PageResult.fromPage(pageInfo, notificationConverter::toTemplateDtoList, pageRequest);
         }
     }
@@ -58,10 +59,5 @@ public class NotificationService {
         e.setStatus(EnabledStatusEnum.ENABLED.code());
         notificationMapper.insertTemplate(e);
         return notificationConverter.toTemplateDto(e);
-    }
-
-    private static String normalizeKeyword(String keyword) {
-        String value = keyword == null ? "" : keyword.trim();
-        return value.isEmpty() ? null : value;
     }
 }

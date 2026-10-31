@@ -5,8 +5,8 @@ import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import java.util.List;
 import java.util.Set;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.dal.entity.EnumCategoryEntity;
-import org.chobit.knot.dal.entity.EnumCategorySummary;
 import org.chobit.knot.dal.entity.EnumConfigEntity;
 import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
@@ -14,13 +14,27 @@ import org.chobit.knot.dal.mapper.EnumCategoryMapper;
 import org.chobit.knot.dal.mapper.EnumConfigMapper;
 import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
+import org.chobit.knot.svc.converter.EnumConfigConverter;
 import org.chobit.knot.svc.service.support.CodeBindingSupport;
+import org.chobit.knot.svc.vo.system.EnumCategorySummaryItem;
+import org.chobit.knot.svc.vo.system.EnumConfigItem;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 
+/**
+ * 枚举主数据服务。
+ *
+ * <p>⭐ 对外一律吐 {@link EnumConfigItem} / {@link EnumCategorySummaryItem}，实体只在私有方法里用。
+ * 入参同样是 Item：{@code @OperationLog} 的 {@code oldValueSpel} 走
+ * {@code @enumConfigService.getById}，新旧快照必须是同一种载体。</p>
+ *
+ * <p>⚠ {@link #listByCategory} 带 {@code @Cacheable}，缓存值是 Item 列表。
+ * 缓存实现是 <b>Caffeine 本地缓存</b>（admin 的 {@code CacheConfiguration}），存在堆里、重启即空，
+ * 所以改缓存值类型没有反序列化兼容问题；若哪天换成 Redis，这里要加缓存版本号。</p>
+ */
 @Service
 public class EnumConfigService {
 
@@ -70,33 +84,37 @@ public class EnumConfigService {
 
     private final EnumConfigMapper enumConfigMapper;
     private final EnumCategoryMapper enumCategoryMapper;
+    private final EnumConfigConverter converter;
 
     /**
      * Constructs a new instance.
      */
-    public EnumConfigService(EnumConfigMapper enumConfigMapper, EnumCategoryMapper enumCategoryMapper) {
+    public EnumConfigService(EnumConfigMapper enumConfigMapper, EnumCategoryMapper enumCategoryMapper,
+                             EnumConfigConverter converter) {
         this.enumConfigMapper = enumConfigMapper;
         this.enumCategoryMapper = enumCategoryMapper;
+        this.converter = converter;
     }
 
     /**
      * Lists matching results. Executes the public operation.
      */
-    public PageResult<EnumConfigEntity> list(PageRequest pageRequest) {
+    public PageResult<EnumConfigItem> list(PageRequest pageRequest) {
         return list(pageRequest, null);
     }
 
     /**
      * Lists matching results. Executes the public operation.
      */
-    public PageResult<EnumConfigEntity> list(PageRequest pageRequest, String category) {
+    public PageResult<EnumConfigItem> list(PageRequest pageRequest, String category) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<EnumConfigEntity> pageInfo = new PageInfo<>(
                     category != null && !category.isBlank()
                             ? enumConfigMapper.listByCategoryFilter(category)
                             : enumConfigMapper.list()
             );
-            return PageResult.of(pageInfo.getList(), pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+            return PageResult.of(converter.toItemList(pageInfo.getList()), pageInfo.getTotal(),
+                    pageRequest.pageNum(), pageRequest.pageSize());
         }
     }
 
@@ -104,10 +122,10 @@ public class EnumConfigService {
      * 按分类读取枚举项（缓存 {@link #ENUM_ITEMS_CACHE}，单参数方法默认 key 即 category）。
      *
      * <p>前端下拉改为每次打开强制回源后，这里用短 TTL 的本地缓存吸收重复请求、避免 DB 读放大；
-     * 一致性由 create/update/delete 的整表失效兜底。
+     * 一致性由 create/update/delete 的整表失效兜底。</p>
      */
     @Cacheable(cacheNames = ENUM_ITEMS_CACHE)
-    public List<EnumConfigEntity> listByCategory(String category) {
+    public List<EnumConfigItem> listByCategory(String category) {
         EnumCategoryEntity cat = enumCategoryMapper.selectByCategory(category);
         if (cat == null) {
             return List.of();
@@ -117,7 +135,7 @@ public class EnumConfigService {
             item.setCategory(cat.getCategory());
             item.setIsSystem(cat.getIsSystem());
         }
-        return items;
+        return converter.toItemList(items);
     }
 
     /**
@@ -130,27 +148,15 @@ public class EnumConfigService {
     /**
      * Lists matching results. Executes the public operation.
      */
-    public List<EnumCategorySummary> listCategorySummaries(String keyword) {
-        return enumConfigMapper.listCategorySummaries(normalizeKeyword(keyword));
-    }
-
-    private String normalizeKeyword(String keyword) {
-        if (keyword == null) {
-            return null;
-        }
-        String normalized = keyword.trim();
-        return normalized.isEmpty() ? null : normalized;
+    public List<EnumCategorySummaryItem> listCategorySummaries(String keyword) {
+        return converter.toSummaryItemList(enumConfigMapper.listCategorySummaries(StringUtils.trimToNull(keyword)));
     }
 
     /**
      * Returns the requested value. Executes the public operation.
      */
-    public EnumConfigEntity getById(Long id) {
-        EnumConfigEntity entity = enumConfigMapper.getById(id);
-        if (entity == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND, "enum config not found");
-        }
-        return entity;
+    public EnumConfigItem getById(Long id) {
+        return converter.toItem(requireEntity(id));
     }
 
     /**
@@ -158,30 +164,32 @@ public class EnumConfigService {
      */
     @CacheEvict(cacheNames = ENUM_ITEMS_CACHE, allEntries = true)
     @Transactional
-    public EnumConfigEntity create(EnumConfigEntity request) {
-        if (request.getCategory() == null || request.getCategory().isBlank()) {
+    public EnumConfigItem create(EnumConfigItem request) {
+        if (request.category() == null || request.category().isBlank()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "分类编码不能为空");
         }
-        String categoryCode = request.getCategory().trim();
+        String categoryCode = request.category().trim();
         if (isReservedCategory(categoryCode)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
                     "枚举分类 " + categoryCode + " 已退役（代码枚举接管或零消费孤儿），禁止在 DB 重建");
         }
-        EnumConfigEntity existing = enumConfigMapper.getByCategoryAndCode(categoryCode, request.getItemCode());
+        EnumConfigEntity existing = enumConfigMapper.getByCategoryAndCode(categoryCode, request.itemCode());
         if (existing != null) {
-            throw new BusinessException(ErrorCode.CONFLICT, "枚举项 " + categoryCode + "/" + request.getItemCode() + " 已存在");
+            throw new BusinessException(ErrorCode.CONFLICT, "枚举项 " + categoryCode + "/" + request.itemCode() + " 已存在");
         }
         Long categoryId = resolveOrCreateCategoryId(categoryCode);
-        request.setCategoryId(categoryId);
-        if (request.getSortOrder() == null) {
-            request.setSortOrder(0);
+        // record 不可变：归一与补默认值都落在转出来的可变实体上，不去改入参
+        EnumConfigEntity entity = converter.toEntity(request);
+        entity.setCategoryId(categoryId);
+        if (entity.getSortOrder() == null) {
+            entity.setSortOrder(0);
         }
-        if (request.getIsEnabled() == null) {
-            request.setIsEnabled(true);
+        if (entity.getIsEnabled() == null) {
+            entity.setIsEnabled(true);
         }
-        enumConfigMapper.insert(request);
-        request.setCategory(categoryCode);
-        return request;
+        enumConfigMapper.insert(entity);
+        entity.setCategory(categoryCode);
+        return converter.toItem(entity);
     }
 
     /**
@@ -191,16 +199,17 @@ public class EnumConfigService {
      */
     @CacheEvict(cacheNames = ENUM_ITEMS_CACHE, allEntries = true)
     @Transactional
-    public EnumConfigEntity update(Long id, EnumConfigEntity request) {
-        EnumConfigEntity existing = getById(id);
+    public EnumConfigItem update(Long id, EnumConfigItem request) {
+        EnumConfigEntity existing = requireEntity(id);
         if (existing.getIsSystem()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "系统内置分类下的枚举不可修改");
         }
-        String newCode = resolveItemCodeForUpdate(existing, request.getItemCode());
-        request.setId(id);
-        request.setCategory(existing.getCategory());
-        request.setItemCode(newCode);
-        enumConfigMapper.update(request);
+        String newCode = resolveItemCodeForUpdate(existing, request.itemCode());
+        EnumConfigEntity entity = converter.toEntity(request);
+        entity.setId(id);
+        entity.setCategory(existing.getCategory());
+        entity.setItemCode(newCode);
+        enumConfigMapper.update(entity);
         return getById(id);
     }
 
@@ -231,13 +240,24 @@ public class EnumConfigService {
      */
     @CacheEvict(cacheNames = ENUM_ITEMS_CACHE, allEntries = true)
     @Transactional
-    public EnumConfigEntity deleteReturning(Long id) {
-        EnumConfigEntity existing = getById(id);
+    public EnumConfigItem deleteReturning(Long id) {
+        EnumConfigEntity existing = requireEntity(id);
         if (existing.getIsSystem()) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR, "系统内置分类下的枚举不可删除");
         }
         enumConfigMapper.logicalDelete(id);
-        return existing;
+        return converter.toItem(existing);
+    }
+
+    /**
+     * 内部取实体：对外走 {@link #getById}（吐 Item），需要实体做校验/拼装时才用这个。
+     */
+    private EnumConfigEntity requireEntity(Long id) {
+        EnumConfigEntity entity = enumConfigMapper.getById(id);
+        if (entity == null) {
+            throw new BusinessException(ErrorCode.NOT_FOUND, "enum config not found");
+        }
+        return entity;
     }
 
     private Long resolveOrCreateCategoryId(String categoryCode) {

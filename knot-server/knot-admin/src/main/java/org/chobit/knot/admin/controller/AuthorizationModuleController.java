@@ -3,7 +3,7 @@ package org.chobit.knot.admin.controller;
 import jakarta.validation.Valid;
 import org.chobit.knot.common.annotation.AuthCheck;
 import org.chobit.knot.common.annotation.OperationLog;
-import org.chobit.knot.dal.entity.AdminModuleEntity;
+import org.chobit.knot.svc.vo.auth.AdminModuleDetailItem;
 import org.chobit.knot.svc.service.AuthorizationModuleService;
 import org.chobit.knot.svc.vo.common.EnabledStatusRequest;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -39,7 +39,7 @@ public class AuthorizationModuleController {
      * Lists modules.
      */
     @GetMapping
-    public List<AdminModuleEntity> listModules(@RequestParam(required = false) String keyword) {
+    public List<AdminModuleDetailItem> listModules(@RequestParam(required = false) String keyword) {
         return moduleService.listModules(keyword);
     }
 
@@ -47,12 +47,12 @@ public class AuthorizationModuleController {
      * Creates a module.
      */
     @OperationLog(module = "authorization", operation = "CREATE", entityType = "Module",
-            entityIdAfter = "#result.id",
-            entityNameAfter = "#result.moduleName",
+            entityIdAfter = "#result.id()",
+            entityNameAfter = "#result.moduleName()",
             description = "'新建模块'",
             newValueSpel = "#result")
     @PostMapping
-    public AdminModuleEntity createModule(@RequestBody AdminModuleEntity request) {
+    public AdminModuleDetailItem createModule(@RequestBody AdminModuleDetailItem request) {
         return moduleService.createModule(request);
     }
 
@@ -61,12 +61,12 @@ public class AuthorizationModuleController {
      */
     @OperationLog(module = "authorization", operation = "UPDATE", entityType = "Module",
             entityId = "#p0",
-            entityNameAfter = "#result.moduleName",
+            entityNameAfter = "#result.moduleName()",
             description = "'更新模块'",
             oldValueSpel = "@authorizationModuleService.moduleAuditSnapshot(#p0)",
             newValueSpel = "#result")
     @PutMapping("/{id}")
-    public AdminModuleEntity updateModule(@PathVariable Long id, @RequestBody AdminModuleEntity request) {
+    public AdminModuleDetailItem updateModule(@PathVariable Long id, @RequestBody AdminModuleDetailItem request) {
         return moduleService.updateModule(id, request);
     }
 
@@ -75,12 +75,12 @@ public class AuthorizationModuleController {
      */
     @OperationLog(module = "authorization", operation = "UPDATE", entityType = "Module",
             entityId = "#p0",
-            entityNameAfter = "#result.moduleName",
+            entityNameAfter = "#result.moduleName()",
             description = "'更新模块状态'",
             oldValueSpel = "@authorizationModuleService.moduleAuditSnapshot(#p0)",
             newValueSpel = "#result")
     @PutMapping("/{id}/status")
-    public AdminModuleEntity updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
+    public AdminModuleDetailItem updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
         return moduleService.updateStatus(id, Boolean.TRUE.equals(request.enabled()));
     }
 
@@ -89,12 +89,12 @@ public class AuthorizationModuleController {
      */
     @OperationLog(module = "authorization", operation = "DELETE", entityType = "Module",
             entityId = "#p0",
-            entityNameAfter = "#result.moduleName",
+            entityNameAfter = "#result.moduleName()",
             description = "'删除模块'",
             oldValueSpel = "@authorizationModuleService.moduleAuditSnapshot(#p0)",
             recordNewValue = false)
     @DeleteMapping("/{id}")
-    public AdminModuleEntity deleteModule(@PathVariable Long id) {
+    public AdminModuleDetailItem deleteModule(@PathVariable Long id) {
         return moduleService.deleteModule(id);
     }
 }

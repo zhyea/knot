@@ -18,8 +18,8 @@
             <el-form-item label="启用" class="inline-switch">
               <el-switch
                   v-model="form.status"
-                  :active-value="1"
-                  :inactive-value="0"
+                  :active-value="EnabledStatus.ENABLED"
+                  :inactive-value="EnabledStatus.DISABLED"
                   active-text="启用"
                   inactive-text="禁用"
                   inline-prompt
@@ -89,6 +89,7 @@ import {ElMessage} from "element-plus";
 import {createDepartment, updateDepartment} from "@/api/departments";
 import type {Dict, Row} from "@/types";
 import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
+import {EnabledStatus} from "@/constants/status";
 
 /** 上级部门下拉项：label 已拼好层级缩进路径 */
 interface ParentOption {

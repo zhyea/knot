@@ -211,6 +211,7 @@ import {dryRunAsyncTaskProfile, getAsyncTaskProfile, saveAsyncTaskProfile} from 
 import type {Dict} from "@/types";
 import {displayText} from "@/utils/format";
 import {ASYNC_TASK_PROFILE_TEMPLATES, type AsyncTaskProfileTemplate} from "./asyncTaskProfileTemplates";
+import {EnabledStatus} from "@/constants/status";
 
 /**
  * 流式协议集合：只为「置灰不可选」。
@@ -326,7 +327,7 @@ async function load() {
   try {
     const detail = (await getAsyncTaskProfile(props.profileCode)) as Dict;
     Object.assign(form, blankForm(), detail);
-    enabled.value = detail.status === 1;
+    enabled.value = detail.status === EnabledStatus.ENABLED;
   } catch {
     // 拦截器已提示
   } finally {

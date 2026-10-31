@@ -281,6 +281,16 @@ body,
     margin-bottom: 0;
 }
 
+/* 绑定列表单元格文本：原先 4 个组件各抄一份（ModelFormDrawer / ModelPoolFormDrawer /
+   ModelPoolListPanel / RoutingRuleFormDrawer），差异只有 font-size。共有属性在此收口，
+   需要小一号字的两处仅保留 font-size 覆写（scoped 带 [data-v-*]，特异性高于本规则）。 */
+.bind-list__text {
+  overflow: hidden;
+  color: #303133;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .section-head h3 {
     margin: 0;
     color: var(--knot-text, #303133);

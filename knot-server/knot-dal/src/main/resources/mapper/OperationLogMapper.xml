@@ -52,7 +52,7 @@
             <if test="operation != null and operation != ''">
                 and operation = #{operation}
             </if>
-            <if test="status != null and status != ''">
+            <if test="status != null">
                 and status = #{status}
             </if>
             <if test="keyword != null and keyword != ''">

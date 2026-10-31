@@ -3,6 +3,7 @@ package org.chobit.knot.svc.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.common.model.PageRequest;
@@ -47,7 +48,7 @@ public class PluginService implements PluginBindingProvider {
      */
     public PageResult<PluginDto> list(PageRequest pageRequest, String keyword, String status, String pluginType) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
-            PageInfo<PluginInstanceEntity> pageInfo = new PageInfo<>(pluginMapper.list(normalizeKeyword(keyword), toStatusCode(status), normalizePluginType(pluginType)));
+            PageInfo<PluginInstanceEntity> pageInfo = new PageInfo<>(pluginMapper.list(StringUtils.trimToNull(keyword), toStatusCode(status), normalizePluginType(pluginType)));
             return PageResult.fromPage(pageInfo, pluginConverter::toDtoList, pageRequest);
         }
     }
@@ -109,11 +110,6 @@ public class PluginService implements PluginBindingProvider {
                 entity.getOrderNo(),
                 entity.getTimeoutMs()
         );
-    }
-
-    private static String normalizeKeyword(String keyword) {
-        String value = keyword == null ? "" : keyword.trim();
-        return value.isEmpty() ? null : value;
     }
 
     /** 查询参数归一：空串视为不过滤；非 SYNC 的非法值同样不过滤（避免误吞全部结果） */

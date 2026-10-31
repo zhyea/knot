@@ -1,6 +1,7 @@
 import {computed, ref} from "vue";
 import {listCommonEnums} from "@/api/enums";
 import type {Dict, SelectOption} from "@/types";
+import {EMPTY_PLACEHOLDER} from "@/utils/format";
 
 /**
  * 代码枚举统一数据源（GET /api/enum-options）
@@ -106,7 +107,7 @@ export function useEnumOptions() {
    */
   function labelOf(enumName: string, code: unknown, fallback?: string): string {
     if (code === null || code === undefined || code === "") {
-      return fallback ?? "-";
+      return fallback ?? EMPTY_PLACEHOLDER;
     }
     const hit = toOptions(enumMap.value[enumName]).find((item) => item.value === code);
     if (hit) {

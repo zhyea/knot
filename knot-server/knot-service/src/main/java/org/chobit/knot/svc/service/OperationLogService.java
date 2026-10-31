@@ -4,12 +4,13 @@ import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.common.constants.enums.OperationLogStatusEnum;
 import org.chobit.knot.dal.entity.OperationLogEntity;
 import org.chobit.knot.svc.converter.OperationLogConverter;
+import org.chobit.knot.svc.vo.system.OperationLogDetailItem;
+import org.chobit.knot.svc.service.support.OperationLogSnapshotSupport;
 import org.chobit.knot.svc.dto.system.OperationLogDto;
 import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
@@ -29,9 +30,6 @@ import java.util.TreeSet;
 @Slf4j
 @Service
 public class OperationLogService {
-
-    private static final Set<String> IGNORED_SNAPSHOT_FIELDS = Set.of(
-            "updatedAt", "updated_at", "updateTime", "update_time");
 
     private final OperationLogMapper operationLogMapper;
     private final OperationLogConverter operationLogConverter;
@@ -77,26 +75,27 @@ public class OperationLogService {
     /**
      * Lists matching results. Executes the public operation.
      */
-    public List<OperationLogEntity> listByModule(String module, String entityType, Long entityId, Long operatorId) {
+    public List<OperationLogDetailItem> listByModule(String module, String entityType, Long entityId, Long operatorId) {
         List<OperationLogEntity> list = operationLogMapper.listByModule(module, entityType, entityId, operatorId);
         list.forEach(this::retainOnlyChangedJsonFields);
-        return list;
+        return operationLogConverter.toDetailItemList(list);
     }
 
-    public PageResult<OperationLogEntity> list(PageRequest pageRequest, String module, String operation, String status,
-                                               String keyword, String entityType, Long entityId) {
+    public PageResult<OperationLogDetailItem> list(PageRequest pageRequest, String module, String operation, Integer status,
+                                                   String keyword, String entityType, Long entityId) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<OperationLogEntity> pageInfo = new PageInfo<>(operationLogMapper.list(
                     normalizeValue(module),
                     normalizeValue(operation),
-                    normalizeValue(status),
+                    status,
                     normalizeValue(keyword),
                     normalizeValue(entityType),
                     entityId
             ));
             List<OperationLogEntity> list = new ArrayList<>(pageInfo.getList());
             list.forEach(this::retainOnlyChangedJsonFields);
-            return PageResult.of(list, pageInfo.getTotal(), pageRequest.pageNum(), pageRequest.pageSize());
+            return PageResult.of(operationLogConverter.toDetailItemList(list), pageInfo.getTotal(),
+                    pageRequest.pageNum(), pageRequest.pageSize());
         }
     }
 
@@ -115,12 +114,12 @@ public class OperationLogService {
     /**
      * Returns the requested value. Executes the public operation.
      */
-    public OperationLogEntity getById(Long id) {
+    public OperationLogDetailItem getById(Long id) {
         OperationLogEntity entity = operationLogMapper.getById(id);
         if (entity != null) {
             retainOnlyChangedJsonFields(entity);
         }
-        return entity;
+        return operationLogConverter.toDetailItem(entity);
     }
 
     /**
@@ -135,13 +134,13 @@ public class OperationLogService {
     /**
      * 查询某个枚举分类下相关的操作日志。
      */
-    public List<OperationLogEntity> listForEnumCategory(String category) {
+    public List<OperationLogDetailItem> listForEnumCategory(String category) {
         if (category == null || category.isBlank()) {
             return List.of();
         }
         List<OperationLogEntity> list = operationLogMapper.listByModuleAndEntityNamePrefix("enum", category.trim());
         list.forEach(this::retainOnlyChangedJsonFields);
-        return list;
+        return operationLogConverter.toDetailItemList(list);
     }
 
     /**
@@ -160,11 +159,11 @@ public class OperationLogService {
                 return;
             }
             if (oldRoot != null) {
-                removeIgnoredSnapshotFields(oldRoot);
+                OperationLogSnapshotSupport.removeIgnoredFields(oldRoot);
                 e.setOldValue(JsonKit.toJson(oldRoot));
             }
             if (newRoot != null) {
-                removeIgnoredSnapshotFields(newRoot);
+                OperationLogSnapshotSupport.removeIgnoredFields(newRoot);
                 e.setNewValue(JsonKit.toJson(newRoot));
             }
             if (oldRoot == null || newRoot == null || !oldRoot.isObject() || !newRoot.isObject()) {
@@ -197,15 +196,6 @@ public class OperationLogService {
             }
         } catch (Exception ex) {
             log.debug("Skip old/new diff trim for operation log: {}", ex.toString());
-        }
-    }
-
-    private void removeIgnoredSnapshotFields(JsonNode node) {
-        if (node instanceof ObjectNode objectNode) {
-            IGNORED_SNAPSHOT_FIELDS.forEach(objectNode::remove);
-            objectNode.elements().forEachRemaining(this::removeIgnoredSnapshotFields);
-        } else if (node instanceof ArrayNode arrayNode) {
-            arrayNode.elements().forEachRemaining(this::removeIgnoredSnapshotFields);
         }
     }
 

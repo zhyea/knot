@@ -3,6 +3,7 @@ package org.chobit.knot.svc.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.svc.converter.RoutingTestPresetConverter;
@@ -46,7 +47,7 @@ public class RoutingTestPresetService {
     public PageResult<RoutingTestPresetDto> list(PageRequest pageRequest, String keyword, String protocolCode) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<RoutingTestPresetEntity> pageInfo = new PageInfo<>(
-                    presetMapper.listPresets(normalizeKeyword(keyword), normalizeProtocol(protocolCode))
+                    presetMapper.listPresets(StringUtils.trimToNull(keyword), normalizeProtocol(protocolCode))
             );
             return PageResult.fromPage(pageInfo, presetConverter::toDtoList, pageRequest);
         }
@@ -156,11 +157,6 @@ public class RoutingTestPresetService {
                 ? EnabledStatusEnum.ENABLED.code()
                 : EnabledStatusEnum.requireCode(request.status(), "无效的启用状态").code());
         return entity;
-    }
-
-    private static String normalizeKeyword(String keyword) {
-        String value = keyword == null ? "" : keyword.trim();
-        return value.isEmpty() ? null : value;
     }
 
     private static String normalizeProtocol(String protocolCode) {

@@ -157,7 +157,7 @@ const hasCallback = computed(() => Boolean(task.value?.callbackUrl));
 const deliveryFailed = computed(() => task.value?.deliveryStatus === AsyncTaskDeliveryStatus.FAILED);
 
 function deliveryLabel(status: unknown): string {
-  return labelOf("AsyncTaskDeliveryStatusEnum", status, String(status ?? "-"));
+  return labelOf("AsyncTaskDeliveryStatusEnum", status);
 }
 
 /** 交付态配色与任务态刻意不同轴：待回调用 warning 而不是「处理中」那种中性色，它是有待完成的事 */
@@ -175,7 +175,7 @@ function deliveryTagType(status: unknown): "success" | "warning" | "danger" | "i
 }
 
 function statusLabel(status: unknown): string {
-  return labelOf("AsyncTaskStatusEnum", status, String(status ?? "-"));
+  return labelOf("AsyncTaskStatusEnum", status);
 }
 
 function statusTagType(status: unknown): "success" | "warning" | "danger" | "info" {

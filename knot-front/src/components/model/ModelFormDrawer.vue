@@ -1218,11 +1218,7 @@ async function submit() {
 }
 
 .bind-list__text {
-  overflow: hidden;
-  color: #303133;
   font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .api-usage-section {
