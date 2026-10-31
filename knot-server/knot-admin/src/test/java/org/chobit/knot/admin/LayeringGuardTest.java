@@ -17,10 +17,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 分层红线守卫：admin 不得直接访问 {@code knot-dal} 的 Mapper。
+ * 分层红线守卫：admin 不得直接访问 {@code knot-dal} —— Mapper 不行，实体/查询对象也不行。
  *
  * <p><b>为什么它必须是一个测试</b>：规范 {@code 10-backend-java.md §3.1} 已经写明
- * 「只有 {@code knot-service} 能碰 Mapper」，但写在文档里的约束只能靠人记住；
+ * 「只有 {@code knot-service} 能碰 dal」，但写在文档里的约束只能靠人记住；
  * 而这条约束<b>纯静态可判</b>（有没有 import {@code dal.mapper} 是一行 grep 的事），
  * 能判的就不该停在文档里。与 {@code knot-gateway/.../LayeringGuardTest} 同源同判据——
  * 两个 app 的红线必须用同一把尺子量，否则「网关收干净了、管理端还在散着」没人会发现。</p>
@@ -45,8 +45,18 @@ class LayeringGuardTest {
     private static final Pattern MAPPER_IMPORT =
             Pattern.compile("^\\s*import\\s+org\\.chobit\\.knot\\.dal\\.mapper\\.", Pattern.MULTILINE);
 
-    private static final Pattern ENTITY_IMPORT =
-            Pattern.compile("^\\s*import\\s+org\\.chobit\\.knot\\.dal\\.entity\\.", Pattern.MULTILINE);
+    /**
+     * ⭐ 判据是「整个 {@code dal} 包，但排除 {@code mapper} 子包」，与 gateway 那份逐字相同。
+     *
+     * <p>排除 mapper：上面那条正则专门管它，报错信息更具体（直指 svc 的哪个服务）；
+     * 两条重叠只会让同一个文件报两遍。</p>
+     *
+     * <p>盯整个包：{@code dal} 今天只有 {@code entity} / {@code mapper} 两个子包，所以与「只盯 entity」
+     * 行为等价——但 dal 长出查询对象、审计快照之类的子包时，这条自动覆盖。
+     * <b>判据照红线的原话写，不照今天的包结构写。</b></p>
+     */
+    private static final Pattern NON_MAPPER_DAL_IMPORT =
+            Pattern.compile("^\\s*import\\s+org\\.chobit\\.knot\\.dal\\.(?!mapper\\.)", Pattern.MULTILINE);
 
     /** 豁免：启动类的 {@code @MapperScan} 需要 mapper 类字面量 */
     private static final String SCAN_EXEMPT = "AdminApplication.java";
@@ -62,7 +72,7 @@ class LayeringGuardTest {
     private static final List<String> KNOWN_MAPPER_OFFENDERS = List.of();
 
     /**
-     * {@code dal.entity} 的存量清单：<b>已清零（2026-10-31）</b>。
+     * 非 Mapper 的 dal 引用存量清单：<b>已清零（2026-10-31）</b>。
      *
      * <p>⚠ <b>这不是豁免，是债务盘点 + 只许降不许升的棘轮</b>。
      * 原先登记 9 个 controller，它们直接把实体当响应体返回（{@code PageResult<XxxEntity>}），
@@ -73,10 +83,10 @@ class LayeringGuardTest {
      * 代价是 record 的 SpEL 必须改用访问器形式（{@code #result.id()}）——这一步漏了不会报错，
      * 只会让审计日志的 entityId 变空，见 {@code ScheduledTaskController} 的类注释。</p>
      *
-     * <p>名字保留（而不是把 {@code KNOWN_ENTITY_IMPORTS} 直接删掉）是为了让棘轮还能转：
-     * 今后任何新出现的实体外泄都会直接变红，而「登记进名单」这条后门需要有人显式加一行。</p>
+     * <p>名字保留（而不是把名单直接删掉）是为了让棘轮还能转：
+     * 今后任何新出现的 dal 外泄都会直接变红，而「登记进名单」这条后门需要有人显式加一行。</p>
      */
-    private static final List<String> KNOWN_ENTITY_IMPORTS = List.of();
+    private static final List<String> KNOWN_NON_MAPPER_DAL_IMPORTS = List.of();
 
     @Test
     void noMapperImportOutsideTheScanConfiguration() throws Exception {
@@ -119,24 +129,24 @@ class LayeringGuardTest {
                         + String.join("\n  ", stale));
     }
 
-    /** 棘轮第一半：不许出现清单之外的新实体引用 */
+    /** 棘轮第一半：不许出现清单之外的新 dal 引用（mapper 除外，它由上面那条专门管） */
     @Test
-    void noNewEntityLeaksIntoAdmin() throws Exception {
-        Set<String> additions = new TreeSet<>(entityImporters());
-        additions.removeAll(KNOWN_ENTITY_IMPORTS);
+    void noNewNonMapperDalLeaksIntoAdmin() throws Exception {
+        Set<String> additions = new TreeSet<>(nonMapperDalImporters());
+        additions.removeAll(KNOWN_NON_MAPPER_DAL_IMPORTS);
         assertTrue(additions.isEmpty(),
-                "新增了直接 import dal.entity 的类。admin 的对外响应应该是 svc 的 record"
+                "新增了直接 import org.chobit.knot.dal 的类（mapper 之外）。admin 的对外响应应该是 svc 的 record"
                         + "（样板见 ScheduledTaskController），实体只允许出现在 svc 的 Converter 里。\n"
                         + "  新增：\n  " + String.join("\n  ", additions));
     }
 
     /** 棘轮第二半：清单里的项一旦改干净就必须删掉，否则清单会慢慢变成「历史记录」而失去意义 */
     @Test
-    void entityImportInventoryHasNoStaleEntries() throws Exception {
-        Set<String> current = entityImporters();
-        List<String> stale = KNOWN_ENTITY_IMPORTS.stream().filter(path -> !current.contains(path)).toList();
+    void dalImportInventoryHasNoStaleEntries() throws Exception {
+        Set<String> current = nonMapperDalImporters();
+        List<String> stale = KNOWN_NON_MAPPER_DAL_IMPORTS.stream().filter(path -> !current.contains(path)).toList();
         assertTrue(stale.isEmpty(),
-                "以下文件已经不再 import dal.entity，请从 KNOWN_ENTITY_IMPORTS 里删掉：\n  "
+                "以下文件已经不再 import dal（mapper 之外），请从 KNOWN_NON_MAPPER_DAL_IMPORTS 里删掉：\n  "
                         + String.join("\n  ", stale));
     }
 
@@ -152,10 +162,10 @@ class LayeringGuardTest {
                 "没扫到启动类，豁免名单可能已经失效（类改名后这里会一直绿）");
     }
 
-    private static Set<String> entityImporters() throws IOException {
+    private static Set<String> nonMapperDalImporters() throws IOException {
         Set<String> result = new TreeSet<>();
         for (Path file : javaFiles()) {
-            if (ENTITY_IMPORT.matcher(Files.readString(file, StandardCharsets.UTF_8)).find()) {
+            if (NON_MAPPER_DAL_IMPORT.matcher(Files.readString(file, StandardCharsets.UTF_8)).find()) {
                 result.add(relative(file));
             }
         }

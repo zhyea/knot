@@ -33,7 +33,7 @@ public class StickyRouting {
 
     private static final int RING_CACHE_MAXIMUM_SIZE = 512;
 
-    /** 与 GatewayEntityCacheService 的池数据缓存同周期，保证环不会比池成员更「新」 */
+    /** 与 GatewayConfigCacheService 的池数据缓存同周期，保证环不会比池成员更「新」 */
     private static final Duration RING_CACHE_TTL = Duration.ofMinutes(10);
 
     /** 候选集合 → hash 环；环是纯函数结果，缓存只为省掉每请求的建环开销 */

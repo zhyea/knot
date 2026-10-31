@@ -1,10 +1,10 @@
 package org.chobit.knot.gateway.traffic;
 
 import lombok.extern.slf4j.Slf4j;
-import org.chobit.knot.dal.entity.ProviderAccountEntity;
+import org.chobit.knot.svc.vo.gateway.ProviderAccountConfigVo;
 import org.chobit.knot.svc.model.TrafficPolicies;
 import org.chobit.knot.gateway.redis.RedisCache;
-import org.chobit.knot.gateway.service.GatewayEntityCacheService;
+import org.chobit.knot.gateway.service.GatewayConfigCacheService;
 import org.chobit.knot.gateway.store.StoreMode;
 import org.chobit.knot.gateway.store.StoreModeResolver;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -31,10 +31,10 @@ public class TrafficCounterConfiguration {
     private static final String DOMAIN = "traffic";
 
     /**
-     * 策略数据源：走 GatewayEntityCacheService（库查询 + 10 分钟缓存），与计数存储相互独立。
+     * 策略数据源：走 GatewayConfigCacheService（库查询 + 10 分钟缓存），与计数存储相互独立。
      */
     @Bean
-    public TrafficPolicySource trafficPolicySource(GatewayEntityCacheService dataService) {
+    public TrafficPolicySource trafficPolicySource(GatewayConfigCacheService dataService) {
         return new TrafficPolicySource() {
 
             @Override
@@ -44,8 +44,8 @@ public class TrafficCounterConfiguration {
 
             @Override
             public Long providerAccountIdOf(String providerAccountCode) {
-                ProviderAccountEntity account = dataService.getProviderAccountByCode(providerAccountCode);
-                return account == null ? null : account.getId();
+                ProviderAccountConfigVo account = dataService.getProviderAccountByCode(providerAccountCode);
+                return account == null ? null : account.id();
             }
         };
     }

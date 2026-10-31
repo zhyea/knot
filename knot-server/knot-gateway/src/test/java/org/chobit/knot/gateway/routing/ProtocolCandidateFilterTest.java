@@ -3,6 +3,9 @@ package org.chobit.knot.gateway.routing;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.dal.entity.ModelApiBindingEntity;
+import org.chobit.knot.svc.converter.GatewayConfigConverter;
+import org.chobit.knot.svc.vo.gateway.ModelApiBindingConfigVo;
+import org.mapstruct.factory.Mappers;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -25,7 +28,7 @@ class ProtocolCandidateFilterTest {
     private static final long B = 2L;
     private static final long C = 3L;
 
-    private final Map<Long, List<ModelApiBindingEntity>> bindings = Map.of(
+    private final Map<Long, List<ModelApiBindingConfigVo>> bindings = Map.of(
             A, List.of(binding("CHAT_COMPLETIONS", 1), binding("MESSAGES", 1)),
             B, List.of(binding("CHAT_COMPLETIONS", 1))
     );
@@ -57,7 +60,7 @@ class ProtocolCandidateFilterTest {
 
     @Test
     void disabledBindingDoesNotCount() {
-        List<ModelApiBindingEntity> withDisabled = new ArrayList<>();
+        List<ModelApiBindingConfigVo> withDisabled = new ArrayList<>();
         withDisabled.add(binding("CHAT_COMPLETIONS", 1));
         withDisabled.add(binding("EMBEDDINGS", 0));
         ProtocolCandidateFilter disabledAware = new ProtocolCandidateFilter(modelId ->
@@ -94,10 +97,14 @@ class ProtocolCandidateFilterTest {
                 "名称-" + code, "CHAT", null, 1, true, null);
     }
 
-    private static ModelApiBindingEntity binding(String protocol, int status) {
+    /** 夹具走「构造实体 → 真 Converter」：record 12 个位置参数手写易错位，见 RoutingResolverTest 同款说明 */
+    private static final GatewayConfigConverter CONVERTER =
+            Mappers.getMapper(GatewayConfigConverter.class);
+
+    private static ModelApiBindingConfigVo binding(String protocol, int status) {
         ModelApiBindingEntity entity = new ModelApiBindingEntity();
         entity.setProtocol(protocol);
         entity.setStatus(status);
-        return entity;
+        return CONVERTER.toApiBindingVo(entity);
     }
 }

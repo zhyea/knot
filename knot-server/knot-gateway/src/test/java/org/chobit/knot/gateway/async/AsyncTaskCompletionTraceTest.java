@@ -15,7 +15,11 @@ import org.chobit.knot.gateway.kafka.KafkaPublisher;
 import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
 import org.chobit.knot.gateway.kafka.msg.Msg;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
-import org.chobit.knot.gateway.service.GatewayEntityCacheService;
+import org.chobit.knot.svc.converter.GatewayConfigConverter;
+import org.chobit.knot.svc.service.GatewayConfigQueryService;
+import org.chobit.knot.svc.vo.gateway.ModelConfigVo;
+import org.mapstruct.factory.Mappers;
+import org.chobit.knot.gateway.service.GatewayConfigCacheService;
 import org.chobit.knot.svc.service.support.ResourceTrafficPolicySupport;
 import org.junit.jupiter.api.Test;
 
@@ -181,27 +185,29 @@ class AsyncTaskCompletionTraceTest {
      * 数据桩：{@code getModelByCode} 返回 null —— {@link AsyncTaskCompletion#publish} 对 null
      * 模型是容忍的（消息里的模型 id 落空，但 trace/task 字段照发），正好够本类断言追踪坐标。
      *
-     * <p>构造器不能吃 null mapper：javac 对绑定方法引用（{@code modelMapper::getByCode}）的接收者
-     * 会插入 {@code Objects.requireNonNull}，故用动态代理占位。</p>
+     * <p>2026-10-31 之后本类不再注入 Mapper：数据来源是 {@link GatewayConfigQueryService}，
+     * 这里把 mapper 动态代理交给它，查询恒返回 null（与改造前行为一致）。</p>
      */
-    private static final class StubEntityCache extends GatewayEntityCacheService {
+    private static final class StubEntityCache extends GatewayConfigCacheService {
 
         private StubEntityCache() {
-            super(nullProxy(AppMapper.class),
-                    nullProxy(RoutingConsumerMapper.class),
-                    nullProxy(RoutingRuleMapper.class),
-                    nullProxy(RoutingRuleTargetMapper.class),
-                    nullProxy(ModelMapper.class),
-                    nullProxy(ModelPoolMapper.class),
-                    nullProxy(ProviderAccountMapper.class),
-                    nullProxy(ProviderCredentialMapper.class),
-                    nullProxy(ModelApiBindingMapper.class),
-                    new ResourceTrafficPolicySupport(null, null, null, null),
-                    nullProxy(BillingRuleMapper.class));
+            super(new GatewayConfigQueryService(
+                            nullProxy(AppMapper.class),
+                            nullProxy(RoutingConsumerMapper.class),
+                            nullProxy(RoutingRuleMapper.class),
+                            nullProxy(RoutingRuleTargetMapper.class),
+                            nullProxy(ModelMapper.class),
+                            nullProxy(ModelPoolMapper.class),
+                            nullProxy(ProviderAccountMapper.class),
+                            nullProxy(ProviderCredentialMapper.class),
+                            nullProxy(ModelApiBindingMapper.class),
+                            nullProxy(BillingRuleMapper.class),
+                            Mappers.getMapper(GatewayConfigConverter.class)),
+                    new ResourceTrafficPolicySupport(null, null, null, null));
         }
 
         @Override
-        public org.chobit.knot.dal.entity.ModelEntity getModelByCode(String modelCode) {
+        public ModelConfigVo getModelByCode(String modelCode) {
             return null;
         }
     }

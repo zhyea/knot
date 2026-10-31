@@ -3,7 +3,7 @@ package org.chobit.knot.gateway.routing;
 import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
-import org.chobit.knot.dal.entity.ModelApiBindingEntity;
+import org.chobit.knot.svc.vo.gateway.ModelApiBindingConfigVo;
 
 import java.util.List;
 import java.util.Objects;
@@ -46,8 +46,8 @@ public class ProtocolCandidateFilter {
             return false;
         }
         return bindingSource.bindingsOf(candidate.targetId()).stream()
-                .filter(binding -> EnabledStatusEnum.isEnabled(binding.getStatus()))
-                .map(ModelApiBindingEntity::getProtocol)
+                .filter(binding -> EnabledStatusEnum.isEnabled(binding.status()))
+                .map(ModelApiBindingConfigVo::protocol)
                 .map(ModelApiProtocolEnum::fromCode)
                 .filter(Objects::nonNull)
                 .anyMatch(bindingProtocol -> bindingProtocol.canonical() == protocol.canonical());

@@ -13,10 +13,10 @@ import org.chobit.knot.common.constants.enums.EnabledStatusEnum;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
-import org.chobit.knot.dal.entity.ModelApiBindingEntity;
-import org.chobit.knot.dal.entity.ModelEntity;
-import org.chobit.knot.dal.entity.ProviderAccountEntity;
-import org.chobit.knot.dal.entity.ProviderCredentialEntity;
+import org.chobit.knot.svc.vo.gateway.ModelApiBindingConfigVo;
+import org.chobit.knot.svc.vo.gateway.ModelConfigVo;
+import org.chobit.knot.svc.vo.gateway.ProviderAccountConfigVo;
+import org.chobit.knot.svc.vo.gateway.ProviderCredentialConfigVo;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.plugin.PluginDispatcher;
@@ -24,7 +24,7 @@ import org.chobit.knot.plugin.PluginExtensionPoint;
 import org.chobit.knot.plugin.PluginStageCode;
 import org.chobit.knot.plugin.upstream.UpstreamPluginContext;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
-import org.chobit.knot.gateway.service.GatewayEntityCacheService;
+import org.chobit.knot.gateway.service.GatewayConfigCacheService;
 import org.chobit.knot.svc.service.support.ProviderCredentialSupport;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutor;
 import org.chobit.knot.gateway.upstream.protocol.UpstreamProtocolExecutorRegistry;
@@ -45,7 +45,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class UpstreamProxyClient {
 
-    private final GatewayEntityCacheService dataService;
+    private final GatewayConfigCacheService dataService;
     private final UpstreamProtocolExecutorRegistry protocolExecutorRegistry;
     private final UpstreamAdapterRegistry requestAdapterRegistry;
     private final ProviderCredentialSupport providerCredentialSupport;
@@ -93,24 +93,24 @@ public class UpstreamProxyClient {
                                                            ModelApiProtocolEnum protocol,
                                                            String traceparent,
                                                            String requestId) {
-        ModelEntity model = resolveModel(modelId);
-        ProviderAccountEntity provider = resolveProvider(model, model.getModelCode());
+        ModelConfigVo model = resolveModel(modelId);
+        ProviderAccountConfigVo provider = resolveProvider(model, model.modelCode());
         ModelApiProtocolEnum resolvedProtocol = resolveProtocol(protocol);
-        ModelApiBindingEntity binding = resolveBinding(model.getId(), resolvedProtocol);
-        ProviderCredentialEntity credential = dataService.getActiveCredentialByProviderId(provider.getId());
+        ModelApiBindingConfigVo binding = resolveBinding(model.id(), resolvedProtocol);
+        ProviderCredentialConfigVo credential = dataService.getActiveCredentialByProviderId(provider.id());
         return new UpstreamRequestContext(
                 resolvedProtocol,
                 requestBody,
                 contentType,
-                new ModelRef(model.getId(), model.getModelCode(), model.getUpstreamModel(),
-                        model.getBasePath(), model.getBillingRuleCode(), model.getModelFamilyCode()),
-                new ProviderAccountRef(provider.getId(), provider.getCode(), provider.getBaseUrl(),
-                        provider.getProviderCode()),
-                providerCredentialSupport.toAuthConfig(credential),
+                new ModelRef(model.id(), model.modelCode(), model.upstreamModel(),
+                        model.basePath(), model.billingRuleCode(), model.modelFamilyCode()),
+                new ProviderAccountRef(provider.id(), provider.code(), provider.baseUrl(),
+                        provider.providerCode()),
+                providerCredentialSupport.toAuthConfig(credential == null ? null : credential.encryptedConfig()),
                 bindingRef(binding),
                 traceparent,
                 GatewayTraceContext.traceIdOf(traceparent),
-                providerCredentialSupport.authApplier(credential),
+                credential == null ? null : credential.authApplier(),
                 requestId
         );
     }
@@ -139,24 +139,24 @@ public class UpstreamProxyClient {
                                                        ModelApiProtocolEnum protocol,
                                                        String traceparent,
                                                        String requestId) {
-        ModelEntity model = resolveModel(target);
-        ProviderAccountEntity provider = resolveProvider(model, target == null ? null : target.targetCode());
+        ModelConfigVo model = resolveModel(target);
+        ProviderAccountConfigVo provider = resolveProvider(model, target == null ? null : target.targetCode());
         ModelApiProtocolEnum resolvedProtocol = resolveProtocol(protocol);
-        ModelApiBindingEntity binding = resolveBinding(model.getId(), resolvedProtocol);
-        ProviderCredentialEntity credential = dataService.getActiveCredentialByProviderId(provider.getId());
+        ModelApiBindingConfigVo binding = resolveBinding(model.id(), resolvedProtocol);
+        ProviderCredentialConfigVo credential = dataService.getActiveCredentialByProviderId(provider.id());
         return new UpstreamRequestContext(
                 resolvedProtocol,
                 requestBody,
                 contentType,
-                new ModelRef(model.getId(), model.getModelCode(), model.getUpstreamModel(),
-                        model.getBasePath(), model.getBillingRuleCode(), model.getModelFamilyCode()),
-                new ProviderAccountRef(provider.getId(), provider.getCode(), provider.getBaseUrl(),
-                        provider.getProviderCode()),
-                providerCredentialSupport.toAuthConfig(credential),
+                new ModelRef(model.id(), model.modelCode(), model.upstreamModel(),
+                        model.basePath(), model.billingRuleCode(), model.modelFamilyCode()),
+                new ProviderAccountRef(provider.id(), provider.code(), provider.baseUrl(),
+                        provider.providerCode()),
+                providerCredentialSupport.toAuthConfig(credential == null ? null : credential.encryptedConfig()),
                 bindingRef(binding),
                 traceparent,
                 GatewayTraceContext.traceIdOf(traceparent),
-                providerCredentialSupport.authApplier(credential),
+                credential == null ? null : credential.authApplier(),
                 requestId
         );
     }
@@ -165,30 +165,30 @@ public class UpstreamProxyClient {
      * 绑定投影：模型未绑该协议时实体为 null（{@code resolveBinding} 取不到即回落协议默认路径），
      * 投影保持 null，由 {@link UpstreamRequestContext#requestAdapter()} 等消费方判空。
      */
-    private static ModelApiBindingRef bindingRef(ModelApiBindingEntity binding) {
+    private static ModelApiBindingRef bindingRef(ModelApiBindingConfigVo binding) {
         return binding == null ? null : new ModelApiBindingRef(
-                binding.getApiPath(), binding.getRequestAdapter(), binding.getProtocol(),
-                binding.getUsageExtractor(), binding.getStreamUsageExtractor());
+                binding.apiPath(), binding.requestAdapter(), binding.protocol(),
+                binding.usageExtractor(), binding.streamUsageExtractor());
     }
 
-    private ModelEntity resolveModel(RoutingRuleTargetDto target) {
+    private ModelConfigVo resolveModel(RoutingRuleTargetDto target) {
         return resolveModel(target == null ? null : target.targetId(), target == null ? null : target.targetCode());
     }
 
-    private ModelEntity resolveModel(Long modelId) {
+    private ModelConfigVo resolveModel(Long modelId) {
         return resolveModel(modelId, null);
     }
 
-    private ModelEntity resolveModel(Long modelId, String modelCode) {
-        ModelEntity model = modelId == null ? null : dataService.getModelById(modelId);
+    private ModelConfigVo resolveModel(Long modelId, String modelCode) {
+        ModelConfigVo model = modelId == null ? null : dataService.getModelById(modelId);
         if (model == null) {
             throw new GatewayUpstreamException("model not found: " + modelCode, ProxyErrorCodeEnum.MODEL_NOT_FOUND.code());
         }
         return model;
     }
 
-    private ProviderAccountEntity resolveProvider(ModelEntity model, String modelCode) {
-        ProviderAccountEntity provider = dataService.getProviderAccountByCode(model.getProviderAccountCode());
+    private ProviderAccountConfigVo resolveProvider(ModelConfigVo model, String modelCode) {
+        ProviderAccountConfigVo provider = dataService.getProviderAccountByCode(model.providerAccountCode());
         if (provider == null) {
             throw new GatewayUpstreamException("provider not found for model: " + modelCode, ProxyErrorCodeEnum.PROVIDER_NOT_FOUND.code());
         }
@@ -199,10 +199,10 @@ public class UpstreamProxyClient {
         return protocol != null ? protocol.canonical() : ModelApiProtocolEnum.CHAT_COMPLETIONS;
     }
 
-    private ModelApiBindingEntity resolveBinding(Long modelId, ModelApiProtocolEnum protocol) {
+    private ModelApiBindingConfigVo resolveBinding(Long modelId, ModelApiProtocolEnum protocol) {
         return dataService.listApiBindingsByModelId(modelId).stream()
-                .filter(item -> EnabledStatusEnum.isEnabled(item.getStatus()))
-                .filter(item -> protocol.matches(item.getProtocol()))
+                .filter(item -> EnabledStatusEnum.isEnabled(item.status()))
+                .filter(item -> protocol.matches(item.protocol()))
                 .findFirst()
                 .orElse(null);
     }

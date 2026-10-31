@@ -95,31 +95,53 @@ model       → 领域值对象（非表映射）
 - ⭐ **svc 对外出自己的模型（record DTO），不裸传 `dal.entity`**：把实体原样吐给 app，
   红线就从「禁止碰 Mapper」退化成「禁止碰 Mapper 但可以碰 Entity」，
   等于给 dal 留了后门——下次有人把实体塞进另一个 mapper 调用，没有编译信号。
-  svc 内部 58 个文件用 entity 是允许的：**边界在「跨模块出去的那一刻」**。
+  svc 内部 64 个文件用 entity 是允许的：**边界在「跨模块出去的那一刻」**。
 - ⭐ **状态/语义枚举：一方写库就跟着写库那方走；三方都用就进 `common`**。
   `AsyncTaskStatusEnum` 最终住在 `knot-common`：svc 用它的 `inFlightCodes()` 拼 SQL 谓词，
   gateway 编排用它判迁移，admin 展示用它出文案——放任何一端都会逼另两端反向依赖或复制，
   而复制一份就是「同一状态集两份定义」，必然漂移。
-- **实体转换收敛到一个 Converter**：全模块只有它允许 import `dal.entity`，
+- **实体 → 对外载体的转换收敛到 `svc.converter`**（23 个 Converter 按聚合分，不合并成一个大类）：
   于是「有没有实体漏出去」是一条 grep 就能出结果的事。
-  加实体字段时 Converter 必须同步——漏一个字段编译不报错，
-  表现是「新字段读出来恒为 null」，靠逐字段断言钉住（判例 `AsyncTaskConverterTest`）。
+  加实体字段时对应 Converter 必须同步——漏一个字段编译只报 WARN，
+  表现是「新字段读出来恒为 null」，靠逐字段断言钉住（判例 `AsyncTaskConverterTest` /
+  `GatewayConfigConverterTest`）。
 - **启动类的 `@MapperScan(basePackageClasses = AppMapper.class)` 是唯一豁免**：
   它注册 bean，不执行 SQL；且规范强制要求用类字面量形式（§1.1），必然要 import 一个 mapper。
 
 ⭐ **这条红线由测试守住，不停在文档里**（两个 app 各一份，别只守一边）：
-`knot-gateway/.../LayeringGuardTest` 与 `knot-admin/.../LayeringGuardTest` 都扫描 `src/main/java`
-断言「除豁免项外无 `dal.mapper` import」，并带防空跑守卫。
-admin 那份还额外把 9 个仍直接 import `dal.entity` 的 controller 列入**只许降不许升的棘轮清单**
-（新增一个就红，清掉一个也红并要求删名单）。
-理由是纯静态可判的约束都不该靠 review 记住——第一个赶时间的人破例之后，
-第二个人看到「这里已经有一处了」就会再加一处。
+`knot-gateway/.../LayeringGuardTest` 与 `knot-admin/.../LayeringGuardTest` 都扫描 `src/main/java`，
+都带**两把棘轮**——Mapper 一把、非 Mapper 的 dal 引用一把——且都带防空跑守卫。
+两把都是「只许降不许升」：新增一个就红，清掉一个也红并要求删名单。
+
+⚠ **判据写成「整个 `org.chobit.knot.dal`（`mapper` 子包除外，由另一把棘轮专门管）」，不是只盯 `dal.entity`**：
+`dal` 今天只有 `entity` / `mapper` 两个子包，两种写法行为完全等价——
+但 dal 将来长出查询对象、审计快照之类的子包时，照红线原话写的判据自动覆盖，只盯 `entity` 的会漏。
+**判据要照红线的原话写，不能照今天的包结构写。**
+
+两侧现状（2026-10-31 全部清零，两把棘轮的名单均为空）：
+- **admin**：9 个直返实体的 controller 已清零（字段逐字平移到 svc 的 record，
+  对外 JSON 字段集合不变，前端零改动）。
+- **gateway**：10 个文件已清零，方式是**拆服务而不是换载体**——`GatewayEntityCacheService`
+  （11 个 Mapper、10 张配置表预热、330 行）拆成 `svc.service.GatewayConfigQueryService`
+  （数据访问，吐 `svc.vo.gateway.*ConfigVo`）+ `gateway.service.GatewayConfigCacheService`
+  （Caffeine 缓存，一个 Mapper 都不注入）。后者保留 `expireAfterWrite=10min` /
+  `refreshAfterWrite=30s`，那是**网关配置生效延迟的唯一上限**，排查「改了没生效」先看它。
+  配套：11 个载体 + `svc.converter.GatewayConfigConverter`（MapStruct）+ 下游 9 个文件 148 处
+  getter 改访问器。
+
+⚠ **这批载体不能复用 admin 的同名 `Item`**：那批是**展示语义**——例如 `ModelApiBindingItem` 是
+`boolean enabled`，而网关读的是 `binding.getStatus()`（`EnabledStatusEnum` 整型码），
+字段名与类型都不同，套用会倒逼下游改判定口径，比现状更糟。网关要的是**配置快照**：
+字段集由路由决策决定、语义与实体一一对应，且**字段逐字平移不裁剪**——
+裁掉任何一个，下游就会为了它回退去 import 实体，棘轮也就白清了
+（守门 `GatewayConfigConverterTest`：字段集对账 + 逐字段镜像断言）。
+`ProviderCredentialConfigVo` 带 `encryptedConfig` / `authApplier` 属敏感数据，但**必须带**：
+网关要在进程内解出鉴权参数，安全边界靠「不对外暴露」，不靠「载体里没有这个字段」。
 
 ⚠ **存量违规用「会自我失效的名单」登记，不用注释 TODO**：名单里每一项都被另一条断言
 要求「现在确实还在违规」，改干净了那条就红并提示删名单。TODO 会静默腐烂，这条会响。
-当前登记项：`GatewayEntityCacheService`（10 张配置表预热成本地缓存，改动面大、单独排期）。
-⚠ 判据当前只禁 `dal.mapper`、不禁 `dal.entity`，是因为上面这条存量违规还没清；
-**清完之后判据应当收紧到整个 `org.chobit.knot.dal`**。
+gateway 那 10 项就是被逼出来的：前一天补齐棘轮、第二天清完，两条反向断言同时变红要求删名单。
+**名单留空但机制不删**——下一个人需要分批走时往里登记，就得接受「改完那天测试红着催他删」。
 
 ### 3.2 编排跟随使用方：数据访问归 svc，编排归用它的 app（2026-10-29 三轮定稿，robin 拍板）
 

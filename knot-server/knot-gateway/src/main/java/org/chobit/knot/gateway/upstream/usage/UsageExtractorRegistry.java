@@ -5,11 +5,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.config.UsageExtractionProperties;
-import org.chobit.knot.dal.entity.BillingRuleEntity;
+import org.chobit.knot.svc.vo.gateway.BillingRuleConfigVo;
 import org.chobit.knot.adapter.model.usage.NormalizedUsage;
 import org.chobit.knot.adapter.model.usage.UsageAccounting;
 import org.chobit.knot.adapter.usage.UsageExtractItem;
-import org.chobit.knot.gateway.service.GatewayEntityCacheService;
+import org.chobit.knot.gateway.service.GatewayConfigCacheService;
 import org.chobit.knot.adapter.model.ref.BillingRuleRef;
 import org.chobit.knot.adapter.usage.UsageExtractorResolver;
 import org.chobit.knot.adapter.usage.UsageNormalizationSupport;
@@ -47,11 +47,11 @@ import java.util.Map;
 public class UsageExtractorRegistry {
 
     private final UsageExtractorCatalog usageExtractorCatalog;
-    private final GatewayEntityCacheService dataService;
+    private final GatewayConfigCacheService dataService;
     private final UsageExtractionProperties properties;
 
     public UsageExtractorRegistry(UsageExtractorCatalog usageExtractorCatalog,
-                                  GatewayEntityCacheService dataService,
+                                  GatewayConfigCacheService dataService,
                                   UsageExtractionProperties properties) {
         this.usageExtractorCatalog = usageExtractorCatalog;
         this.dataService = dataService;
@@ -280,7 +280,7 @@ public class UsageExtractorRegistry {
      * <p>回退链必须存在——{@code kb_models.billing_rule_code} 允许为空，
      * 只认显式绑定会让未绑模型的计费整体消失（明细与总价全无）。</p>
      */
-    private BillingRuleEntity resolveBillingRule(UpstreamRequestContext context) {
+    private BillingRuleConfigVo resolveBillingRule(UpstreamRequestContext context) {
         if (context == null || context.model() == null) {
             return null;
         }
@@ -291,12 +291,12 @@ public class UsageExtractorRegistry {
     }
 
     /**
-     * 计费规则实体 → 适配层投影：只带计价消费的六个字段（改进清单 2.5）。
-     * 实体由 {@link GatewayEntityCacheService} 产出，投影发生在网关侧边界上。
+     * 计费规则快照 → 适配层投影：只带计价消费的六个字段（改进清单 2.5）。
+     * 快照由 {@link GatewayConfigCacheService} 产出，投影发生在网关侧边界上。
      */
-    private static BillingRuleRef ruleRef(BillingRuleEntity rule) {
+    private static BillingRuleRef ruleRef(BillingRuleConfigVo rule) {
         return rule == null ? null : new BillingRuleRef(
-                rule.getBillingMode(), rule.getConfigJson(), rule.getCurrency(),
-                rule.getPricingPlan(), rule.getUnit(), rule.getVersionCode());
+                rule.billingMode(), rule.configJson(), rule.currency(),
+                rule.pricingPlan(), rule.unit(), rule.versionCode());
     }
 }

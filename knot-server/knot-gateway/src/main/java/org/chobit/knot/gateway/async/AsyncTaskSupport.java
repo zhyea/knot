@@ -10,16 +10,16 @@ import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.common.util.CallbackFieldSupport;
 import org.chobit.knot.common.util.JsonKit;
-import org.chobit.knot.dal.entity.BillingRuleEntity;
-import org.chobit.knot.dal.entity.ModelApiBindingEntity;
-import org.chobit.knot.dal.entity.ModelEntity;
+import org.chobit.knot.svc.vo.gateway.BillingRuleConfigVo;
+import org.chobit.knot.svc.vo.gateway.ModelApiBindingConfigVo;
+import org.chobit.knot.svc.vo.gateway.ModelConfigVo;
 import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.model.vo.response.AsyncTaskAcceptedResponse;
 import org.chobit.knot.gateway.runtime.GatewayExchange;
 import org.chobit.knot.gateway.runtime.GatewayRequestContext;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
-import org.chobit.knot.gateway.service.GatewayEntityCacheService;
+import org.chobit.knot.gateway.service.GatewayConfigCacheService;
 import org.chobit.knot.svc.dto.async.AsyncTaskDraftDto;
 import org.chobit.knot.svc.dto.async.AsyncTaskProfileDto;
 import org.chobit.knot.svc.service.AsyncTaskProfileService;
@@ -48,7 +48,7 @@ import java.util.UUID;
 public class AsyncTaskSupport {
 
     private final AsyncTaskProfileService profileService;
-    private final GatewayEntityCacheService dataService;
+    private final GatewayConfigCacheService dataService;
     private final AsyncTaskService taskService;
 
     /** 读回调主机白名单（{@code callback-allowed-hosts}）；提交时用于 SSRF 守卫 */
@@ -61,8 +61,8 @@ public class AsyncTaskSupport {
      * 可灵 / MiniMax 是「提交 + 轮询」，其它模型可能同步返回。因此判定一律落在绑定上，
      * 不能按协议枚举猜（那会让既有同步视频一起被改造成异步）。</p>
      */
-    public String profileCodeOf(ModelApiBindingEntity binding) {
-        return binding == null ? null : StringUtils.trimToNull(binding.getAsyncProfileCode());
+    public String profileCodeOf(ModelApiBindingConfigVo binding) {
+        return binding == null ? null : StringUtils.trimToNull(binding.asyncProfileCode());
     }
 
     /**
@@ -71,12 +71,12 @@ public class AsyncTaskSupport {
      * @param modelId  命中模型主键
      * @param protocol 本次协议
      */
-    public ModelApiBindingEntity bindingOf(Long modelId, ModelApiProtocolEnum protocol) {
+    public ModelApiBindingConfigVo bindingOf(Long modelId, ModelApiProtocolEnum protocol) {
         if (modelId == null || protocol == null) {
             return null;
         }
         return dataService.listApiBindingsByModelId(modelId).stream()
-                .filter(item -> protocol.matches(item.getProtocol()))
+                .filter(item -> protocol.matches(item.protocol()))
                 .findFirst()
                 .orElse(null);
     }
@@ -187,7 +187,7 @@ public class AsyncTaskSupport {
             return null;
         }
         RoutingRuleTargetDto target = context.attribute(GatewayRequestHandler.HIT_TARGET_ATTRIBUTE);
-        ModelApiBindingEntity binding = bindingOf(target == null ? null : target.targetId(), context.protocol());
+        ModelApiBindingConfigVo binding = bindingOf(target == null ? null : target.targetId(), context.protocol());
         String profileCode = profileCodeOf(binding);
         if (profileCode == null) {
             return null;
@@ -205,9 +205,9 @@ public class AsyncTaskSupport {
                     profileCode, spec.taskIdPath());
             return null;
         }
-        ModelEntity model = dataService.getModelByCode(target == null ? null : target.targetCode());
-        BillingRuleEntity rule = model == null ? null
-                : dataService.getActiveBillingRule(model.getBillingRuleCode(), model.getModelFamilyCode());
+        ModelConfigVo model = dataService.getModelByCode(target == null ? null : target.targetCode());
+        BillingRuleConfigVo rule = model == null ? null
+                : dataService.getActiveBillingRule(model.billingRuleCode(), model.modelFamilyCode());
         String taskCode = newTaskCode();
         AsyncTaskContext taskContext = new AsyncTaskContext(
                 taskCode,
@@ -225,7 +225,7 @@ public class AsyncTaskSupport {
                 taskCode, profileCode, spec, context.protocol(),
                 exchange == null ? Map.of() : exchange.requestBody(),
                 taskContext, upstreamTaskId,
-                rule == null ? null : rule.getCode(), rule == null ? null : rule.getVersionCode(),
+                rule == null ? null : rule.code(), rule == null ? null : rule.versionCode(),
                 LocalDateTime.now(), resolveCallbackUrl(exchange)));
         taskService.insert(task);
         // ⭐ 提交那条流量事件要带 task 标记（它是 1 + N 里的那个 1），但「事件长什么样」是

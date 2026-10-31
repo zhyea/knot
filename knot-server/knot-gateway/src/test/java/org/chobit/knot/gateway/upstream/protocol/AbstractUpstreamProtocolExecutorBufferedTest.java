@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * 非流式路径的上游响应头捕获（executor 捕获点一）。
  *
  * <p>直接驱动 {@code readBuffered}：端到端 WebClient 会拖 UsageExtractorRegistry 整条
- * 依赖链（GatewayEntityCacheService / 计费规则查询），而这里要验的只是「body 与头分流」这一件事。</p>
+ * 依赖链（GatewayConfigCacheService / 计费规则查询），而这里要验的只是「body 与头分流」这一件事。</p>
  *
  * <p>对应设计文档 §4.2 捕获点三的兄弟分支：非流式失败同样要带供应商 id——
  * 排障工单 90% 发生在错误场景。只取 request-id，不取 log-id（见设计文档 §4.1）。</p>

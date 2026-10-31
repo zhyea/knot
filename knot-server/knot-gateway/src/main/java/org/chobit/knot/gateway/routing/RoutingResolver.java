@@ -7,12 +7,12 @@ import org.chobit.knot.common.constants.enums.ModelPoolSelectionStrategyEnum;
 import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.common.constants.enums.RouteTargetTypeEnum;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
-import org.chobit.knot.dal.entity.AppEntity;
-import org.chobit.knot.dal.entity.ModelEntity;
-import org.chobit.knot.dal.entity.ModelPoolEntity;
-import org.chobit.knot.dal.entity.ModelPoolItemEntity;
-import org.chobit.knot.dal.entity.RoutingConsumerEntity;
-import org.chobit.knot.dal.entity.RoutingRuleEntity;
+import org.chobit.knot.svc.vo.gateway.AppConfigVo;
+import org.chobit.knot.svc.vo.gateway.ModelConfigVo;
+import org.chobit.knot.svc.vo.gateway.ModelPoolConfigVo;
+import org.chobit.knot.svc.vo.gateway.ModelPoolItemConfigVo;
+import org.chobit.knot.svc.vo.gateway.RoutingConsumerConfigVo;
+import org.chobit.knot.svc.vo.gateway.RoutingRuleConfigVo;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
@@ -23,7 +23,7 @@ import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.common.model.StickyPolicy;
 import org.chobit.knot.common.model.EjectionPolicy;
 import org.chobit.knot.common.model.RetryPolicy;
-import org.chobit.knot.gateway.service.GatewayEntityCacheService;
+import org.chobit.knot.gateway.service.GatewayConfigCacheService;
 import org.chobit.knot.common.util.tools.RoutingSecretKeyGenerator;
 import org.springframework.stereotype.Component;
 
@@ -43,13 +43,13 @@ import java.util.Objects;
 @Component
 public class RoutingResolver {
 
-    private final GatewayEntityCacheService dataService;
+    private final GatewayConfigCacheService dataService;
     private final ModelPoolSelection modelPoolSelection;
     private final ModelLoadStore modelLoadStore;
     private final ModelLoadKeys modelLoadKeys;
     private final StickyRouting stickyRouting;
     /**
-     * 协议候选过滤器：数据源适配自 {@link GatewayEntityCacheService}（库查询 + 10 分钟缓存）。
+     * 协议候选过滤器：数据源适配自 {@link GatewayConfigCacheService}（库查询 + 10 分钟缓存）。
      * 走 {@link ApiBindingSource} 函数接口而非直接依赖，是为了过滤逻辑可单测隔离。
      */
     private final ProtocolCandidateFilter protocolFilter;
@@ -57,7 +57,7 @@ public class RoutingResolver {
     /**
      * Constructs a new instance.
      */
-    public RoutingResolver(GatewayEntityCacheService dataService,
+    public RoutingResolver(GatewayConfigCacheService dataService,
                            ModelPoolSelection modelPoolSelection,
                            ModelLoadStore modelLoadStore,
                            ModelLoadKeys modelLoadKeys,
@@ -81,9 +81,9 @@ public class RoutingResolver {
      */
     public ResolvedRouting resolveByRule(String secretKey, String ruleCode, String stickyKey, ModelApiProtocolEnum protocol) {
         RuleAccess access = resolveAccess(secretKey, ruleCode);
-        RoutingRuleEntity rule = access.rule();
+        RoutingRuleConfigVo rule = access.rule();
         List<RoutingRuleTargetDto> candidates =
-                resolveCandidateModels(rule.getRuleCode(), stickyKey, rule.getSelectionStrategy());
+                resolveCandidateModels(rule.ruleCode(), stickyKey, rule.selectionStrategy());
         if (candidates.isEmpty()) {
             throw new GatewayUpstreamException(
                     "No enabled routing target is available",
@@ -98,15 +98,15 @@ public class RoutingResolver {
             );
         }
         GatewayRoutingContext routingContext = buildRoutingContext(rule, access.consumer(), access.app());
-        return new ResolvedRouting(rule.getId(),
-                rule.getRuleCode(),
-                access.consumer().getId(),
-                access.consumer().getSecretKey(),
-                Boolean.TRUE.equals(access.consumer().getReturnUsageDetail()),
+        return new ResolvedRouting(rule.id(),
+                rule.ruleCode(),
+                access.consumer().id(),
+                access.consumer().secretKey(),
+                Boolean.TRUE.equals(access.consumer().returnUsageDetail()),
                 candidates,
                 routingContext,
-                RetryPolicy.parse(rule.getRetryPolicy()),
-                EjectionPolicy.parse(rule.getEjectionPolicy()));
+                RetryPolicy.parse(rule.retryPolicy()),
+                EjectionPolicy.parse(rule.ejectionPolicy()));
     }
 
     /**
@@ -135,29 +135,29 @@ public class RoutingResolver {
         if (StringUtils.isBlank(ruleCode)) {
             throw new GatewayInvalidRequestException("Rule header must not be blank");
         }
-        RoutingConsumerEntity consumer = dataService.getConsumerBySecretKey(StringUtils.trim(secretKey));
+        RoutingConsumerConfigVo consumer = dataService.getConsumerBySecretKey(StringUtils.trim(secretKey));
         if (consumer == null) {
             throw new GatewayAuthException("Consumer API key not found");
         }
-        if (!EnabledStatusEnum.isEnabled(consumer.getStatus())) {
+        if (!EnabledStatusEnum.isEnabled(consumer.status())) {
             throw new GatewayAuthException("Consumer is disabled");
         }
-        RoutingRuleEntity rule = dataService.getEnabledRuleByConsumerCodeAndCode(consumer.getConsumerCode(), StringUtils.trim(ruleCode));
+        RoutingRuleConfigVo rule = dataService.getEnabledRuleByConsumerCodeAndCode(consumer.consumerCode(), StringUtils.trim(ruleCode));
         if (rule == null) {
             throw new GatewayAuthException("Routing rule is not available for this consumer");
         }
-        AppEntity app = dataService.getAppById(rule.getAppId());
+        AppConfigVo app = dataService.getAppById(rule.appId());
         if (app == null) {
             throw new GatewayAuthException("Bound app not found");
         }
-        if (!EnabledStatusEnum.isEnabled(app.getStatus())) {
+        if (!EnabledStatusEnum.isEnabled(app.status())) {
             throw new GatewayAuthException("Bound app is disabled");
         }
         return new RuleAccess(consumer, rule, app);
     }
 
     /** 一次鉴权通过后的三元组，供解析链路继续用（避免调用方再查一遍） */
-    private record RuleAccess(RoutingConsumerEntity consumer, RoutingRuleEntity rule, AppEntity app) {
+    private record RuleAccess(RoutingConsumerConfigVo consumer, RoutingRuleConfigVo rule, AppConfigVo app) {
     }
 
     /**
@@ -168,28 +168,28 @@ public class RoutingResolver {
         return protocolFilter.filter(candidates, protocol);
     }
 
-    private static GatewayRoutingContext buildRoutingContext(RoutingRuleEntity rule,
-                                                       RoutingConsumerEntity consumer,
-                                                       AppEntity app) {
+    private static GatewayRoutingContext buildRoutingContext(RoutingRuleConfigVo rule,
+                                                       RoutingConsumerConfigVo consumer,
+                                                       AppConfigVo app) {
         return new GatewayRoutingContext(
                 new GatewayRoutingContext.RuleSnapshot(
-                        rule.getId(),
-                        rule.getRuleCode(),
-                        rule.getName(),
-                        rule.getAppScenario(),
-                        rule.getUsername()
+                        rule.id(),
+                        rule.ruleCode(),
+                        rule.name(),
+                        rule.appScenario(),
+                        rule.username()
                 ),
                 new GatewayRoutingContext.ConsumerSnapshot(
-                        consumer.getId(),
-                        consumer.getConsumerCode(),
-                        consumer.getName(),
-                        consumer.getSecretKey(),
-                        Boolean.TRUE.equals(consumer.getReturnUsageDetail())
+                        consumer.id(),
+                        consumer.consumerCode(),
+                        consumer.name(),
+                        consumer.secretKey(),
+                        Boolean.TRUE.equals(consumer.returnUsageDetail())
                 ),
-                new GatewayRoutingContext.AppSnapshot(app.getId(), app.getAppCode(), app.getName(), app.getDeptCode()),
-                new GatewayRoutingContext.UserSnapshot(consumer.getUserUsername(), consumer.getUserRealName()),
-                new GatewayRoutingContext.UserSnapshot(app.getOwnerUsername(), app.getOwnerRealName()),
-                new GatewayRoutingContext.DepartmentSnapshot(app.getDeptCode(), null)
+                new GatewayRoutingContext.AppSnapshot(app.id(), app.appCode(), app.name(), app.deptCode()),
+                new GatewayRoutingContext.UserSnapshot(consumer.userUsername(), consumer.userRealName()),
+                new GatewayRoutingContext.UserSnapshot(app.ownerUsername(), app.ownerRealName()),
+                new GatewayRoutingContext.DepartmentSnapshot(app.deptCode(), null)
         );
     }
 
@@ -266,9 +266,9 @@ public class RoutingResolver {
             return 0L;
         }
         long sum = 0L;
-        for (ModelPoolItemEntity item : dataService.listModelPoolItemsByPoolCode(target.targetCode())) {
-            if (EnabledStatusEnum.isEnabled(item.getStatus())) {
-                sum += inflightByModelCode.getOrDefault(modelLoadKeys.model(item.getModelCode()), 0L);
+        for (ModelPoolItemConfigVo item : dataService.listModelPoolItemsByPoolCode(target.targetCode())) {
+            if (EnabledStatusEnum.isEnabled(item.status())) {
+                sum += inflightByModelCode.getOrDefault(modelLoadKeys.model(item.modelCode()), 0L);
             }
         }
         return sum;
@@ -286,9 +286,9 @@ public class RoutingResolver {
         if (!RouteTargetTypeEnum.MODEL_POOL.code().equals(target.targetType())) {
             return;
         }
-        for (ModelPoolItemEntity item : dataService.listModelPoolItemsByPoolCode(target.targetCode())) {
-            if (EnabledStatusEnum.isEnabled(item.getStatus())) {
-                modelCodes.add(modelLoadKeys.model(item.getModelCode()));
+        for (ModelPoolItemConfigVo item : dataService.listModelPoolItemsByPoolCode(target.targetCode())) {
+            if (EnabledStatusEnum.isEnabled(item.status())) {
+                modelCodes.add(modelLoadKeys.model(item.modelCode()));
             }
         }
     }
@@ -309,15 +309,15 @@ public class RoutingResolver {
     private List<RoutingRuleTargetDto> listTargets(String ruleCode) {
         return dataService.listTargetsByRuleCode(ruleCode).stream()
                 .map(entity -> new RoutingRuleTargetDto(
-                        entity.getTargetType(),
-                        entity.getTargetId(),
-                        entity.getTargetCode(),
+                        entity.targetType(),
+                        entity.targetId(),
+                        entity.targetCode(),
                         null,
-                        entity.getTargetName(),
-                        entity.getModelType(),
-                        entity.getProviderAccountCode(),
-                        entity.getPriority() != null ? entity.getPriority() : 100,
-                        Boolean.TRUE.equals(entity.getPrimary()),
+                        entity.targetName(),
+                        entity.modelType(),
+                        entity.providerAccountCode(),
+                        entity.priority() != null ? entity.priority() : 100,
+                        Boolean.TRUE.equals(entity.primary()),
                         null
                 ))
                 .toList();
@@ -326,18 +326,18 @@ public class RoutingResolver {
     private List<RoutingRuleTargetDto> resolveTargetCandidates(RoutingRuleTargetDto target, String stickyKey) {
         if (RouteTargetTypeEnum.MODEL.code().equals(target.targetType())) {
             // 按存储主键 targetCode 取模型：targetId 是 left join 派生的可空值（目标被删即失效）
-            ModelEntity model = dataService.getModelByCode(target.targetCode());
-            if (model == null || !EnabledStatusEnum.isEnabled(model.getStatus())) {
+            ModelConfigVo model = dataService.getModelByCode(target.targetCode());
+            if (model == null || !EnabledStatusEnum.isEnabled(model.status())) {
                 return List.of();
             }
             return List.of(new RoutingRuleTargetDto(
                     RouteTargetTypeEnum.MODEL.code(),
-                    model.getId(),
-                    model.getModelCode(),
-                    model.getUpstreamModel(),
-                    model.getModelCode(),
-                    model.getModelType(),
-                    model.getProviderAccountCode(),
+                    model.id(),
+                    model.modelCode(),
+                    model.upstreamModel(),
+                    model.modelCode(),
+                    model.modelType(),
+                    model.providerAccountCode(),
                     target.priority(),
                     target.primary(),
                     null
@@ -346,65 +346,65 @@ public class RoutingResolver {
         if (!RouteTargetTypeEnum.MODEL_POOL.code().equals(target.targetType())) {
             return List.of();
         }
-        ModelPoolEntity pool = dataService.getModelPoolByCode(target.targetCode());
-        if (pool == null || !EnabledStatusEnum.isEnabled(pool.getStatus())) {
+        ModelPoolConfigVo pool = dataService.getModelPoolByCode(target.targetCode());
+        if (pool == null || !EnabledStatusEnum.isEnabled(pool.status())) {
             return List.of();
         }
         return resolvePoolCandidates(pool, target, stickyKey);
     }
 
-    private List<RoutingRuleTargetDto> resolvePoolCandidates(ModelPoolEntity pool,
+    private List<RoutingRuleTargetDto> resolvePoolCandidates(ModelPoolConfigVo pool,
                                                              RoutingRuleTargetDto target,
                                                              String stickyKey) {
         // 池条目只存 model_code，模型实体（含主键 id，下游取凭据/协议绑定用）按 code 从缓存解析
-        List<PoolItemCandidate> available = dataService.listModelPoolItemsByPoolCode(pool.getPoolCode()).stream()
-                .filter(item -> EnabledStatusEnum.isEnabled(item.getStatus()))
-                .map(item -> new PoolItemCandidate(item, dataService.getModelByCode(item.getModelCode())))
+        List<PoolItemCandidate> available = dataService.listModelPoolItemsByPoolCode(pool.poolCode()).stream()
+                .filter(item -> EnabledStatusEnum.isEnabled(item.status()))
+                .map(item -> new PoolItemCandidate(item, dataService.getModelByCode(item.modelCode())))
                 .filter(candidate -> candidate.model() != null
-                        && EnabledStatusEnum.isEnabled(candidate.model().getStatus()))
+                        && EnabledStatusEnum.isEnabled(candidate.model().status()))
                 .toList();
         // 池内选中顺序由模型池的 selection_strategy 决定：首个即本次选中，其余为故障转移候选
         // P8：池内 N 个模型在途值一次性批量预取（redis 档合并为单次 MGET），替代逐个串行 GET
         List<String> poolModelCodes = available.stream()
-                .map(candidate -> modelLoadKeys.model(candidate.item().getModelCode()))
+                .map(candidate -> modelLoadKeys.model(candidate.item().modelCode()))
                 .distinct()
                 .toList();
         Map<String, Long> inflightByModelCode = modelLoadStore.inflightBatch(poolModelCodes);
         List<PoolItemCandidate> ordered = modelPoolSelection.order(
                 available,
-                pool.getSelectionStrategy(),
+                pool.selectionStrategy(),
                 candidate -> poolItemPriority(candidate.item()),
                 candidate -> poolItemWeight(candidate.item()),
-                candidate -> candidate.item().getId() != null ? candidate.item().getId() : 0L,
-                candidate -> inflightByModelCode.getOrDefault(modelLoadKeys.model(candidate.item().getModelCode()), 0L)
+                candidate -> candidate.item().id() != null ? candidate.item().id() : 0L,
+                candidate -> inflightByModelCode.getOrDefault(modelLoadKeys.model(candidate.item().modelCode()), 0L)
         );
         // 池内粘性：把一致性 hash 命中的候选置顶为首选，其余保持池策略原序作 failover 链
-        List<PoolItemCandidate> stickyOrdered = applySticky(ordered, pool.getStickyPolicy(), stickyKey);
+        List<PoolItemCandidate> stickyOrdered = applySticky(ordered, pool.stickyPolicy(), stickyKey);
         return stickyOrdered.stream()
                 .map(candidate -> new RoutingRuleTargetDto(
                         RouteTargetTypeEnum.MODEL.code(),
-                        candidate.model().getId(),
-                        candidate.item().getModelCode(),
-                        candidate.model().getUpstreamModel(),
-                        candidate.item().getModelName(),
-                        candidate.item().getModelType(),
-                        candidate.item().getProviderAccountCode(),
+                        candidate.model().id(),
+                        candidate.item().modelCode(),
+                        candidate.model().upstreamModel(),
+                        candidate.item().modelName(),
+                        candidate.item().modelType(),
+                        candidate.item().providerAccountCode(),
                         target.priority(),
                         target.primary(),
-                        pool.getPoolCode()
+                        pool.poolCode()
                 ))
                 .toList();
     }
 
-    private record PoolItemCandidate(ModelPoolItemEntity item, ModelEntity model) {
+    private record PoolItemCandidate(ModelPoolItemConfigVo item, ModelConfigVo model) {
     }
 
-    private int poolItemPriority(ModelPoolItemEntity item) {
-        return item.getPriority() != null ? item.getPriority() : 100;
+    private int poolItemPriority(ModelPoolItemConfigVo item) {
+        return item.priority() != null ? item.priority() : 100;
     }
 
-    private int poolItemWeight(ModelPoolItemEntity item) {
-        return item.getWeight() != null ? item.getWeight() : 100;
+    private int poolItemWeight(ModelPoolItemConfigVo item) {
+        return item.weight() != null ? item.weight() : 100;
     }
 
     /**
@@ -422,7 +422,7 @@ public class RoutingResolver {
             return ordered;
         }
         List<String> codes = ordered.stream()
-                .map(candidate -> candidate.item().getModelCode())
+                .map(candidate -> candidate.item().modelCode())
                 .toList();
         String preferred = stickyRouting.preferred(codes, StickyPolicy.parse(stickyPolicyJson), stickyKey);
         return preferred == null ? ordered : moveToFront(ordered, preferred);
@@ -434,7 +434,7 @@ public class RoutingResolver {
     private static List<PoolItemCandidate> moveToFront(List<PoolItemCandidate> ordered, String preferredCode) {
         int index = -1;
         for (int i = 0; i < ordered.size(); i++) {
-            if (preferredCode.equals(ordered.get(i).item().getModelCode())) {
+            if (preferredCode.equals(ordered.get(i).item().modelCode())) {
                 index = i;
                 break;
             }

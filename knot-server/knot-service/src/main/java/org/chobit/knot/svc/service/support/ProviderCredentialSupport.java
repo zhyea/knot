@@ -41,15 +41,22 @@ public class ProviderCredentialSupport {
     }
 
     /**
-     * Converts the source value to the target representation. Executes the public operation.
+     * 凭据实体 → 鉴权参数。
      */
     public Map<String, Object> toAuthConfig(ProviderCredentialEntity credential) {
-        if (credential == null) {
-            return defaultAuthConfig();
-        }
-        if (hasText(credential.getEncryptedConfig())) {
+        return toAuthConfig(credential == null ? null : credential.getEncryptedConfig());
+    }
+
+    /**
+     * 已解出的密文配置 → 鉴权参数（<b>不持有载体</b>）。
+     *
+     * <p>网关侧拿到的是 {@code ProviderCredentialConfigVo}（配置快照），不是 {@code dal.entity}；
+     * 这里用字段入参，两边各取所需，谁也不用为了调用对方而持有对方的载体类型。</p>
+     */
+    public Map<String, Object> toAuthConfig(String encryptedConfig) {
+        if (hasText(encryptedConfig)) {
             Map<String, Object> config = JsonKit.fromJson(
-                    credentialEncryption.decrypt(credential.getEncryptedConfig()),
+                    credentialEncryption.decrypt(encryptedConfig),
                     new TypeReference<>() {
                     });
             if (config != null && !config.isEmpty()) {

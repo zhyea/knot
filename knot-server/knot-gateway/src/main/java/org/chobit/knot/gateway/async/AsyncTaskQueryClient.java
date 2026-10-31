@@ -9,11 +9,11 @@ import org.chobit.knot.adapter.model.ref.ProviderAccountRef;
 import org.chobit.knot.adapter.upstream.UpstreamAccess;
 import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
-import org.chobit.knot.dal.entity.ModelEntity;
-import org.chobit.knot.dal.entity.ProviderAccountEntity;
-import org.chobit.knot.dal.entity.ProviderCredentialEntity;
+import org.chobit.knot.svc.vo.gateway.ModelConfigVo;
+import org.chobit.knot.svc.vo.gateway.ProviderAccountConfigVo;
+import org.chobit.knot.svc.vo.gateway.ProviderCredentialConfigVo;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
-import org.chobit.knot.gateway.service.GatewayEntityCacheService;
+import org.chobit.knot.gateway.service.GatewayConfigCacheService;
 import org.chobit.knot.gateway.upstream.support.UpstreamUrlSupport;
 import org.chobit.knot.svc.service.support.ProviderCredentialSupport;
 import org.springframework.http.HttpMethod;
@@ -48,7 +48,7 @@ public class AsyncTaskQueryClient implements AsyncTaskQueryPort {
 
     private final WebClient webClient;
     private final AsyncTaskProperties properties;
-    private final GatewayEntityCacheService dataService;
+    private final GatewayConfigCacheService dataService;
     private final ProviderCredentialSupport credentialSupport;
     private final UpstreamAuthApplierCatalog authApplierCatalog;
 
@@ -62,29 +62,29 @@ public class AsyncTaskQueryClient implements AsyncTaskQueryPort {
     public String query(AsyncTaskContext context,
                         AsyncTaskSpec spec,
                         String upstreamTaskId) {
-        ModelEntity model = dataService.getModelByCode(context.modelCode());
+        ModelConfigVo model = dataService.getModelByCode(context.modelCode());
         if (model == null) {
             throw new IllegalStateException("async task model not found: " + context.modelCode());
         }
-        ProviderAccountEntity provider = dataService.getProviderAccountByCode(model.getProviderAccountCode());
+        ProviderAccountConfigVo provider = dataService.getProviderAccountByCode(model.providerAccountCode());
         if (provider == null) {
             throw new IllegalStateException("async task provider not found for model: " + context.modelCode());
         }
-        ProviderCredentialEntity credential = dataService.getActiveCredentialByProviderId(provider.getId());
+        ProviderCredentialConfigVo credential = dataService.getActiveCredentialByProviderId(provider.id());
         ModelApiProtocolEnum protocol = ModelApiProtocolEnum.fromCode(context.protocol());
         UpstreamRequestContext upstreamContext = new UpstreamRequestContext(
                 protocol,
                 Map.of(),
                 MediaType.APPLICATION_JSON,
-                new ModelRef(model.getId(), model.getModelCode(), model.getUpstreamModel(),
-                        model.getBasePath(), model.getBillingRuleCode(), model.getModelFamilyCode()),
-                new ProviderAccountRef(provider.getId(), provider.getCode(), provider.getBaseUrl(),
-                        provider.getProviderCode()),
-                credentialSupport.toAuthConfig(credential),
+                new ModelRef(model.id(), model.modelCode(), model.upstreamModel(),
+                        model.basePath(), model.billingRuleCode(), model.modelFamilyCode()),
+                new ProviderAccountRef(provider.id(), provider.code(), provider.baseUrl(),
+                        provider.providerCode()),
+                credentialSupport.toAuthConfig(credential == null ? null : credential.encryptedConfig()),
                 null,
                 context.traceparent(),
                 GatewayTraceContext.traceIdOf(context.traceparent()),
-                credentialSupport.authApplier(credential),
+                credential == null ? null : credential.authApplier(),
                 context.requestId());
         UpstreamAuthApplier applier = authApplierCatalog.resolve(upstreamContext.authApplier());
         UpstreamAccess access = applier == null ? null : applier.prepare(upstreamContext);
@@ -93,7 +93,7 @@ public class AsyncTaskQueryClient implements AsyncTaskQueryPort {
         }
         String path = spec == null ? null : spec.resolvePath(upstreamTaskId);
         String url = UpstreamUrlSupport.joinUrl(access.baseUrl(),
-                UpstreamUrlSupport.joinPath(model.getBasePath(), path));
+                UpstreamUrlSupport.joinPath(model.basePath(), path));
         return exchange(url, access, spec == null ? HttpMethod.GET : HttpMethod.valueOf(spec.queryMethod().toUpperCase()));
     }
 

@@ -7,7 +7,7 @@ import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.svc.dto.async.AsyncTaskDto;
-import org.chobit.knot.dal.entity.ModelEntity;
+import org.chobit.knot.svc.vo.gateway.ModelConfigVo;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.kafka.KafkaPublisher;
 import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
@@ -17,7 +17,7 @@ import org.chobit.knot.gateway.runtime.GatewayRequestContext;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
-import org.chobit.knot.gateway.service.GatewayEntityCacheService;
+import org.chobit.knot.gateway.service.GatewayConfigCacheService;
 import org.chobit.knot.gateway.upstream.UpstreamProxyClient;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,13 +41,13 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
 
     private final UsageExtractorRegistry usageExtractorRegistry;
     private final UpstreamProxyClient proxyClient;
-    private final GatewayEntityCacheService dataService;
+    private final GatewayConfigCacheService dataService;
     private final KafkaPublisher eventPublisher;
     private final String trafficTopic;
 
     public AsyncTaskCompletion(UsageExtractorRegistry usageExtractorRegistry,
                               UpstreamProxyClient proxyClient,
-                              GatewayEntityCacheService dataService,
+                              GatewayConfigCacheService dataService,
                               @Nullable KafkaPublisher eventPublisher,
                               @Value("${kafka.topic.traffic}") String trafficTopic) {
         this.usageExtractorRegistry = usageExtractorRegistry;
@@ -65,7 +65,7 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
      */
     @Override
     public UsageAccounting charge(AsyncTaskDto task, AsyncTaskContext context, String queryBody) {
-        ModelEntity model = dataService.getModelByCode(context.modelCode());
+        ModelConfigVo model = dataService.getModelByCode(context.modelCode());
         if (model == null) {
             log.error("Async task billing skipped: model not found: {}", context.modelCode());
             return null;
@@ -76,7 +76,7 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
         UpstreamRequestContext upstreamContext = proxyClient.buildModelRequestContext(
                 requestBody == null ? Map.of() : requestBody,
                 MediaType.APPLICATION_JSON,
-                model.getId(),
+                model.id(),
                 ModelApiProtocolEnum.fromCode(context.protocol()),
                 context.traceparent(),
                 context.requestId());
@@ -138,7 +138,7 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
         if (eventPublisher == null) {
             return;
         }
-        ModelEntity model = dataService.getModelByCode(context.modelCode());
+        ModelConfigVo model = dataService.getModelByCode(context.modelCode());
         // ⭐ 必须用 replay 而不是 fromTraceparent：后者会为「本次」生成新 span，
         // 于是同一笔任务的 1 + N 条事件拿到 N 个不同 span_id —— 数仓按 (trace_id, span_id)
         // 聚不到一起，等于白留了 trace。replay 沿用提交那次的 span 与 requestId。
@@ -148,7 +148,7 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
                 null, context.ruleCode(), traceContext, ModelApiProtocolEnum.fromCode(context.protocol()),
                 context.stickyKey());
         RoutingRuleTargetDto target = new RoutingRuleTargetDto(
-                null, model == null ? null : model.getId(), context.modelCode(), context.upstreamModelCode(),
+                null, model == null ? null : model.id(), context.modelCode(), context.upstreamModelCode(),
                 null, null, context.providerAccountCode(), 0, false, context.poolCode());
         requestContext.putAttribute(GatewayRequestHandler.HIT_TARGET_ATTRIBUTE, target);
         requestContext.putAttribute(GatewayRequestHandler.HIT_TARGET_URL_ATTRIBUTE, context.upstreamUrl());

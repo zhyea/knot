@@ -11,29 +11,29 @@ import org.chobit.knot.dal.entity.ModelPoolItemEntity;
 import org.chobit.knot.dal.entity.RoutingConsumerEntity;
 import org.chobit.knot.dal.entity.RoutingRuleEntity;
 import org.chobit.knot.dal.entity.RoutingRuleTargetEntity;
+import org.mapstruct.factory.Mappers;
+import org.chobit.knot.svc.converter.GatewayConfigConverter;
+import org.chobit.knot.svc.service.GatewayConfigQueryService;
+import org.chobit.knot.svc.vo.gateway.AppConfigVo;
+import org.chobit.knot.svc.vo.gateway.ModelApiBindingConfigVo;
+import org.chobit.knot.svc.vo.gateway.ModelConfigVo;
+import org.chobit.knot.svc.vo.gateway.ModelPoolConfigVo;
+import org.chobit.knot.svc.vo.gateway.ModelPoolItemConfigVo;
+import org.chobit.knot.svc.vo.gateway.RoutingConsumerConfigVo;
+import org.chobit.knot.svc.vo.gateway.RoutingRuleConfigVo;
+import org.chobit.knot.svc.vo.gateway.RoutingRuleTargetConfigVo;
 import org.chobit.knot.gateway.exception.GatewayAuthException;
 import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.load.ModelLoadKeys;
 import org.chobit.knot.gateway.load.ModelLoadStore;
-import org.chobit.knot.dal.mapper.AppMapper;
-import org.chobit.knot.dal.mapper.BillingRuleMapper;
-import org.chobit.knot.dal.mapper.ModelApiBindingMapper;
-import org.chobit.knot.dal.mapper.ModelMapper;
-import org.chobit.knot.dal.mapper.ModelPoolMapper;
-import org.chobit.knot.dal.mapper.ProviderAccountMapper;
-import org.chobit.knot.dal.mapper.ProviderCredentialMapper;
-import org.chobit.knot.dal.mapper.RoutingConsumerMapper;
-import org.chobit.knot.dal.mapper.RoutingRuleMapper;
-import org.chobit.knot.dal.mapper.RoutingRuleTargetMapper;
 import org.chobit.knot.gateway.model.GatewayRoutingContext;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.common.model.StickyPolicy;
-import org.chobit.knot.gateway.service.GatewayEntityCacheService;
+import org.chobit.knot.gateway.service.GatewayConfigCacheService;
 import org.chobit.knot.svc.service.support.ResourceTrafficPolicySupport;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Proxy;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -50,7 +50,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 模型池展开、池内粘性、协议过滤与各类拒绝路径。
  *
  * <p>替身全部手写（JDK25 + Mockito inline 不能 mock 具体类，项目亦不引 Mockito）：
- * {@link StubEntityCache} 继承 {@link GatewayEntityCacheService} 只覆写被调用的读取方法
+ * {@link StubEntityCache} 继承 {@link GatewayConfigCacheService} 只覆写被调用的读取方法
  * （构造器的 mapper 形参经 JDK 动态代理占位——javac 对绑定方法引用接收者有显式空值检查，
  * 详见 {@link StubEntityCache} 注释）；{@link StubLoadStore} 实现 {@link ModelLoadStore}；
  * {@link FixedStickyRouting} 覆写粘性首选，免去对一致性 hash 内部结果的依赖；
@@ -110,7 +110,7 @@ class RoutingResolverTest {
     @Test
     void rejectsDisabledConsumer() {
         baselineConsumerAndRule();
-        cache.consumer.setStatus(0);
+        cache.consumer = CONVERTER.toConsumerVo(consumerEntity(0));
 
         GatewayAuthException error = assertThrows(GatewayAuthException.class,
                 () -> resolver().resolveByRule(SECRET_KEY, RULE_CODE, null, null));
@@ -143,7 +143,7 @@ class RoutingResolverTest {
     @Test
     void rejectsDisabledBoundApp() {
         baselineConsumerAndRule();
-        cache.app.setStatus(0);
+        cache.app = CONVERTER.toAppVo(appEntity(0));
 
         GatewayAuthException error = assertThrows(GatewayAuthException.class,
                 () -> resolver().resolveByRule(SECRET_KEY, RULE_CODE, null, null));
@@ -171,7 +171,7 @@ class RoutingResolverTest {
         assertThrows(GatewayAuthException.class, () -> resolver().requireRuleAccess(SECRET_KEY, RULE_CODE));
 
         baselineConsumerAndRule();
-        cache.consumer.setStatus(0);
+        cache.consumer = CONVERTER.toConsumerVo(consumerEntity(0));
         assertThrows(GatewayAuthException.class, () -> resolver().requireRuleAccess(SECRET_KEY, RULE_CODE));
 
         baselineConsumerAndRule();
@@ -183,7 +183,7 @@ class RoutingResolverTest {
         assertThrows(GatewayAuthException.class, () -> resolver().requireRuleAccess(SECRET_KEY, RULE_CODE));
 
         baselineConsumerAndRule();
-        cache.app.setStatus(0);
+        cache.app = CONVERTER.toAppVo(appEntity(0));
         GatewayAuthException error = assertThrows(GatewayAuthException.class,
                 () -> resolver().requireRuleAccess(SECRET_KEY, RULE_CODE));
         assertEquals("Bound app is disabled", error.getMessage());
@@ -266,7 +266,7 @@ class RoutingResolverTest {
     @Test
     void leastLoadReordersRestByInflightButKeepsPrimaryFirst() {
         baselineConsumerAndRule();
-        cache.rule.setSelectionStrategy("LEAST_LOAD");
+        cache.rule = CONVERTER.toRuleVo(ruleEntity(1, "LEAST_LOAD", null));
         cache.targets = List.of(
                 targetRow("MODEL", "primary-model", 10, true),
                 targetRow("MODEL", "busy-model", 90, false),
@@ -322,9 +322,7 @@ class RoutingResolverTest {
                 poolItem("m3", 30, 1)));
         cache.models.put("m1", model(11L, "m1"));
         cache.models.put("m2", model(12L, "m2"));
-        ModelEntity disabledModel = model(13L, "m3");
-        disabledModel.setStatus(0);
-        cache.models.put("m3", disabledModel);
+        cache.models.put("m3", model(13L, "m3", 0));
 
         assertEquals(List.of("m2"), codes(resolver().resolveByRule(SECRET_KEY, RULE_CODE, null, null)),
                 "停用条目与停用模型都不进候选链");
@@ -334,9 +332,7 @@ class RoutingResolverTest {
     void skipsDisabledPool() {
         baselineConsumerAndRule();
         cache.targets = List.of(targetRow("MODEL_POOL", "pool-a", 50, true));
-        ModelPoolEntity pool = pool("pool-a", "PRIORITY", null);
-        pool.setStatus(0);
-        cache.pools.put("pool-a", pool);
+        cache.pools.put("pool-a", pool("pool-a", "PRIORITY", null, 0));
 
         GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
                 () -> resolver().resolveByRule(SECRET_KEY, RULE_CODE, null, null));
@@ -421,7 +417,7 @@ class RoutingResolverTest {
     @Test
     void buildsRoutingContextAndPoliciesFromRuleConsumerApp() {
         baselineConsumerAndRule();
-        cache.rule.setRetryPolicy("{\"enabled\":true,\"maxAttempts\":3}");
+        cache.rule = CONVERTER.toRuleVo(ruleEntity(1, null, "{\"enabled\":true,\"maxAttempts\":3}"));
         cache.targets = List.of(targetRow("MODEL", "m1", 100, true));
         cache.models.put("m1", model(11L, "m1"));
 
@@ -447,7 +443,35 @@ class RoutingResolverTest {
 
     // ---------- 夹具 ----------
 
+    /**
+     * 夹具一律「构造实体 → 过一遍真 Converter」，而不是直接 new record。
+     *
+     * <p>理由有两条，都不是图省事：①{@code RoutingRuleConfigVo} 有 19 个位置参数，
+     * 手写全参构造器必然错位，且读代码时看不出「第 11 个 null 是哪个字段」；
+     * 实体有 setter，意图一眼可读。②顺带把 {@link GatewayConfigConverter} 也覆盖到——
+     * 它漏映射一个字段的表现正是「新字段读出来恒为 null」，只有走真 Converter 的夹具才能暴露。</p>
+     *
+     * <p>⚠ 测试源码<b>不在</b> {@code LayeringGuardTest} 的扫描范围（它只扫 {@code src/main/java}），
+     * 所以这里 import {@code dal.entity} 是允许的：红线约束的是生产代码的边界，
+     * 而不是禁止测试知道「数据长什么样」。</p>
+     */
+    private static final GatewayConfigConverter CONVERTER =
+            Mappers.getMapper(GatewayConfigConverter.class);
+
     private void baselineConsumerAndRule() {
+        cache.consumer = CONVERTER.toConsumerVo(consumerEntity(1));
+        cache.rule = CONVERTER.toRuleVo(ruleEntity(1, null, null));
+        cache.app = CONVERTER.toAppVo(appEntity(1));
+    }
+
+    /**
+     * 基线实体：需要「只改一个字段」的用例从它出发改副本再转换。
+     *
+     * <p>⚠ 载体是 record 之后，{@code cache.consumer.setStatus(0)} 这种「基线 + 就地改一个字段」
+     * 的写法不再成立：record 不可变。改为「取实体 → 改 → 重新投影」，
+     * 语义反而更清楚——每个用例都拿到一份独立快照，不存在测试之间互相污染的可能。</p>
+     */
+    private static RoutingConsumerEntity consumerEntity(int status) {
         RoutingConsumerEntity consumer = new RoutingConsumerEntity();
         consumer.setId(100L);
         consumer.setConsumerCode(CONSUMER_CODE);
@@ -456,9 +480,11 @@ class RoutingResolverTest {
         consumer.setUserUsername("alice");
         consumer.setUserRealName("Alice");
         consumer.setReturnUsageDetail(Boolean.TRUE);
-        consumer.setStatus(1);
-        cache.consumer = consumer;
+        consumer.setStatus(status);
+        return consumer;
+    }
 
+    private static RoutingRuleEntity ruleEntity(int status, String selectionStrategy, String retryPolicy) {
         RoutingRuleEntity rule = new RoutingRuleEntity();
         rule.setId(200L);
         rule.setRuleCode(RULE_CODE);
@@ -467,9 +493,13 @@ class RoutingResolverTest {
         rule.setUsername("alice");
         rule.setAppId(300L);
         rule.setAppCode("app-a");
-        rule.setStatus(1);
-        cache.rule = rule;
+        rule.setStatus(status);
+        rule.setSelectionStrategy(selectionStrategy);
+        rule.setRetryPolicy(retryPolicy);
+        return rule;
+    }
 
+    private static AppEntity appEntity(int status) {
         AppEntity app = new AppEntity();
         app.setId(300L);
         app.setAppCode("app-a");
@@ -477,11 +507,11 @@ class RoutingResolverTest {
         app.setDeptCode("dept-a");
         app.setOwnerUsername("bob");
         app.setOwnerRealName("Bob");
-        app.setStatus(1);
-        cache.app = app;
+        app.setStatus(status);
+        return app;
     }
 
-    private static RoutingRuleTargetEntity targetRow(String type, String code, int priority, boolean primary) {
+    private static RoutingRuleTargetConfigVo targetRow(String type, String code, int priority, boolean primary) {
         RoutingRuleTargetEntity entity = new RoutingRuleTargetEntity();
         entity.setTargetType(type);
         entity.setTargetCode(code);
@@ -490,31 +520,39 @@ class RoutingResolverTest {
         entity.setPrimary(primary);
         entity.setTargetName("目标-" + code);
         entity.setModelType("CHAT");
-        return entity;
+        return CONVERTER.toTargetVo(entity);
     }
 
-    private static ModelEntity model(long id, String code) {
+    private static ModelConfigVo model(long id, String code) {
+        return model(id, code, 1);
+    }
+
+    private static ModelConfigVo model(long id, String code, int status) {
         ModelEntity entity = new ModelEntity();
         entity.setId(id);
         entity.setModelCode(code);
         entity.setUpstreamModel("upstream-" + code);
         entity.setModelType("CHAT");
         entity.setProviderAccountCode("pa-" + code);
-        entity.setStatus(1);
-        return entity;
+        entity.setStatus(status);
+        return CONVERTER.toModelVo(entity);
     }
 
-    private static ModelPoolEntity pool(String poolCode, String strategy, String stickyPolicyJson) {
+    private static ModelPoolConfigVo pool(String poolCode, String strategy, String stickyPolicyJson) {
+        return pool(poolCode, strategy, stickyPolicyJson, 1);
+    }
+
+    private static ModelPoolConfigVo pool(String poolCode, String strategy, String stickyPolicyJson, int status) {
         ModelPoolEntity pool = new ModelPoolEntity();
         pool.setId(400L);
         pool.setPoolCode(poolCode);
         pool.setSelectionStrategy(strategy);
         pool.setStickyPolicy(stickyPolicyJson);
-        pool.setStatus(1);
-        return pool;
+        pool.setStatus(status);
+        return CONVERTER.toModelPoolVo(pool);
     }
 
-    private static ModelPoolItemEntity poolItem(String modelCode, int priority, int status) {
+    private static ModelPoolItemConfigVo poolItem(String modelCode, int priority, int status) {
         ModelPoolItemEntity item = new ModelPoolItemEntity();
         item.setId(1000L + priority);
         item.setPoolCode("pool-a");
@@ -523,14 +561,14 @@ class RoutingResolverTest {
         item.setWeight(100);
         item.setStatus(status);
         item.setModelName("模型-" + modelCode);
-        return item;
+        return CONVERTER.toModelPoolItemVo(item);
     }
 
-    private static ModelApiBindingEntity binding(String protocol, int status) {
+    private static ModelApiBindingConfigVo binding(String protocol, int status) {
         ModelApiBindingEntity entity = new ModelApiBindingEntity();
         entity.setProtocol(protocol);
         entity.setStatus(status);
-        return entity;
+        return CONVERTER.toApiBindingVo(entity);
     }
 
     private static String stickyJson(boolean enabled) {
@@ -546,72 +584,66 @@ class RoutingResolverTest {
     /**
      * 数据桩：只覆写 {@link RoutingResolver} 实际调用的缓存读取方法。
      *
-     * <p>构造器的 mapper 参数不能传 null——javac 对绑定方法引用（{@code appMapper::getById}）的
-     * 接收者会显式插入 {@code Objects.requireNonNull}（反汇编构造器字节码可证），故用 JDK 动态代理
-     * 占位：缓存加载器只在未命中时触发，而本替身覆写了全部读取方法，代理永远不会被调用。</p>
+     * <p>2026-10-31 之后本类不再注入 Mapper：数据来源是 {@code GatewayConfigQueryService}，
+     * 本替身覆写了全部读取方法，缓存 loader 永不触发。</p>
      */
-    static final class StubEntityCache extends GatewayEntityCacheService {
+    static final class StubEntityCache extends GatewayConfigCacheService {
 
-        private RoutingConsumerEntity consumer;
-        private RoutingRuleEntity rule;
-        private AppEntity app;
-        private List<RoutingRuleTargetEntity> targets = List.of();
-        private final Map<String, ModelEntity> models = new LinkedHashMap<>();
-        private final Map<String, ModelPoolEntity> pools = new LinkedHashMap<>();
-        private final Map<String, List<ModelPoolItemEntity>> poolItems = new LinkedHashMap<>();
-        private final Map<Long, List<ModelApiBindingEntity>> bindings = new LinkedHashMap<>();
+        private RoutingConsumerConfigVo consumer;
+        private RoutingRuleConfigVo rule;
+        private AppConfigVo app;
+        private List<RoutingRuleTargetConfigVo> targets = List.of();
+        private final Map<String, ModelConfigVo> models = new LinkedHashMap<>();
+        private final Map<String, ModelPoolConfigVo> pools = new LinkedHashMap<>();
+        private final Map<String, List<ModelPoolItemConfigVo>> poolItems = new LinkedHashMap<>();
+        private final Map<Long, List<ModelApiBindingConfigVo>> bindings = new LinkedHashMap<>();
 
         StubEntityCache() {
-            super(nullReturningProxy(AppMapper.class),
-                    nullReturningProxy(RoutingConsumerMapper.class),
-                    nullReturningProxy(RoutingRuleMapper.class),
-                    nullReturningProxy(RoutingRuleTargetMapper.class),
-                    nullReturningProxy(ModelMapper.class),
-                    nullReturningProxy(ModelPoolMapper.class),
-                    nullReturningProxy(ProviderAccountMapper.class),
-                    nullReturningProxy(ProviderCredentialMapper.class),
-                    nullReturningProxy(ModelApiBindingMapper.class),
-                    new ResourceTrafficPolicySupport(null, null, null, null),
-                    nullReturningProxy(BillingRuleMapper.class));
+            // 本替身覆写了全部读取方法，缓存 loader 永不触发；但 GatewayConfigQueryService 的
+            // 构造器参数在 super(...) 里要建方法引用（configQuery::getAppById），javac 会插入
+            // Objects.requireNonNull，所以 configQuery 本身不能为 null，只能给一个"字段全空"的实例。
+            super(new GatewayConfigQueryService(null, null, null, null, null, null, null, null, null,
+                            null, CONVERTER),
+                    new ResourceTrafficPolicySupport(null, null, null, null));
         }
 
         @Override
-        public RoutingConsumerEntity getConsumerBySecretKey(String secretKey) {
+        public RoutingConsumerConfigVo getConsumerBySecretKey(String secretKey) {
             return consumer;
         }
 
         @Override
-        public RoutingRuleEntity getEnabledRuleByConsumerCodeAndCode(String consumerCode, String ruleCode) {
+        public RoutingRuleConfigVo getEnabledRuleByConsumerCodeAndCode(String consumerCode, String ruleCode) {
             return rule;
         }
 
         @Override
-        public AppEntity getAppById(Long id) {
+        public AppConfigVo getAppById(Long id) {
             return app;
         }
 
         @Override
-        public List<RoutingRuleTargetEntity> listTargetsByRuleCode(String ruleCode) {
+        public List<RoutingRuleTargetConfigVo> listTargetsByRuleCode(String ruleCode) {
             return targets;
         }
 
         @Override
-        public ModelEntity getModelByCode(String modelCode) {
+        public ModelConfigVo getModelByCode(String modelCode) {
             return models.get(modelCode);
         }
 
         @Override
-        public ModelPoolEntity getModelPoolByCode(String poolCode) {
+        public ModelPoolConfigVo getModelPoolByCode(String poolCode) {
             return pools.get(poolCode);
         }
 
         @Override
-        public List<ModelPoolItemEntity> listModelPoolItemsByPoolCode(String poolCode) {
+        public List<ModelPoolItemConfigVo> listModelPoolItemsByPoolCode(String poolCode) {
             return poolItems.getOrDefault(poolCode, List.of());
         }
 
         @Override
-        public List<ModelApiBindingEntity> listApiBindingsByModelId(Long modelId) {
+        public List<ModelApiBindingConfigVo> listApiBindingsByModelId(Long modelId) {
             return bindings.getOrDefault(modelId, List.of());
         }
     }
@@ -657,25 +689,6 @@ class RoutingResolverTest {
         }
     }
 
-    /**
-     * 接口桩：任何方法调用返回 null（基本型返回零值）。
-     * 只用于满足构造器的非空参数约束，本替身生命周期内不应被触发。
-     */
-    @SuppressWarnings("unchecked")
-    private static <T> T nullReturningProxy(Class<T> type) {
-        return (T) Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[]{type},
-                (proxy, method, args) -> switch (method.getReturnType().getName()) {
-                    case "boolean" -> false;
-                    case "int" -> 0;
-                    case "long" -> 0L;
-                    case "double" -> 0d;
-                    case "float" -> 0f;
-                    case "short" -> (short) 0;
-                    case "byte" -> (byte) 0;
-                    case "char" -> (char) 0;
-                    default -> null;
-                });
-    }
 
     /** 粘性桩：固定返回指定首选，免于测试依赖一致性 hash 的内部结果 */
     static final class FixedStickyRouting extends StickyRouting {

@@ -4,6 +4,10 @@ import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.svc.dto.async.AsyncTaskDraftDto;
 import org.chobit.knot.svc.service.AsyncTaskService;
 import org.chobit.knot.dal.entity.ModelApiBindingEntity;
+import org.chobit.knot.svc.converter.GatewayConfigConverter;
+import org.chobit.knot.svc.service.GatewayConfigQueryService;
+import org.chobit.knot.svc.vo.gateway.ModelApiBindingConfigVo;
+import org.mapstruct.factory.Mappers;
 import org.chobit.knot.dal.mapper.AppMapper;
 import org.chobit.knot.dal.mapper.BillingRuleMapper;
 import org.chobit.knot.dal.mapper.ModelApiBindingMapper;
@@ -19,7 +23,7 @@ import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.model.vo.response.AsyncTaskAcceptedResponse;
 import org.chobit.knot.gateway.runtime.GatewayRequestContext;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
-import org.chobit.knot.gateway.service.GatewayEntityCacheService;
+import org.chobit.knot.gateway.service.GatewayConfigCacheService;
 import org.chobit.knot.svc.service.support.ResourceTrafficPolicySupport;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -81,8 +85,8 @@ class AsyncTaskSubmitStampTest {
         GatewayRequestContext context = context();
         AsyncTaskSupport syncOnly = new AsyncTaskSupport(null, null, store, new AsyncTaskProperties()) {
             @Override
-            public ModelApiBindingEntity bindingOf(Long modelId, ModelApiProtocolEnum protocol) {
-                return new ModelApiBindingEntity();
+            public ModelApiBindingConfigVo bindingOf(Long modelId, ModelApiProtocolEnum protocol) {
+                return CONVERTER.toApiBindingVo(new ModelApiBindingEntity());
             }
         };
 
@@ -113,10 +117,10 @@ class AsyncTaskSubmitStampTest {
         }
 
         @Override
-        public ModelApiBindingEntity bindingOf(Long modelId, ModelApiProtocolEnum protocol) {
+        public ModelApiBindingConfigVo bindingOf(Long modelId, ModelApiProtocolEnum protocol) {
             ModelApiBindingEntity binding = new ModelApiBindingEntity();
             binding.setAsyncProfileCode("KLING_TASK");
-            return binding;
+            return CONVERTER.toApiBindingVo(binding);
         }
 
         @Override
@@ -131,20 +135,25 @@ class AsyncTaskSubmitStampTest {
      * 数据桩：全方法返回 null。{@code submitIfAsync} 只用 {@code getModelByCode} 取计费规则，
      * 取不到是合法路径（消息里模型 id 落空，但任务照落库）。
      */
-    private static final class StubEntityCache extends GatewayEntityCacheService {
+    private static final GatewayConfigConverter CONVERTER =
+            Mappers.getMapper(GatewayConfigConverter.class);
+
+    private static final class StubEntityCache extends GatewayConfigCacheService {
 
         private StubEntityCache() {
-            super(nullProxy(AppMapper.class),
-                    nullProxy(RoutingConsumerMapper.class),
-                    nullProxy(RoutingRuleMapper.class),
-                    nullProxy(RoutingRuleTargetMapper.class),
-                    nullProxy(ModelMapper.class),
-                    nullProxy(ModelPoolMapper.class),
-                    nullProxy(ProviderAccountMapper.class),
-                    nullProxy(ProviderCredentialMapper.class),
-                    nullProxy(ModelApiBindingMapper.class),
-                    new ResourceTrafficPolicySupport(null, null, null, null),
-                    nullProxy(BillingRuleMapper.class));
+            super(new GatewayConfigQueryService(
+                            nullProxy(AppMapper.class),
+                            nullProxy(RoutingConsumerMapper.class),
+                            nullProxy(RoutingRuleMapper.class),
+                            nullProxy(RoutingRuleTargetMapper.class),
+                            nullProxy(ModelMapper.class),
+                            nullProxy(ModelPoolMapper.class),
+                            nullProxy(ProviderAccountMapper.class),
+                            nullProxy(ProviderCredentialMapper.class),
+                            nullProxy(ModelApiBindingMapper.class),
+                            nullProxy(BillingRuleMapper.class),
+                            CONVERTER),
+                    new ResourceTrafficPolicySupport(null, null, null, null));
         }
     }
 

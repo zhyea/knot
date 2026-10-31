@@ -7,7 +7,8 @@ import org.chobit.knot.gateway.exception.GatewayInvalidRequestException;
 import org.chobit.knot.gateway.model.vo.response.AsyncTaskFailureResponse;
 import org.chobit.knot.gateway.model.vo.response.AsyncTaskQueryResponse;
 import org.chobit.knot.gateway.routing.RoutingResolver;
-import org.chobit.knot.gateway.service.GatewayEntityCacheService;
+import org.chobit.knot.gateway.service.GatewayConfigCacheService;
+import org.chobit.knot.svc.service.GatewayConfigQueryService;
 import org.chobit.knot.svc.dto.async.AsyncTaskDto;
 import org.chobit.knot.svc.service.AsyncTaskService;
 import org.junit.jupiter.api.BeforeEach;
@@ -284,18 +285,22 @@ class AsyncTaskLookupRunnerTest {
         private RuntimeException error;
 
         private RecordingRoutingResolver() {
-            super(new GatewayEntityCacheService(
-                            nullReturningProxy(org.chobit.knot.dal.mapper.AppMapper.class),
-                            nullReturningProxy(org.chobit.knot.dal.mapper.RoutingConsumerMapper.class),
-                            nullReturningProxy(org.chobit.knot.dal.mapper.RoutingRuleMapper.class),
-                            nullReturningProxy(org.chobit.knot.dal.mapper.RoutingRuleTargetMapper.class),
-                            nullReturningProxy(org.chobit.knot.dal.mapper.ModelMapper.class),
-                            nullReturningProxy(org.chobit.knot.dal.mapper.ModelPoolMapper.class),
-                            nullReturningProxy(org.chobit.knot.dal.mapper.ProviderAccountMapper.class),
-                            nullReturningProxy(org.chobit.knot.dal.mapper.ProviderCredentialMapper.class),
-                            nullReturningProxy(org.chobit.knot.dal.mapper.ModelApiBindingMapper.class),
-                            new org.chobit.knot.svc.service.support.ResourceTrafficPolicySupport(null, null, null, null),
-                            nullReturningProxy(org.chobit.knot.dal.mapper.BillingRuleMapper.class)),
+            super(new GatewayConfigCacheService(
+                            new GatewayConfigQueryService(
+                                    nullReturningProxy(org.chobit.knot.dal.mapper.AppMapper.class),
+                                    nullReturningProxy(org.chobit.knot.dal.mapper.RoutingConsumerMapper.class),
+                                    nullReturningProxy(org.chobit.knot.dal.mapper.RoutingRuleMapper.class),
+                                    nullReturningProxy(org.chobit.knot.dal.mapper.RoutingRuleTargetMapper.class),
+                                    nullReturningProxy(org.chobit.knot.dal.mapper.ModelMapper.class),
+                                    nullReturningProxy(org.chobit.knot.dal.mapper.ModelPoolMapper.class),
+                                    nullReturningProxy(org.chobit.knot.dal.mapper.ProviderAccountMapper.class),
+                                    nullReturningProxy(org.chobit.knot.dal.mapper.ProviderCredentialMapper.class),
+                                    nullReturningProxy(org.chobit.knot.dal.mapper.ModelApiBindingMapper.class),
+                                    nullReturningProxy(org.chobit.knot.dal.mapper.BillingRuleMapper.class),
+                                    org.mapstruct.factory.Mappers.getMapper(
+                                            org.chobit.knot.svc.converter.GatewayConfigConverter.class)),
+                            new org.chobit.knot.svc.service.support.ResourceTrafficPolicySupport(
+                                    null, null, null, null)),
                     null, null, null, null);
         }
 
@@ -311,8 +316,9 @@ class AsyncTaskLookupRunnerTest {
     }
 
     /**
-     * mapper 占位：{@code GatewayEntityCacheService} 的构造器对每个 mapper 建方法引用，
-     * 传 null 会在构造期 NPE（javac 对方法引用接收者有显式空值检查）——同 {@code RoutingResolverTest} 的做法。
+     * mapper 占位：{@code GatewayConfigCacheService} 的构造器对 {@code configQuery} 建方法引用，
+     * 传 null 会在构造期 NPE（javac 对方法引用接收者有显式空值检查）；
+     * 而 {@code GatewayConfigQueryService} 的 mapper 参数只是赋值，用代理让它恒返回 null。
      */
     @SuppressWarnings("unchecked")
     private static <T> T nullReturningProxy(Class<T> type) {

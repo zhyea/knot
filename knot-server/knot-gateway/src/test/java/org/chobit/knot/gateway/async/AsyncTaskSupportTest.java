@@ -2,6 +2,9 @@ package org.chobit.knot.gateway.async;
 
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.dal.entity.ModelApiBindingEntity;
+import org.chobit.knot.svc.converter.GatewayConfigConverter;
+import org.chobit.knot.svc.vo.gateway.ModelApiBindingConfigVo;
+import org.mapstruct.factory.Mappers;
 import org.chobit.knot.gateway.async.AsyncTaskSupport.AsyncTaskCreation;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.svc.dto.async.AsyncTaskDraftDto;
@@ -38,13 +41,12 @@ class AsyncTaskSupportTest {
     @Test
     @DisplayName("异步与否只看绑定上的档案编码：为空/空白一律同步")
     void asyncIsBindingProperty() {
-        ModelApiBindingEntity binding = new ModelApiBindingEntity();
-        assertNull(support.profileCodeOf(binding));
+        // 载体换成不可变 record 后，原来「改同一个 binding 三次」的写法必须改成构造三个：
+        // 这反而更贴合用例语义——每次断言的是「给定这样一份配置，判出什么」。
+        assertNull(support.profileCodeOf(binding(null)));
         assertNull(support.profileCodeOf(null));
-        binding.setAsyncProfileCode("  ");
-        assertNull(support.profileCodeOf(binding), "空白档案编码等同未配置");
-        binding.setAsyncProfileCode(" KLING_TASK ");
-        assertEquals("KLING_TASK", support.profileCodeOf(binding));
+        assertNull(support.profileCodeOf(binding("  ")), "空白档案编码等同未配置");
+        assertEquals("KLING_TASK", support.profileCodeOf(binding(" KLING_TASK ")));
     }
 
     @Test
@@ -107,5 +109,15 @@ class AsyncTaskSupportTest {
         assertEquals(32, code.length());
         assertTrue(code.matches("[0-9a-f]{32}"), code);
         assertFalse(code.contains("-"));
+    }
+
+    /** 夹具走「构造实体 → 真 Converter」：record 12 个位置参数手写易错位 */
+    private static final GatewayConfigConverter CONVERTER =
+            Mappers.getMapper(GatewayConfigConverter.class);
+
+    private static ModelApiBindingConfigVo binding(String asyncProfileCode) {
+        ModelApiBindingEntity entity = new ModelApiBindingEntity();
+        entity.setAsyncProfileCode(asyncProfileCode);
+        return CONVERTER.toApiBindingVo(entity);
     }
 }

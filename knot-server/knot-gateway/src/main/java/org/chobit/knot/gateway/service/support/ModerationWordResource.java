@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * {@link ModerationTerm#versionOf(List)} 去重）——两边分工：网关缓存「词库资源」，
  * 插件缓存「编译产物」。</p>
  *
- * <p>时序语义（与 {@code GatewayEntityCacheService} 路由缓存一致）：写入 30s 后异步刷新、
+ * <p>时序语义（与 {@code GatewayConfigCacheService} 路由缓存一致）：写入 30s 后异步刷新、
  * 10min 硬过期。词库变更生效延迟约 30s；Caffeine 刷新期间旧值持续可见，不出现取词
  * 空窗。同步加载失败不缓存、逐次重试。</p>
  *
