@@ -30,6 +30,11 @@ import java.util.Set;
  * 调用方直接调这里。</p>
  *
  * <p>约束：本类<b>不持有任何状态</b>，全部入参传递；返回值统一是「null 表示合法，否则是错误描述」。</p>
+ *
+ * <p>⚠ <b>为什么留在 {@code common.model} 而不是搬到 {@code common.pricing}</b>：本类要调
+ * {@link BillingConfig#blankToNull}、{@code BillingConfig.RATE_MODE_ABSOLUTE} 等<b>包私有</b>成员，
+ * 换包就编译不过。别为了「校验器跟计费类放一起更好看」去改那些成员的可见性——那等于把
+ * 只该在包内共享的实现细节提成对外契约。</p>
  */
 public final class BillingConfigSupport {
 
@@ -53,13 +58,20 @@ public final class BillingConfigSupport {
             ":" + DIMENSION_REFERENCE,
             ":" + DIMENSION_REFERENCE + ":" + DIMENSION_AUDIO);
 
+    /** cacheWriteMode 白名单：standard=单字段 / ttl=5m+1h 分字段 */
+    private static final Set<String> SUPPORTED_CACHE_WRITE_MODES = Set.of("standard", "ttl");
+
+    /** tierMode 白名单：取值本身是 {@link BillingConfig} 的数据契约，这里只判「允许哪些」 */
+    private static final Set<String> SUPPORTED_TIER_MODES = Set.of(
+            BillingConfig.TIER_MODE_PER_REQUEST, BillingConfig.TIER_MODE_PROGRESSIVE);
+
     /**
      * 基础结构校验：返回 null 表示合法，否则返回错误描述。
      * 覆盖：价格非负（defaultUnitPrice / basePrices / resolutionPrices）、
      * tier 的 from 必填且非负、from&lt;=to、档位不重叠（开放档位必须是最后一个）。
      */
     public static String validate(BillingConfig config) {
-        if (config.cacheWriteMode() != null && !BillingConfig.SUPPORTED_CACHE_WRITE_MODES.contains(config.cacheWriteMode())) {
+        if (config.cacheWriteMode() != null && !SUPPORTED_CACHE_WRITE_MODES.contains(config.cacheWriteMode())) {
             return "cacheWriteMode must be standard or ttl";
         }
         if (config.defaultUnitPrice() != null && config.defaultUnitPrice().signum() < 0) {
@@ -170,7 +182,7 @@ public final class BillingConfigSupport {
         }
         // 固定价不呈现档位（2026-10-30 定调）：档位表是「按请求属性分档」的数据，只归维度分档价。
         // 前端在固定价下已不渲染这张表，后端若仍放行，手工改 config_json 就能配出「界面上无处可见、
-        // 取价却会命中」的价表（FixedPricing 的维度命中对两者是同一份实现）。
+        // 取价却会命中」的价表（FixedPricePolicy 的维度命中对两者是同一份实现）。
         if (resolved == PricingPlanEnum.FIXED && config.resolutionPrices() != null && !config.resolutionPrices().isEmpty()) {
             return "FIXED plan does not accept resolutionPrices; use DIMENSION_TIERED instead";
         }
@@ -196,7 +208,7 @@ public final class BillingConfigSupport {
         if (mode == null) {
             return null;
         }
-        return BillingConfig.SUPPORTED_TIER_MODES.contains(mode.toUpperCase())
+        return SUPPORTED_TIER_MODES.contains(mode.toUpperCase())
                 ? null
                 : "tierMode must be PER_REQUEST or PROGRESSIVE";
     }
@@ -215,7 +227,7 @@ public final class BillingConfigSupport {
      * DIMENSION_TIERED 专属：把「维度键拼错」从<b>静默回落</b>变成<b>拒绝保存</b>。
      *
      * <p>⭐ 本方案的取价算法与 {@link PricingPlanEnum#FIXED} 完全一致（都在
-     * {@code FixedPricing}），真正的增量就是这条校验。原因：维度键是<b>自由文本</b>，
+     * {@code FixedPricePolicy}），真正的增量就是这条校验。原因：维度键是<b>自由文本</b>，
      * 而取价是「逐级去尾找第一个命中的键」——键拼错时不会报错，而是悄悄退回
      * {@code defaultUnitPrice}，界面上看配置生效了、实际那档价从未命中过。</p>
      *

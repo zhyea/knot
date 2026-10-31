@@ -317,6 +317,13 @@ gateway 那 10 项就是被逼出来的：前一天补齐棘轮、第二天清�
 与既有 `dto.*` / `converter.*` 无从对照，于是 5 个不合规后缀躲过了 4 轮 review。
 判据：**全仓同名后缀一起数**——`find . -name "*Xxx.java" | wc -l`，只有自己造的那几个就是信号。
 
+⚠ 判例（2026-10-31）：三个 `private` 嵌套 record `FixedPricing` / `TieredPricing` / `PeakOffPeakPricing`
+拆成独立文件后**必须改名**——`Pricing` 不在白名单。**嵌套时不受约束，一旦升为顶级类就受约束**，
+「名字没变」不等于「合规」，因为约束的对象是「新增的顶级类」而不是「名字字符串」。
+改为 `FixedPricePolicy` / `TieredPricePolicy` / `PeakOffPeakPricePolicy`（`Policy` 在白名单，
+同包已有 `RetryPolicy` / `StickyPolicy` / `EjectionPolicy` 三个先例）。
+⭐ 这次是**拆分自己制造**的违规：拆的时候只想着「纯搬移」，没人回头看命名——**搬移也是新增**。
+
 ### 4.2 service 包纪律
 
 - `org.chobit.knot.svc.service` 包**顶层只允许 `@Service` 业务服务**（`XxxService`）。

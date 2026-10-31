@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -26,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
  * <p>与 {@code BillingConfigTest} 的分工：那边守 JSON 契约、校验与端到端取价链，这边只守本类内部的
  * 分支与回落顺序，不重复断言同一条链路的结果值。
  */
-class FixedPricingTest {
+class FixedPricePolicyTest {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;
 
@@ -42,13 +43,13 @@ class FixedPricingTest {
     @Test
     @DisplayName("取价链：basePrices[kind] -> defaultUnitPrice -> fallback，缺哪层落哪层")
     void resolvePriceWalksBaseThenDefaultThenFallback() {
-        FixedPricing pricing = new FixedPricing(PricingPlanEnum.FIXED,
+        FixedPricePolicy pricing = new FixedPricePolicy(PricingPlanEnum.FIXED,
                 priceSet("4", "20"), new BigDecimal("0.5"), null);
         assertPrice("4", pricing.resolvePrice(PriceKind.INPUT, context(100), ZERO));
         // 该 kind 未配置时落 defaultUnitPrice，不能越过它直接用 fallback
         assertPrice("0.5", pricing.resolvePrice(PriceKind.CACHE_WRITE, context(100), new BigDecimal("9")));
         // 只有 defaultUnitPrice 也没配时才用 fallback
-        assertPrice("9", new FixedPricing(PricingPlanEnum.FIXED, null, null, null)
+        assertPrice("9", new FixedPricePolicy(PricingPlanEnum.FIXED, null, null, null)
                 .resolvePrice(PriceKind.INPUT, context(100), new BigDecimal("9")));
     }
 
@@ -58,7 +59,7 @@ class FixedPricingTest {
         Map<String, BigDecimal> prices = Map.of(
                 "720P", new BigDecimal("1.5"),
                 "INPUT_VIDEO:768P", new BigDecimal("0.8"));
-        FixedPricing pricing = new FixedPricing(PricingPlanEnum.FIXED, null, new BigDecimal("1.0"), prices);
+        FixedPricePolicy pricing = new FixedPricePolicy(PricingPlanEnum.FIXED, null, new BigDecimal("1.0"), prices);
 
         // ① 原样命中
         assertPrice("1.5", pricing.resolveDimensionPrice(List.of("720P"), context(1), ZERO));
@@ -67,7 +68,7 @@ class FixedPricingTest {
         assertPrice("1.5", pricing.resolveDimensionPrice(List.of("720p"), context(1), ZERO));
         assertPrice("0.8", pricing.resolveDimensionPrice(List.of("input_video:768p"), context(1), ZERO));
         // ③ 配置侧若是小写，请求侧给大写也要能命中 —— 走的是「试全小写」那一次
-        FixedPricing lowerCased = new FixedPricing(PricingPlanEnum.FIXED, null, ZERO,
+        FixedPricePolicy lowerCased = new FixedPricePolicy(PricingPlanEnum.FIXED, null, ZERO,
                 Map.of("1080p", new BigDecimal("2")));
         assertPrice("2", lowerCased.resolveDimensionPrice(List.of("1080P"), context(1), ZERO));
         // 一个都没命中 -> 回落 defaultUnitPrice（不是 0，也不能是 null）
@@ -77,18 +78,18 @@ class FixedPricingTest {
     @Test
     @DisplayName("维度键为空/列表为 null 时不查表，直接走默认价链")
     void dimensionLookupToleratesMissingInputs() {
-        FixedPricing pricing = new FixedPricing(PricingPlanEnum.FIXED, null, new BigDecimal("1.0"),
+        FixedPricePolicy pricing = new FixedPricePolicy(PricingPlanEnum.FIXED, null, new BigDecimal("1.0"),
                 Map.of("720P", new BigDecimal("1.5")));
         assertPrice("1.0", pricing.resolveDimensionPrice(null, context(1), ZERO));
         assertPrice("1.0", pricing.resolveDimensionPrice(List.of(), context(1), ZERO));
         // 列表里带 null 元素时跳过它继续看下一个
-        assertPrice("1.5", pricing.resolveDimensionPrice(java.util.Arrays.asList(null, "720P"), context(1), ZERO));
+        assertPrice("1.5", pricing.resolveDimensionPrice(Arrays.asList(null, "720P"), context(1), ZERO));
     }
 
     @Test
     @DisplayName("分量价：维度键 -> 分量自带默认价 -> 规则默认价 -> fallback（分量默认价不能被规则默认价抢先）")
     void componentPricePrefersOwnDefaultOverRuleDefault() {
-        FixedPricing pricing = new FixedPricing(PricingPlanEnum.FIXED, null, new BigDecimal("0.5"),
+        FixedPricePolicy pricing = new FixedPricePolicy(PricingPlanEnum.FIXED, null, new BigDecimal("0.5"),
                 Map.of("INPUT_IMAGE:720P", new BigDecimal("0.2")));
 
         assertPrice("0.2", pricing.resolveComponentPrice(
@@ -101,7 +102,7 @@ class FixedPricingTest {
         assertPrice("0.5", pricing.resolveComponentPrice(
                 List.of("INPUT_IMAGE:1080P"), null, context(1), ZERO));
         // 规则默认价也没配 -> fallback
-        assertPrice("9", new FixedPricing(PricingPlanEnum.FIXED, null, null, null)
+        assertPrice("9", new FixedPricePolicy(PricingPlanEnum.FIXED, null, null, null)
                 .resolveComponentPrice(List.of("INPUT_IMAGE:1080P"), null, context(1), new BigDecimal("9")));
     }
 
@@ -111,8 +112,8 @@ class FixedPricingTest {
         assertNull(fixed(PricingPlanEnum.FIXED).resolveProgressiveSum(PriceKind.INPUT, 10, context(10), ZERO));
     }
 
-    private static FixedPricing fixed(PricingPlanEnum plan) {
-        return new FixedPricing(plan, priceSet("4", "20"), new BigDecimal("0.5"), null);
+    private static FixedPricePolicy fixed(PricingPlanEnum plan) {
+        return new FixedPricePolicy(plan, priceSet("4", "20"), new BigDecimal("0.5"), null);
     }
 
     private static PricingContext context(long amount) {

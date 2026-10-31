@@ -632,8 +632,8 @@ class BillingConfigTest {
                  "resolutionPrices":{"720P":0.1,"1080P":0.2},
                  "imageResolution":"1024x1024"}
                 """);
-        assertEquals(0, new BigDecimal("0.1").compareTo(config.resolutionPrice("720P")));
-        assertNull(config.resolutionPrice("480P"));
+        assertEquals(0, new BigDecimal("0.1").compareTo(config.resolutionPrices().get("720P")));
+        assertNull(config.resolutionPrices().get("480P"));
         Map<String, BigDecimal> prices = config.resolutionPrices();
         assertEquals(2, prices.size());
         assertEquals(0, new BigDecimal("0.05").compareTo(

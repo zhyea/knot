@@ -16,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
  * 高低峰在**网关热路径**是否真的生效（B7 接线回归）。
  *
  * <p>链路：{@code UsageNormalizationSupport.normalize} -> {@code NormalizedUsageContext.occurredAt}
- * -> {@code TokenBillingModeCalculator} -> {@code PricingContext} -> {@code PeakOffPeakPricing}。
+ * -> {@code TokenBillingModeCalculator} -> {@code PricingContext} -> {@code PeakOffPeakPricePolicy}。
  * 任一段漏传时间，倍率都会退化成 1、金额回到基础价；这里同时盯住高峰与低峰两个时点，
  * 断言它们必须算出**不同**的钱。
  */

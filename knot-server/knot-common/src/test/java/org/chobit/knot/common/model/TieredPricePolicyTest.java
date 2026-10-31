@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -26,7 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
  * <p>与 {@code BillingConfigTest} 的分工：那边守「TIERED 方案必须配齐 unitPrices」这类保存期校验，
  * 这边守「已经落库的历史配置里存在残缺档位时，取价不能崩也不能错位」。
  */
-class TieredPricingTest {
+class TieredPricePolicyTest {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;
 
@@ -39,7 +40,7 @@ class TieredPricingTest {
                 new TierRule(new Condition(BigDecimal.ZERO, null), null),
                 new TierRule(new Condition(null, null), priceSet("2")),
                 new TierRule(new Condition(BigDecimal.ZERO, null), priceSet("7")));
-        TieredPricing pricing = new TieredPricing(null, new BigDecimal("0.5"), tier, false, null);
+        TieredPricePolicy pricing = new TieredPricePolicy(null, new BigDecimal("0.5"), tier, false, null);
 
         // 前四档全残缺，第五档才合法；不能因为第一档是 null 就整条链中断
         assertPrice("7", pricing.resolvePrice(PriceKind.INPUT, context(100), ZERO));
@@ -50,7 +51,7 @@ class TieredPricingTest {
     @Test
     @DisplayName("to 含端点、省略 to 表示上不封顶、from 含端点")
     void tierBoundariesAreInclusiveAndOpenEndedToIsUnbounded() {
-        TieredPricing pricing = new TieredPricing(null, null, List.of(
+        TieredPricePolicy pricing = new TieredPricePolicy(null, null, List.of(
                 new TierRule(new Condition(BigDecimal.ZERO, new BigDecimal("1000")), priceSet("5")),
                 new TierRule(new Condition(new BigDecimal("1001"), null), priceSet("3"))), false, null);
 
@@ -63,7 +64,7 @@ class TieredPricingTest {
     @Test
     @DisplayName("用量 <= 0 或无 time 来源的上下文不查阶梯，直接走基础价链")
     void nonPositiveAmountSkipsTierLookup() {
-        TieredPricing pricing = new TieredPricing(priceSet("4"), new BigDecimal("0.5"), List.of(
+        TieredPricePolicy pricing = new TieredPricePolicy(priceSet("4"), new BigDecimal("0.5"), List.of(
                 new TierRule(new Condition(BigDecimal.ZERO, null), priceSet("1"))), false, null);
 
         assertPrice("4", pricing.resolvePrice(PriceKind.INPUT, context(0), ZERO));
@@ -75,20 +76,20 @@ class TieredPricingTest {
     @Test
     @DisplayName("TIERED 但没配档位（历史配置）时退化为固定价，不抛异常")
     void tierlessConfigDegradesToFixedPrice() {
-        TieredPricing pricing = new TieredPricing(priceSet("4", "20"), new BigDecimal("0.5"), null, false, null);
+        TieredPricePolicy pricing = new TieredPricePolicy(priceSet("4", "20"), new BigDecimal("0.5"), null, false, null);
 
         assertPrice("4", pricing.resolvePrice(PriceKind.INPUT, context(100), ZERO));
         // 该 kind 没配 -> defaultUnitPrice（不是 fallback）
         assertPrice("0.5", pricing.resolvePrice(PriceKind.CACHE_WRITE, context(100), ZERO));
         // defaultUnitPrice 也没配时才用 fallback
-        assertPrice("9", new TieredPricing(null, null, null, false, null)
+        assertPrice("9", new TieredPricePolicy(null, null, null, false, null)
                 .resolvePrice(PriceKind.CACHE_WRITE, context(100), new BigDecimal("9")));
     }
 
     @Test
     @DisplayName("PER_REQUEST：用整笔用量命中单档；progressive 关掉时逐单位累加返回 null")
     void perRequestModeMatchesWholeAmountOnly() {
-        TieredPricing pricing = new TieredPricing(null, new BigDecimal("5"), List.of(
+        TieredPricePolicy pricing = new TieredPricePolicy(null, new BigDecimal("5"), List.of(
                 new TierRule(new Condition(BigDecimal.ZERO, new BigDecimal("1000")), priceSet("5")),
                 new TierRule(new Condition(new BigDecimal("1001"), null), priceSet("3"))), false, null);
 
@@ -100,7 +101,7 @@ class TieredPricingTest {
     @Test
     @DisplayName("PROGRESSIVE：逐单位判定档位后累加（Vidu Q2 720P 8 秒 = 8 + 10 + 10×6 = 78）")
     void progressiveAccumulatesUnitPrices() {
-        TieredPricing pricing = viduQ2();
+        TieredPricePolicy pricing = viduQ2();
 
         assertPrice("8", pricing.resolveProgressiveSum(PriceKind.INPUT, 1, context(1), ZERO));
         assertPrice("18", pricing.resolveProgressiveSum(PriceKind.INPUT, 2, context(2), ZERO));
@@ -108,7 +109,7 @@ class TieredPricingTest {
         // amount <= 0 时没有「单价和」可言，返回 null 让调用方回退「量 × 单价」
         assertNull(pricing.resolveProgressiveSum(PriceKind.INPUT, 0, context(0), ZERO));
         // 未开 progressive 的阶梯方案不承担逐单位累加
-        assertNull(new TieredPricing(null, BigDecimal.ONE, null, false, null)
+        assertNull(new TieredPricePolicy(null, BigDecimal.ONE, null, false, null)
                 .resolveProgressiveSum(PriceKind.INPUT, 8, context(8), ZERO));
     }
 
@@ -116,11 +117,27 @@ class TieredPricingTest {
     @DisplayName("PROGRESSIVE 下某单位未命中任何档位时逐单位回落 defaultUnitPrice，而不是整体归零")
     void progressiveFallsBackPerUnitWhenTierMisses() {
         // 档位从第 3 个单位起才配：前 2 个单位无处可落
-        TieredPricing pricing = new TieredPricing(null, new BigDecimal("2"), List.of(
+        TieredPricePolicy pricing = new TieredPricePolicy(null, new BigDecimal("2"), List.of(
                 new TierRule(new Condition(new BigDecimal("3"), new BigDecimal("10")), priceSet("10"))), true, null);
 
         // 2 + 2 + 10 + 10
         assertPrice("24", pricing.resolveProgressiveSum(PriceKind.INPUT, 4, context(4), ZERO));
+    }
+
+    @Test
+    @DisplayName("分量价回落：维度键 -> 分量自带价 -> 规则默认价（档位命中不参与分量取价）")
+    void componentPriceKeepsSameFallbackOrderAsFixed() {
+        TieredPricePolicy pricing = new TieredPricePolicy(null, new BigDecimal("0.5"), List.of(
+                new TierRule(new Condition(BigDecimal.ZERO, new BigDecimal("1000")), priceSet("5"))), false,
+                Map.of("INPUT_IMAGE:720P", new BigDecimal("0.2")));
+
+        assertPrice("0.2", pricing.resolveComponentPrice(
+                List.of("INPUT_IMAGE:720P"), new BigDecimal("0.3"), context(100), ZERO));
+        // ⭐ 维度未命中必须用分量自带价 0.3，不能落成规则默认价 0.5
+        assertPrice("0.3", pricing.resolveComponentPrice(
+                List.of("INPUT_IMAGE:1080P"), new BigDecimal("0.3"), context(100), ZERO));
+        assertPrice("0.5", pricing.resolveComponentPrice(
+                List.of("INPUT_IMAGE:1080P"), null, context(100), ZERO));
     }
 
     @Test
@@ -129,8 +146,8 @@ class TieredPricingTest {
         assertEquals(PricingPlanEnum.TIERED, viduQ2().plan());
     }
 
-    private static TieredPricing viduQ2() {
-        return new TieredPricing(null, null, List.of(
+    private static TieredPricePolicy viduQ2() {
+        return new TieredPricePolicy(null, null, List.of(
                 new TierRule(new Condition(BigDecimal.ONE, BigDecimal.ONE), priceSet("8")),
                 new TierRule(new Condition(new BigDecimal("2"), new BigDecimal("2")), priceSet("10")),
                 new TierRule(new Condition(new BigDecimal("3"), null), priceSet("10"))), true, null);

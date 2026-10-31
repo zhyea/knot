@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
  * <p>这两条此前只能靠 {@code VideoBillingModeCalculatorTest} 间接覆盖，错在方案层却报在计算器层，
  * 定位方向是反的。拆出后可以对着方案层直接断言。
  */
-class PeakOffPeakPricingTest {
+class PeakOffPeakPricePolicyTest {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;
 
@@ -43,7 +43,7 @@ class PeakOffPeakPricingTest {
     @Test
     @DisplayName("时间缺失（occurredAt = null）时倍率恒为 1，价格与固定价逐字相同")
     void missingOccurredAtLeavesPriceUntouched() {
-        PeakOffPeakPricing pricing = multiplier(new BigDecimal("0.5"), null);
+        PeakOffPeakPricePolicy pricing = multiplier(new BigDecimal("0.5"), null);
 
         assertPrice("4", pricing.resolvePrice(PriceKind.INPUT, PricingContext.ofAmount(100), ZERO));
         assertPrice("0.5", pricing.resolveDefaultPrice(PricingContext.ofAmount(100), ZERO));
@@ -53,7 +53,7 @@ class PeakOffPeakPricingTest {
     @Test
     @DisplayName("MULTIPLIER：基础价、默认价、维度分档价三者都乘同一个倍率")
     void multiplierAppliesToEveryPriceSource() {
-        PeakOffPeakPricing pricing = multiplier(new BigDecimal("0.5"), Map.of("720P", new BigDecimal("2")));
+        PeakOffPeakPricePolicy pricing = multiplier(new BigDecimal("0.5"), Map.of("720P", new BigDecimal("2")));
 
         assertPrice("3.2", pricing.resolvePrice(PriceKind.INPUT, new PricingContext(100, OFF_PEAK), ZERO));
         assertPrice("0.4", pricing.resolveDefaultPrice(new PricingContext(100, OFF_PEAK), ZERO));
@@ -67,7 +67,7 @@ class PeakOffPeakPricingTest {
     @Test
     @DisplayName("MULTIPLIER：分量价回落链 维度键 -> 分量自带价 -> 规则默认价 -> fallback，再统一乘倍率")
     void multiplierComponentPriceKeepsFallbackOrder() {
-        PeakOffPeakPricing pricing = multiplier(new BigDecimal("0.5"),
+        PeakOffPeakPricePolicy pricing = multiplier(new BigDecimal("0.5"),
                 Map.of("INPUT_IMAGE:720P", new BigDecimal("1")));
 
         // 维度命中 -> 1 × 0.8
@@ -84,7 +84,7 @@ class PeakOffPeakPricingTest {
     @Test
     @DisplayName("ABSOLUTE：取相位自带单价，维度分档价与分量默认价一律不参与")
     void absoluteTakesPhasePriceAndIgnoresDimensionAndComponentPrices() {
-        PeakOffPeakPricing pricing = new PeakOffPeakPricing(priceSet("4", "20"), new BigDecimal("0.5"),
+        PeakOffPeakPricePolicy pricing = new PeakOffPeakPricePolicy(priceSet("4", "20"), new BigDecimal("0.5"),
                 absolute(true), HolidayCalendar.EMPTY, Map.of("720P", new BigDecimal("99")));
 
         assertPrice("10", pricing.resolvePrice(PriceKind.INPUT, new PricingContext(100, PEAK), ZERO));
@@ -102,7 +102,7 @@ class PeakOffPeakPricingTest {
     @Test
     @DisplayName("ABSOLUTE 相位缺 unitPrices（历史配置）时回落 fallback，不抛异常也不返回 0")
     void absoluteWithoutUnitPricesFallsBackToFallback() {
-        PeakOffPeakPricing pricing = new PeakOffPeakPricing(null, null, absolute(false),
+        PeakOffPeakPricePolicy pricing = new PeakOffPeakPricePolicy(null, null, absolute(false),
                 HolidayCalendar.EMPTY, Map.of("720P", new BigDecimal("99")));
 
         assertPrice("9", pricing.resolvePrice(PriceKind.INPUT, new PricingContext(100, PEAK), new BigDecimal("9")));
@@ -114,7 +114,7 @@ class PeakOffPeakPricingTest {
     @DisplayName("ABSOLUTE 相位配了 unitPrices 但缺该 kind 时，该 kind 回落 fallback（不能拿 0 充数）")
     void absoluteMissingKindFallsBackPerKind() {
         // 相位只配了 input，output 在 ABSOLUTE 下没有来源
-        PeakOffPeakPricing pricing = new PeakOffPeakPricing(null, null, absoluteInputOnly(),
+        PeakOffPeakPricePolicy pricing = new PeakOffPeakPricePolicy(null, null, absoluteInputOnly(),
                 HolidayCalendar.EMPTY, null);
 
         assertPrice("10", pricing.resolvePrice(PriceKind.INPUT, new PricingContext(100, PEAK), ZERO));
@@ -136,8 +136,8 @@ class PeakOffPeakPricingTest {
 
     // ==================== 夹具 ====================
 
-    private static PeakOffPeakPricing multiplier(BigDecimal defaultUnitPrice, Map<String, BigDecimal> dimensionPrices) {
-        return new PeakOffPeakPricing(priceSet("4", "20"), defaultUnitPrice, multiplierPricing(),
+    private static PeakOffPeakPricePolicy multiplier(BigDecimal defaultUnitPrice, Map<String, BigDecimal> dimensionPrices) {
+        return new PeakOffPeakPricePolicy(priceSet("4", "20"), defaultUnitPrice, multiplierPricing(),
                 HolidayCalendar.EMPTY, dimensionPrices);
     }
 

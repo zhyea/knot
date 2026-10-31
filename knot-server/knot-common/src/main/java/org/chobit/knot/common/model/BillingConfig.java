@@ -74,13 +74,14 @@ public record BillingConfig(
         /** 缓存写方式（TOKEN 模式）：standard=单字段缓存写，ttl=5m/1h 分字段；null 视为 standard */
         String cacheWriteMode) {
 
-    /** cacheWriteMode 合法取值 */
-    public static final Set<String> SUPPORTED_CACHE_WRITE_MODES = Set.of("standard", "ttl");
-
-    /** tierMode 合法取值 */
+    /**
+     * tierMode 取值（{@code PER_REQUEST} 整笔落一档 / {@code PROGRESSIVE} 逐单位累加）。
+     *
+     * <p>词汇留在这里，<b>白名单</b>（哪个方案允许用哪个）在 {@link BillingConfigSupport}——
+     * 前者是数据契约的一部分，后者是校验规则。</p>
+     */
     public static final String TIER_MODE_PER_REQUEST = "PER_REQUEST";
     public static final String TIER_MODE_PROGRESSIVE = "PROGRESSIVE";
-    public static final Set<String> SUPPORTED_TIER_MODES = Set.of(TIER_MODE_PER_REQUEST, TIER_MODE_PROGRESSIVE);
 
     /** 首期唯一的计价方式：在模式层基础单价上乘相位倍率 */
     static final String RATE_MODE_MULTIPLIER = "MULTIPLIER";
@@ -404,11 +405,6 @@ public record BillingConfig(
         }
     }
 
-    /** 视频分辨率单价：resolutionPrices[resolution]，未配置返回 null */
-    public BigDecimal resolutionPrice(String resolution) {
-        return resolutionPrices == null ? null : resolutionPrices.get(resolution);
-    }
-
     /** PROGRESSIVE 阶梯是否启用：tierMode 显式为 PROGRESSIVE 且配了档位 */
     public boolean progressive() {
         return TIER_MODE_PROGRESSIVE.equalsIgnoreCase(blankToNull(tierMode)) && tier != null && !tier.isEmpty();
@@ -514,6 +510,52 @@ public record BillingConfig(
     }
 
     /**
+     * 维度分档价 + 规则默认价回落：固定价与阶梯价里逐字相同的那一段，收口到这里。
+     *
+     * <p>⭐ <b>为什么收在这里而不是各实现里</b>：这两个方法在 {@link FixedPricePolicy} 与
+     * {@link TieredPricePolicy} 里曾经逐字重复（diff 差 0 行）。重复不会立刻出错，错在「某天只改了
+     * 其中一处」——那正是分档价静默算歪的开端。维度键查表与回落顺序是<b>全类共用的事实</b>，
+     * 因此跟 {@link #dimensionPrice} 一起留在这里，而不是各实现各留一份。</p>
+     *
+     * <p>高低峰价在 <b>MULTIPLIER</b> 模式下走的也是本方法，再在外层乘倍率；
+     * <b>ABSOLUTE</b> 模式取相位自带价，根本不进这里。</p>
+     *
+     * @return 维度键命中价 -&gt; 规则默认价 -&gt; fallback
+     */
+    static BigDecimal dimensionPriceOrDefault(List<String> candidateKeys,
+                                             Map<String, BigDecimal> dimensionPrices,
+                                             BigDecimal defaultUnitPrice,
+                                             BigDecimal fallback) {
+        BigDecimal matched = dimensionPrice(candidateKeys, dimensionPrices);
+        if (matched != null) {
+            return matched;
+        }
+        return defaultUnitPrice != null ? defaultUnitPrice : fallback;
+    }
+
+    /**
+     * 分量取价：维度键 -&gt; 分量自带默认价 -&gt; 规则默认价 -&gt; fallback。
+     *
+     * <p>⭐ 与 {@link #dimensionPriceOrDefault} 的<b>唯一</b>区别是「维度未命中时谁兜底」：
+     * 输入视频秒 / 输入图片张这类分量<b>自带单价</b>，不能被规则默认价抢先——那会把
+     * 「输入图片 0.2/张」静默算成「输出视频 0.5/秒」的价（2026-10-25 实测：MiniMax 三路求和被多算 1.5）。</p>
+     */
+    static BigDecimal componentPriceOrDefault(List<String> candidateKeys,
+                                              Map<String, BigDecimal> dimensionPrices,
+                                              BigDecimal componentDefault,
+                                              BigDecimal defaultUnitPrice,
+                                              BigDecimal fallback) {
+        BigDecimal matched = dimensionPrice(candidateKeys, dimensionPrices);
+        if (matched != null) {
+            return matched;
+        }
+        if (componentDefault != null) {
+            return componentDefault;
+        }
+        return defaultUnitPrice != null ? defaultUnitPrice : fallback;
+    }
+
+    /**
      * 依据版本列 pricing_plan 构建方案领域对象；配置解析失败视为无配置（返回 null 由调用方兜底）。
      */
     public PricingPlan pricingPlan(PricingPlanEnum plan) {
@@ -530,9 +572,9 @@ public record BillingConfig(
             // DIMENSION_TIERED 与厂商定制方案（MiniMax）的取价语义都与固定价完全一致：
             // 多分量编排与维度键拼装在计算器侧，方案值只承担分类标签与校验锚点，故共用同一实现
             case FIXED, DIMENSION_TIERED, VENDOR_MINIMAX ->
-                    new FixedPricing(resolved, basePrices, defaultUnitPrice, resolutionPrices);
-            case TIERED -> new TieredPricing(basePrices, defaultUnitPrice, tier, progressive(), resolutionPrices);
-            case PEAK_OFF_PEAK -> new PeakOffPeakPricing(basePrices, defaultUnitPrice, pricing, effective, resolutionPrices);
+                    new FixedPricePolicy(resolved, basePrices, defaultUnitPrice, resolutionPrices);
+            case TIERED -> new TieredPricePolicy(basePrices, defaultUnitPrice, tier, progressive(), resolutionPrices);
+            case PEAK_OFF_PEAK -> new PeakOffPeakPricePolicy(basePrices, defaultUnitPrice, pricing, effective, resolutionPrices);
         };
     }
 

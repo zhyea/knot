@@ -12,11 +12,11 @@ import java.util.List;
 import java.util.Map;
 
 /** 阶梯价：按用量命中档位单价，未命中回退基础价格 */
-record TieredPricing(PriceSet basePrices,
-                      BigDecimal defaultUnitPrice,
-                      List<TierRule> tier,
-                      boolean progressive,
-                      Map<String, BigDecimal> dimensionPrices) implements PricingPlan {
+record TieredPricePolicy(PriceSet basePrices,
+                         BigDecimal defaultUnitPrice,
+                         List<TierRule> tier,
+                         boolean progressive,
+                         Map<String, BigDecimal> dimensionPrices) implements PricingPlan {
 
     @Override
     public PricingPlanEnum plan() {
@@ -41,16 +41,30 @@ record TieredPricing(PriceSet basePrices,
         return defaultUnitPrice != null ? defaultUnitPrice : fallback;
     }
 
+    /**
+     * 维度分档价：查表与回落顺序在 {@link BillingConfig#dimensionPriceOrDefault}。
+     *
+     * <p>⚠ 别在这里再抄一份。它与 {@link FixedPricePolicy} 的同名方法曾经逐字重复（diff 差 0 行）。</p>
+     */
     @Override
     public BigDecimal resolveDimensionPrice(List<String> candidateKeys, PricingContext context, BigDecimal fallback) {
-        BigDecimal matched = BillingConfig.dimensionPrice(candidateKeys, dimensionPrices);
-        return matched != null ? matched : resolveDefaultPrice(context, fallback);
+        return BillingConfig.dimensionPriceOrDefault(candidateKeys, dimensionPrices, defaultUnitPrice, fallback);
+    }
+
+    /** 分量取价：回落顺序见 {@link BillingConfig#componentPriceOrDefault}（分量自带价优先于规则默认价） */
+    @Override
+    public BigDecimal resolveComponentPrice(List<String> candidateKeys,
+                                            BigDecimal componentDefault,
+                                            PricingContext context,
+                                            BigDecimal fallback) {
+        return BillingConfig.componentPriceOrDefault(
+                candidateKeys, dimensionPrices, componentDefault, defaultUnitPrice, fallback);
     }
 
     /**
      * PROGRESSIVE：把用量拆成 {@code amount} 个单位，逐单位判定档位后累加单价。
      *
-     * <p>与 {@link #resolveFromTier} 共用一个「按数值命中档位」的判定，
+     * <p>与 {@link #resolvePrice} 共用一个「按数值命中档位」的判定（{@link #resolveFromTier}），
      * 区别只在代入的是<b>单位序号 i</b> 而不是<b>本笔总用量</b>：</p>
      * <pre>
      * Vidu Q2-turbo 720P（第1秒 8，第2秒 10，第3秒起 +10），8 秒：
@@ -64,7 +78,7 @@ record TieredPricing(PriceSet basePrices,
         }
         BigDecimal total = BigDecimal.ZERO;
         for (long unit = 1; unit <= amount; unit++) {
-            BigDecimal price = tierPriceAt(kind, unit);
+            BigDecimal price = resolveFromTier(kind, unit);
             if (price == null) {
                 price = resolveDefaultPrice(context, fallback);
             }
@@ -75,25 +89,12 @@ record TieredPricing(PriceSet basePrices,
         return total;
     }
 
-    @Override
-    public BigDecimal resolveComponentPrice(List<String> candidateKeys,
-                                            BigDecimal componentDefault,
-                                            PricingContext context,
-                                            BigDecimal fallback) {
-        BigDecimal matched = BillingConfig.dimensionPrice(candidateKeys, dimensionPrices);
-        if (matched != null) {
-            return matched;
-        }
-        return componentDefault != null ? componentDefault : resolveDefaultPrice(context, fallback);
-    }
-
-    private BigDecimal tierPriceAt(PriceKind kind, long unitIndex) {
-        if (tier == null) {
-            return null;
-        }
-        return resolveFromTier(kind, unitIndex);
-    }
-
+    /**
+     * 按数值命中档位单价：{@code from} 含、{@code to} 含（null 表示上不封顶）。
+     *
+     * <p>{@code usageAmount <= 0} 或没配档位时返回 null，由调用方决定回落方向——
+     * 单笔取价落基础价，逐单位累加落 {@code defaultUnitPrice}。</p>
+     */
     private BigDecimal resolveFromTier(PriceKind kind, long usageAmount) {
         if (usageAmount <= 0 || tier == null) {
             return null;
