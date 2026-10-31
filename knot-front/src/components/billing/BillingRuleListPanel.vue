@@ -1,7 +1,7 @@
 <template>
   <div>
     <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
-      <el-table-column prop="code" label="规则编码" min-width="180" show-overflow-tooltip/>
+      <el-table-column prop="code" label="规则编码" min-width="200" show-overflow-tooltip/>
       <el-table-column label="模型族" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.modelFamilyName || (row.modelFamilyCode ? `#${row.modelFamilyCode}` : "默认") }}
@@ -16,11 +16,6 @@
       <el-table-column label="进阶方案" width="100">
         <template #default="{ row }">{{ pricingPlanLabel(row.pricingPlan) }}</template>
       </el-table-column>
-      <el-table-column prop="currency" label="币种" width="80" align="center"/>
-      <el-table-column prop="unit" label="单位" width="110"/>
-      <el-table-column label="绑定数量" width="100" align="right" show-overflow-tooltip>
-        <template #default="{ row }">{{ row.boundModelCount ?? 0 }}</template>
-      </el-table-column>
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch
@@ -32,6 +27,11 @@
             @change="(value) => emit('enabled-change', row, value)"
           />
         </template>
+      </el-table-column>
+      <el-table-column prop="currency" label="币种" width="80" align="center"/>
+      <el-table-column prop="unit" label="单位" width="150"/>
+      <el-table-column label="绑定数量" width="100" align="right" show-overflow-tooltip>
+        <template #default="{ row }">{{ row.boundModelCount ?? 0 }}</template>
       </el-table-column>
       <el-table-column label="操作" width="170" align="center" header-align="center" fixed="right">
         <template #default="{ row }">

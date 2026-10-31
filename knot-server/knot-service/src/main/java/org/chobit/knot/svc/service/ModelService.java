@@ -3,6 +3,7 @@ package org.chobit.knot.svc.service;
 import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -368,8 +369,20 @@ public class ModelService {
                 .toList();
     }
 
+    /**
+     * 新增折扣策略。
+     *
+     * <p>⭐ <b>基础校验</b>（2026-10-31 robin 拍板「折扣做基础校验，仅展示、不返客户端」）：
+     * {@link #validateDiscountPolicy} 只查「类型非空 / 值非空且非负」这类会让展示或落库直接炸掉的边界，
+     * <b>不</b>做业务语义校验（如折扣率上限、类型是否枚举项）——那是越界，且折扣<b>不参与计费</b>，
+     * 算错类型也不会算错钱。</p>
+     *
+     * <p>折扣<b>仅管理面展示</b>：网关侧 {@code knot-gateway} / {@code knot-common} 无任何折扣取价逻辑，
+     * 校验失败按 {@link ErrorCode#VALIDATION_ERROR} 返回，但折扣数据<b>不进客户端/网关响应</b>。</p>
+     */
     @Transactional
     public DiscountPolicyDto createDiscountPolicy(String modelCode, DiscountPolicyDto request) {
+        validateDiscountPolicy(request);
         requireExistingModel(modelCode);
         DiscountPolicyEntity entity = new DiscountPolicyEntity();
         entity.setModelCode(modelCode);
@@ -381,8 +394,13 @@ public class ModelService {
         return toDiscountPolicyDto(entity);
     }
 
+    /**
+     * 更新折扣策略；同样走 {@link #validateDiscountPolicy}（类型非空 / 值非空且非负）。
+     * 归属模型不可跨模型改：命中不到即视为不存在。
+     */
     @Transactional
     public DiscountPolicyDto updateDiscountPolicy(String modelCode, Long policyId, DiscountPolicyDto request) {
+        validateDiscountPolicy(request);
         requireExistingModel(modelCode);
         DiscountPolicyEntity entity = discountPolicyMapper.getById(policyId);
         // 归属模型不可跨模型改：命中不到即视为不存在
@@ -394,6 +412,27 @@ public class ModelService {
         entity.setStatus(request.status());
         discountPolicyMapper.update(entity);
         return toDiscountPolicyDto(entity);
+    }
+
+    /**
+     * 折扣基础校验：类型非空、值非空且非负。
+     *
+     * <p>只挡「会让展示或落库直接炸」的边界，不做业务语义校验——折扣不参与计费，过度校验是越界。</p>
+     */
+    private void validateDiscountPolicy(DiscountPolicyDto request) {
+        if (request == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "折扣策略请求体不能为空");
+        }
+        if (StringUtils.isBlank(request.discountType())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "折扣类型不能为空");
+        }
+        BigDecimal value = request.discountValue();
+        if (value == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "折扣值不能为空");
+        }
+        if (value.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, "折扣值不能为负数");
+        }
     }
 
     /**

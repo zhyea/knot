@@ -27,12 +27,12 @@ import static org.mockito.Mockito.when;
 
 
 /**
- * 供应商模型折扣策略（{@code kb_provider_discount_policies}）的存量行为固化。
+ * 供应商模型折扣策略（{@code kb_provider_discount_policies}）的存量行为固化 + 基础校验守门。
  *
  * <p>本簇此前<b>零覆盖</b>（改进清单 §4.7 拆分第二批：评估后决定不拆出 {@code ModelService}，
- * 理由见清单，改为先补测试守住边界）。这里只固化当前行为，<b>不新增任何校验</b>——
- * 折扣仅供展示、不参与计费（robin 2026-10-25 二次强调），不要以「将来可能参与计费」
- * 为由给它补精度或取值范围约束。</p>
+ * 理由见清单，改为先补测试守住边界）。折扣<b>仅供展示、不参与计费</b>（robin 2026-10-25 强调），
+ * 故校验只挡「类型非空 / 值非空且非负」这类会让展示或落库炸掉的边界，不做业务语义校验。
+ * 2026-10-31 robin 拍板由「不校验」改为「做基础校验」。</p>
  */
 class ModelDiscountPolicyTest {
 
@@ -108,6 +108,52 @@ class ModelDiscountPolicyTest {
         ArgumentCaptor<DiscountPolicyEntity> captor = ArgumentCaptor.forClass(DiscountPolicyEntity.class);
         verify(discountPolicyMapper).insert(captor.capture());
         assertEquals(EnabledStatusEnum.DISABLED.code(), captor.getValue().getStatus());
+    }
+
+    @Test
+    void createRejectsBlankDiscountType() {
+        givenModelExists();
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.createDiscountPolicy(
+                MODEL_CODE, new DiscountPolicyDto(null, "  ", new BigDecimal("0.85"), null)));
+
+        assertTrue(ex.getMessage().contains("折扣类型不能为空"));
+        verify(discountPolicyMapper, never()).insert(any());
+    }
+
+    @Test
+    void createRejectsNullDiscountValue() {
+        givenModelExists();
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.createDiscountPolicy(
+                MODEL_CODE, new DiscountPolicyDto(null, "PERCENTAGE", null, null)));
+
+        assertTrue(ex.getMessage().contains("折扣值不能为空"));
+        verify(discountPolicyMapper, never()).insert(any());
+    }
+
+    @Test
+    void createRejectsNegativeDiscountValue() {
+        givenModelExists();
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.createDiscountPolicy(
+                MODEL_CODE, new DiscountPolicyDto(null, "PERCENTAGE", new BigDecimal("-0.1"), null)));
+
+        assertTrue(ex.getMessage().contains("折扣值不能为负数"));
+        verify(discountPolicyMapper, never()).insert(any());
+    }
+
+    @Test
+    void updateRejectsNegativeDiscountValue() {
+        givenModelExists();
+        when(discountPolicyMapper.getById(POLICY_ID)).thenReturn(policy(EnabledStatusEnum.ENABLED.code()));
+
+        BusinessException ex = assertThrows(BusinessException.class, () -> service.updateDiscountPolicy(
+                MODEL_CODE, POLICY_ID,
+                new DiscountPolicyDto(POLICY_ID, "FIXED", new BigDecimal("-2.5"), EnabledStatusEnum.ENABLED.code())));
+
+        assertTrue(ex.getMessage().contains("折扣值不能为负数"));
+        verify(discountPolicyMapper, never()).update(any());
     }
 
     @Test
