@@ -4,8 +4,8 @@ import {ElMessage} from "element-plus";
 
 /**
  * 列表行启用开关：调用独立状态接口并支持失败回滚。
- * @param {object} options
- * @param {(id: number, enabled: boolean) => Promise<unknown>} options.updateApi
+ * @param options
+ * @param options.updateApi
  */
 export function useEnabledToggle({ updateApi }: { updateApi: (id: number | string, enabled: boolean) => Promise<unknown> }) {
   const togglingId = ref<number | string | null>(null);

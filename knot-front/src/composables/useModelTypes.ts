@@ -41,9 +41,9 @@ function applyList(list: Row[]): void {
 
 /**
  * 加载模型类型协议规则；共享缓存，并发调用只发一次请求
- * @param {boolean} force 是否忽略缓存强制刷新
+ * @param force 是否忽略缓存强制刷新
  */
-async function loadOptions(force = false) {
+async function loadOptions(force: boolean = false) {
   if (!force && loadedAt && Date.now() - loadedAt <= TTL) {
     return;
   }
@@ -68,8 +68,8 @@ async function loadOptions(force = false) {
 export function useModelTypes() {
   /**
    * 模型类型 code -> supportedProtocols
-   * @param {string} code
-   * @param {string[]} [fallback] 未命中时的兜底协议，缺省空数组
+ * @param code
+ * @param [fallback] 未命中时的兜底协议，缺省空数组
    */
   function protocolsOf(code: unknown, fallback: string[] = []): string[] {
     const protocols = protocolMap.value[normalizeProtocolCode(code)];

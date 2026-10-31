@@ -46,9 +46,9 @@ function toOptions(entry: unknown): SelectOption[] {
 
 /**
  * 加载全部代码枚举；全局只缓存一份，并发调用共用一个请求
- * @param {boolean} force 是否忽略缓存强制刷新
+ * @param force 是否忽略缓存强制刷新
  */
-async function loadEnums(force = false) {
+async function loadEnums(force: boolean = false) {
   if (!force && loadedAt && Date.now() - loadedAt <= TTL) {
     return enumMap.value;
   }
@@ -85,8 +85,8 @@ export function useEnumOptions() {
 
   /**
    * 取某个枚举的下拉选项
-   * @param {string} enumName 枚举键
-   * @param {(string|number)[]} [includeCodes] 仅保留这些 code（保持后端顺序）
+   * @param enumName 枚举键
+   * @param [includeCodes] 仅保留这些 code（保持后端顺序）
    */
   function optionsOf(enumName: string, includeCodes?: (string | number)[]): SelectOption[] {
     const list = toOptions(enumMap.value[enumName]);
@@ -101,9 +101,9 @@ export function useEnumOptions() {
    * code -> label
    *
    * 严格比较：数字 `0` 只命中数字 code 0，不命中字符串 "0"。
-   * @param {string} enumName 枚举键
-   * @param {unknown} code
-   * @param {string} [fallback] 未命中时的兜底文案，缺省回显 code
+   * @param enumName 枚举键
+   * @param code
+   * @param [fallback] 未命中时的兜底文案，缺省回显 code
    */
   function labelOf(enumName: string, code: unknown, fallback?: string): string {
     if (code === null || code === undefined || code === "") {

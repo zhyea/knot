@@ -22,10 +22,10 @@ function isExpired(entry: { data: unknown; ts: number } | undefined): boolean {
 
 /**
  * 按分类加载枚举选项（带缓存）
- * @param {string} category  如 model_family、discount_type（仅限仍由 DB 维护的分类）
- * @param {boolean} enabledOnly 是否只返回启用项，默认 true
+ * @param category  如 model_family、discount_type（仅限仍由 DB 维护的分类）
+ * @param enabledOnly 是否只返回启用项，默认 true
  */
-export function useEnums(category: string, enabledOnly = true) {
+export function useEnums(category: string, enabledOnly: boolean = true) {
   const options = ref<Row[]>([]);
   const loading = ref(false);
   /** 最近一次加载的失败原因；成功即清空。调用方据此决定要不要提示，默认不弹 */
@@ -33,7 +33,7 @@ export function useEnums(category: string, enabledOnly = true) {
 
   /**
    * 加载枚举选项
-   * @param {boolean} force 是否忽略缓存强制回源。表单下拉/抽屉每次打开都应传 true，
+   * @param force 是否忽略缓存强制回源。表单下拉/抽屉每次打开都应传 true，
    *   否则会命中模块级缓存拿到编辑前的旧值（DB 压力由后端 Caffeine 吸收）。
    */
   async function loadOptions(force: boolean = false) {
@@ -80,11 +80,11 @@ export function clearEnumCache() {
 
 /**
  * 根据 itemCode 解析展示文案
- * @param {Array} options useEnums 返回的 options.value
- * @param {string} code
- * @param {string} [fallback]
+ * @param options useEnums 返回的 options.value
+ * @param code
+ * @param [fallback]
  */
-export function resolveEnumLabel(options: Row[], code: unknown, fallback = "—"): string {
+export function resolveEnumLabel(options: Row[], code: unknown, fallback: string = "—"): string {
   if (!code) return fallback;
   const list = Array.isArray(options) ? options : [];
   const item = list.find((i) => i.itemCode === code);

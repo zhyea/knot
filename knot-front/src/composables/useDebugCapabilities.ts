@@ -54,9 +54,9 @@ function applyList(list: unknown): void {
 
 /**
  * 加载调试能力；共享缓存，并发调用只发一次请求
- * @param {boolean} force 是否忽略缓存强制刷新
+ * @param force 是否忽略缓存强制刷新
  */
-async function loadOptions(force = false) {
+async function loadOptions(force: boolean = false) {
   if (!force && loadedAt && Date.now() - loadedAt <= TTL) {
     return;
   }
