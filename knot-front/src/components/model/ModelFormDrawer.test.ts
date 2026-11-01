@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import {describe, it, expect, vi, beforeEach, afterEach} from "vitest";
 import {mount, flushPromises, type VueWrapper} from "@vue/test-utils";
-import {ElDrawer, ElMessage} from "element-plus";
+import {ElDrawer, ElMessage, ElSelect} from "element-plus";
 import ModelFormDrawer from "@/components/model/ModelFormDrawer.vue";
 
 /**
@@ -54,7 +54,7 @@ vi.mock("@/api/models", () => ({
 
 vi.mock("@/api/billing", () => ({listBillingRules: vi.fn()}));
 
-// 任务协议候选：选项接口在打开抽屉时会调一次，必须挡住，否则 jsdom 会真发 XHR
+// 任务档案候选：选项接口在打开抽屉时会调一次，必须挡住，否则 jsdom 会真发 XHR
 vi.mock("@/api/asyncTaskProfiles", () => ({listAsyncTaskProfileOptions: vi.fn()}));
 
 vi.mock("@/api/options", () => ({
@@ -88,7 +88,7 @@ const ADAPTERS = [
 ];
 
 /**
- * 任务协议候选：`value` 是档案编码，`meta.protocol` 决定它出现在哪个协议的下拉里。
+ * 任务档案候选：`value` 是档案编码，`meta.protocol` 决定它出现在哪个协议的下拉里。
  * 与真实接口一致——只返回启用档案，流式协议的项由后端标 `disabled`。
  */
 const ASYNC_PROFILES = [
@@ -538,9 +538,9 @@ describe("ModelFormDrawer 供应商模型表单", () => {
     expect(billingSelect.props("disabled")).toBe(false);
   });
 
-  // ==================== 任务协议（异步档案绑定） ====================
+  // ==================== 任务档案（异步档案绑定） ====================
 
-  it("任务协议原样回填并随绑定一起提交（空值归一成 null）", async () => {
+  it("任务档案原样回填并随绑定一起提交（空值归一成 null）", async () => {
     const wrapper = await openDrawer({
       model: editModel({
         apiBindings: [
@@ -567,7 +567,7 @@ describe("ModelFormDrawer 供应商模型表单", () => {
     expect(payload.apiBindings[0].asyncProfileCode).toBe("KLING_TASK");
   });
 
-  it("切换接口协议时清空不匹配的任务协议并提示，不静默丢配置", async () => {
+  it("切换接口协议时清空不匹配的任务档案并提示，档案留空时拦在提交前", async () => {
     const wrapper = await openDrawer({
       model: editModel({
         apiBindings: [
@@ -589,7 +589,19 @@ describe("ModelFormDrawer 供应商模型表单", () => {
 
     expect(warned().some((text) => text.includes("KLING_TASK"))).toBe(true);
     expect(wrapper.text()).not.toContain("/v1/videos/{task_id}");
+    // 调用方式仍停在异步：档案下拉留着等人重选，不悄悄弹回同步
+    expect(wrapper.text()).toContain("任务档案");
 
+    // 档案空着保存 = 想把异步配置静默降级成同步，必须拦下
+    await saveButton(wrapper).trigger("click");
+    await flushPromises();
+
+    expect(warned()).toContain("请选择任务档案：RESPONSES");
+    expect(updateModel).not.toHaveBeenCalled();
+
+    // 明确改回同步后才允许落地，且提交的档案为 null
+    await wrapper.findAll(".el-radio-button__original-radio")[0].setValue(true);
+    await flushPromises();
     await saveButton(wrapper).trigger("click");
     await flushPromises();
 
@@ -621,7 +633,114 @@ describe("ModelFormDrawer 供应商模型表单", () => {
     await saveButton(wrapper).trigger("click");
     await flushPromises();
 
-    expect(warned()).toContain("任务协议已停用或不存在：GONE_TASK（CHAT_COMPLETIONS）");
+    expect(warned()).toContain("任务档案已停用或不存在：GONE_TASK（CHAT_COMPLETIONS）");
     expect(updateModel).not.toHaveBeenCalled();
+  });
+
+  // ==================== 调用方式（同步 / 异步 开关） ====================
+
+  it("默认同步：卡片不渲染任务档案，提交 asyncProfileCode 为 null", async () => {
+    const wrapper = await openDrawer({
+      model: editModel({
+        apiBindings: [{id: 11, protocol: "CHAT_COMPLETIONS", usageExtractor: "openai.usage", enabled: true}]
+      })
+    });
+
+    expect(wrapper.text()).not.toContain("任务档案");
+    // 同步是默认态，开关明确落在「同步」上
+    const radios = wrapper.findAll(".el-radio-button__original-radio");
+    expect((radios[0].element as HTMLInputElement).checked).toBe(true);
+    expect((radios[1].element as HTMLInputElement).checked).toBe(false);
+
+    await saveButton(wrapper).trigger("click");
+    await flushPromises();
+
+    const [, payload] = vi.mocked(updateModel).mock.calls[0];
+    expect(payload.apiBindings[0].asyncProfileCode).toBeNull();
+  });
+
+  it("切到异步才展示任务档案，选中后随绑定一起提交", async () => {
+    const wrapper = await openDrawer({model: editModel()});
+    expect(wrapper.text()).not.toContain("任务档案");
+
+    await wrapper.findAll(".el-radio-button__original-radio")[1].setValue(true);
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("任务档案");
+    const archiveSelect = wrapper.findAllComponents(ElSelect)
+      .find((item) => item.props("placeholder") === "请选择任务档案");
+    expect(archiveSelect).toBeTruthy();
+
+    await archiveSelect!.vm.$emit("update:modelValue", "KLING_TASK");
+    await flushPromises();
+    // 选中即接上只读口径提示
+    expect(wrapper.text()).toContain("/v1/videos/{task_id}");
+
+    await saveButton(wrapper).trigger("click");
+    await flushPromises();
+
+    const [, payload] = vi.mocked(updateModel).mock.calls[0];
+    expect(payload.apiBindings[0].asyncProfileCode).toBe("KLING_TASK");
+  });
+
+  it("切回同步会清掉已选档案，不把异步配置带进同步提交", async () => {
+    const wrapper = await openDrawer({
+      model: editModel({
+        apiBindings: [
+          {
+            id: 11,
+            protocol: "CHAT_COMPLETIONS",
+            asyncProfileCode: "KLING_TASK",
+            requestAdapter: "OPENAI_CHAT",
+            usageExtractor: "openai.usage",
+            enabled: true
+          }
+        ]
+      })
+    });
+    expect(wrapper.text()).toContain("任务档案");
+
+    await wrapper.findAll(".el-radio-button__original-radio")[0].setValue(true);
+    await flushPromises();
+
+    expect(wrapper.text()).not.toContain("任务档案");
+    expect(wrapper.text()).not.toContain("/v1/videos/{task_id}");
+
+    await saveButton(wrapper).trigger("click");
+    await flushPromises();
+
+    const [, payload] = vi.mocked(updateModel).mock.calls[0];
+    expect(payload.apiBindings[0].asyncProfileCode).toBeNull();
+  });
+
+  it("选了异步却没选档案时拦在提交前，不静默存成同步", async () => {
+    const wrapper = await openDrawer({model: editModel()});
+
+    await wrapper.findAll(".el-radio-button__original-radio")[1].setValue(true);
+    await flushPromises();
+
+    await saveButton(wrapper).trigger("click");
+    await flushPromises();
+
+    expect(warned()).toContain("请选择任务档案：CHAT_COMPLETIONS");
+    expect(updateModel).not.toHaveBeenCalled();
+  });
+
+  it("协议卡片的启用开关在标题栏，关掉后随绑定提交 enabled=false", async () => {
+    const wrapper = await openDrawer({model: editModel()});
+
+    const headSwitch = wrapper.find(".api-binding-card__head .el-switch");
+    expect(headSwitch.exists()).toBe(true);
+    // 正文不再保留第二个启用开关
+    expect(wrapper.findAll(".api-binding-card__row .el-switch")).toHaveLength(0);
+
+    await headSwitch.trigger("click");
+    await flushPromises();
+
+    await saveButton(wrapper).trigger("click");
+    await flushPromises();
+
+    const [, payload] = vi.mocked(updateModel).mock.calls[0];
+    expect(payload.apiBindings[0].enabled).toBe(false);
   });
 });

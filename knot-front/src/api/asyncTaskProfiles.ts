@@ -2,7 +2,7 @@ import {get, post, postQuery} from "./http";
 import type {Dict} from "@/types";
 
 /**
- * 异步任务档案（任务协议）管理面接口（`/api/system/async-task-profiles`）。
+ * 异步任务档案管理面接口（`/api/system/async-task-profiles`）。
  *
  * <p>⭐ <b>为什么挂在 {@code /api/system/} 而不是 {@code /api/routing/}</b>：档案是系统级配置
  * （改错会把所有在途任务带偏），任务实例是运行数据。两者权限分开登记。</p>
@@ -31,7 +31,7 @@ export function deleteAsyncTaskProfile(profileCode: string) {
   return post(`/api/system/async-task-profiles/delete/${encodeURIComponent(profileCode)}`);
 }
 
-/** 任务协议下拉候选项（模型表单用；只含启用档案，disabled 由后端算） */
+/** 任务档案下拉候选项（模型表单用；只含启用档案，disabled 由后端算） */
 export function listAsyncTaskProfileOptions() {
   return post("/api/system/async-task-profiles/options");
 }

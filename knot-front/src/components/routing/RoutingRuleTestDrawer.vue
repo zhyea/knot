@@ -197,7 +197,7 @@
                 <div v-if="asyncHandleMissing" class="async-handle-missing">
                   <el-icon><WarningFilled/></el-icon>
                   <span>
-                    本次未生成任务句柄，请求按同步返回。检查：① 模型该协议的绑定是否选了任务协议
+                    本次未生成任务句柄，请求按同步返回。检查：① 模型该协议的绑定是否选了任务档案
                     （async_profile_code）；② 档案的 task_id_path 是否能在上游创建响应里取到 ID
                     （可在「异步任务档案 → 试跑」验证）。
                   </span>

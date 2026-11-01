@@ -189,7 +189,12 @@
             <div v-for="(binding, index) in form.apiBindings" :key="binding.uid" class="api-binding-card">
               <div class="api-binding-card__head">
                 <span>协议 {{ index + 1 }}</span>
-                <el-button text type="danger" @click="removeApiBinding(index)">删除</el-button>
+                <div class="api-binding-card__head-actions">
+                  <el-form-item label="启用" class="inline-switch">
+                    <el-switch v-model="binding.enabled"/>
+                  </el-form-item>
+                  <el-button text type="danger" @click="removeApiBinding(index)">删除</el-button>
+                </div>
               </div>
 
               <el-row :gutter="12" class="api-binding-card__row">
@@ -205,7 +210,7 @@
                     />
                   </el-form-item>
                 </el-col>
-                <el-col :span="10">
+                <el-col :span="8">
                   <el-form-item label="请求适配器">
                     <el-select
                       v-model="binding.requestAdapter"
@@ -224,43 +229,7 @@
                     </el-select>
                   </el-form-item>
                 </el-col>
-                <el-col :span="6">
-                  <el-form-item label="启用">
-                    <el-switch v-model="binding.enabled"/>
-                  </el-form-item>
-                </el-col>
-              </el-row>
-
-              <el-row :gutter="12" class="api-binding-card__row">
-                <el-col :span="9">
-                  <el-form-item label="任务协议">
-                    <el-select
-                      :model-value="binding.asyncProfileCode"
-                      :disabled="!binding.protocol"
-                      :placeholder="binding.protocol ? '同步（提交即终态）' : '先选择接口协议'"
-                      clearable
-                      filterable
-                      style="width: 100%"
-                      @update:model-value="(value) => onAsyncProfileChange(binding, value)"
-                    >
-                      <el-option
-                        v-for="item in asyncProfileOptionsOf(binding.protocol)"
-                        :key="String(item.value)"
-                        :label="String(item.label ?? item.value)"
-                        :value="String(item.value)"
-                        :disabled="item.disabled === true"
-                      />
-                    </el-select>
-                    <div
-                      v-if="binding.asyncProfileCode"
-                      class="async-profile-hint"
-                      :class="{ 'async-profile-hint--warn': isAsyncProfileMissing(binding) }"
-                    >
-                      {{ asyncProfileHintOf(binding) }}
-                    </div>
-                  </el-form-item>
-                </el-col>
-                <el-col :span="15">
+                <el-col :span="8">
                   <el-form-item label="上游路径">
                     <el-input v-model="binding.apiPath" placeholder="为空时使用协议默认路径"/>
                   </el-form-item>
@@ -317,6 +286,49 @@
                         :value="item.code"
                       />
                     </el-select>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+
+              <el-row :gutter="12" class="api-binding-card__row">
+                <el-col :span="9">
+                  <el-form-item label="调用方式">
+                    <el-radio-group
+                      :model-value="binding.taskMode"
+                      @update:model-value="(mode) => onTaskModeChange(binding, mode)"
+                    >
+                      <el-radio-button :value="TASK_MODE_SYNC">同步</el-radio-button>
+                      <el-radio-button :value="TASK_MODE_ASYNC">异步</el-radio-button>
+                    </el-radio-group>
+                  </el-form-item>
+                </el-col>
+                <!-- 任务档案只在异步下出现：同步是「提交即终态」，没有可选的档案 -->
+                <el-col v-if="binding.taskMode === TASK_MODE_ASYNC" :span="15">
+                  <el-form-item label="任务档案">
+                    <el-select
+                      :model-value="binding.asyncProfileCode"
+                      :disabled="!binding.protocol"
+                      :placeholder="binding.protocol ? '请选择任务档案' : '先选择接口协议'"
+                      clearable
+                      filterable
+                      style="width: 100%"
+                      @update:model-value="(value) => onAsyncProfileChange(binding, value)"
+                    >
+                      <el-option
+                        v-for="item in asyncProfileOptionsOf(binding.protocol)"
+                        :key="String(item.value)"
+                        :label="String(item.label ?? item.value)"
+                        :value="String(item.value)"
+                        :disabled="item.disabled === true"
+                      />
+                    </el-select>
+                    <div
+                      v-if="binding.asyncProfileCode"
+                      class="async-profile-hint"
+                      :class="{ 'async-profile-hint--warn': isAsyncProfileMissing(binding) }"
+                    >
+                      {{ asyncProfileHintOf(binding) }}
+                    </div>
                   </el-form-item>
                 </el-col>
               </el-row>
@@ -379,18 +391,32 @@ import {normalizeProtocolCode} from "@/utils/protocolCode";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
 
+/**
+ * 单条协议绑定的调用方式。
+ *
+ * <p>⭐ 只是界面开关，不是落库字段：库里的唯一事实是 {@code asyncProfileCode}
+ * （空 = 同步）。拆成独立字段是为了让「选了异步但还没选档案」这一瞬间可表达——
+ * 若由编码反推，下拉一空就会自动弹回同步，人再也选不到档案。</p>
+ */
+type TaskMode = "sync" | "async";
+
+const TASK_MODE_SYNC: TaskMode = "sync";
+const TASK_MODE_ASYNC: TaskMode = "async";
+
 /** 模型 API 绑定行（表单内 uid 用于 :key 稳定渲染） */
 interface ModelApiBinding {
   uid: string;
   id: number | null;
   protocol: string;
   /**
-   * 任务协议（异步查询口径档案编码，`kb_async_task_profiles.profile_code`）。
+   * 任务档案（异步查询口径档案编码，`kb_async_task_profiles.profile_code`）。
    *
    * <p>空串 = 同步：该协议提交即终态，网关不建任务行。非空时网关把「提交 → 轮询 → 回推」
    * 交给档案描述的口径，档案里写错一个表达式就只影响这一条绑定。</p>
    */
   asyncProfileCode: string;
+  /** 调用方式开关（同步/异步），只驱动界面，落库只认 {@code asyncProfileCode} */
+  taskMode: TaskMode;
   apiPath: string;
   requestAdapter: string;
   usageExtractor: string;
@@ -421,7 +447,7 @@ const boundBillingRule = ref<Row | null>(null);
 const usageExtractorOptions = ref<Row[]>([]);
 const requestAdapterOptions = ref<Row[]>([]);
 /**
- * 任务协议候选（只含<b>启用</b>档案；流式协议的项由后端标 {@code disabled}）。
+ * 任务档案候选（只含<b>启用</b>档案；流式协议的项由后端标 {@code disabled}）。
  *
  * <p>⚠ 后端只返回启用档案，不返回「停用了但 disabled」的项：选中一个必然被保存接口
  * 拒绝的选项毫无意义。因此这里的「找不到」既可能是停用也可能是删除，
@@ -555,7 +581,7 @@ async function loadRequestAdapters() {
 }
 
 /**
- * 加载任务协议候选。
+ * 加载任务档案候选。
  *
  * <p>⚠ 这里的 {@code catch} 是有意的：这条链路是可选增强，它挂了不该连带取消
  * {@code Promise.all} 之后的协议归一与计费规则回显——那会让整张表单停在一份半成品状态。
@@ -566,7 +592,7 @@ async function loadAsyncTaskProfileOptions() {
     const data = await listAsyncTaskProfileOptions();
     asyncProfileOptions.value = normalizeOptionList(data);
   } catch {
-    // 候选为空时任务协议下拉不可选，同步配置照常可存；回显不依赖候选（见 asyncProfileHintOf）
+    // 候选为空时任务档案下拉不可选，同步配置照常可存；回显不依赖候选（见 asyncProfileHintOf）
   }
 }
 
@@ -739,7 +765,7 @@ watch(
         loadModelTypes(),
         loadUsageExtractors(),
         loadRequestAdapters(),
-        // 任务协议候选必须在协议归一之前就绪：归一里会按候选剔除「协议已不匹配」的旧绑定
+        // 任务档案候选必须在协议归一之前就绪：归一里会按候选剔除「协议已不匹配」的旧绑定
         loadAsyncTaskProfileOptions()
       ]);
       // 表单重置后按已绑定码取回那一条规则（watch 在同值时不触发，这里显式补一次）
@@ -836,11 +862,14 @@ function beforeEnableChange() {
 }
 
 function createApiBinding(source: Dict = {}): ModelApiBinding {
+  const asyncProfileCode = String(source.asyncProfileCode ?? "").trim();
   return {
     uid: source.uid || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     id: source.id ?? null,
     protocol: normalizeProtocolForModelType(source.protocol),
-    asyncProfileCode: String(source.asyncProfileCode ?? "").trim(),
+    asyncProfileCode,
+    // 回填时按编码反推：已绑档案的绑定一定停在「异步」，否则下拉会被藏起来
+    taskMode: asyncProfileCode ? TASK_MODE_ASYNC : TASK_MODE_SYNC,
     apiPath: source.apiPath || "",
     requestAdapter: normalizeRequestAdapterCode(source.requestAdapter),
     usageExtractor: source.usageExtractor || firstUsageExtractorCode(),
@@ -883,9 +912,15 @@ function validateApiBindings() {
       ElMessage.warning(`Usage 解析器必填：${binding.protocol}`);
       return false;
     }
+    // 选了异步却没选档案：落库只剩 asyncProfileCode 为空，静默存下去会变成同步，
+    // 与人刚才的操作相反——拦在提交前说清楚
+    if (binding.taskMode === TASK_MODE_ASYNC && !binding.asyncProfileCode) {
+      ElMessage.warning(`请选择任务档案：${binding.protocol}`);
+      return false;
+    }
     // 档案被删/停用后，老绑定的编码会留在表单里：前端先说清是哪一条，别让人对着后端 400 猜
     if (binding.asyncProfileCode && !asyncProfileOption(binding.asyncProfileCode)) {
-      ElMessage.warning(`任务协议已停用或不存在：${binding.asyncProfileCode}（${binding.protocol}）`);
+      ElMessage.warning(`任务档案已停用或不存在：${binding.asyncProfileCode}（${binding.protocol}）`);
       return false;
     }
   }
@@ -942,7 +977,7 @@ function asyncProfileOption(profileCode: unknown): Row | undefined {
 }
 
 /**
- * 任务协议候选按<b>绑定自己的接口协议</b>过滤。
+ * 任务档案候选按<b>绑定自己的接口协议</b>过滤。
  *
  * <p>⭐ 档案与协议是绑定的（后端保存时校验两者一致），所以这里只给同一协议的档案：
  * 跨协议选进来必然存不进去。流式协议的项后端标 {@code disabled}，界面上置灰而不是隐藏——
@@ -995,15 +1030,25 @@ function asyncProfileHintOf(binding: ModelApiBinding): string {
     + ` · 轮询间隔 ${humanDuration(meta.pollIntervalMs)} · 超时 ${humanDuration(meta.timeoutMs)}`;
 }
 
-/** 选中任务协议（空值 = 同步） */
+/** 切换调用方式：切回同步即清空档案（同步是「提交即终态」，留着一个档案会两边不一致） */
+function onTaskModeChange(binding: ModelApiBinding, mode: unknown) {
+  const next = mode === TASK_MODE_ASYNC ? TASK_MODE_ASYNC : TASK_MODE_SYNC;
+  binding.taskMode = next;
+  if (next === TASK_MODE_SYNC) {
+    binding.asyncProfileCode = "";
+  }
+}
+
+/** 选中任务档案（空值 = 还没选，保存时按「请选择任务档案」拦下） */
 function onAsyncProfileChange(binding: ModelApiBinding, value: unknown) {
   binding.asyncProfileCode = String(value ?? "").trim();
 }
 
 /**
- * 切换接口协议时清掉不再适用的任务协议。
+ * 切换接口协议时清掉不再适用的任务档案。
  *
- * <p>⚠ 不静默清空：绑定的档案属于另一家上游，悄悄清掉会让人以为「上次选的那个还在」。</p>
+ * <p>⚠ 不静默清空：绑定的档案属于另一家上游，悄悄清掉会让人以为「上次选的那个还在」。
+ * 清空后调用方式仍停在异步，档案下拉留着等人重选——不要顺手弹回同步。</p>
  *
  * <p>⚠ 用参数里的新协议判断，<b>不读</b> {@code binding.protocol}——{@code v-model} 与
  * 本监听同时挂在 {@code update:model-value} 上，两者执行顺序不保证，读绑定值可能读到旧值。</p>
@@ -1019,11 +1064,11 @@ function onProtocolChange(binding: ModelApiBinding, protocol: unknown) {
     return;
   }
   binding.asyncProfileCode = "";
-  ElMessage.warning(`已切换接口协议，任务协议「${current}」不再适用，请重新选择`);
+  ElMessage.warning(`已切换接口协议，任务档案「${current}」不再适用，请重新选择`);
 }
 
 /**
- * 剔除与所属协议不匹配的任务协议（加载/联动归一后调用）。
+ * 剔除与所属协议不匹配的任务档案（加载/联动归一后调用）。
  *
  * <p>只在候选已就绪时判定：候选为空（加载失败或一条启用档案都没有）时无从判断，
  * 此时保留原值比清空安全——清空会静默把异步配置降级成同步。</p>
@@ -1179,6 +1224,13 @@ async function submit() {
   font-weight: 600;
 }
 
+/* 标题栏右侧操作区：启用开关与删除按钮同一行，开关不再占表单行 */
+.api-binding-card__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .binding-card__head small {
   color: #909399;
   font-size: 12px;
@@ -1230,7 +1282,7 @@ async function submit() {
   margin-top: 4px;
 }
 
-/* 任务协议口径提示：贴在下拉下方，不占表单行高 */
+/* 任务档案口径提示：贴在下拉下方，不占表单行高 */
 .async-profile-hint {
   width: 100%;
   margin-top: 2px;
@@ -1260,6 +1312,11 @@ async function submit() {
 
   .inline-switch {
     margin-top: 12px;
+  }
+
+  /* 标题栏内的开关与删除按钮本就同排，不需要窄屏下推 */
+  .api-binding-card__head .inline-switch {
+    margin-top: 0;
   }
 }
 
