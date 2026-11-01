@@ -40,6 +40,7 @@
         br.id, br.code,
         br.model_family as model_family_code, ef.item_label as model_family_name,
         br.status,
+        br.created_at, br.updated_at,
         bv.version_code, bv.billing_mode, bv.pricing_plan, bv.currency, bv.unit,
         (select count(1) from kb_models m where m.billing_rule_code = br.code and m.is_deleted = 0) as bound_model_count
     </sql>

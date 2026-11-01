@@ -20,6 +20,10 @@ public class BillingRuleEntity {
     private Integer isDeleted;
     private String remark;
 
+    /** 创建时间 / 更新时间：来自 kb_billing_rules 的审计列，列表展示用（规则主体的变更时点，非版本） */
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
+
     /** 当前版本（最近生效版本）字段，用于列表与审计展示 */
     private String versionCode;
     private String uniqHash;

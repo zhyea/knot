@@ -77,19 +77,39 @@ class AsyncTaskProfileSupportTest {
         AsyncTaskProfileSupport.validate(valid());
     }
 
-    @Test
-    @DisplayName("校验：编码必须大写开头，否则绑定表引用会与人工输入漂移")
-    void lowerCaseCodeRejected() {
+    /**
+     * 只替换档案编码、其余照抄一份合法档案：这些用例被测的就是<b>编码</b>，
+     * 若每次都把 20 个字段摊开写一遍，真正的差异会被噪音淹掉。
+     */
+    private static AsyncTaskProfileSaveDto withCode(String profileCode) {
         AsyncTaskProfileSaveDto dto = kling("['succeed'] contains status", "status == 'failed'");
-        AsyncTaskProfileSaveDto bad = new AsyncTaskProfileSaveDto("kling_task", dto.protocol(),
+        return new AsyncTaskProfileSaveDto(profileCode, dto.protocol(),
                 dto.queryMethod(), dto.queryPath(), dto.taskIdPath(), dto.statusPath(),
                 dto.statusSucceeded(), dto.statusFailed(), null, dto.resultPath(),
                 dto.resultUrlField(), dto.errorMessagePath(), dto.resultExpiresDays(),
                 dto.pollIntervalMs(), dto.pollBackoffBaseMs(), dto.pollBackoffMaxMs(),
                 dto.maxAttempts(), dto.timeoutMs(), dto.status(), dto.remark());
+    }
 
-        assertTrue(assertThrows(BusinessException.class, () -> AsyncTaskProfileSupport.validate(bad))
-                .getMessage().contains("档案编码"));
+    @Test
+    @DisplayName("⭐ 校验：档案编码大小写均可 —— ci collation + 编辑态不可改，引用漂不了")
+    void profileCodeIsCaseInsensitive() {
+        for (String code : List.of("KLING_TASK", "kling_task", "Kling_Task", "SeedanceVideo",
+                "V1_2", "KLING-TASK", "kling-task", "video-gen-2")) {
+            AsyncTaskProfileSupport.validate(withCode(code));
+        }
+    }
+
+    @Test
+    @DisplayName("校验：编码的形状仍要守 —— 字母开头、只含字母/数字/下划线/连字符、最长 64")
+    void malformedProfileCodeRejected() {
+        List<String> bad = List.of("1KLING", "-KLING", "_KLING", "KLING TASK", "KLING.TASK",
+                "", "A".repeat(65));
+        for (String code : bad) {
+            assertTrue(assertThrows(BusinessException.class,
+                            () -> AsyncTaskProfileSupport.validate(withCode(code)))
+                    .getMessage().contains("档案编码"), "该被拒：" + code);
+        }
     }
 
     @Test

@@ -35,8 +35,15 @@ import java.util.regex.Pattern;
  */
 public final class AsyncTaskProfileSupport {
 
-    /** 档案编码：大写字母开头，允许数字与下划线；绑定表按它引用，必须稳定且可读 */
-    private static final Pattern PROFILE_CODE = Pattern.compile("^[A-Z][A-Z0-9_]{0,63}$");
+    /**
+     * 档案编码：字母开头，允许数字、下划线与连字符；<b>大小写不做要求</b>，最长 64 位。
+     *
+     * <p>⭐ <b>为什么不再强制纯大写</b>（2026-11-01 拍板）：当初的担心是「绑定表按 {@code profile_code}
+     * 引用，大小写漂移会打断引用」，但该列的 collation 是 {@code utf8mb4_unicode_ci}——
+     * <b>大小写不敏感</b>，引用侧本来就漂不了；而编码在编辑态不可改，也不存在「改一笔让引用失效」的路径。
+     * 剩下的只是可读性，不足以拒绝 {@code SeedanceVideo} 这类写法。</p>
+     */
+    private static final Pattern PROFILE_CODE = Pattern.compile("^[A-Za-z][A-Za-z0-9_-]{0,63}$");
 
     private static final Set<String> QUERY_METHODS = Set.of("GET", "POST");
 
@@ -87,7 +94,7 @@ public final class AsyncTaskProfileSupport {
     public static void validate(AsyncTaskProfileSaveDto dto) {
         require(dto != null, "档案内容不能为空");
         require(PROFILE_CODE.matcher(StringUtils.defaultString(dto.profileCode())).matches(),
-                "档案编码必须以大写字母开头、只含大写字母/数字/下划线，最长 64 位：" + dto.profileCode());
+                "档案编码必须以字母开头、只含字母/数字/下划线/连字符，最长 64 位：" + dto.profileCode());
         require(ModelApiProtocolEnum.fromCode(dto.protocol()) != null,
                 "API 协议编码不合法：" + dto.protocol() + "（可选值见接口协议枚举）");
         require(QUERY_METHODS.contains(dto.queryMethod()),

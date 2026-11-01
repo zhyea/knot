@@ -704,7 +704,9 @@ INSERT IGNORE INTO kx_model_sources (
   id, source_code, source_name, source_url, api_url, source_type, status
 ) VALUES
 (1, 'OPENROUTER', 'OpenRouter Models', 'https://openrouter.ai/models',
-  'https://openrouter.ai/api/v1/models', 'MODEL_CATALOG', 1);
+  'https://openrouter.ai/api/v1/models', 'MODEL_CATALOG', 1),
+(2, 'XFUSIONAI', 'XFusionAI Pricing', 'https://llm.azopenai.com/pricing',
+  'https://llm.azopenai.com/api/pricing', 'MODEL_CATALOG', 1);
 
 -- 模型 API 协议绑定（usage_extractor 为 Usage 解析器编码或类名；request_adapter 为 UpstreamAdapter code）
 -- ⚠ 2026-10-25 适配器重命名：OPENAI_COMPATIBLE/ANTHROPIC/BEDROCK_CONVERSE 三个旧 code 已废弃，
@@ -907,7 +909,8 @@ INSERT IGNORE INTO ks_scheduled_tasks (
 ) VALUES
 (1, 'operation-log-retention', '操作日志保留清理', 'OPERATION_LOG_RETENTION', '0 0 3 * * ?', 'SINGLE', 1, '操作日志最多保留三个月'),
 (2, 'schedule-run-retention', '定时任务执行记录清理', 'SCHEDULE_RUN_RETENTION', '0 30 3 * * ?', 'SINGLE', 1, '定时任务执行记录最多保留一个月'),
-(3, 'openrouter-model-sync', 'OpenRouter 模型同步', 'OPENROUTER_MODEL_SYNC', '0 0 4 * * ?', 'SINGLE', 0, '同步 OpenRouter 模型到外部模型库');
+(3, 'openrouter-model-sync', 'OpenRouter 模型同步', 'OPENROUTER_MODEL_SYNC', '0 0 4 * * ?', 'SINGLE', 0, '同步 OpenRouter 模型到外部模型库'),
+(4, 'xfusionai-model-sync', 'XFusionAI 模型同步', 'XFUSIONAI_MODEL_SYNC', '0 30 4 * * ?', 'SINGLE', 0, '同步 XFusionAI 模型到外部模型库');
 
 -- 插件
 -- 2026-10-25 起插件实例**不再预置种子**：kb_plugin_instances 是 PluginDescriptor 的物化，
