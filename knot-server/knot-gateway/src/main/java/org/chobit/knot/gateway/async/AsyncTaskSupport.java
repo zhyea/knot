@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
+import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.common.util.CallbackFieldSupport;
@@ -13,6 +14,7 @@ import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.svc.vo.gateway.BillingRuleConfigVo;
 import org.chobit.knot.svc.vo.gateway.ModelApiBindingConfigVo;
 import org.chobit.knot.svc.vo.gateway.ModelConfigVo;
+import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.model.vo.response.AsyncTaskAcceptedResponse;
@@ -167,18 +169,21 @@ public class AsyncTaskSupport {
     /**
      * 判定本次上游结果是否为「异步任务创建成功」，是则落一条待轮询任务并给出 202 回执。
      *
-     * <p>判定链（任一环不成立即返回 {@code null}，回退同步链路）：</p>
+     * <p>判定链（前两环不成立即返回 {@code null}，回退同步链路）：</p>
      * <ol>
      *   <li>命中目标存在 → 取该模型 × 协议的绑定；</li>
      *   <li>绑定上 {@code async_profile_code} 有值 → 读档案；</li>
      *   <li>按档案的 {@code task_id_path} 从创建响应取出上游任务 ID。</li>
      * </ol>
      *
-     * <p>第 3 步取不到 ID 时回退同步（并 ERROR 日志）：没有任务 ID 就无从轮询，
-     * 与其落一条永远查不到的任务，不如明确走同步路径让问题立刻暴露。</p>
+     * <p>⭐⭐ <b>第 3 步取不到 ID 是抛而不是回退</b>（2026-11-01 robin 定）：前两环是「这次压根没打算走异步」，
+     * 回 {@code null} 成立；第 3 步已经确定「该建成异步任务」，此时没有 ID 就没有东西可轮询，
+     * 回退同步等于把上游「任务已创建」的响应当成最终结果交给客户端——本地无任务行，
+     * 结果既查不到也不计费。详见 {@link #requireUpstreamTaskId}。</p>
      *
      * @return 202 回执体（非 {@code null} 本身即表示「已判定为异步」）；
      *         非异步任务或配置不完整时为 {@code null}
+     * @throws GatewayUpstreamException 档案声明了异步，但创建响应里取不到上游任务 ID
      */
     public AsyncTaskAcceptedResponse submitIfAsync(GatewayRequestContext context,
                                                    GatewayExchange exchange,
@@ -199,12 +204,7 @@ public class AsyncTaskSupport {
         Map<String, Object> createBody = JsonKit.fromJson(result.responseBody(),
                 new TypeReference<Map<String, Object>>() {
                 });
-        String upstreamTaskId = AsyncTaskSpecRules.upstreamTaskIdOf(createBody, spec);
-        if (StringUtils.isBlank(upstreamTaskId)) {
-            log.error("Async task profile configured but upstream task id is missing, fallback to sync: profile={} path={}",
-                    profileCode, spec.taskIdPath());
-            return null;
-        }
+        String upstreamTaskId = requireUpstreamTaskId(profileCode, createBody, spec);
         ModelConfigVo model = dataService.getModelByCode(target == null ? null : target.targetCode());
         BillingRuleConfigVo rule = model == null ? null
                 : dataService.getActiveBillingRule(model.billingRuleCode(), model.modelFamilyCode());
@@ -234,6 +234,34 @@ public class AsyncTaskSupport {
         context.putAttribute(GatewayTrafficMsgDto.TaskTrace.ATTRIBUTE,
                 GatewayTrafficMsgDto.TaskTrace.submit(taskCode));
         return AsyncTaskAcceptedResponse.queued(taskCode);
+    }
+
+    /**
+     * 从创建响应取上游任务 ID，<b>取不到就抛</b>（包级可见，供单测直接驱动）。
+     *
+     * <p>⭐⭐ <b>为什么是 502 而不是 500 / 回退同步</b>（2026-11-01）：
+     * 上游回了 2xx（响应体在手上、任务已建），但里面没有档案约定的任务 ID ——
+     * 这不是网关内部故障，而是「档案的 {@code task_id_path} 配错」或「上游契约变了」。
+     * 用 {@link GatewayUpstreamException} 表达，客户端拿到 502 {@code UPSTREAM_ERROR}、
+     * 数仓落 {@code upstream_call} 阶段，运维照消息里的档案编码去改档案即可。</p>
+     *
+     * <p>⚠ 消息里必须带档案编码与表达式原文：只报「取不到 ID」的话，线上有几十份档案时
+     * 无从下手（绑定 → 档案 → 列，三层跳转只能靠猜）。</p>
+     *
+     * @param profileCode 触发本次判定的档案编码（绑定上的 {@code async_profile_code}）
+     * @param createBody  上游创建响应
+     * @param spec        档案快照（提供 {@code task_id_path}）
+     * @return 非空的上游任务 ID
+     * @throws GatewayUpstreamException 表达式为空 / 求值失败 / 取到的不是标量
+     */
+    String requireUpstreamTaskId(String profileCode, Map<String, Object> createBody, AsyncTaskSpec spec) {
+        try {
+            return AsyncTaskSpecRules.upstreamTaskIdOf(createBody, spec);
+        } catch (IllegalStateException e) {
+            throw new GatewayUpstreamException(
+                    "异步任务档案【" + profileCode + "】已声明异步，但创建响应里取不到上游任务 ID："
+                            + e.getMessage(), ProxyErrorCodeEnum.UPSTREAM_ERROR.code());
+        }
     }
 
     /**

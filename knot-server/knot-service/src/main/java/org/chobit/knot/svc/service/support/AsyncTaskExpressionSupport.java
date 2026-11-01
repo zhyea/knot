@@ -24,6 +24,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li><b>取值（{@link #text}）</b>：取不到 = {@code null}，由调用方解释成「还没出结果」。
  *       上游响应尚未成形、字段暂时缺失都会走这里——判成 null 比判死任务安全。
  *       语法错误仍然抛（配置错必须响）。</li>
+ *   <li><b>严格取值（{@link #requireText}）</b>：取不到必抛，只有「创建响应里的上游任务 ID」用它
+ *       （2026-11-01 定）。它不是「还没出结果」，而是「这次有没有建成异步任务」的唯一判据——
+ *       回 null 会让调用方回退同步，把上游已建任务的响应当成最终结果交出去，钱花了却什么都没记。</li>
  *   <li><b>判定（{@link #test}）</b>：<b>必须返回布尔</b>，返回别的（字符串 / 数字 / null）
  *       一律抛 {@link IllegalStateException}。这一条是本次改造最要紧的护栏：
  *       旧档案里 {@code succeeded,failed} 这类逗号列表在 MVEL 下是「变量名」，
@@ -79,6 +82,50 @@ public final class AsyncTaskExpressionSupport {
     }
 
     /**
+     * 取值（严格）：取不到就是配置或上游契约出了问题，<b>必须抛</b>。
+     *
+     * <p>⭐⭐ <b>与 {@link #text} 的分工</b>（2026-11-01 robin 定）：{@code text} 服务轮询期读
+     * 状态 / 产物 / 失败原因——「这次还没出」是常态，回 {@code null} 由调用方解释成「还没出结果」。
+     * 但<b>「创建响应里取上游任务 ID」不属于这一类</b>：它不是「还没出结果」，而是
+     * 「这次到底有没有建成异步任务」的唯一判据。取不到就没有东西可轮询，回 {@code null}
+     * 会让调用方回退同步、把「任务已创建」的响应当成最终结果交给客户端——
+     * 上游的钱已经花了，本地却什么都没记下来，是这个能力里最坏的一种结局。所以这一处必须响。</p>
+     *
+     * <p>⚠ 编译 / 求值 / 非标量三条分支都不能并成「取不到」：它们分别对应
+     * 「表达式写错」「上游少了字段或结构变了」「填的是整包 JSON」，
+     * 处置方案完全不同（改档案 / 找上游 / 改表达式），合并后只剩一条无从下手的信息。</p>
+     *
+     * @param root       响应体
+     * @param expression 取值表达式（档案列，如 {@code data.id}）
+     * @param label      出错时的定位标签（哪个档案列 / 哪一步）
+     * @return 非空文本
+     * @throws IllegalStateException 表达式为空 / 求值抛错 / 值不是标量（含 {@code null}）
+     */
+    public static String requireText(Map<String, Object> root, String expression, String label) {
+        if (StringUtils.isBlank(expression)) {
+            // 档案没配这一列 = 绑定说「这是异步」，但没人告诉程序 ID 在哪，轮询无从谈起
+            throw new IllegalStateException(label + "未配置");
+        }
+        if (root == null) {
+            throw new IllegalStateException(label + "无法求值：响应体为空或不是 JSON 对象");
+        }
+        Serializable compiled = compiled(expression);
+        Object value;
+        try {
+            value = MVEL.executeExpression(compiled, root);
+        } catch (RuntimeException e) {
+            throw new IllegalStateException(label + "求值失败：【" + expression + "】原因: " + e.getMessage(), e);
+        }
+        String text = scalar(value);
+        if (text == null) {
+            throw new IllegalStateException(label + "取不到值：【" + expression + "】实际为 "
+                    + describe(value) + "，响应顶层键=" + root.keySet()
+                    + "（对照档案列的表达式与上游响应，可用管理端「异步任务档案 → 试跑」验证）");
+        }
+        return text;
+    }
+
+    /**
      * 判定：按表达式判断是否成立。
      *
      * @param vars       可用变量（{@code status} 状态文本、{@code body} 整个响应体）
@@ -106,8 +153,7 @@ public final class AsyncTaskExpressionSupport {
             return result;
         }
         throw new IllegalStateException("异步任务档案的判定表达式必须返回布尔值，实际是 "
-                + (value == null ? "null" : value.getClass().getSimpleName() + "(" + value + ")")
-                + "：表达式=【" + expression + "】");
+                + describe(value) + "：表达式=【" + expression + "】");
     }
 
     /**
@@ -203,5 +249,19 @@ public final class AsyncTaskExpressionSupport {
             return null;
         }
         return StringUtils.trimToNull(String.valueOf(value));
+    }
+
+    /** 求值结果的人类可读描述（报错用）：区分「没这个字段」与「拿到的是结构」，两者处置不同 */
+    private static String describe(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        if (value instanceof Map<?, ?>) {
+            return "对象(" + value.getClass().getSimpleName() + ")";
+        }
+        if (value instanceof Iterable<?>) {
+            return "数组(" + value.getClass().getSimpleName() + ")";
+        }
+        return value.getClass().getSimpleName() + "(" + value + ")";
     }
 }

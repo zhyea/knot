@@ -10,6 +10,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -33,17 +34,20 @@ class AsyncTaskSpecRulesTest {
     }
 
     @Test
-    @DisplayName("上游任务 ID 按 task_id_path 取，不是按 query_path")
+    @DisplayName("上游任务 ID 按 task_id_path 取；取不到必须抛，不许回 null（null 会退化成回退同步）")
     void upstreamTaskIdUsesTaskIdPath() {
         Map<String, Object> createBody = Map.of("data", Map.of("id", "up-1",
                 "status", "submitted"));
         assertEquals("up-1", AsyncTaskSpecRules.upstreamTaskIdOf(createBody, spec()));
         // 探针：若误用 query_path（含占位）去取 ID，这里就会取到空——两者是不同路径
-        assertNull(AsyncTaskSpecRules.upstreamTaskIdOf(createBody,
-                new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.task_id", "data.status",
-                        "status == 'succeed'", "status == 'failed'", null, "data.url", null, null,
-                        null, 5000, 1000, 30000, 360, 1_800_000L)),
-                "task_id_path 填错必须取不到，不得回落到 query_path");
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> AsyncTaskSpecRules.upstreamTaskIdOf(createBody,
+                        new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.task_id", "data.status",
+                                "status == 'succeed'", "status == 'failed'", null, "data.url", null, null,
+                                null, 5000, 1000, 30000, 360, 1_800_000L)),
+                "task_id_path 填错必须抛（不得回落 query_path，也不得回 null 让调用方回退同步）");
+        assertTrue(error.getMessage().contains("data.task_id"), "报错必须带表达式原文：" + error.getMessage());
+        assertTrue(error.getMessage().contains("data"), "报错必须带响应顶层键，便于对照上游响应：" + error.getMessage());
     }
 
     @Test

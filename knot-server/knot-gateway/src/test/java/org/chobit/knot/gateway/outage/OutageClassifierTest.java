@@ -65,6 +65,17 @@ class OutageClassifierTest {
         assertFalse(OutageClassifier.countable(null, ENABLED));
     }
 
+    @Test
+    @DisplayName("空响应计入摘除：坏目标不能永久承接流量")
+    void emptyResponseCountsAsTargetFailure() {
+        GatewayUpstreamException empty = new GatewayUpstreamException(
+                "upstream responded with status 200 but an empty body",
+                ProxyErrorCodeEnum.UPSTREAM_EMPTY_RESPONSE.code());
+        // 无 status 可按：2xx 是「成功」信号，拿它分流会得出「不计摘除」的相反结论
+        assertTrue(OutageClassifier.countable(empty, ENABLED));
+        assertFalse(OutageClassifier.countable(empty, DISABLED));
+    }
+
     private static GatewayUpstreamException upstream(Integer status, String code) {
         return new GatewayUpstreamException("upstream failed", code, status, "{}", null);
     }

@@ -1,11 +1,14 @@
 package org.chobit.knot.gateway.async;
 
+import org.chobit.knot.common.constants.enums.GatewayErrorTypeEnum;
+import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.dal.entity.ModelApiBindingEntity;
 import org.chobit.knot.svc.converter.GatewayConfigConverter;
 import org.chobit.knot.svc.vo.gateway.ModelApiBindingConfigVo;
 import org.mapstruct.factory.Mappers;
 import org.chobit.knot.gateway.async.AsyncTaskSupport.AsyncTaskCreation;
+import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.svc.dto.async.AsyncTaskDraftDto;
 import org.junit.jupiter.api.DisplayName;
@@ -18,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -100,6 +104,23 @@ class AsyncTaskSupportTest {
         assertNull(support.submitIfAsync(null, null, null), "无上游结果时不判定");
         assertNull(support.submitIfAsync(null, null, new ProxyResult("  ", 1L, 1L, null)),
                 "空响应体不是一次成功的任务创建");
+    }
+
+    @Test
+    @DisplayName("档案已声明异步但创建响应取不到任务 ID：抛 502 UPSTREAM_ERROR，绝不回退同步")
+    void missingUpstreamTaskIdThrows() {
+        // 上游「任务已创建」的响应里没有档案约定的 ID：回退同步会让客户端把它当最终结果，
+        // 而本地不入任务行 → 既查不到也不计费。所以此处必须响（2026-11-01 定）。
+        GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
+                () -> support.requireUpstreamTaskId("video-kling", Map.of("task_id", "up-1"), spec()),
+                "task_id_path 是 data.id，响应顶层只有 task_id → 取不到，必须抛");
+        assertTrue(error.getMessage().contains("video-kling"), "报错必须带档案编码：" + error.getMessage());
+        assertTrue(error.getMessage().contains("data.id"), "报错必须带表达式原文：" + error.getMessage());
+        assertEquals(ProxyErrorCodeEnum.UPSTREAM_ERROR.code(), error.code());
+        assertEquals(GatewayErrorTypeEnum.UPSTREAM_ERROR.code(), error.type());
+
+        assertEquals("up-9", support.requireUpstreamTaskId("video-kling",
+                Map.of("data", Map.of("id", "up-9")), spec()), "取得到就正常返回，不误伤");
     }
 
     @Test

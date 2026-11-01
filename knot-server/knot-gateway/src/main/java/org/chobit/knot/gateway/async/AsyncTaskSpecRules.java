@@ -23,14 +23,24 @@ public final class AsyncTaskSpecRules {
     }
 
     /**
-     * 从创建响应里取上游任务 ID；取不到返回 null。
+     * 从创建响应里取上游任务 ID；<b>取不到直接抛，绝不返回 {@code null}</b>（2026-11-01）。
      *
      * <p>⚠ 用的是档案的 {@code task_id_path}（MVEL 取值表达式），与拼查询 URL 的
      * {@code query_path} 是两条不同的路径（一个读创建响应、一个拼请求地址）。
      * 混用会让「取不到 ID」表现为「查不到任务」，排查方向整个偏掉。</p>
+     *
+     * <p>⭐⭐ <b>为什么这里不能用宽容口径回 {@code null}</b>：走到本方法说明绑定上
+     * {@code async_profile_code} 有值、档案也读到了——即「这次该建成一条异步任务」已成事实。
+     * 此时响应里没有任务 ID，只有两种可能：档案 {@code task_id_path} 写错，或上游契约变了。
+     * 回 {@code null} 只能让调用方回退同步，把「任务已创建」的响应当成最终结果交给客户端，
+     * 而本地没有任何任务行可轮询——既查不到也不计费。静默失败远比一次明确的 502 糟。</p>
+     *
+     * @return 非空的上游任务 ID
+     * @throws IllegalStateException 表达式为空 / 求值失败 / 取到的不是标量
      */
     public static String upstreamTaskIdOf(Map<String, Object> createBody, AsyncTaskSpec spec) {
-        return AsyncTaskExpressionSupport.text(createBody, spec.taskIdPath());
+        return AsyncTaskExpressionSupport.requireText(createBody, spec.taskIdPath(),
+                "异步任务档案的上游任务 ID（task_id_path）");
     }
 
     /**

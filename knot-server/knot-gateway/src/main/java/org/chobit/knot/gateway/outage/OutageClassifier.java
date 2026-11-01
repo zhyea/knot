@@ -31,6 +31,12 @@ public final class OutageClassifier {
         if (error == null || policy == null || !policy.isEnabled() || !policy.isCountFailures()) {
             return false;
         }
+        // 空响应没有可用的上游状态码（2xx 是「成功」信号，不能拿来分流），
+        // 但它恰是「这个目标确实坏了」的直接证据：连续多次空响应必须能摘除，
+        // 否则坏目标会永久承接流量，每次请求都以一次 502 收场。故按错误码优先判定。
+        if (ProxyErrorCodeEnum.UPSTREAM_EMPTY_RESPONSE.code().equals(error.code())) {
+            return true;
+        }
         Integer status = error.httpStatus();
         if (status != null) {
             return countableStatus(status);

@@ -348,6 +348,12 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                 if (metrics != null) {
                     metrics.upstreamFailure(e.code());
                 }
+                // 确定性失败（空响应）：换候选只会再空一次，直接终止本次请求。
+                // ⚠ 在途计数必须在此释放——返回错误会跳过下面的 switchIfEmpty，那里才是常规释放点
+                if (RetryableClassifier.terminal(e)) {
+                    modelLoadStore.leave(loadKey);
+                    return Mono.error(e);
+                }
                 return Mono.empty();
             })
             .flatMap(success -> {

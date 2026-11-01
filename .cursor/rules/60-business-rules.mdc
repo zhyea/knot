@@ -38,6 +38,13 @@ alwaysApply: false
 ## 3. 重试
 
 - 两层：retry → failover。`RetryPolicy` record 10 字段；默认 `retryOn = ["4xx","5xx"]`；simple / professional 双模式。
+- ⭐⭐ **空响应是确定性失败：不重试、不 failover，直接 502**（2026-11-01 定稿）。
+  - **判据只到「空 / 纯空白」**（`StringUtils.isBlank`）：`null`、空串、纯空白算空；`{}`、`[]`、字面 `null` **不算**——空壳是否失败取决于协议语义，得按协议各自判，一刀切会误杀合法空体接口。
+  - 抛 `GatewayUpstreamException`，code = **`UPSTREAM_EMPTY_RESPONSE`**，`httpStatus` 传 **null**：2xx 是「成功」信号，塞进去会让 `RetryableClassifier` 按状态分流、`OutageClassifier` 按状态判「不计摘除」，两个结论都与本意相反。真实状态码只写进 message。
+  - **三处必须同时生效**：`AbstractUpstreamProtocolExecutor#readBuffered`（整包）、`executeStreaming` 的 `Content-Length: 0`（响应头未写，可 502）、`ProxyStreamingFlux#emptyGuard`（chunked 空流，已 commit 只能让流以错误终止）。
+  - ⚠ **只判「不可重试」不够**：跨候选 failover 由 `attemptCandidates` 的 `onErrorResume` 独立决定，返回 `Mono.empty()` 就会顺延下一候选。该分支返回 error 前**必须** `modelLoadStore.leave(loadKey)`——常规释放在 `switchIfEmpty`，错误路径不经过，漏了就是在途计数永久 +1。
+  - 空响应**计入摘除**（`OutageClassifier` 判 code 优先于 status），否则持续返回空的目标会永久承接流量，每次请求都以 502 收场。
+  - 守门：`AbstractUpstreamProtocolExecutorBufferedTest`、`RetryableClassifierTest`、`OutageClassifierTest`、`ProxyStreamingFluxTest`、`GatewayRequestHandlerEmptyResponseTest`（末者含「普通失败仍 failover」对照例，防止把容灾整体关掉而测试仍绿）。
 
 ## 4. 模型 / 路由
 

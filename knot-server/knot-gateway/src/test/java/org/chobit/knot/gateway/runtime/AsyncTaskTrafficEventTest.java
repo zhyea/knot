@@ -9,10 +9,13 @@ import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.gateway.upstream.stream.UpstreamStreamResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.MediaType;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -155,7 +158,7 @@ class AsyncTaskTrafficEventTest {
         GatewayExchange exchange = new GatewayExchange(Map.of("model", "x"),
                 MediaType.APPLICATION_JSON, new RecordingHttpExchange());
         exchange.proxyResult(new ProxyResult(null, 1L, 2L, null,
-                new UpstreamStreamResponse(Flux.empty(), MediaType.APPLICATION_OCTET_STREAM,
+                new UpstreamStreamResponse(chunk("{}"), MediaType.APPLICATION_OCTET_STREAM,
                         null, null, null, null), null, null));
 
         Object response = handler.applyUsageAccounting(context, exchange);
@@ -195,6 +198,17 @@ class AsyncTaskTrafficEventTest {
             context.putAttribute(GatewayTrafficMsgDto.TaskTrace.ATTRIBUTE, trace);
         }
         return context;
+    }
+
+    /**
+     * 上游非 SSE 裸流的一个数据块。
+     *
+     * <p>夹具此前给的是空流（{@code Flux.empty()}）——那正是「上游 200 但什么都没给」，
+     * 按现行口径必须报错（60-business-rules §3），拿它当夹具等于把「流收尾发事件」这条契约
+     * 建立在不可能成功的上游响应上。</p>
+     */
+    private static Flux<DataBuffer> chunk(String payload) {
+        return Flux.just(DefaultDataBufferFactory.sharedInstance.wrap(payload.getBytes(StandardCharsets.UTF_8)));
     }
 
     private static GatewayExchange exchange() {

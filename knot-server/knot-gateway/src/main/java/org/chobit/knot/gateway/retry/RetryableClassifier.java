@@ -29,7 +29,7 @@ public final class RetryableClassifier {
      * @param policy 规则级重试策略，null 视为默认策略
      */
     public static boolean retryable(GatewayUpstreamException error, RetryPolicy policy) {
-        if (error == null) {
+        if (error == null || terminal(error)) {
             return false;
         }
         RetryPolicy effective = policy == null ? RetryPolicy.DEFAULT : policy;
@@ -41,6 +41,22 @@ public final class RetryableClassifier {
             return effective.matchesStatus(status);
         }
         return retryableByCode(error.code());
+    }
+
+    /**
+     * 是否属于「确定性上游失败」：重试与 failover 都不会改变结果，必须直接终止本次请求。
+     *
+     * <p>目前只有空响应一条（{@link ProxyErrorCodeEnum#UPSTREAM_EMPTY_RESPONSE}）：上游 HTTP 成功
+     * 却什么都没返回，换同目标重投或换供应商重投都是在赌运气，只会把一次确定失败放大成
+     * N 次上游调用与额外延迟。它与「网络抖动」的区别是——上游<b>已经完整地回了一个空答案</b>，
+     * 不是连接没通。</p>
+     *
+     * <p>⚠ 本判据被两处消费：{@code retryable()} 用它关掉同目标重试，{@code GatewayRequestHandler}
+     * 用它跳过跨候选 failover。两处必须同源，任一处单独放行都会让「直接终止」失效。</p>
+     */
+    public static boolean terminal(GatewayUpstreamException error) {
+        return error != null
+                && ProxyErrorCodeEnum.UPSTREAM_EMPTY_RESPONSE.code().equals(error.code());
     }
 
     /**

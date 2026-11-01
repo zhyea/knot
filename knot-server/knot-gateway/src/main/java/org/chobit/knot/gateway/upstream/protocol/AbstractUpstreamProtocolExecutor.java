@@ -19,6 +19,7 @@ import org.chobit.knot.gateway.upstream.support.UpstreamRequestIdResolver;
 import org.chobit.knot.gateway.upstream.support.UpstreamUrlSupport;
 import org.chobit.knot.gateway.upstream.usage.UsageExtractorRegistry;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
@@ -192,6 +193,11 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                     if (!statusCode.is2xxSuccessful()) {
                         throw upstreamFailure(statusCode, headers, body, ownRequestId, upstreamUrl);
                     }
+                    // 2xx 但什么都没给（null / 空串 / 纯空白）：不能当成功透给客户端——
+                    // 客户端会以为「模型答了空」，计费侧拿不到用量算 0，两侧同时静默出错
+                    if (StringUtils.isBlank(body)) {
+                        throw emptyResponse(statusCode, headers, ownRequestId, upstreamUrl);
+                    }
                     return new BufferedExchange(body, UpstreamRequestIdResolver.requestId(headers, ownRequestId));
                 });
     }
@@ -224,6 +230,12 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                 .toEntityFlux(DataBuffer.class);
         ResponseEntity<Flux<DataBuffer>> entity = withResponseTimeout(response).block();
         HttpHeaders headers = entity.getHeaders();
+        // 上游声明零长度：流式请求下的空响应。此刻响应头尚未写出，仍能回 502；
+        // 没有 Content-Length（chunked）的空流只能在转发阶段发现，见 ProxyStreamingFlux#emptyGuard
+        if (headers.getContentLength() == 0L) {
+            releaseQuietly(entity.getBody());
+            throw emptyResponse(entity.getStatusCode(), headers, context.requestId(), target.url());
+        }
         // 响应体 Flux 原样带出（批2：不再用管道桥接成 InputStream），订阅即转发、取消即归还连接
         UpstreamStreamResponse streamResponse = new UpstreamStreamResponse(
                 entity.getBody(),
@@ -269,6 +281,39 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
                 UpstreamRequestIdResolver.requestId(headers, ownRequestId),
                 upstreamUrl
         );
+    }
+
+    /**
+     * 上游 HTTP 成功但响应体为空：确定性失败，不重试也不 failover
+     * （判据见 {@code RetryableClassifier#terminal}）。
+     *
+     * <p><b>不把上游状态码塞进 httpStatus</b>：2xx 是「成功」信号，塞进去会让
+     * {@code RetryableClassifier} 按 status 分流、{@code OutageClassifier} 按 status 判「不计摘除」，
+     * 两个结论都与本意相反。真实状态码只作为证据写进消息文本。</p>
+     */
+    private static GatewayUpstreamException emptyResponse(HttpStatusCode statusCode,
+                                                          HttpHeaders headers,
+                                                          String ownRequestId,
+                                                          String upstreamUrl) {
+        return new GatewayUpstreamException(
+                "upstream responded with status " + statusCode.value() + " but an empty body",
+                ProxyErrorCodeEnum.UPSTREAM_EMPTY_RESPONSE.code(),
+                null,
+                null,
+                null,
+                UpstreamRequestIdResolver.requestId(headers, ownRequestId),
+                upstreamUrl
+        );
+    }
+
+    /**
+     * 释放未消费的响应体：零长度流没有数据，但连接仍要归还，否则 reactor-netty 要等到超时才回收。
+     */
+    private static void releaseQuietly(Flux<DataBuffer> body) {
+        if (body != null) {
+            body.subscribe(DataBufferUtils::release, ignored -> {
+            });
+        }
     }
 
     /**

@@ -91,6 +91,27 @@ class RetryableClassifierTest {
         assertFalse(RetryableClassifier.retryable(null, DEFAULT));
     }
 
+    @Test
+    void emptyResponseIsTerminalAndNeverRetried() {
+        GatewayUpstreamException empty = new GatewayUpstreamException(
+                "upstream responded with status 200 but an empty body",
+                ProxyErrorCodeEnum.UPSTREAM_EMPTY_RESPONSE.code());
+
+        assertTrue(RetryableClassifier.terminal(empty));
+        assertFalse(RetryableClassifier.retryable(empty, DEFAULT));
+
+        // 判据在状态分流之前：即使规则把所有状态都放进重试集合，也不能重试——空响应是确定性失败
+        RetryPolicy everything = new RetryPolicy(true, 3, 0, 0, 1.0, false, false,
+                RetryPolicy.MODE_DENYLIST, List.of(), RetryPolicy.MODE_SIMPLE);
+        assertFalse(RetryableClassifier.retryable(empty, everything));
+    }
+
+    @Test
+    void ordinaryUpstreamFailuresAreNotTerminal() {
+        assertFalse(RetryableClassifier.terminal(error(503)));
+        assertFalse(RetryableClassifier.terminal(null));
+    }
+
     private static GatewayUpstreamException error(int status) {
         return new GatewayUpstreamException("upstream responded with status " + status,
                 ProxyErrorCodeEnum.UPSTREAM_ERROR.code(), status, "{}");

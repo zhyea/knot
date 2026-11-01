@@ -79,6 +79,36 @@ class AsyncTaskExpressionSupportTest {
     }
 
     @Test
+    @DisplayName("严格取值（requireText）：空表达式 / 根为空 / 取不到 / 结构值一律抛，消息带标签、表达式与顶层键")
+    void requireTextThrowsOnMiss() {
+        // 2026-11-01：上游任务 ID 用严格口径——它不是「还没出结果」，而是「这次有没有建成异步任务」的判据
+        assertThrows(IllegalStateException.class,
+                () -> AsyncTaskExpressionSupport.requireText(body(), null, "task_id_path"),
+                "档案没配 task_id_path 时轮询无从谈起，必须抛");
+        assertThrows(IllegalStateException.class,
+                () -> AsyncTaskExpressionSupport.requireText(null, "data.id", "task_id_path"));
+        IllegalStateException miss = assertThrows(IllegalStateException.class,
+                () -> AsyncTaskExpressionSupport.requireText(body(), "data[0].missing", "task_id_path"));
+        assertTrue(miss.getMessage().contains("task_id_path"), "消息必须带标签：" + miss.getMessage());
+        assertTrue(miss.getMessage().contains("data[0].missing"), "消息必须带表达式原文：" + miss.getMessage());
+        assertTrue(miss.getMessage().contains("data"), "消息必须带响应顶层键，便于对照上游响应：" + miss.getMessage());
+        IllegalStateException structural = assertThrows(IllegalStateException.class,
+                () -> AsyncTaskExpressionSupport.requireText(body(), "data", "task_id_path"));
+        assertTrue(structural.getMessage().contains("数组"), "取到整包结构不是「取到了 ID」：" + structural.getMessage());
+
+        assertEquals("succeed", AsyncTaskExpressionSupport.requireText(body(), "data[0].status", "status_path"),
+                "取得到就正常返回——严格口径只改失败分支，不改取值语义");
+    }
+
+    @Test
+    @DisplayName("严格取值：语法错仍然抛（且不能被当成「取不到」）")
+    void requireTextSyntaxErrorThrows() {
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> AsyncTaskExpressionSupport.requireText(body(), "data[", "task_id_path"));
+        assertTrue(error.getMessage().contains("无法编译"), error.getMessage());
+    }
+
+    @Test
     @DisplayName("判定：等值、或、contains 三种写法")
     void testExpressions() {
         Map<String, Object> vars = Map.of("status", "succeed", "body", body());

@@ -5,9 +5,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.reactive.function.client.ClientResponse;
 
+import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 非流式路径的上游响应头捕获（executor 捕获点一）。
@@ -98,6 +101,46 @@ class AbstractUpstreamProtocolExecutorBufferedTest {
                 () -> AbstractUpstreamProtocolExecutor.readBuffered(response, null, "https://upstream.test/v1/chat/completions").block());
 
         assertEquals("upstream responded with status 500", error.getMessage());
+    }
+
+    /**
+     * 上游 2xx 但响应体为空：必须当失败抛，不能让客户端收到一个「模型答了空」的 200，
+     * 也不能让计费侧拿空串把用量算成 0。
+     */
+    @Test
+    void emptyBodyWithSuccessStatusIsRejected() {
+        ClientResponse response = ClientResponse.create(HttpStatus.OK).build();
+
+        GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
+                () -> AbstractUpstreamProtocolExecutor.readBuffered(response, null, "https://upstream.test/v1/chat/completions").block());
+
+        assertEquals(ProxyErrorCodeEnum.UPSTREAM_EMPTY_RESPONSE.code(), error.code());
+        assertNull(error.httpStatus(), "2xx 不能塞进 httpStatus：否则重试/摘除会按「成功」分流");
+        assertTrue(error.getMessage().contains("200"), error.getMessage());
+    }
+
+    @Test
+    void blankBodyWithSuccessStatusIsRejected() {
+        ClientResponse response = response("   \n\t ", HttpStatus.OK).build();
+
+        GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
+                () -> AbstractUpstreamProtocolExecutor.readBuffered(response, null, "https://upstream.test/v1/chat/completions").block());
+
+        assertEquals(ProxyErrorCodeEnum.UPSTREAM_EMPTY_RESPONSE.code(), error.code());
+    }
+
+    /**
+     * 判据边界：只认「空 / 纯空白」。{@code {}} 这类「有字节没语义」的响应不在本次口径内，
+     * 不能被误杀——空壳是否算失败取决于协议语义，得按协议各自判（见 60-business-rules §9）。
+     */
+    @Test
+    void jsonEmptyObjectIsNotTreatedAsEmptyResponse() {
+        ClientResponse response = response("{}", HttpStatus.OK).build();
+
+        AbstractUpstreamProtocolExecutor.BufferedExchange exchange =
+                AbstractUpstreamProtocolExecutor.readBuffered(response, null, "https://upstream.test/v1/chat/completions").block();
+
+        assertEquals("{}", exchange.body());
     }
 
     /**

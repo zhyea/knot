@@ -6,6 +6,8 @@ import org.chobit.knot.adapter.protocol.StreamLineAdapter;
 import org.chobit.knot.adapter.protocol.UpstreamAdapter;
 import org.chobit.knot.adapter.support.SseLineSupport;
 import org.chobit.knot.common.constants.AiPayloadFields;
+import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
+import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.adapter.model.usage.UsageAccounting;
 import org.chobit.knot.adapter.usage.KnotExtendPayload;
 import org.chobit.knot.gateway.runtime.FirstTokenHeaderWriter;
@@ -79,7 +81,7 @@ public final class ProxyStreamingFlux {
         Flux<DataBuffer> body = stream.isEventStream()
                 ? eventStream(stream, adapter, registry, appendUsage, factory, firstTokenWriter, state)
                 : rawStream(stream, firstTokenWriter);
-        return body
+        return emptyGuard(body)
                 // 上游中途失败：错误沿 onError 传播（批1 的管道桥接会把它变成静默截断）
                 .doOnError(thrown -> log.warn("Upstream stream failed before completion", thrown))
                 .doFinally(signal -> {
@@ -90,6 +92,25 @@ public final class ProxyStreamingFlux {
                         onComplete.run();
                     }
                 });
+    }
+
+    /**
+     * 上游 2xx 却一个字节都没给：绝不能以「正常结束」收场——调用方会以为模型答了空，
+     * 计费侧也拿不到用量，两侧同时静默出错。
+     *
+     * <p>此处响应头早已写出（首行 flush 即提交），改不了状态码，只能让流以错误终止；
+     * 能提前发现的零长度响应由执行器在写出前判掉（{@code executeStreaming} 看
+     * {@code Content-Length: 0}），本方法是「chunked 但一个字节不发」这条漏网路径的兜底。</p>
+     */
+    private static Flux<DataBuffer> emptyGuard(Flux<DataBuffer> body) {
+        return body.switchOnFirst((signal, flux) -> {
+            if (signal.hasValue() || signal.hasError()) {
+                return flux;
+            }
+            return Flux.error(new GatewayUpstreamException(
+                    "upstream stream ended without any body",
+                    ProxyErrorCodeEnum.UPSTREAM_EMPTY_RESPONSE.code()));
+        });
     }
 
     /**

@@ -7,6 +7,8 @@ import org.chobit.knot.adapter.support.SseLineSupport;
 import org.chobit.knot.adapter.upstream.UpstreamRequestContext;
 import org.chobit.knot.gateway.config.UsageExtractionProperties;
 import org.chobit.knot.common.constants.GatewayHeaders;
+import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
+import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.adapter.model.usage.TokenBillingUsage;
 import org.chobit.knot.adapter.model.usage.UsageAccounting;
 import org.chobit.knot.gateway.runtime.FirstTokenHeaderWriter;
@@ -69,6 +71,21 @@ class ProxyStreamingFluxTest {
 
         assertTrue(out.contains("[DONE]"), out);
         assertEquals(1, released.get(), "SSE 流写完必须释放一次在途计数");
+    }
+
+    @Test
+    @DisplayName("上游 2xx 但流为空：以错误终止，绝不当成正常结束")
+    void emptyUpstreamStreamFailsInsteadOfCompleting() {
+        AtomicInteger released = new AtomicInteger();
+        UpstreamStreamResponse empty = new UpstreamStreamResponse(
+                Flux.empty(), MediaType.TEXT_EVENT_STREAM, null, null, null, null);
+
+        GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
+                () -> ProxyStreamingFlux.wrap(empty, null, false, FACTORY, null, null, released::incrementAndGet)
+                        .blockLast());
+
+        assertEquals(ProxyErrorCodeEnum.UPSTREAM_EMPTY_RESPONSE.code(), error.code());
+        assertEquals(1, released.get(), "空流失败同样要释放在途计数，否则计数永久泄漏");
     }
 
     @Test
