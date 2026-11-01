@@ -12,6 +12,11 @@
       @selection-change="(selection) => emit('selection-change', selection)"
     >
       <el-table-column type="selection" width="48" fixed="left"/>
+      <el-table-column label="来源" width="170">
+        <template #default="{ row }">
+          <span class="cell-wrap">{{ sourceNameOf(row.sourceCode) }}</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="modelId" label="模型 ID" width="300">
         <template #default="{ row }">
           <span class="cell-wrap">{{ displayText(row.modelId) }}</span>
@@ -83,8 +88,10 @@ import {formatThousands, displayText} from "@/utils/format";
 
 const {labelOf} = useEnumOptions();
 
-defineProps({
+const props = defineProps({
   rows: {type: Array as PropType<Row[]>, default: (): Row[] => []},
+  /** 源清单（sourceCode → sourceName 映射），由宿主从 listSources() 传入 */
+  sources: {type: Array as PropType<Row[]>, default: (): Row[] => []},
   loading: {type: Boolean, default: false},
   total: {type: Number, default: 0},
   pageNum: {type: Number, default: 1},
@@ -93,6 +100,12 @@ defineProps({
 });
 
 const emit = defineEmits(["selection-change", "action", "refresh", "page-change", "size-change"]);
+
+function sourceNameOf(code: unknown): string {
+  if (!code) return "-";
+  const hit = props.sources.find((source: Row) => source.sourceCode === code);
+  return hit?.sourceName || String(code);
+}
 
 function modelTypeLabel(code: string): string {
   if (!code) return "-";

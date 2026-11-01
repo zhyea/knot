@@ -33,14 +33,28 @@
       <section class="list-page-block list-page-block--content">
         <div class="list-page-toolbar">
           <div class="list-page-toolbar__actions list-page-toolbar__actions--start">
-            <el-button
-              type="primary"
-              :loading="syncing"
-              :disabled="!query.sourceCode"
-              @click="syncCurrentSource"
-            >
-              {{ syncButtonText }}
-            </el-button>
+            <el-button-group class="external-model-sync-group">
+              <el-button type="primary" :loading="syncing" @click="syncCurrentSource">
+                {{ syncButtonText }}
+              </el-button>
+              <el-dropdown trigger="click" @command="setSyncSource">
+                <el-button type="primary" aria-label="选择要同步的来源">
+                  <el-icon><ArrowDown /></el-icon>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item
+                      v-for="source in sources"
+                      :key="source.sourceCode"
+                      :command="source.sourceCode"
+                      :icon="source.sourceCode === syncSourceCode ? Check : undefined"
+                    >
+                      {{ source.sourceName }}
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </el-button-group>
             <el-button
               type="success"
               :loading="creatingAll"
@@ -59,6 +73,7 @@
 
         <ExternalModelListPanel
           :rows="rows"
+          :sources="sources"
           :loading="loading"
           :total="total"
           :page-num="pageNum"
@@ -86,6 +101,7 @@
 import type {Dict, Row} from "@/types";
 import {computed, onMounted, ref} from "vue";
 import {ElMessage} from "element-plus";
+import {ArrowDown, Check} from "@element-plus/icons-vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import FilterField from "../../components/common/FilterField.vue";
@@ -121,9 +137,11 @@ const {
   resetPage,
   handleQuery,
   handleReset
-} = useListQuery({ apiFn: listExternalModelItems, fields: { sourceCode: "OPENROUTER", keyword: "", modelType: "" } });
+} = useListQuery({ apiFn: listExternalModelItems, fields: { sourceCode: "", keyword: "", modelType: "" } });
 
 const sources = ref<Row[]>([]);
+// 要同步哪个源由这里决定，与列表筛选彻底解耦（曾把同步对象绑在筛选条件上，来源切换被迫借道过滤，很蠢）
+const syncSourceCode = ref("");
 const syncing = ref(false);
 const creatingAll = ref(false);
 const detailVisible = ref(false);
@@ -136,23 +154,27 @@ const logName = ref("");
 
 const createAllDisabled = computed(() => creatingAll.value || selectedRows.value.length === 0);
 
-// 同步按钮对「来源」筛选里选中的那个源生效：源清单来自 listSources()，新增外部数据源时
-// 这里不用改代码（曾写死 OPENROUTER，第二个源接进来后 UI 上根本没法触发它的首次同步）
+// 同步按钮对「下拉里选中的源」生效；来源清单来自 listSources()，新增外部数据源时这里不用改代码
 const syncButtonText = computed(() => {
-  const code = query.sourceCode;
-  if (!code) return "同步选中来源模型";
-  const hit = sources.value.find((source: Row) => source.sourceCode === code);
-  return `同步 ${hit?.sourceName || code} 模型`;
+  const hit = sources.value.find((source: Row) => source.sourceCode === syncSourceCode.value);
+  return `同步 ${hit?.sourceName || syncSourceCode.value || "…"} 模型`;
 });
 
 async function loadSources() {
   sources.value = await listExternalModelSources();
+  if (!syncSourceCode.value && sources.value.length) {
+    syncSourceCode.value = sources.value[0].sourceCode;
+  }
+}
+
+function setSyncSource(code: string) {
+  syncSourceCode.value = code;
 }
 
 async function syncCurrentSource() {
-  const code = query.sourceCode;
+  const code = syncSourceCode.value;
   if (!code) {
-    ElMessage.warning("请先选择要同步的来源");
+    ElMessage.warning("请先在下拉中选择要同步的来源");
     return;
   }
   syncing.value = true;

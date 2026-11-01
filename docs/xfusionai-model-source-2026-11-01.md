@@ -1,5 +1,31 @@
 # XFusionAI 外部模型源接入 — 2026-11-01
 
+## 第二轮：同步与筛选解耦 + 去重键收窄（同日，robin 五点指令）
+
+robin 指出「来源切换借道过滤条件」的设计很蠢，五点改造全部落地：
+
+| # | 指令 | 实现 |
+|---|---|---|
+| 1 | 来源保留在过滤条件 | 不变 |
+| 2 | 默认展示全部外部模型 | `useListQuery` 默认 `sourceCode: ""`（SQL 对空值不过滤） |
+| 3 | 同步按钮下拉选源 | `el-button-group` 主按钮 + `el-dropdown`（保留 loading 态），`syncSourceCode` ref 独立于筛选，默认取第一个源 |
+| 4 | 同步按 model_id 去重（AskUserQuestion 确认选「后端去重键改为仅 model_id」） | 见下 |
+| 5 | 列表加来源列（第一位） | `ExternalModelListPanel` 新增 `sources` prop + 来源列（selection 之后、模型 ID 之前），列表投影补 `source_code` |
+
+### 第 4 点的连带改动（不止 Mapper 一行）
+
+- `ExternalModelMapper.getItemBySourceKey(sourceCode, modelId)` → **`getItemByModelId(modelId)`**（全仓仅 `AbstractExternalModelSyncProvider:40` 一个调用者，已改）。
+- `updateItem` 增写 `source_code`：归属翻到最近同步的源（含 skipped 分支——内容未变但归属仍跟最近同步者走）。
+- `schema.sql` 唯一键 `uk_external_model_item (source_code, model_id)` → `(model_id)`。
+- 存量迁移 `docs/database/migration/2026-11-01-external-model-item-dedup-by-model-id.sql`：防御性清理跨源重复（保留 id 最大者 + 转移 logical_model_id）→ 收窄唯一键。**⚠ 非幂等**（ADD UNIQUE KEY 无 IF NOT EXISTS），执行一次即止。
+- 新测试 `AbstractExternalModelSyncProviderTest`（8 例，Mockito mock 接口）：查重只按 model_id、插入带当前源、更新保留 id/logicalModelId 且归属翻新源、异常落 FAILED、刷 last_sync_at、defaultSource 兜底、null 指纹视为内容有变。
+
+### 已知语义代价（robin 拍板接受）
+
+同 model_id 跨源时条目内容随最近同步源覆盖（OpenRouter 4:00、XFusionAI 4:30 定时，默认 XFUSIONAI 最后赢）；实际两源 model_id 命名空间差异大（OpenRouter 带厂商前缀如 `deepseek/deepseek-chat`，XFusionAI 无前缀），重叠极少。
+
+## 第一轮：XFusionAI 目录接入
+
 ## 结论
 
 XFusionAI（`llm.azopenai.com`，New-API 部署）已作为**第二个外部模型源**接入，与 OpenRouter 并列。
@@ -31,14 +57,16 @@ XFusionAI（`llm.azopenai.com`，New-API 部署）已作为**第二个外部模�
 
 `model_name`→modelId/canonicalSlug；`vendor_id`→vendors 表映射成厂商名（缺失兜底 `XFusionAI`）；`model_type` text/image/video/audio/embedding→CHAT/IMAGE/VIDEO/AUDIO/EMBEDDING（未命中落 CHAT）；`tags` 逗号切分 + 厂商/类型/`region:*`/`endpoint:*`，上限 12。
 
-## 门禁结果（2026-11-01 实跑）
+## 门禁结果（2026-11-01 实跑，第二轮后）
 
 | 门 | 结果 |
 |---|---|
 | 后端全量 `clean test`（8 模块） | **1194 例 / 1 失败**，失败为 `GatewayConfigConverterTest.voMirrorsEntityFieldSet[11]`：`BillingRuleConfigVo` 字段集 ≠ `BillingRuleEntity`——工作区里**他人未提交改动**（`BillingRuleEntity.java` +4 字段、VO 未同步），与本批改动零交集，按「多会话抢改不代修」原则未处理 |
+| `AbstractExternalModelSyncProviderTest` | 8 例全绿 |
 | `XFusionAIModelSyncProviderTest` | 11 例全绿（定向与全量两次均验证） |
 | `vue-tsc --noEmit` | exit=0 |
 | `vite build --emptyOutDir false` | exit=0 |
+| 行尾体检 | 本批 6 个修改文件 `git diff --numstat` 均为正常行数量级，无行数级异常 |
 
 ## Follow-up
 

@@ -435,7 +435,7 @@ CREATE TABLE IF NOT EXISTS kx_model_items (
   sync_hash VARCHAR(64) DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  UNIQUE KEY uk_external_model_item (source_code, model_id),
+  UNIQUE KEY uk_external_model_item (model_id),
   KEY idx_external_model_logical_model (logical_model_id),
   KEY idx_external_model_created_time (model_created_at),
   KEY idx_external_model_ignored (ignored),

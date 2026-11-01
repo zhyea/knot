@@ -23,6 +23,8 @@ public record BillingRuleConfigVo(
         Integer status,
         Integer isDeleted,
         String remark,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt,
         String versionCode,
         String uniqHash,
         Integer versionStatus,

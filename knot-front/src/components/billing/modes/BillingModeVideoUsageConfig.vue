@@ -84,6 +84,7 @@ import {ElMessage} from "element-plus";
 import {PricingPlan} from "@/constants/status";
 import {UNIT_PRICE_STEP, isTokenPricedUnit} from "@/utils/billingPrice";
 import {hasAudioPriceTier, normalizeCombos} from "@/utils/billingResolution";
+import type {ResolutionRow} from "@/utils/billingResolution";
 
 const props = defineProps({
   form: {type: Object, required: true}
@@ -109,12 +110,31 @@ const isFixedPlan = computed(() => {
 const combos = computed(() => normalizeCombos(props.form.videoDimensionCombos));
 
 /**
+ * 档位表里是否真的填了有声价（{@code :AUDIO} / {@code :REFERENCE:AUDIO} 任一有值）。
+ *
+ * <p>判「有没有真的按有声收过钱」只能看值，不能看列开没开：老配置没有
+ * {@code video.dimensionCombos} 字段时界面按四列全开回显（{@code LEGACY_COMBOS}），
+ * 那两列可能一个价都没填，此时附加费就是唯一的收费项，清掉就是静默少收。</p>
+ */
+const hasAudioTierPrice = computed(() =>
+  (Array.isArray(props.form.videoResolutionRows) ? props.form.videoResolutionRows as ResolutionRow[] : [])
+    .some((row) => row.audioPrice != null || row.referenceAudioPrice != null)
+);
+
+/**
  * 有声是否已按单价计费（{@code :AUDIO} / {@code :REFERENCE:AUDIO} 任一存在）。
  *
  * <p>此时音频直出附加费不能再用：后端把附加费在分量求和之后 add，
  * 与维度键的有声价是两笔钱，同时存在就是同一件事收两遍。</p>
+ *
+ * <p>⭐ 两根判据缺一不可：组合轴必须是用户<b>显式声明</b>（历史口径回显不算声明，见
+ * {@code videoCombosLegacy}），且档位表里<b>真有</b>有声价。只看组合轴会把
+ * 「四列全开但只填了基础价 + 附加费」的存量配置判成双收，打开抽屉就静默清掉一个真实收费项。</p>
  */
-const audioPriced = computed(() => hasAudioPriceTier(props.form.videoDimensionCombos));
+const audioPriced = computed(() =>
+  hasAudioPriceTier(props.form.videoDimensionCombos)
+  && (!props.form.videoCombosLegacy || hasAudioTierPrice.value)
+);
 
 /**
  * 是否含「含参考」组合：Kling 4.0 那类「有输入视频 → 量=输出×2」的价表靠它触发。

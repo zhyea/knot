@@ -4,7 +4,7 @@
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
       <el-table-column prop="modelCode" label="模型编码" min-width="180" show-overflow-tooltip />
       <el-table-column prop="logicalModelCode" label="统一模型" min-width="180" show-overflow-tooltip />
-      <el-table-column label="供应商" min-width="90" show-overflow-tooltip>
+      <el-table-column label="供应商" min-width="110" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.providerName || (row.providerAccountCode ? `#${row.providerAccountCode}` : "-") }}
         </template>

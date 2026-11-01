@@ -16,9 +16,9 @@
         created_at, updated_at
     </sql>
 
-    <!-- 列表只渲染 9 字段，精简投影避免 raw_json/大 JSON/description TEXT 的 I/O 与传输开销 -->
+    <!-- 列表只渲染 10 字段，精简投影避免 raw_json/大 JSON/description TEXT 的 I/O 与传输开销 -->
     <sql id="ItemListColumns">
-        id, model_id, model_name, provider_name, model_type,
+        id, source_code, model_id, model_name, provider_name, model_type,
         context_length, model_created_at, created_at,
         logical_model_id, ignored
     </sql>
@@ -83,11 +83,10 @@
         where id = #{id}
     </select>
 
-    <select id="getItemBySourceKey" resultType="org.chobit.knot.dal.entity.ExternalModelItemEntity">
+    <select id="getItemByModelId" resultType="org.chobit.knot.dal.entity.ExternalModelItemEntity">
         select <include refid="ItemColumns"/>
         from kx_model_items
-        where source_code = #{sourceCode}
-          and model_id = #{modelId}
+        where model_id = #{modelId}
     </select>
 
     <insert id="insertItem" useGeneratedKeys="true" keyProperty="id">
@@ -108,7 +107,8 @@
 
     <update id="updateItem">
         update kx_model_items
-        set canonical_slug = #{canonicalSlug},
+        set source_code = #{sourceCode},
+            canonical_slug = #{canonicalSlug},
             model_name = #{modelName},
             provider_name = #{providerName},
             model_url = #{modelUrl},

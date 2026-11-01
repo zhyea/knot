@@ -27,8 +27,12 @@ public interface ExternalModelMapper {
 
     ExternalModelItemEntity getItemById(Long id);
 
-    ExternalModelItemEntity getItemBySourceKey(@Param("sourceCode") String sourceCode,
-                                               @Param("modelId") String modelId);
+    /**
+     * 按 model_id 查条目（2026-11-01 robin 拍板：同步去重只认模型 ID，同一模型跨源视为
+     * 同一条目，最近同步的源覆盖旧数据并把条目归属翻到新源）。表唯一键
+     * uk_external_model_item 已同步改为 (model_id)。
+     */
+    ExternalModelItemEntity getItemByModelId(@Param("modelId") String modelId);
 
     int insertItem(ExternalModelItemEntity entity);
 

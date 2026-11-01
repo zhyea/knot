@@ -267,6 +267,14 @@ interface BillingRuleFormState {
    */
   videoResolutionRows: Dict[];
   /** 预设的计费组合（决定档位表列集）；默认全选，非全选时才落库 */
+  /**
+   * 计费组合是否来自「历史口径回显」：config 里没有 {@code video.dimensionCombos} 的存量视频规则。
+   *
+   * <p>仅前端标记，不落库。老配置无该字段时界面按四列全开回显（{@link LEGACY_COMBOS}），
+   * 那不是用户主动声明「有声单独定价」——此时若同时存在 AUDIO 附加费，不能据此判成双收清掉
+   * （用户可能压根没填过 {@code :AUDIO} 价，只用了附加费，清掉就是静默少收）。</p>
+   */
+  videoCombosLegacy: boolean;
   videoDimensionCombos: ResolutionComboCode[];
   /** 视频合成量口径：OUTPUT / SUM / OUTPUT_PLUS_MAX */
   videoQuantityMode: string;
@@ -315,6 +323,7 @@ const form = reactive<BillingRuleFormState>({
   cacheWriteMode: "standard",
   videoResolutionRows: [],
   videoDimensionCombos: [...DEFAULT_COMBOS],
+  videoCombosLegacy: false,
   videoQuantityMode: "OUTPUT",
   videoInputVideoPerSecond: null,
   videoInputImagePerImage: null,
@@ -601,6 +610,7 @@ function resetForm() {
   form.cacheWriteMode = "standard";
   form.videoResolutionRows = [];
   form.videoDimensionCombos = [...DEFAULT_COMBOS];
+  form.videoCombosLegacy = false;
   form.videoQuantityMode = "OUTPUT";
   form.videoInputVideoPerSecond = null;
   form.videoInputImagePerImage = null;
@@ -682,9 +692,11 @@ function applyConfig(config: Dict) {
   // （LEGACY_COMBOS，语义不可变——若解释成「仅基础价」，老配置的有声价就变成界面上看不见、
   // 后端仍命中的静默收费）。非视频规则的 config 里没有 video 段，不该被塞上四列默认值：
   // 那样把 TOKEN 规则切成 VIDEO 后会残留四列，连「音频附加费冲突」都跟着误判。
+  const legacyCombos = !Array.isArray(video.dimensionCombos) && form.billingMode === BillingMode.VIDEO;
   form.videoDimensionCombos = Array.isArray(video.dimensionCombos)
     ? normalizeCombos(video.dimensionCombos)
     : form.billingMode === BillingMode.VIDEO ? [...LEGACY_COMBOS] : [...DEFAULT_COMBOS];
+  form.videoCombosLegacy = legacyCombos;
   form.videoQuantityMode = String(video.quantityMode || "OUTPUT").trim().toUpperCase() || "OUTPUT";
   form.videoInputVideoPerSecond = toNumberOrNull(video.inputVideoPerSecond);
   form.videoInputImagePerImage = toNumberOrNull(video.inputImagePerImage);

@@ -37,7 +37,9 @@ public abstract class AbstractExternalModelSyncProvider implements ExternalModel
             try {
                 item.setSourceCode(sourceCode());
                 item.setSyncStatus(ExternalModelSyncStatusEnum.SYNCED.code());
-                existing = externalModelMapper.getItemBySourceKey(item.getSourceCode(), item.getModelId());
+                // 去重只认 model_id（2026-11-01 robin 拍板）：同一模型跨源视为同一条目，
+                // 后同步的源覆盖旧数据，条目归属（source_code）随 updateItem 翻到新源。
+                existing = externalModelMapper.getItemByModelId(item.getModelId());
                 if (existing == null) {
                     externalModelMapper.insertItem(item);
                     inserted++;
