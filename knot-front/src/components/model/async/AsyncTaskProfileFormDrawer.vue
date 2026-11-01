@@ -63,7 +63,9 @@
         <el-divider content-position="left">取值表达式（MVEL）</el-divider>
         <el-form-item label="任务 ID" required>
           <el-input v-model="form.taskIdPath" placeholder="data.task_id" />
-          <div class="profile-form__hint">从<b>创建响应</b>取上游任务 ID；取不到会回落同步</div>
+          <div class="profile-form__hint">
+            从<b>创建响应</b>取上游任务 ID；取不到时该请求直接返回 502，<b>不会</b>回退同步
+          </div>
         </el-form-item>
         <el-form-item label="状态" required>
           <el-input v-model="form.statusPath" placeholder="data.task_status" />

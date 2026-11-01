@@ -99,7 +99,7 @@ class AsyncTaskSupportTest {
     }
 
     @Test
-    @DisplayName("非异步或不完整的上游响应一律回退同步，不落任务")
+    @DisplayName("上游结果为空时不判定（这一环不过，回退同步；任务 ID 缺失那环必须抛，见下一例）")
     void submitFallsBackToSync() {
         assertNull(support.submitIfAsync(null, null, null), "无上游结果时不判定");
         assertNull(support.submitIfAsync(null, null, new ProxyResult("  ", 1L, 1L, null)),

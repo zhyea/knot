@@ -201,4 +201,27 @@ class AsyncTaskProfileSupportTest {
 
         assertTrue(vo.errors().stream().anyMatch(e -> e.contains("创建响应")), vo.errors().toString());
     }
+
+    @Test
+    @DisplayName("⭐ 试跑：task_id_path 取不到必须记 error —— 运行时同一情形直接 502，试跑不许全绿")
+    void dryRunReportsMissingUpstreamTaskId() {
+        AsyncTaskProfileSaveDto dto = valid();
+        AsyncTaskProfileSaveDto wrongPath = new AsyncTaskProfileSaveDto(dto.profileCode(), dto.protocol(),
+                dto.queryMethod(), dto.queryPath(), "data.id", dto.statusPath(),
+                dto.statusSucceeded(), dto.statusFailed(), null, dto.resultPath(),
+                dto.resultUrlField(), dto.errorMessagePath(), dto.resultExpiresDays(),
+                dto.pollIntervalMs(), dto.pollBackoffBaseMs(), dto.pollBackoffMaxMs(),
+                dto.maxAttempts(), dto.timeoutMs(), dto.status(), dto.remark());
+
+        // 可灵创建响应是 data.task_id，档案却写 data.id：保存期挡不住（语法合法），
+        // 只能靠试跑暴露——若这里静默给 null，运维看到「试跑通过」就会直接上线。
+        AsyncTaskProfileSupport.validate(wrongPath);
+
+        AsyncTaskProfileDryRunVo vo = AsyncTaskProfileSupport.dryRun(
+                new AsyncTaskProfileDryRunDto(wrongPath, KLING_CREATE, KLING_QUERY));
+
+        assertNull(vo.upstreamTaskId());
+        assertTrue(vo.errors().stream().anyMatch(e -> e.contains("task_id_path") && e.contains("data.id")),
+                "必须指出是哪一列、哪条表达式：" + vo.errors());
+    }
 }

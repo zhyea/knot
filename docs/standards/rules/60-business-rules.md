@@ -297,8 +297,8 @@ usage.totalTokens    >= usage.input.tokens.total() + usage.output.tokens.total()
 
 ⭐⭐ `kb_async_task_profiles` 里 **三个 `*_path`（`task_id_path` / `status_path` / `result_path`）是
 MVEL 取值表达式，三个 `status_*` 是 MVEL 布尔表达式**（变量 `status` = `status_path` 取到的文本、
-`body` = 整个查询响应）。求值的**唯一出口**是 `AsyncTaskExpressionSupport`（`text` / `test`），
-禁止各处自行 `MVEL.eval`。
+`body` = 整个查询响应）。求值的**唯一出口**是 `AsyncTaskExpressionSupport`
+（`text` / `requireText` / `texts` / `test`），禁止各处自行 `MVEL.eval`。
 **规则形态的判据**：旧的自研 JSON 路径语法只能表达「取某个节点」，而终态判定本质不是「取值相等」，
 于是状态语义被迫一半在配置（逗号列表）、一半在 Java（字符串比较）；每加一种写法都要改代码发版。
 **路径语法的适用边界是「知道结构」，表达式的适用边界是「知道意图」**——档案要的是后者。
@@ -310,6 +310,19 @@ MVEL 取值表达式，三个 `status_*` 是 MVEL 布尔表达式**（变量 `st
 - **判定失败 → 必须抛**（`IllegalStateException`，并指路迁移脚本）：旧值 `succeeded,failed` 在 MVEL 下
   是变量名，**能编译、求值期才抛**。若宽容成 `false`，任务会永远 RUNNING 直到超时结单——
   **配置错被伪装成上游慢，是最难查的一类事故**。
+- ⭐⭐ **例外：取上游任务 ID 必须抛**（2026-11-01 robin 定）。`task_id_path` 走**严格取值**
+  `AsyncTaskExpressionSupport#requireText`：表达式为空 / 求值抛错 / 取到的不是标量 → 一律抛；
+  网关侧由 `AsyncTaskSupport#requireUpstreamTaskId` 包成 `GatewayUpstreamException`
+  （**502 `UPSTREAM_ERROR`**），消息里必须带档案编码 + 表达式原文 + 响应顶层键。
+  **不许沿用「取值失败 → null」**：走到这一步说明绑定已声明异步、档案也读到了，
+  响应里没有任务 ID 只可能是「表达式配错」或「上游契约变了」；回 null 只能让调用方回退同步，
+  把上游「任务已创建」的响应当成最终结果交给客户端——本地没有任务行可轮询，**既查不到也不计费**。
+  试跑必须同口径（`AsyncTaskProfileSupport#readRequiredText` 记 error），否则会出现
+  「试跑全绿、上线一半请求 502」。
+  守门：`AsyncTaskSpecRulesTest#upstreamTaskIdUsesTaskIdPath` /
+  `AsyncTaskSupportTest#missingUpstreamTaskIdThrows` /
+  `AsyncTaskProfileSupportTest#dryRunReportsMissingUpstreamTaskId`（双向探针实测：改回 `text()`
+  与 `readText()` 分别红，还原后全绿）。
 - ⚠ 编译与求值必须分开：`compiled()` 抛的也是 `RuntimeException`，若放在取值的 `catch` 里，
   「档案写错」会被当成「取不到」静静吞掉（判例：本条款落地时实测发现该缺陷，`text()` 已把编译提到 try 外）。
 
@@ -328,7 +341,8 @@ MVEL 取值表达式，三个 `status_*` 是 MVEL 布尔表达式**（变量 `st
 - 安全边界：表达式只由管理端/运维脚本写入（与 SQL 同权限级），求值时**只绑定数据**，
   不绑定 bean、不绑类加载器。
 - 编译缓存 `ConcurrentHashMap<表达式原文, Serializable>`：改档案自然过期，无失效逻辑。
-- 守门测试：`AsyncTaskExpressionSupportTest`（10 例，含「旧逗号列表必须抛且消息指路迁移脚本」探针）。
+- 守门测试：`AsyncTaskExpressionSupportTest`（14 例，含「旧逗号列表必须抛且消息指路迁移脚本」
+  与「严格取值四条失败分支」探针）。
   双向探针实测：取值改上抛 → 3 例红；判定改宽容 `false` → 逗号列表那例红。
 
 ### 8.15 枚举落库用整型码：显式声明 + 只增不改 + SQL 不走魔法数字（2026-10-28）

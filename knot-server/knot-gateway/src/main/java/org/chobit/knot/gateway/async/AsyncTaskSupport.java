@@ -121,8 +121,9 @@ public class AsyncTaskSupport {
     /**
      * 组装一条待轮询任务。
      *
-     * @param upstreamTaskId 上游任务 ID（从创建响应按 {@code task_id_path} 取出）；取不到返回 null，
-     *                       调用方应视为「异步判定不成立」而回退同步链路 —— 没有任务 ID 就无从轮询。
+     * @param upstreamTaskId 上游任务 ID（从创建响应按 {@code task_id_path} 取出，由
+     *                       {@link #requireUpstreamTaskId} 保证非空；取不到在那一层就抛了，
+     *                       不会有「没有 ID 的任务行」落库）
      */
     public AsyncTaskDraftDto build(AsyncTaskCreation creation) {
         AsyncTaskSpec spec = creation.spec();

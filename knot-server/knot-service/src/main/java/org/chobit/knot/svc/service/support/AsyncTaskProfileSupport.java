@@ -167,7 +167,7 @@ public final class AsyncTaskProfileSupport {
 
         String upstreamTaskId = createBody == null
                 ? null
-                : readText(createBody, profile.taskIdPath(), "任务 ID 表达式（task_id_path）", errors);
+                : readRequiredText(createBody, profile.taskIdPath(), "任务 ID 表达式（task_id_path）", errors);
 
         String status = null;
         String terminal = null;
@@ -254,6 +254,24 @@ public final class AsyncTaskProfileSupport {
             return AsyncTaskExpressionSupport.text(body, expression);
         } catch (RuntimeException e) {
             errors.add(label + "求值失败：" + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 严格取值（试跑专用）：与<b>运行时</b>同一口径，取不到就记 error。
+     *
+     * <p>⭐⭐ 为什么 {@code task_id_path} 不能用宽容的 {@link #readText}（2026-11-01）：
+     * 运行时取不到上游任务 ID 会直接 502（档案配了异步却没有可轮询的任务），
+     * 试跑若只是把 {@code null} 摊在界面上、一条错误都不留，就会出现
+     * 「试跑全绿、上线一半请求 502」——试跑存在的意义正是把那类错误提前摊开。</p>
+     */
+    private static String readRequiredText(Map<String, Object> body, String expression, String label,
+                                           List<String> errors) {
+        try {
+            return AsyncTaskExpressionSupport.requireText(body, expression, label);
+        } catch (RuntimeException e) {
+            errors.add(label + "取值失败：" + e.getMessage());
             return null;
         }
     }
