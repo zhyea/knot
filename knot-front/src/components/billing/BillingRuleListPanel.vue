@@ -33,6 +33,12 @@
       <el-table-column label="绑定数量" width="100" align="right" show-overflow-tooltip>
         <template #default="{ row }">{{ row.boundModelCount ?? 0 }}</template>
       </el-table-column>
+      <el-table-column label="更新时间" width="170" align="center" show-overflow-tooltip>
+        <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+      </el-table-column>
+      <el-table-column label="创建时间" width="170" align="center" show-overflow-tooltip>
+        <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
+      </el-table-column>
       <el-table-column label="操作" width="170" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
           <RowActions
@@ -62,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import {displayText} from "@/utils/format";
+import {displayText, formatDateTime} from "@/utils/format";
 import {type PropType} from "vue";
 import {CopyDocument, DataAnalysis, Delete, Document, Edit} from "@element-plus/icons-vue";
 import type {Row} from "@/types";

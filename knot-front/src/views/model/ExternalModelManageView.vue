@@ -33,8 +33,13 @@
       <section class="list-page-block list-page-block--content">
         <div class="list-page-toolbar">
           <div class="list-page-toolbar__actions list-page-toolbar__actions--start">
-            <el-button type="primary" :loading="syncing" @click="syncOpenRouter">
-              同步 OpenRouter 模型
+            <el-button
+              type="primary"
+              :loading="syncing"
+              :disabled="!query.sourceCode"
+              @click="syncCurrentSource"
+            >
+              {{ syncButtonText }}
             </el-button>
             <el-button
               type="success"
@@ -131,14 +136,28 @@ const logName = ref("");
 
 const createAllDisabled = computed(() => creatingAll.value || selectedRows.value.length === 0);
 
+// 同步按钮对「来源」筛选里选中的那个源生效：源清单来自 listSources()，新增外部数据源时
+// 这里不用改代码（曾写死 OPENROUTER，第二个源接进来后 UI 上根本没法触发它的首次同步）
+const syncButtonText = computed(() => {
+  const code = query.sourceCode;
+  if (!code) return "同步选中来源模型";
+  const hit = sources.value.find((source: Row) => source.sourceCode === code);
+  return `同步 ${hit?.sourceName || code} 模型`;
+});
+
 async function loadSources() {
   sources.value = await listExternalModelSources();
 }
 
-async function syncOpenRouter() {
+async function syncCurrentSource() {
+  const code = query.sourceCode;
+  if (!code) {
+    ElMessage.warning("请先选择要同步的来源");
+    return;
+  }
   syncing.value = true;
   try {
-    const result = await syncExternalModelSource("OPENROUTER");
+    const result = await syncExternalModelSource(code);
     ElMessage.success(result?.message || "同步完成");
     selectedRows.value = [];
     await resetPage();

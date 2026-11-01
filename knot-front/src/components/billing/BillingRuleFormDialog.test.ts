@@ -935,7 +935,8 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
         billingMode: "VIDEO",
         unit: "PER_SECOND",
         pricingPlan: "DIMENSION_TIERED",
-        configJson: JSON.stringify({defaultUnitPrice: 0.5, surcharges: [{code: "AUDIO", trigger: "AUDIO", amount: 15}]})
+        // video.dimensionCombos 显式只留基础价：不写就按历史口径四列全开（已含有声），回显即被清空，测不到「勾选有声单列时清空」这条路径
+        configJson: JSON.stringify({defaultUnitPrice: 0.5, video: {dimensionCombos: ["BASE"]}, surcharges: [{code: "AUDIO", trigger: "AUDIO", amount: 15}]})
       }) as never
     );
 
@@ -951,7 +952,9 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     expect(warned().some((message) => message.includes("音频直出附加费"))).toBe(true);
   });
 
-  it("VIDEO 有声加价：历史配置两条并存时拒绝保存（不让同一项收两遍）", async () => {
+  it("VIDEO 有声加价：历史配置两条并存时打开即清空附加费（不让同一项收两遍）", async () => {
+    // ⭐ 从「保存时拒绝」改成「打开即清」：有声档位价与附加费是同一件事的两种表达，
+    // 只拒绝保存的话界面上根本没有这个入口，用户无从修改，等于卡死；清空 + 提示才有出口
     vi.mocked(getBillingRule).mockResolvedValue(
       detailRow({
         billingMode: "VIDEO",
@@ -967,10 +970,14 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     );
 
     const wrapper = await openDialog({ruleId: RULE_ID});
-    await save(wrapper);
-
+    const form = formOf(wrapper, BillingModeVideoConfig);
+    expect(form.videoAudioSurcharge).toBeNull();
     expect(warned().some((message) => message.includes("音频直出附加费"))).toBe(true);
-    expect(vi.mocked(updateBillingRule)).not.toHaveBeenCalled();
+
+    await save(wrapper);
+    // 有声档位价已经收过一遍，附加费不能再落库（后端在分量求和之后 add）
+    expect(configOf(updatePayload()).surcharges).toBeUndefined();
+    expect(vi.mocked(updateBillingRule)).toHaveBeenCalled();
   });
 
   it("VIDEO 阶梯写 tierMode，逐单位累加与整笔落档可区分", async () => {
@@ -1163,7 +1170,9 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     expect(vi.mocked(updateBillingRule)).not.toHaveBeenCalled();
   });
 
-  it("DIMENSION_TIERED：口径折入输入秒时拒绝再填输入视频单价（同一批秒不收两遍）", async () => {
+  it("DIMENSION_TIERED：口径折入输入秒时清空输入视频单价（同一批秒不收两遍）", async () => {
+    // 同上：输入秒被折进计费量之后，「输入视频 每秒」这个入口直接消失并清空，
+    // 而不是留一个填了会保存失败、界面上又找不到地方改的框
     const wrapper = await openDialog({ruleId: RULE_ID});
     const form = formOf(wrapper);
     form.billingMode = "VIDEO";
@@ -1176,10 +1185,15 @@ describe("BillingRuleFormDialog 计费规则表单", () => {
     form.videoResolutionRows.push(
       {key: "720P", price: 0.15, audioPrice: null, referencePrice: null, referenceAudioPrice: null, inputPrice: null}
     );
-    await save(wrapper);
+    await flushPromises();
 
+    expect(form.videoInputVideoPerSecond).toBeNull();
     expect(warned().some((message) => message.includes("输入视频"))).toBe(true);
-    expect(vi.mocked(updateBillingRule)).not.toHaveBeenCalled();
+
+    await save(wrapper);
+    // 清空后保存照常通过，且库里不会残留一条看不见的输入秒单价
+    expect(configOf(updatePayload()).video).toEqual({dimensionCombos: ["BASE"]});
+    expect(vi.mocked(updateBillingRule)).toHaveBeenCalled();
   });
 
   it("保存成功后关闭抽屉并抛出 saved", async () => {

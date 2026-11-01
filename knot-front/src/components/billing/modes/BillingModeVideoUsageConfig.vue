@@ -27,42 +27,51 @@
     <el-divider content-position="left">
       <span class="video-usage-config__group">输入侧分量（可选，留空不计费）</span>
     </el-divider>
-    <div class="input-charge-grid">
-      <el-form-item v-if="!inputVideoFolded" label="输入视频 每秒">
-        <el-input-number v-model="form.videoInputVideoPerSecond"
-                         :min="0"
-                         :step="UNIT_PRICE_STEP"
-                         controls-position="right"
-                         style="width: 100%"/>
-      </el-form-item>
-      <el-form-item label="输入图片 每张">
-        <el-input-number v-model="form.videoInputImagePerImage"
-                         :min="0"
-                         :step="UNIT_PRICE_STEP"
-                         controls-position="right"
-                         style="width: 100%"/>
-      </el-form-item>
-      <el-form-item label="图片免费张数">
-        <el-input-number v-model="form.videoFreeInputImages"
-                         :min="0"
-                         :step="1"
-                         controls-position="right"
-                         style="width: 100%"/>
-      </el-form-item>
-      <el-form-item label="音频直出附加费" :error="audioConflictHint">
-        <el-input-number v-model="form.videoAudioSurcharge"
-                         :min="0"
-                         :step="UNIT_PRICE_STEP"
-                         controls-position="right"
-                         style="width: 100%"/>
-      </el-form-item>
-    </div>
+    <!-- 两行两列：每个分量各自持有 span，调宽只改自己那一格 -->
+    <el-row :gutter="16">
+      <el-col v-if="showInputVideo" :xs="24" :span="8">
+        <el-form-item label="输入视频 每秒">
+          <el-input-number v-model="form.videoInputVideoPerSecond"
+                           :min="0"
+                           :step="UNIT_PRICE_STEP"
+                           controls-position="right"
+                           style="width: 100%"/>
+        </el-form-item>
+      </el-col>
+      <el-col :xs="24" :span="8">
+        <el-form-item label="输入图片 每张">
+          <el-input-number v-model="form.videoInputImagePerImage"
+                           :min="0"
+                           :step="UNIT_PRICE_STEP"
+                           controls-position="right"
+                           style="width: 100%"/>
+        </el-form-item>
+      </el-col>
+      <el-col :xs="24" :span="8">
+        <el-form-item label="图片免费张数">
+          <el-input-number v-model="form.videoFreeInputImages"
+                           :min="0"
+                           :step="1"
+                           controls-position="right"
+                           style="width: 100%"/>
+        </el-form-item>
+      </el-col>
+      <el-col v-if="showAudioSurcharge" :xs="24" :span="8">
+        <el-form-item label="音频直出附加费">
+          <el-input-number v-model="form.videoAudioSurcharge"
+                           :min="0"
+                           :step="UNIT_PRICE_STEP"
+                           controls-position="right"
+                           style="width: 100%"/>
+        </el-form-item>
+      </el-col>
+    </el-row>
     <el-alert type="info" :closable="false" class="video-usage-config__hint">
       <template #title>
         <span>
           输入侧分量按「输出秒 + 输入秒 + 输入图片」三路各自计价后求和；
           分量单价独立于上方分辨率档，不会被默认单价顶替。附加费是与用量无关的常数项（如 Vidu 直出音频 +15）。
-          它与「有声单独定价」是同一件事的两种表达，<b>只能二选一</b>：有声按秒定价就别再收常量附加费。
+          它与「有声单独定价」是同一件事的两种表达：勾选「有声单独定价」后音频附加费不再出现，已填值会被清空——同一项不收两遍。
         </span>
       </template>
     </el-alert>
@@ -70,7 +79,8 @@
 </template>
 
 <script setup lang="ts">
-import {computed} from "vue";
+import {computed, watch} from "vue";
+import {ElMessage} from "element-plus";
 import {PricingPlan} from "@/constants/status";
 import {UNIT_PRICE_STEP, isTokenPricedUnit} from "@/utils/billingPrice";
 import {hasAudioPriceTier, normalizeCombos} from "@/utils/billingResolution";
@@ -106,14 +116,6 @@ const combos = computed(() => normalizeCombos(props.form.videoDimensionCombos));
  */
 const audioPriced = computed(() => hasAudioPriceTier(props.form.videoDimensionCombos));
 
-/** 冲突态：有声已单列且附加费仍有值。只可能来自历史配置回显——勾开关时会先清空并提示 */
-const audioConflict = computed(() => audioPriced.value && props.form.videoAudioSurcharge != null);
-
-/** 交给 el-form-item 的 error：同时得到红框与红字，且不禁用输入框（禁用会让用户无法清空，卡死） */
-const audioConflictHint = computed(() =>
-  audioConflict.value ? "有声已按单价计费，附加费会重复收取，请二选一" : ""
-);
-
 /**
  * 是否含「含参考」组合：Kling 4.0 那类「有输入视频 → 量=输出×2」的价表靠它触发。
  * 固定价没有档位表，参考视频不改变单价，因此同样不展示合成量口径。
@@ -132,6 +134,55 @@ const showQuantity = computed(
 const inputVideoFolded = computed(
   () => String(props.form.pricingPlan || "").toUpperCase() === PricingPlan.DIMENSION_TIERED
     && String(props.form.videoQuantityMode || "OUTPUT").toUpperCase() !== "OUTPUT"
+);
+
+// ============================================================================
+// 分量 × 计费组合：组合轴上已单独定价时，表达同一件事的分量不再出现
+// ============================================================================
+
+/**
+ * 不展示的原因：键是分量字段名，值是给用户的解释（也是清空提示的正文）。
+ *
+ * <p>⭐ 为什么是「不展示」而不是「标红让用户自己清」：这两组分量与组合轴是同一件事的两种表达，
+ * 并存即双收；只标红的话用户会看到一个自己并不知道该怎么处理的红框，
+ * 而保存时后端还会拒绝——界面上没有入口，等于卡死。不展示 + 自动清空是唯一自洽的出口。</p>
+ */
+const HIDDEN_REASONS: Record<string, string> = {
+  videoAudioSurcharge: "有声已按单价计费，附加费会重复收取",
+  videoInputVideoPerSecond: "计费量口径已折入输入秒，同一批秒不收两遍"
+};
+
+const showAudioSurcharge = computed(() => !audioPriced.value);
+const showInputVideo = computed(() => !inputVideoFolded.value);
+
+/** 当前被隐藏的分量（含标签，用于清空提示） */
+const hiddenCharges = computed(() => [
+  ...(showInputVideo.value ? [] : [{field: "videoInputVideoPerSecond", label: "输入视频 每秒"}]),
+  ...(showAudioSurcharge.value ? [] : [{field: "videoAudioSurcharge", label: "音频直出附加费"}])
+]);
+
+/**
+ * 隐藏即清空：值留在表单里会随保存落库，成为一条界面上找不到、计费却会命中的收费项。
+ *
+ * <p>immediate 覆盖「历史配置回显」这条路径——存量库里可能同时存在有声档位价与附加费，
+ * 打开抽屉时在这里一次清掉并提示，而不是等用户点到保存才被拒。</p>
+ */
+watch(
+  hiddenCharges,
+  () => {
+    const state = props.form as Record<string, unknown>;
+    const cleared = hiddenCharges.value.filter((item) => state[item.field] != null);
+    if (!cleared.length) {
+      return;
+    }
+    for (const item of cleared) {
+      state[item.field] = null;
+    }
+    ElMessage.warning(
+      `已清除「${cleared.map((item) => item.label).join("、")}」：${HIDDEN_REASONS[cleared[0].field]}`
+    );
+  },
+  {immediate: true}
 );
 
 const QUANTITY_MODES = [
@@ -181,17 +232,5 @@ const quantityHint = computed(
   font-size: 12px;
   color: var(--el-text-color-secondary);
   line-height: 20px;
-}
-
-.input-charge-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0 16px;
-}
-
-@media (max-width: 760px) {
-  .input-charge-grid {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

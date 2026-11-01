@@ -21,7 +21,7 @@
       <el-form label-width="108px" label-position="right" size="default">
         <el-divider content-position="left">基本信息</el-divider>
         <el-form-item label="档案编码" required>
-          <el-input v-model="form.profileCode" :disabled="!isCreate" placeholder="大写字母开头，如 KLING_TASK" />
+          <el-input v-model="form.profileCode" :disabled="!isCreate" placeholder="字母开头，可含数字/下划线/连字符，如 KLING_TASK" />
           <div class="profile-form__hint">
             绑定表按它引用；<b>已绑定时不能改</b>——改了等于让所有引用指向不存在的档案
           </div>
