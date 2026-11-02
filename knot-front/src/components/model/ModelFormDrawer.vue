@@ -40,7 +40,8 @@
               <el-form-item label="版本">
                 <el-input v-model="form.version" placeholder="如 v2026092910 或 1.0.0" @focus="fillVersionOnFocus">
                   <template #append>
-                    <el-button :icon="RefreshRight" aria-label="生成最新版本" title="生成最新版本" @click="refreshVersion"/>
+                    <el-button :icon="RefreshRight" aria-label="生成最新版本" title="生成最新版本"
+                               @click="refreshVersion"/>
                   </template>
                 </el-input>
               </el-form-item>
@@ -193,12 +194,14 @@
                   <el-form-item label="启用" class="inline-switch">
                     <el-switch v-model="binding.enabled"/>
                   </el-form-item>
-                  <el-button text type="danger" @click="removeApiBinding(index)">删除</el-button>
+                  <el-form-item label="" label-width="0">
+                    <el-button text type="danger" @click="removeApiBinding(index)">删除</el-button>
+                  </el-form-item>
                 </div>
               </div>
 
               <el-row :gutter="12" class="api-binding-card__row">
-                <el-col :span="8">
+                <el-col :span="12">
                   <el-form-item label="接口协议" required>
                     <EnumControl
                       v-model="binding.protocol"
@@ -210,7 +213,7 @@
                     />
                   </el-form-item>
                 </el-col>
-                <el-col :span="8">
+                <el-col :span="12">
                   <el-form-item label="请求适配器">
                     <el-select
                       v-model="binding.requestAdapter"
@@ -229,7 +232,10 @@
                     </el-select>
                   </el-form-item>
                 </el-col>
-                <el-col :span="8">
+              </el-row>
+
+              <el-row :gutter="12" class="api-binding-card__row">
+                <el-col :span="24">
                   <el-form-item label="上游路径">
                     <el-input v-model="binding.apiPath" placeholder="为空时使用协议默认路径"/>
                   </el-form-item>
@@ -251,7 +257,9 @@
                           rel="noopener"
                           aria-label="查看说明"
                         >
-                          <el-icon><QuestionFilled/></el-icon>
+                          <el-icon>
+                            <QuestionFilled/>
+                          </el-icon>
                         </el-link>
                       </el-tooltip>
                     </template>
@@ -291,7 +299,7 @@
               </el-row>
 
               <el-row :gutter="12" class="api-binding-card__row">
-                <el-col :span="9">
+                <el-col :span="7">
                   <el-form-item label="调用方式">
                     <el-radio-group
                       :model-value="binding.taskMode"
@@ -303,7 +311,7 @@
                   </el-form-item>
                 </el-col>
                 <!-- 任务档案只在异步下出现：同步是「提交即终态」，没有可选的档案 -->
-                <el-col v-if="binding.taskMode === TASK_MODE_ASYNC" :span="15">
+                <el-col v-if="binding.taskMode === TASK_MODE_ASYNC" :span="17">
                   <el-form-item label="任务档案">
                     <el-select
                       :model-value="binding.asyncProfileCode"
@@ -332,6 +340,7 @@
                   </el-form-item>
                 </el-col>
               </el-row>
+
             </div>
           </div>
         </div>
