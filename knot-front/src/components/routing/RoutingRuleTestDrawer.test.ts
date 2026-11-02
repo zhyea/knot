@@ -5,6 +5,7 @@ import { mount, flushPromises, enableAutoUnmount, type VueWrapper } from "@vue/t
 import { afterEach } from "vitest";
 import { ElDrawer, ElOption, ElSelect } from "element-plus";
 import RoutingRuleTestDrawer from "@/components/routing/RoutingRuleTestDrawer.vue";
+import { gatewayBaseUrl } from "@/composables/useTestRequestComposition";
 
 /**
  * 抽屉的「模板 ↔ 状态」接线测试。
@@ -129,6 +130,7 @@ vi.mock("@/api/routing", () => ({
 import {
   listRoutingRuleDebugProtocols,
   listTestRequestPresetOptions,
+  queryGatewayTask,
   testRoutingRule,
   testRoutingRuleStream
 } from "@/api/routing";
@@ -676,6 +678,20 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
 
     expect(tabLabels(wrapper)).not.toContain("异步任务");
     expect(h.async.start).not.toHaveBeenCalled();
+  });
+
+    it("⭐ 轮询相对 query_url 时补网关基址（不能打到前端开发服务器）", async () => {
+    await openDrawer();
+    const headers = {Authorization: "Bearer sk-test", Rule: "r-1"};
+    const signal = new AbortController().signal;
+
+    await h.async.ctx.queryTask(ACCEPTED_BODY.query_url, headers, signal);
+
+    expect(queryGatewayTask).toHaveBeenCalledWith(
+      `${gatewayBaseUrl()}/openai/v1/tasks/tc-abc`,
+      headers,
+      signal
+    );
   });
 
   it("⭐ 终态 completed：证据来自终态响应本身，裁判按异步口径发起", async () => {
