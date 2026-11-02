@@ -683,7 +683,8 @@ const {
 } = useAsyncTaskPolling({
   // 与发送请求同一份头（Headers 表格即权威）：测试头在轮询里同样需要，否则拿不到结算证据
   buildHeaders: () => buildRequestHeaders("application/json"),
-  queryTask: (url, headers, signal) => queryGatewayTask(url, headers, signal),
+  // 202 回执里的 query_url 是相对路径；不补网关基址会打到前端开发服务器并得到 404
+  queryTask: (url, headers, signal) => queryGatewayTask(`${gatewayBaseUrl()}${url}`, headers, signal),
   onTerminal: (payload) => onAsyncTerminal(payload)
 });
 
