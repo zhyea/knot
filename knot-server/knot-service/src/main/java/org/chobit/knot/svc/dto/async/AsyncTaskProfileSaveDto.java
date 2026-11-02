@@ -39,7 +39,7 @@ public record AsyncTaskProfileSaveDto(String profileCode,
                                       Integer pollBackoffBaseMs,
                                       Integer pollBackoffMaxMs,
                                       Integer maxAttempts,
-                                      Long timeoutMs,
+                                      Long timeoutMinutes,
                                       /** 启用状态码（EnabledStatusEnum）；新建时 null 视为启用 */
                                       Integer status,
                                       String remark) {

@@ -49,7 +49,8 @@ public class AsyncTaskProfileEntity {
     private Integer pollBackoffBaseMs;
     private Integer pollBackoffMaxMs;
     private Integer maxAttempts;
-    private Long timeoutMs;
+    /** knot 侧任务寿命（<b>分钟</b>）；到期转 EXPIRED，与 {@code poll_*_ms} 不同单位 */
+    private Long timeoutMinutes;
     /** 启用状态（EnabledStatusEnum）：1-启用 0-停用 */
     private Integer status;
     private String remark;

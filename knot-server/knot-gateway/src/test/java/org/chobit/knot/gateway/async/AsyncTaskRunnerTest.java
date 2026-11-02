@@ -504,7 +504,7 @@ class AsyncTaskRunnerTest {
         return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", "data[0].status",
                 "['succeed','SUCCEEDED'] contains status", "status == 'failed'", null,
                 "data[0].outputs[0].url", null, null,
-                7, 5000, 1000, 30000, 360, 1_800_000L);
+                7, 5000, 1000, 30000, 360, 30L);
     }
 
     private static AsyncTaskContext context() {

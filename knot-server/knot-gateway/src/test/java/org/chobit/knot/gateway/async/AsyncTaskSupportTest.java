@@ -39,7 +39,7 @@ class AsyncTaskSupportTest {
         return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", "data[0].status",
                 "['succeed','SUCCEEDED'] contains status", "status == 'failed'", null,
                 "data[0].outputs[0].url", null, null,
-                7, 5000, 1000, 30000, 360, 1_800_000L);
+                7, 5000, 1000, 30000, 360, 30L);
     }
 
     @Test
@@ -73,7 +73,7 @@ class AsyncTaskSupportTest {
         //    钉 wire 值的断言也随之搬进 AsyncTaskConverterTest（能力搬家，测试必须跟着搬，
         //    否则删了能力测试还绿，等于没测）。草稿里根本没有这两个字段。
         assertEquals(now.plusNanos(5_000_000_000L), task.nextPollAt());
-        assertEquals(now.plusNanos(1_800_000_000_000L), task.expiresAt());
+        assertEquals(now.plusMinutes(30), task.expiresAt());
         assertEquals(now.plusDays(7), task.resultExpiresAt());
         assertEquals("RULE-1", task.billingRuleCode());
         assertEquals("V1", task.billingRuleVersionCode());
@@ -91,7 +91,7 @@ class AsyncTaskSupportTest {
     void noResultTtl() {
         AsyncTaskSpec noTtl = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data.status",
                 "status == 'succeed'", "status == 'failed'", null, "data.url", null, null,
-                null, 5000, 1000, 30000, 360, 1_800_000L);
+                null, 5000, 1000, 30000, 360, 30L);
         AsyncTaskDraftDto task = support.build(new AsyncTaskCreation("tc", "P", noTtl, null,
                 Map.of(), new AsyncTaskContext("tc", "r", null, null, "req", null, "m", null, null, null, null),
                 "up", null, null, LocalDateTime.now(), null));

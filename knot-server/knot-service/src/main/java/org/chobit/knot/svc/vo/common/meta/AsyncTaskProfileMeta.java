@@ -13,11 +13,11 @@ package org.chobit.knot.svc.vo.common.meta;
  * @param queryMethod    查询方法（GET / POST）
  * @param queryPath      查询路径模板（含 {@code {task_id}} 占位）
  * @param pollIntervalMs 首次轮询的基准间隔
- * @param timeoutMs      knot 侧任务超时
+ * @param timeoutMinutes knot 侧任务超时（分钟）
  */
 public record AsyncTaskProfileMeta(String protocol,
                                    String queryMethod,
                                    String queryPath,
                                    Integer pollIntervalMs,
-                                   Long timeoutMs) {
+                                   Long timeoutMinutes) {
 }

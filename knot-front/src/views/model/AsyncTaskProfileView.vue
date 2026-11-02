@@ -200,9 +200,9 @@ function isMultiResult(row: Row): boolean {
  */
 function pollSummary(row: Row): string {
   const interval = Number(row.pollIntervalMs ?? 0);
-  const timeout = Number(row.timeoutMs ?? 0);
+  const timeout = Number(row.timeoutMinutes ?? 0);
   const intervalText = interval > 0 ? `${Math.round(interval / 1000)}s` : "默认";
-  const timeoutText = timeout > 0 ? `${Math.round(timeout / 60000)}min` : "默认";
+  const timeoutText = timeout > 0 ? `${timeout}min` : "默认";
   return `${intervalText} / ${timeoutText}`;
 }
 

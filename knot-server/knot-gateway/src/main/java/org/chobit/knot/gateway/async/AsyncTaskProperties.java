@@ -38,7 +38,7 @@ public class AsyncTaskProperties {
      *       上游调用量按分钟级任务的量级算完全不需要更密；</li>
      *   <li>吞吐上限 = {@code batch-size} / 分钟（默认 100/min ≈ 1.7/s），不再是 100/s；</li>
      *   <li>{@code max_attempts}（默认 360）在这个节拍下几乎永不生效，
-     *       实际由档案的 {@code timeout_ms} 先到——两者「先到先生效」的规则没变，只是常数换了。</li>
+     *       实际由档案的 {@code timeout_minutes} 先到——两者「先到先生效」的规则没变，只是常数换了。</li>
      * </ul>
      *
      * <p>要回密直接改 cron（例如 {@code *&#47;10 * * * * *}），不必改代码。

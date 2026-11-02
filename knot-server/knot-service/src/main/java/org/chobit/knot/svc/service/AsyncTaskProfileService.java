@@ -167,7 +167,7 @@ public class AsyncTaskProfileService {
                         entity.getProfileCode(),
                         disabledOf(entity),
                         new AsyncTaskProfileMeta(entity.getProtocol(), entity.getQueryMethod(),
-                                entity.getQueryPath(), entity.getPollIntervalMs(), entity.getTimeoutMs())))
+                                entity.getQueryPath(), entity.getPollIntervalMs(), entity.getTimeoutMinutes())))
                 .toList();
     }
 

@@ -41,5 +41,5 @@ public record AsyncTaskProfileDto(String profileCode,
                                      Integer pollBackoffBaseMs,
                                      Integer pollBackoffMaxMs,
                                      Integer maxAttempts,
-                                     Long timeoutMs) {
+                                     Long timeoutMinutes) {
 }

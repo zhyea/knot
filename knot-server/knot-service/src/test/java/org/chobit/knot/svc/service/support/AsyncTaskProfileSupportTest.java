@@ -44,7 +44,7 @@ class AsyncTaskProfileSupportTest {
                 "data.task_id", "data.task_status",
                 statusSucceeded, statusFailed, null,
                 "data.task_result.videos", "url", "data.task_status_msg",
-                7, 5000, 1000, 30000, 360, 1_800_000L, 1, "可灵");
+                7, 5000, 1000, 30000, 360, 30L, 1, "可灵");
     }
 
     private static AsyncTaskProfileSaveDto valid() {
@@ -88,7 +88,7 @@ class AsyncTaskProfileSupportTest {
                 dto.statusSucceeded(), dto.statusFailed(), null, dto.resultPath(),
                 dto.resultUrlField(), dto.errorMessagePath(), dto.resultExpiresDays(),
                 dto.pollIntervalMs(), dto.pollBackoffBaseMs(), dto.pollBackoffMaxMs(),
-                dto.maxAttempts(), dto.timeoutMs(), dto.status(), dto.remark());
+                dto.maxAttempts(), dto.timeoutMinutes(), dto.status(), dto.remark());
     }
 
     @Test
@@ -121,7 +121,7 @@ class AsyncTaskProfileSupportTest {
                 dto.statusSucceeded(), dto.statusFailed(), null, dto.resultPath(),
                 dto.resultUrlField(), dto.errorMessagePath(), dto.resultExpiresDays(),
                 dto.pollIntervalMs(), dto.pollBackoffBaseMs(), dto.pollBackoffMaxMs(),
-                dto.maxAttempts(), dto.timeoutMs(), dto.status(), dto.remark());
+                dto.maxAttempts(), dto.timeoutMinutes(), dto.status(), dto.remark());
 
         assertTrue(assertThrows(BusinessException.class, () -> AsyncTaskProfileSupport.validate(bad))
                 .getMessage().contains("{task_id}"));
@@ -151,10 +151,34 @@ class AsyncTaskProfileSupportTest {
                 dto.queryMethod(), dto.queryPath(), dto.taskIdPath(), dto.statusPath(),
                 dto.statusSucceeded(), dto.statusFailed(), null, dto.resultPath(),
                 dto.resultUrlField(), dto.errorMessagePath(), dto.resultExpiresDays(),
-                5000, 10_000, 5_000, dto.maxAttempts(), dto.timeoutMs(), dto.status(), dto.remark());
+                5000, 10_000, 5_000, dto.maxAttempts(), dto.timeoutMinutes(), dto.status(), dto.remark());
 
         assertTrue(assertThrows(BusinessException.class, () -> AsyncTaskProfileSupport.validate(bad))
                 .getMessage().contains("退避上限"));
+    }
+
+    @Test
+    @DisplayName("校验：任务超时按分钟，1~1440 之外被拒（下限不再是 1 秒）")
+    void timeoutRangeIsMinutes() {
+        AsyncTaskProfileSaveDto dto = valid();
+
+        assertTrue(assertThrows(BusinessException.class, () -> AsyncTaskProfileSupport.validate(withTimeout(dto, 0L)))
+                .getMessage().contains("1440"), "0 分钟必须被拒");
+        assertTrue(assertThrows(BusinessException.class, () -> AsyncTaskProfileSupport.validate(withTimeout(dto, 1_441L)))
+                .getMessage().contains("1440"), "超过 24 小时必须被拒");
+
+        AsyncTaskProfileSupport.validate(withTimeout(dto, 1L));
+        AsyncTaskProfileSupport.validate(withTimeout(dto, 1_440L));
+    }
+
+    /** 只换超时一列，其余字段照抄：这类边界用例要能一眼看出「差的是哪一个数」 */
+    private static AsyncTaskProfileSaveDto withTimeout(AsyncTaskProfileSaveDto dto, Long minutes) {
+        return new AsyncTaskProfileSaveDto(dto.profileCode(), dto.protocol(), dto.queryMethod(),
+                dto.queryPath(), dto.taskIdPath(), dto.statusPath(), dto.statusSucceeded(),
+                dto.statusFailed(), dto.statusRunning(), dto.resultPath(), dto.resultUrlField(),
+                dto.errorMessagePath(), dto.resultExpiresDays(), dto.pollIntervalMs(),
+                dto.pollBackoffBaseMs(), dto.pollBackoffMaxMs(), dto.maxAttempts(), minutes,
+                dto.status(), dto.remark());
     }
 
     @Test
@@ -211,7 +235,7 @@ class AsyncTaskProfileSupportTest {
                 dto.statusSucceeded(), dto.statusFailed(), null, dto.resultPath(),
                 dto.resultUrlField(), dto.errorMessagePath(), dto.resultExpiresDays(),
                 dto.pollIntervalMs(), dto.pollBackoffBaseMs(), dto.pollBackoffMaxMs(),
-                dto.maxAttempts(), dto.timeoutMs(), dto.status(), dto.remark());
+                dto.maxAttempts(), dto.timeoutMinutes(), dto.status(), dto.remark());
 
         // 可灵创建响应是 data.task_id，档案却写 data.id：保存期挡不住（语法合法），
         // 只能靠试跑暴露——若这里静默给 null，运维看到「试跑通过」就会直接上线。

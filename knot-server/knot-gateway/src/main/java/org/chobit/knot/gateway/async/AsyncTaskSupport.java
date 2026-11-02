@@ -141,7 +141,7 @@ public class AsyncTaskSupport {
                 creation.billingRuleCode(),
                 creation.billingRuleVersionCode(),
                 now,
-                now.plusNanos(Math.max(1L, spec.timeoutMs()) * 1_000_000L),
+                now.plusMinutes(Math.max(1L, spec.timeoutMinutes())),
                 days == null || days <= 0 ? null : now.plusDays(days),
                 creation.callbackUrl());
     }

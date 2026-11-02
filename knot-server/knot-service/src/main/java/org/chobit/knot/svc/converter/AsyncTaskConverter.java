@@ -121,7 +121,7 @@ public final class AsyncTaskConverter {
                 entity.getPollBackoffBaseMs(),
                 entity.getPollBackoffMaxMs(),
                 entity.getMaxAttempts(),
-                entity.getTimeoutMs());
+                entity.getTimeoutMinutes());
     }
 
     /**
@@ -153,7 +153,7 @@ public final class AsyncTaskConverter {
         entity.setPollBackoffBaseMs(dto.pollBackoffBaseMs());
         entity.setPollBackoffMaxMs(dto.pollBackoffMaxMs());
         entity.setMaxAttempts(dto.maxAttempts());
-        entity.setTimeoutMs(dto.timeoutMs());
+        entity.setTimeoutMinutes(dto.timeoutMinutes());
         entity.setStatus(dto.status());
         entity.setRemark(dto.remark());
         return entity;
@@ -183,7 +183,7 @@ public final class AsyncTaskConverter {
                 entity.getPollBackoffBaseMs(),
                 entity.getPollBackoffMaxMs(),
                 entity.getMaxAttempts(),
-                entity.getTimeoutMs(),
+                entity.getTimeoutMinutes(),
                 entity.getStatus(),
                 entity.getRemark(),
                 entity.getBindingCount(),

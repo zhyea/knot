@@ -7,7 +7,7 @@
         p.id, p.profile_code, p.protocol, p.query_method, p.query_path, p.task_id_path,
         p.status_path, p.status_succeeded, p.status_failed, p.status_running, p.result_path,
         p.error_message_path, p.result_url_field, p.result_expires_days,
-        p.poll_interval_ms, p.poll_backoff_base_ms, p.poll_backoff_max_ms, p.max_attempts, p.timeout_ms,
+        p.poll_interval_ms, p.poll_backoff_base_ms, p.poll_backoff_max_ms, p.max_attempts, p.timeout_minutes,
         p.status, p.remark, p.created_at, p.updated_at
     </sql>
 
@@ -59,12 +59,12 @@
                                            status_running, result_path, error_message_path, result_url_field,
                                            result_expires_days,
                                            poll_interval_ms, poll_backoff_base_ms, poll_backoff_max_ms,
-                                           max_attempts, timeout_ms, status, remark)
+                                           max_attempts, timeout_minutes, status, remark)
         values(#{profileCode}, #{protocol}, #{queryMethod}, #{queryPath}, #{taskIdPath},
                #{statusPath}, #{statusSucceeded}, #{statusFailed},
                #{statusRunning}, #{resultPath}, #{errorMessagePath}, #{resultUrlField}, #{resultExpiresDays},
                #{pollIntervalMs}, #{pollBackoffBaseMs}, #{pollBackoffMaxMs},
-               #{maxAttempts}, #{timeoutMs}, #{status}, #{remark})
+               #{maxAttempts}, #{timeoutMinutes}, #{status}, #{remark})
     </insert>
 
     <update id="update">
@@ -85,7 +85,7 @@
             poll_backoff_base_ms = #{pollBackoffBaseMs},
             poll_backoff_max_ms = #{pollBackoffMaxMs},
             max_attempts = #{maxAttempts},
-            timeout_ms = #{timeoutMs},
+            timeout_minutes = #{timeoutMinutes},
             status = #{status},
             remark = #{remark}
         where profile_code = #{profileCode}

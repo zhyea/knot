@@ -83,7 +83,7 @@ public final class AsyncTaskProfileSupport {
                 dto.pollBackoffBaseMs(),
                 dto.pollBackoffMaxMs(),
                 dto.maxAttempts(),
-                dto.timeoutMs(),
+                dto.timeoutMinutes(),
                 dto.status() == null ? EnabledStatusEnum.ENABLED.code() : dto.status(),
                 StringUtils.trimToNull(dto.remark()));
     }
@@ -142,8 +142,8 @@ public final class AsyncTaskProfileSupport {
         }
         requireRange(dto.maxAttempts(), 1, 10_000, "轮询次数上限");
         requireRange(dto.resultExpiresDays(), 1, 3_650, "产物有效期（天）");
-        if (dto.timeoutMs() != null && (dto.timeoutMs() < 1_000L || dto.timeoutMs() > 86_400_000L)) {
-            throw invalid("任务超时必须在 1s ~ 24h 之间：" + dto.timeoutMs() + "ms");
+        if (dto.timeoutMinutes() != null && (dto.timeoutMinutes() < 1L || dto.timeoutMinutes() > 1_440L)) {
+            throw invalid("任务超时必须在 1 ~ 1440 分钟（24 小时）之间：" + dto.timeoutMinutes() + " 分钟");
         }
         EnabledStatusEnum.requireCode(dto.status(), "无效的启用状态：" + dto.status());
     }

@@ -101,7 +101,7 @@ const ASYNC_PROFILES = [
       queryMethod: "GET",
       queryPath: "/v1/videos/{task_id}",
       pollIntervalMs: 5000,
-      timeoutMs: 1800000
+      timeoutMinutes: 30
     }
   },
   {
@@ -113,7 +113,7 @@ const ASYNC_PROFILES = [
       queryMethod: "GET",
       queryPath: "/v1/responses/{task_id}",
       pollIntervalMs: 3000,
-      timeoutMs: 600000
+      timeoutMinutes: 10
     }
   }
 ];

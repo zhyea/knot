@@ -92,7 +92,7 @@ public class AsyncTaskService {
     /**
      * 重新打开一条可重试的终态任务（{@code FAILED} / {@code EXPIRED} → {@code PENDING}）。
      *
-     * <p>⚠ <b>{@code expiresAt} 必须由调用方算好传入</b>：它来自档案的 {@code timeout_ms}，
+     * <p>⚠ <b>{@code expiresAt} 必须由调用方算好传入</b>：它来自档案的 {@code timeout_minutes}，
      * 而 dal 与 svc 都不解析档案。传原值（提交时刻 + 超时）会让重开的行在下一拍就被
      * {@code claimExpired} 收掉——表现为「点了重试什么都没发生」。</p>
      *

@@ -47,7 +47,7 @@ export const ASYNC_TASK_PROFILE_TEMPLATES: AsyncTaskProfileTemplate[] = [
       pollBackoffBaseMs: 1000,
       pollBackoffMaxMs: 30000,
       maxAttempts: 360,
-      timeoutMs: 1800000,
+      timeoutMinutes: 30,
       remark: "可灵：task_status=succeed/failed，产物 videos[].url（可能多个）"
     }
   },
@@ -73,7 +73,7 @@ export const ASYNC_TASK_PROFILE_TEMPLATES: AsyncTaskProfileTemplate[] = [
       pollBackoffBaseMs: 1000,
       pollBackoffMaxMs: 30000,
       maxAttempts: 720,
-      timeoutMs: 3600000,
+      timeoutMinutes: 60,
       remark: "方舟：status 四态（queued/running/succeeded/failed），产物 content.video_url"
     }
   },
@@ -99,7 +99,7 @@ export const ASYNC_TASK_PROFILE_TEMPLATES: AsyncTaskProfileTemplate[] = [
       pollBackoffBaseMs: 1000,
       pollBackoffMaxMs: 30000,
       maxAttempts: 360,
-      timeoutMs: 1800000,
+      timeoutMinutes: 30,
       remark: ""
     }
   }

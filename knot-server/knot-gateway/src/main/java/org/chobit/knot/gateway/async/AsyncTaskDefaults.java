@@ -12,8 +12,9 @@ package org.chobit.knot.gateway.async;
  *   <li>{@link #POLL_BACKOFF_MAX_MS} 与 {@link #QUERY_TIMEOUT_MS} 都是 30000——
  *       一个是「两次查询间隔的封顶」，一个是「一次 HTTP 查询等多久」。合并后调退避上限会顺带改掉查询超时，
  *       而查询超时又牵连占位预算链（{@code claim-ttl-ms}），表现是「偶发少算上游调用数」。</li>
- *   <li>{@link #CLAIM_TTL_MS}（180 000，3 分钟）与 {@link #TASK_TIMEOUT_MS}（1 800 000，30 分钟）——
- *       少写一个零就差十倍，而两者都叫「超时」。前者是节点宕机后的占位回收窗口，后者是 knot 侧任务寿命。</li>
+ *   <li>{@link #CLAIM_TTL_MS}（180 000 <b>毫秒</b>，3 分钟）与 {@link #TASK_TIMEOUT_MINUTES}（30 <b>分钟</b>）——
+ *       两者都叫「超时」，单位却不同（2026-11-02 起任务寿命改按分钟存）。前者是节点宕机后的占位回收窗口，
+ *       后者是 knot 侧任务寿命；把两者写成同一单位，任务寿命就会被当成 30 毫秒。</li>
  * </ul>
  *
  * <p>⚠ <b>cron 的两处写法合并不了</b>：{@link AsyncTaskScheduledPoller} 的 {@code @Scheduled} 为了支持 yml 覆盖，
@@ -46,11 +47,11 @@ public final class AsyncTaskDefaults {
     /** 档案没配 {@code poll_backoff_max_ms}：退避**封顶**（毫秒）。⚠ 与 {@link #QUERY_TIMEOUT_MS} 同值不同义 */
     static final int POLL_BACKOFF_MAX_MS = 30_000;
 
-    /** 档案没配 {@code max_attempts}：轮询次数上限（在分钟级节拍下通常先被 {@link #TASK_TIMEOUT_MS} 兜住） */
+    /** 档案没配 {@code max_attempts}：轮询次数上限（在分钟级节拍下通常先被 {@link #TASK_TIMEOUT_MINUTES} 兜住） */
     static final int MAX_ATTEMPTS = 360;
 
-    /** 档案没配 {@code timeout_ms}：knot 侧任务寿命（毫秒，30 分钟），到期转 {@code EXPIRED} */
-    static final long TASK_TIMEOUT_MS = 1_800_000L;
+    /** 档案没配 {@code timeout_minutes}：knot 侧任务寿命（分钟），到期转 {@code EXPIRED} */
+    static final long TASK_TIMEOUT_MINUTES = 30L;
 
     // ───────────────────────── 扫描级：多久扫一次表 ─────────────────────────
 

@@ -18,7 +18,8 @@
         <span class="profile-form__hint">{{ templateHint }}</span>
       </div>
 
-      <el-form label-width="108px" label-position="right" size="default">
+      <!-- label 宽 140：轮询参数每项都带「说明」图标，窄了会折行 -->
+      <el-form label-width="140px" label-position="right" size="default">
         <el-divider content-position="left">基本信息</el-divider>
         <el-form-item label="档案编码" required>
           <el-input v-model="form.profileCode" :disabled="!isCreate" placeholder="字母开头，可含数字/下划线/连字符，如 KLING_TASK" />
@@ -103,38 +104,86 @@
         <el-divider content-position="left">轮询参数</el-divider>
         <el-row :gutter="12">
           <el-col :span="12">
-            <el-form-item label="首次间隔(ms)">
+            <el-form-item>
+              <template #label>
+                <span class="profile-form__label">
+                  首次间隔(ms)
+                  <el-tooltip :content="pollTips.intervalMs" placement="top">
+                    <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
+                  </el-tooltip>
+                </span>
+              </template>
               <el-input-number v-model="form.pollIntervalMs" :min="100" :max="3600000" :step="500" controls-position="right" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="退避基数(ms)">
+            <el-form-item>
+              <template #label>
+                <span class="profile-form__label">
+                  退避基数(ms)
+                  <el-tooltip :content="pollTips.backoffBaseMs" placement="top">
+                    <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
+                  </el-tooltip>
+                </span>
+              </template>
               <el-input-number v-model="form.pollBackoffBaseMs" :min="100" :max="3600000" :step="500" controls-position="right" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="退避上限(ms)">
+            <el-form-item>
+              <template #label>
+                <span class="profile-form__label">
+                  退避上限(ms)
+                  <el-tooltip :content="pollTips.backoffMaxMs" placement="top">
+                    <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
+                  </el-tooltip>
+                </span>
+              </template>
               <el-input-number v-model="form.pollBackoffMaxMs" :min="100" :max="3600000" :step="1000" controls-position="right" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="轮询次数上限">
+            <el-form-item>
+              <template #label>
+                <span class="profile-form__label">
+                  轮询次数上限
+                  <el-tooltip :content="pollTips.maxAttempts" placement="top">
+                    <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
+                  </el-tooltip>
+                </span>
+              </template>
               <el-input-number v-model="form.maxAttempts" :min="1" :max="10000" controls-position="right" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="任务超时(ms)">
-              <el-input-number v-model="form.timeoutMs" :min="1000" :max="86400000" :step="60000" controls-position="right" />
+            <el-form-item>
+              <template #label>
+                <span class="profile-form__label">
+                  任务超时(分钟)
+                  <el-tooltip :content="pollTips.timeout" placement="top">
+                    <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
+                  </el-tooltip>
+                </span>
+              </template>
+              <el-input-number v-model="form.timeoutMinutes" :min="1" :max="1440" :step="1" controls-position="right" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="产物有效期(天)">
+            <el-form-item>
+              <template #label>
+                <span class="profile-form__label">
+                  产物有效期(天)
+                  <el-tooltip :content="pollTips.resultExpiresDays" placement="top">
+                    <el-icon class="profile-form__label-icon"><QuestionFilled/></el-icon>
+                  </el-tooltip>
+                </span>
+              </template>
               <el-input-number v-model="form.resultExpiresDays" :min="1" :max="3650" controls-position="right" />
             </el-form-item>
           </el-col>
         </el-row>
         <div class="profile-form__hint">
-          次数上限与超时<b>先到先生效</b>；实际节拍取决于网关扫描 cron（分钟级），上面的间隔是下限
+          次数上限与超时<b>先到先生效</b>；每一项的口径见字段名旁的问号图标
         </div>
       </el-form>
 
@@ -207,6 +256,7 @@
 <script setup lang="ts">
 import {computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
+import {QuestionFilled} from "@element-plus/icons-vue";
 import JsonCodeEditor from "@/components/common/JsonCodeEditor.vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {dryRunAsyncTaskProfile, getAsyncTaskProfile, saveAsyncTaskProfile} from "@/api/asyncTaskProfiles";
@@ -233,6 +283,31 @@ const emit = defineEmits(["update:modelValue", "saved"]);
 const {optionsOf} = useEnumOptions();
 const protocolOptions = computed(() => optionsOf("ModelApiProtocolEnum"));
 const templates = ASYNC_TASK_PROFILE_TEMPLATES;
+
+/**
+ * 轮询参数逐项说明：挂在 label 右侧的气泡里（列表两列，正文放不下长文案）。
+ *
+ * ⚠ 文案必须与后端实现同口径：退避 = {@code AsyncTaskSpecRules#nextDelayMs}（基数 × 2^(n-1) 再封顶），
+ * 「次数耗尽」与「超时」在 {@code AsyncTaskStateMachine} 里<b>同落 EXPIRED</b>。写错等于教人按错的节奏配参数。
+ */
+const pollTips = {
+  intervalMs:
+    "任务创建后第一次查询的间隔，也是此后每次间隔的下限。网关每分钟整点扫一次表，"
+    + "所以填小于 1 分钟不会查得更勤，只会让这个任务等到下一轮。",
+  backoffBaseMs:
+    "第 n 次查询前的等待 = 基数 × 2^(n-1)，再被「退避上限」封顶（指数最多取到 2^10）。"
+    + "基数 1000、上限 30000 时，节奏是 1s、2s、4s… 到 30s 之后恒定 30s。",
+  backoffMaxMs:
+    "两次查询之间最长等多久；必须不小于退避基数，否则保存被拒。任务长期不完成时就按这个间隔一直问下去。",
+  maxAttempts:
+    "累计查询满这么多次就放弃，转 EXPIRED。它与「任务超时」是两条独立的止损线，先到的一方先生效。",
+  timeout:
+    "knot 侧任务寿命，从提交时刻起算；到期不再查上游，直接转 EXPIRED。范围 1~1440 分钟（24 小时）。"
+    + "库里这一列（timeout_minutes）就是分钟，不再是毫秒。",
+  resultExpiresDays:
+    "从提交时刻起算，对外返回 result_expires_at（产物链接预计失效时刻），客户端据此决定何时重新生成；"
+    + "它不决定记录清理，行保留窗口由网关 knot.gateway.async-task.retention-days 决定。"
+};
 
 const isCreate = computed(() => !props.profileCode);
 const title = computed(() => (isCreate.value ? "新建异步任务档案" : `编辑档案：${props.profileCode}`));
@@ -266,7 +341,7 @@ function blankForm(): Dict {
     pollBackoffBaseMs: 1000,
     pollBackoffMaxMs: 30000,
     maxAttempts: 360,
-    timeoutMs: 1800000,
+    timeoutMinutes: 30,
     remark: ""
   };
 }
@@ -425,6 +500,24 @@ function terminalTagType(terminal: unknown): "success" | "danger" | "warning" | 
 
 .profile-form__hint--inline {
   margin-left: 12px;
+}
+
+/* 带「说明」气泡的 label：图标跟文字同一基线，不撑高表单行 */
+.profile-form__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.profile-form__label-icon {
+  color: #c0c4cc;
+  font-size: 13px;
+  cursor: help;
+  outline: none;
+}
+
+.profile-form__label-icon:hover {
+  color: var(--el-color-primary, #409eff);
 }
 
 .profile-form__dry-run {

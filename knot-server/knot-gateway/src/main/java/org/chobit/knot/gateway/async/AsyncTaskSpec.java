@@ -48,7 +48,8 @@ public record AsyncTaskSpec(String queryMethod,
                             int pollBackoffBaseMs,
                             int pollBackoffMaxMs,
                             int maxAttempts,
-                            long timeoutMs) {
+                            /** knot 侧任务寿命（分钟）；快照与档案同单位，网关侧只做 {@code plusMinutes} */
+                            long timeoutMinutes) {
 
     /**
      * 由档案实体投影：档案改了不影响已快照的任务。
@@ -76,8 +77,8 @@ public record AsyncTaskSpec(String queryMethod,
                 positive(profile.pollBackoffBaseMs(), AsyncTaskDefaults.POLL_BACKOFF_BASE_MS),
                 positive(profile.pollBackoffMaxMs(), AsyncTaskDefaults.POLL_BACKOFF_MAX_MS),
                 positive(profile.maxAttempts(), AsyncTaskDefaults.MAX_ATTEMPTS),
-                profile.timeoutMs() == null ? AsyncTaskDefaults.TASK_TIMEOUT_MS
-                        : Math.max(1L, profile.timeoutMs()));
+                profile.timeoutMinutes() == null ? AsyncTaskDefaults.TASK_TIMEOUT_MINUTES
+                        : Math.max(1L, profile.timeoutMinutes()));
     }
 
     /**

@@ -25,7 +25,7 @@ class AsyncTaskSpecTest {
         return new AsyncTaskSpec("GET", queryPath, "data.id", "data[0].status",
                 "['succeed','SUCCEEDED'] contains status", "status == 'failed'", null,
                 "data[0].outputs[0].url", null, null,
-                7, 5000, 1000, 30000, 360, 1_800_000L);
+                7, 5000, 1000, 30000, 360, 30L);
     }
 
     @Test
@@ -73,7 +73,7 @@ class AsyncTaskSpecTest {
         assertEquals(1000, spec.pollBackoffBaseMs());
         assertEquals(30000, spec.pollBackoffMaxMs());
         assertEquals(360, spec.maxAttempts());
-        assertEquals(1_800_000L, spec.timeoutMs());
+        assertEquals(30L, spec.timeoutMinutes());
 
         AsyncTaskProfileDto dirty = new AsyncTaskProfileDto("P", "VIDEO_GENERATIONS", null,
                 "/v1/tasks/{task_id}", "data.id", "data.status",
@@ -82,7 +82,7 @@ class AsyncTaskSpecTest {
         AsyncTaskSpec sanitized = AsyncTaskSpec.of(dirty);
         assertEquals(5000, sanitized.pollIntervalMs(), "0 不是合法间隔");
         assertEquals(30000, sanitized.pollBackoffMaxMs(), "负数不是合法上限");
-        assertEquals(1L, sanitized.timeoutMs(), "超时必须为正，否则任务一提交就过期");
+        assertEquals(1L, sanitized.timeoutMinutes(), "超时必须为正，否则任务一提交就过期");
         assertNull(AsyncTaskSpec.of(null));
     }
 }

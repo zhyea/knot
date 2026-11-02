@@ -30,7 +30,7 @@ class AsyncTaskSpecRulesTest {
         return new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.id", "data[0].status",
                 "['succeed','SUCCEEDED'] contains status", "status == 'failed'", null,
                 "data[0].outputs[0].url", null, null,
-                7, 5000, 1000, 30000, 360, 1_800_000L);
+                7, 5000, 1000, 30000, 360, 30L);
     }
 
     @Test
@@ -44,7 +44,7 @@ class AsyncTaskSpecRulesTest {
                 () -> AsyncTaskSpecRules.upstreamTaskIdOf(createBody,
                         new AsyncTaskSpec("GET", "/v1/tasks/{task_id}", "data.task_id", "data.status",
                                 "status == 'succeed'", "status == 'failed'", null, "data.url", null, null,
-                                null, 5000, 1000, 30000, 360, 1_800_000L)),
+                                null, 5000, 1000, 30000, 360, 30L)),
                 "task_id_path 填错必须抛（不得回落 query_path，也不得回 null 让调用方回退同步）");
         assertTrue(error.getMessage().contains("data.task_id"), "报错必须带表达式原文：" + error.getMessage());
         assertTrue(error.getMessage().contains("data"), "报错必须带响应顶层键，便于对照上游响应：" + error.getMessage());
@@ -82,7 +82,7 @@ class AsyncTaskSpecRulesTest {
     void testExpressionCanReadWholeBody() {
         AsyncTaskSpec spec = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data[0].status",
                 "body.data[0].code == 0", "status == 'failed'", null, "data[0].url", null, null,
-                null, 5000, 1000, 30000, 360, 1_800_000L);
+                null, 5000, 1000, 30000, 360, 30L);
         assertSame(AsyncTaskTerminalSupport.Terminal.SUCCEEDED,
                 AsyncTaskSpecRules.terminalOf(Map.of("data", List.of(Map.of("status", "ok", "code", 0))), spec));
     }
@@ -92,7 +92,7 @@ class AsyncTaskSpecRulesTest {
     void unmatchedStatusStaysRunning() {
         AsyncTaskSpec spec = new AsyncTaskSpec("GET", "/t/{task_id}", "data.id", "data.status",
                 "status == 'succeed'", "status == 'failed'", "status == 'queued'", "data.url", null, null,
-                null, 5000, 1000, 30000, 360, 1_800_000L);
+                null, 5000, 1000, 30000, 360, 30L);
         assertSame(AsyncTaskTerminalSupport.Terminal.RUNNING,
                 AsyncTaskSpecRules.terminalOf(Map.of("data", Map.of("status", "brand-new-state")), spec),
                 "上游新增状态不应被当终态，也不应被当成「正常进行中」而静默吞掉");

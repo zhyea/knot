@@ -102,12 +102,12 @@ public class AsyncTaskAdminRunner {
             return missed(current, "只有失败或超时的任务可以重试，当前为：" + status.label());
         }
         AsyncTaskSpec spec = specOf(current);
-        if (spec == null || spec.timeoutMs() <= 0) {
+        if (spec == null || spec.timeoutMinutes() <= 0) {
             return missed(current, "任务快照不可解析，无法重算超时窗口");
         }
         LocalDateTime now = LocalDateTime.now();
         boolean reopened = taskService.reopen(current.id(), now,
-                now.plusNanos(spec.timeoutMs() * 1_000_000L));
+                now.plusMinutes(spec.timeoutMinutes()));
 
         AsyncTaskDto after = taskService.getByTaskCode(current.taskCode());
         if (reopened) {

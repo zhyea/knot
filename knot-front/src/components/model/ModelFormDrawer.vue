@@ -1023,6 +1023,18 @@ function humanDuration(ms: unknown): string {
   return `${value} 毫秒`;
 }
 
+/** 任务超时按**分钟**存（2026-11-02 起与库列同单位），不适用上面那套毫秒换算 */
+function humanMinutes(value: unknown): string {
+  const minutes = Number(value);
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    return "未配置";
+  }
+  if (minutes % 60 === 0) {
+    return `${minutes / 60} 小时`;
+  }
+  return `${minutes} 分钟`;
+}
+
 /**
  * 已绑定档案的只读口径提示。
  *
@@ -1036,7 +1048,7 @@ function asyncProfileHintOf(binding: ModelApiBinding): string {
   }
   const meta = metaOf(option);
   return `${displayText(meta.queryMethod)} ${displayText(meta.queryPath)}`
-    + ` · 轮询间隔 ${humanDuration(meta.pollIntervalMs)} · 超时 ${humanDuration(meta.timeoutMs)}`;
+    + ` · 轮询间隔 ${humanDuration(meta.pollIntervalMs)} · 超时 ${humanMinutes(meta.timeoutMinutes)}`;
 }
 
 /** 切换调用方式：切回同步即清空档案（同步是「提交即终态」，留着一个档案会两边不一致） */
