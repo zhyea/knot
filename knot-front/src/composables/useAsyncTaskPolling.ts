@@ -243,7 +243,7 @@ export function useAsyncTaskPolling(ctx: AsyncTaskPollingContext) {
       // 句柄不存在 / 凭据失效：再查一万次也是同一个答案，立刻停并说清原因
       if (httpStatus === 404 || httpStatus === 401 || httpStatus === 403) {
         lastError.value = httpStatus === 404
-          ? "查询地址返回 404：任务句柄不存在或已过期（保留窗口已过）"
+          ? "查询返回 404：任务句柄不存在/已过期，或 Rule 与任务归属不一致"
           : "查询被拒绝（HTTP " + httpStatus + "）：检查消费者密钥与 Rule 头";
         timeline.value = [...timeline.value, {
           at: Date.now(),
