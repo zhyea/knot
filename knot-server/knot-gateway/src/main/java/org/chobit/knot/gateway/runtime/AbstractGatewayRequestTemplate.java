@@ -85,30 +85,30 @@ public abstract class AbstractGatewayRequestTemplate {
      *             由控制器在请求线程上取好后显式传入
      */
     public final Mono<Object> handle(String authorization,
-                                    String ruleCode,
-                                    String traceparent,
-                                    String stickyKey,
-                                    GatewayModelRequest request,
-                                    ModelApiProtocolEnum protocol,
-                                    GatewayHttpExchange http) {
+                                     String ruleCode,
+                                     String traceparent,
+                                     String stickyKey,
+                                     GatewayModelRequest request,
+                                     ModelApiProtocolEnum protocol,
+                                     GatewayHttpExchange http) {
         return Mono.deferContextual(view -> Mono.defer(() -> handleMap(authorization, ruleCode,
-                traceOf(view, traceparent), stickyKey,
-                JsonKit.toMap(request), protocol, MediaType.APPLICATION_JSON, http)));
+            traceOf(view, traceparent), stickyKey,
+            JsonKit.toMap(request), protocol, MediaType.APPLICATION_JSON, http)));
     }
 
     /**
      * Gateway request template entrypoint for multipart requests.
      */
     public final Mono<Object> handleMultipart(String authorization,
-                                             String ruleCode,
-                                             String traceparent,
-                                             String stickyKey,
-                                             Map<String, Object> requestBody,
-                                             ModelApiProtocolEnum protocol,
-                                             GatewayHttpExchange http) {
+                                              String ruleCode,
+                                              String traceparent,
+                                              String stickyKey,
+                                              Map<String, Object> requestBody,
+                                              ModelApiProtocolEnum protocol,
+                                              GatewayHttpExchange http) {
         return Mono.deferContextual(view -> Mono.defer(() -> handleMap(authorization, ruleCode,
-                traceOf(view, traceparent), stickyKey,
-                requestBody, protocol, MediaType.MULTIPART_FORM_DATA, http)));
+            traceOf(view, traceparent), stickyKey,
+            requestBody, protocol, MediaType.MULTIPART_FORM_DATA, http)));
     }
 
     /**
@@ -120,15 +120,15 @@ public abstract class AbstractGatewayRequestTemplate {
      * 上游字段增减不需要同步改本项目的 VO，也不会因为漏绑某个字段而把它丢掉。</p>
      */
     public final Mono<Object> handleJson(String authorization,
-                                        String ruleCode,
-                                        String traceparent,
-                                        String stickyKey,
-                                        Map<String, Object> requestBody,
-                                        ModelApiProtocolEnum protocol,
-                                        GatewayHttpExchange http) {
+                                         String ruleCode,
+                                         String traceparent,
+                                         String stickyKey,
+                                         Map<String, Object> requestBody,
+                                         ModelApiProtocolEnum protocol,
+                                         GatewayHttpExchange http) {
         return Mono.deferContextual(view -> Mono.defer(() -> handleMap(authorization, ruleCode,
-                traceOf(view, traceparent), stickyKey,
-                requestBody, protocol, MediaType.APPLICATION_JSON, http)));
+            traceOf(view, traceparent), stickyKey,
+            requestBody, protocol, MediaType.APPLICATION_JSON, http)));
     }
 
     /**
@@ -154,8 +154,7 @@ public abstract class AbstractGatewayRequestTemplate {
                                    GatewayHttpExchange http) {
         // 上下文与载体先建出来，好让「入口即拒」也有一条响应层事件
         // （头校验失败时不发，数仓就统计不到 401/400 的拒绝量）
-        GatewayRequestContext context = new GatewayRequestContext(
-                authorization, ruleCode, traceContext, protocol, stickyKey);
+        GatewayRequestContext context = new GatewayRequestContext(authorization, ruleCode, traceContext, protocol, stickyKey);
         GatewayExchange exchange = new GatewayExchange(requestBody, contentType, http);
         try {
             context.apiKey(validateRequestHeaders(authorization, ruleCode));
@@ -165,8 +164,8 @@ public abstract class AbstractGatewayRequestTemplate {
 
             // proxy 链（重试 + failover）全程异步，退避期间不阻塞任何线程
             return proxy(context, exchange)
-                    .map(result -> onProxyResult(context, exchange, result))
-                    .doOnError(cause -> onTerminalError(context, exchange, cause));
+                .map(result -> onProxyResult(context, exchange, result))
+                .doOnError(cause -> onTerminalError(context, exchange, cause));
         } catch (RuntimeException ex) {
             // 同步阶段（头校验 / 路由解析 / 插件）异常：路由未解析时 routing 为 null、
             // error.stage=header_validate，一条记录即可表达，数仓无需 left join 识别。
@@ -200,7 +199,7 @@ public abstract class AbstractGatewayRequestTemplate {
             ProxyResult proxied = exchange.proxyResult();
             // 非流式：响应体已就绪，用量在此就是终态
             publishTraffic(context, exchange, proxied == null ? null : proxied.usage(),
-                    firstTokenWriter.elapsedMillis(), null);
+                firstTokenWriter.elapsedMillis(), null);
         }
         return response;
     }
@@ -255,7 +254,7 @@ public abstract class AbstractGatewayRequestTemplate {
             return;
         }
         eventPublisher.publish(trafficTopic,
-                GatewayTrafficMsgDto.of(context, exchange, usage, ttftMs, error));
+            GatewayTrafficMsgDto.of(context, exchange, usage, ttftMs, error));
     }
 
 
@@ -310,22 +309,22 @@ public abstract class AbstractGatewayRequestTemplate {
             return;
         }
         pluginDispatcher.dispatch(
-                PluginExtensionPoint.GATEWAY_EXCHANGE,
+            PluginExtensionPoint.GATEWAY_EXCHANGE,
+            stageCode,
+            new GatewayPluginContext(
+                context.traceId(),
+                context.traceparent(),
                 stageCode,
-                new GatewayPluginContext(
-                        context.traceId(),
-                        context.traceparent(),
-                        stageCode,
-                        context.apiKey(),
-                        context.ruleCode(),
-                        context.protocol() == null ? null : context.protocol().canonical().code(),
-                        routingSnapshot(context.routing()),
-                        moderationWordResource.currentWords(),
-                        exchange == null ? null : exchange.requestBody(),
-                        exchange == null ? null : exchange.contentType(),
-                        responseBody,
-                        error
-                )
+                context.apiKey(),
+                context.ruleCode(),
+                context.protocol() == null ? null : context.protocol().canonical().code(),
+                routingSnapshot(context.routing()),
+                moderationWordResource.currentWords(),
+                exchange == null ? null : exchange.requestBody(),
+                exchange == null ? null : exchange.contentType(),
+                responseBody,
+                error
+            )
         );
     }
 
@@ -340,12 +339,12 @@ public abstract class AbstractGatewayRequestTemplate {
             department = routing.routingContext().department() == null ? null : routing.routingContext().department().name();
         }
         return new GatewayRoutingSnapshot(
-                routing.ruleId(),
-                routing.ruleCode(),
-                routing.consumerId(),
-                routing.returnUsageDetail(),
-                routing.candidateModels() == null ? 0 : routing.candidateModels().size(),
-                appId,
-                department);
+            routing.ruleId(),
+            routing.ruleCode(),
+            routing.consumerId(),
+            routing.returnUsageDetail(),
+            routing.candidateModels() == null ? 0 : routing.candidateModels().size(),
+            appId,
+            department);
     }
 }
