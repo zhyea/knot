@@ -119,7 +119,7 @@
             </div>
           </div>
           <el-row :gutter="16">
-            <el-col :span="12">
+            <el-col :span="8">
               <el-form-item label="目标类型" class="bind-block-item model-bind-item">
                 <el-radio-group v-model="targetType">
                   <el-radio-button
@@ -131,7 +131,7 @@
                 </el-radio-group>
               </el-form-item>
             </el-col>
-            <el-col :span="12">
+            <el-col :span="16">
               <el-form-item label="目标选择策略" class="bind-block-item model-bind-item">
                 <el-select v-model="form.selectionStrategy" placeholder="请选择目标选择策略" style="width: 100%">
                   <el-option
@@ -142,7 +142,7 @@
                   />
                 </el-select>
                 <div class="field-tip">
-                  优先级：按下方目标的主目标与优先级固定排序；最少负载：按各目标当前在途并发动态排序（最空闲优先，主目标仍排首位）。
+                  优先级：按下方目标的主目标与优先级固定排序；<br/>最少负载：按各目标当前在途并发动态排序（最空闲优先，主目标仍排首位）。
                 </div>
               </el-form-item>
             </el-col>
