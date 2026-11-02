@@ -127,7 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, ref} from "vue";
+import {computed, onMounted, ref} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -205,6 +205,8 @@ function pollSummary(row: Row): string {
   const timeoutText = timeout > 0 ? `${Math.round(timeout / 60000)}min` : "默认";
   return `${intervalText} / ${timeoutText}`;
 }
+
+onMounted(load);
 
 async function onDelete(row: Row) {
   const profileCode = String(row.profileCode ?? "");
