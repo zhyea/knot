@@ -116,12 +116,15 @@ public class AsyncTaskRunner {
      * @param claimId 本轮占位号（由发起方按节点身份生成：一个节点一台机器一条号，便于事后追溯）
      */
     public void expireTimedOut(String claimId) {
-        List<AsyncTaskDto> expired = taskService.claimExpired(claimId,
-                Duration.ofMillis(policy.claimTtlMs()), policy.expireBatchSize());
+        List<AsyncTaskDto> expired =
+            taskService.claimExpired(claimId, Duration.ofMillis(policy.claimTtlMs()), policy.expireBatchSize());
+
         if (expired.isEmpty()) {
             return;
         }
+
         log.warn("Async tasks expired before terminal state: count={}", expired.size());
+
         for (AsyncTaskDto task : expired) {
             AsyncTaskContext context = JsonKit.fromJson(task.contextJson(), AsyncTaskContext.class);
             // 用行上已发生的查询次数，不是 0：一个查了 50 次才等到超时的任务，
@@ -141,11 +144,13 @@ public class AsyncTaskRunner {
         return taskService.claim(claimId, Duration.ofMillis(policy.claimTtlMs()), policy.batchSize());
     }
 
-    /** 清理保留窗口之前的终态行（后台家务） */
+    /**
+     * 清理保留窗口之前的终态行（后台家务）
+     */
     public int cleanup() {
         int removed = taskService.cleanup(
-                LocalDateTime.now().minusDays(Math.max(1, policy.retentionDays())),
-                policy.cleanupBatchSize());
+            LocalDateTime.now().minusDays(Math.max(1, policy.retentionDays())),
+            policy.cleanupBatchSize());
         if (removed > 0) {
             log.info("Async tasks archived: removed={} retentionDays={}", removed, policy.retentionDays());
         }
@@ -171,8 +176,8 @@ public class AsyncTaskRunner {
      */
     public boolean settle(AsyncTaskDto task, AsyncTaskEvent event) {
         AsyncTaskContext context = StringUtils.isBlank(task.contextJson())
-                ? null
-                : JsonKit.fromJson(task.contextJson(), AsyncTaskContext.class);
+            ? null
+            : JsonKit.fromJson(task.contextJson(), AsyncTaskContext.class);
         // 与 expireTimedOut 同口径：这次没有真的查上游，querySeq 取行上已有的次数而不是 0
         int querySeq = Math.max(0, task.attempts() == null ? 0 : task.attempts());
         return apply(new Polling(task, context, null, querySeq, null, null), event);
@@ -199,7 +204,7 @@ public class AsyncTaskRunner {
         if (attempts > spec.maxAttempts()) {
             // 没有发出查询：querySeq 取行上已有的查询次数（本次只是一次「判定放弃」）
             return apply(new Polling(task, context, spec, attempts - 1, null, null),
-                    AsyncTaskEvent.ATTEMPTS_EXHAUSTED);
+                AsyncTaskEvent.ATTEMPTS_EXHAUSTED);
         }
         String body;
         try {
@@ -226,8 +231,8 @@ public class AsyncTaskRunner {
             case RUNNING -> AsyncTaskEvent.POLL_RUNNING;
             case FAILED -> AsyncTaskEvent.POLL_FAILED;
             case SUCCEEDED -> StringUtils.isBlank(AsyncTaskSpecRules.resultUrlOf(queryBody, spec))
-                    ? AsyncTaskEvent.RESULT_MISSING
-                    : AsyncTaskEvent.POLL_SUCCEEDED;
+                ? AsyncTaskEvent.RESULT_MISSING
+                : AsyncTaskEvent.POLL_SUCCEEDED;
         };
     }
 
@@ -239,20 +244,19 @@ public class AsyncTaskRunner {
      */
     private boolean apply(Polling polling, AsyncTaskEvent event) {
         AsyncTaskDto task = polling.task();
-        AsyncTaskTransition transition = AsyncTaskStateMachine.transition(
-                AsyncTaskStatusEnum.fromCode(task.status()), event);
+        AsyncTaskTransition transition = AsyncTaskStateMachine.transition(AsyncTaskStatusEnum.fromCode(task.status()), event);
         return switch (transition.action()) {
             case REJECT -> {
                 // 不补发查询事件：这行已由别的节点发过终态事件，我们这次查询属重复劳动，
                 // 记了反而让「上游调用数」虚高。宁可少记一次，也不让同一 task_code 出现两条终态。
                 log.warn("Async task transition rejected, no state change: taskCode={} from={} event={}",
-                        task.taskCode(), transition.from(), event);
+                    task.taskCode(), transition.from(), event);
                 yield true;
             }
             case RESCHEDULE -> {
                 long delay = AsyncTaskSpecRules.nextDelayMs(polling.attempts(), polling.spec());
                 boolean advanced = taskService.scheduleNext(task.id(), task.claimId(),
-                        LocalDateTime.now().plusNanos(delay * 1_000_000L));
+                    LocalDateTime.now().plusNanos(delay * 1_000_000L));
                 if (advanced) {
                     // 这次查询确实打到了上游：发一条非终态事件，它是「1 次提交 + N 次查询」里的一个 N
                     publishQuery(polling, event);
@@ -262,7 +266,7 @@ public class AsyncTaskRunner {
                     // 数仓按 (task_code, task_phase, task_query_seq) 去重时无从判断哪条是真的。
                     // 代价是上游调用数少记一次，只有 WARN 里的 taskCode 能事后补账。
                     log.warn("Async task claim lost, query event skipped: taskCode={} seq={} claimId={}",
-                            task.taskCode(), polling.attempts(), task.claimId());
+                        task.taskCode(), polling.attempts(), task.claimId());
                 }
                 yield false;
             }
@@ -274,13 +278,13 @@ public class AsyncTaskRunner {
                 // 「文件已搬、计费抛异常、下次重查又搬一遍」——虽然按 taskCode 幂等不该产生副本，
                 // 也没必要给实现方出这种题
                 finish(task, polling.context(), transition.to(), polling.attempts(),
-                        deliveredUrls(resultUrls, archive(task, polling.context(), sourceUrl)),
-                        null, null, usage, polling.rawBody());
+                    deliveredUrls(resultUrls, archive(task, polling.context(), sourceUrl)),
+                    null, null, usage, polling.rawBody());
                 yield true;
             }
             case SETTLE -> {
                 finish(task, polling.context(), transition.to(), polling.attempts(), List.of(),
-                        event.errorCode(), messageOf(polling, event), null, polling.rawBody());
+                    event.errorCode(), messageOf(polling, event), null, polling.rawBody());
                 yield true;
             }
         };
@@ -301,8 +305,7 @@ public class AsyncTaskRunner {
             settlementPort.publishQuery(polling.task(), polling.context(), polling.attempts(), event.errorCode());
         } catch (RuntimeException e) {
             // 观测旁路失败不能影响任务推进：这条丢了还有下一次查询
-            log.error("Async task query event publish failed: taskCode={} seq={}",
-                    polling.task().taskCode(), polling.attempts(), e);
+            log.error("Async task query event publish failed: taskCode={} seq={}", polling.task().taskCode(), polling.attempts(), e);
         }
     }
 
@@ -325,17 +328,17 @@ public class AsyncTaskRunner {
         }
         try {
             String archived = archiveStore.archive(new ArchiveAsset(
-                    task.taskCode(),
-                    task.upstreamTaskId(),
-                    sourceUrl,
-                    context.modelCode(),
-                    context.upstreamModelCode(),
-                    context.providerAccountCode(),
-                    context.ruleCode(),
-                    LocalDateTime.now()));
+                task.taskCode(),
+                task.upstreamTaskId(),
+                sourceUrl,
+                context.modelCode(),
+                context.upstreamModelCode(),
+                context.providerAccountCode(),
+                context.ruleCode(),
+                LocalDateTime.now()));
             if (StringUtils.isBlank(archived)) {
                 log.error("Video archive returned blank url, fall back to upstream: taskCode={} sourceUrl={}",
-                        task.taskCode(), sourceUrl);
+                    task.taskCode(), sourceUrl);
                 return sourceUrl;
             }
             if (!StringUtils.equals(archived, sourceUrl)) {
@@ -344,7 +347,7 @@ public class AsyncTaskRunner {
             return archived;
         } catch (RuntimeException e) {
             log.error("Video archive failed, fall back to upstream url: taskCode={} sourceUrl={}",
-                    task.taskCode(), sourceUrl, e);
+                task.taskCode(), sourceUrl, e);
             return sourceUrl;
         }
     }
@@ -359,10 +362,10 @@ public class AsyncTaskRunner {
             // 档案配了 error_message_path 就按它取（视频协议常把原因放在 data.task_status_msg /
             // error.message，顶层 message 取不到）；没配或取不到再回落到顶层 message
             case POLL_FAILED -> StringUtils.defaultIfBlank(
-                    StringUtils.defaultIfBlank(
-                            AsyncTaskSpecRules.errorMessageOf(polling.queryBody(), polling.spec()),
-                            upstreamMessage(polling.queryBody())),
-                    event.defaultMessage());
+                StringUtils.defaultIfBlank(
+                    AsyncTaskSpecRules.errorMessageOf(polling.queryBody(), polling.spec()),
+                    upstreamMessage(polling.queryBody())),
+                event.defaultMessage());
             case ATTEMPTS_EXHAUSTED -> event.defaultMessage() + ": " + polling.spec().maxAttempts();
             default -> event.defaultMessage();
         };
@@ -391,10 +394,10 @@ public class AsyncTaskRunner {
      * 后者挡「我这一轮处理超时、行已被回收」。两者都表现为 {@code complete} 返回 false，
      * 处理方式相同——写不进的行就不再由我报数。</p>
      *
-     * @param querySeq 本次任务一共查了几次上游；写进终态事件的 {@code task_query_seq}，
-     *                 它是「产物要等多久」的唯一量化口径（与提交事件配对即得延迟分布）
+     * @param querySeq     本次任务一共查了几次上游；写进终态事件的 {@code task_query_seq}，
+     *                     它是「产物要等多久」的唯一量化口径（与提交事件配对即得延迟分布）
      * @param upstreamBody 本次查询拿到的上游响应原文；没有发出查询（超时 / 快照不可读）时为
-     *                 {@code null}。与结算快照一起落库，理由见 {@link AsyncTaskTerminalDto}
+     *                     {@code null}。与结算快照一起落库，理由见 {@link AsyncTaskTerminalDto}
      */
     private void finish(AsyncTaskDto task,
                         AsyncTaskContext context,
@@ -406,13 +409,13 @@ public class AsyncTaskRunner {
                         UsageAccounting usage,
                         String upstreamBody) {
         boolean settled = taskService.complete(task.id(), task.claimId(), status.code(),
-                resultJson(resultUrls), terminalEvidenceOf(upstreamBody, usage),
-                errorCode, errorMessage,
-                AsyncTaskDeliveryStatusEnum.PENDING.code());
+            resultJson(resultUrls), terminalEvidenceOf(upstreamBody, usage),
+            errorCode, errorMessage,
+            AsyncTaskDeliveryStatusEnum.PENDING.code());
         if (!settled) {
             log.warn("Async task not settled by this node (already settled or claim lost), "
-                            + "terminal event skipped: taskCode={} status={} claimId={}",
-                    task.taskCode(), status, task.claimId());
+                    + "terminal event skipped: taskCode={} status={} claimId={}",
+                task.taskCode(), status, task.claimId());
             return;
         }
         if (context == null) {
@@ -470,7 +473,7 @@ public class AsyncTaskRunner {
      */
     private static List<String> deliveredUrls(List<String> resultUrls, String archivedUrl) {
         if (resultUrls.isEmpty() || StringUtils.isBlank(archivedUrl)
-                || StringUtils.equals(archivedUrl, resultUrls.get(0))) {
+            || StringUtils.equals(archivedUrl, resultUrls.get(0))) {
             return resultUrls;
         }
         List<String> delivered = new ArrayList<>(resultUrls);
