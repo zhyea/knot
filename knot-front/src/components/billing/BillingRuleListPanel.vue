@@ -1,7 +1,7 @@
 <template>
   <div>
     <el-table v-loading="loading" :data="rows" stripe border style="width: 100%">
-      <el-table-column prop="code" label="规则编码" min-width="200" show-overflow-tooltip/>
+      <el-table-column prop="code" label="规则编码" min-width="240" show-overflow-tooltip/>
       <el-table-column label="模型族" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.modelFamilyName || (row.modelFamilyCode ? `#${row.modelFamilyCode}` : "默认") }}
@@ -30,7 +30,7 @@
       </el-table-column>
       <el-table-column prop="currency" label="币种" width="80" align="center"/>
       <el-table-column prop="unit" label="单位" width="150"/>
-      <el-table-column label="绑定数量" width="100" align="right" show-overflow-tooltip>
+      <el-table-column label="绑定数量" width="60" align="right" show-overflow-tooltip>
         <template #default="{ row }">{{ row.boundModelCount ?? 0 }}</template>
       </el-table-column>
       <el-table-column label="更新时间" width="170" align="center" show-overflow-tooltip>
