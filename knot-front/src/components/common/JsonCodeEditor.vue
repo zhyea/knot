@@ -160,7 +160,9 @@ function visualizeWhitespaceText(text: unknown): string {
 }
 
 .json-editor__body--editable {
-  overflow: hidden;
+  width: max-content;
+  min-width: 100%;
+  overflow: visible;
 }
 
 .json-editor__action-btn {
