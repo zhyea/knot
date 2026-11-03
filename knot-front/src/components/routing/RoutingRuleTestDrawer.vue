@@ -102,7 +102,7 @@
                       v-model="currentTemplateText"
                       min-height="220px"
                       max-height="320px"
-                      height="320px"
+                      height="240px"
                     />
                     <div v-if="protocolHint" class="request-template__hint">{{ protocolHint }}</div>
                   </div>
@@ -297,14 +297,18 @@
                   </div>
                 </div>
 
-                <ul v-if="asyncTimeline.length" class="async-timeline">
-                  <li v-for="(item, index) in asyncTimeline" :key="index" class="async-timeline__item">
-                    <span class="async-timeline__index">#{{ index + 1 }}</span>
-                    <span class="async-timeline__status">{{ asyncStatusLabel(item.status) }}</span>
-                    <span class="async-timeline__elapsed">{{ (item.elapsedMs / 1000).toFixed(1) }}s</span>
-                    <span v-if="item.error" class="async-timeline__error">{{ item.error }}</span>
-                  </li>
-                </ul>
+                <el-collapse v-if="asyncTimeline.length" class="async-history">
+                  <el-collapse-item name="timeline" :title="`查询记录（${asyncTimeline.length} 次）`">
+                    <ul class="async-timeline">
+                      <li v-for="(item, index) in asyncTimeline" :key="index" class="async-timeline__item">
+                        <span class="async-timeline__index">#{{ index + 1 }}</span>
+                        <span class="async-timeline__status">{{ asyncStatusLabel(item.status) }}</span>
+                        <span class="async-timeline__elapsed">{{ (item.elapsedMs / 1000).toFixed(1) }}s</span>
+                        <span v-if="item.error" class="async-timeline__error">{{ item.error }}</span>
+                      </li>
+                    </ul>
+                  </el-collapse-item>
+                </el-collapse>
 
                 <div v-if="asyncResultUrls.length" class="async-result">
                   <div class="async-result__head">
@@ -1948,6 +1952,27 @@ onBeforeUnmount(disposeTestResources);
   padding: 0;
   list-style: none;
   font-size: 12px;
+}
+
+.async-history {
+  margin-top: 8px;
+  border-top: 0;
+  border-bottom: 0;
+}
+
+.async-history :deep(.el-collapse-item__header) {
+  height: 30px;
+  border-bottom: 0;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.async-history :deep(.el-collapse-item__wrap) {
+  border-bottom: 0;
+}
+
+.async-history :deep(.el-collapse-item__content) {
+  padding-bottom: 0;
 }
 
 .async-timeline__item {
