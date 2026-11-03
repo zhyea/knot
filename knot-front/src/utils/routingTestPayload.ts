@@ -216,3 +216,48 @@ export function parseAsyncTaskAccepted(
   }
   return {taskCode, queryUrl};
 }
+
+/**
+ * 下载文件名可用的扩展名白名单。
+ *
+ * <p>不从 URL 里<b>猜</b>扩展名：签名地址常带 `?v=1.2` 或路径尾段是 `.../download`，
+ * 按「最后一个点之后」取会把版本号当扩展名，存成 `knot-xxx-2` 这种没法双击打开的文件。
+ * 只认这张表，认不出就不带扩展名——浏览器会按 `Content-Type` 自己补。</p>
+ */
+const DOWNLOAD_EXTENSIONS = [
+  ".mp4", ".webm", ".mov", ".m4v", ".mkv", ".avi",
+  ".gif", ".png", ".jpg", ".jpeg", ".webp",
+  ".mp3", ".wav", ".m4a"
+];
+
+/**
+ * 产物地址 → 下载文件名：`knot-<任务句柄>-<序号><扩展名>`。
+ *
+ * <p>句柄缺失（老任务 / 手工拼的响应）时退成 `knot-result`，序号仅在多产物时出现——
+ * 单产物带上 `-1` 只是噪音。任务句柄本身是后端生成的，但仍做一次清洗：
+ * 它会成为文件名，斜杠与空格在 Windows 上会被替换，写进 `download` 只会得到怪名字。</p>
+ */
+export function resultDownloadName(url: string, taskCode?: string | null, index = 0): string {
+  const rawCode = typeof taskCode === "string" ? taskCode.trim() : "";
+  const code = (rawCode || "result").replace(/[^\w.-]+/g, "_");
+  const ordinal = index > 0 ? `-${index + 1}` : "";
+  return `knot-${code}${ordinal}${downloadExtensionOf(url)}`;
+}
+
+/** 白名单内的扩展名；地址非法或认不出返回空串（不猜） */
+function downloadExtensionOf(url: string): string {
+  if (!url) {
+    return "";
+  }
+  let pathname = "";
+  try {
+    pathname = new URL(url, "http://localhost").pathname.toLowerCase();
+  } catch {
+    return "";
+  }
+  const match = /(\.[a-z0-9]{2,5})$/.exec(pathname);
+  if (!match) {
+    return "";
+  }
+  return DOWNLOAD_EXTENSIONS.includes(match[1]) ? match[1] : "";
+}

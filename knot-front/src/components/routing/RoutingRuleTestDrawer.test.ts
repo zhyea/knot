@@ -28,7 +28,8 @@ const h = vi.hoisted(() => ({
   stream: {} as Record<string, any>,
   verdict: {} as Record<string, any>,
   async: {} as Record<string, any>,
-  caps: {} as Record<string, any>
+  caps: {} as Record<string, any>,
+  copy: (() => Promise.resolve(true)) as (...args: any[]) => Promise<boolean>
 }));
 
 vi.mock("@/composables/useStreamBuffer", async () => {
@@ -112,7 +113,8 @@ vi.mock("@/composables/useEnumOptions", () => ({
 }));
 
 vi.mock("@/composables/useCopyToClipboard", () => ({
-  useCopyToClipboard: () => ({ copy: vi.fn().mockResolvedValue(true) })
+  // 间接调用而不是直接塞 vi.fn()：测试要在 beforeEach 里重设，并断言「复制链接」真的被点到了
+  useCopyToClipboard: () => ({ copy: (...args: unknown[]) => h.copy(...args) })
 }));
 
 vi.mock("@/api/routing", () => ({
@@ -235,6 +237,7 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     h.async.polling.value = false;
     h.async.lastError.value = "";
     h.caps.loadOptions = vi.fn().mockResolvedValue(undefined);
+    h.copy = vi.fn().mockResolvedValue(true);
     // ⚠ `clearAllMocks` 只清调用记录，**不清 mockResolvedValue**：
     // 上一条用例换过的返回数据会静默延续到下一条（曾让「单目标只有自己的协议」拿到并集）。
     vi.mocked(listRoutingRuleDebugProtocols).mockResolvedValue({
@@ -752,6 +755,145 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     expect(wrapper.text()).toContain("UPSTREAM_TASK_FAILED");
     // 失败页必须写清「不计费」：否则用户会以为失败也要付钱
     expect(wrapper.text()).toContain("本任务不计费");
+  });
+
+  // ==================== 环形执行指示 + 产物下载 ====================
+
+  it("⭐ 在途：环持续旋转，环心跟着轮询次数走（没有百分比就不画百分比）", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 202,
+      headers: {},
+      data: ACCEPTED_BODY
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    h.async.polling.value = true;
+    h.async.pollCount.value = 3;
+    h.async.taskStatus.value = "processing";
+    await nextTick();
+
+    expect(wrapper.find(".async-progress").classes()).toContain("async-progress--running");
+    // 判据是「弧在、整圈不在」：只有弧带旋转动画，整圈只在终态出现
+    expect(wrapper.find(".async-progress__arc").exists()).toBe(true);
+    expect(wrapper.find(".async-progress__full").exists()).toBe(false);
+    expect(wrapper.find(".async-progress__count").text()).toBe("3");
+    expect(wrapper.find(".async-progress__caption").text()).toBe("次查询");
+    expect(wrapper.text()).toContain("本次调试已查询 3 次");
+    // 空环对读屏软件没有信息量：次数必须进无障碍标签
+    expect(wrapper.find(".async-progress__ring").attributes("aria-label")).toContain("已查询 3 次");
+
+    h.async.pollCount.value = 4;
+    await nextTick();
+    expect(wrapper.find(".async-progress__count").text()).toBe("4");
+  });
+
+  it("⭐ 完成：环收成整圈并停转，环心改打勾（不再宣称任务在跑）", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 202,
+      headers: {},
+      data: ACCEPTED_BODY
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    h.async.polling.value = false;
+    h.async.taskStatus.value = "completed";
+    h.async.pollCount.value = 5;
+    await nextTick();
+
+    expect(wrapper.find(".async-progress").classes()).toContain("async-progress--completed");
+    expect(wrapper.find(".async-progress__arc").exists()).toBe(false);
+    expect(wrapper.find(".async-progress__full").exists()).toBe(true);
+    expect(wrapper.find(".async-progress__count").exists()).toBe(false);
+    expect(wrapper.find(".async-progress__caption").text()).toBe("完成");
+    // 次数不因终态而隐藏：它是本次调试花了多少次上游调用的唯一记录
+    expect(wrapper.text()).toContain("本次调试已查询 5 次");
+  });
+
+  it("⭐ 完成：每个产物都有下载链接，文件名带任务句柄与序号", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 202,
+      headers: {},
+      data: ACCEPTED_BODY
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    h.async.taskStatus.value = "completed";
+    // 真实 composable 的 start 会写入句柄；本地桩必须自己补，否则下载名只考到兜底分支
+    h.async.taskCode.value = ACCEPTED_BODY.task_id;
+    h.async.result.value = {
+      result_url: "https://cdn.example.com/a.mp4",
+      result_urls: ["https://cdn.example.com/a.mp4", "https://cdn.example.com/b.webm"]
+    };
+    await nextTick();
+
+    const links = wrapper.findAll("a.async-result__download");
+    expect(links).toHaveLength(2);
+    expect(links[0].attributes("href")).toBe("https://cdn.example.com/a.mp4");
+    expect(links[0].attributes("download")).toBe("knot-tc-abc.mp4");
+    expect(links[1].attributes("download")).toBe("knot-tc-abc-2.webm");
+    // 跨域地址的新标签打开：download 被浏览器忽略时至少能打开而不是白点
+    expect(links[0].attributes("target")).toBe("_blank");
+
+    // 「复制链接」是跨域下载受限时的兜底路径
+    await wrapper.findAll(".async-result__url-actions .el-button")[1].trigger("click");
+    await flushPromises();
+    expect(h.copy).toHaveBeenCalledWith("https://cdn.example.com/a.mp4", "该产物没有地址");
+  });
+
+  it("失败：环标红且文案是「失败」，不能与「已停止」混为一谈", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 202,
+      headers: {},
+      data: ACCEPTED_BODY
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    h.async.polling.value = false;
+    h.async.taskStatus.value = "failed";
+    h.async.error.value = {code: "UPSTREAM_TASK_FAILED", message: "boom"};
+    await nextTick();
+
+    expect(wrapper.find(".async-progress").classes()).toContain("async-progress--failed");
+    expect(wrapper.find(".async-progress__arc").exists()).toBe(false);
+    expect(wrapper.find(".async-progress__caption").text()).toBe("失败");
+  });
+
+  it("停止与本地超时各说各的：任务可能还在上游跑，界面不能说成失败", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 202,
+      headers: {},
+      data: ACCEPTED_BODY
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    h.async.polling.value = false;
+    h.async.stopped.value = true;
+    h.async.taskStatus.value = "processing";
+    await nextTick();
+    expect(wrapper.find(".async-progress").classes()).toContain("async-progress--stopped");
+    expect(wrapper.find(".async-progress__caption").text()).toBe("已停止");
+
+    h.async.localTimeout.value = true;
+    await nextTick();
+    expect(wrapper.find(".async-progress").classes()).toContain("async-progress--timeout");
+    expect(wrapper.find(".async-progress__caption").text()).toBe("已超时");
+    // 本地到点只是「不再观察」，任务本身没结束：环必须停转
+    expect(wrapper.find(".async-progress__arc").exists()).toBe(false);
   });
 
   it("关闭抽屉：停止轮询并释放资源", async () => {

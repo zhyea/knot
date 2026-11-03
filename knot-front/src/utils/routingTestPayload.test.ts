@@ -9,6 +9,7 @@ import {
   isAbortError,
   parseAsyncTaskAccepted,
   parseStreamJson,
+  resultDownloadName,
   safeParseTemplate,
   stripModelField
 } from "./routingTestPayload";
@@ -197,5 +198,43 @@ describe("parseAsyncTaskAccepted（202 回执识别）", () => {
       task_id: "  tc-1  ",
       query_url: "  /openai/v1/tasks/tc-1  "
     })).toEqual({taskCode: "tc-1", queryUrl: "/openai/v1/tasks/tc-1"});
+  });
+});
+
+describe("resultDownloadName（产物下载文件名）", () => {
+  it("单产物：knot-<句柄><扩展名>，不追加序号", () => {
+    expect(resultDownloadName("https://cdn.example.com/v/a.mp4", "tc-abc", 0))
+      .toBe("knot-tc-abc.mp4");
+  });
+
+  it("多产物：第 2 个起追加 1 基序号（与人眼看到的 #2 对齐）", () => {
+    expect(resultDownloadName("https://cdn.example.com/v/b.webm", "tc-abc", 1))
+      .toBe("knot-tc-abc-2.webm");
+  });
+
+  it("扩展名只认白名单：路径尾段是 download / 版本号时一律不猜", () => {
+    expect(resultDownloadName("https://cdn.example.com/v/download", "tc-abc", 0))
+      .toBe("knot-tc-abc");
+    expect(resultDownloadName("https://cdn.example.com/v/a.json", "tc-abc", 0))
+      .toBe("knot-tc-abc");
+    // 查询串里的版本号不能被当成扩展名
+    expect(resultDownloadName("https://cdn.example.com/v/play?id=1&v=1.2", "tc-abc", 0))
+      .toBe("knot-tc-abc");
+  });
+
+  it("扩展名大小写归一（上游常给 .MP4）", () => {
+    expect(resultDownloadName("https://cdn.example.com/v/a.MP4", "tc-abc", 0))
+      .toBe("knot-tc-abc.mp4");
+  });
+
+  it("句柄缺失退成 knot-result；非法字符清洗成下划线（它会成为文件名）", () => {
+    expect(resultDownloadName("https://x/a.mp4", null, 0)).toBe("knot-result.mp4");
+    expect(resultDownloadName("https://x/a.mp4", "   ", 0)).toBe("knot-result.mp4");
+    expect(resultDownloadName("https://x/a.mp4", "tc/1 2", 0)).toBe("knot-tc_1_2.mp4");
+  });
+
+  it("空地址 / 非法地址不抛错，只是不带扩展名", () => {
+    expect(resultDownloadName("", "tc-1", 0)).toBe("knot-tc-1");
+    expect(resultDownloadName("http://[bad", "tc-1", 0)).toBe("knot-tc-1");
   });
 });

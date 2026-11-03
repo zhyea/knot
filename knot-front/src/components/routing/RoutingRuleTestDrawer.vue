@@ -254,20 +254,48 @@
               </el-tab-pane>
               <!-- 异步任务：仅当本次提交被 202 接受时出现（网关已把任务接走，结果要轮询才拿到） -->
               <el-tab-pane v-if="asyncVisible" label="异步任务" name="async" class="response-async-pane">
-                <div class="async-status">
-                  <el-tag :type="asyncStatusTagType" size="small">{{ asyncStatusText }}</el-tag>
-                  <span class="async-status__meta">
-                    已用 {{ asyncElapsedLabel }} · 本次调试查询 {{ pollCount }} 次
-                  </span>
-                  <span class="async-status__actions">
-                    <el-button size="small" :disabled="!asyncPolling" @click="pollNow">立即查询</el-button>
-                    <el-button size="small" :disabled="!asyncPolling" @click="stopAsyncPolling">停止</el-button>
-                  </span>
+                <!--
+                  ⭐ 环形是「活着」指示器，不是完成度。
+
+                  上游不返回进度（档案的六条表达式只管状态/产物/错误，网关对外响应也没有 progress），
+                  所以这里**不编造百分比**：在途时环持续旋转 + 环心显示「本次已查询次数」，
+                  用「环在动 + 次数在涨」证明任务仍在推进；终态才把环收成整圈并停止旋转
+                  （它已经不跑了，再转就是撒谎）。
+                -->
+                <div class="async-progress" :class="`async-progress--${asyncRingState}`">
+                  <div class="async-progress__ring" role="status" :aria-label="asyncRingLabel">
+                    <svg class="async-progress__svg" viewBox="0 0 100 100" aria-hidden="true">
+                      <circle class="async-progress__track" cx="50" cy="50" r="42"/>
+                      <circle v-if="asyncRingSpinning" class="async-progress__arc" cx="50" cy="50" r="42"/>
+                      <circle v-else class="async-progress__full" cx="50" cy="50" r="42"/>
+                    </svg>
+                    <div class="async-progress__center">
+                      <span v-if="asyncRingSpinning" class="async-progress__count">{{ pollCount }}</span>
+                      <el-icon v-else class="async-progress__icon">
+                        <Select v-if="asyncRingState === 'completed'"/>
+                        <CloseBold v-else-if="asyncRingState === 'failed'"/>
+                        <VideoPause v-else/>
+                      </el-icon>
+                      <span class="async-progress__caption">{{ asyncRingCaption }}</span>
+                    </div>
+                  </div>
+
+                  <div class="async-progress__meta">
+                    <div class="async-progress__headline">
+                      <el-tag :type="asyncStatusTagType" size="small">{{ asyncStatusText }}</el-tag>
+                      <span class="async-progress__elapsed">已用 {{ asyncElapsedLabel }}</span>
+                      <span class="async-progress__polls">本次调试已查询 {{ pollCount }} 次</span>
+                    </div>
+                    <p v-if="taskCode" class="async-handle">
+                      任务句柄 <code>{{ taskCode }}</code>
+                      <el-button size="small" text type="primary" @click="copyAsyncHandle">复制轮询 curl</el-button>
+                    </p>
+                    <div class="async-progress__actions">
+                      <el-button size="small" :disabled="!asyncPolling" @click="pollNow">立即查询</el-button>
+                      <el-button size="small" :disabled="!asyncPolling" @click="stopAsyncPolling">停止</el-button>
+                    </div>
+                  </div>
                 </div>
-                <p v-if="taskCode" class="async-handle">
-                  任务句柄 <code>{{ taskCode }}</code>
-                  <el-button size="small" text type="primary" @click="copyAsyncHandle">复制轮询 curl</el-button>
-                </p>
 
                 <ul v-if="asyncTimeline.length" class="async-timeline">
                   <li v-for="(item, index) in asyncTimeline" :key="index" class="async-timeline__item">
@@ -279,11 +307,32 @@
                 </ul>
 
                 <div v-if="asyncResultUrls.length" class="async-result">
+                  <div class="async-result__head">
+                    <span class="async-result__title">生成结果</span>
+                    <span class="async-result__count">共 {{ asyncResultUrls.length }} 个产物</span>
+                  </div>
                   <video v-if="asyncResultUrl" class="async-result__video" :src="asyncResultUrl" controls/>
                   <div v-for="(url, index) in asyncResultUrls" :key="url + index" class="async-result__url">
                     <span class="async-result__url-index">#{{ index + 1 }}</span>
                     <a class="async-result__url-text" :href="url" target="_blank" rel="noreferrer">{{ url }}</a>
+                    <span class="async-result__url-actions">
+                      <el-button
+                        class="async-result__download"
+                        size="small"
+                        type="primary"
+                        :icon="Download"
+                        tag="a"
+                        :href="url"
+                        :download="downloadNameOf(url, index)"
+                        target="_blank"
+                        rel="noreferrer"
+                      >下载</el-button>
+                      <el-button size="small" :icon="CopyDocument" @click="copyResultUrl(url)">复制链接</el-button>
+                    </span>
                   </div>
+                  <p class="async-result__note">
+                    产物地址由上游签发（非本站域名），浏览器可能直接播放而不另存；「下载」无效时请用「复制链接」或右键另存。
+                  </p>
                 </div>
 
                 <div v-if="asyncError" class="async-failure">
@@ -329,7 +378,18 @@
 
 <script setup lang="ts">
 import {computed, nextTick, onBeforeUnmount, reactive, ref, watch, type PropType} from "vue";
-import {CircleClose, CopyDocument, Delete, Plus, Promotion, Select, WarningFilled} from "@element-plus/icons-vue";
+import {
+  CircleClose,
+  CloseBold,
+  CopyDocument,
+  Delete,
+  Download,
+  Plus,
+  Promotion,
+  Select,
+  VideoPause,
+  WarningFilled
+} from "@element-plus/icons-vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
 import ShellCodeBlock from "../common/ShellCodeBlock.vue";
 import RoutingBillingVerdictPanel from "./RoutingBillingVerdictPanel.vue";
@@ -357,6 +417,7 @@ import {
   highlightBlock,
   isAbortError,
   parseAsyncTaskAccepted,
+  resultDownloadName,
   stripModelField
 } from "@/utils/routingTestPayload";
 import {
@@ -726,6 +787,62 @@ const asyncResultUrls = computed(() => {
 const asyncResultUrl = computed(() => asyncResultUrls.value[0] || "");
 
 const asyncVisible = computed(() => asyncSubmitted.value);
+
+/**
+ * 环形态。四种终局里只有「完成」和「失败」是任务自己的结论，
+ * 停止与本地超时说的是<b>我们不再观察</b>（任务可能还在上游跑），文案必须区分开。
+ */
+type AsyncRingState = "running" | "completed" | "failed" | "stopped" | "timeout";
+
+/**
+ * ⭐ 只有「仍在轮询」才转：终态之后环继续转，等于宣称任务还在推进。
+ *
+ * <p>不等同于 `taskStatus`：刚提交时状态已是 `queued` 但首查还没发出，此时环也该转——
+ * 它表达的是「本次调试正在观察」。</p>
+ */
+const asyncRingSpinning = computed(() => asyncPolling.value && !asyncLocalTimeout.value);
+
+const asyncRingState = computed<AsyncRingState>(() => {
+  if (asyncRingSpinning.value) {
+    return "running";
+  }
+  if (taskStatus.value === "completed") {
+    return "completed";
+  }
+  if (taskStatus.value === "failed") {
+    return "failed";
+  }
+  return asyncLocalTimeout.value ? "timeout" : "stopped";
+});
+
+const asyncRingCaption = computed(() => {
+  switch (asyncRingState.value) {
+    case "running":
+      return "次查询";
+    case "completed":
+      return "完成";
+    case "failed":
+      return "失败";
+    case "timeout":
+      return "已超时";
+    default:
+      return "已停止";
+  }
+});
+
+/** 环的无障碍标签：旋转的空环对读屏软件没有信息量，必须把「第几次查询 + 状态」写成文字 */
+const asyncRingLabel = computed(
+  () => `异步任务${asyncStatusText.value}，本次调试已查询 ${pollCount.value} 次`
+);
+
+/** 产物下载文件名：`knot-<任务句柄>-<序号><扩展名>`，句柄缺失时退成 `knot-result` */
+function downloadNameOf(url: string, index: number): string {
+  return resultDownloadName(url, taskCode.value, index);
+}
+
+async function copyResultUrl(url: string): Promise<void> {
+  await copy(url, "该产物没有地址");
+}
 
 /** 视频协议却没拿到句柄：同步链路下这是最常见的配置错误，必须能指路 */
 const asyncHandleMissing = computed(() => {
@@ -1679,27 +1796,141 @@ onBeforeUnmount(disposeTestResources);
 
 /* ===================== 异步任务页 ===================== */
 
-.async-status {
+/* 环形：在途是一段弧持续旋转（没有可信百分比，不画假进度），终态收成整圈并停转 */
+.async-progress {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--el-fill-color-light);
+  /* 环色随形态走：SVG 三根描边都从这里取，避免每根各写一遍 */
+  --async-ring-color: var(--el-color-primary);
+}
+
+.async-progress--completed {
+  --async-ring-color: var(--el-color-success);
+}
+
+.async-progress--failed {
+  --async-ring-color: var(--el-color-danger);
+}
+
+.async-progress--stopped,
+.async-progress--timeout {
+  --async-ring-color: var(--el-color-info);
+}
+
+.async-progress__ring {
+  position: relative;
+  flex: 0 0 92px;
+  width: 92px;
+  height: 92px;
+}
+
+.async-progress__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.async-progress__track,
+.async-progress__arc,
+.async-progress__full {
+  fill: none;
+  stroke-width: 8;
+}
+
+.async-progress__track {
+  stroke: var(--el-border-color);
+}
+
+/* 1/4 圈（周长 2πr ≈ 264）持续旋转——「还在推进」的全部视觉证据都在这一句上 */
+.async-progress__arc {
+  stroke: var(--async-ring-color);
+  stroke-linecap: round;
+  stroke-dasharray: 66 198;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: async-ring-spin 1.1s linear infinite;
+}
+
+.async-progress__full {
+  stroke: var(--async-ring-color);
+  stroke-linecap: round;
+}
+
+@keyframes async-ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 动效敏感用户：放慢而不是停掉——停掉后「在跑」就没有任何信号了 */
+@media (prefers-reduced-motion: reduce) {
+  .async-progress__arc {
+    animation-duration: 2.6s;
+  }
+}
+
+.async-progress__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.async-progress__count {
+  color: var(--async-ring-color);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+  /* 等宽数字：次数跳动时环心不左右抖 */
+  font-variant-numeric: tabular-nums;
+}
+
+.async-progress__icon {
+  color: var(--async-ring-color);
+  font-size: 24px;
+}
+
+.async-progress__caption {
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.async-progress__meta {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.async-progress__headline {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  flex-wrap: wrap;
   font-size: 12px;
   color: var(--el-text-color-secondary);
 }
 
-.async-status__meta {
-  flex: 1;
+.async-progress__polls {
+  color: var(--el-text-color-regular);
+  font-variant-numeric: tabular-nums;
 }
 
-.async-status__actions {
+.async-progress__actions {
   display: flex;
   gap: 6px;
 }
 
 .async-handle {
-  margin: 8px 0 0;
+  margin: 0;
   font-size: 12px;
   color: var(--el-text-color-secondary);
 }
@@ -1751,6 +1982,23 @@ onBeforeUnmount(disposeTestResources);
   gap: 8px;
 }
 
+.async-result__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.async-result__title {
+  color: var(--el-text-color-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.async-result__count {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
 .async-result__video {
   width: 100%;
   max-height: 320px;
@@ -1762,6 +2010,7 @@ onBeforeUnmount(disposeTestResources);
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
   font-size: 12px;
 }
 
@@ -1770,8 +2019,28 @@ onBeforeUnmount(disposeTestResources);
 }
 
 .async-result__url-text {
+  flex: 1;
+  min-width: 0;
   color: var(--el-color-primary);
   word-break: break-all;
+}
+
+.async-result__url-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+/* 下载按钮是 <a>（tag="a"）：去掉链接下划线，视觉与普通 small 按钮一致 */
+.async-result__download {
+  text-decoration: none;
+}
+
+.async-result__note {
+  margin: 0;
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .async-failure {
