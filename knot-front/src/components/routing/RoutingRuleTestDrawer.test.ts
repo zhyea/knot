@@ -815,6 +815,37 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     expect(wrapper.text()).toContain("本次调试已查询 5 次");
   });
 
+  it("查询记录默认折叠，需要时再展开每次轮询明细", async () => {
+    vi.mocked(testRoutingRule).mockResolvedValue({
+      status: 202,
+      headers: {},
+      data: ACCEPTED_BODY
+    } as never);
+
+    const wrapper = await openDrawer();
+    await toolbarButton(wrapper, "primary")!.trigger("click");
+    await flushPromises();
+
+    h.async.timeline.value = [
+      {at: 1, status: "queued", elapsedMs: 1_500},
+      {at: 2, status: "processing", elapsedMs: 4_500}
+    ];
+    await nextTick();
+
+    const history = wrapper.get(".async-history");
+    expect(history.text()).toContain("查询记录（2 次）");
+    expect(history.find(".el-collapse-item").classes()).not.toContain("is-active");
+
+    await history.get(".el-collapse-item__header").trigger("click");
+    await nextTick();
+
+    expect(history.find(".el-collapse-item").classes()).toContain("is-active");
+    const rows = history.findAll(".async-timeline__item");
+    expect(rows).toHaveLength(2);
+    expect(rows[0].text()).toContain("已入队");
+    expect(rows[1].text()).toContain("生成中");
+  });
+
   it("⭐ 完成：每个产物都有下载链接，文件名带任务句柄与序号", async () => {
     vi.mocked(testRoutingRule).mockResolvedValue({
       status: 202,
