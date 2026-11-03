@@ -22,10 +22,40 @@
           <el-icon><MagicStick/></el-icon>
         </el-button>
       </el-tooltip>
+      <el-tooltip
+        v-if="!readonly"
+        :content="wrapEnabled ? '关闭自动换行' : '自动换行'"
+        placement="top"
+        :show-after="300"
+      >
+        <el-button
+          class="json-editor__action-btn"
+          :class="{ 'json-editor__action-btn--active': wrapEnabled }"
+          size="small"
+          text
+          type="primary"
+          :aria-label="wrapEnabled ? '关闭自动换行' : '自动换行'"
+          :aria-pressed="wrapEnabled"
+          @click="wrapEnabled = !wrapEnabled"
+        >
+          <el-icon class="json-editor__wrap-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path
+                fill="currentColor"
+                d="M4 19h6v-2H4v2zM20 5H4v2h16V5zm-3 6H4v2h13.25c1.1 0 2 .9 2 2s-.9 2-2 2H15v-2l-3 3 3 3v-2h2c2.21 0 4-1.79 4-4s-1.79-4-4-4z"
+              />
+            </svg>
+          </el-icon>
+        </el-button>
+      </el-tooltip>
     </template>
     <div
       class="json-editor__body"
-      :class="{ 'json-editor__body--editable': !readonly, 'json-editor__body--readonly': readonly }"
+      :class="{
+        'json-editor__body--editable': !readonly,
+        'json-editor__body--readonly': readonly,
+        'json-editor__body--wrap': wrapEnabled
+      }"
     >
       <pre class="json-editor__highlight" aria-hidden="true"><code
         v-html="highlightedJson"></code></pre>
@@ -33,7 +63,7 @@
         v-if="!readonly"
         class="json-editor__input"
         :value="modelValue"
-        wrap="off"
+        :wrap="wrapEnabled ? 'soft' : 'off'"
         spellcheck="false"
         @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
         @keydown="handleKeydown"
@@ -43,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed} from "vue";
+import {computed, ref} from "vue";
 import {ElMessage} from "element-plus";
 import {MagicStick} from "@element-plus/icons-vue";
 import {displayText, escapeHtml, formatJsonText} from "@/utils/format";
@@ -68,6 +98,8 @@ const props = withDefaults(
 );
 
 const emit = defineEmits(["update:modelValue"]);
+
+const wrapEnabled = ref(false);
 
 const JSON_TOKEN_REGEX = /("(?:\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)/g;
 
@@ -165,11 +197,21 @@ function visualizeWhitespaceText(text: unknown): string {
   overflow: visible;
 }
 
+.json-editor__body--editable.json-editor__body--wrap {
+  width: 100%;
+  min-width: 0;
+}
+
 .json-editor__action-btn {
   min-height: 24px;
   padding: 4px 8px;
   background: rgb(255 255 255 / 88%);
   backdrop-filter: blur(4px);
+}
+
+.json-editor__action-btn--active {
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
 }
 
 .json-editor__highlight,
@@ -201,7 +243,22 @@ function visualizeWhitespaceText(text: unknown): string {
 
 .json-editor__body--editable .json-editor__highlight {
   min-width: max-content;
-  padding-right: 120px;
+  padding-right: 128px;
+}
+
+.json-editor__body--editable.json-editor__body--wrap .json-editor__highlight,
+.json-editor__body--editable.json-editor__body--wrap .json-editor__input {
+  min-width: 0;
+  padding-right: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.json-editor__body--editable.json-editor__body--wrap .json-editor__highlight code {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .json-editor__input {
@@ -213,7 +270,7 @@ function visualizeWhitespaceText(text: unknown): string {
   background: transparent;
   color: transparent;
   caret-color: #303133;
-  padding-right: 120px;
+  padding-right: 128px;
 }
 
 .json-editor--readonly .json-editor__highlight {
