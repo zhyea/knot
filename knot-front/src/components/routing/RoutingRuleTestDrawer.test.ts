@@ -109,9 +109,16 @@ vi.mock("@/composables/useDebugCapabilities", () => ({
   })
 }));
 
-vi.mock("@/composables/useEnumOptions", () => ({
-  useEnumOptions: () => ({ labelOf: () => "-" })
-}));
+// 接线测试只验证「状态码有没有原样传到 labelOf」：真实文案由 /api/enum-options 负责，
+// 故按 code 回显标记。⚠ 别再造 queued/processing 旧词表——对外状态就是落库码 0~5。
+vi.mock("@/composables/useEnumOptions", () => {
+  const labelOf = (enumName: string, code: unknown) =>
+    enumName === "AsyncTaskStatusEnum" ? `状态-${String(code)}` : "-";
+  return {
+    useEnumOptions: () => ({labelOf}),
+    labelOf
+  };
+});
 
 vi.mock("@/composables/useCopyToClipboard", () => ({
   // 间接调用而不是直接塞 vi.fn()：测试要在 beforeEach 里重设，并断言「复制链接」真的被点到了
@@ -827,9 +834,10 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     await toolbarButton(wrapper, "primary")!.trigger("click");
     await flushPromises();
 
+    // timeline.status 是落库状态码（AsyncTaskTimelineItem.status: number | null），不是旧词表
     h.async.timeline.value = [
-      {at: 1, status: "queued", elapsedMs: 1_500},
-      {at: 2, status: "processing", elapsedMs: 4_500}
+      {at: 1, status: AsyncTaskStatus.PENDING, elapsedMs: 1_500},
+      {at: 2, status: AsyncTaskStatus.POLLING, elapsedMs: 4_500}
     ];
     await nextTick();
 
@@ -843,8 +851,8 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     expect(history.find(".el-collapse-item").classes()).toContain("is-active");
     const rows = history.findAll(".async-timeline__item");
     expect(rows).toHaveLength(2);
-    expect(rows[0].text()).toContain("已入队");
-    expect(rows[1].text()).toContain("生成中");
+    expect(rows[0].text()).toContain("状态-0");
+    expect(rows[1].text()).toContain("状态-1");
   });
 
   it("⭐ 完成：每个产物都有下载链接，文件名带任务句柄与序号", async () => {

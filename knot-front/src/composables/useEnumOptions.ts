@@ -1,5 +1,4 @@
 import {computed, ref} from "vue";
-import {listCommonEnums} from "@/api/enums";
 import type {Dict, SelectOption} from "@/types";
 import {EMPTY_PLACEHOLDER} from "@/utils/format";
 
@@ -60,14 +59,19 @@ async function loadEnums(force: boolean = false) {
     return await inflight;
   }
   loading.value = true;
-  inflight = listCommonEnums()
+  // ⚠ 动态 import 是刻意为之：`@/api/enums` → `http.ts` → `router/index.ts` 会在模块顶层
+  // 执行 createRouter(createWebHistory())，需要 window。本模块被 billingPrice → format 等
+  // 纯逻辑工具 import，静态引入会让所有 node 环境的纯逻辑测试在加载期崩在 window。
+  // 只在真正发请求时加载，加载期依赖面收敛到 vue + 本地工具。
+  inflight = import("@/api/enums")
+    .then(({listCommonEnums}) => listCommonEnums())
     .then((data) => {
       enumMap.value = data && typeof data === "object" ? data : {};
       loadedAt = Date.now();
       return enumMap.value;
     })
     .catch(() => {
-      // 加载失败保留上一次成功的数据，避免界面闪空
+      // 加载失败保留上一次成功的数据，避免界面闪空；失败不写缓存
       return enumMap.value;
     })
     .finally(() => {
