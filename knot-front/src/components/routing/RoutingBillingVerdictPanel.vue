@@ -208,9 +208,9 @@
 
 <script setup lang="ts">
 import {displayText} from "@/utils/format";
+import {labelOf} from "@/composables/useEnumOptions";
 import {computed} from "vue";
 import type {
-  BillingCheckCode,
   BillingFactAmountLine,
   JevAnswerItem,
   RoutingBillingVerdictResult
@@ -276,17 +276,6 @@ const shadowDiffText = computed(() => {
   return `与被告账差 ${formatNumber(diff)}`;
 });
 
-const CHECK_LABELS: Record<BillingCheckCode, string> = {
-  USAGE_NOT_EMPTY: "用量非空",
-  TOTAL_TOKENS_CONSISTENT: "总量一致",
-  COST_FORMULA_MATCH: "金额公式",
-  GATEWAY_RECOMPUTE_MATCH: "被告 = 重算",
-  RULE_MODE_MATCH: "模式匹配",
-  RULE_SOURCE_EXPECTED: "规则来源",
-  UPSTREAM_COST_DEVIATION: "上游偏离",
-  ASYNC_SETTLEMENT_CONSISTENCY: "异步结算一致",
-};
-
 const ANSWER_LABELS: Record<string, string> = {
   usage_parse_ok: "用量解析是否完整正确",
   rule_match_ok: "命中规则是否合适",
@@ -322,7 +311,7 @@ function checkLabel(code?: string | null): string {
   if (!code) {
     return "-";
   }
-  return CHECK_LABELS[code as BillingCheckCode] || code;
+  return labelOf("BillingCheckCode", code, code);
 }
 
 function answerLabel(key?: string | null): string {
