@@ -6,6 +6,7 @@ import { afterEach } from "vitest";
 import { ElDrawer, ElOption, ElSelect } from "element-plus";
 import RoutingRuleTestDrawer from "@/components/routing/RoutingRuleTestDrawer.vue";
 import { gatewayBaseUrl } from "@/composables/useTestRequestComposition";
+import { AsyncTaskStatus } from "@/constants/status";
 
 /**
  * 抽屉的「模板 ↔ 状态」接线测试。
@@ -79,7 +80,7 @@ vi.mock("@/composables/useAsyncTaskPolling", async () => {
   const { ref } = await import("vue");
   h.async = {
     taskCode: ref<string | null>(null),
-    taskStatus: ref(""),
+    taskStatus: ref<number | null>(null),
     pollCount: ref(0),
     timeline: ref<unknown[]>([]),
     result: ref<unknown>(null),
@@ -227,7 +228,7 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     h.verdict.verdictResult.value = null;
     h.verdict.knotExtend.value = null;
     h.async.taskCode.value = null;
-    h.async.taskStatus.value = "";
+    h.async.taskStatus.value = null;
     h.async.pollCount.value = 0;
     h.async.timeline.value = [];
     h.async.result.value = null;
@@ -642,7 +643,7 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
   /** 202 回执：三字段就是全部寻址信息 */
   const ACCEPTED_BODY = {
     task_id: "tc-abc",
-    status: "queued",
+    status: AsyncTaskStatus.PENDING,
     query_url: "/openai/v1/tasks/tc-abc"
   };
 
@@ -710,12 +711,12 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
 
     const terminalBody = {
       task_id: "tc-abc",
-      status: "completed",
+      status: AsyncTaskStatus.SUCCEEDED,
       result: { result_url: "https://x/a.mp4", result_urls: ["https://x/a.mp4"] },
       knot_extend: { billing: { totalCost: "0.5" } },
       upstream_body: { data: { task_result: { videos: [{ duration: "5" }] } } }
     };
-    h.async.ctx.onTerminal({ status: "completed", body: terminalBody });
+    h.async.ctx.onTerminal({ status: AsyncTaskStatus.SUCCEEDED, body: terminalBody });
     await flushPromises();
 
     // 终态响应体整体交给被告提取（与同步链路同一套）
@@ -726,7 +727,7 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
       false,
       {
         upstreamBody: { data: { task_result: { videos: [{ duration: "5" }] } } },
-        taskStatus: "completed"
+        taskStatus: AsyncTaskStatus.SUCCEEDED
       }
     );
   });
@@ -743,11 +744,11 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     await flushPromises();
 
     h.async.ctx.onTerminal({
-      status: "failed",
-      body: { status: "failed", error: { code: "UPSTREAM_TASK_FAILED", message: "boom" } }
+      status: AsyncTaskStatus.FAILED,
+      body: { status: AsyncTaskStatus.FAILED, error: { code: "UPSTREAM_TASK_FAILED", message: "boom" } }
     });
     // 真实 composable 会把 status / error 写进自己的 ref；这里同步驱动桩状态
-    h.async.taskStatus.value = "failed";
+    h.async.taskStatus.value = AsyncTaskStatus.FAILED;
     h.async.error.value = { code: "UPSTREAM_TASK_FAILED", message: "boom" };
     await flushPromises();
 
@@ -772,7 +773,7 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
 
     h.async.polling.value = true;
     h.async.pollCount.value = 3;
-    h.async.taskStatus.value = "processing";
+    h.async.taskStatus.value = AsyncTaskStatus.POLLING;
     await nextTick();
 
     expect(wrapper.find(".async-progress").classes()).toContain("async-progress--running");
@@ -802,7 +803,7 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     await flushPromises();
 
     h.async.polling.value = false;
-    h.async.taskStatus.value = "completed";
+    h.async.taskStatus.value = AsyncTaskStatus.SUCCEEDED;
     h.async.pollCount.value = 5;
     await nextTick();
 
@@ -857,7 +858,7 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     await toolbarButton(wrapper, "primary")!.trigger("click");
     await flushPromises();
 
-    h.async.taskStatus.value = "completed";
+    h.async.taskStatus.value = AsyncTaskStatus.SUCCEEDED;
     // 真实 composable 的 start 会写入句柄；本地桩必须自己补，否则下载名只考到兜底分支
     h.async.taskCode.value = ACCEPTED_BODY.task_id;
     h.async.result.value = {
@@ -892,7 +893,7 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
     await flushPromises();
 
     h.async.polling.value = false;
-    h.async.taskStatus.value = "failed";
+    h.async.taskStatus.value = AsyncTaskStatus.FAILED;
     h.async.error.value = {code: "UPSTREAM_TASK_FAILED", message: "boom"};
     await nextTick();
 
@@ -914,7 +915,7 @@ describe("RoutingRuleTestDrawer 抽屉编排（模板 ↔ 状态接线）", () =
 
     h.async.polling.value = false;
     h.async.stopped.value = true;
-    h.async.taskStatus.value = "processing";
+    h.async.taskStatus.value = AsyncTaskStatus.POLLING;
     await nextTick();
     expect(wrapper.find(".async-progress").classes()).toContain("async-progress--stopped");
     expect(wrapper.find(".async-progress__caption").text()).toBe("已停止");

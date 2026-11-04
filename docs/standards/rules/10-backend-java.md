@@ -431,7 +431,7 @@ gateway 那 10 项就是被逼出来的：前一天补齐棘轮、第二天清�
 | 场景 | 为什么必须用类型 | 正确形态 |
 |---|---|---|
 | 对外 HTTP 请求体 / 响应体 | 客户端按字段名解析，键名只活在字符串字面量里 | `record` + `@JsonProperty` 钉 wire 名，代码放 `model.vo.response` / `model.vo.request` |
-| 有**固定字段集**的方法返回值（「返回 Map 装 3 个已知字段」） | 等于把字段检查从编译期推到联调期 | `record`；取值关系固定的再给静态工厂（判例 `AsyncTaskAcceptedResponse.queued(code)`） |
+| 有**固定字段集**的方法返回值（「返回 Map 装 3 个已知字段」） | 等于把字段检查从编译期推到联调期 | `record`；取值关系固定的再给静态工厂（判例 `AsyncTaskAcceptedResponse.accepted(code)`） |
 | 跨模块 / 跨线程传递的结构化数据（事件、消息、缓存值） | 消费方按字符串取值，改名即静默 `null` | `record`（先例 `GatewayTrafficMsgDto` 家族） |
 
 **可以用 `Map` 的场景（审查时勿报）**：供应商原始 payload 的透传与留存（`request_json` / `result_json` 这类字段由上游决定）、

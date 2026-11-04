@@ -62,7 +62,7 @@ class AsyncTaskDeliveryRunnerTest {
         assertEquals(1, callback.urls.size(), "成功只投一次");
         AsyncTaskQueryResponse payload = callback.payloads.get(0);
         assertEquals("tc-1", payload.taskCode(), "客户端按 task_id 幂等，必须带对");
-        assertEquals("completed", payload.status(), "回调 body 与轮询响应同形");
+        assertEquals(AsyncTaskStatusEnum.SUCCEEDED.code(), payload.status(), "回调 body 与轮询响应同形");
         assertEquals("https://x/a.mp4", payload.result().get("result_url"));
 
         CompleteDeliveryCall done = taskService.onlyComplete();

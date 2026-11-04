@@ -11,12 +11,12 @@ import java.util.Arrays;
  * 某个计费模式可用的单位集合由 {@link BillingModeEnum#supportedUnits()} 约束，本枚举只定义取值本身。
  */
 public enum BillingUnitEnum implements EnumOption {
-    ONE_K_TOKENS("1K_TOKENS", "千 Token"),
-    ONE_M_TOKENS("1M_TOKENS", "百万 Token"),
-    PER_TOKEN("PER_TOKEN", "单 Token"),
-    PER_REQUEST("PER_REQUEST", "按请求"),
-    PER_IMAGE("PER_IMAGE", "按图片"),
-    PER_SECOND("PER_SECOND", "按秒"),
+    ONE_K_TOKENS("1K_TOKENS", "每千 Token 单价"),
+    ONE_M_TOKENS("1M_TOKENS", "每百万 Token 单价"),
+    PER_TOKEN("PER_TOKEN", "每 Token 单价"),
+    PER_REQUEST("PER_REQUEST", "每次单价"),
+    PER_IMAGE("PER_IMAGE", "每张单价"),
+    PER_SECOND("PER_SECOND", "每秒单价"),
     CUSTOM("CUSTOM", "自定义");
 
     private final String code;

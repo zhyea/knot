@@ -1,5 +1,6 @@
 package org.chobit.knot.svc.service.support;
 
+import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.chobit.knot.svc.dto.routing.BillingCheckCode;
 import org.chobit.knot.svc.dto.routing.BillingCheckResult;
 import org.chobit.knot.svc.dto.routing.BillingCheckStatus;
@@ -55,10 +56,10 @@ class BillingFactChecksTest {
      * 带异步终态词的版本。
      *
      * <p>{@code taskStatus} 为空 = 同步链路，第 ⑧ 项（异步结算一致性）合法地 SKIP；
-     * 给了 {@code completed} / {@code failed} 才进入「成功必有账、失败不得有账」的判定。</p>
+     * 给了终态码（成功 2 / 失败 3）才进入「成功必有账、失败不得有账」的判定。</p>
      */
     private static BillingFact standard(BillingFactUsage usage, BillingFactAmount shadow, BillingFactAmount gateway,
-                                        BigDecimal upstream, BillingRuleSource source, String taskStatus) {
+                                        BigDecimal upstream, BillingRuleSource source, Integer taskStatus) {
         BillingFactRuleRef ruleRef = new BillingFactRuleRef("r1", "TOKEN", "1M_TOKENS", "USD", "FIXED", source, "v1");
         return new BillingFact(new BillingFactSubject("m1", "OPENAI", false, source, taskStatus),
                 usage, ruleRef, shadow, gateway, upstream);
@@ -88,14 +89,14 @@ class BillingFactChecksTest {
     @Test
     void asyncSettlementShouldPassWhenCompletedAndSettled() {
         BillingFact fact = standard(STANDARD_USAGE, STANDARD_AMOUNT, STANDARD_AMOUNT, null,
-                BillingRuleSource.EXPLICIT, "completed");
+                BillingRuleSource.EXPLICIT, AsyncTaskStatusEnum.SUCCEEDED.code());
         assertEquals(BillingCheckStatus.PASS, result(fact, BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY).status());
     }
 
     @Test
     void asyncSettlementShouldFailWhenCompletedButNoAccount() {
         BillingFact fact = standard(STANDARD_USAGE, STANDARD_AMOUNT, null, null,
-                BillingRuleSource.EXPLICIT, "completed");
+                BillingRuleSource.EXPLICIT, AsyncTaskStatusEnum.SUCCEEDED.code());
         BillingCheckResult r = result(fact, BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY);
         assertEquals(BillingCheckStatus.FAIL, r.status(), "成功没账 = 漏收，必须判死");
         assertTrue(r.message().contains("漏收"));
@@ -104,14 +105,14 @@ class BillingFactChecksTest {
     @Test
     void asyncSettlementShouldPassWhenFailedWithoutAccount() {
         BillingFact fact = standard(STANDARD_USAGE, STANDARD_AMOUNT, null, null,
-                BillingRuleSource.EXPLICIT, "failed");
+                BillingRuleSource.EXPLICIT, AsyncTaskStatusEnum.FAILED.code());
         assertEquals(BillingCheckStatus.PASS, result(fact, BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY).status());
     }
 
     @Test
     void asyncSettlementShouldFailWhenFailedButSettled() {
         BillingFact fact = standard(STANDARD_USAGE, STANDARD_AMOUNT, STANDARD_AMOUNT, null,
-                BillingRuleSource.EXPLICIT, "failed");
+                BillingRuleSource.EXPLICIT, AsyncTaskStatusEnum.FAILED.code());
         BillingCheckResult r = result(fact, BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY);
         assertEquals(BillingCheckStatus.FAIL, r.status(), "失败了还记账 = 错收，必须判死");
         assertTrue(r.message().contains("错收"));
@@ -120,10 +121,31 @@ class BillingFactChecksTest {
     @Test
     void asyncSettlementShouldSkipWhileInFlight() {
         BillingFact fact = standard(STANDARD_USAGE, STANDARD_AMOUNT, null, null,
-                BillingRuleSource.EXPLICIT, "processing");
+                BillingRuleSource.EXPLICIT, AsyncTaskStatusEnum.POLLING.code());
         BillingCheckResult r = result(fact, BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY);
         assertEquals(BillingCheckStatus.SKIP, r.status(), "在途任务结算本就没发生，不能充 PASS");
-        assertTrue(r.message().contains("processing"));
+        assertTrue(r.message().contains("轮询中"));
+    }
+
+    /**
+     * 超时 / 取消与失败同一去向：都是「没出货」的终态。
+     *
+     * <p>⭐ 守的是 {@code AsyncTaskStatusEnum#terminal()} 这条判据，不是 FAILED 那一个码：
+     * 对外状态曾把三者压成一个 {@code failed} 词，改成发码之后若有人按「只认 FAILED」写，
+     * EXPIRED 会被当成在途、落账也判不出来——这条用例就是让它红。</p>
+     */
+    @Test
+    void asyncSettlementShouldTreatExpiredAsFailure() {
+        BillingFact settled = standard(STANDARD_USAGE, STANDARD_AMOUNT, STANDARD_AMOUNT, null,
+                BillingRuleSource.EXPLICIT, AsyncTaskStatusEnum.EXPIRED.code());
+        assertEquals(BillingCheckStatus.FAIL,
+                result(settled, BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY).status(),
+                "超时也是终态：落了账即错收");
+
+        BillingFact unsettled = standard(STANDARD_USAGE, STANDARD_AMOUNT, null, null,
+                BillingRuleSource.EXPLICIT, AsyncTaskStatusEnum.EXPIRED.code());
+        assertEquals(BillingCheckStatus.PASS,
+                result(unsettled, BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY).status());
     }
 
     @Test

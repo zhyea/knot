@@ -1,5 +1,6 @@
 package org.chobit.knot.svc.service.support;
 
+import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.chobit.knot.common.constants.enums.BillingModeEnum;
 import org.chobit.knot.svc.dto.routing.BillingCheckCode;
 import org.chobit.knot.svc.dto.routing.BillingCheckResult;
@@ -204,27 +205,32 @@ public final class BillingFactChecks {
 
     // ⑧ 异步结算一致性：成功必有账、失败不得有账（同步链路 → SKIP）
     private static BillingCheckResult asyncSettlementConsistency(BillingFact fact) {
-        String status = fact.subject() == null ? null : fact.subject().taskStatus();
-        if (status == null || status.isBlank()) {
+        Integer statusCode = fact.subject() == null ? null : fact.subject().taskStatus();
+        if (statusCode == null) {
             return BillingCheckResult.skip(BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY,
                     "同步链路，无异步任务终态可校验");
         }
+        AsyncTaskStatusEnum taskStatus = AsyncTaskStatusEnum.fromCode(statusCode);
+        if (taskStatus == null) {
+            return BillingCheckResult.skip(BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY,
+                    "任务状态码无法识别（" + statusCode + "），结算是否发生无从判断");
+        }
         boolean settled = fact.gatewayBilling() != null;
-        if ("completed".equals(status)) {
+        if (taskStatus == AsyncTaskStatusEnum.SUCCEEDED) {
             return settled
                     ? BillingCheckResult.pass(BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY)
                     : BillingCheckResult.fail(BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY,
                             "任务终态成功但没有结算账目（漏收）");
         }
-        if ("failed".equals(status)) {
+        if (taskStatus.terminal()) {
             return settled
                     ? BillingCheckResult.fail(BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY,
                             "任务终态失败却落了结算账目（错收）")
                     : BillingCheckResult.pass(BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY);
         }
-        // queued / processing / unknown：还没到终态，结算本就没发生——判不了，不充 PASS
+        // PENDING / POLLING：还没到终态，结算本就没发生——判不了，不充 PASS
         return BillingCheckResult.skip(BillingCheckCode.ASYNC_SETTLEMENT_CONSISTENCY,
-                "任务未到终态（" + status + "），结算尚未发生");
+                "任务未到终态（" + taskStatus.label() + "），结算尚未发生");
     }
 
     /** 明细行金额复算：tokens × price(每百万) ÷ 1e6；缺字段时返回 null（跳过该行） */

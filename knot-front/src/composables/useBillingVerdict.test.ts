@@ -3,6 +3,7 @@ import {ref} from "vue";
 import {useBillingVerdict, type BillingVerdictContext} from "@/composables/useBillingVerdict";
 import type {RoutingBillingVerdictResult} from "@/api/routing";
 import type {Dict} from "@/types";
+import {AsyncTaskStatus} from "@/constants/status";
 
 /**
  * 计费裁判是「双盲校验」的结论区，两条纪律必须钉死：
@@ -63,10 +64,10 @@ describe("useBillingVerdict 前置条件与短路", () => {
     v.captureKnotExtend({knot_extend: {billing: {totalCost: "0.5"}}});
     const upstreamBody = {data: {task_result: {videos: [{duration: "5"}]}}};
 
-    await v.triggerBillingVerdict({}, false, {upstreamBody, taskStatus: "completed"});
+    await v.triggerBillingVerdict({}, false, {upstreamBody, taskStatus: AsyncTaskStatus.SUCCEEDED});
 
     expect(calls[0].payload.upstreamBody).toEqual(upstreamBody);
-    expect(calls[0].payload.taskStatus).toBe("completed");
+    expect(calls[0].payload.taskStatus).toBe(AsyncTaskStatus.SUCCEEDED);
   });
 
   it("同步链路不传证据：两字段显式为 null（不是 undefined，后端按 null 判「没有」）", async () => {

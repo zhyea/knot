@@ -21,7 +21,10 @@ import org.chobit.knot.common.constants.enums.QuotaWindowEnum;
 import org.chobit.knot.common.constants.enums.RouteTargetTypeEnum;
 import org.chobit.knot.common.constants.enums.RoutingTestStatusEnum;
 import org.chobit.knot.common.constants.enums.ScheduledTaskRunStatusEnum;
+import org.chobit.knot.common.pricing.PricingPhase;
+import org.chobit.knot.svc.dto.routing.BillingCheckCode;
 import org.chobit.knot.common.constants.enums.OperationLogStatusEnum;
+import org.chobit.knot.common.moderation.ModerationSeverityEnum;
 import org.chobit.knot.plugin.PluginExtensionPoint;
 import org.chobit.knot.plugin.PluginStageCode;
 import org.chobit.knot.plugin.PluginTypeEnum;
@@ -73,6 +76,11 @@ public class EnumOptionRegistry {
         put(map, RoutingTestStatusEnum.class.getSimpleName(), RoutingTestStatusEnum.values());
         put(map, LogicalModelVisibilityEnum.class.getSimpleName(), LogicalModelVisibilityEnum.values());
         putNumeric(map, LogicalModelPublishStatusEnum.class.getSimpleName(), LogicalModelPublishStatusEnum.values());
+        putNumeric(map, ModerationSeverityEnum.class.getSimpleName(), ModerationSeverityEnum.values());
+        // 峰谷相位：PEAK/OFF_PEAK 二值，前端列表/预览/方案配置共用同一份 label
+        put(map, PricingPhase.class.getSimpleName(), PricingPhase.values());
+        // 计费自检八项：项名随枚举下发，前端不再自建第二份
+        put(map, BillingCheckCode.class.getSimpleName(), BillingCheckCode.values());
         put(map, ModerationActionEnum.class.getSimpleName(), ModerationActionEnum.values());
         put(map, ModerationScopeEnum.class.getSimpleName(), ModerationScopeEnum.values());
         this.enumMap = Collections.unmodifiableMap(map);

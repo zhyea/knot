@@ -27,6 +27,11 @@ import java.util.concurrent.atomic.AtomicLong;
  * 异步回调失败（broker 拒收 / 网络抖动，回调里才暴露）→ 死信（written/lost 计数）。
  * <b>任何情况下异常都不穿透到请求链路。</b></p>
  *
+ * <h3>日志模式（{@code kafka.mock=true}）</h3>
+ * <p>没有本地 broker 时，装配处改用 {@link #logOnly()}：消息照常序列化，但不提交给生产者，
+ * 而是原样打到 INFO 日志（前缀 {@code [kafka-mock]}，单行 JSON 与真实 payload 逐字一致，
+ * 便于 grep / 复制比对）。只服务于本地测试，生产恒走真投递。</p>
+ *
  * <p>TTFT 风险由生产者客户端的 {@code max.block.ms=1000} 封顶（见 {@link KafkaConfiguration}）：
  * Kafka 持续故障且 accumulator（默认 32MB）也满时调用线程最多阻塞 1s/事件——有界但真实存在，
  * 属已披露的取舍；{@link #warmUp(String...)} 把最常见的触发场景（启动后首次发送时元数据
@@ -39,6 +44,10 @@ public class KafkaPublisher {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final EventDeadLetterWriter deadLetter;
+    /**
+     * 日志模式：为 {@code true} 时不持有生产者与死信写入器，消息只进日志。
+     */
+    private final boolean logOnly;
     private final AtomicLong sent = new AtomicLong();
     private final AtomicLong dropped = new AtomicLong();
 
@@ -50,8 +59,27 @@ public class KafkaPublisher {
      */
     public KafkaPublisher(KafkaTemplate<String, String> kafkaTemplate,
                           EventDeadLetterWriter deadLetter) {
+        this(kafkaTemplate, deadLetter, false);
+    }
+
+    private KafkaPublisher(KafkaTemplate<String, String> kafkaTemplate,
+                           EventDeadLetterWriter deadLetter,
+                           boolean logOnly) {
         this.kafkaTemplate = kafkaTemplate;
         this.deadLetter = deadLetter;
+        this.logOnly = logOnly;
+    }
+
+    /**
+     * 日志模式投递器：不连 broker，把序列化后的消息打到 INFO 日志。
+     *
+     * <p>只由装配处在 {@code kafka.mock=true} 时使用（见 {@link KafkaConfiguration}）——
+     * 本地没有 Kafka 也能跑通整条埋点链路并核对消息内容，不需要 broker、不写死信文件。</p>
+     *
+     * @return 日志模式投递器（无生产者、无死信写入器）
+     */
+    public static KafkaPublisher logOnly() {
+        return new KafkaPublisher(null, null, true);
     }
 
     /**
@@ -79,6 +107,12 @@ public class KafkaPublisher {
             return;
         }
         String key = msg.traceId();
+        if (logOnly) {
+            // 单行 JSON 与真实投递的 payload 逐字一致：日志里看到什么，broker 上就是什么
+            log.info("[kafka-mock] topic={} key={} payload={}", topic, key, payload);
+            sent.incrementAndGet();
+            return;
+        }
         try {
             kafkaTemplate.send(topic, key, payload).whenComplete((result, failure) -> {
                 if (failure != null) {
@@ -104,6 +138,10 @@ public class KafkaPublisher {
      * @param topics 需要预热的主题全名
      */
     public void warmUp(String... topics) {
+        if (logOnly) {
+            // 日志模式没有元数据可预热，也不能让调用方为「预热」去碰不存在的生产者
+            return;
+        }
         for (String topic : topics) {
             try {
                 kafkaTemplate.partitionsFor(topic);

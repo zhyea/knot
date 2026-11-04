@@ -120,10 +120,6 @@ export const PEAK_REASONS: Record<string, string> = {
   NO_TIMESTAMP: "缺少发生时间，不调整"
 };
 
-export const PEAK_PHASE_LABELS: Record<string, string> = {
-  PEAK: "高峰",
-  OFF_PEAK: "低峰"
-};
 
 /** 相位自带单价的字段清单（ABSOLUTE 模式）：顺序即展示顺序 */
 export const PEAK_UNIT_PRICE_FIELDS: ReadonlyArray<{ key: keyof PeakUnitPrice; label: string }> = [

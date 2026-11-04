@@ -428,7 +428,13 @@ import {
   normalizeErrorResult,
   serializeBody
 } from "@/utils/routingTestError";
-import {RouteTargetType, RoutingTestRunState, RoutingTestStatus} from "@/constants/status";
+import {
+  AsyncTaskStatus,
+  isAsyncTaskTerminal,
+  RouteTargetType,
+  RoutingTestRunState,
+  RoutingTestStatus
+} from "@/constants/status";
 import type {Dict} from "@/types";
 
 // 协议名称来自后端 ModelApiProtocolEnum（/api/enum-options），前端不再维护 code->label 映射
@@ -753,23 +759,16 @@ const {
   onTerminal: (payload) => onAsyncTerminal(payload)
 });
 
-/** 对外状态词 → 中文短语。不建码表：五个词就是对外的全部取值 */
-const ASYNC_STATUS_LABELS: Record<string, string> = {
-  queued: "已入队",
-  processing: "生成中",
-  completed: "已完成",
-  failed: "已失败",
-  unknown: "未知"
-};
-
-function asyncStatusLabel(status: string): string {
-  return ASYNC_STATUS_LABELS[status] || status || "未知";
+/** 任务状态码 → 中文短语。码与 `/api/enum-options` 同源，管理端列表用的是同一份 label */
+function asyncStatusLabel(status: number | null): string {
+  return enumLabelOf("AsyncTaskStatusEnum", status, "未知");
 }
 
 const asyncStatusText = computed(() => asyncStatusLabel(taskStatus.value));
 const asyncStatusTagType = computed(() => {
-  if (taskStatus.value === "completed") return "success";
-  if (taskStatus.value === "failed") return "danger";
+  if (taskStatus.value === AsyncTaskStatus.SUCCEEDED) return "success";
+  if (taskStatus.value === null) return "info";
+  if (isAsyncTaskTerminal(taskStatus.value)) return "danger";
   return "warning";
 });
 
@@ -801,7 +800,7 @@ type AsyncRingState = "running" | "completed" | "failed" | "stopped" | "timeout"
 /**
  * ⭐ 只有「仍在轮询」才转：终态之后环继续转，等于宣称任务还在推进。
  *
- * <p>不等同于 `taskStatus`：刚提交时状态已是 `queued` 但首查还没发出，此时环也该转——
+ * <p>不等同于 `taskStatus`：刚提交时状态已是 PENDING(0) 但首查还没发出，此时环也该转——
  * 它表达的是「本次调试正在观察」。</p>
  */
 const asyncRingSpinning = computed(() => asyncPolling.value && !asyncLocalTimeout.value);
@@ -810,10 +809,10 @@ const asyncRingState = computed<AsyncRingState>(() => {
   if (asyncRingSpinning.value) {
     return "running";
   }
-  if (taskStatus.value === "completed") {
+  if (taskStatus.value === AsyncTaskStatus.SUCCEEDED) {
     return "completed";
   }
-  if (taskStatus.value === "failed") {
+  if (taskStatus.value !== null && isAsyncTaskTerminal(taskStatus.value)) {
     return "failed";
   }
   return asyncLocalTimeout.value ? "timeout" : "stopped";
@@ -857,7 +856,9 @@ const asyncHandleMissing = computed(() => {
 });
 
 /** 终态成功但响应里没有结算账：三态降级中的第一种，文案与「校验请求失败」严格区分 */
-const asyncEvidenceMissing = computed(() => taskStatus.value === "completed" && !knotExtend.value);
+const asyncEvidenceMissing = computed(
+  () => taskStatus.value === AsyncTaskStatus.SUCCEEDED && !knotExtend.value
+);
 
 const asyncCurlPreview = computed(() => {
   if (!asyncQueryUrl.value) {
@@ -892,14 +893,14 @@ function onAsyncTerminal(payload: AsyncTaskTerminalPayload): void {
   };
   testResult.value = {
     ...base,
-    status: payload.status === "failed" ? RoutingTestStatus.FAILED : RoutingTestStatus.SUCCESS,
+    status: payload.status === AsyncTaskStatus.SUCCEEDED ? RoutingTestStatus.SUCCESS : RoutingTestStatus.FAILED,
     // 轮询响应的状态码恒为 200（查询本身成功），任务成败由 status 字段表达
     httpStatus: 200,
-    errorMessage: payload.status === "failed" ? asyncFailureMessage(payload.body) : "",
+    errorMessage: payload.status === AsyncTaskStatus.SUCCEEDED ? "" : asyncFailureMessage(payload.body),
     responseBody: serializeBody(payload.body)
   };
-  // failed 不发起校验：本就不计费，硬跑只会得到一条「无被告」的噪音
-  if (payload.status !== "completed" || !testBillingVerify.value) {
+  // 非成功不发起校验：本就不计费，硬跑只会得到一条「无被告」的噪音
+  if (payload.status !== AsyncTaskStatus.SUCCEEDED || !testBillingVerify.value) {
     return;
   }
   void triggerBillingVerdict(asyncRequestBody.value, false, {

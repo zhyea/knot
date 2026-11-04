@@ -38,7 +38,19 @@ public class KafkaProperties {
     private boolean enabled = false;
 
     /**
-     * Kafka 集群地址；开启时必须配置。
+     * 本地测试开关（mock）：{@code true} 时事件<b>不投递 broker</b>，只把序列化后的消息原样
+     * 打到 INFO 日志（前缀 {@code [kafka-mock]}），用于没有本地 Kafka 的环境核对埋点内容。
+     *
+     * <p>开启后不装配生产者与死信写入器：既不需要 {@code bootstrap-servers}，也不会产生
+     * 连接重试与死信文件。<b>只在 {@link #enabled} 为 {@code true} 时有意义</b>——
+     * {@code enabled} 仍是通道总开关，mock 只是它的输出目标。</p>
+     *
+     * <p>⚠ 生产必须保持 {@code false}：mock 模式下事件只进日志，不进数仓。</p>
+     */
+    private boolean mock = false;
+
+    /**
+     * Kafka 集群地址；开启且非 mock 时必须配置。
      */
     private String bootstrapServers = "";
 

@@ -58,7 +58,7 @@
 
       <div class="preview__phase">
         <el-tag v-if="result.phase" :type="result.phase === 'PEAK' ? 'warning' : 'success'" size="small">
-          {{ PEAK_PHASE_LABELS[result.phase] || result.phase }} × {{ result.multiplier }}
+          {{ enumLabelOf("PricingPhase", result.phase, result.phase) }} × {{ result.multiplier }}
         </el-tag>
         <el-tag v-else type="info" size="small">{{ planLabel(result.pricingPlan) }} 不随时间变化</el-tag>
         <span class="preview__hint">{{ reasonText }}</span>
@@ -83,7 +83,7 @@ import {ElMessage} from "element-plus";
 import type {Dict, Row} from "@/types";
 import {previewBillingRule} from "@/api/billing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
-import {PEAK_PHASE_LABELS, PEAK_REASONS} from "@/utils/billingPeakOffPeak";
+import {PEAK_REASONS} from "@/utils/billingPeakOffPeak";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},

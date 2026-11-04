@@ -116,6 +116,7 @@ import ModerationWordFormDialog from "../../components/moderation/ModerationWord
 import ModerationWordImportDialog from "../../components/moderation/ModerationWordImportDialog.vue";
 import {useListQuery} from "@/composables/useListQuery";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
+import {labelOf} from "@/composables/useEnumOptions";
 import {
   deleteModerationWord,
   exportModerationWords,
@@ -167,10 +168,9 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateModerationWordStatus
 });
 
-const severityLabels: Record<number, string> = {1: "低", 2: "中", 3: "高"};
 
 function severityLabel(severity: number): string {
-  return severityLabels[severity] || "中";
+  return labelOf("ModerationSeverityEnum", severity, "中");
 }
 
 function severityTagType(severity: number): "info" | "warning" | "danger" {

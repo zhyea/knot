@@ -157,7 +157,7 @@ describe("isAbortError", () => {
 describe("parseAsyncTaskAccepted（202 回执识别）", () => {
   const ACCEPTED = {
     task_id: "tc-abc123",
-    status: "queued",
+    status: 0,
     query_url: "/openai/v1/tasks/tc-abc123"
   };
 

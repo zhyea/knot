@@ -1,3 +1,5 @@
+import {useEnumOptions} from "@/composables/useEnumOptions";
+
 /**
  * 单价（unitPrice）精度口径：全站唯一出口。
  *
@@ -21,18 +23,10 @@ export const UNIT_PRICE_STEP = 0.01;
  * <p>否则用户会按「每秒」的直觉去填「每百万 Token」的单价，
  * 而视频模式里这两者是<b>同一条规则的两个可选量纲</b>（豆包 Seedance 按 token 计价）。</p>
  */
-const UNIT_LABELS: Record<string, string> = {
-  PER_SECOND: "每秒单价",
-  PER_IMAGE: "每张单价",
-  PER_REQUEST: "每次单价",
-  PER_TOKEN: "每 Token 单价",
-  "1K_TOKENS": "每千 Token 单价",
-  "1M_TOKENS": "每百万 Token 单价"
-};
 
 /** 单位 -> 量纲文案；未知单位按 fallback（视频按秒是默认量纲） */
 export function unitLabelOf(unit?: string | null, fallback = "每秒单价"): string {
-  return UNIT_LABELS[String(unit || "")] || fallback;
+  return useEnumOptions().labelOf("BillingUnitEnum", unit, fallback);
 }
 
 /**

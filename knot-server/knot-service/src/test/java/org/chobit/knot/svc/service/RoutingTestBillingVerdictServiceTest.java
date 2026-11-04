@@ -1,5 +1,6 @@
 package org.chobit.knot.svc.service;
 
+import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.chobit.knot.svc.dto.routing.BillingFact;
 import org.chobit.knot.svc.dto.routing.BillingFactAmount;
 import org.chobit.knot.svc.dto.routing.BillingFactAssemblyInput;
@@ -270,7 +271,7 @@ class RoutingTestBillingVerdictServiceTest {
         RoutingBillingVerdictRequest req = new RoutingBillingVerdictRequest(
                 "kling-v3", "kling-v3-turbo", "VIDEO_GENERATIONS", false,
                 Map.of("usage", Map.of(), "billing", Map.of("totalCost", "0.5", "currency", "USD")),
-                Map.of(), Map.of(), "sess-1", upstreamBody, "completed");
+                Map.of(), Map.of(), "sess-1", upstreamBody, AsyncTaskStatusEnum.SUCCEEDED.code());
         models.put("kling-v3", model(20L, "BR-V", "FAM-V", "KLING"));
         bindings.put(20L, List.of());
         assembler.result = factWith(normalized("0.5", "USD", 0L));
@@ -280,8 +281,8 @@ class RoutingTestBillingVerdictServiceTest {
 
         assertEquals(upstreamBody, assembler.captured.upstreamRawBody(),
                 "上游原文必须原样进影子链，不能只丢一段 usage");
-        assertEquals("completed", assembler.captured.taskStatus(),
-                "终态词是「成功必有账」那条自检的唯一依据");
+        assertEquals(AsyncTaskStatusEnum.SUCCEEDED.code(), assembler.captured.taskStatus(),
+                "状态码是「成功必有账」那条自检的唯一依据");
     }
 
     @Test

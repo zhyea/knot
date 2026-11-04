@@ -39,7 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *   <li><b>鉴权不能只看 header 前缀</b>——必须走与主链路同一份的 {@code RoutingResolver#requireRuleAccess}；</li>
  *   <li><b>句柄不外泄</b>——不存在与越权都返回空 {@code Mono}（controller 统一翻 404），
  *       任何「403 或不同文案」的区分都等于确认句柄存在；</li>
- *   <li><b>对外状态不是落库码</b>——库里 0~5，客户端看到 queued/processing/completed/failed。</li>
+ *   <li><b>对外状态就是落库码</b>——库里 0~5，客户端原样拿到，展示文案由前端按码查。</li>
  * </ol>
  */
 class AsyncTaskLookupRunnerTest {
@@ -130,23 +130,23 @@ class AsyncTaskLookupRunnerTest {
     }
 
     @Test
-    @DisplayName("在途任务：对外状态 queued / processing")
+    @DisplayName("在途任务：对外状态原样是落库码 0 / 1，不做词表改名")
     void inFlightStatusMapping() {
         taskService.put("tc-1", task(AsyncTaskStatusEnum.PENDING, "rule-1", null, null));
-        assertEquals("queued", statusOf("tc-1"));
+        assertEquals(AsyncTaskStatusEnum.PENDING.code(), statusOf("tc-1"));
 
         taskService.put("tc-2", task(AsyncTaskStatusEnum.POLLING, "rule-1", null, null));
-        assertEquals("processing", statusOf("tc-2"));
+        assertEquals(AsyncTaskStatusEnum.POLLING.code(), statusOf("tc-2"));
     }
 
     @Test
-    @DisplayName("终态：completed 带产物对象（不是 JSON 字符串），failed 带错误码")
+    @DisplayName("终态：SUCCEEDED(2) 带产物对象（不是 JSON 字符串），FAILED(3) 带错误码")
     void terminalStatusMapping() {
         taskService.put("tc-1", task(AsyncTaskStatusEnum.SUCCEEDED, "rule-1",
                 "{\"result_url\":\"https://x/a.mp4\"}", null));
         AsyncTaskQueryResponse done = runner.lookup("Bearer sk-abc", "rule-1", "tc-1", null).block();
 
-        assertEquals("completed", done.status());
+        assertEquals(AsyncTaskStatusEnum.SUCCEEDED.code(), done.status());
         // 产物必须是对象：塞原文会让客户端再解一次字符串
         assertEquals(Map.of("result_url", "https://x/a.mp4"), done.result());
         assertNull(done.error());
@@ -155,7 +155,7 @@ class AsyncTaskLookupRunnerTest {
                 "UPSTREAM_TASK_FAILED", "prompt rejected"));
         AsyncTaskQueryResponse failed = runner.lookup("Bearer sk-abc", "rule-1", "tc-2", null).block();
 
-        assertEquals("failed", failed.status());
+        assertEquals(AsyncTaskStatusEnum.FAILED.code(), failed.status());
         assertEquals(new AsyncTaskFailureResponse("UPSTREAM_TASK_FAILED", "prompt rejected"), failed.error());
         assertNull(failed.result());
     }
@@ -167,7 +167,7 @@ class AsyncTaskLookupRunnerTest {
         assertTrue(runner.lookup("Bearer sk-abc", " rule-1 ", "tc-1", null).blockOptional().isPresent());
     }
 
-    private String statusOf(String taskCode) {
+    private Integer statusOf(String taskCode) {
         return runner.lookup("Bearer sk-abc", "rule-1", taskCode, null).block().status();
     }
 

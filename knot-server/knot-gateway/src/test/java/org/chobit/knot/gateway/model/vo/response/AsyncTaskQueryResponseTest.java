@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.chobit.knot.adapter.model.usage.NormalizedUsage;
 import org.chobit.knot.adapter.usage.KnotExtendPayload;
+import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -51,7 +52,7 @@ class AsyncTaskQueryResponseTest {
     @Test
     @DisplayName("全字段：恰好七个键，蛇形与原名都对得上")
     void wireFormatIsPinned() {
-        AsyncTaskQueryResponse body = new AsyncTaskQueryResponse("tc-1", "completed",
+        AsyncTaskQueryResponse body = new AsyncTaskQueryResponse("tc-1", AsyncTaskStatusEnum.SUCCEEDED.code(),
                 LocalDateTime.of(2026, 10, 29, 12, 0, 0),
                 LocalDateTime.of(2026, 10, 29, 12, 0, 5),
                 LocalDateTime.of(2026, 10, 30, 12, 0, 0),
@@ -66,7 +67,8 @@ class AsyncTaskQueryResponseTest {
                         "result_expires_at", "result", "error"), fieldNames(json),
                 "键名是客户端解析依据，多一个少一个都是破坏契约");
         assertEquals("tc-1", json.get("task_id").asText(), "task_id 是 knot 自己的句柄，不是上游 ID");
-        assertEquals("completed", json.get("status").asText());
+        assertEquals(AsyncTaskStatusEnum.SUCCEEDED.code(), json.get("status").asInt(),
+                "status 发的是落库码，不是对外词");
         assertEquals("2026-10-29T12:00:00", json.get("created_at").asText(),
                 "时间字段是 ISO 字符串（Spring 默认关 timestamps），不是数组/数字");
         // 产物是对象：塞原文会让客户端再解一次字符串
@@ -86,7 +88,7 @@ class AsyncTaskQueryResponseTest {
     @DisplayName("带测试头：多出 knot_extend / upstream_body 两键，形状分别是账目与上游原文")
     void evidenceKeysAppearOnlyWithTestHead() {
         NormalizedUsage billing = new NormalizedUsage(1500L, "0.004", "USD", "v1", List.of());
-        AsyncTaskQueryResponse body = new AsyncTaskQueryResponse("tc-1", "completed",
+        AsyncTaskQueryResponse body = new AsyncTaskQueryResponse("tc-1", AsyncTaskStatusEnum.SUCCEEDED.code(),
                 LocalDateTime.of(2026, 10, 29, 12, 0, 0),
                 LocalDateTime.of(2026, 10, 29, 12, 0, 5),
                 LocalDateTime.of(2026, 10, 30, 12, 0, 0),
@@ -107,7 +109,7 @@ class AsyncTaskQueryResponseTest {
     @Test
     @DisplayName("在途任务：result / error 缺键，但 completed_at 保留为 null")
     void nullFieldsAreOmitted() {
-        JsonNode json = toWire(new AsyncTaskQueryResponse("tc-1", "processing",
+        JsonNode json = toWire(new AsyncTaskQueryResponse("tc-1", AsyncTaskStatusEnum.POLLING.code(),
                 LocalDateTime.of(2026, 10, 29, 12, 0, 0), null, null, null, null, null, null));
 
         assertFalse(json.has("result"), "在途不该出现 result：null 会被客户端当结果读");
@@ -123,7 +125,7 @@ class AsyncTaskQueryResponseTest {
     @Test
     @DisplayName("驼峰名一个都不许漏出去（注解被删的信号）")
     void camelCaseFieldsAreAbsent() {
-        JsonNode json = toWire(new AsyncTaskQueryResponse("tc-1", "queued", null, null, null,
+        JsonNode json = toWire(new AsyncTaskQueryResponse("tc-1", AsyncTaskStatusEnum.PENDING.code(), null, null, null,
                 null, null, new KnotExtendPayload(null, null), Map.of("k", "v")));
 
         for (String camel : Set.of("taskCode", "createdAt", "completedAt", "resultExpiresAt",

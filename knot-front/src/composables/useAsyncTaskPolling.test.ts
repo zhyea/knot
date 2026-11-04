@@ -1,5 +1,6 @@
 import {describe, it, expect, vi, beforeEach, afterEach} from "vitest";
 import {useAsyncTaskPolling, type AsyncTaskPollingContext} from "@/composables/useAsyncTaskPolling";
+import {AsyncTaskStatus} from "@/constants/status";
 import type {Dict} from "@/types";
 
 /**
@@ -17,12 +18,12 @@ import type {Dict} from "@/types";
 
 function makeCtx(overrides: Partial<AsyncTaskPollingContext> = {}) {
   const calls: Array<{url: string; headers: Record<string, string>}> = [];
-  const terminals: Array<{status: string; body: Dict}> = [];
+  const terminals: Array<{status: number; body: Dict}> = [];
   const ctx: AsyncTaskPollingContext = {
     buildHeaders: () => ({"X-Knot-Test-Return-Usage": "true"}),
     queryTask: async (url, headers) => {
       calls.push({url, headers});
-      return {status: 200, data: {status: "processing"}};
+      return {status: 200, data: {status: AsyncTaskStatus.POLLING}};
     },
     onTerminal: (payload) => terminals.push({status: payload.status, body: payload.body}),
     ...overrides
@@ -43,9 +44,9 @@ describe("useAsyncTaskPolling 节拍与终态", () => {
 
   it("首查 1.5s，拿到非终态后按 3s 起 ×1.5 退避，终态后停止", async () => {
     const responses = [
-      {status: 200, data: {status: "processing"}},
-      {status: 200, data: {status: "processing"}},
-      {status: 200, data: {status: "completed", result: {result_url: "https://x/a.mp4"}}}
+      {status: 200, data: {status: AsyncTaskStatus.POLLING}},
+      {status: 200, data: {status: AsyncTaskStatus.POLLING}},
+      {status: 200, data: {status: AsyncTaskStatus.SUCCEEDED, result: {result_url: "https://x/a.mp4"}}}
     ];
     let index = 0;
     const {ctx, calls, terminals} = makeCtx({
@@ -57,7 +58,7 @@ describe("useAsyncTaskPolling 节拍与终态", () => {
     const p = useAsyncTaskPolling(ctx);
 
     p.start(HANDLE);
-    expect(p.taskStatus.value).toBe("queued");
+    expect(p.taskStatus.value).toBe(AsyncTaskStatus.PENDING);
     expect(p.polling.value).toBe(true);
 
     // 首查：1.5s
@@ -67,7 +68,7 @@ describe("useAsyncTaskPolling 节拍与终态", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(calls).toHaveLength(1);
     expect(p.pollCount.value).toBe(1);
-    expect(p.taskStatus.value).toBe("processing");
+    expect(p.taskStatus.value).toBe(AsyncTaskStatus.POLLING);
 
     // 第二次：3s（3s × 1.5^0）
     await vi.advanceTimersByTimeAsync(2_999);
@@ -79,12 +80,12 @@ describe("useAsyncTaskPolling 节拍与终态", () => {
     await vi.advanceTimersByTimeAsync(4_500);
     expect(calls).toHaveLength(3);
 
-    expect(p.taskStatus.value).toBe("completed");
+    expect(p.taskStatus.value).toBe(AsyncTaskStatus.SUCCEEDED);
     expect(p.polling.value).toBe(false);
     expect(p.result.value).toEqual({result_url: "https://x/a.mp4"});
     expect(terminals).toEqual([{
-      status: "completed",
-      body: {status: "completed", result: {result_url: "https://x/a.mp4"}}
+      status: AsyncTaskStatus.SUCCEEDED,
+      body: {status: AsyncTaskStatus.SUCCEEDED, result: {result_url: "https://x/a.mp4"}}
     }]);
 
     // 终态之后一拍都不许再发
@@ -106,7 +107,7 @@ describe("useAsyncTaskPolling 节拍与终态", () => {
     const {ctx, terminals} = makeCtx({
       queryTask: async () => ({
         status: 200,
-        data: {status: "failed", error: {code: "UPSTREAM_TASK_FAILED", message: "prompt rejected"}}
+        data: {status: AsyncTaskStatus.FAILED, error: {code: "UPSTREAM_TASK_FAILED", message: "prompt rejected"}}
       })
     });
     const p = useAsyncTaskPolling(ctx);
@@ -114,10 +115,28 @@ describe("useAsyncTaskPolling 节拍与终态", () => {
     p.start(HANDLE);
     await vi.advanceTimersByTimeAsync(1_500);
 
-    expect(p.taskStatus.value).toBe("failed");
+    expect(p.taskStatus.value).toBe(AsyncTaskStatus.FAILED);
     expect(p.error.value).toEqual({code: "UPSTREAM_TASK_FAILED", message: "prompt rejected"});
     expect(p.result.value).toBeNull();
-    expect(terminals[0].status).toBe("failed");
+    expect(terminals[0].status).toBe(AsyncTaskStatus.FAILED);
+  });
+
+  it("⭐ 超时 / 取消同样是终态：停止轮询并按失败呈现", async () => {
+    for (const code of [AsyncTaskStatus.EXPIRED, AsyncTaskStatus.CANCELLED]) {
+      const {ctx, terminals} = makeCtx({
+        queryTask: async () => ({status: 200, data: {status: code, error: {code: "T", message: "终态"}}})
+      });
+      const p = useAsyncTaskPolling(ctx);
+
+      p.start(HANDLE);
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      expect(p.taskStatus.value).toBe(code);
+      expect(p.polling.value).toBe(false);
+      // 只有 SUCCEEDED 才写 result；超时/取消没有产物
+      expect(p.result.value).toBeNull();
+      expect(terminals[0].status).toBe(code);
+    }
   });
 
   it("时间线逐条累积：每条带状态与已用时", async () => {
@@ -129,7 +148,7 @@ describe("useAsyncTaskPolling 节拍与终态", () => {
     await vi.advanceTimersByTimeAsync(3_000);
 
     expect(p.timeline.value).toHaveLength(2);
-    expect(p.timeline.value[0].status).toBe("processing");
+    expect(p.timeline.value[0].status).toBe(AsyncTaskStatus.POLLING);
     expect(p.timeline.value[0].elapsedMs).toBeGreaterThanOrEqual(1_500);
     expect(p.timeline.value[1].elapsedMs).toBeGreaterThan(p.timeline.value[0].elapsedMs);
   });
@@ -178,10 +197,10 @@ describe("useAsyncTaskPolling 停止与丢弃", () => {
     p.disposeAsyncPolling();
 
     // 晚到的终态响应必须被丢掉
-    resolveFirst!({status: 200, data: {status: "completed", result: {result_url: "https://x/a.mp4"}}});
+    resolveFirst!({status: 200, data: {status: AsyncTaskStatus.SUCCEEDED, result: {result_url: "https://x/a.mp4"}}});
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(p.taskStatus.value).toBe("queued");
+    expect(p.taskStatus.value).toBe(AsyncTaskStatus.PENDING);
     expect(p.result.value).toBeNull();
     expect(terminals).toHaveLength(0);
   });
@@ -279,7 +298,7 @@ describe("useAsyncTaskPolling 错误分类", () => {
           failed = true;
           throw {response: {status: 502, data: {message: "bad gateway"}}};
         }
-        return {status: 200, data: {status: "processing"}};
+        return {status: 200, data: {status: AsyncTaskStatus.POLLING}};
       }
     });
     const p = useAsyncTaskPolling(ctx);

@@ -11,12 +11,16 @@ import {EMPTY_PLACEHOLDER} from "@/utils/format";
  * 退化成字符串 "1"，与字符串 code 无法区分（`{code: 0}` 会变成 `{"0": "禁用"}`）。
  *
  * 仅包含已从 DB 迁移到后端的枚举，当前有：
- *  - ModelTypeEnum        13 项模型类型（code -> 中文名）
+ *  - ModelTypeEnum        14 项模型类型（code -> 中文名）
  *  - ModelApiProtocolEnum 接口协议（code -> 协议名）
  *  - BillingModeEnum      计费模式（8 项，code -> 中文名）
+ *  - BillingUnitEnum      计费单位（code -> 「每千 Token 单价」等带单价后缀的文案）
  *  - PricingPlanEnum      进阶定价方案（FIXED/TIERED/PEAK_OFF_PEAK；可用性由 mode-capabilities 约束）
  *  - EnabledStatusEnum    二态可用状态（**数字 code**：1 启用 / 0 禁用）
  *  - RouteTargetTypeEnum  路由目标类型（模型/模型池）
+ *  - PricingPhase         高低峰相位（峰谷价方案共用：PEAK/OFF_PEAK -> 高峰/低峰）
+ *  - BillingCheckCode     计费自检八项（code -> 项名，不再前端自建第二份）
+ *  - ModerationSeverityEnum 敏感词严重度（**数字 code**：1 低 / 2 中 / 3 高）
  * 其余枚举分类仍在 ks_enum_configs，走 useEnums（/api/system/enums），两套来源不要混用。
  *
  * 用法：
@@ -79,6 +83,25 @@ function invalidateEnums() {
   enumMap.value = {};
 }
 
+/**
+ * code -> label（模块级导出：组件可直接 `import {labelOf}`，无需先调用 hook）
+ *
+ * 严格比较：数字 `0` 只命中数字 code 0，不命中字符串 "0"。
+ * @param enumName 枚举键
+ * @param code
+ * @param [fallback] 未命中时的兜底文案，缺省回显 code
+ */
+export function labelOf(enumName: string, code: unknown, fallback?: string): string {
+  if (code === null || code === undefined || code === "") {
+    return fallback ?? EMPTY_PLACEHOLDER;
+  }
+  const hit = toOptions(enumMap.value[enumName]).find((item) => item.value === code);
+  if (hit) {
+    return hit.label;
+  }
+  return fallback || String(code);
+}
+
 export function useEnumOptions() {
   // 共享缓存：任一组件首次使用时加载一次即可，后续调用直接命中缓存
   loadEnums();
@@ -95,25 +118,6 @@ export function useEnumOptions() {
     }
     const set = new Set<unknown>(includeCodes);
     return list.filter((item) => set.has(item.value));
-  }
-
-  /**
-   * code -> label
-   *
-   * 严格比较：数字 `0` 只命中数字 code 0，不命中字符串 "0"。
-   * @param enumName 枚举键
-   * @param code
-   * @param [fallback] 未命中时的兜底文案，缺省回显 code
-   */
-  function labelOf(enumName: string, code: unknown, fallback?: string): string {
-    if (code === null || code === undefined || code === "") {
-      return fallback ?? EMPTY_PLACEHOLDER;
-    }
-    const hit = toOptions(enumMap.value[enumName]).find((item) => item.value === code);
-    if (hit) {
-      return hit.label;
-    }
-    return fallback || String(code);
   }
 
   /** 是否已加载过 */

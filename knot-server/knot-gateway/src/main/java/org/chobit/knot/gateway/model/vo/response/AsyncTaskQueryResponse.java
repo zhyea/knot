@@ -34,9 +34,10 @@ import java.util.Map;
  * 「record 化不改契约」当定律。</p>
  *
  * @param taskCode       knot 自己的任务句柄，对外字段名 {@code task_id}；⚠ 不是上游任务 ID
- * @param status         对外状态，取值见 {@code AsyncTaskLookupRunner#displayStatus}
- *                       （{@code queued/processing/completed/failed/unknown}），
- *                       <b>不是</b>库里的 0~5 状态码
+ * @param status         {@code kb_async_tasks.status} 的原值，即
+ *                       {@link org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum} 的码
+ *                       （0 待处理 / 1 轮询中 / 2 成功 / 3 失败 / 4 已超时 / 5 已取消）；
+ *                       ⚠ 与 {@code /api/enum-options} 同源，label 由调用方按码查，不在这里翻译成词
  * @param createdAt      提交时刻，对外字段名 {@code created_at}
  * @param completedAt    终态时刻，在途为 null，对外字段名 {@code completed_at}
  * @param resultExpiresAt 产物保留截止时刻，对外字段名 {@code result_expires_at}
@@ -44,7 +45,7 @@ import java.util.Map;
  * @param error          失败信息，非失败为 null
  */
 public record AsyncTaskQueryResponse(@JsonProperty("task_id") String taskCode,
-                                     String status,
+                                     Integer status,
                                      @JsonProperty("created_at") LocalDateTime createdAt,
                                      @JsonProperty("completed_at") LocalDateTime completedAt,
                                      @JsonProperty("result_expires_at") LocalDateTime resultExpiresAt,

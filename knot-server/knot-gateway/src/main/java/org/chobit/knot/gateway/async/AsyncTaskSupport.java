@@ -234,7 +234,7 @@ public class AsyncTaskSupport {
         // 是为了让同步链路对事件格式零感知——它只负责「异步就回 202」。
         context.putAttribute(GatewayTrafficMsgDto.TaskTrace.ATTRIBUTE,
                 GatewayTrafficMsgDto.TaskTrace.submit(taskCode));
-        return AsyncTaskAcceptedResponse.queued(taskCode);
+        return AsyncTaskAcceptedResponse.accepted(taskCode);
     }
 
     /**

@@ -5,7 +5,8 @@
  * - 二态启用状态只有 1/0，0 是合法值——禁止 truthy 判断（`if (status)` / `status || 1`），
  *   一律用 `===` 与本文件常量比较。
  * - 多态状态（插件实例/发布状态等）按各自枚举的 code 顺序声明。
- * - 前端不再新建第二份枚举定义；本文件只做字面量收口，label 展示一律走 useEnumOptions。
+ * - 前端不再新建第二份枚举定义；本文件只做字面量收口与同一枚举的派生判断（如终态集合），
+ *   label 展示一律走 useEnumOptions。
  */
 
 /** 启用状态（EnabledStatusEnum） */
@@ -63,6 +64,24 @@ export const AsyncTaskStatus = {
   EXPIRED: 4,
   CANCELLED: 5
 } as const;
+
+/**
+ * 异步任务终态码（与后端 `AsyncTaskStatusEnum#terminal()` 同一口径：在途只有 PENDING / POLLING）。
+ *
+ * <p>⭐ 这是<b>判定</b>不是第二份枚举：曾有一层「对外词」把 FAILED / EXPIRED / CANCELLED 压成
+ * `failed`，按词判终态时一旦对外改成发码，超时与取消就会被当成在途一直轮询到本地上限。</p>
+ */
+export const ASYNC_TASK_TERMINAL_STATUSES: readonly number[] = [
+  AsyncTaskStatus.SUCCEEDED,
+  AsyncTaskStatus.FAILED,
+  AsyncTaskStatus.EXPIRED,
+  AsyncTaskStatus.CANCELLED
+];
+
+/** 是否终态；非数字（缺字段 / 脏数据）一律按「还没到终态」处理，与后端「不充 PASS」同向 */
+export function isAsyncTaskTerminal(status: unknown): status is number {
+  return typeof status === "number" && ASYNC_TASK_TERMINAL_STATUSES.includes(status);
+}
 
 /**
  * 回调交付状态（AsyncTaskDeliveryStatusEnum）：落库 code；label 走 enumLabelOf("AsyncTaskDeliveryStatusEnum", …)。

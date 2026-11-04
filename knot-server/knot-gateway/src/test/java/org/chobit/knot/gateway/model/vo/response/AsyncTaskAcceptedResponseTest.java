@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.model.vo.response;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.gateway.controller.GatewayTaskController;
 import org.junit.jupiter.api.DisplayName;
@@ -29,15 +30,16 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class AsyncTaskAcceptedResponseTest {
 
     @Test
-    @DisplayName("回执 wire format：恰好三个蛇形键，值由 queued() 一次定死")
+    @DisplayName("回执 wire format：恰好三个蛇形键，值由 accepted() 一次定死")
     void wireFormatIsPinned() {
-        JsonNode json = JsonKit.toTree(AsyncTaskAcceptedResponse.queued("abc123"));
+        JsonNode json = JsonKit.toTree(AsyncTaskAcceptedResponse.accepted("abc123"));
 
         assertNotNull(json);
         assertEquals(Set.of("task_id", "status", "query_url"), fieldNames(json),
                 "键名是客户端解析依据，多一个少一个都是破坏契约");
         assertEquals("abc123", json.get("task_id").asText(), "task_id 是 knot 自己的句柄，不是上游 ID");
-        assertEquals("queued", json.get("status").asText());
+        assertEquals(AsyncTaskStatusEnum.PENDING.code(), json.get("status").asInt(),
+                "status 是落库码不是文案：0 = 待处理");
         assertEquals("/openai/v1/tasks/abc123", json.get("query_url").asText());
     }
 

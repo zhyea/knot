@@ -43,12 +43,18 @@ mybatis:
 
 # ── Kafka 事件输出（网关流量事件，供数仓消费）────────────────────────────────
 # ⚠ 默认关闭：关闭时 gateway 不装配任何 Kafka 组件，行为与开启前逐字一致。
-# 开启后必须配 bootstrap-servers，否则启动失败（不允许出现“不知道往哪发”的静默管道）。
+# 开启后必须配 bootstrap-servers，否则启动失败（不允许出现“不知道往哪发”的静默管道）；
+# mock=true 是唯一例外：不连 broker、不需要地址，消息只进日志（见下方 mock 段）。
 # 生产者只写必需项（地址 + 序列化器 + 等待封顶），其余客户端参数一律走 Kafka 默认值。
 # 请求入口 + 处置结果合并为单条消息（knot.gateway.traffic/1.0），终态一次发出。
 kafka:
   enabled: ${KAFKA_ENABLED:false}
   bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
+  # 本地测试（mock）：true 时消息不投递 broker，只把序列化后的 JSON 打到 INFO 日志，
+  # 每行前缀 [kafka-mock]，带 topic / key（= trace_id）/ payload，便于 grep 与逐字比对。
+  # 依赖 enabled=true 才生效（enabled 是通道总开关，mock 只是输出目标）；
+  # mock 下不建生产者、不写死信文件，也不需要 bootstrap-servers。生产必须保持 false。
+  mock: ${KAFKA_MOCK:false}
   # 主题写全名（不拼前缀）：契约版本在消息的 schema 字段里演进，主题名保持稳定
   topic:
     traffic: ${KAFKA_TOPIC:knot-gateway-traffic-event}

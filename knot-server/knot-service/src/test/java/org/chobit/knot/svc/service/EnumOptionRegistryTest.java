@@ -40,7 +40,7 @@ class EnumOptionRegistryTest {
     void exposesOnlyMigratedEnums() {
         Map<String, List<EnumOptionItem>> map = registry.enumMap();
 
-        assertEquals(22, map.size());
+        assertEquals(25, map.size());
         assertTrue(map.containsKey("ModelTypeEnum"));
         assertTrue(map.containsKey("ModelApiProtocolEnum"));
         assertTrue(map.containsKey("BillingModeEnum"));
@@ -63,6 +63,10 @@ class EnumOptionRegistryTest {
         assertTrue(map.containsKey("RoutingTestStatusEnum"));
         assertTrue(map.containsKey("LogicalModelVisibilityEnum"));
         assertTrue(map.containsKey("LogicalModelPublishStatusEnum"));
+        // 本次收口：以下三个枚举此前由前端自建第二份词表，现已改为单一来源下发
+        assertTrue(map.containsKey("ModerationSeverityEnum"));
+        assertTrue(map.containsKey("PricingPhase"));
+        assertTrue(map.containsKey("BillingCheckCode"));
     }
 
     @Test
@@ -140,6 +144,31 @@ class EnumOptionRegistryTest {
 
         assertEquals(1, optionsOf("PluginTypeEnum").size());
         assertLabel("PluginTypeEnum", "SYNC", "同步插件");
+    }
+
+    @Test
+    void newlyRegisteredEnumsExposeLabels() {
+        // 这三个枚举此前由前端自建第二份词表，现已收口为单一来源（/api/enum-options）
+        assertEquals(3, optionsOf("ModerationSeverityEnum").size());
+        assertLabel("ModerationSeverityEnum", 1, "低");
+        assertLabel("ModerationSeverityEnum", 2, "中");
+        assertLabel("ModerationSeverityEnum", 3, "高");
+        // 严重度最小码是 1：数字 0 不应命中
+        assertNull(labelOf(optionsOf("ModerationSeverityEnum"), 0));
+
+        assertEquals(2, optionsOf("PricingPhase").size());
+        assertLabel("PricingPhase", "PEAK", "高峰");
+        assertLabel("PricingPhase", "OFF_PEAK", "低峰");
+
+        assertEquals(8, optionsOf("BillingCheckCode").size());
+        assertLabel("BillingCheckCode", "USAGE_NOT_EMPTY", "用量非空");
+        assertLabel("BillingCheckCode", "TOTAL_TOKENS_CONSISTENT", "总量一致");
+        assertLabel("BillingCheckCode", "COST_FORMULA_MATCH", "金额公式");
+        assertLabel("BillingCheckCode", "GATEWAY_RECOMPUTE_MATCH", "被告=重算");
+        assertLabel("BillingCheckCode", "RULE_MODE_MATCH", "模式匹配");
+        assertLabel("BillingCheckCode", "RULE_SOURCE_EXPECTED", "规则来源");
+        assertLabel("BillingCheckCode", "UPSTREAM_COST_DEVIATION", "上游偏离");
+        assertLabel("BillingCheckCode", "ASYNC_SETTLEMENT_CONSISTENCY", "异步结算一致");
     }
 
     @Test

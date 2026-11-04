@@ -22,7 +22,8 @@ import java.util.Map;
  * @param upstreamBody  上游<b>响应体原文</b>（异步任务取网关查询响应的 {@code upstream_body}）。
  *                      ⭐ 视频类提取器从响应取输出时长与产物数，<b>只给 {@code upstreamUsage}
  *                      不够</b>；为空时退回「把 upstreamUsage 包成 {usage}」的同步口径
- * @param taskStatus    异步任务终态词（{@code completed} / {@code failed} / 在途词）；同步链路为空
+ * @param taskStatus    异步任务<b>状态码</b>（{@code AsyncTaskStatusEnum} 的 0~5，取自网关查询响应）；
+ *                      同步链路为空。⚠ 是码不是文案：词表已随 {@code displayStatus} 一并删除
  */
 public record RoutingBillingVerdictRequest(String modelCode,
                                            String targetCode,
@@ -33,5 +34,5 @@ public record RoutingBillingVerdictRequest(String modelCode,
                                            Map<String, Object> requestBody,
                                            String sessionId,
                                            Map<String, Object> upstreamBody,
-                                           String taskStatus) {
+                                           Integer taskStatus) {
 }

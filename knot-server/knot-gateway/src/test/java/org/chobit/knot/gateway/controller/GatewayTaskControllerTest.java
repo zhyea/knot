@@ -38,7 +38,7 @@ class GatewayTaskControllerTest {
     @Test
     @DisplayName("命中：原样返回 200 + Runner 给出的响应体（不二次包装）")
     void returnsOkWithRunnerResult() {
-        AsyncTaskQueryResponse body = new AsyncTaskQueryResponse("tc-1", "queued",
+        AsyncTaskQueryResponse body = new AsyncTaskQueryResponse("tc-1", 0,
                 null, null, null, null, null, null, null);
         runner.result = Mono.just(body);
 

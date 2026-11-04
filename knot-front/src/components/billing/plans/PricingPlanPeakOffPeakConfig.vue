@@ -285,10 +285,10 @@
         />
         <el-tag v-if="decision" :type="decision.phase === 'PEAK' ? 'warning' : 'success'" size="small">
           <template v-if="isAbsolute && decision.unitPrices">
-            {{ PEAK_PHASE_LABELS[decision.phase] }} · {{ absolutePreview(decision.unitPrices) }}
+            {{ labelOf("PricingPhase", decision.phase, decision.phase) }} · {{ absolutePreview(decision.unitPrices) }}
           </template>
           <template v-else>
-            {{ PEAK_PHASE_LABELS[decision.phase] }} × {{ decision.multiplier }}
+            {{ labelOf("PricingPhase", decision.phase, decision.phase) }} × {{ decision.multiplier }}
           </template>
         </el-tag>
         <span v-if="decision" class="peak-editor__tip">{{ PEAK_REASONS[decision.reason] }}</span>
@@ -307,9 +307,9 @@
 import {computed, ref, watch} from "vue";
 import type {Dict} from "@/types";
 import {BillingMode} from "@/constants/status";
+import {labelOf} from "@/composables/useEnumOptions";
 import {
   PEAK_MIDNIGHT_END,
-  PEAK_PHASE_LABELS,
   PEAK_REASONS,
   PEAK_TIMEZONE_OPTIONS,
   PEAK_UNIT_PRICE_FIELDS,

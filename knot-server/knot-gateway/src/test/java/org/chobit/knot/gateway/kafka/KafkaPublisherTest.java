@@ -1,5 +1,8 @@
 package org.chobit.knot.gateway.kafka;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.apache.kafka.common.PartitionInfo;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
@@ -10,6 +13,7 @@ import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.LoggerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.SendResult;
@@ -160,6 +164,39 @@ class KafkaPublisherTest {
         assertNotNull(sampleSuccess().nodeId());
         assertTrue(!sampleSuccess().nodeId().isBlank(),
                 "Msg.nodeId 按主机名自动探测，无配置项");
+    }
+
+    @Test
+    void logOnlyPublishesToLogInsteadOfBroker() {
+        Logger logger = (Logger) LoggerFactory.getLogger(KafkaPublisher.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        GatewayTrafficMsgDto message = sampleSuccess();
+        KafkaPublisher publisher = KafkaPublisher.logOnly();
+        try {
+            publisher.publish(TOPIC, message);
+        } finally {
+            logger.detachAppender(appender);
+        }
+
+        assertEquals(1, publisher.sent(), "日志模式也算已投递：埋点侧统计口径不变");
+        assertEquals(0, publisher.dropped());
+        String line = appender.list.stream()
+                .map(ILoggingEvent::getFormattedMessage)
+                .filter(m -> m.contains("[kafka-mock]"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("mock 模式下必须输出 [kafka-mock] 日志"));
+        assertTrue(line.contains(TOPIC), "日志要带 topic");
+        assertTrue(line.contains(message.traceId()), "key 取 traceId，日志里要能对上");
+        assertTrue(line.contains("knot.gateway.traffic/1.1"),
+                "日志必须是完整 payload（不是摘要），否则本地核对不了埋点内容");
+    }
+
+    @Test
+    void logOnlyWarmUpDoesNotTouchProducer() {
+        // 日志模式没有生产者，预热必须早退（否则 NPE 会打断启动）
+        KafkaPublisher.logOnly().warmUp(TOPIC);
     }
 
     private static GatewayRequestContext context() {

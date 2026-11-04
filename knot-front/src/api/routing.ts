@@ -262,8 +262,8 @@ export interface RoutingBillingVerdictRequestPayload {
    * 那一段 usage 算不出分档。同步链路不必传（后端会退回 {@code {usage}} 口径）。</p>
    */
   upstreamBody?: Dict | null;
-  /** 异步任务终态词（{@code completed} / {@code failed} / 在途词）；同步链路为空 */
-  taskStatus?: string | null;
+  /** 异步任务的<b>状态码</b>（`AsyncTaskStatusEnum` 的 0~5，与网关查询响应同一套）；同步链路为空 */
+  taskStatus?: number | null;
 }
 
 /**

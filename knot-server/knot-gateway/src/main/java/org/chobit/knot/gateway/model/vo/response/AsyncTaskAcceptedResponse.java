@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.model.vo.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 
 /**
  * 异步任务提交被接受时的<b>响应体</b>（配 HTTP 202），也是「这是提交回执，不是结果」的控制信号。
@@ -23,13 +24,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  *
  * @param taskCode knot 生成的任务句柄（32 位 hex），对外字段名 {@code task_id}；
  *                 ⚠ 不是上游任务 ID，上游 ID 不外泄
- * @param status   对外状态，提交成功这里恒为 {@link #STATUS_QUEUED}
+ * @param status   任务状态码，提交成功这里恒为 {@link AsyncTaskStatusEnum#PENDING}（0）；
+ *                 ⚠ 是码不是文案，与轮询响应的 {@code status} 同一套
  * @param queryUrl 轮询地址，由 {@link #TASKS_PATH} 拼出，与 {@code GatewayTaskController} 同源；
  *                 ⚠ 客户端须用 <b>POST</b> 打这个地址（无请求体，句柄在路径上），GET 会 405
  *                 —— 见 {@code 10-backend-java.md §5.2}
  */
 public record AsyncTaskAcceptedResponse(@JsonProperty("task_id") String taskCode,
-                                       String status,
+                                       Integer status,
                                        @JsonProperty("query_url") String queryUrl) {
 
     /**
@@ -41,11 +43,9 @@ public record AsyncTaskAcceptedResponse(@JsonProperty("task_id") String taskCode
      */
     public static final String TASKS_PATH = "/openai/v1/tasks";
 
-    /** 对外状态：已入队、尚未查询过（对应库里的 {@code PENDING}） */
-    public static final String STATUS_QUEUED = "queued";
-
     /** 提交成功回执：三字段的取值关系固定，调用方不需要（也不应该）自己拼 */
-    public static AsyncTaskAcceptedResponse queued(String taskCode) {
-        return new AsyncTaskAcceptedResponse(taskCode, STATUS_QUEUED, TASKS_PATH + "/" + taskCode);
+    public static AsyncTaskAcceptedResponse accepted(String taskCode) {
+        return new AsyncTaskAcceptedResponse(taskCode, AsyncTaskStatusEnum.PENDING.code(),
+                TASKS_PATH + "/" + taskCode);
     }
 }

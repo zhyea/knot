@@ -7,10 +7,11 @@ package org.chobit.knot.svc.dto.routing;
  * @param protocol    接口协议
  * @param stream      是否流式
  * @param ruleSource  计费规则命中层级（与 {@link BillingFactRuleRef#matchedBy()} 同值，便于自检区直接读取）
- * @param taskStatus  异步任务的终态词（{@code completed} / {@code failed} / 在途词）；同步链路为
- *                    {@code null}。⭐ 用<b>对外词</b>而不是库里的 0~5 码：拿到它的地方是网关查询响应，
- *                    再造一份码表就是把 {@code AsyncTaskViewSupport.displayStatus} 抄第二遍
+ * @param taskStatus  异步任务的<b>状态码</b>（{@code AsyncTaskStatusEnum} 的 0~5，与网关查询响应同一套）；
+ *                    同步链路为 {@code null}。⭐ 用码而不是「对外词」：词表曾被单独维护一份
+ *                    （gateway 的投影里做映射），一份词散在多端、改一处漏一处；码只有一个来源，
+ *                    label 展示由前端按码查 `AsyncTaskStatusEnum`
  */
 public record BillingFactSubject(String modelCode, String protocol, boolean stream,
-                                 BillingRuleSource ruleSource, String taskStatus) {
+                                 BillingRuleSource ruleSource, Integer taskStatus) {
 }

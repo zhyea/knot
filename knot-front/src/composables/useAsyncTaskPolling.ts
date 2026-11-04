@@ -1,6 +1,7 @@
 import {computed, ref} from "vue";
 import type {Dict} from "@/types";
 import type {AsyncTaskAcceptedHandle} from "@/utils/routingTestPayload";
+import {AsyncTaskStatus, isAsyncTaskTerminal} from "@/constants/status";
 
 /** 首查延迟：刚提交的任务几乎不可能已经完成，立刻查一次只是白跑一趟上游 */
 const FIRST_DELAY_MS = 1_500;
@@ -15,16 +16,12 @@ const LOCAL_TIMEOUT_MS = 600_000;
 /** 「已用时」刷新间隔 */
 const ELAPSED_INTERVAL_MS = 1_000;
 
-/** 对外状态词（与网关 `AsyncTaskViewSupport` 同词表，不建码表） */
-const STATUS_COMPLETED = "completed";
-const STATUS_FAILED = "failed";
-
 /** 一次查询在时间线上的一格 */
 export interface AsyncTaskTimelineItem {
   /** 本次查询的时刻（毫秒时间戳） */
   at: number;
-  /** 本次拿到的对外状态词 */
-  status: string;
+  /** 本次拿到的任务状态码（`AsyncTaskStatus`）；响应缺字段或非数字时为 null */
+  status: number | null;
   /** 从提交到本次查询的耗时 */
   elapsedMs: number;
   /** 本次查询自身的失败原因（网络 / 5xx），与任务失败是两件事 */
@@ -33,8 +30,8 @@ export interface AsyncTaskTimelineItem {
 
 /** 终态回调载荷：抽屉据此提取 `knot_extend` / `upstream_body` 并触发计费校验 */
 export interface AsyncTaskTerminalPayload {
-  /** 对外状态词，仅 `completed` / `failed` 会走到这里 */
-  status: string;
+  /** 任务状态码，只会是终态（成功 / 失败 / 超时 / 取消） */
+  status: number;
   /** 终态响应体整包（已解析） */
   body: Dict;
 }
@@ -65,20 +62,20 @@ function asDict(value: unknown): Dict {
  *
  * <h3>为什么要有令牌</h3>
  * <p>连续点两次「发送」、或关掉抽屉后重新打开，都会留下一条在途查询。它回来时如果不加判别，
- * 就会把<b>上一轮</b>的状态写进这一轮的界面（典型症状：新任务刚 queued，界面却已经 completed
+ * 就会把<b>上一轮</b>的状态写进这一轮的界面（典型症状：新任务刚 PENDING，界面却已经 SUCCEEDED
  * 并带着上一轮的产物）。因此每次 {@link start} / {@link disposeAsyncPolling} 都自增令牌，
  * 回调里先比对令牌再写状态——同 `useBillingVerdict` 的 `verdictToken`。</p>
  *
  * <h3>为什么不建状态码表</h3>
- * <p>网关对外只给 `queued / processing / completed / failed / unknown` 五个词（库里的 0~5 码
- * 不对外）。这里直接拿对外词做判断与展示，再造一份映射就是把 {@code AsyncTaskViewSupport}
- * 抄第二遍，两份口径迟早会漂。</p>
+ * <p>网关直接下发 `AsyncTaskStatusEnum` 的码（0~5），与 `/api/enum-options` 同一套。这里只拿
+ * {@link AsyncTaskStatus} 的字面量做比较、只拿 {@link isAsyncTaskTerminal} 判终态，
+ * 展示文案一律交给 `labelOf("AsyncTaskStatusEnum", code)`——不再维护第二份「词表」。</p>
  */
 export function useAsyncTaskPolling(ctx: AsyncTaskPollingContext) {
   /** 本次轮询的任务句柄；null = 没有在跟踪的任务 */
   const taskCode = ref<string | null>(null);
-  /** 最近一次拿到的对外状态词 */
-  const taskStatus = ref("");
+  /** 最近一次拿到的任务状态码；null = 还没查过或响应缺字段 */
+  const taskStatus = ref<number | null>(null);
   /** 本次调试发起的查询次数（不是服务端的 attempts，别冒充） */
   const pollCount = ref(0);
   /** 从提交时刻起算的已用时 */
@@ -140,7 +137,7 @@ export function useAsyncTaskPolling(ctx: AsyncTaskPollingContext) {
   /** 复位展示态（新任务前调用；不碰任务句柄以外的东西） */
   function resetAsyncState(): void {
     taskCode.value = null;
-    taskStatus.value = "";
+    taskStatus.value = null;
     pollCount.value = 0;
     elapsedMs.value = 0;
     timeline.value = [];
@@ -182,12 +179,12 @@ export function useAsyncTaskPolling(ctx: AsyncTaskPollingContext) {
     disposeAsyncPolling();
   }
 
-  function finishTerminal(status: string, body: Dict, token: number): void {
+  function finishTerminal(status: number, body: Dict, token: number): void {
     if (token !== pollToken) {
       return;
     }
     taskStatus.value = status;
-    if (status === STATUS_COMPLETED) {
+    if (status === AsyncTaskStatus.SUCCEEDED) {
       result.value = asDict(body.result);
     } else {
       error.value = asDict(body.error);
@@ -219,7 +216,7 @@ export function useAsyncTaskPolling(ctx: AsyncTaskPollingContext) {
         return;
       }
       const body = asDict(response.data);
-      const status = typeof body.status === "string" && body.status ? body.status : "unknown";
+      const status = typeof body.status === "number" ? body.status : null;
       taskStatus.value = status;
       timeline.value = [...timeline.value, {
         at: Date.now(),
@@ -227,7 +224,7 @@ export function useAsyncTaskPolling(ctx: AsyncTaskPollingContext) {
         elapsedMs: Date.now() - startedAt
       }];
 
-      if (status === STATUS_COMPLETED || status === STATUS_FAILED) {
+      if (isAsyncTaskTerminal(status)) {
         finishTerminal(status, body, token);
         return;
       }
@@ -247,7 +244,7 @@ export function useAsyncTaskPolling(ctx: AsyncTaskPollingContext) {
           : "查询被拒绝（HTTP " + httpStatus + "）：检查消费者密钥与 Rule 头";
         timeline.value = [...timeline.value, {
           at: Date.now(),
-          status: "unknown",
+          status: null,
           elapsedMs: Date.now() - startedAt,
           error: lastError.value
         }];
@@ -259,7 +256,7 @@ export function useAsyncTaskPolling(ctx: AsyncTaskPollingContext) {
       lastError.value = String(err?.response?.data?.message || (e as Error)?.message || "查询失败");
       timeline.value = [...timeline.value, {
         at: Date.now(),
-        status: taskStatus.value || "unknown",
+        status: taskStatus.value,
         elapsedMs: Date.now() - startedAt,
         error: lastError.value
       }];
@@ -278,7 +275,7 @@ export function useAsyncTaskPolling(ctx: AsyncTaskPollingContext) {
     resetAsyncState();
     queryUrl = handle.queryUrl;
     taskCode.value = handle.taskCode;
-    taskStatus.value = "queued";
+    taskStatus.value = AsyncTaskStatus.PENDING;
     startedAt = Date.now();
     polling.value = true;
     elapsedMs.value = 0;

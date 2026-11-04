@@ -1,6 +1,7 @@
 package org.chobit.knot.svc.service.support;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.chobit.knot.svc.config.JevJudgeProperties;
 import org.chobit.knot.svc.dto.routing.BillingFactAmount;
 import org.chobit.knot.svc.dto.routing.BillingFactAmountLine;
@@ -539,7 +540,8 @@ class JevBillingJudgeTest {
     /** 视频上下文：账按秒计，档位在请求体里（分辨率 / 生成声音），并带一个产物地址当诱饵 */
     private JevJudgeContext videoContext() {
         BillingFactSubject subject = new BillingFactSubject(
-                "kling-v3", "VIDEO_GENERATIONS", false, BillingRuleSource.EXPLICIT, "completed");
+                "kling-v3", "VIDEO_GENERATIONS", false, BillingRuleSource.EXPLICIT,
+                AsyncTaskStatusEnum.SUCCEEDED.code());
         Map<String, Object> gatewayUsage = Map.of(
                 "output", Map.of("video_seconds", 5, "video_count", 1),
                 "attributes", Map.of("resolution", "720x1280", "sound", true));
