@@ -4,20 +4,8 @@ server:
 spring:
   application:
     name: knot-admin
-  datasource:
-    url: jdbc:mysql://127.0.0.1:3306/knot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    # 账号口令一律支持外部注入；默认值为本机开发库，生产部署必须覆盖
-    username: ${KNOT_DB_USERNAME:admin}
-    password: ${KNOT_DB_PASSWORD:admin}
-  sql:
-    init:
-      # 生产部署应设 KNOT_SQL_INIT_MODE=NEVER，避免每次启动重复执行 schema/data
-      mode: ${KNOT_SQL_INIT_MODE:ALWAYS}
-      schema-locations: classpath:db/schema.sql
-      data-locations: classpath:db/data.sql
-      encoding: UTF-8
-      continue-on-error: false
+  profiles:
+    active: local
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml
@@ -28,19 +16,6 @@ pagehelper:
   reasonable: true
   helper-dialect: mysql
   default-count: true
-
-# 供应商/应用凭证库内加密密钥（生产必须用环境变量 KNOT_CREDENTIAL_ENCRYPTION_KEY 覆盖，
-# 否则启动日志会打印开发默认值告警）
-knot:
-  credential:
-    encryption-key: ${KNOT_CREDENTIAL_ENCRYPTION_KEY:knot-dev-credential-encryption-key}
-
-  # JEV 计费裁判（路由规则测试抽屉「计费校验」tab 的裁判链路）
-  # 部署级静态配置，非用户可调运行时设置，故不走数据库。
-  # 指向的规则/消费者由 data.sql 的「JEV 计费裁判预置」段创建；
-  # 配置缺失、规则未启用或消费者不存在时，裁判区 available:false + 可执行提示，不炸测试链路。
-  jev:
-    judge-rule-code: ${KNOT_JEV_JUDGE_RULE_CODE:jev-billing-judge}
 
 springdoc:
   api-docs:
