@@ -12,10 +12,14 @@ import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.kafka.KafkaPublisher;
 import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
 import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto.TaskTrace;
+import org.chobit.knot.gateway.model.GatewayRoutingContext;
+import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.gateway.runtime.GatewayExchange;
 import org.chobit.knot.gateway.runtime.GatewayRequestContext;
 import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
+import org.chobit.knot.gateway.traffic.GatewayTrafficGuard;
+import org.chobit.knot.gateway.traffic.TrafficUsage;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.gateway.service.GatewayConfigCacheService;
 import org.chobit.knot.gateway.upstream.UpstreamProxyClient;
@@ -26,6 +30,7 @@ import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.List;
 
 /**
  * 异步任务终态的计费与事件：把「查询响应体」交给<b>既有</b>提取与计费管线。
@@ -44,17 +49,20 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
     private final GatewayConfigCacheService dataService;
     private final KafkaPublisher eventPublisher;
     private final String trafficTopic;
+    private final GatewayTrafficGuard trafficGuard;
 
     public AsyncTaskCompletion(UsageExtractorRegistry usageExtractorRegistry,
                               UpstreamProxyClient proxyClient,
                               GatewayConfigCacheService dataService,
                               @Nullable KafkaPublisher eventPublisher,
-                              @Value("${kafka.topic.traffic}") String trafficTopic) {
+                              @Value("${kafka.topic.traffic}") String trafficTopic,
+                              @Nullable GatewayTrafficGuard trafficGuard) {
         this.usageExtractorRegistry = usageExtractorRegistry;
         this.proxyClient = proxyClient;
         this.dataService = dataService;
         this.eventPublisher = eventPublisher;
         this.trafficTopic = trafficTopic;
+        this.trafficGuard = trafficGuard;
     }
 
     /**
@@ -81,6 +89,21 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
                 context.traceparent(),
                 context.requestId());
         return usageExtractorRegistry.extract(queryBody, upstreamContext);
+    }
+
+    /**
+     * 终态成功后的限额记账：只使用任务快照里预存的资源主键，不重新解析 API key。
+     *
+     * <p>提交阶段已经跳过记账，这里补上真实用量；终态 CAS 保证一条任务只到这里一次。
+     * 旧的上下文 JSON 没有资源主键时，对应维度自然跳过，不会把 id 猜错。</p>
+     */
+    @Override
+    public void recordUsage(AsyncTaskDto task, AsyncTaskContext context, UsageAccounting usage) {
+        if (trafficGuard == null || usage == null) {
+            return;
+        }
+        GatewayTrafficGuard.TrafficCheckContext checkContext = trafficGuard.newContext();
+        trafficGuard.record(routingOf(context), targetOf(context), TrafficUsage.of(usage), checkContext);
     }
 
     /**
@@ -125,6 +148,25 @@ public class AsyncTaskCompletion implements AsyncTaskSettlementPort {
      */
     private static int roundOf(AsyncTaskDto task) {
         return task.retryRound() == null ? 0 : task.retryRound();
+    }
+
+    /**
+     * 重建记账所需的资源坐标；展示字段（应用名 / 消费者名 / 部门）不在上下文里，故留空。
+     */
+    private static ResolvedRouting routingOf(AsyncTaskContext context) {
+        GatewayRoutingContext routingContext = new GatewayRoutingContext(
+                null,
+                new GatewayRoutingContext.ConsumerSnapshot(context.consumerId(), null, null, null, false),
+                new GatewayRoutingContext.AppSnapshot(context.appId(), null, null, null),
+                null, null, null);
+        return new ResolvedRouting(context.routingRuleId(), context.ruleCode(), context.consumerId(),
+                null, false, List.of(), routingContext, null, null);
+    }
+
+    private static RoutingRuleTargetDto targetOf(AsyncTaskContext context) {
+        return new RoutingRuleTargetDto(null, context.targetModelId(), context.modelCode(),
+                context.upstreamModelCode(), null, null, context.providerAccountCode(),
+                0, false, context.poolCode());
     }
 
     /**
