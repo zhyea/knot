@@ -18,7 +18,6 @@ import org.chobit.knot.gateway.load.ModelLoadStore;
 import org.chobit.knot.gateway.metrics.GatewayMetrics;
 import org.chobit.knot.gateway.service.support.ModerationWordResource;
 import org.chobit.knot.common.model.EjectionPolicy;
-import org.chobit.knot.adapter.model.usage.NormalizedUsage;
 import org.chobit.knot.gateway.model.ProxyResult;
 import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.common.model.RetryPolicy;
@@ -53,7 +52,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -315,8 +313,12 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         }
         return retryMono
             .map(result -> {
-                // 限额与 TPM 事后累计：上游成功才记账，失败重试与 failover 不重复扣减
-                trafficGuard.record(routing, candidate, usageOf(result), trafficContext);
+                // 限额与 TPM 事后累计：上游成功才记账，失败重试与 failover 不重复扣减。
+                // 异步提交只完成了 create，真实用量还没发生；此时记账等于把创建回执里的占位量
+                // 写进额度。终态查询成功后才按实际用量记一次（见 AsyncTaskCompletion#recordUsage）。
+                if (asyncTaskSupport == null || !asyncTaskSupport.isAsync(candidate, protocol)) {
+                    trafficGuard.record(routing, candidate, usageOf(result), trafficContext);
+                }
                 outageTracker.recordSuccess(decision, System.currentTimeMillis());
                 // 供应商侧请求 id 一并留痕：数仓 attempt 级绑定 + 联合排查检索（不透客户端）
                 draft.succeeded(result.upstreamRequestId());
@@ -492,30 +494,7 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
      * 成本与币种只认计费结果——没有计费结果就没有成本，不做估算。
      */
     private TrafficUsage usageOf(ProxyResult result) {
-        UsageAccounting usage = result == null ? null : result.usage();
-        if (usage == null) {
-            return TrafficUsage.EMPTY;
-        }
-        NormalizedUsage normalized = usage.normalized();
-        return TrafficUsage.of(usage.totalTokens(),
-            costOf(normalized),
-            normalized == null ? null : normalized.currency());
-    }
-
-    /**
-     * 计费结果的对外契约是十进制普通字符串（见 {@link NormalizedUsage#totalCost()}），
-     * 记账要的是 {@link BigDecimal}，在这里做唯一一次还原；空或非法文本按无成本处理，
-     * 与「上游没给 usage.cost」同一口径，不让脏数据炸掉记账链路。
-     */
-    private static BigDecimal costOf(NormalizedUsage normalized) {
-        if (normalized == null || StringUtils.isBlank(normalized.totalCost())) {
-            return null;
-        }
-        try {
-            return new BigDecimal(StringUtils.trim(normalized.totalCost()));
-        } catch (NumberFormatException invalid) {
-            return null;
-        }
+        return TrafficUsage.of(result == null ? null : result.usage());
     }
 
 
@@ -557,9 +536,6 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         if (result.streamResponse() != null) {
             return streamResponse(result, routing, context, exchange);
         }
-        if (routing == null || result.responseBody() == null) {
-            return result.responseBody();
-        }
         // 异步任务：本次响应只是「任务已提交」，不是终态。落一条待轮询任务并回 202 信封，
         // 请求线程到此为止——用量与计费等轮询器拿到终态再做。
         // ⭐ 本类不再为这次提交做任何埋点：事件里那条 task 标记由 submitIfAsync 自己写，
@@ -567,8 +543,14 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         if (asyncTaskSupport != null) {
             AsyncTaskAcceptedResponse accepted = asyncTaskSupport.submitIfAsync(context, exchange, result);
             if (accepted != null) {
+                // 提交回执不是消费完成：把代理链路上推出来的占位 usage 摘掉，
+                // 否则流量事件会在 task_terminal=false 时输出 billing / usage。
+                exchange.proxyResult(result.withoutUsage());
                 return accepted;
             }
+        }
+        if (routing == null || result.responseBody() == null) {
+            return result.responseBody();
         }
         if (!shouldReturnUsageDetail(routing, exchange)) {
             return result.responseBody();
@@ -655,19 +637,16 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         if (candidate == null || trafficContext == null) {
             return;
         }
-        long tokens = accounting.totalTokens();
         try {
-            NormalizedUsage normalized = accounting.normalized();
-            TrafficUsage usage = TrafficUsage.of(tokens,
-                costOf(normalized), normalized == null ? null : normalized.currency());
+            TrafficUsage usage = TrafficUsage.of(accounting);
             trafficGuard.record(routing, candidate, usage, trafficContext);
         } catch (Exception e) {
             // ⚠ 流式响应已提交：这里抛异常只会破坏已开始的响应流，所以不抛。
             // 但「配额 / 频控被静默绕过」是真实风险，必须计数 + 打点让监控能发现。
             long total = usageRecordFailures.incrementAndGet();
             if (total % USAGE_FAILURE_LOG_EVERY == 1) {
-                log.error("Streaming usage accounting failed, quota/cost skipped: rule={} tokens={} total={}",
-                        routing.ruleCode(), tokens, total, e);
+                log.error("Streaming usage accounting failed, quota/cost skipped: rule={} total={}",
+                        routing.ruleCode(), total, e);
             }
         }
     }
