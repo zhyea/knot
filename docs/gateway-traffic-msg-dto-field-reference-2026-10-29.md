@@ -282,4 +282,5 @@
 
 - **入口即拒**（鉴权 / Rule 头校验失败）：`routing`=null、`hit`=null、`upstream_usage`=null、`usage`=null、`billing`=null、`error.stage`=`header_validate`、`http_status`=401/400。
 - **全失败路径**：`hit`=null、`usage`=null、`billing`=null，但 `attempts[]` 保留每次尝试轨迹、`error` 取终态异常。
+- - **异步提交**：`task_phase=submit`、`task_terminal=false`、`usage`/`billing` 均为 **null**。创建回执只证明任务已提交，视频时长与产物尚未产生；金额只出现在成功终态那条。
 - **异步中间查询失败**：`task_phase=query`、`task_terminal=false`、带 `error`、`usage`/`billing` 仍为 null（聚合失败率必须过滤 `task_terminal`）。
