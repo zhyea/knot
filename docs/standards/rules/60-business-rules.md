@@ -312,6 +312,7 @@ MVEL 取值表达式，三个 `status_*` 是 MVEL 布尔表达式**（变量 `st
   **配置错被伪装成上游慢，是最难查的一类事故**。
 - ⭐⭐ **例外：取上游任务 ID 必须抛**（2026-11-01 robin 定）。`task_id_path` 走**严格取值**
   `AsyncTaskExpressionSupport#requireText`：表达式为空 / 求值抛错 / 取到的不是标量 → 一律抛；
+  创建响应体为空同样抛——空响应没有任务 ID，回退同步等于交出一张无法轮询、无法结算的 200。
   网关侧由 `AsyncTaskSupport#requireUpstreamTaskId` 包成 `GatewayUpstreamException`
   （**502 `UPSTREAM_ERROR`**），消息里必须带档案编码 + 表达式原文 + 响应顶层键。
   **不许沿用「取值失败 → null」**：走到这一步说明绑定已声明异步、档案也读到了，
@@ -323,6 +324,11 @@ MVEL 取值表达式，三个 `status_*` 是 MVEL 布尔表达式**（变量 `st
   `AsyncTaskSupportTest#missingUpstreamTaskIdThrows` /
   `AsyncTaskProfileSupportTest#dryRunReportsMissingUpstreamTaskId`（双向探针实测：改回 `text()`
   与 `readText()` 分别红，还原后全绿）。
+- ⭐⭐ **提交事件不结算，终态 CAS 成功后只记一次**（2026-11-06）：`task_phase=submit` 的上游响应
+  只是创建回执，`usage` / `billing` 必须为空，限额/成本计数器也不得累加——视频时长此时还不知道，
+  任何“至少 1 秒”兜底都是假账。真实用量只在成功终态 `task_terminal=true` 时结算；
+  记账调用必须挂在终态 CAS **成功之后**，这样失败/超时不记、并发节点不重复记。
+  守门：`AsyncTaskSubmitUsageTest` / `AsyncTaskRunnerTest` / `AsyncTaskCompletionUsageTest`。
 - ⚠ 编译与求值必须分开：`compiled()` 抛的也是 `RuntimeException`，若放在取值的 `catch` 里，
   「档案写错」会被当成「取不到」静静吞掉（判例：本条款落地时实测发现该缺陷，`text()` 已把编译提到 try 外）。
 
