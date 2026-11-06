@@ -1,5 +1,9 @@
 package org.chobit.knot.gateway.traffic;
 
+import org.apache.commons.lang3.StringUtils;
+import org.chobit.knot.adapter.model.usage.NormalizedUsage;
+import org.chobit.knot.adapter.model.usage.UsageAccounting;
+
 import java.math.BigDecimal;
 
 /**
@@ -25,9 +29,38 @@ public record TrafficUsage(long tokens, BigDecimal cost, String currency) {
     }
 
     /**
+     * 从一次调用的完整账目投影限额/频控用量。
+     *
+     * <p>token 取归一化总量，成本只认计费结果——没有计费结果就不做估算。
+     * 同步、流式终态与异步终态共用这一入口，避免三处各自解析金额字符串而漂移。</p>
+     */
+    public static TrafficUsage of(UsageAccounting accounting) {
+        if (accounting == null) {
+            return EMPTY;
+        }
+        NormalizedUsage normalized = accounting.normalized();
+        return of(accounting.totalTokens(), costOf(normalized),
+                normalized == null ? null : normalized.currency());
+    }
+
+    /**
      * 是否有可用于成本维度记账的金额。
      */
     public boolean hasCost() {
         return cost != null && currency != null;
+    }
+
+    /**
+     * 计费金额的对外契约是十进制普通字符串；空值或脏值按「无成本」处理。
+     */
+    private static BigDecimal costOf(NormalizedUsage normalized) {
+        if (normalized == null || StringUtils.isBlank(normalized.totalCost())) {
+            return null;
+        }
+        try {
+            return new BigDecimal(StringUtils.trim(normalized.totalCost()));
+        } catch (NumberFormatException invalid) {
+            return null;
+        }
     }
 }
