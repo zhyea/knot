@@ -421,6 +421,14 @@ public class AsyncTaskRunner {
         if (context == null) {
             return;
         }
+        if (usage != null) {
+            try {
+                settlementPort.recordUsage(task, context, usage);
+            } catch (RuntimeException e) {
+                // 任务已经落终态，不能为了补计数把它再挂回在途；丢计数必须留错误日志供对账。
+                log.error("Async task usage record failed: taskCode={}", task.taskCode(), e);
+            }
+        }
         try {
             settlementPort.publishTerminal(task, context, querySeq, usage, errorCode, errorMessage);
         } catch (RuntimeException e) {
