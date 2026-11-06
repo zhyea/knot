@@ -85,6 +85,7 @@ class AsyncTaskRunnerTest {
         assertEquals(1, settled.deliveryPendingCode(),
                 "终态落库时必须把交付武装成「待回调」——由那条 SQL 决定是否真的有 callback_url");
         assertEquals(1, settlement.charged, "终态必须且只能计一次费");
+        assertEquals(1, settlement.recorded, "终态成功必须且只能记一次限额");
         assertEquals(1, settlement.published, "终态必须且只能发一条事件");
         assertEquals(1, settlement.terminalSeq, "首次查询就拿到终态，seq 应为 1");
         assertEquals(0, settlement.queries, "落终态那一拍不该再单独发中间事件（同一次查询只发一条）");
@@ -229,6 +230,7 @@ class AsyncTaskRunnerTest {
         assertEquals("UPSTREAM_TASK_FAILED", settled.errorCode());
         assertEquals("prompt rejected", settled.errorMessage(), "话术优先取上游给的 message");
         assertEquals(0, settlement.charged, "上游失败不计费");
+        assertEquals(0, settlement.recorded, "上游失败没有实际用量，也不记限额");
         assertEquals(1, settlement.published, "失败也要发终态事件（观测链路不能断）");
     }
 
@@ -245,6 +247,7 @@ class AsyncTaskRunnerTest {
         assertEquals(AsyncTaskStatusEnum.FAILED.code(), settled.status());
         assertEquals("UPSTREAM_RESULT_MISSING", settled.errorCode());
         assertEquals(0, settlement.charged, "没有产物绝不能计入金额");
+        assertEquals(0, settlement.recorded, "没有产物也不能计入限额");
     }
 
     @Test
@@ -360,6 +363,7 @@ class AsyncTaskRunnerTest {
         assertTrue(service.process(task));
 
         assertEquals(1, settlement.charged, "计费照做：金额是这一笔的账，与事件是否发出无关");
+        assertEquals(0, settlement.recorded, "终态 CAS 没抢到：别的节点会负责记账，本节点不得重复记");
         assertEquals(0, settlement.published, "已被别的节点落定的任务不得再发一条终态事件");
     }
 
@@ -382,6 +386,7 @@ class AsyncTaskRunnerTest {
         assertEquals(AsyncTaskStatusEnum.EXPIRED.code(), settled.status());
         assertEquals("TASK_TIMEOUT", settled.errorCode());
         assertEquals(0, settlement.charged, "超时不计费");
+        assertEquals(0, settlement.recorded, "超时没有实际用量，不计限额");
         assertEquals(1, settlement.published,
                 "超时也是一次状态转移，不补发终态事件的话这笔任务在数仓里就完全不存在");
     }
@@ -509,7 +514,8 @@ class AsyncTaskRunnerTest {
 
     private static AsyncTaskContext context() {
         return new AsyncTaskContext("tc-1", "rule-1", null, null, "req-1",
-                "VIDEO_GENERATIONS", "kling-3", "kling-3-turbo", "kling", "pool-1", "https://x/videos");
+                "VIDEO_GENERATIONS", "kling-3", "kling-3-turbo", "kling", "pool-1", "https://x/videos",
+                1L, 2L, 3L, 4L);
     }
 
     /**
@@ -581,6 +587,7 @@ class AsyncTaskRunnerTest {
     private static final class RecordingSettlement implements AsyncTaskSettlementPort {
 
         private int charged;
+        private int recorded;
         private int published;
         private int queries;
         /** 默认空账（= 不计费）；需要断言结算快照的用例显式给一份非空账目 */
@@ -592,6 +599,11 @@ class AsyncTaskRunnerTest {
         public UsageAccounting charge(AsyncTaskDto task, AsyncTaskContext context, String queryBody) {
             charged++;
             return chargeResult;
+        }
+
+        @Override
+        public void recordUsage(AsyncTaskDto task, AsyncTaskContext context, UsageAccounting usage) {
+            recorded++;
         }
 
         @Override
