@@ -17,6 +17,7 @@ import org.chobit.knot.svc.vo.gateway.ModelConfigVo;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.kafka.msg.GatewayTrafficMsgDto;
 import org.chobit.knot.gateway.model.ProxyResult;
+import org.chobit.knot.gateway.model.ResolvedRouting;
 import org.chobit.knot.gateway.model.vo.response.AsyncTaskAcceptedResponse;
 import org.chobit.knot.gateway.runtime.GatewayExchange;
 import org.chobit.knot.gateway.runtime.GatewayRequestContext;
@@ -119,6 +120,19 @@ public class AsyncTaskSupport {
     }
 
     /**
+     * 本次命中目标是否为异步任务（用于请求成功后的限额记账判定）。
+     *
+     * <p>与 {@link #submitIfAsync} 的前两环同口径：绑定上有档案编码，且档案可用。
+     * 不在这里读创建响应——调用发生在代理成功之后、提交落库之前，缓冲区里还没有 task 标记；
+     * 这里回答的是「该模型 × 协议是否走异步」，而不是「这次创建是否成功」。</p>
+     */
+    public boolean isAsync(RoutingRuleTargetDto target, ModelApiProtocolEnum protocol) {
+        ModelApiBindingConfigVo binding = bindingOf(target == null ? null : target.targetId(), protocol);
+        String profileCode = profileCodeOf(binding);
+        return profileCode != null && loadSpec(profileCode, protocol) != null;
+    }
+
+    /**
      * 组装一条待轮询任务。
      *
      * @param upstreamTaskId 上游任务 ID（从创建响应按 {@code task_id_path} 取出，由
@@ -189,7 +203,10 @@ public class AsyncTaskSupport {
     public AsyncTaskAcceptedResponse submitIfAsync(GatewayRequestContext context,
                                                    GatewayExchange exchange,
                                                    ProxyResult result) {
-        if (result == null || StringUtils.isBlank(result.responseBody())) {
+        // 空响应不能在这里提前回退：先确认「绑定是否声明异步」。
+        // 未声明异步 → 回退同步；已声明异步但响应体为空 → 同样是「取不到任务 ID」，
+        // 必须由 requireUpstreamTaskId 抛 502，绝不能让客户端把空回执当成最终结果。
+        if (result == null || context == null) {
             return null;
         }
         RoutingRuleTargetDto target = context.attribute(GatewayRequestHandler.HIT_TARGET_ATTRIBUTE);
@@ -210,6 +227,7 @@ public class AsyncTaskSupport {
         BillingRuleConfigVo rule = model == null ? null
                 : dataService.getActiveBillingRule(model.billingRuleCode(), model.modelFamilyCode());
         String taskCode = newTaskCode();
+        ResolvedRouting routing = context.routing();
         AsyncTaskContext taskContext = new AsyncTaskContext(
                 taskCode,
                 context.ruleCode(),
@@ -221,7 +239,12 @@ public class AsyncTaskSupport {
                 target == null ? null : target.upstreamModelCode(),
                 target == null ? null : target.providerAccountCode(),
                 target == null ? null : target.poolCode(),
-                result.upstreamUrl());
+                result.upstreamUrl(),
+                routing == null ? null : routing.ruleId(),
+                routing == null ? null : routing.consumerId(),
+                routing == null || routing.routingContext() == null || routing.routingContext().app() == null
+                        ? null : routing.routingContext().app().id(),
+                target == null ? null : target.targetId());
         AsyncTaskDraftDto task = build(new AsyncTaskCreation(
                 taskCode, profileCode, spec, context.protocol(),
                 exchange == null ? Map.of() : exchange.requestBody(),
