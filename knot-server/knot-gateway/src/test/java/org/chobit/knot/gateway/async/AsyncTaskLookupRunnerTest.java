@@ -229,7 +229,8 @@ class AsyncTaskLookupRunnerTest {
                                      String terminalBody, String settlementJson) {
         String contextJson = ruleCode == null ? null
                 : JsonKit.toJson(new AsyncTaskContext("tc", ruleCode, null, null, "req",
-                "VIDEO_GENERATIONS", "m", "up", "p", "pool", "https://x"));
+                "VIDEO_GENERATIONS", "m", "up", "p", "pool", "https://x",
+                null, null, null, null));
         return new AsyncTaskDto(null, "tc", null, null, null,
                 status.code(), null, null, null, null,
                 null, null, contextJson, resultJson, terminalBody, settlementJson,
