@@ -51,7 +51,7 @@ class AsyncTaskCompletionTraceTest {
     private final RecordingPublisher publisher = new RecordingPublisher();
 
     private final AsyncTaskCompletion completion = new AsyncTaskCompletion(
-            null, null, new StubEntityCache(), publisher, "knot.gateway.traffic");
+            null, null, new StubEntityCache(), publisher, "knot.gateway.traffic", null);
 
     /**
      * N 次查询 + 终态必须与提交那次拿到<b>完全一致</b>的 {@code traceId}/{@code spanId}/{@code requestId}。
@@ -135,7 +135,8 @@ class AsyncTaskCompletionTraceTest {
     void unreadableTraceparentStillKeepsRequestId() {
         AsyncTaskContext context = new AsyncTaskContext("tk_dirty", null, null,
                 "not-a-traceparent", "0123456789abcdef0123456789abcdef",
-                "VIDEO_GENERATIONS", "m", "up", "p", "pool", "https://x");
+                "VIDEO_GENERATIONS", "m", "up", "p", "pool", "https://x",
+                null, null, null, null);
         AsyncTaskDto task = taskOf("tk_dirty");
 
         completion.publishQuery(task, context, 1, null);
@@ -150,7 +151,7 @@ class AsyncTaskCompletionTraceTest {
         return new AsyncTaskContext("tk", "rule-1", "sticky-1",
                 submit.traceparent(), submit.requestId(),
                 "VIDEO_GENERATIONS", "kling-v3", "kling-v3-turbo", "pa-1", "pool-1",
-                "https://upstream.example/v1/videos");
+                "https://upstream.example/v1/videos", 1L, 2L, 3L, 4L);
     }
 
     private static AsyncTaskDto taskOf(String taskCode) {
