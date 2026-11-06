@@ -35,4 +35,15 @@ public record ProxyResult(String responseBody,
     public boolean streaming() {
         return streamResponse != null;
     }
+
+    /**
+     * 去掉本次调用的用量账目，保留上游结果本身。
+     *
+     * <p>异步提交只拿到「任务已创建」，此时的 usage 是从创建回执推出来的占位量，
+     * 不是已经发生的消费。事件与限额都必须看到 {@code usage=null}，不能把占位量当账。</p>
+     */
+    public ProxyResult withoutUsage() {
+        return new ProxyResult(responseBody, providerId, modelId, null,
+                streamResponse, upstreamRequestId, upstreamUrl);
+    }
 }
