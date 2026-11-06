@@ -1,6 +1,7 @@
 package org.chobit.knot.gateway.async;
 
 import org.chobit.knot.common.constants.enums.GatewayErrorTypeEnum;
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.common.constants.enums.ProxyErrorCodeEnum;
 import org.chobit.knot.common.util.JsonKit;
 import org.chobit.knot.dal.entity.ModelApiBindingEntity;
@@ -10,6 +11,10 @@ import org.mapstruct.factory.Mappers;
 import org.chobit.knot.gateway.async.AsyncTaskSupport.AsyncTaskCreation;
 import org.chobit.knot.gateway.exception.GatewayUpstreamException;
 import org.chobit.knot.gateway.model.ProxyResult;
+import org.chobit.knot.gateway.runtime.GatewayRequestContext;
+import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
+import org.chobit.knot.gateway.runtime.GatewayTraceContext;
+import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.svc.dto.async.AsyncTaskDraftDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,7 +66,8 @@ class AsyncTaskSupportTest {
                 "tc-1", "KLING_TASK", spec(), null,
                 Map.of("prompt", "a cat"),
                 new AsyncTaskContext("tc-1", "rule-1", null, null, "req-1",
-                        "VIDEO_GENERATIONS", "kling-3", "kling-3-turbo", "kling", "pool-1", "https://x/videos"),
+                        "VIDEO_GENERATIONS", "kling-3", "kling-3-turbo", "kling", "pool-1", "https://x/videos",
+                        1L, 2L, 3L, 4L),
                 "up-1", "RULE-1", "V1", now, "https://client.example/callback");
         AsyncTaskDraftDto task = support.build(creation);
 
@@ -93,17 +99,46 @@ class AsyncTaskSupportTest {
                 "status == 'succeed'", "status == 'failed'", null, "data.url", null, null,
                 null, 5000, 1000, 30000, 360, 30L);
         AsyncTaskDraftDto task = support.build(new AsyncTaskCreation("tc", "P", noTtl, null,
-                Map.of(), new AsyncTaskContext("tc", "r", null, null, "req", null, "m", null, null, null, null),
+                Map.of(), new AsyncTaskContext("tc", "r", null, null, "req", null, "m", null, null, null, null,
+                        null, null, null, null),
                 "up", null, null, LocalDateTime.now(), null));
         assertNull(task.resultExpiresAt());
     }
 
     @Test
-    @DisplayName("上游结果为空时不判定（这一环不过，回退同步；任务 ID 缺失那环必须抛，见下一例）")
+    @DisplayName("未判定为异步时上游结果为空不落任务（回退同步；已判定异步的空响应见下一例）")
     void submitFallsBackToSync() {
         assertNull(support.submitIfAsync(null, null, null), "无上游结果时不判定");
         assertNull(support.submitIfAsync(null, null, new ProxyResult("  ", 1L, 1L, null)),
                 "空响应体不是一次成功的任务创建");
+    }
+
+    @Test
+    @DisplayName("档案已声明异步但创建响应为空：抛 502，绝不回退同步")
+    void blankCreateBodyForAsyncThrows() {
+        AsyncTaskSupport configured = new AsyncTaskSupport(null, null, null, null) {
+            @Override
+            public ModelApiBindingConfigVo bindingOf(Long modelId, ModelApiProtocolEnum protocol) {
+                return binding("KLING_TASK");
+            }
+
+            @Override
+            public AsyncTaskSpec loadSpec(String profileCode, ModelApiProtocolEnum protocol) {
+                return spec();
+            }
+        };
+        GatewayRequestContext context = new GatewayRequestContext("Bearer sk", "rule-a",
+                GatewayTraceContext.fromTraceparent(null), ModelApiProtocolEnum.VIDEO_GENERATIONS, null);
+        context.putAttribute(GatewayRequestHandler.HIT_TARGET_ATTRIBUTE,
+                new RoutingRuleTargetDto("model-a", 7L, "model-a", "upstream-a",
+                        "模型", "VIDEO", "pa-1", 1, true, "pool-1"));
+
+        GatewayUpstreamException error = assertThrows(GatewayUpstreamException.class,
+                () -> configured.submitIfAsync(context, null, new ProxyResult("  ", 1L, 1L, null)));
+
+        assertTrue(error.getMessage().contains("KLING_TASK"), "报错必须带档案编码：" + error.getMessage());
+        assertEquals(ProxyErrorCodeEnum.UPSTREAM_ERROR.code(), error.code());
+        assertEquals(GatewayErrorTypeEnum.UPSTREAM_ERROR.code(), error.type());
     }
 
     @Test
