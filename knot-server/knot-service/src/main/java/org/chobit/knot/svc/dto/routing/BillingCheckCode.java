@@ -17,7 +17,7 @@ public enum BillingCheckCode implements EnumOption {
     /** totalTokens == input + output（上游未给时由提取器补齐） */
     TOTAL_TOKENS_CONSISTENT("总量一致"),
 
-    /** 明细 amount × 单价(每百万) ÷ 1e6 == cost，且汇总 == totalCost */
+    /** 明细 quantity × 原始单价 ÷ unitSize(unit) == cost，且汇总 == totalCost */
     COST_FORMULA_MATCH("金额公式"),
 
     /** 被告账（knot_extend.billing）与同口径重算账全等（1 ppm 容差） */

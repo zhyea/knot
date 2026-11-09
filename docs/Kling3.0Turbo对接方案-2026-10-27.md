@@ -116,7 +116,7 @@ UsageExtractItem<?> item = extractor.extractUsageBody(body, requestBody);
 
 - 档位名**由厂商/客户端声明**，不由宽高反推（`VideoBillingUsage` javadoc）；
 - 「有输入视频」唯一判据 `hasInputVideo = inputVideoMillis>0 || referenceVideo`；**参考图走图片张数口径，不算输入视频**；
-- 明细行恒满足 `cost = tokens × price ÷ 1e6`（`AbstractBillingModeCalculator.detail:66-77`），附加费类常数项也必须走 `detail()`。
+- 明细行恒满足 `cost = quantity × price ÷ unitSize(unit)`（2026-11-09 修订，`price` 为规则原始单价、基准由 `unit` 声明），附加费类常数项也必须走 `detail()`。
 
 ---
 
@@ -257,7 +257,7 @@ public class KlingVideoUsageExtractor extends AbstractVideoUsageExtractor {
 候选键：1080P:AUDIO(未配) → 1080P(命中 1.0)
 计费量 = outputSeconds = 10     (quantityMode=OUTPUT，unitSize=1)
 金额   = 10 × 1.0 ÷ 1 = 10.00
-明细行  price = 1.0 × 1e6 ÷ 1 = 1000000 ，自检 10 × 1000000 ÷ 1e6 = 10 ✅
+明细行  price = 1.0（每秒原始单价，PER_SECOND 基数 1），自检 10 × 1.0 ÷ 1 = 10 ✅
 ```
 
 ### 3.5 数据落库清单
@@ -286,7 +286,7 @@ public class KlingVideoUsageExtractor extends AbstractVideoUsageExtractor {
 | 单测（新增） | `KlingVideoUsageExtractorTest`：① `data[0].outputs[0].duration="10"` → 10000ms；② duration 为字符串小数（推断）→ 向上取整秒；③ `outputs` 为空 → 0ms（不兜 1 秒）；④ `size=720p` → `720P`（大小写归一；`1280x720` 不反推，见 `UsageExtractorTest#shouldUppercaseResolutionWithoutGuessingDimensions`）；⑤ sound 恒 true / reference 恒 false | 全绿 |
 | 单测（新增） | `KlingVideoUpstreamAdapterTest`：① 请求体逐字透传（不拼 `contents`、不造 `settings`、不改大小写）；② 错参（`size=2k` / `duration="ten"` / `n=2`）原样放行；③ 不注入 `options`；④ 顶层与嵌套 `callback_url`、`webhook_url` 全部剥掉；⑤ 快照不被改写、无命中零拷贝 | 全绿（10 例，2026-10-28 重写） |
 | 单测（新增） | `VideoRequestSupportTest`：递归（Map / List / 混嵌）、字段名归一化、近似字段不误伤、零拷贝 | 全绿（9 例） |
-| 单测（复用） | 用真实 query 体跑一遍 `VideoBillingModeCalculator`，断言单分量、金额、明细行自检式 | 明细行数 = 1，`cost = tokens × price ÷ 1e6` |
+| 单测（复用） | 用真实 query 体跑一遍 `VideoBillingModeCalculator`，断言单分量、金额、明细行自检式 | 明细行数 = 1，`cost = quantity × price ÷ unitSize(unit)`（2026-11-09 修订） |
 | 门禁 | `mvn -f knot-server/pom.xml test` / `vue-tsc --noEmit` / `vite build` | 真跑，grep `BUILD SUCCESS` |
 | 真启冒烟 | 本机无 Redis → `store=caffeine` 档跑通 create→poll→终态计费 | Kafka 终态事件携带真实用量与金额 |
 

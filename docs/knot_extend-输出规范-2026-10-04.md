@@ -39,11 +39,12 @@
 }
 ```
 
-> ⚠ `detail.cost` 是**字符串**（十进制普通表示，8 位小数定标），不是数值：Jackson 默认按
-> `BigDecimal.toString()` 序列化数值，调整指数 < -6 的小额会输出科学计数法（如 `1E-8`），
-> 下游解析口径不一。2026-10-13 起在 `AbstractBillingModeCalculator#plainMoney`
-> 统一收敛为 `toPlainString()` 后作为字符串出账。`price` 维持数值——其为每百万单价，
-> 量级上不可能触发科学计数法。
+> ⚠ `detail.cost` / `detail.price` 都是**字符串**（十进制普通表示，**不设小数位上限、不做 8 位定标**），
+> 不是数值：Jackson 默认按 `BigDecimal.toString()` 序列化数值，调整指数 < -6 的小额会输出科学计数法
+> （如 `1E-8`），下游解析口径不一。统一在 `NormalizedBillingAmount.plainMoney`
+> 收敛为 `toPlainString()` 后作为字符串出账。
+> ⚠ 2026-11-09 起 `price` 是**规则配置的原始单价**（基准由同行 `unit` 声明），不再折算成每百万单位；
+> 复算式 `cost = quantity × price ÷ unitSize(unit)`。金额形态的权威口径见 `60-business-rules.md §1`。
 
 | 视图 | 类型 | 用途 |
 |---|---|---|
@@ -137,8 +138,8 @@ OutputTokens(long text, long image, long video, long reasoning, long unclassifie
 
 - 单价取自 `basePrices.cacheWrite5m` / `cacheWrite1h`（阶梯与高低峰同样生效），
   缺配置时按解析链回退 `defaultUnitPrice` → `input` 价 → 0。
-- **`price` 字段恒为「每百万 token 单价」**（`unitPrice × 1e6 / unitSize`），与 `unit` 无关，
-  便于调用方横向比价。
+- **`price` 字段是规则配置的原始单价**（2026-11-09 起），基准由同行 `unit` 声明，不再与 `unit` 无关；
+  复算式 `cost = quantity × price ÷ unitSize(unit)`，`unitSize` 由 `BillingUnitEnum.unitSizeOf(unit)` 推导。
 - 总价 = 全部明细 `cost` 之和。
 
 > 修复前：`PriceSet` 定义了 `cacheWrite5m` / `cacheWrite1h`、`cacheWriteMode` 也进了校验，

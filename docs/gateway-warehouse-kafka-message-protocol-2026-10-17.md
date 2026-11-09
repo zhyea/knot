@@ -235,6 +235,7 @@ billing（NormalizedUsage：金额与明细）
 
 
 **`billing`（BillingViewMsgDto）**：rule_code / rule_version / billing_mode / pricing_plan / total_tokens / total_cost / currency + `detail[]`（逐类用量金额行：type / quantity / unit / cost / price，金额十进制普通字符串、不设小数位上限）；「免费」与「没配置计费」靠 billing 是否为 null 区分（两件事）。`total_tokens` 仅 token 口径，不可与 `detail[].quantity` 相加。
+⚠ **2026-11-09 起 `detail[].price` 是规则配置的原始单价**，基准由同行 `unit` 声明（`PER_SECOND` = 每秒价、`1M_TOKENS` = 每百万 Token 价），不再折算到百万单位；复算式 `cost = quantity × price ÷ unitSize(unit)`，分母由 `unit` 推导，契约不另发 `unit_size`。上方样例均为 `1M_TOKENS`，原始单价恰等于原「每百万单价」，数值不变。
 
 ### 2.1 异步任务：1 + N 条事件与聚合口径（2026-10-28）
 
@@ -382,7 +383,7 @@ N 次上游查询实际发出的 `traceparent` 头也是提交那一个，于是
 ## 6. 口径清单（继承 + 新增）
 
 1. **`returnUsageDetail` 关时响应无 `knot_extend`**——数仓取内部 `UsageAccounting`，不解析响应体。
-2. **`cost` 是十进制普通字符串**，不设小数位上限、禁科学计数法；429 detail 的金额已从 1e-12 缩放计数还原，直接存。
+2. **`cost` / `price` 都是十进制普通字符串**，不设小数位上限、禁科学计数法；429 detail 的金额已从 1e-12 缩放计数还原，直接存。`price` 是按 `unit` 基准的原始单价，不是每百万折算价；消费侧复算须用 `quantity × price ÷ unitSize(unit)`。
 3. **0 是合法值，null 是无数据**：`total_tokens=0`、`ttft_ms=0`、`attempt_no=0` 均有含义；统计用 `IS NULL` 区分，禁 truthy。
 4. **TTFT / hit 缺失 = 无成功上游调用**，不是 0。
 5. **流式用量**：逐 SSE 事件按 `totalTokens` 更大者胜出；failover 与重试**不重复记账**（频控/额度只在成功后记一次）。

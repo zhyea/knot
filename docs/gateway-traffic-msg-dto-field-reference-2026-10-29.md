@@ -219,11 +219,11 @@
 | `billing_mode` | string | 计费模式，由归一化结果直接携带（不再按 `detail.type` 反推） |
 | `pricing_plan` | string | 定价方案 |
 | `total_tokens` | long | 归一化 token 总量，**仅 token 口径**：与 `detail[].quantity` 不可比、不可相加；视频按秒计费时合法为 `0` |
-| `total_cost` | string | 总价（十进制普通字符串，8 位小定标） |
+| `total_cost` | string | 总价（十进制普通字符串，不设小数位上限） |
 | `currency` | string | 币种（如 `CNY`） |
 | `detail` | array | 逐类用量金额行（`BillingDetailMsgDto`，§7.1）；免费 / 未命中规则时整段为 `null` |
 
-### 7.1 `billing.detail[]`（BillingDetailMsgDto，4 字段）
+### 7.1 `billing.detail[]`（BillingDetailMsgDto，5 字段）
 
 | JSON 字段 | 类型 | 含义 |
 |---|---|---|
@@ -231,7 +231,7 @@
 | `quantity` | long | 计费量（token 数 / 张数 / 秒数 / 次），**不是 token 专用字段**；单位见同行 `unit` |
 | `unit` | string | 量纲，`BillingUnitEnum` 编码（`PER_SECOND` / `1M_TOKENS` / `PER_IMAGE` / `PER_REQUEST`…），与 `quantity` 同一行强制给出 |
 | `cost` | string | 该类金额（十进制普通字符串） |
-| `price` | string | 折算到百万单位的单价（字符串）。`quantity` / `unit` / `price` 三元组合已自解释，字段名保持 `price` |
+| `price` | string | **规则配置的原始单价**（字符串），基准由同行 `unit` 声明（`PER_SECOND` = 每秒价、`1M_TOKENS` = 每百万 Token 价）。2026-11-09 起不再折算到百万单位。`quantity` / `unit` / `price` 三元组合已自解释，字段名保持 `price`；复算式 `cost = quantity × price ÷ unitSize(unit)`，分母由 `unit` 推导，不另发 `unit_size` |
 
 ---
 

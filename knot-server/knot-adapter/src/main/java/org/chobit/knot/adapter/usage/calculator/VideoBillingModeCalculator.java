@@ -142,10 +142,10 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
                 : config.surchargeTotal(video.sound(), video.hasInputVideo());
         if (surcharge.signum() != 0) {
             total = total.add(surcharge);
-            // ⭐ 附加费也走 detail()，不许自己拼 NormalizedUsageDetail：quantity=1、单位基数=1，
-            // price 由 pricePerMillion 折算成「每百万单位单价」= surcharge × 1e6。
-            // 若像 v1 那样把总额直接塞进 price，下游按 tokens × price ÷ 1e6 复算会差 1e6 倍——
-            // 而该行 type/cost 全对，静态检查和肉眼都看不出，只有复算式守门能抓住。
+            // ⭐ 附加费也走 detail()，不许自己拼 NormalizedUsageDetail：quantity=1、unit=PER_REQUEST（基数 1），
+            // price 就是附加费本身（每次价）。此时 price 与 cost 数值相同是常数项的自然结果：
+            // cost 是总额、price 是单价，quantity × price ÷ 1 恰好闭合，不是重复赋值。
+            // 若把别的东西塞进 price，该行 type/cost 全对，静态检查和肉眼都看不出，只有复算式守门能抓住。
             details.add(detail(TYPE_SURCHARGE, 1L, surcharge, surcharge,
                     BillingUnitEnum.PER_REQUEST.code()));
         }

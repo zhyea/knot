@@ -2,6 +2,7 @@ package org.chobit.knot.svc.service.support;
 
 import org.chobit.knot.common.constants.enums.AsyncTaskStatusEnum;
 import org.chobit.knot.common.constants.enums.BillingModeEnum;
+import org.chobit.knot.common.constants.enums.BillingUnitEnum;
 import org.chobit.knot.svc.dto.routing.BillingCheckCode;
 import org.chobit.knot.svc.dto.routing.BillingCheckResult;
 import org.chobit.knot.svc.dto.routing.BillingCheckStatus;
@@ -79,7 +80,7 @@ public final class BillingFactChecks {
         return BillingCheckResult.pass(BillingCheckCode.TOTAL_TOKENS_CONSISTENT);
     }
 
-    // ③ 公式一致：明细 cost == tokens × price(每百万) ÷ 1e6，且明细汇总 == totalCost
+    // ③ 公式一致：明细 cost == quantity × price ÷ unitSize(unit)，且明细汇总 == totalCost
     private static BillingCheckResult costFormulaMatch(BillingFact fact) {
         BillingFactAmount amount = fact.shadowAmount();
         if (amount == null || amount.details() == null || amount.details().isEmpty()) {
@@ -95,7 +96,7 @@ public final class BillingFactChecks {
             BigDecimal expected = lineFormulaCost(line);
             if (expected != null && !moneyEquals(cost, expected)) {
                 return BillingCheckResult.fail(BillingCheckCode.COST_FORMULA_MATCH,
-                        "明细 " + line.type() + " 金额与「数量×单价(每百万)」不符：cost=" + line.cost()
+                        "明细 " + line.type() + " 金额与「数量×单价÷单位基数」不符：cost=" + line.cost()
                                 + " 期望≈" + expected.toPlainString());
             }
         }
@@ -233,9 +234,20 @@ public final class BillingFactChecks {
                 "任务未到终态（" + taskStatus.label() + "），结算尚未发生");
     }
 
-    /** 明细行金额复算：quantity × price(每百万) ÷ 1e6；缺字段时返回 null（跳过该行） */
+    /**
+     * 明细行金额复算：{@code quantity × price ÷ unitSize(unit)}。
+     *
+     * <p>{@code price} 是规则配置的原始单价，基准由同行 {@code unit} 声明；分母不能再写死 1e6，
+     * 否则 {@code 1K_TOKENS} / {@code PER_SECOND} 规则会被静默放大 1000 倍 / 1e6 倍。
+     * unit 缺失或无法识别时返回 {@code null} 跳过该行（三态纪律：判不了不充 PASS，
+     * 也不调用会抛异常的 {@link BillingUnitEnum#unitSizeOf(String)}）。</p>
+     */
     private static BigDecimal lineFormulaCost(BillingFactAmountLine line) {
-        if (line.quantity() == null) {
+        if (line.quantity() == null || line.unit() == null) {
+            return null;
+        }
+        BillingUnitEnum unit = BillingUnitEnum.fromCode(line.unit());
+        if (unit == null) {
             return null;
         }
         BigDecimal price = safeDecimal(line.price());
@@ -244,7 +256,7 @@ public final class BillingFactChecks {
         }
         return new BigDecimal(line.quantity())
                 .multiply(price)
-                .divide(BigDecimal.valueOf(1_000_000L), MathContext.DECIMAL128);
+                .divide(BigDecimal.valueOf(unit.unitSize()), MathContext.DECIMAL128);
     }
 
     private static BigDecimal safeDecimal(String text) {

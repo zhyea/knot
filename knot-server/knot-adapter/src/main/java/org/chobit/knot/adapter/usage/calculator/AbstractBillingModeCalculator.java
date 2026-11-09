@@ -62,8 +62,8 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
     /**
      * 单项金额 = 用量 × 单价 ÷ 单位基数。
      *
-     * <p>不再定标 8 位小数：单价常见 6 位小数，除百万量级后需要 12 位以上才不归零，
-     * 8 位会把小额真实成本抹成 0（如 1000 × 0.0000015 ÷ 1e6 = 1.5e-9）。</p>
+     * <p>不再定标 8 位小数：单价常见 6 位小数，除单位基数后可能需要 12 位以上才不归零，
+     * 8 位会把小额真实成本抹成 0（如 1M_TOKENS 下 1000 × 0.0000015 ÷ 1e6 = 1.5e-9）。</p>
      */
     protected BigDecimal cost(long amount, BigDecimal unitPrice, int unitSize) {
         if (amount <= 0 || unitPrice == null || unitPrice.signum() == 0) {
@@ -77,19 +77,24 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
     /**
      * 明细行唯一构造出口：量与单位必须同行给出，{@code unitSize} 由 {@code unitCode} 派生，
      * 调用处不许再传裸基数（否则量纲与金额分母可能各说一套）。
+     *
+     * <p>{@code price} 是规则配置的<b>原始单价</b>，基准由同行 {@code unit} 声明
+     * （{@code PER_SECOND} = 每秒价、{@code 1M_TOKENS} = 每百万 Token 价），不再折算成每百万单位：
+     * 折算会把它放大 1e6 倍，与 {@code unit} 的语义直接冲突，下游也拿不回配置价。
+     * 复算式 {@code cost = quantity × price ÷ unitSize(unit)}，分母由 {@code unit} 推导，
+     * 契约里不另发 {@code unit_size}（同一事实不写两遍）。</p>
      */
     protected NormalizedUsageDetail detail(String type,
                                            long quantity,
                                            BigDecimal cost,
                                            BigDecimal unitPrice,
                                            String unitCode) {
-        int unitSize = BillingUnitEnum.unitSizeOf(unitCode);
         return new NormalizedUsageDetail(
                 type,
                 quantity,
                 unitCode,
                 NormalizedBillingAmount.plainMoney(safeMoney(cost)),
-                NormalizedBillingAmount.plainMoney(pricePerMillion(safeMoney(unitPrice), unitSize))
+                NormalizedBillingAmount.plainMoney(safeMoney(unitPrice))
         );
     }
 
@@ -100,23 +105,6 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
                                            BigDecimal unitPrice,
                                            String unitCode) {
         return detail(kind.key(), quantity, cost, unitPrice, unitCode);
-    }
-
-    /**
-     * 明细单价口径统一换算成「每百万单位单价」，与 {@link #cost(long, BigDecimal, int)} 同精度：
-     * 单价本身常见 6 位小数，8 位定标同样会把更细的单价抹平，
-     * 使自检层按「数量 × 单价 ÷ 1e6」复算时对不上真实成本。
-     *
-     * <p>返回 BigDecimal 是内部计算口径；对外文本由 {@code detail()} 经
-     * {@link NormalizedBillingAmount#plainMoney} 一次收敛，与 cost 同一契约。</p>
-     */
-    protected BigDecimal pricePerMillion(BigDecimal unitPrice, int unitSize) {
-        if (unitPrice == null || unitPrice.signum() == 0) {
-            return BigDecimal.ZERO;
-        }
-        return unitPrice
-                .multiply(BigDecimal.valueOf(1_000_000L))
-                .divide(BigDecimal.valueOf(Math.max(1, unitSize)), MONEY_DIVISION);
     }
 
     protected String normalizeDetailType(String itemType, BillingModeEnum mode) {

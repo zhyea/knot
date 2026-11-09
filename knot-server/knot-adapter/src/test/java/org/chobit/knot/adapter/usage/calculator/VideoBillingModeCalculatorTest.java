@@ -6,6 +6,7 @@ import org.chobit.knot.adapter.model.usage.NormalizedUsageDetail;
 import org.chobit.knot.adapter.model.usage.TokenBillingUsage;
 import org.chobit.knot.adapter.model.usage.VideoBillingUsage;
 import org.chobit.knot.adapter.usage.NormalizedUsageContext;
+import org.chobit.knot.common.constants.enums.BillingUnitEnum;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -480,7 +481,7 @@ class VideoBillingModeCalculatorTest {
 
         NormalizedUsageDetail detail = amount.details().get(0);
         assertEquals("VIDEO:720P:PROGRESSIVE", detail.type());
-        assertEquals("9750000.00", detail.price(), "明细 price 是「每百万单位单价」口径（78÷8=9.75 → ×1e6）");
+        assertEquals("9.75", detail.price(), "明细 price 直发原始均价（78÷8=9.75 每秒），不再 ×1e6");
     }
 
     /** Vidu Q2-pro 720P：第 1 秒 15，之后 +10/秒；5 秒 -> 15 + 10×4 = 55 */
@@ -529,9 +530,9 @@ class VideoBillingModeCalculatorTest {
         assertEquals("35", amount.totalCost(), "10 秒 × 2 + 音频附加费 15");
         assertEquals("VIDEO_SURCHARGE", amount.details().get(1).type());
         assertEquals("15", amount.details().get(1).cost());
-        // price 是「每百万单位单价」，不是总额：15 × 1e6，复算 1 × price ÷ 1e6 才回到 15
-        assertEquals("15000000", amount.details().get(1).price(),
-                "附加费行也必须遵守统一单价口径，否则下游按 tokens×price÷1e6 复算差 1e6 倍");
+        // 附加费行 unit=PER_REQUEST（基数 1），price 就是每次价 15：1 × 15 ÷ 1 = cost
+        assertEquals("15", amount.details().get(1).price(),
+                "附加费行也必须走 detail() 给出同行单价，否则 quantity×price÷unitSize 不闭合");
     }
 
     @Test
@@ -731,7 +732,8 @@ class VideoBillingModeCalculatorTest {
 
     @Test
     void everyDetailRowShouldSatisfyAmountTimesPriceFormula() {
-        // 契约：每行都满足 cost = tokens × price ÷ 1e6（price 是「每百万单位单价」）。
+        // 契约：每行都满足 cost = quantity × price ÷ unitSize(unit)（price 是规则原始单价）。
+        // 分母不能再写死 1e6：PER_SECOND / PER_REQUEST 基数是 1，写死会让复算差 1e6 倍。
         // 用全行遍历而不是逐行断言：SURCHARGE 曾把总额直接塞进 price，该行 type/cost 全对，
         // 肉眼与静态检查都看不出，只有复算式能抓住；遍历写法让未来新增的明细行自动被覆盖。
         // 此处比较用 compareTo 而非字符串全等——这是数值恒等式（除法会改变 scale），
@@ -753,9 +755,9 @@ class VideoBillingModeCalculatorTest {
         for (NormalizedUsageDetail row : amount.details()) {
             BigDecimal recalculated = BigDecimal.valueOf(row.quantity())
                     .multiply(new BigDecimal(row.price()))
-                    .divide(BigDecimal.valueOf(1_000_000L), MathContext.DECIMAL128);
+                    .divide(BigDecimal.valueOf(BillingUnitEnum.unitSizeOf(row.unit())), MathContext.DECIMAL128);
             assertEquals(0, recalculated.compareTo(new BigDecimal(row.cost())),
-                    "明细行 " + row.type() + " 复算不闭合：tokens×price÷1e6 = "
+                    "明细行 " + row.type() + " 复算不闭合：quantity×price÷unitSize = "
                             + recalculated.toPlainString() + "，但 cost = " + row.cost());
             sum = sum.add(new BigDecimal(row.cost()));
         }

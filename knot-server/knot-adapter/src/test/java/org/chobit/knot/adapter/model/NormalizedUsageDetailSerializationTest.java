@@ -18,7 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 下游收到的是科学计数法。改 String 契约后由 {@code toPlainString()} 定档，
  * 本测试同时钉住正向输出与 hazard 本身（反向证据）。</p>
  *
- * <p>字符串同样不设小数位上限：单价 6 位小数除百万量级需要 12 位以上才不归零，
+ * <p>字符串同样不设小数位上限：{@code cost} 是「用量 × 原始单价 ÷ 单位基数」的结果，
+ * 6 位小数单价在 {@code 1M_TOKENS} 下需要 12 位以上才不归零，
  * 精度由 {@code TokenBillingModeCalculatorTest} 的探针用例钉住。</p>
  */
 class NormalizedUsageDetailSerializationTest {

@@ -142,7 +142,7 @@ class GatewayTrafficMsgDtoTest {
 
     /**
      * 契约反向证据：明细行只发 quantity / unit，旧字段名不许残留（防双写），
-     * price 保持原名（数量 / 单位 / 价格三元组合已自解释）。
+     * price 保持原名且直发规则原始单价（数量 / 单位 / 价格三元组合已自解释）。
      */
     @Test
     void billingDetailShouldSerializeQuantityAndUnitWithoutLegacyTokens() {
@@ -165,7 +165,7 @@ class GatewayTrafficMsgDtoTest {
     @Test
     void billingShouldCarryRuleIdentityFromNormalizedUsage() {
         NormalizedUsage normalized = new NormalizedUsage(0L, "4.8", "USD", "v1",
-                List.of(new NormalizedUsageDetail("VIDEO:720P", 6L, "PER_SECOND", "4.8", "800000.0")),
+                List.of(new NormalizedUsageDetail("VIDEO:720P", 6L, "PER_SECOND", "4.8", "0.8")),
                 "VIDEO", "DIMENSION_TIERED", "BR-KLING-3T");
 
         GatewayTrafficMsgDto message = GatewayTrafficMsgDto.of(context(), null, usage(normalized), null, null);

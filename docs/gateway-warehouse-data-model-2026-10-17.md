@@ -119,6 +119,10 @@ ADS  看板：成本 TopN、成功率、P95 TTFT、限流命中率、缓存命�
 
 列：`trace_id` / `detail_type` / `quantity` / `unit` / `cost`(decimal(20,8)，**入库时把 String 转 decimal**，禁科学计数法) / `price_per_million`(decimal(20,8)) / `billing_mode` / `rule_code` / `rule_version` / `currency`。
 `quantity` 是计费量（token / 秒 / 张 / 次），量纲见 `unit`；消息侧字段名是 `price`，数仓列名 `price_per_million` 属数仓内部命名，两者不对齐。
+
+> ⚠ **2026-11-09 修订**：消息 `price` 已改为**规则配置的原始单价**（基准由同行 `unit` 声明），不再是每百万单位价。
+> 数仓若保留 `price_per_million` 列名，消费侧**不能把消息 `price` 直灌该列**；按「无历史包袱」铁律，不为对齐去改消息字段，也不改数仓列名（本仓不落数仓），仅在此标注口径。
+> 下方样例的 `2.00000000` / `0.50000000` / `4.00000000` 恰好是 `1M_TOKENS` 下的原始单价，数值仍成立。
 来源：`NormalizedUsageDetail.java:14-17`、`TokenUsageDetailKind.java:13-22`、`BillingRuleEntity`（billingMode/unit/currency/versionCode/pricingPlan）。
 
 ### 3.5 维表

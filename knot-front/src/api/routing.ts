@@ -183,7 +183,7 @@ export interface BillingFactAmountLine {
   quantity?: number | null;
   unit?: string | null;
   cost?: string | null;
-  /** 每百万单位单价 */
+  /** 规则配置的原始单价，基准由同行 unit 声明（如 PER_SECOND 为每秒价） */
   price?: string | null;
 }
 

@@ -168,6 +168,18 @@ class BillingFactChecksTest {
         assertEquals(BillingCheckStatus.FAIL, result(fact, BillingCheckCode.COST_FORMULA_MATCH).status());
     }
 
+    /**
+     * 复算分母必须来自同行 unit：1K_TOKENS 下 1000 × 2 ÷ 1000 = 2。
+     * 旧实现写死 ÷1e6 会算成 0.002，本用例直接变红（反向证据）。
+     */
+    @Test
+    void costFormulaMatchShouldDeriveDenominatorFromUnit() {
+        BillingFactAmount perThousand = new BillingFactAmount(1000L, "2", "USD", List.of(
+                new BillingFactAmountLine("uncachedInput", 1000L, "1K_TOKENS", "2", "2")));
+        BillingFact fact = standard(STANDARD_USAGE, perThousand, null, null, BillingRuleSource.EXPLICIT);
+        assertEquals(BillingCheckStatus.PASS, result(fact, BillingCheckCode.COST_FORMULA_MATCH).status());
+    }
+
     @Test
     void gatewayRecomputeMatchShouldFailOnTamperedDefendant() {
         // 关键反向用例：篡改被告账（0.008）vs 重算账（0.004）→ FAIL，且其余项不受影响

@@ -15,8 +15,9 @@ import java.util.List;
  * （规则业务码 / 版本 / 计费模式 / 定价方案），因为数仓要按「哪条规则算的」做归因；
  * 而对外输出不必暴露这么多内部信息。</p>
  *
- * <p>金额一律走 {@code String}（8 位小定标）：Jackson 对 {@link java.math.BigDecimal} 默认写
- * {@code toString()}，小额会变成 {@code 1E-8}，数仓解析口径不统一。这里是唯一出口，必须钉死形态。</p>
+ * <p>金额一律走 {@code String}（十进制普通表示、不设小数位上限）：Jackson 对
+ * {@link java.math.BigDecimal} 默认写 {@code toString()}，小额会变成 {@code 1E-8}，
+ * 数仓解析口径不统一。这里是唯一出口，必须钉死形态。</p>
  *
  * @param totalCost 总价（十进制普通字符串）
  */
@@ -56,8 +57,8 @@ public record BillingViewMsgDto(String ruleCode,
     /**
      * 计费明细行：一类计费量的金额结果。
      *
-     * @param cost  金额，十进制普通字符串（8 位小定标）
-     * @param price 折算到百万单位的单价，同样为字符串
+     * @param cost  金额，十进制普通字符串
+     * @param price 规则配置的原始单价，基准由同行 {@code unit} 声明，同样为字符串
      */
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)

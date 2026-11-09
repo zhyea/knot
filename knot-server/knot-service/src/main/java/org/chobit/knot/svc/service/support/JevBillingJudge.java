@@ -348,10 +348,12 @@ public class JevBillingJudge {
                 + "必须且只能返回一个 criteria 中的 choice。";
     }
 
-    /** TOKEN 题组的费用合理性说明（原文不动） */
+    /** TOKEN 题组的费用合理性说明（随明细契约同步：quantity/unit/cost/price + price 为原始单价） */
     private static String tokenCostPlausibleInstructions() {
-        return "请依据 state.produced.billing 的 totalCost、details（tokens/cost/price）与 "
+        return "请依据 state.produced.billing 的 totalCost、details（quantity/unit/cost/price）与 "
                 + "state.evidence.billingRule、upstreamUsage、upstreamCost 判断金额的语义合理性，不做精确算术复核。"
+                + "其中 price 是按同行 unit 声明基准的原始单价（PER_SECOND 为每秒价、1M_TOKENS 为每百万 Token 价），"
+                + "不是折算到百万单位的价格。"
                 + "证据足以支持金额与用量/单价相称时选 PLAUSIBLE；证据足以确认规则、币种或金额量级明显矛盾时选 SUSPICIOUS；"
                 + "必要账单或用量依据缺失、无法判断时选 INSUFFICIENT_EVIDENCE。upstreamCost 缺失本身不代表证据不足，"
                 + "请继续使用账单明细和规则依据判断。必须且只能返回一个 criteria 中的 choice。";

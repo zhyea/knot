@@ -61,10 +61,9 @@ class PeakOffPeakHotPathTest {
         assertEquals("5.4", peak.totalCost(), "peak cost = base x 1.5");
         assertEquals("1.8", offPeak.totalCost(), "off-peak cost = base x 0.5");
 
-        // 明细单价也要带上倍率（已换算成每百万）：input 2 -> 3 / 1
-        // 单价 2 × 倍率后 scale 为 1，每百万换算保留自然位数（3000.0 而非 3000）
-        assertEquals("3000.0", detailPrice(peak, "uncachedInput"));
-        assertEquals("1000.0", detailPrice(offPeak, "uncachedInput"));
+        // 明细单价也要带上倍率：input 2 -> 3.0 / 1.0，直发原始单价（不折算每百万）
+        assertEquals("3.0", detailPrice(peak, "uncachedInput"));
+        assertEquals("1.0", detailPrice(offPeak, "uncachedInput"));
     }
 
     /** FIXED 方案与时点无关：同一时刻改回固定价，金额必须是未打折的 3.6 */
@@ -73,7 +72,7 @@ class PeakOffPeakHotPathTest {
         NormalizedUsage usage = normalize(PEAK, "FIXED");
         assertNotNull(usage);
         assertEquals("3.6", usage.totalCost(), "fixed cost");
-        assertEquals("2000", detailPrice(usage, "uncachedInput"));
+        assertEquals("2", detailPrice(usage, "uncachedInput"));
     }
 
     private NormalizedUsage normalize(Instant occurredAt, String pricingPlan) {

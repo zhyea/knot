@@ -96,7 +96,7 @@
               <th>明细类型</th>
               <th class="bv-num">计费量</th>
               <th>单位</th>
-              <th class="bv-num">单价 / 百万</th>
+              <th class="bv-num">单价</th>
               <th class="bv-num">被告金额</th>
             </tr>
             </thead>
@@ -123,7 +123,7 @@
               <th>明细类型</th>
               <th class="bv-num">计费量</th>
               <th>单位</th>
-              <th class="bv-num">单价 / 百万</th>
+              <th class="bv-num">单价</th>
               <th class="bv-num">重算金额</th>
             </tr>
             </thead>
