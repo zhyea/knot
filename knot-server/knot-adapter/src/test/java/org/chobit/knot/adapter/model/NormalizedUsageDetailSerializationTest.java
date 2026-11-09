@@ -28,7 +28,7 @@ class NormalizedUsageDetailSerializationTest {
     @Test
     void costSerializesAsQuotedPlainString() throws Exception {
         NormalizedUsageDetail detail =
-                new NormalizedUsageDetail("uncachedInput", 1L, "0.00000001", "10");
+                new NormalizedUsageDetail("uncachedInput", 1L, "1M_TOKENS", "0.00000001", "10");
 
         String json = mapper.writeValueAsString(detail);
 
@@ -43,12 +43,13 @@ class NormalizedUsageDetailSerializationTest {
         // 6 位小数单价（1.5e-6，调整指数恰为 -6）留 BigDecimal 也是普通表示——
         // 真正会被咬的是 cost 侧 1.5e-9 级小额，不是 price。
         NormalizedUsageDetail detail =
-                new NormalizedUsageDetail("uncachedInput", 1_000L, "0.0000000015", "0.0000015");
+                new NormalizedUsageDetail("uncachedInput", 1_000L, "1M_TOKENS", "0.0000000015", "0.0000015");
 
         String json = mapper.writeValueAsString(detail);
 
         assertTrue(json.contains("\"price\":\"0.0000015\""), json);
-        assertFalse(json.contains("E"), json);
+        // 不能简单判包含大写 E：unit 编码（1M_TOKENS 等）本身含 E，只钉数值的科学计数法形态。
+        assertFalse(json.matches(".*\\d[eE][+-]?\\d.*"), json);
     }
 
     @Test

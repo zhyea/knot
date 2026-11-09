@@ -87,6 +87,7 @@ public class TokenBillingModeCalculator extends AbstractBillingModeCalculator {
                                              BillingConfig.PricingPlan plan,
                                              BillingConfig.PricingContext pricingContext) {
         int unitSize = unitSize(rule, mode());
+        String unitCode = unitCode(rule, mode());
         BigDecimal zero = BigDecimal.ZERO;
         long inputTokens = usage.inputTokens();
         long outputTokens = usage.outputTokens();
@@ -113,16 +114,16 @@ public class TokenBillingModeCalculator extends AbstractBillingModeCalculator {
         BigDecimal cacheWrite1hCost = cost(cacheWrite1hTokens, cacheWrite1hPrice, unitSize);
         List<NormalizedUsageDetail> details = ttlSplit
                 ? List.of(
-                detail(TokenUsageDetailKind.UNCACHED_INPUT, uncachedInputTokens, inputCost, inputPrice, unitSize),
-                detail(TokenUsageDetailKind.CACHED_READ, cacheReadTokens, cacheReadCost, cacheReadPrice, unitSize),
-                detail(TokenUsageDetailKind.CACHED_WRITE_5M, cacheWrite5mTokens, cacheWrite5mCost, cacheWrite5mPrice, unitSize),
-                detail(TokenUsageDetailKind.CACHED_WRITE_1H, cacheWrite1hTokens, cacheWrite1hCost, cacheWrite1hPrice, unitSize),
-                detail(TokenUsageDetailKind.OUTPUT, outputTokens, outputCost, outputPrice, unitSize))
+                detail(TokenUsageDetailKind.UNCACHED_INPUT, uncachedInputTokens, inputCost, inputPrice, unitCode),
+                detail(TokenUsageDetailKind.CACHED_READ, cacheReadTokens, cacheReadCost, cacheReadPrice, unitCode),
+                detail(TokenUsageDetailKind.CACHED_WRITE_5M, cacheWrite5mTokens, cacheWrite5mCost, cacheWrite5mPrice, unitCode),
+                detail(TokenUsageDetailKind.CACHED_WRITE_1H, cacheWrite1hTokens, cacheWrite1hCost, cacheWrite1hPrice, unitCode),
+                detail(TokenUsageDetailKind.OUTPUT, outputTokens, outputCost, outputPrice, unitCode))
                 : List.of(
-                detail(TokenUsageDetailKind.UNCACHED_INPUT, uncachedInputTokens, inputCost, inputPrice, unitSize),
-                detail(TokenUsageDetailKind.CACHED_READ, cacheReadTokens, cacheReadCost, cacheReadPrice, unitSize),
-                detail(TokenUsageDetailKind.CACHED_WRITE, cacheWriteTokens, cacheWriteCost, cacheWritePrice, unitSize),
-                detail(TokenUsageDetailKind.OUTPUT, outputTokens, outputCost, outputPrice, unitSize));
+                detail(TokenUsageDetailKind.UNCACHED_INPUT, uncachedInputTokens, inputCost, inputPrice, unitCode),
+                detail(TokenUsageDetailKind.CACHED_READ, cacheReadTokens, cacheReadCost, cacheReadPrice, unitCode),
+                detail(TokenUsageDetailKind.CACHED_WRITE, cacheWriteTokens, cacheWriteCost, cacheWritePrice, unitCode),
+                detail(TokenUsageDetailKind.OUTPUT, outputTokens, outputCost, outputPrice, unitCode));
         return NormalizedBillingAmount.of(
                 totalTokens,
                 inputCost.add(outputCost)

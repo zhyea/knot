@@ -43,8 +43,16 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
      * 「兜底成 1K_TOKENS」这种写法一旦脱离模式口径就是静默的 1000 倍错价。
      * 各计算器必须传自己的 {@link BillingModeEnum#mode()}，不要用规则列的空值兜底。</p>
      */
+    /**
+     * 量纲唯一出口：归一后的计费单位编码。明细行的 {@code unit} 一律从这里取，
+     * 不允许与 {@link #unitSize} 各推一份——两处推导必然漂移。
+     */
+    protected String unitCode(BillingRuleRef rule, BillingModeEnum mode) {
+        return mode.normalizeUnit(rule == null ? null : rule.unit());
+    }
+
     protected int unitSize(BillingRuleRef rule, BillingModeEnum mode) {
-        return BillingUnitEnum.unitSizeOf(mode.normalizeUnit(rule == null ? null : rule.unit()));
+        return BillingUnitEnum.unitSizeOf(unitCode(rule, mode));
     }
 
     protected BigDecimal safeMoney(BigDecimal value) {
@@ -66,14 +74,20 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
                 .divide(BigDecimal.valueOf(Math.max(1, unitSize)), MONEY_DIVISION);
     }
 
+    /**
+     * 明细行唯一构造出口：量与单位必须同行给出，{@code unitSize} 由 {@code unitCode} 派生，
+     * 调用处不许再传裸基数（否则量纲与金额分母可能各说一套）。
+     */
     protected NormalizedUsageDetail detail(String type,
-                                           long tokens,
+                                           long quantity,
                                            BigDecimal cost,
                                            BigDecimal unitPrice,
-                                           int unitSize) {
+                                           String unitCode) {
+        int unitSize = BillingUnitEnum.unitSizeOf(unitCode);
         return new NormalizedUsageDetail(
                 type,
-                tokens,
+                quantity,
+                unitCode,
                 NormalizedBillingAmount.plainMoney(safeMoney(cost)),
                 NormalizedBillingAmount.plainMoney(pricePerMillion(safeMoney(unitPrice), unitSize))
         );
@@ -81,11 +95,11 @@ public abstract class AbstractBillingModeCalculator implements BillingModeCalcul
 
     /** 枚举版重载：明细类型以 {@link TokenUsageDetailKind} 声明，避免调用处散落魔法串 */
     protected NormalizedUsageDetail detail(TokenUsageDetailKind kind,
-                                           long tokens,
+                                           long quantity,
                                            BigDecimal cost,
                                            BigDecimal unitPrice,
-                                           int unitSize) {
-        return detail(kind.key(), tokens, cost, unitPrice, unitSize);
+                                           String unitCode) {
+        return detail(kind.key(), quantity, cost, unitPrice, unitCode);
     }
 
     /**

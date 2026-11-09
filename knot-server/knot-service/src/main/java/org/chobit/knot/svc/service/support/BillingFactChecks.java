@@ -233,16 +233,16 @@ public final class BillingFactChecks {
                 "任务未到终态（" + taskStatus.label() + "），结算尚未发生");
     }
 
-    /** 明细行金额复算：tokens × price(每百万) ÷ 1e6；缺字段时返回 null（跳过该行） */
+    /** 明细行金额复算：quantity × price(每百万) ÷ 1e6；缺字段时返回 null（跳过该行） */
     private static BigDecimal lineFormulaCost(BillingFactAmountLine line) {
-        if (line.tokens() == null) {
+        if (line.quantity() == null) {
             return null;
         }
         BigDecimal price = safeDecimal(line.price());
         if (price == null) {
             return null;
         }
-        return new BigDecimal(line.tokens())
+        return new BigDecimal(line.quantity())
                 .multiply(price)
                 .divide(BigDecimal.valueOf(1_000_000L), MathContext.DECIMAL128);
     }

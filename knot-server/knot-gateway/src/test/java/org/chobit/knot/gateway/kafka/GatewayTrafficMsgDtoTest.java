@@ -140,6 +140,42 @@ class GatewayTrafficMsgDtoTest {
         assertEquals("output", message.billing().detail().get(0).type());
     }
 
+    /**
+     * 契约反向证据：明细行只发 quantity / unit，旧字段名不许残留（防双写），
+     * price 保持原名（数量 / 单位 / 价格三元组合已自解释）。
+     */
+    @Test
+    void billingDetailShouldSerializeQuantityAndUnitWithoutLegacyTokens() {
+        GatewayTrafficMsgDto message = GatewayTrafficMsgDto.of(context(), null, usage(), null, null);
+
+        JsonNode row = JsonKit.toTree(message).get("billing").get("detail").get(0);
+        assertTrue(row.has("quantity"), row.toString());
+        assertTrue(row.has("unit"), row.toString());
+        assertTrue(row.has("price"), "price 不改名");
+        assertFalse(row.has("tokens"), "旧字段名必须消失，不许双写");
+        assertFalse(row.has("price_per_million"));
+        assertEquals(2L, row.get("quantity").asLong());
+        assertEquals("1M_TOKENS", row.get("unit").asText());
+    }
+
+    /**
+     * 规则身份随归一化结果进入 Kafka 视图：billingView() 曾恒传 null、billing_mode 靠
+     * detail.type 反推（视频下为 null）。这里钉住「不再反推」的接线，且非 token 单位照发。
+     */
+    @Test
+    void billingShouldCarryRuleIdentityFromNormalizedUsage() {
+        NormalizedUsage normalized = new NormalizedUsage(0L, "4.8", "USD", "v1",
+                List.of(new NormalizedUsageDetail("VIDEO:720P", 6L, "PER_SECOND", "4.8", "800000.0")),
+                "VIDEO", "DIMENSION_TIERED", "BR-KLING-3T");
+
+        GatewayTrafficMsgDto message = GatewayTrafficMsgDto.of(context(), null, usage(normalized), null, null);
+
+        assertEquals("BR-KLING-3T", message.billing().ruleCode());
+        assertEquals("VIDEO", message.billing().billingMode());
+        assertEquals("DIMENSION_TIERED", message.billing().pricingPlan());
+        assertEquals("PER_SECOND", message.billing().detail().get(0).unit());
+    }
+
     @Test
     void upstreamFailureIsCarriedAsStructuredError() {
         GatewayRequestContext context = context();
@@ -432,9 +468,12 @@ class GatewayTrafficMsgDtoTest {
      * 用量账目：上游原始 usage + 计费输入 + 计费结果三段齐全。
      */
     private static UsageAccounting usage() {
+        return usage(new NormalizedUsage(5L, "0.00150000", "CNY", "v1",
+                List.of(new NormalizedUsageDetail("output", 2L, "1M_TOKENS", "0.00150000", "4.00000000"))));
+    }
+
+    private static UsageAccounting usage(NormalizedUsage normalized) {
         Map<String, Object> raw = Map.of("prompt_tokens", 3, "completion_tokens", 2, "total_tokens", 5);
-        NormalizedUsage normalized = new NormalizedUsage(5L, "0.00150000", "CNY", "v1",
-                List.of(new NormalizedUsageDetail("output", 2L, "0.00150000", "4.00000000")));
         TokenBillingUsage billing = TokenBillingUsage.from(raw);
         // 双视图：流量事件的 usage 字段取提取器产出的统一用量视图
         return UsageAccounting.of(raw, null, billing,

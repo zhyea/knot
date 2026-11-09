@@ -2,6 +2,7 @@ package org.chobit.knot.adapter.usage.calculator;
 
 import org.apache.commons.lang3.StringUtils;
 import org.chobit.knot.common.constants.enums.BillingModeEnum;
+import org.chobit.knot.common.constants.enums.BillingUnitEnum;
 import org.chobit.knot.common.constants.enums.PricingPlanEnum;
 import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
@@ -73,6 +74,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         BillingUsage usage = context.usage();
         BillingConfig config = configOf(rule);
         int unitSize = unitSize(rule, mode());
+        String unitCode = unitCode(rule, mode());
 
         if (!(usage instanceof VideoBillingUsage video)) {
             // 类型错配：VIDEO 规则绑到了非视频提取器。量无从取——不出账并留下告警，
@@ -103,7 +105,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         BigDecimal outputCost = componentCost(plan, outputKeys, outputAmount, unitSize, context, config);
         BigDecimal outputPrice = componentUnitPrice(plan, outputKeys, outputAmount, unitSize, context, config);
         total = total.add(outputCost);
-        details.add(detail(detailType(resolution, config), outputAmount, outputCost, outputPrice, unitSize));
+        details.add(detail(detailType(resolution, config), outputAmount, outputCost, outputPrice, unitCode));
 
         // ---- 分量 2：输入视频（按秒，独立分档键前缀） ----
         // ⚠ token 量纲下不启用：一条规则只有一个单位基数（分母），秒/张分量会被同一个分母除错
@@ -116,7 +118,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
             BigDecimal price = firstDimensionPrice(plan, inputKeys, context, fallbackPrice);
             BigDecimal cost = cost(video.inputSeconds(), price, unitSize);
             total = total.add(cost);
-            details.add(detail(TYPE_INPUT_VIDEO, video.inputSeconds(), cost, price, unitSize));
+            details.add(detail(TYPE_INPUT_VIDEO, video.inputSeconds(), cost, price, unitCode));
         }
 
         // ---- 分量 3：输入图片（按张，扣免费额度）；同 token 量纲下不启用 ----
@@ -130,7 +132,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
                 BigDecimal price = firstDimensionPrice(plan, imageKeys, context, fallbackPrice);
                 BigDecimal cost = cost(billable, price, unitSize);
                 total = total.add(cost);
-                details.add(detail(TYPE_INPUT_IMAGE, billable, cost, price, unitSize));
+                details.add(detail(TYPE_INPUT_IMAGE, billable, cost, price, unitCode));
             }
         }
 
@@ -140,11 +142,12 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
                 : config.surchargeTotal(video.sound(), video.hasInputVideo());
         if (surcharge.signum() != 0) {
             total = total.add(surcharge);
-            // ⭐ 附加费也走 detail()，不许自己拼 NormalizedUsageDetail：tokens=1、单位基数=1，
+            // ⭐ 附加费也走 detail()，不许自己拼 NormalizedUsageDetail：quantity=1、单位基数=1，
             // price 由 pricePerMillion 折算成「每百万单位单价」= surcharge × 1e6。
             // 若像 v1 那样把总额直接塞进 price，下游按 tokens × price ÷ 1e6 复算会差 1e6 倍——
             // 而该行 type/cost 全对，静态检查和肉眼都看不出，只有复算式守门能抓住。
-            details.add(detail(TYPE_SURCHARGE, 1L, surcharge, surcharge, 1));
+            details.add(detail(TYPE_SURCHARGE, 1L, surcharge, surcharge,
+                    BillingUnitEnum.PER_REQUEST.code()));
         }
 
         return NormalizedBillingAmount.of(usage.tokenUsage().totalTokens(), total, details);
@@ -174,6 +177,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
                                                            BillingConfig config,
                                                            VideoBillingUsage video,
                                                            int unitSize) {
+        String unitCode = unitCode(rule, mode());
         BillingConfig.VideoConfig videoConfig = config == null ? null : config.video();
         BillingConfig.PricingPlan plan = config == null ? null : planOf(config, rule);
         String resolution = video.outputResolution();
@@ -188,7 +192,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
         BigDecimal outputPrice = componentUnitPrice(plan, outputKeys, outputAmount, unitSize, context, config);
         BigDecimal outputCost = componentCost(plan, outputKeys, outputAmount, unitSize, context, config);
         total = total.add(outputCost);
-        details.add(detail(detailType(resolution, config), outputAmount, outputCost, outputPrice, unitSize));
+        details.add(detail(detailType(resolution, config), outputAmount, outputCost, outputPrice, unitCode));
 
         // ---- 分量 2：输入视频 —— 输入秒 × 档位输入单价，未单配时回落同档位输出单价 ----
         long inputAmount = video.inputSeconds();
@@ -198,7 +202,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
             BigDecimal inputPrice = firstDimensionPrice(plan, inputKeys, context, outputPrice);
             BigDecimal inputCost = cost(inputAmount, inputPrice, unitSize);
             total = total.add(inputCost);
-            details.add(detail(TYPE_INPUT_VIDEO, inputAmount, inputCost, inputPrice, unitSize));
+            details.add(detail(TYPE_INPUT_VIDEO, inputAmount, inputCost, inputPrice, unitCode));
         }
 
         // ---- 分量 3：输入图片 —— 超出免费额度的张数 × 固定每张价（不随分辨率变） ----
@@ -212,7 +216,7 @@ public class VideoBillingModeCalculator extends AbstractBillingModeCalculator {
                         ? BigDecimal.ZERO : videoConfig.inputImagePerImage();
                 BigDecimal imageCost = cost(billable, imagePrice, unitSize);
                 total = total.add(imageCost);
-                details.add(detail(TYPE_INPUT_IMAGE, billable, imageCost, imagePrice, unitSize));
+                details.add(detail(TYPE_INPUT_IMAGE, billable, imageCost, imagePrice, unitCode));
             }
         }
 

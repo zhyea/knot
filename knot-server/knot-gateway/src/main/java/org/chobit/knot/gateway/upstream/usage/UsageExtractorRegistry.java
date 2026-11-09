@@ -297,6 +297,6 @@ public class UsageExtractorRegistry {
     private static BillingRuleRef ruleRef(BillingRuleConfigVo rule) {
         return rule == null ? null : new BillingRuleRef(
                 rule.billingMode(), rule.configJson(), rule.currency(),
-                rule.pricingPlan(), rule.unit(), rule.versionCode());
+                rule.pricingPlan(), rule.unit(), rule.versionCode(), rule.code());
     }
 }

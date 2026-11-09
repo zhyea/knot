@@ -173,8 +173,8 @@ class BillingFactAssemblerTest {
 
         // 被告账被篡改（总价翻倍），而影子重算账仍是 0.004
         NormalizedUsage tampered = new NormalizedUsage(1500L, "0.008", "USD", "v1", List.of(
-                new NormalizedUsageDetail("uncachedInput", 1000L, "0.004", "2"),
-                new NormalizedUsageDetail("output", 500L, "0.004", "4")));
+                new NormalizedUsageDetail("uncachedInput", 1000L, "1M_TOKENS", "0.004", "2"),
+                new NormalizedUsageDetail("output", 500L, "1M_TOKENS", "0.004", "4")));
         BillingFact fact = assembler.assemble(input(tokenBody(1000, 500, 1500), RULE_CODE, "DEFAULT-TOKEN", tampered, null));
 
         assertEquals(BillingCheckStatus.FAIL, BillingFactChecks.runAll(fact).stream()

@@ -450,7 +450,8 @@ public class JevBillingJudge {
     private static Map<String, Object> toLineMap(BillingFactAmountLine line) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("type", line.type());
-        map.put("tokens", line.tokens());
+        map.put("quantity", line.quantity());
+        map.put("unit", line.unit());
         map.put("cost", line.cost());
         map.put("price", line.price());
         return map;

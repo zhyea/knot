@@ -546,7 +546,7 @@ class JevBillingJudgeTest {
                 "output", Map.of("video_seconds", 5, "video_count", 1),
                 "attributes", Map.of("resolution", "720x1280", "sound", true));
         List<BillingFactAmountLine> details = List.of(
-                new BillingFactAmountLine("BASE", 5L, "0.5", "0.1"));
+                new BillingFactAmountLine("BASE", 5L, "PER_SECOND", "0.5", "0.1"));
         BillingFactAmount billing = new BillingFactAmount(5L, "0.5", "USD", details);
         Map<String, Object> requestBody = new LinkedHashMap<>();
         requestBody.put("resolution", "720x1280");
@@ -645,7 +645,7 @@ class JevBillingJudgeTest {
                 "prompt_tokens", 1000, "completion_tokens", 500, "total_tokens", 1500);
         List<BillingFactAmountLine> details = new ArrayList<>();
         for (int i = 0; i < detailCount; i++) {
-            details.add(new BillingFactAmountLine("LINE_" + i, (long) i, "0.001", "1.0"));
+            details.add(new BillingFactAmountLine("LINE_" + i, (long) i, "1M_TOKENS", "0.001", "1.0"));
         }
         BillingFactAmount billing = new BillingFactAmount(1500L, "0.004", "USD", details);
         Map<String, Object> upstreamUsage = new LinkedHashMap<>();

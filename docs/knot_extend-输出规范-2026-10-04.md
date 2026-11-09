@@ -26,11 +26,11 @@
                  "total_tokens": 1200 },
     "billing": { "totalTokens": 1200, "totalCost": 0.00579, "currency": "USD",
                  "billingVersion": "v1",
-                 "detail": [ {"type":"uncachedInput","tokens":700,"cost":"0.00210000","price":3.0},
-                             {"type":"cachedRead","tokens":300,"cost":"0.00009000","price":0.3},
-                             {"type":"cachedWrite5m","tokens":400,"cost":"0.00040000","price":1.0},
-                             {"type":"cachedWrite1h","tokens":100,"cost":"0.00020000","price":2.0},
-                             {"type":"output","tokens":200,"cost":"0.00300000","price":15.0} ] }
+                 "detail": [ {"type":"uncachedInput","quantity":700,"unit":"1M_TOKENS","cost":"0.00210000","price":3.0},
+                             {"type":"cachedRead","quantity":300,"unit":"1M_TOKENS","cost":"0.00009000","price":0.3},
+                             {"type":"cachedWrite5m","quantity":400,"unit":"1M_TOKENS","cost":"0.00040000","price":1.0},
+                             {"type":"cachedWrite1h","quantity":100,"unit":"1M_TOKENS","cost":"0.00020000","price":2.0},
+                             {"type":"output","quantity":200,"unit":"1M_TOKENS","cost":"0.00300000","price":15.0} ] }
   },
   "usage": { "input_tokens": 1000, "output_tokens": 200,
              "cache_read_input_tokens": 300,

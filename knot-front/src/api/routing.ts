@@ -179,7 +179,9 @@ export interface BillingCheckResult {
 /** 计费明细行（与网关 NormalizedUsageDetail 同构，金额为十进制普通字符串） */
 export interface BillingFactAmountLine {
   type?: string | null;
-  tokens?: number | null;
+  /** 计费量（token 数 / 张数 / 秒数），量纲由 unit 给出 */
+  quantity?: number | null;
+  unit?: string | null;
   cost?: string | null;
   /** 每百万单位单价 */
   price?: string | null;

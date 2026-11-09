@@ -204,7 +204,8 @@ public class RoutingTestBillingVerdictService {
             Map<String, Object> d = (Map<String, Object>) m;
             out.add(new NormalizedUsageDetail(
                     optString(d.get("type")),
-                    toLong(d.get("tokens")),
+                    toLong(d.get("quantity")),
+                    optString(d.get("unit")),
                     optString(d.get("cost")),
                     optString(d.get("price"))));
         }

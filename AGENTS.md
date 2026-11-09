@@ -44,7 +44,7 @@ cd knot-front && npx vue-tsc --noEmit && npx vite build                # 前端�
   判据是「换掉 HTTP 框架这段逻辑还要不要」，不是行数。守门 `ControllerThinGuardTest`（gateway / admin 各一份），详见 `10-backend-java.md §3.3`。
 - **对外接口默认 POST，GET 需举证**：带句柄 / 凭据 / 用户输入的查询一律 POST（句柄留路径上，POST 允许无 body），
   守门 `GatewayHttpMethodGuardTest`，详见 `10-backend-java.md §5.2`。
-- 无历史包袱：字段变更一次做干净，**不留兼容兜底、不写回填**。
+- **无历史包袱（robin 反复强调，2026-11-07 写入 `00-core.md` 铁律 11）**：Kafka 流量事件 / 对外契约**尚未落数仓、无外部消费者**，字段随时可改 → 一次做干净，**不留兼容兜底、不双写、不回填、不升版本做分流、不为对齐既有数仓列名 / 旧文档字段名而保留错误命名或做无收益改名**。判据是「有没有消费方」；仓库内活文档仍须回写（铁律 9）。
 
 ## 规范索引（按任务查）
 

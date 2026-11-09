@@ -214,8 +214,8 @@ robin 纠正：「knot_extend 不是上游返回的」。代码实证：
     "usage":  { "inputTokens": 123, "outputTokens": 45, "totalTokens": 168,
                 "cacheReadTokens": 0, "cacheWriteTokens": 0 },
     "billing": { "totalCost": "0.00129", "currency": "USD",
-                 "details": [ { "type": "uncachedInput", "tokens": 123, "price": "0.005", "cost": "0.000615" },
-                              { "type": "output",        "tokens": 45,  "price": "0.015", "cost": "0.000675" } ] }
+                 "details": [ { "type": "uncachedInput", "quantity": 123, "unit": "1M_TOKENS", "price": "0.005", "cost": "0.000615" },
+                              { "type": "output",        "quantity": 45,  "unit": "1M_TOKENS", "price": "0.015", "cost": "0.000675" } ] }
   },
 
   "evidence": {

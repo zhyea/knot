@@ -95,6 +95,7 @@
             <tr>
               <th>明细类型</th>
               <th class="bv-num">计费量</th>
+              <th>单位</th>
               <th class="bv-num">单价 / 百万</th>
               <th class="bv-num">被告金额</th>
             </tr>
@@ -102,12 +103,13 @@
             <tbody>
             <tr v-for="(line, index) in producedLines" :key="index">
               <td>{{ displayText(line.type) }}</td>
-              <td class="bv-num">{{ line.tokens ?? 0 }}</td>
+              <td class="bv-num">{{ line.quantity ?? 0 }}</td>
+              <td>{{ displayText(line.unit) }}</td>
               <td class="bv-num">{{ displayText(line.price) }}</td>
               <td class="bv-num">{{ displayText(line.cost) }}</td>
             </tr>
             <tr v-if="!producedLines.length">
-              <td colspan="4" class="bv-empty">无计费明细</td>
+              <td colspan="5" class="bv-empty">无计费明细</td>
             </tr>
             </tbody>
           </table>
@@ -120,6 +122,7 @@
             <tr>
               <th>明细类型</th>
               <th class="bv-num">计费量</th>
+              <th>单位</th>
               <th class="bv-num">单价 / 百万</th>
               <th class="bv-num">重算金额</th>
             </tr>
@@ -127,7 +130,8 @@
             <tbody>
             <tr v-for="(line, index) in shadowLines" :key="index">
               <td>{{ displayText(line.type) }}</td>
-              <td class="bv-num">{{ line.tokens ?? 0 }}</td>
+              <td class="bv-num">{{ line.quantity ?? 0 }}</td>
+              <td>{{ displayText(line.unit) }}</td>
               <td class="bv-num">{{ displayText(line.price) }}</td>
               <td class="bv-num">{{ displayText(line.cost) }}</td>
             </tr>

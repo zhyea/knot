@@ -290,7 +290,7 @@ class VideoBillingModeCalculatorTest {
         assertEquals("VIDEO:720P", amount.details().get(0).type());
         assertEquals("VIDEO_INPUT_VIDEO", amount.details().get(1).type());
         assertEquals("VIDEO_INPUT_IMAGE", amount.details().get(2).type());
-        assertEquals(3L, amount.details().get(2).tokens(), "8 张扣掉 5 张免费额度 -> 计费 3 张");
+        assertEquals(3L, amount.details().get(2).quantity(), "8 张扣掉 5 张免费额度 -> 计费 3 张");
     }
 
     /**
@@ -356,7 +356,7 @@ class VideoBillingModeCalculatorTest {
         assertEquals("VIDEO:768P", amount.details().get(0).type());
         assertEquals("VIDEO_INPUT_VIDEO", amount.details().get(1).type());
         assertEquals("VIDEO_INPUT_IMAGE", amount.details().get(2).type());
-        assertEquals(3L, amount.details().get(2).tokens(), "8 张扣 5 张免费 -> 计费 3 张");
+        assertEquals(3L, amount.details().get(2).quantity(), "8 张扣 5 张免费 -> 计费 3 张");
     }
 
     @Test
@@ -433,8 +433,8 @@ class VideoBillingModeCalculatorTest {
                 rule(config, "VENDOR_MINIMAX"),
                 video(5L, 3L, 0L, "768P", false, false)));
 
-        assertEquals(5L, amount.details().get(0).tokens(), "输出分量仍是 5 秒，没有被 SUM 折成 8");
-        assertEquals(3L, amount.details().get(1).tokens(), "输入秒单独作为分量");
+        assertEquals(5L, amount.details().get(0).quantity(), "输出分量仍是 5 秒，没有被 SUM 折成 8");
+        assertEquals(3L, amount.details().get(1).quantity(), "输入秒单独作为分量");
         assertEquals("4.00", amount.totalCost(), "输出 2.50 + 输入 1.50");
     }
 
@@ -751,7 +751,7 @@ class VideoBillingModeCalculatorTest {
         assertEquals(4, amount.details().size(), "输出 + 输入视频 + 输入图片 + 附加费");
         BigDecimal sum = BigDecimal.ZERO;
         for (NormalizedUsageDetail row : amount.details()) {
-            BigDecimal recalculated = BigDecimal.valueOf(row.tokens())
+            BigDecimal recalculated = BigDecimal.valueOf(row.quantity())
                     .multiply(new BigDecimal(row.price()))
                     .divide(BigDecimal.valueOf(1_000_000L), MathContext.DECIMAL128);
             assertEquals(0, recalculated.compareTo(new BigDecimal(row.cost())),

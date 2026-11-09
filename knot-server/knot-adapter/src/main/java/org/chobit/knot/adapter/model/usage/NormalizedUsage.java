@@ -1,5 +1,6 @@
 package org.chobit.knot.adapter.model.usage;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import java.util.List;
@@ -23,5 +24,20 @@ public record NormalizedUsage(Long totalTokens,
                               String totalCost,
                               String currency,
                               String billingVersion,
-                              List<NormalizedUsageDetail> detail) {
+                              List<NormalizedUsageDetail> detail,
+                              @JsonIgnore String billingMode,
+                              @JsonIgnore String pricingPlan,
+                              @JsonIgnore String ruleCode) {
+
+    /**
+     * 无规则身份的构造口径（管理端被告账反解 / 测试）。
+     *
+     * <p>三个归因字段标 {@link JsonIgnore}：{@code knot_extend.billing} 不向调用方暴露
+     * 内部规则身份，只有数仓侧的 {@code BillingViewMsgDto} 读它们（见
+     * {@code UsageNormalizationSupport.normalize()} 的八参构造）。</p>
+     */
+    public NormalizedUsage(Long totalTokens, String totalCost, String currency,
+                           String billingVersion, List<NormalizedUsageDetail> detail) {
+        this(totalTokens, totalCost, currency, billingVersion, detail, null, null, null);
+    }
 }

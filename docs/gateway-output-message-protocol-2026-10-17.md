@@ -95,9 +95,9 @@
       "currency": "CNY",
       "billing_version": "V-20260101",
       "detail": [
-        { "type": "uncachedInput", "tokens": 176,  "cost": "0.00035000", "price": 2.0 },
-        { "type": "cachedRead",    "tokens": 1024, "cost": "0.00050000", "price": 0.5 },
-        { "type": "output",        "tokens": 380,  "cost": "0.00149000", "price": 4.0 }
+        { "type": "uncachedInput", "quantity": 176,  "unit": "1M_TOKENS", "cost": "0.00035000", "price": 2.0 },
+        { "type": "cachedRead",    "quantity": 1024, "unit": "1M_TOKENS", "cost": "0.00050000", "price": 0.5 },
+        { "type": "output",        "quantity": 380,  "unit": "1M_TOKENS", "cost": "0.00149000", "price": 4.0 }
       ]
     }
   },

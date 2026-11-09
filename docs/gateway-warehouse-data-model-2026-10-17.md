@@ -114,9 +114,11 @@ ADS  看板：成本 TopN、成功率、P95 TTFT、限流命中率、缓存命�
 | `cachedWrite5m` / `cachedWrite1h` | TOKEN 模式（ttl 分档口径，与上一行互斥） | 缓存写按 TTL 拆分 |
 | `output` | TOKEN 模式 | 输出 token |
 | `TOKEN`/`REQUEST`/`IMAGE`/`AUDIO`/`VIDEO`/`EMBEDDING`/`FREE`/`CUSTOM` | 简单模式（SimpleBillingModeCalculator） | 整单一种明细 |
-| 分辨率串（如 720p） | 视频模式 | VideoBillingModeCalculator 按分辨率出明细 |
+| `VIDEO` / `VIDEO:720P` / `VIDEO:1080P`… | 视频模式 | VideoBillingModeCalculator 按分辨率出明细，**开放集合** |
+| `VIDEO_INPUT_VIDEO` / `VIDEO_INPUT_IMAGE` / `VIDEO_SURCHARGE` | 视频模式 | 输入秒 / 输入图片 / 附加费分量 |
 
-列：`trace_id` / `detail_type` / `tokens` / `cost`(decimal(20,8)，**入库时把 String 转 decimal**，禁科学计数法) / `price_per_million`(decimal(20,8)) / `billing_mode` / `unit` / `rule_code` / `rule_version` / `currency`。
+列：`trace_id` / `detail_type` / `quantity` / `unit` / `cost`(decimal(20,8)，**入库时把 String 转 decimal**，禁科学计数法) / `price_per_million`(decimal(20,8)) / `billing_mode` / `rule_code` / `rule_version` / `currency`。
+`quantity` 是计费量（token / 秒 / 张 / 次），量纲见 `unit`；消息侧字段名是 `price`，数仓列名 `price_per_million` 属数仓内部命名，两者不对齐。
 来源：`NormalizedUsageDetail.java:14-17`、`TokenUsageDetailKind.java:13-22`、`BillingRuleEntity`（billingMode/unit/currency/versionCode/pricingPlan）。
 
 ### 3.5 维表
@@ -215,9 +217,9 @@ ADS  看板：成本 TopN、成功率、P95 TTFT、限流命中率、缓存命�
     "total_cost": "0.00234000", "currency": "CNY",
     "billing_version": "V-20260101", "billing_mode": "TOKEN", "rule_code": "BR-xxx",
     "details": [
-      {"type": "uncachedInput", "tokens": 176, "cost": "0.00035000", "price_per_million": "2.00000000"},
-      {"type": "cachedRead", "tokens": 1024, "cost": "0.00050000", "price_per_million": "0.50000000"},
-      {"type": "output", "tokens": 380, "cost": "0.00149000", "price_per_million": "4.00000000"}
+      {"type": "uncachedInput", "quantity": 176, "unit": "1M_TOKENS", "cost": "0.00035000", "price_per_million": "2.00000000"},
+      {"type": "cachedRead", "quantity": 1024, "unit": "1M_TOKENS", "cost": "0.00050000", "price_per_million": "0.50000000"},
+      {"type": "output", "quantity": 380, "unit": "1M_TOKENS", "cost": "0.00149000", "price_per_million": "4.00000000"}
     ]
   },
   "error": null

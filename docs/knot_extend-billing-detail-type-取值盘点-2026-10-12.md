@@ -1,5 +1,10 @@
 # knot_extend.billing.detail.type 取值盘点（2026-10-12）
 
+> ⚠ **2026-11-07 状态更新（本轮已改代码，正文为当时口径，保留作历史记录）**：
+> `NormalizedUsageDetail` 已由 `(type, tokens, cost, price)` 改为 `(type, quantity, unit, cost, price)`；
+> 正文里「`tokens` 字段实际是计费量」的描述已由字段名本身纠正，`type` 取值集合不变。
+> 见 `docs/计费明细量纲根治方案-2026-11-07.md`。
+
 > 起因：一次调试请求返回 `detail: [{"type":"TOKEN","tokens":295,...}]`，而该模型绑定的规则是**高低峰计费**。
 > 本文先穷举 `detail[]` 中 `type` 的全部取值来源，再给出根因与待拍板的收敛方向。**本轮只盘点，未改代码。**
 

@@ -48,7 +48,7 @@ class MediaBillingCalculatorTest {
         assertEquals("1.5", amount.totalCost(), "3 张 × 0.5");
         NormalizedUsageDetail detail = amount.details().get(0);
         assertEquals("IMAGE", detail.type());
-        assertEquals(3L, detail.tokens());
+        assertEquals(3L, detail.quantity());
     }
 
     @Test
@@ -68,7 +68,7 @@ class MediaBillingCalculatorTest {
 
         assertEquals("60.0", amount.totalCost(), "120 秒 × 0.5（PER_MINUTE 已于 2026-10-17 退役，音频统一按秒）");
         assertEquals("AUDIO", amount.details().get(0).type());
-        assertEquals(120L, amount.details().get(0).tokens());
+        assertEquals(120L, amount.details().get(0).quantity());
     }
 
     @Test

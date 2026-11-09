@@ -17,8 +17,9 @@ alwaysApply: false
 - 厂商语义差异：OpenAI `prompt_tokens` **含**缓存 token，Anthropic **不含**；`AnthropicUsageExtractor` 加回 cache 才是总量语义。（口径归属与双视图纪律见 §8）
 - billingMode(8) × pricingPlan(3) **正交**；前端 `utils/billingTier.ts` / `utils/billingPrice.ts`，`UNIT_PRICE_PRECISION = 8`。
 - ⭐ `NormalizedUsageDetail.cost` / `.price` / `totalCost` 是 **String**——Jackson 默认序列化对 <1e-6 会输出科学计数法（`1E-8`）。**不设小数位上限、不做 8 位定标**（8 位会把「6 位小数单价 × 1 token ÷ 1e6」抹成 0）：唯一文本化出口 `NormalizedBillingAmount.plainMoney`，唯一构造点 `AbstractBillingModeCalculator.detail()`。
-- ⭐⭐ **每一行明细都必须满足 `cost = tokens × price ÷ 1e6`**（2026-10-27）：`price` 恒为**每百万单位单价**（由 `pricePerMillion` 折算），不是金额本身——这是下游「只凭消息复算」的唯一依据。附加费这类「与用量无关」的常数项也必须走 `detail()`：`tokens=1`、单位基数 `1`，price 自然折成 `surcharge × 1e6`。**禁止**自己 `new NormalizedUsageDetail(...)` 拼行。判例：`VIDEO_SURCHARGE` 曾把总额直接塞进 price，`type` 与 `cost` 全对、静态检查与肉眼均无异常，只有复算式能抓（差 1e6 倍）。守门：`VideoBillingModeCalculatorTest#everyDetailRowShouldSatisfyAmountTimesPriceFormula` 全行遍历，新增明细行自动纳入。
+- ⭐⭐ **每一行明细都必须满足 `cost = quantity × price ÷ 1e6`**（2026-10-27 立规，2026-11-07 换名）：`price` 恒为**每百万单位单价**（由 `pricePerMillion` 折算），不是金额本身——这是下游「只凭消息复算」的唯一依据。附加费这类「与用量无关」的常数项也必须走 `detail()`：`quantity=1`、`unit=PER_REQUEST`、单位基数 `1`，price 自然折成 `surcharge × 1e6`。**禁止**自己 `new NormalizedUsageDetail(...)` 拼行。判例：`VIDEO_SURCHARGE` 曾把总额直接塞进 price，`type` 与 `cost` 全对、静态检查与肉眼均无异常，只有复算式能抓（差 1e6 倍）。守门：`VideoBillingModeCalculatorTest#everyDetailRowShouldSatisfyAmountTimesPriceFormula` 全行遍历，新增明细行自动纳入。
 - ⚠ **计费视图空值整项省略**（`NormalizedUsage` 类上 `@JsonInclude(NON_NULL)`，2026-10-27）：`billingVersion`（版本号经 `trimToNull`）与 `currency` 均可空，不声明的默认行为会写出 `"billingVersion": null`；而同一 `knot_extend` 里的 `usage` 走 `ModelUsage` 的 `NON_DEFAULT`（空值省略）——一段响应两套空值口径，下游「字段缺席」判空在 billing 段失效。选 `NON_NULL` 而非 `NON_DEFAULT`/`NON_EMPTY`：视频按秒计费时 `total_tokens` 合法就是 `0`，被「看起来为空」吞掉会让数仓误判成上游未上报。守门：`NormalizedUsageSerializationTest`。
+- ⭐⭐ **明细行的量与量纲必须同行给出**（2026-11-07）：`NormalizedUsageDetail` 是 `(type, quantity, unit, cost, price)`；`quantity` 是计费量（token / 秒 / 张 / 次），**不是 token 专用字段**，`unit` 是 `BillingUnitEnum` 编码，二者同一行强制给出。唯一构造出口 `AbstractBillingModeCalculator.detail(type, quantity, cost, unitPrice, unitCode)`；`unitCode` 只能取自 `BillingModeEnum.normalizeUnit()` 这个唯一出口，`unitSize` 由它派生。**禁止**自行 `new NormalizedUsageDetail(...)` 或把 unit 写死；数量 / 单位 / 价格三元组合已自解释，`price` **不改名**。守门 `BillingDetailUnitTest`；`GatewayTrafficMsgDtoTest` 反向断言 `tokens` 不许双写残留。
 - ⭐⭐ **计费单位归一化唯一出口 `BillingModeEnum.normalizeUnit(code)`**（2026-10-25，4.6 审查所修）：空白 / 非法编码 / 该模式不支持 → 一律取 `defaultUnit()`。**禁止**在计算器、Service、DB 默认值里各自写「兜底成 `1K_TOKENS`」——单位基数是金额公式的**分母**，`1K_TOKENS`(1000) 与 `PER_SECOND`(1) 差 1000 倍，而正确默认值随 `billing_mode` 变（VIDEO→PER_SECOND、TOKEN→1M_TOKENS），不存在万能默认值。判例：曾有「计算器热路径 / 管理端落库 / schema DEFAULT」三处都兜底成 `1K_TOKENS`，绕过表单写入即静默 1000 倍错价且全门禁绿灯。
 - ⚠ **折扣（`kb_provider_discount_policies.discount_value`）仅供展示，不参与任何计费逻辑**（robin 2026-10-25 明确）：不要把折扣接进金额计算，也不要为「将来可能接入」去改折扣链路（精度/校验/DTO 类型都不必为此铺路）。折扣值用 `BigDecimal`（对齐 `DECIMAL(10,4)`）仅为与库列同型与健壮性。
 - ⚠ config_json 是 `{pricing:{...}}` **嵌套结构**，扁平写会被 ignoreUnknown 静默成 `pricing=null`。
@@ -30,7 +31,7 @@ alwaysApply: false
 - 分层（`TrafficResourceTypeEnum.supportsRateLimit/supportsQuota`）：模型 + 路由规则 = **只限流**；应用 + 供应商账户 + 消费者 = **只限额**。
 - RPM 事前 +1 判 `used > limit`；TPM 事后累加、额度判 `used >= limit`。
 - 成本计数用 Long；换算只能用 `movePointRight(COST_SCALE).setScale(0, HALF_UP)`，`COST_SCALE` 恒为 12（1e-12）。超出 long 可表示范围（约 922 万）由 `toScaledAmount` 明确抛 `BusinessException`，不静默溢出。
-- ⭐ 金额对外契约（`knot_extend.billing`）：`detail[].cost` / `detail[].price` / `totalCost` **一律十进制普通字符串**，不设小数位上限（单价常见 6 位小数，除百万量级需 12 位以上才不归零）。
+- ⭐ 金额对外契约（`knot_extend.billing`）：`detail[].cost` / `detail[].price` / `totalCost` **一律十进制普通字符串**，不设小数位上限（单价常见 6 位小数，除百万量级需 12 位以上才不归零）；`detail[].quantity` 是 long，`detail[].unit` 是字符串。
 - ⭐ 所有计费单位基数都是 10 的幂（1 / 1e3 / 1e6；`PER_MINUTE=60` 已于 2026-10-17 退役）——「用量 × 单价 ÷ 基数」**恒定除尽**，不终止除法在这套单位体系里不可能出现；`DECIMAL128` 仅为未来非 10 的幂基数兜底（`BillingUnitEnumTest.everyUnitSizeIsPowerOfTen` 钉住该不变式）。新增单位若引入非 10 的幂基数，必须先在配置期把单价折算成基础单位价，不允许大基数进金额公式。
 - ⭐ 拒绝契约：限流与限额**同为 429**（`GatewayTrafficRejectException` 单一 handler，靠 `type` + `code` 区分）；`error.detail` 只暴露 `resourceCode`；带 `Retry-After` 头。
 - ⚠ `expireAtMillis()` 是**存储键 TTL**，`windowEndMillis()` 才是**重置时刻**，不要用错。
@@ -319,6 +320,7 @@ MVEL 取值表达式，三个 `status_*` 是 MVEL 布尔表达式**（变量 `st
   **配置错被伪装成上游慢，是最难查的一类事故**。
 - ⭐⭐ **例外：取上游任务 ID 必须抛**（2026-11-01 robin 定）。`task_id_path` 走**严格取值**
   `AsyncTaskExpressionSupport#requireText`：表达式为空 / 求值抛错 / 取到的不是标量 → 一律抛；
+  创建响应体为空同样抛——空响应没有任务 ID，回退同步等于交出一张无法轮询、无法结算的 200。
   网关侧由 `AsyncTaskSupport#requireUpstreamTaskId` 包成 `GatewayUpstreamException`
   （**502 `UPSTREAM_ERROR`**），消息里必须带档案编码 + 表达式原文 + 响应顶层键。
   **不许沿用「取值失败 → null」**：走到这一步说明绑定已声明异步、档案也读到了，
@@ -330,6 +332,11 @@ MVEL 取值表达式，三个 `status_*` 是 MVEL 布尔表达式**（变量 `st
   `AsyncTaskSupportTest#missingUpstreamTaskIdThrows` /
   `AsyncTaskProfileSupportTest#dryRunReportsMissingUpstreamTaskId`（双向探针实测：改回 `text()`
   与 `readText()` 分别红，还原后全绿）。
+- ⭐⭐ **提交事件不结算，终态 CAS 成功后只记一次**（2026-11-06）：`task_phase=submit` 的上游响应
+  只是创建回执，`usage` / `billing` 必须为空，限额/成本计数器也不得累加——视频时长此时还不知道，
+  任何“至少 1 秒”兜底都是假账。真实用量只在成功终态 `task_terminal=true` 时结算；
+  记账调用必须挂在终态 CAS **成功之后**，这样失败/超时不记、并发节点不重复记。
+  守门：`AsyncTaskSubmitUsageTest` / `AsyncTaskRunnerTest` / `AsyncTaskCompletionUsageTest`。
 - ⚠ 编译与求值必须分开：`compiled()` 抛的也是 `RuntimeException`，若放在取值的 `catch` 里，
   「档案写错」会被当成「取不到」静静吞掉（判例：本条款落地时实测发现该缺陷，`text()` 已把编译提到 try 外）。
 

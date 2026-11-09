@@ -34,18 +34,18 @@ class BillingFactChecksTest {
     private static final BillingFactUsage MEDIA_USAGE = new BillingFactUsage(false, 0L, 0L, 0L, 0L, 0L, 2L);
 
     private static final BillingFactAmount STANDARD_AMOUNT = new BillingFactAmount(1500L, "0.004", "USD", List.of(
-            new BillingFactAmountLine("uncachedInput", 1000L, "0.002", "2"),
-            new BillingFactAmountLine("output", 500L, "0.002", "4")));
+            new BillingFactAmountLine("uncachedInput", 1000L, "1M_TOKENS", "0.002", "2"),
+            new BillingFactAmountLine("output", 500L, "1M_TOKENS", "0.002", "4")));
 
     // 篡改被告账：总价翻倍（0.008），明细同步翻倍
     private static final BillingFactAmount TAMPERED_AMOUNT = new BillingFactAmount(1500L, "0.008", "USD", List.of(
-            new BillingFactAmountLine("uncachedInput", 1000L, "0.004", "2"),
-            new BillingFactAmountLine("output", 500L, "0.004", "4")));
+            new BillingFactAmountLine("uncachedInput", 1000L, "1M_TOKENS", "0.004", "2"),
+            new BillingFactAmountLine("output", 500L, "1M_TOKENS", "0.004", "4")));
 
     // 明细公式不符：uncachedInput cost=0.003（期望 0.002）
     private static final BillingFactAmount BAD_FORMULA_AMOUNT = new BillingFactAmount(1500L, "0.005", "USD", List.of(
-            new BillingFactAmountLine("uncachedInput", 1000L, "0.003", "2"),
-            new BillingFactAmountLine("output", 500L, "0.002", "4")));
+            new BillingFactAmountLine("uncachedInput", 1000L, "1M_TOKENS", "0.003", "2"),
+            new BillingFactAmountLine("output", 500L, "1M_TOKENS", "0.002", "4")));
 
     private static BillingFact standard(BillingFactUsage usage, BillingFactAmount shadow, BillingFactAmount gateway,
                                         BigDecimal upstream, BillingRuleSource source) {

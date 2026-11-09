@@ -104,9 +104,9 @@
     "rule_code": "BR-xxx", "rule_version": "V-20260101", "billing_mode": "TOKEN", "pricing_plan": "FIXED",
     "total_tokens": 1580, "total_cost": "0.00234000", "currency": "CNY",
     "detail": [
-      { "type": "uncachedInput", "tokens": 176,  "cost": "0.00035000", "price": "2.00000000" },
-      { "type": "cachedRead",    "tokens": 1024, "cost": "0.00050000", "price": "0.50000000" },
-      { "type": "output",        "tokens": 380,  "cost": "0.00149000", "price": "4.00000000" }
+      { "type": "uncachedInput", "quantity": 176,  "unit": "1M_TOKENS", "cost": "0.00035000", "price": "2.00000000" },
+      { "type": "cachedRead",    "quantity": 1024, "unit": "1M_TOKENS", "cost": "0.00050000", "price": "0.50000000" },
+      { "type": "output",        "quantity": 380,  "unit": "1M_TOKENS", "cost": "0.00149000", "price": "4.00000000" }
     ]
   },
   "error": null
@@ -234,7 +234,7 @@ billing（NormalizedUsage：金额与明细）
 > 视频条数只出现在 `output.video_count`（2026-10-27 修）。
 
 
-**`billing`（BillingViewMsgDto）**：rule_code / rule_version / billing_mode / pricing_plan / total_tokens / total_cost / currency + `detail[]`（逐类用量金额行：type / tokens / cost / price，金额十进制普通字符串、不设小数位上限）；「免费」与「没配置计费」靠 billing 是否为 null 区分（两件事）。
+**`billing`（BillingViewMsgDto）**：rule_code / rule_version / billing_mode / pricing_plan / total_tokens / total_cost / currency + `detail[]`（逐类用量金额行：type / quantity / unit / cost / price，金额十进制普通字符串、不设小数位上限）；「免费」与「没配置计费」靠 billing 是否为 null 区分（两件事）。`total_tokens` 仅 token 口径，不可与 `detail[].quantity` 相加。
 
 ### 2.1 异步任务：1 + N 条事件与聚合口径（2026-10-28）
 

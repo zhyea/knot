@@ -50,7 +50,10 @@ public final class UsageNormalizationSupport {
                 amount.totalCost(),
                 rule.currency(),
                 billingVersion(rule),
-                amount.details()
+                amount.details(),
+                modeEnum.code(),
+                rule.pricingPlan(),
+                rule.ruleCode()
         );
     }
 

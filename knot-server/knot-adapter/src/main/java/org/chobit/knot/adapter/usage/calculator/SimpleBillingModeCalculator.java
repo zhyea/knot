@@ -31,6 +31,7 @@ public class SimpleBillingModeCalculator extends AbstractBillingModeCalculator {
         BillingModeEnum mode = resolveMode(rule);
         long amount = billingAmount(usage, mode, rule);
         int unitSize = unitSize(rule, mode);
+        String unitCode = unitCode(rule, mode);
         BillingConfig config = configOf(rule);
         BigDecimal unitPrice = config == null
                 ? BigDecimal.ZERO
@@ -40,7 +41,7 @@ public class SimpleBillingModeCalculator extends AbstractBillingModeCalculator {
         return NormalizedBillingAmount.of(
                 usage.tokenUsage().totalTokens(),
                 totalCost,
-                List.of(detail(normalizeDetailType(rule.billingMode(), mode), amount, totalCost, unitPrice, unitSize))
+                List.of(detail(normalizeDetailType(rule.billingMode(), mode), amount, totalCost, unitPrice, unitCode))
         );
     }
 

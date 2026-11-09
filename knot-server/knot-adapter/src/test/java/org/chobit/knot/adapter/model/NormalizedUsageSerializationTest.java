@@ -49,4 +49,20 @@ class NormalizedUsageSerializationTest {
         assertTrue(json.contains("\"totalTokens\":0"), json);
         assertTrue(json.contains("\"currency\":\"CNY\""), json);
     }
+
+    /**
+     * 规则身份只供数仓侧 BillingViewMsgDto 读取，不许混进对外的 knot_extend.billing。
+     */
+    @Test
+    void ruleIdentityShouldNotLeakToKnotExtendBilling() throws Exception {
+        NormalizedUsage billing = new NormalizedUsage(0L, "4.8", "USD", "v1", List.of(),
+                "VIDEO", "DIMENSION_TIERED", "BR-KLING-3T");
+
+        String json = mapper.writeValueAsString(billing);
+
+        assertFalse(json.contains("ruleCode"), json);
+        assertFalse(json.contains("billingMode"), json);
+        assertFalse(json.contains("pricingPlan"), json);
+        assertTrue(json.contains("\"totalTokens\":0"), json);
+    }
 }

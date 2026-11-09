@@ -127,7 +127,7 @@ public class BillingFactAssembler {
      */
     private static BillingRuleRef toBillingRuleRef(BillingRuleEntity rule) {
         return new BillingRuleRef(rule.getBillingMode(), rule.getConfigJson(), rule.getCurrency(),
-                rule.getPricingPlan(), rule.getUnit(), rule.getVersionCode());
+                rule.getPricingPlan(), rule.getUnit(), rule.getVersionCode(), rule.getCode());
     }
 
     /**

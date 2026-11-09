@@ -216,9 +216,9 @@
 |---|---|---|
 | `rule_code` | string | 命中计费规则业务码（归因用） |
 | `rule_version` | string | 规则版本（与 `kb_billing_rules.version_code` 关联；规则内容不下发） |
-| `billing_mode` | string | 计费模式：`TOKEN`（命中细化 token 明细时）/ 其余场景 `null` |
+| `billing_mode` | string | 计费模式，由归一化结果直接携带（不再按 `detail.type` 反推） |
 | `pricing_plan` | string | 定价方案 |
-| `total_tokens` | long | 计费总 token |
+| `total_tokens` | long | 归一化 token 总量，**仅 token 口径**：与 `detail[].quantity` 不可比、不可相加；视频按秒计费时合法为 `0` |
 | `total_cost` | string | 总价（十进制普通字符串，8 位小定标） |
 | `currency` | string | 币种（如 `CNY`） |
 | `detail` | array | 逐类用量金额行（`BillingDetailMsgDto`，§7.1）；免费 / 未命中规则时整段为 `null` |
@@ -227,10 +227,11 @@
 
 | JSON 字段 | 类型 | 含义 |
 |---|---|---|
-| `type` | string | 计费量类型（如 `uncachedInput` / `cachedRead` / `output` …） |
-| `tokens` | long | 该类 token 数 |
+| `type` | string | 计费量类型（如 `uncachedInput` / `cachedRead` / `output` / `VIDEO:720P` …） |
+| `quantity` | long | 计费量（token 数 / 张数 / 秒数 / 次），**不是 token 专用字段**；单位见同行 `unit` |
+| `unit` | string | 量纲，`BillingUnitEnum` 编码（`PER_SECOND` / `1M_TOKENS` / `PER_IMAGE` / `PER_REQUEST`…），与 `quantity` 同一行强制给出 |
 | `cost` | string | 该类金额（十进制普通字符串） |
-| `price` | string | 折算到百万单位的单价（字符串） |
+| `price` | string | 折算到百万单位的单价（字符串）。`quantity` / `unit` / `price` 三元组合已自解释，字段名保持 `price` |
 
 ---
 

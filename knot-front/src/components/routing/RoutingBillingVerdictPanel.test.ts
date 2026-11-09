@@ -88,3 +88,28 @@ describe("RoutingBillingVerdictPanel 空值口径", () => {
     expect(wrapper.text()).toContain("上游未回 knot_extend");
   });
 });
+
+describe("RoutingBillingVerdictPanel 明细量纲", () => {
+  it("被告账与影子重算明细都显示 quantity / unit，不把计费量当 token", () => {
+    const line = {
+      type: "VIDEO:720P", quantity: 6, unit: "PER_SECOND",
+      price: "800000.0", cost: "4.8"
+    };
+    const wrapper = mountPanel({
+      result: {
+        producedBilling: {totalCost: "4.8", details: [line]},
+        shadowBilling: {totalCost: "4.8", details: [line]}
+      }
+    });
+
+    for (const caption of ["被告账明细", "影子重算明细"]) {
+      const table = wrapper.findAll(".bv-table-wrap").find((node) => node.text().includes(caption));
+      expect(table, "未找到明细表：" + caption).toBeTruthy();
+      expect(table!.find("thead").text()).toContain("单位");
+      const cells = table!.find("tbody tr").findAll("td");
+      expect(cells[1].text()).toBe("6");
+      expect(cells[2].text()).toBe("PER_SECOND");
+      expect(cells[3].text()).toBe("800000.0");
+    }
+  });
+});

@@ -337,14 +337,14 @@ public record GatewayTrafficMsgDto(String schema,
     }
 
     /**
-     * 计费视图；规则业务码无法从用量结果反推（{@link NormalizedUsage} 只带 versionCode），
-     * 归因走 {@code billingVersion} 与 {@code kb_billing_rules.version_code} 关联。
+     * 计费视图；归因字段（规则业务码 / 模式 / 方案）由归一化结果直接携带，
+     * 见 {@link BillingViewMsgDto#of(NormalizedUsage)}。
      */
     private static BillingViewMsgDto billingView(UsageAccounting usage) {
         if (usage == null) {
             return null;
         }
-        return BillingViewMsgDto.of(usage.normalized(), null, null);
+        return BillingViewMsgDto.of(usage.normalized());
     }
 
     private static String statusOf(ErrorMsgDto error) {
