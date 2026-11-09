@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -32,6 +33,10 @@ import java.util.stream.Collectors;
 
 @Service
 public class ExternalModelService {
+    /** 点号是版本号的一部分（gpt-4.1），不能像空格/冒号那样折成连字符。 */
+    private static final Pattern DISALLOWED = Pattern.compile("[^a-z0-9.]+");
+    private static final Pattern REPEATED_DOTS = Pattern.compile("[.]{2,}");
+    private static final Pattern EDGE_PUNCTUATION = Pattern.compile("^[-.]+|[-.]+$");
 
     private final ExternalModelMapper externalModelMapper;
     private final LogicalModelService logicalModelService;
@@ -245,8 +250,7 @@ public class ExternalModelService {
         if (logicalModelService.isModelCodeAvailable(base, null)) {
             return base;
         }
-        String suffix = item.getModelId();
-        suffix = suffix != null && suffix.length() > 6 ? suffix.substring(0, 6) : suffix;
+        String suffix = modelKeySuffix(item.getModelId());
         String code = base + "-" + suffix;
         int i = 2;
         while (!logicalModelService.isModelCodeAvailable(code, null)) {
@@ -255,11 +259,31 @@ public class ExternalModelService {
         return code;
     }
 
-    private String slug(String value) {
-        String v = value == null ? "" : value.trim().toLowerCase();
-        v = Pattern.compile("[^a-z0-9]+").matcher(v).replaceAll("-");
-        v = Pattern.compile("(^-+|-+$)").matcher(v).replaceAll("");
-        return v.length() > 96 ? v.substring(0, 96) : v;
+    /** 冲突后缀与主干同口径，避免 vendor 前缀从后门溜进编码。 */
+    static String modelKeySuffix(String modelId) {
+        String key = slug(modelId);
+        if (key.length() > 6) {
+            key = key.substring(0, 6);
+        }
+        return EDGE_PUNCTUATION.matcher(key).replaceAll("");
+    }
+
+    /**
+     * 外部模型转统一模型的编码归一：点号是版本号的一部分（gpt-4.1）必须保留；
+     * 斜杠左侧是供应商命名空间（openai/gpt-4.1），不进编码；其余非法字符仍归一为连字符。
+     * 主干与冲突后缀共用此口径 —— 2026-11-10 robin 拍板，见 ExternalModelServiceCodeTest。
+     */
+    static String slug(String value) {
+        String v = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        int slash = v.lastIndexOf('/');
+        if (slash >= 0) {
+            v = v.substring(slash + 1);
+        }
+        v = DISALLOWED.matcher(v).replaceAll("-");
+        v = REPEATED_DOTS.matcher(v).replaceAll(".");
+        v = EDGE_PUNCTUATION.matcher(v).replaceAll("");
+        v = v.length() > 96 ? v.substring(0, 96) : v;
+        return EDGE_PUNCTUATION.matcher(v).replaceAll("");
     }
 
     private List<String> readStringList(String json) {

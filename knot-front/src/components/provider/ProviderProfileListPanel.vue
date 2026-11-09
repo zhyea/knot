@@ -23,7 +23,8 @@
       <el-table-column label="备注" min-width="18%" show-overflow-tooltip>
         <template #default="{ row }">{{ displayText(row.remark) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="170" align="center" header-align="center" fixed="right">
+      <el-table-column label="操作" width="170" align="center" header-align="center" fixed="right"
+        class-name="row-action-column" label-class-name="row-action-column">
         <template #default="{ row }">
           <RowActions
             :actions="[

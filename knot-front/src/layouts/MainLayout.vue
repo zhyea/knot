@@ -472,6 +472,13 @@ async function handleCommand(command: string | number | object): Promise<void> {
   --el-menu-active-color: var(--el-color-primary);
 }
 
+/* 展开态：嵌套子菜单铺一层极浅的主题色底，与一级菜单的纯白形成轻微层级；
+   hover 再深一档，避免常态底色盖掉交互反馈（9 套主题均定义 light-8/9） */
+.aside-menu:not(.el-menu--collapse) :deep(.el-sub-menu > .el-menu) {
+  background-color: var(--el-color-primary-light-9, #f0f6fc);
+  --el-menu-hover-bg-color: var(--el-color-primary-light-8, #dceaf6);
+}
+
 .aside-resizer {
   position: absolute;
   top: 0;

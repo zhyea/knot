@@ -244,7 +244,11 @@ body,
     font-weight: 600;
 }
 
-.el-table .el-table__fixed-right {
+/* 右侧固定操作栏：EP 2.9 起固定列是 sticky 单元格（.el-table-fixed-column--right），
+   旧 .el-table__fixed-right 容器已不存在。带 row-action-column 钩子的操作列常驻
+   左分隔与阴影，横向滚动时与内容区清晰分层，不会看起来像普通末列。 */
+.el-table .row-action-column.el-table-fixed-column--right {
+    border-left: 1px solid var(--el-border-color-lighter, #ebeef5);
     box-shadow: -6px 0 12px rgba(31, 45, 61, 0.06);
 }
 

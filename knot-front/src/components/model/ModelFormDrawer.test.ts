@@ -236,6 +236,25 @@ describe("ModelFormDrawer 供应商模型表单", () => {
 
   // ==================== 打开与回填 ====================
 
+  it("新建：模型编码失焦不自动填充上游模型，留空必须人工填写", async () => {
+    const wrapper = await openDrawer();
+    const codeInput = wrapper.find('input[placeholder="请输入供应商模型编码"]');
+    await codeInput.setValue("gpt-4o-mini");
+    await codeInput.trigger("blur");
+    await flushPromises();
+
+    // 上游模型名常与编码不同（日期后缀 / 供应商别名），用编码兜底会把未经确认的值静默存库
+    const upstreamInput = wrapper.find('input[placeholder^="向上游请求时使用的 model"]');
+    expect((upstreamInput.element as HTMLInputElement).value).toBe("");
+    // 失焦仍要走唯一性校验，只是不再顺手改别的字段
+    expect(checkModelCode).toHaveBeenCalledWith("gpt-4o-mini", null);
+
+    await saveButton(wrapper).trigger("click");
+    await flushPromises();
+    expect(warned()).toContain("请填写上游模型");
+    expect(createModel).not.toHaveBeenCalled();
+  });
+
   it("新建：标题为新建态，加载五类候选且不拉详情", async () => {
     const wrapper = await openDrawer();
 
@@ -471,7 +490,7 @@ describe("ModelFormDrawer 供应商模型表单", () => {
     const wrapper = await openDrawer();
     await wrapper.find('input[placeholder="请输入供应商模型编码"]').setValue("gpt-4o-mini");
     await wrapper.find('input[placeholder^="向上游请求时使用的 model"]').setValue("gpt-4o-mini");
-    // 编码失焦会用编码兜底上游模型，这里显式触发一次唯一性校验
+    // 上游模型必须人工填写；编码失焦只触发唯一性校验，不再兜底填充
     await wrapper.find('input[placeholder="请输入供应商模型编码"]').trigger("blur");
     await flushPromises();
 

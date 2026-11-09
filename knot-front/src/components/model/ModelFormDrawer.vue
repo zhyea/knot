@@ -794,11 +794,14 @@ function onClosed() {
   modelCodeError.value = "";
 }
 
-/** 模型编码失焦：上游模型为空时以模型编码兜底（多数供应商上游模型与编码同名），再走唯一性校验 */
+/**
+ * 模型编码失焦：只做唯一性校验，不再自动填充上游模型。
+ *
+ * <p>⭐ 上游模型名常与编码不同（日期后缀、供应商别名、endpoint 形态），用编码兜底
+ * 会把一个未经确认的值静默写进请求体 model，且必填校验拦不住它。上游模型一律人工填写，
+ * 留空由 {@code validateRequired} 拦下（判例：ModelFormDrawer.test.ts「不自动填充上游模型」）。</p>
+ */
 function onModelCodeBlur() {
-  if (!String(form.upstreamModel ?? "").trim()) {
-    form.upstreamModel = form.modelCode?.trim() || "";
-  }
   void validateModelCode();
 }
 
