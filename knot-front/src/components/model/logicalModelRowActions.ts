@@ -1,5 +1,6 @@
 import {Delete, Document, Edit, RefreshLeft} from "@element-plus/icons-vue";
 import type {Row, RowAction} from "@/types";
+import {isDeletedRow} from "@/utils/rowState";
 
 /**
  * 统一模型的表格视图与卡片视图共用同一套行操作。
@@ -8,7 +9,7 @@ import type {Row, RowAction} from "@/types";
  * 供应商模型 / 模型池 / 敏感词的动作集不同，各自保留，不塞进本函数参数。</p>
  */
 export function logicalModelRowActions(row: Row): RowAction[] {
-  if (row.deleted === true) {
+  if (isDeletedRow(row)) {
     return [
       {key: "log", label: "日志", icon: Document},
       {key: "restore", label: "恢复", icon: RefreshLeft, type: "success", confirm: "确认恢复该统一模型？"}

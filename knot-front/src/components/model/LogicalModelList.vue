@@ -29,7 +29,7 @@
           <el-switch
             :model-value="row.enabled !== false"
             :loading="togglingId === row.id"
-            :disabled="row.deleted === true"
+            :disabled="isDeletedRow(row)"
             inline-prompt
             active-text="启用"
             inactive-text="禁用"
@@ -81,6 +81,7 @@ import type {Row, SelectOption} from "@/types";
 import {useLogicalModelPresentation} from "@/composables/useLogicalModelPresentation";
 import {formatDateTime} from "@/utils/format";
 import {logicalModelRowActions} from "./logicalModelRowActions";
+import {deletedRowClassName, isDeletedRow} from "@/utils/rowState";
 
 const props = defineProps({
   rows: {type: Array as PropType<Row[]>, default: (): Row[] => []},
@@ -106,9 +107,7 @@ const {modelTypeLabel, familyLabel} = useLogicalModelPresentation({ modelTypeOpt
 onMounted(() => loadFamilyOptions(true));
 
 /** 已删除行：浅红底标识（排序已由后端 is_deleted asc 放到末尾） */
-function rowClassName({row}: { row: Row }): string {
-  return row.deleted === true ? "row-deleted" : "";
-}
+const rowClassName = deletedRowClassName;
 
 const rowActions = logicalModelRowActions;
 </script>

@@ -90,7 +90,7 @@ describe("LogicalModelList 启用状态映射（boolean 契约 + 防 truthy 回�
     expect((rows[0].enabled as unknown)).toBe(false);
   });
 
-  it("已删除行：开关 disabled（:disabled=\"row.deleted === true\"）", async () => {
+  it("已删除行：开关 disabled（isDeletedRow 严格判 true）", async () => {
     const rows: Row[] = [{ id: 9, modelCode: "M9", enabled: true, deleted: true }];
     const wrapper = await mountList(rows);
     const switches = wrapper.findAllComponents(ElSwitch);

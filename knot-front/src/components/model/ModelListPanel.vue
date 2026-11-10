@@ -20,7 +20,7 @@
           <el-switch
             :model-value="row.enabled !== false"
             :loading="togglingId === row.id"
-            :disabled="row.deleted === true"
+            :disabled="isDeletedRow(row)"
             inline-prompt
             active-text="启用"
             inactive-text="禁用"
@@ -66,6 +66,7 @@ import {useEnabledToggle} from "@/composables/useEnabledToggle";
 
 import {formatDateTime} from "@/utils/format";
 import {useModelTypeText} from "@/composables/useEnumText";
+import {deletedRowClassName, isDeletedRow} from "@/utils/rowState";
 
 defineProps({
   rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
@@ -86,13 +87,11 @@ const {togglingId, handleEnabledChange} = useEnabledToggle({
 
 const modelTypeLabel = useModelTypeText();
 /** 已删除行：浅红底标识（排序已由后端 is_deleted asc 放到末尾） */
-function rowClassName({ row }: { row: Row }) {
-  return row.deleted === true ? "row-deleted" : "";
-}
+const rowClassName = deletedRowClassName;
 
 /** 已删除行只给「日志 / 恢复」，编辑 / 复制 / 删除都无意义；恢复后按常规操作列展示 */
 function rowActions(row: Row): RowAction[] {
-  if (row.deleted === true) {
+  if (isDeletedRow(row)) {
     return [
       { key: "log", label: "日志", icon: Document },
       { key: "restore", label: "恢复", icon: RefreshLeft, type: "success", confirm: "确认恢复该供应商模型？" }

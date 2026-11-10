@@ -6,7 +6,7 @@
           v-for="row in rows"
           :key="row.id"
           class="model-card"
-          :class="{ 'model-card--deleted': row.deleted === true }"
+          :class="{ 'model-card--deleted': isDeletedRow(row) }"
         >
           <div class="corner-ribbon" :class="ribbonClass(row)">{{ statusText(row) }}</div>
           <div class="card-top">
@@ -50,7 +50,8 @@
 </template>
 
 <script setup lang="ts">
-import {displayText} from "@/utils/format";
+import {displayText, EMPTY_PLACEHOLDER} from "@/utils/format";
+import {isDeletedRow} from "@/utils/rowState";
 import { LogicalModelPublishStatus } from "@/constants/status";
 import {onMounted, type PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
@@ -84,21 +85,23 @@ function isMeaningfulTag(tag: unknown): boolean {
 function displayTags(row: Row): string[] {
   const tags: string[] = Array.isArray(row.tags) ? row.tags.filter(isMeaningfulTag) : [];
   const type = modelTypeLabel(row.modelType);
-  if (type && type !== "-") {
+  // modelTypeLabel 的空值口径是全站唯一出口 EMPTY_PLACEHOLDER（不是旧的手写 "-"）。
+  // 判据必须与唯一出口同步，否则空模型类型会被当成一个真实标签渲染出来（2026-11-10 回归）。
+  if (type && type !== EMPTY_PLACEHOLDER) {
     tags.unshift(type);
   }
   return tags.slice(0, 3);
 }
 
 function statusText(row: Row): string {
-  if (row.deleted === true) return "已删除";
+  if (isDeletedRow(row)) return "已删除";
   if (row.featured) return "推荐";
   if (row.publishStatus === LogicalModelPublishStatus.PUBLISHED) return "已发布";
   return row.enabled ? "可用" : "草稿";
 }
 
 function ribbonClass(row: Row): string {
-  if (row.deleted === true) return "corner-ribbon--deleted";
+  if (isDeletedRow(row)) return "corner-ribbon--deleted";
   if (row.featured) return "corner-ribbon--hot";
   if (row.publishStatus === LogicalModelPublishStatus.PUBLISHED) return "corner-ribbon--new";
   return row.enabled ? "corner-ribbon--new" : "corner-ribbon--draft";
