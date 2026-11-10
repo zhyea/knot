@@ -2,9 +2,9 @@
   <div>
     <el-table v-loading="loading" :data="rows" :row-class-name="rowClassName" stripe border style="width: 100%">
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
-      <el-table-column prop="modelCode" label="模型编码" width="200" show-overflow-tooltip />
-      <el-table-column prop="logicalModelCode" label="统一模型" width="220" show-overflow-tooltip />
-      <el-table-column label="供应商" min-width="110" show-overflow-tooltip>
+      <el-table-column prop="modelCode" label="模型编码" width="220" show-overflow-tooltip />
+      <el-table-column prop="logicalModelCode" label="统一模型" width="240" show-overflow-tooltip />
+      <el-table-column label="供应商" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.providerName || (row.providerAccountCode ? `#${row.providerAccountCode}` : "-") }}
         </template>
@@ -14,7 +14,7 @@
           {{ modelTypeLabel(row.modelType) }}
         </template>
       </el-table-column>
-      <el-table-column prop="version" label="版本" width="110" align="center" show-overflow-tooltip />
+      <el-table-column prop="version" label="版本" width="136" align="center" show-overflow-tooltip />
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch
