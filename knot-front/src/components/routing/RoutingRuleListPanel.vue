@@ -1,7 +1,7 @@
 <template>
   <div>
     <el-table v-loading="loading" :data="rows" stripe border>
-      <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
+      <el-table-column prop="id" label="ID" width="80" align="center" header-align="center" />
       <el-table-column prop="ruleCode" label="规则编码" min-width="240" show-overflow-tooltip />
       <el-table-column label="路由目标" min-width="240">
         <template #default="{ row }">
@@ -52,7 +52,7 @@
           {{ userLabel(row) }}
         </template>
       </el-table-column>
-      <el-table-column label="统一模型" min-width="200" show-overflow-tooltip>
+      <el-table-column label="统一模型" min-width="240" show-overflow-tooltip>
         <template #default="{ row }">
           {{ displayText(row.logicalModelName || row.logicalModelCode) }}
         </template>
