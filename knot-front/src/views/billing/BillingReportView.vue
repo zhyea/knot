@@ -69,14 +69,14 @@ import type {Dict, Row} from "@/types";
 import {computed, onMounted, ref} from "vue";
 import PageSection from "@/components/common/PageSection.vue";
 import {getBillingReportSummary} from "@/api/billing";
-import {useEnumOptions} from "@/composables/useEnumOptions";
+
+import {useEnumText} from "@/composables/useEnumText";
 
 const loading = ref(false);
 const summary = ref<Dict | null>(null);
 
 // 计费模式/进阶方案的标签来自后端代码枚举（BillingModeEnum / PricingPlanEnum），
 // DB 字典 ks_enum_configs 中这两个分类已随迁移删除，不得再走 useEnums。
-const {labelOf: enumLabelOf} = useEnumOptions();
 
 const statCards = computed(() => [
   {label: "规则总数", value: summary.value?.totalRules ?? 0},
@@ -90,14 +90,8 @@ const statCards = computed(() => [
 const modeRows = computed<Row[]>(() => (summary.value?.byBillingMode as Row[]) || []);
 const planRows = computed<Row[]>(() => (summary.value?.byPricingPlan as Row[]) || []);
 
-function modeLabel(code: unknown): string {
-  return enumLabelOf("BillingModeEnum", code, String(code || "（未配置）"));
-}
-
-function planLabel(code: unknown): string {
-  return enumLabelOf("PricingPlanEnum", code, String(code || "（未配置）"));
-}
-
+const modeLabel = useEnumText("BillingModeEnum", {fallback: (code) => String(code || "（未配置）")});
+const planLabel = useEnumText("PricingPlanEnum", {fallback: (code) => String(code || "（未配置）")});
 async function loadSummary() {
   loading.value = true;
   try {

@@ -377,7 +377,7 @@ import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
 import TrafficPolicySection from "../common/TrafficPolicySection.vue";
 import ProviderAccountTreeSelect from "../provider/ProviderAccountTreeSelect.vue";
 import {useModelTypes} from "@/composables/useModelTypes";
-import {useEnumOptions} from "@/composables/useEnumOptions";
+
 import {
   emptyRateLimitPolicy,
   isEmptyRateLimitPolicy,
@@ -399,6 +399,7 @@ import {normalizeOptionList, toOptionsLoader} from "@/utils/options";
 import {normalizeProtocolCode} from "@/utils/protocolCode";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
+import {useEnumText} from "@/composables/useEnumText";
 
 /**
  * 单条协议绑定的调用方式。
@@ -449,7 +450,6 @@ const router = useRouter();
 const usageExtractorGuideHref = router.resolve({name: "model-management-usage-extractors"}).href;
 
 const {loadOptions: loadModelTypes, protocolsOf} = useModelTypes();
-const {labelOf: enumLabelOf} = useEnumOptions();
 const logicalModelOptions = ref<Row[]>([]);
 /** 当前已绑定的计费规则行（按 code 精确取回，表格只展示它）；未绑定为 null */
 const boundBillingRule = ref<Row | null>(null);
@@ -614,14 +614,8 @@ function isEnabledLogicalModel(model: Row): boolean {
   return status == null ? model.disabled !== true : status === EnabledStatus.ENABLED;
 }
 
-function modeLabel(code: unknown): string {
-  return enumLabelOf("BillingModeEnum", code, displayText(code));
-}
-
-function planLabel(code: unknown): string {
-  return enumLabelOf("PricingPlanEnum", code, displayText(code));
-}
-
+const modeLabel = useEnumText("BillingModeEnum", {fallback: displayText});
+const planLabel = useEnumText("PricingPlanEnum", {fallback: displayText});
 function usageExtractorLabel(item: Row): string {
   return item?.label || item?.code || "";
 }

@@ -68,13 +68,14 @@
 </template>
 
 <script setup lang="ts">
-import {displayText, formatDateTime} from "@/utils/format";
+import {displayText, formatDateTime, EMPTY_PLACEHOLDER} from "@/utils/format";
 import {type PropType} from "vue";
 import {CopyDocument, DataAnalysis, Delete, Document, Edit} from "@element-plus/icons-vue";
 import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
-import {useEnumOptions} from "@/composables/useEnumOptions";
+
+import {useEnumText} from "@/composables/useEnumText";
 
 defineProps({
   rows: {type: Array as PropType<Row[]>, default: (): Row[] => []},
@@ -98,13 +99,7 @@ const emit = defineEmits([
   "page-change",
   "size-change"
 ]);
-const {labelOf: enumLabelOf} = useEnumOptions();
 
-function billingModeLabel(code: unknown): string {
-  return enumLabelOf("BillingModeEnum", code);
-}
-
-function pricingPlanLabel(code: unknown): string {
-  return enumLabelOf("PricingPlanEnum", code, "-");
-}
+const billingModeLabel = useEnumText("BillingModeEnum");
+const pricingPlanLabel = useEnumText("PricingPlanEnum", {fallback: () => EMPTY_PLACEHOLDER});
 </script>

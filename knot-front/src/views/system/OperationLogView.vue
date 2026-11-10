@@ -80,10 +80,10 @@ import FilterField from "../../components/common/FilterField.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
 import OperationLogListPanel from "../../components/system/OperationLogListPanel.vue";
 import {useListQuery} from "@/composables/useListQuery";
-import {useEnumOptions} from "@/composables/useEnumOptions";
-import {listOperationLogs} from "@/api/operationLogs";
 
-const { labelOf } = useEnumOptions();
+import {listOperationLogs} from "@/api/operationLogs";
+import {useEnumText} from "@/composables/useEnumText";
+
 
 const moduleLabelMap = {
   system: "系统管理",
@@ -120,10 +120,7 @@ const logStatusOptions = computed(() =>
   }))
 );
 
-function statusLabel(code: number) {
-  return labelOf("OperationLogStatusEnum", code);
-}
-
+const statusLabel = useEnumText("OperationLogStatusEnum");
 async function fetchOperationLogs(params: Dict) {
   const result = await listOperationLogs(params);
   moduleOptions.value = normalizeOptions(result?.moduleOptions, resolveModuleLabel);

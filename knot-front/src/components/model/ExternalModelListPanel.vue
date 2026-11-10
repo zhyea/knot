@@ -83,9 +83,9 @@ import type {PropType} from "vue";
 import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
-import {useEnumOptions} from "@/composables/useEnumOptions";
+
 import {formatThousands, displayText, formatDateTime} from "@/utils/format";
-import {useEnumText, useModelTypeText} from "@/composables/useEnumText";
+import {useModelTypeText} from "@/composables/useEnumText";
 
 
 const props = defineProps({

@@ -56,8 +56,9 @@ import type {Row} from "@/types";
 import {onMounted, ref} from "vue";
 import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
-import {useEnumOptions} from "@/composables/useEnumOptions";
+
 import {listUsageExtractors} from "@/api/models";
+import {useEnumText} from "@/composables/useEnumText";
 
 /**
  * Usage 提取器目录页：只读展示全部提取器及其说明（GET /api/models/usage-extractors）。
@@ -65,7 +66,6 @@ import {listUsageExtractors} from "@/api/models";
  * <p>数据与供应商模型表单里的提取器下拉同源（UsageExtractorCatalog），本页是它的说明书——
  * 下拉按已绑计费模式收敛后看不到全貌，配置时可从表单的「说明」链接跳到这里对照。</p>
  */
-const {labelOf: enumLabelOf} = useEnumOptions();
 
 const rows = ref<Row[]>([]);
 const loading = ref(false);
@@ -75,10 +75,7 @@ function billingModesOf(row: Row): string[] {
   return Array.isArray(modes) ? modes.map((code) => String(code)) : [];
 }
 
-function modeLabel(code: string): string {
-  return enumLabelOf("BillingModeEnum", code, code);
-}
-
+const modeLabel = useEnumText("BillingModeEnum");
 async function load() {
   loading.value = true;
   try {

@@ -84,6 +84,7 @@ import type {Dict, Row} from "@/types";
 import {previewBillingRule} from "@/api/billing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {PEAK_REASONS} from "@/utils/billingPeakOffPeak";
+import {useEnumText} from "@/composables/useEnumText";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -137,14 +138,8 @@ const reasonText = computed(() => {
   return PEAK_REASONS[String(reason)] || String(reason);
 });
 
-function modeLabel(code: unknown): string {
-  return enumLabelOf("BillingModeEnum", code, displayText(code));
-}
-
-function planLabel(code: unknown): string {
-  return enumLabelOf("PricingPlanEnum", code, displayText(code));
-}
-
+const modeLabel = useEnumText("BillingModeEnum", {fallback: displayText});
+const planLabel = useEnumText("PricingPlanEnum", {fallback: displayText});
 async function run() {
   if (!props.rule?.id) {
     return;

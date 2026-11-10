@@ -92,3 +92,35 @@ describe("useEnabledToggle.handleEnabledChange 成功回调", () => {
     await expect(handleEnabledChange(makeRow(true), false)).resolves.toBeUndefined();
   });
 });
+
+describe("useEnabledToggle.handleEnabledChange 异步刷新", () => {
+  it("onChanged 返回 Promise 时包装层等它完成才 resolve（页面刷新用 await load()）", async () => {
+    let resolveChanged!: () => void;
+    const changed = new Promise<void>((resolve) => { resolveChanged = resolve; });
+    let refreshed = false;
+    const updateApi = vi.fn().mockResolvedValue(undefined);
+    const onChanged = vi.fn(() => changed.then(() => { refreshed = true; }));
+    const { handleEnabledChange } = useEnabledToggle({ updateApi, onChanged });
+
+    let wrapperSettled = false;
+    const pending = handleEnabledChange(makeRow(true), false).then(() => { wrapperSettled = true; });
+    await vi.waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // 刷新还没结束，包装层不许先返回；一旦去掉 await 这里立刻转红
+    expect(wrapperSettled).toBe(false);
+    expect(refreshed).toBe(false);
+
+    resolveChanged();
+    await pending;
+    expect(wrapperSettled).toBe(true);
+    expect(refreshed).toBe(true);
+  });
+
+  it("更新失败回滚后仍按原列表语义通知一次刷新", async () => {
+    const updateApi = vi.fn().mockRejectedValue(new Error("网络错误"));
+    const onChanged = vi.fn();
+    const { handleEnabledChange } = useEnabledToggle({ updateApi, onChanged });
+    await handleEnabledChange(makeRow(true), false);
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+});

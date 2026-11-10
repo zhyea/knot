@@ -63,9 +63,9 @@ import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {updateModelStatus} from "@/api/models";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
-import {useEnumOptions} from "@/composables/useEnumOptions";
+
 import {formatDateTime} from "@/utils/format";
-import {useEnumText, useModelTypeText} from "@/composables/useEnumText";
+import {useModelTypeText} from "@/composables/useEnumText";
 
 defineProps({
   rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },

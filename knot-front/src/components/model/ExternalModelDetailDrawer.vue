@@ -49,8 +49,9 @@
 import type {Dict} from "@/types";
 import {type PropType, computed} from "vue";
 import JsonCodeEditor from "../common/JsonCodeEditor.vue";
-import {useEnumOptions} from "@/composables/useEnumOptions";
+
 import {EMPTY_PLACEHOLDER, displayText, formatDateTime, formatJsonArray, formatJsonText} from "@/utils/format";
+import {useModelTypeText} from "@/composables/useEnumText";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -59,15 +60,10 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
-const {labelOf} = useEnumOptions();
 
 const rawJsonText = computed(() => formatJsonText(props.detail?.rawJson, "\t", "—"));
 
-function modelTypeLabel(code: string): string {
-  if (!code) return EMPTY_PLACEHOLDER;
-  return labelOf("ModelTypeEnum", code, code);
-}
-
+const modelTypeLabel = useModelTypeText();
 function formatArray(value: unknown): string {
   return formatJsonArray(value);
 }
