@@ -47,12 +47,12 @@
           {{ displayText(row.appScenario) }}
         </template>
       </el-table-column>
-      <el-table-column label="归属用户" min-width="140" show-overflow-tooltip>
+      <el-table-column label="归属用户" min-width="180" show-overflow-tooltip>
         <template #default="{ row }">
           {{ userLabel(row) }}
         </template>
       </el-table-column>
-      <el-table-column label="统一模型" min-width="140" show-overflow-tooltip>
+      <el-table-column label="统一模型" min-width="200" show-overflow-tooltip>
         <template #default="{ row }">
           {{ displayText(row.logicalModelName || row.logicalModelCode) }}
         </template>
