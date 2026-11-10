@@ -415,7 +415,7 @@ import {
 } from "@/composables/useAsyncTaskPolling";
 import {getTestRequestPreset, listTestRequestPresetOptions} from "@/api/routing";
 import {useEnumOptions} from "@/composables/useEnumOptions";
-import {parseJsonResult} from "@/utils/format";
+import {EMPTY_PLACEHOLDER, parseJsonResult} from "@/utils/format";
 import {
   extractField,
   highlightBlock,
@@ -1064,7 +1064,7 @@ function targetLabel(target: RoutingTarget): string {
 
 function protocolLabel(protocol: unknown): string {
   const code = canonicalOf(protocol);
-  if (!code) return "-";
+  if (!code) return EMPTY_PLACEHOLDER;
   return enumLabelOf("ModelApiProtocolEnum", code, code);
 }
 

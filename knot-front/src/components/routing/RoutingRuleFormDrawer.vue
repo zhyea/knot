@@ -250,6 +250,7 @@
 </template>
 
 <script setup lang="ts">
+import {isRowEnabled} from "@/utils/enabledFlag";
 import {type PropType, computed, nextTick, reactive, ref, watch} from "vue";
 import {RouteTargetType} from "@/constants/status";
 import {useEnumOptions} from "@/composables/useEnumOptions";
@@ -506,7 +507,7 @@ function resetForm() {
     form.logicalModelCode = row.logicalModelCode ?? null;
     form.selectionStrategy = row.selectionStrategy || "PRIORITY";
     selectedUserRealName.value = row.userRealName ?? null;
-    form.enabled = row.enabled !== false;
+    form.enabled = isRowEnabled(row);
     form.rateLimitPolicy = normalizeRateLimitPolicy(row.rateLimitPolicy);
     form.retryPolicy = normalizeRetryPolicy(row.retryPolicy);
     form.ejectionPolicy = normalizeEjectionPolicy(row.ejectionPolicy);

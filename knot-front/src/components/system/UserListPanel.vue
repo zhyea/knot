@@ -58,7 +58,7 @@
 </template>
 
 <script setup lang="ts">
-import {displayText} from "@/utils/format";
+import {EMPTY_PLACEHOLDER, displayText, formatDateTime} from "@/utils/format";
 import type {PropType} from "vue";
 import type {Row} from "@/types";
 import {Document, Edit, Key} from "@element-plus/icons-vue";
@@ -77,23 +77,9 @@ defineProps({
 
 const emit = defineEmits(["create", "refresh", "status-change", "action", "page-change", "size-change"]);
 
-function formatDateTime(dateTime: unknown) {
-  if (!dateTime) {
-    return "-";
-  }
-  return new Date(dateTime as string | number | Date).toLocaleString("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  });
-}
-
 function formatRoleNames(roleNames: unknown[]) {
   if (!Array.isArray(roleNames) || roleNames.length === 0) {
-    return "-";
+    return EMPTY_PLACEHOLDER;
   }
   return roleNames.join("、");
 }

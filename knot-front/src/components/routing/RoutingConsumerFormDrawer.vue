@@ -106,6 +106,7 @@
 </template>
 
 <script setup lang="ts">
+import {isRowEnabled} from "@/utils/enabledFlag";
 import {type PropType,  computed, reactive, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import RemoteEntitySelect from "../common/RemoteEntitySelect.vue";
@@ -185,7 +186,7 @@ function resetForm(row: Row | null = null) {
   form.name = row?.name || "";
   form.userUsername = row?.userUsername ?? null;
   form.returnUsageDetail = row?.returnUsageDetail === true;
-  form.enabled = row?.enabled !== false;
+  form.enabled = isRowEnabled(row);
   form.quotaPolicies = normalizeQuotaPolicies(row?.quotaPolicies);
   // 规则数即消费者编码的引用处数：>0 时编码不可改（与后端 CodeBindingSupport 同源）
   boundCount.value = Number(row?.ruleCount ?? 0);

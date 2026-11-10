@@ -135,6 +135,7 @@
 </template>
 
 <script setup lang="ts">
+import {isRowEnabled} from "@/utils/enabledFlag";
 import {type PropType, computed, nextTick, reactive, ref, watch} from "vue";
 import type {Component} from "vue";
 import {ElMessage} from "element-plus";
@@ -395,7 +396,7 @@ function fillFormFromDetail(row: Dict) {
   form.currency = row.currency || "USD";
   form.unit = row.unit || modeDefaults(form.billingMode).unit;
   form.customConfigJson = form.billingMode === BillingMode.CUSTOM ? row.configJson || "" : "";
-  form.enabled = row.enabled !== false;
+  form.enabled = isRowEnabled(row);
   form.remark = row.remark || "";
   applyConfig(parseJsonObject(row.configJson));
 }

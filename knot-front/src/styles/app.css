@@ -244,6 +244,23 @@ body,
     font-weight: 600;
 }
 
+/* 逻辑删除行：row-deleted class 由 utils/rowState.ts#deletedRowClassName 唯一生成，
+   原先 3 个模型列表各抄一份逐字相同的 scoped :deep(...) 规则。scoped 版要求祖先带
+   [data-v-*]，但该 class 只落在 el-table 自己渲染的 tr 上，全局化作用域等价。
+   ⚠ ModelPoolListPanel 的 .bind-list__text 删除线是局部增强，仍留在 scoped，不并入。 */
+.el-table__row.row-deleted > td {
+    background: #fef0f0 !important;
+    color: #c45656;
+}
+
+/* 授权管理三面板标题：3 份 scoped 规则逐字相同，且全站只有这 3 处使用该类，
+   提到全局不扩大命中面。 */
+.auth-panel__title {
+    font-size: var(--el-font-size-base, 13px);
+    color: #303133;
+    font-weight: 600;
+}
+
 /* 右侧固定操作栏：EP 2.9 起固定列是 sticky 单元格（.el-table-fixed-column--right），
    旧 .el-table__fixed-right 容器已不存在。带 row-action-column 钩子的操作列常驻
    左分隔与阴影，横向滚动时与内容区清晰分层，不会看起来像普通末列。 */

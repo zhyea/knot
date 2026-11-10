@@ -24,7 +24,7 @@
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch
-            :model-value="row.enabled !== false"
+            :model-value="isRowEnabled(row)"
             :loading="togglingId === row.id"
             :disabled="isDeletedRow(row)"
             inline-prompt
@@ -57,6 +57,7 @@
 </template>
 
 <script setup lang="ts">
+import {isRowEnabled} from "@/utils/enabledFlag";
 import {displayText} from "@/utils/format";
 import type {PropType} from "vue";
 import type {Row, RowAction} from "@/types";
@@ -119,12 +120,6 @@ function rowActions(row: Row): RowAction[] {
 </script>
 
 <style scoped>
-
-/* 已逻辑删除的行：浅红底 + 文字降透明度，与正常行一眼可分 */
-:deep(.el-table__row.row-deleted > td) {
-  background: #fef0f0 !important;
-  color: #c45656;
-}
 
 :deep(.el-table__row.row-deleted > td .bind-list__text) {
   color: #c45656;

@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import {displayText} from "@/utils/format";
+import {EMPTY_PLACEHOLDER, displayText} from "@/utils/format";
 import { OperationLogStatus } from "@/constants/status";
 import {ref, watch} from "vue";
 import type {Row} from "@/types";
@@ -93,7 +93,7 @@ defineExpose({reload: load});
 /** 展示为 2026-05-15 22:52:52 */
 function formatLogTime(val: unknown): string {
   if (val == null || val === "") {
-    return "-";
+    return EMPTY_PLACEHOLDER;
   }
   const d = new Date(val as string | number | Date);
   if (Number.isNaN(d.getTime())) {

@@ -28,7 +28,7 @@
       <el-table-column label="启用" width="90" align="center">
         <template #default="{ row }">
           <el-switch
-            :model-value="row.enabled !== false"
+            :model-value="isRowEnabled(row)"
             :loading="togglingId === row.id"
             inline-prompt
             active-text="启用"
@@ -89,6 +89,7 @@
 </template>
 
 <script setup lang="ts">
+import {isRowEnabled, normalizeEnabledFlag} from "@/utils/enabledFlag";
 import {Document, Edit, VideoPlay} from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
@@ -155,11 +156,11 @@ function handleAction(action: string, row: Row) {
 }
 
 async function handleEnabledChange(row: Row, enabled: string | number | boolean) {
-  const flag = enabled !== false && enabled !== 0 && enabled !== "false";
+  const flag = normalizeEnabledFlag(enabled);
   // 列表开关是第二个「启用」入口，抽屉的提交校验管不到它。
   // 不预检就只会看到开关打开后被后端 400 静默弹回；这里直接给出可执行提示。
   if (flag && row.appId == null) {
-    const prev = row.enabled !== false;
+    const prev = isRowEnabled(row);
     row.enabled = prev; // 受控开关强制回弹；脏数据行也保持原值，不掩盖问题
     ElMessage.warning("启用规则前请先绑定应用");
     return;

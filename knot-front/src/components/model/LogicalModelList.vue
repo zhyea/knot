@@ -15,10 +15,11 @@
       </el-table-column>
       <el-table-column label="类型" width="120" show-overflow-tooltip>
         <template #default="{ row }">
-          <el-tag v-if="modelTypeLabel(row.modelType) !== '-'" effect="plain">
+          <!-- 守卫必须与 modelTypeLabel 的空值口径（唯一出口）同步：写成 '-' 会把占位符渲染成标签 -->
+          <el-tag v-if="modelTypeLabel(row.modelType) !== EMPTY_PLACEHOLDER" effect="plain">
             {{ modelTypeLabel(row.modelType) }}
           </el-tag>
-          <span v-else>-</span>
+          <span v-else>{{ EMPTY_PLACEHOLDER }}</span>
         </template>
       </el-table-column>
       <el-table-column label="模型族" min-width="150" show-overflow-tooltip>
@@ -27,7 +28,7 @@
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch
-            :model-value="row.enabled !== false"
+            :model-value="isRowEnabled(row)"
             :loading="togglingId === row.id"
             :disabled="isDeletedRow(row)"
             inline-prompt
@@ -70,27 +71,26 @@
 </template>
 
 <script setup lang="ts">
-import {displayText} from "@/utils/format";
+import {isRowEnabled} from "@/utils/enabledFlag";
+import {displayText, formatDateTime, EMPTY_PLACEHOLDER} from "@/utils/format";
 import {onMounted, type PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {updateLogicalModelStatus} from "@/api/logicalModels";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {useEnums} from "@/composables/useEnums";
-import type {Row, SelectOption} from "@/types";
+import type {Row} from "@/types";
 import {useLogicalModelPresentation} from "@/composables/useLogicalModelPresentation";
-import {formatDateTime} from "@/utils/format";
 import {logicalModelRowActions} from "./logicalModelRowActions";
 import {deletedRowClassName, isDeletedRow} from "@/utils/rowState";
 
-const props = defineProps({
+defineProps({
   rows: {type: Array as PropType<Row[]>, default: (): Row[] => []},
   loading: {type: Boolean, default: false},
   total: {type: Number, default: 0},
   pageNum: {type: Number, default: 1},
   pageSize: {type: Number, default: 20},
   pageSizes: {type: Array as PropType<number[]>, default: (): number[] => [10, 20, 50]},
-  modelTypeOptions: {type: Array as PropType<SelectOption[]>, default: (): SelectOption[] => []},
   showRefresh: {type: Boolean, default: true}
 });
 
@@ -102,7 +102,7 @@ const {togglingId, handleEnabledChange} = useEnabledToggle({
 });
 
 const {options: familyOptions, loadOptions: loadFamilyOptions} = useEnums("model_family");
-const {modelTypeLabel, familyLabel} = useLogicalModelPresentation({ modelTypeOptions: () => props.modelTypeOptions, familyOptions: () => familyOptions.value });
+const {modelTypeLabel, familyLabel} = useLogicalModelPresentation({familyOptions: () => familyOptions.value});
 /** 与抽屉下拉同一口径：强制回源，避免列表标签停在旧值而下拉已是新值 */
 onMounted(() => loadFamilyOptions(true));
 
@@ -112,10 +112,3 @@ const rowClassName = deletedRowClassName;
 const rowActions = logicalModelRowActions;
 </script>
 
-<style scoped>
-/* 已逻辑删除的行：浅红底 + 文字降透明度，与正常行一眼可分 */
-:deep(.el-table__row.row-deleted > td) {
-  background: #fef0f0 !important;
-  color: #c45656;
-}
-</style>

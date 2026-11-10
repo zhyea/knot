@@ -211,7 +211,7 @@
 </template>
 
 <script setup lang="ts">
-import {displayText} from "@/utils/format";
+import {EMPTY_PLACEHOLDER, displayText} from "@/utils/format";
 import {labelOf} from "@/composables/useEnumOptions";
 import {computed} from "vue";
 import type {
@@ -253,7 +253,7 @@ const usagePairs = computed<Array<{ key: string; upstream: string; produced: str
 
 function formatValue(value: unknown): string {
   if (value == null || value === "") {
-    return "-";
+    return EMPTY_PLACEHOLDER;
   }
   if (typeof value === "object") {
     return JSON.stringify(value);
@@ -313,14 +313,14 @@ const CHOICE_VALUE_LABELS: Record<string, Record<string, string>> = {
 
 function checkLabel(code?: string | null): string {
   if (!code) {
-    return "-";
+    return EMPTY_PLACEHOLDER;
   }
   return labelOf("BillingCheckCode", code, code);
 }
 
 function answerLabel(key?: string | null): string {
   if (!key) {
-    return "-";
+    return EMPTY_PLACEHOLDER;
   }
   return ANSWER_LABELS[key] || key;
 }
@@ -369,7 +369,7 @@ function answerText(answer: JevAnswerItem): string {
   }
   const value = answer.value;
   if (value == null) {
-    return "-";
+    return EMPTY_PLACEHOLDER;
   }
   if (answer.type === "noul") {
     if (value === true) {

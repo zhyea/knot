@@ -152,11 +152,6 @@ function buildActions(row: Row): RowAction[] {
   gap: 8px;
 }
 
-.auth-panel__title {
-  font-size: var(--el-font-size-base, 13px);
-  color: #303133;
-  font-weight: 600;
-}
 
 .auth-panel__filters {
   display: flex;

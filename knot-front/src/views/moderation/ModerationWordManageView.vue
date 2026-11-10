@@ -54,7 +54,7 @@
           <el-table-column label="启用" width="88" align="center">
             <template #default="{ row }">
               <el-switch
-                :model-value="row.enabled !== false"
+                :model-value="isRowEnabled(row)"
                 :loading="togglingId === row.id"
                 :disabled="row.deleted"
                 inline-prompt
@@ -99,6 +99,7 @@
 </template>
 
 <script setup lang="ts">
+import {isRowEnabled} from "@/utils/enabledFlag";
 import type {Dict, Row, RowAction} from "@/types";
 import type {ButtonType} from "element-plus";
 import {onMounted, ref} from "vue";

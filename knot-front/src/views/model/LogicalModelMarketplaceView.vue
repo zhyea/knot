@@ -44,7 +44,6 @@
           :page-num="pageNum"
           :page-size="pageSize"
           :page-sizes="viewPageSizes"
-          :model-type-options="modelTypeOptions"
           :show-refresh="false"
           @action="handleAction"
           @changed="resetPage"
@@ -59,7 +58,6 @@
           :page-num="pageNum"
           :page-size="pageSize"
           :page-sizes="viewPageSizes"
-          :model-type-options="modelTypeOptions"
           :show-refresh="false"
           @action="handleAction"
           @page-change="onPageChange"
@@ -93,7 +91,6 @@ import LogicalModelList from "../../components/model/LogicalModelList.vue";
 import LogicalModelCardGrid from "../../components/model/LogicalModelCardGrid.vue";
 import {deleteLogicalModel, listLogicalModels, restoreLogicalModel} from "@/api/logicalModels";
 import {listLogicalModelOperationLogs} from "@/api/operationLogs";
-import {useEnumOptions} from "@/composables/useEnumOptions";
 import {getStorageItem, getStorageJson, setStorageItem, setStorageJson} from "@/utils/storage";
 import {useLogDrawer} from "@/composables/useLogDrawer";
 import {useRowFormDrawer} from "@/composables/useFormDrawer";
@@ -154,8 +151,6 @@ const {
   pageSize: viewPageSize[viewMode.value]
 });
 
-const { optionsOf } = useEnumOptions();
-const modelTypeOptions = computed(() => optionsOf("ModelTypeEnum"));
 
 function handleAction(action: string, row: Row) {
   if (action === "edit") openEdit(row);

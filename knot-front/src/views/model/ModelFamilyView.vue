@@ -29,7 +29,7 @@
           <el-table-column label="启用" width="88" align="center">
             <template #default="{ row }">
               <el-switch
-                :model-value="row.enabled !== false"
+                :model-value="isRowEnabled(row)"
                 :loading="togglingId === row.id"
                 inline-prompt
                 active-text="启用"
@@ -75,6 +75,7 @@
 </template>
 
 <script setup lang="ts">
+import {isRowEnabled} from "@/utils/enabledFlag";
 import type {Dict, Row} from "@/types";
 import {onMounted} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";

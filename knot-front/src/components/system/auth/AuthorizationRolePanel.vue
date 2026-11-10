@@ -81,10 +81,4 @@ function onCurrentChange(row: Row | null): void {
   justify-content: space-between;
   gap: 12px;
 }
-
-.auth-panel__title {
-  font-size: var(--el-font-size-base, 13px);
-  color: #303133;
-  font-weight: 600;
-}
 </style>

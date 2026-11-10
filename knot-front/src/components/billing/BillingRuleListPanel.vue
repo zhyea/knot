@@ -19,7 +19,7 @@
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch
-            :model-value="row.enabled !== false"
+            :model-value="isRowEnabled(row)"
             :loading="togglingId === row.id"
             inline-prompt
             active-text="启用"
@@ -68,6 +68,7 @@
 </template>
 
 <script setup lang="ts">
+import {isRowEnabled} from "@/utils/enabledFlag";
 import {displayText, formatDateTime, EMPTY_PLACEHOLDER} from "@/utils/format";
 import {type PropType} from "vue";
 import {CopyDocument, DataAnalysis, Delete, Document, Edit} from "@element-plus/icons-vue";

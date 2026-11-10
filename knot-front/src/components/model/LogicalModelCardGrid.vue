@@ -57,25 +57,24 @@ import {onMounted, type PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {useEnums} from "@/composables/useEnums";
-import type {Row, SelectOption} from "@/types";
+import type {Row} from "@/types";
 import {useLogicalModelPresentation} from "@/composables/useLogicalModelPresentation";
 import {logicalModelRowActions} from "./logicalModelRowActions";
 
-const props = defineProps({
+defineProps({
   rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
   loading: { type: Boolean, default: false },
   total: { type: Number, default: 0 },
   pageNum: { type: Number, default: 1 },
   pageSize: { type: Number, default: 12 },
   pageSizes: { type: Array as PropType<number[]>, default: (): number[] => [12, 24, 48] },
-  modelTypeOptions: { type: Array as PropType<SelectOption[]>, default: (): SelectOption[] => [] },
   showRefresh: { type: Boolean, default: true }
 });
 
 const emit = defineEmits(["action", "refresh", "page-change", "size-change"]);
 
 const {options: familyOptions, loadOptions: loadFamilyOptions} = useEnums("model_family");
-const {modelTypeLabel, familyLabel} = useLogicalModelPresentation({ modelTypeOptions: () => props.modelTypeOptions, familyOptions: () => familyOptions.value });
+const {modelTypeLabel, familyLabel} = useLogicalModelPresentation({familyOptions: () => familyOptions.value});
 onMounted(loadFamilyOptions);
 
 function isMeaningfulTag(tag: unknown): boolean {
@@ -109,7 +108,7 @@ function ribbonClass(row: Row): string {
 
 const rowActions = logicalModelRowActions;
 function formatDate(value: unknown): string {
-  if (!value) return "-";
+  if (!value) return EMPTY_PLACEHOLDER;
   return String(value).slice(0, 10);
 }
 </script>

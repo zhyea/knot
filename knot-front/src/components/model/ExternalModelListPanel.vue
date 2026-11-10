@@ -84,7 +84,7 @@ import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 
-import {formatThousands, displayText, formatDateTime} from "@/utils/format";
+import {EMPTY_PLACEHOLDER, formatThousands, displayText, formatDateTime} from "@/utils/format";
 import {useModelTypeText} from "@/composables/useEnumText";
 
 
@@ -102,7 +102,7 @@ const props = defineProps({
 const emit = defineEmits(["selection-change", "action", "refresh", "page-change", "size-change"]);
 
 function sourceNameOf(code: unknown): string {
-  if (!code) return "-";
+  if (!code) return EMPTY_PLACEHOLDER;
   const hit = props.sources.find((source: Row) => source.sourceCode === code);
   return hit?.sourceName || String(code);
 }

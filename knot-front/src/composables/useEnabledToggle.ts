@@ -1,3 +1,4 @@
+import {isRowEnabled, normalizeEnabledFlag} from "@/utils/enabledFlag";
 import {ref} from "vue";
 import type {Row} from "@/types";
 import {ElMessage} from "element-plus";
@@ -20,8 +21,8 @@ export function useEnabledToggle({updateApi, onChanged}: EnabledToggleOptions) {
 
   async function onEnabledChange(row: Row, enabled: boolean | string | number) {
     if (!row?.id) return;
-    const flag = enabled !== false && enabled !== 0 && enabled !== "false";
-    const prev = row.enabled !== false;
+    const flag = normalizeEnabledFlag(enabled);
+    const prev = isRowEnabled(row);
     if (flag === prev) return;
 
     togglingId.value = row.id;

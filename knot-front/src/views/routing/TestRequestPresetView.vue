@@ -57,6 +57,7 @@
 </template>
 
 <script setup lang="ts">
+import {normalizeEnabledFlag} from "@/utils/enabledFlag";
 import type {Row} from "@/types";
 import {ref} from "vue";
 import {ElMessage} from "element-plus";
@@ -133,7 +134,7 @@ async function removePreset(row: Row) {
 }
 
 async function handleEnabledChange(row: Row, enabled: boolean | string | number) {
-  const flag = enabled !== false && enabled !== 0 && enabled !== "false";
+  const flag = normalizeEnabledFlag(enabled);
   const prevStatus = row.status;
   // 数字状态：1-启用 0-停用；0 是合法值，不能写 truthy 判断
   if (flag === (prevStatus === EnabledStatus.ENABLED)) {
