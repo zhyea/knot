@@ -62,7 +62,7 @@
         <el-form-item label="API Key">
           <el-input :model-value="consumer.secretKey" readonly type="password" show-password>
             <template #append>
-              <el-button @click="copySecretKey(consumer.secretKey)">复制</el-button>
+              <el-button @click="copy(consumer.secretKey)">复制</el-button>
             </template>
           </el-input>
         </el-form-item>
@@ -126,6 +126,9 @@ import {toOptionsLoader} from "@/utils/options";
 import type {Dict, Row} from "@/types";
 import {useMissingOptionGuard} from "@/composables/useMissingOptionGuard";
 import {useCodeBindingLock} from "@/composables/useCodeBindingLock";
+import {useCopyToClipboard} from "@/composables/useCopyToClipboard";
+
+const {copy} = useCopyToClipboard({successMessage: "已复制 API Key"});
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -262,15 +265,6 @@ async function submit() {
   }
 }
 
-async function copySecretKey(secretKey: string | null | undefined) {
-  if (!secretKey) return;
-  try {
-    await navigator.clipboard.writeText(secretKey);
-    ElMessage.success("已复制 API Key");
-  } catch {
-    ElMessage.error("复制失败");
-  }
-}
 </script>
 
 <style scoped>

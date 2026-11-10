@@ -95,6 +95,10 @@ import {deleteLogicalModel, listLogicalModels, restoreLogicalModel} from "@/api/
 import {listLogicalModelOperationLogs} from "@/api/operationLogs";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {getStorageItem, getStorageJson, setStorageItem, setStorageJson} from "@/utils/storage";
+import {useLogDrawer} from "@/composables/useLogDrawer";
+import {useRowFormDrawer} from "@/composables/useFormDrawer";
+const {id: logModelId, name: logModelName, visible: logDrawer, open: openChangeLog} = useLogDrawer({labelFields: ["modelCode"]});
+const {visible: formVisible, editing: editingModel, openCreate, openEdit} = useRowFormDrawer();
 
 const VIEW_MODE_KEY = "knot.logical-model.view-mode";
 const VIEW_PAGE_SIZE_KEY = "knot.logical-model.view-page-size";
@@ -152,33 +156,12 @@ const {
 
 const { optionsOf } = useEnumOptions();
 const modelTypeOptions = computed(() => optionsOf("ModelTypeEnum"));
-const formVisible = ref(false);
-const editingModel = ref<Dict | null>(null);
-const logDrawer = ref(false);
-const logModelId = ref<number | string | null>(null);
-const logModelName = ref("");
-
-function openCreate() {
-  editingModel.value = null;
-  formVisible.value = true;
-}
-
-function openEdit(row: Row) {
-  editingModel.value = row;
-  formVisible.value = true;
-}
 
 function handleAction(action: string, row: Row) {
   if (action === "edit") openEdit(row);
   if (action === "log") openChangeLog(row);
   if (action === "delete") removeModel(row);
   if (action === "restore") restoreModel(row);
-}
-
-function openChangeLog(row: Row) {
-  logModelId.value = row.id;
-  logModelName.value = row.modelCode || `#${row.id}`;
-  logDrawer.value = true;
 }
 
 function loadModelOperationLogs() {

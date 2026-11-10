@@ -73,6 +73,10 @@ import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {useListQuery} from "@/composables/useListQuery";
 import {deleteBillingRule, listBillingRules, updateBillingRuleStatus} from "@/api/billing";
 import {listBillingRuleOperationLogs} from "@/api/operationLogs";
+import {useLogDrawer} from "@/composables/useLogDrawer";
+import {useFormDrawer} from "@/composables/useFormDrawer";
+const {id: logRuleId, name: logRuleName, visible: logDrawer, open: openChangeLog} = useLogDrawer({labelFields: ["code"]});
+const {visible: ruleDlg, editing: currentRuleId, openCreate, openEdit} = useFormDrawer<number | null>({emptyValue: null, toEditing: (row) => Number(row.id), onOpen: () => { copyFromId.value = null; }});
 
 const {
   query,
@@ -89,43 +93,21 @@ const {
   handleReset
 } = useListQuery({ apiFn: listBillingRules, fields: { keyword: "", modelFamilyCode: null } });
 
-const { togglingId, onEnabledChange } = useEnabledToggle({
-  updateApi: updateBillingRuleStatus
+const {togglingId, handleEnabledChange} = useEnabledToggle({
+  updateApi: updateBillingRuleStatus,
+  onChanged: () => load()
 });
 
-const ruleDlg = ref(false);
 /** 编辑目标规则 id：编辑抽屉打开时按 id 从后端取全量记录（列表行是轻量 VO） */
-const currentRuleId = ref<number | null>(null);
 /** 克隆源规则 id：非空时抽屉按 id 取全量记录并预填，保存为新建规则（编码留空） */
 const copyFromId = ref<number | null>(null);
-const logDrawer = ref(false);
-const logRuleId = ref<number | string | null>(null);
-const logRuleName = ref("");
 const previewDrawer = ref(false);
 const previewRule = ref<Row | null>(null);
-
-function openCreate() {
-  currentRuleId.value = null;
-  copyFromId.value = null;
-  ruleDlg.value = true;
-}
-
-function openEdit(row: Row) {
-  currentRuleId.value = Number(row.id);
-  copyFromId.value = null;
-  ruleDlg.value = true;
-}
 
 function openCopy(row: Row) {
   currentRuleId.value = null;
   copyFromId.value = Number(row.id);
   ruleDlg.value = true;
-}
-
-function openChangeLog(row: Row) {
-  logRuleId.value = row.id;
-  logRuleName.value = row.code || `#${row.id}`;
-  logDrawer.value = true;
 }
 
 function openPreview(row: Row) {
@@ -135,11 +117,6 @@ function openPreview(row: Row) {
 
 function loadBillingRuleOperationLogs() {
   return listBillingRuleOperationLogs(logRuleId.value!);
-}
-
-async function handleEnabledChange(row: Row, enabled: string | number | boolean) {
-  await onEnabledChange(row, enabled);
-  await load();
 }
 
 async function handleDelete(row: Row) {

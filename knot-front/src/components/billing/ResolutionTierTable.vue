@@ -47,7 +47,7 @@
 import {type PropType, computed, onMounted} from "vue";
 import {Delete} from "@element-plus/icons-vue";
 import {UNIT_PRICE_STEP} from "@/utils/billingPrice";
-import {LEGACY_COMBOS, RESOLUTION_COMBOS, createResolutionRow, normalizeCombos} from "@/utils/billingResolution";
+import {LEGACY_COMBOS, RESOLUTION_COMBOS, appendResolutionRow, createResolutionRow, createUidGenerator, normalizeCombos} from "@/utils/billingResolution";
 import {useEnums} from "@/composables/useEnums";
 import type {ResolutionComboCode, ResolutionPriceField, ResolutionRow} from "@/utils/billingResolution";
 
@@ -103,17 +103,9 @@ const gridStyle = computed(() => ({
   gridTemplateColumns: `1.3fr repeat(${columns.value.length}, 1fr) 34px`
 }));
 
-let sequence = 0;
 
-function nextUid(): string {
-  sequence += 1;
-  return `${props.uidPrefix}-${Date.now()}-${sequence}`;
-}
-
-function append() {
-  props.rows.push(createResolutionRow("", nextUid()));
-}
-
+const nextUid = createUidGenerator(() => props.uidPrefix);
+const append = () => appendResolutionRow(props.rows, nextUid());
 function remove(index: number) {
   props.rows.splice(index, 1);
 }

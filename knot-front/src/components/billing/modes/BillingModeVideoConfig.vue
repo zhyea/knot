@@ -114,15 +114,15 @@
 
 <script setup lang="ts">
 import {computed, onMounted} from "vue";
-import {ElMessage} from "element-plus";
 import {Delete} from "@element-plus/icons-vue";
 import {UNIT_PRICE_STEP, isTokenPricedUnit, unitLabelOf} from "@/utils/billingPrice";
-import {applyCombosChange, createResolutionRow, normalizeCombos} from "@/utils/billingResolution";
+import {appendResolutionRow, createResolutionRow, createUidGenerator, normalizeCombos} from "@/utils/billingResolution";
 import {useEnums} from "@/composables/useEnums";
 import type {CombosFormSlice, ResolutionComboCode, ResolutionRow} from "@/utils/billingResolution";
 import ResolutionComboPicker from "../ResolutionComboPicker.vue";
 import ResolutionTierTable from "../ResolutionTierTable.vue";
 import BillingModeVideoUsageConfig from "./BillingModeVideoUsageConfig.vue";
+import {useResolutionComboNotice} from "@/composables/useResolutionComboNotice";
 
 const props = defineProps({
   form: {type: Object, required: true}
@@ -193,31 +193,10 @@ const combos = computed<ResolutionComboCode[]>(() => normalizeCombos(props.form.
 /** 是否已有档位：任一档位行填了名字即锁定组合（改组合会让已填价格错位到别的键） */
 const comboLocked = computed(() => rows.value.some((row) => String(row.key || "").trim() !== ""));
 
-/**
- * 组合变更：统一走 {@link applyCombosChange}（与维度分档方案组件同一份实现）。
- *
- * <p>它负责三件会直接影响金额的事：归一后写回、清掉被取消组合在所有行上的价格
- * （否则保存后是界面上看不见、计费却会命中的价）、无「含参考」时把量口径回落。
- * 勾上有声单列时顺带清空音频直出附加费——两者是同一件事，并存即双收，故这里必须提示。</p>
- */
-function onCombosChange(codes: ResolutionComboCode[]) {
-  const {clearedAudioSurcharge} = applyCombosChange(props.form as CombosFormSlice, codes);
-  if (clearedAudioSurcharge) {
-    ElMessage.warning("已清除「音频直出附加费」：有声已按单价计费，同一项不重复收");
-  }
-}
+const {onCombosChange} = useResolutionComboNotice(props.form as CombosFormSlice);
 
-let sequence = 0;
-
-function nextUid(): string {
-  sequence += 1;
-  return `res-${Date.now()}-${sequence}`;
-}
-
-function append() {
-  rows.value.push(createResolutionRow("", nextUid()));
-}
-
+const nextUid = createUidGenerator("res");
+const append = () => appendResolutionRow(rows.value, nextUid());
 function remove(index: number) {
   rows.value.splice(index, 1);
 }

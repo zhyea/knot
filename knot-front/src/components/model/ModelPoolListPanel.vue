@@ -88,8 +88,9 @@ const emit = defineEmits([
 ]);
 
 const { labelOf } = useEnumOptions();
-const { togglingId, onEnabledChange } = useEnabledToggle({
-  updateApi: updateModelPoolStatus
+const {togglingId, handleEnabledChange} = useEnabledToggle({
+  updateApi: updateModelPoolStatus,
+  onChanged: () => emit("changed")
 });
 
 function strategyLabel(code: string) {
@@ -116,10 +117,6 @@ function rowActions(row: Row): RowAction[] {
   ];
 }
 
-async function handleEnabledChange(row: Row, enabled: string | number | boolean) {
-  await onEnabledChange(row, enabled);
-  emit("changed");
-}
 </script>
 
 <style scoped>

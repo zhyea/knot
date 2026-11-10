@@ -85,6 +85,8 @@ import {useListQuery} from "@/composables/useListQuery";
 import {deleteDepartment, getDepartmentTree, listDepartments, updateDepartmentStatus} from "@/api/departments";
 import {listDepartmentOperationLogs} from "@/api/operationLogs";
 import {EnabledStatus} from "@/constants/status";
+import {useFormDrawer} from "@/composables/useFormDrawer";
+const {visible: drawerVisible, editing: editingDepartment, openCreate, openEdit} = useFormDrawer<Row | null>({emptyValue: null, toEditing: (row) => ({...row, children: flatTreeMap.value.get(row.id)?.children || []}), onOpen: (row) => { defaultParentId.value = row ? row.parentId ?? null : selectedNode.value?.parentId ?? null; }});
 
 const {
   query,
@@ -101,8 +103,6 @@ const {
   handleReset
 } = useListQuery({ apiFn: listDepartments, fields: { keyword: "", parentId: 0 } });
 
-const drawerVisible = ref(false);
-const editingDepartment = ref<Dict | null>(null);
 const defaultParentId = ref<number | null>(null);
 const treeData = ref<Row[]>([]);
 const treeRef = ref<{ filter: (value: string) => void } | null>(null);
@@ -129,27 +129,12 @@ const flatTreeMap = computed(() => {
   return map;
 });
 
-function openCreate() {
-  editingDepartment.value = null;
-  defaultParentId.value = selectedNode.value?.parentId ?? null;
-  drawerVisible.value = true;
-}
-
 function openCreateChild() {
   if (!selectedNode.value) {
     return;
   }
   editingDepartment.value = null;
   defaultParentId.value = selectedNode.value.id;
-  drawerVisible.value = true;
-}
-
-function openEdit(row: Row) {
-  editingDepartment.value = {
-    ...row,
-    children: flatTreeMap.value.get(row.id)?.children || []
-  };
-  defaultParentId.value = row.parentId ?? null;
   drawerVisible.value = true;
 }
 

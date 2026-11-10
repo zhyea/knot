@@ -60,7 +60,7 @@ import {CircleClose, RefreshRight, Search} from "@element-plus/icons-vue";
 import type {Row, RowAction} from "@/types";
 import ListPagination from "../../common/ListPagination.vue";
 import RowActions from "../../common/RowActions.vue";
-import {useEnumOptions} from "@/composables/useEnumOptions";
+import {useAsyncTaskPresentation} from "@/composables/useAsyncTaskPresentation";
 import {AsyncTaskStatus} from "@/constants/status";
 import {displayText, formatDateTime} from "@/utils/format";
 
@@ -75,30 +75,7 @@ defineProps({
 
 const emit = defineEmits(["view", "action", "refresh", "page-change", "size-change"]);
 
-const {labelOf} = useEnumOptions();
-
-function statusLabel(status: unknown): string {
-  return labelOf("AsyncTaskStatusEnum", status);
-}
-
-/**
- * 状态 → 标签色。
- *
- * ⚠ 用 `===` 与常量比较，不用 `switch` 之外的花写法：status 是数字，0 是合法值，
- * 任何 truthy 判断都会把 PENDING 当成「无状态」。
- */
-function statusTagType(status: unknown): "success" | "warning" | "danger" | "info" {
-  if (status === AsyncTaskStatus.SUCCEEDED) {
-    return "success";
-  }
-  if (status === AsyncTaskStatus.POLLING) {
-    return "warning";
-  }
-  if (status === AsyncTaskStatus.FAILED) {
-    return "danger";
-  }
-  return "info";
-}
+const {statusLabel, statusTagType} = useAsyncTaskPresentation();
 
 /**
  * 行操作按状态显隐：

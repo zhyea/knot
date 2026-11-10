@@ -84,9 +84,9 @@ import type {Row} from "@/types";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {useEnumOptions} from "@/composables/useEnumOptions";
-import {formatThousands, displayText} from "@/utils/format";
+import {formatThousands, displayText, formatDateTime} from "@/utils/format";
+import {useEnumText, useModelTypeText} from "@/composables/useEnumText";
 
-const {labelOf} = useEnumOptions();
 
 const props = defineProps({
   rows: {type: Array as PropType<Row[]>, default: (): Row[] => []},
@@ -107,16 +107,7 @@ function sourceNameOf(code: unknown): string {
   return hit?.sourceName || String(code);
 }
 
-function modelTypeLabel(code: string): string {
-  if (!code) return "-";
-  return labelOf("ModelTypeEnum", code, code);
-}
-
-function formatDateTime(value: unknown): string {
-  if (!value) return "-";
-  return String(value).replace("T", " ").slice(0, 19);
-}
-
+const modelTypeLabel = useModelTypeText();
 function rowClassName({row}: { row: Row }): string {
   return row.logicalModelId == null ? "external-model-uncreated-row" : "";
 }

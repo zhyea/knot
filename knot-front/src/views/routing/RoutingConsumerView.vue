@@ -26,7 +26,7 @@
           :show-refresh="false"
           @action="handleAction"
           @enabled-change="handleEnabledChange"
-          @copy-secret="copySecretKey"
+          @copy-secret="copy"
           @page-change="onPageChange"
           @size-change="onSizeChange"
         />
@@ -48,8 +48,8 @@
 </template>
 
 <script setup lang="ts">
-import type {Dict, Row} from "@/types";
-import {ref} from "vue";
+import type {Row} from "@/types";
+
 import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -65,6 +65,13 @@ import {
   updateRoutingConsumerStatus
 } from "@/api/routing";
 import {listRoutingConsumerOperationLogs} from "@/api/operationLogs";
+import {useCopyToClipboard} from "@/composables/useCopyToClipboard";
+import {useLogDrawer} from "@/composables/useLogDrawer";
+import {useRowFormDrawer} from "@/composables/useFormDrawer";
+const {id: logConsumerId, name: logConsumerName, visible: logDrawer, open: openLog} = useLogDrawer({labelFields: ["name", "consumerCode"]});
+const {visible: drawerVisible, editing: editingConsumer, openCreate, openEdit} = useRowFormDrawer();
+
+const {copy} = useCopyToClipboard({successMessage: "已复制 API Key"});
 
 const {
   query,
@@ -81,25 +88,11 @@ const {
   handleReset
 } = useListQuery({ apiFn: listRoutingConsumers, fields: { keyword: "" } });
 
-const { togglingId, onEnabledChange } = useEnabledToggle({
-  updateApi: updateRoutingConsumerStatus
+const {togglingId, handleEnabledChange} = useEnabledToggle({
+  updateApi: updateRoutingConsumerStatus,
+  onChanged: () => load()
 });
 
-const drawerVisible = ref(false);
-const editingConsumer = ref<Dict | null>(null);
-const logDrawer = ref(false);
-const logConsumerId = ref<number | string | null>(null);
-const logConsumerName = ref("");
-
-function openCreate() {
-  editingConsumer.value = null;
-  drawerVisible.value = true;
-}
-
-function openEdit(row: Row) {
-  editingConsumer.value = row;
-  drawerVisible.value = true;
-}
 
 function handleAction(action: string, row: Row) {
   if (action === "edit") openEdit(row);
@@ -107,19 +100,8 @@ function handleAction(action: string, row: Row) {
   if (action === "log") openLog(row);
 }
 
-function openLog(row: Row) {
-  logConsumerId.value = row.id;
-  logConsumerName.value = row.name || row.consumerCode || `#${row.id}`;
-  logDrawer.value = true;
-}
-
 function loadRoutingConsumerOperationLogs() {
   return listRoutingConsumerOperationLogs(logConsumerId.value!);
-}
-
-async function handleEnabledChange(row: Row, enabled: string | number | boolean) {
-  await onEnabledChange(row, enabled);
-  load();
 }
 
 async function rotateSecret(row: Row) {
@@ -127,17 +109,6 @@ async function rotateSecret(row: Row) {
   ElMessage.success("API Key 已重置");
   load();
 }
-
-async function copySecretKey(secretKey: string | null | undefined) {
-  if (!secretKey) return;
-  try {
-    await navigator.clipboard.writeText(secretKey);
-    ElMessage.success("已复制 API Key");
-  } catch {
-    ElMessage.error("复制失败");
-  }
-}
-
 
 load();
 </script>

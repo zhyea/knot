@@ -259,3 +259,22 @@ export function applyCombosChange(form: CombosFormSlice, codes: unknown): {clear
   }
   return {clearedAudioSurcharge: false};
 }
+
+
+/**
+ * 档位行 uid 生成器：视频模式配置与档位表此前各写一份 sequence 自增。
+ * 前缀由使用方声明（档位表用 props.uidPrefix，视频配置用 "res"）。
+ */
+export function createUidGenerator(prefix: string | (() => string)): () => string {
+  let sequence = 0;
+  return () => {
+    sequence += 1;
+    const value = typeof prefix === "function" ? prefix() : prefix;
+    return `${value}-${Date.now()}-${sequence}`;
+  };
+}
+
+/** 追加一行空档位；两个配置面板的 append 只差 rows 的取法 */
+export function appendResolutionRow(rows: ResolutionRow[], uid: string): void {
+  rows.push(createResolutionRow("", uid));
+}

@@ -127,7 +127,7 @@
 </template>
 
 <script setup lang="ts">
-import {computed, onMounted, ref} from "vue";
+import {computed, onMounted} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -141,6 +141,8 @@ import {useEnumOptions} from "@/composables/useEnumOptions";
 import type {Row} from "@/types";
 import {displayText, formatDateTime} from "@/utils/format";
 import {EnabledStatus} from "@/constants/status";
+import {useFormDrawer} from "@/composables/useFormDrawer";
+const {visible: drawer, editing: editingCode, openCreate, openEdit} = useFormDrawer<string>({emptyValue: "", toEditing: (row) => String(row.profileCode ?? "")});
 
 const {
   query,
@@ -167,18 +169,6 @@ const {optionsOf} = useEnumOptions();
 const protocolOptions = computed(() => optionsOf("ModelApiProtocolEnum"));
 const statusOptions = computed(() => optionsOf("EnabledStatusEnum"));
 
-const drawer = ref(false);
-const editingCode = ref("");
-
-function openCreate() {
-  editingCode.value = "";
-  drawer.value = true;
-}
-
-function openEdit(row: Row) {
-  editingCode.value = String(row.profileCode ?? "");
-  drawer.value = true;
-}
 
 function onReset() {
   handleReset();

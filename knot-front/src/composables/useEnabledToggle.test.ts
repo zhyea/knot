@@ -75,3 +75,20 @@ describe("useEnabledToggle.onEnabledChange 状态归一", () => {
     expect(updateApi).not.toHaveBeenCalled();
   });
 });
+
+describe("useEnabledToggle.handleEnabledChange 成功回调", () => {
+  it("包装层在开关完成后触发一次 onChanged（替代各列表的 emit('changed')）", async () => {
+    const updateApi = vi.fn().mockResolvedValue(undefined);
+    const onChanged = vi.fn();
+    const { handleEnabledChange } = useEnabledToggle({ updateApi, onChanged });
+    await handleEnabledChange(makeRow(true), false);
+    expect(updateApi).toHaveBeenCalledWith(1, false);
+    expect(onChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("未配置 onChanged 时包装层不抛错", async () => {
+    const updateApi = vi.fn().mockResolvedValue(undefined);
+    const { handleEnabledChange } = useEnabledToggle({ updateApi });
+    await expect(handleEnabledChange(makeRow(true), false)).resolves.toBeUndefined();
+  });
+});

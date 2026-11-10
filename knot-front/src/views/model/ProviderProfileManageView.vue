@@ -49,8 +49,8 @@
 </template>
 
 <script setup lang="ts">
-import type {Dict, Row} from "@/types";
-import {onMounted, ref} from "vue";
+import type {Row} from "@/types";
+import {onMounted} from "vue";
 import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -62,6 +62,10 @@ import ProviderProfileListPanel from "../../components/provider/ProviderProfileL
 import ProviderProfileFormDrawer from "../../components/provider/ProviderProfileFormDrawer.vue";
 import {deleteProviderProfile, listProviderProfiles} from "@/api/providerProfiles";
 import {listProviderProfileOperationLogs} from "@/api/operationLogs";
+import {useLogDrawer} from "@/composables/useLogDrawer";
+import {useRowFormDrawer} from "@/composables/useFormDrawer";
+const {id: logId, name: logName, visible: logDrawer, open: openLog} = useLogDrawer({labelFields: ["name"]});
+const {visible: formVisible, editing: editing, openCreate, openEdit} = useRowFormDrawer();
 
 const tagPreset = ["原厂", "云厂商", "代理"];
 
@@ -79,33 +83,12 @@ const {
   handleReset
 } = useListQuery({ apiFn: listProviderProfiles, fields: { keyword: "", tag: "" } });
 
-const formVisible = ref(false);
-const editing = ref<Dict | null>(null);
 
-const logDrawer = ref(false);
-const logId = ref<number | string | null>(null);
-const logName = ref("");
-
-function openCreate() {
-  editing.value = null;
-  formVisible.value = true;
-}
-
-function openEdit(row: Row) {
-  editing.value = row;
-  formVisible.value = true;
-}
 
 async function remove(row: Row) {
   await deleteProviderProfile(row.id);
   ElMessage.success("删除成功");
   await load();
-}
-
-function openLog(row: Row) {
-  logId.value = row.id;
-  logName.value = row.name || `#${row.id}`;
-  logDrawer.value = true;
 }
 
 function loadProfileLogs() {

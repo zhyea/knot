@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-import type {Dict, Row} from "@/types";
+import type {Row} from "@/types";
 import {ref, watch} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -55,6 +55,8 @@ import {useListQuery} from "@/composables/useListQuery";
 import {listUsers, resetUserPassword, updateUserStatus} from "@/api/users";
 import {listUserOperationLogs} from "@/api/operationLogs";
 import {EnabledStatus} from "@/constants/status";
+import {useRowFormDrawer} from "@/composables/useFormDrawer";
+const {visible: drawerVisible, editing: editingUser, openCreate, openEdit} = useRowFormDrawer();
 
 const {
   query,
@@ -72,8 +74,6 @@ const {
 } = useListQuery({ apiFn: listUsers, fields: { keyword: "" } });
 const users = ref<Row[]>([]);
 
-const drawerVisible = ref(false);
-const editingUser = ref<Dict | null>(null);
 const logDrawerVisible = ref(false);
 const logUserId = ref<number | string | null>(null);
 const logDrawerTitle = ref("操作日志");
@@ -98,16 +98,6 @@ watch(
   },
   { immediate: true }
 );
-
-function openCreate() {
-  editingUser.value = null;
-  drawerVisible.value = true;
-}
-
-function openEdit(row: Row) {
-  editingUser.value = row;
-  drawerVisible.value = true;
-}
 
 async function handleResetPassword(row: Row) {
   const result = await resetUserPassword(row.id);

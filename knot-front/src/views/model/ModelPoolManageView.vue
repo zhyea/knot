@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import type {Dict, Row} from "@/types";
-import {onMounted, ref} from "vue";
+import {onMounted} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -68,6 +68,10 @@ import ModelPoolListPanel from "../../components/model/ModelPoolListPanel.vue";
 import ModelPoolFormDrawer from "../../components/model/ModelPoolFormDrawer.vue";
 import {deleteModelPool, listModelPools, restoreModelPool} from "@/api/modelPools";
 import {listModelPoolOperationLogs} from "@/api/operationLogs";
+import {useLogDrawer} from "@/composables/useLogDrawer";
+import {useRowFormDrawer} from "@/composables/useFormDrawer";
+const {id: logPoolId, name: logPoolName, visible: logDrawer, open: openChangeLog} = useLogDrawer({labelFields: ["poolCode"]});
+const {visible: formVisible, editing: editingPool, openCreate, openEdit} = useRowFormDrawer();
 
 /**
  * 管理列表带 includeDeleted=true：已逻辑删除的模型池仍展示（浅红底 + 恢复按钮），
@@ -91,21 +95,6 @@ const {
   fields: { keyword: "", modelTypes: [] }
 });
 
-const formVisible = ref(false);
-const editingPool = ref<Dict | null>(null);
-const logDrawer = ref(false);
-const logPoolId = ref<number | string | null>(null);
-const logPoolName = ref("");
-
-function openCreate() {
-  editingPool.value = null;
-  formVisible.value = true;
-}
-
-function openEdit(row: Row) {
-  editingPool.value = row;
-  formVisible.value = true;
-}
 
 async function remove(row: Row) {
   await ElMessageBox.confirm(`确认删除模型池“${row.name || row.poolCode}”？`, "删除确认", {
@@ -120,12 +109,6 @@ async function restore(row: Row) {
   await restoreModelPool(row.id);
   ElMessage.success("已恢复");
   resetPage();
-}
-
-function openChangeLog(row: Row) {
-  logPoolId.value = row.id;
-  logPoolName.value = row.poolCode || `#${row.id}`;
-  logDrawer.value = true;
 }
 
 function loadModelPoolOperationLogs() {

@@ -76,7 +76,7 @@
 
 <script setup lang="ts">
 import type {Dict, Row} from "@/types";
-import {onMounted, ref} from "vue";
+import {onMounted} from "vue";
 import {ElMessage, ElMessageBox} from "element-plus";
 import {Delete, Document, Edit} from "@element-plus/icons-vue";
 import PageSection from "../../components/common/PageSection.vue";
@@ -90,6 +90,10 @@ import {useListQuery} from "@/composables/useListQuery";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {deleteModelFamily, listModelFamilies, updateModelFamilyStatus} from "@/api/modelFamilies";
 import {listOperationLogsByEntity} from "@/api/operationLogs";
+import {useLogDrawer} from "@/composables/useLogDrawer";
+import {useRowFormDrawer} from "@/composables/useFormDrawer";
+const {id: logId, name: logName, visible: logDrawer, open: openLog} = useLogDrawer({labelFields: ["name", "code"]});
+const {visible: formVisible, editing: editingFamily, openCreate, openEdit} = useRowFormDrawer();
 
 /**
  * 模型族主数据存于枚举表 ks_enum_configs（category='model_family'），与「系统管理 / 枚举管理」
@@ -114,26 +118,11 @@ const {
   fields: { keyword: "" }
 });
 
-const formVisible = ref(false);
-const editingFamily = ref<Row | null>(null);
 
-const logDrawer = ref(false);
-const logId = ref<number | string | null>(null);
-const logName = ref("");
 
 const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateModelFamilyStatus
 });
-
-function openCreate() {
-  editingFamily.value = null;
-  formVisible.value = true;
-}
-
-function openEdit(row: Row) {
-  editingFamily.value = row;
-  formVisible.value = true;
-}
 
 async function remove(row: Row) {
   await ElMessageBox.confirm(`确认删除模型族“${row.name || row.code}”？`, "删除确认", {
@@ -142,12 +131,6 @@ async function remove(row: Row) {
   await deleteModelFamily(row.id);
   ElMessage.success("已删除");
   resetPage();
-}
-
-function openLog(row: Row) {
-  logId.value = row.id;
-  logName.value = row.name || row.code || `#${row.id}`;
-  logDrawer.value = true;
 }
 
 function loadFamilyLogs() {

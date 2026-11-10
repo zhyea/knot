@@ -65,6 +65,7 @@ import {updateModelStatus} from "@/api/models";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {useEnumOptions} from "@/composables/useEnumOptions";
 import {formatDateTime} from "@/utils/format";
+import {useEnumText, useModelTypeText} from "@/composables/useEnumText";
 
 defineProps({
   rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
@@ -77,30 +78,13 @@ defineProps({
 
 const emit = defineEmits(["create", "refresh", "edit", "copy", "discount", "log", "delete", "restore", "page-change", "size-change", "changed"]);
 
-const { labelOf } = useEnumOptions();
 
-const { togglingId, onEnabledChange } = useEnabledToggle({
-  updateApi: updateModelStatus
+const {togglingId, handleEnabledChange} = useEnabledToggle({
+  updateApi: updateModelStatus,
+  onChanged: () => emit("changed")
 });
 
-function modelTypeLabel(code: string) {
-  if (!code) return "-";
-  return labelOf("ModelTypeEnum", code, code);
-}
-
-/**
- * 该模型已绑定的任务档案编码（列表页「异步任务」标记用）。
- *
- * <p>数据来自列表返回的 {@code apiBindings}（后端按整页一次装载，不额外发请求）。
- * 一个模型可以为不同协议各绑一条档案，所以这里是数组而不是单值。</p>
- */
-function asyncProfileCodes(row: Row): string[] {
-  const bindings = Array.isArray(row.apiBindings) ? (row.apiBindings as Row[]) : [];
-  return bindings
-    .map((binding) => String(binding.asyncProfileCode ?? "").trim())
-    .filter((code) => code !== "");
-}
-
+const modelTypeLabel = useModelTypeText();
 /** 已删除行：浅红底标识（排序已由后端 is_deleted asc 放到末尾） */
 function rowClassName({ row }: { row: Row }) {
   return row.deleted === true ? "row-deleted" : "";
@@ -123,10 +107,6 @@ function rowActions(row: Row): RowAction[] {
   ];
 }
 
-async function handleEnabledChange(row: Row, enabled: string | number | boolean) {
-  await onEnabledChange(row, enabled);
-  emit("changed");
-}
 </script>
 
 <style scoped>

@@ -123,6 +123,7 @@ import {useEnumOptions} from "@/composables/useEnumOptions";
 import {AsyncTaskDeliveryStatus, AsyncTaskStatus} from "@/constants/status";
 import type {Dict} from "@/types";
 import {displayText, formatDateTime} from "@/utils/format";
+import {useAsyncTaskPresentation} from "@/composables/useAsyncTaskPresentation";
 
 const props = defineProps({
   modelValue: {type: Boolean, default: false},
@@ -132,6 +133,7 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue", "changed"]);
 
 const {labelOf} = useEnumOptions();
+const {statusLabel, statusTagType} = useAsyncTaskPresentation();
 
 const loading = ref(false);
 const acting = ref(false);
@@ -169,23 +171,6 @@ function deliveryTagType(status: unknown): "success" | "warning" | "danger" | "i
     return "warning";
   }
   if (status === AsyncTaskDeliveryStatus.FAILED) {
-    return "danger";
-  }
-  return "info";
-}
-
-function statusLabel(status: unknown): string {
-  return labelOf("AsyncTaskStatusEnum", status);
-}
-
-function statusTagType(status: unknown): "success" | "warning" | "danger" | "info" {
-  if (status === AsyncTaskStatus.SUCCEEDED) {
-    return "success";
-  }
-  if (status === AsyncTaskStatus.POLLING) {
-    return "warning";
-  }
-  if (status === AsyncTaskStatus.FAILED) {
     return "danger";
   }
   return "info";

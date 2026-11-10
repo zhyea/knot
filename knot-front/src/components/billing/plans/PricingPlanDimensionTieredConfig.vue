@@ -53,13 +53,13 @@
 
 <script setup lang="ts">
 import {computed} from "vue";
-import {ElMessage} from "element-plus";
 import {unitLabelOf} from "@/utils/billingPrice";
-import {applyCombosChange, normalizeCombos} from "@/utils/billingResolution";
+import {normalizeCombos} from "@/utils/billingResolution";
 import type {CombosFormSlice, ResolutionComboCode, ResolutionRow} from "@/utils/billingResolution";
 import ResolutionComboPicker from "../ResolutionComboPicker.vue";
 import ResolutionTierTable from "../ResolutionTierTable.vue";
 import BillingModeVideoUsageConfig from "../modes/BillingModeVideoUsageConfig.vue";
+import {useResolutionComboNotice} from "@/composables/useResolutionComboNotice";
 
 /**
  * 维度分档价组件（方案轴：pricingPlan = DIMENSION_TIERED）。
@@ -103,18 +103,7 @@ const combos = computed<ResolutionComboCode[]>(() => normalizeCombos(props.form.
 /** 是否已有档位：任一档位行填了名字即锁定组合 */
 const comboLocked = computed(() => rows.value.some((row) => String(row.key || "").trim() !== ""));
 
-/**
- * 组合变更：统一走 {@link applyCombosChange}（与视频模式组件同一份实现），
- * 负责归一、清掉被取消组合的行内价格、无「含参考」时回落量口径，
- * 并在勾上有声单列时清空音频直出附加费（两者同一件事，并存即双收）。
- */
-function onCombosChange(codes: ResolutionComboCode[]) {
-  const {clearedAudioSurcharge} = applyCombosChange(props.form as CombosFormSlice, codes);
-  if (clearedAudioSurcharge) {
-    ElMessage.warning("已清除「音频直出附加费」：有声已按单价计费，同一项不重复收");
-  }
-}
-
+const {onCombosChange} = useResolutionComboNotice(props.form as CombosFormSlice);
 /**
  * 阿里云百炼「万相-图生视频-基于首帧」官方价（2026-10），用来对齐本方案的键空间形状。
  *

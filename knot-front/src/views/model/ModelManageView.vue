@@ -72,6 +72,10 @@ import {listModelOperationLogs} from "@/api/operationLogs";
 import {useListQuery} from "@/composables/useListQuery";
 import type {Dict} from "@/types";
 import {ElMessage, ElMessageBox} from "element-plus";
+import {useLogDrawer} from "@/composables/useLogDrawer";
+import {useRowFormDrawer} from "@/composables/useFormDrawer";
+const {id: logModelId, name: logModelName, visible: logDrawer, open: openChangeLog} = useLogDrawer({labelFields: ["modelCode"]});
+const {visible: formVisible, editing: editingModel, openCreate, openEdit} = useRowFormDrawer();
 
 /**
  * 管理列表带 includeDeleted=true：已逻辑删除的供应商模型仍展示（浅红底 + 恢复按钮），
@@ -95,23 +99,8 @@ const {
   fields: { keyword: "", modelTypes: [] }
 });
 
-const formVisible = ref(false);
-const editingModel = ref<Dict | null>(null);
 const discountDrawerVisible = ref(false);
 const discountModelCode = ref("");
-const logDrawer = ref(false);
-const logModelId = ref<number | string | null>(null);
-const logModelName = ref("");
-
-function openCreate() {
-  editingModel.value = null;
-  formVisible.value = true;
-}
-
-function openEdit(row: Row) {
-  editingModel.value = row;
-  formVisible.value = true;
-}
 
 async function openCopy(row: Row) {
   const detail = row?.id ? await getModel(row.id) : row;
@@ -123,12 +112,6 @@ async function openCopy(row: Row) {
 function openDiscount(row: Row) {
   discountModelCode.value = String(row.modelCode || "");
   discountDrawerVisible.value = true;
-}
-
-function openChangeLog(row: Row) {
-  logModelId.value = row.id;
-  logModelName.value = row.modelCode || `#${row.id}`;
-  logDrawer.value = true;
 }
 
 function loadModelOperationLogs() {

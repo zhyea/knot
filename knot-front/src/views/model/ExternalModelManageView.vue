@@ -112,6 +112,8 @@ import ExternalModelDetailDrawer from "../../components/model/ExternalModelDetai
 import ExternalModelListPanel from "../../components/model/ExternalModelListPanel.vue";
 import OperationLogDrawer from "../../components/common/OperationLogDrawer.vue";
 import {listOperationLogsByEntity} from "@/api/operationLogs";
+import {useLogDrawer} from "@/composables/useLogDrawer";
+const {id: logId, name: logName, visible: logDrawer, open: openLog} = useLogDrawer({labelFields: ["modelName", "modelId"]});
 import {
   createLogicalModelFromExternalItem,
   createLogicalModelsFromExternalItems,
@@ -148,9 +150,6 @@ const detailVisible = ref(false);
 const detail = ref<Dict | null>(null);
 const selectedRows = ref<Row[]>([]);
 
-const logDrawer = ref(false);
-const logId = ref<number | string | null>(null);
-const logName = ref("");
 
 const createAllDisabled = computed(() => creatingAll.value || selectedRows.value.length === 0);
 
@@ -194,12 +193,6 @@ async function handleAction(action: string, row: Row) {
   if (action === "delete") await deleteOne(row);
   if (action === "ignore" || action === "unignore") await toggleIgnored(row);
   if (action === "log") openLog(row);
-}
-
-function openLog(row: Row) {
-  logId.value = row.id;
-  logName.value = row.modelName || row.modelId || `#${row.id}`;
-  logDrawer.value = true;
 }
 
 function loadExternalLogs() {

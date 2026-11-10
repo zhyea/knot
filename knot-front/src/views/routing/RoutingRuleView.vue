@@ -54,7 +54,7 @@
 </template>
 
 <script setup lang="ts">
-import type {Dict, Row} from "@/types";
+import type {Row} from "@/types";
 import {ref} from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
@@ -66,6 +66,10 @@ import RoutingRuleFormDrawer from "../../components/routing/RoutingRuleFormDrawe
 import RoutingRuleTestDrawer from "../../components/routing/RoutingRuleTestDrawer.vue";
 import {listRoutingRuleOperationLogs} from "@/api/operationLogs";
 import {listRoutingRules, getRoutingConsumerByCode} from "@/api/routing";
+import {useLogDrawer} from "@/composables/useLogDrawer";
+import {useRowFormDrawer} from "@/composables/useFormDrawer";
+const {id: logRuleId, name: logRuleName, visible: logDrawer, open: openChangeLog} = useLogDrawer({labelFields: ["name", "ruleCode"]});
+const {visible: formVisible, editing: editingRule, openCreate, openEdit} = useRowFormDrawer();
 
 const {
   query,
@@ -82,8 +86,6 @@ const {
   handleReset
 } = useListQuery({ apiFn: listRoutingRules, fields: { keyword: "" } });
 
-const formVisible = ref(false);
-const editingRule = ref<Dict | null>(null);
 const testVisible = ref(false);
 const testRuleId = ref<number | null>(null);
 const testRuleName = ref("");
@@ -91,19 +93,6 @@ const testRuleCode = ref("");
 const testSecretKey = ref("");
 const testConsumerReturnUsageDetail = ref(false);
 const testTargets = ref<Row[]>([]);
-const logDrawer = ref(false);
-const logRuleId = ref<number | string | null>(null);
-const logRuleName = ref("");
-
-function openCreate() {
-  editingRule.value = null;
-  formVisible.value = true;
-}
-
-function openEdit(row: Row) {
-  editingRule.value = row;
-  formVisible.value = true;
-}
 
 function onRuleSaved() {
   resetPage();
@@ -138,12 +127,6 @@ async function loadConsumerContext(consumerCode: string | null | undefined) {
   } catch {
     return {secretKey: "", returnUsageDetail: false};
   }
-}
-
-function openChangeLog(row: Row) {
-  logRuleId.value = row.id;
-  logRuleName.value = row.name || row.ruleCode || `#${row.id}`;
-  logDrawer.value = true;
 }
 
 function loadRoutingRuleOperationLogs() {

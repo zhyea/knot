@@ -71,6 +71,8 @@ import {useListQuery} from "@/composables/useListQuery";
 import {EnabledStatus} from "@/constants/status";
 import type {Dict, Row} from "@/types";
 import {listOperationLogsByEntity} from "@/api/operationLogs";
+import {useLogDrawer} from "@/composables/useLogDrawer";
+const {id: logId, name: logName, visible: logDrawer, open: openLog} = useLogDrawer({labelFields: ["taskName", "taskCode"]});
 
 const {
   query,
@@ -92,9 +94,6 @@ const runDrawer = ref(false);
 const editingTask = ref<Dict | null>(null);
 const runTask = ref<Dict | null>(null);
 
-const logDrawer = ref(false);
-const logId = ref<number | string | null>(null);
-const logName = ref("");
 
 function openTaskDrawer(task: Row | null = null) {
   editingTask.value = task || null;
@@ -109,12 +108,6 @@ function onTaskSaved() {
 function openRunDrawer(task: Row) {
   runTask.value = task;
   runDrawer.value = true;
-}
-
-function openLog(task: Row) {
-  logId.value = task.id;
-  logName.value = task.taskName || task.taskCode || `#${task.id}`;
-  logDrawer.value = true;
 }
 
 function loadTaskLogs() {

@@ -57,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import type {Dict, Row} from "@/types";
+import type {Row} from "@/types";
 import {ref} from "vue";
 import {ElMessage} from "element-plus";
 import PageSection from "../../components/common/PageSection.vue";
@@ -76,6 +76,10 @@ import {
 } from "@/api/routing";
 import {listTestRequestPresetOperationLogs} from "@/api/operationLogs";
 import {EnabledStatus} from "@/constants/status";
+import {useLogDrawer} from "@/composables/useLogDrawer";
+import {useFormDrawer} from "@/composables/useFormDrawer";
+const {id: logPresetId, name: logPresetName, visible: logDrawer, open: openLog} = useLogDrawer({labelFields: ["name", "code"]});
+const {visible: formVisible, editing: editingPreset, openCreate, openEdit} = useFormDrawer<Row | null>({emptyValue: null, onOpen: () => { viewMode.value = false; }});
 
 const {
   query,
@@ -92,22 +96,8 @@ const {
   handleReset
 } = useListQuery({ apiFn: listTestRequestPresets, fields: { keyword: "", protocol: "" } });
 
-const formVisible = ref(false);
-const editingPreset = ref<Dict | null>(null);
 const viewMode = ref(false);
 const togglingId = ref<number | string | null>(null);
-
-function openCreate() {
-  editingPreset.value = null;
-  viewMode.value = false;
-  formVisible.value = true;
-}
-
-function openEdit(row: Row) {
-  editingPreset.value = row;
-  viewMode.value = false;
-  formVisible.value = true;
-}
 
 function openView(row: Row) {
   editingPreset.value = row;
@@ -127,15 +117,6 @@ function handleAction(action: string, row: Row) {
   }
 }
 
-const logDrawer = ref(false);
-const logPresetId = ref<number | string | null>(null);
-const logPresetName = ref("");
-
-function openLog(row: Row) {
-  logPresetId.value = row.id;
-  logPresetName.value = row.name || row.code || `#${row.id}`;
-  logDrawer.value = true;
-}
 
 function loadTestRequestPresetOperationLogs() {
   return listTestRequestPresetOperationLogs(logPresetId.value!);

@@ -125,6 +125,10 @@ import {
   updateModerationWordStatus
 } from "@/api/moderationWords";
 import {listOperationLogsByEntity} from "@/api/operationLogs";
+import {useLogDrawer} from "@/composables/useLogDrawer";
+import {useRowFormDrawer} from "@/composables/useFormDrawer";
+const {id: logId, name: logName, visible: logDrawer, open: openLog} = useLogDrawer({labelFields: ["word"]});
+const {visible: formVisible, editing: editingWord, openCreate, openEdit} = useRowFormDrawer();
 
 /**
  * 敏感词库管理页（内容安全模块，权限 moderation:word:*）。
@@ -155,14 +159,9 @@ const {
   fields: { keyword: "", categoryCode: "" }
 });
 
-const formVisible = ref(false);
 const importVisible = ref(false);
 const exporting = ref(false);
-const editingWord = ref<Row | null>(null);
 
-const logDrawer = ref(false);
-const logId = ref<number | string | null>(null);
-const logName = ref("");
 
 const { togglingId, onEnabledChange } = useEnabledToggle({
   updateApi: updateModerationWordStatus
@@ -177,16 +176,6 @@ function severityTagType(severity: number): "info" | "warning" | "danger" {
   if (severity === 3) return "danger";
   if (severity === 1) return "info";
   return "warning";
-}
-
-function openCreate() {
-  editingWord.value = null;
-  formVisible.value = true;
-}
-
-function openEdit(row: Row) {
-  editingWord.value = row;
-  formVisible.value = true;
 }
 
 async function remove(row: Row) {
@@ -204,12 +193,6 @@ async function restore(row: Row) {
   await restoreModerationWord(row.id);
   ElMessage.success("已恢复");
   resetPage();
-}
-
-function openLog(row: Row) {
-  logId.value = row.id;
-  logName.value = row.word || `#${row.id}`;
-  logDrawer.value = true;
 }
 
 function loadWordLogs() {

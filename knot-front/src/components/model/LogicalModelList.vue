@@ -71,14 +71,16 @@
 
 <script setup lang="ts">
 import {displayText} from "@/utils/format";
-import {Delete, Document, Edit, RefreshLeft} from "@element-plus/icons-vue";
 import {onMounted, type PropType} from "vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
 import {updateLogicalModelStatus} from "@/api/logicalModels";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
-import {useEnums, resolveEnumLabel} from "@/composables/useEnums";
-import type {Row, RowAction, SelectOption} from "@/types";
+import {useEnums} from "@/composables/useEnums";
+import type {Row, SelectOption} from "@/types";
+import {useLogicalModelPresentation} from "@/composables/useLogicalModelPresentation";
+import {formatDateTime} from "@/utils/format";
+import {logicalModelRowActions} from "./logicalModelRowActions";
 
 const props = defineProps({
   rows: {type: Array as PropType<Row[]>, default: (): Row[] => []},
@@ -93,54 +95,22 @@ const props = defineProps({
 
 const emit = defineEmits(["action", "refresh", "page-change", "size-change", "changed"]);
 
-const {togglingId, onEnabledChange} = useEnabledToggle({
-  updateApi: updateLogicalModelStatus
+const {togglingId, handleEnabledChange} = useEnabledToggle({
+  updateApi: updateLogicalModelStatus,
+  onChanged: () => emit("changed")
 });
 
 const {options: familyOptions, loadOptions: loadFamilyOptions} = useEnums("model_family");
+const {modelTypeLabel, familyLabel} = useLogicalModelPresentation({ modelTypeOptions: () => props.modelTypeOptions, familyOptions: () => familyOptions.value });
 /** 与抽屉下拉同一口径：强制回源，避免列表标签停在旧值而下拉已是新值 */
 onMounted(() => loadFamilyOptions(true));
-
-function modelTypeLabel(code: unknown): string {
-  if (!code) return "-";
-  const item = props.modelTypeOptions.find((option) => option.value === code);
-  return item?.label || String(code);
-}
-
-function familyLabel(code: unknown): string {
-  if (!code) return "-";
-  return resolveEnumLabel(familyOptions.value, code, String(code));
-}
-
-async function handleEnabledChange(row: Row, enabled: string | number | boolean): Promise<void> {
-  await onEnabledChange(row, enabled);
-  emit("changed");
-}
-
-function formatDateTime(value: unknown): string {
-  if (!value) return "-";
-  return String(value).replace("T", " ").slice(0, 19);
-}
 
 /** 已删除行：浅红底标识（排序已由后端 is_deleted asc 放到末尾） */
 function rowClassName({row}: { row: Row }): string {
   return row.deleted === true ? "row-deleted" : "";
 }
 
-/** 已删除行只给「日志 / 恢复」，编辑与删除都无意义 */
-function rowActions(row: Row): RowAction[] {
-  if (row.deleted === true) {
-    return [
-      {key: "log", label: "日志", icon: Document},
-      {key: "restore", label: "恢复", icon: RefreshLeft, type: "success", confirm: "确认恢复该统一模型？"}
-    ];
-  }
-  return [
-    {key: "edit", label: "编辑", icon: Edit},
-    {key: "log", label: "日志", icon: Document},
-    {key: "delete", label: "删除", icon: Delete, type: "danger", confirm: "确认删除该统一模型？"}
-  ];
-}
+const rowActions = logicalModelRowActions;
 </script>
 
 <style scoped>

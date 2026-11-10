@@ -76,8 +76,9 @@ const emit = defineEmits([
   "changed"
 ]);
 
-const {togglingId, onEnabledChange} = useEnabledToggle({
-  updateApi: updateProviderStatus
+const {togglingId, handleEnabledChange} = useEnabledToggle({
+  updateApi: updateProviderStatus,
+  onChanged: () => emit("changed")
 });
 
 function handleAction(action: string, row: Row): void {
@@ -85,8 +86,4 @@ function handleAction(action: string, row: Row): void {
   if (action === "log") emit("log", row);
 }
 
-async function handleEnabledChange(row: Row, enabled: boolean): Promise<void> {
-  await onEnabledChange(row, enabled);
-  emit("changed");
-}
 </script>

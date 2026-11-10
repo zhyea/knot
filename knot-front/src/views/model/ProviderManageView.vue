@@ -47,8 +47,8 @@
 </template>
 
 <script setup lang="ts">
-import type {Row} from "@/types";
-import {onMounted, ref} from "vue";
+
+import {onMounted} from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
@@ -58,6 +58,10 @@ import ProviderAccountListPanel from "../../components/provider/ProviderAccountL
 import ProviderAccountFormDrawer from "../../components/provider/ProviderAccountFormDrawer.vue";
 import {listProviderOperationLogs} from "@/api/operationLogs";
 import {listProviders} from "@/api/providers";
+import {useLogDrawer} from "@/composables/useLogDrawer";
+import {useFormDrawer} from "@/composables/useFormDrawer";
+const {id: logProviderId, name: logProviderName, visible: logDrawer, open: openChangeLog} = useLogDrawer({labelFields: ["code"]});
+const {visible: formVisible, editing: editingProviderId, openCreate, openEdit} = useFormDrawer<number | null>({emptyValue: null, toEditing: (row) => row.id as number});
 
 const {
   query,
@@ -73,30 +77,9 @@ const {
   handleReset
 } = useListQuery({ apiFn: listProviders, fields: { keyword: "" } });
 
-const formVisible = ref(false);
-const editingProviderId = ref<number | null>(null);
-const logDrawer = ref(false);
-const logProviderId = ref<number | null>(null);
-const logProviderName = ref("");
-
-function openCreate() {
-  editingProviderId.value = null;
-  formVisible.value = true;
-}
-
-function openEdit(row: Row) {
-  editingProviderId.value = row.id;
-  formVisible.value = true;
-}
 
 function onProviderSaved() {
   load();
-}
-
-function openChangeLog(row: Row) {
-  logProviderId.value = row.id;
-  logProviderName.value = row.code || `#${row.id}`;
-  logDrawer.value = true;
 }
 
 function loadProviderOperationLogs() {

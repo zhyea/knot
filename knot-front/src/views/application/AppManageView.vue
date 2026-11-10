@@ -43,8 +43,8 @@
 </template>
 
 <script setup lang="ts">
-import type {Dict, Row} from "@/types";
-import {onMounted, ref} from "vue";
+
+import {onMounted} from "vue";
 import PageSection from "../../components/common/PageSection.vue";
 import FilterBar from "../../components/common/FilterBar.vue";
 import KeywordInput from "../../components/common/KeywordInput.vue";
@@ -54,6 +54,10 @@ import AppFormDrawer from "../../components/app/AppFormDrawer.vue";
 import {listAppOperationLogs} from "@/api/operationLogs";
 import {useListQuery} from "@/composables/useListQuery";
 import {listApps} from "@/api/apps";
+import {useLogDrawer} from "@/composables/useLogDrawer";
+import {useRowFormDrawer} from "@/composables/useFormDrawer";
+const {id: logAppId, name: logAppName, visible: logDrawer, open: openChangeLog} = useLogDrawer({labelFields: ["name", "appCode"]});
+const {visible: formVisible, editing: editingApp, openCreate, openEdit} = useRowFormDrawer();
 
 const {
   query,
@@ -70,30 +74,9 @@ const {
   handleReset
 } = useListQuery({ apiFn: listApps, fields: { keyword: "" } });
 
-const formVisible = ref(false);
-const editingApp = ref<Dict | null>(null);
-const logDrawer = ref(false);
-const logAppId = ref<number | string | null>(null);
-const logAppName = ref("");
-
-function openCreate() {
-  editingApp.value = null;
-  formVisible.value = true;
-}
-
-function openEdit(row: Row) {
-  editingApp.value = row;
-  formVisible.value = true;
-}
 
 function onAppSaved() {
   resetPage();
-}
-
-function openChangeLog(row: Row) {
-  logAppId.value = row.id;
-  logAppName.value = row.name || row.appCode || `#${row.id}`;
-  logDrawer.value = true;
 }
 
 function loadAppOperationLogs() {
