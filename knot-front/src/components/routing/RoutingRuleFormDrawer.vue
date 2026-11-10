@@ -14,7 +14,7 @@
           <div class="section-head">
             <div>
               <h3>基础信息</h3>
-              <p>定义规则编码、名称、绑定应用与应用场景，编码用于接口与审计定位。</p>
+              <p>定义规则编码、名称、绑定应用与应用场景；启用时必须绑定应用，编码用于接口与审计定位。</p>
             </div>
             <el-form-item label="启用" class="inline-switch">
               <el-switch v-model="form.enabled"/>
@@ -58,12 +58,13 @@
 
           <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="绑定应用" required>
+              <el-form-item label="绑定应用" :required="form.enabled">
                 <RemoteEntitySelect
                   v-model="form.appId"
                   :load-function="loadAppOptions"
                   :selected-options="selectedAppOptions"
                   placeholder="请选择应用"
+                  clearable
                   style="width: 100%"
                 />
               </el-form-item>
@@ -693,7 +694,8 @@ async function submit() {
       ElMessage.warning("启用规则前请选择消费者");
       return;
     }
-    if (!form.appId) {
+    // 与 selectedAppOptions 同口径判空（appId 是数字 id，禁 truthy 判断）
+    if (form.appId == null) {
       ElMessage.warning("启用规则前请选择绑定应用");
       return;
     }

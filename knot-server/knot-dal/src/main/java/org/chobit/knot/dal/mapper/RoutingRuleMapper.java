@@ -32,6 +32,14 @@ public interface RoutingRuleMapper {
     Long countByAppCode(@Param("appCode") String appCode);
 
     /**
+     * 删除守卫：统计按应用业务码绑定、且处于启用态的路由规则数。
+     *
+     * <p>与改码守卫的 {@link #countByAppCode} 不同：只关心启用态规则——
+     * 停用规则不会在运行时被解析，删掉应用不会制造「启用但无可用应用」的孤儿规则。</p>
+     */
+    Long countEnabledByAppCode(@Param("appCode") String appCode);
+
+    /**
      * 改码守卫：统计按归属用户登录名绑定该用户的路由规则数。
      */
     Long countByUsername(@Param("username") String username);

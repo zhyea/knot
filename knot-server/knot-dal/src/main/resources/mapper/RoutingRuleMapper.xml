@@ -81,6 +81,12 @@
         select count(1) from kb_routing_rules where app_code = #{appCode}
     </select>
 
+    <!-- 删除守卫：只拦启用态规则，停用规则不参与运行时解析（status=1 与
+         getEnabledByConsumerCodeAndRuleCode 的启用口径一致） -->
+    <select id="countEnabledByAppCode" resultType="java.lang.Long">
+        select count(1) from kb_routing_rules where app_code = #{appCode} and status = 1
+    </select>
+
     <select id="countByUsername" resultType="java.lang.Long">
         select count(1) from kb_routing_rules where username = #{username}
     </select>

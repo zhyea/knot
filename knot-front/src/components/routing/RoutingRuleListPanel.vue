@@ -37,7 +37,11 @@
           />
         </template>
       </el-table-column>
-      <el-table-column prop="appName" label="应用" min-width="130" show-overflow-tooltip />
+      <el-table-column label="应用" min-width="130" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ displayText(row.appName) }}
+        </template>
+      </el-table-column>
       <el-table-column label="应用场景" min-width="150" show-overflow-tooltip>
         <template #default="{ row }">
           {{ displayText(row.appScenario) }}
@@ -88,6 +92,7 @@
 import {Document, Edit, VideoPlay} from "@element-plus/icons-vue";
 import ListPagination from "../common/ListPagination.vue";
 import RowActions from "../common/RowActions.vue";
+import {ElMessage} from "element-plus";
 import {updateRoutingRuleStatus} from "@/api/routing";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {formatDateTime, displayText} from "@/utils/format";
@@ -150,6 +155,15 @@ function handleAction(action: string, row: Row) {
 }
 
 async function handleEnabledChange(row: Row, enabled: string | number | boolean) {
+  const flag = enabled !== false && enabled !== 0 && enabled !== "false";
+  // 列表开关是第二个「启用」入口，抽屉的提交校验管不到它。
+  // 不预检就只会看到开关打开后被后端 400 静默弹回；这里直接给出可执行提示。
+  if (flag && row.appId == null) {
+    const prev = row.enabled !== false;
+    row.enabled = prev; // 受控开关强制回弹；脏数据行也保持原值，不掩盖问题
+    ElMessage.warning("启用规则前请先绑定应用");
+    return;
+  }
   await onEnabledChange(row, enabled);
   emit("changed");
 }

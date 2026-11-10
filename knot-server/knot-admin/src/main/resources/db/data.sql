@@ -797,7 +797,7 @@ INSERT IGNORE INTO kb_model_api_bindings (id, model_code, protocol, api_path, re
 
 -- 4) 路由规则：裁判规则（配置 knot.jev.judge-rule-code 指向本rule_code）
 INSERT IGNORE INTO kb_routing_rules (id, rule_code, name, app_scenario, app_code, username, consumer_code, status) VALUES
-(4, 'jev-billing-judge', 'JEV计费裁判规则', '计费校验辅助判定', NULL, 'admin', 'jev-judge-client', 1);
+(4, 'jev-billing-judge', 'JEV计费裁判规则', '计费校验辅助判定', 'app_003', 'admin', 'jev-judge-client', 1);
 
 INSERT IGNORE INTO kb_routing_rule_targets (id, rule_code, target_type, target_code, priority, is_primary)
 SELECT 5, 'jev-billing-judge', 'MODEL', m.model_code, 100, 1 FROM kb_models m WHERE m.id = 13;

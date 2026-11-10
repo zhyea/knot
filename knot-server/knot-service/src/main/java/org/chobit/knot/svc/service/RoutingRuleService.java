@@ -440,6 +440,12 @@ public class RoutingRuleService {
             if (app == null) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "绑定应用不存在");
             }
+            // ⭐ 启用态与消费者同口径（见上方 consumer 分支）：绑定的应用必须已启用。
+            // 只判「存在」会让规则保存成功、运行时却在 RoutingResolver 被 "Bound app is disabled"
+            // 挡住，属于「启用即可用」契约的静默破口（2026-11-10 补强）。
+            if (request.enabled() && !EnabledStatusEnum.isEnabled(app.getStatus())) {
+                throw new BusinessException(ErrorCode.VALIDATION_ERROR, "绑定应用未启用");
+            }
         }
         // 统一模型非必填；传了则必须是有效 code（与 RoutingTestPresetService 同口径）
         if (request.logicalModelCode() != null && !request.logicalModelCode().isBlank()

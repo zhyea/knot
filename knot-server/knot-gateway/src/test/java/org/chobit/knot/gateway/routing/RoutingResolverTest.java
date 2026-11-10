@@ -151,7 +151,39 @@ class RoutingResolverTest {
         assertEquals("Bound app is disabled", error.getMessage());
     }
 
+    @Test
+    void rejectsRuleWithoutBoundApp() {
+        baselineConsumerAndRule();
+        RoutingRuleEntity unbound = ruleEntity(1, null, null);
+        unbound.setAppId(null);
+        unbound.setAppCode(null);
+        cache.rule = CONVERTER.toRuleVo(unbound);
+        cache.app = null;
+
+        GatewayAuthException error = assertThrows(GatewayAuthException.class,
+                () -> resolver().resolveByRule(SECRET_KEY, RULE_CODE, null, null));
+
+        // 种子 / 直写 SQL 绕过管理端校验时的兜底：可读鉴权失败，而不是 null key 进缓存抛 NPE
+        assertEquals("Routing rule has no bound app", error.getMessage());
+    }
+
     // ---------- requireRuleAccess：不解析候选、只做「key × 规则」鉴权 ----------
+
+    @Test
+    void requireRuleAccessRejectsRuleWithoutBoundApp() {
+        baselineConsumerAndRule();
+        RoutingRuleEntity unbound = ruleEntity(1, null, null);
+        unbound.setAppId(null);
+        unbound.setAppCode(null);
+        cache.rule = CONVERTER.toRuleVo(unbound);
+        cache.app = null;
+
+        GatewayAuthException error = assertThrows(GatewayAuthException.class,
+                () -> resolver().requireRuleAccess(SECRET_KEY, RULE_CODE));
+
+        // 异步任务查询端点与正常请求共用 resolveAccess，两条路径必须同口径
+        assertEquals("Routing rule has no bound app", error.getMessage());
+    }
 
     @Test
     void requireRuleAccessPassesForUsablePair() {

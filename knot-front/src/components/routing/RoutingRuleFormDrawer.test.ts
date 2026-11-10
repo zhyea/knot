@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import {describe, it, expect, vi, beforeEach, afterEach} from "vitest";
+import {readFileSync} from "node:fs";
+import {resolve} from "node:path";
 import {enableAutoUnmount, mount, flushPromises, type VueWrapper} from "@vue/test-utils";
 import {defineComponent, h, onMounted} from "vue";
 import {ElDrawer, ElMessage} from "element-plus";
@@ -561,6 +563,22 @@ describe("RoutingRuleFormDrawer 路由规则表单", () => {
 
     expect(updateRoutingRule).toHaveBeenCalledTimes(1);
     expect(updateBody().targets).toEqual([]);
+    expect(updateBody().appId).toBeNull();
+  });
+
+  it("绑定应用下拉可清空，必填标记随启用态切换", async () => {
+    // jsdom 环境下 import.meta.url 不是 file scheme，用 vitest 的 cwd（knot-front）定位源码
+    const source = readFileSync(
+      resolve(process.cwd(), "src/components/routing/RoutingRuleFormDrawer.vue"),
+      "utf8"
+    );
+
+    // 允许把已绑定应用清成「未绑定」（停用态可保存）；红星不再无条件显示。
+    // RemoteEntitySelect 的透传 stub 是数组式 props，静态 attr 会被收成空串，
+    // 直接读 props 断言 Boolean 不可靠，这里钉模板契约。
+    expect(source).toMatch(/placeholder="请选择应用"\s+clearable/);
+    expect(source).toContain(':required="form.enabled"');
+    expect(source).not.toContain('label="绑定应用" required');
   });
 
   it("下拉缺失值守卫生效时阻止提交并给出可读提示", async () => {

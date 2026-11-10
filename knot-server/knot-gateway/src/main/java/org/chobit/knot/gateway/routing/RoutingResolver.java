@@ -125,7 +125,7 @@ public class RoutingResolver {
      * 「API Key × 规则」鉴权的<b>唯一实现</b>。
      *
      * <p>⭐ 抽成单一方法而不是两处各写一遍：这份判定的任何一条
-     * （key 形态 / 消费者存在且启用 / 规则属于该消费者 / 应用存在且启用）漏在另一处，
+     * （key 形态 / 消费者存在且启用 / 规则属于该消费者 / 规则绑定了应用 / 应用存在且启用）漏在另一处，
      * 就等于开了一个绕开鉴权的旁路，而编译期完全看不出来。</p>
      */
     private RuleAccess resolveAccess(String secretKey, String ruleCode) {
@@ -145,6 +145,11 @@ public class RoutingResolver {
         RoutingRuleConfigVo rule = dataService.getEnabledRuleByConsumerCodeAndCode(consumer.consumerCode(), StringUtils.trim(ruleCode));
         if (rule == null) {
             throw new GatewayAuthException("Routing rule is not available for this consumer");
+        }
+        // 管理端保证「启用规则必绑应用」，但种子/直写 SQL 绕过 service 校验时仍可能有存量脏行。
+        // 先挡掉 null：直接塞进 LoadingCache 的 key 会在缓存层抛 NPE，而不是可读的鉴权失败。
+        if (rule.appId() == null) {
+            throw new GatewayAuthException("Routing rule has no bound app");
         }
         AppConfigVo app = dataService.getAppById(rule.appId());
         if (app == null) {

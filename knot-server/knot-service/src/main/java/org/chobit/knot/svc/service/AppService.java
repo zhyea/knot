@@ -14,6 +14,7 @@ import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.common.error.ErrorCode;
 import org.chobit.knot.dal.mapper.AppMapper;
 import org.chobit.knot.dal.mapper.DepartmentMapper;
+import org.chobit.knot.dal.mapper.RoutingRuleMapper;
 import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.common.model.QuotaPolicy;
@@ -34,6 +35,7 @@ public class AppService {
     private final AppConverter appConverter;
     private final DepartmentMapper departmentMapper;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
+    private final RoutingRuleMapper routingRuleMapper;
 
     /**
      * Constructs a new instance.
@@ -41,11 +43,13 @@ public class AppService {
     public AppService(AppMapper appMapper,
                       AppConverter appConverter,
                       DepartmentMapper departmentMapper,
-                      ResourceTrafficPolicySupport trafficPolicySupport) {
+                      ResourceTrafficPolicySupport trafficPolicySupport,
+                      RoutingRuleMapper routingRuleMapper) {
         this.appMapper = appMapper;
         this.appConverter = appConverter;
         this.departmentMapper = departmentMapper;
         this.trafficPolicySupport = trafficPolicySupport;
+        this.routingRuleMapper = routingRuleMapper;
     }
 
     /**
@@ -128,6 +132,15 @@ public class AppService {
         AppEntity existing = appMapper.getById(id);
         if (existing == null) {
             throw new BusinessException(ErrorCode.NOT_FOUND, "应用不存在");
+        }
+        // ⭐ 应用被删后，按 app_code 绑定的启用规则仍会被网关解析，运行时必然
+        // "Bound app not found"。与改应用编码的守卫同口径：409 拒绝，不级联改规则。
+        // 只拦启用态：停用规则不参与运行时解析，不因它挡住删除。
+        Long enabledRules = routingRuleMapper.countEnabledByAppCode(existing.getAppCode());
+        if (enabledRules != null && enabledRules > 0) {
+            throw new BusinessException(ErrorCode.CONFLICT,
+                "应用「" + existing.getAppCode() + "」仍被 " + enabledRules
+                    + " 条启用的路由规则绑定，请先停用或改绑规则");
         }
         int rows = appMapper.softDelete(id);
         if (rows == 0) {
