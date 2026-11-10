@@ -2,34 +2,19 @@
   <div>
     <el-table v-loading="loading" :data="rows" :row-class-name="rowClassName" stripe border style="width: 100%">
       <el-table-column prop="id" label="ID" width="70" align="center" header-align="center" />
-      <el-table-column prop="modelCode" label="模型编码" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="logicalModelCode" label="统一模型" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="modelCode" label="模型编码" width="200" show-overflow-tooltip />
+      <el-table-column prop="logicalModelCode" label="统一模型" width="220" show-overflow-tooltip />
       <el-table-column label="供应商" min-width="110" show-overflow-tooltip>
         <template #default="{ row }">
           {{ row.providerName || (row.providerAccountCode ? `#${row.providerAccountCode}` : "-") }}
         </template>
       </el-table-column>
-      <el-table-column label="类型" min-width="70">
+      <el-table-column label="类型" width="90">
         <template #default="{ row }">
           {{ modelTypeLabel(row.modelType) }}
         </template>
       </el-table-column>
-      <el-table-column prop="version" label="版本" min-width="110" show-overflow-tooltip />
-      <el-table-column label="异步任务" width="96" align="center" header-align="center">
-        <template #default="{ row }">
-          <!--
-            ⚠ 判据是 `!= null` 而不是 truthy：空编码即同步，这里只标「有」；
-            档案编码本身在模型表单里看，列表页不重复展示细节。
-          -->
-          <el-tooltip
-            v-if="asyncProfileCodes(row).length"
-            :content="asyncProfileCodes(row).join('、')"
-            placement="top"
-          >
-            <el-tag type="warning" size="small" effect="plain">任务</el-tag>
-          </el-tooltip>
-        </template>
-      </el-table-column>
+      <el-table-column prop="version" label="版本" width="110" align="center" show-overflow-tooltip />
       <el-table-column label="启用" width="88" align="center">
         <template #default="{ row }">
           <el-switch
@@ -42,6 +27,12 @@
             @change="(val) => handleEnabledChange(row, val)"
           />
         </template>
+      </el-table-column>
+      <el-table-column label="更新时间" width="180" align="center" show-overflow-tooltip>
+        <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+      </el-table-column>
+      <el-table-column label="创建时间" width="180" align="center" show-overflow-tooltip>
+        <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="200" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
@@ -94,6 +85,11 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
 function modelTypeLabel(code: string) {
   if (!code) return "-";
   return labelOf("ModelTypeEnum", code, code);
+}
+
+function formatDateTime(value: unknown): string {
+  if (!value) return "-";
+  return String(value).replace("T", " ").slice(0, 19);
 }
 
 /**
