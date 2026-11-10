@@ -8,12 +8,12 @@
       border
       style="width: 100%"
     >
-      <el-table-column prop="id" label="ID" min-width="50"/>
-      <el-table-column prop="modelCode" label="模型编码" min-width="180" show-overflow-tooltip/>
-      <el-table-column label="模型名称" min-width="200" show-overflow-tooltip>
+      <el-table-column prop="id" label="ID" min-width="60"/>
+      <el-table-column prop="modelCode" label="模型编码" min-width="240" show-overflow-tooltip/>
+      <el-table-column label="模型名称" min-width="240" show-overflow-tooltip>
         <template #default="{ row }">{{ displayText(row.modelName) }}</template>
       </el-table-column>
-      <el-table-column label="类型" width="110" show-overflow-tooltip>
+      <el-table-column label="类型" width="120" show-overflow-tooltip>
         <template #default="{ row }">
           <el-tag v-if="modelTypeLabel(row.modelType) !== '-'" effect="plain">
             {{ modelTypeLabel(row.modelType) }}
@@ -39,6 +39,9 @@
       </el-table-column>
       <el-table-column label="更新时间" width="180" align="center" show-overflow-tooltip>
         <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+      </el-table-column>
+      <el-table-column label="创建时间" width="180" align="center" show-overflow-tooltip>
+        <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
       </el-table-column>
       <el-table-column label="操作" width="190" align="center" header-align="center" fixed="right">
         <template #default="{ row }">
