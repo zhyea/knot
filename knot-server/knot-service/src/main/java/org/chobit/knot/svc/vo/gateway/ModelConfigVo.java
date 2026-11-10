@@ -1,5 +1,7 @@
 package org.chobit.knot.svc.vo.gateway;
 
+import java.time.LocalDateTime;
+
 /**
  * 网关配置快照：供应商模型（上游 model 参数、计费规则绑定、模型族回退）。
  *
@@ -28,6 +30,8 @@ public record ModelConfigVo(
         String remark,
         String billingRuleCode,
         Integer status,
-        Integer isDeleted
+        Integer isDeleted,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
 ) {
 }

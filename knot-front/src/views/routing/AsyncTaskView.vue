@@ -210,4 +210,15 @@ async function onCleanup() {
     cleaning.value = false;
   }
 }
+
+/**
+ * 首屏加载。
+ *
+ * <p>⚠ 必须有这行：`useListQuery` 只提供 `load`，不自己发首屏请求（否则与已有顶层
+ * 调用的视图会请求两遍）。漏了就表现为「打开页面是空表，点一次查询才有数据」。</p>
+ *
+ * <p>写法跟随本目录的 `RoutingRuleView` / `RoutingConsumerView` / `TestRequestPresetView`：
+ * setup 顶层直接调用。守门 `views/listViewInitialLoad.test.ts`。</p>
+ */
+load();
 </script>

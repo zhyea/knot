@@ -64,6 +64,7 @@ import RowActions from "../common/RowActions.vue";
 import {updateModelStatus} from "@/api/models";
 import {useEnabledToggle} from "@/composables/useEnabledToggle";
 import {useEnumOptions} from "@/composables/useEnumOptions";
+import {formatDateTime} from "@/utils/format";
 
 defineProps({
   rows: { type: Array as PropType<Row[]>, default: (): Row[] => [] },
@@ -85,11 +86,6 @@ const { togglingId, onEnabledChange } = useEnabledToggle({
 function modelTypeLabel(code: string) {
   if (!code) return "-";
   return labelOf("ModelTypeEnum", code, code);
-}
-
-function formatDateTime(value: unknown): string {
-  if (!value) return "-";
-  return String(value).replace("T", " ").slice(0, 19);
 }
 
 /**

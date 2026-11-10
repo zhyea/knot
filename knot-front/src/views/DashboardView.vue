@@ -1,36 +1,47 @@
 <template>
-  <div v-loading="loading" class="dashboard-page">
+  <!--
+    ⭐ 先加载、后渲染：数据区在 initialized 之前根本不存在，蒙版下面不会露出
+    一屏 0 / 空列表。刷新时数据区保留旧值，由蒙版盖住，避免高度塌陷。
+  -->
+  <div
+    v-loading="loading"
+    :element-loading-text="loadingText"
+    class="dashboard-page"
+    :class="{'dashboard-page--booting': !initialized}"
+  >
     <DashboardHero :updated-at-text="lastUpdatedAtText" @refresh="loadDashboard" />
 
-    <el-alert
-      v-if="failedSections.length"
-      type="warning"
-      show-icon
-      :closable="false"
-      :title="`部分数据加载失败：${failedSections.join('、')}`"
-      description="上述区块已按 0 / 空展示，数值不代表真实情况。请点击右上角刷新重试，或检查对应服务是否可用。"
-    />
+    <template v-if="initialized">
+      <el-alert
+        v-if="failedSections.length"
+        type="warning"
+        show-icon
+        :closable="false"
+        :title="`部分数据加载失败：${failedSections.join('、')}`"
+        description="上述区块已按 0 / 空展示，数值不代表真实情况。请点击右上角刷新重试，或检查对应服务是否可用。"
+      />
 
-    <DashboardMetricGrid :metrics="metrics" @select="goToRoute" />
+      <DashboardMetricGrid :metrics="metrics" @select="goToRoute" />
 
-    <section class="dashboard-main">
-      <DashboardOverviewPanel :metrics="metrics" :modules="rankedModules" :module-count="moduleCatalog.length" />
+      <section class="dashboard-main">
+        <DashboardOverviewPanel :metrics="metrics" :modules="rankedModules" :module-count="moduleCatalog.length" />
 
-      <div class="dashboard-side">
-        <DashboardRuntimePanel
-          :status="health.status"
-          :server-time="health.serverTime"
-          :db-time="health.dbTime"
-          :module-count="moduleCatalog.length"
-        />
-        <DashboardQuickLinks :links="quickLinks" @select="goToRoute" />
-        <DashboardRecentActivity
-          :logs="recentLogs"
-          :module-name-map="moduleNameMap"
-          @open-all="goToRoute('/system/logs')"
-        />
-      </div>
-    </section>
+        <div class="dashboard-side">
+          <DashboardRuntimePanel
+            :status="health.status"
+            :server-time="health.serverTime"
+            :db-time="health.dbTime"
+            :module-count="moduleCatalog.length"
+          />
+          <DashboardQuickLinks :links="quickLinks" @select="goToRoute" />
+          <DashboardRecentActivity
+            :logs="recentLogs"
+            :module-name-map="moduleNameMap"
+            @open-all="goToRoute('/system/logs')"
+          />
+        </div>
+      </section>
+    </template>
   </div>
 </template>
 
@@ -61,9 +72,11 @@ import DashboardRecentActivity from "@/components/dashboard/DashboardRecentActiv
 const router = useRouter();
 const {modules: authorizedModules} = useAuth();
 const {current: currentTimezone} = useTimezone();
-const {health, statTotals, loading, lastUpdatedAt, moduleCatalog, recentLogs, failedSections, loadDashboard} =
+const {health, statTotals, loading, initialized, lastUpdatedAt, moduleCatalog, recentLogs, failedSections, loadDashboard} =
   useDashboard();
 
+/** 首次加载与「刷新已有数据」是两种等待语义，文案分别说清 */
+const loadingText = computed(() => (initialized.value ? "正在刷新看板数据…" : "正在加载看板数据…"));
 const lastUpdatedAtText = computed(() =>
   lastUpdatedAt.value ? formatDateTimeInTimezone(lastUpdatedAt.value, currentTimezone.value) : EMPTY_PLACEHOLDER
 );
@@ -79,7 +92,8 @@ function goToRoute(path: string) {
   router.push(path);
 }
 
-// loadDashboard 内部已兜住异常（见 useDashboard 的 catch），这里不需要再接 Promise
+// loadDashboard 内部已兜住异常（见 useDashboard 的 catch），这里不需要再接 Promise。
+// 挂载即开加载：loading 初值已是 true，所以「进入页面」到「数据就绪」之间只有蒙版，没有半成品。
 onMounted(() => {
   loadDashboard();
 });
@@ -116,6 +130,11 @@ onMounted(() => {
   /* 单列堆叠时不再强撑高度，保持自然高度 */
   .dashboard-page {
     min-height: 0;
+  }
+
+  /* 例外：首轮加载数据区还没挂载，若不撑高蒙版就只剩 Hero 那一条 */
+  .dashboard-page--booting {
+    min-height: calc(100vh - var(--layout-header-height, 60px));
   }
 
   .dashboard-main {

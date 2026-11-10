@@ -24,7 +24,9 @@ vi.mock("@/composables/useAuth", async () => {
   const {ref} = await import("vue");
   return {
     useAuth: () => ({
-      modules: ref([{icon: "Grid", menus: [{menuName: "应用管理", routePath: "/apps", children: []}]}])
+      modules: ref([{icon: "Grid", menus: [{menuName: "应用管理", routePath: "/apps", children: []}]}]),
+      // 总览页会等授权菜单一起就绪，再放行数据区（快捷入口的数据来源）
+      loadAuthorizations: () => Promise.resolve({permissions: [], modules: []})
     })
   };
 });
@@ -155,5 +157,37 @@ describe("DashboardView 拼装", () => {
     hoisted.push.mockReset();
     await wrapper.find(".quick-links__item").trigger("click");
     expect(hoisted.push).toHaveBeenCalledWith("/apps");
+  });
+
+  it("先加载后渲染：首轮完成前数据区不挂载，只有动态蒙版", async () => {
+    type AppsResult = Awaited<ReturnType<typeof listApps>>;
+    let releaseApps: (value: AppsResult) => void = () => undefined;
+    mockApps.mockReturnValue(
+      new Promise<AppsResult>((resolve) => {
+        releaseApps = resolve;
+      })
+    );
+
+    const wrapper = mount(DashboardView);
+    await flushPromises();
+
+    // ⭐ 数据区整体不存在 → 蒙版下面不会露出 0 / 空列表这一屏「半成品」
+    expect(wrapper.find(".metric-grid").exists()).toBe(false);
+    expect(wrapper.find(".dashboard-main").exists()).toBe(false);
+    // 首轮态额外撑高，否则窄屏下页面高度只有 Hero，蒙版只剩一条
+    expect(wrapper.find(".dashboard-page").classes()).toContain("dashboard-page--booting");
+    const mask = wrapper.find(".el-loading-mask");
+    expect(mask.exists()).toBe(true);
+    expect(mask.text()).toContain("正在加载看板数据");
+
+    releaseApps({total: 3, list: []});
+    await flushPromises();
+
+    expect(wrapper.find(".metric-grid").exists()).toBe(true);
+    expect(wrapper.find(".dashboard-page").classes()).not.toContain("dashboard-page--booting");
+
+    // 蒙版是 300ms 淡出后才移除节点，等它走完再断言「不挡了」
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(wrapper.find(".el-loading-mask").exists()).toBe(false);
   });
 });

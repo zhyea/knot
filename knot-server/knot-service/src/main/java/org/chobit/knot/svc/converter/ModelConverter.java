@@ -31,6 +31,9 @@ public interface ModelConverter {
     @Mapping(target = "modelFamilyCode", ignore = true)
     // is_deleted 只能通过删除 / 恢复接口翻转，不接受请求写回
     @Mapping(target = "isDeleted", ignore = true)
+    // 时间列由库侧维护（created_at 默认值 / updated_at ON UPDATE），请求体写入无效
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     ModelEntity toEntity(ModelDto dto);
 
     List<ModelDto> toDtoList(List<ModelEntity> entities);

@@ -9,14 +9,20 @@ import {listRoutingRules} from "@/api/routing";
 import {useDashboard} from "@/composables/useDashboard";
 
 /**
- * 总览页的取数编排：**7 个接口各自降级**。
+ * 总览页的取数编排：**8 个来源各自降级**（7 张数据 + 授权菜单）。
  *
  * <p>这组用例钉的是降级语义，而不是「数据取回来了」——因为降级一旦写错，
  * 表现是「这页永远显示 0」而没有任何报错，比崩溃更难发现：
  * ① 单区块失败只登记自己，别的区块照常出数；
  * ② 失败区块的数值落 0，但 `lastUpdatedAt` 仍要写（否则「更新时间」停住，运维会以为是页面卡了）；
- * ③ 每次 load 都重置失败名单，否则修好之后提示还在。</p>
+ * ③ 每次 load 都重置失败名单，否则修好之后提示还在；
+ * ④ 首轮加载前不得放行数据区（`initialized`），并发加载只认最后一次。</p>
  */
+const hoisted = vi.hoisted(() => ({loadAuthorizations: vi.fn()}));
+
+vi.mock("@/composables/useAuth", () => ({
+  useAuth: () => ({loadAuthorizations: hoisted.loadAuthorizations})
+}));
 vi.mock("@/api/apps", () => ({listApps: vi.fn()}));
 vi.mock("@/api/health", () => ({getHealth: vi.fn()}));
 vi.mock("@/api/logicalModels", () => ({listLogicalModels: vi.fn()}));
@@ -42,6 +48,7 @@ describe("useDashboard 降级编排", () => {
 
   beforeEach(() => {
     warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    hoisted.loadAuthorizations.mockResolvedValue({permissions: [], modules: []});
     mockHealth.mockResolvedValue({status: "UP", serverTime: "2026-10-31T12:00:00Z", dbTime: "2026-10-31T12:00:01Z"});
     mockModules.mockResolvedValue([{code: "app", name: "应用管理", capabilities: ["read", "write"]}]);
     mockApps.mockResolvedValue({total: 3, list: []});
@@ -112,5 +119,63 @@ describe("useDashboard 降级编排", () => {
     await dashboard.loadDashboard();
     expect(dashboard.failedSections.value).toEqual([]);
     expect(dashboard.statTotals.apps).toBe(9);
+  });
+
+  it("首轮之前就是加载态：initialized 为 false，加载结束才放行数据区", async () => {
+    const dashboard = useDashboard();
+    // ⭐ 挂载那一刻就得有蒙版，否则首帧铺出来的是 0 / 空列表
+    expect(dashboard.loading.value).toBe(true);
+    expect(dashboard.initialized.value).toBe(false);
+
+    await dashboard.loadDashboard();
+
+    expect(dashboard.initialized.value).toBe(true);
+    expect(dashboard.loading.value).toBe(false);
+  });
+
+  it("授权菜单与看板同批等待：登录后首次进首页不缺快捷入口", async () => {
+    let releaseAuth: (value: unknown) => void = () => undefined;
+    hoisted.loadAuthorizations.mockReturnValue(
+      new Promise<unknown>((resolve) => {
+        releaseAuth = resolve;
+      })
+    );
+
+    const dashboard = useDashboard();
+    const loading = dashboard.loadDashboard();
+    // 授权还没回来 → 整页仍算「没加载完」，数据区不渲染
+    expect(dashboard.initialized.value).toBe(false);
+
+    releaseAuth({permissions: [], modules: []});
+    await loading;
+    expect(dashboard.initialized.value).toBe(true);
+    expect(dashboard.failedSections.value).toEqual([]);
+  });
+
+  it("并发加载只认最后一次：慢请求后到不得覆盖新数据，也不得重新拉起蒙版", async () => {
+    type AppsResult = Awaited<ReturnType<typeof listApps>>;
+    let releaseFirst: (value: AppsResult) => void = () => undefined;
+    mockApps.mockReturnValueOnce(
+      new Promise<AppsResult>((resolve) => {
+        releaseFirst = resolve;
+      })
+    );
+
+    const dashboard = useDashboard();
+    const first = dashboard.loadDashboard();
+    const second = dashboard.loadDashboard();
+    await second;
+
+    // 第二次（最新一轮）先回来：数据与蒙版都以它为准
+    expect(dashboard.loading.value).toBe(false);
+    expect(dashboard.statTotals.apps).toBe(3);
+
+    // 第一次此刻才回来（total 99）→ 必须整轮丢弃
+    releaseFirst({total: 99, list: []});
+    await first;
+
+    expect(dashboard.statTotals.apps).toBe(3);
+    expect(dashboard.loading.value).toBe(false);
+    expect(dashboard.initialized.value).toBe(true);
   });
 });

@@ -2,6 +2,8 @@ package org.chobit.knot.dal.entity;
 
 import lombok.Data;
 
+import java.time.LocalDateTime;
+
 @Data
 public class ModelEntity {
     private Long id;
@@ -29,4 +31,8 @@ public class ModelEntity {
     private Integer status;
     /** 逻辑删除：0-否 1-是（uk_models_code 不区分 is_deleted，删除后同 code 只能恢复，不能新建） */
     private Integer isDeleted;
+    /** 创建时间（库侧默认值 CURRENT_TIMESTAMP，只读） */
+    private LocalDateTime createdAt;
+    /** 更新时间（库侧 ON UPDATE CURRENT_TIMESTAMP，只读） */
+    private LocalDateTime updatedAt;
 }

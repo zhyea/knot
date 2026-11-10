@@ -9,7 +9,7 @@
 
     <sql id="ModelSelectColumns">
         m.id, m.provider_account_code, m.model_code, m.upstream_model, m.version, m.base_path, m.remark, m.billing_rule_code, m.status,
-        m.is_deleted,
+        m.is_deleted, m.created_at, m.updated_at,
         <include refid="logicalModelCodeExpr"/> AS logical_model_code,
         <include refid="modelTypeExpr"/> AS model_type,
         <include refid="modelFamilyExpr"/> AS model_family_code,

@@ -321,7 +321,9 @@ public class ModelService {
                     existing.quotaPolicies(),
                     existing.apiBindings(),
                     existing.deleted(),
-                    existing.boundCount()
+                    existing.boundCount(),
+                    existing.createdAt(),
+                    existing.updatedAt()
             );
             validateModelRequest(request);
         }
@@ -527,7 +529,9 @@ public class ModelService {
                 base.quotaPolicies(),
                 base.apiBindings(),
                 base.deleted(),
-                boundCount
+                boundCount,
+                base.createdAt(),
+                base.updatedAt()
         );
     }
 
@@ -583,7 +587,9 @@ public class ModelService {
                 quotas,
                 apiBindings == null ? apiBindingSupport.list(base.id()) : apiBindings,
                 base.deleted(),
-                base.boundCount()
+                base.boundCount(),
+                base.createdAt(),
+                base.updatedAt()
         );
     }
 

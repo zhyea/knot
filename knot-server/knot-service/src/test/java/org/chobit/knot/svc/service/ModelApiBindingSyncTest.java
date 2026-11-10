@@ -115,7 +115,8 @@ class ModelApiBindingSyncTest {
             ModelEntity source = invocation.getArgument(0);
             return new ModelDto(source.getId(), source.getModelCode(), source.getUpstreamModel(),
                     source.getProviderAccountCode(), null, null, null, "1.0.0", source.getBasePath(),
-                    null, true, "logical-gpt", "billing-1", null, null, List.of(), false, null);
+                    null, true, "logical-gpt", "billing-1", null, null, List.of(), false, null,
+                    source.getCreatedAt(), source.getUpdatedAt());
         });
         when(bindingMapper.listByModelId(MODEL_ID)).thenReturn(List.of());
     }
@@ -169,7 +170,7 @@ class ModelApiBindingSyncTest {
     private ModelDto request(List<ModelApiBindingDto> bindings) {
         return new ModelDto(MODEL_ID, "gpt-4o", "gpt-4o", "acct-1", null, null, "CHAT",
                 "1.0.0", "/ep-1", null, true, "logical-gpt", "billing-1",
-                null, null, bindings, false, null);
+                null, null, bindings, false, null, null, null);
     }
 
     private ModelApiBindingEntity existingBinding() {
