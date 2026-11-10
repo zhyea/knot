@@ -24,62 +24,75 @@
       </el-row>
     </template>
 
-    <el-divider content-position="left">
-      <span class="video-usage-config__group">输入侧分量（可选，留空不计费）</span>
-    </el-divider>
-    <!-- 两行两列：每个分量各自持有 span，调宽只改自己那一格 -->
-    <el-row :gutter="16">
-      <el-col v-if="showInputVideo" :xs="24" :span="8">
-        <el-form-item label="输入视频 每秒">
-          <el-input-number v-model="form.videoInputVideoPerSecond"
-                           :min="0"
-                           :step="UNIT_PRICE_STEP"
-                           controls-position="right"
-                           style="width: 100%"/>
-        </el-form-item>
-      </el-col>
-      <el-col :xs="24" :span="8">
-        <el-form-item label="输入图片 每张">
-          <el-input-number v-model="form.videoInputImagePerImage"
-                           :min="0"
-                           :step="UNIT_PRICE_STEP"
-                           controls-position="right"
-                           style="width: 100%"/>
-        </el-form-item>
-      </el-col>
-      <el-col :xs="24" :span="8">
-        <el-form-item label="图片免费张数">
-          <el-input-number v-model="form.videoFreeInputImages"
-                           :min="0"
-                           :step="1"
-                           controls-position="right"
-                           style="width: 100%"/>
-        </el-form-item>
-      </el-col>
-      <el-col v-if="showAudioSurcharge" :xs="24" :span="8">
-        <el-form-item label="音频直出附加费">
-          <el-input-number v-model="form.videoAudioSurcharge"
-                           :min="0"
-                           :step="UNIT_PRICE_STEP"
-                           controls-position="right"
-                           style="width: 100%"/>
-        </el-form-item>
-      </el-col>
-    </el-row>
-    <el-alert type="info" :closable="false" class="video-usage-config__hint">
-      <template #title>
-        <span>
-          输入侧分量按「输出秒 + 输入秒 + 输入图片」三路各自计价后求和；
-          分量单价独立于上方分辨率档，不会被默认单价顶替。附加费是与用量无关的常数项（如 Vidu 直出音频 +15）。
-          它与「有声单独定价」是同一件事的两种表达：勾选「有声单独定价」后音频附加费不再出现，已填值会被清空——同一项不收两遍。
-        </span>
-      </template>
-    </el-alert>
+    <!-- ⭐ 输入侧分量默认收起（2026-11-10 robin 定）：多数视频规则只按「输出量 × 单价」计费，
+         四个可选输入框常显会把「留空不计费」误读成必填。计费量口径是另一根轴，保持现状常显。
+         ⭐ 但「不展示」不等于「不存在」：已有配置值必须自动展开并标注，否则界面上看不见的单价
+         会随保存落库，成为找不到入口却在计费的收费项（同下方 hiddenCharges 的资损判据）。 -->
+    <div class="video-usage-config__entry">
+      <el-button link type="primary" class="video-usage-config__toggle"
+                 :aria-expanded="expanded" @click="expanded = !expanded">
+        {{ expanded ? "收起" : "展开" }}输入侧分量
+      </el-button>
+      <span v-if="configuredCount" class="video-usage-config__badge">已配置 {{ configuredCount }} 项</span>
+    </div>
+    <template v-if="expanded">
+      <el-divider content-position="left">
+        <span class="video-usage-config__group">输入侧分量（可选，留空不计费）</span>
+      </el-divider>
+      <!-- 两行两列：每个分量各自持有 span，调宽只改自己那一格 -->
+      <el-row :gutter="16">
+        <el-col v-if="showInputVideo" :xs="24" :span="8">
+          <el-form-item label="输入视频 每秒">
+            <el-input-number v-model="form.videoInputVideoPerSecond"
+                             :min="0"
+                             :step="UNIT_PRICE_STEP"
+                             controls-position="right"
+                             style="width: 100%"/>
+          </el-form-item>
+        </el-col>
+        <el-col :xs="24" :span="8">
+          <el-form-item label="输入图片 每张">
+            <el-input-number v-model="form.videoInputImagePerImage"
+                             :min="0"
+                             :step="UNIT_PRICE_STEP"
+                             controls-position="right"
+                             style="width: 100%"/>
+          </el-form-item>
+        </el-col>
+        <el-col :xs="24" :span="8">
+          <el-form-item label="图片免费张数">
+            <el-input-number v-model="form.videoFreeInputImages"
+                             :min="0"
+                             :step="1"
+                             controls-position="right"
+                             style="width: 100%"/>
+          </el-form-item>
+        </el-col>
+        <el-col v-if="showAudioSurcharge" :xs="24" :span="8">
+          <el-form-item label="音频直出附加费">
+            <el-input-number v-model="form.videoAudioSurcharge"
+                             :min="0"
+                             :step="UNIT_PRICE_STEP"
+                             controls-position="right"
+                             style="width: 100%"/>
+          </el-form-item>
+        </el-col>
+      </el-row>
+      <el-alert type="info" :closable="false" class="video-usage-config__hint">
+        <template #title>
+          <span>
+            输入侧分量按「输出秒 + 输入秒 + 输入图片」三路各自计价后求和；
+            分量单价独立于上方分辨率档，不会被默认单价顶替。附加费是与用量无关的常数项（如 Vidu 直出音频 +15）。
+            它与「有声单独定价」是同一件事的两种表达：勾选「有声单独定价」后音频附加费不再出现，已填值会被清空——同一项不收两遍。
+          </span>
+        </template>
+      </el-alert>
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import {computed, watch} from "vue";
+import {computed, ref, watch} from "vue";
 import {ElMessage} from "element-plus";
 import {PricingPlan} from "@/constants/status";
 import {UNIT_PRICE_STEP, isTokenPricedUnit} from "@/utils/billingPrice";
@@ -205,6 +218,41 @@ watch(
   {immediate: true}
 );
 
+// ============================================================================
+// 输入侧分量默认收起：只收这一组，计费量口径由 showQuantity 独立控制
+// ============================================================================
+
+/** 这一组托管的全部分量字段：「有没有已配置值」只认表单值，不认 DOM 是否渲染 */
+const CHARGE_FIELDS = [
+  "videoInputVideoPerSecond",
+  "videoInputImagePerImage",
+  "videoFreeInputImages",
+  "videoAudioSurcharge"
+] as const;
+
+const configuredCount = computed(() => {
+  const state = props.form as Record<string, unknown>;
+  return CHARGE_FIELDS.filter((field) => state[field] != null).length;
+});
+
+/**
+ * 默认收起；已有值则展开并在入口标注「已配置 N 项」。
+ *
+ * <p>⭐ 用 watch 布尔量而不是 ref 初始值：抽屉是<b>先挂载、详情异步回填</b>的，
+ * 挂载那一刻表单全空，初始化即判会永远收起，存量规则的收费项就此藏进界面。
+ * 只在 false→true 时展开，用户手动收起后不会被反复弹开；收起只是显示态，不清空任何值。</p>
+ */
+const expanded = ref(false);
+watch(
+  () => configuredCount.value > 0,
+  (hasConfigured) => {
+    if (hasConfigured) {
+      expanded.value = true;
+    }
+  },
+  {immediate: true}
+);
+
 const QUANTITY_MODES = [
   {value: "OUTPUT", label: "仅输出时长（默认）", hint: "计费量 = 输出秒数。Vidu、豆包走这条。"},
   {value: "SUM", label: "输出 + 输入", hint: "计费量 = 输出秒 + 输入秒。MiniMax 输入视频按秒走这条。"},
@@ -252,5 +300,17 @@ const quantityHint = computed(
   font-size: 12px;
   color: var(--el-text-color-secondary);
   line-height: 20px;
+}
+
+.video-usage-config__entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.video-usage-config__badge {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 </style>
