@@ -41,12 +41,17 @@ import java.util.List;
  *
  * <p>{@code PENDING} 与 {@code POLLING} 分开是刻意的：运维要能一眼分辨「创建后从未被轮询过」
  * （poller 没接手 / 抢占失败）与「正在轮询中」，两者处置方式完全不同。</p>
+ *
+ * <p>⭐ 因此分界点定在<b>发起查询之前</b>（2026-11-10 robin 定），不是查询结果回来之后：
+ * {@code PENDING} 只表示「一次查询都没发起过」，一旦要打上游就先置 {@code POLLING}。
+ * 等结果再改的后果是「首查即终态」的任务直接 0 → 2，那次真实发生的上游调用在状态维度上不存在，
+ * 两个状态也就白分了。</p>
  */
 public enum AsyncTaskStatusEnum implements NumericEnumOption {
 
     /** 上游创建成功，尚未发起首次查询 */
     PENDING(0, "待处理"),
-    /** 已查询过至少一次，仍在等待终态 */
+    /** 已发起过至少一次查询（含当前这次），仍未到终态 */
     POLLING(1, "轮询中"),
     /** 终态：成功，已计费 */
     SUCCEEDED(2, "成功"),

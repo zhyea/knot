@@ -57,11 +57,13 @@ class AsyncTaskRunnerTest {
     private RecordingSettlement settlement;
     private RecordingArchiveStore archiveStore;
     private AsyncTaskRunner service;
+    /** 三个桩共享的调用顺序：断言「先标轮询中、再查上游」靠它 */
+    private final List<String> timeline = new ArrayList<>();
 
     @BeforeEach
     void setUp() {
-        taskService = new RecordingTaskService();
-        queryClient = new RecordingQueryClient();
+        taskService = new RecordingTaskService(timeline);
+        queryClient = new RecordingQueryClient(timeline);
         settlement = new RecordingSettlement();
         archiveStore = new RecordingArchiveStore();
         service = new AsyncTaskRunner(taskService, queryClient, settlement, archiveStore, POLICY);
@@ -415,6 +417,52 @@ class AsyncTaskRunnerTest {
                 "保留 30 天 = 删除时刻早于「现在减 30 天」；算成减 1 天会把历史全清掉");
     }
 
+    @Test
+    @DisplayName("⭐ 发起查询之前就标成轮询中：首查即终态也不能跳过 1")
+    void marksPollingBeforeQueryEvenIfFirstQuerySettles() {
+        taskService.completeResult = true;
+        AsyncTaskDto task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
+        queryClient.body = "{\"data\":[{\"status\":\"succeed\",\"outputs\":[{\"url\":\"https://x/a.mp4\"}]}]}";
+
+        assertTrue(service.process(task));
+
+        assertEquals(List.of("markPolling", "query", "complete"), timeline,
+                "顺序错了：标轮询中必须在发起查询之前，否则首查即终态的任务永远写不到 1");
+        assertEquals(List.of(7L), taskService.pollMarks, "只标本任务这一行");
+    }
+
+    @Test
+    @DisplayName("非终态同样先标轮询中：状态不靠 scheduleNext 才变化")
+    void marksPollingBeforeQueryWhenStillRunning() {
+        taskService.scheduleNextResult = true;
+        AsyncTaskDto task = task(0, JsonKit.toJson(spec()), JsonKit.toJson(context()));
+        queryClient.body = "{\"data\":[{\"status\":\"processing\"}]}";
+
+        assertFalse(service.process(task));
+
+        assertEquals(List.of("markPolling", "query", "scheduleNext"), timeline);
+        assertEquals(List.of(7L), taskService.pollMarks);
+    }
+
+    /**
+     * 没有发出查询就不该说「轮询中」。
+     *
+     * <p>⭐ 两条都是「不打上游」的终态路径：次数用尽、快照不可读。
+     * 把它们标成「轮询中」等于向运维声称「已查过一次」，而事实上次上游调用根本不存在。</p>
+     */
+    @Test
+    @DisplayName("不打上游的终态路径不标轮询中：次数用尽 / 快照不可读")
+    void neverMarksPollingWhenNoQueryWasIssued() {
+        taskService.completeResult = true;
+        AsyncTaskSpec spec = spec();
+        service.process(task(spec.maxAttempts(), JsonKit.toJson(spec), JsonKit.toJson(context())));
+        service.process(task(0, "{oops", JsonKit.toJson(context())));
+
+        assertEquals(0, queryClient.calls, "两条路径都不应该碰上游");
+        assertEquals(List.of(), taskService.pollMarks,
+                "没发出查询却标了轮询中 = 虚假的「已查过一次」");
+    }
+
     /**
      * 存储桩：{@link AsyncTaskService} 是具体类（直连 Mapper），所以用<b>继承覆写</b>而不是 mock。
      *
@@ -426,6 +474,9 @@ class AsyncTaskRunnerTest {
      * <p>默认值与 Mockito 的默认一致（{@code false} / {@code 0} / 空列表），
      * 于是「占位已易主、写不进去」这种边界不需要显式设置就是真实形态；
      * 需要写成功的用例逐个显式打开。</p>
+
+     * <p>⚠ {@code markPolling} 是唯一的例外，恒返回 {@code true}：它不参与分支（只记录
+     * 「先标后查」的顺序），默认 false 反而会让读者以为每条用例都得先打开一个开关。</p>
      */
     private static final class RecordingTaskService extends AsyncTaskService {
 
@@ -435,15 +486,27 @@ class AsyncTaskRunnerTest {
         private final List<ClaimCall> expiredClaims = new ArrayList<>();
         private final List<CleanupCall> cleanups = new ArrayList<>();
 
+        private final List<String> timeline;
+        /** 被标过「轮询中」的行 id；顺序和次数都是契约 */
+        private final List<Long> pollMarks = new ArrayList<>();
+
         private boolean completeResult;
         private boolean scheduleNextResult;
         private List<AsyncTaskDto> claimResult = List.of();
         private List<AsyncTaskDto> claimExpiredResult = List.of();
         private int cleanupResult;
 
-        private RecordingTaskService() {
+        @Override
+        public boolean markPolling(Long id, String claimId) {
+            pollMarks.add(id);
+            timeline.add("markPolling");
+            return true;
+        }
+
+        private RecordingTaskService(List<String> timeline) {
             // 覆写掉的方法都不碰 Mapper，传 null 安全
             super(null);
+            this.timeline = timeline;
         }
 
         @Override
@@ -460,6 +523,7 @@ class AsyncTaskRunnerTest {
 
         @Override
         public boolean scheduleNext(Long id, String claimId, LocalDateTime nextPollAt) {
+            timeline.add("scheduleNext");
             schedules.add(new ScheduleCall(id, claimId, nextPollAt));
             return scheduleNextResult;
         }
@@ -468,6 +532,7 @@ class AsyncTaskRunnerTest {
         public boolean complete(Long id, String claimId, int status, String resultJson,
                                AsyncTaskTerminalDto terminal, String errorCode, String errorMessage,
                                int deliveryPendingCode) {
+            timeline.add("complete");
             completes.add(new CompleteCall(id, claimId, status, resultJson, terminal, errorCode, errorMessage,
                     deliveryPendingCode));
             return completeResult;
@@ -572,10 +637,16 @@ class AsyncTaskRunnerTest {
         private String body = "{}";
         private RuntimeException error;
         private int calls;
+        private final List<String> timeline;
+
+        private RecordingQueryClient(List<String> timeline) {
+            this.timeline = timeline;
+        }
 
         @Override
         public String query(AsyncTaskContext context, AsyncTaskSpec spec, String upstreamTaskId) {
             calls++;
+            timeline.add("query");
             if (error != null) {
                 throw error;
             }

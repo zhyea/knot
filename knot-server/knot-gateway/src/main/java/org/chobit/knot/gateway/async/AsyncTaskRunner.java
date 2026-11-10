@@ -186,6 +186,11 @@ public class AsyncTaskRunner {
     /**
      * 处理一个任务：取数 → 判定事件 → 交给状态机 → 按动作执行副作用。
      *
+     * <p>⭐ <b>先标「轮询中」再查上游</b>（2026-11-10 robin 定）：{@code PENDING(0)} 的含义是
+     * 「提交后一次查询都没发起过」，所以要打上游之前就要离开它。写在查询之后会让「首查即终态」
+     * 的任务直接 0 → 2，那次真实发生的上游调用在状态维度上就不存在——而这两个状态分开的初衷
+     * 正是让运维一眼看出「poller 有没有接手」（{@code AsyncTaskStatusEnum} 类注释）。</p>
+     *
      * <p>⭐ 这里只做两件事：<b>把事实取出来</b>（快照、次数、上游响应），
      * 以及<b>把事实翻译成一个事件</b>。「这个事件该落哪个状态、要不要计费」一律问
      * {@link AsyncTaskStateMachine}，不再在这里堆 if——否则加一种失败原因就要同时改判断、改错误码、
@@ -206,6 +211,12 @@ public class AsyncTaskRunner {
             return apply(new Polling(task, context, spec, attempts - 1, null, null),
                 AsyncTaskEvent.ATTEMPTS_EXHAUSTED);
         }
+        // 发起查询之前先离开 PENDING：0 的语义是「提交后一次查询都没发起过」，
+        // 而「首查即终态」的任务会从 0 直接落 2——不在这里先置 1，
+        // 运维就永远分不清「poller 没接手」和「已接手、查过了」。
+        // 写不进（租约易主 / 已终态）不影响本次推进：真正的兑付口是后面的
+        // complete / scheduleNext，它们各自的 CAS 会把关。
+        taskService.markPolling(task.id(), task.claimId());
         String body;
         try {
             body = queryPort.query(context, spec, task.upstreamTaskId());

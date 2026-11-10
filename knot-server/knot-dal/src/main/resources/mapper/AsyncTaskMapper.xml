@@ -116,6 +116,22 @@
         limit #{limit}
     </update>
 
+    <!-- 发起查询之前把行推进到「轮询中」：status=0 的语义是「提交后一次查询都没发起过」，
+         一旦要打上游就必须先离开它。放在查询结果之后写的后果是「首查即终态」的任务直接从
+         0 落 2（PENDING → SUCCEEDED），两个状态就白分了——运维再也分不清「poller 没接手」
+         和「已接手、查过了」。
+
+         ⚠ 仍然带 claim_id：这一步同样在租约保护下。少了它，占位过期后原节点还能把新主人
+         刚推进的状态改写回 0（或反之），而状态是管理端唯一的分诊依据。
+         ⚠ 不改 next_poll_at / attempts：那是 scheduleNext 的事——这一条只回答「开始查了」。 -->
+    <update id="markPolling">
+        update kb_async_tasks
+        set status = #{pollingCode}
+        where id = #{id}
+          and claim_id = #{claimId}
+          and status in <include refid="InFlight"/>
+    </update>
+
     <!-- 非终态推进：claim_id 条件是「租约」的兑付口。占位已易主（本节点处理超时、被别的节点回收）
          时影响行数为 0，调用方据此不再发查询事件——否则同一个 task_query_seq 会出现两条，
          数仓按 (task_code, task_phase, task_query_seq) 去重后会把两次真实上游调用压成一条。 -->

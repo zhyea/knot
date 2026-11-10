@@ -67,11 +67,32 @@ public interface AsyncTaskMapper {
                      @Param("inFlightCodes") List<Integer> inFlightCodes);
 
     /**
+     * 把一行标记为「开始轮询」：{@code PENDING} 的语义是「提交后一次查询都没发起过」，
+     * 所以<b>发起查询之前</b>就要写这一条，而不是等查询结果回来。
+     *
+     * <p>⭐ 为什么不能等 {@link #scheduleNext}：那条只在「查到非终态」时走，
+     * 而「首查即终态」的任务会从 {@code PENDING} 直接经 {@link #complete} 落终态——
+     * 中间那次「确实打过上游」就完全不可见了，管理端无法区分「poller 没接手」与「已查过」。</p>
+     *
+     * <p>⚠ 仍受租约保护（{@code claim_id} 条件）：这一步也是「谁有权改这一行」的一部分，
+     * 少掉它，租约过期后原节点仍能改写新主人刚推进的状态。</p>
+     *
+     * @param pollingCode   轮询中状态码（由 {@code AsyncTaskStatusEnum#POLLING} 传入，dal 不认识语义）
+     * @param inFlightCodes CAS 守卫用的在途状态码集合
+     * @return 影响行数；0 表示占位已易主或行已终态（此时不该再调上游）
+     */
+    int markPolling(@Param("id") Long id,
+                    @Param("claimId") String claimId,
+                    @Param("pollingCode") int pollingCode,
+                    @Param("inFlightCodes") List<Integer> inFlightCodes);
+
+    /**
      * 释放占位并安排下一次轮询（非终态继续）。
      *
      * @param claimId        必须与行上一致才写；不一致说明占位已易主（本节点处理超时），
      *                       此时不写，避免把新主人的占位抹掉
-     * @param nextStatus     写入的状态码（通常是在途态里的 POLLING）
+     * @param nextStatus     写入的状态码（在途态里的 POLLING）；{@link #markPolling} 已经写过一次，
+     *                       这里再写一遍是兜底——漏标时非终态这条路径仍能把行推进到「轮询中」
      * @param inFlightCodes  CAS 守卫用的在途状态码集合
      */
     int scheduleNext(@Param("id") Long id,

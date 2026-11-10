@@ -60,7 +60,7 @@ class AsyncTaskMapperSqlTest {
 
     /** 所有带在途态谓词的 statement：加新方法时必须同步进这个清单，否则不会有人替你验证 */
     private static final List<String> IN_FLIGHT_STATEMENTS =
-            List.of("claim", "claimExpired", "scheduleNext", "complete", "deleteCompletedBefore");
+            List.of("claim", "claimExpired", "markPolling", "scheduleNext", "complete", "deleteCompletedBefore");
 
     /** {@code status in (?, ?)}：允许 foreach 生成的任意空白形态，group(2) 是括号里的内容 */
     private static final Pattern IN_FLIGHT_PREDICATE = Pattern.compile("status\\s+(not\\s+)?in\\s*\\(([^)]*)\\)");
@@ -96,6 +96,12 @@ class AsyncTaskMapperSqlTest {
         Map<String, Object> params = new LinkedHashMap<>();
         switch (id) {
             case "claim", "claimExpired" -> params.putAll(scanning());
+            case "markPolling" -> {
+                params.put("id", 1L);
+                params.put("claimId", "claim-1");
+                params.put("pollingCode", 1);
+                params.put("inFlightCodes", IN_FLIGHT);
+            }
             case "scheduleNext" -> {
                 params.putAll(scanning());
                 params.put("id", 1L);
@@ -143,6 +149,36 @@ class AsyncTaskMapperSqlTest {
         assertTrue(predicate.find(), "claim 的在途态谓词没展开（foreach 没生效或参数名不匹配）：\n  " + claim);
         assertEquals(2, predicate.group(2).chars().filter(character -> character == '?').count(),
                 "claim 的在途态谓词占位符数不是 2：[" + predicate.group(2) + "]\n  " + claim);
+    }
+
+    /**
+     * 「开始查询就转轮询中」那条 UPDATE 的三条硬约束。
+     *
+     * <p>⭐ <b>状态值必须走参数</b>（{@code set status = ?}）：写死 {@code set status = 1} 时，
+     * 将来 {@code POLLING} 换码或加一个在途态，这条 SQL 会静默把行写成别的状态。
+     * 这与「谓词用 inFlightCodes 展开」是同一条纪律的两半——一半管 {@code where}，一半管 {@code set}。</p>
+     *
+     * <p>⭐ <b>必须带 {@code claim_id}</b>：这一步同样是「谁有权改这一行」的兑付口，
+     * 少了它，租约过期后原节点还能把新主人推进的状态改写回去。</p>
+     *
+     * <p>⚠ <b>不许动 {@code next_poll_at} / {@code attempts}</b>：那是 {@code scheduleNext} 的职责，
+     * 这一条只回答「开始查了」。两个字段若也在这里被写，「查过一次」与「安排过下一次」两个事实
+     * 就混在一条语句里，退避跳档与终态 query_seq 会缺一个可对账的来源。</p>
+     */
+    @Test
+    void markPollingTakesStatusFromParamAndKeepsTheLease() {
+        String sql = MapperDynamicSql.of(AsyncTaskMapper.class).sql("markPolling", paramsOf("markPolling"));
+
+        assertTrue(sql.contains("status = ?"),
+                "轮询中的状态值必须由 pollingCode 参数给出，不能写死字面量：\n  " + sql);
+        assertTrue(!sql.contains("status = 1"),
+                "出现了写死的 status = 1：换码或加在途态时这条 SQL 会静默写错状态\n  " + sql);
+        assertTrue(sql.contains("claim_id = ?"),
+                "缺少 claim_id 条件——租约过期后原节点仍能改写新主人推进的状态：\n  " + sql);
+        assertTrue(!sql.contains("next_poll_at"),
+                "markPolling 只回答「开始查了」，排下一拍是 scheduleNext 的事：\n  " + sql);
+        assertTrue(!sql.contains("attempts"),
+                "attempts 是「安排过几次」的计数，不该在这一条里推进：\n  " + sql);
     }
 
     /**

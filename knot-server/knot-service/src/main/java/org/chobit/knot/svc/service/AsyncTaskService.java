@@ -143,6 +143,25 @@ public class AsyncTaskService {
     }
 
     /**
+     * 发起查询之前把行推进到「轮询中」（{@code PENDING → POLLING}）。
+     *
+     * <p>⭐ <b>为什么不等查询结果</b>：{@code PENDING} 的语义是「提交后一次查询都没发起过」，
+     * 「开始查」本身就该离开它。等到 {@link #scheduleNext} 才写的话，「首查即终态」的任务
+     * 会直接 0 → 2，中间那次真实的上游调用在状态维度上不存在——而这两个状态分开的初衷
+     * 正是让运维一眼看出「poller 有没有接手」（{@code AsyncTaskStatusEnum} 类注释）。</p>
+     *
+     * <p>⚠ 与其它写一样带 {@code claimId}：租约易主时返回 {@code false}，
+     * 调用方据此知道这次推进不归自己（真正的兑付口仍是 {@code complete} / {@code scheduleNext}）。</p>
+     *
+     * @return 是否写入成功；{@code false} 表示占位已易主或行已终态
+     */
+    public boolean markPolling(Long id, String claimId) {
+        requireClaimId(claimId);
+        return mapper.markPolling(id, claimId, AsyncTaskStatusEnum.POLLING.code(),
+                AsyncTaskStatusEnum.inFlightCodes()) > 0;
+    }
+
+    /**
      * 非终态：安排下一次轮询并释放占位。
      *
      * @param claimId 本次处理持有的占位号；<b>必须与行上的一致</b>，否则不写
