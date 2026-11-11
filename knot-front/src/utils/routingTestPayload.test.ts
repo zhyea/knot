@@ -128,8 +128,9 @@ describe("formatUpstreamEvent", () => {
     expect(formatUpstreamEvent({event: "meta", data: "{}"})).toBe("event: meta\ndata: {}\n\n");
   });
 
+  // 解析器默认把无名事件给成 "message"，空串是退化输入（自建事件通道可能给空），一并守住
   it("无事件名只写 data", () => {
-    expect(formatUpstreamEvent({data: "x"})).toBe("data: x\n\n");
+    expect(formatUpstreamEvent({event: "", data: "x"})).toBe("data: x\n\n");
   });
 });
 

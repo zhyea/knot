@@ -24,7 +24,7 @@ export function updateLogicalModel(id: number | string, payload: Dict) {
 }
 
 export function updateLogicalModelStatus(id: number | string, enabled: boolean) {
-  return put(`/api/logical-models/${id}/status`, {enabled});
+  return put<Dict>(`/api/logical-models/${id}/status`, {enabled});
 }
 
 export function deleteLogicalModel(id: number | string) {

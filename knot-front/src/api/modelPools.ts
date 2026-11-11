@@ -24,7 +24,7 @@ export function updateModelPool(id: number | string, payload: Dict) {
 }
 
 export function updateModelPoolStatus(id: number | string, enabled: boolean) {
-  return put(`/api/model-pools/${id}/status`, {enabled});
+  return put<Dict>(`/api/model-pools/${id}/status`, {enabled});
 }
 
 export function deleteModelPool(id: number | string) {

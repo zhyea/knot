@@ -6,7 +6,7 @@ export function listPlugins(params: Dict) {
 }
 
 export function updatePluginStatus(id: number | string, payload: Dict) {
-  return put(`/api/plugins/${id}/status`, payload);
+  return put<Dict>(`/api/plugins/${id}/status`, payload);
 }
 
 export function deletePlugin(id: number | string) {

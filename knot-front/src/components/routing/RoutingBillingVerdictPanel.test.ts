@@ -106,7 +106,7 @@ describe("RoutingBillingVerdictPanel 明细量纲", () => {
       const table = wrapper.findAll(".bv-table-wrap").find((node) => node.text().includes(caption));
       expect(table, "未找到明细表：" + caption).toBeTruthy();
       expect(table!.find("thead").text()).toContain("单位");
-      expect(table!.find("thead").text()).not.toContain("百万", "单价已改为原始单价，表头不许再写每百万");
+      expect(table!.find("thead").text(), "单价已改为原始单价，表头不许再写每百万").not.toContain("百万");
       const cells = table!.find("tbody tr").findAll("td");
       expect(cells[1].text()).toBe("6");
       expect(cells[2].text()).toBe("PER_SECOND");

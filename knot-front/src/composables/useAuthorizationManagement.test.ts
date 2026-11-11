@@ -59,8 +59,8 @@ describe("useAuthorizationManagement 资源状态开关", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(listAuthorizationModules).mockResolvedValue({list: [], total: 0});
-    vi.mocked(updateAuthorizationModuleStatus).mockResolvedValue(undefined);
+    vi.mocked(listAuthorizationModules).mockResolvedValue([]);
+    vi.mocked(updateAuthorizationModuleStatus).mockResolvedValue({});
     scope = effectScope();
     api = scope.run(() => useAuthorizationManagement())!;
   });

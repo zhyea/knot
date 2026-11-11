@@ -111,4 +111,3 @@ const rowClassName = deletedRowClassName;
 
 const rowActions = logicalModelRowActions;
 </script>
-

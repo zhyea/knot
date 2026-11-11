@@ -636,7 +636,9 @@ class RoutingResolverTest {
             // Objects.requireNonNull，所以 configQuery 本身不能为 null，只能给一个"字段全空"的实例。
             super(new GatewayConfigQueryService(null, null, null, null, null, null, null, null, null,
                             null, CONVERTER),
-                    new ResourceTrafficPolicySupport(null, null, null, null));
+                    new ResourceTrafficPolicySupport(null, null, null, null),
+                    // 刷新执行器：本替身覆写了全部读取方法，refreshAfterWrite 永不触发
+                    Runnable::run);
         }
 
         @Override

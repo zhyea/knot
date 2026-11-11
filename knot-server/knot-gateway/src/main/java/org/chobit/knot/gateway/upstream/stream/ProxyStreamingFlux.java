@@ -215,13 +215,28 @@ public final class ProxyStreamingFlux {
                     int lastBreak = lastNewLine(combined);
                     if (lastBreak < 0) {
                         if (combined.length > MAX_LINE_BYTES) {
-                            return Flux.error(new IllegalStateException(
-                                    "upstream SSE line exceeds " + MAX_LINE_BYTES + " bytes without a newline"));
+                            return lineTooLong();
                         }
                         tail.set(combined);
                         return Flux.empty();
                     }
-                    tail.set(slice(combined, lastBreak + 1, combined.length));
+                    // 逐段量长度：只在「整个 chunk 没有换行」时判长度是不够的——
+                    // 一个含换行但单行超限的大 chunk 会先构造上兆的 String 再 split，
+                    // 长度保护等于没生效。这里只扫字节、不建串，超限立刻失败。
+                    int lineStart = 0;
+                    for (int i = 0; i <= lastBreak; i++) {
+                        if (combined[i] == '\n') {
+                            if (i - lineStart > MAX_LINE_BYTES) {
+                                return lineTooLong();
+                            }
+                            lineStart = i + 1;
+                        }
+                    }
+                    byte[] rest = slice(combined, lastBreak + 1, combined.length);
+                    if (rest.length > MAX_LINE_BYTES) {
+                        return lineTooLong();
+                    }
+                    tail.set(rest);
                     String complete = new String(combined, 0, lastBreak, StandardCharsets.UTF_8);
                     return Flux.fromArray(complete.split("\n", -1));
                 })
@@ -230,6 +245,17 @@ public final class ProxyStreamingFlux {
                     byte[] rest = tail.getAndSet(EMPTY);
                     return rest.length == 0 ? Flux.empty() : Flux.just(new String(rest, StandardCharsets.UTF_8));
                 }));
+    }
+
+    /**
+     * 单行超过 {@link #MAX_LINE_BYTES}：畸形上游或异常代理才会出现，正常 SSE 事件远小于此。
+     *
+     * <p>以错误终止而非截断：截断会让客户端把半条 JSON 当成完整事件解析，
+     * 错误至少能被上层看见并计入上游失败。</p>
+     */
+    private static Flux<String> lineTooLong() {
+        return Flux.error(new IllegalStateException(
+                "upstream SSE line exceeds " + MAX_LINE_BYTES + " bytes"));
     }
 
     private static byte[] readAndRelease(DataBuffer buffer) {

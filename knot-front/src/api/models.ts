@@ -36,7 +36,7 @@ export function updateModel(id: number | string, payload: Dict) {
 }
 
 export function updateModelStatus(id: number | string, enabled: boolean) {
-  return put(`/api/models/${id}/status`, {enabled});
+  return put<Dict>(`/api/models/${id}/status`, {enabled});
 }
 
 /** 逻辑删除供应商模型（被路由规则引用时后端返回 409）；不物理删除，可恢复 */

@@ -204,7 +204,9 @@ class AsyncTaskCompletionTraceTest {
                             nullProxy(ModelApiBindingMapper.class),
                             nullProxy(BillingRuleMapper.class),
                             Mappers.getMapper(GatewayConfigConverter.class)),
-                    new ResourceTrafficPolicySupport(null, null, null, null));
+                    new ResourceTrafficPolicySupport(null, null, null, null),
+                    // 刷新执行器：本替身覆写了全部读取方法，refreshAfterWrite 永不触发
+                    Runnable::run);
         }
 
         @Override

@@ -34,7 +34,7 @@ const TREE = [
  */
 function visibleChildLabels(): string[] {
   return Array.from(document.querySelectorAll<HTMLElement>(".tree-select__row--child"))
-    .filter((el) => el.closest(".tree-select__children")?.style.display !== "none")
+    .filter((el) => el.closest<HTMLElement>(".tree-select__children")?.style.display !== "none")
     .map((el) => el.textContent?.trim() ?? "");
 }
 
@@ -55,7 +55,10 @@ function clickEl(selector: string): void {
 const mounted: ReturnType<typeof mount>[] = [];
 
 function mountTree(props: Record<string, unknown>): ReturnType<typeof mount> {
-  const wrapper = mount(TreeSelect, {props});
+  // 各用例按需拼装 props，这里退回到组件 props 类型交给 VTU 校验
+  const wrapper = mount(TreeSelect, {
+    props: props as unknown as InstanceType<typeof TreeSelect>["$props"]
+  });
   mounted.push(wrapper);
   return wrapper;
 }

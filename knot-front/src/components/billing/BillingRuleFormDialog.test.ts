@@ -137,7 +137,8 @@ function formOf(wrapper: VueWrapper, component: Component = BillingModeTokenConf
   if (!found.exists()) {
     throw new Error("模式子组件未渲染，取不到 form");
   }
-  return found.props("form") as Dict;
+  // props() 不带 key：组件 props 已具体化后，按字符串 key 取值会被 vue-tsc 收成 never
+  return (found.props() as Dict).form as Dict;
 }
 
 function saveButton(wrapper: VueWrapper) {

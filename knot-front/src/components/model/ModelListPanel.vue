@@ -108,4 +108,3 @@ function rowActions(row: Row): RowAction[] {
 }
 
 </script>
-

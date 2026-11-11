@@ -28,7 +28,7 @@ export function updateModelFamily(id: number | string, payload: Dict) {
 }
 
 export function updateModelFamilyStatus(id: number | string, enabled: boolean) {
-  return put(`/api/model-families/${id}/status`, {enabled});
+  return put<Dict>(`/api/model-families/${id}/status`, {enabled});
 }
 
 export function deleteModelFamily(id: number | string) {

@@ -131,6 +131,15 @@ jobs:
         working-directory: knot-front
         run: npm run type-check:strict
 
+      # 测试代码的类型门禁：`tsconfig.json` 排除 `**/*.test.ts`，vitest 只证明运行时路径
+      # 通过，mock 的返回形态与强断言（`as unknown as X`）此前完全不受检查。
+      # 2026-11-11 首次执行扫出 15 处（含一处 mock 了不存在的 `{list,total}` 分页信封、
+      # 一处 `toContain` 的消息参数错位导致断言消息从未生效）。
+      # 必须排在 Build 之后：同样依赖 unplugin 生成的声明文件。
+      - name: Test type check (vue-tsc -p tsconfig.test.json)
+        working-directory: knot-front
+        run: npm run type-check:test
+
   # ── 镜像：确认两个 Dockerfile 能真正构建（不含运行验证）─────────────────
   # 与单测并行：镜像构建用的是 -DskipTests，不依赖 MySQL。
   docker:

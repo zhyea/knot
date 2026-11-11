@@ -151,6 +151,16 @@ export interface OptionPage<T = OptionItem<OptionMeta>> {
 /** 任意键值对：后端 VO / 表单对象在未建模前的通用形态 */
 export type Dict = Record<string, any>;
 
+/**
+ * 业务码可用性校验响应（后端 `svc.vo.common.CodeAvailability`）。
+ *
+ * <p>⚠ 与「唯一性检查」区别开：这里只回答 {@code available}，不含候选值或冲突原因。
+ * 所有 `GET /check-code` 端点共用本形态，别再各自写 `{available: boolean}`。</p>
+ */
+export interface CodeAvailability {
+  available: boolean;
+}
+
 /** 下拉 / 单选 / 多选选项 */
 export interface SelectOption<T = any> {
   label: string;

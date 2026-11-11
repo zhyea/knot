@@ -42,8 +42,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ControllerThinGuardTest {
 
-    private static final Path CONTROLLER_DIR =
-            Path.of("src/main/java/org/chobit/knot/gateway/controller");
+    /**
+     * 扫描目录<b>必须列全</b>：控制器不一定都住在 {@code controller/} 包里。
+     *
+     * <p>{@code outage/admin} 下的 {@code OutageAdminController} 也是管理面控制器，
+     * 却因为不在扫描目录里长期没被这把尺子量过——「目录外控制器」是薄 Controller 守门
+     * 最容易漏的一类，所以这里按清单逐目录扫，而不是靠包名猜。</p>
+     */
+    private static final List<Path> CONTROLLER_DIRS = List.of(
+            Path.of("src/main/java/org/chobit/knot/gateway/controller"),
+            Path.of("src/main/java/org/chobit/knot/gateway/outage/admin"));
 
     /** 剥注释用：块注释与行注释。启发式即可——注释里出现 URL 字面量不在本包 controller 的形态内 */
     private static final Pattern BLOCK_COMMENT = Pattern.compile("(?s)/\\*.*?\\*/");
@@ -91,7 +99,7 @@ class ControllerThinGuardTest {
     void registeredOffendersStillOffend() throws IOException {
         List<String> stale = new ArrayList<>();
         for (String name : KNOWN_OFFENDERS) {
-            Path file = CONTROLLER_DIR.resolve(name);
+            Path file = resolveOffender(name);
             if (!Files.isRegularFile(file)) {
                 stale.add(name + "（文件已不存在，可能已改名）");
                 continue;
@@ -110,8 +118,10 @@ class ControllerThinGuardTest {
     /** 扫描路径写错会让上面两条「空跑通过」，所以显式钉住扫描规模 */
     @Test
     void doesNotSilentlySkipBecauseOfEmptyScan() throws IOException {
-        assertTrue(Files.isDirectory(CONTROLLER_DIR),
-                "找不到 controller 目录，扫描口径失效：" + CONTROLLER_DIR.toAbsolutePath());
+        for (Path dir : CONTROLLER_DIRS) {
+            assertTrue(Files.isDirectory(dir),
+                    "找不到 controller 目录，扫描口径失效：" + dir.toAbsolutePath());
+        }
         List<Path> files = controllerFiles();
         assertTrue(files.size() >= 5, "只扫到 " + files.size() + " 个 controller，疑似路径不对");
         assertTrue(files.stream().anyMatch(file -> file.getFileName().toString().equals("GatewayTaskController.java")),
@@ -120,9 +130,30 @@ class ControllerThinGuardTest {
     }
 
     private static List<Path> controllerFiles() throws IOException {
-        try (Stream<Path> walk = Files.walk(CONTROLLER_DIR)) {
-            return walk.filter(file -> file.toString().endsWith(".java")).sorted().toList();
+        List<Path> files = new ArrayList<>();
+        for (Path dir : CONTROLLER_DIRS) {
+            try (Stream<Path> walk = Files.walk(dir)) {
+                walk.filter(file -> file.toString().endsWith(".java"))
+                        .sorted()
+                        .forEach(files::add);
+            }
         }
+        return files;
+    }
+
+    /**
+     * 存量登记项按文件名在扫描清单里反查。
+     *
+     * <p>目录一多，单目录 {@code resolve} 会查不到文件，把「在别的目录」误报成「已改名」。</p>
+     */
+    private static Path resolveOffender(String name) {
+        for (Path dir : CONTROLLER_DIRS) {
+            Path candidate = dir.resolve(name);
+            if (Files.isRegularFile(candidate)) {
+                return candidate;
+            }
+        }
+        return CONTROLLER_DIRS.get(0).resolve(name);
     }
 
     private static String stripComments(String code) {

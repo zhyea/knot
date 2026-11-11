@@ -18,7 +18,7 @@ export function updateDepartment(id: number | string, payload: Dict) {
 }
 
 export function updateDepartmentStatus(id: number | string, payload: Dict) {
-  return put(`/api/system/departments/${id}/status`, payload);
+  return put<Dict>(`/api/system/departments/${id}/status`, payload);
 }
 
 export function deleteDepartment(id: number | string) {

@@ -33,7 +33,7 @@ export function updateModerationWord(id: number | string, payload: Dict) {
 }
 
 export function updateModerationWordStatus(id: number | string, enabled: boolean) {
-  return put(`/api/moderation-words/${id}/status`, {enabled});
+  return put<Dict>(`/api/moderation-words/${id}/status`, {enabled});
 }
 
 export function deleteModerationWord(id: number | string) {

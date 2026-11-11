@@ -42,7 +42,7 @@ describe("normalizeEnabledFlag：el-switch 入参归一", () => {
     expect(normalizeEnabledFlag(0)).toBe(false);
     expect(normalizeEnabledFlag("false")).toBe(false);
     // 反例：字符串 "false" 用 !! 会被判成 true，正是不能写 truthy 的原因
-    expect(!!"false").toBe(true);
+    expect(Boolean("false")).toBe(true);
   });
 
   it("其余入参归一为启用，与旧内联实现逐值等价", () => {

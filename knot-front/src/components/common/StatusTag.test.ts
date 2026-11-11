@@ -42,7 +42,7 @@ describe("StatusTag 状态边界", () => {
   // status 永远是数值 0/1），故不在此覆盖，避免与业务边界混淆。
 
   it("active=undefined 强制为 false → 否", () => {
-    const wrapper = mount(StatusTag, { props: {} });
+    const wrapper = mount(StatusTag, { props: { active: undefined as unknown as boolean } });
     expect(wrapper.text()).toBe("否");
     expect(wrapper.find(".el-tag").classes()).toContain("el-tag--info");
   });

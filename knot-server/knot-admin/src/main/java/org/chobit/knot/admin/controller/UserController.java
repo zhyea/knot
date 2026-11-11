@@ -68,20 +68,7 @@ public class UserController {
             newValueSpel = "@userService.userAuditSnapshot(#result.id())")
     @PostMapping("/create")
     public UserItem create(@RequestBody @Valid UserItem request) {
-        UserDto created = userService.createUser(new UserDto(
-                null,
-                request.username(),
-                request.password(),
-                request.realName(),
-                request.deptCode(),
-                null,
-                request.status(),
-                request.roleIds(),
-                null,
-                null,
-                null,
-                null
-        ));
+        UserDto created = userService.createUser(userConverter.toCreateDto(request));
         return userConverter.toVO(created);
     }
 
@@ -111,21 +98,7 @@ public class UserController {
             newValueSpel = "@userService.userAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     public UserItem updateUser(@PathVariable Long id, @RequestBody @Valid UserItem request) {
-        UserDto updated = userService.updateUser(new UserDto(
-                id,
-                // 登录名可改（未绑定引用时）；空值表示不修改
-                request.username(),
-                null,
-                request.realName(),
-                request.deptCode(),
-                null,
-                request.status(),
-                request.roleIds(),
-                null,
-                null,
-                null,
-                null
-        ));
+        UserDto updated = userService.updateUser(userConverter.toUpdateDto(id, request));
         return userConverter.toVO(updated);
     }
 

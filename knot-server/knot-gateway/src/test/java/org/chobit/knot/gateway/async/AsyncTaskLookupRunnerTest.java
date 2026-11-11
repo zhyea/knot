@@ -301,7 +301,9 @@ class AsyncTaskLookupRunnerTest {
                                     org.mapstruct.factory.Mappers.getMapper(
                                             org.chobit.knot.svc.converter.GatewayConfigConverter.class)),
                             new org.chobit.knot.svc.service.support.ResourceTrafficPolicySupport(
-                                    null, null, null, null)),
+                                    null, null, null, null),
+                            // 刷新执行器：本测试不触发 refreshAfterWrite，就地执行即可
+                            Runnable::run),
                     null, null, null, null);
         }
 

@@ -38,7 +38,7 @@ export function updateProviderAccount(id: number | string, payload: Dict) {
 }
 
 export function updateProviderAccountStatus(id: number | string, enabled: boolean) {
-  return put(`/api/provider-accounts/${id}/status`, {enabled});
+  return put<Dict>(`/api/provider-accounts/${id}/status`, {enabled});
 }
 
 export const listProviders = listProviderAccounts;

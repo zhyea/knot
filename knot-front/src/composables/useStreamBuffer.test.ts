@@ -1,7 +1,6 @@
 import {describe, it, expect, vi, beforeEach, afterEach} from "vitest";
 import {ref} from "vue";
-import {useStreamBuffer, type StreamBufferContext} from "@/composables/useStreamBuffer";
-import type {RoutingTestResult} from "@/api/routing";
+import {useStreamBuffer, type RoutingTestResult, type StreamBufferContext} from "@/composables/useStreamBuffer";
 import type {Dict} from "@/types";
 
 /**
@@ -27,7 +26,14 @@ function makeCtx(overrides: Partial<StreamBufferContext> = {}) {
 }
 
 function sampleResult(): RoutingTestResult {
-  return {status: "RUNNING", httpStatus: null, modelCode: null, responseBody: null} as RoutingTestResult;
+  return {
+    status: "RUNNING",
+    httpStatus: null,
+    modelCode: null,
+    protocol: null,
+    errorMessage: "",
+    responseBody: ""
+  };
 }
 
 beforeEach(() => {
@@ -137,8 +143,8 @@ describe("useStreamBuffer SSE 事件处理", () => {
     const s = useStreamBuffer(ctx);
     s.beginStream(new AbortController());
     s.handleStreamEvent({event: "error", data: '{"errorMessage":"后端炸了"}'} as never);
-    expect(ctx.testResult.value.status).toBe("ERROR");
-    expect(ctx.testResult.value.errorMessage).toBe("后端炸了");
+    expect(ctx.testResult.value!.status).toBe("ERROR");
+    expect(ctx.testResult.value!.errorMessage).toBe("后端炸了");
   });
 
   it("error 事件无 message 时用默认文案", () => {
@@ -147,7 +153,7 @@ describe("useStreamBuffer SSE 事件处理", () => {
     const s = useStreamBuffer(ctx);
     s.beginStream(new AbortController());
     s.handleStreamEvent({event: "error", data: "{}"} as never);
-    expect(ctx.testResult.value.errorMessage).toBe("网关请求失败");
+    expect(ctx.testResult.value!.errorMessage).toBe("网关请求失败");
   });
 
   it("error 事件在 testResult 为空时不写（避免凭空造结果）", () => {
@@ -178,8 +184,8 @@ describe("useStreamBuffer 终态固化", () => {
     s.beginStream(new AbortController());
     s.streamBody.value = "已收到的内容";
     s.finishStream("STOPPED", "");
-    expect(ctx.testResult.value.status).toBe("STOPPED");
-    expect(ctx.testResult.value.responseBody).toBe("已收到的内容");
+    expect(ctx.testResult.value!.status).toBe("STOPPED");
+    expect(ctx.testResult.value!.responseBody).toBe("已收到的内容");
   });
 
   it("finishStream 在 testResult 为空时静默（不凭空造结果）", () => {

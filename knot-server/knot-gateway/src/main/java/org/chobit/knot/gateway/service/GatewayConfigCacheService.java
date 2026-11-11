@@ -18,11 +18,14 @@ import org.chobit.knot.svc.vo.gateway.ProviderCredentialConfigVo;
 import org.chobit.knot.svc.vo.gateway.RoutingConsumerConfigVo;
 import org.chobit.knot.svc.vo.gateway.RoutingRuleConfigVo;
 import org.chobit.knot.svc.vo.gateway.RoutingRuleTargetConfigVo;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 
 
@@ -70,6 +73,16 @@ public class GatewayConfigCacheService {
 
     private final GatewayConfigQueryService configQuery;
 
+    /**
+     * {@code refreshAfterWrite} 的异步重载执行器。
+     *
+     * <p>⭐ <b>必须显式给，且必须是阻塞专用的小池</b>：本类的 loader 全是 MyBatis（阻塞 JDBC），
+     * 不指定执行器时 Caffeine 会退回 {@code ForkJoinPool.commonPool()}——并行度只有 CPU 核数，
+     * 慢查询会把同一窗口内所有 key 的刷新串成一条线，还会和并行流抢线程。
+     * 见 {@code GatewayAsyncConfiguration#gatewayConfigRefreshExecutor()}。</p>
+     */
+    private final Executor refreshExecutor;
+
     private final LoadingCache<Long, Optional<AppConfigVo>> appByIdCache;
     private final LoadingCache<String, Optional<RoutingConsumerConfigVo>> consumerBySecretKeyCache;
     private final LoadingCache<ConsumerRuleKey, Optional<RoutingRuleConfigVo>> enabledRuleByConsumerAndCodeCache;
@@ -90,8 +103,10 @@ public class GatewayConfigCacheService {
      * Constructs a new instance.
      */
     public GatewayConfigCacheService(GatewayConfigQueryService configQuery,
-                                     ResourceTrafficPolicySupport trafficPolicySupport) {
+                                     ResourceTrafficPolicySupport trafficPolicySupport,
+                                     @Qualifier("gatewayConfigRefreshExecutor") Executor refreshExecutor) {
         this.configQuery = configQuery;
+        this.refreshExecutor = Objects.requireNonNull(refreshExecutor, "refreshExecutor");
         this.appByIdCache = optionalCache(configQuery::getAppById);
         this.consumerBySecretKeyCache = optionalCache(configQuery::getConsumerBySecretKey);
         this.enabledRuleByConsumerAndCodeCache = optionalCache(key ->
@@ -289,7 +304,7 @@ public class GatewayConfigCacheService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private static <K, V> LoadingCache<K, Optional<V>> optionalCache(Function<K, V> loader) {
+    private <K, V> LoadingCache<K, Optional<V>> optionalCache(Function<K, V> loader) {
         return builder().build(key -> Optional.ofNullable(loader.apply(key)));
     }
 
@@ -300,18 +315,25 @@ public class GatewayConfigCacheService {
      * 「调用方就地改元素污染缓存」那类事故，所以不必再做深拷贝。这条不是优化取舍，
      * 是换了载体之后风险自己消失了。</p>
      */
-    private static <K, V> LoadingCache<K, List<V>> listCache(Function<K, List<V>> loader) {
+    private <K, V> LoadingCache<K, List<V>> listCache(Function<K, List<V>> loader) {
         return builder().build(key -> {
             List<V> values = loader.apply(key);
             return values == null || values.isEmpty() ? List.of() : List.copyOf(values);
         });
     }
 
-    private static Caffeine<Object, Object> builder() {
+    /**
+     * 所有 {@link LoadingCache} 的共同配方：容量上限 + 写入后过期 + 30 秒后台刷新。
+     *
+     * <p>{@code executor} 是必须项，理由见 {@link #refreshExecutor}；不配它会落到
+     * {@code ForkJoinPool.commonPool()}，而刷新任务里跑的是阻塞 JDBC。</p>
+     */
+    private Caffeine<Object, Object> builder() {
         return Caffeine.newBuilder()
                 .maximumSize(MAX_CACHE_ENTRIES)
                 .expireAfterWrite(EXPIRE_AFTER_WRITE)
-                .refreshAfterWrite(REFRESH_AFTER_WRITE);
+                .refreshAfterWrite(REFRESH_AFTER_WRITE)
+                .executor(refreshExecutor);
     }
 
     private record ConsumerRuleKey(String consumerCode, String ruleCode) {
