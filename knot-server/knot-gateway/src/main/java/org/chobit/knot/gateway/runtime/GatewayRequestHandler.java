@@ -56,6 +56,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongConsumer;
@@ -299,6 +300,17 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
         // 在途 +1：最空闲选模（LEAST_LOAD）的负载来源，请求结束（含流式写完）才释放
         final String loadKey = modelLoadKeys.model(candidate.targetCode());
         modelLoadStore.enter(loadKey);
+        // 释放必须「恰好一次」：leave 是 Redis 计数减法，多减一次等于抹掉别人的在途量，
+        // 而重试失败 / 网关自身异常 / 流式收尾三条路径都可能碰到释放点，故用 CAS 收敛。
+        final AtomicBoolean loadReleased = new AtomicBoolean(false);
+        final Runnable releaseLoad = () -> {
+            if (loadReleased.compareAndSet(false, true)) {
+                modelLoadStore.leave(loadKey);
+            }
+        };
+        // 流式成功把释放推迟到流写完（见 streamResponse 的 onComplete），置位后 doFinally 不再兜底；
+        // 只在 map 正常返回前才置位——中途抛错保持 false，仍由 doFinally 释放，不会漏。
+        final AtomicBoolean releaseDeferred = new AtomicBoolean(false);
         Supplier<ProxyResult> attempt = () -> proxyClient.proxy(
             // 客户端无需传 model：请求体 model 恒按路由目标的上游模型覆盖（kb_models.upstream_model）
             withTargetModel(requestBody, candidate),
@@ -331,7 +343,11 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                 if (result.streamResponse() != null) {
                     // 流式：在途必须持续到响应流写完，交给响应体结束时释放
                     deferredToStream = true;
-                    context.putAttribute(ATTR_LOAD_RELEASE, (Runnable) () -> modelLoadStore.leave(loadKey));
+                    context.putAttribute(ATTR_LOAD_RELEASE, (Runnable) () -> {
+                        // 流真正结束时才让兜底重新生效，避免「已登记释放」被 doFinally 提前消费
+                        releaseDeferred.set(false);
+                        releaseLoad.run();
+                    });
                 }
                 // 响应头回写实际承接模型：流式此时尚未 commit（首行 flush 才提交头），写头依然生效
                 writeSelectedModelHeader(candidate, exchange);
@@ -339,6 +355,8 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                 context.putAttribute(HIT_TARGET_ATTRIBUTE, candidate);
                 context.putAttribute(HIT_TARGET_URL_ATTRIBUTE, result.upstreamUrl());
                 context.putAttribute(TRAFFIC_CONTEXT_ATTRIBUTE, trafficContext);
+                // 置位放在 map 的最后一行：前面任何一步抛错都还能由 doFinally 兜底释放。
+                releaseDeferred.set(deferredToStream);
                 return new SuccessCandidate(result, deferredToStream);
             })
             // 只吸收上游失败：网关自身异常（鉴权/频控/缺陷）不属于可重试上游失败，直接上抛终止本次请求
@@ -353,23 +371,31 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
                 // 确定性失败（空响应）：换候选只会再空一次，直接终止本次请求。
                 // ⚠ 在途计数必须在此释放——返回错误会跳过下面的 switchIfEmpty，那里才是常规释放点
                 if (RetryableClassifier.terminal(e)) {
-                    modelLoadStore.leave(loadKey);
+                    releaseLoad.run();
                     return Mono.error(e);
                 }
                 return Mono.empty();
             })
             .flatMap(success -> {
                 if (!success.deferredToStream()) {
-                    modelLoadStore.leave(loadKey);
+                    releaseLoad.run();
                 }
                 return Mono.just(new FailoverOutcome(success.result(), null, null, true, state.ejectedSkipped));
             })
             // 上游失败（Mono 已被 onErrorResume 转空）：释放在途并继续下一个候选
             .switchIfEmpty(Mono.defer(() -> {
-                modelLoadStore.leave(loadKey);
+                releaseLoad.run();
                 return attemptCandidates(context, exchange, callTrace, requestBody, ejectionPolicy, ignoreEjection,
                     trafficContext, candidates, index + 1, state);
-            }));
+            }))
+            // 兜底释放：候选链上任何一步抛非 GatewayUpstreamException（例如 trafficGuard.record 撞上
+            // Redis 故障、写响应头失败），都不会经过 map / flatMap 的常规释放点；这里保证在途一定归零，
+            // 否则 LEAST_LOAD 会带着只增不减的脏负载长期偏斜。releaseLoad 幂等，重复到达也无副作用。
+            .doFinally(signal -> {
+                if (!releaseDeferred.get()) {
+                    releaseLoad.run();
+                }
+            });
     }
 
     /**
@@ -644,6 +670,10 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
             // ⚠ 流式响应已提交：这里抛异常只会破坏已开始的响应流，所以不抛。
             // 但「配额 / 频控被静默绕过」是真实风险，必须计数 + 打点让监控能发现。
             long total = usageRecordFailures.incrementAndGet();
+            if (metrics != null) {
+                // 计数走监控面：日志是采样的（每 100 次一条），告警必须靠单调计数
+                metrics.usageRecordFailure();
+            }
             if (total % USAGE_FAILURE_LOG_EVERY == 1) {
                 log.error("Streaming usage accounting failed, quota/cost skipped: rule={} total={}",
                         routing.ruleCode(), total, e);

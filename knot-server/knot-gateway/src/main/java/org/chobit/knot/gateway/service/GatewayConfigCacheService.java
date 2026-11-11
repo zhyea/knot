@@ -46,6 +46,16 @@ public class GatewayConfigCacheService {
     private static final Duration REFRESH_AFTER_WRITE = Duration.ofSeconds(30);
 
     /**
+     * 单实例内的条目上限：TTL 只限制「单条活多久」，不限制「窗口内能塞多少条」。
+     *
+     * <p>其中 {@code consumerBySecretKeyCache} 与 {@code enabledRuleByConsumerAndCodeCache}
+     * 的键来自请求（任意 {@code sk-*} 值、任意 {@code Rule} 头），不设上限时可用随机 key
+     * 把堆内存推着长，并把每次未命中放大成一次 DB 查询。10k 远高于正常配置量级
+     * （模型 / 供应商 / 消费者都是百级），被恶意 key 顶掉配置条目时也只是多回源一次。</p>
+     */
+    private static final long MAX_CACHE_ENTRIES = 10_000L;
+
+    /**
      * 命中计费规则的缓存时长：与其余缓存一致。
      */
     private static final Duration BILLING_RULE_HIT_TTL = Duration.ofMinutes(10);
@@ -299,6 +309,7 @@ public class GatewayConfigCacheService {
 
     private static Caffeine<Object, Object> builder() {
         return Caffeine.newBuilder()
+                .maximumSize(MAX_CACHE_ENTRIES)
                 .expireAfterWrite(EXPIRE_AFTER_WRITE)
                 .refreshAfterWrite(REFRESH_AFTER_WRITE);
     }

@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.UUID;
+
 /**
  * 全局异常处理器，统一返回 {@link ApiResponse}，避免再被
  * {@link org.chobit.knot.admin.rw.ApiResponseWrapperAdvice} 二次包装。
@@ -130,7 +132,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleException(Exception e) {
-        log.error("Unexpected error", e);
-        return ApiResponse.fail(rwProperties.getFailCode(), "系统内部错误: " + e.getMessage());
+        // 关联 ID 只用于排查：回给调用方的是稳定文案 + 编号，异常原文只进日志。
+        // 透传 e.getMessage() 会把 SQL、表名、类名、序列化片段带到管理端响应里——
+        // 即使是内部系统，也不该让「异常文本」成为对外契约的一部分。
+        String errorId = UUID.randomUUID().toString().substring(0, 8);
+        log.error("Unexpected error, errorId={}", errorId, e);
+        return ApiResponse.fail(rwProperties.getFailCode(),
+                "系统内部错误，请稍后重试（错误编号 " + errorId + "）");
     }
 }

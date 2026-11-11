@@ -32,6 +32,9 @@ public class GatewayMetrics {
     /** 候选因异常摘除被跳过。 */
     public static final String EJECTION_SKIP = "knot.gateway.ejection.skip";
 
+    /** 流式记账失败：非 0 即意味着有请求绕过了配额 / 成本记账。 */
+    public static final String USAGE_RECORD_FAILURE = "knot.gateway.usage.record.failure";
+
     /** 单个候选的端到端代理耗时（含其内部重试）。 */
     public static final String PROXY_LATENCY = "knot.gateway.proxy.latency";
 
@@ -73,6 +76,20 @@ public class GatewayMetrics {
         Counter.builder(UPSTREAM_FAILURE)
                 .tag("code", code == null ? "unknown" : code)
                 .description("上游调用失败计数（按候选计，不按重投次数计）")
+                .register(registry)
+                .increment();
+    }
+
+    /**
+     * 记一次流式记账失败。
+     *
+     * <p>流式响应已经提交，记账异常不能上抛（会截断已开始的响应），只能吞；
+     * 而吞掉的后果是<b>这次请求的配额 / 成本没有落账</b>。日志有采样（每 100 次一条），
+     * 所以必须有单调计数给告警用——否则「有人在白用额度」这件事只在日志里闪一下。</p>
+     */
+    public void usageRecordFailure() {
+        Counter.builder(USAGE_RECORD_FAILURE)
+                .description("流式记账失败次数（非 0 即存在绕过配额/成本的请求）")
                 .register(registry)
                 .increment();
     }
