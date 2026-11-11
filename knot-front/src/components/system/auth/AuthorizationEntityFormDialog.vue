@@ -149,7 +149,7 @@ async function submit() {
       payload[field.key] = typeof value === "string" ? value.trim() : value;
     }
     const saved = await props.submitter(payload);
-    ElMessage.success("保存成功");
+    ElMessage.success("已保存");
     emit("update:modelValue", false);
     emit("saved", saved);
   } finally {

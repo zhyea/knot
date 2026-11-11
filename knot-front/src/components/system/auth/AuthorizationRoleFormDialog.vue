@@ -83,7 +83,7 @@ async function submit() {
     const saved = isEdit.value
       ? await updateAuthorizationRole(props.role!.id, payload)
       : await createAuthorizationRole(payload);
-    ElMessage.success("保存成功");
+    ElMessage.success("已保存");
     emit("update:modelValue", false);
     emit("saved", saved);
   } finally {

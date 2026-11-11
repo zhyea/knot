@@ -87,7 +87,7 @@ const {
 
 async function remove(row: Row) {
   await deleteProviderProfile(row.id);
-  ElMessage.success("删除成功");
+  ElMessage.success("已删除");
   await load();
 }
 

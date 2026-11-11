@@ -429,7 +429,7 @@ export function useAuthorizationManagement() {
 
   async function removeRole(row: Row) {
     await deleteAuthorizationRole(row.id);
-    ElMessage.success("删除成功");
+    ElMessage.success("已删除");
     await resetPage();
     await selectFirstRole();
   }
@@ -643,7 +643,7 @@ export function useAuthorizationManagement() {
     }
     if (action === "delete") {
       deleteAuthorizationModule(row.id).then(async () => {
-        ElMessage.success("删除成功");
+        ElMessage.success("已删除");
         await Promise.all([loadModules(), loadModuleCatalog()]);
       }).catch(() => {
         ElMessage.error("删除失败");
@@ -698,7 +698,7 @@ export function useAuthorizationManagement() {
     }
     if (action === "delete") {
       deleteAuthorizationMenu(row.id).then(async () => {
-        ElMessage.success("删除成功");
+        ElMessage.success("已删除");
         await Promise.all([loadMenus(), loadMenuCatalog(), loadPermissions(), loadPermissionCatalog()]);
       }).catch(() => {
         ElMessage.error("删除失败");
@@ -770,7 +770,7 @@ export function useAuthorizationManagement() {
     }
     if (action === "delete") {
       deleteAuthorizationPermission(row.id).then(async () => {
-        ElMessage.success("删除成功");
+        ElMessage.success("已删除");
         await Promise.all([loadPermissions(), loadPermissionCatalog(), loadApiBindings()]);
         if (selectedRole.value?.id) {
           await loadRoleSnapshot(selectedRole.value.id);
@@ -832,7 +832,7 @@ export function useAuthorizationManagement() {
     }
     if (action === "delete") {
       deleteAuthorizationApiBinding(row.id).then(async () => {
-        ElMessage.success("删除成功");
+        ElMessage.success("已删除");
         await loadApiBindings();
       }).catch(() => {
         ElMessage.error("删除失败");

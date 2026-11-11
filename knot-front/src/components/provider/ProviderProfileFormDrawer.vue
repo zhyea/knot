@@ -127,7 +127,7 @@ async function submit() {
     };
     if (editing.value?.id) await updateProviderProfile(editing.value.id, payload);
     else await createProviderProfile(payload);
-    ElMessage.success("保存成功");
+    ElMessage.success("已保存");
     emit("update:modelValue", false);
     emit("saved");
   } finally {

@@ -101,7 +101,7 @@ function openTaskDrawer(task: Row | null = null) {
 }
 
 function onTaskSaved() {
-  ElMessage.success("保存成功");
+  ElMessage.success("已保存");
   resetPage();
 }
 
