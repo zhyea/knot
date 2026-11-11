@@ -18,7 +18,13 @@ public enum GatewayErrorTypeEnum {
      * 与 {@link #UPSTREAM_ERROR} 分开——前者是「网关自己设定的总时限到了」，后者是「上游真的回了错误或挂死」，
      * 两者排查口径不同，错误码也要能区分。
      */
-    TIMEOUT_ERROR("timeout_error");
+    TIMEOUT_ERROR("timeout_error"),
+    /**
+     * 网关自身的未预期异常（兜底 500）。刻意与 {@link #UPSTREAM_ERROR} 分开：上游错误是「模型服务
+     * 回了错」，本项是「网关自己炸了」—— 混记会让数仓的上游错误率凭空变高，告警也会打给供应商。
+     * 数仓侧 {@code status} 落 {@code gateway_error}（{@code GatewayTrafficMsgDto#statusOf} 显式声明）。
+     */
+    INTERNAL_ERROR("internal_error");
 
     private final String code;
 

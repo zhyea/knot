@@ -355,6 +355,7 @@ public record GatewayTrafficMsgDto(String schema,
             case "rate_limit_error" -> "rate_limited";
             case "quota_error" -> "quota_exceeded";
             case "upstream_error" -> "upstream_error";
+            case "internal_error" -> "gateway_error";
             case "timeout_error" -> "timeout";
             default -> "gateway_error";
         };

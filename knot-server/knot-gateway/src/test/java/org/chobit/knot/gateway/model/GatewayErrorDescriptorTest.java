@@ -128,7 +128,7 @@ class GatewayErrorDescriptorTest {
     @Test
     void 未预期异常兜底为500与内部阶段() {
         GatewayErrorDescriptor d = GatewayErrorDescriptor.of(new IllegalStateException("unexpected"));
-        assertEquals(GatewayErrorTypeEnum.UPSTREAM_ERROR.code(), d.type());
+        assertEquals(GatewayErrorTypeEnum.INTERNAL_ERROR.code(), d.type());
         assertNull(d.code());
         assertEquals(500, d.httpStatus());
         assertEquals(GatewayErrorStageEnum.INTERNAL.code(), d.stage());

@@ -29,7 +29,10 @@ public class ApiDocController {
     }
 
     /**
-     * Executes the public operation. Executes the public operation.
+     * 静态变更日志骨架：两条手写版本，与 {@link #openApi()} 同属占位内容，不随代码演进自动更新。
+     *
+     * <p>⚠ 别当成真实版本历史读，真实变更看 {@code docs/}。保留该端点只为兼容既有接入方说明页；
+     * 删它属对外契约变更 —— 2026-11-12 核实：前端 {@code src/} 与后端除本类外均无引用。</p>
      */
     @PostMapping("/changelog")
     public List<DocChangeLog> changelog() {
