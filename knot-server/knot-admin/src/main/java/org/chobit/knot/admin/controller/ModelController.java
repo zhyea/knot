@@ -4,9 +4,7 @@ import jakarta.validation.Valid;
 import org.chobit.knot.common.annotation.OperationLog;
 import org.chobit.knot.svc.converter.ModelConverter;
 import org.chobit.knot.svc.dto.model.ModelDto;
-import org.chobit.knot.svc.dto.provider.DiscountPolicyDto;
 import org.chobit.knot.common.model.PageQuery;
-import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.ModelService;
 import org.chobit.knot.svc.vo.common.CodeAvailability;
@@ -103,7 +101,7 @@ public class ModelController {
     @PostMapping("/list")
     public PageResult<ModelItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<ModelDto> page = modelService.list(
-                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                PageQuery.toPageRequest(query),
                 query == null ? null : query.keyword(),
                 query == null ? null : query.modelTypes(),
                 query == null ? null : query.logicalModelCode(),
@@ -190,7 +188,7 @@ public class ModelController {
     @PostMapping("/{modelCode}/discount-policies/list")
     public List<DiscountPolicy> listDiscountPolicies(@PathVariable String modelCode) {
         return modelService.listDiscountPolicies(modelCode).stream()
-                .map(ModelController::toDiscountPolicyVO)
+                .map(modelConverter::toDiscountPolicyVO)
                 .toList();
     }
 
@@ -202,7 +200,8 @@ public class ModelController {
     @PostMapping("/{modelCode}/discount-policies")
     public DiscountPolicy createDiscountPolicy(@PathVariable String modelCode,
                                                @RequestBody @Valid DiscountPolicy request) {
-        return toDiscountPolicyVO(modelService.createDiscountPolicy(modelCode, toDiscountPolicyDto(request)));
+        return modelConverter.toDiscountPolicyVO(
+                modelService.createDiscountPolicy(modelCode, modelConverter.toDiscountPolicyDto(request)));
     }
 
     @OperationLog(module = "model", operation = "UPDATE", entityType = "Model",
@@ -215,16 +214,7 @@ public class ModelController {
     public DiscountPolicy updateDiscountPolicy(@PathVariable String modelCode,
                                                @PathVariable Long policyId,
                                                @RequestBody @Valid DiscountPolicy request) {
-        return toDiscountPolicyVO(modelService.updateDiscountPolicy(modelCode, policyId, toDiscountPolicyDto(request)));
-    }
-
-    private static DiscountPolicyDto toDiscountPolicyDto(DiscountPolicy vo) {
-        return new DiscountPolicyDto(
-                null, vo.discountType(), vo.discountValue(), vo.status());
-    }
-
-    private static DiscountPolicy toDiscountPolicyVO(DiscountPolicyDto dto) {
-        return new DiscountPolicy(dto.id(),
-                dto.discountType(), dto.discountValue(), dto.status());
+        return modelConverter.toDiscountPolicyVO(
+                modelService.updateDiscountPolicy(modelCode, policyId, modelConverter.toDiscountPolicyDto(request)));
     }
 }

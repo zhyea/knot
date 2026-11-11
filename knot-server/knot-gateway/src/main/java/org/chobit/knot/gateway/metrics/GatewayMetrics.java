@@ -38,6 +38,20 @@ public class GatewayMetrics {
     /** 单个候选的端到端代理耗时（含其内部重试）。 */
     public static final String PROXY_LATENCY = "knot.gateway.proxy.latency";
 
+    // ── 敏感词库（内容安全）────────────────────────────────────────────────────
+    // ⚠ 这一组不由本类 register：它们需要持有 {@code ModerationWordResource} 实例
+    // （两个 gauge 是「读实例状态」而非「记事件」），注册点在该类构造器里。
+    // 名字登记在此，是为了让「网关有哪些指标」仍能一处看完。
+
+    /** 词库不可用导致 fail-open：非 0 即意味着有请求在「无敏感词过滤」状态下被放行。 */
+    public static final String MODERATION_FAIL_OPEN = "knot.gateway.moderation.fail_open";
+
+    /** 当前是否处于 fail-open（0/1）：持续为 1 = 内容安全能力已被摘除。 */
+    public static final String MODERATION_FAIL_OPEN_ACTIVE = "knot.gateway.moderation.fail_open.active";
+
+    /** 最近一次成功取词的词条规模：突降可能是词库被清空或读到了空表。 */
+    public static final String MODERATION_WORD_COUNT = "knot.gateway.moderation.word.count";
+
     private final MeterRegistry registry;
 
     public GatewayMetrics(MeterRegistry registry) {

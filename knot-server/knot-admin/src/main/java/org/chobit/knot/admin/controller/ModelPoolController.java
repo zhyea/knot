@@ -5,7 +5,6 @@ import org.chobit.knot.common.annotation.OperationLog;
 import org.chobit.knot.svc.converter.ModelPoolConverter;
 import org.chobit.knot.svc.dto.model.ModelPoolDto;
 import org.chobit.knot.common.model.PageQuery;
-import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.ModelPoolService;
 import org.chobit.knot.svc.vo.common.CodeAvailability;
@@ -70,7 +69,7 @@ public class ModelPoolController {
     @PostMapping("/list")
     public PageResult<ModelPool> list(@RequestBody(required = false) PageQuery query) {
         PageResult<ModelPoolDto> page = modelPoolService.list(
-                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                PageQuery.toPageRequest(query),
                 query == null ? null : query.keyword(),
                 query == null ? null : query.modelTypes(),
                 query == null ? null : query.includeDeleted(),

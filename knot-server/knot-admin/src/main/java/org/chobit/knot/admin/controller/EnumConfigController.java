@@ -34,7 +34,7 @@ public class EnumConfigController {
      */
     @PostMapping("/list")
     public PageResult<EnumConfigItem> list(@RequestBody(required = false) PageQuery query) {
-        PageRequest pr = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
+        PageRequest pr = PageQuery.toPageRequest(query);
         return enumConfigService.list(pr, query != null ? query.category() : null);
     }
 

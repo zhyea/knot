@@ -5,7 +5,6 @@ import org.chobit.knot.common.annotation.OperationLog;
 import org.chobit.knot.svc.converter.RoutingTestPresetConverter;
 import org.chobit.knot.svc.dto.routing.RoutingTestPresetDto;
 import org.chobit.knot.common.model.PageQuery;
-import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.RoutingTestPresetService;
 import org.chobit.knot.svc.vo.common.EnabledStatusRequest;
@@ -34,7 +33,7 @@ public class RoutingTestPresetController {
     @PostMapping("/list")
     public PageResult<RoutingTestPreset> list(@RequestBody(required = false) PageQuery query) {
         PageResult<RoutingTestPresetDto> page = presetService.list(
-                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                PageQuery.toPageRequest(query),
                 query == null ? null : query.keyword(),
                 query == null ? null : query.protocol()
         );

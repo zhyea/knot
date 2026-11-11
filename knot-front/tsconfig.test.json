@@ -1,0 +1,13 @@
+{
+  // 测试代码的单列类型检查入口（与 tsconfig.json 的唯一差别是「不排除测试文件」）。
+  //
+  // ⭐ 为什么要单列：`tsconfig.json` 排除 `**/*.test.ts` / `**/*.spec.ts`，于是
+  // vitest 只证明运行时路径通过，mock 的返回形态、强断言（`as unknown as X`）都不受类型检查。
+  // 生产 `vue-tsc` 仍然用 `tsconfig.json`（不含测试），本文件只服务于 CI 的独立一步，
+  // 这样「测试自身类型坏掉」不会阻塞构建，但也不会长期无人发现。
+  //
+  // 注意：`components.d.ts` / `auto-imports.d.ts` 是 `vite build` 的产物，
+  // 跑本检查前必须先构建（与 tsconfig.json 同口径），见 `.github/workflows/ci.yml`。
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "dist"]
+}

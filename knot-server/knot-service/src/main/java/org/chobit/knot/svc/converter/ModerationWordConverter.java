@@ -60,6 +60,22 @@ public class ModerationWordConverter {
     }
 
     /**
+     * 视图 → DTO。
+     *
+     * <p>{@code normalizedWord} 由服务端从原文归一化后维护，{@code createdAt} / {@code updatedAt}
+     * 由库侧维护，三者都不接受请求写回，这里显式留空。</p>
+     */
+    public ModerationWordDto toDto(ModerationWordItem item) {
+        if (item == null) {
+            return null;
+        }
+        return new ModerationWordDto(
+                item.id(), item.word(), item.categoryCode(), item.severity(), item.lang(),
+                item.enabled(), item.deleted(), item.remark(), null, null, null
+        );
+    }
+
+    /**
      * Converts the source value to the target representation. Executes the public operation.
      */
     public ModerationWordEntity toEntity(ModerationWordDto dto) {

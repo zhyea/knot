@@ -1,8 +1,10 @@
 package org.chobit.knot.svc.converter;
 
 import org.chobit.knot.svc.dto.model.ModelDto;
+import org.chobit.knot.svc.dto.provider.DiscountPolicyDto;
 import org.chobit.knot.dal.entity.ModelEntity;
 import org.chobit.knot.svc.vo.model.ModelItem;
+import org.chobit.knot.svc.vo.provider.DiscountPolicy;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
@@ -46,4 +48,17 @@ public interface ModelConverter {
     ModelDto toDto(ModelItem vo);
 
     List<ModelItem> toVOList(List<ModelDto> dtos);
+
+    // ==================== 折扣策略（model_code 子资源） ====================
+
+    /**
+     * 折扣策略视图 → DTO。
+     *
+     * <p>归属由路径变量 {@code model_code} 决定，请求体不携带归属，故 {@code id} 显式忽略——
+     * 否则请求体里随便塞个 id 都会混进落库对象。</p>
+     */
+    @Mapping(target = "id", ignore = true)
+    DiscountPolicyDto toDiscountPolicyDto(DiscountPolicy vo);
+
+    DiscountPolicy toDiscountPolicyVO(DiscountPolicyDto dto);
 }

@@ -24,21 +24,27 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *
  * <p><b>为什么不判行数</b>：厚度不是行数。{@code GatewayExceptionHandler} 234 行、全是异常到
  * 响应的映射，那是 HTTP 出口的本职；{@code GatewayTaskController} 只有 78 行，却曾经自己查库、
- * 自己解 JSON、自己对状态码。判据是<b>有没有业务</b>，所以只禁三类确定是业务的写法。</p>
+ * 自己解 JSON、自己对状态码。判据是<b>有没有业务</b>，所以只禁那些「同一件事在别处已有唯一归属」
+ * 的写法。</p>
  *
- * <p><b>为什么恰是这三条</b>（都是「同一件事在别处已有唯一归属」的信号）：</p>
+ * <p><b>为什么恰是这五条</b>：</p>
  * <ul>
  *   <li>{@code JsonKit.}——解 JSON 一定是在读上游 payload 或库里的 JSON 列，
  *       那是业务/编排，属于 Runner 与 Support；</li>
  *   <li>{@code new LinkedHashMap}——手拼响应体，而对外字段集应当由
  *       {@code model.vo.response} 的 record 声明（§5.1）；</li>
  *   <li>{@code switch}——在 controller 里对状态码/枚举做映射，等于把对外协议
- *       藏在 HTTP 入口，测试只能靠起 MVC 才触达。</li>
+ *       藏在 HTTP 入口，测试只能靠起 MVC 才触达；</li>
+ *   <li>{@code new XxxDto(}——DTO 由 {@code svc.converter} 造（两个方向都在那边），
+ *       controller 里出现它说明映射又被搬回入口；</li>
+ *   <li>{@code new Xxx(..., null, null, ...)}——一串 {@code null} 占位是「映射缺字段」的典型信号，
+ *       读的人无从知道第 9 个 {@code null} 是哪个字段，写的人下次就会填错位。</li>
  * </ul>
  * <p>⚠ 扫描前剥掉注释：注释里讨论「不要在这里用 JsonKit」是好注释，不该让它变红。</p>
  *
- * <p><b>双向探针</b>：给任一 controller 加一句 {@code JsonKit.toJson(..)} → {@code noBusinessInControllers}
- * 必红；把名单里的存量改干净 → {@code registeredOffendersStillOffend} 必红并要求删名单。</p>
+ * <p><b>双向探针</b>：给任一 controller 加一句 {@code JsonKit.toJson(..)}（或 {@code new XxxDto(..)}、
+ * 一串 {@code null} 占位）→ {@code noBusinessInControllers} 必红；把名单里的存量改干净 →
+ * {@code registeredOffendersStillOffend} 必红并要求删名单。</p>
  */
 class ControllerThinGuardTest {
 
@@ -60,7 +66,10 @@ class ControllerThinGuardTest {
     private static final List<Rule> RULES = List.of(
             new Rule("JsonKit", Pattern.compile("\\bJsonKit\\s*\\.")),
             new Rule("new LinkedHashMap", Pattern.compile("new\\s+LinkedHashMap\\s*<")),
-            new Rule("switch", Pattern.compile("\\bswitch\\s*\\(")));
+            new Rule("switch", Pattern.compile("\\bswitch\\s*\\(")),
+            new Rule("new XxxDto", Pattern.compile("new\\s+\\w+Dto\\s*\\(")),
+            // 同一语句（不跨分号）内出现两个连续 null 实参：不依赖括号配对，故跨行书写也能命中
+            new Rule("多 null 构造", Pattern.compile("new\\s+\\w+\\s*\\([^;]*?\\bnull\\s*,\\s*null\\b")));
 
     /**
      * ⚠ <b>存量违规登记（2026-10-29 立规当天），不是永久豁免</b>。
@@ -68,25 +77,30 @@ class ControllerThinGuardTest {
      * <p>⭐ 名单会自我失效：{@link #registeredOffendersStillOffend} 断言每一项<b>现在确实还在违规</b>，
      * 改干净后立刻变红并要求删除名单——不会变成永久避难所。</p>
      *
+     * <p>⭐ 登记粒度是<b>「文件 → 规则」而不是整个文件</b>：按文件豁免会把这期间该文件里新增的
+     * 其它违规一起放过（管理端那份曾经就是这个漏洞），豁免一处写法不该顺带豁免整份文件。</p>
+     *
      * <p>网关侧曾登记的 {@code GatewayImageController}（edits 端点把 14 个 multipart 参数逐条
      * {@code put} 进 Map 再交给模板）已于 2026-10-30 改掉：edits 改为 <b>JSON 原样透传</b>——
      * 收客户端原始 JSON 的 {@code Map} 直接转发，不再逐字段绑定，手工组装用的
      * {@code ImageEditBodySupport} 已删除。Controller 只保留「绑定 + 委托」，已从本名单移除。</p>
      */
-    private static final List<String> KNOWN_OFFENDERS = List.of();
+    private static final List<KnownOffender> KNOWN_OFFENDERS = List.of();
 
     @Test
     void noBusinessInControllers() throws IOException {
         List<String> offenders = new ArrayList<>();
         for (Path file : controllerFiles()) {
-            if (KNOWN_OFFENDERS.contains(file.getFileName().toString())) {
-                continue;
-            }
             String code = stripComments(Files.readString(file, StandardCharsets.UTF_8));
+            String name = file.getFileName().toString();
             for (Rule rule : RULES) {
-                if (rule.pattern().matcher(code).find()) {
-                    offenders.add(file.getFileName() + " → " + rule.name());
+                if (!rule.pattern().matcher(code).find()) {
+                    continue;
                 }
+                if (KNOWN_OFFENDERS.contains(new KnownOffender(name, rule.name()))) {
+                    continue;
+                }
+                offenders.add(name + " → " + rule.name());
             }
         }
         assertTrue(offenders.isEmpty(),
@@ -98,16 +112,24 @@ class ControllerThinGuardTest {
     @Test
     void registeredOffendersStillOffend() throws IOException {
         List<String> stale = new ArrayList<>();
-        for (String name : KNOWN_OFFENDERS) {
-            Path file = resolveOffender(name);
+        for (KnownOffender offender : KNOWN_OFFENDERS) {
+            String label = offender.file() + " → " + offender.rule();
+            Path file = resolveOffender(offender.file());
             if (!Files.isRegularFile(file)) {
-                stale.add(name + "（文件已不存在，可能已改名）");
+                stale.add(label + "（文件已不存在，可能已改名）");
+                continue;
+            }
+            Rule rule = RULES.stream()
+                    .filter(candidate -> candidate.name().equals(offender.rule()))
+                    .findFirst()
+                    .orElse(null);
+            if (rule == null) {
+                stale.add(label + "（规则名不存在，多半是改名后忘了同步名单）");
                 continue;
             }
             String code = stripComments(Files.readString(file, StandardCharsets.UTF_8));
-            boolean stillOffends = RULES.stream().anyMatch(rule -> rule.pattern().matcher(code).find());
-            if (!stillOffends) {
-                stale.add(name + "（已经不再违规）");
+            if (!rule.pattern().matcher(code).find()) {
+                stale.add(label + "（已经不再违规）");
             }
         }
         assertTrue(stale.isEmpty(),
@@ -127,6 +149,11 @@ class ControllerThinGuardTest {
         assertTrue(files.stream().anyMatch(file -> file.getFileName().toString().equals("GatewayTaskController.java")),
                 "没扫到 GatewayTaskController，说明扫描目录或类名已变（这条会一直绿）");
         assertFalse(RULES.isEmpty(), "规则表空了，等于什么都没守");
+        // 名单按「文件 → 规则」登记，规则名写错会静默失效，这里钉住每条登记都能对上一条真规则
+        for (KnownOffender offender : KNOWN_OFFENDERS) {
+            assertTrue(RULES.stream().anyMatch(rule -> rule.name().equals(offender.rule())),
+                    "登记里的规则名不存在：" + offender.file() + " → " + offender.rule());
+        }
     }
 
     private static List<Path> controllerFiles() throws IOException {
@@ -162,5 +189,9 @@ class ControllerThinGuardTest {
 
     /** 一条禁用规则：名字进失败信息，正则做判定 */
     private record Rule(String name, Pattern pattern) {
+    }
+
+    /** 一条存量豁免：只豁免这一份文件里的这一条规则 */
+    private record KnownOffender(String file, String rule) {
     }
 }

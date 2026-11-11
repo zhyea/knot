@@ -6,7 +6,6 @@ import org.chobit.knot.common.annotation.OperationLog;
 import org.chobit.knot.svc.converter.DepartmentConverter;
 import org.chobit.knot.svc.dto.system.DepartmentDto;
 import org.chobit.knot.common.model.PageQuery;
-import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.DepartmentService;
 import org.chobit.knot.svc.vo.system.DepartmentItem;
@@ -46,7 +45,7 @@ public class DepartmentController {
     @PostMapping("/list")
     public PageResult<DepartmentItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<DepartmentDto> page = departmentService.list(
-                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                PageQuery.toPageRequest(query),
                 query == null ? null : query.keyword(),
                 query == null ? null : query.parentId()
         );

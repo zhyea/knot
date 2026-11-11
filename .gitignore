@@ -41,3 +41,6 @@ audit
 # 必须显式否定回来。新增夹具目录时加在这里，别在业务目录里散落否定规则。
 !knot-server/**/src/test/resources/**/*.json
 !knot-front/package-lock.json
+# 测试代码的类型检查配置：CI 的 `npm run type-check:test` 靠它，缺了这一步会直接报
+# 「找不到 tsconfig.test.json」。同样的陷阱在 2026-11-11 第三批又踩了一次。
+!knot-front/tsconfig.test.json

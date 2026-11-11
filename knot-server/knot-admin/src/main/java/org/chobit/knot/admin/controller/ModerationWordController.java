@@ -58,10 +58,7 @@ public class ModerationWordController {
     @PostMapping("/list")
     public PageResult<ModerationWordItem> list(@RequestBody(required = false) PageQuery query,
                                                @RequestParam(required = false) String categoryCode) {
-        PageQuery effective = query == null
-                ? new PageQuery(null, null, null, null, null, null, null, null, null, null,
-                null, null, null, null, null)
-                : query;
+        PageQuery effective = PageQuery.orEmpty(query);
         PageResult<ModerationWordDto> page = moderationWordService.list(
                 effective.toPageRequest(),
                 effective.keyword(),
@@ -83,7 +80,7 @@ public class ModerationWordController {
     @PostMapping
     public ModerationWordItem create(@RequestBody @Valid ModerationWordItem request) {
         return moderationWordConverter.toVO(
-                moderationWordService.create(toDto(request)));
+                moderationWordService.create(moderationWordConverter.toDto(request)));
     }
 
     /**
@@ -98,7 +95,7 @@ public class ModerationWordController {
     @PutMapping("/{id}")
     public ModerationWordItem update(@PathVariable Long id, @RequestBody @Valid ModerationWordItem request) {
         return moderationWordConverter.toVO(
-                moderationWordService.update(id, toDto(request)));
+                moderationWordService.update(id, moderationWordConverter.toDto(request)));
     }
 
     /**
@@ -162,10 +159,5 @@ public class ModerationWordController {
         return moderationWordService.exportWords().stream()
                 .map(moderationWordConverter::toVO)
                 .toList();
-    }
-
-    private static ModerationWordDto toDto(ModerationWordItem item) {
-        return new ModerationWordDto(item.id(), item.word(), item.categoryCode(), item.severity(),
-                item.lang(), item.enabled(), item.deleted(), item.remark(), null, null, null);
     }
 }

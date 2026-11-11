@@ -6,7 +6,6 @@ import org.chobit.knot.common.annotation.OperationLog;
 import org.chobit.knot.svc.converter.UserConverter;
 import org.chobit.knot.svc.dto.user.UserDto;
 import org.chobit.knot.common.model.PageQuery;
-import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.UserService;
 import org.chobit.knot.svc.vo.user.ResetPasswordResult;
@@ -52,7 +51,7 @@ public class UserController {
     @PostMapping
     public PageResult<UserItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<UserDto> page = userService.listUsers(
-                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                PageQuery.toPageRequest(query),
                 query == null ? null : query.keyword()
         );
         return page.mapList(userConverter::toVOList);

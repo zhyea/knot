@@ -5,7 +5,6 @@ import org.chobit.knot.common.annotation.OperationLog;
 import org.chobit.knot.svc.converter.BillingConverter;
 import org.chobit.knot.svc.dto.billing.BillingRuleDto;
 import org.chobit.knot.common.model.PageQuery;
-import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.BillingService;
 import org.chobit.knot.svc.vo.billing.BillingCapabilities;
@@ -49,7 +48,7 @@ public class BillingController {
     @PostMapping("/rules")
     public PageResult<BillingRuleListItem> listRules(@RequestBody(required = false) PageQuery query) {
         return billingService.listRules(
-                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                PageQuery.toPageRequest(query),
                 query == null ? null : query.keyword(),
                 query == null ? null : query.modelFamilyCode(),
                 query == null ? null : query.code(),

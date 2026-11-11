@@ -67,7 +67,7 @@ public class SystemController {
     @PostMapping("/operation-logs")
     public PageResult<OperationLogItem> operationLogs(@RequestBody(required = false) PageQuery query) {
         PageResult<OperationLogDto> page = operationLogService.listOperationLogs(
-                query == null ? PageRequest.of(1, 20) : query.toPageRequest()
+                PageQuery.toPageRequest(query)
         );
         return page.mapList(operationLogConverter::toOperationLogVOList);
     }

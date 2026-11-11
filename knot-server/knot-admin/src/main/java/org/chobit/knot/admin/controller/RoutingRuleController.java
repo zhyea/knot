@@ -6,7 +6,6 @@ import org.chobit.knot.admin.config.GatewayRuntimeProperties;
 import org.chobit.knot.svc.converter.RoutingRuleConverter;
 import org.chobit.knot.svc.dto.routing.RoutingRuleDto;
 import org.chobit.knot.common.model.PageQuery;
-import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.RoutingRuleDebugService;
 import org.chobit.knot.svc.service.RoutingRuleService;
@@ -92,7 +91,7 @@ public class RoutingRuleController {
     @PostMapping("/list")
     public PageResult<RoutingRule> list(@RequestBody(required = false) PageQuery query) {
         PageResult<RoutingRuleDto> page = routingRuleService.list(
-            query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+            PageQuery.toPageRequest(query),
             query == null ? null : query.keyword()
         );
         return page.mapList(routingRuleConverter::toVOList);

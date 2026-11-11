@@ -4,8 +4,18 @@ server:
 spring:
   application:
     name: knot-admin
-  profiles:
-    active: local
+  # ⚠ 这里**刻意不设默认 profile**（2026-11-11 安全修正）。
+  #
+  # 原配置是 `profiles.active: local`，而两个启动守卫（BootstrapSecurityGuard /
+  # SqlInitModeGuard）都把 local 视为非生产 → 「漏设 profile」的部署会带着
+  # application-local.yml 里的默认库口令、开发加密密钥、KNOT_SQL_INIT_MODE=ALWAYS
+  # 和种子管理员正常启动，即 fail-open。
+  #
+  # 现在不设默认：
+  #   本地开发   `--spring.profiles.active=local`（README 与 av_smoke_run.sh 本就显式传）
+  #   生产       `SPRING_PROFILES_ACTIVE=prod` + 注入 KNOT_* 密钥（见 Dockerfile 注释）
+  #   两者都没设 → 无数据源、且守卫判定为非生产缺失 → 直接启不来（fail-closed）。
+  # 不要为了「本地少打一个参数」把这行加回来。
 
 mybatis:
   mapper-locations: classpath:mapper/*.xml

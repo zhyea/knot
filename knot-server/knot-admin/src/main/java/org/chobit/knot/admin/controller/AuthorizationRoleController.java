@@ -48,7 +48,7 @@ public class AuthorizationRoleController {
      */
     @PostMapping("/list")
     public PageResult<AdminRoleItem> listRoles(@RequestBody(required = false) PageQuery query) {
-        PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
+        PageRequest pageRequest = PageQuery.toPageRequest(query);
         return roleService.listRoles(pageRequest, query == null ? null : query.keyword());
     }
 

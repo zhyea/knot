@@ -2,9 +2,9 @@ package org.chobit.knot.admin.controller;
 
 import jakarta.validation.Valid;
 import org.chobit.knot.common.annotation.OperationLog;
+import org.chobit.knot.svc.converter.RoutingConsumerConverter;
 import org.chobit.knot.svc.dto.routing.RoutingConsumerDto;
 import org.chobit.knot.common.model.PageQuery;
-import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.RoutingConsumerService;
 import org.chobit.knot.svc.vo.common.CodeAvailability;
@@ -22,13 +22,17 @@ import org.springframework.web.bind.annotation.*;
 public class RoutingConsumerController {
 
     private final RoutingConsumerService routingConsumerService;
+    private final RoutingConsumerConverter routingConsumerConverter;
     private final OptionsService optionsService;
 
     /**
      * Constructs a new instance.
      */
-    public RoutingConsumerController(RoutingConsumerService routingConsumerService, OptionsService optionsService) {
+    public RoutingConsumerController(RoutingConsumerService routingConsumerService,
+                                     RoutingConsumerConverter routingConsumerConverter,
+                                     OptionsService optionsService) {
         this.routingConsumerService = routingConsumerService;
+        this.routingConsumerConverter = routingConsumerConverter;
         this.optionsService = optionsService;
     }
 
@@ -44,10 +48,10 @@ public class RoutingConsumerController {
     public PageResult<RoutingConsumer> list(@RequestBody(required = false) PageQuery query) {
         PageResult<RoutingConsumerDto> page =
                 routingConsumerService.list(
-                        query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                        PageQuery.toPageRequest(query),
                         query == null ? null : query.keyword()
                 );
-        return page.map(this::toVO);
+        return page.map(routingConsumerConverter::toVO);
     }
 
     /**
@@ -58,7 +62,7 @@ public class RoutingConsumerController {
      */
     @GetMapping("/{id}")
     public RoutingConsumer get(@PathVariable Long id) {
-        return toVO(routingConsumerService.getById(id));
+        return routingConsumerConverter.toVO(routingConsumerService.getById(id));
     }
 
     /**
@@ -68,7 +72,7 @@ public class RoutingConsumerController {
      */
     @GetMapping("/code/{code}")
     public RoutingConsumer getByCode(@PathVariable String code) {
-        return toVO(routingConsumerService.getByCode(code));
+        return routingConsumerConverter.toVO(routingConsumerService.getByCode(code));
     }
 
     /**
@@ -90,7 +94,8 @@ public class RoutingConsumerController {
             newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#result.id())")
     @PostMapping
     public RoutingConsumer create(@RequestBody @Valid RoutingConsumer request) {
-        return toVO(routingConsumerService.create(toDto(request)));
+        return routingConsumerConverter.toVO(
+                routingConsumerService.create(routingConsumerConverter.toDto(request)));
     }
 
     /**
@@ -104,7 +109,8 @@ public class RoutingConsumerController {
             newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)")
     @PutMapping("/{id}")
     public RoutingConsumer update(@PathVariable Long id, @RequestBody @Valid RoutingConsumer request) {
-        return toVO(routingConsumerService.update(id, toDto(request)));
+        return routingConsumerConverter.toVO(
+                routingConsumerService.update(id, routingConsumerConverter.toDto(request)));
     }
 
     /**
@@ -118,7 +124,8 @@ public class RoutingConsumerController {
             newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)")
     @PutMapping("/{id}/status")
     public RoutingConsumer updateStatus(@PathVariable Long id, @RequestBody @Valid EnabledStatusRequest request) {
-        return toVO(routingConsumerService.updateStatus(id, Boolean.TRUE.equals(request.enabled())));
+        return routingConsumerConverter.toVO(
+                routingConsumerService.updateStatus(id, Boolean.TRUE.equals(request.enabled())));
     }
 
     /**
@@ -131,22 +138,6 @@ public class RoutingConsumerController {
             newValueSpel = "@routingConsumerService.consumerAuditSnapshot(#p0)")
     @PostMapping("/{id}/rotate-secret")
     public RoutingConsumer rotateSecret(@PathVariable Long id) {
-        return toVO(routingConsumerService.rotateSecretKey(id));
-    }
-
-    private RoutingConsumer toVO(RoutingConsumerDto dto) {
-        return new RoutingConsumer(
-                dto.id(), dto.consumerCode(), dto.name(), dto.userUsername(), dto.userName(),
-                dto.secretKey(), dto.returnUsageDetail(), dto.enabled(), dto.ruleCount(),
-                dto.rateLimitPolicy(), dto.quotaPolicies()
-        );
-    }
-
-    private RoutingConsumerDto toDto(RoutingConsumer vo) {
-        return new RoutingConsumerDto(
-                vo.id(), vo.consumerCode(), vo.name(), vo.userUsername(), vo.userName(),
-                vo.secretKey(), vo.returnUsageDetail(), vo.enabled(), vo.ruleCount(),
-                vo.rateLimitPolicy(), vo.quotaPolicies()
-        );
+        return routingConsumerConverter.toVO(routingConsumerService.rotateSecretKey(id));
     }
 }

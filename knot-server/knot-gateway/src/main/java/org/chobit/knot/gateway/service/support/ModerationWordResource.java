@@ -2,8 +2,12 @@ package org.chobit.knot.gateway.service.support;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.chobit.knot.common.moderation.ModerationTerm;
+import org.chobit.knot.gateway.metrics.GatewayMetrics;
 import org.chobit.knot.svc.service.ModerationWordService;
 import org.springframework.stereotype.Component;
 
@@ -51,9 +55,19 @@ public class ModerationWordResource {
     private volatile int lastWordCount;
 
     /**
+     * fail-open 的指标出口：单调计数给告警用，两个 gauge 给「看板一眼看出当前是否在裸奔」。
+     *
+     * <p>⭐ <b>为什么必须接 Micrometer 而不是只留 {@link #failOpenCount()}</b>：
+     * 进程内计数器只有再加一个端点把它读出来才有意义，而那等于每次都要临时写查询；
+     * 指标准入后，{@code rate(knot_gateway_moderation_fail_open_total[5m]) > 0}
+     * 就是一条能直接挂出去的告警规则。fail-open 的语义是「放行」，它安静得像一切正常。</p>
+     */
+    private final Counter failOpenCounter;
+
+    /**
      * Constructs a new instance.
      */
-    public ModerationWordResource(ModerationWordService moderationWordService) {
+    public ModerationWordResource(ModerationWordService moderationWordService, MeterRegistry registry) {
         this.cache = Caffeine.newBuilder()
                 .expireAfterWrite(EXPIRE_AFTER_WRITE)
                 .refreshAfterWrite(REFRESH_AFTER_WRITE)
@@ -61,6 +75,20 @@ public class ModerationWordResource {
                     List<ModerationTerm> terms = moderationWordService.loadEnabledTerms();
                     return terms == null ? List.of() : List.copyOf(terms);
                 });
+        this.failOpenCounter = Counter.builder(GatewayMetrics.MODERATION_FAIL_OPEN)
+                .description("敏感词库不可用导致的 fail-open 次数（非 0 = 有请求在无过滤状态下放行）")
+                .register(registry);
+        // strongReference：Gauge 默认持弱引用，被回收后读数会静默变成 NaN。
+        // 本类是单例 bean，引用本不该被回收，但别让这个前提成为「指标某天变 NaN」的隐因。
+        Gauge.builder(GatewayMetrics.MODERATION_FAIL_OPEN_ACTIVE, this,
+                        r -> r.failOpenSinceMillis() > 0L ? 1 : 0)
+                .description("当前是否处于敏感词 fail-open（1 = 内容安全能力已摘除）")
+                .strongReference(true)
+                .register(registry);
+        Gauge.builder(GatewayMetrics.MODERATION_WORD_COUNT, this, ModerationWordResource::lastWordCount)
+                .description("最近一次成功取词的敏感词条数（突降 = 词库被清空或读到空表）")
+                .strongReference(true)
+                .register(registry);
     }
 
     /**
@@ -79,6 +107,7 @@ public class ModerationWordResource {
             // fail-open 语义不变（40-plugin.md 已登记），但必须可计量：
             // 只在日志里可见 = 内容安全能力被摘除而无人知晓。
             long total = failOpenCount.incrementAndGet();
+            failOpenCounter.increment();
             if (failOpenSinceMillis == 0L) {
                 failOpenSinceMillis = System.currentTimeMillis();
             }

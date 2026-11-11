@@ -212,7 +212,7 @@ gateway 那 10 项就是被逼出来的：前一天补齐棘轮、第二天清�
 2. **委托**——一次调用交给协作方（`Runner` / `Service` / `Support`）；
 3. **HTTP 语义**——状态码、响应头、把「查不到」翻成 404 这类**框架关切**。
 
-禁止出现在 controller 的五类（归口栏是它该去的地方）：
+禁止出现在 controller 的六类（归口栏是它该去的地方）：
 
 | # | 禁项 | 为什么 | 归口 |
 |---|---|---|---|
@@ -221,6 +221,7 @@ gateway 那 10 项就是被逼出来的：前一天补齐棘轮、第二天清�
 | 3 | 字段级响应体拼装（`new LinkedHashMap` + `put`） | 对外字段集必须由类型声明（§5.1） | `model.vo.response` 的 record |
 | 4 | 状态/枚举 → 对外文案映射（`switch` / if-else） | 对外协议不该藏在 HTTP 入口——测试得靠起 MVC 才触达 | `Runner`（映射方法私有） |
 | 5 | 归属、权限、可用性等业务判断 | 「这条任务是不是你的」是实现约束，不是参数校验 | `Runner` / `Service` |
+| 6 | 在 controller 里造 DTO（`new XxxDto(..)`），或用一串 `null` 占位构造对象（2026-11-11 补） | 视图↔DTO 的映射在别处只有唯一归属；`null` 占位是「映射缺字段」的信号——读的人无从知道第 9 个 `null` 是哪个字段，写的人下次就会填错位 | `svc.converter` |
 
 ⭐ **判据不是行数**，是这两问（第一问可以落成命令，第二问只是复核时的口头检查）：
 
@@ -279,12 +280,25 @@ gateway 那 10 项就是被逼出来的：前一天补齐棘轮、第二天清�
 #### 3.3.2 守门
 
 `knot-gateway/.../ControllerThinGuardTest` 与 `knot-admin/.../ControllerThinGuardTest`（各一份，
-判据同源，各扫自己模块的 `controller` 包）：命中 `JsonKit.` / `new LinkedHashMap<` / `switch (` 即红。
+判据同源，各扫自己模块的 `controller` 包）：命中 `JsonKit.` / `new LinkedHashMap<` / `switch (` /
+`new XxxDto(` / 「同一语句内相邻两个 `null` 实参的构造」即红。
 存量违规用**棘轮清单**登记（只许减不许增，且反向断言「登记项确实仍违规」，改干净立刻要求删名单）。
 
-规则表刻意只放三条：`Map.of(..)` 在文档类 controller（`ApiDocController` 的 OpenAPI 静态数据）是合法的，
-机械禁止会制造误报。**宁少一条，也不让守门变成噪声**——一旦有人开始在名单里加「被迫接受」的例外，
-这条约束就等于没有。
+⭐ **登记粒度是「文件 → 规则」，不是整个文件**（2026-11-11）：按文件豁免会把该文件里新增的**其它**
+违规一起放过——豁免一处写法不等于豁免整份文件。改完之后 `RoutingRuleController` 仍登记着
+`JsonKit` 与 `new LinkedHashMap` 两条，但它在 controller 里新造 DTO 一样会红（反向探针实测）。
+
+规则表**只放可判定的确定形态**，不做语义猜测：`Map.of(..)` 在文档类 controller（`ApiDocController`
+的 OpenAPI 静态数据）是合法的，机械禁止会制造误报。**宁少一条，也不让守门变成噪声**——一旦有人
+开始在名单里加「被迫接受」的例外，这条约束就等于没有。2026-11-11 新增的两条守同一边界：
+
+- `new XxxDto(` 只认**构造**：`new` 后面紧跟 `*Dto` 才算，`new ArrayList<FooDto>(..)` 这种实参里
+  带 Dto 名字的不误伤；`XxxDto` 前面有包名的全限定写法（`new org.x.FooDto(..)`）也不判——那种
+  写法本身已经是"绕过 import"，属 review 关注点；
+- 多 `null` 判定只认「同一语句内**相邻**两个 `null`」，**不去配对括号**：跨行书写仍命中，
+  但嵌套泛型实参的构造（`new Foo<Map<String, List<X>>>(..)`）会漏，且「一串 `null` 中间夹了别的
+  实参」不判——判据是**占位串**，不是 `null` 的个数。已知边界写在这里，比事后争论"为什么没抓到"便宜。
+
 
 ## 4. 命名纪律（2026-10-15 立规，robin 拍板）
 

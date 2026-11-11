@@ -132,7 +132,7 @@ class OptionsEndpointContractTest {
                             when(m.listModelPoolOptionsByValues(anyList())).thenAnswer(inv -> e);
                         }, "chat-economy-pool", true),
                 new Endpoint("路由消费者", "/api/routing-consumers/options",
-                        svc -> new RoutingConsumerController(null, svc),
+                        svc -> new RoutingConsumerController(null, null, svc),
                         (m, s, e, c) -> {
                             when(m.listRoutingConsumerOptions(any(), anyBoolean()))
                                     .thenAnswer(inv -> capture(c, inv.getArguments(), s));

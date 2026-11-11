@@ -5,7 +5,6 @@ import org.chobit.knot.common.annotation.OperationLog;
 import org.chobit.knot.svc.converter.AppConverter;
 import org.chobit.knot.svc.dto.app.AppDto;
 import org.chobit.knot.common.model.PageQuery;
-import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.AppService;
 import org.chobit.knot.svc.vo.app.AppItem;
@@ -43,7 +42,7 @@ public class AppController {
     @PostMapping("/list")
     public PageResult<AppItem> list(@RequestBody PageQuery query) {
         PageResult<AppDto> page = appService.list(
-                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                PageQuery.toPageRequest(query),
                 query == null ? null : query.keyword()
         );
         return page.mapList(appConverter::toVOList);

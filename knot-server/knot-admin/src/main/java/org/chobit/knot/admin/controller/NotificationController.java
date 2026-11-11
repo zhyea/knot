@@ -2,7 +2,6 @@ package org.chobit.knot.admin.controller;
 
 import org.chobit.knot.common.annotation.OperationLog;
 import org.chobit.knot.common.model.PageQuery;
-import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.converter.NotificationConverter;
 import org.chobit.knot.svc.dto.notification.TemplateDto;
@@ -31,7 +30,7 @@ public class NotificationController {
     @PostMapping("/templates/list")
     public PageResult<NotifyTemplate> templates(@RequestBody(required = false) PageQuery query) {
         PageResult<TemplateDto> page = notificationService.listTemplates(
-                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                PageQuery.toPageRequest(query),
                 query == null ? null : query.keyword()
         );
         return page.mapList(notificationConverter::toTemplateVOList);

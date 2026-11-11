@@ -2,7 +2,6 @@ package org.chobit.knot.admin.controller;
 
 import org.chobit.knot.common.annotation.OperationLog;
 import org.chobit.knot.common.model.PageQuery;
-import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.service.ModelFamilyService;
 import org.chobit.knot.svc.vo.common.CodeAvailability;
@@ -60,7 +59,7 @@ public class ModelFamilyController {
     @PostMapping("/list")
     public PageResult<ModelFamilyItem> list(@RequestBody(required = false) PageQuery query) {
         return modelFamilyService.list(
-                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                PageQuery.toPageRequest(query),
                 query == null ? null : query.keyword()
         );
     }

@@ -2,7 +2,6 @@ package org.chobit.knot.admin.controller;
 
 import org.chobit.knot.common.annotation.OperationLog;
 import org.chobit.knot.common.model.PageQuery;
-import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.converter.PluginConverter;
 import org.chobit.knot.svc.dto.plugin.PluginDto;
@@ -32,7 +31,7 @@ public class PluginController {
     @PostMapping("/list")
     public PageResult<PluginItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<PluginDto> page = pluginService.list(
-                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                PageQuery.toPageRequest(query),
                 query == null ? null : query.keyword(),
                 query == null ? null : query.status(),
                 query == null ? null : query.pluginType()

@@ -55,6 +55,11 @@ description: knot 业务域规则：计费、频控额度、重试、模型路�
 - ⭐ options 两个统一模型参数语义分离：`logicalModelCode` = **硬过滤**（模型池编辑）；`preferredLogicalModelCode` = **纯排序**（路由规则目标选择器），SQL `order by (x.logical_model_code = #{p}) desc, <原次序>`，MariaDB DESC 下 NULL 尾随。
 - 路由规则 `logicalModelCode` 非必填；选中后目标选择器**优先置前但不过滤**；派生 `logicalModelName`（join `kb_logical_models`，`display_name` 优先）。
 - 统一模型选择器 `RemoteEntitySelect` 用 `value-key="modelCode"`；模型族编码 `^[a-z0-9][a-z0-9_-]*$`，引用数 > 0 禁删。
+- ⭐⭐ **启用的路由规则必须绑定「存在且启用」的应用**（2026-11-10 补强，`robin` 明确保留此约束）：
+  - 启用态唯一权威校验在 `RoutingRuleService#validateForSave`：`appId != null` + `appMapper.getById` 存在 + `EnabledStatusEnum.isEnabled(app.status)`，**与同方法里的消费者校验同口径**（`绑定应用未启用` / `启用规则前请选择绑定应用`）。停用态跳过这三项完整性校验。
+  - `RoutingResolver#resolveAccess` 对 `rule.appId() == null` 直接抛可读 `GatewayAuthException("Routing rule has no bound app")`；⛔ 不许把 null 塞进 `LoadingCache` 的 key（缓存层抛 NPE，不是鉴权失败）。绑定应用被删 / 停用 → `Bound app not found` / `Bound app is disabled`，这是「启用即可用」契约的兜底，不是让规则变成无应用可用。
+  - `AppService#delete` 命中启用态规则（`RoutingRuleMapper.countEnabledByAppCode`）时 **409 拒绝、不级联**：与改应用编码的 `CodeBindingSupport` 守卫同口径。停用规则不参与运行时解析，不拦删除。
+  - ⚠ **判例（种子绕过 service）**：`data.sql` 的 `jev-billing-judge` 曾以 `app_code=NULL, status=1` 直写，`JevBillingJudge#judge` 带 `secretKey + Rule` 头打网关后必然 403 / 裁判 `available=false`。`schema.sql` 的 `app_code DEFAULT NULL` 只是列可空，**不是业务允许**；任何种子 / 迁移 / 直写 SQL 都必须自己满足启用约束，见 `docs/database/migration/2026-11-10-jev-judge-app-binding.sql`。
 
 ## 5. 流式 / knot_extend
 

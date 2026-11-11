@@ -4,8 +4,11 @@ server:
 spring:
   application:
     name: knot-gateway
-  profiles:
-    active: local
+  # ⚠ 这里**刻意不设默认 profile**（2026-11-11 安全修正，与 knot-admin 同口径）：
+  # 默认 active: local 会让「漏设 profile」的部署按本地配置启动（默认库口令、开发加密密钥、
+  # SQL_INIT_MODE=ALWAYS），启动守卫因为 local 属非生产而全部放行。现在不设默认 →
+  # 本地必须显式 `--spring.profiles.active=local`，生产必须 `SPRING_PROFILES_ACTIVE=prod`，
+  # 两者都缺则直接启不来（fail-closed）。
 
   # ── 容器：Netty（2026-10-20 批2 起）──────────────────────────────────────
   # 原来的 spring.mvc.async.request-timeout（600s）已删除：Servlet 栈的异步超时是

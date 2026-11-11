@@ -3,7 +3,6 @@ package org.chobit.knot.admin.controller;
 import org.chobit.knot.common.annotation.OperationLog;
 import org.chobit.knot.svc.dto.provider.ProviderAccountDto;
 import org.chobit.knot.common.model.PageQuery;
-import org.chobit.knot.common.model.PageRequest;
 import org.chobit.knot.common.model.PageResult;
 import org.chobit.knot.svc.converter.ProviderConverter;
 import org.chobit.knot.svc.service.ProviderService;
@@ -50,7 +49,7 @@ public class ProviderController {
     @PostMapping("/list")
     public PageResult<ProviderAccountItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<ProviderAccountDto> page = providerService.list(
-                query == null ? PageRequest.of(1, 20) : query.toPageRequest(),
+                PageQuery.toPageRequest(query),
                 query == null ? null : query.keyword(),
                 query == null ? null : query.enabled()
         );

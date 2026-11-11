@@ -31,7 +31,7 @@ public class OperationLogController {
      */
     @PostMapping("/list")
     public OperationLogListResult list(@RequestBody(required = false) OperationLogQuery query) {
-        OperationLogQuery request = query == null ? new OperationLogQuery(1, 20, null, null, null, null, null, null) : query;
+        OperationLogQuery request = OperationLogQuery.orDefault(query);
         var page = operationLogService.list(
                 request.toPageRequest(),
                 request.module(),
