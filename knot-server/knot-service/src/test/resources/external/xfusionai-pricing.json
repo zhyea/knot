@@ -1,0 +1,155 @@
+{
+  "_": "a42d372ccf0b5dd13ecf71203521f9d2",
+  "success": true,
+  "vendors": [
+    {
+      "id": 2,
+      "name": "OpenAI",
+      "icon": "OpenAI"
+    },
+    {
+      "id": 3,
+      "name": "DeepSeek",
+      "icon": "DeepSeek.Color"
+    },
+    {
+      "id": 19,
+      "name": "Kuaishou",
+      "icon": "Kling.Color"
+    }
+  ],
+  "data": [
+    {
+      "model_name": "deepseek-flash",
+      "created_time": 1789107617,
+      "description": "上下文 1M,最大输出 384K,推理,编码 | DeepSeek V4.1 Flash 基于全新非对称模型结构，文本与Agent性能全面提升、兼具原生多模态视觉理解能力，能力更强、速度更快、且成本更低。",
+      "tags": "上下文 1M,最大输出384K,文本与代码",
+      "model_type": "text",
+      "model_region": "domestic",
+      "vendor_id": 3,
+      "quota_type": 0,
+      "model_ratio": 0.075,
+      "model_price": 0,
+      "owner_by": "",
+      "completion_ratio": 4,
+      "cache_ratio": 0.02,
+      "enable_groups": [
+        "default"
+      ],
+      "supported_endpoint_types": [
+        "openai",
+        "openai-response",
+        "anthropic"
+      ],
+      "pricing_version": "5a90f2b86c08bd983a9a2e6d66c255f4eaef9c4bc934386d2b6ae84ef0ff1f1f",
+      "skill_family": null
+    },
+    {
+      "model_name": "kling-video-o1",
+      "created_time": 1791532799,
+      "description": "可灵统一视频模型，支持文本、图片等多模态输入，能够通过自然语言统一理解复杂创作指令，适合多模态参考、主体一致性、复杂场景生成和高一致性视频创作。",
+      "tags": "720P,1080P,多模态",
+      "model_type": "video",
+      "model_region": "domestic",
+      "vendor_id": 19,
+      "quota_type": 1,
+      "model_ratio": 0,
+      "model_price": 0.148,
+      "owner_by": "",
+      "completion_ratio": 0,
+      "enable_groups": [
+        "default"
+      ],
+      "supported_endpoint_types": [
+        "openai"
+      ],
+      "skill_family": null
+    },
+    {
+      "model_name": "mai-image-2.5",
+      "created_time": 0,
+      "model_type": "image",
+      "quota_type": 0,
+      "model_ratio": 2.5,
+      "model_price": 0,
+      "owner_by": "",
+      "completion_ratio": 9.4,
+      "image_ratio": 1.6,
+      "image_output_ratio": 9.4,
+      "enable_groups": [
+        "default"
+      ],
+      "supported_endpoint_types": [
+        "openai"
+      ],
+      "skill_family": null
+    },
+    {
+      "model_name": "text-embedding-3-small",
+      "created_time": 1782389626,
+      "description": "OpenAI text-embedding-3-small 高性价比文本向量模型，输出 1536 维向量，在保持优秀检索效果的同时大幅降低成本。",
+      "tags": "最大输入 8K,维度 1536,语义检索,RAG",
+      "model_type": "embedding",
+      "model_region": "overseas",
+      "vendor_id": 2,
+      "quota_type": 0,
+      "model_ratio": 0.01,
+      "model_price": 0,
+      "owner_by": "",
+      "completion_ratio": 1,
+      "enable_groups": [
+        "default"
+      ],
+      "supported_endpoint_types": [
+        "openai"
+      ],
+      "skill_family": null
+    },
+    {
+      "model_name": "speech-2.8-hd",
+      "created_time": 0,
+      "model_type": "audio",
+      "quota_type": 1,
+      "model_ratio": 0,
+      "model_price": 0.027,
+      "owner_by": "",
+      "completion_ratio": 0,
+      "tencent_voice_pricing": {
+        "synthesis_price_per_500_chars": 0.027,
+        "clone_price_per_voice": 1.5
+      },
+      "enable_groups": [
+        "default"
+      ],
+      "supported_endpoint_types": [
+        "openai"
+      ],
+      "skill_family": null
+    },
+    {
+      "model_name": "",
+      "created_time": 1789107617,
+      "description": "上下文 1M,最大输出 384K,推理,编码 | DeepSeek V4.1 Flash 基于全新非对称模型结构，文本与Agent性能全面提升、兼具原生多模态视觉理解能力，能力更强、速度更快、且成本更低。",
+      "tags": "上下文 1M,最大输出384K,文本与代码",
+      "model_type": "text",
+      "model_region": "domestic",
+      "vendor_id": 3,
+      "quota_type": 0,
+      "model_ratio": 0.075,
+      "model_price": 0,
+      "owner_by": "",
+      "completion_ratio": 4,
+      "cache_ratio": 0.02,
+      "enable_groups": [
+        "default"
+      ],
+      "supported_endpoint_types": [
+        "openai",
+        "openai-response",
+        "anthropic"
+      ],
+      "pricing_version": "5a90f2b86c08bd983a9a2e6d66c255f4eaef9c4bc934386d2b6ae84ef0ff1f1f",
+      "skill_family": null
+    }
+  ]
+}

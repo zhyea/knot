@@ -33,3 +33,11 @@ resources/.arch-internal-preview.css
 db_p1
 audit
 .tmp
+
+# ── 可复现构建资产：测试夹具与依赖锁必须入库（2026-11-11 复核）──────────────
+# 上面的 *.json / */package-lock.json 是给本地杂物用的通配，会连带吞掉测试夹具与
+# 依赖锁：前者让干净 checkout 上 9 个用例红（XFusionAIModelSyncProviderTest 缺夹具），
+# 后者让 CI 的 npm ci 直接 EUSAGE。这两类不是「本地生成物」，是构建与门禁的输入，
+# 必须显式否定回来。新增夹具目录时加在这里，别在业务目录里散落否定规则。
+!knot-server/**/src/test/resources/**/*.json
+!knot-front/package-lock.json
