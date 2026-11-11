@@ -10,11 +10,14 @@
 # knot-common 等兄弟模块，只有从根构建才能用 -am 一次性带上依赖模块。
 #
 # ── 生产运行必读（与启动期守卫配套，缺一项即拒绝启动）─────────────────────
-#   SPRING_PROFILES_ACTIVE=prod
+#   SPRING_PROFILES_ACTIVE=prod     # 必填：application.yml 不再内置 local（2026-11-11 起），
+#                                   # 不给 profile 会因「无数据源 url」直接退出——这是刻意的，
+#                                   # 内置 local 会让配错的容器以开发档静默启动（开发密钥 + fail-open 守卫）
+#   SPRING_DATASOURCE_URL=jdbc:mysql://<host>:3306/knot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+#   KNOT_DB_USERNAME / KNOT_DB_PASSWORD
 #   KNOT_SQL_INIT_MODE=NEVER        # 生产禁止每次启动重跑 schema/data（由迁移脚本演进）
 #   KNOT_JWT_SECRET=<强随机>         # 否则 BootstrapSecurityGuard 拒启
 #   KNOT_CREDENTIAL_ENCRYPTION_KEY=<强随机>
-#   KNOT_DB_USERNAME / KNOT_DB_PASSWORD / 数据源地址
 #
 # 存活/就绪探针：/actuator/health
 

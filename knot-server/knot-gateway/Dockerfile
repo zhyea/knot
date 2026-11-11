@@ -10,9 +10,13 @@
 # 用 -am 连带构建；knot-plugin 仅 runtime 依赖（插件 bean 进 IOC），同样需要一并带上。
 #
 # ── 生产运行必读 ────────────────────────────────────────────────────────────
+#   SPRING_PROFILES_ACTIVE=prod     # 必填：application.yml 不再内置 local（2026-11-11 起），
+#                                   # 不给 profile 会因「无数据源 url」直接退出——这是刻意的，
+#                                   # 内置 local 会让配错的容器以开发档静默启动（开发密钥 + fail-open 守卫）
+#   SPRING_DATASOURCE_URL=jdbc:mysql://<host>:3306/knot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+#   KNOT_DB_USERNAME / KNOT_DB_PASSWORD
 #   KNOT_JWT_SECRET=<强随机>                # 否则 BootstrapSecurityGuard 拒启
 #   KNOT_CREDENTIAL_ENCRYPTION_KEY=<强随机>  # 必须与 knot-admin 完全一致（凭证加解密同源）
-#   KNOT_DB_USERNAME / KNOT_DB_PASSWORD / 数据源地址
 #   KNOT_TRAFFIC_STORE / KNOT_LOAD_STORE     # 多节点部署必须切 redis（单节点才用 caffeine）
 #   KNOT_REDIS_HOST / KNOT_REDIS_PORT / KNOT_REDIS_PASSWORD
 #   KNOT_GATEWAY_ADMIN_TOKEN                 # 多节点部署摘除管理 API 必须配（否则仅 loopback 可访问）

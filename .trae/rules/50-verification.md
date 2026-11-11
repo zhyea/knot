@@ -39,8 +39,9 @@ tr -d '\000' < build.log | grep -aE "BUILD SUCCESS|BUILD FAILURE|Tests run:.*Fai
 ## 2. 真启 jar 冒烟
 
 - 一次性库 `knot_smoke_options`（`.workbuddy/audit/ProbeBuildSmokeDb` 从 schema + data 建库，授 `admin/admin`）。
-- 起参走**环境变量**：`SERVER_PORT` / `SPRING_DATASOURCE_URL` / `KNOT_SQL_INIT_MODE=NEVER`（PowerShell 传 `-Dxxx=yyy` 会被拆成莫名 phase）。
-- `mvn package` 的 repackage 在沙箱稳失败 → 绕法：install 除 admin 外模块，再 `mvn -pl knot-admin spring-boot:run`（**不要**加 `-am`）。
+- 起参走**环境变量**：`SPRING_PROFILES_ACTIVE=local` / `SERVER_PORT` / `SPRING_DATASOURCE_URL` / `KNOT_SQL_INIT_MODE=NEVER`（PowerShell 传 `-Dxxx=yyy` 会被拆成莫名 phase）。
+- ⚠⚠ `SPRING_PROFILES_ACTIVE` 自 2026-11-11 起是**必填**：两个 `application.yml` 都不再内置 `spring.profiles.active: local`（内置会让配错的部署静默以开发档启动）。不给 profile 的后果是**启动即失败**（先报数据源 url 缺失，补了 url 还有 `BootstrapSecurityGuard` 拦开发默认密钥），不是悄悄降级。
+- `mvn package` 的 repackage 在沙箱稳失败 → 绕法：install 除 admin 外模块，再 `mvn -pl knot-admin spring-boot:run -Dspring-boot.run.profiles=local`（**不要**加 `-am`；profile 别漏，见上一条）。
 - 登录 **admin / admin123**（bcrypt 实证）。
 - curl 必须带 `--noproxy '*'`。
 - ⚠ curl 命令里含 `Bearer` 字样会被沙箱敏感审批拦 → 冒烟走 python 探针脚本，密钥只存文件。
