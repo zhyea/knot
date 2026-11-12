@@ -48,9 +48,6 @@ public final class ExternalModelJsonSupport {
         return JsonKit.toJson(value);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public static Integer integer(JsonNode node) {
         if (node == null || node.isNull()) {
             return null;
@@ -65,9 +62,6 @@ public final class ExternalModelJsonSupport {
         }
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public static Long longValue(JsonNode node) {
         if (node == null || node.isNull()) {
             return null;
@@ -95,9 +89,6 @@ public final class ExternalModelJsonSupport {
         return LocalDateTime.ofInstant(Instant.ofEpochSecond(value), ZoneId.systemDefault());
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public static List<String> stringList(JsonNode node) {
         if (node == null || !node.isArray()) {
             return List.of();
@@ -111,9 +102,6 @@ public final class ExternalModelJsonSupport {
         return result;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public static String normalizeName(String name) {
         return name == null ? null : name.trim().replaceAll("\\s+", " ");
     }
@@ -136,9 +124,6 @@ public final class ExternalModelJsonSupport {
         }
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public static void add(Set<String> set, String value) {
         if (value != null && !value.isBlank()) {
             set.add(value.trim());

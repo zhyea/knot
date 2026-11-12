@@ -42,9 +42,6 @@ public class BillingController {
         return optionsService.listBillingRuleOptions(query);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     @PostMapping("/rules")
     public PageResult<BillingRuleListItem> listRules(@RequestBody(required = false) PageQuery query) {
         return billingService.listRules(
@@ -80,9 +77,6 @@ public class BillingController {
         return billingService.getReportSummary();
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @OperationLog(module = "billing", operation = "CREATE", entityType = "BillingRule",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.code()",
@@ -94,9 +88,6 @@ public class BillingController {
         return billingConverter.toRuleVO(created);
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @OperationLog(module = "billing", operation = "UPDATE", entityType = "BillingRule",
             entityId = "#p0",
             entityNameAfter = "#result.code()",
@@ -109,9 +100,6 @@ public class BillingController {
         return billingConverter.toRuleVO(updated);
     }
 
-    /**
-     * Updates the target resource status. Executes the public operation.
-     */
     @OperationLog(module = "billing", operation = "UPDATE", entityType = "BillingRule",
             entityId = "#p0",
             entityNameAfter = "#result.code()",
@@ -124,9 +112,6 @@ public class BillingController {
         return billingConverter.toRuleVO(updated);
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @OperationLog(module = "billing", operation = "DELETE", entityType = "BillingRule",
             entityId = "#p0",
             description = "'删除计费规则'",

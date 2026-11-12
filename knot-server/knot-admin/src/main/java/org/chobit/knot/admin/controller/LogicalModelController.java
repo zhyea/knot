@@ -39,9 +39,6 @@ public class LogicalModelController {
         return optionsService.listLogicalModelOptions(query);
     }
 
-    /**
-     * Checks whether the requested condition is satisfied. Executes the public operation.
-     */
     @GetMapping("/check-code")
     public CodeAvailability checkCode(
             @RequestParam String code,
@@ -49,17 +46,11 @@ public class LogicalModelController {
         return new CodeAvailability(logicalModelService.isModelCodeAvailable(code, excludeId));
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     @GetMapping("/{id}")
     public LogicalModelItem get(@PathVariable Long id) {
         return logicalModelConverter.toVO(logicalModelService.getById(id));
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     @PostMapping("/list")
     public PageResult<LogicalModelItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<LogicalModelDto> page = logicalModelService.list(
@@ -71,9 +62,6 @@ public class LogicalModelController {
         return page.mapList(logicalModelConverter::toVOList);
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @OperationLog(module = "logical-model", operation = "CREATE", entityType = "LogicalModel",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.modelName()",
@@ -87,9 +75,6 @@ public class LogicalModelController {
         return logicalModelConverter.toVO(logicalModelService.create(logicalModelConverter.toDto(request)));
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @OperationLog(module = "logical-model", operation = "UPDATE", entityType = "LogicalModel",
             entityId = "#p0",
             entityNameAfter = "#result.modelName()",
@@ -120,9 +105,6 @@ public class LogicalModelController {
         );
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @OperationLog(module = "logical-model", operation = "DELETE", entityType = "LogicalModel",
             entityId = "#p0",
             description = "'删除统一模型'",

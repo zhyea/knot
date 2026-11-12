@@ -126,37 +126,22 @@ public class GatewayConfigCacheService {
         this.billingRuleCache = billingRuleCache();
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public AppConfigVo getAppById(Long id) {
         return appByIdCache.get(id).orElse(null);
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public RoutingConsumerConfigVo getConsumerBySecretKey(String secretKey) {
         return consumerBySecretKeyCache.get(secretKey).orElse(null);
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public RoutingRuleConfigVo getEnabledRuleByConsumerCodeAndCode(String consumerCode, String ruleCode) {
         return enabledRuleByConsumerAndCodeCache.get(new ConsumerRuleKey(consumerCode, ruleCode)).orElse(null);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public List<RoutingRuleTargetConfigVo> listTargetsByRuleCode(String ruleCode) {
         return targetsByRuleIdCache.get(ruleCode);
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public ModelConfigVo getModelById(Long id) {
         if (id == null) {
             return null;
@@ -164,9 +149,6 @@ public class GatewayConfigCacheService {
         return modelByIdCache.get(id).orElse(null);
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public ModelConfigVo getModelByCode(String modelCode) {
         if (modelCode == null) {
             return null;
@@ -174,9 +156,6 @@ public class GatewayConfigCacheService {
         return modelByCodeCache.get(modelCode).orElse(null);
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public ModelPoolConfigVo getModelPoolById(Long id) {
         if (id == null) {
             return null;
@@ -195,23 +174,14 @@ public class GatewayConfigCacheService {
         return modelPoolByCodeCache.get(poolCode).orElse(null);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public List<ModelPoolItemConfigVo> listModelPoolItemsByPoolCode(String poolCode) {
         return modelPoolItemsByPoolCodeCache.get(poolCode);
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public ProviderAccountConfigVo getProviderById(Long id) {
         return providerByIdCache.get(id).orElse(null);
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public ProviderAccountConfigVo getProviderAccountByCode(String code) {
         if (code == null) {
             return null;
@@ -219,23 +189,14 @@ public class GatewayConfigCacheService {
         return providerByCodeCache.get(code).orElse(null);
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public ProviderCredentialConfigVo getActiveCredentialByProviderId(Long providerId) {
         return activeCredentialByProviderIdCache.get(providerId).orElse(null);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public List<ModelApiBindingConfigVo> listApiBindingsByModelId(Long modelId) {
         return apiBindingsByModelIdCache.get(modelId);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public TrafficPolicies loadTrafficPolicies(String resourceType, Long resourceId) {
         if (resourceId == null) {
             return new TrafficPolicies(null, List.of());

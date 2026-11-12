@@ -112,32 +112,20 @@ public enum ModelTypeEnum implements EnumOption {
         this.canonicalProtocols = Collections.unmodifiableSet(canonicals);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public String code() {
         return code;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public String label() {
         return displayName;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public String displayName() {
         return displayName;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public int sortOrder() {
         return sortOrder;
     }

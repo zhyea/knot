@@ -59,16 +59,10 @@ public class ExternalModelService {
         this.converter = converter;
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public List<ExternalModelSourceItem> listSources() {
         return converter.toSourceItemList(externalModelMapper.listSources());
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<ExternalModelItem> listItems(ExternalModelItemQuery query) {
         PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
@@ -125,9 +119,6 @@ public class ExternalModelService {
         return enriched;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Transactional
     public ExternalModelSyncResult sync(String sourceCode) {
         ExternalModelSyncProvider provider = providers.get(sourceCode);
@@ -137,9 +128,6 @@ public class ExternalModelService {
         return provider.sync();
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @Transactional
     public LogicalModelDto createLogicalModel(Long itemId) {
         ExternalModelItemEntity item = requireEntity(itemId);
@@ -174,9 +162,6 @@ public class ExternalModelService {
         return created;
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @Transactional
     public ExternalModelSyncResult createLogicalModels(ExternalModelItemQuery query) {
         List<Long> ids = query == null || query.ids() == null
@@ -213,9 +198,6 @@ public class ExternalModelService {
         );
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @Transactional
     public void deleteItem(Long itemId) {
         int affected = externalModelMapper.deleteItem(itemId);
@@ -224,9 +206,6 @@ public class ExternalModelService {
         }
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @Transactional
     public int deleteItems(List<Long> itemIds) {
         if (itemIds == null || itemIds.isEmpty()) {

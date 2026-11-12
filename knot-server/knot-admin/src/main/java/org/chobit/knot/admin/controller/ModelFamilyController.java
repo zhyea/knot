@@ -36,26 +36,17 @@ public class ModelFamilyController {
         this.modelFamilyService = modelFamilyService;
     }
 
-    /**
-     * Checks whether the requested condition is satisfied. Executes the public operation.
-     */
     @GetMapping("/check-code")
     public CodeAvailability checkCode(@RequestParam String code,
                                       @RequestParam(required = false) Long excludeId) {
         return new CodeAvailability(modelFamilyService.isCodeAvailable(code, excludeId));
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     @GetMapping("/{id}")
     public ModelFamilyItem get(@PathVariable Long id) {
         return modelFamilyService.getById(id);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     @PostMapping("/list")
     public PageResult<ModelFamilyItem> list(@RequestBody(required = false) PageQuery query) {
         return modelFamilyService.list(
@@ -64,9 +55,6 @@ public class ModelFamilyController {
         );
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @OperationLog(module = "model-family", operation = "CREATE", entityType = "ModelFamily",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
@@ -77,9 +65,6 @@ public class ModelFamilyController {
         return modelFamilyService.create(request);
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @OperationLog(module = "model-family", operation = "UPDATE", entityType = "ModelFamily",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
@@ -91,9 +76,6 @@ public class ModelFamilyController {
         return modelFamilyService.update(id, request);
     }
 
-    /**
-     * Updates the model family enabled status. Executes the public operation.
-     */
     @OperationLog(module = "model-family", operation = "UPDATE", entityType = "ModelFamily",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
@@ -105,9 +87,6 @@ public class ModelFamilyController {
         return modelFamilyService.updateStatus(id, request.enabled() != null && request.enabled());
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @OperationLog(module = "model-family", operation = "DELETE", entityType = "ModelFamily",
             entityId = "#p0",
             description = "'删除模型族'",

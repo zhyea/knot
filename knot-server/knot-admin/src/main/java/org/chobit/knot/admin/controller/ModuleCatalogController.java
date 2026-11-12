@@ -10,9 +10,6 @@ import java.util.List;
 @RequestMapping("/api/modules")
 public class ModuleCatalogController {
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     @PostMapping
     public List<ModuleInfo> listModules() {
         return List.of(

@@ -90,16 +90,10 @@ public class RoutingRuleService {
         this.trafficPolicySupport = trafficPolicySupport;
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<RoutingRuleDto> list(PageRequest pageRequest) {
         return list(pageRequest, null);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<RoutingRuleDto> list(PageRequest pageRequest, String keyword) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<RoutingRuleEntity> pageInfo = new PageInfo<>(routingRuleMapper.list(
@@ -110,9 +104,6 @@ public class RoutingRuleService {
         }
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public RoutingRuleDto getById(Long id) {
         RoutingRuleEntity entity = routingRuleMapper.getById(id);
         if (entity == null) {
@@ -129,9 +120,6 @@ public class RoutingRuleService {
         return AuditSnapshotSupport.capture(id, key -> JsonKit.toMaskedMap(getById(key)));
     }
 
-    /**
-     * Returns whether the current condition is satisfied. Executes the public operation.
-     */
     public boolean isRuleCodeAvailable(String ruleCode, Long excludeId) {
         String normalized = normalizeRuleCode(ruleCode);
         if (normalized.isEmpty()) {
@@ -141,9 +129,6 @@ public class RoutingRuleService {
         return count == null || count == 0;
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @Transactional
     public RoutingRuleDto create(RoutingRuleDto request) {
         RoutingRuleDto normalized = ensureGeneratedFieldsForCreate(request);
@@ -157,9 +142,6 @@ public class RoutingRuleService {
         return getById(entity.getId());
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @Transactional
     public RoutingRuleDto update(Long id, RoutingRuleDto request) {
         RoutingRuleDto existing = getById(id);

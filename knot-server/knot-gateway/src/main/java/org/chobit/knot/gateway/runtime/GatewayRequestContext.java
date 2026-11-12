@@ -56,9 +56,6 @@ public class GatewayRequestContext {
         this.receivedAtMillis = System.currentTimeMillis();
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public GatewayRoutingContext routingContext() {
         return routing == null ? null : routing.routingContext();
     }
@@ -95,9 +92,6 @@ public class GatewayRequestContext {
         return traceContext.spanId();
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public void putAttribute(String key, Object value) {
         String normalizedKey = StringUtils.trimToNull(key);
         if (normalizedKey != null) {
@@ -105,9 +99,6 @@ public class GatewayRequestContext {
         }
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @SuppressWarnings("unchecked")
     public <T> T attribute(String key) {
         return (T) attributes.get(key);

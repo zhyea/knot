@@ -8,9 +8,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class OpenRouterModelSyncHandler implements ScheduledTaskHandler {
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public static final String CODE = "OPENROUTER_MODEL_SYNC";
 
     private final ExternalModelService externalModelService;
@@ -22,17 +19,11 @@ public class OpenRouterModelSyncHandler implements ScheduledTaskHandler {
         this.externalModelService = externalModelService;
     }
 
-    /**
-     * Handles the incoming request flow. Executes the public operation.
-     */
     @Override
     public String handlerCode() {
         return CODE;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public ScheduledTaskResult execute() {
         ExternalModelSyncResult result = externalModelService.sync(OpenRouterModelSyncProvider.CODE);

@@ -21,9 +21,6 @@ public class HealthController {
         this.healthService = healthService;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @PostMapping("/health")
     public HealthResponse health() {
         return new HealthResponse("ok", LocalDateTime.now(), healthService.dbTimestamp());

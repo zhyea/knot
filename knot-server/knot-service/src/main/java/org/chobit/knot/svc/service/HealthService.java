@@ -15,9 +15,6 @@ public class HealthService {
         this.pingMapper = pingMapper;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public String dbTimestamp() {
         return pingMapper.selectNow();
     }

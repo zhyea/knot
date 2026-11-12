@@ -29,18 +29,12 @@ public class UserSettingController {
         this.currentAuth = currentAuth;
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     @AuthCheck
     @GetMapping("/me")
     public Map<String, String> listMySettings() {
         return userSettingService.listSettings(currentAuth.currentUserId());
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @AuthCheck
     @OperationLog(module = "user-setting", operation = "UPDATE", entityType = "UserSetting",
             description = "'保存个人设置'",

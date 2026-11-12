@@ -27,8 +27,6 @@ import java.util.concurrent.CompletionException;
 import java.util.function.LongConsumer;
 
 /**
- * Handles the incoming request flow. Executes the public operation.
- *
  * <p>2026-10-20（WebFlux 批1-B）：链路返回值由 {@code CompletableFuture} 改为 {@link Mono}，
  * 且<b>不再依赖 {@code RequestContextHolder} 传递请求属性</b>——响应读写的载体
  * （{@link GatewayHttpExchange}）随 {@link GatewayExchange} 显式传参。原先每个异步回调都要

@@ -1,8 +1,5 @@
 package org.chobit.knot.common.constants;
 
-/**
- * Executes the public operation. Executes the public operation.
- */
 public final class AiPayloadFields {
 
     public static final String MODEL = "model";

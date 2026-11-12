@@ -17,9 +17,6 @@ import org.springframework.context.annotation.Configuration;
 @EnableConfigurationProperties(PluginProperties.class)
 public class ModerationConfiguration {
 
-    /**
-     * Declares a bean. Executes the public operation.
-     */
     @Bean
     public ModerationEventSink moderationEventSink() {
         return new ModerationEventSink();

@@ -44,9 +44,6 @@ public enum BillingModeEnum implements EnumOption {
         this.defaultUnit = defaultUnit;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public String code() {
         return code;
     }
@@ -101,9 +98,6 @@ public enum BillingModeEnum implements EnumOption {
         return unit != null && supportsUnit(unit.code()) ? unit.code() : defaultUnit.code();
     }
 
-    /**
-     * Builds the target value from the source input. Executes the public operation.
-     */
     public static BillingModeEnum fromCode(String code) {
         if (code == null || code.isBlank()) {
             return null;

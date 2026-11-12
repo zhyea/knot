@@ -40,9 +40,6 @@ import java.util.Set;
 @Component
 public class XFusionAIModelSyncProvider extends AbstractExternalModelSyncProvider {
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public static final String CODE = "XFUSIONAI";
 
     private static final String SOURCE_NAME = "XFusionAI Pricing";
@@ -79,9 +76,6 @@ public class XFusionAIModelSyncProvider extends AbstractExternalModelSyncProvide
         super(externalModelMapper);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public String sourceCode() {
         return CODE;

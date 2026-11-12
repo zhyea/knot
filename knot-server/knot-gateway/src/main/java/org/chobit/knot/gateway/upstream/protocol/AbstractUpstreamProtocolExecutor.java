@@ -45,8 +45,6 @@ import java.util.Collection;
 import java.util.Map;
 
 /**
- * Executes the public operation. Executes the public operation.
- *
  * <p>2026-10-20：上游客户端由 {@code RestClient}（Apache HttpClient 5）迁到
  * {@link WebClient}（reactor-netty）。两条路径的<b>阻塞边界不变</b>——仍然阻塞到「响应头就绪」
  * 才返回，这样首字节之前的上游失败依旧能被 failover 捕获。</p>
@@ -72,9 +70,6 @@ public abstract class AbstractUpstreamProtocolExecutor implements UpstreamProtoc
         this.clientProperties = clientProperties;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public ProxyResult execute(UpstreamRequestContext context, UpstreamAdapter adapter) {
         String protocolPath = adapter.resolvePath(context, defaultPath(context));

@@ -22,9 +22,6 @@ public class NodeIdentity {
         }
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public String nodeId() {
         return nodeId;
     }

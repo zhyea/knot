@@ -38,9 +38,6 @@ public enum LogicalModelVisibilityEnum implements EnumOption {
         return PUBLIC;
     }
 
-    /**
-     * Builds the target value from the source input. Executes the public operation.
-     */
     public static LogicalModelVisibilityEnum fromCode(String code) {
         if (code == null || code.isBlank()) {
             return null;

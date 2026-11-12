@@ -36,9 +36,6 @@ public enum ModelApiProtocolEnum implements EnumOption {
         this.streamSupported = streamSupported;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public String code() {
         return code;
     }
@@ -47,46 +44,28 @@ public enum ModelApiProtocolEnum implements EnumOption {
         return name;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public String label() {
         return name;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public String defaultPath() {
         return defaultPath;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public boolean streamSupported() {
         return streamSupported;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public ModelApiProtocolEnum canonical() {
         return this;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public boolean matches(String protocolCode) {
         ModelApiProtocolEnum protocol = fromCode(protocolCode);
         return protocol != null && protocol.canonical() == canonical();
     }
 
-    /**
-     * Builds the target value from the source input. Executes the public operation.
-     */
     public static ModelApiProtocolEnum fromCode(String code) {
         if (code == null || code.isBlank()) {
             return null;

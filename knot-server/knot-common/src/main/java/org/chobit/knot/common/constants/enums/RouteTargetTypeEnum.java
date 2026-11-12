@@ -16,9 +16,6 @@ public enum RouteTargetTypeEnum implements EnumOption {
         this.label = label;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public String code() {
         return code;
     }

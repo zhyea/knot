@@ -33,8 +33,6 @@ public class ModerationWordController {
     }
 
     /**
-     * Checks whether the requested condition is satisfied. Executes the public operation.
-     *
      * <p>唯一键是 (word, category_code)，故可用性判断要同时带分类。</p>
      */
     @GetMapping("/check-code")
@@ -44,17 +42,11 @@ public class ModerationWordController {
         return new CodeAvailability(moderationWordService.isWordAvailable(word, categoryCode, excludeId));
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     @GetMapping("/{id}")
     public ModerationWordItem get(@PathVariable Long id) {
         return moderationWordConverter.toVO(moderationWordService.getById(id));
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     @PostMapping("/list")
     public PageResult<ModerationWordItem> list(@RequestBody(required = false) PageQuery query,
                                                @RequestParam(required = false) String categoryCode) {
@@ -69,9 +61,6 @@ public class ModerationWordController {
                 page.total(), page.pageNum(), page.pageSize(), page.pages());
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @OperationLog(module = "moderation", operation = "CREATE", entityType = "ModerationWord",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.word()",
@@ -83,9 +72,6 @@ public class ModerationWordController {
                 moderationWordService.create(moderationWordConverter.toDto(request)));
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @OperationLog(module = "moderation", operation = "UPDATE", entityType = "ModerationWord",
             entityId = "#p0",
             entityNameAfter = "#result.word()",
@@ -114,9 +100,6 @@ public class ModerationWordController {
                 moderationWordService.updateStatus(id, Boolean.TRUE.equals(request.enabled())));
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @OperationLog(module = "moderation", operation = "DELETE", entityType = "ModerationWord",
             entityId = "#p0",
             description = "'删除敏感词'",

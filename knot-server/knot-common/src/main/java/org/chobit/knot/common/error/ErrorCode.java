@@ -17,16 +17,10 @@ public enum ErrorCode {
         this.message = message;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public String code() {
         return code;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public String message() {
         return message;
     }

@@ -60,9 +60,6 @@ public class ScheduledTaskAdminService {
         this.handlerCodes = handlers.stream().map(ScheduledTaskHandler::handlerCode).collect(Collectors.toSet());
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<ScheduledTaskDto> listTasks(ScheduledTaskQuery query) {
         PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
@@ -75,9 +72,6 @@ public class ScheduledTaskAdminService {
         }
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<ScheduledTaskRunDto> listRuns(ScheduledTaskRunQuery query) {
         PageRequest pageRequest = query == null ? PageRequest.of(1, 20) : query.toPageRequest();
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
@@ -90,9 +84,6 @@ public class ScheduledTaskAdminService {
         }
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @Transactional
     public ScheduledTaskDto create(ScheduledTaskRequest request) {
         ScheduledTaskDto draft = validated(null, request);
@@ -105,9 +96,6 @@ public class ScheduledTaskAdminService {
         return saved;
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @Transactional
     public ScheduledTaskDto update(Long id, ScheduledTaskRequest request) {
         ScheduledTaskDto existing = taskService.getTaskById(id);
@@ -121,9 +109,6 @@ public class ScheduledTaskAdminService {
         return saved;
     }
 
-    /**
-     * Triggers the requested operation immediately. Executes the public operation.
-     */
     public void triggerNow(Long id) {
         ScheduledTaskDto task = taskService.getTaskById(id);
         if (task == null) {
@@ -132,9 +117,6 @@ public class ScheduledTaskAdminService {
         schedulerService.triggerNow(task.taskCode());
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public List<String> listHandlerCodes() {
         return handlerCodes.stream().sorted().toList();
     }

@@ -8,9 +8,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class XFusionAIModelSyncHandler implements ScheduledTaskHandler {
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public static final String CODE = "XFUSIONAI_MODEL_SYNC";
 
     private final ExternalModelService externalModelService;
@@ -22,17 +19,11 @@ public class XFusionAIModelSyncHandler implements ScheduledTaskHandler {
         this.externalModelService = externalModelService;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public String handlerCode() {
         return CODE;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public ScheduledTaskResult execute() {
         ExternalModelSyncResult result = externalModelService.sync(XFusionAIModelSyncProvider.CODE);

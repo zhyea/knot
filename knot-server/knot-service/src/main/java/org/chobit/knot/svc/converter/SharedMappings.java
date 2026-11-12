@@ -51,18 +51,12 @@ public class SharedMappings {
 
     // ==================== JSON <-> RateLimitPolicy ====================
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Named("jsonToRateLimit")
     public RateLimitPolicy jsonToRateLimit(String json) {
         if (json == null || json.isBlank()) return null;
         return JsonKit.fromJson(json, RateLimitPolicy.class);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Named("rateLimitToJson")
     public String rateLimitToJson(RateLimitPolicy policy) {
         if (policy == null) return null;
@@ -96,18 +90,12 @@ public class SharedMappings {
 
     // ==================== JSON <-> QuotaPolicy ====================
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Named("jsonToQuota")
     public QuotaPolicy jsonToQuota(String json) {
         if (json == null || json.isBlank()) return null;
         return JsonKit.fromJson(json, QuotaPolicy.class);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Named("quotaToJson")
     public String quotaToJson(QuotaPolicy policy) {
         if (policy == null) return null;
@@ -120,9 +108,6 @@ public class SharedMappings {
 
     // ==================== JSON <-> Map (auth config) ====================
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Named("jsonToStringObjectMap")
     public Map<String, Object> jsonToStringObjectMap(String json) {
         if (json == null || json.isBlank()) {
@@ -132,9 +117,6 @@ public class SharedMappings {
         return parsed != null ? new LinkedHashMap<>(parsed) : new LinkedHashMap<>();
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Named("stringObjectMapToJson")
     public String stringObjectMapToJson(Map<String, Object> map) {
         if (map == null || map.isEmpty()) {
@@ -149,9 +131,6 @@ public class SharedMappings {
 
     // ==================== String <-> Long (owner field) ====================
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Named("stringToLong")
     public Long stringToLong(String value) {
         if (value == null || value.isBlank()) return 0L;
@@ -164,9 +143,6 @@ public class SharedMappings {
 
     // ==================== JSON <-> List<Integer> (steps) ====================
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Named("jsonToSteps")
     public List<Integer> jsonToSteps(String json) {
         if (json == null || json.isBlank()) return List.of(10, 30, 50, 100);
@@ -174,9 +150,6 @@ public class SharedMappings {
         return (parsed == null || parsed.isEmpty()) ? List.of(10, 30, 50, 100) : List.copyOf(parsed);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Named("stepsToJson")
     public String stepsToJson(List<Integer> steps) {
         String json = JsonKit.toJson(steps);

@@ -57,9 +57,6 @@ public class OperationLogAspect {
         this.beanFactory = beanFactory;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Around("@annotation(operationLog)")
     public Object recordLog(ProceedingJoinPoint joinPoint, OperationLog operationLog) throws Throwable {
         long startTime = System.currentTimeMillis();

@@ -35,9 +35,6 @@ public class GlobalExceptionHandler {
         this.rwProperties = rwProperties;
     }
 
-    /**
-     * Handles the incoming request flow. Executes the public operation.
-     */
     @ExceptionHandler(UnauthorizedException.class)
     @ResponseStatus(HttpStatus.UNAUTHORIZED)
     public ApiResponse<Void> handleUnauthorized(UnauthorizedException e) {
@@ -66,18 +63,12 @@ public class GlobalExceptionHandler {
         return ApiResponse.fail(rwProperties.getFailCode(), e.getMessage());
     }
 
-    /**
-     * Handles the incoming request flow. Executes the public operation.
-     */
     @ExceptionHandler(BusinessException.class)
     public ApiResponse<Void> handleBusinessException(BusinessException e) {
         log.warn("Business exception: code={}, message={}", e.getCode(), e.getMessage());
         return ApiResponse.fail(rwProperties.getFailCode(), e.getMessage());
     }
 
-    /**
-     * Handles the incoming request flow. Executes the public operation.
-     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleValidationException(MethodArgumentNotValidException e) {
@@ -89,9 +80,6 @@ public class GlobalExceptionHandler {
         return ApiResponse.fail(rwProperties.getFailCode(), message);
     }
 
-    /**
-     * Handles the incoming request flow. Executes the public operation.
-     */
     @ExceptionHandler(BindException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleBindException(BindException e) {
@@ -103,9 +91,6 @@ public class GlobalExceptionHandler {
         return ApiResponse.fail(rwProperties.getFailCode(), message);
     }
 
-    /**
-     * Handles the incoming request flow. Executes the public operation.
-     */
     @ExceptionHandler(ConstraintViolationException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ApiResponse<Void> handleConstraintViolation(ConstraintViolationException e) {
@@ -126,9 +111,6 @@ public class GlobalExceptionHandler {
         return ApiResponse.fail(rwProperties.getFailCode(), "接口不存在: " + e.getResourcePath());
     }
 
-    /**
-     * Handles the incoming request flow. Executes the public operation.
-     */
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> handleException(Exception e) {

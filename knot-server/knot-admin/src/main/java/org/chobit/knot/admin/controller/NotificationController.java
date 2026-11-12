@@ -24,9 +24,6 @@ public class NotificationController {
         this.notificationConverter = notificationConverter;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @PostMapping("/templates/list")
     public PageResult<NotifyTemplate> templates(@RequestBody(required = false) PageQuery query) {
         PageResult<TemplateDto> page = notificationService.listTemplates(
@@ -36,9 +33,6 @@ public class NotificationController {
         return page.mapList(notificationConverter::toTemplateVOList);
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @OperationLog(module = "notification", operation = "CREATE", entityType = "NotifyTemplate",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",

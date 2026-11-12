@@ -30,9 +30,6 @@ public class RoutingTestStreamHandle implements Closeable {
         this.preparation = preparation;
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public RoutingTestPreparation preparation() {
         return preparation;
     }
@@ -58,9 +55,6 @@ public class RoutingTestStreamHandle implements Closeable {
         return response.getHeaders().getContentType();
     }
 
-    /**
-     * Releases the resource. Executes the public operation.
-     */
     @Override
     public void close() throws IOException {
         if (closed) {

@@ -12,9 +12,6 @@ public class UpstreamProtocolExecutorRegistry {
 
     private final List<UpstreamProtocolExecutor> executors;
 
-    /**
-     * Resolves the requested value from current context and configuration. Executes the public operation.
-     */
     public UpstreamProtocolExecutor resolve(ModelApiProtocolEnum protocol) {
         return executors.stream()
                 .filter(executor -> executor.supports(protocol))

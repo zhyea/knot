@@ -9,9 +9,6 @@ import org.chobit.knot.dal.mapper.ExternalModelMapper;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Executes the public operation. Executes the public operation.
- */
 public abstract class AbstractExternalModelSyncProvider implements ExternalModelSyncProvider {
 
     private final ExternalModelMapper externalModelMapper;
@@ -20,9 +17,6 @@ public abstract class AbstractExternalModelSyncProvider implements ExternalModel
         this.externalModelMapper = externalModelMapper;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public ExternalModelSyncResult sync() {
         ExternalModelSourceEntity source = ensureSource();

@@ -66,9 +66,6 @@ public class BillingService {
         this.billingConverter = billingConverter;
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<BillingRuleListItem> listRules(PageRequest pageRequest,
                                                      String keyword,
                                                      String modelFamilyCode,
@@ -85,9 +82,6 @@ public class BillingService {
         }
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public BillingRuleDto getRuleById(Long id) {
         BillingRuleEntity entity = billingRuleMapper.getById(id);
         if (entity == null) {

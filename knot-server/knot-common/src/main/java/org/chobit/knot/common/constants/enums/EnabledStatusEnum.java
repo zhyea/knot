@@ -33,9 +33,6 @@ public enum EnabledStatusEnum implements NumericEnumOption {
         return label;
     }
 
-    /**
-     * Builds the target value from the source input. Executes the public operation.
-     */
     public static EnabledStatusEnum fromCode(Integer code) {
         return NumericEnumOption.fromCode(values(), code);
     }

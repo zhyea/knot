@@ -8,9 +8,6 @@ public record ExternalModelSyncResult(
         int failed,
         String message
 ) {
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public int affectedRows() {
         return inserted + updated;
     }

@@ -53,9 +53,6 @@ public class ScheduledTaskExecutor {
         this.handlers = handlers.stream().collect(Collectors.toMap(ScheduledTaskHandler::handlerCode, Function.identity()));
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Transactional
     public void execute(String taskCode, String triggerType, Date nextFireTime) {
         ScheduledTaskDto task = taskService.getTaskByCode(taskCode);

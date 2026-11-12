@@ -27,9 +27,6 @@ public enum TrafficResourceTypeEnum {
         this.quotaSupported = quotaSupported;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public String code() {
         return code;
     }

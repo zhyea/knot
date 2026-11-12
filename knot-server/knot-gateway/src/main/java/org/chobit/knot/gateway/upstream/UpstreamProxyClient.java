@@ -54,8 +54,6 @@ public class UpstreamProxyClient {
 
 
     /**
-     * Proxies the request to the upstream provider. Executes the public operation.
-     *
      * @param requestId 网关自生成的请求标识（{@code GatewayRequestContext#requestId()}）：
      *                  以 {@code X-Request-Id} 头发给上游，供供应商侧检索。
      *                  <b>不是</b> {@code upstream_request_id}（那个是上游回给我们的）

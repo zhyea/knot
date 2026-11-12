@@ -37,9 +37,6 @@ public enum QuotaWindowEnum implements EnumOption {
         this.label = label;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public String code() {
         return code;

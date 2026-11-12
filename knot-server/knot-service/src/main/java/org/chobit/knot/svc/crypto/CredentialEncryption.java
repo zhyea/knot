@@ -21,16 +21,10 @@ public class CredentialEncryption {
         this.cipher = new AesGcmCipher(properties.getEncryptionKey());
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public String encrypt(String plaintext) {
         return cipher.encrypt(plaintext);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public String decrypt(String stored) {
         return cipher.decrypt(stored);
     }

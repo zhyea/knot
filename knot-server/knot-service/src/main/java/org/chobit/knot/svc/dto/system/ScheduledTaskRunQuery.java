@@ -10,9 +10,6 @@ public record ScheduledTaskRunQuery(
         Integer status,
         String triggerType
 ) {
-    /**
-     * Converts the source value to the target representation. Executes the public operation.
-     */
     public PageRequest toPageRequest() {
         return PageRequest.of(pageNum, pageSize);
     }

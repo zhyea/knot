@@ -28,9 +28,6 @@ import java.util.Set;
 @Component
 public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvider {
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public static final String CODE = "OPENROUTER";
     private static final String SOURCE_URL = "https://openrouter.ai/models";
     private static final String API_URL = "https://openrouter.ai/api/v1/models";
@@ -56,9 +53,6 @@ public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvid
         super(externalModelMapper);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public String sourceCode() {
         return CODE;

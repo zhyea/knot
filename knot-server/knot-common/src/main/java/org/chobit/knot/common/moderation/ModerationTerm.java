@@ -15,9 +15,6 @@ public record ModerationTerm(String word,
                              /** 词条更新时间（epoch 毫秒）：构成词库版本，供审计事件回溯 */
                              Long updatedAtMillis) {
 
-    /**
-     * Builds a term from the persisted shape. Executes the public operation.
-     */
     public static ModerationTerm of(String word,
                                     String normalizedWord,
                                     String categoryCode,

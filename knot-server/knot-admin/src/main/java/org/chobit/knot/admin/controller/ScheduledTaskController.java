@@ -37,17 +37,11 @@ public class ScheduledTaskController {
         this.scheduledTaskService = scheduledTaskService;
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     @PostMapping("/list")
     public PageResult<ScheduledTaskDto> listTasks(@RequestBody(required = false) ScheduledTaskQuery query) {
         return scheduledTaskService.listTasks(query);
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @OperationLog(module = "scheduled-task", operation = "CREATE", entityType = "ScheduledTask",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.taskName()",
@@ -58,9 +52,6 @@ public class ScheduledTaskController {
         return scheduledTaskService.create(request);
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @OperationLog(module = "scheduled-task", operation = "UPDATE", entityType = "ScheduledTask",
             entityId = "#p0",
             entityNameAfter = "#result.taskName()",
@@ -71,9 +62,6 @@ public class ScheduledTaskController {
         return scheduledTaskService.update(id, request);
     }
 
-    /**
-     * Triggers the requested operation immediately. Executes the public operation.
-     */
     @OperationLog(module = "scheduled-task", operation = "EXECUTE", entityType = "ScheduledTask",
             entityId = "#p0",
             description = "'手动触发定时任务'",
@@ -84,17 +72,11 @@ public class ScheduledTaskController {
         scheduledTaskService.triggerNow(id);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     @PostMapping("/runs")
     public PageResult<ScheduledTaskRunDto> listRuns(@RequestBody(required = false) ScheduledTaskRunQuery query) {
         return scheduledTaskService.listRuns(query);
     }
 
-    /**
-     * Handles the incoming request flow. Executes the public operation.
-     */
     @PostMapping("/handlers")
     public List<String> listHandlerCodes() {
         return scheduledTaskService.listHandlerCodes();

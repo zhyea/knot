@@ -36,16 +36,10 @@ public class PluginService implements PluginBindingProvider {
         this.pluginConverter = pluginConverter;
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<PluginDto> list(PageRequest pageRequest) {
         return list(pageRequest, null, null, null);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<PluginDto> list(PageRequest pageRequest, String keyword, String status, String pluginType) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<PluginInstanceEntity> pageInfo = new PageInfo<>(pluginMapper.list(StringUtils.trimToNull(keyword), toStatusCode(status), normalizePluginType(pluginType)));
@@ -53,9 +47,6 @@ public class PluginService implements PluginBindingProvider {
         }
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public PluginDto getById(Long id) {
         PluginInstanceEntity entity = pluginMapper.getById(id);
         if (entity == null) throw new BusinessException(ErrorCode.NOT_FOUND, "plugin not found");
@@ -72,9 +63,6 @@ public class PluginService implements PluginBindingProvider {
         return getById(id);
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @Transactional
     public PluginDto updateStatus(Long id, Integer status) {
         getById(id); // ensure exists

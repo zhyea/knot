@@ -30,33 +30,21 @@ public class ExternalModelController {
         this.logicalModelConverter = logicalModelConverter;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @GetMapping("/sources")
     public List<ExternalModelSourceItem> sources() {
         return externalModelService.listSources();
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @PostMapping("/items/list")
     public PageResult<ExternalModelItem> items(@RequestBody(required = false) ExternalModelItemQuery query) {
         return externalModelService.listItems(query);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @GetMapping("/items/{id}")
     public ExternalModelItem item(@PathVariable Long id) {
         return externalModelService.getItem(id);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @OperationLog(module = "external-model", operation = "SYNC", entityType = "ExternalModelSource",
             entityName = "#p0",
             description = "'同步外部模型清单'",
@@ -67,9 +55,6 @@ public class ExternalModelController {
         return externalModelService.sync(sourceCode);
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @OperationLog(module = "external-model", operation = "CREATE", entityType = "LogicalModel",
             entityId = "#p0",
             entityNameAfter = "#result.modelName()",
@@ -82,9 +67,6 @@ public class ExternalModelController {
         return logicalModelConverter.toVO(created);
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @OperationLog(module = "external-model", operation = "CREATE", entityType = "LogicalModel",
             description = "'批量从外部模型创建统一模型'",
             recordOldValue = false,
@@ -94,9 +76,6 @@ public class ExternalModelController {
         return externalModelService.createLogicalModels(query);
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @OperationLog(module = "external-model", operation = "DELETE", entityType = "ExternalModelItem",
             entityId = "#p0",
             description = "'删除外部模型'",
@@ -107,9 +86,6 @@ public class ExternalModelController {
         externalModelService.deleteItem(id);
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @OperationLog(module = "external-model", operation = "DELETE", entityType = "ExternalModelItem",
             description = "'批量删除外部模型'",
             recordOldValue = false,

@@ -47,16 +47,10 @@ public class RoutingConsumerService {
         this.trafficPolicySupport = trafficPolicySupport;
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<RoutingConsumerDto> list(PageRequest pageRequest) {
         return list(pageRequest, null);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<RoutingConsumerDto> list(PageRequest pageRequest, String keyword) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<RoutingConsumerEntity> pageInfo = new PageInfo<>(routingConsumerMapper.list(StringUtils.trimToNull(keyword)));
@@ -67,9 +61,6 @@ public class RoutingConsumerService {
         }
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public RoutingConsumerDto getById(Long id) {
         RoutingConsumerEntity entity = routingConsumerMapper.getById(id);
         if (entity == null) {
@@ -90,9 +81,6 @@ public class RoutingConsumerService {
         return toDto(entity, trafficPolicySupport.load(TrafficResourceTypeEnum.ROUTING_CONSUMER.code(), entity.getId()));
     }
 
-    /**
-     * Returns whether the current condition is satisfied. Executes the public operation.
-     */
     public boolean isConsumerCodeAvailable(String consumerCode, Long excludeId) {
         String normalized = normalizeConsumerCode(consumerCode);
         if (normalized.isEmpty()) {
@@ -110,9 +98,6 @@ public class RoutingConsumerService {
         return AuditSnapshotSupport.capture(id, key -> JsonKit.toMaskedMap(getById(key)));
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @Transactional
     public RoutingConsumerDto create(RoutingConsumerDto request) {
         RoutingConsumerDto normalized = ensureGeneratedFieldsForCreate(request);
@@ -126,9 +111,6 @@ public class RoutingConsumerService {
         return getById(entity.getId());
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @Transactional
     public RoutingConsumerDto update(Long id, RoutingConsumerDto request) {
         RoutingConsumerDto existing = getById(id);

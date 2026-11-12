@@ -24,9 +24,6 @@ public record ModerationHitEvent(String traceId,
                                  long wordVersion,
                                  long timestampMillis) {
 
-    /**
-     * Builds the target value from the source input. Executes the public operation.
-     */
     public static ModerationHitEvent of(String traceId,
                                         String appCode,
                                         String ruleCode,

@@ -84,9 +84,6 @@ public class ProviderCredentialSupport {
         return credential == null ? null : credential.getAuthApplier();
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public void saveAuthConfig(Long providerId, String credentialType, String authApplier,
                                Map<String, Object> authConfig) {
         if (providerId == null) {
@@ -126,9 +123,6 @@ public class ProviderCredentialSupport {
         return account.getCode();
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public Map<String, Object> maskAuthConfig(Map<String, Object> authConfig) {
         if (authConfig == null || authConfig.isEmpty()) {
             return defaultAuthConfig();
@@ -167,9 +161,6 @@ public class ProviderCredentialSupport {
         return merged.isEmpty() && prev.isEmpty() ? null : merged;
     }
 
-    /**
-     * Returns whether the current condition is satisfied. Executes the public operation.
-     */
     public static boolean isMaskedValue(String val) {
         if (!hasText(val)) {
             return false;
@@ -180,9 +171,6 @@ public class ProviderCredentialSupport {
         return val.chars().allMatch(c -> c == '*');
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public static Map<String, Object> defaultAuthConfig() {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put(AuthConstants.API_KEY, "");

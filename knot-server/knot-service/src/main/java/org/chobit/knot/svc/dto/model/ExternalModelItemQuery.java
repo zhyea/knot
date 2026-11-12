@@ -14,9 +14,6 @@ public record ExternalModelItemQuery(
         String modelType,
         List<Long> ids
 ) {
-    /**
-     * Converts the source value to the target representation. Executes the public operation.
-     */
     public PageRequest toPageRequest() {
         return PageRequest.of(pageNum, pageSize);
     }

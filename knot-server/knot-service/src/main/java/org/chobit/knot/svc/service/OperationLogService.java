@@ -72,9 +72,6 @@ public class OperationLogService {
         operationLogMapper.insert(entity);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public List<OperationLogDetailItem> listByModule(String module, String entityType, Long entityId, Long operatorId) {
         List<OperationLogEntity> list = operationLogMapper.listByModule(module, entityType, entityId, operatorId);
         list.forEach(this::retainOnlyChangedJsonFields);
@@ -111,9 +108,6 @@ public class OperationLogService {
         return OperationLogStatusEnum.codes();
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public OperationLogDetailItem getById(Long id) {
         OperationLogEntity entity = operationLogMapper.getById(id);
         if (entity != null) {
@@ -122,9 +116,6 @@ public class OperationLogService {
         return operationLogConverter.toDetailItem(entity);
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @Transactional
     public int deleteBefore(LocalDateTime beforeTime) {
         // ks_operation_log_details 明细表已随废弃表清理下线，无需再级联清理明细

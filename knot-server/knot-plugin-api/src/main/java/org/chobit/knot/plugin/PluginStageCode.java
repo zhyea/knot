@@ -35,9 +35,6 @@ public enum PluginStageCode implements EnumOption {
         return label;
     }
 
-    /**
-     * Builds the target value from the source input. Executes the public operation.
-     */
     public static PluginStageCode fromCode(String code) {
         if (code == null || code.isBlank()) {
             return null;

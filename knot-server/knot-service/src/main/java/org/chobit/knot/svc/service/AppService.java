@@ -52,16 +52,10 @@ public class AppService {
         this.routingRuleMapper = routingRuleMapper;
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<AppDto> list(PageRequest pageRequest) {
         return list(pageRequest, null);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<AppDto> list(PageRequest pageRequest, String keyword) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<AppEntity> pageInfo = new PageInfo<>(appMapper.list(StringUtils.trimToNull(keyword)));
@@ -72,9 +66,6 @@ public class AppService {
         }
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public AppDto getById(Long id) {
         AppEntity entity = appMapper.getById(id);
         if (entity == null) {
@@ -83,9 +74,6 @@ public class AppService {
         return enrich(appConverter.toDto(entity), entity.getId());
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @Transactional
     public AppDto create(AppDto request) {
         String appCode = request.appCode() != null ? request.appCode().trim() : "";
@@ -105,9 +93,6 @@ public class AppService {
         return getById(entity.getId());
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @Transactional
     public AppDto update(Long id, AppDto request) {
         AppEntity existing = appMapper.getById(id);
@@ -124,9 +109,6 @@ public class AppService {
         return getById(id);
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @Transactional
     public void delete(Long id) {
         AppEntity existing = appMapper.getById(id);

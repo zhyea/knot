@@ -64,8 +64,6 @@ public class ModerationWordService {
     }
 
     /**
-     * Lists matching results. Executes the public operation.
-     *
      * @param includeDeleted 管理列表传 true 以便展示已删除行（浅红底 + 恢复按钮）；
      *                       其余查询保持 false，已删除项不参与匹配也不列出
      */
@@ -84,9 +82,6 @@ public class ModerationWordService {
         }
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public ModerationWordDto getById(Long id) {
         ModerationWordEntity entity = wordMapper.getById(id);
         if (entity == null) {
@@ -105,9 +100,6 @@ public class ModerationWordService {
         return count == null || count == 0;
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @Transactional
     public ModerationWordDto create(ModerationWordDto request) {
         String word = requireWord(request.word());
@@ -124,9 +116,6 @@ public class ModerationWordService {
         return getById(entity.getId());
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @Transactional
     public ModerationWordDto update(Long id, ModerationWordDto request) {
         ModerationWordEntity existing = wordMapper.getById(id);
@@ -161,8 +150,6 @@ public class ModerationWordService {
     }
 
     /**
-     * Deletes the target resource. Executes the public operation.
-     *
      * <p>停用中的词才允许删除：启用词先停用再删，避免误删后匹配行为静默变化。</p>
      */
     @Transactional

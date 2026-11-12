@@ -43,9 +43,6 @@ public class ProviderController {
         return optionsService.listProviderAccountOptions(query);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     @PostMapping("/list")
     public PageResult<ProviderAccountItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<ProviderAccountDto> page = providerService.list(
@@ -72,17 +69,11 @@ public class ProviderController {
         return providerService.listAuthAppliers();
     }
 
-    /**
-     * Returns a suggested value. Executes the public operation.
-     */
     @GetMapping("/suggest-code")
     public String suggestCode() {
         return providerService.suggestCode();
     }
 
-    /**
-     * Checks whether the requested condition is satisfied. Executes the public operation.
-     */
     @GetMapping("/check-code")
     public CodeAvailability checkCode(
             @RequestParam String code,
@@ -90,17 +81,11 @@ public class ProviderController {
         return new CodeAvailability(providerService.isCodeAvailable(code, excludeId));
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     @GetMapping("/{id}")
     public ProviderAccountDetail get(@PathVariable Long id) {
         return providerConverter.toDetail(providerService.getById(id));
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @OperationLog(module = "provider-account", operation = "CREATE", entityType = "ProviderAccount",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.code()",
@@ -115,9 +100,6 @@ public class ProviderController {
         return providerConverter.toDetail(created);
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @OperationLog(module = "provider-account", operation = "UPDATE", entityType = "ProviderAccount",
             entityId = "#p0",
             entityNameAfter = "#result.code()",
@@ -133,9 +115,6 @@ public class ProviderController {
         return providerConverter.toDetail(updated);
     }
 
-    /**
-     * Updates the target resource status. Executes the public operation.
-     */
     @OperationLog(module = "provider-account", operation = "UPDATE", entityType = "ProviderAccount",
             entityId = "#p0",
             entityNameAfter = "#result.code()",

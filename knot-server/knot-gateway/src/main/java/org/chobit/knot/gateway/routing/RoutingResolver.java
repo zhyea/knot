@@ -71,8 +71,6 @@ public class RoutingResolver {
     }
 
     /**
-     * Resolves the requested value from current context and configuration. Executes the public operation.
-     *
      * <p>候选只保留「声明了当前请求协议」的模型：协议能力取池内模型的<b>并集</b>（与调试面板一致），
      * 但真正承接请求的候选必须自己支持该协议，避免把请求打到不具备该能力的上游。</p>
      *

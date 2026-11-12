@@ -21,9 +21,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
         this.adminAuthorizationInterceptor = adminAuthorizationInterceptor;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(authInterceptor)

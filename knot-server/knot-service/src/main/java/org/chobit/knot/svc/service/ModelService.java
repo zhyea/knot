@@ -104,23 +104,15 @@ public class ModelService {
         this.requestAdapterCatalog = requestAdapterCatalog;
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<ModelDto> list(PageRequest pageRequest) {
         return list(pageRequest, null, null, null, null, null);
     }
 
-    /**
-     * Returns matching results. Executes the public operation.
-     */
     public PageResult<ModelDto> list(PageRequest pageRequest, String keyword) {
         return list(pageRequest, keyword, null, null, null, null);
     }
 
     /**
-     * Returns matching results. Executes the public operation.
-     *
      * @param logicalModelCode 按绑定统一模型过滤（模型池选模型时用），为空不过滤
      * @param status           按状态过滤（路由规则绑定目标时传 ENABLED，只出已启用模型），为空不过滤
      * @param includeDeleted   管理列表传 true 以便展示已删除行（浅红底 + 恢复按钮），为空等同 false
@@ -148,9 +140,6 @@ public class ModelService {
         }
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public ModelDto getById(Long id) {
         ModelEntity entity = modelMapper.getById(id);
         if (entity == null) {
@@ -167,9 +156,6 @@ public class ModelService {
         return AuditSnapshotSupport.capture(id, key -> JsonKit.toMap(getById(key)));
     }
 
-    /**
-     * Returns whether the current condition is satisfied. Executes the public operation.
-     */
     public boolean isModelCodeAvailable(String modelCode, Long excludeId) {
         String code = modelCode != null ? modelCode.trim() : "";
         if (code.isEmpty()) {
@@ -238,9 +224,6 @@ public class ModelService {
                 .toList();
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @Transactional
     public ModelDto create(ModelDto request) {
         String modelCode = normalizeModelCode(request.modelCode());
@@ -262,9 +245,6 @@ public class ModelService {
         return getById(entity.getId());
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @Transactional
     public ModelDto update(Long id, ModelDto request) {
         ModelEntity existing = modelMapper.getById(id);

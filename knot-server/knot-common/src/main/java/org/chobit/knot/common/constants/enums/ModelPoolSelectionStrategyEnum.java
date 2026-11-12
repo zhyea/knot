@@ -25,9 +25,6 @@ public enum ModelPoolSelectionStrategyEnum implements EnumOption {
         this.label = label;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public String code() {
         return code;
@@ -39,9 +36,6 @@ public enum ModelPoolSelectionStrategyEnum implements EnumOption {
         return label;
     }
 
-    /**
-     * Builds the target value from the source input. Executes the public operation.
-     */
     public static ModelPoolSelectionStrategyEnum fromCode(String code) {
         if (code == null || code.isBlank()) {
             return null;

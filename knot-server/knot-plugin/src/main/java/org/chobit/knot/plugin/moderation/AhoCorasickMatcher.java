@@ -58,9 +58,6 @@ public final class AhoCorasickMatcher {
         buildFailLinks();
     }
 
-    /**
-     * Builds the target value from the source input. Executes the public operation.
-     */
     public static AhoCorasickMatcher of(List<ModerationTerm> words) {
         return new AhoCorasickMatcher(words);
     }

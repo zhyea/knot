@@ -33,9 +33,6 @@ public class TextGenerationProtocolExecutor extends AbstractUpstreamProtocolExec
         super(webClient, usageExtractorRegistry, authApplierCatalog, clientProperties);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @Override
     public boolean supports(ModelApiProtocolEnum protocol) {
         return protocol != null && PROTOCOLS.contains(protocol.canonical());

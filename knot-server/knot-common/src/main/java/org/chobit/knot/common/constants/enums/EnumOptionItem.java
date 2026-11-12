@@ -14,16 +14,10 @@ package org.chobit.knot.common.constants.enums;
  */
 public record EnumOptionItem(Object code, String label) {
 
-    /**
-     * Builds the target value from the source input. Executes the public operation.
-     */
     public static EnumOptionItem of(EnumOption option) {
         return new EnumOptionItem(option.code(), option.label());
     }
 
-    /**
-     * Builds the target value from the source input. Executes the public operation.
-     */
     public static EnumOptionItem of(NumericEnumOption option) {
         return new EnumOptionItem(option.code(), option.label());
     }

@@ -41,9 +41,6 @@ public class RoutingConsumerController {
         return optionsService.listRoutingConsumerOptions(query);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     @PostMapping("/list")
     public PageResult<RoutingConsumer> list(@RequestBody(required = false) PageQuery query) {
         PageResult<RoutingConsumerDto> page =
@@ -75,18 +72,12 @@ public class RoutingConsumerController {
         return routingConsumerConverter.toVO(routingConsumerService.getByCode(code));
     }
 
-    /**
-     * Checks whether the requested condition is satisfied. Executes the public operation.
-     */
     @GetMapping("/check-code")
     public CodeAvailability checkCode(@RequestParam String code,
                                       @RequestParam(required = false) Long excludeId) {
         return new CodeAvailability(routingConsumerService.isConsumerCodeAvailable(code, excludeId));
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @OperationLog(module = "routing", operation = "CREATE", entityType = "RoutingConsumer",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
@@ -98,9 +89,6 @@ public class RoutingConsumerController {
                 routingConsumerService.create(routingConsumerConverter.toDto(request)));
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingConsumer",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
@@ -113,9 +101,6 @@ public class RoutingConsumerController {
                 routingConsumerService.update(id, routingConsumerConverter.toDto(request)));
     }
 
-    /**
-     * Updates the target resource status. Executes the public operation.
-     */
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingConsumer",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
@@ -128,9 +113,6 @@ public class RoutingConsumerController {
                 routingConsumerService.updateStatus(id, Boolean.TRUE.equals(request.enabled())));
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @OperationLog(module = "routing", operation = "UPDATE", entityType = "RoutingConsumer",
             entityId = "#p0",
             entityNameAfter = "#result.name()",

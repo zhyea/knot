@@ -36,9 +36,6 @@ public class AppController {
         return optionsService.listAppOptions(query);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     @PostMapping("/list")
     public PageResult<AppItem> list(@RequestBody PageQuery query) {
         PageResult<AppDto> page = appService.list(
@@ -48,9 +45,6 @@ public class AppController {
         return page.mapList(appConverter::toVOList);
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @OperationLog(module = "app", operation = "CREATE", entityType = "App",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
@@ -62,9 +56,6 @@ public class AppController {
         return appConverter.toVO(created);
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @OperationLog(module = "app", operation = "UPDATE", entityType = "App",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
@@ -77,9 +68,6 @@ public class AppController {
         return appConverter.toVO(updated);
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @OperationLog(module = "app", operation = "DELETE", entityType = "App",
             entityId = "#p0",
             entityName = "@appService.appAuditSnapshot(#p0)?.get('name')",

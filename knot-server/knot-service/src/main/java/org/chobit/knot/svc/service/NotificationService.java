@@ -29,16 +29,10 @@ public class NotificationService {
         this.notificationConverter = notificationConverter;
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<TemplateDto> listTemplates(PageRequest pageRequest) {
         return listTemplates(pageRequest, null);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<TemplateDto> listTemplates(PageRequest pageRequest, String keyword) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<NotifyTemplateEntity> pageInfo = new PageInfo<>(notificationMapper.listTemplates(StringUtils.trimToNull(keyword)));
@@ -46,9 +40,6 @@ public class NotificationService {
         }
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @Transactional
     public TemplateDto createTemplate(TemplateDto request) {
         NotifyTemplateEntity e = new NotifyTemplateEntity();

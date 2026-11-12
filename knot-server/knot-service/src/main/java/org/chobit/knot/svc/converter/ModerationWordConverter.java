@@ -16,9 +16,6 @@ import java.util.List;
 @Component
 public class ModerationWordConverter {
 
-    /**
-     * Converts the source value to the target representation. Executes the public operation.
-     */
     public ModerationWordDto toDto(ModerationWordEntity entity) {
         if (entity == null) {
             return null;
@@ -38,9 +35,6 @@ public class ModerationWordConverter {
         );
     }
 
-    /**
-     * Converts the source value to the target representation. Executes the public operation.
-     */
     public ModerationWordItem toVO(ModerationWordDto dto) {
         if (dto == null) {
             return null;
@@ -75,9 +69,6 @@ public class ModerationWordConverter {
         );
     }
 
-    /**
-     * Converts the source value to the target representation. Executes the public operation.
-     */
     public ModerationWordEntity toEntity(ModerationWordDto dto) {
         if (dto == null) {
             return null;
@@ -94,9 +85,6 @@ public class ModerationWordConverter {
         return entity;
     }
 
-    /**
-     * Converts the source value to the target representation. Executes the public operation.
-     */
     public List<ModerationWordItem> toVOList(List<ModerationWordDto> list) {
         return list == null ? List.of() : list.stream().map(this::toVO).toList();
     }

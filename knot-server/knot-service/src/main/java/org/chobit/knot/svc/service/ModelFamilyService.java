@@ -53,9 +53,6 @@ public class ModelFamilyService {
         this.converter = converter;
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<ModelFamilyItem> list(PageRequest pageRequest, String keyword) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<ModelFamilyEntity> pageInfo = new PageInfo<>(modelFamilyMapper.list(StringUtils.trimToNull(keyword)));
@@ -64,16 +61,10 @@ public class ModelFamilyService {
         }
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public ModelFamilyItem getById(Long id) {
         return converter.toItem(requireEntity(id));
     }
 
-    /**
-     * Checks whether the requested condition is satisfied. Executes the public operation.
-     */
     public boolean isCodeAvailable(String code, Long excludeId) {
         String normalized = normalizeCode(code);
         if (normalized == null) {
@@ -83,9 +74,6 @@ public class ModelFamilyService {
         return existing == null || (excludeId != null && excludeId.equals(existing.getId()));
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @Transactional
     public ModelFamilyItem create(ModelFamilyItem request) {
         String code = normalizeCode(request.code());
@@ -110,9 +98,6 @@ public class ModelFamilyService {
         return getById(created.id());
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @Transactional
     public ModelFamilyItem update(Long id, ModelFamilyItem request) {
         ModelFamilyEntity existing = requireEntity(id);
@@ -130,9 +115,6 @@ public class ModelFamilyService {
         return getById(id);
     }
 
-    /**
-     * Updates the target resource status. Executes the public operation.
-     */
     @Transactional
     public ModelFamilyItem updateStatus(Long id, boolean enabled) {
         ModelFamilyEntity existing = requireEntity(id);
@@ -142,9 +124,6 @@ public class ModelFamilyService {
         return getById(id);
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @Transactional
     public void delete(Long id) {
         ModelFamilyEntity existing = requireEntity(id);

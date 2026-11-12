@@ -31,9 +31,6 @@ public enum RoutingTestStatusEnum implements EnumOption {
         return label;
     }
 
-    /**
-     * Builds the target value from the source input. Executes the public operation.
-     */
     public static RoutingTestStatusEnum fromCode(String code) {
         if (code == null || code.isBlank()) {
             return null;

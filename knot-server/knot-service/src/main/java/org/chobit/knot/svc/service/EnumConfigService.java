@@ -96,16 +96,10 @@ public class EnumConfigService {
         this.converter = converter;
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<EnumConfigItem> list(PageRequest pageRequest) {
         return list(pageRequest, null);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<EnumConfigItem> list(PageRequest pageRequest, String category) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<EnumConfigEntity> pageInfo = new PageInfo<>(
@@ -138,30 +132,18 @@ public class EnumConfigService {
         return converter.toItemList(items);
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public List<String> listCategories() {
         return enumConfigMapper.listCategories();
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public List<EnumCategorySummaryItem> listCategorySummaries(String keyword) {
         return converter.toSummaryItemList(enumConfigMapper.listCategorySummaries(StringUtils.trimToNull(keyword)));
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public EnumConfigItem getById(Long id) {
         return converter.toItem(requireEntity(id));
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @CacheEvict(cacheNames = ENUM_ITEMS_CACHE, allEntries = true)
     @Transactional
     public EnumConfigItem create(EnumConfigItem request) {
@@ -235,9 +217,6 @@ public class EnumConfigService {
         return newCode;
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @CacheEvict(cacheNames = ENUM_ITEMS_CACHE, allEntries = true)
     @Transactional
     public EnumConfigItem deleteReturning(Long id) {

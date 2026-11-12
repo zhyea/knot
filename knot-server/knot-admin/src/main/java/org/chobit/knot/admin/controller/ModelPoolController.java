@@ -46,26 +46,17 @@ public class ModelPoolController {
         return optionsService.listModelPoolOptions(query);
     }
 
-    /**
-     * Checks whether the requested condition is satisfied. Executes the public operation.
-     */
     @GetMapping("/check-code")
     public CodeAvailability checkCode(@RequestParam String code,
                                       @RequestParam(required = false) Long excludeId) {
         return new CodeAvailability(modelPoolService.isPoolCodeAvailable(code, excludeId));
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     @GetMapping("/{id}")
     public ModelPool get(@PathVariable Long id) {
         return modelPoolConverter.toVO(modelPoolService.getById(id));
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     @PostMapping("/list")
     public PageResult<ModelPool> list(@RequestBody(required = false) PageQuery query) {
         PageResult<ModelPoolDto> page = modelPoolService.list(
@@ -78,9 +69,6 @@ public class ModelPoolController {
         return page.mapList(modelPoolConverter::toVOList);
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @OperationLog(module = "model-pool", operation = "CREATE", entityType = "ModelPool",
             entityIdAfter = "#result.id()",
             entityNameAfter = "#result.name()",
@@ -91,9 +79,6 @@ public class ModelPoolController {
         return modelPoolConverter.toVO(modelPoolService.create(modelPoolConverter.toDto(request)));
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @OperationLog(module = "model-pool", operation = "UPDATE", entityType = "ModelPool",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
@@ -105,9 +90,6 @@ public class ModelPoolController {
         return modelPoolConverter.toVO(modelPoolService.update(id, modelPoolConverter.toDto(request)));
     }
 
-    /**
-     * Updates the target resource status. Executes the public operation.
-     */
     @OperationLog(module = "model-pool", operation = "UPDATE", entityType = "ModelPool",
             entityId = "#p0",
             entityNameAfter = "#result.name()",
@@ -119,9 +101,6 @@ public class ModelPoolController {
         return modelPoolConverter.toVO(modelPoolService.updateStatus(id, Boolean.TRUE.equals(request.enabled())));
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @OperationLog(module = "model-pool", operation = "DELETE", entityType = "ModelPool",
             entityId = "#p0",
             description = "'删除模型池'",

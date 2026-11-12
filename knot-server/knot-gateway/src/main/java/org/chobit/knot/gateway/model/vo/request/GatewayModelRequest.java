@@ -9,9 +9,6 @@ import java.util.Map;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class GatewayModelRequest {
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public String model;
 
     public Boolean stream;
@@ -26,9 +23,6 @@ public class GatewayModelRequest {
         extra.put(name, value);
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     @JsonAnyGetter
     public Map<String, Object> getExtra() {
         return extra;

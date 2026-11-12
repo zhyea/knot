@@ -73,9 +73,6 @@ public class ProviderService {
     }
 
     /**
-     * Lists matching results. Executes the public operation.
-     */
-    /**
      * 列表只返回列表页展示所需的字段：不读取凭据、不加载频控与额度策略。
      * 认证配置与策略统一由 {@link #getById(Long)} 提供。
      * enabled 为 null 时不过滤状态；true 只返回 ENABLED，false 只返回 DISABLED。
@@ -98,9 +95,6 @@ public class ProviderService {
         return EnabledStatusEnum.codeOf(Boolean.TRUE.equals(enabled));
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public ProviderAccountDto getById(Long id) {
         ProviderAccountEntity entity = providerAccountMapper.getById(id);
         if (entity == null) {
@@ -109,9 +103,6 @@ public class ProviderService {
         return enrich(entity);
     }
 
-    /**
-     * Returns a suggested value. Executes the public operation.
-     */
     public String suggestCode() {
         for (int i = 0; i < 10; i++) {
             String code = ProviderCodes.generate();
@@ -122,9 +113,6 @@ public class ProviderService {
         throw new BusinessException(ErrorCode.CONFLICT, "无法生成可用供应商编码，请手动填写");
     }
 
-    /**
-     * Returns whether the current condition is satisfied. Executes the public operation.
-     */
     /**
      * Lists credential types supported for provider accounts.
      */
@@ -208,9 +196,6 @@ public class ProviderService {
         });
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @Transactional
     public ProviderAccountDto create(ProviderAccountDto request) {
         assertProviderProfileCodeExists(request.providerCode());
@@ -230,9 +215,6 @@ public class ProviderService {
         return getById(entity.getId());
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @Transactional
     public ProviderAccountDto update(Long id, ProviderAccountDto request) {
         ProviderAccountEntity existing = providerAccountMapper.getById(id);

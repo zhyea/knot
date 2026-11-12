@@ -51,23 +51,15 @@ public class LogicalModelService {
         this.logicalModelConverter = logicalModelConverter;
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public PageResult<LogicalModelDto> list(PageRequest pageRequest) {
         return list(pageRequest, null, null, null);
     }
 
-    /**
-     * Returns matching results. Executes the public operation.
-     */
     public PageResult<LogicalModelDto> list(PageRequest pageRequest, String keyword) {
         return list(pageRequest, keyword, null, null);
     }
 
     /**
-     * Returns matching results. Executes the public operation.
-     *
      * @param includeDeleted 管理列表传 true 以便展示已删除行（浅红底 + 恢复按钮）；
      *                       下拉/绑定类查询保持 false，已删除项不列为备选
      */
@@ -98,9 +90,6 @@ public class LogicalModelService {
         return result.isEmpty() ? null : result;
     }
 
-    /**
-     * Returns the requested value. Executes the public operation.
-     */
     public LogicalModelDto getById(Long id) {
         LogicalModelEntity entity = logicalModelMapper.getById(id);
         if (entity == null) {
@@ -120,9 +109,6 @@ public class LogicalModelService {
         return count == null ? 0L : count;
     }
 
-    /**
-     * Returns whether the current condition is satisfied. Executes the public operation.
-     */
     public boolean isModelCodeAvailable(String modelCode, Long excludeId) {
         String code = normalizeCode(modelCode);
         if (code.isEmpty()) {
@@ -132,9 +118,6 @@ public class LogicalModelService {
         return count == null || count == 0;
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @Transactional
     public LogicalModelDto create(LogicalModelDto request) {
         String code = requireCode(request.modelCode());
@@ -149,9 +132,6 @@ public class LogicalModelService {
         return getById(entity.getId());
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @Transactional
     public LogicalModelDto update(Long id, LogicalModelDto request) {
         LogicalModelEntity existing = logicalModelMapper.getById(id);
@@ -186,9 +166,6 @@ public class LogicalModelService {
         return getById(id);
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @Transactional
     public void delete(Long id) {
         LogicalModelEntity entity = logicalModelMapper.getById(id);
@@ -243,9 +220,6 @@ public class LogicalModelService {
         });
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public List<ProviderModelMappingDto> listMappings(String logicalModelCode) {
         ensureLogicalModel(logicalModelCode);
         return logicalModelMapper.listMappings(logicalModelCode).stream()
@@ -253,9 +227,6 @@ public class LogicalModelService {
                 .toList();
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     public List<ProviderModelMappingDto> listMappingsByProviderModel(Long modelId) {
         ensureProviderModel(modelId);
         return logicalModelMapper.listMappingsByModelId(modelId).stream()
@@ -263,9 +234,6 @@ public class LogicalModelService {
                 .toList();
     }
 
-    /**
-     * Creates a new resource. Executes the public operation.
-     */
     @Transactional
     public ProviderModelMappingDto createMapping(String logicalModelCode, ProviderModelMappingDto request) {
         ensureLogicalModel(logicalModelCode);
@@ -276,9 +244,6 @@ public class LogicalModelService {
         return logicalModelConverter.toMappingDto(logicalModelMapper.getMappingById(entity.getId()));
     }
 
-    /**
-     * Updates the target resource. Executes the public operation.
-     */
     @Transactional
     public ProviderModelMappingDto updateMapping(String logicalModelCode, Long mappingId, ProviderModelMappingDto request) {
         ensureLogicalModel(logicalModelCode);
@@ -294,9 +259,6 @@ public class LogicalModelService {
         return logicalModelConverter.toMappingDto(logicalModelMapper.getMappingById(mappingId));
     }
 
-    /**
-     * Deletes the target resource. Executes the public operation.
-     */
     @Transactional
     public void deleteMapping(String logicalModelCode, Long mappingId) {
         int affected = logicalModelMapper.deleteMapping(logicalModelCode, mappingId);

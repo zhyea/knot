@@ -38,17 +38,11 @@ public class ScheduledTaskSchedulerService {
         this.taskService = taskService;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     @EventListener(ApplicationReadyEvent.class)
     public void scheduleEnabledTasks() {
         taskService.listEnabledTasks().forEach(this::reschedule);
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public void reschedule(ScheduledTaskDto task) {
         try {
             unschedule(task.taskCode());
@@ -80,9 +74,6 @@ public class ScheduledTaskSchedulerService {
         }
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
     public void unschedule(String taskCode) {
         try {
             scheduler.deleteJob(jobKey(taskCode));
@@ -91,9 +82,6 @@ public class ScheduledTaskSchedulerService {
         }
     }
 
-    /**
-     * Triggers the requested operation immediately. Executes the public operation.
-     */
     public void triggerNow(String taskCode) {
         try {
             ScheduledTaskDto task = taskService.getTaskByCode(taskCode);

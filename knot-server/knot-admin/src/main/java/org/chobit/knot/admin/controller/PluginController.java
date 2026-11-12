@@ -25,9 +25,6 @@ public class PluginController {
         this.pluginConverter = pluginConverter;
     }
 
-    /**
-     * Lists matching results. Executes the public operation.
-     */
     @PostMapping("/list")
     public PageResult<PluginItem> list(@RequestBody(required = false) PageQuery query) {
         PageResult<PluginDto> page = pluginService.list(
