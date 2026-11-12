@@ -88,8 +88,9 @@ public class AsyncTaskSupport {
      * 读档案并投影为不可变快照；档案不可用时返回 null（由调用方判为「配置不完整」→ 回落同步）。
      *
      * <p>⭐ <b>运行时两道防线</b>（{@code 任务协议绑定方案 §4.6}）：管理面保存绑定时会校验
-     * 「档案存在且启用、协议一致」，但<b>迁移脚本与手写 SQL 是合法写入路径</b>，
-     * 所以运行时必须再判一次。判据不同：管理面回答「能不能存」，这里回答「现在能不能用」。</p>
+     * 「档案存在且启用、协议一致、协议非流式」，但<b>迁移脚本与手写 SQL 是合法写入路径</b>，
+     * 所以运行时必须再判一次，且四条判据与保存期同源。判据不同：管理面回答「能不能存」，
+     * 这里回答「现在能不能用」。</p>
      *
      * <p>⚠ 回落而不是抛错：请求本身没坏（上游已成功、响应体在手上），只是这次不计费为异步。
      * 抛 500 会把一个纯配置错误变成用户可见故障；但日志必须是 {@code error} 且带齐三方信息，
@@ -99,6 +100,19 @@ public class AsyncTaskSupport {
      */
     public AsyncTaskSpec loadSpec(String profileCode, ModelApiProtocolEnum protocol) {
         if (StringUtils.isBlank(profileCode)) {
+            return null;
+        }
+        // 流式协议不可能异步：一次提交 + N 次查询要求「响应先结束、结果稍后再问」，
+        // 而流式是边收边发，两者结构上互斥。管理面保存绑定已按同一判据
+        // （{@link ModelApiProtocolEnum#streamSupported}）拒过，这里再判一次是因为
+        // 迁移脚本 / 手写 SQL 同样能写出这种行，而它的失效方式最难查：
+        // 上游回了 SSE → 请求链路走流式分支 → 异步提交被静默跳过，
+        // 于是既没有任务行去补记用量，链路又因为「自认为异步」跳过了频控记账，
+        // 这笔调用既不计数也不计费，日志里连一行 WARN 都没有。
+        // 放在档案查询之前：既省一次 DB，也让「这条配置永远不可能成立」在第一步就短路。
+        if (protocol != null && protocol.streamSupported()) {
+            log.error("Async task profile bound to a streaming protocol, fallback to sync: profile={} protocol={}",
+                    profileCode, protocol.code());
             return null;
         }
         String code = profileCode.trim();

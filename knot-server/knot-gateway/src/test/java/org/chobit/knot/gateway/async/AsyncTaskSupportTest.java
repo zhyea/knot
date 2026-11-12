@@ -16,10 +16,14 @@ import org.chobit.knot.gateway.runtime.GatewayRequestHandler;
 import org.chobit.knot.gateway.runtime.GatewayTraceContext;
 import org.chobit.knot.svc.dto.routing.RoutingRuleTargetDto;
 import org.chobit.knot.svc.dto.async.AsyncTaskDraftDto;
+import org.chobit.knot.svc.dto.async.AsyncTaskProfileDto;
+import org.chobit.knot.svc.service.AsyncTaskProfileService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -167,9 +171,60 @@ class AsyncTaskSupportTest {
         assertFalse(code.contains("-"));
     }
 
+    @Test
+    @DisplayName("⭐ 流式协议上的异步档案一律不生效：手改 SQL 写出的行也挡在这里")
+    void streamingProtocolNeverRunsAsync() {
+        // 失效方式最难查的一种：上游回 SSE → 请求链路走流式分支 → 异步提交被静默跳过，
+        // 于是既没有任务行去补记用量、链路又因为「自认为异步」跳过了频控记账，
+        // 这笔调用既不计数也不计费，且日志里没有任何痕迹（2026-11-12 定位）。
+        int streamable = 0;
+        for (ModelApiProtocolEnum protocol : ModelApiProtocolEnum.values()) {
+            if (!protocol.streamSupported()) {
+                continue;
+            }
+            streamable++;
+            List<String> queried = new ArrayList<>();
+            // ⚠ 档案协议必须与「绑定的协议」一致，否则「协议不匹配」那条会先把它拦住，
+            // 用例就变成在测另一条规则（第一版夹具踩过这个坑：探针去掉 guard 仍然绿）。
+            AsyncTaskSupport guarded = supportWith(profileOf(protocol.code()), queried);
+            assertNull(guarded.loadSpec("KLING_TASK", protocol), protocol.code() + " 是流式协议，必须判为不可用");
+            assertTrue(queried.isEmpty(), protocol.code() + " 应在查档案之前短路，实际查了：" + queried);
+        }
+        assertTrue(streamable > 0, "枚举里必须有流式协议，否则本用例形同虚设");
+
+        // 非流式协议照旧生效：证明这条 guard 只拦流式，不是把异步整体关掉
+        List<String> queried = new ArrayList<>();
+        AsyncTaskSupport normal = supportWith(profileOf("VIDEO_GENERATIONS"), queried);
+        assertNotNull(normal.loadSpec("KLING_TASK", ModelApiProtocolEnum.VIDEO_GENERATIONS));
+        assertEquals(List.of("KLING_TASK"), queried);
+    }
+
     /** 夹具走「构造实体 → 真 Converter」：record 12 个位置参数手写易错位 */
     private static final GatewayConfigConverter CONVERTER =
             Mappers.getMapper(GatewayConfigConverter.class);
+
+    /** 档案服务替身：用子类覆写而非 mock（JDK 25 下 Mockito 不动具体类），并记录「查过哪些编码」 */
+    private static AsyncTaskSupport supportWith(AsyncTaskProfileDto profile, List<String> queried) {
+        AsyncTaskProfileService profiles = new AsyncTaskProfileService(null, null) {
+            @Override
+            public AsyncTaskProfileDto getByProfileCode(String profileCode) {
+                queried.add(profileCode);
+                return profile;
+            }
+
+            @Override
+            public AsyncTaskProfileDto getEnabledByProfileCode(String profileCode) {
+                return profile;
+            }
+        };
+        return new AsyncTaskSupport(profiles, null, null, null);
+    }
+
+    private static AsyncTaskProfileDto profileOf(String protocol) {
+        return new AsyncTaskProfileDto("KLING_TASK", protocol, "GET", "/v1/tasks/{task_id}",
+                "data.id", "data.status", "status == 'succeed'", "status == 'failed'", null,
+                "data.url", null, null, 7, 5000, 1000, 30000, 360, 30L);
+    }
 
     private static ModelApiBindingConfigVo binding(String asyncProfileCode) {
         ModelApiBindingEntity entity = new ModelApiBindingEntity();
