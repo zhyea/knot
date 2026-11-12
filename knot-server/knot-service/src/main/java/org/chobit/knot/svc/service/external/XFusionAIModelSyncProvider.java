@@ -69,9 +69,6 @@ public class XFusionAIModelSyncProvider extends AbstractExternalModelSyncProvide
             .connectTimeout(Duration.ofSeconds(15))
             .build();
 
-    /**
-     * Constructs a new instance.
-     */
     public XFusionAIModelSyncProvider(ExternalModelMapper externalModelMapper) {
         super(externalModelMapper);
     }

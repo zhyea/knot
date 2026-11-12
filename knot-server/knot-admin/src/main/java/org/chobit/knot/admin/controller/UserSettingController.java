@@ -20,9 +20,6 @@ public class UserSettingController {
     private final UserSettingService userSettingService;
     private final CurrentAuth currentAuth;
 
-    /**
-     * Constructs a new instance.
-     */
     public UserSettingController(UserSettingService userSettingService,
                                  CurrentAuth currentAuth) {
         this.userSettingService = userSettingService;

@@ -21,9 +21,6 @@ public class ExternalModelController {
     private final ExternalModelService externalModelService;
     private final LogicalModelConverter logicalModelConverter;
 
-    /**
-     * Constructs a new instance.
-     */
     public ExternalModelController(ExternalModelService externalModelService,
                                    LogicalModelConverter logicalModelConverter) {
         this.externalModelService = externalModelService;

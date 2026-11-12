@@ -21,9 +21,6 @@ public class NotificationService {
     private final NotificationMapper notificationMapper;
     private final NotificationConverter notificationConverter;
 
-    /**
-     * Constructs a new instance.
-     */
     public NotificationService(NotificationMapper notificationMapper, NotificationConverter notificationConverter) {
         this.notificationMapper = notificationMapper;
         this.notificationConverter = notificationConverter;

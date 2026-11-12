@@ -43,9 +43,6 @@ public class MaxRequestBodySizeFilter implements WebFilter {
     private final long maxBytes;
     private final ObjectMapper objectMapper;
 
-    /**
-     * Constructs a new instance.
-     */
     public MaxRequestBodySizeFilter(@Value("${knot.gateway.max-request-body-size:10485760}") long maxBytes,
                                    ObjectMapper objectMapper) {
         this.maxBytes = maxBytes;

@@ -22,9 +22,6 @@ public class RoutingTestStreamHandle implements Closeable {
     private final RoutingTestPreparation preparation;
     private boolean closed;
 
-    /**
-     * Constructs a new instance.
-     */
     public RoutingTestStreamHandle(ClientHttpResponse response, RoutingTestPreparation preparation) {
         this.response = response;
         this.preparation = preparation;

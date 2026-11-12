@@ -8,9 +8,6 @@ public class HealthService {
 
     private final PingMapper pingMapper;
 
-    /**
-     * Constructs a new instance.
-     */
     public HealthService(PingMapper pingMapper) {
         this.pingMapper = pingMapper;
     }

@@ -54,9 +54,6 @@ public class RoutingRuleController {
     private final GatewayRuntimeProperties gatewayRuntimeProperties;
     private final RoutingTestBillingVerdictService routingTestBillingVerdictService;
 
-    /**
-     * Constructs a new instance.
-     */
     public RoutingRuleController(RoutingRuleService routingRuleService,
                                  RoutingRuleDebugService routingRuleDebugService,
                                  RoutingRuleConverter routingRuleConverter,

@@ -36,9 +36,6 @@ public class ModerationGuard {
     private final ModerationWordCache wordCache;
     private final PluginProperties properties;
 
-    /**
-     * Constructs a new instance.
-     */
     public ModerationGuard(ModerationEventSink eventSink,
                            ModerationWordCache wordCache,
                            PluginProperties properties) {

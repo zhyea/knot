@@ -28,9 +28,6 @@ public class AuthorizationApiBindingController {
 
     private final AuthorizationApiBindingService apiBindingService;
 
-    /**
-     * Constructs a new instance.
-     */
     public AuthorizationApiBindingController(AuthorizationApiBindingService apiBindingService) {
         this.apiBindingService = apiBindingService;
     }

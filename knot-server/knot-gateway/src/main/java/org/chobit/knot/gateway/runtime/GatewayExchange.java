@@ -22,23 +22,14 @@ public class GatewayExchange {
     @Setter
     private ProxyResult proxyResult;
 
-    /**
-     * Constructs a new instance.
-     */
     public GatewayExchange(Map<String, Object> requestBody) {
         this(requestBody, MediaType.APPLICATION_JSON);
     }
 
-    /**
-     * Constructs a new instance.
-     */
     public GatewayExchange(Map<String, Object> requestBody, MediaType contentType) {
         this(requestBody, contentType, GatewayHttpExchange.noop());
     }
 
-    /**
-     * Constructs a new instance.
-     */
     public GatewayExchange(Map<String, Object> requestBody, MediaType contentType, GatewayHttpExchange http) {
         this.requestBody = requestBody == null ? new LinkedHashMap<>() : new LinkedHashMap<>(requestBody);
         this.contentType = contentType == null ? MediaType.APPLICATION_JSON : contentType;

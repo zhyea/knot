@@ -44,9 +44,6 @@ public class ExternalModelService {
     private final ModelFamilyResolver modelFamilyResolver;
     private final ExternalModelConverter converter;
 
-    /**
-     * Constructs a new instance.
-     */
     public ExternalModelService(ExternalModelMapper externalModelMapper,
                                 LogicalModelService logicalModelService,
                                 List<ExternalModelSyncProvider> providers,

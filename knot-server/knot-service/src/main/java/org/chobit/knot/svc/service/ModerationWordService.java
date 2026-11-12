@@ -54,9 +54,6 @@ public class ModerationWordService {
     private final ModerationWordMapper wordMapper;
     private final ModerationWordConverter converter;
 
-    /**
-     * Constructs a new instance.
-     */
     public ModerationWordService(ModerationWordMapper wordMapper,
                                  ModerationWordConverter converter) {
         this.wordMapper = wordMapper;

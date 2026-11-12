@@ -8,8 +8,14 @@
 - 推荐新增：`api_docs_versions`、`api_docs_changes`。
 
 ## 3. 接口设计
-- `GET /api/docs/openapi.json`
-- `GET /api/docs/changelog`
+- `GET /api/docs/openapi.json` —— ✅ 已实现：springdoc 运行时生成（`springdoc.api-docs.path=/api/docs/openapi.json`，
+  `packages-to-scan=org.chobit.knot.admin.controller`）。注意 `packages-to-scan` 是字符串，指错会让文档**空**而不报错，
+  由真启冒烟核对 paths 数量兜住。
+- `GET /api/docs/changelog` —— ❌ 未实现（2026-11-12 起明确）：原有一个 `POST /api/docs/changelog` 占位端点返回两条
+  硬编码版本，`POST /api/docs/openapi.json` 同样是硬编码骨架（paths 只有 `/api/health`）。两者都不随代码演进、
+  仓库内零引用，已一并删除（含 `data.sql` 的权限绑定 54/55，迁移脚本
+  `docs/database/migration/2026-11-12-remove-api-doc-permission-bindings.sql`）。
+  ⚠ 删除前文档写 `GET`、实现是 `POST`，本来就不一致——这正是不该留占位端点的理由。
 
 ## 4. 关键流程
 - 构建阶段生成 OpenAPI -> 启动时注册 -> 发布时固化快照。

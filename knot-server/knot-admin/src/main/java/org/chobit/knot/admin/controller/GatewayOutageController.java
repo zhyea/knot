@@ -37,9 +37,6 @@ public class GatewayOutageController {
     private final GatewayOutageRunner gatewayOutageRunner;
     private final GatewayRuntimeProperties gatewayRuntimeProperties;
 
-    /**
-     * Constructs a new instance.
-     */
     public GatewayOutageController(GatewayOutageRunner gatewayOutageRunner,
                                    GatewayRuntimeProperties gatewayRuntimeProperties) {
         this.gatewayOutageRunner = gatewayOutageRunner;

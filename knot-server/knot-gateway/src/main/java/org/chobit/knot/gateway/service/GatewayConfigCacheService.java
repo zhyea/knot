@@ -99,9 +99,6 @@ public class GatewayConfigCacheService {
     private final LoadingCache<ResourceKey, Optional<TrafficPolicies>> trafficPoliciesCache;
     private final Cache<BillingRuleKey, Optional<BillingRuleConfigVo>> billingRuleCache;
 
-    /**
-     * Constructs a new instance.
-     */
     public GatewayConfigCacheService(GatewayConfigQueryService configQuery,
                                      ResourceTrafficPolicySupport trafficPolicySupport,
                                      @Qualifier("gatewayConfigRefreshExecutor") Executor refreshExecutor) {

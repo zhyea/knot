@@ -51,9 +51,6 @@ public class ProviderService {
     private final ResourceTrafficPolicySupport trafficPolicySupport;
     private final UpstreamAuthApplierCatalog authApplierCatalog;
 
-    /**
-     * Constructs a new instance.
-     */
     public ProviderService(ProviderAccountMapper providerAccountMapper,
                            ProviderProfileMapper providerProfileMapper,
                            ProviderCredentialMapper providerCredentialMapper,

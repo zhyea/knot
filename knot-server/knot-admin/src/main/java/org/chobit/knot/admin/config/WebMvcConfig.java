@@ -12,9 +12,6 @@ public class WebMvcConfig implements WebMvcConfigurer {
     private final AuthInterceptor authInterceptor;
     private final AdminAuthorizationInterceptor adminAuthorizationInterceptor;
 
-    /**
-     * Constructs a new instance.
-     */
     public WebMvcConfig(AuthInterceptor authInterceptor,
                         AdminAuthorizationInterceptor adminAuthorizationInterceptor) {
         this.authInterceptor = authInterceptor;

@@ -57,9 +57,6 @@ public class UserService {
     private final UserConverter userConverter;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    /**
-     * Constructs a new instance.
-     */
     public UserService(UserMapper userMapper,
                        DepartmentMapper departmentMapper,
                        AdminAuthorizationManageMapper roleMapper,
@@ -115,9 +112,6 @@ public class UserService {
         userMapper.updateUserPassword(userId, passwordEncoder.encode(password));
     }
 
-    /**
-     * Lists matching results.
-     */
     public PageResult<UserDto> listUsers(PageRequest pageRequest, String keyword) {
         try (Page<?> ignored = PageHelper.startPage(pageRequest.pageNum(), pageRequest.pageSize())) {
             PageInfo<UserEntity> pageInfo = new PageInfo<>(userMapper.listUsers(StringUtils.trimToNull(keyword)));

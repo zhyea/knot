@@ -46,9 +46,6 @@ public class ModelApiBindingSupport {
      */
     private final AsyncTaskProfileMapper asyncTaskProfileMapper;
 
-    /**
-     * Constructs a new instance.
-     */
     public ModelApiBindingSupport(ModelApiBindingMapper modelApiBindingMapper,
                                   AsyncTaskProfileMapper asyncTaskProfileMapper) {
         this.modelApiBindingMapper = modelApiBindingMapper;

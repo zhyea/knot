@@ -14,8 +14,6 @@ public final class OutageKeys {
     private final String prefix;
 
     /**
-     * Constructs a new instance.
-     *
      * @param prefix 键前缀，多环境共用同一 Redis 时用于隔离
      */
     public OutageKeys(String prefix) {

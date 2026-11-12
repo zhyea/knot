@@ -23,9 +23,6 @@ public class TextGenerationProtocolExecutor extends AbstractUpstreamProtocolExec
             ModelApiProtocolEnum.COMPLETIONS
     );
 
-    /**
-     * Constructs a new instance.
-     */
     public TextGenerationProtocolExecutor(WebClient webClient,
                                           UsageExtractorRegistry usageExtractorRegistry,
                                           UpstreamAuthApplierCatalog authApplierCatalog,

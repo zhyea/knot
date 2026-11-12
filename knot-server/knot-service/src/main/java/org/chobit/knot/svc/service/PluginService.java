@@ -28,9 +28,6 @@ public class PluginService implements PluginBindingProvider {
     private final PluginInstanceMapper pluginMapper;
     private final PluginConverter pluginConverter;
 
-    /**
-     * Constructs a new instance.
-     */
     public PluginService(PluginInstanceMapper pluginMapper, PluginConverter pluginConverter) {
         this.pluginMapper = pluginMapper;
         this.pluginConverter = pluginConverter;

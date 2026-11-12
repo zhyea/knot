@@ -32,9 +32,6 @@ public class ModelPoolController {
     private final ModelPoolConverter modelPoolConverter;
     private final OptionsService optionsService;
 
-    /**
-     * Constructs a new instance.
-     */
     public ModelPoolController(ModelPoolService modelPoolService, ModelPoolConverter modelPoolConverter, OptionsService optionsService) {
         this.modelPoolService = modelPoolService;
         this.modelPoolConverter = modelPoolConverter;

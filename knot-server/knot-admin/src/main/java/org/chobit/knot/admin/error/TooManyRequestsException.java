@@ -11,9 +11,6 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
 public class TooManyRequestsException extends BusinessException {
 
-    /**
-     * Constructs a new instance.
-     */
     public TooManyRequestsException(String message) {
         super(ErrorCode.TOO_MANY_REQUESTS, message);
     }

@@ -14,9 +14,6 @@ public class UserSettingService {
 
     private final UserSettingMapper userSettingMapper;
 
-    /**
-     * Constructs a new instance.
-     */
     public UserSettingService(UserSettingMapper userSettingMapper) {
         this.userSettingMapper = userSettingMapper;
     }

@@ -14,9 +14,6 @@ public class HealthController {
 
     private final HealthService healthService;
 
-    /**
-     * Constructs a new instance.
-     */
     public HealthController(HealthService healthService) {
         this.healthService = healthService;
     }

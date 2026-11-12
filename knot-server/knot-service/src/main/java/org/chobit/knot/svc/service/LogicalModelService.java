@@ -38,9 +38,6 @@ public class LogicalModelService {
     private final ExternalModelMapper externalModelMapper;
     private final LogicalModelConverter logicalModelConverter;
 
-    /**
-     * Constructs a new instance.
-     */
     public LogicalModelService(LogicalModelMapper logicalModelMapper,
                                ModelMapper modelMapper,
                                ExternalModelMapper externalModelMapper,

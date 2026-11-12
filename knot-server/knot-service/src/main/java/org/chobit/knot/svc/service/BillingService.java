@@ -58,9 +58,6 @@ public class BillingService {
     private final BillingRuleMapper billingRuleMapper;
     private final BillingConverter billingConverter;
 
-    /**
-     * Constructs a new instance.
-     */
     public BillingService(BillingRuleMapper billingRuleMapper, BillingConverter billingConverter) {
         this.billingRuleMapper = billingRuleMapper;
         this.billingConverter = billingConverter;

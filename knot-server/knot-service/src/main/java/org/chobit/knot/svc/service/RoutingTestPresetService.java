@@ -33,9 +33,6 @@ public class RoutingTestPresetService {
     private final LogicalModelMapper logicalModelMapper;
     private final RoutingTestPresetConverter presetConverter;
 
-    /**
-     * Constructs a new instance.
-     */
     public RoutingTestPresetService(RoutingTestPresetMapper presetMapper,
                                     LogicalModelMapper logicalModelMapper,
                                     RoutingTestPresetConverter presetConverter) {

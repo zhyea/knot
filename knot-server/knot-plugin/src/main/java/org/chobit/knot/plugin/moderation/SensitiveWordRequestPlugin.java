@@ -23,9 +23,6 @@ public class SensitiveWordRequestPlugin implements PluginHandler<GatewayPluginCo
 
     private final ModerationGuard guard;
 
-    /**
-     * Constructs a new instance.
-     */
     public SensitiveWordRequestPlugin(ModerationGuard guard) {
         this.guard = guard;
     }

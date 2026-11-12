@@ -30,9 +30,6 @@ public class ScheduledTaskSchedulerService {
     private final Scheduler scheduler;
     private final ScheduledTaskService taskService;
 
-    /**
-     * Constructs a new instance.
-     */
     public ScheduledTaskSchedulerService(Scheduler scheduler, ScheduledTaskService taskService) {
         this.scheduler = scheduler;
         this.taskService = taskService;

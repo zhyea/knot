@@ -47,8 +47,6 @@ public class OutageAdminController {
     private final OutageAdminProperties properties;
 
     /**
-     * Constructs a new instance.
-     *
      * @param store      摘除状态存储（当前生效档位）
      * @param keys       键工厂
      * @param properties 管理面准入配置

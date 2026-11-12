@@ -16,9 +16,6 @@ public class NotificationController {
     private final NotificationService notificationService;
     private final NotificationConverter notificationConverter;
 
-    /**
-     * Constructs a new instance.
-     */
     public NotificationController(NotificationService notificationService, NotificationConverter notificationConverter) {
         this.notificationService = notificationService;
         this.notificationConverter = notificationConverter;

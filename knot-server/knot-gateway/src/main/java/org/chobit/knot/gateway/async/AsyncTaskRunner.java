@@ -86,9 +86,6 @@ public class AsyncTaskRunner {
 
     private final AsyncTaskRunPolicy policy;
 
-    /**
-     * Constructs a new instance.
-     */
     public AsyncTaskRunner(AsyncTaskService taskService,
                            AsyncTaskQueryPort queryPort,
                            AsyncTaskSettlementPort settlementPort,

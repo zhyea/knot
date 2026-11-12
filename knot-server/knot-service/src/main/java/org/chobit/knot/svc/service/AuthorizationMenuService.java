@@ -26,9 +26,6 @@ public class AuthorizationMenuService {
     private final AuthorizationManageSupport support;
     private final AuthorizationConverter converter;
 
-    /**
-     * Constructs a new instance.
-     */
     public AuthorizationMenuService(AuthorizationManageSupport support,
                                     AuthorizationConverter converter) {
         this.support = support;

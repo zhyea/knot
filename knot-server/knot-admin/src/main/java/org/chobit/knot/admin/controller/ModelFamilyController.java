@@ -29,9 +29,6 @@ public class ModelFamilyController {
 
     private final ModelFamilyService modelFamilyService;
 
-    /**
-     * Constructs a new instance.
-     */
     public ModelFamilyController(ModelFamilyService modelFamilyService) {
         this.modelFamilyService = modelFamilyService;
     }

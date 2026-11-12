@@ -60,9 +60,6 @@ public class GatewayConfigQueryService {
     private final BillingRuleMapper billingRuleMapper;
     private final GatewayConfigConverter converter;
 
-    /**
-     * Constructs a new instance.
-     */
     public GatewayConfigQueryService(AppMapper appMapper,
                                      RoutingConsumerMapper routingConsumerMapper,
                                      RoutingRuleMapper routingRuleMapper,

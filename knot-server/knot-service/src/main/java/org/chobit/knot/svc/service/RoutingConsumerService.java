@@ -36,9 +36,6 @@ public class RoutingConsumerService {
     private final UserMapper userMapper;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
 
-    /**
-     * Constructs a new instance.
-     */
     public RoutingConsumerService(RoutingConsumerMapper routingConsumerMapper,
                                   UserMapper userMapper,
                                   ResourceTrafficPolicySupport trafficPolicySupport) {

@@ -38,9 +38,6 @@ public class ModelPoolService {
     private final LogicalModelMapper logicalModelMapper;
     private final ModelPoolConverter modelPoolConverter;
 
-    /**
-     * Constructs a new instance.
-     */
     public ModelPoolService(ModelPoolMapper modelPoolMapper,
                             ModelMapper modelMapper,
                             LogicalModelMapper logicalModelMapper,

@@ -12,9 +12,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Order(20)
 public class EmbeddingProtocolExecutor extends AbstractUpstreamProtocolExecutor {
 
-    /**
-     * Constructs a new instance.
-     */
     public EmbeddingProtocolExecutor(WebClient webClient,
                                      UsageExtractorRegistry usageExtractorRegistry,
                                      UpstreamAuthApplierCatalog authApplierCatalog,

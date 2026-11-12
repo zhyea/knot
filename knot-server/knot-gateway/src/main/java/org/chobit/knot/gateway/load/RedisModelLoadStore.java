@@ -54,8 +54,6 @@ public class RedisModelLoadStore implements ModelLoadStore {
     private final long ttlMillis;
 
     /**
-     * Constructs a new instance.
-     *
      * @param cache      统一 Redis 门面（内部统一 fail-hard 与 ERROR 日志）
      * @param ttlSeconds 在途计数存活时间（秒）
      */

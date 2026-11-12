@@ -22,9 +22,6 @@ public class AuthController {
     private final UserService userService;
     private final BruteForceGuard loginBruteForceGuard;
 
-    /**
-     * Constructs a new instance.
-     */
     public AuthController(UserService userService,
                          @Qualifier("loginBruteForceGuard") BruteForceGuard loginBruteForceGuard) {
         this.userService = userService;

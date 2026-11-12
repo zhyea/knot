@@ -9,9 +9,6 @@ package org.chobit.knot.common.error;
  */
 public class ForbiddenException extends BusinessException {
 
-    /**
-     * Constructs a new instance.
-     */
     public ForbiddenException(String message) {
         super(ErrorCode.FORBIDDEN, message);
     }

@@ -30,8 +30,6 @@ public final class TrafficCounterKeys {
     private final ZoneId zone;
 
     /**
-     * Constructs a new instance.
-     *
      * @param prefix 键前缀，多环境共用同一 Redis 时用于隔离
      * @param zone   限额窗口换算所用时区；多节点必须一致
      */

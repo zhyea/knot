@@ -1,5 +1,6 @@
 package org.chobit.knot.svc.service.support;
 
+import org.chobit.knot.common.constants.enums.ModelApiProtocolEnum;
 import org.chobit.knot.common.error.BusinessException;
 import org.chobit.knot.svc.dto.async.AsyncTaskProfileDryRunDto;
 import org.chobit.knot.svc.dto.async.AsyncTaskProfileSaveDto;
@@ -158,6 +159,24 @@ class AsyncTaskProfileSupportTest {
     }
 
     @Test
+    @DisplayName("⭐ 校验：流式协议不能建异步档案 —— 下拉禁选与后端拒绝必须是同一件事")
+    void streamingProtocolIsRejected() {
+        // 判据同源于 ModelApiProtocolEnum#streamSupported，与绑定保存、运行期三处一致。
+        // 原来只在 options 下拉里 disabled，API 仍能存进来，存下的档案永远不可能被绑定引用。
+        for (ModelApiProtocolEnum protocol : ModelApiProtocolEnum.values()) {
+            AsyncTaskProfileSaveDto dto = withProtocol(protocol.code());
+            if (!protocol.streamSupported()) {
+                AsyncTaskProfileSupport.validate(dto);
+                continue;
+            }
+            BusinessException error = assertThrows(BusinessException.class,
+                    () -> AsyncTaskProfileSupport.validate(dto), protocol.code() + " 是流式协议，必须拒绝");
+            assertTrue(error.getMessage().contains("流式"),
+                    protocol.code() + " 的报错要说清是流式互斥：" + error.getMessage());
+        }
+    }
+
+    @Test
     @DisplayName("校验：任务超时按分钟，1~1440 之外被拒（下限不再是 1 秒）")
     void timeoutRangeIsMinutes() {
         AsyncTaskProfileSaveDto dto = valid();
@@ -169,6 +188,17 @@ class AsyncTaskProfileSupportTest {
 
         AsyncTaskProfileSupport.validate(withTimeout(dto, 1L));
         AsyncTaskProfileSupport.validate(withTimeout(dto, 1_440L));
+    }
+
+    /** 只换协议一列，其余照抄：被不同的就是「协议是否流式」这一个事实 */
+    private static AsyncTaskProfileSaveDto withProtocol(String protocol) {
+        AsyncTaskProfileSaveDto dto = kling("['succeed'] contains status", "status == 'failed'");
+        return new AsyncTaskProfileSaveDto(dto.profileCode(), protocol, dto.queryMethod(),
+                dto.queryPath(), dto.taskIdPath(), dto.statusPath(), dto.statusSucceeded(),
+                dto.statusFailed(), dto.statusRunning(), dto.resultPath(), dto.resultUrlField(),
+                dto.errorMessagePath(), dto.resultExpiresDays(), dto.pollIntervalMs(),
+                dto.pollBackoffBaseMs(), dto.pollBackoffMaxMs(), dto.maxAttempts(),
+                dto.timeoutMinutes(), dto.status(), dto.remark());
     }
 
     /** 只换超时一列，其余字段照抄：这类边界用例要能一眼看出「差的是哪一个数」 */

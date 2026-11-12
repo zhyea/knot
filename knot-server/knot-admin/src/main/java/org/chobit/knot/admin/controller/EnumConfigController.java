@@ -21,9 +21,6 @@ public class EnumConfigController {
     private final EnumConfigService enumConfigService;
     private final OperationLogService operationLogService;
 
-    /**
-     * Constructs a new instance.
-     */
     public EnumConfigController(EnumConfigService enumConfigService, OperationLogService operationLogService) {
         this.enumConfigService = enumConfigService;
         this.operationLogService = operationLogService;

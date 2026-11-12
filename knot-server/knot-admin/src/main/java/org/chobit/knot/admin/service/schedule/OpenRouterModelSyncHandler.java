@@ -12,9 +12,6 @@ public class OpenRouterModelSyncHandler implements ScheduledTaskHandler {
 
     private final ExternalModelService externalModelService;
 
-    /**
-     * Constructs a new instance.
-     */
     public OpenRouterModelSyncHandler(ExternalModelService externalModelService) {
         this.externalModelService = externalModelService;
     }

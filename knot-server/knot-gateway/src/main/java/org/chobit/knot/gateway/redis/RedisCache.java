@@ -64,9 +64,6 @@ public class RedisCache {
         .maximumSize(10_000L)
         .build();
 
-    /**
-     * Constructs a new instance.
-     */
     public RedisCache(StringRedisTemplate template) {
         this.template = template;
     }

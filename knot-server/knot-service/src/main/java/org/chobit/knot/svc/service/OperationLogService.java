@@ -34,9 +34,6 @@ public class OperationLogService {
     private final OperationLogMapper operationLogMapper;
     private final OperationLogConverter operationLogConverter;
 
-    /**
-     * Constructs a new instance.
-     */
     public OperationLogService(OperationLogMapper operationLogMapper,
                                OperationLogConverter operationLogConverter) {
         this.operationLogMapper = operationLogMapper;

@@ -25,9 +25,6 @@ public class AuthInterceptor implements HandlerInterceptor {
      */
     private final BruteForceGuard consumerAuthBruteForceGuard;
 
-    /**
-     * Constructs a new instance.
-     */
     public AuthInterceptor(@Qualifier("consumerAuthBruteForceGuard") BruteForceGuard consumerAuthBruteForceGuard) {
         this.consumerAuthBruteForceGuard = consumerAuthBruteForceGuard;
     }

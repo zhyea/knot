@@ -15,9 +15,6 @@ public class CurrentUserController {
     private final AuthorizationAccessService authorizationAccessService;
     private final CurrentAuth currentAuth;
 
-    /**
-     * Constructs a new instance.
-     */
     public CurrentUserController(AuthorizationAccessService authorizationAccessService,
                                  CurrentAuth currentAuth) {
         this.authorizationAccessService = authorizationAccessService;

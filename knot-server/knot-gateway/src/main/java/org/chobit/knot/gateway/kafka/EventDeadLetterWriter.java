@@ -36,8 +36,6 @@ public class EventDeadLetterWriter {
     private final AtomicLong lost = new AtomicLong();
 
     /**
-     * Constructs a new instance.
-     *
      * @param dlqPath 死信文件路径；空白表示不落盘（失败仅计数 + 报警）
      */
     public EventDeadLetterWriter(String dlqPath) {

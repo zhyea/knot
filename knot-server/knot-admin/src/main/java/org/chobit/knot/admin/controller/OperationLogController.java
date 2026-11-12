@@ -19,9 +19,6 @@ public class OperationLogController {
 
     private final OperationLogService operationLogService;
 
-    /**
-     * Constructs a new instance.
-     */
     public OperationLogController(OperationLogService operationLogService) {
         this.operationLogService = operationLogService;
     }

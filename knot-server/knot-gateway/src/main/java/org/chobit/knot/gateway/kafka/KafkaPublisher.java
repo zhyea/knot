@@ -52,8 +52,6 @@ public class KafkaPublisher {
     private final AtomicLong dropped = new AtomicLong();
 
     /**
-     * Constructs a new instance.
-     *
      * @param kafkaTemplate 本组件自用的生产者模板（producer props 见 {@link KafkaConfiguration}）
      * @param deadLetter    投递失败的兜底写入器
      */

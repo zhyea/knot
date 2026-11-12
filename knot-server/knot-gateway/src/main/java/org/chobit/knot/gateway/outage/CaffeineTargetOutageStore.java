@@ -33,8 +33,6 @@ public class CaffeineTargetOutageStore implements TargetOutageStore {
     private final long graceMillis;
 
     /**
-     * Constructs a new instance.
-     *
      * @param maximumSize 最大条目数
      * @param graceMillis 到期后的保留宽限（毫秒）
      */

@@ -26,9 +26,6 @@ public class UserController {
     private final UserConverter userConverter;
     private final OptionsService optionsService;
 
-    /**
-     * Constructs a new instance.
-     */
     public UserController(UserService userService,
                           UserConverter userConverter, OptionsService optionsService) {
         this.userService = userService;

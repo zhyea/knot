@@ -12,9 +12,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Order(1000)
 public class GenericProtocolExecutor extends AbstractUpstreamProtocolExecutor {
 
-    /**
-     * Constructs a new instance.
-     */
     public GenericProtocolExecutor(WebClient webClient,
                                    UsageExtractorRegistry usageExtractorRegistry,
                                    UpstreamAuthApplierCatalog authApplierCatalog,

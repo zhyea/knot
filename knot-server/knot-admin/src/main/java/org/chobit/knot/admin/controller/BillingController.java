@@ -28,9 +28,6 @@ public class BillingController {
     private final BillingConverter billingConverter;
     private final OptionsService optionsService;
 
-    /**
-     * Constructs a new instance.
-     */
     public BillingController(BillingService billingService, BillingConverter billingConverter, OptionsService optionsService) {
         this.billingService = billingService;
         this.billingConverter = billingConverter;

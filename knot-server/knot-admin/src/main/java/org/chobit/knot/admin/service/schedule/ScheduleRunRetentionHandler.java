@@ -20,9 +20,6 @@ public class ScheduleRunRetentionHandler implements ScheduledTaskHandler {
 
     private final ScheduledTaskService taskService;
 
-    /**
-     * Constructs a new instance.
-     */
     public ScheduleRunRetentionHandler(ScheduledTaskService taskService) {
         this.taskService = taskService;
     }

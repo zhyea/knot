@@ -16,9 +16,6 @@ public class AdminAuthorizationInterceptor implements HandlerInterceptor {
     private final AuthorizationAccessService authorizationAccessService;
     private final CurrentAuth currentAuth;
 
-    /**
-     * Constructs a new instance.
-     */
     public AdminAuthorizationInterceptor(AuthorizationAccessService authorizationAccessService,
                                          CurrentAuth currentAuth) {
         this.authorizationAccessService = authorizationAccessService;

@@ -23,39 +23,23 @@ public class ModelLoadProperties {
      *
      * <p>⚠ <b>必须保持 {@code null} 默认值</b>：null 表示「未显式设置」，
      * 归一时回落 {@code caffeine}；给了默认值就分不清显式配置与未配置。</p>
-     * -- GETTER --
-     * Returns the requested value.
-     * -- SETTER --
-     * Sets the provided value.
      */
     private String store;
 
     /**
      * 存储键前缀：redis 档用于多个环境共用同一 Redis 时隔离；caffeine 档为进程内键结构。
      * 两种档位共用同一套键工厂，切档不改键结构。
-     * -- GETTER --
-     * Returns the requested value.
-     * -- SETTER --
-     * Sets the provided value.
      */
     private String keyPrefix = "knot:load";
 
     /**
      * 在途计数的存活时间（秒）：既防「计数泄漏永久化」，也是条目在无新请求时的回收时间。
      * 必须显著大于单请求的最长耗时（含长流式响应），否则正常请求也会被当作泄漏清掉。
-     * -- GETTER --
-     * Returns the requested value.
-     * -- SETTER --
-     * Sets the provided value.
      */
     private long ttlSeconds = 300L;
 
     /**
      * Caffeine 存储的最大条目数，超过后按 LRU 淘汰。
-     * -- GETTER --
-     * Returns the requested value.
-     * -- SETTER --
-     * Sets the provided value.
      */
     private long maximumSize = 20_000L;
 

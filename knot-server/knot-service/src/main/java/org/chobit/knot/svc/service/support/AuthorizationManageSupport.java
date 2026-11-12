@@ -20,9 +20,6 @@ public class AuthorizationManageSupport {
 
     private final AdminAuthorizationManageMapper manageMapper;
 
-    /**
-     * Constructs a new instance.
-     */
     public AuthorizationManageSupport(AdminAuthorizationManageMapper manageMapper) {
         this.manageMapper = manageMapper;
     }

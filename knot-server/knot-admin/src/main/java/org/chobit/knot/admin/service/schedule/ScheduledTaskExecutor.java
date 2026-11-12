@@ -42,9 +42,6 @@ public class ScheduledTaskExecutor {
     private final NodeIdentity nodeIdentity;
     private final Map<String, ScheduledTaskHandler> handlers;
 
-    /**
-     * Constructs a new instance.
-     */
     public ScheduledTaskExecutor(ScheduledTaskService taskService,
                                  NodeIdentity nodeIdentity,
                                  List<ScheduledTaskHandler> handlers) {

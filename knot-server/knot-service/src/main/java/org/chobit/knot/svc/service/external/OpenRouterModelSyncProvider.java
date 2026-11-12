@@ -46,9 +46,6 @@ public class OpenRouterModelSyncProvider extends AbstractExternalModelSyncProvid
             .connectTimeout(Duration.ofSeconds(15))
             .build();
 
-    /**
-     * Constructs a new instance.
-     */
     public OpenRouterModelSyncProvider(ExternalModelMapper externalModelMapper) {
         super(externalModelMapper);
     }

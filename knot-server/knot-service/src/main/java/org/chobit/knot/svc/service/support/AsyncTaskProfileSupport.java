@@ -95,8 +95,17 @@ public final class AsyncTaskProfileSupport {
         require(dto != null, "档案内容不能为空");
         require(PROFILE_CODE.matcher(StringUtils.defaultString(dto.profileCode())).matches(),
                 "档案编码必须以字母开头、只含字母/数字/下划线/连字符，最长 64 位：" + dto.profileCode());
-        require(ModelApiProtocolEnum.fromCode(dto.protocol()) != null,
+        ModelApiProtocolEnum protocol = ModelApiProtocolEnum.fromCode(dto.protocol());
+        require(protocol != null,
                 "API 协议编码不合法：" + dto.protocol() + "（可选值见接口协议枚举）");
+        // 流式协议不可能异步：一次提交 + N 次查询要求「响应先结束、结果稍后再问」，与边收边发互斥。
+        // 这是同一条判据的第三个落点（前两个：绑定保存 ModelApiBindingSupport#asyncProfileCodeOf、
+        // 运行期 AsyncTaskSupport#loadSpec），三处同源于 streamSupported()。
+        // 原先档案侧只在 options 下拉里 disabled —— API 仍能存进来，而存下的档案永远不可能被绑定引用，
+        // 属于「能存但永远用不上」的死配置；下拉禁选与后端拒绝必须是同一件事，否则迟早有人绕过 UI 存一份。
+        require(!protocol.streamSupported(),
+                "协议「" + protocol.displayName() + "」是流式协议，不能建异步任务档案"
+                        + "（流式响应边收边发，与「一次提交 + N 次查询」互斥）");
         require(QUERY_METHODS.contains(dto.queryMethod()),
                 "查询方法只支持 GET / POST：" + dto.queryMethod());
 

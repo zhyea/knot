@@ -42,9 +42,6 @@ public class ResourceTrafficPolicySupport {
     private final QuotaPolicyMapper quotaPolicyMapper;
     private final ResourceQuotaBindingMapper quotaBindingMapper;
 
-    /**
-     * Constructs a new instance.
-     */
     public ResourceTrafficPolicySupport(ResourceTrafficPolicyMapper bindingMapper,
                                         RateLimitPolicyMapper rateLimitPolicyMapper,
                                         QuotaPolicyMapper quotaPolicyMapper,

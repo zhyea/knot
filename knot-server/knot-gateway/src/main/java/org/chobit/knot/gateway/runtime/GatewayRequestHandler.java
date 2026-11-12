@@ -131,8 +131,6 @@ public class GatewayRequestHandler extends AbstractGatewayRequestTemplate {
     private final AsyncTaskSupport asyncTaskSupport;
 
     /**
-     * Constructs a new instance.
-     *
      * @param eventPublisher    Kafka 投递器（未开启事件输出时为 {@code null}）
      * @param trafficTopic      流量事件主题全名（埋点业务侧维护，取自 {@code kafka.topic.traffic}）
      * @param blockingScheduler 阻塞段调度器（单测可为 {@code null}）

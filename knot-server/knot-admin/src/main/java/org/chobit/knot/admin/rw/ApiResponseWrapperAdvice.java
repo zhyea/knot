@@ -28,9 +28,6 @@ public class ApiResponseWrapperAdvice implements ResponseBodyAdvice<Object> {
 
     private final RwProperties rwProperties;
 
-    /**
-     * Constructs a new instance.
-     */
     public ApiResponseWrapperAdvice(RwProperties rwProperties) {
         this.rwProperties = rwProperties;
         log.debug("ApiResponseWrapperAdvice enabled, silentMode={}", rwProperties.isSilentMode());

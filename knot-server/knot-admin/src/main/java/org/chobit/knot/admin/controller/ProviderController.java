@@ -29,9 +29,6 @@ public class ProviderController {
     private final ProviderConverter providerConverter;
     private final OptionsService optionsService;
 
-    /**
-     * Constructs a new instance.
-     */
     public ProviderController(ProviderService providerService, ProviderConverter providerConverter, OptionsService optionsService) {
         this.providerService = providerService;
         this.providerConverter = providerConverter;
@@ -92,9 +89,6 @@ public class ProviderController {
             description = "'新建供应商账户'",
             newValueSpel = "@providerService.providerAuditSnapshot(#result.id())")
     @PostMapping
-    /**
-     * Creates a new resource.
-     */
     public ProviderAccountDetail create(@RequestBody @Valid ProviderAccountDetail request) {
         ProviderAccountDto created = providerService.create(providerConverter.toDto(request));
         return providerConverter.toDetail(created);
@@ -107,9 +101,6 @@ public class ProviderController {
             oldValueSpel = "@providerService.providerAuditSnapshot(#p0)",
             newValueSpel = "@providerService.providerAuditSnapshot(#p0)")
     @PutMapping("/{id}")
-    /**
-     * Updates the target resource.
-     */
     public ProviderAccountDetail update(@PathVariable Long id, @RequestBody @Valid ProviderAccountDetail request) {
         ProviderAccountDto updated = providerService.update(id, providerConverter.toDto(request));
         return providerConverter.toDetail(updated);

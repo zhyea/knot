@@ -17,9 +17,6 @@ public class PluginController {
     private final PluginService pluginService;
     private final PluginConverter pluginConverter;
 
-    /**
-     * Constructs a new instance.
-     */
     public PluginController(PluginService pluginService, PluginConverter pluginConverter) {
         this.pluginService = pluginService;
         this.pluginConverter = pluginConverter;

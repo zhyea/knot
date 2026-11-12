@@ -24,9 +24,6 @@ public class AuthorizationPermissionService {
     private final AuthorizationManageSupport support;
     private final AuthorizationConverter converter;
 
-    /**
-     * Constructs a new instance.
-     */
     public AuthorizationPermissionService(AuthorizationManageSupport support,
                                           AuthorizationConverter converter) {
         this.support = support;

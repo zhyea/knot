@@ -42,9 +42,6 @@ public class ModelFamilyService {
     private final EnumConfigService enumConfigService;
     private final ModelFamilyConverter converter;
 
-    /**
-     * Constructs a new instance.
-     */
     public ModelFamilyService(ModelFamilyMapper modelFamilyMapper,
                               EnumConfigService enumConfigService,
                               ModelFamilyConverter converter) {

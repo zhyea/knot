@@ -35,8 +35,6 @@ public class RedisTrafficCounterStore implements TrafficCounterStore {
     private final RedisCache cache;
 
     /**
-     * Constructs a new instance.
-     *
      * @param cache 统一 Redis 门面（内部统一 fail-hard 与 ERROR 日志）
      */
     public RedisTrafficCounterStore(RedisCache cache) {

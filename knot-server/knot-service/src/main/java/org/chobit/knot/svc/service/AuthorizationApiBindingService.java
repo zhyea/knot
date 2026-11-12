@@ -24,9 +24,6 @@ public class AuthorizationApiBindingService {
     private final AuthorizationManageSupport support;
     private final AuthorizationConverter converter;
 
-    /**
-     * Constructs a new instance.
-     */
     public AuthorizationApiBindingService(AuthorizationManageSupport support,
                                           AuthorizationConverter converter) {
         this.support = support;

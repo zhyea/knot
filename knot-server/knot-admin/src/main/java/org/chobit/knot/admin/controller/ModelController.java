@@ -31,9 +31,6 @@ public class ModelController {
     private final ModelConverter modelConverter;
     private final OptionsService optionsService;
 
-    /**
-     * Constructs a new instance.
-     */
     public ModelController(ModelService modelService, ModelConverter modelConverter, OptionsService optionsService) {
         this.modelService = modelService;
         this.modelConverter = modelConverter;

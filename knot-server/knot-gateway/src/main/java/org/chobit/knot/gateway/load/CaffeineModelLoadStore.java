@@ -34,8 +34,6 @@ public class CaffeineModelLoadStore implements ModelLoadStore {
     private final long ttlSeconds;
 
     /**
-     * Constructs a new instance.
-     *
      * @param maximumSize 最大条目数
      * @param ttlSeconds  在途计数存活时间（秒）
      */
@@ -44,8 +42,6 @@ public class CaffeineModelLoadStore implements ModelLoadStore {
     }
 
     /**
-     * Constructs a new instance.
-     *
      * @param maximumSize 最大条目数
      * @param ttlSeconds  在途计数存活时间（秒）
      * @param clock       墙钟，测试可注入固定时钟

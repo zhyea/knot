@@ -12,9 +12,6 @@ public class OperationLogRetentionHandler implements ScheduledTaskHandler {
 
     private final OperationLogService operationLogService;
 
-    /**
-     * Constructs a new instance.
-     */
     public OperationLogRetentionHandler(OperationLogService operationLogService) {
         this.operationLogService = operationLogService;
     }

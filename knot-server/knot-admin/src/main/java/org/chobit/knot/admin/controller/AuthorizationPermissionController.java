@@ -28,9 +28,6 @@ public class AuthorizationPermissionController {
 
     private final AuthorizationPermissionService permissionService;
 
-    /**
-     * Constructs a new instance.
-     */
     public AuthorizationPermissionController(AuthorizationPermissionService permissionService) {
         this.permissionService = permissionService;
     }

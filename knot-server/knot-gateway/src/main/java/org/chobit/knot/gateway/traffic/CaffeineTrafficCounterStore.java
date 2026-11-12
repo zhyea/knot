@@ -29,8 +29,6 @@ public class CaffeineTrafficCounterStore implements TrafficCounterStore {
     private final Cache<String, Counter> cache;
 
     /**
-     * Constructs a new instance.
-     *
      * @param maximumSize 最大条目数
      */
     public CaffeineTrafficCounterStore(long maximumSize) {
@@ -38,8 +36,6 @@ public class CaffeineTrafficCounterStore implements TrafficCounterStore {
     }
 
     /**
-     * Constructs a new instance.
-     *
      * @param maximumSize 最大条目数
      * @param clock       墙钟，测试可注入固定时钟
      * @param ticker      Caffeine 的时间源，测试可注入

@@ -22,9 +22,6 @@ public class RoutingTestPresetController {
     private final RoutingTestPresetService presetService;
     private final RoutingTestPresetConverter presetConverter;
 
-    /**
-     * Constructs a new instance.
-     */
     public RoutingTestPresetController(RoutingTestPresetService presetService, RoutingTestPresetConverter presetConverter) {
         this.presetService = presetService;
         this.presetConverter = presetConverter;

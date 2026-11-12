@@ -20,9 +20,6 @@ public class SystemController {
     private final OperationLogService operationLogService;
     private final OperationLogConverter operationLogConverter;
 
-    /**
-     * Constructs a new instance.
-     */
     public SystemController(OperationLogService operationLogService, OperationLogConverter operationLogConverter) {
         this.operationLogService = operationLogService;
         this.operationLogConverter = operationLogConverter;

@@ -49,9 +49,6 @@ public class ScheduledTaskAdminService {
     private final ScheduledTaskSchedulerService schedulerService;
     private final Set<String> handlerCodes;
 
-    /**
-     * Constructs a new instance.
-     */
     public ScheduledTaskAdminService(ScheduledTaskService taskService,
                                     ScheduledTaskSchedulerService schedulerService,
                                     List<ScheduledTaskHandler> handlers) {

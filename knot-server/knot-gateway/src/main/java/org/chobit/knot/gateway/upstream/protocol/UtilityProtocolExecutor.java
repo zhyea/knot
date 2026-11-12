@@ -21,9 +21,6 @@ public class UtilityProtocolExecutor extends AbstractUpstreamProtocolExecutor {
             ModelApiProtocolEnum.DECISIONS
     );
 
-    /**
-     * Constructs a new instance.
-     */
     public UtilityProtocolExecutor(WebClient webClient,
                                    UsageExtractorRegistry usageExtractorRegistry,
                                    UpstreamAuthApplierCatalog authApplierCatalog,

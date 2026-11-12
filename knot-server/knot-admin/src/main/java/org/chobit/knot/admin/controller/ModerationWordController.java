@@ -23,9 +23,6 @@ public class ModerationWordController {
     private final ModerationWordService moderationWordService;
     private final ModerationWordConverter moderationWordConverter;
 
-    /**
-     * Constructs a new instance.
-     */
     public ModerationWordController(ModerationWordService moderationWordService,
                                     ModerationWordConverter moderationWordConverter) {
         this.moderationWordService = moderationWordService;

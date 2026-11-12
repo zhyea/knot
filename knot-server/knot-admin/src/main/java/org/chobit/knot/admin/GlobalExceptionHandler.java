@@ -28,9 +28,6 @@ public class GlobalExceptionHandler {
 
     private final RwProperties rwProperties;
 
-    /**
-     * Constructs a new instance.
-     */
     public GlobalExceptionHandler(RwProperties rwProperties) {
         this.rwProperties = rwProperties;
     }

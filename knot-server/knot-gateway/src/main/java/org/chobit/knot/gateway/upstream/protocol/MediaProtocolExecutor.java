@@ -26,9 +26,6 @@ public class MediaProtocolExecutor extends AbstractUpstreamProtocolExecutor {
             ModelApiProtocolEnum.VIDEO_GENERATIONS
     );
 
-    /**
-     * Constructs a new instance.
-     */
     public MediaProtocolExecutor(WebClient webClient,
                                  UsageExtractorRegistry usageExtractorRegistry,
                                  UpstreamAuthApplierCatalog authApplierCatalog,

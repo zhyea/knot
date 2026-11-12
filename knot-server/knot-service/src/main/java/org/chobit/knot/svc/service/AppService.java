@@ -37,9 +37,6 @@ public class AppService {
     private final ResourceTrafficPolicySupport trafficPolicySupport;
     private final RoutingRuleMapper routingRuleMapper;
 
-    /**
-     * Constructs a new instance.
-     */
     public AppService(AppMapper appMapper,
                       AppConverter appConverter,
                       DepartmentMapper departmentMapper,

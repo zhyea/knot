@@ -69,9 +69,6 @@ public class RoutingRuleService {
     private final LogicalModelMapper logicalModelMapper;
     private final ResourceTrafficPolicySupport trafficPolicySupport;
 
-    /**
-     * Constructs a new instance.
-     */
     public RoutingRuleService(RoutingRuleMapper routingRuleMapper,
                               RoutingRuleTargetMapper routingRuleTargetMapper,
                               RoutingConsumerMapper routingConsumerMapper,

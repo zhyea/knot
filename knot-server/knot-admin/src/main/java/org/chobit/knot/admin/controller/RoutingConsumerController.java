@@ -25,9 +25,6 @@ public class RoutingConsumerController {
     private final RoutingConsumerConverter routingConsumerConverter;
     private final OptionsService optionsService;
 
-    /**
-     * Constructs a new instance.
-     */
     public RoutingConsumerController(RoutingConsumerService routingConsumerService,
                                      RoutingConsumerConverter routingConsumerConverter,
                                      OptionsService optionsService) {

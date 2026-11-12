@@ -518,6 +518,62 @@ gateway 那 10 项就是被逼出来的：前一天补齐棘轮、第二天清�
 
 判例：`GatewayTaskController` 的异步任务查询原为 `GET /openai/v1/tasks/{taskCode}`，2026-10-29 改 `POST`——路径与 `query_url` 不变，只换方法。`gateway.controller` 包（对外入口）至此零 GET；运维管理面 `gateway.outage.admin.OutageAdminController` 的只读列表仍为 GET，属上表第三类，**不在守门范围**（守门只扫对外 controller 包）。
 
+### 5.3 javadoc 写实义：禁止与签名同义的套话（2026-11-12 立规）
+
+⭐⭐ **结论：javadoc 只写「读签名读不出来」的东西。与签名同义的句子一律不写——宁可没有 javadoc。**
+
+**判据只有一条**：删掉这句注释，读者是否损失信息？不损失 = 套话。
+
+**反例（本项目实测过的物种，全部已清）**：
+
+| 套话 | 出现在 | 为什么是噪声 |
+|---|---|---|
+| `Constructs a new instance.` | 构造函数上方 | 构造函数就是干这个的 |
+| `-- GETTER --` / `-- SETTER --` | 字段 javadoc | 工具链塞的分节标记，不是人话 |
+| `Returns the requested value.` / `Sets the provided value.` | getter / setter | 同义反复 |
+| `Lists menus.` / `Creates a role.` / `Updates a user.` | `listMenus` / `createRole` / `updateUser` | 方法名逐词翻译 |
+| `Lists matching results.` / `Creates a new resource.` / `Updates the target resource.` | Controller / Service 层 | 占位式空话，连操作对象都没说 |
+
+**正例（长得像套话，但必须留）**：
+
+- `Lists usage extractors available for model API bindings.` ——「仅限可用于模型 API 绑定」这层限定签名里没有；
+- `Updates the model enabled status only. Enabling runs full validation; disabling skips it.` —— 讲了副作用；
+- `Anthropic {@code stop_reason} → OpenAI {@code finish_reason}。` —— 纯英文，但正是该写的东西。
+
+⚠ **判据是信息增量，不是语种。**「英文 = 套话」不是规则：上面第三条全英文照样保留；
+反过来中文也能写套话（`/** 获取列表 */` 挂在 `listXxx` 上一样是废话）。
+
+**该写什么（按价值排序，四条即可覆盖绝大多数场合）**：
+
+1. **why**：为什么这么写、为什么不能那样，被否掉的替代方案是什么；
+2. **副作用与时序**：调用后改了什么状态、必须排在什么之后、失败后留下什么；
+3. **边界与单位**：`0` 是否合法、`null` 与「没给」怎么区分、单位（分/秒/毫秒、字节/KB）、时区；
+4. **判例名**：把守门测试类名写进注释（本项目既有习惯），后来人改坏时知道去哪看红线。
+
+⚠ **不写 javadoc 也是合法的**：`getXxx` / `builder` / `withXxx` 这类自解释方法，
+不写注释好过写一句废话——废话会把真注释一起淹掉，读者学会跳过全部 javadoc 之后就没人再看红线说明了。
+
+**守门**：`JavadocBoilerplateTest`（`knot-common`，全库扫 `<模块>/src/main/java`）——
+命中枚举清单即失败，**空壳 javadoc**（只有起止标记、没有正文）同判。
+清单**逐句枚举**，禁止写成 `^Lists .*\.$` 这类通配：实测这一族里带真语义的有十几句
+（上面「正例」两条之外还有 `Lists debug capabilities per protocol: …`、
+`Creates an upstream error response carrying the <b>original upstream status</b>.` 等），
+按通配删会把实义一起删掉。
+
+⚠ **存量治理口径（实测数）**：2026-11-11 清 310 处（`Executes the public operation.` 一族）；
+2026-11-12 发现该轮清单只覆盖一个物种，**补清 139 处 / 113 文件**
+（`Constructs a new instance.` 117、`-- GETTER --`/`-- SETTER --` 8、getter/setter 8、占位空话 6）。
+仍未纳入守门的是「名词取自方法名」的那批约 150 句（`Lists users.` / `Creates a model.`）：
+它们与正例只差一个限定语，正则判不出，留给改到那个文件时顺手删。
+
+⚠ **删除纪律（都踩过）**：
+
+- 整块全是套话 → 连起止标记一起删，**不留空壳**；块里还有实义 → 只删套话行，`@param` / `@return` 一律不动；
+- 删块前先看上一行是不是块尾标记：**两块 javadoc 叠在一起时 Java 只认最后一块**（见 80-code-review §4），
+  删快了会把真注释变成孤儿；
+- 用脚本批量删时**行尾按字节保留**（CRLF 逐行带 `\r`）；校验方式是 `git diff --numstat` 必须是 `+0`——
+  出现 `+N` 就说明整文件被重组过，行尾已经改了。
+
 ## 6. 异常与鉴权
 
 - `BusinessException` **无 `@ResponseStatus`** → 返回 HTTP 200 + `success:false`，前端按业务码处理。

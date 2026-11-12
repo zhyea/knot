@@ -29,9 +29,6 @@ public class ProviderCredentialSupport {
     private final ProviderAccountMapper providerAccountMapper;
     private final CredentialEncryption credentialEncryption;
 
-    /**
-     * Constructs a new instance.
-     */
     public ProviderCredentialSupport(ProviderCredentialMapper providerCredentialMapper,
                                      ProviderAccountMapper providerAccountMapper,
                                      CredentialEncryption credentialEncryption) {

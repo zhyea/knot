@@ -23,9 +23,6 @@ public class AuthorizationModuleService {
     private final AuthorizationManageSupport support;
     private final AuthorizationConverter converter;
 
-    /**
-     * Constructs a new instance.
-     */
     public AuthorizationModuleService(AuthorizationManageSupport support,
                                       AuthorizationConverter converter) {
         this.support = support;

@@ -22,9 +22,6 @@ public class AppController {
     private final AppConverter appConverter;
     private final OptionsService optionsService;
 
-    /**
-     * Constructs a new instance.
-     */
     public AppController(AppService appService, AppConverter appConverter, OptionsService optionsService) {
         this.appService = appService;
         this.appConverter = appConverter;

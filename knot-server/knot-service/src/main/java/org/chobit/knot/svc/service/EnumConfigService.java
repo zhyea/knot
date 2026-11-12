@@ -86,9 +86,6 @@ public class EnumConfigService {
     private final EnumCategoryMapper enumCategoryMapper;
     private final EnumConfigConverter converter;
 
-    /**
-     * Constructs a new instance.
-     */
     public EnumConfigService(EnumConfigMapper enumConfigMapper, EnumCategoryMapper enumCategoryMapper,
                              EnumConfigConverter converter) {
         this.enumConfigMapper = enumConfigMapper;

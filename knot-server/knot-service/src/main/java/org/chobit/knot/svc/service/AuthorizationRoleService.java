@@ -31,9 +31,6 @@ public class AuthorizationRoleService {
     private final AuthorizationManageSupport support;
     private final AuthorizationConverter converter;
 
-    /**
-     * Constructs a new instance.
-     */
     public AuthorizationRoleService(AuthorizationManageSupport support,
                                     AuthorizationConverter converter) {
         this.support = support;

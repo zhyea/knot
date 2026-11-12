@@ -28,9 +28,6 @@ public class AuthorizationMenuController {
 
     private final AuthorizationMenuService menuService;
 
-    /**
-     * Constructs a new instance.
-     */
     public AuthorizationMenuController(AuthorizationMenuService menuService) {
         this.menuService = menuService;
     }

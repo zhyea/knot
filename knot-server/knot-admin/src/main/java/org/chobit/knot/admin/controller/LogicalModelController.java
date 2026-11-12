@@ -24,9 +24,6 @@ public class LogicalModelController {
     private final LogicalModelConverter logicalModelConverter;
     private final OptionsService optionsService;
 
-    /**
-     * Constructs a new instance.
-     */
     public LogicalModelController(LogicalModelService logicalModelService,
                                   LogicalModelConverter logicalModelConverter, OptionsService optionsService) {
         this.logicalModelService = logicalModelService;
@@ -68,9 +65,6 @@ public class LogicalModelController {
             description = "'新建统一模型'",
             newValueSpel = "@logicalModelService.logicalModelAuditSnapshot(#result.id())")
     @PostMapping
-    /**
-     * Creates a new resource.
-     */
     public LogicalModelItem create(@RequestBody @Valid LogicalModelItem request) {
         return logicalModelConverter.toVO(logicalModelService.create(logicalModelConverter.toDto(request)));
     }
@@ -82,9 +76,6 @@ public class LogicalModelController {
             oldValueSpel = "@logicalModelService.logicalModelAuditSnapshot(#p0)",
             newValueSpel = "@logicalModelService.logicalModelAuditSnapshot(#p0)")
     @PutMapping("/{id}")
-    /**
-     * Updates the target resource.
-     */
     public LogicalModelItem update(@PathVariable Long id, @RequestBody @Valid LogicalModelItem request) {
         return logicalModelConverter.toVO(logicalModelService.update(id, logicalModelConverter.toDto(request)));
     }
@@ -110,9 +101,6 @@ public class LogicalModelController {
             description = "'删除统一模型'",
             oldValueSpel = "@logicalModelService.logicalModelAuditSnapshot(#p0)")
     @DeleteMapping("/{id}")
-    /**
-     * Deletes the target resource.
-     */
     public void delete(@PathVariable Long id) {
         logicalModelService.delete(id);
     }

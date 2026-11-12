@@ -30,9 +30,6 @@ public class ScheduledTaskController {
 
     private final ScheduledTaskAdminService scheduledTaskService;
 
-    /**
-     * Constructs a new instance.
-     */
     public ScheduledTaskController(ScheduledTaskAdminService scheduledTaskService) {
         this.scheduledTaskService = scheduledTaskService;
     }

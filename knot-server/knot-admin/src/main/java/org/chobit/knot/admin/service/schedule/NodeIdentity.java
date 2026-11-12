@@ -11,9 +11,6 @@ public class NodeIdentity {
 
     private final String nodeId;
 
-    /**
-     * Constructs a new instance.
-     */
     public NodeIdentity(@Value("${knot.node-id:}") String configuredNodeId) {
         if (configuredNodeId != null && !configuredNodeId.isBlank()) {
             this.nodeId = configuredNodeId.trim();

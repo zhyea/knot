@@ -11,9 +11,6 @@ import org.springframework.context.annotation.Configuration;
 @Configuration(proxyBeanMethods = false)
 public class JsonKitConfiguration {
 
-    /**
-     * Constructs a new instance.
-     */
     public JsonKitConfiguration(ObjectMapper objectMapper) {
         JsonKit.init(objectMapper);
     }

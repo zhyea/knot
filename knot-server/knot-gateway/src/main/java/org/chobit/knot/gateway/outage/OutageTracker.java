@@ -24,9 +24,6 @@ public class OutageTracker {
     private final TargetOutageStore store;
     private final OutageKeys keys;
 
-    /**
-     * Constructs a new instance.
-     */
     public OutageTracker(TargetOutageStore store, OutageKeys keys) {
         this.store = store;
         this.keys = keys;

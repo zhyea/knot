@@ -64,9 +64,6 @@ public class ModerationWordResource {
      */
     private final Counter failOpenCounter;
 
-    /**
-     * Constructs a new instance.
-     */
     public ModerationWordResource(ModerationWordService moderationWordService, MeterRegistry registry) {
         this.cache = Caffeine.newBuilder()
                 .expireAfterWrite(EXPIRE_AFTER_WRITE)

@@ -22,8 +22,6 @@ public class BruteForceGuard {
     private final long maxFailures;
 
     /**
-     * Constructs a new instance.
-     *
      * @param maxFailures 时间窗内允许的最大失败次数，超过即封禁
      * @param window      时间窗长度（从最后一次写入起算自动过期）
      */

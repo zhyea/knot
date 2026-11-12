@@ -54,9 +54,6 @@ public class RoutingResolver {
      */
     private final ProtocolCandidateFilter protocolFilter;
 
-    /**
-     * Constructs a new instance.
-     */
     public RoutingResolver(GatewayConfigCacheService dataService,
                            ModelPoolSelection modelPoolSelection,
                            ModelLoadStore modelLoadStore,

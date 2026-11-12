@@ -79,9 +79,6 @@ public class ModelService {
     private final UsageExtractorCatalog usageExtractorCatalog;
     private final UpstreamAdapterCatalog requestAdapterCatalog;
 
-    /**
-     * Constructs a new instance.
-     */
     public ModelService(ModelMapper modelMapper,
                         DiscountPolicyMapper discountPolicyMapper,
                         ModelApiBindingSupport apiBindingSupport,

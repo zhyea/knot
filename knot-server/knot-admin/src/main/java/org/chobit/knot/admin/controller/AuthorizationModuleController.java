@@ -28,9 +28,6 @@ public class AuthorizationModuleController {
 
     private final AuthorizationModuleService moduleService;
 
-    /**
-     * Constructs a new instance.
-     */
     public AuthorizationModuleController(AuthorizationModuleService moduleService) {
         this.moduleService = moduleService;
     }

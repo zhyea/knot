@@ -35,9 +35,6 @@ public class AuthorizationRoleController {
     private final AuthorizationRoleService roleService;
     private final OptionsService optionsService;
 
-    /**
-     * Constructs a new instance.
-     */
     public AuthorizationRoleController(AuthorizationRoleService roleService, OptionsService optionsService) {
         this.roleService = roleService;
         this.optionsService = optionsService;

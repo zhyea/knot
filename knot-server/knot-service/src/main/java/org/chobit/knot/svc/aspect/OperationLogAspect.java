@@ -49,9 +49,6 @@ public class OperationLogAspect {
     private final BeanFactory beanFactory;
     private final ExpressionParser parser = new SpelExpressionParser();
 
-    /**
-     * Constructs a new instance.
-     */
     public OperationLogAspect(OperationLogService operationLogService, BeanFactory beanFactory) {
         this.operationLogService = operationLogService;
         this.beanFactory = beanFactory;

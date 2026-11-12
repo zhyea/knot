@@ -12,9 +12,6 @@ public class XFusionAIModelSyncHandler implements ScheduledTaskHandler {
 
     private final ExternalModelService externalModelService;
 
-    /**
-     * Constructs a new instance.
-     */
     public XFusionAIModelSyncHandler(ExternalModelService externalModelService) {
         this.externalModelService = externalModelService;
     }

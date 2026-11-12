@@ -312,8 +312,6 @@ INSERT IGNORE INTO ks_api_permission_bindings (id, permission_id, http_method, p
 (51, 65, 'PUT', '/api/system/authorizations/permissions/{id}/status', 'AuthorizationPermissionController', 1),
 (52, 62, 'PUT', '/api/system/authorizations/api-bindings/{id}/status', 'AuthorizationApiBindingController', 1),
 (53, 56, 'PUT', '/api/users/{id}/reset-password', 'UserController', 1),
-(54, 58, 'POST', '/api/docs/openapi.json', 'ApiDocController', 1),
-(55, 58, 'POST', '/api/docs/changelog', 'ApiDocController', 1),
 (56, 59, 'POST', '/api/apps', 'AppController', 1),
 (57, 60, 'PUT', '/api/apps/{id}', 'AppController', 1),
 (58, 61, 'DELETE', '/api/apps/{id}', 'AppController', 1),

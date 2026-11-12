@@ -24,9 +24,6 @@ public class AuthorizationAccessService {
     private final AdminAuthorizationMapper adminAuthorizationMapper;
     private final UserMapper userMapper;
 
-    /**
-     * Constructs a new instance.
-     */
     public AuthorizationAccessService(AdminAuthorizationMapper adminAuthorizationMapper,
                                      UserMapper userMapper) {
         this.adminAuthorizationMapper = adminAuthorizationMapper;

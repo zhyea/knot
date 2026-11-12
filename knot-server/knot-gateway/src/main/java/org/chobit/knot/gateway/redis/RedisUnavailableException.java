@@ -27,8 +27,6 @@ public class RedisUnavailableException extends RuntimeException {
     private final String key;
 
     /**
-     * Constructs a new instance.
-     *
      * @param domain    存储域（traffic / load），仅用于日志定位
      * @param operation 触发故障的操作名
      * @param key       涉及的键，可为空（列举类操作）
