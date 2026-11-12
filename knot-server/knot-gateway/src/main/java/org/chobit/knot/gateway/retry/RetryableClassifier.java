@@ -63,18 +63,27 @@ public final class RetryableClassifier {
      * 无 HTTP 状态时的兜底：只有网络/传输层失败才值得重试。
      *
      * <p>{@code UPSTREAM_ERROR} 在无状态时来自执行器的通用 catch（连接超时、读超时、
-     * 连接重置、EOF 等），重试有效；其余错误码多为配置问题，重试多少次结果都一样。</p>
+     * 连接重置、EOF 等），重试有效；其余错误码多为配置问题或网关自己的拒绝，重试多少次结果都一样。</p>
+     *
+     * <p>穷举 {@link ProxyErrorCodeEnum} 而不是手写 code 字符串（B4 判例：枚举有 code 却手抄字面量）：
+     * 手写字符串最危险的地方是它是<b>静默</b>的——新增一个本该重试的码会被 {@code default} 默默判成
+     * 不重试，而把一个不该重试的码写进重试分支就是重复调用上游、重复计费。改成枚举穷举后，
+     * 新增常量时这里编译失败，强制作者表态。</p>
      */
     private static boolean retryableByCode(String code) {
-        if (code == null) {
+        ProxyErrorCodeEnum type = ProxyErrorCodeEnum.fromCode(code);
+        if (type == null) {
+            // 未知码理论上不该出现；宁可少重试一次，也不重试一个看不懂的失败
             return false;
         }
-        return switch (code) {
-            case "UPSTREAM_ERROR" -> true;
-            case "MODEL_NOT_FOUND", "PROVIDER_NOT_FOUND", "API_PROTOCOL_NOT_CONFIGURED",
-                 "UPSTREAM_ENDPOINT_NOT_CONFIGURED",
-                 "MISSING_MODEL", "NO_ROUTING_TARGET", "RATE_LIMIT_EXCEEDED", "QUOTA_EXCEEDED" -> false;
-            default -> false;
+        return switch (type) {
+            case UPSTREAM_ERROR -> true;
+            case MISSING_MODEL, MODEL_NOT_FOUND, PROVIDER_NOT_FOUND, API_PROTOCOL_NOT_CONFIGURED,
+                 UPSTREAM_ENDPOINT_NOT_CONFIGURED, RATE_LIMIT_EXCEEDED, QUOTA_EXCEEDED,
+                 NO_ROUTING_TARGET -> false;
+            // 空响应是确定性失败，正常路径上已被 terminal() 短路（见 retryable 第一行）；
+            // 此处显式列出只为让穷举完整，语义是「即使漏网也不重试」
+            case UPSTREAM_EMPTY_RESPONSE -> false;
         };
     }
 

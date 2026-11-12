@@ -170,7 +170,8 @@ public final class AsyncTaskProfileSupport {
                 : readRequiredText(createBody, profile.taskIdPath(), "任务 ID 表达式（task_id_path）", errors);
 
         String status = null;
-        String terminal = null;
+        // 判定结论以枚举形态带着走：提示文案靠穷举 switch 兜住新增档位，字符串只在出口转一次
+        AsyncTaskTerminalSupport.Terminal terminalVerdict = null;
         List<String> resultUrls = List.of();
         String errorMessage = null;
 
@@ -189,7 +190,7 @@ public final class AsyncTaskProfileSupport {
                         || testQuietly(vars, profile.statusRunning(), "进行中判定表达式（status_running）", errors);
                 if (errors.isEmpty()) {
                     AsyncTaskTerminalSupport.Verdict verdict = AsyncTaskTerminalSupport.verdict(queryBody, expressions(profile));
-                    terminal = verdict.terminal().name();
+                    terminalVerdict = verdict.terminal();
                     resultUrls = verdict.resultUrls();
                     errorMessage = verdict.errorMessage();
                     if (verdict.terminal() == AsyncTaskTerminalSupport.Terminal.RUNNING && !succeeded && !failed && running) {
@@ -205,8 +206,10 @@ public final class AsyncTaskProfileSupport {
             }
         }
 
-        return new AsyncTaskProfileDryRunVo(upstreamTaskId, status, terminal, resultUrls, errorMessage,
-                hintOf(terminal, resultUrls, errorMessage), List.copyOf(errors), List.copyOf(warnings));
+        return new AsyncTaskProfileDryRunVo(upstreamTaskId, status,
+                terminalVerdict == null ? null : terminalVerdict.name(),
+                resultUrls, errorMessage,
+                hintOf(terminalVerdict, resultUrls, errorMessage), List.copyOf(errors), List.copyOf(warnings));
     }
 
     // ───────────────────────── 内部 ─────────────────────────
@@ -217,14 +220,22 @@ public final class AsyncTaskProfileSupport {
                 profile.resultUrlField(), profile.errorMessagePath());
     }
 
-    private static String hintOf(String terminal, List<String> resultUrls, String errorMessage) {
+    /**
+     * 试跑结论的一句话提示。
+     *
+     * <p>入参是枚举而不是 {@code Terminal#name()} 转出来的字符串：字符串版本要写
+     * {@code switch ("SUCCEEDED")} 加 {@code default}，新增档位时静静落进 default，
+     * 试跑就会对运维说一句与判定结论不符的话——而试跑的全部价值就是「说得清判定成了什么」。</p>
+     */
+    private static String hintOf(AsyncTaskTerminalSupport.Terminal terminal, List<String> resultUrls,
+                                 String errorMessage) {
         if (terminal == null) {
             return "未能判定：请确认查询响应是一段真实的上游返回，并检查 status_path";
         }
         return switch (terminal) {
-            case "SUCCEEDED" -> "命中成功，" + resultUrls.size() + " 个产物";
-            case "FAILED" -> errorMessage == null ? "命中失败（未取到失败原因）" : "命中失败：" + errorMessage;
-            default -> "判定为进行中：运行时会按退避继续轮询";
+            case SUCCEEDED -> "命中成功，" + resultUrls.size() + " 个产物";
+            case RUNNING -> "判定为进行中：运行时会按退避继续轮询";
+            case FAILED -> errorMessage == null ? "命中失败（未取到失败原因）" : "命中失败：" + errorMessage;
         };
     }
 

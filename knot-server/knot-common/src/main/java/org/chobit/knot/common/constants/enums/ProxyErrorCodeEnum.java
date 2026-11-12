@@ -25,10 +25,26 @@ public enum ProxyErrorCodeEnum {
         this.code = code;
     }
 
-    /**
-     * Executes the public operation. Executes the public operation.
-     */
+    /** 上游失败的内部错误码（全大写，与常量同名）。 */
     public String code() {
         return code;
+    }
+
+    /**
+     * 按 code 反查枚举；{@code null} 与未知值都返回 {@code null}（大小写敏感，code 全大写）。
+     *
+     * <p>存在的意义是让调用方写 {@code switch (枚举)} 穷举，而不是手写字符串字面量：
+     * 新增一个 code 时，漏掉分支的地方会编译失败，而不是静默落进 {@code default}。</p>
+     */
+    public static ProxyErrorCodeEnum fromCode(String code) {
+        if (code == null) {
+            return null;
+        }
+        for (ProxyErrorCodeEnum value : values()) {
+            if (value.code.equals(code)) {
+                return value;
+            }
+        }
+        return null;
     }
 }

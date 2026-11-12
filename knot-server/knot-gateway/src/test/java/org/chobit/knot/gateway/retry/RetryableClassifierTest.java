@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -110,6 +111,18 @@ class RetryableClassifierTest {
     void ordinaryUpstreamFailuresAreNotTerminal() {
         assertFalse(RetryableClassifier.terminal(error(503)));
         assertFalse(RetryableClassifier.terminal(null));
+    }
+
+    @Test
+    void everyCodeIsClassifiedExplicitly() {
+        // 运行时口径：只有 UPSTREAM_ERROR 值得重试，其余 code 一律不重试。
+        // 编译期那半由 RetryableClassifier#retryableByCode 的 switch 穷举兜住 ——
+        // 新增 ProxyErrorCodeEnum 常量时不表态就编译失败，不会静默落进 default。
+        for (ProxyErrorCodeEnum type : ProxyErrorCodeEnum.values()) {
+            GatewayUpstreamException e = new GatewayUpstreamException("probe", type.code());
+            assertEquals(type == ProxyErrorCodeEnum.UPSTREAM_ERROR,
+                    RetryableClassifier.retryable(e, DEFAULT), type.name());
+        }
     }
 
     private static GatewayUpstreamException error(int status) {

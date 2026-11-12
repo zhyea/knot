@@ -191,8 +191,25 @@ class AsyncTaskProfileSupportTest {
         assertEquals("succeed", vo.status());
         assertEquals("SUCCEEDED", vo.terminal());
         assertEquals(List.of("https://x/1.mp4", "https://x/2.mp4"), vo.resultUrls());
+        assertTrue(vo.elapsedHint().contains("命中成功"), vo.elapsedHint());
+        assertTrue(vo.elapsedHint().contains("2 个产物"), vo.elapsedHint());
         assertTrue(vo.errors().isEmpty(), "合法档案不该报错：" + vo.errors());
         assertTrue(vo.warnings().isEmpty(), "成功且取到产物不该有告警：" + vo.warnings());
+    }
+
+    @Test
+    @DisplayName("试跑：命中失败 → 摘要里带上游原话（运维要能直接拿着这句话去找供应商）")
+    void dryRunReportsFailureWithReason() {
+        String failedQuery = KLING_QUERY
+                .replace("\"succeed\"", "\"failed\"")
+                .replace("\"task_status_msg\":\"\"", "\"task_status_msg\":\"content moderation blocked\"");
+        AsyncTaskProfileDryRunVo vo = AsyncTaskProfileSupport.dryRun(
+                new AsyncTaskProfileDryRunDto(valid(), KLING_CREATE, failedQuery));
+
+        assertEquals("FAILED", vo.terminal());
+        assertEquals("content moderation blocked", vo.errorMessage());
+        assertTrue(vo.elapsedHint().contains("命中失败"), vo.elapsedHint());
+        assertTrue(vo.elapsedHint().contains("content moderation blocked"), vo.elapsedHint());
     }
 
     @Test
@@ -202,6 +219,7 @@ class AsyncTaskProfileSupportTest {
                 valid(), null, KLING_QUERY.replace("\"succeed\"", "\"weird-state\"")));
 
         assertEquals("RUNNING", vo.terminal());
+        assertTrue(vo.elapsedHint().contains("进行中"), vo.elapsedHint());
         assertFalse(vo.warnings().isEmpty(), "会一直轮询到超时的配置必须提示");
         assertTrue(vo.warnings().get(0).contains("weird-state"), vo.warnings().toString());
     }
