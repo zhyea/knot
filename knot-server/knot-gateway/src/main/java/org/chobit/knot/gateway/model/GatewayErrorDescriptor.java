@@ -94,8 +94,8 @@ public record GatewayErrorDescriptor(String type,
         }
         // 兜底：网关自己的未预期异常。刻意不复用 UPSTREAM_ERROR —— 上游错误是「模型服务回的」，
         // 这里是我们自己炸了；混记会让数仓的上游错误率凭空变高，排查也会被引到供应商那边
-        return new GatewayErrorDescriptor(
-            GatewayErrorTypeEnum.INTERNAL_ERROR.code(), null,
+        return new GatewayErrorDescriptor(
+            GatewayErrorTypeEnum.INTERNAL_ERROR.code(), null,
             HTTP_INTERNAL_ERROR, GatewayErrorStageEnum.INTERNAL.code());
     }
 
