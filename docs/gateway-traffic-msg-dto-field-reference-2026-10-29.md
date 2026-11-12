@@ -147,7 +147,7 @@
 | `quota_exceeded` | `quota_error` |
 | `upstream_error` | `upstream_error` |
 | `timeout` | `timeout_error` |
-| `gateway_error` | 其他（默认） |
+| `gateway_error` | `internal_error` / 其他（默认） |
 
 ---
 
@@ -241,10 +241,10 @@
 
 | JSON 字段 | 类型 | 含义 |
 |---|---|---|
-| `type` | string | 错误类型（`auth_error` / `invalid_request_error` / `moderation_error` / `rate_limit_error` / `quota_error` / `upstream_error` / `storage_unavailable` …） |
+| `type` | string | 错误类型（`auth_error` / `invalid_request_error` / `moderation_error` / `rate_limit_error` / `quota_error` / `upstream_error` / `internal_error` / `storage_unavailable` …） |
 | `code` | string | 业务码（如 `RATE_LIMIT_EXCEEDED` / `UPSTREAM_ERROR`） |
 | `http_status` | int | 终态 HTTP 状态码 |
-| `stage` | string | 发生阶段：`header_validate` / `request_parse` / `routing_resolve` / `routing_traffic_check` / `target_traffic_check` / `upstream_call` / `plugin_moderation` / `storage` |
+| `stage` | string | 发生阶段（`GatewayErrorStageEnum` 九值）：`header_validate` / `request_parse` / `routing_traffic_check` / `target_traffic_check` / `upstream_call` / `plugin_moderation` / `storage` / `timeout` / `internal` |
 | `message` | string | 错误描述，**截断 ≤512 字符** |
 | `detail` | object | 仅 429（限流 / 限额）携带（`TrafficRejectMsgDto`，§8.1）；其余为 `null` |
 | `upstream` | object | 仅 502（上游失败）携带（`UpstreamErrorMsgDto`，§4.1）；其余为 `null` |

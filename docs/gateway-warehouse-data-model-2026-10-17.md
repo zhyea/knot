@@ -179,10 +179,11 @@ ADS  看板：成本 TopN、成功率、P95 TTFT、限流命中率、缓存命�
 | `storage_unavailable` | 503 | Redis 不可用（fail-hard 档） | `domain`/`operation`/`key`（ERROR 日志即报警通道） |
 | `upstream_error` | 502 | 上游异常终态 | 同 §4.1 |
 | `timeout_error` | 504 | 请求预算超时（B2 全局 deadline，`Mono.timeout` 抛 `TimeoutException`） | — |
+| `internal_error` | 500 | 网关自身未预期异常（兜底；2026-11-12 起不再记作 `upstream_error`） | — |
 
 **429 结构化明细**（`model/TrafficRejectDetail.java:24-32`，随响应体 `error.detail` 返回）：`resourceType` / `resourceCode` / `reason`（RATE_LIMIT_RPM/RATE_LIMIT_TPM/QUOTA_TOKENS/QUOTA_COST）/ `dimension` / `unit` / `limit` / `used` / `resetAt`(ISO UTC) / `resetAfterSeconds`。成本维度内部按 **1e-12 缩放计数**，输出时还原金额——数仓存还原后金额 + currency，勿存缩放计数。
 
-**发生阶段标记**（request 级事件应有 `error_stage`）：header_validate / routing_resolve / routing_traffic_check / target_traffic_check / upstream_call / usage_accounting。由 §2 表可直接映射。
+**发生阶段标记**（request 级事件应有 `error_stage`）：header_validate / request_parse / routing_traffic_check / target_traffic_check / upstream_call / plugin_moderation / storage / timeout / internal —— 取值以 `GatewayErrorStageEnum` 为准（九值，代码优先于本行）。
 
 ### 4.3 异常事件形态
 

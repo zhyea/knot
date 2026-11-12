@@ -131,7 +131,11 @@
 | `quota_error` | 429 | token / 成本限额超限 | `QUOTA_EXCEEDED` | TrafficRejectDetail | — |
 | `upstream_error` | 502 | 上游异常终态 | `UPSTREAM_ERROR` 等 8 值 | — | **上游原状态码** |
 | `storage_unavailable` | 503 | Redis 不可用（fail-hard 档） | — | — | — |
-| （兜底）`upstream_error` | 500 | 未预期异常 | — | — | — |
+| `internal_error` | 500 | 未预期异常（网关自身故障） | — | — | — |
+
+> **2026-11-12 变更**：500 兜底的 `error.type` 由 `upstream_error` 改为 `internal_error`
+> （`GatewayErrorTypeEnum#INTERNAL_ERROR`）——未预期异常是网关自己炸了，混记会让数仓的「上游错误率」
+> 凭空变高、告警也打给供应商。属 `error.type` 词表**新增值**，不删旧值（502 仍用 `upstream_error`）。
 
 > **2026-10-17 增补（Batch4 冒烟场景 7 副产物）**：上游非 2xx 统一以 **502** 回给客户端（错误码隔离不变），
 > 但响应体 `error.upstreamStatus` 会带上**上游原状态码**、`error.upstreamMessage` 带上截断到 300 字符的

@@ -332,8 +332,9 @@ N 次上游查询实际发出的 `traceparent` 头也是提交那一个，于是
 | `quota_error` | 429 | 同上 | `detail` |
 | `upstream_error` | 502 | `upstream_call` | `upstream` 三件套 |
 | `storage_unavailable` | 503 | `storage` | — |
+| `internal_error` | 500 | `internal` | — |
 
-- `stage` 八值：`header_validate` / `request_parse` / `routing_resolve` / `routing_traffic_check` / `target_traffic_check` / `upstream_call` / `plugin_moderation` / `storage`（当前代码异常对象**不带阶段**，需埋点时按 §1 链路映射硬编码，见 §4）。
+- `stage` 九值（`GatewayErrorStageEnum`）：`header_validate` / `request_parse` / `routing_traffic_check` / `target_traffic_check` / `upstream_call` / `plugin_moderation` / `storage` / `timeout` / `internal`（当前代码异常对象**不带阶段**，需埋点时按 §1 链路映射硬编码，见 §4）。
 - 终态选取：候选全失败的终态异常是 `lastUpstreamException`（首个被频控拒的是 `firstRejection`，无可用候选时抛）——error 记录终态，**每次失败明细在 attempts[]**。
 - `detail`（429 专有）：`resource_type` / `resource_code` / `reason`（RATE_LIMIT_RPM/RATE_LIMIT_TPM/QUOTA_TOKENS/QUOTA_COST）/ `dimension` / `unit` / `limit` / `used` / `reset_at` / `reset_after_seconds`；成本维度数值已从 1e-12 缩放计数还原成金额 + `unit` 为币种。
 
